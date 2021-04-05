@@ -458,7 +458,6 @@ const callWithParams = r`\([^)]*\)`;
 
 const maybeExtends = `(?: +extends +${maybeAncestors}${classId})?`;
 
-/* eslint-disable max-len */
 const headingExpressions = [
   { type: 'event', re: RegExp(
     `${eventPrefix}${maybeBacktick}${maybeQuote}(${notQuotes})${maybeQuote}${maybeBacktick}$`, 'i') },
@@ -478,7 +477,6 @@ const headingExpressions = [
   { type: 'property', re: RegExp(
     `^${maybeClassPropertyPrefix}${maybeBacktick}${ancestors}(${id})${maybeBacktick}$`, 'i') },
 ];
-/* eslint-enable max-len */
 
 function newSection(header, file) {
   const text = textJoin(header.children, file);

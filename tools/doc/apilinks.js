@@ -62,8 +62,8 @@ inputs.forEach((file) => {
   const program = ast.body;
 
   // Build link
-  const link = `https://github.com/${repo}/blob/${tag}/` +
-    path.relative('.', file).replace(/\\/g, '/');
+  const link =
+    `https://github.com/${repo}/blob/${tag}/${path.relative('.', file).replace(/\\/g, '/')}`;
 
   // Scan for exports.
   const exported = { constructors: [], identifiers: [] };
