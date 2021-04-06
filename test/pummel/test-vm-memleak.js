@@ -22,7 +22,12 @@
 'use strict';
 // Flags: --max_old_space_size=32 --expose_gc
 
-require('../common');
+const common = require('../common');
+
+if (process.config.variables.asan) {
+  common.skip('ASAN messes with memory measurements');
+}
+
 const assert = require('assert');
 const vm = require('vm');
 
