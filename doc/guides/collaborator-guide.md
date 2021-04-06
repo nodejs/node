@@ -90,32 +90,25 @@ to land but is [author ready](#author-ready-pull-requests), add the
 
 ### Managing security issues
 
-Security issues should ideally be reported through the processes outlined in
-[SECURITY.md][security reporting]. This allows the collaborators to
-appropriately triage the report and address vulnerabilities in a planned
-security release. If an issue is opened in the public repo
-which describes a security issue, or if an issue is later identified to be
-describing a security issue, take the following steps:
+Use the process outlined in [SECURITY.md][] to report security
+issues. If a user opens a security issue in the public repository:
 
-* Ask the originator to submit a report through Hacker one as outlined in
-  [SECURITY.md][security reporting].
+* Ask the user to submit a report through HackerOne as outlined in
+  [SECURITY.md][].
 * Move the issue to the private repo called
   [premature-disclosures](https://github.com/nodejs/premature-disclosures).
 * For any related pull requests, create an associated issue in the
   `premature-disclosures` repository.  Add a copy of the patch for the
   pull request to the issue. Add screenshots of discussion from the pull request
   to the issue.
-* Open a ticket with GitHub asking that the pull requests be deleted through
-  [GitHub support](https://support.github.com/contact)
-  using Node.js(team) as the account organization.
-* Open a new issue in the repository in which the issue was originally
-  reported with a brief FYI to the originator: "FYI @xxxx we asked GitHub
-  to delete your pull request while we work on releases in private." with the
-  title `FYI - pull request deleted #YYYY`.
-* Email `tsc@iojs.org` with the link to the issues in the
-  `premature-disclosures` repo so that the TSC is aware that they
-  may need to expedite handling of the issue due to premature
-  disclosure.
+* [Open a ticket with GitHub](https://support.github.com/contact) to delete the
+  pull request using Node.js (team) as the account organization.
+* Open a new issue in the public repository with the title `FYI - pull request
+  deleted #YYYY`. Include an explanation for the user:
+  > FYI @xxxx we asked GitHub to delete your pull request while we work on
+  > releases in private.
+* Email `tsc@iojs.org` with links to the issues in the
+  `premature-disclosures` repository.
 
 ## Accepting modifications
 
@@ -842,6 +835,7 @@ If you cannot find who to cc for a file, `git shortlog -n -s <file>` can help.
 
 ["Merge Pull Request"]: https://help.github.com/articles/merging-a-pull-request/#merging-a-pull-request-on-github
 [Deprecation]: https://en.wikipedia.org/wiki/Deprecation
+[SECURITY.md]: https://github.com/nodejs/node/blob/HEAD/SECURITY.md
 [Stability Index]: ../api/documentation.md#stability-index
 [TSC]: https://github.com/nodejs/TSC
 [`--pending-deprecation`]: ../api/cli.md#--pending-deprecation
@@ -856,5 +850,4 @@ If you cannot find who to cc for a file, `git shortlog -n -s <file>` can help.
 [git-username]: https://help.github.com/articles/setting-your-username-in-git/
 [node-core-utils-credentials]: https://github.com/nodejs/node-core-utils#setting-up-credentials
 [node-core-utils-issues]: https://github.com/nodejs/node-core-utils/issues
-[security reporting]: https://github.com/nodejs/node/blob/HEAD/SECURITY.md
 [unreliable tests]: https://github.com/nodejs/node/issues?q=is%3Aopen+is%3Aissue+label%3A%22CI+%2F+flaky+test%22
