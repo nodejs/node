@@ -323,9 +323,11 @@ Cancels a `Timeout` object created by [`setTimeout()`][].
 ## Timers Promises API
 <!-- YAML
 added: v15.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: Graduated from experimental.
 -->
-
-> Stability: 1 - Experimental
 
 The `timers/promises` API provides an alternative set of timer functions
 that return `Promise` objects. The API is accessible via
