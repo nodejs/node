@@ -456,7 +456,7 @@ An alias of [`assert.ok()`][].
 added: v0.1.21
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/38113
     description: In Legacy assertion mode, changed status from Deprecated to
                  Legacy.
   - version: v14.0.0
@@ -1128,7 +1128,7 @@ assert.doesNotThrow(
 added: v0.1.21
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/38113
     description: In Legacy assertion mode, changed status from Deprecated to
                  Legacy.
   - version: v14.0.0
@@ -1457,7 +1457,7 @@ instance of an [`Error`][] then it will be thrown instead of the
 added: v0.1.21
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/38113
     description: In Legacy assertion mode, changed status from Deprecated to
                  Legacy.
   - version: v14.0.0
@@ -1637,7 +1637,7 @@ instead of the [`AssertionError`][].
 added: v0.1.21
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/38113
     description: In Legacy assertion mode, changed status from Deprecated to
                  Legacy.
   - version: v14.0.0
