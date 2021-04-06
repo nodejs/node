@@ -3591,8 +3591,8 @@ introducing security vulnerabilities into an application.
 [`buffer.constants.MAX_STRING_LENGTH`]: #buffer_buffer_constants_max_string_length
 [`buffer.kMaxLength`]: #buffer_buffer_kmaxlength
 [`util.inspect()`]: util.md#util_util_inspect_object_options
+[`v8::TypedArray::kMaxLength`]: https://v8.github.io/api/head/classv8_1_1TypedArray.html#a54a48f4373da0850663c4393d843b9b0
 [base64url]: https://tools.ietf.org/html/rfc4648#section-5
 [binary strings]: https://developer.mozilla.org/en-US/docs/Web/API/DOMString/Binary
 [endianness]: https://en.wikipedia.org/wiki/Endianness
 [iterator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols
-[`v8::TypedArray::kMaxLength`]: https://v8.github.io/api/head/classv8_1_1TypedArray.html#a54a48f4373da0850663c4393d843b9b0
