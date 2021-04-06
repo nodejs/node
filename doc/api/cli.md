@@ -187,6 +187,19 @@ Make built-in language features like `eval` and `new Function` that generate
 code from strings throw an exception instead. This does not affect the Node.js
 `vm` module.
 
+### `--dns-result-order=order`
+<!-- YAML
+added: REPLACEME
+-->
+
+Set the default value of `verbatim` in [`dns.lookup()`][] and
+[`dnsPromises.lookup()`][]. The value could be:
+* `ipv4first`: sets default `verbatim` `false`.
+* `verbatim`: sets default `verbatim` `true`.
+
+The default is `ipv4first` and [`dns.setDefaultResultOrder()`][] have higher
+priority than `--dns-result-order`.
+
 ### `--enable-fips`
 <!-- YAML
 added: v6.0.0
@@ -1379,6 +1392,7 @@ Node.js options that are allowed are:
 * `--conditions`, `-C`
 * `--diagnostic-dir`
 * `--disable-proto`
+* `--dns-result-order`
 * `--enable-fips`
 * `--enable-source-maps`
 * `--experimental-abortcontroller`
@@ -1767,6 +1781,9 @@ $ node --max-old-space-size=1536 index.js
 [`NODE_OPTIONS`]: #cli_node_options_options
 [`NO_COLOR`]: https://no-color.org
 [`SlowBuffer`]: buffer.md#buffer_class_slowbuffer
+[`dns.lookup()`]: dns.md#dns_dns_lookup_hostname_options_callback
+[`dns.setDefaultResultOrder()`]: dns.md#dns_dns_setdefaultresultorder_order
+[`dnsPromises.lookup()`]: dns.md#dns_dnspromises_lookup_hostname_options
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#process_process_setuncaughtexceptioncapturecallback_fn
 [`tls.DEFAULT_MAX_VERSION`]: tls.md#tls_tls_default_max_version
 [`tls.DEFAULT_MIN_VERSION`]: tls.md#tls_tls_default_min_version
