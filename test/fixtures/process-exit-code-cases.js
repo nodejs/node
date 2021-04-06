@@ -122,6 +122,15 @@ function getTestCases(isWorker = false) {
     result: isWorker ? 1 : 7,
     error: /^Error: ok$/,
   });
+
+  function exitWithUndefinedFatalException() {
+    process._fatalException = undefined;
+    throw new Error('ok');
+  }
+  cases.push({
+    func: exitWithUndefinedFatalException,
+    result: 6,
+  });
   return cases;
 }
 exports.getTestCases = getTestCases;
