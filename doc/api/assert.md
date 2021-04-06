@@ -876,18 +876,17 @@ parameter is an instance of an [`Error`][] then it will be thrown instead of the
 added:
   - v13.6.0
   - v12.16.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/38111
+    description: This API is no longer experimental.
 -->
 
 * `string` {string}
 * `regexp` {RegExp}
 * `message` {string|Error}
 
-> Stability: 1 - Experimental
-
 Expects the `string` input not to match the regular expression.
-
-This feature is currently experimental and the name might change or it might be
-completely removed again.
 
 ```mjs
 import assert from 'assert/strict';
@@ -1398,18 +1397,17 @@ let err;
 added:
   - v13.6.0
   - v12.16.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/38111
+    description: This API is no longer experimental.
 -->
 
 * `string` {string}
 * `regexp` {RegExp}
 * `message` {string|Error}
 
-> Stability: 1 - Experimental
-
 Expects the `string` input to match the regular expression.
-
-This feature is currently experimental and the name might change or it might be
-completely removed again.
 
 ```mjs
 import assert from 'assert/strict';
