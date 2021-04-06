@@ -3415,7 +3415,13 @@ added: v8.2.0
 * {integer} The largest size allowed for a single `Buffer` instance.
 
 On 32-bit architectures, this value currently is 2<sup>30</sup> - 1 (~1GB).
-On 64-bit architectures, this value currently is 2<sup>31</sup> - 1 (~2GB).
+On 64-bit architectures, this value currently is
+
+* for v12: 2<sup>31</sup> - 1 (~2GB)
+* for v14: 2<sup>32</sup> - 1 (~4GB)
+* for v15: 2<sup>32</sup>(~4GB)
+
+It reflects [`v8::TypedArray::kMaxLength`][] under the hood.
 
 This value is also available as [`buffer.kMaxLength`][].
 
@@ -3589,3 +3595,4 @@ introducing security vulnerabilities into an application.
 [binary strings]: https://developer.mozilla.org/en-US/docs/Web/API/DOMString/Binary
 [endianness]: https://en.wikipedia.org/wiki/Endianness
 [iterator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols
+[`v8::TypedArray::kMaxLength`]: https://v8.github.io/api/head/classv8_1_1TypedArray.html#a54a48f4373da0850663c4393d843b9b0
