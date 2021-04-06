@@ -23,7 +23,7 @@ dat = read.csv(
 dat = data.frame(dat);
 
 dat$nameTwoLines = paste0(dat$filename, '\n', dat$configuration);
-dat$name = paste0(dat$filename, dat$configuration);
+dat$name = paste0(dat$filename, ' ', dat$configuration);
 
 # Create a box plot
 if (!is.null(plot.filename)) {
