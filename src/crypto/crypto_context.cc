@@ -247,78 +247,106 @@ void GetRootCertificates(const FunctionCallbackInfo<Value>& args) {
       Array::New(env->isolate(), result, arraysize(root_certs)));
 }
 
+bool SecureContext::HasInstance(Environment* env, const Local<Value>& value) {
+  return GetConstructorTemplate(env)->HasInstance(value);
+}
+
+Local<FunctionTemplate> SecureContext::GetConstructorTemplate(
+    Environment* env) {
+  Local<FunctionTemplate> tmpl = env->secure_context_constructor_template();
+  if (tmpl.IsEmpty()) {
+    tmpl = env->NewFunctionTemplate(New);
+    tmpl->InstanceTemplate()->SetInternalFieldCount(
+        SecureContext::kInternalFieldCount);
+    tmpl->Inherit(BaseObject::GetConstructorTemplate(env));
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "SecureContext"));
+
+    env->SetProtoMethod(tmpl, "init", Init);
+    env->SetProtoMethod(tmpl, "setKey", SetKey);
+    env->SetProtoMethod(tmpl, "setCert", SetCert);
+    env->SetProtoMethod(tmpl, "addCACert", AddCACert);
+    env->SetProtoMethod(tmpl, "addCRL", AddCRL);
+    env->SetProtoMethod(tmpl, "addRootCerts", AddRootCerts);
+    env->SetProtoMethod(tmpl, "setCipherSuites", SetCipherSuites);
+    env->SetProtoMethod(tmpl, "setCiphers", SetCiphers);
+    env->SetProtoMethod(tmpl, "setSigalgs", SetSigalgs);
+    env->SetProtoMethod(tmpl, "setECDHCurve", SetECDHCurve);
+    env->SetProtoMethod(tmpl, "setDHParam", SetDHParam);
+    env->SetProtoMethod(tmpl, "setMaxProto", SetMaxProto);
+    env->SetProtoMethod(tmpl, "setMinProto", SetMinProto);
+    env->SetProtoMethod(tmpl, "getMaxProto", GetMaxProto);
+    env->SetProtoMethod(tmpl, "getMinProto", GetMinProto);
+    env->SetProtoMethod(tmpl, "setOptions", SetOptions);
+    env->SetProtoMethod(tmpl, "setSessionIdContext", SetSessionIdContext);
+    env->SetProtoMethod(tmpl, "setSessionTimeout", SetSessionTimeout);
+    env->SetProtoMethod(tmpl, "close", Close);
+    env->SetProtoMethod(tmpl, "loadPKCS12", LoadPKCS12);
+    env->SetProtoMethod(tmpl, "setTicketKeys", SetTicketKeys);
+    env->SetProtoMethod(tmpl, "setFreeListLength", SetFreeListLength);
+    env->SetProtoMethod(tmpl, "enableTicketKeyCallback",
+        EnableTicketKeyCallback);
+
+    env->SetProtoMethodNoSideEffect(tmpl, "getTicketKeys", GetTicketKeys);
+    env->SetProtoMethodNoSideEffect(tmpl, "getCertificate",
+        GetCertificate<true>);
+    env->SetProtoMethodNoSideEffect(tmpl, "getIssuer",
+        GetCertificate<false>);
+
+  #ifndef OPENSSL_NO_ENGINE
+    env->SetProtoMethod(tmpl, "setEngineKey", SetEngineKey);
+    env->SetProtoMethod(tmpl, "setClientCertEngine", SetClientCertEngine);
+  #endif  // !OPENSSL_NO_ENGINE
+
+  #define SET_INTEGER_CONSTANTS(name, value)                                   \
+      tmpl->Set(FIXED_ONE_BYTE_STRING(env->isolate(), name),                   \
+            Integer::NewFromUnsigned(env->isolate(), value));
+    SET_INTEGER_CONSTANTS("kTicketKeyReturnIndex", kTicketKeyReturnIndex);
+    SET_INTEGER_CONSTANTS("kTicketKeyHMACIndex", kTicketKeyHMACIndex);
+    SET_INTEGER_CONSTANTS("kTicketKeyAESIndex", kTicketKeyAESIndex);
+    SET_INTEGER_CONSTANTS("kTicketKeyNameIndex", kTicketKeyNameIndex);
+    SET_INTEGER_CONSTANTS("kTicketKeyIVIndex", kTicketKeyIVIndex);
+  #undef SET_INTEGER_CONSTANTS
+
+    Local<FunctionTemplate> ctx_getter_templ =
+        FunctionTemplate::New(env->isolate(),
+                              CtxGetter,
+                              Local<Value>(),
+                              Signature::New(env->isolate(), tmpl));
+
+    tmpl->PrototypeTemplate()->SetAccessorProperty(
+        FIXED_ONE_BYTE_STRING(env->isolate(), "_external"),
+        ctx_getter_templ,
+        Local<FunctionTemplate>(),
+        static_cast<PropertyAttribute>(ReadOnly | DontDelete));
+
+    env->set_secure_context_constructor_template(tmpl);
+  }
+  return tmpl;
+}
+
 void SecureContext::Initialize(Environment* env, Local<Object> target) {
-  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
-  t->InstanceTemplate()->SetInternalFieldCount(
-      SecureContext::kInternalFieldCount);
-  t->Inherit(BaseObject::GetConstructorTemplate(env));
-
-  env->SetProtoMethod(t, "init", Init);
-  env->SetProtoMethod(t, "setKey", SetKey);
-#ifndef OPENSSL_NO_ENGINE
-  env->SetProtoMethod(t, "setEngineKey", SetEngineKey);
-#endif  // !OPENSSL_NO_ENGINE
-  env->SetProtoMethod(t, "setCert", SetCert);
-  env->SetProtoMethod(t, "addCACert", AddCACert);
-  env->SetProtoMethod(t, "addCRL", AddCRL);
-  env->SetProtoMethod(t, "addRootCerts", AddRootCerts);
-  env->SetProtoMethod(t, "setCipherSuites", SetCipherSuites);
-  env->SetProtoMethod(t, "setCiphers", SetCiphers);
-  env->SetProtoMethod(t, "setSigalgs", SetSigalgs);
-  env->SetProtoMethod(t, "setECDHCurve", SetECDHCurve);
-  env->SetProtoMethod(t, "setDHParam", SetDHParam);
-  env->SetProtoMethod(t, "setMaxProto", SetMaxProto);
-  env->SetProtoMethod(t, "setMinProto", SetMinProto);
-  env->SetProtoMethod(t, "getMaxProto", GetMaxProto);
-  env->SetProtoMethod(t, "getMinProto", GetMinProto);
-  env->SetProtoMethod(t, "setOptions", SetOptions);
-  env->SetProtoMethod(t, "setSessionIdContext", SetSessionIdContext);
-  env->SetProtoMethod(t, "setSessionTimeout", SetSessionTimeout);
-  env->SetProtoMethod(t, "close", Close);
-  env->SetProtoMethod(t, "loadPKCS12", LoadPKCS12);
-#ifndef OPENSSL_NO_ENGINE
-  env->SetProtoMethod(t, "setClientCertEngine", SetClientCertEngine);
-#endif  // !OPENSSL_NO_ENGINE
-  env->SetProtoMethodNoSideEffect(t, "getTicketKeys", GetTicketKeys);
-  env->SetProtoMethod(t, "setTicketKeys", SetTicketKeys);
-  env->SetProtoMethod(t, "setFreeListLength", SetFreeListLength);
-  env->SetProtoMethod(t, "enableTicketKeyCallback", EnableTicketKeyCallback);
-  env->SetProtoMethodNoSideEffect(t, "getCertificate", GetCertificate<true>);
-  env->SetProtoMethodNoSideEffect(t, "getIssuer", GetCertificate<false>);
-
-#define SET_INTEGER_CONSTANTS(name, value)                                     \
-    t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), name),                        \
-           Integer::NewFromUnsigned(env->isolate(), value));
-  SET_INTEGER_CONSTANTS("kTicketKeyReturnIndex", kTicketKeyReturnIndex);
-  SET_INTEGER_CONSTANTS("kTicketKeyHMACIndex", kTicketKeyHMACIndex);
-  SET_INTEGER_CONSTANTS("kTicketKeyAESIndex", kTicketKeyAESIndex);
-  SET_INTEGER_CONSTANTS("kTicketKeyNameIndex", kTicketKeyNameIndex);
-  SET_INTEGER_CONSTANTS("kTicketKeyIVIndex", kTicketKeyIVIndex);
-
-#undef SET_INTEGER_CONSTANTS
-
-  Local<FunctionTemplate> ctx_getter_templ =
-      FunctionTemplate::New(env->isolate(),
-                            CtxGetter,
-                            Local<Value>(),
-                            Signature::New(env->isolate(), t));
-
-
-  t->PrototypeTemplate()->SetAccessorProperty(
-      FIXED_ONE_BYTE_STRING(env->isolate(), "_external"),
-      ctx_getter_templ,
-      Local<FunctionTemplate>(),
-      static_cast<PropertyAttribute>(ReadOnly | DontDelete));
-
-  env->SetConstructorFunction(target, "SecureContext", t);
-
-  env->set_secure_context_constructor_template(t);
+  env->SetConstructorFunction(
+      target,
+      "SecureContext",
+      GetConstructorTemplate(env),
+      Environment::SetConstructorFunctionFlag::NONE);
 
   env->SetMethodNoSideEffect(target, "getRootCertificates",
                              GetRootCertificates);
   // Exposed for testing purposes only.
   env->SetMethodNoSideEffect(target, "isExtraRootCertsFileLoaded",
                              IsExtraRootCertsFileLoaded);
+}
+
+SecureContext* SecureContext::Create(Environment* env) {
+  Local<Object> obj;
+  if (!GetConstructorTemplate(env)
+          ->InstanceTemplate()
+          ->NewInstance(env->context()).ToLocal(&obj)) {
+    return nullptr;
+  }
+
+  return new SecureContext(env, obj);
 }
 
 SecureContext::SecureContext(Environment* env, Local<Object> wrap)
