@@ -455,6 +455,10 @@ An alias of [`assert.ok()`][].
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/38113
+    description: In Legacy assertion mode, changed status from Deprecated to
+                 Legacy.
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/30766
     description: NaN is now treated as being identical in case both sides are
@@ -496,7 +500,7 @@ An alias of [`assert.deepStrictEqual()`][].
 
 **Legacy assertion mode**
 
-> Stability: 0 - Deprecated: Use [`assert.deepStrictEqual()`][] instead.
+> Stability: 3 - Legacy: Use [`assert.deepStrictEqual()`][] instead.
 
 Tests for deep equality between the `actual` and `expected` parameters. Consider
 using [`assert.deepStrictEqual()`][] instead. [`assert.deepEqual()`][] can have
@@ -1122,6 +1126,10 @@ assert.doesNotThrow(
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/38113
+    description: In Legacy assertion mode, changed status from Deprecated to
+                 Legacy.
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/30766
     description: NaN is now treated as being identical in case both sides are
@@ -1138,7 +1146,7 @@ An alias of [`assert.strictEqual()`][].
 
 **Legacy assertion mode**
 
-> Stability: 0 - Deprecated: Use [`assert.strictEqual()`][] instead.
+> Stability: 3 - Legacy: Use [`assert.strictEqual()`][] instead.
 
 Tests shallow, coercive equality between the `actual` and `expected` parameters
 using the [Abstract Equality Comparison][] ( `==` ). `NaN` is special handled
@@ -1446,6 +1454,10 @@ instance of an [`Error`][] then it will be thrown instead of the
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/38113
+    description: In Legacy assertion mode, changed status from Deprecated to
+                 Legacy.
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/30766
     description: NaN is now treated as being identical in case both sides are
@@ -1483,7 +1495,7 @@ An alias of [`assert.notDeepStrictEqual()`][].
 
 **Legacy assertion mode**
 
-> Stability: 0 - Deprecated: Use [`assert.notDeepStrictEqual()`][] instead.
+> Stability: 3 - Legacy: Use [`assert.notDeepStrictEqual()`][] instead.
 
 Tests for any deep inequality. Opposite of [`assert.deepEqual()`][].
 
@@ -1622,6 +1634,10 @@ instead of the [`AssertionError`][].
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/38113
+    description: In Legacy assertion mode, changed status from Deprecated to
+                 Legacy.
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/30766
     description: NaN is now treated as being identical in case both sides are
@@ -1638,7 +1654,7 @@ An alias of [`assert.notStrictEqual()`][].
 
 **Legacy assertion mode**
 
-> Stability: 0 - Deprecated: Use [`assert.notStrictEqual()`][] instead.
+> Stability: 3 - Legacy: Use [`assert.notStrictEqual()`][] instead.
 
 Tests shallow, coercive inequality with the [Abstract Equality Comparison][]
 (`!=` ). `NaN` is special handled and treated as being identical in case both
