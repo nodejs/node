@@ -3697,7 +3697,7 @@ Returns information about a given cipher.
 Some ciphers accept variable length keys and initialization vectors. By default,
 the `crypto.getCipherInfo()` method will return the default values for these
 ciphers. To test if a given key length or iv length is acceptable for given
-cipher, use the `keyLenth` and `ivLenth` options. If the given values are
+cipher, use the `keyLength` and `ivLength` options. If the given values are
 unacceptable, `undefined` will be returned.
 
 ### `crypto.getCiphers()`
