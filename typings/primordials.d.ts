@@ -1,5 +1,9 @@
 type UncurryThis<T extends (this: unknown, ...args: unknown[]) => unknown> =
   (self: ThisParameterType<T>, ...args: Parameters<T>) => ReturnType<T>;
+type UncurryThisStaticApply<T extends (this: unknown, ...args: unknown[]) => unknown> =
+  (self: ThisParameterType<T>, args: Parameters<T>) => ReturnType<T>;
+type StaticApply<T extends (this: unknown, ...args: unknown[]) => unknown> =
+  (args: Parameters<T>) => ReturnType<T>;
 
 /**
  * Primordials are a way to safely use globals without fear of global mutation
@@ -19,6 +23,12 @@ type UncurryThis<T extends (this: unknown, ...args: unknown[]) => unknown> =
  * ```
  */
 declare namespace primordials {
+  export function uncurryThis<
+      T extends (...args: unknown[]) => unknown
+    > (fn: T):
+      (self: ThisType<T>, ...args: Parameters<T>) => ReturnType<T>;
+  export function makeSafe<T extends NewableFunction>(unsafe: NewableFunction, safe: T): T;
+
   export const decodeURI: typeof globalThis.decodeURI;
   export const decodeURIComponent: typeof globalThis.decodeURIComponent;
   export const encodeURI: typeof globalThis.encodeURI;
@@ -49,6 +59,7 @@ declare namespace primordials {
   export const MathLog2: typeof Math.log2
   export const MathLog10: typeof Math.log10
   export const MathMax: typeof Math.max
+  export const MathMaxApply: StaticApply<typeof Math.max>
   export const MathMin: typeof Math.min
   export const MathPow: typeof Math.pow
   export const MathRandom: typeof Math.random
@@ -100,9 +111,11 @@ declare namespace primordials {
   export const ArrayPrototypeLastIndexOf: UncurryThis<typeof Array.prototype.lastIndexOf>
   export const ArrayPrototypePop: UncurryThis<typeof Array.prototype.pop>
   export const ArrayPrototypePush: UncurryThis<typeof Array.prototype.push>
+  export const ArrayPrototypePushApply: UncurryThisStaticApply<typeof Array.prototype.push>
   export const ArrayPrototypeReverse: UncurryThis<typeof Array.prototype.reverse>
   export const ArrayPrototypeShift: UncurryThis<typeof Array.prototype.shift>
   export const ArrayPrototypeUnshift: UncurryThis<typeof Array.prototype.unshift>
+  export const ArrayPrototypeUnshiftApply: UncurryThisStaticApply<typeof Array.prototype.unshift>
   export const ArrayPrototypeSlice: UncurryThis<typeof Array.prototype.slice>
   export const ArrayPrototypeSort: UncurryThis<typeof Array.prototype.sort>
   export const ArrayPrototypeSplice: UncurryThis<typeof Array.prototype.splice>
