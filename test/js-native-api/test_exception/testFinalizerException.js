@@ -29,4 +29,4 @@ const child = spawnSync(process.execPath, [
   '--expose-gc', __filename, 'child',
 ]);
 assert.strictEqual(child.signal, null);
-assert.match(child.stderr.toString(), /Error during Finalize/m);
+assert.match(child.stderr.toString(), /Error during Finalize/);

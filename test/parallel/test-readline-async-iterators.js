@@ -39,7 +39,7 @@ async function testSimple() {
       expectedLines.pop();
     }
     assert.deepStrictEqual(iteratedLines, expectedLines);
-    assert.strictEqual(iteratedLines.join(''), fileContent.replace(/\n/gm, ''));
+    assert.strictEqual(iteratedLines.join(''), fileContent.replace(/\n/g, ''));
   }
 }
 
