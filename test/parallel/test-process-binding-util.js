@@ -28,3 +28,5 @@ assert.deepStrictEqual(
 for (const k of Object.keys(utilBinding)) {
   assert.strictEqual(utilBinding[k], util.types[k]);
 }
+
+assert.strictEqual(utilBinding, process.binding('util'));
