@@ -10,9 +10,11 @@ zlib-binding/test: SKIP
 # Async-cleaup-hook fails.
 async-cleanup-hook/test: SKIP
 
-[$arch==arm]
+# [$arch==arm]
 # https://github.com/nodejs/node/issues/30786
-openssl-binding/test: PASS,FLAKY
+# openssl-binding/test: PASS,FLAKY
+# https://bugs.chromium.org/p/v8/issues/detail?id=11550
+openssl-binding/test: SKIP
 
 [$system==ibmi]
 openssl-binding/test: SKIP
