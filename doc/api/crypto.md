@@ -4557,7 +4557,7 @@ randomFill(buf, 5, 5, (err, buf) => {
 });
 ```
 
-Any `ArrayBuffer` `TypedArray` or `DataView` instance may be passed as
+Any `ArrayBuffer`, `TypedArray`, or `DataView` instance may be passed as
 `buffer`.
 
 ```mjs
