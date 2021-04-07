@@ -418,7 +418,8 @@ class Reference : public RefBase {
       return;
     }
     _persistent.SetWeak(
-        _secondPassParameter, FinalizeCallback, v8::WeakCallbackType::kParameter);
+        _secondPassParameter, FinalizeCallback,
+        v8::WeakCallbackType::kParameter);
     *_secondPassParameter = this;
   }
 
@@ -455,7 +456,6 @@ class Reference : public RefBase {
   // of a parameter within the Reference object itself. This is what
   // is stored in _secondPassParameter and it is alocated in the
   // constructor for the Reference.
-  SecondPassCallParameterRef* _secondPassParameter;
   static void SecondPassCallback(
       const v8::WeakCallbackInfo<SecondPassCallParameterRef>& data) {
     SecondPassCallParameterRef* parameter = data.GetParameter();
@@ -469,6 +469,7 @@ class Reference : public RefBase {
   }
 
   v8impl::Persistent<v8::Value> _persistent;
+  SecondPassCallParameterRef* _secondPassParameter;
 };
 
 enum UnwrapAction {
