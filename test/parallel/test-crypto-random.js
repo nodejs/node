@@ -525,3 +525,10 @@ assert.throws(
     assert.throws(() => crypto.randomInt(0, 1, i), cbError);
   });
 }
+
+{
+  // Verify that it doesn't throw or abort
+  crypto.randomFill(new Uint16Array(10), 0, common.mustSucceed());
+  crypto.randomFill(new Uint32Array(10), 0, common.mustSucceed());
+  crypto.randomFill(new Uint32Array(10), 0, 1, common.mustSucceed());
+}
