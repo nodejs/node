@@ -3410,16 +3410,24 @@ added: v8.2.0
 #### `buffer.constants.MAX_LENGTH`
 <!-- YAML
 added: v8.2.0
+changes:
+  - version: v15.0.0
+    pr-url: https://github.com/nodejs/node/pull/35415
+    description: Value is changed to 2<sup>32</sup> (~4GB) on 64-bit
+      architectures.
+  - version: v14.0.0
+    pr-url: https://github.com/nodejs/node/pull/32116
+    description: Value is changed to 2<sup>32</sup> - 1 (~4GB) on 64-bit
+      architectures.
 -->
 
 * {integer} The largest size allowed for a single `Buffer` instance.
 
 On 32-bit architectures, this value currently is 2<sup>30</sup> - 1 (~1GB).
-On 64-bit architectures, this value currently is
 
-* for v12: 2<sup>31</sup> - 1 (~2GB)
-* for v14: 2<sup>32</sup> - 1 (~4GB)
-* for v15: 2<sup>32</sup>(~4GB)
+On 64-bit architectures, this value varies from Node.js version to version.
+It is at least 2<sup>31</sup> - 1 (~2GB) and currently is 2<sup>32</sup>
+(~4GB). See history for detail.
 
 It reflects [`v8::TypedArray::kMaxLength`][] under the hood.
 
