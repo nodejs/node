@@ -275,7 +275,7 @@ async function pbkdf2Key(pass, salt, iterations = 1000, length = 256) {
     ec.encode(pass),
     'PBKDF2',
     false,
-    ['deriveBits']);
+    ['deriveKey']);
   const key = await subtle.deriveKey({
     name: 'PBKDF2',
     hash: 'SHA-512',
