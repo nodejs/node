@@ -1325,6 +1325,8 @@ if (!common.hasOpenSSL3) {
       if (!getCurves().includes(namedCurve))
         continue;
 
+      const expectedErrorCode =
+        common.hasOpenSSL3 ? 'ERR_OSSL_MISSING_OID' : 'ERR_OSSL_EC_MISSING_OID';
       const params = {
         namedCurve,
         publicKeyEncoding: {
@@ -1336,11 +1338,11 @@ if (!common.hasOpenSSL3) {
       assert.throws(() => {
         generateKeyPairSync('ec', params);
       }, {
-        code: 'ERR_OSSL_EC_MISSING_OID'
+        code: expectedErrorCode
       });
 
       generateKeyPair('ec', params, common.mustCall((err) => {
-        assert.strictEqual(err.code, 'ERR_OSSL_EC_MISSING_OID');
+        assert.strictEqual(err.code, expectedErrorCode);
       }));
     }
   }
