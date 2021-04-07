@@ -1,9 +1,25 @@
-type UncurryThis<T extends (...args: any[]) => any> = (self: ThisParameterType<T>, ...args: Parameters<T>) => ReturnType<T>;
+type UncurryThis<T extends (this: unknown, ...args: unknown[]) => unknown> =
+  (self: ThisParameterType<T>, ...args: Parameters<T>) => ReturnType<T>;
 
 /**
- * why
+ * Primordials are a way to safely use globals without fear of global mutation
+ * Generally, this means removing `this` parameter usage and instead using
+ * a regular parameter:
+ * 
+ * @example
+ * 
+ * ```js
+ * 'thing'.startsWith('hello');
+ * ```
+ * 
+ * becomes
+ * 
+ * ```js
+ * primordials.StringPrototypeStartsWith('thing', 'hello')
+ * ```
  */
-declare namespace primordials {export const decodeURI: typeof globalThis.decodeURI;
+declare namespace primordials {
+  export const decodeURI: typeof globalThis.decodeURI;
   export const decodeURIComponent: typeof globalThis.decodeURIComponent;
   export const encodeURI: typeof globalThis.encodeURI;
   export const encodeURIComponent: typeof globalThis.encodeURIComponent;

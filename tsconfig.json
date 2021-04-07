@@ -1,11 +1,15 @@
 {
   "include": ["lib","doc"],
   "exclude": ["src","tools","out"],
-  "files": ["./typings/primordials.d.ts"],
+  "files": [
+    "./typings/internalBinding.d.ts",
+    "./typings/primordials.d.ts"
+  ],
   "compilerOptions": {
     "allowJs": true,
     "checkJs": false,
     "noEmit": true,
+    "lib": ["ESNext"],
     "target": "ESNext",
     "module": "CommonJS",
     "baseUrl": ".",
