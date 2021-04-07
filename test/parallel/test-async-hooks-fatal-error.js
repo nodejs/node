@@ -2,6 +2,7 @@
 require('../common');
 const assert = require('assert');
 const childProcess = require('child_process');
+const os = require('os');
 
 if (process.argv[2] === 'child') {
   child(process.argv[3], process.argv[4]);
@@ -46,7 +47,7 @@ function main() {
           encoding: 'utf8',
         });
       assert.strictEqual(cp.status, 1, type);
-      assert.strictEqual(cp.stderr.trim().split('\n')[0], expect, type);
+      assert.strictEqual(cp.stderr.trim().split(os.EOL)[0], expect, type);
     }
   }
 }
