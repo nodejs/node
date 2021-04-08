@@ -90,6 +90,15 @@ semver as \fB>=1\.4\.0 <1\.5\.0\fP\|\.  See https://github\.com/npm/npm/issues/6
 .P
 The simplest way to avoid semver problems with tags is to use tags that do
 not begin with a number or the letter \fBv\fP\|\.
+.SS Configuration
+.SS workspaces
+.P
+Only supported by \fBls\fP\|\. Enables listing dist\-tags of all workspace
+contexts defined in the current \fBpackage\.json\fP\|\.
+.SS workspace
+.P
+Only supported by \fBls\fP\|\. Enables listing dist\-tags of workspace contexts
+limiting results to only those specified by this config item\.
 .SS See Also
 .RS 0
 .IP \(bu 2

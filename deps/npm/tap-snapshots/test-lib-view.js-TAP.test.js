@@ -450,7 +450,7 @@ dist-tags:
 `
 
 exports[`test/lib/view.js TAP workspaces remote package name > must match snapshot 1`] = `
-Ignoring workspaces for remote package
+Ignoring workspaces for specified package(s)
 `
 
 exports[`test/lib/view.js TAP workspaces remote package name > must match snapshot 2`] = `

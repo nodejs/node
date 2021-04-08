@@ -141,7 +141,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#purpose">Purpose</a></li><li><a href="#caveats">Caveats</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#purpose">Purpose</a></li><li><a href="#caveats">Caveats</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#workspaces">workspaces</a></li><li><a href="#workspace">workspace</a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -208,6 +208,13 @@ example, <code>v1.4</code> cannot be used as a tag, because it is interpreted by
 semver as <code>&gt;=1.4.0 &lt;1.5.0</code>.  See <a href="https://github.com/npm/npm/issues/6082">https://github.com/npm/npm/issues/6082</a>.</p>
 <p>The simplest way to avoid semver problems with tags is to use tags that do
 not begin with a number or the letter <code>v</code>.</p>
+<h3 id="configuration">Configuration</h3>
+<h4 id="workspaces">workspaces</h4>
+<p>Only supported by <code>ls</code>. Enables listing dist-tags of all workspace
+contexts defined in the current <code>package.json</code>.</p>
+<h4 id="workspace">workspace</h4>
+<p>Only supported by <code>ls</code>. Enables listing dist-tags of workspace contexts
+limiting results to only those specified by this config item.</p>
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../commands/npm-publish.html">npm publish</a></li>
