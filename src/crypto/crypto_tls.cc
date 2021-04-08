@@ -1051,7 +1051,6 @@ void TLSWrap::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
   Debug(this, "Read %zd bytes from underlying stream", nread);
 
   // Ignore everything after close_notify (rfc5246#section-7.2.1)
-  // TODO: unregister our interest in read events
   if (eof_)
     return;
 
