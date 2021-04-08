@@ -1,9 +1,15 @@
 const requireInject = require('require-inject')
 const mockNpm = require('../fixtures/mock-npm')
-const { test } = require('tap')
+const { afterEach, test } = require('tap')
 
 let result = ''
 let log = ''
+
+afterEach((cb) => {
+  result = ''
+  log = ''
+  cb()
+})
 
 const routeMap = {
   '/-/package/@scoped%2fpkg/dist-tags': {
@@ -21,6 +27,18 @@ const routeMap = {
     a: '0.0.2',
     b: '0.6.0',
     c: '7.7.7',
+  },
+  '/-/package/workspace-a/dist-tags': {
+    latest: '1.0.0',
+    'latest-a': '1.0.0',
+  },
+  '/-/package/workspace-b/dist-tags': {
+    latest: '2.0.0',
+    'latest-b': '2.0.0',
+  },
+  '/-/package/workspace-c/dist-tags': {
+    latest: '3.0.0',
+    'latest-c': '3.0.0',
   },
 }
 
@@ -57,7 +75,7 @@ const npm = mockNpm({
     global: false,
   },
   output: msg => {
-    result = msg
+    result = result ? [result, msg].join('\n') : msg
   },
 })
 const distTag = new DistTag(npm)
@@ -74,8 +92,6 @@ test('ls in current package', (t) => {
       result,
       'should list available tags for current package'
     )
-    result = ''
-    log = ''
     t.end()
   })
 })
@@ -92,8 +108,6 @@ test('no args in current package', (t) => {
       result,
       'should default to listing available tags for current package'
     )
-    result = ''
-    log = ''
     t.end()
   })
 })
@@ -102,8 +116,6 @@ test('borked cmd usage', (t) => {
   npm.prefix = t.testdir({})
   distTag.exec(['borked', '@scoped/pkg'], (err) => {
     t.matchSnapshot(err, 'should show usage error')
-    result = ''
-    log = ''
     t.end()
   })
 })
@@ -116,8 +128,6 @@ test('ls on named package', (t) => {
       result,
       'should list tags for the specified package'
     )
-    result = ''
-    log = ''
     t.end()
   })
 })
@@ -133,8 +143,6 @@ test('ls on missing package', (t) => {
       err,
       'should throw error message'
     )
-    result = ''
-    log = ''
     t.end()
   })
 })
@@ -150,8 +158,6 @@ test('ls on missing name in current package', (t) => {
       err,
       'should throw usage error message'
     )
-    result = ''
-    log = ''
     t.end()
   })
 })
@@ -164,14 +170,154 @@ test('only named package arg', (t) => {
       result,
       'should default to listing tags for the specified package'
     )
-    result = ''
-    log = ''
     t.end()
   })
 })
 
+test('workspaces', (t) => {
+  npm.localPrefix = t.testdir({
+    'package.json': JSON.stringify({
+      name: 'root',
+      version: '1.0.0',
+      workspaces: ['workspace-a', 'workspace-b', 'workspace-c'],
+    }),
+    'workspace-a': {
+      'package.json': JSON.stringify({
+        name: 'workspace-a',
+        version: '1.0.0',
+      }),
+    },
+    'workspace-b': {
+      'package.json': JSON.stringify({
+        name: 'workspace-b',
+        version: '1.0.0',
+      }),
+    },
+    'workspace-c': {
+      'package.json': JSON.stringify({
+        name: 'workspace-c',
+        version: '1.0.0',
+      }),
+    },
+  })
+
+  t.test('no args', t => {
+    distTag.execWorkspaces([], [], (err) => {
+      t.ifError(err)
+      t.matchSnapshot(result, 'printed the expected output')
+      t.end()
+    })
+  })
+
+  t.test('no args, one workspace', t => {
+    distTag.execWorkspaces([], ['workspace-a'], (err) => {
+      t.ifError(err)
+      t.matchSnapshot(result, 'printed the expected output')
+      t.end()
+    })
+  })
+
+  t.test('one arg -- .', t => {
+    distTag.execWorkspaces(['.'], [], (err) => {
+      t.ifError(err)
+      t.matchSnapshot(result, 'printed the expected output')
+      t.end()
+    })
+  })
+
+  t.test('one arg -- .@1, ignores version spec', t => {
+    distTag.execWorkspaces(['.@'], [], (err) => {
+      t.ifError(err)
+      t.matchSnapshot(result, 'printed the expected output')
+      t.end()
+    })
+  })
+
+  t.test('one arg -- list', t => {
+    distTag.execWorkspaces(['list'], [], (err) => {
+      t.ifError(err)
+      t.matchSnapshot(result, 'printed the expected output')
+      t.end()
+    })
+  })
+
+  t.test('two args -- list, .', t => {
+    distTag.execWorkspaces(['list', '.'], [], (err) => {
+      t.ifError(err)
+      t.matchSnapshot(result, 'printed the expected output')
+      t.end()
+    })
+  })
+
+  t.test('two args -- list, .@1, ignores version spec', t => {
+    distTag.execWorkspaces(['list', '.@'], [], (err) => {
+      t.ifError(err)
+      t.matchSnapshot(result, 'printed the expected output')
+      t.end()
+    })
+  })
+
+  t.test('two args -- list, @scoped/pkg, logs a warning and ignores workspaces', t => {
+    distTag.execWorkspaces(['list', '@scoped/pkg'], [], (err) => {
+      t.ifError(err)
+      t.match(log, 'Ignoring workspaces for specified package', 'logs a warning')
+      t.matchSnapshot(result, 'printed the expected output')
+      t.end()
+    })
+  })
+
+  t.test('no args, one failing workspace sets exitCode to 1', t => {
+    npm.localPrefix = t.testdir({
+      'package.json': JSON.stringify({
+        name: 'root',
+        version: '1.0.0',
+        workspaces: ['workspace-a', 'workspace-b', 'workspace-c', 'workspace-d'],
+      }),
+      'workspace-a': {
+        'package.json': JSON.stringify({
+          name: 'workspace-a',
+          version: '1.0.0',
+        }),
+      },
+      'workspace-b': {
+        'package.json': JSON.stringify({
+          name: 'workspace-b',
+          version: '1.0.0',
+        }),
+      },
+      'workspace-c': {
+        'package.json': JSON.stringify({
+          name: 'workspace-c',
+          version: '1.0.0',
+        }),
+      },
+      'workspace-d': {
+        'package.json': JSON.stringify({
+          name: 'workspace-d',
+          version: '1.0.0',
+        }),
+      },
+    })
+
+    distTag.execWorkspaces([], [], (err) => {
+      t.ifError(err)
+      t.equal(process.exitCode, 1, 'set the error status')
+      process.exitCode = 0
+      t.match(log, 'dist-tag ls Couldn\'t get dist-tag data for workspace-d@latest', 'logs the error')
+      t.matchSnapshot(result, 'printed the expected output')
+      t.end()
+    })
+  })
+
+  t.end()
+})
+
 test('add new tag', (t) => {
   const _nrf = npmRegistryFetchMock
+  t.teardown(() => {
+    npmRegistryFetchMock = _nrf
+  })
+
   npmRegistryFetchMock = async (url, opts) => {
     t.equal(opts.method, 'PUT', 'should trigger request to add new tag')
     t.equal(opts.body, '7.7.7', 'should point to expected version')
@@ -183,9 +329,6 @@ test('add new tag', (t) => {
       result,
       'should return success msg'
     )
-    result = ''
-    log = ''
-    npmRegistryFetchMock = _nrf
     t.end()
   })
 })
@@ -202,8 +345,6 @@ test('add using valid semver range as name', (t) => {
       log,
       'should return success msg'
     )
-    result = ''
-    log = ''
     t.end()
   })
 })
@@ -212,8 +353,6 @@ test('add missing args', (t) => {
   npm.prefix = t.testdir({})
   distTag.exec(['add', '@scoped/another@7.7.7'], (err) => {
     t.matchSnapshot(err, 'should exit usage error message')
-    result = ''
-    log = ''
     t.end()
   })
 })
@@ -222,8 +361,6 @@ test('add missing pkg name', (t) => {
   npm.prefix = t.testdir({})
   distTag.exec(['add', null], (err) => {
     t.matchSnapshot(err, 'should exit usage error message')
-    result = ''
-    log = ''
     t.end()
   })
 })
@@ -236,13 +373,16 @@ test('set existing version', (t) => {
       log,
       'should log warn msg'
     )
-    log = ''
     t.end()
   })
 })
 
 test('remove existing tag', (t) => {
   const _nrf = npmRegistryFetchMock
+  t.teardown(() => {
+    npmRegistryFetchMock = _nrf
+  })
+
   npmRegistryFetchMock = async (url, opts) => {
     t.equal(opts.method, 'DELETE', 'should trigger request to remove tag')
   }
@@ -251,9 +391,6 @@ test('remove existing tag', (t) => {
     t.ifError(err, 'npm dist-tags rm')
     t.matchSnapshot(log, 'should log remove info')
     t.matchSnapshot(result, 'should return success msg')
-    result = ''
-    log = ''
-    npmRegistryFetchMock = _nrf
     t.end()
   })
 })
@@ -267,8 +404,6 @@ test('remove non-existing tag', (t) => {
       'should exit with error'
     )
     t.matchSnapshot(log, 'should log error msg')
-    result = ''
-    log = ''
     t.end()
   })
 })
@@ -277,8 +412,6 @@ test('remove missing pkg name', (t) => {
   npm.prefix = t.testdir({})
   distTag.exec(['rm', null], (err) => {
     t.matchSnapshot(err, 'should exit usage error message')
-    result = ''
-    log = ''
     t.end()
   })
 })

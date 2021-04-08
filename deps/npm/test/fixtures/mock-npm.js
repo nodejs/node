@@ -2,10 +2,24 @@
 // npm.config You still need a separate flatOptions but this is the first step
 // to eventually just using npm itself
 
+const mockLog = {
+  clearProgress: () => {},
+  disableProgress: () => {},
+  enableProgress: () => {},
+  http: () => {},
+  info: () => {},
+  levels: [],
+  notice: () => {},
+  pause: () => {},
+  silly: () => {},
+  verbose: () => {},
+  warn: () => {},
+}
 const mockNpm = (base = {}) => {
   const config = base.config || {}
   const flatOptions = base.flatOptions || {}
   return {
+    log: mockLog,
     ...base,
     flatOptions,
     config: {

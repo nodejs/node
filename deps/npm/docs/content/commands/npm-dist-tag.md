@@ -88,6 +88,18 @@ semver as `>=1.4.0 <1.5.0`.  See <https://github.com/npm/npm/issues/6082>.
 The simplest way to avoid semver problems with tags is to use tags that do
 not begin with a number or the letter `v`.
 
+### Configuration
+
+#### workspaces
+
+Only supported by `ls`. Enables listing dist-tags of all workspace
+contexts defined in the current `package.json`.
+
+#### workspace
+
+Only supported by `ls`. Enables listing dist-tags of workspace contexts
+limiting results to only those specified by this config item.
+
 ### See Also
 
 * [npm publish](/commands/npm-publish)

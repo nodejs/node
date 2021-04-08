@@ -10,6 +10,25 @@ description: Create a tarball from a package
 npm pack [[<@scope>/]<pkg>...] [--dry-run]
 ```
 
+### Configuration
+
+#### dry-run
+
+Do everything that pack usually does without actually packing anything.
+That is, report on what would have gone into the tarball, but nothing
+else.
+
+#### workspaces
+
+Enables workspaces context while creating tarballs. Tarballs for each
+workspaces will be generated.
+
+#### workspace
+
+Enables workspaces context and limits results to only those specified by
+this config item.  Tarballs will only be generated for the packages
+named in the workspaces given here.
+
 ### Description
 
 For anything that's installable (that is, a package folder, tarball,
@@ -22,10 +41,6 @@ If the same package is specified multiple times, then the file will be
 overwritten the second time.
 
 If no arguments are supplied, then npm packs the current package folder.
-
-The `--dry-run` argument will do everything that pack usually does without
-actually packing anything.  That is, it reports on what would have gone
-into the tarball, but nothing else.
 
 ### See Also
 

@@ -151,7 +151,7 @@ class View extends BaseCommand {
 
     const local = /^\.@/.test(pkg) || pkg === '.'
     if (!local) {
-      this.npm.log.warn('Ignoring workspaces for remote package')
+      this.npm.log.warn('Ignoring workspaces for specified package(s)')
       return this.view([pkg, ...args])
     }
     let wholePackument = false
