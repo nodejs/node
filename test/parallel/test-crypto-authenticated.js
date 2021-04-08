@@ -680,7 +680,9 @@ for (const test of TEST_CASES) {
   ]) {
     assert.throws(() => {
       cipher.final();
-    }, {
+    }, common.hasOpenSSL3 ? {
+      code: 'ERR_OSSL_TAG_NOT_SET'
+    } : {
       message: /Unsupported state/
     });
   }
