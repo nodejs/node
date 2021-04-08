@@ -4454,16 +4454,12 @@ const a = new Uint32Array(10);
 console.log(Buffer.from(randomFillSync(a).buffer,
                         a.byteOffset, a.byteLength).toString('hex'));
 
-const b = new Float64Array(10);
+const b = new DataView(new ArrayBuffer(10));
 console.log(Buffer.from(randomFillSync(b).buffer,
                         b.byteOffset, b.byteLength).toString('hex'));
 
-const c = new DataView(new ArrayBuffer(10));
-console.log(Buffer.from(randomFillSync(c).buffer,
-                        c.byteOffset, c.byteLength).toString('hex'));
-
-const d = new ArrayBuffer(10);
-console.log(Buffer.from(randomFillSync(d)).toString('hex'));
+const c = new ArrayBuffer(10);
+console.log(Buffer.from(randomFillSync(c)).toString('hex'));
 ```
 
 ```cjs
@@ -4475,16 +4471,12 @@ const a = new Uint32Array(10);
 console.log(Buffer.from(randomFillSync(a).buffer,
                         a.byteOffset, a.byteLength).toString('hex'));
 
-const b = new Float64Array(10);
+const b = new DataView(new ArrayBuffer(10));
 console.log(Buffer.from(randomFillSync(b).buffer,
                         b.byteOffset, b.byteLength).toString('hex'));
 
-const c = new DataView(new ArrayBuffer(10));
-console.log(Buffer.from(randomFillSync(c).buffer,
-                        c.byteOffset, c.byteLength).toString('hex'));
-
-const d = new ArrayBuffer(10);
-console.log(Buffer.from(randomFillSync(d)).toString('hex'));
+const c = new ArrayBuffer(10);
+console.log(Buffer.from(randomFillSync(c)).toString('hex'));
 ```
 
 ### `crypto.randomFill(buffer[, offset][, size], callback)`
@@ -4560,6 +4552,12 @@ randomFill(buf, 5, 5, (err, buf) => {
 Any `ArrayBuffer`, `TypedArray`, or `DataView` instance may be passed as
 `buffer`.
 
+While this includes instances of `Float32Array` and `Float64Array`, this
+function should not be used to generate random floating-point numbers. The
+result may contain `+Infinity`, `-Infinity`, and `NaN`, and even if the array
+contains finite numbers only, they are not drawn from a uniform random
+distribution and have no meaningful lower or upper bounds.
+
 ```mjs
 const {
   randomFill,
@@ -4572,22 +4570,15 @@ randomFill(a, (err, buf) => {
     .toString('hex'));
 });
 
-const b = new Float64Array(10);
+const b = new DataView(new ArrayBuffer(10));
 randomFill(b, (err, buf) => {
   if (err) throw err;
   console.log(Buffer.from(buf.buffer, buf.byteOffset, buf.byteLength)
     .toString('hex'));
 });
 
-const c = new DataView(new ArrayBuffer(10));
+const c = new ArrayBuffer(10);
 randomFill(c, (err, buf) => {
-  if (err) throw err;
-  console.log(Buffer.from(buf.buffer, buf.byteOffset, buf.byteLength)
-    .toString('hex'));
-});
-
-const d = new ArrayBuffer(10);
-randomFill(d, (err, buf) => {
   if (err) throw err;
   console.log(Buffer.from(buf).toString('hex'));
 });
@@ -4605,22 +4596,15 @@ randomFill(a, (err, buf) => {
     .toString('hex'));
 });
 
-const b = new Float64Array(10);
+const b = new DataView(new ArrayBuffer(10));
 randomFill(b, (err, buf) => {
   if (err) throw err;
   console.log(Buffer.from(buf.buffer, buf.byteOffset, buf.byteLength)
     .toString('hex'));
 });
 
-const c = new DataView(new ArrayBuffer(10));
+const c = new ArrayBuffer(10);
 randomFill(c, (err, buf) => {
-  if (err) throw err;
-  console.log(Buffer.from(buf.buffer, buf.byteOffset, buf.byteLength)
-    .toString('hex'));
-});
-
-const d = new ArrayBuffer(10);
-randomFill(d, (err, buf) => {
   if (err) throw err;
   console.log(Buffer.from(buf).toString('hex'));
 });
