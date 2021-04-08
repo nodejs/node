@@ -6,6 +6,7 @@ const zlib = require('zlib');
 
 // Tests that native zlib handles start out their life as weak handles.
 
+global.gc();
 const before = process.memoryUsage().external;
 for (let i = 0; i < 100; ++i)
   zlib.createGzip();
