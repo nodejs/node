@@ -1,4 +1,23 @@
+## v7.9.0 (2021-04-08)
+
+### FEATURES
+
+* [`1f3e88eba`](https://github.com/npm/cli/commit/1f3e88ebaf4901d8f9f07b43404d824fef7e5ff5)
+  [#3032](https://github.com/npm/cli/issues/3032)
+  feat(dist-tag): add workspace support
+  ([@nlf](https://github.com/nlf))
+* [`6e31df4e7`](https://github.com/npm/cli/commit/6e31df4e7957337962fd3d93e495931e3592bb9e)
+  [#3033](https://github.com/npm/cli/issues/3033)
+  feat(pack): add workspace support
+  ([@wraithgar](https://github.com/wraithgar))
+
+### DEPENDENCIES
+
+* [`ba4f7fea8`](https://github.com/npm/cli/commit/ba4f7fea8fca8e3509469a218f094fe69095888b)
+  `licensee@8.2.0`
+
 ## v7.8.0 (2021-04-01)
+
 ### FEATURES
 
 

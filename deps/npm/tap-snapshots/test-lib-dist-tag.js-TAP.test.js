@@ -15,6 +15,9 @@ npm dist-tag add <pkg>@<version> [<tag>]
 npm dist-tag rm <pkg> <tag>
 npm dist-tag ls [<pkg>]
 
+Options:
+[-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]] [-ws|--workspaces]
+
 alias: dist-tags
 
 Run "npm help dist-tag" for more info
@@ -29,6 +32,9 @@ Usage:
 npm dist-tag add <pkg>@<version> [<tag>]
 npm dist-tag rm <pkg> <tag>
 npm dist-tag ls [<pkg>]
+
+Options:
+[-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]] [-ws|--workspaces]
 
 alias: dist-tags
 
@@ -54,6 +60,9 @@ npm dist-tag add <pkg>@<version> [<tag>]
 npm dist-tag rm <pkg> <tag>
 npm dist-tag ls [<pkg>]
 
+Options:
+[-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]] [-ws|--workspaces]
+
 alias: dist-tags
 
 Run "npm help dist-tag" for more info
@@ -74,6 +83,9 @@ Usage:
 npm dist-tag add <pkg>@<version> [<tag>]
 npm dist-tag rm <pkg> <tag>
 npm dist-tag ls [<pkg>]
+
+Options:
+[-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]] [-ws|--workspaces]
 
 alias: dist-tags
 
@@ -126,6 +138,9 @@ npm dist-tag add <pkg>@<version> [<tag>]
 npm dist-tag rm <pkg> <tag>
 npm dist-tag ls [<pkg>]
 
+Options:
+[-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]] [-ws|--workspaces]
+
 alias: dist-tags
 
 Run "npm help dist-tag" for more info
@@ -141,4 +156,101 @@ exports[`test/lib/dist-tag.js TAP set existing version > should log warn msg 1`]
 dist-tag add b to @scoped/another@0.6.0 
 dist-tag add b is already set to version 0.6.0 
 
+`
+
+exports[`test/lib/dist-tag.js TAP workspaces no args > printed the expected output 1`] = `
+workspace-a:
+latest-a: 1.0.0
+latest: 1.0.0
+workspace-b:
+latest-b: 2.0.0
+latest: 2.0.0
+workspace-c:
+latest-c: 3.0.0
+latest: 3.0.0
+`
+
+exports[`test/lib/dist-tag.js TAP workspaces no args, one failing workspace sets exitCode to 1 > printed the expected output 1`] = `
+workspace-a:
+latest-a: 1.0.0
+latest: 1.0.0
+workspace-b:
+latest-b: 2.0.0
+latest: 2.0.0
+workspace-c:
+latest-c: 3.0.0
+latest: 3.0.0
+workspace-d:
+`
+
+exports[`test/lib/dist-tag.js TAP workspaces no args, one workspace > printed the expected output 1`] = `
+workspace-a:
+latest-a: 1.0.0
+latest: 1.0.0
+`
+
+exports[`test/lib/dist-tag.js TAP workspaces one arg -- . > printed the expected output 1`] = `
+workspace-a:
+latest-a: 1.0.0
+latest: 1.0.0
+workspace-b:
+latest-b: 2.0.0
+latest: 2.0.0
+workspace-c:
+latest-c: 3.0.0
+latest: 3.0.0
+`
+
+exports[`test/lib/dist-tag.js TAP workspaces one arg -- .@1, ignores version spec > printed the expected output 1`] = `
+workspace-a:
+latest-a: 1.0.0
+latest: 1.0.0
+workspace-b:
+latest-b: 2.0.0
+latest: 2.0.0
+workspace-c:
+latest-c: 3.0.0
+latest: 3.0.0
+`
+
+exports[`test/lib/dist-tag.js TAP workspaces one arg -- list > printed the expected output 1`] = `
+workspace-a:
+latest-a: 1.0.0
+latest: 1.0.0
+workspace-b:
+latest-b: 2.0.0
+latest: 2.0.0
+workspace-c:
+latest-c: 3.0.0
+latest: 3.0.0
+`
+
+exports[`test/lib/dist-tag.js TAP workspaces two args -- list, . > printed the expected output 1`] = `
+workspace-a:
+latest-a: 1.0.0
+latest: 1.0.0
+workspace-b:
+latest-b: 2.0.0
+latest: 2.0.0
+workspace-c:
+latest-c: 3.0.0
+latest: 3.0.0
+`
+
+exports[`test/lib/dist-tag.js TAP workspaces two args -- list, .@1, ignores version spec > printed the expected output 1`] = `
+workspace-a:
+latest-a: 1.0.0
+latest: 1.0.0
+workspace-b:
+latest-b: 2.0.0
+latest: 2.0.0
+workspace-c:
+latest-c: 3.0.0
+latest: 3.0.0
+`
+
+exports[`test/lib/dist-tag.js TAP workspaces two args -- list, @scoped/pkg, logs a warning and ignores workspaces > printed the expected output 1`] = `
+a: 0.0.1
+b: 0.5.0
+latest: 1.0.0
 `
