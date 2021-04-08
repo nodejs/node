@@ -31,6 +31,8 @@ const { internalBinding } = require('internal/test/binding');
       }, alice.privateKey, 128),
     ]);
 
+    assert(secret1 instanceof ArrayBuffer);
+    assert(secret2 instanceof ArrayBuffer);
     assert.deepStrictEqual(secret1, secret2);
   }
 
@@ -114,6 +116,7 @@ if (typeof internalBinding('crypto').ScryptJob === 'function') {
       name: 'NODE-SCRYPT',
       salt: ec.encode(salt),
     }, key, length);
+    assert(secret instanceof ArrayBuffer);
     assert.strictEqual(Buffer.from(secret).toString('hex'), expected);
   }
 

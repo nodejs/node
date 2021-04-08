@@ -112,6 +112,7 @@ async function prepareKeys() {
       public: publicKey
     }, privateKey, null);
 
+    assert(bits instanceof ArrayBuffer);
     assert.strictEqual(Buffer.from(bits).toString('hex'), result);
   }
 
