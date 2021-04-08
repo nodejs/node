@@ -1364,6 +1364,7 @@ console.log(result);
 [Embedder's Guide]: https://github.com/v8/v8/wiki/Embedder's%20Guide
 [Linking to libraries included with Node.js]: #addons_linking_to_libraries_included_with_node_js
 [Native Abstractions for Node.js]: https://github.com/nodejs/nan
+[V8]: https://github.com/v8/v8
 [`Worker`]: worker_threads.md#worker_threads_class_worker
 [bindings]: https://github.com/TooTallNate/node-bindings
 [download]: https://github.com/nodejs/node-addon-examples
@@ -1372,5 +1373,4 @@ console.log(result);
 [libuv]: https://github.com/libuv/libuv
 [node-gyp]: https://github.com/nodejs/node-gyp
 [require]: modules.md#modules_require_id
-[V8]: https://github.com/v8/v8
 [v8-docs]: https://v8docs.nodesource.com/
