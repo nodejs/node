@@ -1364,7 +1364,7 @@ console.log(result);
 [Embedder's Guide]: https://github.com/v8/v8/wiki/Embedder's%20Guide
 [Linking to libraries included with Node.js]: #addons_linking_to_libraries_included_with_node_js
 [Native Abstractions for Node.js]: https://github.com/nodejs/nan
-[V8]: https://github.com/v8/v8
+[V8]: https://v8.dev/
 [`Worker`]: worker_threads.md#worker_threads_class_worker
 [bindings]: https://github.com/TooTallNate/node-bindings
 [download]: https://github.com/nodejs/node-addon-examples
