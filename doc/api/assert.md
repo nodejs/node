@@ -1951,7 +1951,7 @@ assert.rejects(
 ```
 
 ```cjs
-const asssert = require('assert/strict');
+const assert = require('assert/strict');
 
 assert.rejects(
   Promise.reject(new Error('Wrong value')),
