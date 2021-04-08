@@ -963,7 +963,7 @@ release-only: check-xz
 	fi
 
 $(PKG): release-only
-# pkg buiding is currently only supported on a ARM64 macOS host for
+# pkg building is currently only supported on an ARM64 macOS host for
 # ease of compiling fat-binaries for both macOS architectures.
 ifneq ($(OSTYPE),darwin)
 	$(warning Invalid OSTYPE)
