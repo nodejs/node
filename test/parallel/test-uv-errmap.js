@@ -1,7 +1,7 @@
 // Flags: --expose-internals
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const {
   getSystemErrorMap,
