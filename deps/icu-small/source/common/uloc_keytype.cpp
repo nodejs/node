@@ -271,7 +271,7 @@ initFromResourceBundle(UErrorCode& sts) {
                         if (U_FAILURE(sts)) {
                             break;
                         }
-                        // check if this is an alias of canoncal legacy type
+                        // check if this is an alias of canonical legacy type
                         if (uprv_compareInvWithUChar(NULL, legacyTypeId, -1, to, toLen) == 0) {
                             const char* from = ures_getKey(typeAliasDataEntry.getAlias());
                             if (isTZ) {

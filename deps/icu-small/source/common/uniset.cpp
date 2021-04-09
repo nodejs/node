@@ -30,24 +30,6 @@
 #include "bmpset.h"
 #include "unisetspan.h"
 
-// Define UChar constants using hex for EBCDIC compatibility
-// Used #define to reduce private static exports and memory access time.
-#define SET_OPEN        ((UChar)0x005B) /*[*/
-#define SET_CLOSE       ((UChar)0x005D) /*]*/
-#define HYPHEN          ((UChar)0x002D) /*-*/
-#define COMPLEMENT      ((UChar)0x005E) /*^*/
-#define COLON           ((UChar)0x003A) /*:*/
-#define BACKSLASH       ((UChar)0x005C) /*\*/
-#define INTERSECTION    ((UChar)0x0026) /*&*/
-#define UPPER_U         ((UChar)0x0055) /*U*/
-#define LOWER_U         ((UChar)0x0075) /*u*/
-#define OPEN_BRACE      ((UChar)123)    /*{*/
-#define CLOSE_BRACE     ((UChar)125)    /*}*/
-#define UPPER_P         ((UChar)0x0050) /*P*/
-#define LOWER_P         ((UChar)0x0070) /*p*/
-#define UPPER_N         ((UChar)78)     /*N*/
-#define EQUALS          ((UChar)0x003D) /*=*/
-
 // HIGH_VALUE > all valid values. 110000 for codepoints
 #define UNICODESET_HIGH 0x0110000
 
@@ -444,7 +426,6 @@ UBool UnicodeSet::contains(UChar32 start, UChar32 end) const {
  * @return <tt>true</tt> if this set contains the specified string
  */
 UBool UnicodeSet::contains(const UnicodeString& s) const {
-    if (s.length() == 0) return FALSE;
     int32_t cp = getSingleCP(s);
     if (cp < 0) {
         return stringsContains(s);
@@ -559,11 +540,9 @@ UBool UnicodeSet::matchesIndexValue(uint8_t v) const {
     if (hasStrings()) {
         for (i=0; i<strings->size(); ++i) {
             const UnicodeString& s = *(const UnicodeString*)strings->elementAt(i);
-            //if (s.length() == 0) {
-            //    // Empty strings match everything
-            //    return TRUE;
-            //}
-            // assert(s.length() != 0); // We enforce this elsewhere
+            if (s.isEmpty()) {
+                continue;  // skip the empty string
+            }
             UChar32 c = s.char32At(0);
             if ((c & 0xFF) == v) {
                 return TRUE;
@@ -582,9 +561,6 @@ UMatchDegree UnicodeSet::matches(const Replaceable& text,
                                  int32_t limit,
                                  UBool incremental) {
     if (offset == limit) {
-        // Strings, if any, have length != 0, so we don't worry
-        // about them here.  If we ever allow zero-length strings
-        // we much check for them here.
         if (contains(U_ETHER)) {
             return incremental ? U_PARTIAL_MATCH : U_MATCH;
         } else {
@@ -614,11 +590,9 @@ UMatchDegree UnicodeSet::matches(const Replaceable& text,
 
             for (i=0; i<strings->size(); ++i) {
                 const UnicodeString& trial = *(const UnicodeString*)strings->elementAt(i);
-
-                //if (trial.length() == 0) {
-                //    return U_MATCH; // null-string always matches
-                //}
-                // assert(trial.length() != 0); // We ensure this elsewhere
+                if (trial.isEmpty()) {
+                    continue;  // skip the empty string
+                }
 
                 UChar c = trial.charAt(forward ? 0 : trial.length() - 1);
 
@@ -971,12 +945,12 @@ UnicodeSet& UnicodeSet::add(UChar32 c) {
  * present.  If this set already contains the multicharacter,
  * the call leaves this set unchanged.
  * Thus "ch" => {"ch"}
- * <br><b>Warning: you cannot add an empty string ("") to a UnicodeSet.</b>
+ *
  * @param s the source string
  * @return the modified set, for chaining
  */
 UnicodeSet& UnicodeSet::add(const UnicodeString& s) {
-    if (s.length() == 0 || isFrozen() || isBogus()) return *this;
+    if (isFrozen() || isBogus()) return *this;
     int32_t cp = getSingleCP(s);
     if (cp < 0) {
         if (!stringsContains(s)) {
@@ -991,8 +965,7 @@ UnicodeSet& UnicodeSet::add(const UnicodeString& s) {
 
 /**
  * Adds the given string, in order, to 'strings'.  The given string
- * must have been checked by the caller to not be empty and to not
- * already be in 'strings'.
+ * must have been checked by the caller to not already be in 'strings'.
  */
 void UnicodeSet::_add(const UnicodeString& s) {
     if (isFrozen() || isBogus()) {
@@ -1021,16 +994,13 @@ void UnicodeSet::_add(const UnicodeString& s) {
  * @param string to test
  */
 int32_t UnicodeSet::getSingleCP(const UnicodeString& s) {
-    //if (s.length() < 1) {
-    //    throw new IllegalArgumentException("Can't use zero-length strings in UnicodeSet");
-    //}
-    if (s.length() > 2) return -1;
-    if (s.length() == 1) return s.charAt(0);
-
-    // at this point, len = 2
-    UChar32 cp = s.char32At(0);
-    if (cp > 0xFFFF) { // is surrogate pair
-        return cp;
+    int32_t sLength = s.length();
+    if (sLength == 1) return s.charAt(0);
+    if (sLength == 2) {
+        UChar32 cp = s.char32At(0);
+        if (cp > 0xFFFF) { // is surrogate pair
+            return cp;
+        }
     }
     return -1;
 }
@@ -1150,6 +1120,26 @@ UnicodeSet& UnicodeSet::retain(UChar32 c) {
     return retain(c, c);
 }
 
+UnicodeSet& UnicodeSet::retain(const UnicodeString &s) {
+    if (isFrozen() || isBogus()) { return *this; }
+    UChar32 cp = getSingleCP(s);
+    if (cp < 0) {
+        bool isIn = stringsContains(s);
+        // Check for getRangeCount() first to avoid somewhat-expensive size()
+        // when there are single code points.
+        if (isIn && getRangeCount() == 0 && size() == 1) {
+            return *this;
+        }
+        clear();
+        if (isIn) {
+            _add(s);
+        }
+    } else {
+        retain(cp, cp);
+    }
+    return *this;
+}
+
 /**
  * Removes the specified range from this set if it is present.
  * The set will not contain the specified range once the call
@@ -1186,7 +1176,7 @@ UnicodeSet& UnicodeSet::remove(UChar32 c) {
  * @return the modified set, for chaining
  */
 UnicodeSet& UnicodeSet::remove(const UnicodeString& s) {
-    if (s.length() == 0 || isFrozen() || isBogus()) return *this;
+    if (isFrozen() || isBogus()) return *this;
     int32_t cp = getSingleCP(s);
     if (cp < 0) {
         if (strings != nullptr && strings->removeElement((void*) &s)) {
@@ -1252,12 +1242,12 @@ UnicodeSet& UnicodeSet::complement(void) {
  * Complement the specified string in this set.
  * The set will not contain the specified string once the call
  * returns.
- * <br><b>Warning: you cannot add an empty string ("") to a UnicodeSet.</b>
+ *
  * @param s the string to complement
  * @return this object, for chaining
  */
 UnicodeSet& UnicodeSet::complement(const UnicodeString& s) {
-    if (s.length() == 0 || isFrozen() || isBogus()) return *this;
+    if (isFrozen() || isBogus()) return *this;
     int32_t cp = getSingleCP(s);
     if (cp < 0) {
         if (stringsContains(s)) {
@@ -2001,22 +1991,22 @@ escapeUnprintable) {
     }
     // Okay to let ':' pass through
     switch (c) {
-    case SET_OPEN:
-    case SET_CLOSE:
-    case HYPHEN:
-    case COMPLEMENT:
-    case INTERSECTION:
-    case BACKSLASH:
-    case OPEN_BRACE:
-    case CLOSE_BRACE:
-    case COLON:
+    case u'[':
+    case u']':
+    case u'-':
+    case u'^':
+    case u'&':
+    case u'\\':
+    case u'{':
+    case u'}':
+    case u':':
     case SymbolTable::SYMBOL_REF:
-        buf.append(BACKSLASH);
+        buf.append(u'\\');
         break;
     default:
         // Escape whitespace
         if (PatternProps::isWhiteSpace(c)) {
-            buf.append(BACKSLASH);
+            buf.append(u'\\');
         }
         break;
     }
@@ -2049,7 +2039,7 @@ UnicodeString& UnicodeSet::_toPattern(UnicodeString& result,
                 backslashCount = 0;
             } else {
                 result.append(c);
-                if (c == BACKSLASH) {
+                if (c == u'\\') {
                     ++backslashCount;
                 } else {
                     backslashCount = 0;
@@ -2082,13 +2072,13 @@ UnicodeString& UnicodeSet::toPattern(UnicodeString& result,
 UnicodeString& UnicodeSet::_generatePattern(UnicodeString& result,
                                             UBool escapeUnprintable) const
 {
-    result.append(SET_OPEN);
+    result.append(u'[');
 
 //  // Check against the predefined categories.  We implicitly build
 //  // up ALL category sets the first time toPattern() is called.
 //  for (int8_t cat=0; cat<Unicode::GENERAL_TYPES_COUNT; ++cat) {
 //      if (*this == getCategorySet(cat)) {
-//          result.append(COLON);
+//          result.append(u':');
 //          result.append(CATEGORY_NAMES, cat*2, 2);
 //          return result.append(CATEGORY_CLOSE);
 //      }
@@ -2104,7 +2094,7 @@ UnicodeString& UnicodeSet::_generatePattern(UnicodeString& result,
         getRangeEnd(count-1) == MAX_VALUE) {
 
         // Emit the inverse
-        result.append(COMPLEMENT);
+        result.append(u'^');
 
         for (int32_t i = 1; i < count; ++i) {
             UChar32 start = getRangeEnd(i-1)+1;
@@ -2112,7 +2102,7 @@ UnicodeString& UnicodeSet::_generatePattern(UnicodeString& result,
             _appendToPat(result, start, escapeUnprintable);
             if (start != end) {
                 if ((start+1) != end) {
-                    result.append(HYPHEN);
+                    result.append(u'-');
                 }
                 _appendToPat(result, end, escapeUnprintable);
             }
@@ -2127,7 +2117,7 @@ UnicodeString& UnicodeSet::_generatePattern(UnicodeString& result,
             _appendToPat(result, start, escapeUnprintable);
             if (start != end) {
                 if ((start+1) != end) {
-                    result.append(HYPHEN);
+                    result.append(u'-');
                 }
                 _appendToPat(result, end, escapeUnprintable);
             }
@@ -2136,14 +2126,14 @@ UnicodeString& UnicodeSet::_generatePattern(UnicodeString& result,
 
     if (strings != nullptr) {
         for (int32_t i = 0; i<strings->size(); ++i) {
-            result.append(OPEN_BRACE);
+            result.append(u'{');
             _appendToPat(result,
                          *(const UnicodeString*) strings->elementAt(i),
                          escapeUnprintable);
-            result.append(CLOSE_BRACE);
+            result.append(u'}');
         }
     }
-    return result.append(SET_CLOSE);
+    return result.append(u']');
 }
 
 /**

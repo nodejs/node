@@ -286,6 +286,9 @@ ultag_isUnicodeLocaleType(const char* s, int32_t len);
 U_CFUNC UBool
 ultag_isVariantSubtags(const char* s, int32_t len);
 
+U_CAPI const char * U_EXPORT2
+ultag_getTKeyStart(const char *localeID);
+
 U_CFUNC const char*
 ulocimp_toBcpKey(const char* key);
 

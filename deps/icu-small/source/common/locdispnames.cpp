@@ -698,7 +698,7 @@ uloc_getDisplayName(const char *locale,
                     } /* end switch */
 
                     if (len>0) {
-                        /* we addeed a component, so add separator and write it if there's room. */
+                        /* we added a component, so add separator and write it if there's room. */
                         if(len+sepLen<=cap) {
                             const UChar * plimit = p + len;
                             for (; p < plimit; p++) {

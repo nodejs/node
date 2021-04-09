@@ -880,6 +880,6 @@ namespace std {
 #else
 #    define U_CALLCONV_FPTR
 #endif
-/* @} */
+/** @} */
 
 #endif  // _PLATFORM_H

@@ -252,7 +252,6 @@ udtitvfmt_format(const UDateIntervalFormat* formatter,
                 UErrorCode*     status);
 
 
-#ifndef U_HIDE_DRAFT_API
 /**
  * Formats a date/time range using the conventions established for the
  * UDateIntervalFormat object.
@@ -267,7 +266,7 @@ udtitvfmt_format(const UDateIntervalFormat* formatter,
  *            formatting operation.
  * @param status
  *            A pointer to a UErrorCode to receive any errors.
- * @draft ICU 67
+ * @stable ICU 67
  */
 U_CAPI void U_EXPORT2
 udtitvfmt_formatToResult(
@@ -291,7 +290,7 @@ udtitvfmt_formatToResult(
  *            formatting operation.
  * @param status
  *            A pointer to a UErrorCode to receive any errors.
- * @draft ICU 67
+ * @stable ICU 67
  */
 
 U_CAPI void U_EXPORT2
@@ -301,7 +300,6 @@ udtitvfmt_formatCalendarToResult(
                 UCalendar*      toCalendar,
                 UFormattedDateInterval* result,
                 UErrorCode*     status);
-#endif /* U_HIDE_DRAFT_API */
 
 #ifndef U_HIDE_DRAFT_API
 /**

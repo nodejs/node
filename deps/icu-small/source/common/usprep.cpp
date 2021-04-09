@@ -575,7 +575,7 @@ usprep_map(  const UStringPrepProfile* profile,
             }
 
         }else if(type==USPREP_DELETE){
-             // just consume the codepoint and contine
+             // just consume the codepoint and continue
             continue;
         }
         //copy the code point into destination

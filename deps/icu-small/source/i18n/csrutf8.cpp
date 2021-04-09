@@ -99,7 +99,7 @@ UBool CharsetRecog_UTF8::match(InputText* input, CharsetMatch *results) const {
         //              accepts ASCII with confidence = 10.
         confidence = 15;
     } else if (numValid > numInvalid*10) {
-        // Probably corruput utf-8 data.  Valid sequences aren't likely by chance.
+        // Probably corrupt utf-8 data.  Valid sequences aren't likely by chance.
         confidence = 25;
     }
 
