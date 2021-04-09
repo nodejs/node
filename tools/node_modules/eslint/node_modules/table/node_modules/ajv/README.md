@@ -113,7 +113,7 @@ Performance of different validators by [json-schema-benchmark](https://github.co
 
 ## Install
 
-To install version 7:
+To install version 8:
 
 ```
 npm install ajv
@@ -154,7 +154,9 @@ Learn how to use Ajv and see more examples in the [Guide: getting started](https
 
 See [https://github.com/ajv-validator/ajv/releases](https://github.com/ajv-validator/ajv/releases)
 
-**Please note**: [Changes in version 7.0.0](https://github.com/ajv-validator/ajv/releases/tag/v7.0.0)
+**Please note**: [Changes in version 8.0.0](https://github.com/ajv-validator/ajv/releases/tag/v8.0.0)
+
+[Version 7.0.0](https://github.com/ajv-validator/ajv/releases/tag/v7.0.0)
 
 [Version 6.0.0](https://github.com/ajv-validator/ajv/releases/tag/v6.0.0).
 
