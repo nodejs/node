@@ -83,7 +83,10 @@ std::string SnapshotBuilder::Generate(
     const std::vector<std::string> args,
     const std::vector<std::string> exec_args) {
   Isolate* isolate = Isolate::Allocate();
-  isolate->SetCaptureStackTraceForUncaughtExceptions(true, 10, v8::StackTrace::StackTraceOptions::kDetailed);
+  isolate->SetCaptureStackTraceForUncaughtExceptions(
+    true,
+    10,
+    v8::StackTrace::StackTraceOptions::kDetailed);
   per_process::v8_platform.Platform()->RegisterIsolate(isolate,
                                                        uv_default_loop());
   std::unique_ptr<NodeMainInstance> main_instance;
@@ -118,25 +121,23 @@ std::string SnapshotBuilder::Generate(
             .ToLocalChecked();
         Local<Value> stack = obj->Get(
             context,
-            FIXED_ONE_BYTE_STRING(isolate, "stack")
-          ).ToLocalChecked();
+            FIXED_ONE_BYTE_STRING(isolate, "stack")).ToLocalChecked();
         if (stack->IsUndefined()) {
           Local<String> str = obj->Get(
               context,
-              FIXED_ONE_BYTE_STRING(isolate, "name")
-            ).ToLocalChecked()->ToString(context).ToLocalChecked();
+              FIXED_ONE_BYTE_STRING(isolate, "name"))
+            .ToLocalChecked()->ToString(context).ToLocalChecked();
           str = String::Concat(
             isolate,
             str,
             FIXED_ONE_BYTE_STRING(isolate, ": "));
           stack = String::Concat(
             isolate,
-            str, 
+            str,
             obj->Get(
                 context,
-                FIXED_ONE_BYTE_STRING(isolate, "message")
-              ).ToLocalChecked()->ToString(context).ToLocalChecked()
-          );
+                FIXED_ONE_BYTE_STRING(isolate, "message"))
+              .ToLocalChecked()->ToString(context).ToLocalChecked());
         }
         v8::String::Utf8Value utf8_value(isolate, stack);
         if (*utf8_value != nullptr) {
