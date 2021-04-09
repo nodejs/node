@@ -15,8 +15,11 @@ using v8::Context;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
+// using v8::MaybeLocal;
 using v8::SnapshotCreator;
 using v8::StartupData;
+// using v8::TryCatch;
+// using v8::Value;
 
 template <typename T>
 void WriteVector(std::stringstream* ss, const T* vec, size_t size) {
@@ -79,6 +82,7 @@ std::string SnapshotBuilder::Generate(
     const std::vector<std::string> args,
     const std::vector<std::string> exec_args) {
   Isolate* isolate = Isolate::Allocate();
+  isolate->SetCaptureStackTraceForUncaughtExceptions(true, 10, v8::StackTrace::StackTraceOptions::kDetailed);
   per_process::v8_platform.Platform()->RegisterIsolate(isolate,
                                                        uv_default_loop());
   std::unique_ptr<NodeMainInstance> main_instance;
@@ -99,14 +103,39 @@ std::string SnapshotBuilder::Generate(
                                    per_process::v8_platform.Platform(),
                                    args,
                                    exec_args);
+      // fprintf(stderr, "BOOTSTRAPPING1\n\n\n");
 
       HandleScope scope(isolate);
       creator.SetDefaultContext(Context::New(isolate));
       isolate_data_indexes = main_instance->isolate_data()->Serialize(&creator);
+      // fprintf(stderr, "BOOTSTRAPPING2\n\n\n");
 
+      v8::TryCatch bootstrapCatch(isolate);
       Local<Context> context = NewContext(isolate);
+      if (bootstrapCatch.HasCaught()) {
+        Local<v8::Object> obj = bootstrapCatch.Exception()->ToObject(context).ToLocalChecked();
+        Local<v8::Value> stack = obj->Get(context, FIXED_ONE_BYTE_STRING(isolate, "stack")).ToLocalChecked();
+        if (stack->IsUndefined()) {
+          Local<v8::String> str = obj->Get(context, FIXED_ONE_BYTE_STRING(isolate, "name")).ToLocalChecked()->ToString(context).ToLocalChecked();
+          str = v8::String::Concat(isolate, str, FIXED_ONE_BYTE_STRING(isolate, ": "));
+          stack = v8::String::Concat(isolate, str, 
+            obj->Get(context, FIXED_ONE_BYTE_STRING(isolate, "message")).ToLocalChecked()
+            ->ToString(context).ToLocalChecked()
+          );
+        }
+        v8::String::Utf8Value utf8_value(isolate, stack);
+        if (*utf8_value != nullptr) {
+          std::string out(*utf8_value, utf8_value.length());
+          fprintf(stderr, "Had Exception: %s\n", out.c_str());
+        } else {
+          fprintf(stderr, "Unknown JS Exception\n");
+        }
+        abort();
+      }
       Context::Scope context_scope(context);
+      // fprintf(stderr, "BOOTSTRAPPING3\n\n\n");
 
+      // fflush(stderr);
       env = new Environment(main_instance->isolate_data(),
                             context,
                             args,
