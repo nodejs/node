@@ -206,7 +206,7 @@ application reference the transpiled code, not the original source position.
 effort to report stack traces relative to the original source file.
 
 Overriding `Error.prepareStackTrace` prevents `--enable-source-maps` from
-modifiying the stack trace.
+modifying the stack trace.
 
 ### `--experimental-abortcontroller`
 <!-- YAML
