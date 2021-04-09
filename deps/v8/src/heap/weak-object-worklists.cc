@@ -115,19 +115,17 @@ void WeakObjects::UpdateWeakObjectsInCode(
 
 void WeakObjects::UpdateJSWeakRefs(
     WeakObjectWorklist<JSWeakRef>& js_weak_refs) {
-  if (FLAG_harmony_weak_refs) {
-    js_weak_refs.Update(
-        [](JSWeakRef js_weak_ref_in, JSWeakRef* js_weak_ref_out) -> bool {
-          JSWeakRef forwarded = ForwardingAddress(js_weak_ref_in);
+  js_weak_refs.Update(
+      [](JSWeakRef js_weak_ref_in, JSWeakRef* js_weak_ref_out) -> bool {
+        JSWeakRef forwarded = ForwardingAddress(js_weak_ref_in);
 
-          if (!forwarded.is_null()) {
-            *js_weak_ref_out = forwarded;
-            return true;
-          }
+        if (!forwarded.is_null()) {
+          *js_weak_ref_out = forwarded;
+          return true;
+        }
 
-          return false;
-        });
-  }
+        return false;
+      });
 }
 
 void WeakObjects::UpdateWeakCells(WeakObjectWorklist<WeakCell>& weak_cells) {

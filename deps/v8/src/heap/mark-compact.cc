@@ -2480,9 +2480,6 @@ void MarkCompactCollector::ClearWeakReferences() {
 }
 
 void MarkCompactCollector::ClearJSWeakRefs() {
-  if (!FLAG_harmony_weak_refs) {
-    return;
-  }
   JSWeakRef weak_ref;
   while (weak_objects_.js_weak_refs.Pop(kMainThreadTask, &weak_ref)) {
     HeapObject target = HeapObject::cast(weak_ref.target());

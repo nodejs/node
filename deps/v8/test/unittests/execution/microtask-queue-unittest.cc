@@ -41,7 +41,6 @@ class WithFinalizationRegistryMixin : public TMixin {
   static void SetUpTestCase() {
     CHECK_NULL(save_flags_);
     save_flags_ = new SaveFlags();
-    FLAG_harmony_weak_refs = true;
     FLAG_expose_gc = true;
     FLAG_allow_natives_syntax = true;
     TMixin::SetUpTestCase();
