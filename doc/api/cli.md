@@ -200,7 +200,7 @@ changes:
 
 Enable [Source Map v3][Source Map] support for stack traces.
 
-When using a transpiler, such as TypeScript, strack traces thrown by an
+When using a transpiler, such as TypeScript, stack traces thrown by an
 application reference the transpiled code, not the original source position.
 `--enable-source-maps` enables caching of Source Maps and makes a best
 effort to report stack traces relative to the original source file.
