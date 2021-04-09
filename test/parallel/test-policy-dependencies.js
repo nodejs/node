@@ -100,7 +100,7 @@ const dep = fixtures.path('policy', 'parent.js');
     [
       '--experimental-policy',
       depPolicy,
-      fixtures.path('policy', 'bad-main.mjs')
+      fixtures.path('policy', 'bad-main.mjs'),
     ]
   );
   assert.strictEqual(status, 1);
