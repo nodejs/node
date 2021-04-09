@@ -345,9 +345,8 @@ UBool compareLSRs(const UHashTok t1, const UHashTok t2) {
 int32_t LocaleMatcher::putIfAbsent(const LSR &lsr, int32_t i, int32_t suppLength,
                                    UErrorCode &errorCode) {
     if (U_FAILURE(errorCode)) { return suppLength; }
-    int32_t index = uhash_geti(supportedLsrToIndex, &lsr);
-    if (index == 0) {
-        uhash_puti(supportedLsrToIndex, const_cast<LSR *>(&lsr), i + 1, &errorCode);
+    if (!uhash_containsKey(supportedLsrToIndex, &lsr)) {
+        uhash_putiAllowZero(supportedLsrToIndex, const_cast<LSR *>(&lsr), i, &errorCode);
         if (U_SUCCESS(errorCode)) {
             supportedLSRs[suppLength] = &lsr;
             supportedIndexes[suppLength++] = i;
@@ -685,12 +684,11 @@ int32_t LocaleMatcher::getBestSuppIndex(LSR desiredLSR, LocaleLsrIterator *remai
     int32_t bestSupportedLsrIndex = -1;
     for (int32_t bestShiftedDistance = LocaleDistance::shiftDistance(thresholdDistance);;) {
         // Quick check for exact maximized LSR.
-        // Returns suppIndex+1 where 0 means not found.
         if (supportedLsrToIndex != nullptr) {
             desiredLSR.setHashCode();
-            int32_t index = uhash_geti(supportedLsrToIndex, &desiredLSR);
-            if (index != 0) {
-                int32_t suppIndex = index - 1;
+            UBool found = false;
+            int32_t suppIndex = uhash_getiAndFound(supportedLsrToIndex, &desiredLSR, &found);
+            if (found) {
                 if (remainingIter != nullptr) {
                     remainingIter->rememberCurrent(desiredIndex, errorCode);
                 }

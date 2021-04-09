@@ -270,11 +270,13 @@ ures_getByKeyWithFallback(const UResourceBundle *resB,
  * function can perform fallback on the sub-resources of the table.
  * @param resB              a resource
  * @param inKey             a key associated with the requested resource
+ * @param len               if not NULL, used to return the length of the string
  * @param status: fills in the outgoing error code
  *                could be <TT>U_MISSING_RESOURCE_ERROR</TT> if the key is not found
  *                could be a non-failing error
  *                e.g.: <TT>U_USING_FALLBACK_WARNING</TT>,<TT>U_USING_DEFAULT_WARNING </TT>
- * @return                  a pointer to a UResourceBundle struct. If fill in param was NULL, caller must delete it
+ * @return returns a pointer to a zero-terminated UChar array which lives in a
+ *         memory mapped/DLL file.
  */
 U_CAPI const UChar* U_EXPORT2
 ures_getStringByKeyWithFallback(const UResourceBundle *resB,
