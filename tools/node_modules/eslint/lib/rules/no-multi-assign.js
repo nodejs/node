@@ -21,7 +21,16 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-multi-assign"
         },
 
-        schema: [],
+        schema: [{
+            type: "object",
+            properties: {
+                ignoreNonDeclaration: {
+                    type: "boolean",
+                    default: false
+                }
+            },
+            additionalProperties: false
+        }],
 
         messages: {
             unexpectedChain: "Unexpected chained assignment."
@@ -33,10 +42,14 @@ module.exports = {
         //--------------------------------------------------------------------------
         // Public
         //--------------------------------------------------------------------------
+        const options = context.options[0] || {
+            ignoreNonDeclaration: false
+        };
+        const targetParent = options.ignoreNonDeclaration ? ["VariableDeclarator"] : ["AssignmentExpression", "VariableDeclarator"];
 
         return {
             AssignmentExpression(node) {
-                if (["AssignmentExpression", "VariableDeclarator"].indexOf(node.parent.type) !== -1) {
+                if (targetParent.indexOf(node.parent.type) !== -1) {
                     context.report({
                         node,
                         messageId: "unexpectedChain"

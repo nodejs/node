@@ -787,6 +787,7 @@
 		"OscillatorNode": false,
 		"outerHeight": false,
 		"outerWidth": false,
+		"OverconstrainedError": false,
 		"PageTransitionEvent": false,
 		"pageXOffset": false,
 		"pageYOffset": false,
