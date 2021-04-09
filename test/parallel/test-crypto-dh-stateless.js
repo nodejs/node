@@ -145,10 +145,10 @@ test(crypto.generateKeyPairSync('dh', { group: 'modp5' }),
      crypto.generateKeyPairSync('dh', { prime: group.getPrime() }));
 
 const list = [];
-  // Same generator, but different primes.
-  // TODO(danbev) only commenting out this so that we can get our CI build
-  // to pass. I'll continue looking into the cause/change.
-  //[{ group: 'modp5' }, { group: 'modp18' }]];
+// Same generator, but different primes.
+// TODO(danbev) only commenting out this so that we can get our CI build
+// to pass. I'll continue looking into the cause/change.
+// [{ group: 'modp5' }, { group: 'modp18' }]];
 
 // TODO(danbev): Take a closer look if there should be a check in OpenSSL3
 // when the dh parameters differ.
