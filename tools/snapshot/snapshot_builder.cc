@@ -15,11 +15,12 @@ using v8::Context;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
-// using v8::MaybeLocal;
 using v8::SnapshotCreator;
 using v8::StartupData;
-// using v8::TryCatch;
-// using v8::Value;
+using v8::TryCatch;
+using v8::Object;
+using v8::String;
+using v8::Value;
 
 template <typename T>
 void WriteVector(std::stringstream* ss, const T* vec, size_t size) {
@@ -110,17 +111,31 @@ std::string SnapshotBuilder::Generate(
       isolate_data_indexes = main_instance->isolate_data()->Serialize(&creator);
       // fprintf(stderr, "BOOTSTRAPPING2\n\n\n");
 
-      v8::TryCatch bootstrapCatch(isolate);
+      TryCatch bootstrapCatch(isolate);
       Local<Context> context = NewContext(isolate);
       if (bootstrapCatch.HasCaught()) {
-        Local<v8::Object> obj = bootstrapCatch.Exception()->ToObject(context).ToLocalChecked();
-        Local<v8::Value> stack = obj->Get(context, FIXED_ONE_BYTE_STRING(isolate, "stack")).ToLocalChecked();
+        Local<Object> obj = bootstrapCatch.Exception()->ToObject(context)
+            .ToLocalChecked();
+        Local<Value> stack = obj->Get(
+            context,
+            FIXED_ONE_BYTE_STRING(isolate, "stack")
+          ).ToLocalChecked();
         if (stack->IsUndefined()) {
-          Local<v8::String> str = obj->Get(context, FIXED_ONE_BYTE_STRING(isolate, "name")).ToLocalChecked()->ToString(context).ToLocalChecked();
-          str = v8::String::Concat(isolate, str, FIXED_ONE_BYTE_STRING(isolate, ": "));
-          stack = v8::String::Concat(isolate, str, 
-            obj->Get(context, FIXED_ONE_BYTE_STRING(isolate, "message")).ToLocalChecked()
-            ->ToString(context).ToLocalChecked()
+          Local<String> str = obj->Get(
+              context,
+              FIXED_ONE_BYTE_STRING(isolate, "name")
+            ).ToLocalChecked()->ToString(context).ToLocalChecked();
+          str = String::Concat(
+            isolate,
+            str,
+            FIXED_ONE_BYTE_STRING(isolate, ": "));
+          stack = String::Concat(
+            isolate,
+            str, 
+            obj->Get(
+                context,
+                FIXED_ONE_BYTE_STRING(isolate, "message")
+              ).ToLocalChecked()->ToString(context).ToLocalChecked()
           );
         }
         v8::String::Utf8Value utf8_value(isolate, stack);
@@ -133,9 +148,7 @@ std::string SnapshotBuilder::Generate(
         abort();
       }
       Context::Scope context_scope(context);
-      // fprintf(stderr, "BOOTSTRAPPING3\n\n\n");
 
-      // fflush(stderr);
       env = new Environment(main_instance->isolate_data(),
                             context,
                             args,
