@@ -1405,9 +1405,9 @@ changes:
 -->
 
 * `value` {string|Buffer|Uint8Array|integer} What to search for.
-* `byteOffset` {integer} Where to begin searching in `buf`. If negative, then
-  offset is calculated from the end of `buf`. **Default:**
-  `buf.length - 1`.
+* `byteOffset` {integer} The index of the last byte in `buf` to be considered
+  as the beginning of a match. If negative, then offset is calculated
+  from the end of `buf`. **Default:** `buf.length - 1`.
 * `encoding` {string} If `value` is a string, this is the encoding used to
   determine the binary representation of the string that will be searched for in
   `buf`. **Default:** `'utf8'`.
