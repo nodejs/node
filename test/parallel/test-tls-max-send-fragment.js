@@ -33,15 +33,38 @@ const buf = Buffer.allocUnsafe(10000);
 let received = 0;
 const maxChunk = 768;
 
+const invalidArgumentError = {
+  name: 'TypeError',
+  code: 'ERR_INVALID_ARG_TYPE'
+};
+
 const server = tls.createServer({
   key: fixtures.readKey('agent1-key.pem'),
   cert: fixtures.readKey('agent1-cert.pem')
 }, function(c) {
-  // Lower and upper limits
+
+  // No size is passed.
+  assert.throws(() => c.setMaxSendFragment(), invalidArgumentError);
+
+  // Invalid arg is passed.
+  [null, undefined, '', {}, false, true, []].forEach((arg) => {
+    assert.throws(() => c.setMaxSendFragment(arg), invalidArgumentError);
+  });
+
+  [NaN, Infinity, 2 ** 31].forEach((arg) => {
+    assert.throws(() => c.setMaxSendFragment(arg), {
+      name: 'RangeError',
+      code: 'ERR_OUT_OF_RANGE'
+    });
+  });
+
+  assert.throws(() => c.setMaxSendFragment(Symbol()), { name: 'TypeError' });
+
+  // Lower and upper limits.
   assert(!c.setMaxSendFragment(511));
   assert(!c.setMaxSendFragment(16385));
 
-  // Correct fragment size
+  // Correct fragment size.
   assert(c.setMaxSendFragment(maxChunk));
 
   c.end(buf);
