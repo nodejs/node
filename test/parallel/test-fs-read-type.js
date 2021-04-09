@@ -118,7 +118,10 @@ fs.read(fd,
         2n ** 53n - 1n,
         common.mustCall((err) => {
           if (err) {
-            assert.strictEqual(err.code, 'EFBIG');
+            if (common.isIBMi)
+              assert.strictEqual(err.errno, -127);
+            else
+              assert.strictEqual(err.code, 'EFBIG');
           }
         }));
 
@@ -239,5 +242,6 @@ try {
   // On systems where max file size is below 2^53-1, we'd expect a EFBIG error.
   // This is not using `assert.throws` because the above call should not raise
   // any error on systems that allows file of that size.
-  if (err.code !== 'EFBIG') throw err;
+  if (err.code !== 'EFBIG' && !(common.isIBMi && err.errno === -127))
+    throw err;
 }
