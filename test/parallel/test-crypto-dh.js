@@ -188,7 +188,7 @@ if (common.hasOpenSSL3) {
 assert.throws(() => {
   dh3.computeSecret('');
 }, { message: common.hasOpenSSL3 ?
-  'error:02800066:Diffie-Hellman routines::invalid public key' :
+  'error:02800080:Diffie-Hellman routines::invalid secret' :
   'Supplied key is too small' });
 
 // Create a shared using a DH group.
