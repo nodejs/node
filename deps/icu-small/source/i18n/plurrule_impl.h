@@ -145,6 +145,7 @@ enum tokenType {
   tVariableV,
   tVariableT,
   tVariableE,
+  tVariableC,
   tDecimal,
   tInteger,
   tEOF
@@ -222,10 +223,19 @@ enum PluralOperand {
     PLURAL_OPERAND_W,
 
     /**
-     * Suppressed exponent for compact notation (exponent needed in
-     * scientific notation with compact notation to approximate i).
+     * Suppressed exponent for scientific notation (exponent needed in
+     * scientific notation to approximate i).
      */
     PLURAL_OPERAND_E,
+
+    /**
+     * This operand is currently treated as an alias for `PLURAL_OPERAND_E`.
+     * In the future, it will represent:
+     *
+     * Suppressed exponent for compact notation (exponent needed in
+     * compact notation to approximate i).
+     */
+    PLURAL_OPERAND_C,
 
     /**
      * THIS OPERAND IS DEPRECATED AND HAS BEEN REMOVED FROM THE SPEC.
@@ -280,8 +290,10 @@ class U_I18N_API FixedDecimal: public IFixedDecimal, public UObject {
       * @param n   the number, e.g. 12.345
       * @param v   The number of visible fraction digits, e.g. 3
       * @param f   The fraction digits, e.g. 345
-      * @param e   The exponent, e.g. 7 in 1.2e7 (for compact/scientific)
+      * @param e   The exponent, e.g. 7 in 1.2e7, for scientific notation
+      * @param c   Currently: an alias for param `e`.
       */
+    FixedDecimal(double  n, int32_t v, int64_t f, int32_t e, int32_t c);
     FixedDecimal(double  n, int32_t v, int64_t f, int32_t e);
     FixedDecimal(double  n, int32_t v, int64_t f);
     FixedDecimal(double n, int32_t);
@@ -302,6 +314,7 @@ class U_I18N_API FixedDecimal: public IFixedDecimal, public UObject {
 
     int32_t getVisibleFractionDigitCount() const;
 
+    void init(double n, int32_t v, int64_t f, int32_t e, int32_t c);
     void init(double n, int32_t v, int64_t f, int32_t e);
     void init(double n, int32_t v, int64_t f);
     void init(double n);

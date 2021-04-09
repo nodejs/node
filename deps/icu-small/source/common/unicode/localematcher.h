@@ -91,8 +91,6 @@ enum ULocMatchDemotion {
 typedef enum ULocMatchDemotion ULocMatchDemotion;
 #endif
 
-#ifndef U_FORCE_HIDE_DRAFT_API
-
 /**
  * Builder option for whether to include or ignore one-way (fallback) match data.
  * The LocaleMatcher uses CLDR languageMatch data which includes fallback (oneway=true) entries.
@@ -108,28 +106,26 @@ typedef enum ULocMatchDemotion ULocMatchDemotion;
  * but not if it is merely a fallback.
  *
  * @see LocaleMatcher::Builder#setDirection(ULocMatchDirection)
- * @draft ICU 67
+ * @stable ICU 67
  */
 enum ULocMatchDirection {
     /**
      * Locale matching includes one-way matches such as Breton→French. (default)
      *
-     * @draft ICU 67
+     * @stable ICU 67
      */
     ULOCMATCH_DIRECTION_WITH_ONE_WAY,
     /**
      * Locale matching limited to two-way matches including e.g. Danish↔Norwegian
      * but ignoring one-way matches.
      *
-     * @draft ICU 67
+     * @stable ICU 67
      */
     ULOCMATCH_DIRECTION_ONLY_TWO_WAY
 };
 #ifndef U_IN_DOXYGEN
 typedef enum ULocMatchDirection ULocMatchDirection;
 #endif
-
-#endif  // U_FORCE_HIDE_DRAFT_API
 
 struct UHashtable;
 
@@ -463,14 +459,13 @@ public:
          */
         Builder &setDemotionPerDesiredLocale(ULocMatchDemotion demotion);
 
-#ifndef U_HIDE_DRAFT_API
         /**
          * Option for whether to include or ignore one-way (fallback) match data.
          * By default, they are included.
          *
          * @param direction the match direction to set.
          * @return this Builder object
-         * @draft ICU 67
+         * @stable ICU 67
          */
         Builder &setDirection(ULocMatchDirection direction) {
             if (U_SUCCESS(errorCode_)) {
@@ -478,7 +473,6 @@ public:
             }
             return *this;
         }
-#endif  // U_HIDE_DRAFT_API
 
 #ifndef U_HIDE_DRAFT_API
         /**
@@ -704,7 +698,7 @@ private:
     LSR *lsrs;
     int32_t supportedLocalesLength;
     // These are in preference order: 1. Default locale 2. paradigm locales 3. others.
-    UHashtable *supportedLsrToIndex;  // Map<LSR, Integer> stores index+1 because 0 is "not found"
+    UHashtable *supportedLsrToIndex;  // Map<LSR, Integer>
     // Array versions of the supportedLsrToIndex keys and values.
     // The distance lookup loops over the supportedLSRs and returns the index of the best match.
     const LSR **supportedLSRs;

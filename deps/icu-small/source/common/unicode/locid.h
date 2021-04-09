@@ -571,15 +571,13 @@ public:
      */
     void minimizeSubtags(UErrorCode& status);
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * Canonicalize the locale ID of this object according to CLDR.
      * @param status the status code
-     * @draft ICU 67
+     * @stable ICU 67
      * @see createCanonical
      */
     void canonicalize(UErrorCode& status);
-#endif  // U_HIDE_DRAFT_API
 
     /**
      * Gets the list of keywords for the specified locale.

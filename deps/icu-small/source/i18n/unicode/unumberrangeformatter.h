@@ -354,7 +354,6 @@ unumrf_resultGetIdentityResult(
     UErrorCode* ec);
 
 
-#ifndef U_HIDE_DRAFT_API
 /**
  * Extracts the first formatted number as a decimal number. This endpoint
  * is useful for obtaining the exact number being printed after scaling
@@ -407,7 +406,6 @@ unumrf_resultGetSecondDecimalNumber(
     char* dest,
     int32_t destCapacity,
     UErrorCode* ec);
-#endif // U_HIDE_DRAFT_API
 
 
 /**

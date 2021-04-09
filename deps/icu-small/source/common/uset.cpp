@@ -117,6 +117,12 @@ uset_removeString(USet* set, const UChar* str, int32_t strLen) {
 }
 
 U_CAPI void U_EXPORT2
+uset_removeAllCodePoints(USet *set, const UChar *str, int32_t length) {
+    UnicodeString s(length==-1, str, length);
+    ((UnicodeSet*) set)->UnicodeSet::removeAll(s);
+}
+
+U_CAPI void U_EXPORT2
 uset_removeAll(USet* set, const USet* remove) {
     ((UnicodeSet*) set)->UnicodeSet::removeAll(*(const UnicodeSet*)remove);
 }
@@ -124,6 +130,18 @@ uset_removeAll(USet* set, const USet* remove) {
 U_CAPI void U_EXPORT2
 uset_retain(USet* set, UChar32 start, UChar32 end) {
     ((UnicodeSet*) set)->UnicodeSet::retain(start, end);
+}
+
+U_CAPI void U_EXPORT2
+uset_retainString(USet *set, const UChar *str, int32_t length) {
+    UnicodeString s(length==-1, str, length);
+    ((UnicodeSet*) set)->UnicodeSet::retain(s);
+}
+
+U_CAPI void U_EXPORT2
+uset_retainAllCodePoints(USet *set, const UChar *str, int32_t length) {
+    UnicodeString s(length==-1, str, length);
+    ((UnicodeSet*) set)->UnicodeSet::retainAll(s);
 }
 
 U_CAPI void U_EXPORT2
@@ -139,6 +157,23 @@ uset_compact(USet* set) {
 U_CAPI void U_EXPORT2
 uset_complement(USet* set) {
     ((UnicodeSet*) set)->UnicodeSet::complement();
+}
+
+U_CAPI void U_EXPORT2
+uset_complementRange(USet *set, UChar32 start, UChar32 end) {
+    ((UnicodeSet*) set)->UnicodeSet::complement(start, end);
+}
+
+U_CAPI void U_EXPORT2
+uset_complementString(USet *set, const UChar *str, int32_t length) {
+    UnicodeString s(length==-1, str, length);
+    ((UnicodeSet*) set)->UnicodeSet::complement(s);
+}
+
+U_CAPI void U_EXPORT2
+uset_complementAllCodePoints(USet *set, const UChar *str, int32_t length) {
+    UnicodeString s(length==-1, str, length);
+    ((UnicodeSet*) set)->UnicodeSet::complementAll(s);
 }
 
 U_CAPI void U_EXPORT2

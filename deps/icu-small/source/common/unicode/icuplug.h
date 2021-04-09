@@ -117,14 +117,13 @@
 /* === Basic types === */
 
 #ifndef U_HIDE_INTERNAL_API
+struct UPlugData;
 /**
  * @{
- * Opaque structure passed to/from a plugin.
- * use the APIs to access it.
+ * Typedef for opaque structure passed to/from a plugin.
+ * Use the APIs to access it.
  * @internal ICU 4.4 Technology Preview
  */
-
-struct UPlugData;
 typedef struct UPlugData UPlugData;
 
 /** @} */

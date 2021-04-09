@@ -491,6 +491,12 @@ public:
                             UnicodeString &safeMiddle,
                             ReorderingBuffer &buffer,
                             UErrorCode &errorCode) const;
+
+    /** sink==nullptr: isNormalized()/spanQuickCheckYes() */
+    const uint8_t *decomposeUTF8(uint32_t options,
+                                 const uint8_t *src, const uint8_t *limit,
+                                 ByteSink *sink, Edits *edits, UErrorCode &errorCode) const;
+
     UBool compose(const UChar *src, const UChar *limit,
                   UBool onlyContiguous,
                   UBool doCompose,
@@ -649,6 +655,9 @@ private:
                                                 UChar32 minNeedDataCP,
                                                 ReorderingBuffer *buffer,
                                                 UErrorCode &errorCode) const;
+
+    enum StopAt { STOP_AT_LIMIT, STOP_AT_DECOMP_BOUNDARY, STOP_AT_COMP_BOUNDARY };
+
     const UChar *decomposeShort(const UChar *src, const UChar *limit,
                                 UBool stopAtCompBoundary, UBool onlyContiguous,
                                 ReorderingBuffer &buffer, UErrorCode &errorCode) const;
@@ -656,7 +665,7 @@ private:
                     ReorderingBuffer &buffer, UErrorCode &errorCode) const;
 
     const uint8_t *decomposeShort(const uint8_t *src, const uint8_t *limit,
-                                  UBool stopAtCompBoundary, UBool onlyContiguous,
+                                  StopAt stopAt, UBool onlyContiguous,
                                   ReorderingBuffer &buffer, UErrorCode &errorCode) const;
 
     static int32_t combine(const uint16_t *list, UChar32 trail);

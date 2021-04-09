@@ -193,6 +193,12 @@ Precision Precision::minMaxSignificantDigits(int32_t minSignificantDigits, int32
     }
 }
 
+Precision Precision::trailingZeroDisplay(UNumberTrailingZeroDisplay trailingZeroDisplay) const {
+    Precision result(*this); // copy constructor
+    result.fTrailingZeroDisplay = trailingZeroDisplay;
+    return result;
+}
+
 IncrementPrecision Precision::increment(double roundingIncrement) {
     if (roundingIncrement > 0.0) {
         return constructIncrement(roundingIncrement, 0);
@@ -205,10 +211,32 @@ CurrencyPrecision Precision::currency(UCurrencyUsage currencyUsage) {
     return constructCurrency(currencyUsage);
 }
 
+Precision FractionPrecision::withSignificantDigits(
+        int32_t minSignificantDigits,
+        int32_t maxSignificantDigits,
+        UNumberRoundingPriority priority) const {
+    if (fType == RND_ERROR) { return *this; } // no-op in error state
+    if (minSignificantDigits >= 1 &&
+            maxSignificantDigits >= minSignificantDigits &&
+            maxSignificantDigits <= kMaxIntFracSig) {
+        return constructFractionSignificant(
+            *this,
+            minSignificantDigits,
+            maxSignificantDigits,
+            priority);
+    } else {
+        return {U_NUMBER_ARG_OUTOFBOUNDS_ERROR};
+    }
+}
+
 Precision FractionPrecision::withMinDigits(int32_t minSignificantDigits) const {
     if (fType == RND_ERROR) { return *this; } // no-op in error state
     if (minSignificantDigits >= 1 && minSignificantDigits <= kMaxIntFracSig) {
-        return constructFractionSignificant(*this, minSignificantDigits, -1);
+        return constructFractionSignificant(
+            *this,
+            1,
+            minSignificantDigits,
+            UNUM_ROUNDING_PRIORITY_RELAXED);
     } else {
         return {U_NUMBER_ARG_OUTOFBOUNDS_ERROR};
     }
@@ -217,7 +245,10 @@ Precision FractionPrecision::withMinDigits(int32_t minSignificantDigits) const {
 Precision FractionPrecision::withMaxDigits(int32_t maxSignificantDigits) const {
     if (fType == RND_ERROR) { return *this; } // no-op in error state
     if (maxSignificantDigits >= 1 && maxSignificantDigits <= kMaxIntFracSig) {
-        return constructFractionSignificant(*this, -1, maxSignificantDigits);
+        return constructFractionSignificant(*this,
+            1,
+            maxSignificantDigits,
+            UNUM_ROUNDING_PRIORITY_STRICT);
     } else {
         return {U_NUMBER_ARG_OUTOFBOUNDS_ERROR};
     }
@@ -231,11 +262,11 @@ Precision Precision::withCurrency(const CurrencyUnit &currency, UErrorCode &stat
     double increment = ucurr_getRoundingIncrementForUsage(isoCode, fUnion.currencyUsage, &status);
     int32_t minMaxFrac = ucurr_getDefaultFractionDigitsForUsage(
             isoCode, fUnion.currencyUsage, &status);
-    if (increment != 0.0) {
-        return constructIncrement(increment, minMaxFrac);
-    } else {
-        return constructFraction(minMaxFrac, minMaxFrac);
-    }
+    Precision retval = (increment != 0.0)
+        ? static_cast<Precision>(constructIncrement(increment, minMaxFrac))
+        : static_cast<Precision>(constructFraction(minMaxFrac, minMaxFrac));
+    retval.fTrailingZeroDisplay = fTrailingZeroDisplay;
+    return retval;
 }
 
 // Public method on CurrencyPrecision subclass
@@ -280,10 +311,15 @@ Precision Precision::constructSignificant(int32_t minSig, int32_t maxSig) {
 }
 
 Precision
-Precision::constructFractionSignificant(const FractionPrecision &base, int32_t minSig, int32_t maxSig) {
+Precision::constructFractionSignificant(
+        const FractionPrecision &base,
+        int32_t minSig,
+        int32_t maxSig,
+        UNumberRoundingPriority priority) {
     FractionSignificantSettings settings = base.fUnion.fracSig;
     settings.fMinSig = static_cast<digits_t>(minSig);
     settings.fMaxSig = static_cast<digits_t>(maxSig);
+    settings.fPriority = priority;
     PrecisionUnion union_;
     union_.fracSig = settings;
     return {RND_FRACTION_SIGNIFICANT, union_};
@@ -383,6 +419,7 @@ void RoundingImpl::apply(impl::DecimalQuantity &value, UErrorCode& status) const
     if (fPassThrough) {
         return;
     }
+    int32_t resolvedMinFraction = 0;
     switch (fPrecision.fType) {
         case Precision::RND_BOGUS:
         case Precision::RND_ERROR:
@@ -399,8 +436,8 @@ void RoundingImpl::apply(impl::DecimalQuantity &value, UErrorCode& status) const
                     getRoundingMagnitudeFraction(fPrecision.fUnion.fracSig.fMaxFrac),
                     fRoundingMode,
                     status);
-            value.setMinFraction(
-                    uprv_max(0, -getDisplayMagnitudeFraction(fPrecision.fUnion.fracSig.fMinFrac)));
+            resolvedMinFraction =
+                    uprv_max(0, -getDisplayMagnitudeFraction(fPrecision.fUnion.fracSig.fMinFrac));
             break;
 
         case Precision::RND_SIGNIFICANT:
@@ -408,8 +445,8 @@ void RoundingImpl::apply(impl::DecimalQuantity &value, UErrorCode& status) const
                     getRoundingMagnitudeSignificant(value, fPrecision.fUnion.fracSig.fMaxSig),
                     fRoundingMode,
                     status);
-            value.setMinFraction(
-                    uprv_max(0, -getDisplayMagnitudeSignificant(value, fPrecision.fUnion.fracSig.fMinSig)));
+            resolvedMinFraction =
+                    uprv_max(0, -getDisplayMagnitudeSignificant(value, fPrecision.fUnion.fracSig.fMinSig));
             // Make sure that digits are displayed on zero.
             if (value.isZeroish() && fPrecision.fUnion.fracSig.fMinSig > 0) {
                 value.setMinInteger(1);
@@ -417,23 +454,21 @@ void RoundingImpl::apply(impl::DecimalQuantity &value, UErrorCode& status) const
             break;
 
         case Precision::RND_FRACTION_SIGNIFICANT: {
-            int32_t displayMag = getDisplayMagnitudeFraction(fPrecision.fUnion.fracSig.fMinFrac);
-            int32_t roundingMag = getRoundingMagnitudeFraction(fPrecision.fUnion.fracSig.fMaxFrac);
-            if (fPrecision.fUnion.fracSig.fMinSig == -1) {
-                // Max Sig override
-                int32_t candidate = getRoundingMagnitudeSignificant(
-                        value,
-                        fPrecision.fUnion.fracSig.fMaxSig);
-                roundingMag = uprv_max(roundingMag, candidate);
+            int32_t roundingMag1 = getRoundingMagnitudeFraction(fPrecision.fUnion.fracSig.fMaxFrac);
+            int32_t roundingMag2 = getRoundingMagnitudeSignificant(value, fPrecision.fUnion.fracSig.fMaxSig);
+            int32_t roundingMag;
+            if (fPrecision.fUnion.fracSig.fPriority == UNUM_ROUNDING_PRIORITY_RELAXED) {
+                roundingMag = uprv_min(roundingMag1, roundingMag2);
             } else {
-                // Min Sig override
-                int32_t candidate = getDisplayMagnitudeSignificant(
-                        value,
-                        fPrecision.fUnion.fracSig.fMinSig);
-                roundingMag = uprv_min(roundingMag, candidate);
+                roundingMag = uprv_max(roundingMag1, roundingMag2);
             }
             value.roundToMagnitude(roundingMag, fRoundingMode, status);
-            value.setMinFraction(uprv_max(0, -displayMag));
+
+            int32_t displayMag1 = getDisplayMagnitudeFraction(fPrecision.fUnion.fracSig.fMinFrac);
+            int32_t displayMag2 = getDisplayMagnitudeSignificant(value, fPrecision.fUnion.fracSig.fMinSig);
+            int32_t displayMag = uprv_min(displayMag1, displayMag2);
+            resolvedMinFraction = uprv_max(0, -displayMag);
+
             break;
         }
 
@@ -442,7 +477,7 @@ void RoundingImpl::apply(impl::DecimalQuantity &value, UErrorCode& status) const
                     fPrecision.fUnion.increment.fIncrement,
                     fRoundingMode,
                     status);
-            value.setMinFraction(fPrecision.fUnion.increment.fMinFrac);
+            resolvedMinFraction = fPrecision.fUnion.increment.fMinFrac;
             break;
 
         case Precision::RND_INCREMENT_ONE:
@@ -450,7 +485,7 @@ void RoundingImpl::apply(impl::DecimalQuantity &value, UErrorCode& status) const
                     -fPrecision.fUnion.increment.fMaxFrac,
                     fRoundingMode,
                     status);
-            value.setMinFraction(fPrecision.fUnion.increment.fMinFrac);
+            resolvedMinFraction = fPrecision.fUnion.increment.fMinFrac;
             break;
 
         case Precision::RND_INCREMENT_FIVE:
@@ -458,7 +493,7 @@ void RoundingImpl::apply(impl::DecimalQuantity &value, UErrorCode& status) const
                     -fPrecision.fUnion.increment.fMaxFrac,
                     fRoundingMode,
                     status);
-            value.setMinFraction(fPrecision.fUnion.increment.fMinFrac);
+            resolvedMinFraction = fPrecision.fUnion.increment.fMinFrac;
             break;
 
         case Precision::RND_CURRENCY:
@@ -468,10 +503,17 @@ void RoundingImpl::apply(impl::DecimalQuantity &value, UErrorCode& status) const
         default:
             UPRV_UNREACHABLE;
     }
+
+    if (fPrecision.fTrailingZeroDisplay == UNUM_TRAILING_ZERO_AUTO ||
+            // PLURAL_OPERAND_T returns fraction digits as an integer
+            value.getPluralOperand(PLURAL_OPERAND_T) != 0) {
+        value.setMinFraction(resolvedMinFraction);
+    }
 }
 
 void RoundingImpl::apply(impl::DecimalQuantity &value, int32_t minInt, UErrorCode /*status*/) {
     // This method is intended for the one specific purpose of helping print "00.000E0".
+    // Question: Is it useful to look at trailingZeroDisplay here?
     U_ASSERT(isSignificantDigits());
     U_ASSERT(value.isZeroish());
     value.setMinFraction(fPrecision.fUnion.fracSig.fMinSig - minInt);

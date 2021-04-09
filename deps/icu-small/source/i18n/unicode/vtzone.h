@@ -157,7 +157,7 @@ public:
     void write(UnicodeString& result, UErrorCode& status) const;
 
     /**
-     * Writes RFC2445 VTIMEZONE data for this time zone applicalbe
+     * Writes RFC2445 VTIMEZONE data for this time zone applicable
      * for dates after the specified start time.
      * @param start The start date.
      * @param result Output param to filled in with the VTIMEZONE data.
@@ -167,7 +167,7 @@ public:
     void write(UDate start, UnicodeString& result, UErrorCode& status) const;
 
     /**
-     * Writes RFC2445 VTIMEZONE data applicalbe for the specified date.
+     * Writes RFC2445 VTIMEZONE data applicable for the specified date.
      * Some common iCalendar implementations can only handle a single time
      * zone property or a pair of standard and daylight time properties using
      * BYDAY rule with day of week (such as BYDAY=1SUN).  This method produce
@@ -263,6 +263,17 @@ public:
      */
     virtual void getOffset(UDate date, UBool local, int32_t& rawOffset,
                            int32_t& dstOffset, UErrorCode& ec) const;
+
+#ifndef U_FORCE_HIDE_DRAFT_API
+    /**
+     * Get time zone offsets from local wall time.
+     * @draft ICU 69
+     */
+    virtual void getOffsetFromLocal(
+        UDate date, UTimeZoneLocalOption nonExistingTimeOpt,
+        UTimeZoneLocalOption duplicatedTimeOpt,
+        int32_t& rawOffset, int32_t& dstOffset, UErrorCode& status) const;
+#endif /* U_FORCE_HIDE_DRAFT_API */
 
     /**
      * Sets the TimeZone's raw GMT offset (i.e., the number of milliseconds to add

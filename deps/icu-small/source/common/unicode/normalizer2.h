@@ -225,10 +225,8 @@ public:
      * Normalizes a UTF-8 string and optionally records how source substrings
      * relate to changed and unchanged result substrings.
      *
-     * Currently implemented completely only for "compose" modes,
-     * such as for NFC, NFKC, and NFKC_Casefold
-     * (UNORM2_COMPOSE and UNORM2_COMPOSE_CONTIGUOUS).
-     * Otherwise currently converts to & from UTF-16 and does not support edits.
+     * Implemented completely for all built-in modes except for FCD.
+     * The base class implementation converts to & from UTF-16 and does not support edits.
      *
      * @param options   Options bit set, usually 0. See U_OMIT_UNCHANGED_TEXT and U_EDITS_NO_RESET.
      * @param src       Source UTF-8 string.
@@ -381,11 +379,9 @@ public:
      * resolves to "yes" or "no" to provide a definitive result,
      * at the cost of doing more work in those cases.
      *
-     * This works for all normalization modes,
-     * but it is currently optimized for UTF-8 only for "compose" modes,
-     * such as for NFC, NFKC, and NFKC_Casefold
-     * (UNORM2_COMPOSE and UNORM2_COMPOSE_CONTIGUOUS).
-     * For other modes it currently converts to UTF-16 and calls isNormalized().
+     * This works for all normalization modes.
+     * It is optimized for UTF-8 for all built-in modes except for FCD.
+     * The base class implementation converts to UTF-16 and calls isNormalized().
      *
      * @param s UTF-8 input string
      * @param errorCode Standard ICU error code. Its input value must
@@ -543,10 +539,8 @@ public:
      * Normalizes a UTF-8 string and optionally records how source substrings
      * relate to changed and unchanged result substrings.
      *
-     * Currently implemented completely only for "compose" modes,
-     * such as for NFC, NFKC, and NFKC_Casefold
-     * (UNORM2_COMPOSE and UNORM2_COMPOSE_CONTIGUOUS).
-     * Otherwise currently converts to & from UTF-16 and does not support edits.
+     * Implemented completely for most built-in modes except for FCD.
+     * The base class implementation converts to & from UTF-16 and does not support edits.
      *
      * @param options   Options bit set, usually 0. See U_OMIT_UNCHANGED_TEXT and U_EDITS_NO_RESET.
      * @param src       Source UTF-8 string.
@@ -676,11 +670,9 @@ public:
      * resolves to "yes" or "no" to provide a definitive result,
      * at the cost of doing more work in those cases.
      *
-     * This works for all normalization modes,
-     * but it is currently optimized for UTF-8 only for "compose" modes,
-     * such as for NFC, NFKC, and NFKC_Casefold
-     * (UNORM2_COMPOSE and UNORM2_COMPOSE_CONTIGUOUS).
-     * For other modes it currently converts to UTF-16 and calls isNormalized().
+     * This works for all normalization modes.
+     * It is optimized for UTF-8 for all built-in modes except for FCD.
+     * The base class implementation converts to UTF-16 and calls isNormalized().
      *
      * @param s UTF-8 input string
      * @param errorCode Standard ICU error code. Its input value must

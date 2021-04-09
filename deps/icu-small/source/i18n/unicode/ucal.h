@@ -1617,6 +1617,109 @@ U_CAPI int32_t U_EXPORT2
 ucal_getTimeZoneIDForWindowsID(const UChar* winid, int32_t len, const char* region,
                                 UChar* id, int32_t idCapacity, UErrorCode* status);
 
+#ifndef U_FORCE_HIDE_DRAFT_API
+/**
+ * Options used by ucal_getTimeZoneOffsetFromLocal and BasicTimeZone::getOffsetFromLocal()
+ * to specify how to interpret an input time when it does not exist, or when it is ambiguous,
+ * around a time zone transition.
+ * @draft ICU 69
+ */
+enum UTimeZoneLocalOption {
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * An input time is always interpreted as local time before
+     * a time zone transition.
+     * @draft ICU 69
+     */
+    UCAL_TZ_LOCAL_FORMER = 0x04,
+    /**
+     * An input time is always interpreted as local time after
+     * a time zone transition.
+     * @draft ICU 69
+     */
+    UCAL_TZ_LOCAL_LATTER = 0x0C,
+    /**
+     * An input time is interpreted as standard time when local
+     * time is switched to/from daylight saving time. When both
+     * sides of a time zone transition are standard time,
+     * or daylight saving time, the local time before the
+     * transition is used.
+     * @draft ICU 69
+     */
+    UCAL_TZ_LOCAL_STANDARD_FORMER = UCAL_TZ_LOCAL_FORMER | 0x01,
+    /**
+     * An input time is interpreted as standard time when local
+     * time is switched to/from daylight saving time. When both
+     * sides of a time zone transition are standard time,
+     * or daylight saving time, the local time after the
+     * transition is used.
+     * @draft ICU 69
+     */
+    UCAL_TZ_LOCAL_STANDARD_LATTER = UCAL_TZ_LOCAL_LATTER | 0x01,
+    /**
+     * An input time is interpreted as daylight saving time when
+     * local time is switched to/from standard time. When both
+     * sides of a time zone transition are standard time,
+     * or daylight saving time, the local time before the
+     * transition is used.
+     * @draft ICU 69
+     */
+    UCAL_TZ_LOCAL_DAYLIGHT_FORMER = UCAL_TZ_LOCAL_FORMER | 0x03,
+    /**
+     * An input time is interpreted as daylight saving time when
+     * local time is switched to/from standard time. When both
+     * sides of a time zone transition are standard time,
+     * or daylight saving time, the local time after the
+     * transition is used.
+     * @draft ICU 69
+     */
+    UCAL_TZ_LOCAL_DAYLIGHT_LATTER = UCAL_TZ_LOCAL_LATTER | 0x03,
+#else /* U_HIDE_DRAFT_API */
+    /**
+     * Dummy value to prevent empty enum if U_HIDE_DRAFT_API.
+     * This will go away when draft conditionals are removed.
+     * @internal
+     */
+    UCAL_TZ_LOCAL_NONE = 0,
+#endif /* U_HIDE_DRAFT_API */
+};
+typedef enum UTimeZoneLocalOption UTimeZoneLocalOption; /**< @draft ICU 69 */
+
+/**
+* Returns the time zone raw and GMT offset for the given moment
+* in time.  Upon return, local-millis = GMT-millis + rawOffset +
+* dstOffset.  All computations are performed in the proleptic
+* Gregorian calendar.
+*
+* @param cal The UCalendar which specify the local date and time value to query.
+* @param nonExistingTimeOpt The option to indicate how to interpret the date and
+* time in the calendar represent a local time that skipped at a positive time
+* zone transitions (e.g. when the daylight saving time starts or the time zone
+* offset is increased due to a time zone rule change).
+* @param duplicatedTimeOpt The option to indicate how to interpret the date and
+* time in the calendar represent a local time that repeating multiple times at a
+* negative time zone transition (e.g. when the daylight saving time ends or the
+* time zone offset is decreased due to a time zone rule change)
+* @param rawOffset output parameter to receive the raw offset, that
+* is, the offset not including DST adjustments.
+* If the status is set to one of the error code, the value set is unspecified.
+* @param dstOffset output parameter to receive the DST offset,
+* that is, the offset to be added to `rawOffset' to obtain the
+* total offset between local and GMT time. If DST is not in
+* effect, this value is zero; otherwise it is a positive value,
+* typically one hour.
+* If the status is set to one of the error code, the value set is unspecified.
+* @param status A pointer to a UErrorCode to receive any errors.
+* @draft ICU 69
+*/
+U_CAPI void U_EXPORT2
+ucal_getTimeZoneOffsetFromLocal(
+    const UCalendar* cal,
+    UTimeZoneLocalOption nonExistingTimeOpt,
+    UTimeZoneLocalOption duplicatedTimeOpt,
+    int32_t* rawOffset, int32_t* dstOffset, UErrorCode* status);
+#endif /* U_FORCE_HIDE_DRAFT_API */
+
 #endif /* #if !UCONFIG_NO_FORMATTING */
 
 #endif

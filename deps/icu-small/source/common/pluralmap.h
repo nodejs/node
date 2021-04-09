@@ -24,7 +24,7 @@ class U_COMMON_API PluralMapBase : public UMemory {
 public:
     /**
      * The names of all the plural categories. NONE is not an actual plural
-     * category, but rather represents the absense of a plural category.
+     * category, but rather represents the absence of a plural category.
      */
     enum Category {
         NONE = -1,

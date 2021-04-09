@@ -145,7 +145,7 @@ static UBool getWindowsTimeZoneInfo(TIME_ZONE_INFORMATION *zoneInfo, const UChar
 }
 
 /*
- * Given the timezone icuid, fill in zoneInfo by calling auxillary functions that creates a timezone and extract the
+ * Given the timezone icuid, fill in zoneInfo by calling auxiliary functions that creates a timezone and extract the
  * information to put into zoneInfo. This includes bias and standard time date and daylight saving date.
  */
 U_CAPI UBool U_EXPORT2

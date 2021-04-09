@@ -13,7 +13,7 @@
 *   Date        Name        Description
 *   02/19/97    aliu        Converted from java.
 *   03/18/97    clhuang     Implemented with C++ APIs.
-*   04/17/97    aliu        Enlarged MAX_INTEGER_DIGITS to fully accomodate the
+*   04/17/97    aliu        Enlarged MAX_INTEGER_DIGITS to fully accommodate the
 *                           largest double, by default.
 *                           Changed DigitCount to int per code review.
 *    07/20/98    stephen        Changed operator== to check for grouping

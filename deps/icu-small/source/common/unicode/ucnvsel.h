@@ -45,11 +45,11 @@
  * from the serialized form.
  */
 
+struct UConverterSelector;
 /**
  * @{
- * The selector data structure
+ * Typedef for selector data structure.
  */
-struct UConverterSelector;
 typedef struct UConverterSelector UConverterSelector;
 /** @} */
 

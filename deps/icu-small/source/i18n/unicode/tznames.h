@@ -193,7 +193,7 @@ public:
 
     /**
      * Returns an enumeration of all available meta zone IDs used by the given time zone.
-     * @param tzID The canoical tiem zone ID.
+     * @param tzID The canonical time zone ID.
      * @param status Receives the status.
      * @return an enumeration object, owned by the caller.
      * @stable ICU 50

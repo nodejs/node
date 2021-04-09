@@ -112,7 +112,7 @@ class UVector64;
  * Note, RuleBasedCollator is not to be subclassed.
  * @see        Collator
  */
-class U_I18N_API RuleBasedCollator : public Collator {
+class U_I18N_API RuleBasedCollator U_FINAL : public Collator {
 public:
     /**
      * RuleBasedCollator constructor. This takes the table rules and builds a

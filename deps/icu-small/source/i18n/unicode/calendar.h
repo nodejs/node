@@ -47,6 +47,8 @@ U_NAMESPACE_BEGIN
 
 class ICUServiceFactory;
 
+// Do not conditionalize the following with #ifndef U_HIDE_INTERNAL_API,
+// it is a return type for a virtual method (@internal)
 /**
  * @internal
  */
@@ -1849,7 +1851,7 @@ private:
      * @param startValue starting (least max) value of field
      * @param endValue ending (greatest max) value of field
      * @param status return type
-     * @internal
+     * @internal (private)
      */
     int32_t getActualHelper(UCalendarDateFields field, int32_t startValue, int32_t endValue, UErrorCode &status) const;
 

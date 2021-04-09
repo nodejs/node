@@ -3913,7 +3913,7 @@ void RegexMatcher::MatchAt(int64_t startIdx, UBool toEnd, UErrorCode &status) {
                     // First time through loop.
                     lbStartIdx = fp->fInputIdx - minML;
                     if (lbStartIdx > 0) {
-                        // move index to a code point boudary, if it's not on one already.
+                        // move index to a code point boundary, if it's not on one already.
                         UTEXT_SETNATIVEINDEX(fInputText, lbStartIdx);
                         lbStartIdx = UTEXT_GETNATIVEINDEX(fInputText);
                     }
@@ -3999,7 +3999,7 @@ void RegexMatcher::MatchAt(int64_t startIdx, UBool toEnd, UErrorCode &status) {
                     // First time through loop.
                     lbStartIdx = fp->fInputIdx - minML;
                     if (lbStartIdx > 0) {
-                        // move index to a code point boudary, if it's not on one already.
+                        // move index to a code point boundary, if it's not on one already.
                         UTEXT_SETNATIVEINDEX(fInputText, lbStartIdx);
                         lbStartIdx = UTEXT_GETNATIVEINDEX(fInputText);
                     }

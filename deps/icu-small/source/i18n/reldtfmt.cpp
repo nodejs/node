@@ -334,7 +334,7 @@ UDate
 RelativeDateFormat::parse( const UnicodeString& text,
                          ParsePosition& pos) const {
     // redefined here because the other parse() function hides this function's
-    // cunterpart on DateFormat
+    // counterpart on DateFormat
     return DateFormat::parse(text, pos);
 }
 

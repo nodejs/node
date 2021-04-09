@@ -321,7 +321,7 @@ UCNV_FROM_U_CALLBACK_ESCAPE (
       case UCNV_PRV_ESCAPE_CSS2:
           valueString[valueStringLength++] = (UChar) UNICODE_RS_CODEPOINT;    /* adding \ */
           valueStringLength += uprv_itou (valueString + valueStringLength, VALUE_STRING_LENGTH - valueStringLength, codePoint, 16, 0);
-          /* Always add space character, becase the next character might be whitespace,
+          /* Always add space character, because the next character might be whitespace,
              which would erroneously be considered the termination of the escape sequence. */
           valueString[valueStringLength++] = (UChar) UNICODE_SPACE_CODEPOINT;
           break;

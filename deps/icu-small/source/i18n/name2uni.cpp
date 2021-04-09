@@ -119,7 +119,7 @@ void NameUnicodeTransliterator::handleTransliterate(Replaceable& text, UTransPos
         return;
     }
 
-    // Accomodate the longest possible name
+    // Accommodate the longest possible name
     ++maxLen; // allow for temporary trailing space
     char* cbuf = (char*) uprv_malloc(maxLen);
     if (cbuf == NULL) {

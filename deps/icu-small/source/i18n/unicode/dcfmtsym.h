@@ -446,7 +446,7 @@ public:
     inline const UnicodeString& getConstDigitSymbol(int32_t digit) const;
 
     /**
-     * Returns that pattern stored in currecy info. Internal API for use by NumberFormat API.
+     * Returns that pattern stored in currency info. Internal API for use by NumberFormat API.
      * @internal
      */
     inline const char16_t* getCurrencyPattern(void) const;

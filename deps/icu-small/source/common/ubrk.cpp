@@ -174,6 +174,18 @@ ubrk_safeClone(
     return (UBreakIterator *)newBI;
 }
 
+U_CAPI UBreakIterator * U_EXPORT2
+ubrk_clone(const UBreakIterator *bi, UErrorCode *status) {
+    if (U_FAILURE(*status)) {
+        return nullptr;
+    }
+    BreakIterator *newBI = ((BreakIterator *)bi)->clone();
+    if (newBI == nullptr) {
+        *status = U_MEMORY_ALLOCATION_ERROR;
+        return nullptr;
+    }
+    return (UBreakIterator *)newBI;
+}
 
 
 U_CAPI void U_EXPORT2

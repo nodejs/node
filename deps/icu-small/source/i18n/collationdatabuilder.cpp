@@ -255,12 +255,18 @@ DataBuilderCollationIterator::getDataCE32(UChar32 c) const {
 
 uint32_t
 DataBuilderCollationIterator::getCE32FromBuilderData(uint32_t ce32, UErrorCode &errorCode) {
+    if (U_FAILURE(errorCode)) { return 0; }
     U_ASSERT(Collation::hasCE32Tag(ce32, Collation::BUILDER_DATA_TAG));
     if((ce32 & CollationDataBuilder::IS_BUILDER_JAMO_CE32) != 0) {
         UChar32 jamo = Collation::indexFromCE32(ce32);
         return utrie2_get32(builder.trie, jamo);
     } else {
         ConditionalCE32 *cond = builder.getConditionalCE32ForCE32(ce32);
+        if (cond == nullptr) {
+            errorCode = U_INTERNAL_PROGRAM_ERROR;
+            // TODO: ICU-21531 figure out why this happens.
+            return 0;
+        }
         if(cond->builtCE32 == Collation::NO_CE32) {
             // Build the context-sensitive mappings into their runtime form and cache the result.
             cond->builtCE32 = builder.buildContext(cond, errorCode);

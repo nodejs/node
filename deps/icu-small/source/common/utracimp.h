@@ -193,7 +193,7 @@ UPRV_BLOCK_MACRO_BEGIN { \
  * Trace statement for each exit point of a function that has a UTRACE_ENTRY()
  * statement, and that returns a value.
  *
- * @param val       The function's return value, int32_t or comatible type.
+ * @param val       The function's return value, int32_t or compatible type.
  *
  * @internal
  */

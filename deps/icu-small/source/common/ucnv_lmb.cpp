@@ -81,7 +81,7 @@
   [G] D1 [D2]
 
   That is, a sometimes-optional 'group' byte, followed by 1 and sometimes 2
-  data bytes. The maximum size of a LMBCS chjaracter is 3 bytes:
+  data bytes. The maximum size of a LMBCS character is 3 bytes:
 */
 #define ULMBCS_CHARSIZE_MAX      3
 /*
@@ -164,7 +164,7 @@ beginning of internal 'system' range names: */
 /* Then we needed a place to put all the other ansi control characters
 that must be moved to different values because LMBCS reserves those
 values for other purposes. To represent the control characters, we start
-with a first byte of 0xF & add the control chaarcter value as the
+with a first byte of 0xF & add the control character value as the
 second byte */
 #define ULMBCS_GRP_CTRL       0x0F
 
