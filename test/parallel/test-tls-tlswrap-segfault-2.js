@@ -19,6 +19,6 @@ tlsSocketKeyLog.on('error', () => {
 const tlsSocketSession = tls.connect('cause-error-2');
 tlsSocketSession.on('error', (e) => {
   setTimeout(() => {
-    tlsSocketSession.on('keylog', () => { });
+    tlsSocketSession.on('session', () => { });
   }, 10);
 });
