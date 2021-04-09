@@ -39,9 +39,8 @@ Time zone data files are updated independently of ICU CLDR data.  ICU and its
 main data files do not need to be upgraded in order to apply time zone data file
 fixes.
 
-The [IANA tzdata](https://www.iana.org/time-zones) project releases new versions
-and announces them on the [`tz-announce`](https://mm.icann.org/pipermail/tz-announce/)
-mailing list.
+The [IANA tzdata][tz] project releases new versions and announces them on the
+[`tz-announce`](https://mm.icann.org/pipermail/tz-announce/) mailing list.
 
 The Unicode project takes new releases and publishes
 [updated time zone data files](https://github.com/unicode-org/icu-data/tree/HEAD/tzdata/icunew)
@@ -56,7 +55,7 @@ files.
   the ICU major version number.
 * Clone the icu/icu-data repository and copy the latest `tzdata` release `le`
   files into the `source/data/in` directory.
-* Follow the upstream [ICU instructions](http://userguide.icu-project.org/datetime/timezone)
+* Follow the upstream [ICU instructions](https://unicode-org.github.io/icu/userguide/datetime/timezone/)
   to patch the ICU `.dat` file:
   > `for i in zoneinfo64.res windowsZones.res timezoneTypes.res metaZones.res;
   > do icupkg -a $i icudt*l.dat`
@@ -261,8 +260,8 @@ Node.js (see the top level README.md). Only modifying `icu-small` would cause
 the patch not to be landed in case the user specifies the ICU source code
 another way.
 
-[CLDR]: https://unicode.org/cldr
+[CLDR]: http://cldr.unicode.org/
 [Ecma402]: https://github.com/tc39/ecma402
-[ICU]: http://icu-project.org
-[Unicode]: https://unicode.org
+[ICU]: http://site.icu-project.org/
+[Unicode]: https://home.unicode.org/
 [tz]: https://www.iana.org/time-zones
