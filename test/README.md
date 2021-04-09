@@ -25,6 +25,7 @@ For the tests to run on Windows, be sure to clone Node.js source code with the
 | `doctool`        | Yes       | Tests for the documentation generator. |
 | `es-module`      | Yes       | Test ESM module loading. |
 | `fixtures`       |                | Test fixtures used in various tests throughout the test suite. |
+| `inspector-cli`       | Yes        | Tests for `node inspect` |
 | `internet`       | No        | Tests that make real outbound network connections. Tests for networking related modules may also be present in other directories, but those tests do not make outbound connections. |
 | `js-native-api`  | Yes       | Tests for Node.js-agnostic [n-api](https://nodejs.org/api/n-api.html) functionality. |
 | `known_issues`   | Yes       | Tests reproducing known issues within the system. All tests inside of this directory are expected to fail. If a test doesn't fail on certain platforms, those should be skipped via `known_issues.status`. |

@@ -16,6 +16,7 @@ This directory contains modules used to test the Node.js implementation.
 * [Heap dump checker module](#heap-dump-checker-module)
 * [hijackstdio module](#hijackstdio-module)
 * [HTTP2 module](#http2-module)
+* [Inspector CLI module](#inspector-cli-module)
 * [Internet module](#internet-module)
 * [ongc module](#ongc-module)
 * [Report module](#report-module)
@@ -822,6 +823,34 @@ upon initial establishment of a connection.
 ```js
 socket.write(http2.kClientMagic);
 ```
+
+## Inspector CLI module
+
+Provides common functionality for tests for `node inspect`.
+
+### `startCLI(args[[, flags], spawnOpts])`
+
+* `args` [&lt;string>][]
+* `flags` [&lt;string>][] default = []
+* `showOpts` [&lt;Object>][] default = {}
+* return [&lt;Object>][]
+
+Returns a null-prototype object with properties that are functions and getters
+used to interact with the `node inspect` CLI. These functions are:
+
+* `flushOutput()`
+* `waitFor()`
+* `waitForPrompt()`
+* `waitForInitialBreak()`
+* `breakInfo`
+* `ctrlC()`
+* `output`
+* `rawOutput`
+* `parseSourceLines()`
+* `writeLine()`
+* `command()`
+* `stepCommand()`
+* `quit()`
 
 ## Internet Module
 

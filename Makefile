@@ -565,10 +565,6 @@ test-pummel: all
 test-internet: all
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) internet
 
-test-node-inspect: $(NODE_EXE)
-	USE_EMBEDDED_NODE_INSPECT=1 $(NODE) tools/test-npm-package \
-		--install deps/node-inspect test
-
 test-benchmark: | bench-addons-build
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) benchmark
 
