@@ -187,8 +187,10 @@ class U_I18N_API OlsonTimeZone: public BasicTimeZone {
     /**
      * BasicTimeZone API.
      */
-    virtual void getOffsetFromLocal(UDate date, int32_t nonExistingTimeOpt, int32_t duplicatedTimeOpt,
-        int32_t& rawoff, int32_t& dstoff, UErrorCode& ec) const;
+    virtual void getOffsetFromLocal(
+        UDate date, UTimeZoneLocalOption nonExistingTimeOpt,
+        UTimeZoneLocalOption duplicatedTimeOpt,
+        int32_t& rawOffset, int32_t& dstOffset, UErrorCode& status) const;
 
     /**
      * TimeZone API.  This method has no effect since objects of this

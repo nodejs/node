@@ -312,7 +312,7 @@ int32_t UVector::indexOf(UElement key, int32_t startIndex, int8_t hint) const {
     } else {
         for (i=startIndex; i<count; ++i) {
             /* Pointers are not always the same size as ints so to perform
-             * a valid comparision we need to know whether we are being
+             * a valid comparison we need to know whether we are being
              * provided an int or a pointer. */
             if (hint & HINT_KEY_POINTER) {
                 if (key.pointer == elements[i].pointer) {
@@ -518,7 +518,7 @@ sortiComparator(const void * /*context */, const void *left, const void *right) 
 }
 
 /**
-  * Sort the vector, assuming it constains ints.
+  * Sort the vector, assuming it contains ints.
   *     (A more general sort would take a comparison function, but it's
   *     not clear whether UVector's UElementComparator or
   *     UComparator from uprv_sortAray would be more appropriate.)

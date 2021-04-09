@@ -543,7 +543,7 @@ enum URBNFRuleSetTag {
  * names in this array will be treated as public rule set names by the API.  Each subsequent
  * element is an array of localizations of these names.  The first element of one of these
  * subarrays is the locale name, and the remaining elements are localizations of the
- * public rule set names, in the same order as they were listed in the first arrray.</p>
+ * public rule set names, in the same order as they were listed in the first array.</p>
  * <p>In the syntax, angle brackets '<', '>' are used to delimit the arrays, and comma ',' is used
  * to separate elements of an array.  Whitespace is ignored, unless quoted.</p>
  * <p>For example:<pre>
@@ -653,7 +653,7 @@ public:
 
   /**
    * Creates a RuleBasedNumberFormat from a predefined ruleset.  The selector
-   * code choosed among three possible predefined formats: spellout, ordinal,
+   * code chose among three possible predefined formats: spellout, ordinal,
    * and duration.
    * @param tag A selector code specifying which kind of formatter to create for that
    * locale.  There are four legal values: URBNF_SPELLOUT, which creates a formatter that

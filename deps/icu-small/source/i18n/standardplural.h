@@ -35,6 +35,8 @@ public:
         FEW,
         MANY,
         OTHER,
+        EQ_0,
+        EQ_1,
         COUNT
     };
 

@@ -15,7 +15,7 @@
  * \file
  * \brief (Non API- contains Doxygen definitions)
  *
- * This file contains documentation for Doxygen and doesnot have
+ * This file contains documentation for Doxygen and does not have
  * any significance with respect to C or C++ API
  */
 
@@ -74,7 +74,7 @@
  *   </tr>
  *   <tr>
  *     <td>Strings and Character Iteration</td>
- *     <td>ustring.h, utf8.h, utf16.h, UText, UCharIterator</td>
+ *     <td>ustring.h, utf8.h, utf16.h, icu::StringPiece, UText, UCharIterator, icu::ByteSink</td>
  *     <td>icu::UnicodeString, icu::CharacterIterator, icu::Appendable, icu::StringPiece,icu::ByteSink</td>
  *   </tr>
  *   <tr>
@@ -128,9 +128,9 @@
  *     <td>icu::Normalizer2</td>
  *   </tr>
  *   <tr>
- *     <td>Calendars</td>
+ *     <td>Calendars and Time Zones</td>
  *     <td>ucal.h</td>
- *     <td>icu::Calendar</td>
+ *     <td>icu::Calendar, icu::TimeZone</td>
  *   </tr>
  *   <tr>
  *     <td>Date and Time Formatting</td>

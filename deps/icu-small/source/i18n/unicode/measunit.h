@@ -30,201 +30,333 @@
 U_NAMESPACE_BEGIN
 
 class StringEnumeration;
-struct MeasureUnitImpl;
+class MeasureUnitImpl;
 
-#ifndef U_HIDE_DRAFT_API
+namespace number {
+namespace impl {
+class LongNameHandler;
+}
+} // namespace number
+
 /**
  * Enumeration for unit complexity. There are three levels:
  *
- * - SINGLE: A single unit, optionally with a power and/or SI prefix. Examples: hectare,
- *           square-kilometer, kilojoule, per-second.
+ * - SINGLE: A single unit, optionally with a power and/or SI or binary prefix.
+ *           Examples: hectare, square-kilometer, kilojoule, per-second, mebibyte.
  * - COMPOUND: A unit composed of the product of multiple single units. Examples:
  *             meter-per-second, kilowatt-hour, kilogram-meter-per-square-second.
  * - MIXED: A unit composed of the sum of multiple single units. Examples: foot+inch,
  *          hour+minute+second, degree+arcminute+arcsecond.
  *
  * The complexity determines which operations are available. For example, you cannot set the power
- * or SI prefix of a compound unit.
+ * or prefix of a compound unit.
  *
- * @draft ICU 67
+ * @stable ICU 67
  */
 enum UMeasureUnitComplexity {
     /**
      * A single unit, like kilojoule.
      *
-     * @draft ICU 67
+     * @stable ICU 67
      */
     UMEASURE_UNIT_SINGLE,
 
     /**
      * A compound unit, like meter-per-second.
      *
-     * @draft ICU 67
+     * @stable ICU 67
      */
     UMEASURE_UNIT_COMPOUND,
 
     /**
      * A mixed unit, like hour+minute.
      *
-     * @draft ICU 67
+     * @stable ICU 67
      */
     UMEASURE_UNIT_MIXED
 };
 
+
+#ifndef U_HIDE_DRAFT_API
 /**
- * Enumeration for SI prefixes, such as "kilo".
+ * Enumeration for SI and binary prefixes, e.g. "kilo-", "nano-", "mebi-".
  *
- * @draft ICU 67
+ * Enum values should be treated as opaque: use umeas_getPrefixPower() and
+ * umeas_getPrefixBase() to find their corresponding values.
+ *
+ * @draft ICU 69
+ * @see umeas_getPrefixBase
+ * @see umeas_getPrefixPower
  */
-typedef enum UMeasureSIPrefix {
+typedef enum UMeasurePrefix {
+    /**
+     * The absence of an SI or binary prefix.
+     *
+     * The integer representation of this enum value is an arbitrary
+     * implementation detail and should not be relied upon: use
+     * umeas_getPrefixPower() to obtain meaningful values.
+     *
+     * @draft ICU 69
+     */
+    UMEASURE_PREFIX_ONE = 30 + 0,
 
     /**
      * SI prefix: yotta, 10^24.
      *
-     * @draft ICU 67
+     * @draft ICU 69
      */
-    UMEASURE_SI_PREFIX_YOTTA = 24,
+    UMEASURE_PREFIX_YOTTA = UMEASURE_PREFIX_ONE + 24,
+
+    /**
+     * ICU use only.
+     * Used to determine the set of base-10 SI prefixes.
+     * @internal
+     */
+    UMEASURE_PREFIX_INTERNAL_MAX_SI = UMEASURE_PREFIX_YOTTA,
 
     /**
      * SI prefix: zetta, 10^21.
      *
-     * @draft ICU 67
+     * @draft ICU 69
      */
-    UMEASURE_SI_PREFIX_ZETTA = 21,
+    UMEASURE_PREFIX_ZETTA = UMEASURE_PREFIX_ONE + 21,
 
     /**
      * SI prefix: exa, 10^18.
      *
-     * @draft ICU 67
+     * @draft ICU 69
      */
-    UMEASURE_SI_PREFIX_EXA = 18,
+    UMEASURE_PREFIX_EXA = UMEASURE_PREFIX_ONE + 18,
 
     /**
      * SI prefix: peta, 10^15.
      *
-     * @draft ICU 67
+     * @draft ICU 69
      */
-    UMEASURE_SI_PREFIX_PETA = 15,
+    UMEASURE_PREFIX_PETA = UMEASURE_PREFIX_ONE + 15,
 
     /**
      * SI prefix: tera, 10^12.
      *
-     * @draft ICU 67
+     * @draft ICU 69
      */
-    UMEASURE_SI_PREFIX_TERA = 12,
+    UMEASURE_PREFIX_TERA = UMEASURE_PREFIX_ONE + 12,
 
     /**
      * SI prefix: giga, 10^9.
      *
-     * @draft ICU 67
+     * @draft ICU 69
      */
-    UMEASURE_SI_PREFIX_GIGA = 9,
+    UMEASURE_PREFIX_GIGA = UMEASURE_PREFIX_ONE + 9,
 
     /**
      * SI prefix: mega, 10^6.
      *
-     * @draft ICU 67
+     * @draft ICU 69
      */
-    UMEASURE_SI_PREFIX_MEGA = 6,
+    UMEASURE_PREFIX_MEGA = UMEASURE_PREFIX_ONE + 6,
 
     /**
      * SI prefix: kilo, 10^3.
      *
-     * @draft ICU 67
+     * @draft ICU 69
      */
-    UMEASURE_SI_PREFIX_KILO = 3,
+    UMEASURE_PREFIX_KILO = UMEASURE_PREFIX_ONE + 3,
 
     /**
      * SI prefix: hecto, 10^2.
      *
-     * @draft ICU 67
+     * @draft ICU 69
      */
-    UMEASURE_SI_PREFIX_HECTO = 2,
+    UMEASURE_PREFIX_HECTO = UMEASURE_PREFIX_ONE + 2,
 
     /**
      * SI prefix: deka, 10^1.
      *
-     * @draft ICU 67
+     * @draft ICU 69
      */
-    UMEASURE_SI_PREFIX_DEKA = 1,
-
-    /**
-     * The absence of an SI prefix.
-     *
-     * @draft ICU 67
-     */
-    UMEASURE_SI_PREFIX_ONE = 0,
+    UMEASURE_PREFIX_DEKA = UMEASURE_PREFIX_ONE + 1,
 
     /**
      * SI prefix: deci, 10^-1.
      *
-     * @draft ICU 67
+     * @draft ICU 69
      */
-    UMEASURE_SI_PREFIX_DECI = -1,
+    UMEASURE_PREFIX_DECI = UMEASURE_PREFIX_ONE + -1,
 
     /**
      * SI prefix: centi, 10^-2.
      *
-     * @draft ICU 67
+     * @draft ICU 69
      */
-    UMEASURE_SI_PREFIX_CENTI = -2,
+    UMEASURE_PREFIX_CENTI = UMEASURE_PREFIX_ONE + -2,
 
     /**
      * SI prefix: milli, 10^-3.
      *
-     * @draft ICU 67
+     * @draft ICU 69
      */
-    UMEASURE_SI_PREFIX_MILLI = -3,
+    UMEASURE_PREFIX_MILLI = UMEASURE_PREFIX_ONE + -3,
 
     /**
      * SI prefix: micro, 10^-6.
      *
-     * @draft ICU 67
+     * @draft ICU 69
      */
-    UMEASURE_SI_PREFIX_MICRO = -6,
+    UMEASURE_PREFIX_MICRO = UMEASURE_PREFIX_ONE + -6,
 
     /**
      * SI prefix: nano, 10^-9.
      *
-     * @draft ICU 67
+     * @draft ICU 69
      */
-    UMEASURE_SI_PREFIX_NANO = -9,
+    UMEASURE_PREFIX_NANO = UMEASURE_PREFIX_ONE + -9,
 
     /**
      * SI prefix: pico, 10^-12.
      *
-     * @draft ICU 67
+     * @draft ICU 69
      */
-    UMEASURE_SI_PREFIX_PICO = -12,
+    UMEASURE_PREFIX_PICO = UMEASURE_PREFIX_ONE + -12,
 
     /**
      * SI prefix: femto, 10^-15.
      *
-     * @draft ICU 67
+     * @draft ICU 69
      */
-    UMEASURE_SI_PREFIX_FEMTO = -15,
+    UMEASURE_PREFIX_FEMTO = UMEASURE_PREFIX_ONE + -15,
 
     /**
      * SI prefix: atto, 10^-18.
      *
-     * @draft ICU 67
+     * @draft ICU 69
      */
-    UMEASURE_SI_PREFIX_ATTO = -18,
+    UMEASURE_PREFIX_ATTO = UMEASURE_PREFIX_ONE + -18,
 
     /**
      * SI prefix: zepto, 10^-21.
      *
-     * @draft ICU 67
+     * @draft ICU 69
      */
-    UMEASURE_SI_PREFIX_ZEPTO = -21,
+    UMEASURE_PREFIX_ZEPTO = UMEASURE_PREFIX_ONE + -21,
 
     /**
      * SI prefix: yocto, 10^-24.
      *
-     * @draft ICU 67
+     * @draft ICU 69
      */
-    UMEASURE_SI_PREFIX_YOCTO = -24
-} UMeasureSIPrefix;
+    UMEASURE_PREFIX_YOCTO = UMEASURE_PREFIX_ONE + -24,
+
+#ifndef U_HIDE_INTERNAL_API
+    /**
+     * ICU use only.
+     * Used to determine the set of base-10 SI prefixes.
+     * @internal
+     */
+    UMEASURE_PREFIX_INTERNAL_MIN_SI = UMEASURE_PREFIX_YOCTO,
+#endif  // U_HIDE_INTERNAL_API
+
+    // Cannot conditionalize the following with #ifndef U_HIDE_INTERNAL_API,
+    // used in definitions of non-internal enum values
+    /**
+     * ICU use only.
+     * Sets the arbitrary offset of the base-1024 binary prefixes' enum values.
+     * @internal
+     */
+    UMEASURE_PREFIX_INTERNAL_ONE_BIN = -60,
+
+    /**
+     * Binary prefix: kibi, 1024^1.
+     *
+     * @draft ICU 69
+     */
+    UMEASURE_PREFIX_KIBI = UMEASURE_PREFIX_INTERNAL_ONE_BIN + 1,
+
+#ifndef U_HIDE_INTERNAL_API
+    /**
+     * ICU use only.
+     * Used to determine the set of base-1024 binary prefixes.
+     * @internal
+     */
+    UMEASURE_PREFIX_INTERNAL_MIN_BIN = UMEASURE_PREFIX_KIBI,
+#endif  // U_HIDE_INTERNAL_API
+
+    /**
+     * Binary prefix: mebi, 1024^2.
+     *
+     * @draft ICU 69
+     */
+    UMEASURE_PREFIX_MEBI = UMEASURE_PREFIX_INTERNAL_ONE_BIN + 2,
+
+    /**
+     * Binary prefix: gibi, 1024^3.
+     *
+     * @draft ICU 69
+     */
+    UMEASURE_PREFIX_GIBI = UMEASURE_PREFIX_INTERNAL_ONE_BIN + 3,
+
+    /**
+     * Binary prefix: tebi, 1024^4.
+     *
+     * @draft ICU 69
+     */
+    UMEASURE_PREFIX_TEBI = UMEASURE_PREFIX_INTERNAL_ONE_BIN + 4,
+
+    /**
+     * Binary prefix: pebi, 1024^5.
+     *
+     * @draft ICU 69
+     */
+    UMEASURE_PREFIX_PEBI = UMEASURE_PREFIX_INTERNAL_ONE_BIN + 5,
+
+    /**
+     * Binary prefix: exbi, 1024^6.
+     *
+     * @draft ICU 69
+     */
+    UMEASURE_PREFIX_EXBI = UMEASURE_PREFIX_INTERNAL_ONE_BIN + 6,
+
+    /**
+     * Binary prefix: zebi, 1024^7.
+     *
+     * @draft ICU 69
+     */
+    UMEASURE_PREFIX_ZEBI = UMEASURE_PREFIX_INTERNAL_ONE_BIN + 7,
+
+    /**
+     * Binary prefix: yobi, 1024^8.
+     *
+     * @draft ICU 69
+     */
+    UMEASURE_PREFIX_YOBI = UMEASURE_PREFIX_INTERNAL_ONE_BIN + 8,
+
+#ifndef U_HIDE_INTERNAL_API
+    /**
+     * ICU use only.
+     * Used to determine the set of base-1024 binary prefixes.
+     * @internal
+     */
+    UMEASURE_PREFIX_INTERNAL_MAX_BIN = UMEASURE_PREFIX_YOBI,
+#endif  // U_HIDE_INTERNAL_API
+} UMeasurePrefix;
+
+/**
+ * Returns the base of the factor associated with the given unit prefix: the
+ * base is 10 for SI prefixes (kilo, micro) and 1024 for binary prefixes (kibi,
+ * mebi).
+ *
+ * @draft ICU 69
+ */
+U_CAPI int32_t U_EXPORT2 umeas_getPrefixBase(UMeasurePrefix unitPrefix);
+
+/**
+ * Returns the exponent of the factor associated with the given unit prefix, for
+ * example 3 for kilo, -6 for micro, 1 for kibi, 2 for mebi, 3 for gibi.
+ *
+ * @draft ICU 69
+ */
+U_CAPI int32_t U_EXPORT2 umeas_getPrefixPower(UMeasurePrefix unitPrefix);
+
 #endif // U_HIDE_DRAFT_API
 
 /**
@@ -250,27 +382,26 @@ class U_I18N_API MeasureUnit: public UObject {
      */
     MeasureUnit(const MeasureUnit &other);
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * Move constructor.
-     * @draft ICU 67
+     * @stable ICU 67
      */
     MeasureUnit(MeasureUnit &&other) noexcept;
 
     /**
-     * Construct a MeasureUnit from a CLDR Unit Identifier, defined in UTS 35.
-     * Validates and canonicalizes the identifier.
+     * Construct a MeasureUnit from a CLDR Core Unit Identifier, defined in UTS
+     * 35. (Core unit identifiers and mixed unit identifiers are supported, long
+     * unit identifiers are not.) Validates and canonicalizes the identifier.
      *
      * <pre>
      * MeasureUnit example = MeasureUnit::forIdentifier("furlong-per-nanosecond")
      * </pre>
      *
-     * @param identifier The CLDR Unit Identifier
+     * @param identifier The CLDR Unit Identifier.
      * @param status Set if the identifier is invalid.
-     * @draft ICU 67
+     * @stable ICU 67
      */
     static MeasureUnit forIdentifier(StringPiece identifier, UErrorCode& status);
-#endif // U_HIDE_DRAFT_API
 
     /**
      * Copy assignment operator.
@@ -278,13 +409,11 @@ class U_I18N_API MeasureUnit: public UObject {
      */
     MeasureUnit &operator=(const MeasureUnit &other);
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * Move assignment operator.
-     * @draft ICU 67
+     * @stable ICU 67
      */
     MeasureUnit &operator=(MeasureUnit &&other) noexcept;
-#endif // U_HIDE_DRAFT_API
 
     /**
      * Returns a polymorphic clone of this object.  The result will
@@ -333,12 +462,11 @@ class U_I18N_API MeasureUnit: public UObject {
      */
     const char *getSubtype() const;
 
-#ifndef U_HIDE_DRAFT_API
     /**
-     * Get the CLDR Unit Identifier for this MeasureUnit, as defined in UTS 35.
+     * Get CLDR Unit Identifier for this MeasureUnit, as defined in UTS 35.
      *
      * @return The string form of this unit, owned by this MeasureUnit.
-     * @draft ICU 67
+     * @stable ICU 67
      */
     const char* getIdentifier() const;
 
@@ -347,38 +475,43 @@ class U_I18N_API MeasureUnit: public UObject {
      *
      * @param status Set if an error occurs.
      * @return The unit complexity.
-     * @draft ICU 67
+     * @stable ICU 67
      */
     UMeasureUnitComplexity getComplexity(UErrorCode& status) const;
 
+#ifndef U_HIDE_DRAFT_API
     /**
-     * Creates a MeasureUnit which is this SINGLE unit augmented with the specified SI prefix.
-     * For example, UMEASURE_SI_PREFIX_KILO for "kilo".
+     * Creates a MeasureUnit which is this SINGLE unit augmented with the specified prefix.
+     * For example, UMEASURE_PREFIX_KILO for "kilo", or UMEASURE_PREFIX_KIBI for "kibi".
      *
-     * There is sufficient locale data to format all standard SI prefixes.
+     * There is sufficient locale data to format all standard prefixes.
      *
      * NOTE: Only works on SINGLE units. If this is a COMPOUND or MIXED unit, an error will
      * occur. For more information, see UMeasureUnitComplexity.
      *
-     * @param prefix The SI prefix, from UMeasureSIPrefix.
+     * @param prefix The prefix, from UMeasurePrefix.
      * @param status Set if this is not a SINGLE unit or if another error occurs.
      * @return A new SINGLE unit.
-     * @draft ICU 67
+     * @draft ICU 69
      */
-    MeasureUnit withSIPrefix(UMeasureSIPrefix prefix, UErrorCode& status) const;
+    MeasureUnit withPrefix(UMeasurePrefix prefix, UErrorCode& status) const;
 
     /**
-     * Gets the current SI prefix of this SINGLE unit. For example, if the unit has the SI prefix
-     * "kilo", then UMEASURE_SI_PREFIX_KILO is returned.
+     * Returns the current SI or binary prefix of this SINGLE unit. For example,
+     * if the unit has the prefix "kilo", then UMEASURE_PREFIX_KILO is
+     * returned.
      *
      * NOTE: Only works on SINGLE units. If this is a COMPOUND or MIXED unit, an error will
      * occur. For more information, see UMeasureUnitComplexity.
      *
      * @param status Set if this is not a SINGLE unit or if another error occurs.
-     * @return The SI prefix of this SINGLE unit, from UMeasureSIPrefix.
-     * @draft ICU 67
+     * @return The prefix of this SINGLE unit, from UMeasurePrefix.
+     * @see umeas_getPrefixBase
+     * @see umeas_getPrefixPower
+     * @draft ICU 69
      */
-    UMeasureSIPrefix getSIPrefix(UErrorCode& status) const;
+    UMeasurePrefix getPrefix(UErrorCode& status) const;
+#endif // U_HIDE_DRAFT_API
 
     /**
      * Creates a MeasureUnit which is this SINGLE unit augmented with the specified dimensionality
@@ -392,7 +525,7 @@ class U_I18N_API MeasureUnit: public UObject {
      * @param dimensionality The dimensionality (power).
      * @param status Set if this is not a SINGLE unit or if another error occurs.
      * @return A new SINGLE unit.
-     * @draft ICU 67
+     * @stable ICU 67
      */
     MeasureUnit withDimensionality(int32_t dimensionality, UErrorCode& status) const;
 
@@ -407,7 +540,7 @@ class U_I18N_API MeasureUnit: public UObject {
      *
      * @param status Set if this is not a SINGLE unit or if another error occurs.
      * @return The dimensionality (power) of this simple unit.
-     * @draft ICU 67
+     * @stable ICU 67
      */
     int32_t getDimensionality(UErrorCode& status) const;
 
@@ -421,7 +554,7 @@ class U_I18N_API MeasureUnit: public UObject {
      *
      * @param status Set if this is a MIXED unit or if another error occurs.
      * @return The reciprocal of the target unit.
-     * @draft ICU 67
+     * @stable ICU 67
      */
     MeasureUnit reciprocal(UErrorCode& status) const;
 
@@ -440,10 +573,9 @@ class U_I18N_API MeasureUnit: public UObject {
      * @param other The MeasureUnit to multiply with the target.
      * @param status Set if this or other is a MIXED unit or if another error occurs.
      * @return The product of the target unit with the provided unit.
-     * @draft ICU 67
+     * @stable ICU 67
      */
     MeasureUnit product(const MeasureUnit& other, UErrorCode& status) const;
-#endif // U_HIDE_DRAFT_API
 
 #ifndef U_HIDE_DRAFT_API
     /**
@@ -547,7 +679,7 @@ class U_I18N_API MeasureUnit: public UObject {
 // the "End generated createXXX methods" comment is auto generated code
 // and must not be edited manually. For instructions on how to correctly
 // update this code, refer to:
-// http://site.icu-project.org/design/formatting/measureformat/updating-measure-unit
+// docs/processes/release/tasks/updating-measure-unit.md
 //
 // Start generated createXXX methods
 
@@ -838,6 +970,24 @@ class U_I18N_API MeasureUnit: public UObject {
      * @stable ICU 64
      */
     static MeasureUnit getKarat();
+
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * Returns by pointer, unit of concentr: milligram-ofglucose-per-deciliter.
+     * Caller owns returned value and must free it.
+     * Also see {@link #getMilligramOfglucosePerDeciliter()}.
+     * @param status ICU error code.
+     * @draft ICU 69
+     */
+    static MeasureUnit *createMilligramOfglucosePerDeciliter(UErrorCode &status);
+
+    /**
+     * Returns by value, unit of concentr: milligram-ofglucose-per-deciliter.
+     * Also see {@link #createMilligramOfglucosePerDeciliter()}.
+     * @draft ICU 69
+     */
+    static MeasureUnit getMilligramOfglucosePerDeciliter();
+#endif /* U_HIDE_DRAFT_API */
 
     /**
      * Returns by pointer, unit of concentr: milligram-per-deciliter.
@@ -3519,7 +3669,6 @@ class U_I18N_API MeasureUnit: public UObject {
      */
     static MeasureUnit getTeaspoon();
 
-
 // End generated createXXX methods
 
  protected:
@@ -3569,10 +3718,14 @@ private:
     /** Internal version of public API */
     LocalArray<MeasureUnit> splitToSingleUnitsImpl(int32_t& outCount, UErrorCode& status) const;
 
-    friend struct MeasureUnitImpl;
+    friend class MeasureUnitImpl;
+
+    // For access to findBySubType
+    friend class number::impl::LongNameHandler;
 };
 
-#ifndef U_HIDE_DRAFT_API  // @draft ICU 68
+#ifndef U_HIDE_DRAFT_API
+// inline impl of @draft ICU 68 method
 inline std::pair<LocalArray<MeasureUnit>, int32_t>
 MeasureUnit::splitToSingleUnits(UErrorCode& status) const {
     int32_t length;

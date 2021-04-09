@@ -40,8 +40,8 @@ U_NAMESPACE_BEGIN
  *
  * <code>UnicodeFilter</code> defines a protocol for selecting a
  * subset of the full range (U+0000 to U+10FFFF) of Unicode characters.
- * Currently, filters are used in conjunction with classes like {@link
- * Transliterator} to only process selected characters through a
+ * Currently, filters are used in conjunction with classes like
+ * {@link Transliterator} to only process selected characters through a
  * transformation.
  *
  * <p>Note: UnicodeFilter currently stubs out two pure virtual methods
