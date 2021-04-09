@@ -416,6 +416,27 @@ shared_optgroup.add_argument('--shared-cares-libpath',
     dest='shared_cares_libpath',
     help='a directory to search for the shared cares DLL')
 
+shared_optgroup.add_argument('--shared-getdns',
+    action='store_true',
+    dest='shared_getdns',
+    help='link to a shared getdns DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-getdns-includes',
+    action='store',
+    dest='shared_getdns_includes',
+    help='directory containing getdns header files')
+
+shared_optgroup.add_argument('--shared-getdns-libname',
+    action='store',
+    dest='shared_getdns_libname',
+    default='getdns',
+    help='alternative lib name to link to [default: %default]')
+
+shared_optgroup.add_argument('--shared-getdns-libpath',
+    action='store',
+    dest='shared_getdns_libpath',
+    help='a directory to search for the shared getdns DLL')
+
 parser.add_argument_group(shared_optgroup)
 
 parser.add_argument('--systemtap-includes',
@@ -1884,6 +1905,7 @@ configure_library('cares', output, pkgname='libcares')
 configure_library('nghttp2', output, pkgname='libnghttp2')
 configure_library('nghttp3', output, pkgname='libnghttp3')
 configure_library('ngtcp2', output, pkgname='libngtcp2')
+configure_library('getdns', output)
 configure_v8(output)
 configure_openssl(output)
 configure_intl(output)

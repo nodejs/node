@@ -1,0 +1,11 @@
+prefix=@prefix@
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: getdns_ext_event 
+Version: @GETDNS_VERSION@
+Description: A modern asynchronous DNS library
+
+Libs: -L${libdir} -lgetdns_ext_event
+Cflags: -I${includedir}

@@ -1,0 +1,19 @@
+1 VERSIONINFO
+    FILEVERSION @version_current@,@version_revision@,@version_age@,0
+    PRODUCTVERSION @version_current@,@version_revision@,0,0
+    FILEOS 4
+    FILETYPE 2
+    FILESUBTYPE 0
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904e4"
+        BEGIN
+            VALUE "CompanyName", "getdns project\0"
+            VALUE "ProductName", "getdns\0"
+            VALUE "FileVersion", "@version_current@.@version_revision@\0"
+            VALUE "ProductVersion", "@version_current@.@version_revision@\0"
+            VALUE "LegalCopyright", "NLnet Labs, Sinodun, No Mountain Software. New BSD licence.\0"
+        END
+    END
+END

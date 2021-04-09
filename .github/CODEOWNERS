@@ -33,6 +33,7 @@
 
 # net
 
+/deps/getdns @nodejs/net
 /deps/cares @nodejs/net
 /doc/api/dns.md @nodejs/net
 /doc/api/dgram.md @nodejs/net

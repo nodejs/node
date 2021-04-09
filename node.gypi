@@ -154,6 +154,10 @@
       'dependencies': [ 'deps/cares/cares.gyp:cares' ],
     }],
 
+    [ 'node_shared_getdns=="false"', {
+      'dependencies': [ 'deps/getdns/getdns.gyp:getdns' ],
+    }],
+
     [ 'node_shared_libuv=="false"', {
       'dependencies': [ 'deps/uv/uv.gyp:libuv' ],
       'conditions': [

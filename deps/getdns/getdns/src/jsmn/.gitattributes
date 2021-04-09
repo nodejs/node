@@ -1,0 +1,6 @@
+/example	export-ignore
+/test		export-ignore
+/.travis.yml	export-ignore
+/.gitattributes	export-ignore
+/Makefile	export-ignore
+/library.json	export-ignore
