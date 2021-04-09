@@ -166,7 +166,7 @@ class ELDHistogram : public IntervalHistogram {
   ELDHistogram(
       Environment* env,
       v8::Local<v8::Object> wrap,
-      int32_t interval);
+      int64_t interval);
 
   void OnInterval() override;
 
