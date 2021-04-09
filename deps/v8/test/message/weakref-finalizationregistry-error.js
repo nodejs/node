@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-weak-refs --expose-gc --noincremental-marking
+// Flags: --expose-gc --noincremental-marking
 // Flags: --no-stress-opt
 
 // Since cleanup tasks are top-level tasks, errors thrown from them don't stop

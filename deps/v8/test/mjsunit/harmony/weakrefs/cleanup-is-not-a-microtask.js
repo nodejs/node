@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-weak-refs --expose-gc --noincremental-marking --allow-natives-syntax
+// Flags: --expose-gc --noincremental-marking --allow-natives-syntax
 
 // This test asserts that the cleanup function call, scheduled by GC, is a
 // microtask and not a normal task.

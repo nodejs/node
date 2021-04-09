@@ -246,8 +246,6 @@ DEFINE_BOOL(use_strict, false, "enforce strict mode")
 
 DEFINE_BOOL(harmony, false, "enable all completed harmony features")
 DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
-// Enabling FinalizationRegistry#cleanupSome also enables weak refs
-DEFINE_IMPLICATION(harmony_weak_refs_with_cleanup_some, harmony_weak_refs)
 
 // Update bootstrapper.cc whenever adding a new feature flag.
 
@@ -286,7 +284,6 @@ DEFINE_IMPLICATION(harmony_weak_refs_with_cleanup_some, harmony_weak_refs)
 #define HARMONY_SHIPPING_BASE(V)                                      \
   V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")           \
   V(harmony_atomics, "harmony atomics")                               \
-  V(harmony_weak_refs, "harmony weak references")                     \
   V(harmony_string_replaceall, "harmony String.prototype.replaceAll") \
   V(harmony_logical_assignment, "harmony logical assignment")         \
   V(harmony_atomics_waitasync, "harmony Atomics.waitAsync")           \
