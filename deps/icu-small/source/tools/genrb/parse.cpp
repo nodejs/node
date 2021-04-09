@@ -1191,7 +1191,7 @@ realParseTable(ParseState* state, TableResource *table, char *tag, uint32_t star
 
         if (token == TOK_CLOSE_BRACE)
         {
-            if (!readToken) {
+            if (!readToken && isVerbose()) {
                 warning(startline, "Encountered empty table");
             }
             return table;

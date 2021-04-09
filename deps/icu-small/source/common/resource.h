@@ -274,8 +274,10 @@ public:
      *
      * @param key The key string of the enumeration-start resource.
      *     Empty if the enumeration starts at the top level of the bundle.
-     * @param value Call getArray() or getTable() as appropriate.
-     *     Then reuse for output values from Array and Table getters.
+     * @param value Call getArray() or getTable() as appropriate. Then reuse for
+     *     output values from Array and Table getters. Note: ResourceTable and
+     *     ResourceArray instances must outlive the ResourceValue instance for
+     *     ResourceTracer to be happy.
      * @param noFallback true if the bundle has no parent;
      *     that is, its top-level table has the nofallback attribute,
      *     or it is the root bundle of a locale tree.

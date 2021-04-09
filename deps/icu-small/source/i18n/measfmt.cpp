@@ -581,7 +581,10 @@ void MeasureFormat::initMeasureFormat(
         UMeasureFormatWidth w,
         NumberFormat *nfToAdopt,
         UErrorCode &status) {
-    static const char *listStyles[] = {"unit", "unit-short", "unit-narrow"};
+    static const UListFormatterWidth listWidths[] = {
+        ULISTFMT_WIDTH_WIDE,
+        ULISTFMT_WIDTH_SHORT,
+        ULISTFMT_WIDTH_NARROW};
     LocalPointer<NumberFormat> nf(nfToAdopt);
     if (U_FAILURE(status)) {
         return;
@@ -620,7 +623,8 @@ void MeasureFormat::initMeasureFormat(
     delete listFormatter;
     listFormatter = ListFormatter::createInstance(
             locale,
-            listStyles[getRegularWidth(fWidth)],
+            ULISTFMT_TYPE_UNITS,
+            listWidths[getRegularWidth(fWidth)],
             status);
 }
 
