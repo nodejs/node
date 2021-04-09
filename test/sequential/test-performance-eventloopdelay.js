@@ -39,7 +39,7 @@ const { sleep } = require('internal/util');
     );
   });
 
-  [-1, 0, Infinity].forEach((i) => {
+  [-1, 0, 2 ** 53, Infinity].forEach((i) => {
     assert.throws(
       () => monitorEventLoopDelay({ resolution: i }),
       {

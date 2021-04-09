@@ -237,7 +237,7 @@ void LoopIdleTime(const FunctionCallbackInfo<Value>& args) {
 void ELDHistogram::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(args.IsConstructCall());
-  int32_t resolution = args[0].As<Int32>()->Value();
+  int64_t resolution = args[0].As<Integer>()->Value();
   CHECK_GT(resolution, 0);
   new ELDHistogram(env, args.This(), resolution);
 }
@@ -253,7 +253,7 @@ void ELDHistogram::Initialize(Environment* env, Local<Object> target) {
 ELDHistogram::ELDHistogram(
     Environment* env,
     Local<Object> wrap,
-    int32_t interval)
+    int64_t interval)
     : IntervalHistogram(
           env,
           wrap,
