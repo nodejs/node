@@ -657,7 +657,6 @@ udatpg_getPatternForSkeleton(const UDateTimePatternGenerator *dtpg,
 
 #if !UCONFIG_NO_FORMATTING
 
-#ifndef U_HIDE_DRAFT_API
 /**
  * Return the default hour cycle for a locale. Uses the locale that the
  * UDateTimePatternGenerator was initially created with.
@@ -669,11 +668,10 @@ udatpg_getPatternForSkeleton(const UDateTimePatternGenerator *dtpg,
  *                   failure before the function call. Set to U_UNSUPPORTED_ERROR
  *                   if used on an empty instance.
  * @return the default hour cycle.
- * @draft ICU 67
+ * @stable ICU 67
  */
 U_CAPI UDateFormatHourCycle U_EXPORT2
 udatpg_getDefaultHourCycle(const UDateTimePatternGenerator *dtpg, UErrorCode* pErrorCode);
-#endif  /* U_HIDE_DRAFT_API */
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
 

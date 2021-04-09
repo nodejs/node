@@ -49,7 +49,7 @@ struct  ULine {
  * Opens the UCHARBUF with the given file stream and code page for conversion
  * @param fileName  Name of the file to open.
  * @param codepage  The encoding of the file stream to convert to Unicode.
- *                  If *codepoge is NULL on input the API will try to autodetect
+ *                  If *codepage is NULL on input the API will try to autodetect
  *                  popular Unicode encodings
  * @param showWarning Flag to print out warnings to STDOUT
  * @param buffered  If TRUE performs a buffered read of the input file. If FALSE reads

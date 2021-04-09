@@ -492,7 +492,6 @@ public:
 
 #if !UCONFIG_NO_FORMATTING
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * Get the default hour cycle for a locale. Uses the locale that the
      * DateTimePatternGenerator was initially created with.
@@ -503,10 +502,9 @@ public:
      *                which must not indicate a failure before the function call.
      *                Set to U_UNSUPPORTED_ERROR if used on an empty instance.
      * @return the default hour cycle.
-     * @draft ICU 67
+     * @stable ICU 67
      */
     UDateFormatHourCycle getDefaultHourCycle(UErrorCode& status) const;
-#endif  /* U_HIDE_DRAFT_API */
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
 

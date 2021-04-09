@@ -704,7 +704,7 @@ DateIntervalFormat::create(const Locale& locale,
         status = U_MEMORY_ALLOCATION_ERROR;
         delete dtitvinf;
     } else if ( U_FAILURE(status) ) {
-        // safe to delete f, although nothing acutally is saved
+        // safe to delete f, although nothing actually is saved
         delete f;
         f = 0;
     }
@@ -863,6 +863,14 @@ DateIntervalFormat::initializePattern(UErrorCode& status) {
                 setPatternInfo(UCAL_DATE, nullptr, &pattern, fInfo->getDefaultOrder());
                 setPatternInfo(UCAL_MONTH, nullptr, &pattern, fInfo->getDefaultOrder());
                 setPatternInfo(UCAL_YEAR, nullptr, &pattern, fInfo->getDefaultOrder());
+
+                timeSkeleton.insert(0, CAP_G);
+                pattern = DateFormat::getBestPattern(
+                        locale, timeSkeleton, status);
+                if ( U_FAILURE(status) ) {
+                    return;
+                }
+                setPatternInfo(UCAL_ERA, nullptr, &pattern, fInfo->getDefaultOrder());
             } else {
                 // TODO: fall back
             }
@@ -889,15 +897,23 @@ DateIntervalFormat::initializePattern(UErrorCode& status) {
         setPatternInfo(UCAL_DATE, nullptr, &pattern, fInfo->getDefaultOrder());
         setPatternInfo(UCAL_MONTH, nullptr, &pattern, fInfo->getDefaultOrder());
         setPatternInfo(UCAL_YEAR, nullptr, &pattern, fInfo->getDefaultOrder());
+
+        timeSkeleton.insert(0, CAP_G);
+        pattern = DateFormat::getBestPattern(
+                locale, timeSkeleton, status);
+        if ( U_FAILURE(status) ) {
+            return;
+        }
+        setPatternInfo(UCAL_ERA, nullptr, &pattern, fInfo->getDefaultOrder());
     } else {
         /* if both present,
-         * 1) when the year, month, or day differs,
+         * 1) when the era, year, month, or day differs,
          * concatenate the two original expressions with a separator between,
          * 2) otherwise, present the date followed by the
          * range expression for the time.
          */
         /*
-         * 1) when the year, month, or day differs,
+         * 1) when the era, year, month, or day differs,
          * concatenate the two original expressions with a separator between,
          */
         // if field exists, use fall back
@@ -916,6 +932,11 @@ DateIntervalFormat::initializePattern(UErrorCode& status) {
             // then prefix skeleton with 'y'
             skeleton.insert(0, LOW_Y);
             setFallbackPattern(UCAL_YEAR, skeleton, status);
+        }
+        if ( !fieldExistsInSkeleton(UCAL_ERA, dateSkeleton) ) {
+            // then prefix skeleton with 'G'
+            skeleton.insert(0, CAP_G);
+            setFallbackPattern(UCAL_ERA, skeleton, status);
         }
 
         /*

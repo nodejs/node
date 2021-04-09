@@ -157,7 +157,7 @@ public:
 //
 //    String Table:
 //       The strings table contains all of the value strings (those of length two or greater)
-//       concatentated together into one long UChar (UTF-16) array.
+//       concatenated together into one long UChar (UTF-16) array.
 //
 //       There is no nul character or other mark between adjacent strings.
 //

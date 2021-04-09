@@ -124,10 +124,26 @@ uprv_detectWindowsTimeZone()
         // No way to support when DST is turned off and the offset in minutes is not a multiple of 60.
         if (utcOffsetMins % 60 == 0) {
             char gmtOffsetTz[11] = {}; // "Etc/GMT+dd" is 11-char long with a terminal null.
-            // Note '-' before 'utcOffsetMin'. The timezone ID's sign convention
-            // is that a timezone ahead of UTC is Etc/GMT-<offset> and a timezone
-            // behind UTC is Etc/GMT+<offset>.
-            int ret = snprintf(gmtOffsetTz, UPRV_LENGTHOF(gmtOffsetTz), "Etc/GMT%+ld", -utcOffsetMins / 60);
+            // Important note on the sign convention for zones:
+            //
+            // From https://en.wikipedia.org/wiki/Tz_database#Area
+            //   "In order to conform with the POSIX style, those zone names beginning with "Etc/GMT" have their sign reversed
+            //   from the standard ISO 8601 convention. In the "Etc" area, zones west of GMT have a positive sign and those
+            //   east have a negative sign in their name (e.g "Etc/GMT-14" is 14 hours ahead of GMT)."
+            //
+            // Regarding the POSIX style, from https://www.gnu.org/software/libc/manual/html_node/TZ-Variable.html
+            //   "The offset specifies the time value you must add to the local time to get a Coordinated Universal Time value."
+            //
+            // However, the Bias value in DYNAMIC_TIME_ZONE_INFORMATION *already* follows the POSIX convention.
+            //
+            // From https://docs.microsoft.com/en-us/windows/win32/api/timezoneapi/ns-timezoneapi-dynamic_time_zone_information
+            //   "The bias is the difference, in minutes, between Coordinated Universal Time (UTC) and
+            //   local time. All translations between UTC and local time are based on the following formula:
+            //      UTC = local time + bias"
+            //
+            // For example, a time zone that is 3 hours ahead of UTC (UTC+03:00) would have a Bias value of -180, and the
+            // corresponding time zone ID would be "Etc/GMT-3". (So there is no need to negate utcOffsetMins below.)
+            int ret = snprintf(gmtOffsetTz, UPRV_LENGTHOF(gmtOffsetTz), "Etc/GMT%+ld", utcOffsetMins / 60);
             if (ret > 0 && ret < UPRV_LENGTHOF(gmtOffsetTz)) {
                 return uprv_strdup(gmtOffsetTz);
             }

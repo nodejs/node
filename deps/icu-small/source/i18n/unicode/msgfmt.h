@@ -132,7 +132,7 @@ class NumberFormat;
  *   <li>messageText can contain quoted literal strings including syntax characters.
  *       A quoted literal string begins with an ASCII apostrophe and a syntax character
  *       (usually a {curly brace}) and continues until the next single apostrophe.
- *       A double ASCII apostrohpe inside or outside of a quoted string represents
+ *       A double ASCII apostrophe inside or outside of a quoted string represents
  *       one literal apostrophe.
  *   <li>Quotable syntax characters are the {curly braces} in all messageText parts,
  *       plus the '#' sign in a messageText immediately inside a pluralStyle,
