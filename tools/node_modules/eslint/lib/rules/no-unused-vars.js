@@ -197,6 +197,17 @@ module.exports = {
         }
 
         /**
+         * Checks whether a node is a sibling of the rest property or not.
+         * @param {ASTNode} node a node to check
+         * @returns {boolean} True if the node is a sibling of the rest property, otherwise false.
+         */
+        function hasRestSibling(node) {
+            return node.type === "Property" &&
+                node.parent.type === "ObjectPattern" &&
+                REST_PROPERTY_TYPE.test(node.parent.properties[node.parent.properties.length - 1].type);
+        }
+
+        /**
          * Determines if a variable has a sibling rest property
          * @param {Variable} variable eslint-scope variable object.
          * @returns {boolean} True if the variable is exported, false if not.
@@ -204,16 +215,10 @@ module.exports = {
          */
         function hasRestSpreadSibling(variable) {
             if (config.ignoreRestSiblings) {
-                return variable.defs.some(def => {
-                    const propertyNode = def.name.parent;
-                    const patternNode = propertyNode.parent;
+                const hasRestSiblingDefinition = variable.defs.some(def => hasRestSibling(def.name.parent));
+                const hasRestSiblingReference = variable.references.some(ref => hasRestSibling(ref.identifier.parent));
 
-                    return (
-                        propertyNode.type === "Property" &&
-                        patternNode.type === "ObjectPattern" &&
-                        REST_PROPERTY_TYPE.test(patternNode.properties[patternNode.properties.length - 1].type)
-                    );
-                });
+                return hasRestSiblingDefinition || hasRestSiblingReference;
             }
 
             return false;

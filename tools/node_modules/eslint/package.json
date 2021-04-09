@@ -1,6 +1,6 @@
 {
   "name": "eslint",
-  "version": "7.23.0",
+  "version": "7.24.0",
   "author": "Nicholas C. Zakas <nicholas+npm@nczconsulting.com>",
   "description": "An AST-based pattern checker for JavaScript.",
   "bin": {
@@ -118,8 +118,8 @@
     "markdownlint": "^0.19.0",
     "markdownlint-cli": "^0.22.0",
     "memfs": "^3.0.1",
-    "mocha": "^7.1.1",
-    "mocha-junit-reporter": "^1.23.0",
+    "mocha": "^8.3.2",
+    "mocha-junit-reporter": "^2.0.0",
     "node-polyfill-webpack-plugin": "^1.0.3",
     "npm-license": "^0.3.3",
     "nyc": "^15.0.1",
