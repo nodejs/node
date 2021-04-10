@@ -2,6 +2,7 @@
   "include": ["lib","doc"],
   "exclude": ["src","tools","out"],
   "files": [
+    "./typings/internalBinding/fs.d.ts",
     "./typings/internalBinding.d.ts",
     "./typings/primordials.d.ts"
   ],
