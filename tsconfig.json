@@ -7,7 +7,7 @@
   ],
   "compilerOptions": {
     "allowJs": true,
-    "checkJs": false,
+    "checkJs": true,
     "noEmit": true,
     "lib": ["ESNext"],
     "target": "ESNext",
