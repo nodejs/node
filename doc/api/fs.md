@@ -265,18 +265,20 @@ added: v10.0.0
 added: v10.0.0
 -->
 
-* `buffer` {Buffer|Uint8Array} A buffer that will be filled with the file
-  data read.
+* `buffer` {Buffer|TypedArray|DataView} A buffer that will be filled with the
+  file data read.
 * `offset` {integer} The location in the buffer at which to start filling.
   **Default:** `0`
-* `length` {integer} The number of bytes to read. **Default:** `buffer.length`
+* `length` {integer} The number of bytes to read. **Default:**
+  `buffer.byteLength`
 * `position` {integer} The location where to begin reading data from the
   file. If `null`, data will be read from the current file position, and
   the position will be updated. If `position` is an integer, the current
   file position will remain unchanged.
 * Returns: {Promise} Fulfills upon success with an object with two properties:
   * `bytesRead` {integer} The number of bytes read
-  * `buffer` {Buffer|Uint8Array} A reference to the passed in `buffer` argument.
+  * `buffer` {Buffer|TypedArray|DataView} A reference to the passed in `buffer`
+    argument.
 
 Reads data from the file and stores that in the given buffer.
 
@@ -290,19 +292,20 @@ added:
  - v12.17.0
 -->
 * `options` {Object}
-  * `buffer` {Buffer|Uint8Array} A buffer that will be filled with the file
-    data read. **Default:** `Buffer.alloc(16384)`
+  * `buffer` {Buffer|TypedArray|DataView} A buffer that will be filled with the
+    file data read. **Default:** `Buffer.alloc(16384)`
   * `offset` {integer} The location in the buffer at which to start filling.
     **Default:** `0`
-  * `length` {integer} The number of bytes to read. **Default:** `buffer.length`
+  * `length` {integer} The number of bytes to read. **Default:**
+    `buffer.byteLength`
   * `position` {integer} The location where to begin reading data from the
     file. If `null`, data will be read from the current file position, and
     the position will be updated. If `position` is an integer, the current
     file position will remain unchanged. **Default:**: `null`
 * Returns: {Promise} Fulfills upon success with an object with two properties:
   * `bytesRead` {integer} The number of bytes read
-  * `buffer` {Buffer|Uint8Array} A reference to the passed in `buffer`
-  argument.
+  * `buffer` {Buffer|TypedArray|DataView} A reference to the passed in `buffer`
+    argument.
 
 Reads data from the file and stores that in the given buffer.
 
@@ -434,10 +437,11 @@ changes:
                  buffers anymore.
 -->
 
-* `buffer` {Buffer|Uint8Array|string|Object}
+* `buffer` {Buffer|TypedArray|DataView|string|Object}
 * `offset` {integer} The start position from within `buffer` where the data
-  to write begins.
-* `length` {integer} The number of bytes from `buffer` to write.
+  to write begins. **Default:** `0`
+* `length` {integer} The number of bytes from `buffer` to write. **Default:**
+  `buffer.byteLength`
 * `position` {integer} The offset from the beginning of the file where the
   data from `buffer` should be written. If `position` is not a `number`,
   the data will be written at the current position. See the POSIX pwrite(2)
@@ -449,8 +453,8 @@ Write `buffer` to the file.
 The promise is resolved with an object containing two properties:
 
 * `bytesWritten` {integer} the number of bytes written
-* `buffer` {Buffer|Uint8Array|string|Object} a reference to the `buffer`
-  written.
+* `buffer` {Buffer|TypedArray|DataView|string|Object} a reference to the
+  `buffer` written.
 
 It is unsafe to use `filehandle.write()` multiple times on the same file
 without waiting for the promise to be resolved (or rejected). For this
@@ -512,7 +516,7 @@ changes:
                  strings anymore.
 -->
 
-* `data` {string|Buffer|Uint8Array|Object}
+* `data` {string|Buffer|TypedArray|DataView|Object}
 * `options` {Object|string}
   * `encoding` {string|null} The expected character encoding when `data` is a
     string. **Default:** `'utf8'`
@@ -1270,7 +1274,7 @@ changes:
 -->
 
 * `file` {string|Buffer|URL|FileHandle} filename or `FileHandle`
-* `data` {string|Buffer|Uint8Array|Object|AsyncIterable|Iterable
+* `data` {string|Buffer|TypedArray|DataView|Object|AsyncIterable|Iterable
   |Stream}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
@@ -2722,9 +2726,11 @@ changes:
 
 * `fd` {integer}
 * `buffer` {Buffer|TypedArray|DataView} The buffer that the data will be
-  written to.
-* `offset` {integer} The position in `buffer` to write the data to.
-* `length` {integer}  The number of bytes to read.
+  written to. **Default:** `Buffer.alloc(16384)`
+* `offset` {integer} The position in `buffer` to write the data to. **Default:**
+  `0`
+* `length` {integer} The number of bytes to read. **Default:**
+  `buffer.byteLength`
 * `position` {integer|bigint} Specifies where to begin reading from in the
   file. If `position` is `null` or `-1 `, data will be read from the current
   file position, and the file position will be updated. If `position` is an
@@ -2761,7 +2767,7 @@ changes:
 * `options` {Object}
   * `buffer` {Buffer|TypedArray|DataView} **Default:** `Buffer.alloc(16384)`
   * `offset` {integer} **Default:** `0`
-  * `length` {integer} **Default:** `buffer.length`
+  * `length` {integer} **Default:** `buffer.byteLength`
   * `position` {integer|bigint} **Default:** `null`
 * `callback` {Function}
   * `err` {Error}
@@ -4689,7 +4695,7 @@ changes:
 * `buffer` {Buffer|TypedArray|DataView}
 * `options` {Object}
   * `offset` {integer} **Default:** `0`
-  * `length` {integer} **Default:** `buffer.length`
+  * `length` {integer} **Default:** `buffer.byteLength`
   * `position` {integer|bigint} **Default:** `null`
 * Returns: {number}
 
