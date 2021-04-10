@@ -146,3 +146,20 @@ tmpdir.refresh();
     fs.closeSync(fd);
   }));
 }
+
+// fs.write with a DataView, without the offset and length parameters:
+{
+  const filename = path.join(tmpdir.path, 'write8.txt');
+  fs.open(filename, 'w', 0o644, common.mustSucceed((fd) => {
+    const cb = common.mustSucceed((written) => {
+      assert.strictEqual(written, expected.length);
+      fs.closeSync(fd);
+
+      const found = fs.readFileSync(filename, 'utf8');
+      assert.strictEqual(found, expected.toString());
+    });
+
+    const uint8 = Uint8Array.from(expected);
+    fs.write(fd, new DataView(uint8.buffer), cb);
+  }));
+}
