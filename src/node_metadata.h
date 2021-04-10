@@ -30,7 +30,6 @@ namespace node {
   V(uv)                                                                        \
   V(zlib)                                                                      \
   V(brotli)                                                                    \
-  V(ares)                                                                      \
   V(modules)                                                                   \
   V(nghttp2)                                                                   \
   V(napi)                                                                      \

@@ -321,6 +321,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(WeakReference::DecRef);
   registry->Register(GuessHandleType);
   registry->Register(IsConstructor);
+  registry->Register(CanonicalizeIP);
 }
 
 void Initialize(Local<Object> target,
@@ -360,6 +361,7 @@ void Initialize(Local<Object> target,
   env->SetMethodNoSideEffect(target, "getExternalValue", GetExternalValue);
   env->SetMethod(target, "sleep", Sleep);
   env->SetMethodNoSideEffect(target, "isConstructor", IsConstructor);
+  env->SetMethodNoSideEffect(target, "canonicalizeIP", CanonicalizeIP);
 
   env->SetMethod(target, "arrayBufferViewHasBuffer", ArrayBufferViewHasBuffer);
   Local<Object> constants = Object::New(env->isolate());

@@ -1,5 +1,4 @@
 #include "node_metadata.h"
-#include "ares.h"
 #include "brotli/encode.h"
 #include "getdns/getdns.h"
 #include "llhttp.h"
@@ -75,7 +74,6 @@ Metadata::Versions::Versions() {
   v8 = v8::V8::GetVersion();
   uv = uv_version_string();
   zlib = ZLIB_VERSION;
-  ares = ARES_VERSION_STR;
   modules = NODE_STRINGIFY(NODE_MODULE_VERSION);
   nghttp2 = NGHTTP2_VERSION;
   napi = NODE_STRINGIFY(NAPI_VERSION);

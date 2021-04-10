@@ -58,7 +58,6 @@ namespace node {
   V(PIPEWRAP)                                                                 \
   V(PROCESSWRAP)                                                              \
   V(PROMISE)                                                                  \
-  V(QUERYWRAP)                                                                \
   V(SHUTDOWNWRAP)                                                             \
   V(SIGNALWRAP)                                                               \
   V(STATWATCHER)                                                              \

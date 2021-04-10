@@ -42,7 +42,6 @@
   V(async_wrap)                                                                \
   V(block_list)                                                                \
   V(buffer)                                                                    \
-  V(cares_wrap)                                                                \
   V(config)                                                                    \
   V(contextify)                                                                \
   V(credentials)                                                               \
