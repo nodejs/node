@@ -150,10 +150,6 @@
       ],
     } ],
 
-    [ 'node_shared_cares=="false"', {
-      'dependencies': [ 'deps/cares/cares.gyp:cares' ],
-    }],
-
     [ 'node_shared_getdns=="false"', {
       'dependencies': [ 'deps/getdns/getdns.gyp:getdns' ],
     }],

@@ -49,6 +49,8 @@
 /src/cares_wrap.cc @nodejs/net
 /src/connect_wrap.* @nodejs/net
 /src/connection_wrap.* @nodejs/net
+/src/node_dns.cc @nodejs/net
+/src/node_dns.h @nodejs/net
 /src/node_sockaddr* @nodejs/net
 /src/tcp_wrap.* @nodejs/net
 /src/udp_wrap.* @nodejs/net

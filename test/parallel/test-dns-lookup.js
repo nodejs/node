@@ -3,11 +3,11 @@
 const common = require('../common');
 const assert = require('assert');
 const { internalBinding } = require('internal/test/binding');
-const cares = internalBinding('cares_wrap');
+const compat = require('internal/dns/compat');
 
 // Stub `getaddrinfo` to *always* error. This has to be done before we load the
 // `dns` module to guarantee that the `dns` module uses the stub.
-cares.getaddrinfo = () => internalBinding('uv').UV_ENOMEM;
+compat.getaddrinfo = () => internalBinding('uv').UV_ENOMEM;
 
 const dns = require('dns');
 const dnsPromises = dns.promises;

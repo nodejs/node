@@ -3,11 +3,11 @@
 const common = require('../common');
 const assert = require('assert');
 const { internalBinding } = require('internal/test/binding');
-const cares = internalBinding('cares_wrap');
+const compat = require('internal/dns/compat');
 const { UV_ENOENT } = internalBinding('uv');
 
 // Stub `getnameinfo` to *always* error.
-cares.getnameinfo = () => UV_ENOENT;
+compat.getnameinfo = () => UV_ENOENT;
 
 // Because dns promises is attached lazily,
 // and turn accesses getnameinfo on init

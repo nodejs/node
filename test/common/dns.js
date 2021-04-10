@@ -13,6 +13,7 @@ const types = {
   PTR: 12,
   MX: 15,
   TXT: 16,
+  OPT: 41,
   ANY: 255,
   CAA: 257
 };
@@ -147,8 +148,10 @@ function parseDNSPacket(buffer) {
             assert.strictEqual(trailerOffset + 20, dataLength);
             break;
           }
+          case types.OPT:
+            break;
           default:
-            throw new Error(`Unknown RR type ${rr.type}`);
+            throw new Error(`Unknown RR type ${type}`);
         }
         offset += dataLength;
       }

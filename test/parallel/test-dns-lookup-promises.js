@@ -3,12 +3,12 @@
 const common = require('../common');
 const assert = require('assert');
 const { internalBinding } = require('internal/test/binding');
-const cares = internalBinding('cares_wrap');
+const compat = require('internal/dns/compat');
 
 // Stub `getaddrinfo` to proxy its call dynamic stub. This has to be done before
 // we load the `dns` module to guarantee that the `dns` module uses the stub.
 let getaddrinfoStub = null;
-cares.getaddrinfo = (req) => getaddrinfoStub(req);
+compat.getaddrinfo = (req) => getaddrinfoStub(req);
 
 const dnsPromises = require('dns').promises;
 
