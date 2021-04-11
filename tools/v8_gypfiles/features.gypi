@@ -73,6 +73,9 @@
     # Sets -DV8_ENABLE_FUTURE.
     'v8_enable_future%': 0,
 
+    # Sets -DSYSTEM_INSTRUMENTATION. Enables OS-dependent event tracing
+    'v8_enable_system_instrumentation%': 1,
+
     # Sets -DVERIFY_HEAP.
     'v8_enable_verify_heap%': 0,
 
@@ -365,6 +368,9 @@
       }],
       ['v8_enable_precise_zone_stats==1', {
         'defines': ['V8_ENABLE_PRECISE_ZONE_STATS',],
+      }],
+      ['v8_enable_system_instrumentation==1', {
+        'defines': ['V8_ENABLE_SYSTEM_INSTRUMENTATION',],
       }],
       ['v8_enable_webassembly==1', {
         'defines': ['V8_ENABLE_WEBASSEMBLY',],

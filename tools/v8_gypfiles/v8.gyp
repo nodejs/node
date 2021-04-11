@@ -892,6 +892,13 @@
               'ObjectFile': '$(IntDir)%(Extension)\\',
             },
           },
+          'conditions': [
+            ['v8_enable_system_instrumentation==1', {
+              'sources': [
+                '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?is_win.*?v8_enable_system_instrumentation.*?sources \\+= ")',
+              ],
+            }],
+          ],
         }],
         ['component=="shared_library"', {
           'defines': [
@@ -1130,9 +1137,11 @@
             '<(V8_ROOT)/src/base/platform/platform-win32.cc',
             '<(V8_ROOT)/src/base/win32-headers.h',
           ],
-          'conditions': [['target_arch == "arm64"', {
-            'defines': ['_WIN32_WINNT=0x0602'], # For GetCurrentThreadStackLimits on Windows on Arm
-          }]],
+          'conditions': [
+            ['target_arch == "arm64"', {
+              'defines': ['_WIN32_WINNT=0x0602'], # For GetCurrentThreadStackLimits on Windows on Arm
+            }],
+          ],
           'defines': ['_CRT_RAND_S'], # for rand_s()
           'direct_dependent_settings': {
             'msvs_settings': {
@@ -1144,6 +1153,17 @@
                 ]
               }
             },
+            'conditions': [
+              ['v8_enable_system_instrumentation==1', {
+                'msvs_settings': {
+                  'VCLinkerTool': {
+                    'AdditionalDependencies': [
+                      'advapi32.lib',
+                    ],
+                  },
+                },
+              }],
+            ],
           },
         }],
         ['target_arch == "mips" or OS == "mips64"', {
@@ -1332,6 +1352,14 @@
           ],
           'sources': [
             '<(V8_ROOT)/src/libplatform/tracing/recorder-win.cc',
+          ],
+        }],
+        ['v8_use_perfetto==0 and OS=="mac"', {
+          'sources!': [
+            '<(V8_ROOT)/src/libplatform/tracing/recorder-default.cc',
+          ],
+          'sources': [
+            '<(V8_ROOT)/src/libplatform/tracing/recorder-mac.cc',
           ],
         }],
       ],
