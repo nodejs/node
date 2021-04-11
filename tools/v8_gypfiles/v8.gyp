@@ -671,6 +671,11 @@
               '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_internal_headers.*?v8_current_cpu == \\"s390\\".*?sources \\+= ")',
             ],
           }],
+          ['v8_target_arch=="riscv64"', {
+            'sources': [
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_internal_headers.*?v8_current_cpu == \\"riscv64\\".*?sources \\+= ")',
+            ],
+          }],
         ],
       },
     },  # v8_internal_headers
@@ -856,11 +861,6 @@
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"mips\\".*?sources \\+= ")',
           ],
         }],
-        ['v8_target_arch=="riscv64"', {
-          'sources': [  ### gcmole(arch:riscv64) ###
-            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"riscv64.*?sources \+= ")',
-          ],
-        }],        
         ['v8_target_arch=="mips64" or v8_target_arch=="mips64el"', {
           'sources': [
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"mips64\\".*?sources \\+= ")',
@@ -881,6 +881,11 @@
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"s390\\".*?sources \\+= ")',
           ],
         }],
+        ['v8_target_arch=="riscv64"', {
+          'sources': [
+            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"riscv64\\".*?sources \\+= ")',
+          ],
+        }],        
         ['OS=="win"', {
           'msvs_precompiled_header': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.h',
           'msvs_precompiled_source': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.cc',
@@ -895,6 +900,13 @@
               'ObjectFile': '$(IntDir)%(Extension)\\',
             },
           },
+          'conditions': [
+            ['v8_enable_system_instrumentation==1', {
+              'sources': [
+                '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?is_win.*?v8_enable_system_instrumentation.*?sources \\+= ")',
+              ],
+            }],
+          ],
         }],
         ['component=="shared_library"', {
           'defines': [
@@ -1133,9 +1145,11 @@
             '<(V8_ROOT)/src/base/platform/platform-win32.cc',
             '<(V8_ROOT)/src/base/win32-headers.h',
           ],
-          'conditions': [['target_arch == "arm64"', {
-            'defines': ['_WIN32_WINNT=0x0602'], # For GetCurrentThreadStackLimits on Windows on Arm
-          }]],
+          'conditions': [
+            ['target_arch == "arm64"', {
+              'defines': ['_WIN32_WINNT=0x0602'], # For GetCurrentThreadStackLimits on Windows on Arm
+            }],
+          ],
           'defines': ['_CRT_RAND_S'], # for rand_s()
           'direct_dependent_settings': {
             'msvs_settings': {
@@ -1147,6 +1161,17 @@
                 ]
               }
             },
+            'conditions': [
+              ['v8_enable_system_instrumentation==1', {
+                'msvs_settings': {
+                  'VCLinkerTool': {
+                    'AdditionalDependencies': [
+                      'advapi32.lib',
+                    ],
+                  },
+                },
+              }],
+            ],
           },
         }],
         ['target_arch == "mips" or OS == "mips64"', {
@@ -1288,8 +1313,6 @@
         '<(V8_ROOT)/src/libplatform/delayed-task-queue.h',
         '<(V8_ROOT)/src/libplatform/task-queue.cc',
         '<(V8_ROOT)/src/libplatform/task-queue.h',
-        '<(V8_ROOT)/src/libplatform/tracing/recorder-default.cc',
-        '<(V8_ROOT)/src/libplatform/tracing/recorder.h',
         '<(V8_ROOT)/src/libplatform/tracing/trace-buffer.cc',
         '<(V8_ROOT)/src/libplatform/tracing/trace-buffer.h',
         '<(V8_ROOT)/src/libplatform/tracing/trace-config.cc',
@@ -1313,7 +1336,6 @@
         ['v8_use_perfetto==1', {
           'sources!': [
             '<(V8_ROOT)/base/trace_event/common/trace_event_common.h',
-            '<(V8_ROOT)/src/libplatform/tracing/recorder-default.cc',
             '<(V8_ROOT)/src/libplatform/tracing/trace-buffer.cc',
             '<(V8_ROOT)/src/libplatform/tracing/trace-buffer.h',
             '<(V8_ROOT)/src/libplatform/tracing/trace-object.cc',
@@ -1329,12 +1351,16 @@
             '<(V8_ROOT)/third_party/perfetto/protos/perfetto/trace:lite',
           ],
         }],
-        ['v8_use_perfetto==0 and is_win', {
-          'sources!': [
-            '<(V8_ROOT)/src/libplatform/tracing/recorder-default.cc',
-          ],
+        ['v8_enable_system_instrumentation==1 and is_win', {
           'sources': [
+            '<(V8_ROOT)/src/libplatform/tracing/recorder.h',
             '<(V8_ROOT)/src/libplatform/tracing/recorder-win.cc',
+          ],
+        }],
+        ['v8_enable_system_instrumentation==1 and OS=="mac"', {
+          'sources': [
+            '<(V8_ROOT)/src/libplatform/tracing/recorder.h',
+            '<(V8_ROOT)/src/libplatform/tracing/recorder-mac.cc',
           ],
         }],
       ],
