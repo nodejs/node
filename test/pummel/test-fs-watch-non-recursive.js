@@ -21,6 +21,11 @@
 
 'use strict';
 const common = require('../common');
+
+if (common.isIBMi) {
+  common.skip('IBMi does not support fs.watch()');
+}
+
 const path = require('path');
 const fs = require('fs');
 
