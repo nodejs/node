@@ -1772,7 +1772,7 @@ changes:
     **Default:** none, see `minVersion`.
   * `sessionIdContext` {string} Opaque identifier used by servers to ensure
     session state is not shared between applications. Unused by clients.
-  * `ticketKeys`: {Buffer} 48-bytes of cryptographically strong pseudo-random
+  * `ticketKeys`: {Buffer} 48-bytes of cryptographically strong pseudorandom
     data. See [Session Resumption][] for more information.
   * `sessionTimeout` {number} The number of seconds after which a TLS session
     created by the server will no longer be resumable. See
@@ -1915,7 +1915,7 @@ changes:
     If `callback` is called with a falsy `ctx` argument, the default secure
     context of the server will be used. If `SNICallback` wasn't provided the
     default callback with high-level API will be used (see below).
-  * `ticketKeys`: {Buffer} 48-bytes of cryptographically strong pseudo-random
+  * `ticketKeys`: {Buffer} 48-bytes of cryptographically strong pseudorandom
     data. See [Session Resumption][] for more information.
   * `pskCallback` {Function}
     * socket: {tls.TLSSocket} the server [`tls.TLSSocket`][] instance for
