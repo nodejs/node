@@ -63,8 +63,8 @@ function variations(iter, port, cb) {
         server.close();
       } else {
         // Save `value` for check the next time.
-        value = next.value.val;
         const [key, val] = next.value;
+        value = val;
         https.get({ ...getBaseOptions(port), [key]: val },
                   variations(iter, port, cb));
       }
