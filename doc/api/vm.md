@@ -387,8 +387,8 @@ added:
 
 > Stability: 1 - Experimental
 
-*This feature is only available with the `--experimental-vm-modules` command
-flag enabled.*
+This feature is only available with the `--experimental-vm-modules` command
+flag enabled.
 
 The `vm.Module` class provides a low-level interface for using
 ECMAScript modules in VM contexts. It is the counterpart of the `vm.Script`
@@ -709,8 +709,8 @@ added: v9.6.0
 
 > Stability: 1 - Experimental
 
-*This feature is only available with the `--experimental-vm-modules` command
-flag enabled.*
+This feature is only available with the `--experimental-vm-modules` command
+flag enabled.
 
 * Extends: {vm.Module}
 
@@ -841,8 +841,8 @@ added:
 
 > Stability: 1 - Experimental
 
-*This feature is only available with the `--experimental-vm-modules` command
-flag enabled.*
+This feature is only available with the `--experimental-vm-modules` command
+flag enabled.
 
 * Extends: {vm.Module}
 
