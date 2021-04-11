@@ -3605,7 +3605,7 @@ added: v15.8.0
   * `err` {Error}
   * `prime` {ArrayBuffer|bigint}
 
-Generates a pseudo-random prime of `size` bits.
+Generates a pseudorandom prime of `size` bits.
 
 If `options.safe` is `true`, the prime will be a safe prime -- that is,
 `(prime - 1) / 2` will also be a prime.
@@ -3645,7 +3645,7 @@ added: v15.8.0
     as a `bigint`.
 * Returns: {ArrayBuffer|bigint}
 
-Generates a pseudo-random prime of `size` bits.
+Generates a pseudorandom prime of `size` bits.
 
 If `options.safe` is `true`, the prime will be a safe prime -- that is,
 `(prime - 1) / 2` will also be a prime.
@@ -4316,7 +4316,7 @@ changes:
   * `buf` {Buffer}
 * Returns: {Buffer} if the `callback` function is not provided.
 
-Generates cryptographically strong pseudo-random data. The `size` argument
+Generates cryptographically strong pseudorandom data. The `size` argument
 is a number indicating the number of bytes to generate.
 
 If a `callback` function is provided, the bytes are generated asynchronously
@@ -5101,10 +5101,10 @@ When passing strings to cryptographic APIs, consider the following factors.
 
 * Not all byte sequences are valid UTF-8 strings. Therefore, when a byte
   sequence of length `n` is derived from a string, its entropy is generally
-  lower than the entropy of a random or pseudo-random `n` byte sequence.
+  lower than the entropy of a random or pseudorandom `n` byte sequence.
   For example, no UTF-8 string will result in the byte sequence `c0 af`. Secret
-  keys should almost exclusively be random or pseudo-random byte sequences.
-* Similarly, when converting random or pseudo-random byte sequences to UTF-8
+  keys should almost exclusively be random or pseudorandom byte sequences.
+* Similarly, when converting random or pseudorandom byte sequences to UTF-8
   strings, subsequences that do not represent valid code points may be replaced
   by the Unicode replacement character (`U+FFFD`). The byte representation of
   the resulting Unicode string may, therefore, not be equal to the byte sequence
@@ -5119,7 +5119,7 @@ When passing strings to cryptographic APIs, consider the following factors.
   ```
 
   The outputs of ciphers, hash functions, signature algorithms, and key
-  derivation functions are pseudo-random byte sequences and should not be
+  derivation functions are pseudorandom byte sequences and should not be
   used as Unicode strings.
 * When strings are obtained from user input, some Unicode characters can be
   represented in multiple equivalent ways that result in different byte
