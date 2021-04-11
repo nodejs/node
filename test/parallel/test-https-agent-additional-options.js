@@ -36,6 +36,8 @@ const updatedValues = new Map([
   ['dhparam', fixtures.readKey('dh2048.pem')],
   ['ecdhCurve', 'secp384r1'],
   ['honorCipherOrder', true],
+  ['minVersion', 'TLSv1.1'],
+  ['maxVersion', 'TLSv1.3'],
   ['secureOptions', crypto.constants.SSL_OP_CIPHER_SERVER_PREFERENCE],
   ['secureProtocol', 'TLSv1_1_method'],
   ['sessionIdContext', 'sessionIdContext'],
