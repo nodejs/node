@@ -61,14 +61,6 @@ On non-Windows platforms, this always returns `true`.
 
 Creates a 10 MB file of all null characters.
 
-### `disableCrashOnUnhandledRejection()`
-
-Removes the `process.on('unhandledRejection')` handler that crashes the process
-after a tick. The handler is useful for tests that use Promises and need to make
-sure no unexpected rejections occur, because currently they result in silent
-failures. However, it is useful in some rare cases to disable it, for example if
-the `unhandledRejection` hook is directly used by the test.
-
 ### `enoughTestCpu`
 
 * [&lt;boolean>][]

@@ -250,11 +250,9 @@ countdown.dec(); // The countdown callback will be invoked now.
 
 When writing tests involving promises, it is generally good to wrap the
 `onFulfilled` handler, otherwise the test could successfully finish if the
-promise never resolves (pending promises do not keep the event loop alive). The
-`common` module automatically adds a handler that makes the process crash - and
-hence, the test fail - in the case of an `unhandledRejection` event. It is
-possible to disable it with `common.disableCrashOnUnhandledRejection()` if
-needed.
+promise never resolves (pending promises do not keep the event loop alive).
+Node.js automatically crashes - and hence, the test fails - in the case of an
+`unhandledRejection` event.
 
 ```js
 const common = require('../common');
