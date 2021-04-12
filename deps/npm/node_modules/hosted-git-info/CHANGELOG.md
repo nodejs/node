@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="2.8.9"></a>
+## [2.8.9](https://github.com/npm/hosted-git-info/compare/v2.8.8...v2.8.9) (2021-04-07)
+
+
+### Bug Fixes
+
+* backport regex fix from [#76](https://github.com/npm/hosted-git-info/issues/76) ([29adfe5](https://github.com/npm/hosted-git-info/commit/29adfe5)), closes [#84](https://github.com/npm/hosted-git-info/issues/84)
+
+
+
 <a name="2.8.8"></a>
 ## [2.8.8](https://github.com/npm/hosted-git-info/compare/v2.8.7...v2.8.8) (2020-02-29)
 

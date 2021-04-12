@@ -7,6 +7,7 @@ var rimraf = require('rimraf')
 var test = require('tap').test
 var which = require('which')
 
+var GITHUB_ACTIONS = process.env.GITHUB_ACTIONS
 var common = require('../common-tap.js')
 var escapeArg = require('../../lib/utils/escape-arg.js')
 var Tacks = require('tacks')
@@ -151,8 +152,9 @@ function setup (cb) {
         if (er) return cb(er)
 
         var git = escapeArg(gitPath)
+        var extraOpts = GITHUB_ACTIONS ? ' --initial-branch=main' : ''
 
-        exec(git + ' init --initial-branch=main', {cwd: dep}, init)
+        exec(git + ' init' + extraOpts, {cwd: dep}, init)
 
         function init (er, _, stderr) {
           if (er) return cb(er)
