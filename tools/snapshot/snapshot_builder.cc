@@ -111,7 +111,6 @@ std::string SnapshotBuilder::Generate(
       HandleScope scope(isolate);
       creator.SetDefaultContext(Context::New(isolate));
       isolate_data_indexes = main_instance->isolate_data()->Serialize(&creator);
-      // fprintf(stderr, "BOOTSTRAPPING2\n\n\n");
 
       TryCatch bootstrapCatch(isolate);
       Local<Context> context = NewContext(isolate);
