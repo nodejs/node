@@ -2708,6 +2708,9 @@ directory and subsequent read operations.
 <!-- YAML
 added: v0.0.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37101
+    description: Runtime description.
   - version: v10.10.0
     pr-url: https://github.com/nodejs/node/pull/22150
     description: The `buffer` parameter can now be any `TypedArray`, or a
@@ -2726,8 +2729,8 @@ changes:
 * `offset` {integer} The position in `buffer` to write the data to.
 * `length` {integer}  The number of bytes to read.
 * `position` {integer|bigint} Specifies where to begin reading from in the
-  file. If `position` is `null` or `-1 `, data will be read from the current
-  file position, and the file position will be updated. If `position` is an
+  file. If `position` is `-1 `, data will be read from the current file
+  position, and the file position will be updated. If `position` is any other
   integer, the file position will be unchanged.
 * `callback` {Function}
   * `err` {Error}
@@ -2750,6 +2753,9 @@ added:
  - v13.11.0
  - v12.17.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37101
+    description: Runtime description.
   - version:
      - v13.11.0
      - v12.17.0
@@ -2762,7 +2768,7 @@ changes:
   * `buffer` {Buffer|TypedArray|DataView} **Default:** `Buffer.alloc(16384)`
   * `offset` {integer} **Default:** `0`
   * `length` {integer} **Default:** `buffer.length`
-  * `position` {integer|bigint} **Default:** `null`
+  * `position` {integer|bigint} **Default:** `-1`
 * `callback` {Function}
   * `err` {Error}
   * `bytesRead` {integer}

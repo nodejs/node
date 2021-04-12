@@ -79,7 +79,7 @@ function tempFdSync(callback) {
       const buf = Buffer.alloc(5);
 
       // Read only five bytes, so that the position moves to five.
-      fs.read(fd, buf, 0, 5, null, common.mustSucceed((bytes) => {
+      fs.read(fd, buf, 0, 5, -1, common.mustSucceed((bytes) => {
         assert.strictEqual(bytes, 5);
         assert.deepStrictEqual(buf.toString(), 'Hello');
 
