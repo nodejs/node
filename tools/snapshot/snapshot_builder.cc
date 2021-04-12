@@ -107,7 +107,6 @@ std::string SnapshotBuilder::Generate(
                                    per_process::v8_platform.Platform(),
                                    args,
                                    exec_args);
-      // fprintf(stderr, "BOOTSTRAPPING1\n\n\n");
 
       HandleScope scope(isolate);
       creator.SetDefaultContext(Context::New(isolate));
