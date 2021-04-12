@@ -1,4 +1,3 @@
-// Flags: --unhandled-rejections=none
 'use strict';
 
 require('../common');
@@ -16,7 +15,7 @@ const { spawnSync } = require('child_process');
 
 const ret = spawnSync(
   process.execPath,
-  ['--stack_size=150', __filename, 'async'],
+  ['--unhandled-rejections=none', '--stack_size=150', __filename, 'async'],
   { maxBuffer: Infinity }
 );
 assert.strictEqual(ret.status, 0,
