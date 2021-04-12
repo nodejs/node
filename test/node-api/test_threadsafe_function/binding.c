@@ -130,7 +130,7 @@ static void call_js(napi_env env, napi_value cb, void* hint, void* data) {
 }
 
 static napi_ref alt_ref;
-// Getting the data into JS with the alternative referece
+// Getting the data into JS with the alternative reference
 static void call_ref(napi_env env, napi_value _, void* hint, void* data) {
   if (!(env == NULL || alt_ref == NULL)) {
     napi_value fn, argv, undefined;
