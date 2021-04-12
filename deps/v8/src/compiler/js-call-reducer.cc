@@ -4907,6 +4907,14 @@ Reduction JSCallReducer::ReduceStringPrototypeIndexOf(Node* node) {
       Node* position = n.Argument(1);
       new_position = effect = graph()->NewNode(
           simplified()->CheckSmi(p.feedback()), position, effect, control);
+
+      Node* receiver_length =
+          graph()->NewNode(simplified()->StringLength(), new_receiver);
+      new_position = graph()->NewNode(
+          simplified()->NumberMin(),
+          graph()->NewNode(simplified()->NumberMax(), new_position,
+                           jsgraph()->ZeroConstant()),
+          receiver_length);
     }
 
     NodeProperties::ReplaceEffectInput(node, effect);
