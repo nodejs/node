@@ -417,3 +417,14 @@ const assert = require('assert');
   }));
   write.write('asd');
 }
+
+{
+  // Destroy twice
+  const write = new Writable({
+    write(chunk, enc, cb) { cb(); }
+  });
+
+  write.end(common.mustCall());
+  write.destroy();
+  write.destroy();
+}
