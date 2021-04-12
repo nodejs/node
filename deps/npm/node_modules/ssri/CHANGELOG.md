@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="6.0.2"></a>
+## [6.0.2](https://github.com/zkat/ssri/compare/v6.0.1...v6.0.2) (2021-04-07)
+
+
+### Bug Fixes
+
+* backport regex change from 8.0.1 ([b30dfdb](https://github.com/zkat/ssri/commit/b30dfdb)), closes [#19](https://github.com/zkat/ssri/issues/19)
+
+
+
 <a name="6.0.1"></a>
 ## [6.0.1](https://github.com/zkat/ssri/compare/v6.0.0...v6.0.1) (2018-08-27)
 
