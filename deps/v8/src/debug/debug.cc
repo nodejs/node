@@ -1641,8 +1641,15 @@ Handle<Object> Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
             UnoptimizedCompileFlags::ForScriptCompile(isolate_, *script);
         ParseInfo parse_info(isolate_, flags, &compile_state);
         IsCompiledScope is_compiled_scope;
-        Compiler::CompileToplevel(&parse_info, script, isolate_,
-                                  &is_compiled_scope);
+        const MaybeHandle<SharedFunctionInfo> maybe_result =
+            Compiler::CompileToplevel(&parse_info, script, isolate_,
+                                      &is_compiled_scope);
+        if (maybe_result.is_null()) {
+          if (isolate_->has_pending_exception()) {
+            isolate_->clear_pending_exception();
+          }
+          break;
+        }
         continue;
       }
       // We found it if it's already compiled.
