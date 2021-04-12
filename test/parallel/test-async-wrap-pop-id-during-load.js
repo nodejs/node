@@ -1,9 +1,9 @@
+// Flags: --unhandled-rejections=none
 'use strict';
 
-const common = require('../common');
+require('../common');
 
 if (process.argv[2] === 'async') {
-  common.disableCrashOnUnhandledRejection();
   async function fn() {
     fn();
     throw new Error();

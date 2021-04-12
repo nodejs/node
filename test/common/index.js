@@ -628,10 +628,6 @@ function getBufferSources(buf) {
   return [...getArrayBufferViews(buf), new Uint8Array(buf).buffer];
 }
 
-function disableCrashOnUnhandledRejection() {
-  process.on('unhandledRejection', () => {});
-}
-
 function getTTYfd() {
   // Do our best to grab a tty fd.
   const tty = require('tty');
@@ -732,7 +728,6 @@ const common = {
   canCreateSymLink,
   childShouldThrowAndAbort,
   createZeroFilledFile,
-  disableCrashOnUnhandledRejection,
   expectsError,
   expectWarning,
   gcUntil,

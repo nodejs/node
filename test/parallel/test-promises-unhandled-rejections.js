@@ -1,9 +1,8 @@
+// Flags: --unhandled-rejections=none
 'use strict';
 const common = require('../common');
 const assert = require('assert');
 const { inspect } = require('util');
-
-common.disableCrashOnUnhandledRejection();
 
 const asyncTest = (function() {
   let asyncTestsEnabled = false;
@@ -643,7 +642,6 @@ asyncTest('Throwing an error inside a rejectionHandled handler goes to' +
           ' unhandledException, and does not cause .catch() to throw an ' +
           'exception', function(done) {
   clean();
-  common.disableCrashOnUnhandledRejection();
   const e = new Error();
   const e2 = new Error();
   const tearDownException = setupException(function(err) {

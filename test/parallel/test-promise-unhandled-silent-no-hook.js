@@ -4,8 +4,6 @@
 const common = require('../common');
 const assert = require('assert');
 
-common.disableCrashOnUnhandledRejection();
-
 // Verify that ignoring unhandled rejection works fine and that no warning is
 // logged even though there is no unhandledRejection hook attached.
 
