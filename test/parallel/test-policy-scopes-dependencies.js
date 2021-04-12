@@ -41,6 +41,41 @@ const assert = require('assert');
   {
     const manifest = new Manifest({
       scopes: {
+        '': {
+          dependencies: true
+        }
+      }
+    });
+
+    for (const href of baseURLs) {
+      assert.strictEqual(
+        manifest.getDependencyMapper(href).resolve('fs'),
+        true
+      );
+    }
+  }
+  {
+    const manifest = new Manifest({
+      scopes: {
+        '': {
+          dependencies: true
+        },
+        'file:': {
+          cascade: true
+        }
+      }
+    });
+
+    for (const href of baseURLs) {
+      assert.strictEqual(
+        manifest.getDependencyMapper(href).resolve('fs'),
+        true
+      );
+    }
+  }
+  {
+    const manifest = new Manifest({
+      scopes: {
         'file:': {
           dependencies: true
         }

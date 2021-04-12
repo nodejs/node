@@ -3,7 +3,7 @@
     "../parent.js": {
       "integrity": true,
       "dependencies": {
-        "./dep.js": "node:util"
+        "../dep.js": "node:util"
       }
     }
   }
