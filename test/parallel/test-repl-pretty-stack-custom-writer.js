@@ -17,7 +17,7 @@ const repl = require('repl');
     useColors: false
   });
 
-  r.write(`throw new Error("foo[a]")\n`);
+  r.write('throw new Error("foo[a]")\n');
   r.close();
   assert.strictEqual(output.read().toString(), 'Uncaught Error: foo[a]\n');
 }
