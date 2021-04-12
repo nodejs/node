@@ -8,7 +8,7 @@ const SPEC_ALGORITHMS = ['sha256', 'sha384', 'sha512']
 
 const BASE64_REGEX = /^[a-z0-9+/]+(?:=?=?)$/i
 const SRI_REGEX = /^([^-]+)-([^?]+)([?\S*]*)$/
-const STRICT_SRI_REGEX = /^([^-]+)-([A-Za-z0-9+/=]{44,88})(\?[\x21-\x7E]*)*$/
+const STRICT_SRI_REGEX = /^([^-]+)-([A-Za-z0-9+/=]{44,88})(\?[\x21-\x7E]*)?$/
 const VCHAR_REGEX = /^[\x21-\x7E]+$/
 
 const SsriOpts = figgyPudding({
