@@ -30,3 +30,10 @@ assert.throws(
   assert.strictEqual(Object.getOwnPropertyDescriptor(o, 'toString').enumerable,
                      true);
 }
+
+// Ensure we can not override globalThis
+{
+  assert.throws(() => { globalThis.globalThis = null; },
+                { name: 'TypeError' });
+  assert.strictEqual(globalThis.globalThis, globalThis);
+}
