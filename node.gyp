@@ -530,6 +530,7 @@
         'src/node_watchdog.h',
         'src/node_worker.h',
         'src/pipe_wrap.h',
+        'src/quic/quic.cc',
         'src/req_wrap.h',
         'src/req_wrap-inl.h',
         'src/spawn_sync.h',
@@ -696,6 +697,25 @@
             }
           ] ]
         } ],
+        [ 'openssl_quic=="true"', {
+          'sources': [
+            'src/quic/buffer.cc',
+            'src/quic/crypto.cc',
+            'src/quic/endpoint.cc',
+            'src/quic/http3.cc',
+            'src/quic/session.cc',
+            'src/quic/stream.cc',
+            'src/quic/buffer.h',
+            'src/quic/crypto.h',
+            'src/quic/endpoint.h',
+            'src/quic/http3.h',
+            'src/quic/qlog.h',
+            'src/quic/quic.h',
+            'src/quic/session.h',
+            'src/quic/stats.h',
+            'src/quic/stream.h'
+          ]
+        }],
         [ 'node_use_openssl=="true"', {
           'sources': [
             'src/crypto/crypto_aes.cc',

@@ -96,6 +96,7 @@ class SecureContext final : public BaseObject {
   static void SetSigalgs(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetECDHCurve(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetDHParam(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetGroupsParam(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetOptions(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetSessionIdContext(
       const v8::FunctionCallbackInfo<v8::Value>& args);

@@ -691,6 +691,12 @@ class ArrayBufferOrViewContents {
       memcpy(dest, data(), len);
   }
 
+  inline const std::shared_ptr<v8::BackingStore>& store() const {
+    return store_;
+  }
+
+  inline size_t offset() const { return offset_; }
+
  private:
   T buf = 0;
   size_t offset_ = 0;

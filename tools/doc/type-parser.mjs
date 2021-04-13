@@ -175,6 +175,29 @@ const customTypesMap = {
   'net.Socket': 'net.html#net_class_net_socket',
   'net.SocketAddress': 'net.html#net_class_net_socketaddress',
 
+  'quic.Endpoint': 'quic.html#quic_class_quic_endpoint',
+  'quic.Session': 'quic.html#quic_class_quic_session',
+  'quic.SessionEvent': 'quic.html#quic_class_sessionevent',
+  'quic.Stream': 'quic.html#quic_class_quic_stream',
+  'quic.EndpointConfig': 'quic.html#quic_class_quic_endpointconfig',
+  'quic.EndpointConfigInit':
+    'quic.html#quic_object_quic_endpointconfiginit',
+  'quic.SessionConfig': 'quic.html#quic_class_quic_sessionconfig',
+  'quic.SessionConfigInit':
+    'quic.html#quic_object_quic_sessionconfiginit',
+  'quic.StreamOptions': 'quic.html#quic_class_quic_streamoptions',
+  'quic.ResponseOptions': 'quic.html#quic_class_quic_responseoptions',
+  'quic.ResponseOptionsInit':
+    'quic.html#quic_object_quic_responseoptionsinit',
+  'quic.StreamOptionsInit':
+    'quic.html#quic_object_quic_streamoptionsinit',
+  'quic.EndpointStats': 'quic.html#quic_class_quic_endpointstats',
+  'quic.SessionStats': 'quic.html#quic_class_quic_sessionstats',
+  'quic.StreamStats': 'quic.html#quic_class_quic_streamstats',
+  'quic.OCSPRequest': 'quic.html#quic_class_quic_ocsprequest',
+  'quic.OCSPResponse': 'quic.html#quic_class_quic_ocspresponse',
+  'quic.ClientHello': 'quic.html#quic_class_quic_clienthello',
+
   'NodeEventTarget':
     'events.html#events_class_nodeeventtarget',
 

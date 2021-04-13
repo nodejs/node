@@ -543,7 +543,6 @@ int nghttp3_http_on_header(nghttp3_http_state *http, int64_t frame_type,
   } else {
     rv = nghttp3_check_header_value(nv->value->base, nv->value->len);
   }
-
   if (rv == 0) {
     if (nv->name->base[0] == ':') {
       return NGHTTP3_ERR_MALFORMED_HTTP_HEADER;
