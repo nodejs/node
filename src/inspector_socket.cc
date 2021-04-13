@@ -176,7 +176,7 @@ static bool IsIPAddress(const std::string& host) {
 
 // Constants for hybi-10 frame format.
 
-typedef int OpCode;
+using OpCode = int;
 
 const OpCode kOpCodeContinuation = 0x0;
 const OpCode kOpCodeText = 0x1;
