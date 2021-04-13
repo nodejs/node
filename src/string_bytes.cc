@@ -143,10 +143,10 @@ class ExternString: public ResourceType {
 };
 
 
-typedef ExternString<String::ExternalOneByteStringResource,
-                     char> ExternOneByteString;
-typedef ExternString<String::ExternalStringResource,
-                     uint16_t> ExternTwoByteString;
+using ExternOneByteString =
+  ExternString<String::ExternalOneByteStringResource, char>;
+using ExternTwoByteString =
+  ExternString<String::ExternalStringResource, uint16_t>;
 
 
 template <>
