@@ -25,6 +25,9 @@ template <typename T>
 class AliasedStruct final {
  public:
   template <typename... Args>
+  explicit AliasedStruct(Environment* env, Args&&... args);
+
+  template <typename... Args>
   explicit AliasedStruct(v8::Isolate* isolate, Args&&... args);
 
   inline AliasedStruct(const AliasedStruct& that);

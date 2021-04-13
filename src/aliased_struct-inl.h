@@ -24,6 +24,11 @@ AliasedStruct<T>::AliasedStruct(v8::Isolate* isolate, Args&&... args)
 }
 
 template <typename T>
+template <typename... Args>
+AliasedStruct<T>::AliasedStruct(Environment* env, Args&&... args)
+    : AliasedStruct(env->isolate(), args...) {}
+
+template <typename T>
 AliasedStruct<T>::AliasedStruct(const AliasedStruct& that)
     : AliasedStruct(that.isolate_, *that) {}
 
