@@ -620,7 +620,7 @@ WebCryptoKeyExportStatus EC_Raw_Export(
   size_t len = 0;
 
   if (ec_key == nullptr) {
-    typedef int (*export_fn)(const EVP_PKEY*, unsigned char*, size_t* len);
+    using export_fn = int (*)(const EVP_PKEY*, unsigned char*, size_t* len);
     export_fn fn = nullptr;
     switch (key_data->GetKeyType()) {
       case kKeyTypePrivate:
