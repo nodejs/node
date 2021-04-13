@@ -16,7 +16,7 @@ class RefTracker {
   virtual ~RefTracker() {}
   virtual void Finalize(bool isEnvTeardown) {}
 
-  typedef RefTracker RefList;
+  using RefList = RefTracker;
 
   inline void Link(RefList* list) {
     prev_ = list;
