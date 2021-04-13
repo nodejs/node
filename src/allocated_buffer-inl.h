@@ -105,6 +105,10 @@ v8::Local<v8::ArrayBuffer> AllocatedBuffer::ToArrayBuffer() {
   return v8::ArrayBuffer::New(env_->isolate(), std::move(backing_store_));
 }
 
+std::unique_ptr<v8::BackingStore> AllocatedBuffer::ReleaseBackingStore() {
+  return std::move(backing_store_);
+}
+
 }  // namespace node
 
 #endif  // SRC_ALLOCATED_BUFFER_INL_H_
