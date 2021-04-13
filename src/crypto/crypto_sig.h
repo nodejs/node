@@ -21,7 +21,7 @@ enum DSASigEnc {
 
 class SignBase : public BaseObject {
  public:
-  typedef enum {
+  using Error = enum {
     kSignOk,
     kSignUnknownDigest,
     kSignInit,
@@ -30,7 +30,7 @@ class SignBase : public BaseObject {
     kSignPrivateKey,
     kSignPublicKey,
     kSignMalformedSignature
-  } Error;
+  };
 
   SignBase(Environment* env, v8::Local<v8::Object> wrap);
 
