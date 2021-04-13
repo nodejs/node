@@ -31,25 +31,25 @@
  * one that would be resolved by that elusive El Dorado:  dynamic translators.
  */
 
-typedef struct {
+using node_dtrace_connection_t = struct {
 	int dummy;
-} node_dtrace_connection_t;
+};
 
-typedef struct {
+using node_connection_t = struct {
 	int dummy;
-} node_connection_t;
+};
 
-typedef struct {
+using node_dtrace_http_server_request_t = struct {
 	int dummy;
-} node_dtrace_http_server_request_t;
+};
 
-typedef struct {
+using node_dtrace_http_client_request_t = struct {
 	int dummy;
-} node_dtrace_http_client_request_t;
+};
 
-typedef struct {
+using node_http_request_t = struct {
 	int dummy;
-} node_http_request_t;
+};
 
 provider node {
 	probe net__server__connection(node_dtrace_connection_t *c,
