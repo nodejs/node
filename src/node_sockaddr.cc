@@ -23,19 +23,6 @@ using v8::Object;
 using v8::Uint32;
 using v8::Value;
 
-namespace {
-template <typename T, typename F>
-SocketAddress FromUVHandle(F fn, const T& handle) {
-  SocketAddress addr;
-  int len = sizeof(sockaddr_storage);
-  if (fn(&handle, addr.storage(), &len) == 0)
-    CHECK_EQ(static_cast<size_t>(len), addr.length());
-  else
-    addr.storage()->sa_family = 0;
-  return addr;
-}
-}  // namespace
-
 bool SocketAddress::ToSockAddr(
     int32_t family,
     const char* host,
@@ -96,19 +83,23 @@ size_t SocketAddress::Hash::operator()(const SocketAddress& addr) const {
   return hash;
 }
 
-SocketAddress SocketAddress::FromSockName(const uv_tcp_t& handle) {
+std::shared_ptr<SocketAddress> SocketAddress::FromSockName(
+    const uv_tcp_t& handle) {
   return FromUVHandle(uv_tcp_getsockname, handle);
 }
 
-SocketAddress SocketAddress::FromSockName(const uv_udp_t& handle) {
+std::shared_ptr<SocketAddress> SocketAddress::FromSockName(
+    const uv_udp_t& handle) {
   return FromUVHandle(uv_udp_getsockname, handle);
 }
 
-SocketAddress SocketAddress::FromPeerName(const uv_tcp_t& handle) {
+std::shared_ptr<SocketAddress> SocketAddress::FromPeerName(
+    const uv_tcp_t& handle) {
   return FromUVHandle(uv_tcp_getpeername, handle);
 }
 
-SocketAddress SocketAddress::FromPeerName(const uv_udp_t& handle) {
+std::shared_ptr<SocketAddress> SocketAddress::FromPeerName(
+    const uv_udp_t& handle) {
   return FromUVHandle(uv_udp_getpeername, handle);
 }
 

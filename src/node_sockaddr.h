@@ -126,10 +126,10 @@ class SocketAddress : public MemoryRetainer {
   inline void Update(uint8_t* data, size_t len);
   inline void Update(const sockaddr* data, size_t len);
 
-  static SocketAddress FromSockName(const uv_udp_t& handle);
-  static SocketAddress FromSockName(const uv_tcp_t& handle);
-  static SocketAddress FromPeerName(const uv_udp_t& handle);
-  static SocketAddress FromPeerName(const uv_tcp_t& handle);
+  static std::shared_ptr<SocketAddress> FromSockName(const uv_udp_t& handle);
+  static std::shared_ptr<SocketAddress> FromSockName(const uv_tcp_t& handle);
+  static std::shared_ptr<SocketAddress> FromPeerName(const uv_udp_t& handle);
+  static std::shared_ptr<SocketAddress> FromPeerName(const uv_tcp_t& handle);
 
   inline v8::Local<v8::Object> ToJS(
       Environment* env,
@@ -146,6 +146,17 @@ class SocketAddress : public MemoryRetainer {
 
  private:
   sockaddr_storage address_;
+
+  template <typename T, typename F>
+  static std::shared_ptr<SocketAddress> FromUVHandle(F fn, const T& handle) {
+    std::shared_ptr<SocketAddress> addr = std::make_shared<SocketAddress>();
+    int len = sizeof(sockaddr_storage);
+    if (fn(&handle, addr->storage(), &len) == 0) {
+      CHECK_EQ(static_cast<size_t>(len), addr->length());
+      return addr;
+    }
+    return std::shared_ptr<SocketAddress>();
+  }
 };
 
 class SocketAddressBase : public BaseObject {
