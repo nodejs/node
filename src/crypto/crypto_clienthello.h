@@ -60,8 +60,8 @@ class ClientHelloParser {
     friend class ClientHelloParser;
   };
 
-  typedef void (*OnHelloCb)(void* arg, const ClientHello& hello);
-  typedef void (*OnEndCb)(void* arg);
+  using OnHelloCb = void (*)(void* arg, const ClientHello& hello);
+  using OnEndCb = void (*)(void* arg);
 
   void Parse(const uint8_t* data, size_t avail);
 
