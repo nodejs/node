@@ -94,7 +94,7 @@ class PerIsolatePlatformData :
     void (*cb)(void*);
     void* data;
   };
-  typedef std::vector<ShutdownCallback> ShutdownCbList;
+  using ShutdownCbList = std::vector<ShutdownCallback>;
   ShutdownCbList shutdown_callbacks_;
   // shared_ptr to self to keep this object alive during shutdown.
   std::shared_ptr<PerIsolatePlatformData> self_reference_;
@@ -107,8 +107,8 @@ class PerIsolatePlatformData :
   TaskQueue<DelayedTask> foreground_delayed_tasks_;
 
   // Use a custom deleter because libuv needs to close the handle first.
-  typedef std::unique_ptr<DelayedTask, void(*)(DelayedTask*)>
-      DelayedTaskPointer;
+  using DelayedTaskPointer =
+    std::unique_ptr<DelayedTask, void(*)(DelayedTask*)>;
   std::vector<DelayedTaskPointer> scheduled_delayed_tasks_;
 };
 
