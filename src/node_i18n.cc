@@ -132,7 +132,7 @@ void CopySourceBuffer(MaybeStackBuffer<UChar>* dest,
   }
 }
 
-typedef MaybeLocal<Object> (*TranscodeFunc)(Environment* env,
+using TranscodeFunc = MaybeLocal<Object> (*)(Environment* env,
                                             const char* fromEncoding,
                                             const char* toEncoding,
                                             const char* source,
