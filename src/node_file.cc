@@ -127,7 +127,7 @@ inline int64_t GetOffset(Local<Value> value) {
 // We sometimes need to convert a C++ lambda function to a raw C-style function.
 // This is helpful, because ReqWrap::Dispatch() does not recognize lambda
 // functions, and thus does not wrap them properly.
-typedef void(*uv_fs_callback_t)(uv_fs_t*);
+using uv_fs_callback_t = void(*)(uv_fs_t*);
 
 
 void FSContinuationData::MemoryInfo(MemoryTracker* tracker) const {
@@ -541,7 +541,7 @@ int FileHandle::ReadStop() {
   return 0;
 }
 
-typedef SimpleShutdownWrap<ReqWrap<uv_fs_t>> FileHandleCloseWrap;
+using FileHandleCloseWrap = SimpleShutdownWrap<ReqWrap<uv_fs_t>>;
 
 ShutdownWrap* FileHandle::CreateShutdownWrap(Local<Object> object) {
   return new FileHandleCloseWrap(this, object);
