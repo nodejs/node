@@ -16,7 +16,7 @@
 #endif
 #endif  // HAVE_OPENSSL
 
-#ifdef OPENSSL_INFO_QUIC
+#ifdef NODE_OPENSSL_HAS_QUIC
 #include <ngtcp2/version.h>
 #include <nghttp3/version.h>
 #endif

@@ -180,6 +180,7 @@ const expectedHeaderNames = {
   HTTP2_HEADER_PURPOSE: 'purpose',
   HTTP2_HEADER_TIMING_ALLOW_ORIGIN: 'timing-allow-origin',
   HTTP2_HEADER_X_FORWARDED_FOR: 'x-forwarded-for',
+  HTTP2_HEADER_PRIORITY: 'priority',
 };
 
 const expectedNGConstants = {

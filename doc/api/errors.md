@@ -2358,6 +2358,68 @@ Accessing `Object.prototype.__proto__` has been forbidden using
 [`Object.setPrototypeOf`][] should be used to get and set the prototype of an
 object.
 
+<a id="ERR_QUIC_APPLICATION_ERROR"></a>
+### `ERR_QUIC_APPLICATION_ERROR`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Indicates that a QUIC application-level error has occurred.
+
+<a id="ERR_QUIC_SESSION_DESTROYED"></a>
+### `ERR_QUIC_SESSION_DESTROYED`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Indicates that a {quic.Stream} has been interrupted because it's owning
+{quic.Session} has been destroyed.
+
+<a id="ERR_QUIC_STREAM_OPEN_FAILURE"></a>
+### `ERR_QUIC_STREAM_OPEN_FAILURE`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Indicates that a new {quic.Stream} could not be opened at this time.
+
+<a id="ERR_QUIC_STREAM_RESET"></a>
+### `ERR_QUIC_STREAM_RESET`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Indicates that a {quic.Stream} has been reset by the connected peer.
+
+<a id="ERR_QUIC_TRANSPORT_ERROR"></a>
+### `ERR_QUIC_TRANSPORT_ERROR`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Indicates that a QUIC transport-level error has occurred.
+
+<a id="ERR_QUIC_VERSION_NEGOTIATION"></a>
+### `ERR_QUIC_VERSION_NEGOTIATION`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Indicates that a remote QUIC peer does not support the QUIC protocol version
+requested.
+
 <a id="ERR_REQUIRE_ESM"></a>
 
 ### `ERR_REQUIRE_ESM`
@@ -3050,6 +3112,14 @@ removed: v10.0.0
 
 Used when an action has been performed on an HTTP/2 Stream that has already
 been closed.
+
+<a id="ERR_HTTP3_HOST_OR_AUTHORITY_REQUIRED"></a>
+### `ERR_HTTP3_HOST_OR_AUTHORITY_REQUIRED`
+<!-- YAML
+added: REPLACEME
+-->
+
+For HTTP/3, the `'host'` or '`:authority'` header must be given.
 
 <a id="ERR_HTTP_INVALID_CHAR"></a>
 

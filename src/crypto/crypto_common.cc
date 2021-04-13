@@ -22,6 +22,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace node {
 
@@ -81,7 +82,7 @@ void LogSecret(
 bool SetALPN(const SSLPointer& ssl, const std::string& alpn) {
   return SSL_set_alpn_protos(
       ssl.get(),
-      reinterpret_cast<const uint8_t*>(alpn.c_str()),
+      reinterpret_cast<const unsigned char*>(alpn.c_str()),
       alpn.length()) == 0;
 }
 

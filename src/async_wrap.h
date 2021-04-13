@@ -27,6 +27,14 @@
 #include "base_object.h"
 #include "v8.h"
 
+#if NODE_OPENSSL_HAS_QUIC
+#if OPENSSL_VERSION_NUMBER >= 805306368  // OpenSSL 3
+#include <openssl/quic.h>
+#else
+#include <openssl/crypto.h>
+#endif  // OPENSSL_VERSION_NUMBER
+#endif  // NODE_OPENSSL_HAS_QUIC
+
 #include <cstdint>
 
 namespace node {
@@ -103,10 +111,27 @@ namespace node {
 #define NODE_ASYNC_INSPECTOR_PROVIDER_TYPES(V)
 #endif  // HAVE_INSPECTOR
 
+#if NODE_OPENSSL_HAS_QUIC
+#define NODE_ASYNC_QUIC_PROVIDER_TYPES(V)                                     \
+  V(BLOBSOURCE)                                                               \
+  V(JSQUICBUFFERCONSUMER)                                                     \
+  V(LOGSTREAM)                                                                \
+  V(STREAMSOURCE)                                                             \
+  V(STREAMBASESOURCE)                                                         \
+  V(QUICENDPOINT)                                                             \
+  V(QUICENDPOINTUDP)                                                          \
+  V(QUICSENDWRAP)                                                             \
+  V(QUICSESSION)                                                              \
+  V(QUICSTREAM)
+#else
+#define NODE_ASYNC_QUIC_PROVIDER_TYPES(V)
+#endif
+
 #define NODE_ASYNC_PROVIDER_TYPES(V)                                          \
   NODE_ASYNC_NON_CRYPTO_PROVIDER_TYPES(V)                                     \
   NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)                                         \
-  NODE_ASYNC_INSPECTOR_PROVIDER_TYPES(V)
+  NODE_ASYNC_INSPECTOR_PROVIDER_TYPES(V)                                      \
+  NODE_ASYNC_QUIC_PROVIDER_TYPES(V)
 
 class Environment;
 class DestroyParam;

@@ -71,7 +71,7 @@ bool Blob::HasInstance(Environment* env, v8::Local<v8::Value> object) {
 
 BaseObjectPtr<Blob> Blob::Create(
     Environment* env,
-    const std::vector<BlobEntry> store,
+    const std::vector<BlobEntry>& store,
     size_t length) {
 
   HandleScope scope(env->isolate());

@@ -171,7 +171,11 @@ added:
   - v14.18.0
 -->
 
-* `options` {Object}
+* `options` {net.SocketAddressInit}
+
+### `SocketAddressInit`
+
+* Type: {Object}
   * `address` {string} The network address as either an IPv4 or IPv6 string.
     **Default**: `'127.0.0.1'` if `family` is `'ipv4'`; `'::'` if `family` is
     `'ipv6'`.
@@ -179,6 +183,18 @@ added:
     **Default**: `'ipv4'`.
   * `flowlabel` {number} An IPv6 flow-label used only if `family` is `'ipv6'`.
   * `port` {number} An IP port.
+
+The `SocketAddressInit` is an ordinary JavaScript object whose properties are
+used to initialize a new {net.SocketAddress}.
+
+```js
+const socketAddressInit = {
+  address: '123.123.123.123',
+  port: 12345
+};
+
+const socketAddress = new net.SocketAddress(socketAddressInit);
+```
 
 ### `socketaddress.address`
 

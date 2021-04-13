@@ -66,6 +66,7 @@
   V(pipe_wrap)                                                                 \
   V(process_wrap)                                                              \
   V(process_methods)                                                           \
+  V(quic)                                                                      \
   V(report)                                                                    \
   V(serdes)                                                                    \
   V(signal_wrap)                                                               \

@@ -63,6 +63,7 @@ void OnFatalError(const char* location, const char* message);
   V(ERR_INVALID_ADDRESS, Error)                                                \
   V(ERR_INVALID_ARG_VALUE, TypeError)                                          \
   V(ERR_OSSL_EVP_INVALID_DIGEST, Error)                                        \
+  V(ERR_ILLEGAL_CONSTRUCTOR, Error)                                            \
   V(ERR_INVALID_ARG_TYPE, TypeError)                                           \
   V(ERR_INVALID_MODULE, Error)                                                 \
   V(ERR_INVALID_THIS, TypeError)                                               \
@@ -75,6 +76,13 @@ void OnFatalError(const char* location, const char* message);
   V(ERR_MISSING_PLATFORM_FOR_WORKER, Error)                                    \
   V(ERR_NON_CONTEXT_AWARE_DISABLED, Error)                                     \
   V(ERR_OUT_OF_RANGE, RangeError)                                              \
+  V(ERR_QUIC_APPLICATION_ERROR, Error)                                         \
+  V(ERR_QUIC_ENDPOINT_INITIAL_PACKET_FAILURE, Error)                           \
+  V(ERR_QUIC_ENDPOINT_LISTEN_FAILURE, Error)                                   \
+  V(ERR_QUIC_ENDPOINT_RECEIVE_FAILURE, Error)                                  \
+  V(ERR_QUIC_ENDPOINT_SEND_FAILURE, Error)                                     \
+  V(ERR_QUIC_FAILURE_SETTING_SNI_CONTEXT, Error)                               \
+  V(ERR_QUIC_INTERNAL_ERROR, Error)                                            \
   V(ERR_SCRIPT_EXECUTION_INTERRUPTED, Error)                                   \
   V(ERR_SCRIPT_EXECUTION_TIMEOUT, Error)                                       \
   V(ERR_STRING_TOO_LONG, Error)                                                \
@@ -150,12 +158,21 @@ ERRORS_WITH_CODE(V)
   V(ERR_DLOPEN_FAILED, "DLOpen failed")                                        \
   V(ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE,                                   \
     "Context not associated with Node.js environment")                         \
+  V(ERR_ILLEGAL_CONSTRUCTOR, "Illegal constructor")                            \
   V(ERR_INVALID_ADDRESS, "Invalid socket address")                             \
   V(ERR_INVALID_MODULE, "No such module")                                      \
   V(ERR_INVALID_THIS, "Value of \"this\" is the wrong type")                   \
   V(ERR_INVALID_TRANSFER_OBJECT, "Found invalid object in transferList")       \
   V(ERR_MEMORY_ALLOCATION_FAILED, "Failed to allocate memory")                 \
   V(ERR_OSSL_EVP_INVALID_DIGEST, "Invalid digest used")                        \
+  V(ERR_QUIC_APPLICATION_ERROR, "QUIC application error: %d")                  \
+  V(ERR_QUIC_ENDPOINT_INITIAL_PACKET_FAILURE,                                  \
+    "Failure processing initial packet")                                       \
+  V(ERR_QUIC_ENDPOINT_LISTEN_FAILURE, "Failure to listen")                     \
+  V(ERR_QUIC_ENDPOINT_RECEIVE_FAILURE, "Failure to receive packet")            \
+  V(ERR_QUIC_ENDPOINT_SEND_FAILURE, "Failure to send packet")                  \
+  V(ERR_QUIC_FAILURE_SETTING_SNI_CONTEXT, "Failure setting SNI context")       \
+  V(ERR_QUIC_INTERNAL_ERROR, "Internal error: %s")                             \
   V(ERR_MESSAGE_TARGET_CONTEXT_UNAVAILABLE,                                    \
     "A message object could not be deserialized successfully in the target "   \
     "vm.Context")                                                              \

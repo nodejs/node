@@ -66,6 +66,16 @@ const { getSystemErrorName } = require('util');
     delete providers.FIXEDSIZEBLOBCOPY;
     delete providers.RANDOMPRIMEREQUEST;
     delete providers.CHECKPRIMEREQUEST;
+    delete providers.BLOBSOURCE;
+    delete providers.JSQUICBUFFERCONSUMER;
+    delete providers.LOGSTREAM;
+    delete providers.STREAMSOURCE;
+    delete providers.STREAMBASESOURCE;
+    delete providers.QUICENDPOINT;
+    delete providers.QUICENDPOINTUDP;
+    delete providers.QUICSENDWRAP;
+    delete providers.QUICSESSION;
+    delete providers.QUICSTREAM;
 
     const objKeys = Object.keys(providers);
     if (objKeys.length > 0)
