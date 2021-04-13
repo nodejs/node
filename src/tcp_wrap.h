@@ -60,7 +60,7 @@ class TCPWrap : public ConnectionWrap<TCPWrap, uv_tcp_t> {
   }
 
  private:
-  typedef uv_tcp_t HandleType;
+  using HandleType = uv_tcp_t;
 
   template <typename T,
             int (*F)(const typename T::HandleType*, sockaddr*, int*)>
