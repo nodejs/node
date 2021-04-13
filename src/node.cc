@@ -516,7 +516,7 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
 }
 
 #ifdef __POSIX__
-typedef void (*sigaction_cb)(int signo, siginfo_t* info, void* ucontext);
+using sigaction_cb = void (*)(int signo, siginfo_t* info, void* ucontext);
 #endif
 #if NODE_USE_V8_WASM_TRAP_HANDLER
 #if defined(_WIN32)
