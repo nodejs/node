@@ -54,7 +54,7 @@ class ReqWrap : public AsyncWrap, public ReqWrapBase {
   // Adding `friend struct MakeLibuvRequestCallback` is not enough anymore
   // for some reason. Consider this private.
  public:
-  typedef void (*callback_t)();
+  using callback_t = void (*)();
   callback_t original_callback_ = nullptr;
 
  protected:
