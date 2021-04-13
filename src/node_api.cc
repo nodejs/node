@@ -53,7 +53,7 @@ struct node_napi_env__ : public napi_env__ {
   std::string filename;
 };
 
-typedef node_napi_env__* node_napi_env;
+using node_napi_env = node_napi_env__*;
 
 namespace v8impl {
 
