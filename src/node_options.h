@@ -289,7 +289,7 @@ class OptionsParser {
  public:
   virtual ~OptionsParser() = default;
 
-  typedef Options TargetType;
+  using TargetType = Options;
 
   struct NoOp {};
   struct V8Option {};
