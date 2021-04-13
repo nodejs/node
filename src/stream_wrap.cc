@@ -304,8 +304,8 @@ void LibuvStreamWrap::SetBlocking(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(uv_stream_set_blocking(wrap->stream(), enable));
 }
 
-typedef SimpleShutdownWrap<ReqWrap<uv_shutdown_t>> LibuvShutdownWrap;
-typedef SimpleWriteWrap<ReqWrap<uv_write_t>> LibuvWriteWrap;
+using LibuvShutdownWrap = SimpleShutdownWrap<ReqWrap<uv_shutdown_t>>;
+using LibuvWriteWrap = SimpleWriteWrap<ReqWrap<uv_write_t>>;
 
 ShutdownWrap* LibuvStreamWrap::CreateShutdownWrap(Local<Object> object) {
   return new LibuvShutdownWrap(this, object);
