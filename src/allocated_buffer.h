@@ -53,6 +53,7 @@ struct AllocatedBuffer {
 
   inline v8::MaybeLocal<v8::Object> ToBuffer();
   inline v8::Local<v8::ArrayBuffer> ToArrayBuffer();
+  inline std::unique_ptr<v8::BackingStore> ReleaseBackingStore();
 
   AllocatedBuffer(AllocatedBuffer&& other) = default;
   AllocatedBuffer& operator=(AllocatedBuffer&& other) = default;
