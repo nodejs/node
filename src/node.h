@@ -200,7 +200,7 @@ NODE_DEPRECATED("Use MakeCallback(..., async_context)",
 
 #ifdef _WIN32
 #if !defined(_SSIZE_T_) && !defined(_SSIZE_T_DEFINED)
-typedef intptr_t ssize_t;
+using ssize_t = intptr_t;
 # define _SSIZE_T_
 # define _SSIZE_T_DEFINED
 #endif
@@ -741,12 +741,12 @@ NODE_EXTERN v8::Local<v8::Value> WinapiErrnoException(
 const char* signo_string(int errorno);
 
 
-typedef void (*addon_register_func)(
+using addon_register_func = void (*)(
     v8::Local<v8::Object> exports,
     v8::Local<v8::Value> module,
     void* priv);
 
-typedef void (*addon_context_register_func)(
+using addon_context_register_func = void (*)(
     v8::Local<v8::Object> exports,
     v8::Local<v8::Value> module,
     v8::Local<v8::Context> context,
@@ -899,7 +899,7 @@ NODE_EXTERN void AtExit(Environment* env,
                         void (*cb)(void* arg),
                         void* arg);
 
-typedef double async_id;
+using async_id = double;
 struct async_context {
   ::node::async_id async_id;
   ::node::async_id trigger_async_id;
@@ -923,7 +923,7 @@ NODE_EXTERN void RemoveEnvironmentCleanupHook(v8::Isolate* isolate,
  * have no effect. */
 struct ACHHandle;
 struct NODE_EXTERN DeleteACHHandle { void operator()(ACHHandle*) const; };
-typedef std::unique_ptr<ACHHandle, DeleteACHHandle> AsyncCleanupHookHandle;
+using AsyncCleanupHookHandle = std::unique_ptr<ACHHandle, DeleteACHHandle>;
 
 /* This function is not intended to be used externally, it exists to aid in
  * keeping ABI compatibility between Node and Electron. */
