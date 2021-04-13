@@ -88,7 +88,7 @@ class StringSearchBase {
 template <typename Char>
 class StringSearch : private StringSearchBase {
  public:
-  typedef stringsearch::Vector<const Char> Vector;
+  using Vector = stringsearch::Vector<const Char>;
 
   explicit StringSearch(Vector pattern)
       : pattern_(pattern), start_(0) {
@@ -140,7 +140,7 @@ class StringSearch : private StringSearchBase {
   }
 
  private:
-  typedef size_t (StringSearch::*SearchFunction)(Vector, size_t);
+  using SearchFunction = size_t (StringSearch::*)(Vector, size_t);
   size_t SingleCharSearch(Vector subject, size_t start_index);
   size_t LinearSearch(Vector subject, size_t start_index);
   size_t InitialSearch(Vector subject, size_t start_index);
