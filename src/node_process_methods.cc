@@ -25,7 +25,7 @@
 #include <direct.h>
 #include <io.h>
 #define umask _umask
-typedef int mode_t;
+using mode_t = int;
 #else
 #include <pthread.h>
 #include <sys/resource.h>  // getrlimit, setrlimit
