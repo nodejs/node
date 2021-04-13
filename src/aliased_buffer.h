@@ -10,7 +10,7 @@
 
 namespace node {
 
-typedef size_t AliasedBufferIndex;
+using AliasedBufferIndex = size_t;
 
 /**
  * Do not use this class directly when creating instances of it - use the
@@ -304,11 +304,11 @@ class AliasedBufferBase {
   const AliasedBufferIndex* index_ = nullptr;
 };
 
-typedef AliasedBufferBase<int32_t, v8::Int32Array> AliasedInt32Array;
-typedef AliasedBufferBase<uint8_t, v8::Uint8Array> AliasedUint8Array;
-typedef AliasedBufferBase<uint32_t, v8::Uint32Array> AliasedUint32Array;
-typedef AliasedBufferBase<double, v8::Float64Array> AliasedFloat64Array;
-typedef AliasedBufferBase<uint64_t, v8::BigUint64Array> AliasedBigUint64Array;
+using AliasedInt32Array = AliasedBufferBase<int32_t, v8::Int32Array>;
+using AliasedUint8Array = AliasedBufferBase<uint8_t, v8::Uint8Array>;
+using AliasedUint32Array = AliasedBufferBase<uint32_t, v8::Uint32Array>;
+using AliasedFloat64Array = AliasedBufferBase<double, v8::Float64Array>;
+using AliasedBigUint64Array = AliasedBufferBase<uint64_t, v8::BigUint64Array>;
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
