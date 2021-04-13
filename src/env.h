@@ -545,7 +545,7 @@ constexpr size_t kFsStatsBufferLength =
 class Environment;
 struct AllocatedBuffer;
 
-typedef size_t SnapshotIndex;
+using SnapshotIndex = size_t;
 class IsolateData : public MemoryRetainer {
  public:
   IsolateData(v8::Isolate* isolate,
@@ -876,7 +876,7 @@ class ShouldNotAbortOnUncaughtScope {
 
 class CleanupHookCallback {
  public:
-  typedef void (*Callback)(void*);
+  using Callback = void (*)(void*);
 
   CleanupHookCallback(Callback fn,
                       void* arg,
@@ -912,7 +912,7 @@ struct PropInfo {
   SnapshotIndex index;  // In the snapshot
 };
 
-typedef void (*DeserializeRequestCallback)(v8::Local<v8::Context> context,
+using DeserializeRequestCallback = void (*)(v8::Local<v8::Context> context,
                                            v8::Local<v8::Object> holder,
                                            int index,
                                            InternalFieldInfo* info);
@@ -1011,10 +1011,10 @@ class Environment : public MemoryRetainer {
   template <typename T>
   static inline T* GetBindingData(v8::Local<v8::Context> context);
 
-  typedef std::unordered_map<
+  using BindingDataStore = std::unordered_map<
       FastStringKey,
       BaseObjectPtr<BaseObject>,
-      FastStringKey::Hash> BindingDataStore;
+      FastStringKey::Hash>;
 
   // Create an Environment without initializing a main Context. Use
   // InitializeMainContext() to initialize a main context for it.
@@ -1042,7 +1042,7 @@ class Environment : public MemoryRetainer {
   inline const std::vector<std::string>& argv();
   const std::string& exec_path() const;
 
-  typedef void (*HandleCleanupCb)(Environment* env,
+  using HandleCleanupCb = void (*)(Environment* env,
                                   uv_handle_t* handle,
                                   void* arg);
   struct HandleCleanup {
@@ -1296,8 +1296,8 @@ class Environment : public MemoryRetainer {
   inline void set_is_in_inspector_console_call(bool value);
 #endif
 
-  typedef ListHead<HandleWrap, &HandleWrap::handle_wrap_queue_> HandleWrapQueue;
-  typedef ListHead<ReqWrapBase, &ReqWrapBase::req_wrap_queue_> ReqWrapQueue;
+  using HandleWrapQueue = ListHead<HandleWrap, &HandleWrap::handle_wrap_queue_>;
+  using ReqWrapQueue = ListHead<ReqWrapBase, &ReqWrapBase::req_wrap_queue_>;
 
   inline HandleWrapQueue* handle_wrap_queue() { return &handle_wrap_queue_; }
   inline ReqWrapQueue* req_wrap_queue() { return &req_wrap_queue_; }
@@ -1537,7 +1537,7 @@ class Environment : public MemoryRetainer {
 
   std::list<ExitCallback> at_exit_functions_;
 
-  typedef CallbackQueue<void, Environment*> NativeImmediateQueue;
+  using NativeImmediateQueue = CallbackQueue<void, Environment*>;
   NativeImmediateQueue native_immediates_;
   Mutex native_immediates_threadsafe_mutex_;
   NativeImmediateQueue native_immediates_threadsafe_;
