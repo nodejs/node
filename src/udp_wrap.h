@@ -180,7 +180,7 @@ class UDPWrap final : public HandleWrap,
   SET_SELF_SIZE(UDPWrap)
 
  private:
-  typedef uv_udp_t HandleType;
+  using HandleType = uv_udp_t;
 
   template <typename T,
             int (*F)(const typename T::HandleType*, sockaddr*, int*)>
