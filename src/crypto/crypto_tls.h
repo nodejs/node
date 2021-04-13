@@ -121,7 +121,7 @@ class TLSWrap : public AsyncWrap,
   // Maximum number of buffers passed to uv_write()
   static constexpr int kSimultaneousBufferCount = 10;
 
-  typedef void (*CertCb)(void* arg);
+  using CertCb = void (*)(void* arg);
 
   // Alternative to StreamListener::stream(), that returns a StreamBase instead
   // of a StreamResource.
