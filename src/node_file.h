@@ -63,7 +63,7 @@ class FSContinuationData : public MemoryRetainer {
 
 class FSReqBase : public ReqWrap<uv_fs_t> {
  public:
-  typedef MaybeStackBuffer<char, 64> FSReqBuffer;
+  using FSReqBuffer = MaybeStackBuffer<char, 64>;
 
   inline FSReqBase(BindingData* binding_data,
                    v8::Local<v8::Object> req,
