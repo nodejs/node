@@ -31,7 +31,7 @@ namespace Buffer {
 
 static const size_t kMaxLength = v8::TypedArray::kMaxLength;
 
-typedef void (*FreeCallback)(char* data, void* hint);
+using FreeCallback = void (*)(char* data, void* hint);
 
 NODE_EXTERN bool HasInstance(v8::Local<v8::Value> val);
 NODE_EXTERN bool HasInstance(v8::Local<v8::Object> val);
