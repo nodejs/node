@@ -249,7 +249,7 @@ enum http_status_codes {
 template <typename T>
 class NgHeaders {
  public:
-  typedef typename T::nv_t nv_t;
+  using nv_t = typename T::nv_t;
   inline NgHeaders(Environment* env, v8::Local<v8::Array> headers);
   ~NgHeaders() = default;
 
@@ -282,8 +282,8 @@ class NgHeaders {
 template <typename T>
 class NgRcBufPointer : public MemoryRetainer {
  public:
-  typedef typename T::rcbuf_t rcbuf_t;
-  typedef typename T::vector_t vector_t;
+  using rcbuf_t = typename T::rcbuf_t;
+  using vector_t = typename T::vector_t;
 
   NgRcBufPointer() = default;
 
@@ -474,9 +474,9 @@ struct NgHeaderBase : public MemoryRetainer {
 template <typename T>
 class NgHeader final : public NgHeaderBase<typename T::allocator_t> {
  public:
-  typedef typename T::rcbufferpointer_t rcbufferpointer_t;
-  typedef typename T::rcbufferpointer_t::rcbuf_t rcbuf_t;
-  typedef typename T::allocator_t allocator_t;
+  using rcbufferpointer_t = typename T::rcbufferpointer_t;
+  using rcbuf_t = typename T::rcbufferpointer_t::rcbuf_t;
+  using allocator_t = typename T::allocator_t;
 
   inline static bool IsZeroLength(rcbuf_t* name, rcbuf_t* value);
   inline static bool IsZeroLength(int32_t token, rcbuf_t* name, rcbuf_t* value);
