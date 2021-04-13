@@ -116,12 +116,12 @@ using Nghttp2SessionCallbacksPointer =
                                    nghttp2_session_callbacks_del>>;
 
 struct Http2HeadersTraits {
-  typedef nghttp2_nv nv_t;
+  using nv_t = nghttp2_nv;
 };
 
 struct Http2RcBufferPointerTraits {
-  typedef nghttp2_rcbuf rcbuf_t;
-  typedef nghttp2_vec vector_t;
+  using rcbuf_t = nghttp2_rcbuf;
+  using vector_t = nghttp2_vec;
 
   static void inc(rcbuf_t* buf) {
     CHECK_NOT_NULL(buf);
@@ -157,7 +157,7 @@ struct NgHttp2StreamWrite : public MemoryRetainer {
   SET_SELF_SIZE(NgHttp2StreamWrite)
 };
 
-typedef uint32_t(*get_setting)(nghttp2_session* session,
+using get_setting = uint32_t(*)(nghttp2_session* session,
                                nghttp2_settings_id id);
 
 class Http2Ping;
@@ -257,8 +257,8 @@ class Http2StreamListener : public StreamListener {
 };
 
 struct Http2HeaderTraits {
-  typedef Http2RcBufferPointer rcbufferpointer_t;
-  typedef Http2Session allocator_t;
+  using rcbufferpointer_t = Http2RcBufferPointer;
+  using allocator_t = Http2Session;
 
   // HTTP/2 does not support identifying header names by token id.
   // HTTP/3 will, however, so we prepare for that now.
