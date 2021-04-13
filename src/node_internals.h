@@ -335,9 +335,9 @@ static constexpr unsigned kMaxSignal = 32;
 bool HasSignalJSHandler(int signum);
 
 #ifdef _WIN32
-typedef SYSTEMTIME TIME_TYPE;
+using TIME_TYPE = SYSTEMTIME;
 #else  // UNIX, OSX
-typedef struct tm TIME_TYPE;
+using TIME_TYPE = struct tm;
 #endif
 
 double GetCurrentTimeInMicroseconds();
