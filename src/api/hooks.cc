@@ -87,8 +87,8 @@ Maybe<int> EmitProcessExit(Environment* env) {
   return Just(code);
 }
 
-typedef void (*CleanupHook)(void* arg);
-typedef void (*AsyncCleanupHook)(void* arg, void(*)(void*), void*);
+using CleanupHook = void (*)(void* arg);
+using AsyncCleanupHook = void (*)(void* arg, void(*)(void*), void*);
 
 struct AsyncCleanupHookInfo final {
   Environment* env;
