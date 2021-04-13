@@ -35,17 +35,17 @@ extern "C" {
  * below).
  */
 
-typedef struct {
+using node_dtrace_connection_t = struct {
   int32_t fd;
   int32_t port;
   char* remote;
   int32_t buffered;
-} node_dtrace_connection_t;
+};
 
-typedef struct {
+using node_dtrace_http_client_request_t = struct {
   char* url;
   char* method;
-} node_dtrace_http_client_request_t;
+};
 
 /*
  * The original version of this structure contained only a url and method, just
@@ -60,7 +60,7 @@ typedef struct {
  * by the consumer so that future versions of the translator can simply check if
  * a field is present by checking it against nullptr.
  */
-typedef struct {
+using node_dtrace_http_server_request_t = struct {
   union {
     uint32_t version;
     uintptr_t unused;  /* for compat. with old 64-bit struct */
@@ -69,7 +69,7 @@ typedef struct {
   char* method;
   char* forwardedFor;
   char* _pad[8];
-} node_dtrace_http_server_request_t;
+};
 
 }  // extern "C"
 
