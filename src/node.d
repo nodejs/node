@@ -28,26 +28,26 @@
  */
 #pragma D depends_on library procfs.d
 
-typedef struct {
+using node_dtrace_connection_t = struct {
 	int32_t fd;
 	int32_t port;
 	uint32_t remote;
 	uint32_t buffered;
-} node_dtrace_connection_t;
+};
 
-typedef struct {
+using node_dtrace_connection64_t = struct {
 	int32_t fd;
 	int32_t port;
 	uint64_t remote;
 	uint32_t buffered;
-} node_dtrace_connection64_t;
+};
 
-typedef struct {
+using node_connection_t = struct {
 	int fd;
 	string remoteAddress;
 	int remotePort;
 	int bufferSize;
-} node_connection_t;
+};
 
 translator node_connection_t <node_dtrace_connection_t *nc> {
 	fd = *(int32_t *)copyin((uintptr_t)&nc->fd, sizeof (int32_t));
@@ -68,15 +68,15 @@ translator node_connection_t <node_dtrace_connection_t *nc> {
  * 32-bit and 64-bit structures received from node for HTTP client request
  * probe.
  */
-typedef struct {
+using node_dtrace_http_client_request_t = struct {
 	uint32_t url;
 	uint32_t method;
-} node_dtrace_http_client_request_t;
+};
 
-typedef struct {
+using node_dtrace_http_client_request64_t = struct {
 	uint64_t url;
 	uint64_t method;
-} node_dtrace_http_client_request64_t;
+};
 
 /*
  * The following structures are never used directly, but must exist to bind the
@@ -90,56 +90,56 @@ typedef struct {
  * node_dtrace_http_server_request_t (both below), each of these three structs
  * must be declared with a different size.
  */
-typedef struct {
+using node_dtrace_http_request_t = struct {
 	uint32_t version;
 	uint64_t dummy1;
-} node_dtrace_http_request_t;
+};
 
-typedef struct {
+using node_dtrace_http_server_request_t = struct {
 	uint32_t version;
 	uint64_t dummy2;
 	uint64_t dummy3;
-} node_dtrace_http_server_request_t;
+};
 
 /*
  * Actual 32-bit and 64-bit, v0 and v1 structures received from node for the
  * HTTP server request probe.
  */
-typedef struct {
+using node_dtrace_http_server_request_v0_t = struct {
 	uint32_t url;
 	uint32_t method;
-} node_dtrace_http_server_request_v0_t;
+};
 
-typedef struct {
+using node_dtrace_http_server_request_v1_t = struct {
 	uint32_t version;
 	uint32_t url;
 	uint32_t method;
 	uint32_t forwardedFor;
-} node_dtrace_http_server_request_v1_t;
+};
 
-typedef struct {
+using node_dtrace_http_server_request64_v0_t = struct {
 	uint64_t url;
 	uint64_t method;
-} node_dtrace_http_server_request64_v0_t;
+};
 
-typedef struct {
+using node_dtrace_http_server_request64_v1_t = struct {
 	uint32_t version;
 	uint32_t pad;
 	uint64_t url;
 	uint64_t method;
 	uint64_t forwardedFor;
-} node_dtrace_http_server_request64_v1_t;
+};
 
 /*
  * In the end, both client and server request probes from both old and new
  * binaries translate their arguments to node_http_request_t, which is what the
  * user's D script ultimately sees.
  */
-typedef struct {
+using node_http_request_t = struct {
 	string url;
 	string method;
 	string forwardedFor;
-} node_http_request_t;
+};
 
 /*
  * The following translators are particularly filthy for reasons of backwards
