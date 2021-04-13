@@ -634,7 +634,7 @@ struct is_callable<T, typename std::enable_if<
 template <typename T, void (*function)(T*)>
 struct FunctionDeleter {
   void operator()(T* pointer) const { function(pointer); }
-  typedef std::unique_ptr<T, FunctionDeleter> Pointer;
+  using Pointer = std::unique_ptr<T, FunctionDeleter>;
 };
 
 template <typename T, void (*function)(T*)>
