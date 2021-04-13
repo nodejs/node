@@ -257,8 +257,8 @@ class MemoryTracker {
     : isolate_(isolate), graph_(graph) {}
 
  private:
-  typedef std::unordered_map<const MemoryRetainer*, MemoryRetainerNode*>
-      NodeMap;
+  using NodeMap =
+    std::unordered_map<const MemoryRetainer*, MemoryRetainerNode*>;
 
   inline MemoryRetainerNode* CurrentNode() const;
   inline MemoryRetainerNode* AddNode(const MemoryRetainer* retainer,
