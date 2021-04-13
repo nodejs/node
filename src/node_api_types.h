@@ -3,47 +3,47 @@
 
 #include "js_native_api_types.h"
 
-typedef struct napi_callback_scope__* napi_callback_scope;
-typedef struct napi_async_context__* napi_async_context;
-typedef struct napi_async_work__* napi_async_work;
+using napi_callback_scope = struct napi_callback_scope__*;
+using napi_async_context = struct napi_async_context__*;
+using napi_async_work = struct napi_async_work__*;
 #if NAPI_VERSION >= 4
-typedef struct napi_threadsafe_function__* napi_threadsafe_function;
+using napi_threadsafe_function = struct napi_threadsafe_function__*;
 #endif  // NAPI_VERSION >= 4
 
 #if NAPI_VERSION >= 4
-typedef enum {
+using napi_threadsafe_function_release_mode = enum {
   napi_tsfn_release,
   napi_tsfn_abort
-} napi_threadsafe_function_release_mode;
+};
 
-typedef enum {
+using napi_threadsafe_function_call_mode = enum {
   napi_tsfn_nonblocking,
   napi_tsfn_blocking
-} napi_threadsafe_function_call_mode;
+};
 #endif  // NAPI_VERSION >= 4
 
-typedef void (*napi_async_execute_callback)(napi_env env,
+using napi_async_execute_callback = void (*)(napi_env env,
                                             void* data);
-typedef void (*napi_async_complete_callback)(napi_env env,
+using napi_async_complete_callback = void (*)(napi_env env,
                                              napi_status status,
                                              void* data);
 #if NAPI_VERSION >= 4
-typedef void (*napi_threadsafe_function_call_js)(napi_env env,
+using napi_threadsafe_function_call_js = void (*)(napi_env env,
                                                  napi_value js_callback,
                                                  void* context,
                                                  void* data);
 #endif  // NAPI_VERSION >= 4
 
-typedef struct {
+using napi_node_version = struct {
   uint32_t major;
   uint32_t minor;
   uint32_t patch;
   const char* release;
-} napi_node_version;
+};
 
 #if NAPI_VERSION >= 8
-typedef struct napi_async_cleanup_hook_handle__* napi_async_cleanup_hook_handle;
-typedef void (*napi_async_cleanup_hook)(napi_async_cleanup_hook_handle handle,
+using napi_async_cleanup_hook_handle = struct napi_async_cleanup_hook_handle__*;
+using napi_async_cleanup_hook = void (*)(napi_async_cleanup_hook_handle handle,
                                         void* data);
 #endif  // NAPI_VERSION >= 8
 
