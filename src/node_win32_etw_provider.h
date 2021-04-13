@@ -35,18 +35,18 @@ namespace node {
 # define INLINE inline
 #endif
 
-typedef ULONG (NTAPI* EventRegisterFunc)(
+using EventRegisterFunc = ULONG (NTAPI*)(
   LPCGUID ProviderId,
   PENABLECALLBACK EnableCallback,
   PVOID CallbackContext,
   PREGHANDLE RegHandle
 );
 
-typedef ULONG (NTAPI* EventUnregisterFunc)(
+using EventUnregisterFunc = ULONG (NTAPI*)(
   REGHANDLE RegHandle
 );
 
-typedef ULONG (NTAPI* EventWriteFunc)(
+using EventWriteFunc = ULONG (NTAPI*)(
   REGHANDLE RegHandle,
   PCEVENT_DESCRIPTOR EventDescriptor,
   ULONG UserDataCount,
