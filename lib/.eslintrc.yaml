@@ -29,6 +29,8 @@ rules:
     - error
     - name: globalThis
       message: "Use `const { globalThis } = primordials;` instead of the global."
+    - name: global
+      message: "Use `const { globalThis } = primordials;` instead of `global`."
   # Custom rules in tools/eslint-rules
   node-core/lowercase-name-for-primitive: error
   node-core/non-ascii-character: error
