@@ -949,8 +949,8 @@ class Parser : public AsyncWrap, public StreamListener {
     }
   };
 
-  typedef int (Parser::*Call)();
-  typedef int (Parser::*DataCall)(const char* at, size_t length);
+  using Call = int (Parser::*)();
+  using DataCall = int (Parser::*)(const char* at, size_t length);
 
   static const llhttp_settings_t settings;
 };
