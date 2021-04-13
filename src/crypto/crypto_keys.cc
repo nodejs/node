@@ -1059,7 +1059,7 @@ void KeyObjectHandle::InitEDRaw(const FunctionCallbackInfo<Value>& args) {
 
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
-  typedef EVP_PKEY* (*new_key_fn)(int, ENGINE*, const unsigned char*, size_t);
+  using new_key_fn = EVP_PKEY* (*)(int, ENGINE*, const unsigned char*, size_t);
   new_key_fn fn = type == kKeyTypePrivate
       ? EVP_PKEY_new_raw_private_key
       : EVP_PKEY_new_raw_public_key;
