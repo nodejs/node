@@ -17,7 +17,7 @@ namespace worker {
 class MessagePortData;
 class MessagePort;
 
-typedef MaybeStackBuffer<v8::Local<v8::Value>, 8> TransferList;
+using TransferList = MaybeStackBuffer<v8::Local<v8::Value>, 8>;
 
 // Used to represent the in-flight structure of an object that is being
 // transferred or cloned using postMessage().
