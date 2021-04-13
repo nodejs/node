@@ -654,7 +654,7 @@ class BrotliCompressionStream : public CompressionStream<CompressionContext> {
   inline CompressionContext* context() {
     return this->CompressionStream<CompressionContext>::context();
   }
-  typedef typename CompressionStream<CompressionContext>::AllocScope AllocScope;
+  using AllocScope = typename CompressionStream<CompressionContext>::AllocScope;
 
   static void New(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
