@@ -91,7 +91,7 @@ TEST(async function test_resolve4_ttl(done) {
       assert.strictEqual(typeof item, 'object');
       assert.strictEqual(typeof item.ttl, 'number');
       assert.strictEqual(typeof item.address, 'string');
-      assert.ok(item.ttl > 0);
+      assert.ok(item.ttl >= 0);
       assert.ok(isIPv4(item.address));
     }
   }
@@ -119,7 +119,7 @@ TEST(async function test_resolve6_ttl(done) {
       assert.strictEqual(typeof item, 'object');
       assert.strictEqual(typeof item.ttl, 'number');
       assert.strictEqual(typeof item.address, 'string');
-      assert.ok(item.ttl > 0);
+      assert.ok(item.ttl >= 0);
       assert.ok(isIPv6(item.address));
     }
   }
