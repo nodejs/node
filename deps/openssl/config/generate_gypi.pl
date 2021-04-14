@@ -4,22 +4,24 @@ use strict;
 use FindBin;
 use lib "$FindBin::Bin/../openssl/";
 use lib "$FindBin::Bin/../openssl/util/perl";
+use lib "$FindBin::Bin/../openssl/util/perl/OpenSSL";
 use File::Basename;
 use File::Spec::Functions qw/:DEFAULT abs2rel rel2abs/;
 use File::Copy;
 use File::Path qw/make_path/;
-use with_fallback qw(Text::Template);
+#use with_fallback qw(Text::Template);
+use fallback qw(Text::Template);
 
 # Read configdata from ../openssl/configdata.pm that is generated
 # with ../openssl/Configure options arch
 use configdata;
 
-my $asm = $ARGV[0];
+my $asm = shift @ARGV;
 
 unless ($asm eq "asm" or $asm eq "asm_avx2" or $asm eq "no-asm") {
   die "Error: $asm is invalid argument";
 }
-my $arch = $ARGV[1];
+my $arch = shift @ARGV;
 
 # nasm version check
 my $nasm_banner = `nasm -v`;
@@ -34,9 +36,9 @@ if ($gas_version < $gas_version_min) {
     "$gas_version_min or higher is required.";
 }
 
-my $src_dir = "../openssl";
-my $arch_dir = "../config/archs/$arch";
-my $base_dir = "$arch_dir/$asm";
+our $src_dir = "../openssl";
+our $arch_dir = "../config/archs/$arch";
+our $base_dir = "$arch_dir/$asm";
 
 my $is_win = ($arch =~/^VC-WIN/);
 # VC-WIN32 and VC-WIN64A generate makefile but it can be available
@@ -46,11 +48,14 @@ my $makefile = $is_win ? "../config/Makefile_$arch": "Makefile";
 # Generate arch dependent header files with Makefile
 my $buildinf = "crypto/buildinf.h";
 my $progs = "apps/progs.h";
-my $cmd1 = "cd ../openssl; make -f $makefile clean build_generated $buildinf $progs;";
+my $prov_headers = "providers/common/include/prov/der_dsa.h providers/common/include/prov/der_wrap.h providers/common/include/prov/der_rsa.h providers/common/include/prov/der_ecx.h providers/common/include/prov/der_sm2.h providers/common/include/prov/der_ec.h providers/common/include/prov/der_digests.h";
+my $cmd1 = "cd ../openssl; make -f $makefile clean build_generated $buildinf $progs $prov_headers;";
 system($cmd1) == 0 or die "Error in system($cmd1)";
 
 # Copy and move all arch dependent header files into config/archs
 make_path("$base_dir/crypto/include/internal", "$base_dir/include/openssl",
+	  "$base_dir/include/crypto", "$base_dir/providers/common/include/prov",
+	  "$base_dir/apps",
           {
            error => \my $make_path_err});
 if (@$make_path_err) {
@@ -60,20 +65,43 @@ if (@$make_path_err) {
   }
 }
 copy("$src_dir/configdata.pm", "$base_dir/") or die "Copy failed: $!";
-copy("$src_dir/include/openssl/opensslconf.h",
-     "$base_dir/include/openssl/") or die "Copy failed: $!";
+
+my @headers = @ARGV;
+
+copy_headers(\@headers, 'openssl');
+
 move("$src_dir/include/crypto/bn_conf.h",
-     "$base_dir/crypto/include/internal/") or die "Move failed: $!";
+     "$base_dir/include/crypto/bn_conf.h") or die "Move failed: $!";
 move("$src_dir/include/crypto/dso_conf.h",
-     "$base_dir/crypto/include/internal/") or die "Move failed: $!";
+     "$base_dir/include/crypto/dso_conf.h") or die "Move failed: $!";
+
 copy("$src_dir/$buildinf",
      "$base_dir/crypto/") or die "Copy failed: $!";
 move("$src_dir/$progs",
      "$base_dir/include") or die "Copy failed: $!";
+copy("$src_dir/apps/progs.c",
+     "$base_dir/apps") or die "Copy failed: $!";
+
+copy("$src_dir/providers/common/include/prov/der_dsa.h",
+     "$base_dir/providers/common/include/prov/") or die "Copy failed: $!";
+copy("$src_dir/providers/common/include/prov/der_wrap.h",
+     "$base_dir/providers/common/include/prov/") or die "Copy failed: $!";
+copy("$src_dir/providers/common/include/prov/der_rsa.h",
+     "$base_dir/providers/common/include/prov/") or die "Copy failed: $!";
+copy("$src_dir/providers/common/include/prov/der_ecx.h",
+     "$base_dir/providers/common/include/prov/") or die "Copy failed: $!";
+copy("$src_dir/providers/common/include/prov/der_sm2.h",
+     "$base_dir/providers/common/include/prov/") or die "Copy failed: $!";
+copy("$src_dir/providers/common/include/prov/der_ec.h",
+     "$base_dir/providers/common/include/prov/") or die "Copy failed: $!";
+copy("$src_dir/providers/common/include/prov/der_digests.h",
+     "$base_dir/providers/common/include/prov/") or die "Copy failed: $!";
+
 
 # read openssl source lists from configdata.pm
 my @libapps_srcs = ();
 foreach my $obj (@{$unified_info{sources}->{'apps/libapps.a'}}) {
+    #print("libapps ${$unified_info{sources}->{$obj}}[0]\n");
     push(@libapps_srcs, ${$unified_info{sources}->{$obj}}[0]);
 }
 
@@ -84,17 +112,95 @@ foreach my $obj (@{$unified_info{sources}->{libssl}}) {
 
 my @libcrypto_srcs = ();
 my @generated_srcs = ();
-foreach my $obj (@{$unified_info{sources}->{libcrypto}}) {
+foreach my $obj (@{$unified_info{sources}->{'libcrypto'}}) {
   my $src = ${$unified_info{sources}->{$obj}}[0];
+  #print("libcrypto src: $src \n");
   # .S files should be preprocessed into .s
   if ($unified_info{generate}->{$src}) {
     # .S or .s files should be preprocessed into .asm for WIN
     $src =~ s\.[sS]$\.asm\ if ($is_win);
     push(@generated_srcs, $src);
   } else {
-    push(@libcrypto_srcs, $src);
+    if ($src =~ m/\.c$/) { 
+      push(@libcrypto_srcs, $src);
+    }
   }
 }
+
+my @lib_defines = ();
+foreach my $df (@{$unified_info{defines}->{libcrypto}}) {
+  #print("libcrypto defines: $df\n");
+  push(@lib_defines, $df);
+}
+
+
+foreach my $obj (@{$unified_info{sources}->{'providers/libdefault.a'}}) {
+  my $src = ${$unified_info{sources}->{$obj}}[0];
+  #print("libdefault src: $src \n");
+  # .S files should be preprocessed into .s
+  if ($unified_info{generate}->{$src}) {
+    # .S or .s files should be preprocessed into .asm for WIN
+    $src =~ s\.[sS]$\.asm\ if ($is_win);
+    push(@generated_srcs, $src);
+  } else {
+    if ($src =~ m/\.c$/) { 
+      push(@libcrypto_srcs, $src);
+    }
+  }
+}
+
+foreach my $obj (@{$unified_info{sources}->{'providers/libcommon.a'}}) {
+  my $src = ${$unified_info{sources}->{$obj}}[0];
+  #print("libimplementations src: $src \n");
+  # .S files should be preprocessed into .s
+  if ($unified_info{generate}->{$src}) {
+    # .S or .s files should be preprocessed into .asm for WIN
+    $src =~ s\.[sS]$\.asm\ if ($is_win);
+    push(@generated_srcs, $src);
+  } else {
+    if ($src =~ m/\.c$/) { 
+      push(@libcrypto_srcs, $src);
+    }
+  }
+}
+
+foreach my $obj (@{$unified_info{sources}->{'providers/liblegacy.a'}}) {
+  my $src = ${$unified_info{sources}->{$obj}}[0];
+  #print("liblegacy src: $src \n");
+  # .S files should be preprocessed into .s
+  if ($unified_info{generate}->{$src}) {
+    # .S or .s files should be preprocessed into .asm for WIN
+    $src =~ s\.[sS]$\.asm\ if ($is_win);
+    push(@generated_srcs, $src);
+  } else {
+    if ($src =~ m/\.c$/) { 
+      push(@libcrypto_srcs, $src);
+    }
+  }
+}
+
+#foreach my $obj (@{$unified_info{sources}->{'providers/libfips.a'}}) {
+#  my $src = ${$unified_info{sources}->{$obj}}[0];
+#  print("libfips src: $src \n");
+#  # .S files should be preprocessed into .s
+#  if ($unified_info{generate}->{$src}) {
+#    # .S or .s files should be preprocessed into .asm for WIN
+#    $src =~ s\.[sS]$\.asm\ if ($is_win);
+#    push(@generated_srcs, $src);
+#  } else {
+#    if ($src =~ m/\.c$/) { 
+#      push(@libcrypto_srcs, $src);
+#    }
+#  }
+#}
+#my @lib_defines = ();
+#foreach my $df (@{$unified_info{defines}->{'providers/libfips.a'}}) {
+#  print("libfips defines: $df\n");
+#  push(@lib_defines, $df);
+#}
+#print("lib_defines: @lib_defines\n");
+
+
 
 my @apps_openssl_srcs = ();
 foreach my $obj (@{$unified_info{sources}->{'apps/openssl'}}) {
@@ -128,11 +234,11 @@ my $template =
                         SOURCE => 'openssl.gypi.tmpl',
                         DELIMITERS => [ "%%-", "-%%" ]
                         );
-
 my $gypi = $template->fill_in(
     HASH => {
         libssl_srcs => \@libssl_srcs,
         libcrypto_srcs => \@libcrypto_srcs,
+        lib_defines => \@lib_defines,
         generated_srcs => \@generated_srcs,
         config => \%config,
         target => \%target,
@@ -157,6 +263,7 @@ my $cltemplate =
 my $clgypi = $cltemplate->fill_in(
     HASH => {
         apps_openssl_srcs => \@apps_openssl_srcs,
+        lib_defines => \@lib_defines,
         libapps_srcs => \@libapps_srcs,
         config => \%config,
         target => \%target,
@@ -175,3 +282,15 @@ close(CLGYPI);
 my $cmd2 ="cd $src_dir; make -f $makefile clean; make -f $makefile distclean;" .
     "git clean -f $src_dir/crypto";
 system($cmd2) == 0 or die "Error in system($cmd2)";
+
+
+sub copy_headers {
+  my @headers = @{$_[0]};
+  my $inc_dir = $_[1];
+  foreach my $header_name (@headers) {
+    # Copy the header from OpenSSL source directory to the arch specific dir.
+    #print("copy header $src_dir/include/$inc_dir/${header_name}.h to $base_dir/include/$inc_dir \n");
+    copy("$src_dir/include/$inc_dir/${header_name}.h",
+         "$base_dir/include/$inc_dir/") or die "Copy failed: $!";
+   }
+}

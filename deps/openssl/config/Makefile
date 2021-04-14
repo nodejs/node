@@ -35,41 +35,45 @@ GENERATE = ./generate_gypi.pl
 OPSSL_SRC = ../openssl
 
 # Header files generated with Configure
-CFG = opensslconf.h
-SRC_CFG = $(OPSSL_SRC)/include/openssl/$(CFG)
 INT_CFGS = bn_conf.h dso_conf.h
 INT_CFG_DIR = $(OPSSL_SRC)/include/crypto
+GEN_HEADERS = asn1 asn1t bio cmp cms configuration conf crmf crypto ct err    \
+              ess fipskey lhash ocsp opensslv pkcs12 pkcs7 safestack srp ssl  \
+	      ui x509 x509v3 x509_vfy conf
+GEN_HEADERS_DIR = $(OPSSL_SRC)/include/openssl
 
-PHONY = all clean replace
+PHONY = all clean replace generate_headers
 .PHONY: $(PHONY)
 
-all: $(ASM_ARCHS) $(NO_ASM_ARCHS) replace
+all: $(ASM_ARCHS) $(NO_ASM_ARCHS) generate_headers replace
 
 # Configure and generate openssl asm files for each archs
 $(ASM_ARCHS):
 	cd $(OPSSL_SRC); $(NO_WARN_ENV) CC=$(CC) $(PERL) $(CONFIGURE) $(COPTS) $@;
-	$(PERL) -w -I$(OPSSL_SRC) $(GENERATE) asm $@
+	$(PERL) -w -I$(OPSSL_SRC) $(GENERATE) asm $@ ${GEN_HEADERS}
 # Confgure asm_avx2 and generate upto avx2 support
 	cd $(OPSSL_SRC); $(NO_WARN_ENV) CC=$(FAKE_GCC) $(PERL) $(CONFIGURE) \
 	$(COPTS) $@;
-	$(PERL) -w -I$(OPSSL_SRC) $(GENERATE) asm_avx2 $@
+	$(PERL) -w -I$(OPSSL_SRC) $(GENERATE) asm_avx2 $@ ${GEN_HEADERS}
 # Configure no-asm and generate no-asm sources
 	cd $(OPSSL_SRC); $(NO_WARN_ENV) $(PERL) $(CONFIGURE) $(COPTS) \
 	no-asm $@;
-	$(PERL) -w -I$(OPSSL_SRC) $(GENERATE) no-asm $@
+	$(PERL) -w -I$(OPSSL_SRC) $(GENERATE) no-asm $@ ${GEN_HEADERS}
 
 $(NO_ASM_ARCHS):
 # Configure no-asm and generate no-asm sources
 	cd $(OPSSL_SRC); $(NO_WARN_ENV) $(PERL) $(CONFIGURE) $(COPTS) \
 	no-asm $@;
-	$(PERL) -w -I$(OPSSL_SRC) $(GENERATE) no-asm $@
+	$(PERL) -w -I$(OPSSL_SRC) $(GENERATE) no-asm $@ ${GEN_HEADERS}
 
 # Replace and copy arch dependent headers
 replace:
-	cp ./$(CFG).tmpl $(SRC_CFG)
 	@for c in $(INT_CFGS); do \
 	    cp ./$$c.tmpl $(INT_CFG_DIR)/$$c; \
 	done
+
+generate_headers:
+	@$(PERL) -w -I$(OPSSL_SRC) ./generate_headers.pl ${GEN_HEADERS}
 
 clean:
 	find archs \( -name \*.S -o -name \*.s -o -name \*.asm -o \
