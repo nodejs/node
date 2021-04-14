@@ -772,9 +772,11 @@ docclean:
 	$(RM) -r out/doc
 	$(RM) "$(VERSIONS_DATA)"
 
-RAWVER=$(shell $(PYTHON) tools/getnodeversion.py)
-VERSION=v$(RAWVER)
-CHANGELOG=doc/changelogs/CHANGELOG_V$(firstword $(subst ., ,$(RAWVER))).md
+RAWVER_MAJOR := $(shell sed -n 's:^\#define NODE_MAJOR_VERSION ::p' src/node_version.h)
+RAWVER_MINOR := $(shell sed -n 's:^\#define NODE_MINOR_VERSION ::p' src/node_version.h)
+RAWVER_PATCH := $(shell sed -n 's:^\#define NODE_PATCH_VERSION ::p' src/node_version.h)
+VERSION := v$(RAWVER_MAJOR).$(RAWVER_MINOR).$(RAWVER_PATCH)
+CHANGELOG := doc/changelogs/CHANGELOG_V$(RAWVER_MAJOR).md
 
 # For nightly builds, you must set DISTTYPE to "nightly", "next-nightly" or
 # "custom". For the nightly and next-nightly case, you need to set DATESTRING
