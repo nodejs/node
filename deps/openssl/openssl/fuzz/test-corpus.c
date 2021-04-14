@@ -1,7 +1,7 @@
 /*
- * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL licenses, (the "License");
+ * Licensed under the Apache License 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  * https://www.openssl.org/source/license.html
@@ -22,7 +22,7 @@
 #include "fuzzer.h"
 #include "internal/o_dir.h"
 
-#if defined(_WIN32) && defined(_MAX_PATH)
+#if defined(_WIN32) && defined(_MAX_PATH) && !defined(PATH_MAX)
 # define PATH_MAX _MAX_PATH
 #endif
 

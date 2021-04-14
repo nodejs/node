@@ -2,26 +2,34 @@
 
 =head1 NAME
 
-EVP_PKEY_verify_init, EVP_PKEY_verify - signature verification using a public key algorithm
+EVP_PKEY_verify_init, EVP_PKEY_verify_init_ex, EVP_PKEY_verify
+- signature verification using a public key algorithm
 
 =head1 SYNOPSIS
 
  #include <openssl/evp.h>
 
  int EVP_PKEY_verify_init(EVP_PKEY_CTX *ctx);
+ int EVP_PKEY_verify_init_ex(EVP_PKEY_CTX *ctx, const OSSL_PARAM params[]);
  int EVP_PKEY_verify(EVP_PKEY_CTX *ctx,
                      const unsigned char *sig, size_t siglen,
                      const unsigned char *tbs, size_t tbslen);
 
 =head1 DESCRIPTION
 
-The EVP_PKEY_verify_init() function initializes a public key algorithm
-context using key B<pkey> for a signature verification operation.
+EVP_PKEY_verify_init() initializes a public key algorithm context I<ctx> for
+signing using the algorithm given when the context was created
+using L<EVP_PKEY_CTX_new(3)> or variants thereof.  The algorithm is used to
+fetch a B<EVP_SIGNATURE> method implicitly, see L<provider(7)/Implicit fetch>
+for more information about implicit fetches.
+
+EVP_PKEY_verify_init_ex() is the same as EVP_PKEY_verify_init() but additionally
+sets the passed parameters I<params> on the context before returning.
 
 The EVP_PKEY_verify() function performs a public key verification operation
-using B<ctx>. The signature is specified using the B<sig> and
-B<siglen> parameters. The verified data (i.e. the data believed originally
-signed) is specified using the B<tbs> and B<tbslen> parameters.
+using I<ctx>. The signature is specified using the I<sig> and
+I<siglen> parameters. The verified data (i.e. the data believed originally
+signed) is specified using the I<tbs> and I<tbslen> parameters.
 
 =head1 NOTES
 
@@ -89,13 +97,16 @@ L<EVP_PKEY_derive(3)>
 
 =head1 HISTORY
 
-These functions were added in OpenSSL 1.0.0.
+The EVP_PKEY_verify_init() and EVP_PKEY_verify() functions were added in
+OpenSSL 1.0.0.
+
+The EVP_PKEY_verify_init_ex() function was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2006-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

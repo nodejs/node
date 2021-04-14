@@ -1,7 +1,7 @@
 /*
  * Copyright 2011-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -13,11 +13,16 @@
 #include <setjmp.h>
 #include <signal.h>
 #include <openssl/crypto.h>
+#ifdef __APPLE__
+#include <sys/sysctl.h>
+#endif
 #include "internal/cryptlib.h"
 
 #include "arm_arch.h"
 
 unsigned int OPENSSL_armcap_P = 0;
+unsigned int OPENSSL_arm_midr = 0;
+unsigned int OPENSSL_armv8_rsa_neonized = 0;
 
 #if __ARM_MAX_ARCH__<7
 void OPENSSL_cpuid_setup(void)
@@ -48,6 +53,7 @@ void _armv8_sha256_probe(void);
 void _armv8_pmull_probe(void);
 # ifdef __aarch64__
 void _armv8_sha512_probe(void);
+unsigned int _armv8_cpuid_probe(void);
 # endif
 uint32_t _armv7_tick(void);
 
@@ -127,6 +133,7 @@ static unsigned long getauxval(unsigned long key)
 #  define HWCAP_CE_PMULL         (1 << 4)
 #  define HWCAP_CE_SHA1          (1 << 5)
 #  define HWCAP_CE_SHA256        (1 << 6)
+#  define HWCAP_CPUID            (1 << 11)
 #  define HWCAP_CE_SHA512        (1 << 21)
 # endif
 
@@ -141,12 +148,15 @@ void OPENSSL_cpuid_setup(void)
         return;
     trigger = 1;
 
+    OPENSSL_armcap_P = 0;
+
     if ((e = getenv("OPENSSL_armcap"))) {
         OPENSSL_armcap_P = (unsigned int)strtoul(e, NULL, 0);
         return;
     }
 
-# if defined(__APPLE__) && !defined(__aarch64__)
+# if defined(__APPLE__)
+#   if !defined(__aarch64__)
     /*
      * Capability probing by catching SIGILL appears to be problematic
      * on iOS. But since Apple universe is "monocultural", it's actually
@@ -162,9 +172,16 @@ void OPENSSL_cpuid_setup(void)
      * Unified code works because it never triggers SIGILL on Apple
      * devices...
      */
-# endif
+#   else
+    {
+        unsigned int sha512;
+        size_t len = sizeof(sha512);
 
-    OPENSSL_armcap_P = 0;
+        if (sysctlbyname("hw.optional.armv8_2_sha512", &sha512, &len, NULL, 0) == 0 && sha512 == 1)
+            OPENSSL_armcap_P |= ARMV8_SHA512;
+    }
+#   endif
+# endif
 
 # ifdef OSSL_IMPLEMENT_GETAUXVAL
     if (getauxval(HWCAP) & HWCAP_NEON) {
@@ -187,6 +204,9 @@ void OPENSSL_cpuid_setup(void)
 #  ifdef __aarch64__
         if (hwcap & HWCAP_CE_SHA512)
             OPENSSL_armcap_P |= ARMV8_SHA512;
+
+        if (hwcap & HWCAP_CPUID)
+            OPENSSL_armcap_P |= ARMV8_CPUID;
 #  endif
     }
 # endif
@@ -242,5 +262,16 @@ void OPENSSL_cpuid_setup(void)
 
     sigaction(SIGILL, &ill_oact, NULL);
     sigprocmask(SIG_SETMASK, &oset, NULL);
+
+# ifdef __aarch64__
+    if (OPENSSL_armcap_P & ARMV8_CPUID)
+        OPENSSL_arm_midr = _armv8_cpuid_probe();
+
+    if ((MIDR_IS_CPU_MODEL(OPENSSL_arm_midr, ARM_CPU_IMP_ARM, ARM_CPU_PART_CORTEX_A72) ||
+         MIDR_IS_CPU_MODEL(OPENSSL_arm_midr, ARM_CPU_IMP_ARM, ARM_CPU_PART_N1)) &&
+        (OPENSSL_armcap_P & ARMV7_NEON)) {
+            OPENSSL_armv8_rsa_neonized = 1;
+    }
+# endif
 }
 #endif

@@ -1,6 +1,14 @@
 LIBS=../../libcrypto
-SOURCE[../../libcrypto]=\
-        randfile.c rand_lib.c rand_err.c rand_egd.c \
-        rand_win.c rand_unix.c rand_vms.c drbg_lib.c drbg_ctr.c
 
-INCLUDE[drbg_ctr.o]=../modes
+$COMMON=rand_lib.c
+$CRYPTO=randfile.c rand_err.c rand_deprecated.c prov_seed.c rand_pool.c
+
+IF[{- !$disabled{'egd'} -}]
+  $CRYPTO=$CRYPTO rand_egd.c
+ENDIF
+IF[{- !$disabled{'deprecated-3.0'} -}]
+  $CRYPTO=$CRYPTO rand_meth.c
+ENDIF
+
+SOURCE[../../libcrypto]=$COMMON $CRYPTO
+SOURCE[../../providers/libfips.a]=$COMMON

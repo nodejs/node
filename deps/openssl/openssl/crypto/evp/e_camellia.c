@@ -1,24 +1,29 @@
 /*
  * Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
 
-#include <openssl/opensslconf.h>
-#ifdef OPENSSL_NO_CAMELLIA
-NON_EMPTY_TRANSLATION_UNIT
-#else
+/*
+ * Camellia low level APIs are deprecated for public use, but still ok for
+ * internal use.
+ */
+#include "internal/deprecated.h"
 
-# include <openssl/evp.h>
-# include <openssl/err.h>
-# include <string.h>
-# include <assert.h>
-# include <openssl/camellia.h>
-# include "crypto/evp.h"
-# include "modes_local.h"
+#include <openssl/opensslconf.h>
+
+#include <openssl/evp.h>
+#include <openssl/err.h>
+#include <string.h>
+#include <assert.h>
+#include <openssl/camellia.h>
+#include "crypto/evp.h"
+#include "crypto/modes.h"
+#include "crypto/cmll_platform.h"
+#include "evp_local.h"
 
 static int camellia_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
                              const unsigned char *iv, int enc);
@@ -33,44 +38,15 @@ typedef struct {
     } stream;
 } EVP_CAMELLIA_KEY;
 
-# define MAXBITCHUNK     ((size_t)1<<(sizeof(size_t)*8-4))
+#define MAXBITCHUNK     ((size_t)1<<(sizeof(size_t)*8-4))
 
 /* Attribute operation for Camellia */
-# define data(ctx)       EVP_C_DATA(EVP_CAMELLIA_KEY,ctx)
+#define data(ctx)       EVP_C_DATA(EVP_CAMELLIA_KEY,ctx)
 
-# if defined(AES_ASM) && (defined(__sparc) || defined(__sparc__))
+#if defined(AES_ASM) && (defined(__sparc) || defined(__sparc__))
 /* ---------^^^ this is not a typo, just a way to detect that
  * assembler support was in general requested... */
-#  include "sparc_arch.h"
-
-extern unsigned int OPENSSL_sparcv9cap_P[];
-
-#  define SPARC_CMLL_CAPABLE      (OPENSSL_sparcv9cap_P[1] & CFR_CAMELLIA)
-
-void cmll_t4_set_key(const unsigned char *key, int bits, CAMELLIA_KEY *ks);
-void cmll_t4_encrypt(const unsigned char *in, unsigned char *out,
-                     const CAMELLIA_KEY *key);
-void cmll_t4_decrypt(const unsigned char *in, unsigned char *out,
-                     const CAMELLIA_KEY *key);
-
-void cmll128_t4_cbc_encrypt(const unsigned char *in, unsigned char *out,
-                            size_t len, const CAMELLIA_KEY *key,
-                            unsigned char *ivec, int /*unused*/);
-void cmll128_t4_cbc_decrypt(const unsigned char *in, unsigned char *out,
-                            size_t len, const CAMELLIA_KEY *key,
-                            unsigned char *ivec, int /*unused*/);
-void cmll256_t4_cbc_encrypt(const unsigned char *in, unsigned char *out,
-                            size_t len, const CAMELLIA_KEY *key,
-                            unsigned char *ivec, int /*unused*/);
-void cmll256_t4_cbc_decrypt(const unsigned char *in, unsigned char *out,
-                            size_t len, const CAMELLIA_KEY *key,
-                            unsigned char *ivec, int /*unused*/);
-void cmll128_t4_ctr32_encrypt(const unsigned char *in, unsigned char *out,
-                              size_t blocks, const CAMELLIA_KEY *key,
-                              unsigned char *ivec);
-void cmll256_t4_ctr32_encrypt(const unsigned char *in, unsigned char *out,
-                              size_t blocks, const CAMELLIA_KEY *key,
-                              unsigned char *ivec);
+# include "crypto/sparc_arch.h"
 
 static int cmll_t4_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
                             const unsigned char *iv, int enc)
@@ -79,8 +55,8 @@ static int cmll_t4_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
     EVP_CAMELLIA_KEY *dat =
         (EVP_CAMELLIA_KEY *)EVP_CIPHER_CTX_get_cipher_data(ctx);
 
-    mode = EVP_CIPHER_CTX_mode(ctx);
-    bits = EVP_CIPHER_CTX_key_length(ctx) * 8;
+    mode = EVP_CIPHER_CTX_get_mode(ctx);
+    bits = EVP_CIPHER_CTX_get_key_length(ctx) * 8;
 
     cmll_t4_set_key(key, bits, &dat->ks);
 
@@ -128,45 +104,46 @@ static int cmll_t4_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
     }
 
     if (ret < 0) {
-        EVPerr(EVP_F_CMLL_T4_INIT_KEY, EVP_R_CAMELLIA_KEY_SETUP_FAILED);
+        ERR_raise(ERR_LIB_EVP, EVP_R_CAMELLIA_KEY_SETUP_FAILED);
         return 0;
     }
 
     return 1;
 }
 
-#  define cmll_t4_cbc_cipher camellia_cbc_cipher
+# define cmll_t4_cbc_cipher camellia_cbc_cipher
 static int cmll_t4_cbc_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                               const unsigned char *in, size_t len);
 
-#  define cmll_t4_ecb_cipher camellia_ecb_cipher
+# define cmll_t4_ecb_cipher camellia_ecb_cipher
 static int cmll_t4_ecb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                               const unsigned char *in, size_t len);
 
-#  define cmll_t4_ofb_cipher camellia_ofb_cipher
+# define cmll_t4_ofb_cipher camellia_ofb_cipher
 static int cmll_t4_ofb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                               const unsigned char *in, size_t len);
 
-#  define cmll_t4_cfb_cipher camellia_cfb_cipher
+# define cmll_t4_cfb_cipher camellia_cfb_cipher
 static int cmll_t4_cfb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                               const unsigned char *in, size_t len);
 
-#  define cmll_t4_cfb8_cipher camellia_cfb8_cipher
+# define cmll_t4_cfb8_cipher camellia_cfb8_cipher
 static int cmll_t4_cfb8_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                                const unsigned char *in, size_t len);
 
-#  define cmll_t4_cfb1_cipher camellia_cfb1_cipher
+# define cmll_t4_cfb1_cipher camellia_cfb1_cipher
 static int cmll_t4_cfb1_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                                const unsigned char *in, size_t len);
 
-#  define cmll_t4_ctr_cipher camellia_ctr_cipher
+# define cmll_t4_ctr_cipher camellia_ctr_cipher
 static int cmll_t4_ctr_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                               const unsigned char *in, size_t len);
 
-#  define BLOCK_CIPHER_generic(nid,keylen,blocksize,ivlen,nmode,mode,MODE,flags) \
+# define BLOCK_CIPHER_generic(nid,keylen,blocksize,ivlen,nmode,mode,MODE,flags) \
 static const EVP_CIPHER cmll_t4_##keylen##_##mode = { \
         nid##_##keylen##_##nmode,blocksize,keylen/8,ivlen, \
         flags|EVP_CIPH_##MODE##_MODE,   \
+        EVP_ORIG_GLOBAL,                \
         cmll_t4_init_key,               \
         cmll_t4_##mode##_cipher,        \
         NULL,                           \
@@ -176,6 +153,7 @@ static const EVP_CIPHER camellia_##keylen##_##mode = { \
         nid##_##keylen##_##nmode,blocksize,     \
         keylen/8,ivlen, \
         flags|EVP_CIPH_##MODE##_MODE,   \
+        EVP_ORIG_GLOBAL,                \
         camellia_init_key,              \
         camellia_##mode##_cipher,       \
         NULL,                           \
@@ -184,12 +162,13 @@ static const EVP_CIPHER camellia_##keylen##_##mode = { \
 const EVP_CIPHER *EVP_camellia_##keylen##_##mode(void) \
 { return SPARC_CMLL_CAPABLE?&cmll_t4_##keylen##_##mode:&camellia_##keylen##_##mode; }
 
-# else
+#else
 
-#  define BLOCK_CIPHER_generic(nid,keylen,blocksize,ivlen,nmode,mode,MODE,flags) \
+# define BLOCK_CIPHER_generic(nid,keylen,blocksize,ivlen,nmode,mode,MODE,flags) \
 static const EVP_CIPHER camellia_##keylen##_##mode = { \
         nid##_##keylen##_##nmode,blocksize,keylen/8,ivlen, \
         flags|EVP_CIPH_##MODE##_MODE,   \
+        EVP_ORIG_GLOBAL,                \
         camellia_init_key,              \
         camellia_##mode##_cipher,       \
         NULL,                           \
@@ -198,9 +177,9 @@ static const EVP_CIPHER camellia_##keylen##_##mode = { \
 const EVP_CIPHER *EVP_camellia_##keylen##_##mode(void) \
 { return &camellia_##keylen##_##mode; }
 
-# endif
+#endif
 
-# define BLOCK_CIPHER_generic_pack(nid,keylen,flags)             \
+#define BLOCK_CIPHER_generic_pack(nid,keylen,flags)             \
         BLOCK_CIPHER_generic(nid,keylen,16,16,cbc,cbc,CBC,flags|EVP_CIPH_FLAG_DEFAULT_ASN1)     \
         BLOCK_CIPHER_generic(nid,keylen,16,0,ecb,ecb,ECB,flags|EVP_CIPH_FLAG_DEFAULT_ASN1)      \
         BLOCK_CIPHER_generic(nid,keylen,1,16,ofb128,ofb,OFB,flags|EVP_CIPH_FLAG_DEFAULT_ASN1)   \
@@ -216,13 +195,14 @@ static int camellia_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
     int ret, mode;
     EVP_CAMELLIA_KEY *dat = EVP_C_DATA(EVP_CAMELLIA_KEY,ctx);
 
-    ret = Camellia_set_key(key, EVP_CIPHER_CTX_key_length(ctx) * 8, &dat->ks);
+    ret = Camellia_set_key(key, EVP_CIPHER_CTX_get_key_length(ctx) * 8,
+                           &dat->ks);
     if (ret < 0) {
-        EVPerr(EVP_F_CAMELLIA_INIT_KEY, EVP_R_CAMELLIA_KEY_SETUP_FAILED);
+        ERR_raise(ERR_LIB_EVP, EVP_R_CAMELLIA_KEY_SETUP_FAILED);
         return 0;
     }
 
-    mode = EVP_CIPHER_CTX_mode(ctx);
+    mode = EVP_CIPHER_CTX_get_mode(ctx);
     if ((mode == EVP_CIPH_ECB_MODE || mode == EVP_CIPH_CBC_MODE)
         && !enc) {
         dat->block = (block128_f) Camellia_decrypt;
@@ -243,15 +223,12 @@ static int camellia_cbc_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
     EVP_CAMELLIA_KEY *dat = EVP_C_DATA(EVP_CAMELLIA_KEY,ctx);
 
     if (dat->stream.cbc)
-        (*dat->stream.cbc) (in, out, len, &dat->ks,
-                            EVP_CIPHER_CTX_iv_noconst(ctx),
-                            EVP_CIPHER_CTX_encrypting(ctx));
-    else if (EVP_CIPHER_CTX_encrypting(ctx))
-        CRYPTO_cbc128_encrypt(in, out, len, &dat->ks,
-                              EVP_CIPHER_CTX_iv_noconst(ctx), dat->block);
+        (*dat->stream.cbc) (in, out, len, &dat->ks, ctx->iv,
+                            EVP_CIPHER_CTX_is_encrypting(ctx));
+    else if (EVP_CIPHER_CTX_is_encrypting(ctx))
+        CRYPTO_cbc128_encrypt(in, out, len, &dat->ks, ctx->iv, dat->block);
     else
-        CRYPTO_cbc128_decrypt(in, out, len, &dat->ks,
-                              EVP_CIPHER_CTX_iv_noconst(ctx), dat->block);
+        CRYPTO_cbc128_decrypt(in, out, len, &dat->ks, ctx->iv, dat->block);
 
     return 1;
 }
@@ -259,7 +236,7 @@ static int camellia_cbc_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 static int camellia_ecb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                                const unsigned char *in, size_t len)
 {
-    size_t bl = EVP_CIPHER_CTX_block_size(ctx);
+    size_t bl = EVP_CIPHER_CTX_get_block_size(ctx);
     size_t i;
     EVP_CAMELLIA_KEY *dat = EVP_C_DATA(EVP_CAMELLIA_KEY,ctx);
 
@@ -277,9 +254,8 @@ static int camellia_ofb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 {
     EVP_CAMELLIA_KEY *dat = EVP_C_DATA(EVP_CAMELLIA_KEY,ctx);
 
-    int num = EVP_CIPHER_CTX_num(ctx);
-    CRYPTO_ofb128_encrypt(in, out, len, &dat->ks,
-                          EVP_CIPHER_CTX_iv_noconst(ctx), &num, dat->block);
+    int num = EVP_CIPHER_CTX_get_num(ctx);
+    CRYPTO_ofb128_encrypt(in, out, len, &dat->ks, ctx->iv, &num, dat->block);
     EVP_CIPHER_CTX_set_num(ctx, num);
     return 1;
 }
@@ -289,9 +265,9 @@ static int camellia_cfb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 {
     EVP_CAMELLIA_KEY *dat = EVP_C_DATA(EVP_CAMELLIA_KEY,ctx);
 
-    int num = EVP_CIPHER_CTX_num(ctx);
-    CRYPTO_cfb128_encrypt(in, out, len, &dat->ks,
-                          EVP_CIPHER_CTX_iv_noconst(ctx), &num, EVP_CIPHER_CTX_encrypting(ctx), dat->block);
+    int num = EVP_CIPHER_CTX_get_num(ctx);
+    CRYPTO_cfb128_encrypt(in, out, len, &dat->ks, ctx->iv, &num,
+                          EVP_CIPHER_CTX_is_encrypting(ctx), dat->block);
     EVP_CIPHER_CTX_set_num(ctx, num);
     return 1;
 }
@@ -301,9 +277,9 @@ static int camellia_cfb8_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 {
     EVP_CAMELLIA_KEY *dat = EVP_C_DATA(EVP_CAMELLIA_KEY,ctx);
 
-    int num = EVP_CIPHER_CTX_num(ctx);
-    CRYPTO_cfb128_8_encrypt(in, out, len, &dat->ks,
-                            EVP_CIPHER_CTX_iv_noconst(ctx), &num, EVP_CIPHER_CTX_encrypting(ctx), dat->block);
+    int num = EVP_CIPHER_CTX_get_num(ctx);
+    CRYPTO_cfb128_8_encrypt(in, out, len, &dat->ks, ctx->iv, &num,
+                            EVP_CIPHER_CTX_is_encrypting(ctx), dat->block);
     EVP_CIPHER_CTX_set_num(ctx, num);
     return 1;
 }
@@ -314,26 +290,31 @@ static int camellia_cfb1_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
     EVP_CAMELLIA_KEY *dat = EVP_C_DATA(EVP_CAMELLIA_KEY,ctx);
 
     if (EVP_CIPHER_CTX_test_flags(ctx, EVP_CIPH_FLAG_LENGTH_BITS)) {
-        int num = EVP_CIPHER_CTX_num(ctx);
-        CRYPTO_cfb128_1_encrypt(in, out, len, &dat->ks,
-                                EVP_CIPHER_CTX_iv_noconst(ctx), &num, EVP_CIPHER_CTX_encrypting(ctx), dat->block);
+        int num = EVP_CIPHER_CTX_get_num(ctx);
+        CRYPTO_cfb128_1_encrypt(in, out, len, &dat->ks, ctx->iv, &num,
+                                EVP_CIPHER_CTX_is_encrypting(ctx),
+                                dat->block);
         EVP_CIPHER_CTX_set_num(ctx, num);
         return 1;
     }
 
     while (len >= MAXBITCHUNK) {
-        int num = EVP_CIPHER_CTX_num(ctx);
+        int num = EVP_CIPHER_CTX_get_num(ctx);
         CRYPTO_cfb128_1_encrypt(in, out, MAXBITCHUNK * 8, &dat->ks,
-                                EVP_CIPHER_CTX_iv_noconst(ctx), &num, EVP_CIPHER_CTX_encrypting(ctx), dat->block);
+                                ctx->iv, &num,
+                                EVP_CIPHER_CTX_is_encrypting(ctx),
+                                dat->block);
         EVP_CIPHER_CTX_set_num(ctx, num);
         len -= MAXBITCHUNK;
         out += MAXBITCHUNK;
         in  += MAXBITCHUNK;
     }
     if (len) {
-        int num = EVP_CIPHER_CTX_num(ctx);
+        int num = EVP_CIPHER_CTX_get_num(ctx);
         CRYPTO_cfb128_1_encrypt(in, out, len * 8, &dat->ks,
-                                EVP_CIPHER_CTX_iv_noconst(ctx), &num, EVP_CIPHER_CTX_encrypting(ctx), dat->block);
+                                ctx->iv, &num,
+                                EVP_CIPHER_CTX_is_encrypting(ctx),
+                                dat->block);
         EVP_CIPHER_CTX_set_num(ctx, num);
     }
 
@@ -343,17 +324,20 @@ static int camellia_cfb1_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 static int camellia_ctr_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                                const unsigned char *in, size_t len)
 {
-    unsigned int num = EVP_CIPHER_CTX_num(ctx);
+    int snum = EVP_CIPHER_CTX_get_num(ctx);
+    unsigned int num;
     EVP_CAMELLIA_KEY *dat = EVP_C_DATA(EVP_CAMELLIA_KEY,ctx);
 
+    if (snum < 0)
+        return 0;
+    num = snum;
     if (dat->stream.ctr)
-        CRYPTO_ctr128_encrypt_ctr32(in, out, len, &dat->ks,
-                                    EVP_CIPHER_CTX_iv_noconst(ctx),
-                                    EVP_CIPHER_CTX_buf_noconst(ctx), &num,
+        CRYPTO_ctr128_encrypt_ctr32(in, out, len, &dat->ks, ctx->iv,
+                                    EVP_CIPHER_CTX_buf_noconst(ctx),
+                                    &num,
                                     dat->stream.ctr);
     else
-        CRYPTO_ctr128_encrypt(in, out, len, &dat->ks,
-                              EVP_CIPHER_CTX_iv_noconst(ctx),
+        CRYPTO_ctr128_encrypt(in, out, len, &dat->ks, ctx->iv,
                               EVP_CIPHER_CTX_buf_noconst(ctx), &num,
                               dat->block);
     EVP_CIPHER_CTX_set_num(ctx, num);
@@ -363,4 +347,3 @@ static int camellia_ctr_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 BLOCK_CIPHER_generic_pack(NID_camellia, 128, 0)
     BLOCK_CIPHER_generic_pack(NID_camellia, 192, 0)
     BLOCK_CIPHER_generic_pack(NID_camellia, 256, 0)
-#endif

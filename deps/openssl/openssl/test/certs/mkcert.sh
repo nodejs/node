@@ -4,7 +4,7 @@
 # Copyright (c) 2016 Viktor Dukhovni <openssl-users@dukhovni.org>.
 # All rights reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
@@ -100,10 +100,12 @@ genroot() {
     local cn=$1; shift
     local key=$1; shift
     local cert=$1; shift
+    local bcon="basicConstraints = critical,CA:true"
+    local ku="keyUsage = keyCertSign,cRLSign"
     local skid="subjectKeyIdentifier = hash"
     local akid="authorityKeyIdentifier = keyid"
 
-    exts=$(printf "%s\n%s\n%s\n" "$skid" "$akid" "basicConstraints = critical,CA:true")
+    exts=$(printf "%s\n%s\n%s\n" "$bcon" "$ku" "$skid" "$akid")
     for eku in "$@"
     do
         exts=$(printf "%s\nextendedKeyUsage = %s\n" "$exts" "$eku")
@@ -132,10 +134,12 @@ genca() {
     local cert=$1; shift
     local cakey=$1; shift
     local cacert=$1; shift
+    local bcon="basicConstraints = critical,CA:true"
+    local ku="keyUsage = keyCertSign,cRLSign"
     local skid="subjectKeyIdentifier = hash"
     local akid="authorityKeyIdentifier = keyid"
 
-    exts=$(printf "%s\n%s\n%s\n" "$skid" "$akid" "basicConstraints = critical,CA:true")
+    exts=$(printf "%s\n%s\n%s\n" "$bcon" "$ku" "$skid" "$akid")
     if [ -n "$purpose" ]; then
         exts=$(printf "%s\nextendedKeyUsage = %s\n" "$exts" "$purpose")
     fi
@@ -191,11 +195,11 @@ genpc() {
 	 -set_serial 2 -days "${DAYS}"
 }
 
-# Usage: $0 geneealt keyname certname eekeyname eecertname alt1 alt2 ...
+# Usage: $0 geneealt keyname certname cakeyname cacertname alt1 alt2 ...
 #
 # Note: takes csr on stdin, so must be used with $0 req like this:
 #
-# $0 req keyname dn | $0 geneealt keyname certname eekeyname eecertname alt ...
+# $0 req keyname dn | $0 geneealt keyname certname cakeyname cacertname alt ...
 geneealt() {
     local key=$1; shift
     local cert=$1; shift
@@ -245,6 +249,40 @@ genee() {
 	    -set_serial 2 -days "${DAYS}" "$@"
 }
 
+geneeextra() {
+    local OPTIND=1
+    local purpose=serverAuth
+
+    while getopts p: o
+    do
+        case $o in
+        p) purpose="$OPTARG";;
+        *) echo "Usage: $0 geneeextra [-p EKU] cn keyname certname cakeyname cacertname extraext" >&2
+           return 1;;
+        esac
+    done
+
+    shift $((OPTIND - 1))
+    local cn=$1; shift
+    local key=$1; shift
+    local cert=$1; shift
+    local cakey=$1; shift
+    local ca=$1; shift
+    local extraext=$1; shift
+
+    exts=$(printf "%s\n%s\n%s\n%s\n%s\n%s\n[alts]\n%s\n" \
+	    "subjectKeyIdentifier = hash" \
+	    "authorityKeyIdentifier = keyid, issuer" \
+	    "basicConstraints = CA:false" \
+	    "extendedKeyUsage = $purpose" \
+	    "subjectAltName = @alts"\
+	    "$extraext" "DNS=${cn}")
+    csr=$(req "$key" "CN = $cn") || return 1
+    echo "$csr" |
+	cert "$cert" "$exts" -CA "${ca}.pem" -CAkey "${cakey}.pem" \
+	    -set_serial 2 -days "${DAYS}" "$@"
+}
+
 geneenocsr() {
     local OPTIND=1
     local purpose=serverAuth
@@ -253,7 +291,7 @@ geneenocsr() {
     do
         case $o in
         p) purpose="$OPTARG";;
-        *) echo "Usage: $0 genee [-p EKU] cn certname cakeyname cacertname" >&2
+        *) echo "Usage: $0 geneenocsr [-p EKU] cn certname cakeyname cacertname" >&2
            return 1;;
         esac
     done
@@ -298,6 +336,58 @@ gennocn() {
     csr=$(req_nocn "$key") || return 1
     echo "$csr" |
 	cert "$cert" "" -signkey "${key}.pem" -set_serial 1 -days -1 "$@"
+}
+
+genct() {
+    local OPTIND=1
+    local purpose=serverAuth
+
+    while getopts p: o
+    do
+        case $o in
+        p) purpose="$OPTARG";;
+        *) echo "Usage: $0 genct [-p EKU] cn keyname certname cakeyname cacertname ctlogkey" >&2
+           return 1;;
+        esac
+    done
+
+    shift $((OPTIND - 1))
+    local cn=$1; shift
+    local key=$1; shift
+    local cert=$1; shift
+    local cakey=$1; shift
+    local ca=$1; shift
+    local logkey=$1; shift
+
+    exts=$(printf "%s\n%s\n%s\n%s\n%s\n%s\n[alts]\n%s\n" \
+	    "subjectKeyIdentifier = hash" \
+	    "authorityKeyIdentifier = keyid, issuer" \
+	    "basicConstraints = CA:false" \
+	    "extendedKeyUsage = $purpose" \
+            "1.3.6.1.4.1.11129.2.4.3 = critical,ASN1:NULL"\
+	    "subjectAltName = @alts" "DNS=${cn}")
+    csr=$(req "$key" "CN = $cn") || return 1
+    echo "$csr" |
+	cert "$cert" "$exts" -CA "${ca}.pem" -CAkey "${cakey}.pem" \
+	    -set_serial 2 -days "${DAYS}" "$@"
+    cat ${cert}.pem ${ca}.pem > ${cert}-chain.pem
+    go run github.com/google/certificate-transparency-go/ctutil/sctgen \
+       --log_private_key ${logkey}.pem \
+       --timestamp="2020-01-01T00:00:00Z" \
+       --cert_chain ${cert}-chain.pem \
+       --tls_out ${cert}.tlssct
+    rm ${cert}-chain.pem
+    filesize=$(wc -c <${cert}.tlssct)
+    exts=$(printf "%s\n%s\n%s\n%s\n%s%04X%04X%s\n%s\n[alts]\n%s\n" \
+	    "subjectKeyIdentifier = hash" \
+	    "authorityKeyIdentifier = keyid, issuer" \
+	    "basicConstraints = CA:false" \
+	    "extendedKeyUsage = $purpose" \
+	    "1.3.6.1.4.1.11129.2.4.2 = ASN1:FORMAT:HEX,OCT:" $((filesize+2)) $filesize `xxd -p ${cert}.tlssct | tr -d '\n'` \
+	    "subjectAltName = @alts" "DNS=${cn}")
+    echo "$csr" |
+	cert "$cert" "$exts" -CA "${ca}.pem" -CAkey "${cakey}.pem" \
+	    -set_serial 2 -days "${DAYS}" "$@"
 }
 
 "$@"

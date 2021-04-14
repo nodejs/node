@@ -1,7 +1,7 @@
 /*
- * Copyright 1999-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -21,9 +21,11 @@ unsigned char *OPENSSL_asc2uni(const char *asc, int asclen,
 
     if (asclen == -1)
         asclen = strlen(asc);
+    if (asclen < 0)
+        return NULL;
     ulen = asclen * 2 + 2;
     if ((unitmp = OPENSSL_malloc(ulen)) == NULL) {
-        PKCS12err(PKCS12_F_OPENSSL_ASC2UNI, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_PKCS12, ERR_R_MALLOC_FAILURE);
         return NULL;
     }
     for (i = 0; i < ulen - 2; i += 2) {
@@ -44,8 +46,11 @@ char *OPENSSL_uni2asc(const unsigned char *uni, int unilen)
 {
     int asclen, i;
     char *asctmp;
+
     /* string must contain an even number of bytes */
     if (unilen & 1)
+        return NULL;
+    if (unilen < 0)
         return NULL;
     asclen = unilen / 2;
     /* If no terminating zero allow for one */
@@ -53,7 +58,7 @@ char *OPENSSL_uni2asc(const unsigned char *uni, int unilen)
         asclen++;
     uni++;
     if ((asctmp = OPENSSL_malloc(asclen)) == NULL) {
-        PKCS12err(PKCS12_F_OPENSSL_UNI2ASC, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_PKCS12, ERR_R_MALLOC_FAILURE);
         return NULL;
     }
     for (i = 0; i < unilen; i += 2)
@@ -115,7 +120,7 @@ unsigned char *OPENSSL_utf82uni(const char *asc, int asclen,
     ulen += 2;  /* for trailing UTF16 zero */
 
     if ((ret = OPENSSL_malloc(ulen)) == NULL) {
-        PKCS12err(PKCS12_F_OPENSSL_UTF82UNI, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_PKCS12, ERR_R_MALLOC_FAILURE);
         return NULL;
     }
     /* re-run the loop writing down UTF-16 characters in big-endian order */
@@ -200,7 +205,7 @@ char *OPENSSL_uni2utf8(const unsigned char *uni, int unilen)
         asclen++;
 
     if ((asctmp = OPENSSL_malloc(asclen)) == NULL) {
-        PKCS12err(PKCS12_F_OPENSSL_UNI2UTF8, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_PKCS12, ERR_R_MALLOC_FAILURE);
         return NULL;
     }
 
@@ -219,13 +224,13 @@ char *OPENSSL_uni2utf8(const unsigned char *uni, int unilen)
     return asctmp;
 }
 
-int i2d_PKCS12_bio(BIO *bp, PKCS12 *p12)
+int i2d_PKCS12_bio(BIO *bp, const PKCS12 *p12)
 {
     return ASN1_item_i2d_bio(ASN1_ITEM_rptr(PKCS12), bp, p12);
 }
 
 #ifndef OPENSSL_NO_STDIO
-int i2d_PKCS12_fp(FILE *fp, PKCS12 *p12)
+int i2d_PKCS12_fp(FILE *fp, const PKCS12 *p12)
 {
     return ASN1_item_i2d_fp(ASN1_ITEM_rptr(PKCS12), fp, p12);
 }

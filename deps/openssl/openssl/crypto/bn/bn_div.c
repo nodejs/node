@@ -1,7 +1,7 @@
 /*
  * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -24,7 +24,7 @@ int BN_div(BIGNUM *dv, BIGNUM *rem, const BIGNUM *m, const BIGNUM *d,
     bn_check_top(m);
     bn_check_top(d);
     if (BN_is_zero(d)) {
-        BNerr(BN_F_BN_DIV, BN_R_DIV_BY_ZERO);
+        ERR_raise(ERR_LIB_BN, BN_R_DIV_BY_ZERO);
         return 0;
     }
 
@@ -97,7 +97,7 @@ BN_ULONG bn_div_3_words(const BN_ULONG *m, BN_ULONG d1, BN_ULONG d0);
  */
 #  if BN_BITS2 == 64 && defined(__SIZEOF_INT128__) && __SIZEOF_INT128__==16
 #   undef BN_ULLONG
-#   define BN_ULLONG __uint128_t
+#   define BN_ULLONG uint128_t
 #   define BN_LLONG
 #  endif
 
@@ -212,7 +212,7 @@ int BN_div(BIGNUM *dv, BIGNUM *rm, const BIGNUM *num, const BIGNUM *divisor,
     int ret;
 
     if (BN_is_zero(divisor)) {
-        BNerr(BN_F_BN_DIV, BN_R_DIV_BY_ZERO);
+        ERR_raise(ERR_LIB_BN, BN_R_DIV_BY_ZERO);
         return 0;
     }
 
@@ -222,7 +222,7 @@ int BN_div(BIGNUM *dv, BIGNUM *rm, const BIGNUM *num, const BIGNUM *divisor,
      * BN_DEBUG builds)
      */
     if (divisor->d[divisor->top - 1] == 0) {
-        BNerr(BN_F_BN_DIV, BN_R_NOT_INITIALIZED);
+        ERR_raise(ERR_LIB_BN, BN_R_NOT_INITIALIZED);
         return 0;
     }
 

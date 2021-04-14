@@ -21,6 +21,9 @@ foreach $src (@libcrypto_srcs) {
     foreach $define (@{$target{defines}}) {
       $OUT .= "      '$define',\n";
     }
+    foreach $define (@{lib_defines}) {
+      $OUT .= "      '$define',\n";
+    }
     foreach $define (@{$config{lib_defines}}) {
   $OUT .= "      '$define',\n";
 } -%%    ],
@@ -37,6 +40,7 @@ foreach $src (@libcrypto_srcs) {
     './include',
     './crypto',
     './crypto/include/internal',
+    './providers/common/include',
   ],
   'defines': ['<@(openssl_defines_%%-$arch-%%)'],
 %%- if (!$is_win) {
@@ -44,4 +48,8 @@ foreach $src (@libcrypto_srcs) {
   'libraries': ['<@(openssl_ex_libs_$arch)'],";
 } -%%
   'sources': ['<@(openssl_sources)', '<@(openssl_sources_%%-$arch-%%)'],
+  'direct_dependent_settings': {
+    'include_dirs': ['./include', '.'],
+    'defines': ['<@(openssl_defines_%%-$arch-%%)'],
+  },
 }

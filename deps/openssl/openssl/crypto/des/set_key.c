@@ -1,7 +1,7 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -15,11 +15,15 @@
  * 1.1 added norm_expand_bits
  * 1.0 First working version
  */
+
+/*
+ * DES low level APIs are deprecated for public use, but still ok for internal
+ * use.
+ */
+#include "internal/deprecated.h"
+
 #include <openssl/crypto.h>
 #include "des_local.h"
-
-/* defaults to false */
-OPENSSL_IMPLEMENT_GLOBAL(int, DES_check_key, 0)
 
 static const unsigned char odd_parity[256] = {
     1, 1, 2, 2, 4, 4, 7, 7, 8, 8, 11, 11, 13, 13, 14, 14,
@@ -277,12 +281,7 @@ static const DES_LONG des_skb[8][64] = {
 
 int DES_set_key(const_DES_cblock *key, DES_key_schedule *schedule)
 {
-    if (DES_check_key) {
-        return DES_set_key_checked(key, schedule);
-    } else {
-        DES_set_key_unchecked(key, schedule);
-        return 0;
-    }
+    return DES_set_key_checked(key, schedule);
 }
 
 /*-

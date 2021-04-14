@@ -8,6 +8,9 @@
 
 #if HAVE_OPENSSL
 #include <openssl/crypto.h>
+#if NODE_OPENSSL_HAS_QUIC
+#include <openssl/quic.h>
+#endif
 #endif  // HAVE_OPENSSL
 
 namespace node {

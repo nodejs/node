@@ -1,9 +1,10 @@
 What This Is
 ============
 
-This is a fork of [OpenSSL](https://www.openssl.org) to enable QUIC. In addition to the
-website, the official source distribution is at https://github.com/openssl/openssl.
-The OpenSSL `README` can be found at [README-OpenSSL.md](README-OpenSSL.md).
+This is a fork of [OpenSSL](https://www.openssl.org) to enable QUIC. In addition
+to the website, the official source distribution is at
+<https://github.com/openssl/openssl>. The OpenSSL `README` can be found at
+[README-OpenSSL.md](README-OpenSSL.md).
 
 This fork adds API that can be used by QUIC implementations for connection
 handshakes. Quoting the IETF Working group
@@ -38,6 +39,7 @@ On to the questions and answers.
 
 What about branches?
 --------------------
+
 We don't want to conflict with OpenSSL branch names. Our current plan is to append
 `+quic`. Release tags are likely to be the QUIC branch with `-releaseX` appended.
 For example, the OpenSSL tag `openssl-3.0.0-alpha12` would have a branch named
@@ -45,33 +47,38 @@ For example, the OpenSSL tag `openssl-3.0.0-alpha12` would have a branch named
 
 How are you keeping current with OpenSSL?
 -----------------------------------------
+
 (In other words, "What about rebasing?")
 
 Our plan is to always rebase on top of an upstream release tag. In particular:
+
 - The changes for QUIC will always be at the tip of the branch -- you will know what
-is from the original OpenSSL and what is for QUIC.
+  is from the original OpenSSL and what is for QUIC.
 - New versions are quickly created once upstream creates a new tag.
-- The use of git commands (such as "cherry") can be used to ensure that all changes
-have moved forward with minimal or no changes. You will be able to see "QUIC: Add X"
-on all branches and the commit itself will be nearly identical on all branches, and
-any changes to that can be easily identified.
+- The use of git commands (such as `cherry`) can be used to ensure that all changes
+  have moved forward with minimal or no changes. You will be able to see
+  "QUIC: Add X" on all branches and the commit itself will be nearly identical on
+  all branches, and any changes to that can be easily identified.
 
 What about library names?
 -------------------------
+
 Library names will be the same, but will use a different version number. The version
 numbers for the current OpenSSL libraries are `1.1` (for the 1.1.0 and 1.1.1 branches)
 and `3` (for the to-be-3.0 branch). We will be prefixing 81 (ASCII for 'Q') to
 the version numbers to generate a unique version number.
 
-```
-libcrypto.so.81.3   libcrypto.so.81.1.1   libcrypto.so.1.1   libcrypto.so.3
-libssl.so.81.3      libssl.so.81.1.1      libsslo.so.1.1     libssl.so.3
-```
+- libcrypto.so.81.3 vs libcrypto.so.3
+- libcrypto.so.81.1.1 vs libcrypto.so.1.1
+- libssl.so.81.3 vs libssl.so.3
+- libssl.so.81.1.1 vs libsslo.so.1.1
+
 The SONAME of these libraries are all different, guaranteeing the correct library
 will be used.
 
 ...and the executable?
 ----------------------
+
 We currently do not have any plans to change the name, mainly because we
 haven't made any changes there. If you see a need, please open an issue.
 
@@ -79,12 +86,14 @@ The `openssl version` command will report that it is `+quic` enabled.
 
 ...and FIPS?
 ------------
+
 We are not doing anything with FIPS. This is actually good news: you should
 be able to load the OpenSSL 3.0 FIPS module into an application built against
 this fork and everything should Just Work&#8482;.
 
 How can I contribute?
 ---------------------
+
 We want any code here to be acceptable to OpenSSL. This means that all contributors
 must have signed the appropriate
 [contributor license agreements](https://www.openssl.org/policies/cla.html). We
@@ -98,5 +107,6 @@ to OpenSSL, with the deltas being specific to QUIC.
 
 Who are you?
 ------------
+
 This is a collaborative effort between [Akamai](https://www.akamai.com) and
 [Microsoft](https://www.microsoft.com). We welcome anyone to contribute!

@@ -29,29 +29,37 @@ sha1_multi_block:
 .Loop_grande:
 	movl	%edx,280(%rsp)
 	xorl	%edx,%edx
-	movq	0(%rsi),%r8
-	movl	8(%rsi),%ecx
+
+	movl	0(%rsi),%r8d
+
+	movl	4(%rsi),%ecx
 	cmpl	%edx,%ecx
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
 	movl	%ecx,0(%rbx)
 	cmovleq	%rbp,%r8
-	movq	16(%rsi),%r9
-	movl	24(%rsi),%ecx
+
+	movl	8(%rsi),%r9d
+
+	movl	12(%rsi),%ecx
 	cmpl	%edx,%ecx
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
 	movl	%ecx,4(%rbx)
 	cmovleq	%rbp,%r9
-	movq	32(%rsi),%r10
-	movl	40(%rsi),%ecx
+
+	movl	16(%rsi),%r10d
+
+	movl	20(%rsi),%ecx
 	cmpl	%edx,%ecx
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
 	movl	%ecx,8(%rbx)
 	cmovleq	%rbp,%r10
-	movq	48(%rsi),%r11
-	movl	56(%rsi),%ecx
+
+	movl	24(%rsi),%r11d
+
+	movl	28(%rsi),%ecx
 	cmpl	%edx,%ecx
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
@@ -2545,7 +2553,7 @@ sha1_multi_block:
 
 	movl	280(%rsp),%edx
 	leaq	16(%rdi),%rdi
-	leaq	64(%rsi),%rsi
+	leaq	32(%rsi),%rsi
 	decl	%edx
 	jnz	.Loop_grande
 
@@ -2585,15 +2593,19 @@ _shaext_shortcut:
 .Loop_grande_shaext:
 	movl	%edx,280(%rsp)
 	xorl	%edx,%edx
-	movq	0(%rsi),%r8
-	movl	8(%rsi),%ecx
+
+	movl	0(%rsi),%r8d
+
+	movl	4(%rsi),%ecx
 	cmpl	%edx,%ecx
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
 	movl	%ecx,0(%rbx)
 	cmovleq	%rsp,%r8
-	movq	16(%rsi),%r9
-	movl	24(%rsi),%ecx
+
+	movl	8(%rsi),%r9d
+
+	movl	12(%rsi),%ecx
 	cmpl	%edx,%ecx
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
@@ -2921,7 +2933,7 @@ _shaext_shortcut:
 	movq	%xmm1,128-64(%rdi)
 
 	leaq	8(%rdi),%rdi
-	leaq	32(%rsi),%rsi
+	leaq	16(%rsi),%rsi
 	decl	%edx
 	jnz	.Loop_grande_shaext
 
@@ -2968,29 +2980,37 @@ _avx_shortcut:
 .Loop_grande_avx:
 	movl	%edx,280(%rsp)
 	xorl	%edx,%edx
-	movq	0(%rsi),%r8
-	movl	8(%rsi),%ecx
+
+	movl	0(%rsi),%r8d
+
+	movl	4(%rsi),%ecx
 	cmpl	%edx,%ecx
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
 	movl	%ecx,0(%rbx)
 	cmovleq	%rbp,%r8
-	movq	16(%rsi),%r9
-	movl	24(%rsi),%ecx
+
+	movl	8(%rsi),%r9d
+
+	movl	12(%rsi),%ecx
 	cmpl	%edx,%ecx
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
 	movl	%ecx,4(%rbx)
 	cmovleq	%rbp,%r9
-	movq	32(%rsi),%r10
-	movl	40(%rsi),%ecx
+
+	movl	16(%rsi),%r10d
+
+	movl	20(%rsi),%ecx
 	cmpl	%edx,%ecx
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
 	movl	%ecx,8(%rbx)
 	cmovleq	%rbp,%r10
-	movq	48(%rsi),%r11
-	movl	56(%rsi),%ecx
+
+	movl	24(%rsi),%r11d
+
+	movl	28(%rsi),%ecx
 	cmpl	%edx,%ecx
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
@@ -5003,7 +5023,7 @@ _avx_shortcut:
 
 	movl	280(%rsp),%edx
 	leaq	16(%rdi),%rdi
-	leaq	64(%rsi),%rsi
+	leaq	32(%rsi),%rsi
 	decl	%edx
 	jnz	.Loop_grande_avx
 
@@ -5053,57 +5073,73 @@ _avx2_shortcut:
 	movl	%edx,552(%rsp)
 	xorl	%edx,%edx
 	leaq	512(%rsp),%rbx
-	movq	0(%rsi),%r12
-	movl	8(%rsi),%ecx
+
+	movl	0(%rsi),%r12d
+
+	movl	4(%rsi),%ecx
 	cmpl	%edx,%ecx
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
 	movl	%ecx,0(%rbx)
 	cmovleq	%rbp,%r12
-	movq	16(%rsi),%r13
-	movl	24(%rsi),%ecx
+
+	movl	8(%rsi),%r13d
+
+	movl	12(%rsi),%ecx
 	cmpl	%edx,%ecx
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
 	movl	%ecx,4(%rbx)
 	cmovleq	%rbp,%r13
-	movq	32(%rsi),%r14
-	movl	40(%rsi),%ecx
+
+	movl	16(%rsi),%r14d
+
+	movl	20(%rsi),%ecx
 	cmpl	%edx,%ecx
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
 	movl	%ecx,8(%rbx)
 	cmovleq	%rbp,%r14
-	movq	48(%rsi),%r15
-	movl	56(%rsi),%ecx
+
+	movl	24(%rsi),%r15d
+
+	movl	28(%rsi),%ecx
 	cmpl	%edx,%ecx
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
 	movl	%ecx,12(%rbx)
 	cmovleq	%rbp,%r15
-	movq	64(%rsi),%r8
-	movl	72(%rsi),%ecx
+
+	movl	32(%rsi),%r8d
+
+	movl	36(%rsi),%ecx
 	cmpl	%edx,%ecx
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
 	movl	%ecx,16(%rbx)
 	cmovleq	%rbp,%r8
-	movq	80(%rsi),%r9
-	movl	88(%rsi),%ecx
+
+	movl	40(%rsi),%r9d
+
+	movl	44(%rsi),%ecx
 	cmpl	%edx,%ecx
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
 	movl	%ecx,20(%rbx)
 	cmovleq	%rbp,%r9
-	movq	96(%rsi),%r10
-	movl	104(%rsi),%ecx
+
+	movl	48(%rsi),%r10d
+
+	movl	52(%rsi),%ecx
 	cmpl	%edx,%ecx
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
 	movl	%ecx,24(%rbx)
 	cmovleq	%rbp,%r10
-	movq	112(%rsi),%r11
-	movl	120(%rsi),%ecx
+
+	movl	56(%rsi),%r11d
+
+	movl	60(%rsi),%ecx
 	cmpl	%edx,%ecx
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
@@ -7265,3 +7301,24 @@ K_XX_XX:
 .long	0x00010203,0x04050607,0x08090a0b,0x0c0d0e0f
 .byte	0xf,0xe,0xd,0xc,0xb,0xa,0x9,0x8,0x7,0x6,0x5,0x4,0x3,0x2,0x1,0x0
 .byte	83,72,65,49,32,109,117,108,116,105,45,98,108,111,99,107,32,116,114,97,110,115,102,111,114,109,32,102,111,114,32,120,56,54,95,54,52,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
+	.section ".note.gnu.property", "a"
+	.p2align 2
+	.long 1f - 0f
+	.long 4f - 1f
+	.long 5
+0:
+	# "GNU" encoded with .byte, since .asciz isn't supported
+	# on Solaris.
+	.byte 0x47
+	.byte 0x4e
+	.byte 0x55
+	.byte 0
+1:
+	.p2align 2
+	.long 0xc0000002
+	.long 3f - 2f
+2:
+	.long 3
+3:
+	.p2align 2
+4:

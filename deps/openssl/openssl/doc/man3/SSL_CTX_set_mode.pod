@@ -18,13 +18,13 @@ SSL_CTX_set_mode, SSL_CTX_clear_mode, SSL_set_mode, SSL_clear_mode, SSL_CTX_get_
 
 =head1 DESCRIPTION
 
-SSL_CTX_set_mode() adds the mode set via bit mask in B<mode> to B<ctx>.
+SSL_CTX_set_mode() adds the mode set via bit-mask in B<mode> to B<ctx>.
 Options already set before are not cleared.
-SSL_CTX_clear_mode() removes the mode set via bit mask in B<mode> from B<ctx>.
+SSL_CTX_clear_mode() removes the mode set via bit-mask in B<mode> from B<ctx>.
 
-SSL_set_mode() adds the mode set via bit mask in B<mode> to B<ssl>.
+SSL_set_mode() adds the mode set via bit-mask in B<mode> to B<ssl>.
 Options already set before are not cleared.
-SSL_clear_mode() removes the mode set via bit mask in B<mode> from B<ssl>.
+SSL_clear_mode() removes the mode set via bit-mask in B<mode> from B<ssl>.
 
 SSL_CTX_get_mode() returns the mode set for B<ctx>.
 
@@ -121,10 +121,10 @@ default since 1.1.1.
 
 =head1 RETURN VALUES
 
-SSL_CTX_set_mode() and SSL_set_mode() return the new mode bit mask
+SSL_CTX_set_mode() and SSL_set_mode() return the new mode bit-mask
 after adding B<mode>.
 
-SSL_CTX_get_mode() and SSL_get_mode() return the current bit mask.
+SSL_CTX_get_mode() and SSL_get_mode() return the current bit-mask.
 
 =head1 SEE ALSO
 
@@ -137,9 +137,9 @@ SSL_MODE_ASYNC was added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2001-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

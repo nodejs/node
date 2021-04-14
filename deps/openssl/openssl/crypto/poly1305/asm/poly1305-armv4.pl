@@ -1,7 +1,7 @@
 #! /usr/bin/env perl
-# Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
@@ -28,9 +28,10 @@
 #	the cost of 15/12% regression on Cortex-A5/A7, it's even possible
 #	to improve Cortex-A9 result, but then A5/A7 loose more than 20%;
 
-$flavour = shift;
-if ($flavour=~/\w[\w\-]*\.\w+$/) { $output=$flavour; undef $flavour; }
-else { while (($output=shift) && ($output!~/\w[\w\-]*\.\w+$/)) {} }
+# $output is the last argument if it looks like a file (it has an extension)
+# $flavour is the first argument if it doesn't look like a file
+$output = $#ARGV >= 0 && $ARGV[$#ARGV] =~ m|\.\w+$| ? pop : undef;
+$flavour = $#ARGV >= 0 && $ARGV[0] !~ m|\.| ? shift : undef;
 
 if ($flavour && $flavour ne "void") {
     $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
@@ -38,9 +39,10 @@ if ($flavour && $flavour ne "void") {
     ( $xlate="${dir}../../perlasm/arm-xlate.pl" and -f $xlate) or
     die "can't locate arm-xlate.pl";
 
-    open STDOUT,"| \"$^X\" $xlate $flavour $output";
+    open STDOUT,"| \"$^X\" $xlate $flavour \"$output\""
+        or die "can't call $xlate: $!";
 } else {
-    open STDOUT,">$output";
+    $output and open STDOUT,">$output";
 }
 
 ($ctx,$inp,$len,$padbit)=map("r$_",(0..3));
@@ -48,13 +50,14 @@ if ($flavour && $flavour ne "void") {
 $code.=<<___;
 #include "arm_arch.h"
 
-.text
 #if defined(__thumb2__)
 .syntax	unified
 .thumb
 #else
 .code	32
 #endif
+
+.text
 
 .globl	poly1305_emit
 .globl	poly1305_blocks
@@ -100,8 +103,10 @@ poly1305_init:
 	and	r4,r4,r10
 
 #if	__ARM_MAX_ARCH__>=7
+# if !defined(_WIN32)
 	ldr	r12,[r11,r12]		@ OPENSSL_armcap_P
-# ifdef	__APPLE__
+# endif
+# if defined(__APPLE__) || defined(_WIN32)
 	ldr	r12,[r12]
 # endif
 #endif
@@ -116,31 +121,21 @@ poly1305_init:
 
 #if	__ARM_MAX_ARCH__>=7
 	tst	r12,#ARMV7_NEON		@ check for NEON
-# ifdef	__APPLE__
-	adr	r9,poly1305_blocks_neon
-	adr	r11,poly1305_blocks
-#  ifdef __thumb2__
-	it	ne
-#  endif
+# ifdef	__thumb2__
+	adr	r9,.Lpoly1305_blocks_neon
+	adr	r11,.Lpoly1305_blocks
+	adr	r12,.Lpoly1305_emit
+	adr	r10,.Lpoly1305_emit_neon
+	itt	ne
 	movne	r11,r9
-	adr	r12,poly1305_emit
-	adr	r10,poly1305_emit_neon
-#  ifdef __thumb2__
-	it	ne
-#  endif
 	movne	r12,r10
+	orr	r11,r11,#1	@ thumb-ify address
+	orr	r12,r12,#1
 # else
-#  ifdef __thumb2__
-	itete	eq
-#  endif
 	addeq	r12,r11,#(.Lpoly1305_emit-.Lpoly1305_init)
 	addne	r12,r11,#(.Lpoly1305_emit_neon-.Lpoly1305_init)
 	addeq	r11,r11,#(.Lpoly1305_blocks-.Lpoly1305_init)
 	addne	r11,r11,#(.Lpoly1305_blocks_neon-.Lpoly1305_init)
-# endif
-# ifdef	__thumb2__
-	orr	r12,r12,#1	@ thumb-ify address
-	orr	r11,r11,#1
 # endif
 #endif
 	ldrb	r9,[$inp,#11]
@@ -1232,7 +1227,11 @@ poly1305_emit_neon:
 .Lzeros:
 .long	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 .LOPENSSL_armcap:
+# ifdef	_WIN32
+.word	OPENSSL_armcap_P
+# else
 .word	OPENSSL_armcap_P-.Lpoly1305_init
+# endif
 #endif
 ___
 }	}

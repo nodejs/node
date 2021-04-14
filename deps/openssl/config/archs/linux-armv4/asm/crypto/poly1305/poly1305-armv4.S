@@ -1,12 +1,13 @@
 #include "arm_arch.h"
 
-.text
 #if defined(__thumb2__)
 .syntax	unified
 .thumb
 #else
 .code	32
 #endif
+
+.text
 
 .globl	poly1305_emit
 .globl	poly1305_blocks
@@ -52,8 +53,10 @@ poly1305_init:
 	and	r4,r4,r10
 
 #if	__ARM_MAX_ARCH__>=7
+# if !defined(_WIN32)
 	ldr	r12,[r11,r12]		@ OPENSSL_armcap_P
-# ifdef	__APPLE__
+# endif
+# if defined(__APPLE__) || defined(_WIN32)
 	ldr	r12,[r12]
 # endif
 #endif
@@ -68,31 +71,21 @@ poly1305_init:
 
 #if	__ARM_MAX_ARCH__>=7
 	tst	r12,#ARMV7_NEON		@ check for NEON
-# ifdef	__APPLE__
-	adr	r9,poly1305_blocks_neon
-	adr	r11,poly1305_blocks
-#  ifdef __thumb2__
-	it	ne
-#  endif
+# ifdef	__thumb2__
+	adr	r9,.Lpoly1305_blocks_neon
+	adr	r11,.Lpoly1305_blocks
+	adr	r12,.Lpoly1305_emit
+	adr	r10,.Lpoly1305_emit_neon
+	itt	ne
 	movne	r11,r9
-	adr	r12,poly1305_emit
-	adr	r10,poly1305_emit_neon
-#  ifdef __thumb2__
-	it	ne
-#  endif
 	movne	r12,r10
+	orr	r11,r11,#1	@ thumb-ify address
+	orr	r12,r12,#1
 # else
-#  ifdef __thumb2__
-	itete	eq
-#  endif
 	addeq	r12,r11,#(.Lpoly1305_emit-.Lpoly1305_init)
 	addne	r12,r11,#(.Lpoly1305_emit_neon-.Lpoly1305_init)
 	addeq	r11,r11,#(.Lpoly1305_blocks-.Lpoly1305_init)
 	addne	r11,r11,#(.Lpoly1305_blocks_neon-.Lpoly1305_init)
-# endif
-# ifdef	__thumb2__
-	orr	r12,r12,#1	@ thumb-ify address
-	orr	r11,r11,#1
 # endif
 #endif
 	ldrb	r9,[r1,#11]
@@ -1161,7 +1154,11 @@ poly1305_emit_neon:
 .Lzeros:
 .long	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 .LOPENSSL_armcap:
+# ifdef	_WIN32
+.word	OPENSSL_armcap_P
+# else
 .word	OPENSSL_armcap_P-.Lpoly1305_init
+# endif
 #endif
 .byte	80,111,108,121,49,51,48,53,32,102,111,114,32,65,82,77,118,52,47,78,69,79,78,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .align	2

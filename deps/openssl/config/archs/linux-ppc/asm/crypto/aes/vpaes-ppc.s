@@ -666,7 +666,7 @@ vpaes_cbc_encrypt:
 	vor	24,0,0
 	sub.	30, 30, 0
 	vperm	0, 0, 0, 29
-	vsel	1, 28, 0, 30
+	vsel	1,28,0,30
 	vor	28,0,0
 	stvx	1, 0, 4
 	addi	4, 4, 16
@@ -718,7 +718,7 @@ vpaes_cbc_encrypt:
 	vor	24,25,25
 	sub.	30, 30, 0
 	vperm	0, 0, 0, 29
-	vsel	1, 28, 0, 30
+	vsel	1,28,0,30
 	vor	28,0,0
 	stvx	1, 0, 4
 	addi	4, 4, 16
@@ -1036,7 +1036,7 @@ _vpaes_schedule_core:
 
 	vperm	0, 0, 0, 29
 	li	10, 4
-	vsel	2, 28, 0, 30
+	vsel	2,28,0,30
 	li	11, 8
 	stvx	2, 0, 5
 	li	12, 12
@@ -1058,7 +1058,7 @@ _vpaes_schedule_core:
 	addi	9, 5, -15
 	vperm	0, 0, 0, 29
 	li	10, 4
-	vsel	2, 28, 0, 30
+	vsel	2,28,0,30
 	li	11, 8
 	stvx	2, 0, 5
 	li	12, 12
@@ -1149,7 +1149,7 @@ _vpaes_schedule_low_round:
 
 	vsldoi	1, 9, 7, 12
 	vxor	7, 7, 1
-	vspltisb	1, 0x0f
+	vspltisb	1,0x0f
 	vsldoi	4, 9, 7, 8
 
 
@@ -1245,7 +1245,7 @@ _vpaes_schedule_mangle:
 
 
 	vperm	1, 3, 3, 29
-	vsel	2, 28, 1, 30
+	vsel	2,28,1,30
 	vor	28,1,1
 	stvx	2, 0, 5
 	blr	
@@ -1296,7 +1296,7 @@ _vpaes_schedule_mangle:
 
 
 	vperm	1, 3, 3, 29
-	vsel	2, 28, 1, 30
+	vsel	2,28,1,30
 	vor	28,1,1
 	stvx	2, 0, 5
 	blr	

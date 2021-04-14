@@ -342,6 +342,82 @@
             '<(obj_dir)/<(node_text_start_object_path)'
           ]
         }],
+
+        ['node_fipsinstall=="true"', {
+          'variables': {
+            'openssl-cli': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)openssl-cli<(EXECUTABLE_SUFFIX)',
+            'provider_name': 'libopenssl-fipsmodule',
+            'fipsmodule_internal': '<(obj_dir)/deps/openssl/<(provider_name).so',
+            'fipsmodule': '<(obj_dir)/deps/openssl/lib/openssl-modules/fips.so',
+            'fipsconfig': '<(obj_dir)/deps/openssl/fipsmodule.cnf',
+            'opensslconfig_internal': '<(obj_dir)/deps/openssl/openssl.cnf',
+            'opensslconfig': './deps/openssl/openssl/apps/openssl.cnf',
+          },
+          #'dependencies': [
+             #'./deps/openssl/openssl.gyp:openssl-fipsmodule'
+          #],
+          'actions': [
+            {
+              'action_name': 'fipsinstall',
+              'process_outputs_as_sources': 1,
+              'inputs': [
+                '<(fipsmodule_internal)',
+              ],
+              'outputs': [
+                '<(fipsconfig)',
+              ],
+              'action': [
+                '<(openssl-cli)', 'fipsinstall',
+                '-provider_name', '<(provider_name)',
+                '-module', '<(fipsmodule_internal)',
+                '-out', '<(fipsconfig)',
+                #'-quiet',
+              ],
+            },
+            {
+              'action_name': 'copy_fips_module',
+              'inputs': [
+                '<(fipsmodule_internal)',
+              ],
+              'outputs': [
+                '<(fipsmodule)',
+              ],
+              'action': [
+                'python', 'tools/copyfile.py',
+                '<(fipsmodule_internal)',
+                '<(fipsmodule)',
+              ],
+            },
+            {
+              'action_name': 'copy_openssl_cnf_and_include_fips_cnf',
+              'inputs': [ '<(opensslconfig)', ],
+              'outputs': [ '<(opensslconfig_internal)', ],
+              'action': [
+                'python', 'tools/enable_fips_include.py',
+                '<(opensslconfig)',
+                '<(opensslconfig_internal)',
+                '<(fipsconfig)',
+              ],
+            },
+          ],
+         }, {
+           'variables': {
+              'opensslconfig_internal': '<(obj_dir)/deps/openssl/openssl.cnf',
+              'opensslconfig': './deps/openssl/openssl/apps/openssl.cnf',
+           },
+           'actions': [
+             {
+               'action_name': 'reset_openssl_cnf',
+               'inputs': [ '<(opensslconfig)', ],
+               'outputs': [ '<(opensslconfig_internal)', ],
+               'action': [
+                 'python', 'tools/copyfile.py',
+                 './deps/openssl/openssl/apps/openssl.cnf',
+                 '<(obj_dir)/deps/openssl/openssl.cnf',
+               ],
+             },
+           ],
+         }],
       ],
     }, # node_core_target_name
     {
@@ -789,7 +865,7 @@
             ],
           },
           'conditions': [
-            ['openssl_fips!=""', {
+            ['openssl_is_fips!=""', {
               'variables': { 'mkssldef_flags': ['-DOPENSSL_FIPS'] },
             }],
           ],
