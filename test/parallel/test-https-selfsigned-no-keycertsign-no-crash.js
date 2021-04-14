@@ -14,6 +14,10 @@ if (!common.hasCrypto)
 
 const crypto = require('crypto');
 
+// See #37990 for details on why this is problematic with FIPS.
+if (process.config.variables.openssl_is_fips)
+  common.skip('Skipping as test uses non-fips compliant EC curve');
+
 // This test will fail for OpenSSL < 1.1.1h
 const minOpenSSL = 269488271;
 
