@@ -19,7 +19,7 @@
   | --dest-os | --dest-cpu | OpenSSL target arch  | CI  |
   | --------- | ---------- | -------------------- | --- |
   | aix       | ppc        | aix-gcc              | o   |
-  | aix       | ppc64      | aix64-gcc            | o   |
+  | aix       | ppc64      | aix64-gcc-as         | o   |
   | linux     | ia32       | linux-elf            | o   |
   | linux     | x32        | linux-x32            | -   |
   | linux     | x64        | linux-x86_64         | o   |
@@ -126,7 +126,7 @@
 #elif defined(OPENSSL_LINUX) && !defined(__PPC64__) && defined(__ppc__)
 # include "./archs/linux-ppc/asm/include/openssl/opensslconf.h"
 #elif defined(_AIX) && defined(_ARCH_PPC64)
-# include "./archs/aix64-gcc/asm/include/openssl/opensslconf.h"
+# include "./archs/aix64-gcc-as/asm/include/openssl/opensslconf.h"
 #elif defined(_AIX) && !defined(_ARCH_PPC64) && defined(_ARCH_PPC)
 # include "./archs/aix-gcc/asm/include/openssl/opensslconf.h"
 #elif defined(OPENSSL_LINUX) && defined(__s390x__)

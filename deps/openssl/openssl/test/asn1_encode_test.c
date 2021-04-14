@@ -1,7 +1,7 @@
 /*
- * Copyright 2017-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -179,7 +179,7 @@ typedef struct {
     ENCDEC_DATA(-1, -1),                        \
     ENCDEC_DATA(0, ASN1_LONG_UNDEF)
 
-#if OPENSSL_API_COMPAT < 0x10200000L
+#ifndef OPENSSL_NO_DEPRECATED_3_0
 /***** LONG ******************************************************************/
 
 typedef struct {
@@ -190,7 +190,7 @@ typedef struct {
 } ASN1_LONG_DATA;
 
 ASN1_SEQUENCE(ASN1_LONG_DATA) = {
-    ASN1_SIMPLE(ASN1_LONG_DATA, success, ASN1_FBOOLEAN),
+    ASN1_SIMPLE(ASN1_LONG_DATA, success, ASN1_BOOLEAN),
     ASN1_SIMPLE(ASN1_LONG_DATA, test_long, LONG),
     ASN1_EXP_OPT(ASN1_LONG_DATA, test_zlong, ZLONG, 0)
 } static_ASN1_SEQUENCE_END(ASN1_LONG_DATA)
@@ -280,7 +280,7 @@ typedef struct {
 } ASN1_INT32_DATA;
 
 ASN1_SEQUENCE(ASN1_INT32_DATA) = {
-    ASN1_SIMPLE(ASN1_INT32_DATA, success, ASN1_FBOOLEAN),
+    ASN1_SIMPLE(ASN1_INT32_DATA, success, ASN1_BOOLEAN),
     ASN1_EMBED(ASN1_INT32_DATA, test_int32, INT32),
     ASN1_EXP_OPT_EMBED(ASN1_INT32_DATA, test_zint32, ZINT32, 0)
 } static_ASN1_SEQUENCE_END(ASN1_INT32_DATA)
@@ -328,7 +328,7 @@ typedef struct {
 } ASN1_UINT32_DATA;
 
 ASN1_SEQUENCE(ASN1_UINT32_DATA) = {
-    ASN1_SIMPLE(ASN1_UINT32_DATA, success, ASN1_FBOOLEAN),
+    ASN1_SIMPLE(ASN1_UINT32_DATA, success, ASN1_BOOLEAN),
     ASN1_EMBED(ASN1_UINT32_DATA, test_uint32, UINT32),
     ASN1_EXP_OPT_EMBED(ASN1_UINT32_DATA, test_zuint32, ZUINT32, 0)
 } static_ASN1_SEQUENCE_END(ASN1_UINT32_DATA)
@@ -376,7 +376,7 @@ typedef struct {
 } ASN1_INT64_DATA;
 
 ASN1_SEQUENCE(ASN1_INT64_DATA) = {
-    ASN1_SIMPLE(ASN1_INT64_DATA, success, ASN1_FBOOLEAN),
+    ASN1_SIMPLE(ASN1_INT64_DATA, success, ASN1_BOOLEAN),
     ASN1_EMBED(ASN1_INT64_DATA, test_int64, INT64),
     ASN1_EXP_OPT_EMBED(ASN1_INT64_DATA, test_zint64, ZINT64, 0)
 } static_ASN1_SEQUENCE_END(ASN1_INT64_DATA)
@@ -425,7 +425,7 @@ typedef struct {
 } ASN1_UINT64_DATA;
 
 ASN1_SEQUENCE(ASN1_UINT64_DATA) = {
-    ASN1_SIMPLE(ASN1_UINT64_DATA, success, ASN1_FBOOLEAN),
+    ASN1_SIMPLE(ASN1_UINT64_DATA, success, ASN1_BOOLEAN),
     ASN1_EMBED(ASN1_UINT64_DATA, test_uint64, UINT64),
     ASN1_EXP_OPT_EMBED(ASN1_UINT64_DATA, test_zuint64, ZUINT64, 0)
 } static_ASN1_SEQUENCE_END(ASN1_UINT64_DATA)
@@ -742,14 +742,17 @@ static int test_intern(const TEST_PACKAGE *package)
                    sizeof(test_custom_data) / sizeof(test_custom_data[0]));
     for (i = 0; i < nelems; i++) {
         size_t pos = i * package->encode_expectations_elem_size;
-        switch (do_encode_custom((EXPECTED *)&((unsigned char *)package
-                                               ->encode_expectations)[pos],
-                                 &test_custom_data[i], package)) {
+        EXPECTED *expected
+            = (EXPECTED *)&((unsigned char *)package->encode_expectations)[pos];
+
+        switch (do_encode_custom(expected, &test_custom_data[i], package)) {
         case -1:
-            TEST_error("Failed custom encode round trip %u of %s",
-                       i, package->name);
-            TEST_openssl_errors();
-            fail++;
+            if (expected->success) {
+                TEST_error("Failed custom encode round trip %u of %s",
+                           i, package->name);
+                TEST_openssl_errors();
+                fail++;
+            }
             break;
         case 0:
             TEST_error("Custom encode round trip %u of %s mismatch",
@@ -763,16 +766,16 @@ static int test_intern(const TEST_PACKAGE *package)
             OPENSSL_die("do_encode_custom() return unknown value",
                         __FILE__, __LINE__);
         }
-        switch (do_decode_custom(&test_custom_data[i],
-                                 (EXPECTED *)&((unsigned char *)package
-                                               ->encode_expectations)[pos],
+        switch (do_decode_custom(&test_custom_data[i], expected,
                                  package->encode_expectations_elem_size,
                                  package)) {
         case -1:
-            TEST_error("Failed custom decode round trip %u of %s",
-                       i, package->name);
-            TEST_openssl_errors();
-            fail++;
+            if (expected->success) {
+                TEST_error("Failed custom decode round trip %u of %s",
+                           i, package->name);
+                TEST_openssl_errors();
+                fail++;
+            }
             break;
         case 0:
             TEST_error("Custom decode round trip %u of %s mismatch",
@@ -792,15 +795,17 @@ static int test_intern(const TEST_PACKAGE *package)
     nelems = package->encdec_data_size / package->encdec_data_elem_size;
     for (i = 0; i < nelems; i++) {
         size_t pos = i * package->encdec_data_elem_size;
-        switch (do_enc_dec((EXPECTED *)&((unsigned char *)package
-                                         ->encdec_data)[pos],
-                           package->encdec_data_elem_size,
-                           package)) {
+        EXPECTED *expected
+            = (EXPECTED *)&((unsigned char *)package->encdec_data)[pos];
+
+        switch (do_enc_dec(expected, package->encdec_data_elem_size, package)) {
         case -1:
-            TEST_error("Failed encode/decode round trip %u of %s",
-                       i, package->name);
-            TEST_openssl_errors();
-            fail++;
+            if (expected->success) {
+                TEST_error("Failed encode/decode round trip %u of %s",
+                           i, package->name);
+                TEST_openssl_errors();
+                fail++;
+            }
             break;
         case 0:
             TEST_error("Encode/decode round trip %u of %s mismatch",
@@ -824,7 +829,7 @@ static int test_intern(const TEST_PACKAGE *package)
     return fail == 0;
 }
 
-#if OPENSSL_API_COMPAT < 0x10200000L
+#ifndef OPENSSL_NO_DEPRECATED_3_0
 static int test_long_32bit(void)
 {
     return test_intern(&long_test_package_32bit);
@@ -890,7 +895,7 @@ static int test_invalid_template(void)
 
 int setup_tests(void)
 {
-#if OPENSSL_API_COMPAT < 0x10200000L
+#ifndef OPENSSL_NO_DEPRECATED_3_0
     ADD_TEST(test_long_32bit);
     ADD_TEST(test_long_64bit);
 #endif

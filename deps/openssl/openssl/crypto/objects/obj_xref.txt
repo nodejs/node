@@ -20,7 +20,7 @@ RSA_SHA3_512		sha3_512 rsaEncryption
 # For PSS the digest algorithm can vary and depends on the included
 # AlgorithmIdentifier. The digest "undef" indicates the public key
 # method should handle this explicitly.
-rsassaPss		undef	rsaEncryption
+rsassaPss		undef	rsassaPss
 ED25519		    undef	ED25519
 ED448		    undef	ED448
 
@@ -64,3 +64,5 @@ dhSinglePass_cofactorDH_sha224kdf_scheme	sha224	dh_cofactor_kdf
 dhSinglePass_cofactorDH_sha256kdf_scheme	sha256	dh_cofactor_kdf
 dhSinglePass_cofactorDH_sha384kdf_scheme	sha384	dh_cofactor_kdf
 dhSinglePass_cofactorDH_sha512kdf_scheme	sha512	dh_cofactor_kdf
+
+SM2_with_SM3		sm3	sm2

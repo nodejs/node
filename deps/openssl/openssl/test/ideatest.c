@@ -1,11 +1,18 @@
 /*
- * Copyright 1995-2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+/*
+ * IDEA low level APIs are deprecated for public use, but still ok for internal
+ * use where we're using them to implement the higher level EVP interface, as is
+ * the case here.
+ */
+#include "internal/deprecated.h"
 
 #include <string.h>
 
@@ -25,7 +32,7 @@ static const unsigned char c[8] = { 0x11, 0xFB, 0xED, 0x2B, 0x01, 0x98, 0x6D, 0x
 
 static unsigned char out[80];
 
-static const char text[] = "Hello to all people out there";
+static const unsigned char text[] = "Hello to all people out there";
 
 static const unsigned char cfb_key[16] = {
     0xe1, 0xf0, 0xc3, 0xd2, 0xa5, 0xb4, 0x87, 0x96,
@@ -74,7 +81,7 @@ static int test_idea_cbc(void)
     IDEA_set_encrypt_key(k, &key);
     IDEA_set_decrypt_key(&key, &dkey);
     memcpy(iv, k, sizeof(iv));
-    IDEA_cbc_encrypt((unsigned char *)text, out, text_len, &key, iv, 1);
+    IDEA_cbc_encrypt(text, out, text_len, &key, iv, 1);
     memcpy(iv, k, sizeof(iv));
     IDEA_cbc_encrypt(out, out, IDEA_BLOCK, &dkey, iv, 0);
     IDEA_cbc_encrypt(&out[8], &out[8], text_len - 8, &dkey, iv, 0);

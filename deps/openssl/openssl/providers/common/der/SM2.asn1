@@ -1,0 +1,11 @@
+oscca  OBJECT IDENTIFIER ::= { iso(1) member-body(2) cn(156) 10197 }
+
+sm-scheme OBJECT IDENTIFIER ::= { oscca 1 }
+
+-- OID for SM2 signatures with SM3
+
+sm2-with-SM3 OBJECT IDENTIFIER ::= { sm-scheme 501 }
+
+-- Named Elliptic Curves of SM2
+
+curveSM2 OBJECT IDENTIFIER ::= { sm-scheme 301 }

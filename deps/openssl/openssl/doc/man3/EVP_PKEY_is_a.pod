@@ -1,0 +1,113 @@
+=pod
+
+=head1 NAME
+
+EVP_PKEY_is_a, EVP_PKEY_can_sign, EVP_PKEY_type_names_do_all,
+EVP_PKEY_get0_type_name, EVP_PKEY_get0_description, EVP_PKEY_get0_provider
+- key type and capabilities functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/evp.h>
+
+ int EVP_PKEY_is_a(const EVP_PKEY *pkey, const char *name);
+ int EVP_PKEY_can_sign(const EVP_PKEY *pkey);
+ int EVP_PKEY_type_names_do_all(const EVP_PKEY *pkey,
+                                void (*fn)(const char *name, void *data),
+                                void *data);
+ const char *EVP_PKEY_get0_type_name(const EVP_PKEY *key);
+ const char *EVP_PKEY_get0_description(const EVP_PKEY *key);
+ const OSSL_PROVIDER *EVP_PKEY_get0_provider(const EVP_PKEY *key);
+
+=head1 DESCRIPTION
+
+EVP_PKEY_is_a() checks if the key type of I<pkey> is I<name>.
+
+EVP_PKEY_can_sign() checks if the functionality for the key type of
+I<pkey> supports signing.  No other check is done, such as whether
+I<pkey> contains a private key.
+
+EVP_PKEY_type_names_do_all() traverses all names for I<pkey>'s key type, and
+calls I<fn> with each name and I<data>.  For example, an RSA B<EVP_PKEY> may
+be named both C<RSA> and C<rsaEncryption>.
+The order of the names depends on the provider implementation that holds
+the key.
+
+EVP_PKEY_get0_type_name() returns the first key type name that is found
+for the given I<pkey>. Note that the I<pkey> may have multiple synonyms
+associated with it. In this case it depends on the provider implementation
+that holds the key which one will be returned.
+Ownership of the returned string is retained by the I<pkey> object and should
+not be freed by the caller.
+
+EVP_PKEY_get0_description() returns a description of the type of B<EVP_PKEY>,
+meant for display and human consumption.  The description is at the
+discretion of the key type implementation.
+
+EVP_PKEY_get0_provider() returns the provider of the B<EVP_PKEY>'s
+L<EVP_KEYMGMT(3)>.
+
+=head1 RETURN VALUES
+
+EVP_PKEY_is_a() returns 1 if I<pkey> has the key type I<name>,
+otherwise 0.
+
+EVP_PKEY_can_sign() returns 1 if the I<pkey> key type functionality
+supports signing, otherwise 0.
+
+EVP_PKEY_get0_type_name() returns the name that is found or NULL on error.
+
+EVP_PKEY_get0_description() returns the description if found or NULL if not.
+
+EVP_PKEY_get0_provider() returns the provider if found or NULL if not.
+
+EVP_PKEY_type_names_do_all() returns 1 if the callback was called for all
+names. A return value of 0 means that the callback was not called for any
+names.
+
+=head1 EXAMPLES
+
+=head2 EVP_PKEY_is_a()
+
+The loaded providers and what key types they support will ultimately
+determine what I<name> is possible to use with EVP_PKEY_is_a().  We do know
+that the default provider supports RSA, DH, DSA and EC keys, so we can use
+this as an crude example:
+
+ #include <openssl/evp.h>
+
+ ...
+     /* |pkey| is an EVP_PKEY* */
+     if (EVP_PKEY_is_a(pkey, "RSA")) {
+         BIGNUM *modulus = NULL;
+         if (EVP_PKEY_get_bn_param(pkey, "n", &modulus))
+             /* do whatever with the modulus */
+         BN_free(modulus);
+     }
+
+=head2 EVP_PKEY_can_sign()
+
+ #include <openssl/evp.h>
+
+ ...
+     /* |pkey| is an EVP_PKEY* */
+     if (!EVP_PKEY_can_sign(pkey)) {
+         fprintf(stderr, "Not a signing key!");
+         exit(1);
+     }
+     /* Sign something... */
+
+=head1 HISTORY
+
+The functions described here were added in OpenSSL 3.0.
+
+=head1 COPYRIGHT
+
+Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

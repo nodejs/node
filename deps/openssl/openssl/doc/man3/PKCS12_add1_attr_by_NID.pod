@@ -1,0 +1,52 @@
+=pod
+
+=head1 NAME
+
+PKCS12_add1_attr_by_NID, PKCS12_add1_attr_by_txt - Add an attribute to a PKCS#12
+safeBag structure
+
+=head1 SYNOPSIS
+
+ #include <openssl/pkcs12.h>
+
+ int PKCS12_add1_attr_by_NID(PKCS12_SAFEBAG *bag, int nid, int type,
+                             const unsigned char *bytes, int len);
+ int PKCS12_add1_attr_by_txt(PKCS12_SAFEBAG *bag, const char *attrname, int type,
+                             const unsigned char *bytes, int len);
+
+=head1 DESCRIPTION
+
+These functions add a PKCS#12 Attribute to the Attribute Set of the B<bag>.
+
+PKCS12_add1_attr_by_NID() adds an attribute of type B<nid> with a value of ASN1
+type B<type> constructed using B<len> bytes from B<bytes>.
+
+PKCS12_add1_attr_by_txt() adds an attribute of type B<attrname> with a value of
+ASN1 type B<type> constructed using B<len> bytes from B<bytes>.
+
+=head1 NOTES
+
+These functions do not check whether an existing attribute of the same type is
+present. There can be multiple attributes with the same type assigned to a
+safeBag.
+
+Both functions were added in OpenSSL 3.0.
+
+=head1 RETURN VALUES
+
+A return value of 1 indicates success, 0 indicates failure.
+
+=head1 SEE ALSO
+
+L<PKCS12_create(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2020 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

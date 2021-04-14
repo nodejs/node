@@ -13,10 +13,10 @@ BIO_get_mem_ptr, BIO_new_mem_buf - memory BIO
  const BIO_METHOD *BIO_s_mem(void);
  const BIO_METHOD *BIO_s_secmem(void);
 
- BIO_set_mem_eof_return(BIO *b, int v)
- long BIO_get_mem_data(BIO *b, char **pp)
- BIO_set_mem_buf(BIO *b, BUF_MEM *bm, int c)
- BIO_get_mem_ptr(BIO *b, BUF_MEM **pp)
+ BIO_set_mem_eof_return(BIO *b, int v);
+ long BIO_get_mem_data(BIO *b, char **pp);
+ BIO_set_mem_buf(BIO *b, BUF_MEM *bm, int c);
+ BIO_get_mem_ptr(BIO *b, BUF_MEM **pp);
 
  BIO *BIO_new_mem_buf(const void *buf, int len);
 
@@ -154,9 +154,9 @@ Extract the BUF_MEM structure from a memory BIO and then free up the BIO:
 
 =head1 COPYRIGHT
 
-Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

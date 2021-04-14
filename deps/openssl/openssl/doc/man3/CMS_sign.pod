@@ -2,26 +2,35 @@
 
 =head1 NAME
 
-CMS_sign - create a CMS SignedData structure
+CMS_sign, CMS_sign_ex - create a CMS SignedData structure
 
 =head1 SYNOPSIS
 
  #include <openssl/cms.h>
 
+ CMS_ContentInfo *CMS_sign_ex(X509 *signcert, EVP_PKEY *pkey,
+                              STACK_OF(X509) *certs, BIO *data,
+                              unsigned int flags, OSSL_LIB_CTX *ctx,
+                              const char *propq);
  CMS_ContentInfo *CMS_sign(X509 *signcert, EVP_PKEY *pkey, STACK_OF(X509) *certs,
                            BIO *data, unsigned int flags);
 
 =head1 DESCRIPTION
 
-CMS_sign() creates and returns a CMS SignedData structure. B<signcert> is
-the certificate to sign with, B<pkey> is the corresponding private key.
-B<certs> is an optional additional set of certificates to include in the CMS
-structure (for example any intermediate CAs in the chain). Any or all of
-these parameters can be B<NULL>, see B<NOTES> below.
+CMS_sign_ex() creates and returns a CMS SignedData structure.
+I<signcert> is the certificate to sign with, I<pkey> is the corresponding
+private key. I<certs> is an optional additional set of certificates to include
+in the CMS structure (for example any intermediate CAs in the chain). The
+library context I<libctx> and the property query I<propq> are used when
+retrieving algorithms from providers. Any or all of these parameters can be
+B<NULL>, see B<NOTES> below.
 
 The data to be signed is read from BIO B<data>.
 
 B<flags> is an optional set of flags.
+
+CMS_sign() is similar to CMS_sign_ex() but uses default values of NULL
+for the library context I<libctx> and the property query I<propq>.
 
 =head1 NOTES
 
@@ -57,7 +66,8 @@ omitted.
 If present the SMIMECapabilities attribute indicates support for the following
 algorithms in preference order: 256 bit AES, Gost R3411-94, Gost 28147-89, 192
 bit AES, 128 bit AES, triple DES, 128 bit RC2, 64 bit RC2, DES and 40 bit RC2.
-If any of these algorithms is not available then it will not be included: for example the GOST algorithms will not be included if the GOST ENGINE is
+If any of these algorithms is not available then it will not be included:
+for example the GOST algorithms will not be included if the GOST ENGINE is
 not loaded.
 
 OpenSSL will by default identify signing certificates using issuer name
@@ -105,8 +115,9 @@ Some attributes such as counter signatures are not supported.
 
 =head1 RETURN VALUES
 
-CMS_sign() returns either a valid CMS_ContentInfo structure or NULL if an error
-occurred. The error can be obtained from ERR_get_error(3).
+CMS_sign_ex() and CMS_sign() return either a valid CMS_ContentInfo
+structure or NULL if an error occurred. The error can be obtained from
+ERR_get_error(3).
 
 =head1 SEE ALSO
 
@@ -117,11 +128,13 @@ L<ERR_get_error(3)>, L<CMS_verify(3)>
 The B<CMS_STREAM> flag is only supported for detached data in OpenSSL 0.9.8,
 it is supported for embedded data in OpenSSL 1.0.0 and later.
 
+The CMS_sign_ex() method was added in OpenSSL 3.0.
+
 =head1 COPYRIGHT
 
-Copyright 2008-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2008-2020 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

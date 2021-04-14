@@ -1,7 +1,7 @@
 /*
- * Copyright 1995-2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -25,7 +25,7 @@ ASN1_OBJECT *OBJ_dup(const ASN1_OBJECT *o)
 
     r = ASN1_OBJECT_new();
     if (r == NULL) {
-        OBJerr(OBJ_F_OBJ_DUP, ERR_R_ASN1_LIB);
+        ERR_raise(ERR_LIB_OBJ, ERR_R_ASN1_LIB);
         return NULL;
     }
 
@@ -50,7 +50,7 @@ ASN1_OBJECT *OBJ_dup(const ASN1_OBJECT *o)
     return r;
  err:
     ASN1_OBJECT_free(r);
-    OBJerr(OBJ_F_OBJ_DUP, ERR_R_MALLOC_FAILURE);
+    ERR_raise(ERR_LIB_OBJ, ERR_R_MALLOC_FAILURE);
     return NULL;
 }
 

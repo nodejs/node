@@ -1,7 +1,7 @@
 #! /usr/bin/env perl
-# Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
@@ -41,19 +41,21 @@
 # (***)	Multi-process benchmark saturates at ~12.5x single-process
 #	result on 8-core processor, or ~21GBps per 2.85GHz socket.
 
-my $output = pop;
-open STDOUT,">$output";
+# $output is the last argument if it looks like a file (it has an extension)
+my $output = $#ARGV >= 0 && $ARGV[$#ARGV] =~ m|\.\w+$| ? pop : undef;
+
+open STDOUT,">$output" if $output;
 
 my ($ctx,$inp,$len,$padbit,$shl,$shr)	= map("%i$_",(0..5));
 my ($r0,$r1,$r2,$r3,$s1,$s2,$s3,$h4)	= map("%l$_",(0..7));
 my ($h0,$h1,$h2,$h3, $t0,$t1,$t2)	= map("%o$_",(0..5,7));
 my ($d0,$d1,$d2,$d3)			= map("%g$_",(1..4));
 
-my $output = pop;
-open STDOUT,">$stdout";
-
 $code.=<<___;
-#include "sparc_arch.h"
+#ifndef __ASSEMBLER__
+# define __ASSEMBLER__ 1
+#endif
+#include "crypto/sparc_arch.h"
 
 #ifdef	__arch64__
 .register	%g2,#scratch

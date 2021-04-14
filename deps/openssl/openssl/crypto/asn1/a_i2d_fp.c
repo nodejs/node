@@ -1,7 +1,7 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -15,13 +15,13 @@
 #ifndef NO_OLD_ASN1
 
 # ifndef OPENSSL_NO_STDIO
-int ASN1_i2d_fp(i2d_of_void *i2d, FILE *out, void *x)
+int ASN1_i2d_fp(i2d_of_void *i2d, FILE *out, const void *x)
 {
     BIO *b;
     int ret;
 
     if ((b = BIO_new(BIO_s_file())) == NULL) {
-        ASN1err(ASN1_F_ASN1_I2D_FP, ERR_R_BUF_LIB);
+        ERR_raise(ERR_LIB_ASN1, ERR_R_BUF_LIB);
         return 0;
     }
     BIO_set_fp(b, out, BIO_NOCLOSE);
@@ -31,7 +31,7 @@ int ASN1_i2d_fp(i2d_of_void *i2d, FILE *out, void *x)
 }
 # endif
 
-int ASN1_i2d_bio(i2d_of_void *i2d, BIO *out, unsigned char *x)
+int ASN1_i2d_bio(i2d_of_void *i2d, BIO *out, const void *x)
 {
     char *b;
     unsigned char *p;
@@ -43,7 +43,7 @@ int ASN1_i2d_bio(i2d_of_void *i2d, BIO *out, unsigned char *x)
 
     b = OPENSSL_malloc(n);
     if (b == NULL) {
-        ASN1err(ASN1_F_ASN1_I2D_BIO, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
         return 0;
     }
 
@@ -68,13 +68,13 @@ int ASN1_i2d_bio(i2d_of_void *i2d, BIO *out, unsigned char *x)
 #endif
 
 #ifndef OPENSSL_NO_STDIO
-int ASN1_item_i2d_fp(const ASN1_ITEM *it, FILE *out, void *x)
+int ASN1_item_i2d_fp(const ASN1_ITEM *it, FILE *out, const void *x)
 {
     BIO *b;
     int ret;
 
     if ((b = BIO_new(BIO_s_file())) == NULL) {
-        ASN1err(ASN1_F_ASN1_ITEM_I2D_FP, ERR_R_BUF_LIB);
+        ERR_raise(ERR_LIB_ASN1, ERR_R_BUF_LIB);
         return 0;
     }
     BIO_set_fp(b, out, BIO_NOCLOSE);
@@ -84,14 +84,14 @@ int ASN1_item_i2d_fp(const ASN1_ITEM *it, FILE *out, void *x)
 }
 #endif
 
-int ASN1_item_i2d_bio(const ASN1_ITEM *it, BIO *out, void *x)
+int ASN1_item_i2d_bio(const ASN1_ITEM *it, BIO *out, const void *x)
 {
     unsigned char *b = NULL;
     int i, j = 0, n, ret = 1;
 
     n = ASN1_item_i2d(x, &b, it);
     if (b == NULL) {
-        ASN1err(ASN1_F_ASN1_ITEM_I2D_BIO, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
         return 0;
     }
 
@@ -108,4 +108,22 @@ int ASN1_item_i2d_bio(const ASN1_ITEM *it, BIO *out, void *x)
     }
     OPENSSL_free(b);
     return ret;
+}
+
+BIO *ASN1_item_i2d_mem_bio(const ASN1_ITEM *it, const ASN1_VALUE *val)
+{
+    BIO *res;
+
+    if (it == NULL || val == NULL) {
+        ERR_raise(ERR_LIB_ASN1, ERR_R_PASSED_NULL_PARAMETER);
+        return NULL;
+    }
+
+    if ((res = BIO_new(BIO_s_mem())) == NULL)
+        return NULL;
+    if (ASN1_item_i2d_bio(it, res, val) <= 0) {
+        BIO_free(res);
+        res = NULL;
+    }
+    return res;
 }

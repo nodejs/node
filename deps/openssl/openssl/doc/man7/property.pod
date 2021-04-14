@@ -1,0 +1,172 @@
+=pod
+
+=head1 NAME
+
+property - Properties, a selection mechanism for algorithm implementations
+
+=head1 DESCRIPTION
+
+As of OpenSSL 3.0, a new method has been introduced to decide which of
+multiple implementations of an algorithm will be used.
+The method is centered around the concept of properties.
+Each implementation defines a number of properties and when an algorithm
+is being selected, filters based on these properties can be used to
+choose the most appropriate implementation of the algorithm.
+
+Properties are like variables, they are referenced by name and have a value
+assigned.
+
+=head2 Property Names
+
+Property names fall into two categories: those reserved by the OpenSSL
+project and user defined names.
+A I<reserved> property name consists of a single C-style identifier
+(except for leading underscores not being permitted), which begins
+with a letter and can be followed by any number of letters, numbers
+and underscores.
+Property names are case-insensitive, but OpenSSL will only use lowercase
+letters.
+
+A I<user defined> property name is similar, but it B<must> consist of
+two or more C-style identifiers, separated by periods.
+The last identifier in the name can be considered the 'true' property
+name, which is prefixed by some sort of 'namespace'.
+Providers for example could include their name in the prefix and use
+property names like
+
+  <provider_name>.<property_name>
+  <provider_name>.<algorithm_name>.<property_name>
+
+=head2 Properties
+
+A I<property> is a I<name=value> pair.
+A I<property definition> is a sequence of comma separated properties.
+There can be any number of properties in a definition.
+For example: "" defines an empty property definition (i.e., no restriction);
+"my.foo=bar" defines a property named I<my.foo> which has a string value I<bar>
+and "iteration.count=3" defines a property named I<iteration.count> which
+has a numeric value of I<3>.
+The full syntax for property definitions appears below.
+
+=head2 Implementations
+
+Each implementation of an algorithm can define any number of
+properties.
+For example, the default provider defines the property I<provider=default>
+for all of its algorithms.
+Likewise, OpenSSL's FIPS provider defines I<provider=fips> and the legacy
+provider defines I<provider=legacy> for all of their algorithms.
+
+=head2 Queries
+
+A I<property query clause> is a single conditional test.
+For example, "fips=yes", "provider!=default" or "?iteration.count=3".
+The first two represent mandatory clauses, such clauses B<must> match
+for any algorithm to even be under consideration.
+The third clause represents an optional clause.
+Matching such clauses is not a requirement, but any additional optional
+match counts in favor of the algorithm.
+More details about that in the B<Lookups> section.
+A I<property query> is a sequence of comma separated property query clauses.
+The full syntax for property queries appears below, but the available syntactic
+features are:
+
+=over 4
+
+=item *
+
+B<=> is an infix operator providing an equality test.
+
+=item *
+
+B<!=> is an infix operator providing an inequality test.
+
+=item *
+
+B<?> is a prefix operator that means that the following clause is optional
+but preferred.
+
+=item *
+
+B<-> is a prefix operator that means any global query clause involving the
+following property name should be ignored.
+
+=item *
+
+B<"..."> is a quoted string.
+The quotes are not included in the body of the string.
+
+=item *
+
+B<'...'> is a quoted string.
+The quotes are not included in the body of the string.
+
+=back
+
+=head2 Lookups
+
+When an algorithm is looked up, a property query is used to determine
+the best matching algorithm.
+All mandatory query clauses B<must> be present and the implementation
+that additionally has the largest number of matching optional query
+clauses will be used.
+If there is more than one such optimal candidate, the result will be
+chosen from amongst those in an indeterminate way.
+Ordering of optional clauses is not significant.
+
+=head2 Shortcut
+
+In order to permit a more concise expression of boolean properties, there
+is one short cut: a property name alone (e.g. "my.property") is
+exactly equivalent to "my.property=yes" in both definitions and queries.
+
+=head2 Global and Local
+
+Two levels of property query are supported.
+A context based property query that applies to all fetch operations and a local
+property query.
+Where both the context and local queries include a clause with the same name,
+the local clause overrides the context clause.
+
+It is possible for a local property query to remove a clause in the context
+property query by preceding the property name with a '-'.
+For example, a context property query that contains "fips=yes" would normally
+result in implementations that have "fips=yes".
+
+However, if the setting of the "fips" property is irrelevant to the
+operations being performed, the local property query can include the
+clause "-fips".
+Note that the local property query could not use "fips=no" because that would
+disallow any implementations with "fips=yes" rather than not caring about the
+setting.
+
+=head1 SYNTAX
+
+The lexical syntax in EBNF is given by:
+
+ Definition     ::= PropertyName ( '=' Value )? 
+                        ( ',' PropertyName ( '=' Value )? )*
+ Query          ::= PropertyQuery ( ',' PropertyQuery )*
+ PropertyQuery  ::= '-' PropertyName
+                  | '?'? ( PropertyName (( '=' | '!=' ) Value)?)
+ Value          ::= NumberLiteral | StringLiteral
+ StringLiteral  ::= QuotedString | UnquotedString
+ QuotedString   ::= '"' [^"]* '"' | "'" [^']* "'"
+ UnquotedString ::= [^{space},]+
+ NumberLiteral  ::= '0' ( [0-7]* | 'x' [0-9A-Fa-f]+ ) | '-'? [1-9] [0-9]+
+ PropertyName   ::= [A-Z] [A-Z0-9_]* ( '.' [A-Z] [A-Z0-9_]* )*
+
+=head1 HISTORY
+
+Properties were added in OpenSSL 3.0
+
+=head1 COPYRIGHT
+
+Copyright 2019-2020 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

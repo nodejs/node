@@ -1,7 +1,7 @@
 /*
- * Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -106,7 +106,7 @@ static int vms_load(DSO *dso)
     const char *ext = NULL;     /* possible extension to add */
 
     if (filename == NULL) {
-        DSOerr(DSO_F_VMS_LOAD, DSO_R_NO_FILENAME);
+        ERR_raise(ERR_LIB_DSO, DSO_R_NO_FILENAME);
         goto err;
     }
 
@@ -169,13 +169,13 @@ static int vms_load(DSO *dso)
     /* Check that we won't get buffer overflows */
     if (sp2 - sp1 > FILENAME_MAX
         || (sp1 - filename) + strlen(sp2) > FILENAME_MAX) {
-        DSOerr(DSO_F_VMS_LOAD, DSO_R_FILENAME_TOO_BIG);
+        ERR_raise(ERR_LIB_DSO, DSO_R_FILENAME_TOO_BIG);
         goto err;
     }
 
     p = DSO_MALLOC(sizeof(*p));
     if (p == NULL) {
-        DSOerr(DSO_F_VMS_LOAD, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_DSO, ERR_R_MALLOC_FAILURE);
         goto err;
     }
 
@@ -201,7 +201,7 @@ static int vms_load(DSO *dso)
     p->imagename_dsc.dsc$a_pointer = p->imagename;
 
     if (!sk_void_push(dso->meth_data, (char *)p)) {
-        DSOerr(DSO_F_VMS_LOAD, DSO_R_STACK_ERROR);
+        ERR_raise(ERR_LIB_DSO, DSO_R_STACK_ERROR);
         goto err;
     }
 
@@ -224,14 +224,14 @@ static int vms_unload(DSO *dso)
 {
     DSO_VMS_INTERNAL *p;
     if (dso == NULL) {
-        DSOerr(DSO_F_VMS_UNLOAD, ERR_R_PASSED_NULL_PARAMETER);
+        ERR_raise(ERR_LIB_DSO, ERR_R_PASSED_NULL_PARAMETER);
         return 0;
     }
     if (sk_void_num(dso->meth_data) < 1)
         return 1;
     p = (DSO_VMS_INTERNAL *)sk_void_pop(dso->meth_data);
     if (p == NULL) {
-        DSOerr(DSO_F_VMS_UNLOAD, DSO_R_NULL_HANDLE);
+        ERR_raise(ERR_LIB_DSO, DSO_R_NULL_HANDLE);
         return 0;
     }
     /* Cleanup */
@@ -287,7 +287,7 @@ void vms_bind_sym(DSO *dso, const char *symname, void **sym)
     *sym = NULL;
 
     if ((dso == NULL) || (symname == NULL)) {
-        DSOerr(DSO_F_VMS_BIND_SYM, ERR_R_PASSED_NULL_PARAMETER);
+        ERR_raise(ERR_LIB_DSO, ERR_R_PASSED_NULL_PARAMETER);
         return;
     }
 # if __INITIAL_POINTER_SIZE == 64
@@ -302,13 +302,13 @@ void vms_bind_sym(DSO *dso, const char *symname, void **sym)
     symname_dsc.dsc$a_pointer = SYMNAME;
 
     if (sk_void_num(dso->meth_data) < 1) {
-        DSOerr(DSO_F_VMS_BIND_SYM, DSO_R_STACK_ERROR);
+        ERR_raise(ERR_LIB_DSO, DSO_R_STACK_ERROR);
         return;
     }
     ptr = (DSO_VMS_INTERNAL *)sk_void_value(dso->meth_data,
                                             sk_void_num(dso->meth_data) - 1);
     if (ptr == NULL) {
-        DSOerr(DSO_F_VMS_BIND_SYM, DSO_R_NULL_HANDLE);
+        ERR_raise(ERR_LIB_DSO, DSO_R_NULL_HANDLE);
         return;
     }
 
@@ -336,17 +336,15 @@ void vms_bind_sym(DSO *dso, const char *symname, void **sym)
         else {
             errstring[length] = '\0';
 
-            DSOerr(DSO_F_VMS_BIND_SYM, DSO_R_SYM_FAILURE);
             if (ptr->imagename_dsc.dsc$w_length)
-                ERR_add_error_data(9,
-                                   "Symbol ", symname,
-                                   " in ", ptr->filename,
-                                   " (", ptr->imagename, ")",
-                                   ": ", errstring);
+                ERR_raise_data(ERR_LIB_DSO, DSO_R_SYM_FAILURE,
+                               "Symbol %s in %s (%s): %s",
+                               symname, ptr->filename, ptr->imagename,
+                               errstring);
             else
-                ERR_add_error_data(6,
-                                   "Symbol ", symname,
-                                   " in ", ptr->filename, ": ", errstring);
+                ERR_raise_data(ERR_LIB_DSO, DSO_R_SYM_FAILURE,
+                               "Symbol %s in %s: %s",
+                               symname, ptr->filename, errstring);
         }
         return;
     }
@@ -436,10 +434,9 @@ static char *vms_merger(DSO *dso, const char *filespec1,
         else {
             errstring[length] = '\0';
 
-            DSOerr(DSO_F_VMS_MERGER, DSO_R_FAILURE);
-            ERR_add_error_data(7,
-                               "filespec \"", filespec1, "\", ",
-                               "defaults \"", filespec2, "\": ", errstring);
+            ERR_raise_data(ERR_LIB_DSO, DSO_R_FAILURE,
+                           "filespec \"%s\", default \"%s\": %s",
+                           filespec1, filespec2, errstring);
         }
         return NULL;
     }
@@ -451,16 +448,42 @@ static char *vms_merger(DSO *dso, const char *filespec1,
     merged[nam.NAMX_ESL] = '\0';
     return merged;
  malloc_err:
-    DSOerr(DSO_F_VMS_MERGER, ERR_R_MALLOC_FAILURE);
+    ERR_raise(ERR_LIB_DSO, ERR_R_MALLOC_FAILURE);
 }
 
 static char *vms_name_converter(DSO *dso, const char *filename)
 {
-    int len = strlen(filename);
-    char *not_translated = OPENSSL_malloc(len + 1);
-    if (not_translated != NULL)
-        strcpy(not_translated, filename);
-    return not_translated;
+    char *translated;
+    int len, transform;
+    const char *p;
+
+    len = strlen(filename);
+
+    p = strchr(filename, ':');
+    if (p != NULL) {
+        transform = 0;
+    } else {
+        p = filename;
+        transform = (strrchr(p, '>') == NULL && strrchr(p, ']') == NULL);
+    }
+
+    if (transform) {
+        int rsize = len + sizeof(DSO_EXTENSION);
+
+        if ((translated = OPENSSL_malloc(rsize)) != NULL) {
+            p = strrchr(filename, ';');
+            if (p != NULL)
+                len = p - filename;
+            strncpy(translated, filename, len);
+            translated[len] = '\0';
+            strcat(translated, DSO_EXTENSION);
+            if (p != NULL)
+                strcat(translated, p);
+        }
+    } else {
+        translated = OPENSSL_strdup(filename);
+    }
+    return translated;
 }
 
 #endif                          /* OPENSSL_SYS_VMS */

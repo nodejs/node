@@ -3,6 +3,7 @@
 .align	4
 _sha1_block_data_order:
 L_sha1_block_data_order_begin:
+.byte	243,15,30,251
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -1395,6 +1396,7 @@ L002loop:
 	ret
 .align	4
 __sha1_block_data_order_shaext:
+.byte	243,15,30,251
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -1563,6 +1565,7 @@ L004loop_shaext:
 	ret
 .align	4
 __sha1_block_data_order_ssse3:
+.byte	243,15,30,251
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -2780,6 +2783,7 @@ L007done:
 	ret
 .align	4
 __sha1_block_data_order_avx:
+.byte	243,15,30,251
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi

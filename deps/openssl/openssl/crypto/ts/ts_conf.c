@@ -1,11 +1,14 @@
 /*
- * Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+/* We need to use some engine deprecated APIs */
+#define OPENSSL_SUPPRESS_DEPRECATED
 
 #include <string.h>
 
@@ -14,6 +17,7 @@
 #include <openssl/pem.h>
 #include <openssl/engine.h>
 #include <openssl/ts.h>
+#include <openssl/conf_api.h>
 
 /* Macro definitions for the configuration file. */
 #define BASE_SECTION                    "tsa"
@@ -51,7 +55,7 @@ X509 *TS_CONF_load_cert(const char *file)
     x = PEM_read_bio_X509_AUX(cert, NULL, NULL, NULL);
  end:
     if (x == NULL)
-        TSerr(TS_F_TS_CONF_LOAD_CERT, TS_R_CANNOT_LOAD_CERT);
+        ERR_raise(ERR_LIB_TS, TS_R_CANNOT_LOAD_CERT);
     BIO_free(cert);
     return x;
 }
@@ -71,14 +75,19 @@ STACK_OF(X509) *TS_CONF_load_certs(const char *file)
     allcerts = PEM_X509_INFO_read_bio(certs, NULL, NULL, NULL);
     for (i = 0; i < sk_X509_INFO_num(allcerts); i++) {
         X509_INFO *xi = sk_X509_INFO_value(allcerts, i);
-        if (xi->x509) {
-            sk_X509_push(othercerts, xi->x509);
+
+        if (xi->x509 != NULL) {
+            if (!X509_add_cert(othercerts, xi->x509, X509_ADD_FLAG_DEFAULT)) {
+                sk_X509_pop_free(othercerts, X509_free);
+                othercerts = NULL;
+                goto end;
+            }
             xi->x509 = NULL;
         }
     }
  end:
     if (othercerts == NULL)
-        TSerr(TS_F_TS_CONF_LOAD_CERTS, TS_R_CANNOT_LOAD_CERT);
+        ERR_raise(ERR_LIB_TS, TS_R_CANNOT_LOAD_CERT);
     sk_X509_INFO_pop_free(allcerts, X509_INFO_free);
     BIO_free(certs);
     return othercerts;
@@ -94,7 +103,7 @@ EVP_PKEY *TS_CONF_load_key(const char *file, const char *pass)
     pkey = PEM_read_bio_PrivateKey(key, NULL, NULL, (char *)pass);
  end:
     if (pkey == NULL)
-        TSerr(TS_F_TS_CONF_LOAD_KEY, TS_R_CANNOT_LOAD_KEY);
+        ERR_raise(ERR_LIB_TS, TS_R_CANNOT_LOAD_KEY);
     BIO_free(key);
     return pkey;
 }
@@ -103,14 +112,12 @@ EVP_PKEY *TS_CONF_load_key(const char *file, const char *pass)
 
 static void ts_CONF_lookup_fail(const char *name, const char *tag)
 {
-    TSerr(TS_F_TS_CONF_LOOKUP_FAIL, TS_R_VAR_LOOKUP_FAILURE);
-    ERR_add_error_data(3, name, "::", tag);
+    ERR_raise_data(ERR_LIB_TS, TS_R_VAR_LOOKUP_FAILURE, "%s::%s", name, tag);
 }
 
 static void ts_CONF_invalid(const char *name, const char *tag)
 {
-    TSerr(TS_F_TS_CONF_INVALID, TS_R_VAR_BAD_VALUE);
-    ERR_add_error_data(3, name, "::", tag);
+    ERR_raise_data(ERR_LIB_TS, TS_R_VAR_BAD_VALUE, "%s::%s", name, tag);
 }
 
 const char *TS_CONF_get_tsa_section(CONF *conf, const char *section)
@@ -175,10 +182,9 @@ int TS_CONF_set_default_engine(const char *name)
     ret = 1;
 
  err:
-    if (!ret) {
-        TSerr(TS_F_TS_CONF_SET_DEFAULT_ENGINE, TS_R_COULD_NOT_SET_ENGINE);
-        ERR_add_error_data(2, "engine:", name);
-    }
+    if (!ret)
+        ERR_raise_data(ERR_LIB_TS, TS_R_COULD_NOT_SET_ENGINE,
+                       "engine:%s", name);
     ENGINE_free(e);
     return ret;
 }
@@ -283,9 +289,10 @@ int TS_CONF_set_def_policy(CONF *conf, const char *section,
 {
     int ret = 0;
     ASN1_OBJECT *policy_obj = NULL;
-    if (!policy)
+
+    if (policy == NULL)
         policy = NCONF_get_string(conf, section, ENV_DEFAULT_POLICY);
-    if (!policy) {
+    if (policy == NULL) {
         ts_CONF_lookup_fail(section, ENV_DEFAULT_POLICY);
         goto err;
     }
@@ -409,7 +416,7 @@ int TS_CONF_set_accuracy(CONF *conf, const char *section, TS_RESP_CTX *ctx)
     return ret;
 }
 
-int TS_CONF_set_clock_precision_digits(CONF *conf, const char *section,
+int TS_CONF_set_clock_precision_digits(const CONF *conf, const char *section,
                                        TS_RESP_CTX *ctx)
 {
     int ret = 0;
@@ -418,9 +425,7 @@ int TS_CONF_set_clock_precision_digits(CONF *conf, const char *section,
     /*
      * If not specified, set the default value to 0, i.e. sec precision
      */
-    if (!NCONF_get_number_e(conf, section, ENV_CLOCK_PRECISION_DIGITS,
-                            &digits))
-        digits = 0;
+    digits = _CONF_get_number(conf, section, ENV_CLOCK_PRECISION_DIGITS);
     if (digits < 0 || digits > TS_MAX_CLOCK_PRECISION_DIGITS) {
         ts_CONF_invalid(section, ENV_CLOCK_PRECISION_DIGITS);
         goto err;

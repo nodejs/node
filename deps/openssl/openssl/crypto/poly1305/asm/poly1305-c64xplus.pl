@@ -1,7 +1,7 @@
 #! /usr/bin/env perl
 # Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
@@ -26,8 +26,7 @@
 # time dependent on input length. This module on the other hand is free
 # from such limitation.
 
-$output=pop;
-open STDOUT,">$output";
+$output=pop and open STDOUT,">$output";
 
 ($CTXA,$INPB,$LEN,$PADBIT)=("A4","B4","A6","B6");
 ($H0,$H1,$H2,$H3,$H4,$H4a)=("A8","B8","A10","B10","B2",$LEN);

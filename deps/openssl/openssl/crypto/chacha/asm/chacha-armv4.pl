@@ -1,7 +1,7 @@
 #! /usr/bin/env perl
 # Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
@@ -34,9 +34,10 @@
 #	but then Snapdragon S4 and Cortex-A8 results get
 #	20-25% worse;
 
-$flavour = shift;
-if ($flavour=~/\w[\w\-]*\.\w+$/) { $output=$flavour; undef $flavour; }
-else { while (($output=shift) && ($output!~/\w[\w\-]*\.\w+$/)) {} }
+# $output is the last argument if it looks like a file (it has an extension)
+# $flavour is the first argument if it doesn't look like a file
+$output = $#ARGV >= 0 && $ARGV[$#ARGV] =~ m|\.\w+$| ? pop : undef;
+$flavour = $#ARGV >= 0 && $ARGV[0] !~ m|\.| ? shift : undef;
 
 if ($flavour && $flavour ne "void") {
     $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
@@ -44,9 +45,10 @@ if ($flavour && $flavour ne "void") {
     ( $xlate="${dir}../../perlasm/arm-xlate.pl" and -f $xlate) or
     die "can't locate arm-xlate.pl";
 
-    open STDOUT,"| \"$^X\" $xlate $flavour $output";
+    open STDOUT,"| \"$^X\" $xlate $flavour $output"
+        or die "can't call $xlate: $!";
 } else {
-    open STDOUT,">$output";
+    $output and open STDOUT,">$output";
 }
 
 sub AUTOLOAD()		# thunk [simplified] x86-style perlasm
@@ -171,7 +173,6 @@ my @ret;
 $code.=<<___;
 #include "arm_arch.h"
 
-.text
 #if defined(__thumb2__) || defined(__clang__)
 .syntax	unified
 #endif
@@ -185,6 +186,8 @@ $code.=<<___;
 #define ldrhsb	ldrbhs
 #endif
 
+.text
+
 .align	5
 .Lsigma:
 .long	0x61707865,0x3320646e,0x79622d32,0x6b206574	@ endian-neutral
@@ -192,7 +195,11 @@ $code.=<<___;
 .long	1,0,0,0
 #if __ARM_MAX_ARCH__>=7
 .LOPENSSL_armcap:
+# ifdef	_WIN32
+.word	OPENSSL_armcap_P
+# else
 .word   OPENSSL_armcap_P-.LChaCha20_ctr32
+# endif
 #else
 .word	-1
 #endif
@@ -219,8 +226,10 @@ ChaCha20_ctr32:
 	cmp	r2,#192			@ test len
 	bls	.Lshort
 	ldr	r4,[r14,#-32]
+# if !defined(_WIN32)
 	ldr	r4,[r14,r4]
-# ifdef	__APPLE__
+# endif
+# if defined(__APPLE__) || defined(_WIN32)
 	ldr	r4,[r4]
 # endif
 	tst	r4,#ARMV7_NEON

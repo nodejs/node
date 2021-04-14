@@ -2,7 +2,8 @@
 
 =head1 NAME
 
-CTLOG_new, CTLOG_new_from_base64, CTLOG_free,
+CTLOG_new_ex, CTLOG_new, CTLOG_new_from_base64,
+CTLOG_new_from_base64_ex, CTLOG_free,
 CTLOG_get0_name, CTLOG_get0_log_id, CTLOG_get0_public_key -
 encapsulates information about a Certificate Transparency log
 
@@ -10,7 +11,13 @@ encapsulates information about a Certificate Transparency log
 
  #include <openssl/ct.h>
 
+ CTLOG *CTLOG_new_ex(EVP_PKEY *public_key, const char *name,
+                     OSSL_LIB_CTX *libctx, const char *propq);
  CTLOG *CTLOG_new(EVP_PKEY *public_key, const char *name);
+
+ int CTLOG_new_from_base64_ex(CTLOG **ct_log, const char *pkey_base64,
+                              const char *name, OSSL_LIB_CTX *libctx,
+                              const char *propq);
  int CTLOG_new_from_base64(CTLOG ** ct_log,
                            const char *pkey_base64, const char *name);
  void CTLOG_free(CTLOG *log);
@@ -21,14 +28,24 @@ encapsulates information about a Certificate Transparency log
 
 =head1 DESCRIPTION
 
-CTLOG_new() returns a new CTLOG that represents the Certificate Transparency
-(CT) log with the given public key. A name must also be provided that can be
-used to help users identify this log. Ownership of the public key is
-transferred.
+CTLOG_new_ex() returns a new CTLOG that represents the Certificate
+Transparency (CT) log with the given public key and associates it with the
+library context I<libctx> and property query string I<propq>. A name must also
+be provided that can be used to help users identify this log. Ownership of the
+public key is transferred.
 
-CTLOG_new_from_base64() also creates a new CTLOG, but takes the public key in
-base64-encoded DER form and sets the ct_log pointer to point to the new CTLOG.
-The base64 will be decoded and the public key parsed.
+CTLOG_new() does the same thing as CTLOG_new_ex() but with the default
+library context and the default property query string.
+
+CTLOG_new_from_base64_ex() also creates a new CTLOG, but takes the
+public key in base64-encoded DER form and sets the ct_log pointer to point to
+the new CTLOG. The base64 will be decoded and the public key parsed. The CTLOG
+will be associated with the given library context I<libctx> and property query
+string I<propq>.
+
+CTLOG_new_from_base64() does the same thing as
+CTLOG_new_from_base64_ex() except that the default library context and
+property query string are used.
 
 Regardless of whether CTLOG_new() or CTLOG_new_from_base64() is used, it is the
 caller's responsibility to pass the CTLOG to CTLOG_free() once it is no longer
@@ -58,13 +75,14 @@ L<ct(7)>
 
 =head1 HISTORY
 
-These functions were added in OpenSSL 1.1.0.
+The functions CTLOG_new_ex() and CTLOG_new_from_base64_ex()
+were added in OpenSSL 3.0. All other functions were added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

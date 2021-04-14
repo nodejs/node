@@ -1,16 +1,23 @@
 /*
- * Copyright 1995-2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
 
+/*
+ * DES low level APIs are deprecated for public use, but still ok for internal
+ * use.
+ */
+#include "internal/deprecated.h"
+
 #include <openssl/e_os2.h>
 #include <string.h>
 
 #include "testutil.h"
+#include "internal/nelem.h"
 
 #ifndef OPENSSL_NO_DES
 # include <openssl/des.h>
@@ -287,7 +294,7 @@ static char *pt(const unsigned char *p, char buf[DATA_BUF_SIZE])
 {
     char *ret;
     int i;
-    static char *f = "0123456789ABCDEF";
+    static const char *f = "0123456789ABCDEF";
 
     ret = &(buf[0]);
     for (i = 0; i < 8; i++) {
@@ -691,6 +698,79 @@ static int test_des_quad_cksum(void)
         return 0;
     return 1;
 }
+
+/*
+ * Test TDES based key wrapping.
+ * The wrapping process uses a randomly generated IV so it is difficult to
+ * undertake KATs.  End to end testing is performed instead.
+ */
+static const int test_des_key_wrap_sizes[] = {
+    8, 16, 24, 32, 64, 80
+};
+
+static int test_des_key_wrap(int idx)
+{
+    int in_bytes = test_des_key_wrap_sizes[idx];
+    unsigned char in[100], c_txt[200], p_txt[200], key[24];
+    int clen, clen_upd, clen_fin, plen, plen_upd, plen_fin, expect, bs, i;
+    EVP_CIPHER *cipher = NULL;
+    EVP_CIPHER_CTX *ctx = NULL;
+    int res = 0;
+
+    /* Some sanity checks and cipher loading */
+    if (!TEST_size_t_le(in_bytes, sizeof(in))
+            || !TEST_ptr(cipher = EVP_CIPHER_fetch(NULL, "DES3-WRAP", NULL))
+            || !TEST_int_eq(bs = EVP_CIPHER_get_block_size(cipher), 8)
+            || !TEST_size_t_eq(bs * 3u, sizeof(key))
+            || !TEST_true(in_bytes % bs == 0)
+            || !TEST_ptr(ctx = EVP_CIPHER_CTX_new()))
+        goto err;
+
+    /* Create random data to end to end test */
+    for (i = 0; i < in_bytes; i++)
+        in[i] = test_random();
+
+    /* Build the key */
+    memcpy(key, cbc_key, sizeof(cbc_key));
+    memcpy(key + sizeof(cbc_key), cbc2_key, sizeof(cbc2_key));
+    memcpy(key + sizeof(cbc_key) + sizeof(cbc3_key), cbc_key, sizeof(cbc3_key));
+
+    /* Wrap / encrypt the key */
+    clen_upd = sizeof(c_txt);
+    if (!TEST_true(EVP_EncryptInit(ctx, cipher, key, NULL))
+            || !TEST_true(EVP_EncryptUpdate(ctx, c_txt, &clen_upd,
+                                            in, in_bytes)))
+        goto err;
+
+    expect = (in_bytes + (bs - 1)) / bs * bs + 2 * bs;
+    if (!TEST_int_eq(clen_upd, expect))
+        goto err;
+
+    clen_fin = sizeof(c_txt) - clen_upd;
+    if (!TEST_true(EVP_EncryptFinal(ctx, c_txt + clen_upd, &clen_fin))
+            || !TEST_int_eq(clen_fin, 0))
+        goto err;
+    clen = clen_upd + clen_fin;
+
+    /* Decrypt the wrapped key */
+    plen_upd = sizeof(p_txt);
+    if (!TEST_true(EVP_DecryptInit(ctx, cipher, key, NULL))
+            || !TEST_true(EVP_DecryptUpdate(ctx, p_txt, &plen_upd,
+                                            c_txt, clen)))
+        goto err;
+    plen_fin = sizeof(p_txt) - plen_upd;
+    if (!TEST_true(EVP_DecryptFinal(ctx, p_txt + plen_upd, &plen_fin)))
+        goto err;
+    plen = plen_upd + plen_fin;
+
+    if (!TEST_mem_eq(in, in_bytes, p_txt, plen))
+        goto err;
+    res = 1;
+ err:
+    EVP_CIPHER_free(cipher);
+    EVP_CIPHER_CTX_free(ctx);
+    return res;
+}
 #endif
 
 int setup_tests(void)
@@ -716,6 +796,7 @@ int setup_tests(void)
     ADD_TEST(test_des_crypt);
     ADD_ALL_TESTS(test_input_align, 4);
     ADD_ALL_TESTS(test_output_align, 4);
+    ADD_ALL_TESTS(test_des_key_wrap, OSSL_NELEM(test_des_key_wrap_sizes));
 #endif
     return 1;
 }

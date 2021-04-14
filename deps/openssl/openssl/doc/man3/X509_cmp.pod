@@ -25,16 +25,20 @@ This set of functions are used to compare X509 objects, including X509
 certificates, X509 CRL objects and various values in an X509 certificate.
 
 The X509_cmp() function compares two B<X509> objects indicated by parameters
-B<a> and B<b>. The comparison is based on the B<memcmp> result of the hash
+I<a> and I<b>. The comparison is based on the B<memcmp> result of the hash
 values of two B<X509> objects and the canonical (DER) encoding values.
 
 The X509_NAME_cmp() function compares two B<X509_NAME> objects indicated by
-parameters B<a> and B<b>. The comparison is based on the B<memcmp> result of
-the canonical (DER) encoding values of the two objects. L<i2d_X509_NAME(3)>
-has a more detailed description of the DER encoding of the B<X509_NAME> structure.
+parameters I<a> and I<b>. The comparison is based on the B<memcmp> result of the
+canonical (DER) encoding values of the two objects using L<i2d_X509_NAME(3)>.
+This procedure adheres to the matching rules for Distinguished Names (DN)
+given in RFC 4517 section 4.2.15 and RFC 5280 section 7.1.
+In particular, the order of Relative Distinguished Names (RDNs) is relevant.
+On the other hand, if an RDN is multi-valued, i.e., it contains a set of
+AttributeValueAssertions (AVAs), its members are effectively not ordered.
 
 The X509_issuer_and_serial_cmp() function compares the serial number and issuer
-values in the given B<X509> objects B<a> and B<b>.
+values in the given B<X509> objects I<a> and I<b>.
 
 The X509_issuer_name_cmp(), X509_subject_name_cmp() and X509_CRL_cmp() functions
 are effectively wrappers of the X509_NAME_cmp() function. These functions compare
@@ -47,12 +51,12 @@ of just the issuer name.
 
 =head1 RETURN VALUES
 
-Like common memory comparison functions, the B<X509> comparison functions return
-an integer less than, equal to, or greater than zero if object B<a> is found to
-be less than, to match, or be greater than object B<b>, respectively.
+The B<X509> comparison functions return B<-1>, B<0>, or B<1> if object I<a> is
+found to be less than, to match, or be greater than object I<b>, respectively.
 
 X509_NAME_cmp(), X509_issuer_and_serial_cmp(), X509_issuer_name_cmp(),
-X509_subject_name_cmp() and X509_CRL_cmp() may return B<-2> to indicate an error.
+X509_subject_name_cmp(), X509_CRL_cmp(), and X509_CRL_match()
+may return B<-2> to indicate an error.
 
 =head1 NOTES
 
@@ -70,7 +74,7 @@ L<i2d_X509_NAME(3)>, L<i2d_X509(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

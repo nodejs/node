@@ -48,39 +48,47 @@ aesni_multi_cbc_encrypt:
 .Lenc4x_loop_grande:
 	movl	%edx,24(%rsp)
 	xorl	%edx,%edx
+
 	movl	-64(%rdi),%ecx
 	movq	-80(%rdi),%r8
 	cmpl	%edx,%ecx
 	movq	-72(%rdi),%r12
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
+
 	movdqu	-56(%rdi),%xmm2
 	movl	%ecx,32(%rsp)
 	cmovleq	%rsp,%r8
+
 	movl	-24(%rdi),%ecx
 	movq	-40(%rdi),%r9
 	cmpl	%edx,%ecx
 	movq	-32(%rdi),%r13
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
+
 	movdqu	-16(%rdi),%xmm3
 	movl	%ecx,36(%rsp)
 	cmovleq	%rsp,%r9
+
 	movl	16(%rdi),%ecx
 	movq	0(%rdi),%r10
 	cmpl	%edx,%ecx
 	movq	8(%rdi),%r14
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
+
 	movdqu	24(%rdi),%xmm4
 	movl	%ecx,40(%rsp)
 	cmovleq	%rsp,%r10
+
 	movl	56(%rdi),%ecx
 	movq	40(%rdi),%r11
 	cmpl	%edx,%ecx
 	movq	48(%rdi),%r15
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
+
 	movdqu	64(%rdi),%xmm5
 	movl	%ecx,44(%rsp)
 	cmovleq	%rsp,%r11
@@ -260,6 +268,7 @@ aesni_multi_cbc_encrypt:
 
 
 
+
 	leaq	160(%rdi),%rdi
 	decl	%edx
 	jnz	.Lenc4x_loop_grande
@@ -330,39 +339,47 @@ aesni_multi_cbc_decrypt:
 .Ldec4x_loop_grande:
 	movl	%edx,24(%rsp)
 	xorl	%edx,%edx
+
 	movl	-64(%rdi),%ecx
 	movq	-80(%rdi),%r8
 	cmpl	%edx,%ecx
 	movq	-72(%rdi),%r12
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
+
 	movdqu	-56(%rdi),%xmm6
 	movl	%ecx,32(%rsp)
 	cmovleq	%rsp,%r8
+
 	movl	-24(%rdi),%ecx
 	movq	-40(%rdi),%r9
 	cmpl	%edx,%ecx
 	movq	-32(%rdi),%r13
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
+
 	movdqu	-16(%rdi),%xmm7
 	movl	%ecx,36(%rsp)
 	cmovleq	%rsp,%r9
+
 	movl	16(%rdi),%ecx
 	movq	0(%rdi),%r10
 	cmpl	%edx,%ecx
 	movq	8(%rdi),%r14
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
+
 	movdqu	24(%rdi),%xmm8
 	movl	%ecx,40(%rsp)
 	cmovleq	%rsp,%r10
+
 	movl	56(%rdi),%ecx
 	movq	40(%rdi),%r11
 	cmpl	%edx,%ecx
 	movq	48(%rdi),%r15
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
+
 	movdqu	64(%rdi),%xmm9
 	movl	%ecx,44(%rsp)
 	cmovleq	%rsp,%r11
@@ -598,89 +615,121 @@ _avx_cbc_enc_shortcut:
 .Lenc8x_loop_grande:
 
 	xorl	%edx,%edx
+
 	movl	-144(%rdi),%ecx
+
 	movq	-160(%rdi),%r8
 	cmpl	%edx,%ecx
+
 	movq	-152(%rdi),%rbx
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
+
 	vmovdqu	-136(%rdi),%xmm2
 	movl	%ecx,32(%rsp)
 	cmovleq	%rsp,%r8
 	subq	%r8,%rbx
 	movq	%rbx,64(%rsp)
+
 	movl	-104(%rdi),%ecx
+
 	movq	-120(%rdi),%r9
 	cmpl	%edx,%ecx
+
 	movq	-112(%rdi),%rbp
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
+
 	vmovdqu	-96(%rdi),%xmm3
 	movl	%ecx,36(%rsp)
 	cmovleq	%rsp,%r9
 	subq	%r9,%rbp
 	movq	%rbp,72(%rsp)
+
 	movl	-64(%rdi),%ecx
+
 	movq	-80(%rdi),%r10
 	cmpl	%edx,%ecx
+
 	movq	-72(%rdi),%rbp
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
+
 	vmovdqu	-56(%rdi),%xmm4
 	movl	%ecx,40(%rsp)
 	cmovleq	%rsp,%r10
 	subq	%r10,%rbp
 	movq	%rbp,80(%rsp)
+
 	movl	-24(%rdi),%ecx
+
 	movq	-40(%rdi),%r11
 	cmpl	%edx,%ecx
+
 	movq	-32(%rdi),%rbp
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
+
 	vmovdqu	-16(%rdi),%xmm5
 	movl	%ecx,44(%rsp)
 	cmovleq	%rsp,%r11
 	subq	%r11,%rbp
 	movq	%rbp,88(%rsp)
+
 	movl	16(%rdi),%ecx
+
 	movq	0(%rdi),%r12
 	cmpl	%edx,%ecx
+
 	movq	8(%rdi),%rbp
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
+
 	vmovdqu	24(%rdi),%xmm6
 	movl	%ecx,48(%rsp)
 	cmovleq	%rsp,%r12
 	subq	%r12,%rbp
 	movq	%rbp,96(%rsp)
+
 	movl	56(%rdi),%ecx
+
 	movq	40(%rdi),%r13
 	cmpl	%edx,%ecx
+
 	movq	48(%rdi),%rbp
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
+
 	vmovdqu	64(%rdi),%xmm7
 	movl	%ecx,52(%rsp)
 	cmovleq	%rsp,%r13
 	subq	%r13,%rbp
 	movq	%rbp,104(%rsp)
+
 	movl	96(%rdi),%ecx
+
 	movq	80(%rdi),%r14
 	cmpl	%edx,%ecx
+
 	movq	88(%rdi),%rbp
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
+
 	vmovdqu	104(%rdi),%xmm8
 	movl	%ecx,56(%rsp)
 	cmovleq	%rsp,%r14
 	subq	%r14,%rbp
 	movq	%rbp,112(%rsp)
+
 	movl	136(%rdi),%ecx
+
 	movq	120(%rdi),%r15
 	cmpl	%edx,%ecx
+
 	movq	128(%rdi),%rbp
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
+
 	vmovdqu	144(%rdi),%xmm9
 	movl	%ecx,60(%rsp)
 	cmovleq	%rsp,%r15
@@ -1055,96 +1104,128 @@ _avx_cbc_dec_shortcut:
 .Ldec8x_loop_grande:
 
 	xorl	%edx,%edx
+
 	movl	-144(%rdi),%ecx
+
 	movq	-160(%rdi),%r8
 	cmpl	%edx,%ecx
+
 	movq	-152(%rdi),%rbx
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
+
 	vmovdqu	-136(%rdi),%xmm2
 	movl	%ecx,32(%rsp)
 	cmovleq	%rsp,%r8
 	subq	%r8,%rbx
 	movq	%rbx,64(%rsp)
 	vmovdqu	%xmm2,192(%rsp)
+
 	movl	-104(%rdi),%ecx
+
 	movq	-120(%rdi),%r9
 	cmpl	%edx,%ecx
+
 	movq	-112(%rdi),%rbp
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
+
 	vmovdqu	-96(%rdi),%xmm3
 	movl	%ecx,36(%rsp)
 	cmovleq	%rsp,%r9
 	subq	%r9,%rbp
 	movq	%rbp,72(%rsp)
 	vmovdqu	%xmm3,208(%rsp)
+
 	movl	-64(%rdi),%ecx
+
 	movq	-80(%rdi),%r10
 	cmpl	%edx,%ecx
+
 	movq	-72(%rdi),%rbp
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
+
 	vmovdqu	-56(%rdi),%xmm4
 	movl	%ecx,40(%rsp)
 	cmovleq	%rsp,%r10
 	subq	%r10,%rbp
 	movq	%rbp,80(%rsp)
 	vmovdqu	%xmm4,224(%rsp)
+
 	movl	-24(%rdi),%ecx
+
 	movq	-40(%rdi),%r11
 	cmpl	%edx,%ecx
+
 	movq	-32(%rdi),%rbp
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
+
 	vmovdqu	-16(%rdi),%xmm5
 	movl	%ecx,44(%rsp)
 	cmovleq	%rsp,%r11
 	subq	%r11,%rbp
 	movq	%rbp,88(%rsp)
 	vmovdqu	%xmm5,240(%rsp)
+
 	movl	16(%rdi),%ecx
+
 	movq	0(%rdi),%r12
 	cmpl	%edx,%ecx
+
 	movq	8(%rdi),%rbp
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
+
 	vmovdqu	24(%rdi),%xmm6
 	movl	%ecx,48(%rsp)
 	cmovleq	%rsp,%r12
 	subq	%r12,%rbp
 	movq	%rbp,96(%rsp)
 	vmovdqu	%xmm6,256(%rsp)
+
 	movl	56(%rdi),%ecx
+
 	movq	40(%rdi),%r13
 	cmpl	%edx,%ecx
+
 	movq	48(%rdi),%rbp
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
+
 	vmovdqu	64(%rdi),%xmm7
 	movl	%ecx,52(%rsp)
 	cmovleq	%rsp,%r13
 	subq	%r13,%rbp
 	movq	%rbp,104(%rsp)
 	vmovdqu	%xmm7,272(%rsp)
+
 	movl	96(%rdi),%ecx
+
 	movq	80(%rdi),%r14
 	cmpl	%edx,%ecx
+
 	movq	88(%rdi),%rbp
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
+
 	vmovdqu	104(%rdi),%xmm8
 	movl	%ecx,56(%rsp)
 	cmovleq	%rsp,%r14
 	subq	%r14,%rbp
 	movq	%rbp,112(%rsp)
 	vmovdqu	%xmm8,288(%rsp)
+
 	movl	136(%rdi),%ecx
+
 	movq	120(%rdi),%r15
 	cmpl	%edx,%ecx
+
 	movq	128(%rdi),%rbp
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
+
 	vmovdqu	144(%rdi),%xmm9
 	movl	%ecx,60(%rsp)
 	cmovleq	%rsp,%r15
@@ -1505,3 +1586,24 @@ _avx_cbc_dec_shortcut:
 	.byte	0xf3,0xc3
 .cfi_endproc	
 .size	aesni_multi_cbc_decrypt_avx,.-aesni_multi_cbc_decrypt_avx
+	.section ".note.gnu.property", "a"
+	.p2align 3
+	.long 1f - 0f
+	.long 4f - 1f
+	.long 5
+0:
+	# "GNU" encoded with .byte, since .asciz isn't supported
+	# on Solaris.
+	.byte 0x47
+	.byte 0x4e
+	.byte 0x55
+	.byte 0
+1:
+	.p2align 3
+	.long 0xc0000002
+	.long 3f - 2f
+2:
+	.long 3
+3:
+	.p2align 3
+4:

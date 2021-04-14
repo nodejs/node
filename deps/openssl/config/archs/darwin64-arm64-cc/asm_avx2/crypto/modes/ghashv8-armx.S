@@ -1,8 +1,8 @@
 #include "arm_arch.h"
 
 #if __ARM_MAX_ARCH__>=7
-.text
 
+.text
 .globl	_gcm_init_v8
 
 .align	4

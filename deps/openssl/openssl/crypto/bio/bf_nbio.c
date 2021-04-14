@@ -1,7 +1,7 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -34,10 +34,8 @@ typedef struct nbio_test_st {
 static const BIO_METHOD methods_nbiof = {
     BIO_TYPE_NBIO_TEST,
     "non-blocking IO test filter",
-    /* TODO: Convert to new style write function */
     bwrite_conv,
     nbiof_write,
-    /* TODO: Convert to new style read function */
     bread_conv,
     nbiof_read,
     nbiof_puts,
@@ -58,7 +56,7 @@ static int nbiof_new(BIO *bi)
     NBIO_TEST *nt;
 
     if ((nt = OPENSSL_zalloc(sizeof(*nt))) == NULL) {
-        BIOerr(BIO_F_NBIOF_NEW, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_BIO, ERR_R_MALLOC_FAILURE);
         return 0;
     }
     nt->lrn = -1;
@@ -173,16 +171,9 @@ static long nbiof_ctrl(BIO *b, int cmd, long num, void *ptr)
 
 static long nbiof_callback_ctrl(BIO *b, int cmd, BIO_info_cb *fp)
 {
-    long ret = 1;
-
     if (b->next_bio == NULL)
         return 0;
-    switch (cmd) {
-    default:
-        ret = BIO_callback_ctrl(b->next_bio, cmd, fp);
-        break;
-    }
-    return ret;
+    return BIO_callback_ctrl(b->next_bio, cmd, fp);
 }
 
 static int nbiof_gets(BIO *bp, char *buf, int size)

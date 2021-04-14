@@ -1,7 +1,7 @@
 #! /usr/bin/env perl
 # Copyright 2010-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
@@ -34,6 +34,11 @@
 # instead, code path is chosen upon pre-process time, pass -mips32r2
 # or/and -msmartmips.
 
+# February 2019
+#
+# Normalize MIPS32R2 AES table address calculation by always using EXT
+# instruction. This reduces the standard codebase by another 10%. 
+
 ######################################################################
 # There is a number of MIPS ABI in use, O32 and N32/64 are most
 # widely used. Then there is a new contender: NUBI. It appears that if
@@ -60,8 +65,12 @@
 # ($t0,$t1,$t2,$t3,$t8,$t9)=map("\$$_",(12..15,24,25));
 # ($s0,$s1,$s2,$s3,$s4,$s5,$s6,$s7)=map("\$$_",(16..23));
 # ($gp,$sp,$fp,$ra)=map("\$$_",(28..31));
-#
-$flavour = shift || "o32"; # supported flavours are o32,n32,64,nubi32,nubi64
+
+# $output is the last argument if it looks like a file (it has an extension)
+# $flavour is the first argument if it doesn't look like a file
+$output = $#ARGV >= 0 && $ARGV[$#ARGV] =~ m|\.\w+$| ? pop : undef;
+$flavour = $#ARGV >= 0 && $ARGV[0] !~ m|\.| ? shift : undef;
+$flavour ||= "o32"; # supported flavours are o32,n32,64,nubi32,nubi64
 
 if ($flavour =~ /64|n32/i) {
 	$PTR_LA="dla";
@@ -90,16 +99,12 @@ $pf = ($flavour =~ /nubi/i) ? $t0 : $t2;
 
 $big_endian=(`echo MIPSEB | $ENV{CC} -E -`=~/MIPSEB/)?0:1 if ($ENV{CC});
 
-for (@ARGV) {	$output=$_ if (/\w[\w\-]*\.\w+$/);	}
-open STDOUT,">$output";
-
 if (!defined($big_endian))
 {    $big_endian=(unpack('L',pack('N',1))==1);   }
 
-while (($output=shift) && ($output!~/\w[\w\-]*\.\w+$/)) {}
-open STDOUT,">$output";
-
 my ($MSB,$LSB)=(0,3);	# automatically converted to little-endian
+
+$output and open STDOUT,">$output";
 
 $code.=<<___;
 #include "mips_arch.h"
@@ -224,6 +229,33 @@ _mips_AES_encrypt:
 
 	_xtr	$i0,$s1,16-2
 #else
+#if defined(_MIPS_ARCH_MIPS32R2) || defined(_MIPS_ARCH_MIPS64R2)
+	move	$i0,$Tbl
+	move	$i1,$Tbl
+	move	$i2,$Tbl
+	move	$i3,$Tbl
+	ext	$t0,$s1,16,8
+.Loop_enc:
+	ext	$t1,$s2,16,8
+	ext	$t2,$s3,16,8
+	ext	$t3,$s0,16,8
+	$PTR_INS $i0,$t0,2,8
+	$PTR_INS $i1,$t1,2,8
+	$PTR_INS $i2,$t2,2,8
+	$PTR_INS $i3,$t3,2,8
+	lw	$t0,0($i0)		# Te1[s1>>16]
+	ext	$t4,$s2,8,8
+	lw	$t1,0($i1)		# Te1[s2>>16]
+	ext	$t5,$s3,8,8
+	lw	$t2,0($i2)		# Te1[s3>>16]
+	ext	$t6,$s0,8,8
+	lw	$t3,0($i3)		# Te1[s0>>16]
+	ext	$t7,$s1,8,8
+	$PTR_INS $i0,$t4,2,8
+	$PTR_INS $i1,$t5,2,8
+	$PTR_INS $i2,$t6,2,8
+	$PTR_INS $i3,$t7,2,8
+#else
 	_xtr	$i0,$s1,16-2
 .Loop_enc:
 	_xtr	$i1,$s2,16-2
@@ -237,16 +269,6 @@ _mips_AES_encrypt:
 	$PTR_ADD $i1,$Tbl
 	$PTR_ADD $i2,$Tbl
 	$PTR_ADD $i3,$Tbl
-#if defined(_MIPS_ARCH_MIPS32R2) || defined(_MIPS_ARCH_MIPS64R2)
-	lw	$t0,0($i0)		# Te1[s1>>16]
-	_xtr	$i0,$s2,8-2
-	lw	$t1,0($i1)		# Te1[s2>>16]
-	_xtr	$i1,$s3,8-2
-	lw	$t2,0($i2)		# Te1[s3>>16]
-	_xtr	$i2,$s0,8-2
-	lw	$t3,0($i3)		# Te1[s0>>16]
-	_xtr	$i3,$s1,8-2
-#else
 	lwl	$t0,3($i0)		# Te1[s1>>16]
 	lwl	$t1,3($i1)		# Te1[s2>>16]
 	lwl	$t2,3($i2)		# Te1[s3>>16]
@@ -259,7 +281,6 @@ _mips_AES_encrypt:
 	_xtr	$i2,$s0,8-2
 	lwr	$t3,2($i3)		# Te1[s0>>16]
 	_xtr	$i3,$s1,8-2
-#endif
 	and	$i0,0x3fc
 	and	$i1,0x3fc
 	and	$i2,0x3fc
@@ -268,6 +289,7 @@ _mips_AES_encrypt:
 	$PTR_ADD $i1,$Tbl
 	$PTR_ADD $i2,$Tbl
 	$PTR_ADD $i3,$Tbl
+#endif
 #if defined(_MIPS_ARCH_MIPS32R2) || defined(_MIPS_ARCH_MIPS64R2)
 	rotr	$t0,$t0,8
 	rotr	$t1,$t1,8
@@ -275,22 +297,18 @@ _mips_AES_encrypt:
 	rotr	$t3,$t3,8
 # if defined(_MIPSEL)
 	lw	$t4,0($i0)		# Te2[s2>>8]
-	_xtr	$i0,$s3,0-2
+	ext	$t8,$s3,0,8
 	lw	$t5,0($i1)		# Te2[s3>>8]
-	_xtr	$i1,$s0,0-2
+	ext	$t9,$s0,0,8
 	lw	$t6,0($i2)		# Te2[s0>>8]
-	_xtr	$i2,$s1,0-2
+	ext	$t10,$s1,0,8
 	lw	$t7,0($i3)		# Te2[s1>>8]
-	_xtr	$i3,$s2,0-2
+	ext	$t11,$s2,0,8
+	$PTR_INS $i0,$t8,2,8
+	$PTR_INS $i1,$t9,2,8
+	$PTR_INS $i2,$t10,2,8
+	$PTR_INS $i3,$t11,2,8
 
-	and	$i0,0x3fc
-	and	$i1,0x3fc
-	and	$i2,0x3fc
-	and	$i3,0x3fc
-	$PTR_ADD $i0,$Tbl
-	$PTR_ADD $i1,$Tbl
-	$PTR_ADD $i2,$Tbl
-	$PTR_ADD $i3,$Tbl
 	lw	$t8,0($i0)		# Te3[s3]
 	$PTR_INS $i0,$s0,2,8
 	lw	$t9,0($i1)		# Te3[s0]
@@ -411,6 +429,9 @@ _mips_AES_encrypt:
 	xor	$s3,$t3
 	.set	noreorder
 	bnez	$cnt,.Loop_enc
+#if defined(_MIPS_ARCH_MIPS32R2) || defined(_MIPS_ARCH_MIPS64R2)
+	ext	$t0,$s1,16,8
+#endif
 	_xtr	$i0,$s1,16-2
 #endif
 
@@ -812,6 +833,33 @@ _mips_AES_decrypt:
 
 	_xtr	$i0,$s3,16-2
 #else
+#if defined(_MIPS_ARCH_MIPS32R2) || defined(_MIPS_ARCH_MIPS64R2)
+	move	$i0,$Tbl
+	move	$i1,$Tbl
+	move	$i2,$Tbl
+	move	$i3,$Tbl
+	ext	$t0,$s3,16,8
+.Loop_dec:
+	ext	$t1,$s0,16,8
+	ext	$t2,$s1,16,8
+	ext	$t3,$s2,16,8
+	$PTR_INS $i0,$t0,2,8
+	$PTR_INS $i1,$t1,2,8
+	$PTR_INS $i2,$t2,2,8
+	$PTR_INS $i3,$t3,2,8
+	lw	$t0,0($i0)		# Td1[s3>>16]
+	ext	$t4,$s2,8,8
+	lw	$t1,0($i1)		# Td1[s0>>16]
+	ext	$t5,$s3,8,8
+	lw	$t2,0($i2)		# Td1[s1>>16]
+	ext	$t6,$s0,8,8
+	lw	$t3,0($i3)		# Td1[s2>>16]
+	ext	$t7,$s1,8,8
+	$PTR_INS $i0,$t4,2,8
+	$PTR_INS $i1,$t5,2,8
+	$PTR_INS $i2,$t6,2,8
+	$PTR_INS $i3,$t7,2,8
+#else
 	_xtr	$i0,$s3,16-2
 .Loop_dec:
 	_xtr	$i1,$s0,16-2
@@ -825,16 +873,6 @@ _mips_AES_decrypt:
 	$PTR_ADD $i1,$Tbl
 	$PTR_ADD $i2,$Tbl
 	$PTR_ADD $i3,$Tbl
-#if defined(_MIPS_ARCH_MIPS32R2) || defined(_MIPS_ARCH_MIPS64R2)
-	lw	$t0,0($i0)		# Td1[s3>>16]
-	_xtr	$i0,$s2,8-2
-	lw	$t1,0($i1)		# Td1[s0>>16]
-	_xtr	$i1,$s3,8-2
-	lw	$t2,0($i2)		# Td1[s1>>16]
-	_xtr	$i2,$s0,8-2
-	lw	$t3,0($i3)		# Td1[s2>>16]
-	_xtr	$i3,$s1,8-2
-#else
 	lwl	$t0,3($i0)		# Td1[s3>>16]
 	lwl	$t1,3($i1)		# Td1[s0>>16]
 	lwl	$t2,3($i2)		# Td1[s1>>16]
@@ -847,8 +885,6 @@ _mips_AES_decrypt:
 	_xtr	$i2,$s0,8-2
 	lwr	$t3,2($i3)		# Td1[s2>>16]
 	_xtr	$i3,$s1,8-2
-#endif
-
 	and	$i0,0x3fc
 	and	$i1,0x3fc
 	and	$i2,0x3fc
@@ -857,6 +893,7 @@ _mips_AES_decrypt:
 	$PTR_ADD $i1,$Tbl
 	$PTR_ADD $i2,$Tbl
 	$PTR_ADD $i3,$Tbl
+#endif
 #if defined(_MIPS_ARCH_MIPS32R2) || defined(_MIPS_ARCH_MIPS64R2)
 	rotr	$t0,$t0,8
 	rotr	$t1,$t1,8
@@ -864,22 +901,17 @@ _mips_AES_decrypt:
 	rotr	$t3,$t3,8
 # if defined(_MIPSEL)
 	lw	$t4,0($i0)		# Td2[s2>>8]
-	_xtr	$i0,$s1,0-2
+	ext	$t8,$s1,0,8
 	lw	$t5,0($i1)		# Td2[s3>>8]
-	_xtr	$i1,$s2,0-2
+	ext	$t9,$s2,0,8
 	lw	$t6,0($i2)		# Td2[s0>>8]
-	_xtr	$i2,$s3,0-2
+	ext	$t10,$s3,0,8
 	lw	$t7,0($i3)		# Td2[s1>>8]
-	_xtr	$i3,$s0,0-2
-
-	and	$i0,0x3fc
-	and	$i1,0x3fc
-	and	$i2,0x3fc
-	and	$i3,0x3fc
-	$PTR_ADD $i0,$Tbl
-	$PTR_ADD $i1,$Tbl
-	$PTR_ADD $i2,$Tbl
-	$PTR_ADD $i3,$Tbl
+	ext	$t11,$s0,0,8
+	$PTR_INS $i0,$t8,2,8
+	$PTR_INS $i1,$t9,2,8
+	$PTR_INS $i2,$t10,2,8
+	$PTR_INS $i3,$t11,2,8
 	lw	$t8,0($i0)		# Td3[s1]
 	$PTR_INS $i0,$s0,2,8
 	lw	$t9,0($i1)		# Td3[s2]
@@ -1001,6 +1033,10 @@ _mips_AES_decrypt:
 	xor	$s3,$t3
 	.set	noreorder
 	bnez	$cnt,.Loop_dec
+#if defined(_MIPS_ARCH_MIPS32R2) || defined(_MIPS_ARCH_MIPS64R2)
+	ext	$t0,$s3,16,8
+#endif
+
 	_xtr	$i0,$s3,16-2
 #endif
 

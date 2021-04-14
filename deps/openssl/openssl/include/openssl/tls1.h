@@ -1,19 +1,26 @@
 /*
- * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  * Copyright 2005 Nokia. All rights reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
 
-#ifndef HEADER_TLS1_H
-# define HEADER_TLS1_H
+#ifndef OPENSSL_TLS1_H
+# define OPENSSL_TLS1_H
+# pragma once
+
+# include <openssl/macros.h>
+# ifndef OPENSSL_NO_DEPRECATED_3_0
+#  define HEADER_TLS1_H
+# endif
 
 # include <openssl/buffer.h>
 # include <openssl/x509.h>
+# include <openssl/prov_ssl.h>
 
 #ifdef  __cplusplus
 extern "C" {
@@ -24,11 +31,10 @@ extern "C" {
 #  define OPENSSL_TLS_SECURITY_LEVEL 1
 # endif
 
-# define TLS1_VERSION                    0x0301
-# define TLS1_1_VERSION                  0x0302
-# define TLS1_2_VERSION                  0x0303
-# define TLS1_3_VERSION                  0x0304
-# define TLS_MAX_VERSION                 TLS1_3_VERSION
+/* TLS*_VERSION constants are defined in prov_ssl.h */
+# ifndef OPENSSL_NO_DEPRECATED_3_0
+#  define TLS_MAX_VERSION                TLS1_3_VERSION
+# endif
 
 /* Special value for method supporting multiple versions */
 # define TLS_ANY_VERSION                 0x10000
@@ -107,9 +113,6 @@ extern "C" {
 /* ExtensionType value from RFC5764 */
 # define TLSEXT_TYPE_use_srtp    14
 
-/* ExtensionType value from RFC5620 */
-# define TLSEXT_TYPE_heartbeat   15
-
 /* ExtensionType value from RFC7301 */
 # define TLSEXT_TYPE_application_layer_protocol_negotiation 16
 
@@ -148,7 +151,7 @@ extern "C" {
 /* Temporary extension type */
 # define TLSEXT_TYPE_renegotiate                 0xff01
 
-/* ExtensionType value from draft-ietf-quic-tls-27 */
+    /* ExtensionType value from RFC9001 */
 # define TLSEXT_TYPE_quic_transport_parameters_draft   0xffa5
 # define TLSEXT_TYPE_quic_transport_parameters         0x0039
 
@@ -326,38 +329,14 @@ __owur int SSL_check_chain(SSL *s, X509 *x, EVP_PKEY *pk, STACK_OF(X509) *chain)
 # define SSL_CTX_get_tlsext_status_type(ssl) \
         SSL_CTX_ctrl(ssl,SSL_CTRL_GET_TLSEXT_STATUS_REQ_TYPE,0,NULL)
 
-# define SSL_CTX_set_tlsext_ticket_key_cb(ssl, cb) \
+# ifndef OPENSSL_NO_DEPRECATED_3_0
+#  define SSL_CTX_set_tlsext_ticket_key_cb(ssl, cb) \
         SSL_CTX_callback_ctrl(ssl,SSL_CTRL_SET_TLSEXT_TICKET_KEY_CB,\
                 (void (*)(void))cb)
-
-# ifndef OPENSSL_NO_HEARTBEATS
-#  define SSL_DTLSEXT_HB_ENABLED                   0x01
-#  define SSL_DTLSEXT_HB_DONT_SEND_REQUESTS        0x02
-#  define SSL_DTLSEXT_HB_DONT_RECV_REQUESTS        0x04
-#  define SSL_get_dtlsext_heartbeat_pending(ssl) \
-        SSL_ctrl(ssl,SSL_CTRL_GET_DTLS_EXT_HEARTBEAT_PENDING,0,NULL)
-#  define SSL_set_dtlsext_heartbeat_no_requests(ssl, arg) \
-        SSL_ctrl(ssl,SSL_CTRL_SET_DTLS_EXT_HEARTBEAT_NO_REQUESTS,arg,NULL)
-
-#  if OPENSSL_API_COMPAT < 0x10100000L
-#   define SSL_CTRL_TLS_EXT_SEND_HEARTBEAT \
-        SSL_CTRL_DTLS_EXT_SEND_HEARTBEAT
-#   define SSL_CTRL_GET_TLS_EXT_HEARTBEAT_PENDING \
-        SSL_CTRL_GET_DTLS_EXT_HEARTBEAT_PENDING
-#   define SSL_CTRL_SET_TLS_EXT_HEARTBEAT_NO_REQUESTS \
-        SSL_CTRL_SET_DTLS_EXT_HEARTBEAT_NO_REQUESTS
-#   define SSL_TLSEXT_HB_ENABLED \
-        SSL_DTLSEXT_HB_ENABLED
-#   define SSL_TLSEXT_HB_DONT_SEND_REQUESTS \
-        SSL_DTLSEXT_HB_DONT_SEND_REQUESTS
-#   define SSL_TLSEXT_HB_DONT_RECV_REQUESTS \
-        SSL_DTLSEXT_HB_DONT_RECV_REQUESTS
-#   define SSL_get_tlsext_heartbeat_pending(ssl) \
-        SSL_get_dtlsext_heartbeat_pending(ssl)
-#   define SSL_set_tlsext_heartbeat_no_requests(ssl, arg) \
-        SSL_set_dtlsext_heartbeat_no_requests(ssl,arg)
-#  endif
 # endif
+int SSL_CTX_set_tlsext_ticket_key_evp_cb
+    (SSL_CTX *ctx, int (*fp)(SSL *, unsigned char *, unsigned char *,
+                             EVP_CIPHER_CTX *, EVP_MAC_CTX *, int));
 
 /* PSK ciphersuites from 4279 */
 # define TLS1_CK_PSK_WITH_RC4_128_SHA                    0x0300008A
@@ -1139,14 +1118,21 @@ __owur int SSL_check_chain(SSL *s, X509 *x, EVP_PKEY *pk, STACK_OF(X509) *chain)
 # define TLS_CT_RSA_FIXED_ECDH           65
 # define TLS_CT_ECDSA_FIXED_ECDH         66
 # define TLS_CT_GOST01_SIGN              22
-# define TLS_CT_GOST12_SIGN              238
-# define TLS_CT_GOST12_512_SIGN          239
+# define TLS_CT_GOST12_IANA_SIGN         67
+# define TLS_CT_GOST12_IANA_512_SIGN     68
+# define TLS_CT_GOST12_LEGACY_SIGN       238
+# define TLS_CT_GOST12_LEGACY_512_SIGN   239
+
+# ifndef OPENSSL_NO_DEPRECATED_3_0
+#  define TLS_CT_GOST12_SIGN TLS_CT_GOST12_LEGACY_SIGN
+#  define TLS_CT_GOST12_512_SIGN TLS_CT_GOST12_LEGACY_512_SIGN
+# endif
 
 /*
  * when correcting this number, correct also SSL3_CT_NUMBER in ssl3.h (see
  * comment there)
  */
-# define TLS_CT_NUMBER                   10
+# define TLS_CT_NUMBER                   12
 
 # if defined(SSL3_CT_NUMBER)
 #  if TLS_CT_NUMBER != SSL3_CT_NUMBER

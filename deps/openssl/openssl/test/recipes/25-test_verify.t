@@ -1,7 +1,7 @@
 #! /usr/bin/env perl
 # Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
@@ -11,23 +11,25 @@ use strict;
 use warnings;
 
 use File::Spec::Functions qw/canonpath/;
-use OpenSSL::Test qw/:DEFAULT srctop_file/;
+use File::Copy;
+use OpenSSL::Test qw/:DEFAULT srctop_file ok_nofips with/;
 use OpenSSL::Test::Utils;
 
 setup("test_verify");
 
 sub verify {
     my ($cert, $purpose, $trusted, $untrusted, @opts) = @_;
-    my @args = qw(openssl verify -auth_level 1 -purpose);
     my @path = qw(test certs);
-    push(@args, "$purpose", @opts);
+    my @args = qw(openssl verify -auth_level 1);
+    push(@args, "-purpose", $purpose) if $purpose ne "";
+    push(@args, @opts);
     for (@$trusted) { push(@args, "-trusted", srctop_file(@path, "$_.pem")) }
     for (@$untrusted) { push(@args, "-untrusted", srctop_file(@path, "$_.pem")) }
     push(@args, srctop_file(@path, "$cert.pem"));
     run(app([@args]));
 }
 
-plan tests => 146;
+plan tests => 159;
 
 # Canonical success
 ok(verify("ee-cert", "sslserver", ["root-cert"], ["ca-cert"]),
@@ -44,6 +46,15 @@ ok(!verify("ee-cert", "sslserver", [qw(root-cert2)], [qw(ca-cert)]),
    "fail wrong root key");
 ok(!verify("ee-cert", "sslserver", [qw(root-name2)], [qw(ca-cert)]),
    "fail wrong root DN");
+
+# Critical extensions
+
+ok(verify("ee-cert-noncrit-unknown-ext", "", ["root-cert"], ["ca-cert"]),
+   "accept non-critical unknown extension");
+ok(!verify("ee-cert-crit-unknown-ext", "", ["root-cert"], ["ca-cert"]),
+   "reject critical unknown extension");
+ok(verify("ee-cert-ocsp-nocheck", "", ["root-cert"], ["ca-cert"]),
+   "accept critical OCSP No Check");
 
 # Explicit trust/purpose combinations
 #
@@ -254,158 +265,219 @@ ok(!verify("pc6-cert", "sslclient", [qw(root-cert)], [qw(pc1-cert ee-client ca-c
    "failed proxy cert where last CN was added as a multivalue RDN component");
 
 # Security level tests
-ok(verify("ee-cert", "sslserver", ["root-cert"], ["ca-cert"], "-auth_level", "2"),
+ok(verify("ee-cert", "", ["root-cert"], ["ca-cert"], "-auth_level", "2"),
    "accept RSA 2048 chain at auth level 2");
-ok(!verify("ee-cert", "sslserver", ["root-cert"], ["ca-cert"], "-auth_level", "3"),
+ok(!verify("ee-cert", "", ["root-cert"], ["ca-cert"], "-auth_level", "3"),
    "reject RSA 2048 root at auth level 3");
-ok(verify("ee-cert", "sslserver", ["root-cert-768"], ["ca-cert-768i"], "-auth_level", "0"),
+ok(verify("ee-cert", "", ["root-cert-768"], ["ca-cert-768i"], "-auth_level", "0"),
    "accept RSA 768 root at auth level 0");
-ok(!verify("ee-cert", "sslserver", ["root-cert-768"], ["ca-cert-768i"]),
+ok(!verify("ee-cert", "", ["root-cert-768"], ["ca-cert-768i"]),
    "reject RSA 768 root at auth level 1");
-ok(verify("ee-cert-768i", "sslserver", ["root-cert"], ["ca-cert-768"], "-auth_level", "0"),
+ok(verify("ee-cert-768i", "", ["root-cert"], ["ca-cert-768"], "-auth_level", "0"),
    "accept RSA 768 intermediate at auth level 0");
-ok(!verify("ee-cert-768i", "sslserver", ["root-cert"], ["ca-cert-768"]),
+ok(!verify("ee-cert-768i", "", ["root-cert"], ["ca-cert-768"]),
    "reject RSA 768 intermediate at auth level 1");
-ok(verify("ee-cert-768", "sslserver", ["root-cert"], ["ca-cert"], "-auth_level", "0"),
+ok(verify("ee-cert-768", "", ["root-cert"], ["ca-cert"], "-auth_level", "0"),
    "accept RSA 768 leaf at auth level 0");
-ok(!verify("ee-cert-768", "sslserver", ["root-cert"], ["ca-cert"]),
+ok(!verify("ee-cert-768", "", ["root-cert"], ["ca-cert"]),
    "reject RSA 768 leaf at auth level 1");
 #
-ok(verify("ee-cert", "sslserver", ["root-cert-md5"], ["ca-cert"], "-auth_level", "2"),
+ok(verify("ee-cert", "", ["root-cert-md5"], ["ca-cert"], "-auth_level", "2"),
    "accept md5 self-signed TA at auth level 2");
-ok(verify("ee-cert", "sslserver", ["ca-cert-md5-any"], [], "-auth_level", "2"),
+ok(verify("ee-cert", "", ["ca-cert-md5-any"], [], "-auth_level", "2"),
    "accept md5 intermediate TA at auth level 2");
-ok(verify("ee-cert", "sslserver", ["root-cert"], ["ca-cert-md5"], "-auth_level", "0"),
+ok(verify("ee-cert", "", ["root-cert"], ["ca-cert-md5"], "-auth_level", "0"),
    "accept md5 intermediate at auth level 0");
-ok(!verify("ee-cert", "sslserver", ["root-cert"], ["ca-cert-md5"]),
+ok(!verify("ee-cert", "", ["root-cert"], ["ca-cert-md5"]),
    "reject md5 intermediate at auth level 1");
-ok(verify("ee-cert-md5", "sslserver", ["root-cert"], ["ca-cert"], "-auth_level", "0"),
+ok(verify("ee-cert-md5", "", ["root-cert"], ["ca-cert"], "-auth_level", "0"),
    "accept md5 leaf at auth level 0");
-ok(!verify("ee-cert-md5", "sslserver", ["root-cert"], ["ca-cert"]),
+ok(!verify("ee-cert-md5", "", ["root-cert"], ["ca-cert"]),
    "reject md5 leaf at auth level 1");
 
 # Explicit vs named curve tests
 SKIP: {
-    skip "EC is not supported by this OpenSSL build", 5
+    skip "EC is not supported by this OpenSSL build", 3
         if disabled("ec");
-    ok(verify("ee-cert-ec-explicit", "sslserver", ["root-cert"],
+    ok(!verify("ee-cert-ec-explicit", "", ["root-cert"],
                ["ca-cert-ec-named"]),
-        "accept explicit curve leaf with named curve intermediate without strict");
-    ok(verify("ee-cert-ec-named-explicit", "sslserver", ["root-cert"],
+        "reject explicit curve leaf with named curve intermediate");
+    ok(!verify("ee-cert-ec-named-explicit", "", ["root-cert"],
                ["ca-cert-ec-explicit"]),
-        "accept named curve leaf with explicit curve intermediate without strict");
-    ok(!verify("ee-cert-ec-explicit", "sslserver", ["root-cert"],
-               ["ca-cert-ec-named"], "-x509_strict"),
-        "reject explicit curve leaf with named curve intermediate with strict");
-    ok(!verify("ee-cert-ec-named-explicit", "sslserver", ["root-cert"],
-               ["ca-cert-ec-explicit"], "-x509_strict"),
-        "reject named curve leaf with explicit curve intermediate with strict");
-    ok(verify("ee-cert-ec-named-named", "sslserver", ["root-cert"],
-              ["ca-cert-ec-named"], "-x509_strict"),
-        "accept named curve leaf with named curve intermediate with strict");
+        "reject named curve leaf with explicit curve intermediate");
+    ok(verify("ee-cert-ec-named-named", "", ["root-cert"],
+              ["ca-cert-ec-named"]),
+        "accept named curve leaf with named curve intermediate");
 }
 
 # Depth tests, note the depth limit bounds the number of CA certificates
 # between the trust-anchor and the leaf, so, for example, with a root->ca->leaf
 # chain, depth = 1 is sufficient, but depth == 0 is not.
 #
-ok(verify("ee-cert", "sslserver", ["root-cert"], ["ca-cert"], "-verify_depth", "2"),
+ok(verify("ee-cert", "", ["root-cert"], ["ca-cert"], "-verify_depth", "2"),
    "accept chain with verify_depth 2");
-ok(verify("ee-cert", "sslserver", ["root-cert"], ["ca-cert"], "-verify_depth", "1"),
+ok(verify("ee-cert", "", ["root-cert"], ["ca-cert"], "-verify_depth", "1"),
    "accept chain with verify_depth 1");
-ok(!verify("ee-cert", "sslserver", ["root-cert"], ["ca-cert"], "-verify_depth", "0"),
-   "accept chain with verify_depth 0");
-ok(verify("ee-cert", "sslserver", ["ca-cert-md5-any"], [], "-verify_depth", "0"),
+ok(!verify("ee-cert", "", ["root-cert"], ["ca-cert"], "-verify_depth", "0"),
+   "reject chain with verify_depth 0");
+ok(verify("ee-cert", "", ["ca-cert-md5-any"], [], "-verify_depth", "0"),
    "accept md5 intermediate TA with verify_depth 0");
 
 # Name Constraints tests.
 
-ok(verify("alt1-cert", "sslserver", ["root-cert"], ["ncca1-cert"], ),
+ok(verify("alt1-cert", "", ["root-cert"], ["ncca1-cert"], ),
    "Name Constraints everything permitted");
 
-ok(verify("alt2-cert", "sslserver", ["root-cert"], ["ncca2-cert"], ),
+ok(verify("alt2-cert", "", ["root-cert"], ["ncca2-cert"], ),
    "Name Constraints nothing excluded");
 
-ok(verify("alt3-cert", "sslserver", ["root-cert"], ["ncca1-cert", "ncca3-cert"], ),
+ok(verify("alt3-cert", "", ["root-cert"], ["ncca1-cert", "ncca3-cert"], ),
    "Name Constraints nested test all permitted");
 
-ok(verify("goodcn1-cert", "sslserver", ["root-cert"], ["ncca1-cert"], ),
+ok(verify("goodcn1-cert", "", ["root-cert"], ["ncca1-cert"], ),
    "Name Constraints CNs permitted");
 
-ok(!verify("badcn1-cert", "sslserver", ["root-cert"], ["ncca1-cert"], ),
+ok(!verify("badcn1-cert", "", ["root-cert"], ["ncca1-cert"], ),
    "Name Constraints CNs not permitted");
 
-ok(!verify("badalt1-cert", "sslserver", ["root-cert"], ["ncca1-cert"], ),
+ok(!verify("badalt1-cert", "", ["root-cert"], ["ncca1-cert"], ),
    "Name Constraints hostname not permitted");
 
-ok(!verify("badalt2-cert", "sslserver", ["root-cert"], ["ncca2-cert"], ),
+ok(!verify("badalt2-cert", "", ["root-cert"], ["ncca2-cert"], ),
    "Name Constraints hostname excluded");
 
-ok(!verify("badalt3-cert", "sslserver", ["root-cert"], ["ncca1-cert"], ),
+ok(!verify("badalt3-cert", "", ["root-cert"], ["ncca1-cert"], ),
    "Name Constraints email address not permitted");
 
-ok(!verify("badalt4-cert", "sslserver", ["root-cert"], ["ncca1-cert"], ),
+ok(!verify("badalt4-cert", "", ["root-cert"], ["ncca1-cert"], ),
    "Name Constraints subject email address not permitted");
 
-ok(!verify("badalt5-cert", "sslserver", ["root-cert"], ["ncca1-cert"], ),
+ok(!verify("badalt5-cert", "", ["root-cert"], ["ncca1-cert"], ),
    "Name Constraints IP address not permitted");
 
-ok(!verify("badalt6-cert", "sslserver", ["root-cert"], ["ncca1-cert"], ),
+ok(!verify("badalt6-cert", "", ["root-cert"], ["ncca1-cert"], ),
    "Name Constraints CN hostname not permitted");
 
-ok(!verify("badalt7-cert", "sslserver", ["root-cert"], ["ncca1-cert"], ),
+ok(!verify("badalt7-cert", "", ["root-cert"], ["ncca1-cert"], ),
    "Name Constraints CN BMPSTRING hostname not permitted");
 
-ok(!verify("badalt8-cert", "sslserver", ["root-cert"], ["ncca1-cert", "ncca3-cert"], ),
+ok(!verify("badalt8-cert", "", ["root-cert"], ["ncca1-cert", "ncca3-cert"], ),
    "Name constraints nested DNS name not permitted 1");
 
-ok(!verify("badalt9-cert", "sslserver", ["root-cert"], ["ncca1-cert", "ncca3-cert"], ),
+ok(!verify("badalt9-cert", "", ["root-cert"], ["ncca1-cert", "ncca3-cert"], ),
    "Name constraints nested DNS name not permitted 2");
 
-ok(!verify("badalt10-cert", "sslserver", ["root-cert"], ["ncca1-cert", "ncca3-cert"], ),
+ok(!verify("badalt10-cert", "", ["root-cert"], ["ncca1-cert", "ncca3-cert"], ),
    "Name constraints nested DNS name excluded");
 
-ok(verify("ee-pss-sha1-cert", "sslserver", ["root-cert"], ["ca-cert"], ),
-    "Certificate PSS signature using SHA1");
+#Check that we get the expected failure return code
+with({ exit_checker => sub { return shift == 2; } },
+     sub {
+         ok(verify("bad-othername-namec", "", ["bad-othername-namec-inter"], [],
+                   "-partial_chain", "-attime", "1623060000"),
+            "Name constraints bad othername name constraint");
+     });
 
-ok(verify("ee-pss-sha256-cert", "sslserver", ["root-cert"], ["ca-cert"], ),
+ok(verify("ee-pss-sha1-cert", "", ["root-cert"], ["ca-cert"], "-auth_level", "0"),
+    "Accept PSS signature using SHA1 at auth level 0");
+
+ok(verify("ee-pss-sha256-cert", "", ["root-cert"], ["ca-cert"], ),
     "CA with PSS signature using SHA256");
 
-ok(!verify("ee-pss-sha1-cert", "sslserver", ["root-cert"], ["ca-cert"], "-auth_level", "2"),
-    "Reject PSS signature using SHA1 and auth level 2");
+ok(!verify("ee-pss-sha1-cert", "", ["root-cert"], ["ca-cert"], "-auth_level", "1"),
+    "Reject PSS signature using SHA1 and auth level 1");
 
-ok(verify("ee-pss-sha256-cert", "sslserver", ["root-cert"], ["ca-cert"], "-auth_level", "2"),
+ok(verify("ee-pss-sha256-cert", "", ["root-cert"], ["ca-cert"], "-auth_level", "2"),
     "PSS signature using SHA256 and auth level 2");
 
-ok(verify("ee-pss-cert", "sslserver", ["root-cert"], ["ca-pss-cert"], ),
+ok(verify("ee-pss-cert", "", ["root-cert"], ["ca-pss-cert"], ),
     "CA PSS signature");
+ok(!verify("ee-pss-wrong1.5-cert", "", ["root-cert"], ["ca-pss-cert"], ),
+    "CA producing regular PKCS#1 v1.5 signature with PSA-PSS key");
 
-ok(!verify("many-names1", "sslserver", ["many-constraints"], ["many-constraints"], ),
+ok(!verify("many-names1", "", ["many-constraints"], ["many-constraints"], ),
     "Too many names and constraints to check (1)");
-ok(!verify("many-names2", "sslserver", ["many-constraints"], ["many-constraints"], ),
+ok(!verify("many-names2", "", ["many-constraints"], ["many-constraints"], ),
     "Too many names and constraints to check (2)");
-ok(!verify("many-names3", "sslserver", ["many-constraints"], ["many-constraints"], ),
+ok(!verify("many-names3", "", ["many-constraints"], ["many-constraints"], ),
     "Too many names and constraints to check (3)");
 
-ok(verify("some-names1", "sslserver", ["many-constraints"], ["many-constraints"], ),
+ok(verify("some-names1", "", ["many-constraints"], ["many-constraints"], ),
     "Not too many names and constraints to check (1)");
-ok(verify("some-names2", "sslserver", ["many-constraints"], ["many-constraints"], ),
+ok(verify("some-names2", "", ["many-constraints"], ["many-constraints"], ),
     "Not too many names and constraints to check (2)");
-ok(verify("some-names2", "sslserver", ["many-constraints"], ["many-constraints"], ),
+ok(verify("some-names2", "", ["many-constraints"], ["many-constraints"], ),
     "Not too many names and constraints to check (3)");
-ok(verify("root-cert-rsa2", "sslserver", ["root-cert-rsa2"], [], "-check_ss_sig"),
+ok(verify("root-cert-rsa2", "", ["root-cert-rsa2"], [], "-check_ss_sig"),
     "Public Key Algorithm rsa instead of rsaEncryption");
 
-ok(verify("ee-self-signed", "sslserver", ["ee-self-signed"], [],
-          "-attime", "1593565200"),
-       "accept trusted self-signed EE cert excluding key usage keyCertSign");
+ok(verify("ee-self-signed", "", ["ee-self-signed"], [], "-attime", "1593565200"),
+   "accept trusted self-signed EE cert excluding key usage keyCertSign");
+ok(verify("ee-ss-with-keyCertSign", "", ["ee-ss-with-keyCertSign"], []),
+   "accept trusted self-signed EE cert with key usage keyCertSign also when strict");
 
 SKIP: {
-    skip "Ed25519 is not supported by this OpenSSL build", 1
-	      if disabled("ec");
+    skip "Ed25519 is not supported by this OpenSSL build", 6
+        if disabled("ec");
 
     # ED25519 certificate from draft-ietf-curdle-pkix-04
-    ok(verify("ee-ed25519", "sslserver", ["root-ed25519"], []),
-       "ED25519 signature");
+    ok(verify("ee-ed25519", "", ["root-ed25519"], []),
+       "accept X25519 EE cert issued by trusted Ed25519 self-signed CA cert");
 
+    ok(!verify("ee-ed25519", "", ["root-ed25519"], [], "-x509_strict"),
+       "reject X25519 EE cert in strict mode since AKID is missing");
+
+    ok(!verify("root-ed25519", "", ["ee-ed25519"], []),
+       "fail Ed25519 CA and EE certs swapped");
+
+    ok(verify("root-ed25519", "", ["root-ed25519"], []),
+       "accept trusted Ed25519 self-signed CA cert");
+
+    ok(!verify("ee-ed25519", "", ["ee-ed25519"], []),
+       "fail trusted Ed25519-signed self-issued X25519 cert");
+
+    ok(verify("ee-ed25519", "", ["ee-ed25519"], [], "-partial_chain"),
+       "accept last-resort direct leaf match Ed25519-signed self-issued cert");
+
+}
+
+SKIP: {
+    skip "SM2 is not supported by this OpenSSL build", 2 if disabled("sm2");
+
+   ok_nofips(verify("sm2", "", ["sm2-ca-cert"], [], "-vfyopt", "distid:1234567812345678"),
+       "SM2 ID test");
+   ok_nofips(verify("sm2", "", ["sm2-ca-cert"], [], "-vfyopt", "hexdistid:31323334353637383132333435363738"),
+       "SM2 hex ID test");
+}
+
+# Mixed content tests
+my $cert_file = srctop_file('test', 'certs', 'root-cert.pem');
+my $rsa_file = srctop_file('test', 'certs', 'key-pass-12345.pem');
+
+SKIP: {
+    my $certplusrsa_file = 'certplusrsa.pem';
+    my $certplusrsa;
+
+    skip "Couldn't create certplusrsa.pem", 1
+        unless ( open $certplusrsa, '>', $certplusrsa_file
+                 and copy($cert_file, $certplusrsa)
+                 and copy($rsa_file, $certplusrsa)
+                 and close $certplusrsa );
+
+    ok(run(app([ qw(openssl verify -trusted), $certplusrsa_file, $cert_file ])),
+       'Mixed cert + key file test');
+}
+
+SKIP: {
+    my $rsapluscert_file = 'rsapluscert.pem';
+    my $rsapluscert;
+
+    skip "Couldn't create rsapluscert.pem", 1
+        unless ( open $rsapluscert, '>', $rsapluscert_file
+                 and copy($rsa_file, $rsapluscert)
+                 and copy($cert_file, $rsapluscert)
+                 and close $rsapluscert );
+
+    ok(run(app([ qw(openssl verify -trusted), $rsapluscert_file, $cert_file ])),
+       'Mixed key + cert file test');
 }

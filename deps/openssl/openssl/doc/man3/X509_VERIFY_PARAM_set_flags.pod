@@ -10,11 +10,13 @@ X509_VERIFY_PARAM_get_depth, X509_VERIFY_PARAM_set_auth_level,
 X509_VERIFY_PARAM_get_auth_level, X509_VERIFY_PARAM_set_time,
 X509_VERIFY_PARAM_get_time,
 X509_VERIFY_PARAM_add0_policy, X509_VERIFY_PARAM_set1_policies,
+X509_VERIFY_PARAM_get0_host,
 X509_VERIFY_PARAM_set1_host, X509_VERIFY_PARAM_add1_host,
 X509_VERIFY_PARAM_set_hostflags,
 X509_VERIFY_PARAM_get_hostflags,
 X509_VERIFY_PARAM_get0_peername,
-X509_VERIFY_PARAM_set1_email, X509_VERIFY_PARAM_set1_ip,
+X509_VERIFY_PARAM_get0_email, X509_VERIFY_PARAM_set1_email,
+X509_VERIFY_PARAM_set1_ip, X509_VERIFY_PARAM_get1_ip_asc,
 X509_VERIFY_PARAM_set1_ip_asc
 - X509 verification parameters
 
@@ -26,7 +28,7 @@ X509_VERIFY_PARAM_set1_ip_asc
                                  unsigned long flags);
  int X509_VERIFY_PARAM_clear_flags(X509_VERIFY_PARAM *param,
                                    unsigned long flags);
- unsigned long X509_VERIFY_PARAM_get_flags(X509_VERIFY_PARAM *param);
+ unsigned long X509_VERIFY_PARAM_get_flags(const X509_VERIFY_PARAM *param);
 
  int X509_VERIFY_PARAM_set_inh_flags(X509_VERIFY_PARAM *param,
                                      uint32_t flags);
@@ -50,6 +52,7 @@ X509_VERIFY_PARAM_set1_ip_asc
                                        int auth_level);
  int X509_VERIFY_PARAM_get_auth_level(const X509_VERIFY_PARAM *param);
 
+ char *X509_VERIFY_PARAM_get0_host(X509_VERIFY_PARAM *param, int n);
  int X509_VERIFY_PARAM_set1_host(X509_VERIFY_PARAM *param,
                                  const char *name, size_t namelen);
  int X509_VERIFY_PARAM_add1_host(X509_VERIFY_PARAM *param,
@@ -57,9 +60,11 @@ X509_VERIFY_PARAM_set1_ip_asc
  void X509_VERIFY_PARAM_set_hostflags(X509_VERIFY_PARAM *param,
                                       unsigned int flags);
  unsigned int X509_VERIFY_PARAM_get_hostflags(const X509_VERIFY_PARAM *param);
- char *X509_VERIFY_PARAM_get0_peername(X509_VERIFY_PARAM *param);
+ char *X509_VERIFY_PARAM_get0_peername(const X509_VERIFY_PARAM *param);
+ char *X509_VERIFY_PARAM_get0_email(X509_VERIFY_PARAM *param);
  int X509_VERIFY_PARAM_set1_email(X509_VERIFY_PARAM *param,
                                   const char *email, size_t emaillen);
+ char *X509_VERIFY_PARAM_get1_ip_asc(X509_VERIFY_PARAM *param);
  int X509_VERIFY_PARAM_set1_ip(X509_VERIFY_PARAM *param,
                                const unsigned char *ip, size_t iplen);
  int X509_VERIFY_PARAM_set1_ip_asc(X509_VERIFY_PARAM *param, const char *ipasc);
@@ -70,7 +75,7 @@ These functions manipulate the B<X509_VERIFY_PARAM> structure associated with
 a certificate verification operation.
 
 The X509_VERIFY_PARAM_set_flags() function sets the flags in B<param> by oring
-it with B<flags>. See the B<VERIFICATION FLAGS> section for a complete
+it with B<flags>. See L</VERIFICATION FLAGS> for a complete
 description of values the B<flags> parameter can take.
 
 X509_VERIFY_PARAM_get_flags() returns the flags in B<param>.
@@ -84,7 +89,7 @@ X509_VERIFY_PARAM_clear_flags() clears the flags B<flags> in B<param>.
 
 X509_VERIFY_PARAM_set_purpose() sets the verification purpose in B<param>
 to B<purpose>. This determines the acceptable purpose of the certificate
-chain, for example SSL client or SSL server.
+chain, for example B<X509_PURPOSE_SSL_CLIENT>.
 
 X509_VERIFY_PARAM_set_trust() sets the trust setting in B<param> to
 B<trust>.
@@ -107,8 +112,8 @@ A maximal depth chain contains 2 more certificates than the limit, since
 neither the end-entity certificate nor the trust-anchor count against this
 limit.
 Thus a B<depth> limit of 0 only allows the end-entity certificate to be signed
-directly by the trust-anchor, while with a B<depth> limit of 1 there can be one
-intermediate CA certificate between the trust-anchor and the end-entity
+directly by the trust anchor, while with a B<depth> limit of 1 there can be one
+intermediate CA certificate between the trust anchor and the end-entity
 certificate.
 
 X509_VERIFY_PARAM_set_auth_level() sets the authentication security level to
@@ -128,8 +133,13 @@ Security level 1 requires at least 80-bit-equivalent security and is broadly
 interoperable, though it will, for example, reject MD5 signatures or RSA keys
 shorter than 1024 bits.
 
+X509_VERIFY_PARAM_get0_host() returns the B<n>th expected DNS hostname that has
+been set using X509_VERIFY_PARAM_set1_host() or X509_VERIFY_PARAM_add1_host().
+To obtain all names start with B<n> = 0 and increment B<n> as long as no NULL
+pointer is returned.
+
 X509_VERIFY_PARAM_set1_host() sets the expected DNS hostname to
-B<name> clearing any previously specified hostname or names.  If
+B<name> clearing any previously specified hostname.  If
 B<name> is NULL, or empty the list of hostnames is cleared, and
 name checks are not performed on the peer certificate.  If B<name>
 is NUL-terminated, B<namelen> may be zero, otherwise B<namelen>
@@ -177,11 +187,16 @@ string is allocated by the library and is no longer valid once the
 associated B<param> argument is freed.  Applications must not free
 the return value.
 
+X509_VERIFY_PARAM_get0_email() returns the expected RFC822 email address.
+
 X509_VERIFY_PARAM_set1_email() sets the expected RFC822 email address to
 B<email>.  If B<email> is NUL-terminated, B<emaillen> may be zero, otherwise
 B<emaillen> must be set to the length of B<email>.  When an email address
 is specified, certificate verification automatically invokes
 L<X509_check_email(3)>.
+
+X509_VERIFY_PARAM_get1_ip_asc() returns the expected IP address as a string.
+The caller is responsible for freeing it.
 
 X509_VERIFY_PARAM_set1_ip() sets the expected IP address to B<ip>.
 The B<ip> argument is in binary format, in network byte-order and
@@ -204,6 +219,10 @@ X509_VERIFY_PARAM_set1_host(), X509_VERIFY_PARAM_add1_host(),
 X509_VERIFY_PARAM_set1_email(), X509_VERIFY_PARAM_set1_ip() and
 X509_VERIFY_PARAM_set1_ip_asc() return 1 for success and 0 for
 failure.
+
+X509_VERIFY_PARAM_get0_host(), X509_VERIFY_PARAM_get0_email(), and
+X509_VERIFY_PARAM_get1_ip_asc(), return the string pointers pecified above
+or NULL if the respective value has not been set or on error.
 
 X509_VERIFY_PARAM_get_flags() returns the current verification flags.
 
@@ -267,24 +286,24 @@ determine certificate status. If not set deltas are ignored.
 B<X509_V_FLAG_CHECK_SS_SIGNATURE> requests checking the signature of
 the last certificate in a chain if the certificate is supposedly self-signed.
 This is prohibited and will result in an error if it is a non-conforming CA
-certificate with key usage restrictions not including the keyCertSign bit.
+certificate with key usage restrictions not including the I<keyCertSign> bit.
 By default this check is disabled because it doesn't
 add any additional security but in some cases applications might want to
 check the signature anyway. A side effect of not checking the self-signature
 of such a certificate is that disabled or unsupported message digests used for
 the signature are not treated as fatal errors.
 
-When B<X509_V_FLAG_TRUSTED_FIRST> is set, construction of the certificate chain
-in L<X509_verify_cert(3)> will search the trust store for issuer certificates
+When B<X509_V_FLAG_TRUSTED_FIRST> is set, which is always the case since
+OpenSSL 1.1.0, construction of the certificate chain
+in L<X509_verify_cert(3)> searches the trust store for issuer certificates
 before searching the provided untrusted certificates.
 Local issuer certificates are often more likely to satisfy local security
 requirements and lead to a locally trusted root.
 This is especially important when some certificates in the trust store have
-explicit trust settings (see "TRUST SETTINGS" in L<x509(1)>).
-As of OpenSSL 1.1.0 this option is on by default.
+explicit trust settings (see "TRUST SETTINGS" in L<openssl-x509(1)>).
 
-The B<X509_V_FLAG_NO_ALT_CHAINS> flag suppresses checking for alternative
-chains.
+The B<X509_V_FLAG_NO_ALT_CHAINS> flag could have been used before OpenSSL 1.1.0
+to suppress checking for alternative chains.
 By default, unless B<X509_V_FLAG_TRUSTED_FIRST> is set, when building a
 certificate chain, if the first certificate chain found is not trusted, then
 OpenSSL will attempt to replace untrusted certificates supplied by the peer
@@ -293,15 +312,15 @@ found that is trusted.
 As of OpenSSL 1.1.0, with B<X509_V_FLAG_TRUSTED_FIRST> always set, this option
 has no effect.
 
-The B<X509_V_FLAG_PARTIAL_CHAIN> flag causes intermediate certificates in the
-trust store to be treated as trust-anchors, in the same way as the self-signed
+The B<X509_V_FLAG_PARTIAL_CHAIN> flag causes non-self-signed certificates in the
+trust store to be treated as trust anchors, in the same way as self-signed
 root CA certificates.
-This makes it possible to trust certificates issued by an intermediate CA
-without having to trust its ancestor root CA.
-With OpenSSL 1.1.0 and later and <X509_V_FLAG_PARTIAL_CHAIN> set, chain
-construction stops as soon as the first certificate from the trust store is
-added to the chain, whether that certificate is a self-signed "root"
-certificate or a not self-signed intermediate certificate.
+This makes it possible to trust self-issued certificates as well as certificates
+issued by an intermediate CA without having to trust their ancestor root CA.
+With OpenSSL 1.1.0 and later and B<X509_V_FLAG_PARTIAL_CHAIN> set, chain
+construction stops as soon as the first certificate contained in the trust store
+is added to the chain, whether that certificate is a self-signed "root"
+certificate or a not self-signed "intermediate" or self-issued certificate.
 Thus, when an intermediate certificate is found in the trust store, the
 verified chain passed to callbacks may be shorter than it otherwise would
 be without the B<X509_V_FLAG_PARTIAL_CHAIN> flag.
@@ -367,7 +386,7 @@ L<X509_verify_cert(3)>,
 L<X509_check_host(3)>,
 L<X509_check_email(3)>,
 L<X509_check_ip(3)>,
-L<x509(1)>
+L<openssl-x509(1)>
 
 =head1 HISTORY
 
@@ -377,11 +396,14 @@ and has no effect.
 
 The X509_VERIFY_PARAM_get_hostflags() function was added in OpenSSL 1.1.0i.
 
+The X509_VERIFY_PARAM_get0_host(), X509_VERIFY_PARAM_get0_email(),
+and X509_VERIFY_PARAM_get1_ip_asc() functions were added in OpenSSL 3.0.
+
 =head1 COPYRIGHT
 
-Copyright 2009-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2009-2021 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

@@ -1,6 +1,6 @@
-# Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
@@ -82,6 +82,10 @@ was given as input.
 
 All the names extracted from the NAME section.
 
+=item B<contents =E<gt> "...">
+
+The whole contents of the .pod file.
+
 =back
 
 =back
@@ -94,18 +98,37 @@ sub extract_pod_info {
     my %defaults = ( debug => 0, section => 0, %$defaults_ref );
     my $fh = undef;
     my $filename = undef;
+    my $contents;
 
     # If not a file handle, then it's assume to be a file path (a string)
-    unless (ref $input eq "GLOB") {
+    if (ref $input eq "") {
         $filename = $input;
         open $fh, $input or die "Trying to read $filename: $!\n";
         print STDERR "DEBUG: Reading $input\n" if $defaults{debug};
         $input = $fh;
     }
+    if (ref $input eq "GLOB") {
+        local $/ = undef;
+        $contents = <$input>;
+    } else {
+        die "Unknown input type";
+    }
 
+    my @invisible_names = ();
     my %podinfo = ( section => $defaults{section});
-    while(<$input>) {
-        s|\R$||;
+    $podinfo{lastsecttext} = ""; # init needed in case input file is empty
+
+    # Regexp to split a text into paragraphs found at
+    # https://www.perlmonks.org/?node_id=584367
+    # Most of all, \G (continue at last match end) and /g (anchor
+    # this match for \G) are significant
+    foreach (map { /\G((?:(?!\n\n).)*\n+|.+\z)/sg } $contents) {
+        # Remove as many line endings as possible from the end of the paragraph
+        while (s|\R$||) {}
+
+        print STDERR "DEBUG: Paragraph:\n$_\n"
+            if $defaults{debug};
+
         # Stop reading when we have reached past the NAME section.
         last if (m|^=head1|
                  && defined $podinfo{lastsect}
@@ -120,6 +143,16 @@ sub extract_pod_info {
             print STDERR "DEBUG: Clearing pod section text\n"
                 if $defaults{debug};
             $podinfo{lastsecttext} = "";
+        }
+
+        # Add invisible names
+        if (m|^=for\s+openssl\s+names:\s*(.*)|s) {
+            my $x = $1;
+            my @tmp = map { map { s/\s+//g; $_ } split(/,/, $_) } $x;
+            print STDERR
+                "DEBUG: Found invisible names: ", join(', ', @tmp), "\n"
+                if $defaults{debug};
+            push @invisible_names, @tmp;
         }
 
         next if (m|^=| || m|^\s*$|);
@@ -137,13 +170,24 @@ sub extract_pod_info {
         print STDERR "DEBUG: Done reading $filename\n" if $defaults{debug};
     }
 
-    $podinfo{lastsecttext} =~ s| - .*$||;
+    $podinfo{lastsecttext} =~ s|\s+-\s+.*$||s;
 
     my @names =
-        map { s|\s+||g; $_ }
+        map { s/^\s+//g;        # Trim prefix blanks
+              s/\s+$//g;        # Trim suffix blanks
+              s|/|-|g;          # Treat slash as dash
+              $_ }
         split(m|,|, $podinfo{lastsecttext});
 
-    return ( section => $podinfo{section}, names => [ @names ] );
+    print STDERR
+        "DEBUG: Collected names are: ",
+        join(', ', @names, @invisible_names), "\n"
+        if $defaults{debug};
+
+    return ( section => $podinfo{section},
+             names => [ @names, @invisible_names ],
+             contents => $contents,
+             filename => $filename );
 }
 
 1;

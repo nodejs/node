@@ -4,12 +4,15 @@ import re
 
 def get_has_quic(include_path):
   if include_path:
-    openssl_crypto_h = os.path.join(
+    openssl_quic_h = os.path.join(
         include_path,
         'openssl',
-        'crypto.h')
+        'quic.h')
 
-    f = open(openssl_crypto_h)
+    try:
+      f = open(openssl_quic_h)
+    except OSError:
+      return False
 
     regex = '^#\s*define OPENSSL_INFO_QUIC'
 

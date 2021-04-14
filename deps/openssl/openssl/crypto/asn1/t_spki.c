@@ -1,7 +1,7 @@
 /*
  * Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -30,7 +30,7 @@ int NETSCAPE_SPKI_print(BIO *out, NETSCAPE_SPKI *spki)
     BIO_printf(out, "  Public Key Algorithm: %s\n",
                (i == NID_undef) ? "UNKNOWN" : OBJ_nid2ln(i));
     pkey = X509_PUBKEY_get(spki->spkac->pubkey);
-    if (!pkey)
+    if (pkey == NULL)
         BIO_printf(out, "  Unable to load public key\n");
     else {
         EVP_PKEY_print_public(out, pkey, 4, NULL);

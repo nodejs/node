@@ -1,6 +1,6 @@
 // Copyright 2004-2016 The OpenSSL Project Authors. All Rights Reserved.
 //
-// Licensed under the OpenSSL license (the "License").  You may not use
+// Licensed under the Apache License 2.0 (the "License").  You may not use
 // this file except in compliance with the License.  You can obtain a copy
 // in the file LICENSE in the source distribution or at
 // https://www.openssl.org/source/license.html
@@ -8,7 +8,7 @@
 // ====================================================================
 // Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
 // project. Rights for redistribution and usage in source and binary
-// forms are granted according to the OpenSSL license.
+// forms are granted according to the License.
 // ====================================================================
 //
 // What's wrong with compiler generated code? Compiler never uses

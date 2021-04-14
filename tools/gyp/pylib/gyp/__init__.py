@@ -103,6 +103,10 @@ def Load(
     for (key, val) in generator.generator_default_variables.items():
         default_variables.setdefault(key, val)
 
+    output_dir = params["options"].generator_output or params["options"].toplevel_dir
+    default_variables.setdefault("PRODUCT_DIR_ABS", os.path.join(output_dir,
+        default_variables['CONFIGURATION_NAME']))
+
     # Give the generator the opportunity to set additional variables based on
     # the params it will receive in the output phase.
     if getattr(generator, "CalculateVariables", None):

@@ -1,7 +1,7 @@
 /*
- * Copyright 2001-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -34,11 +34,7 @@
 # include <errno.h>
 
 # if !defined(OPENSSL_SYS_MSDOS) && !defined(OPENSSL_SYS_VMS)
-#  ifdef OPENSSL_UNISTD
-#   include OPENSSL_UNISTD
-#  else
-#   include <unistd.h>
-#  endif
+#  include <unistd.h>
 /*
  * If unistd.h defines _POSIX_VERSION, we conclude that we are on a POSIX
  * system and have sigaction and termios.
@@ -92,8 +88,8 @@
  * We know that VMS, MSDOS, VXWORKS, use entirely other mechanisms.
  */
 #  elif !defined(OPENSSL_SYS_VMS) \
-	&& !defined(OPENSSL_SYS_MSDOS) \
-	&& !defined(OPENSSL_SYS_VXWORKS)
+        && !defined(OPENSSL_SYS_MSDOS) \
+        && !defined(OPENSSL_SYS_VXWORKS)
 #   define TERMIOS
 #   undef  TERMIO
 #   undef  SGTTY
@@ -131,7 +127,7 @@
 #  define TTY_set(tty,data)      ioctl(tty,TIOCSETP,data)
 # endif
 
-# if !defined(_LIBC) && !defined(OPENSSL_SYS_MSDOS) && !defined(OPENSSL_SYS_VMS)
+# if !defined(_LIBC) && !defined(OPENSSL_SYS_MSDOS) && !defined(OPENSSL_SYS_VMS) && ! (defined(OPENSSL_SYS_TANDEM) && defined(_SPT_MODEL_))
 #  include <sys/ioctl.h>
 # endif
 
@@ -376,7 +372,8 @@ static int read_string_inner(UI *ui, UI_STRING *uis, int echo, int strip_nl)
 /* Internal functions to open, handle and close a channel to the console.  */
 static int open_console(UI *ui)
 {
-    CRYPTO_THREAD_write_lock(ui->lock);
+    if (!CRYPTO_THREAD_write_lock(ui->lock))
+        return 0;
     is_a_tty = 1;
 
 # if defined(OPENSSL_SYS_VXWORKS)
@@ -455,15 +452,12 @@ static int open_console(UI *ui)
              * which seems appropriate.
              */
         if (errno == ENODEV)
-            is_a_tty = 0;
+                is_a_tty = 0;
         else
 #  endif
             {
-                char tmp_num[10];
-                BIO_snprintf(tmp_num, sizeof(tmp_num) - 1, "%d", errno);
-                UIerr(UI_F_OPEN_CONSOLE, UI_R_UNKNOWN_TTYGET_ERRNO_VALUE);
-                ERR_add_error_data(2, "errno=", tmp_num);
-
+                ERR_raise_data(ERR_LIB_UI, UI_R_UNKNOWN_TTYGET_ERRNO_VALUE,
+                               "errno=%d", errno);
                 return 0;
             }
     }
@@ -473,11 +467,8 @@ static int open_console(UI *ui)
 
     /* if there isn't a TT device, something is very wrong */
     if (status != SS$_NORMAL) {
-        char tmp_num[12];
-
-        BIO_snprintf(tmp_num, sizeof(tmp_num) - 1, "%%X%08X", status);
-        UIerr(UI_F_OPEN_CONSOLE, UI_R_SYSASSIGN_ERROR);
-        ERR_add_error_data(2, "status=", tmp_num);
+        ERR_raise_data(ERR_LIB_UI, UI_R_SYSASSIGN_ERROR,
+                       "status=%%X%08X", status);
         return 0;
     }
 
@@ -510,15 +501,9 @@ static int noecho_console(UI *ui)
         status = sys$qiow(0, channel, IO$_SETMODE, &iosb, 0, 0, tty_new, 12,
                           0, 0, 0, 0);
         if ((status != SS$_NORMAL) || (iosb.iosb$w_value != SS$_NORMAL)) {
-            char tmp_num[2][12];
-
-            BIO_snprintf(tmp_num[0], sizeof(tmp_num[0]) - 1, "%%X%08X",
-                         status);
-            BIO_snprintf(tmp_num[1], sizeof(tmp_num[1]) - 1, "%%X%08X",
-                         iosb.iosb$w_value);
-            UIerr(UI_F_NOECHO_CONSOLE, UI_R_SYSQIOW_ERROR);
-            ERR_add_error_data(5, "status=", tmp_num[0],
-                               ",", "iosb.iosb$w_value=", tmp_num[1]);
+            ERR_raise_data(ERR_LIB_UI, UI_R_SYSQIOW_ERROR,
+                           "status=%%X%08X, iosb.iosb$w_value=%%X%08X",
+                           status, iosb.iosb$w_value);
             return 0;
         }
     }
@@ -548,15 +533,9 @@ static int echo_console(UI *ui)
         status = sys$qiow(0, channel, IO$_SETMODE, &iosb, 0, 0, tty_new, 12,
                           0, 0, 0, 0);
         if ((status != SS$_NORMAL) || (iosb.iosb$w_value != SS$_NORMAL)) {
-            char tmp_num[2][12];
-
-            BIO_snprintf(tmp_num[0], sizeof(tmp_num[0]) - 1, "%%X%08X",
-                         status);
-            BIO_snprintf(tmp_num[1], sizeof(tmp_num[1]) - 1, "%%X%08X",
-                         iosb.iosb$w_value);
-            UIerr(UI_F_ECHO_CONSOLE, UI_R_SYSQIOW_ERROR);
-            ERR_add_error_data(5, "status=", tmp_num[0],
-                               ",", "iosb.iosb$w_value=", tmp_num[1]);
+            ERR_raise_data(ERR_LIB_UI, UI_R_SYSQIOW_ERROR,
+                           "status=%%X%08X, iosb.iosb$w_value=%%X%08X",
+                           status, iosb.iosb$w_value);
             return 0;
         }
     }
@@ -579,11 +558,8 @@ static int close_console(UI *ui)
 # ifdef OPENSSL_SYS_VMS
     status = sys$dassgn(channel);
     if (status != SS$_NORMAL) {
-        char tmp_num[12];
-
-        BIO_snprintf(tmp_num, sizeof(tmp_num) - 1, "%%X%08X", status);
-        UIerr(UI_F_CLOSE_CONSOLE, UI_R_SYSDASSGN_ERROR);
-        ERR_add_error_data(2, "status=", tmp_num);
+        ERR_raise_data(ERR_LIB_UI, UI_R_SYSDASSGN_ERROR,
+                       "status=%%X%08X", status);
         return 0;
     }
 # endif

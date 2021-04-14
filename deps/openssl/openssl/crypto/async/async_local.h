@@ -1,7 +1,7 @@
 /*
- * Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -43,6 +43,7 @@ struct async_job_st {
     int ret;
     int status;
     ASYNC_WAIT_CTX *waitctx;
+    OSSL_LIB_CTX *libctx;
 };
 
 struct fd_lookup_st {
@@ -59,6 +60,9 @@ struct async_wait_ctx_st {
     struct fd_lookup_st *fds;
     size_t numadd;
     size_t numdel;
+    ASYNC_callback_fn callback;
+    void *callback_arg;
+    int status;
 };
 
 DEFINE_STACK_OF(ASYNC_JOB)

@@ -3,6 +3,7 @@
 .align	4
 _bn_mul_mont:
 L_bn_mul_mont_begin:
+.byte	243,15,30,251
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi

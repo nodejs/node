@@ -1,7 +1,7 @@
 /*
- * Copyright 1999-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -22,7 +22,7 @@ int X509_CRL_print_fp(FILE *fp, X509_CRL *x)
     int ret;
 
     if ((b = BIO_new(BIO_s_file())) == NULL) {
-        X509err(X509_F_X509_CRL_PRINT_FP, ERR_R_BUF_LIB);
+        ERR_raise(ERR_LIB_X509, ERR_R_BUF_LIB);
         return 0;
     }
     BIO_set_fp(b, fp, BIO_NOCLOSE);
@@ -48,7 +48,7 @@ int X509_CRL_print_ex(BIO *out, X509_CRL *x, unsigned long nmflag)
 
     BIO_printf(out, "Certificate Revocation List (CRL):\n");
     l = X509_CRL_get_version(x);
-    if (l >= 0 && l <= 1)
+    if (l >= X509_CRL_VERSION_1 && l <= X509_CRL_VERSION_2)
         BIO_printf(out, "%8sVersion %ld (0x%lx)\n", "", l + 1, (unsigned long)l);
     else
         BIO_printf(out, "%8sVersion unknown (%ld)\n", "", l);

@@ -1,6 +1,7 @@
 .text
 .align	4
 __mul_1x1_mmx:
+.byte	243,15,30,251
 	subl	$36,%esp
 	movl	%eax,%ecx
 	leal	(%eax,%eax,1),%edx
@@ -102,6 +103,7 @@ __mul_1x1_mmx:
 	ret
 .align	4
 __mul_1x1_ialu:
+.byte	243,15,30,251
 	subl	$36,%esp
 	movl	%eax,%ecx
 	leal	(%eax,%eax,1),%edx
@@ -234,6 +236,7 @@ __mul_1x1_ialu:
 .align	4
 _bn_GF2m_mul_2x2:
 L_bn_GF2m_mul_2x2_begin:
+.byte	243,15,30,251
 	call	L000PIC_me_up
 L000PIC_me_up:
 	popl	%edx

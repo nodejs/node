@@ -1,7 +1,7 @@
 /*
- * Copyright 2008-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2008-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -245,6 +245,17 @@ ASN1_NDEF_SEQUENCE(CMS_EncryptedData) = {
         ASN1_IMP_SET_OF_OPT(CMS_EncryptedData, unprotectedAttrs, X509_ATTRIBUTE, 1)
 } ASN1_NDEF_SEQUENCE_END(CMS_EncryptedData)
 
+/* Defined in RFC 5083 - Section 2.1. AuthEnvelopedData Type */
+ASN1_NDEF_SEQUENCE(CMS_AuthEnvelopedData) = {
+        ASN1_EMBED(CMS_AuthEnvelopedData, version, INT32),
+        ASN1_IMP_OPT(CMS_AuthEnvelopedData, originatorInfo, CMS_OriginatorInfo, 0),
+        ASN1_SET_OF(CMS_AuthEnvelopedData, recipientInfos, CMS_RecipientInfo),
+        ASN1_SIMPLE(CMS_AuthEnvelopedData, authEncryptedContentInfo, CMS_EncryptedContentInfo),
+        ASN1_IMP_SET_OF_OPT(CMS_AuthEnvelopedData, authAttrs, X509_ALGOR, 2),
+        ASN1_SIMPLE(CMS_AuthEnvelopedData, mac, ASN1_OCTET_STRING),
+        ASN1_IMP_SET_OF_OPT(CMS_AuthEnvelopedData, unauthAttrs, X509_ALGOR, 3)
+} ASN1_NDEF_SEQUENCE_END(CMS_AuthEnvelopedData)
+
 ASN1_NDEF_SEQUENCE(CMS_AuthenticatedData) = {
         ASN1_EMBED(CMS_AuthenticatedData, version, INT32),
         ASN1_IMP_OPT(CMS_AuthenticatedData, originatorInfo, CMS_OriginatorInfo, 0),
@@ -273,6 +284,7 @@ ASN1_ADB(CMS_ContentInfo) = {
         ADB_ENTRY(NID_pkcs7_enveloped, ASN1_NDEF_EXP(CMS_ContentInfo, d.envelopedData, CMS_EnvelopedData, 0)),
         ADB_ENTRY(NID_pkcs7_digest, ASN1_NDEF_EXP(CMS_ContentInfo, d.digestedData, CMS_DigestedData, 0)),
         ADB_ENTRY(NID_pkcs7_encrypted, ASN1_NDEF_EXP(CMS_ContentInfo, d.encryptedData, CMS_EncryptedData, 0)),
+        ADB_ENTRY(NID_id_smime_ct_authEnvelopedData, ASN1_NDEF_EXP(CMS_ContentInfo, d.authEnvelopedData, CMS_AuthEnvelopedData, 0)),
         ADB_ENTRY(NID_id_smime_ct_authData, ASN1_NDEF_EXP(CMS_ContentInfo, d.authenticatedData, CMS_AuthenticatedData, 0)),
         ADB_ENTRY(NID_id_smime_ct_compressedData, ASN1_NDEF_EXP(CMS_ContentInfo, d.compressedData, CMS_CompressedData, 0)),
 } ASN1_ADB_END(CMS_ContentInfo, 0, contentType, 0, &cms_default_tt, NULL);

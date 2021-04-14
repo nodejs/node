@@ -1,7 +1,7 @@
 /*
- * Copyright 2017-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -182,7 +182,7 @@ err:
 
 static int test_ocsp_url_svcloc_new(void)
 {
-    static const char *  urls[] = {
+    static const char *urls[] = {
         "www.openssl.org",
         "www.openssl.net",
         NULL
@@ -211,8 +211,15 @@ err:
 
 #endif /* OPENSSL_NO_OCSP */
 
+OPT_TEST_DECLARE_USAGE("certfile privkeyfile\n")
+
 int setup_tests(void)
 {
+    if (!test_skip_common_options()) {
+        TEST_error("Error parsing test options\n");
+        return 0;
+    }
+
     if (!TEST_ptr(certstr = test_get_argument(0))
         || !TEST_ptr(privkeystr = test_get_argument(1)))
         return 0;

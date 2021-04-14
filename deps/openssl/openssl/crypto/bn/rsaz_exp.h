@@ -1,8 +1,8 @@
 /*
- * Copyright 2013-2018 The OpenSSL Project Authors. All Rights Reserved.
- * Copyright (c) 2012, Intel Corporation. All Rights Reserved.
+ * Copyright 2013-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright (c) 2020, Intel Corporation. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -34,6 +34,23 @@ void RSAZ_512_mod_exp(BN_ULONG result[8],
                       const BN_ULONG base_norm[8], const BN_ULONG exponent[8],
                       const BN_ULONG m_norm[8], BN_ULONG k0,
                       const BN_ULONG RR[8]);
+
+
+int ossl_rsaz_avx512ifma_eligible(void);
+
+int ossl_rsaz_mod_exp_avx512_x2(BN_ULONG *res1,
+                                const BN_ULONG *base1,
+                                const BN_ULONG *exponent1,
+                                const BN_ULONG *m1,
+                                const BN_ULONG *RR1,
+                                BN_ULONG k0_1,
+                                BN_ULONG *res2,
+                                const BN_ULONG *base2,
+                                const BN_ULONG *exponent2,
+                                const BN_ULONG *m2,
+                                const BN_ULONG *RR2,
+                                BN_ULONG k0_2,
+                                int factor_size);
 
 # endif
 

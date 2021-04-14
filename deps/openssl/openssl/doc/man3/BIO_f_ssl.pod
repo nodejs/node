@@ -11,7 +11,7 @@ BIO_ssl_shutdown - SSL BIO
 
 =head1 SYNOPSIS
 
-=for comment multiple includes
+=for openssl multiple includes
 
  #include <openssl/bio.h>
  #include <openssl/ssl.h>
@@ -96,12 +96,15 @@ chain and calling SSL_shutdown() on its internal SSL
 pointer.
 
 BIO_do_handshake() attempts to complete an SSL handshake on the
-supplied BIO and establish the SSL connection. It returns 1
-if the connection was established successfully. A zero or negative
-value is returned if the connection could not be established, the
-call BIO_should_retry() should be used for non blocking connect BIOs
-to determine if the call should be retried. If an SSL connection has
-already been established this call has no effect.
+-supplied BIO and establish the SSL connection.
+For non-SSL BIOs the connection is done typically at TCP level.
+If domain name resolution yields multiple IP addresses all of them are tried
+after connect() failures.
+The function returns 1 if the connection was established successfully.
+A zero or negative value is returned if the connection could not be established.
+The call BIO_should_retry() should be used for nonblocking connect BIOs
+to determine if the call should be retried.
+If a connection has already been established this call has no effect.
 
 =head1 NOTES
 
@@ -171,9 +174,6 @@ unencrypted example in L<BIO_s_connect(3)>.
      exit(1);
  }
 
- /* Don't want any retries */
- SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
-
  /* XXX We might want to do other things with ssl here */
 
  /* An empty host part means the loopback address */
@@ -231,7 +231,6 @@ a client and also echoes the request to standard output.
      exit(1);
  }
 
- SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
  bbio = BIO_new(BIO_f_buffer());
  sbio = BIO_push(bbio, sbio);
  acpt = BIO_new_accept("4433");
@@ -295,7 +294,7 @@ be modified to handle this fix or they may free up an already freed BIO.
 
 Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

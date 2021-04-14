@@ -1,7 +1,7 @@
 /*
  * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -18,20 +18,24 @@ int ssl3_do_change_cipher_spec(SSL *s)
     else
         i = SSL3_CHANGE_CIPHER_CLIENT_READ;
 
-    if (s->s3->tmp.key_block == NULL) {
+    if (s->s3.tmp.key_block == NULL) {
         if (s->session == NULL || s->session->master_key_length == 0) {
             /* might happen if dtls1_read_bytes() calls this */
-            SSLerr(SSL_F_SSL3_DO_CHANGE_CIPHER_SPEC, SSL_R_CCS_RECEIVED_EARLY);
+            ERR_raise(ERR_LIB_SSL, SSL_R_CCS_RECEIVED_EARLY);
             return 0;
         }
 
-        s->session->cipher = s->s3->tmp.new_cipher;
-        if (!s->method->ssl3_enc->setup_key_block(s))
+        s->session->cipher = s->s3.tmp.new_cipher;
+        if (!s->method->ssl3_enc->setup_key_block(s)) {
+            /* SSLfatal() already called */
             return 0;
+        }
     }
 
-    if (!s->method->ssl3_enc->change_cipher_state(s, i))
+    if (!s->method->ssl3_enc->change_cipher_state(s, i)) {
+        /* SSLfatal() already called */
         return 0;
+    }
 
     return 1;
 }
@@ -54,9 +58,9 @@ int ssl3_send_alert(SSL *s, int level, int desc)
     if ((level == SSL3_AL_FATAL) && (s->session != NULL))
         SSL_CTX_remove_session(s->session_ctx, s->session);
 
-    s->s3->alert_dispatch = 1;
-    s->s3->send_alert[0] = level;
-    s->s3->send_alert[1] = desc;
+    s->s3.alert_dispatch = 1;
+    s->s3.send_alert[0] = level;
+    s->s3.send_alert[1] = desc;
     if (!RECORD_LAYER_write_pending(&s->rlayer)) {
         /* data still being written out? */
         return s->method->ssl_dispatch_alert(s);
@@ -75,22 +79,22 @@ int ssl3_dispatch_alert(SSL *s)
     void (*cb) (const SSL *ssl, int type, int val) = NULL;
     size_t written;
 
-    s->s3->alert_dispatch = 0;
+    s->s3.alert_dispatch = 0;
     alertlen = 2;
 #ifndef OPENSSL_NO_QUIC
     if (SSL_IS_QUIC(s)) {
         if (!s->quic_method->send_alert(s, s->quic_write_level,
-                                        s->s3->send_alert[1])) {
-            SSLerr(SSL_F_SSL3_DISPATCH_ALERT, ERR_R_INTERNAL_ERROR);
+                                        s->s3.send_alert[1])) {
+            ERR_raise(ERR_LIB_SSL, ERR_R_INTERNAL_ERROR);
             return 0;
         }
         i = 1;
     } else
 #endif
-    i = do_ssl3_write(s, SSL3_RT_ALERT, &s->s3->send_alert[0], &alertlen, 1, 0,
+    i = do_ssl3_write(s, SSL3_RT_ALERT, &s->s3.send_alert[0], &alertlen, 1, 0,
                       &written);
     if (i <= 0) {
-        s->s3->alert_dispatch = 1;
+        s->s3.alert_dispatch = 1;
     } else {
         /*
          * Alert sent to BIO - now flush. If the message does not get sent due
@@ -99,7 +103,7 @@ int ssl3_dispatch_alert(SSL *s)
         (void)BIO_flush(s->wbio);
 
         if (s->msg_callback)
-            s->msg_callback(1, s->version, SSL3_RT_ALERT, s->s3->send_alert,
+            s->msg_callback(1, s->version, SSL3_RT_ALERT, s->s3.send_alert,
                             2, s, s->msg_callback_arg);
 
         if (s->info_callback != NULL)
@@ -108,7 +112,7 @@ int ssl3_dispatch_alert(SSL *s)
             cb = s->ctx->info_callback;
 
         if (cb != NULL) {
-            j = (s->s3->send_alert[0] << 8) | s->s3->send_alert[1];
+            j = (s->s3.send_alert[0] << 8) | s->s3.send_alert[1];
             cb(s, SSL_CB_WRITE_ALERT, j);
         }
     }

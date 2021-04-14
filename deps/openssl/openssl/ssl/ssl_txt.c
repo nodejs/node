@@ -1,8 +1,8 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2005 Nokia. All rights reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -19,7 +19,7 @@ int SSL_SESSION_print_fp(FILE *fp, const SSL_SESSION *x)
     int ret;
 
     if ((b = BIO_new(BIO_s_file())) == NULL) {
-        SSLerr(SSL_F_SSL_SESSION_PRINT_FP, ERR_R_BUF_LIB);
+        ERR_raise(ERR_LIB_SSL, ERR_R_BUF_LIB);
         return 0;
     }
     BIO_set_fp(b, fp, BIO_NOCLOSE);
@@ -107,7 +107,6 @@ int SSL_SESSION_print(BIO *bp, const SSL_SESSION *x)
     if (x->ext.tick) {
         if (BIO_puts(bp, "\n    TLS session ticket:\n") <= 0)
             goto err;
-        /* TODO(size_t): Convert this call */
         if (BIO_dump_indent
             (bp, (const char *)x->ext.tick, (int)x->ext.ticklen, 4)
             <= 0)
@@ -117,7 +116,7 @@ int SSL_SESSION_print(BIO *bp, const SSL_SESSION *x)
     if (x->compress_meth != 0) {
         SSL_COMP *comp = NULL;
 
-        if (!ssl_cipher_get_evp(x, NULL, NULL, NULL, NULL, &comp, 0))
+        if (!ssl_cipher_get_evp(NULL, x, NULL, NULL, NULL, NULL, &comp, 0))
             goto err;
         if (comp == NULL) {
             if (BIO_printf(bp, "\n    Compression: %d", x->compress_meth) <= 0)

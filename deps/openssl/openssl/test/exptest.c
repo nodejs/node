@@ -1,7 +1,7 @@
 /*
- * Copyright 1995-2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -144,17 +144,26 @@ static int test_mod_exp(int round)
         || !TEST_ptr(m = BN_new()))
         goto err;
 
-    RAND_bytes(&c, 1);
+    if (!TEST_true(RAND_bytes(&c, 1)))
+        goto err;
     c = (c % BN_BITS) - BN_BITS2;
-    BN_rand(a, NUM_BITS + c, BN_RAND_TOP_ONE, BN_RAND_BOTTOM_ANY);
+    if (!TEST_true(BN_rand(a, NUM_BITS + c, BN_RAND_TOP_ONE,
+                           BN_RAND_BOTTOM_ANY)))
+        goto err;
 
-    RAND_bytes(&c, 1);
+    if (!TEST_true(RAND_bytes(&c, 1)))
+        goto err;
     c = (c % BN_BITS) - BN_BITS2;
-    BN_rand(b, NUM_BITS + c, BN_RAND_TOP_ONE, BN_RAND_BOTTOM_ANY);
+    if (!TEST_true(BN_rand(b, NUM_BITS + c, BN_RAND_TOP_ONE,
+                           BN_RAND_BOTTOM_ANY)))
+        goto err;
 
-    RAND_bytes(&c, 1);
+    if (!TEST_true(RAND_bytes(&c, 1)))
+        goto err;
     c = (c % BN_BITS) - BN_BITS2;
-    BN_rand(m, NUM_BITS + c, BN_RAND_TOP_ONE, BN_RAND_BOTTOM_ODD);
+    if (!TEST_true(BN_rand(m, NUM_BITS + c, BN_RAND_TOP_ONE,
+                           BN_RAND_BOTTOM_ODD)))
+        goto err;
 
     if (!TEST_true(BN_mod(a, a, m, ctx))
         || !TEST_true(BN_mod(b, b, m, ctx))
@@ -198,9 +207,102 @@ static int test_mod_exp(int round)
     return ret;
 }
 
+static int test_mod_exp_x2(int idx)
+{
+    BN_CTX *ctx;
+    int ret = 0;
+    BIGNUM *r_mont_const_x2_1 = NULL;
+    BIGNUM *r_mont_const_x2_2 = NULL;
+    BIGNUM *r_simple1 = NULL;
+    BIGNUM *r_simple2 = NULL;
+    BIGNUM *a1 = NULL;
+    BIGNUM *b1 = NULL;
+    BIGNUM *m1 = NULL;
+    BIGNUM *a2 = NULL;
+    BIGNUM *b2 = NULL;
+    BIGNUM *m2 = NULL;
+    int factor_size = 0;
+
+    /*
+     * Currently only 1024-bit factor size is supported.
+     */
+    if (idx <= 100)
+        factor_size = 1024;
+
+    if (!TEST_ptr(ctx = BN_CTX_new()))
+        goto err;
+
+    if (!TEST_ptr(r_mont_const_x2_1 = BN_new())
+        || !TEST_ptr(r_mont_const_x2_2 = BN_new())
+        || !TEST_ptr(r_simple1 = BN_new())
+        || !TEST_ptr(r_simple2 = BN_new())
+        || !TEST_ptr(a1 = BN_new())
+        || !TEST_ptr(b1 = BN_new())
+        || !TEST_ptr(m1 = BN_new())
+        || !TEST_ptr(a2 = BN_new())
+        || !TEST_ptr(b2 = BN_new())
+        || !TEST_ptr(m2 = BN_new()))
+        goto err;
+
+    BN_rand(a1, factor_size, BN_RAND_TOP_ONE, BN_RAND_BOTTOM_ANY);
+    BN_rand(b1, factor_size, BN_RAND_TOP_ONE, BN_RAND_BOTTOM_ANY);
+    BN_rand(m1, factor_size, BN_RAND_TOP_ONE, BN_RAND_BOTTOM_ODD);
+    BN_rand(a2, factor_size, BN_RAND_TOP_ONE, BN_RAND_BOTTOM_ANY);
+    BN_rand(b2, factor_size, BN_RAND_TOP_ONE, BN_RAND_BOTTOM_ANY);
+    BN_rand(m2, factor_size, BN_RAND_TOP_ONE, BN_RAND_BOTTOM_ODD);
+
+    if (!TEST_true(BN_mod(a1, a1, m1, ctx))
+        || !TEST_true(BN_mod(b1, b1, m1, ctx))
+        || !TEST_true(BN_mod(a2, a2, m2, ctx))
+        || !TEST_true(BN_mod(b2, b2, m2, ctx))
+        || !TEST_true(BN_mod_exp_simple(r_simple1, a1, b1, m1, ctx))
+        || !TEST_true(BN_mod_exp_simple(r_simple2, a2, b2, m2, ctx))
+        || !TEST_true(BN_mod_exp_mont_consttime_x2(r_mont_const_x2_1, a1, b1, m1, NULL,
+                                                   r_mont_const_x2_2, a2, b2, m2, NULL,
+                                                   ctx)))
+        goto err;
+
+    if (!TEST_BN_eq(r_simple1, r_mont_const_x2_1)
+        || !TEST_BN_eq(r_simple2, r_mont_const_x2_2)) {
+        if (BN_cmp(r_simple1, r_mont_const_x2_1) != 0)
+            TEST_info("simple and mont const time x2 (#1) results differ");
+        if (BN_cmp(r_simple2, r_mont_const_x2_2) != 0)
+            TEST_info("simple and mont const time x2 (#2) results differ");
+
+        BN_print_var(a1);
+        BN_print_var(b1);
+        BN_print_var(m1);
+        BN_print_var(a2);
+        BN_print_var(b2);
+        BN_print_var(m2);
+        BN_print_var(r_simple1);
+        BN_print_var(r_simple2);
+        BN_print_var(r_mont_const_x2_1);
+        BN_print_var(r_mont_const_x2_2);
+        goto err;
+    }
+
+    ret = 1;
+ err:
+    BN_free(r_mont_const_x2_1);
+    BN_free(r_mont_const_x2_2);
+    BN_free(r_simple1);
+    BN_free(r_simple2);
+    BN_free(a1);
+    BN_free(b1);
+    BN_free(m1);
+    BN_free(a2);
+    BN_free(b2);
+    BN_free(m2);
+    BN_CTX_free(ctx);
+
+    return ret;
+}
+
 int setup_tests(void)
 {
     ADD_TEST(test_mod_exp_zero);
     ADD_ALL_TESTS(test_mod_exp, 200);
+    ADD_ALL_TESTS(test_mod_exp_x2, 100);
     return 1;
 }

@@ -1,7 +1,7 @@
 #! /usr/bin/env perl
 # Copyright 2009-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
@@ -47,8 +47,7 @@ for (@ARGV)	{ $bits=64 if (/\-m64/ || /\-xarch\=v9/); }
 if ($bits==64)	{ $bias=2047; $frame=192; }
 else		{ $bias=0;    $frame=112; }
 
-$output=shift;
-open STDOUT,">$output";
+$output=pop and open STDOUT,">$output";
 
 $ctx="%i0";
 $inp="%i1";

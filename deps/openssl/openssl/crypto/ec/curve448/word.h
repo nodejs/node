@@ -1,8 +1,8 @@
 /*
- * Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2014 Cryptography Research, Inc.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -17,15 +17,20 @@
 # include <assert.h>
 # include <stdlib.h>
 # include <openssl/e_os2.h>
-# include "arch_intrinsics.h"
 # include "curve448utils.h"
+
+# ifdef INT128_MAX
+#  include "arch_64/arch_intrinsics.h"
+# else
+#  include "arch_32/arch_intrinsics.h"
+# endif
 
 # if (ARCH_WORD_BITS == 64)
 typedef uint64_t word_t, mask_t;
-typedef __uint128_t dword_t;
+typedef uint128_t dword_t;
 typedef int32_t hsword_t;
 typedef int64_t sword_t;
-typedef __int128_t dsword_t;
+typedef int128_t dsword_t;
 # elif (ARCH_WORD_BITS == 32)
 typedef uint32_t word_t, mask_t;
 typedef uint64_t dword_t;

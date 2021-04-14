@@ -1,0 +1,43 @@
+=pod
+
+=head1 NAME
+
+SSL_group_to_name - get name of group
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ const char *SSL_group_to_name(const SSL *ssl, int id);
+
+=head1 DESCRIPTION
+
+SSL_group_to_name() is used to retrieve the TLS group name
+associated with a given TLS group ID, as registered via built-in
+or external providers and as returned by a call to SSL_get1_groups()
+or SSL_get_shared_group().
+
+=head1 RETURN VALUES
+
+If non-NULL, SSL_group_to_name() returns the TLS group name
+corresponding to the given I<id> as a NULL-terminated string.
+If SSL_group_to_name() returns NULL, an error occurred; possibly no
+corresponding tlsname was registered during provider initialisation.
+
+Note that the return value is valid only during the lifetime of the
+SSL object I<ssl>.
+
+=head1 SEE ALSO
+
+L<ssl(7)>
+
+=head1 COPYRIGHT
+
+Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

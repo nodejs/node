@@ -1,7 +1,7 @@
 /*
  * Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL licenses, (the "License");
+ * Licensed under the Apache License 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  * https://www.openssl.org/source/license.html
@@ -38,7 +38,7 @@ int FuzzerInitialize(int *argc, char ***argv)
     ctx = BN_CTX_new();
 
     OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL);
-    ERR_get_state();
+    ERR_clear_error();
 
     return 1;
 }

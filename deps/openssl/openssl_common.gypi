@@ -7,6 +7,8 @@
     'openssl/crypto/modes/',
     'openssl/crypto/ec/curve448',
     'openssl/crypto/ec/curve448/arch_32',
+    'openssl/providers/common/include',
+    'openssl/providers/implementations/include',
     'config/',
   ],
   # build options specific to OS
@@ -60,7 +62,7 @@
       # linux and others
       'cflags': ['-Wno-missing-field-initializers',],
       'defines': [
-        'OPENSSLDIR="/etc/ssl"',
+        'OPENSSLDIR="<(obj_dir_abs)/deps/openssl"',
         'ENGINESDIR="/dev/null"',
         'TERMIOS',
       ],

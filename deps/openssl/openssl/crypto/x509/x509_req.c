@@ -1,7 +1,7 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -26,9 +26,9 @@ X509_REQ *X509_to_X509_REQ(X509 *x, EVP_PKEY *pkey, const EVP_MD *md)
     int i;
     EVP_PKEY *pktmp;
 
-    ret = X509_REQ_new();
+    ret = X509_REQ_new_ex(x->libctx, x->propq);
     if (ret == NULL) {
-        X509err(X509_F_X509_TO_X509_REQ, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_X509, ERR_R_MALLOC_FAILURE);
         goto err;
     }
 
@@ -85,33 +85,18 @@ int X509_REQ_check_private_key(X509_REQ *x, EVP_PKEY *k)
     int ok = 0;
 
     xk = X509_REQ_get_pubkey(x);
-    switch (EVP_PKEY_cmp(xk, k)) {
+    switch (EVP_PKEY_eq(xk, k)) {
     case 1:
         ok = 1;
         break;
     case 0:
-        X509err(X509_F_X509_REQ_CHECK_PRIVATE_KEY,
-                X509_R_KEY_VALUES_MISMATCH);
+        ERR_raise(ERR_LIB_X509, X509_R_KEY_VALUES_MISMATCH);
         break;
     case -1:
-        X509err(X509_F_X509_REQ_CHECK_PRIVATE_KEY, X509_R_KEY_TYPE_MISMATCH);
+        ERR_raise(ERR_LIB_X509, X509_R_KEY_TYPE_MISMATCH);
         break;
     case -2:
-#ifndef OPENSSL_NO_EC
-        if (EVP_PKEY_id(k) == EVP_PKEY_EC) {
-            X509err(X509_F_X509_REQ_CHECK_PRIVATE_KEY, ERR_R_EC_LIB);
-            break;
-        }
-#endif
-#ifndef OPENSSL_NO_DH
-        if (EVP_PKEY_id(k) == EVP_PKEY_DH) {
-            /* No idea */
-            X509err(X509_F_X509_REQ_CHECK_PRIVATE_KEY,
-                    X509_R_CANT_CHECK_DH_KEY);
-            break;
-        }
-#endif
-        X509err(X509_F_X509_REQ_CHECK_PRIVATE_KEY, X509_R_UNKNOWN_KEY_TYPE);
+        ERR_raise(ERR_LIB_X509, X509_R_UNKNOWN_KEY_TYPE);
     }
 
     EVP_PKEY_free(xk);
@@ -167,7 +152,9 @@ STACK_OF(X509_EXTENSION) *X509_REQ_get_extensions(X509_REQ *req)
         ext = X509_ATTRIBUTE_get0_type(attr, 0);
         break;
     }
-    if (!ext || (ext->type != V_ASN1_SEQUENCE))
+    if (ext == NULL) /* no extensions is not an error */
+        return sk_X509_EXTENSION_new_null();
+    if (ext->type != V_ASN1_SEQUENCE)
         return NULL;
     p = ext->value.sequence->data;
     return (STACK_OF(X509_EXTENSION) *)
@@ -179,15 +166,15 @@ STACK_OF(X509_EXTENSION) *X509_REQ_get_extensions(X509_REQ *req)
  * Add a STACK_OF extensions to a certificate request: allow alternative OIDs
  * in case we want to create a non standard one.
  */
-
-int X509_REQ_add_extensions_nid(X509_REQ *req, STACK_OF(X509_EXTENSION) *exts,
-                                int nid)
+int X509_REQ_add_extensions_nid(X509_REQ *req,
+                                const STACK_OF(X509_EXTENSION) *exts, int nid)
 {
     int extlen;
     int rv = 0;
     unsigned char *ext = NULL;
+
     /* Generate encoding of extensions */
-    extlen = ASN1_item_i2d((ASN1_VALUE *)exts, &ext,
+    extlen = ASN1_item_i2d((const ASN1_VALUE *)exts, &ext,
                            ASN1_ITEM_rptr(X509_EXTENSIONS));
     if (extlen <= 0)
         return 0;
@@ -197,7 +184,7 @@ int X509_REQ_add_extensions_nid(X509_REQ *req, STACK_OF(X509_EXTENSION) *exts,
 }
 
 /* This is the normal usage: use the "official" OID */
-int X509_REQ_add_extensions(X509_REQ *req, STACK_OF(X509_EXTENSION) *exts)
+int X509_REQ_add_extensions(X509_REQ *req, const STACK_OF(X509_EXTENSION) *exts)
 {
     return X509_REQ_add_extensions_nid(req, exts, NID_ext_req);
 }

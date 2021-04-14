@@ -1,7 +1,7 @@
 #! /usr/bin/env perl
 # Copyright 2009-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
@@ -192,9 +192,10 @@ $PREFIX="aesni";	# if $PREFIX is set to "AES", the script
 			# generates drop-in replacement for
 			# crypto/aes/asm/aes-x86_64.pl:-)
 
-$flavour = shift;
-$output  = shift;
-if ($flavour =~ /\./) { $output = $flavour; undef $flavour; }
+# $output is the last argument if it looks like a file (it has an extension)
+# $flavour is the first argument if it doesn't look like a file
+$output = $#ARGV >= 0 && $ARGV[$#ARGV] =~ m|\.\w+$| ? pop : undef;
+$flavour = $#ARGV >= 0 && $ARGV[0] !~ m|\.| ? shift : undef;
 
 $win64=0; $win64=1 if ($flavour =~ /[nm]asm|mingw64/ || $output =~ /\.asm$/);
 
@@ -203,7 +204,8 @@ $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 ( $xlate="${dir}../../perlasm/x86_64-xlate.pl" and -f $xlate) or
 die "can't locate x86_64-xlate.pl";
 
-open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\"";
+open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\""
+    or die "can't call $xlate: $!";
 *STDOUT=*OUT;
 
 $movkey = $PREFIX eq "aesni" ? "movups" : "movups";
@@ -275,6 +277,7 @@ $code.=<<___;
 .align	16
 ${PREFIX}_encrypt:
 .cfi_startproc
+	endbranch
 	movups	($inp),$inout0		# load input
 	mov	240($key),$rounds	# key->rounds
 ___
@@ -293,6 +296,7 @@ $code.=<<___;
 .align	16
 ${PREFIX}_decrypt:
 .cfi_startproc
+	endbranch
 	movups	($inp),$inout0		# load input
 	mov	240($key),$rounds	# key->rounds
 ___
@@ -613,6 +617,7 @@ $code.=<<___;
 .align	16
 aesni_ecb_encrypt:
 .cfi_startproc
+	endbranch
 ___
 $code.=<<___ if ($win64);
 	lea	-0x58(%rsp),%rsp
@@ -985,6 +990,7 @@ $code.=<<___;
 .align	16
 aesni_ccm64_encrypt_blocks:
 .cfi_startproc
+	endbranch
 ___
 $code.=<<___ if ($win64);
 	lea	-0x58(%rsp),%rsp
@@ -1077,6 +1083,7 @@ $code.=<<___;
 .align	16
 aesni_ccm64_decrypt_blocks:
 .cfi_startproc
+	endbranch
 ___
 $code.=<<___ if ($win64);
 	lea	-0x58(%rsp),%rsp
@@ -1203,6 +1210,7 @@ $code.=<<___;
 .align	16
 aesni_ctr32_encrypt_blocks:
 .cfi_startproc
+	endbranch
 	cmp	\$1,$len
 	jne	.Lctr32_bulk
 
@@ -1775,6 +1783,7 @@ $code.=<<___;
 .align	16
 aesni_xts_encrypt:
 .cfi_startproc
+	endbranch
 	lea	(%rsp),%r11			# frame pointer
 .cfi_def_cfa_register	%r11
 	push	%rbp
@@ -2258,6 +2267,7 @@ $code.=<<___;
 .align	16
 aesni_xts_decrypt:
 .cfi_startproc
+	endbranch
 	lea	(%rsp),%r11			# frame pointer
 .cfi_def_cfa_register	%r11
 	push	%rbp
@@ -2783,6 +2793,7 @@ $code.=<<___;
 .align	32
 aesni_ocb_encrypt:
 .cfi_startproc
+	endbranch
 	lea	(%rsp),%rax
 	push	%rbx
 .cfi_push	%rbx
@@ -3249,6 +3260,7 @@ __ocb_encrypt1:
 .align	32
 aesni_ocb_decrypt:
 .cfi_startproc
+	endbranch
 	lea	(%rsp),%rax
 	push	%rbx
 .cfi_push	%rbx
@@ -3737,6 +3749,7 @@ $code.=<<___;
 .align	16
 ${PREFIX}_cbc_encrypt:
 .cfi_startproc
+	endbranch
 	test	$len,$len		# check length
 	jz	.Lcbc_ret
 

@@ -1,0 +1,8 @@
+-- -------------------------------------------------------------------
+-- Taken from https://csrc.nist.gov/projects/computer-security-objects-register/algorithm-registration
+
+-- Copies of common OIDs used by other ASN.1 files.
+csor OBJECT IDENTIFIER ::= { 2 16 840 1 101 3 }
+nistAlgorithms OBJECT IDENTIFIER ::= { csor nistAlgorithm(4) }
+hashAlgs OBJECT IDENTIFIER ::= { nistAlgorithms 2 }
+sigAlgs OBJECT IDENTIFIER ::= { nistAlgorithms 3 }

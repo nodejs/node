@@ -1,7 +1,7 @@
 #! /usr/bin/env perl
-# Copyright 2012-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2012-2021 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
@@ -24,8 +24,10 @@
 # single-process result on 8-core processor, or ~11GBps per 2.85GHz
 # socket.
 
-$output=pop;
-open STDOUT,">$output";
+# $output is the last argument if it looks like a file (it has an extension)
+$output = $#ARGV >= 0 && $ARGV[$#ARGV] =~ m|\.\w+$| ? pop : undef;
+
+$output and open STDOUT,">$output";
 
 use integer;
 
@@ -201,7 +203,10 @@ ___
 }
 
 $code.=<<___;
-#include "sparc_arch.h"
+#ifndef __ASSEMBLER__
+# define __ASSEMBLER__ 1
+#endif
+#include "crypto/sparc_arch.h"
 
 #ifdef __arch64__
 .register	%g2,#scratch
@@ -214,9 +219,9 @@ $code.=<<___;
 SPARC_PIC_THUNK(%g1)
 #endif
 
-.globl	md5_block_asm_data_order
+.globl	ossl_md5_block_asm_data_order
 .align	32
-md5_block_asm_data_order:
+ossl_md5_block_asm_data_order:
 	SPARC_LOAD_ADDRESS_LEAF(OPENSSL_sparcv9cap_P,%g1,%g5)
 	ld	[%g1+4],%g1		! OPENSSL_sparcv9cap_P[1]
 
@@ -369,8 +374,8 @@ $code.=<<___;
 	wr	%g0,$saved_asi,%asi
 	ret
 	restore
-.type	md5_block_asm_data_order,#function
-.size	md5_block_asm_data_order,(.-md5_block_asm_data_order)
+.type	ossl_md5_block_asm_data_order,#function
+.size	ossl_md5_block_asm_data_order,(.-ossl_md5_block_asm_data_order)
 
 .asciz	"MD5 block transform for SPARCv9, CRYPTOGAMS by <appro\@openssl.org>"
 .align	4

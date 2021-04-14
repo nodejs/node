@@ -4,7 +4,7 @@
  *
  * Copyright 1998-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -53,7 +53,7 @@ static const nid_triple sigoid_srt[] = {
      NID_id_GostR3410_94_cc},
     {NID_id_GostR3411_94_with_GostR3410_2001_cc, NID_id_GostR3411_94,
      NID_id_GostR3410_2001_cc},
-    {NID_rsassaPss, NID_undef, NID_rsaEncryption},
+    {NID_rsassaPss, NID_undef, NID_rsassaPss},
     {NID_dhSinglePass_stdDH_sha1kdf_scheme, NID_sha1, NID_dh_std_kdf},
     {NID_dhSinglePass_stdDH_sha224kdf_scheme, NID_sha224, NID_dh_std_kdf},
     {NID_dhSinglePass_stdDH_sha256kdf_scheme, NID_sha256, NID_dh_std_kdf},
@@ -79,6 +79,7 @@ static const nid_triple sigoid_srt[] = {
     {NID_RSA_SHA3_256, NID_sha3_256, NID_rsaEncryption},
     {NID_RSA_SHA3_384, NID_sha3_384, NID_rsaEncryption},
     {NID_RSA_SHA3_512, NID_sha3_512, NID_rsaEncryption},
+    {NID_SM2_with_SM3, NID_sm3, NID_sm2},
 };
 
 static const nid_triple *const sigoid_srt_xref[] = {
@@ -125,4 +126,5 @@ static const nid_triple *const sigoid_srt_xref[] = {
     &sigoid_srt[45],
     &sigoid_srt[46],
     &sigoid_srt[47],
+    &sigoid_srt[48],
 };

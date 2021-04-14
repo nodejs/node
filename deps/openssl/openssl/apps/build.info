@@ -1,79 +1,90 @@
-{- our @apps_openssl_src =
-       qw(openssl.c
-          asn1pars.c ca.c ciphers.c cms.c crl.c crl2p7.c dgst.c
-          enc.c errstr.c
-          genpkey.c nseq.c passwd.c pkcs7.c pkcs8.c
-          pkey.c pkeyparam.c pkeyutl.c prime.c rand.c req.c
-          s_client.c s_server.c s_time.c sess_id.c smime.c speed.c spkac.c
-          verify.c version.c x509.c rehash.c storeutl.c);
-   our @apps_lib_src =
-       ( qw(apps.c opt.c s_cb.c s_socket.c app_rand.c bf_prefix.c),
-         split(/\s+/, $target{apps_aux_src}) );
-   our @apps_init_src = split(/\s+/, $target{apps_init_src});
-   "" -}
+SUBDIRS=lib
+
+# Program init source, that don't have direct linkage with the rest of the
+# source, and can therefore not be part of a library.
+IF[{- !$disabled{uplink} -}]
+  $INITSRC=../ms/applink.c
+ENDIF
+IF[{- $config{target} =~ /^vms-/ -}]
+  $INITSRC=vms_decc_init.c
+ENDIF
+
+# Source for the 'openssl' program
+$OPENSSLSRC=\
+        openssl.c \
+        asn1parse.c ca.c ciphers.c crl.c crl2pkcs7.c dgst.c \
+        enc.c errstr.c \
+        genpkey.c kdf.c mac.c nseq.c passwd.c pkcs7.c \
+        pkcs8.c pkey.c pkeyparam.c pkeyutl.c prime.c rand.c req.c \
+        s_client.c s_server.c s_time.c sess_id.c smime.c speed.c \
+        spkac.c verify.c version.c x509.c rehash.c storeutl.c \
+        list.c info.c fipsinstall.c pkcs12.c
+IF[{- !$disabled{'ec'} -}]
+  $OPENSSLSRC=$OPENSSLSRC ec.c ecparam.c
+ENDIF
+IF[{- !$disabled{'ocsp'} -}]
+  $OPENSSLSRC=$OPENSSLSRC ocsp.c
+ENDIF
+IF[{- !$disabled{'srp'} -}]
+  $OPENSSLSRC=$OPENSSLSRC srp.c
+ENDIF
+IF[{- !$disabled{'ts'} -}]
+  $OPENSSLSRC=$OPENSSLSRC ts.c
+ENDIF
+IF[{- !$disabled{'dh'} -}]
+$OPENSSLSRC=$OPENSSLSRC dhparam.c
+ENDIF
+IF[{- !$disabled{'dsa'} -}]
+$OPENSSLSRC=$OPENSSLSRC dsa.c dsaparam.c gendsa.c
+ENDIF
+IF[{- !$disabled{'engine'} -}]
+$OPENSSLSRC=$OPENSSLSRC engine.c
+ENDIF
+IF[{- !$disabled{'rsa'} -}]
+$OPENSSLSRC=$OPENSSLSRC rsa.c genrsa.c
+ENDIF
+IF[{- !$disabled{'deprecated-3.0'} -}]
+  IF[{- !$disabled{'rsa'} -}]
+    $OPENSSLSRC=$OPENSSLSRC rsautl.c
+  ENDIF
+ENDIF
+IF[{- !$disabled{'cms'} -}]
+  $OPENSSLSRC=$OPENSSLSRC cms.c
+ENDIF
+IF[{- !$disabled{'cmp'} -}]
+  $OPENSSLSRC=$OPENSSLSRC cmp.c lib/cmp_mock_srv.c
+ENDIF
 
 IF[{- !$disabled{apps} -}]
-  LIBS_NO_INST=libapps.a
-  SOURCE[libapps.a]={- join(" ", @apps_lib_src) -}
-  INCLUDE[libapps.a]=.. ../include
-
   PROGRAMS=openssl
-  SOURCE[openssl]={- join(" ", @apps_init_src) -}
-  SOURCE[openssl]={- join(" ", @apps_openssl_src) -}
-  INCLUDE[openssl]=.. ../include
+  SOURCE[openssl]=$INITSRC $OPENSSLSRC
+  INCLUDE[openssl]=.. ../include include
   DEPEND[openssl]=libapps.a ../libssl
-  IF[{- !$disabled{'des'} -}]
-    SOURCE[openssl]=pkcs12.c
-    DEPEND[pkcs12.o]=progs.h
-  ENDIF
-  IF[{- !$disabled{'ec'} -}]
-    SOURCE[openssl]=ec.c ecparam.c
-    DEPEND[ec.o]=progs.h
-    DEPEND[ecparam.o]=progs.h
-  ENDIF
-  IF[{- !$disabled{'ocsp'} -}]
-    SOURCE[openssl]=ocsp.c
-    DEPEND[ocsp.o]=progs.h
-  ENDIF
-  IF[{- !$disabled{'srp'} -}]
-    SOURCE[openssl]=srp.c
-    DEPEND[srp.o]=progs.h
-  ENDIF
-  IF[{- !$disabled{'ts'} -}]
-    SOURCE[openssl]=ts.c
-    DEPEND[ts.o]=progs.h
-  ENDIF
-  IF[{- !$disabled{'dh'} -}]
-    SOURCE[openssl]=dhparam.c
-    DEPEND[dhparam.o]=progs.h
-  ENDIF
-  IF[{- !$disabled{'dsa'} -}]
-    SOURCE[openssl]=dsa.c dsaparam.c gendsa.c
-    DEPEND[dsa.o]=progs.h
-    DEPEND[dsaparam.o]=progs.h
-    DEPEND[gendsa.o]=progs.h
-  ENDIF
-  IF[{- !$disabled{'engine'} -}]
-    SOURCE[openssl]=engine.c
-    DEPEND[engine.o]=progs.h
-  ENDIF
-  IF[{- !$disabled{'rsa'} -}]
-    SOURCE[openssl]=rsa.c rsautl.c genrsa.c
-    DEPEND[rsa.o]=progs.h
-    DEPEND[rsautl.o]=progs.h
-    DEPEND[genrsa.o]=progs.h
-  ENDIF
-  IF[{- $config{target} =~ /^(?:Cygwin|mingw|VC-)/ -}]
+
+  # The nocheck attribute is picked up by progs.pl as a signal not to look
+  # at that file; some systems may have locked it as the output file, and
+  # therefore don't allow it to be read at the same time, making progs.pl
+  # fail.
+  SOURCE[openssl]{nocheck}=progs.c
+  DEPEND[${OPENSSLSRC/.c/.o} progs.o]=progs.h
+  GENERATE[progs.c]=progs.pl "-C" $(APPS_OPENSSL)
+  GENERATE[progs.h]=progs.pl "-H" $(APPS_OPENSSL)
+  # progs.pl tries to read all 'openssl' sources, including progs.c, so we make
+  # sure things are generated in the correct order.
+  DEPEND[progs.h]=progs.c
+  # Because the files to look through may change (depends on $OPENSSLSRC),
+  # always depend on a changed configuration.
+  DEPEND[progs.c]=../configdata.pm
+
+  IF[{- $config{target} =~ /^(?:Cygwin|mingw|VC-|BC-)/ -}]
     GENERATE[openssl.rc]=../util/mkrc.pl openssl
     SOURCE[openssl]=openssl.rc
   ENDIF
 
-  {- join("\n  ", map { (my $x = $_) =~ s|\.c$|.o|; "DEPEND[$x]=progs.h" }
-                  @apps_openssl_src) -}
-  GENERATE[progs.h]=progs.pl $(APPS_OPENSSL)
-  DEPEND[progs.h]=../configdata.pm
-
-  SCRIPTS=CA.pl tsget.pl
+  SCRIPTS{misc}=CA.pl
   SOURCE[CA.pl]=CA.pl.in
+  # linkname tells build files that a symbolic link or copy of this script
+  # without extension must be installed as well.  Unix or Unix lookalike only.
+  SCRIPTS{misc,linkname=tsget}=tsget.pl
   SOURCE[tsget.pl]=tsget.in
 ENDIF

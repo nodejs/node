@@ -1,8 +1,8 @@
 /*
- * Copyright 2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2017, Oracle and/or its affiliates.  All rights reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -131,7 +131,7 @@ static int test_int_stack(int reserve)
     /* sorting */
     if (!TEST_false(sk_sint_is_sorted(s)))
         goto end;
-    sk_sint_set_cmp_func(s, &int_compare);
+    (void)sk_sint_set_cmp_func(s, &int_compare);
     sk_sint_sort(s);
     if (!TEST_true(sk_sint_is_sorted(s)))
         goto end;
@@ -195,6 +195,10 @@ static int test_uchar_stack(int reserve)
         goto end;
 
     /* dup */
+    r = sk_uchar_dup(NULL);
+    if (sk_uchar_num(r) != 0)
+        goto end;
+    sk_uchar_free(r);
     r = sk_uchar_dup(s);
     if (!TEST_int_eq(sk_uchar_num(r), n))
         goto end;
@@ -237,7 +241,7 @@ static int test_uchar_stack(int reserve)
         goto end;
 
     /* set */
-    sk_uchar_set(r, 1, v + 1);
+    (void)sk_uchar_set(r, 1, v + 1);
     for (i = 0; i < 2; i++)
         if (!TEST_ptr_eq(sk_uchar_value(r, i), v + i)) {
             TEST_info("uchar set %d", i);
@@ -291,6 +295,10 @@ static int test_SS_stack(void)
         goto end;
 
     /* deepcopy */
+    r = sk_SS_deep_copy(NULL, &SS_copy, &SS_free);
+    if (sk_SS_num(r) != 0)
+        goto end;
+    sk_SS_free(r);
     r = sk_SS_deep_copy(s, &SS_copy, &SS_free);
     if (!TEST_ptr(r))
         goto end;

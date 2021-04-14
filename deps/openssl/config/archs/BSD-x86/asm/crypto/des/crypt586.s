@@ -4,6 +4,7 @@
 .align	4
 _fcrypt_body:
 L_fcrypt_body_begin:
+.byte	243,15,30,251
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi

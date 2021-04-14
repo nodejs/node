@@ -1,7 +1,7 @@
 /*
- * Copyright 2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -106,14 +106,71 @@ failed:
     return ret;
 }
 
+static const char *file; /* path of a cert/CRL/key file in PEM format */
+static const char *num;  /* expected number of certs/CRLs/keys included */
+
+static int test_PEM_X509_INFO_read_bio(void)
+{
+    BIO *in;
+    STACK_OF(X509_INFO) *sk;
+    X509_INFO *it;
+    int i, count = 0;
+    int expected = 0;
+
+    if (!TEST_ptr((in = BIO_new_file(file, "r"))))
+        return 0;
+    sk = PEM_X509_INFO_read_bio(in, NULL, NULL, "");
+    BIO_free(in);
+    sscanf(num, "%d", &expected);
+    for (i = 0; i < sk_X509_INFO_num(sk); i++) {
+        it = sk_X509_INFO_value(sk, i);
+        if (it->x509 != NULL)
+            count++;
+        if (it->crl != NULL)
+            count++;
+        if (it->x_pkey != NULL)
+            count++;
+    }
+    sk_X509_INFO_pop_free(sk, X509_INFO_free);
+    return TEST_int_eq(count, expected);
+}
+
+const OPTIONS *test_get_options(void)
+{
+    enum { OPT_TEST_ENUM };
+    static const OPTIONS test_options[] = {
+        OPT_TEST_OPTIONS_WITH_EXTRA_USAGE("cert key type expected\n"
+                                          "     or [options] file num\n"),
+        { OPT_HELP_STR, 1, '-', "cert\tcertificate or CSR filename in PEM\n" },
+        { OPT_HELP_STR, 1, '-', "key\tprivate key filename in PEM\n" },
+        { OPT_HELP_STR, 1, '-', "type\t\tvalue must be 'cert' or 'req'\n" },
+        { OPT_HELP_STR, 1, '-', "expected\tthe expected return value, either 'ok' or 'failed'\n" },
+        { OPT_HELP_STR, 1, '-', "file\tPEM format file containing certs, keys, and/OR CRLs\n" },
+        { OPT_HELP_STR, 1, '-', "num\texpected number of credentials to be loaded from file\n" },
+        { NULL }
+    };
+    return test_options;
+}
+
 int setup_tests(void)
 {
+    if (!test_skip_common_options()) {
+        TEST_error("Error parsing test options\n");
+        return 0;
+    }
+
+    if (test_get_argument_count() == 2) {
+        if (!TEST_ptr(file = test_get_argument(0))
+                || !TEST_ptr(num = test_get_argument(1)))
+            return 0;
+        ADD_TEST(test_PEM_X509_INFO_read_bio);
+        return 1;
+    }
+
     if (!TEST_ptr(c = test_get_argument(0))
             || !TEST_ptr(k = test_get_argument(1))
             || !TEST_ptr(t = test_get_argument(2))
             || !TEST_ptr(e = test_get_argument(3))) {
-        TEST_note("usage: x509_check_cert_pkey cert.pem|cert.req"
-                  " key.pem cert|req <expected>");
         return 0;
     }
 

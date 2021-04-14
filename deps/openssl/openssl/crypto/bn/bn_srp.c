@@ -1,7 +1,7 @@
 /*
- * Copyright 2014-2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2014-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -48,7 +48,7 @@ static const BN_ULONG bn_group_1024_value[] = {
     bn_pack4(0xEEAF, 0x0AB9, 0xADB3, 0x8DD6)
 };
 
-const BIGNUM bn_group_1024 = {
+const BIGNUM ossl_bn_group_1024 = {
     (BN_ULONG *)bn_group_1024_value,
     OSSL_NELEM(bn_group_1024_value),
     OSSL_NELEM(bn_group_1024_value),
@@ -83,7 +83,7 @@ static const BN_ULONG bn_group_1536_value[] = {
     bn_pack4(0x9DEF, 0x3CAF, 0xB939, 0x277A)
 };
 
-const BIGNUM bn_group_1536 = {
+const BIGNUM ossl_bn_group_1536 = {
     (BN_ULONG *)bn_group_1536_value,
     OSSL_NELEM(bn_group_1536_value),
     OSSL_NELEM(bn_group_1536_value),
@@ -126,7 +126,7 @@ static const BN_ULONG bn_group_2048_value[] = {
     bn_pack4(0xAC6B, 0xDB41, 0x324A, 0x9A9B)
 };
 
-const BIGNUM bn_group_2048 = {
+const BIGNUM ossl_bn_group_2048 = {
     (BN_ULONG *)bn_group_2048_value,
     OSSL_NELEM(bn_group_2048_value),
     OSSL_NELEM(bn_group_2048_value),
@@ -185,7 +185,7 @@ static const BN_ULONG bn_group_3072_value[] = {
     bn_pack4(0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF)
 };
 
-const BIGNUM bn_group_3072 = {
+const BIGNUM ossl_bn_group_3072 = {
     (BN_ULONG *)bn_group_3072_value,
     OSSL_NELEM(bn_group_3072_value),
     OSSL_NELEM(bn_group_3072_value),
@@ -260,7 +260,7 @@ static const BN_ULONG bn_group_4096_value[] = {
     bn_pack4(0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF)
 };
 
-const BIGNUM bn_group_4096 = {
+const BIGNUM ossl_bn_group_4096 = {
     (BN_ULONG *)bn_group_4096_value,
     OSSL_NELEM(bn_group_4096_value),
     OSSL_NELEM(bn_group_4096_value),
@@ -367,7 +367,7 @@ static const BN_ULONG bn_group_6144_value[] = {
     bn_pack4(0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF)
 };
 
-const BIGNUM bn_group_6144 = {
+const BIGNUM ossl_bn_group_6144 = {
     (BN_ULONG *)bn_group_6144_value,
     OSSL_NELEM(bn_group_6144_value),
     OSSL_NELEM(bn_group_6144_value),
@@ -506,7 +506,7 @@ static const BN_ULONG bn_group_8192_value[] = {
     bn_pack4(0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF)
 };
 
-const BIGNUM bn_group_8192 = {
+const BIGNUM ossl_bn_group_8192 = {
     (BN_ULONG *)bn_group_8192_value,
     OSSL_NELEM(bn_group_8192_value),
     OSSL_NELEM(bn_group_8192_value),
@@ -516,7 +516,7 @@ const BIGNUM bn_group_8192 = {
 
 static const BN_ULONG bn_generator_19_value[] = { 19 };
 
-const BIGNUM bn_generator_19 = {
+const BIGNUM ossl_bn_generator_19 = {
     (BN_ULONG *)bn_generator_19_value,
     1,
     1,
@@ -525,7 +525,7 @@ const BIGNUM bn_generator_19 = {
 };
 static const BN_ULONG bn_generator_5_value[] = { 5 };
 
-const BIGNUM bn_generator_5 = {
+const BIGNUM ossl_bn_generator_5 = {
     (BN_ULONG *)bn_generator_5_value,
     1,
     1,
@@ -534,7 +534,7 @@ const BIGNUM bn_generator_5 = {
 };
 static const BN_ULONG bn_generator_2_value[] = { 2 };
 
-const BIGNUM bn_generator_2 = {
+const BIGNUM ossl_bn_generator_2 = {
     (BN_ULONG *)bn_generator_2_value,
     1,
     1,

@@ -1,7 +1,7 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -76,6 +76,7 @@
 #include "internal/bio.h"
 #include <openssl/evp.h>
 #include <openssl/rand.h>
+#include "internal/endian.h"
 #include "crypto/evp.h"
 
 static int ok_write(BIO *h, const char *buf, int num);
@@ -110,10 +111,8 @@ typedef struct ok_struct {
 static const BIO_METHOD methods_ok = {
     BIO_TYPE_CIPHER,
     "reliable",
-    /* TODO: Convert to new style write function */
     bwrite_conv,
     ok_write,
-    /* TODO: Convert to new style read function */
     bread_conv,
     ok_read,
     NULL,                       /* ok_puts, */
@@ -134,7 +133,7 @@ static int ok_new(BIO *bi)
     BIO_OK_CTX *ctx;
 
     if ((ctx = OPENSSL_zalloc(sizeof(*ctx))) == NULL) {
-        EVPerr(EVP_F_OK_NEW, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_EVP, ERR_R_MALLOC_FAILURE);
         return 0;
     }
 
@@ -393,7 +392,7 @@ static long ok_ctrl(BIO *b, int cmd, long num, void *ptr)
     case BIO_C_GET_MD:
         if (BIO_get_init(b)) {
             ppmd = ptr;
-            *ppmd = EVP_MD_CTX_md(ctx->md);
+            *ppmd = EVP_MD_CTX_get0_md(ctx->md);
         } else
             ret = 0;
         break;
@@ -406,7 +405,6 @@ static long ok_ctrl(BIO *b, int cmd, long num, void *ptr)
 
 static long ok_callback_ctrl(BIO *b, int cmd, BIO_info_cb *fp)
 {
-    long ret = 1;
     BIO *next;
 
     next = BIO_next(b);
@@ -414,25 +412,14 @@ static long ok_callback_ctrl(BIO *b, int cmd, BIO_info_cb *fp)
     if (next == NULL)
         return 0;
 
-    switch (cmd) {
-    default:
-        ret = BIO_callback_ctrl(next, cmd, fp);
-        break;
-    }
-
-    return ret;
+    return BIO_callback_ctrl(next, cmd, fp);
 }
 
 static void longswap(void *_ptr, size_t len)
 {
-    const union {
-        long one;
-        char little;
-    } is_endian = {
-        1
-    };
+    DECLARE_IS_ENDIAN;
 
-    if (is_endian.little) {
+    if (IS_LITTLE_ENDIAN) {
         size_t i;
         unsigned char *p = _ptr, c;
 
@@ -453,9 +440,9 @@ static int sig_out(BIO *b)
 
     ctx = BIO_get_data(b);
     md = ctx->md;
-    digest = EVP_MD_CTX_md(md);
-    md_size = EVP_MD_size(digest);
-    md_data = EVP_MD_CTX_md_data(md);
+    digest = EVP_MD_CTX_get0_md(md);
+    md_size = EVP_MD_get_size(digest);
+    md_data = EVP_MD_CTX_get0_md_data(md);
 
     if (ctx->buf_len + 2 * md_size > OK_BLOCK_SIZE)
         return 1;
@@ -496,10 +483,12 @@ static int sig_in(BIO *b)
     void *md_data;
 
     ctx = BIO_get_data(b);
-    md = ctx->md;
-    digest = EVP_MD_CTX_md(md);
-    md_size = EVP_MD_size(digest);
-    md_data = EVP_MD_CTX_md_data(md);
+    if ((md = ctx->md) == NULL)
+        goto berr;
+    digest = EVP_MD_CTX_get0_md(md);
+    if ((md_size = EVP_MD_get_size(digest)) < 0)
+        goto berr;
+    md_data = EVP_MD_CTX_get0_md_data(md);
 
     if ((int)(ctx->buf_len - ctx->buf_off) < 2 * md_size)
         return 1;
@@ -543,8 +532,8 @@ static int block_out(BIO *b)
 
     ctx = BIO_get_data(b);
     md = ctx->md;
-    digest = EVP_MD_CTX_md(md);
-    md_size = EVP_MD_size(digest);
+    digest = EVP_MD_CTX_get0_md(md);
+    md_size = EVP_MD_get_size(digest);
 
     tl = ctx->buf_len - OK_BLOCK_BLOCK;
     ctx->buf[0] = (unsigned char)(tl >> 24);
@@ -574,7 +563,9 @@ static int block_in(BIO *b)
 
     ctx = BIO_get_data(b);
     md = ctx->md;
-    md_size = EVP_MD_size(EVP_MD_CTX_md(md));
+    md_size = EVP_MD_get_size(EVP_MD_CTX_get0_md(md));
+    if (md_size < 0)
+        goto berr;
 
     assert(sizeof(tl) >= OK_BLOCK_BLOCK); /* always true */
     tl = ctx->buf[0];

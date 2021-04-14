@@ -1,11 +1,17 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+/*
+ * HMAC low level APIs are deprecated for public use, but still ok for internal
+ * use.
+ */
+#include "internal/deprecated.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -27,54 +33,50 @@
 
 # ifndef OPENSSL_NO_MD5
 static struct test_st {
-    unsigned char key[16];
+    const char key[16];
     int key_len;
-    unsigned char data[64];
+    const unsigned char data[64];
     int data_len;
-    unsigned char *digest;
+    const char *digest;
 } test[8] = {
     {
         "", 0, "More text test vectors to stuff up EBCDIC machines :-)", 54,
-        (unsigned char *)"e9139d1e6ee064ef8cf514fc7dc83e86",
+        "e9139d1e6ee064ef8cf514fc7dc83e86",
     },
     {
-        {
-            0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
-            0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
-        }, 16, "Hi There", 8,
-        (unsigned char *)"9294727a3638bb1c13f48ef8158bfc9d",
+        "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b",
+        16, "Hi There", 8,
+        "9294727a3638bb1c13f48ef8158bfc9d",
     },
     {
         "Jefe", 4, "what do ya want for nothing?", 28,
-        (unsigned char *)"750c783e6ab0b503eaa86e310a5db738",
+        "750c783e6ab0b503eaa86e310a5db738",
     },
     {
-        {
-            0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa,
-            0xaa, 0xaa, 0xaa, 0xaa, 0xaa,
-        }, 16, {
+        "\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa",
+        16, {
             0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd,
             0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd,
             0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd,
             0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd,
             0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd
-        }, 50, (unsigned char *)"56be34521d144c88dbb8c733f0e8b3f6",
+        }, 50, "56be34521d144c88dbb8c733f0e8b3f6",
     },
     {
         "", 0, "My test data", 12,
-        (unsigned char *)"61afdecb95429ef494d61fdee15990cabf0826fc"
+        "61afdecb95429ef494d61fdee15990cabf0826fc"
     },
     {
         "", 0, "My test data", 12,
-        (unsigned char *)"2274b195d90ce8e03406f4b526a47e0787a88a65479938f1a5baa3ce0f079776"
+        "2274b195d90ce8e03406f4b526a47e0787a88a65479938f1a5baa3ce0f079776"
     },
     {
         "123456", 6, "My test data", 12,
-        (unsigned char *)"bab53058ae861a7f191abe2d0145cbb123776a6369ee3f9d79ce455667e411dd"
+        "bab53058ae861a7f191abe2d0145cbb123776a6369ee3f9d79ce455667e411dd"
     },
     {
         "12345", 5, "My test data again", 18,
-        (unsigned char *)"a12396ceddd2a85f4c656bc1e0aa50c78cffde3e"
+        "a12396ceddd2a85f4c656bc1e0aa50c78cffde3e"
     }
 };
 # endif
@@ -98,10 +100,7 @@ static int test_hmac_md5(int idx)
                 test[idx].data, test[idx].data_len, NULL, NULL),
                 MD5_DIGEST_LENGTH);
 
-    if (!TEST_str_eq(p, (char *)test[idx].digest))
-      return 0;
-
-    return 1;
+    return TEST_ptr(p) && TEST_str_eq(p, test[idx].digest);
 }
 # endif
 
@@ -133,7 +132,8 @@ static int test_hmac_run(void)
     unsigned int len;
     int ret = 0;
 
-    ctx = HMAC_CTX_new();
+    if (!TEST_ptr(ctx = HMAC_CTX_new()))
+        return 0;
     HMAC_CTX_reset(ctx);
 
     if (!TEST_ptr(ctx)
@@ -149,7 +149,7 @@ static int test_hmac_run(void)
         goto err;
 
     p = pt(buf, len);
-    if (!TEST_str_eq(p, (char *)test[4].digest))
+    if (!TEST_ptr(p) || !TEST_str_eq(p, test[4].digest))
         goto err;
 
     if (!TEST_false(HMAC_Init_ex(ctx, NULL, 0, EVP_sha256(), NULL)))
@@ -162,7 +162,7 @@ static int test_hmac_run(void)
         goto err;
 
     p = pt(buf, len);
-    if (!TEST_str_eq(p, (char *)test[5].digest))
+    if (!TEST_ptr(p) || !TEST_str_eq(p, test[5].digest))
         goto err;
 
     if (!TEST_true(HMAC_Init_ex(ctx, test[6].key, test[6].key_len, NULL, NULL))
@@ -170,7 +170,7 @@ static int test_hmac_run(void)
         || !TEST_true(HMAC_Final(ctx, buf, &len)))
         goto err;
     p = pt(buf, len);
-    if (!TEST_str_eq(p, (char *)test[6].digest))
+    if (!TEST_ptr(p) || !TEST_str_eq(p, test[6].digest))
         goto err;
 
     /* Test reusing a key */
@@ -179,7 +179,7 @@ static int test_hmac_run(void)
         || !TEST_true(HMAC_Final(ctx, buf, &len)))
         goto err;
     p = pt(buf, len);
-    if (!TEST_str_eq(p, (char *)test[6].digest))
+    if (!TEST_ptr(p) || !TEST_str_eq(p, test[6].digest))
         goto err;
 
     /*
@@ -191,7 +191,7 @@ static int test_hmac_run(void)
         || !TEST_true(HMAC_Final(ctx, buf, &len)))
         goto err;
     p = pt(buf, len);
-    if (!TEST_str_eq(p, (char *)test[6].digest))
+    if (!TEST_ptr(p) || !TEST_str_eq(p, test[6].digest))
         goto err;
 
     ret = 1;
@@ -205,10 +205,10 @@ static int test_hmac_single_shot(void)
 {
     char *p;
 
-    /* Test single-shot with an empty key. */
+    /* Test single-shot with NULL key. */
     p = pt(HMAC(EVP_sha1(), NULL, 0, test[4].data, test[4].data_len,
                 NULL, NULL), SHA_DIGEST_LENGTH);
-    if (!TEST_str_eq(p, (char *)test[4].digest))
+    if (!TEST_ptr(p) || !TEST_str_eq(p, test[4].digest))
         return 0;
 
     return 1;
@@ -235,7 +235,7 @@ static int test_hmac_copy(void)
         goto err;
 
     p = pt(buf, len);
-    if (!TEST_str_eq(p, (char *)test[7].digest))
+    if (!TEST_ptr(p) || !TEST_str_eq(p, test[7].digest))
         goto err;
 
     ret = 1;
@@ -251,6 +251,8 @@ static char *pt(unsigned char *md, unsigned int len)
     unsigned int i;
     static char buf[80];
 
+    if (md == NULL)
+        return NULL;
     for (i = 0; i < len; i++)
         sprintf(&(buf[i * 2]), "%02x", md[i]);
     return buf;

@@ -4,6 +4,7 @@
 .align	16
 bn_mul_mont:
 .L_bn_mul_mont_begin:
+.byte	243,15,30,251
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -473,3 +474,20 @@ bn_mul_mont:
 .byte	32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46
 .byte	111,114,103,62,0
 .comm	OPENSSL_ia32cap_P,16,4
+
+	.section ".note.gnu.property", "a"
+	.p2align 2
+	.long 1f - 0f
+	.long 4f - 1f
+	.long 5
+0:
+	.asciz "GNU"
+1:
+	.p2align 2
+	.long 0xc0000002
+	.long 3f - 2f
+2:
+	.long 3
+3:
+	.p2align 2
+4:

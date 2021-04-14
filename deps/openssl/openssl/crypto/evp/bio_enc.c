@@ -1,11 +1,13 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+#define OPENSSL_SUPPRESS_DEPRECATED /* for BIO_get_callback */
 
 #include <stdio.h>
 #include <errno.h>
@@ -42,10 +44,8 @@ typedef struct enc_struct {
 static const BIO_METHOD methods_enc = {
     BIO_TYPE_CIPHER,
     "cipher",
-    /* TODO: Convert to new style write function */
     bwrite_conv,
     enc_write,
-    /* TODO: Convert to new style read function */
     bread_conv,
     enc_read,
     NULL,                       /* enc_puts, */
@@ -66,7 +66,7 @@ static int enc_new(BIO *bi)
     BIO_ENC_CTX *ctx;
 
     if ((ctx = OPENSSL_zalloc(sizeof(*ctx))) == NULL) {
-        EVPerr(EVP_F_ENC_NEW, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_EVP, ERR_R_MALLOC_FAILURE);
         return 0;
     }
 
@@ -133,7 +133,7 @@ static int enc_read(BIO *b, char *out, int outl)
         }
     }
 
-    blocksize = EVP_CIPHER_CTX_block_size(ctx->cipher);
+    blocksize = EVP_CIPHER_CTX_get_block_size(ctx->cipher);
     if (blocksize == 1)
         blocksize = 0;
 
@@ -310,7 +310,7 @@ static long enc_ctrl(BIO *b, int cmd, long num, void *ptr)
         ctx->ok = 1;
         ctx->finished = 0;
         if (!EVP_CipherInit_ex(ctx->cipher, NULL, NULL, NULL, NULL,
-                               EVP_CIPHER_CTX_encrypting(ctx->cipher)))
+                               EVP_CIPHER_CTX_is_encrypting(ctx->cipher)))
             return 0;
         ret = BIO_ctrl(next, cmd, num, ptr);
         break;
@@ -388,42 +388,54 @@ static long enc_ctrl(BIO *b, int cmd, long num, void *ptr)
 
 static long enc_callback_ctrl(BIO *b, int cmd, BIO_info_cb *fp)
 {
-    long ret = 1;
     BIO *next = BIO_next(b);
 
     if (next == NULL)
         return 0;
-    switch (cmd) {
-    default:
-        ret = BIO_callback_ctrl(next, cmd, fp);
-        break;
-    }
-    return ret;
+
+    return BIO_callback_ctrl(next, cmd, fp);
 }
 
 int BIO_set_cipher(BIO *b, const EVP_CIPHER *c, const unsigned char *k,
                    const unsigned char *i, int e)
 {
     BIO_ENC_CTX *ctx;
-    long (*callback) (struct bio_st *, int, const char *, int, long, long);
+    BIO_callback_fn_ex callback_ex;
+#ifndef OPENSSL_NO_DEPRECATED_3_0
+    long (*callback) (struct bio_st *, int, const char *, int, long, long) = NULL;
+#endif
 
     ctx = BIO_get_data(b);
     if (ctx == NULL)
         return 0;
 
-    callback = BIO_get_callback(b);
+    if ((callback_ex = BIO_get_callback_ex(b)) != NULL) {
+        if (callback_ex(b, BIO_CB_CTRL, (const char *)c, 0, BIO_CTRL_SET,
+                        e, 1, NULL) <= 0)
+            return 0;
+    }
+#ifndef OPENSSL_NO_DEPRECATED_3_0
+    else {
+        callback = BIO_get_callback(b);
 
-    if ((callback != NULL) &&
+        if ((callback != NULL) &&
             (callback(b, BIO_CB_CTRL, (const char *)c, BIO_CTRL_SET, e,
                       0L) <= 0))
-        return 0;
+            return 0;
+    }
+#endif
 
     BIO_set_init(b, 1);
 
     if (!EVP_CipherInit_ex(ctx->cipher, c, NULL, k, i, e))
         return 0;
 
-    if (callback != NULL)
+    if (callback_ex != NULL)
+        return callback_ex(b, BIO_CB_CTRL | BIO_CB_RETURN, (const char *)c, 0,
+                           BIO_CTRL_SET, e, 1, NULL);
+#ifndef OPENSSL_NO_DEPRECATED_3_0
+    else if (callback != NULL)
         return callback(b, BIO_CB_CTRL, (const char *)c, BIO_CTRL_SET, e, 1L);
+#endif
     return 1;
 }

@@ -1,7 +1,7 @@
 /*
- * Copyright 1999-2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -38,10 +38,8 @@ static void bio_destroy_pair(BIO *bio);
 static const BIO_METHOD methods_biop = {
     BIO_TYPE_BIO,
     "BIO pair",
-    /* TODO: Convert to new style write function */
     bwrite_conv,
     bio_write,
-    /* TODO: Convert to new style read function */
     bread_conv,
     bio_read,
     bio_puts,
@@ -286,7 +284,7 @@ static int bio_write(BIO *bio, const char *buf, int num_)
     b->request = 0;
     if (b->closed) {
         /* we already closed */
-        BIOerr(BIO_F_BIO_WRITE, BIO_R_BROKEN_PIPE);
+        ERR_raise(ERR_LIB_BIO, BIO_R_BROKEN_PIPE);
         return -1;
     }
 
@@ -362,7 +360,7 @@ static ossl_ssize_t bio_nwrite0(BIO *bio, char **buf)
 
     b->request = 0;
     if (b->closed) {
-        BIOerr(BIO_F_BIO_NWRITE0, BIO_R_BROKEN_PIPE);
+        ERR_raise(ERR_LIB_BIO, BIO_R_BROKEN_PIPE);
         return -1;
     }
 
@@ -427,10 +425,10 @@ static long bio_ctrl(BIO *bio, int cmd, long num, void *ptr)
 
     case BIO_C_SET_WRITE_BUF_SIZE:
         if (b->peer) {
-            BIOerr(BIO_F_BIO_CTRL, BIO_R_IN_USE);
+            ERR_raise(ERR_LIB_BIO, BIO_R_IN_USE);
             ret = 0;
         } else if (num == 0) {
-            BIOerr(BIO_F_BIO_CTRL, BIO_R_INVALID_ARGUMENT);
+            ERR_raise(ERR_LIB_BIO, BIO_R_INVALID_ARGUMENT);
             ret = 0;
         } else {
             size_t new_size = num;
@@ -616,14 +614,14 @@ static int bio_make_pair(BIO *bio1, BIO *bio2)
     b2 = bio2->ptr;
 
     if (b1->peer != NULL || b2->peer != NULL) {
-        BIOerr(BIO_F_BIO_MAKE_PAIR, BIO_R_IN_USE);
+        ERR_raise(ERR_LIB_BIO, BIO_R_IN_USE);
         return 0;
     }
 
     if (b1->buf == NULL) {
         b1->buf = OPENSSL_malloc(b1->size);
         if (b1->buf == NULL) {
-            BIOerr(BIO_F_BIO_MAKE_PAIR, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_BIO, ERR_R_MALLOC_FAILURE);
             return 0;
         }
         b1->len = 0;
@@ -633,7 +631,7 @@ static int bio_make_pair(BIO *bio1, BIO *bio2)
     if (b2->buf == NULL) {
         b2->buf = OPENSSL_malloc(b2->size);
         if (b2->buf == NULL) {
-            BIOerr(BIO_F_BIO_MAKE_PAIR, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_BIO, ERR_R_MALLOC_FAILURE);
             return 0;
         }
         b2->len = 0;
@@ -750,7 +748,7 @@ int BIO_nread0(BIO *bio, char **buf)
     long ret;
 
     if (!bio->init) {
-        BIOerr(BIO_F_BIO_NREAD0, BIO_R_UNINITIALIZED);
+        ERR_raise(ERR_LIB_BIO, BIO_R_UNINITIALIZED);
         return -2;
     }
 
@@ -766,7 +764,7 @@ int BIO_nread(BIO *bio, char **buf, int num)
     int ret;
 
     if (!bio->init) {
-        BIOerr(BIO_F_BIO_NREAD, BIO_R_UNINITIALIZED);
+        ERR_raise(ERR_LIB_BIO, BIO_R_UNINITIALIZED);
         return -2;
     }
 
@@ -781,7 +779,7 @@ int BIO_nwrite0(BIO *bio, char **buf)
     long ret;
 
     if (!bio->init) {
-        BIOerr(BIO_F_BIO_NWRITE0, BIO_R_UNINITIALIZED);
+        ERR_raise(ERR_LIB_BIO, BIO_R_UNINITIALIZED);
         return -2;
     }
 
@@ -797,7 +795,7 @@ int BIO_nwrite(BIO *bio, char **buf, int num)
     int ret;
 
     if (!bio->init) {
-        BIOerr(BIO_F_BIO_NWRITE, BIO_R_UNINITIALIZED);
+        ERR_raise(ERR_LIB_BIO, BIO_R_UNINITIALIZED);
         return -2;
     }
 

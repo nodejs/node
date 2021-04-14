@@ -2,6 +2,7 @@
 
 =head1 NAME
 
+CT_POLICY_EVAL_CTX_new_ex,
 CT_POLICY_EVAL_CTX_new, CT_POLICY_EVAL_CTX_free,
 CT_POLICY_EVAL_CTX_get0_cert, CT_POLICY_EVAL_CTX_set1_cert,
 CT_POLICY_EVAL_CTX_get0_issuer, CT_POLICY_EVAL_CTX_set1_issuer,
@@ -13,6 +14,8 @@ Encapsulates the data required to evaluate whether SCTs meet a Certificate Trans
 
  #include <openssl/ct.h>
 
+ CT_POLICY_EVAL_CTX *CT_POLICY_EVAL_CTX_new_ex(OSSL_LIB_CTX *libctx,
+                                               const char *propq);
  CT_POLICY_EVAL_CTX *CT_POLICY_EVAL_CTX_new(void);
  void CT_POLICY_EVAL_CTX_free(CT_POLICY_EVAL_CTX *ctx);
  X509* CT_POLICY_EVAL_CTX_get0_cert(const CT_POLICY_EVAL_CTX *ctx);
@@ -55,8 +58,15 @@ the current time
 
 The above requirements are met using the setters described below.
 
-CT_POLICY_EVAL_CTX_new() creates an empty policy evaluation context. This
-should then be populated using:
+CT_POLICY_EVAL_CTX_new_ex() creates an empty policy evaluation context
+and associates it with the given library context I<libctx> and property query
+string I<propq>.
+
+CT_POLICY_EVAL_CTX_new() does the same thing as
+CT_POLICY_EVAL_CTX_new_ex() except that it uses the default library
+context and property query string.
+
+The CT_POLICY_EVAL_CTX should then be populated using:
 
 =over 2
 
@@ -88,7 +98,7 @@ issued in the future. RFC6962 states that "TLS clients MUST reject SCTs whose
 timestamp is in the future". By default, this will be set to 5 minutes in the
 future (e.g. (time() + 300) * 1000), to allow for clock drift.
 
-The time should be in milliseconds since the Unix epoch.
+The time should be in milliseconds since the Unix Epoch.
 
 =back
 
@@ -106,7 +116,8 @@ found in the TLS SCT extension or OCSP response.
 
 =head1 RETURN VALUES
 
-CT_POLICY_EVAL_CTX_new() will return NULL if malloc fails.
+CT_POLICY_EVAL_CTX_new_ex() and CT_POLICY_EVAL_CTX_new() will return
+NULL if malloc fails.
 
 =head1 SEE ALSO
 
@@ -114,13 +125,14 @@ L<ct(7)>
 
 =head1 HISTORY
 
-These functions were added in OpenSSL 1.1.0.
+CT_POLICY_EVAL_CTX_new_ex was added in OpenSSL 3.0. All other
+functions were added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

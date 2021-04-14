@@ -623,6 +623,7 @@ _vpaes_schedule_mangle:
 .align	16
 vpaes_set_encrypt_key:
 .cfi_startproc	
+.byte	243,15,30,250
 	movl	%esi,%eax
 	shrl	$5,%eax
 	addl	$5,%eax
@@ -641,6 +642,7 @@ vpaes_set_encrypt_key:
 .align	16
 vpaes_set_decrypt_key:
 .cfi_startproc	
+.byte	243,15,30,250
 	movl	%esi,%eax
 	shrl	$5,%eax
 	addl	$5,%eax
@@ -664,6 +666,7 @@ vpaes_set_decrypt_key:
 .align	16
 vpaes_encrypt:
 .cfi_startproc	
+.byte	243,15,30,250
 	movdqu	(%rdi),%xmm0
 	call	_vpaes_preheat
 	call	_vpaes_encrypt_core
@@ -677,6 +680,7 @@ vpaes_encrypt:
 .align	16
 vpaes_decrypt:
 .cfi_startproc	
+.byte	243,15,30,250
 	movdqu	(%rdi),%xmm0
 	call	_vpaes_preheat
 	call	_vpaes_decrypt_core
@@ -689,6 +693,7 @@ vpaes_decrypt:
 .align	16
 vpaes_cbc_encrypt:
 .cfi_startproc	
+.byte	243,15,30,250
 	xchgq	%rcx,%rdx
 	subq	$16,%rcx
 	jc	.Lcbc_abort
@@ -851,3 +856,24 @@ _vpaes_consts:
 .byte	86,101,99,116,111,114,32,80,101,114,109,117,116,97,116,105,111,110,32,65,69,83,32,102,111,114,32,120,56,54,95,54,52,47,83,83,83,69,51,44,32,77,105,107,101,32,72,97,109,98,117,114,103,32,40,83,116,97,110,102,111,114,100,32,85,110,105,118,101,114,115,105,116,121,41,0
 .align	64
 .size	_vpaes_consts,.-_vpaes_consts
+	.section ".note.gnu.property", "a"
+	.p2align 2
+	.long 1f - 0f
+	.long 4f - 1f
+	.long 5
+0:
+	# "GNU" encoded with .byte, since .asciz isn't supported
+	# on Solaris.
+	.byte 0x47
+	.byte 0x4e
+	.byte 0x55
+	.byte 0
+1:
+	.p2align 2
+	.long 0xc0000002
+	.long 3f - 2f
+2:
+	.long 3
+3:
+	.p2align 2
+4:

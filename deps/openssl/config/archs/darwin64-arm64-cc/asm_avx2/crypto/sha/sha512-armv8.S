@@ -1,6 +1,6 @@
 // Copyright 2014-2020 The OpenSSL Project Authors. All Rights Reserved.
 //
-// Licensed under the OpenSSL license (the "License").  You may not use
+// Licensed under the Apache License 2.0 (the "License").  You may not use
 // this file except in compliance with the License.  You can obtain a copy
 // in the file LICENSE in the source distribution or at
 // https://www.openssl.org/source/license.html
@@ -27,6 +27,7 @@
 // X-Gene			20.0 (+100%)	12.8 (+300%(***))
 // Mongoose	2.36		13.0 (+50%)	8.36 (+33%)
 // Kryo		1.92		17.4 (+30%)	11.2 (+8%)
+// ThunderX2	2.54		13.2 (+40%)	8.40 (+18%)
 //
 // (*)	Software SHA256 results are of lesser relevance, presented
 //	mostly for informational purposes.
@@ -52,27 +53,23 @@
 // deliver much less improvement, likely *negative* on Cortex-A5x.
 // Which is why NEON support is limited to SHA256.]
 
+// $output is the last argument if it looks like a file (it has an extension)
+// $flavour is the first argument if it doesn't look like a file
 #ifndef	__KERNEL__
 # include "arm_arch.h"
+
+.private_extern	_OPENSSL_armcap_P
 #endif
 
 .text
 
-
-.private_extern	_OPENSSL_armcap_P
 .globl	_sha512_block_data_order
 
 .align	6
 _sha512_block_data_order:
 #ifndef	__KERNEL__
-# ifdef	__ILP32__
-	ldrsw	x16,LOPENSSL_armcap_P
-# else
-	ldr	x16,LOPENSSL_armcap_P
-# endif
-	adr	x17,LOPENSSL_armcap_P
-	add	x16,x16,x17
-	ldr	w16,[x16]
+	adrp	x16,_OPENSSL_armcap_P@PAGE
+	ldr	w16,[x16,_OPENSSL_armcap_P@PAGEOFF]
 	tst	w16,#ARMV8_SHA512
 	b.ne	Lv8_entry
 #endif
@@ -1085,15 +1082,6 @@ LK512:
 .quad	0x5fcb6fab3ad6faec,0x6c44198c4a475817
 .quad	0	// terminator
 
-#ifndef	__KERNEL__
-.align	3
-LOPENSSL_armcap_P:
-# ifdef	__ILP32__
-.long	_OPENSSL_armcap_P-.
-# else
-.quad	_OPENSSL_armcap_P-.
-# endif
-#endif
 .byte	83,72,65,53,49,50,32,98,108,111,99,107,32,116,114,97,110,115,102,111,114,109,32,102,111,114,32,65,82,77,118,56,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .align	2
 .align	2
