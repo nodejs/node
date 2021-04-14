@@ -384,14 +384,21 @@ TEST_F(UnifiedHeapSnapshotTest, MergedWrapperNode) {
           // GCedWithJSRef is merged into MergedObject, replacing its name.
           "NextObject"  // NOLINT
       }));
+  const size_t js_size = Utils::OpenHandle(*wrapper_object)->Size();
+#if CPPGC_SUPPORTS_OBJECT_NAMES
   const size_t cpp_size =
       cppgc::internal::HeapObjectHeader::FromPayload(gc_w_js_ref.Get())
           .GetSize();
-  const size_t js_size = Utils::OpenHandle(*wrapper_object)->Size();
   ForEachEntryWithName(snapshot, GetExpectedName<GCedWithJSRef>(),
                        [cpp_size, js_size](const HeapEntry& entry) {
                          EXPECT_EQ(cpp_size + js_size, entry.self_size());
                        });
+#else   // !CPPGC_SUPPORTS_OBJECT_NAMES
+  ForEachEntryWithName(snapshot, GetExpectedName<GCedWithJSRef>(),
+                       [js_size](const HeapEntry& entry) {
+                         EXPECT_EQ(js_size, entry.self_size());
+                       });
+#endif  // !CPPGC_SUPPORTS_OBJECT_NAMES
 }
 
 namespace {

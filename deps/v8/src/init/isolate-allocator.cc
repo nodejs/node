@@ -13,29 +13,47 @@ namespace v8 {
 namespace internal {
 
 IsolateAllocator::IsolateAllocator() {
-#ifdef V8_COMPRESS_POINTERS
-  Address heap_reservation_address = InitReservation();
-  CommitPagesForIsolate(heap_reservation_address);
+#if defined(V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE)
+  isolate_cage_.InitReservationOrDie();
+  page_allocator_ = isolate_cage_.page_allocator();
+  CommitPagesForIsolate(isolate_cage_.base());
+#elif defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)
+  // Allocate Isolate in C++ heap when sharing a cage.
+  CHECK(PtrComprCage::GetProcessWideCage()->IsReserved());
+  page_allocator_ = PtrComprCage::GetProcessWideCage()->page_allocator();
+  isolate_memory_ = ::operator new(sizeof(Isolate));
 #else
   // Allocate Isolate in C++ heap.
   page_allocator_ = GetPlatformPageAllocator();
   isolate_memory_ = ::operator new(sizeof(Isolate));
-  DCHECK(!reservation_.IsReserved());
 #endif  // V8_COMPRESS_POINTERS
+
+  CHECK_NOT_NULL(page_allocator_);
 }
 
 IsolateAllocator::~IsolateAllocator() {
-  if (reservation_.IsReserved()) {
-    // The actual memory will be freed when the |reservation_| will die.
+#ifdef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+  if (isolate_cage_.reservation_.IsReserved()) {
+    // The actual memory will be freed when the |isolate_cage_| will die.
     return;
   }
+#endif
 
   // The memory was allocated in C++ heap.
   ::operator delete(isolate_memory_);
 }
 
-#ifdef V8_COMPRESS_POINTERS
+Address IsolateAllocator::GetPtrComprCageBaseAddress() const {
+#if defined V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+  return isolate_cage_.base();
+#elif defined V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+  return PtrComprCage::GetProcessWideCage()->base();
+#else
+  return kNullAddress;
+#endif
+}
 
+#ifdef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
 namespace {
 
 // "IsolateRootBiasPage" is an optional region before the 4Gb aligned
@@ -50,109 +68,18 @@ inline size_t GetIsolateRootBiasPageSize(
 
 }  // namespace
 
-Address IsolateAllocator::InitReservation() {
-  v8::PageAllocator* platform_page_allocator = GetPlatformPageAllocator();
-
-  const size_t kIsolateRootBiasPageSize =
-      GetIsolateRootBiasPageSize(platform_page_allocator);
-
-  // Reserve a |4Gb + kIsolateRootBiasPageSize| region such as that the
-  // resevation address plus |kIsolateRootBiasPageSize| is 4Gb aligned.
-  const size_t reservation_size =
-      kPtrComprHeapReservationSize + kIsolateRootBiasPageSize;
-  const size_t base_alignment = kPtrComprIsolateRootAlignment;
-
-  const int kMaxAttempts = 4;
-  for (int attempt = 0; attempt < kMaxAttempts; ++attempt) {
-    Address hint = RoundDown(reinterpret_cast<Address>(
-                                 platform_page_allocator->GetRandomMmapAddr()),
-                             base_alignment) -
-                   kIsolateRootBiasPageSize;
-
-    // Within this reservation there will be a sub-region with proper alignment.
-    VirtualMemory padded_reservation(platform_page_allocator,
-                                     reservation_size * 2,
-                                     reinterpret_cast<void*>(hint));
-    if (!padded_reservation.IsReserved()) break;
-
-    // Find properly aligned sub-region inside the reservation.
-    Address address =
-        RoundUp(padded_reservation.address() + kIsolateRootBiasPageSize,
-                base_alignment) -
-        kIsolateRootBiasPageSize;
-    CHECK(padded_reservation.InVM(address, reservation_size));
-
-#if defined(V8_OS_FUCHSIA)
-    // Fuchsia does not respect given hints so as a workaround we will use
-    // overreserved address space region instead of trying to re-reserve
-    // a subregion.
-    bool overreserve = true;
-#else
-    // For the last attempt use the overreserved region to avoid an OOM crash.
-    // This case can happen if there are many isolates being created in
-    // parallel that race for reserving the regions.
-    bool overreserve = (attempt == kMaxAttempts - 1);
-#endif
-
-    if (overreserve) {
-      if (padded_reservation.InVM(address, reservation_size)) {
-        reservation_ = std::move(padded_reservation);
-        return address;
-      }
-    } else {
-      // Now free the padded reservation and immediately try to reserve an exact
-      // region at aligned address. We have to do this dancing because the
-      // reservation address requirement is more complex than just a certain
-      // alignment and not all operating systems support freeing parts of
-      // reserved address space regions.
-      padded_reservation.Free();
-
-      VirtualMemory reservation(platform_page_allocator, reservation_size,
-                                reinterpret_cast<void*>(address));
-      if (!reservation.IsReserved()) break;
-
-      // The reservation could still be somewhere else but we can accept it
-      // if it has the required alignment.
-      Address address =
-          RoundUp(reservation.address() + kIsolateRootBiasPageSize,
-                  base_alignment) -
-          kIsolateRootBiasPageSize;
-
-      if (reservation.address() == address) {
-        reservation_ = std::move(reservation);
-        CHECK_EQ(reservation_.size(), reservation_size);
-        return address;
-      }
-    }
-  }
-  V8::FatalProcessOutOfMemory(nullptr,
-                              "Failed to reserve memory for new V8 Isolate");
-  return kNullAddress;
-}
-
 void IsolateAllocator::CommitPagesForIsolate(Address heap_reservation_address) {
-  v8::PageAllocator* platform_page_allocator = GetPlatformPageAllocator();
-
   const size_t kIsolateRootBiasPageSize =
-      GetIsolateRootBiasPageSize(platform_page_allocator);
+      GetIsolateRootBiasPageSize(page_allocator_);
 
   Address isolate_root = heap_reservation_address + kIsolateRootBiasPageSize;
-  CHECK(IsAligned(isolate_root, kPtrComprIsolateRootAlignment));
+  CHECK(IsAligned(isolate_root, kPtrComprCageBaseAlignment));
 
-  CHECK(reservation_.InVM(
+  CHECK(isolate_cage_.reservation_.InVM(
       heap_reservation_address,
-      kPtrComprHeapReservationSize + kIsolateRootBiasPageSize));
+      kPtrComprCageReservationSize + kIsolateRootBiasPageSize));
 
-  // Simplify BoundedPageAllocator's life by configuring it to use same page
-  // size as the Heap will use (MemoryChunk::kPageSize).
-  size_t page_size = RoundUp(size_t{1} << kPageSizeBits,
-                             platform_page_allocator->AllocatePageSize());
-
-  page_allocator_instance_ = std::make_unique<base::BoundedPageAllocator>(
-      platform_page_allocator, isolate_root, kPtrComprHeapReservationSize,
-      page_size);
-  page_allocator_ = page_allocator_instance_.get();
-
+  size_t page_size = page_allocator_->AllocatePageSize();
   Address isolate_address = isolate_root - Isolate::isolate_root_bias();
   Address isolate_end = isolate_address + sizeof(Isolate);
 
@@ -162,24 +89,24 @@ void IsolateAllocator::CommitPagesForIsolate(Address heap_reservation_address) {
     size_t reserved_region_size =
         RoundUp(isolate_end, page_size) - reserved_region_address;
 
-    CHECK(page_allocator_instance_->AllocatePagesAt(
+    CHECK(isolate_cage_.page_allocator()->AllocatePagesAt(
         reserved_region_address, reserved_region_size,
         PageAllocator::Permission::kNoAccess));
   }
 
   // Commit pages where the Isolate will be stored.
   {
-    size_t commit_page_size = platform_page_allocator->CommitPageSize();
+    size_t commit_page_size = page_allocator_->CommitPageSize();
     Address committed_region_address =
         RoundDown(isolate_address, commit_page_size);
     size_t committed_region_size =
         RoundUp(isolate_end, commit_page_size) - committed_region_address;
 
-    // We are using |reservation_| directly here because |page_allocator_| has
-    // bigger commit page size than we actually need.
-    CHECK(reservation_.SetPermissions(committed_region_address,
-                                      committed_region_size,
-                                      PageAllocator::kReadWrite));
+    // We are using |isolate_cage_.reservation_| directly here because
+    // |page_allocator_| has bigger commit page size than we actually need.
+    CHECK(isolate_cage_.reservation_.SetPermissions(committed_region_address,
+                                                    committed_region_size,
+                                                    PageAllocator::kReadWrite));
 
     if (Heap::ShouldZapGarbage()) {
       MemsetPointer(reinterpret_cast<Address*>(committed_region_address),
@@ -188,7 +115,7 @@ void IsolateAllocator::CommitPagesForIsolate(Address heap_reservation_address) {
   }
   isolate_memory_ = reinterpret_cast<void*>(isolate_address);
 }
-#endif  // V8_COMPRESS_POINTERS
+#endif  // V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
 
 }  // namespace internal
 }  // namespace v8

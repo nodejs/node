@@ -70,16 +70,21 @@ bool PagesHasExactPage(std::vector<MemoryRange>* pages, Address search_page,
   return it != pages->end();
 }
 
-bool PagesContainsAddress(std::vector<MemoryRange>* pages,
-                          Address search_address) {
+bool PagesContainsRange(std::vector<MemoryRange>* pages, Address search_address,
+                        size_t size) {
   byte* addr = reinterpret_cast<byte*>(search_address);
   auto it =
-      std::find_if(pages->begin(), pages->end(), [addr](const MemoryRange& r) {
+      std::find_if(pages->begin(), pages->end(), [=](const MemoryRange& r) {
         const byte* page_start = reinterpret_cast<const byte*>(r.start);
         const byte* page_end = page_start + r.length_in_bytes;
-        return addr >= page_start && addr < page_end;
+        return addr >= page_start && (addr + size) <= page_end;
       });
   return it != pages->end();
+}
+
+bool PagesContainsAddress(std::vector<MemoryRange>* pages,
+                          Address search_address) {
+  return PagesContainsRange(pages, search_address, 0);
 }
 
 }  // namespace
@@ -99,8 +104,18 @@ TEST(CodeRangeCorrectContents) {
   CHECK_EQ(2, pages->size());
   CHECK(PagesHasExactPage(pages, code_range.begin(), code_range.size()));
   CHECK(PagesHasExactPage(
-      pages, reinterpret_cast<Address>(i_isolate->embedded_blob_code()),
-      i_isolate->embedded_blob_code_size()));
+      pages, reinterpret_cast<Address>(i_isolate->CurrentEmbeddedBlobCode()),
+      i_isolate->CurrentEmbeddedBlobCodeSize()));
+  if (i_isolate->is_short_builtin_calls_enabled()) {
+    // In this case embedded blob code must be included via code_range.
+    CHECK(PagesContainsRange(
+        pages, reinterpret_cast<Address>(i_isolate->embedded_blob_code()),
+        i_isolate->embedded_blob_code_size()));
+  } else {
+    CHECK(PagesHasExactPage(
+        pages, reinterpret_cast<Address>(i_isolate->embedded_blob_code()),
+        i_isolate->embedded_blob_code_size()));
+  }
 }
 
 TEST(CodePagesCorrectContents) {

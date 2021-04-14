@@ -17,9 +17,9 @@ const func_a =
 const func_b = builder.addFunction('wasm_B', kSig_v_i)
     .addBody([
       // clang-format off
-      kExprLoop, kWasmStmt,                // while
+      kExprLoop, kWasmVoid,                // while
         kExprLocalGet, 0,                  // -
-        kExprIf, kWasmStmt,                // if <param0> != 0
+        kExprIf, kWasmVoid,                // if <param0> != 0
           kExprLocalGet, 0,                // -
           kExprI32Const, 1,                // -
           kExprI32Sub,                     // -
@@ -86,6 +86,7 @@ Protocol.Debugger.onPaused(async msg => {
 
 InspectorTest.runAsyncTestSuite([
   async function test() {
+    await Protocol.Runtime.enable();
     await Protocol.Debugger.enable();
     InspectorTest.log('Instantiating.');
     // Spawn asynchronously:

@@ -8,8 +8,11 @@
 #include "src/codegen/register-arch.h"
 #include "src/deoptimizer/translation-opcode.h"
 #include "src/objects/fixed-array.h"
-#include "src/wasm/value-type.h"
 #include "src/zone/zone-containers.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/value-type.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -68,9 +71,11 @@ class TranslationArrayBuilder {
                                unsigned height);
   void BeginBuiltinContinuationFrame(BytecodeOffset bailout_id, int literal_id,
                                      unsigned height);
+#if V8_ENABLE_WEBASSEMBLY
   void BeginJSToWasmBuiltinContinuationFrame(
       BytecodeOffset bailout_id, int literal_id, unsigned height,
-      base::Optional<wasm::ValueKind> return_type);
+      base::Optional<wasm::ValueKind> return_kind);
+#endif  // V8_ENABLE_WEBASSEMBLY
   void BeginJavaScriptBuiltinContinuationFrame(BytecodeOffset bailout_id,
                                                int literal_id, unsigned height);
   void BeginJavaScriptBuiltinContinuationWithCatchFrame(

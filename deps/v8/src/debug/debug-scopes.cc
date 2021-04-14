@@ -35,8 +35,10 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
   }
   context_ = Handle<Context>::cast(frame_inspector->GetContext());
 
+#if V8_ENABLE_WEBASSEMBLY
   // We should not instantiate a ScopeIterator for wasm frames.
   DCHECK_NE(Script::TYPE_WASM, frame_inspector->GetScript()->type());
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   TryParseAndRetrieveScopes(strategy);
 }
@@ -740,8 +742,7 @@ void ScopeIterator::VisitModuleScope(const Visitor& visitor) const {
   if (VisitContextLocals(visitor, scope_info, context_, ScopeTypeModule))
     return;
 
-  int count_index = scope_info->ModuleVariableCountIndex();
-  int module_variable_count = Smi::cast(scope_info->get(count_index)).value();
+  int module_variable_count = scope_info->ModuleVariableCount();
 
   Handle<SourceTextModule> module(context_->module(), isolate_);
 

@@ -922,7 +922,7 @@ class Assembler : public AssemblerBase {
   void mtxer(Register src);
   void mcrfs(CRegister cr, FPSCRBit bit);
   void mfcr(Register dst);
-  void mtcrf(unsigned char FXM, Register src);
+  void mtcrf(Register src, uint8_t FXM);
 #if V8_TARGET_ARCH_PPC64
   void mffprd(Register dst, DoubleRegister src);
   void mffprwz(Register dst, DoubleRegister src);
@@ -1032,6 +1032,7 @@ class Assembler : public AssemblerBase {
   void stxsiwx(const Simd128Register rs, const MemOperand& src);
   void stxvd(const Simd128Register rt, const MemOperand& src);
   void xxspltib(const Simd128Register rt, const Operand& imm);
+  void xxbrq(const Simd128Register rt, const Simd128Register rb);
 
   // Pseudo instructions
 

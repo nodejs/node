@@ -772,6 +772,8 @@ void Simulator::EvalTableInit() {
   V(vsum, VSUM, 0xE764)   /* type = VRR_C VECTOR SUM ACROSS WORD  */           \
   V(vsumg, VSUMG, 0xE765) /* type = VRR_C VECTOR SUM ACROSS DOUBLEWORD  */     \
   V(vpk, VPK, 0xE794)     /* type = VRR_C VECTOR PACK  */                      \
+  V(vmrl, VMRL, 0xE760)   /* type = VRR_C VECTOR MERGE LOW */                  \
+  V(vmrh, VMRH, 0xE761)   /* type = VRR_C VECTOR MERGE HIGH */                 \
   V(vpks, VPKS, 0xE797)   /* type = VRR_B VECTOR PACK SATURATE  */             \
   V(vpkls, VPKLS, 0xE795) /* type = VRR_B VECTOR PACK LOGICAL SATURATE  */     \
   V(vupll, VUPLL, 0xE7D4) /* type = VRR_A VECTOR UNPACK LOGICAL LOW  */        \
@@ -3273,8 +3275,10 @@ EVALUATE(VML) {
     j = lane_size;                                                         \
   }                                                                        \
   for (; j < kSimd128Size; i += 2, j += lane_size * 2, k++) {              \
-    input_type src0 = get_simd_register_by_lane<input_type>(r2, i);        \
-    input_type src1 = get_simd_register_by_lane<input_type>(r3, i);        \
+    result_type src0 = static_cast<result_type>(                           \
+        get_simd_register_by_lane<input_type>(r2, i));                     \
+    result_type src1 = static_cast<result_type>(                           \
+        get_simd_register_by_lane<input_type>(r3, i));                     \
     set_simd_register_by_lane<result_type>(r1, k, src0 * src1);            \
   }
 #define VECTOR_MULTIPLY_EVEN_ODD(r1, r2, r3, is_odd, sign)                    \
@@ -3394,6 +3398,53 @@ EVALUATE(VSUMG) {
   return length;
 }
 #undef CASE
+
+#define VECTOR_MERGE(type, is_low_side)                                      \
+  constexpr size_t index_limit = (kSimd128Size / sizeof(type)) / 2;          \
+  for (size_t i = 0, source_index = is_low_side ? i + index_limit : i;       \
+       i < index_limit; i++, source_index++) {                               \
+    set_simd_register_by_lane<type>(                                         \
+        r1, 2 * i, get_simd_register_by_lane<type>(r2, source_index));       \
+    set_simd_register_by_lane<type>(                                         \
+        r1, (2 * i) + 1, get_simd_register_by_lane<type>(r3, source_index)); \
+  }
+#define CASE(i, type, is_low_side)  \
+  case i: {                         \
+    VECTOR_MERGE(type, is_low_side) \
+  } break;
+EVALUATE(VMRL) {
+  DCHECK_OPCODE(VMRL);
+  DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
+  USE(m6);
+  USE(m5);
+  switch (m4) {
+    CASE(0, int8_t, true);
+    CASE(1, int16_t, true);
+    CASE(2, int32_t, true);
+    CASE(3, int64_t, true);
+    default:
+      UNREACHABLE();
+  }
+  return length;
+}
+
+EVALUATE(VMRH) {
+  DCHECK_OPCODE(VMRH);
+  DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
+  USE(m6);
+  USE(m5);
+  switch (m4) {
+    CASE(0, int8_t, false);
+    CASE(1, int16_t, false);
+    CASE(2, int32_t, false);
+    CASE(3, int64_t, false);
+    default:
+      UNREACHABLE();
+  }
+  return length;
+}
+#undef CASE
+#undef VECTOR_MERGE
 
 template <class S, class D>
 void VectorPack(Simulator* sim, int dst, int src1, int src2, bool saturate,
@@ -3591,7 +3642,7 @@ EVALUATE(VCDLG) {
     break;                                                            \
   }
 EVALUATE(VCGD) {
-  DCHECK_OPCODE(VCDG);
+  DCHECK_OPCODE(VCGD);
   DECODE_VRR_A_INSTRUCTION(r1, r2, m5, m4, m3);
   USE(m4);
   switch (m3) {

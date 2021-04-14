@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_SIMD_SHUFFLE_H_
 #define V8_WASM_SIMD_SHUFFLE_H_
 
@@ -91,6 +95,14 @@ class V8_EXPORT_PRIVATE SimdShuffle {
   // Packs 16 bytes of shuffle into an array of 4 uint32_t.
   static void Pack16Lanes(uint32_t* dst, const uint8_t* shuffle);
 };
+
+class V8_EXPORT_PRIVATE SimdSwizzle {
+ public:
+  // Checks if all the immediates are in range (< kSimd128Size), and if they are
+  // not, the top bit is set.
+  static bool AllInRangeOrTopBitSet(std::array<uint8_t, kSimd128Size> shuffle);
+};
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

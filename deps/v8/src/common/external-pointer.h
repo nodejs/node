@@ -12,7 +12,7 @@ namespace internal {
 
 // Convert external pointer from on-V8-heap representation to an actual external
 // pointer value.
-V8_INLINE Address DecodeExternalPointer(IsolateRoot isolate,
+V8_INLINE Address DecodeExternalPointer(const Isolate* isolate,
                                         ExternalPointer_t encoded_pointer,
                                         ExternalPointerTag tag);
 
@@ -34,7 +34,7 @@ V8_INLINE void InitExternalPointerField(Address field_address, Isolate* isolate,
 // Reads external pointer for the field, and decodes it if the sandbox is
 // enabled.
 V8_INLINE Address ReadExternalPointerField(Address field_address,
-                                           IsolateRoot isolate,
+                                           const Isolate* isolate,
                                            ExternalPointerTag tag);
 
 // Encodes value if the sandbox is enabled and writes it into the field.

@@ -34,14 +34,19 @@ void LocalEmbedderHeapTracer::TraceEpilogue() {
 
   EmbedderHeapTracer::TraceSummary summary;
   remote_tracer_->TraceEpilogue(&summary);
-  remote_stats_.used_size = summary.allocated_size;
+  if (summary.allocated_size == SIZE_MAX) return;
+  UpdateRemoteStats(summary.allocated_size, summary.time);
+}
+
+void LocalEmbedderHeapTracer::UpdateRemoteStats(size_t allocated_size,
+                                                double time) {
+  remote_stats_.used_size = allocated_size;
   // Force a check next time increased memory is reported. This allows for
   // setting limits close to actual heap sizes.
   remote_stats_.allocated_size_limit_for_check = 0;
   constexpr double kMinReportingTimeMs = 0.5;
-  if (summary.time > kMinReportingTimeMs) {
-    isolate_->heap()->tracer()->RecordEmbedderSpeed(summary.allocated_size,
-                                                    summary.time);
+  if (time > kMinReportingTimeMs) {
+    isolate_->heap()->tracer()->RecordEmbedderSpeed(allocated_size, time);
   }
 }
 

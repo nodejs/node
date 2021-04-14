@@ -10,6 +10,7 @@
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/field-type.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/map-updater.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property-descriptor.h"
 #include "src/strings/char-predicates-inl.h"
@@ -401,7 +402,7 @@ Handle<Map> ParentOfDescriptorOwner(Isolate* isolate, Handle<Map> maybe_root,
 template <typename Char>
 Handle<Object> JsonParser<Char>::BuildJsonObject(
     const JsonContinuation& cont,
-    const std::vector<JsonProperty>& property_stack, Handle<Map> feedback) {
+    const SmallVector<JsonProperty>& property_stack, Handle<Map> feedback) {
   size_t start = cont.index;
   int length = static_cast<int>(property_stack.size() - start);
   int named_length = length - cont.elements;
@@ -464,8 +465,8 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
     InternalIndex descriptor_index(descriptor);
     if (descriptor < feedback_descriptors) {
       expected =
-          handle(String::cast(feedback->instance_descriptors(kRelaxedLoad)
-                                  .GetKey(descriptor_index)),
+          handle(String::cast(feedback->instance_descriptors(isolate_).GetKey(
+                     descriptor_index)),
                  isolate_);
     } else {
       DisallowGarbageCollection no_gc;
@@ -497,7 +498,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
     Handle<Object> value = property.value;
 
     PropertyDetails details =
-        target->instance_descriptors(kRelaxedLoad).GetDetails(descriptor_index);
+        target->instance_descriptors(isolate_).GetDetails(descriptor_index);
     Representation expected_representation = details.representation();
 
     if (!value->FitsRepresentation(expected_representation)) {
@@ -509,22 +510,23 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
       }
       Handle<FieldType> value_type =
           value->OptimalType(isolate(), representation);
-      Map::GeneralizeField(isolate(), target, descriptor_index,
-                           details.constness(), representation, value_type);
+      MapUpdater::GeneralizeField(isolate(), target, descriptor_index,
+                                  details.constness(), representation,
+                                  value_type);
     } else if (expected_representation.IsHeapObject() &&
-               !target->instance_descriptors(kRelaxedLoad)
+               !target->instance_descriptors(isolate())
                     .GetFieldType(descriptor_index)
                     .NowContains(value)) {
       Handle<FieldType> value_type =
           value->OptimalType(isolate(), expected_representation);
-      Map::GeneralizeField(isolate(), target, descriptor_index,
-                           details.constness(), expected_representation,
-                           value_type);
+      MapUpdater::GeneralizeField(isolate(), target, descriptor_index,
+                                  details.constness(), expected_representation,
+                                  value_type);
     } else if (expected_representation.IsDouble() && value->IsSmi()) {
       new_mutable_double++;
     }
 
-    DCHECK(target->instance_descriptors(kRelaxedLoad)
+    DCHECK(target->instance_descriptors(isolate())
                .GetFieldType(descriptor_index)
                .NowContains(value));
     map = target;
@@ -574,7 +576,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
       if (property.string.is_index()) continue;
       InternalIndex descriptor_index(descriptor);
       PropertyDetails details =
-          map->instance_descriptors(kRelaxedLoad).GetDetails(descriptor_index);
+          map->instance_descriptors(isolate()).GetDetails(descriptor_index);
       Object value = *property.value;
       FieldIndex index = FieldIndex::ForDescriptor(*map, descriptor_index);
       descriptor++;
@@ -645,7 +647,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
 template <typename Char>
 Handle<Object> JsonParser<Char>::BuildJsonArray(
     const JsonContinuation& cont,
-    const std::vector<Handle<Object>>& element_stack) {
+    const SmallVector<Handle<Object>>& element_stack) {
   size_t start = cont.index;
   int length = static_cast<int>(element_stack.size() - start);
 
@@ -686,12 +688,10 @@ Handle<Object> JsonParser<Char>::BuildJsonArray(
 template <typename Char>
 MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
   std::vector<JsonContinuation> cont_stack;
-  std::vector<JsonProperty> property_stack;
-  std::vector<Handle<Object>> element_stack;
+  SmallVector<JsonProperty> property_stack;
+  SmallVector<Handle<Object>> element_stack;
 
   cont_stack.reserve(16);
-  property_stack.reserve(16);
-  element_stack.reserve(16);
 
   JsonContinuation cont(isolate_, JsonContinuation::kReturn, 0);
 
@@ -833,7 +833,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
             }
           }
           value = BuildJsonObject(cont, property_stack, feedback);
-          property_stack.resize(cont.index);
+          property_stack.resize_no_init(cont.index);
           Expect(JsonToken::RBRACE);
 
           // Return the object.
@@ -852,7 +852,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
           if (V8_LIKELY(Check(JsonToken::COMMA))) break;
 
           value = BuildJsonArray(cont, element_stack);
-          element_stack.resize(cont.index);
+          element_stack.resize_no_init(cont.index);
           Expect(JsonToken::RBRACK);
 
           // Return the array.

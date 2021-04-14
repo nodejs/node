@@ -23,8 +23,6 @@
 #include "src/parsing/parsing.h"
 #include "src/roots/roots.h"
 #include "src/strings/string-builder-inl.h"
-#include "src/wasm/wasm-code-manager.h"
-#include "src/wasm/wasm-objects.h"
 
 namespace v8 {
 namespace internal {
@@ -188,8 +186,7 @@ void MessageHandler::ReportMessageNoExceptions(
           FUNCTION_CAST<v8::MessageCallback>(callback_obj.foreign_address());
       Handle<Object> callback_data(listener.get(1), isolate);
       {
-        RuntimeCallTimerScope timer(
-            isolate, RuntimeCallCounterId::kMessageListenerCallback);
+        RCS_SCOPE(isolate, RuntimeCallCounterId::kMessageListenerCallback);
         // Do not allow exceptions to propagate.
         v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
         callback(api_message_obj, callback_data->IsUndefined(isolate)
@@ -368,8 +365,6 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
   RETURN_ON_EXCEPTION(isolate, AppendErrorString(isolate, error, &builder),
                       Object);
 
-  wasm::WasmCodeRefScope wasm_code_ref_scope;
-
   for (int i = 0; i < elems->length(); ++i) {
     builder.AppendCString("\n    at ");
 
@@ -487,7 +482,8 @@ MaybeHandle<String> MessageFormatter::Format(Isolate* isolate,
 MaybeHandle<JSObject> ErrorUtils::Construct(Isolate* isolate,
                                             Handle<JSFunction> target,
                                             Handle<Object> new_target,
-                                            Handle<Object> message) {
+                                            Handle<Object> message,
+                                            Handle<Object> options) {
   FrameSkipMode mode = SKIP_FIRST;
   Handle<Object> caller;
 
@@ -499,15 +495,15 @@ MaybeHandle<JSObject> ErrorUtils::Construct(Isolate* isolate,
     caller = new_target;
   }
 
-  return ErrorUtils::Construct(isolate, target, new_target, message, mode,
-                               caller,
+  return ErrorUtils::Construct(isolate, target, new_target, message, options,
+                               mode, caller,
                                ErrorUtils::StackTraceCollection::kDetailed);
 }
 
 MaybeHandle<JSObject> ErrorUtils::Construct(
     Isolate* isolate, Handle<JSFunction> target, Handle<Object> new_target,
-    Handle<Object> message, FrameSkipMode mode, Handle<Object> caller,
-    StackTraceCollection stack_trace_collection) {
+    Handle<Object> message, Handle<Object> options, FrameSkipMode mode,
+    Handle<Object> caller, StackTraceCollection stack_trace_collection) {
   if (FLAG_correctness_fuzzer_suppressions) {
     // Abort range errors in correctness fuzzing, as their causes differ
     // accross correctness-fuzzing scenarios.
@@ -540,7 +536,6 @@ MaybeHandle<JSObject> ErrorUtils::Construct(
   //     true, [[Enumerable]]: false, [[Configurable]]: true}.
   //  c. Perform ! DefinePropertyOrThrow(O, "message", msgDesc).
   // 4. Return O.
-
   if (!message->IsUndefined(isolate)) {
     Handle<String> msg_string;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, msg_string,
@@ -550,6 +545,31 @@ MaybeHandle<JSObject> ErrorUtils::Construct(
         JSObject::SetOwnPropertyIgnoreAttributes(
             err, isolate->factory()->message_string(), msg_string, DONT_ENUM),
         JSObject);
+  }
+
+  if (FLAG_harmony_error_cause && !options->IsUndefined(isolate)) {
+    // If Type(options) is Object and ? HasProperty(options, "cause") then
+    //   a. Let cause be ? Get(options, "cause").
+    //   b. Perform ! CreateNonEnumerableDataPropertyOrThrow(O, "cause", cause).
+    Handle<Name> cause_string = isolate->factory()->cause_string();
+    if (options->IsJSReceiver()) {
+      Handle<JSReceiver> js_options = Handle<JSReceiver>::cast(options);
+      Maybe<bool> has_cause = JSObject::HasProperty(js_options, cause_string);
+      if (has_cause.IsNothing()) {
+        DCHECK((isolate)->has_pending_exception());
+        return MaybeHandle<JSObject>();
+      }
+      if (has_cause.ToChecked()) {
+        Handle<Object> cause;
+        ASSIGN_RETURN_ON_EXCEPTION(
+            isolate, cause,
+            JSObject::GetProperty(isolate, js_options, cause_string), JSObject);
+        RETURN_ON_EXCEPTION(isolate,
+                            JSObject::SetOwnPropertyIgnoreAttributes(
+                                err, cause_string, cause, DONT_ENUM),
+                            JSObject);
+      }
+    }
   }
 
   switch (stack_trace_collection) {
@@ -680,14 +700,15 @@ Handle<JSObject> ErrorUtils::MakeGenericError(
     isolate->clear_pending_exception();
   }
   Handle<String> msg = DoFormatMessage(isolate, index, arg0, arg1, arg2);
+  Handle<Object> options = isolate->factory()->undefined_value();
 
   DCHECK(mode != SKIP_UNTIL_SEEN);
 
   Handle<Object> no_caller;
   // The call below can't fail because constructor is a builtin.
   DCHECK(constructor->shared().HasBuiltinId());
-  return ErrorUtils::Construct(isolate, constructor, constructor, msg, mode,
-                               no_caller, StackTraceCollection::kDetailed)
+  return ErrorUtils::Construct(isolate, constructor, constructor, msg, options,
+                               mode, no_caller, StackTraceCollection::kDetailed)
       .ToHandleChecked();
 }
 

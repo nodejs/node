@@ -8,13 +8,13 @@
 
 #include "tools/v8windbg/base/utilities.h"
 #include "tools/v8windbg/src/cur-isolate.h"
-#include "tools/v8windbg/src/list-chunks.h"
+#include "tools/v8windbg/src/js-stack.h"
 #include "tools/v8windbg/src/local-variables.h"
 #include "tools/v8windbg/src/object-inspection.h"
 
 std::unique_ptr<Extension> Extension::current_extension_ = nullptr;
 const wchar_t* pcur_isolate = L"curisolate";
-const wchar_t* plist_chunks = L"listchunks";
+const wchar_t* pjs_stack = L"jsstack";
 const wchar_t* pv8_object = L"v8object";
 
 HRESULT CreateExtension() {
@@ -260,7 +260,7 @@ HRESULT Extension::Initialize() {
   // Register all function aliases.
   std::vector<std::pair<const wchar_t*, WRL::ComPtr<IModelMethod>>> functions =
       {{pcur_isolate, WRL::Make<CurrIsolateAlias>()},
-       {plist_chunks, WRL::Make<ListChunksAlias>()},
+       {pjs_stack, WRL::Make<JSStackAlias>()},
        {pv8_object, WRL::Make<InspectV8ObjectMethod>()}};
   for (const auto& function : functions) {
     WRL::ComPtr<IModelObject> method;
@@ -371,7 +371,7 @@ Extension::RegistrationType& Extension::RegistrationType::operator=(
 
 Extension::~Extension() {
   sp_debug_host_extensibility->DestroyFunctionAlias(pcur_isolate);
-  sp_debug_host_extensibility->DestroyFunctionAlias(plist_chunks);
+  sp_debug_host_extensibility->DestroyFunctionAlias(pjs_stack);
   sp_debug_host_extensibility->DestroyFunctionAlias(pv8_object);
 
   for (const auto& registered : registered_types_) {

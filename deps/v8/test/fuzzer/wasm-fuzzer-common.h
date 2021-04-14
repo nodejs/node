@@ -33,7 +33,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
 // no-ops. This avoids race conditions with threads reading the flags. Fuzzers
 // are executed in their own process anyway, so this should not interfere with
 // anything.
-void OneTimeEnableStagedWasmFeatures();
+void OneTimeEnableStagedWasmFeatures(v8::Isolate* isolate);
 
 class WasmExecutionFuzzer {
  public:

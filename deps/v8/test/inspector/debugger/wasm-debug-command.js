@@ -47,6 +47,7 @@ InspectorTest.runAsyncTestSuite([
   async function test() {
     breakCount = 0;
     breakpointId = 0;
+    await Protocol.Runtime.enable();
     await Protocol.Debugger.enable();
     WasmInspectorTest.instantiate(module_bytes);
     await waitForWasmScript();

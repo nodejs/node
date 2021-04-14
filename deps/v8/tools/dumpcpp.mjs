@@ -27,7 +27,7 @@ export class CppProcessor extends LogReader {
    * @override
    */
   printError(str) {
-    print(str);
+    console.log(str);
   }
 
   processLogFile(fileName) {
@@ -61,7 +61,7 @@ export class CppProcessor extends LogReader {
       const entry = staticEntries[i];
       const printValues = ['cpp', `0x${entry[0].toString(16)}`, entry[1].size,
                         `"${entry[1].name}"`];
-      print(printValues.join(','));
+                        console.log(printValues.join(','));
     }
   }
 }

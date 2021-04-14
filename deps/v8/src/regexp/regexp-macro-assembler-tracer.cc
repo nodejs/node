@@ -13,11 +13,8 @@ namespace internal {
 RegExpMacroAssemblerTracer::RegExpMacroAssemblerTracer(
     Isolate* isolate, RegExpMacroAssembler* assembler)
     : RegExpMacroAssembler(isolate, assembler->zone()), assembler_(assembler) {
-  IrregexpImplementation type = assembler->Implementation();
-  DCHECK_LT(type, 9);
-  const char* impl_names[] = {"IA32", "ARM", "ARM64", "MIPS",    "S390",
-                              "PPC",  "X64", "X87",   "Bytecode"};
-  PrintF("RegExpMacroAssembler%s();\n", impl_names[type]);
+  PrintF("RegExpMacroAssembler%s();\n",
+         ImplementationToString(assembler->Implementation()));
 }
 
 RegExpMacroAssemblerTracer::~RegExpMacroAssemblerTracer() = default;

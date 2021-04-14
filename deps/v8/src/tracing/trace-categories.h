@@ -28,11 +28,9 @@ PERFETTO_DEFINE_TEST_CATEGORY_PREFIXES("v8-cat", "cat", "v8.Test2");
 // clang-format off
 PERFETTO_DEFINE_CATEGORIES(
     perfetto::Category("cppgc"),
-    perfetto::Category("V8.HandleInterrupts"),
     perfetto::Category("v8"),
     perfetto::Category("v8.console"),
     perfetto::Category("v8.execute"),
-    perfetto::Category("v8.runtime"),
     perfetto::Category("v8.wasm"),
     perfetto::Category::Group("devtools.timeline,v8"),
     perfetto::Category::Group("devtools.timeline,"

@@ -45,18 +45,14 @@ class AsyncFuzzerResolver : public i::wasm::CompilationResultResolver {
 };
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-  // We explicitly enable staged WebAssembly features here to increase fuzzer
-  // coverage. For libfuzzer fuzzers it is not possible that the fuzzer enables
-  // the flag by itself.
-  OneTimeEnableStagedWasmFeatures();
+  v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
+  v8::Isolate* isolate = support->GetIsolate();
 
   // Set some more flags.
   FLAG_wasm_async_compilation = true;
   FLAG_wasm_max_mem_pages = 32;
   FLAG_wasm_max_table_size = 100;
 
-  v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
-  v8::Isolate* isolate = support->GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<v8::internal::Isolate*>(isolate);
 
   // Clear any pending exceptions from a prior run.
@@ -68,6 +64,12 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   v8::HandleScope handle_scope(isolate);
   i::HandleScope internal_scope(i_isolate);
   v8::Context::Scope context_scope(support->GetContext());
+
+  // We explicitly enable staged WebAssembly features here to increase fuzzer
+  // coverage. For libfuzzer fuzzers it is not possible that the fuzzer enables
+  // the flag by itself.
+  OneTimeEnableStagedWasmFeatures(isolate);
+
   TryCatch try_catch(isolate);
   testing::SetupIsolateForWasmModule(i_isolate);
 

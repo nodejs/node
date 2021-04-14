@@ -32,9 +32,13 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kEffectPhi:
     case IrOpcode::kIfException:
     case IrOpcode::kLoad:
+    case IrOpcode::kLoadImmutable:
     case IrOpcode::kLoadElement:
     case IrOpcode::kLoadField:
     case IrOpcode::kLoadFromObject:
+    case IrOpcode::kLoadLane:
+    case IrOpcode::kLoadTransform:
+    case IrOpcode::kMemoryBarrier:
     case IrOpcode::kPoisonedLoad:
     case IrOpcode::kProtectedLoad:
     case IrOpcode::kProtectedStore:
@@ -47,6 +51,7 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kStore:
     case IrOpcode::kStoreElement:
     case IrOpcode::kStoreField:
+    case IrOpcode::kStoreLane:
     case IrOpcode::kStoreToObject:
     case IrOpcode::kTaggedPoisonOnSpeculation:
     case IrOpcode::kUnalignedLoad:
@@ -252,6 +257,15 @@ bool MemoryOptimizer::AllocationTypeNeedsUpdateToOld(Node* const node,
   return false;
 }
 
+void MemoryOptimizer::ReplaceUsesAndKillNode(Node* node, Node* replacement) {
+  // Replace all uses of node and kill the node to make sure we don't leave
+  // dangling dead uses.
+  DCHECK_NE(replacement, node);
+  NodeProperties::ReplaceUses(node, replacement, graph_assembler_.effect(),
+                              graph_assembler_.control());
+  node->Kill();
+}
+
 void MemoryOptimizer::VisitAllocateRaw(Node* node,
                                        AllocationState const* state) {
   DCHECK_EQ(IrOpcode::kAllocateRaw, node->opcode());
@@ -289,12 +303,7 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
       node, allocation_type, allocation.allow_large_objects(), &state);
   CHECK(reduction.Changed() && reduction.replacement() != node);
 
-  // Replace all uses of node and kill the node to make sure we don't leave
-  // dangling dead uses.
-  NodeProperties::ReplaceUses(node, reduction.replacement(),
-                              graph_assembler_.effect(),
-                              graph_assembler_.control());
-  node->Kill();
+  ReplaceUsesAndKillNode(node, reduction.replacement());
 
   EnqueueUses(state->effect(), state);
 }
@@ -302,8 +311,11 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
 void MemoryOptimizer::VisitLoadFromObject(Node* node,
                                           AllocationState const* state) {
   DCHECK_EQ(IrOpcode::kLoadFromObject, node->opcode());
-  memory_lowering()->ReduceLoadFromObject(node);
+  Reduction reduction = memory_lowering()->ReduceLoadFromObject(node);
   EnqueueUses(node, state);
+  if (V8_MAP_PACKING_BOOL && reduction.replacement() != node) {
+    ReplaceUsesAndKillNode(node, reduction.replacement());
+  }
 }
 
 void MemoryOptimizer::VisitStoreToObject(Node* node,
@@ -328,16 +340,14 @@ void MemoryOptimizer::VisitLoadField(Node* node, AllocationState const* state) {
   // lowering, so we can proceed iterating the graph from the node uses.
   EnqueueUses(node, state);
 
-  // Node can be replaced only when V8_HEAP_SANDBOX_BOOL is enabled and
-  // when loading an external pointer value.
-  DCHECK_IMPLIES(!V8_HEAP_SANDBOX_BOOL, reduction.replacement() == node);
-  if (V8_HEAP_SANDBOX_BOOL && reduction.replacement() != node) {
-    // Replace all uses of node and kill the node to make sure we don't leave
-    // dangling dead uses.
-    NodeProperties::ReplaceUses(node, reduction.replacement(),
-                                graph_assembler_.effect(),
-                                graph_assembler_.control());
-    node->Kill();
+  // Node can be replaced under two cases:
+  //   1. V8_HEAP_SANDBOX_BOOL is enabled and loading an external pointer value.
+  //   2. V8_MAP_PACKING_BOOL is enabled.
+  DCHECK_IMPLIES(!V8_HEAP_SANDBOX_BOOL && !V8_MAP_PACKING_BOOL,
+                 reduction.replacement() == node);
+  if ((V8_HEAP_SANDBOX_BOOL || V8_MAP_PACKING_BOOL) &&
+      reduction.replacement() != node) {
+    ReplaceUsesAndKillNode(node, reduction.replacement());
   }
 }
 

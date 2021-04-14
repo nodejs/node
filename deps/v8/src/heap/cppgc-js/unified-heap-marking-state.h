@@ -7,6 +7,7 @@
 
 #include "include/v8-cppgc.h"
 #include "include/v8.h"
+#include "src/base/logging.h"
 #include "src/heap/heap.h"
 
 namespace v8 {
@@ -22,7 +23,7 @@ class BasicTracedReferenceExtractor {
 
 class UnifiedHeapMarkingState {
  public:
-  explicit UnifiedHeapMarkingState(Heap& heap) : heap_(heap) {}
+  explicit UnifiedHeapMarkingState(Heap* heap) : heap_(heap) {}
 
   UnifiedHeapMarkingState(const UnifiedHeapMarkingState&) = delete;
   UnifiedHeapMarkingState& operator=(const UnifiedHeapMarkingState&) = delete;
@@ -30,11 +31,16 @@ class UnifiedHeapMarkingState {
   inline void MarkAndPush(const TracedReferenceBase&);
 
  private:
-  Heap& heap_;
+  Heap* heap_;
 };
 
 void UnifiedHeapMarkingState::MarkAndPush(const TracedReferenceBase& ref) {
-  heap_.RegisterExternallyReferencedObject(
+  // The same visitor is used in testing scenarios without attaching the heap to
+  // an Isolate under the assumption that no non-empty v8 references are found.
+  // Having the following DCHECK crash means that the heap is in detached mode
+  // but we find traceable pointers into an Isolate.
+  DCHECK_NOT_NULL(heap_);
+  heap_->RegisterExternallyReferencedObject(
       BasicTracedReferenceExtractor::ObjectReference(ref));
 }
 

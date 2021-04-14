@@ -7,7 +7,7 @@
 
 #include <memory>
 
-#include "src/interpreter/bytecode-array-accessor.h"
+#include "src/interpreter/bytecode-array-iterator.h"
 #include "src/zone/zone-containers.h"
 #include "src/zone/zone.h"
 
@@ -16,7 +16,7 @@ namespace internal {
 namespace interpreter {
 
 class V8_EXPORT_PRIVATE BytecodeArrayRandomIterator final
-    : public BytecodeArrayAccessor {
+    : public BytecodeArrayIterator {
  public:
   BytecodeArrayRandomIterator(Handle<BytecodeArray> bytecode_array, Zone* zone);
 

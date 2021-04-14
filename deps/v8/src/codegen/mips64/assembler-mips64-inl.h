@@ -47,8 +47,6 @@ namespace internal {
 
 bool CpuFeatures::SupportsOptimizer() { return IsSupported(FPU); }
 
-bool CpuFeatures::SupportsWasmSimd128() { return IsSupported(MIPS_SIMD); }
-
 // -----------------------------------------------------------------------------
 // Operand and MemOperand.
 

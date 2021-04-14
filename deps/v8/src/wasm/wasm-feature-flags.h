@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_WASM_FEATURE_FLAGS_H_
 #define V8_WASM_WASM_FEATURE_FLAGS_H_
 
@@ -28,7 +32,12 @@
   /* Memory64 proposal. */                                                     \
   /* https://github.com/WebAssembly/memory64 */                                \
   /* V8 side owner: clemensb */                                                \
-  V(memory64, "memory64", false)
+  V(memory64, "memory64", false)                                               \
+                                                                               \
+  /* Relaxed SIMD proposal. */                                                 \
+  /* https://github.com/WebAssembly/relaxed-simd */                            \
+  /* V8 side owner: zhin */                                                    \
+  V(relaxed_simd, "relaxed simd", false)
 
 // #############################################################################
 // Staged features (disabled by default, but enabled via --wasm-staging (also
@@ -57,12 +66,6 @@
   /* Staged in v8.7 * */                                                       \
   V(return_call, "return call opcodes", false)                                 \
                                                                                \
-  /* Fixed-width SIMD operations. */                                           \
-  /* https://github.com/webassembly/simd */                                    \
-  /* V8 side owner: gdeepti, zhin */                                           \
-  /* Staged in v8.7 * */                                                       \
-  V(simd, "SIMD opcodes", false)                                               \
-                                                                               \
   /* Threads proposal. */                                                      \
   /* https://github.com/webassembly/threads */                                 \
   /* NOTE: This is enabled via chromium flag on desktop systems since v7.4  */ \
@@ -81,12 +84,12 @@
 // Shipped features (enabled by default). Remove the feature flag once they hit
 // stable and are expected to stay enabled.
 #define FOREACH_WASM_SHIPPED_FEATURE_FLAG(V) /*          (force 80 columns) */ \
-  /* Multi-value proposal. */                                                  \
-  /* https://github.com/WebAssembly/multi-value */                             \
-  /* V8 side owner: thibaudm */                                                \
-  /* Shipped in v8.6. */                                                       \
-  /* ITS: https://groups.google.com/g/v8-users/c/pv2E4yFWeF0 */                \
-  V(mv, "multi-value support", true)
+  /* Fixed-width SIMD operations. */                                           \
+  /* https://github.com/webassembly/simd */                                    \
+  /* V8 side owner: gdeepti, zhin */                                           \
+  /* Staged in v8.7 * */                                                       \
+  /* Shipped in v9.1 * */                                                      \
+  V(simd, "SIMD opcodes", true)
 
 // Combination of all available wasm feature flags.
 #define FOREACH_WASM_FEATURE_FLAG(V)        \

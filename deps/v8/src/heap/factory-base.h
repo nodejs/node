@@ -234,6 +234,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
   HeapObject AllocateRawFixedArray(int length, AllocationType allocation);
   HeapObject AllocateRawWeakArrayList(int length, AllocationType allocation);
 
+  Struct NewStructInternal(InstanceType type,
+                           AllocationType allocation = AllocationType::kYoung);
+
   HeapObject AllocateRawWithImmortalMap(
       int size, AllocationType allocation, Map map,
       AllocationAlignment alignment = kWordAligned);
@@ -252,6 +255,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
   Handle<String> MakeOrFindTwoCharacterString(uint16_t c1, uint16_t c2);
 
  private:
+  friend class WebSnapshotDeserializer;
   Impl* impl() { return static_cast<Impl*>(this); }
   auto isolate() { return impl()->isolate(); }
   ReadOnlyRoots read_only_roots() { return impl()->read_only_roots(); }

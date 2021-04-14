@@ -44,7 +44,6 @@ class MidTierRegisterAllocationData final : public RegisterAllocationData {
   }
 
   VirtualRegisterData& VirtualRegisterDataFor(int virtual_register);
-  MachineRepresentation RepresentationFor(int virtual_register);
 
   // Add a gap move between the given operands |from| and |to|.
   MoveOperands* AddGapMove(int instr_index, Instruction::GapPosition position,

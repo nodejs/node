@@ -189,6 +189,7 @@ class BuildConfig(object):
     self.verify_csa = build_config['v8_enable_verify_csa']
     self.lite_mode = build_config['v8_enable_lite_mode']
     self.pointer_compression = build_config['v8_enable_pointer_compression']
+    self.pointer_compression_shared_cage = build_config['v8_enable_pointer_compression_shared_cage']
     self.webassembly = build_config['v8_enable_webassembly']
     # Export only for MIPS target
     if self.arch in ['mips', 'mipsel', 'mips64', 'mips64el']:
@@ -229,6 +230,8 @@ class BuildConfig(object):
       detected_options.append('lite_mode')
     if self.pointer_compression:
       detected_options.append('pointer_compression')
+    if self.pointer_compression_shared_cage:
+      detected_options.append('pointer_compression_shared_cage')
     if self.webassembly:
       detected_options.append('webassembly')
 
@@ -358,9 +361,6 @@ class BaseTestRunner(object):
                       help="Path to a file for storing json results.")
     parser.add_option('--slow-tests-cutoff', type="int", default=100,
                       help='Collect N slowest tests')
-    parser.add_option("--junitout", help="File name of the JUnit output")
-    parser.add_option("--junittestsuite", default="v8tests",
-                      help="The testsuite name in the JUnit output file")
     parser.add_option("--exit-after-n-failures", type="int", default=100,
                       help="Exit after the first N failures instead of "
                            "running all tests. Pass 0 to disable this feature.")
@@ -650,9 +650,6 @@ class BaseTestRunner(object):
                                            '--no-enable-sse4_1'])
 
     # Set no_simd_sse on architectures without Simd enabled.
-    if self.build_config.arch == 'ppc64':
-       no_simd_sse = True
-
     if self.build_config.arch == 'mips64el' or \
        self.build_config.arch == 'mipsel':
        no_simd_sse = not simd_mips
@@ -692,6 +689,7 @@ class BaseTestRunner(object):
       "verify_csa": self.build_config.verify_csa,
       "lite_mode": self.build_config.lite_mode,
       "pointer_compression": self.build_config.pointer_compression,
+      "pointer_compression_shared_cage": self.build_config.pointer_compression_shared_cage,
     }
 
   def _runner_flags(self):
@@ -786,9 +784,6 @@ class BaseTestRunner(object):
 
   def _create_progress_indicators(self, test_count, options):
     procs = [PROGRESS_INDICATORS[options.progress]()]
-    if options.junitout:
-      procs.append(progress.JUnitTestProgressIndicator(options.junitout,
-                                                       options.junittestsuite))
     if options.json_test_results:
       procs.append(progress.JsonTestProgressIndicator(self.framework_name))
 

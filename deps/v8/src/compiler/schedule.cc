@@ -104,7 +104,7 @@ BasicBlock* BasicBlock::GetCommonDominator(BasicBlock* b1, BasicBlock* b2) {
   return b1;
 }
 
-void BasicBlock::Print() { StdoutStream{} << this; }
+void BasicBlock::Print() { StdoutStream{} << *this << "\n"; }
 
 std::ostream& operator<<(std::ostream& os, const BasicBlock& block) {
   os << "B" << block.id();

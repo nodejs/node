@@ -939,6 +939,13 @@ TEST(ExtensionsRegistration) {
   const int kNThreads = 10;
 #elif V8_TARGET_ARCH_S390 && V8_TARGET_ARCH_32_BIT
   const int kNThreads = 10;
+#elif V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+  // TODO(syg): Support larger cages or tweak kMaximalCodeRangeSize.
+  //
+  // Isolates reserve kMaximalCodeRangeSize of virtual memory. A shared pointer
+  // compression cage is 4GB and kMaximalCodeRangeSize is 128MB on arm64 and
+  // x64, giving us a maximum of ~33.
+  const int kNThreads = 30;
 #else
   const int kNThreads = 40;
 #endif

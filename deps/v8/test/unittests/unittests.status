@@ -35,9 +35,6 @@
   # Test uses fancy signal handling. Needs investigation.
   'MemoryAllocationPermissionsTest.DoTest': [SKIP],
 
-  # cppgc::internal::kGuardPageSize is smaller than kAppleArmPageSize.
-  'PageMemoryRegionTest.PlatformUsesGuardPages': [FAIL],
-
   # Time tick resolution appears to be ~42 microseconds. Tests expect 1 us.
   'TimeTicks.NowResolution': [FAIL],
   'RuntimeCallStatsTest.BasicJavaScript': [SKIP],

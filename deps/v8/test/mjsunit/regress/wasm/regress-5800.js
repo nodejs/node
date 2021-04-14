@@ -9,7 +9,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   builder.addFunction("main", kSig_i_v)
     .addBody([
-      kExprBlock, kWasmStmt,
+      kExprBlock, kWasmVoid,
         kExprI64Const, 0,
         // 0x80 ... 0x10 is the LEB encoding of 0x100000000. This is chosen so
         // that the 64-bit constant has a non-zero top half. In this bug, the
@@ -34,7 +34,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   builder.addFunction("main", kSig_i_v)
     .addBody([
-      kExprBlock, kWasmStmt,
+      kExprBlock, kWasmVoid,
         kExprI64Const, 0,
         // 0x80 ... 0x10 is the LEB encoding of 0x100000000. This is chosen so
         // that the 64-bit constant has a non-zero top half. In this bug, the

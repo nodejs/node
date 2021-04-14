@@ -10,6 +10,7 @@
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/page-allocator.h"
 #include "src/common/globals.h"
+#include "src/init/ptr-compr-cage.h"
 #include "src/utils/allocation.h"
 
 namespace v8 {
@@ -24,9 +25,13 @@ namespace internal {
 // IsolateAllocator object is responsible for allocating memory for one (!)
 // Isolate object. Depending on the whether pointer compression is enabled,
 // the memory can be allocated
-// 1) in the C++ heap (when pointer compression is disabled)
+//
+// 1) in the C++ heap (when pointer compression is disabled or when multiple
+// Isolates share a pointer compression cage)
+//
 // 2) in a proper part of a properly aligned region of a reserved address space
-//   (when pointer compression is enabled).
+//   (when pointer compression is enabled and each Isolate has its own pointer
+//   compression cage).
 //
 // Isolate::New() first creates IsolateAllocator object which allocates the
 // memory and then it constructs Isolate object in this memory. Once it's done
@@ -44,15 +49,19 @@ class V8_EXPORT_PRIVATE IsolateAllocator final {
 
   v8::PageAllocator* page_allocator() const { return page_allocator_; }
 
+  // When pointer compression is on, returns the base address of the pointer
+  // compression cage reservation. Otherwise returns kNullAddress.
+  Address GetPtrComprCageBaseAddress() const;
+
  private:
-  Address InitReservation();
   void CommitPagesForIsolate(Address heap_reservation_address);
 
   // The allocated memory for Isolate instance.
   void* isolate_memory_ = nullptr;
   v8::PageAllocator* page_allocator_ = nullptr;
-  std::unique_ptr<base::BoundedPageAllocator> page_allocator_instance_;
-  VirtualMemory reservation_;
+#ifdef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+  PtrComprCage isolate_cage_;
+#endif
 };
 
 }  // namespace internal

@@ -87,6 +87,7 @@
       'V8 Mac64 GC Stress': 'debug_x64',
       'V8 Mac64 ASAN': 'release_x64_asan_no_lsan',
       'V8 Mac - arm64 - release builder': 'release_arm64',
+      'V8 Mac - arm64 - debug builder': 'debug_arm64',
       'V8 Mac - arm64 - sim - debug builder': 'debug_simulate_arm64',
       'V8 Mac - arm64 - sim - release builder': 'release_simulate_arm64',
       # Sanitizers.
@@ -207,6 +208,7 @@
       'v8_linux64_dict_tracking_dbg_ng': 'debug_x64_dict_tracking_trybot',
       'v8_linux64_gc_stress_custom_snapshot_dbg_ng': 'debug_x64_trybot_custom',
       'v8_linux64_gcc_compile_dbg': 'debug_x64_gcc',
+      'v8_linux64_gcov_coverage': 'release_x64_gcc_coverage',
       'v8_linux64_header_includes_dbg': 'debug_x64_header_includes',
       'v8_linux64_fyi_rel_ng': 'release_x64_test_features_trybot',
       'v8_linux64_nodcheck_rel_ng': 'release_x64',

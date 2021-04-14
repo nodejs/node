@@ -16,7 +16,6 @@ namespace v8 {
 namespace internal {
 
 using IteratorRecord = TorqueStructIteratorRecord;
-using compiler::Node;
 
 TNode<Object> IteratorBuiltinsAssembler::GetIteratorMethod(
     TNode<Context> context, TNode<Object> object) {
@@ -55,8 +54,7 @@ IteratorRecord IteratorBuiltinsAssembler::GetIterator(TNode<Context> context,
     BIND(&get_next);
     TNode<Object> next =
         GetProperty(context, iterator, factory()->next_string());
-    return IteratorRecord{TNode<JSReceiver>::UncheckedCast(iterator),
-                          TNode<Object>::UncheckedCast(next)};
+    return IteratorRecord{TNode<JSReceiver>::UncheckedCast(iterator), next};
   }
 }
 
@@ -196,6 +194,7 @@ TF_BUILTIN(IterableToFixedArray, IteratorBuiltinsAssembler) {
   Return(IterableToFixedArray(context, iterable, iterator_fn));
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 TF_BUILTIN(IterableToFixedArrayForWasm, IteratorBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto iterable = Parameter<Object>(Descriptor::kIterable);
@@ -217,6 +216,7 @@ TF_BUILTIN(IterableToFixedArrayForWasm, IteratorBuiltinsAssembler) {
   BIND(&done);
   Return(values.var_array()->value());
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 TNode<JSArray> IteratorBuiltinsAssembler::StringListFromIterable(
     TNode<Context> context, TNode<Object> iterable) {
@@ -413,13 +413,13 @@ TF_BUILTIN(GetIteratorWithFeedbackLazyDeoptContinuation,
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   // TODO(v8:10047): Use TaggedIndex here once TurboFan supports it.
   auto call_slot_smi = Parameter<Smi>(Descriptor::kCallSlot);
-  TNode<TaggedIndex> call_slot = SmiToTaggedIndex(call_slot_smi);
   auto feedback = Parameter<FeedbackVector>(Descriptor::kFeedback);
   auto iterator_method = Parameter<Object>(Descriptor::kResult);
 
+  // Note, that the builtin also expects the call_slot as a Smi.
   TNode<Object> result =
       CallBuiltin(Builtins::kCallIteratorWithFeedback, context, receiver,
-                  iterator_method, call_slot, feedback);
+                  iterator_method, call_slot_smi, feedback);
   Return(result);
 }
 

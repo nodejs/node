@@ -30,4 +30,18 @@
 #error Unknown architecture.
 #endif
 
+namespace v8 {
+namespace internal {
+
+constexpr int AddArgumentPaddingSlots(int argument_count) {
+  return argument_count + ArgumentPaddingSlots(argument_count);
+}
+
+constexpr bool ShouldPadArguments(int argument_count) {
+  return ArgumentPaddingSlots(argument_count) != 0;
+}
+
+}  // namespace internal
+}  // namespace v8
+
 #endif  // V8_CODEGEN_REGISTER_ARCH_H_

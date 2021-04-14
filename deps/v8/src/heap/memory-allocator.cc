@@ -23,11 +23,15 @@ namespace internal {
 static base::LazyInstance<CodeRangeAddressHint>::type code_range_address_hint =
     LAZY_INSTANCE_INITIALIZER;
 
+namespace {
+void FunctionInStaticBinaryForAddressHint() {}
+}  // namespace
+
 Address CodeRangeAddressHint::GetAddressHint(size_t code_range_size) {
   base::MutexGuard guard(&mutex_);
   auto it = recently_freed_.find(code_range_size);
   if (it == recently_freed_.end() || it->second.empty()) {
-    return reinterpret_cast<Address>(GetRandomMmapAddr());
+    return FUNCTION_ADDR(&FunctionInStaticBinaryForAddressHint);
   }
   Address result = it->second.back();
   it->second.pop_back();

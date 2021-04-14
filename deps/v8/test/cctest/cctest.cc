@@ -341,10 +341,12 @@ int main(int argc, char* argv[]) {
   v8::V8::Initialize();
   v8::V8::InitializeExternalStartupData(argv[0]);
 
+#if V8_ENABLE_WEBASSEMBLY
   if (V8_TRAP_HANDLER_SUPPORTED && i::FLAG_wasm_trap_handler) {
     constexpr bool use_default_signal_handler = true;
     CHECK(v8::V8::EnableWebAssemblyTrapHandler(use_default_signal_handler));
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   CcTest::set_array_buffer_allocator(
       v8::ArrayBuffer::Allocator::NewDefaultAllocator());

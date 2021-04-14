@@ -202,9 +202,11 @@ TEST(FlagsJitlessImplications) {
     // fairly primitive and can break easily depending on the implication
     // definition order in flag-definitions.h.
     CHECK(!FLAG_opt);
+#if V8_ENABLE_WEBASSEMBLY
     CHECK(!FLAG_validate_asm);
     CHECK(!FLAG_asm_wasm_lazy_compilation);
     CHECK(!FLAG_wasm_lazy_compilation);
+#endif  // V8_ENABLE_WEBASSEMBLY
   }
 }
 

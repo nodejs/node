@@ -135,6 +135,8 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
     EmptyPropertyDictionary)                                                 \
   V(EmptyOrderedPropertyDictionary, empty_ordered_property_dictionary,       \
     EmptyOrderedPropertyDictionary)                                          \
+  V(EmptySwissPropertyDictionary, empty_swiss_property_dictionary,           \
+    EmptySwissPropertyDictionary)                                            \
   V(EmptySlowElementDictionary, empty_slow_element_dictionary,               \
     EmptySlowElementDictionary)                                              \
   V(empty_string, empty_string, EmptyString)                                 \
@@ -305,7 +307,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     : public compiler::CodeAssembler,
       public TorqueGeneratedExportedMacrosAssembler {
  public:
-  using Node = compiler::Node;
   using ScopedExceptionHandler = compiler::ScopedExceptionHandler;
 
   template <typename T>
@@ -539,6 +540,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   bool TryGetIntPtrOrSmiConstantValue(TNode<IntPtrT> maybe_constant,
                                       int* value);
 
+  TNode<IntPtrT> PopulationCountFallback(TNode<UintPtrT> value);
+  TNode<Int64T> PopulationCount64(TNode<Word64T> value);
+  TNode<Int32T> PopulationCount32(TNode<Word32T> value);
+  TNode<Int64T> CountTrailingZeros64(TNode<Word64T> value);
+  TNode<Int32T> CountTrailingZeros32(TNode<Word32T> value);
+  TNode<Int64T> CountLeadingZeros64(TNode<Word64T> value);
+  TNode<Int32T> CountLeadingZeros32(TNode<Word32T> value);
+
   // Round the 32bits payload of the provided word up to the next power of two.
   TNode<IntPtrT> IntPtrRoundUpToPowerOfTwo32(TNode<IntPtrT> value);
   // Select the maximum of the two provided IntPtr values.
@@ -569,7 +578,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Smi conversions.
   TNode<Float64T> SmiToFloat64(TNode<Smi> value);
   TNode<Smi> SmiFromIntPtr(TNode<IntPtrT> value) { return SmiTag(value); }
-  TNode<Smi> SmiFromInt32(SloppyTNode<Int32T> value);
+  TNode<Smi> SmiFromInt32(TNode<Int32T> value);
   TNode<Smi> SmiFromUint32(TNode<Uint32T> value);
   TNode<IntPtrT> SmiToIntPtr(TNode<Smi> value) { return SmiUntag(value); }
   TNode<Int32T> SmiToInt32(TNode<Smi> value);
@@ -778,20 +787,20 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   template <class... TArgs>
   TNode<Object> Call(TNode<Context> context, TNode<Object> callable,
                      TNode<JSReceiver> receiver, TArgs... args) {
-    return UncheckedCast<Object>(CallJS(
+    return CallJS(
         CodeFactory::Call(isolate(), ConvertReceiverMode::kNotNullOrUndefined),
-        context, callable, receiver, args...));
+        context, callable, receiver, args...);
   }
   template <class... TArgs>
   TNode<Object> Call(TNode<Context> context, TNode<Object> callable,
                      TNode<Object> receiver, TArgs... args) {
     if (IsUndefinedConstant(receiver) || IsNullConstant(receiver)) {
-      return UncheckedCast<Object>(CallJS(
+      return CallJS(
           CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
-          context, callable, receiver, args...));
+          context, callable, receiver, args...);
     }
-    return UncheckedCast<Object>(CallJS(CodeFactory::Call(isolate()), context,
-                                        callable, receiver, args...));
+    return CallJS(CodeFactory::Call(isolate()), context, callable, receiver,
+                  args...);
   }
 
   TNode<Object> CallApiCallback(TNode<Object> context, TNode<RawPtrT> callback,
@@ -1079,7 +1088,19 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
   // Load a field from an object on the heap.
   template <class T, typename std::enable_if<
-                         std::is_convertible<TNode<T>, TNode<Object>>::value,
+                         std::is_convertible<TNode<T>, TNode<Object>>::value &&
+                             std::is_base_of<T, Map>::value,
+                         int>::type = 0>
+  TNode<T> LoadObjectField(TNode<HeapObject> object, int offset) {
+    const MachineType machine_type = offset == HeapObject::kMapOffset
+                                         ? MachineType::MapInHeader()
+                                         : MachineTypeOf<T>::value;
+    return CAST(LoadFromObject(machine_type, object,
+                               IntPtrConstant(offset - kHeapObjectTag)));
+  }
+  template <class T, typename std::enable_if<
+                         std::is_convertible<TNode<T>, TNode<Object>>::value &&
+                             !std::is_base_of<T, Map>::value,
                          int>::type = 0>
   TNode<T> LoadObjectField(TNode<HeapObject> object, int offset) {
     return CAST(LoadFromObject(MachineTypeOf<T>::value, object,
@@ -1128,6 +1149,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                            Map::kConstructorOrBackPointerOrNativeContextOffset);
   }
 
+  TNode<Simd128T> LoadSimd128(TNode<IntPtrT> ptr) {
+    return Load<Simd128T>(ptr);
+  }
+
   // Reference is the CSA-equivalent of a Torque reference value, representing
   // an inner pointer into a HeapObject.
   //
@@ -1150,6 +1175,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                          std::is_convertible<TNode<T>, TNode<Object>>::value,
                          int>::type = 0>
   TNode<T> LoadReference(Reference reference) {
+    if (IsMapOffsetConstant(reference.offset)) {
+      TNode<Map> map = LoadMap(CAST(reference.object));
+      DCHECK((std::is_base_of<T, Map>::value));
+      return ReinterpretCast<T>(map);
+    }
+
     TNode<IntPtrT> offset =
         IntPtrSub(reference.offset, IntPtrConstant(kHeapObjectTag));
     CSA_ASSERT(this, TaggedIsNotSmi(reference.object));
@@ -1162,6 +1193,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                     std::is_same<T, MaybeObject>::value,
                 int>::type = 0>
   TNode<T> LoadReference(Reference reference) {
+    DCHECK(!IsMapOffsetConstant(reference.offset));
     TNode<IntPtrT> offset =
         IntPtrSub(reference.offset, IntPtrConstant(kHeapObjectTag));
     return UncheckedCast<T>(
@@ -1172,6 +1204,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                              std::is_same<T, MaybeObject>::value,
                          int>::type = 0>
   void StoreReference(Reference reference, TNode<T> value) {
+    if (IsMapOffsetConstant(reference.offset)) {
+      DCHECK((std::is_base_of<T, Map>::value));
+      return StoreMap(CAST(reference.object), ReinterpretCast<Map>(value));
+    }
     MachineRepresentation rep = MachineRepresentationOf<T>::value;
     StoreToObjectWriteBarrier write_barrier = StoreToObjectWriteBarrier::kFull;
     if (std::is_same<T, Smi>::value) {
@@ -1188,6 +1224,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                          std::is_convertible<TNode<T>, TNode<UntaggedT>>::value,
                          int>::type = 0>
   void StoreReference(Reference reference, TNode<T> value) {
+    DCHECK(!IsMapOffsetConstant(reference.offset));
     TNode<IntPtrT> offset =
         IntPtrSub(reference.offset, IntPtrConstant(kHeapObjectTag));
     StoreToObject(MachineRepresentationOf<T>::value, reference.object, offset,
@@ -1272,7 +1309,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                                TNode<Int32T> instance_type,
                                                Label* bailout);
   // Load the identity hash of a JSRececiver.
-  TNode<IntPtrT> LoadJSReceiverIdentityHash(TNode<Object> receiver,
+  TNode<IntPtrT> LoadJSReceiverIdentityHash(TNode<JSReceiver> receiver,
                                             Label* if_no_hash = nullptr);
 
   // This is only used on a newly allocated PropertyArray which
@@ -1520,6 +1557,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void StoreHeapNumberValue(TNode<HeapNumber> object, TNode<Float64T> value);
 
   // Store a field to an object on the heap.
+  void StoreObjectField(TNode<HeapObject> object, int offset, TNode<Smi> value);
+  void StoreObjectField(TNode<HeapObject> object, TNode<IntPtrT> offset,
+                        TNode<Smi> value);
   void StoreObjectField(TNode<HeapObject> object, int offset,
                         TNode<Object> value);
   void StoreObjectField(TNode<HeapObject> object, TNode<IntPtrT> offset,
@@ -1695,7 +1735,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Allocate a HeapNumber without initializing its value.
   TNode<HeapNumber> AllocateHeapNumber();
   // Allocate a HeapNumber with a specific value.
-  TNode<HeapNumber> AllocateHeapNumberWithValue(SloppyTNode<Float64T> value);
+  TNode<HeapNumber> AllocateHeapNumberWithValue(TNode<Float64T> value);
   TNode<HeapNumber> AllocateHeapNumberWithValue(double value) {
     return AllocateHeapNumberWithValue(Float64Constant(value));
   }
@@ -1715,6 +1755,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<UintPtrT> LoadBigIntDigit(TNode<BigInt> bigint, intptr_t digit_index);
   TNode<UintPtrT> LoadBigIntDigit(TNode<BigInt> bigint,
                                   TNode<IntPtrT> digit_index);
+
+  // Allocate a ByteArray with the given non-zero length.
+  TNode<ByteArray> AllocateNonEmptyByteArray(TNode<UintPtrT> length,
+                                             AllocationFlags flags);
 
   // Allocate a ByteArray with the given length.
   TNode<ByteArray> AllocateByteArray(TNode<UintPtrT> length,
@@ -2023,10 +2067,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return UncheckedCast<FixedDoubleArray>(base);
   }
 
-  TNode<Int32T> ConvertElementsKindToInt(TNode<Int32T> elements_kind) {
-    return UncheckedCast<Int32T>(elements_kind);
-  }
-
   template <typename T>
   bool ClassHasMapConstant() {
     return false;
@@ -2242,8 +2282,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                        Label* if_smi);
   TNode<Number> ChangeFloat32ToTagged(TNode<Float32T> value);
   TNode<Number> ChangeFloat64ToTagged(TNode<Float64T> value);
-  TNode<Number> ChangeInt32ToTagged(SloppyTNode<Int32T> value);
-  TNode<Number> ChangeUint32ToTagged(SloppyTNode<Uint32T> value);
+  TNode<Number> ChangeInt32ToTagged(TNode<Int32T> value);
+  TNode<Number> ChangeUint32ToTagged(TNode<Uint32T> value);
   TNode<Number> ChangeUintPtrToTagged(TNode<UintPtrT> value);
   TNode<Uint32T> ChangeNumberToUint32(TNode<Number> value);
   TNode<Float64T> ChangeNumberToFloat64(TNode<Number> value);
@@ -2252,6 +2292,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                           TNode<HeapObject> input);
   TNode<Float64T> ChangeTaggedToFloat64(TNode<Context> context,
                                         TNode<Object> input);
+
+  TNode<Int32T> ChangeBoolToInt32(TNode<BoolT> b);
 
   void TaggedToNumeric(TNode<Context> context, TNode<Object> value,
                        TVariable<Numeric>* var_numeric);
@@ -2430,6 +2472,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsStringInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsString(TNode<HeapObject> object);
   TNode<BoolT> IsSeqOneByteString(TNode<HeapObject> object);
+  TNode<BoolT> IsSwissNameDictionary(TNode<HeapObject> object);
 
   TNode<BoolT> IsSymbolInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsInternalizedStringInstanceType(TNode<Int32T> instance_type);
@@ -2819,52 +2862,26 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Returns an untagged int32.
   template <class ContainerType>
   TNode<Uint32T> LoadDetailsByKeyIndex(TNode<ContainerType> container,
-                                       TNode<IntPtrT> key_index) {
-    static_assert(!std::is_same<ContainerType, DescriptorArray>::value,
-                  "Use the non-templatized version for DescriptorArray");
-    const int kKeyToDetailsOffset =
-        (ContainerType::kEntryDetailsIndex - ContainerType::kEntryKeyIndex) *
-        kTaggedSize;
-    return Unsigned(LoadAndUntagToWord32FixedArrayElement(container, key_index,
-                                                          kKeyToDetailsOffset));
-  }
+                                       TNode<IntPtrT> key_index);
 
   // Loads the value for the entry with the given key_index.
   // Returns a tagged value.
   template <class ContainerType>
   TNode<Object> LoadValueByKeyIndex(TNode<ContainerType> container,
-                                    TNode<IntPtrT> key_index) {
-    static_assert(!std::is_same<ContainerType, DescriptorArray>::value,
-                  "Use the non-templatized version for DescriptorArray");
-    const int kKeyToValueOffset =
-        (ContainerType::kEntryValueIndex - ContainerType::kEntryKeyIndex) *
-        kTaggedSize;
-    return LoadFixedArrayElement(container, key_index, kKeyToValueOffset);
-  }
+                                    TNode<IntPtrT> key_index);
 
   // Stores the details for the entry with the given key_index.
   // |details| must be a Smi.
   template <class ContainerType>
   void StoreDetailsByKeyIndex(TNode<ContainerType> container,
-                              TNode<IntPtrT> key_index, TNode<Smi> details) {
-    const int kKeyToDetailsOffset =
-        (ContainerType::kEntryDetailsIndex - ContainerType::kEntryKeyIndex) *
-        kTaggedSize;
-    StoreFixedArrayElement(container, key_index, details, kKeyToDetailsOffset);
-  }
+                              TNode<IntPtrT> key_index, TNode<Smi> details);
 
   // Stores the value for the entry with the given key_index.
   template <class ContainerType>
   void StoreValueByKeyIndex(
       TNode<ContainerType> container, TNode<IntPtrT> key_index,
       TNode<Object> value,
-      WriteBarrierMode write_barrier = UPDATE_WRITE_BARRIER) {
-    const int kKeyToValueOffset =
-        (ContainerType::kEntryValueIndex - ContainerType::kEntryKeyIndex) *
-        kTaggedSize;
-    StoreFixedArrayElement(container, key_index, value, write_barrier,
-                           kKeyToValueOffset);
-  }
+      WriteBarrierMode write_barrier = UPDATE_WRITE_BARRIER);
 
   // Calculate a valid size for the a hash table.
   TNode<IntPtrT> HashTableComputeCapacity(TNode<IntPtrT> at_least_space_for);
@@ -2880,12 +2897,18 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   template <class Dictionary>
   void SetNumberOfElements(TNode<Dictionary> dictionary,
                            TNode<Smi> num_elements_smi) {
+    // Not supposed to be used for SwissNameDictionary.
+    STATIC_ASSERT(!(std::is_same<Dictionary, SwissNameDictionary>::value));
+
     StoreFixedArrayElement(dictionary, Dictionary::kNumberOfElementsIndex,
                            num_elements_smi, SKIP_WRITE_BARRIER);
   }
 
   template <class Dictionary>
   TNode<Smi> GetNumberOfDeletedElements(TNode<Dictionary> dictionary) {
+    // Not supposed to be used for SwissNameDictionary.
+    STATIC_ASSERT(!(std::is_same<Dictionary, SwissNameDictionary>::value));
+
     return CAST(LoadFixedArrayElement(
         dictionary, Dictionary::kNumberOfDeletedElementsIndex));
   }
@@ -2893,6 +2916,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   template <class Dictionary>
   void SetNumberOfDeletedElements(TNode<Dictionary> dictionary,
                                   TNode<Smi> num_deleted_smi) {
+    // Not supposed to be used for SwissNameDictionary.
+    STATIC_ASSERT(!(std::is_same<Dictionary, SwissNameDictionary>::value));
+
     StoreFixedArrayElement(dictionary,
                            Dictionary::kNumberOfDeletedElementsIndex,
                            num_deleted_smi, SKIP_WRITE_BARRIER);
@@ -2900,6 +2926,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   template <class Dictionary>
   TNode<Smi> GetCapacity(TNode<Dictionary> dictionary) {
+    // Not supposed to be used for SwissNameDictionary.
+    STATIC_ASSERT(!(std::is_same<Dictionary, SwissNameDictionary>::value));
+
     return CAST(
         UnsafeLoadFixedArrayElement(dictionary, Dictionary::kCapacityIndex));
   }
@@ -3040,10 +3069,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                   TNode<IntPtrT> name_index, TNode<Uint32T>,
                                   TVariable<Object>* var_value);
 
-  void LoadPropertyFromNameDictionary(TNode<NameDictionary> dictionary,
-                                      TNode<IntPtrT> name_index,
-                                      TVariable<Uint32T>* var_details,
-                                      TVariable<Object>* var_value);
+  template <typename Dictionary>
+  void LoadPropertyFromDictionary(TNode<Dictionary> dictionary,
+                                  TNode<IntPtrT> name_index,
+                                  TVariable<Uint32T>* var_details,
+                                  TVariable<Object>* var_value);
   void LoadPropertyFromGlobalDictionary(TNode<GlobalDictionary> dictionary,
                                         TNode<IntPtrT> name_index,
                                         TVariable<Uint32T>* var_details,
@@ -3179,7 +3209,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Report that there was a feedback update, performing any tasks that should
   // be done after a feedback update.
   void ReportFeedbackUpdate(TNode<FeedbackVector> feedback_vector,
-                            SloppyTNode<UintPtrT> slot_id, const char* reason);
+                            TNode<UintPtrT> slot_id, const char* reason);
 
   // Combine the new feedback with the existing_feedback. Do nothing if
   // existing_feedback is nullptr.
@@ -3203,10 +3233,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Uint8T> Int32ToUint8Clamped(TNode<Int32T> int32_value);
   TNode<Uint8T> Float64ToUint8Clamped(TNode<Float64T> float64_value);
 
-  Node* PrepareValueForWriteToTypedArray(TNode<Object> input,
-                                         ElementsKind elements_kind,
-                                         TNode<Context> context);
-
   template <typename T>
   TNode<T> PrepareValueForWriteToTypedArray(TNode<Object> input,
                                             ElementsKind elements_kind,
@@ -3216,9 +3242,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // TODO(turbofan): For BIGINT64_ELEMENTS and BIGUINT64_ELEMENTS
   // we pass {value} as BigInt object instead of int64_t. We should
   // teach TurboFan to handle int64_t on 32-bit platforms eventually.
-  template <typename TIndex>
+  template <typename TIndex, typename TValue>
   void StoreElement(TNode<RawPtrT> elements, ElementsKind kind,
-                    TNode<TIndex> index, Node* value);
+                    TNode<TIndex> index, TNode<TValue> value);
 
   // Implements the BigInt part of
   // https://tc39.github.io/proposal-bigint/#sec-numbertorawbytes,
@@ -3487,10 +3513,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Code> LoadBuiltin(TNode<Smi> builtin_id);
 
   // Figure out the SFI's code object using its data field.
+  // If |data_type_out| is provided, the instance type of the function data will
+  // be stored in it. In case the code object is a builtin (data is a Smi),
+  // data_type_out will be set to 0.
   // If |if_compile_lazy| is provided then the execution will go to the given
   // label in case of an CompileLazy code object.
-  TNode<Code> GetSharedFunctionInfoCode(TNode<SharedFunctionInfo> shared_info,
-                                        Label* if_compile_lazy = nullptr);
+  TNode<Code> GetSharedFunctionInfoCode(
+      TNode<SharedFunctionInfo> shared_info,
+      TVariable<Uint16T>* data_type_out = nullptr,
+      Label* if_compile_lazy = nullptr);
 
   TNode<JSFunction> AllocateFunctionWithMapAndContext(
       TNode<Map> map, TNode<SharedFunctionInfo> shared_info,
@@ -3547,6 +3578,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   bool ConstexprInt32GreaterThanEqual(int32_t a, int32_t b) { return a >= b; }
   uint32_t ConstexprUint32Add(uint32_t a, uint32_t b) { return a + b; }
   int32_t ConstexprUint32Sub(uint32_t a, uint32_t b) { return a - b; }
+  int32_t ConstexprInt32Sub(int32_t a, int32_t b) { return a - b; }
+  int32_t ConstexprInt32Add(int32_t a, int32_t b) { return a + b; }
   int31_t ConstexprInt31Add(int31_t a, int31_t b) {
     int32_t val;
     CHECK(!base::bits::SignedAddOverflow32(a, b, &val));
@@ -3701,6 +3734,88 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return IntPtrConstant(FeedbackIterator::kHandlerOffset);
   }
 
+  TNode<SwissNameDictionary> AllocateSwissNameDictionary(
+      TNode<IntPtrT> at_least_space_for);
+  TNode<SwissNameDictionary> AllocateSwissNameDictionary(
+      int at_least_space_for);
+
+  TNode<SwissNameDictionary> AllocateSwissNameDictionaryWithCapacity(
+      TNode<IntPtrT> capacity);
+
+  // MT stands for "minus tag".
+  TNode<IntPtrT> SwissNameDictionaryOffsetIntoDataTableMT(
+      TNode<SwissNameDictionary> dict, TNode<IntPtrT> index, int field_index);
+
+  // MT stands for "minus tag".
+  TNode<IntPtrT> SwissNameDictionaryOffsetIntoPropertyDetailsTableMT(
+      TNode<SwissNameDictionary> dict, TNode<IntPtrT> capacity,
+      TNode<IntPtrT> index);
+
+  TNode<IntPtrT> LoadSwissNameDictionaryNumberOfElements(
+      TNode<SwissNameDictionary> table, TNode<IntPtrT> capacity);
+
+  TNode<IntPtrT> LoadSwissNameDictionaryNumberOfDeletedElements(
+      TNode<SwissNameDictionary> table, TNode<IntPtrT> capacity);
+
+  // Specialized operation to be used when adding entries:
+  // If used capacity (= number of present + deleted elements) is less than
+  // |max_usable|, increment the number of present entries and return the used
+  // capacity value (prior to the incrementation). Otherwise, goto |bailout|.
+  TNode<Uint32T> SwissNameDictionaryIncreaseElementCountOrBailout(
+      TNode<ByteArray> meta_table, TNode<IntPtrT> capacity,
+      TNode<Uint32T> max_usable_capacity, Label* bailout);
+
+  // Specialized operation to be used when deleting entries: Decreases the
+  // number of present entries and increases the number of deleted ones. Returns
+  // new (= decremented) number of present entries.
+  TNode<Uint32T> SwissNameDictionaryUpdateCountsForDeletion(
+      TNode<ByteArray> meta_table, TNode<IntPtrT> capacity);
+
+  void StoreSwissNameDictionaryCapacity(TNode<SwissNameDictionary> table,
+                                        TNode<Int32T> capacity);
+
+  void StoreSwissNameDictionaryEnumToEntryMapping(
+      TNode<SwissNameDictionary> table, TNode<IntPtrT> capacity,
+      TNode<IntPtrT> enum_index, TNode<Int32T> entry);
+
+  TNode<Name> LoadSwissNameDictionaryKey(TNode<SwissNameDictionary> dict,
+                                         TNode<IntPtrT> entry);
+
+  void StoreSwissNameDictionaryKeyAndValue(TNode<SwissNameDictionary> dict,
+                                           TNode<IntPtrT> entry,
+                                           TNode<Object> key,
+                                           TNode<Object> value);
+
+  // Equivalent to SwissNameDictionary::SetCtrl, therefore preserves the copy of
+  // the first group at the end of the control table.
+  void SwissNameDictionarySetCtrl(TNode<SwissNameDictionary> table,
+                                  TNode<IntPtrT> capacity, TNode<IntPtrT> entry,
+                                  TNode<Uint8T> ctrl);
+
+  TNode<Uint64T> LoadSwissNameDictionaryCtrlTableGroup(TNode<IntPtrT> address);
+
+  TNode<Uint8T> LoadSwissNameDictionaryPropertyDetails(
+      TNode<SwissNameDictionary> table, TNode<IntPtrT> capacity,
+      TNode<IntPtrT> entry);
+
+  void StoreSwissNameDictionaryPropertyDetails(TNode<SwissNameDictionary> table,
+                                               TNode<IntPtrT> capacity,
+                                               TNode<IntPtrT> entry,
+                                               TNode<Uint8T> details);
+
+  TNode<SwissNameDictionary> CopySwissNameDictionary(
+      TNode<SwissNameDictionary> original);
+
+  void SwissNameDictionaryFindEntry(TNode<SwissNameDictionary> table,
+                                    TNode<Name> key, Label* found,
+                                    TVariable<IntPtrT>* var_found_entry,
+                                    Label* not_found);
+
+  void SwissNameDictionaryAdd(TNode<SwissNameDictionary> table, TNode<Name> key,
+                              TNode<Object> value,
+                              TNode<Uint8T> property_details,
+                              Label* needs_resize);
+
  private:
   friend class CodeStubArguments;
 
@@ -3793,11 +3908,23 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return CodeAssembler::LoadRoot(root_index);
   }
 
+  TNode<AnyTaggedT> LoadRootMapWord(RootIndex root_index) {
+    return CodeAssembler::LoadRootMapWord(root_index);
+  }
+
   template <typename TIndex>
   void StoreFixedArrayOrPropertyArrayElement(
       TNode<UnionT<FixedArray, PropertyArray>> array, TNode<TIndex> index,
       TNode<Object> value, WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
       int additional_offset = 0);
+
+  template <typename TIndex>
+  void StoreElementTypedArrayBigInt(TNode<RawPtrT> elements, ElementsKind kind,
+                                    TNode<TIndex> index, TNode<BigInt> value);
+
+  template <typename TIndex>
+  void StoreElementTypedArrayWord32(TNode<RawPtrT> elements, ElementsKind kind,
+                                    TNode<TIndex> index, TNode<Word32T> value);
 
   // Store value to an elements array with given elements kind.
   // TODO(turbofan): For BIGINT64_ELEMENTS and BIGUINT64_ELEMENTS
@@ -3805,9 +3932,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // teach TurboFan to handle int64_t on 32-bit platforms eventually.
   // TODO(solanes): This method can go away and simplify into only one version
   // of StoreElement once we have "if constexpr" available to use.
-  template <typename TArray, typename TIndex>
+  template <typename TArray, typename TIndex, typename TValue>
   void StoreElementTypedArray(TNode<TArray> elements, ElementsKind kind,
-                              TNode<TIndex> index, Node* value);
+                              TNode<TIndex> index, TNode<TValue> value);
 
   template <typename TIndex>
   void StoreElement(TNode<FixedArrayBase> elements, ElementsKind kind,
@@ -3823,12 +3950,25 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void TryPlainPrimitiveNonNumberToNumber(TNode<HeapObject> input,
                                           TVariable<Number>* var_result,
                                           Label* if_bailout);
+
+  void AssertHasValidMap(TNode<HeapObject> object);
+
+  template <typename TValue>
+  void EmitElementStoreTypedArray(TNode<JSTypedArray> typed_array,
+                                  TNode<IntPtrT> key, TNode<Object> value,
+                                  ElementsKind elements_kind,
+                                  KeyedAccessStoreMode store_mode,
+                                  Label* bailout, TNode<Context> context,
+                                  TVariable<Object>* maybe_converted_value);
+
+  template <typename TValue>
+  void EmitElementStoreTypedArrayUpdateValue(
+      TNode<Object> value, ElementsKind elements_kind,
+      TNode<TValue> converted_value, TVariable<Object>* maybe_converted_value);
 };
 
 class V8_EXPORT_PRIVATE CodeStubArguments {
  public:
-  using Node = compiler::Node;
-
   // |argc| specifies the number of arguments passed to the builtin excluding
   // the receiver. The arguments include the receiver.
   CodeStubArguments(CodeStubAssembler* assembler, TNode<IntPtrT> argc)

@@ -31,11 +31,11 @@ FieldAccess AccessBuilder::ForExternalIntPtr() {
 }
 
 // static
-FieldAccess AccessBuilder::ForMap() {
+FieldAccess AccessBuilder::ForMap(WriteBarrierKind write_barrier) {
   FieldAccess access = {kTaggedBase,           HeapObject::kMapOffset,
                         MaybeHandle<Name>(),   MaybeHandle<Map>(),
-                        Type::OtherInternal(), MachineType::TaggedPointer(),
-                        kMapWriteBarrier};
+                        Type::OtherInternal(), MachineType::MapInHeader(),
+                        write_barrier};
   return access;
 }
 
@@ -105,12 +105,12 @@ FieldAccess AccessBuilder::ForJSObjectElements() {
 }
 
 // static
-FieldAccess AccessBuilder::ForJSObjectInObjectProperty(const MapRef& map,
-                                                       int index) {
+FieldAccess AccessBuilder::ForJSObjectInObjectProperty(
+    const MapRef& map, int index, MachineType machine_type) {
   int const offset = map.GetInObjectPropertyOffset(index);
   FieldAccess access = {kTaggedBase,         offset,
                         MaybeHandle<Name>(), MaybeHandle<Map>(),
-                        Type::NonInternal(), MachineType::AnyTagged(),
+                        Type::NonInternal(), machine_type,
                         kFullWriteBarrier};
   return access;
 }

@@ -39,7 +39,6 @@
 
   # These tests are expected to hit a CHECK (i.e. a FAIL result actually means
   # the test passed).
-  'test-api/RegExpInterruptAndReenterIrregexp': [FAIL, CRASH],
   'test-verifiers/Fail*': [FAIL, CRASH],
 
   # This test always fails.  It tests that LiveEdit causes abort when turned off.
@@ -171,7 +170,6 @@
   'test-api/ExternalArrays': [PASS, SLOW],
   'test-api/Threading*': [SKIP],
   'test-cpu-profiler/MultipleIsolates': [PASS, ['not pointer_compression', SLOW]],
-  'test-debug/DebugBreakStackTrace': [PASS, SLOW],
 }],  # 'arch == arm64 and simulator_run'
 
 ['arch == arm64 and system == macos and not simulator_run', {
@@ -278,7 +276,6 @@
 ['arch == arm and simulator_run', {
   # Pass but take too long with the simulator.
   'test-api/Threading*': [SKIP],
-  'test-cpu-profiler/MultipleIsolates': [PASS, SLOW],
 }],  # 'arch == arm and simulator_run'
 
 ##############################################################################
@@ -387,6 +384,8 @@
 
   # SIMD not fully implemented yet
   'test-run-wasm-simd-liftoff/*': [SKIP],
+  'test-run-wasm-simd-scalar-lowering/*':[SKIP],
+  'test-run-wasm-simd/*':[SKIP],
 
   # Some wasm functionality is not implemented yet
   'test-run-wasm-atomics64/*': [SKIP],
@@ -448,22 +447,29 @@
   # TODO(ppc/s390): support concurrent patching of jump table
   'test-jump-table-assembler/*': [SKIP],
 
-  # Liftoff is not currently supported on ppc and s390
-  'test-liftoff-*': [SKIP],
   'test-wasm-breakpoints/*' : [SKIP],
-  'test-run-wasm-module/Run_WasmModule_CompilationHintsNoTiering': [SKIP],
-  'test-wasm-serialization/TierDownAfterDeserialization': [SKIP],
-  'test-gc/RunWasmLiftoff*': [SKIP],
 
   # SIMD not fully implemented yet
   'test-run-wasm-simd-liftoff/*': [SKIP],
+  'test-gc/RunWasmLiftoff_RefTrivialCasts': [SKIP]
 
 }],  # 'arch == ppc or arch == ppc64 or arch == s390 or arch == s390x'
 
 ['arch == ppc64', {
   # https://crbug.com/v8/8766
   'test-bytecode-generator/WideRegisters': [SKIP],
+  # Liftoff is not currently supported on ppc
+  'test-liftoff-*': [SKIP],
+  'test-gc/RunWasmLiftoff*': [SKIP],
+  'test-run-wasm-module/Run_WasmModule_CompilationHintsNoTiering': [SKIP],
+  'test-wasm-serialization/TierDownAfterDeserialization': [SKIP],
 }],
+
+##############################################################################
+['arch == ppc64 and not simulator_run', {
+  # crbug.com/v8/11134
+  'test-cpu-profiler/MultipleThreadsSingleIsolate': [SKIP],
+}],  # 'arch == ppc64 and not simulator_run'
 
 ##############################################################################
 ['variant == stress_incremental_marking', {
@@ -592,6 +598,7 @@
   'test-run-variables/*': [SKIP],
   'test-serialize/*': [SKIP],
   'test-sloppy-equality/*' : [SKIP],
+  'test-swiss-name-dictionary-csa/*': [SKIP],
   'test-torque/*': [SKIP],
   'test-unwinder-code-pages/PCIsInV8_LargeCodeObject_CodePagesAPI': [SKIP],
 
@@ -695,5 +702,11 @@
   'test-run-wasm-simd-liftoff/*': [SKIP],
   'test-run-wasm-simd-scalar-lowering/*': [SKIP],
 }],  # no_simd_sse == True
+
+################################################################################
+['variant == stress_concurrent_inlining', {
+  # BUG(11524): Crashing flakily.
+  'test-cpu-profiler/TracingCpuProfiler': [PASS, FAIL],
+}], # variant == stress_concurrent_inlining
 
 ]

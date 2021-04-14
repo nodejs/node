@@ -45,8 +45,6 @@ namespace internal {
 
 bool CpuFeatures::SupportsOptimizer() { return IsSupported(FPU); }
 
-bool CpuFeatures::SupportsWasmSimd128() { return IsSupported(RISCV_SIMD); }
-
 // -----------------------------------------------------------------------------
 // Operand and MemOperand.
 
@@ -65,11 +63,15 @@ void RelocInfo::apply(intptr_t delta) {
   if (IsInternalReference(rmode_) || IsInternalReferenceEncoded(rmode_)) {
     // Absolute code pointer inside code object moves with the code object.
     Assembler::RelocateInternalReference(rmode_, pc_, delta);
+  } else {
+    DCHECK(IsRelativeCodeTarget(rmode_));
+    Assembler::RelocateRelativeReference(rmode_, pc_, delta);
   }
 }
 
 Address RelocInfo::target_address() {
-  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_) || IsWasmCall(rmode_));
+  DCHECK(IsCodeTargetMode(rmode_) || IsRuntimeEntry(rmode_) ||
+         IsWasmCall(rmode_));
   return Assembler::target_address_at(pc_, constant_pool_);
 }
 
@@ -135,9 +137,13 @@ HeapObject RelocInfo::target_object_no_host(Isolate* isolate) {
 }
 
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
-  DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_));
-  return Handle<HeapObject>(reinterpret_cast<Address*>(
-      Assembler::target_address_at(pc_, constant_pool_)));
+  if (IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_)) {
+    return Handle<HeapObject>(reinterpret_cast<Address*>(
+        Assembler::target_address_at(pc_, constant_pool_)));
+  } else {
+    DCHECK(IsRelativeCodeTarget(rmode_));
+    return origin->relative_code_target_object_handle_at(pc_);
+  }
 }
 
 void RelocInfo::set_target_object(Heap* heap, HeapObject target,
@@ -165,11 +171,11 @@ void RelocInfo::set_target_external_reference(
 }
 
 Address RelocInfo::target_internal_reference() {
-  if (rmode_ == INTERNAL_REFERENCE) {
+  if (IsInternalReference(rmode_)) {
     return Memory<Address>(pc_);
   } else {
     // Encoded internal references are j/jal instructions.
-    DCHECK(rmode_ == INTERNAL_REFERENCE_ENCODED);
+    DCHECK(IsInternalReferenceEncoded(rmode_));
     DCHECK(Assembler::IsLui(Assembler::instr_at(pc_ + 0 * kInstrSize)));
     Address address = Assembler::target_address_at(pc_);
     return address;
@@ -177,8 +183,18 @@ Address RelocInfo::target_internal_reference() {
 }
 
 Address RelocInfo::target_internal_reference_address() {
-  DCHECK(rmode_ == INTERNAL_REFERENCE || rmode_ == INTERNAL_REFERENCE_ENCODED);
+  DCHECK(IsInternalReference(rmode_) || IsInternalReferenceEncoded(rmode_));
   return pc_;
+}
+
+Handle<Code> Assembler::relative_code_target_object_handle_at(
+    Address pc) const {
+  Instr instr1 = Assembler::instr_at(pc);
+  Instr instr2 = Assembler::instr_at(pc + kInstrSize);
+  DCHECK(IsAuipc(instr1));
+  DCHECK(IsJalr(instr2));
+  int32_t code_target_index = BrachlongOffset(instr1, instr2);
+  return GetCodeTarget(code_target_index);
 }
 
 Address RelocInfo::target_runtime_entry(Assembler* origin) {

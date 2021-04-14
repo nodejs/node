@@ -63,6 +63,13 @@ assertUnoptimized(add_field, "no sync");
 // Let concurrent recompilation proceed.
 %UnblockConcurrentRecompilation();
 // Sync with background thread to conclude optimization that bailed out.
-assertUnoptimized(add_field, "sync");
+if (!%IsDictPropertyConstTrackingEnabled()) {
+  // TODO(v8:11457) Currently, we cannot inline property stores if there is a
+  // dictionary mode prototype on the prototype chain. Therefore, if
+  // v8_dict_property_const_tracking is enabled, the optimized code only
+  // contains a call to the IC handler and doesn't get invalidated when the
+  // transition map changes.
+  assertUnoptimized(add_field, "sync");
+}
 // Clear type info for stress runs.
 %ClearFunctionFeedback(add_field);

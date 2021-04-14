@@ -387,7 +387,7 @@ struct InlinedObject {
   Member<GCed> ref;
 };
 
-class GCedWithInlinedArray : public GarbageCollected<GCed> {
+class GCedWithInlinedArray : public GarbageCollected<GCedWithInlinedArray> {
  public:
   static constexpr size_t kNumReferences = 4;
 

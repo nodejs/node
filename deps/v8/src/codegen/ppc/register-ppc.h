@@ -213,7 +213,12 @@ constexpr Register kConstantPoolRegister = r28;  // Constant pool.
 constexpr Register kRootRegister = r29;          // Roots array pointer.
 constexpr Register cp = r30;                     // JavaScript context pointer.
 
-constexpr bool kPadArguments = false;
+// Returns the number of padding slots needed for stack pointer alignment.
+constexpr int ArgumentPaddingSlots(int argument_count) {
+  // No argument padding required.
+  return 0;
+}
+
 constexpr bool kSimpleFPAliasing = true;
 constexpr bool kSimdMaskRegisters = false;
 
@@ -249,6 +254,29 @@ static_assert(sizeof(DoubleRegister) == sizeof(int),
 
 using FloatRegister = DoubleRegister;
 
+//     |      | 0
+//     |      | 1
+//     |      | 2
+//     |      | ...
+//     |      | 31
+// VSX |
+//     |      | 32
+//     |      | 33
+//     |  VMX | 34
+//     |      | ...
+//     |      | 63
+//
+// VSX registers (0 to 63) can be used by VSX vector instructions, which are
+// mainly focused on Floating Point arithmetic. They do have few Integer
+// Instructions such as logical operations, merge and select. The main Simd
+// integer instructions such as add/sub/mul/ extract_lane/replace_lane,
+// comparisons etc. are only available with VMX instructions and can only access
+// the VMX set of vector registers (which is a subset of VSX registers). So to
+// assure access to all Simd instructions in V8 and avoid moving data between
+// registers, we are only using the upper 32 registers (VMX set) for Simd
+// operations and only use the lower set for scalar (non simd) floating point
+// operations which makes our Simd register set separate from Floating Point
+// ones.
 enum Simd128RegisterCode {
 #define REGISTER_CODE(R) kSimd128Code_##R,
   SIMD128_REGISTERS(REGISTER_CODE)

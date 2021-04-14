@@ -307,33 +307,30 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
   }
 }
 
-void OneTimeEnableStagedWasmFeatures() {
+void OneTimeEnableStagedWasmFeatures(v8::Isolate* isolate) {
   struct EnableStagedWasmFeatures {
-    EnableStagedWasmFeatures() {
+    explicit EnableStagedWasmFeatures(v8::Isolate* isolate) {
 #define ENABLE_STAGED_FEATURES(feat, desc, val) \
   FLAG_experimental_wasm_##feat = true;
       FOREACH_WASM_STAGING_FEATURE_FLAG(ENABLE_STAGED_FEATURES)
 #undef ENABLE_STAGED_FEATURES
+      isolate->InstallConditionalFeatures(isolate->GetCurrentContext());
     }
   };
   // The compiler will properly synchronize the constructor call.
-  static EnableStagedWasmFeatures one_time_enable_staged_features;
+  static EnableStagedWasmFeatures one_time_enable_staged_features(isolate);
 }
 
 void WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
                                          bool require_valid) {
-  // We explicitly enable staged WebAssembly features here to increase fuzzer
-  // coverage. For libfuzzer fuzzers it is not possible that the fuzzer enables
-  // the flag by itself.
-  OneTimeEnableStagedWasmFeatures();
+  v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
+  v8::Isolate* isolate = support->GetIsolate();
 
   // Strictly enforce the input size limit. Note that setting "max_len" on the
   // fuzzer target is not enough, since different fuzzers are used and not all
   // respect that limit.
   if (data.size() > max_input_size()) return;
 
-  v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
-  v8::Isolate* isolate = support->GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
   // Clear any pending exceptions from a prior run.
@@ -342,6 +339,12 @@ void WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
   v8::Isolate::Scope isolate_scope(isolate);
   v8::HandleScope handle_scope(isolate);
   v8::Context::Scope context_scope(support->GetContext());
+
+  // We explicitly enable staged WebAssembly features here to increase fuzzer
+  // coverage. For libfuzzer fuzzers it is not possible that the fuzzer enables
+  // the flag by itself.
+  OneTimeEnableStagedWasmFeatures(isolate);
+
   v8::TryCatch try_catch(isolate);
   HandleScope scope(i_isolate);
 
@@ -355,6 +358,8 @@ void WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
   // The first byte builds the bitmask to control which function will be
   // compiled with Turbofan and which one with Liftoff.
   uint8_t tier_mask = data.empty() ? 0 : data[0];
+  if (!data.empty()) data += 1;
+  uint8_t debug_mask = data.empty() ? 0 : data[0];
   if (!data.empty()) data += 1;
   if (!GenerateModule(i_isolate, &zone, data, &buffer, &num_args,
                       &interpreter_args, &compiler_args)) {
@@ -374,6 +379,8 @@ void WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
     FlagScope<bool> liftoff(&FLAG_liftoff, true);
     FlagScope<bool> no_tier_up(&FLAG_wasm_tier_up, false);
     FlagScope<int> tier_mask_scope(&FLAG_wasm_tier_mask_for_testing, tier_mask);
+    FlagScope<int> debug_mask_scope(&FLAG_wasm_debug_mask_for_testing,
+                                    debug_mask);
     compiled_module = i_isolate->wasm_engine()->SyncCompile(
         i_isolate, enabled_features, &interpreter_thrower, wire_bytes);
   }

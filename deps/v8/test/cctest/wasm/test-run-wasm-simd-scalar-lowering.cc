@@ -193,7 +193,7 @@ WASM_SIMD_TEST(AllTrue_DifferentShapes) {
     WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
 
     BUILD(r, WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(0)),
-          WASM_SIMD_OP(kExprV8x16AllTrue));
+          WASM_SIMD_OP(kExprI8x16AllTrue));
 
     CHECK_EQ(0, r.Call(0x00FF00FF));
   }
@@ -202,7 +202,7 @@ WASM_SIMD_TEST(AllTrue_DifferentShapes) {
     WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
 
     BUILD(r, WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(0)),
-          WASM_SIMD_OP(kExprV16x8AllTrue));
+          WASM_SIMD_OP(kExprI16x8AllTrue));
 
     CHECK_EQ(0, r.Call(0x000000FF));
   }
@@ -212,7 +212,7 @@ WASM_SIMD_TEST(AllTrue_DifferentShapes) {
     WasmRunner<int32_t, float> r(execution_tier, lower_simd);
 
     BUILD(r, WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(0)),
-          WASM_SIMD_OP(kExprV16x8AllTrue));
+          WASM_SIMD_OP(kExprI16x8AllTrue));
 
     CHECK_EQ(1, r.Call(0x000F000F));
   }

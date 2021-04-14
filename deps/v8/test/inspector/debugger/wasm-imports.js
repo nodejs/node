@@ -39,7 +39,8 @@ function instantiate(bytes, imp) {
 session.setupScriptMap();
 
 // Main promise chain:
-Protocol.Debugger.enable()
+Protocol.Runtime.enable()
+    .then(() => Protocol.Debugger.enable())
     .then(() => InspectorTest.log('Installing code and global variable.'))
     .then(
         () => WasmInspectorTest.evalWithUrl(

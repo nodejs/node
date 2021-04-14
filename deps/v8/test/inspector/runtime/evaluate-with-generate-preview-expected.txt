@@ -824,6 +824,11 @@ Running test: testObjInheritsGetterProperty
             type : number
             value : NaN
         }
+        [1] : {
+            name : __proto__
+            type : object
+            value : Object
+        }
     ]
     type : object
 }

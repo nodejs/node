@@ -32,47 +32,47 @@ enum InstanceType : uint16_t;
   V(FeedbackMetadata)                \
   V(FixedDoubleArray)
 
-#define POINTER_VISITOR_ID_LIST(V) \
-  V(AllocationSite)                \
-  V(BytecodeArray)                 \
-  V(Cell)                          \
-  V(Code)                          \
-  V(CodeDataContainer)             \
-  V(DataHandler)                   \
-  V(EmbedderDataArray)             \
-  V(EphemeronHashTable)            \
-  V(FeedbackCell)                  \
-  V(FreeSpace)                     \
-  V(JSApiObject)                   \
-  V(JSArrayBuffer)                 \
-  V(JSDataView)                    \
-  V(JSFunction)                    \
-  V(JSObject)                      \
-  V(JSObjectFast)                  \
-  V(JSTypedArray)                  \
-  V(JSWeakRef)                     \
-  V(JSWeakCollection)              \
-  V(Map)                           \
-  V(NativeContext)                 \
-  V(PreparseData)                  \
-  V(PropertyArray)                 \
-  V(PropertyCell)                  \
-  V(PrototypeInfo)                 \
-  V(ShortcutCandidate)             \
-  V(SmallOrderedHashMap)           \
-  V(SmallOrderedHashSet)           \
-  V(SmallOrderedNameDictionary)    \
-  V(SourceTextModule)              \
-  V(Struct)                        \
-  V(SwissNameDictionary)           \
-  V(Symbol)                        \
-  V(SyntheticModule)               \
-  V(TransitionArray)               \
-  V(WasmIndirectFunctionTable)     \
-  V(WasmInstanceObject)            \
-  V(WasmArray)                     \
-  V(WasmStruct)                    \
-  V(WasmTypeInfo)                  \
+#define POINTER_VISITOR_ID_LIST(V)      \
+  V(AllocationSite)                     \
+  V(BytecodeArray)                      \
+  V(Cell)                               \
+  V(Code)                               \
+  V(CodeDataContainer)                  \
+  V(DataHandler)                        \
+  V(EmbedderDataArray)                  \
+  V(EphemeronHashTable)                 \
+  V(FeedbackCell)                       \
+  V(FreeSpace)                          \
+  V(JSApiObject)                        \
+  V(JSArrayBuffer)                      \
+  V(JSDataView)                         \
+  V(JSFunction)                         \
+  V(JSObject)                           \
+  V(JSObjectFast)                       \
+  V(JSTypedArray)                       \
+  V(JSWeakRef)                          \
+  V(JSWeakCollection)                   \
+  V(Map)                                \
+  V(NativeContext)                      \
+  V(PreparseData)                       \
+  V(PropertyArray)                      \
+  V(PropertyCell)                       \
+  V(PrototypeInfo)                      \
+  V(ShortcutCandidate)                  \
+  V(SmallOrderedHashMap)                \
+  V(SmallOrderedHashSet)                \
+  V(SmallOrderedNameDictionary)         \
+  V(SourceTextModule)                   \
+  V(Struct)                             \
+  V(SwissNameDictionary)                \
+  V(Symbol)                             \
+  V(SyntheticModule)                    \
+  V(TransitionArray)                    \
+  IF_WASM(V, WasmIndirectFunctionTable) \
+  IF_WASM(V, WasmInstanceObject)        \
+  IF_WASM(V, WasmArray)                 \
+  IF_WASM(V, WasmStruct)                \
+  IF_WASM(V, WasmTypeInfo)              \
   V(WeakCell)
 
 #define TORQUE_VISITOR_ID_LIST(V)     \
@@ -244,7 +244,14 @@ class Map : public HeapObject {
   //
   // Bit field.
   //
+  // The setter in this pair calls the relaxed setter if concurrent marking is
+  // on, or performs the write non-atomically if it's off. The read is always
+  // non-atomically. This is done to have wider TSAN coverage on the cases where
+  // it's possible.
   DECL_PRIMITIVE_ACCESSORS(bit_field, byte)
+
+  // Atomic accessors, used for allowlisting legitimate concurrent accesses.
+  DECL_PRIMITIVE_ACCESSORS(relaxed_bit_field, byte)
 
   // Bit positions for |bit_field|.
   struct Bits1 {
@@ -264,7 +271,13 @@ class Map : public HeapObject {
   //
   // Bit field 3.
   //
+  // {bit_field3} calls the relaxed accessors if concurrent marking is on, or
+  // performs the read/write non-atomically if it's off. This is done to have
+  // wider TSAN coverage on the cases where it's possible.
   DECL_PRIMITIVE_ACCESSORS(bit_field3, uint32_t)
+
+  DECL_PRIMITIVE_ACCESSORS(relaxed_bit_field3, uint32_t)
+  DECL_PRIMITIVE_ACCESSORS(release_acquire_bit_field3, uint32_t)
 
   // Clear uninitialized padding space. This ensures that the snapshot content
   // is deterministic. Depending on the V8 build mode there could be no padding.
@@ -481,27 +494,16 @@ class Map : public HeapObject {
 
   bool HasOutOfObjectProperties() const;
 
-  // Returns true if transition to the given map requires special
-  // synchronization with the concurrent marker.
-  bool TransitionRequiresSynchronizationWithGC(Map target) const;
-
   // TODO(ishell): candidate with JSObject::MigrateToMap().
   bool InstancesNeedRewriting(Map target) const;
   bool InstancesNeedRewriting(Map target, int target_number_of_fields,
                               int target_inobject, int target_unused,
                               int* old_number_of_fields) const;
-  V8_WARN_UNUSED_RESULT static Handle<FieldType> GeneralizeFieldType(
-      Representation rep1, Handle<FieldType> type1, Representation rep2,
-      Handle<FieldType> type2, Isolate* isolate);
-  static void GeneralizeField(Isolate* isolate, Handle<Map> map,
-                              InternalIndex modify_index,
-                              PropertyConstness new_constness,
-                              Representation new_representation,
-                              Handle<FieldType> new_field_type);
   // Returns true if the |field_type| is the most general one for
   // given |representation|.
   static inline bool IsMostGeneralFieldType(Representation representation,
                                             FieldType field_type);
+  static inline bool FieldTypeIsCleared(Representation rep, FieldType type);
 
   // Generalizes representation and field_type if objects with given
   // instance type can have fast elements that can be transitioned by
@@ -513,14 +515,6 @@ class Map : public HeapObject {
   static inline void GeneralizeIfCanHaveTransitionableFastElementsKind(
       Isolate* isolate, InstanceType instance_type,
       Representation* representation, Handle<FieldType>* field_type);
-
-  V8_EXPORT_PRIVATE static Handle<Map> ReconfigureProperty(
-      Isolate* isolate, Handle<Map> map, InternalIndex modify_index,
-      PropertyKind new_kind, PropertyAttributes new_attributes,
-      Representation new_representation, Handle<FieldType> new_field_type);
-
-  V8_EXPORT_PRIVATE static Handle<Map> ReconfigureElementsKind(
-      Isolate* isolate, Handle<Map> map, ElementsKind new_elements_kind);
 
   V8_EXPORT_PRIVATE static Handle<Map> PrepareForDataProperty(
       Isolate* isolate, Handle<Map> old_map, InternalIndex descriptor_number,
@@ -580,6 +574,7 @@ class Map : public HeapObject {
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // [instance descriptors]: describes the object.
+  DECL_ACCESSORS(instance_descriptors, DescriptorArray)
   DECL_RELAXED_ACCESSORS(instance_descriptors, DescriptorArray)
   DECL_ACQUIRE_GETTER(instance_descriptors, DescriptorArray)
   V8_EXPORT_PRIVATE void SetInstanceDescriptors(Isolate* isolate,
@@ -724,10 +719,6 @@ class Map : public HeapObject {
       Isolate* isolate, Handle<Map> map, Handle<Name> name,
       InternalIndex descriptor, Handle<Object> getter, Handle<Object> setter,
       PropertyAttributes attributes);
-  V8_EXPORT_PRIVATE static Handle<Map> ReconfigureExistingProperty(
-      Isolate* isolate, Handle<Map> map, InternalIndex descriptor,
-      PropertyKind kind, PropertyAttributes attributes,
-      PropertyConstness constness);
 
   inline void AppendDescriptor(Isolate* isolate, Descriptor* desc);
 
@@ -920,27 +911,10 @@ class Map : public HeapObject {
 
   void ReplaceDescriptors(Isolate* isolate, DescriptorArray new_descriptors);
 
-  // Update field type of the given descriptor to new representation and new
-  // type. The type must be prepared for storing in descriptor array:
-  // it must be either a simple type or a map wrapped in a weak cell.
-  void UpdateFieldType(Isolate* isolate, InternalIndex descriptor_number,
-                       Handle<Name> name, PropertyConstness new_constness,
-                       Representation new_representation,
-                       const MaybeObjectHandle& new_wrapped_type);
-
-  // TODO(ishell): Move to MapUpdater.
-  void PrintReconfiguration(Isolate* isolate, FILE* file,
-                            InternalIndex modify_index, PropertyKind kind,
-                            PropertyAttributes attributes);
-  // TODO(ishell): Move to MapUpdater.
-  void PrintGeneralization(
-      Isolate* isolate, FILE* file, const char* reason,
-      InternalIndex modify_index, int split, int descriptors,
-      bool constant_to_field, Representation old_representation,
-      Representation new_representation, PropertyConstness old_constness,
-      PropertyConstness new_constness, MaybeHandle<FieldType> old_field_type,
-      MaybeHandle<Object> old_value, MaybeHandle<FieldType> new_field_type,
-      MaybeHandle<Object> new_value);
+  // This is the equivalent of IsMap() but avoids reading the instance type so
+  // it can be used concurrently without acquire load.
+  V8_INLINE bool ConcurrentIsMap(PtrComprCageBase cage_base,
+                                 const Object& object) const;
 
   // Use the high-level instance_descriptors/SetInstanceDescriptors instead.
   DECL_RELEASE_SETTER(instance_descriptors, DescriptorArray)
@@ -972,7 +946,8 @@ class NormalizedMapCache : public WeakFixedArray {
   DECL_VERIFIER(NormalizedMapCache)
 
  private:
-  friend bool HeapObject::IsNormalizedMapCache(IsolateRoot isolate) const;
+  friend bool HeapObject::IsNormalizedMapCache(
+      PtrComprCageBase cage_base) const;
 
   static const int kEntries = 64;
 

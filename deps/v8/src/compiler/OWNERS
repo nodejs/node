@@ -1,16 +1,13 @@
-bmeurer@chromium.org
-danno@chromium.org
-sigurds@chromium.org
-neis@chromium.org
-mvstanton@chromium.org
-mslekova@chromium.org
 jgruber@chromium.org
+mslekova@chromium.org
+mvstanton@chromium.org
+neis@chromium.org
 nicohartmann@chromium.org
+sigurds@chromium.org
 solanes@chromium.org
 
 per-file wasm-*=ahaas@chromium.org
 per-file wasm-*=bbudge@chromium.org
-per-file wasm-*=binji@chromium.org
 per-file wasm-*=clemensb@chromium.org
 per-file wasm-*=gdeepti@chromium.org
 per-file wasm-*=jkummerow@chromium.org

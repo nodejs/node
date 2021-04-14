@@ -16,8 +16,10 @@
 #include "src/logging/counters.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/map-updater.h"
 #include "src/objects/property-descriptor-object.h"
 #include "src/objects/property-descriptor.h"
+#include "src/objects/swiss-name-dictionary-inl.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/runtime/runtime.h"
 
@@ -94,6 +96,28 @@ MaybeHandle<Object> Runtime::HasProperty(Isolate* isolate,
 
 namespace {
 
+// This function sets the sentinel value in a deleted field. Thes sentinel has
+// to look like a proper standalone object because the slack tracking may
+// complete at any time. For this reason we use the filler map word.
+// If V8_MAP_PACKING is enabled, then the filler map word is a packed filler
+// map. Otherwise, the filler map word is the same as the filler map.
+inline void ClearField(Isolate* isolate, JSObject object, FieldIndex index) {
+  if (index.is_inobject()) {
+    MapWord filler_map_word =
+        ReadOnlyRoots(isolate).one_pointer_filler_map_word();
+#ifndef V8_MAP_PACKING
+    DCHECK_EQ(filler_map_word.ToMap(),
+              ReadOnlyRoots(isolate).one_pointer_filler_map());
+#endif
+    int offset = index.offset();
+    TaggedField<MapWord>::Release_Store(object, offset, filler_map_word);
+  } else {
+    object.property_array().set(
+        index.outobject_array_index(),
+        ReadOnlyRoots(isolate).one_pointer_filler_map());
+  }
+}
+
 bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
                               Handle<Object> raw_key) {
   // This implements a special case for fast property deletion: when the
@@ -110,7 +134,7 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
   if (nof == 0) return false;
   InternalIndex descriptor(nof - 1);
   Handle<DescriptorArray> descriptors(
-      receiver_map->instance_descriptors(kRelaxedLoad), isolate);
+      receiver_map->instance_descriptors(isolate), isolate);
   if (descriptors->GetKey(descriptor) != *key) return false;
   // (3) The property to be deleted must be deletable.
   PropertyDetails details = descriptors->GetDetails(descriptor);
@@ -138,9 +162,9 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
       details.location() == kField) {
     Handle<FieldType> field_type(descriptors->GetFieldType(descriptor),
                                  isolate);
-    Map::GeneralizeField(isolate, receiver_map, descriptor,
-                         PropertyConstness::kMutable, details.representation(),
-                         field_type);
+    MapUpdater::GeneralizeField(isolate, receiver_map, descriptor,
+                                PropertyConstness::kMutable,
+                                details.representation(), field_type);
     DCHECK_EQ(PropertyConstness::kMutable,
               descriptors->GetDetails(descriptor).constness());
   }
@@ -163,8 +187,7 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
       // Clear out the properties backing store.
       receiver->SetProperties(ReadOnlyRoots(isolate).empty_fixed_array());
     } else {
-      Object filler = ReadOnlyRoots(isolate).one_pointer_filler_map();
-      JSObject::cast(*receiver).FastPropertyAtPut(index, filler);
+      ClearField(isolate, JSObject::cast(*receiver), index);
       // We must clear any recorded slot for the deleted property, because
       // subsequent object modifications might put a raw double there.
       // Slot clearing is the reason why this entire function cannot currently
@@ -324,7 +347,7 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
 
     Map map = js_obj->map();
     if (!map.IsJSGlobalProxyMap() &&
-        (key.is_element() && key.index() <= JSArray::kMaxArrayIndex
+        (key.is_element() && key.index() <= JSObject::kMaxElementIndex
              ? !map.has_indexed_interceptor()
              : !map.has_named_interceptor())) {
       return ReadOnlyRoots(isolate).false_value();
@@ -400,12 +423,11 @@ RUNTIME_FUNCTION(Runtime_AddDictionaryProperty) {
 
   PropertyDetails property_details(
       kData, NONE, PropertyDetails::kConstIfDictConstnessTracking);
-  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    Handle<OrderedNameDictionary> dictionary(
-        receiver->property_dictionary_ordered(), isolate);
-    dictionary = OrderedNameDictionary::Add(isolate, dictionary, name, value,
-                                            property_details)
-                     .ToHandleChecked();
+  if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+    Handle<SwissNameDictionary> dictionary(
+        receiver->property_dictionary_swiss(), isolate);
+    dictionary = SwissNameDictionary::Add(isolate, dictionary, name, value,
+                                          property_details);
     receiver->SetProperties(*dictionary);
   } else {
     Handle<NameDictionary> dictionary(receiver->property_dictionary(), isolate);
@@ -680,9 +702,8 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
         }
       } else if (!holder->HasFastProperties()) {
         // Attempt dictionary lookup.
-        if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-          OrderedNameDictionary dictionary =
-              holder->property_dictionary_ordered();
+        if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+          SwissNameDictionary dictionary = holder->property_dictionary_swiss();
           InternalIndex entry = dictionary.FindEntry(isolate, *key);
           if (entry.is_found() &&
               (dictionary.DetailsAt(entry).kind() == kData)) {
@@ -810,24 +831,20 @@ RUNTIME_FUNCTION(Runtime_DeleteProperty) {
                         static_cast<LanguageMode>(language_mode));
 }
 
-RUNTIME_FUNCTION(Runtime_ShrinkPropertyDictionary) {
+RUNTIME_FUNCTION(Runtime_ShrinkNameDictionary) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
-  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    Handle<OrderedNameDictionary> dictionary(
-        receiver->property_dictionary_ordered(), isolate);
-    Handle<OrderedNameDictionary> new_properties =
-        OrderedNameDictionary::Shrink(isolate, dictionary);
-    receiver->SetProperties(*new_properties);
-  } else {
-    Handle<NameDictionary> dictionary(receiver->property_dictionary(), isolate);
-    Handle<NameDictionary> new_properties =
-        NameDictionary::Shrink(isolate, dictionary);
-    receiver->SetProperties(*new_properties);
-  }
+  CONVERT_ARG_HANDLE_CHECKED(NameDictionary, dictionary, 0);
 
-  return Smi::zero();
+  return *NameDictionary::Shrink(isolate, dictionary);
+}
+
+RUNTIME_FUNCTION(Runtime_ShrinkSwissNameDictionary) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(SwissNameDictionary, dictionary, 0);
+
+  return *SwissNameDictionary::Shrink(isolate, dictionary);
 }
 
 // ES6 section 12.9.3, operator in.
@@ -1363,6 +1380,123 @@ RUNTIME_FUNCTION(Runtime_AddPrivateField) {
                                 StoreOrigin::kMaybeKeyed)
             .FromJust());
   return ReadOnlyRoots(isolate).undefined_value();
+}
+
+// TODO(v8:11330) This is only here while the CSA/Torque implementaton of
+// SwissNameDictionary is work in progress.
+RUNTIME_FUNCTION(Runtime_SwissTableAllocate) {
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(Smi, at_least_space_for, 0);
+
+  return *isolate->factory()->NewSwissNameDictionary(
+      at_least_space_for->value(), AllocationType::kYoung);
+}
+
+// TODO(v8:11330) This is only here while the CSA/Torque implementaton of
+// SwissNameDictionary is work in progress.
+RUNTIME_FUNCTION(Runtime_SwissTableAdd) {
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(SwissNameDictionary, table, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Name, key, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
+  CONVERT_ARG_HANDLE_CHECKED(Smi, details_smi, 3);
+
+  DCHECK(key->IsUniqueName());
+
+  return *SwissNameDictionary::Add(isolate, table, key, value,
+                                   PropertyDetails{*details_smi});
+}
+
+// TODO(v8:11330) This is only here while the CSA/Torque implementaton of
+// SwissNameDictionary is work in progress.
+RUNTIME_FUNCTION(Runtime_SwissTableFindEntry) {
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(SwissNameDictionary, table, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Name, key, 1);
+
+  InternalIndex index = table->FindEntry(isolate, *key);
+  return Smi::FromInt(index.is_found()
+                          ? index.as_int()
+                          : SwissNameDictionary::kNotFoundSentinel);
+}
+
+// TODO(v8:11330) This is only here while the CSA/Torque implementaton of
+// SwissNameDictionary is work in progress.
+RUNTIME_FUNCTION(Runtime_SwissTableUpdate) {
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(SwissNameDictionary, table, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Smi, index, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
+  CONVERT_ARG_HANDLE_CHECKED(Smi, details_smi, 3);
+
+  InternalIndex i(Smi::ToInt(*index));
+
+  table->ValueAtPut(i, *value);
+  table->DetailsAtPut(i, PropertyDetails{*details_smi});
+
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+// TODO(v8:11330) This is only here while the CSA/Torque implementaton of
+// SwissNameDictionary is work in progress.
+RUNTIME_FUNCTION(Runtime_SwissTableDelete) {
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(SwissNameDictionary, table, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Smi, entry, 1);
+
+  InternalIndex i(Smi::ToInt(*entry));
+
+  return *SwissNameDictionary::DeleteEntry(isolate, table, i);
+}
+
+// TODO(v8:11330) This is only here while the CSA/Torque implementaton of
+// SwissNameDictionary is work in progress.
+RUNTIME_FUNCTION(Runtime_SwissTableEquals) {
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(SwissNameDictionary, table, 0);
+  CONVERT_ARG_HANDLE_CHECKED(SwissNameDictionary, other, 1);
+
+  return Smi::FromInt(table->EqualsForTesting(*other));
+}
+
+// TODO(v8:11330) This is only here while the CSA/Torque implementaton of
+// SwissNameDictionary is work in progress.
+RUNTIME_FUNCTION(Runtime_SwissTableElementsCount) {
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(SwissNameDictionary, table, 0);
+
+  return Smi::FromInt(table->NumberOfElements());
+}
+
+// TODO(v8:11330) This is only here while the CSA/Torque implementaton of
+// SwissNameDictionary is work in progress.
+RUNTIME_FUNCTION(Runtime_SwissTableKeyAt) {
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(SwissNameDictionary, table, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Smi, entry, 1);
+
+  return table->KeyAt(InternalIndex(Smi::ToInt(*entry)));
+}
+
+// TODO(v8:11330) This is only here while the CSA/Torque implementaton of
+// SwissNameDictionary is work in progress.
+RUNTIME_FUNCTION(Runtime_SwissTableValueAt) {
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(SwissNameDictionary, table, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Smi, entry, 1);
+
+  return table->ValueAt(InternalIndex(Smi::ToInt(*entry)));
+}
+
+// TODO(v8:11330) This is only here while the CSA/Torque implementaton of
+// SwissNameDictionary is work in progress.
+RUNTIME_FUNCTION(Runtime_SwissTableDetailsAt) {
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(SwissNameDictionary, table, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Smi, entry, 1);
+
+  PropertyDetails d = table->DetailsAt(InternalIndex(Smi::ToInt(*entry)));
+  return d.AsSmi();
 }
 
 }  // namespace internal

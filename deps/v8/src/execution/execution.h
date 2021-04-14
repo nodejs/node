@@ -60,6 +60,7 @@ class Execution final : public AllStatic {
       Isolate* isolate, MicrotaskQueue* microtask_queue,
       MaybeHandle<Object>* exception_out);
 
+#if V8_ENABLE_WEBASSEMBLY
   // Call a Wasm function identified by {wasm_call_target} through the
   // provided {wrapper_code}, which must match the function's signature.
   // Upon return, either isolate->has_pending_exception() is true, or
@@ -69,6 +70,7 @@ class Execution final : public AllStatic {
                                          Address wasm_call_target,
                                          Handle<Object> object_ref,
                                          Address packed_args);
+#endif  // V8_ENABLE_WEBASSEMBLY
 };
 
 }  // namespace internal

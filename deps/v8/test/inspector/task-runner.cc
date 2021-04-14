@@ -53,7 +53,7 @@ TaskRunner::TaskRunner(IsolateData::SetupGlobalTasks setup_global_tasks,
   CHECK(Start());
 }
 
-TaskRunner::~TaskRunner() { Join(); }
+TaskRunner::~TaskRunner() {}
 
 void TaskRunner::Run() {
   data_.reset(new IsolateData(this, std::move(setup_global_tasks_),

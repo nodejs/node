@@ -5,6 +5,7 @@
 #include "src/compiler/graph-assembler.h"
 
 #include "src/codegen/code-factory.h"
+#include "src/compiler/access-builder.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/schedule.h"
 // For TNode types.
@@ -528,6 +529,31 @@ Node* JSGraphAssembler::StoreField(FieldAccess const& access, Node* object,
                                    Node* value) {
   return AddNode(graph()->NewNode(simplified()->StoreField(access), object,
                                   value, effect(), control()));
+}
+
+#ifdef V8_MAP_PACKING
+TNode<Map> GraphAssembler::UnpackMapWord(Node* map_word) {
+  map_word = BitcastTaggedToWordForTagAndSmiBits(map_word);
+  // TODO(wenyuzhao): Clear header metadata.
+  Node* map = WordXor(map_word, IntPtrConstant(Internals::kMapWordXorMask));
+  return TNode<Map>::UncheckedCast(BitcastWordToTagged(map));
+}
+
+Node* GraphAssembler::PackMapWord(TNode<Map> map) {
+  Node* map_word = BitcastTaggedToWordForTagAndSmiBits(map);
+  Node* packed = WordXor(map_word, IntPtrConstant(Internals::kMapWordXorMask));
+  return BitcastWordToTaggedSigned(packed);
+}
+#endif
+
+TNode<Map> GraphAssembler::LoadMap(Node* object) {
+  Node* map_word = Load(MachineType::TaggedPointer(), object,
+                        HeapObject::kMapOffset - kHeapObjectTag);
+#ifdef V8_MAP_PACKING
+  return UnpackMapWord(map_word);
+#else
+  return TNode<Map>::UncheckedCast(map_word);
+#endif
 }
 
 Node* JSGraphAssembler::StoreElement(ElementAccess const& access, Node* object,

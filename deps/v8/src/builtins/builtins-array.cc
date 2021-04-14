@@ -15,6 +15,7 @@
 #include "src/objects/contexts.h"
 #include "src/objects/elements-inl.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/lookup.h"
 #include "src/objects/objects-inl.h"
@@ -333,7 +334,7 @@ V8_WARN_UNUSED_RESULT Object GenericArrayPush(Isolate* isolate,
     Handle<Object> element = args->at(i + 1);
 
     // b. Perform ? Set(O, ! ToString(len), E, true).
-    if (length <= static_cast<double>(JSArray::kMaxArrayIndex)) {
+    if (length <= JSObject::kMaxElementIndex) {
       RETURN_FAILURE_ON_EXCEPTION(
           isolate, Object::SetElement(isolate, receiver, length, element,
                                       ShouldThrow::kThrowOnError));
@@ -650,11 +651,14 @@ class ArrayConcatVisitor {
         index_offset_(0u),
         bit_field_(FastElementsField::encode(fast_elements) |
                    ExceedsLimitField::encode(false) |
-                   IsFixedArrayField::encode(storage->IsFixedArray()) |
+                   IsFixedArrayField::encode(storage->IsFixedArray(isolate)) |
                    HasSimpleElementsField::encode(
-                       storage->IsFixedArray() ||
-                       !storage->map().IsCustomElementsReceiverMap())) {
-    DCHECK(!(this->fast_elements() && !is_fixed_array()));
+                       storage->IsFixedArray(isolate) ||
+                       // Don't take fast path for storages that might have
+                       // side effects when storing to them.
+                       (!storage->map(isolate).IsCustomElementsReceiverMap() &&
+                        !storage->IsJSTypedArray(isolate)))) {
+    DCHECK_IMPLIES(this->fast_elements(), is_fixed_array());
   }
 
   ~ArrayConcatVisitor() { clear_storage(); }
@@ -662,7 +666,10 @@ class ArrayConcatVisitor {
   V8_WARN_UNUSED_RESULT bool visit(uint32_t i, Handle<Object> elm) {
     uint32_t index = index_offset_ + i;
 
-    if (i >= JSObject::kMaxElementCount - index_offset_) {
+    // Note we use >=kMaxArrayLength instead of the more appropriate
+    // >kMaxArrayIndex here due to overflowing arithmetic and
+    // increase_index_offset.
+    if (i >= JSArray::kMaxArrayLength - index_offset_) {
       set_exceeds_array_limit(true);
       // Exception hasn't been thrown at this point. Return true to
       // break out, and caller will throw. !visit would imply that
@@ -707,8 +714,8 @@ class ArrayConcatVisitor {
   uint32_t index_offset() const { return index_offset_; }
 
   void increase_index_offset(uint32_t delta) {
-    if (JSObject::kMaxElementCount - index_offset_ < delta) {
-      index_offset_ = JSObject::kMaxElementCount;
+    if (JSArray::kMaxArrayLength - index_offset_ < delta) {
+      index_offset_ = JSArray::kMaxArrayLength;
     } else {
       index_offset_ += delta;
     }
@@ -813,7 +820,7 @@ class ArrayConcatVisitor {
   Isolate* isolate_;
   Handle<Object> storage_;  // Always a global handle.
   // Index after last seen index. Always less than or equal to
-  // JSObject::kMaxElementCount.
+  // JSArray::kMaxArrayLength.
   uint32_t index_offset_;
   uint32_t bit_field_;
 };
@@ -1065,8 +1072,8 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
     return IterateElementsSlow(isolate, receiver, length, visitor);
   }
 
-  if (!HasOnlySimpleElements(isolate, *receiver) ||
-      !visitor->has_simple_elements()) {
+  if (!visitor->has_simple_elements() ||
+      !HasOnlySimpleElements(isolate, *receiver)) {
     return IterateElementsSlow(isolate, receiver, length, visitor);
   }
   Handle<JSObject> array = Handle<JSObject>::cast(receiver);
@@ -1082,6 +1089,9 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
     case HOLEY_SEALED_ELEMENTS:
     case HOLEY_NONEXTENSIBLE_ELEMENTS:
     case HOLEY_ELEMENTS: {
+      // Disallow execution so the cached elements won't change mid execution.
+      DisallowJavascriptExecution no_js(isolate);
+
       // Run through the elements FixedArray and use HasElement and GetElement
       // to check the prototype for missing elements.
       Handle<FixedArray> elements(FixedArray::cast(array->elements()), isolate);
@@ -1108,6 +1118,9 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
     }
     case HOLEY_DOUBLE_ELEMENTS:
     case PACKED_DOUBLE_ELEMENTS: {
+      // Disallow execution so the cached elements won't change mid execution.
+      DisallowJavascriptExecution no_js(isolate);
+
       // Empty array is FixedArray but not FixedDoubleArray.
       if (length == 0) break;
       // Run through the elements FixedArray and use HasElement and GetElement
@@ -1144,6 +1157,9 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
     }
 
     case DICTIONARY_ELEMENTS: {
+      // Disallow execution so the cached dictionary won't change mid execution.
+      DisallowJavascriptExecution no_js(isolate);
+
       Handle<NumberDictionary> dict(array->element_dictionary(), isolate);
       std::vector<uint32_t> indices;
       indices.reserve(dict->Capacity() / 2);
@@ -1249,14 +1265,14 @@ Object Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
       length_estimate = 1;
       element_estimate = 1;
     }
-    // Avoid overflows by capping at kMaxElementCount.
-    if (JSObject::kMaxElementCount - estimate_result_length < length_estimate) {
-      estimate_result_length = JSObject::kMaxElementCount;
+    // Avoid overflows by capping at kMaxArrayLength.
+    if (JSArray::kMaxArrayLength - estimate_result_length < length_estimate) {
+      estimate_result_length = JSArray::kMaxArrayLength;
     } else {
       estimate_result_length += length_estimate;
     }
-    if (JSObject::kMaxElementCount - estimate_nof < element_estimate) {
-      estimate_nof = JSObject::kMaxElementCount;
+    if (JSArray::kMaxArrayLength - estimate_nof < element_estimate) {
+      estimate_nof = JSArray::kMaxArrayLength;
     } else {
       estimate_nof += element_estimate;
     }

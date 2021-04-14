@@ -192,19 +192,28 @@ bool IsKeywordLikeName(const std::string& s) {
 // Untagged/MachineTypes like 'int32', 'intptr' etc. follow a 'all-lowercase'
 // naming convention and are those exempt from the normal type convention.
 bool IsMachineType(const std::string& s) {
-  static const char* const machine_types[]{
-      VOID_TYPE_STRING,    NEVER_TYPE_STRING,
-      INT8_TYPE_STRING,    UINT8_TYPE_STRING,
-      INT16_TYPE_STRING,   UINT16_TYPE_STRING,
-      INT31_TYPE_STRING,   UINT31_TYPE_STRING,
-      INT32_TYPE_STRING,   UINT32_TYPE_STRING,
-      INT64_TYPE_STRING,   INTPTR_TYPE_STRING,
-      UINTPTR_TYPE_STRING, FLOAT32_TYPE_STRING,
-      FLOAT64_TYPE_STRING, FLOAT64_OR_HOLE_TYPE_STRING,
-      BOOL_TYPE_STRING,    "string",
-      BINT_TYPE_STRING,    CHAR8_TYPE_STRING,
-      CHAR16_TYPE_STRING};
-
+  static const char* const machine_types[]{VOID_TYPE_STRING,
+                                           NEVER_TYPE_STRING,
+                                           INT8_TYPE_STRING,
+                                           UINT8_TYPE_STRING,
+                                           INT16_TYPE_STRING,
+                                           UINT16_TYPE_STRING,
+                                           INT31_TYPE_STRING,
+                                           UINT31_TYPE_STRING,
+                                           INT32_TYPE_STRING,
+                                           UINT32_TYPE_STRING,
+                                           INT64_TYPE_STRING,
+                                           UINT64_TYPE_STRING,
+                                           INTPTR_TYPE_STRING,
+                                           UINTPTR_TYPE_STRING,
+                                           FLOAT32_TYPE_STRING,
+                                           FLOAT64_TYPE_STRING,
+                                           FLOAT64_OR_HOLE_TYPE_STRING,
+                                           BOOL_TYPE_STRING,
+                                           "string",
+                                           BINT_TYPE_STRING,
+                                           CHAR8_TYPE_STRING,
+                                           CHAR16_TYPE_STRING};
   return std::find(std::begin(machine_types), std::end(machine_types), s) !=
          std::end(machine_types);
 }
@@ -311,6 +320,10 @@ std::string UnderlinifyPath(std::string path) {
   std::replace(path.begin(), path.end(), '.', '_');
   transform(path.begin(), path.end(), path.begin(), ::toupper);
   return path;
+}
+
+bool StartsWithSingleUnderscore(const std::string& str) {
+  return str.length() >= 2 && str[0] == '_' && str[1] != '_';
 }
 
 void ReplaceFileContentsIfDifferent(const std::string& file_path,

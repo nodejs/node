@@ -22,8 +22,8 @@ var func_idx = builder.addFunction('helper', kSig_v_v)
 builder.addFunction('main', kSig_v_i)
     .addBody([
         kExprLocalGet, 0,
-        kExprIf, kWasmStmt,
-        kExprBlock, kWasmStmt,
+        kExprIf, kWasmVoid,
+        kExprBlock, kWasmVoid,
         kExprCallFunction, func_idx,
         kExprEnd,
         kExprEnd
@@ -32,6 +32,7 @@ builder.addFunction('main', kSig_v_i)
 
 var module_bytes = builder.toArray();
 
+Protocol.Runtime.enable();
 Protocol.Debugger.enable();
 Protocol.Debugger.onScriptParsed(handleScriptParsed);
 

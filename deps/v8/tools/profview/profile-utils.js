@@ -21,7 +21,8 @@ let codeKinds = [
     "JSOPT",
     "JSUNOPT",
     "JSNCI",
-    "JSTURBOPROP"
+    "JSTURBOPROP",
+    "JSBASELINE",
 ];
 
 function resolveCodeKind(code) {
@@ -59,6 +60,8 @@ function resolveCodeKind(code) {
       return "JSUNOPT";
     } else if (code.kind === "NCI") {
       return "JSNCI";
+    } else if (code.kind === "Baseline") {
+      return "JSBASELINE";
     } else if (code.kind === "Turboprop") {
       return "JSTURBOPROP";
     }
@@ -272,6 +275,7 @@ function buildCategoryTreeAndLookup() {
   addCategory("JS Optimized", [ "JSOPT" ]);
   addCategory("JS NCI", [ "JSNCI" ]);
   addCategory("JS Turboprop", [ "JSTURBOPROP" ]);
+  addCategory("JS Baseline", [ "JSBASELINE" ]);
   addCategory("JS Unoptimized", [ "JSUNOPT", "BC" ]);
   addCategory("IC", [ "IC" ]);
   addCategory("RegExp", [ "REGEXP" ]);

@@ -354,7 +354,13 @@ class V8_EXPORT_PRIVATE PagedSpace
   // it cannot allocate requested number of pages from OS, or if the hard heap
   // size limit has been hit.
   virtual Page* Expand();
-  Page* ExpandBackground(LocalHeap* local_heap);
+
+  // Expands the space by a single page from a background thread and allocates
+  // a memory area of the given size in it. If successful the method returns
+  // the address and size of the area.
+  base::Optional<std::pair<Address, size_t>> ExpandBackground(
+      LocalHeap* local_heap, size_t size_in_bytes);
+
   Page* AllocatePage();
 
   // Sets up a linear allocation area that fits the given number of bytes.

@@ -5,6 +5,7 @@
 #ifndef V8_JSON_JSON_PARSER_H_
 #define V8_JSON_JSON_PARSER_H_
 
+#include "src/base/small-vector.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/objects/objects.h"
@@ -155,6 +156,8 @@ class JsonParser final {
   static constexpr uc32 kInvalidUnicodeCharacter = static_cast<uc32>(-1);
 
  private:
+  template <typename T>
+  using SmallVector = base::SmallVector<T, 16>;
   struct JsonContinuation {
     enum Type : uint8_t { kReturn, kObjectProperty, kArrayElement };
     JsonContinuation(Isolate* isolate, Type type, size_t index)
@@ -287,10 +290,10 @@ class JsonParser final {
 
   Handle<Object> BuildJsonObject(
       const JsonContinuation& cont,
-      const std::vector<JsonProperty>& property_stack, Handle<Map> feedback);
+      const SmallVector<JsonProperty>& property_stack, Handle<Map> feedback);
   Handle<Object> BuildJsonArray(
       const JsonContinuation& cont,
-      const std::vector<Handle<Object>>& element_stack);
+      const SmallVector<Handle<Object>>& element_stack);
 
   // Mark that a parsing error has happened at the current character.
   void ReportUnexpectedCharacter(uc32 c);

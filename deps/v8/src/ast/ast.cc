@@ -56,7 +56,6 @@ static const char* NameForNativeContextIntrinsicIndex(uint32_t idx) {
 }
 
 void AstNode::Print(Isolate* isolate) {
-  AllowHandleDereference allow_deref;
   AstPrinter::PrintOut(isolate, this);
 }
 
@@ -243,7 +242,6 @@ std::unique_ptr<char[]> FunctionLiteral::GetDebugName() const {
   } else if (raw_inferred_name_ != nullptr && !raw_inferred_name_->IsEmpty()) {
     cons_string = raw_inferred_name_;
   } else if (!inferred_name_.is_null()) {
-    AllowHandleDereference allow_deref;
     return inferred_name_->ToCString();
   } else {
     char* empty_str = new char[1];
@@ -663,7 +661,7 @@ void ArrayLiteral::BuildBoilerplateDescription(LocalIsolate* isolate) {
           boilerplate_descriptor_kind(),
           GetMoreGeneralElementsKind(boilerplate_descriptor_kind(),
                                      boilerplate_value.OptimalElementsKind(
-                                         GetIsolateForPtrCompr(*elements))));
+                                         GetPtrComprCageBase(*elements))));
 
       FixedArray::cast(*elements).set(array_index, boilerplate_value);
     }
@@ -889,6 +887,22 @@ static bool MatchLiteralCompareNull(Expression* left, Token::Value op,
 bool CompareOperation::IsLiteralCompareNull(Expression** expr) {
   return MatchLiteralCompareNull(left_, op(), right_, expr) ||
          MatchLiteralCompareNull(right_, op(), left_, expr);
+}
+
+void CallBase::ComputeSpreadPosition() {
+  int arguments_length = arguments_.length();
+  int first_spread_index = 0;
+  for (; first_spread_index < arguments_length; first_spread_index++) {
+    if (arguments_.at(first_spread_index)->IsSpread()) break;
+  }
+  SpreadPosition position;
+  if (first_spread_index == arguments_length - 1) {
+    position = kHasFinalSpread;
+  } else {
+    DCHECK_LT(first_spread_index, arguments_length - 1);
+    position = kHasNonFinalSpread;
+  }
+  bit_field_ |= SpreadPositionField::encode(position);
 }
 
 Call::CallType Call::GetCallType() const {

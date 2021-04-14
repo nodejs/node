@@ -23,7 +23,7 @@ struct OtherNoName : public GarbageCollected<OtherNoName> {
   virtual void Trace(Visitor*) const {}
 };
 
-class ClassWithName final : public GarbageCollected<OtherNoName>,
+class ClassWithName final : public GarbageCollected<ClassWithName>,
                             public NameProvider {
  public:
   explicit ClassWithName(const char* name) : name_(name) {}

@@ -312,14 +312,14 @@ TEST(MemoryGrow) {
     WasmRunner<int32_t, uint32_t> r(TestExecutionTier::kInterpreter);
     r.builder().AddMemory(kWasmPageSize);
     r.builder().SetMaxMemPages(10);
-    BUILD(r, WASM_GROW_MEMORY(WASM_LOCAL_GET(0)));
+    BUILD(r, WASM_MEMORY_GROW(WASM_LOCAL_GET(0)));
     CHECK_EQ(1, r.Call(1));
   }
   {
     WasmRunner<int32_t, uint32_t> r(TestExecutionTier::kInterpreter);
     r.builder().AddMemory(kWasmPageSize);
     r.builder().SetMaxMemPages(10);
-    BUILD(r, WASM_GROW_MEMORY(WASM_LOCAL_GET(0)));
+    BUILD(r, WASM_MEMORY_GROW(WASM_LOCAL_GET(0)));
     CHECK_EQ(-1, r.Call(11));
   }
 }
@@ -332,7 +332,7 @@ TEST(MemoryGrowPreservesData) {
   BUILD(
       r,
       WASM_STORE_MEM(MachineType::Int32(), WASM_I32V(index), WASM_I32V(value)),
-      WASM_GROW_MEMORY(WASM_LOCAL_GET(0)), WASM_DROP,
+      WASM_MEMORY_GROW(WASM_LOCAL_GET(0)), WASM_DROP,
       WASM_LOAD_MEM(MachineType::Int32(), WASM_I32V(index)));
   CHECK_EQ(value, r.Call(1));
 }
@@ -341,7 +341,7 @@ TEST(MemoryGrowInvalidSize) {
   // Grow memory by an invalid amount without initial memory.
   WasmRunner<int32_t, uint32_t> r(TestExecutionTier::kInterpreter);
   r.builder().AddMemory(kWasmPageSize);
-  BUILD(r, WASM_GROW_MEMORY(WASM_LOCAL_GET(0)));
+  BUILD(r, WASM_MEMORY_GROW(WASM_LOCAL_GET(0)));
   CHECK_EQ(-1, r.Call(1048575));
 }
 

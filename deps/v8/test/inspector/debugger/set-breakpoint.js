@@ -92,22 +92,10 @@ eval('function sourceUrlFunc() { a = 2; }\\n//# sourceURL=sourceUrlScript');`);
     Protocol.Runtime.evaluate({
       expression: `//# sourceURL=test-script\nfunction i1(){};\n\n\n\n\nfunction i2(){}\n// last line`
     });
-    const [{
-      params:{location}
-    }, {
-      params:{
-        callFrames:[topFrame],
-        hitBreakpoints
-      }
-    }] = await Promise.all([
-      Protocol.Debugger.onceBreakpointResolved(),
-      Protocol.Debugger.oncePaused()]);
+    const [{params: {location}}] =
+        await Promise.all([Protocol.Debugger.onceBreakpointResolved()]);
     InspectorTest.log('Breakpoint resolved at:');
     await session.logSourceLocation(location);
-    InspectorTest.log('Breakpoint hit at:');
-    await session.logSourceLocation(topFrame.location);
-    const hitBreakpoint = hitBreakpoints[0] === breakpointId;
-    InspectorTest.log(`hitBreakpoints contains breakpoint: ${hitBreakpoint}\n`);
   }
   await Protocol.Debugger.disable();
   InspectorTest.completeTest();

@@ -60,6 +60,8 @@ static unsigned CpuFeaturesImpliedByCompiler() {
   return answer;
 }
 
+bool CpuFeatures::SupportsWasmSimd128() { return IsSupported(RISCV_SIMD); }
+
 void CpuFeatures::ProbeImpl(bool cross_compile) {
   supported_ |= CpuFeaturesImpliedByCompiler();
 
@@ -126,7 +128,8 @@ Register ToRegister(int num) {
 
 const int RelocInfo::kApplyMask =
     RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
-    RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED);
+    RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
+    RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET);
 
 bool RelocInfo::IsCodedSpecially() {
   // The deserializer needs to know whether a pointer is specially coded.  Being
@@ -452,6 +455,16 @@ static inline Instr SetAuipcOffset(int32_t offset, Instr instr) {
   return instr;
 }
 
+static inline Instr SetJalrOffset(int32_t offset, Instr instr) {
+  DCHECK(Assembler::IsJalr(instr));
+  DCHECK(is_int12(offset));
+  instr &= ~kImm12Mask;
+  int32_t imm12 = offset << kImm12Shift;
+  DCHECK(Assembler::IsJalr(instr | (imm12 & kImm12Mask)));
+  DCHECK(Assembler::JalrOffset(instr | (imm12 & kImm12Mask)) == offset);
+  return instr | (imm12 & kImm12Mask);
+}
+
 static inline Instr SetJalOffset(int32_t pos, int32_t target_pos, Instr instr) {
   DCHECK(Assembler::IsJal(instr));
   int32_t imm = target_pos - pos;
@@ -687,17 +700,36 @@ int Assembler::CJumpOffset(Instr instr) {
 int Assembler::BrachlongOffset(Instr auipc, Instr instr_I) {
   DCHECK(reinterpret_cast<Instruction*>(&instr_I)->InstructionType() ==
          InstructionBase::kIType);
-  const int kImm19_0Mask = ((1 << 20) - 1);
-  int32_t imm_auipc = auipc & (kImm19_0Mask << 12);
-  int32_t imm_12 = instr_I >> 20;
-  int32_t offset = imm_12 + imm_auipc;
+  DCHECK(IsAuipc(auipc));
+  int32_t imm_auipc = AuipcOffset(auipc);
+  int32_t imm12 = (instr_I & kImm12Mask) >> 20;
+  int32_t offset = imm12 + imm_auipc;
   return offset;
+}
+
+int Assembler::PatchBranchlongOffset(Address pc, Instr instr_auipc,
+                                     Instr instr_jalr, int32_t offset) {
+  DCHECK(IsAuipc(instr_auipc));
+  DCHECK(IsJalr(instr_jalr));
+  int32_t Hi20 = (((int32_t)offset + 0x800) >> 12);
+  int32_t Lo12 = (int32_t)offset << 20 >> 20;
+  CHECK(is_int32(offset));
+  instr_at_put(pc, SetAuipcOffset(Hi20, instr_auipc));
+  instr_at_put(pc + 4, SetJalrOffset(Lo12, instr_jalr));
+  DCHECK(offset ==
+         BrachlongOffset(Assembler::instr_at(pc), Assembler::instr_at(pc + 4)));
+  return 2;
 }
 
 int Assembler::LdOffset(Instr instr) {
   DCHECK(IsLd(instr));
   int32_t imm12 = (instr & kImm12Mask) >> 20;
-  imm12 = imm12 << 12 >> 12;
+  return imm12;
+}
+
+int Assembler::JalrOffset(Instr instr) {
+  DCHECK(IsJalr(instr));
+  int32_t imm12 = (instr & kImm12Mask) >> 20;
   return imm12;
 }
 
@@ -2565,9 +2597,25 @@ void Assembler::AdjustBaseAndOffset(MemOperand* src, Register scratch,
   // Must not overwrite the register 'base' while loading 'offset'.
   DCHECK(src->rm() != scratch);
 
-  RV_li(scratch, src->offset());
-  add(scratch, scratch, src->rm());
-  src->offset_ = 0;
+  constexpr int32_t kMinOffsetForSimpleAdjustment = 0x7F8;
+  constexpr int32_t kMaxOffsetForSimpleAdjustment =
+      2 * kMinOffsetForSimpleAdjustment;
+  if (0 <= src->offset() && src->offset() <= kMaxOffsetForSimpleAdjustment) {
+    addi(scratch, src->rm(), kMinOffsetForSimpleAdjustment);
+    src->offset_ -= kMinOffsetForSimpleAdjustment;
+  } else if (-kMaxOffsetForSimpleAdjustment <= src->offset() &&
+             src->offset() < 0) {
+    addi(scratch, src->rm(), -kMinOffsetForSimpleAdjustment);
+    src->offset_ += kMinOffsetForSimpleAdjustment;
+  } else if (access_type == OffsetAccessType::SINGLE_ACCESS) {
+    RV_li(scratch, (static_cast<int64_t>(src->offset()) + 0x800) >> 12 << 12);
+    add(scratch, scratch, src->rm());
+    src->offset_ = src->offset() << 20 >> 20;
+  } else {
+    RV_li(scratch, src->offset());
+    add(scratch, scratch, src->rm());
+    src->offset_ = 0;
+  }
   src->rm_ = scratch;
 }
 
@@ -2591,6 +2639,22 @@ int Assembler::RelocateInternalReference(RelocInfo::Mode rmode, Address pc,
   } else {
     UNIMPLEMENTED();
     return 1;
+  }
+}
+
+void Assembler::RelocateRelativeReference(RelocInfo::Mode rmode, Address pc,
+                                          intptr_t pc_delta) {
+  Instr instr = instr_at(pc);
+  Instr instr1 = instr_at(pc + 1 * kInstrSize);
+  DCHECK(RelocInfo::IsRelativeCodeTarget(rmode));
+  if (IsAuipc(instr) && IsJalr(instr1)) {
+    int32_t imm;
+    imm = BrachlongOffset(instr, instr1);
+    imm -= pc_delta;
+    PatchBranchlongOffset(pc, instr, instr1, imm);
+    return;
+  } else {
+    UNREACHABLE();
   }
 }
 
@@ -2764,12 +2828,23 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
                                       ICacheFlushMode icache_flush_mode) {
   Instr* instr = reinterpret_cast<Instr*>(pc);
   if (IsAuipc(*instr)) {
-    DCHECK(IsLd(*reinterpret_cast<Instr*>(pc + 4)));
-    int32_t Hi20 = AuipcOffset(*instr);
-    int32_t Lo12 = LdOffset(*reinterpret_cast<Instr*>(pc + 4));
-    Memory<Address>(pc + Hi20 + Lo12) = target;
-    if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-      FlushInstructionCache(pc + Hi20 + Lo12, 2 * kInstrSize);
+    if (IsLd(*reinterpret_cast<Instr*>(pc + 4))) {
+      int32_t Hi20 = AuipcOffset(*instr);
+      int32_t Lo12 = LdOffset(*reinterpret_cast<Instr*>(pc + 4));
+      Memory<Address>(pc + Hi20 + Lo12) = target;
+      if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
+        FlushInstructionCache(pc + Hi20 + Lo12, 2 * kInstrSize);
+      }
+    } else {
+      DCHECK(IsJalr(*reinterpret_cast<Instr*>(pc + 4)));
+      int64_t imm = (int64_t)target - (int64_t)pc;
+      Instr instr = instr_at(pc);
+      Instr instr1 = instr_at(pc + 1 * kInstrSize);
+      DCHECK(is_int32(imm));
+      int num = PatchBranchlongOffset(pc, instr, instr1, (int32_t)imm);
+      if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
+        FlushInstructionCache(pc, num * kInstrSize);
+      }
     }
   } else {
     set_target_address_at(pc, target, icache_flush_mode);
@@ -2779,10 +2854,17 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
 Address Assembler::target_address_at(Address pc, Address constant_pool) {
   Instr* instr = reinterpret_cast<Instr*>(pc);
   if (IsAuipc(*instr)) {
-    DCHECK(IsLd(*reinterpret_cast<Instr*>(pc + 4)));
-    int32_t Hi20 = AuipcOffset(*instr);
-    int32_t Lo12 = LdOffset(*reinterpret_cast<Instr*>(pc + 4));
-    return Memory<Address>(pc + Hi20 + Lo12);
+    if (IsLd(*reinterpret_cast<Instr*>(pc + 4))) {
+      int32_t Hi20 = AuipcOffset(*instr);
+      int32_t Lo12 = LdOffset(*reinterpret_cast<Instr*>(pc + 4));
+      return Memory<Address>(pc + Hi20 + Lo12);
+    } else {
+      DCHECK(IsJalr(*reinterpret_cast<Instr*>(pc + 4)));
+      int32_t Hi20 = AuipcOffset(*instr);
+      int32_t Lo12 = JalrOffset(*reinterpret_cast<Instr*>(pc + 4));
+      return pc + Hi20 + Lo12;
+    }
+
   } else {
     return target_address_at(pc);
   }

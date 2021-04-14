@@ -208,11 +208,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Get offset from instr.
   int BranchOffset(Instr instr);
-  int BrachlongOffset(Instr auipc, Instr jalr);
+  static int BrachlongOffset(Instr auipc, Instr jalr);
+  static int PatchBranchlongOffset(Address pc, Instr auipc, Instr instr_I,
+                                   int32_t offset);
   int JumpOffset(Instr instr);
   int CJumpOffset(Instr instr);
   static int LdOffset(Instr instr);
   static int AuipcOffset(Instr instr);
+  static int JalrOffset(Instr instr);
 
   // Returns the branch offset to the given label from the current code
   // position. Links the label to the current position if it is still unbound.
@@ -800,6 +803,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   static int RelocateInternalReference(RelocInfo::Mode rmode, Address pc,
                                        intptr_t pc_delta);
+  static void RelocateRelativeReference(RelocInfo::Mode rmode, Address pc,
+                                        intptr_t pc_delta);
 
   // Writes a single byte or word of data in the code stream.  Used for
   // inline tables, e.g., jump-tables.
@@ -861,6 +866,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static bool IsSlli(Instr instr);
   static bool IsLd(Instr instr);
   void CheckTrampolinePool();
+
+  // Get the code target object for a pc-relative call or jump.
+  V8_INLINE Handle<Code> relative_code_target_object_handle_at(
+      Address pc_) const;
 
   inline int UnboundLabelsCount() { return unbound_labels_count_; }
 
@@ -1231,6 +1240,16 @@ class V8_EXPORT_PRIVATE UseScratchRegisterScope {
 
   Register Acquire();
   bool hasAvailable() const;
+  void Include(const RegList& list) { *available_ |= list; }
+  void Exclude(const RegList& list) { *available_ &= ~list; }
+  void Include(const Register& reg1, const Register& reg2 = no_reg) {
+    RegList list(reg1.bit() | reg2.bit());
+    Include(list);
+  }
+  void Exclude(const Register& reg1, const Register& reg2 = no_reg) {
+    RegList list(reg1.bit() | reg2.bit());
+    Exclude(list);
+  }
 
  private:
   RegList* available_;

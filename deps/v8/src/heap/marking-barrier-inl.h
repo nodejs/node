@@ -13,6 +13,7 @@ namespace v8 {
 namespace internal {
 
 bool MarkingBarrier::MarkValue(HeapObject host, HeapObject value) {
+  DCHECK(IsCurrentMarkingBarrier());
   DCHECK(is_activated_);
   DCHECK(!marking_state_.IsImpossible(value));
   // Host may have an impossible markbit pattern if manual allocation folding

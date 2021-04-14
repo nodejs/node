@@ -355,7 +355,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::MarkDescriptorArrayBlack(
     DescriptorArray descriptors) {
   concrete_visitor()->marking_state()->WhiteToGrey(descriptors);
   if (concrete_visitor()->marking_state()->GreyToBlack(descriptors)) {
-    VisitPointer(descriptors, descriptors.map_slot());
+    VisitMapPointer(descriptors);
     VisitPointers(descriptors, descriptors.GetFirstPointerSlot(),
                   descriptors.GetDescriptorSlot(0));
     return DescriptorArray::BodyDescriptor::SizeOf(descriptors.map(),

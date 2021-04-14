@@ -74,6 +74,12 @@ class TorqueCodeGenerator {
   void EmitInstruction(const Instruction& instruction,
                        Stack<std::string>* stack);
 
+  template <typename T>
+  void EmitIRAnnotation(const T& instruction, Stack<std::string>* stack) {
+    out() << "    // " << instruction
+          << ", starting stack size: " << stack->Size() << "\n";
+  }
+
 #define EMIT_INSTRUCTION_DECLARATION(T) \
   void EmitInstruction(const T& instruction, Stack<std::string>* stack);
   TORQUE_BACKEND_AGNOSTIC_INSTRUCTION_LIST(EMIT_INSTRUCTION_DECLARATION)

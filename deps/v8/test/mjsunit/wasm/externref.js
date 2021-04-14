@@ -333,3 +333,28 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   instance.exports.main({hello: 4}, 5, {world: 6}, null, {bar: 7});
 })();
+
+(function MultiReturnRefTest() {
+  print("MultiReturnTest");
+  let builder = new WasmModuleBuilder();
+  let sig = makeSig([kWasmExternRef],
+      [kWasmExternRef, kWasmExternRef, kWasmExternRef, kWasmExternRef]);
+
+  builder.addFunction("callee", sig)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 0,
+      kExprLocalGet, 0,
+      kExprLocalGet, 0,
+    ]);
+  builder.addFunction("main", sig)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprCallFunction, 0
+    ])
+    .exportAs("main");
+
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let instance = new WebAssembly.Instance(module);
+  assertEquals(instance.exports.main(null), [null, null, null, null]);
+})();

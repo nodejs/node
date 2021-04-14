@@ -743,12 +743,16 @@ void ClassType::GenerateAccessors() {
       continue;
     }
 
+    // An explicit index is only used for indexed fields not marked as optional.
+    // Optional fields implicitly load or store item zero.
+    bool use_index = field.index && !field.index->optional;
+
     // Load accessor
     std::string load_macro_name = "Load" + this->name() + camel_field_name;
     Signature load_signature;
     load_signature.parameter_names.push_back(MakeNode<Identifier>("o"));
     load_signature.parameter_types.types.push_back(this);
-    if (field.index) {
+    if (use_index) {
       load_signature.parameter_names.push_back(MakeNode<Identifier>("i"));
       load_signature.parameter_types.types.push_back(
           TypeOracle::GetIntPtrType());
@@ -758,7 +762,7 @@ void ClassType::GenerateAccessors() {
 
     Expression* load_expression =
         MakeFieldAccessExpression(parameter, field.name_and_type.name);
-    if (field.index) {
+    if (use_index) {
       load_expression =
           MakeNode<ElementAccessExpression>(load_expression, index);
     }
@@ -773,7 +777,7 @@ void ClassType::GenerateAccessors() {
       Signature store_signature;
       store_signature.parameter_names.push_back(MakeNode<Identifier>("o"));
       store_signature.parameter_types.types.push_back(this);
-      if (field.index) {
+      if (use_index) {
         store_signature.parameter_names.push_back(MakeNode<Identifier>("i"));
         store_signature.parameter_types.types.push_back(
             TypeOracle::GetIntPtrType());
@@ -785,7 +789,7 @@ void ClassType::GenerateAccessors() {
       store_signature.return_type = TypeOracle::GetVoidType();
       Expression* store_expression =
           MakeFieldAccessExpression(parameter, field.name_and_type.name);
-      if (field.index) {
+      if (use_index) {
         store_expression =
             MakeNode<ElementAccessExpression>(store_expression, index);
       }
@@ -806,23 +810,23 @@ void ClassType::GenerateSliceAccessor(size_t field_index) {
   //
   // If the field has a known offset (in this example, 16):
   // FieldSliceClassNameFieldName(o: ClassName) {
-  //     return torque_internal::unsafe::New{Const,Mutable}Slice<FieldType>(
-  //     object: o,
-  //     offset: 16,
-  //     length: torque_internal::%IndexedFieldLength<ClassName>(
-  //                 o, "field_name")
+  //   return torque_internal::unsafe::New{Const,Mutable}Slice<FieldType>(
+  //     /*object:*/ o,
+  //     /*offset:*/ 16,
+  //     /*length:*/ torque_internal::%IndexedFieldLength<ClassName>(
+  //                     o, "field_name")
   //   );
   // }
   //
   // If the field has an unknown offset, and the previous field is named p, and
   // an item in the previous field has size 4:
   // FieldSliceClassNameFieldName(o: ClassName) {
-  //   const previous = &o.p;
-  //     return torque_internal::unsafe::New{Const,Mutable}Slice<FieldType>(
-  //     object: o,
-  //     offset: previous.offset + 4 * previous.length,
-  //     length: torque_internal::%IndexedFieldLength<ClassName>(
-  //                 o, "field_name")
+  //   const previous = %FieldSlice<ClassName>(o, "p");
+  //   return torque_internal::unsafe::New{Const,Mutable}Slice<FieldType>(
+  //     /*object:*/ o,
+  //     /*offset:*/ previous.offset + 4 * previous.length,
+  //     /*length:*/ torque_internal::%IndexedFieldLength<ClassName>(
+  //                     o, "field_name")
   //   );
   // }
   const Field& field = fields_[field_index];
@@ -849,14 +853,14 @@ void ClassType::GenerateSliceAccessor(size_t field_index) {
     const Field* previous = GetFieldPreceding(field_index);
     DCHECK_NOT_NULL(previous);
 
-    // o.p
-    Expression* previous_expression =
-        MakeFieldAccessExpression(parameter, previous->name_and_type.name);
+    // %FieldSlice<ClassName>(o, "p")
+    Expression* previous_expression = MakeCallExpression(
+        MakeIdentifierExpression({"torque_internal"}, "%FieldSlice",
+                                 {MakeNode<PrecomputedTypeExpression>(this)}),
+        {parameter, MakeNode<StringLiteralExpression>(
+                        StringLiteralQuote(previous->name_and_type.name))});
 
-    // &o.p
-    previous_expression = MakeCallExpression("&", {previous_expression});
-
-    // const previous = &o.p;
+    // const previous = %FieldSlice<ClassName>(o, "p");
     Statement* define_previous =
         MakeConstDeclarationStatement("previous", previous_expression);
     statements.push_back(define_previous);
@@ -896,10 +900,10 @@ void ClassType::GenerateSliceAccessor(size_t field_index) {
                       StringLiteralQuote(field.name_and_type.name))});
 
   // torque_internal::unsafe::New{Const,Mutable}Slice<FieldType>(
-  //   object: o,
-  //   offset: <<offset_expression>>,
-  //   length: torque_internal::%IndexedFieldLength<ClassName>(
-  //               o, "field_name")
+  //   /*object:*/ o,
+  //   /*offset:*/ <<offset_expression>>,
+  //   /*length:*/ torque_internal::%IndexedFieldLength<ClassName>(
+  //                   o, "field_name")
   // )
   IdentifierExpression* new_struct = MakeIdentifierExpression(
       {"torque_internal", "unsafe"},

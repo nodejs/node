@@ -394,6 +394,7 @@ int Sweeper::RawSweep(
           &old_to_new_cleanup);
     }
     Map map = object.synchronized_map();
+    DCHECK(map.IsMap());
     int size = object.SizeFromMap(map);
     live_bytes += size;
     free_start = free_end + size;

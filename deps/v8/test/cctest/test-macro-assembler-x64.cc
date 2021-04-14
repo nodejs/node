@@ -60,10 +60,18 @@ using F0 = int();
 static void EntryCode(MacroAssembler* masm) {
   // Smi constant register is callee save.
   __ pushq(kRootRegister);
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+  __ pushq(kPtrComprCageBaseRegister);
+#endif
   __ InitializeRootRegister();
 }
 
-static void ExitCode(MacroAssembler* masm) { __ popq(kRootRegister); }
+static void ExitCode(MacroAssembler* masm) {
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+  __ popq(kPtrComprCageBaseRegister);
+#endif
+  __ popq(kRootRegister);
+}
 
 TEST(Smi) {
   // Check that C++ Smi operations work as expected.

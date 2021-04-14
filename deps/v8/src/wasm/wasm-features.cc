@@ -23,11 +23,17 @@ WasmFeatures WasmFeatures::FromFlags() {
 
 // static
 WasmFeatures WasmFeatures::FromIsolate(Isolate* isolate) {
+  return FromContext(isolate, handle(isolate->context(), isolate));
+}
+
+// static
+WasmFeatures WasmFeatures::FromContext(Isolate* isolate,
+                                       Handle<Context> context) {
   WasmFeatures features = WasmFeatures::FromFlags();
-  if (isolate->IsWasmSimdEnabled(handle(isolate->context(), isolate))) {
+  if (isolate->IsWasmSimdEnabled(context)) {
     features.Add(kFeature_simd);
   }
-  if (isolate->AreWasmExceptionsEnabled(handle(isolate->context(), isolate))) {
+  if (isolate->AreWasmExceptionsEnabled(context)) {
     features.Add(kFeature_eh);
   }
   return features;

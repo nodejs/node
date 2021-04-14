@@ -40,7 +40,7 @@ class GCedWithMixin final : public GCed, public OtherPayload, public Mixin {
   }
 };
 
-class Holder : public cppgc::GarbageCollected<GCed> {
+class Holder : public cppgc::GarbageCollected<Holder> {
  public:
   explicit Holder(GCedWithMixin* object)
       : base_ref(object), mixin_ref(object) {}

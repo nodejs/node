@@ -151,6 +151,14 @@ class StringSharedKey : public HashTableKey {
         language_mode_(language_mode),
         position_(position) {}
 
+  // This tuple unambiguously identifies script compilation.
+  StringSharedKey(Handle<String> source, LanguageMode language_mode)
+      : HashTableKey(
+            CompilationCacheShape::StringSharedHash(*source, language_mode)),
+        source_(source),
+        language_mode_(language_mode),
+        position_(kNoSourcePosition) {}
+
   bool IsMatch(Object other) override {
     DisallowGarbageCollection no_gc;
     if (!other.IsFixedArray()) {
@@ -159,8 +167,14 @@ class StringSharedKey : public HashTableKey {
       return Hash() == other_hash;
     }
     FixedArray other_array = FixedArray::cast(other);
-    SharedFunctionInfo shared = SharedFunctionInfo::cast(other_array.get(0));
-    if (shared != *shared_) return false;
+    DCHECK(other_array.get(0).IsSharedFunctionInfo() ||
+           other_array.get(0) == Smi::zero());
+    Handle<SharedFunctionInfo> shared;
+    if (shared_.ToHandle(&shared)) {
+      if (*shared != other_array.get(0)) return false;
+    } else {
+      if (Smi::zero() != other_array.get(0)) return false;
+    }
     int language_unchecked = Smi::ToInt(other_array.get(2));
     DCHECK(is_valid_language_mode(language_unchecked));
     LanguageMode language_mode = static_cast<LanguageMode>(language_unchecked);
@@ -173,7 +187,12 @@ class StringSharedKey : public HashTableKey {
 
   Handle<Object> AsHandle(Isolate* isolate) {
     Handle<FixedArray> array = isolate->factory()->NewFixedArray(4);
-    array->set(0, *shared_);
+    Handle<SharedFunctionInfo> shared;
+    if (shared_.ToHandle(&shared)) {
+      array->set(0, *shared);
+    } else {
+      array->set(0, Smi::zero());
+    }
     array->set(1, *source_);
     array->set(2, Smi::FromEnum(language_mode_));
     array->set(3, Smi::FromInt(position_));
@@ -183,7 +202,7 @@ class StringSharedKey : public HashTableKey {
 
  private:
   Handle<String> source_;
-  Handle<SharedFunctionInfo> shared_;
+  MaybeHandle<SharedFunctionInfo> shared_;
   LanguageMode language_mode_;
   int position_;
 };
@@ -227,16 +246,9 @@ class CodeKey : public HashTableKey {
 
 MaybeHandle<SharedFunctionInfo> CompilationCacheTable::LookupScript(
     Handle<CompilationCacheTable> table, Handle<String> src,
-    Handle<Context> native_context, LanguageMode language_mode) {
-  // We use the empty function SFI as part of the key. Although the
-  // empty_function is native context dependent, the SFI is de-duped on
-  // snapshot builds by the StartupObjectCache, and so this does not prevent
-  // reuse of scripts in the compilation cache across native contexts.
-  Handle<SharedFunctionInfo> shared(native_context->empty_function().shared(),
-                                    native_context->GetIsolate());
-  Isolate* isolate = native_context->GetIsolate();
+    LanguageMode language_mode, Isolate* isolate) {
   src = String::Flatten(isolate, src);
-  StringSharedKey key(src, shared, language_mode, kNoSourcePosition);
+  StringSharedKey key(src, language_mode);
   InternalIndex entry = table->FindEntry(isolate, &key);
   if (entry.is_not_found()) return MaybeHandle<SharedFunctionInfo>();
   int index = EntryToIndex(entry);
@@ -245,7 +257,7 @@ MaybeHandle<SharedFunctionInfo> CompilationCacheTable::LookupScript(
   }
   Object obj = table->get(index + 1);
   if (obj.IsSharedFunctionInfo()) {
-    return handle(SharedFunctionInfo::cast(obj), native_context->GetIsolate());
+    return handle(SharedFunctionInfo::cast(obj), isolate);
   }
   return MaybeHandle<SharedFunctionInfo>();
 }
@@ -295,17 +307,10 @@ MaybeHandle<Code> CompilationCacheTable::LookupCode(
 
 Handle<CompilationCacheTable> CompilationCacheTable::PutScript(
     Handle<CompilationCacheTable> cache, Handle<String> src,
-    Handle<Context> native_context, LanguageMode language_mode,
-    Handle<SharedFunctionInfo> value) {
-  Isolate* isolate = native_context->GetIsolate();
-  // We use the empty function SFI as part of the key. Although the
-  // empty_function is native context dependent, the SFI is de-duped on
-  // snapshot builds by the StartupObjectCache, and so this does not prevent
-  // reuse of scripts in the compilation cache across native contexts.
-  Handle<SharedFunctionInfo> shared(native_context->empty_function().shared(),
-                                    isolate);
+    LanguageMode language_mode, Handle<SharedFunctionInfo> value,
+    Isolate* isolate) {
   src = String::Flatten(isolate, src);
-  StringSharedKey key(src, shared, language_mode, kNoSourcePosition);
+  StringSharedKey key(src, language_mode);
   Handle<Object> k = key.AsHandle(isolate);
   cache = EnsureCapacity(isolate, cache);
   InternalIndex entry = cache->FindInsertionEntry(isolate, key.Hash());

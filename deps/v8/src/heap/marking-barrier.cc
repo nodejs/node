@@ -5,6 +5,7 @@
 #include "src/heap/marking-barrier.h"
 
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap-write-barrier.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking-inl.h"
 #include "src/heap/incremental-marking.h"
@@ -37,6 +38,7 @@ MarkingBarrier::~MarkingBarrier() { DCHECK(worklist_.IsLocalEmpty()); }
 
 void MarkingBarrier::Write(HeapObject host, HeapObjectSlot slot,
                            HeapObject value) {
+  DCHECK(IsCurrentMarkingBarrier());
   if (MarkValue(host, value)) {
     if (is_compacting_ && slot.address()) {
       collector_->RecordSlot(host, slot, value);
@@ -45,6 +47,7 @@ void MarkingBarrier::Write(HeapObject host, HeapObjectSlot slot,
 }
 
 void MarkingBarrier::Write(Code host, RelocInfo* reloc_info, HeapObject value) {
+  DCHECK(IsCurrentMarkingBarrier());
   if (MarkValue(host, value)) {
     if (is_compacting_) {
       if (is_main_thread_barrier_) {
@@ -60,6 +63,7 @@ void MarkingBarrier::Write(Code host, RelocInfo* reloc_info, HeapObject value) {
 
 void MarkingBarrier::Write(JSArrayBuffer host,
                            ArrayBufferExtension* extension) {
+  DCHECK(IsCurrentMarkingBarrier());
   if (!V8_CONCURRENT_MARKING_BOOL && !marking_state_.IsBlack(host)) {
     // The extension will be marked when the marker visits the host object.
     return;
@@ -69,6 +73,7 @@ void MarkingBarrier::Write(JSArrayBuffer host,
 
 void MarkingBarrier::Write(DescriptorArray descriptor_array,
                            int number_of_own_descriptors) {
+  DCHECK(IsCurrentMarkingBarrier());
   DCHECK(is_main_thread_barrier_);
   int16_t raw_marked = descriptor_array.raw_number_of_marked_descriptors();
   if (NumberOfMarkedDescriptors::decode(collector_->epoch(), raw_marked) <
@@ -80,6 +85,7 @@ void MarkingBarrier::Write(DescriptorArray descriptor_array,
 
 void MarkingBarrier::RecordRelocSlot(Code host, RelocInfo* rinfo,
                                      HeapObject target) {
+  DCHECK(IsCurrentMarkingBarrier());
   MarkCompactCollector::RecordRelocSlotInfo info =
       MarkCompactCollector::PrepareRecordRelocSlot(host, rinfo, target);
   if (info.should_record) {
@@ -202,6 +208,10 @@ void MarkingBarrier::Activate(bool is_compacting) {
       p->SetOldGenerationPageFlags(true);
     }
   }
+}
+
+bool MarkingBarrier::IsCurrentMarkingBarrier() {
+  return WriteBarrier::CurrentMarkingBarrier(heap_) == this;
 }
 
 }  // namespace internal

@@ -25,7 +25,9 @@ namespace wasm {
 using VarState = LiftoffAssembler::VarState;
 using ValueKindSig = LiftoffAssembler::ValueKindSig;
 
-constexpr ValueKind LiftoffAssembler::kIntPtr;
+constexpr ValueKind LiftoffAssembler::kPointerKind;
+constexpr ValueKind LiftoffAssembler::kTaggedKind;
+constexpr ValueKind LiftoffAssembler::kSmiKind;
 
 namespace {
 
@@ -90,21 +92,6 @@ class StackTransferRecipe {
     ExecuteLoads();
     DCHECK(load_dst_regs_.is_empty());
   }
-
-#if DEBUG
-  bool CheckCompatibleStackSlotTypes(ValueKind dst, ValueKind src) {
-    if (is_object_reference_type(dst)) {
-      // Since Liftoff doesn't do accurate type tracking (e.g. on loop back
-      // edges), we only care that pointer types stay amongst pointer types.
-      // It's fine if ref/optref overwrite each other.
-      DCHECK(is_object_reference_type(src));
-    } else {
-      // All other types (primitive numbers, RTTs, bottom/stmt) must be equal.
-      DCHECK_EQ(dst, src);
-    }
-    return true;  // Dummy so this can be called via DCHECK.
-  }
-#endif
 
   V8_INLINE void TransferStackSlot(const VarState& dst, const VarState& src) {
     DCHECK(CheckCompatibleStackSlotTypes(dst.kind(), src.kind()));
@@ -533,7 +520,7 @@ void LiftoffAssembler::CacheState::GetTaggedSlotsForOOLCode(
     ZoneVector<int>* slots, LiftoffRegList* spills,
     SpillLocation spill_location) {
   for (const auto& slot : stack_state) {
-    if (!is_reference_type(slot.kind())) continue;
+    if (!is_reference(slot.kind())) continue;
 
     if (spill_location == SpillLocation::kTopOfStack && slot.is_reg()) {
       // Registers get spilled just before the call to the runtime. In {spills}
@@ -550,10 +537,22 @@ void LiftoffAssembler::CacheState::GetTaggedSlotsForOOLCode(
 
 void LiftoffAssembler::CacheState::DefineSafepoint(Safepoint& safepoint) {
   for (const auto& slot : stack_state) {
-    DCHECK(!slot.is_reg());
-
-    if (is_reference_type(slot.kind())) {
+    if (is_reference(slot.kind())) {
+      DCHECK(slot.is_stack());
       safepoint.DefinePointerSlot(GetSafepointIndexForStackSlot(slot));
+    }
+  }
+}
+
+void LiftoffAssembler::CacheState::DefineSafepointWithCalleeSavedRegisters(
+    Safepoint& safepoint) {
+  for (const auto& slot : stack_state) {
+    if (!is_reference(slot.kind())) continue;
+    if (slot.is_stack()) {
+      safepoint.DefinePointerSlot(GetSafepointIndexForStackSlot(slot));
+    } else {
+      DCHECK(slot.is_reg());
+      safepoint.DefineRegister(slot.reg().gp().code());
     }
   }
 }
@@ -582,8 +581,8 @@ LiftoffAssembler::LiftoffAssembler(std::unique_ptr<AssemblerBuffer> buffer)
 }
 
 LiftoffAssembler::~LiftoffAssembler() {
-  if (num_locals_ > kInlineLocalTypes) {
-    base::Free(more_local_types_);
+  if (num_locals_ > kInlineLocalKinds) {
+    base::Free(more_local_kinds_);
   }
 }
 
@@ -640,6 +639,15 @@ void LiftoffAssembler::DropValues(int count) {
       cache_state_.dec_used(slot.reg());
     }
   }
+}
+
+void LiftoffAssembler::DropValue(int depth) {
+  auto* dropped = cache_state_.stack_state.begin() + depth;
+  if (dropped->is_reg()) {
+    cache_state_.dec_used(dropped->reg());
+  }
+  std::copy(dropped + 1, cache_state_.stack_state.end(), dropped);
+  cache_state_.stack_state.pop_back();
 }
 
 void LiftoffAssembler::PrepareLoopArgs(int num) {
@@ -700,15 +708,15 @@ void LiftoffAssembler::MergeFullStackWith(CacheState& target,
     transfers.TransferStackSlot(target.stack_state[i], source.stack_state[i]);
   }
 
+  // Full stack merging is only done for forward jumps, so we can just clear the
+  // instance cache register at the target in case of mismatch.
   if (source.cached_instance != target.cached_instance) {
-    // Backward jumps (to loop headers) do not have a cached instance anyway, so
-    // ignore this. On forward jumps, jump reset the cached instance in the
-    // target state.
     target.ClearCachedInstanceRegister();
   }
 }
 
-void LiftoffAssembler::MergeStackWith(CacheState& target, uint32_t arity) {
+void LiftoffAssembler::MergeStackWith(CacheState& target, uint32_t arity,
+                                      JumpDirection jump_direction) {
   // Before: ----------------|----- (discarded) ----|--- arity ---|
   //                         ^target_stack_height   ^stack_base   ^stack_height
   // After:  ----|-- arity --|
@@ -730,11 +738,21 @@ void LiftoffAssembler::MergeStackWith(CacheState& target, uint32_t arity) {
                                 cache_state_.stack_state[stack_base + i]);
   }
 
-  if (cache_state_.cached_instance != target.cached_instance) {
-    // Backward jumps (to loop headers) do not have a cached instance anyway, so
-    // ignore this. On forward jumps, jump reset the cached instance in the
-    // target state.
-    target.ClearCachedInstanceRegister();
+  if (cache_state_.cached_instance != target.cached_instance &&
+      target.cached_instance != no_reg) {
+    if (jump_direction == kForwardJump) {
+      // On forward jumps, just reset the cached instance in the target state.
+      target.ClearCachedInstanceRegister();
+    } else {
+      // On backward jumps, we already generated code assuming that the instance
+      // is available in that register. Thus move it there.
+      if (cache_state_.cached_instance == no_reg) {
+        LoadInstanceFromFrame(target.cached_instance);
+      } else {
+        Move(target.cached_instance, cache_state_.cached_instance,
+             kPointerKind);
+      }
+    }
   }
 }
 
@@ -785,7 +803,7 @@ void LiftoffAssembler::ClearRegister(
     if (reg != *use) continue;
     if (replacement == no_reg) {
       replacement = GetUnusedRegister(kGpReg, pinned).gp();
-      Move(replacement, reg, LiftoffAssembler::kIntPtr);
+      Move(replacement, reg, kPointerKind);
     }
     // We cannot leave this loop early. There may be multiple uses of {reg}.
     *use = replacement;
@@ -799,8 +817,9 @@ void PrepareStackTransfers(const ValueKindSig* sig,
                            LiftoffStackSlots* stack_slots,
                            StackTransferRecipe* stack_transfers,
                            LiftoffRegList* param_regs) {
-  // Process parameters backwards, such that pushes of caller frame slots are
-  // in the correct order.
+  // Process parameters backwards, to reduce the amount of Slot sorting for
+  // the most common case - a normal Wasm Call. Slots will be mostly unsorted
+  // in the Builtin call case.
   uint32_t call_desc_input_idx =
       static_cast<uint32_t>(call_descriptor->InputCount());
   uint32_t num_params = static_cast<uint32_t>(sig->parameter_count());
@@ -834,7 +853,8 @@ void PrepareStackTransfers(const ValueKindSig* sig,
         }
       } else {
         DCHECK(loc.IsCallerFrameSlot());
-        stack_slots->Add(slot, stack_offset, half);
+        int param_offset = -loc.GetLocation() - 1;
+        stack_slots->Add(slot, stack_offset, half, param_offset);
       }
     }
   }
@@ -851,10 +871,10 @@ void LiftoffAssembler::PrepareBuiltinCall(
   PrepareStackTransfers(sig, call_descriptor, params.begin(), &stack_slots,
                         &stack_transfers, &param_regs);
   SpillAllRegisters();
-  // Create all the slots.
-  // Builtin stack parameters are pushed in reversed order.
-  stack_slots.Reverse();
-  stack_slots.Construct();
+  int param_slots = static_cast<int>(call_descriptor->ParameterSlotCount());
+  if (param_slots > 0) {
+    stack_slots.Construct(param_slots);
+  }
   // Execute the stack transfers before filling the instance register.
   stack_transfers.Execute();
 
@@ -894,9 +914,11 @@ void LiftoffAssembler::PrepareCall(const ValueKindSig* sig,
   param_regs.set(instance_reg);
   if (target_instance && *target_instance != instance_reg) {
     stack_transfers.MoveRegister(LiftoffRegister(instance_reg),
-                                 LiftoffRegister(*target_instance), kIntPtr);
+                                 LiftoffRegister(*target_instance),
+                                 kPointerKind);
   }
 
+  int param_slots = static_cast<int>(call_descriptor->ParameterSlotCount());
   if (num_params) {
     uint32_t param_base = cache_state_.stack_height() - num_params;
     PrepareStackTransfers(sig, call_descriptor,
@@ -912,17 +934,19 @@ void LiftoffAssembler::PrepareCall(const ValueKindSig* sig,
     if (!free_regs.is_empty()) {
       LiftoffRegister new_target = free_regs.GetFirstRegSet();
       stack_transfers.MoveRegister(new_target, LiftoffRegister(*target),
-                                   kIntPtr);
+                                   kPointerKind);
       *target = new_target.gp();
     } else {
-      stack_slots.Add(LiftoffAssembler::VarState(LiftoffAssembler::kIntPtr,
-                                                 LiftoffRegister(*target), 0));
+      stack_slots.Add(VarState(kPointerKind, LiftoffRegister(*target), 0),
+                      param_slots);
+      param_slots++;
       *target = no_reg;
     }
   }
 
-  // Create all the slots.
-  stack_slots.Construct();
+  if (param_slots > 0) {
+    stack_slots.Construct(param_slots);
+  }
   // Execute the stack transfers before filling the instance register.
   stack_transfers.Execute();
   // Pop parameters from the value stack.
@@ -977,7 +1001,7 @@ void LiftoffAssembler::FinishCall(const ValueKindSig* sig,
                                                          reg_pair[1].gp()));
     }
   }
-  int return_slots = static_cast<int>(call_descriptor->StackReturnCount());
+  int return_slots = static_cast<int>(call_descriptor->ReturnSlotCount());
   RecordUsedSpillOffset(TopSpillOffset() + return_slots * kSystemPointerSize);
 }
 
@@ -1203,10 +1227,10 @@ void LiftoffAssembler::SpillRegister(LiftoffRegister reg) {
 void LiftoffAssembler::set_num_locals(uint32_t num_locals) {
   DCHECK_EQ(0, num_locals_);  // only call this once.
   num_locals_ = num_locals;
-  if (num_locals > kInlineLocalTypes) {
-    more_local_types_ = reinterpret_cast<ValueKind*>(
+  if (num_locals > kInlineLocalKinds) {
+    more_local_kinds_ = reinterpret_cast<ValueKind*>(
         base::Malloc(num_locals * sizeof(ValueKind)));
-    DCHECK_NOT_NULL(more_local_types_);
+    DCHECK_NOT_NULL(more_local_kinds_);
   }
 }
 
@@ -1222,6 +1246,21 @@ std::ostream& operator<<(std::ostream& os, VarState slot) {
   }
   UNREACHABLE();
 }
+
+#if DEBUG
+bool CheckCompatibleStackSlotTypes(ValueKind a, ValueKind b) {
+  if (is_object_reference(a)) {
+    // Since Liftoff doesn't do accurate type tracking (e.g. on loop back
+    // edges), we only care that pointer types stay amongst pointer types.
+    // It's fine if ref/optref overwrite each other.
+    DCHECK(is_object_reference(b));
+  } else {
+    // All other types (primitive numbers, RTTs, bottom/stmt) must be equal.
+    DCHECK_EQ(a, b);
+  }
+  return true;  // Dummy so this can be called via DCHECK.
+}
+#endif
 
 }  // namespace wasm
 }  // namespace internal

@@ -121,7 +121,7 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
   DCHECK_EQ(0, size % CommitPageSize());
   uint32_t prot = GetProtectionFromMemoryPermission(access);
-  return zx::vmar::root_self()->protect2(
+  return zx::vmar::root_self()->protect(
              prot, reinterpret_cast<uintptr_t>(address), size) == ZX_OK;
 }
 

@@ -59,7 +59,7 @@
 #include "src/trap-handler/trap-handler.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/utils.h"
-#include "src/wasm/wasm-engine.h"
+#include "src/web-snapshot/web-snapshot.h"
 
 #ifdef V8_FUZZILLI
 #include "src/d8/cov.h"
@@ -724,6 +724,27 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
       if (!HandleUnhandledPromiseRejections(isolate)) success = false;
     }
     data->realm_current_ = data->realm_switch_;
+
+    if (options.web_snapshot_config) {
+      std::vector<std::string> exports;
+      if (!ReadLines(options.web_snapshot_config, exports)) {
+        Throw(isolate, "Web snapshots: unable to read config");
+        CHECK(try_catch.HasCaught());
+        ReportException(isolate, &try_catch);
+        return false;
+      }
+
+      i::WebSnapshotSerializer serializer(isolate);
+      i::WebSnapshotData snapshot_data;
+      if (serializer.TakeSnapshot(context, exports, snapshot_data)) {
+        DCHECK_NOT_NULL(snapshot_data.buffer);
+        WriteChars("web.snap", snapshot_data.buffer, snapshot_data.buffer_size);
+      } else {
+        CHECK(try_catch.HasCaught());
+        ReportException(isolate, &try_catch);
+        return false;
+      }
+    }
   }
   Local<Value> result;
   if (!maybe_result.ToLocal(&result)) {
@@ -1234,10 +1255,6 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
   Local<Value> module_namespace = root_module->GetModuleNamespace();
   if (i::FLAG_harmony_top_level_await) {
     Local<Promise> result_promise(result.As<Promise>());
-    if (result_promise->State() == Promise::kRejected) {
-      resolver->Reject(realm, result_promise->Result()).ToChecked();
-      return;
-    }
 
     // Setup callbacks, and then chain them to the result promise.
     // ModuleResolutionData will be deleted by the callbacks.
@@ -1322,6 +1339,37 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
     }
   }
 
+  DCHECK(!try_catch.HasCaught());
+  return true;
+}
+
+bool Shell::ExecuteWebSnapshot(Isolate* isolate, const char* file_name) {
+  HandleScope handle_scope(isolate);
+
+  PerIsolateData* data = PerIsolateData::Get(isolate);
+  Local<Context> realm = data->realms_[data->realm_current_].Get(isolate);
+  Context::Scope context_scope(realm);
+
+  std::string absolute_path = NormalizePath(file_name, GetWorkingDirectory());
+
+  TryCatch try_catch(isolate);
+  try_catch.SetVerbose(true);
+  int length = 0;
+  std::unique_ptr<uint8_t[]> snapshot_data(
+      reinterpret_cast<uint8_t*>(ReadChars(absolute_path.c_str(), &length)));
+  if (length == 0) {
+    Throw(isolate, "Error reading the web snapshot");
+    DCHECK(try_catch.HasCaught());
+    ReportException(isolate, &try_catch);
+    return false;
+  }
+  i::WebSnapshotDeserializer deserializer(isolate);
+  if (!deserializer.UseWebSnapshot(snapshot_data.get(),
+                                   static_cast<size_t>(length))) {
+    DCHECK(try_catch.HasCaught());
+    ReportException(isolate, &try_catch);
+    return false;
+  }
   DCHECK(!try_catch.HasCaught());
   return true;
 }
@@ -1763,6 +1811,92 @@ void Shell::LogGetAndStop(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(result);
 }
 
+void Shell::TestVerifySourcePositions(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  // Check if the argument is a valid function.
+  if (args.Length() != 1) {
+    Throw(isolate, "Expected function as single argument.");
+    return;
+  }
+  auto arg_handle = Utils::OpenHandle(*args[0]);
+  if (!arg_handle->IsHeapObject() || !i::Handle<i::HeapObject>::cast(arg_handle)
+                                          ->IsJSFunctionOrBoundFunction()) {
+    Throw(isolate, "Expected function as single argument.");
+    return;
+  }
+
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  HandleScope handle_scope(isolate);
+
+  auto callable = i::Handle<i::JSFunctionOrBoundFunction>::cast(arg_handle);
+  while (callable->IsJSBoundFunction()) {
+    auto bound_function = i::Handle<i::JSBoundFunction>::cast(callable);
+    auto bound_target = bound_function->bound_target_function();
+    callable =
+        handle(i::JSFunctionOrBoundFunction::cast(bound_target), i_isolate);
+  }
+
+  i::Handle<i::JSFunction> function = i::Handle<i::JSFunction>::cast(callable);
+  if (!function->shared().HasBytecodeArray()) {
+    Throw(isolate, "Function has no BytecodeArray attached.");
+    return;
+  }
+  i::Handle<i::BytecodeArray> bytecodes =
+      handle(function->shared().GetBytecodeArray(i_isolate), i_isolate);
+  i::interpreter::BytecodeArrayIterator bytecode_iterator(bytecodes);
+  bool has_baseline = function->shared().HasBaselineData();
+  i::Handle<i::ByteArray> bytecode_offsets;
+  std::unique_ptr<i::baseline::BytecodeOffsetIterator> offset_iterator;
+  if (has_baseline) {
+    bytecode_offsets =
+        handle(i::ByteArray::cast(
+                   function->shared().GetCode().bytecode_offset_table()),
+               i_isolate);
+    offset_iterator = std::make_unique<i::baseline::BytecodeOffsetIterator>(
+        bytecode_offsets, bytecodes);
+    // A freshly initiated BytecodeOffsetIterator points to the prologue.
+    DCHECK_EQ(offset_iterator->current_pc_start_offset(), 0);
+    DCHECK_EQ(offset_iterator->current_bytecode_offset(),
+              i::kFunctionEntryBytecodeOffset);
+    offset_iterator->Advance();
+  }
+  while (!bytecode_iterator.done()) {
+    if (has_baseline) {
+      if (offset_iterator->current_bytecode_offset() !=
+          bytecode_iterator.current_offset()) {
+        Throw(isolate, "Baseline bytecode offset mismatch.");
+        return;
+      }
+      // Check that we map every address to this bytecode correctly.
+      // The start address is exclusive and the end address inclusive.
+      for (i::Address pc = offset_iterator->current_pc_start_offset() + 1;
+           pc <= offset_iterator->current_pc_end_offset(); ++pc) {
+        i::baseline::BytecodeOffsetIterator pc_lookup(bytecode_offsets,
+                                                      bytecodes);
+        pc_lookup.AdvanceToPCOffset(pc);
+        if (pc_lookup.current_bytecode_offset() !=
+            bytecode_iterator.current_offset()) {
+          Throw(isolate, "Baseline bytecode offset mismatch for PC lookup.");
+          return;
+        }
+      }
+    }
+    bytecode_iterator.Advance();
+    if (has_baseline && !bytecode_iterator.done()) {
+      if (offset_iterator->done()) {
+        Throw(isolate, "Missing bytecode(s) in baseline offset mapping.");
+        return;
+      }
+      offset_iterator->Advance();
+    }
+  }
+  if (has_baseline && !offset_iterator->done()) {
+    Throw(isolate, "Excess offsets in baseline offset mapping.");
+    return;
+  }
+}
+
 // async_hooks.createHook() registers functions to be called for different
 // lifetime events of each async operation.
 void Shell::AsyncHooksCreateHook(
@@ -1805,7 +1939,7 @@ void WriteToFile(FILE* file, const v8::FunctionCallbackInfo<v8::Value>& args) {
     Local<String> str_obj;
 
     if (arg->IsSymbol()) {
-      arg = arg.As<Symbol>()->Description();
+      arg = arg.As<Symbol>()->Description(args.GetIsolate());
     }
     if (!arg->ToString(args.GetIsolate()->GetCurrentContext())
              .ToLocal(&str_obj)) {
@@ -2228,7 +2362,7 @@ void Shell::Fuzzilli(const v8::FunctionCallbackInfo<v8::Value>& args) {
                    .FromMaybe(0);
     switch (arg) {
       case 0:
-        V8_IMMEDIATE_CRASH();
+        IMMEDIATE_CRASH();
         break;
       case 1:
         CHECK(0);
@@ -2532,6 +2666,7 @@ Local<ObjectTemplate> Shell::CreateTestRunnerTemplate(Isolate* isolate) {
   // installed on the global object can be hidden with the --omit-quit flag
   // (e.g. on asan bots).
   test_template->Set(isolate, "quit", FunctionTemplate::New(isolate, Quit));
+
   return test_template;
 }
 
@@ -2581,6 +2716,22 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
                       FunctionTemplate::New(isolate, LogGetAndStop));
 
     d8_template->Set(isolate, "log", log_template);
+  }
+  {
+    Local<ObjectTemplate> test_template = ObjectTemplate::New(isolate);
+    test_template->Set(
+        isolate, "verifySourcePositions",
+        FunctionTemplate::New(isolate, TestVerifySourcePositions));
+    // Correctness fuzzing will attempt to compare results of tests with and
+    // without turbo_fast_api_calls, so we don't expose the fast_c_api
+    // constructor when --correctness_fuzzer_suppressions is on.
+    if (i::FLAG_turbo_fast_api_calls &&
+        !i::FLAG_correctness_fuzzer_suppressions) {
+      test_template->Set(isolate, "fast_c_api",
+                         Shell::CreateTestFastCApiTemplate(isolate));
+    }
+
+    d8_template->Set(isolate, "test", test_template);
   }
   return d8_template;
 }
@@ -2988,9 +3139,9 @@ static FILE* FOpen(const char* path, const char* mode) {
 #endif
 }
 
-static char* ReadChars(const char* name, int* size_out) {
-  if (Shell::options.read_from_tcp_port >= 0) {
-    return Shell::ReadCharsFromTcpPort(name, size_out);
+char* Shell::ReadChars(const char* name, int* size_out) {
+  if (options.read_from_tcp_port >= 0) {
+    return ReadCharsFromTcpPort(name, size_out);
   }
 
   FILE* file = FOpen(name, "rb");
@@ -3013,6 +3164,20 @@ static char* ReadChars(const char* name, int* size_out) {
   base::Fclose(file);
   *size_out = static_cast<int>(size);
   return chars;
+}
+
+bool Shell::ReadLines(const char* name, std::vector<std::string>& lines) {
+  int length;
+  const char* data = reinterpret_cast<const char*>(ReadChars(name, &length));
+  if (data == nullptr) {
+    return false;
+  }
+  std::stringstream stream(data);
+  std::string line;
+  while (std::getline(stream, line, '\n')) {
+    lines.emplace_back(line);
+  }
+  return true;
 }
 
 void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -3063,6 +3228,13 @@ Local<String> Shell::ReadFile(Isolate* isolate, const char* name) {
                  .ToLocalChecked();
   }
   return result;
+}
+
+void Shell::WriteChars(const char* name, uint8_t* buffer, size_t buffer_size) {
+  FILE* file = base::Fopen(name, "w");
+  if (file == nullptr) return;
+  fwrite(buffer, 1, buffer_size, file);
+  base::Fclose(file);
 }
 
 void Shell::RunShell(Isolate* isolate) {
@@ -3318,6 +3490,15 @@ bool SourceGroup::Execute(Isolate* isolate) {
       arg = argv_[++i];
       Shell::set_script_executed();
       if (!Shell::ExecuteModule(isolate, arg)) {
+        success = false;
+        break;
+      }
+      continue;
+    } else if (strcmp(arg, "--web-snapshot") == 0 && i + 1 < end_offset_) {
+      // Treat the next file as a web snapshot.
+      arg = argv_[++i];
+      Shell::set_script_executed();
+      if (!Shell::ExecuteWebSnapshot(isolate, arg)) {
         success = false;
         break;
       }
@@ -3874,6 +4055,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       options.cpu_profiler = true;
       options.cpu_profiler_print = true;
       argv[i] = nullptr;
+    } else if (strncmp(argv[i], "--web-snapshot-config=", 22) == 0) {
+      options.web_snapshot_config = argv[i] + 22;
+      argv[i] = nullptr;
 #ifdef V8_FUZZILLI
     } else if (strcmp(argv[i], "--no-fuzzilli-enable-builtins-coverage") == 0) {
       options.fuzzilli_enable_builtins_coverage = false;
@@ -3885,11 +4069,18 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--fuzzy-module-file-extensions") == 0) {
       options.fuzzy_module_file_extensions = true;
       argv[i] = nullptr;
-#ifdef V8_ENABLE_SYSTEM_INSTRUMENTATION
+#if defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
+#if defined(V8_TARGET_OS_WIN) || defined(V8_TARGET_OS_MACOSX)
     } else if (strcmp(argv[i], "--enable-system-instrumentation") == 0) {
       options.enable_system_instrumentation = true;
       options.trace_enabled = true;
+#if defined(V8_TARGET_OS_WIN)
+      // Guard this bc the flag has a lot of overhead and is not currently used
+      // by macos
+      i::FLAG_interpreted_frames_native_stack = true;
+#endif
       argv[i] = nullptr;
+#endif
 #endif
     }
   }
@@ -3901,10 +4092,12 @@ bool Shell::SetOptions(int argc, char* argv[]) {
   const char* usage =
       "Synopsis:\n"
       "  shell [options] [--shell] [<file>...]\n"
-      "  d8 [options] [-e <string>] [--shell] [[--module] <file>...]\n\n"
+      "  d8 [options] [-e <string>] [--shell] [[--module|--web-snapshot]"
+      " <file>...]\n\n"
       "  -e        execute a string in V8\n"
       "  --shell   run an interactive JavaScript shell\n"
-      "  --module  execute a file as a JavaScript module\n\n";
+      "  --module  execute a file as a JavaScript module\n"
+      "  --web-snapshot  execute a file as a web snapshot\n\n";
   using HelpOptions = i::FlagList::HelpOptions;
   i::FLAG_abort_on_contradictory_flags = true;
   i::FlagList::SetFlagsFromCommandLine(&argc, argv, true,
@@ -3926,8 +4119,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       current->End(i);
       current++;
       current->Begin(argv, i + 1);
-    } else if (strcmp(str, "--module") == 0) {
-      // Pass on to SourceGroup, which understands this option.
+    } else if (strcmp(str, "--module") == 0 ||
+               strcmp(str, "--web-snapshot") == 0) {
+      // Pass on to SourceGroup, which understands these options.
     } else if (strncmp(str, "--", 2) == 0) {
       if (!i::FLAG_correctness_fuzzer_suppressions) {
         printf("Warning: unknown flag %s.\nTry --help for options\n", str);
@@ -4466,13 +4660,16 @@ int Shell::Main(int argc, char* argv[]) {
   std::unique_ptr<platform::tracing::TracingController> tracing;
   if (options.trace_enabled && !i::FLAG_verify_predictable) {
     tracing = std::make_unique<platform::tracing::TracingController>();
-    const char* trace_path =
-        options.trace_path ? options.trace_path : "v8_trace.json";
-    trace_file.open(trace_path);
-    if (!trace_file.good()) {
-      printf("Cannot open trace file '%s' for writing: %s.\n", trace_path,
-             strerror(errno));
-      return 1;
+
+    if (!options.enable_system_instrumentation) {
+      const char* trace_path =
+          options.trace_path ? options.trace_path : "v8_trace.json";
+      trace_file.open(trace_path);
+      if (!trace_file.good()) {
+        printf("Cannot open trace file '%s' for writing: %s.\n", trace_path,
+               strerror(errno));
+        return 1;
+      }
     }
 
 #ifdef V8_USE_PERFETTO
@@ -4576,12 +4773,14 @@ int Shell::Main(int argc, char* argv[]) {
     create_params.add_histogram_sample_callback = AddHistogramSample;
   }
 
+#if V8_ENABLE_WEBASSEMBLY
   if (V8_TRAP_HANDLER_SUPPORTED && i::FLAG_wasm_trap_handler) {
     constexpr bool use_default_trap_handler = true;
     if (!v8::V8::EnableWebAssemblyTrapHandler(use_default_trap_handler)) {
       FATAL("Could not register trap handler");
     }
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   Isolate* isolate = Isolate::New(create_params);
 

@@ -70,7 +70,8 @@ class JSFunction : public JSFunctionOrBoundFunction {
   // [context]: The context for this function.
   inline Context context();
   inline bool has_context() const;
-  inline void set_context(HeapObject context);
+  inline void set_context(HeapObject context,
+                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline JSGlobalProxy global_proxy();
   inline NativeContext native_context();
   inline int length();
@@ -221,8 +222,11 @@ class JSFunction : public JSFunctionOrBoundFunction {
   // The initial map for an object created by this constructor.
   DECL_GETTER(initial_map, Map)
 
-  static void SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
-                            Handle<HeapObject> prototype);
+  static void SetInitialMap(Isolate* isolate, Handle<JSFunction> function,
+                            Handle<Map> map, Handle<HeapObject> prototype);
+  static void SetInitialMap(Isolate* isolate, Handle<JSFunction> function,
+                            Handle<Map> map, Handle<HeapObject> prototype,
+                            Handle<JSFunction> constructor);
   DECL_GETTER(has_initial_map, bool)
   V8_EXPORT_PRIVATE static void EnsureHasInitialMap(
       Handle<JSFunction> function);

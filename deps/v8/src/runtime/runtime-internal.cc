@@ -7,6 +7,7 @@
 #include "src/api/api.h"
 #include "src/ast/ast-traversal-visitor.h"
 #include "src/ast/prettyprinter.h"
+#include "src/baseline/baseline-osr-inl.h"
 #include "src/baseline/baseline.h"
 #include "src/builtins/builtins.h"
 #include "src/common/message-template.h"
@@ -337,14 +338,20 @@ RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterruptFromBytecode) {
         function->shared().is_compiled_scope(isolate));
     JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
     DCHECK(is_compiled_scope.is_compiled());
-    if (FLAG_sparkplug) {
-      Compiler::CompileBaseline(isolate, function, Compiler::CLEAR_EXCEPTION,
-                                &is_compiled_scope);
-    }
     // Also initialize the invocation count here. This is only really needed for
     // OSR. When we OSR functions with lazy feedback allocation we want to have
     // a non zero invocation count so we can inline functions.
     function->feedback_vector().set_invocation_count(1);
+    if (FLAG_sparkplug) {
+      if (V8_LIKELY(FLAG_use_osr)) {
+        JavaScriptFrameIterator it(isolate);
+        DCHECK(it.frame()->is_unoptimized());
+        UnoptimizedFrame* frame = UnoptimizedFrame::cast(it.frame());
+        OSRInterpreterFrameToBaseline(isolate, function, frame);
+      } else {
+        OSRInterpreterFrameToBaseline(isolate, function, nullptr);
+      }
+    }
     return ReadOnlyRoots(isolate).undefined_value();
   }
   {
@@ -512,6 +519,7 @@ RUNTIME_FUNCTION(Runtime_IncrementUseCounter) {
 RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
   HandleScope scope(isolate);
   DCHECK_LE(args.length(), 2);
+#ifdef V8_RUNTIME_CALL_STATS
   // Append any worker thread runtime call stats to the main table before
   // printing.
   isolate->counters()->worker_thread_runtime_call_stats()->AddToMainTable(
@@ -554,6 +562,7 @@ RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
   } else {
     std::fflush(f);
   }
+#endif  // V8_RUNTIME_CALL_STATS
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

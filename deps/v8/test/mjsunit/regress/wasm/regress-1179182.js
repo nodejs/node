@@ -13,7 +13,7 @@ builder.addFunction(undefined, kSig_i_v)
   .addBody([
 kExprI64Const, 0x0,  // i64.const
 kExprI32Const, 0x0,  // i32.const
-kExprIf, kWasmStmt,  // if
+kExprIf, kWasmVoid,  // if
   kExprI32Const, 0x0,  // i32.const
   kExprI32LoadMem, 0x01, 0x23,  // i32.load
   kExprBrTable, 0x01, 0x00, 0x00, // br_table

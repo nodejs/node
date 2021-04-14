@@ -184,8 +184,7 @@ Object GetIntrinsic(Isolate* isolate, v8::Intrinsic intrinsic) {
 template <typename TemplateInfoT>
 MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
                                         Handle<TemplateInfoT> data) {
-  RuntimeCallTimerScope timer(isolate,
-                              RuntimeCallCounterId::kConfigureInstance);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kConfigureInstance);
   HandleScope scope(isolate);
   // Disable access checks while instantiating the object.
   AccessCheckDisableScope access_check_scope(isolate, obj);
@@ -371,8 +370,7 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
                                         Handle<ObjectTemplateInfo> info,
                                         Handle<JSReceiver> new_target,
                                         bool is_prototype) {
-  RuntimeCallTimerScope timer(isolate,
-                              RuntimeCallCounterId::kInstantiateObject);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kInstantiateObject);
   Handle<JSFunction> constructor;
   int serial_number = info->serial_number();
   if (!new_target.is_null()) {
@@ -465,8 +463,7 @@ MaybeHandle<Object> GetInstancePrototype(Isolate* isolate,
 MaybeHandle<JSFunction> InstantiateFunction(
     Isolate* isolate, Handle<NativeContext> native_context,
     Handle<FunctionTemplateInfo> data, MaybeHandle<Name> maybe_name) {
-  RuntimeCallTimerScope timer(isolate,
-                              RuntimeCallCounterId::kInstantiateFunction);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kInstantiateFunction);
   int serial_number = data->serial_number();
   if (serial_number) {
     Handle<JSObject> result;
@@ -531,6 +528,7 @@ MaybeHandle<JSFunction> InstantiateFunction(
     }
     return MaybeHandle<JSFunction>();
   }
+  data->set_published(true);
   return function;
 }
 
@@ -626,6 +624,8 @@ void ApiNatives::AddAccessorProperty(Isolate* isolate,
                                      Handle<FunctionTemplateInfo> getter,
                                      Handle<FunctionTemplateInfo> setter,
                                      PropertyAttributes attributes) {
+  if (!getter.is_null()) getter->set_published(true);
+  if (!setter.is_null()) setter->set_published(true);
   PropertyDetails details(kAccessor, attributes, PropertyConstness::kMutable);
   auto details_handle = handle(details.AsSmi(), isolate);
   Handle<Object> data[] = {name, details_handle, getter, setter};
@@ -650,8 +650,7 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
     Isolate* isolate, Handle<NativeContext> native_context,
     Handle<FunctionTemplateInfo> obj, Handle<Object> prototype,
     InstanceType type, MaybeHandle<Name> maybe_name) {
-  RuntimeCallTimerScope timer(isolate,
-                              RuntimeCallCounterId::kCreateApiFunction);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kCreateApiFunction);
   Handle<SharedFunctionInfo> shared =
       FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(isolate, obj,
                                                           maybe_name);
@@ -701,7 +700,6 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
 
   Handle<Map> map = isolate->factory()->NewMap(type, instance_size,
                                                TERMINAL_FAST_ELEMENTS_KIND);
-  JSFunction::SetInitialMap(result, map, Handle<JSObject>::cast(prototype));
 
   // Mark as undetectable if needed.
   if (obj->undetectable()) {
@@ -737,6 +735,8 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
 
   if (immutable_proto) map->set_is_immutable_proto(true);
 
+  JSFunction::SetInitialMap(isolate, result, map,
+                            Handle<JSObject>::cast(prototype));
   return result;
 }
 

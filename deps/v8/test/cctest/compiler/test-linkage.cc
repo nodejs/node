@@ -114,7 +114,7 @@ TEST(TestLinkageStubCall) {
       &zone, callable.descriptor(), 0, CallDescriptor::kNoFlags,
       Operator::kNoProperties);
   CHECK(call_descriptor);
-  CHECK_EQ(0, static_cast<int>(call_descriptor->StackParameterCount()));
+  CHECK_EQ(0, static_cast<int>(call_descriptor->ParameterSlotCount()));
   CHECK_EQ(1, static_cast<int>(call_descriptor->ReturnCount()));
   CHECK_EQ(Operator::kNoProperties, call_descriptor->properties());
   CHECK_EQ(false, call_descriptor->IsJSFunctionCall());
@@ -124,6 +124,7 @@ TEST(TestLinkageStubCall) {
   // TODO(titzer): test linkage creation for outgoing stub calls.
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 TEST(TestFPLinkageStubCall) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   Zone zone(isolate->allocator(), ZONE_NAME);
@@ -135,7 +136,7 @@ TEST(TestFPLinkageStubCall) {
       &zone, callable.descriptor(), 0, CallDescriptor::kNoFlags,
       Operator::kNoProperties);
   CHECK(call_descriptor);
-  CHECK_EQ(0, static_cast<int>(call_descriptor->StackParameterCount()));
+  CHECK_EQ(0, static_cast<int>(call_descriptor->ParameterSlotCount()));
   CHECK_EQ(1, static_cast<int>(call_descriptor->ParameterCount()));
   CHECK_EQ(1, static_cast<int>(call_descriptor->ReturnCount()));
   CHECK_EQ(Operator::kNoProperties, call_descriptor->properties());
@@ -148,6 +149,7 @@ TEST(TestFPLinkageStubCall) {
   CHECK_EQ(call_descriptor->GetReturnLocation(0).GetLocation(),
            kReturnRegister0.code());
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 }  // namespace compiler
 }  // namespace internal

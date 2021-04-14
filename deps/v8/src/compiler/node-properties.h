@@ -136,6 +136,10 @@ class V8_EXPORT_PRIVATE NodeProperties {
     }
   }
 
+  // Determines if {node} has an allocating opcode, or is a builtin known to
+  // return a fresh object.
+  static bool IsFreshObject(Node* node);
+
   // ---------------------------------------------------------------------------
   // Miscellaneous mutators.
 

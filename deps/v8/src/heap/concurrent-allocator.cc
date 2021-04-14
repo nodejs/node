@@ -8,6 +8,7 @@
 #include "src/execution/isolate.h"
 #include "src/handles/persistent-handles.h"
 #include "src/heap/concurrent-allocator-inl.h"
+#include "src/heap/heap.h"
 #include "src/heap/local-heap-inl.h"
 #include "src/heap/local-heap.h"
 #include "src/heap/marking.h"
@@ -33,26 +34,38 @@ void StressConcurrentAllocatorTask::RunInternal() {
     // Isolate tear down started, stop allocation...
     if (heap->gc_state() == Heap::TEAR_DOWN) return;
 
-    Address address = local_heap.AllocateRawOrFail(
+    AllocationResult result = local_heap.AllocateRaw(
         kSmallObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
         AllocationAlignment::kWordAligned);
-    heap->CreateFillerObjectAtBackground(
-        address, kSmallObjectSize, ClearFreedMemoryMode::kDontClearFreedMemory);
-    local_heap.Safepoint();
+    if (!result.IsRetry()) {
+      heap->CreateFillerObjectAtBackground(
+          result.ToAddress(), kSmallObjectSize,
+          ClearFreedMemoryMode::kDontClearFreedMemory);
+    } else {
+      local_heap.TryPerformCollection();
+    }
 
-    address = local_heap.AllocateRawOrFail(
-        kMediumObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
-        AllocationAlignment::kWordAligned);
-    heap->CreateFillerObjectAtBackground(
-        address, kMediumObjectSize,
-        ClearFreedMemoryMode::kDontClearFreedMemory);
-    local_heap.Safepoint();
+    result = local_heap.AllocateRaw(kMediumObjectSize, AllocationType::kOld,
+                                    AllocationOrigin::kRuntime,
+                                    AllocationAlignment::kWordAligned);
+    if (!result.IsRetry()) {
+      heap->CreateFillerObjectAtBackground(
+          result.ToAddress(), kMediumObjectSize,
+          ClearFreedMemoryMode::kDontClearFreedMemory);
+    } else {
+      local_heap.TryPerformCollection();
+    }
 
-    address = local_heap.AllocateRawOrFail(
-        kLargeObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
-        AllocationAlignment::kWordAligned);
-    heap->CreateFillerObjectAtBackground(
-        address, kLargeObjectSize, ClearFreedMemoryMode::kDontClearFreedMemory);
+    result = local_heap.AllocateRaw(kLargeObjectSize, AllocationType::kOld,
+                                    AllocationOrigin::kRuntime,
+                                    AllocationAlignment::kWordAligned);
+    if (!result.IsRetry()) {
+      heap->CreateFillerObjectAtBackground(
+          result.ToAddress(), kLargeObjectSize,
+          ClearFreedMemoryMode::kDontClearFreedMemory);
+    } else {
+      local_heap.TryPerformCollection();
+    }
     local_heap.Safepoint();
   }
 
@@ -109,7 +122,6 @@ AllocationResult ConcurrentAllocator::AllocateInLabSlow(
 bool ConcurrentAllocator::EnsureLab(AllocationOrigin origin) {
   auto result = space_->RawRefillLabBackground(
       local_heap_, kLabSize, kMaxLabSize, kWordAligned, origin);
-
   if (!result) return false;
 
   if (local_heap_->heap()->incremental_marking()->black_allocation()) {

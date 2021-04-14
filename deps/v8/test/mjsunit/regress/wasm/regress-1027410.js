@@ -23,7 +23,7 @@ kExprEnd,   // @3
 // signature: d_v
 // body:
 kExprBlock, kWasmF64,   // @3 f64
-  kExprBlock, kWasmStmt,   // @5
+  kExprBlock, kWasmVoid,   // @5
     kExprF64Const, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf0, 0x3f,
     kExprLocalTee, 0x00,
     kExprLocalTee, 0x01,

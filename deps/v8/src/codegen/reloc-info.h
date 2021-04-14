@@ -65,6 +65,9 @@ class RelocInfo {
     WASM_CALL,  // FIRST_SHAREABLE_RELOC_MODE
     WASM_STUB_CALL,
 
+    // TODO(ishell): rename to UNEMBEDDED_BUILTIN_ENTRY.
+    // An un-embedded off-heap instruction stream target.
+    // See http://crbug.com/v8/11527 for details.
     RUNTIME_ENTRY,
 
     EXTERNAL_REFERENCE,  // The address of an external C++ function.
@@ -148,6 +151,7 @@ class RelocInfo {
     return base::IsInRange(mode, FIRST_EMBEDDED_OBJECT_RELOC_MODE,
                            LAST_EMBEDDED_OBJECT_RELOC_MODE);
   }
+  // TODO(ishell): rename to IsUnembeddedBuiltinEntry().
   static constexpr bool IsRuntimeEntry(Mode mode) {
     return mode == RUNTIME_ENTRY;
   }

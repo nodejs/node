@@ -8,10 +8,10 @@ const builder = new WasmModuleBuilder();
 builder.addFunction('test', kSig_i_i)
     .addBody([
       kExprLocalGet, 0x00,    // get_local 0
-      kExprBlock, kWasmStmt,  // block
+      kExprBlock, kWasmVoid,  // block
       kExprBr, 0x00,          // br depth=0
       kExprEnd,               // end
-      kExprBlock, kWasmStmt,  // block
+      kExprBlock, kWasmVoid,  // block
       kExprBr, 0x00,          // br depth=0
       kExprEnd,               // end
       kExprBr, 0x00,          // br depth=0

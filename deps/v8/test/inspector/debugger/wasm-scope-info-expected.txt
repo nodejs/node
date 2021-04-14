@@ -15,6 +15,7 @@ Script wasm://wasm/e33badc2 byte offset 169: Wasm opcode 0x20 (kExprLocalGet)
 Scope:
 at C (interpreted) (0:169):
  - scope (wasm-expression-stack):
+   stack: 
  - scope (local):
    $i32_arg: 42 (i32)
    $i32_local: 0 (i32)
@@ -28,8 +29,7 @@ at C (interpreted) (0:169):
    tables: "$exported_table": (Table)
 at B (liftoff) (0:158):
  - scope (wasm-expression-stack):
-   0: 42 (i32)
-   1: 3 (i32)
+   stack: "0": 42 (i32), "1": 3 (i32)
  - scope (local):
    $i32_arg: 42 (i32)
    $i32_local: 0 (i32)
@@ -46,6 +46,7 @@ at B (liftoff) (0:158):
    tables: "$exported_table": (Table)
 at A (liftoff) (0:128):
  - scope (wasm-expression-stack):
+   stack: 
  - scope (local):
    $var0: 42 (i32)
  - scope (module):
@@ -64,7 +65,7 @@ Script wasm://wasm/e33badc2 byte offset 171: Wasm opcode 0x24 (kExprGlobalSet)
 Scope:
 at C (interpreted) (0:171):
  - scope (wasm-expression-stack):
-   0: 42 (i32)
+   stack: "0": 42 (i32)
  - scope (local):
    $i32_arg: 42 (i32)
    $i32_local: 0 (i32)
@@ -78,8 +79,7 @@ at C (interpreted) (0:171):
    tables: "$exported_table": (Table)
 at B (liftoff) (0:158):
  - scope (wasm-expression-stack):
-   0: 42 (i32)
-   1: 3 (i32)
+   stack: "0": 42 (i32), "1": 3 (i32)
  - scope (local):
    $i32_arg: 42 (i32)
    $i32_local: 0 (i32)
@@ -96,6 +96,7 @@ at B (liftoff) (0:158):
    tables: "$exported_table": (Table)
 at A (liftoff) (0:128):
  - scope (wasm-expression-stack):
+   stack: 
  - scope (local):
    $var0: 42 (i32)
  - scope (module):
@@ -114,6 +115,7 @@ Script wasm://wasm/e33badc2 byte offset 173: Wasm opcode 0x41 (kExprI32Const)
 Scope:
 at C (interpreted) (0:173):
  - scope (wasm-expression-stack):
+   stack: 
  - scope (local):
    $i32_arg: 42 (i32)
    $i32_local: 0 (i32)
@@ -127,8 +129,7 @@ at C (interpreted) (0:173):
    tables: "$exported_table": (Table)
 at B (liftoff) (0:158):
  - scope (wasm-expression-stack):
-   0: 42 (i32)
-   1: 3 (i32)
+   stack: "0": 42 (i32), "1": 3 (i32)
  - scope (local):
    $i32_arg: 42 (i32)
    $i32_local: 0 (i32)
@@ -145,6 +146,7 @@ at B (liftoff) (0:158):
    tables: "$exported_table": (Table)
 at A (liftoff) (0:128):
  - scope (wasm-expression-stack):
+   stack: 
  - scope (local):
    $var0: 42 (i32)
  - scope (module):
@@ -163,7 +165,7 @@ Script wasm://wasm/e33badc2 byte offset 175: Wasm opcode 0x21 (kExprLocalSet)
 Scope:
 at C (interpreted) (0:175):
  - scope (wasm-expression-stack):
-   0: 47 (i32)
+   stack: "0": 47 (i32)
  - scope (local):
    $i32_arg: 42 (i32)
    $i32_local: 0 (i32)
@@ -177,8 +179,7 @@ at C (interpreted) (0:175):
    tables: "$exported_table": (Table)
 at B (liftoff) (0:158):
  - scope (wasm-expression-stack):
-   0: 42 (i32)
-   1: 3 (i32)
+   stack: "0": 42 (i32), "1": 3 (i32)
  - scope (local):
    $i32_arg: 42 (i32)
    $i32_local: 0 (i32)
@@ -195,6 +196,7 @@ at B (liftoff) (0:158):
    tables: "$exported_table": (Table)
 at A (liftoff) (0:128):
  - scope (wasm-expression-stack):
+   stack: 
  - scope (local):
    $var0: 42 (i32)
  - scope (module):
@@ -213,6 +215,7 @@ Script wasm://wasm/e33badc2 byte offset 177: Wasm opcode 0x0b (kExprEnd)
 Scope:
 at C (interpreted) (0:177):
  - scope (wasm-expression-stack):
+   stack: 
  - scope (local):
    $i32_arg: 42 (i32)
    $i32_local: 47 (i32)
@@ -226,8 +229,7 @@ at C (interpreted) (0:177):
    tables: "$exported_table": (Table)
 at B (liftoff) (0:158):
  - scope (wasm-expression-stack):
-   0: 42 (i32)
-   1: 3 (i32)
+   stack: "0": 42 (i32), "1": 3 (i32)
  - scope (local):
    $i32_arg: 42 (i32)
    $i32_local: 0 (i32)
@@ -244,6 +246,7 @@ at B (liftoff) (0:158):
    tables: "$exported_table": (Table)
 at A (liftoff) (0:128):
  - scope (wasm-expression-stack):
+   stack: 
  - scope (local):
    $var0: 42 (i32)
  - scope (module):
@@ -262,8 +265,7 @@ Script wasm://wasm/e33badc2 byte offset 160: Wasm opcode 0x1a (kExprDrop)
 Scope:
 at B (liftoff) (0:160):
  - scope (wasm-expression-stack):
-   0: 42 (i32)
-   1: 3 (i32)
+   stack: "0": 42 (i32), "1": 3 (i32)
  - scope (local):
    $i32_arg: 42 (i32)
    $i32_local: 0 (i32)
@@ -280,6 +282,7 @@ at B (liftoff) (0:160):
    tables: "$exported_table": (Table)
 at A (liftoff) (0:128):
  - scope (wasm-expression-stack):
+   stack: 
  - scope (local):
    $var0: 42 (i32)
  - scope (module):
@@ -298,7 +301,7 @@ Script wasm://wasm/e33badc2 byte offset 161: Wasm opcode 0x1a (kExprDrop)
 Scope:
 at B (liftoff) (0:161):
  - scope (wasm-expression-stack):
-   0: 42 (i32)
+   stack: "0": 42 (i32)
  - scope (local):
    $i32_arg: 42 (i32)
    $i32_local: 0 (i32)
@@ -315,6 +318,7 @@ at B (liftoff) (0:161):
    tables: "$exported_table": (Table)
 at A (liftoff) (0:128):
  - scope (wasm-expression-stack):
+   stack: 
  - scope (local):
    $var0: 42 (i32)
  - scope (module):
@@ -333,6 +337,7 @@ Script wasm://wasm/e33badc2 byte offset 162: Wasm opcode 0x0b (kExprEnd)
 Scope:
 at B (liftoff) (0:162):
  - scope (wasm-expression-stack):
+   stack: 
  - scope (local):
    $i32_arg: 42 (i32)
    $i32_local: 0 (i32)
@@ -349,6 +354,7 @@ at B (liftoff) (0:162):
    tables: "$exported_table": (Table)
 at A (liftoff) (0:128):
  - scope (wasm-expression-stack):
+   stack: 
  - scope (local):
    $var0: 42 (i32)
  - scope (module):
@@ -367,6 +373,7 @@ Script wasm://wasm/e33badc2 byte offset 130: Wasm opcode 0x0b (kExprEnd)
 Scope:
 at A (liftoff) (0:130):
  - scope (wasm-expression-stack):
+   stack: 
  - scope (local):
    $var0: 42 (i32)
  - scope (module):
@@ -381,10 +388,10 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-instance.exports.main(42)
+instance.exports.main(42)#
 
 Scope:
-at (anonymous) (1:31):
+at (anonymous) (0:25):
  - scope (global):
    -- skipped globals
 

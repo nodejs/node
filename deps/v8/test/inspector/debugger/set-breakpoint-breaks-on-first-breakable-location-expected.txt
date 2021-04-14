@@ -2,7 +2,7 @@ Tests if breakpoint set is first breakable location
 Set breakpoint outside of any function: (0, 0).
 Setting breakpoint for id: 3 at 0, 0.
 No breakable location inside a function was found
-Set breakpoint adds a breakpoint at (8, 1).
+Set breakpoint adds a breakpoint at (4, 2).
 Set breakpoint at a breakable location: (4, 17).
 Setting breakpoint for id: 3 at 4, 17.
 Location match for (4, 17).

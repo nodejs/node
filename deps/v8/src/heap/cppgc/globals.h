@@ -9,6 +9,7 @@
 #include <stdint.h>
 
 #include "include/cppgc/internal/gc-info.h"
+#include "src/base/build_config.h"
 
 namespace cppgc {
 namespace internal {
@@ -30,9 +31,11 @@ enum class AccessMode : uint8_t { kNonAtomic, kAtomic };
 // This means that any scalar type with stricter alignment requirements (in
 // practice: long double) cannot be used unrestricted in garbage-collected
 // objects.
-//
-// Note: We use the same allocation granularity on 32-bit and 64-bit systems.
+#if defined(V8_TARGET_ARCH_64_BIT)
 constexpr size_t kAllocationGranularity = 8;
+#else   // !V8_TARGET_ARCH_64_BIT
+constexpr size_t kAllocationGranularity = 4;
+#endif  // !V8_TARGET_ARCH_64_BIT
 constexpr size_t kAllocationMask = kAllocationGranularity - 1;
 
 constexpr size_t kPageSizeLog2 = 17;

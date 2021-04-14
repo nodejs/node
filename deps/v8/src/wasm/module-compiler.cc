@@ -767,7 +767,6 @@ void UpdateFeatureUseCounts(Isolate* isolate, const WasmFeatures& detected) {
   using Feature = v8::Isolate::UseCounterFeature;
   constexpr static std::pair<WasmFeature, Feature> kUseCounters[] = {
       {kFeature_reftypes, Feature::kWasmRefTypes},
-      {kFeature_mv, Feature::kWasmMultiValue},
       {kFeature_simd, Feature::kWasmSimdOpcodes},
       {kFeature_threads, Feature::kWasmThreadOpcodes},
       {kFeature_eh, Feature::kWasmExceptionHandling}};
@@ -1152,12 +1151,11 @@ bool CompileLazy(Isolate* isolate, Handle<WasmModuleObject> module_object,
 
   if (WasmCode::ShouldBeLogged(isolate)) {
     DisallowGarbageCollection no_gc;
-    Object source_url_obj = module_object->script().source_url();
-    DCHECK(source_url_obj.IsString() || source_url_obj.IsUndefined());
-    std::unique_ptr<char[]> source_url =
-        source_url_obj.IsString() ? String::cast(source_url_obj).ToCString()
-                                  : nullptr;
-    code->LogCode(isolate, source_url.get(), module_object->script().id());
+    Object url_obj = module_object->script().name();
+    DCHECK(url_obj.IsString() || url_obj.IsUndefined());
+    std::unique_ptr<char[]> url =
+        url_obj.IsString() ? String::cast(url_obj).ToCString() : nullptr;
+    code->LogCode(isolate, url.get(), module_object->script().id());
   }
 
   counters->wasm_lazily_compiled_functions()->Increment();
@@ -3342,6 +3340,8 @@ void CompilationStateImpl::WaitForCompilationEvent(
     bool ShouldYield() override {
       return done_->load(std::memory_order_relaxed);
     }
+
+    bool IsJoiningThread() const override { return true; }
 
     void NotifyConcurrencyIncrease() override { UNIMPLEMENTED(); }
 

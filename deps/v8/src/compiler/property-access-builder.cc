@@ -148,10 +148,40 @@ MachineRepresentation PropertyAccessBuilder::ConvertRepresentation(
   }
 }
 
-Node* PropertyAccessBuilder::TryBuildLoadConstantDataField(
+Node* PropertyAccessBuilder::FoldLoadDictPrototypeConstant(
+    PropertyAccessInfo const& access_info) {
+  DCHECK(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
+  DCHECK(access_info.IsDictionaryProtoDataConstant());
+
+  JSObjectRef holder(broker(), access_info.holder().ToHandleChecked());
+  base::Optional<ObjectRef> value =
+      holder.GetOwnDictionaryProperty(access_info.dictionary_index());
+
+  for (Handle<Map> map : access_info.lookup_start_object_maps()) {
+    // Non-JSReceivers that passed AccessInfoFactory::ComputePropertyAccessInfo
+    // must have different lookup start map.
+    if (!map->IsJSReceiverMap()) {
+      // Perform the implicit ToObject for primitives here.
+      // Implemented according to ES6 section 7.3.2 GetV (V, P).
+      Handle<JSFunction> constructor =
+          Map::GetConstructorFunction(
+              map, broker()->target_native_context().object())
+              .ToHandleChecked();
+      map = handle(constructor->initial_map(), isolate());
+      DCHECK(map->IsJSObjectMap());
+    }
+    dependencies()->DependOnConstantInDictionaryPrototypeChain(
+        MapRef{broker(), map}, NameRef{broker(), access_info.name()},
+        value.value(), PropertyKind::kData);
+  }
+
+  return jsgraph()->Constant(value.value());
+}
+
+Node* PropertyAccessBuilder::TryFoldLoadConstantDataField(
     NameRef const& name, PropertyAccessInfo const& access_info,
     Node* lookup_start_object) {
-  if (!access_info.IsDataConstant()) return nullptr;
+  if (!access_info.IsFastDataConstant()) return nullptr;
 
   // First, determine if we have a constant holder to load from.
   Handle<JSObject> holder;
@@ -177,7 +207,7 @@ Node* PropertyAccessBuilder::TryBuildLoadConstantDataField(
   }
 
   JSObjectRef holder_ref(broker(), holder);
-  base::Optional<ObjectRef> value = holder_ref.GetOwnDataProperty(
+  base::Optional<ObjectRef> value = holder_ref.GetOwnFastDataProperty(
       access_info.field_representation(), access_info.field_index());
   if (!value.has_value()) {
     return nullptr;
@@ -272,9 +302,10 @@ Node* PropertyAccessBuilder::BuildMinimorphicLoadDataField(
 Node* PropertyAccessBuilder::BuildLoadDataField(
     NameRef const& name, PropertyAccessInfo const& access_info,
     Node* lookup_start_object, Node** effect, Node** control) {
-  DCHECK(access_info.IsDataField() || access_info.IsDataConstant());
-  if (Node* value = TryBuildLoadConstantDataField(name, access_info,
-                                                  lookup_start_object)) {
+  DCHECK(access_info.IsDataField() || access_info.IsFastDataConstant());
+
+  if (Node* value = TryFoldLoadConstantDataField(name, access_info,
+                                                 lookup_start_object)) {
     return value;
   }
 

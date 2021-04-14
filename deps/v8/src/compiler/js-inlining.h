@@ -41,7 +41,9 @@ class JSInliner final : public AdvancedReducer {
   // using the above generic reducer interface of the inlining machinery.
   Reduction ReduceJSCall(Node* node);
 
+#if V8_ENABLE_WEBASSEMBLY
   Reduction ReduceJSWasmCall(Node* node);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
  private:
   Zone* zone() const { return local_zone_; }
@@ -73,10 +75,12 @@ class JSInliner final : public AdvancedReducer {
                        Node* exception_target,
                        const NodeVector& uncaught_subcalls, int argument_count);
 
+#if V8_ENABLE_WEBASSEMBLY
   Reduction InlineJSWasmCall(Node* call, Node* new_target, Node* context,
                              Node* frame_state, StartNode start, Node* end,
                              Node* exception_target,
                              const NodeVector& uncaught_subcalls);
+#endif  // V8_ENABLE_WEBASSEMBLY
 };
 
 }  // namespace compiler

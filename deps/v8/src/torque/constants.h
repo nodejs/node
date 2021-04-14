@@ -49,6 +49,7 @@ static const char* const BUILTIN_POINTER_TYPE_STRING = "BuiltinPtr";
 static const char* const INTPTR_TYPE_STRING = "intptr";
 static const char* const UINTPTR_TYPE_STRING = "uintptr";
 static const char* const INT64_TYPE_STRING = "int64";
+static const char* const UINT64_TYPE_STRING = "uint64";
 static const char* const INT31_TYPE_STRING = "int31";
 static const char* const INT32_TYPE_STRING = "int32";
 static const char* const UINT31_TYPE_STRING = "uint31";

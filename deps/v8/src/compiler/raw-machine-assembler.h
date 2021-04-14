@@ -15,6 +15,7 @@
 #include "src/compiler/graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
+#include "src/compiler/node-matchers.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/simplified-operator.h"
@@ -147,10 +148,31 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     Node* load = AddNode(op, base, index);
     return load;
   }
+  bool IsMapOffsetConstant(Node* node) {
+    Int64Matcher m(node);
+    if (m.Is(HeapObject::kMapOffset)) return true;
+    // Test if `node` is a `Phi(Int64Constant(0))`
+    if (node->opcode() == IrOpcode::kPhi) {
+      for (Node* input : node->inputs()) {
+        if (!Int64Matcher(input).Is(HeapObject::kMapOffset)) return false;
+      }
+      return true;
+    }
+    return false;
+  }
+  bool IsMapOffsetConstantMinusTag(Node* node) {
+    Int64Matcher m(node);
+    return m.Is(HeapObject::kMapOffset - kHeapObjectTag);
+  }
+  bool IsMapOffsetConstantMinusTag(int offset) {
+    return offset == HeapObject::kMapOffset - kHeapObjectTag;
+  }
   Node* LoadFromObject(
       MachineType type, Node* base, Node* offset,
       LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
     CHECK_EQ(needs_poisoning, LoadSensitivity::kSafe);
+    DCHECK_IMPLIES(IsMapOffsetConstantMinusTag(offset),
+                   type == MachineType::MapInHeader());
     ObjectAccess access = {type, WriteBarrierKind::kNoWriteBarrier};
     Node* load = AddNode(simplified()->LoadFromObject(access), base, offset);
     return load;
@@ -169,18 +191,22 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
                      Node* value, WriteBarrierKind write_barrier) {
     ObjectAccess access = {MachineType::TypeForRepresentation(rep),
                            write_barrier};
+    DCHECK(!IsMapOffsetConstantMinusTag(offset));
     AddNode(simplified()->StoreToObject(access), object, offset, value);
   }
   void OptimizedStoreField(MachineRepresentation rep, Node* object, int offset,
                            Node* value, WriteBarrierKind write_barrier) {
+    DCHECK(!IsMapOffsetConstantMinusTag(offset));
     AddNode(simplified()->StoreField(FieldAccess(
                 BaseTaggedness::kTaggedBase, offset, MaybeHandle<Name>(),
                 MaybeHandle<Map>(), Type::Any(),
                 MachineType::TypeForRepresentation(rep), write_barrier)),
             object, value);
   }
-  void OptimizedStoreMap(Node* object, Node* value) {
-    AddNode(simplified()->StoreField(AccessBuilder::ForMap()), object, value);
+  void OptimizedStoreMap(Node* object, Node* value,
+                         WriteBarrierKind write_barrier = kMapWriteBarrier) {
+    AddNode(simplified()->StoreField(AccessBuilder::ForMap(write_barrier)),
+            object, value);
   }
   Node* Retain(Node* value) { return AddNode(common()->Retain(), value); }
 
@@ -245,6 +271,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
 
   Node* AtomicStore(MachineRepresentation rep, Node* base, Node* index,
                     Node* value) {
+    DCHECK(!IsMapOffsetConstantMinusTag(index));
     DCHECK_NE(rep, MachineRepresentation::kWord64);
     return AddNode(machine()->Word32AtomicStore(rep), base, index, value);
   }
@@ -539,6 +566,23 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* Word32PairSar(Node* low_word, Node* high_word, Node* shift) {
     return AddNode(machine()->Word32PairSar(), low_word, high_word, shift);
   }
+  Node* Word32Popcnt(Node* a) {
+    return AddNode(machine()->Word32Popcnt().op(), a);
+  }
+  Node* Word64Popcnt(Node* a) {
+    return AddNode(machine()->Word64Popcnt().op(), a);
+  }
+  Node* Word32Ctz(Node* a) { return AddNode(machine()->Word32Ctz().op(), a); }
+  Node* Word64Ctz(Node* a) { return AddNode(machine()->Word64Ctz().op(), a); }
+
+  Node* Word32Select(Node* condition, Node* b, Node* c) {
+    return AddNode(machine()->Word32Select().op(), condition, b, c);
+  }
+
+  Node* Word64Select(Node* condition, Node* b, Node* c) {
+    return AddNode(machine()->Word64Select().op(), condition, b, c);
+  }
+
   Node* StackPointerGreaterThan(Node* value) {
     return AddNode(
         machine()->StackPointerGreaterThan(StackCheckKind::kCodeStubAssembler),
@@ -693,6 +737,12 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* Float64GreaterThan(Node* a, Node* b) { return Float64LessThan(b, a); }
   Node* Float64GreaterThanOrEqual(Node* a, Node* b) {
     return Float64LessThanOrEqual(b, a);
+  }
+  Node* Float32Select(Node* condition, Node* b, Node* c) {
+    return AddNode(machine()->Float32Select().op(), condition, b, c);
+  }
+  Node* Float64Select(Node* condition, Node* b, Node* c) {
+    return AddNode(machine()->Float64Select().op(), condition, b, c);
   }
 
   // Conversions.
@@ -856,6 +906,9 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   }
 
   // SIMD operations.
+  Node* S128Const(const uint8_t value[16]) {
+    return AddNode(machine()->S128Const(value));
+  }
   Node* I64x2Splat(Node* a) { return AddNode(machine()->I64x2Splat(), a); }
   Node* I64x2SplatI32Pair(Node* a, Node* b) {
     return AddNode(machine()->I64x2SplatI32Pair(), a, b);
@@ -863,6 +916,12 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* I32x4Splat(Node* a) { return AddNode(machine()->I32x4Splat(), a); }
   Node* I16x8Splat(Node* a) { return AddNode(machine()->I16x8Splat(), a); }
   Node* I8x16Splat(Node* a) { return AddNode(machine()->I8x16Splat(), a); }
+
+  Node* I8x16BitMask(Node* a) { return AddNode(machine()->I8x16BitMask(), a); }
+
+  Node* I8x16Eq(Node* a, Node* b) {
+    return AddNode(machine()->I8x16Eq(), a, b);
+  }
 
   // Stack operations.
   Node* LoadFramePointer() { return AddNode(machine()->LoadFramePointer()); }

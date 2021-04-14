@@ -27,6 +27,7 @@
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/transitions-inl.h"
 #include "src/utils/utils-inl.h"
@@ -110,9 +111,11 @@ class ConcurrentMarkingVisitor final
     return VisitJSObjectSubclassFast(map, object);
   }
 
+#if V8_ENABLE_WEBASSEMBLY
   int VisitWasmInstanceObject(Map map, WasmInstanceObject object) {
     return VisitJSObjectSubclass(map, object);
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   int VisitJSWeakCollection(Map map, JSWeakCollection object) {
     return VisitJSObjectSubclass(map, object);
@@ -215,12 +218,16 @@ class ConcurrentMarkingVisitor final
 
   template <typename T, typename TBodyDescriptor = typename T::BodyDescriptor>
   int VisitJSObjectSubclass(Map map, T object) {
+    if (!ShouldVisit(object)) return 0;
     int size = TBodyDescriptor::SizeOf(map, object);
     int used_size = map.UsedInstanceSize();
     DCHECK_LE(used_size, size);
     DCHECK_GE(used_size, JSObject::GetHeaderSize(map));
-    return VisitPartiallyWithSnapshot<T, TBodyDescriptor>(map, object,
-                                                          used_size, size);
+    this->VisitMapPointer(object);
+    // It is important to visit only the used field and ignore the slack fields
+    // because the slack fields may be trimmed concurrently.
+    TBodyDescriptor::IterateBody(map, object, used_size, this);
+    return size;
   }
 
   template <typename T>
@@ -252,17 +259,11 @@ class ConcurrentMarkingVisitor final
 
   template <typename T>
   int VisitFullyWithSnapshot(Map map, T object) {
+    if (!ShouldVisit(object)) return 0;
     using TBodyDescriptor = typename T::BodyDescriptor;
     int size = TBodyDescriptor::SizeOf(map, object);
-    return VisitPartiallyWithSnapshot<T, TBodyDescriptor>(map, object, size,
-                                                          size);
-  }
-
-  template <typename T, typename TBodyDescriptor = typename T::BodyDescriptor>
-  int VisitPartiallyWithSnapshot(Map map, T object, int used_size, int size) {
     const SlotSnapshot& snapshot =
-        MakeSlotSnapshot<T, TBodyDescriptor>(map, object, used_size);
-    if (!ShouldVisit(object)) return 0;
+        MakeSlotSnapshot<T, TBodyDescriptor>(map, object, size);
     VisitPointersInSnapshot(object, snapshot);
     return size;
   }

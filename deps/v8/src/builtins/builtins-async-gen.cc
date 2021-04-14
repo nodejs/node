@@ -13,8 +13,6 @@
 namespace v8 {
 namespace internal {
 
-using compiler::Node;
-
 namespace {
 // Describe fields of Context associated with the AsyncIterator unwrap closure.
 class ValueUnwrapContext {

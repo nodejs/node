@@ -1472,15 +1472,20 @@ icu::LocaleMatcher BuildLocaleMatcher(
     UErrorCode* status) {
   icu::Locale default_locale =
       icu::Locale::forLanguageTag(DefaultLocale(isolate), *status);
-  DCHECK(U_SUCCESS(*status));
   icu::LocaleMatcher::Builder builder;
+  if (U_FAILURE(*status)) {
+    return builder.build(*status);
+  }
   builder.setDefaultLocale(&default_locale);
   for (auto it = available_locales.begin(); it != available_locales.end();
        ++it) {
-    builder.addSupportedLocale(
-        icu::Locale::forLanguageTag(it->c_str(), *status));
+    *status = U_ZERO_ERROR;
+    icu::Locale l = icu::Locale::forLanguageTag(it->c_str(), *status);
+    // skip invalid locale such as no-NO-NY
+    if (U_SUCCESS(*status)) {
+      builder.addSupportedLocale(l);
+    }
   }
-
   return builder.build(*status);
 }
 
@@ -1527,23 +1532,12 @@ std::string BestFitMatcher(Isolate* isolate,
                            const std::set<std::string>& available_locales,
                            const std::vector<std::string>& requested_locales) {
   UErrorCode status = U_ZERO_ERROR;
-  icu::LocaleMatcher matcher =
-      BuildLocaleMatcher(isolate, available_locales, &status);
-  DCHECK(U_SUCCESS(status));
-
   Iterator iter(requested_locales.cbegin(), requested_locales.cend());
-  std::string bestfit =
-      matcher.getBestMatch(iter, status)->toLanguageTag<std::string>(status);
-  if (U_FAILURE(status)) {
-    return DefaultLocale(isolate);
-  }
-  // We need to return the extensions with it.
-  for (auto it = requested_locales.begin(); it != requested_locales.end();
-       ++it) {
-    if (it->find(bestfit) == 0) {
-      return *it;
-    }
-  }
+  std::string bestfit = BuildLocaleMatcher(isolate, available_locales, &status)
+                            .getBestMatchResult(iter, status)
+                            .makeResolvedLocale(status)
+                            .toLanguageTag<std::string>(status);
+  DCHECK(U_SUCCESS(status));
   return bestfit;
 }
 
@@ -1555,23 +1549,20 @@ std::vector<std::string> BestFitSupportedLocales(
   UErrorCode status = U_ZERO_ERROR;
   icu::LocaleMatcher matcher =
       BuildLocaleMatcher(isolate, available_locales, &status);
-  DCHECK(U_SUCCESS(status));
-
-  std::string default_locale = DefaultLocale(isolate);
   std::vector<std::string> result;
-  for (auto it = requested_locales.cbegin(); it != requested_locales.cend();
-       it++) {
-    if (*it == default_locale) {
-      result.push_back(*it);
-    } else {
+  if (U_SUCCESS(status)) {
+    for (auto it = requested_locales.cbegin(); it != requested_locales.cend();
+         it++) {
       status = U_ZERO_ERROR;
       icu::Locale desired = icu::Locale::forLanguageTag(it->c_str(), status);
-      std::string bestfit = matcher.getBestMatch(desired, status)
-                                ->toLanguageTag<std::string>(status);
-      // We need to return the extensions with it.
-      if (U_SUCCESS(status) && it->find(bestfit) == 0) {
-        result.push_back(*it);
-      }
+      icu::LocaleMatcher::Result matched =
+          matcher.getBestMatchResult(desired, status);
+      if (U_FAILURE(status)) continue;
+      if (matched.getSupportedIndex() < 0) continue;
+      std::string bestfit =
+          matched.makeResolvedLocale(status).toLanguageTag<std::string>(status);
+      if (U_FAILURE(status)) continue;
+      result.push_back(bestfit);
     }
   }
   return result;
@@ -1599,10 +1590,6 @@ Handle<JSArray> CreateArrayFromList(Isolate* isolate,
   return array;
 }
 
-// To mitigate the risk of bestfit locale matcher, we first check in without
-// turnning it on.
-static bool implement_bestfit = false;
-
 // ECMA 402 9.2.9 SupportedLocales(availableLocales, requestedLocales, options)
 // https://tc39.github.io/ecma402/#sec-supportedlocales
 MaybeHandle<JSObject> SupportedLocales(
@@ -1611,28 +1598,24 @@ MaybeHandle<JSObject> SupportedLocales(
     const std::vector<std::string>& requested_locales, Handle<Object> options) {
   std::vector<std::string> supported_locales;
 
-  // 2. Else, let matcher be "best fit".
-  Intl::MatcherOption matcher = Intl::MatcherOption::kBestFit;
+  // 1. Set options to ? CoerceOptionsToObject(options).
+  Handle<JSReceiver> options_obj;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options_obj,
+      Intl::CoerceOptionsToObject(isolate, options, method), JSObject);
 
-  // 1. If options is not undefined, then
-  if (!options->IsUndefined(isolate)) {
-    // 1. a. Let options be ? ToObject(options).
-    Handle<JSReceiver> options_obj;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, options_obj,
-                               Object::ToObject(isolate, options), JSObject);
-
-    // 1. b. Let matcher be ? GetOption(options, "localeMatcher", "string",
-    //       « "lookup", "best fit" », "best fit").
-    Maybe<Intl::MatcherOption> maybe_locale_matcher =
-        Intl::GetLocaleMatcher(isolate, options_obj, method);
-    MAYBE_RETURN(maybe_locale_matcher, MaybeHandle<JSObject>());
-    matcher = maybe_locale_matcher.FromJust();
-  }
+  // 2. Let matcher be ? GetOption(options, "localeMatcher", "string",
+  //       « "lookup", "best fit" », "best fit").
+  Maybe<Intl::MatcherOption> maybe_locale_matcher =
+      Intl::GetLocaleMatcher(isolate, options_obj, method);
+  MAYBE_RETURN(maybe_locale_matcher, MaybeHandle<JSObject>());
+  Intl::MatcherOption matcher = maybe_locale_matcher.FromJust();
 
   // 3. If matcher is "best fit", then
   //    a. Let supportedLocales be BestFitSupportedLocales(availableLocales,
   //       requestedLocales).
-  if (matcher == Intl::MatcherOption::kBestFit && implement_bestfit) {
+  if (matcher == Intl::MatcherOption::kBestFit &&
+      FLAG_harmony_intl_best_fit_matcher) {
     supported_locales =
         BestFitSupportedLocales(isolate, available_locales, requested_locales);
   } else {
@@ -1889,7 +1872,8 @@ Maybe<Intl::ResolvedLocale> Intl::ResolveLocale(
     const std::vector<std::string>& requested_locales, MatcherOption matcher,
     const std::set<std::string>& relevant_extension_keys) {
   std::string locale;
-  if (matcher == Intl::MatcherOption::kBestFit && implement_bestfit) {
+  if (matcher == Intl::MatcherOption::kBestFit &&
+      FLAG_harmony_intl_best_fit_matcher) {
     locale = BestFitMatcher(isolate, available_locales, requested_locales);
   } else {
     locale = LookupMatcher(isolate, available_locales, requested_locales);
@@ -2218,6 +2202,40 @@ MaybeHandle<String> Intl::FormattedToString(
   return Intl::ToString(isolate, result);
 }
 
+// ecma402/#sec-getoptionsobject
+MaybeHandle<JSReceiver> Intl::GetOptionsObject(Isolate* isolate,
+                                               Handle<Object> options,
+                                               const char* service) {
+  // 1. If options is undefined, then
+  if (options->IsUndefined(isolate)) {
+    // a. Return ! ObjectCreate(null).
+    return isolate->factory()->NewJSObjectWithNullProto();
+  }
+  // 2. If Type(options) is Object, then
+  if (options->IsJSReceiver()) {
+    // a. Return options.
+    return Handle<JSReceiver>::cast(options);
+  }
+  // 3. Throw a TypeError exception.
+  THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kInvalidArgument),
+                  JSReceiver);
+}
+
+// ecma402/#sec-coerceoptionstoobject
+MaybeHandle<JSReceiver> Intl::CoerceOptionsToObject(Isolate* isolate,
+                                                    Handle<Object> options,
+                                                    const char* service) {
+  // 1. If options is undefined, then
+  if (options->IsUndefined(isolate)) {
+    // a. Return ! ObjectCreate(null).
+    return isolate->factory()->NewJSObjectWithNullProto();
+  }
+  // 2. Return ? ToObject(options).
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, options,
+                             Object::ToObject(isolate, options, service),
+                             JSReceiver);
+  return Handle<JSReceiver>::cast(options);
+}
 
 }  // namespace internal
 }  // namespace v8

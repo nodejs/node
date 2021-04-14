@@ -49,6 +49,7 @@ class Builtins {
   const char* Lookup(Address pc);
 
   enum Name : int32_t {
+    kNoBuiltinId = -1,
 #define DEF_ENUM(Name, ...) k##Name,
     BUILTIN_LIST(DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM,
                  DEF_ENUM)
@@ -62,8 +63,6 @@ class Builtins {
 #undef EXTRACT_NAME
   };
 
-  static const int32_t kNoBuiltinId = -1;
-
   static constexpr int kFirstWideBytecodeHandler =
       kFirstBytecodeHandler + kNumberOfBytecodeHandlers;
   static constexpr int kFirstExtraWideBytecodeHandler =
@@ -73,7 +72,9 @@ class Builtins {
   STATIC_ASSERT(kLastBytecodeHandlerPlusOne == builtin_count);
 
   static constexpr bool IsBuiltinId(int maybe_id) {
-    return 0 <= maybe_id && maybe_id < builtin_count;
+    STATIC_ASSERT(kNoBuiltinId == -1);
+    return static_cast<uint32_t>(maybe_id) <
+           static_cast<uint32_t>(builtin_count);
   }
 
   // The different builtin kinds are documented in builtins-definitions.h.

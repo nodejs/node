@@ -4,6 +4,8 @@
 
 #include "src/codegen/code-stub-assembler.h"
 
+#include <functional>
+
 #include "include/v8-internal.h"
 #include "src/base/macros.h"
 #include "src/codegen/code-factory.h"
@@ -25,12 +27,13 @@
 #include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/property-cell.h"
 #include "src/roots/roots.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-objects.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
-
-using compiler::Node;
 
 CodeStubAssembler::CodeStubAssembler(compiler::CodeAssemblerState* state)
     : compiler::CodeAssembler(state),
@@ -349,7 +352,7 @@ TNode<Float64T> CodeStubAssembler::Float64Round(TNode<Float64T> x) {
   Goto(&return_x);
 
   BIND(&return_x);
-  return TNode<Float64T>::UncheckedCast(var_x.value());
+  return var_x.value();
 }
 
 TNode<Float64T> CodeStubAssembler::Float64Ceil(TNode<Float64T> x) {
@@ -401,7 +404,7 @@ TNode<Float64T> CodeStubAssembler::Float64Ceil(TNode<Float64T> x) {
   Goto(&return_x);
 
   BIND(&return_x);
-  return TNode<Float64T>::UncheckedCast(var_x.value());
+  return var_x.value();
 }
 
 TNode<Float64T> CodeStubAssembler::Float64Floor(TNode<Float64T> x) {
@@ -453,7 +456,7 @@ TNode<Float64T> CodeStubAssembler::Float64Floor(TNode<Float64T> x) {
   Goto(&return_x);
 
   BIND(&return_x);
-  return TNode<Float64T>::UncheckedCast(var_x.value());
+  return var_x.value();
 }
 
 TNode<Float64T> CodeStubAssembler::Float64RoundToEven(TNode<Float64T> x) {
@@ -484,7 +487,7 @@ TNode<Float64T> CodeStubAssembler::Float64RoundToEven(TNode<Float64T> x) {
   Goto(&done);
 
   BIND(&done);
-  return TNode<Float64T>::UncheckedCast(var_result.value());
+  return var_result.value();
 }
 
 TNode<Float64T> CodeStubAssembler::Float64Trunc(TNode<Float64T> x) {
@@ -545,7 +548,137 @@ TNode<Float64T> CodeStubAssembler::Float64Trunc(TNode<Float64T> x) {
   Goto(&return_x);
 
   BIND(&return_x);
-  return TNode<Float64T>::UncheckedCast(var_x.value());
+  return var_x.value();
+}
+
+TNode<IntPtrT> CodeStubAssembler::PopulationCountFallback(
+    TNode<UintPtrT> value) {
+  // Taken from slow path of base::bits::CountPopulation, the comments here show
+  // C++ code and comments from there for reference.
+  // Fall back to divide-and-conquer popcount (see "Hacker's Delight" by Henry
+  // S. Warren,  Jr.), chapter 5-1.
+  constexpr uintptr_t mask[] = {static_cast<uintptr_t>(0x5555555555555555),
+                                static_cast<uintptr_t>(0x3333333333333333),
+                                static_cast<uintptr_t>(0x0f0f0f0f0f0f0f0f)};
+
+  // TNode<UintPtrT> value = Unsigned(value_word);
+  TNode<UintPtrT> lhs, rhs;
+
+  // Start with 64 buckets of 1 bits, holding values from [0,1].
+  // {value = ((value >> 1) & mask[0]) + (value & mask[0])}
+  lhs = WordAnd(WordShr(value, UintPtrConstant(1)), UintPtrConstant(mask[0]));
+  rhs = WordAnd(value, UintPtrConstant(mask[0]));
+  value = UintPtrAdd(lhs, rhs);
+
+  // Having 32 buckets of 2 bits, holding values from [0,2] now.
+  // {value = ((value >> 2) & mask[1]) + (value & mask[1])}
+  lhs = WordAnd(WordShr(value, UintPtrConstant(2)), UintPtrConstant(mask[1]));
+  rhs = WordAnd(value, UintPtrConstant(mask[1]));
+  value = UintPtrAdd(lhs, rhs);
+
+  // Having 16 buckets of 4 bits, holding values from [0,4] now.
+  // {value = ((value >> 4) & mask[2]) + (value & mask[2])}
+  lhs = WordAnd(WordShr(value, UintPtrConstant(4)), UintPtrConstant(mask[2]));
+  rhs = WordAnd(value, UintPtrConstant(mask[2]));
+  value = UintPtrAdd(lhs, rhs);
+
+  // Having 8 buckets of 8 bits, holding values from [0,8] now.
+  // From this point on, the buckets are bigger than the number of bits
+  // required to hold the values, and the buckets are bigger the maximum
+  // result, so there's no need to mask value anymore, since there's no
+  // more risk of overflow between buckets.
+  // {value = (value >> 8) + value}
+  lhs = WordShr(value, UintPtrConstant(8));
+  value = UintPtrAdd(lhs, value);
+
+  // Having 4 buckets of 16 bits, holding values from [0,16] now.
+  // {value = (value >> 16) + value}
+  lhs = WordShr(value, UintPtrConstant(16));
+  value = UintPtrAdd(lhs, value);
+
+  if (Is64()) {
+    // Having 2 buckets of 32 bits, holding values from [0,32] now.
+    // {value = (value >> 32) + value}
+    lhs = WordShr(value, UintPtrConstant(32));
+    value = UintPtrAdd(lhs, value);
+  }
+
+  // Having 1 buckets of sizeof(intptr_t) bits, holding values from [0,64] now.
+  // {return static_cast<unsigned>(value & 0xff)}
+  return Signed(WordAnd(value, UintPtrConstant(0xff)));
+}
+
+TNode<Int64T> CodeStubAssembler::PopulationCount64(TNode<Word64T> value) {
+  if (IsWord64PopcntSupported()) {
+    return Word64Popcnt(value);
+  }
+
+  if (Is32()) {
+    // Unsupported.
+    UNREACHABLE();
+  }
+
+  return ReinterpretCast<Int64T>(
+      PopulationCountFallback(ReinterpretCast<UintPtrT>(value)));
+}
+
+TNode<Int32T> CodeStubAssembler::PopulationCount32(TNode<Word32T> value) {
+  if (IsWord32PopcntSupported()) {
+    return Word32Popcnt(value);
+  }
+
+  if (Is32()) {
+    TNode<IntPtrT> res =
+        PopulationCountFallback(ReinterpretCast<UintPtrT>(value));
+    return ReinterpretCast<Int32T>(res);
+  } else {
+    TNode<IntPtrT> res = PopulationCountFallback(
+        ReinterpretCast<UintPtrT>(ChangeUint32ToUint64(value)));
+    return TruncateInt64ToInt32(ReinterpretCast<Int64T>(res));
+  }
+}
+
+TNode<Int64T> CodeStubAssembler::CountTrailingZeros64(TNode<Word64T> value) {
+  if (IsWord64CtzSupported()) {
+    return Word64Ctz(value);
+  }
+
+  if (Is32()) {
+    // Unsupported.
+    UNREACHABLE();
+  }
+
+  // Same fallback as in base::bits::CountTrailingZeros.
+  // Fall back to popcount (see "Hacker's Delight" by Henry S. Warren, Jr.),
+  // chapter 5-4. On x64, since is faster than counting in a loop and faster
+  // than doing binary search.
+  TNode<Word64T> lhs = Word64Not(value);
+  TNode<Word64T> rhs = Uint64Sub(Unsigned(value), Uint64Constant(1));
+  return PopulationCount64(Word64And(lhs, rhs));
+}
+
+TNode<Int32T> CodeStubAssembler::CountTrailingZeros32(TNode<Word32T> value) {
+  if (IsWord32CtzSupported()) {
+    return Word32Ctz(value);
+  }
+
+  if (Is32()) {
+    // Same fallback as in Word64CountTrailingZeros.
+    TNode<Word32T> lhs = Word32BitwiseNot(value);
+    TNode<Word32T> rhs = Int32Sub(Signed(value), Int32Constant(1));
+    return PopulationCount32(Word32And(lhs, rhs));
+  } else {
+    TNode<Int64T> res64 = CountTrailingZeros64(ChangeUint32ToUint64(value));
+    return TruncateInt64ToInt32(Signed(res64));
+  }
+}
+
+TNode<Int64T> CodeStubAssembler::CountLeadingZeros64(TNode<Word64T> value) {
+  return Word64Clz(value);
+}
+
+TNode<Int32T> CodeStubAssembler::CountLeadingZeros32(TNode<Word32T> value) {
+  return Word32Clz(value);
 }
 
 template <>
@@ -610,7 +743,7 @@ TNode<Smi> CodeStubAssembler::NormalizeSmiIndex(TNode<Smi> smi_index) {
   return smi_index;
 }
 
-TNode<Smi> CodeStubAssembler::SmiFromInt32(SloppyTNode<Int32T> value) {
+TNode<Smi> CodeStubAssembler::SmiFromInt32(TNode<Int32T> value) {
   if (COMPRESS_POINTERS_BOOL) {
     static_assert(!COMPRESS_POINTERS_BOOL || (kSmiShiftSize + kSmiTagSize == 1),
                   "Use shifting instead of add");
@@ -1486,6 +1619,8 @@ TNode<Object> CodeStubAssembler::LoadFromParentFrame(int offset) {
 
 TNode<IntPtrT> CodeStubAssembler::LoadAndUntagObjectField(
     TNode<HeapObject> object, int offset) {
+  // Please use LoadMap(object) instead.
+  DCHECK_NE(offset, HeapObject::kMapOffset);
   if (SmiValuesAre32Bits()) {
 #if V8_TARGET_LITTLE_ENDIAN
     offset += 4;
@@ -1498,6 +1633,8 @@ TNode<IntPtrT> CodeStubAssembler::LoadAndUntagObjectField(
 
 TNode<Int32T> CodeStubAssembler::LoadAndUntagToWord32ObjectField(
     TNode<HeapObject> object, int offset) {
+  // Please use LoadMap(object) instead.
+  DCHECK_NE(offset, HeapObject::kMapOffset);
   if (SmiValuesAre32Bits()) {
 #if V8_TARGET_LITTLE_ENDIAN
     offset += 4;
@@ -1523,7 +1660,15 @@ TNode<Map> CodeStubAssembler::GetInstanceTypeMap(InstanceType instance_type) {
 }
 
 TNode<Map> CodeStubAssembler::LoadMap(TNode<HeapObject> object) {
-  return LoadObjectField<Map>(object, HeapObject::kMapOffset);
+  TNode<Map> map = LoadObjectField<Map>(object, HeapObject::kMapOffset);
+#ifdef V8_MAP_PACKING
+  // Check the loaded map is unpacked. i.e. the lowest two bits != 0b10
+  CSA_ASSERT(this,
+             WordNotEqual(WordAnd(BitcastTaggedToWord(map),
+                                  IntPtrConstant(Internals::kMapWordXorMask)),
+                          IntPtrConstant(Internals::kMapWordSignature)));
+#endif
+  return map;
 }
 
 TNode<Uint16T> CodeStubAssembler::LoadInstanceType(TNode<HeapObject> object) {
@@ -1590,16 +1735,16 @@ TNode<HeapObject> CodeStubAssembler::LoadSlowProperties(
   CSA_SLOW_ASSERT(this, IsDictionaryMap(LoadMap(object)));
   TNode<Object> properties = LoadJSReceiverPropertiesOrHash(object);
   NodeGenerator<HeapObject> make_empty = [=]() -> TNode<HeapObject> {
-    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-      return EmptyOrderedPropertyDictionaryConstant();
+    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+      return EmptySwissPropertyDictionaryConstant();
     } else {
       return EmptyPropertyDictionaryConstant();
     }
   };
   NodeGenerator<HeapObject> cast_properties = [=] {
     TNode<HeapObject> dict = CAST(properties);
-    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-      CSA_ASSERT(this, Word32Or(IsOrderedNameDictionary(dict),
+    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+      CSA_ASSERT(this, Word32Or(IsSwissNameDictionary(dict),
                                 IsGlobalDictionary(dict)));
     } else {
       CSA_ASSERT(this,
@@ -1775,27 +1920,25 @@ TNode<Uint32T> CodeStubAssembler::EnsureOnlyHasSimpleProperties(
 }
 
 TNode<IntPtrT> CodeStubAssembler::LoadJSReceiverIdentityHash(
-    TNode<Object> receiver, Label* if_no_hash) {
+    TNode<JSReceiver> receiver, Label* if_no_hash) {
   TVARIABLE(IntPtrT, var_hash);
   Label done(this), if_smi(this), if_property_array(this),
-      if_ordered_property_dictionary(this), if_property_dictionary(this),
+      if_swiss_property_dictionary(this), if_property_dictionary(this),
       if_fixed_array(this);
 
   TNode<Object> properties_or_hash =
-      LoadObjectField(TNode<HeapObject>::UncheckedCast(receiver),
-                      JSReceiver::kPropertiesOrHashOffset);
+      LoadObjectField(receiver, JSReceiver::kPropertiesOrHashOffset);
   GotoIf(TaggedIsSmi(properties_or_hash), &if_smi);
 
-  TNode<HeapObject> properties =
-      TNode<HeapObject>::UncheckedCast(properties_or_hash);
+  TNode<HeapObject> properties = CAST(properties_or_hash);
   TNode<Uint16T> properties_instance_type = LoadInstanceType(properties);
 
   GotoIf(InstanceTypeEqual(properties_instance_type, PROPERTY_ARRAY_TYPE),
          &if_property_array);
-  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    GotoIf(InstanceTypeEqual(properties_instance_type,
-                             ORDERED_NAME_DICTIONARY_TYPE),
-           &if_ordered_property_dictionary);
+  if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+    GotoIf(
+        InstanceTypeEqual(properties_instance_type, SWISS_NAME_DICTIONARY_TYPE),
+        &if_swiss_property_dictionary);
   }
   Branch(InstanceTypeEqual(properties_instance_type, NAME_DICTIONARY_TYPE),
          &if_property_dictionary, &if_fixed_array);
@@ -1808,7 +1951,7 @@ TNode<IntPtrT> CodeStubAssembler::LoadJSReceiverIdentityHash(
 
   BIND(&if_smi);
   {
-    var_hash = SmiUntag(TNode<Smi>::UncheckedCast(properties_or_hash));
+    var_hash = SmiUntag(CAST(properties_or_hash));
     Goto(&done);
   }
 
@@ -1816,15 +1959,14 @@ TNode<IntPtrT> CodeStubAssembler::LoadJSReceiverIdentityHash(
   {
     TNode<IntPtrT> length_and_hash = LoadAndUntagObjectField(
         properties, PropertyArray::kLengthAndHashOffset);
-    var_hash = TNode<IntPtrT>::UncheckedCast(
-        DecodeWord<PropertyArray::HashField>(length_and_hash));
+    var_hash = Signed(DecodeWord<PropertyArray::HashField>(length_and_hash));
     Goto(&done);
   }
-  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    BIND(&if_ordered_property_dictionary);
+  if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+    BIND(&if_swiss_property_dictionary);
     {
-      var_hash = SmiUntag(CAST(LoadFixedArrayElement(
-          CAST(properties), OrderedNameDictionary::HashIndex())));
+      var_hash = Signed(
+          ChangeUint32ToWord(LoadSwissNameDictionaryHash(CAST(properties))));
       Goto(&done);
     }
   }
@@ -1901,6 +2043,13 @@ void CodeStubAssembler::DispatchMaybeObject(TNode<MaybeObject> maybe_object,
   BIND(&inner_if_strong);
   *extracted = CAST(maybe_object);
   Goto(if_strong);
+}
+
+void CodeStubAssembler::AssertHasValidMap(TNode<HeapObject> object) {
+#ifdef V8_MAP_PACKING
+  // Test if the map is an unpacked and valid map
+  CSA_ASSERT(this, IsMap(LoadMap(object)));
+#endif
 }
 
 TNode<BoolT> CodeStubAssembler::IsStrong(TNode<MaybeObject> value) {
@@ -2694,9 +2843,8 @@ TNode<BoolT> CodeStubAssembler::IsGeneratorFunction(
 TNode<BoolT> CodeStubAssembler::IsJSFunctionWithPrototypeSlot(
     TNode<HeapObject> object) {
   // Only JSFunction maps may have HasPrototypeSlotBit set.
-  return TNode<BoolT>::UncheckedCast(
-      IsSetWord32<Map::Bits1::HasPrototypeSlotBit>(
-          LoadMapBitField(LoadMap(object))));
+  return IsSetWord32<Map::Bits1::HasPrototypeSlotBit>(
+      LoadMapBitField(LoadMap(object)));
 }
 
 void CodeStubAssembler::BranchIfHasPrototypeProperty(
@@ -2784,9 +2932,19 @@ void CodeStubAssembler::StoreHeapNumberValue(TNode<HeapNumber> object,
 }
 
 void CodeStubAssembler::StoreObjectField(TNode<HeapObject> object, int offset,
+                                         TNode<Smi> value) {
+  StoreObjectFieldNoWriteBarrier(object, offset, value);
+}
+
+void CodeStubAssembler::StoreObjectField(TNode<HeapObject> object,
+                                         TNode<IntPtrT> offset,
+                                         TNode<Smi> value) {
+  StoreObjectFieldNoWriteBarrier(object, offset, value);
+}
+
+void CodeStubAssembler::StoreObjectField(TNode<HeapObject> object, int offset,
                                          TNode<Object> value) {
   DCHECK_NE(HeapObject::kMapOffset, offset);  // Use StoreMap instead.
-
   OptimizedStoreField(MachineRepresentation::kTagged,
                       UncheckedCast<HeapObject>(object), offset, value);
 }
@@ -2804,12 +2962,14 @@ void CodeStubAssembler::StoreObjectField(TNode<HeapObject> object,
 
 void CodeStubAssembler::UnsafeStoreObjectFieldNoWriteBarrier(
     TNode<HeapObject> object, int offset, TNode<Object> value) {
+  DCHECK_NE(HeapObject::kMapOffset, offset);  // Use StoreMap instead.
   OptimizedStoreFieldUnsafeNoWriteBarrier(MachineRepresentation::kTagged,
                                           object, offset, value);
 }
 
 void CodeStubAssembler::StoreMap(TNode<HeapObject> object, TNode<Map> map) {
   OptimizedStoreMap(object, map);
+  AssertHasValidMap(object);
 }
 
 void CodeStubAssembler::StoreMapNoWriteBarrier(TNode<HeapObject> object,
@@ -2819,16 +2979,19 @@ void CodeStubAssembler::StoreMapNoWriteBarrier(TNode<HeapObject> object,
 
 void CodeStubAssembler::StoreMapNoWriteBarrier(TNode<HeapObject> object,
                                                TNode<Map> map) {
-  OptimizedStoreFieldAssertNoWriteBarrier(MachineRepresentation::kTaggedPointer,
-                                          object, HeapObject::kMapOffset, map);
+  OptimizedStoreMap(object, map);
+  AssertHasValidMap(object);
 }
 
 void CodeStubAssembler::StoreObjectFieldRoot(TNode<HeapObject> object,
                                              int offset, RootIndex root_index) {
-  if (RootsTable::IsImmortalImmovable(root_index)) {
-    StoreObjectFieldNoWriteBarrier(object, offset, LoadRoot(root_index));
+  TNode<Object> root = LoadRoot(root_index);
+  if (offset == HeapObject::kMapOffset) {
+    StoreMap(object, CAST(root));
+  } else if (RootsTable::IsImmortalImmovable(root_index)) {
+    StoreObjectFieldNoWriteBarrier(object, offset, root);
   } else {
-    StoreObjectField(object, offset, LoadRoot(root_index));
+    StoreObjectField(object, offset, root);
   }
 }
 
@@ -2867,7 +3030,7 @@ void CodeStubAssembler::StoreFixedArrayOrPropertyArrayElement(
               [=] {
                 TNode<IntPtrT> length_and_hash = LoadAndUntagObjectField(
                     object, PropertyArray::kLengthAndHashOffset);
-                return TNode<IntPtrT>::UncheckedCast(
+                return Signed(
                     DecodeWord<PropertyArray::LengthField>(length_and_hash));
               },
               [=] {
@@ -3109,7 +3272,7 @@ TNode<HeapNumber> CodeStubAssembler::AllocateHeapNumber() {
 }
 
 TNode<HeapNumber> CodeStubAssembler::AllocateHeapNumberWithValue(
-    SloppyTNode<Float64T> value) {
+    TNode<Float64T> value) {
   TNode<HeapNumber> result = AllocateHeapNumber();
   StoreHeapNumberValue(result, value);
   return result;
@@ -3205,8 +3368,33 @@ TNode<UintPtrT> CodeStubAssembler::LoadBigIntDigit(TNode<BigInt> bigint,
   return LoadObjectField<UintPtrT>(bigint, offset);
 }
 
+TNode<ByteArray> CodeStubAssembler::AllocateNonEmptyByteArray(
+    TNode<UintPtrT> length, AllocationFlags flags) {
+  CSA_ASSERT(this, WordNotEqual(length, IntPtrConstant(0)));
+
+  Comment("AllocateNonEmptyByteArray");
+  TVARIABLE(Object, var_result);
+
+  TNode<IntPtrT> raw_size =
+      GetArrayAllocationSize(Signed(length), UINT8_ELEMENTS,
+                             ByteArray::kHeaderSize + kObjectAlignmentMask);
+  TNode<IntPtrT> size =
+      WordAnd(raw_size, IntPtrConstant(~kObjectAlignmentMask));
+
+  TNode<HeapObject> result = Allocate(size, flags);
+
+  DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kByteArrayMap));
+  StoreMapNoWriteBarrier(result, RootIndex::kByteArrayMap);
+  StoreObjectFieldNoWriteBarrier(result, ByteArray::kLengthOffset,
+                                 SmiTag(Signed(length)));
+
+  return CAST(result);
+}
+
 TNode<ByteArray> CodeStubAssembler::AllocateByteArray(TNode<UintPtrT> length,
                                                       AllocationFlags flags) {
+  // TODO(ishell): unify with AllocateNonEmptyByteArray().
+
   Comment("AllocateByteArray");
   TVARIABLE(Object, var_result);
 
@@ -3584,7 +3772,7 @@ void CodeStubAssembler::InitializeJSObjectFromMap(
   } else {
     CSA_ASSERT(this, Word32Or(Word32Or(Word32Or(IsPropertyArray(*properties),
                                                 IsNameDictionary(*properties)),
-                                       IsOrderedNameDictionary(*properties)),
+                                       IsSwissNameDictionary(*properties)),
                               IsEmptyFixedArray(*properties)));
     StoreObjectFieldNoWriteBarrier(object, JSObject::kPropertiesOrHashOffset,
                                    *properties);
@@ -5423,8 +5611,7 @@ TNode<Number> CodeStubAssembler::ChangeFloat64ToTagged(TNode<Float64T> value) {
   return var_result.value();
 }
 
-TNode<Number> CodeStubAssembler::ChangeInt32ToTagged(
-    SloppyTNode<Int32T> value) {
+TNode<Number> CodeStubAssembler::ChangeInt32ToTagged(TNode<Int32T> value) {
   if (SmiValuesAre32Bits()) {
     return SmiTag(ChangeInt32ToIntPtr(value));
   }
@@ -5454,8 +5641,7 @@ TNode<Number> CodeStubAssembler::ChangeInt32ToTagged(
   return var_result.value();
 }
 
-TNode<Number> CodeStubAssembler::ChangeUint32ToTagged(
-    SloppyTNode<Uint32T> value) {
+TNode<Number> CodeStubAssembler::ChangeUint32ToTagged(TNode<Uint32T> value) {
   Label if_overflow(this, Label::kDeferred), if_not_overflow(this),
       if_join(this);
   TVARIABLE(Number, var_result);
@@ -5505,6 +5691,10 @@ TNode<Number> CodeStubAssembler::ChangeUintPtrToTagged(TNode<UintPtrT> value) {
 
   BIND(&if_join);
   return var_result.value();
+}
+
+TNode<Int32T> CodeStubAssembler::ChangeBoolToInt32(TNode<BoolT> b) {
+  return UncheckedCast<Int32T>(b);
 }
 
 TNode<String> CodeStubAssembler::ToThisString(TNode<Context> context,
@@ -6400,6 +6590,11 @@ TNode<BoolT> CodeStubAssembler::IsNameDictionary(TNode<HeapObject> object) {
 TNode<BoolT> CodeStubAssembler::IsOrderedNameDictionary(
     TNode<HeapObject> object) {
   return HasInstanceType(object, ORDERED_NAME_DICTIONARY_TYPE);
+}
+
+TNode<BoolT> CodeStubAssembler::IsSwissNameDictionary(
+    TNode<HeapObject> object) {
+  return HasInstanceType(object, SWISS_NAME_DICTIONARY_TYPE);
 }
 
 TNode<BoolT> CodeStubAssembler::IsGlobalDictionary(TNode<HeapObject> object) {
@@ -7858,12 +8053,127 @@ TNode<MaybeObject> CodeStubAssembler::LoadFieldTypeByDescriptorEntry(
       DescriptorArray::ToValueIndex(0) * kTaggedSize);
 }
 
+// Loads the value for the entry with the given key_index.
+// Returns a tagged value.
+template <class ContainerType>
+TNode<Object> CodeStubAssembler::LoadValueByKeyIndex(
+    TNode<ContainerType> container, TNode<IntPtrT> key_index) {
+  static_assert(!std::is_same<ContainerType, DescriptorArray>::value,
+                "Use the non-templatized version for DescriptorArray");
+  const int kKeyToValueOffset =
+      (ContainerType::kEntryValueIndex - ContainerType::kEntryKeyIndex) *
+      kTaggedSize;
+  return LoadFixedArrayElement(container, key_index, kKeyToValueOffset);
+}
+
+template <>
+V8_EXPORT_PRIVATE TNode<Object> CodeStubAssembler::LoadValueByKeyIndex(
+    TNode<SwissNameDictionary> container, TNode<IntPtrT> key_index) {
+  TNode<IntPtrT> offset_minus_tag = SwissNameDictionaryOffsetIntoDataTableMT(
+      container, key_index, SwissNameDictionary::kDataTableValueEntryIndex);
+
+  return Load<Object>(container, offset_minus_tag);
+}
+
+template <class ContainerType>
+TNode<Uint32T> CodeStubAssembler::LoadDetailsByKeyIndex(
+    TNode<ContainerType> container, TNode<IntPtrT> key_index) {
+  static_assert(!std::is_same<ContainerType, DescriptorArray>::value,
+                "Use the non-templatized version for DescriptorArray");
+  const int kKeyToDetailsOffset =
+      (ContainerType::kEntryDetailsIndex - ContainerType::kEntryKeyIndex) *
+      kTaggedSize;
+  return Unsigned(LoadAndUntagToWord32FixedArrayElement(container, key_index,
+                                                        kKeyToDetailsOffset));
+}
+
+template <>
+V8_EXPORT_PRIVATE TNode<Uint32T> CodeStubAssembler::LoadDetailsByKeyIndex(
+    TNode<SwissNameDictionary> container, TNode<IntPtrT> key_index) {
+  TNode<IntPtrT> capacity =
+      ChangeInt32ToIntPtr(LoadSwissNameDictionaryCapacity(container));
+  return LoadSwissNameDictionaryPropertyDetails(container, capacity, key_index);
+}
+
+// Stores the details for the entry with the given key_index.
+// |details| must be a Smi.
+template <class ContainerType>
+void CodeStubAssembler::StoreDetailsByKeyIndex(TNode<ContainerType> container,
+                                               TNode<IntPtrT> key_index,
+                                               TNode<Smi> details) {
+  const int kKeyToDetailsOffset =
+      (ContainerType::kEntryDetailsIndex - ContainerType::kEntryKeyIndex) *
+      kTaggedSize;
+  StoreFixedArrayElement(container, key_index, details, kKeyToDetailsOffset);
+}
+
+template <>
+V8_EXPORT_PRIVATE void CodeStubAssembler::StoreDetailsByKeyIndex(
+    TNode<SwissNameDictionary> container, TNode<IntPtrT> key_index,
+    TNode<Smi> details) {
+  TNode<IntPtrT> capacity =
+      ChangeInt32ToIntPtr(LoadSwissNameDictionaryCapacity(container));
+  TNode<Uint8T> details_byte = UncheckedCast<Uint8T>(SmiToInt32(details));
+  StoreSwissNameDictionaryPropertyDetails(container, capacity, key_index,
+                                          details_byte);
+}
+
+// Stores the value for the entry with the given key_index.
+template <class ContainerType>
+void CodeStubAssembler::StoreValueByKeyIndex(TNode<ContainerType> container,
+                                             TNode<IntPtrT> key_index,
+                                             TNode<Object> value,
+                                             WriteBarrierMode write_barrier) {
+  const int kKeyToValueOffset =
+      (ContainerType::kEntryValueIndex - ContainerType::kEntryKeyIndex) *
+      kTaggedSize;
+  StoreFixedArrayElement(container, key_index, value, write_barrier,
+                         kKeyToValueOffset);
+}
+
+template <>
+V8_EXPORT_PRIVATE void CodeStubAssembler::StoreValueByKeyIndex(
+    TNode<SwissNameDictionary> container, TNode<IntPtrT> key_index,
+    TNode<Object> value, WriteBarrierMode write_barrier) {
+  TNode<IntPtrT> offset_minus_tag = SwissNameDictionaryOffsetIntoDataTableMT(
+      container, key_index, SwissNameDictionary::kDataTableValueEntryIndex);
+
+  StoreToObjectWriteBarrier mode;
+  switch (write_barrier) {
+    case UNSAFE_SKIP_WRITE_BARRIER:
+    case SKIP_WRITE_BARRIER:
+      mode = StoreToObjectWriteBarrier::kNone;
+      break;
+    case UPDATE_WRITE_BARRIER:
+      mode = StoreToObjectWriteBarrier::kFull;
+      break;
+    default:
+      // We shouldn't see anything else.
+      UNREACHABLE();
+  }
+  StoreToObject(MachineRepresentation::kTagged, container, offset_minus_tag,
+                value, mode);
+}
+
 template V8_EXPORT_PRIVATE TNode<IntPtrT>
 CodeStubAssembler::EntryToIndex<NameDictionary>(TNode<IntPtrT>, int);
 template V8_EXPORT_PRIVATE TNode<IntPtrT>
 CodeStubAssembler::EntryToIndex<GlobalDictionary>(TNode<IntPtrT>, int);
 template V8_EXPORT_PRIVATE TNode<IntPtrT>
 CodeStubAssembler::EntryToIndex<NumberDictionary>(TNode<IntPtrT>, int);
+
+template TNode<Object> CodeStubAssembler::LoadValueByKeyIndex(
+    TNode<NameDictionary> container, TNode<IntPtrT> key_index);
+template TNode<Object> CodeStubAssembler::LoadValueByKeyIndex(
+    TNode<GlobalDictionary> container, TNode<IntPtrT> key_index);
+template TNode<Uint32T> CodeStubAssembler::LoadDetailsByKeyIndex(
+    TNode<NameDictionary> container, TNode<IntPtrT> key_index);
+template void CodeStubAssembler::StoreDetailsByKeyIndex(
+    TNode<NameDictionary> container, TNode<IntPtrT> key_index,
+    TNode<Smi> details);
+template void CodeStubAssembler::StoreValueByKeyIndex(
+    TNode<NameDictionary> container, TNode<IntPtrT> key_index,
+    TNode<Object> value, WriteBarrierMode write_barrier);
 
 // This must be kept in sync with HashTableBase::ComputeCapacity().
 TNode<IntPtrT> CodeStubAssembler::HashTableComputeCapacity(
@@ -8008,6 +8318,15 @@ TNode<Word32T> CodeStubAssembler::ComputeSeededHash(TNode<IntPtrT> key) {
   return UncheckedCast<Word32T>(CallCFunction(
       function_addr, type_uint32, std::make_pair(type_ptr, isolate_ptr),
       std::make_pair(type_int32, TruncateIntPtrToInt32(key))));
+}
+
+template <>
+void CodeStubAssembler::NameDictionaryLookup(
+    TNode<SwissNameDictionary> dictionary, TNode<Name> unique_name,
+    Label* if_found, TVariable<IntPtrT>* var_name_index, Label* if_not_found,
+    LookupMode mode) {
+  SwissNameDictionaryFindEntry(dictionary, unique_name, if_found,
+                               var_name_index, if_not_found);
 }
 
 void CodeStubAssembler::NumberDictionaryLookup(
@@ -8196,6 +8515,31 @@ void CodeStubAssembler::Add(TNode<Dictionary> dictionary, TNode<Name> key,
                           enum_index);
 }
 
+template <>
+void CodeStubAssembler::Add(TNode<SwissNameDictionary> dictionary,
+                            TNode<Name> key, TNode<Object> value,
+                            Label* bailout) {
+  PropertyDetails d(kData, NONE,
+                    PropertyDetails::kConstIfDictConstnessTracking);
+
+  PropertyDetails d_dont_enum(kData, DONT_ENUM,
+                              PropertyDetails::kConstIfDictConstnessTracking);
+  TNode<Uint8T> details_byte_enum =
+      UncheckedCast<Uint8T>(Uint32Constant(d.ToByte()));
+  TNode<Uint8T> details_byte_dont_enum =
+      UncheckedCast<Uint8T>(Uint32Constant(d_dont_enum.ToByte()));
+
+  Label not_private(this);
+  TVARIABLE(Uint8T, var_details, details_byte_enum);
+
+  GotoIfNot(IsPrivateSymbol(key), &not_private);
+  var_details = details_byte_dont_enum;
+  Goto(&not_private);
+
+  BIND(&not_private);
+  SwissNameDictionaryAdd(dictionary, key, value, var_details.value(), bailout);
+}
+
 template void CodeStubAssembler::Add<NameDictionary>(TNode<NameDictionary>,
                                                      TNode<Name>, TNode<Object>,
                                                      Label*);
@@ -8209,9 +8553,11 @@ TNode<Smi> CodeStubAssembler::GetNumberOfElements(
 
 template <>
 TNode<Smi> CodeStubAssembler::GetNumberOfElements(
-    TNode<OrderedNameDictionary> dictionary) {
-  return CAST(LoadFixedArrayElement(
-      dictionary, OrderedNameDictionary::NumberOfElementsIndex()));
+    TNode<SwissNameDictionary> dictionary) {
+  TNode<IntPtrT> capacity =
+      ChangeInt32ToIntPtr(LoadSwissNameDictionaryCapacity(dictionary));
+  return SmiFromIntPtr(
+      LoadSwissNameDictionaryNumberOfElements(dictionary, capacity));
 }
 
 template TNode<Smi> CodeStubAssembler::GetNumberOfElements(
@@ -8528,13 +8874,8 @@ void CodeStubAssembler::ForEachEnumerableOwnProperty(
           }
           BIND(&if_found_dict);
           {
-            if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-              // TODO(v8:11167, v8:11177) Only here due to SetDataProperties
-              // workaround.
-              GotoIf(Int32TrueConstant(), bailout);
-            }
-
-            TNode<NameDictionary> dictionary = CAST(var_meta_storage.value());
+            TNode<PropertyDictionary> dictionary =
+                CAST(var_meta_storage.value());
             TNode<IntPtrT> entry = var_entry.value();
 
             TNode<Uint32T> details = LoadDetailsByKeyIndex(dictionary, entry);
@@ -8544,7 +8885,8 @@ void CodeStubAssembler::ForEachEnumerableOwnProperty(
                 &next_iteration);
 
             var_details = details;
-            var_value = LoadValueByKeyIndex<NameDictionary>(dictionary, entry);
+            var_value =
+                LoadValueByKeyIndex<PropertyDictionary>(dictionary, entry);
             Goto(&if_found);
           }
 
@@ -8733,16 +9075,11 @@ void CodeStubAssembler::TryLookupPropertyInSimpleObject(
   }
   BIND(&if_isslowmap);
   {
-    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-      // TODO(v8:11167, v8:11177) Only here due to SetDataProperties workaround.
-      GotoIf(Int32TrueConstant(), bailout);
-    }
-
-    TNode<NameDictionary> dictionary = CAST(LoadSlowProperties(object));
+    TNode<PropertyDictionary> dictionary = CAST(LoadSlowProperties(object));
     *var_meta_storage = dictionary;
 
-    NameDictionaryLookup<NameDictionary>(dictionary, unique_name, if_found_dict,
-                                         var_name_index, if_not_found);
+    NameDictionaryLookup<PropertyDictionary>(
+        dictionary, unique_name, if_found_dict, var_name_index, if_not_found);
   }
 }
 
@@ -8966,8 +9303,9 @@ void CodeStubAssembler::LoadPropertyFromFastObject(
   Comment("] LoadPropertyFromFastObject");
 }
 
-void CodeStubAssembler::LoadPropertyFromNameDictionary(
-    TNode<NameDictionary> dictionary, TNode<IntPtrT> name_index,
+template <typename Dictionary>
+void CodeStubAssembler::LoadPropertyFromDictionary(
+    TNode<Dictionary> dictionary, TNode<IntPtrT> name_index,
     TVariable<Uint32T>* var_details, TVariable<Object>* var_value) {
   Comment("LoadPropertyFromNameDictionary");
   *var_details = LoadDetailsByKeyIndex(dictionary, name_index);
@@ -8996,6 +9334,14 @@ void CodeStubAssembler::LoadPropertyFromGlobalDictionary(
 
   Comment("] LoadPropertyFromGlobalDictionary");
 }
+
+template void CodeStubAssembler::LoadPropertyFromDictionary(
+    TNode<NameDictionary> dictionary, TNode<IntPtrT> name_index,
+    TVariable<Uint32T>* var_details, TVariable<Object>* var_value);
+
+template void CodeStubAssembler::LoadPropertyFromDictionary(
+    TNode<SwissNameDictionary> dictionary, TNode<IntPtrT> name_index,
+    TVariable<Uint32T>* var_details, TVariable<Object>* var_value);
 
 // |value| is the property backing store's contents, which is either a value or
 // an accessor pair, as specified by |details|. |holder| is a JSObject or a
@@ -9159,9 +9505,10 @@ void CodeStubAssembler::TryGetOwnProperty(
   }
   BIND(&if_found_dict);
   {
-    TNode<NameDictionary> dictionary = CAST(var_meta_storage.value());
+    TNode<PropertyDictionary> dictionary = CAST(var_meta_storage.value());
     TNode<IntPtrT> entry = var_entry.value();
-    LoadPropertyFromNameDictionary(dictionary, entry, var_details, var_value);
+    LoadPropertyFromDictionary(dictionary, entry, var_details, var_value);
+
     Goto(&if_found);
   }
   BIND(&if_found_global);
@@ -9284,7 +9631,7 @@ void CodeStubAssembler::TryLookupElement(
   {
     // Negative and too-large keys must be converted to property names.
     if (Is64()) {
-      GotoIf(UintPtrLessThan(IntPtrConstant(JSArray::kMaxArrayIndex),
+      GotoIf(UintPtrLessThan(IntPtrConstant(JSObject::kMaxElementIndex),
                              intptr_index),
              if_bailout);
     } else {
@@ -9323,7 +9670,7 @@ void CodeStubAssembler::TryLookupElement(
     // Positive OOB indices mean "not found", negative indices and indices
     // out of array index range must be converted to property names.
     if (Is64()) {
-      GotoIf(UintPtrLessThan(IntPtrConstant(JSArray::kMaxArrayIndex),
+      GotoIf(UintPtrLessThan(IntPtrConstant(JSObject::kMaxElementIndex),
                              intptr_index),
              if_bailout);
     } else {
@@ -9803,7 +10150,7 @@ void CodeStubAssembler::UpdateFeedback(TNode<Smi> feedback,
 }
 
 void CodeStubAssembler::ReportFeedbackUpdate(
-    TNode<FeedbackVector> feedback_vector, SloppyTNode<UintPtrT> slot_id,
+    TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot_id,
     const char* reason) {
   // Reset profiler ticks.
   StoreObjectFieldNoWriteBarrier(
@@ -9940,28 +10287,25 @@ MachineRepresentation ElementsKindToMachineRepresentation(ElementsKind kind) {
 
 }  // namespace
 
-template <typename TArray, typename TIndex>
-void CodeStubAssembler::StoreElementTypedArray(TNode<TArray> elements,
-                                               ElementsKind kind,
-                                               TNode<TIndex> index,
-                                               Node* value) {
-  // TODO(v8:9708): Do we want to keep both IntPtrT and UintPtrT variants?
-  static_assert(std::is_same<TIndex, Smi>::value ||
-                    std::is_same<TIndex, UintPtrT>::value ||
+// TODO(solanes): Since we can't use `if constexpr` until we enable C++17 we
+// have to specialize the BigInt and Word32T cases. Since we can't partly
+// specialize, we have to specialize all used combinations.
+template <typename TIndex>
+void CodeStubAssembler::StoreElementTypedArrayBigInt(TNode<RawPtrT> elements,
+                                                     ElementsKind kind,
+                                                     TNode<TIndex> index,
+                                                     TNode<BigInt> value) {
+  static_assert(std::is_same<TIndex, UintPtrT>::value ||
                     std::is_same<TIndex, IntPtrT>::value,
-                "Only Smi, UintPtrT or IntPtrT index is allowed");
-  static_assert(std::is_same<TArray, RawPtrT>::value ||
-                    std::is_same<TArray, FixedArrayBase>::value,
-                "Only RawPtrT or FixedArrayBase elements are allowed");
-  DCHECK(IsTypedArrayElementsKind(kind));
-  if (kind == BIGINT64_ELEMENTS || kind == BIGUINT64_ELEMENTS) {
-    TNode<IntPtrT> offset = ElementOffsetFromIndex(index, kind, 0);
-    TVARIABLE(UintPtrT, var_low);
-    // Only used on 32-bit platforms.
-    TVARIABLE(UintPtrT, var_high);
-    BigIntToRawBytes(CAST(value), &var_low, &var_high);
+                "Only UintPtrT or IntPtrT indices is allowed");
+  DCHECK(kind == BIGINT64_ELEMENTS || kind == BIGUINT64_ELEMENTS);
+  TNode<IntPtrT> offset = ElementOffsetFromIndex(index, kind, 0);
+  TVARIABLE(UintPtrT, var_low);
+  // Only used on 32-bit platforms.
+  TVARIABLE(UintPtrT, var_high);
+  BigIntToRawBytes(value, &var_low, &var_high);
 
-    MachineRepresentation rep = WordT::kMachineRepresentation;
+  MachineRepresentation rep = WordT::kMachineRepresentation;
 #if defined(V8_TARGET_BIG_ENDIAN)
     if (!Is64()) {
       StoreNoWriteBarrier(rep, elements, offset, var_high.value());
@@ -9979,16 +10323,82 @@ void CodeStubAssembler::StoreElementTypedArray(TNode<TArray> elements,
                           var_high.value());
     }
 #endif
-  } else {
-    if (kind == UINT8_CLAMPED_ELEMENTS) {
-      CSA_ASSERT(this, Word32Equal(UncheckedCast<Word32T>(value),
-                                   Word32And(Int32Constant(0xFF), value)));
-    }
-    TNode<IntPtrT> offset = ElementOffsetFromIndex(index, kind, 0);
-    // TODO(cbruni): Add OOB check once typed.
-    MachineRepresentation rep = ElementsKindToMachineRepresentation(kind);
-    StoreNoWriteBarrier(rep, elements, offset, value);
+}
+
+template <>
+void CodeStubAssembler::StoreElementTypedArray(TNode<RawPtrT> elements,
+                                               ElementsKind kind,
+                                               TNode<UintPtrT> index,
+                                               TNode<BigInt> value) {
+  StoreElementTypedArrayBigInt(elements, kind, index, value);
+}
+
+template <>
+void CodeStubAssembler::StoreElementTypedArray(TNode<RawPtrT> elements,
+                                               ElementsKind kind,
+                                               TNode<IntPtrT> index,
+                                               TNode<BigInt> value) {
+  StoreElementTypedArrayBigInt(elements, kind, index, value);
+}
+
+template <typename TIndex>
+void CodeStubAssembler::StoreElementTypedArrayWord32(TNode<RawPtrT> elements,
+                                                     ElementsKind kind,
+                                                     TNode<TIndex> index,
+                                                     TNode<Word32T> value) {
+  static_assert(std::is_same<TIndex, UintPtrT>::value ||
+                    std::is_same<TIndex, IntPtrT>::value,
+                "Only UintPtrT or IntPtrT indices is allowed");
+  DCHECK(IsTypedArrayElementsKind(kind));
+  if (kind == UINT8_CLAMPED_ELEMENTS) {
+    CSA_ASSERT(this, Word32Equal(value, Word32And(Int32Constant(0xFF), value)));
   }
+  TNode<IntPtrT> offset = ElementOffsetFromIndex(index, kind, 0);
+  // TODO(cbruni): Add OOB check once typed.
+  MachineRepresentation rep = ElementsKindToMachineRepresentation(kind);
+  StoreNoWriteBarrier(rep, elements, offset, value);
+}
+
+template <>
+void CodeStubAssembler::StoreElementTypedArray(TNode<RawPtrT> elements,
+                                               ElementsKind kind,
+                                               TNode<UintPtrT> index,
+                                               TNode<Word32T> value) {
+  StoreElementTypedArrayWord32(elements, kind, index, value);
+}
+
+template <>
+void CodeStubAssembler::StoreElementTypedArray(TNode<RawPtrT> elements,
+                                               ElementsKind kind,
+                                               TNode<IntPtrT> index,
+                                               TNode<Word32T> value) {
+  StoreElementTypedArrayWord32(elements, kind, index, value);
+}
+
+template <typename TArray, typename TIndex, typename TValue>
+void CodeStubAssembler::StoreElementTypedArray(TNode<TArray> elements,
+                                               ElementsKind kind,
+                                               TNode<TIndex> index,
+                                               TNode<TValue> value) {
+  // TODO(v8:9708): Do we want to keep both IntPtrT and UintPtrT variants?
+  static_assert(std::is_same<TIndex, Smi>::value ||
+                    std::is_same<TIndex, UintPtrT>::value ||
+                    std::is_same<TIndex, IntPtrT>::value,
+                "Only Smi, UintPtrT or IntPtrT indices is allowed");
+  static_assert(std::is_same<TArray, RawPtrT>::value ||
+                    std::is_same<TArray, FixedArrayBase>::value,
+                "Only RawPtrT or FixedArrayBase elements are allowed");
+  static_assert(std::is_same<TValue, Int32T>::value ||
+                    std::is_same<TValue, Float32T>::value ||
+                    std::is_same<TValue, Float64T>::value ||
+                    std::is_same<TValue, Object>::value,
+                "Only Int32T, Float32T, Float64T or object value "
+                "types are allowed");
+  DCHECK(IsTypedArrayElementsKind(kind));
+  TNode<IntPtrT> offset = ElementOffsetFromIndex(index, kind, 0);
+  // TODO(cbruni): Add OOB check once typed.
+  MachineRepresentation rep = ElementsKindToMachineRepresentation(kind);
+  StoreNoWriteBarrier(rep, elements, offset, value);
 }
 
 template <typename TIndex>
@@ -10020,14 +10430,41 @@ void CodeStubAssembler::StoreElement(TNode<FixedArrayBase> elements,
   StoreFixedDoubleArrayElement(CAST(elements), index, value);
 }
 
-template <typename TIndex>
+template <typename TIndex, typename TValue>
 void CodeStubAssembler::StoreElement(TNode<RawPtrT> elements, ElementsKind kind,
-                                     TNode<TIndex> index, Node* value) {
+                                     TNode<TIndex> index, TNode<TValue> value) {
+  static_assert(std::is_same<TIndex, Smi>::value ||
+                    std::is_same<TIndex, IntPtrT>::value ||
+                    std::is_same<TIndex, UintPtrT>::value,
+                "Only Smi, IntPtrT or UintPtrT indices are allowed");
+  static_assert(
+      std::is_same<TValue, Int32T>::value ||
+          std::is_same<TValue, Word32T>::value ||
+          std::is_same<TValue, Float32T>::value ||
+          std::is_same<TValue, Float64T>::value ||
+          std::is_same<TValue, BigInt>::value,
+      "Only Int32T, Word32T, Float32T, Float64T or BigInt value types "
+      "are allowed");
+
   DCHECK(IsTypedArrayElementsKind(kind));
   StoreElementTypedArray(elements, kind, index, value);
 }
-template V8_EXPORT_PRIVATE void CodeStubAssembler::StoreElement<UintPtrT>(
-    TNode<RawPtrT>, ElementsKind, TNode<UintPtrT>, Node*);
+template V8_EXPORT_PRIVATE void CodeStubAssembler::StoreElement(TNode<RawPtrT>,
+                                                                ElementsKind,
+                                                                TNode<UintPtrT>,
+                                                                TNode<Int32T>);
+template V8_EXPORT_PRIVATE void CodeStubAssembler::StoreElement(TNode<RawPtrT>,
+                                                                ElementsKind,
+                                                                TNode<UintPtrT>,
+                                                                TNode<Word32T>);
+template V8_EXPORT_PRIVATE void CodeStubAssembler::StoreElement(
+    TNode<RawPtrT>, ElementsKind, TNode<UintPtrT>, TNode<Float32T>);
+template V8_EXPORT_PRIVATE void CodeStubAssembler::StoreElement(
+    TNode<RawPtrT>, ElementsKind, TNode<UintPtrT>, TNode<Float64T>);
+template V8_EXPORT_PRIVATE void CodeStubAssembler::StoreElement(TNode<RawPtrT>,
+                                                                ElementsKind,
+                                                                TNode<UintPtrT>,
+                                                                TNode<BigInt>);
 
 TNode<Uint8T> CodeStubAssembler::Int32ToUint8Clamped(
     TNode<Int32T> int32_value) {
@@ -10231,60 +10668,6 @@ TNode<BigInt> CodeStubAssembler::PrepareValueForWriteToTypedArray<BigInt>(
   return ToBigInt(context, input);
 }
 
-template <>
-TNode<UntaggedT> CodeStubAssembler::PrepareValueForWriteToTypedArray(
-    TNode<Object> input, ElementsKind elements_kind, TNode<Context> context) {
-  DCHECK(IsTypedArrayElementsKind(elements_kind));
-
-  switch (elements_kind) {
-    case UINT8_ELEMENTS:
-    case INT8_ELEMENTS:
-    case UINT16_ELEMENTS:
-    case INT16_ELEMENTS:
-    case UINT32_ELEMENTS:
-    case INT32_ELEMENTS:
-    case UINT8_CLAMPED_ELEMENTS:
-      return PrepareValueForWriteToTypedArray<Word32T>(input, elements_kind,
-                                                       context);
-    case FLOAT32_ELEMENTS:
-      return PrepareValueForWriteToTypedArray<Float32T>(input, elements_kind,
-                                                        context);
-    case FLOAT64_ELEMENTS:
-      return PrepareValueForWriteToTypedArray<Float64T>(input, elements_kind,
-                                                        context);
-    default:
-      UNREACHABLE();
-  }
-}
-
-Node* CodeStubAssembler::PrepareValueForWriteToTypedArray(
-    TNode<Object> input, ElementsKind elements_kind, TNode<Context> context) {
-  DCHECK(IsTypedArrayElementsKind(elements_kind));
-
-  switch (elements_kind) {
-    case UINT8_ELEMENTS:
-    case INT8_ELEMENTS:
-    case UINT16_ELEMENTS:
-    case INT16_ELEMENTS:
-    case UINT32_ELEMENTS:
-    case INT32_ELEMENTS:
-    case UINT8_CLAMPED_ELEMENTS:
-      return PrepareValueForWriteToTypedArray<Word32T>(input, elements_kind,
-                                                       context);
-    case FLOAT32_ELEMENTS:
-      return PrepareValueForWriteToTypedArray<Float32T>(input, elements_kind,
-                                                        context);
-    case FLOAT64_ELEMENTS:
-      return PrepareValueForWriteToTypedArray<Float64T>(input, elements_kind,
-                                                        context);
-    case BIGINT64_ELEMENTS:
-    case BIGUINT64_ELEMENTS:
-      return ToBigInt(context, input);
-    default:
-      UNREACHABLE();
-  }
-}
-
 void CodeStubAssembler::BigIntToRawBytes(TNode<BigInt> bigint,
                                          TVariable<UintPtrT>* var_low,
                                          TVariable<UintPtrT>* var_high) {
@@ -10318,6 +10701,134 @@ void CodeStubAssembler::BigIntToRawBytes(TNode<BigInt> bigint,
   BIND(&done);
 }
 
+template <>
+void CodeStubAssembler::EmitElementStoreTypedArrayUpdateValue(
+    TNode<Object> value, ElementsKind elements_kind,
+    TNode<Word32T> converted_value, TVariable<Object>* maybe_converted_value) {
+  switch (elements_kind) {
+    case UINT8_ELEMENTS:
+    case INT8_ELEMENTS:
+    case UINT16_ELEMENTS:
+    case INT16_ELEMENTS:
+    case UINT8_CLAMPED_ELEMENTS:
+      *maybe_converted_value =
+          SmiFromInt32(UncheckedCast<Int32T>(converted_value));
+      break;
+    case UINT32_ELEMENTS:
+      *maybe_converted_value =
+          ChangeUint32ToTagged(UncheckedCast<Uint32T>(converted_value));
+      break;
+    case INT32_ELEMENTS:
+      *maybe_converted_value =
+          ChangeInt32ToTagged(UncheckedCast<Int32T>(converted_value));
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+template <>
+void CodeStubAssembler::EmitElementStoreTypedArrayUpdateValue(
+    TNode<Object> value, ElementsKind elements_kind,
+    TNode<Float32T> converted_value, TVariable<Object>* maybe_converted_value) {
+  Label dont_allocate_heap_number(this), end(this);
+  GotoIf(TaggedIsSmi(value), &dont_allocate_heap_number);
+  GotoIf(IsHeapNumber(CAST(value)), &dont_allocate_heap_number);
+  {
+    *maybe_converted_value =
+        AllocateHeapNumberWithValue(ChangeFloat32ToFloat64(converted_value));
+    Goto(&end);
+  }
+  BIND(&dont_allocate_heap_number);
+  {
+    *maybe_converted_value = value;
+    Goto(&end);
+  }
+  BIND(&end);
+}
+
+template <>
+void CodeStubAssembler::EmitElementStoreTypedArrayUpdateValue(
+    TNode<Object> value, ElementsKind elements_kind,
+    TNode<Float64T> converted_value, TVariable<Object>* maybe_converted_value) {
+  Label dont_allocate_heap_number(this), end(this);
+  GotoIf(TaggedIsSmi(value), &dont_allocate_heap_number);
+  GotoIf(IsHeapNumber(CAST(value)), &dont_allocate_heap_number);
+  {
+    *maybe_converted_value = AllocateHeapNumberWithValue(converted_value);
+    Goto(&end);
+  }
+  BIND(&dont_allocate_heap_number);
+  {
+    *maybe_converted_value = value;
+    Goto(&end);
+  }
+  BIND(&end);
+}
+
+template <>
+void CodeStubAssembler::EmitElementStoreTypedArrayUpdateValue(
+    TNode<Object> value, ElementsKind elements_kind,
+    TNode<BigInt> converted_value, TVariable<Object>* maybe_converted_value) {
+  *maybe_converted_value = converted_value;
+}
+
+template <typename TValue>
+void CodeStubAssembler::EmitElementStoreTypedArray(
+    TNode<JSTypedArray> typed_array, TNode<IntPtrT> key, TNode<Object> value,
+    ElementsKind elements_kind, KeyedAccessStoreMode store_mode, Label* bailout,
+    TNode<Context> context, TVariable<Object>* maybe_converted_value) {
+  Label done(this), update_value_and_bailout(this, Label::kDeferred);
+
+  TNode<TValue> converted_value =
+      PrepareValueForWriteToTypedArray<TValue>(value, elements_kind, context);
+
+  // There must be no allocations between the buffer load and
+  // and the actual store to backing store, because GC may decide that
+  // the buffer is not alive or move the elements.
+  // TODO(ishell): introduce DisallowGarbageCollectionCode scope here.
+
+  // Check if buffer has been detached.
+  TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(typed_array);
+  if (maybe_converted_value) {
+    GotoIf(IsDetachedBuffer(buffer), &update_value_and_bailout);
+  } else {
+    GotoIf(IsDetachedBuffer(buffer), bailout);
+  }
+
+  // Bounds check.
+  TNode<UintPtrT> length = LoadJSTypedArrayLength(typed_array);
+
+  if (store_mode == STORE_IGNORE_OUT_OF_BOUNDS) {
+    // Skip the store if we write beyond the length or
+    // to a property with a negative integer index.
+    GotoIfNot(UintPtrLessThan(key, length), &done);
+  } else {
+    DCHECK_EQ(store_mode, STANDARD_STORE);
+    GotoIfNot(UintPtrLessThan(key, length), &update_value_and_bailout);
+  }
+
+  TNode<RawPtrT> data_ptr = LoadJSTypedArrayDataPtr(typed_array);
+  StoreElement(data_ptr, elements_kind, key, converted_value);
+  Goto(&done);
+
+  BIND(&update_value_and_bailout);
+  // We already prepared the incoming value for storing into a typed array.
+  // This might involve calling ToNumber in some cases. We shouldn't call
+  // ToNumber again in the runtime so pass the converted value to the runtime.
+  // The prepared value is an untagged value. Convert it to a tagged value
+  // to pass it to runtime. It is not possible to do the detached buffer check
+  // before we prepare the value, since ToNumber can detach the ArrayBuffer.
+  // The spec specifies the order of these operations.
+  if (maybe_converted_value != nullptr) {
+    EmitElementStoreTypedArrayUpdateValue(value, elements_kind, converted_value,
+                                          maybe_converted_value);
+  }
+  Goto(bailout);
+
+  BIND(&done);
+}
+
 void CodeStubAssembler::EmitElementStore(
     TNode<JSObject> object, TNode<Object> key, TNode<Object> value,
     ElementsKind elements_kind, KeyedAccessStoreMode store_mode, Label* bailout,
@@ -10339,111 +10850,38 @@ void CodeStubAssembler::EmitElementStore(
   // TODO(rmcilroy): TNodify the converted value once this funciton and
   // StoreElement are templated based on the type elements_kind type.
   if (IsTypedArrayElementsKind(elements_kind)) {
-    Label done(this), update_value_and_bailout(this, Label::kDeferred);
-
-    // IntegerIndexedElementSet converts value to a Number/BigInt prior to the
-    // bounds check.
-    Node* converted_value =
-        PrepareValueForWriteToTypedArray(value, elements_kind, context);
     TNode<JSTypedArray> typed_array = CAST(object);
-
-    // There must be no allocations between the buffer load and
-    // and the actual store to backing store, because GC may decide that
-    // the buffer is not alive or move the elements.
-    // TODO(ishell): introduce DisallowGarbageCollectionCode scope here.
-
-    // Check if buffer has been detached.
-    TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(typed_array);
-    if (maybe_converted_value) {
-      GotoIf(IsDetachedBuffer(buffer), &update_value_and_bailout);
-    } else {
-      GotoIf(IsDetachedBuffer(buffer), bailout);
+    switch (elements_kind) {
+      case UINT8_ELEMENTS:
+      case INT8_ELEMENTS:
+      case UINT16_ELEMENTS:
+      case INT16_ELEMENTS:
+      case UINT32_ELEMENTS:
+      case INT32_ELEMENTS:
+      case UINT8_CLAMPED_ELEMENTS:
+        EmitElementStoreTypedArray<Word32T>(typed_array, intptr_key, value,
+                                            elements_kind, store_mode, bailout,
+                                            context, maybe_converted_value);
+        break;
+      case FLOAT32_ELEMENTS:
+        EmitElementStoreTypedArray<Float32T>(typed_array, intptr_key, value,
+                                             elements_kind, store_mode, bailout,
+                                             context, maybe_converted_value);
+        break;
+      case FLOAT64_ELEMENTS:
+        EmitElementStoreTypedArray<Float64T>(typed_array, intptr_key, value,
+                                             elements_kind, store_mode, bailout,
+                                             context, maybe_converted_value);
+        break;
+      case BIGINT64_ELEMENTS:
+      case BIGUINT64_ELEMENTS:
+        EmitElementStoreTypedArray<BigInt>(typed_array, intptr_key, value,
+                                           elements_kind, store_mode, bailout,
+                                           context, maybe_converted_value);
+        break;
+      default:
+        UNREACHABLE();
     }
-
-    // Bounds check.
-    TNode<UintPtrT> length = LoadJSTypedArrayLength(typed_array);
-
-    if (store_mode == STORE_IGNORE_OUT_OF_BOUNDS) {
-      // Skip the store if we write beyond the length or
-      // to a property with a negative integer index.
-      GotoIfNot(UintPtrLessThan(intptr_key, length), &done);
-    } else {
-      DCHECK_EQ(store_mode, STANDARD_STORE);
-      GotoIfNot(UintPtrLessThan(intptr_key, length), &update_value_and_bailout);
-    }
-
-    TNode<RawPtrT> data_ptr = LoadJSTypedArrayDataPtr(typed_array);
-    StoreElement(data_ptr, elements_kind, intptr_key, converted_value);
-    Goto(&done);
-
-    BIND(&update_value_and_bailout);
-    // We already prepared the incoming value for storing into a typed array.
-    // This might involve calling ToNumber in some cases. We shouldn't call
-    // ToNumber again in the runtime so pass the converted value to the runtime.
-    // The prepared value is an untagged value. Convert it to a tagged value
-    // to pass it to runtime. It is not possible to do the detached buffer check
-    // before we prepare the value, since ToNumber can detach the ArrayBuffer.
-    // The spec specifies the order of these operations.
-    if (maybe_converted_value != nullptr) {
-      switch (elements_kind) {
-        case UINT8_ELEMENTS:
-        case INT8_ELEMENTS:
-        case UINT16_ELEMENTS:
-        case INT16_ELEMENTS:
-        case UINT8_CLAMPED_ELEMENTS:
-          *maybe_converted_value = SmiFromInt32(converted_value);
-          break;
-        case UINT32_ELEMENTS:
-          *maybe_converted_value = ChangeUint32ToTagged(converted_value);
-          break;
-        case INT32_ELEMENTS:
-          *maybe_converted_value = ChangeInt32ToTagged(converted_value);
-          break;
-        case FLOAT32_ELEMENTS: {
-          Label dont_allocate_heap_number(this), end(this);
-          GotoIf(TaggedIsSmi(value), &dont_allocate_heap_number);
-          GotoIf(IsHeapNumber(CAST(value)), &dont_allocate_heap_number);
-          {
-            *maybe_converted_value = AllocateHeapNumberWithValue(
-                ChangeFloat32ToFloat64(converted_value));
-            Goto(&end);
-          }
-          BIND(&dont_allocate_heap_number);
-          {
-            *maybe_converted_value = value;
-            Goto(&end);
-          }
-          BIND(&end);
-          break;
-        }
-        case FLOAT64_ELEMENTS: {
-          Label dont_allocate_heap_number(this), end(this);
-          GotoIf(TaggedIsSmi(value), &dont_allocate_heap_number);
-          GotoIf(IsHeapNumber(CAST(value)), &dont_allocate_heap_number);
-          {
-            *maybe_converted_value =
-                AllocateHeapNumberWithValue(converted_value);
-            Goto(&end);
-          }
-          BIND(&dont_allocate_heap_number);
-          {
-            *maybe_converted_value = value;
-            Goto(&end);
-          }
-          BIND(&end);
-          break;
-        }
-        case BIGINT64_ELEMENTS:
-        case BIGUINT64_ELEMENTS:
-          *maybe_converted_value = CAST(converted_value);
-          break;
-        default:
-          UNREACHABLE();
-      }
-    }
-    Goto(bailout);
-
-    BIND(&done);
     return;
   }
   DCHECK(IsFastElementsKind(elements_kind) ||
@@ -10688,9 +11126,12 @@ void CodeStubAssembler::TrapAllocationMemento(TNode<JSObject> object,
   // Memento map check.
   BIND(&map_check);
   {
-    TNode<Object> memento_map = LoadObjectField(object, kMementoMapOffset);
-    Branch(TaggedEqual(memento_map, AllocationMementoMapConstant()),
-           memento_found, &no_memento_found);
+    TNode<AnyTaggedT> maybe_mapword =
+        LoadObjectField(object, kMementoMapOffset);
+    TNode<AnyTaggedT> memento_mapword =
+        LoadRootMapWord(RootIndex::kAllocationMementoMap);
+    Branch(TaggedEqual(maybe_mapword, memento_mapword), memento_found,
+           &no_memento_found);
   }
   BIND(&no_memento_found);
   Comment("] TrapAllocationMemento");
@@ -10909,7 +11350,12 @@ void CodeStubAssembler::InitializeFieldsWithRoot(TNode<HeapObject> object,
   CSA_SLOW_ASSERT(this, TaggedIsNotSmi(object));
   start_offset = IntPtrAdd(start_offset, IntPtrConstant(-kHeapObjectTag));
   end_offset = IntPtrAdd(end_offset, IntPtrConstant(-kHeapObjectTag));
-  TNode<Object> root_value = LoadRoot(root_index);
+  TNode<AnyTaggedT> root_value;
+  if (root_index == RootIndex::kOnePointerFillerMap) {
+    root_value = LoadRootMapWord(root_index);
+  } else {
+    root_value = LoadRoot(root_index);
+  }
   BuildFastLoop<IntPtrT>(
       end_offset, start_offset,
       [=](TNode<IntPtrT> current) {
@@ -12559,11 +13005,6 @@ TNode<Oddball> CodeStubAssembler::HasProperty(TNode<Context> context,
   Label call_runtime(this, Label::kDeferred), return_true(this),
       return_false(this), end(this), if_proxy(this, Label::kDeferred);
 
-  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    // TODO(v8:11167) remove once OrderedNameDictionary supported.
-    GotoIf(Int32TrueConstant(), &call_runtime);
-  }
-
   CodeStubAssembler::LookupPropertyInHolder lookup_property_in_holder =
       [this, &return_true](
           TNode<HeapObject> receiver, TNode<HeapObject> holder,
@@ -13244,8 +13685,7 @@ TNode<RawPtrT> CodeStubArguments::AtIndexPtr(TNode<IntPtrT> index) const {
 
 TNode<Object> CodeStubArguments::AtIndex(TNode<IntPtrT> index) const {
   CSA_ASSERT(assembler_, assembler_->UintPtrOrSmiLessThan(index, GetLength()));
-  return assembler_->UncheckedCast<Object>(
-      assembler_->LoadFullTagged(AtIndexPtr(index)));
+  return assembler_->LoadFullTagged(AtIndexPtr(index));
 }
 
 TNode<Object> CodeStubArguments::AtIndex(int index) const {
@@ -13428,14 +13868,14 @@ TNode<Code> CodeStubAssembler::LoadBuiltin(TNode<Smi> builtin_id) {
   TNode<IntPtrT> offset =
       ElementOffsetFromIndex(SmiToBInt(builtin_id), SYSTEM_POINTER_ELEMENTS);
 
-  return CAST(BitcastWordToTagged(
-      Load(MachineType::Pointer(),
-           ExternalConstant(ExternalReference::builtins_address(isolate())),
-           offset)));
+  return CAST(BitcastWordToTagged(Load<RawPtrT>(
+      ExternalConstant(ExternalReference::builtins_address(isolate())),
+      offset)));
 }
 
 TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
-    TNode<SharedFunctionInfo> shared_info, Label* if_compile_lazy) {
+    TNode<SharedFunctionInfo> shared_info, TVariable<Uint16T>* data_type_out,
+    Label* if_compile_lazy) {
   TNode<Object> sfi_data =
       LoadObjectField(shared_info, SharedFunctionInfo::kFunctionDataOffset);
 
@@ -13446,6 +13886,9 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
 
   // IsSmi: Is builtin
   GotoIf(TaggedIsNotSmi(sfi_data), &check_instance_type);
+  if (data_type_out) {
+    *data_type_out = Uint16Constant(0);
+  }
   if (if_compile_lazy) {
     GotoIf(SmiEqual(CAST(sfi_data), SmiConstant(Builtins::kCompileLazy)),
            if_compile_lazy);
@@ -13456,16 +13899,23 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   // Switch on data's instance type.
   BIND(&check_instance_type);
   TNode<Uint16T> data_type = LoadInstanceType(CAST(sfi_data));
+  if (data_type_out) {
+    *data_type_out = data_type;
+  }
 
-  int32_t case_values[] = {BYTECODE_ARRAY_TYPE,
-                           BASELINE_DATA_TYPE,
-                           WASM_EXPORTED_FUNCTION_DATA_TYPE,
-                           ASM_WASM_DATA_TYPE,
-                           UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE,
-                           UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE,
-                           FUNCTION_TEMPLATE_INFO_TYPE,
-                           WASM_JS_FUNCTION_DATA_TYPE,
-                           WASM_CAPI_FUNCTION_DATA_TYPE};
+  int32_t case_values[] = {
+    BYTECODE_ARRAY_TYPE,
+    BASELINE_DATA_TYPE,
+    UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE,
+    UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE,
+    FUNCTION_TEMPLATE_INFO_TYPE,
+#if V8_ENABLE_WEBASSEMBLY
+    WASM_EXPORTED_FUNCTION_DATA_TYPE,
+    ASM_WASM_DATA_TYPE,
+    WASM_JS_FUNCTION_DATA_TYPE,
+    WASM_CAPI_FUNCTION_DATA_TYPE,
+#endif  // V8_ENABLE_WEBASSEMBLY
+  };
   Label check_is_bytecode_array(this);
   Label check_is_baseline_data(this);
   Label check_is_exported_function_data(this);
@@ -13476,15 +13926,19 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   Label check_is_interpreter_data(this);
   Label check_is_wasm_js_function_data(this);
   Label check_is_wasm_capi_function_data(this);
-  Label* case_labels[] = {&check_is_bytecode_array,
-                          &check_is_baseline_data,
-                          &check_is_exported_function_data,
-                          &check_is_asm_wasm_data,
-                          &check_is_uncompiled_data_without_preparse_data,
-                          &check_is_uncompiled_data_with_preparse_data,
-                          &check_is_function_template_info,
-                          &check_is_wasm_js_function_data,
-                          &check_is_wasm_capi_function_data};
+  Label* case_labels[] = {
+    &check_is_bytecode_array,
+    &check_is_baseline_data,
+    &check_is_uncompiled_data_without_preparse_data,
+    &check_is_uncompiled_data_with_preparse_data,
+    &check_is_function_template_info,
+#if V8_ENABLE_WEBASSEMBLY
+    &check_is_exported_function_data,
+    &check_is_asm_wasm_data,
+    &check_is_wasm_js_function_data,
+    &check_is_wasm_capi_function_data
+#endif  // V8_ENABLE_WEBASSEMBLY
+  };
   STATIC_ASSERT(arraysize(case_values) == arraysize(case_labels));
   Switch(data_type, &check_is_interpreter_data, case_values, case_labels,
          arraysize(case_labels));
@@ -13500,17 +13954,6 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   TNode<Code> baseline_code =
       CAST(LoadObjectField(baseline_data, BaselineData::kBaselineCodeOffset));
   sfi_code = baseline_code;
-  Goto(&done);
-
-  // IsWasmExportedFunctionData: Use the wrapper code
-  BIND(&check_is_exported_function_data);
-  sfi_code = CAST(LoadObjectField(
-      CAST(sfi_data), WasmExportedFunctionData::kWrapperCodeOffset));
-  Goto(&done);
-
-  // IsAsmWasmData: Instantiate using AsmWasmData
-  BIND(&check_is_asm_wasm_data);
-  sfi_code = HeapConstant(BUILTIN_CODE(isolate(), InstantiateAsmJs));
   Goto(&done);
 
   // IsUncompiledDataWithPreparseData | IsUncompiledDataWithoutPreparseData:
@@ -13535,6 +13978,18 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
       CAST(sfi_data), InterpreterData::kInterpreterTrampolineOffset));
   Goto(&done);
 
+#if V8_ENABLE_WEBASSEMBLY
+  // IsWasmExportedFunctionData: Use the wrapper code
+  BIND(&check_is_exported_function_data);
+  sfi_code = CAST(LoadObjectField(
+      CAST(sfi_data), WasmExportedFunctionData::kWrapperCodeOffset));
+  Goto(&done);
+
+  // IsAsmWasmData: Instantiate using AsmWasmData
+  BIND(&check_is_asm_wasm_data);
+  sfi_code = HeapConstant(BUILTIN_CODE(isolate(), InstantiateAsmJs));
+  Goto(&done);
+
   // IsWasmJSFunctionData: Use the wrapper code.
   BIND(&check_is_wasm_js_function_data);
   sfi_code = CAST(
@@ -13546,6 +14001,7 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   sfi_code = CAST(LoadObjectField(CAST(sfi_data),
                                   WasmCapiFunctionData::kWrapperCodeOffset));
   Goto(&done);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   BIND(&done);
   return sfi_code.value();
@@ -13640,15 +14096,15 @@ TNode<Map> CodeStubAssembler::CheckEnumCache(TNode<JSReceiver> receiver,
     TNode<Smi> length;
     TNode<HeapObject> properties = LoadSlowProperties(receiver);
 
-    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-      CSA_ASSERT(this, Word32Or(IsOrderedNameDictionary(properties),
+    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+      CSA_ASSERT(this, Word32Or(IsSwissNameDictionary(properties),
                                 IsGlobalDictionary(properties)));
 
       length = Select<Smi>(
-          IsOrderedNameDictionary(properties),
+          IsSwissNameDictionary(properties),
           [=] {
             return GetNumberOfElements(
-                UncheckedCast<OrderedNameDictionary>(properties));
+                UncheckedCast<SwissNameDictionary>(properties));
           },
           [=] {
             return GetNumberOfElements(
@@ -14015,6 +14471,730 @@ void PrototypeCheckAssembler::CheckAndBranch(TNode<HeapObject> prototype,
     }
 
     Goto(if_unmodified);
+  }
+}
+
+//
+// Begin of SwissNameDictionary macros
+//
+
+namespace {
+
+// Provides load and store functions that abstract over the details of accessing
+// the meta table in memory. Instead they allow using logical indices that are
+// independent from the underlying entry size in the meta table of a
+// SwissNameDictionary.
+class MetaTableAccessor {
+ public:
+  MetaTableAccessor(CodeStubAssembler& csa, MachineType mt)
+      : csa{csa}, mt{mt} {}
+
+  TNode<Uint32T> Load(TNode<ByteArray> meta_table, TNode<IntPtrT> index) {
+    TNode<IntPtrT> offset = OverallOffset(meta_table, index);
+
+    return csa.UncheckedCast<Uint32T>(
+        csa.LoadFromObject(mt, meta_table, offset));
+  }
+
+  TNode<Uint32T> Load(TNode<ByteArray> meta_table, int index) {
+    return Load(meta_table, csa.IntPtrConstant(index));
+  }
+
+  void Store(TNode<ByteArray> meta_table, TNode<IntPtrT> index,
+             TNode<Uint32T> data) {
+    TNode<IntPtrT> offset = OverallOffset(meta_table, index);
+
+#ifdef DEBUG
+    int bits = mt.MemSize() * 8;
+    TNode<UintPtrT> max_value = csa.UintPtrConstant((1ULL << bits) - 1);
+
+    CSA_ASSERT(&csa, csa.UintPtrLessThanOrEqual(csa.ChangeUint32ToWord(data),
+                                                max_value));
+#endif
+
+    csa.StoreToObject(mt.representation(), meta_table, offset, data,
+                      StoreToObjectWriteBarrier::kNone);
+  }
+
+  void Store(TNode<ByteArray> meta_table, int index, TNode<Uint32T> data) {
+    Store(meta_table, csa.IntPtrConstant(index), data);
+  }
+
+ private:
+  TNode<IntPtrT> OverallOffset(TNode<ByteArray> meta_table,
+                               TNode<IntPtrT> index) {
+    // TODO(v8:11330): consider using ElementOffsetFromIndex().
+
+    int offset_to_data_minus_tag = ByteArray::kHeaderSize - kHeapObjectTag;
+
+    TNode<IntPtrT> overall_offset;
+    int size = mt.MemSize();
+    intptr_t constant;
+    if (csa.TryToIntPtrConstant(index, &constant)) {
+      intptr_t index_offset = constant * size;
+      overall_offset =
+          csa.IntPtrConstant(offset_to_data_minus_tag + index_offset);
+    } else {
+      TNode<IntPtrT> index_offset =
+          csa.IntPtrMul(index, csa.IntPtrConstant(size));
+      overall_offset = csa.IntPtrAdd(
+          csa.IntPtrConstant(offset_to_data_minus_tag), index_offset);
+    }
+
+#ifdef DEBUG
+    TNode<IntPtrT> byte_array_data_bytes =
+        csa.SmiToIntPtr(csa.LoadFixedArrayBaseLength(meta_table));
+    TNode<IntPtrT> max_allowed_offset = csa.IntPtrAdd(
+        byte_array_data_bytes, csa.IntPtrConstant(offset_to_data_minus_tag));
+    CSA_ASSERT(&csa, csa.UintPtrLessThan(overall_offset, max_allowed_offset));
+#endif
+
+    return overall_offset;
+  }
+
+  CodeStubAssembler& csa;
+  MachineType mt;
+};
+
+// Type of functions that given a MetaTableAccessor, use its load and store
+// functions to generate code for operating on the meta table.
+using MetaTableAccessFunction = std::function<void(MetaTableAccessor&)>;
+
+// Helper function for macros operating on the meta table of a
+// SwissNameDictionary. Given a MetaTableAccessFunction, generates branching
+// code and uses the builder to generate code for each of the three possible
+// sizes per entry a meta table can have.
+void GenerateMetaTableAccess(CodeStubAssembler* csa, TNode<IntPtrT> capacity,
+                             MetaTableAccessFunction builder) {
+  MetaTableAccessor mta8 = MetaTableAccessor(*csa, MachineType::Uint8());
+  MetaTableAccessor mta16 = MetaTableAccessor(*csa, MachineType::Uint16());
+  MetaTableAccessor mta32 = MetaTableAccessor(*csa, MachineType::Uint32());
+
+  using Label = compiler::CodeAssemblerLabel;
+  Label small(csa), medium(csa), done(csa);
+
+  csa->GotoIf(
+      csa->IntPtrLessThanOrEqual(
+          capacity,
+          csa->IntPtrConstant(SwissNameDictionary::kMax1ByteMetaTableCapacity)),
+      &small);
+  csa->GotoIf(
+      csa->IntPtrLessThanOrEqual(
+          capacity,
+          csa->IntPtrConstant(SwissNameDictionary::kMax2ByteMetaTableCapacity)),
+      &medium);
+
+  builder(mta32);
+  csa->Goto(&done);
+
+  csa->Bind(&medium);
+  builder(mta16);
+  csa->Goto(&done);
+
+  csa->Bind(&small);
+  builder(mta8);
+  csa->Goto(&done);
+  csa->Bind(&done);
+}
+
+}  // namespace
+
+TNode<IntPtrT> CodeStubAssembler::LoadSwissNameDictionaryNumberOfElements(
+    TNode<SwissNameDictionary> table, TNode<IntPtrT> capacity) {
+  TNode<ByteArray> meta_table = LoadSwissNameDictionaryMetaTable(table);
+
+  TVARIABLE(Uint32T, nof, Uint32Constant(0));
+  MetaTableAccessFunction builder = [&](MetaTableAccessor& mta) {
+    nof = mta.Load(meta_table,
+                   SwissNameDictionary::kMetaTableElementCountFieldIndex);
+  };
+
+  GenerateMetaTableAccess(this, capacity, builder);
+  return ChangeInt32ToIntPtr(nof.value());
+}
+
+TNode<IntPtrT>
+CodeStubAssembler::LoadSwissNameDictionaryNumberOfDeletedElements(
+    TNode<SwissNameDictionary> table, TNode<IntPtrT> capacity) {
+  TNode<ByteArray> meta_table = LoadSwissNameDictionaryMetaTable(table);
+
+  TVARIABLE(Uint32T, nod, Uint32Constant(0));
+  MetaTableAccessFunction builder = [&](MetaTableAccessor& mta) {
+    nod =
+        mta.Load(meta_table,
+                 SwissNameDictionary::kMetaTableDeletedElementCountFieldIndex);
+  };
+
+  GenerateMetaTableAccess(this, capacity, builder);
+  return ChangeInt32ToIntPtr(nod.value());
+}
+
+void CodeStubAssembler::StoreSwissNameDictionaryEnumToEntryMapping(
+    TNode<SwissNameDictionary> table, TNode<IntPtrT> capacity,
+    TNode<IntPtrT> enum_index, TNode<Int32T> entry) {
+  TNode<ByteArray> meta_table = LoadSwissNameDictionaryMetaTable(table);
+  TNode<IntPtrT> meta_table_index = IntPtrAdd(
+      IntPtrConstant(SwissNameDictionary::kMetaTableEnumerationDataStartIndex),
+      enum_index);
+
+  MetaTableAccessFunction builder = [&](MetaTableAccessor& mta) {
+    mta.Store(meta_table, meta_table_index, Unsigned(entry));
+  };
+
+  GenerateMetaTableAccess(this, capacity, builder);
+}
+
+TNode<Uint32T>
+CodeStubAssembler::SwissNameDictionaryIncreaseElementCountOrBailout(
+    TNode<ByteArray> meta_table, TNode<IntPtrT> capacity,
+    TNode<Uint32T> max_usable_capacity, Label* bailout) {
+  TVARIABLE(Uint32T, used_var, Uint32Constant(0));
+
+  MetaTableAccessFunction builder = [&](MetaTableAccessor& mta) {
+    TNode<Uint32T> nof = mta.Load(
+        meta_table, SwissNameDictionary::kMetaTableElementCountFieldIndex);
+    TNode<Uint32T> nod =
+        mta.Load(meta_table,
+                 SwissNameDictionary::kMetaTableDeletedElementCountFieldIndex);
+    TNode<Uint32T> used = Uint32Add(nof, nod);
+    GotoIf(Uint32GreaterThanOrEqual(used, max_usable_capacity), bailout);
+    TNode<Uint32T> inc_nof = Uint32Add(nof, Uint32Constant(1));
+    mta.Store(meta_table, SwissNameDictionary::kMetaTableElementCountFieldIndex,
+              inc_nof);
+    used_var = used;
+  };
+
+  GenerateMetaTableAccess(this, capacity, builder);
+  return used_var.value();
+}
+
+TNode<Uint32T> CodeStubAssembler::SwissNameDictionaryUpdateCountsForDeletion(
+    TNode<ByteArray> meta_table, TNode<IntPtrT> capacity) {
+  TVARIABLE(Uint32T, new_nof_var, Uint32Constant(0));
+
+  MetaTableAccessFunction builder = [&](MetaTableAccessor& mta) {
+    TNode<Uint32T> nof = mta.Load(
+        meta_table, SwissNameDictionary::kMetaTableElementCountFieldIndex);
+    TNode<Uint32T> nod =
+        mta.Load(meta_table,
+                 SwissNameDictionary::kMetaTableDeletedElementCountFieldIndex);
+
+    TNode<Uint32T> new_nof = Uint32Sub(nof, Uint32Constant(1));
+    TNode<Uint32T> new_nod = Uint32Add(nod, Uint32Constant(1));
+
+    mta.Store(meta_table, SwissNameDictionary::kMetaTableElementCountFieldIndex,
+              new_nof);
+    mta.Store(meta_table,
+              SwissNameDictionary::kMetaTableDeletedElementCountFieldIndex,
+              new_nod);
+
+    new_nof_var = new_nof;
+  };
+
+  GenerateMetaTableAccess(this, capacity, builder);
+  return new_nof_var.value();
+}
+
+TNode<SwissNameDictionary> CodeStubAssembler::AllocateSwissNameDictionary(
+    TNode<IntPtrT> at_least_space_for) {
+  // Note that as AllocateNameDictionary, we return a table with initial
+  // (non-zero) capacity even if |at_least_space_for| is 0.
+
+  TNode<IntPtrT> capacity =
+      IntPtrMax(IntPtrConstant(SwissNameDictionary::kInitialCapacity),
+                SwissNameDictionaryCapacityFor(at_least_space_for));
+
+  return AllocateSwissNameDictionaryWithCapacity(capacity);
+}
+
+TNode<SwissNameDictionary> CodeStubAssembler::AllocateSwissNameDictionary(
+    int at_least_space_for) {
+  return AllocateSwissNameDictionary(IntPtrConstant(at_least_space_for));
+}
+
+TNode<SwissNameDictionary>
+CodeStubAssembler::AllocateSwissNameDictionaryWithCapacity(
+    TNode<IntPtrT> capacity) {
+  Comment("[ AllocateSwissNameDictionaryWithCapacity");
+  CSA_ASSERT(this, WordIsPowerOfTwo(capacity));
+  CSA_ASSERT(this, UintPtrGreaterThanOrEqual(
+                       capacity,
+                       IntPtrConstant(SwissNameDictionary::kInitialCapacity)));
+  CSA_ASSERT(this,
+             UintPtrLessThanOrEqual(
+                 capacity, IntPtrConstant(SwissNameDictionary::MaxCapacity())));
+
+  Comment("Size check.");
+  intptr_t capacity_constant;
+  if (ToParameterConstant(capacity, &capacity_constant)) {
+    CHECK_LE(capacity_constant, SwissNameDictionary::MaxCapacity());
+  } else {
+    Label if_out_of_memory(this, Label::kDeferred), next(this);
+    Branch(UintPtrGreaterThan(
+               capacity, IntPtrConstant(SwissNameDictionary::MaxCapacity())),
+           &if_out_of_memory, &next);
+
+    BIND(&if_out_of_memory);
+    CallRuntime(Runtime::kFatalProcessOutOfMemoryInAllocateRaw,
+                NoContextConstant());
+    Unreachable();
+
+    BIND(&next);
+  }
+
+  // TODO(v8:11330) Consider adding dedicated handling for constant capacties,
+  // similar to AllocateOrderedHashTableWithCapacity.
+
+  // We must allocate the ByteArray first. Otherwise, allocating the ByteArray
+  // may trigger GC, which may try to verify the un-initialized
+  // SwissNameDictionary.
+  Comment("Meta table allocation.");
+  TNode<IntPtrT> meta_table_payload_size =
+      SwissNameDictionaryMetaTableSizeFor(capacity);
+
+  TNode<ByteArray> meta_table =
+      AllocateNonEmptyByteArray(Unsigned(meta_table_payload_size),
+                                AllocationFlag::kAllowLargeObjectAllocation);
+
+  Comment("SwissNameDictionary allocation.");
+  TNode<IntPtrT> total_size = SwissNameDictionarySizeFor(capacity);
+
+  TNode<SwissNameDictionary> table = UncheckedCast<SwissNameDictionary>(
+      Allocate(total_size, kAllowLargeObjectAllocation));
+
+  StoreMapNoWriteBarrier(table, RootIndex::kSwissNameDictionaryMap);
+
+  Comment(
+      "Initialize the hash, capacity, meta table pointer, and number of "
+      "(deleted) elements.");
+
+  StoreSwissNameDictionaryHash(table,
+                               Uint32Constant(PropertyArray::kNoHashSentinel));
+  StoreSwissNameDictionaryCapacity(table, TruncateIntPtrToInt32(capacity));
+  StoreSwissNameDictionaryMetaTable(table, meta_table);
+
+  // Set present and deleted element count without doing branching needed for
+  // meta table access twice.
+  MetaTableAccessFunction builder = [&](MetaTableAccessor& mta) {
+    mta.Store(meta_table, SwissNameDictionary::kMetaTableElementCountFieldIndex,
+              Uint32Constant(0));
+    mta.Store(meta_table,
+              SwissNameDictionary::kMetaTableDeletedElementCountFieldIndex,
+              Uint32Constant(0));
+  };
+  GenerateMetaTableAccess(this, capacity, builder);
+
+  Comment("Initialize the ctrl table.");
+
+  TNode<IntPtrT> ctrl_table_start_offset_minus_tag =
+      SwissNameDictionaryCtrlTableStartOffsetMT(capacity);
+
+  TNode<IntPtrT> table_address_with_tag = BitcastTaggedToWord(table);
+  TNode<IntPtrT> ctrl_table_size_bytes =
+      IntPtrAdd(capacity, IntPtrConstant(SwissNameDictionary::kGroupWidth));
+  TNode<IntPtrT> ctrl_table_start_ptr =
+      IntPtrAdd(table_address_with_tag, ctrl_table_start_offset_minus_tag);
+  TNode<IntPtrT> ctrl_table_end_ptr =
+      IntPtrAdd(ctrl_table_start_ptr, ctrl_table_size_bytes);
+
+  // |ctrl_table_size_bytes| (= capacity + kGroupWidth) is divisble by four:
+  STATIC_ASSERT(SwissNameDictionary::kGroupWidth % 4 == 0);
+  STATIC_ASSERT(SwissNameDictionary::kInitialCapacity % 4 == 0);
+
+  // TODO(v8:11330) For all capacities except 4, we know that
+  // |ctrl_table_size_bytes| is divisible by 8. Consider initializing the ctrl
+  // table with WordTs in those cases. Alternatively, always initialize as many
+  // bytes as possbible with WordT and then, if necessary, the remaining 4 bytes
+  // with Word32T.
+
+  constexpr uint8_t kEmpty = swiss_table::Ctrl::kEmpty;
+  constexpr uint32_t kEmpty32 =
+      (kEmpty << 24) | (kEmpty << 16) | (kEmpty << 8) | kEmpty;
+  TNode<Int32T> empty32 = Int32Constant(kEmpty32);
+  BuildFastLoop<IntPtrT>(
+      ctrl_table_start_ptr, ctrl_table_end_ptr,
+      [=](TNode<IntPtrT> current) {
+        UnsafeStoreNoWriteBarrier(MachineRepresentation::kWord32, current,
+                                  empty32);
+      },
+      sizeof(uint32_t), IndexAdvanceMode::kPost);
+
+  Comment("Initialize the data table.");
+
+  TNode<IntPtrT> data_table_start_offset_minus_tag =
+      SwissNameDictionaryDataTableStartOffsetMT();
+  TNode<IntPtrT> data_table_ptr =
+      IntPtrAdd(table_address_with_tag, data_table_start_offset_minus_tag);
+  TNode<IntPtrT> data_table_size = IntPtrMul(
+      IntPtrConstant(SwissNameDictionary::kDataTableEntryCount * kTaggedSize),
+      capacity);
+
+  StoreFieldsNoWriteBarrier(data_table_ptr,
+                            IntPtrAdd(data_table_ptr, data_table_size),
+                            TheHoleConstant());
+
+  Comment("AllocateSwissNameDictionaryWithCapacity ]");
+
+  return table;
+}
+
+TNode<SwissNameDictionary> CodeStubAssembler::CopySwissNameDictionary(
+    TNode<SwissNameDictionary> original) {
+  Comment("[ CopySwissNameDictionary");
+
+  TNode<IntPtrT> capacity =
+      Signed(ChangeUint32ToWord(LoadSwissNameDictionaryCapacity(original)));
+
+  // We must allocate the ByteArray first. Otherwise, allocating the ByteArray
+  // may trigger GC, which may try to verify the un-initialized
+  // SwissNameDictionary.
+  Comment("Meta table allocation.");
+  TNode<IntPtrT> meta_table_payload_size =
+      SwissNameDictionaryMetaTableSizeFor(capacity);
+
+  TNode<ByteArray> meta_table =
+      AllocateNonEmptyByteArray(Unsigned(meta_table_payload_size),
+                                AllocationFlag::kAllowLargeObjectAllocation);
+
+  Comment("SwissNameDictionary allocation.");
+  TNode<IntPtrT> total_size = SwissNameDictionarySizeFor(capacity);
+
+  TNode<SwissNameDictionary> table = UncheckedCast<SwissNameDictionary>(
+      Allocate(total_size, kAllowLargeObjectAllocation));
+
+  StoreMapNoWriteBarrier(table, RootIndex::kSwissNameDictionaryMap);
+
+  Comment("Copy the hash and capacity.");
+
+  StoreSwissNameDictionaryHash(table, LoadSwissNameDictionaryHash(original));
+  StoreSwissNameDictionaryCapacity(table, TruncateIntPtrToInt32(capacity));
+  StoreSwissNameDictionaryMetaTable(table, meta_table);
+  // Not setting up number of (deleted elements), copying whole meta table
+  // instead.
+
+  TNode<ExternalReference> memcpy =
+      ExternalConstant(ExternalReference::libc_memcpy_function());
+
+  TNode<IntPtrT> old_table_address_with_tag = BitcastTaggedToWord(original);
+  TNode<IntPtrT> new_table_address_with_tag = BitcastTaggedToWord(table);
+
+  TNode<IntPtrT> ctrl_table_start_offset_minus_tag =
+      SwissNameDictionaryCtrlTableStartOffsetMT(capacity);
+
+  TNode<IntPtrT> ctrl_table_size_bytes =
+      IntPtrAdd(capacity, IntPtrConstant(SwissNameDictionary::kGroupWidth));
+
+  Comment("Copy the ctrl table.");
+  {
+    TNode<IntPtrT> old_ctrl_table_start_ptr = IntPtrAdd(
+        old_table_address_with_tag, ctrl_table_start_offset_minus_tag);
+    TNode<IntPtrT> new_ctrl_table_start_ptr = IntPtrAdd(
+        new_table_address_with_tag, ctrl_table_start_offset_minus_tag);
+
+    CallCFunction(
+        memcpy, MachineType::Pointer(),
+        std::make_pair(MachineType::Pointer(), new_ctrl_table_start_ptr),
+        std::make_pair(MachineType::Pointer(), old_ctrl_table_start_ptr),
+        std::make_pair(MachineType::UintPtr(), ctrl_table_size_bytes));
+  }
+
+  Comment("Copy the data table.");
+  {
+    TNode<IntPtrT> start_offset =
+        IntPtrConstant(SwissNameDictionary::DataTableStartOffset());
+    TNode<IntPtrT> data_table_size = IntPtrMul(
+        IntPtrConstant(SwissNameDictionary::kDataTableEntryCount * kTaggedSize),
+        capacity);
+
+    BuildFastLoop<IntPtrT>(
+        start_offset, IntPtrAdd(start_offset, data_table_size),
+        [=](TNode<IntPtrT> offset) {
+          TNode<Object> table_field = LoadObjectField(original, offset);
+          StoreObjectField(table, offset, table_field);
+        },
+        kTaggedSize, IndexAdvanceMode::kPost);
+  }
+
+  Comment("Copy the meta table");
+  {
+    TNode<IntPtrT> old_meta_table_address_with_tag =
+        BitcastTaggedToWord(LoadSwissNameDictionaryMetaTable(original));
+    TNode<IntPtrT> new_meta_table_address_with_tag =
+        BitcastTaggedToWord(meta_table);
+
+    TNode<IntPtrT> meta_table_size =
+        SwissNameDictionaryMetaTableSizeFor(capacity);
+
+    TNode<IntPtrT> old_data_start =
+        IntPtrAdd(old_meta_table_address_with_tag,
+                  IntPtrConstant(ByteArray::kHeaderSize - kHeapObjectTag));
+    TNode<IntPtrT> new_data_start =
+        IntPtrAdd(new_meta_table_address_with_tag,
+                  IntPtrConstant(ByteArray::kHeaderSize - kHeapObjectTag));
+
+    CallCFunction(memcpy, MachineType::Pointer(),
+                  std::make_pair(MachineType::Pointer(), new_data_start),
+                  std::make_pair(MachineType::Pointer(), old_data_start),
+                  std::make_pair(MachineType::UintPtr(), meta_table_size));
+  }
+
+  Comment("Copy the PropertyDetails table");
+  {
+    TNode<IntPtrT> property_details_start_offset_minus_tag =
+        SwissNameDictionaryOffsetIntoPropertyDetailsTableMT(table, capacity,
+                                                            IntPtrConstant(0));
+
+    // Offset to property details entry
+    TVARIABLE(IntPtrT, details_table_offset_minus_tag,
+              property_details_start_offset_minus_tag);
+
+    TNode<IntPtrT> start = ctrl_table_start_offset_minus_tag;
+
+    VariableList in_loop_variables({&details_table_offset_minus_tag}, zone());
+    BuildFastLoop<IntPtrT>(
+        in_loop_variables, start, IntPtrAdd(start, ctrl_table_size_bytes),
+        [&](TNode<IntPtrT> ctrl_table_offset) {
+          TNode<Uint8T> ctrl = Load<Uint8T>(original, ctrl_table_offset);
+
+          // TODO(v8:11330) Entries in the PropertyDetails table may be
+          // uninitialized if the corresponding buckets in the data/ctrl table
+          // are empty. Therefore, to avoid accessing un-initialized memory
+          // here, we need to check the ctrl table to determine whether we
+          // should copy a certain PropertyDetails entry or not.
+          // TODO(v8:11330) If this function becomes performance-critical, we
+          // may consider always initializing the PropertyDetails table entirely
+          // during allocation, to avoid the branching during copying.
+          Label done(this);
+          // |kNotFullMask| catches kEmpty and kDeleted, both of which indicate
+          // entries that we don't want to copy the PropertyDetails for.
+          GotoIf(IsSetWord32(ctrl, swiss_table::kNotFullMask), &done);
+
+          TNode<Uint8T> details =
+              Load<Uint8T>(original, details_table_offset_minus_tag.value());
+
+          StoreToObject(MachineRepresentation::kWord8, table,
+                        details_table_offset_minus_tag.value(), details,
+                        StoreToObjectWriteBarrier::kNone);
+          Goto(&done);
+          BIND(&done);
+
+          details_table_offset_minus_tag =
+              IntPtrAdd(details_table_offset_minus_tag.value(),
+                        IntPtrConstant(kOneByteSize));
+        },
+        kOneByteSize, IndexAdvanceMode::kPost);
+  }
+
+  Comment("CopySwissNameDictionary ]");
+
+  return table;
+}
+
+TNode<IntPtrT> CodeStubAssembler::SwissNameDictionaryOffsetIntoDataTableMT(
+    TNode<SwissNameDictionary> dict, TNode<IntPtrT> index, int field_index) {
+  TNode<IntPtrT> data_table_start = SwissNameDictionaryDataTableStartOffsetMT();
+
+  TNode<IntPtrT> offset_within_data_table = IntPtrMul(
+      index,
+      IntPtrConstant(SwissNameDictionary::kDataTableEntryCount * kTaggedSize));
+
+  if (field_index != 0) {
+    offset_within_data_table = IntPtrAdd(
+        offset_within_data_table, IntPtrConstant(field_index * kTaggedSize));
+  }
+
+  return IntPtrAdd(data_table_start, offset_within_data_table);
+}
+
+TNode<IntPtrT>
+CodeStubAssembler::SwissNameDictionaryOffsetIntoPropertyDetailsTableMT(
+    TNode<SwissNameDictionary> dict, TNode<IntPtrT> capacity,
+    TNode<IntPtrT> index) {
+  CSA_ASSERT(this,
+             WordEqual(capacity, ChangeUint32ToWord(
+                                     LoadSwissNameDictionaryCapacity(dict))));
+
+  TNode<IntPtrT> data_table_start = SwissNameDictionaryDataTableStartOffsetMT();
+
+  TNode<IntPtrT> gw = IntPtrConstant(SwissNameDictionary::kGroupWidth);
+  TNode<IntPtrT> data_and_ctrl_table_size = IntPtrAdd(
+      IntPtrMul(capacity,
+                IntPtrConstant(kOneByteSize +
+                               SwissNameDictionary::kDataTableEntryCount *
+                                   kTaggedSize)),
+      gw);
+
+  TNode<IntPtrT> property_details_table_start =
+      IntPtrAdd(data_table_start, data_and_ctrl_table_size);
+
+  CSA_ASSERT(
+      this,
+      WordEqual(FieldSliceSwissNameDictionaryPropertyDetailsTable(dict).offset,
+                // Our calculation subtracted the tag, Torque's offset didn't.
+                IntPtrAdd(property_details_table_start,
+                          IntPtrConstant(kHeapObjectTag))));
+
+  TNode<IntPtrT> offset_within_details_table = index;
+  return IntPtrAdd(property_details_table_start, offset_within_details_table);
+}
+
+void CodeStubAssembler::StoreSwissNameDictionaryCapacity(
+    TNode<SwissNameDictionary> table, TNode<Int32T> capacity) {
+  StoreObjectFieldNoWriteBarrier<Word32T>(
+      table, SwissNameDictionary::CapacityOffset(), capacity);
+}
+
+TNode<Name> CodeStubAssembler::LoadSwissNameDictionaryKey(
+    TNode<SwissNameDictionary> dict, TNode<IntPtrT> entry) {
+  TNode<IntPtrT> offset_minus_tag = SwissNameDictionaryOffsetIntoDataTableMT(
+      dict, entry, SwissNameDictionary::kDataTableKeyEntryIndex);
+
+  // TODO(v8:11330) Consider using LoadObjectField here.
+  return CAST(Load<Object>(dict, offset_minus_tag));
+}
+
+TNode<Uint8T> CodeStubAssembler::LoadSwissNameDictionaryPropertyDetails(
+    TNode<SwissNameDictionary> table, TNode<IntPtrT> capacity,
+    TNode<IntPtrT> entry) {
+  TNode<IntPtrT> offset_minus_tag =
+      SwissNameDictionaryOffsetIntoPropertyDetailsTableMT(table, capacity,
+                                                          entry);
+  // TODO(v8:11330) Consider using LoadObjectField here.
+  return Load<Uint8T>(table, offset_minus_tag);
+}
+
+void CodeStubAssembler::StoreSwissNameDictionaryPropertyDetails(
+    TNode<SwissNameDictionary> table, TNode<IntPtrT> capacity,
+    TNode<IntPtrT> entry, TNode<Uint8T> details) {
+  TNode<IntPtrT> offset_minus_tag =
+      SwissNameDictionaryOffsetIntoPropertyDetailsTableMT(table, capacity,
+                                                          entry);
+
+  // TODO(v8:11330) Consider using StoreObjectField here.
+  StoreToObject(MachineRepresentation::kWord8, table, offset_minus_tag, details,
+                StoreToObjectWriteBarrier::kNone);
+}
+
+void CodeStubAssembler::StoreSwissNameDictionaryKeyAndValue(
+    TNode<SwissNameDictionary> dict, TNode<IntPtrT> entry, TNode<Object> key,
+    TNode<Object> value) {
+  STATIC_ASSERT(SwissNameDictionary::kDataTableKeyEntryIndex == 0);
+  STATIC_ASSERT(SwissNameDictionary::kDataTableValueEntryIndex == 1);
+
+  // TODO(v8:11330) Consider using StoreObjectField here.
+  TNode<IntPtrT> key_offset_minus_tag =
+      SwissNameDictionaryOffsetIntoDataTableMT(
+          dict, entry, SwissNameDictionary::kDataTableKeyEntryIndex);
+  StoreToObject(MachineRepresentation::kTagged, dict, key_offset_minus_tag, key,
+                StoreToObjectWriteBarrier::kFull);
+
+  TNode<IntPtrT> value_offset_minus_tag =
+      IntPtrAdd(key_offset_minus_tag, IntPtrConstant(kTaggedSize));
+  StoreToObject(MachineRepresentation::kTagged, dict, value_offset_minus_tag,
+                value, StoreToObjectWriteBarrier::kFull);
+}
+
+TNode<Uint64T> CodeStubAssembler::LoadSwissNameDictionaryCtrlTableGroup(
+    TNode<IntPtrT> address) {
+  TNode<RawPtrT> ptr = ReinterpretCast<RawPtrT>(address);
+  TNode<Uint64T> data = UnalignedLoad<Uint64T>(ptr, IntPtrConstant(0));
+
+#ifdef V8_TARGET_LITTLE_ENDIAN
+  return data;
+#else
+  // Reverse byte order.
+  // TODO(v8:11330) Doing this without using dedicated instructions (which we
+  // don't have access to here) will destroy any performance benefit Swiss
+  // Tables have. So we just support this so that we don't have to disable the
+  // test suite for SwissNameDictionary on big endian platforms.
+
+  TNode<Uint64T> result = Uint64Constant(0);
+  constexpr int count = sizeof(uint64_t);
+  for (int i = 0; i < count; ++i) {
+    int src_offset = i * 8;
+    int dest_offset = (count - i - 1) * 8;
+
+    TNode<Uint64T> mask = Uint64Constant(0xffULL << src_offset);
+    TNode<Uint64T> src_data = Word64And(data, mask);
+
+    TNode<Uint64T> shifted =
+        src_offset < dest_offset
+            ? Word64Shl(src_data, Uint64Constant(dest_offset - src_offset))
+            : Word64Shr(src_data, Uint64Constant(src_offset - dest_offset));
+    result = Unsigned(Word64Or(result, shifted));
+  }
+  return result;
+#endif
+}
+
+void CodeStubAssembler::SwissNameDictionarySetCtrl(
+    TNode<SwissNameDictionary> table, TNode<IntPtrT> capacity,
+    TNode<IntPtrT> entry, TNode<Uint8T> ctrl) {
+  CSA_ASSERT(this,
+             WordEqual(capacity, ChangeUint32ToWord(
+                                     LoadSwissNameDictionaryCapacity(table))));
+  CSA_ASSERT(this, UintPtrLessThan(entry, capacity));
+
+  TNode<IntPtrT> one = IntPtrConstant(1);
+  TNode<IntPtrT> offset = SwissNameDictionaryCtrlTableStartOffsetMT(capacity);
+
+  CSA_ASSERT(this,
+             WordEqual(FieldSliceSwissNameDictionaryCtrlTable(table).offset,
+                       IntPtrAdd(offset, one)));
+
+  TNode<IntPtrT> offset_entry = IntPtrAdd(offset, entry);
+  StoreToObject(MachineRepresentation::kWord8, table, offset_entry, ctrl,
+                StoreToObjectWriteBarrier::kNone);
+
+  TNode<IntPtrT> mask = IntPtrSub(capacity, one);
+  TNode<IntPtrT> group_width = IntPtrConstant(SwissNameDictionary::kGroupWidth);
+
+  // See SwissNameDictionary::SetCtrl for description of what's going on here.
+
+  // ((entry - Group::kWidth) & mask) + 1
+  TNode<IntPtrT> copy_entry_lhs =
+      IntPtrAdd(WordAnd(IntPtrSub(entry, group_width), mask), one);
+  // ((Group::kWidth - 1) & mask)
+  TNode<IntPtrT> copy_entry_rhs = WordAnd(IntPtrSub(group_width, one), mask);
+  TNode<IntPtrT> copy_entry = IntPtrAdd(copy_entry_lhs, copy_entry_rhs);
+  TNode<IntPtrT> offset_copy_entry = IntPtrAdd(offset, copy_entry);
+
+  // |entry| < |kGroupWidth| implies |copy_entry| == |capacity| + |entry|
+  CSA_ASSERT(this, Word32Or(UintPtrGreaterThanOrEqual(entry, group_width),
+                            WordEqual(copy_entry, IntPtrAdd(capacity, entry))));
+
+  // |entry| >= |kGroupWidth| implies |copy_entry| == |entry|
+  CSA_ASSERT(this, Word32Or(UintPtrLessThan(entry, group_width),
+                            WordEqual(copy_entry, entry)));
+
+  // TODO(v8:11330): consider using StoreObjectFieldNoWriteBarrier here.
+  StoreToObject(MachineRepresentation::kWord8, table, offset_copy_entry, ctrl,
+                StoreToObjectWriteBarrier::kNone);
+}
+
+void CodeStubAssembler::SwissNameDictionaryFindEntry(
+    TNode<SwissNameDictionary> table, TNode<Name> key, Label* found,
+    TVariable<IntPtrT>* var_found_entry, Label* not_found) {
+  if (SwissNameDictionary::kUseSIMD) {
+    SwissNameDictionaryFindEntrySIMD(table, key, found, var_found_entry,
+                                     not_found);
+  } else {
+    SwissNameDictionaryFindEntryPortable(table, key, found, var_found_entry,
+                                         not_found);
+  }
+}
+
+void CodeStubAssembler::SwissNameDictionaryAdd(TNode<SwissNameDictionary> table,
+                                               TNode<Name> key,
+                                               TNode<Object> value,
+                                               TNode<Uint8T> property_details,
+                                               Label* needs_resize) {
+  if (SwissNameDictionary::kUseSIMD) {
+    SwissNameDictionaryAddSIMD(table, key, value, property_details,
+                               needs_resize);
+  } else {
+    SwissNameDictionaryAddPortable(table, key, value, property_details,
+                                   needs_resize);
   }
 }
 

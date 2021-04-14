@@ -167,15 +167,6 @@ void V8_Fatal(const char* format, ...) {
   v8::base::OS::Abort();
 }
 
-#if !defined(DEBUG) && defined(OFFICIAL_BUILD)
-void V8_FatalNoContext() {
-  v8::base::OS::PrintError("V8 CHECK or FATAL\n");
-  if (v8::base::g_print_stack_trace) v8::base::g_print_stack_trace();
-  fflush(stderr);
-  v8::base::OS::Abort();
-}
-#endif
-
 void V8_Dcheck(const char* file, int line, const char* message) {
   v8::base::g_dcheck_function(file, line, message);
 }

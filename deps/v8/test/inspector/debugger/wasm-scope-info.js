@@ -11,6 +11,7 @@ utils.load('test/inspector/wasm-inspector-test.js');
 let {session, contextGroup, Protocol} = InspectorTest.start(
     'Test retrieving scope information from compiled Liftoff frames');
 session.setupScriptMap();
+Protocol.Runtime.enable();
 Protocol.Debugger.enable();
 Protocol.Debugger.onPaused(printPauseLocationsAndContinue);
 

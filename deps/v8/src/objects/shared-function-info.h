@@ -18,7 +18,6 @@
 #include "src/objects/smi.h"
 #include "src/objects/struct.h"
 #include "src/roots/roots.h"
-#include "src/wasm/value-type.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 #include "torque-generated/bit-fields.h"
 #include "torque-generated/field-offsets.h"
@@ -43,6 +42,8 @@ class WasmJSFunctionData;
 
 namespace wasm {
 struct WasmModule;
+class ValueType;
+using FunctionSig = Signature<ValueType>;
 }  // namespace wasm
 
 #include "torque-generated/src/objects/shared-function-info-tq.inc"
@@ -314,9 +315,23 @@ class SharedFunctionInfo
   inline void flush_baseline_data();
   inline BytecodeArray GetActiveBytecodeArray() const;
   inline void SetActiveBytecodeArray(BytecodeArray bytecode);
+
+#if V8_ENABLE_WEBASSEMBLY
   inline bool HasAsmWasmData() const;
+  inline bool HasWasmExportedFunctionData() const;
+  inline bool HasWasmJSFunctionData() const;
+  inline bool HasWasmCapiFunctionData() const;
   inline AsmWasmData asm_wasm_data() const;
   inline void set_asm_wasm_data(AsmWasmData data);
+
+  V8_EXPORT_PRIVATE WasmExportedFunctionData
+  wasm_exported_function_data() const;
+  WasmJSFunctionData wasm_js_function_data() const;
+  WasmCapiFunctionData wasm_capi_function_data() const;
+
+  inline const wasm::WasmModule* wasm_module() const;
+  inline const wasm::FunctionSig* wasm_function_signature() const;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // builtin_id corresponds to the auto-generated Builtins::Name id.
   inline bool HasBuiltinId() const;
@@ -331,16 +346,6 @@ class SharedFunctionInfo
   inline void set_uncompiled_data_with_preparse_data(
       UncompiledDataWithPreparseData data);
   inline bool HasUncompiledDataWithoutPreparseData() const;
-  inline bool HasWasmExportedFunctionData() const;
-  V8_EXPORT_PRIVATE WasmExportedFunctionData
-  wasm_exported_function_data() const;
-  inline bool HasWasmJSFunctionData() const;
-  WasmJSFunctionData wasm_js_function_data() const;
-  inline bool HasWasmCapiFunctionData() const;
-  WasmCapiFunctionData wasm_capi_function_data() const;
-
-  inline const wasm::WasmModule* wasm_module() const;
-  inline const wasm::FunctionSig* wasm_function_signature() const;
 
   // Clear out pre-parsed scope data from UncompiledDataWithPreparseData,
   // turning it into UncompiledDataWithoutPreparseData.
@@ -446,8 +451,10 @@ class SharedFunctionInfo
   // global object.
   DECL_BOOLEAN_ACCESSORS(native)
 
+#if V8_ENABLE_WEBASSEMBLY
   // Indicates that asm->wasm conversion failed and should not be re-attempted.
   DECL_BOOLEAN_ACCESSORS(is_asm_wasm_broken)
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Indicates that the function was created by the Function function.
   // Though it's anonymous, toString should treat it as if it had the name
@@ -651,6 +658,8 @@ class SharedFunctionInfo
                                      Isolate* isolate);
 
  private:
+  friend class WebSnapshotDeserializer;
+
 #ifdef VERIFY_HEAP
   void SharedFunctionInfoVerify(ReadOnlyRoots roots);
 #endif

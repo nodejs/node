@@ -320,14 +320,17 @@ Page* PagedSpace::Expand() {
   return page;
 }
 
-Page* PagedSpace::ExpandBackground(LocalHeap* local_heap) {
+base::Optional<std::pair<Address, size_t>> PagedSpace::ExpandBackground(
+    LocalHeap* local_heap, size_t size_in_bytes) {
   Page* page = AllocatePage();
-  if (page == nullptr) return nullptr;
+  if (page == nullptr) return {};
   base::MutexGuard lock(&space_mutex_);
   AddPage(page);
-  Free(page->area_start(), page->area_size(),
+  Address object_start = page->area_start();
+  CHECK_LE(size_in_bytes, page->area_size());
+  Free(page->area_start() + size_in_bytes, page->area_size() - size_in_bytes,
        SpaceAccountingMode::kSpaceAccounted);
-  return page;
+  return std::make_pair(object_start, size_in_bytes);
 }
 
 int PagedSpace::CountTotalPages() {
@@ -589,13 +592,12 @@ base::Optional<std::pair<Address, size_t>> PagedSpace::RawRefillLabBackground(
   }
 
   if (heap()->ShouldExpandOldGenerationOnSlowAllocation(local_heap) &&
-      heap()->CanExpandOldGenerationBackground(AreaSize()) &&
-      ExpandBackground(local_heap)) {
-    DCHECK((CountTotalPages() > 1) ||
-           (min_size_in_bytes <= free_list_->Available()));
-    auto result = TryAllocationFromFreeListBackground(
-        local_heap, min_size_in_bytes, max_size_in_bytes, alignment, origin);
-    if (result) return result;
+      heap()->CanExpandOldGenerationBackground(local_heap, AreaSize())) {
+    auto result = ExpandBackground(local_heap, max_size_in_bytes);
+    if (result) {
+      DCHECK_EQ(Heap::GetFillToAlign(result->first, alignment), 0);
+      return result;
+    }
   }
 
   if (collector->sweeping_in_progress()) {
@@ -830,8 +832,8 @@ void PagedSpace::PrepareForMarkCompact() {
 
 bool PagedSpace::RefillLabMain(int size_in_bytes, AllocationOrigin origin) {
   VMState<GC> state(heap()->isolate());
-  RuntimeCallTimerScope runtime_timer(
-      heap()->isolate(), RuntimeCallCounterId::kGC_Custom_SlowAllocateRaw);
+  RCS_SCOPE(heap()->isolate(),
+            RuntimeCallCounterId::kGC_Custom_SlowAllocateRaw);
   return RawRefillLabMain(size_in_bytes, origin);
 }
 

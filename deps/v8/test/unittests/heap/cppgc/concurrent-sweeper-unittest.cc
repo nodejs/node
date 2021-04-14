@@ -132,7 +132,7 @@ class ConcurrentSweeperTest : public testing::TestWithHeap {
       // The corresponding page could be removed.
       if (!backend->Lookup(static_cast<ConstAddress>(object))) continue;
 
-      if (!freelist.Contains({object, 0})) return false;
+      if (!freelist.ContainsForTesting({object, 0})) return false;
     }
 
     return true;

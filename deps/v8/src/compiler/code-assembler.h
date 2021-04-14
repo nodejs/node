@@ -14,6 +14,7 @@
 // Do not include anything from src/compiler here!
 #include "include/cppgc/source-location.h"
 #include "src/base/macros.h"
+#include "src/base/optional.h"
 #include "src/base/type-traits.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-factory.h"
@@ -269,6 +270,7 @@ class CodeAssemblerParameterizedLabel;
   V(Float64Min, Float64T, Float64T, Float64T)                           \
   V(Float64InsertLowWord32, Float64T, Float64T, Word32T)                \
   V(Float64InsertHighWord32, Float64T, Float64T, Word32T)               \
+  V(I8x16Eq, I8x16T, I8x16T, I8x16T)                                    \
   V(IntPtrAdd, WordT, WordT, WordT)                                     \
   V(IntPtrSub, WordT, WordT, WordT)                                     \
   V(IntPtrMul, WordT, WordT, WordT)                                     \
@@ -283,6 +285,12 @@ class CodeAssemblerParameterizedLabel;
   V(Int32MulWithOverflow, PAIR_TYPE(Int32T, BoolT), Int32T, Int32T)     \
   V(Int32Div, Int32T, Int32T, Int32T)                                   \
   V(Int32Mod, Int32T, Int32T, Int32T)                                   \
+  V(Int64Add, Word64T, Word64T, Word64T)                                \
+  V(Int64Sub, Word64T, Word64T, Word64T)                                \
+  V(Int64SubWithOverflow, PAIR_TYPE(Int64T, BoolT), Int64T, Int64T)     \
+  V(Int64Mul, Word64T, Word64T, Word64T)                                \
+  V(Int64Div, Int64T, Int64T, Int64T)                                   \
+  V(Int64Mod, Int64T, Int64T, Int64T)                                   \
   V(WordOr, WordT, WordT, WordT)                                        \
   V(WordAnd, WordT, WordT, WordT)                                       \
   V(WordXor, WordT, WordT, WordT)                                       \
@@ -359,8 +367,16 @@ TNode<Float64T> Float64Add(TNode<Float64T> a, TNode<Float64T> b);
   V(Float64RoundTiesEven, Float64T, Float64T)                  \
   V(Float64RoundTruncate, Float64T, Float64T)                  \
   V(Word32Clz, Int32T, Word32T)                                \
+  V(Word64Clz, Int64T, Word64T)                                \
+  V(Word32Ctz, Int32T, Word32T)                                \
+  V(Word64Ctz, Int64T, Word64T)                                \
+  V(Word32Popcnt, Int32T, Word32T)                             \
+  V(Word64Popcnt, Int64T, Word64T)                             \
   V(Word32BitwiseNot, Word32T, Word32T)                        \
   V(WordNot, WordT, WordT)                                     \
+  V(Word64Not, Word64T, Word64T)                               \
+  V(I8x16BitMask, Int32T, I8x16T)                              \
+  V(I8x16Splat, I8x16T, Int32T)                                \
   V(Int32AbsWithOverflow, PAIR_TYPE(Int32T, BoolT), Int32T)    \
   V(Int64AbsWithOverflow, PAIR_TYPE(Int64T, BoolT), Int64T)    \
   V(IntPtrAbsWithOverflow, PAIR_TYPE(IntPtrT, BoolT), IntPtrT) \
@@ -407,6 +423,10 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   bool IsInt32AbsWithOverflowSupported() const;
   bool IsInt64AbsWithOverflowSupported() const;
   bool IsIntPtrAbsWithOverflowSupported() const;
+  bool IsWord32PopcntSupported() const;
+  bool IsWord64PopcntSupported() const;
+  bool IsWord32CtzSupported() const;
+  bool IsWord64CtzSupported() const;
 
   // Shortened aliases for use in CodeAssembler subclasses.
   using Label = CodeAssemblerLabel;
@@ -447,7 +467,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 #ifdef DEBUG
       if (FLAG_debug_code) {
         if (std::is_same<PreviousType, MaybeObject>::value) {
-          code_assembler_->GenerateCheckMaybeObjectIsObject(node_, location_);
+          code_assembler_->GenerateCheckMaybeObjectIsObject(
+              TNode<MaybeObject>::UncheckedCast(node_), location_);
         }
         TNode<ExternalReference> function = code_assembler_->ExternalConstant(
             ExternalReference::check_object_type());
@@ -462,11 +483,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
       }
 #endif
       return TNode<A>::UncheckedCast(node_);
-    }
-
-    template <class A>
-    operator SloppyTNode<A>() {
-      return implicit_cast<TNode<A>>(*this);
     }
 
     Node* node() const { return node_; }
@@ -519,12 +535,16 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 #endif
 
 #ifdef DEBUG
-  void GenerateCheckMaybeObjectIsObject(Node* node, const char* location);
+  void GenerateCheckMaybeObjectIsObject(TNode<MaybeObject> node,
+                                        const char* location);
 #endif
 
   // Constants.
   TNode<Int32T> Int32Constant(int32_t value);
   TNode<Int64T> Int64Constant(int64_t value);
+  TNode<Uint64T> Uint64Constant(uint64_t value) {
+    return Unsigned(Int64Constant(bit_cast<int64_t>(value)));
+  }
   TNode<IntPtrT> IntPtrConstant(intptr_t value);
   TNode<Uint32T> Uint32Constant(uint32_t value) {
     return Unsigned(Int32Constant(bit_cast<int32_t>(value)));
@@ -565,6 +585,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return value ? Int32TrueConstant() : Int32FalseConstant();
   }
 
+  bool IsMapOffsetConstant(Node* node);
+
   bool TryToInt32Constant(TNode<IntegralT> node, int32_t* out_value);
   bool TryToInt64Constant(TNode<IntegralT> node, int64_t* out_value);
   bool TryToIntPtrConstant(TNode<IntegralT> node, intptr_t* out_value);
@@ -576,9 +598,13 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   bool IsNullConstant(TNode<Object> node);
 
   TNode<Int32T> Signed(TNode<Word32T> x) { return UncheckedCast<Int32T>(x); }
+  TNode<Int64T> Signed(TNode<Word64T> x) { return UncheckedCast<Int64T>(x); }
   TNode<IntPtrT> Signed(TNode<WordT> x) { return UncheckedCast<IntPtrT>(x); }
   TNode<Uint32T> Unsigned(TNode<Word32T> x) {
     return UncheckedCast<Uint32T>(x);
+  }
+  TNode<Uint64T> Unsigned(TNode<Word64T> x) {
+    return UncheckedCast<Uint64T>(x);
   }
   TNode<UintPtrT> Unsigned(TNode<WordT> x) {
     return UncheckedCast<UintPtrT>(x);
@@ -759,14 +785,28 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<Object> LoadFullTagged(
       Node* base, LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
   TNode<Object> LoadFullTagged(
-      Node* base, Node* offset,
+      Node* base, TNode<IntPtrT> offset,
       LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
 
   Node* LoadFromObject(MachineType type, TNode<Object> object,
                        TNode<IntPtrT> offset);
 
+#ifdef V8_MAP_PACKING
+  Node* PackMapWord(Node* value);
+#endif
+
   // Load a value from the root array.
+  // If map packing is enabled, LoadRoot for a root map returns the unpacked map
+  // word (i.e., the map). Use LoadRootMapWord to obtain the packed map word
+  // instead.
   TNode<Object> LoadRoot(RootIndex root_index);
+  TNode<AnyTaggedT> LoadRootMapWord(RootIndex root_index);
+
+  template <typename Type>
+  TNode<Type> UnalignedLoad(TNode<RawPtrT> base, TNode<IntPtrT> offset) {
+    MachineType mt = MachineTypeOf<Type>::value;
+    return UncheckedCast<Type>(UnalignedLoad(mt, base, offset));
+  }
 
   // Store value to raw memory location.
   void Store(Node* base, Node* value);
@@ -866,66 +906,95 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
 // Basic arithmetic operations.
 #define DECLARE_CODE_ASSEMBLER_BINARY_OP(name, ResType, Arg1Type, Arg2Type) \
-  TNode<ResType> name(SloppyTNode<Arg1Type> a, SloppyTNode<Arg2Type> b);
+  TNode<ResType> name(TNode<Arg1Type> a, TNode<Arg2Type> b);
   CODE_ASSEMBLER_BINARY_OP_LIST(DECLARE_CODE_ASSEMBLER_BINARY_OP)
 #undef DECLARE_CODE_ASSEMBLER_BINARY_OP
 
   TNode<UintPtrT> WordShr(TNode<UintPtrT> left, TNode<IntegralT> right) {
-    return Unsigned(
-        WordShr(static_cast<Node*>(left), static_cast<Node*>(right)));
+    return Unsigned(WordShr(static_cast<TNode<WordT>>(left), right));
   }
   TNode<IntPtrT> WordSar(TNode<IntPtrT> left, TNode<IntegralT> right) {
-    return Signed(WordSar(static_cast<Node*>(left), static_cast<Node*>(right)));
+    return Signed(WordSar(static_cast<TNode<WordT>>(left), right));
   }
   TNode<IntPtrT> WordShl(TNode<IntPtrT> left, TNode<IntegralT> right) {
-    return Signed(WordShl(static_cast<Node*>(left), static_cast<Node*>(right)));
+    return Signed(WordShl(static_cast<TNode<WordT>>(left), right));
   }
   TNode<UintPtrT> WordShl(TNode<UintPtrT> left, TNode<IntegralT> right) {
-    return Unsigned(
-        WordShl(static_cast<Node*>(left), static_cast<Node*>(right)));
+    return Unsigned(WordShl(static_cast<TNode<WordT>>(left), right));
   }
 
   TNode<Int32T> Word32Shl(TNode<Int32T> left, TNode<Int32T> right) {
-    return Signed(
-        Word32Shl(static_cast<Node*>(left), static_cast<Node*>(right)));
+    return Signed(Word32Shl(static_cast<TNode<Word32T>>(left), right));
   }
   TNode<Uint32T> Word32Shl(TNode<Uint32T> left, TNode<Uint32T> right) {
-    return Unsigned(
-        Word32Shl(static_cast<Node*>(left), static_cast<Node*>(right)));
+    return Unsigned(Word32Shl(static_cast<TNode<Word32T>>(left), right));
   }
   TNode<Uint32T> Word32Shr(TNode<Uint32T> left, TNode<Uint32T> right) {
-    return Unsigned(
-        Word32Shr(static_cast<Node*>(left), static_cast<Node*>(right)));
+    return Unsigned(Word32Shr(static_cast<TNode<Word32T>>(left), right));
   }
   TNode<Int32T> Word32Sar(TNode<Int32T> left, TNode<Int32T> right) {
-    return Signed(
-        Word32Sar(static_cast<Node*>(left), static_cast<Node*>(right)));
+    return Signed(Word32Sar(static_cast<TNode<Word32T>>(left), right));
+  }
+
+  TNode<Int64T> Word64Shl(TNode<Int64T> left, TNode<Int64T> right) {
+    return Signed(Word64Shl(static_cast<TNode<Word64T>>(left), right));
+  }
+  TNode<Uint64T> Word64Shl(TNode<Uint64T> left, TNode<Uint64T> right) {
+    return Unsigned(Word64Shl(static_cast<TNode<Word64T>>(left), right));
+  }
+  TNode<Uint64T> Word64Shr(TNode<Uint64T> left, TNode<Uint64T> right) {
+    return Unsigned(Word64Shr(static_cast<TNode<Word64T>>(left), right));
+  }
+  TNode<Int64T> Word64Sar(TNode<Int64T> left, TNode<Int64T> right) {
+    return Signed(Word64Sar(static_cast<TNode<Word64T>>(left), right));
+  }
+
+  TNode<Int64T> Word64And(TNode<Int64T> left, TNode<Int64T> right) {
+    return Signed(Word64And(static_cast<TNode<Word64T>>(left), right));
+  }
+  TNode<Uint64T> Word64And(TNode<Uint64T> left, TNode<Uint64T> right) {
+    return Unsigned(Word64And(static_cast<TNode<Word64T>>(left), right));
+  }
+
+  TNode<Int64T> Word64Xor(TNode<Int64T> left, TNode<Int64T> right) {
+    return Signed(Word64Xor(static_cast<TNode<Word64T>>(left), right));
+  }
+  TNode<Uint64T> Word64Xor(TNode<Uint64T> left, TNode<Uint64T> right) {
+    return Unsigned(Word64Xor(static_cast<TNode<Word64T>>(left), right));
+  }
+
+  TNode<Int64T> Word64Not(TNode<Int64T> value) {
+    return Signed(Word64Not(static_cast<TNode<Word64T>>(value)));
+  }
+  TNode<Uint64T> Word64Not(TNode<Uint64T> value) {
+    return Unsigned(Word64Not(static_cast<TNode<Word64T>>(value)));
   }
 
   TNode<IntPtrT> WordAnd(TNode<IntPtrT> left, TNode<IntPtrT> right) {
-    return Signed(WordAnd(static_cast<Node*>(left), static_cast<Node*>(right)));
+    return Signed(WordAnd(static_cast<TNode<WordT>>(left),
+                          static_cast<TNode<WordT>>(right)));
   }
   TNode<UintPtrT> WordAnd(TNode<UintPtrT> left, TNode<UintPtrT> right) {
-    return Unsigned(
-        WordAnd(static_cast<Node*>(left), static_cast<Node*>(right)));
+    return Unsigned(WordAnd(static_cast<TNode<WordT>>(left),
+                            static_cast<TNode<WordT>>(right)));
   }
 
   TNode<Int32T> Word32And(TNode<Int32T> left, TNode<Int32T> right) {
-    return Signed(
-        Word32And(static_cast<Node*>(left), static_cast<Node*>(right)));
+    return Signed(Word32And(static_cast<TNode<Word32T>>(left),
+                            static_cast<TNode<Word32T>>(right)));
   }
   TNode<Uint32T> Word32And(TNode<Uint32T> left, TNode<Uint32T> right) {
-    return Unsigned(
-        Word32And(static_cast<Node*>(left), static_cast<Node*>(right)));
+    return Unsigned(Word32And(static_cast<TNode<Word32T>>(left),
+                              static_cast<TNode<Word32T>>(right)));
   }
 
   TNode<Int32T> Word32Or(TNode<Int32T> left, TNode<Int32T> right) {
-    return Signed(
-        Word32Or(static_cast<Node*>(left), static_cast<Node*>(right)));
+    return Signed(Word32Or(static_cast<TNode<Word32T>>(left),
+                           static_cast<TNode<Word32T>>(right)));
   }
   TNode<Uint32T> Word32Or(TNode<Uint32T> left, TNode<Uint32T> right) {
-    return Unsigned(
-        Word32Or(static_cast<Node*>(left), static_cast<Node*>(right)));
+    return Unsigned(Word32Or(static_cast<TNode<Word32T>>(left),
+                             static_cast<TNode<Word32T>>(right)));
   }
 
   TNode<BoolT> IntPtrEqual(TNode<WordT> left, TNode<WordT> right);
@@ -937,53 +1006,82 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<BoolT> Word64NotEqual(TNode<Word64T> left, TNode<Word64T> right);
 
   TNode<BoolT> Word32Or(TNode<BoolT> left, TNode<BoolT> right) {
-    return UncheckedCast<BoolT>(
-        Word32Or(static_cast<Node*>(left), static_cast<Node*>(right)));
+    return UncheckedCast<BoolT>(Word32Or(static_cast<TNode<Word32T>>(left),
+                                         static_cast<TNode<Word32T>>(right)));
   }
   TNode<BoolT> Word32And(TNode<BoolT> left, TNode<BoolT> right) {
-    return UncheckedCast<BoolT>(
-        Word32And(static_cast<Node*>(left), static_cast<Node*>(right)));
+    return UncheckedCast<BoolT>(Word32And(static_cast<TNode<Word32T>>(left),
+                                          static_cast<TNode<Word32T>>(right)));
   }
 
   TNode<Int32T> Int32Add(TNode<Int32T> left, TNode<Int32T> right) {
-    return Signed(
-        Int32Add(static_cast<Node*>(left), static_cast<Node*>(right)));
+    return Signed(Int32Add(static_cast<TNode<Word32T>>(left),
+                           static_cast<TNode<Word32T>>(right)));
   }
 
   TNode<Uint32T> Uint32Add(TNode<Uint32T> left, TNode<Uint32T> right) {
-    return Unsigned(
-        Int32Add(static_cast<Node*>(left), static_cast<Node*>(right)));
+    return Unsigned(Int32Add(static_cast<TNode<Word32T>>(left),
+                             static_cast<TNode<Word32T>>(right)));
+  }
+
+  TNode<Uint32T> Uint32Sub(TNode<Uint32T> left, TNode<Uint32T> right) {
+    return Unsigned(Int32Sub(static_cast<TNode<Word32T>>(left),
+                             static_cast<TNode<Word32T>>(right)));
   }
 
   TNode<Int32T> Int32Sub(TNode<Int32T> left, TNode<Int32T> right) {
-    return Signed(
-        Int32Sub(static_cast<Node*>(left), static_cast<Node*>(right)));
+    return Signed(Int32Sub(static_cast<TNode<Word32T>>(left),
+                           static_cast<TNode<Word32T>>(right)));
   }
 
   TNode<Int32T> Int32Mul(TNode<Int32T> left, TNode<Int32T> right) {
-    return Signed(
-        Int32Mul(static_cast<Node*>(left), static_cast<Node*>(right)));
+    return Signed(Int32Mul(static_cast<TNode<Word32T>>(left),
+                           static_cast<TNode<Word32T>>(right)));
+  }
+
+  TNode<Int64T> Int64Add(TNode<Int64T> left, TNode<Int64T> right) {
+    return Signed(Int64Add(static_cast<TNode<Word64T>>(left), right));
+  }
+
+  TNode<Uint64T> Uint64Add(TNode<Uint64T> left, TNode<Uint64T> right) {
+    return Unsigned(Int64Add(static_cast<TNode<Word64T>>(left), right));
+  }
+
+  TNode<Int64T> Int64Sub(TNode<Int64T> left, TNode<Int64T> right) {
+    return Signed(Int64Sub(static_cast<TNode<Word64T>>(left), right));
+  }
+
+  TNode<Uint64T> Uint64Sub(TNode<Uint64T> left, TNode<Uint64T> right) {
+    return Unsigned(Int64Sub(static_cast<TNode<Word64T>>(left), right));
+  }
+
+  TNode<Int64T> Int64Mul(TNode<Int64T> left, TNode<Int64T> right) {
+    return Signed(Int64Mul(static_cast<TNode<Word64T>>(left), right));
+  }
+
+  TNode<Uint64T> Uint64Mul(TNode<Uint64T> left, TNode<Uint64T> right) {
+    return Unsigned(Int64Mul(static_cast<TNode<Word64T>>(left), right));
   }
 
   TNode<IntPtrT> IntPtrAdd(TNode<IntPtrT> left, TNode<IntPtrT> right) {
-    return Signed(
-        IntPtrAdd(static_cast<Node*>(left), static_cast<Node*>(right)));
+    return Signed(IntPtrAdd(static_cast<TNode<WordT>>(left),
+                            static_cast<TNode<WordT>>(right)));
   }
   TNode<IntPtrT> IntPtrSub(TNode<IntPtrT> left, TNode<IntPtrT> right) {
-    return Signed(
-        IntPtrSub(static_cast<Node*>(left), static_cast<Node*>(right)));
+    return Signed(IntPtrSub(static_cast<TNode<WordT>>(left),
+                            static_cast<TNode<WordT>>(right)));
   }
   TNode<IntPtrT> IntPtrMul(TNode<IntPtrT> left, TNode<IntPtrT> right) {
-    return Signed(
-        IntPtrMul(static_cast<Node*>(left), static_cast<Node*>(right)));
+    return Signed(IntPtrMul(static_cast<TNode<WordT>>(left),
+                            static_cast<TNode<WordT>>(right)));
   }
   TNode<UintPtrT> UintPtrAdd(TNode<UintPtrT> left, TNode<UintPtrT> right) {
-    return Unsigned(
-        IntPtrAdd(static_cast<Node*>(left), static_cast<Node*>(right)));
+    return Unsigned(IntPtrAdd(static_cast<TNode<WordT>>(left),
+                              static_cast<TNode<WordT>>(right)));
   }
   TNode<UintPtrT> UintPtrSub(TNode<UintPtrT> left, TNode<UintPtrT> right) {
-    return Unsigned(
-        IntPtrSub(static_cast<Node*>(left), static_cast<Node*>(right)));
+    return Unsigned(IntPtrSub(static_cast<TNode<WordT>>(left),
+                              static_cast<TNode<WordT>>(right)));
   }
   TNode<RawPtrT> RawPtrAdd(TNode<RawPtrT> left, TNode<IntPtrT> right) {
     return ReinterpretCast<RawPtrT>(IntPtrAdd(left, right));
@@ -992,8 +1090,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return ReinterpretCast<RawPtrT>(IntPtrSub(left, right));
   }
   TNode<IntPtrT> RawPtrSub(TNode<RawPtrT> left, TNode<RawPtrT> right) {
-    return Signed(
-        IntPtrSub(static_cast<Node*>(left), static_cast<Node*>(right)));
+    return Signed(IntPtrSub(static_cast<TNode<WordT>>(left),
+                            static_cast<TNode<WordT>>(right)));
   }
 
   TNode<WordT> WordShl(TNode<WordT> value, int shift);
@@ -1010,7 +1108,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
 // Unary
 #define DECLARE_CODE_ASSEMBLER_UNARY_OP(name, ResType, ArgType) \
-  TNode<ResType> name(SloppyTNode<ArgType> a);
+  TNode<ResType> name(TNode<ArgType> a);
   CODE_ASSEMBLER_UNARY_OP_LIST(DECLARE_CODE_ASSEMBLER_UNARY_OP)
 #undef DECLARE_CODE_ASSEMBLER_UNARY_OP
 
@@ -1144,8 +1242,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     TNode<Int32T> arity = Int32Constant(argc);
     TNode<Code> target = HeapConstant(callable.code());
     return CAST(CallJSStubImpl(callable.descriptor(), target, CAST(context),
-                               CAST(function), TNode<Object>(), arity,
-                               {receiver, args...}));
+                               CAST(function), {}, arity, {receiver, args...}));
   }
 
   template <class... TArgs>
@@ -1275,7 +1372,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   Node* CallJSStubImpl(const CallInterfaceDescriptor& descriptor,
                        TNode<Object> target, TNode<Object> context,
-                       TNode<Object> function, TNode<Object> new_target,
+                       TNode<Object> function,
+                       base::Optional<TNode<Object>> new_target,
                        TNode<Int32T> arity, std::initializer_list<Node*> args);
 
   Node* CallStubN(StubCallMode call_mode,
@@ -1283,6 +1381,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                   Node* const* inputs);
 
   Node* AtomicLoad(MachineType type, TNode<RawPtrT> base, TNode<WordT> offset);
+
+  Node* UnalignedLoad(MachineType type, TNode<RawPtrT> base,
+                      TNode<WordT> offset);
 
   // These two don't have definitions and are here only for catching use cases
   // where the cast is not necessary.

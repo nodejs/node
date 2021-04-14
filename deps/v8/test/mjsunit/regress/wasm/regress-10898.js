@@ -29,7 +29,7 @@ kExprLocalTee, 0x00,  // local.tee
 kExprI32Const, 0xff, 0x00,  // i32.const
 kAtomicPrefix, kExprAtomicNotify, 0x02, 0x03,  // atomic.notify
 kExprI32LoadMem16S, 0x00, 0x02,  // i32.load16_s
-kExprIf, kWasmStmt,  // if @28
+kExprIf, kWasmVoid,  // if @28
   kExprLocalGet, 0x00,  // local.get
   kExprReturn,  // return
 kExprElse,  // else @33

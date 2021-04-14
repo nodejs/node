@@ -94,14 +94,14 @@ transitioning builtin CreateObjectWithoutProperties(implicit context: Context)(
     prototype: JSAny): JSAny {
   try {
     let map: Map;
-    let properties: NameDictionary|OrderedNameDictionary|EmptyFixedArray;
+    let properties: NameDictionary|SwissNameDictionary|EmptyFixedArray;
     typeswitch (prototype) {
       case (Null): {
         map = *NativeContextSlot(
             ContextSlot::SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP);
         if (kDictModePrototypes) {
-          properties = AllocateOrderedNameDictionary(
-              kOrderedNameDictionaryInitialCapacity);
+          properties =
+              AllocateSwissNameDictionary(kSwissNameDictionaryInitialCapacity);
         } else {
           properties = AllocateNameDictionary(kNameDictionaryInitialCapacity);
         }

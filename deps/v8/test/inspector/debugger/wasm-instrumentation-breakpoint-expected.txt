@@ -35,3 +35,37 @@ Paused at v8://test/instantiate with reason "instrumentation".
 Paused at wasm://wasm/20da547a with reason "instrumentation".
 Script wasm://wasm/20da547a byte offset 26: Wasm opcode 0x01 (kExprNop)
 Done.
+
+Running test: testBreakInExportedFunction
+Setting instrumentation breakpoint
+{
+    id : <messageId>
+    result : {
+        breakpointId : <breakpointId>
+    }
+}
+Instantiating wasm module.
+Paused at v8://test/instantiate with reason "instrumentation".
+Calling exported function 'func' (should trigger a breakpoint).
+Paused at v8://test/call_func with reason "instrumentation".
+Paused at wasm://wasm/8c388106 with reason "instrumentation".
+Script wasm://wasm/8c388106 byte offset 33: Wasm opcode 0x01 (kExprNop)
+Calling exported function 'func' a second time (should trigger no breakpoint).
+Paused at v8://test/call_func with reason "instrumentation".
+Done.
+
+Running test: testBreakOnlyWithSourceMap
+Setting instrumentation breakpoint for source maps only
+{
+    id : <messageId>
+    result : {
+        breakpointId : <breakpointId>
+    }
+}
+Instantiating wasm module without source map.
+Calling exported function 'func' (should trigger no breakpoint).
+Instantiating wasm module with source map.
+Calling exported function 'func' (should trigger a breakpoint).
+Paused at wasm://wasm/c8e3a856 with reason "instrumentation".
+Script wasm://wasm/c8e3a856 byte offset 33: Wasm opcode 0x01 (kExprNop)
+Done.

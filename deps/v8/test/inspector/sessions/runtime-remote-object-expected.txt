@@ -5,6 +5,17 @@ Retrieving properties in 2
 {
     id : <messageId>
     result : {
+        internalProperties : [
+            [0] : {
+                name : [[Prototype]]
+                value : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+            }
+        ]
         result : [
             [0] : {
                 configurable : true
@@ -18,19 +29,6 @@ Retrieving properties in 2
                 }
                 writable : true
             }
-            [1] : {
-                configurable : true
-                enumerable : false
-                isOwn : true
-                name : __proto__
-                value : {
-                    className : Object
-                    description : Object
-                    objectId : <objectId>
-                    type : object
-                }
-                writable : true
-            }
         ]
     }
 }
@@ -38,6 +36,17 @@ Retrieving properties in 1
 {
     id : <messageId>
     result : {
+        internalProperties : [
+            [0] : {
+                name : [[Prototype]]
+                value : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+            }
+        ]
         result : [
             [0] : {
                 configurable : true
@@ -48,19 +57,6 @@ Retrieving properties in 1
                     description : 42
                     type : number
                     value : 42
-                }
-                writable : true
-            }
-            [1] : {
-                configurable : true
-                enumerable : false
-                isOwn : true
-                name : __proto__
-                value : {
-                    className : Object
-                    description : Object
-                    objectId : <objectId>
-                    type : object
                 }
                 writable : true
             }
@@ -72,6 +68,17 @@ Retrieving properties in 1
 {
     id : <messageId>
     result : {
+        internalProperties : [
+            [0] : {
+                name : [[Prototype]]
+                value : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+            }
+        ]
         result : [
             [0] : {
                 configurable : true
@@ -82,19 +89,6 @@ Retrieving properties in 1
                     description : 42
                     type : number
                     value : 42
-                }
-                writable : true
-            }
-            [1] : {
-                configurable : true
-                enumerable : false
-                isOwn : true
-                name : __proto__
-                value : {
-                    className : Object
-                    description : Object
-                    objectId : <objectId>
-                    type : object
                 }
                 writable : true
             }

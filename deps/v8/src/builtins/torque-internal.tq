@@ -304,6 +304,15 @@ extern macro StaticAssert(bool, constexpr string);
 // field x from object o is `(&o.x).length`.
 intrinsic %IndexedFieldLength<T: type>(o: T, f: constexpr string);
 
+// If field x is defined as optional, then &o.x returns a reference to the field
+// or crashes the program (unreachable) if the field is not present. Usually
+// that's the most convenient behavior, but in rare cases such as the
+// implementation of the dot operator, we may instead need to get a Slice to the
+// optional field, which is either length zero or one depending on whether the
+// field is present. This intrinsic provides Slices for both indexed fields
+// (equivalent to &o.x) and optional fields.
+intrinsic %FieldSlice<T: type>(o: T, f: constexpr string);
+
 }  // namespace torque_internal
 
 // Indicates that an array-field should not be initialized.

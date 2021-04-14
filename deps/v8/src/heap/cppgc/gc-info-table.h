@@ -54,7 +54,7 @@ class V8_EXPORT GCInfoTable final {
   GCInfoTable(const GCInfoTable&) = delete;
   GCInfoTable& operator=(const GCInfoTable&) = delete;
 
-  GCInfoIndex RegisterNewGCInfo(const GCInfo& info);
+  GCInfoIndex RegisterNewGCInfo(std::atomic<uint16_t>&, const GCInfo& info);
 
   const GCInfo& GCInfoFromIndex(GCInfoIndex index) const {
     DCHECK_GE(index, kMinIndex);

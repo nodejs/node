@@ -81,7 +81,7 @@ void EmbedderDataSlot::store_tagged(JSObject object, int embedder_field_index,
 #endif
 }
 
-bool EmbedderDataSlot::ToAlignedPointer(IsolateRoot isolate_root,
+bool EmbedderDataSlot::ToAlignedPointer(Isolate* isolate,
                                         void** out_pointer) const {
   // We don't care about atomicity of access here because embedder slots
   // are accessed this way only from the main thread via API during "mutator"
@@ -90,7 +90,6 @@ bool EmbedderDataSlot::ToAlignedPointer(IsolateRoot isolate_root,
   Address raw_value;
 #ifdef V8_HEAP_SANDBOX
   uint32_t index = base::Memory<uint32_t>(address() + kRawPayloadOffset);
-  const Isolate* isolate = Isolate::FromRootAddress(isolate_root.address());
   raw_value = isolate->external_pointer_table().get(index) ^
               kEmbedderDataSlotPayloadTag;
 #else
@@ -108,12 +107,11 @@ bool EmbedderDataSlot::ToAlignedPointer(IsolateRoot isolate_root,
   return HAS_SMI_TAG(raw_value);
 }
 
-bool EmbedderDataSlot::ToAlignedPointerSafe(IsolateRoot isolate_root,
+bool EmbedderDataSlot::ToAlignedPointerSafe(Isolate* isolate,
                                             void** out_pointer) const {
 #ifdef V8_HEAP_SANDBOX
   uint32_t index = base::Memory<uint32_t>(address() + kRawPayloadOffset);
   Address raw_value;
-  const Isolate* isolate = Isolate::FromRootAddress(isolate_root.address());
   if (isolate->external_pointer_table().is_valid_index(index)) {
     raw_value = isolate->external_pointer_table().get(index) ^
                 kEmbedderDataSlotPayloadTag;
@@ -122,7 +120,7 @@ bool EmbedderDataSlot::ToAlignedPointerSafe(IsolateRoot isolate_root,
   }
   return false;
 #else
-  return ToAlignedPointer(isolate_root, out_pointer);
+  return ToAlignedPointer(isolate, out_pointer);
 #endif  // V8_HEAP_SANDBOX
 }
 

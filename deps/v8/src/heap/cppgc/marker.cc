@@ -275,6 +275,7 @@ void MarkerBase::LeaveAtomicPause() {
     ProcessWeakness();
   }
   g_process_mutex.Pointer()->Unlock();
+  heap().SetStackStateOfPrevGC(config_.stack_state);
 }
 
 void MarkerBase::FinishMarking(MarkingConfig::StackState stack_state) {
@@ -508,9 +509,9 @@ void MarkerBase::MarkNotFullyConstructedObjects() {
       mutator_marking_state_.not_fully_constructed_worklist().Extract();
   for (HeapObjectHeader* object : objects) {
     DCHECK(object);
-    if (!mutator_marking_state_.MarkNoPush(*object)) continue;
-    // TraceConservativelyIfNeeded will either push to a worklist
-    // or trace conservatively and call AccountMarkedBytes.
+    // TraceConservativelyIfNeeded delegates to either in-construction or
+    // fully constructed handling. Both handlers have their own marked bytes
+    // accounting and markbit handling (bailout).
     conservative_visitor().TraceConservativelyIfNeeded(*object);
   }
 }

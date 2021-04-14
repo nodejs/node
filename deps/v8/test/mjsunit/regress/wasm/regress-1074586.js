@@ -19,15 +19,15 @@ builder.addFunction(undefined, sig)
 kExprLocalGet, 0x1b,  // local.get
 kExprLocalSet, 0x1c,  // local.set
 kExprI32Const, 0x00,  // i32.const
-kExprIf, kWasmStmt,  // if @11
+kExprIf, kWasmVoid,  // if @11
   kExprGlobalGet, 0x00,  // global.get
   kExprLocalSet, 0x1e,  // local.set
-  kExprBlock, kWasmStmt,  // block @19
+  kExprBlock, kWasmVoid,  // block @19
     kExprGlobalGet, 0x00,  // global.get
     kExprLocalSet, 0x21,  // local.set
-    kExprBlock, kWasmStmt,  // block @25
-      kExprBlock, kWasmStmt,  // block @27
-        kExprBlock, kWasmStmt,  // block @29
+    kExprBlock, kWasmVoid,  // block @25
+      kExprBlock, kWasmVoid,  // block @27
+        kExprBlock, kWasmVoid,  // block @29
           kExprGlobalGet, 0x00,  // global.get
           kExprLocalSet, 0x0a,  // local.set
           kExprI32Const, 0x00,  // i32.const
@@ -42,19 +42,19 @@ kExprIf, kWasmStmt,  // if @11
       kExprI32Const, 0x01,  // i32.const
       kExprLocalSet, 0x36,  // local.set
       kExprI32Const, 0x00,  // i32.const
-      kExprIf, kWasmStmt,  // if @56
+      kExprIf, kWasmVoid,  // if @56
         kExprEnd,  // end @59
       kExprLocalGet, 0x00,  // local.get
       kExprLocalSet, 0x10,  // local.set
       kExprI32Const, 0x00,  // i32.const
       kExprI32Eqz,  // i32.eqz
       kExprLocalSet, 0x38,  // local.set
-      kExprBlock, kWasmStmt,  // block @69
+      kExprBlock, kWasmVoid,  // block @69
         kExprI32Const, 0x7f,  // i32.const
         kExprI32Eqz,  // i32.eqz
         kExprLocalSet, 0x39,  // local.set
         kExprI32Const, 0x01,  // i32.const
-        kExprIf, kWasmStmt,  // if @78
+        kExprIf, kWasmVoid,  // if @78
           kExprGlobalGet, 0x00,  // global.get
           kExprLocalSet, 0x11,  // local.set
           kExprI32Const, 0x00,  // i32.const

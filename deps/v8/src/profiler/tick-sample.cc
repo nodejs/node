@@ -287,15 +287,18 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
     frames[i] = reinterpret_cast<void*>(isolate->c_function());
     i++;
   }
-
+#ifdef V8_RUNTIME_CALL_STATS
   i::RuntimeCallTimer* timer =
       isolate->counters()->runtime_call_stats()->current_timer();
+#endif  // V8_RUNTIME_CALL_STATS
   for (; !it.done() && i < frames_limit; it.Advance()) {
+#ifdef V8_RUNTIME_CALL_STATS
     while (timer && reinterpret_cast<i::Address>(timer) < it.frame()->fp() &&
            i < frames_limit) {
       frames[i++] = reinterpret_cast<void*>(timer->counter());
       timer = timer->parent();
     }
+#endif  // V8_RUNTIME_CALL_STATS
     if (i == frames_limit) break;
 
     if (it.frame()->is_interpreted()) {

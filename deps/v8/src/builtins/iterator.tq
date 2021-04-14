@@ -100,6 +100,7 @@ transitioning builtin CreateAsyncFromSyncIteratorBaseline(syncIterator: JSAny):
 transitioning builtin CallIteratorWithFeedback(
     context: Context, receiver: JSAny, iteratorMethod: JSAny, callSlot: Smi,
     feedback: Undefined|FeedbackVector): JSAny {
+  // TODO(v8:10047): Use TaggedIndex here once TurboFan supports it.
   const callSlotUnTagged: uintptr = Unsigned(SmiUntag(callSlot));
   ic::CollectCallFeedback(iteratorMethod, context, feedback, callSlotUnTagged);
   const iteratorCallable: Callable = Cast<Callable>(iteratorMethod)

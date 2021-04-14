@@ -1132,8 +1132,9 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperandAsJSON& o) {
           os << ",\"tooltip\": \"MUST_HAVE_SLOT\"";
           break;
         }
-        case UnallocatedOperand::SAME_AS_FIRST_INPUT: {
-          os << ",\"tooltip\": \"SAME_AS_FIRST_INPUT\"";
+        case UnallocatedOperand::SAME_AS_INPUT: {
+          os << ",\"tooltip\": \"SAME_AS_INPUT: " << unalloc->input_index()
+             << "\"";
           break;
         }
         case UnallocatedOperand::REGISTER_OR_SLOT: {
@@ -1164,11 +1165,16 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperandAsJSON& o) {
       os << "\"type\": \"immediate\", ";
       const ImmediateOperand* imm = ImmediateOperand::cast(op);
       switch (imm->type()) {
-        case ImmediateOperand::INLINE: {
-          os << "\"text\": \"#" << imm->inline_value() << "\"";
+        case ImmediateOperand::INLINE_INT32: {
+          os << "\"text\": \"#" << imm->inline_int32_value() << "\"";
           break;
         }
-        case ImmediateOperand::INDEXED: {
+        case ImmediateOperand::INLINE_INT64: {
+          os << "\"text\": \"#" << imm->inline_int64_value() << "\"";
+          break;
+        }
+        case ImmediateOperand::INDEXED_RPO:
+        case ImmediateOperand::INDEXED_IMM: {
           int index = imm->indexed_value();
           os << "\"text\": \"imm:" << index << "\",";
           os << "\"tooltip\": \"";

@@ -97,6 +97,8 @@ namespace internal {
   V(NoContext)                           \
   V(RecordWrite)                         \
   V(ResumeGenerator)                     \
+  V(SuspendGeneratorBaseline)            \
+  V(ResumeGeneratorBaseline)             \
   V(RunMicrotasks)                       \
   V(RunMicrotasksEntry)                  \
   V(SingleParameterOnStack)              \
@@ -1466,16 +1468,26 @@ class V8_EXPORT_PRIVATE TailCallOptimizedCodeSlotDescriptor
 class BaselineOutOfLinePrologueDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS_NO_CONTEXT(kCalleeContext, kClosure,
-                               kJavaScriptCallArgCount,
-                               kInterpreterBytecodeArray,
-                               kJavaScriptCallNewTarget)
+                               kJavaScriptCallArgCount, kStackFrameSize,
+                               kJavaScriptCallNewTarget,
+                               kInterpreterBytecodeArray)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kCalleeContext
                          MachineType::AnyTagged(),  // kClosure
                          MachineType::Int32(),      // kJavaScriptCallArgCount
-                         MachineType::AnyTagged(),  // kInterpreterBytecodeArray
-                         MachineType::AnyTagged())  // kJavaScriptCallNewTarget
+                         MachineType::Int32(),      // kStackFrameSize
+                         MachineType::AnyTagged(),  // kJavaScriptCallNewTarget
+                         MachineType::AnyTagged())  // kInterpreterBytecodeArray
   DECLARE_DESCRIPTOR(BaselineOutOfLinePrologueDescriptor,
                      CallInterfaceDescriptor)
+
+#if V8_TARGET_ARCH_IA32
+  static const bool kPassLastArgsOnStack = true;
+#else
+  static const bool kPassLastArgsOnStack = false;
+#endif
+
+  // Pass bytecode array through the stack.
+  static const int kStackArgumentsCount = kPassLastArgsOnStack ? 1 : 0;
 };
 
 class BaselineLeaveFrameDescriptor : public CallInterfaceDescriptor {
@@ -1575,6 +1587,31 @@ class ResumeGeneratorDescriptor final : public CallInterfaceDescriptor {
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kValue
                          MachineType::AnyTagged())  // kGenerator
   DECLARE_DESCRIPTOR(ResumeGeneratorDescriptor, CallInterfaceDescriptor)
+};
+
+class ResumeGeneratorBaselineDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kGeneratorObject, kRegisterCount)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(
+      MachineType::TaggedSigned(),  // return type
+      MachineType::AnyTagged(),     // kGeneratorObject
+      MachineType::IntPtr(),        // kRegisterCount
+  )
+  DECLARE_DESCRIPTOR(ResumeGeneratorBaselineDescriptor, CallInterfaceDescriptor)
+};
+
+class SuspendGeneratorBaselineDescriptor final
+    : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kGeneratorObject, kSuspendId, kBytecodeOffset,
+                    kRegisterCount)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kGeneratorObject
+                         MachineType::IntPtr(),     // kSuspendId
+                         MachineType::IntPtr(),     // kBytecodeOffset
+                         MachineType::IntPtr(),     // kRegisterCount
+  )
+  DECLARE_DESCRIPTOR(SuspendGeneratorBaselineDescriptor,
+                     CallInterfaceDescriptor)
 };
 
 class FrameDropperTrampolineDescriptor final : public CallInterfaceDescriptor {

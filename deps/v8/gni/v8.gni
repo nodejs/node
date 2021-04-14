@@ -75,6 +75,9 @@ declare_args() {
   # executed as standard JavaScript instead.
   v8_enable_webassembly = ""
 
+  # Enable runtime call stats.
+  v8_enable_runtime_call_stats = true
+
   # Add fuzzilli fuzzer support.
   v8_fuzzilli = false
 

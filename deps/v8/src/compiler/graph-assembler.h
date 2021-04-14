@@ -270,6 +270,12 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   CHECKED_ASSEMBLER_MACH_BINOP_LIST(BINOP_DECL)
 #undef BINOP_DECL
 
+#ifdef V8_MAP_PACKING
+  Node* PackMapWord(TNode<Map> map);
+  TNode<Map> UnpackMapWord(Node* map_word);
+#endif
+  TNode<Map> LoadMap(Node* object);
+
   Node* DebugBreak();
 
   // Unreachable nodes are similar to Goto in that they reset effect/control to

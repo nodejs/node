@@ -493,8 +493,6 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5690
   'language/expressions/call/eval-spread': [FAIL],
-  'language/expressions/call/eval-spread-empty-leading': [FAIL],
-  'language/expressions/call/eval-spread-empty-trailing': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7472
   'intl402/NumberFormat/currency-digits': [FAIL],
@@ -580,12 +578,17 @@
   'built-ins/String/prototype/at/*': [FAIL],
   'built-ins/TypedArray/prototype/at/*': [FAIL],
 
-  # Temporarily disabled until upstream tests are changed to use /d
-  'built-ins/RegExp/match-indices/*': [FAIL],
+  # http://crbug/v8/11530
+  'built-ins/Function/internals/Call/class-ctor-realm': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=11411
-  'intl402/DateTimeFormat/prototype/formatRange/date-same-returns-single-date': [FAIL],
-  'intl402/DateTimeFormat/prototype/formatRangeToParts/date-same-returns-single-date': [FAIL],
+  # http://crbug/v8/11531
+  'built-ins/RegExp/prototype/flags/get-order': [FAIL],
+
+  # http://crbug/v8/11532
+  'language/expressions/object/dstr/object-rest-proxy-gopd-not-called-on-excluded-keys': [FAIL],
+
+  # http://crbug/v8/11533
+  'language/statements/class/subclass/default-constructor-spread-override': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
@@ -736,8 +739,6 @@
   'built-ins/ArrayBuffer/length-is-too-large-throws': [SKIP],
   'built-ins/SharedArrayBuffer/allocation-limit': [SKIP],
   'built-ins/SharedArrayBuffer/length-is-too-large-throws': [SKIP],
-  # https://bugs.chromium.org/p/v8/issues/detail?id=11438
-  'intl402/DateTimeFormat/timezone-invalid' : [SKIP],
 }],  # asan == True or msan == True or tsan == True
 
 ['system == android', {

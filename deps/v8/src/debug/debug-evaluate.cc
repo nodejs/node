@@ -10,7 +10,6 @@
 #include "src/common/globals.h"
 #include "src/debug/debug-frames.h"
 #include "src/debug/debug-scopes.h"
-#include "src/debug/debug-wasm-objects.h"
 #include "src/debug/debug.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
@@ -18,6 +17,10 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/objects/contexts.h"
 #include "src/snapshot/snapshot.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/debug/debug-wasm-objects.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -77,26 +80,8 @@ MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
 
   // Get the frame where the debugging is performed.
   StackTraceFrameIterator it(isolate, frame_id);
-  if (it.is_javascript()) {
-    JavaScriptFrame* frame = it.javascript_frame();
-    // This is not a lot different than DebugEvaluate::Global, except that
-    // variables accessible by the function we are evaluating from are
-    // materialized and included on top of the native context. Changes to
-    // the materialized object are written back afterwards.
-    // Note that the native context is taken from the original context chain,
-    // which may not be the current native context of the isolate.
-    ContextBuilder context_builder(isolate, frame, inlined_jsframe_index);
-    if (isolate->has_pending_exception()) return {};
-
-    Handle<Context> context = context_builder.evaluation_context();
-    Handle<JSObject> receiver(context->global_proxy(), isolate);
-    MaybeHandle<Object> maybe_result =
-        Evaluate(isolate, context_builder.outer_info(), context, receiver,
-                 source, throw_on_side_effect);
-    if (!maybe_result.is_null()) context_builder.UpdateValues();
-    return maybe_result;
-  } else {
-    CHECK(it.is_wasm());
+#if V8_ENABLE_WEBASSEMBLY
+  if (it.is_wasm()) {
     WasmFrame* frame = WasmFrame::cast(it.frame());
     Handle<SharedFunctionInfo> outer_info(
         isolate->native_context()->empty_function().shared(), isolate);
@@ -108,6 +93,26 @@ MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
     return Evaluate(isolate, outer_info, context, context_extension, source,
                     throw_on_side_effect);
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+  CHECK(it.is_javascript());
+  JavaScriptFrame* frame = it.javascript_frame();
+  // This is not a lot different than DebugEvaluate::Global, except that
+  // variables accessible by the function we are evaluating from are
+  // materialized and included on top of the native context. Changes to
+  // the materialized object are written back afterwards.
+  // Note that the native context is taken from the original context chain,
+  // which may not be the current native context of the isolate.
+  ContextBuilder context_builder(isolate, frame, inlined_jsframe_index);
+  if (isolate->has_pending_exception()) return {};
+
+  Handle<Context> context = context_builder.evaluation_context();
+  Handle<JSObject> receiver(context->global_proxy(), isolate);
+  MaybeHandle<Object> maybe_result =
+      Evaluate(isolate, context_builder.outer_info(), context, receiver, source,
+               throw_on_side_effect);
+  if (!maybe_result.is_null()) context_builder.UpdateValues();
+  return maybe_result;
 }
 
 MaybeHandle<Object> DebugEvaluate::WithTopmostArguments(Isolate* isolate,
@@ -1103,7 +1108,7 @@ void DebugEvaluate::VerifyTransitiveBuiltins(Isolate* isolate) {
   }
   CHECK(!failed);
 #if defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_PPC64) || \
-    defined(V8_TARGET_ARCH_MIPS64) || defined(V8_TARGET_ARCH_RISCV64)
+    defined(V8_TARGET_ARCH_MIPS64)
   // Isolate-independent builtin calls and jumps do not emit reloc infos
   // on PPC. We try to avoid using PC relative code due to performance
   // issue with especially older hardwares.

@@ -35,6 +35,14 @@ TEST(HeapObjectHeaderTest, Payload) {
             header.Payload());
 }
 
+TEST(HeapObjectHeaderTest, PayloadEnd) {
+  constexpr GCInfoIndex kGCInfoIndex = 17;
+  constexpr size_t kSize = kAllocationGranularity;
+  HeapObjectHeader header(kSize, kGCInfoIndex);
+  EXPECT_EQ(reinterpret_cast<ConstAddress>(&header) + kSize,
+            header.PayloadEnd());
+}
+
 TEST(HeapObjectHeaderTest, GetGCInfoIndex) {
   constexpr GCInfoIndex kGCInfoIndex = 17;
   constexpr size_t kSize = kAllocationGranularity;

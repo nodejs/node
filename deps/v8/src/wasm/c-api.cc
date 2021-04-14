@@ -35,6 +35,7 @@
 #include "src/wasm/module-instantiate.h"
 #include "src/wasm/wasm-arguments.h"
 #include "src/wasm/wasm-constants.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-result.h"
 #include "src/wasm/wasm-serialization.h"
@@ -256,7 +257,6 @@ void Engine::operator delete(void* p) { ::operator delete(p); }
 auto Engine::make(own<Config>&& config) -> own<Engine> {
   i::FLAG_expose_gc = true;
   i::FLAG_experimental_wasm_reftypes = true;
-  i::FLAG_experimental_wasm_mv = true;
   auto engine = new (std::nothrow) EngineImpl;
   if (!engine) return own<Engine>();
   engine->platform = v8::platform::NewDefaultPlatform();
@@ -1211,7 +1211,7 @@ namespace {
 class SignatureHelper : public i::AllStatic {
  public:
   // Use an invalid type as a marker separating params and results.
-  static constexpr i::wasm::ValueType kMarker = i::wasm::kWasmStmt;
+  static constexpr i::wasm::ValueType kMarker = i::wasm::kWasmVoid;
 
   static i::Handle<i::PodArray<i::wasm::ValueType>> Serialize(
       i::Isolate* isolate, FuncType* type) {
@@ -1426,7 +1426,7 @@ void PushArgs(const i::wasm::FunctionSig* sig, const Val args[],
         UNIMPLEMENTED();
       case i::wasm::kI8:
       case i::wasm::kI16:
-      case i::wasm::kStmt:
+      case i::wasm::kVoid:
       case i::wasm::kBottom:
         UNREACHABLE();
         break;
@@ -1467,7 +1467,7 @@ void PopArgs(const i::wasm::FunctionSig* sig, Val results[],
         UNIMPLEMENTED();
       case i::wasm::kI8:
       case i::wasm::kI16:
-      case i::wasm::kStmt:
+      case i::wasm::kVoid:
       case i::wasm::kBottom:
         UNREACHABLE();
         break;
@@ -1732,7 +1732,7 @@ auto Global::get() const -> Val {
       UNIMPLEMENTED();
     case i::wasm::kI8:
     case i::wasm::kI16:
-    case i::wasm::kStmt:
+    case i::wasm::kVoid:
     case i::wasm::kBottom:
       UNREACHABLE();
   }

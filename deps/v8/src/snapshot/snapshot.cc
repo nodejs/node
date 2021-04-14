@@ -144,8 +144,7 @@ bool Snapshot::VersionIsValid(const v8::StartupData* data) {
 
 bool Snapshot::Initialize(Isolate* isolate) {
   if (!isolate->snapshot_available()) return false;
-  RuntimeCallTimerScope rcs_timer(isolate,
-                                  RuntimeCallCounterId::kDeserializeIsolate);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kDeserializeIsolate);
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) timer.Start();
 
@@ -173,8 +172,7 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
     Isolate* isolate, Handle<JSGlobalProxy> global_proxy, size_t context_index,
     v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
   if (!isolate->snapshot_available()) return Handle<Context>();
-  RuntimeCallTimerScope rcs_timer(isolate,
-                                  RuntimeCallCounterId::kDeserializeContext);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kDeserializeContext);
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) timer.Start();
 
@@ -260,9 +258,14 @@ void Snapshot::ClearReconstructableDataForSerialization(
     }
 #ifdef DEBUG
     if (clear_recompilable_data) {
+#if V8_ENABLE_WEBASSEMBLY
       DCHECK(fun.shared().HasWasmExportedFunctionData() ||
              fun.shared().HasBuiltinId() || fun.shared().IsApiFunction() ||
              fun.shared().HasUncompiledDataWithoutPreparseData());
+#else
+      DCHECK(fun.shared().HasBuiltinId() || fun.shared().IsApiFunction() ||
+             fun.shared().HasUncompiledDataWithoutPreparseData());
+#endif  // V8_ENABLE_WEBASSEMBLY
     }
 #endif  // DEBUG
   }

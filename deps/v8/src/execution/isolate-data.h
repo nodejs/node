@@ -29,12 +29,18 @@ class Isolate;
 // register.
 class IsolateData final {
  public:
-  explicit IsolateData(Isolate* isolate) : stack_guard_(isolate) {}
+  IsolateData(Isolate* isolate, Address cage_base)
+      : cage_base_(cage_base), stack_guard_(isolate) {}
 
   IsolateData(const IsolateData&) = delete;
   IsolateData& operator=(const IsolateData&) = delete;
 
   static constexpr intptr_t kIsolateRootBias = kRootRegisterBias;
+
+  // The value of kPointerCageBaseRegister
+  Address cage_base() const {
+    return COMPRESS_POINTERS_BOOL ? cage_base_ : kNullAddress;
+  }
 
   // The value of the kRootRegister.
   Address isolate_root() const {
@@ -80,6 +86,10 @@ class IsolateData final {
 
   static constexpr int fast_api_call_target_offset() {
     return kFastApiCallTargetOffset - kIsolateRootBias;
+  }
+
+  static constexpr int cage_base_offset() {
+    return kCageBaseOffset - kIsolateRootBias;
   }
 
   // Root-register-relative offset of the given builtin table entry.
@@ -142,6 +152,7 @@ class IsolateData final {
   V(kFastCCallCallerFPOffset, kSystemPointerSize)                             \
   V(kFastCCallCallerPCOffset, kSystemPointerSize)                             \
   V(kFastApiCallTargetOffset, kSystemPointerSize)                             \
+  V(kCageBaseOffset, kSystemPointerSize)                                      \
   V(kStackGuardOffset, StackGuard::kSizeInBytes)                              \
   V(kRootsTableOffset, RootsTable::kEntriesCount* kSystemPointerSize)         \
   V(kExternalReferenceTableOffset, ExternalReferenceTable::kSizeInBytes)      \
@@ -179,6 +190,8 @@ class IsolateData final {
   Address fast_c_call_caller_fp_ = kNullAddress;
   Address fast_c_call_caller_pc_ = kNullAddress;
   Address fast_api_call_target_ = kNullAddress;
+
+  Address cage_base_ = kNullAddress;
 
   // Fields related to the system and JS stack. In particular, this contains
   // the stack limit used by stack checks in generated code.
@@ -245,6 +258,7 @@ void IsolateData::AssertPredictableLayout() {
                 kFastCCallCallerPCOffset);
   STATIC_ASSERT(offsetof(IsolateData, fast_api_call_target_) ==
                 kFastApiCallTargetOffset);
+  STATIC_ASSERT(offsetof(IsolateData, cage_base_) == kCageBaseOffset);
   STATIC_ASSERT(offsetof(IsolateData, stack_guard_) == kStackGuardOffset);
 #ifdef V8_HEAP_SANDBOX
   STATIC_ASSERT(offsetof(IsolateData, external_pointer_table_) ==

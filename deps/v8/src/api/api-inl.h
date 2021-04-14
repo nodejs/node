@@ -6,6 +6,7 @@
 #define V8_API_API_INL_H_
 
 #include "src/api/api.h"
+#include "src/execution/interrupts-scope.h"
 #include "src/execution/microtask-queue.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/foreign-inl.h"

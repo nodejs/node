@@ -1800,17 +1800,14 @@ void Simulator::LoadStoreHelper(Instruction* instr, int64_t offset,
   unsigned addr_reg = instr->Rn();
   uintptr_t address = LoadStoreAddress(addr_reg, offset, addrmode);
   uintptr_t stack = 0;
-  LoadStoreOp op = static_cast<LoadStoreOp>(instr->Mask(LoadStoreMask));
 
   {
     base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
     if (instr->IsLoad()) {
       local_monitor_.NotifyLoad();
-    } else if (instr->IsStore()) {
+    } else {
       local_monitor_.NotifyStore();
       GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_processor_);
-    } else {
-      DCHECK_EQ(op, PRFM);
     }
   }
 
@@ -1829,6 +1826,7 @@ void Simulator::LoadStoreHelper(Instruction* instr, int64_t offset,
     stack = sp();
   }
 
+  LoadStoreOp op = static_cast<LoadStoreOp>(instr->Mask(LoadStoreMask));
   switch (op) {
     // Use _no_log variants to suppress the register trace (LOG_REGS,
     // LOG_VREGS). We will print a more detailed log.
@@ -1903,10 +1901,6 @@ void Simulator::LoadStoreHelper(Instruction* instr, int64_t offset,
       MemoryWrite<qreg_t>(address, qreg(srcdst));
       break;
 
-    // Do nothing for prefetch.
-    case PRFM:
-      break;
-
     default:
       UNIMPLEMENTED();
   }
@@ -1922,7 +1916,7 @@ void Simulator::LoadStoreHelper(Instruction* instr, int64_t offset,
     } else {
       LogRead(address, srcdst, GetPrintRegisterFormatForSize(access_size));
     }
-  } else if (instr->IsStore()) {
+  } else {
     if ((op == STR_s) || (op == STR_d)) {
       LogVWrite(address, srcdst, GetPrintRegisterFormatForSizeFP(access_size));
     } else if ((op == STR_b) || (op == STR_h) || (op == STR_q)) {
@@ -1930,8 +1924,6 @@ void Simulator::LoadStoreHelper(Instruction* instr, int64_t offset,
     } else {
       LogWrite(address, srcdst, GetPrintRegisterFormatForSize(access_size));
     }
-  } else {
-    DCHECK_EQ(op, PRFM);
   }
 
   // Handle the writeback for loads after the load to ensure safe pop

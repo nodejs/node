@@ -122,6 +122,8 @@ class Decoder {
   // Printing of instruction name.
   void PrintInstructionName(Instruction* instr);
 
+  void PrintTarget(Instruction* instr);
+
   // Handle formatting of instructions and their options.
   int FormatRegister(Instruction* instr, const char* option);
   int FormatFPURegisterOrRoundMode(Instruction* instr, const char* option);
@@ -211,6 +213,21 @@ void Decoder::PrintImm12X(Instruction* instr) {
 void Decoder::PrintImm12(Instruction* instr) {
   int32_t imm = instr->Imm12Value();
   out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
+}
+
+void Decoder::PrintTarget(Instruction* instr) {
+  if (Assembler::IsJalr(instr->InstructionBits())) {
+    if (Assembler::IsAuipc((instr - 4)->InstructionBits()) &&
+        (instr - 4)->RdValue() == instr->Rs1Value()) {
+      int32_t imm = Assembler::BrachlongOffset((instr - 4)->InstructionBits(),
+                                               instr->InstructionBits());
+      const char* target =
+          converter_.NameOfAddress(reinterpret_cast<byte*>(instr - 4) + imm);
+      out_buffer_pos_ +=
+          SNPrintF(out_buffer_ + out_buffer_pos_, " -> %s", target);
+      return;
+    }
+  }
 }
 
 void Decoder::PrintBranchOffset(Instruction* instr) {
@@ -698,6 +715,11 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
       DCHECK(STRING_STARTS_WITH(format, "vs1"));
       PrintVs1(instr);
       return 3;
+    }
+    case 't': {  // 'target: target of branch instructions'
+      DCHECK(STRING_STARTS_WITH(format, "target"));
+      PrintTarget(instr);
+      return 6;
     }
   }
   UNREACHABLE();
@@ -1280,7 +1302,7 @@ void Decoder::DecodeIType(Instruction* instr) {
       else if (instr->RdValue() == ra.code() && instr->Imm12Value() == 0)
         Format(instr, "jalr      'rs1");
       else
-        Format(instr, "jalr      'rd, 'imm12('rs1)");
+        Format(instr, "jalr      'rd, 'imm12('rs1)'target");
       break;
     case RO_LB:
       Format(instr, "lb        'rd, 'imm12('rs1)");

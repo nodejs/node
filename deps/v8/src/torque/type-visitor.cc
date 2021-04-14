@@ -420,7 +420,7 @@ void TypeVisitor::VisitClassFieldsAndMethods(
         ReportError("in-object properties cannot be weak");
       }
     }
-    base::Optional<Expression*> array_length = field_expression.index;
+    base::Optional<ClassFieldIndexInfo> array_length = field_expression.index;
     const Field& field = class_type->RegisterField(
         {field_expression.name_and_type.name->pos,
          class_type,
@@ -440,7 +440,8 @@ void TypeVisitor::VisitClassFieldsAndMethods(
       field.ValidateAlignment(class_offset +
                               field_size * ResidueClass::Unknown());
 
-      if (auto literal = NumberLiteralExpression::DynamicCast(*field.index)) {
+      if (auto literal =
+              NumberLiteralExpression::DynamicCast(field.index->expr)) {
         size_t value = static_cast<size_t>(literal->number);
         if (value != literal->number) {
           Error("non-integral array length").Position(field.pos);

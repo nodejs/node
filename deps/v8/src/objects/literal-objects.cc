@@ -25,7 +25,7 @@ namespace internal {
 namespace {
 
 // The enumeration order index in the property details is unused if they are
-// stored in a OrderedNameDictionary or NumberDictionary (because they handle
+// stored in a SwissNameDictionary or NumberDictionary (because they handle
 // propery ordering differently). We then use this dummy value instead.
 constexpr int kDummyEnumerationIndex = 0;
 
@@ -100,14 +100,13 @@ Handle<NameDictionary> DictionaryAddNoUpdateNextEnumerationIndex(
 }
 
 template <typename LocalIsolate>
-Handle<OrderedNameDictionary> DictionaryAddNoUpdateNextEnumerationIndex(
-    LocalIsolate* isolate, Handle<OrderedNameDictionary> dictionary,
+Handle<SwissNameDictionary> DictionaryAddNoUpdateNextEnumerationIndex(
+    LocalIsolate* isolate, Handle<SwissNameDictionary> dictionary,
     Handle<Name> name, Handle<Object> value, PropertyDetails details,
     InternalIndex* entry_out = nullptr) {
-  // OrderedNameDictionary does not maintain the enumeration order in property
+  // SwissNameDictionary does not maintain the enumeration order in property
   // details, so it's a normal Add().
-  return OrderedNameDictionary::Add(isolate, dictionary, name, value, details)
-      .ToHandleChecked();
+  return SwissNameDictionary::Add(isolate, dictionary, name, value, details);
 }
 
 template <typename LocalIsolate>
@@ -124,7 +123,7 @@ Handle<NumberDictionary> DictionaryAddNoUpdateNextEnumerationIndex(
 template <typename Dictionary>
 void DictionaryUpdateMaxNumberKey(Handle<Dictionary> dictionary,
                                   Handle<Name> name) {
-  STATIC_ASSERT((std::is_same<Dictionary, OrderedNameDictionary>::value ||
+  STATIC_ASSERT((std::is_same<Dictionary, SwissNameDictionary>::value ||
                  std::is_same<Dictionary, NameDictionary>::value));
   // No-op for (ordered) name dictionaries.
 }
@@ -162,7 +161,7 @@ void AddToDictionaryTemplate(LocalIsolate* isolate,
       std::is_same<Dictionary, NumberDictionary>::value;
   STATIC_ASSERT(is_elements_dictionary !=
                 (std::is_same<Dictionary, NameDictionary>::value ||
-                 std::is_same<Dictionary, OrderedNameDictionary>::value));
+                 std::is_same<Dictionary, SwissNameDictionary>::value));
 
   if (entry.is_not_found()) {
     // Entry not found, add new one.
@@ -405,9 +404,9 @@ class ObjectDescriptor {
   void CreateTemplates(LocalIsolate* isolate) {
     auto* factory = isolate->factory();
     descriptor_array_template_ = factory->empty_descriptor_array();
-    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       properties_dictionary_template_ =
-          factory->empty_ordered_property_dictionary();
+          factory->empty_swiss_property_dictionary();
     } else {
       properties_dictionary_template_ = factory->empty_property_dictionary();
     }
@@ -415,11 +414,11 @@ class ObjectDescriptor {
       if (HasDictionaryProperties()) {
         int need_space_for =
             property_count_ + computed_count_ + property_slack_;
-        if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+        if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
           properties_dictionary_template_ =
-              OrderedNameDictionary::Allocate(isolate, need_space_for,
-                                              AllocationType::kOld)
-                  .ToHandleChecked();
+              isolate->factory()->NewSwissNameDictionary(need_space_for,
+                                                         AllocationType::kOld);
+
         } else {
           properties_dictionary_template_ = NameDictionary::New(
               isolate, need_space_for, AllocationType::kOld);
@@ -450,11 +449,12 @@ class ObjectDescriptor {
     DCHECK(!value->IsAccessorPair());
     if (HasDictionaryProperties()) {
       PropertyKind kind = is_accessor ? i::kAccessor : i::kData;
-      int enum_order = V8_DICT_MODE_PROTOTYPES_BOOL ? kDummyEnumerationIndex
-                                                    : next_enumeration_index_++;
+      int enum_order = V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL
+                           ? kDummyEnumerationIndex
+                           : next_enumeration_index_++;
       PropertyDetails details(kind, attribs, PropertyCellType::kNoCell,
                               enum_order);
-      if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
         properties_dictionary_template_ =
             DictionaryAddNoUpdateNextEnumerationIndex(
                 isolate, properties_ordered_dictionary_template(), name, value,
@@ -479,7 +479,7 @@ class ObjectDescriptor {
     Smi value = Smi::FromInt(value_index);
     if (HasDictionaryProperties()) {
       UpdateNextEnumerationIndex(value_index);
-      if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
         AddToDictionaryTemplate(isolate,
                                 properties_ordered_dictionary_template(), name,
                                 value_index, value_kind, value);
@@ -519,7 +519,7 @@ class ObjectDescriptor {
   void Finalize(LocalIsolate* isolate) {
     if (HasDictionaryProperties()) {
       DCHECK_EQ(current_computed_index_, computed_properties_->length());
-      if (!V8_DICT_MODE_PROTOTYPES_BOOL) {
+      if (!V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
         properties_dictionary_template()->set_next_enumeration_index(
             next_enumeration_index_);
       }
@@ -533,8 +533,8 @@ class ObjectDescriptor {
     return Handle<NameDictionary>::cast(properties_dictionary_template_);
   }
 
-  Handle<OrderedNameDictionary> properties_ordered_dictionary_template() const {
-    return Handle<OrderedNameDictionary>::cast(properties_dictionary_template_);
+  Handle<SwissNameDictionary> properties_ordered_dictionary_template() const {
+    return Handle<SwissNameDictionary>::cast(properties_dictionary_template_);
   }
 
   const int property_slack_;
@@ -546,7 +546,7 @@ class ObjectDescriptor {
 
   Handle<DescriptorArray> descriptor_array_template_;
 
-  // Is either a NameDictionary or OrderedNameDictionary.
+  // Is either a NameDictionary or SwissNameDictionary.
   Handle<HeapObject> properties_dictionary_template_;
 
   Handle<NumberDictionary> elements_dictionary_template_;
@@ -569,9 +569,8 @@ template void ClassBoilerplate::AddToPropertiesTemplate(
     LocalIsolate* isolate, Handle<NameDictionary> dictionary, Handle<Name> name,
     int key_index, ClassBoilerplate::ValueKind value_kind, Smi value);
 template void ClassBoilerplate::AddToPropertiesTemplate(
-    Isolate* isolate, Handle<OrderedNameDictionary> dictionary,
-    Handle<Name> name, int key_index, ClassBoilerplate::ValueKind value_kind,
-    Smi value);
+    Isolate* isolate, Handle<SwissNameDictionary> dictionary, Handle<Name> name,
+    int key_index, ClassBoilerplate::ValueKind value_kind, Smi value);
 
 template <typename LocalIsolate>
 void ClassBoilerplate::AddToElementsTemplate(

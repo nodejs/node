@@ -128,7 +128,7 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
       v8::Local<v8::String> str_obj;
 
       if (arg->IsSymbol()) {
-        arg = v8::Local<v8::Symbol>::Cast(arg)->Description();
+        arg = v8::Local<v8::Symbol>::Cast(arg)->Description(args.GetIsolate());
       }
       if (!arg->ToString(args.GetIsolate()->GetCurrentContext())
                .ToLocal(&str_obj)) {
@@ -322,8 +322,9 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
         ToVector(args.GetIsolate(), args[1].As<v8::String>());
 
     RunSyncTask(backend_runner_, [&context_group_id, name](IsolateData* data) {
-      data->CreateContext(context_group_id,
-                          v8_inspector::StringView(name.data(), name.size()));
+      CHECK(data->CreateContext(
+          context_group_id,
+          v8_inspector::StringView(name.data(), name.size())));
     });
   }
 

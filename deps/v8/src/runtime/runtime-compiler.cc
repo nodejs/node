@@ -204,18 +204,18 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
     memory = args.at<JSArrayBuffer>(3);
   }
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
-  if (shared->HasAsmWasmData()) {
 #if V8_ENABLE_WEBASSEMBLY
+  if (shared->HasAsmWasmData()) {
     Handle<AsmWasmData> data(shared->asm_wasm_data(), isolate);
     MaybeHandle<Object> result = AsmJs::InstantiateAsmWasm(
         isolate, shared, data, stdlib, foreign, memory);
     if (!result.is_null()) return *result.ToHandleChecked();
-#endif
     // Remove wasm data, mark as broken for asm->wasm, replace function code
     // with UncompiledData, and return a smi 0 to indicate failure.
     SharedFunctionInfo::DiscardCompiled(isolate, shared);
   }
   shared->set_is_asm_wasm_broken(true);
+#endif
   DCHECK(function->code() ==
          isolate->builtins()->builtin(Builtins::kInstantiateAsmJs));
   function->set_code(isolate->builtins()->builtin(Builtins::kCompileLazy));

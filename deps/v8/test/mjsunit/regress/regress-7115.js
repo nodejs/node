@@ -5,7 +5,15 @@
 // Flags: --allow-natives-syntax
 
 function TestBuiltinSubclassing(Builtin) {
-  assertTrue(%HasFastProperties(Builtin));
+  if (!%IsDictPropertyConstTrackingEnabled()) {
+    // TODO(v8:11248) In the current implementation of
+    // v8_dict_property_const_tracking, prototypes are converted to dictionary
+    // mode in many places, but we don't guarantee that they are *created* as
+    // dictionary mode objects, yet. This will be fixed in the future. Until
+    // then, if v8_dict_property_const_tracking is enabled, we cannot always
+    // know for sure if a builtin has been converted already or not.
+     assertTrue(%HasFastProperties(Builtin));
+  }
   assertTrue(%HasFastProperties(Builtin.prototype));
   assertEquals(!%IsDictPropertyConstTrackingEnabled(),
                %HasFastProperties(Builtin.prototype.__proto__));

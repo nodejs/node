@@ -12,13 +12,12 @@
 namespace v8 {
 namespace internal {
 
-V8_INLINE Address DecodeExternalPointer(IsolateRoot isolate_root,
+V8_INLINE Address DecodeExternalPointer(const Isolate* isolate,
                                         ExternalPointer_t encoded_pointer,
                                         ExternalPointerTag tag) {
   STATIC_ASSERT(kExternalPointerSize == kSystemPointerSize);
 #ifdef V8_HEAP_SANDBOX
   uint32_t index = static_cast<uint32_t>(encoded_pointer);
-  const Isolate* isolate = Isolate::FromRootAddress(isolate_root.address());
   return isolate->external_pointer_table().get(index) ^ tag;
 #else
   return encoded_pointer;
@@ -62,7 +61,7 @@ V8_INLINE void InitExternalPointerField(Address field_address, Isolate* isolate,
 }
 
 V8_INLINE Address ReadExternalPointerField(Address field_address,
-                                           IsolateRoot isolate_root,
+                                           const Isolate* isolate,
                                            ExternalPointerTag tag) {
   // Pointer compression causes types larger than kTaggedSize to be unaligned.
   constexpr bool v8_pointer_compression_unaligned =
@@ -73,7 +72,7 @@ V8_INLINE Address ReadExternalPointerField(Address field_address,
   } else {
     encoded_value = base::Memory<ExternalPointer_t>(field_address);
   }
-  return DecodeExternalPointer(isolate_root, encoded_value, tag);
+  return DecodeExternalPointer(isolate, encoded_value, tag);
 }
 
 V8_INLINE void WriteExternalPointerField(Address field_address,
