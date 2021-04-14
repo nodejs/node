@@ -30,7 +30,7 @@ declare namespace InternalHttpParserBinding {
     ): void;
     pause(): void;
     resume(): void;
-    consume(stream: object);
+    consume(stream: object): void;
     unconsume(): void;
     getCurrentBuffer(): Buffer;
   }
