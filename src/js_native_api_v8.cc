@@ -372,6 +372,9 @@ class Reference : public RefBase {
 
  protected:
   inline void Finalize(bool is_env_teardown = false) override {
+    if (is_env_teardown) env_teardown_finalize_started_ = true;
+    if (!is_env_teardown && env_teardown_finalize_started_) return;
+
     // During env teardown, `~napi_env()` alone is responsible for finalizing.
     // Thus, we don't want any stray gc passes to trigger a second call to
     // `Finalize()`, so let's reset the persistent here if nothing is
@@ -405,6 +408,7 @@ class Reference : public RefBase {
     data.GetParameter()->Finalize();
   }
 
+  bool env_teardown_finalize_started_ = false;
   v8impl::Persistent<v8::Value> _persistent;
 };
 
