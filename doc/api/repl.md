@@ -245,7 +245,7 @@ triggered with <kbd>Ctrl</kbd>+<kbd>R</kbd> to search backward and
 <kbd>Ctrl</kbd>+<kbd>S</kbd> to search
 forwards.
 
-Duplicated history entires will be skipped.
+Duplicated history entries will be skipped.
 
 Entries are accepted as soon as any key is pressed that doesn't correspond
 with the reverse search. Cancelling is possible by pressing <kbd>Esc</kbd> or
