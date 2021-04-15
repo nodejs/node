@@ -1117,7 +1117,7 @@ information.
 added: v0.5.0
 changes:
   - version: REPLACEME
-    pr-url: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/38249
     description: When stream is not opened, reading it will be `closed`.
 -->
 
