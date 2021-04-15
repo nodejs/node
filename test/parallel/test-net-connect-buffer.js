@@ -45,6 +45,7 @@ tcp.listen(0, common.mustCall(function() {
 
   let connected = false;
   assert.strictEqual(socket.pending, true);
+  assert.strictEqual(socket.readyState, 'closed');
   socket.connect(this.address().port, common.mustCall(() => connected = true));
 
   assert.strictEqual(socket.pending, true);

@@ -1115,6 +1115,10 @@ information.
 ### `socket.readyState`
 <!-- YAML
 added: v0.5.0
+changes:
+  - version: REPLACEME
+    pr-url: REPLACEME
+    description: When stream is not opened, reading it will be `closed`.
 -->
 
 * {string}
@@ -1125,6 +1129,8 @@ This property represents the state of the connection as a string.
 * If the stream is readable and writable, it is `open`.
 * If the stream is readable and not writable, it is `readOnly`.
 * If the stream is not readable and writable, it is `writeOnly`.
+* If the stream is not opened or is neither readable nor writable, it is
+  `closed`.
 
 ## `net.connect()`
 
