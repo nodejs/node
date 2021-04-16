@@ -2481,7 +2481,7 @@ changes:
   * `stats` {fs.Stats}
 
 Retrieves the {fs.Stats} for the symbolic link referred to by the path.
-The callback gets two arguments `(err, stats)` where `stats` is a {`fs.Stats}
+The callback gets two arguments `(err, stats)` where `stats` is a {fs.Stats}
 object. `lstat()` is identical to `stat()`, except that if `path` is a symbolic
 link, then the link itself is stat-ed, not the file that it refers to.
 
