@@ -1,5 +1,4 @@
 const t = require('tap')
-const requireInject = require('require-inject')
 const mockNpm = require('../fixtures/mock-npm')
 const pacote = require('pacote')
 
@@ -23,13 +22,10 @@ const mockPacote = {
   },
 }
 
-t.afterEach(cb => {
-  OUTPUT.length = 0
-  cb()
-})
+t.afterEach(() => OUTPUT.length = 0)
 
 t.test('should pack current directory with no arguments', (t) => {
-  const Pack = requireInject('../../lib/pack.js', {
+  const Pack = t.mock('../../lib/pack.js', {
     libnpmpack,
     npmlog: {
       notice: () => {},
@@ -65,7 +61,7 @@ t.test('should pack given directory', (t) => {
     }, null, 2),
   })
 
-  const Pack = requireInject('../../lib/pack.js', {
+  const Pack = t.mock('../../lib/pack.js', {
     libnpmpack,
     npmlog: {
       notice: () => {},
@@ -101,7 +97,7 @@ t.test('should pack given directory for scoped package', (t) => {
     }, null, 2),
   })
 
-  const Pack = requireInject('../../lib/pack.js', {
+  const Pack = t.mock('../../lib/pack.js', {
     libnpmpack,
     npmlog: {
       notice: () => {},
@@ -130,7 +126,7 @@ t.test('should pack given directory for scoped package', (t) => {
 })
 
 t.test('should log pack contents', (t) => {
-  const Pack = requireInject('../../lib/pack.js', {
+  const Pack = t.mock('../../lib/pack.js', {
     '../../lib/utils/tar.js': {
       ...require('../../lib/utils/tar.js'),
       logTar: () => {
@@ -184,7 +180,7 @@ t.test('workspaces', (t) => {
       }),
     },
   })
-  const Pack = requireInject('../../lib/pack.js', {
+  const Pack = t.mock('../../lib/pack.js', {
     libnpmpack,
     pacote: mockPacote,
     npmlog: {

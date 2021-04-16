@@ -3,7 +3,10 @@ const mapWorkspaces = require('@npmcli/map-workspaces')
 const minimatch = require('minimatch')
 const rpj = require('read-package-json-fast')
 
+// Returns an Map of paths to workspaces indexed by workspace name
+// { foo => '/path/to/foo' }
 const getWorkspaces = async (filters, { path }) => {
+  // TODO we need a better error to be bubbled up here if this rpj call fails
   const pkg = await rpj(resolve(path, 'package.json'))
   const workspaces = await mapWorkspaces({ cwd: path, pkg })
   const res = filters.length ? new Map() : workspaces

@@ -15,31 +15,30 @@ module.exports = async (newversion, opts) => {
   const {
     path,
     allowSameVersion,
-    tagVersionPrefix,
-    commitHooks,
     gitTagVersion,
-    signGitCommit,
-    signGitTag,
-    force,
     ignoreScripts,
     preid,
     pkg,
-    log,
-    message,
+    log
   } = opts
 
   const { valid, clean, inc } = semver
   const current = pkg.version || '0.0.0'
   const currentClean = clean(current)
 
-  const newV = valid(newversion, { loose: true }) ? clean(newversion, { loose: true })
-    : newversion === 'from-git' ? await retrieveTag(opts)
-    : inc(currentClean, newversion, { loose: true }, preid)
+  let newV
+  if (valid(newversion, { loose: true })) {
+    newV = clean(newversion, { loose: true })
+  } else if (newversion === 'from-git') {
+    newV = await retrieveTag(opts)
+  } else {
+    newV = inc(currentClean, newversion, { loose: true }, preid)
+  }
 
   if (!newV) {
     throw Object.assign(new Error('Invalid version: ' + newversion), {
       current,
-      requested: newversion,
+      requested: newversion
     })
   }
 
@@ -47,7 +46,7 @@ module.exports = async (newversion, opts) => {
     throw Object.assign(new Error('Version not changed'), {
       current,
       requested: newversion,
-      newVersion: newV,
+      newVersion: newV
     })
   }
 
@@ -68,8 +67,8 @@ module.exports = async (newversion, opts) => {
       banner: log.level !== 'silent',
       env: {
         npm_old_version: current,
-        npm_new_version: newV,
-      },
+        npm_new_version: newV
+      }
     })
   }
 
@@ -102,8 +101,8 @@ module.exports = async (newversion, opts) => {
       banner: log.level !== 'silent',
       env: {
         npm_old_version: current,
-        npm_new_version: newV,
-      },
+        npm_new_version: newV
+      }
     })
   }
 
@@ -116,8 +115,7 @@ module.exports = async (newversion, opts) => {
     }
     await commit(newV, opts)
     await tag(newV, opts)
-  } else
-    log.verbose('version', 'Not tagging: not in a git repo or no git cmd')
+  } else { log.verbose('version', 'Not tagging: not in a git repo or no git cmd') }
 
   if (!ignoreScripts) {
     await runScript({
@@ -128,8 +126,8 @@ module.exports = async (newversion, opts) => {
       banner: log.level !== 'silent',
       env: {
         npm_old_version: current,
-        npm_new_version: newV,
-      },
+        npm_new_version: newV
+      }
     })
   }
 

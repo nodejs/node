@@ -43,6 +43,9 @@ class Bugs extends BaseCommand {
 
       if (typeof mani.bugs === 'object' && mani.bugs.url)
         return mani.bugs.url
+
+      if (typeof mani.bugs === 'object' && mani.bugs.email)
+        return `mailto:${mani.bugs.email}`
     }
 
     // try to get it from the repo, if possible

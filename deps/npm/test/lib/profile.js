@@ -1,5 +1,4 @@
 const t = require('tap')
-const requireInject = require('require-inject')
 const mockNpm = require('../fixtures/mock-npm')
 
 let result = ''
@@ -67,16 +66,15 @@ const userProfile = {
   github: 'https://github.com/npm',
 }
 
-t.afterEach(cb => {
+t.afterEach(() => {
   result = ''
   flatOptions.otp = ''
   config.json = false
   config.parseable = false
   config.registry = 'https://registry.npmjs.org/'
-  cb()
 })
 
-const Profile = requireInject('../../lib/profile.js', mocks)
+const Profile = t.mock('../../lib/profile.js', mocks)
 const profile = new Profile(npm)
 
 t.test('no args', t => {
@@ -97,7 +95,7 @@ t.test('profile get no args', t => {
     },
   }
 
-  const Profile = requireInject('../../lib/profile.js', {
+  const Profile = t.mock('../../lib/profile.js', {
     ...mocks,
     'npm-profile': npmProfile,
   })
@@ -123,7 +121,7 @@ t.test('profile get no args', t => {
       if (err)
         throw err
 
-      t.deepEqual(
+      t.same(
         JSON.parse(result),
         userProfile,
         'should output json profile result'
@@ -157,7 +155,7 @@ t.test('profile get no args', t => {
       },
     }
 
-    const Profile = requireInject('../../lib/profile.js', {
+    const Profile = t.mock('../../lib/profile.js', {
       ...mocks,
       'npm-profile': npmProfile,
     })
@@ -185,7 +183,7 @@ t.test('profile get no args', t => {
       },
     }
 
-    const Profile = requireInject('../../lib/profile.js', {
+    const Profile = t.mock('../../lib/profile.js', {
       ...mocks,
       'npm-profile': npmProfile,
     })
@@ -213,7 +211,7 @@ t.test('profile get no args', t => {
       },
     }
 
-    const Profile = requireInject('../../lib/profile.js', {
+    const Profile = t.mock('../../lib/profile.js', {
       ...mocks,
       'npm-profile': npmProfile,
     })
@@ -241,7 +239,7 @@ t.test('profile get <key>', t => {
     },
   }
 
-  const Profile = requireInject('../../lib/profile.js', {
+  const Profile = t.mock('../../lib/profile.js', {
     ...mocks,
     'npm-profile': npmProfile,
   })
@@ -268,7 +266,7 @@ t.test('profile get <key>', t => {
       if (err)
         throw err
 
-      t.deepEqual(
+      t.same(
         JSON.parse(result),
         userProfile,
         'should output json profile result ignoring args filter'
@@ -302,7 +300,7 @@ t.test('profile get multiple args', t => {
     },
   }
 
-  const Profile = requireInject('../../lib/profile.js', {
+  const Profile = t.mock('../../lib/profile.js', {
     ...mocks,
     'npm-profile': npmProfile,
   })
@@ -328,7 +326,7 @@ t.test('profile get multiple args', t => {
       if (err)
         throw err
 
-      t.deepEqual(
+      t.same(
         JSON.parse(result),
         userProfile,
         'should output json profile result and ignore args'
@@ -436,7 +434,7 @@ t.test('profile set <key> <value>', t => {
     t.test('default output', t => {
       t.plan(2)
 
-      const Profile = requireInject('../../lib/profile.js', {
+      const Profile = t.mock('../../lib/profile.js', {
         ...mocks,
         'npm-profile': npmProfile(t),
       })
@@ -459,7 +457,7 @@ t.test('profile set <key> <value>', t => {
 
       config.json = true
 
-      const Profile = requireInject('../../lib/profile.js', {
+      const Profile = t.mock('../../lib/profile.js', {
         ...mocks,
         'npm-profile': npmProfile(t),
       })
@@ -469,7 +467,7 @@ t.test('profile set <key> <value>', t => {
         if (err)
           throw err
 
-        t.deepEqual(
+        t.same(
           JSON.parse(result),
           {
             fullname: 'Lorem Ipsum',
@@ -484,7 +482,7 @@ t.test('profile set <key> <value>', t => {
 
       config.parseable = true
 
-      const Profile = requireInject('../../lib/profile.js', {
+      const Profile = t.mock('../../lib/profile.js', {
         ...mocks,
         'npm-profile': npmProfile(t),
       })
@@ -531,7 +529,7 @@ t.test('profile set <key> <value>', t => {
       },
     }
 
-    const Profile = requireInject('../../lib/profile.js', {
+    const Profile = t.mock('../../lib/profile.js', {
       ...mocks,
       'npm-profile': npmProfile,
     })
@@ -595,7 +593,7 @@ t.test('profile set <key> <value>', t => {
       },
     }
 
-    const Profile = requireInject('../../lib/profile.js', {
+    const Profile = t.mock('../../lib/profile.js', {
       ...mocks,
       'npm-profile': npmProfile,
       '../../lib/utils/read-user-info.js': readUserInfo,
@@ -663,7 +661,7 @@ t.test('profile set <key> <value>', t => {
       },
     }
 
-    const Profile = requireInject('../../lib/profile.js', {
+    const Profile = t.mock('../../lib/profile.js', {
       ...mocks,
       npmlog,
       'npm-profile': npmProfile,
@@ -754,7 +752,7 @@ t.test('enable-2fa', t => {
       },
     }
 
-    const Profile = requireInject('../../lib/profile.js', {
+    const Profile = t.mock('../../lib/profile.js', {
       ...mocks,
       'npm-profile': npmProfile,
     })
@@ -783,7 +781,7 @@ t.test('enable-2fa', t => {
       },
     }
 
-    const Profile = requireInject('../../lib/profile.js', {
+    const Profile = t.mock('../../lib/profile.js', {
       ...mocks,
       'npm-profile': npmProfile,
     })
@@ -804,7 +802,7 @@ t.test('enable-2fa', t => {
   t.test('no auth found', t => {
     npm.config.getCredentialsByURI = () => ({})
 
-    const Profile = requireInject('../../lib/profile.js', {
+    const Profile = t.mock('../../lib/profile.js', {
       ...mocks,
     })
     const profile = new Profile(npm)
@@ -883,7 +881,7 @@ t.test('enable-2fa', t => {
       },
     }
 
-    const Profile = requireInject('../../lib/profile.js', {
+    const Profile = t.mock('../../lib/profile.js', {
       ...mocks,
       'npm-profile': npmProfile,
       '../../lib/utils/read-user-info.js': readUserInfo,
@@ -985,7 +983,7 @@ t.test('enable-2fa', t => {
       generate: (url, cb) => cb('qrcode'),
     }
 
-    const Profile = requireInject('../../lib/profile.js', {
+    const Profile = t.mock('../../lib/profile.js', {
       ...mocks,
       'npm-profile': npmProfile,
       'qrcode-terminal': qrcode,
@@ -1037,7 +1035,7 @@ t.test('enable-2fa', t => {
       },
     }
 
-    const Profile = requireInject('../../lib/profile.js', {
+    const Profile = t.mock('../../lib/profile.js', {
       ...mocks,
       'npm-profile': npmProfile,
       '../../lib/utils/read-user-info.js': readUserInfo,
@@ -1083,7 +1081,7 @@ t.test('enable-2fa', t => {
       },
     }
 
-    const Profile = requireInject('../../lib/profile.js', {
+    const Profile = t.mock('../../lib/profile.js', {
       ...mocks,
       'npm-profile': npmProfile,
       '../../lib/utils/read-user-info.js': readUserInfo,
@@ -1132,7 +1130,7 @@ t.test('enable-2fa', t => {
       },
     }
 
-    const Profile = requireInject('../../lib/profile.js', {
+    const Profile = t.mock('../../lib/profile.js', {
       ...mocks,
       'npm-profile': npmProfile,
       '../../lib/utils/read-user-info.js': readUserInfo,
@@ -1181,7 +1179,7 @@ t.test('enable-2fa', t => {
       },
     }
 
-    const Profile = requireInject('../../lib/profile.js', {
+    const Profile = t.mock('../../lib/profile.js', {
       ...mocks,
       'npm-profile': npmProfile,
       '../../lib/utils/read-user-info.js': readUserInfo,
@@ -1215,7 +1213,7 @@ t.test('disable-2fa', t => {
       },
     }
 
-    const Profile = requireInject('../../lib/profile.js', {
+    const Profile = t.mock('../../lib/profile.js', {
       ...mocks,
       'npm-profile': npmProfile,
     })
@@ -1240,7 +1238,7 @@ t.test('disable-2fa', t => {
         return userProfile
       },
       async set (newProfile, conf) {
-        t.deepEqual(
+        t.same(
           newProfile,
           {
             tfa: {
@@ -1277,7 +1275,7 @@ t.test('disable-2fa', t => {
     })
 
     t.test('default output', t => {
-      const Profile = requireInject('../../lib/profile.js', {
+      const Profile = t.mock('../../lib/profile.js', {
         ...mocks,
         'npm-profile': npmProfile(t),
         '../../lib/utils/read-user-info.js': readUserInfo(t),
@@ -1300,7 +1298,7 @@ t.test('disable-2fa', t => {
     t.test('--json', t => {
       config.json = true
 
-      const Profile = requireInject('../../lib/profile.js', {
+      const Profile = t.mock('../../lib/profile.js', {
         ...mocks,
         'npm-profile': npmProfile(t),
         '../../lib/utils/read-user-info.js': readUserInfo(t),
@@ -1311,7 +1309,7 @@ t.test('disable-2fa', t => {
         if (err)
           throw err
 
-        t.deepEqual(
+        t.same(
           JSON.parse(result),
           { tfa: false },
           'should output json already disabled msg'
@@ -1323,7 +1321,7 @@ t.test('disable-2fa', t => {
     t.test('--parseable', t => {
       config.parseable = true
 
-      const Profile = requireInject('../../lib/profile.js', {
+      const Profile = t.mock('../../lib/profile.js', {
         ...mocks,
         'npm-profile': npmProfile(t),
         '../../lib/utils/read-user-info.js': readUserInfo(t),
@@ -1356,7 +1354,7 @@ t.test('disable-2fa', t => {
         return userProfile
       },
       async set (newProfile, conf) {
-        t.deepEqual(
+        t.same(
           newProfile,
           {
             tfa: {
@@ -1386,7 +1384,7 @@ t.test('disable-2fa', t => {
       },
     }
 
-    const Profile = requireInject('../../lib/profile.js', {
+    const Profile = t.mock('../../lib/profile.js', {
       ...mocks,
       'npm-profile': npmProfile,
       '../../lib/utils/read-user-info.js': readUserInfo,

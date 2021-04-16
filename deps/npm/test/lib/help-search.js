@@ -1,6 +1,5 @@
-const { test } = require('tap')
+const t = require('tap')
 const { join } = require('path')
-const requireInject = require('require-inject')
 const mockNpm = require('../fixtures/mock-npm')
 const ansicolors = require('ansicolors')
 
@@ -43,12 +42,12 @@ const globDir = {
 const glob = (p, cb) =>
   cb(null, Object.keys(globDir).map((file) => join(globRoot, file)))
 
-const HelpSearch = requireInject('../../lib/help-search.js', {
+const HelpSearch = t.mock('../../lib/help-search.js', {
   glob,
 })
 const helpSearch = new HelpSearch(npm)
 
-test('npm help-search', t => {
+t.test('npm help-search', t => {
   globRoot = t.testdir(globDir)
   t.teardown(() => {
     OUTPUT.length = 0
@@ -64,7 +63,7 @@ test('npm help-search', t => {
   })
 })
 
-test('npm help-search multiple terms', t => {
+t.test('npm help-search multiple terms', t => {
   globRoot = t.testdir(globDir)
   t.teardown(() => {
     OUTPUT.length = 0
@@ -81,7 +80,7 @@ test('npm help-search multiple terms', t => {
   })
 })
 
-test('npm help-search long output', t => {
+t.test('npm help-search long output', t => {
   globRoot = t.testdir(globDir)
   config.long = true
   t.teardown(() => {
@@ -99,7 +98,7 @@ test('npm help-search long output', t => {
   })
 })
 
-test('npm help-search long output with color', t => {
+t.test('npm help-search long output with color', t => {
   globRoot = t.testdir(globDir)
   config.long = true
   npm.color = true
@@ -120,7 +119,7 @@ test('npm help-search long output with color', t => {
   })
 })
 
-test('npm help-search no args', t => {
+t.test('npm help-search no args', t => {
   return helpSearch.exec([], (err) => {
     t.notOk(err)
     t.match(OUTPUT, /npm help-search/, 'outputs usage')
@@ -128,7 +127,7 @@ test('npm help-search no args', t => {
   })
 })
 
-test('npm help-search no matches', t => {
+t.test('npm help-search no matches', t => {
   globRoot = t.testdir(globDir)
   t.teardown(() => {
     OUTPUT.length = 0

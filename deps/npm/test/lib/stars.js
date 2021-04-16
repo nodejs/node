@@ -1,4 +1,3 @@
-const requireInject = require('require-inject')
 const t = require('tap')
 
 let result = ''
@@ -20,14 +19,13 @@ const mocks = {
   '../../lib/utils/usage.js': () => 'usage instructions',
 }
 
-const Stars = requireInject('../../lib/stars.js', mocks)
+const Stars = t.mock('../../lib/stars.js', mocks)
 const stars = new Stars(npm)
 
-t.afterEach(cb => {
+t.afterEach(() => {
   npm.config = { get () {} }
   npmlog.warn = noop
   result = ''
-  cb()
 })
 
 t.test('no args', t => {

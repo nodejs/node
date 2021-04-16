@@ -13,11 +13,10 @@ const npm = {
   },
   output,
 }
-t.afterEach(cb => {
+t.afterEach(() => {
   npm.flatOptions = {}
   OUTPUT.length = 0
   LOGS.length = 0
-  cb()
 })
 
 t.test('no error, not audit command', t => {

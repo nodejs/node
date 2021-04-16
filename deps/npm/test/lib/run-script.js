@@ -1,6 +1,5 @@
 const { resolve } = require('path')
 const t = require('tap')
-const requireInject = require('require-inject')
 const mockNpm = require('../fixtures/mock-npm')
 
 const normalizePath = p => p
@@ -43,7 +42,7 @@ const npmlog = {
   error: () => null,
 }
 
-t.afterEach(cb => {
+t.afterEach(() => {
   npm.color = false
   npmlog.level = 'warn'
   npmlog.error = () => null
@@ -52,11 +51,10 @@ t.afterEach(cb => {
   config['if-present'] = false
   config.json = false
   config.parseable = false
-  cb()
 })
 
 const getRS = windows => {
-  const RunScript = requireInject('../../lib/run-script.js', {
+  const RunScript = t.mock('../../lib/run-script.js', {
     '@npmcli/run-script': Object.assign(async opts => {
       RUN_SCRIPTS.push(opts)
     }, {
@@ -386,7 +384,7 @@ t.test('skip pre/post hooks when using ignoreScripts', t => {
     if (er)
       throw er
 
-    t.deepEqual(RUN_SCRIPTS, [
+    t.same(RUN_SCRIPTS, [
       {
         path: npm.localPrefix,
         args: [],
@@ -898,27 +896,27 @@ t.test('workspaces', t => {
         'Lifecycle script `missing-script` failed with error:',
         'Error: Missing script: "missing-script"\n\nTo see a list of scripts, run:\n  npm run',
         '  in workspace: a@1.0.0',
-        '  at location: {CWD}/test/lib/run-script-workspaces/packages/a',
+        '  at location: {CWD}/test/lib/tap-testdir-run-script-workspaces/packages/a',
         'Lifecycle script `missing-script` failed with error:',
         'Error: Missing script: "missing-script"\n\nTo see a list of scripts, run:\n  npm run',
         '  in workspace: b@2.0.0',
-        '  at location: {CWD}/test/lib/run-script-workspaces/packages/b',
+        '  at location: {CWD}/test/lib/tap-testdir-run-script-workspaces/packages/b',
         'Lifecycle script `missing-script` failed with error:',
         'Error: Missing script: "missing-script"\n\nTo see a list of scripts, run:\n  npm run',
         '  in workspace: c@1.0.0',
-        '  at location: {CWD}/test/lib/run-script-workspaces/packages/c',
+        '  at location: {CWD}/test/lib/tap-testdir-run-script-workspaces/packages/c',
         'Lifecycle script `missing-script` failed with error:',
         'Error: Missing script: "missing-script"\n\nTo see a list of scripts, run:\n  npm run',
         '  in workspace: d@1.0.0',
-        '  at location: {CWD}/test/lib/run-script-workspaces/packages/d',
+        '  at location: {CWD}/test/lib/tap-testdir-run-script-workspaces/packages/d',
         'Lifecycle script `missing-script` failed with error:',
         'Error: Missing script: "missing-script"\n\nTo see a list of scripts, run:\n  npm run',
         '  in workspace: e',
-        '  at location: {CWD}/test/lib/run-script-workspaces/packages/e',
+        '  at location: {CWD}/test/lib/tap-testdir-run-script-workspaces/packages/e',
         'Lifecycle script `missing-script` failed with error:',
         'Error: Missing script: "missing-script"\n\nTo see a list of scripts, run:\n  npm run',
         '  in workspace: noscripts@1.0.0',
-        '  at location: {CWD}/test/lib/run-script-workspaces/packages/noscripts',
+        '  at location: {CWD}/test/lib/tap-testdir-run-script-workspaces/packages/noscripts',
       ], 'should log error msgs for each workspace script')
 
       t.end()
@@ -939,11 +937,11 @@ t.test('workspaces', t => {
         'Lifecycle script `test` failed with error:',
         'Error: Missing script: "test"\n\nTo see a list of scripts, run:\n  npm run',
         '  in workspace: a@1.0.0',
-        '  at location: {CWD}/test/lib/run-script-workspaces/packages/a',
+        '  at location: {CWD}/test/lib/tap-testdir-run-script-workspaces/packages/a',
         'Lifecycle script `test` failed with error:',
         'Error: Missing script: "test"\n\nTo see a list of scripts, run:\n  npm run',
         '  in workspace: b@2.0.0',
-        '  at location: {CWD}/test/lib/run-script-workspaces/packages/b',
+        '  at location: {CWD}/test/lib/tap-testdir-run-script-workspaces/packages/b',
       ], 'should log error msgs for each workspace script')
       t.end()
     })
@@ -977,7 +975,7 @@ t.test('workspaces', t => {
   })
 
   t.test('single failed workspace run', t => {
-    const RunScript = requireInject('../../lib/run-script.js', {
+    const RunScript = t.mock('../../lib/run-script.js', {
       '@npmcli/run-script': () => {
         throw new Error('err')
       },
@@ -994,7 +992,7 @@ t.test('workspaces', t => {
   })
 
   t.test('failed workspace run with succeeded runs', t => {
-    const RunScript = requireInject('../../lib/run-script.js', {
+    const RunScript = t.mock('../../lib/run-script.js', {
       '@npmcli/run-script': async opts => {
         if (opts.pkg.name === 'a')
           throw new Error('ERR')

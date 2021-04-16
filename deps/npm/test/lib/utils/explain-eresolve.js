@@ -1,7 +1,6 @@
 const t = require('tap')
-const requireInject = require('require-inject')
 const npm = {}
-const { explain, report } = requireInject('../../../lib/utils/explain-eresolve.js', {
+const { explain, report } = t.mock('../../../lib/utils/explain-eresolve.js', {
   '../../../lib/npm.js': npm,
 })
 const { statSync, readFileSync, unlinkSync } = require('fs')

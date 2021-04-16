@@ -1,6 +1,5 @@
 const { resolve } = require('path')
 const t = require('tap')
-const requireInject = require('require-inject')
 const mockNpm = require('../fixtures/mock-npm')
 
 const noop = () => null
@@ -38,7 +37,7 @@ const mocks = {
   '../../lib/utils/usage.js': () => 'usage instructions',
 }
 
-t.afterEach(cb => {
+t.afterEach(() => {
   config.global = false
   config.tag = 'latest'
   config.diff = []
@@ -54,10 +53,9 @@ t.afterEach(cb => {
   npm.prefix = '..'
   libnpmdiff = noop
   rlp = () => 'foo'
-  cb()
 })
 
-const Diff = requireInject('../../lib/diff.js', mocks)
+const Diff = t.mock('../../lib/diff.js', mocks)
 const diff = new Diff(npm)
 
 t.test('no args', t => {
@@ -314,7 +312,7 @@ t.test('single arg', t => {
     config.diff = ['bar']
     npm.prefix = path
 
-    const Diff = requireInject('../../lib/diff.js', {
+    const Diff = t.mock('../../lib/diff.js', {
       ...mocks,
       pacote: {
         packument: (spec) => {
@@ -378,7 +376,7 @@ t.test('single arg', t => {
     npm.prefix = resolve(path, 'project')
     npm.globalDir = resolve(path, 'globalDir/lib/node_modules')
 
-    const Diff = requireInject('../../lib/diff.js', {
+    const Diff = t.mock('../../lib/diff.js', {
       ...mocks,
       pacote: {
         packument: (spec) => {
@@ -465,7 +463,7 @@ t.test('single arg', t => {
       }),
     })
 
-    const Diff = requireInject('../../lib/diff.js', {
+    const Diff = t.mock('../../lib/diff.js', {
       ...mocks,
       '../../lib/utils/read-local-package.js': async () => 'my-project',
       pacote: {
@@ -502,7 +500,7 @@ t.test('single arg', t => {
       }),
     })
 
-    const Diff = requireInject('../../lib/diff.js', {
+    const Diff = t.mock('../../lib/diff.js', {
       ...mocks,
       '../../lib/utils/read-local-package.js': async () => 'my-project',
       '@npmcli/arborist': class {
@@ -940,7 +938,7 @@ t.test('first arg is a valid semver range', t => {
       }),
     })
 
-    const Diff = requireInject('../../lib/diff.js', {
+    const Diff = t.mock('../../lib/diff.js', {
       ...mocks,
       '../../lib/utils/read-local-package.js': async () => 'my-project',
       '@npmcli/arborist': class {

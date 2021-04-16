@@ -1,5 +1,4 @@
 const t = require('tap')
-const requireInject = require('require-inject')
 const mockNpm = require('../fixtures/mock-npm')
 const path = require('path')
 
@@ -47,7 +46,7 @@ const cacache = {
   },
 }
 
-const Cache = requireInject('../../lib/cache.js', {
+const Cache = t.mock('../../lib/cache.js', {
   cacache,
   npmlog,
   pacote,
@@ -89,7 +88,7 @@ t.test('cache clean (force)', t => {
   })
 
   cache.exec(['clear'], err => {
-    t.ifError(err)
+    t.error(err)
     t.equal(rimrafPath, path.join(npm.cache, '_cacache'))
     t.end()
   })
@@ -124,7 +123,7 @@ t.test('cache add pkg only', t => {
   })
 
   cache.exec(['add', 'mypkg'], err => {
-    t.ifError(err)
+    t.error(err)
     t.strictSame(logOutput, [
       ['silly', 'cache add', 'args', ['mypkg']],
       ['silly', 'cache add', 'spec', 'mypkg'],
@@ -143,7 +142,7 @@ t.test('cache add pkg w/ spec modifier', t => {
   })
 
   cache.exec(['add', 'mypkg', 'latest'], err => {
-    t.ifError(err)
+    t.error(err)
     t.strictSame(logOutput, [
       ['silly', 'cache add', 'args', ['mypkg', 'latest']],
       ['silly', 'cache add', 'spec', 'mypkg@latest'],
@@ -160,7 +159,7 @@ t.test('cache verify', t => {
   })
 
   cache.exec(['verify'], err => {
-    t.ifError(err)
+    t.error(err)
     t.match(outputOutput, [
       `Cache verified and compressed (${path.join(npm.cache, '_cacache')})`,
       'Content verified: 1 (100 bytes)',
@@ -187,7 +186,7 @@ t.test('cache verify w/ extra output', t => {
   })
 
   cache.exec(['check'], err => {
-    t.ifError(err)
+    t.error(err)
     t.match(outputOutput, [
       `Cache verified and compressed (~${path.join('/fake/path', '_cacache')})`,
       'Content verified: 1 (100 bytes)',

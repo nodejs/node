@@ -1,5 +1,4 @@
-const requireInject = require('require-inject')
-const { test } = require('tap')
+const t = require('tap')
 
 let log = ''
 let warn = ''
@@ -11,7 +10,7 @@ const token = '24528a24f240'
 const SSO_URL = 'https://registry.npmjs.org/{SSO_URL}'
 const profile = {}
 const npmFetch = {}
-const sso = requireInject('../../../lib/auth/sso.js', {
+const sso = t.mock('../../../lib/auth/sso.js', {
   npmlog: {
     info: (...msgs) => {
       log += msgs.join(' ') + '\n'
@@ -46,7 +45,7 @@ const npm = {
   flatOptions: _flatOptions,
 }
 
-test('empty login', async (t) => {
+t.test('empty login', async (t) => {
   _flatOptions.ssoType = false
 
   await t.rejects(
@@ -66,13 +65,13 @@ test('empty login', async (t) => {
   warn = ''
 })
 
-test('simple login', async (t) => {
+t.test('simple login', async (t) => {
   t.plan(6)
 
   profile.loginCouch = (username, password, opts) => {
     t.equal(username, 'npm_oauth_auth_dummy_user', 'should use dummy user')
     t.equal(password, 'placeholder', 'should use dummy password')
-    t.deepEqual(
+    t.same(
       opts,
       {
         creds: {},
@@ -109,7 +108,7 @@ test('simple login', async (t) => {
     'should have correct logged info msg'
   )
 
-  t.deepEqual(
+  t.same(
     newCreds,
     { token },
     'should return expected resulting credentials'
@@ -121,7 +120,7 @@ test('simple login', async (t) => {
   delete npmFetch.json
 })
 
-test('polling retry', async (t) => {
+t.test('polling retry', async (t) => {
   t.plan(3)
 
   profile.loginCouch = () => ({ token, sso: SSO_URL })
@@ -168,7 +167,7 @@ test('polling retry', async (t) => {
   delete npmFetch.json
 })
 
-test('polling error', async (t) => {
+t.test('polling error', async (t) => {
   profile.loginCouch = () => ({ token, sso: SSO_URL })
   npmFetch.json = () => Promise.reject(Object.assign(
     new Error('unknown error'),
@@ -191,7 +190,7 @@ test('polling error', async (t) => {
   delete npmFetch.json
 })
 
-test('no token retrieved from loginCouch', async (t) => {
+t.test('no token retrieved from loginCouch', async (t) => {
   profile.loginCouch = () => ({})
 
   await t.rejects(
@@ -209,7 +208,7 @@ test('no token retrieved from loginCouch', async (t) => {
   delete profile.loginCouch
 })
 
-test('no sso url retrieved from loginCouch', async (t) => {
+t.test('no sso url retrieved from loginCouch', async (t) => {
   profile.loginCouch = () => Promise.resolve({ token })
 
   await t.rejects(
@@ -227,7 +226,7 @@ test('no sso url retrieved from loginCouch', async (t) => {
   delete profile.loginCouch
 })
 
-test('scoped login', async (t) => {
+t.test('scoped login', async (t) => {
   profile.loginCouch = () => ({ token, sso: SSO_URL })
   npmFetch.json = () => Promise.resolve({ username: 'foo' })
 
@@ -252,7 +251,7 @@ test('scoped login', async (t) => {
     'should have correct logged info msg'
   )
 
-  t.deepEqual(
+  t.same(
     newCreds,
     { token },
     'should return expected resulting credentials'

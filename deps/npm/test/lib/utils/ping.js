@@ -1,12 +1,11 @@
-const { test } = require('tap')
-const requireInject = require('require-inject')
+const t = require('tap')
 
-test('pings', async (t) => {
+t.test('pings', async (t) => {
   t.plan(3)
 
   const options = { fake: 'options' }
   const response = { some: 'details' }
-  const ping = requireInject('../../../lib/utils/ping.js', {
+  const ping = t.mock('../../../lib/utils/ping.js', {
     'npm-registry-fetch': (url, opts) => {
       t.equal(url, '/-/ping?write=true', 'calls the correct url')
       t.equal(opts, options, 'passes through options')
@@ -18,12 +17,12 @@ test('pings', async (t) => {
   t.match(res, response, 'returns json response')
 })
 
-test('catches errors and returns empty json', async (t) => {
+t.test('catches errors and returns empty json', async (t) => {
   t.plan(3)
 
   const options = { fake: 'options' }
   const response = { some: 'details' }
-  const ping = requireInject('../../../lib/utils/ping.js', {
+  const ping = t.mock('../../../lib/utils/ping.js', {
     'npm-registry-fetch': (url, opts) => {
       t.equal(url, '/-/ping?write=true', 'calls the correct url')
       t.equal(opts, options, 'passes through options')

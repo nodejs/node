@@ -77,7 +77,7 @@ t.test('get-workspaces', async t => {
   let workspaces
 
   workspaces = await getWorkspaces(['a', 'b'], { path })
-  t.deepEqual(
+  t.same(
     clean(workspaces, path),
     new Map(Object.entries({
       a: '{PATH}/packages/a',
@@ -87,7 +87,7 @@ t.test('get-workspaces', async t => {
   )
 
   workspaces = await getWorkspaces(['./packages/c'], { path })
-  t.deepEqual(
+  t.same(
     clean(workspaces, path),
     new Map(Object.entries({
       c: '{PATH}/packages/c',
@@ -96,7 +96,7 @@ t.test('get-workspaces', async t => {
   )
 
   workspaces = await getWorkspaces(['packages/c'], { path })
-  t.deepEqual(
+  t.same(
     clean(workspaces, path),
     new Map(Object.entries({
       c: '{PATH}/packages/c',
@@ -105,7 +105,7 @@ t.test('get-workspaces', async t => {
   )
 
   workspaces = await getWorkspaces([resolve(path, 'packages/c')], { path })
-  t.deepEqual(
+  t.same(
     clean(workspaces, path),
     new Map(Object.entries({
       c: '{PATH}/packages/c',
@@ -114,7 +114,7 @@ t.test('get-workspaces', async t => {
   )
 
   workspaces = await getWorkspaces(['packages'], { path })
-  t.deepEqual(
+  t.same(
     clean(workspaces, path),
     new Map(Object.entries({
       a: '{PATH}/packages/a',
@@ -128,7 +128,7 @@ t.test('get-workspaces', async t => {
   )
 
   workspaces = await getWorkspaces(['./packages/'], { path })
-  t.deepEqual(
+  t.same(
     clean(workspaces, path),
     new Map(Object.entries({
       a: '{PATH}/packages/a',
@@ -142,7 +142,7 @@ t.test('get-workspaces', async t => {
   )
 
   workspaces = await getWorkspaces([resolve(path, './packages')], { path })
-  t.deepEqual(
+  t.same(
     clean(workspaces, path),
     new Map(Object.entries({
       a: '{PATH}/packages/a',
@@ -156,7 +156,7 @@ t.test('get-workspaces', async t => {
   )
 
   workspaces = await getWorkspaces([], { path })
-  t.deepEqual(
+  t.same(
     clean(workspaces, path),
     new Map(Object.entries({
       a: '{PATH}/packages/a',

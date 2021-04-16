@@ -1,5 +1,4 @@
-const { test } = require('tap')
-const requireInject = require('require-inject')
+const t = require('tap')
 const { EventEmitter } = require('events')
 
 const npmConfig = {
@@ -68,7 +67,7 @@ const openUrl = async (npm, url, msg) => {
   openUrlArg = url
 }
 
-const Help = requireInject('../../lib/help.js', {
+const Help = t.mock('../../lib/help.js', {
   '../../lib/utils/open-url.js': openUrl,
   child_process: {
     spawn,
@@ -77,7 +76,7 @@ const Help = requireInject('../../lib/help.js', {
 })
 const help = new Help(npm)
 
-test('npm help', t => {
+t.test('npm help', t => {
   return help.exec([], (err) => {
     if (err)
       throw err
@@ -87,7 +86,7 @@ test('npm help', t => {
   })
 })
 
-test('npm help completion', async t => {
+t.test('npm help completion', async t => {
   t.teardown(() => {
     globErr = null
   })
@@ -100,7 +99,7 @@ test('npm help completion', async t => {
   t.rejects(help.completion({ conf: { argv: { remain: [] } } }), /glob failed/, 'glob errors propagate')
 })
 
-test('npm help multiple args calls search', t => {
+t.test('npm help multiple args calls search', t => {
   t.teardown(() => {
     helpSearchArgs = null
   })
@@ -114,7 +113,7 @@ test('npm help multiple args calls search', t => {
   })
 })
 
-test('npm help no matches calls search', t => {
+t.test('npm help no matches calls search', t => {
   globResult = []
   t.teardown(() => {
     helpSearchArgs = null
@@ -130,7 +129,7 @@ test('npm help no matches calls search', t => {
   })
 })
 
-test('npm help glob errors propagate', t => {
+t.test('npm help glob errors propagate', t => {
   globErr = new Error('glob failed')
   t.teardown(() => {
     globErr = null
@@ -144,7 +143,7 @@ test('npm help glob errors propagate', t => {
   })
 })
 
-test('npm help whoami', t => {
+t.test('npm help whoami', t => {
   globResult = ['/root/man/man1/npm-whoami.1.xz']
   t.teardown(() => {
     globResult = globDefaults
@@ -162,7 +161,7 @@ test('npm help whoami', t => {
   })
 })
 
-test('npm help 1 install', t => {
+t.test('npm help 1 install', t => {
   npmConfig.viewer = 'browser'
   globResult = [
     '/root/man/man5/install.5',
@@ -185,7 +184,7 @@ test('npm help 1 install', t => {
   })
 })
 
-test('npm help 5 install', t => {
+t.test('npm help 5 install', t => {
   npmConfig.viewer = 'browser'
   globResult = [
     '/root/man/man5/install.5',
@@ -209,7 +208,7 @@ test('npm help 5 install', t => {
   })
 })
 
-test('npm help 7 config', t => {
+t.test('npm help 7 config', t => {
   npmConfig.viewer = 'browser'
   globResult = [
     '/root/man/man7/config.7',
@@ -232,7 +231,7 @@ test('npm help 7 config', t => {
   })
 })
 
-test('npm help package.json redirects to package-json', t => {
+t.test('npm help package.json redirects to package-json', t => {
   globResult = ['/root/man/man5/package-json.5']
   t.teardown(() => {
     globResult = globDefaults
@@ -251,7 +250,7 @@ test('npm help package.json redirects to package-json', t => {
   })
 })
 
-test('npm help ?(un)star', t => {
+t.test('npm help ?(un)star', t => {
   npmConfig.viewer = 'woman'
   globResult = [
     '/root/man/man1/npm-star.1',
@@ -274,7 +273,7 @@ test('npm help ?(un)star', t => {
   })
 })
 
-test('npm help - woman viewer propagates errors', t => {
+t.test('npm help - woman viewer propagates errors', t => {
   npmConfig.viewer = 'woman'
   spawnCode = 1
   globResult = [
@@ -297,7 +296,7 @@ test('npm help - woman viewer propagates errors', t => {
   })
 })
 
-test('npm help un*', t => {
+t.test('npm help un*', t => {
   globResult = [
     '/root/man/man1/npm-unstar.1',
     '/root/man/man1/npm-uninstall.1',
@@ -319,7 +318,7 @@ test('npm help un*', t => {
   })
 })
 
-test('npm help - man viewer propagates errors', t => {
+t.test('npm help - man viewer propagates errors', t => {
   spawnCode = 1
   globResult = [
     '/root/man/man1/npm-unstar.1',
@@ -341,7 +340,7 @@ test('npm help - man viewer propagates errors', t => {
   })
 })
 
-test('npm help with complex installation path finds proper help file', t => {
+t.test('npm help with complex installation path finds proper help file', t => {
   npmConfig.viewer = 'browser'
   globResult = [
     'C:/Program Files/node-v14.15.5-win-x64/node_modules/npm/man/man1/npm-install.1',

@@ -1,7 +1,6 @@
-const requireInject = require('require-inject')
-const { test } = require('tap')
+const t = require('tap')
 
-test('oauth login', (t) => {
+t.test('oauth login', (t) => {
   t.plan(3)
   const oauthOpts = {
     creds: {},
@@ -17,7 +16,7 @@ test('oauth login', (t) => {
       },
     },
   }
-  const oauth = requireInject('../../../lib/auth/oauth.js', {
+  const oauth = t.mock('../../../lib/auth/oauth.js', {
     '../../../lib/auth/sso.js': (npm, opts) => {
       t.equal(opts, oauthOpts, 'should forward opts')
     },

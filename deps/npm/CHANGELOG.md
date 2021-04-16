@@ -1,3 +1,36 @@
+## v7.10.0 (2021-04-15)
+
+### FEATURES
+
+* [`f9b639eb6`](https://github.com/npm/cli/commit/f9b639eb6c504ded6cdd59e83e26a392bfe81e5d)
+  [#3052](https://github.com/npm/cli/issues/3052)
+  feat(bugs): fall back to email if provided
+  ([@Yash-Singh1](https://github.com/Yash-Singh1))
+* [`8c9e24778`](https://github.com/npm/cli/commit/8c9e24778db867cb3148bc247c7e321639aa9f58)
+  [#3055](https://github.com/npm/cli/issues/3055)
+  feat(version): add workspace support
+  ([@wraithgar](https://github.com/wraithgar))
+
+### DEPENDENCIES
+
+* [`f1e6743a6`](https://github.com/npm/cli/commit/f1e6743a6e8e32ddad6d1964eb05d17e6c50a456)
+  `libnpmversion@1.2.0`
+    * feat(retrieve-tag): retrieve unannotated git tags
+    * fix(retrieve-tag): use semver to look for semver
+* [`3b476a24c`](https://github.com/npm/cli/commit/3b476a24cf0b2823fdf92505b84bddde4fcc8b14)
+  `@npmcl/git@2.0.8`
+    * fix(git): do not use shell when calling git
+* [`dfcd0c1e2`](https://github.com/npm/cli/commit/dfcd0c1e2331c1f4b6573466b50505772eddaf22)
+  [#3069](https://github.com/npm/cli/issues/3069)
+  `tap@15.0.2`
+
+### DOCUMENTATION
+
+* [`90b61eda9`](https://github.com/npm/cli/commit/90b61eda9b41af108ed69fc0c43a522a92745047)
+  [#3053](https://github.com/npm/cli/issues/3053)
+  fix(contributing.md): explicitely outline dep updates
+  ([@darcyclarke](https://github.com/darcyclarke))
+
 ## v7.9.0 (2021-04-08)
 
 ### FEATURES

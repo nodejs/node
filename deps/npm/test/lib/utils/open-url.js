@@ -1,5 +1,4 @@
-const { test } = require('tap')
-const requireInject = require('require-inject')
+const t = require('tap')
 
 const OUTPUT = []
 const output = (...args) => OUTPUT.push(args)
@@ -26,11 +25,11 @@ const opener = (url, opts, cb) => {
   return cb(openerResult)
 }
 
-const openUrl = requireInject('../../../lib/utils/open-url.js', {
+const openUrl = t.mock('../../../lib/utils/open-url.js', {
   opener,
 })
 
-test('opens a url', async (t) => {
+t.test('opens a url', async (t) => {
   t.teardown(() => {
     openerUrl = null
     openerOpts = null
@@ -42,7 +41,7 @@ test('opens a url', async (t) => {
   t.same(OUTPUT, [], 'printed no output')
 })
 
-test('returns error for non-https and non-file url', async (t) => {
+t.test('returns error for non-https and non-file url', async (t) => {
   t.teardown(() => {
     openerUrl = null
     openerOpts = null
@@ -52,10 +51,10 @@ test('returns error for non-https and non-file url', async (t) => {
   t.equal(openerUrl, null, 'did not open')
   t.same(openerOpts, null, 'did not open')
   t.same(OUTPUT, [], 'printed no output')
-  t.done()
+  t.end()
 })
 
-test('returns error for non-parseable url', async (t) => {
+t.test('returns error for non-parseable url', async (t) => {
   t.teardown(() => {
     openerUrl = null
     openerOpts = null
@@ -65,10 +64,10 @@ test('returns error for non-parseable url', async (t) => {
   t.equal(openerUrl, null, 'did not open')
   t.same(openerOpts, null, 'did not open')
   t.same(OUTPUT, [], 'printed no output')
-  t.done()
+  t.end()
 })
 
-test('opens a url with the given browser', async (t) => {
+t.test('opens a url with the given browser', async (t) => {
   npm.config.set('browser', 'chrome')
   t.teardown(() => {
     openerUrl = null
@@ -80,10 +79,10 @@ test('opens a url with the given browser', async (t) => {
   t.equal(openerUrl, 'https://www.npmjs.com', 'opened the given url')
   t.same(openerOpts, { command: 'chrome' }, 'passed the given browser as command')
   t.same(OUTPUT, [], 'printed no output')
-  t.done()
+  t.end()
 })
 
-test('prints where to go when browser is disabled', async (t) => {
+t.test('prints where to go when browser is disabled', async (t) => {
   npm.config.set('browser', false)
   t.teardown(() => {
     openerUrl = null
@@ -97,10 +96,10 @@ test('prints where to go when browser is disabled', async (t) => {
   t.equal(OUTPUT.length, 1, 'got one logged message')
   t.equal(OUTPUT[0].length, 1, 'logged message had one value')
   t.matchSnapshot(OUTPUT[0][0], 'printed expected message')
-  t.done()
+  t.end()
 })
 
-test('prints where to go when browser is disabled and json is enabled', async (t) => {
+t.test('prints where to go when browser is disabled and json is enabled', async (t) => {
   npm.config.set('browser', false)
   npm.config.set('json', true)
   t.teardown(() => {
@@ -116,10 +115,10 @@ test('prints where to go when browser is disabled and json is enabled', async (t
   t.equal(OUTPUT.length, 1, 'got one logged message')
   t.equal(OUTPUT[0].length, 1, 'logged message had one value')
   t.matchSnapshot(OUTPUT[0][0], 'printed expected message')
-  t.done()
+  t.end()
 })
 
-test('prints where to go when given browser does not exist', async (t) => {
+t.test('prints where to go when given browser does not exist', async (t) => {
   npm.config.set('browser', 'firefox')
   openerResult = Object.assign(new Error('failed'), { code: 'ENOENT' })
   t.teardown(() => {
@@ -134,10 +133,10 @@ test('prints where to go when given browser does not exist', async (t) => {
   t.equal(OUTPUT.length, 1, 'got one logged message')
   t.equal(OUTPUT[0].length, 1, 'logged message had one value')
   t.matchSnapshot(OUTPUT[0][0], 'printed expected message')
-  t.done()
+  t.end()
 })
 
-test('handles unknown opener error', async (t) => {
+t.test('handles unknown opener error', async (t) => {
   npm.config.set('browser', 'firefox')
   openerResult = Object.assign(new Error('failed'), { code: 'ENOBRIAN' })
   t.teardown(() => {
@@ -147,5 +146,5 @@ test('handles unknown opener error', async (t) => {
     npm.config.set('browser', true)
   })
   t.rejects(openUrl(npm, 'https://www.npmjs.com', 'npm home'), 'failed', 'got the correct error')
-  t.done()
+  t.end()
 })

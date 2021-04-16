@@ -1,10 +1,9 @@
 const t = require('tap')
 
-const requireInject = require('require-inject')
 const glob = require('glob')
 const rimraf = require('rimraf')
 const mocks = { glob, rimraf }
-const cleanup = requireInject('../../../lib/utils/cleanup-log-files.js', {
+const cleanup = t.mock('../../../lib/utils/cleanup-log-files.js', {
   glob: (...args) => mocks.glob(...args),
   rimraf: (...args) => mocks.rimraf(...args),
 })

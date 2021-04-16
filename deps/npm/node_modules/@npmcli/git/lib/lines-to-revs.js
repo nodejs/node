@@ -7,7 +7,7 @@ module.exports = lines => finish(lines.reduce(linesToRevsReducer, {
   versions: {},
   'dist-tags': {},
   refs: {},
-  shas: {},
+  shas: {}
 }))
 
 const finish = revs => distTags(shaList(peelTags(revs)))
@@ -15,15 +15,15 @@ const finish = revs => distTags(shaList(peelTags(revs)))
 // We can check out shallow clones on specific SHAs if we have a ref
 const shaList = revs => {
   Object.keys(revs.refs).forEach(ref => {
-    doc = revs.refs[ref]
-    if (revs.shas[doc.sha])
-      revs.shas[doc.sha].push(ref)
-    else
+    const doc = revs.refs[ref]
+    if (!revs.shas[doc.sha]) {
       revs.shas[doc.sha] = [ref]
+    } else {
+      revs.shas[doc.sha].push(ref)
+    }
   })
   return revs
 }
-
 
 // Replace any tags with their ^{} counterparts, if those exist
 const peelTags = revs => {
@@ -48,30 +48,38 @@ const distTags = revs => {
     // 'latest' branch if one exists and is a version,
     // or HEAD if not.
     const ver = revs.versions[v]
-    if (revs.refs.latest && ver.sha === revs.refs.latest.sha)
+    if (revs.refs.latest && ver.sha === revs.refs.latest.sha) {
       revs['dist-tags'].latest = v
-    else if (ver.sha === HEAD.sha) {
+    } else if (ver.sha === HEAD.sha) {
       revs['dist-tags'].HEAD = v
-      if (!revs.refs.latest)
-        revs['dist-tags'].latest = v
+      if (!revs.refs.latest) { revs['dist-tags'].latest = v }
     }
   })
   return revs
 }
 
-const refType = ref =>
-  ref.startsWith('refs/tags/') ? 'tag'
-    : ref.startsWith('refs/heads/') ? 'branch'
-    : ref.startsWith('refs/pull/') ? 'pull'
-    : ref === 'HEAD' ? 'head'
-    // Could be anything, ignore for now
-    : /* istanbul ignore next */ 'other'
+const refType = ref => {
+  if (ref.startsWith('refs/tags/')) {
+    return 'tag'
+  }
+  if (ref.startsWith('refs/heads/')) {
+    return 'branch'
+  }
+  if (ref.startsWith('refs/pull/')) {
+    return 'pull'
+  }
+  if (ref === 'HEAD') {
+    return 'head'
+  }
+  // Could be anything, ignore for now
+  /* istanbul ignore next */
+  return 'other'
+}
 
 // return the doc, or null if we should ignore it.
 const lineToRevDoc = line => {
   const split = line.trim().split(/\s+/, 2)
-  if (split.length < 2)
-    return null
+  if (split.length < 2) { return null }
 
   const sha = split[0].trim()
   const rawRef = split[1].trim()
@@ -114,8 +122,7 @@ const lineToRevDoc = line => {
 const linesToRevsReducer = (revs, line) => {
   const doc = lineToRevDoc(line)
 
-  if (!doc)
-    return revs
+  if (!doc) { return revs }
 
   revs.refs[doc.ref] = doc
   revs.refs[doc.rawRef] = doc
@@ -125,8 +132,9 @@ const linesToRevsReducer = (revs, line) => {
     // which is a pretty common pattern.
     const match = !doc.ref.endsWith('^{}') &&
       doc.ref.match(/v?(\d+\.\d+\.\d+(?:[-+].+)?)$/)
-    if (match && semver.valid(match[1], true))
+    if (match && semver.valid(match[1], true)) {
       revs.versions[semver.clean(match[1], true)] = doc
+    }
   }
 
   return revs

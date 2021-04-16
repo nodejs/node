@@ -1,13 +1,12 @@
-const { test } = require('tap')
-const requireInject = require('require-inject')
+const t = require('tap')
 const mockNpm = require('../fixtures/mock-npm')
 
-test('pings', (t) => {
+t.test('pings', (t) => {
   t.plan(8)
 
   const registry = 'https://registry.npmjs.org'
   let noticeCalls = 0
-  const Ping = requireInject('../../lib/ping.js', {
+  const Ping = t.mock('../../lib/ping.js', {
     '../../lib/utils/ping.js': function (spec) {
       t.equal(spec.registry, registry, 'passes flatOptions')
       return {}
@@ -33,18 +32,18 @@ test('pings', (t) => {
 
   ping.exec([], (err) => {
     t.equal(noticeCalls, 2, 'should have logged 2 lines')
-    t.ifError(err, 'npm ping')
+    t.error(err, 'npm ping')
     t.ok('should be able to ping')
   })
 })
 
-test('pings and logs details', (t) => {
+t.test('pings and logs details', (t) => {
   t.plan(10)
 
   const registry = 'https://registry.npmjs.org'
   const details = { extra: 'data' }
   let noticeCalls = 0
-  const Ping = requireInject('../../lib/ping.js', {
+  const Ping = t.mock('../../lib/ping.js', {
     '../../lib/utils/ping.js': function (spec) {
       t.equal(spec.registry, registry, 'passes flatOptions')
       return details
@@ -74,18 +73,18 @@ test('pings and logs details', (t) => {
 
   ping.exec([], (err) => {
     t.equal(noticeCalls, 3, 'should have logged 3 lines')
-    t.ifError(err, 'npm ping')
+    t.error(err, 'npm ping')
     t.ok('should be able to ping')
   })
 })
 
-test('pings and returns json', (t) => {
+t.test('pings and returns json', (t) => {
   t.plan(11)
 
   const registry = 'https://registry.npmjs.org'
   const details = { extra: 'data' }
   let noticeCalls = 0
-  const Ping = requireInject('../../lib/ping.js', {
+  const Ping = t.mock('../../lib/ping.js', {
     '../../lib/utils/ping.js': function (spec) {
       t.equal(spec.registry, registry, 'passes flatOptions')
       return details
@@ -117,7 +116,7 @@ test('pings and returns json', (t) => {
 
   ping.exec([], (err) => {
     t.equal(noticeCalls, 2, 'should have logged 2 lines')
-    t.ifError(err, 'npm ping')
+    t.error(err, 'npm ping')
     t.ok('should be able to ping')
   })
 })

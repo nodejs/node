@@ -1,4 +1,3 @@
-const requireInject = require('require-inject')
 const t = require('tap')
 
 t.test('ll', t => {
@@ -10,12 +9,12 @@ t.test('ll', t => {
     }
 
     exec (args, cb) {
-      t.deepEqual(args, ['pkg'], 'should forward args')
+      t.same(args, ['pkg'], 'should forward args')
       cb()
     }
   }
 
-  const LL = requireInject('../../lib/ll.js', {
+  const LL = t.mock('../../lib/ll.js', {
     '../../lib/ls.js': LS,
   })
   const ll = new LL({

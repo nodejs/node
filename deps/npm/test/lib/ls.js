@@ -1,3 +1,7 @@
+// TODO(isaacs): This test has a lot of very large objects pasted inline.
+// Consider using t.matchSnapshot on these instead, especially since many
+// of them contain the tap testdir folders, which are auto-generated and
+// may change when node-tap is updated.
 const t = require('tap')
 const mockNpm = require('../fixtures/mock-npm')
 
@@ -115,10 +119,7 @@ const redactCwd = res =>
 
 const jsonParse = res => JSON.parse(redactCwd(res))
 
-const cleanUpResult = (done, t) => {
-  result = ''
-  done()
-}
+const cleanUpResult = () => result = ''
 
 t.test('ls', (t) => {
   t.beforeEach(cleanUpResult)
@@ -137,7 +138,7 @@ t.test('ls', (t) => {
       ...simpleNmFixture,
     })
     ls.exec([], (err) => {
-      t.ifError(err, 'npm ls')
+      t.error(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should output tree representation of dependencies structure')
       t.end()
     })
@@ -173,7 +174,7 @@ t.test('ls', (t) => {
       t.equal(err.code, 'ELSPROBLEMS', 'should have error code')
       t.equal(
         redactCwd(err.message),
-        'extraneous: lorem@1.0.0 {CWD}/ls-ls-extraneous-deps/node_modules/lorem',
+        'extraneous: lorem@1.0.0 {CWD}/tap-testdir-ls-ls-extraneous-deps/node_modules/lorem',
         'should log extraneous dep as error'
       )
       t.matchSnapshot(redactCwd(result), 'should output containing problems info')
@@ -195,7 +196,7 @@ t.test('ls', (t) => {
       ...simpleNmFixture,
     })
     ls.exec(['lorem'], (err) => {
-      t.ifError(err, 'npm ls')
+      t.error(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should output tree contaning only occurrences of filtered by package and colored output')
       npm.color = false
       t.end()
@@ -217,7 +218,7 @@ t.test('ls', (t) => {
       ...simpleNmFixture,
     })
     ls.exec(['.'], (err) => {
-      t.ifError(err, 'should not throw on missing dep above current level')
+      t.error(err, 'should not throw on missing dep above current level')
       t.matchSnapshot(redactCwd(result), 'should output tree contaning only occurrences of filtered by package and colored output')
       config.all = true
       config.depth = Infinity
@@ -238,7 +239,7 @@ t.test('ls', (t) => {
       ...simpleNmFixture,
     })
     ls.exec(['bar'], (err) => {
-      t.ifError(err, 'npm ls')
+      t.error(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should output tree contaning only occurrences of filtered package and its ancestors')
       t.end()
     })
@@ -266,7 +267,7 @@ t.test('ls', (t) => {
       },
     })
     ls.exec(['bar@*', 'lorem@1.0.0'], (err) => {
-      t.ifError(err, 'npm ls')
+      t.error(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should output tree contaning only occurrences of multiple filtered packages and their ancestors')
       t.end()
     })
@@ -285,7 +286,7 @@ t.test('ls', (t) => {
       ...simpleNmFixture,
     })
     ls.exec(['notadep'], (err) => {
-      t.ifError(err, 'npm ls')
+      t.error(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should output tree containing no dependencies info')
       t.equal(
         process.exitCode,
@@ -312,7 +313,7 @@ t.test('ls', (t) => {
       ...simpleNmFixture,
     })
     ls.exec([], (err) => {
-      t.ifError(err, 'npm ls')
+      t.error(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should output tree containing only top-level dependencies')
       config.all = true
       config.depth = Infinity
@@ -335,7 +336,7 @@ t.test('ls', (t) => {
       ...simpleNmFixture,
     })
     ls.exec([], (err) => {
-      t.ifError(err, 'npm ls')
+      t.error(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should output tree containing only top-level dependencies')
       config.all = true
       config.depth = Infinity
@@ -396,7 +397,7 @@ t.test('ls', (t) => {
       },
     })
     ls.exec([], (err) => {
-      t.ifError(err, 'npm ls')
+      t.error(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should output tree containing top-level deps and their deps only')
       config.all = true
       config.depth = Infinity
@@ -420,9 +421,9 @@ t.test('ls', (t) => {
       t.equal(err.code, 'ELSPROBLEMS', 'should have error code')
       t.equal(
         redactCwd(err.message).replace(/\r\n/g, '\n'),
-        'invalid: foo@1.0.0 {CWD}/ls-ls-missing-invalid-extraneous/node_modules/foo\n' +
+        'invalid: foo@1.0.0 {CWD}/tap-testdir-ls-ls-missing-invalid-extraneous/node_modules/foo\n' +
         'missing: ipsum@^1.0.0, required by test-npm-ls@1.0.0\n' +
-        'extraneous: lorem@1.0.0 {CWD}/ls-ls-missing-invalid-extraneous/node_modules/lorem',
+        'extraneous: lorem@1.0.0 {CWD}/tap-testdir-ls-ls-missing-invalid-extraneous/node_modules/lorem',
         'should log missing/invalid/extraneous errors'
       )
       t.matchSnapshot(redactCwd(result), 'should output tree containing missing, invalid, extraneous labels')
@@ -718,7 +719,7 @@ t.test('ls', (t) => {
   t.test('empty location', (t) => {
     npm.prefix = t.testdir({})
     ls.exec([], (err) => {
-      t.ifError(err, 'should not error out on empty locations')
+      t.error(err, 'should not error out on empty locations')
       t.matchSnapshot(redactCwd(result), 'should print empty result')
       t.end()
     })
@@ -898,7 +899,7 @@ t.test('ls', (t) => {
       },
     })
     ls.exec([], (err) => {
-      t.ifError(err, 'npm ls')
+      t.error(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should print tree output containing deduped ref')
       t.end()
     })
@@ -936,7 +937,7 @@ t.test('ls', (t) => {
       },
     })
     ls.exec(['a'], (err) => {
-      t.ifError(err, 'npm ls')
+      t.error(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should print tree output containing deduped ref')
       npm.color = false
       t.end()
@@ -984,7 +985,7 @@ t.test('ls', (t) => {
       },
     })
     ls.exec([], (err) => {
-      t.ifError(err, 'npm ls')
+      t.error(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should print tree output containing deduped ref')
       t.end()
     })
@@ -1033,7 +1034,7 @@ t.test('ls', (t) => {
       },
     })
     ls.exec([], (err) => {
-      t.ifError(err, 'npm ls')
+      t.error(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should print tree output containing deduped ref')
       config.all = true
       config.depth = Infinity
@@ -1083,7 +1084,7 @@ t.test('ls', (t) => {
       },
     })
     ls.exec(['@npmcli/b'], (err) => {
-      t.ifError(err, 'npm ls')
+      t.error(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should print tree output containing deduped ref')
       npm.color = false
       t.end()
@@ -1131,7 +1132,7 @@ t.test('ls', (t) => {
       },
     })
     ls.exec(['@npmcli/c'], (err) => {
-      t.ifError(err, 'npm ls')
+      t.error(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should print tree output containing deduped ref')
       t.end()
     })
@@ -1221,7 +1222,7 @@ t.test('ls', (t) => {
     })
     touchHiddenPackageLock(npm.prefix)
     ls.exec([], (err) => {
-      t.ifError(err, 'npm ls')
+      t.error(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should output tree containing git refs')
       t.end()
     })
@@ -1265,7 +1266,7 @@ t.test('ls', (t) => {
       }),
     })
     ls.exec([], (err) => {
-      t.ifError(err, 'npm ls')
+      t.error(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should NOT print git refs in output tree')
       t.end()
     })
@@ -1453,12 +1454,12 @@ t.test('ls', (t) => {
     })
 
     ls.exec([], (err) => {
-      t.ifError(err, 'should NOT have ELSPROBLEMS error code')
+      t.error(err, 'should NOT have ELSPROBLEMS error code')
       t.matchSnapshot(redactCwd(result), 'should list workspaces properly')
 
       // should also be able to filter out one of the workspaces
       ls.exec(['a'], (err) => {
-        t.ifError(err, 'should NOT have ELSPROBLEMS error code when filter')
+        t.error(err, 'should NOT have ELSPROBLEMS error code when filter')
         t.matchSnapshot(redactCwd(result), 'should filter single workspace')
 
         t.end()
@@ -1516,17 +1517,17 @@ t.test('ls', (t) => {
 
     t.plan(6)
     ls.exec(['a'], (err) => {
-      t.ifError(err, 'should NOT have ELSPROBLEMS error code')
+      t.error(err, 'should NOT have ELSPROBLEMS error code')
       t.matchSnapshot(redactCwd(result), 'should list a in top-level only')
 
       ls.exec(['d'], (err) => {
-        t.ifError(err, 'should NOT have ELSPROBLEMS error code when filter')
+        t.error(err, 'should NOT have ELSPROBLEMS error code when filter')
         t.matchSnapshot(redactCwd(result), 'should print empty results msg')
 
         // if no --depth config is defined, should print path to dep
         config.depth = null // default config value
         ls.exec(['d'], (err) => {
-          t.ifError(err, 'should NOT have ELSPROBLEMS error code when filter')
+          t.error(err, 'should NOT have ELSPROBLEMS error code when filter')
           t.matchSnapshot(redactCwd(result), 'should print expected result')
         })
       })
@@ -1558,7 +1559,7 @@ t.test('ls --parseable', (t) => {
       ...simpleNmFixture,
     })
     ls.exec([], (err) => {
-      t.ifError(err, 'npm ls')
+      t.error(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should output parseable representation of dependencies structure')
       t.end()
     })
@@ -1610,7 +1611,7 @@ t.test('ls --parseable', (t) => {
       ...simpleNmFixture,
     })
     ls.exec(['lorem'], (err) => {
-      t.ifError(err, 'npm ls')
+      t.error(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should output parseable contaning only occurrences of filtered by package')
       t.end()
     })
@@ -1629,7 +1630,7 @@ t.test('ls --parseable', (t) => {
       ...simpleNmFixture,
     })
     ls.exec(['bar'], (err) => {
-      t.ifError(err, 'npm ls')
+      t.error(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should output parseable contaning only occurrences of filtered package')
       t.end()
     })
@@ -1657,7 +1658,7 @@ t.test('ls --parseable', (t) => {
       },
     })
     ls.exec(['bar@*', 'lorem@1.0.0'], (err) => {
-      t.ifError(err, 'npm ls')
+      t.error(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should output parseable contaning only occurrences of multiple filtered packages and their ancestors')
       t.end()
     })
@@ -1676,7 +1677,7 @@ t.test('ls --parseable', (t) => {
       ...simpleNmFixture,
     })
     ls.exec(['notadep'], (err) => {
-      t.ifError(err, 'npm ls')
+      t.error(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should output parseable output containing no dependencies info')
       t.equal(
         process.exitCode,
@@ -1703,7 +1704,7 @@ t.test('ls --parseable', (t) => {
       ...simpleNmFixture,
     })
     ls.exec([], (err) => {
-      t.ifError(err, 'npm ls')
+      t.error(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should output parseable output containing only top-level dependencies')
       config.all = true
       config.depth = Infinity
@@ -1726,7 +1727,7 @@ t.test('ls --parseable', (t) => {
       ...simpleNmFixture,
     })
     ls.exec([], (err) => {
-      t.ifError(err, 'npm ls')
+      t.error(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should output tree containing only top-level dependencies')
       config.all = true
       config.depth = Infinity
@@ -1749,7 +1750,7 @@ t.test('ls --parseable', (t) => {
       ...simpleNmFixture,
     })
     ls.exec([], (err) => {
-      t.ifError(err, 'npm ls')
+      t.error(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should output parseable containing top-level deps and their deps only')
       config.all = true
       config.depth = Infinity
@@ -1973,7 +1974,7 @@ t.test('ls --parseable', (t) => {
     })
     ls.exec([], (err) => {
       t.equal(err.code, 'ELSPROBLEMS', 'should have error code')
-      t.match(redactCwd(err.message), 'extraneous: lorem@1.0.0 {CWD}/ls-ls-parseable--long-with-extraneous-deps/node_modules/lorem', 'should have error code')
+      t.match(redactCwd(err.message), 'extraneous: lorem@1.0.0 {CWD}/tap-testdir-ls-ls---parseable---long-with-extraneous-deps/node_modules/lorem', 'should have error code')
       t.matchSnapshot(redactCwd(result), 'should output long parseable output with extraneous info')
       t.end()
     })
@@ -2033,7 +2034,7 @@ t.test('ls --parseable', (t) => {
       },
     })
     ls.exec([], (err) => {
-      t.ifError(err, 'npm ls')
+      t.error(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should output parseable results with symlink targets')
       config.long = false
       t.end()
@@ -2087,7 +2088,7 @@ t.test('ls --parseable', (t) => {
   t.test('empty location', (t) => {
     npm.prefix = t.testdir({})
     ls.exec([], (err) => {
-      t.ifError(err, 'should not error out on empty locations')
+      t.error(err, 'should not error out on empty locations')
       t.matchSnapshot(redactCwd(result), 'should print empty result')
       t.end()
     })
@@ -2382,8 +2383,8 @@ t.test('ls --json', (t) => {
       ...simpleNmFixture,
     })
     ls.exec([], (err) => {
-      t.ifError(err, 'npm ls')
-      t.deepEqual(
+      t.error(err, 'npm ls')
+      t.same(
         jsonParse(result),
         {
           name: 'test-npm-ls',
@@ -2414,27 +2415,27 @@ t.test('ls --json', (t) => {
     })
     ls.exec([], (err) => {
       t.match(err, { code: 'ELSPROBLEMS' }, 'should list dep problems')
-      t.deepEqual(
+      t.same(
         jsonParse(result),
         {
           problems: [
-            'extraneous: bar@1.0.0 {CWD}/ls-ls-json-missing-package-json/node_modules/bar',
-            'extraneous: foo@1.0.0 {CWD}/ls-ls-json-missing-package-json/node_modules/foo',
-            'extraneous: lorem@1.0.0 {CWD}/ls-ls-json-missing-package-json/node_modules/lorem',
+            'extraneous: bar@1.0.0 {CWD}/tap-testdir-ls-ls---json-missing-package.json/node_modules/bar',
+            'extraneous: foo@1.0.0 {CWD}/tap-testdir-ls-ls---json-missing-package.json/node_modules/foo',
+            'extraneous: lorem@1.0.0 {CWD}/tap-testdir-ls-ls---json-missing-package.json/node_modules/lorem',
           ],
           dependencies: {
             bar: {
               version: '1.0.0',
               extraneous: true,
               problems: [
-                'extraneous: bar@1.0.0 {CWD}/ls-ls-json-missing-package-json/node_modules/bar',
+                'extraneous: bar@1.0.0 {CWD}/tap-testdir-ls-ls---json-missing-package.json/node_modules/bar',
               ],
             },
             foo: {
               version: '1.0.0',
               extraneous: true,
               problems: [
-                'extraneous: foo@1.0.0 {CWD}/ls-ls-json-missing-package-json/node_modules/foo',
+                'extraneous: foo@1.0.0 {CWD}/tap-testdir-ls-ls---json-missing-package.json/node_modules/foo',
               ],
               dependencies: {
                 bar: {
@@ -2446,7 +2447,7 @@ t.test('ls --json', (t) => {
               version: '1.0.0',
               extraneous: true,
               problems: [
-                'extraneous: lorem@1.0.0 {CWD}/ls-ls-json-missing-package-json/node_modules/lorem',
+                'extraneous: lorem@1.0.0 {CWD}/tap-testdir-ls-ls---json-missing-package.json/node_modules/lorem',
               ],
             },
           },
@@ -2471,7 +2472,7 @@ t.test('ls --json', (t) => {
     ls.exec([], (err) => {
       t.equal(
         redactCwd(err.message),
-        'extraneous: lorem@1.0.0 {CWD}/ls-ls-json-extraneous-deps/node_modules/lorem',
+        'extraneous: lorem@1.0.0 {CWD}/tap-testdir-ls-ls---json-extraneous-deps/node_modules/lorem',
         'should log extraneous dep as error'
       )
       t.equal(
@@ -2479,13 +2480,13 @@ t.test('ls --json', (t) => {
         'ELSPROBLEMS',
         'should have ELSPROBLEMS error code'
       )
-      t.deepEqual(
+      t.same(
         jsonParse(result),
         {
           name: 'test-npm-ls',
           version: '1.0.0',
           problems: [
-            'extraneous: lorem@1.0.0 {CWD}/ls-ls-json-extraneous-deps/node_modules/lorem',
+            'extraneous: lorem@1.0.0 {CWD}/tap-testdir-ls-ls---json-extraneous-deps/node_modules/lorem',
           ],
           dependencies: {
             foo: {
@@ -2500,7 +2501,7 @@ t.test('ls --json', (t) => {
               version: '1.0.0',
               extraneous: true,
               problems: [
-                'extraneous: lorem@1.0.0 {CWD}/ls-ls-json-extraneous-deps/node_modules/lorem',
+                'extraneous: lorem@1.0.0 {CWD}/tap-testdir-ls-ls---json-extraneous-deps/node_modules/lorem',
               ],
             },
           },
@@ -2524,8 +2525,8 @@ t.test('ls --json', (t) => {
       ...simpleNmFixture,
     })
     ls.exec(['lorem'], (err) => {
-      t.ifError(err, 'npm ls')
-      t.deepEqual(
+      t.error(err, 'npm ls')
+      t.same(
         jsonParse(result),
         {
           name: 'test-npm-ls',
@@ -2560,8 +2561,8 @@ t.test('ls --json', (t) => {
       ...simpleNmFixture,
     })
     ls.exec(['bar'], (err) => {
-      t.ifError(err, 'npm ls')
-      t.deepEqual(
+      t.error(err, 'npm ls')
+      t.same(
         jsonParse(result),
         {
           name: 'test-npm-ls',
@@ -2605,8 +2606,8 @@ t.test('ls --json', (t) => {
       },
     })
     ls.exec(['bar@*', 'lorem@1.0.0'], (err) => {
-      t.ifError(err, 'npm ls')
-      t.deepEqual(
+      t.error(err, 'npm ls')
+      t.same(
         jsonParse(result),
         {
           version: '1.0.0',
@@ -2644,8 +2645,8 @@ t.test('ls --json', (t) => {
       ...simpleNmFixture,
     })
     ls.exec(['notadep'], (err) => {
-      t.ifError(err, 'npm ls')
-      t.deepEqual(
+      t.error(err, 'npm ls')
+      t.same(
         jsonParse(result),
         {
           name: 'test-npm-ls',
@@ -2678,8 +2679,8 @@ t.test('ls --json', (t) => {
       ...simpleNmFixture,
     })
     ls.exec([], (err) => {
-      t.ifError(err, 'npm ls')
-      t.deepEqual(
+      t.error(err, 'npm ls')
+      t.same(
         jsonParse(result),
         {
           name: 'test-npm-ls',
@@ -2716,8 +2717,8 @@ t.test('ls --json', (t) => {
       ...simpleNmFixture,
     })
     ls.exec([], (err) => {
-      t.ifError(err, 'npm ls')
-      t.deepEqual(
+      t.error(err, 'npm ls')
+      t.same(
         jsonParse(result),
         {
           name: 'test-npm-ls',
@@ -2754,8 +2755,8 @@ t.test('ls --json', (t) => {
       ...simpleNmFixture,
     })
     ls.exec([], (err) => {
-      t.ifError(err, 'npm ls')
-      t.deepEqual(
+      t.error(err, 'npm ls')
+      t.same(
         jsonParse(result),
         {
           name: 'test-npm-ls',
@@ -2796,22 +2797,22 @@ t.test('ls --json', (t) => {
     })
     ls.exec([], (err) => {
       t.match(err, { code: 'ELSPROBLEMS' }, 'should list dep problems')
-      t.deepEqual(
+      t.same(
         jsonParse(result),
         {
           name: 'test-npm-ls',
           version: '1.0.0',
           problems: [
-            'invalid: foo@1.0.0 {CWD}/ls-ls-json-missing-invalid-extraneous/node_modules/foo',
+            'invalid: foo@1.0.0 {CWD}/tap-testdir-ls-ls---json-missing-invalid-extraneous/node_modules/foo',
             'missing: ipsum@^1.0.0, required by test-npm-ls@1.0.0',
-            'extraneous: lorem@1.0.0 {CWD}/ls-ls-json-missing-invalid-extraneous/node_modules/lorem',
+            'extraneous: lorem@1.0.0 {CWD}/tap-testdir-ls-ls---json-missing-invalid-extraneous/node_modules/lorem',
           ],
           dependencies: {
             foo: {
               version: '1.0.0',
               invalid: true,
               problems: [
-                'invalid: foo@1.0.0 {CWD}/ls-ls-json-missing-invalid-extraneous/node_modules/foo',
+                'invalid: foo@1.0.0 {CWD}/tap-testdir-ls-ls---json-missing-invalid-extraneous/node_modules/foo',
               ],
               dependencies: {
                 bar: {
@@ -2823,7 +2824,7 @@ t.test('ls --json', (t) => {
               version: '1.0.0',
               extraneous: true,
               problems: [
-                'extraneous: lorem@1.0.0 {CWD}/ls-ls-json-missing-invalid-extraneous/node_modules/lorem',
+                'extraneous: lorem@1.0.0 {CWD}/tap-testdir-ls-ls---json-missing-invalid-extraneous/node_modules/lorem',
               ],
             },
             ipsum: {
@@ -2864,7 +2865,7 @@ t.test('ls --json', (t) => {
       ...diffDepTypesNmFixture,
     })
     ls.exec([], () => {
-      t.deepEqual(
+      t.same(
         jsonParse(result),
         {
           name: 'test-npm-ls',
@@ -2911,7 +2912,7 @@ t.test('ls --json', (t) => {
       ...diffDepTypesNmFixture,
     })
     ls.exec([], () => {
-      t.deepEqual(
+      t.same(
         jsonParse(result),
         {
           name: 'test-npm-ls',
@@ -2968,7 +2969,7 @@ t.test('ls --json', (t) => {
       },
     })
     ls.exec([], () => {
-      t.deepEqual(
+      t.same(
         jsonParse(result),
         {
           name: 'test-npm-ls',
@@ -3010,7 +3011,7 @@ t.test('ls --json', (t) => {
       ...diffDepTypesNmFixture,
     })
     ls.exec([], () => {
-      t.deepEqual(
+      t.same(
         jsonParse(result),
         {
           name: 'test-npm-ls',
@@ -3051,7 +3052,7 @@ t.test('ls --json', (t) => {
       ...diffDepTypesNmFixture,
     })
     ls.exec([], () => {
-      t.deepEqual(
+      t.same(
         jsonParse(result),
         {
           name: 'test-npm-ls',
@@ -3164,7 +3165,7 @@ t.test('ls --json', (t) => {
       }),
     })
     ls.exec([], () => {
-      t.deepEqual(
+      t.same(
         jsonParse(result),
         {
           version: '1.0.0',
@@ -3178,7 +3179,7 @@ t.test('ls --json', (t) => {
                   resolved: 'https://registry.npmjs.org/@isaacs/dedupe-tests-b/-/dedupe-tests-b-1.0.0.tgz',
                   extraneous: true,
                   problems: [
-                    'extraneous: @isaacs/dedupe-tests-b@ {CWD}/ls-ls-json-from-lockfile/node_modules/@isaacs/dedupe-tests-a/node_modules/@isaacs/dedupe-tests-b',
+                    'extraneous: @isaacs/dedupe-tests-b@ {CWD}/tap-testdir-ls-ls---json-from-lockfile/node_modules/@isaacs/dedupe-tests-a/node_modules/@isaacs/dedupe-tests-b',
                   ],
                 },
               },
@@ -3189,7 +3190,7 @@ t.test('ls --json', (t) => {
             },
           },
           problems: [
-            'extraneous: @isaacs/dedupe-tests-b@ {CWD}/ls-ls-json-from-lockfile/node_modules/@isaacs/dedupe-tests-a/node_modules/@isaacs/dedupe-tests-b',
+            'extraneous: @isaacs/dedupe-tests-b@ {CWD}/tap-testdir-ls-ls---json-from-lockfile/node_modules/@isaacs/dedupe-tests-a/node_modules/@isaacs/dedupe-tests-b',
           ],
         },
         'should output json containing only prod deps'
@@ -3221,7 +3222,7 @@ t.test('ls --json', (t) => {
       ...diffDepTypesNmFixture,
     })
     ls.exec([], () => {
-      t.deepEqual(
+      t.same(
         jsonParse(result),
         {
           name: 'test-npm-ls',
@@ -3235,7 +3236,7 @@ t.test('ls --json', (t) => {
               devDependencies: {},
               peerDependencies: {},
               _dependencies: {},
-              path: '{CWD}/ls-ls-json--long/node_modules/peer-dep',
+              path: '{CWD}/tap-testdir-ls-ls---json---long/node_modules/peer-dep',
               extraneous: false,
             },
             'dev-dep': {
@@ -3254,7 +3255,7 @@ t.test('ls --json', (t) => {
                       devDependencies: {},
                       peerDependencies: {},
                       _dependencies: {},
-                      path: '{CWD}/ls-ls-json--long/node_modules/bar',
+                      path: '{CWD}/tap-testdir-ls-ls---json---long/node_modules/bar',
                       extraneous: false,
                     },
                   },
@@ -3262,7 +3263,7 @@ t.test('ls --json', (t) => {
                   devDependencies: {},
                   peerDependencies: {},
                   _dependencies: { bar: '^1.0.0' },
-                  path: '{CWD}/ls-ls-json--long/node_modules/foo',
+                  path: '{CWD}/tap-testdir-ls-ls---json---long/node_modules/foo',
                   extraneous: false,
                 },
               },
@@ -3270,7 +3271,7 @@ t.test('ls --json', (t) => {
               devDependencies: {},
               peerDependencies: {},
               _dependencies: { foo: '^1.0.0' },
-              path: '{CWD}/ls-ls-json--long/node_modules/dev-dep',
+              path: '{CWD}/tap-testdir-ls-ls---json---long/node_modules/dev-dep',
               extraneous: false,
             },
             lorem: {
@@ -3280,7 +3281,7 @@ t.test('ls --json', (t) => {
               devDependencies: {},
               peerDependencies: {},
               _dependencies: {},
-              path: '{CWD}/ls-ls-json--long/node_modules/lorem',
+              path: '{CWD}/tap-testdir-ls-ls---json---long/node_modules/lorem',
               extraneous: false,
             },
             'optional-dep': {
@@ -3291,7 +3292,7 @@ t.test('ls --json', (t) => {
               devDependencies: {},
               peerDependencies: {},
               _dependencies: {},
-              path: '{CWD}/ls-ls-json--long/node_modules/optional-dep',
+              path: '{CWD}/tap-testdir-ls-ls---json---long/node_modules/optional-dep',
               extraneous: false,
             },
             'prod-dep': {
@@ -3307,7 +3308,7 @@ t.test('ls --json', (t) => {
                   devDependencies: {},
                   peerDependencies: {},
                   _dependencies: {},
-                  path: '{CWD}/ls-ls-json--long/node_modules/prod-dep/node_modules/bar',
+                  path: '{CWD}/tap-testdir-ls-ls---json---long/node_modules/prod-dep/node_modules/bar',
                   extraneous: false,
                 },
               },
@@ -3315,7 +3316,7 @@ t.test('ls --json', (t) => {
               devDependencies: {},
               peerDependencies: {},
               _dependencies: { bar: '^2.0.0' },
-              path: '{CWD}/ls-ls-json--long/node_modules/prod-dep',
+              path: '{CWD}/tap-testdir-ls-ls---json---long/node_modules/prod-dep',
               extraneous: false,
             },
           },
@@ -3324,7 +3325,7 @@ t.test('ls --json', (t) => {
           peerDependencies: { 'peer-dep': '^1.0.0' },
           _id: 'test-npm-ls@1.0.0',
           _dependencies: { 'prod-dep': '^1.0.0', lorem: '^1.0.0', 'optional-dep': '^1.0.0' },
-          path: '{CWD}/ls-ls-json--long',
+          path: '{CWD}/tap-testdir-ls-ls---json---long',
           extraneous: false,
         },
         'should output long json info'
@@ -3359,7 +3360,7 @@ t.test('ls --json', (t) => {
       ...diffDepTypesNmFixture,
     })
     ls.exec([], () => {
-      t.deepEqual(
+      t.same(
         jsonParse(result),
         {
           name: 'test-npm-ls',
@@ -3373,7 +3374,7 @@ t.test('ls --json', (t) => {
               devDependencies: {},
               peerDependencies: {},
               _dependencies: {},
-              path: '{CWD}/ls-ls-json--long-depth-0/node_modules/peer-dep',
+              path: '{CWD}/tap-testdir-ls-ls---json---long---depth-0/node_modules/peer-dep',
               extraneous: false,
             },
             'dev-dep': {
@@ -3384,7 +3385,7 @@ t.test('ls --json', (t) => {
               devDependencies: {},
               peerDependencies: {},
               _dependencies: { foo: '^1.0.0' },
-              path: '{CWD}/ls-ls-json--long-depth-0/node_modules/dev-dep',
+              path: '{CWD}/tap-testdir-ls-ls---json---long---depth-0/node_modules/dev-dep',
               extraneous: false,
             },
             lorem: {
@@ -3394,7 +3395,7 @@ t.test('ls --json', (t) => {
               devDependencies: {},
               peerDependencies: {},
               _dependencies: {},
-              path: '{CWD}/ls-ls-json--long-depth-0/node_modules/lorem',
+              path: '{CWD}/tap-testdir-ls-ls---json---long---depth-0/node_modules/lorem',
               extraneous: false,
             },
             'optional-dep': {
@@ -3405,7 +3406,7 @@ t.test('ls --json', (t) => {
               devDependencies: {},
               peerDependencies: {},
               _dependencies: {},
-              path: '{CWD}/ls-ls-json--long-depth-0/node_modules/optional-dep',
+              path: '{CWD}/tap-testdir-ls-ls---json---long---depth-0/node_modules/optional-dep',
               extraneous: false,
             },
             'prod-dep': {
@@ -3416,7 +3417,7 @@ t.test('ls --json', (t) => {
               devDependencies: {},
               peerDependencies: {},
               _dependencies: { bar: '^2.0.0' },
-              path: '{CWD}/ls-ls-json--long-depth-0/node_modules/prod-dep',
+              path: '{CWD}/tap-testdir-ls-ls---json---long---depth-0/node_modules/prod-dep',
               extraneous: false,
             },
           },
@@ -3425,7 +3426,7 @@ t.test('ls --json', (t) => {
           peerDependencies: { 'peer-dep': '^1.0.0' },
           _id: 'test-npm-ls@1.0.0',
           _dependencies: { 'prod-dep': '^1.0.0', lorem: '^1.0.0', 'optional-dep': '^1.0.0' },
-          path: '{CWD}/ls-ls-json--long-depth-0',
+          path: '{CWD}/tap-testdir-ls-ls---json---long---depth-0',
           extraneous: false,
         },
         'should output json containing top-level deps in long format'
@@ -3444,12 +3445,12 @@ t.test('ls --json', (t) => {
     ls.exec([], (err) => {
       t.match(err.message, 'Failed to parse root package.json', 'should have missin root package.json msg')
       t.match(err.code, 'EJSONPARSE', 'should have EJSONPARSE error code')
-      t.deepEqual(
+      t.same(
         jsonParse(result),
         {
           invalid: true,
           problems: [
-            'error in {CWD}/ls-ls-json-json-read-problems: Failed to parse root package.json',
+            'error in {CWD}/tap-testdir-ls-ls---json-json-read-problems: Failed to parse root package.json',
           ],
         },
         'should print empty json result'
@@ -3461,8 +3462,8 @@ t.test('ls --json', (t) => {
   t.test('empty location', (t) => {
     npm.prefix = t.testdir({})
     ls.exec([], (err) => {
-      t.ifError(err, 'should not error out on empty locations')
-      t.deepEqual(
+      t.error(err, 'should not error out on empty locations')
+      t.same(
         jsonParse(result),
         {},
         'should print empty json result'
@@ -3494,20 +3495,20 @@ t.test('ls --json', (t) => {
     })
     ls.exec([], (err) => {
       t.match(err.code, 'ELSPROBLEMS', 'Should have ELSPROBLEMS error code')
-      t.deepEqual(
+      t.same(
         jsonParse(result),
         {
           name: 'test-npm-ls',
           version: '1.0.0',
           problems: [
-            'invalid: peer-dep@1.0.0 {CWD}/ls-ls-json-unmet-peer-dep/node_modules/peer-dep',
+            'invalid: peer-dep@1.0.0 {CWD}/tap-testdir-ls-ls---json-unmet-peer-dep/node_modules/peer-dep',
           ],
           dependencies: {
             'peer-dep': {
               version: '1.0.0',
               invalid: true,
               problems: [
-                'invalid: peer-dep@1.0.0 {CWD}/ls-ls-json-unmet-peer-dep/node_modules/peer-dep',
+                'invalid: peer-dep@1.0.0 {CWD}/tap-testdir-ls-ls---json-unmet-peer-dep/node_modules/peer-dep',
               ],
             },
             'dev-dep': {
@@ -3555,20 +3556,20 @@ t.test('ls --json', (t) => {
     ls.exec([], (err) => {
       t.match(err.code, 'ELSPROBLEMS', 'should have ELSPROBLEMS error code')
       t.match(err.message, /invalid: optional-dep@1.0.0/, 'should have invalid dep error msg')
-      t.deepEqual(
+      t.same(
         jsonParse(result),
         {
           name: 'test-npm-ls',
           version: '1.0.0',
           problems: [
-            'invalid: optional-dep@1.0.0 {CWD}/ls-ls-json-unmet-optional-dep/node_modules/optional-dep', // mismatching optional deps get flagged in problems
+            'invalid: optional-dep@1.0.0 {CWD}/tap-testdir-ls-ls---json-unmet-optional-dep/node_modules/optional-dep', // mismatching optional deps get flagged in problems
           ],
           dependencies: {
             'optional-dep': {
               version: '1.0.0',
               invalid: true,
               problems: [
-                'invalid: optional-dep@1.0.0 {CWD}/ls-ls-json-unmet-optional-dep/node_modules/optional-dep',
+                'invalid: optional-dep@1.0.0 {CWD}/tap-testdir-ls-ls---json-unmet-optional-dep/node_modules/optional-dep',
               ],
             },
             'peer-dep': {
@@ -3625,7 +3626,7 @@ t.test('ls --json', (t) => {
       },
     })
     ls.exec([], () => {
-      t.deepEqual(
+      t.same(
         jsonParse(result),
         {
           name: 'test-npm-ls',
@@ -3683,7 +3684,7 @@ t.test('ls --json', (t) => {
     })
     touchHiddenPackageLock(npm.prefix)
     ls.exec([], () => {
-      t.deepEqual(
+      t.same(
         jsonParse(result),
         {
           name: 'test-npm-ls',
@@ -3743,7 +3744,7 @@ t.test('ls --json', (t) => {
     })
     touchHiddenPackageLock(npm.prefix)
     ls.exec([], () => {
-      t.deepEqual(
+      t.same(
         jsonParse(result),
         {
           name: 'test-npm-ls',
@@ -3827,7 +3828,7 @@ t.test('ls --json', (t) => {
     })
     touchHiddenPackageLock(npm.prefix)
     ls.exec([], () => {
-      t.deepEqual(
+      t.same(
         jsonParse(result),
         {
           name: 'test-npm-ls',
@@ -3852,11 +3853,11 @@ t.test('ls --json', (t) => {
       }),
     })
     ls.exec([], () => {
-      t.deepEqual(
+      t.same(
         jsonParse(result),
         {
           version: '1.0.0',
-          name: 'ls-ls-json-node-name-fallback-if-missing-root-package-name',
+          name: 'tap-testdir-ls-ls---json-node.name-fallback-if-missing-root-package-name',
         },
         'should use node.name as key in json result obj'
       )
@@ -3895,10 +3896,10 @@ t.test('ls --json', (t) => {
     npm.globalDir = resolve(fixtures, 'node_modules')
 
     ls.exec([], () => {
-      t.deepEqual(
+      t.same(
         jsonParse(result),
         {
-          name: 'ls-ls-json-global',
+          name: 'tap-testdir-ls-ls---json-global',
           dependencies: {
             a: {
               version: '1.0.0',

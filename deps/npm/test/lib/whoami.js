@@ -1,10 +1,9 @@
-const { test } = require('tap')
-const requireInject = require('require-inject')
+const t = require('tap')
 const mockNpm = require('../fixtures/mock-npm')
 
-test('whoami', (t) => {
+t.test('whoami', (t) => {
   t.plan(3)
-  const Whoami = requireInject('../../lib/whoami.js', {
+  const Whoami = t.mock('../../lib/whoami.js', {
     '../../lib/utils/get-identity.js': () => Promise.resolve('foo'),
   })
   const npm = mockNpm({
@@ -17,14 +16,14 @@ test('whoami', (t) => {
   const whoami = new Whoami(npm)
 
   whoami.exec([], (err) => {
-    t.ifError(err, 'npm whoami')
+    t.error(err, 'npm whoami')
     t.ok('should successfully print username')
   })
 })
 
-test('whoami json', (t) => {
+t.test('whoami json', (t) => {
   t.plan(3)
-  const Whoami = requireInject('../../lib/whoami.js', {
+  const Whoami = t.mock('../../lib/whoami.js', {
     '../../lib/utils/get-identity.js': () => Promise.resolve('foo'),
   })
   const npm = mockNpm({
@@ -36,7 +35,7 @@ test('whoami json', (t) => {
   const whoami = new Whoami(npm)
 
   whoami.exec([], (err) => {
-    t.ifError(err, 'npm whoami')
+    t.error(err, 'npm whoami')
     t.ok('should successfully print username as json')
   })
 })

@@ -1,5 +1,4 @@
 const t = require('tap')
-const requireInject = require('require-inject')
 const npm = {
   prefix: null,
   color: true,
@@ -12,7 +11,7 @@ const { resolve } = require('path')
 
 const OUTPUT = []
 
-const Explain = requireInject('../../lib/explain.js', {
+const Explain = t.mock('../../lib/explain.js', {
 
   // keep the snapshots pared down a bit, since this has its own tests.
   '../../lib/utils/explain-dep.js': {
@@ -27,7 +26,7 @@ t.test('no args throws usage', t => {
   t.plan(1)
   explain.exec([], er => {
     t.equal(er, explain.usage)
-    t.done()
+    t.end()
   })
 })
 
@@ -49,10 +48,9 @@ t.test('invalid package name throws not found', t => {
 })
 
 t.test('explain some nodes', t => {
-  t.afterEach((cb) => {
+  t.afterEach(() => {
     OUTPUT.length = 0
     npm.flatOptions.json = false
-    cb()
   })
 
   npm.prefix = t.testdir({
@@ -172,7 +170,7 @@ t.test('explain some nodes', t => {
     t.plan(1)
     explain.exec(['asdf/foo/bar', 'quux@1.x'], er => {
       t.equal(er, 'No dependencies found matching asdf/foo/bar, quux@1.x')
-      t.done()
+      t.end()
     })
   })
   t.end()

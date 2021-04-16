@@ -1,4 +1,3 @@
-const requireInject = require('require-inject')
 const mockNpm = require('../fixtures/mock-npm')
 const t = require('tap')
 
@@ -24,15 +23,14 @@ const mocks = {
   '../../lib/utils/usage.js': () => 'usage instructions',
 }
 
-const Star = requireInject('../../lib/star.js', mocks)
+const Star = t.mock('../../lib/star.js', mocks)
 const star = new Star(npm)
 
-t.afterEach(cb => {
+t.afterEach(() => {
   config.unicode = false
   config['star.unstar'] = false
   npmlog.info = noop
   result = ''
-  cb()
 })
 
 t.test('no args', t => {
@@ -136,7 +134,7 @@ t.test('unicode', async t => {
 })
 
 t.test('logged out user', t => {
-  const Star = requireInject('../../lib/star.js', {
+  const Star = t.mock('../../lib/star.js', {
     ...mocks,
     '../../lib/utils/get-identity.js': async () => undefined,
   })

@@ -1,5 +1,4 @@
 const t = require('tap')
-const requireInject = require('require-inject')
 const mockNpm = require('../fixtures/mock-npm.js')
 const { join, sep } = require('path')
 
@@ -72,16 +71,14 @@ const openUrl = async (npm, url, errMsg) => {
   opened[url]++
 }
 
-const Docs = requireInject('../../lib/docs.js', {
+const Docs = t.mock('../../lib/docs.js', {
   '../../lib/utils/open-url.js': openUrl,
 })
 const flatOptions = {}
 const npm = mockNpm({ flatOptions })
 const docs = new Docs(npm)
 
-t.afterEach(async () => {
-  opened = {}
-})
+t.afterEach(() => opened = {})
 
 t.test('open docs urls', t => {
   // XXX It is very odd that `where` is how pacote knows to look anywhere other

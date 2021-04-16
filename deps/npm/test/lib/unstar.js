@@ -1,4 +1,3 @@
-const requireInject = require('require-inject')
 const t = require('tap')
 
 t.test('unstar', t => {
@@ -10,11 +9,11 @@ t.test('unstar', t => {
     }
 
     exec (args, cb) {
-      t.deepEqual(args, ['pkg'], 'should forward packages')
+      t.same(args, ['pkg'], 'should forward packages')
       cb()
     }
   }
-  const Unstar = requireInject('../../lib/unstar.js', {
+  const Unstar = t.mock('../../lib/unstar.js', {
     '../../lib/star.js': Star,
   })
 

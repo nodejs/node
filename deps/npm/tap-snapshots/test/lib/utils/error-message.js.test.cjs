@@ -28,7 +28,10 @@ Object {
     ],
     Array [
       "404",
-      "\\nNote that you can also install from a",
+      String(
+
+        Note that you can also install from a
+      ),
     ],
     Array [
       "404",
@@ -67,7 +70,10 @@ Object {
     ],
     Array [
       "404",
-      "\\nNote that you can also install from a",
+      String(
+
+        Note that you can also install from a
+      ),
     ],
     Array [
       "404",
@@ -113,7 +119,10 @@ Object {
     ],
     Array [
       "404",
-      "\\nNote that you can also install from a",
+      String(
+
+        Note that you can also install from a
+      ),
     ],
     Array [
       "404",
@@ -134,7 +143,11 @@ Object {
   "detail": Array [
     Array [
       "notsup",
-      "Not compatible with your version of node/npm: some@package\\nRequired: undefined\\nActual:   {\\"npm\\":\\"123.69.420-npm\\",\\"node\\":\\"99.99.99\\"}",
+      String(
+        Not compatible with your version of node/npm: some@package
+        Required: undefined
+        Actual:   {"npm":"123.69.420-npm","node":"99.99.99"}
+      ),
     ],
   ],
   "summary": Array [
@@ -155,7 +168,12 @@ Object {
   "detail": Array [
     Array [
       "notsup",
-      "Valid OS:    !yours,mine\\nValid Arch:  x420,x69\\nActual OS:   posix\\nActual Arch: x64",
+      String(
+        Valid OS:    !yours,mine
+        Valid Arch:  x420,x69
+        Actual OS:   posix
+        Actual Arch: x64
+      ),
     ],
   ],
   "summary": Array [
@@ -172,7 +190,12 @@ Object {
   "detail": Array [
     Array [
       "notsup",
-      "Valid OS:    !yours\\nValid Arch:  x420\\nActual OS:   posix\\nActual Arch: x64",
+      String(
+        Valid OS:    !yours
+        Valid Arch:  x420
+        Actual OS:   posix
+        Actual Arch: x64
+      ),
     ],
   ],
   "summary": Array [
@@ -246,7 +269,15 @@ Object {
   "detail": Array [
     Array [
       "",
-      "\\nThe operation was rejected by your operating system.\\nIt is likely you do not have the permissions to access this file as the current user\\n\\nIf you believe this might be a permissions issue, please double-check the\\npermissions of the file and its containing directories, or try running\\nthe command again as root/Administrator.",
+      String(
+
+        The operation was rejected by your operating system.
+        It is likely you do not have the permissions to access this file as the current user
+
+        If you believe this might be a permissions issue, please double-check the
+        permissions of the file and its containing directories, or try running
+        the command again as root/Administrator.
+      ),
     ],
   ],
   "summary": Array [
@@ -271,7 +302,15 @@ Object {
   "detail": Array [
     Array [
       "",
-      "\\nThe operation was rejected by your operating system.\\nIt is likely you do not have the permissions to access this file as the current user\\n\\nIf you believe this might be a permissions issue, please double-check the\\npermissions of the file and its containing directories, or try running\\nthe command again as root/Administrator.",
+      String(
+
+        The operation was rejected by your operating system.
+        It is likely you do not have the permissions to access this file as the current user
+
+        If you believe this might be a permissions issue, please double-check the
+        permissions of the file and its containing directories, or try running
+        the command again as root/Administrator.
+      ),
     ],
   ],
   "summary": Array [
@@ -296,7 +335,15 @@ Object {
   "detail": Array [
     Array [
       "",
-      "\\nThe operation was rejected by your operating system.\\nIt is likely you do not have the permissions to access this file as the current user\\n\\nIf you believe this might be a permissions issue, please double-check the\\npermissions of the file and its containing directories, or try running\\nthe command again as root/Administrator.",
+      String(
+
+        The operation was rejected by your operating system.
+        It is likely you do not have the permissions to access this file as the current user
+
+        If you believe this might be a permissions issue, please double-check the
+        permissions of the file and its containing directories, or try running
+        the command again as root/Administrator.
+      ),
     ],
   ],
   "summary": Array [
@@ -321,7 +368,15 @@ Object {
   "detail": Array [
     Array [
       "",
-      "\\nThe operation was rejected by your operating system.\\nIt is likely you do not have the permissions to access this file as the current user\\n\\nIf you believe this might be a permissions issue, please double-check the\\npermissions of the file and its containing directories, or try running\\nthe command again as root/Administrator.",
+      String(
+
+        The operation was rejected by your operating system.
+        It is likely you do not have the permissions to access this file as the current user
+
+        If you believe this might be a permissions issue, please double-check the
+        permissions of the file and its containing directories, or try running
+        the command again as root/Administrator.
+      ),
     ],
   ],
   "summary": Array [
@@ -346,7 +401,15 @@ Object {
   "detail": Array [
     Array [
       "",
-      "\\nThe operation was rejected by your operating system.\\nIt is likely you do not have the permissions to access this file as the current user\\n\\nIf you believe this might be a permissions issue, please double-check the\\npermissions of the file and its containing directories, or try running\\nthe command again as root/Administrator.",
+      String(
+
+        The operation was rejected by your operating system.
+        It is likely you do not have the permissions to access this file as the current user
+
+        If you believe this might be a permissions issue, please double-check the
+        permissions of the file and its containing directories, or try running
+        the command again as root/Administrator.
+      ),
     ],
   ],
   "summary": Array [
@@ -372,7 +435,14 @@ Object {
   "summary": Array [
     Array [
       "",
-      "\\nYour cache folder contains root-owned files, due to a bug in\\nprevious versions of npm which has since been addressed.\\n\\nTo permanently fix this problem, please run:\\n  sudo chown -R 69:420 \\"/some/cache/dir\\"",
+      String(
+
+        Your cache folder contains root-owned files, due to a bug in
+        previous versions of npm which has since been addressed.
+
+        To permanently fix this problem, please run:
+          sudo chown -R 69:420 "/some/cache/dir"
+      ),
     ],
   ],
 }
@@ -392,7 +462,14 @@ Object {
   "summary": Array [
     Array [
       "",
-      "\\nYour cache folder contains root-owned files, due to a bug in\\nprevious versions of npm which has since been addressed.\\n\\nTo permanently fix this problem, please run:\\n  sudo chown -R 69:420 \\"/some/cache/dir\\"",
+      String(
+
+        Your cache folder contains root-owned files, due to a bug in
+        previous versions of npm which has since been addressed.
+
+        To permanently fix this problem, please run:
+          sudo chown -R 69:420 "/some/cache/dir"
+      ),
     ],
   ],
 }
@@ -412,7 +489,14 @@ Object {
   "summary": Array [
     Array [
       "",
-      "\\nYour cache folder contains root-owned files, due to a bug in\\nprevious versions of npm which has since been addressed.\\n\\nTo permanently fix this problem, please run:\\n  sudo chown -R 69:420 \\"/some/cache/dir\\"",
+      String(
+
+        Your cache folder contains root-owned files, due to a bug in
+        previous versions of npm which has since been addressed.
+
+        To permanently fix this problem, please run:
+          sudo chown -R 69:420 "/some/cache/dir"
+      ),
     ],
   ],
 }
@@ -431,7 +515,16 @@ Object {
   "detail": Array [
     Array [
       "",
-      "\\nThe operation was rejected by your operating system.\\nIt's possible that the file was already in use (by a text editor or antivirus),\\nor that you lack permissions to access it.\\n\\nIf you believe this might be a permissions issue, please double-check the\\npermissions of the file and its containing directories, or try running\\nthe command again as root/Administrator.",
+      String(
+
+        The operation was rejected by your operating system.
+        It's possible that the file was already in use (by a text editor or antivirus),
+        or that you lack permissions to access it.
+
+        If you believe this might be a permissions issue, please double-check the
+        permissions of the file and its containing directories, or try running
+        the command again as root/Administrator.
+      ),
     ],
   ],
   "summary": Array [
@@ -456,7 +549,16 @@ Object {
   "detail": Array [
     Array [
       "",
-      "\\nThe operation was rejected by your operating system.\\nIt's possible that the file was already in use (by a text editor or antivirus),\\nor that you lack permissions to access it.\\n\\nIf you believe this might be a permissions issue, please double-check the\\npermissions of the file and its containing directories, or try running\\nthe command again as root/Administrator.",
+      String(
+
+        The operation was rejected by your operating system.
+        It's possible that the file was already in use (by a text editor or antivirus),
+        or that you lack permissions to access it.
+
+        If you believe this might be a permissions issue, please double-check the
+        permissions of the file and its containing directories, or try running
+        the command again as root/Administrator.
+      ),
     ],
   ],
   "summary": Array [
@@ -481,7 +583,16 @@ Object {
   "detail": Array [
     Array [
       "",
-      "\\nThe operation was rejected by your operating system.\\nIt's possible that the file was already in use (by a text editor or antivirus),\\nor that you lack permissions to access it.\\n\\nIf you believe this might be a permissions issue, please double-check the\\npermissions of the file and its containing directories, or try running\\nthe command again as root/Administrator.",
+      String(
+
+        The operation was rejected by your operating system.
+        It's possible that the file was already in use (by a text editor or antivirus),
+        or that you lack permissions to access it.
+
+        If you believe this might be a permissions issue, please double-check the
+        permissions of the file and its containing directories, or try running
+        the command again as root/Administrator.
+      ),
     ],
   ],
   "summary": Array [
@@ -506,7 +617,16 @@ Object {
   "detail": Array [
     Array [
       "",
-      "\\nThe operation was rejected by your operating system.\\nIt's possible that the file was already in use (by a text editor or antivirus),\\nor that you lack permissions to access it.\\n\\nIf you believe this might be a permissions issue, please double-check the\\npermissions of the file and its containing directories, or try running\\nthe command again as root/Administrator.",
+      String(
+
+        The operation was rejected by your operating system.
+        It's possible that the file was already in use (by a text editor or antivirus),
+        or that you lack permissions to access it.
+
+        If you believe this might be a permissions issue, please double-check the
+        permissions of the file and its containing directories, or try running
+        the command again as root/Administrator.
+      ),
     ],
   ],
   "summary": Array [
@@ -531,7 +651,16 @@ Object {
   "detail": Array [
     Array [
       "",
-      "\\nThe operation was rejected by your operating system.\\nIt's possible that the file was already in use (by a text editor or antivirus),\\nor that you lack permissions to access it.\\n\\nIf you believe this might be a permissions issue, please double-check the\\npermissions of the file and its containing directories, or try running\\nthe command again as root/Administrator.",
+      String(
+
+        The operation was rejected by your operating system.
+        It's possible that the file was already in use (by a text editor or antivirus),
+        or that you lack permissions to access it.
+
+        If you believe this might be a permissions issue, please double-check the
+        permissions of the file and its containing directories, or try running
+        the command again as root/Administrator.
+      ),
     ],
   ],
   "summary": Array [
@@ -556,7 +685,16 @@ Object {
   "detail": Array [
     Array [
       "",
-      "\\nThe operation was rejected by your operating system.\\nIt's possible that the file was already in use (by a text editor or antivirus),\\nor that you lack permissions to access it.\\n\\nIf you believe this might be a permissions issue, please double-check the\\npermissions of the file and its containing directories, or try running\\nthe command again as root/Administrator.",
+      String(
+
+        The operation was rejected by your operating system.
+        It's possible that the file was already in use (by a text editor or antivirus),
+        or that you lack permissions to access it.
+
+        If you believe this might be a permissions issue, please double-check the
+        permissions of the file and its containing directories, or try running
+        the command again as root/Administrator.
+      ),
     ],
   ],
   "summary": Array [
@@ -581,7 +719,16 @@ Object {
   "detail": Array [
     Array [
       "",
-      "\\nThe operation was rejected by your operating system.\\nIt's possible that the file was already in use (by a text editor or antivirus),\\nor that you lack permissions to access it.\\n\\nIf you believe this might be a permissions issue, please double-check the\\npermissions of the file and its containing directories, or try running\\nthe command again as root/Administrator.",
+      String(
+
+        The operation was rejected by your operating system.
+        It's possible that the file was already in use (by a text editor or antivirus),
+        or that you lack permissions to access it.
+
+        If you believe this might be a permissions issue, please double-check the
+        permissions of the file and its containing directories, or try running
+        the command again as root/Administrator.
+      ),
     ],
   ],
   "summary": Array [
@@ -606,7 +753,16 @@ Object {
   "detail": Array [
     Array [
       "",
-      "\\nThe operation was rejected by your operating system.\\nIt's possible that the file was already in use (by a text editor or antivirus),\\nor that you lack permissions to access it.\\n\\nIf you believe this might be a permissions issue, please double-check the\\npermissions of the file and its containing directories, or try running\\nthe command again as root/Administrator.",
+      String(
+
+        The operation was rejected by your operating system.
+        It's possible that the file was already in use (by a text editor or antivirus),
+        or that you lack permissions to access it.
+
+        If you believe this might be a permissions issue, please double-check the
+        permissions of the file and its containing directories, or try running
+        the command again as root/Administrator.
+      ),
     ],
   ],
   "summary": Array [
@@ -695,7 +851,11 @@ Object {
   "detail": Array [
     Array [
       "",
-      "You can provide a one-time password by passing --otp=<code> to the command you ran.\\nIf you already provided a one-time password then it is likely that you either typoed\\nit, or it timed out. Please try again.",
+      String(
+        You can provide a one-time password by passing --otp=<code> to the command you ran.
+        If you already provided a one-time password then it is likely that you either typoed
+        it, or it timed out. Please try again.
+      ),
     ],
   ],
   "summary": Array [
@@ -712,7 +872,11 @@ Object {
   "detail": Array [
     Array [
       "",
-      "You can provide a one-time password by passing --otp=<code> to the command you ran.\\nIf you already provided a one-time password then it is likely that you either typoed\\nit, or it timed out. Please try again.",
+      String(
+        You can provide a one-time password by passing --otp=<code> to the command you ran.
+        If you already provided a one-time password then it is likely that you either typoed
+        it, or it timed out. Please try again.
+      ),
     ],
   ],
   "summary": Array [
@@ -729,7 +893,17 @@ Object {
   "detail": Array [
     Array [
       "",
-      "If you were trying to login, change your password, create an\\nauthentication token or enable two-factor authentication then\\nthat means you likely typed your password in incorrectly.\\nPlease try again, or recover your password at:\\n    https://www.npmjs.com/forgot\\n\\nIf you were doing some other operation then your saved credentials are\\nprobably out of date. To correct this please try logging in again with:\\n    npm login",
+      String(
+        If you were trying to login, change your password, create an
+        authentication token or enable two-factor authentication then
+        that means you likely typed your password in incorrectly.
+        Please try again, or recover your password at:
+            https://www.npmjs.com/forgot
+
+        If you were doing some other operation then your saved credentials are
+        probably out of date. To correct this please try logging in again with:
+            npm login
+      ),
     ],
   ],
   "summary": Array [
@@ -746,7 +920,10 @@ Object {
   "detail": Array [
     Array [
       "",
-      "To correct this please trying logging in again with:\\n    npm login",
+      String(
+        To correct this please trying logging in again with:
+            npm login
+      ),
     ],
   ],
   "summary": Array [
@@ -820,7 +997,13 @@ Object {
   "detail": Array [
     Array [
       "network",
-      "This is a problem related to network connectivity.\\nIn most cases you are behind a proxy or have bad network settings.\\n\\nIf you are behind a proxy, please make sure that the\\n'proxy' config is set properly.  See: 'npm help config'",
+      String(
+        This is a problem related to network connectivity.
+        In most cases you are behind a proxy or have bad network settings.
+
+        If you are behind a proxy, please make sure that the
+        'proxy' config is set properly.  See: 'npm help config'
+      ),
     ],
   ],
   "summary": Array [
@@ -837,7 +1020,13 @@ Object {
   "detail": Array [
     Array [
       "network",
-      "This is a problem related to network connectivity.\\nIn most cases you are behind a proxy or have bad network settings.\\n\\nIf you are behind a proxy, please make sure that the\\n'proxy' config is set properly.  See: 'npm help config'",
+      String(
+        This is a problem related to network connectivity.
+        In most cases you are behind a proxy or have bad network settings.
+
+        If you are behind a proxy, please make sure that the
+        'proxy' config is set properly.  See: 'npm help config'
+      ),
     ],
   ],
   "summary": Array [
@@ -854,7 +1043,13 @@ Object {
   "detail": Array [
     Array [
       "network",
-      "This is a problem related to network connectivity.\\nIn most cases you are behind a proxy or have bad network settings.\\n\\nIf you are behind a proxy, please make sure that the\\n'proxy' config is set properly.  See: 'npm help config'",
+      String(
+        This is a problem related to network connectivity.
+        In most cases you are behind a proxy or have bad network settings.
+
+        If you are behind a proxy, please make sure that the
+        'proxy' config is set properly.  See: 'npm help config'
+      ),
     ],
   ],
   "summary": Array [
@@ -871,7 +1066,11 @@ Object {
   "detail": Array [
     Array [
       "notsup",
-      "Not compatible with your version of node/npm: some@package\\nRequired: undefined\\nActual:   {\\"npm\\":\\"123.69.420-npm\\",\\"node\\":\\"123.69.420-node\\"}",
+      String(
+        Not compatible with your version of node/npm: some@package
+        Required: undefined
+        Actual:   {"npm":"123.69.420-npm","node":"123.69.420-node"}
+      ),
     ],
   ],
   "summary": Array [
@@ -892,7 +1091,10 @@ Object {
   "detail": Array [
     Array [
       "nospc",
-      "There appears to be insufficient space on your system to finish.\\nClear up some disk space and try again.",
+      String(
+        There appears to be insufficient space on your system to finish.
+        Clear up some disk space and try again.
+      ),
     ],
   ],
   "summary": Array [
@@ -909,7 +1111,10 @@ Object {
   "detail": Array [
     Array [
       "rofs",
-      "Often virtualized file systems, or other file systems\\nthat don't support symlinks, give this error.",
+      String(
+        Often virtualized file systems, or other file systems
+        that don't support symlinks, give this error.
+      ),
     ],
   ],
   "summary": Array [
@@ -926,7 +1131,11 @@ Object {
   "detail": Array [
     Array [
       "enoent",
-      "This is related to npm not being able to find a file.\\n\\nCheck if the file '/some/file' is present.",
+      String(
+        This is related to npm not being able to find a file.
+
+        Check if the file '/some/file' is present.
+      ),
     ],
   ],
   "summary": Array [
@@ -943,7 +1152,10 @@ Object {
   "detail": Array [
     Array [
       "typeerror",
-      "This is an error with npm itself. Please report this error at:\\n    https://github.com/npm/cli/issues",
+      String(
+        This is an error with npm itself. Please report this error at:
+            https://github.com/npm/cli/issues
+      ),
     ],
   ],
   "summary": Array [
@@ -960,7 +1172,10 @@ Object {
   "detail": Array [
     Array [
       "typeerror",
-      "This is an error with npm itself. Please report this error at:\\n    https://github.com/npm/cli/issues",
+      String(
+        This is an error with npm itself. Please report this error at:
+            https://github.com/npm/cli/issues
+      ),
     ],
   ],
   "summary": Array [
@@ -977,7 +1192,10 @@ Object {
   "detail": Array [
     Array [
       "typeerror",
-      "This is an error with npm itself. Please report this error at:\\n    https://github.com/npm/cli/issues",
+      String(
+        This is an error with npm itself. Please report this error at:
+            https://github.com/npm/cli/issues
+      ),
     ],
   ],
   "summary": Array [
@@ -1015,7 +1233,10 @@ Object {
   "detail": Array [
     Array [
       "typeerror",
-      "This is an error with npm itself. Please report this error at:\\n    https://github.com/npm/cli/issues",
+      String(
+        This is an error with npm itself. Please report this error at:
+            https://github.com/npm/cli/issues
+      ),
     ],
   ],
   "summary": Array [
@@ -1032,7 +1253,10 @@ Object {
   "detail": Array [
     Array [
       "notarget",
-      "In most cases you or one of your dependencies are requesting\\na package version that doesn't exist.",
+      String(
+        In most cases you or one of your dependencies are requesting
+        a package version that doesn't exist.
+      ),
     ],
   ],
   "summary": Array [
@@ -1049,7 +1273,11 @@ Object {
   "detail": Array [
     Array [
       "403",
-      "In most cases, you or one of your dependencies are requesting\\na package version that is forbidden by your security policy, or\\non a server you do not have access to.",
+      String(
+        In most cases, you or one of your dependencies are requesting
+        a package version that is forbidden by your security policy, or
+        on a server you do not have access to.
+      ),
     ],
   ],
   "summary": Array [
@@ -1066,7 +1294,11 @@ Object {
   "detail": Array [
     Array [
       "",
-      "\\nIf you are behind a proxy, please make sure that the\\n'proxy' config is set properly.  See: 'npm help config'",
+      String(
+
+        If you are behind a proxy, please make sure that the
+        'proxy' config is set properly.  See: 'npm help config'
+      ),
     ],
   ],
   "summary": Array [
@@ -1088,7 +1320,11 @@ Object {
   "detail": Array [
     Array [
       "",
-      "\\nFailed using git.\\nPlease check if you have git installed and in your PATH.",
+      String(
+
+        Failed using git.
+        Please check if you have git installed and in your PATH.
+      ),
     ],
   ],
   "summary": Array [
@@ -1134,7 +1370,10 @@ Object {
   "detail": Array [
     Array [
       "git",
-      "Refusing to remove it. Update manually,\\nor move it out of the way first.",
+      String(
+        Refusing to remove it. Update manually,
+        or move it out of the way first.
+      ),
     ],
   ],
   "summary": Array [
@@ -1197,7 +1436,13 @@ Object {
   "detail": Array [
     Array [
       "network",
-      "This is a problem related to network connectivity.\\nIn most cases you are behind a proxy or have bad network settings.\\n\\nIf you are behind a proxy, please make sure that the\\n'proxy' config is set properly.  See: 'npm help config'",
+      String(
+        This is a problem related to network connectivity.
+        In most cases you are behind a proxy or have bad network settings.
+
+        If you are behind a proxy, please make sure that the
+        'proxy' config is set properly.  See: 'npm help config'
+      ),
     ],
   ],
   "summary": Array [
@@ -1226,7 +1471,10 @@ Object {
   "detail": Array [
     Array [
       "JSON.parse",
-      "Failed to parse JSON data.\\nNote: package.json must be actual JSON, not just JavaScript.",
+      String(
+        Failed to parse JSON data.
+        Note: package.json must be actual JSON, not just JavaScript.
+      ),
     ],
   ],
   "summary": Array [
@@ -1243,7 +1491,10 @@ Object {
   "detail": Array [
     Array [
       "JSON.parse",
-      "Failed to parse JSON data.\\nNote: package.json must be actual JSON, not just JavaScript.",
+      String(
+        Failed to parse JSON data.
+        Note: package.json must be actual JSON, not just JavaScript.
+      ),
     ],
   ],
   "summary": Array [
@@ -1260,7 +1511,13 @@ Object {
   "detail": Array [
     Array [
       "",
-      "Merge conflict detected in your package.json.\\n\\nPlease resolve the package.json conflict and retry the command:\\n\\n$ arg v",
+      String(
+        Merge conflict detected in your package.json.
+
+        Please resolve the package.json conflict and retry the command:
+
+        $ arg v
+      ),
     ],
   ],
   "summary": Array [],
