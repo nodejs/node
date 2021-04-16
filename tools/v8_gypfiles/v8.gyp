@@ -1509,6 +1509,7 @@
           'variables': {
             'v8_dump_build_config_args': [
               '<(PRODUCT_DIR)/v8_build_config.json',
+              'current_cpu=<(v8_current_cpu)',
               'dcheck_always_on=<(dcheck_always_on)',
               'is_android=<(is_android)',
               'is_asan=<(asan)',
@@ -1517,20 +1518,30 @@
               'is_component_build=<(component)',
               'is_debug=<(CONFIGURATION_NAME)',
               # Not available in gyp.
+              'is_full_debug=0',
+              # Not available in gyp.
               'is_gcov_coverage=0',
               'is_msan=<(msan)',
               'is_tsan=<(tsan)',
               # Not available in gyp.
               'is_ubsan_vptr=0',
               'target_cpu=<(target_arch)',
+              'v8_current_cpu=<(v8_current_cpu)',
+              # Not available in gyp.
+              'v8_enable_atomic_marking_state=0',
+              # Not available in gyp.
+              'v8_enable_atomic_object_field_writes=0',
+              # Not available in gyp.
+              'v8_enable_concurrent_marking=0',
               'v8_enable_i18n_support=<(v8_enable_i18n_support)',
               'v8_enable_verify_predictable=<(v8_enable_verify_predictable)',
-              'v8_target_cpu=<(v8_target_arch)',
-              'v8_use_siphash=<(v8_use_siphash)',
               'v8_enable_verify_csa=<(v8_enable_verify_csa)',
               'v8_enable_lite_mode=<(v8_enable_lite_mode)',
               'v8_enable_pointer_compression=<(v8_enable_pointer_compression)',
               'v8_enable_webassembly=<(v8_enable_webassembly)',
+              # Not available in gyp.
+              'v8_control_flow_integrity=0',
+              'v8_target_cpu=<(v8_target_arch)',
             ]
           },
           'conditions': [
