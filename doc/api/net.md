@@ -1118,19 +1118,19 @@ added: v0.5.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/38249
-    description: When stream is not opened, reading it will be `closed`.
+    description: When socket is not opened, reading it will be `closed`.
 -->
 
 * {string}
 
 This property represents the state of the connection as a string.
 
-* If the stream is connecting `socket.readyState` is `opening`.
-* If the stream is readable and writable, it is `open`.
-* If the stream is readable and not writable, it is `readOnly`.
-* If the stream is not readable and writable, it is `writeOnly`.
-* If the stream is not opened or is neither readable nor writable, it is
-  `closed`.
+* If the socket is connecting `socket.readyState` is `opening`.
+* If the socket is readable and writable, it is `open`.
+* If the socket is readable and not writable, it is `readOnly`.
+* If the socket is not readable and writable, it is `writeOnly`.
+* If the socket is not connecting, connected or is otherwise neither
+  readable nor writable, it is `closed`.
 
 ## `net.connect()`
 
