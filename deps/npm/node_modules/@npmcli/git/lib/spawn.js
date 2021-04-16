@@ -8,26 +8,30 @@ const procLog = require('./proc-log.js')
 module.exports = (gitArgs, opts = {}) => {
   const gitPath = whichGit(opts)
 
-  if (gitPath instanceof Error)
-    return Promise.reject(gitPath)
+  if (gitPath instanceof Error) { return Promise.reject(gitPath) }
 
   const log = opts.log || procLog
+  let retry = opts.retry
+  if (retry === null || retry === undefined) {
+    retry = {
+      retries: opts.fetchRetries || 2,
+      factor: opts.fetchRetryFactor || 10,
+      maxTimeout: opts.fetchRetryMaxtimeout || 60000,
+      minTimeout: opts.fetchRetryMintimeout || 1000
+    }
+  }
   return promiseRetry((retry, number) => {
-    if (number !== 1)
+    if (number !== 1) {
       log.silly('pacote', `Retrying git command: ${
         gitArgs.join(' ')} attempt # ${number}`)
+    }
 
     return spawn(gitPath, gitArgs, makeOpts(opts))
       .catch(er => {
-        if (shouldRetry(er.stderr, number))
-          retry(er)
-        else
+        if (!shouldRetry(er.stderr, number)) {
           throw er
+        }
+        retry(er)
       })
-  }, opts.retry !== null && opts.retry !== undefined ? opts.retry : {
-    retries: opts.fetchRetries || 2,
-    factor: opts.fetchRetryFactor || 10,
-    maxTimeout: opts.fetchRetryMaxtimeout || 60000,
-    minTimeout: opts.fetchRetryMintimeout || 1000,
-  })
+  }, retry)
 }

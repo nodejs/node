@@ -1,6 +1,5 @@
 const Minipass = require('minipass')
 const t = require('tap')
-const requireInject = require('require-inject')
 const mockNpm = require('../fixtures/mock-npm')
 const libnpmsearchResultFixture =
   require('../fixtures/libnpmsearch-stream-result.js')
@@ -37,15 +36,14 @@ const mocks = {
   '../../lib/utils/usage.js': () => 'usage instructions',
 }
 
-t.afterEach(cb => {
+t.afterEach(() => {
   result = ''
   config.json = false
   config.parseable = false
   npm.flatOptions = { ...flatOptions }
-  cb()
 })
 
-const Search = requireInject('../../lib/search.js', mocks)
+const Search = t.mock('../../lib/search.js', mocks)
 const search = new Search(npm)
 
 t.test('no args', t => {
@@ -68,7 +66,7 @@ t.test('search <name>', t => {
     },
   }
 
-  const Search = requireInject('../../lib/search.js', {
+  const Search = t.mock('../../lib/search.js', {
     ...mocks,
     libnpmsearch,
   })
@@ -101,7 +99,7 @@ t.test('search <name> --json', (t) => {
     },
   }
 
-  const Search = requireInject('../../lib/search.js', {
+  const Search = t.mock('../../lib/search.js', {
     ...mocks,
     libnpmsearch,
   })
@@ -146,7 +144,7 @@ t.test('search <name> --searchexclude --searchopts', t => {
     },
   }
 
-  const Search = requireInject('../../lib/search.js', {
+  const Search = t.mock('../../lib/search.js', {
     ...mocks,
     libnpmsearch,
   })
@@ -200,7 +198,7 @@ t.test('empty search results', t => {
     },
   }
 
-  const Search = requireInject('../../lib/search.js', {
+  const Search = t.mock('../../lib/search.js', {
     ...mocks,
     libnpmsearch,
   })
@@ -227,7 +225,7 @@ t.test('search api response error', t => {
     },
   }
 
-  const Search = requireInject('../../lib/search.js', {
+  const Search = t.mock('../../lib/search.js', {
     ...mocks,
     libnpmsearch,
   })

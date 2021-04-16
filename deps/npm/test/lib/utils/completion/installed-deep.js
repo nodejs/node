@@ -1,6 +1,5 @@
 const { resolve } = require('path')
-const { test } = require('tap')
-const requireInject = require('require-inject')
+const t = require('tap')
 
 let prefix
 let globalDir = 'MISSING_GLOBAL_DIR'
@@ -12,7 +11,7 @@ const _flatOptions = {
   },
 }
 const p = '../../../../lib/utils/completion/installed-deep.js'
-const installedDeep = requireInject(p)
+const installedDeep = require(p)
 const npm = {
   flatOptions: _flatOptions,
   get prefix () {
@@ -144,7 +143,7 @@ const globalFixture = {
   },
 }
 
-test('get list of package names', async t => {
+t.test('get list of package names', async t => {
   const fix = t.testdir({
     local: fixture,
     global: globalFixture,
@@ -154,7 +153,7 @@ test('get list of package names', async t => {
   globalDir = resolve(fix, 'global/node_modules')
 
   const res = await installedDeep(npm, null)
-  t.deepEqual(
+  t.same(
     res,
     [
       ['bar', '-g'],
@@ -169,7 +168,7 @@ test('get list of package names', async t => {
   t.end()
 })
 
-test('get list of package names as global', async t => {
+t.test('get list of package names as global', async t => {
   const fix = t.testdir({
     local: fixture,
     global: globalFixture,
@@ -181,7 +180,7 @@ test('get list of package names as global', async t => {
   _flatOptions.global = true
 
   const res = await installedDeep(npm, null)
-  t.deepEqual(
+  t.same(
     res,
     [
       'bar',
@@ -194,7 +193,7 @@ test('get list of package names as global', async t => {
   t.end()
 })
 
-test('limit depth', async t => {
+t.test('limit depth', async t => {
   const fix = t.testdir({
     local: fixture,
     global: globalFixture,
@@ -206,7 +205,7 @@ test('limit depth', async t => {
   _flatOptions.depth = 0
 
   const res = await installedDeep(npm, null)
-  t.deepEqual(
+  t.same(
     res,
     [
       ['bar', '-g'],
@@ -222,7 +221,7 @@ test('limit depth', async t => {
   t.end()
 })
 
-test('limit depth as global', async t => {
+t.test('limit depth as global', async t => {
   const fix = t.testdir({
     local: fixture,
     global: globalFixture,
@@ -235,7 +234,7 @@ test('limit depth as global', async t => {
   _flatOptions.depth = 0
 
   const res = await installedDeep(npm, null)
-  t.deepEqual(
+  t.same(
     res,
     [
       'bar',

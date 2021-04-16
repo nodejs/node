@@ -4,6 +4,7 @@ const ConfigDefinitions = require('./utils/config/definitions.js')
 
 class BaseCommand {
   constructor (npm) {
+    this.wrapWidth = 80
     this.npm = npm
   }
 
@@ -27,13 +28,28 @@ class BaseCommand {
       usage = `${usage}${this.constructor.usage.map(u => `npm ${this.constructor.name} ${u}`).join('\n')}`
 
     if (this.constructor.params)
-      // TODO word wrap this along params boundaries
-      usage = `${usage}\n\nOptions:\n[${this.constructor.params.map(p => ConfigDefinitions[p].usage).join('] [')}]`
+      usage = `${usage}\n\nOptions:\n${this.wrappedParams}`
 
     // Mostly this just appends aliases, this could be more clear
     usage = usageUtil(this.constructor.name, usage)
     usage = `${usage}\n\nRun "npm help ${this.constructor.name}" for more info`
     return usage
+  }
+
+  get wrappedParams () {
+    let results = ''
+    let line = ''
+
+    for (const param of this.constructor.params) {
+      const usage = `[${ConfigDefinitions[param].usage}]`
+      if (line.length && (line.length + usage.length) > this.wrapWidth) {
+        results = [results, line].filter(Boolean).join('\n')
+        line = ''
+      }
+      line = [line, usage].filter(Boolean).join(' ')
+    }
+    results = [results, line].filter(Boolean).join('\n')
+    return results
   }
 
   usageError (msg) {

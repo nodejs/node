@@ -15,7 +15,7 @@ const npm = {
 const reifyOutput = require('../../../lib/utils/reify-output.js')
 t.test('missing info', (t) => {
   t.plan(1)
-  npm.output = out => t.doesNotHave(
+  npm.output = out => t.notMatch(
     out,
     'looking for funding',
     'should not print fund message if missing info'
@@ -33,7 +33,7 @@ t.test('missing info', (t) => {
 
 t.test('even more missing info', t => {
   t.plan(1)
-  npm.output = out => t.doesNotHave(
+  npm.output = out => t.notMatch(
     out,
     'looking for funding',
     'should not print fund message if missing info'

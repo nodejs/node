@@ -1,6 +1,5 @@
 const t = require('tap')
-const requireInject = require('require-inject')
-const npm = requireInject('../../../lib/npm.js')
+const npm = require('../../../lib/npm.js')
 
 const dym = require('../../../lib/utils/did-you-mean.js')
 t.test('did-you-mean', t => {

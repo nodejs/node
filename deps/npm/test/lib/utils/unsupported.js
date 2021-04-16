@@ -1,4 +1,4 @@
-const test = require('tap').test
+const t = require('tap')
 const unsupported = require('../../../lib/utils/unsupported.js')
 
 const versions = [
@@ -33,20 +33,20 @@ const versions = [
   ['v13.0.0-0', false, false],
 ]
 
-test('versions', function (t) {
+t.test('versions', function (t) {
   t.plan(versions.length * 2)
   versions.forEach(function (verinfo) {
     const version = verinfo[0]
     const broken = verinfo[1]
     const unsupp = verinfo[2]
     const nodejs = unsupported.checkVersion(version)
-    t.is(nodejs.broken, broken, version + ' ' + (broken ? '' : 'not ') + 'broken')
-    t.is(nodejs.unsupported, unsupp, version + ' ' + (unsupp ? 'unsupported' : 'supported'))
+    t.equal(nodejs.broken, broken, version + ' ' + (broken ? '' : 'not ') + 'broken')
+    t.equal(nodejs.unsupported, unsupp, version + ' ' + (unsupp ? 'unsupported' : 'supported'))
   })
-  t.done()
+  t.end()
 })
 
-test('checkForBrokenNode', t => {
+t.test('checkForBrokenNode', t => {
   // run it once to not fail
   unsupported.checkForBrokenNode()
 
@@ -77,7 +77,7 @@ test('checkForBrokenNode', t => {
   unsupported.checkForBrokenNode()
 })
 
-test('checkForUnsupportedNode', t => {
+t.test('checkForUnsupportedNode', t => {
   const npmlog = require('npmlog')
   const { warn } = npmlog
   const versionPropDesc = Object.getOwnPropertyDescriptor(process, 'version')

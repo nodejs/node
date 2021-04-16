@@ -1,5 +1,4 @@
-const test = require('tap')
-const requireInject = require('require-inject')
+const t = require('tap')
 const fs = require('fs')
 const parseJSON = require('json-parse-even-better-errors')
 const mockNpm = require('../fixtures/mock-npm.js')
@@ -10,7 +9,7 @@ const npm = mockNpm(flatOptions)
 
 const ERROR_OUTPUT = []
 const WARN_OUTPUT = []
-const SetScript = requireInject('../../lib/set-script.js', {
+const SetScript = t.mock('../../lib/set-script.js', {
   npmlog: {
     error: (...args) => {
       ERROR_OUTPUT.push(args)
@@ -22,7 +21,7 @@ const SetScript = requireInject('../../lib/set-script.js', {
 })
 const setScript = new SetScript(npm)
 
-test.test('completion', t => {
+t.test('completion', t => {
   t.test('already have a script name', async t => {
     npm.localPrefix = t.testdir({})
     const res = await setScript.completion({conf: {argv: {remain: ['npm', 'run', 'x']}}})
@@ -60,14 +59,14 @@ test.test('completion', t => {
   t.end()
 })
 
-test.test('fails on invalid arguments', (t) => {
+t.test('fails on invalid arguments', (t) => {
   t.plan(3)
   setScript.exec(['arg1'], (fail) => t.match(fail, /Expected 2 arguments: got 1/))
   setScript.exec(['arg1', 'arg2', 'arg3'], (fail) => t.match(fail, /Expected 2 arguments: got 3/))
   setScript.exec(['arg1', 'arg2', 'arg3', 'arg4'], (fail) => t.match(fail, /Expected 2 arguments: got 4/))
 })
 
-test.test('fails if run in postinstall script', (t) => {
+t.test('fails if run in postinstall script', (t) => {
   const lifecycleEvent = process.env.npm_lifecycle_event
   t.teardown(() => {
     process.env.npm_lifecycle_event = lifecycleEvent
@@ -78,12 +77,12 @@ test.test('fails if run in postinstall script', (t) => {
   setScript.exec(['arg1', 'arg2'], (fail) => t.equal(fail.toString(), 'Error: Scripts can’t set from the postinstall script'))
 })
 
-test.test('fails when package.json not found', (t) => {
+t.test('fails when package.json not found', (t) => {
   t.plan(1)
   setScript.exec(['arg1', 'arg2'], (fail) => t.match(fail, /package.json not found/))
 })
 
-test.test('fails on invalid JSON', (t) => {
+t.test('fails on invalid JSON', (t) => {
   npm.localPrefix = t.testdir({
     'package.json': 'iamnotjson',
   })
@@ -92,7 +91,7 @@ test.test('fails on invalid JSON', (t) => {
   setScript.exec(['arg1', 'arg2'], (fail) => t.match(fail, /Invalid package.json: JSONParseError/))
 })
 
-test.test('creates scripts object', (t) => {
+t.test('creates scripts object', (t) => {
   npm.localPrefix = t.testdir({
     'package.json': '{}',
   })
@@ -101,11 +100,11 @@ test.test('creates scripts object', (t) => {
   setScript.exec(['arg1', 'arg2'], (error) => {
     t.equal(error, undefined)
     const contents = fs.readFileSync(resolve(npm.localPrefix, 'package.json'))
-    t.assert(parseJSON(contents), {scripts: {arg1: 'arg2'}})
+    t.ok(parseJSON(contents), {scripts: {arg1: 'arg2'}})
   })
 })
 
-test.test('warns when overwriting', (t) => {
+t.test('warns when overwriting', (t) => {
   WARN_OUTPUT.length = 0
   npm.localPrefix = t.testdir({
     'package.json': JSON.stringify({
@@ -122,7 +121,7 @@ test.test('warns when overwriting', (t) => {
   })
 })
 
-test.test('provided indentation and eol is used', (t) => {
+t.test('provided indentation and eol is used', (t) => {
   npm.localPrefix = t.testdir({
     'package.json': JSON.stringify({
       name: 'foo',
@@ -141,7 +140,7 @@ test.test('provided indentation and eol is used', (t) => {
   })
 })
 
-test.test('workspaces', (t) => {
+t.test('workspaces', (t) => {
   ERROR_OUTPUT.length = 0
   WARN_OUTPUT.length = 0
   npm.localPrefix = t.testdir({

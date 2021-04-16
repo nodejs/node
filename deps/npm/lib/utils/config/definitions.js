@@ -1389,6 +1389,7 @@ define('prefix', {
 
 define('preid', {
   default: '',
+  hint: 'prerelease-id',
   type: String,
   description: `
     The "prerelease identifier" to use as a prefix for the "prerelease" part

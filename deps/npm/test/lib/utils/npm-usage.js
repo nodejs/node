@@ -2,11 +2,10 @@ const t = require('tap')
 const npm = require('../../../lib/npm.js')
 
 t.test('usage', t => {
-  t.afterEach((cb) => {
+  t.afterEach(() => {
     npm.config.set('viewer', null)
     npm.config.set('long', false)
     npm.config.set('userconfig', '/some/config/file/.npmrc')
-    cb()
   })
   const { dirname } = require('path')
   const basedir = dirname(dirname(dirname(__dirname)))

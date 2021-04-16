@@ -1,5 +1,4 @@
 const t = require('tap')
-const requireInject = require('require-inject')
 const mockNpm = require('../fixtures/mock-npm')
 
 t.test('should audit using Arborist', t => {
@@ -19,7 +18,7 @@ t.test('should audit using Arborist', t => {
       OUTPUT_CALLED = true
     },
   })
-  const Audit = requireInject('../../lib/audit.js', {
+  const Audit = t.mock('../../lib/audit.js', {
     'npm-audit-report': () => {
       AUDIT_REPORT_CALLED = true
       return {
@@ -74,7 +73,7 @@ t.test('should audit - json', t => {
     output: () => {},
   })
 
-  const Audit = requireInject('../../lib/audit.js', {
+  const Audit = t.mock('../../lib/audit.js', {
     'npm-audit-report': () => ({
       report: 'there are vulnerabilities',
       exitCode: 0,
@@ -115,7 +114,7 @@ t.test('report endpoint error', t => {
           OUTPUT.push(msg)
         },
       })
-      const Audit = requireInject('../../lib/audit.js', {
+      const Audit = t.mock('../../lib/audit.js', {
         'npm-audit-report': () => {
           throw new Error('should not call audit report when there are errors')
         },

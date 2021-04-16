@@ -1,9 +1,8 @@
-const { test } = require('tap')
-const requireInject = require('require-inject')
+const t = require('tap')
 const mockNpm = require('../fixtures/mock-npm')
 
-test('should throw in global mode', (t) => {
-  const Dedupe = requireInject('../../lib/dedupe.js')
+t.test('should throw in global mode', (t) => {
+  const Dedupe = t.mock('../../lib/dedupe.js')
   const npm = mockNpm({
     config: { 'dry-run': false, global: true },
   })
@@ -15,8 +14,8 @@ test('should throw in global mode', (t) => {
   })
 })
 
-test('should remove dupes using Arborist', (t) => {
-  const Dedupe = requireInject('../../lib/dedupe.js', {
+t.test('should remove dupes using Arborist', (t) => {
+  const Dedupe = t.mock('../../lib/dedupe.js', {
     '@npmcli/arborist': function (args) {
       t.ok(args, 'gets options object')
       t.ok(args.path, 'gets path option')
@@ -44,8 +43,8 @@ test('should remove dupes using Arborist', (t) => {
   })
 })
 
-test('should remove dupes using Arborist - no arguments', (t) => {
-  const Dedupe = requireInject('../../lib/dedupe.js', {
+t.test('should remove dupes using Arborist - no arguments', (t) => {
+  const Dedupe = t.mock('../../lib/dedupe.js', {
     '@npmcli/arborist': function (args) {
       t.ok(args.dryRun, 'gets dryRun from config')
       this.dedupe = () => {}

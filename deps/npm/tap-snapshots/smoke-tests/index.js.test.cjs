@@ -32,7 +32,7 @@ All commands:
     unstar, update, version, view, whoami
 
 Specify configs in the ini-formatted file:
-    {CWD}/smoke-tests/index/.npmrc
+    {CWD}/smoke-tests/tap-testdir-index/.npmrc
 or on the command line via: npm <command> --key=value
 
 More configuration info: npm help config
@@ -313,7 +313,7 @@ project@1.0.0
 `
 
 exports[`smoke-tests/index.js TAP npm init > should have successful npm init result 1`] = `
-Wrote to {CWD}/smoke-tests/index/project/package.json:
+Wrote to {CWD}/smoke-tests/tap-testdir-index/project/package.json:
 
 {
   "name": "project",
@@ -469,7 +469,7 @@ exports[`smoke-tests/index.js TAP npm install prodDep@version > should have expe
 `
 
 exports[`smoke-tests/index.js TAP npm ls > should have expected ls output 1`] = `
-project@1.0.0 {CWD}/smoke-tests/index/project
+project@1.0.0 {CWD}/smoke-tests/tap-testdir-index/project
 +-- abbrev@1.0.4
 \`-- promise-all-reject-late@1.0.1
 
@@ -483,7 +483,7 @@ abbrev     1.0.4   1.1.1   1.1.1  node_modules/abbrev  project
 `
 
 exports[`smoke-tests/index.js TAP npm prefix > should have expected prefix output 1`] = `
-{CWD}/smoke-tests/index/project
+{CWD}/smoke-tests/tap-testdir-index/project
 
 `
 

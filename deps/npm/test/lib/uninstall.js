@@ -1,7 +1,6 @@
 const fs = require('fs')
 const { resolve } = require('path')
 const t = require('tap')
-const requireInject = require('require-inject')
 const mockNpm = require('../fixtures/mock-npm')
 
 const npm = mockNpm({
@@ -16,16 +15,15 @@ const mocks = {
   '../../lib/utils/reify-finish.js': () => Promise.resolve(),
 }
 
-const Uninstall = requireInject('../../lib/uninstall.js', mocks)
+const Uninstall = t.mock('../../lib/uninstall.js', mocks)
 const uninstall = new Uninstall(npm)
 
-t.afterEach(cb => {
+t.afterEach(() => {
   npm.globalDir = ''
   npm.prefix = ''
   npm.localPrefix = ''
   npm.flatOptions.global = false
   npm.flatOptions.prefix = ''
-  cb()
 })
 
 t.test('remove single installed lib', t => {
@@ -231,7 +229,7 @@ t.test('no args global but no package.json', t => {
 t.test('unknown error reading from localPrefix package.json', t => {
   const path = t.testdir({})
 
-  const Uninstall = requireInject('../../lib/uninstall.js', {
+  const Uninstall = t.mock('../../lib/uninstall.js', {
     ...mocks,
     'read-package-json-fast': () => Promise.reject(new Error('ERR')),
   })

@@ -43,8 +43,7 @@ const npmlogMock = {
   info: (...msg) => logs.push(['info', ...msg]),
 }
 
-const requireInject = require('require-inject')
-const cli = requireInject.installGlobally('../../lib/cli.js', {
+const cli = t.mock('../../lib/cli.js', {
   '../../lib/npm.js': npmock,
   '../../lib/utils/did-you-mean.js': () => '\ntest did you mean',
   '../../lib/utils/unsupported.js': unsupportedMock,

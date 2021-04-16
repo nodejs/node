@@ -1,8 +1,7 @@
-const { test } = require('tap')
-const requireInject = require('require-inject')
+const t = require('tap')
 
-test('should prune using Arborist', (t) => {
-  const Prune = requireInject('../../lib/prune.js', {
+t.test('should prune using Arborist', (t) => {
+  const Prune = t.mock('../../lib/prune.js', {
     '@npmcli/arborist': function (args) {
       t.ok(args, 'gets options object')
       t.ok(args.path, 'gets path option')

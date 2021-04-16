@@ -14,6 +14,56 @@ npm version [<newversion> | major | minor | patch | premajor | preminor | prepat
 'npm ls' to inspect current package/dependency versions
 ```
 
+### Configuration
+
+#### `allow-same-version`
+
+* Default: `false`
+* Type: Boolean
+
+Prevents throwing an error when `npm version` is used to set the new version
+to the same value as the current version.
+
+#### `git-tag-version`
+
+* Default: `true`
+* Type: Boolean
+
+Commit and tag the version change.
+
+#### `commit-hooks`
+
+* Default: `true`
+* Type: Boolean
+
+Run git commit hooks when committing the version change.
+
+#### `sign-git-tag`
+
+* Default: `false`
+* Type: Boolean
+
+Pass the `-s` flag to git to sign the tag.
+
+Note that you must have a default GPG key set up in your git config for this to work properly.
+
+#### workspaces
+
+* Default: `false`
+* Type: Boolean
+
+Enables workspaces context and includes workspaces in reported output
+when getting versions.  When setting a new version *only the workspaces
+will be changed*.
+
+#### workspace
+
+* Default: []
+* Type: Array
+
+Enables workspaces context and limits results to only those specified by
+this config item.
+
 ### Description
 
 Run this in a package directory to bump the version and write the new
@@ -86,39 +136,6 @@ Take the following example:
 This runs all your tests and proceeds only if they pass. Then runs your `build` script, and
 adds everything in the `dist` directory to the commit. After the commit, it pushes the new commit
 and tag up to the server, and deletes the `build/temp` directory.
-
-### Configuration
-
-#### `allow-same-version`
-
-* Default: `false`
-* Type: Boolean
-
-Prevents throwing an error when `npm version` is used to set the new version
-to the same value as the current version.
-
-#### `git-tag-version`
-
-* Default: `true`
-* Type: Boolean
-
-Commit and tag the version change.
-
-#### `commit-hooks`
-
-* Default: `true`
-* Type: Boolean
-
-Run git commit hooks when committing the version change.
-
-#### `sign-git-tag`
-
-* Default: `false`
-* Type: Boolean
-
-Pass the `-s` flag to git to sign the tag.
-
-Note that you must have a default GPG key set up in your git config for this to work properly.
 
 ### See Also
 
