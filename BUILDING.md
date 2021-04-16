@@ -250,7 +250,7 @@ Python 3 users may also need to install `python3-distutils`.
 
 #### macOS prerequisites
 
-* Xcode Command Line Tools >= 10 for macOS
+* Xcode Command Line Tools >= 11 for macOS
 * Python 3.6, 3.7, 3.8, and 3.9 (see note above)
 
 macOS users can install the `Xcode Command Line Tools` by running
