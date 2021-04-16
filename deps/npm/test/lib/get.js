@@ -1,8 +1,7 @@
-const { test } = require('tap')
-const requireInject = require('require-inject')
+const t = require('tap')
 
-test('should retrieve values from npm.commands.config', (t) => {
-  const Get = requireInject('../../lib/get.js')
+t.test('should retrieve values from npm.commands.config', (t) => {
+  const Get = t.mock('../../lib/get.js')
   const get = new Get({
     commands: {
       config: ([action, arg]) => {

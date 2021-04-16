@@ -1,4 +1,3 @@
-const requireInject = require('require-inject')
 const t = require('tap')
 
 let result = ''
@@ -32,7 +31,7 @@ const npmcliMaintainers = [
   { email: 'i@izs.me', name: 'isaacs' },
 ]
 
-const Owner = requireInject('../../lib/owner.js', mocks)
+const Owner = t.mock('../../lib/owner.js', mocks)
 const owner = new Owner(npm)
 
 t.test('owner no args', t => {
@@ -72,7 +71,7 @@ t.test('owner ls no args', t => {
   })
 
   owner.exec(['ls'], err => {
-    t.ifError(err, 'npm owner ls no args')
+    t.error(err, 'npm owner ls no args')
     t.matchSnapshot(result, 'should output owners of cwd package')
   })
 })
@@ -140,7 +139,7 @@ t.test('owner ls <pkg>', t => {
   })
 
   owner.exec(['ls', '@npmcli/map-workspaces'], err => {
-    t.ifError(err, 'npm owner ls <pkg>')
+    t.error(err, 'npm owner ls <pkg>')
     t.matchSnapshot(result, 'should output owners of <pkg>')
   })
 })
@@ -156,7 +155,7 @@ t.test('owner ls <pkg> no maintainers', t => {
   })
 
   owner.exec(['ls', '@npmcli/map-workspaces'], err => {
-    t.ifError(err, 'npm owner ls <pkg> no maintainers')
+    t.error(err, 'npm owner ls <pkg> no maintainers')
     t.equal(result, 'no admin found', 'should output no admint found msg')
     t.end()
   })
@@ -190,7 +189,7 @@ t.test('owner add <user> <pkg>', t => {
           name: '@npmcli/map-workspaces',
         },
       }, 'should use expected opts')
-      t.deepEqual(
+      t.same(
         opts.body.maintainers,
         [
           ...npmcliMaintainers,
@@ -227,7 +226,7 @@ t.test('owner add <user> <pkg>', t => {
   })
 
   owner.exec(['add', 'foo', '@npmcli/map-workspaces'], err => {
-    t.ifError(err, 'npm owner add <user> <pkg>')
+    t.error(err, 'npm owner add <user> <pkg>')
     t.equal(result, '+ foo (@npmcli/map-workspaces)', 'should output add result')
   })
 })
@@ -260,7 +259,7 @@ t.test('owner add <user> cwd package', t => {
   })
 
   owner.exec(['add', 'foo'], err => {
-    t.ifError(err, 'npm owner add <user> cwd package')
+    t.error(err, 'npm owner add <user> cwd package')
     t.equal(result, '+ foo (@npmcli/map-workspaces)', 'should output add result')
     t.end()
   })
@@ -303,7 +302,7 @@ t.test('owner add <user> <pkg> already an owner', t => {
   })
 
   owner.exec(['add', 'ruyadorno', '@npmcli/map-workspaces'], err => {
-    t.ifError(err, 'npm owner add <user> <pkg> already an owner')
+    t.error(err, 'npm owner add <user> <pkg> already an owner')
   })
 })
 
@@ -448,7 +447,7 @@ t.test('owner add <user> <pkg> no previous maintainers property from server', t 
   })
 
   owner.exec(['add', 'foo', '@npmcli/no-owners-pkg'], err => {
-    t.ifError(err, 'npm owner add <user> <pkg>')
+    t.error(err, 'npm owner add <user> <pkg>')
     t.equal(result, '+ foo (@npmcli/no-owners-pkg)', 'should output add result')
     t.end()
   })
@@ -505,7 +504,7 @@ t.test('owner rm <user> <pkg>', t => {
           name: '@npmcli/map-workspaces',
         },
       }, 'should use expected opts')
-      t.deepEqual(
+      t.same(
         opts.body.maintainers,
         npmcliMaintainers.filter(m => m.name !== 'ruyadorno'),
         'should contain expected new owners, removing requested user'
@@ -536,7 +535,7 @@ t.test('owner rm <user> <pkg>', t => {
   })
 
   owner.exec(['rm', 'ruyadorno', '@npmcli/map-workspaces'], err => {
-    t.ifError(err, 'npm owner rm <user> <pkg>')
+    t.error(err, 'npm owner rm <user> <pkg>')
     t.equal(result, '- ruyadorno (@npmcli/map-workspaces)', 'should output rm result')
   })
 })
@@ -576,7 +575,7 @@ t.test('owner rm <user> <pkg> not a current owner', t => {
   })
 
   owner.exec(['rm', 'foo', '@npmcli/map-workspaces'], err => {
-    t.ifError(err, 'npm owner rm <user> <pkg> not a current owner')
+    t.error(err, 'npm owner rm <user> <pkg> not a current owner')
   })
 })
 
@@ -608,7 +607,7 @@ t.test('owner rm <user> cwd package', t => {
   })
 
   owner.exec(['rm', 'ruyadorno'], err => {
-    t.ifError(err, 'npm owner rm <user> cwd package')
+    t.error(err, 'npm owner rm <user> cwd package')
     t.equal(result, '- ruyadorno (@npmcli/map-workspaces)', 'should output rm result')
     t.end()
   })

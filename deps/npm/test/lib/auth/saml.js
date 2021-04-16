@@ -1,7 +1,6 @@
-const requireInject = require('require-inject')
-const { test } = require('tap')
+const t = require('tap')
 
-test('saml login', (t) => {
+t.test('saml login', (t) => {
   t.plan(3)
   const samlOpts = {
     creds: {},
@@ -17,7 +16,7 @@ test('saml login', (t) => {
       },
     },
   }
-  const saml = requireInject('../../../lib/auth/saml.js', {
+  const saml = t.mock('../../../lib/auth/saml.js', {
     '../../../lib/auth/sso.js': (npm, opts) => {
       t.equal(opts, samlOpts, 'should forward opts')
     },

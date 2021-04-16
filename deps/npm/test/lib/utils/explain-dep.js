@@ -1,7 +1,6 @@
 const t = require('tap')
-const requireInject = require('require-inject')
 const npm = {}
-const { explainNode, printNode } = requireInject('../../../lib/utils/explain-dep.js', {
+const { explainNode, printNode } = t.mock('../../../lib/utils/explain-dep.js', {
   '../../../lib/npm.js': npm,
 })
 

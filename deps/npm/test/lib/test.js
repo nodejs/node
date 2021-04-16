@@ -1,5 +1,4 @@
 const t = require('tap')
-const requireInject = require('require-inject')
 let RUN_ARGS = null
 const npm = {
   commands: {
@@ -9,7 +8,7 @@ const npm = {
     },
   },
 }
-const Test = requireInject('../../lib/test.js')
+const Test = require('../../lib/test.js')
 const test = new Test(npm)
 
 t.test('run a test', t => {

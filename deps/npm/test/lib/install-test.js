@@ -24,13 +24,12 @@ const installTest = new InstallTest({
 })
 
 t.test('the install-test command', t => {
-  t.afterEach(cb => {
+  t.afterEach(() => {
     installArgs = null
     installCalled = false
     testArgs = null
     testCalled = false
     installError = null
-    cb()
   })
 
   t.test('install and test', t => {

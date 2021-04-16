@@ -1,9 +1,8 @@
-const { test } = require('tap')
-const requireInject = require('require-inject')
+const t = require('tap')
 
-test('throws ENOREGISTRY when no registry option is provided', async (t) => {
+t.test('throws ENOREGISTRY when no registry option is provided', async (t) => {
   t.plan(2)
-  const getIdentity = requireInject('../../../lib/utils/get-identity.js')
+  const getIdentity = t.mock('../../../lib/utils/get-identity.js')
 
   try {
     await getIdentity({})
@@ -13,10 +12,10 @@ test('throws ENOREGISTRY when no registry option is provided', async (t) => {
   }
 })
 
-test('returns username from uri when provided', async (t) => {
+t.test('returns username from uri when provided', async (t) => {
   t.plan(1)
 
-  const getIdentity = requireInject('../../../lib/utils/get-identity.js')
+  const getIdentity = t.mock('../../../lib/utils/get-identity.js')
   const npm = {
     config: {
       getCredentialsByURI: () => {
@@ -29,7 +28,7 @@ test('returns username from uri when provided', async (t) => {
   t.equal(identity, 'foo', 'returns username from uri')
 })
 
-test('calls registry whoami when token is provided', async (t) => {
+t.test('calls registry whoami when token is provided', async (t) => {
   t.plan(3)
 
   const options = {
@@ -37,7 +36,7 @@ test('calls registry whoami when token is provided', async (t) => {
     token: 'thisisnotreallyatoken',
   }
 
-  const getIdentity = requireInject('../../../lib/utils/get-identity.js', {
+  const getIdentity = t.mock('../../../lib/utils/get-identity.js', {
     'npm-registry-fetch': {
       json: (path, opts) => {
         t.equal(path, '/-/whoami', 'calls whoami')
@@ -56,7 +55,7 @@ test('calls registry whoami when token is provided', async (t) => {
   t.equal(identity, 'foo', 'fetched username from registry')
 })
 
-test('throws ENEEDAUTH when response does not include a username', async (t) => {
+t.test('throws ENEEDAUTH when response does not include a username', async (t) => {
   t.plan(3)
 
   const options = {
@@ -64,7 +63,7 @@ test('throws ENEEDAUTH when response does not include a username', async (t) => 
     token: 'thisisnotreallyatoken',
   }
 
-  const getIdentity = requireInject('../../../lib/utils/get-identity.js', {
+  const getIdentity = t.mock('../../../lib/utils/get-identity.js', {
     'npm-registry-fetch': {
       json: (path, opts) => {
         t.equal(path, '/-/whoami', 'calls whoami')
@@ -86,9 +85,9 @@ test('throws ENEEDAUTH when response does not include a username', async (t) => 
   }
 })
 
-test('throws ENEEDAUTH when neither username nor token is configured', async (t) => {
+t.test('throws ENEEDAUTH when neither username nor token is configured', async (t) => {
   t.plan(1)
-  const getIdentity = requireInject('../../../lib/utils/get-identity.js', {
+  const getIdentity = t.mock('../../../lib/utils/get-identity.js', {
   })
   const npm = {
     config: {

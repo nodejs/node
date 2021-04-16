@@ -1,8 +1,7 @@
-const { test } = require('tap')
-const requireInject = require('require-inject')
+const t = require('tap')
 const mockNpm = require('../fixtures/mock-npm')
 
-test('bin', (t) => {
+t.test('bin', (t) => {
   t.plan(4)
   const dir = '/bin/dir'
 
@@ -19,15 +18,15 @@ test('bin', (t) => {
   t.match(bin.usage, 'bin', 'usage has command name in it')
 
   bin.exec([], (err) => {
-    t.ifError(err, 'npm bin')
+    t.error(err, 'npm bin')
     t.ok('should have printed directory')
   })
 })
 
-test('bin -g', (t) => {
+t.test('bin -g', (t) => {
   t.plan(3)
   const consoleError = console.error
-  t.tearDown(() => {
+  t.teardown(() => {
     console.error = consoleError
   })
 
@@ -36,7 +35,7 @@ test('bin -g', (t) => {
   }
   const dir = '/bin/dir'
 
-  const Bin = requireInject('../../lib/bin.js', {
+  const Bin = t.mock('../../lib/bin.js', {
     '../../lib/utils/path.js': [dir],
   })
 
@@ -50,15 +49,15 @@ test('bin -g', (t) => {
   const bin = new Bin(npm)
 
   bin.exec([], (err) => {
-    t.ifError(err, 'npm bin')
+    t.error(err, 'npm bin')
     t.ok('should have printed directory')
   })
 })
 
-test('bin -g (not in path)', (t) => {
+t.test('bin -g (not in path)', (t) => {
   t.plan(4)
   const consoleError = console.error
-  t.tearDown(() => {
+  t.teardown(() => {
     console.error = consoleError
   })
 
@@ -67,7 +66,7 @@ test('bin -g (not in path)', (t) => {
   }
   const dir = '/bin/dir'
 
-  const Bin = requireInject('../../lib/bin.js', {
+  const Bin = t.mock('../../lib/bin.js', {
     '../../lib/utils/path.js': ['/not/my/dir'],
   })
   const npm = mockNpm({
@@ -80,7 +79,7 @@ test('bin -g (not in path)', (t) => {
   const bin = new Bin(npm)
 
   bin.exec([], (err) => {
-    t.ifError(err, 'npm bin')
+    t.error(err, 'npm bin')
     t.ok('should have printed directory')
   })
 })

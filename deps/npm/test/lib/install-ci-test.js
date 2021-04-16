@@ -24,13 +24,12 @@ const installCITest = new InstallCITest({
 })
 
 t.test('the install-ci-test command', t => {
-  t.afterEach(cb => {
+  t.afterEach(() => {
     ciArgs = null
     ciCalled = false
     testArgs = null
     testCalled = false
     ciError = null
-    cb()
   })
 
   t.test('ci and test', t => {

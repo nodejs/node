@@ -1,5 +1,4 @@
 const t = require('tap')
-const requireInject = require('require-inject')
 const mockNpm = require('../fixtures/mock-npm')
 const fs = require('fs')
 
@@ -19,10 +18,7 @@ const defaults = Object.entries(definitions).reduce((defaults, [key, def]) => {
 
 const config = defaults
 
-t.afterEach(cb => {
-  log.level = 'silent'
-  cb()
-})
+t.afterEach(() => log.level = 'silent')
 
 t.test('should publish with libnpmpublish, passing through flatOptions and respecting publishConfig.registry', (t) => {
   t.plan(7)
@@ -37,7 +33,7 @@ t.test('should publish with libnpmpublish, passing through flatOptions and respe
     }, null, 2),
   })
 
-  const Publish = requireInject('../../lib/publish.js', {
+  const Publish = t.mock('../../lib/publish.js', {
     // verify that we do NOT remove publishConfig if it was there originally
     // and then removed during the script/pack process
     libnpmpack: async () => {
@@ -50,7 +46,7 @@ t.test('should publish with libnpmpublish, passing through flatOptions and respe
     libnpmpublish: {
       publish: (manifest, tarData, opts) => {
         t.match(manifest, { name: 'my-cool-pkg', version: '1.0.0' }, 'gets manifest')
-        t.isa(tarData, Buffer, 'tarData is a buffer')
+        t.type(tarData, Buffer, 'tarData is a buffer')
         t.ok(opts, 'gets opts object')
         t.same(opts.customValue, true, 'flatOptions values are passed through')
         t.same(opts.registry, registry, 'publishConfig.registry is passed through')
@@ -88,7 +84,7 @@ t.test('re-loads publishConfig.registry if added during script process', (t) => 
     }, null, 2),
   })
 
-  const Publish = requireInject('../../lib/publish.js', {
+  const Publish = t.mock('../../lib/publish.js', {
     libnpmpack: async () => {
       fs.writeFileSync(`${testDir}/package.json`, JSON.stringify({
         name: 'my-cool-pkg',
@@ -100,7 +96,7 @@ t.test('re-loads publishConfig.registry if added during script process', (t) => 
     libnpmpublish: {
       publish: (manifest, tarData, opts) => {
         t.match(manifest, { name: 'my-cool-pkg', version: '1.0.0' }, 'gets manifest')
-        t.isa(tarData, Buffer, 'tarData is a buffer')
+        t.type(tarData, Buffer, 'tarData is a buffer')
         t.ok(opts, 'gets opts object')
         t.same(opts.registry, registry, 'publishConfig.registry is passed through')
       },
@@ -132,7 +128,7 @@ t.test('if loglevel=info and json, should not output package contents', (t) => {
   })
 
   log.level = 'info'
-  const Publish = requireInject('../../lib/publish.js', {
+  const Publish = t.mock('../../lib/publish.js', {
     '../../lib/utils/tar.js': {
       getContents: () => ({
         id: 'someid',
@@ -178,7 +174,7 @@ t.test('if loglevel=silent and dry-run, should not output package contents or pu
   })
 
   log.level = 'silent'
-  const Publish = requireInject('../../lib/publish.js', {
+  const Publish = t.mock('../../lib/publish.js', {
     '../../lib/utils/tar.js': {
       getContents: () => ({
         id: 'someid',
@@ -224,7 +220,7 @@ t.test('if loglevel=info and dry-run, should not publish, should log package con
   })
 
   log.level = 'info'
-  const Publish = requireInject('../../lib/publish.js', {
+  const Publish = t.mock('../../lib/publish.js', {
     '../../lib/utils/tar.js': {
       getContents: () => ({
         id: 'someid',
@@ -260,7 +256,7 @@ t.test('if loglevel=info and dry-run, should not publish, should log package con
 
 t.test('shows usage with wrong set of arguments', (t) => {
   t.plan(1)
-  const Publish = requireInject('../../lib/publish.js')
+  const Publish = t.mock('../../lib/publish.js')
   const publish = new Publish({})
 
   publish.exec(['a', 'b', 'c'], (er) => {
@@ -272,7 +268,7 @@ t.test('shows usage with wrong set of arguments', (t) => {
 t.test('throws when invalid tag', (t) => {
   t.plan(1)
 
-  const Publish = requireInject('../../lib/publish.js')
+  const Publish = t.mock('../../lib/publish.js')
   const npm = mockNpm({
     config: { ...config, tag: '0.0.13' },
   })
@@ -306,7 +302,7 @@ t.test('can publish a tarball', t => {
   }, ['package'])
 
   const tarFile = fs.readFileSync(`${testDir}/tarball/package.tgz`)
-  const Publish = requireInject('../../lib/publish.js', {
+  const Publish = t.mock('../../lib/publish.js', {
     libnpmpublish: {
       publish: (manifest, tarData, opts) => {
         t.match(manifest, {
@@ -334,7 +330,7 @@ t.test('can publish a tarball', t => {
 
 t.test('should check auth for default registry', t => {
   t.plan(2)
-  const Publish = requireInject('../../lib/publish.js')
+  const Publish = t.mock('../../lib/publish.js')
   const npm = mockNpm({ config })
   npm.config.getCredentialsByURI = (uri) => {
     t.same(uri, defaults.registry, 'gets credentials for expected registry')
@@ -354,7 +350,7 @@ t.test('should check auth for default registry', t => {
 t.test('should check auth for configured registry', t => {
   t.plan(2)
   const registry = 'https://some.registry'
-  const Publish = requireInject('../../lib/publish.js')
+  const Publish = t.mock('../../lib/publish.js')
   const npm = mockNpm({
     config,
     flatOptions: { registry },
@@ -384,7 +380,7 @@ t.test('should check auth for scope specific registry', t => {
     }, null, 2),
   })
 
-  const Publish = requireInject('../../lib/publish.js')
+  const Publish = t.mock('../../lib/publish.js')
   const npm = mockNpm({
     config,
     flatOptions: { '@npm:registry': registry },
@@ -414,7 +410,7 @@ t.test('should use auth for scope specific registry', t => {
     }, null, 2),
   })
 
-  const Publish = requireInject('../../lib/publish.js', {
+  const Publish = t.mock('../../lib/publish.js', {
     libnpmpublish: {
       publish: (manifest, tarData, opts) => {
         t.ok(opts, 'gets opts object')
@@ -453,7 +449,7 @@ t.test('read registry only from publishConfig', t => {
     }, null, 2),
   })
 
-  const Publish = requireInject('../../lib/publish.js', {
+  const Publish = t.mock('../../lib/publish.js', {
     libnpmpublish: {
       publish: (manifest, tarData, opts) => {
         t.match(manifest, { name: 'my-cool-pkg', version: '1.0.0' }, 'gets manifest')
@@ -499,7 +495,7 @@ t.test('able to publish after if encountered multiple configs', t => {
   }))
   configList.unshift(Object.assign(Object.create(configList[0]), { tag }))
 
-  const Publish = requireInject('../../lib/publish.js', {
+  const Publish = t.mock('../../lib/publish.js', {
     libnpmpublish: {
       publish: (manifest, tarData, opts) => {
         t.same(opts.defaultTag, tag, 'gets option for expected tag')

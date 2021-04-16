@@ -1,12 +1,11 @@
-const requireInject = require('require-inject')
-const { test } = require('tap')
+const t = require('tap')
 
 let log = ''
 
 const token = '24528a24f240'
 const profile = {}
 const read = {}
-const legacy = requireInject('../../../lib/auth/legacy.js', {
+const legacy = t.mock('../../../lib/auth/legacy.js', {
   npmlog: {
     info: (...msgs) => {
       log += msgs.join(' ')
@@ -26,7 +25,7 @@ const npm = {
   },
 }
 
-test('login using username/password with token result', async (t) => {
+t.test('login using username/password with token result', async (t) => {
   profile.login = () => {
     return { token }
   }
@@ -57,7 +56,7 @@ test('login using username/password with token result', async (t) => {
     'should have correct message result'
   )
 
-  t.deepEqual(
+  t.same(
     newCreds,
     { token },
     'should return expected obj from profile.login'
@@ -67,7 +66,7 @@ test('login using username/password with token result', async (t) => {
   delete profile.login
 })
 
-test('login using username/password with user info result', async (t) => {
+t.test('login using username/password with user info result', async (t) => {
   profile.login = () => {
     return null
   }
@@ -92,7 +91,7 @@ test('login using username/password with user info result', async (t) => {
     'should have correct message result'
   )
 
-  t.deepEqual(
+  t.same(
     newCreds,
     {
       username: 'u',
@@ -107,7 +106,7 @@ test('login using username/password with user info result', async (t) => {
   delete profile.login
 })
 
-test('login otp requested', async (t) => {
+t.test('login otp requested', async (t) => {
   t.plan(5)
 
   profile.login = () => Promise.reject(Object.assign(
@@ -143,7 +142,7 @@ test('login otp requested', async (t) => {
     'should have correct message result'
   )
 
-  t.deepEqual(
+  t.same(
     newCreds,
     { token },
     'should return token from loginCouch result'
@@ -155,7 +154,7 @@ test('login otp requested', async (t) => {
   delete read.otp
 })
 
-test('login missing basic credential info', async (t) => {
+t.test('login missing basic credential info', async (t) => {
   profile.login = () => Promise.reject(Object.assign(
     new Error('missing info'),
     { code: 'ERROR' }
@@ -178,7 +177,7 @@ test('login missing basic credential info', async (t) => {
   delete profile.login
 })
 
-test('create new user when user not found', async (t) => {
+t.test('create new user when user not found', async (t) => {
   t.plan(6)
 
   profile.login = () => Promise.reject(Object.assign(
@@ -219,7 +218,7 @@ test('create new user when user not found', async (t) => {
     'should have correct message result'
   )
 
-  t.deepEqual(
+  t.same(
     newCreds,
     { token },
     'should return expected obj from profile.login'
@@ -230,7 +229,7 @@ test('create new user when user not found', async (t) => {
   delete profile.login
 })
 
-test('prompts for user info if required', async (t) => {
+t.test('prompts for user info if required', async (t) => {
   t.plan(4)
 
   profile.login = async (opener, prompt, opts) => {
@@ -266,7 +265,7 @@ test('prompts for user info if required', async (t) => {
     'should have correct message result'
   )
 
-  t.deepEqual(
+  t.same(
     newCreds,
     {
       username: 'foo',
@@ -284,7 +283,7 @@ test('prompts for user info if required', async (t) => {
   delete read.email
 })
 
-test('request otp when creating new user', async (t) => {
+t.test('request otp when creating new user', async (t) => {
   t.plan(3)
 
   profile.login = () => Promise.reject(Object.assign(
@@ -322,7 +321,7 @@ test('request otp when creating new user', async (t) => {
   delete read.otp
 })
 
-test('unknown error during user creation', async (t) => {
+t.test('unknown error during user creation', async (t) => {
   profile.login = () => Promise.reject(Object.assign(
     new Error('missing info'),
     { code: 'ERROR' }
@@ -352,7 +351,7 @@ test('unknown error during user creation', async (t) => {
   delete profile.login
 })
 
-test('open url error', async (t) => {
+t.test('open url error', async (t) => {
   profile.login = async (opener, prompt, opts) => {
     await opener()
   }
@@ -374,7 +373,7 @@ test('open url error', async (t) => {
   delete profile.login
 })
 
-test('login no credentials provided', async (t) => {
+t.test('login no credentials provided', async (t) => {
   profile.login = () => ({ token })
 
   await legacy(npm, {
@@ -398,7 +397,7 @@ test('login no credentials provided', async (t) => {
   delete profile.login
 })
 
-test('scoped login', async (t) => {
+t.test('scoped login', async (t) => {
   profile.login = () => ({ token })
 
   const { message } = await legacy(npm, {
