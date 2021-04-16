@@ -1,0 +1,7 @@
+/bench	export-ignore
+/test	export-ignore
+/.gitignore	export-ignore
+/Makefile	export-ignore
+/yxml-gen.pl	export-ignore
+/yxml-states	export-ignore
+/yxml.c.in	export-ignore

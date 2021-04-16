@@ -1,0 +1,5 @@
+*
+!.gitignore
+!Makefile
+!bench.c
+!runbench.sh

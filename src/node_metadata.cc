@@ -1,6 +1,6 @@
 #include "node_metadata.h"
-#include "ares.h"
 #include "brotli/encode.h"
+#include "getdns/getdns.h"
 #include "llhttp.h"
 #include "nghttp2/nghttp2ver.h"
 #include "node.h"
@@ -74,7 +74,6 @@ Metadata::Versions::Versions() {
   v8 = v8::V8::GetVersion();
   uv = uv_version_string();
   zlib = ZLIB_VERSION;
-  ares = ARES_VERSION_STR;
   modules = NODE_STRINGIFY(NODE_MODULE_VERSION);
   nghttp2 = NGHTTP2_VERSION;
   napi = NODE_STRINGIFY(NAPI_VERSION);
@@ -91,6 +90,18 @@ Metadata::Versions::Versions() {
     std::to_string((BrotliEncoderVersion() & 0xFFF000) >> 12) +
     "." +
     std::to_string(BrotliEncoderVersion() & 0xFFF);
+
+  {
+    getdns_context* context;
+    getdns_context_create(&context, 1);
+    getdns_dict* info = getdns_context_get_api_information(context);
+    getdns_bindata* version;
+    getdns_dict_get_bindata(info, "/version_string", &version);
+    getdns = std::string(reinterpret_cast<const char*>(version->data),
+                         version->size);
+    getdns_dict_destroy(info);
+    getdns_context_destroy(context);
+  }
 
 #if HAVE_OPENSSL
   openssl = GetOpenSSLVersion();

@@ -8,7 +8,6 @@ const assert = require('assert');
 // process.binding().
 assert(process.binding('async_wrap'));
 assert(process.binding('buffer'));
-assert(process.binding('cares_wrap'));
 assert(process.binding('constants'));
 assert(process.binding('contextify'));
 if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check

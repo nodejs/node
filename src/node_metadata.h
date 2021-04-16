@@ -30,11 +30,11 @@ namespace node {
   V(uv)                                                                        \
   V(zlib)                                                                      \
   V(brotli)                                                                    \
-  V(ares)                                                                      \
   V(modules)                                                                   \
   V(nghttp2)                                                                   \
   V(napi)                                                                      \
   V(llhttp)                                                                    \
+  V(getdns)
 
 #if HAVE_OPENSSL
 #define NODE_VERSIONS_KEY_CRYPTO(V) V(openssl)

@@ -54,6 +54,13 @@ void OnFatalError(const char* location, const char* message);
   V(ERR_CRYPTO_UNKNOWN_DH_GROUP, Error)                                        \
   V(ERR_CRYPTO_UNSUPPORTED_OPERATION, Error)                                   \
   V(ERR_CRYPTO_JOB_INIT_FAILED, Error)                                         \
+  V(ERR_DNS_ERROR, Error)                                                      \
+  V(ERR_DNS_TIMEOUT, Error)                                                    \
+  V(ERR_DNS_CANCEL, Error)                                                     \
+  V(ERR_DNS_NO_NAME, Error)                                                    \
+  V(ERR_DNS_ALL_TIMEOUT, Error)                                                \
+  V(ERR_DNS_NO_SECURE_ANSWERS, Error)                                          \
+  V(ERR_DNS_ALL_BOGUS_ANSWERS, Error)                                          \
   V(ERR_DLOPEN_FAILED, Error)                                                  \
   V(ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE, Error)                            \
   V(ERR_INVALID_ADDRESS, Error)                                                \

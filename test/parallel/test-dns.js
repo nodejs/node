@@ -139,6 +139,8 @@ assert.deepStrictEqual(dns.getServers(), portsExpected);
 dns.setServers([]);
 assert.deepStrictEqual(dns.getServers(), []);
 
+dns.setServers(existing);
+
 {
   const errObj = {
     code: 'ERR_INVALID_ARG_TYPE',

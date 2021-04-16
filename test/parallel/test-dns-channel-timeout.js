@@ -12,17 +12,17 @@ for (const ctor of [dns.Resolver, dns.promises.Resolver]) {
     });
   }
 
-  for (const timeout of [-2, 4.2, 2 ** 31]) {
+  for (const timeout of [-2, 4.2, 2 ** 32, 0]) {
     assert.throws(() => new ctor({ timeout }), {
       code: 'ERR_OUT_OF_RANGE',
       name: 'RangeError',
     });
   }
 
-  for (const timeout of [-1, 0, 1]) new ctor({ timeout });  // OK
+  for (const timeout of [-1, 1]) new ctor({ timeout });  // OK
 }
 
-for (const timeout of [0, 1, 2]) {
+for (const timeout of [1, 2, 3]) {
   const server = dgram.createSocket('udp4');
   server.bind(0, '127.0.0.1', common.mustCall(() => {
     const resolver = new dns.Resolver({ timeout });
@@ -37,7 +37,7 @@ for (const timeout of [0, 1, 2]) {
   }));
 }
 
-for (const timeout of [0, 1, 2]) {
+for (const timeout of [1, 2, 3]) {
   const server = dgram.createSocket('udp4');
   server.bind(0, '127.0.0.1', common.mustCall(() => {
     const resolver = new dns.promises.Resolver({ timeout });

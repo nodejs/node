@@ -15,7 +15,6 @@ assert.rejects(
   }),
   {
     code: 'ENOTFOUND',
-    message: `getaddrinfo ENOTFOUND ${addresses.INVALID_HOST}`
   }
 );
 
@@ -27,7 +26,6 @@ assert.rejects(
   }),
   {
     code: 'ENOTFOUND',
-    message: `getaddrinfo ENOTFOUND ${addresses.INVALID_HOST}`
   }
 );
 
@@ -37,10 +35,6 @@ dns.lookup(addresses.INVALID_HOST, {
   all: true
 }, common.mustCall((error) => {
   assert.strictEqual(error.code, 'ENOTFOUND');
-  assert.strictEqual(
-    error.message,
-    `getaddrinfo ENOTFOUND ${addresses.INVALID_HOST}`
-  );
   assert.strictEqual(error.syscall, 'getaddrinfo');
   assert.strictEqual(error.hostname, addresses.INVALID_HOST);
 }));

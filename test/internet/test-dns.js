@@ -23,8 +23,6 @@
 'use strict';
 const common = require('../common');
 const { addresses } = require('../common/internet');
-const { internalBinding } = require('internal/test/binding');
-const { getSystemErrorName } = require('util');
 const assert = require('assert');
 const dns = require('dns');
 const net = require('net');
@@ -73,13 +71,14 @@ TEST(function test_reverse_bogus(done) {
   dnsPromises.reverse('bogus ip')
     .then(common.mustNotCall())
     .catch(common.mustCall((err) => {
-      assert.strictEqual(err.code, 'EINVAL');
-      assert.strictEqual(getSystemErrorName(err.errno), 'EINVAL');
+      assert.strictEqual(err.code, 'ERR_DNS_ERROR');
     }));
 
   assert.throws(() => {
     dns.reverse('bogus ip', common.mustNotCall());
-  }, /^Error: getHostByAddr EINVAL bogus ip$/);
+  }, {
+    code: 'ERR_DNS_ERROR',
+  });
   done();
 });
 
@@ -528,7 +527,6 @@ TEST(function test_lookup_failure(done) {
     assert.strictEqual(err.code, dns.NOTFOUND);
     assert.strictEqual(err.code, 'ENOTFOUND');
     assert.ok(!/ENOENT/.test(err.message));
-    assert.ok(err.message.includes(addresses.INVALID_HOST));
 
     done();
   });
@@ -640,7 +638,6 @@ TEST(function test_lookupservice_invalid(done) {
   const req = dns.lookupService('1.2.3.4', 80, (err) => {
     assert(err instanceof Error);
     assert.strictEqual(err.code, 'ENOTFOUND');
-    assert.ok(/1\.2\.3\.4/.test(err.message));
 
     done();
   });
@@ -662,7 +659,6 @@ TEST(function test_reverse_failure(done) {
     assert(err instanceof Error);
     assert.strictEqual(err.code, 'ENOTFOUND');  // Silly error code...
     assert.strictEqual(err.hostname, '203.0.113.0');
-    assert.ok(/203\.0\.113\.0/.test(err.message));
 
     done();
   });
@@ -683,7 +679,6 @@ TEST(function test_lookup_failure(done) {
     assert(err instanceof Error);
     assert.strictEqual(err.code, 'ENOTFOUND');  // Silly error code...
     assert.strictEqual(err.hostname, addresses.INVALID_HOST);
-    assert.ok(err.message.includes(addresses.INVALID_HOST));
 
     done();
   });
@@ -706,7 +701,6 @@ TEST(function test_resolve_failure(done) {
     }
 
     assert.strictEqual(err.hostname, addresses.INVALID_HOST);
-    assert.ok(err.message.includes(addresses.INVALID_HOST));
 
     done();
   });
@@ -719,13 +713,13 @@ let getaddrinfoCallbackCalled = false;
 
 console.log(`looking up ${addresses.INET4_HOST}..`);
 
-const cares = internalBinding('cares_wrap');
-const req = new cares.GetAddrInfoReqWrap();
-cares.getaddrinfo(req, addresses.INET4_HOST, 4,
+const compat = require('internal/dns/compat');
+const req = new compat.GetAddrInfoReqWrap();
+compat.getaddrinfo(req, addresses.INET4_HOST, 4,
   /* hints */ 0, /* verbatim */ true);
 
 req.oncomplete = function(err, domains) {
-  assert.strictEqual(err, 0);
+  assert.strictEqual(err, null);
   console.log(`${addresses.INET4_HOST} = ${domains}`);
   assert.ok(Array.isArray(domains));
   assert.ok(domains.length >= 1);

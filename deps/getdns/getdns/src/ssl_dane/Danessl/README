@@ -1,0 +1,38 @@
+Danessl version 0.01
+====================
+
+The Danessl module implements functions for validating TLSA record
+syntax and using valid TLSA records to verify SSL certificate chains.
+It can be used at the completion of an SSL handshake to validate
+the peer's certificate chain, or to validate off-line chains not
+associated with any current SSL connection.
+
+Performing any requisite DNSSEC validated TLSA record lookups
+and Making SSL connections to determine a particular peer's
+certificate chain is left to the application.  The Net::DNS
+and Net::SSLeay modules can be used for those tasks.
+
+INSTALLATION
+
+To install this module type the following:
+
+   perl Makefile.PL
+   make
+   make test
+   make install
+
+DEPENDENCIES
+
+This module requires:
+
+  * The danessl library from the parent directory.
+  * The OpenSSL libssl and libcrypto libraries.
+
+COPYRIGHT AND LICENCE
+
+Copyright (C) 2014 by Viktor Dukhovni
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself, either Perl version 5.12.5 or,
+at your option, any later version of Perl 5 you may have available.
+

@@ -1,0 +1,263 @@
+= getdns tools
+
+This directory contains some tools based on `getdns`.
+
+* `getdns_query` - a command line wrapper for `getdns`.
+* `getdns_server_mon` - test DNS server function and capabilities.
+
+== `getdns_query`
+
+`getdns_query` is a command line wrapper for `getdns` exposing the
+features of this implementation (both in the official API and the
+additional API functions).
+
+=== Usage
+
+----
+usage: getdns_query [<option> ...] \
+        [@<upstream> ...] [+<extension> ...] ['{ <settings> }'] [<name>] [<type>]
+
+default mode: recursive, synchronous resolution of NS record
+                using UDP with TCP fallback
+
+upstreams: @<ip>[%<scope_id>][@<port>][#<tls port>][~<tls name>][^<tsig spec>]
+            <ip>@<port> may be given as <IPv4>:<port>
+                  or '['<IPv6>[%<scope_id>]']':<port> too
+
+tsig spec: [<algorithm>:]<name>:<secret in Base64>
+
+extensions:
+        +add_warning_for_bad_dns
+        +dnssec_return_status
+        +dnssec_return_only_secure
+        +dnssec_return_all_statuses
+        +dnssec_return_validation_chain
+        +dnssec_return_full_validation_chain
+        +dnssec_roadblock_avoidance
+        +edns_cookies
+        +return_both_v4_and_v6
+        +return_call_reporting
+        +sit=<cookie>           Send along cookie OPT with value <cookie>
+        +specify_class=<class>
+        +0                      Clear all extensions
+
+settings in json dict format (like outputted by -i option).
+
+options:
+        -a      Perform asynchronous resolution (default = synchronous)
+        -A      address lookup (<type> is ignored)
+        -B      Batch mode. Schedule all messages before processing responses.
+        -b <bufsize>    Set edns0 max_udp_payload size
+        -c      Send Client Subnet privacy request
+        -C      <filename>
+                Read settings from config file <filename>
+                The getdns context will be configured with these settings
+                The file must be in YAML format (with extension of '.yml')
+                or JSON dict format (with extension '.conf')
+        -D      Set edns0 do bit
+        -d      clear edns0 do bit
+        -e <idle_timeout>       Set idle timeout in milliseconds
+        -F <filename>   read the queries from the specified file
+        -f <filename>   Read DNSSEC trust anchors from <filename>
+        -G      general lookup
+        -H      hostname lookup. (<name> must be an IP address; <type> is ignored)
+        -h      Print this help
+        -i      Print api information
+        -I      Interactive mode (> 1 queries on same context)
+        -j      Output json response dict
+        -J      Pretty print json response dict
+        -k      Print root trust anchors
+        -K <pin>        Pin a public key for TLS connections (can repeat)
+                (should look like 'pin-sha256="E9CZ9INDbd+2eRQozYqqbQ2yXLVKB9+xcprMF+44U1g="')
+        -m      Set TLS authentication mode to REQUIRED
+        -n      Set TLS authentication mode to NONE (default)
+        -o <filename>   Set resolver configuration file path
+                (default = /etc/resolv.conf)
+        -p      Pretty print response dict (default)
+        -P <blocksize>  Pad TLS queries to a multiple of blocksize
+                (special values: 0: no padding, 1: sensible default policy)
+        -q      Quiet mode - don't print response
+        -r      Set recursing resolution type
+        -R <filename>   Read root hints from <filename>
+        -s      Set stub resolution type(default = recursing)
+        -S      service lookup (<type> is ignored)
+        -t <timeout>    Set timeout in milliseconds
+        -v      Print getdns release version
+        -V      Increase verbosity (may be used more than once)
+        -x      Do not follow redirects
+        -X      Follow redirects (default)
+        -0      Append suffix to single label first (default)
+        -W      Append suffix always
+        -1      Append suffix only to single label after failure
+        -M      Append suffix only to multi label name after failure
+        -N      Never append a suffix
+        -Z <suffixes>   Set suffixes with the given comma separated list
+        -T      Set transport to TCP only
+        -O      Set transport to TCP only keep connections open
+        -L      Set transport to TLS only keep connections open
+        -E      Set transport to TLS with TCP fallback only keep connections open
+        -u      Set transport to UDP with TCP fallback (default)
+        -U      Set transport to UDP only
+        -l <transports> Set transport list. List can contain 1 of each of the characters
+                         U T L for UDP, TCP or TLS e.g 'UT' or 'LTU'
+        -z <listen address>
+                Listen for DNS requests on the given IP address
+                <listen address> is in the same format as upstreams.
+                This option can be given more than once.
+----
+
+== `getdns_server_mon`
+
+`getdns_server_mon` is a collection of DNS server tests. The tests examine
+both server function and server capability.
+
+`get_server_mon` can optionally be run in Monitoring mode. In this mode,
+the tool output is modified to enable it to function as a plugin for
+popular monitoring systems such as https://www.icinga.org[Icinga],
+http://naemon.github.io/[Naemon], http://www.nagios.org[Nagios],
+http://www.shinken-monitoring.org/[Shinken], http://sensuapp.org/[Sensu]
+and others.
+
+=== Usage
+
+----
+Usage: getdns_server_mon [-M] [-E] [(-u|-t|-T)] [-S] [-K <spki-pin>]
+        [-v [-v [-v]]] [-V] @upstream testname [<test args>]
+  -M|--monitoring               Make output suitable for monitoring tools
+  -E|--fail-on-dns-errors       Fail on DNS error (NXDOMAIN, SERVFAIL)
+  -u|--udp                      Use UDP transport
+  -t|--tcp                      Use TCP transport
+  -T|--tls                      Use TLS transport
+  -S|--strict-usage-profile     Use strict profile (require authentication)
+  -K|--spki-pin <spki-pin>      SPKI pin for TLS connections (can repeat)
+  -v|--verbose                  Increase output verbosity
+  -D|--debug                    Enable debugging output
+  -V|--version                  Report GetDNS version
+
+spki-pin: Should look like 'pin-sha256="E9CZ9INDbd+2eRQozYqqbQ2yXLVKB9+xcprMF+44U1g="'
+
+upstream: @<ip>[%<scope_id][@<port>][#<tls_port>][~tls name>][^<tsig spec>]
+          <ip>@<port> may be given as <IPv4>:<port> or
+                      '['<IPv6>[%<scope_id>]']':<port>
+
+tsig spec: [<algorithm>:]<name>:<secret in Base64>
+
+Tests:
+  lookup [<name> [<type>]]      Check lookup on server
+  keepalive <timeout-ms> [<name> [<type>]]
+                                Check server support for EDNS0 keepalive in
+                                TCP or TLS connections
+                                Timeout of 0 is off.
+  OOOR                          Check whether server delivers responses out of
+                                query order on a TCP or TLS connection
+  qname-min                     Check whether server supports QNAME minimisation
+  rtt [warn-ms,crit-ms] [<name> [<type>]]
+                                Check if server round trip time exceeds
+                                thresholds (default 250,500)
+
+  dnssec-validate               Check whether server does DNSSEC validation
+
+  tls-auth [<name> [<type>]]    Check authentication of TLS server
+                                If both a SPKI pin and authentication name are
+                                provided, both must authenticate for this test
+                                to pass.
+  tls-cert-valid [warn-days,crit-days] [<name> [type]]
+                                Check server certificate validity, report
+                                warning or critical if days to expiry at
+                                or below thresholds (default 14,7).
+  tls-padding <blocksize> [<name> [<type>]]
+                                Check server support for EDNS0 padding in TLS
+                                Special blocksize values are 0 = off,
+                                1 = sensible default.
+  tls-1.3                       Check whether server supports TLS 1.3
+
+Enabling monitoring mode ensures output messages and exit statuses conform
+to the requirements of monitoring plugins (www.monitoring-plugins.org).
+----
+
+Note that the server must currently be specified with an IPv4 or an IPv6 address.
+
+=== The tests
+
+Several tests take optional name and RR type parameters. If these are not supplied,
+default values of `getdnsapi.net` and `AAAA` are used. If the lookup returns no
+answering records, `getdns_server_mon` reports a status of WARNING.
+
+[cols="1,3a,1" options="header"]
+|===
+| Test name | Test description | Default connection type
+| `lookup`
+| Check a name lookup succeeds.
+  | UDP with TCP fallback
+
+| `keepalive`
+| See if the server supports EDNS0 keepalive in TCP or TLS
+  connections. Specify a non-zero timeout to set the keepalive timeout
+  in milliseconds, or 0 to disable it.
+| TCP
+
+| `OOOR`
+| Out Of Order Responses. See if the server will send responses to
+  multiple queries in a single TCP or TLS connection in a different
+  order to the order of queries.
+
+This test is currently experimental, and may give false negative results.
+| TCP
+
+| `qname-min`
+| Does the server support QNAME minimisation?
+| UDP with TCP fallback
+
+|`rtt`
+| Check a lookup round trip time exceeds warning and critical levels in milliseconds.
+If thresholds are not specified, defaults of 500ms (critical) and 250ms (warning) are used.
+| UDP with TCP fallback
+
+|`dnssec-validate`
+| See if the server is doing DNSSEC validation.
+| UDP with TCP fallback
+
+|`tls-auth`
+| Check if a TLS lookup authenticates successfully. You must specify
+  either a SPKI pin, an authentication name, or both. If you supply
+  both, both must authenticate for the test to succeed.
+| TLS
+
+|`tls-cert-valid`
+| Check the server certificate against warning and critical days to
+expiry.  If thresholds are not specified, defaults of 7 days
+(critical) and 14 days (warning) are used.
+| TLS
+
+|`tls-padding`
+| Does the server support EDNS0 padding? Specify a non-zero blocksize to set
+the padding. A padding size of 1 specifies padding of a sensible default size.
+| TLS
+
+|`tls-1.3`
+| Does the server support TLS 1.3? To enable this test,
+  `getdns_server_mon` must be compiled with OpenSSL v1.1.1 or later.
+
+This test is currently experimental, and may give false negative results.
+| TLS
+|===
+=== Exit status
+
+[cols="^1,^1,3a" options="header"]
+|===
+| Numeric value | Service Status | Status Description
+| 0
+| OK
+| The service was functioning properly
+
+| 1
+| WARNING
+| The service fell below a warning threshold
+
+|2
+| CRITICAL
+| The service was not working or fell below a critical threshold
+
+|3
+| UNKNOWN | Invalid arguments or an internal low-level failure
+|===
