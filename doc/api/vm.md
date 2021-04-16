@@ -1061,7 +1061,7 @@ added: v0.11.7
 * `object` {Object}
 * Returns: {boolean}
 
-Returns `true` if the given `oject` object has been [contextified][] using
+Returns `true` if the given `object` object has been [contextified][] using
 [`vm.createContext()`][].
 
 ## `vm.runInContext(code, contextifiedObject[, options])`
