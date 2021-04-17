@@ -134,9 +134,6 @@ class ManagedEVPPKey : public MemoryRetainer {
 // Objects of this class can safely be shared among threads.
 class KeyObjectData : public MemoryRetainer {
  public:
-  static std::shared_ptr<KeyObjectData> CreateSecret(
-      const ArrayBufferOrViewContents<char>& buf);
-
   static std::shared_ptr<KeyObjectData> CreateSecret(ByteSource key);
 
   static std::shared_ptr<KeyObjectData> CreateAsymmetric(

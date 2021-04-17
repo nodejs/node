@@ -1,4 +1,4 @@
-.TH "NPM\-VERSION" "1" "March 2021" "" ""
+.TH "NPM\-VERSION" "1" "April 2021" "" ""
 .SH "NAME"
 \fBnpm-version\fR \- Bump a package version
 .SS Synopsis
@@ -12,6 +12,73 @@ npm version [<newversion> | major | minor | patch | premajor | preminor | prepat
 \|'npm ls' to inspect current package/dependency versions
 .fi
 .RE
+.SS Configuration
+.SS \fBallow\-same\-version\fP
+.RS 0
+.IP \(bu 2
+Default: \fBfalse\fP
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Prevents throwing an error when \fBnpm version\fP is used to set the new version
+to the same value as the current version\.
+.SS \fBgit\-tag\-version\fP
+.RS 0
+.IP \(bu 2
+Default: \fBtrue\fP
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Commit and tag the version change\.
+.SS \fBcommit\-hooks\fP
+.RS 0
+.IP \(bu 2
+Default: \fBtrue\fP
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Run git commit hooks when committing the version change\.
+.SS \fBsign\-git\-tag\fP
+.RS 0
+.IP \(bu 2
+Default: \fBfalse\fP
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Pass the \fB\-s\fP flag to git to sign the tag\.
+.P
+Note that you must have a default GPG key set up in your git config for this to work properly\.
+.SS workspaces
+.RS 0
+.IP \(bu 2
+Default: \fBfalse\fP
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Enables workspaces context and includes workspaces in reported output
+when getting versions\.  When setting a new version \fIonly the workspaces
+will be changed\fR\|\.
+.SS workspace
+.RS 0
+.IP \(bu 2
+Default: []
+.IP \(bu 2
+Type: Array
+
+.RE
+.P
+Enables workspaces context and limits results to only those specified by
+this config item\.
 .SS Description
 .P
 Run this in a package directory to bump the version and write the new
@@ -99,50 +166,6 @@ Take the following example:
 This runs all your tests and proceeds only if they pass\. Then runs your \fBbuild\fP script, and
 adds everything in the \fBdist\fP directory to the commit\. After the commit, it pushes the new commit
 and tag up to the server, and deletes the \fBbuild/temp\fP directory\.
-.SS Configuration
-.SS \fBallow\-same\-version\fP
-.RS 0
-.IP \(bu 2
-Default: \fBfalse\fP
-.IP \(bu 2
-Type: Boolean
-
-.RE
-.P
-Prevents throwing an error when \fBnpm version\fP is used to set the new version
-to the same value as the current version\.
-.SS \fBgit\-tag\-version\fP
-.RS 0
-.IP \(bu 2
-Default: \fBtrue\fP
-.IP \(bu 2
-Type: Boolean
-
-.RE
-.P
-Commit and tag the version change\.
-.SS \fBcommit\-hooks\fP
-.RS 0
-.IP \(bu 2
-Default: \fBtrue\fP
-.IP \(bu 2
-Type: Boolean
-
-.RE
-.P
-Run git commit hooks when committing the version change\.
-.SS \fBsign\-git\-tag\fP
-.RS 0
-.IP \(bu 2
-Default: \fBfalse\fP
-.IP \(bu 2
-Type: Boolean
-
-.RE
-.P
-Pass the \fB\-s\fP flag to git to sign the tag\.
-.P
-Note that you must have a default GPG key set up in your git config for this to work properly\.
 .SS See Also
 .RS 0
 .IP \(bu 2

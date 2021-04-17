@@ -13,7 +13,7 @@ server.on('stream', common.mustCall((stream) => {
     ':path',
     ':authority',
     ':method',
-    ':scheme'
+    ':scheme',
   ].forEach((i) => {
     assert.throws(() => stream.respond({ [i]: '/' }),
                   {

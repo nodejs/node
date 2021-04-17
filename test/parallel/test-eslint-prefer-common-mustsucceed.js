@@ -21,7 +21,7 @@ new RuleTester({
     'foo((err) => assert.ifError(err))',
     'foo(function(err) { assert.ifError(err) })',
     'foo(assert.ifError)',
-    'common.mustCall((err) => err)'
+    'common.mustCall((err) => err)',
   ],
   invalid: [
     {
@@ -47,6 +47,6 @@ new RuleTester({
     {
       code: 'common.mustCall(function(e) {{ assert.ifError(e); }})',
       errors: [{ message: msg2 }]
-    }
+    },
   ]
 });

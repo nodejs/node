@@ -151,7 +151,7 @@ void  RBBITableBuilder::buildForwardTable() {
     //
     // calculate the functions nullable, firstpos, lastpos and followpos on
     // nodes in the parse tree.
-    //    See the alogrithm description in Aho.
+    //    See the algorithm description in Aho.
     //    Understanding how this works by looking at the code alone will be
     //       nearly impossible.
     //

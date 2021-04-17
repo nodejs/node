@@ -19,12 +19,11 @@ const npm = mockNpm({
 const Rebuild = require('../../lib/rebuild.js')
 const rebuild = new Rebuild(npm)
 
-t.afterEach(cb => {
+t.afterEach(() => {
   npm.prefix = ''
   config.global = false
   npm.globalDir = ''
   result = ''
-  cb()
 })
 
 t.test('no args', t => {

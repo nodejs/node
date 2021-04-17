@@ -1,5 +1,4 @@
 const t = require('tap')
-const requireInject = require('require-inject')
 const mockNpm = require('../fixtures/mock-npm')
 const { resolve, delimiter } = require('path')
 const OUTPUT = []
@@ -94,10 +93,10 @@ const mocks = {
   read,
   'mkdirp-infer-owner': mkdirp,
 }
-const Exec = requireInject('../../lib/exec.js', mocks)
+const Exec = t.mock('../../lib/exec.js', mocks)
 const exec = new Exec(npm)
 
-t.afterEach(cb => {
+t.afterEach(() => {
   MKDIRPS.length = 0
   ARB_CTOR.length = 0
   ARB_REIFY.length = 0
@@ -115,7 +114,6 @@ t.afterEach(cb => {
   config.yes = true
   npm.localBin = 'local-bin'
   npm.globalBin = 'global-bin'
-  cb()
 })
 
 t.test('npx foo, bin already exists locally', t => {
@@ -127,7 +125,7 @@ t.test('npx foo, bin already exists locally', t => {
   npm.localBin = path
 
   exec.exec(['foo', 'one arg', 'two arg'], er => {
-    t.ifError(er, 'npm exec')
+    t.error(er, 'npm exec')
     t.match(RUN_SCRIPTS, [{
       pkg: { scripts: { npx: 'foo' }},
       args: ['one arg', 'two arg'],
@@ -153,7 +151,7 @@ t.test('npx foo, bin already exists globally', t => {
   npm.globalBin = path
 
   exec.exec(['foo', 'one arg', 'two arg'], er => {
-    t.ifError(er, 'npm exec')
+    t.error(er, 'npm exec')
     t.match(RUN_SCRIPTS, [{
       pkg: { scripts: { npx: 'foo' }},
       args: ['one arg', 'two arg'],
@@ -1067,7 +1065,7 @@ t.test('abort if -n provided', t => {
     t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
     t.strictSame(RUN_SCRIPTS, [])
     t.strictSame(READ, [])
-    t.done()
+    t.end()
   })
 })
 
@@ -1095,7 +1093,7 @@ t.test('forward legacyPeerDeps opt', t => {
     if (er)
       throw er
     t.match(ARB_REIFY, [{add: ['foo@'], legacyPeerDeps: true}], 'need to install foo@ using legacyPeerDeps opt')
-    t.done()
+    t.end()
   })
 })
 

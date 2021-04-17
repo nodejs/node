@@ -1995,7 +1995,7 @@ bool UnitTestOptions::MatchesFilter(
       return false;
     }
 
-    // Skips the pattern separater (the ':' character).
+    // Skips the pattern separator (the ':' character).
     cur_pattern++;
   }
 }

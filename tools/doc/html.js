@@ -169,12 +169,10 @@ function linkManPages(text) {
       const displayAs = `<code>${name}(${number}${optionalCharacter})</code>`;
 
       if (BSD_ONLY_SYSCALLS.has(name)) {
-        return `${beginning}<a href="https://www.freebsd.org/cgi/man.cgi` +
-          `?query=${name}&sektion=${number}">${displayAs}</a>`;
+        return `${beginning}<a href="https://www.freebsd.org/cgi/man.cgi?query=${name}&sektion=${number}">${displayAs}</a>`;
       }
 
-      return `${beginning}<a href="http://man7.org/linux/man-pages/man${number}` +
-        `/${name}.${number}${optionalCharacter}.html">${displayAs}</a>`;
+      return `${beginning}<a href="http://man7.org/linux/man-pages/man${number}/${name}.${number}${optionalCharacter}.html">${displayAs}</a>`;
     });
 }
 
@@ -212,17 +210,14 @@ function preprocessElements({ filename }) {
       } else if (node.type === 'code') {
         if (!node.lang) {
           console.warn(
-            `No language set in ${filename}, ` +
-            `line ${node.position.start.line}`);
+            `No language set in ${filename}, line ${node.position.start.line}`
+          );
         }
         const className = isJSFlavorSnippet(node) ?
           `language-js ${node.lang}` :
           `language-${node.lang}`;
         const highlighted =
-          `<code class='${className}'>` +
-          (getLanguage(node.lang || '') ?
-            highlight(node.lang, node.value) : node).value +
-          '</code>';
+          `<code class='${className}'>${(getLanguage(node.lang || '') ? highlight(node.lang, node.value) : node).value}</code>`;
         node.type = 'html';
 
         if (isJSFlavorSnippet(node)) {
@@ -356,8 +351,7 @@ function parseYAML(text) {
 
     result += '</table>\n</details>\n';
   } else {
-    result += `${added.description}${deprecated.description}` +
-              `${removed.description}\n`;
+    result += `${added.description}${deprecated.description}${removed.description}\n`;
   }
 
   if (meta.napiVersion) {
@@ -420,15 +414,14 @@ function buildToc({ filename, apilinks }) {
       const hasStability = node.stability !== undefined;
       toc += ' '.repeat((depth - 1) * 2) +
         (hasStability ? `* <span class="stability_${node.stability}">` : '* ') +
-        `<a href="#${isDeprecationHeading ? node.data.hProperties.id : id}">` +
-        `${headingText}</a>${hasStability ? '</span>' : ''}\n`;
+        `<a href="#${isDeprecationHeading ? node.data.hProperties.id : id}">${headingText}</a>${hasStability ? '</span>' : ''}\n`;
 
       let anchor =
          `<span><a class="mark" href="#${id}" id="${id}">#</a></span>`;
 
       if (realFilename === 'errors' && headingText.startsWith('ERR_')) {
-        anchor += `<span><a class="mark" href="#${headingText}" ` +
-                  `id="${headingText}">#</a></span>`;
+        anchor +=
+          `<span><a class="mark" href="#${headingText}" id="${headingText}">#</a></span>`;
       }
 
       const api = headingText.replace(/^.*:\s+/, '').replace(/\(.*/, '');
@@ -478,8 +471,7 @@ function altDocs(filename, docCreated, versions) {
     `${host}/docs/latest-v${versionNum}/api/${filename}.html`;
 
   const wrapInListItem = (version) =>
-    `<li><a href="${getHref(version.num)}">${version.num}` +
-    `${version.lts ? ' <b>LTS</b>' : ''}</a></li>`;
+    `<li><a href="${getHref(version.num)}">${version.num}${version.lts ? ' <b>LTS</b>' : ''}</a></li>`;
 
   function isDocInVersion(version) {
     const [versionMajor, versionMinor] = version.num.split('.').map(Number);

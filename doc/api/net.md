@@ -69,7 +69,7 @@ IP subnets.
 added: v15.0.0
 -->
 
-* `address` {string} An IPv4 or IPv6 address.
+* `address` {string|net.SocketAddress} An IPv4 or IPv6 address.
 * `type` {string} Either `'ipv4'` or `'ipv6'`. **Default:** `'ipv4'`.
 
 Adds a rule to block the given IP address.
@@ -79,8 +79,9 @@ Adds a rule to block the given IP address.
 added: v15.0.0
 -->
 
-* `start` {string} The starting IPv4 or IPv6 address in the range.
-* `end` {string} The ending IPv4 or IPv6 address in the range.
+* `start` {string|net.SocketAddress} The starting IPv4 or IPv6 address in the
+  range.
+* `end` {string|net.SocketAddress} The ending IPv4 or IPv6 address in the range.
 * `type` {string} Either `'ipv4'` or `'ipv6'`. **Default:** `'ipv4'`.
 
 Adds a rule to block a range of IP addresses from `start` (inclusive) to
@@ -91,7 +92,7 @@ Adds a rule to block a range of IP addresses from `start` (inclusive) to
 added: v15.0.0
 -->
 
-* `net` {string} The network IPv4 or IPv6 address.
+* `net` {string|net.SocketAddress} The network IPv4 or IPv6 address.
 * `prefix` {number} The number of CIDR prefix bits. For IPv4, this
   must be a value between `0` and `32`. For IPv6, this must be between
   `0` and `128`.
@@ -104,7 +105,7 @@ Adds a rule to block a range of IP addresses specified as a subnet mask.
 added: v15.0.0
 -->
 
-* `address` {string} The IP address to check
+* `address` {string|net.SocketAddress} The IP address to check
 * `type` {string} Either `'ipv4'` or `'ipv6'`. **Default:** `'ipv4'`.
 * Returns: {boolean}
 
@@ -134,6 +135,51 @@ added: v15.0.0
 * Type: {string[]}
 
 The list of rules added to the blocklist.
+
+## Class: `net.SocketAddress`
+<!-- YAML
+added: v15.14.0
+-->
+### `new net.SocketAddress([options])`
+<!-- YAML
+added: v15.14.0
+-->
+
+* `options` {Object}
+  * `address` {string} The network address as either an IPv4 or IPv6 string.
+    **Default**: `'127.0.0.1'` if `family` is `'ipv4'`; `'::'` if `family` is
+    `'ipv6'`.
+  * `family` {string} One of either `'ipv4'` or 'ipv6'`. **Default**: `'ipv4'`.
+  * `flowlabel` {number} An IPv6 flow-label used only if `family` is `'ipv6'`.
+  * `port` {number} An IP port.
+
+### `socketaddress.address`
+<!-- YAML
+added: v15.14.0
+-->
+
+* Type {string}
+
+### `socketaddress.family`
+<!-- YAML
+added: v15.14.0
+-->
+
+* Type {string} Either `'ipv4'` or `'ipv6'`.
+
+### `socketaddress.flowlabel`
+<!-- YAML
+added: v15.14.0
+-->
+
+* Type {number}
+
+### `socketaddress.port`
+<!-- YAML
+added: v15.14.0
+-->
+
+* Type {number}
 
 ## Class: `net.Server`
 <!-- YAML
@@ -497,7 +543,7 @@ it to interact with the client.
 <!-- YAML
 added: v0.3.4
 changes:
-  - version: REPLACEME
+  - version: v15.14.0
     pr-url: https://github.com/nodejs/node/pull/37735
     description: AbortSignal support was added.
 -->

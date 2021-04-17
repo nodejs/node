@@ -302,7 +302,24 @@ typedef enum UNumberFormatRoundingMode {
       * ROUND_UNNECESSARY reports an error if formatted result is not exact.
       * @stable ICU 4.8
       */
-    UNUM_ROUND_UNNECESSARY
+    UNUM_ROUND_UNNECESSARY,
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * Rounds ties toward the odd number.
+     * @draft ICU 69
+     */
+    UNUM_ROUND_HALF_ODD,
+    /**
+     * Rounds ties toward +∞.
+     * @draft ICU 69
+     */
+    UNUM_ROUND_HALF_CEILING,
+    /**
+     * Rounds ties toward -∞.
+     * @draft ICU 69
+     */
+    UNUM_ROUND_HALF_FLOOR,
+#endif  // U_HIDE_DRAFT_API
 } UNumberFormatRoundingMode;
 
 /** The possible number format pad positions.
@@ -692,6 +709,12 @@ unum_formatDecimal(    const    UNumberFormat*  fmt,
 /**
  * Format a double currency amount using a UNumberFormat.
  * The double will be formatted according to the UNumberFormat's locale.
+ *
+ * To format an exact decimal value with a currency, use
+ * `unum_setTextAttribute(UNUM_CURRENCY_CODE, ...)` followed by unum_formatDecimal.
+ * Your UNumberFormat must be created with the UNUM_CURRENCY style. Alternatively,
+ * consider using unumf_openForSkeletonAndLocale.
+ *
  * @param fmt the formatter to use
  * @param number the number to format
  * @param currency the 3-letter null-terminated ISO 4217 currency code

@@ -44,9 +44,10 @@ struct UConverter;          // unicode/ucnv.h
 #ifndef USTRING_H
 /**
  * \ingroup ustring_ustrlen
+ * @param s Pointer to sequence of UChars.
+ * @return Length of sequence.
  */
-U_CAPI int32_t U_EXPORT2
-u_strlen(const UChar *s);
+U_CAPI int32_t U_EXPORT2 u_strlen(const UChar *s);
 #endif
 
 U_NAMESPACE_BEGIN
@@ -2766,7 +2767,6 @@ public:
    * @param options   Options bit set, usually 0. See U_TITLECASE_NO_LOWERCASE,
    *                  U_TITLECASE_NO_BREAK_ADJUSTMENT, U_TITLECASE_ADJUST_TO_CASED,
    *                  U_TITLECASE_WHOLE_STRING, U_TITLECASE_SENTENCES.
-   * @param options Options bit set, see ucasemap_open().
    * @return A reference to this.
    * @stable ICU 3.8
    */
@@ -3614,7 +3614,7 @@ private:
   // turn a bogus string into an empty one
   void unBogus();
 
-  // implements assigment operator, copy constructor, and fastCopyFrom()
+  // implements assignment operator, copy constructor, and fastCopyFrom()
   UnicodeString &copyFrom(const UnicodeString &src, UBool fastCopy=false);
 
   // Copies just the fields without memory management.

@@ -11,6 +11,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#14.16.1">14.16.1</a><br/>
 <a href="#14.16.0">14.16.0</a><br/>
 <a href="#14.15.5">14.15.5</a><br/>
 <a href="#14.15.4">14.15.4</a><br/>
@@ -57,6 +58,34 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="14.16.1"></a>
+## 2021-04-06, Version 14.16.1 'Fermium' (LTS), @mylesborins
+
+This is a security release.
+
+### Notable Changes
+
+Vulnerabilities fixed:
+
+* **CVE-2021-3450**: OpenSSL - CA certificate check bypass with X509_V_FLAG_X509_STRICT (High)
+  * This is a vulnerability in OpenSSL which may be exploited through Node.js. You can read more about it in https://www.openssl.org/news/secadv/20210325.txt
+  * Impacts:
+    * All versions of the 15.x, 14.x, 12.x and 10.x releases lines
+* **CVE-2021-3449**: OpenSSL - NULL pointer deref in signature_algorithms processing (High)
+  * This is a vulnerability in OpenSSL which may be exploited through Node.js. You can read more about it in https://www.openssl.org/news/secadv/20210325.txt
+  * Impacts:
+    * All versions of the 15.x, 14.x, 12.x and 10.x releases lines
+* **CVE-2020-7774**: npm upgrade - Update y18n to fix Prototype-Pollution (High)
+  * This is a vulnerability in the y18n npm module which may be exploited by prototype pollution. You can read more about it in https://github.com/advisories/GHSA-c4w7-xm78-47vh
+  * Impacts:
+    * All versions of the 14.x, 12.x and 10.x releases lines
+
+### Commits
+
+* [[`467be7a950`](https://github.com/nodejs/node/commit/467be7a950)] - **deps**: upgrade npm to 6.14.12 (Ruy Adorno) [#37918](https://github.com/nodejs/node/pull/37918)
+* [[`6bc8f58182`](https://github.com/nodejs/node/commit/6bc8f58182)] - **deps**: update archs files for OpenSSL-1.1.1k (Tobias Nießen) [#37938](https://github.com/nodejs/node/pull/37938)
+* [[`403a014ef6`](https://github.com/nodejs/node/commit/403a014ef6)] - **deps**: upgrade openssl sources to 1.1.1k (Tobias Nießen) [#37938](https://github.com/nodejs/node/pull/37938)
 
 <a id="14.16.0"></a>
 ## 2021-02-23, Version 14.16.0 'Fermium' (LTS), @BethGriggs

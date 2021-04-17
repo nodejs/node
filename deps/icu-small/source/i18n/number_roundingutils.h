@@ -104,6 +104,45 @@ getRoundingDirection(bool isEven, bool isNegative, Section section, RoundingMode
             }
             break;
 
+        case RoundingMode::UNUM_ROUND_HALF_ODD:
+            switch (section) {
+                case SECTION_MIDPOINT:
+                    return !isEven;
+                case SECTION_LOWER:
+                    return true;
+                case SECTION_UPPER:
+                    return false;
+                default:
+                    break;
+            }
+            break;
+
+        case RoundingMode::UNUM_ROUND_HALF_CEILING:
+            switch (section) {
+                case SECTION_MIDPOINT:
+                    return isNegative;
+                case SECTION_LOWER:
+                    return true;
+                case SECTION_UPPER:
+                    return false;
+                default:
+                    break;
+            }
+            break;
+
+        case RoundingMode::UNUM_ROUND_HALF_FLOOR:
+            switch (section) {
+                case SECTION_MIDPOINT:
+                    return !isNegative;
+                case SECTION_LOWER:
+                    return true;
+                case SECTION_UPPER:
+                    return false;
+                default:
+                    break;
+            }
+            break;
+
         default:
             break;
     }
@@ -204,7 +243,7 @@ class RoundingImpl {
  * - see blueprint_helpers::parseIncrementOption().
  *
  * Referencing MacroProps means needing to pull in the .o files that have the
- * destructors for the SymbolsWrapper, Usage, and Scale classes.
+ * destructors for the SymbolsWrapper, StringProp, and Scale classes.
  */
 void parseIncrementOption(const StringSegment &segment, Precision &outPrecision, UErrorCode &status);
 

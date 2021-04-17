@@ -32,7 +32,7 @@ server.listen(0, common.mustCall(() => {
     'Content-Length: 11',
     '',
     'hello world',
-    ''
+    '',
   ].join('\r\n');
 
   client.write(req);

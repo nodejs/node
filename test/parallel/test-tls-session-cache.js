@@ -104,7 +104,7 @@ function doTest(testOptions, callback) {
       '-servername', 'ohgod',
       '-key', fixtures.path('keys/rsa_private.pem'),
       '-cert', fixtures.path('keys/rsa_cert.crt'),
-      '-reconnect'
+      '-reconnect',
     ].concat(testOptions.tickets ? [] : '-no_ticket');
 
     function spawnClient() {

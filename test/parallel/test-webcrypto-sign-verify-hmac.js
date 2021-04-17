@@ -18,7 +18,7 @@ async function testVerify({ hash,
   const [
     key,
     noVerifyKey,
-    rsaKeys
+    rsaKeys,
   ] = await Promise.all([
     subtle.importKey(
       'raw',
@@ -40,7 +40,7 @@ async function testVerify({ hash,
         hash: 'SHA-256',
       },
       false,
-      ['sign'])
+      ['sign']),
   ]);
 
   assert(await subtle.verify({ name, hash }, key, signature, plaintext));
@@ -133,7 +133,7 @@ async function testSign({ hash,
         hash: 'SHA-256',
       },
       false,
-      ['sign'])
+      ['sign']),
   ]);
 
   {
@@ -151,6 +151,13 @@ async function testSign({ hash,
     const sig = await p;
     assert(await subtle.verify({ name, hash }, key, sig, plaintext));
   }
+
+  await assert.rejects(
+    subtle.generateKey({ name }, false, []), {
+      name: 'TypeError',
+      code: 'ERR_MISSING_OPTION',
+      message: 'algorithm.hash is required'
+    });
 
   // Test failure when no sign usage
   await assert.rejects(

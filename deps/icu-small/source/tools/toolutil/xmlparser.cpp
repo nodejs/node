@@ -79,7 +79,7 @@ UXMLParser::UXMLParser(UErrorCode &status) :
       //       or      "<!DOCTYPE foo [internal dtd]>
       //    TODO:  we don't actually parse the DOCTYPE or internal subsets.
       //           Some internal dtd subsets could confuse this simple-minded
-      //           attempt at skipping over them, specifically, occcurences
+      //           attempt at skipping over them, specifically, occurrences
       //           of closeing square brackets.  These could appear in comments,
       //           or in parameter entity declarations, for example.
       mXMLDoctype(UnicodeString(
@@ -243,7 +243,7 @@ UXMLParser::parseFile(const char *filename, UErrorCode &errorCode) {
                 UnicodeString attValue = mAttrValue.group(2, errorCode);
 
                 // Trim the quotes from the att value.  These are left over from the original regex
-                //   that parsed the attribue, which couldn't conveniently strip them.
+                //   that parsed the attribute, which couldn't conveniently strip them.
                 attValue.remove(0,1);                    // one char from the beginning
                 attValue.truncate(attValue.length()-1);  // and one from the end.
 
@@ -498,7 +498,7 @@ UXMLParser::createElement(RegexMatcher  &mEl, UErrorCode &status) {
         UnicodeString attValue = mAttrValue.group(2, status);
 
         // Trim the quotes from the att value.  These are left over from the original regex
-        //   that parsed the attribue, which couldn't conveniently strip them.
+        //   that parsed the attribute, which couldn't conveniently strip them.
         attValue.remove(0,1);                    // one char from the beginning
         attValue.truncate(attValue.length()-1);  // and one from the end.
 
@@ -658,7 +658,7 @@ UXMLParser::intern(const UnicodeString &s, UErrorCode &errorCode) {
         return (const UnicodeString *)he->key.pointer;
     } else {
         // add this new name and return its hashed key pointer
-        fNames.puti(s, 0, errorCode);
+        fNames.puti(s, 1, errorCode);
         he=fNames.find(s);
         return (const UnicodeString *)he->key.pointer;
     }

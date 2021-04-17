@@ -1,6 +1,5 @@
-const requireInject = require('require-inject')
 const mockNpm = require('../fixtures/mock-npm')
-const { test } = require('tap')
+const t = require('tap')
 
 const config = {
   registry: 'https://registry.npmjs.org/',
@@ -24,10 +23,10 @@ const mocks = {
   'npm-registry-fetch': npmFetch,
 }
 
-const Logout = requireInject('../../lib/logout.js', mocks)
+const Logout = t.mock('../../lib/logout.js', mocks)
 const logout = new Logout(npm)
 
-test('token logout', async (t) => {
+t.test('token logout', async (t) => {
   t.plan(6)
 
   flatOptions.token = '@foo/'
@@ -55,9 +54,9 @@ test('token logout', async (t) => {
 
   await new Promise((res, rej) => {
     logout.exec([], (err) => {
-      t.ifError(err, 'should not error out')
+      t.error(err, 'should not error out')
 
-      t.deepEqual(
+      t.same(
         result,
         {
           url: '/-/user/token/%40foo%2F',
@@ -85,7 +84,7 @@ test('token logout', async (t) => {
   })
 })
 
-test('token scoped logout', async (t) => {
+t.test('token scoped logout', async (t) => {
   t.plan(8)
 
   flatOptions.token = '@foo/'
@@ -126,9 +125,9 @@ test('token scoped logout', async (t) => {
 
   await new Promise((res, rej) => {
     logout.exec([], (err) => {
-      t.ifError(err, 'should not error out')
+      t.error(err, 'should not error out')
 
-      t.deepEqual(
+      t.same(
         result,
         {
           url: '/-/user/token/%40foo%2F',
@@ -159,7 +158,7 @@ test('token scoped logout', async (t) => {
   })
 })
 
-test('user/pass logout', async (t) => {
+t.test('user/pass logout', async (t) => {
   t.plan(3)
 
   flatOptions.username = 'foo'
@@ -179,7 +178,7 @@ test('user/pass logout', async (t) => {
 
   await new Promise((res, rej) => {
     logout.exec([], (err) => {
-      t.ifError(err, 'should not error out')
+      t.error(err, 'should not error out')
 
       delete flatOptions.username
       delete flatOptions.password
@@ -192,7 +191,7 @@ test('user/pass logout', async (t) => {
   })
 })
 
-test('missing credentials', (t) => {
+t.test('missing credentials', (t) => {
   logout.exec([], (err) => {
     t.match(
       err.message,
@@ -204,7 +203,7 @@ test('missing credentials', (t) => {
   })
 })
 
-test('ignore invalid scoped registry config', async (t) => {
+t.test('ignore invalid scoped registry config', async (t) => {
   t.plan(5)
 
   flatOptions.token = '@foo/'
@@ -233,9 +232,9 @@ test('ignore invalid scoped registry config', async (t) => {
 
   await new Promise((res, rej) => {
     logout.exec([], (err) => {
-      t.ifError(err, 'should not error out')
+      t.error(err, 'should not error out')
 
-      t.deepEqual(
+      t.same(
         result,
         {
           url: '/-/user/token/%40foo%2F',

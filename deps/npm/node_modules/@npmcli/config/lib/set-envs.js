@@ -67,8 +67,8 @@ const setEnvs = (config) => {
   const cliSet = new Set(Object.keys(cliConf))
   const envSet = new Set(Object.keys(envConf))
   for (const key in cliConf) {
-    const { deprecated } = definitions[key] || {}
-    if (deprecated)
+    const { deprecated, envExport = true } = definitions[key] || {}
+    if (deprecated || envExport === false)
       continue
 
     if (sameConfigValue(defaults[key], cliConf[key])) {

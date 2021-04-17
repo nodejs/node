@@ -320,7 +320,8 @@ XLikelySubtags::~XLikelySubtags() {
 LSR XLikelySubtags::makeMaximizedLsrFrom(const Locale &locale, UErrorCode &errorCode) const {
     const char *name = locale.getName();
     if (uprv_isAtSign(name[0]) && name[1] == 'x' && name[2] == '=') {  // name.startsWith("@x=")
-        // Private use language tag x-subtag-subtag...
+        // Private use language tag x-subtag-subtag... which CLDR changes to
+        // und-x-subtag-subtag...
         return LSR(name, "", "", LSR::EXPLICIT_LSR);
     }
     return makeMaximizedLsr(locale.getLanguage(), locale.getScript(), locale.getCountry(),

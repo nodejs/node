@@ -812,7 +812,7 @@ int32_t RuleBasedBreakIterator::handleNext() {
         }
     #endif
 
-    // handleNext alway sets the break tag value.
+    // handleNext always sets the break tag value.
     // Set the default for it.
     fRuleStatusIndex = 0;
 

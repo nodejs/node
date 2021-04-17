@@ -27,7 +27,7 @@ const dnsPromises = dns.promises;
 common.expectWarning({
   // For 'internal/test/binding' module.
   'internal/test/binding': [
-    'These APIs are for internal testing only. Do not use them.'
+    'These APIs are for internal testing only. Do not use them.',
   ],
   // For calling `dns.lookup` with falsy `hostname`.
   'DeprecationWarning': {

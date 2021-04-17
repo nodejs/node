@@ -1,4 +1,4 @@
-.TH "NPM\-PACK" "1" "March 2021" "" ""
+.TH "NPM\-PACK" "1" "April 2021" "" ""
 .SH "NAME"
 \fBnpm-pack\fR \- Create a tarball from a package
 .SS Synopsis
@@ -8,6 +8,21 @@
 npm pack [[<@scope>/]<pkg>\.\.\.] [\-\-dry\-run]
 .fi
 .RE
+.SS Configuration
+.SS dry\-run
+.P
+Do everything that pack usually does without actually packing anything\.
+That is, report on what would have gone into the tarball, but nothing
+else\.
+.SS workspaces
+.P
+Enables workspaces context while creating tarballs\. Tarballs for each
+workspaces will be generated\.
+.SS workspace
+.P
+Enables workspaces context and limits results to only those specified by
+this config item\.  Tarballs will only be generated for the packages
+named in the workspaces given here\.
 .SS Description
 .P
 For anything that's installable (that is, a package folder, tarball,
@@ -20,10 +35,6 @@ If the same package is specified multiple times, then the file will be
 overwritten the second time\.
 .P
 If no arguments are supplied, then npm packs the current package folder\.
-.P
-The \fB\-\-dry\-run\fP argument will do everything that pack usually does without
-actually packing anything\.  That is, it reports on what would have gone
-into the tarball, but nothing else\.
 .SS See Also
 .RS 0
 .IP \(bu 2

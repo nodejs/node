@@ -83,7 +83,7 @@ typedef enum {
 } UCollationResult ;
 
 
-/** Enum containing attribute values for controling collation behavior.
+/** Enum containing attribute values for controlling collation behavior.
  * Here are all the allowable values. Not every attribute can take every value. The only
  * universal value is UCOL_DEFAULT, which resets the attribute value to the predefined
  * value for that locale

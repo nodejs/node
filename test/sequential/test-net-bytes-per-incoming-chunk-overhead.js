@@ -17,7 +17,7 @@ const receivedChunks = [];
 const N = 250000;
 
 const server = net.createServer(common.mustCall((socket) => {
-  baseRSS = process.memoryUsage().rss;
+  baseRSS = process.memoryUsage.rss();
 
   socket.setNoDelay(true);
   socket.on('data', (chunk) => {
@@ -38,7 +38,7 @@ const server = net.createServer(common.mustCall((socket) => {
 process.on('exit', () => {
   global.gc();
   const bytesPerChunk =
-    (process.memoryUsage().rss - baseRSS) / receivedChunks.length;
+    (process.memoryUsage.rss() - baseRSS) / receivedChunks.length;
   // We should always have less than one page (usually ~ 4 kB) per chunk.
   assert(bytesPerChunk < 650, `measured ${bytesPerChunk} bytes per chunk`);
 });

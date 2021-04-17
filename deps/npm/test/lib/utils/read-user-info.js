@@ -1,5 +1,4 @@
-const { test } = require('tap')
-const requireInject = require('require-inject')
+const t = require('tap')
 
 let readOpts = null
 let readResult = null
@@ -28,13 +27,13 @@ const npmUserValidate = {
   },
 }
 
-const readUserInfo = requireInject('../../../lib/utils/read-user-info.js', {
+const readUserInfo = t.mock('../../../lib/utils/read-user-info.js', {
   read,
   npmlog,
   'npm-user-validate': npmUserValidate,
 })
 
-test('otp', async (t) => {
+t.test('otp', async (t) => {
   readResult = '1234'
   t.teardown(() => {
     readResult = null
@@ -44,7 +43,7 @@ test('otp', async (t) => {
   t.equal(result, '1234', 'received the otp')
 })
 
-test('password', async (t) => {
+t.test('password', async (t) => {
   readResult = 'password'
   t.teardown(() => {
     readResult = null
@@ -57,7 +56,7 @@ test('password', async (t) => {
   }, 'got the correct options')
 })
 
-test('username', async (t) => {
+t.test('username', async (t) => {
   readResult = 'username'
   t.teardown(() => {
     readResult = null
@@ -67,7 +66,7 @@ test('username', async (t) => {
   t.equal(result, 'username', 'received the username')
 })
 
-test('username - invalid warns and retries', async (t) => {
+t.test('username - invalid warns and retries', async (t) => {
   readResult = 'invalid'
   t.teardown(() => {
     readResult = null
@@ -87,7 +86,7 @@ test('username - invalid warns and retries', async (t) => {
   t.equal(logMsg, 'invalid username')
 })
 
-test('email', async (t) => {
+t.test('email', async (t) => {
   readResult = 'foo@bar.baz'
   t.teardown(() => {
     readResult = null
@@ -97,7 +96,7 @@ test('email', async (t) => {
   t.equal(result, 'foo@bar.baz', 'received the email')
 })
 
-test('email - invalid warns and retries', async (t) => {
+t.test('email - invalid warns and retries', async (t) => {
   readResult = 'invalid@bar.baz'
   t.teardown(() => {
     readResult = null

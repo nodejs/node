@@ -191,24 +191,24 @@ async function getHandle(dest) {
 
       assert.rejects(
         async () => {
-          await chown(dest, 1, -1);
+          await chown(dest, 1, -2);
         },
         {
           code: 'ERR_OUT_OF_RANGE',
           name: 'RangeError',
           message: 'The value of "gid" is out of range. ' +
-                  'It must be >= 0 && < 4294967296. Received -1'
+                  'It must be >= -1 && <= 4294967295. Received -2'
         });
 
       assert.rejects(
         async () => {
-          await handle.chown(1, -1);
+          await handle.chown(1, -2);
         },
         {
           code: 'ERR_OUT_OF_RANGE',
           name: 'RangeError',
           message: 'The value of "gid" is out of range. ' +
-                    'It must be >= 0 && < 4294967296. Received -1'
+                    'It must be >= -1 && <= 4294967295. Received -2'
         });
 
       await handle.close();
@@ -283,7 +283,7 @@ async function getHandle(dest) {
                 name: 'Error',
                 message: 'The lchmod() method is not implemented'
               })
-            )
+            ),
           ]);
         }
 
@@ -436,6 +436,22 @@ async function getHandle(dest) {
       );
     }
 
+    // Regression test for https://github.com/nodejs/node/issues/38168
+    {
+      const handle = await getHandle(dest);
+
+      assert.rejects(
+        async () => handle.write('abc', 0, 'hex'),
+        {
+          code: 'ERR_INVALID_ARG_VALUE',
+          message: /'encoding' is invalid for data of length 3/
+        }
+      );
+
+      const ret = await handle.write('abcd', 0, 'hex');
+      assert.strictEqual(ret.bytesWritten, 2);
+      await handle.close();
+    }
   }
 
   doTest().then(common.mustCall());

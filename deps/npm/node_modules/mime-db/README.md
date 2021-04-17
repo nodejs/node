@@ -34,8 +34,6 @@ https://cdn.jsdelivr.net/gh/jshttp/mime-db@master/db.json
 
 ## Usage
 
-<!-- eslint-disable no-unused-vars -->
-
 ```js
 var db = require('mime-db')
 

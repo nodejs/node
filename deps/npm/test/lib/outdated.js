@@ -1,5 +1,4 @@
 const t = require('tap')
-const requireInject = require('require-inject')
 const mockNpm = require('../fixtures/mock-npm')
 
 const packument = spec => {
@@ -85,7 +84,7 @@ const globalDir = t.testdir({
 })
 
 const outdated = (dir, opts) => {
-  const Outdated = requireInject('../../lib/outdated.js', {
+  const Outdated = t.mock('../../lib/outdated.js', {
     pacote: {
       packument,
     },
@@ -99,10 +98,7 @@ const outdated = (dir, opts) => {
   return new Outdated(npm)
 }
 
-t.beforeEach((done) => {
-  logs = ''
-  done()
-})
+t.beforeEach(() => logs = '')
 
 const redactCwd = (path) => {
   const normalizePath = p => p
@@ -342,7 +338,7 @@ t.test('should return if no outdated deps', t => {
   outdated(testDir, {
     global: false,
   }).exec([], () => {
-    t.equals(logs.length, 0, 'no logs')
+    t.equal(logs.length, 0, 'no logs')
     t.end()
   })
 })
@@ -369,7 +365,7 @@ t.test('throws if error with a dep', t => {
   outdated(testDir, {
     global: false,
   }).exec([], (err) => {
-    t.equals(err.message, 'There is an error with this package.')
+    t.equal(err.message, 'There is an error with this package.')
     t.end()
   })
 })
@@ -389,7 +385,7 @@ t.test('should skip missing non-prod deps', t => {
   outdated(testDir, {
     global: false,
   }).exec([], () => {
-    t.equals(logs.length, 0, 'no logs')
+    t.equal(logs.length, 0, 'no logs')
     t.end()
   })
 })
@@ -414,7 +410,7 @@ t.test('should skip invalid pkg ranges', t => {
   })
 
   outdated(testDir, {}).exec([], () => {
-    t.equals(logs.length, 0, 'no logs')
+    t.equal(logs.length, 0, 'no logs')
     t.end()
   })
 })
@@ -439,7 +435,7 @@ t.test('should skip git specs', t => {
   })
 
   outdated(testDir, {}).exec([], () => {
-    t.equals(logs.length, 0, 'no logs')
+    t.equal(logs.length, 0, 'no logs')
     t.end()
   })
 })

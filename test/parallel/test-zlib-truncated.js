@@ -21,7 +21,7 @@ const errMessage = /unexpected end of file/;
   { comp: 'gzip', decomp: 'gunzip', decompSync: 'gunzipSync' },
   { comp: 'gzip', decomp: 'unzip', decompSync: 'unzipSync' },
   { comp: 'deflate', decomp: 'inflate', decompSync: 'inflateSync' },
-  { comp: 'deflateRaw', decomp: 'inflateRaw', decompSync: 'inflateRawSync' }
+  { comp: 'deflateRaw', decomp: 'inflateRaw', decompSync: 'inflateRawSync' },
 ].forEach(function(methods) {
   zlib[methods.comp](inputString, function(err, compressed) {
     assert.ifError(err);

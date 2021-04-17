@@ -15,8 +15,8 @@ const array = [
   [
     'world',
     'node',
-    'abi'
-  ]
+    'abi',
+  ],
 ];
 
 assert.throws(

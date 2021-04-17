@@ -1,5 +1,4 @@
-const requireInject = require('require-inject')
-const { test } = require('tap')
+const t = require('tap')
 const mockNpm = require('../../fixtures/mock-npm')
 
 const config = {
@@ -8,9 +7,9 @@ const config = {
 }
 const npm = mockNpm({ config })
 
-const readLocalPackageName = requireInject('../../../lib/utils/read-local-package.js')
+const readLocalPackageName = require('../../../lib/utils/read-local-package.js')
 
-test('read local package.json', async (t) => {
+t.test('read local package.json', async (t) => {
   npm.prefix = t.testdir({
     'package.json': JSON.stringify({
       name: 'my-local-package',
@@ -25,7 +24,7 @@ test('read local package.json', async (t) => {
   )
 })
 
-test('read local scoped-package.json', async (t) => {
+t.test('read local scoped-package.json', async (t) => {
   npm.prefix = t.testdir({
     'package.json': JSON.stringify({
       name: '@my-scope/my-local-package',
@@ -40,7 +39,7 @@ test('read local scoped-package.json', async (t) => {
   )
 })
 
-test('read using --global', async (t) => {
+t.test('read using --global', async (t) => {
   npm.prefix = t.testdir({})
   config.global = true
   const packageName = await readLocalPackageName(npm)

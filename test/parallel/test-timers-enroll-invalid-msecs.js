@@ -9,7 +9,7 @@ const timers = require('timers');
   [],
   'foo',
   () => { },
-  Symbol('foo')
+  Symbol('foo'),
 ].forEach((val) => {
   assert.throws(
     () => timers.enroll({}, val),
@@ -23,7 +23,7 @@ const timers = require('timers');
 [
   -1,
   Infinity,
-  NaN
+  NaN,
 ].forEach((val) => {
   assert.throws(
     () => timers.enroll({}, val),

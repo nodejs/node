@@ -35,6 +35,11 @@ class RunScript extends BaseCommand {
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return ['workspace', 'workspaces']
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'run-script'
   }
@@ -182,13 +187,10 @@ class RunScript extends BaseCommand {
     return allScripts
   }
 
-  async workspaces (filters) {
-    return getWorkspaces(filters, { path: this.npm.localPrefix })
-  }
-
   async runWorkspaces (args, filters) {
     const res = []
-    const workspaces = await this.workspaces(filters)
+    const workspaces =
+      await getWorkspaces(filters, { path: this.npm.localPrefix })
 
     for (const workspacePath of workspaces.values()) {
       const pkg = await rpj(`${workspacePath}/package.json`)
@@ -219,7 +221,8 @@ class RunScript extends BaseCommand {
   }
 
   async listWorkspaces (args, filters) {
-    const workspaces = await this.workspaces(filters)
+    const workspaces =
+      await getWorkspaces(filters, { path: this.npm.localPrefix })
 
     if (log.level === 'silent')
       return

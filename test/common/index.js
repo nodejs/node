@@ -612,7 +612,7 @@ function getArrayBufferViews(buf) {
     Uint32Array,
     Float32Array,
     Float64Array,
-    DataView
+    DataView,
   ];
 
   for (const type of arrayBufferViews) {
@@ -626,10 +626,6 @@ function getArrayBufferViews(buf) {
 
 function getBufferSources(buf) {
   return [...getArrayBufferViews(buf), new Uint8Array(buf).buffer];
-}
-
-function disableCrashOnUnhandledRejection() {
-  process.on('unhandledRejection', () => {});
 }
 
 function getTTYfd() {
@@ -732,7 +728,6 @@ const common = {
   canCreateSymLink,
   childShouldThrowAndAbort,
   createZeroFilledFile,
-  disableCrashOnUnhandledRejection,
   expectsError,
   expectWarning,
   gcUntil,

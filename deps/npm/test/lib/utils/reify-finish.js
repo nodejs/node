@@ -1,5 +1,4 @@
 const t = require('tap')
-const requireInject = require('require-inject')
 
 const npm = {
   config: {
@@ -30,7 +29,7 @@ const fs = {
   },
 }
 
-const reifyFinish = requireInject('../../../lib/utils/reify-finish.js', {
+const reifyFinish = t.mock('../../../lib/utils/reify-finish.js', {
   fs,
   '../../../lib/utils/reify-output.js': reifyOutput,
 })
@@ -79,7 +78,7 @@ t.test('should write if everything above passes', async t => {
 })
 
 t.test('works without fs.promises', async t => {
-  t.doesNotThrow(() => requireInject('../../../lib/utils/reify-finish.js', {
+  t.doesNotThrow(() => t.mock('../../../lib/utils/reify-finish.js', {
     fs: { ...fs, promises: null },
     '../../../lib/npm.js': npm,
     '../../../lib/utils/reify-output.js': reifyOutput,

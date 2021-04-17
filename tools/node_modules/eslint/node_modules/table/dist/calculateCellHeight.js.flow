@@ -1,4 +1,4 @@
-import _ from 'lodash';
+import isString from 'is-string';
 import wrapCell from './wrapCell';
 
 /**
@@ -8,7 +8,7 @@ import wrapCell from './wrapCell';
  * @returns {number}
  */
 export default (value, columnWidth, useWrapWord = false) => {
-  if (!_.isString(value)) {
+  if (!isString(value)) {
     throw new TypeError('Value must be a string.');
   }
 

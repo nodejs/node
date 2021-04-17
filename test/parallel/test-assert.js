@@ -592,7 +592,7 @@ a.throws(
     '...',
     '    1,',
     '    1',
-    '  ]'
+    '  ]',
   ].join('\n');
   assert.throws(
     () => assert.deepEqual(
@@ -613,7 +613,7 @@ a.throws(
     '    1,',
     '    1,',
     '    1',
-    '  ]'
+    '  ]',
   ].join('\n');
   assert.throws(
     () => assert.deepEqual(
@@ -634,7 +634,7 @@ a.throws(
     '    0,',
     '+   1,',
     '    1',
-    '  ]'
+    '  ]',
   ].join('\n');
   assert.throws(
     () => assert.deepEqual(
@@ -665,7 +665,7 @@ a.throws(
     '+   1,',
     '    2,',
     '    1',
-    '  ]'
+    '  ]',
   ].join('\n');
   assert.throws(
     () => assert.deepEqual([1, 2, 1], [2, 1]),
@@ -946,7 +946,7 @@ assert.throws(
 [
   1,
   false,
-  Symbol()
+  Symbol(),
 ].forEach((input) => {
   assert.throws(
     () => assert.throws(() => {}, input),

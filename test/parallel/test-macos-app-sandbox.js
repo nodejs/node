@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common');
 if (process.platform !== 'darwin')
-  common.skip('App Sandbox is only avaliable on Darwin');
+  common.skip('App Sandbox is only available on Darwin');
 
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
@@ -43,14 +43,14 @@ assert.strictEqual(
     '--entitlements', fixtures.path(
       'macos-app-sandbox', 'node_sandboxed.entitlements'),
     '--force', '-s', '-',
-    appBundlePath
+    appBundlePath,
   ]).status,
   0);
 
 // Sandboxed app shouldn't be able to read the home dir
 assert.notStrictEqual(
   child_process.spawnSync(appExecutablePath, [
-    '-e', 'fs.readdirSync(process.argv[1])', os.homedir()
+    '-e', 'fs.readdirSync(process.argv[1])', os.homedir(),
   ]).status,
   0);
 

@@ -98,6 +98,7 @@ void NativeModuleLoader::InitializeModuleCategories() {
       "tls",
       "_tls_common",
       "_tls_wrap",
+      "internal/tls",
       "internal/http2/core",
       "internal/http2/compat",
       "internal/policy/manifest",

@@ -1738,12 +1738,12 @@ changes:
     private key in different ways.
   * `maxVersion` {string} Optionally set the maximum TLS version to allow. One
     of `'TLSv1.3'`, `'TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`. Cannot be specified
-    along with the `secureProtocol` option, use one or the other.
+    along with the `secureProtocol` option; use one or the other.
     **Default:** [`tls.DEFAULT_MAX_VERSION`][].
   * `minVersion` {string} Optionally set the minimum TLS version to allow. One
     of `'TLSv1.3'`, `'TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`. Cannot be specified
-    along with the `secureProtocol` option, use one or the other. It is not
-    recommended to use less than TLSv1.2, but it may be required for
+    along with the `secureProtocol` option; use one or the other. Avoid
+    setting to less than TLSv1.2, but it may be required for
     interoperability.
     **Default:** [`tls.DEFAULT_MIN_VERSION`][].
   * `passphrase` {string} Shared passphrase used for a single private key and/or
@@ -1772,7 +1772,7 @@ changes:
     **Default:** none, see `minVersion`.
   * `sessionIdContext` {string} Opaque identifier used by servers to ensure
     session state is not shared between applications. Unused by clients.
-  * `ticketKeys`: {Buffer} 48-bytes of cryptographically strong pseudo-random
+  * `ticketKeys`: {Buffer} 48-bytes of cryptographically strong pseudorandom
     data. See [Session Resumption][] for more information.
   * `sessionTimeout` {number} The number of seconds after which a TLS session
     created by the server will no longer be resumable. See
@@ -1915,7 +1915,7 @@ changes:
     If `callback` is called with a falsy `ctx` argument, the default secure
     context of the server will be used. If `SNICallback` wasn't provided the
     default callback with high-level API will be used (see below).
-  * `ticketKeys`: {Buffer} 48-bytes of cryptographically strong pseudo-random
+  * `ticketKeys`: {Buffer} 48-bytes of cryptographically strong pseudorandom
     data. See [Session Resumption][] for more information.
   * `pskCallback` {Function}
     * socket: {tls.TLSSocket} the server [`tls.TLSSocket`][] instance for

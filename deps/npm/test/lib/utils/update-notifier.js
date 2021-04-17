@@ -1,5 +1,4 @@
 const t = require('tap')
-const requireInject = require('require-inject')
 let ciMock = null
 const flatOptions = { global: false, cache: t.testdir() + '/_cacache' }
 
@@ -52,6 +51,7 @@ let STAT_ERROR = null
 let STAT_MTIME = null
 let WRITE_ERROR = null
 const fs = {
+  ...require('fs'),
   stat: (path, cb) => {
     if (basename(path) !== '_update-notifier-last-checked') {
       console.error(new Error('should only write to notifier last checked file'))
@@ -72,19 +72,18 @@ const fs = {
   },
 }
 
-const updateNotifier = requireInject('../../../lib/utils/update-notifier.js', {
+const updateNotifier = t.mock('../../../lib/utils/update-notifier.js', {
   '@npmcli/ci-detect': () => ciMock,
   pacote,
   fs,
 })
 
-t.afterEach(cb => {
+t.afterEach(() => {
   MANIFEST_REQUEST.length = 0
   STAT_ERROR = null
   PACOTE_ERROR = null
   STAT_MTIME = null
   WRITE_ERROR = null
-  cb()
 })
 
 t.test('situations in which we do not notify', t => {

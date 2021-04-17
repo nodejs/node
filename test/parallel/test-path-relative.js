@@ -31,8 +31,8 @@ const relativeTests = [
      ['\\\\foo\\baz-quux', '\\\\foo\\baz', '..\\baz'],
      ['\\\\foo\\baz', '\\\\foo\\baz-quux', '..\\baz-quux'],
      ['C:\\baz', '\\\\foo\\bar\\baz', '\\\\foo\\bar\\baz'],
-     ['\\\\foo\\bar\\baz', 'C:\\baz', 'C:\\baz']
-    ]
+     ['\\\\foo\\bar\\baz', 'C:\\baz', 'C:\\baz'],
+    ],
   ],
   [ path.posix.relative,
     // Arguments          result
@@ -48,9 +48,9 @@ const relativeTests = [
      ['/foo/bar/baz', '/foo/bar/baz-quux', '../baz-quux'],
      ['/baz-quux', '/baz', '../baz'],
      ['/baz', '/baz-quux', '../baz-quux'],
-     ['/page1/page2/foo', '/', '../../..']
-    ]
-  ]
+     ['/page1/page2/foo', '/', '../../..'],
+    ],
+  ],
 ];
 relativeTests.forEach((test) => {
   const relative = test[0];

@@ -460,3 +460,14 @@ const assert = require('assert');
     assert.strictEqual(write.destroyed, true);
   }));
 }
+
+{
+  // Destroy twice
+  const write = new Writable({
+    write(chunk, enc, cb) { cb(); }
+  });
+
+  write.end(common.mustCall());
+  write.destroy();
+  write.destroy();
+}

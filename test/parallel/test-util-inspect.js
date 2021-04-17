@@ -495,7 +495,7 @@ assert.strictEqual(
                       'true,',
                       "'4294967296': true,",
                       "'4294967295': true,",
-                      "'4294967297': true\n]"
+                      "'4294967297': true\n]",
                      ].join('\n  '));
 }
 
@@ -640,7 +640,7 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
     new Error(),
     new Error('FAIL'),
     new TypeError('FAIL'),
-    new SyntaxError('FAIL')
+    new SyntaxError('FAIL'),
   ].forEach((err) => {
     assert.strictEqual(util.inspect(err), err.stack);
   });
@@ -1629,7 +1629,7 @@ util.inspect(process);
     "    'za' => 1,",
     "    'zb' => 'test'",
     '  }',
-    '}'
+    '}',
   ].join('\n');
   assert.strictEqual(out, expect);
 
@@ -1637,7 +1637,7 @@ util.inspect(process);
   expect = [
     "'Lorem ipsum dolor\\n' +",
     "  'sit amet,\\tconsectetur adipiscing elit, sed do eiusmod tempor " +
-      "incididunt ut labore et dolore magna aliqua.'"
+      "incididunt ut labore et dolore magna aliqua.'",
   ].join('\n');
   assert.strictEqual(out, expect);
 
@@ -1651,7 +1651,7 @@ util.inspect(process);
     '12 45 78 01 34 67 90 23 56 89 123456789012345678901234567890',
     { compact: false, breakLength: 3 });
   expect = [
-    "'12 45 78 01 34 67 90 23 56 89 123456789012345678901234567890'"
+    "'12 45 78 01 34 67 90 23 56 89 123456789012345678901234567890'",
   ].join('\n');
   assert.strictEqual(out, expect);
 
@@ -1662,7 +1662,7 @@ util.inspect(process);
     '{',
     '  a: [Function (anonymous)],',
     '  b: [Number: 3]',
-    '}'
+    '}',
   ].join('\n');
   assert.strictEqual(out, expect);
 
@@ -1674,7 +1674,7 @@ util.inspect(process);
     "    [name]: ''",
     '  },',
     '  b: [Number: 3]',
-    '}'
+    '}',
   ].join('\n');
   assert.strictEqual(out, expect);
 
@@ -1752,7 +1752,7 @@ util.inspect(process);
     '    [Circular *1],',
     "    [Symbol(Symbol.toStringTag)]: 'Map Iterator'",
     '  }',
-    '}'
+    '}',
   ].join('\n');
 
   assert.strict.equal(out, expected);
@@ -1791,7 +1791,7 @@ util.inspect(process);
     '    [Circular *1],',
     "    [Symbol(Symbol.toStringTag)]: 'Map Iterator'",
     '  }',
-    '}'
+    '}',
   ].join('\n');
 
   assert.strict.equal(out, expected);
@@ -1832,7 +1832,7 @@ util.inspect(process);
     '        foo: true } ],',
     '    [Circular *1],',
     '    [Symbol(Symbol.toStringTag)]:',
-    "     'Map Iterator' } }"
+    "     'Map Iterator' } }",
   ].join('\n');
 
   assert.strict.equal(out, expected);
@@ -1930,7 +1930,7 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
     get name() {
       return 'BazError';
     }
-  }, undefined]
+  }, undefined],
 ].forEach(([Class, message], i) => {
   console.log('Test %i', i);
   const foo = new Class(message);
@@ -2000,7 +2000,7 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
   // Foobar !!!
   [class X   extends /****/ Error
   // More comments
-  {}, '[class X extends Error]']
+  {}, '[class X extends Error]'],
   /* eslint-enable spaced-comment, no-multi-spaces, brace-style */
 ].forEach(([clazz, string]) => {
   const inspected = util.inspect(clazz);
@@ -2092,7 +2092,7 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
   [new Promise((resolve) => setTimeout(resolve, 10)), 'Promise { <pending> }'],
   [new WeakSet(), 'WeakSet { <items unknown> }'],
   [new WeakMap(), 'WeakMap { <items unknown> }'],
-  [/foobar/g, '/foobar/g']
+  [/foobar/g, '/foobar/g'],
 ].forEach(([value, expected]) => {
   Object.defineProperty(value, 'valueOf', {
     get() {
@@ -2141,7 +2141,7 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
      '{\n  [Uint8Contents]: <00 00>,\n  byteLength: undefined\n}'],
   [/foobar/, '[RegExp: null prototype] /foobar/'],
   [new Date('Sun, 14 Feb 2010 11:48:40 GMT'),
-   '[Date: null prototype] 2010-02-14T11:48:40.000Z']
+   '[Date: null prototype] 2010-02-14T11:48:40.000Z'],
 ].forEach(([value, expected]) => {
   assert.strictEqual(
     util.inspect(Object.setPrototypeOf(value, null)),
@@ -2163,7 +2163,7 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
    [10],
    '[\n  0n, 0n, 0n, 0n, 0n,\n  0n, 0n, 0n, 0n, 0n\n]'],
   [Date, ['Sun, 14 Feb 2010 11:48:40 GMT'], '2010-02-14T11:48:40.000Z'],
-  [Date, ['invalid_date'], 'Invalid Date']
+  [Date, ['invalid_date'], 'Invalid Date'],
 ].forEach(([base, input, rawExpected]) => {
   class Foo extends base {}
   const value = new Foo(...input);
@@ -2253,7 +2253,7 @@ assert.strictEqual(
     'blue',
     'magenta',
     'cyan',
-    'white'
+    'white',
   ].forEach((color, i) => {
     assert.deepStrictEqual(inspect.colors[color], [30 + i, 39]);
     assert.deepStrictEqual(inspect.colors[`${color}Bright`], [90 + i, 39]);
@@ -2431,7 +2431,7 @@ assert.strictEqual(
     b: [
       1,
       2,
-      [ 1, 2, { a: 1, b: 2, c: 3 } ]
+      [ 1, 2, { a: 1, b: 2, c: 3 } ],
     ],
     c: ['foo', 4, 444444],
     d: Array.from({ length: 101 }).map((e, i) => {
@@ -2523,7 +2523,7 @@ assert.strictEqual(
     "    'This text is too long for grouping!',",
     "    'This text is too long for grouping!'",
     '  ]',
-    '}'
+    '}',
   ].join('\n');
 
   assert.strictEqual(out, expected);
@@ -2531,7 +2531,7 @@ assert.strictEqual(
   obj = [
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 123456789
+    1, 1, 1, 1, 1, 1, 123456789,
   ];
 
   out = util.inspect(obj, { compact: 3 });
@@ -2545,7 +2545,7 @@ assert.strictEqual(
     '  1, 1,         1, 1,',
     '  1, 1,         1, 1,',
     '  1, 1, 123456789',
-    ']'
+    ']',
   ].join('\n');
 
   assert.strictEqual(out, expected);
@@ -2553,7 +2553,7 @@ assert.strictEqual(
   // Unicode support. あ has a length of one and a width of two.
   obj = [
     '123', '123', '123', '123', 'あああ',
-    '123', '123', '123', '123', 'あああ'
+    '123', '123', '123', '123', 'あああ',
   ];
 
   out = util.inspect(obj, { compact: 3 });
@@ -2627,7 +2627,7 @@ assert.strictEqual(
     '  \u001b[33m52\u001b[39m, \u001b[33m53\u001b[39m, \u001b[33m54\u001b[39m, \u001b[33m55\u001b[39m,',
     '  \u001b[33m56\u001b[39m, \u001b[33m57\u001b[39m, \u001b[33m58\u001b[39m, \u001b[33m59\u001b[39m',
     /* eslint-enable max-len */
-    ']'
+    ']',
   ].join('\n');
 
   assert.strictEqual(out, expected);
@@ -2675,7 +2675,7 @@ assert.strictEqual(
     'string_decoder', 'tls', 'trace_events',
     'tty', 'url', 'v8',
     'vm', 'worker_threads', 'zlib',
-    '_', '_error', 'util'
+    '_', '_error', 'util',
   ];
 
   out = util.inspect(
@@ -2721,7 +2721,7 @@ assert.strictEqual(
     "  'tty',             'url',                'v8',",
     "  'vm',              'worker_threads',     'zlib',",
     "  '_',               '_error',             'util'",
-    ']'
+    ']',
   ].join('\n');
 
   assert.strictEqual(out, expected);
@@ -2741,10 +2741,10 @@ assert.strictEqual(
     '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)',
     '    at require (node:internal/modules/cjs/helpers:14:16)',
     '    at /test/test-util-inspect.js:2239:9',
-    '    at getActual (node:assert:592:5)'
+    '    at getActual (node:assert:592:5)',
   ];
   const isNodeCoreFile = [
-    false, false, true, true, false, true, false, true, false, true
+    false, false, true, true, false, true, false, true, false, true,
   ];
   const err = new TypeError('Wonderful message!');
   err.stack = stack.join('\n');

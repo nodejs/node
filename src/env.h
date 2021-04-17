@@ -258,6 +258,7 @@ constexpr size_t kFsStatsBufferLength =
   V(fingerprint256_string, "fingerprint256")                                   \
   V(fingerprint_string, "fingerprint")                                         \
   V(flags_string, "flags")                                                     \
+  V(flowlabel_string, "flowlabel")                                             \
   V(fragment_string, "fragment")                                               \
   V(frames_received_string, "framesReceived")                                  \
   V(frames_sent_string, "framesSent")                                          \
@@ -452,7 +453,7 @@ constexpr size_t kFsStatsBufferLength =
   V(base_object_ctor_template, v8::FunctionTemplate)                           \
   V(binding_data_ctor_template, v8::FunctionTemplate)                          \
   V(blob_constructor_template, v8::FunctionTemplate)                           \
-  V(blocklist_instance_template, v8::ObjectTemplate)                           \
+  V(blocklist_constructor_template, v8::FunctionTemplate)                      \
   V(compiled_fn_entry_template, v8::ObjectTemplate)                            \
   V(dir_instance_template, v8::ObjectTemplate)                                 \
   V(fd_constructor_template, v8::ObjectTemplate)                               \
@@ -475,6 +476,7 @@ constexpr size_t kFsStatsBufferLength =
   V(script_context_constructor_template, v8::FunctionTemplate)                 \
   V(secure_context_constructor_template, v8::FunctionTemplate)                 \
   V(shutdown_wrap_template, v8::ObjectTemplate)                                \
+  V(socketaddress_constructor_template, v8::FunctionTemplate)                  \
   V(streambaseoutputstream_constructor_template, v8::ObjectTemplate)           \
   V(qlogoutputstream_constructor_template, v8::ObjectTemplate)                 \
   V(tcp_constructor_template, v8::FunctionTemplate)                            \
@@ -958,6 +960,7 @@ class Environment : public MemoryRetainer {
   void CreateProperties();
   void DeserializeProperties(const EnvSerializeInfo* info);
 
+  void PrintInfoForSnapshotIfDebug();
   void PrintAllBaseObjects();
   void VerifyNoStrongBaseObjects();
   void EnqueueDeserializeRequest(DeserializeRequestCallback cb,
@@ -1121,6 +1124,7 @@ class Environment : public MemoryRetainer {
   // List of id's that have been destroyed and need the destroy() cb called.
   inline std::vector<double>* destroy_async_id_list();
 
+  std::set<struct node_module*> internal_bindings;
   std::set<std::string> native_modules_with_cache;
   std::set<std::string> native_modules_without_cache;
   // This is only filled during deserialization. We use a vector since
@@ -1237,13 +1241,22 @@ class Environment : public MemoryRetainer {
                                          const char* name,
                                          v8::FunctionCallback callback);
 
+  enum class SetConstructorFunctionFlag {
+    NONE,
+    SET_CLASS_NAME,
+  };
+
   inline void SetConstructorFunction(v8::Local<v8::Object> that,
                           const char* name,
-                          v8::Local<v8::FunctionTemplate> tmpl);
+                          v8::Local<v8::FunctionTemplate> tmpl,
+                          SetConstructorFunctionFlag flag =
+                              SetConstructorFunctionFlag::SET_CLASS_NAME);
 
   inline void SetConstructorFunction(v8::Local<v8::Object> that,
                           v8::Local<v8::String> name,
-                          v8::Local<v8::FunctionTemplate> tmpl);
+                          v8::Local<v8::FunctionTemplate> tmpl,
+                          SetConstructorFunctionFlag flag =
+                              SetConstructorFunctionFlag::SET_CLASS_NAME);
 
   void AtExit(void (*cb)(void* arg), void* arg);
   void RunAtExitCallbacks();

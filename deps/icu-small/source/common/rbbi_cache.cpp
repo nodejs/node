@@ -258,7 +258,7 @@ void RuleBasedBreakIterator::BreakCache::preceding(int32_t startPos, UErrorCode 
             previous(status);
         } else {
             // seek() leaves the BreakCache positioned at the preceding boundary
-            //        if the requested position is between two bounaries.
+            //        if the requested position is between two boundaries.
             // current() pushes the BreakCache position out to the BreakIterator itself.
             U_ASSERT(startPos > fTextIdx);
             current();

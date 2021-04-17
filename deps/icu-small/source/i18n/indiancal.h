@@ -25,7 +25,7 @@ U_NAMESPACE_BEGIN
  * Concrete class which provides the Indian calendar.
  * <P>
  * <code>IndianCalendar</code> is a subclass of <code>Calendar</code>
- * that numbers years since the begining of SAKA ERA.  This is the civil calendar
+ * that numbers years since the beginning of SAKA ERA.  This is the civil calendar
  * which is accepted by government of India as Indian National Calendar.
  * The two calendars most widely used in India today are the Vikrama calendar
  * followed in North India and the Shalivahana or Saka calendar which is followed

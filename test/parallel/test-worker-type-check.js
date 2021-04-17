@@ -13,7 +13,7 @@ const { Worker } = require('worker_threads');
     Symbol('test'),
     {},
     [],
-    () => {}
+    () => {},
   ].forEach((val) => {
     assert.throws(
       () => new Worker(val),
