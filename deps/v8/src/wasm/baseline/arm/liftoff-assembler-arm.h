@@ -140,6 +140,8 @@ template <void (Assembler::*op)(Register, Register, const Operand&, SBit,
                                            SBit, Condition)>
 inline void I64BinopI(LiftoffAssembler* assm, LiftoffRegister dst,
                       LiftoffRegister lhs, int32_t imm) {
+  // The compiler allocated registers such that either {dst == lhs} or there is
+  // no overlap between the two.
   DCHECK_NE(dst.low_gp(), lhs.high_gp());
   (assm->*op)(dst.low_gp(), lhs.low_gp(), Operand(imm), SetCC, al);
   // Top half of the immediate sign extended, either 0 or -1.
