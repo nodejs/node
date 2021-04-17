@@ -1801,12 +1801,13 @@ TNode<IntPtrT> CodeStubAssembler::LoadJSReceiverIdentityHash(
   return var_hash.value();
 }
 
-TNode<Uint32T> CodeStubAssembler::LoadNameHashField(SloppyTNode<Name> name) {
-  CSA_ASSERT(this, IsName(name));
-  return LoadObjectField<Uint32T>(name, Name::kHashFieldOffset);
+TNode<Uint32T> CodeStubAssembler::LoadNameHashAssumeComputed(TNode<Name> name) {
+  TNode<Uint32T> hash_field = LoadNameHashField(name);
+  CSA_ASSERT(this, IsClearWord32(hash_field, Name::kHashNotComputedMask));
+  return Unsigned(Word32Shr(hash_field, Int32Constant(Name::kHashShift)));
 }
 
-TNode<Uint32T> CodeStubAssembler::LoadNameHash(SloppyTNode<Name> name,
+TNode<Uint32T> CodeStubAssembler::LoadNameHash(TNode<Name> name,
                                                Label* if_hash_not_computed) {
   TNode<Uint32T> hash_field = LoadNameHashField(name);
   if (if_hash_not_computed != nullptr) {
@@ -1994,13 +1995,13 @@ TNode<T> CodeStubAssembler::LoadArrayElement(TNode<Array> array,
   }
 }
 
-template TNode<MaybeObject>
+template V8_EXPORT_PRIVATE TNode<MaybeObject>
 CodeStubAssembler::LoadArrayElement<TransitionArray>(TNode<TransitionArray>,
                                                      int, Node*, int,
                                                      ParameterMode,
                                                      LoadSensitivity);
 
-template TNode<MaybeObject>
+template V8_EXPORT_PRIVATE TNode<MaybeObject>
 CodeStubAssembler::LoadArrayElement<DescriptorArray>(TNode<DescriptorArray>,
                                                      int, Node*, int,
                                                      ParameterMode,
@@ -8063,7 +8064,7 @@ void CodeStubAssembler::LookupBinary(TNode<Name> unique_name,
   TNode<Uint32T> limit =
       Unsigned(Int32Sub(NumberOfEntries<Array>(array), Int32Constant(1)));
   TVARIABLE(Uint32T, var_high, limit);
-  TNode<Uint32T> hash = LoadNameHashField(unique_name);
+  TNode<Uint32T> hash = LoadNameHashAssumeComputed(unique_name);
   CSA_ASSERT(this, Word32NotEqual(hash, Int32Constant(0)));
 
   // Assume non-empty array.
@@ -8081,7 +8082,7 @@ void CodeStubAssembler::LookupBinary(TNode<Name> unique_name,
     TNode<Uint32T> sorted_key_index = GetSortedKeyIndex<Array>(array, mid);
     TNode<Name> mid_name = GetKey<Array>(array, sorted_key_index);
 
-    TNode<Uint32T> mid_hash = LoadNameHashField(mid_name);
+    TNode<Uint32T> mid_hash = LoadNameHashAssumeComputed(mid_name);
 
     Label mid_greater(this), mid_less(this), merge(this);
     Branch(Uint32GreaterThanOrEqual(mid_hash, hash), &mid_greater, &mid_less);
@@ -8108,7 +8109,7 @@ void CodeStubAssembler::LookupBinary(TNode<Name> unique_name,
     TNode<Uint32T> sort_index =
         GetSortedKeyIndex<Array>(array, var_low.value());
     TNode<Name> current_name = GetKey<Array>(array, sort_index);
-    TNode<Uint32T> current_hash = LoadNameHashField(current_name);
+    TNode<Uint32T> current_hash = LoadNameHashAssumeComputed(current_name);
     GotoIf(Word32NotEqual(current_hash, hash), if_not_found);
     Label next(this);
     GotoIf(TaggedNotEqual(current_name, unique_name), &next);

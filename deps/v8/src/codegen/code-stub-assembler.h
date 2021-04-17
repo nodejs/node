@@ -1353,13 +1353,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Check if the map is set for slow properties.
   TNode<BoolT> IsDictionaryMap(SloppyTNode<Map> map);
 
-  // Load the hash field of a name as an uint32 value.
-  TNode<Uint32T> LoadNameHashField(SloppyTNode<Name> name);
-  // Load the hash value of a name as an uint32 value.
+  // Load the Name::hash() value of a name as an uint32 value.
   // If {if_hash_not_computed} label is specified then it also checks if
   // hash is actually computed.
-  TNode<Uint32T> LoadNameHash(SloppyTNode<Name> name,
+  TNode<Uint32T> LoadNameHash(TNode<Name> name,
                               Label* if_hash_not_computed = nullptr);
+  TNode<Uint32T> LoadNameHashAssumeComputed(TNode<Name> name);
 
   // Load length field of a String object as Smi value.
   TNode<Smi> LoadStringLengthAsSmi(TNode<String> string);
