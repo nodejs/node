@@ -1508,12 +1508,68 @@ async function print(readable) {
 print(fs.createReadStream('file')).catch(console.error);
 ```
 
-If the loop terminates with a `break` or a `throw`, the stream will be
-destroyed. In other terms, iterating over a stream will consume the stream
+If the loop terminates with a `break`, `return`, or a `throw`, the stream will
+be destroyed. In other terms, iterating over a stream will consume the stream
 fully. The stream will be read in chunks of size equal to the `highWaterMark`
 option. In the code example above, data will be in a single chunk if the file
 has less then 64KB of data because no `highWaterMark` option is provided to
 [`fs.createReadStream()`][].
+
+##### `readable.iterator([options])`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `options` {Object}
+  * `destroyOnReturn` {boolean} When set to `false`, calling `return` on the
+    async iterator, or exiting a `for await...of` iteration using a `break`,
+    `return`, or `throw` will not destroy the stream. **Default:** `true`.
+  * `destroyOnError` {boolean} When set to `false`, if the stream emits an
+    error while it's being iterated, the iterator will not destroy the stream.
+    **Default:** `true`.
+* Returns: {AsyncIterator} to consume the stream.
+
+The iterator created by this method gives users the option to cancel the
+destruction of the stream if the `for await...of` loop is exited by `return`,
+`break`, or `throw`, or if the iterator should destroy the stream if the stream
+emitted an error during iteration.
+
+```js
+const { Readable } = require('stream');
+
+async function printIterator(readable) {
+  for await (const chunk of readable.iterator({ destroyOnReturn: false })) {
+    console.log(chunk); // 1
+    break;
+  }
+
+  console.log(readable.destroyed); // false
+
+  for await (const chunk of readable.iterator({ destroyOnReturn: false })) {
+    console.log(chunk); // Will print 2 and then 3
+  }
+
+  console.log(readable.destroyed); // True, stream was totally consumed
+}
+
+async function printSymbolAsyncIterator(readable) {
+  for await (const chunk of readable) {
+    console.log(chunk); // 1
+    break;
+  }
+
+  console.log(readable.destroyed); // true
+}
+
+async function showBoth() {
+  await printIterator(Readable.from([1, 2, 3]));
+  await printSymbolAsyncIterator(Readable.from([1, 2, 3]));
+}
+
+showBoth();
+```
 
 ### Duplex and transform streams
 
