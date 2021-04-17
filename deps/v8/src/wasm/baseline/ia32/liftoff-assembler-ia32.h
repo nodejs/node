@@ -1097,31 +1097,19 @@ template <void (Assembler::*op)(Register, const Immediate&),
           void (Assembler::*op_with_carry)(Register, int32_t)>
 inline void OpWithCarryI(LiftoffAssembler* assm, LiftoffRegister dst,
                          LiftoffRegister lhs, int32_t imm) {
-  // First, compute the low half of the result, potentially into a temporary dst
-  // register if {dst.low_gp()} equals any register we need to
-  // keep alive for computing the upper half.
-  LiftoffRegList keep_alive = LiftoffRegList::ForRegs(lhs.high_gp());
-  Register dst_low = keep_alive.has(dst.low_gp())
-                         ? assm->GetUnusedRegister(kGpReg, keep_alive).gp()
-                         : dst.low_gp();
+  // The compiler allocated registers such that either {dst == lhs} or there is
+  // no overlap between the two.
+  DCHECK_NE(dst.low_gp(), lhs.high_gp());
 
-  if (dst_low != lhs.low_gp()) assm->mov(dst_low, lhs.low_gp());
-  (assm->*op)(dst_low, Immediate(imm));
+  // First, compute the low half of the result.
+  if (dst.low_gp() != lhs.low_gp()) assm->mov(dst.low_gp(), lhs.low_gp());
+  (assm->*op)(dst.low_gp(), Immediate(imm));
 
-  // Now compute the upper half, while keeping alive the previous result.
-  keep_alive = LiftoffRegList::ForRegs(dst_low);
-  Register dst_high = keep_alive.has(dst.high_gp())
-                          ? assm->GetUnusedRegister(kGpReg, keep_alive).gp()
-                          : dst.high_gp();
-
-  if (dst_high != lhs.high_gp()) assm->mov(dst_high, lhs.high_gp());
+  // Now compute the upper half.
+  if (dst.high_gp() != lhs.high_gp()) assm->mov(dst.high_gp(), lhs.high_gp());
   // Top half of the immediate sign extended, either 0 or -1.
   int32_t sign_extend = imm < 0 ? -1 : 0;
-  (assm->*op_with_carry)(dst_high, sign_extend);
-
-  // If necessary, move result into the right registers.
-  LiftoffRegister tmp_result = LiftoffRegister::ForPair(dst_low, dst_high);
-  if (tmp_result != dst) assm->Move(dst, tmp_result, kWasmI64);
+  (assm->*op_with_carry)(dst.high_gp(), sign_extend);
 }
 }  // namespace liftoff
 
