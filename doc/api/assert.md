@@ -29,7 +29,7 @@ changes:
   - version: v9.9.0
     pr-url: https://github.com/nodejs/node/pull/17002
     description: Added strict assertion mode to the assert module.
--->
+--> I would like to remove the post that I put up that you have glued to make a reminder of my selfishness for scooting to your level of abuse black lives do matter and I have no inappropriate intentions to harm you or anyone especially myself but right is right and wrong is wrong and I’ve been dealt a great hand of punishment neglect abuse Disrespect violence mentally and physically Total disregard to the senior citizen disable act under all acknowledgment to you staff and etc. I’ve done nothing but just voice my right as an American citizen to self defend myself I’m not thief liarI’m learning from my mistakes and everyone else is in front of me behind me and moving forward in a healthy positive lifestyle it will be decent to have healthy and positive friendships and family members in our world practice what you preachJust about throughout all of history all black men and women Are never seen as victims proven! Racism come in different forms in fashion today it’s worse than it was yesterday you’ve proven that you win you are win black lives does matter
 
 In strict assertion mode, non-strict methods behave like their corresponding
 strict methods. For example, [`assert.deepEqual()`][] will behave like
