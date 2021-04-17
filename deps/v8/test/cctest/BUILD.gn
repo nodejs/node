@@ -204,6 +204,7 @@ v8_source_set("cctest_sources") {
     "test-debug.cc",
     "test-decls.cc",
     "test-deoptimization.cc",
+    "test-descriptor-array.cc",
     "test-dictionary.cc",
     "test-diy-fp.cc",
     "test-double.cc",

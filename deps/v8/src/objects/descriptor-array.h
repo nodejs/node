@@ -113,7 +113,7 @@ class DescriptorArray
       int slack = 0);
 
   // Sort the instance descriptors by the hash codes of their keys.
-  void Sort();
+  V8_EXPORT_PRIVATE void Sort();
 
   // Search the instance descriptors for given name.
   V8_INLINE InternalIndex Search(Name name, int number_of_own_descriptors);

@@ -143,6 +143,8 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
     return encoding_;
   }
 
+  inline TransitionArray transitions();
+
  private:
   friend class MarkCompactCollector;  // For HasSimpleTransitionTo.
   friend class TransitionArray;
@@ -174,8 +176,6 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
 
   void TraverseTransitionTreeInternal(TraverseCallback callback, void* data,
                                       DisallowHeapAllocation* no_gc);
-
-  inline TransitionArray transitions();
 
   Isolate* isolate_;
   Handle<Map> map_handle_;
@@ -231,7 +231,7 @@ class TransitionArray : public WeakFixedArray {
   V8_EXPORT_PRIVATE bool IsSortedNoDuplicates(int valid_entries = -1);
 #endif
 
-  void Sort();
+  V8_EXPORT_PRIVATE void Sort();
 
   void PrintInternal(std::ostream& os);
 
@@ -259,6 +259,9 @@ class TransitionArray : public WeakFixedArray {
 
   inline int SearchNameForTesting(Name name,
                                   int* out_insertion_index = nullptr);
+
+  inline Map SearchAndGetTargetForTesting(PropertyKind kind, Name name,
+                                          PropertyAttributes attributes);
 
  private:
   friend class Factory;
@@ -296,8 +299,8 @@ class TransitionArray : public WeakFixedArray {
   int Search(PropertyKind kind, Name name, PropertyAttributes attributes,
              int* out_insertion_index = nullptr);
 
-  Map SearchAndGetTarget(PropertyKind kind, Name name,
-                         PropertyAttributes attributes);
+  V8_EXPORT_PRIVATE Map SearchAndGetTarget(PropertyKind kind, Name name,
+                                           PropertyAttributes attributes);
 
   // Search a non-property transition (like elements kind, observe or frozen
   // transitions).
