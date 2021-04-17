@@ -1562,6 +1562,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vinstr(0x0F, dst, src1, src2, k66, k0F3A, kWIG);
     emit(imm8);
   }
+  void vpalignr(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t imm8) {
+    vinstr(0x0F, dst, src1, src2, k66, k0F3A, kWIG);
+    emit(imm8);
+  }
 
   void vps(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2);
   void vps(byte op, XMMRegister dst, XMMRegister src1, Operand src2);

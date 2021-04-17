@@ -579,10 +579,14 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     ASSEMBLE_SIMD_INSTR(opcode, dst, input_index);       \
   } while (false)
 
-#define ASSEMBLE_SIMD_IMM_SHUFFLE(opcode, imm)                            \
-  do {                                                                    \
-    DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));      \
-    __ opcode(i.OutputSimd128Register(), i.InputSimd128Register(1), imm); \
+#define ASSEMBLE_SIMD_IMM_SHUFFLE(opcode, imm)                              \
+  do {                                                                      \
+    DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));        \
+    if (instr->InputAt(1)->IsSimd128Register()) {                           \
+      __ opcode(i.OutputSimd128Register(), i.InputSimd128Register(1), imm); \
+    } else {                                                                \
+      __ opcode(i.OutputSimd128Register(), i.InputOperand(1), imm);         \
+    }                                                                       \
   } while (false)
 
 #define ASSEMBLE_SIMD_ALL_TRUE(opcode)          \
