@@ -4891,8 +4891,9 @@ void BytecodeGenerator::VisitCall(Call* expr) {
       Property* property = chain->expression()->AsProperty();
       BuildOptionalChain([&]() {
         VisitAndPushIntoRegisterList(property->obj(), &args);
-        VisitPropertyLoadForRegister(args.last_register(), property, callee);
+        VisitPropertyLoad(args.last_register(), property);
       });
+      builder()->StoreAccumulatorInRegister(callee);
       break;
     }
     case Call::SUPER_CALL:
