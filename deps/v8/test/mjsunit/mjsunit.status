@@ -73,6 +73,9 @@
   # Enable once multi-byte prefixed opcodes are correctly handled
   'regress/wasm/regress-1065599': [SKIP],
 
+  # https://crbug.com/1166138
+  'regress/regress-1166138': SKIP,
+
   ##############################################################################
   # Tests where variants make no sense.
   'd8/enable-tracing': [PASS, NO_VARIANTS],
