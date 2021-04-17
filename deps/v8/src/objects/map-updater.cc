@@ -401,7 +401,17 @@ MapUpdater::State MapUpdater::FindTargetMap() {
     }
     Representation tmp_representation = tmp_details.representation();
     if (!old_details.representation().fits_into(tmp_representation)) {
-      break;
+      // Try updating the field in-place to a generalized type.
+      Representation generalized =
+          tmp_representation.generalize(old_details.representation());
+      if (!tmp_representation.CanBeInPlaceChangedTo(generalized)) {
+        break;
+      }
+      Handle<Map> field_owner(tmp_map->FindFieldOwner(isolate_, i), isolate_);
+      tmp_representation = generalized;
+      GeneralizeField(field_owner, i, tmp_details.constness(),
+                      tmp_representation,
+                      handle(tmp_descriptors->GetFieldType(i), isolate_));
     }
 
     if (tmp_details.location() == kField) {

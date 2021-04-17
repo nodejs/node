@@ -610,6 +610,7 @@ void Map::DeprecateTransitionTree(Isolate* isolate) {
     transitions.GetTarget(i).DeprecateTransitionTree(isolate);
   }
   DCHECK(!constructor_or_backpointer().IsFunctionTemplateInfo());
+  DCHECK(CanBeDeprecated());
   set_is_deprecated(true);
   if (FLAG_trace_maps) {
     LOG(isolate, MapEvent("Deprecate", handle(*this, isolate), Handle<Map>()));
