@@ -1862,6 +1862,8 @@ Handle<BigInt> MutableBigInt::RightShiftByAbsolute(Isolate* isolate,
   DCHECK_LE(result_length, length);
   Handle<MutableBigInt> result = New(isolate, result_length).ToHandleChecked();
   if (bits_shift == 0) {
+    // Zero out any overflow digit (see "rounding_can_overflow" above).
+    result->set_digit(result_length - 1, 0);
     for (int i = digit_shift; i < length; i++) {
       result->set_digit(i - digit_shift, x->digit(i));
     }
