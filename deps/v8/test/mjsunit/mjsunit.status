@@ -39,6 +39,15 @@
   'bugs/*': [FAIL],
 
   ##############################################################################
+  # LTS failing tests.
+  # Introduced in https://chromium-review.googlesource.com/c/v8/v8/+/2584242
+  'regress/wasm/regress-1146861': [SKIP],
+  # Introduced in https://chromium-review.googlesource.com/c/v8/v8/+/2656263
+  'regress/wasm/regress-1153442': [SKIP],
+  # Introduced in https://chromium-review.googlesource.com/c/v8/v8/+/2649176
+  'regress/wasm/regress-1161654': [SKIP],
+
+  ##############################################################################
   # Open bugs.
 
   # BUG(v8:2989).
