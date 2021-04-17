@@ -545,6 +545,16 @@ void LiftoffAssembler::AtomicCompareExchange(
     Register expected_reg = is_64_bit_op ? expected.low_gp() : expected.gp();
     Register result_reg = expected_reg;
 
+    // The cmpxchg instruction uses eax to store the old value of the
+    // compare-exchange primitive. Therefore we have to spill the register and
+    // move any use to another register.
+    ClearRegister(eax, {&dst_addr, &value_reg},
+                  LiftoffRegList::ForRegs(dst_addr, value_reg, expected_reg));
+    if (expected_reg != eax) {
+      mov(eax, expected_reg);
+      expected_reg = eax;
+    }
+
     bool is_byte_store = type.size() == 1;
     LiftoffRegList pinned =
         LiftoffRegList::ForRegs(dst_addr, value_reg, expected_reg);
@@ -558,13 +568,6 @@ void LiftoffAssembler::AtomicCompareExchange(
       pinned.clear(LiftoffRegister(value_reg));
     }
 
-    // The cmpxchg instruction uses eax to store the old value of the
-    // compare-exchange primitive. Therefore we have to spill the register and
-    // move any use to another register.
-    ClearRegister(eax, {&dst_addr, &value_reg}, pinned);
-    if (expected_reg != eax) {
-      mov(eax, expected_reg);
-    }
 
     Operand dst_op = Operand(dst_addr, offset_imm);
 
