@@ -139,11 +139,20 @@ Handle<Map> MapUpdater::ReconfigureToDataField(InternalIndex descriptor,
   if (old_details.constness() == PropertyConstness::kConst &&
       old_details.location() == kField &&
       old_details.attributes() != new_attributes_) {
+    // Ensure we'll be updating constness of the up-to-date version of old_map_.
+    Handle<Map> old_map = Map::Update(isolate_, old_map_);
+    PropertyDetails details =
+        old_map->instance_descriptors(kRelaxedLoad).GetDetails(descriptor);
     Handle<FieldType> field_type(
-        old_descriptors_->GetFieldType(modified_descriptor_), isolate_);
-    Map::GeneralizeField(isolate_, old_map_, descriptor,
-                         PropertyConstness::kMutable,
-                         old_details.representation(), field_type);
+        old_map->instance_descriptors(kRelaxedLoad).GetFieldType(descriptor),
+        isolate_);
+    Map::GeneralizeField(isolate_, old_map, descriptor,
+                         PropertyConstness::kMutable, details.representation(),
+                         field_type);
+    DCHECK_EQ(PropertyConstness::kMutable,
+              old_map->instance_descriptors(kRelaxedLoad)
+                  .GetDetails(descriptor)
+                  .constness());
     // The old_map_'s property must become mutable.
     // Note, that the {old_map_} and {old_descriptors_} are not expected to be
     // updated by the generalization if the map is already deprecated.
