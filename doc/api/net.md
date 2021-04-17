@@ -1118,7 +1118,8 @@ added: v0.5.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/38249
-    description: When socket is not opened, reading it will be `closed`.
+    description: When socket is not connecting, connected or is otherwise
+      neither readable nor writable, it is `closed`.
 -->
 
 * {string}
