@@ -1080,6 +1080,9 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
     case HOLEY_SEALED_ELEMENTS:
     case HOLEY_NONEXTENSIBLE_ELEMENTS:
     case HOLEY_ELEMENTS: {
+      // Disallow execution so the cached elements won't change mid execution.
+      DisallowJavascriptExecution no_js(isolate);
+
       // Run through the elements FixedArray and use HasElement and GetElement
       // to check the prototype for missing elements.
       Handle<FixedArray> elements(FixedArray::cast(array->elements()), isolate);
@@ -1106,6 +1109,9 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
     }
     case HOLEY_DOUBLE_ELEMENTS:
     case PACKED_DOUBLE_ELEMENTS: {
+      // Disallow execution so the cached elements won't change mid execution.
+      DisallowJavascriptExecution no_js(isolate);
+
       // Empty array is FixedArray but not FixedDoubleArray.
       if (length == 0) break;
       // Run through the elements FixedArray and use HasElement and GetElement
@@ -1142,6 +1148,9 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
     }
 
     case DICTIONARY_ELEMENTS: {
+      // Disallow execution so the cached dictionary won't change mid execution.
+      DisallowJavascriptExecution no_js(isolate);
+
       Handle<NumberDictionary> dict(array->element_dictionary(), isolate);
       std::vector<uint32_t> indices;
       indices.reserve(dict->Capacity() / 2);
