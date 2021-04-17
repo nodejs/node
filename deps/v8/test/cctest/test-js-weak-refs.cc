@@ -209,7 +209,6 @@ Handle<JSWeakRef> MakeWeakRefAndKeepDuringJob(Isolate* isolate) {
 }  // namespace
 
 TEST(TestRegister) {
-  FLAG_harmony_weak_refs = true;
   CcTest::InitializeVM();
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
@@ -247,7 +246,6 @@ TEST(TestRegister) {
 }
 
 TEST(TestRegisterWithKey) {
-  FLAG_harmony_weak_refs = true;
   CcTest::InitializeVM();
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
@@ -300,7 +298,6 @@ TEST(TestRegisterWithKey) {
 }
 
 TEST(TestWeakCellNullify1) {
-  FLAG_harmony_weak_refs = true;
   CcTest::InitializeVM();
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
@@ -335,7 +332,6 @@ TEST(TestWeakCellNullify1) {
 }
 
 TEST(TestWeakCellNullify2) {
-  FLAG_harmony_weak_refs = true;
   CcTest::InitializeVM();
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
@@ -369,7 +365,6 @@ TEST(TestWeakCellNullify2) {
 }
 
 TEST(TestJSFinalizationRegistryPopClearedCellHoldings1) {
-  FLAG_harmony_weak_refs = true;
   CcTest::InitializeVM();
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
@@ -425,7 +420,6 @@ TEST(TestJSFinalizationRegistryPopClearedCellHoldings1) {
 TEST(TestJSFinalizationRegistryPopClearedCellHoldings2) {
   // Test that when all WeakCells for a key are popped, the key is removed from
   // the key map.
-  FLAG_harmony_weak_refs = true;
   CcTest::InitializeVM();
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
@@ -476,7 +470,6 @@ TEST(TestJSFinalizationRegistryPopClearedCellHoldings2) {
 }
 
 TEST(TestUnregisterActiveCells) {
-  FLAG_harmony_weak_refs = true;
   CcTest::InitializeVM();
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
@@ -529,7 +522,6 @@ TEST(TestUnregisterActiveCells) {
 }
 
 TEST(TestUnregisterActiveAndClearedCells) {
-  FLAG_harmony_weak_refs = true;
   CcTest::InitializeVM();
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
@@ -585,7 +577,6 @@ TEST(TestUnregisterActiveAndClearedCells) {
 }
 
 TEST(TestWeakCellUnregisterTwice) {
-  FLAG_harmony_weak_refs = true;
   CcTest::InitializeVM();
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
@@ -633,7 +624,6 @@ TEST(TestWeakCellUnregisterTwice) {
 }
 
 TEST(TestWeakCellUnregisterPopped) {
-  FLAG_harmony_weak_refs = true;
   CcTest::InitializeVM();
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
@@ -674,7 +664,6 @@ TEST(TestWeakCellUnregisterPopped) {
 }
 
 TEST(TestWeakCellUnregisterNonexistentKey) {
-  FLAG_harmony_weak_refs = true;
   CcTest::InitializeVM();
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
@@ -687,7 +676,6 @@ TEST(TestWeakCellUnregisterNonexistentKey) {
 }
 
 TEST(TestJSWeakRef) {
-  FLAG_harmony_weak_refs = true;
   CcTest::InitializeVM();
   LocalContext context;
 
@@ -716,7 +704,6 @@ TEST(TestJSWeakRef) {
 }
 
 TEST(TestJSWeakRefIncrementalMarking) {
-  FLAG_harmony_weak_refs = true;
   if (!FLAG_incremental_marking) {
     return;
   }
@@ -752,7 +739,6 @@ TEST(TestJSWeakRefIncrementalMarking) {
 }
 
 TEST(TestJSWeakRefKeepDuringJob) {
-  FLAG_harmony_weak_refs = true;
   CcTest::InitializeVM();
   LocalContext context;
 
@@ -790,7 +776,6 @@ TEST(TestJSWeakRefKeepDuringJob) {
 }
 
 TEST(TestJSWeakRefKeepDuringJobIncrementalMarking) {
-  FLAG_harmony_weak_refs = true;
   if (!FLAG_incremental_marking) {
     return;
   }
@@ -819,7 +804,6 @@ TEST(TestJSWeakRefKeepDuringJobIncrementalMarking) {
 }
 
 TEST(TestRemoveUnregisterToken) {
-  FLAG_harmony_weak_refs = true;
   CcTest::InitializeVM();
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
@@ -883,7 +867,6 @@ TEST(TestRemoveUnregisterToken) {
 }
 
 TEST(JSWeakRefScavengedInWorklist) {
-  FLAG_harmony_weak_refs = true;
   if (!FLAG_incremental_marking || FLAG_single_generation) {
     return;
   }
@@ -928,7 +911,6 @@ TEST(JSWeakRefScavengedInWorklist) {
 }
 
 TEST(JSWeakRefTenuredInWorklist) {
-  FLAG_harmony_weak_refs = true;
   if (!FLAG_incremental_marking || FLAG_single_generation) {
     return;
   }
@@ -976,7 +958,6 @@ TEST(JSWeakRefTenuredInWorklist) {
 }
 
 TEST(UnregisterTokenHeapVerifier) {
-  FLAG_harmony_weak_refs = true;
   if (!FLAG_incremental_marking) return;
   ManualGCScope manual_gc_scope;
 #ifdef VERIFY_HEAP
