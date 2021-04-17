@@ -1078,7 +1078,7 @@
       {'name': 'v8testing', 'variant': 'slow_path', 'shards': 1},
     ],
   },
-  'V8 Linux64 TSAN - concurrent marking': {
+  'V8 Linux64 TSAN - stress-incremental-marking': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-16.04',
     },
@@ -1105,7 +1105,7 @@
       {
         'name': 'v8testing',
         'test_args': ['--extra-flags=--stress-incremental-marking'],
-        'shards': 4,
+        'shards': 6,
       },
     ],
   },
