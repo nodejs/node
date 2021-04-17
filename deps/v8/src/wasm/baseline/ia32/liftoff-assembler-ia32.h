@@ -130,7 +130,7 @@ inline Register GetTmpByteRegister(LiftoffAssembler* assm, Register candidate) {
   if (candidate.is_byte_register()) return candidate;
   // {GetUnusedRegister()} may insert move instructions to spill registers to
   // the stack. This is OK because {mov} does not change the status flags.
-  return assm->GetUnusedRegister(liftoff::kByteRegs).gp();
+  return assm->GetUnusedRegister(liftoff::kByteRegs, {}).gp();
 }
 
 inline void MoveStackValue(LiftoffAssembler* assm, const Operand& src,
@@ -1468,7 +1468,7 @@ inline void EmitFloatMinOrMax(LiftoffAssembler* assm, DoubleRegister dst,
 
   // We need one tmp register to extract the sign bit. Get it right at the
   // beginning, such that the spilling code is not accidentially jumped over.
-  Register tmp = assm->GetUnusedRegister(kGpReg).gp();
+  Register tmp = assm->GetUnusedRegister(kGpReg, {}).gp();
 
 #define dop(name, ...)            \
   do {                            \
@@ -1531,9 +1531,9 @@ void LiftoffAssembler::emit_f32_max(DoubleRegister dst, DoubleRegister lhs,
 void LiftoffAssembler::emit_f32_copysign(DoubleRegister dst, DoubleRegister lhs,
                                          DoubleRegister rhs) {
   static constexpr int kF32SignBit = 1 << 31;
-  Register scratch = GetUnusedRegister(kGpReg).gp();
-  Register scratch2 =
-      GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(scratch)).gp();
+  LiftoffRegList pinned;
+  Register scratch = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+  Register scratch2 = GetUnusedRegister(kGpReg, pinned).gp();
   Movd(scratch, lhs);                      // move {lhs} into {scratch}.
   and_(scratch, Immediate(~kF32SignBit));  // clear sign bit in {scratch}.
   Movd(scratch2, rhs);                     // move {rhs} into {scratch2}.
@@ -1660,9 +1660,9 @@ void LiftoffAssembler::emit_f64_copysign(DoubleRegister dst, DoubleRegister lhs,
   static constexpr int kF32SignBit = 1 << 31;
   // On ia32, we cannot hold the whole f64 value in a gp register, so we just
   // operate on the upper half (UH).
-  Register scratch = GetUnusedRegister(kGpReg).gp();
-  Register scratch2 =
-      GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(scratch)).gp();
+  LiftoffRegList pinned;
+  Register scratch = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+  Register scratch2 = GetUnusedRegister(kGpReg, pinned).gp();
 
   Pextrd(scratch, lhs, 1);                 // move UH of {lhs} into {scratch}.
   and_(scratch, Immediate(~kF32SignBit));  // clear sign bit in {scratch}.
@@ -2500,7 +2500,7 @@ void LiftoffAssembler::emit_i8x16_shl(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_i8x16_shli(LiftoffRegister dst, LiftoffRegister lhs,
                                        int32_t rhs) {
   static constexpr RegClass tmp_rc = reg_class_for(ValueType::kI32);
-  LiftoffRegister tmp = GetUnusedRegister(tmp_rc);
+  LiftoffRegister tmp = GetUnusedRegister(tmp_rc, {});
   byte shift = static_cast<byte>(rhs & 0x7);
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
@@ -3389,7 +3389,7 @@ void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
 }
 
 void LiftoffAssembler::CallTrapCallbackForTesting() {
-  PrepareCallCFunction(0, GetUnusedRegister(kGpReg).gp());
+  PrepareCallCFunction(0, GetUnusedRegister(kGpReg, {}).gp());
   CallCFunction(ExternalReference::wasm_call_trap_callback_for_testing(), 0);
 }
 
