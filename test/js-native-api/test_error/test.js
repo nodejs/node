@@ -70,21 +70,21 @@ assert.throws(() => {
   ));
 
 assert.throws(
-  () => test_error.throwErrorCode(),
+  test_error.throwErrorCode,
   {
     code: 'ERR_TEST_CODE',
     message: 'Error [error]'
   });
 
 assert.throws(
-  () => test_error.throwRangeErrorCode(),
+  test_error.throwRangeErrorCode,
   {
     code: 'ERR_TEST_CODE',
     message: 'RangeError [range error]'
   });
 
 assert.throws(
-  () => test_error.throwTypeErrorCode(),
+  test_error.throwTypeErrorCode,
   {
     code: 'ERR_TEST_CODE',
     message: 'TypeError [type error]'
