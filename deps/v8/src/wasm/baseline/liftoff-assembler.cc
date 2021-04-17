@@ -37,6 +37,7 @@ class StackTransferRecipe {
 
   struct RegisterLoad {
     enum LoadKind : uint8_t {
+      kNop,           // no-op, used for high fp of a fp pair.
       kConstant,      // load a constant value into a register.
       kStack,         // fill a register from a stack slot.
       kLowHalfStack,  // fill a register from the low half of a stack slot.
@@ -62,6 +63,10 @@ class StackTransferRecipe {
     static RegisterLoad HalfStack(int32_t offset, RegPairHalf half) {
       return {half == kLowWord ? kLowHalfStack : kHighHalfStack, kWasmI32,
               offset};
+    }
+    static RegisterLoad Nop() {
+      // ValueType does not matter.
+      return {kNop, kWasmI32, 0};
     }
 
    private:
@@ -217,11 +222,11 @@ class StackTransferRecipe {
           RegisterLoad::HalfStack(stack_offset, kHighWord);
     } else if (dst.is_fp_pair()) {
       DCHECK_EQ(kWasmS128, type);
-      // load_dst_regs_.set above will set both low and high fp regs.
-      // But unlike gp_pair, we load a kWasm128 in one go in ExecuteLoads.
-      // So unset the top fp register to skip loading it.
-      load_dst_regs_.clear(dst.high());
+      // Only need register_load for low_gp since we load 128 bits at one go.
+      // Both low and high need to be set in load_dst_regs_ but when iterating
+      // over it, both low and high will be cleared, so we won't load twice.
       *register_load(dst.low()) = RegisterLoad::Stack(stack_offset, type);
+      *register_load(dst.high()) = RegisterLoad::Nop();
     } else {
       *register_load(dst) = RegisterLoad::Stack(stack_offset, type);
     }
@@ -318,6 +323,8 @@ class StackTransferRecipe {
     for (LiftoffRegister dst : load_dst_regs_) {
       RegisterLoad* load = register_load(dst);
       switch (load->kind) {
+        case RegisterLoad::kNop:
+          break;
         case RegisterLoad::kConstant:
           asm_->LoadConstant(dst, load->type == kWasmI64
                                       ? WasmValue(int64_t{load->value})
