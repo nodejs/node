@@ -813,6 +813,7 @@ TEST(DisasmX64) {
       __ vpblendw(xmm1, xmm2, xmm3, 23);
       __ vpblendw(xmm1, xmm2, Operand(rbx, rcx, times_4, 10000), 23);
       __ vpalignr(xmm1, xmm2, xmm3, 4);
+      __ vpalignr(xmm1, xmm2, Operand(rbx, rcx, times_4, 10000), 4);
 
       __ vblendvpd(xmm1, xmm2, xmm3, xmm4);
 
