@@ -603,7 +603,7 @@ void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
 void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
                                       ValueType type) {
   DCHECK_NE(dst_offset, src_offset);
-  LiftoffRegister reg = GetUnusedRegister(reg_class_for(type));
+  LiftoffRegister reg = GetUnusedRegister(reg_class_for(type), {});
   Fill(reg, src_offset, type);
   Spill(dst_offset, reg, type);
 }
@@ -646,13 +646,13 @@ void LiftoffAssembler::Spill(int offset, WasmValue value) {
   MemOperand dst = liftoff::GetStackSlot(offset);
   switch (value.type().kind()) {
     case ValueType::kI32: {
-      LiftoffRegister tmp = GetUnusedRegister(kGpReg);
+      LiftoffRegister tmp = GetUnusedRegister(kGpReg, {});
       TurboAssembler::li(tmp.gp(), Operand(value.to_i32()));
       sw(tmp.gp(), dst);
       break;
     }
     case ValueType::kI64: {
-      LiftoffRegister tmp = GetUnusedRegister(kGpRegPair);
+      LiftoffRegister tmp = GetUnusedRegister(kGpRegPair, {});
 
       int32_t low_word = value.to_i64();
       int32_t high_word = value.to_i64() >> 32;
@@ -2251,7 +2251,7 @@ void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
 }
 
 void LiftoffAssembler::CallTrapCallbackForTesting() {
-  PrepareCallCFunction(0, GetUnusedRegister(kGpReg).gp());
+  PrepareCallCFunction(0, GetUnusedRegister(kGpReg, {}).gp());
   CallCFunction(ExternalReference::wasm_call_trap_callback_for_testing(), 0);
 }
 

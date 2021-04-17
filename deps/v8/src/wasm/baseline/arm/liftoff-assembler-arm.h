@@ -437,7 +437,7 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
       vmov(liftoff::GetFloatRegister(reg.fp()), value.to_f32_boxed());
       break;
     case ValueType::kF64: {
-      Register extra_scratch = GetUnusedRegister(kGpReg).gp();
+      Register extra_scratch = GetUnusedRegister(kGpReg, {}).gp();
       vmov(reg.fp(), Double(value.to_f64_boxed().get_bits()), extra_scratch);
       break;
     }
@@ -1173,7 +1173,7 @@ void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
 void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
                                       ValueType type) {
   DCHECK_NE(dst_offset, src_offset);
-  LiftoffRegister reg = GetUnusedRegister(reg_class_for(type));
+  LiftoffRegister reg = GetUnusedRegister(reg_class_for(type), {});
   Fill(reg, src_offset, type);
   Spill(dst_offset, reg, type);
 }
@@ -1216,7 +1216,7 @@ void LiftoffAssembler::Spill(int offset, WasmValue value) {
   // The scratch register will be required by str if multiple instructions
   // are required to encode the offset, and so we cannot use it in that case.
   if (!ImmediateFitsAddrMode2Instruction(dst.offset())) {
-    src = GetUnusedRegister(kGpReg).gp();
+    src = GetUnusedRegister(kGpReg, {}).gp();
   } else {
     src = temps.Acquire();
   }
@@ -1758,7 +1758,7 @@ void LiftoffAssembler::emit_f32_copysign(DoubleRegister dst, DoubleRegister lhs,
                                          DoubleRegister rhs) {
   constexpr uint32_t kF32SignBit = uint32_t{1} << 31;
   UseScratchRegisterScope temps(this);
-  Register scratch = GetUnusedRegister(kGpReg).gp();
+  Register scratch = GetUnusedRegister(kGpReg, {}).gp();
   Register scratch2 = temps.Acquire();
   VmovLow(scratch, lhs);
   // Clear sign bit in {scratch}.
@@ -1777,7 +1777,7 @@ void LiftoffAssembler::emit_f64_copysign(DoubleRegister dst, DoubleRegister lhs,
   // On arm, we cannot hold the whole f64 value in a gp register, so we just
   // operate on the upper half (UH).
   UseScratchRegisterScope temps(this);
-  Register scratch = GetUnusedRegister(kGpReg).gp();
+  Register scratch = GetUnusedRegister(kGpReg, {}).gp();
   Register scratch2 = temps.Acquire();
   VmovHigh(scratch, lhs);
   // Clear sign bit in {scratch}.

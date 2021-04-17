@@ -542,7 +542,7 @@ LiftoffRegister LiftoffAssembler::LoadI64HalfIntoRegister(VarState slot,
   if (slot.is_reg()) {
     return half == kLowWord ? slot.reg().low() : slot.reg().high();
   }
-  LiftoffRegister dst = GetUnusedRegister(kGpReg);
+  LiftoffRegister dst = GetUnusedRegister(kGpReg, {});
   if (slot.is_stack()) {
     FillI64Half(dst.gp(), slot.offset(), half);
     return dst;
@@ -581,7 +581,7 @@ void LiftoffAssembler::PrepareLoopArgs(int num) {
     if (!slot.is_const()) continue;
     RegClass rc =
         kNeedI64RegPair && slot.type() == kWasmI64 ? kGpRegPair : kGpReg;
-    LiftoffRegister reg = GetUnusedRegister(rc);
+    LiftoffRegister reg = GetUnusedRegister(rc, {});
     LoadConstant(reg, slot.constant());
     slot.MakeRegister(reg);
     cache_state_.inc_used(reg);

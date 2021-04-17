@@ -495,7 +495,7 @@ class LiftoffCompiler {
         position, __ cache_state()->used_registers,
         RegisterDebugSideTableEntry(DebugSideTableBuilder::kAssumeSpilling)));
     OutOfLineCode& ool = out_of_line_code_.back();
-    Register limit_address = __ GetUnusedRegister(kGpReg).gp();
+    Register limit_address = __ GetUnusedRegister(kGpReg, {}).gp();
     LOAD_INSTANCE_FIELD(limit_address, StackLimitAddress, kSystemPointerSize);
     __ StackCheck(ool.label.get(), limit_address);
     __ bind(ool.continuation.get());
@@ -604,7 +604,7 @@ class LiftoffCompiler {
                              *next_breakpoint_ptr_ == decoder->position());
       if (!has_breakpoint) {
         DEBUG_CODE_COMMENT("check hook on function call");
-        Register flag = __ GetUnusedRegister(kGpReg).gp();
+        Register flag = __ GetUnusedRegister(kGpReg, {}).gp();
         LOAD_INSTANCE_FIELD(flag, HookOnFunctionCallAddress,
                             kSystemPointerSize);
         Label no_break;
@@ -923,8 +923,8 @@ class LiftoffCompiler {
     constexpr RegClass result_rc = reg_class_for(result_type);
     LiftoffRegister src = __ PopToRegister();
     LiftoffRegister dst = src_rc == result_rc
-                              ? __ GetUnusedRegister(result_rc, {src})
-                              : __ GetUnusedRegister(result_rc);
+                              ? __ GetUnusedRegister(result_rc, {src}, {})
+                              : __ GetUnusedRegister(result_rc, {});
     CallEmitFn(fn, dst, src);
     __ PushRegister(ValueType(result_type), dst);
   }
@@ -951,8 +951,9 @@ class LiftoffCompiler {
     static constexpr RegClass src_rc = reg_class_for(src_type);
     static constexpr RegClass dst_rc = reg_class_for(dst_type);
     LiftoffRegister src = __ PopToRegister();
-    LiftoffRegister dst = src_rc == dst_rc ? __ GetUnusedRegister(dst_rc, {src})
-                                           : __ GetUnusedRegister(dst_rc);
+    LiftoffRegister dst = src_rc == dst_rc
+                              ? __ GetUnusedRegister(dst_rc, {src}, {})
+                              : __ GetUnusedRegister(dst_rc, {});
     DCHECK_EQ(!!can_trap, trap_position > 0);
     Label* trap = can_trap ? AddOutOfLineTrap(
                                  trap_position,
@@ -1122,8 +1123,8 @@ class LiftoffCompiler {
 
       LiftoffRegister lhs = __ PopToRegister();
       LiftoffRegister dst = src_rc == result_rc
-                                ? __ GetUnusedRegister(result_rc, {lhs})
-                                : __ GetUnusedRegister(result_rc);
+                                ? __ GetUnusedRegister(result_rc, {lhs}, {})
+                                : __ GetUnusedRegister(result_rc, {});
 
       CallEmitFn(fnImm, dst, lhs, imm);
       __ PushRegister(ValueType(result_type), dst);
@@ -1141,8 +1142,8 @@ class LiftoffCompiler {
     LiftoffRegister rhs = __ PopToRegister();
     LiftoffRegister lhs = __ PopToRegister(LiftoffRegList::ForRegs(rhs));
     LiftoffRegister dst = src_rc == result_rc
-                              ? __ GetUnusedRegister(result_rc, {lhs, rhs})
-                              : __ GetUnusedRegister(result_rc);
+                              ? __ GetUnusedRegister(result_rc, {lhs, rhs}, {})
+                              : __ GetUnusedRegister(result_rc, {});
 
     if (swap_lhs_rhs) std::swap(lhs, rhs);
 
@@ -1483,20 +1484,20 @@ class LiftoffCompiler {
     if (value_i32 == value) {
       __ PushConstant(kWasmI64, value_i32);
     } else {
-      LiftoffRegister reg = __ GetUnusedRegister(reg_class_for(kWasmI64));
+      LiftoffRegister reg = __ GetUnusedRegister(reg_class_for(kWasmI64), {});
       __ LoadConstant(reg, WasmValue(value));
       __ PushRegister(kWasmI64, reg);
     }
   }
 
   void F32Const(FullDecoder* decoder, Value* result, float value) {
-    LiftoffRegister reg = __ GetUnusedRegister(kFpReg);
+    LiftoffRegister reg = __ GetUnusedRegister(kFpReg, {});
     __ LoadConstant(reg, WasmValue(value));
     __ PushRegister(kWasmF32, reg);
   }
 
   void F64Const(FullDecoder* decoder, Value* result, double value) {
-    LiftoffRegister reg = __ GetUnusedRegister(kFpReg);
+    LiftoffRegister reg = __ GetUnusedRegister(kFpReg, {});
     __ LoadConstant(reg, WasmValue(value));
     __ PushRegister(kWasmF64, reg);
   }
@@ -1546,7 +1547,7 @@ class LiftoffCompiler {
         break;
       case kStack: {
         auto rc = reg_class_for(imm.type);
-        LiftoffRegister reg = __ GetUnusedRegister(rc);
+        LiftoffRegister reg = __ GetUnusedRegister(rc, {});
         __ Fill(reg, slot.offset(), imm.type);
         __ PushRegister(slot.type(), reg);
         break;
@@ -1570,7 +1571,7 @@ class LiftoffCompiler {
     }
     DCHECK_EQ(type, __ local_type(local_index));
     RegClass rc = reg_class_for(type);
-    LiftoffRegister dst_reg = __ GetUnusedRegister(rc);
+    LiftoffRegister dst_reg = __ GetUnusedRegister(rc, {});
     __ Fill(dst_reg, src_slot.offset(), type);
     *dst_slot = LiftoffAssembler::VarState(type, dst_reg, dst_slot->offset());
     __ cache_state()->inc_used(dst_reg);
@@ -1609,7 +1610,7 @@ class LiftoffCompiler {
 
   Register GetGlobalBaseAndOffset(const WasmGlobal* global,
                                   LiftoffRegList* pinned, uint32_t* offset) {
-    Register addr = pinned->set(__ GetUnusedRegister(kGpReg)).gp();
+    Register addr = pinned->set(__ GetUnusedRegister(kGpReg, {})).gp();
     if (global->mutability && global->imported) {
       LOAD_INSTANCE_FIELD(addr, ImportedMutableGlobals, kSystemPointerSize);
       __ Load(LiftoffRegister(addr), addr, no_reg,
@@ -1675,8 +1676,8 @@ class LiftoffCompiler {
     DCHECK_EQ(type, __ cache_state()->stack_state.end()[-2].type());
     LiftoffRegister false_value = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister true_value = __ PopToRegister(pinned);
-    LiftoffRegister dst =
-        __ GetUnusedRegister(true_value.reg_class(), {true_value, false_value});
+    LiftoffRegister dst = __ GetUnusedRegister(true_value.reg_class(),
+                                               {true_value, false_value}, {});
     __ PushRegister(type, dst);
 
     // Now emit the actual code to move either {true_value} or {false_value}
@@ -2075,7 +2076,7 @@ class LiftoffCompiler {
   }
 
   void CurrentMemoryPages(FullDecoder* decoder, Value* result) {
-    Register mem_size = __ GetUnusedRegister(kGpReg).gp();
+    Register mem_size = __ GetUnusedRegister(kGpReg, {}).gp();
     LOAD_INSTANCE_FIELD(mem_size, MemorySize, kSystemPointerSize);
     __ emit_ptrsize_shri(mem_size, mem_size, kWasmPageSizeLog2);
     __ PushRegister(kWasmI32, LiftoffRegister(mem_size));
@@ -2344,7 +2345,7 @@ class LiftoffCompiler {
         src_rc == result_rc
             ? __ GetUnusedRegister(result_rc, {src3},
                                    LiftoffRegList::ForRegs(src1, src2))
-            : __ GetUnusedRegister(result_rc);
+            : __ GetUnusedRegister(result_rc, {});
     CallEmitFn(fn, dst, src1, src2, src3);
     __ PushRegister(ValueType(result_type), dst);
   }
@@ -2360,14 +2361,14 @@ class LiftoffCompiler {
       int32_t imm = rhs_slot.i32_const();
 
       LiftoffRegister operand = __ PopToRegister();
-      LiftoffRegister dst = __ GetUnusedRegister(result_rc, {operand});
+      LiftoffRegister dst = __ GetUnusedRegister(result_rc, {operand}, {});
 
       CallEmitFn(fnImm, dst, operand, imm);
       __ PushRegister(kWasmS128, dst);
     } else {
       LiftoffRegister count = __ PopToRegister();
       LiftoffRegister operand = __ PopToRegister();
-      LiftoffRegister dst = __ GetUnusedRegister(result_rc, {operand});
+      LiftoffRegister dst = __ GetUnusedRegister(result_rc, {operand}, {});
 
       CallEmitFn(fn, dst, operand, count);
       __ PushRegister(kWasmS128, dst);
@@ -2689,8 +2690,8 @@ class LiftoffCompiler {
     static constexpr RegClass result_rc = reg_class_for(result_type);
     LiftoffRegister lhs = __ PopToRegister();
     LiftoffRegister dst = src_rc == result_rc
-                              ? __ GetUnusedRegister(result_rc, {lhs})
-                              : __ GetUnusedRegister(result_rc);
+                              ? __ GetUnusedRegister(result_rc, {lhs}, {})
+                              : __ GetUnusedRegister(result_rc, {});
     fn(dst, lhs, imm.lane);
     __ PushRegister(ValueType(result_type), dst);
   }
@@ -2716,7 +2717,7 @@ class LiftoffCompiler {
         (src2_rc == result_rc || pin_src2)
             ? __ GetUnusedRegister(result_rc, {src1},
                                    LiftoffRegList::ForRegs(src2))
-            : __ GetUnusedRegister(result_rc, {src1});
+            : __ GetUnusedRegister(result_rc, {src1}, {});
     fn(dst, src1, src2, imm.lane);
     __ PushRegister(kWasmS128, dst);
   }
