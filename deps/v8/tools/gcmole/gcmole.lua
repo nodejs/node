@@ -116,7 +116,7 @@ local function MakeClangCommandLine(
       .. " -DV8_INTL_SUPPORT"
       .. " -I./"
       .. " -Iinclude/"
-      .. " -Iout/Release/gen"
+      .. " -Iout/build/gen"
       .. " -Ithird_party/icu/source/common"
       .. " -Ithird_party/icu/source/i18n"
       .. " " .. arch_options

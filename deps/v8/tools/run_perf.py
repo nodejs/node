@@ -575,6 +575,32 @@ def FlattenRunnables(node, node_cb):
     raise Exception('Invalid suite configuration.')
 
 
+def find_build_directory(base_path, arch):
+  """Returns the location of d8 or node in the build output directory.
+
+  This supports a seamless transition between legacy build location
+  (out/Release) and new build location (out/build).
+  """
+  def is_build(path):
+    # We support d8 or node as executables. We don't support testing on
+    # Windows.
+    return (os.path.isfile(os.path.join(path, 'd8')) or
+            os.path.isfile(os.path.join(path, 'node')))
+  possible_paths = [
+    # Location developer wrapper scripts is using.
+    '%s.release' % arch,
+    # Current build location on bots.
+    'build',
+    # Legacy build location on bots.
+    'Release',
+  ]
+  possible_paths = [os.path.join(base_path, p) for p in possible_paths]
+  actual_paths = filter(is_build, possible_paths)
+  assert actual_paths, 'No build directory found.'
+  assert len(actual_paths) == 1, 'Found ambiguous build directories.'
+  return actual_paths[0]
+
+
 class Platform(object):
   def __init__(self, args):
     self.shell_dir = args.shell_dir
@@ -881,8 +907,7 @@ def Main(argv):
                       'to auto-detect.', default='x64',
                       choices=SUPPORTED_ARCHS + ['auto'])
   parser.add_argument('--buildbot',
-                      help='Adapt to path structure used on buildbots and adds '
-                      'timestamps/level to all logged status messages',
+                      help='Deprecated',
                       default=False, action='store_true')
   parser.add_argument('-d', '--device',
                       help='The device ID to run Android tests on. If not '
@@ -978,13 +1003,9 @@ def Main(argv):
 
   workspace = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
-  if args.buildbot:
-    build_config = 'Release'
-  else:
-    build_config = '%s.release' % args.arch
-
   if args.binary_override_path == None:
-    args.shell_dir = os.path.join(workspace, args.outdir, build_config)
+    args.shell_dir = find_build_directory(
+        os.path.join(workspace, args.outdir), args.arch)
     default_binary_name = 'd8'
   else:
     if not os.path.isfile(args.binary_override_path):
@@ -998,8 +1019,8 @@ def Main(argv):
     default_binary_name = os.path.basename(args.binary_override_path)
 
   if args.outdir_secondary:
-    args.shell_dir_secondary = os.path.join(
-        workspace, args.outdir_secondary, build_config)
+    args.shell_dir_secondary = find_build_directory(
+        os.path.join(workspace, args.outdir_secondary), args.arch)
   else:
     args.shell_dir_secondary = None
 
