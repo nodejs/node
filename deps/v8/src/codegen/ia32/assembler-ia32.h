@@ -959,6 +959,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void movapd(XMMRegister dst, Operand src) {
     sse2_instr(dst, src, 0x66, 0x0F, 0x28);
   }
+  void movupd(XMMRegister dst, Operand src) {
+    sse2_instr(dst, src, 0x66, 0x0F, 0x10);
+  }
 
   void movmskpd(Register dst, XMMRegister src);
   void movmskps(Register dst, XMMRegister src);
@@ -1331,6 +1334,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vmovapd(XMMRegister dst, Operand src) { vpd(0x28, dst, xmm0, src); }
   void vmovups(XMMRegister dst, XMMRegister src) { vmovups(dst, Operand(src)); }
   void vmovups(XMMRegister dst, Operand src) { vps(0x10, dst, xmm0, src); }
+  void vmovupd(XMMRegister dst, Operand src) { vpd(0x10, dst, xmm0, src); }
   void vshufps(XMMRegister dst, XMMRegister src1, XMMRegister src2, byte imm8) {
     vshufps(dst, src1, Operand(src2), imm8);
   }
