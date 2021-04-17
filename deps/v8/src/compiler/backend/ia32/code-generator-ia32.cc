@@ -1966,7 +1966,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                   tmp = i.TempSimd128Register(0);
       // The minpd instruction doesn't propagate NaNs and +0's in its first
       // operand. Perform minpd in both orders, merge the resuls, and adjust.
-      __ Movapd(tmp, src1);
+      __ Movupd(tmp, src1);
       __ Minpd(tmp, tmp, src);
       __ Minpd(dst, src, src1);
       // propagate -0's and NaNs, which may be non-canonical.
@@ -1985,7 +1985,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                   tmp = i.TempSimd128Register(0);
       // The maxpd instruction doesn't propagate NaNs and +0's in its first
       // operand. Perform maxpd in both orders, merge the resuls, and adjust.
-      __ Movapd(tmp, src1);
+      __ Movupd(tmp, src1);
       __ Maxpd(tmp, tmp, src);
       __ Maxpd(dst, src, src1);
       // Find discrepancies.
@@ -2375,7 +2375,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister dst = i.OutputSimd128Register();
       Operand src1 = i.InputOperand(1);
       // See comment above for correction of maxps.
-      __ movaps(kScratchDoubleReg, src1);
+      __ vmovups(kScratchDoubleReg, src1);
       __ vmaxps(kScratchDoubleReg, kScratchDoubleReg, dst);
       __ vmaxps(dst, dst, src1);
       __ vxorps(dst, dst, kScratchDoubleReg);

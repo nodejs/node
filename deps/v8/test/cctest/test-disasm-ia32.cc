@@ -473,6 +473,7 @@ TEST(DisasmIa320) {
 
     __ movapd(xmm0, xmm1);
     __ movapd(xmm0, Operand(edx, 4));
+    __ movupd(xmm0, Operand(edx, 4));
 
     __ movd(xmm0, edi);
     __ movd(xmm0, Operand(ebx, ecx, times_4, 10000));
@@ -689,6 +690,7 @@ TEST(DisasmIa320) {
       __ vmovaps(xmm0, xmm1);
       __ vmovapd(xmm0, xmm1);
       __ vmovapd(xmm0, Operand(ebx, ecx, times_4, 10000));
+      __ vmovupd(xmm0, Operand(ebx, ecx, times_4, 10000));
       __ vshufps(xmm0, xmm1, xmm2, 3);
       __ vshufps(xmm0, xmm1, Operand(edx, 4), 3);
       __ vhaddps(xmm0, xmm1, xmm2);
