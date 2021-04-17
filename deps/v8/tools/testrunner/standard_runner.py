@@ -379,10 +379,8 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       ]
 
     assert os.path.exists(options.json_test_results)
-    complete_results = []
     with open(options.json_test_results, "r") as f:
-      complete_results = json.loads(f.read())
-    output = complete_results[0]
+      output = json.load(f)
     lines = []
     for test in output['slowest_tests']:
       suffix = ''

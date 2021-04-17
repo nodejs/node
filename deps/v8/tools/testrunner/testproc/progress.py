@@ -358,7 +358,7 @@ class JUnitTestProgressIndicator(ProgressIndicator):
 
 
 class JsonTestProgressIndicator(ProgressIndicator):
-  def __init__(self, framework_name, arch, mode):
+  def __init__(self, framework_name):
     super(JsonTestProgressIndicator, self).__init__()
     # We want to drop stdout/err for all passed tests on the first try, but we
     # need to get outputs for all runs after the first one. To accommodate that,
@@ -367,8 +367,6 @@ class JsonTestProgressIndicator(ProgressIndicator):
     self._requirement = base.DROP_PASS_STDOUT
 
     self.framework_name = framework_name
-    self.arch = arch
-    self.mode = mode
     self.results = []
     self.duration_sum = 0
     self.test_count = 0
@@ -438,24 +436,16 @@ class JsonTestProgressIndicator(ProgressIndicator):
       }
 
   def finished(self):
-    complete_results = []
-    if os.path.exists(self.options.json_test_results):
-      with open(self.options.json_test_results, "r") as f:
-        # On bots we might start out with an empty file.
-        complete_results = json.loads(f.read() or "[]")
-
     duration_mean = None
     if self.test_count:
       duration_mean = self.duration_sum / self.test_count
 
-    complete_results.append({
-      "arch": self.arch,
-      "mode": self.mode,
+    result = {
       "results": self.results,
       "slowest_tests": self.tests.as_list(),
       "duration_mean": duration_mean,
       "test_total": self.test_count,
-    })
+    }
 
     with open(self.options.json_test_results, "w") as f:
-      f.write(json.dumps(complete_results))
+      json.dump(result, f)
