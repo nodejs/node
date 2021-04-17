@@ -880,11 +880,13 @@ void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
   if (cache_state()->is_used(LiftoffRegister(dst_high))) {
     SpillRegister(LiftoffRegister(dst_high));
   }
-  UseScratchRegisterScope temps(this);
-  Register actual_addr = liftoff::CalculateActualAddress(
-      this, &temps, src_addr, offset_reg, offset_imm);
-  ldrexd(dst_low, dst_high, actual_addr);
-  dmb(ISH);
+  {
+    UseScratchRegisterScope temps(this);
+    Register actual_addr = liftoff::CalculateActualAddress(
+        this, &temps, src_addr, offset_reg, offset_imm);
+    ldrexd(dst_low, dst_high, actual_addr);
+    dmb(ISH);
+  }
 
   LiftoffAssembler::ParallelRegisterMoveTuple reg_moves[]{
       {dst, LiftoffRegister::ForPair(dst_low, dst_high), kWasmI64}};
@@ -1196,12 +1198,10 @@ void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
 }
 
 void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueType type) {
-#ifdef DEBUG
   // The {str} instruction needs a temp register when the immediate in the
   // provided MemOperand does not fit into 12 bits. This happens for large stack
   // frames. This DCHECK checks that the temp register is available when needed.
   DCHECK(UseScratchRegisterScope{this}.CanAcquire());
-#endif
   DCHECK_LT(0, offset);
   RecordUsedSpillOffset(offset);
   MemOperand dst(fp, -offset);
