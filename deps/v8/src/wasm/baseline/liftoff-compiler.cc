@@ -2879,9 +2879,38 @@ class LiftoffCompiler {
   void AtomicCompareExchange(FullDecoder* decoder, StoreType type,
                              const MemoryAccessImmediate<validate>& imm) {
 #ifdef V8_TARGET_ARCH_IA32
-    // With the current implementation we do not have enough registers on ia32
-    // to even get to the platform-specific code. Therefore we bailout early.
-    unsupported(decoder, kAtomics, "AtomicCompareExchange");
+    // On ia32 we don't have enough registers to first pop all the values off
+    // the stack and then start with the code generation. Instead we do the
+    // complete address calculation first, so that the address only needs a
+    // single register. Afterwards we load all remaining values into the
+    // other registers.
+    LiftoffRegList pinned;
+    Register index_reg = pinned.set(__ PeekToRegister(2, pinned)).gp();
+    if (BoundsCheckMem(decoder, type.size(), imm.offset, index_reg, pinned,
+                       kDoForceCheck)) {
+      return;
+    }
+    AlignmentCheckMem(decoder, type.size(), imm.offset, index_reg, pinned);
+
+    uint32_t offset = imm.offset;
+    index_reg = AddMemoryMasking(index_reg, &offset, &pinned);
+    Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+    LOAD_INSTANCE_FIELD(addr, MemoryStart, kSystemPointerSize);
+    __ emit_i32_add(addr, addr, index_reg);
+    pinned.clear(LiftoffRegister(index_reg));
+    LiftoffRegister new_value = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister expected = pinned.set(__ PopToRegister(pinned));
+
+    // Pop the index from the stack.
+    __ cache_state()->stack_state.pop_back(1);
+
+    LiftoffRegister result = expected;
+
+    // We already added the index to addr, so we can just pass no_reg to the
+    // assembler now.
+    __ AtomicCompareExchange(addr, no_reg, offset, expected, new_value, result,
+                             type);
+    __ PushRegister(type.value_type(), result);
     return;
 #else
     ValueType result_type = type.value_type();

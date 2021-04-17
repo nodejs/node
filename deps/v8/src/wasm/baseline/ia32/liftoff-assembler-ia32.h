@@ -532,7 +532,123 @@ void LiftoffAssembler::AtomicCompareExchange(
     Register dst_addr, Register offset_reg, uint32_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
     StoreType type) {
-  bailout(kAtomics, "AtomicCompareExchange");
+  // We expect that the offset has already been added to {dst_addr}, and no
+  // {offset_reg} is provided. This is to save registers.
+  DCHECK_EQ(offset_reg, no_reg);
+
+  DCHECK_EQ(result, expected);
+
+  if (type.value() != StoreType::kI64Store) {
+    bool is_64_bit_op = type.value_type() == kWasmI64;
+
+    Register value_reg = is_64_bit_op ? new_value.low_gp() : new_value.gp();
+    Register expected_reg = is_64_bit_op ? expected.low_gp() : expected.gp();
+    Register result_reg = expected_reg;
+
+    bool is_byte_store = type.size() == 1;
+    LiftoffRegList pinned =
+        LiftoffRegList::ForRegs(dst_addr, value_reg, expected_reg);
+
+    // Ensure that {value_reg} is a valid register.
+    if (is_byte_store && !liftoff::kByteRegs.has(value_reg)) {
+      Register safe_value_reg =
+          pinned.set(GetUnusedRegister(liftoff::kByteRegs, pinned)).gp();
+      mov(safe_value_reg, value_reg);
+      value_reg = safe_value_reg;
+      pinned.clear(LiftoffRegister(value_reg));
+    }
+
+    // The cmpxchg instruction uses eax to store the old value of the
+    // compare-exchange primitive. Therefore we have to spill the register and
+    // move any use to another register.
+    ClearRegister(eax, {&dst_addr, &value_reg}, pinned);
+    if (expected_reg != eax) {
+      mov(eax, expected_reg);
+    }
+
+    Operand dst_op = Operand(dst_addr, offset_imm);
+
+    lock();
+    switch (type.value()) {
+      case StoreType::kI32Store8:
+      case StoreType::kI64Store8: {
+        cmpxchg_b(dst_op, value_reg);
+        movzx_b(result_reg, eax);
+        break;
+      }
+      case StoreType::kI32Store16:
+      case StoreType::kI64Store16: {
+        cmpxchg_w(dst_op, value_reg);
+        movzx_w(result_reg, eax);
+        break;
+      }
+      case StoreType::kI32Store:
+      case StoreType::kI64Store32: {
+        cmpxchg(dst_op, value_reg);
+        if (result_reg != eax) {
+          mov(result_reg, eax);
+        }
+        break;
+      }
+      default:
+        UNREACHABLE();
+    }
+    if (is_64_bit_op) {
+      xor_(result.high_gp(), result.high_gp());
+    }
+    return;
+  }
+
+  // The following code handles kExprI64AtomicCompareExchange.
+
+  // We need {ebx} here, which is the root register. The root register it
+  // needs special treatment. As we use {ebx} directly in the code below, we
+  // have to make sure here that the root register is actually {ebx}.
+  static_assert(kRootRegister == ebx,
+                "The following code assumes that kRootRegister == ebx");
+  push(kRootRegister);
+
+  // The compare-exchange instruction uses registers as follows:
+  // old-value = EDX:EAX; new-value = ECX:EBX.
+  Register expected_hi = edx;
+  Register expected_lo = eax;
+  Register new_hi = ecx;
+  Register new_lo = ebx;
+  // The address needs a separate registers that does not alias with the
+  // ones above.
+  Register address = esi;
+
+  // Spill all these registers if they are still holding other values.
+  liftoff::SpillRegisters(this, expected_hi, expected_lo, new_hi, address);
+
+  // We have to set new_lo specially, because it's the root register. We do it
+  // before setting all other registers so that the original value does not get
+  // overwritten.
+  mov(new_lo, new_value.low_gp());
+
+  // Move all other values into the right register.
+  {
+    LiftoffAssembler::ParallelRegisterMoveTuple reg_moves[]{
+        {LiftoffRegister(address), LiftoffRegister(dst_addr), kWasmI32},
+        {LiftoffRegister::ForPair(expected_lo, expected_hi), expected, kWasmI64},
+        {LiftoffRegister(new_hi), new_value.high(), kWasmI32}};
+    ParallelRegisterMove(ArrayVector(reg_moves));
+  };
+
+  Operand dst_op = Operand(address, offset_imm);
+
+  lock();
+  cmpxchg8b(dst_op);
+
+  // Restore the root register, and we are done.
+  pop(kRootRegister);
+
+  // Move the result into the correct registers.
+  {
+    LiftoffAssembler::ParallelRegisterMoveTuple reg_moves[]{
+        {result, LiftoffRegister::ForPair(expected_lo, expected_hi), kWasmI64}};
+    ParallelRegisterMove(ArrayVector(reg_moves));
+  }
 }
 
 void LiftoffAssembler::AtomicFence() { mfence(); }
