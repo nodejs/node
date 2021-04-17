@@ -2536,7 +2536,16 @@ int ChoiceNode::GreedyLoopTextLengthForAlternative(
     SeqRegExpNode* seq_node = static_cast<SeqRegExpNode*>(node);
     node = seq_node->on_success();
   }
-  return read_backward() ? -length : length;
+  if (read_backward()) {
+    length = -length;
+  }
+  // Check that we can jump by the whole text length. If not, return sentinel
+  // to indicate the we can't construct a greedy loop.
+  if (length < RegExpMacroAssembler::kMinCPOffset ||
+      length > RegExpMacroAssembler::kMaxCPOffset) {
+    return kNodeIsTooComplexForGreedyLoops;
+  }
+  return length;
 }
 
 void LoopChoiceNode::AddLoopAlternative(GuardedAlternative alt) {

@@ -4,4 +4,4 @@
 
 let badregexp =  "(?:" +  " ".repeat(32768*2)+  ")*";
 reg = RegExp(badregexp);
-reg.test()
+assertThrows(() => reg.test(), SyntaxError);
