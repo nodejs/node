@@ -607,8 +607,8 @@ void CodeGenerator::GetPushCompatibleMoves(Instruction* instr,
         // then the full gap resolver must be used since optimization with
         // pushes don't participate in the parallel move and might clobber
         // values needed for the gap resolve.
-        if (source.IsStackSlot() && LocationOperand::cast(source).index() >=
-                                        first_push_compatible_index) {
+        if (source.IsAnyStackSlot() && LocationOperand::cast(source).index() >=
+                                           first_push_compatible_index) {
           pushes->clear();
           return;
         }
