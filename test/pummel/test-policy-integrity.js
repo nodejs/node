@@ -38,7 +38,7 @@ const parentBody = {
       console.error(
         'missing required DEP_FILE env to determine dependency'
       );
-      process.exit(33);
+      process.exit(31);
     }
     require(process.env.DEP_FILE)
   `,
@@ -47,28 +47,52 @@ const parentBody = {
       console.error(
         'missing required DEP_FILE env to determine dependency'
       );
-      process.exit(33);
+      process.exit(32);
     }
     import(process.env.DEP_FILE)
   `,
 };
 const workerSpawningBody = `
-  const path = require('path');
-  const { Worker } = require('worker_threads');
-  if (!process.env.PARENT_FILE) {
-    console.error(
-      'missing required PARENT_FILE env to determine worker entry point'
-    );
-    process.exit(33);
-  }
-  if (!process.env.DELETABLE_POLICY_FILE) {
-    console.error(
-      'missing required DELETABLE_POLICY_FILE env to check reloading'
-    );
-    process.exit(33);
-  }
-  const w = new Worker(path.resolve(process.env.PARENT_FILE));
-  w.on('exit', (status) => process.exit(status === 0 ? 0 : 1));
+  ;(${() => {
+    const path = require('path');
+    const { Worker } = require('worker_threads');
+    function exit(code = 34) {
+      safeToClose.then(() => {
+        process.exit(code);
+      });
+    }
+    if (!process.env.PARENT_FILE) {
+      console.error(
+        'missing required PARENT_FILE env to determine worker entry point'
+      );
+      exit(35);
+    }
+    if (!process.env.DELETABLE_POLICY_FILE) {
+      console.error(
+        'missing required DELETABLE_POLICY_FILE env to check reloading'
+      );
+      exit(36);
+    }
+    const w = new Worker(path.resolve(process.env.PARENT_FILE));
+    const safeToClose = new Promise((f, r) => {
+      let pending = 2;
+      function next() {
+        pending--;
+        if (pending === 0) {
+          f(true);
+        }
+      }
+      if (!w.stderr || w.stderr.destroyed) next();
+      else w.stderr.once('close', next);
+      if (!w.stdout || w.stdout.destroyed) next();
+      else w.stdout.once('close', next);
+    });
+    w.on('error', (err) => {
+      console.error('worker threw an error:', err);
+      exit(37);
+    });
+    w.on('exit', (status) => exit(status));
+  }})();
 `;
 
 let nextTestId = 1;
