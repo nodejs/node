@@ -141,6 +141,9 @@ class CcTest {
   static void CollectAllAvailableGarbage(i::Isolate* isolate = nullptr);
   static void PreciseCollectAllGarbage(i::Isolate* isolate = nullptr);
 
+  static i::Handle<i::String> MakeString(const char* str);
+  static i::Handle<i::String> MakeName(const char* str, int suffix);
+
   static v8::base::RandomNumberGenerator* random_number_generator();
 
   static v8::Local<v8::Object> global();
