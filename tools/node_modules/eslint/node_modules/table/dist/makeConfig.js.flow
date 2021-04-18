@@ -61,9 +61,18 @@ export default (rows, userConfig = {}) => {
 
   if (!config.drawHorizontalLine) {
     /**
-         * @returns {boolean}
-         */
+     * @returns {boolean}
+     */
     config.drawHorizontalLine = () => {
+      return true;
+    };
+  }
+
+  if (!config.drawVerticalLine) {
+    /**
+     * @returns {boolean}
+     */
+    config.drawVerticalLine = () => {
       return true;
     };
   }

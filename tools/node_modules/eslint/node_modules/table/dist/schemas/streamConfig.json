@@ -14,6 +14,9 @@
         },
         "columnCount": {
             "type": "number"
+        },
+        "drawVerticalLine": {
+          "typeof": "function"
         }
     },
     "additionalProperties": false

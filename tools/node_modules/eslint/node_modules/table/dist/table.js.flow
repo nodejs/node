@@ -47,6 +47,17 @@ import validateTableData from './validateTableData';
  */
 
 /**
+ * Used to tell whether to draw a vertical line.
+ * This callback is called for each non-content line of the table.
+ * The default behavior is to always return true.
+ *
+ * @typedef {Function} drawVerticalLine
+ * @param {number} index
+ * @param {number} size
+ * @returns {boolean}
+ */
+
+/**
  * Used to tell whether to draw a horizontal line.
  * This callback is called for each non-content line of the table.
  * The default behavior is to always return true.
@@ -62,6 +73,7 @@ import validateTableData from './validateTableData';
  * @property {table~border} border
  * @property {table~columns[]} columns Column specific configuration.
  * @property {table~columns} columnDefault Default values for all columns. Column specific settings overwrite the default values.
+ * @property {table~drawVerticalLine} drawVerticalLine
  * @property {table~drawHorizontalLine} drawHorizontalLine
  * @property {table~singleLine} singleLine Horizontal lines inside the table are not drawn.
  */
@@ -92,5 +104,5 @@ export default (data, userConfig = {}) => {
 
   const cellWidthIndex = calculateCellWidthIndex(rows[0]);
 
-  return drawTable(rows, config.border, cellWidthIndex, rowHeightIndex, config.drawHorizontalLine, config.singleLine);
+  return drawTable(rows, cellWidthIndex, rowHeightIndex, config);
 };

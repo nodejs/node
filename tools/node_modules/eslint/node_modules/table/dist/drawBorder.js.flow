@@ -1,5 +1,7 @@
+import drawHorizontalContent from './drawHorizontalContent';
+
 /**
- * @typedef drawBorder~parts
+ * @typedef drawBorder~border
  * @property {string} left
  * @property {string} right
  * @property {string} body
@@ -8,88 +10,74 @@
 
 /**
  * @param {number[]} columnSizeIndex
- * @param {drawBorder~parts} parts
+ * @param {object} config
+ * @param {drawBorder~border} config.border
+ * @param {Function} config.drawVerticalLine
  * @returns {string}
  */
-const drawBorder = (columnSizeIndex, parts) => {
-  const columns = columnSizeIndex
-    .map((size) => {
-      return parts.body.repeat(size);
-    })
-    .join(parts.join);
+const drawBorder = (columnSizeIndex, {border, drawVerticalLine}) => {
+  const columns = columnSizeIndex.map((size) => {
+    return border.body.repeat(size);
+  });
 
-  return parts.left + columns + parts.right + '\n';
+  return drawHorizontalContent(columns, {
+    drawVerticalLine,
+    separator: border,
+  });
 };
 
 /**
- * @typedef drawBorderTop~parts
- * @property {string} topLeft
- * @property {string} topRight
- * @property {string} topBody
- * @property {string} topJoin
- */
-
-/**
  * @param {number[]} columnSizeIndex
- * @param {drawBorderTop~parts} parts
+ * @param {table~config} config
  * @returns {string}
  */
-const drawBorderTop = (columnSizeIndex, parts) => {
-  const border = drawBorder(columnSizeIndex, {
-    body: parts.topBody,
-    join: parts.topJoin,
-    left: parts.topLeft,
-    right: parts.topRight,
-  });
+const drawBorderTop = (columnSizeIndex, {border, drawVerticalLine}) => {
+  const result = drawBorder(columnSizeIndex, {border: {
+    body: border.topBody,
+    join: border.topJoin,
+    left: border.topLeft,
+    right: border.topRight,
+  },
+  drawVerticalLine});
 
-  if (border === '\n') {
+  if (result === '\n') {
     return '';
   }
 
-  return border;
+  return result;
 };
 
 /**
- * @typedef drawBorderJoin~parts
- * @property {string} joinLeft
- * @property {string} joinRight
- * @property {string} joinBody
- * @property {string} joinJoin
- */
-
-/**
  * @param {number[]} columnSizeIndex
- * @param {drawBorderJoin~parts} parts
+ * @param {table~config} config
  * @returns {string}
  */
-const drawBorderJoin = (columnSizeIndex, parts) => {
+const drawBorderJoin = (columnSizeIndex, {border, drawVerticalLine}) => {
   return drawBorder(columnSizeIndex, {
-    body: parts.joinBody,
-    join: parts.joinJoin,
-    left: parts.joinLeft,
-    right: parts.joinRight,
+    border: {
+      body: border.joinBody,
+      join: border.joinJoin,
+      left: border.joinLeft,
+      right: border.joinRight,
+    },
+    drawVerticalLine,
   });
 };
 
 /**
- * @typedef drawBorderBottom~parts
- * @property {string} topLeft
- * @property {string} topRight
- * @property {string} topBody
- * @property {string} topJoin
- */
-
-/**
  * @param {number[]} columnSizeIndex
- * @param {drawBorderBottom~parts} parts
+ * @param {table~config} config
  * @returns {string}
  */
-const drawBorderBottom = (columnSizeIndex, parts) => {
+const drawBorderBottom = (columnSizeIndex, {border, drawVerticalLine}) => {
   return drawBorder(columnSizeIndex, {
-    body: parts.bottomBody,
-    join: parts.bottomJoin,
-    left: parts.bottomLeft,
-    right: parts.bottomRight,
+    border: {
+      body: border.bottomBody,
+      join: border.bottomJoin,
+      left: border.bottomLeft,
+      right: border.bottomRight,
+    },
+    drawVerticalLine,
   });
 };
 

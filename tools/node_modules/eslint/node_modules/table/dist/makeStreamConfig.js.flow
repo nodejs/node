@@ -79,5 +79,14 @@ export default (userConfig = {}) => {
   config.border = makeBorder(config.border);
   config.columns = makeColumns(config.columnCount, config.columns, config.columnDefault);
 
+  if (!config.drawVerticalLine) {
+    /**
+     * @returns {boolean}
+     */
+    config.drawVerticalLine = () => {
+      return true;
+    };
+  }
+
   return config;
 };
