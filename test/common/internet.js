@@ -22,6 +22,9 @@ const addresses = {
   INVALID_HOST: 'something.invalid',
   // A host with MX records registered
   MX_HOST: 'nodejs.org',
+  // On some systems, .invalid returns a server failure/try again rather than
+  // record not found. Use this to guarantee record not found.
+  NOT_FOUND: 'come.on.fhqwhgads',
   // A host with SRV records registered
   SRV_HOST: '_jabber._tcp.google.com',
   // A host with PTR records registered
