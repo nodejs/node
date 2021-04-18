@@ -76,6 +76,7 @@ function newTestId() {
   return nextTestId++;
 }
 tmpdir.refresh();
+common.requireNoPackageJSONAbove(tmpdir.path);
 
 let spawned = 0;
 const toSpawn = [];
