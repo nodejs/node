@@ -284,8 +284,9 @@ int LinearSearch(T* array, Name name, int valid_entries,
 }
 
 template <SearchMode search_mode, typename T>
-int Search(T* array, Name name, int valid_entries, int* out_insertion_index) {
-  SLOW_DCHECK(array->IsSortedNoDuplicates());
+int Search(T* array, Name name, int valid_entries, int* out_insertion_index,
+           bool concurrent_search) {
+  SLOW_DCHECK_IMPLIES(!concurrent_search, array->IsSortedNoDuplicates());
 
   if (valid_entries == 0) {
     if (search_mode == ALL_ENTRIES && out_insertion_index != nullptr) {
@@ -294,14 +295,14 @@ int Search(T* array, Name name, int valid_entries, int* out_insertion_index) {
     return T::kNotFound;
   }
 
-  // Fast case: do linear search for small arrays.
+  // Do linear search for small arrays, and for searches in the background
+  // thread.
   const int kMaxElementsForLinearSearch = 8;
-  if (valid_entries <= kMaxElementsForLinearSearch) {
+  if (valid_entries <= kMaxElementsForLinearSearch || concurrent_search) {
     return LinearSearch<search_mode>(array, name, valid_entries,
                                      out_insertion_index);
   }
 
-  // Slow case: perform binary search.
   return BinarySearch<search_mode>(array, name, valid_entries,
                                    out_insertion_index);
 }

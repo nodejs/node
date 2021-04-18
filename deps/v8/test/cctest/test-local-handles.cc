@@ -20,6 +20,8 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+
 class LocalHandlesThread final : public v8::base::Thread {
  public:
   LocalHandlesThread(Heap* heap, Address object, base::Semaphore* sema_started,
@@ -91,6 +93,8 @@ TEST(CreateLocalHandles) {
 
   thread->Join();
 }
+
+}  // anonymous namespace
 
 }  // namespace internal
 }  // namespace v8
