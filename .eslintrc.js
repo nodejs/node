@@ -16,6 +16,7 @@ const ModuleFindPath = Module._findPath;
 const hacks = [
   'eslint-plugin-node-core',
   'eslint-plugin-markdown',
+  'eslint-plugin-jsdoc',
   '@babel/eslint-parser',
   '@babel/plugin-syntax-class-properties',
   '@babel/plugin-syntax-top-level-await',
@@ -38,7 +39,7 @@ Module._findPath = (request, paths, isMain) => {
 
 module.exports = {
   root: true,
-  plugins: ['markdown', 'node-core'],
+  plugins: ['markdown', 'node-core', 'jsdoc'],
   parser: '@babel/eslint-parser',
   parserOptions: {
     babelOptions: {
@@ -49,6 +50,16 @@ module.exports = {
     },
     requireConfigFile: false,
     sourceType: 'script',
+  },
+  settings: {
+    jsdoc: {
+      // For the @template tag.
+      mode: 'typescript',
+      tagNamePreference: {
+        class: 'constructor',
+        file: 'fileoverview',
+      },
+    },
   },
   overrides: [
     {
@@ -313,6 +324,10 @@ module.exports = {
     // Custom rules from eslint-plugin-node-core
     'node-core/no-unescaped-regexp-dot': 'error',
     'node-core/no-duplicate-requires': 'error',
+
+    // JSDoc rules
+    // https://github.com/gajus/eslint-plugin-jsdoc
+    'jsdoc/check-tag-names': 'error',
   },
   globals: {
     AbortController: 'readable',
