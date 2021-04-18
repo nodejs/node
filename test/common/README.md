@@ -370,10 +370,12 @@ const { spawn } = require('child_process');
 spawn(...common.pwdCommand, { stdio: ['pipe'] });
 ```
 
-### `requireNoPackageJSONAbove()`
+### `requireNoPackageJSONAbove([dir])`
 
-Throws an `AssertionError` if a `package.json` file is in any ancestor
-directory. Such files may interfere with proper test functionality.
+* `dir` [&lt;string>][] default = \_\_dirname
+
+Throws an `AssertionError` if a `package.json` file exists in any ancestor
+directory above `dir`. Such files may interfere with proper test functionality.
 
 ### `runWithInvalidFD(func)`
 
