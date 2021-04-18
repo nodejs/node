@@ -12,6 +12,9 @@
         "columnDefault": {
             "$ref": "shared.json#/definitions/column"
         },
+        "drawVerticalLine": {
+          "typeof": "function"
+        },
         "drawHorizontalLine": {
             "typeof": "function"
         },

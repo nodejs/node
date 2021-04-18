@@ -1,0 +1,16 @@
+{
+  "type": "object",
+  "properties": {
+    "type": { "$ref": "NodeType.json" },
+    "subject": { "$ref": "Node.json" },
+    "objects": {
+      "type": "array",
+      "items": { "type": "Node.json" }
+    }
+  },
+  "required": [
+    "type",
+    "subject",
+    "objects"
+  ]
+}

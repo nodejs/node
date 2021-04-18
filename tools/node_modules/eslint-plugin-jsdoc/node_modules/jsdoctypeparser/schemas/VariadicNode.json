@@ -1,0 +1,21 @@
+{
+  "type": "object",
+  "properties": {
+    "type": { "$ref": "NodeType.json" },
+    "value": { "$ref": "Node.json" },
+    "meta": {
+      "type": "object",
+      "properties": {
+        "syntax": {
+          "type": "string",
+          "enum": ["PREFIX_DOTS", "SUFFIX_DOTS"]
+        }
+      }
+    }
+  },
+  "required": [
+    "type",
+    "value",
+    "meta"
+  ]
+}

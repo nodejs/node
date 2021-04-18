@@ -1,0 +1,23 @@
+{
+  "type": "string",
+  "enum": [
+    "NAME",
+    "MEMBER",
+    "UNION",
+    "INTERSECTION",
+    "VARIADIC",
+    "RECORD",
+    "RECORD_ENTRY",
+    "TUPLE",
+    "GENERIC",
+    "MODULE",
+    "OPTIONAL",
+    "NULLABLE",
+    "NOT_NULLABLE",
+    "FUNCTION",
+    "ANY",
+    "UNKNOWN",
+    "INNER_MEMBER",
+    "INSTANCE_MEMBER"
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "type": "object",
+  "properties": {
+    "type": { "$ref": "NodeType.json" },
+    "key": { "type": "string" },
+    "value": {
+      "oneOf": [
+        { "$ref": "Node.json" },
+        null
+      ]
+    }
+  },
+  "required": [
+    "type",
+    "key",
+    "value"
+  ]
+}

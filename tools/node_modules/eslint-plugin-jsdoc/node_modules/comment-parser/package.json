@@ -1,0 +1,55 @@
+{
+  "name": "comment-parser",
+  "version": "1.1.2",
+  "description": "Generic JSDoc-like comment parser",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "directories": {
+    "test": "tests"
+  },
+  "devDependencies": {
+    "@types/jest": "^26.0.14",
+    "jest": "^26.5.3",
+    "prettier": "2.1.2",
+    "rimraf": "^3.0.2",
+    "rollup": "^2.33.3",
+    "ts-jest": "^26.4.1",
+    "typescript": "^4.0.3"
+  },
+  "engines": {
+    "node": ">= 10.0.0"
+  },
+  "scripts": {
+    "build": "rimraf lib es6 browser; tsc -p tsconfig.es6.json && tsc -p tsconfig.node.json && rollup -o browser/index.js -f iife --context window -n CommentParser es6/index.js",
+    "format": "prettier --write src/ tests/",
+    "pretest": "rimraf coverage; npm run build",
+    "test": "prettier --check src/ tests/ && jest --verbose"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:yavorskiy/comment-parser.git"
+  },
+  "keywords": [
+    "jsdoc",
+    "comments",
+    "parser"
+  ],
+  "author": "Sergiy Yavorsky <sergiy@yavorsky.me> (https://github.com/syavorsky)",
+  "contributors": [
+    "Alexej Yaroshevich (https://github.com/zxqfox)",
+    "Andre Wachsmuth (https://github.com/blutorange)",
+    "Brett Zamir (https://github.com/brettz9)",
+    "Dieter Oberkofler (https://github.com/doberkofler)",
+    "Evgeny Reznichenko (https://github.com/zxcabs)",
+    "Javier \"Ciberma\" Mora (https://github.com/jhm-ciberman)",
+    "Jordan Harband (https://github.com/ljharb)",
+    "tengattack (https://github.com/tengattack)",
+    "Jayden Seric (https://github.com/jaydenseric)"
+  ],
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/syavorsky/comment-parser/issues"
+  },
+  "homepage": "https://github.com/syavorsky/comment-parser",
+  "dependencies": {}
+}

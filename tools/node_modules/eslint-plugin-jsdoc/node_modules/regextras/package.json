@@ -1,0 +1,86 @@
+{
+  "name": "regextras",
+  "version": "0.7.1",
+  "license": "MIT",
+  "author": "Brett Zamir",
+  "contributors": [],
+  "repository": "https://github.com/brettz9/regextras",
+  "homepage": "https://github.com/brettz9/regextras",
+  "bugs": "https://github.com/brettz9/regextras/issues",
+  "scripts": {
+    "eslint": "eslint --ext=js,md,html .",
+    "rollup": "rollup -c",
+    "start": "static -p 8081",
+    "coverage": "open-cli http://localhost:8081/coverage && npm start",
+    "mocha": "mocha --require esm --require test/node-env.js test/test.*.js --exit",
+    "mocha-cov": "nyc npm run mocha",
+    "test-cov": "npm run eslint && npm run rollup && npm run mocha-cov",
+    "test": "npm run eslint && npm run rollup && npm run mocha",
+    "test-browser": "npm run eslint && npm run rollup && open-cli http://127.0.0.1:8081/tests/regextras.html && npm start"
+  },
+  "nyc": {
+    "reporter": [
+      "html",
+      "text"
+    ],
+    "exclude": [
+      ".eslintrc.js",
+      "rollup.config.js",
+      "dist",
+      "node_modules",
+      "test",
+      "tests"
+    ]
+  },
+  "browserslist": [
+    "cover 100%"
+  ],
+  "main": "dist/index-umd.js",
+  "module": "dist/index-es.js",
+  "keywords": [
+    "regex",
+    "regexp",
+    "regular expression"
+  ],
+  "description": "Array extras for regular expressions",
+  "engines": {
+    "node": ">=0.1.14"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@babel/core": "^7.9.6",
+    "@babel/preset-env": "^7.9.6",
+    "@mysticatea/eslint-plugin": "^13.0.0",
+    "@rollup/plugin-babel": "^5.0.0",
+    "chai": "^4.2.0",
+    "core-js-bundle": "^3.6.5",
+    "eslint": "^7.0.0",
+    "eslint-config-ash-nazg": "^21.0.0",
+    "eslint-config-standard": "^14.1.1",
+    "eslint-plugin-array-func": "^3.1.5",
+    "eslint-plugin-chai-expect": "^2.1.0",
+    "eslint-plugin-chai-friendly": "^0.6.0",
+    "eslint-plugin-compat": "^3.5.1",
+    "eslint-plugin-eslint-comments": "^3.1.2",
+    "eslint-plugin-html": "^6.0.2",
+    "eslint-plugin-import": "^2.20.2",
+    "eslint-plugin-jsdoc": "^25.0.1",
+    "eslint-plugin-markdown": "^1.0.2",
+    "eslint-plugin-no-use-extend-native": "^0.5.0",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-promise": "^4.2.1",
+    "eslint-plugin-sonarjs": "^0.5.0",
+    "eslint-plugin-standard": "^4.0.1",
+    "eslint-plugin-unicorn": "^19.0.1",
+    "esm": "^3.2.25",
+    "mocha": "^7.1.2",
+    "node-static": "^0.7.11",
+    "nyc": "^15.0.1",
+    "open-cli": "^6.0.1",
+    "regenerator-runtime": "^0.13.5",
+    "remark-lint": "7.0.0",
+    "rollup": "2.8.2",
+    "rollup-plugin-terser": "^5.3.0",
+    "typescript": "^3.8.3"
+  }
+}

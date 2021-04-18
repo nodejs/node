@@ -6,7 +6,7 @@
 # script source file path to determine directories to work in.
 
 cd "$( dirname "$0" )" || exit
-rm -rf node_modules/eslint node_modules/eslint-plugin-markdown
+rm -rf node_modules/eslint node_modules/eslint-plugin-markdown node_modules/eslint-plugin-jsdoc
 (
     mkdir eslint-tmp
     cd eslint-tmp || exit
@@ -20,6 +20,7 @@ rm -rf node_modules/eslint node_modules/eslint-plugin-markdown
 
     "$NODE" "$NPM" install --global-style --no-bin-links --production --no-package-lock eslint@latest
     "$NODE" "$NPM" install --global-style --no-bin-links --production --no-package-lock eslint-plugin-markdown@latest
+    "$NODE" "$NPM" install --global-style --no-bin-links --production --no-package-lock eslint-plugin-jsdoc@latest
 
     # Use dmn to remove some unneeded files.
     "$NODE" "$NPM" exec -- dmn@2.2.2 -f clean
@@ -30,4 +31,5 @@ rm -rf node_modules/eslint node_modules/eslint-plugin-markdown
 
 mv eslint-tmp/node_modules/eslint node_modules/eslint
 mv eslint-tmp/node_modules/eslint-plugin-markdown node_modules/eslint-plugin-markdown
+mv eslint-tmp/node_modules/eslint-plugin-jsdoc node_modules/eslint-plugin-jsdoc
 rm -rf eslint-tmp/

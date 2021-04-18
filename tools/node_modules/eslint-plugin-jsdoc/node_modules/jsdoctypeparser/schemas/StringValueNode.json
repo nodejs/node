@@ -1,0 +1,15 @@
+{
+  "type": "object",
+  "properties": {
+    "type": { "$ref": "NodeType.json" },
+    "string": { "type": "string" },
+    "quoteStyle": {
+      "type": "string",
+      "enum": ["single", "double", "none"]
+    }
+  },
+  "required": [
+    "type",
+    "string"
+  ]
+}

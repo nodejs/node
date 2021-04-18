@@ -1,20 +1,26 @@
 import {
-  drawBorderTop,
-  drawBorderJoin,
-  drawBorderBottom,
+  drawBorderTop, drawBorderJoin, drawBorderBottom,
 } from './drawBorder';
 import drawRow from './drawRow';
 
 /**
- * @param {Array} rows
- * @param {object} border
+ * @param {string[][]} rows
  * @param {Array} columnSizeIndex
  * @param {Array} rowSpanIndex
- * @param {Function} drawHorizontalLine
- * @param {boolean} singleLine
+ * @param {table~config} config
  * @returns {string}
  */
-export default (rows, border, columnSizeIndex, rowSpanIndex, drawHorizontalLine, singleLine) => {
+export default (
+  rows,
+  columnSizeIndex,
+  rowSpanIndex,
+  config,
+) => {
+  const {
+    drawHorizontalLine,
+    singleLine,
+  } = config;
+
   let output;
   let realRowIndex;
   let rowHeight;
@@ -26,11 +32,11 @@ export default (rows, border, columnSizeIndex, rowSpanIndex, drawHorizontalLine,
   output = '';
 
   if (drawHorizontalLine(realRowIndex, rowCount)) {
-    output += drawBorderTop(columnSizeIndex, border);
+    output += drawBorderTop(columnSizeIndex, config);
   }
 
   rows.forEach((row, index0) => {
-    output += drawRow(row, border);
+    output += drawRow(row, config);
 
     if (!rowHeight) {
       rowHeight = rowSpanIndex[realRowIndex];
@@ -40,13 +46,18 @@ export default (rows, border, columnSizeIndex, rowSpanIndex, drawHorizontalLine,
 
     rowHeight--;
 
-    if (!singleLine && rowHeight === 0 && index0 !== rowCount - 1 && drawHorizontalLine(realRowIndex, rowCount)) {
-      output += drawBorderJoin(columnSizeIndex, border);
+    if (
+      !singleLine &&
+      rowHeight === 0 &&
+      index0 !== rowCount - 1 &&
+      drawHorizontalLine(realRowIndex, rowCount)
+    ) {
+      output += drawBorderJoin(columnSizeIndex, config);
     }
   });
 
   if (drawHorizontalLine(realRowIndex, rowCount)) {
-    output += drawBorderBottom(columnSizeIndex, border);
+    output += drawBorderBottom(columnSizeIndex, config);
   }
 
   return output;
