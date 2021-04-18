@@ -375,7 +375,10 @@ class TapProgressIndicator(SimpleProgressIndicator):
 
       if output.diagnostic:
         self.severity = 'ok'
-        self.traceback = output.diagnostic
+        if isinstance(output.diagnostic, list):
+          self.traceback = '\n'.join(output.diagnostic)
+        else:
+          self.traceback = output.diagnostic
 
 
     duration = output.test.duration
