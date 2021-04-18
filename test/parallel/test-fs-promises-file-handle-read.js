@@ -60,6 +60,13 @@ async function validateLargeRead() {
   assert.strictEqual(readHandle.bytesRead, 0);
 }
 
+async function validateReadNoParams() {
+  const filePath = fixtures.path('x.txt');
+  const fileHandle = await open(filePath, 'r');
+  // Should not throw
+  await fileHandle.read();
+}
+
 let useConf = false;
 
 (async function() {
@@ -72,4 +79,5 @@ let useConf = false;
           .then(validateLargeRead)
           .then(common.mustCall());
   }
+  await validateReadNoParams();
 })().then(common.mustCall());
