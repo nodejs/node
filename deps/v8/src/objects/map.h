@@ -594,6 +594,7 @@ class Map : public HeapObject {
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // [instance descriptors]: describes the object.
+  DECL_GETTER(synchronized_instance_descriptors, DescriptorArray)
   DECL_GETTER(instance_descriptors, DescriptorArray)
   V8_EXPORT_PRIVATE void SetInstanceDescriptors(Isolate* isolate,
                                                 DescriptorArray descriptors,
@@ -976,7 +977,8 @@ class Map : public HeapObject {
       MaybeHandle<Object> new_value);
 
   // Use the high-level instance_descriptors/SetInstanceDescriptors instead.
-  DECL_ACCESSORS(synchronized_instance_descriptors, DescriptorArray)
+  inline void set_synchronized_instance_descriptors(
+      DescriptorArray value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   static const int kFastPropertiesSoftLimit = 12;
   static const int kMaxFastProperties = 128;
