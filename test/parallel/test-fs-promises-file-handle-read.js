@@ -61,6 +61,13 @@ async function validateLargeRead(options) {
   assert.strictEqual(readHandle.bytesRead, 0);
 }
 
+async function validateReadNoParams() {
+  const filePath = fixtures.path('x.txt');
+  const fileHandle = await open(filePath, 'r');
+  // Should not throw
+  await fileHandle.read();
+}
+
 
 (async function() {
   tmpdir.refresh();
@@ -70,4 +77,5 @@ async function validateLargeRead(options) {
   await validateRead('', 'read-empty-file-conf', { useConf: true });
   await validateLargeRead({ useConf: false });
   await validateLargeRead({ useConf: true });
+  await validateReadNoParams();
 })().then(common.mustCall());
