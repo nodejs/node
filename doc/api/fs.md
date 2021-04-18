@@ -285,7 +285,7 @@ Reads data from the file and stores that in the given buffer.
 If the file is not modified concurrently, the end-of-file is reached when the
 number of bytes read is zero.
 
-#### `filehandle.read(options)`
+#### `filehandle.read([options])`
 <!-- YAML
 added:
  - v13.11.0
