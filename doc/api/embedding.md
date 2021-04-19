@@ -89,7 +89,7 @@ In order to set up a `v8::Isolate`, an `v8::ArrayBuffer::Allocator` needs
 to be provided. One possible choice is the default Node.js allocator, which
 can be created through `node::ArrayBufferAllocator::Create()`. Using the Node.js
 allocator allows minor performance optimizations when addons use the Node.js
-C++ `Buffer` API, and is required in order to track `ArrayBuffer` memory in
+C++ [`Buffer`][] API, and is required in order to track `ArrayBuffer` memory in
 [`process.memoryUsage()`][].
 
 Additionally, each `v8::Isolate` that is used for a Node.js instance needs to
@@ -158,8 +158,9 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
 }
 ```
 
+[`Buffer`]: buffer.md
 [CLI options]: cli.md
-[`process.memoryUsage()`]: process.md#process_process_memoryusage
+[`process.memoryUsage()`]: process.md#processmemoryusage
 [deprecation policy]: deprecations.md
 [embedtest.cc]: https://github.com/nodejs/node/blob/HEAD/test/embedding/embedtest.cc
 [src/node.h]: https://github.com/nodejs/node/blob/HEAD/src/node.h
