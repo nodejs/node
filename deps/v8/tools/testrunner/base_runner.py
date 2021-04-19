@@ -654,6 +654,10 @@ class BaseTestRunner(object):
        self.build_config.arch == 'mipsel':
        no_simd_sse = not simd_mips
 
+    # Set no_simd_sse on architectures without Simd enabled.
+    if self.build_config.arch == 'ppc64':
+       no_simd_sse = True
+
     return {
       "arch": self.build_config.arch,
       "asan": self.build_config.asan,
