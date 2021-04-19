@@ -70,6 +70,11 @@
 }],
 
 ################################################################################
+['arch == ppc64', {
+  # Tests that require Simd enabled.
+  'wasm-trace-memory': [SKIP],
+}],
+
 ['arch == mips64el or arch == mipsel', {
   # Tests that require Simd enabled.
   'wasm-trace-memory': [SKIP],
