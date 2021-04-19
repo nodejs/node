@@ -39,6 +39,7 @@ using node::TIME_TYPE;
 using node::worker::Worker;
 using v8::Array;
 using v8::Context;
+using v8::HandleScope;
 using v8::HeapSpaceStatistics;
 using v8::HeapStatistics;
 using v8::Isolate;
@@ -545,6 +546,7 @@ static void PrintJavaScriptErrorStack(JSONWriter* writer,
                                       Local<Value> error,
                                       const char* trigger) {
   TryCatch try_catch(isolate);
+  HandleScope scope(isolate);
   Local<Context> context = isolate->GetCurrentContext();
   std::string ss = "";
   if ((!strcmp(trigger, "FatalError")) ||

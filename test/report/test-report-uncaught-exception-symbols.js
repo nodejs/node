@@ -17,6 +17,7 @@ process.on('uncaughtException', common.mustCall((err) => {
   assert.strictEqual(reports.length, 1);
   console.log(reports[0]);
   helper.validate(reports[0], [
+    ['header.event', 'Exception'],
     ['javascriptStack.message', 'Symbol(foobar)'],
   ]);
 }));
