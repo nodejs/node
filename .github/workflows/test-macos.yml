@@ -2,6 +2,8 @@ name: test-macOS
 
 on:
   pull_request:
+    paths-ignore:
+      - 'doc/**'
   push:
     branches:
       - master
