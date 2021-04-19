@@ -5,6 +5,9 @@ set -xe
 BUILD_ARCH_TYPE=$1
 V8_BUILD_OPTIONS=$2
 
+NODE_REPO_DIR="$(cd "$(dirname "$(dirname "$0")" )" && pwd)"
+DEPOT_TOOLS_DIR="$NODE_REPO_DIR"/deps/v8/_depot_tools
+
 cd deps/v8 || exit
 find . -type d -name .git -print0 | xargs -0 rm -rf
 tools/node/fetch_deps.py .
@@ -37,6 +40,6 @@ if [ "$ARCH" = "s390x" ] || [ "$ARCH" = "ppc64le" ]; then
   ninja -v -C "out.gn/$BUILD_ARCH_TYPE" d8 cctest inspector-test
 else
   # shellcheck disable=SC2086
-  PATH=~/_depot_tools:$PATH tools/dev/v8gen.py "$BUILD_ARCH_TYPE" --no-goma $V8_BUILD_OPTIONS
-  PATH=~/_depot_tools:$PATH ninja -C "out.gn/$BUILD_ARCH_TYPE/" d8 cctest inspector-test
+  PATH=~/_depot_tools:"$DEPOT_TOOLS_DIR":$PATH tools/dev/v8gen.py "$BUILD_ARCH_TYPE" --no-goma $V8_BUILD_OPTIONS
+  PATH=~/_depot_tools:"$DEPOT_TOOLS_DIR":$PATH ninja -C "out.gn/$BUILD_ARCH_TYPE/" d8 cctest inspector-test
 fi
