@@ -158,8 +158,8 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
 }
 ```
 
-[`Buffer`]: buffer.md
 [CLI options]: cli.md
+[`Buffer`]: buffer.md
 [`process.memoryUsage()`]: process.md#process_process_memoryusage
 [deprecation policy]: deprecations.md
 [embedtest.cc]: https://github.com/nodejs/node/blob/HEAD/test/embedding/embedtest.cc
