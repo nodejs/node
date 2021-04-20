@@ -1007,7 +1007,9 @@ Set the encoding for the socket as a [Readable Stream][]. See
 <!-- YAML
 added: v0.1.92
 changes:
-  - version: v12.17.0
+  - version:
+    - v13.12.0
+    - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32204
     description: New defaults for `TCP_KEEPCNT` and `TCP_KEEPINTVL` socket options were added.
 -->
