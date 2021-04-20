@@ -203,7 +203,7 @@ to with [`fsPromises.open()`][]. Therefore, this is equivalent to
 added: v10.0.0
 -->
 
-* `mode` {integer} the file mode bit mask.
+* `mode` {number} the file mode bit mask.
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
 Modifies the permissions on the file. See chmod(2).
@@ -213,8 +213,8 @@ Modifies the permissions on the file. See chmod(2).
 added: v10.0.0
 -->
 
-* `uid` {integer} The file's new owner's user id.
-* `gid` {integer} The file's new group's group id.
+* `uid` {number} The file's new owner's user id.
+* `gid` {number} The file's new group's group id.
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
 Changes the ownership of the file. A wrapper for chown(2).
@@ -267,16 +267,16 @@ added: v10.0.0
 
 * `buffer` {Buffer|TypedArray|DataView} A buffer that will be filled with the
   file data read.
-* `offset` {integer} The location in the buffer at which to start filling.
+* `offset` {number} The location in the buffer at which to start filling.
   **Default:** `0`
-* `length` {integer} The number of bytes to read. **Default:**
+* `length` {number} The number of bytes to read. **Default:**
   `buffer.byteLength`
-* `position` {integer} The location where to begin reading data from the
+* `position` {number} The location where to begin reading data from the
   file. If `null`, data will be read from the current file position, and
   the position will be updated. If `position` is an integer, the current
   file position will remain unchanged.
 * Returns: {Promise} Fulfills upon success with an object with two properties:
-  * `bytesRead` {integer} The number of bytes read
+  * `bytesRead` {number} The number of bytes read
   * `buffer` {Buffer|TypedArray|DataView} A reference to the passed in `buffer`
     argument.
 
@@ -294,16 +294,16 @@ added:
 * `options` {Object}
   * `buffer` {Buffer|TypedArray|DataView} A buffer that will be filled with the
     file data read. **Default:** `Buffer.alloc(16384)`
-  * `offset` {integer} The location in the buffer at which to start filling.
+  * `offset` {number} The location in the buffer at which to start filling.
     **Default:** `0`
-  * `length` {integer} The number of bytes to read. **Default:**
+  * `length` {number} The number of bytes to read. **Default:**
     `buffer.byteLength`
-  * `position` {integer} The location where to begin reading data from the
+  * `position` {number} The location where to begin reading data from the
     file. If `null`, data will be read from the current file position, and
     the position will be updated. If `position` is an integer, the current
     file position will remain unchanged. **Default:**: `null`
 * Returns: {Promise} Fulfills upon success with an object with two properties:
-  * `bytesRead` {integer} The number of bytes read
+  * `bytesRead` {number} The number of bytes read
   * `buffer` {Buffer|TypedArray|DataView} A reference to the passed in `buffer`
     argument.
 
@@ -343,11 +343,11 @@ added:
 -->
 
 * `buffers` {Buffer[]|TypedArray[]|DataView[]}
-* `position` {integer} The offset from the beginning of the file where the data
+* `position` {number} The offset from the beginning of the file where the data
   should be read from. If `position` is not a `number`, the data will be read
   from the current position.
 * Returns: {Promise} Fulfills upon success an object containing two properties:
-  * `bytesRead` {integer} the number of bytes read
+  * `bytesRead` {number} the number of bytes read
   * `buffers` {Buffer[]|TypedArray[]|DataView[]} property containing
     a reference to the `buffers` input.
 
@@ -384,7 +384,7 @@ Refer to the POSIX fsync(2) documentation for more detail.
 added: v10.0.0
 -->
 
-* `len` {integer} **Default:** `0`
+* `len` {number} **Default:** `0`
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
 Truncates the file.
@@ -438,11 +438,11 @@ changes:
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|string|Object}
-* `offset` {integer} The start position from within `buffer` where the data
+* `offset` {number} The start position from within `buffer` where the data
   to write begins. **Default:** `0`
-* `length` {integer} The number of bytes from `buffer` to write. **Default:**
+* `length` {number} The number of bytes from `buffer` to write. **Default:**
   `buffer.byteLength`
-* `position` {integer} The offset from the beginning of the file where the
+* `position` {number} The offset from the beginning of the file where the
   data from `buffer` should be written. If `position` is not a `number`,
   the data will be written at the current position. See the POSIX pwrite(2)
   documentation for more detail.
@@ -452,7 +452,7 @@ Write `buffer` to the file.
 
 The promise is resolved with an object containing two properties:
 
-* `bytesWritten` {integer} the number of bytes written
+* `bytesWritten` {number} the number of bytes written
 * `buffer` {Buffer|TypedArray|DataView|string|Object} a reference to the
   `buffer` written.
 
@@ -479,7 +479,7 @@ changes:
 -->
 
 * `string` {string|Object}
-* `position` {integer} The offset from the beginning of the file where the
+* `position` {number} The offset from the beginning of the file where the
   data from `string` should be written. If `position` is not a `number` the
   data will be written at the current position. See the POSIX pwrite(2)
   documentation for more detail.
@@ -491,7 +491,7 @@ own `toString` function property, the promise is rejected with an error.
 
 The promise is resolved with an object containing two properties:
 
-* `bytesWritten` {integer} the number of bytes written
+* `bytesWritten` {number} the number of bytes written
 * `buffer` {string|Object} a reference to the `string` written.
 
 It is unsafe to use `filehandle.write()` multiple times on the same file
@@ -544,7 +544,7 @@ added: v12.9.0
 -->
 
 * `buffers` {Buffer[]|TypedArray[]|DataView[]}
-* `position` {integer} The offset from the beginning of the file where the
+* `position` {number} The offset from the beginning of the file where the
   data from `buffers` should be written. If `position` is not a `number`,
   the data will be written at the current position.
 * Returns: {Promise}
@@ -553,7 +553,7 @@ Write an array of {ArrayBufferView}s to the file.
 
 The promise is resolved with an object containing a two properties:
 
-* `bytesWritten` {integer} the number of bytes written
+* `bytesWritten` {number} the number of bytes written
 * `buffers` {Buffer[]|TypedArray[]|DataView[]} a reference to the `buffers`
   input.
 
@@ -570,7 +570,7 @@ added: v10.0.0
 -->
 
 * `path` {string|Buffer|URL}
-* `mode` {integer} **Default:** `fs.constants.F_OK`
+* `mode` {number} **Default:** `fs.constants.F_OK`
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
 Tests a user's permissions for the file or directory specified by `path`.
@@ -611,7 +611,7 @@ added: v10.0.0
 * `data` {string|Buffer}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
-  * `mode` {integer} **Default:** `0o666`
+  * `mode` {number} **Default:** `0o666`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'a'`.
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
@@ -629,7 +629,7 @@ added: v10.0.0
 -->
 
 * `path` {string|Buffer|URL}
-* `mode` {string|integer}
+* `mode` {string|number}
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
 Changes the permissions of a file.
@@ -640,8 +640,8 @@ added: v10.0.0
 -->
 
 * `path` {string|Buffer|URL}
-* `uid` {integer}
-* `gid` {integer}
+* `uid` {number}
+* `gid` {number}
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
 Changes the ownership of a file.
@@ -658,7 +658,7 @@ changes:
 
 * `src` {string|Buffer|URL} source filename to copy
 * `dest` {string|Buffer|URL} destination filename of the copy operation
-* `mode` {integer} Optional modifiers that specify the behavior of the copy
+* `mode` {number} Optional modifiers that specify the behavior of the copy
   operation. It is possible to create a mask consisting of the bitwise OR of
   two or more values (e.g.
   `fs.constants.COPYFILE_EXCL | fs.constants.COPYFILE_FICLONE`)
@@ -706,7 +706,7 @@ deprecated: v10.0.0
 -->
 
 * `path` {string|Buffer|URL}
-* `mode` {integer}
+* `mode` {number}
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
 Changes the permissions on a symbolic link.
@@ -723,9 +723,9 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `uid` {integer}
-* `gid` {integer}
-* Returns: {Promise}  Fulfills with `undefined` upon success.
+* `uid` {number}
+* `gid` {number}
+* Returns: {Promise} Fulfills with `undefined` upon success.
 
 Changes the ownership on a symbolic link.
 
@@ -739,7 +739,7 @@ added:
 * `path` {string|Buffer|URL}
 * `atime` {number|string|Date}
 * `mtime` {number|string|Date}
-* Returns: {Promise}  Fulfills with `undefined` upon success.
+* Returns: {Promise} Fulfills with `undefined` upon success.
 
 Changes the access and modification times of a file in the same way as
 [`fsPromises.utimes()`][], with the difference that if the path refers to a
@@ -753,7 +753,7 @@ added: v10.0.0
 
 * `existingPath` {string|Buffer|URL}
 * `newPath` {string|Buffer|URL}
-* Returns: {Promise}  Fulfills with `undefined` upon success.
+* Returns: {Promise} Fulfills with `undefined` upon success.
 
 Creates a new link from the `existingPath` to the `newPath`. See the POSIX
 link(2) documentation for more detail.
@@ -772,7 +772,7 @@ changes:
 * `options` {Object}
   * `bigint` {boolean} Whether the numeric values in the returned
     {fs.Stats} object should be `bigint`. **Default:** `false`.
-* Returns: {Promise}  Fulfills with the {fs.Stats} object for the given
+* Returns: {Promise} Fulfills with the {fs.Stats} object for the given
   symbolic link `path`.
 
 Equivalent to `fsPromises.stats()` when `path` refers to a symbolic link.
@@ -784,9 +784,9 @@ added: v10.0.0
 -->
 
 * `path` {string|Buffer|URL}
-* `options` {Object|integer}
+* `options` {Object|number}
   * `recursive` {boolean} **Default:** `false`
-  * `mode` {string|integer} Not supported on Windows. **Default:** `0o777`.
+  * `mode` {string|number} Not supported on Windows. **Default:** `0o777`.
 * Returns: {Promise} Upon success, fulfills with `undefined` if `recursive`
   is `false`, or the first directory path created if `recursive` is `true`.
 
@@ -846,7 +846,7 @@ changes:
 * `path` {string|Buffer|URL}
 * `flags` {string|number} See [support of file system `flags`][].
   **Default:** `'r'`.
-* `mode` {string|integer} Sets the file mode (permission and sticky bits)
+* `mode` {string|number} Sets the file mode (permission and sticky bits)
   if the file is created. **Default:** `0o666` (readable and writable)
 * Returns: {Promise} Fulfills with a {FileHandle} object.
 
@@ -876,7 +876,7 @@ changes:
   * `bufferSize` {number} Number of directory entries that are buffered
     internally when reading from the directory. Higher values lead to better
     performance but higher memory usage. **Default:** `32`
-* Returns: {Promise}  Fulfills with an {fs.Dir}.
+* Returns: {Promise} Fulfills with an {fs.Dir}.
 
 Asynchronously open a directory for iterative scanning. See the POSIX
 opendir(3) documentation for more detail.
@@ -914,7 +914,7 @@ changes:
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
   * `withFileTypes` {boolean} **Default:** `false`
-* Returns: {Promise}  Fulfills with an array of the names of the files in
+* Returns: {Promise} Fulfills with an array of the names of the files in
   the directory excluding `'.'` and `'..'`.
 
 Reads the contents of a directory.
@@ -1018,7 +1018,7 @@ added: v10.0.0
 * `path` {string|Buffer|URL}
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
-* Returns: {Promise}  Fulfills with the resolved path upon success.
+* Returns: {Promise} Fulfills with the resolved path upon success.
 
 Determines the actual location of `path` using the same semantics as the
 `fs.realpath.native()` function.
@@ -1080,7 +1080,7 @@ changes:
 
 * `path` {string|Buffer|URL}
 * `options` {Object}
-  * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
+  * `maxRetries` {number} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
     `EPERM` error is encountered, Node.js retries the operation with a linear
     backoff wait of `retryDelay` milliseconds longer on each try. This option
     represents the number of retries. This option is ignored if the `recursive`
@@ -1088,7 +1088,7 @@ changes:
   * `recursive` {boolean} If `true`, perform a recursive directory removal. In
     recursive mode, operations are retried on failure. **Default:** `false`.
     **Deprecated**.
-  * `retryDelay` {integer} The amount of time in milliseconds to wait between
+  * `retryDelay` {number} The amount of time in milliseconds to wait between
     retries. This option is ignored if the `recursive` option is not `true`.
     **Default:** `100`.
 * Returns: {Promise} Fulfills with `undefined` upon success.
@@ -1111,14 +1111,14 @@ added: v14.14.0
 * `options` {Object}
   * `force` {boolean} When `true`, exceptions will be ignored if `path` does
     not exist. **Default:** `false`.
-  * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
+  * `maxRetries` {number} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
     `EPERM` error is encountered, Node.js will retry the operation with a linear
     backoff wait of `retryDelay` milliseconds longer on each try. This option
     represents the number of retries. This option is ignored if the `recursive`
     option is not `true`. **Default:** `0`.
   * `recursive` {boolean} If `true`, perform a recursive directory removal. In
     recursive mode operations are retried on failure. **Default:** `false`.
-  * `retryDelay` {integer} The amount of time in milliseconds to wait between
+  * `retryDelay` {number} The amount of time in milliseconds to wait between
     retries. This option is ignored if the `recursive` option is not `true`.
     **Default:** `100`.
 * Returns: {Promise} Fulfills with `undefined` upon success.
@@ -1139,7 +1139,7 @@ changes:
 * `options` {Object}
   * `bigint` {boolean} Whether the numeric values in the returned
     {fs.Stats} object should be `bigint`. **Default:** `false`.
-* Returns: {Promise}  Fulfills with the {fs.Stats} object for the
+* Returns: {Promise} Fulfills with the {fs.Stats} object for the
   given `path`.
 
 ### `fsPromises.symlink(target, path[, type])`
@@ -1165,7 +1165,7 @@ added: v10.0.0
 -->
 
 * `path` {string|Buffer|URL}
-* `len` {integer} **Default:** `0`
+* `len` {number} **Default:** `0`
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
 Truncates (shortens or extends the length) of the content at `path` to `len`
@@ -1278,7 +1278,7 @@ changes:
   |Stream}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
-  * `mode` {integer} **Default:** `0o666`
+  * `mode` {number} **Default:** `0o666`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'w'`.
   * `signal` {AbortSignal} allows aborting an in-progress writeFile
 * Returns: {Promise} Fulfills with `undefined` upon success.
@@ -1352,7 +1352,7 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `mode` {integer} **Default:** `fs.constants.F_OK`
+* `mode` {number} **Default:** `fs.constants.F_OK`
 * `callback` {Function}
   * `err` {Error}
 
@@ -1544,7 +1544,7 @@ changes:
 * `data` {string|Buffer}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
-  * `mode` {integer} **Default:** `0o666`
+  * `mode` {number} **Default:** `0o666`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'a'`.
 * `callback` {Function}
   * `err` {Error}
@@ -1616,7 +1616,7 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `mode` {string|integer}
+* `mode` {string|number}
 * `callback` {Function}
   * `err` {Error}
 
@@ -1703,8 +1703,8 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `uid` {integer}
-* `gid` {integer}
+* `uid` {number}
+* `gid` {number}
 * `callback` {Function}
   * `err` {Error}
 
@@ -1730,7 +1730,7 @@ changes:
                  it will emit a deprecation warning with id DEP0013.
 -->
 
-* `fd` {integer}
+* `fd` {number}
 * `callback` {Function}
   * `err` {Error}
 
@@ -1754,7 +1754,7 @@ changes:
 
 * `src` {string|Buffer|URL} source filename to copy
 * `dest` {string|Buffer|URL} destination filename of the copy operation
-* `mode` {integer} modifiers for copy operation. **Default:** `0`.
+* `mode` {number} modifiers for copy operation. **Default:** `0`.
 * `callback` {Function}
 
 Asynchronously copies `src` to `dest`. By default, `dest` is overwritten if it
@@ -1834,13 +1834,13 @@ changes:
   * `flags` {string} See [support of file system `flags`][]. **Default:**
     `'r'`.
   * `encoding` {string} **Default:** `null`
-  * `fd` {integer|FileHandle} **Default:** `null`
-  * `mode` {integer} **Default:** `0o666`
+  * `fd` {number|FileHandle} **Default:** `null`
+  * `mode` {number} **Default:** `0o666`
   * `autoClose` {boolean} **Default:** `true`
   * `emitClose` {boolean} **Default:** `true`
-  * `start` {integer}
-  * `end` {integer} **Default:** `Infinity`
-  * `highWaterMark` {integer} **Default:** `64 * 1024`
+  * `start` {number}
+  * `end` {number} **Default:** `Infinity`
+  * `highWaterMark` {number} **Default:** `64 * 1024`
   * `fs` {Object|null} **Default:** `null`
 * Returns: {fs.ReadStream} See [Readable Stream][].
 
@@ -1949,11 +1949,11 @@ changes:
   * `flags` {string} See [support of file system `flags`][]. **Default:**
     `'w'`.
   * `encoding` {string} **Default:** `'utf8'`
-  * `fd` {integer|FileHandle} **Default:** `null`
-  * `mode` {integer} **Default:** `0o666`
+  * `fd` {number|FileHandle} **Default:** `null`
+  * `mode` {number} **Default:** `0o666`
   * `autoClose` {boolean} **Default:** `true`
   * `emitClose` {boolean} **Default:** `true`
-  * `start` {integer}
+  * `start` {number}
   * `fs` {Object|null} **Default:** `null`
 * Returns: {fs.WriteStream} See [Writable Stream][].
 
@@ -2145,8 +2145,8 @@ changes:
                  it will emit a deprecation warning with id DEP0013.
 -->
 
-* `fd` {integer}
-* `mode` {string|integer}
+* `fd` {number}
+* `mode` {string|number}
 * `callback` {Function}
   * `err` {Error}
 
@@ -2169,9 +2169,9 @@ changes:
                  it will emit a deprecation warning with id DEP0013.
 -->
 
-* `fd` {integer}
-* `uid` {integer}
-* `gid` {integer}
+* `fd` {number}
+* `uid` {number}
+* `gid` {number}
 * `callback` {Function}
   * `err` {Error}
 
@@ -2194,7 +2194,7 @@ changes:
                  it will emit a deprecation warning with id DEP0013.
 -->
 
-* `fd` {integer}
+* `fd` {number}
 * `callback` {Function}
   * `err` {Error}
 
@@ -2221,7 +2221,7 @@ changes:
                  it will emit a deprecation warning with id DEP0013.
 -->
 
-* `fd` {integer}
+* `fd` {number}
 * `options` {Object}
   * `bigint` {boolean} Whether the numeric values in the returned
     {fs.Stats} object should be `bigint`. **Default:** `false`.
@@ -2247,7 +2247,7 @@ changes:
                  it will emit a deprecation warning with id DEP0013.
 -->
 
-* `fd` {integer}
+* `fd` {number}
 * `callback` {Function}
   * `err` {Error}
 
@@ -2270,8 +2270,8 @@ changes:
                  it will emit a deprecation warning with id DEP0013.
 -->
 
-* `fd` {integer}
-* `len` {integer} **Default:** `0`
+* `fd` {number}
+* `len` {number} **Default:** `0`
 * `callback` {Function}
   * `err` {Error}
 
@@ -2333,7 +2333,7 @@ changes:
                  time specifiers.
 -->
 
-* `fd` {integer}
+* `fd` {number}
 * `atime` {number|string|Date}
 * `mtime` {number|string|Date}
 * `callback` {Function}
@@ -2361,7 +2361,7 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `mode` {integer}
+* `mode` {number}
 * `callback` {Function}
   * `err` {Error|AggregateError}
 
@@ -2391,8 +2391,8 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `uid` {integer}
-* `gid` {integer}
+* `uid` {number}
+* `gid` {number}
 * `callback` {Function}
   * `err` {Error}
 
@@ -2516,9 +2516,9 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `options` {Object|integer}
+* `options` {Object|number}
   * `recursive` {boolean} **Default:** `false`
-  * `mode` {string|integer} Not supported on Windows. **Default:** `0o777`.
+  * `mode` {string|number} Not supported on Windows. **Default:** `0o777`.
 * `callback` {Function}
   * `err` {Error}
 
@@ -2657,10 +2657,10 @@ changes:
 * `path` {string|Buffer|URL}
 * `flags` {string|number} See [support of file system `flags`][].
   **Default:** `'r'`.
-* `mode` {string|integer} **Default:** `0o666` (readable and writable)
+* `mode` {string|number} **Default:** `0o666` (readable and writable)
 * `callback` {Function}
   * `err` {Error}
-  * `fd` {integer}
+  * `fd` {number}
 
 Asynchronous file open. See the POSIX open(2) documentation for more details.
 
@@ -2724,20 +2724,20 @@ changes:
     description: The `length` parameter can now be `0`.
 -->
 
-* `fd` {integer}
+* `fd` {number}
 * `buffer` {Buffer|TypedArray|DataView} The buffer that the data will be
   written to. **Default:** `Buffer.alloc(16384)`
-* `offset` {integer} The position in `buffer` to write the data to. **Default:**
+* `offset` {number} The position in `buffer` to write the data to. **Default:**
   `0`
-* `length` {integer} The number of bytes to read. **Default:**
+* `length` {number} The number of bytes to read. **Default:**
   `buffer.byteLength`
-* `position` {integer|bigint} Specifies where to begin reading from in the
+* `position` {number|bigint} Specifies where to begin reading from in the
   file. If `position` is `null` or `-1 `, data will be read from the current
   file position, and the file position will be updated. If `position` is an
   integer, the file position will be unchanged.
 * `callback` {Function}
   * `err` {Error}
-  * `bytesRead` {integer}
+  * `bytesRead` {number}
   * `buffer` {Buffer}
 
 Read data from the file specified by `fd`.
@@ -2763,15 +2763,15 @@ changes:
     description: Options object can be passed in
                  to make Buffer, offset, length and position optional.
 -->
-* `fd` {integer}
+* `fd` {number}
 * `options` {Object}
   * `buffer` {Buffer|TypedArray|DataView} **Default:** `Buffer.alloc(16384)`
-  * `offset` {integer} **Default:** `0`
-  * `length` {integer} **Default:** `buffer.byteLength`
-  * `position` {integer|bigint} **Default:** `null`
+  * `offset` {number} **Default:** `0`
+  * `length` {number} **Default:** `buffer.byteLength`
+  * `position` {number|bigint} **Default:** `null`
 * `callback` {Function}
   * `err` {Error}
-  * `bytesRead` {integer}
+  * `bytesRead` {number}
   * `buffer` {Buffer}
 
 Similar to the [`fs.read()`][] function, this version takes an optional
@@ -2857,7 +2857,7 @@ changes:
     description: The `path` parameter can be a file descriptor now.
 -->
 
-* `path` {string|Buffer|URL|integer} filename or file descriptor
+* `path` {string|Buffer|URL|number} filename or file descriptor
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `null`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'r'`.
@@ -3004,12 +3004,12 @@ added:
  - v12.17.0
 -->
 
-* `fd` {integer}
+* `fd` {number}
 * `buffers` {ArrayBufferView[]}
-* `position` {integer}
+* `position` {number}
 * `callback` {Function}
   * `err` {Error}
-  * `bytesRead` {integer}
+  * `bytesRead` {number}
   * `buffers` {ArrayBufferView[]}
 
 Read from a file specified by `fd` and write to an array of `ArrayBufferView`s
@@ -3201,7 +3201,7 @@ changes:
 
 * `path` {string|Buffer|URL}
 * `options` {Object}
-  * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
+  * `maxRetries` {number} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
     `EPERM` error is encountered, Node.js retries the operation with a linear
     backoff wait of `retryDelay` milliseconds longer on each try. This option
     represents the number of retries. This option is ignored if the `recursive`
@@ -3209,7 +3209,7 @@ changes:
   * `recursive` {boolean} If `true`, perform a recursive directory removal. In
     recursive mode, operations are retried on failure. **Default:** `false`.
     **Deprecated**.
-  * `retryDelay` {integer} The amount of time in milliseconds to wait between
+  * `retryDelay` {number} The amount of time in milliseconds to wait between
     retries. This option is ignored if the `recursive` option is not `true`.
     **Default:** `100`.
 * `callback` {Function}
@@ -3233,14 +3233,14 @@ added: v14.14.0
 * `options` {Object}
   * `force` {boolean} When `true`, exceptions will be ignored if `path` does
     not exist. **Default:** `false`.
-  * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
+  * `maxRetries` {number} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
     `EPERM` error is encountered, Node.js will retry the operation with a linear
     backoff wait of `retryDelay` milliseconds longer on each try. This option
     represents the number of retries. This option is ignored if the `recursive`
     option is not `true`. **Default:** `0`.
   * `recursive` {boolean} If `true`, perform a recursive removal. In
     recursive mode operations are retried on failure. **Default:** `false`.
-  * `retryDelay` {integer} The amount of time in milliseconds to wait between
+  * `retryDelay` {number} The amount of time in milliseconds to wait between
     retries. This option is ignored if the `recursive` option is not `true`.
     **Default:** `100`.
 * `callback` {Function}
@@ -3433,7 +3433,7 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `len` {integer} **Default:** `0`
+* `len` {number} **Default:** `0`
 * `callback` {Function}
   * `err` {Error|AggregateError}
 
@@ -3689,7 +3689,7 @@ changes:
 * `options` {Object}
   * `bigint` {boolean} **Default:** `false`
   * `persistent` {boolean} **Default:** `true`
-  * `interval` {integer} **Default:** `5007`
+  * `interval` {number} **Default:** `5007`
 * `listener` {Function}
   * `current` {fs.Stats}
   * `previous` {fs.Stats}
@@ -3774,14 +3774,14 @@ changes:
                  it will emit a deprecation warning with id DEP0013.
 -->
 
-* `fd` {integer}
+* `fd` {number}
 * `buffer` {Buffer|TypedArray|DataView|string|Object}
-* `offset` {integer}
-* `length` {integer}
-* `position` {integer}
+* `offset` {number}
+* `length` {number}
+* `position` {number}
 * `callback` {Function}
   * `err` {Error}
-  * `bytesWritten` {integer}
+  * `bytesWritten` {number}
   * `buffer` {Buffer|TypedArray|DataView}
 
 Write `buffer` to the file specified by `fd`. If `buffer` is a normal object, it
@@ -3833,13 +3833,13 @@ changes:
                  it will emit a deprecation warning with id DEP0013.
 -->
 
-* `fd` {integer}
+* `fd` {number}
 * `string` {string|Object}
-* `position` {integer}
+* `position` {number}
 * `encoding` {string} **Default:** `'utf8'`
 * `callback` {Function}
   * `err` {Error}
-  * `written` {integer}
+  * `written` {number}
   * `string` {string}
 
 Write `string` to the file specified by `fd`. If `string` is not a string, or an
@@ -3911,11 +3911,11 @@ changes:
     description: The `file` parameter can be a file descriptor now.
 -->
 
-* `file` {string|Buffer|URL|integer} filename or file descriptor
+* `file` {string|Buffer|URL|number} filename or file descriptor
 * `data` {string|Buffer|TypedArray|DataView|Object}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
-  * `mode` {integer} **Default:** `0o666`
+  * `mode` {number} **Default:** `0o666`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'w'`.
   * `signal` {AbortSignal} allows aborting an in-progress writeFile
 * `callback` {Function}
@@ -4010,12 +4010,12 @@ to contain only `', World'`.
 added: v12.9.0
 -->
 
-* `fd` {integer}
+* `fd` {number}
 * `buffers` {ArrayBufferView[]}
-* `position` {integer}
+* `position` {number}
 * `callback` {Function}
   * `err` {Error}
-  * `bytesWritten` {integer}
+  * `bytesWritten` {number}
   * `buffers` {ArrayBufferView[]}
 
 Write an array of `ArrayBufferView`s to the file specified by `fd` using
@@ -4054,7 +4054,7 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `mode` {integer} **Default:** `fs.constants.F_OK`
+* `mode` {number} **Default:** `fs.constants.F_OK`
 
 Synchronously tests a user's permissions for the file or directory specified
 by `path`. The `mode` argument is an optional integer that specifies the
@@ -4093,7 +4093,7 @@ changes:
 * `data` {string|Buffer}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
-  * `mode` {integer} **Default:** `0o666`
+  * `mode` {number} **Default:** `0o666`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'a'`.
 
 Synchronously append data to a file, creating the file if it does not yet
@@ -4149,7 +4149,7 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `mode` {string|integer}
+* `mode` {string|number}
 
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.chmod()`][].
@@ -4167,8 +4167,8 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `uid` {integer}
-* `gid` {integer}
+* `uid` {number}
+* `gid` {number}
 
 Synchronously changes owner and group of a file. Returns `undefined`.
 This is the synchronous version of [`fs.chown()`][].
@@ -4180,7 +4180,7 @@ See the POSIX chown(2) documentation for more detail.
 added: v0.1.21
 -->
 
-* `fd` {integer}
+* `fd` {number}
 
 Closes the file descriptor. Returns `undefined`.
 
@@ -4201,7 +4201,7 @@ changes:
 
 * `src` {string|Buffer|URL} source filename to copy
 * `dest` {string|Buffer|URL} destination filename of the copy operation
-* `mode` {integer} modifiers for copy operation. **Default:** `0`.
+* `mode` {number} modifiers for copy operation. **Default:** `0`.
 
 Synchronously copies `src` to `dest`. By default, `dest` is overwritten if it
 already exists. Returns `undefined`. Node.js makes no guarantees about the
@@ -4267,8 +4267,8 @@ if (existsSync('/etc/passwd'))
 added: v0.4.7
 -->
 
-* `fd` {integer}
-* `mode` {string|integer}
+* `fd` {number}
+* `mode` {string|number}
 
 Sets the permissions on the file. Returns `undefined`.
 
@@ -4279,9 +4279,9 @@ See the POSIX fchmod(2) documentation for more detail.
 added: v0.4.7
 -->
 
-* `fd` {integer}
-* `uid` {integer} The file's new owner's user id.
-* `gid` {integer} The file's new group's group id.
+* `fd` {number}
+* `uid` {number} The file's new owner's user id.
+* `gid` {number} The file's new group's group id.
 
 Sets the owner of the file. Returns `undefined`.
 
@@ -4292,7 +4292,7 @@ See the POSIX fchown(2) documentation for more detail.
 added: v0.1.96
 -->
 
-* `fd` {integer}
+* `fd` {number}
 
 Forces all currently queued I/O operations associated with the file to the
 operating system's synchronized I/O completion state. Refer to the POSIX
@@ -4308,7 +4308,7 @@ changes:
                  the numeric values returned should be bigint.
 -->
 
-* `fd` {integer}
+* `fd` {number}
 * `options` {Object}
   * `bigint` {boolean} Whether the numeric values in the returned
     {fs.Stats} object should be `bigint`. **Default:** `false`.
@@ -4323,7 +4323,7 @@ See the POSIX fstat(2) documentation for more detail.
 added: v0.1.96
 -->
 
-* `fd` {integer}
+* `fd` {number}
 
 Request that all data for the open file descriptor is flushed to the storage
 device. The specific implementation is operating system and device specific.
@@ -4334,8 +4334,8 @@ Refer to the POSIX fsync(2) documentation for more detail. Returns `undefined`.
 added: v0.8.6
 -->
 
-* `fd` {integer}
-* `len` {integer} **Default:** `0`
+* `fd` {number}
+* `len` {number} **Default:** `0`
 
 Truncates the file descriptor. Returns `undefined`.
 
@@ -4352,7 +4352,7 @@ changes:
                  time specifiers.
 -->
 
-* `fd` {integer}
+* `fd` {number}
 * `atime` {number|string|Date}
 * `mtime` {number|string|Date}
 
@@ -4364,7 +4364,7 @@ deprecated: v0.4.7
 -->
 
 * `path` {string|Buffer|URL}
-* `mode` {integer}
+* `mode` {number}
 
 Changes the permissions on a symbolic link. Returns `undefined`.
 
@@ -4383,8 +4383,8 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `uid` {integer} The file's new owner's user id.
-* `gid` {integer} The file's new group's group id.
+* `uid` {number} The file's new owner's user id.
+* `gid` {number} The file's new group's group id.
 
 Set the owner for the path. Returns `undefined`.
 
@@ -4473,9 +4473,9 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `options` {Object|integer}
+* `options` {Object|number}
   * `recursive` {boolean} **Default:** `false`
-  * `mode` {string|integer} Not supported on Windows. **Default:** `0o777`.
+  * `mode` {string|number} Not supported on Windows. **Default:** `0o777`.
 * Returns: {string|undefined}
 
 Synchronously creates a directory. Returns `undefined`, or if `recursive` is
@@ -4548,7 +4548,7 @@ changes:
 * `path` {string|Buffer|URL}
 * `flags` {string|number} **Default:** `'r'`.
    See [support of file system `flags`][].
-* `mode` {string|integer} **Default:** `0o666`
+* `mode` {string|number} **Default:** `0o666`
 * Returns: {number}
 
 Returns an integer representing the file descriptor.
@@ -4600,7 +4600,7 @@ changes:
     description: The `path` parameter can be a file descriptor now.
 -->
 
-* `path` {string|Buffer|URL|integer} filename or file descriptor
+* `path` {string|Buffer|URL|number} filename or file descriptor
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `null`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'r'`.
@@ -4665,11 +4665,11 @@ changes:
     description: The `length` parameter can now be `0`.
 -->
 
-* `fd` {integer}
+* `fd` {number}
 * `buffer` {Buffer|TypedArray|DataView}
-* `offset` {integer}
-* `length` {integer}
-* `position` {integer|bigint}
+* `offset` {number}
+* `length` {number}
+* `position` {number|bigint}
 * Returns: {number}
 
 Returns the number of `bytesRead`.
@@ -4691,12 +4691,12 @@ changes:
                  to make offset, length and position optional.
 -->
 
-* `fd` {integer}
+* `fd` {number}
 * `buffer` {Buffer|TypedArray|DataView}
 * `options` {Object}
-  * `offset` {integer} **Default:** `0`
-  * `length` {integer} **Default:** `buffer.byteLength`
-  * `position` {integer|bigint} **Default:** `null`
+  * `offset` {number} **Default:** `0`
+  * `length` {number} **Default:** `buffer.byteLength`
+  * `position` {number|bigint} **Default:** `null`
 * Returns: {number}
 
 Returns the number of `bytesRead`.
@@ -4714,9 +4714,9 @@ added:
  - v12.17.0
 -->
 
-* `fd` {integer}
+* `fd` {number}
 * `buffers` {ArrayBufferView[]}
-* `position` {integer}
+* `position` {number}
 * Returns: {number} The number of bytes read.
 
 For detailed information, see the documentation of the asynchronous version of
@@ -4832,7 +4832,7 @@ changes:
 
 * `path` {string|Buffer|URL}
 * `options` {Object}
-  * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
+  * `maxRetries` {number} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
     `EPERM` error is encountered, Node.js retries the operation with a linear
     backoff wait of `retryDelay` milliseconds longer on each try. This option
     represents the number of retries. This option is ignored if the `recursive`
@@ -4840,7 +4840,7 @@ changes:
   * `recursive` {boolean} If `true`, perform a recursive directory removal. In
     recursive mode, operations are retried on failure. **Default:** `false`.
     **Deprecated**.
-  * `retryDelay` {integer} The amount of time in milliseconds to wait between
+  * `retryDelay` {number} The amount of time in milliseconds to wait between
     retries. This option is ignored if the `recursive` option is not `true`.
     **Default:** `100`.
 
@@ -4934,7 +4934,7 @@ added: v0.8.6
 -->
 
 * `path` {string|Buffer|URL}
-* `len` {integer} **Default:** `0`
+* `len` {number} **Default:** `0`
 
 Truncates the file. Returns `undefined`. A file descriptor can also be
 passed as the first argument. In this case, `fs.ftruncateSync()` is called.
@@ -5007,11 +5007,11 @@ changes:
     description: The `file` parameter can be a file descriptor now.
 -->
 
-* `file` {string|Buffer|URL|integer} filename or file descriptor
+* `file` {string|Buffer|URL|number} filename or file descriptor
 * `data` {string|Buffer|TypedArray|DataView|Object}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
-  * `mode` {integer} **Default:** `0o666`
+  * `mode` {number} **Default:** `0o666`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'w'`.
 
 Returns `undefined`.
@@ -5043,11 +5043,11 @@ changes:
     description: The `offset` and `length` parameters are optional now.
 -->
 
-* `fd` {integer}
+* `fd` {number}
 * `buffer` {Buffer|TypedArray|DataView|string|Object}
-* `offset` {integer}
-* `length` {integer}
-* `position` {integer}
+* `offset` {number}
+* `length` {number}
+* `position` {number}
 * Returns: {number} The number of bytes written.
 
 For detailed information, see the documentation of the asynchronous version of
@@ -5070,9 +5070,9 @@ changes:
     description: The `position` parameter is optional now.
 -->
 
-* `fd` {integer}
+* `fd` {number}
 * `string` {string|Object}
-* `position` {integer}
+* `position` {number}
 * `encoding` {string}
 * Returns: {number} The number of bytes written.
 
@@ -5084,9 +5084,9 @@ this API: [`fs.write(fd, string...)`][].
 added: v12.9.0
 -->
 
-* `fd` {integer}
+* `fd` {number}
 * `buffers` {ArrayBufferView[]}
-* `position` {integer}
+* `position` {number}
 * Returns: {number} The number of bytes written.
 
 For detailed information, see the documentation of the asynchronous version of
@@ -5491,7 +5491,7 @@ Emitted when the {fs.ReadStream}'s underlying file descriptor has been closed.
 added: v0.1.93
 -->
 
-* `fd` {integer} Integer file descriptor used by the {fs.ReadStream}.
+* `fd` {number} Integer file descriptor used by the {fs.ReadStream}.
 
 Emitted when the {fs.ReadStream}'s file descriptor has been opened.
 
@@ -5920,7 +5920,7 @@ Emitted when the {fs.WriteStream}'s underlying file descriptor has been closed.
 added: v0.1.93
 -->
 
-* `fd` {integer} Integer file descriptor used by the {fs.WriteStream}.
+* `fd` {number} Integer file descriptor used by the {fs.WriteStream}.
 
 Emitted when the {fs.WriteStream}'s file is opened.
 
