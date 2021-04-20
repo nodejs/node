@@ -1,5 +1,5 @@
 #if defined(__ELF__)
-.section .note.GNU-stack,"",@progbits
+.section .note.GNU-stack,"",%progbits
 #endif
 .text
 .align 0x2000
