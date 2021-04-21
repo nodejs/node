@@ -13391,35 +13391,56 @@ TNode<BoolT> CodeStubAssembler::IsDebugActive() {
   return Word32NotEqual(is_debug_active, Int32Constant(0));
 }
 
-TNode<BoolT> CodeStubAssembler::IsPromiseHookEnabled() {
-  const TNode<RawPtrT> promise_hook = Load<RawPtrT>(
-      ExternalConstant(ExternalReference::promise_hook_address(isolate())));
-  return WordNotEqual(promise_hook, IntPtrConstant(0));
-}
-
 TNode<BoolT> CodeStubAssembler::HasAsyncEventDelegate() {
   const TNode<RawPtrT> async_event_delegate = Load<RawPtrT>(ExternalConstant(
       ExternalReference::async_event_delegate_address(isolate())));
   return WordNotEqual(async_event_delegate, IntPtrConstant(0));
 }
 
-TNode<BoolT> CodeStubAssembler::IsPromiseHookEnabledOrHasAsyncEventDelegate() {
-  const TNode<Uint8T> promise_hook_or_async_event_delegate =
-      Load<Uint8T>(ExternalConstant(
-          ExternalReference::promise_hook_or_async_event_delegate_address(
-              isolate())));
-  return Word32NotEqual(promise_hook_or_async_event_delegate, Int32Constant(0));
+TNode<Uint32T> CodeStubAssembler::PromiseHookFlags() {
+  return Load<Uint32T>(ExternalConstant(
+    ExternalReference::promise_hook_flags_address(isolate())));
+}
+
+TNode<BoolT> CodeStubAssembler::IsAnyPromiseHookEnabled(TNode<Uint32T> flags) {
+  uint32_t mask = Isolate::PromiseHookFields::HasContextPromiseHook::kMask |
+                  Isolate::PromiseHookFields::HasIsolatePromiseHook::kMask;
+  return IsSetWord32(flags, mask);
+}
+
+TNode<BoolT> CodeStubAssembler::IsContextPromiseHookEnabled(
+    TNode<Uint32T> flags) {
+  return IsSetWord32<Isolate::PromiseHookFields::HasContextPromiseHook>(flags);
 }
 
 TNode<BoolT> CodeStubAssembler::
-    IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate() {
-  const TNode<Uint8T> promise_hook_or_debug_is_active_or_async_event_delegate =
-      Load<Uint8T>(ExternalConstant(
-          ExternalReference::
-              promise_hook_or_debug_is_active_or_async_event_delegate_address(
-                  isolate())));
-  return Word32NotEqual(promise_hook_or_debug_is_active_or_async_event_delegate,
-                        Int32Constant(0));
+    IsIsolatePromiseHookEnabledOrHasAsyncEventDelegate(TNode<Uint32T> flags) {
+  uint32_t mask = Isolate::PromiseHookFields::HasIsolatePromiseHook::kMask |
+                  Isolate::PromiseHookFields::HasAsyncEventDelegate::kMask;
+  return IsSetWord32(flags, mask);
+}
+
+TNode<BoolT> CodeStubAssembler::
+    IsIsolatePromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(
+        TNode<Uint32T> flags) {
+  uint32_t mask = Isolate::PromiseHookFields::HasIsolatePromiseHook::kMask |
+                  Isolate::PromiseHookFields::HasAsyncEventDelegate::kMask |
+                  Isolate::PromiseHookFields::IsDebugActive::kMask;
+  return IsSetWord32(flags, mask);
+}
+
+TNode<BoolT> CodeStubAssembler::
+    IsAnyPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(
+        TNode<Uint32T> flags) {
+  return Word32NotEqual(flags, Int32Constant(0));
+}
+
+TNode<BoolT> CodeStubAssembler::
+    IsAnyPromiseHookEnabledOrHasAsyncEventDelegate(TNode<Uint32T> flags) {
+  uint32_t mask = Isolate::PromiseHookFields::HasContextPromiseHook::kMask |
+                  Isolate::PromiseHookFields::HasIsolatePromiseHook::kMask |
+                  Isolate::PromiseHookFields::HasAsyncEventDelegate::kMask;
+  return IsSetWord32(flags, mask);
 }
 
 TNode<Code> CodeStubAssembler::LoadBuiltin(TNode<Smi> builtin_id) {
