@@ -148,8 +148,13 @@ MaybeLocal<Object> Transcode(Environment* env,
   *status = U_ZERO_ERROR;
   MaybeLocal<Object> ret;
   MaybeStackBuffer<char> result;
-  Converter to(toEncoding, "?");
+  Converter to(toEncoding);
   Converter from(fromEncoding);
+
+  size_t sublen = ucnv_getMinCharSize(to.conv());
+  std::string sub(sublen, '?');
+  to.set_subst_chars(sub.c_str());
+
   const uint32_t limit = source_length * to.max_char_size();
   result.AllocateSufficientStorage(limit);
   char* target = *result;
@@ -190,7 +195,12 @@ MaybeLocal<Object> TranscodeFromUcs2(Environment* env,
   *status = U_ZERO_ERROR;
   MaybeStackBuffer<UChar> sourcebuf;
   MaybeLocal<Object> ret;
-  Converter to(toEncoding, "?");
+  Converter to(toEncoding);
+
+  size_t sublen = ucnv_getMinCharSize(to.conv());
+  std::string sub(sublen, '?');
+  to.set_subst_chars(sub.c_str());
+
   const size_t length_in_chars = source_length / sizeof(UChar);
   CopySourceBuffer(&sourcebuf, source, source_length, length_in_chars);
   MaybeStackBuffer<char> destbuf(length_in_chars);
