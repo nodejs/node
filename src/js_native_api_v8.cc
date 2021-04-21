@@ -627,9 +627,6 @@ v8::Local<v8::Value> Reference::Get() {
 }
 
 void Reference::Finalize(bool is_env_teardown) {
-  if (is_env_teardown) env_teardown_finalize_started_ = true;
-  if (!is_env_teardown && env_teardown_finalize_started_) return;
-
   // During env teardown, `~napi_env()` alone is responsible for finalizing.
   // Thus, we don't want any stray gc passes to trigger a second call to
   // `RefBase::Finalize()`. ClearWeak will ensure that even if the
