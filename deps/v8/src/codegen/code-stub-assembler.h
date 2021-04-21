@@ -3497,10 +3497,44 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<Context> context);
 
   // Promise helpers
-  TNode<BoolT> IsPromiseHookEnabled();
+  TNode<Uint32T> PromiseHookFlags();
   TNode<BoolT> HasAsyncEventDelegate();
-  TNode<BoolT> IsPromiseHookEnabledOrHasAsyncEventDelegate();
-  TNode<BoolT> IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate();
+  TNode<BoolT> IsContextPromiseHookEnabled(TNode<Uint32T> flags);
+  TNode<BoolT> IsContextPromiseHookEnabled() {
+    return IsContextPromiseHookEnabled(PromiseHookFlags());
+  }
+  TNode<BoolT> IsAnyPromiseHookEnabled(TNode<Uint32T> flags);
+  TNode<BoolT> IsAnyPromiseHookEnabled() {
+    return IsAnyPromiseHookEnabled(PromiseHookFlags());
+  }
+  TNode<BoolT> IsIsolatePromiseHookEnabledOrHasAsyncEventDelegate(
+      TNode<Uint32T> flags);
+  TNode<BoolT> IsIsolatePromiseHookEnabledOrHasAsyncEventDelegate() {
+    return IsIsolatePromiseHookEnabledOrHasAsyncEventDelegate(
+        PromiseHookFlags());
+  }
+  TNode<BoolT>
+  IsIsolatePromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(
+      TNode<Uint32T> flags);
+  TNode<BoolT>
+  IsIsolatePromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate() {
+    return IsIsolatePromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(
+        PromiseHookFlags());
+  }
+  TNode<BoolT> IsAnyPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(
+      TNode<Uint32T> flags);
+  TNode<BoolT>
+  IsAnyPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate() {
+    return IsAnyPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(
+        PromiseHookFlags());
+  }
+  TNode<BoolT> IsAnyPromiseHookEnabledOrHasAsyncEventDelegate(
+      TNode<Uint32T> flags);
+  TNode<BoolT>
+  IsAnyPromiseHookEnabledOrHasAsyncEventDelegate() {
+    return IsAnyPromiseHookEnabledOrHasAsyncEventDelegate(
+        PromiseHookFlags());
+  }
 
   // for..in helpers
   void CheckPrototypeEnumCache(TNode<JSReceiver> receiver,

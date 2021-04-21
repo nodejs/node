@@ -478,6 +478,8 @@ class Shell : public i::AllStatic {
   static void AsyncHooksTriggerAsyncId(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 
+  static void SetPromiseHooks(const v8::FunctionCallbackInfo<v8::Value>& args);
+
   static void Print(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void PrintErr(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Write(const v8::FunctionCallbackInfo<v8::Value>& args);

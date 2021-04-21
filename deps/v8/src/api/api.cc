@@ -6147,6 +6147,45 @@ void Context::SetContinuationPreservedEmbedderData(Local<Value> data) {
       *i::Handle<i::HeapObject>::cast(Utils::OpenHandle(*data)));
 }
 
+void v8::Context::SetPromiseHooks(Local<Function> init_hook,
+                                  Local<Function> before_hook,
+                                  Local<Function> after_hook,
+                                  Local<Function> resolve_hook) {
+  i::Handle<i::Context> context = Utils::OpenHandle(this);
+  i::Isolate* isolate = context->GetIsolate();
+
+  i::Handle<i::Object> init = isolate->factory()->undefined_value();
+  i::Handle<i::Object> before = isolate->factory()->undefined_value();
+  i::Handle<i::Object> after = isolate->factory()->undefined_value();
+  i::Handle<i::Object> resolve = isolate->factory()->undefined_value();
+
+  bool has_hook = false;
+
+  if (!init_hook.IsEmpty()) {
+    init = Utils::OpenHandle(*init_hook);
+    has_hook = true;
+  }
+  if (!before_hook.IsEmpty()) {
+    before = Utils::OpenHandle(*before_hook);
+    has_hook = true;
+  }
+  if (!after_hook.IsEmpty()) {
+    after = Utils::OpenHandle(*after_hook);
+    has_hook = true;
+  }
+  if (!resolve_hook.IsEmpty()) {
+    resolve = Utils::OpenHandle(*resolve_hook);
+    has_hook = true;
+  }
+
+  isolate->SetHasContextPromiseHooks(has_hook);
+
+  context->native_context().set_promise_hook_init_function(*init);
+  context->native_context().set_promise_hook_before_function(*before);
+  context->native_context().set_promise_hook_after_function(*after);
+  context->native_context().set_promise_hook_resolve_function(*resolve);
+}
+
 MaybeLocal<Context> metrics::Recorder::GetContext(
     Isolate* isolate, metrics::Recorder::ContextId id) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
