@@ -205,7 +205,7 @@ console.log(uint32array);
 
 ```js
 const buf = Buffer.from('hello', 'utf16le');
-const uint16arr = new Uint16Array(
+const uint16array = new Uint16Array(
   buf.buffer,
   buf.byteOffset,
   buf.length / Uint16Array.BYTES_PER_ELEMENT);
