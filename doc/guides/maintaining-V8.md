@@ -414,10 +414,10 @@ This would require some tooling to:
 <sup>1</sup>Node.js 0.12 and older are intentionally omitted from this document
 as their support has ended.
 
-<sup>2</sup>At the moment the V8 tests still require Python 2. To run these
-tests locally, you can run `/path/to/python2 ./configure.py` before running
-`make test-v8`, in the root of this repository. On macOS, this also requires
-a full Xcode install, not just the "command line tools" for Xcode.
+<sup>2</sup>The V8 tests still require Python 2. To run these tests locally,
+you can run `PYTHON2 ./configure.py` before running `make test-v8`, in the root
+of this repository. On macOS, this also requires a full Xcode install,
+not just the "command line tools" for Xcode.
 
 [ChromiumReleaseCalendar]: https://www.chromium.org/developers/calendar
 [Node.js CI]: https://ci.nodejs.org/job/node-test-pull-request/
