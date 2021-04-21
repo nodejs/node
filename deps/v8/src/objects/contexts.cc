@@ -511,5 +511,53 @@ STATIC_ASSERT(NativeContext::kSize ==
               (Context::SizeFor(NativeContext::NATIVE_CONTEXT_SLOTS) +
                kSystemPointerSize));
 
+void NativeContext::RunPromiseHook(PromiseHookType type,
+                                   Handle<JSPromise> promise,
+                                   Handle<Object> parent) {
+  Isolate* isolate = promise->GetIsolate();
+  DCHECK(isolate->HasContextPromiseHooks());
+  int contextSlot;
+
+  switch (type) {
+    case PromiseHookType::kInit:
+      contextSlot = PROMISE_HOOK_INIT_FUNCTION_INDEX;
+      break;
+    case PromiseHookType::kResolve:
+      contextSlot = PROMISE_HOOK_RESOLVE_FUNCTION_INDEX;
+      break;
+    case PromiseHookType::kBefore:
+      contextSlot = PROMISE_HOOK_BEFORE_FUNCTION_INDEX;
+      break;
+    case PromiseHookType::kAfter:
+      contextSlot = PROMISE_HOOK_AFTER_FUNCTION_INDEX;
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  Handle<Object> hook(isolate->native_context()->get(contextSlot), isolate);
+  if (hook->IsUndefined()) return;
+
+  int argc = type == PromiseHookType::kInit ? 2 : 1;
+  Handle<Object> argv[2] = {
+    Handle<Object>::cast(promise),
+    parent
+  };
+
+  Handle<Object> receiver = isolate->global_proxy();
+
+  if (Execution::Call(isolate, hook, receiver, argc, argv).is_null()) {
+    DCHECK(isolate->has_pending_exception());
+    Handle<Object> exception(isolate->pending_exception(), isolate);
+
+    MessageLocation* no_location = nullptr;
+    Handle<JSMessageObject> message =
+        isolate->CreateMessageOrAbort(exception, no_location);
+    MessageHandler::ReportMessage(isolate, no_location, message);
+
+    isolate->clear_pending_exception();
+  }
+}
+
 }  // namespace internal
 }  // namespace v8
