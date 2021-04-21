@@ -1474,10 +1474,15 @@ class RepresentationSelector {
     Type right_feedback_type = TypeOf(node->InputAt(1));
 
     // Using Signed32 as restriction type amounts to promising there won't be
-    // signed overflow. This is incompatible with relying on a Word32
-    // truncation in order to skip the overflow check.
+    // signed overflow. This is incompatible with relying on a Word32 truncation
+    // in order to skip the overflow check.  Similarly, we must not drop -0 from
+    // the result type unless we deopt for -0 inputs.
     Type const restriction =
-        truncation.IsUsedAsWord32() ? Type::Any() : Type::Signed32();
+        truncation.IsUsedAsWord32()
+            ? Type::Any()
+            : (truncation.identify_zeros() == kIdentifyZeros)
+                  ? Type::Signed32OrMinusZero()
+                  : Type::Signed32();
 
     // Handle the case when no int32 checks on inputs are necessary (but
     // an overflow check is needed on the output). Note that we do not
