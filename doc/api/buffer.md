@@ -874,6 +874,37 @@ console.log(buf1.toString('latin1'));
 A `TypeError` will be thrown if `string` is not a string or another type
 appropriate for `Buffer.from()` variants.
 
+#### Memory and garbage collection considerations
+
+When creating a {Buffer} from a large string using `Buffer.from()`, Node.js
+may allocate the backing memory storage separately from the v8 heap. In such
+cases, when the {Buffer} is garbage collected, the backing memory is not
+immediately freed. Instead, the freeing the memory is queued and deferred
+to run after the currently executing JavaScript context has completed and
+the Node.js event loop is allowed to turn, causing memory to be held on to
+by the process for longer than a developer may expect.
+
+For example, in the following pathological example, multiple large {Buffer}s
+are created in a synchronous for loop. Despite those {Buffer}s being garbage
+collected successfully, the backing memory is not freed until after the
+complete script runs:
+
+```js
+const str = 'a'.repeat(4096);
+for (let n = 0; n < 1e6; n++) {
+  // We are not retaining a reference to the Buffer so
+  // gc should clean it up!
+  Buffer.from(str);
+  gc();
+}
+gc();
+```
+
+Aside from not allocating large {Buffer}s in synchronous for-loops, it is
+recommended that code working with large {Buffer} objects created from
+large strings active allow the event loop to turn to reduce the impact of
+the deferred deallocations.
+
 ### Static method: `Buffer.isBuffer(obj)`
 <!-- YAML
 added: v0.1.101
