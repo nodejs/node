@@ -11,15 +11,16 @@ function main({ n }) {
 
   for (let i = 0; i < 10; i += 1) {
     const listener = () => {};
-    if (MathRandom() + .5) listener.listener = () => {};
+    if ((MathRandom() + .5) >= 1) listener.listener = () => {};
     listeners.push(listener);
-    ee.on(`newListener${i}`, () => {});
   }
+
+  ee.on('newListener', () => {});
 
   bench.start();
   for (let i = 0; i < n; i += 1) {
     for (let k = 0; k < listeners.length; k += 1)
-      ee.emit(`newListener${k}`, listeners[k].listener ?? listeners[k]);
+      ee.emit('newListener', listeners[k].listener ?? listeners[k]);
   }
   bench.end(n);
 }
