@@ -166,7 +166,7 @@ Affects the default output directory of:
 * [--redirect-warnings](#cli_redirect_warnings_file)
 
 ### `--disable-proto=mode`
-<!--YAML
+<!-- YAML
 added: v13.12.0
 -->
 

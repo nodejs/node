@@ -18,7 +18,7 @@ that are part of the JavaScript language itself, which are also globally
 accessible.
 
 ## Class: `AbortController`
-<!--YAML
+<!-- YAML
 added: v14.17.0
 -->
 
