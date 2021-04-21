@@ -279,7 +279,7 @@ new Worker('process.env.SET_IN_WORKER = "foo"', { eval: true, env: SHARE_ENV })
 ```
 
 ## `worker.setEnvironmentData(key[, value])`
-<!--YAML
+<!-- YAML
 added: v15.12.0
 -->
 
