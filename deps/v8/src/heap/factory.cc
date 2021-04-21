@@ -3559,7 +3559,8 @@ Handle<JSPromise> Factory::NewJSPromiseWithoutHook() {
 
 Handle<JSPromise> Factory::NewJSPromise() {
   Handle<JSPromise> promise = NewJSPromiseWithoutHook();
-  isolate()->RunPromiseHook(PromiseHookType::kInit, promise, undefined_value());
+  isolate()->RunAllPromiseHooks(PromiseHookType::kInit, promise,
+                                undefined_value());
   return promise;
 }
 
