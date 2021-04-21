@@ -97,7 +97,7 @@ ResolvePromise(implicit context: Context)(
   // We also let the runtime handle it if promise == resolution.
   // We can use pointer comparison here, since the {promise} is guaranteed
   // to be a JSPromise inside this function and thus is reference comparable.
-  if (IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate() ||
+  if (IsIsolatePromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate() ||
       TaggedEqual(promise, resolution))
     deferred {
       return runtime::ResolvePromise(promise, resolution);

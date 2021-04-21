@@ -25,7 +25,7 @@ PromiseResolveThenableJob(implicit context: Context)(
   const promiseThen = *NativeContextSlot(ContextSlot::PROMISE_THEN_INDEX);
   const thenableMap = thenable.map;
   if (TaggedEqual(then, promiseThen) && IsJSPromiseMap(thenableMap) &&
-      !IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate() &&
+      !IsIsolatePromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate() &&
       IsPromiseSpeciesLookupChainIntact(nativeContext, thenableMap)) {
     // We know that the {thenable} is a JSPromise, which doesn't require
     // any special treatment and that {then} corresponds to the initial
