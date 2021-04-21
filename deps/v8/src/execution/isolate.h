@@ -1323,21 +1323,27 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 #endif
 
+  void SetHasContextPromiseHooks(bool context_promise_hook) {
+    promise_hook_flags_ = PromiseHookFields::HasContextPromiseHook::update(
+        promise_hook_flags_, context_promise_hook);
+    PromiseHookStateUpdated();
+  }
+
+  bool HasContextPromiseHooks() const {
+    return PromiseHookFields::HasContextPromiseHook::decode(
+        promise_hook_flags_);
+  }
+
+  Address promise_hook_flags_address() {
+    return reinterpret_cast<Address>(&promise_hook_flags_);
+  }
+
   Address promise_hook_address() {
     return reinterpret_cast<Address>(&promise_hook_);
   }
 
   Address async_event_delegate_address() {
     return reinterpret_cast<Address>(&async_event_delegate_);
-  }
-
-  Address promise_hook_or_async_event_delegate_address() {
-    return reinterpret_cast<Address>(&promise_hook_or_async_event_delegate_);
-  }
-
-  Address promise_hook_or_debug_is_active_or_async_event_delegate_address() {
-    return reinterpret_cast<Address>(
-        &promise_hook_or_debug_is_active_or_async_event_delegate_);
   }
 
   Address handle_scope_implementer_address() {
@@ -1355,6 +1361,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void SetPromiseHook(PromiseHook hook);
   void RunPromiseHook(PromiseHookType type, Handle<JSPromise> promise,
                       Handle<Object> parent);
+  void RunAllPromiseHooks(PromiseHookType type, Handle<JSPromise> promise,
+                          Handle<Object> parent);
+  void UpdatePromiseHookProtector();
   void PromiseHookStateUpdated();
 
   void AddDetachedContext(Handle<Context> context);
@@ -1541,6 +1550,13 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   bool RequiresCodeRange() const;
 
+  struct PromiseHookFields {
+    using HasContextPromiseHook = base::BitField<bool, 0, 1>;
+    using HasIsolatePromiseHook = HasContextPromiseHook::Next<bool, 1>;
+    using HasAsyncEventDelegate = HasIsolatePromiseHook::Next<bool, 1>;
+    using IsDebugActive = HasAsyncEventDelegate::Next<bool, 1>;
+  };
+
  private:
   explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator);
   ~Isolate();
@@ -1622,6 +1638,16 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void RunPromiseHookForAsyncEventDelegate(PromiseHookType type,
                                            Handle<JSPromise> promise);
+
+  bool HasIsolatePromiseHooks() const {
+    return PromiseHookFields::HasIsolatePromiseHook::decode(
+        promise_hook_flags_);
+  }
+
+  bool HasAsyncEventDelegate() const {
+    return PromiseHookFields::HasAsyncEventDelegate::decode(
+        promise_hook_flags_);
+  }
 
   const char* RAILModeName(RAILMode rail_mode) const {
     switch (rail_mode) {
@@ -1840,8 +1866,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   debug::ConsoleDelegate* console_delegate_ = nullptr;
 
   debug::AsyncEventDelegate* async_event_delegate_ = nullptr;
-  bool promise_hook_or_async_event_delegate_ = false;
-  bool promise_hook_or_debug_is_active_or_async_event_delegate_ = false;
+  uint32_t promise_hook_flags_ = 0;
   int async_task_count_ = 0;
 
   v8::Isolate::AbortOnUncaughtExceptionCallback
