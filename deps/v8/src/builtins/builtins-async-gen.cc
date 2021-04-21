@@ -99,18 +99,11 @@ TNode<Object> AsyncBuiltinsAssembler::AwaitOld(
 
   TVARIABLE(HeapObject, var_throwaway, UndefinedConstant());
 
-  // Deal with PromiseHooks and debug support in the runtime. This
-  // also allocates the throwaway promise, which is only needed in
-  // case of PromiseHooks or debugging.
-  Label if_debugging(this, Label::kDeferred), do_resolve_promise(this);
-  Branch(IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(),
-         &if_debugging, &do_resolve_promise);
-  BIND(&if_debugging);
-  var_throwaway =
-      CAST(CallRuntime(Runtime::kAwaitPromisesInitOld, context, value, promise,
-                       outer_promise, on_reject, is_predicted_as_caught));
-  Goto(&do_resolve_promise);
-  BIND(&do_resolve_promise);
+  RunContextPromiseHookInit(context, promise, outer_promise);
+
+  InitAwaitPromise(Runtime::kAwaitPromisesInitOld, context, value, promise,
+                   outer_promise, on_reject, is_predicted_as_caught,
+                   &var_throwaway);
 
   // Perform ! Call(promiseCapability.[[Resolve]], undefined, « promise »).
   CallBuiltin(Builtins::kResolvePromise, context, promise, value);
@@ -170,21 +163,46 @@ TNode<Object> AsyncBuiltinsAssembler::AwaitOptimized(
 
   TVARIABLE(HeapObject, var_throwaway, UndefinedConstant());
 
-  // Deal with PromiseHooks and debug support in the runtime. This
-  // also allocates the throwaway promise, which is only needed in
-  // case of PromiseHooks or debugging.
-  Label if_debugging(this, Label::kDeferred), do_perform_promise_then(this);
-  Branch(IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(),
-         &if_debugging, &do_perform_promise_then);
-  BIND(&if_debugging);
-  var_throwaway =
-      CAST(CallRuntime(Runtime::kAwaitPromisesInit, context, promise, promise,
-                       outer_promise, on_reject, is_predicted_as_caught));
-  Goto(&do_perform_promise_then);
-  BIND(&do_perform_promise_then);
+  InitAwaitPromise(Runtime::kAwaitPromisesInit, context, promise, promise,
+                   outer_promise, on_reject, is_predicted_as_caught,
+                   &var_throwaway);
 
   return CallBuiltin(Builtins::kPerformPromiseThen, native_context, promise,
                      on_resolve, on_reject, var_throwaway.value());
+}
+
+void AsyncBuiltinsAssembler::InitAwaitPromise(
+    Runtime::FunctionId id, TNode<Context> context, TNode<Object> value,
+    TNode<Object> promise, TNode<Object> outer_promise,
+    TNode<HeapObject> on_reject, TNode<Oddball> is_predicted_as_caught,
+    TVariable<HeapObject>* var_throwaway) {
+  // Deal with PromiseHooks and debug support in the runtime. This
+  // also allocates the throwaway promise, which is only needed in
+  // case of PromiseHooks or debugging.
+  Label if_debugging(this, Label::kDeferred),
+      if_promise_hook(this, Label::kDeferred),
+      not_debugging(this),
+      do_nothing(this);
+  TNode<Uint32T> promiseHookFlags = PromiseHookFlags();
+  Branch(IsIsolatePromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(
+      promiseHookFlags), &if_debugging, &not_debugging);
+  BIND(&if_debugging);
+  *var_throwaway =
+      CAST(CallRuntime(id, context, value, promise,
+                       outer_promise, on_reject, is_predicted_as_caught));
+  Goto(&do_nothing);
+  BIND(&not_debugging);
+
+  // This call to NewJSPromise is to keep behaviour parity with what happens
+  // in Runtime::kAwaitPromisesInit above if native hooks are set. It will
+  // create a throwaway promise that will trigger an init event and will get
+  // passed into Builtins::kPerformPromiseThen below.
+  Branch(IsContextPromiseHookEnabled(promiseHookFlags), &if_promise_hook,
+         &do_nothing);
+  BIND(&if_promise_hook);
+  *var_throwaway = NewJSPromise(context, promise);
+  Goto(&do_nothing);
+  BIND(&do_nothing);
 }
 
 TNode<Object> AsyncBuiltinsAssembler::Await(

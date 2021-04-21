@@ -62,6 +62,12 @@ class AsyncBuiltinsAssembler : public PromiseBuiltinsAssembler {
                                TNode<SharedFunctionInfo> on_resolve_sfi,
                                TNode<SharedFunctionInfo> on_reject_sfi,
                                TNode<Oddball> is_predicted_as_caught);
+
+  void InitAwaitPromise(
+      Runtime::FunctionId id, TNode<Context> context, TNode<Object> value,
+      TNode<Object> promise, TNode<Object> outer_promise,
+      TNode<HeapObject> on_reject, TNode<Oddball> is_predicted_as_caught,
+      TVariable<HeapObject>* var_throwaway);
 };
 
 }  // namespace internal
