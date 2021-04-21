@@ -877,7 +877,7 @@ appropriate for `Buffer.from()` variants.
 #### Memory and garbage collection considerations
 
 When creating a {Buffer} from a large string using `Buffer.from()`, Node.js
-may allocate the backing memory storage separately from the v8 heap. In such
+may allocate the backing memory storage separately from the V8 heap. In such
 cases, when the {Buffer} is garbage collected, the backing memory is not
 immediately freed. Instead, the freeing the memory is queued and deferred
 to run after the currently executing JavaScript context has completed and
