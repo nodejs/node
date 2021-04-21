@@ -433,7 +433,6 @@ class Reference : public RefBase {
   static void SecondPassCallback(
       const v8::WeakCallbackInfo<SecondPassCallParameterRef>& data);
 
-  bool env_teardown_finalize_started_ = false;
   v8impl::Persistent<v8::Value> _persistent;
   SecondPassCallParameterRef* _secondPassParameter;
   bool _secondPassScheduled;
