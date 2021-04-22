@@ -515,9 +515,7 @@ std::shared_ptr<KeyObjectData> ImportJWKAsymmetricKey(
     return ImportJWKEcKey(env, jwk, args, offset);
   }
 
-  char msg[1024];
-  snprintf(msg, sizeof(msg), "%s is not a supported JWK key type", kty);
-  THROW_ERR_CRYPTO_INVALID_JWK(env, msg);
+  THROW_ERR_CRYPTO_INVALID_JWK(env, "%s is not a supported JWK key type", kty);
   return std::shared_ptr<KeyObjectData>();
 }
 
