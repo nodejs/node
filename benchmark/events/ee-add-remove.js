@@ -1,15 +1,25 @@
 'use strict';
 const common = require('../common.js');
-const events = require('events');
+const { EventEmitter } = require('events');
 
-const bench = common.createBenchmark(main, { n: [1e6] });
+const bench = common.createBenchmark(main, {
+  newListener: [0, 1],
+  removeListener: [0, 1],
+  n: [1e6],
+});
 
-function main({ n }) {
-  const ee = new events.EventEmitter();
+function main({ newListener, removeListener, n }) {
+  const ee = new EventEmitter();
   const listeners = [];
 
   for (let k = 0; k < 10; k += 1)
     listeners.push(() => {});
+
+  if (newListener === 1)
+    ee.on('newListener', (event, listener) => {});
+
+  if (removeListener === 1)
+    ee.on('removeListener', (event, listener) => {});
 
   bench.start();
   for (let i = 0; i < n; i += 1) {
