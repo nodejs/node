@@ -551,9 +551,10 @@ changes:
 * `options` {Object} Available options are:
   * `fd` {number} If specified, wrap around an existing socket with
     the given file descriptor, otherwise a new socket will be created.
-  * `allowHalfOpen` {boolean} Indicates whether half-opened TCP connections
-    are allowed. See [`net.createServer()`][] and the [`'end'`][] event
-    for details. **Default:** `false`.
+  * `allowHalfOpen` {boolean} If set to `false`, then the socket will
+    automatically end the writable side when the readable side ends. See
+    [`net.createServer()`][] and the [`'end'`][] event for details. **Default:**
+    `false`.
   * `readable` {boolean} Allow reads on the socket when an `fd` is passed,
     otherwise ignored. **Default:** `false`.
   * `writable` {boolean} Allow writes on the socket when an `fd` is passed,
@@ -612,14 +613,14 @@ See also: the return values of `socket.write()`.
 added: v0.1.90
 -->
 
-Emitted when the other end of the socket sends a FIN packet, thus ending the
-readable side of the socket.
+Emitted when the other end of the socket signals the end of transmission, thus
+ending the readable side of the socket.
 
-By default (`allowHalfOpen` is `false`) the socket will send a FIN packet
-back and destroy its file descriptor once it has written out its pending
-write queue. However, if `allowHalfOpen` is set to `true`, the socket will
-not automatically [`end()`][`socket.end()`] its writable side, allowing the
-user to write arbitrary amounts of data. The user must call
+By default (`allowHalfOpen` is `false`) the socket will send an end of
+transmission packet back and destroy its file descriptor once it has written out
+its pending write queue. However, if `allowHalfOpen` is set to `true`, the
+socket will not automatically [`end()`][`socket.end()`] its writable side,
+allowing the user to write arbitrary amounts of data. The user must call
 [`end()`][`socket.end()`] explicitly to close the connection (i.e. sending a
 FIN packet back).
 
@@ -1295,8 +1296,9 @@ added: v0.5.0
 -->
 
 * `options` {Object}
-  * `allowHalfOpen` {boolean} Indicates whether half-opened TCP
-    connections are allowed. **Default:** `false`.
+  * `allowHalfOpen` {boolean} If set to `false`, then the socket will
+    automatically end the writable side when the readable side ends.
+    **Default:** `false`.
   * `pauseOnConnect` {boolean} Indicates whether the socket should be
     paused on incoming connections. **Default:** `false`.
 * `connectionListener` {Function} Automatically set as a listener for the
@@ -1306,10 +1308,12 @@ added: v0.5.0
 Creates a new TCP or [IPC][] server.
 
 If `allowHalfOpen` is set to `true`, when the other end of the socket
-sends a FIN packet, the server will only send a FIN packet back when
-[`socket.end()`][] is explicitly called, until then the connection is
-half-closed (non-readable but still writable). See [`'end'`][] event
-and [RFC 1122][half-closed] (section 4.2.2.13) for more information.
+signals the end of transmission, the server will only send back the end of
+transmission when [`socket.end()`][] is explicitly called. For example, in the
+context of TCP, when a FIN packed is received, a FIN packed is sent
+back only when [`socket.end()`][] is explicitly called. Until then the
+connection is half-closed (non-readable but still writable). See [`'end'`][]
+event and [RFC 1122][half-closed] (section 4.2.2.13) for more information.
 
 If `pauseOnConnect` is set to `true`, then the socket associated with each
 incoming connection will be paused, and no data will be read from its handle.

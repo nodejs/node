@@ -1473,10 +1473,10 @@ changes:
     Connection/disconnection/destruction of `socket` is the user's
     responsibility; calling `tls.connect()` will not cause `net.connect()` to be
     called.
-  * `allowHalfOpen` {boolean} If the `socket` option is missing, indicates
-    whether or not to allow the internally created socket to be half-open,
-    otherwise the option is ignored. See the `allowHalfOpen` option of
-    [`net.Socket`][] for details. **Default:** `false`.
+  * `allowHalfOpen` {boolean} If set to `false`, then the socket will
+    automatically end the writable side when the readable side ends. If the
+    `socket` option is set, this option has no effect. See the `allowHalfOpen`
+    option of [`net.Socket`][] for details. **Default:** `false`.
   * `rejectUnauthorized` {boolean} If not `false`, the server certificate is
     verified against the list of supplied CAs. An `'error'` event is emitted if
     verification fails; `err.code` contains the OpenSSL error code. **Default:**
