@@ -315,7 +315,7 @@ MaybeLocal<Object> New(Isolate* isolate,
 
     actual = StringBytes::Write(
         isolate,
-        reinterpret_cast<char*>(store->Data()),
+        static_cast<char*>(store->Data()),
         length,
         string,
         enc);
