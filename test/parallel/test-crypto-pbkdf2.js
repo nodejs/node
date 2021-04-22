@@ -231,3 +231,15 @@ if (!common.hasOpenSSL3) {
       runPBKDF2(new Uint8Array(10), 'salt', 8, 8, hash);
     });
 }
+
+{
+  // This should not crash.
+  assert.throws(
+    () => crypto.pbkdf2Sync('1', '2', 1, 1, '%'),
+    {
+      code: 'ERR_CRYPTO_INVALID_DIGEST',
+      name: 'TypeError',
+      message: 'Invalid digest: %'
+    }
+  );
+}
