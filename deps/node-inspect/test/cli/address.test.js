@@ -16,7 +16,9 @@ function launchTarget(...args) {
     };
     childProc.on('exit', onExit);
     childProc.stderr.setEncoding('utf8');
-    childProc.stderr.on('data', (data) => {
+    let data = '';
+    childProc.stderr.on('data', (chunk) => {
+      data += chunk;
       const ret = kDebuggerMsgReg.exec(data);
       childProc.removeListener('exit', onExit);
       if (ret) {
