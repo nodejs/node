@@ -5,7 +5,7 @@ const { EventEmitter } = require('events');
 const bench = common.createBenchmark(main, {
   newListener: [0, 1],
   removeListener: [0, 1],
-  n: [1e6]
+  n: [1e6],
 });
 
 function main({ newListener, removeListener, n }) {
