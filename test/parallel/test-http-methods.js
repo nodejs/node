@@ -48,7 +48,6 @@ const methods = [
   'OPTIONS',
   'PATCH',
   'POST',
-  'PRI',
   'PROPFIND',
   'PROPPATCH',
   'PURGE',
