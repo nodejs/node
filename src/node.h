@@ -310,7 +310,8 @@ class NODE_EXTERN MultiIsolatePlatform : public v8::Platform {
 
   static std::unique_ptr<MultiIsolatePlatform> Create(
       int thread_pool_size,
-      v8::TracingController* tracing_controller = nullptr);
+      v8::TracingController* tracing_controller = nullptr,
+      v8::PageAllocator* page_allocator = nullptr);
 };
 
 enum IsolateSettingsFlags {
