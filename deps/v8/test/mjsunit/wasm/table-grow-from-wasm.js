@@ -93,7 +93,7 @@ function testGrowInternalAnyFuncTable(table_index) {
   assertTraps(kTrapFuncSigMismatch, () => instance.exports.call(size - 2));
   function growAndCheck(element, grow_by) {
     assertEquals(size, instance.exports.size());
-    assertTraps(kTrapFuncInvalid, () => instance.exports.call(size));
+    assertTraps(kTrapTableOutOfBounds, () => instance.exports.call(size));
     assertEquals(size, instance.exports.grow(dummy_func(element), grow_by));
     for (let i = 0; i < grow_by; ++i) {
       assertEquals(element, instance.exports.call(size + i));

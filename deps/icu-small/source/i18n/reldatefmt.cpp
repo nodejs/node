@@ -95,7 +95,7 @@ public:
 
     const UnicodeString emptyString;
 
-    // Mappping from source to target styles for alias fallback.
+    // Mapping from source to target styles for alias fallback.
     int32_t fallBackCache[UDAT_STYLE_COUNT];
 
     void adoptCombinedDateAndTime(SimpleFormatter *fmtToAdopt) {

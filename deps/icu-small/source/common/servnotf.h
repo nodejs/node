@@ -82,7 +82,7 @@ public:
     /**
      * Add a listener to be notified when notifyChanged is called.
      * The listener must not be null. AcceptsListener must return
-     * true for the listener.  Attempts to concurrently
+     * true for the listener. Attempts to concurrently
      * register the identical listener more than once will be
      * silently ignored.
      */
@@ -90,7 +90,7 @@ public:
 
     /**
      * Stop notifying this listener.  The listener must
-     * not be null.  Attemps to remove a listener that is
+     * not be null. Attempts to remove a listener that is
      * not registered will be silently ignored.
      */
     virtual void removeListener(const EventListener* l, UErrorCode& status);

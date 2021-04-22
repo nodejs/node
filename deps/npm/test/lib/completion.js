@@ -1,5 +1,4 @@
-const { test } = require('tap')
-const requireInject = require('require-inject')
+const t = require('tap')
 const fs = require('fs')
 const path = require('path')
 
@@ -21,30 +20,33 @@ const npm = {
   },
   commands: {
     completion: {
-      completion: (opts, cb) => {
-        return cb(null, [['>>', '~/.bashrc']])
-      },
+      completion: () => [['>>', '~/.bashrc']],
     },
     adduser: {},
     access: {
-      completion: (opts, cb) => {
+      completion: () => {
         if (accessCompletionError)
-          return cb(new Error('access completion failed'))
+          throw new Error('access completion failed')
 
-        return cb(null, ['public', 'restricted'])
+        return ['public', 'restricted']
       },
     },
+    promise: {
+      completion: () => Promise.resolve(['resolved_completion_promise']),
+    },
     donothing: {
-      completion: (opts, cb) => {
-        return cb(null, null)
+      completion: () => {
+        return null
       },
     },
     driveaboat: {
-      completion: (opts, cb) => {
-        // the leading space here is to exercise the escape method
-        return cb(null, ' fast')
+      completion: () => {
+        return ' fast'
       },
     },
+  },
+  output: (line) => {
+    output.push(line)
   },
 }
 
@@ -60,11 +62,14 @@ const cmdList = {
   plumbing: [],
 }
 
+// only include a subset so that the snapshots aren't huge and
+// don't change when we add/remove config definitions.
+const definitions = require('../../lib/utils/config/definitions.js')
 const config = {
-  types: {
-    global: Boolean,
-    browser: [null, Boolean, String],
-    registry: [null, String],
+  definitions: {
+    global: definitions.global,
+    browser: definitions.browser,
+    registry: definitions.registry,
   },
   shorthands: {
     reg: ['--registry'],
@@ -75,18 +80,15 @@ const deref = (cmd) => {
   return cmd
 }
 
-const completion = requireInject('../../lib/completion.js', {
-  '../../lib/npm.js': npm,
+const Completion = t.mock('../../lib/completion.js', {
   '../../lib/utils/cmd-list.js': cmdList,
-  '../../lib/utils/config.js': config,
+  '../../lib/utils/config/index.js': config,
   '../../lib/utils/deref-command.js': deref,
   '../../lib/utils/is-windows-shell.js': false,
-  '../../lib/utils/output.js': (line) => {
-    output.push(line)
-  },
 })
+const completion = new Completion(npm)
 
-test('completion completion', t => {
+t.test('completion completion', async t => {
   const home = process.env.HOME
   t.teardown(() => {
     process.env.HOME = home
@@ -97,19 +99,15 @@ test('completion completion', t => {
     '.zshrc': '',
   })
 
-  completion.completion({ w: 2 }, (err, res) => {
-    if (err)
-      throw err
-
-    t.strictSame(res, [
-      ['>>', '~/.zshrc'],
-      ['>>', '~/.bashrc'],
-    ], 'identifies both shells')
-    t.end()
-  })
+  const res = await completion.completion({ w: 2 })
+  t.strictSame(res, [
+    ['>>', '~/.zshrc'],
+    ['>>', '~/.bashrc'],
+  ], 'identifies both shells')
+  t.end()
 })
 
-test('completion completion no known shells', t => {
+t.test('completion completion no known shells', async t => {
   const home = process.env.HOME
   t.teardown(() => {
     process.env.HOME = home
@@ -117,31 +115,25 @@ test('completion completion no known shells', t => {
 
   process.env.HOME = t.testdir()
 
-  completion.completion({ w: 2 }, (err, res) => {
-    if (err)
-      throw err
-
-    t.strictSame(res, [], 'no responses')
-    t.end()
-  })
+  const res = await completion.completion({ w: 2 })
+  t.strictSame(res, [], 'no responses')
+  t.end()
 })
 
-test('completion completion wrong word count', t => {
-  completion.completion({ w: 3 }, (err, res) => {
-    if (err)
-      throw err
-
-    t.strictSame(res, undefined, 'no responses')
-    t.end()
-  })
+t.test('completion completion wrong word count', async t => {
+  const res = await completion.completion({ w: 3 })
+  t.strictSame(res, undefined, 'no responses')
+  t.end()
 })
 
-test('completion errors in windows without bash', t => {
-  const compl = requireInject('../../lib/completion.js', {
+t.test('completion errors in windows without bash', t => {
+  const Compl = t.mock('../../lib/completion.js', {
     '../../lib/utils/is-windows-shell.js': true,
   })
 
-  compl({}, (err) => {
+  const compl = new Compl()
+
+  compl.exec({}, (err) => {
     t.match(err, {
       code: 'ENOTSUP',
       message: /completion supported only in MINGW/,
@@ -150,7 +142,7 @@ test('completion errors in windows without bash', t => {
   })
 })
 
-test('dump script when completion is not being attempted', t => {
+t.test('dump script when completion is not being attempted', t => {
   const _write = process.stdout.write
   const _on = process.stdout.on
   t.teardown(() => {
@@ -174,7 +166,7 @@ test('dump script when completion is not being attempted', t => {
     })
   }
 
-  completion({}, (err) => {
+  completion.exec({}, (err) => {
     if (err)
       throw err
 
@@ -183,7 +175,7 @@ test('dump script when completion is not being attempted', t => {
   })
 })
 
-test('dump script exits correctly when EPIPE is emitted on stdout', t => {
+t.test('dump script exits correctly when EPIPE is emitted on stdout', t => {
   const _write = process.stdout.write
   const _on = process.stdout.on
   t.teardown(() => {
@@ -207,7 +199,7 @@ test('dump script exits correctly when EPIPE is emitted on stdout', t => {
     })
   }
 
-  completion({}, (err) => {
+  completion.exec({}, (err) => {
     if (err)
       throw err
 
@@ -216,7 +208,7 @@ test('dump script exits correctly when EPIPE is emitted on stdout', t => {
   })
 })
 
-test('non EPIPE errors cause failures', t => {
+t.test('non EPIPE errors cause failures', t => {
   const _write = process.stdout.write
   const _on = process.stdout.on
   t.teardown(() => {
@@ -240,14 +232,14 @@ test('non EPIPE errors cause failures', t => {
     })
   }
 
-  completion({}, (err) => {
+  completion.exec({}, (err) => {
     t.equal(err.errno, 'ESOMETHINGELSE', 'propagated error')
     t.equal(data, completionScript, 'wrote the completion script')
     t.end()
   })
 })
 
-test('completion completes single command name', t => {
+t.test('completion completes single command name', t => {
   process.env.COMP_CWORD = 1
   process.env.COMP_LINE = 'npm c'
   process.env.COMP_POINT = process.env.COMP_LINE.length
@@ -260,7 +252,7 @@ test('completion completes single command name', t => {
     output.length = 0
   })
 
-  completion(['npm', 'c'], (err, res) => {
+  completion.exec(['npm', 'c'], (err, res) => {
     if (err)
       throw err
 
@@ -269,7 +261,7 @@ test('completion completes single command name', t => {
   })
 })
 
-test('completion completes command names', t => {
+t.test('completion completes command names', t => {
   process.env.COMP_CWORD = 1
   process.env.COMP_LINE = 'npm a'
   process.env.COMP_POINT = process.env.COMP_LINE.length
@@ -282,7 +274,7 @@ test('completion completes command names', t => {
     output.length = 0
   })
 
-  completion(['npm', 'a'], (err, res) => {
+  completion.exec(['npm', 'a'], (err, res) => {
     if (err)
       throw err
 
@@ -291,7 +283,7 @@ test('completion completes command names', t => {
   })
 })
 
-test('completion of invalid command name does nothing', t => {
+t.test('completion of invalid command name does nothing', t => {
   process.env.COMP_CWORD = 1
   process.env.COMP_LINE = 'npm compute'
   process.env.COMP_POINT = process.env.COMP_LINE.length
@@ -304,7 +296,7 @@ test('completion of invalid command name does nothing', t => {
     output.length = 0
   })
 
-  completion(['npm', 'compute'], (err, res) => {
+  completion.exec(['npm', 'compute'], (err, res) => {
     if (err)
       throw err
 
@@ -313,7 +305,36 @@ test('completion of invalid command name does nothing', t => {
   })
 })
 
-test('completion triggers command completions', t => {
+t.test('handles async completion function', t => {
+  process.env.COMP_CWORD = 2
+  process.env.COMP_LINE = 'npm promise'
+  process.env.COMP_POINT = process.env.COMP_LINE.length
+
+  t.teardown(() => {
+    delete process.env.COMP_CWORD
+    delete process.env.COMP_LINE
+    delete process.env.COMP_POINT
+    npm.config.clear()
+    output.length = 0
+  })
+
+  completion.exec(['npm', 'promise', ''], (err, res) => {
+    if (err)
+      throw err
+
+    t.strictSame(npmConfig, {
+      argv: {
+        remain: ['npm', 'promise'],
+        cooked: ['npm', 'promise'],
+        original: ['npm', 'promise'],
+      },
+    }, 'applies command config appropriately')
+    t.strictSame(output, ['resolved_completion_promise'], 'resolves async completion results')
+    t.end()
+  })
+})
+
+t.test('completion triggers command completions', t => {
   process.env.COMP_CWORD = 2
   process.env.COMP_LINE = 'npm access '
   process.env.COMP_POINT = process.env.COMP_LINE.length
@@ -326,7 +347,7 @@ test('completion triggers command completions', t => {
     output.length = 0
   })
 
-  completion(['npm', 'access', ''], (err, res) => {
+  completion.exec(['npm', 'access', ''], (err, res) => {
     if (err)
       throw err
 
@@ -342,7 +363,7 @@ test('completion triggers command completions', t => {
   })
 })
 
-test('completion triggers filtered command completions', t => {
+t.test('completion triggers filtered command completions', t => {
   process.env.COMP_CWORD = 2
   process.env.COMP_LINE = 'npm access p'
   process.env.COMP_POINT = process.env.COMP_LINE.length
@@ -355,7 +376,7 @@ test('completion triggers filtered command completions', t => {
     output.length = 0
   })
 
-  completion(['npm', 'access', 'p'], (err, res) => {
+  completion.exec(['npm', 'access', 'p'], (err, res) => {
     if (err)
       throw err
 
@@ -371,7 +392,7 @@ test('completion triggers filtered command completions', t => {
   })
 })
 
-test('completions for commands that return nested arrays are joined', t => {
+t.test('completions for commands that return nested arrays are joined', t => {
   process.env.COMP_CWORD = 2
   process.env.COMP_LINE = 'npm completion '
   process.env.COMP_POINT = process.env.COMP_LINE.length
@@ -384,7 +405,7 @@ test('completions for commands that return nested arrays are joined', t => {
     output.length = 0
   })
 
-  completion(['npm', 'completion', ''], (err, res) => {
+  completion.exec(['npm', 'completion', ''], (err, res) => {
     if (err)
       throw err
 
@@ -400,7 +421,7 @@ test('completions for commands that return nested arrays are joined', t => {
   })
 })
 
-test('completions for commands that return nothing work correctly', t => {
+t.test('completions for commands that return nothing work correctly', t => {
   process.env.COMP_CWORD = 2
   process.env.COMP_LINE = 'npm donothing '
   process.env.COMP_POINT = process.env.COMP_LINE.length
@@ -413,7 +434,7 @@ test('completions for commands that return nothing work correctly', t => {
     output.length = 0
   })
 
-  completion(['npm', 'donothing', ''], (err, res) => {
+  completion.exec(['npm', 'donothing', ''], (err, res) => {
     if (err)
       throw err
 
@@ -429,7 +450,7 @@ test('completions for commands that return nothing work correctly', t => {
   })
 })
 
-test('completions for commands that return a single item work correctly', t => {
+t.test('completions for commands that return a single item work correctly', t => {
   process.env.COMP_CWORD = 2
   process.env.COMP_LINE = 'npm driveaboat '
   process.env.COMP_POINT = process.env.COMP_LINE.length
@@ -442,7 +463,7 @@ test('completions for commands that return a single item work correctly', t => {
     output.length = 0
   })
 
-  completion(['npm', 'driveaboat', ''], (err, res) => {
+  completion.exec(['npm', 'driveaboat', ''], (err, res) => {
     if (err)
       throw err
 
@@ -458,7 +479,7 @@ test('completions for commands that return a single item work correctly', t => {
   })
 })
 
-test('command completion for commands with no completion return no results', t => {
+t.test('command completion for commands with no completion return no results', t => {
   process.env.COMP_CWORD = 2
   process.env.COMP_LINE = 'npm adduser '
   process.env.COMP_POINT = process.env.COMP_LINE.length
@@ -472,7 +493,7 @@ test('command completion for commands with no completion return no results', t =
   })
 
   // quotes around adduser are to ensure coverage when unescaping commands
-  completion(['npm', '\'adduser\'', ''], (err, res) => {
+  completion.exec(['npm', '\'adduser\'', ''], (err, res) => {
     if (err)
       throw err
 
@@ -488,7 +509,7 @@ test('command completion for commands with no completion return no results', t =
   })
 })
 
-test('command completion errors propagate', t => {
+t.test('command completion errors propagate', t => {
   process.env.COMP_CWORD = 2
   process.env.COMP_LINE = 'npm access '
   process.env.COMP_POINT = process.env.COMP_LINE.length
@@ -503,7 +524,7 @@ test('command completion errors propagate', t => {
     accessCompletionError = false
   })
 
-  completion(['npm', 'access', ''], (err, res) => {
+  completion.exec(['npm', 'access', ''], (err, res) => {
     t.match(err, /access completion failed/, 'catches the appropriate error')
     t.strictSame(npmConfig, {
       argv: {
@@ -517,7 +538,7 @@ test('command completion errors propagate', t => {
   })
 })
 
-test('completion can complete flags', t => {
+t.test('completion can complete flags', t => {
   process.env.COMP_CWORD = 2
   process.env.COMP_LINE = 'npm install --'
   process.env.COMP_POINT = process.env.COMP_LINE.length
@@ -530,7 +551,7 @@ test('completion can complete flags', t => {
     output.length = 0
   })
 
-  completion(['npm', 'install', '--'], (err, res) => {
+  completion.exec(['npm', 'install', '--'], (err, res) => {
     if (err)
       throw err
 
@@ -540,7 +561,7 @@ test('completion can complete flags', t => {
   })
 })
 
-test('double dashes escape from flag completion', t => {
+t.test('double dashes escape from flag completion', t => {
   process.env.COMP_CWORD = 2
   process.env.COMP_LINE = 'npm -- install --'
   process.env.COMP_POINT = process.env.COMP_LINE.length
@@ -553,7 +574,7 @@ test('double dashes escape from flag completion', t => {
     output.length = 0
   })
 
-  completion(['npm', '--', 'install', '--'], (err, res) => {
+  completion.exec(['npm', '--', 'install', '--'], (err, res) => {
     if (err)
       throw err
 
@@ -563,7 +584,7 @@ test('double dashes escape from flag completion', t => {
   })
 })
 
-test('completion cannot complete options that take a value in mid-command', t => {
+t.test('completion cannot complete options that take a value in mid-command', t => {
   process.env.COMP_CWORD = 2
   process.env.COMP_LINE = 'npm --registry install'
   process.env.COMP_POINT = process.env.COMP_LINE.length
@@ -576,7 +597,7 @@ test('completion cannot complete options that take a value in mid-command', t =>
     output.length = 0
   })
 
-  completion(['npm', '--registry', 'install'], (err, res) => {
+  completion.exec(['npm', '--registry', 'install'], (err, res) => {
     if (err)
       throw err
 

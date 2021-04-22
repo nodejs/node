@@ -61,14 +61,6 @@ On non-Windows platforms, this always returns `true`.
 
 Creates a 10 MB file of all null characters.
 
-### `disableCrashOnUnhandledRejection()`
-
-Removes the `process.on('unhandledRejection')` handler that crashes the process
-after a tick. The handler is useful for tests that use Promises and need to make
-sure no unexpected rejections occur, because currently they result in silent
-failures. However, it is useful in some rare cases to disable it, for example if
-the `unhandledRejection` hook is directly used by the test.
-
 ### `enoughTestCpu`
 
 * [&lt;boolean>][]
@@ -115,12 +107,12 @@ expectWarning('Warning', 'Foobar is really bad');
 expectWarning('DeprecationWarning', 'Foobar is deprecated', 'DEP0XXX');
 
 expectWarning('DeprecationWarning', [
-  'Foobar is deprecated', 'DEP0XXX'
+  'Foobar is deprecated', 'DEP0XXX',
 ]);
 
 expectWarning('DeprecationWarning', [
   ['Foobar is deprecated', 'DEP0XXX'],
-  ['Baz is also deprecated', 'DEP0XX2']
+  ['Baz is also deprecated', 'DEP0XX2'],
 ]);
 
 expectWarning('DeprecationWarning', {
@@ -135,7 +127,7 @@ expectWarning({
   },
   Warning: [
     ['Multiple array entries are fine', 'SpecialWarningCode'],
-    ['No code is also fine']
+    ['No code is also fine'],
   ],
   SingleEntry: ['This will also work', 'WarningCode'],
   SingleString: 'Single string entries without code will also work'
@@ -665,9 +657,9 @@ validateSnapshotNodes('TLSWRAP', [
     children: [
       { name: 'enc_out' },
       { name: 'enc_in' },
-      { name: 'TLSWrap' }
+      { name: 'TLSWrap' },
     ]
-  }
+  },
 ]);
 ```
 
@@ -945,12 +937,17 @@ The realpath of the testing temporary directory.
 
 Deletes and recreates the testing temporary directory.
 
-The first time `refresh()` runs,  it adds a listener to process `'exit'` that
+The first time `refresh()` runs, it adds a listener to process `'exit'` that
 cleans the temporary directory. Thus, every file under `tmpdir.path` needs to
 be closed before the test completes. A good way to do this is to add a
 listener to process `'beforeExit'`. If a file needs to be left open until
 Node.js completes, use a child process and call `refresh()` only in the
 parent.
+
+It is usually only necessary to call `refresh()` once in a test file.
+Avoid calling it more than once in an asynchronous context as one call
+might refresh the temporary directory of a different context, causing
+the test to fail somewhat mysteriously.
 
 ## UDP pair helper
 

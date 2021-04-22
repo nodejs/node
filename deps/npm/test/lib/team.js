@@ -1,5 +1,4 @@
 const t = require('tap')
-const requireInject = require('require-inject')
 
 let result = ''
 const libnpmteam = {
@@ -10,28 +9,29 @@ const libnpmteam = {
   async lsUsers () {},
   async rm () {},
 }
-const npm = { flatOptions: {} }
+const npm = {
+  flatOptions: {},
+  output: (...msg) => {
+    result += msg.join('\n')
+  },
+}
 const mocks = {
   libnpmteam,
   'cli-columns': a => a.join(' '),
-  '../../lib/npm.js': npm,
-  '../../lib/utils/output.js': (...msg) => {
-    result += msg.join('\n')
-  },
   '../../lib/utils/otplease.js': async (opts, fn) => fn(opts),
   '../../lib/utils/usage.js': () => 'usage instructions',
 }
 
-t.afterEach(cb => {
+t.afterEach(() => {
   result = ''
   npm.flatOptions = {}
-  cb()
 })
 
-const team = requireInject('../../lib/team.js', mocks)
+const Team = t.mock('../../lib/team.js', mocks)
+const team = new Team(npm)
 
 t.test('no args', t => {
-  team([], err => {
+  team.exec([], err => {
     t.match(
       err,
       'usage instructions',
@@ -43,7 +43,7 @@ t.test('no args', t => {
 
 t.test('team add <scope:team> <user>', t => {
   t.test('default output', t => {
-    team(['add', '@npmcli:developers', 'foo'], err => {
+    team.exec(['add', '@npmcli:developers', 'foo'], err => {
       if (err)
         throw err
 
@@ -55,7 +55,7 @@ t.test('team add <scope:team> <user>', t => {
   t.test('--parseable', t => {
     npm.flatOptions.parseable = true
 
-    team(['add', '@npmcli:developers', 'foo'], err => {
+    team.exec(['add', '@npmcli:developers', 'foo'], err => {
       if (err)
         throw err
 
@@ -70,11 +70,11 @@ t.test('team add <scope:team> <user>', t => {
   t.test('--json', t => {
     npm.flatOptions.json = true
 
-    team(['add', '@npmcli:developers', 'foo'], err => {
+    team.exec(['add', '@npmcli:developers', 'foo'], err => {
       if (err)
         throw err
 
-      t.deepEqual(
+      t.same(
         JSON.parse(result),
         {
           added: true,
@@ -90,11 +90,11 @@ t.test('team add <scope:team> <user>', t => {
   t.test('--silent', t => {
     npm.flatOptions.silent = true
 
-    team(['add', '@npmcli:developers', 'foo'], err => {
+    team.exec(['add', '@npmcli:developers', 'foo'], err => {
       if (err)
         throw err
 
-      t.deepEqual(result, '', 'should not output success if silent')
+      t.same(result, '', 'should not output success if silent')
       t.end()
     })
   })
@@ -104,7 +104,7 @@ t.test('team add <scope:team> <user>', t => {
 
 t.test('team create <scope:team>', t => {
   t.test('default output', t => {
-    team(['create', '@npmcli:newteam'], err => {
+    team.exec(['create', '@npmcli:newteam'], err => {
       if (err)
         throw err
 
@@ -116,7 +116,7 @@ t.test('team create <scope:team>', t => {
   t.test('--parseable', t => {
     npm.flatOptions.parseable = true
 
-    team(['create', '@npmcli:newteam'], err => {
+    team.exec(['create', '@npmcli:newteam'], err => {
       if (err)
         throw err
 
@@ -131,11 +131,11 @@ t.test('team create <scope:team>', t => {
   t.test('--json', t => {
     npm.flatOptions.json = true
 
-    team(['create', '@npmcli:newteam'], err => {
+    team.exec(['create', '@npmcli:newteam'], err => {
       if (err)
         throw err
 
-      t.deepEqual(
+      t.same(
         JSON.parse(result),
         {
           created: true,
@@ -150,11 +150,11 @@ t.test('team create <scope:team>', t => {
   t.test('--silent', t => {
     npm.flatOptions.silent = true
 
-    team(['create', '@npmcli:newteam'], err => {
+    team.exec(['create', '@npmcli:newteam'], err => {
       if (err)
         throw err
 
-      t.deepEqual(result, '', 'should not output create success if silent')
+      t.same(result, '', 'should not output create success if silent')
       t.end()
     })
   })
@@ -164,7 +164,7 @@ t.test('team create <scope:team>', t => {
 
 t.test('team destroy <scope:team>', t => {
   t.test('default output', t => {
-    team(['destroy', '@npmcli:newteam'], err => {
+    team.exec(['destroy', '@npmcli:newteam'], err => {
       if (err)
         throw err
 
@@ -176,7 +176,7 @@ t.test('team destroy <scope:team>', t => {
   t.test('--parseable', t => {
     npm.flatOptions.parseable = true
 
-    team(['destroy', '@npmcli:newteam'], err => {
+    team.exec(['destroy', '@npmcli:newteam'], err => {
       if (err)
         throw err
 
@@ -188,11 +188,11 @@ t.test('team destroy <scope:team>', t => {
   t.test('--json', t => {
     npm.flatOptions.json = true
 
-    team(['destroy', '@npmcli:newteam'], err => {
+    team.exec(['destroy', '@npmcli:newteam'], err => {
       if (err)
         throw err
 
-      t.deepEqual(
+      t.same(
         JSON.parse(result),
         {
           deleted: true,
@@ -207,11 +207,11 @@ t.test('team destroy <scope:team>', t => {
   t.test('--silent', t => {
     npm.flatOptions.silent = true
 
-    team(['destroy', '@npmcli:newteam'], err => {
+    team.exec(['destroy', '@npmcli:newteam'], err => {
       if (err)
         throw err
 
-      t.deepEqual(result, '', 'should not output destroy if silent')
+      t.same(result, '', 'should not output destroy if silent')
       t.end()
     })
   })
@@ -230,13 +230,14 @@ t.test('team ls <scope>', t => {
     },
   }
 
-  const team = requireInject('../../lib/team.js', {
+  const Team = t.mock('../../lib/team.js', {
     ...mocks,
     libnpmteam,
   })
+  const team = new Team(npm)
 
   t.test('default output', t => {
-    team(['ls', '@npmcli'], err => {
+    team.exec(['ls', '@npmcli'], err => {
       if (err)
         throw err
 
@@ -248,7 +249,7 @@ t.test('team ls <scope>', t => {
   t.test('--parseable', t => {
     npm.flatOptions.parseable = true
 
-    team(['ls', '@npmcli'], err => {
+    team.exec(['ls', '@npmcli'], err => {
       if (err)
         throw err
 
@@ -260,11 +261,11 @@ t.test('team ls <scope>', t => {
   t.test('--json', t => {
     npm.flatOptions.json = true
 
-    team(['ls', '@npmcli'], err => {
+    team.exec(['ls', '@npmcli'], err => {
       if (err)
         throw err
 
-      t.deepEqual(
+      t.same(
         JSON.parse(result),
         [
           'npmcli:designers',
@@ -280,11 +281,11 @@ t.test('team ls <scope>', t => {
   t.test('--silent', t => {
     npm.flatOptions.silent = true
 
-    team(['ls', '@npmcli'], err => {
+    team.exec(['ls', '@npmcli'], err => {
       if (err)
         throw err
 
-      t.deepEqual(result, '', 'should not list teams if silent')
+      t.same(result, '', 'should not list teams if silent')
       t.end()
     })
   })
@@ -296,12 +297,13 @@ t.test('team ls <scope>', t => {
       },
     }
 
-    const team = requireInject('../../lib/team.js', {
+    const Team = t.mock('../../lib/team.js', {
       ...mocks,
       libnpmteam,
     })
+    const team = new Team(npm)
 
-    team(['ls', '@npmcli'], err => {
+    team.exec(['ls', '@npmcli'], err => {
       if (err)
         throw err
 
@@ -317,12 +319,13 @@ t.test('team ls <scope>', t => {
       },
     }
 
-    const team = requireInject('../../lib/team.js', {
+    const Team = t.mock('../../lib/team.js', {
       ...mocks,
       libnpmteam,
     })
+    const team = new Team(npm)
 
-    team(['ls', '@npmcli'], err => {
+    team.exec(['ls', '@npmcli'], err => {
       if (err)
         throw err
 
@@ -340,13 +343,14 @@ t.test('team ls <scope:team>', t => {
       return ['nlf', 'ruyadorno', 'darcyclarke', 'isaacs']
     },
   }
-  const team = requireInject('../../lib/team.js', {
+  const Team = t.mock('../../lib/team.js', {
     ...mocks,
     libnpmteam,
   })
+  const team = new Team(npm)
 
   t.test('default output', t => {
-    team(['ls', '@npmcli:developers'], err => {
+    team.exec(['ls', '@npmcli:developers'], err => {
       if (err)
         throw err
 
@@ -358,7 +362,7 @@ t.test('team ls <scope:team>', t => {
   t.test('--parseable', t => {
     npm.flatOptions.parseable = true
 
-    team(['ls', '@npmcli:developers'], err => {
+    team.exec(['ls', '@npmcli:developers'], err => {
       if (err)
         throw err
 
@@ -370,11 +374,11 @@ t.test('team ls <scope:team>', t => {
   t.test('--json', t => {
     npm.flatOptions.json = true
 
-    team(['ls', '@npmcli:developers'], err => {
+    team.exec(['ls', '@npmcli:developers'], err => {
       if (err)
         throw err
 
-      t.deepEqual(
+      t.same(
         JSON.parse(result),
         [
           'darcyclarke',
@@ -391,11 +395,11 @@ t.test('team ls <scope:team>', t => {
   t.test('--silent', t => {
     npm.flatOptions.silent = true
 
-    team(['ls', '@npmcli:developers'], err => {
+    team.exec(['ls', '@npmcli:developers'], err => {
       if (err)
         throw err
 
-      t.deepEqual(result, '', 'should not output users if silent')
+      t.same(result, '', 'should not output users if silent')
       t.end()
     })
   })
@@ -407,12 +411,13 @@ t.test('team ls <scope:team>', t => {
       },
     }
 
-    const team = requireInject('../../lib/team.js', {
+    const Team = t.mock('../../lib/team.js', {
       ...mocks,
       libnpmteam,
     })
+    const team = new Team(npm)
 
-    team(['ls', '@npmcli:developers'], err => {
+    team.exec(['ls', '@npmcli:developers'], err => {
       if (err)
         throw err
 
@@ -428,12 +433,13 @@ t.test('team ls <scope:team>', t => {
       },
     }
 
-    const team = requireInject('../../lib/team.js', {
+    const Team = t.mock('../../lib/team.js', {
       ...mocks,
       libnpmteam,
     })
+    const team = new Team(npm)
 
-    team(['ls', '@npmcli:developers'], err => {
+    team.exec(['ls', '@npmcli:developers'], err => {
       if (err)
         throw err
 
@@ -447,7 +453,7 @@ t.test('team ls <scope:team>', t => {
 
 t.test('team rm <scope:team> <user>', t => {
   t.test('default output', t => {
-    team(['rm', '@npmcli:newteam', 'foo'], err => {
+    team.exec(['rm', '@npmcli:newteam', 'foo'], err => {
       if (err)
         throw err
 
@@ -459,7 +465,7 @@ t.test('team rm <scope:team> <user>', t => {
   t.test('--parseable', t => {
     npm.flatOptions.parseable = true
 
-    team(['rm', '@npmcli:newteam', 'foo'], err => {
+    team.exec(['rm', '@npmcli:newteam', 'foo'], err => {
       if (err)
         throw err
 
@@ -471,11 +477,11 @@ t.test('team rm <scope:team> <user>', t => {
   t.test('--json', t => {
     npm.flatOptions.json = true
 
-    team(['rm', '@npmcli:newteam', 'foo'], err => {
+    team.exec(['rm', '@npmcli:newteam', 'foo'], err => {
       if (err)
         throw err
 
-      t.deepEqual(
+      t.same(
         JSON.parse(result),
         {
           removed: true,
@@ -491,11 +497,11 @@ t.test('team rm <scope:team> <user>', t => {
   t.test('--silent', t => {
     npm.flatOptions.silent = true
 
-    team(['rm', '@npmcli:newteam', 'foo'], err => {
+    team.exec(['rm', '@npmcli:newteam', 'foo'], err => {
       if (err)
         throw err
 
-      t.deepEqual(result, '', 'should not output rm result if silent')
+      t.same(result, '', 'should not output rm result if silent')
       t.end()
     })
   })
@@ -506,66 +512,45 @@ t.test('team rm <scope:team> <user>', t => {
 t.test('completion', t => {
   const { completion } = team
 
-  t.test('npm team autocomplete', t => {
-    completion({
+  t.test('npm team autocomplete', async t => {
+    const res = await completion({
       conf: {
         argv: {
           remain: ['npm', 'team'],
         },
       },
-    }, (err, res) => {
-      if (err)
-        throw err
-
-      t.strictSame(
-        res,
-        ['create', 'destroy', 'add', 'rm', 'ls'],
-        'should auto complete with subcommands'
-      )
-
-      t.end()
     })
+    t.strictSame(
+      res,
+      ['create', 'destroy', 'add', 'rm', 'ls'],
+      'should auto complete with subcommands'
+    )
+    t.end()
   })
 
   t.test('npm team <subcommand> autocomplete', async t => {
-    const check = (subcmd) => new Promise((res, rej) =>
-      completion({
+    for (const subcmd of ['create', 'destroy', 'add', 'rm', 'ls']) {
+      const res = await completion({
         conf: {
           argv: {
             remain: ['npm', 'team', subcmd],
           },
         },
-      }, (err, response) => {
-        if (err)
-          rej(err)
-
-        t.strictSame(
-          response,
-          [],
-          `should not autocomplete ${subcmd} subcommand`
-        )
-        res()
-      }))
-
-    await ['create', 'destroy', 'add', 'rm', 'ls'].map(check)
+      })
+      t.strictSame(
+        res,
+        [],
+        `should not autocomplete ${subcmd} subcommand`
+      )
+    }
   })
 
-  t.test('npm team unknown subcommand autocomplete', t => {
-    completion({
-      conf: {
-        argv: {
-          remain: ['npm', 'team', 'missing-subcommand'],
-        },
-      },
-    }, (err, res) => {
-      t.match(
-        err,
-        /missing-subcommand not recognized/,
-        'should throw a a not recognized error'
-      )
+  t.test('npm team unknown subcommand autocomplete', async t => {
+    t.rejects(completion({conf: {argv: {remain: ['npm', 'team', 'missing-subcommand'] } } }),
+      {message: 'missing-subcommand not recognized'}, 'should throw a a not recognized error'
+    )
 
-      t.end()
-    })
+    t.end()
   })
 
   t.end()

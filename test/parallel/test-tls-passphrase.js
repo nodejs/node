@@ -223,7 +223,8 @@ server.listen(0, common.mustCall(function() {
   }, onSecureConnect());
 })).unref();
 
-const errMessagePassword = /bad decrypt/;
+const errMessagePassword = common.hasOpenSSL3 ?
+  /Error: PEM_read_bio_PrivateKey/ : /bad decrypt/;
 
 // Missing passphrase
 assert.throws(function() {
@@ -253,7 +254,8 @@ assert.throws(function() {
   });
 }, errMessagePassword);
 
-const errMessageDecrypt = /bad decrypt/;
+const errMessageDecrypt = common.hasOpenSSL3 ?
+  /Error: PEM_read_bio_PrivateKey/ : /bad decrypt/;
 
 // Invalid passphrase
 assert.throws(function() {

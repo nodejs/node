@@ -1,41 +1,36 @@
 # Pull Requests
 
-There are two fundamental components of the Pull Request process: one concrete
-and technical, and one more process oriented. The concrete and technical
-component involves the specific details of setting up your local environment
-so that you can make the actual changes. This is where we will start.
-
 * [Dependencies](#dependencies)
 * [Setting up your local environment](#setting-up-your-local-environment)
   * [Step 1: Fork](#step-1-fork)
   * [Step 2: Branch](#step-2-branch)
-* [The Process of Making Changes](#the-process-of-making-changes)
+* [The process of making changes](#the-process-of-making-changes)
   * [Step 3: Code](#step-3-code)
   * [Step 4: Commit](#step-4-commit)
     * [Commit message guidelines](#commit-message-guidelines)
   * [Step 5: Rebase](#step-5-rebase)
   * [Step 6: Test](#step-6-test)
   * [Step 7: Push](#step-7-push)
-  * [Step 8: Opening the Pull Request](#step-8-opening-the-pull-request)
-  * [Step 9: Discuss and Update](#step-9-discuss-and-update)
-    * [Approval and Request Changes Workflow](#approval-and-request-changes-workflow)
+  * [Step 8: Opening the pull request](#step-8-opening-the-pull-request)
+  * [Step 9: Discuss and update](#step-9-discuss-and-update)
+    * [Approval and request changes workflow](#approval-and-request-changes-workflow)
   * [Step 10: Landing](#step-10-landing)
-* [Reviewing Pull Requests](#reviewing-pull-requests)
+* [Reviewing pull requests](#reviewing-pull-requests)
   * [Review a bit at a time](#review-a-bit-at-a-time)
   * [Be aware of the person behind the code](#be-aware-of-the-person-behind-the-code)
   * [Respect the minimum wait time for comments](#respect-the-minimum-wait-time-for-comments)
-  * [Abandoned or Stalled Pull Requests](#abandoned-or-stalled-pull-requests)
+  * [Abandoned or stalled pull requests](#abandoned-or-stalled-pull-requests)
   * [Approving a change](#approving-a-change)
   * [Accept that there are different opinions about what belongs in Node.js](#accept-that-there-are-different-opinions-about-what-belongs-in-nodejs)
   * [Performance is not everything](#performance-is-not-everything)
-  * [Continuous Integration Testing](#continuous-integration-testing)
+  * [Continuous integration testing](#continuous-integration-testing)
 * [Notes](#notes)
-  * [Commit Squashing](#commit-squashing)
-  * [Getting Approvals for your Pull Request](#getting-approvals-for-your-pull-request)
-  * [CI Testing](#ci-testing)
-  * [Waiting Until the Pull Request Gets Landed](#waiting-until-the-pull-request-gets-landed)
-  * [Check Out the Collaborator Guide](#check-out-the-collaborator-guide)
-  * [Appendix: Subsystems](#appendix-subsystems)
+  * [Commit squashing](#commit-squashing)
+  * [Getting approvals for your pull request](#getting-approvals-for-your-pull-request)
+  * [CI testing](#ci-testing)
+  * [Waiting until the pull request gets landed](#waiting-until-the-pull-request-gets-landed)
+  * [Check out the collaborator guide](#check-out-the-collaborator-guide)
+  * [Appendix: subsystems](#appendix-subsystems)
 
 ## Dependencies
 
@@ -112,7 +107,7 @@ directly off of the `master` branch.
 $ git checkout -b my-branch -t upstream/master
 ```
 
-## The Process of Making Changes
+## The process of making changes
 
 ### Step 3: Code
 
@@ -266,7 +261,7 @@ your fork on GitHub.
 $ git push origin my-branch
 ```
 
-### Step 8: Opening the Pull Request
+### Step 8: Opening the pull request
 
 From within GitHub, opening a new Pull Request will present you with a
 [pull request template][]. Please try to do your best at filling out the
@@ -323,7 +318,7 @@ awaiting an answer on something. If you encounter words or acronyms that
 seem unfamiliar, refer to this
 [glossary](https://sites.google.com/a/chromium.org/dev/glossary).
 
-#### Approval and Request Changes Workflow
+#### Approval and request changes workflow
 
 All Pull Requests require "sign off" in order to land. Whenever a contributor
 reviews a Pull Request they may find specific details that they would like to
@@ -358,7 +353,7 @@ point, but don't worry. If you look at the branch you raised your
 Pull Request against (probably `master`), you should see a commit with
 your name on it. Congratulations and thanks for your contribution!
 
-## Reviewing Pull Requests
+## Reviewing pull requests
 
 All Node.js contributors who choose to review and provide feedback on Pull
 Requests have a responsibility to both the project and the individual making the
@@ -378,7 +373,7 @@ does not land, the submitters should come away from the experience feeling like
 their effort was not wasted or unappreciated. Every Pull Request from a new
 contributor is an opportunity to grow the community.
 
-### Review a bit at a time.
+### Review a bit at a time
 
 Do not overwhelm new contributors.
 
@@ -434,7 +429,7 @@ matter experts. When in doubt, do not rush.
 Trivial changes, typically limited to small formatting changes or fixes to
 documentation, may be landed within the minimum 48 hour window.
 
-### Abandoned or Stalled Pull Requests
+### Abandoned or stalled pull requests
 
 If a Pull Request appears to be abandoned or stalled, it is polite to first
 check with the contributor to see if they intend to continue the work before
@@ -512,7 +507,7 @@ advice on what would make the Pull Request acceptable, and do not assume that
 the contributor should already know how to do that. Be explicit in your
 feedback.
 
-### Continuous Integration Testing
+### Continuous integration testing
 
 All Pull Requests that contain changes to code must be run through
 continuous integration (CI) testing at [https://ci.nodejs.org/][].
@@ -531,7 +526,7 @@ whether the failure was caused by the changes in the Pull Request.
 
 ## Notes
 
-### Commit Squashing
+### Commit squashing
 
 In most cases, do not squash commits that you add to your Pull Request during
 the review process. When the commits in your Pull Request land, they may be
@@ -546,7 +541,7 @@ can be a good example. It touches the implementation, the documentation,
 and the tests, but is still one logical change. All tests should always pass
 when each individual commit lands on the master branch.
 
-### Getting Approvals for Your Pull Request
+### Getting approvals for your pull request
 
 A Pull Request is approved either by saying LGTM, which stands for
 "Looks Good To Me", or by using GitHub's Approve button.
@@ -559,7 +554,7 @@ After you push new changes to your branch, you need to get
 approval for these new changes again, even if GitHub shows "Approved"
 because the reviewers have hit the buttons before.
 
-### CI Testing
+### CI testing
 
 Every Pull Request needs to be tested
 to make sure that it works on the platforms that Node.js
@@ -569,7 +564,7 @@ Only a Collaborator can start a CI run. Usually one of them will do it
 for you as approvals for the Pull Request come in.
 If not, you can ask a Collaborator to start a CI run.
 
-### Waiting Until the Pull Request Gets Landed
+### Waiting until the pull request gets landed
 
 A Pull Request needs to stay open for at least 48 hours from when it is
 submitted, even after it gets approved and passes the CI. This is to make sure
@@ -578,12 +573,12 @@ collaborators may decide it doesn't need to wait. A Pull Request may well take
 longer to be merged in. All these precautions are important because Node.js is
 widely used, so don't be discouraged!
 
-### Check Out the Collaborator Guide
+### Check out the collaborator guide
 
 If you want to know more about the code review and the landing process, see the
 [Collaborator Guide][].
 
-### Appendix: Subsystems
+### Appendix: subsystems
 
 * `lib/*.js` (`assert`, `buffer`, etc.)
 * `build`
@@ -596,7 +591,7 @@ More than one subsystem may be valid for any particular issue or pull request.
 
 [Building guide]: ../../../BUILDING.md
 [CI (Continuous Integration) test run]: #ci-testing
-[Code of Conduct]: https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md
+[Code of Conduct]: https://github.com/nodejs/admin/blob/HEAD/CODE_OF_CONDUCT.md
 [Collaborator Guide]: ../collaborator-guide.md
 [IRC in the #node-dev channel]: https://webchat.freenode.net?channels=node-dev&uio=d4
 [Onboarding guide]: ../../../onboarding.md
@@ -605,5 +600,5 @@ More than one subsystem may be valid for any particular issue or pull request.
 [guide for writing tests in Node.js]: ../writing-tests.md
 [hiding-a-comment]: https://help.github.com/articles/managing-disruptive-comments/#hiding-a-comment
 [https://ci.nodejs.org/]: https://ci.nodejs.org/
-[pull request template]: https://raw.githubusercontent.com/nodejs/node/master/.github/PULL_REQUEST_TEMPLATE.md
+[pull request template]: https://raw.githubusercontent.com/nodejs/node/HEAD/.github/PULL_REQUEST_TEMPLATE.md
 [running tests]: ../../../BUILDING.md#running-tests

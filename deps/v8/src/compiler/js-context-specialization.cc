@@ -89,13 +89,9 @@ namespace {
 
 bool IsContextParameter(Node* node) {
   DCHECK_EQ(IrOpcode::kParameter, node->opcode());
-  Node* const start = NodeProperties::GetValueInput(node, 0);
-  DCHECK_EQ(IrOpcode::kStart, start->opcode());
-  int const index = ParameterIndexOf(node->op());
-  // The context is always the last parameter to a JavaScript function, and
-  // {Parameter} indices start at -1, so value outputs of {Start} look like
-  // this: closure, receiver, param0, ..., paramN, context.
-  return index == start->op()->ValueOutputCount() - 2;
+  return ParameterIndexOf(node->op()) ==
+         StartNode{NodeProperties::GetValueInput(node, 0)}
+             .ContextParameterIndex_MaybeNonStandardLayout();
 }
 
 // Given a context {node} and the {distance} from that context to the target

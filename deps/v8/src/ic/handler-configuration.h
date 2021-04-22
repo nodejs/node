@@ -80,9 +80,8 @@ class LoadHandler final : public DataHandler {
   // +1 here is to cover all possible JSObject header sizes.
   using FieldIndexBits =
       IsDoubleBits::Next<unsigned, kDescriptorIndexBitCount + 1>;
-  using CompactElementsKindBits = FieldIndexBits::Next<CompactElementsKind, 3>;
   // Make sure we don't overflow the smi.
-  STATIC_ASSERT(CompactElementsKindBits::kLastUsedBit < kSmiValueSize);
+  STATIC_ASSERT(FieldIndexBits::kLastUsedBit < kSmiValueSize);
 
   //
   // Encoding when KindBits contains kElement or kIndexedString.
@@ -122,13 +121,11 @@ class LoadHandler final : public DataHandler {
   static inline Handle<Smi> LoadSlow(Isolate* isolate);
 
   // Creates a Smi-handler for loading a field from fast object.
-  static inline Handle<Smi> LoadField(Isolate* isolate, FieldIndex field_index,
-                                      ElementsKind kind);
+  static inline Handle<Smi> LoadField(Isolate* isolate, FieldIndex field_index);
 
   // Creates a Smi-handler for loading a cached constant from fast
   // prototype object.
-  static inline Handle<Smi> LoadConstantFromPrototype(Isolate* isolate,
-                                                      ElementsKind kind);
+  static inline Handle<Smi> LoadConstantFromPrototype(Isolate* isolate);
 
   // Creates a Smi-handler for calling a getter on a fast object.
   static inline Handle<Smi> LoadAccessor(Isolate* isolate, int descriptor);

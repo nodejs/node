@@ -31,22 +31,6 @@ class PageBackend;
 
 class V8_EXPORT_PRIVATE ObjectAllocator final : public cppgc::AllocationHandle {
  public:
-  // NoAllocationScope is used in debug mode to catch unwanted allocations. E.g.
-  // allocations during GC.
-  class V8_EXPORT_PRIVATE NoAllocationScope final {
-    CPPGC_STACK_ALLOCATED();
-
-   public:
-    explicit NoAllocationScope(ObjectAllocator&);
-    ~NoAllocationScope();
-
-    NoAllocationScope(const NoAllocationScope&) = delete;
-    NoAllocationScope& operator=(const NoAllocationScope&) = delete;
-
-   private:
-    ObjectAllocator& allocator_;
-  };
-
   ObjectAllocator(RawHeap* heap, PageBackend* page_backend,
                   StatsCollector* stats_collector);
 
@@ -56,13 +40,16 @@ class V8_EXPORT_PRIVATE ObjectAllocator final : public cppgc::AllocationHandle {
 
   void ResetLinearAllocationBuffers();
 
+  // Terminate the allocator. Subsequent allocation calls result in a crash.
+  void Terminate();
+
  private:
+  bool in_disallow_gc_scope() const;
+
   // Returns the initially tried SpaceType to allocate an object of |size| bytes
   // on. Returns the largest regular object size bucket for large objects.
   inline static RawHeap::RegularSpaceType GetInitialSpaceIndexForSize(
       size_t size);
-
-  bool is_allocation_allowed() const { return no_allocation_scope_ == 0; }
 
   inline void* AllocateObjectOnSpace(NormalPageSpace* space, size_t size,
                                      GCInfoIndex gcinfo);
@@ -73,11 +60,10 @@ class V8_EXPORT_PRIVATE ObjectAllocator final : public cppgc::AllocationHandle {
   RawHeap* raw_heap_;
   PageBackend* page_backend_;
   StatsCollector* stats_collector_;
-  size_t no_allocation_scope_ = 0;
 };
 
 void* ObjectAllocator::AllocateObject(size_t size, GCInfoIndex gcinfo) {
-  DCHECK(is_allocation_allowed());
+  DCHECK(!in_disallow_gc_scope());
   const size_t allocation_size =
       RoundUp<kAllocationGranularity>(size + sizeof(HeapObjectHeader));
   const RawHeap::RegularSpaceType type =
@@ -88,7 +74,7 @@ void* ObjectAllocator::AllocateObject(size_t size, GCInfoIndex gcinfo) {
 
 void* ObjectAllocator::AllocateObject(size_t size, GCInfoIndex gcinfo,
                                       CustomSpaceIndex space_index) {
-  DCHECK(is_allocation_allowed());
+  DCHECK(!in_disallow_gc_scope());
   const size_t allocation_size =
       RoundUp<kAllocationGranularity>(size + sizeof(HeapObjectHeader));
   return AllocateObjectOnSpace(
@@ -118,12 +104,20 @@ void* ObjectAllocator::AllocateObjectOnSpace(NormalPageSpace* space,
   }
 
   void* raw = current_lab.Allocate(size);
-  SET_MEMORY_ACCESIBLE(raw, size);
+#if !defined(V8_USE_MEMORY_SANITIZER) && !defined(V8_USE_ADDRESS_SANITIZER) && \
+    DEBUG
+  // For debug builds, unzap only the payload.
+  SET_MEMORY_ACCESSIBLE(static_cast<char*>(raw) + sizeof(HeapObjectHeader),
+                        size - sizeof(HeapObjectHeader));
+#else
+  SET_MEMORY_ACCESSIBLE(raw, size);
+#endif
   auto* header = new (raw) HeapObjectHeader(size, gcinfo);
 
+  // The marker needs to find the object start concurrently.
   NormalPage::From(BasePage::FromPayload(header))
       ->object_start_bitmap()
-      .SetBit(reinterpret_cast<ConstAddress>(header));
+      .SetBit<AccessMode::kAtomic>(reinterpret_cast<ConstAddress>(header));
 
   return header->Payload();
 }

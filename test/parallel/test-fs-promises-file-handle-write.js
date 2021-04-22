@@ -68,5 +68,5 @@ Promise.all([
   validateWrite(),
   validateEmptyWrite(),
   validateNonUint8ArrayWrite(),
-  validateNonStringValuesWrite()
+  validateNonStringValuesWrite(),
 ]).then(common.mustCall());

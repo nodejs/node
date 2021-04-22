@@ -1,5 +1,5 @@
 const t = require('tap')
-const requireInject = require('require-inject')
+const mockNpm = require('../fixtures/mock-npm')
 
 let result = ''
 const npmLog = {
@@ -10,38 +10,34 @@ const npmLog = {
   resume: () => null,
   silly: () => null,
 }
-const npm = {
-  config: { set () {} },
-  flatOptions: {},
-  log: npmLog,
+const config = {
+  'init-module': '~/.npm-init.js',
 }
-const mocks = {
-  'init-package-json': (dir, initFile, config, cb) => cb(null, 'data'),
-  '../../lib/npm.js': npm,
-  '../../lib/utils/usage.js': () => 'usage instructions',
-  '../../lib/utils/output.js': (...msg) => {
+const npm = mockNpm({
+  config,
+  log: npmLog,
+  commands: {},
+  output: (...msg) => {
     result += msg.join('\n')
   },
+})
+const mocks = {
+  'init-package-json': (dir, initFile, config, cb) => cb(null, 'data'),
+  '../../lib/utils/usage.js': () => 'usage instructions',
 }
-const init = requireInject('../../lib/init.js', mocks)
+const Init = t.mock('../../lib/init.js', mocks)
+const init = new Init(npm)
 
-t.afterEach(cb => {
+t.afterEach(() => {
   result = ''
-  npm.config = { get: () => '', set () {} }
+  config.package = undefined
   npm.commands = {}
-  Object.defineProperty(npm, 'flatOptions', { value: {} })
   npm.log = npmLog
-  cb()
 })
 
 t.test('classic npm init no args', t => {
-  npm.config = {
-    get () {
-      return '~/.npm-init.js'
-    },
-  }
-  init([], err => {
-    t.ifError(err, 'npm init no args')
+  init.exec([], err => {
+    t.error(err, 'npm init no args')
     t.matchSnapshot(result, 'should print helper info')
     t.end()
   })
@@ -49,9 +45,7 @@ t.test('classic npm init no args', t => {
 
 t.test('classic npm init -y', t => {
   t.plan(7)
-  npm.config = {
-    get: () => '~/.npm-init.js',
-  }
+  config.yes = true
   Object.defineProperty(npm, 'flatOptions', { value: { yes: true} })
   npm.log = { ...npm.log }
   npm.log.silly = (title, msg) => {
@@ -65,80 +59,75 @@ t.test('classic npm init -y', t => {
     t.equal(title, 'init', 'should print title')
     t.equal(msg, 'written successfully', 'should print done info')
   }
-  init([], err => {
-    t.ifError(err, 'npm init -y')
+  init.exec([], err => {
+    t.error(err, 'npm init -y')
     t.equal(result, '')
   })
 })
 
 t.test('npm init <arg>', t => {
-  t.plan(4)
-  npm.config = {
-    set (key, val) {
-      t.equal(key, 'package', 'should set package key')
-      t.deepEqual(val, [], 'should set empty array value')
-    },
-  }
+  t.plan(3)
   npm.commands.exec = (arr, cb) => {
-    t.deepEqual(
+    t.same(config.package, [], 'should set empty array value')
+    t.same(
       arr,
       ['create-react-app'],
       'should npx with listed packages'
     )
     cb()
   }
-  init(['react-app'], err => {
-    t.ifError(err, 'npm init react-app')
+  init.exec(['react-app'], err => {
+    t.error(err, 'npm init react-app')
   })
 })
 
 t.test('npm init @scope/name', t => {
   t.plan(2)
   npm.commands.exec = (arr, cb) => {
-    t.deepEqual(
+    t.same(
       arr,
       ['@npmcli/create-something'],
       'should npx with scoped packages'
     )
     cb()
   }
-  init(['@npmcli/something'], err => {
-    t.ifError(err, 'npm init init @scope/name')
+  init.exec(['@npmcli/something'], err => {
+    t.error(err, 'npm init init @scope/name')
   })
 })
 
 t.test('npm init git spec', t => {
   t.plan(2)
   npm.commands.exec = (arr, cb) => {
-    t.deepEqual(
+    t.same(
       arr,
       ['npm/create-something'],
       'should npx with git-spec packages'
     )
     cb()
   }
-  init(['npm/something'], err => {
-    t.ifError(err, 'npm init init @scope/name')
+  init.exec(['npm/something'], err => {
+    t.error(err, 'npm init init @scope/name')
   })
 })
 
 t.test('npm init @scope', t => {
   t.plan(2)
   npm.commands.exec = (arr, cb) => {
-    t.deepEqual(
+    t.same(
       arr,
       ['@npmcli/create'],
       'should npx with @scope/create pkgs'
     )
     cb()
   }
-  init(['@npmcli'], err => {
-    t.ifError(err, 'npm init init @scope/create')
+  init.exec(['@npmcli'], err => {
+    t.error(err, 'npm init init @scope/create')
   })
 })
 
 t.test('npm init tgz', t => {
-  init(['something.tgz'], err => {
+  init.exec(['something.tgz'], err => {
     t.match(
       err,
       /Error: Unrecognized initializer: something.tgz/,
@@ -151,15 +140,15 @@ t.test('npm init tgz', t => {
 t.test('npm init <arg>@next', t => {
   t.plan(2)
   npm.commands.exec = (arr, cb) => {
-    t.deepEqual(
+    t.same(
       arr,
       ['create-something@next'],
       'should npx with something@next'
     )
     cb()
   }
-  init(['something@next'], err => {
-    t.ifError(err, 'npm init init something@next')
+  init.exec(['something@next'], err => {
+    t.error(err, 'npm init init something@next')
   })
 })
 
@@ -167,7 +156,7 @@ t.test('npm init exec error', t => {
   npm.commands.exec = (arr, cb) => {
     cb(new Error('ERROR'))
   }
-  init(['something@next'], err => {
+  init.exec(['something@next'], err => {
     t.match(
       err,
       /ERROR/,
@@ -178,58 +167,49 @@ t.test('npm init exec error', t => {
 })
 
 t.test('should not rewrite flatOptions', t => {
-  t.plan(4)
-  Object.defineProperty(npm, 'flatOptions', {
-    get: () => ({}),
-    set () {
-      throw new Error('Should not set flatOptions')
-    },
-  })
-  npm.config = {
-    set (key, val) {
-      t.equal(key, 'package', 'should set package key')
-      t.deepEqual(val, [], 'should set empty array value')
-    },
-  }
+  t.plan(3)
   npm.commands.exec = (arr, cb) => {
-    t.deepEqual(
+    t.same(config.package, [], 'should set empty array value')
+    t.same(
       arr,
       ['create-react-app', 'my-app'],
       'should npx with extra args'
     )
     cb()
   }
-  init(['react-app', 'my-app'], err => {
-    t.ifError(err, 'npm init react-app')
+  init.exec(['react-app', 'my-app'], err => {
+    t.error(err, 'npm init react-app')
   })
 })
 
 t.test('npm init cancel', t => {
   t.plan(3)
-  const init = requireInject('../../lib/init.js', {
+  const Init = t.mock('../../lib/init.js', {
     ...mocks,
     'init-package-json': (dir, initFile, config, cb) => cb(
       new Error('canceled')
     ),
   })
+  const init = new Init(npm)
   npm.log = { ...npm.log }
   npm.log.warn = (title, msg) => {
     t.equal(title, 'init', 'should have init title')
     t.equal(msg, 'canceled', 'should log canceled')
   }
-  init([], err => {
-    t.ifError(err, 'npm init cancel')
+  init.exec([], err => {
+    t.error(err, 'npm init cancel')
   })
 })
 
 t.test('npm init error', t => {
-  const init = requireInject('../../lib/init.js', {
+  const Init = t.mock('../../lib/init.js', {
     ...mocks,
     'init-package-json': (dir, initFile, config, cb) => cb(
       new Error('Unknown Error')
     ),
   })
-  init([], err => {
+  const init = new Init(npm)
+  init.exec([], err => {
     t.match(err, /Unknown Error/, 'should throw error')
     t.end()
   })

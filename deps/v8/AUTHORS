@@ -28,7 +28,6 @@ IBM Inc. <*@ibm.com>
 Red Hat Inc. <*@redhat.com>
 Samsung <*@*.samsung.com>
 Samsung <*@samsung.com>
-Joyent, Inc <*@joyent.com>
 RT-RK Computer Based System <*@rt-rk.com>
 Amazon, Inc <*@amazon.com>
 ST Microelectronics <*@st.com>
@@ -61,6 +60,7 @@ Andreas Anyuru <andreas.anyuru@gmail.com>
 Andrew Paprocki <andrew@ishiboo.com>
 Andrei Kashcha <anvaka@gmail.com>
 Anna Henningsen <anna@addaleax.net>
+Antoine du Hamel <duhamelantoine1995@gmail.com>
 Anton Bikineev <ant.bikineev@gmail.com>
 Bangfu Tao <bangfu.tao@samsung.com>
 Daniel Shelton <d1.shelton@samsung.com>
@@ -69,9 +69,13 @@ Ben Newman <ben@meteor.com>
 Ben Noordhuis <info@bnoordhuis.nl>
 Benjamin Tan <demoneaux@gmail.com>
 Bert Belder <bertbelder@gmail.com>
+Brendon Tiszka <btiszka@gmail.com>
+Brice Dobry <brice.dobry@futurewei.com>
 Burcu Dogan <burcujdogan@gmail.com>
 Caitlin Potter <caitpotter88@gmail.com>
+Chao Wang <chao.w@rioslab.org>
 Craig Schlenter <craig.schlenter@gmail.com>
+Charles Kerr <charles@charleskerr.com>
 Chengzhong Wu <legendecas@gmail.com>
 Choongwoo Han <cwhan.tunz@gmail.com>
 Chris Nardi <hichris123@gmail.com>
@@ -85,6 +89,7 @@ David Carlier <devnexen@gmail.com>
 David Manouchehri <david@davidmanouchehri.com>
 Deepak Mohan <hop2deep@gmail.com>
 Deon Dior <diaoyuanjie@gmail.com>
+Derek Tu <derek.t@rioslab.org>
 Dominic Farolini <domfarolino@gmail.com>
 Douglas Crosher <dtc-v8@scieneer.com>
 Dusan Milosavljevic <dusan.m.milosavljevic@gmail.com>
@@ -100,6 +105,7 @@ Gergely Nagy <ngg@ngg.hu>
 Gilang Mentari Hamidy <gilang@hamidy.net>
 Gus Caplan <me@gus.host>
 Gwang Yoon Hwang <ryumiel@company100.net>
+Haichuan Wang <hc.opensource@gmail.com>
 Hannu Trey <hannu.trey@gmail.com>
 Henrique Ferreiro <henrique.ferreiro@gmail.com>
 Hirofumi Mako <mkhrfm@gmail.com>
@@ -117,6 +123,8 @@ Janusz Majnert <jmajnert@gmail.com>
 Jay Freeman <saurik@saurik.com>
 James Pike <g00gle@chilon.net>
 James M Snell <jasnell@gmail.com>
+Javad Amiri <javad.amiri@anu.edu.au>
+Ji Qiu <qiuji@iscas.ac.cn>
 Jianghua Yang <jianghua.yjh@alibaba-inc.com>
 Jiawen Geng <technicalcute@gmail.com>
 Jiaxun Yang <jiaxun.yang@flygoat.com>
@@ -133,6 +141,7 @@ Kevin Gibbons <bakkot@gmail.com>
 Kris Selden <kris.selden@gmail.com>
 Kyounga Ra <kyounga@alticast.com>
 Loo Rong Jie <loorongjie@gmail.com>
+Lu Yahan <yahan@iscas.ac.cn>
 Luis Reis <luis.m.reis@gmail.com>
 Luke Zarko <lukezarko@gmail.com>
 Maciej Małecki <me@mmalecki.com>
@@ -166,6 +175,7 @@ Oliver Dunk <oliver@oliverdunk.com>
 Paolo Giarrusso <p.giarrusso@gmail.com>
 Patrick Gansterer <paroga@paroga.com>
 Peng Fei <pfgenyun@gmail.com>
+Peng Wu <peng.w@rioslab.org>
 Peng-Yu Chen <pengyu@libstarrify.so>
 Peter Rybin <peter.rybin@gmail.com>
 Peter Varga <pvarga@inf.u-szeged.hu>
@@ -180,11 +190,13 @@ Raul Tambre <raul@tambre.ee>
 Ray Glover <ray@rayglover.net>
 Refael Ackermann <refack@gmail.com>
 Rene Rebe <rene@exactcode.de>
+Reza Yazdani <ryazdani@futurewei.com>
 Rick Waldron <waldron.rick@gmail.com>
 Rob Wu <rob@robwu.nl>
 Robert Meijer <robert.s.meijer@gmail.com>
 Robert Mustacchi <rm@fingolfin.org>
 Robert Nagy <robert.nagy@gmail.com>
+Robert O'Callahan <rocallahan@gmail.com>
 Rong Wang <wangrong089@gmail.com>
 Ross Kirsling <rkirsling@gmail.com>
 Ruben Bridgewater <ruben@bridgewater.de>
@@ -199,7 +211,9 @@ Shawn Presser <shawnpresser@gmail.com>
 Stefan Penner <stefan.penner@gmail.com>
 Sylvestre Ledru <sledru@mozilla.com>
 Taketoshi Aono <brn@b6n.ch>
+Tao Liqiang <taolq@outlook.com>
 Teddy Katz <teddy.katz@gmail.com>
+Thomas Young <wenzhang5800@gmail.com>
 Tiancheng "Timothy" Gu <timothygu99@gmail.com>
 Tobias Burnus <burnus@net-b.de>
 Tobias Nießen <tniessen@tnie.de>
@@ -210,12 +224,15 @@ Victor Costan <costan@gmail.com>
 Vlad Burlik <vladbph@gmail.com>
 Vladimir Krivosheev <develar@gmail.com>
 Vladimir Shutoff <vovan@shutoff.ru>
+Wei Wu <lazyparser@gmail.com>
 Wenlu Wang <kingwenlu@gmail.com>
 Wiktor Garbacz <wiktor.garbacz@gmail.com>
 Wouter Vermeiren <wouter.vermeiren@essensium.com>
+Xiaofang Zou <zouxiaofang@iscas.ac.cn>
 Xiaoyin Liu <xiaoyin.l@outlook.com>
 Yanbo Li <lybvinci@gmail.com>
 Yannic Bonenberger <contact@yannic-bonenberger.com>
+Yi Wang <wangyi8848@gmail.com>
 Yong Wang <ccyongwang@tencent.com>
 Youfeng Hao <ajihyf@gmail.com>
 Yu Yin <xwafish@gmail.com>
@@ -225,3 +242,4 @@ Zhao Jiazhong <kyslie3100@gmail.com>
 Zhongping Wang <kewpie.w.zp@gmail.com>
 柳荣一 <admin@web-tinker.com>
 Tianping Yang <yangtianping@oppo.com>
+Takeshi Yoneda <takeshi@tetrate.io>

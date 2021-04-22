@@ -1,25 +1,15 @@
-const { test } = require('tap')
+const t = require('tap')
 
-const install = require('../../lib/install.js')
-const requireInject = require('require-inject')
+const Install = require('../../lib/install.js')
+const mockNpm = require('../fixtures/mock-npm')
 
-test('should install using Arborist', (t) => {
+t.test('should install using Arborist', (t) => {
   const SCRIPTS = []
   let ARB_ARGS = null
   let REIFY_CALLED = false
   let ARB_OBJ = null
 
-  const install = requireInject('../../lib/install.js', {
-    '../../lib/npm.js': {
-      globalDir: 'path/to/node_modules/',
-      prefix: 'foo',
-      flatOptions: {
-        global: false,
-      },
-      config: {
-        get: () => true,
-      },
-    },
+  const Install = t.mock('../../lib/install.js', {
     '@npmcli/run-script': ({ event }) => {
       SCRIPTS.push(event)
     },
@@ -33,17 +23,27 @@ test('should install using Arborist', (t) => {
         REIFY_CALLED = true
       }
     },
-    '../../lib/utils/reify-finish.js': arb => {
+    '../../lib/utils/reify-finish.js': (npm, arb) => {
       if (arb !== ARB_OBJ)
         throw new Error('got wrong object passed to reify-finish')
     },
   })
 
+  const npm = mockNpm({
+    config: { dev: true },
+    flatOptions: { global: false, auditLevel: 'low' },
+    globalDir: 'path/to/node_modules/',
+    prefix: 'foo',
+  })
+  const install = new Install(npm)
+
   t.test('with args', t => {
-    install(['fizzbuzz'], er => {
+    install.exec(['fizzbuzz'], er => {
       if (er)
         throw er
-      t.match(ARB_ARGS, { global: false, path: 'foo' })
+      t.match(ARB_ARGS,
+        { global: false, path: 'foo', auditLevel: null },
+        'Arborist gets correct args and ignores auditLevel')
       t.equal(REIFY_CALLED, true, 'called reify')
       t.strictSame(SCRIPTS, [], 'no scripts when adding dep')
       t.end()
@@ -51,7 +51,7 @@ test('should install using Arborist', (t) => {
   })
 
   t.test('just a local npm install', t => {
-    install([], er => {
+    install.exec([], er => {
       if (er)
         throw er
       t.match(ARB_ARGS, { global: false, path: 'foo' })
@@ -72,32 +72,62 @@ test('should install using Arborist', (t) => {
   t.end()
 })
 
-test('should install globally using Arborist', (t) => {
-  const install = requireInject('../../lib/install.js', {
+t.test('should ignore scripts with --ignore-scripts', (t) => {
+  const SCRIPTS = []
+  let REIFY_CALLED = false
+  const Install = t.mock('../../lib/install.js', {
     '../../lib/utils/reify-finish.js': async () => {},
-    '../../lib/npm.js': {
-      globalDir: 'path/to/node_modules/',
-      prefix: 'foo',
-      flatOptions: {
-        global: 'true',
-      },
-      config: {
-        get: () => false,
-      },
+    '@npmcli/run-script': ({ event }) => {
+      SCRIPTS.push(event)
     },
+    '@npmcli/arborist': function () {
+      this.reify = () => {
+        REIFY_CALLED = true
+      }
+    },
+  })
+  const npm = mockNpm({
+    globalDir: 'path/to/node_modules/',
+    prefix: 'foo',
+    flatOptions: { global: false },
+    config: {
+      global: false,
+      'ignore-scripts': true,
+    },
+  })
+  const install = new Install(npm)
+  install.exec([], er => {
+    if (er)
+      throw er
+    t.equal(REIFY_CALLED, true, 'called reify')
+    t.strictSame(SCRIPTS, [], 'no scripts when adding dep')
+    t.end()
+  })
+})
+
+t.test('should install globally using Arborist', (t) => {
+  const Install = t.mock('../../lib/install.js', {
+    '../../lib/utils/reify-finish.js': async () => {},
     '@npmcli/arborist': function () {
       this.reify = () => {}
     },
   })
-  install([], er => {
+  const npm = mockNpm({
+    globalDir: 'path/to/node_modules/',
+    prefix: 'foo',
+    config: { global: true },
+    flatOptions: { global: true },
+  })
+  const install = new Install(npm)
+  install.exec([], er => {
     if (er)
       throw er
     t.end()
   })
 })
 
-test('completion to folder', (t) => {
-  const install = requireInject('../../lib/install.js', {
+t.test('completion to folder', async t => {
+  const Install = t.mock('../../lib/install.js', {
     '../../lib/utils/reify-finish.js': async () => {},
     util: {
       promisify: (fn) => fn,
@@ -111,18 +141,15 @@ test('completion to folder', (t) => {
       },
     },
   })
-  install.completion({
-    partialWord: '/ar',
-  }, (er, res) => {
-    t.equal(er, null)
-    const expect = process.platform === 'win32' ? '\\arborist' : '/arborist'
-    t.strictSame(res, [expect], 'package dir match')
-    t.end()
-  })
+  const install = new Install({})
+  const res = await install.completion({ partialWord: '/ar' })
+  const expect = process.platform === 'win32' ? '\\arborist' : '/arborist'
+  t.strictSame(res, [expect], 'package dir match')
+  t.end()
 })
 
-test('completion to folder - invalid dir', (t) => {
-  const install = requireInject('../../lib/install.js', {
+t.test('completion to folder - invalid dir', async t => {
+  const Install = t.mock('../../lib/install.js', {
     '../../lib/utils/reify-finish.js': async () => {},
     util: {
       promisify: (fn) => fn,
@@ -133,17 +160,14 @@ test('completion to folder - invalid dir', (t) => {
       },
     },
   })
-  install.completion({
-    partialWord: 'path/to/folder',
-  }, (er, res) => {
-    t.equal(er, null)
-    t.strictSame(res, [], 'invalid dir: no matching')
-    t.end()
-  })
+  const install = new Install({})
+  const res = await install.completion({ partialWord: 'path/to/folder' })
+  t.strictSame(res, [], 'invalid dir: no matching')
+  t.end()
 })
 
-test('completion to folder - no matches', (t) => {
-  const install = requireInject('../../lib/install.js', {
+t.test('completion to folder - no matches', async t => {
+  const Install = t.mock('../../lib/install.js', {
     '../../lib/utils/reify-finish.js': async () => {},
     util: {
       promisify: (fn) => fn,
@@ -154,17 +178,14 @@ test('completion to folder - no matches', (t) => {
       },
     },
   })
-  install.completion({
-    partialWord: '/pa',
-  }, (er, res) => {
-    t.equal(er, null)
-    t.strictSame(res, [], 'no name match')
-    t.end()
-  })
+  const install = new Install({})
+  const res = await install.completion({ partialWord: '/pa' })
+  t.strictSame(res, [], 'no name match')
+  t.end()
 })
 
-test('completion to folder - match is not a package', (t) => {
-  const install = requireInject('../../lib/install.js', {
+t.test('completion to folder - match is not a package', async t => {
+  const Install = t.mock('../../lib/install.js', {
     '../../lib/utils/reify-finish.js': async () => {},
     util: {
       promisify: (fn) => fn,
@@ -178,31 +199,22 @@ test('completion to folder - match is not a package', (t) => {
       },
     },
   })
-  install.completion({
-    partialWord: '/ar',
-  }, (er, res) => {
-    t.equal(er, null)
-    t.strictSame(res, [], 'no name match')
-    t.end()
-  })
+  const install = new Install({})
+  const res = await install.completion({ partialWord: '/ar' })
+  t.strictSame(res, [], 'no name match')
+  t.end()
 })
 
-test('completion to url', (t) => {
-  install.completion({
-    partialWord: 'http://path/to/url',
-  }, (er, res) => {
-    t.equal(er, null)
-    t.strictSame(res, [])
-    t.end()
-  })
+t.test('completion to url', async t => {
+  const install = new Install({})
+  const res = await install.completion({ partialWord: 'http://path/to/url' })
+  t.strictSame(res, [])
+  t.end()
 })
 
-test('completion', (t) => {
-  install.completion({
-    partialWord: 'toto',
-  }, (er, res) => {
-    t.notOk(er)
-    t.notOk(res)
-    t.end()
-  })
+t.test('completion', async t => {
+  const install = new Install({})
+  const res = await install.completion({ partialWord: 'toto' })
+  t.notOk(res)
+  t.end()
 })

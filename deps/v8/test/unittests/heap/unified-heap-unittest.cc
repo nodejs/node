@@ -4,67 +4,21 @@
 
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/garbage-collected.h"
+#include "include/cppgc/persistent.h"
 #include "include/cppgc/platform.h"
+#include "include/v8-cppgc.h"
+#include "include/v8.h"
 #include "src/api/api-inl.h"
 #include "src/heap/cppgc-js/cpp-heap.h"
+#include "src/heap/cppgc/sweeper.h"
 #include "src/objects/objects-inl.h"
 #include "test/unittests/heap/heap-utils.h"
+#include "test/unittests/heap/unified-heap-utils.h"
 
 namespace v8 {
 namespace internal {
 
 namespace {
-
-v8::Local<v8::Object> ConstructTraceableJSApiObject(
-    v8::Local<v8::Context> context, void* object) {
-  v8::EscapableHandleScope scope(context->GetIsolate());
-  v8::Local<v8::FunctionTemplate> function_t =
-      v8::FunctionTemplate::New(context->GetIsolate());
-  v8::Local<v8::ObjectTemplate> instance_t = function_t->InstanceTemplate();
-  instance_t->SetInternalFieldCount(2);
-  v8::Local<v8::Function> function =
-      function_t->GetFunction(context).ToLocalChecked();
-  v8::Local<v8::Object> instance =
-      function->NewInstance(context).ToLocalChecked();
-  instance->SetAlignedPointerInInternalField(0, object);
-  instance->SetAlignedPointerInInternalField(1, object);
-  CHECK(!instance.IsEmpty());
-  i::Handle<i::JSReceiver> js_obj = v8::Utils::OpenHandle(*instance);
-  CHECK_EQ(i::JS_API_OBJECT_TYPE, js_obj->map().instance_type());
-  return scope.Escape(instance);
-}
-
-void ResetWrappableConnection(v8::Local<v8::Object> api_object) {
-  api_object->SetAlignedPointerInInternalField(0, nullptr);
-  api_object->SetAlignedPointerInInternalField(1, nullptr);
-}
-
-class UnifiedHeapTest : public TestWithHeapInternals {
- public:
-  UnifiedHeapTest()
-      : saved_incremental_marking_wrappers_(FLAG_incremental_marking_wrappers) {
-    FLAG_incremental_marking_wrappers = false;
-    cppgc::InitializeProcess(V8::GetCurrentPlatform()->GetPageAllocator());
-    cpp_heap_ = std::make_unique<CppHeap>(v8_isolate(), 0);
-    heap()->SetEmbedderHeapTracer(&cpp_heap());
-  }
-
-  ~UnifiedHeapTest() {
-    heap()->SetEmbedderHeapTracer(nullptr);
-    FLAG_incremental_marking_wrappers = saved_incremental_marking_wrappers_;
-    cppgc::ShutdownProcess();
-  }
-
-  CppHeap& cpp_heap() const { return *cpp_heap_.get(); }
-
-  cppgc::AllocationHandle& allocation_handle() {
-    return cpp_heap().object_allocator();
-  }
-
- private:
-  std::unique_ptr<CppHeap> cpp_heap_;
-  bool saved_incremental_marking_wrappers_;
-};
 
 class Wrappable final : public cppgc::GarbageCollected<Wrappable> {
  public:
@@ -72,28 +26,127 @@ class Wrappable final : public cppgc::GarbageCollected<Wrappable> {
 
   ~Wrappable() { destructor_callcount++; }
 
-  void Trace(cppgc::Visitor* visitor) const {}
+  void Trace(cppgc::Visitor* visitor) const { visitor->Trace(wrapper_); }
+
+  void SetWrapper(v8::Isolate* isolate, v8::Local<v8::Object> wrapper) {
+    wrapper_.Reset(isolate, wrapper);
+  }
+
+  TracedReference<v8::Object>& wrapper() { return wrapper_; }
+
+ private:
+  TracedReference<v8::Object> wrapper_;
 };
 
 size_t Wrappable::destructor_callcount = 0;
 
+using UnifiedHeapDetachedTest = TestWithHeapInternals;
+
 }  // namespace
 
-TEST_F(UnifiedHeapTest, OnlyGC) { CollectGarbage(OLD_SPACE); }
+TEST_F(UnifiedHeapTest, OnlyGC) { CollectGarbageWithEmbedderStack(); }
 
 TEST_F(UnifiedHeapTest, FindingV8ToBlinkReference) {
   v8::HandleScope scope(v8_isolate());
   v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
   v8::Context::Scope context_scope(context);
-  v8::Local<v8::Object> api_object = ConstructTraceableJSApiObject(
-      context, cppgc::MakeGarbageCollected<Wrappable>(allocation_handle()));
+  uint16_t wrappable_type = WrapperHelper::kTracedEmbedderId;
+  v8::Local<v8::Object> api_object = WrapperHelper::CreateWrapper(
+      context, &wrappable_type,
+      cppgc::MakeGarbageCollected<Wrappable>(allocation_handle()));
+  Wrappable::destructor_callcount = 0;
   EXPECT_FALSE(api_object.IsEmpty());
   EXPECT_EQ(0u, Wrappable::destructor_callcount);
-  CollectGarbage(OLD_SPACE);
+  CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
   EXPECT_EQ(0u, Wrappable::destructor_callcount);
-  ResetWrappableConnection(api_object);
-  CollectGarbage(OLD_SPACE);
+  WrapperHelper::ResetWrappableConnection(api_object);
+  CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
   EXPECT_EQ(1u, Wrappable::destructor_callcount);
+}
+
+TEST_F(UnifiedHeapTest, WriteBarrierV8ToCppReference) {
+  v8::HandleScope scope(v8_isolate());
+  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
+  v8::Context::Scope context_scope(context);
+  void* wrappable = cppgc::MakeGarbageCollected<Wrappable>(allocation_handle());
+  v8::Local<v8::Object> api_object =
+      WrapperHelper::CreateWrapper(context, nullptr, nullptr);
+  Wrappable::destructor_callcount = 0;
+  WrapperHelper::ResetWrappableConnection(api_object);
+  SimulateIncrementalMarking();
+  {
+    // The following snippet shows the embedder code for implementing a GC-safe
+    // setter for JS to C++ references.
+    WrapperHelper::SetWrappableConnection(api_object, wrappable, wrappable);
+    JSHeapConsistency::WriteBarrierParams params;
+    auto barrier_type = JSHeapConsistency::GetWriteBarrierType(
+        api_object, 1, wrappable, params,
+        [this]() -> cppgc::HeapHandle& { return cpp_heap().GetHeapHandle(); });
+    EXPECT_EQ(JSHeapConsistency::WriteBarrierType::kMarking, barrier_type);
+    JSHeapConsistency::DijkstraMarkingBarrier(
+        params, cpp_heap().GetHeapHandle(), wrappable);
+  }
+  CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
+  EXPECT_EQ(0u, Wrappable::destructor_callcount);
+}
+
+TEST_F(UnifiedHeapTest, WriteBarrierCppToV8Reference) {
+  v8::HandleScope scope(v8_isolate());
+  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
+  v8::Context::Scope context_scope(context);
+  cppgc::Persistent<Wrappable> wrappable =
+      cppgc::MakeGarbageCollected<Wrappable>(allocation_handle());
+  Wrappable::destructor_callcount = 0;
+  SimulateIncrementalMarking();
+  // Pick a sentinel to compare against.
+  void* kMagicAddress = &Wrappable::destructor_callcount;
+  {
+    // The following snippet shows the embedder code for implementing a GC-safe
+    // setter for C++ to JS references.
+    v8::HandleScope nested_scope(v8_isolate());
+    v8::Local<v8::Object> api_object =
+        WrapperHelper::CreateWrapper(context, nullptr, nullptr);
+    // Setting only one field to avoid treating this as wrappable backref, see
+    // `LocalEmbedderHeapTracer::ExtractWrapperInfo`.
+    api_object->SetAlignedPointerInInternalField(1, kMagicAddress);
+    wrappable->SetWrapper(v8_isolate(), api_object);
+    JSHeapConsistency::WriteBarrierParams params;
+    auto barrier_type = JSHeapConsistency::GetWriteBarrierType(
+        wrappable->wrapper(), params,
+        [this]() -> cppgc::HeapHandle& { return cpp_heap().GetHeapHandle(); });
+    EXPECT_EQ(JSHeapConsistency::WriteBarrierType::kMarking, barrier_type);
+    JSHeapConsistency::DijkstraMarkingBarrier(
+        params, cpp_heap().GetHeapHandle(), wrappable->wrapper());
+  }
+  CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
+  EXPECT_EQ(0u, Wrappable::destructor_callcount);
+  EXPECT_EQ(kMagicAddress,
+            wrappable->wrapper()->GetAlignedPointerFromInternalField(1));
+}
+
+TEST_F(UnifiedHeapDetachedTest, AllocationBeforeConfigureHeap) {
+  auto heap = v8::CppHeap::Create(
+      V8::GetCurrentPlatform(),
+      CppHeapCreateParams{{}, WrapperHelper::DefaultWrapperDescriptor()});
+  auto* object =
+      cppgc::MakeGarbageCollected<Wrappable>(heap->GetAllocationHandle());
+  cppgc::WeakPersistent<Wrappable> weak_holder{object};
+
+  auto& js_heap = *isolate()->heap();
+  js_heap.AttachCppHeap(heap.get());
+  auto& cpp_heap = *CppHeap::From(isolate()->heap()->cpp_heap());
+  {
+    CollectGarbage(OLD_SPACE);
+    cpp_heap.AsBase().sweeper().FinishIfRunning();
+    EXPECT_TRUE(weak_holder);
+  }
+  {
+    js_heap.SetEmbedderStackStateForNextFinalization(
+        EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers);
+    CollectGarbage(OLD_SPACE);
+    cpp_heap.AsBase().sweeper().FinishIfRunning();
+    EXPECT_FALSE(weak_holder);
+  }
 }
 
 }  // namespace internal

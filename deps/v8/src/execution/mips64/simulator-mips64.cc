@@ -10,9 +10,12 @@
 #include <limits.h>
 #include <stdarg.h>
 #include <stdlib.h>
+
 #include <cmath>
 
 #include "src/base/bits.h"
+#include "src/base/platform/platform.h"
+#include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/mips64/constants-mips64.h"
@@ -788,7 +791,7 @@ void Simulator::CheckICache(base::CustomMatcherHashMap* i_cache,
                        cache_page->CachedData(offset), kInstrSize));
   } else {
     // Cache miss.  Load memory into the cache.
-    memcpy(cached_line, line, CachePage::kLineLength);
+    base::Memcpy(cached_line, line, CachePage::kLineLength);
     *cache_valid_byte = CachePage::LINE_VALID;
   }
 }
@@ -797,7 +800,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   // Set up simulator support first. Some of this information is needed to
   // setup the architecture state.
   stack_size_ = FLAG_sim_stack_size * KB;
-  stack_ = reinterpret_cast<char*>(malloc(stack_size_));
+  stack_ = reinterpret_cast<char*>(base::Malloc(stack_size_));
   pc_modified_ = false;
   icount_ = 0;
   break_count_ = 0;
@@ -835,7 +838,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
 
 Simulator::~Simulator() {
   GlobalMonitor::Get()->RemoveLinkedAddress(&global_monitor_thread_);
-  free(stack_);
+  base::Free(stack_);
 }
 
 // Get the active Simulator for the current thread.
@@ -929,8 +932,8 @@ double Simulator::get_double_from_register_pair(int reg) {
   // Read the bits from the unsigned integer register_[] array
   // into the double precision floating point value and return it.
   char buffer[sizeof(registers_[0])];
-  memcpy(buffer, &registers_[reg], sizeof(registers_[0]));
-  memcpy(&dm_val, buffer, sizeof(registers_[0]));
+  base::Memcpy(buffer, &registers_[reg], sizeof(registers_[0]));
+  base::Memcpy(&dm_val, buffer, sizeof(registers_[0]));
   return (dm_val);
 }
 
@@ -967,13 +970,13 @@ double Simulator::get_fpu_register_double(int fpureg) const {
 template <typename T>
 void Simulator::get_msa_register(int wreg, T* value) {
   DCHECK((wreg >= 0) && (wreg < kNumMSARegisters));
-  memcpy(value, FPUregisters_ + wreg * 2, kSimd128Size);
+  base::Memcpy(value, FPUregisters_ + wreg * 2, kSimd128Size);
 }
 
 template <typename T>
 void Simulator::set_msa_register(int wreg, const T* value) {
   DCHECK((wreg >= 0) && (wreg < kNumMSARegisters));
-  memcpy(FPUregisters_ + wreg * 2, value, kSimd128Size);
+  base::Memcpy(FPUregisters_ + wreg * 2, value, kSimd128Size);
 }
 
 // Runtime FP routines take up to two double arguments and zero
@@ -995,14 +998,14 @@ void Simulator::GetFpArgs(double* x, double* y, int32_t* z) {
     // Registers a0 and a1 -> x.
     reg_buffer[0] = get_register(a0);
     reg_buffer[1] = get_register(a1);
-    memcpy(x, buffer, sizeof(buffer));
+    base::Memcpy(x, buffer, sizeof(buffer));
     // Registers a2 and a3 -> y.
     reg_buffer[0] = get_register(a2);
     reg_buffer[1] = get_register(a3);
-    memcpy(y, buffer, sizeof(buffer));
+    base::Memcpy(y, buffer, sizeof(buffer));
     // Register 2 -> z.
     reg_buffer[0] = get_register(a2);
-    memcpy(z, buffer, sizeof(*z));
+    base::Memcpy(z, buffer, sizeof(*z));
   }
 }
 
@@ -1013,7 +1016,7 @@ void Simulator::SetFpResult(const double& result) {
   } else {
     char buffer[2 * sizeof(registers_[0])];
     int64_t* reg_buffer = reinterpret_cast<int64_t*>(buffer);
-    memcpy(buffer, &result, sizeof(buffer));
+    base::Memcpy(buffer, &result, sizeof(buffer));
     // Copy result to v0 and v1.
     set_register(v0, reg_buffer[0]);
     set_register(v1, reg_buffer[1]);
@@ -1030,6 +1033,10 @@ void Simulator::set_fcsr_bit(uint32_t cc, bool value) {
 }
 
 bool Simulator::test_fcsr_bit(uint32_t cc) { return FCSR_ & (1 << cc); }
+
+void Simulator::clear_fcsr_cause() {
+  FCSR_ &= ~kFCSRCauseMask;
+}
 
 void Simulator::set_fcsr_rounding_mode(FPURoundingMode mode) {
   FCSR_ |= mode & kFPURoundingModeMask;
@@ -1054,24 +1061,31 @@ bool Simulator::set_fcsr_round_error(double original, double rounded) {
   double max_int32 = std::numeric_limits<int32_t>::max();
   double min_int32 = std::numeric_limits<int32_t>::min();
 
+  clear_fcsr_cause();
+
   if (!std::isfinite(original) || !std::isfinite(rounded)) {
     set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
+    set_fcsr_bit(kFCSRInvalidOpCauseBit, true);
     ret = true;
   }
 
   if (original != rounded) {
     set_fcsr_bit(kFCSRInexactFlagBit, true);
+    set_fcsr_bit(kFCSRInexactCauseBit, true);
   }
 
   if (rounded < DBL_MIN && rounded > -DBL_MIN && rounded != 0) {
     set_fcsr_bit(kFCSRUnderflowFlagBit, true);
+    set_fcsr_bit(kFCSRUnderflowCauseBit, true);
     ret = true;
   }
 
   if (rounded > max_int32 || rounded < min_int32) {
     set_fcsr_bit(kFCSROverflowFlagBit, true);
+    set_fcsr_bit(kFCSROverflowCauseBit, true);
     // The reference is not really clear but it seems this is required:
     set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
+    set_fcsr_bit(kFCSRInvalidOpCauseBit, true);
     ret = true;
   }
 
@@ -1087,24 +1101,31 @@ bool Simulator::set_fcsr_round64_error(double original, double rounded) {
   double max_int64 = std::numeric_limits<int64_t>::max();
   double min_int64 = std::numeric_limits<int64_t>::min();
 
+  clear_fcsr_cause();
+
   if (!std::isfinite(original) || !std::isfinite(rounded)) {
     set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
+    set_fcsr_bit(kFCSRInvalidOpCauseBit, true);
     ret = true;
   }
 
   if (original != rounded) {
     set_fcsr_bit(kFCSRInexactFlagBit, true);
+    set_fcsr_bit(kFCSRInexactCauseBit, true);
   }
 
   if (rounded < DBL_MIN && rounded > -DBL_MIN && rounded != 0) {
     set_fcsr_bit(kFCSRUnderflowFlagBit, true);
+    set_fcsr_bit(kFCSRUnderflowCauseBit, true);
     ret = true;
   }
 
   if (rounded >= max_int64 || rounded < min_int64) {
     set_fcsr_bit(kFCSROverflowFlagBit, true);
+    set_fcsr_bit(kFCSROverflowCauseBit, true);
     // The reference is not really clear but it seems this is required:
     set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
+    set_fcsr_bit(kFCSRInvalidOpCauseBit, true);
     ret = true;
   }
 
@@ -1118,24 +1139,31 @@ bool Simulator::set_fcsr_round_error(float original, float rounded) {
   double max_int32 = std::numeric_limits<int32_t>::max();
   double min_int32 = std::numeric_limits<int32_t>::min();
 
+  clear_fcsr_cause();
+
   if (!std::isfinite(original) || !std::isfinite(rounded)) {
     set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
+    set_fcsr_bit(kFCSRInvalidOpCauseBit, true);
     ret = true;
   }
 
   if (original != rounded) {
     set_fcsr_bit(kFCSRInexactFlagBit, true);
+    set_fcsr_bit(kFCSRInexactCauseBit, true);
   }
 
   if (rounded < FLT_MIN && rounded > -FLT_MIN && rounded != 0) {
     set_fcsr_bit(kFCSRUnderflowFlagBit, true);
+    set_fcsr_bit(kFCSRUnderflowCauseBit, true);
     ret = true;
   }
 
   if (rounded > max_int32 || rounded < min_int32) {
     set_fcsr_bit(kFCSROverflowFlagBit, true);
+    set_fcsr_bit(kFCSROverflowCauseBit, true);
     // The reference is not really clear but it seems this is required:
     set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
+    set_fcsr_bit(kFCSRInvalidOpCauseBit, true);
     ret = true;
   }
 
@@ -1268,24 +1296,31 @@ bool Simulator::set_fcsr_round64_error(float original, float rounded) {
   double max_int64 = std::numeric_limits<int64_t>::max();
   double min_int64 = std::numeric_limits<int64_t>::min();
 
+  clear_fcsr_cause();
+
   if (!std::isfinite(original) || !std::isfinite(rounded)) {
     set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
+    set_fcsr_bit(kFCSRInvalidOpCauseBit, true);
     ret = true;
   }
 
   if (original != rounded) {
     set_fcsr_bit(kFCSRInexactFlagBit, true);
+    set_fcsr_bit(kFCSRInexactCauseBit, true);
   }
 
   if (rounded < FLT_MIN && rounded > -FLT_MIN && rounded != 0) {
     set_fcsr_bit(kFCSRUnderflowFlagBit, true);
+    set_fcsr_bit(kFCSRUnderflowCauseBit, true);
     ret = true;
   }
 
   if (rounded >= max_int64 || rounded < min_int64) {
     set_fcsr_bit(kFCSROverflowFlagBit, true);
+    set_fcsr_bit(kFCSROverflowCauseBit, true);
     // The reference is not really clear but it seems this is required:
     set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
+    set_fcsr_bit(kFCSRInvalidOpCauseBit, true);
     ret = true;
   }
 
@@ -1590,7 +1625,7 @@ void Simulator::TraceMSARegWr(T* value, TraceType t) {
       float f[4];
       double df[2];
     } v;
-    memcpy(v.b, value, kSimd128Size);
+    base::Memcpy(v.b, value, kSimd128Size);
     switch (t) {
       case BYTE:
         SNPrintF(trace_buf_,
@@ -1643,7 +1678,7 @@ void Simulator::TraceMSARegWr(T* value) {
       float f[kMSALanesWord];
       double df[kMSALanesDword];
     } v;
-    memcpy(v.b, value, kMSALanesByte);
+    base::Memcpy(v.b, value, kMSALanesByte);
 
     if (std::is_same<T, int32_t>::value) {
       SNPrintF(trace_buf_,
@@ -2140,7 +2175,7 @@ void Simulator::WriteMem(int64_t addr, T value, Instruction* instr) {
 uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
   // The simulator uses a separate JS stack. If we have exhausted the C stack,
   // we also drop down the JS limit to reflect the exhaustion on the JS stack.
-  if (GetCurrentStackPosition() < c_limit) {
+  if (base::Stack::GetCurrentStackPosition() < c_limit) {
     return reinterpret_cast<uintptr_t>(get_sp());
   }
 
@@ -4662,16 +4697,16 @@ T Simulator::MsaI5InstrHelper(uint32_t opcode, T ws, int32_t i5) {
       res = static_cast<T>(ws - ui5);
       break;
     case MAXI_S:
-      res = static_cast<T>(Max(ws, static_cast<T>(i5)));
+      res = static_cast<T>(std::max(ws, static_cast<T>(i5)));
       break;
     case MINI_S:
-      res = static_cast<T>(Min(ws, static_cast<T>(i5)));
+      res = static_cast<T>(std::min(ws, static_cast<T>(i5)));
       break;
     case MAXI_U:
-      res = static_cast<T>(Max(ws_u64, ui5_u64));
+      res = static_cast<T>(std::max(ws_u64, ui5_u64));
       break;
     case MINI_U:
-      res = static_cast<T>(Min(ws_u64, ui5_u64));
+      res = static_cast<T>(std::min(ws_u64, ui5_u64));
       break;
     case CEQI:
       res = static_cast<T>(!Compare(ws, static_cast<T>(i5)) ? -1ull : 0ull);
@@ -5174,16 +5209,16 @@ T Simulator::Msa3RInstrHelper(uint32_t opcode, T wd, T ws, T wt) {
       res = ws - wt;
       break;
     case MAX_S:
-      res = Max(ws, wt);
+      res = std::max(ws, wt);
       break;
     case MAX_U:
-      res = static_cast<T>(Max(static_cast<uT>(ws), static_cast<uT>(wt)));
+      res = static_cast<T>(std::max(static_cast<uT>(ws), static_cast<uT>(wt)));
       break;
     case MIN_S:
-      res = Min(ws, wt);
+      res = std::min(ws, wt);
       break;
     case MIN_U:
-      res = static_cast<T>(Min(static_cast<uT>(ws), static_cast<uT>(wt)));
+      res = static_cast<T>(std::min(static_cast<uT>(ws), static_cast<uT>(wt)));
       break;
     case MAX_A:
       // We use negative abs in order to avoid problems
@@ -7447,8 +7482,8 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
   }
   // Store remaining arguments on stack, from low to high memory.
   intptr_t* stack_argument = reinterpret_cast<intptr_t*>(entry_stack);
-  memcpy(stack_argument + kCArgSlotCount, arguments + reg_arg_count,
-         stack_args_count * sizeof(*arguments));
+  base::Memcpy(stack_argument + kCArgSlotCount, arguments + reg_arg_count,
+               stack_args_count * sizeof(*arguments));
   set_register(sp, entry_stack);
 
   CallInternal(entry);
@@ -7468,9 +7503,9 @@ double Simulator::CallFP(Address entry, double d0, double d1) {
   } else {
     int buffer[2];
     DCHECK(sizeof(buffer[0]) * 2 == sizeof(d0));
-    memcpy(buffer, &d0, sizeof(d0));
+    base::Memcpy(buffer, &d0, sizeof(d0));
     set_dw_register(a0, buffer);
-    memcpy(buffer, &d1, sizeof(d1));
+    base::Memcpy(buffer, &d1, sizeof(d1));
     set_dw_register(a2, buffer);
   }
   CallInternal(entry);

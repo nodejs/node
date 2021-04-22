@@ -27,6 +27,7 @@
 #include "src/runtime/runtime.h"
 #include "src/strings/char-predicates-inl.h"
 #include "src/strings/string-stream.h"
+#include "src/strings/unicode-inl.h"
 #include "src/tracing/trace-event.h"
 #include "src/zone/zone-list-inl.h"
 
@@ -280,14 +281,14 @@ Expression* Parser::NewThrowError(Runtime::FunctionId id,
 }
 
 Expression* Parser::NewSuperPropertyReference(int pos) {
-  // this_function[home_object_symbol]
-  VariableProxy* this_function_proxy =
-      NewUnresolved(ast_value_factory()->this_function_string(), pos);
-  Expression* home_object_symbol_literal = factory()->NewSymbolLiteral(
-      AstSymbol::kHomeObjectSymbol, kNoSourcePosition);
-  Expression* home_object = factory()->NewProperty(
-      this_function_proxy, home_object_symbol_literal, pos);
-  return factory()->NewSuperPropertyReference(home_object, pos);
+  const AstRawString* home_object_name;
+  if (IsStatic(scope()->GetReceiverScope()->function_kind())) {
+    home_object_name = ast_value_factory_->dot_static_home_object_string();
+  } else {
+    home_object_name = ast_value_factory_->dot_home_object_string();
+  }
+  return factory()->NewSuperPropertyReference(
+      NewUnresolved(home_object_name, pos), pos);
 }
 
 Expression* Parser::NewSuperCallReference(int pos) {
@@ -1033,9 +1034,7 @@ Statement* Parser::ParseModuleItem() {
     // We must be careful not to parse a dynamic import expression as an import
     // declaration. Same for import.meta expressions.
     Token::Value peek_ahead = PeekAhead();
-    if ((!flags().allow_harmony_dynamic_import() ||
-         peek_ahead != Token::LPAREN) &&
-        (!flags().allow_harmony_import_meta() || peek_ahead != Token::PERIOD)) {
+    if (peek_ahead != Token::LPAREN && peek_ahead != Token::PERIOD) {
       ParseImportDeclaration();
       return factory()->EmptyStatement();
     }
@@ -1071,7 +1070,8 @@ const AstRawString* Parser::ParseModuleSpecifier() {
 }
 
 ZoneChunkList<Parser::ExportClauseData>* Parser::ParseExportClause(
-    Scanner::Location* reserved_loc) {
+    Scanner::Location* reserved_loc,
+    Scanner::Location* string_literal_local_name_loc) {
   // ExportClause :
   //   '{' '}'
   //   '{' ExportsList '}'
@@ -1084,6 +1084,12 @@ ZoneChunkList<Parser::ExportClauseData>* Parser::ParseExportClause(
   // ExportSpecifier :
   //   IdentifierName
   //   IdentifierName 'as' IdentifierName
+  //   IdentifierName 'as' ModuleExportName
+  //   ModuleExportName
+  //   ModuleExportName 'as' ModuleExportName
+  //
+  // ModuleExportName :
+  //   StringLiteral
   ZoneChunkList<ExportClauseData>* export_data =
       zone()->New<ZoneChunkList<ExportClauseData>>(zone());
 
@@ -1091,23 +1097,27 @@ ZoneChunkList<Parser::ExportClauseData>* Parser::ParseExportClause(
 
   Token::Value name_tok;
   while ((name_tok = peek()) != Token::RBRACE) {
-    // Keep track of the first reserved word encountered in case our
-    // caller needs to report an error.
-    if (!reserved_loc->IsValid() &&
-        !Token::IsValidIdentifier(name_tok, LanguageMode::kStrict, false,
-                                  flags().is_module())) {
+    const AstRawString* local_name = ParseExportSpecifierName();
+    if (!string_literal_local_name_loc->IsValid() &&
+        name_tok == Token::STRING) {
+      // Keep track of the first string literal local name exported for error
+      // reporting. These must be followed by a 'from' clause.
+      *string_literal_local_name_loc = scanner()->location();
+    } else if (!reserved_loc->IsValid() &&
+               !Token::IsValidIdentifier(name_tok, LanguageMode::kStrict, false,
+                                         flags().is_module())) {
+      // Keep track of the first reserved word encountered in case our
+      // caller needs to report an error.
       *reserved_loc = scanner()->location();
     }
-    const AstRawString* local_name = ParsePropertyName();
-    const AstRawString* export_name = nullptr;
+    const AstRawString* export_name;
     Scanner::Location location = scanner()->location();
     if (CheckContextualKeyword(ast_value_factory()->as_string())) {
-      export_name = ParsePropertyName();
+      export_name = ParseExportSpecifierName();
       // Set the location to the whole "a as b" string, so that it makes sense
       // both for errors due to "a" and for errors due to "b".
       location.end_pos = scanner()->location().end_pos;
-    }
-    if (export_name == nullptr) {
+    } else {
       export_name = local_name;
     }
     export_data->push_back({export_name, local_name, location});
@@ -1120,6 +1130,31 @@ ZoneChunkList<Parser::ExportClauseData>* Parser::ParseExportClause(
 
   Expect(Token::RBRACE);
   return export_data;
+}
+
+const AstRawString* Parser::ParseExportSpecifierName() {
+  Token::Value next = Next();
+
+  // IdentifierName
+  if (V8_LIKELY(Token::IsPropertyName(next))) {
+    return GetSymbol();
+  }
+
+  // ModuleExportName
+  if (next == Token::STRING) {
+    const AstRawString* export_name = GetSymbol();
+    if (V8_LIKELY(export_name->is_one_byte())) return export_name;
+    if (!unibrow::Utf16::HasUnpairedSurrogate(
+            reinterpret_cast<const uint16_t*>(export_name->raw_data()),
+            export_name->length())) {
+      return export_name;
+    }
+    ReportMessage(MessageTemplate::kInvalidModuleExportName);
+    return EmptyIdentifierString();
+  }
+
+  ReportUnexpectedToken(next);
+  return EmptyIdentifierString();
 }
 
 ZonePtrList<const Parser::NamedImport>* Parser::ParseNamedImports(int pos) {
@@ -1135,12 +1170,13 @@ ZonePtrList<const Parser::NamedImport>* Parser::ParseNamedImports(int pos) {
   // ImportSpecifier :
   //   BindingIdentifier
   //   IdentifierName 'as' BindingIdentifier
+  //   ModuleExportName 'as' BindingIdentifier
 
   Expect(Token::LBRACE);
 
   auto result = zone()->New<ZonePtrList<const NamedImport>>(1, zone());
   while (peek() != Token::RBRACE) {
-    const AstRawString* import_name = ParsePropertyName();
+    const AstRawString* import_name = ParseExportSpecifierName();
     const AstRawString* local_name = import_name;
     Scanner::Location location = scanner()->location();
     // In the presence of 'as', the left-side of the 'as' can
@@ -1174,10 +1210,80 @@ ZonePtrList<const Parser::NamedImport>* Parser::ParseNamedImports(int pos) {
   return result;
 }
 
+ImportAssertions* Parser::ParseImportAssertClause() {
+  // AssertClause :
+  //    assert '{' '}'
+  //    assert '{' AssertEntries '}'
+
+  // AssertEntries :
+  //    IdentifierName: AssertionKey
+  //    IdentifierName: AssertionKey , AssertEntries
+
+  // AssertionKey :
+  //     IdentifierName
+  //     StringLiteral
+
+  auto import_assertions = zone()->New<ImportAssertions>(zone());
+
+  if (!FLAG_harmony_import_assertions) {
+    return import_assertions;
+  }
+
+  // Assert clause is optional, and cannot be preceded by a LineTerminator.
+  if (scanner()->HasLineTerminatorBeforeNext() ||
+      !CheckContextualKeyword(ast_value_factory()->assert_string())) {
+    return import_assertions;
+  }
+
+  Expect(Token::LBRACE);
+
+  while (peek() != Token::RBRACE) {
+    const AstRawString* attribute_key = nullptr;
+    if (Check(Token::STRING)) {
+      attribute_key = GetSymbol();
+    } else {
+      attribute_key = ParsePropertyName();
+    }
+
+    Scanner::Location location = scanner()->location();
+
+    Expect(Token::COLON);
+    Expect(Token::STRING);
+
+    const AstRawString* attribute_value = GetSymbol();
+
+    // Set the location to the whole "key: 'value'"" string, so that it makes
+    // sense both for errors due to the key and errors due to the value.
+    location.end_pos = scanner()->location().end_pos;
+
+    auto result = import_assertions->insert(std::make_pair(
+        attribute_key, std::make_pair(attribute_value, location)));
+    if (!result.second) {
+      // It is a syntax error if two AssertEntries have the same key.
+      ReportMessageAt(location, MessageTemplate::kImportAssertionDuplicateKey,
+                      attribute_key);
+      break;
+    }
+
+    if (peek() == Token::RBRACE) break;
+    if (V8_UNLIKELY(!Check(Token::COMMA))) {
+      ReportUnexpectedToken(Next());
+      break;
+    }
+  }
+
+  Expect(Token::RBRACE);
+
+  return import_assertions;
+}
+
 void Parser::ParseImportDeclaration() {
   // ImportDeclaration :
   //   'import' ImportClause 'from' ModuleSpecifier ';'
   //   'import' ModuleSpecifier ';'
+  //   'import' ImportClause 'from' ModuleSpecifier [no LineTerminator here]
+  //       AssertClause ';'
+  //   'import' ModuleSpecifier [no LineTerminator here] AssertClause';'
   //
   // ImportClause :
   //   ImportedDefaultBinding
@@ -1198,8 +1304,10 @@ void Parser::ParseImportDeclaration() {
   if (tok == Token::STRING) {
     Scanner::Location specifier_loc = scanner()->peek_location();
     const AstRawString* module_specifier = ParseModuleSpecifier();
+    const ImportAssertions* import_assertions = ParseImportAssertClause();
     ExpectSemicolon();
-    module()->AddEmptyImport(module_specifier, specifier_loc);
+    module()->AddEmptyImport(module_specifier, import_assertions, specifier_loc,
+                             zone());
     return;
   }
 
@@ -1242,6 +1350,7 @@ void Parser::ParseImportDeclaration() {
   ExpectContextualKeyword(ast_value_factory()->from_string());
   Scanner::Location specifier_loc = scanner()->peek_location();
   const AstRawString* module_specifier = ParseModuleSpecifier();
+  const ImportAssertions* import_assertions = ParseImportAssertClause();
   ExpectSemicolon();
 
   // Now that we have all the information, we can make the appropriate
@@ -1254,24 +1363,26 @@ void Parser::ParseImportDeclaration() {
 
   if (module_namespace_binding != nullptr) {
     module()->AddStarImport(module_namespace_binding, module_specifier,
-                            module_namespace_binding_loc, specifier_loc,
-                            zone());
+                            import_assertions, module_namespace_binding_loc,
+                            specifier_loc, zone());
   }
 
   if (import_default_binding != nullptr) {
     module()->AddImport(ast_value_factory()->default_string(),
                         import_default_binding, module_specifier,
-                        import_default_binding_loc, specifier_loc, zone());
+                        import_assertions, import_default_binding_loc,
+                        specifier_loc, zone());
   }
 
   if (named_imports != nullptr) {
     if (named_imports->length() == 0) {
-      module()->AddEmptyImport(module_specifier, specifier_loc);
+      module()->AddEmptyImport(module_specifier, import_assertions,
+                               specifier_loc, zone());
     } else {
       for (const NamedImport* import : *named_imports) {
         module()->AddImport(import->import_name, import->local_name,
-                            module_specifier, import->location, specifier_loc,
-                            zone());
+                            module_specifier, import_assertions,
+                            import->location, specifier_loc, zone());
       }
     }
   }
@@ -1354,18 +1465,18 @@ void Parser::ParseExportStar() {
   int pos = position();
   Consume(Token::MUL);
 
-  if (!FLAG_harmony_namespace_exports ||
-      !PeekContextualKeyword(ast_value_factory()->as_string())) {
+  if (!PeekContextualKeyword(ast_value_factory()->as_string())) {
     // 'export' '*' 'from' ModuleSpecifier ';'
     Scanner::Location loc = scanner()->location();
     ExpectContextualKeyword(ast_value_factory()->from_string());
     Scanner::Location specifier_loc = scanner()->peek_location();
     const AstRawString* module_specifier = ParseModuleSpecifier();
+    const ImportAssertions* import_assertions = ParseImportAssertClause();
     ExpectSemicolon();
-    module()->AddStarExport(module_specifier, loc, specifier_loc, zone());
+    module()->AddStarExport(module_specifier, import_assertions, loc,
+                            specifier_loc, zone());
     return;
   }
-  if (!FLAG_harmony_namespace_exports) return;
 
   // 'export' '*' 'as' IdentifierName 'from' ModuleSpecifier ';'
   //
@@ -1373,9 +1484,14 @@ void Parser::ParseExportStar() {
   //   export * as x from "...";
   // ~>
   //   import * as .x from "..."; export {.x as x};
+  //
+  // Note that the desugared internal namespace export name (.x above) will
+  // never conflict with a string literal export name, as literal string export
+  // names in local name positions (i.e. left of 'as' or in a clause without
+  // 'as') are disallowed without a following 'from' clause.
 
   ExpectContextualKeyword(ast_value_factory()->as_string());
-  const AstRawString* export_name = ParsePropertyName();
+  const AstRawString* export_name = ParseExportSpecifierName();
   Scanner::Location export_name_loc = scanner()->location();
   const AstRawString* local_name = NextInternalNamespaceExportName();
   Scanner::Location local_name_loc = Scanner::Location::invalid();
@@ -1385,21 +1501,34 @@ void Parser::ParseExportStar() {
   ExpectContextualKeyword(ast_value_factory()->from_string());
   Scanner::Location specifier_loc = scanner()->peek_location();
   const AstRawString* module_specifier = ParseModuleSpecifier();
+  const ImportAssertions* import_assertions = ParseImportAssertClause();
   ExpectSemicolon();
 
-  module()->AddStarImport(local_name, module_specifier, local_name_loc,
-                          specifier_loc, zone());
+  module()->AddStarImport(local_name, module_specifier, import_assertions,
+                          local_name_loc, specifier_loc, zone());
   module()->AddExport(local_name, export_name, export_name_loc, zone());
 }
 
 Statement* Parser::ParseExportDeclaration() {
   // ExportDeclaration:
   //    'export' '*' 'from' ModuleSpecifier ';'
+  //    'export' '*' 'from' ModuleSpecifier [no LineTerminator here]
+  //        AssertClause ';'
   //    'export' '*' 'as' IdentifierName 'from' ModuleSpecifier ';'
+  //    'export' '*' 'as' IdentifierName 'from' ModuleSpecifier
+  //        [no LineTerminator here] AssertClause ';'
+  //    'export' '*' 'as' ModuleExportName 'from' ModuleSpecifier ';'
+  //    'export' '*' 'as' ModuleExportName 'from' ModuleSpecifier ';'
+  //        [no LineTerminator here] AssertClause ';'
   //    'export' ExportClause ('from' ModuleSpecifier)? ';'
+  //    'export' ExportClause ('from' ModuleSpecifier [no LineTerminator here]
+  //        AssertClause)? ';'
   //    'export' VariableStatement
   //    'export' Declaration
   //    'export' 'default' ... (handled in ParseExportDefault)
+  //
+  // ModuleExportName :
+  //   StringLiteral
 
   Expect(Token::EXPORT);
   Statement* result = nullptr;
@@ -1426,30 +1555,41 @@ Statement* Parser::ParseExportDeclaration() {
       // encountered, and then throw a SyntaxError if we are in the
       // non-FromClause case.
       Scanner::Location reserved_loc = Scanner::Location::invalid();
+      Scanner::Location string_literal_local_name_loc =
+          Scanner::Location::invalid();
       ZoneChunkList<ExportClauseData>* export_data =
-          ParseExportClause(&reserved_loc);
-      const AstRawString* module_specifier = nullptr;
-      Scanner::Location specifier_loc;
+          ParseExportClause(&reserved_loc, &string_literal_local_name_loc);
       if (CheckContextualKeyword(ast_value_factory()->from_string())) {
-        specifier_loc = scanner()->peek_location();
-        module_specifier = ParseModuleSpecifier();
-      } else if (reserved_loc.IsValid()) {
-        // No FromClause, so reserved words are invalid in ExportClause.
-        ReportMessageAt(reserved_loc, MessageTemplate::kUnexpectedReserved);
-        return nullptr;
-      }
-      ExpectSemicolon();
-      if (module_specifier == nullptr) {
+        Scanner::Location specifier_loc = scanner()->peek_location();
+        const AstRawString* module_specifier = ParseModuleSpecifier();
+        const ImportAssertions* import_assertions = ParseImportAssertClause();
+        ExpectSemicolon();
+
+        if (export_data->is_empty()) {
+          module()->AddEmptyImport(module_specifier, import_assertions,
+                                   specifier_loc, zone());
+        } else {
+          for (const ExportClauseData& data : *export_data) {
+            module()->AddExport(data.local_name, data.export_name,
+                                module_specifier, import_assertions,
+                                data.location, specifier_loc, zone());
+          }
+        }
+      } else {
+        if (reserved_loc.IsValid()) {
+          // No FromClause, so reserved words are invalid in ExportClause.
+          ReportMessageAt(reserved_loc, MessageTemplate::kUnexpectedReserved);
+          return nullptr;
+        } else if (string_literal_local_name_loc.IsValid()) {
+          ReportMessageAt(string_literal_local_name_loc,
+                          MessageTemplate::kModuleExportNameWithoutFromClause);
+          return nullptr;
+        }
+
+        ExpectSemicolon();
+
         for (const ExportClauseData& data : *export_data) {
           module()->AddExport(data.local_name, data.export_name, data.location,
-                              zone());
-        }
-      } else if (export_data->is_empty()) {
-        module()->AddEmptyImport(module_specifier, specifier_loc);
-      } else {
-        for (const ExportClauseData& data : *export_data) {
-          module()->AddExport(data.local_name, data.export_name,
-                              module_specifier, data.location, specifier_loc,
                               zone());
         }
       }
@@ -2886,7 +3026,8 @@ void Parser::DeclarePublicClassField(ClassScope* scope,
                                      bool is_static, bool is_computed_name,
                                      ClassInfo* class_info) {
   if (is_static) {
-    class_info->static_fields->Add(property, zone());
+    class_info->static_elements->Add(
+        factory()->NewClassLiteralStaticElement(property), zone());
   } else {
     class_info->instance_fields->Add(property, zone());
   }
@@ -2907,12 +3048,10 @@ void Parser::DeclarePrivateClassMember(ClassScope* scope,
                                        ClassLiteralProperty* property,
                                        ClassLiteralProperty::Kind kind,
                                        bool is_static, ClassInfo* class_info) {
-  DCHECK_IMPLIES(kind != ClassLiteralProperty::Kind::FIELD,
-                 flags().allow_harmony_private_methods());
-
   if (kind == ClassLiteralProperty::Kind::FIELD) {
     if (is_static) {
-      class_info->static_fields->Add(property, zone());
+      class_info->static_elements->Add(
+          factory()->NewClassLiteralStaticElement(property), zone());
     } else {
       class_info->instance_fields->Add(property, zone());
     }
@@ -2952,16 +3091,18 @@ void Parser::DeclarePublicClassMethod(const AstRawString* class_name,
   class_info->public_members->Add(property, zone());
 }
 
+void Parser::AddClassStaticBlock(Block* block, ClassInfo* class_info) {
+  DCHECK(class_info->has_static_elements);
+  class_info->static_elements->Add(
+      factory()->NewClassLiteralStaticElement(block), zone());
+}
+
 FunctionLiteral* Parser::CreateInitializerFunction(
-    const char* name, DeclarationScope* scope,
-    ZonePtrList<ClassLiteral::Property>* fields) {
-  DCHECK_EQ(scope->function_kind(),
-            FunctionKind::kClassMembersInitializerFunction);
+    const char* name, DeclarationScope* scope, Statement* initializer_stmt) {
+  DCHECK(IsClassMembersInitializerFunction(scope->function_kind()));
   // function() { .. class fields initializer .. }
   ScopedPtrList<Statement> statements(pointer_buffer());
-  InitializeClassMembersStatement* stmt =
-      factory()->NewInitializeClassMembersStatement(fields, kNoSourcePosition);
-  statements.Add(stmt);
+  statements.Add(initializer_stmt);
   FunctionLiteral* result = factory()->NewFunctionLiteral(
       ast_value_factory()->GetOneByteString(name), scope, statements, 0, 0, 0,
       FunctionLiteral::kNoDuplicateParameters,
@@ -3002,18 +3143,20 @@ Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
     block_scope->class_variable()->set_initializer_position(end_pos);
   }
 
-  FunctionLiteral* static_fields_initializer = nullptr;
-  if (class_info->has_static_class_fields) {
-    static_fields_initializer = CreateInitializerFunction(
-        "<static_fields_initializer>", class_info->static_fields_scope,
-        class_info->static_fields);
+  FunctionLiteral* static_initializer = nullptr;
+  if (class_info->has_static_elements) {
+    static_initializer = CreateInitializerFunction(
+        "<static_initializer>", class_info->static_elements_scope,
+        factory()->NewInitializeClassStaticElementsStatement(
+            class_info->static_elements, kNoSourcePosition));
   }
 
   FunctionLiteral* instance_members_initializer_function = nullptr;
   if (class_info->has_instance_members) {
     instance_members_initializer_function = CreateInitializerFunction(
         "<instance_members_initializer>", class_info->instance_members_scope,
-        class_info->instance_fields);
+        factory()->NewInitializeClassMembersStatement(
+            class_info->instance_fields, kNoSourcePosition));
     class_info->constructor->set_requires_instance_members_initializer(true);
     class_info->constructor->add_expected_properties(
         class_info->instance_fields->length());
@@ -3028,10 +3171,11 @@ Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
   ClassLiteral* class_literal = factory()->NewClassLiteral(
       block_scope, class_info->extends, class_info->constructor,
       class_info->public_members, class_info->private_members,
-      static_fields_initializer, instance_members_initializer_function, pos,
-      end_pos, class_info->has_name_static_property,
+      static_initializer, instance_members_initializer_function, pos, end_pos,
+      class_info->has_name_static_property,
       class_info->has_static_computed_names, class_info->is_anonymous,
-      class_info->has_private_methods);
+      class_info->has_private_methods, class_info->home_object_variable,
+      class_info->static_home_object_variable);
 
   AddFunctionForNameInference(class_info->constructor);
   return class_literal;

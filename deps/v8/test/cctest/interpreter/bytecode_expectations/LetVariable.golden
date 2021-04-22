@@ -11,10 +11,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 6
+bytecode array length: 5
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(10),
-                B(Star), R(0),
+                B(Star0),
                 B(LdaUndefined),
   /*   46 S> */ B(Return),
 ]
@@ -29,10 +29,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 5
+bytecode array length: 4
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(10),
-                B(Star), R(0),
+                B(Star0),
   /*   55 S> */ B(Return),
 ]
 constant pool: [
@@ -46,12 +46,12 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 16
+bytecode array length: 14
 bytecodes: [
                 B(LdaTheHole),
-                B(Star), R(0),
+                B(Star0),
   /*   42 S> */ B(LdaSmi), I8(20),
-                B(Star), R(1),
+                B(Star1),
                 B(Ldar), R(0),
   /*   45 E> */ B(ThrowReferenceErrorIfHole), U8(0),
                 B(Mov), R(1), R(0),
@@ -70,12 +70,12 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 10
+bytecode array length: 8
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(10),
-                B(Star), R(0),
+                B(Star0),
   /*   46 S> */ B(LdaSmi), I8(20),
-                B(Star), R(0),
+                B(Star0),
                 B(LdaUndefined),
   /*   54 S> */ B(Return),
 ]

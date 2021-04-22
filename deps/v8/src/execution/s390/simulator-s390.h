@@ -53,6 +53,25 @@ class CachePage {
   char validity_map_[kValidityMapSize];  // One byte per line.
 };
 
+template <class T>
+static T ComputeRounding(T a, int mode) {
+  switch (mode) {
+    case ROUND_TO_NEAREST_AWAY_FROM_0:
+      return std::round(a);
+    case ROUND_TO_NEAREST_TO_EVEN:
+      return std::nearbyint(a);
+    case ROUND_TOWARD_0:
+      return std::trunc(a);
+    case ROUND_TOWARD_POS_INF:
+      return std::ceil(a);
+    case ROUND_TOWARD_NEG_INF:
+      return std::floor(a);
+    default:
+      UNIMPLEMENTED();
+  }
+  return 0;
+}
+
 class Simulator : public SimulatorBase {
  public:
   friend class S390Debugger;
@@ -118,40 +137,21 @@ class Simulator : public SimulatorBase {
   void set_high_register(int reg, uint32_t value);
 
   double get_double_from_register_pair(int reg);
-  void set_d_register_from_double(int dreg, const double dbl) {
+
+  // Unlike Integer values, Floating Point values are located on the left most
+  // side of a native 64 bit register. As FP registers are a subset of vector
+  // registers, 64 and 32 bit FP values need to be located on first lane (lane
+  // number 0) of a vector register.
+  template <class T>
+  T get_fpr(int dreg) {
     DCHECK(dreg >= 0 && dreg < kNumFPRs);
-    set_simd_register_by_lane<double>(dreg, 0, dbl);
+    return get_simd_register_by_lane<T>(dreg, 0);
   }
 
-  double get_double_from_d_register(int dreg) {
+  template <class T>
+  void set_fpr(int dreg, const T val) {
     DCHECK(dreg >= 0 && dreg < kNumFPRs);
-    return get_simd_register_by_lane<double>(dreg, 0);
-  }
-
-  void set_d_register(int dreg, int64_t value) {
-    DCHECK(dreg >= 0 && dreg < kNumFPRs);
-    set_simd_register_by_lane<int64_t>(dreg, 0, value);
-  }
-
-  int64_t get_d_register(int dreg) {
-    DCHECK(dreg >= 0 && dreg < kNumFPRs);
-    return get_simd_register_by_lane<int64_t>(dreg, 0);
-  }
-
-  void set_d_register_from_float32(int dreg, const float f) {
-    DCHECK(dreg >= 0 && dreg < kNumFPRs);
-
-    int32_t f_int = *bit_cast<int32_t*>(&f);
-    int64_t finalval = static_cast<int64_t>(f_int) << 32;
-    set_d_register(dreg, finalval);
-  }
-
-  float get_float32_from_d_register(int dreg) {
-    DCHECK(dreg >= 0 && dreg < kNumFPRs);
-
-    int64_t regval = get_d_register(dreg) >> 32;
-    int32_t regval32 = static_cast<int32_t>(regval);
-    return *bit_cast<float*>(&regval32);
+    set_simd_register_by_lane<T>(dreg, 0, val);
   }
 
   // Special case of set_register and get_register to access the raw PC value.
@@ -198,7 +198,6 @@ class Simulator : public SimulatorBase {
   // below (bad_lr, end_sim_pc).
   bool has_bad_pc() const;
 
- private:
   enum special_values {
     // Known bad pc value to ensure that the simulator does not execute
     // without being properly setup.
@@ -242,9 +241,38 @@ class Simulator : public SimulatorBase {
   void PrintStopInfo(uint32_t code);
 
   // Byte Reverse
-  inline int16_t ByteReverse(int16_t hword);
-  inline int32_t ByteReverse(int32_t word);
-  inline int64_t ByteReverse(int64_t dword);
+  static inline __uint128_t __builtin_bswap128(__uint128_t v) {
+    union {
+      uint64_t u64[2];
+      __uint128_t u128;
+    } res, val;
+    val.u128 = v;
+    res.u64[0] = __builtin_bswap64(val.u64[1]);
+    res.u64[1] = __builtin_bswap64(val.u64[0]);
+    return res.u128;
+  }
+
+  template <class T>
+  static inline T ByteReverse(T val) {
+    constexpr int size = sizeof(T);
+#define CASE(type, size_in_bits)                                              \
+  case sizeof(type): {                                                        \
+    type res = __builtin_bswap##size_in_bits(*reinterpret_cast<type*>(&val)); \
+    return *reinterpret_cast<T*>(&res);                                       \
+  }
+    switch (size) {
+      case 1:
+        return val;
+        CASE(uint16_t, 16);
+        CASE(uint32_t, 32);
+        CASE(uint64_t, 64);
+        CASE(__uint128_t, 128);
+      default:
+        UNREACHABLE();
+    }
+#undef CASE
+    return val;
+  }
 
   // Read and write memory.
   inline uint8_t ReadBU(intptr_t addr);
@@ -271,66 +299,6 @@ class Simulator : public SimulatorBase {
 
   // S390
   void Trace(Instruction* instr);
-
-  // Used by the CL**BR instructions.
-  template <typename T1, typename T2>
-  void SetS390RoundConditionCode(T1 r2_val, T2 max, T2 min) {
-    condition_reg_ = 0;
-    double r2_dval = static_cast<double>(r2_val);
-    double dbl_min = static_cast<double>(min);
-    double dbl_max = static_cast<double>(max);
-
-    if (r2_dval == 0.0)
-      condition_reg_ = 8;
-    else if (r2_dval < 0.0 && r2_dval >= dbl_min && std::isfinite(r2_dval))
-      condition_reg_ = 4;
-    else if (r2_dval > 0.0 && r2_dval <= dbl_max && std::isfinite(r2_dval))
-      condition_reg_ = 2;
-    else
-      condition_reg_ = 1;
-  }
-
-  template <typename T1>
-  void SetS390RoundConditionCode(T1 r2_val, int64_t max, int64_t min) {
-    condition_reg_ = 0;
-    double r2_dval = static_cast<double>(r2_val);
-    double dbl_min = static_cast<double>(min);
-    double dbl_max = static_cast<double>(max);
-
-    // Note that the IEEE 754 floating-point representations (both 32 and
-    // 64 bit) cannot exactly represent INT64_MAX. The closest it can get
-    // is INT64_max + 1. IEEE 754 FP can, though, represent INT64_MIN
-    // exactly.
-
-    // This is not an issue for INT32, as IEEE754 64-bit can represent
-    // INT32_MAX and INT32_MIN with exact precision.
-
-    if (r2_dval == 0.0)
-      condition_reg_ = 8;
-    else if (r2_dval < 0.0 && r2_dval >= dbl_min && std::isfinite(r2_dval))
-      condition_reg_ = 4;
-    else if (r2_dval > 0.0 && r2_dval < dbl_max && std::isfinite(r2_dval))
-      condition_reg_ = 2;
-    else
-      condition_reg_ = 1;
-  }
-
-  // Used by the CL**BR instructions.
-  template <typename T1, typename T2, typename T3>
-  void SetS390ConvertConditionCode(T1 src, T2 dst, T3 max) {
-    condition_reg_ = 0;
-    if (src == static_cast<T1>(0.0)) {
-      condition_reg_ |= 8;
-    } else if (src < static_cast<T1>(0.0) && static_cast<T2>(src) == 0 &&
-               std::isfinite(src)) {
-      condition_reg_ |= 4;
-    } else if (src > static_cast<T1>(0.0) && std::isfinite(src) &&
-               src < static_cast<T1>(max)) {
-      condition_reg_ |= 2;
-    } else {
-      condition_reg_ |= 1;
-    }
-  }
 
   template <typename T>
   void SetS390ConditionCode(T lhs, T rhs) {
@@ -431,24 +399,53 @@ class Simulator : public SimulatorBase {
 
   static constexpr fpr_t fp_zero = {{0}};
 
-  fpr_t& get_simd_register(int reg) { return fp_registers_[reg]; }
+  fpr_t get_simd_register(int reg) {
+    return get_simd_register_by_lane<fpr_t>(reg, 0);
+  }
 
   void set_simd_register(int reg, const fpr_t& v) {
-    get_simd_register(reg) = v;
+    set_simd_register_by_lane(reg, 0, v);
+  }
+
+  // Vector register lane numbers on IBM machines are reversed compared to
+  // x64. For example, doing an I32x4 extract_lane with lane number 0 on x64
+  // will be equal to lane number 3 on IBM machines. Vector registers are only
+  // used for compiling Wasm code at the moment. Wasm is also little endian
+  // enforced. On s390 native, we manually do a reverse byte whenever values are
+  // loaded/stored from memory to a Simd register. On the simulator however, we
+  // do not reverse the bytes and data is just copied as is from one memory
+  // location to another location which represents a register. To keep the Wasm
+  // simulation accurate, we need to make sure accessing a lane is correctly
+  // simulated and as such we reverse the lane number on the getters and setters
+  // below. We need to be careful when getting/setting values on the Low or High
+  // side of a simulated register. In the simulation, "Low" is equal to the MSB
+  // and "High" is equal to the LSB on memory. "force_ibm_lane_numbering" could
+  // be used to disabled automatic lane number reversal and help with accessing
+  // the Low or High side of a simulated register.
+  template <class T>
+  T get_simd_register_by_lane(int reg, int lane,
+                              bool force_ibm_lane_numbering = true) {
+    if (force_ibm_lane_numbering) {
+      lane = (kSimd128Size / sizeof(T)) - 1 - lane;
+    }
+    CHECK_LE(lane, kSimd128Size / sizeof(T));
+    CHECK_LT(reg, kNumFPRs);
+    CHECK_GE(lane, 0);
+    CHECK_GE(reg, 0);
+    return (reinterpret_cast<T*>(&fp_registers_[reg]))[lane];
   }
 
   template <class T>
-  T& get_simd_register_by_lane(int reg, int lane) {
-    DCHECK_LE(lane, kSimd128Size / sizeof(T));
-    DCHECK_LT(reg, kNumFPRs);
-    DCHECK_GE(lane, 0);
-    DCHECK_GE(reg, 0);
-    return (reinterpret_cast<T*>(&get_simd_register(reg)))[lane];
-  }
-
-  template <class T>
-  void set_simd_register_by_lane(int reg, int lane, const T& value) {
-    get_simd_register_by_lane<T>(reg, lane) = value;
+  void set_simd_register_by_lane(int reg, int lane, const T& value,
+                                 bool force_ibm_lane_numbering = true) {
+    if (force_ibm_lane_numbering) {
+      lane = (kSimd128Size / sizeof(T)) - 1 - lane;
+    }
+    CHECK_LE(lane, kSimd128Size / sizeof(T));
+    CHECK_LT(reg, kNumFPRs);
+    CHECK_GE(lane, 0);
+    CHECK_GE(reg, 0);
+    (reinterpret_cast<T*>(&fp_registers_[reg]))[lane] = value;
   }
 
   // Condition Code register. In S390, the last 4 bits are used.

@@ -12,6 +12,7 @@ const { spawnSync } = require('child_process');
 for (const code of [
   `require('fs').realpath('/dev/stdin', (err, resolvedPath) => {
     if (err) {
+      console.error(err);
       process.exit(1);
     }
     if (resolvedPath) {
@@ -22,11 +23,17 @@ for (const code of [
     if (require('fs').realpathSync('/dev/stdin')) {
       process.exit(2);
     }
-  } catch {
+  } catch (e) {
+    console.error(e);
     process.exit(1);
-  }`
+  }`,
 ]) {
-  assert.strictEqual(spawnSync(process.execPath, ['-e', code], {
+  const child = spawnSync(process.execPath, ['-e', code], {
     stdio: 'pipe'
-  }).status, 2);
+  });
+  if (child.status !== 2) {
+    console.log(code);
+    console.log(child.stderr.toString());
+  }
+  assert.strictEqual(child.status, 2);
 }

@@ -28,7 +28,7 @@ namespace v8 {
 namespace internal {
 
 void CopyAndRebaseRoots(Address* src, Address* dst, Address new_base) {
-  Address src_base = GetIsolateRoot(src[0]);
+  Address src_base = GetIsolateRootAddress(src[0]);
   for (size_t i = 0; i < ReadOnlyHeap::kEntriesCount; ++i) {
     dst[i] = src[i] - src_base + new_base;
   }
@@ -39,22 +39,24 @@ void ReadOnlyArtifacts::set_read_only_heap(
   read_only_heap_ = std::move(read_only_heap);
 }
 
-void ReadOnlyArtifacts::InitializeChecksum(ReadOnlyDeserializer* des) {
+void ReadOnlyArtifacts::InitializeChecksum(
+    SnapshotData* read_only_snapshot_data) {
 #ifdef DEBUG
-  read_only_blob_checksum_ = des->GetChecksum();
+  read_only_blob_checksum_ = Checksum(read_only_snapshot_data->Payload());
 #endif  // DEBUG
 }
 
-void ReadOnlyArtifacts::VerifyChecksum(ReadOnlyDeserializer* des,
+void ReadOnlyArtifacts::VerifyChecksum(SnapshotData* read_only_snapshot_data,
                                        bool read_only_heap_created) {
 #ifdef DEBUG
   if (read_only_blob_checksum_) {
     // The read-only heap was set up from a snapshot. Make sure it's the always
     // the same snapshot.
-    CHECK_WITH_MSG(des->GetChecksum(),
+    uint32_t snapshot_checksum = Checksum(read_only_snapshot_data->Payload());
+    CHECK_WITH_MSG(snapshot_checksum,
                    "Attempt to create the read-only heap after already "
                    "creating from a snapshot.");
-    CHECK_EQ(read_only_blob_checksum_, des->GetChecksum());
+    CHECK_EQ(read_only_blob_checksum_, snapshot_checksum);
   } else {
     // If there's no checksum, then that means the read-only heap objects are
     // being created.
@@ -113,7 +115,7 @@ void PointerCompressedReadOnlyArtifacts::InitializeRootsIn(Isolate* isolate) {
   auto isolate_ro_roots =
       isolate->roots_table().read_only_roots_begin().location();
   CopyAndRebaseRoots(read_only_roots_, isolate_ro_roots,
-                     GetIsolateRoot(isolate));
+                     isolate->isolate_root());
 }
 
 SharedReadOnlySpace* PointerCompressedReadOnlyArtifacts::CreateReadOnlySpace(
@@ -123,7 +125,7 @@ SharedReadOnlySpace* PointerCompressedReadOnlyArtifacts::CreateReadOnlySpace(
 
   std::vector<std::unique_ptr<v8::PageAllocator::SharedMemoryMapping>> mappings;
   std::vector<ReadOnlyPage*> pages;
-  Address isolate_root = GetIsolateRoot(isolate);
+  Address isolate_root = isolate->isolate_root();
   for (size_t i = 0; i < pages_.size(); ++i) {
     const ReadOnlyPage* page = pages_[i];
     const Tagged_t offset = OffsetForPage(i);
@@ -167,7 +169,7 @@ ReadOnlyHeap* PointerCompressedReadOnlyArtifacts::GetReadOnlyHeapForIsolate(
   // ReadOnlyArtifacts and be decompressed on the fly.
   auto original_cache = read_only_heap_->read_only_object_cache_;
   auto& cache = read_only_heap->read_only_object_cache_;
-  Address isolate_root = GetIsolateRoot(isolate);
+  Address isolate_root = isolate->isolate_root();
   for (Object original_object : original_cache) {
     Address original_address = original_object.ptr();
     Address new_address = isolate_root + CompressTagged(original_address);
@@ -720,6 +722,7 @@ size_t ReadOnlyPage::ShrinkToHighWaterMark() {
 }
 
 void ReadOnlySpace::ShrinkPages() {
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
   BasicMemoryChunk::UpdateHighWaterMark(top_);
   heap()->CreateFillerObjectAt(top_, static_cast<int>(limit_ - top_),
                                ClearRecordedSlots::kNo);

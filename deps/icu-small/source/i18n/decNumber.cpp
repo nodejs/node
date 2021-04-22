@@ -2203,7 +2203,7 @@ U_CAPI decNumber * U_EXPORT2 uprv_decNumberPower(decNumber *res, const decNumber
       /* if a negative power the constant 1 is needed, and if not subset  */
       /* invert the lhs now rather than inverting the result later  */
       if (decNumberIsNegative(rhs)) {   /* was a **-n [hence digits>0]  */
-        decNumber *inv=invbuff;         /* asssume use fixed buffer  */
+        decNumber *inv=invbuff;         /* assume use fixed buffer  */
         uprv_decNumberCopy(&dnOne, dac);     /* dnOne=1;  [needed now or later]  */
         #if DECSUBSET
         if (set->extended) {            /* need to calculate 1/lhs  */
@@ -5242,7 +5242,7 @@ static decNumber * decMultiplyOp(decNumber *res, const decNumber *lhs,
 /*    exp(-x) where x can be the tiniest number (Ntiny).              */
 /*                                                                    */
 /* 2. Normalizing x to be <=0.1 (instead of <=1) reduces loop         */
-/*    iterations by appoximately a third with additional (although    */
+/*    iterations by approximately a third with additional (although    */
 /*    diminishing) returns as the range is reduced to even smaller    */
 /*    fractions.  However, h (the power of 10 used to correct the     */
 /*    result at the end, see below) must be kept <=8 as otherwise     */

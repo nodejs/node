@@ -11,14 +11,14 @@ const expected = Buffer.from('xyz\n');
 const defaultBufferAsync = Buffer.alloc(16384);
 const bufferAsOption = Buffer.allocUnsafe(expected.length);
 
-// Test passing in an empty options object
-fs.read(fd, { position: 0 }, common.mustCall((err, bytesRead, buffer) => {
+// Test not passing in any options object
+fs.read(fd, common.mustCall((err, bytesRead, buffer) => {
   assert.strictEqual(bytesRead, expected.length);
   assert.deepStrictEqual(defaultBufferAsync.length, buffer.length);
 }));
 
-// Test not passing in any options object
-fs.read(fd, common.mustCall((err, bytesRead, buffer) => {
+// Test passing in an empty options object
+fs.read(fd, { position: 0 }, common.mustCall((err, bytesRead, buffer) => {
   assert.strictEqual(bytesRead, expected.length);
   assert.deepStrictEqual(defaultBufferAsync.length, buffer.length);
 }));

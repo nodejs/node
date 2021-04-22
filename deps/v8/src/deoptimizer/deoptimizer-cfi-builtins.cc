@@ -12,7 +12,6 @@ void Builtins_ContinueToCodeStubBuiltinWithResult();
 void Builtins_ContinueToCodeStubBuiltin();
 void Builtins_ContinueToJavaScriptBuiltinWithResult();
 void Builtins_ContinueToJavaScriptBuiltin();
-void arguments_adaptor_deopt_addr();
 void construct_stub_create_deopt_addr();
 void construct_stub_invoke_deopt_addr();
 typedef void (*function_ptr)();
@@ -31,7 +30,6 @@ constexpr function_ptr builtins[] = {
     &Builtins_ContinueToJavaScriptBuiltin,
     &construct_stub_create_deopt_addr,
     &construct_stub_invoke_deopt_addr,
-    &arguments_adaptor_deopt_addr,
 };
 
 bool Deoptimizer::IsValidReturnAddress(Address address) {

@@ -7,9 +7,12 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <bitset>
+
 #if V8_TARGET_ARCH_ARM64
 
 #include "src/base/platform/platform.h"
+#include "src/base/platform/wrappers.h"
 #include "src/codegen/arm64/decoder-arm64-inl.h"
 #include "src/codegen/arm64/utils-arm64.h"
 #include "src/diagnostics/arm64/disasm-arm64.h"
@@ -20,7 +23,7 @@ namespace internal {
 
 DisassemblingDecoder::DisassemblingDecoder() {
   buffer_size_ = 256;
-  buffer_ = reinterpret_cast<char*>(malloc(buffer_size_));
+  buffer_ = reinterpret_cast<char*>(base::Malloc(buffer_size_));
   buffer_pos_ = 0;
   own_buffer_ = true;
 }
@@ -34,7 +37,7 @@ DisassemblingDecoder::DisassemblingDecoder(char* text_buffer, int buffer_size) {
 
 DisassemblingDecoder::~DisassemblingDecoder() {
   if (own_buffer_) {
-    free(buffer_);
+    base::Free(buffer_);
   }
 }
 
@@ -4265,12 +4268,19 @@ int DisassemblingDecoder::SubstitutePrefetchField(Instruction* instr,
   USE(format);
 
   int prefetch_mode = instr->PrefetchMode();
+  const std::array<std::string, 3> hints = {"ld", "li", "st"};
+  unsigned hint = instr->PrefetchHint();
+  unsigned target = instr->PrefetchTarget() + 1;
 
-  const char* ls = (prefetch_mode & 0x10) ? "st" : "ld";
-  int level = (prefetch_mode >> 1) + 1;
-  const char* ks = (prefetch_mode & 1) ? "strm" : "keep";
+  if (hint >= hints.size() || target > 3) {
+    std::bitset<5> prefetch_mode(instr->ImmPrefetchOperation());
+    AppendToOutput("#0b%s", prefetch_mode.to_string().c_str());
+  } else {
+    const char* ks = (prefetch_mode & 1) ? "strm" : "keep";
 
-  AppendToOutput("p%sl%d%s", ls, level, ks);
+    AppendToOutput("p%sl%d%s", hints[hint].c_str(), target, ks);
+  }
+
   return 6;
 }
 

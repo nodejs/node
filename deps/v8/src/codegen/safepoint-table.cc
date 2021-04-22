@@ -88,8 +88,7 @@ void SafepointTable::PrintBits(std::ostream& os,  // NOLINT
   }
 }
 
-Safepoint SafepointTableBuilder::DefineSafepoint(
-    Assembler* assembler, Safepoint::DeoptMode deopt_mode) {
+Safepoint SafepointTableBuilder::DefineSafepoint(Assembler* assembler) {
   deoptimization_info_.push_back(
       DeoptimizationInfo(zone_, assembler->pc_offset_for_safepoint()));
   DeoptimizationInfo& new_info = deoptimization_info_.back();
@@ -120,7 +119,7 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
   RemoveDuplicates();
 
   // Make sure the safepoint table is properly aligned. Pad with nops.
-  assembler->Align(kIntSize);
+  assembler->Align(Code::kMetadataAlignment);
   assembler->RecordComment(";;; Safepoint table.");
   offset_ = assembler->pc_offset();
 

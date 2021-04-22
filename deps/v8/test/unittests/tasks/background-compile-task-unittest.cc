@@ -29,6 +29,9 @@ class BackgroundCompileTaskTest : public TestWithNativeContext {
  public:
   BackgroundCompileTaskTest() : allocator_(isolate()->allocator()) {}
   ~BackgroundCompileTaskTest() override = default;
+  BackgroundCompileTaskTest(const BackgroundCompileTaskTest&) = delete;
+  BackgroundCompileTaskTest& operator=(const BackgroundCompileTaskTest&) =
+      delete;
 
   AccountingAllocator* allocator() { return allocator_; }
 
@@ -82,11 +85,18 @@ class BackgroundCompileTaskTest : public TestWithNativeContext {
         isolate->counters()->compile_function_on_background(), FLAG_stack_size);
   }
 
+ protected:
+  void SetUp() override {
+    // TODO(leszeks): Support background finalization in compiler dispatcher.
+    if (FLAG_finalize_streaming_on_background) {
+      GTEST_SKIP_(
+          "Parallel compile tasks don't yet support background finalization");
+    }
+  }
+
  private:
   AccountingAllocator* allocator_;
   static SaveFlags* save_flags_;
-
-  DISALLOW_COPY_AND_ASSIGN(BackgroundCompileTaskTest);
 };
 
 SaveFlags* BackgroundCompileTaskTest::save_flags_ = nullptr;
@@ -171,6 +181,8 @@ class CompileTask : public Task {
   CompileTask(BackgroundCompileTask* task, base::Semaphore* semaphore)
       : task_(task), semaphore_(semaphore) {}
   ~CompileTask() override = default;
+  CompileTask(const CompileTask&) = delete;
+  CompileTask& operator=(const CompileTask&) = delete;
 
   void Run() override {
     task_->Run();
@@ -180,7 +192,6 @@ class CompileTask : public Task {
  private:
   BackgroundCompileTask* task_;
   base::Semaphore* semaphore_;
-  DISALLOW_COPY_AND_ASSIGN(CompileTask);
 };
 
 TEST_F(BackgroundCompileTaskTest, CompileOnBackgroundThread) {

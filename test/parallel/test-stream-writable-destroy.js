@@ -448,11 +448,10 @@ const assert = require('assert');
 }
 
 {
-  const ac = new AbortController();
-  ac.abort();
+  const signal = AbortSignal.abort();
 
   const write = new Writable({
-    signal: ac.signal,
+    signal,
     write(chunk, enc, cb) { cb(); }
   });
 
@@ -460,4 +459,15 @@ const assert = require('assert');
     assert.strictEqual(e.name, 'AbortError');
     assert.strictEqual(write.destroyed, true);
   }));
+}
+
+{
+  // Destroy twice
+  const write = new Writable({
+    write(chunk, enc, cb) { cb(); }
+  });
+
+  write.end(common.mustCall());
+  write.destroy();
+  write.destroy();
 }

@@ -8,13 +8,12 @@
 #include <unordered_map>
 
 #include "src/base/optional.h"
+#include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/common/assert-scope.h"
 #include "src/compiler/wasm-compiler.h"
-#include "src/debug/debug-scopes.h"
-#include "src/debug/debug.h"
+#include "src/debug/debug-evaluate.h"
 #include "src/execution/frames-inl.h"
-#include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/wasm/baseline/liftoff-compiler.h"
 #include "src/wasm/baseline/liftoff-register.h"
@@ -35,139 +34,7 @@ namespace wasm {
 
 namespace {
 
-template <bool internal, typename... Args>
-Handle<String> PrintFToOneByteString(Isolate* isolate, const char* format,
-                                     Args... args) {
-  // Maximum length of a formatted value name ("arg#%d", "local#%d",
-  // "global#%d", i32 constants, i64 constants), including null character.
-  static constexpr int kMaxStrLen = 21;
-  EmbeddedVector<char, kMaxStrLen> value;
-  int len = SNPrintF(value, format, args...);
-  CHECK(len > 0 && len < value.length());
-  Vector<const uint8_t> name =
-      Vector<const uint8_t>::cast(value.SubVector(0, len));
-  return internal
-             ? isolate->factory()->InternalizeString(name)
-             : isolate->factory()->NewStringFromOneByte(name).ToHandleChecked();
-}
-
-MaybeHandle<JSObject> CreateFunctionTablesObject(
-    Handle<WasmInstanceObject> instance) {
-  Isolate* isolate = instance->GetIsolate();
-  auto tables = handle(instance->tables(), isolate);
-  if (tables->length() == 0) return MaybeHandle<JSObject>();
-
-  const char* table_label = "table%d";
-  Handle<JSObject> tables_obj = isolate->factory()->NewJSObjectWithNullProto();
-  for (int table_index = 0; table_index < tables->length(); ++table_index) {
-    auto func_table =
-        handle(WasmTableObject::cast(tables->get(table_index)), isolate);
-    if (!IsSubtypeOf(func_table->type(), kWasmFuncRef, instance->module()))
-      continue;
-
-    Handle<String> table_name;
-    if (!WasmInstanceObject::GetTableNameOrNull(isolate, instance, table_index)
-             .ToHandle(&table_name)) {
-      table_name =
-          PrintFToOneByteString<true>(isolate, table_label, table_index);
-    }
-
-    Handle<JSObject> func_table_obj =
-        isolate->factory()->NewJSObjectWithNullProto();
-    JSObject::AddProperty(isolate, tables_obj, table_name, func_table_obj,
-                          NONE);
-    for (int i = 0; i < func_table->current_length(); ++i) {
-      Handle<Object> func = WasmTableObject::Get(isolate, func_table, i);
-      DCHECK(!WasmCapiFunction::IsWasmCapiFunction(*func));
-      if (func->IsNull(isolate)) continue;
-
-      Handle<String> func_name;
-      Handle<JSObject> func_obj =
-          isolate->factory()->NewJSObjectWithNullProto();
-
-      if (WasmExportedFunction::IsWasmExportedFunction(*func)) {
-        auto target_func = Handle<WasmExportedFunction>::cast(func);
-        auto target_instance = handle(target_func->instance(), isolate);
-        auto module = handle(target_instance->module_object(), isolate);
-        func_name = WasmModuleObject::GetFunctionName(
-            isolate, module, target_func->function_index());
-      } else if (WasmJSFunction::IsWasmJSFunction(*func)) {
-        auto target_func = Handle<JSFunction>::cast(func);
-        func_name = JSFunction::GetName(target_func);
-        if (func_name->length() == 0) {
-          func_name = isolate->factory()->InternalizeUtf8String("anonymous");
-        }
-      }
-      JSObject::AddProperty(isolate, func_obj, func_name, func, NONE);
-      JSObject::AddDataElement(func_table_obj, i, func_obj, NONE);
-    }
-  }
-  return tables_obj;
-}
-
-Handle<Object> WasmValueToValueObject(Isolate* isolate, WasmValue value) {
-  Handle<ByteArray> bytes;
-  switch (value.type().kind()) {
-    case ValueType::kI32: {
-      int32_t val = value.to_i32();
-      bytes = isolate->factory()->NewByteArray(sizeof(val));
-      memcpy(bytes->GetDataStartAddress(), &val, sizeof(val));
-      break;
-    }
-    case ValueType::kI64: {
-      int64_t val = value.to_i64();
-      bytes = isolate->factory()->NewByteArray(sizeof(val));
-      memcpy(bytes->GetDataStartAddress(), &val, sizeof(val));
-      break;
-    }
-    case ValueType::kF32: {
-      float val = value.to_f32();
-      bytes = isolate->factory()->NewByteArray(sizeof(val));
-      memcpy(bytes->GetDataStartAddress(), &val, sizeof(val));
-      break;
-    }
-    case ValueType::kF64: {
-      double val = value.to_f64();
-      bytes = isolate->factory()->NewByteArray(sizeof(val));
-      memcpy(bytes->GetDataStartAddress(), &val, sizeof(val));
-      break;
-    }
-    case ValueType::kS128: {
-      Simd128 s128 = value.to_s128();
-      bytes = isolate->factory()->NewByteArray(kSimd128Size);
-      memcpy(bytes->GetDataStartAddress(), s128.bytes(), kSimd128Size);
-      break;
-    }
-    case ValueType::kOptRef: {
-      if (value.type().is_reference_to(HeapType::kExtern)) {
-        return isolate->factory()->NewWasmValue(
-            static_cast<int32_t>(HeapType::kExtern), value.to_externref());
-      } else {
-        // TODO(7748): Implement.
-        UNIMPLEMENTED();
-      }
-    }
-    default: {
-      // TODO(7748): Implement.
-      UNIMPLEMENTED();
-    }
-  }
-  return isolate->factory()->NewWasmValue(
-      static_cast<int32_t>(value.type().kind()), bytes);
-}
-
-MaybeHandle<String> GetLocalNameString(Isolate* isolate,
-                                       NativeModule* native_module,
-                                       int func_index, int local_index) {
-  WireBytesRef name_ref =
-      native_module->GetDebugInfo()->GetLocalName(func_index, local_index);
-  ModuleWireBytes wire_bytes{native_module->wire_bytes()};
-  // Bounds were checked during decoding.
-  DCHECK(wire_bytes.BoundsCheck(name_ref));
-  Vector<const char> name = wire_bytes.GetNameOrNull(name_ref);
-  if (name.begin() == nullptr) return {};
-  return isolate->factory()->NewStringFromUtf8(name);
-}
+using ImportExportKey = std::pair<ImportExportKindCode, uint32_t>;
 
 enum ReturnLocation { kAfterBreakpoint, kAfterWasmCall };
 
@@ -225,10 +92,11 @@ void DebugSideTable::Print(std::ostream& os) const {
 }
 
 void DebugSideTable::Entry::Print(std::ostream& os) const {
-  os << std::setw(6) << std::hex << pc_offset_ << std::dec << " [";
-  for (auto& value : values_) {
-    os << " " << value.type.name() << ":";
-    switch (value.kind) {
+  os << std::setw(6) << std::hex << pc_offset_ << std::dec << " stack height "
+     << stack_height_ << " [";
+  for (auto& value : changed_values_) {
+    os << " " << name(value.kind) << ":";
+    switch (value.storage) {
       case kConstant:
         os << "const#" << value.i32_const;
         break;
@@ -243,72 +111,13 @@ void DebugSideTable::Entry::Print(std::ostream& os) const {
   os << " ]\n";
 }
 
-Handle<JSObject> GetModuleScopeObject(Handle<WasmInstanceObject> instance) {
-  Isolate* isolate = instance->GetIsolate();
-
-  Handle<JSObject> module_scope_object =
-      isolate->factory()->NewJSObjectWithNullProto();
-
-  Handle<String> instance_name =
-      isolate->factory()->InternalizeString(StaticCharVector("instance"));
-  JSObject::AddProperty(isolate, module_scope_object, instance_name, instance,
-                        NONE);
-
-  if (instance->has_memory_object()) {
-    Handle<String> name;
-    // TODO(duongn): extend the logic when multiple memories are supported.
-    const uint32_t memory_index = 0;
-    if (!WasmInstanceObject::GetMemoryNameOrNull(isolate, instance,
-                                                 memory_index)
-             .ToHandle(&name)) {
-      const char* label = "memory%d";
-      name = PrintFToOneByteString<true>(isolate, label, memory_index);
-    }
-    Handle<JSArrayBuffer> memory_buffer(
-        instance->memory_object().array_buffer(), isolate);
-    Handle<JSTypedArray> uint8_array = isolate->factory()->NewJSTypedArray(
-        kExternalUint8Array, memory_buffer, 0, memory_buffer->byte_length());
-    JSObject::AddProperty(isolate, module_scope_object, name, uint8_array,
-                          NONE);
-  }
-
-  Handle<JSObject> function_tables_obj;
-  if (CreateFunctionTablesObject(instance).ToHandle(&function_tables_obj)) {
-    Handle<String> tables_name = isolate->factory()->InternalizeString(
-        StaticCharVector("function tables"));
-    JSObject::AddProperty(isolate, module_scope_object, tables_name,
-                          function_tables_obj, NONE);
-  }
-
-  auto& globals = instance->module()->globals;
-  if (globals.size() > 0) {
-    Handle<JSObject> globals_obj =
-        isolate->factory()->NewJSObjectWithNullProto();
-    Handle<String> globals_name =
-        isolate->factory()->InternalizeString(StaticCharVector("globals"));
-    JSObject::AddProperty(isolate, module_scope_object, globals_name,
-                          globals_obj, NONE);
-
-    for (uint32_t i = 0; i < globals.size(); ++i) {
-      Handle<String> name;
-      if (!WasmInstanceObject::GetGlobalNameOrNull(isolate, instance, i)
-               .ToHandle(&name)) {
-        const char* label = "global%d";
-        name = PrintFToOneByteString<true>(isolate, label, i);
-      }
-      WasmValue value =
-          WasmInstanceObject::GetGlobalValue(instance, globals[i]);
-      Handle<Object> value_obj = WasmValueToValueObject(isolate, value);
-      JSObject::AddProperty(isolate, globals_obj, name, value_obj, NONE);
-    }
-  }
-  return module_scope_object;
-}
-
 class DebugInfoImpl {
  public:
   explicit DebugInfoImpl(NativeModule* native_module)
       : native_module_(native_module) {}
+
+  DebugInfoImpl(const DebugInfoImpl&) = delete;
+  DebugInfoImpl& operator=(const DebugInfoImpl&) = delete;
 
   int GetNumLocals(Address pc) {
     FrameInspectionScope scope(this, pc);
@@ -319,87 +128,65 @@ class DebugInfoImpl {
   WasmValue GetLocalValue(int local, Address pc, Address fp,
                           Address debug_break_fp) {
     FrameInspectionScope scope(this, pc);
-    return GetValue(scope.debug_side_table_entry, local, fp, debug_break_fp);
+    return GetValue(scope.debug_side_table, scope.debug_side_table_entry, local,
+                    fp, debug_break_fp);
   }
 
   int GetStackDepth(Address pc) {
     FrameInspectionScope scope(this, pc);
     if (!scope.is_inspectable()) return 0;
-    int num_locals = static_cast<int>(scope.debug_side_table->num_locals());
-    int value_count = scope.debug_side_table_entry->num_values();
-    return value_count - num_locals;
+    int num_locals = scope.debug_side_table->num_locals();
+    int stack_height = scope.debug_side_table_entry->stack_height();
+    return stack_height - num_locals;
   }
 
   WasmValue GetStackValue(int index, Address pc, Address fp,
                           Address debug_break_fp) {
     FrameInspectionScope scope(this, pc);
-    int num_locals = static_cast<int>(scope.debug_side_table->num_locals());
-    int value_count = scope.debug_side_table_entry->num_values();
+    int num_locals = scope.debug_side_table->num_locals();
+    int value_count = scope.debug_side_table_entry->stack_height();
     if (num_locals + index >= value_count) return {};
-    return GetValue(scope.debug_side_table_entry, num_locals + index, fp,
-                    debug_break_fp);
+    return GetValue(scope.debug_side_table, scope.debug_side_table_entry,
+                    num_locals + index, fp, debug_break_fp);
   }
 
-  Handle<JSObject> GetLocalScopeObject(Isolate* isolate, Address pc, Address fp,
-                                       Address debug_break_fp) {
+  const WasmFunction& GetFunctionAtAddress(Address pc) {
     FrameInspectionScope scope(this, pc);
-    Handle<JSObject> local_scope_object =
-        isolate->factory()->NewJSObjectWithNullProto();
-
-    if (!scope.is_inspectable()) return local_scope_object;
-
     auto* module = native_module_->module();
-    auto* function = &module->functions[scope.code->index()];
-
-    // Fill parameters and locals.
-    int num_locals = static_cast<int>(scope.debug_side_table->num_locals());
-    DCHECK_LE(static_cast<int>(function->sig->parameter_count()), num_locals);
-    for (int i = 0; i < num_locals; ++i) {
-      Handle<Name> name;
-      if (!GetLocalNameString(isolate, native_module_, function->func_index, i)
-               .ToHandle(&name)) {
-        name = PrintFToOneByteString<true>(isolate, "var%d", i);
-      }
-      WasmValue value =
-          GetValue(scope.debug_side_table_entry, i, fp, debug_break_fp);
-      Handle<Object> value_obj = WasmValueToValueObject(isolate, value);
-      // {name} can be a string representation of an element index.
-      LookupIterator::Key lookup_key{isolate, name};
-      LookupIterator it(isolate, local_scope_object, lookup_key,
-                        local_scope_object,
-                        LookupIterator::OWN_SKIP_INTERCEPTOR);
-      if (it.IsFound()) continue;
-      Object::AddDataProperty(&it, value_obj, NONE,
-                              Just(ShouldThrow::kThrowOnError),
-                              StoreOrigin::kNamed)
-          .Check();
-    }
-    return local_scope_object;
+    return module->functions[scope.code->index()];
   }
 
-  Handle<JSObject> GetStackScopeObject(Isolate* isolate, Address pc, Address fp,
-                                       Address debug_break_fp) {
-    FrameInspectionScope scope(this, pc);
-    Handle<JSObject> stack_scope_obj =
-        isolate->factory()->NewJSObjectWithNullProto();
-
-    if (!scope.is_inspectable()) return stack_scope_obj;
-
-    // Fill stack values.
-    // Use an object without prototype instead of an Array, for nicer displaying
-    // in DevTools. For Arrays, the length field and prototype is displayed,
-    // which does not make too much sense here.
-    int num_locals = static_cast<int>(scope.debug_side_table->num_locals());
-    int value_count = scope.debug_side_table_entry->num_values();
-    for (int i = num_locals; i < value_count; ++i) {
-      WasmValue value =
-          GetValue(scope.debug_side_table_entry, i, fp, debug_break_fp);
-      Handle<Object> value_obj = WasmValueToValueObject(isolate, value);
-      JSObject::AddDataElement(stack_scope_obj,
-                               static_cast<uint32_t>(i - num_locals), value_obj,
-                               NONE);
+  WireBytesRef GetExportName(ImportExportKindCode kind, uint32_t index) {
+    base::MutexGuard guard(&mutex_);
+    if (!export_names_) {
+      export_names_ =
+          std::make_unique<std::map<ImportExportKey, WireBytesRef>>();
+      for (auto exp : native_module_->module()->export_table) {
+        auto exp_key = std::make_pair(exp.kind, exp.index);
+        if (export_names_->find(exp_key) != export_names_->end()) continue;
+        export_names_->insert(std::make_pair(exp_key, exp.name));
+      }
     }
-    return stack_scope_obj;
+    auto it = export_names_->find(std::make_pair(kind, index));
+    if (it != export_names_->end()) return it->second;
+    return {};
+  }
+
+  std::pair<WireBytesRef, WireBytesRef> GetImportName(ImportExportKindCode kind,
+                                                      uint32_t index) {
+    base::MutexGuard guard(&mutex_);
+    if (!import_names_) {
+      import_names_ = std::make_unique<
+          std::map<ImportExportKey, std::pair<WireBytesRef, WireBytesRef>>>();
+      for (auto imp : native_module_->module()->import_table) {
+        import_names_->insert(
+            std::make_pair(std::make_pair(imp.kind, imp.index),
+                           std::make_pair(imp.module_name, imp.field_name)));
+      }
+    }
+    auto it = import_names_->find(std::make_pair(kind, index));
+    if (it != import_names_->end()) return it->second;
+    return {};
   }
 
   WireBytesRef GetLocalName(int func_index, int local_index) {
@@ -428,7 +215,8 @@ class DebugInfoImpl {
     return offset;
   }
 
-  WasmCode* RecompileLiftoffWithBreakpoints(int func_index, Vector<int> offsets,
+  WasmCode* RecompileLiftoffWithBreakpoints(int func_index,
+                                            Vector<const int> offsets,
                                             int dead_breakpoint) {
     DCHECK(!mutex_.TryLock());  // Mutex is held externally.
     // Recompile the function with Liftoff, setting the new breakpoints.
@@ -444,22 +232,24 @@ class DebugInfoImpl {
     ForDebugging for_debugging = offsets.size() == 1 && offsets[0] == 0
                                      ? kForStepping
                                      : kWithBreakpoints;
+    // Debug side tables for stepping are generated lazily.
+    bool generate_debug_sidetable = for_debugging == kWithBreakpoints;
     Counters* counters = nullptr;
     WasmFeatures unused_detected;
     WasmCompilationResult result = ExecuteLiftoffCompilation(
         native_module_->engine()->allocator(), &env, body, func_index,
-        for_debugging, counters, &unused_detected, offsets, &debug_sidetable,
-        dead_breakpoint);
+        for_debugging, counters, &unused_detected, offsets,
+        generate_debug_sidetable ? &debug_sidetable : nullptr, dead_breakpoint);
     // Liftoff compilation failure is a FATAL error. We rely on complete Liftoff
     // support for debugging.
     if (!result.succeeded()) FATAL("Liftoff compilation failed");
-    DCHECK_NOT_NULL(debug_sidetable);
+    DCHECK_EQ(generate_debug_sidetable, debug_sidetable != nullptr);
 
     WasmCode* new_code = native_module_->PublishCode(
         native_module_->AddCompiledCode(std::move(result)));
 
     DCHECK(new_code->is_inspectable());
-    {
+    if (generate_debug_sidetable) {
       base::MutexGuard lock(&debug_side_tables_mutex_);
       DCHECK_EQ(0, debug_side_tables_.count(new_code));
       debug_side_tables_.emplace(new_code, std::move(debug_sidetable));
@@ -539,40 +329,31 @@ class DebugInfoImpl {
 
   void FloodWithBreakpoints(WasmFrame* frame, ReturnLocation return_location) {
     // 0 is an invalid offset used to indicate flooding.
-    int offset = 0;
-    WasmCodeRefScope wasm_code_ref_scope;
+    constexpr int kFloodingBreakpoints[] = {0};
     DCHECK(frame->wasm_code()->is_liftoff());
     // Generate an additional source position for the current byte offset.
     base::MutexGuard guard(&mutex_);
     WasmCode* new_code = RecompileLiftoffWithBreakpoints(
-        frame->function_index(), VectorOf(&offset, 1), 0);
+        frame->function_index(), ArrayVector(kFloodingBreakpoints), 0);
     UpdateReturnAddress(frame, new_code, return_location);
+
+    per_isolate_data_[frame->isolate()].stepping_frame = frame->id();
   }
 
-  void PrepareStep(Isolate* isolate, StackFrameId break_frame_id) {
-    StackTraceFrameIterator it(isolate, break_frame_id);
-    DCHECK(!it.done());
-    DCHECK(it.frame()->is_wasm());
-    WasmFrame* frame = WasmFrame::cast(it.frame());
-    StepAction step_action = isolate->debug()->last_step_action();
+  bool PrepareStep(WasmFrame* frame) {
+    WasmCodeRefScope wasm_code_ref_scope;
+    wasm::WasmCode* code = frame->wasm_code();
+    if (!code->is_liftoff()) return false;  // Cannot step in TurboFan code.
+    if (IsAtReturn(frame)) return false;    // Will return after this step.
+    FloodWithBreakpoints(frame, kAfterBreakpoint);
+    return true;
+  }
 
-    // If we are flooding the top frame, the return location is after a
-    // breakpoints. Otherwise, it's after a call.
-    ReturnLocation return_location = kAfterBreakpoint;
-
-    // If we are at a return instruction, then any stepping action is equivalent
-    // to StepOut, and we need to flood the parent function.
-    if (IsAtReturn(frame) || step_action == StepOut) {
-      it.Advance();
-      if (it.done() || !it.frame()->is_wasm()) return;
-      frame = WasmFrame::cast(it.frame());
-      return_location = kAfterWasmCall;
-    }
-
-    FloodWithBreakpoints(frame, return_location);
-
-    base::MutexGuard guard(&mutex_);
-    per_isolate_data_[isolate].stepping_frame = frame->id();
+  void PrepareStepOutTo(WasmFrame* frame) {
+    WasmCodeRefScope wasm_code_ref_scope;
+    wasm::WasmCode* code = frame->wasm_code();
+    if (!code->is_liftoff()) return;  // Cannot step out to TurboFan code.
+    FloodWithBreakpoints(frame, kAfterWasmCall);
   }
 
   void ClearStepping(Isolate* isolate) {
@@ -673,11 +454,9 @@ class DebugInfoImpl {
         : code(debug_info->native_module_->engine()->code_manager()->LookupCode(
               pc)),
           pc_offset(static_cast<int>(pc - code->instruction_start())),
-          debug_side_table(
-              code->is_inspectable()
-                  ? debug_info->GetDebugSideTable(
-                        code, debug_info->native_module_->engine()->allocator())
-                  : nullptr),
+          debug_side_table(code->is_inspectable()
+                               ? debug_info->GetDebugSideTable(code)
+                               : nullptr),
           debug_side_table_entry(debug_side_table
                                      ? debug_side_table->GetEntry(pc_offset)
                                      : nullptr) {
@@ -693,8 +472,7 @@ class DebugInfoImpl {
     const DebugSideTable::Entry* debug_side_table_entry;
   };
 
-  const DebugSideTable* GetDebugSideTable(WasmCode* code,
-                                          AccountingAllocator* allocator) {
+  const DebugSideTable* GetDebugSideTable(WasmCode* code) {
     DCHECK(code->is_inspectable());
     {
       // Only hold the mutex temporarily. We can't hold it while generating the
@@ -705,16 +483,8 @@ class DebugInfoImpl {
     }
 
     // Otherwise create the debug side table now.
-    auto* module = native_module_->module();
-    auto* function = &module->functions[code->index()];
-    ModuleWireBytes wire_bytes{native_module_->wire_bytes()};
-    Vector<const byte> function_bytes = wire_bytes.GetFunctionBytes(function);
-    CompilationEnv env = native_module_->CreateCompilationEnv();
-    FunctionBody func_body{function->sig, 0, function_bytes.begin(),
-                           function_bytes.end()};
     std::unique_ptr<DebugSideTable> debug_side_table =
-        GenerateLiftoffDebugSideTable(allocator, &env, func_body,
-                                      code->index());
+        GenerateLiftoffDebugSideTable(code);
     DebugSideTable* ret = debug_side_table.get();
 
     // Check cache again, maybe another thread concurrently generated a debug
@@ -733,35 +503,34 @@ class DebugInfoImpl {
 
   // Get the value of a local (including parameters) or stack value. Stack
   // values follow the locals in the same index space.
-  WasmValue GetValue(const DebugSideTable::Entry* debug_side_table_entry,
+  WasmValue GetValue(const DebugSideTable* debug_side_table,
+                     const DebugSideTable::Entry* debug_side_table_entry,
                      int index, Address stack_frame_base,
                      Address debug_break_fp) const {
-    ValueType type = debug_side_table_entry->value_type(index);
-    if (debug_side_table_entry->is_constant(index)) {
-      DCHECK(type == kWasmI32 || type == kWasmI64);
-      return type == kWasmI32
-                 ? WasmValue(debug_side_table_entry->i32_constant(index))
-                 : WasmValue(
-                       int64_t{debug_side_table_entry->i32_constant(index)});
+    const auto* value =
+        debug_side_table->FindValue(debug_side_table_entry, index);
+    if (value->is_constant()) {
+      DCHECK(value->kind == kI32 || value->kind == kI64);
+      return value->kind == kI32 ? WasmValue(value->i32_const)
+                                 : WasmValue(int64_t{value->i32_const});
     }
 
-    if (debug_side_table_entry->is_register(index)) {
-      LiftoffRegister reg = LiftoffRegister::from_liftoff_code(
-          debug_side_table_entry->register_code(index));
+    if (value->is_register()) {
+      auto reg = LiftoffRegister::from_liftoff_code(value->reg_code);
       auto gp_addr = [debug_break_fp](Register reg) {
         return debug_break_fp +
                WasmDebugBreakFrameConstants::GetPushedGpRegisterOffset(
                    reg.code());
       };
       if (reg.is_gp_pair()) {
-        DCHECK_EQ(kWasmI64, type);
+        DCHECK_EQ(kI64, value->kind);
         uint32_t low_word = ReadUnalignedValue<uint32_t>(gp_addr(reg.low_gp()));
         uint32_t high_word =
             ReadUnalignedValue<uint32_t>(gp_addr(reg.high_gp()));
         return WasmValue((uint64_t{high_word} << 32) | low_word);
       }
       if (reg.is_gp()) {
-        return type == kWasmI32
+        return value->kind == kI32
                    ? WasmValue(ReadUnalignedValue<uint32_t>(gp_addr(reg.gp())))
                    : WasmValue(ReadUnalignedValue<uint64_t>(gp_addr(reg.gp())));
       }
@@ -775,11 +544,11 @@ class DebugInfoImpl {
       Address spilled_addr =
           debug_break_fp +
           WasmDebugBreakFrameConstants::GetPushedFpRegisterOffset(code);
-      if (type == kWasmF32) {
+      if (value->kind == kF32) {
         return WasmValue(ReadUnalignedValue<float>(spilled_addr));
-      } else if (type == kWasmF64) {
+      } else if (value->kind == kF64) {
         return WasmValue(ReadUnalignedValue<double>(spilled_addr));
-      } else if (type == kWasmS128) {
+      } else if (value->kind == kS128) {
         return WasmValue(Simd128(ReadUnalignedValue<int16>(spilled_addr)));
       } else {
         // All other cases should have been handled above.
@@ -788,18 +557,17 @@ class DebugInfoImpl {
     }
 
     // Otherwise load the value from the stack.
-    Address stack_address =
-        stack_frame_base - debug_side_table_entry->stack_offset(index);
-    switch (type.kind()) {
-      case ValueType::kI32:
+    Address stack_address = stack_frame_base - value->stack_offset;
+    switch (value->kind) {
+      case kI32:
         return WasmValue(ReadUnalignedValue<int32_t>(stack_address));
-      case ValueType::kI64:
+      case kI64:
         return WasmValue(ReadUnalignedValue<int64_t>(stack_address));
-      case ValueType::kF32:
+      case kF32:
         return WasmValue(ReadUnalignedValue<float>(stack_address));
-      case ValueType::kF64:
+      case kF64:
         return WasmValue(ReadUnalignedValue<double>(stack_address));
-      case ValueType::kS128: {
+      case kS128: {
         return WasmValue(Simd128(ReadUnalignedValue<int16>(stack_address)));
       }
       default:
@@ -846,7 +614,7 @@ class DebugInfoImpl {
   }
 
   bool IsAtReturn(WasmFrame* frame) {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     int position = frame->position();
     NativeModule* native_module =
         frame->wasm_instance().module_object().native_module();
@@ -881,13 +649,19 @@ class DebugInfoImpl {
   // {mutex_} protects all fields below.
   mutable base::Mutex mutex_;
 
+  // Names of exports, lazily derived from the exports table.
+  std::unique_ptr<std::map<ImportExportKey, wasm::WireBytesRef>> export_names_;
+
+  // Names of imports, lazily derived from the imports table.
+  std::unique_ptr<std::map<ImportExportKey,
+                           std::pair<wasm::WireBytesRef, wasm::WireBytesRef>>>
+      import_names_;
+
   // Names of locals, lazily decoded from the wire bytes.
   std::unique_ptr<LocalNames> local_names_;
 
   // Isolate-specific data.
   std::unordered_map<Isolate*, PerIsolateDebugData> per_isolate_data_;
-
-  DISALLOW_COPY_AND_ASSIGN(DebugInfoImpl);
 };
 
 DebugInfo::DebugInfo(NativeModule* native_module)
@@ -909,16 +683,18 @@ WasmValue DebugInfo::GetStackValue(int index, Address pc, Address fp,
   return impl_->GetStackValue(index, pc, fp, debug_break_fp);
 }
 
-Handle<JSObject> DebugInfo::GetLocalScopeObject(Isolate* isolate, Address pc,
-                                                Address fp,
-                                                Address debug_break_fp) {
-  return impl_->GetLocalScopeObject(isolate, pc, fp, debug_break_fp);
+const wasm::WasmFunction& DebugInfo::GetFunctionAtAddress(Address pc) {
+  return impl_->GetFunctionAtAddress(pc);
 }
 
-Handle<JSObject> DebugInfo::GetStackScopeObject(Isolate* isolate, Address pc,
-                                                Address fp,
-                                                Address debug_break_fp) {
-  return impl_->GetStackScopeObject(isolate, pc, fp, debug_break_fp);
+WireBytesRef DebugInfo::GetExportName(ImportExportKindCode code,
+                                      uint32_t index) {
+  return impl_->GetExportName(code, index);
+}
+
+std::pair<WireBytesRef, WireBytesRef> DebugInfo::GetImportName(
+    ImportExportKindCode code, uint32_t index) {
+  return impl_->GetImportName(code, index);
 }
 
 WireBytesRef DebugInfo::GetLocalName(int func_index, int local_index) {
@@ -930,8 +706,12 @@ void DebugInfo::SetBreakpoint(int func_index, int offset,
   impl_->SetBreakpoint(func_index, offset, current_isolate);
 }
 
-void DebugInfo::PrepareStep(Isolate* isolate, StackFrameId break_frame_id) {
-  impl_->PrepareStep(isolate, break_frame_id);
+bool DebugInfo::PrepareStep(WasmFrame* frame) {
+  return impl_->PrepareStep(frame);
+}
+
+void DebugInfo::PrepareStepOutTo(WasmFrame* frame) {
+  impl_->PrepareStepOutTo(frame);
 }
 
 void DebugInfo::ClearStepping(Isolate* isolate) {
@@ -994,6 +774,22 @@ int FindNextBreakablePosition(wasm::NativeModule* native_module, int func_index,
 // static
 bool WasmScript::SetBreakPoint(Handle<Script> script, int* position,
                                Handle<BreakPoint> break_point) {
+  // Special handling for on-entry breakpoints.
+  if (*position == kOnEntryBreakpointPosition) {
+    AddBreakpointToInfo(script, *position, break_point);
+    script->set_break_on_entry(true);
+
+    // Update the "break_on_entry" flag on all live instances.
+    i::WeakArrayList weak_instance_list = script->wasm_weak_instance_list();
+    for (int i = 0; i < weak_instance_list.length(); ++i) {
+      if (weak_instance_list.Get(i)->IsCleared()) continue;
+      i::WasmInstanceObject instance = i::WasmInstanceObject::cast(
+          weak_instance_list.Get(i)->GetHeapObject());
+      instance.set_break_on_entry(true);
+    }
+    return true;
+  }
+
   // Find the function for this breakpoint.
   const wasm::WasmModule* module = script->wasm_native_module()->module();
   int func_index = GetContainingWasmFunction(module, *position);
@@ -1038,8 +834,7 @@ bool WasmScript::SetBreakPointForFunction(Handle<Script> script, int func_index,
   const wasm::WasmFunction& func = module->functions[func_index];
 
   // Insert new break point into {wasm_breakpoint_infos} of the script.
-  WasmScript::AddBreakpointToInfo(script, func.code.offset() + offset,
-                                  break_point);
+  AddBreakpointToInfo(script, func.code.offset() + offset, break_point);
 
   native_module->GetDebugInfo()->SetBreakpoint(func_index, offset, isolate);
 
@@ -1057,8 +852,9 @@ int FindBreakpointInfoInsertPos(Isolate* isolate,
                                 Handle<FixedArray> breakpoint_infos,
                                 int position) {
   // Find insert location via binary search, taking care of undefined values on
-  // the right. Position is always greater than zero.
-  DCHECK_LT(0, position);
+  // the right. {position} is either {kOnEntryBreakpointPosition} (which is -1),
+  // or positive.
+  DCHECK(position == WasmScript::kOnEntryBreakpointPosition || position > 0);
 
   int left = 0;                            // inclusive
   int right = breakpoint_infos->length();  // exclusive
@@ -1212,7 +1008,7 @@ bool WasmScript::GetPossibleBreakpoints(
     wasm::NativeModule* native_module, const v8::debug::Location& start,
     const v8::debug::Location& end,
     std::vector<v8::debug::BreakLocation>* locations) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   const wasm::WasmModule* module = native_module->module();
   const std::vector<wasm::WasmFunction>& functions = module->functions;
@@ -1276,10 +1072,34 @@ bool WasmScript::GetPossibleBreakpoints(
   return true;
 }
 
+namespace {
+
+bool CheckBreakPoint(Isolate* isolate, Handle<BreakPoint> break_point,
+                     StackFrameId frame_id) {
+  if (break_point->condition().length() == 0) return true;
+
+  HandleScope scope(isolate);
+  Handle<String> condition(break_point->condition(), isolate);
+  Handle<Object> result;
+  // The Wasm engine doesn't perform any sort of inlining.
+  const int inlined_jsframe_index = 0;
+  const bool throw_on_side_effect = false;
+  if (!DebugEvaluate::Local(isolate, frame_id, inlined_jsframe_index, condition,
+                            throw_on_side_effect)
+           .ToHandle(&result)) {
+    isolate->clear_pending_exception();
+    return false;
+  }
+  return result->BooleanValue(isolate);
+}
+
+}  // namespace
+
 // static
 MaybeHandle<FixedArray> WasmScript::CheckBreakPoints(Isolate* isolate,
                                                      Handle<Script> script,
-                                                     int position) {
+                                                     int position,
+                                                     StackFrameId frame_id) {
   if (!script->has_wasm_breakpoint_infos()) return {};
 
   Handle<FixedArray> breakpoint_infos(script->wasm_breakpoint_infos(), isolate);
@@ -1294,14 +1114,29 @@ MaybeHandle<FixedArray> WasmScript::CheckBreakPoints(Isolate* isolate,
       Handle<BreakPointInfo>::cast(maybe_breakpoint_info);
   if (breakpoint_info->source_position() != position) return {};
 
-  // There is no support for conditional break points. Just assume that every
-  // break point always hits.
   Handle<Object> break_points(breakpoint_info->break_points(), isolate);
-  if (break_points->IsFixedArray()) {
-    return Handle<FixedArray>::cast(break_points);
+  if (!break_points->IsFixedArray()) {
+    if (!CheckBreakPoint(isolate, Handle<BreakPoint>::cast(break_points),
+                         frame_id)) {
+      return {};
+    }
+    Handle<FixedArray> break_points_hit = isolate->factory()->NewFixedArray(1);
+    break_points_hit->set(0, *break_points);
+    return break_points_hit;
   }
-  Handle<FixedArray> break_points_hit = isolate->factory()->NewFixedArray(1);
-  break_points_hit->set(0, *break_points);
+
+  Handle<FixedArray> array = Handle<FixedArray>::cast(break_points);
+  Handle<FixedArray> break_points_hit =
+      isolate->factory()->NewFixedArray(array->length());
+  int break_points_hit_count = 0;
+  for (int i = 0; i < array->length(); ++i) {
+    Handle<BreakPoint> break_point(BreakPoint::cast(array->get(i)), isolate);
+    if (CheckBreakPoint(isolate, break_point, frame_id)) {
+      break_points_hit->set(break_points_hit_count++, *break_point);
+    }
+  }
+  if (break_points_hit_count == 0) return {};
+  break_points_hit->Shrink(isolate, break_points_hit_count);
   return break_points_hit;
 }
 

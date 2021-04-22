@@ -12,7 +12,7 @@ namespace v8 {
 namespace internal {
 namespace heap {
 
-class TemporaryEmbedderHeapTracerScope {
+class V8_NODISCARD TemporaryEmbedderHeapTracerScope {
  public:
   TemporaryEmbedderHeapTracerScope(v8::Isolate* isolate,
                                    v8::EmbedderHeapTracer* tracer)
@@ -69,8 +69,6 @@ void ForceEvacuationCandidate(Page* page);
 void InvokeScavenge(Isolate* isolate = nullptr);
 
 void InvokeMarkSweep(Isolate* isolate = nullptr);
-
-void EnsureFlagLocalHeapsEnabled();
 
 void GrowNewSpace(Heap* heap);
 

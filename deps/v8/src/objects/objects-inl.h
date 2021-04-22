@@ -15,6 +15,7 @@
 #include "src/base/bits.h"
 #include "src/base/memory.h"
 #include "src/builtins/builtins.h"
+#include "src/common/external-pointer-inl.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-write-barrier-inl.h"
@@ -33,7 +34,7 @@
 #include "src/objects/property-details.h"
 #include "src/objects/property.h"
 #include "src/objects/regexp-match-info.h"
-#include "src/objects/scope-info.h"
+#include "src/objects/scope-info-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/smi-inl.h"
@@ -42,7 +43,6 @@
 #include "src/objects/tagged-index.h"
 #include "src/objects/templates.h"
 #include "src/sanitizer/tsan.h"
-#include "torque-generated/class-definitions-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -61,9 +61,7 @@ Smi PropertyDetails::AsSmi() const {
 
 int PropertyDetails::field_width_in_words() const {
   DCHECK_EQ(location(), kField);
-  if (!FLAG_unbox_double_fields) return 1;
-  if (kDoubleSize == kTaggedSize) return 1;
-  return representation().IsDouble() ? kDoubleSize / kTaggedSize : 1;
+  return 1;
 }
 
 DEF_GETTER(HeapObject, IsClassBoilerplate, bool) {
@@ -78,7 +76,7 @@ bool Object::IsTaggedIndex() const {
   bool Object::Is##type_() const {                                       \
     return IsHeapObject() && HeapObject::cast(*this).Is##type_();        \
   }                                                                      \
-  bool Object::Is##type_(const Isolate* isolate) const {                 \
+  bool Object::Is##type_(IsolateRoot isolate) const {                    \
     return IsHeapObject() && HeapObject::cast(*this).Is##type_(isolate); \
   }
 HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DEF)
@@ -154,8 +152,7 @@ DEF_GETTER(HeapObject, IsUniqueName, bool) {
 }
 
 DEF_GETTER(HeapObject, IsFunction, bool) {
-  STATIC_ASSERT(LAST_FUNCTION_TYPE == LAST_TYPE);
-  return map(isolate).instance_type() >= FIRST_FUNCTION_TYPE;
+  return IsJSFunctionOrBoundFunction();
 }
 
 DEF_GETTER(HeapObject, IsCallable, bool) { return map(isolate).is_callable(); }
@@ -232,33 +229,29 @@ DEF_GETTER(HeapObject, IsExternalTwoByteString, bool) {
 bool Object::IsNumber() const {
   if (IsSmi()) return true;
   HeapObject this_heap_object = HeapObject::cast(*this);
-  const Isolate* isolate = GetIsolateForPtrCompr(this_heap_object);
+  IsolateRoot isolate = GetIsolateForPtrCompr(this_heap_object);
   return this_heap_object.IsHeapNumber(isolate);
 }
 
-bool Object::IsNumber(const Isolate* isolate) const {
+bool Object::IsNumber(IsolateRoot isolate) const {
   return IsSmi() || IsHeapNumber(isolate);
 }
 
 bool Object::IsNumeric() const {
   if (IsSmi()) return true;
   HeapObject this_heap_object = HeapObject::cast(*this);
-  const Isolate* isolate = GetIsolateForPtrCompr(this_heap_object);
+  IsolateRoot isolate = GetIsolateForPtrCompr(this_heap_object);
   return this_heap_object.IsHeapNumber(isolate) ||
          this_heap_object.IsBigInt(isolate);
 }
 
-bool Object::IsNumeric(const Isolate* isolate) const {
+bool Object::IsNumeric(IsolateRoot isolate) const {
   return IsNumber(isolate) || IsBigInt(isolate);
 }
 
 DEF_GETTER(HeapObject, IsFreeSpaceOrFiller, bool) {
   InstanceType instance_type = map(isolate).instance_type();
   return instance_type == FREE_SPACE_TYPE || instance_type == FILLER_TYPE;
-}
-
-DEF_GETTER(HeapObject, IsFrameArray, bool) {
-  return IsFixedArrayExact(isolate);
 }
 
 DEF_GETTER(HeapObject, IsArrayList, bool) {
@@ -271,17 +264,6 @@ DEF_GETTER(HeapObject, IsArrayList, bool) {
 
 DEF_GETTER(HeapObject, IsRegExpMatchInfo, bool) {
   return IsFixedArrayExact(isolate);
-}
-
-bool Object::IsLayoutDescriptor() const {
-  if (IsSmi()) return true;
-  HeapObject this_heap_object = HeapObject::cast(*this);
-  const Isolate* isolate = GetIsolateForPtrCompr(this_heap_object);
-  return this_heap_object.IsByteArray(isolate);
-}
-
-bool Object::IsLayoutDescriptor(const Isolate* isolate) const {
-  return IsSmi() || IsByteArray(isolate);
 }
 
 DEF_GETTER(HeapObject, IsDeoptimizationData, bool) {
@@ -385,11 +367,11 @@ DEF_GETTER(HeapObject, IsWasmExceptionPackage, bool) {
 bool Object::IsPrimitive() const {
   if (IsSmi()) return true;
   HeapObject this_heap_object = HeapObject::cast(*this);
-  const Isolate* isolate = GetIsolateForPtrCompr(this_heap_object);
+  IsolateRoot isolate = GetIsolateForPtrCompr(this_heap_object);
   return this_heap_object.map(isolate).IsPrimitiveMap();
 }
 
-bool Object::IsPrimitive(const Isolate* isolate) const {
+bool Object::IsPrimitive(IsolateRoot isolate) const {
   return IsSmi() || HeapObject::cast(*this).map(isolate).IsPrimitiveMap();
 }
 
@@ -419,7 +401,7 @@ DEF_GETTER(HeapObject, IsAccessCheckNeeded, bool) {
   bool Object::Is##Name() const {                                       \
     return IsHeapObject() && HeapObject::cast(*this).Is##Name();        \
   }                                                                     \
-  bool Object::Is##Name(const Isolate* isolate) const {                 \
+  bool Object::Is##Name(IsolateRoot isolate) const {                    \
     return IsHeapObject() && HeapObject::cast(*this).Is##Name(isolate); \
   }
 STRUCT_LIST(MAKE_STRUCT_PREDICATE)
@@ -451,7 +433,6 @@ bool Object::IsMinusZero() const {
 }
 
 OBJECT_CONSTRUCTORS_IMPL(RegExpMatchInfo, FixedArray)
-OBJECT_CONSTRUCTORS_IMPL(ScopeInfo, FixedArray)
 OBJECT_CONSTRUCTORS_IMPL(BigIntBase, PrimitiveHeapObject)
 OBJECT_CONSTRUCTORS_IMPL(BigInt, BigIntBase)
 OBJECT_CONSTRUCTORS_IMPL(FreshlyAllocatedBigInt, BigIntBase)
@@ -462,7 +443,6 @@ OBJECT_CONSTRUCTORS_IMPL(FreshlyAllocatedBigInt, BigIntBase)
 CAST_ACCESSOR(BigIntBase)
 CAST_ACCESSOR(BigInt)
 CAST_ACCESSOR(RegExpMatchInfo)
-CAST_ACCESSOR(ScopeInfo)
 
 bool Object::HasValidElements() {
   // Dictionary is covered under FixedArray. ByteArray is used
@@ -485,7 +465,7 @@ bool Object::FilterKey(PropertyFilter filter) {
   return false;
 }
 
-Representation Object::OptimalRepresentation(const Isolate* isolate) const {
+Representation Object::OptimalRepresentation(IsolateRoot isolate) const {
   if (!FLAG_track_fields) return Representation::Tagged();
   if (IsSmi()) {
     return Representation::Smi();
@@ -504,7 +484,7 @@ Representation Object::OptimalRepresentation(const Isolate* isolate) const {
   }
 }
 
-ElementsKind Object::OptimalElementsKind(const Isolate* isolate) const {
+ElementsKind Object::OptimalElementsKind(IsolateRoot isolate) const {
   if (IsSmi()) return PACKED_SMI_ELEMENTS;
   if (IsNumber(isolate)) return PACKED_DOUBLE_ELEMENTS;
   return PACKED_ELEMENTS;
@@ -640,12 +620,31 @@ MaybeHandle<Object> Object::SetElement(Isolate* isolate, Handle<Object> object,
   return value;
 }
 
+void Object::InitExternalPointerField(size_t offset, Isolate* isolate) {
+  i::InitExternalPointerField(field_address(offset), isolate);
+}
+
+void Object::InitExternalPointerField(size_t offset, Isolate* isolate,
+                                      Address value, ExternalPointerTag tag) {
+  i::InitExternalPointerField(field_address(offset), isolate, value, tag);
+}
+
+Address Object::ReadExternalPointerField(size_t offset, IsolateRoot isolate,
+                                         ExternalPointerTag tag) const {
+  return i::ReadExternalPointerField(field_address(offset), isolate, tag);
+}
+
+void Object::WriteExternalPointerField(size_t offset, Isolate* isolate,
+                                       Address value, ExternalPointerTag tag) {
+  i::WriteExternalPointerField(field_address(offset), isolate, value, tag);
+}
+
 ObjectSlot HeapObject::RawField(int byte_offset) const {
-  return ObjectSlot(FIELD_ADDR(*this, byte_offset));
+  return ObjectSlot(field_address(byte_offset));
 }
 
 MaybeObjectSlot HeapObject::RawMaybeWeakField(int byte_offset) const {
-  return MaybeObjectSlot(FIELD_ADDR(*this, byte_offset));
+  return MaybeObjectSlot(field_address(byte_offset));
 }
 
 MapWord MapWord::FromMap(const Map map) { return MapWord(map.ptr()); }
@@ -686,10 +685,10 @@ ReadOnlyRoots HeapObject::GetReadOnlyRoots() const {
   return ReadOnlyHeap::GetReadOnlyRoots(*this);
 }
 
-ReadOnlyRoots HeapObject::GetReadOnlyRoots(const Isolate* isolate) const {
+ReadOnlyRoots HeapObject::GetReadOnlyRoots(IsolateRoot isolate) const {
 #ifdef V8_COMPRESS_POINTERS
-  DCHECK_NOT_NULL(isolate);
-  return ReadOnlyRoots(const_cast<Isolate*>(isolate));
+  DCHECK_NE(isolate.address(), 0);
+  return ReadOnlyRoots(Isolate::FromRootAddress(isolate.address()));
 #else
   return GetReadOnlyRoots();
 #endif
@@ -775,8 +774,8 @@ void HeapObject::synchronized_set_map_word(MapWord map_word) {
   MapField::Release_Store(*this, map_word);
 }
 
-bool HeapObject::synchronized_compare_and_swap_map_word(MapWord old_map_word,
-                                                        MapWord new_map_word) {
+bool HeapObject::release_compare_and_swap_map_word(MapWord old_map_word,
+                                                   MapWord new_map_word) {
   Tagged_t result =
       MapField::Release_CompareAndSwap(*this, old_map_word, new_map_word);
   return result == static_cast<Tagged_t>(old_map_word.ptr());
@@ -881,7 +880,7 @@ void RegExpMatchInfo::SetCapture(int i, int value) {
 }
 
 WriteBarrierMode HeapObject::GetWriteBarrierMode(
-    const DisallowHeapAllocation& promise) {
+    const DisallowGarbageCollection& promise) {
   return GetWriteBarrierModeForObject(*this, &promise);
 }
 
@@ -905,7 +904,7 @@ AllocationAlignment HeapObject::RequiredAlignment(Map map) {
 }
 
 Address HeapObject::GetFieldAddress(int field_offset) const {
-  return FIELD_ADDR(*this, field_offset);
+  return field_address(field_offset);
 }
 
 // static
@@ -1005,7 +1004,7 @@ MaybeHandle<Object> Object::GetPropertyOrElement(Handle<Object> receiver,
 
 // static
 Object Object::GetSimpleHash(Object object) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   if (object.IsSmi()) {
     uint32_t hash = ComputeUnseededHash(Smi::ToInt(object));
     return Smi::FromInt(hash & Smi::kMaxValue);
@@ -1025,11 +1024,11 @@ Object Object::GetSimpleHash(Object object) {
     return Smi::FromInt(hash & Smi::kMaxValue);
   }
   if (object.IsName()) {
-    uint32_t hash = Name::cast(object).Hash();
+    uint32_t hash = Name::cast(object).EnsureHash();
     return Smi::FromInt(hash);
   }
   if (object.IsOddball()) {
-    uint32_t hash = Oddball::cast(object).to_string().Hash();
+    uint32_t hash = Oddball::cast(object).to_string().EnsureHash();
     return Smi::FromInt(hash);
   }
   if (object.IsBigInt()) {
@@ -1045,7 +1044,7 @@ Object Object::GetSimpleHash(Object object) {
 }
 
 Object Object::GetHash() {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   Object hash = GetSimpleHash(*this);
   if (hash.IsSmi()) return hash;
 
@@ -1100,24 +1099,6 @@ static inline Handle<Object> MakeEntryPair(Isolate* isolate, Handle<Object> key,
   return isolate->factory()->NewJSArrayWithElements(entry_storage,
                                                     PACKED_ELEMENTS, 2);
 }
-
-bool ScopeInfo::IsAsmModule() const { return IsAsmModuleBit::decode(Flags()); }
-
-bool ScopeInfo::HasSimpleParameters() const {
-  return HasSimpleParametersBit::decode(Flags());
-}
-
-#define FIELD_ACCESSORS(name)                                                 \
-  void ScopeInfo::Set##name(int value) { set(k##name, Smi::FromInt(value)); } \
-  int ScopeInfo::name() const {                                               \
-    if (length() > 0) {                                                       \
-      return Smi::ToInt(get(k##name));                                        \
-    } else {                                                                  \
-      return 0;                                                               \
-    }                                                                         \
-  }
-FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(FIELD_ACCESSORS)
-#undef FIELD_ACCESSORS
 
 FreshlyAllocatedBigInt FreshlyAllocatedBigInt::cast(Object object) {
   SLOW_DCHECK(object.IsBigInt());

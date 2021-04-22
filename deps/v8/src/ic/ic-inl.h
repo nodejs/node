@@ -37,8 +37,7 @@ bool IC::IsHandler(MaybeObject object) {
 bool IC::vector_needs_update() {
   if (state() == NO_FEEDBACK) return false;
   return (!vector_set_ &&
-          (state() != MEGAMORPHIC ||
-           nexus()->GetFeedbackExtra().ToSmi().value() != ELEMENT));
+          (state() != MEGAMORPHIC || nexus()->GetKeyType() != ELEMENT));
 }
 
 }  // namespace internal

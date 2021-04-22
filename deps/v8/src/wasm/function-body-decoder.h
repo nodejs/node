@@ -67,12 +67,11 @@ struct BodyLocalDecls {
 
 V8_EXPORT_PRIVATE bool DecodeLocalDecls(const WasmFeatures& enabled,
                                         BodyLocalDecls* decls,
+                                        const WasmModule* module,
                                         const byte* start, const byte* end);
 
-V8_EXPORT_PRIVATE BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone,
-                                                             size_t num_locals,
-                                                             const byte* start,
-                                                             const byte* end);
+V8_EXPORT_PRIVATE BitVector* AnalyzeLoopAssignmentForTesting(
+    Zone* zone, uint32_t num_locals, const byte* start, const byte* end);
 
 // Computes the length of the opcode at the given address.
 V8_EXPORT_PRIVATE unsigned OpcodeLength(const byte* pc, const byte* end);
@@ -86,6 +85,9 @@ V8_EXPORT_PRIVATE unsigned OpcodeLength(const byte* pc, const byte* end);
 V8_EXPORT_PRIVATE std::pair<uint32_t, uint32_t> StackEffect(
     const WasmModule* module, const FunctionSig* sig, const byte* pc,
     const byte* end);
+
+// Checks if the underlying hardware supports the Wasm SIMD proposal.
+V8_EXPORT_PRIVATE bool CheckHardwareSupportsSimd();
 
 // A simple forward iterator for bytecodes.
 class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {
@@ -163,7 +165,7 @@ class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {
 
   WasmOpcode current() {
     return static_cast<WasmOpcode>(
-        read_u8<Decoder::kNoValidate>(pc_, "expected bytecode"));
+        read_u8<Decoder::kNoValidation>(pc_, "expected bytecode"));
   }
 
   void next() {
@@ -176,7 +178,7 @@ class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {
   bool has_next() { return pc_ < end_; }
 
   WasmOpcode prefixed_opcode() {
-    return read_prefixed_opcode<Decoder::kNoValidate>(pc_);
+    return read_prefixed_opcode<Decoder::kNoValidation>(pc_);
   }
 };
 

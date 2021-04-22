@@ -37,6 +37,7 @@
 #if V8_TARGET_ARCH_MIPS64
 
 #include "src/base/cpu.h"
+#include "src/codegen/machine-type.h"
 #include "src/codegen/mips64/assembler-mips64-inl.h"
 #include "src/codegen/safepoint-table.h"
 #include "src/codegen/string-constants.h"
@@ -90,6 +91,12 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   if (cpu.has_msa()) supported_ |= 1u << MIPS_SIMD;
 #endif
 #endif
+
+  // Set a static value on whether Simd is supported.
+  // This variable is only used for certain archs to query SupportWasmSimd128()
+  // at runtime in builtins using an extern ref. Other callers should use
+  // CpuFeatures::SupportWasmSimd128().
+  CpuFeatures::supports_wasm_simd_128_ = CpuFeatures::SupportsWasmSimd128();
 }
 
 void CpuFeatures::PrintTarget() {}
@@ -283,6 +290,15 @@ Assembler::Assembler(const AssemblerOptions& options,
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
                         SafepointTableBuilder* safepoint_table_builder,
                         int handler_table_offset) {
+  // As a crutch to avoid having to add manual Align calls wherever we use a
+  // raw workflow to create Code objects (mostly in tests), add another Align
+  // call here. It does no harm - the end of the Code object is aligned to the
+  // (larger) kCodeAlignment anyways.
+  // TODO(jgruber): Consider moving responsibility for proper alignment to
+  // metadata table builders (safepoint, handler, constant pool, code
+  // comments).
+  DataAlign(Code::kMetadataAlignment);
+
   EmitForbiddenSlotInstruction();
 
   int code_comments_size = WriteCodeComments();
@@ -869,8 +885,10 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
       Instr instr_branch_delay;
 
       if (IsJump(instr_j)) {
-        instr_branch_delay = instr_at(pos + 6 * kInstrSize);
+        // Case when branch delay slot is protected.
+        instr_branch_delay = nopInstr;
       } else {
+        // Case when branch delay slot is used.
         instr_branch_delay = instr_at(pos + 7 * kInstrSize);
       }
       instr_at_put(pos, instr_b);
@@ -3746,6 +3764,7 @@ void Assembler::GrowBuffer() {
   buffer_ = std::move(new_buffer);
   buffer_start_ = new_start;
   pc_ += pc_delta;
+  last_call_pc_ += pc_delta;
   reloc_info_writer.Reposition(reloc_info_writer.pos() + rc_delta,
                                reloc_info_writer.last_pc() + pc_delta);
 
@@ -3767,14 +3786,22 @@ void Assembler::db(uint8_t data) {
   pc_ += sizeof(uint8_t);
 }
 
-void Assembler::dd(uint32_t data) {
+void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
   CheckForEmitInForbiddenSlot();
+  if (!RelocInfo::IsNone(rmode)) {
+    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
+    RecordRelocInfo(rmode);
+  }
   *reinterpret_cast<uint32_t*>(pc_) = data;
   pc_ += sizeof(uint32_t);
 }
 
-void Assembler::dq(uint64_t data) {
+void Assembler::dq(uint64_t data, RelocInfo::Mode rmode) {
   CheckForEmitInForbiddenSlot();
+  if (!RelocInfo::IsNone(rmode)) {
+    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
+    RecordRelocInfo(rmode);
+  }
   *reinterpret_cast<uint64_t*>(pc_) = data;
   pc_ += sizeof(uint64_t);
 }
@@ -3968,6 +3995,26 @@ Register UseScratchRegisterScope::Acquire() {
 }
 
 bool UseScratchRegisterScope::hasAvailable() const { return *available_ != 0; }
+
+LoadStoreLaneParams::LoadStoreLaneParams(MachineRepresentation rep,
+                                         uint8_t laneidx) {
+  switch (rep) {
+    case MachineRepresentation::kWord8:
+      *this = LoadStoreLaneParams(laneidx, MSA_B, 16);
+      break;
+    case MachineRepresentation::kWord16:
+      *this = LoadStoreLaneParams(laneidx, MSA_H, 8);
+      break;
+    case MachineRepresentation::kWord32:
+      *this = LoadStoreLaneParams(laneidx, MSA_W, 4);
+      break;
+    case MachineRepresentation::kWord64:
+      *this = LoadStoreLaneParams(laneidx, MSA_D, 2);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
 
 }  // namespace internal
 }  // namespace v8

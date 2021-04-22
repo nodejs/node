@@ -14,7 +14,7 @@ const kTests = [
   ['SHA-1', 'sha1', 160],
   ['SHA-256', 'sha256', 256],
   ['SHA-384', 'sha384', 384],
-  ['SHA-512', 'sha512', 512]
+  ['SHA-512', 'sha512', 512],
 ];
 
 // Empty hash just works, not checking result
@@ -66,17 +66,17 @@ const kData = (new TextEncoder()).encode('hello');
   }));
 })().then(common.mustCall());
 
-[1, [], {}, null, undefined].forEach((i) => {
-  assert.rejects(subtle.digest(i), { message: /Unrecognized name/ });
-});
+Promise.all([1, [], {}, null, undefined].map((i) =>
+  assert.rejects(subtle.digest(i), { message: /Unrecognized name/ })
+)).then(common.mustCall());
 
-assert.rejects(subtle.digest(''), { message: /Unrecognized name/ });
+assert.rejects(subtle.digest(''), { message: /Unrecognized name/ }).then(common.mustCall());
 
-[1, [], {}, null, undefined].forEach((i) => {
+Promise.all([1, [], {}, null, undefined].map((i) =>
   assert.rejects(subtle.digest('SHA-256', i), {
     code: 'ERR_INVALID_ARG_TYPE'
-  });
-});
+  })
+)).then(common.mustCall());
 
 // If there is a mismatch between length and the expected digest size for
 // the selected algorithm, we fail. The length is a Node.js specific
@@ -84,7 +84,7 @@ assert.rejects(subtle.digest(''), { message: /Unrecognized name/ });
 // hash algorithms that support variable digest output lengths.
 assert.rejects(subtle.digest({ name: 'SHA-512', length: 510 }, kData), {
   message: /Digest method not supported/
-});
+}).then(common.mustCall());
 
 const kSourceData = {
   empty: '',

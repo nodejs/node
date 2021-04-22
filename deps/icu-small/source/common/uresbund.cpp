@@ -92,6 +92,15 @@ static UBool chopLocale(char *name) {
 }
 
 /**
+ *  Called to check whether a name without '_' needs to be checked for a parent.
+ *  Some code had assumed that locale IDs with '_' could not have a non-root parent.
+ *  We may want a better way of doing this.
+ */
+static UBool mayHaveParent(char *name) {
+    return (name[0] != 0 && uprv_strstr("nb nn",name) != nullptr);
+}
+
+/**
  *  Internal function
  */
 static void entryIncrease(UResourceDataEntry *entry) {
@@ -529,8 +538,8 @@ loadParentsExceptRoot(UResourceDataEntry *&t1,
                       char name[], int32_t nameCapacity,
                       UBool usingUSRData, char usrDataPath[], UErrorCode *status) {
     if (U_FAILURE(*status)) { return FALSE; }
-    UBool hasChopped = TRUE;
-    while (hasChopped && t1->fParent == NULL && !t1->fData.noFallback &&
+    UBool checkParent = TRUE;
+    while (checkParent && t1->fParent == NULL && !t1->fData.noFallback &&
             res_getResource(&t1->fData,"%%ParentIsRoot") == RES_BOGUS) {
         Resource parentRes = res_getResource(&t1->fData, "%%Parent");
         if (parentRes != RES_BOGUS) {  // An explicit parent was found.
@@ -573,7 +582,7 @@ loadParentsExceptRoot(UResourceDataEntry *&t1,
             }
         }
         t1 = t2;
-        hasChopped = chopLocale(name);
+        checkParent = chopLocale(name) || mayHaveParent(name);
     }
     return TRUE;
 }
@@ -692,7 +701,7 @@ static UResourceDataEntry *entryOpen(const char* path, const char* localeID,
                 }
             }
         }
-        if (hasChopped && !isRoot) {
+        if ((hasChopped || mayHaveParent(name)) && !isRoot) {
             if (!loadParentsExceptRoot(t1, name, UPRV_LENGTHOF(name), usingUSRData, usrDataPath, status)) {
                 goto finish;
             }
@@ -716,7 +725,7 @@ static UResourceDataEntry *entryOpen(const char* path, const char* localeID,
             hasRealData = TRUE;
             isDefault = TRUE;
             // TODO: Why not if (usingUSRData) { ... } like in the non-default-locale code path?
-            if (hasChopped && !isRoot) {
+            if ((hasChopped || mayHaveParent(name)) && !isRoot) {
                 if (!loadParentsExceptRoot(t1, name, UPRV_LENGTHOF(name), usingUSRData, usrDataPath, status)) {
                     goto finish;
                 }
@@ -1908,6 +1917,8 @@ ures_getByKeyWithFallback(const UResourceBundle *resB,
                             } else {
                               break;
                             }
+                        } else if (res == RES_BOGUS) {
+                            break;
                         }
                     } while(*myPath); /* Continue until the whole path is consumed */
                 }
@@ -3019,7 +3030,7 @@ ures_getKeywordValues(const char *path, const char *keyword, UErrorCode *status)
 U_CAPI UBool U_EXPORT2
 ures_equal(const UResourceBundle* res1, const UResourceBundle* res2){
     if(res1==NULL || res2==NULL){
-        return res1==res2; /* pointer comparision */
+        return res1==res2; /* pointer comparison */
     }
     if(res1->fKey==NULL||  res2->fKey==NULL){
         return (res1->fKey==res2->fKey);

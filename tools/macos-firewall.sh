@@ -21,36 +21,25 @@ CCTEST_DEBUG="$OUTDIR/Debug/cctest"
 OPENSSL_CLI_RELEASE="$OUTDIR/Release/openssl-cli"
 OPENSSL_CLI_DEBUG="$OUTDIR/Debug/openssl-cli"
 
+add_and_unblock () {
+  if [ -e "$1" ]
+  then
+    echo Processing "$1"
+    $SFW --remove "$1" >/dev/null
+    $SFW --add "$1"
+    $SFW --unblock "$1"
+  fi
+}
+
 if [ -f $SFW ];
 then
-  # Duplicating these commands on purpose as the symbolic link node might be
-  # linked to either out/Debug/node or out/Release/node depending on the
-  # BUILDTYPE.
-  $SFW --remove "$NODE_DEBUG"
-  $SFW --remove "$NODE_DEBUG"
-  $SFW --remove "$NODE_RELEASE"
-  $SFW --remove "$NODE_RELEASE"
-  $SFW --remove "$NODE_LINK"
-  $SFW --remove "$CCTEST_DEBUG"
-  $SFW --remove "$CCTEST_RELEASE"
-  $SFW --remove "$OPENSSL_CLI_DEBUG"
-  $SFW --remove "$OPENSSL_CLI_RELEASE"
-
-  $SFW --add "$NODE_DEBUG"
-  $SFW --add "$NODE_RELEASE"
-  $SFW --add "$NODE_LINK"
-  $SFW --add "$CCTEST_DEBUG"
-  $SFW --add "$CCTEST_RELEASE"
-  $SFW --add "$OPENSSL_CLI_DEBUG"
-  $SFW --add "$OPENSSL_CLI_RELEASE"
-
-  $SFW --unblock "$NODE_DEBUG"
-  $SFW --unblock "$NODE_RELEASE"
-  $SFW --unblock "$NODE_LINK"
-  $SFW --unblock "$CCTEST_DEBUG"
-  $SFW --unblock "$CCTEST_RELEASE"
-  $SFW --unblock "$OPENSSL_CLI_DEBUG"
-  $SFW --unblock "$OPENSSL_CLI_RELEASE"
+  add_and_unblock "$NODE_DEBUG"
+  add_and_unblock "$NODE_RELEASE"
+  add_and_unblock "$NODE_LINK"
+  add_and_unblock "$CCTEST_DEBUG"
+  add_and_unblock "$CCTEST_RELEASE"
+  add_and_unblock "$OPENSSL_CLI_DEBUG"
+  add_and_unblock "$OPENSSL_CLI_RELEASE"
 else
   echo "SocketFirewall not found in location: $SFW"
 fi

@@ -314,7 +314,7 @@ bool ExecuteString(v8::Isolate* isolate, v8::Local<v8::String> source,
                    bool report_exceptions) {
   v8::HandleScope handle_scope(isolate);
   v8::TryCatch try_catch(isolate);
-  v8::ScriptOrigin origin(name);
+  v8::ScriptOrigin origin(isolate, name);
   v8::Local<v8::Context> context(isolate->GetCurrentContext());
   v8::Local<v8::Script> script;
   if (!v8::Script::Compile(context, source, &origin).ToLocal(&script)) {
@@ -380,7 +380,7 @@ void ReportException(v8::Isolate* isolate, v8::TryCatch* try_catch) {
     v8::Local<v8::Value> stack_trace_string;
     if (try_catch->StackTrace(context).ToLocal(&stack_trace_string) &&
         stack_trace_string->IsString() &&
-        v8::Local<v8::String>::Cast(stack_trace_string)->Length() > 0) {
+        stack_trace_string.As<v8::String>()->Length() > 0) {
       v8::String::Utf8Value stack_trace(isolate, stack_trace_string);
       const char* stack_trace_string = ToCString(stack_trace);
       fprintf(stderr, "%s\n", stack_trace_string);

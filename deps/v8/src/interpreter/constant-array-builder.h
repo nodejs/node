@@ -29,7 +29,6 @@ namespace interpreter {
   V(EmptyObjectBoilerplateDescription, empty_object_boilerplate_description) \
   V(EmptyArrayBoilerplateDescription, empty_array_boilerplate_description)   \
   V(EmptyFixedArray, empty_fixed_array)                                      \
-  V(HomeObjectSymbol, home_object_symbol)                                    \
   V(IteratorSymbol, iterator_symbol)                                         \
   V(InterpreterTrampolineSymbol, interpreter_trampoline_symbol)              \
   V(NaN, nan_value)
@@ -198,6 +197,9 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final {
   struct ConstantArraySlice final : public ZoneObject {
     ConstantArraySlice(Zone* zone, size_t start_index, size_t capacity,
                        OperandSize operand_size);
+    ConstantArraySlice(const ConstantArraySlice&) = delete;
+    ConstantArraySlice& operator=(const ConstantArraySlice&) = delete;
+
     void Reserve();
     void Unreserve();
     size_t Allocate(Entry entry, size_t count = 1);
@@ -223,8 +225,6 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final {
     size_t reserved_;
     OperandSize operand_size_;
     ZoneVector<Entry> constants_;
-
-    DISALLOW_COPY_AND_ASSIGN(ConstantArraySlice);
   };
 
   ConstantArraySlice* IndexToSlice(size_t index) const;

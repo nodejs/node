@@ -6,14 +6,15 @@ const http = require('http');
 
 const { PerformanceObserver } = require('perf_hooks');
 
-const obs = new PerformanceObserver(common.mustCall((items) => {
-  const entry = items.getEntries()[0];
-  assert.strictEqual(entry.entryType, 'http');
-  assert.strictEqual(typeof entry.startTime, 'number');
-  assert.strictEqual(typeof entry.duration, 'number');
-}, 2));
+const obs = new PerformanceObserver(common.mustCallAtLeast((items) => {
+  items.getEntries().forEach((entry) => {
+    assert.strictEqual(entry.entryType, 'http');
+    assert.strictEqual(typeof entry.startTime, 'number');
+    assert.strictEqual(typeof entry.duration, 'number');
+  });
+}));
 
-obs.observe({ entryTypes: ['http'] });
+obs.observe({ type: 'http' });
 
 const expected = 'Post Body For Test';
 const makeRequest = (options) => {
@@ -52,7 +53,7 @@ server.listen(0, common.mustCall(async () => {
       path: '/',
       method: 'POST',
       data: expected
-    })
+    }),
   ]);
   server.close();
 }));

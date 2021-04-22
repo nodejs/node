@@ -27,7 +27,7 @@ class AllocationBuilder final {
   // Primitive allocation of static size.
   void Allocate(int size, AllocationType allocation = AllocationType::kYoung,
                 Type type = Type::Any()) {
-    DCHECK_LE(size, kMaxRegularHeapObjectSize);
+    DCHECK_LE(size, Heap::MaxRegularHeapObjectSize(allocation));
     effect_ = graph()->NewNode(
         common()->BeginRegion(RegionObservability::kNotObservable), effect_);
     allocation_ =
@@ -52,10 +52,16 @@ class AllocationBuilder final {
   inline void AllocateContext(int variadic_part_length, MapRef map);
 
   // Compound allocation of a FixedArray.
+  inline static bool CanAllocateArray(
+      int length, MapRef map,
+      AllocationType allocation = AllocationType::kYoung);
   inline void AllocateArray(int length, MapRef map,
                             AllocationType allocation = AllocationType::kYoung);
 
   // Compound allocation of a SloppyArgumentsElements
+  static inline bool CanAllocateSloppyArgumentElements(
+      int length, MapRef map,
+      AllocationType allocation = AllocationType::kYoung);
   inline void AllocateSloppyArgumentElements(
       int length, MapRef map,
       AllocationType allocation = AllocationType::kYoung);

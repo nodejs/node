@@ -158,6 +158,8 @@ class BaseObject : public MemoryRetainer {
 
   virtual inline void OnGCCollect();
 
+  virtual inline bool is_snapshotable() const { return false; }
+
  private:
   v8::Local<v8::Object> WrappedObject() const override;
   bool IsRootNode() const override;

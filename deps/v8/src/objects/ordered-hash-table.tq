@@ -23,7 +23,6 @@ extern class SmallOrderedHashTable extends HeapObject
 extern macro SmallOrderedHashSetMapConstant(): Map;
 const kSmallOrderedHashSetMap: Map = SmallOrderedHashSetMapConstant();
 
-@noVerifier
 extern class SmallOrderedHashSet extends SmallOrderedHashTable {
   number_of_elements: uint8;
   number_of_deleted_elements: uint8;
@@ -62,7 +61,6 @@ struct HashMapEntry {
 extern macro SmallOrderedHashMapMapConstant(): Map;
 const kSmallOrderedHashMapMap: Map = SmallOrderedHashMapMapConstant();
 
-@noVerifier
 extern class SmallOrderedHashMap extends SmallOrderedHashTable {
   number_of_elements: uint8;
   number_of_deleted_elements: uint8;
@@ -99,13 +97,15 @@ struct NameDictionaryEntry {
   property_details: Smi|TheHole;
 }
 
-@noVerifier
 extern class SmallOrderedNameDictionary extends SmallOrderedHashTable {
   hash: int32;
+  @if(TAGGED_SIZE_8_BYTES) padding_0: int32;
+  @ifnot(TAGGED_SIZE_8_BYTES) padding_0: void;
   number_of_elements: uint8;
   number_of_deleted_elements: uint8;
   const number_of_buckets: uint8;
-  padding: uint8;
+  @if(TAGGED_SIZE_8_BYTES) padding_1[5]: uint8;
+  @ifnot(TAGGED_SIZE_8_BYTES) padding_1[1]: uint8;
   data_table[Convert<intptr>(number_of_buckets) * kSmallOrderedHashTableLoadFactor]:
       NameDictionaryEntry;
   hash_table[number_of_buckets]: uint8;

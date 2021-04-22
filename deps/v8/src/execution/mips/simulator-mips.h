@@ -267,6 +267,7 @@ class Simulator : public SimulatorBase {
   void set_msa_register(int wreg, const T* value);
   void set_fcsr_bit(uint32_t cc, bool value);
   bool test_fcsr_bit(uint32_t cc);
+  void clear_fcsr_cause();
   void set_fcsr_rounding_mode(FPURoundingMode mode);
   void set_msacsr_rounding_mode(FPURoundingMode mode);
   unsigned int get_fcsr_rounding_mode();

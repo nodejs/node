@@ -7,3 +7,10 @@ extern class ArrayBoilerplateDescription extends Struct {
   flags: Smi;
   constant_elements: FixedArrayBase;
 }
+
+@generateCppClass
+extern class RegExpBoilerplateDescription extends Struct {
+  data: FixedArray;
+  source: String;
+  flags: SmiTagged<JSRegExpFlags>;
+}

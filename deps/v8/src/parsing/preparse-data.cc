@@ -8,6 +8,7 @@
 
 #include "src/ast/scopes.h"
 #include "src/ast/variables.h"
+#include "src/base/platform/wrappers.h"
 #include "src/handles/handles.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
@@ -133,7 +134,7 @@ struct RawPreparseData {};
 
 void PreparseDataBuilder::ByteData::Finalize(Zone* zone) {
   uint8_t* raw_zone_data = zone->NewArray<uint8_t, RawPreparseData>(index_);
-  memcpy(raw_zone_data, byte_data_->data(), index_);
+  base::Memcpy(raw_zone_data, byte_data_->data(), index_);
   byte_data_->resize(0);
   zone_byte_data_ = Vector<uint8_t>(raw_zone_data, index_);
 #ifdef DEBUG
@@ -305,7 +306,7 @@ bool PreparseDataBuilder::SaveDataForSkippableFunction(
 
   uint8_t language_and_super =
       LanguageField::encode(function_scope->language_mode()) |
-      UsesSuperField::encode(function_scope->NeedsHomeObject());
+      UsesSuperField::encode(function_scope->uses_super_property());
   byte_data_.WriteQuarter(language_and_super);
   return has_data;
 }
@@ -360,7 +361,7 @@ void PreparseDataBuilder::SaveDataForScope(Scope* scope) {
   byte_data_.WriteUint8(scope->scope_type());
 #endif
 
-  uint8_t eval_and_private_recalc =
+  uint8_t scope_data_flags =
       ScopeSloppyEvalCanExtendVarsBit::encode(
           scope->is_declaration_scope() &&
           scope->AsDeclarationScope()->sloppy_eval_can_extend_vars()) |
@@ -373,7 +374,7 @@ void PreparseDataBuilder::SaveDataForScope(Scope* scope) {
           scope->is_class_scope() &&
           scope->AsClassScope()->should_save_class_variable_index());
   byte_data_.Reserve(kUint8Size);
-  byte_data_.WriteUint8(eval_and_private_recalc);
+  byte_data_.WriteUint8(scope_data_flags);
 
   if (scope->is_function_scope()) {
     Variable* function = scope->AsDeclarationScope()->function_var();
@@ -760,7 +761,7 @@ PreparseData OnHeapConsumedPreparseData::GetScopeData() { return *data_; }
 
 ProducedPreparseData* OnHeapConsumedPreparseData::GetChildData(Zone* zone,
                                                                int index) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   Handle<PreparseData> child_data_handle(data_->get_child(index), isolate_);
   return ProducedPreparseData::For(child_data_handle, zone);
 }

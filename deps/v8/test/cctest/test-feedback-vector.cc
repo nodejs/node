@@ -89,7 +89,7 @@ TEST(VectorStructure) {
   {
     FeedbackVectorSpec spec(&zone);
     spec.AddForInSlot();
-    spec.AddFeedbackCellForCreateClosure();
+    spec.AddCreateClosureSlot();
     spec.AddForInSlot();
     vector = NewFeedbackVector(isolate, &spec);
     FeedbackVectorHelper helper(vector);
@@ -131,7 +131,7 @@ TEST(VectorICMetadata) {
 
   // Meanwhile set some feedback values and type feedback values to
   // verify the data structure remains intact.
-  vector->Set(FeedbackSlot(0), MaybeObject::FromObject(*vector));
+  vector->SynchronizedSet(FeedbackSlot(0), MaybeObject::FromObject(*vector));
 
   // Verify the metadata is correctly set up from the spec.
   for (int i = 0; i < 40; i++) {

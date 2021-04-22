@@ -222,6 +222,8 @@ static void InitializeBuildingBlocks(Handle<String>* building_blocks,
 class ConsStringStats {
  public:
   ConsStringStats() { Reset(); }
+  ConsStringStats(const ConsStringStats&) = delete;
+  ConsStringStats& operator=(const ConsStringStats&) = delete;
   void Reset();
   void VerifyEqual(const ConsStringStats& that) const;
   int leaves_;
@@ -231,7 +233,6 @@ class ConsStringStats {
   int right_traversals_;
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(ConsStringStats);
 };
 
 void ConsStringStats::Reset() {
@@ -254,6 +255,8 @@ class ConsStringGenerationData {
  public:
   static const int kNumberOfBuildingBlocks = 256;
   explicit ConsStringGenerationData(bool long_blocks);
+  ConsStringGenerationData(const ConsStringGenerationData&) = delete;
+  ConsStringGenerationData& operator=(const ConsStringGenerationData&) = delete;
   void Reset();
   inline Handle<String> block(int offset);
   inline Handle<String> block(uint32_t offset);
@@ -270,9 +273,6 @@ class ConsStringGenerationData {
   // Stats.
   ConsStringStats stats_;
   int early_terminations_;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(ConsStringGenerationData);
 };
 
 ConsStringGenerationData::ConsStringGenerationData(bool long_blocks) {
@@ -332,7 +332,7 @@ void AccumulateStats(ConsString cons_string, ConsStringStats* stats) {
 }
 
 void AccumulateStats(Handle<String> cons_string, ConsStringStats* stats) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   if (cons_string->IsConsString()) {
     return AccumulateStats(ConsString::cast(*cons_string), stats);
   }
@@ -601,7 +601,7 @@ TEST(ConsStringWithEmptyFirstFlatten) {
   CHECK_EQ(initial_length, cons->length());
 
   // Make sure Flatten doesn't alloc a new string.
-  DisallowHeapAllocation no_alloc;
+  DisallowGarbageCollection no_alloc;
   i::Handle<i::String> flat = i::String::Flatten(isolate, cons);
   CHECK(flat->IsFlat());
   CHECK_EQ(initial_length, flat->length());
@@ -665,7 +665,7 @@ void TestStringCharacterStream(BuildString build, int test_cases) {
     Handle<String> cons_string = build(i, &data);
     ConsStringStats cons_string_stats;
     AccumulateStats(cons_string, &cons_string_stats);
-    DisallowHeapAllocation no_allocation;
+    DisallowGarbageCollection no_gc;
     PrintStats(data);
     // Full verify of cons string.
     cons_string_stats.VerifyEqual(flat_string_stats);
@@ -1613,7 +1613,7 @@ TEST(Latin1IgnoreCase) {
       CheckCanonicalEquivalence(c, test);
       continue;
     }
-    CHECK_EQ(Min(upper, lower), test);
+    CHECK_EQ(std::min(upper, lower), test);
   }
 }
 #endif
@@ -1829,14 +1829,14 @@ void TestString(i::Isolate* isolate, const IndexData& data) {
     size_t index;
     CHECK(s->AsIntegerIndex(&index));
     CHECK_EQ(data.integer_index, index);
-    s->Hash();
-    CHECK_EQ(0, s->hash_field() & String::kIsNotIntegerIndexMask);
+    s->EnsureHash();
+    CHECK_EQ(0, s->raw_hash_field() & String::kIsNotIntegerIndexMask);
     CHECK(s->HasHashCode());
   }
-  if (!s->HasHashCode()) s->Hash();
+  if (!s->HasHashCode()) s->EnsureHash();
   CHECK(s->HasHashCode());
   if (!data.is_integer_index) {
-    CHECK_NE(0, s->hash_field() & String::kIsNotIntegerIndexMask);
+    CHECK_NE(0, s->raw_hash_field() & String::kIsNotIntegerIndexMask);
   }
 }
 
@@ -1850,11 +1850,11 @@ TEST(HashArrayIndexStrings) {
 
   CHECK_EQ(StringHasher::MakeArrayIndexHash(0 /* value */, 1 /* length */) >>
                Name::kHashShift,
-           isolate->factory()->zero_string()->Hash());
+           isolate->factory()->zero_string()->hash());
 
   CHECK_EQ(StringHasher::MakeArrayIndexHash(1 /* value */, 1 /* length */) >>
                Name::kHashShift,
-           isolate->factory()->one_string()->Hash());
+           isolate->factory()->one_string()->hash());
 
   IndexData tests[] = {
     {"", false, 0, false, 0},
@@ -1937,7 +1937,7 @@ TEST(Regress876759) {
   {
     Handle<SeqTwoByteString> raw =
         factory->NewRawTwoByteString(kLength).ToHandleChecked();
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     CopyChars(raw->GetChars(no_gc), two_byte_buf, kLength);
     parent = raw;
   }
@@ -1959,6 +1959,141 @@ TEST(Regress876759) {
   CHECK(sliced->IsTwoByteRepresentation());
   // The *Underneath version returns the correct representation.
   CHECK(String::IsOneByteRepresentationUnderneath(*sliced));
+}
+
+// Show that it is possible to internalize an external string without a copy, as
+// long as it is not uncached.
+TEST(InternalizeExternalString) {
+  CcTest::InitializeVM();
+  Factory* factory = CcTest::i_isolate()->factory();
+  v8::HandleScope scope(CcTest::isolate());
+
+  // Create the string.
+  const char* raw_string = "external";
+  OneByteResource* resource =
+      new OneByteResource(i::StrDup(raw_string), strlen(raw_string));
+  Handle<String> string =
+      factory->NewExternalStringFromOneByte(resource).ToHandleChecked();
+  CHECK(string->IsExternalString());
+
+  // Check it is not uncached.
+  Handle<ExternalString> external = Handle<ExternalString>::cast(string);
+  CHECK(!external->is_uncached());
+
+  // Internalize succesfully, without a copy.
+  Handle<String> internal = factory->InternalizeString(external);
+  CHECK(string->IsInternalizedString());
+  CHECK(string.equals(internal));
+}
+
+// Show that it is possible to internalize an external string without a copy, as
+// long as it is not uncached. Two byte version.
+TEST(InternalizeExternalStringTwoByte) {
+  CcTest::InitializeVM();
+  Factory* factory = CcTest::i_isolate()->factory();
+  v8::HandleScope scope(CcTest::isolate());
+
+  // Create the string.
+  const char* raw_string = "external";
+  Resource* resource =
+      new Resource(AsciiToTwoByteString(raw_string), strlen(raw_string));
+  Handle<String> string =
+      factory->NewExternalStringFromTwoByte(resource).ToHandleChecked();
+  CHECK(string->IsExternalString());
+
+  // Check it is not uncached.
+  Handle<ExternalString> external = Handle<ExternalString>::cast(string);
+  CHECK(!external->is_uncached());
+
+  // Internalize succesfully, without a copy.
+  Handle<String> internal = factory->InternalizeString(external);
+  CHECK(string->IsInternalizedString());
+  CHECK(string.equals(internal));
+}
+
+class UncachedExternalOneByteResource
+    : public v8::String::ExternalOneByteStringResource {
+ public:
+  explicit UncachedExternalOneByteResource(const char* data)
+      : data_(data), length_(strlen(data)) {}
+
+  ~UncachedExternalOneByteResource() override { i::DeleteArray(data_); }
+
+  const char* data() const override { return data_; }
+  size_t length() const override { return length_; }
+  bool IsCacheable() const override { return false; }
+
+ private:
+  const char* data_;
+  size_t length_;
+};
+
+// Show that we can internalize an external uncached string, by creating a copy.
+TEST(InternalizeExternalStringUncachedWithCopy) {
+  CcTest::InitializeVM();
+  Factory* factory = CcTest::i_isolate()->factory();
+  v8::HandleScope scope(CcTest::isolate());
+
+  // Create the string.
+  const char* raw_string = "external";
+  UncachedExternalOneByteResource* resource =
+      new UncachedExternalOneByteResource(i::StrDup(raw_string));
+  Handle<String> string =
+      factory->NewExternalStringFromOneByte(resource).ToHandleChecked();
+  CHECK(string->IsExternalString());
+
+  // Check it is uncached.
+  Handle<ExternalString> external = Handle<ExternalString>::cast(string);
+  CHECK(external->is_uncached());
+
+  // Internalize succesfully, with a copy.
+  Handle<String> internal = factory->InternalizeString(external);
+  CHECK(!external->IsInternalizedString());
+  CHECK(internal->IsInternalizedString());
+}
+
+class UncachedExternalResource : public v8::String::ExternalStringResource {
+ public:
+  explicit UncachedExternalResource(const uint16_t* data)
+      : data_(data), length_(0) {
+    while (data[length_]) ++length_;
+  }
+
+  ~UncachedExternalResource() override { i::DeleteArray(data_); }
+
+  const uint16_t* data() const override { return data_; }
+  size_t length() const override { return length_; }
+  bool IsCacheable() const override { return false; }
+
+ private:
+  const uint16_t* data_;
+  size_t length_;
+};
+
+// Show that we can internalize an external uncached string, by creating a copy.
+// Two byte version.
+TEST(InternalizeExternalStringUncachedWithCopyTwoByte) {
+  CcTest::InitializeVM();
+  Factory* factory = CcTest::i_isolate()->factory();
+  v8::HandleScope scope(CcTest::isolate());
+
+  // Create the string.
+  const char* raw_string = "external";
+  UncachedExternalResource* resource =
+      new UncachedExternalResource(AsciiToTwoByteString(raw_string));
+  Handle<String> string =
+      factory->NewExternalStringFromTwoByte(resource).ToHandleChecked();
+  CHECK(string->IsExternalString());
+
+  // Check it is uncached.
+  Handle<ExternalString> external = Handle<ExternalString>::cast(string);
+  CHECK(external->is_uncached());
+
+  // Internalize succesfully, with a copy.
+  CHECK(!external->IsInternalizedString());
+  Handle<String> internal = factory->InternalizeString(external);
+  CHECK(!external->IsInternalizedString());
+  CHECK(internal->IsInternalizedString());
 }
 
 }  // namespace test_strings

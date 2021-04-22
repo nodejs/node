@@ -41,9 +41,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include <algorithm>
 
 #include "src/base/logging.h"
+#include "src/base/platform/wrappers.h"
 #if V8_OS_WIN
 #include "src/base/win32-headers.h"  // NOLINT
 #endif
@@ -164,7 +166,7 @@ static uint32_t ReadELFHWCaps() {
   result = static_cast<uint32_t>(getauxval(AT_HWCAP));
 #else
   // Read the ELF HWCAP flags by parsing /proc/self/auxv.
-  FILE* fp = fopen("/proc/self/auxv", "r");
+  FILE* fp = base::Fopen("/proc/self/auxv", "r");
   if (fp != nullptr) {
     struct {
       uint32_t tag;
@@ -180,7 +182,7 @@ static uint32_t ReadELFHWCaps() {
         break;
       }
     }
-    fclose(fp);
+    base::Fclose(fp);
   }
 #endif
   return result;
@@ -238,7 +240,7 @@ class CPUInfo final {
     // required because files under /proc do not always return a valid size
     // when using fseek(0, SEEK_END) + ftell(). Nor can the be mmap()-ed.
     static const char PATHNAME[] = "/proc/cpuinfo";
-    FILE* fp = fopen(PATHNAME, "r");
+    FILE* fp = base::Fopen(PATHNAME, "r");
     if (fp != nullptr) {
       for (;;) {
         char buffer[256];
@@ -248,12 +250,12 @@ class CPUInfo final {
         }
         datalen_ += n;
       }
-      fclose(fp);
+      base::Fclose(fp);
     }
 
     // Read the contents of the cpuinfo file.
     data_ = new char[datalen_ + 1];
-    fp = fopen(PATHNAME, "r");
+    fp = base::Fopen(PATHNAME, "r");
     if (fp != nullptr) {
       for (size_t offset = 0; offset < datalen_; ) {
         size_t n = fread(data_ + offset, 1, datalen_ - offset, fp);
@@ -262,7 +264,7 @@ class CPUInfo final {
         }
         offset += n;
       }
-      fclose(fp);
+      base::Fclose(fp);
     }
 
     // Zero-terminate the data.
@@ -311,7 +313,7 @@ class CPUInfo final {
     size_t len = q - p;
     char* result = new char[len + 1];
     if (result != nullptr) {
-      memcpy(result, p, len);
+      base::Memcpy(result, p, len);
       result[len] = '\0';
     }
     return result;
@@ -381,6 +383,7 @@ bool CPU::StarboardDetectCPU() {
       has_sse41_ = features.x86.has_sse41;
       has_sahf_ = features.x86.has_sahf;
       has_avx_ = features.x86.has_avx;
+      has_avx2_ = features.x86.has_avx2;
       has_fma3_ = features.x86.has_fma3;
       has_bmi1_ = features.x86.has_bmi1;
       has_bmi2_ = features.x86.has_bmi2;
@@ -425,6 +428,7 @@ CPU::CPU()
       is_atom_(false),
       has_osxsave_(false),
       has_avx_(false),
+      has_avx2_(false),
       has_fma3_(false),
       has_bmi1_(false),
       has_bmi2_(false),
@@ -440,7 +444,7 @@ CPU::CPU()
       is_fp64_mode_(false),
       has_non_stop_time_stamp_counter_(false),
       has_msa_(false) {
-  memcpy(vendor_, "Unknown", 8);
+  base::Memcpy(vendor_, "Unknown", 8);
 
 #if defined(STARBOARD)
   if (StarboardDetectCPU()) {
@@ -461,12 +465,18 @@ CPU::CPU()
   __cpuid(cpu_info, 0);
   unsigned num_ids = cpu_info[0];
   std::swap(cpu_info[2], cpu_info[3]);
-  memcpy(vendor_, cpu_info + 1, 12);
+  base::Memcpy(vendor_, cpu_info + 1, 12);
   vendor_[12] = '\0';
 
   // Interpret CPU feature information.
   if (num_ids > 0) {
     __cpuid(cpu_info, 1);
+
+    int cpu_info7[4] = {0};
+    if (num_ids >= 7) {
+      __cpuid(cpu_info7, 7);
+    }
+
     stepping_ = cpu_info[0] & 0xF;
     model_ = ((cpu_info[0] >> 4) & 0xF) + ((cpu_info[0] >> 12) & 0xF0);
     family_ = (cpu_info[0] >> 8) & 0xF;
@@ -485,6 +495,7 @@ CPU::CPU()
     has_popcnt_ = (cpu_info[2] & 0x00800000) != 0;
     has_osxsave_ = (cpu_info[2] & 0x08000000) != 0;
     has_avx_ = (cpu_info[2] & 0x10000000) != 0;
+    has_avx2_ = (cpu_info7[1] & 0x00000020) != 0;
     has_fma3_ = (cpu_info[2] & 0x00001000) != 0;
 
     if (family_ == 0x6) {
@@ -729,6 +740,9 @@ CPU::CPU()
     has_jscvt_ = HasListItem(features, "jscvt");
     delete[] features;
   }
+#elif V8_OS_MACOSX
+  // ARM64 Macs always have JSCVT.
+  has_jscvt_ = true;
 #endif  // V8_OS_WIN
 
 #elif V8_HOST_ARCH_PPC || V8_HOST_ARCH_PPC64
@@ -737,7 +751,7 @@ CPU::CPU()
 #if V8_OS_LINUX
   // Read processor info from /proc/self/auxv.
   char* auxv_cpu_type = nullptr;
-  FILE* fp = fopen("/proc/self/auxv", "r");
+  FILE* fp = base::Fopen("/proc/self/auxv", "r");
   if (fp != nullptr) {
 #if V8_TARGET_ARCH_PPC64
     Elf64_auxv_t entry;
@@ -761,7 +775,7 @@ CPU::CPU()
           break;
       }
     }
-    fclose(fp);
+    base::Fclose(fp);
   }
 
   part_ = -1;

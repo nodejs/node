@@ -67,6 +67,15 @@ added: v15.0.0
 The `AbortSignal` is used to notify observers when the
 `abortController.abort()` method is called.
 
+#### Static method: `AbortSignal.abort()`
+<!-- YAML
+added: v15.12.0
+-->
+
+* Returns: {AbortSignal}
+
+Returns a new already aborted `AbortSignal`.
+
 #### Event: `'abort'`
 <!-- YAML
 added: v15.0.0
@@ -74,7 +83,7 @@ added: v15.0.0
 
 The `'abort'` event is emitted when the `abortController.abort()` method
 is called. The callback is invoked with a single object argument with a
-single `type` propety set to `'abort'`:
+single `type` property set to `'abort'`:
 
 ```js
 const ac = new AbortController();
@@ -91,11 +100,15 @@ ac.abort();
 ```
 
 The `AbortController` with which the `AbortSignal` is associated will only
-ever trigger the `'abort'` event once. Any event listeners attached to the
-`AbortSignal` *should* use the `{ once: true }` option (or, if using the
-`EventEmitter` APIs to attach a listener, use the `once()` method) to ensure
-that the event listener is removed as soon as the `'abort'` event is handled.
-Failure to do so may result in memory leaks.
+ever trigger the `'abort'` event once. We recommended that code check
+that the `abortSignal.aborted` attribute is `false` before adding an `'abort'`
+event listener.
+
+Any event listeners attached to the `AbortSignal` should use the
+`{ once: true }` option (or, if using the `EventEmitter` APIs to attach a
+listener, use the `once()` method) to ensure that the event listener is
+removed as soon as the `'abort'` event is handled. Failure to do so may
+result in memory leaks.
 
 #### `abortSignal.aborted`
 <!-- YAML
@@ -132,6 +145,24 @@ This variable may appear to be global but is not. See [`__dirname`][].
 ## `__filename`
 
 This variable may appear to be global but is not. See [`__filename`][].
+
+## `atob(data)`
+<!-- YAML
+added: v16.0.0
+-->
+
+> Stability: 3 - Legacy. Use `Buffer.from(data, 'base64')` instead.
+
+Global alias for [`buffer.atob()`][].
+
+## `btoa(data)`
+<!-- YAML
+added: v16.0.0
+-->
+
+> Stability: 3 - Legacy. Use `buf.toString('base64')` instead.
+
+Global alias for [`buffer.btoa()`][].
 
 ## `clearImmediate(immediateObject)`
 <!-- YAML
@@ -247,6 +278,10 @@ The `MessagePort` class. See [`MessagePort`][] for more details.
 ## `module`
 
 This variable may appear to be global but is not. See [`module`][].
+
+## `performance`
+
+The [`perf_hooks.performance`][] object.
 
 ## `process`
 <!-- YAML
@@ -389,12 +424,15 @@ The object that acts as the namespace for all W3C
 [`URL`]: url.md#url_class_url
 [`__dirname`]: modules.md#modules_dirname
 [`__filename`]: modules.md#modules_filename
+[`buffer.atob()`]: buffer.md#buffer_buffer_atob_data
+[`buffer.btoa()`]: buffer.md#buffer_buffer_btoa_data
 [`clearImmediate`]: timers.md#timers_clearimmediate_immediate
 [`clearInterval`]: timers.md#timers_clearinterval_timeout
 [`clearTimeout`]: timers.md#timers_cleartimeout_timeout
 [`console`]: console.md
 [`exports`]: modules.md#modules_exports
 [`module`]: modules.md#modules_module
+[`perf_hooks.performance`]: perf_hooks.md#perf_hooks_perf_hooks_performance
 [`process.nextTick()`]: process.md#process_process_nexttick_callback_args
 [`process` object]: process.md#process_process
 [`require()`]: modules.md#modules_require_id

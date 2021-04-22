@@ -29,6 +29,8 @@ class Collator;
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/js-collator-tq.inc"
+
 class JSCollator : public TorqueGeneratedJSCollator<JSCollator, JSObject> {
  public:
   // ecma402/#sec-initializecollator

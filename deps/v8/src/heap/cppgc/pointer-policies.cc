@@ -21,14 +21,28 @@ void EnabledCheckingPolicy::CheckPointer(const void* ptr) {
   // TODO(chromium:1056170): Provide implementation.
 }
 
-PersistentRegion& StrongPersistentPolicy::GetPersistentRegion(void* object) {
+PersistentRegion& StrongPersistentPolicy::GetPersistentRegion(
+    const void* object) {
   auto* heap = BasePage::FromPayload(object)->heap();
   return heap->GetStrongPersistentRegion();
 }
 
-PersistentRegion& WeakPersistentPolicy::GetPersistentRegion(void* object) {
+PersistentRegion& WeakPersistentPolicy::GetPersistentRegion(
+    const void* object) {
   auto* heap = BasePage::FromPayload(object)->heap();
   return heap->GetWeakPersistentRegion();
+}
+
+PersistentRegion& StrongCrossThreadPersistentPolicy::GetPersistentRegion(
+    const void* object) {
+  auto* heap = BasePage::FromPayload(object)->heap();
+  return heap->GetStrongCrossThreadPersistentRegion();
+}
+
+PersistentRegion& WeakCrossThreadPersistentPolicy::GetPersistentRegion(
+    const void* object) {
+  auto* heap = BasePage::FromPayload(object)->heap();
+  return heap->GetWeakCrossThreadPersistentRegion();
 }
 
 }  // namespace internal

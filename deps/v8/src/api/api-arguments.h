@@ -74,6 +74,12 @@ class PropertyCallbackArguments
   PropertyCallbackArguments(Isolate* isolate, Object data, Object self,
                             JSObject holder, Maybe<ShouldThrow> should_throw);
 
+  // Don't copy PropertyCallbackArguments, because they would both have the
+  // same prev_ pointer.
+  PropertyCallbackArguments(const PropertyCallbackArguments&) = delete;
+  PropertyCallbackArguments& operator=(const PropertyCallbackArguments&) =
+      delete;
+
   // -------------------------------------------------------------------------
   // Accessor Callbacks
   // Also used for AccessorSetterCallback.
@@ -141,10 +147,6 @@ class PropertyCallbackArguments
 
   inline JSObject holder();
   inline Object receiver();
-
-  // Don't copy PropertyCallbackArguments, because they would both have the
-  // same prev_ pointer.
-  DISALLOW_COPY_AND_ASSIGN(PropertyCallbackArguments);
 };
 
 class FunctionCallbackArguments
@@ -175,7 +177,7 @@ class FunctionCallbackArguments
   inline Handle<Object> Call(CallHandlerInfo handler);
 
  private:
-  inline JSObject holder();
+  inline JSReceiver holder();
 
   internal::Address* argv_;
   int argc_;

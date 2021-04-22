@@ -61,6 +61,38 @@ Worker threads inherit non-process-specific options by default. Refer to
 [`Worker constructor options`][] to know how to customize worker thread options,
 specifically `argv` and `execArgv` options.
 
+## `worker.getEnvironmentData(key)`
+<!-- YAML
+added: v15.12.0
+-->
+
+> Stability: 1 - Experimental
+
+* `key` {any} Any arbitrary, cloneable JavaScript value that can be used as a
+  {Map} key.
+* Returns: {any}
+
+Within a worker thread, `worker.getEnvironmentData()` returns a clone
+of data passed to the spawning thread's `worker.setEnvironmentData()`.
+Every new `Worker` receives its own copy of the environment data
+automatically.
+
+```js
+const {
+  Worker,
+  isMainThread,
+  setEnvironmentData,
+  getEnvironmentData,
+} = require('worker_threads');
+
+if (isMainThread) {
+  setEnvironmentData('Hello', 'World!');
+  const worker = new Worker(__filename);
+} else {
+  console.log(getEnvironmentData('Hello'));  // Prints 'World!'.
+}
+```
+
 ## `worker.isMainThread`
 <!-- YAML
 added: v10.5.0
@@ -179,9 +211,13 @@ if (isMainThread) {
 ## `worker.receiveMessageOnPort(port)`
 <!-- YAML
 added: v12.3.0
+changes:
+  - version: v15.12.0
+    pr-url: https://github.com/nodejs/node/pull/37535
+    description: The port argument can also refer to a `BroadcastChannel` now.
 -->
 
-* `port` {MessagePort}
+* `port` {MessagePort|BroadcastChannel}
 
 * Returns: {Object|undefined}
 
@@ -241,6 +277,23 @@ new Worker('process.env.SET_IN_WORKER = "foo"', { eval: true, env: SHARE_ENV })
     console.log(process.env.SET_IN_WORKER);  // Prints 'foo'.
   });
 ```
+
+## `worker.setEnvironmentData(key[, value])`
+<!--YAML
+added: v15.12.0
+-->
+
+> Stability: 1 - Experimental
+
+* `key` {any} Any arbitrary, cloneable JavaScript value that can be used as a
+  {Map} key.
+* `value` {any} Any arbitrary, cloneable JavaScript value that will be cloned
+  and passed automatically to all new `Worker` instances. If `value` is passed
+  as `undefined`, any previously set value for the `key` will be deleted.
+
+The `worker.setEnvironmentData()` API sets the content of
+`worker.getEnvironmentData()` in the current thread and all new `Worker`
+instances spawned from the current context.
 
 ## `worker.threadId`
 <!-- YAML
@@ -452,6 +505,12 @@ added:
 
 The `'messageerror'` event is emitted when deserializing a message failed.
 
+Currently, this event is emitted when there is an error occurring while
+instantiating the posted JS object on the receiving end. Such situations
+are rare, but can happen, for instance, when certain Node.js API objects
+are received in a `vm.Context` (where Node.js APIs are currently
+unavailable).
+
 ### `port.close()`
 <!-- YAML
 added: v10.5.0
@@ -468,6 +527,18 @@ are part of the channel.
 <!-- YAML
 added: v10.5.0
 changes:
+  - version: v15.14.0
+    pr-url: https://github.com/nodejs/node/pull/37917
+    description: Add 'BlockList' to the list of cloneable types.
+  - version: v15.9.0
+    pr-url: https://github.com/nodejs/node/pull/37155
+    description: Add 'Histogram' types to the list of cloneable types.
+  - version: v15.6.0
+    pr-url: https://github.com/nodejs/node/pull/36804
+    description: Added `X509Certificate` to the list of cloneable types.
+  - version: v15.0.0
+    pr-url: https://github.com/nodejs/node/pull/35093
+    description: Added `CryptoKey` to the list of cloneable types.
   - version:
     - v14.5.0
     - v12.19.0
@@ -495,8 +566,15 @@ In particular, the significant differences to `JSON` are:
 * `value` may contain typed arrays, both using `ArrayBuffer`s
    and `SharedArrayBuffer`s.
 * `value` may contain [`WebAssembly.Module`][] instances.
-* `value` may not contain native (C++-backed) objects other than `MessagePort`s,
-  [`FileHandle`][]s, and [`KeyObject`][]s.
+* `value` may not contain native (C++-backed) objects other than:
+  * {CryptoKey}s,
+  * {FileHandle}s,
+  * {Histogram}s,
+  * {KeyObject}s,
+  * {MessagePort}s,
+  * {net.BlockList}s,
+  * {net.SocketAddress}es,
+  * {X509Certificate}s.
 
 ```js
 const { MessageChannel } = require('worker_threads');
@@ -842,7 +920,7 @@ changes:
     [`fs.close()`][], and closes them when the Worker exits, similar to other
     resources like network sockets or file descriptors managed through
     the [`FileHandle`][] API. This option is automatically inherited by all
-    nested `Worker`s. **Default**: `true`.
+    nested `Worker`s. **Default:** `true`.
   * `transferList` {Object[]} If one or more `MessagePort`-like objects
     are passed in `workerData`, a `transferList` is required for those
     items or [`ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`][] is thrown.
@@ -936,7 +1014,9 @@ immediately with an [`ERR_WORKER_NOT_RUNNING`][] error.
 
 ### `worker.performance`
 <!-- YAML
-added: v15.1.0
+added:
+  - v15.1.0
+  - v12.22.0
 -->
 
 An object that can be used to query performance information from a worker
@@ -944,7 +1024,9 @@ instance. Similar to [`perf_hooks.performance`][].
 
 #### `performance.eventLoopUtilization([utilization1[, utilization2]])`
 <!-- YAML
-added: v15.1.0
+added:
+  - v15.1.0
+  - v12.22.0
 -->
 
 * `utilization1` {Object} The result of a previous call to
@@ -1107,6 +1189,17 @@ Calling `unref()` on a worker allows the thread to exit if this is the only
 active handle in the event system. If the worker is already `unref()`ed calling
 `unref()` again has no effect.
 
+## Notes
+
+### Launching worker threads from preload scripts
+
+Take care when launching worker threads from preload scripts (scripts loaded
+and run using the `-r` command line flag). Unless the `execArgv` option is
+explicitly set, new Worker threads automatically inherit the command line flags
+from the running process and will preload the same preload scripts as the main
+thread. If the preload script unconditionally launches a worker thread, every
+thread spawned will spawn another until the application crashes.
+
 [Addons worker support]: addons.md#addons_worker_support
 [ECMAScript module loader]: esm.md#esm_data_imports
 [HTML structured clone algorithm]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm
@@ -1123,7 +1216,6 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`ERR_WORKER_NOT_RUNNING`]: errors.md#ERR_WORKER_NOT_RUNNING
 [`EventTarget`]: https://developer.mozilla.org/en-US/docs/Web/API/EventTarget
 [`FileHandle`]: fs.md#fs_class_filehandle
-[`KeyObject`]: crypto.md#crypto_class_keyobject
 [`MessagePort`]: #worker_threads_class_messageport
 [`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
 [`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array

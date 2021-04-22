@@ -79,7 +79,7 @@ int ssl3_dispatch_alert(SSL *s)
     if (SSL_IS_QUIC(s)) {
         if (!s->quic_method->send_alert(s, s->quic_write_level,
                                         s->s3->send_alert[1])) {
-            SSLerr(SSL_F_SSL3_DISPATCH_ALERT, SSL_R_INTERNAL_ERROR);
+            SSLerr(SSL_F_SSL3_DISPATCH_ALERT, ERR_R_INTERNAL_ERROR);
             return 0;
         }
         i = 1;

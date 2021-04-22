@@ -1,4 +1,4 @@
-.TH "NPM\-OWNER" "1" "December 2020" "" ""
+.TH "NPM\-OWNER" "1" "April 2021" "" ""
 .SH "NAME"
 \fBnpm-owner\fR \- Manage package owners
 .SS Synopsis
@@ -12,6 +12,8 @@ npm owner ls [<@scope>/]<pkg>
 aliases: author
 .fi
 .RE
+.P
+Note: This command is unaware of workspaces\.
 .SS Description
 .P
 Manage ownership of published packages\.
@@ -45,7 +47,5 @@ npm help publish
 npm help registry
 .IP \(bu 2
 npm help adduser
-.IP \(bu 2
-npm help disputes
 
 .RE

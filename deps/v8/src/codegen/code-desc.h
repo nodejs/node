@@ -16,11 +16,11 @@ namespace internal {
 // the buffer and grows backward. Inlined metadata sections may exist
 // at the end of the instructions.
 //
-//  │<--------------- buffer_size ----------------------------------->│
-//  │<---------------- instr_size ------------->│      │<-reloc_size->│
-//  ├───────────────────────────────────────────┼──────┼──────────────┤
-//  │ instructions │         data               │ free │  reloc info  │
-//  ├───────────────────────────────────────────┴──────┴──────────────┘
+//  |<--------------- buffer_size ----------------------------------->|
+//  |<---------------- instr_size ------------->|      |<-reloc_size->|
+//  |--------------+----------------------------+------+--------------|
+//  | instructions |         data               | free |  reloc info  |
+//  +--------------+----------------------------+------+--------------+
 
 // TODO(jgruber): Add a single chokepoint for specifying the instruction area
 // layout (i.e. the order of inlined metadata fields).
@@ -62,6 +62,24 @@ class CodeDesc {
   int code_comments_offset = 0;
   int code_comments_size = 0;
 
+  // TODO(jgruber,v8:11036): Remove these functions once CodeDesc fields have
+  // been made consistent with Code layout.
+  int body_size() const { return instr_size + unwinding_info_size; }
+  int instruction_size() const { return safepoint_table_offset; }
+  int metadata_size() const { return body_size() - instruction_size(); }
+  int safepoint_table_offset_relative() const {
+    return safepoint_table_offset - instruction_size();
+  }
+  int handler_table_offset_relative() const {
+    return handler_table_offset - instruction_size();
+  }
+  int constant_pool_offset_relative() const {
+    return constant_pool_offset - instruction_size();
+  }
+  int code_comments_offset_relative() const {
+    return code_comments_offset - instruction_size();
+  }
+
   // Relocation info is located at the end of the buffer and not part of the
   // instructions area.
 
@@ -69,10 +87,14 @@ class CodeDesc {
   int reloc_size = 0;
 
   // Unwinding information.
-  // TODO(jgruber): Pack this into the inlined metadata section.
 
   byte* unwinding_info = nullptr;
   int unwinding_info_size = 0;
+  int unwinding_info_offset_relative() const {
+    // TODO(jgruber,v8:11036): Remove this function once unwinding_info setup
+    // is more consistent with other metadata tables.
+    return code_comments_offset_relative() + code_comments_size;
+  }
 
   Assembler* origin = nullptr;
 };

@@ -17,7 +17,7 @@ function test(arrayBuffer, offset, length) {
 
 const acceptableOOMErrors = [
   'Array buffer allocation failed',
-  'Invalid array buffer length'
+  'Invalid array buffer length',
 ];
 
 const length = 1000;

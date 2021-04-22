@@ -1,5 +1,4 @@
-const requireInject = require('require-inject')
-const { test } = require('tap')
+const t = require('tap')
 const { getCredentialsByURI, setCredentialsByURI } =
   require('@npmcli/config').prototype
 
@@ -16,7 +15,7 @@ let failSave = false
 let deletedConfig = {}
 let registryOutput = ''
 let setConfig = {}
-const authDummy = (options) => {
+const authDummy = (npm, options) => {
   if (!options.fromFlatOptions)
     throw new Error('did not pass full flatOptions to auth function')
 
@@ -37,47 +36,54 @@ const deleteMock = (key, where) => {
     [key]: where,
   }
 }
-const adduser = requireInject('../../lib/adduser.js', {
+const npm = {
+  flatOptions: _flatOptions,
+  config: {
+    delete: deleteMock,
+    get (key, where) {
+      if (!where || where === 'user')
+        return _flatOptions[key]
+    },
+    getCredentialsByURI,
+    async save () {
+      if (failSave)
+        throw new Error('error saving user config')
+    },
+    set (key, value, where) {
+      setConfig = {
+        ...setConfig,
+        [key]: {
+          value,
+          where,
+        },
+      }
+    },
+    setCredentialsByURI,
+  },
+  output: msg => {
+    result = msg
+  },
+}
+
+const AddUser = t.mock('../../lib/adduser.js', {
   npmlog: {
     disableProgress: () => null,
     notice: (_, msg) => {
       registryOutput = msg
     },
   },
-  '../../lib/npm.js': {
-    flatOptions: _flatOptions,
-    config: {
-      delete: deleteMock,
-      get (key, where) {
-        if (!where || where === 'user')
-          return _flatOptions[key]
-      },
-      getCredentialsByURI,
-      async save () {
-        if (failSave)
-          throw new Error('error saving user config')
-      },
-      set (key, value, where) {
-        setConfig = {
-          ...setConfig,
-          [key]: {
-            value,
-            where,
-          },
-        }
-      },
-      setCredentialsByURI,
-    },
-  },
-  '../../lib/utils/output.js': msg => {
-    result = msg
-  },
   '../../lib/auth/legacy.js': authDummy,
 })
 
-test('simple login', (t) => {
-  adduser([], (err) => {
-    t.ifError(err, 'npm adduser')
+const adduser = new AddUser(npm)
+
+t.test('usage', (t) => {
+  t.match(adduser.usage, 'adduser', 'usage has command name in it')
+  t.end()
+})
+t.test('simple login', (t) => {
+  adduser.exec([], (err) => {
+    t.error(err, 'npm adduser')
 
     t.equal(
       registryOutput,
@@ -85,7 +91,7 @@ test('simple login', (t) => {
       'should have correct message result'
     )
 
-    t.deepEqual(
+    t.same(
       deletedConfig,
       {
         _token: 'user',
@@ -101,7 +107,7 @@ test('simple login', (t) => {
       'should delete token in user config'
     )
 
-    t.deepEqual(
+    t.same(
       setConfig,
       {
         '//registry.npmjs.org/:_password': { value: 'cA==', where: 'user' },
@@ -126,10 +132,10 @@ test('simple login', (t) => {
   })
 })
 
-test('bad auth type', (t) => {
+t.test('bad auth type', (t) => {
   _flatOptions.authType = 'foo'
 
-  adduser([], (err) => {
+  adduser.exec([], (err) => {
     t.match(
       err,
       /Error: no such auth module/,
@@ -144,13 +150,13 @@ test('bad auth type', (t) => {
   })
 })
 
-test('scoped login', (t) => {
+t.test('scoped login', (t) => {
   _flatOptions.scope = '@myscope'
 
-  adduser([], (err) => {
-    t.ifError(err, 'npm adduser')
+  adduser.exec([], (err) => {
+    t.error(err, 'npm adduser')
 
-    t.deepEqual(
+    t.same(
       setConfig['@myscope:registry'],
       { value: 'https://registry.npmjs.org/', where: 'user' },
       'should set scoped registry config'
@@ -164,14 +170,14 @@ test('scoped login', (t) => {
   })
 })
 
-test('scoped login with valid scoped registry config', (t) => {
+t.test('scoped login with valid scoped registry config', (t) => {
   _flatOptions['@myscope:registry'] = 'https://diff-registry.npmjs.com/'
   _flatOptions.scope = '@myscope'
 
-  adduser([], (err) => {
-    t.ifError(err, 'npm adduser')
+  adduser.exec([], (err) => {
+    t.error(err, 'npm adduser')
 
-    t.deepEqual(
+    t.same(
       setConfig['@myscope:registry'],
       { value: 'https://diff-registry.npmjs.com/', where: 'user' },
       'should keep scoped registry config'
@@ -186,10 +192,10 @@ test('scoped login with valid scoped registry config', (t) => {
   })
 })
 
-test('save config failure', (t) => {
+t.test('save config failure', (t) => {
   failSave = true
 
-  adduser([], (err) => {
+  adduser.exec([], (err) => {
     t.match(
       err,
       /error saving user config/,

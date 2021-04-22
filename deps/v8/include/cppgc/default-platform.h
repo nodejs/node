@@ -9,74 +9,65 @@
 #include <vector>
 
 #include "cppgc/platform.h"
+#include "libplatform/libplatform.h"
 #include "v8config.h"  // NOLINT(build/include_directory)
 
 namespace cppgc {
 
-namespace internal {
-class DefaultJob;
-}  // namespace internal
-
 /**
- * Default task runner implementation. Keep posted tasks in a list that can be
- * processed by calling RunSingleTask() or RunUntilIdle().
+ * Platform provided by cppgc. Uses V8's DefaultPlatform provided by
+ * libplatform internally. Exception: `GetForegroundTaskRunner()`, see below.
  */
-class V8_EXPORT DefaultTaskRunner final : public cppgc::TaskRunner {
+class V8_EXPORT DefaultPlatform : public Platform {
  public:
-  DefaultTaskRunner() = default;
+  /**
+   * Use this method instead of 'cppgc::InitializeProcess' when using
+   * 'cppgc::DefaultPlatform'. 'cppgc::DefaultPlatform::InitializeProcess'
+   * will initialize cppgc and v8 if needed (for non-standalone builds).
+   *
+   * \param platform DefaultPlatform instance used to initialize cppgc/v8.
+   */
+  static void InitializeProcess(DefaultPlatform* platform);
 
-  DefaultTaskRunner(const DefaultTaskRunner&) = delete;
-  DefaultTaskRunner& operator=(const DefaultTaskRunner&) = delete;
+  using IdleTaskSupport = v8::platform::IdleTaskSupport;
+  explicit DefaultPlatform(
+      int thread_pool_size = 0,
+      IdleTaskSupport idle_task_support = IdleTaskSupport::kDisabled,
+      std::unique_ptr<TracingController> tracing_controller = {})
+      : v8_platform_(v8::platform::NewDefaultPlatform(
+            thread_pool_size, idle_task_support,
+            v8::platform::InProcessStackDumping::kDisabled,
+            std::move(tracing_controller))) {}
 
-  void PostTask(std::unique_ptr<cppgc::Task> task) override;
-  void PostDelayedTask(std::unique_ptr<cppgc::Task> task, double) override;
+  cppgc::PageAllocator* GetPageAllocator() override {
+    return v8_platform_->GetPageAllocator();
+  }
 
-  bool NonNestableTasksEnabled() const final { return false; }
-  bool NonNestableDelayedTasksEnabled() const final { return false; }
-  void PostNonNestableTask(std::unique_ptr<cppgc::Task> task) override;
-  void PostNonNestableDelayedTask(std::unique_ptr<cppgc::Task> task,
-                                  double) override;
+  double MonotonicallyIncreasingTime() override {
+    return v8_platform_->MonotonicallyIncreasingTime();
+  }
 
-  void PostIdleTask(std::unique_ptr<cppgc::IdleTask> task) override;
-  bool IdleTasksEnabled() override { return true; }
+  std::shared_ptr<cppgc::TaskRunner> GetForegroundTaskRunner() override {
+    // V8's default platform creates a new task runner when passed the
+    // `v8::Isolate` pointer the first time. For non-default platforms this will
+    // require getting the appropriate task runner.
+    return v8_platform_->GetForegroundTaskRunner(kNoIsolate);
+  }
 
-  bool RunSingleTask();
-  bool RunSingleIdleTask(double duration_in_seconds);
-
-  void RunUntilIdle();
-
- private:
-  std::vector<std::unique_ptr<cppgc::Task>> tasks_;
-  std::vector<std::unique_ptr<cppgc::IdleTask>> idle_tasks_;
-};
-
-/**
- * Default platform implementation that uses std::thread for spawning job tasks.
- */
-class V8_EXPORT DefaultPlatform final : public Platform {
- public:
-  DefaultPlatform();
-  ~DefaultPlatform() noexcept override;
-
-  cppgc::PageAllocator* GetPageAllocator() final;
-
-  double MonotonicallyIncreasingTime() final;
-
-  std::shared_ptr<cppgc::TaskRunner> GetForegroundTaskRunner() final;
-
-  // DefaultPlatform does not support job priorities. All jobs would be
-  // assigned the same priority regardless of the cppgc::TaskPriority parameter.
   std::unique_ptr<cppgc::JobHandle> PostJob(
       cppgc::TaskPriority priority,
-      std::unique_ptr<cppgc::JobTask> job_task) final;
+      std::unique_ptr<cppgc::JobTask> job_task) override {
+    return v8_platform_->PostJob(priority, std::move(job_task));
+  }
 
-  void WaitAllForegroundTasks();
-  void WaitAllBackgroundTasks();
+  TracingController* GetTracingController() override {
+    return v8_platform_->GetTracingController();
+  }
 
- private:
-  std::unique_ptr<PageAllocator> page_allocator_;
-  std::shared_ptr<DefaultTaskRunner> foreground_task_runner_;
-  std::vector<std::shared_ptr<internal::DefaultJob>> jobs_;
+ protected:
+  static constexpr v8::Isolate* kNoIsolate = nullptr;
+
+  std::unique_ptr<v8::Platform> v8_platform_;
 };
 
 }  // namespace cppgc

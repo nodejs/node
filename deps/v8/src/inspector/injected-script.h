@@ -69,6 +69,8 @@ class InjectedScript final {
  public:
   InjectedScript(InspectedContext*, int sessionId);
   ~InjectedScript();
+  InjectedScript(const InjectedScript&) = delete;
+  InjectedScript& operator=(const InjectedScript&) = delete;
 
   InspectedContext* context() const { return m_context; }
 
@@ -175,18 +177,20 @@ class InjectedScript final {
    public:
     ContextScope(V8InspectorSessionImpl*, int executionContextId);
     ~ContextScope() override;
+    ContextScope(const ContextScope&) = delete;
+    ContextScope& operator=(const ContextScope&) = delete;
 
    private:
     Response findInjectedScript(V8InspectorSessionImpl*) override;
     int m_executionContextId;
-
-    DISALLOW_COPY_AND_ASSIGN(ContextScope);
   };
 
   class ObjectScope : public Scope {
    public:
     ObjectScope(V8InspectorSessionImpl*, const String16& remoteObjectId);
     ~ObjectScope() override;
+    ObjectScope(const ObjectScope&) = delete;
+    ObjectScope& operator=(const ObjectScope&) = delete;
     const String16& objectGroupName() const { return m_objectGroupName; }
     v8::Local<v8::Value> object() const { return m_object; }
 
@@ -195,22 +199,20 @@ class InjectedScript final {
     String16 m_remoteObjectId;
     String16 m_objectGroupName;
     v8::Local<v8::Value> m_object;
-
-    DISALLOW_COPY_AND_ASSIGN(ObjectScope);
   };
 
   class CallFrameScope : public Scope {
    public:
     CallFrameScope(V8InspectorSessionImpl*, const String16& remoteCallFrameId);
     ~CallFrameScope() override;
+    CallFrameScope(const CallFrameScope&) = delete;
+    CallFrameScope& operator=(const CallFrameScope&) = delete;
     size_t frameOrdinal() const { return m_frameOrdinal; }
 
    private:
     Response findInjectedScript(V8InspectorSessionImpl*) override;
     String16 m_remoteCallFrameId;
     size_t m_frameOrdinal;
-
-    DISALLOW_COPY_AND_ASSIGN(CallFrameScope);
   };
   String16 bindObject(v8::Local<v8::Value>, const String16& groupName);
 
@@ -241,8 +243,6 @@ class InjectedScript final {
   std::unordered_map<String16, std::vector<int>> m_nameToObjectGroup;
   std::unordered_set<EvaluateCallback*> m_evaluateCallbacks;
   bool m_customPreviewEnabled = false;
-
-  DISALLOW_COPY_AND_ASSIGN(InjectedScript);
 };
 
 }  // namespace v8_inspector

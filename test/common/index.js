@@ -38,6 +38,11 @@ const bits = ['arm64', 'mips', 'mipsel', 'ppc64', 's390x', 'x64']
   .includes(process.arch) ? 64 : 32;
 const hasIntl = !!process.config.variables.v8_enable_i18n_support;
 
+const {
+  atob,
+  btoa
+} = require('buffer');
+
 // Some tests assume a umask of 0o022 so set that up front. Tests that need a
 // different umask will set it themselves.
 //
@@ -50,7 +55,11 @@ const noop = () => {};
 
 const hasCrypto = Boolean(process.versions.openssl) &&
                   !process.env.NODE_SKIP_CRYPTO;
-const hasQuic = hasCrypto && Boolean(process.versions.ngtcp2);
+
+const hasOpenSSL3 = hasCrypto &&
+    require('crypto').constants.OPENSSL_VERSION_NUMBER >= 805306368;
+
+const hasQuic = hasCrypto && !!process.config.variables.openssl_quic;
 
 // Check for flags. Skip this for workers (both, the `cluster` module and
 // `worker_threads`) and child processes.
@@ -61,7 +70,7 @@ if (process.argv.length === 2 &&
     isMainThread &&
     hasCrypto &&
     require.main &&
-    require('cluster').isMaster) {
+    require('cluster').isPrimary) {
   // The copyright notice is relatively big and the flags could come afterwards.
   const bytesToRead = 1500;
   const buffer = Buffer.allocUnsafe(bytesToRead);
@@ -253,6 +262,8 @@ function platformTimeout(ms) {
 }
 
 let knownGlobals = [
+  atob,
+  btoa,
   clearImmediate,
   clearInterval,
   clearTimeout,
@@ -274,6 +285,10 @@ if (global.AbortController)
 
 if (global.gc) {
   knownGlobals.push(global.gc);
+}
+
+if (global.performance) {
+  knownGlobals.push(global.performance);
 }
 
 function allowGlobals(...allowlist) {
@@ -597,7 +612,7 @@ function getArrayBufferViews(buf) {
     Uint32Array,
     Float32Array,
     Float64Array,
-    DataView
+    DataView,
   ];
 
   for (const type of arrayBufferViews) {
@@ -611,10 +626,6 @@ function getArrayBufferViews(buf) {
 
 function getBufferSources(buf) {
   return [...getArrayBufferViews(buf), new Uint8Array(buf).buffer];
-}
-
-function disableCrashOnUnhandledRejection() {
-  process.on('unhandledRejection', () => {});
 }
 
 function getTTYfd() {
@@ -717,7 +728,6 @@ const common = {
   canCreateSymLink,
   childShouldThrowAndAbort,
   createZeroFilledFile,
-  disableCrashOnUnhandledRejection,
   expectsError,
   expectWarning,
   gcUntil,
@@ -727,6 +737,7 @@ const common = {
   getTTYfd,
   hasIntl,
   hasCrypto,
+  hasOpenSSL3,
   hasQuic,
   hasMultiLocalhost,
   invalidArgTypeHelper,

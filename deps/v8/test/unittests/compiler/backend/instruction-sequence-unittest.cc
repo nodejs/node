@@ -14,7 +14,7 @@ namespace compiler {
 
 namespace {
 constexpr int kMaxNumAllocatable =
-    Max(Register::kNumRegisters, DoubleRegister::kNumRegisters);
+    std::max(Register::kNumRegisters, DoubleRegister::kNumRegisters);
 static std::array<int, kMaxNumAllocatable> kAllocatableCodes =
     base::make_array<kMaxNumAllocatable>(
         [](size_t i) { return static_cast<int>(i); });
@@ -361,6 +361,9 @@ InstructionOperand InstructionSequenceTest::ConvertInputOp(TestOperand op) {
     case kSlot:
       return Unallocated(op, UnallocatedOperand::MUST_HAVE_SLOT,
                          UnallocatedOperand::USED_AT_START);
+    case kDeoptArg:
+      return Unallocated(op, UnallocatedOperand::REGISTER_OR_SLOT,
+                         UnallocatedOperand::USED_AT_END);
     case kFixedRegister: {
       MachineRepresentation rep = GetCanonicalRep(op);
       CHECK(0 <= op.value_ && op.value_ < GetNumRegs(rep));

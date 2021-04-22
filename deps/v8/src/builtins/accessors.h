@@ -44,8 +44,6 @@ class JavaScriptFrame;
     kHasSideEffectToReceiver)                                                 \
   V(_, function_prototype, FunctionPrototype, kHasNoSideEffect,               \
     kHasSideEffectToReceiver)                                                 \
-  V(_, regexp_result_indices, RegExpResultIndices, kHasSideEffectToReceiver,  \
-    kHasSideEffectToReceiver)                                                 \
   V(_, string_length, StringLength, kHasNoSideEffect, kHasSideEffectToReceiver)
 
 #define ACCESSOR_SETTER_LIST(V) \
@@ -102,8 +100,8 @@ class Accessors : public AllStatic {
                                       FieldIndex* field_index);
 
   static MaybeHandle<Object> ReplaceAccessorWithDataProperty(
-      Handle<Object> receiver, Handle<JSObject> holder, Handle<Name> name,
-      Handle<Object> value);
+      Isolate* isolate, Handle<Object> receiver, Handle<JSObject> holder,
+      Handle<Name> name, Handle<Object> value);
 
   // Create an AccessorInfo. The setter is optional (can be nullptr).
   //

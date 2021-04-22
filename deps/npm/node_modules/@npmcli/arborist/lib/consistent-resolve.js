@@ -9,6 +9,7 @@ const consistentResolve = (resolved, fromPath, toPath, relPaths = false) => {
     return null
 
   try {
+    const hostedOpt = { noCommittish: false }
     const {
       fetchSpec,
       saveSpec,
@@ -20,7 +21,9 @@ const consistentResolve = (resolved, fromPath, toPath, relPaths = false) => {
     const isPath = type === 'file' || type === 'directory'
     return isPath && !relPaths ? `file:${fetchSpec}`
       : isPath ? 'file:' + (toPath ? relpath(toPath, fetchSpec) : fetchSpec)
-      : hosted ? 'git+' + hosted.sshurl({ noCommittish: false })
+      : hosted ? `git+${
+        hosted.auth ? hosted.https(hostedOpt) : hosted.sshurl(hostedOpt)
+      }`
       : type === 'git' ? saveSpec
       // always return something.  'foo' is interpreted as 'foo@' otherwise.
       : rawSpec === '' && raw.slice(-1) !== '@' ? raw

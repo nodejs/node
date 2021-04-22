@@ -144,7 +144,7 @@ class TransliteratorRegistry : public UMemory {
  public:
 
     /**
-     * Contructor
+     * Constructor
      * @param status Output param set to success/failure code.
      */
     TransliteratorRegistry(UErrorCode& status);

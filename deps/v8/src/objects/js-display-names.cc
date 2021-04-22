@@ -124,8 +124,15 @@ class LanguageNames : public LocaleDisplayNamesCommon {
   Maybe<icu::UnicodeString> of(Isolate* isolate,
                                const char* code) const override {
     UErrorCode status = U_ZERO_ERROR;
+    // 1.a If code does not match the unicode_language_id production, throw a
+    // RangeError exception.
+
+    // 1.b If IsStructurallyValidLanguageTag(code) is false, throw a RangeError
+    // exception.
     icu::Locale l =
         icu::Locale(icu::Locale::forLanguageTag(code, status).getBaseName());
+    // 1.c Set code to CanonicalizeUnicodeLocaleId(code).
+    l.canonicalize(status);
     std::string checked = l.toLanguageTag<std::string>(status);
 
     if (U_FAILURE(status)) {
@@ -672,7 +679,7 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
   display_names->set_style(style_enum);
   display_names->set_fallback(fallback_enum);
 
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   display_names->set_internal(*managed_internal);
 
   // Return displayNames.

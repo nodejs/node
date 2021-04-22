@@ -20,7 +20,7 @@ class Handle;
 class Isolate;
 
 // Forward declarations.
-class BailoutId;
+class BytecodeOffset;
 class RootVisitor;
 enum class InterpreterPushArgsMode : unsigned;
 namespace compiler {
@@ -39,6 +39,9 @@ static constexpr T FirstFromVarArgs(T x, ...) noexcept {
 class Builtins {
  public:
   explicit Builtins(Isolate* isolate) : isolate_(isolate) {}
+
+  Builtins(const Builtins&) = delete;
+  Builtins& operator=(const Builtins&) = delete;
 
   void TearDown();
 
@@ -76,8 +79,8 @@ class Builtins {
   // The different builtin kinds are documented in builtins-definitions.h.
   enum Kind { CPP, TFJ, TFC, TFS, TFH, BCH, ASM };
 
-  static BailoutId GetContinuationBailoutId(Name name);
-  static Name GetBuiltinFromBailoutId(BailoutId);
+  static BytecodeOffset GetContinuationBytecodeOffset(Name name);
+  static Name GetBuiltinFromBytecodeOffset(BytecodeOffset);
 
   // Convenience wrappers.
   Handle<Code> CallFunction(ConvertReceiverMode = ConvertReceiverMode::kAny);
@@ -250,8 +253,6 @@ class Builtins {
   int js_entry_handler_offset_ = 0;
 
   friend class SetupIsolateDelegate;
-
-  DISALLOW_COPY_AND_ASSIGN(Builtins);
 };
 
 Builtins::Name ExampleBuiltinForTorqueFunctionPointerType(

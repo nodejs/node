@@ -54,6 +54,9 @@ void ResourceTracer::traceOpen() const {
 
 CharString& ResourceTracer::getFilePath(CharString& output, UErrorCode& status) const {
     if (fResB) {
+        // Note: if you get a segfault around here, check that ResourceTable and
+        // ResourceArray instances outlive ResourceValue instances referring to
+        // their contents:
         output.append(fResB->fData->fPath, status);
         output.append('/', status);
         output.append(fResB->fData->fName, status);

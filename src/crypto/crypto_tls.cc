@@ -1339,8 +1339,6 @@ int TLSWrap::SelectSNIContextCallback(SSL* s, int* ad, void* arg) {
   return SSL_TLSEXT_ERR_OK;
 }
 
-#ifndef OPENSSL_NO_PSK
-
 int TLSWrap::SetCACerts(SecureContext* sc) {
   int err = SSL_set1_verify_cert_store(
       ssl_.get(), SSL_CTX_get_cert_store(sc->ctx_.get()));
@@ -1354,6 +1352,8 @@ int TLSWrap::SetCACerts(SecureContext* sc) {
   SSL_set_client_CA_list(ssl_.get(), list);
   return 1;
 }
+
+#ifndef OPENSSL_NO_PSK
 
 void TLSWrap::SetPskIdentityHint(const FunctionCallbackInfo<Value>& args) {
   TLSWrap* p;
@@ -1591,6 +1591,20 @@ void TLSWrap::GetPeerCertificate(const FunctionCallbackInfo<Value>& args) {
     args.GetReturnValue().Set(ret);
 }
 
+void TLSWrap::GetPeerX509Certificate(const FunctionCallbackInfo<Value>& args) {
+  TLSWrap* w;
+  ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
+  Environment* env = w->env();
+
+  X509Certificate::GetPeerCertificateFlag flag = w->is_server()
+      ? X509Certificate::GetPeerCertificateFlag::SERVER
+      : X509Certificate::GetPeerCertificateFlag::NONE;
+
+  Local<Value> ret;
+  if (X509Certificate::GetPeerCert(env, w->ssl_, flag).ToLocal(&ret))
+    args.GetReturnValue().Set(ret);
+}
+
 void TLSWrap::GetCertificate(const FunctionCallbackInfo<Value>& args) {
   TLSWrap* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
@@ -1598,6 +1612,15 @@ void TLSWrap::GetCertificate(const FunctionCallbackInfo<Value>& args) {
 
   Local<Value> ret;
   if (GetCert(env, w->ssl_).ToLocal(&ret))
+    args.GetReturnValue().Set(ret);
+}
+
+void TLSWrap::GetX509Certificate(const FunctionCallbackInfo<Value>& args) {
+  TLSWrap* w;
+  ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
+  Environment* env = w->env();
+  Local<Value> ret;
+  if (X509Certificate::GetCert(env, w->ssl_).ToLocal(&ret))
     args.GetReturnValue().Set(ret);
 }
 
@@ -2051,11 +2074,14 @@ void TLSWrap::Initialize(
   env->SetProtoMethodNoSideEffect(t, "getALPNNegotiatedProtocol",
                                   GetALPNNegotiatedProto);
   env->SetProtoMethodNoSideEffect(t, "getCertificate", GetCertificate);
+  env->SetProtoMethodNoSideEffect(t, "getX509Certificate", GetX509Certificate);
   env->SetProtoMethodNoSideEffect(t, "getCipher", GetCipher);
   env->SetProtoMethodNoSideEffect(t, "getEphemeralKeyInfo",
                                   GetEphemeralKeyInfo);
   env->SetProtoMethodNoSideEffect(t, "getFinished", GetFinished);
   env->SetProtoMethodNoSideEffect(t, "getPeerCertificate", GetPeerCertificate);
+  env->SetProtoMethodNoSideEffect(t, "getPeerX509Certificate",
+                                  GetPeerX509Certificate);
   env->SetProtoMethodNoSideEffect(t, "getPeerFinished", GetPeerFinished);
   env->SetProtoMethodNoSideEffect(t, "getProtocol", GetProtocol);
   env->SetProtoMethodNoSideEffect(t, "getSession", GetSession);

@@ -1,5 +1,6 @@
 #include "node_worker.h"
 #include "debug_utils-inl.h"
+#include "histogram-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
@@ -99,7 +100,7 @@ void Worker::UpdateResourceConstraints(ResourceConstraints* constraints) {
 
   if (resource_limits_[kMaxYoungGenerationSizeMb] > 0) {
     constraints->set_max_young_generation_size_in_bytes(
-        resource_limits_[kMaxYoungGenerationSizeMb] * kMB);
+        static_cast<size_t>(resource_limits_[kMaxYoungGenerationSizeMb] * kMB));
   } else {
     resource_limits_[kMaxYoungGenerationSizeMb] =
         constraints->max_young_generation_size_in_bytes() / kMB;
@@ -107,7 +108,7 @@ void Worker::UpdateResourceConstraints(ResourceConstraints* constraints) {
 
   if (resource_limits_[kMaxOldGenerationSizeMb] > 0) {
     constraints->set_max_old_generation_size_in_bytes(
-        resource_limits_[kMaxOldGenerationSizeMb] * kMB);
+        static_cast<size_t>(resource_limits_[kMaxOldGenerationSizeMb] * kMB));
   } else {
     resource_limits_[kMaxOldGenerationSizeMb] =
         constraints->max_old_generation_size_in_bytes() / kMB;
@@ -115,7 +116,7 @@ void Worker::UpdateResourceConstraints(ResourceConstraints* constraints) {
 
   if (resource_limits_[kCodeRangeSizeMb] > 0) {
     constraints->set_code_range_size_in_bytes(
-        resource_limits_[kCodeRangeSizeMb] * kMB);
+        static_cast<size_t>(resource_limits_[kCodeRangeSizeMb] * kMB));
   } else {
     resource_limits_[kCodeRangeSizeMb] =
         constraints->code_range_size_in_bytes() / kMB;
@@ -149,9 +150,7 @@ class WorkerThreadData {
 
     Isolate* isolate = Isolate::Allocate();
     if (isolate == nullptr) {
-      // TODO(addaleax): This should be ERR_WORKER_INIT_FAILED,
-      // ERR_WORKER_OUT_OF_MEMORY is for reaching the per-Worker heap limit.
-      w->Exit(1, "ERR_WORKER_OUT_OF_MEMORY", "Failed to create new Isolate");
+      w->Exit(1, "ERR_WORKER_INIT_FAILED", "Failed to create new Isolate");
       return;
     }
 
@@ -297,9 +296,7 @@ void Worker::Run() {
         TryCatch try_catch(isolate_);
         context = NewContext(isolate_);
         if (context.IsEmpty()) {
-          // TODO(addaleax): This should be ERR_WORKER_INIT_FAILED,
-          // ERR_WORKER_OUT_OF_MEMORY is for reaching the per-Worker heap limit.
-          Exit(1, "ERR_WORKER_OUT_OF_MEMORY", "Failed to create new Context");
+          Exit(1, "ERR_WORKER_INIT_FAILED", "Failed to create new Context");
           return;
         }
       }
@@ -575,7 +572,8 @@ void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {
       w->resource_limits_[kStackSizeMb] = kStackBufferSize / kMB;
       w->stack_size_ = kStackBufferSize;
     } else {
-      w->stack_size_ = w->resource_limits_[kStackSizeMb] * kMB;
+      w->stack_size_ =
+          static_cast<size_t>(w->resource_limits_[kStackSizeMb] * kMB);
     }
   } else {
     w->resource_limits_[kStackSizeMb] = w->stack_size_ / kMB;
@@ -788,7 +786,8 @@ void GetEnvMessagePort(const FunctionCallbackInfo<Value>& args) {
   Local<Object> port = env->message_port();
   CHECK_IMPLIES(!env->is_main_thread(), !port.IsEmpty());
   if (!port.IsEmpty()) {
-    CHECK_EQ(port->CreationContext()->GetIsolate(), args.GetIsolate());
+    CHECK_EQ(port->GetCreationContext().ToLocalChecked()->GetIsolate(),
+             args.GetIsolate());
     args.GetReturnValue().Set(port);
   }
 }

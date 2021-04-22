@@ -1,7 +1,72 @@
 {
   'target_defaults': {
-    'defines': [
-      '_U_='
+    'defines': [ '_U_=' ]
+  },
+  'variables': {
+    'ngtcp2_sources': [
+      'ngtcp2/lib/ngtcp2_acktr.c',
+      'ngtcp2/lib/ngtcp2_addr.c',
+      'ngtcp2/lib/ngtcp2_buf.c',
+      'ngtcp2/lib/ngtcp2_cc.c',
+      'ngtcp2/lib/ngtcp2_cid.c',
+      'ngtcp2/lib/ngtcp2_conn.c',
+      'ngtcp2/lib/ngtcp2_conv.c',
+      'ngtcp2/lib/ngtcp2_crypto.c',
+      'ngtcp2/lib/ngtcp2_err.c',
+      'ngtcp2/lib/ngtcp2_gaptr.c',
+      'ngtcp2/lib/ngtcp2_idtr.c',
+      'ngtcp2/lib/ngtcp2_ksl.c',
+      'ngtcp2/lib/ngtcp2_log.c',
+      'ngtcp2/lib/ngtcp2_map.c',
+      'ngtcp2/lib/ngtcp2_mem.c',
+      'ngtcp2/lib/ngtcp2_path.c',
+      'ngtcp2/lib/ngtcp2_pkt.c',
+      'ngtcp2/lib/ngtcp2_ppe.c',
+      'ngtcp2/lib/ngtcp2_pq.c',
+      'ngtcp2/lib/ngtcp2_pv.c',
+      'ngtcp2/lib/ngtcp2_qlog.c',
+      'ngtcp2/lib/ngtcp2_range.c',
+      'ngtcp2/lib/ngtcp2_ringbuf.c',
+      'ngtcp2/lib/ngtcp2_rob.c',
+      'ngtcp2/lib/ngtcp2_rst.c',
+      'ngtcp2/lib/ngtcp2_rtb.c',
+      'ngtcp2/lib/ngtcp2_str.c',
+      'ngtcp2/lib/ngtcp2_strm.c',
+      'ngtcp2/lib/ngtcp2_vec.c',
+      'ngtcp2/lib/ngtcp2_version.c',
+      'ngtcp2/crypto/shared.c',
+    ],
+    'ngtcp2_sources_openssl': [
+      'ngtcp2/crypto/openssl/openssl.c'
+    ],
+    'ngtcp2_sources_boringssl': [
+      'ngtcp2/crypto/boringssl/boringssl.c'
+    ],
+    'nghttp3_sources': [
+      'nghttp3/lib/nghttp3_buf.c',
+      'nghttp3/lib/nghttp3_conn.c',
+      'nghttp3/lib/nghttp3_conv.c',
+      'nghttp3/lib/nghttp3_debug.c',
+      'nghttp3/lib/nghttp3_err.c',
+      'nghttp3/lib/nghttp3_frame.c',
+      'nghttp3/lib/nghttp3_gaptr.c',
+      'nghttp3/lib/nghttp3_http.c',
+      'nghttp3/lib/nghttp3_idtr.c',
+      'nghttp3/lib/nghttp3_ksl.c',
+      'nghttp3/lib/nghttp3_map.c',
+      'nghttp3/lib/nghttp3_mem.c',
+      'nghttp3/lib/nghttp3_pq.c',
+      'nghttp3/lib/nghttp3_qpack.c',
+      'nghttp3/lib/nghttp3_qpack_huffman.c',
+      'nghttp3/lib/nghttp3_qpack_huffman_data.c',
+      'nghttp3/lib/nghttp3_range.c',
+      'nghttp3/lib/nghttp3_rcbuf.c',
+      'nghttp3/lib/nghttp3_ringbuf.c',
+      'nghttp3/lib/nghttp3_str.c',
+      'nghttp3/lib/nghttp3_stream.c',
+      'nghttp3/lib/nghttp3_tnode.c',
+      'nghttp3/lib/nghttp3_vec.c',
+      'nghttp3/lib/nghttp3_version.c'
     ]
   },
   'targets': [
@@ -9,17 +74,69 @@
       'target_name': 'ngtcp2',
       'type': 'static_library',
       'include_dirs': [
-        'lib/includes',
-        'lib',
-        'crypto/includes',
-        'crypto'
+        '',
+        'ngtcp2/lib/includes/',
+        'ngtcp2/crypto/includes/',
+        'ngtcp2/lib/',
+        'ngtcp2/crypto/',
       ],
       'defines': [
         'BUILDING_NGTCP2',
         'NGTCP2_STATICLIB',
       ],
+      'conditions': [
+        ['node_shared_openssl=="false"', {
+          'dependencies': [
+            '../openssl/openssl.gyp:openssl'
+          ]
+        }],
+        ['OS=="win"', {
+          'defines': [
+            'WIN32',
+            '_WINDOWS',
+            'HAVE_CONFIG_H',
+          ],
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'CompileAs': '1'
+            },
+          },
+        }],
+        ['OS=="linux"', {
+          'defines': [
+            'HAVE_ARPA_INET_H',
+            'HAVE_NETINET_IN_H',
+          ],
+        }],
+      ],
+      'direct_dependent_settings': {
+        'defines': [
+          'NGTCP2_STATICLIB',
+        ],
+        'include_dirs': [
+          '',
+          'ngtcp2/lib/includes',
+          'ngtcp2/crypto/includes',
+        ]
+      },
+      'sources': [
+        '<@(ngtcp2_sources)',
+        '<@(ngtcp2_sources_openssl)',
+      ]
+    },
+    {
+      'target_name': 'nghttp3',
+      'type': 'static_library',
+      'include_dirs': [
+        'nghttp3/lib/includes/',
+        'nghttp3/lib/'
+      ],
+      'defines': [
+        'BUILDING_NGHTTP3',
+        'NGHTTP3_STATICLIB'
+      ],
       'dependencies': [
-        '../openssl/openssl.gyp:openssl'
+        'ngtcp2'
       ],
       'conditions': [
         ['OS=="win"', {
@@ -42,76 +159,15 @@
         }],
       ],
       'direct_dependent_settings': {
-        'defines': [ 'NGTCP2_STATICLIB' ],
+        'defines': [
+          'NGHTTP3_STATICLIB'
+        ],
         'include_dirs': [
-          'lib/includes',
-          'crypto/includes',
+          'nghttp3/lib/includes'
         ]
       },
       'sources': [
-        'lib/ngtcp2_acktr.c',
-        'lib/ngtcp2_acktr.h',
-        'lib/ngtcp2_addr.c',
-        'lib/ngtcp2_addr.h',
-        'lib/ngtcp2_buf.c',
-        'lib/ngtcp2_buf.h',
-        'lib/ngtcp2_cc.c',
-        'lib/ngtcp2_cc.h',
-        'lib/ngtcp2_cid.c',
-        'lib/ngtcp2_cid.h',
-        'lib/ngtcp2_conn.c',
-        'lib/ngtcp2_conn.h',
-        'lib/ngtcp2_conv.c',
-        'lib/ngtcp2_conv.h',
-        'lib/ngtcp2_crypto.c',
-        'lib/ngtcp2_crypto.h',
-        'lib/ngtcp2_err.c',
-        'lib/ngtcp2_err.h',
-        'lib/ngtcp2_gaptr.c',
-        'lib/ngtcp2_gaptr.h',
-        'lib/ngtcp2_idtr.c',
-        'lib/ngtcp2_idtr.h',
-        'lib/ngtcp2_ksl.c',
-        'lib/ngtcp2_ksl.h',
-        'lib/ngtcp2_log.c',
-        'lib/ngtcp2_log.h',
-        'lib/ngtcp2_macro.h',
-        'lib/ngtcp2_map.c',
-        'lib/ngtcp2_map.h',
-        'lib/ngtcp2_mem.c',
-        'lib/ngtcp2_mem.h',
-        'lib/ngtcp2_path.c',
-        'lib/ngtcp2_path.h',
-        'lib/ngtcp2_pkt.c',
-        'lib/ngtcp2_pkt.h',
-        'lib/ngtcp2_ppe.c',
-        'lib/ngtcp2_ppe.h',
-        'lib/ngtcp2_pq.c',
-        'lib/ngtcp2_pq.h',
-        'lib/ngtcp2_pv.c',
-        'lib/ngtcp2_pv.h',
-        'lib/ngtcp2_qlog.c',
-        'lib/ngtcp2_qlog.h',
-        'lib/ngtcp2_range.c',
-        'lib/ngtcp2_range.h',
-        'lib/ngtcp2_ringbuf.c',
-        'lib/ngtcp2_ringbuf.h',
-        'lib/ngtcp2_rob.c',
-        'lib/ngtcp2_rob.h',
-        'lib/ngtcp2_rtb.c',
-        'lib/ngtcp2_rtb.h',
-        'lib/ngtcp2_rst.c',
-        'lib/ngtcp2_rst.h',
-        'lib/ngtcp2_str.c',
-        'lib/ngtcp2_str.h',
-        'lib/ngtcp2_strm.c',
-        'lib/ngtcp2_strm.h',
-        'lib/ngtcp2_vec.c',
-        'lib/ngtcp2_vec.h',
-        'lib/ngtcp2_version.c',
-        'crypto/shared.c',
-        'crypto/shared.h',
-        'crypto/openssl/openssl.c'
+        '<@(nghttp3_sources)'
       ]
     }
   ]

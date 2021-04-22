@@ -595,7 +595,7 @@ void RegExpDisjunction::RationalizeConsecutiveAtoms(RegExpCompiler* compiler) {
         if (new_prefix != common_prefix) break;
       }
 #endif  // V8_INTL_SUPPORT
-      prefix_length = Min(prefix_length, atom->length());
+      prefix_length = std::min(prefix_length, atom->length());
       i++;
     }
     if (i > first_with_prefix + 2) {
@@ -1150,7 +1150,7 @@ void CharacterRange::AddCaseEquivalents(Isolate* isolate, Zone* zone,
     CharacterRange range = ranges->at(i);
     uc32 from = range.from();
     if (from > String::kMaxUtf16CodeUnit) continue;
-    uc32 to = Min(range.to(), String::kMaxUtf16CodeUnitU);
+    uc32 to = std::min({range.to(), String::kMaxUtf16CodeUnitU});
     // Nothing to be done for surrogates.
     if (from >= kLeadSurrogateStart && to <= kTrailSurrogateEnd) continue;
     if (is_one_byte && !RangeContainsLatin1Equivalents(range)) {
@@ -1193,7 +1193,7 @@ void CharacterRange::AddCaseEquivalents(Isolate* isolate, Zone* zone,
     CharacterRange range = ranges->at(i);
     uc32 bottom = range.from();
     if (bottom > String::kMaxUtf16CodeUnit) continue;
-    uc32 top = Min(range.to(), String::kMaxUtf16CodeUnitU);
+    uc32 top = std::min({range.to(), String::kMaxUtf16CodeUnitU});
     // Nothing to be done for surrogates.
     if (bottom >= kLeadSurrogateStart && top <= kTrailSurrogateEnd) continue;
     if (is_one_byte && !RangeContainsLatin1Equivalents(range)) {
@@ -1333,16 +1333,16 @@ static int InsertRangeInCanonicalList(ZoneList<CharacterRange>* list, int count,
   if (start_pos + 1 == end_pos) {
     // Replace single existing range at position start_pos.
     CharacterRange to_replace = list->at(start_pos);
-    int new_from = Min(to_replace.from(), from);
-    int new_to = Max(to_replace.to(), to);
+    int new_from = std::min(to_replace.from(), from);
+    int new_to = std::max(to_replace.to(), to);
     list->at(start_pos) = CharacterRange::Range(new_from, new_to);
     return count;
   }
   // Replace a number of existing ranges from start_pos to end_pos - 1.
   // Move the remaining ranges down.
 
-  int new_from = Min(list->at(start_pos).from(), from);
-  int new_to = Max(list->at(end_pos - 1).to(), to);
+  int new_from = std::min(list->at(start_pos).from(), from);
+  int new_to = std::max(list->at(end_pos - 1).to(), to);
   if (end_pos < count) {
     MoveRanges(list, end_pos, start_pos + 1, count - end_pos);
   }

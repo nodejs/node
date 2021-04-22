@@ -88,8 +88,54 @@ This demonstrates how the nature of `node_modules` resolution allows for
 in such a way that is also easy to [publish](/commands/npm-publish) these
 nested workspaces to be consumed elsewhere.
 
+### Running commands in the context of workspaces
+
+You can use the `workspace` configuration option to run commands in the context
+of a configured workspace.
+
+Following is a quick example on how to use the `npm run` command in the context
+of nested workspaces. For a project containing multiple workspaces, e.g:
+
+```
+.
++-- package.json
+`-- packages
+   +-- a
+   |   `-- package.json
+   `-- b
+       `-- package.json
+```
+
+By running a command using the `workspace` option, it's possible to run the
+given command in the context of that specific workspace. e.g:
+
+```
+npm run test --workspace=a
+```
+
+This will run the `test` script defined within the
+`./packages/a/package.json` file.
+
+Please note that you can also specify this argument multiple times in the
+command-line in order to target multiple workspaces, e.g:
+
+```
+npm run test --workspace=a --workspace=b
+```
+
+It's also possible to use the `workspaces` (plural) configuration option to
+enable the same behavior but running that command in the context of **all**
+configured workspaces. e.g:
+
+```
+npm run test --workspaces
+```
+
+Will run the `test` script in both `./packages/a` and `./packages/b`.
+
 ### See also
 
 * [npm install](/commands/npm-install)
 * [npm publish](/commands/npm-publish)
+* [npm run-script](/commands/npm-run-script)
 

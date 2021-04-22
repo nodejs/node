@@ -41,7 +41,7 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kRetain:
     case IrOpcode::kStackPointerGreaterThan:
     case IrOpcode::kStaticAssert:
-    // TODO(tebbi): Store nodes might do a bump-pointer allocation.
+    // TODO(turbofan): Store nodes might do a bump-pointer allocation.
     //              We should introduce a special bump-pointer store node to
     //              differentiate that.
     case IrOpcode::kStore:

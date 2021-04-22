@@ -63,7 +63,7 @@ void ItemParallelJob::Run() {
   // tasks participate in). Some jobs even have 0 items to preprocess but
   // still have multiple tasks.
   // TODO(gab): Figure out a cleaner scheme for this.
-  const size_t num_tasks_processing_items = Min(num_items, tasks_.size());
+  const size_t num_tasks_processing_items = std::min(num_items, tasks_.size());
 
   // In the event of an uneven workload, distribute an extra item to the first
   // |items_remainder| tasks.

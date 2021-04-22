@@ -26,6 +26,10 @@ using ::testing::Invoke;
 using ::testing::Return;
 
 class ValueSerializerTest : public TestWithIsolate {
+ public:
+  ValueSerializerTest(const ValueSerializerTest&) = delete;
+  ValueSerializerTest& operator=(const ValueSerializerTest&) = delete;
+
  protected:
   ValueSerializerTest()
       : serialization_context_(Context::New(isolate())),
@@ -266,8 +270,6 @@ class ValueSerializerTest : public TestWithIsolate {
   Local<Context> deserialization_context_;
   Local<FunctionTemplate> host_object_constructor_template_;
   i::Isolate* isolate_;
-
-  DISALLOW_COPY_AND_ASSIGN(ValueSerializerTest);
 };
 
 TEST_F(ValueSerializerTest, DecodeInvalid) {
@@ -1487,7 +1489,45 @@ TEST_F(ValueSerializerTest, DecodeRegExpDotAll) {
   ExpectScriptTrue("result.toString() === '/foo/gimsuy'");
 
   InvalidDecodeTest(
-      {0xFF, 0x09, 0x3F, 0x00, 0x52, 0x03, 0x66, 0x6F, 0x6F, 0x7F});
+      {0xFF, 0x09, 0x3F, 0x00, 0x52, 0x03, 0x66, 0x6F, 0x6F, 0xFF});
+}
+
+TEST_F(ValueSerializerTest, DecodeLinearRegExp) {
+  bool flag_was_enabled = i::FLAG_enable_experimental_regexp_engine;
+
+  // The last byte encodes the regexp flags.
+  std::vector<uint8_t> regexp_encoding = {0xFF, 0x09, 0x3F, 0x00, 0x52,
+                                          0x03, 0x66, 0x6F, 0x6F, 0x6D};
+
+  i::FLAG_enable_experimental_regexp_engine = true;
+  Local<Value> value = DecodeTest(regexp_encoding);
+  ASSERT_TRUE(value->IsRegExp());
+  ExpectScriptTrue("Object.getPrototypeOf(result) === RegExp.prototype");
+  ExpectScriptTrue("result.toString() === '/foo/glmsy'");
+
+  i::FLAG_enable_experimental_regexp_engine = false;
+  InvalidDecodeTest(regexp_encoding);
+
+  i::FLAG_enable_experimental_regexp_engine = flag_was_enabled;
+}
+
+TEST_F(ValueSerializerTest, DecodeHasIndicesRegExp) {
+  bool flag_was_enabled = i::FLAG_harmony_regexp_match_indices;
+
+  // The last byte encodes the regexp flags.
+  std::vector<uint8_t> regexp_encoding = {0xFF, 0x09, 0x3F, 0x00, 0x52, 0x03,
+                                          0x66, 0x6F, 0x6F, 0xAD, 0x01};
+
+  i::FLAG_harmony_regexp_match_indices = true;
+  Local<Value> value = DecodeTest(regexp_encoding);
+  ASSERT_TRUE(value->IsRegExp());
+  ExpectScriptTrue("Object.getPrototypeOf(result) === RegExp.prototype");
+  ExpectScriptTrue("result.toString() === '/foo/dgmsy'");
+
+  i::FLAG_harmony_regexp_match_indices = false;
+  InvalidDecodeTest(regexp_encoding);
+
+  i::FLAG_harmony_regexp_match_indices = flag_was_enabled;
 }
 
 TEST_F(ValueSerializerTest, RoundTripMap) {
@@ -2440,6 +2480,7 @@ TEST_F(ValueSerializerTestWithHostArrayBufferView, RoundTripUint8ArrayInput) {
   ExpectScriptTrue("result.a === result.b");
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 // It's expected that WebAssembly has more exhaustive tests elsewhere; this
 // mostly checks that the logic to embed it in structured clone serialization
 // works correctly.
@@ -2691,6 +2732,7 @@ TEST_F(ValueSerializerTestWithWasm, ComplexObjectWithManyTransfer) {
   VerifyComplexObject(value);
   ExpectScriptTrue("result.mod1 != result.mod2");
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 class ValueSerializerTestWithLimitedMemory : public ValueSerializerTest {
  protected:

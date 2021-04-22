@@ -502,11 +502,15 @@ int OS::GetCurrentThreadId() {
 }
 
 void OS::ExitProcess(int exit_code) {
-  // Use TerminateProcess avoid races between isolate threads and
+  // Use TerminateProcess to avoid races between isolate threads and
   // static destructors.
   fflush(stdout);
   fflush(stderr);
   TerminateProcess(GetCurrentProcess(), exit_code);
+  // Termination the current process does not return. {TerminateProcess} is not
+  // marked [[noreturn]] though, since it can also be used to terminate another
+  // process.
+  UNREACHABLE();
 }
 
 // ----------------------------------------------------------------------------
@@ -1395,7 +1399,7 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
 void OS::AdjustSchedulingParams() {}
 
 // static
-void* Stack::GetStackStart() {
+Stack::StackSlot Stack::GetStackStart() {
 #if defined(V8_TARGET_ARCH_X64)
   return reinterpret_cast<void*>(
       reinterpret_cast<NT_TIB64*>(NtCurrentTeb())->StackBase);
@@ -1414,7 +1418,7 @@ void* Stack::GetStackStart() {
 }
 
 // static
-void* Stack::GetCurrentStackPosition() {
+Stack::StackSlot Stack::GetCurrentStackPosition() {
 #if V8_CC_MSVC
   return _AddressOfReturnAddress();
 #else

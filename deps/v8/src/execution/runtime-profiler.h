@@ -14,8 +14,10 @@ namespace internal {
 
 class BytecodeArray;
 class Isolate;
-class InterpretedFrame;
+class UnoptimizedFrame;
+class JavaScriptFrame;
 class JSFunction;
+enum class CodeKind;
 enum class OptimizationReason : uint8_t;
 
 class RuntimeProfiler {
@@ -29,24 +31,28 @@ class RuntimeProfiler {
 
   void NotifyICChanged() { any_ic_changed_ = true; }
 
-  void AttemptOnStackReplacement(InterpretedFrame* frame,
+  void AttemptOnStackReplacement(UnoptimizedFrame* frame,
                                  int nesting_levels = 1);
 
  private:
+  // Helper function called from MarkCandidatesForOptimization*
+  void MarkCandidatesForOptimization(JavaScriptFrame* frame);
+
   // Make the decision whether to optimize the given function, and mark it for
   // optimization if the decision was 'yes'.
-  void MaybeOptimizeNCIFrame(JSFunction function);
-  void MaybeOptimizeInterpretedFrame(JSFunction function,
-                                     InterpretedFrame* frame);
+  void MaybeOptimizeFrame(JSFunction function, JavaScriptFrame* frame,
+                          CodeKind code_kind);
+
   // Potentially attempts OSR from and returns whether no other
   // optimization attempts should be made.
-  bool MaybeOSR(JSFunction function, InterpretedFrame* frame);
+  bool MaybeOSR(JSFunction function, UnoptimizedFrame* frame);
   OptimizationReason ShouldOptimize(JSFunction function,
                                     BytecodeArray bytecode_array);
-  void Optimize(JSFunction function, OptimizationReason reason);
+  void Optimize(JSFunction function, OptimizationReason reason,
+                CodeKind code_kind);
   void Baseline(JSFunction function, OptimizationReason reason);
 
-  class MarkCandidatesForOptimizationScope final {
+  class V8_NODISCARD MarkCandidatesForOptimizationScope final {
    public:
     explicit MarkCandidatesForOptimizationScope(RuntimeProfiler* profiler);
     ~MarkCandidatesForOptimizationScope();
@@ -54,11 +60,12 @@ class RuntimeProfiler {
    private:
     HandleScope handle_scope_;
     RuntimeProfiler* const profiler_;
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
   };
 
   Isolate* isolate_;
   bool any_ic_changed_;
+  unsigned int current_global_ticks_;
 };
 
 }  // namespace internal

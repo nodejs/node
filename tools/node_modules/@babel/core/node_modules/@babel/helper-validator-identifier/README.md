@@ -2,7 +2,7 @@
 
 > Validate identifier/keywords name
 
-See our website [@babel/helper-validator-identifier](https://babeljs.io/docs/en/next/babel-helper-validator-identifier.html) for more information.
+See our website [@babel/helper-validator-identifier](https://babeljs.io/docs/en/babel-helper-validator-identifier) for more information.
 
 ## Install
 

@@ -19,7 +19,7 @@ namespace internal {
 // ES6 section 26.1.3 Reflect.defineProperty
 BUILTIN(ReflectDefineProperty) {
   HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
+  DCHECK_LE(4, args.length());
   Handle<Object> target = args.at(1);
   Handle<Object> key = args.at(2);
   Handle<Object> attributes = args.at(3);
@@ -49,7 +49,7 @@ BUILTIN(ReflectDefineProperty) {
 // ES6 section 26.1.7 Reflect.getOwnPropertyDescriptor
 BUILTIN(ReflectGetOwnPropertyDescriptor) {
   HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
+  DCHECK_LE(3, args.length());
   Handle<Object> target = args.at(1);
   Handle<Object> key = args.at(2);
 
@@ -75,7 +75,7 @@ BUILTIN(ReflectGetOwnPropertyDescriptor) {
 // ES6 section 26.1.11 Reflect.ownKeys
 BUILTIN(ReflectOwnKeys) {
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
+  DCHECK_LE(2, args.length());
   Handle<Object> target = args.at(1);
 
   if (!target->IsJSReceiver()) {

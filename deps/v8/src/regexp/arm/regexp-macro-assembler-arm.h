@@ -203,6 +203,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM
   Label exit_label_;
   Label check_preempt_label_;
   Label stack_overflow_label_;
+  Label fallback_label_;
 };
 
 }  // namespace internal

@@ -276,7 +276,7 @@ Store<FastSmiElements>(
   const object = UnsafeCast<JSObject>(sortState.receiver);
   const elements = UnsafeCast<FixedArray>(object.elements);
   const value = UnsafeCast<Smi>(value);
-  StoreFixedArrayElement(elements, index, value, SKIP_WRITE_BARRIER);
+  StoreFixedArrayElement(elements, index, value);
   return kSuccess;
 }
 

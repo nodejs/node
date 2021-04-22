@@ -85,7 +85,7 @@ class Registry {
      * @returns {void}
      */
     populateFromCoreRules() {
-        const rulesConfig = configRule.createCoreRuleConfigs();
+        const rulesConfig = configRule.createCoreRuleConfigs(/* noDeprecated = */ true);
 
         this.rules = makeRegistryItems(rulesConfig);
     }

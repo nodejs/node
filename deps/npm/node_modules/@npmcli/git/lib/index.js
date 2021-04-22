@@ -4,5 +4,5 @@ module.exports = {
   spawn: require('./spawn.js'),
   is: require('./is.js'),
   find: require('./find.js'),
-  isClean: require('./is-clean.js'),
+  isClean: require('./is-clean.js')
 }

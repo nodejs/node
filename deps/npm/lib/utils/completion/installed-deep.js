@@ -1,8 +1,7 @@
 const { resolve } = require('path')
 const Arborist = require('@npmcli/arborist')
-const npm = require('../../npm.js')
 
-const readNames = async () => {
+const installedDeep = async (npm) => {
   const {
     depth,
     global,
@@ -34,10 +33,6 @@ const readNames = async () => {
   }
 
   return [...res]
-}
-
-function installedDeep (opts, cb) {
-  return readNames().then(res => cb(null, res)).catch(cb)
 }
 
 module.exports = installedDeep

@@ -26,9 +26,10 @@ function main({ streams, length, size, duration }) {
     }
     write();
   });
-  server.listen(common.PORT, () => {
+  server.listen(0, () => {
     bench.http({
       path: '/',
+      port: server.address().port,
       requests: 10000,
       duration,
       maxConcurrentStreams: streams,

@@ -77,7 +77,7 @@ WebInspector.SourceMap = function(sourceMappingURL, payload)
     if (!WebInspector.SourceMap.prototype._base64Map) {
         const base64Digits = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
         WebInspector.SourceMap.prototype._base64Map = {};
-        for (var i = 0; i < base64Digits.length; ++i)
+        for (let i = 0; i < base64Digits.length; ++i)
             WebInspector.SourceMap.prototype._base64Map[base64Digits.charAt(i)] = i;
     }
 
@@ -107,7 +107,7 @@ WebInspector.SourceMap.load = function(sourceMapURL, compiledURL, callback)
     function contentLoaded(error, statusCode, headers, content)
     {
         if (error || !content || statusCode >= 400) {
-            console.error("Could not load content for " + sourceMapURL + " : " + (error || ("HTTP status code: " + statusCode)));
+            console.error(`Could not load content for ${sourceMapURL} : ${error || (`HTTP status code: ${statusCode}`)}`);
             callback(null);
             return;
         }
@@ -115,8 +115,8 @@ WebInspector.SourceMap.load = function(sourceMapURL, compiledURL, callback)
         if (content.slice(0, 3) === ")]}")
             content = content.substring(content.indexOf('\n'));
         try {
-            var payload = /** @type {SourceMapV3} */ (JSON.parse(content));
-            var baseURL = sourceMapURL.startsWith("data:") ? compiledURL : sourceMapURL;
+            const payload = /** @type {SourceMapV3} */ (JSON.parse(content));
+            const baseURL = sourceMapURL.startsWith("data:") ? compiledURL : sourceMapURL;
             callback(new WebInspector.SourceMap(baseURL, payload));
         } catch(e) {
             console.error(e.message);
@@ -129,7 +129,7 @@ WebInspector.SourceMap.prototype = {
     /**
      * @return {Array.<string>}
      */
-    sources: function()
+    sources()
     {
         return Object.keys(this._sources);
     },
@@ -138,7 +138,7 @@ WebInspector.SourceMap.prototype = {
      * @param {string} sourceURL
      * @return {string|undefined}
      */
-    sourceContent: function(sourceURL)
+    sourceContent(sourceURL)
     {
         return this._sourceContentByURL[sourceURL];
     },
@@ -148,12 +148,12 @@ WebInspector.SourceMap.prototype = {
      * @param {WebInspector.ResourceType} contentType
      * @return {WebInspector.ContentProvider}
      */
-    sourceContentProvider: function(sourceURL, contentType)
+    sourceContentProvider(sourceURL, contentType)
     {
-        var lastIndexOfDot = sourceURL.lastIndexOf(".");
-        var extension = lastIndexOfDot !== -1 ? sourceURL.substr(lastIndexOfDot + 1) : "";
-        var mimeType = WebInspector.ResourceType.mimeTypesForExtensions[extension.toLowerCase()];
-        var sourceContent = this.sourceContent(sourceURL);
+        const lastIndexOfDot = sourceURL.lastIndexOf(".");
+        const extension = lastIndexOfDot !== -1 ? sourceURL.substr(lastIndexOfDot + 1) : "";
+        const mimeType = WebInspector.ResourceType.mimeTypesForExtensions[extension.toLowerCase()];
+        const sourceContent = this.sourceContent(sourceURL);
         if (sourceContent)
             return new WebInspector.StaticContentProvider(contentType, sourceContent, mimeType);
         return new WebInspector.CompilerSourceMappingContentProvider(sourceURL, contentType, mimeType);
@@ -162,7 +162,7 @@ WebInspector.SourceMap.prototype = {
     /**
      * @param {SourceMapV3} mappingPayload
      */
-    _parseMappingPayload: function(mappingPayload)
+    _parseMappingPayload(mappingPayload)
     {
         if (mappingPayload.sections)
             this._parseSections(mappingPayload.sections);
@@ -173,10 +173,10 @@ WebInspector.SourceMap.prototype = {
     /**
      * @param {Array.<SourceMapV3.Section>} sections
      */
-    _parseSections: function(sections)
+    _parseSections(sections)
     {
-        for (var i = 0; i < sections.length; ++i) {
-            var section = sections[i];
+        for (let i = 0; i < sections.length; ++i) {
+            const section = sections[i];
             this._parseMap(section.map, section.offset.line, section.offset.column);
         }
     },
@@ -186,14 +186,14 @@ WebInspector.SourceMap.prototype = {
      * @param {number} columnNumber in compiled resource
      * @return {?Array}
      */
-    findEntry: function(lineNumber, columnNumber)
+    findEntry(lineNumber, columnNumber)
     {
-        var first = 0;
-        var count = this._mappings.length;
+        let first = 0;
+        let count = this._mappings.length;
         while (count > 1) {
-          var step = count >> 1;
-          var middle = first + step;
-          var mapping = this._mappings[middle];
+          const step = count >> 1;
+          const middle = first + step;
+          const mapping = this._mappings[middle];
           if (lineNumber < mapping[0] || (lineNumber === mapping[0] && columnNumber < mapping[1]))
               count = step;
           else {
@@ -201,7 +201,7 @@ WebInspector.SourceMap.prototype = {
               count -= step;
           }
         }
-        var entry = this._mappings[first];
+        const entry = this._mappings[first];
         if (!first && entry && (lineNumber < entry[0] || (lineNumber === entry[0] && columnNumber < entry[1])))
             return null;
         return entry;
@@ -212,11 +212,11 @@ WebInspector.SourceMap.prototype = {
      * @param {number} lineNumber in the originating resource
      * @return {Array}
      */
-    findEntryReversed: function(sourceURL, lineNumber)
+    findEntryReversed(sourceURL, lineNumber)
     {
-        var mappings = this._reverseMappingsBySourceURL[sourceURL];
+        const mappings = this._reverseMappingsBySourceURL[sourceURL];
         for ( ; lineNumber < mappings.length; ++lineNumber) {
-            var mapping = mappings[lineNumber];
+            const mapping = mappings[lineNumber];
             if (mapping)
                 return mapping;
         }
@@ -226,32 +226,32 @@ WebInspector.SourceMap.prototype = {
     /**
      * @override
      */
-    _parseMap: function(map, lineNumber, columnNumber)
+    _parseMap(map, lineNumber, columnNumber)
     {
-        var sourceIndex = 0;
-        var sourceLineNumber = 0;
-        var sourceColumnNumber = 0;
-        var nameIndex = 0;
+        let sourceIndex = 0;
+        let sourceLineNumber = 0;
+        let sourceColumnNumber = 0;
+        let nameIndex = 0;
 
-        var sources = [];
-        var originalToCanonicalURLMap = {};
-        for (var i = 0; i < map.sources.length; ++i) {
-            var originalSourceURL = map.sources[i];
-            var sourceRoot = map.sourceRoot || "";
-            if (sourceRoot && !sourceRoot.endsWith("/"))
-                sourceRoot += "/";
-            var href = sourceRoot + originalSourceURL;
-            var url = WebInspector.ParsedURL.completeURL(this._sourceMappingURL, href) || href;
+        const sources = [];
+        const originalToCanonicalURLMap = {};
+        for (let i = 0; i < map.sources.length; ++i) {
+            const originalSourceURL = map.sources[i];
+            let sourceRoot = map.sourceRoot || "";
+            if (sourceRoot && !sourceRoot.endsWith("/")) sourceRoot += "/";
+            const href = sourceRoot + originalSourceURL;
+            const url = WebInspector.ParsedURL.completeURL(this._sourceMappingURL, href) || href;
             originalToCanonicalURLMap[originalSourceURL] = url;
             sources.push(url);
             this._sources[url] = true;
 
-            if (map.sourcesContent && map.sourcesContent[i])
+            if (map.sourcesContent && map.sourcesContent[i]) {
                 this._sourceContentByURL[url] = map.sourcesContent[i];
+            }
         }
 
-        var stringCharIterator = new WebInspector.SourceMap.StringCharIterator(map.mappings);
-        var sourceURL = sources[sourceIndex];
+        const stringCharIterator = new WebInspector.SourceMap.StringCharIterator(map.mappings);
+        let sourceURL = sources[sourceIndex];
 
         while (true) {
             if (stringCharIterator.peek() === ",")
@@ -272,7 +272,7 @@ WebInspector.SourceMap.prototype = {
                 continue;
             }
 
-            var sourceIndexDelta = this._decodeVLQ(stringCharIterator);
+            const sourceIndexDelta = this._decodeVLQ(stringCharIterator);
             if (sourceIndexDelta) {
                 sourceIndex += sourceIndexDelta;
                 sourceURL = sources[sourceIndex];
@@ -285,17 +285,18 @@ WebInspector.SourceMap.prototype = {
             this._mappings.push([lineNumber, columnNumber, sourceURL, sourceLineNumber, sourceColumnNumber]);
         }
 
-        for (var i = 0; i < this._mappings.length; ++i) {
-            var mapping = this._mappings[i];
-            var url = mapping[2];
-            if (!url)
-                continue;
-            if (!this._reverseMappingsBySourceURL[url])
+        for (let i = 0; i < this._mappings.length; ++i) {
+            const mapping = this._mappings[i];
+            const url = mapping[2];
+            if (!url) continue;
+            if (!this._reverseMappingsBySourceURL[url]) {
                 this._reverseMappingsBySourceURL[url] = [];
-            var reverseMappings = this._reverseMappingsBySourceURL[url];
-            var sourceLine = mapping[3];
-            if (!reverseMappings[sourceLine])
+            }
+            const reverseMappings = this._reverseMappingsBySourceURL[url];
+            const sourceLine = mapping[3];
+            if (!reverseMappings[sourceLine]) {
                 reverseMappings[sourceLine] = [mapping[0], mapping[1]];
+            }
         }
     },
 
@@ -303,7 +304,7 @@ WebInspector.SourceMap.prototype = {
      * @param {string} char
      * @return {boolean}
      */
-    _isSeparator: function(char)
+    _isSeparator(char)
     {
         return char === "," || char === ";";
     },
@@ -312,19 +313,20 @@ WebInspector.SourceMap.prototype = {
      * @param {WebInspector.SourceMap.StringCharIterator} stringCharIterator
      * @return {number}
      */
-    _decodeVLQ: function(stringCharIterator)
+    _decodeVLQ(stringCharIterator)
     {
         // Read unsigned value.
-        var result = 0;
-        var shift = 0;
+        let result = 0;
+        let shift = 0;
+        let digit;
         do {
-            var digit = this._base64Map[stringCharIterator.next()];
+            digit = this._base64Map[stringCharIterator.next()];
             result += (digit & this._VLQ_BASE_MASK) << shift;
             shift += this._VLQ_BASE_SHIFT;
         } while (digit & this._VLQ_CONTINUATION_MASK);
 
         // Fix the sign.
-        var negative = result & 1;
+        const negative = result & 1;
         // Use unsigned right shift, so that the 32nd bit is properly shifted
         // to the 31st, and the 32nd becomes unset.
         result >>>= 1;
@@ -359,7 +361,7 @@ WebInspector.SourceMap.StringCharIterator.prototype = {
     /**
      * @return {string}
      */
-    next: function()
+    next()
     {
         return this._string.charAt(this._position++);
     },
@@ -367,7 +369,7 @@ WebInspector.SourceMap.StringCharIterator.prototype = {
     /**
      * @return {string}
      */
-    peek: function()
+    peek()
     {
         return this._string.charAt(this._position);
     },
@@ -375,7 +377,7 @@ WebInspector.SourceMap.StringCharIterator.prototype = {
     /**
      * @return {boolean}
      */
-    hasNext: function()
+    hasNext()
     {
         return this._position < this._string.length;
     }

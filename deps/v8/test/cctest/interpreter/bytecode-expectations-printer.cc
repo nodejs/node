@@ -73,10 +73,8 @@ v8::Local<v8::Script> BytecodeExpectationsPrinter::CompileScript(
 
 v8::Local<v8::Module> BytecodeExpectationsPrinter::CompileModule(
     const char* program) const {
-  ScriptOrigin origin(
-      Local<v8::Value>(), Local<v8::Integer>(), Local<v8::Integer>(),
-      Local<v8::Boolean>(), Local<v8::Integer>(), Local<v8::Value>(),
-      Local<v8::Boolean>(), Local<v8::Boolean>(), True(isolate_));
+  ScriptOrigin origin(isolate_, Local<v8::Value>(), 0, 0, false, -1,
+                      Local<v8::Value>(), false, false, true);
   v8::ScriptCompiler::Source source(V8StringFromUTF8(program), origin);
   return v8::ScriptCompiler::CompileModule(isolate_, &source).ToLocalChecked();
 }
@@ -96,8 +94,8 @@ BytecodeExpectationsPrinter::GetBytecodeArrayForGlobal(
   i::Handle<i::JSFunction> js_function =
       i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*function));
 
-  i::Handle<i::BytecodeArray> bytecodes =
-      i::handle(js_function->shared().GetBytecodeArray(), i_isolate());
+  i::Handle<i::BytecodeArray> bytecodes = i::handle(
+      js_function->shared().GetBytecodeArray(i_isolate()), i_isolate());
 
   return bytecodes;
 }
@@ -108,7 +106,7 @@ BytecodeExpectationsPrinter::GetBytecodeArrayForModule(
   i::Handle<i::Module> i_module = v8::Utils::OpenHandle(*module);
   return i::handle(SharedFunctionInfo::cast(
                        Handle<i::SourceTextModule>::cast(i_module)->code())
-                       .GetBytecodeArray(),
+                       .GetBytecodeArray(i_isolate()),
                    i_isolate());
 }
 
@@ -116,7 +114,8 @@ i::Handle<i::BytecodeArray>
 BytecodeExpectationsPrinter::GetBytecodeArrayForScript(
     v8::Local<v8::Script> script) const {
   i::Handle<i::JSFunction> js_function = v8::Utils::OpenHandle(*script);
-  return i::handle(js_function->shared().GetBytecodeArray(), i_isolate());
+  return i::handle(js_function->shared().GetBytecodeArray(i_isolate()),
+                   i_isolate());
 }
 
 i::Handle<i::BytecodeArray>
@@ -127,7 +126,8 @@ BytecodeExpectationsPrinter::GetBytecodeArrayOfCallee(
   i::Handle<i::JSFunction> js_function =
       i::Handle<i::JSFunction>::cast(i_object);
   CHECK(js_function->shared().HasBytecodeArray());
-  return i::handle(js_function->shared().GetBytecodeArray(), i_isolate());
+  return i::handle(js_function->shared().GetBytecodeArray(i_isolate()),
+                   i_isolate());
 }
 
 void BytecodeExpectationsPrinter::PrintEscapedString(

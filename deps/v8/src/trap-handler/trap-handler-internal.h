@@ -35,8 +35,6 @@ class MetadataLock {
   MetadataLock();
   ~MetadataLock();
 
-  // We'd normally use DISALLOW_COPY_AND_ASSIGN, but we're avoiding a dependency
-  // on base/macros.h
   MetadataLock(const MetadataLock&) = delete;
   void operator=(const MetadataLock&) = delete;
 };

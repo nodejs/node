@@ -29,7 +29,6 @@ class InvokeIntrinsicHelper {
   Handle<Object> Invoke(A... args) {
     CHECK(IntrinsicsHelper::IsSupported(function_id_));
     int parameter_count = sizeof...(args);
-#ifdef V8_REVERSE_JSARGS
     // Move the parameter to locals, since the order of the
     // arguments in the stack is reversed.
     BytecodeArrayBuilder builder(zone_, parameter_count + 1, parameter_count,
@@ -39,12 +38,6 @@ class InvokeIntrinsicHelper {
     }
     RegisterList reg_list =
         InterpreterTester::NewRegisterList(0, parameter_count);
-#else
-    // Add the receiver in the parameter count.
-    BytecodeArrayBuilder builder(zone_, parameter_count + 1, 0, nullptr);
-    RegisterList reg_list = InterpreterTester::NewRegisterList(
-        builder.Parameter(0).index(), parameter_count);
-#endif
     builder.CallRuntime(function_id_, reg_list).Return();
     InterpreterTester tester(isolate_, builder.ToBytecodeArray(isolate_));
     auto callable = tester.GetCallable<A...>();

@@ -1,17 +1,31 @@
-const npm = require('./npm.js')
-const output = require('./utils/output.js')
 const getIdentity = require('./utils/get-identity.js')
-const usageUtil = require('./utils/usage.js')
-const completion = require('./utils/completion/none.js')
 
-const cmd = (args, cb) => whoami(args).then(() => cb()).catch(cb)
+const BaseCommand = require('./base-command.js')
+class Whoami extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'Display npm username'
+  }
 
-const usage = usageUtil('whoami', 'npm whoami [--registry <registry>]\n(just prints username according to given registry)')
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'whoami'
+  }
 
-const whoami = async ([spec]) => {
-  const opts = npm.flatOptions
-  const username = await getIdentity(opts, spec)
-  output(opts.json ? JSON.stringify(username) : username)
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return ['registry']
+  }
+
+  exec (args, cb) {
+    this.whoami(args).then(() => cb()).catch(cb)
+  }
+
+  async whoami (args) {
+    const username = await getIdentity(this.npm, this.npm.flatOptions)
+    this.npm.output(
+      this.npm.config.get('json') ? JSON.stringify(username) : username
+    )
+  }
 }
-
-module.exports = Object.assign(cmd, { completion, usage })
+module.exports = Whoami

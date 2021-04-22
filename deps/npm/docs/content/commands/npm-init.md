@@ -1,7 +1,7 @@
 ---
 title: npm-init
 section: 1
-description: create a package.json file
+description: Create a package.json file
 ---
 
 ### Synopsis
@@ -71,9 +71,32 @@ Generate it without having it ask any questions:
 $ npm init -y
 ```
 
+### A note on caching
+
+The npm cli utilizes its internal package cache when using the package
+name specified.  You can use the following to change how and when the
+cli uses this cache. See [`npm cache`](/commands/npm-cache) for more on
+how the cache works.
+
+#### prefer-online
+
+Forces staleness checks for packages, making the cli look for updates
+immediately even if the package is already in the cache.
+
+#### prefer-offline
+
+Bypasses staleness checks for packages.  Missing data will still be
+requested from the server. To force full offline mode, use `offline`.
+
+#### offline
+
+Forces full offline mode. Any packages not locally cached will result in
+an error.
+
 ### See Also
 
 * [init-package-json module](http://npm.im/init-package-json)
 * [package.json](/configuring-npm/package-json)
 * [npm version](/commands/npm-version)
 * [npm scope](/using-npm/scope)
+* [npm exec](/commands/npm-exec)

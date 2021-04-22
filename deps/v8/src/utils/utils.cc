@@ -6,11 +6,13 @@
 
 #include <stdarg.h>
 #include <sys/stat.h>
+
 #include <vector>
 
 #include "src/base/functional.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
+#include "src/base/platform/wrappers.h"
 #include "src/utils/memcopy.h"
 
 namespace v8 {
@@ -78,12 +80,12 @@ std::ostream& operator<<(std::ostream& os, FeedbackSlot slot) {
   return os << "#" << slot.id_;
 }
 
-size_t hash_value(BailoutId id) {
+size_t hash_value(BytecodeOffset id) {
   base::hash<int> h;
   return h(id.id_);
 }
 
-std::ostream& operator<<(std::ostream& os, BailoutId id) {
+std::ostream& operator<<(std::ostream& os, BytecodeOffset id) {
   return os << id.id_;
 }
 
@@ -202,7 +204,7 @@ std::vector<char> ReadCharsFromFile(FILE* file, bool* exists, bool verbose,
   for (ptrdiff_t i = 0; i < size && feof(file) == 0;) {
     ptrdiff_t read = fread(result.data() + i, 1, size - i, file);
     if (read != (size - i) && ferror(file) != 0) {
-      fclose(file);
+      base::Fclose(file);
       *exists = false;
       return std::vector<char>();
     }
@@ -216,7 +218,7 @@ std::vector<char> ReadCharsFromFile(const char* filename, bool* exists,
                                     bool verbose) {
   FILE* file = base::OS::FOpen(filename, "rb");
   std::vector<char> result = ReadCharsFromFile(file, exists, verbose, filename);
-  if (file != nullptr) fclose(file);
+  if (file != nullptr) base::Fclose(file);
   return result;
 }
 
@@ -261,7 +263,7 @@ int WriteChars(const char* filename, const char* str, int size, bool verbose) {
     return 0;
   }
   int written = WriteCharsToFile(str, size, f);
-  fclose(f);
+  base::Fclose(f);
   return written;
 }
 

@@ -6,24 +6,24 @@
 
 namespace runtime {
 extern runtime CreateArrayLiteral(
-    Context, FeedbackVector, TaggedIndex, ArrayBoilerplateDescription,
-    Smi): HeapObject;
+    Context, Undefined | FeedbackVector, TaggedIndex,
+    ArrayBoilerplateDescription, Smi): HeapObject;
 extern runtime CreateObjectLiteral(
-    Context, FeedbackVector, TaggedIndex, ObjectBoilerplateDescription,
-    Smi): HeapObject;
+    Context, Undefined | FeedbackVector, TaggedIndex,
+    ObjectBoilerplateDescription, Smi): HeapObject;
 }
 
 namespace constructor {
 
 extern builtin FastNewObject(Context, JSFunction, JSReceiver): JSObject;
 
-extern enum AllocationSiteMode constexpr 'AllocationSiteMode' {
+extern enum AllocationSiteMode {
   DONT_TRACK_ALLOCATION_SITE,
   TRACK_ALLOCATION_SITE
 }
 
-const kIsShallowAndDisableMementos: constexpr int31
-    generates 'AggregateLiteral::Flags::kIsShallowAndDisableMementos';
+const kIsShallow: constexpr int31
+    generates 'AggregateLiteral::Flags::kIsShallow';
 const kEvalScope: constexpr ScopeType generates 'ScopeType::EVAL_SCOPE';
 const kFunctionScope:
     constexpr ScopeType generates 'ScopeType::FUNCTION_SCOPE';
@@ -60,17 +60,18 @@ builtin CreateRegExpLiteral(implicit context: Context)(
 }
 
 builtin CreateShallowArrayLiteral(implicit context: Context)(
-    feedbackVector: FeedbackVector, slot: TaggedIndex,
+    maybeFeedbackVector: Undefined|FeedbackVector, slot: TaggedIndex,
     constantElements: ArrayBoilerplateDescription): HeapObject {
   try {
+    const vector = Cast<FeedbackVector>(maybeFeedbackVector)
+        otherwise CallRuntime;
     return CreateShallowArrayLiteral(
-        feedbackVector, slot, context,
-        AllocationSiteMode::DONT_TRACK_ALLOCATION_SITE)
+        vector, slot, context, AllocationSiteMode::TRACK_ALLOCATION_SITE)
         otherwise CallRuntime;
   } label CallRuntime deferred {
     tail runtime::CreateArrayLiteral(
-        context, feedbackVector, slot, constantElements,
-        SmiConstant(kIsShallowAndDisableMementos));
+        context, maybeFeedbackVector, slot, constantElements,
+        SmiConstant(kIsShallow));
   }
 }
 
@@ -80,14 +81,16 @@ builtin CreateEmptyArrayLiteral(implicit context: Context)(
 }
 
 builtin CreateShallowObjectLiteral(implicit context: Context)(
-    feedbackVector: FeedbackVector, slot: TaggedIndex,
+    maybeFeedbackVector: Undefined|FeedbackVector, slot: TaggedIndex,
     desc: ObjectBoilerplateDescription, flags: Smi): HeapObject {
   try {
+    const feedbackVector = Cast<FeedbackVector>(maybeFeedbackVector)
+        otherwise CallRuntime;
     return CreateShallowObjectLiteral(feedbackVector, slot)
         otherwise CallRuntime;
   } label CallRuntime deferred {
     tail runtime::CreateObjectLiteral(
-        context, feedbackVector, slot, desc, flags);
+        context, maybeFeedbackVector, slot, desc, flags);
   }
 }
 

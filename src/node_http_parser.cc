@@ -79,6 +79,13 @@ const uint32_t kOnTimeout = 6;
 // Any more fields than this will be flushed into JS
 const size_t kMaxHeaderFieldsCount = 32;
 
+const uint32_t kLenientNone = 0;
+const uint32_t kLenientHeaders = 1 << 0;
+const uint32_t kLenientChunkedLength = 1 << 1;
+const uint32_t kLenientKeepAlive = 1 << 2;
+const uint32_t kLenientAll = kLenientHeaders | kLenientChunkedLength |
+  kLenientKeepAlive;
+
 inline bool IsOWS(char c) {
   return c == ' ' || c == '\t';
 }
@@ -88,7 +95,7 @@ class BindingData : public BaseObject {
   BindingData(Environment* env, Local<Object> obj)
       : BaseObject(env, obj) {}
 
-  static constexpr FastStringKey binding_data_name { "http_parser" };
+  static constexpr FastStringKey type_name { "http_parser" };
 
   std::vector<char> parser_buffer;
   bool parser_buffer_in_use = false;
@@ -101,7 +108,7 @@ class BindingData : public BaseObject {
 };
 
 // TODO(addaleax): Remove once we're on C++17.
-constexpr FastStringKey BindingData::binding_data_name;
+constexpr FastStringKey BindingData::type_name;
 
 // helper class for the Parser
 struct StringPtr {
@@ -380,7 +387,7 @@ class Parser : public AsyncWrap, public StreamListener {
       return -1;
     }
 
-    return val;
+    return static_cast<int>(val);
   }
 
 
@@ -403,10 +410,10 @@ class Parser : public AsyncWrap, public StreamListener {
     }
 
     Local<Value> argv[3] = {
-      current_buffer_,
-      Integer::NewFromUnsigned(env()->isolate(), at - current_buffer_data_),
-      Integer::NewFromUnsigned(env()->isolate(), length)
-    };
+        current_buffer_,
+        Integer::NewFromUnsigned(
+            env()->isolate(), static_cast<uint32_t>(at - current_buffer_data_)),
+        Integer::NewFromUnsigned(env()->isolate(), length)};
 
     MaybeLocal<Value> r = MakeCallback(cb.As<Function>(),
                                        arraysize(argv),
@@ -539,25 +546,31 @@ class Parser : public AsyncWrap, public StreamListener {
 
   static void Initialize(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
-    bool lenient = args[3]->IsTrue();
 
     uint64_t max_http_header_size = 0;
     uint64_t headers_timeout = 0;
+    uint32_t lenient_flags = kLenientNone;
 
     CHECK(args[0]->IsInt32());
     CHECK(args[1]->IsObject());
 
     if (args.Length() > 2) {
       CHECK(args[2]->IsNumber());
-      max_http_header_size = args[2].As<Number>()->Value();
+      max_http_header_size =
+          static_cast<uint64_t>(args[2].As<Number>()->Value());
     }
     if (max_http_header_size == 0) {
       max_http_header_size = env->options()->max_http_header_size;
     }
 
+    if (args.Length() > 3) {
+      CHECK(args[3]->IsInt32());
+      lenient_flags = args[3].As<Int32>()->Value();
+    }
+
     if (args.Length() > 4) {
       CHECK(args[4]->IsInt32());
-      headers_timeout = args[4].As<Number>()->Value();
+      headers_timeout = args[4].As<Int32>()->Value();
     }
 
     llhttp_type_t type =
@@ -576,7 +589,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
     parser->set_provider_type(provider);
     parser->AsyncReset(args[1].As<Object>());
-    parser->Init(type, max_http_header_size, lenient, headers_timeout);
+    parser->Init(type, max_http_header_size, lenient_flags, headers_timeout);
   }
 
   template <bool should_pause>
@@ -683,7 +696,7 @@ class Parser : public AsyncWrap, public StreamListener {
     // check header parsing time
     if (header_parsing_start_time_ != 0 && headers_timeout_ != 0) {
       uint64_t now = uv_hrtime();
-      uint64_t parsing_time = (now - header_parsing_start_time_) / 1e6;
+      uint64_t parsing_time = (now - header_parsing_start_time_) / 1000000;
 
       if (parsing_time > headers_timeout_) {
         Local<Value> cb =
@@ -781,8 +794,9 @@ class Parser : public AsyncWrap, public StreamListener {
       if (err == HPE_USER) {
         const char* colon = strchr(errno_reason, ':');
         CHECK_NOT_NULL(colon);
-        code = OneByteString(env()->isolate(), errno_reason,
-                             colon - errno_reason);
+        code = OneByteString(env()->isolate(),
+                             errno_reason,
+                             static_cast<int>(colon - errno_reason));
         reason = OneByteString(env()->isolate(), colon + 1);
       } else {
         code = OneByteString(env()->isolate(), llhttp_errno_name(err));
@@ -842,9 +856,19 @@ class Parser : public AsyncWrap, public StreamListener {
 
 
   void Init(llhttp_type_t type, uint64_t max_http_header_size,
-            bool lenient, uint64_t headers_timeout) {
+            uint32_t lenient_flags, uint64_t headers_timeout) {
     llhttp_init(&parser_, type, &settings);
-    llhttp_set_lenient(&parser_, lenient);
+
+    if (lenient_flags & kLenientHeaders) {
+      llhttp_set_lenient_headers(&parser_, 1);
+    }
+    if (lenient_flags & kLenientChunkedLength) {
+      llhttp_set_lenient_chunked_length(&parser_, 1);
+    }
+    if (lenient_flags & kLenientKeepAlive) {
+      llhttp_set_lenient_keep_alive(&parser_, 1);
+    }
+
     header_nread_ = 0;
     url_.Reset();
     status_message_.Reset();
@@ -942,6 +966,15 @@ const llhttp_settings_t Parser::settings = {
   Proxy<Call, &Parser::on_message_complete>::Raw,
   Proxy<Call, &Parser::on_chunk_header>::Raw,
   Proxy<Call, &Parser::on_chunk_complete>::Raw,
+
+  // on_url_complete
+  nullptr,
+  // on_status_complete
+  nullptr,
+  // on_header_field_complete
+  nullptr,
+  // on_header_value_complete
+  nullptr,
 };
 
 
@@ -975,6 +1008,17 @@ void InitializeHttpParser(Local<Object> target,
          Integer::NewFromUnsigned(env->isolate(), kOnExecute));
   t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kOnTimeout"),
          Integer::NewFromUnsigned(env->isolate(), kOnTimeout));
+
+  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kLenientNone"),
+         Integer::NewFromUnsigned(env->isolate(), kLenientNone));
+  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kLenientHeaders"),
+         Integer::NewFromUnsigned(env->isolate(), kLenientHeaders));
+  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kLenientChunkedLength"),
+         Integer::NewFromUnsigned(env->isolate(), kLenientChunkedLength));
+  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kLenientKeepAlive"),
+         Integer::NewFromUnsigned(env->isolate(), kLenientKeepAlive));
+  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kLenientAll"),
+         Integer::NewFromUnsigned(env->isolate(), kLenientAll));
 
   Local<Array> methods = Array::New(env->isolate());
 #define V(num, name, string)                                                  \

@@ -34,11 +34,13 @@ class WithFinalizationRegistryMixin : public TMixin {
  public:
   WithFinalizationRegistryMixin() = default;
   ~WithFinalizationRegistryMixin() override = default;
+  WithFinalizationRegistryMixin(const WithFinalizationRegistryMixin&) = delete;
+  WithFinalizationRegistryMixin& operator=(
+      const WithFinalizationRegistryMixin&) = delete;
 
   static void SetUpTestCase() {
     CHECK_NULL(save_flags_);
     save_flags_ = new SaveFlags();
-    FLAG_harmony_weak_refs = true;
     FLAG_expose_gc = true;
     FLAG_allow_natives_syntax = true;
     TMixin::SetUpTestCase();
@@ -53,8 +55,6 @@ class WithFinalizationRegistryMixin : public TMixin {
 
  private:
   static SaveFlags* save_flags_;
-
-  DISALLOW_COPY_AND_ASSIGN(WithFinalizationRegistryMixin);
 };
 
 template <typename TMixin>

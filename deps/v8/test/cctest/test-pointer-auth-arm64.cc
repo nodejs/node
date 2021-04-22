@@ -30,6 +30,7 @@ TEST(compute_pac) {
 }
 
 TEST(add_and_auth_pac) {
+  i::FLAG_sim_abort_on_bad_auth = false;
   Decoder<DispatchingDecoderVisitor>* decoder =
       new Decoder<DispatchingDecoderVisitor>();
   Simulator simulator(decoder);

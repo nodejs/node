@@ -17,13 +17,14 @@ async function testVerify({
   publicKeyBuffer,
   privateKeyBuffer,
   signature,
-  plaintext }) {
+  plaintext,
+}) {
   const [
     publicKey,
     noVerifyPublicKey,
     privateKey,
     hmacKey,
-    rsaKeys
+    ecdsaKeys,
   ] = await Promise.all([
     subtle.importKey(
       'spki',
@@ -54,7 +55,7 @@ async function testVerify({
         hash: 'SHA-256',
       },
       false,
-      ['sign'])
+      ['sign']),
   ]);
 
   assert(await subtle.verify(algorithm, publicKey, signature, plaintext));
@@ -85,7 +86,7 @@ async function testVerify({
     });
 
   await assert.rejects(
-    subtle.verify(algorithm, rsaKeys.publicKey, signature, plaintext), {
+    subtle.verify(algorithm, ecdsaKeys.publicKey, signature, plaintext), {
       message: /Unable to use this key to verify/
     });
 
@@ -132,13 +133,14 @@ async function testSign({
   publicKeyBuffer,
   privateKeyBuffer,
   signature,
-  plaintext }) {
+  plaintext,
+}) {
   const [
     publicKey,
     noSignPrivateKey,
     privateKey,
     hmacKey,
-    rsaKeys,
+    ecdsaKeys,
   ] = await Promise.all([
     subtle.importKey(
       'spki',
@@ -169,7 +171,7 @@ async function testSign({
         hash: 'SHA-256',
       },
       false,
-      ['sign'])
+      ['sign']),
   ]);
 
   {
@@ -205,7 +207,7 @@ async function testSign({
     });
 
   await assert.rejects(
-    subtle.sign(algorithm, rsaKeys.privateKey, plaintext), {
+    subtle.sign(algorithm, ecdsaKeys.privateKey, plaintext), {
       message: /Unable to use this key to sign/
     });
 }

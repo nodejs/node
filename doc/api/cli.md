@@ -186,20 +186,27 @@ code from strings throw an exception instead. This does not affect the Node.js
 added: v6.0.0
 -->
 
-Enable FIPS-compliant crypto at startup. (Requires Node.js to be built with
-`./configure --openssl-fips`.)
+Enable FIPS-compliant crypto at startup. (Requires Node.js to be built
+against FIPS-compatible OpenSSL.)
 
 ### `--enable-source-maps`
 <!-- YAML
 added: v12.12.0
+changes:
+  - version: v15.11.0
+    pr-url: https://github.com/nodejs/node/pull/37362
+    description: This API is no longer experimental.
 -->
 
-> Stability: 1 - Experimental
+Enable [Source Map v3][Source Map] support for stack traces.
 
-Enable experimental Source Map v3 support for stack traces.
+When using a transpiler, such as TypeScript, stack traces thrown by an
+application reference the transpiled code, not the original source position.
+`--enable-source-maps` enables caching of Source Maps and makes a best
+effort to report stack traces relative to the original source file.
 
-Currently, overriding `Error.prepareStackTrace` is ignored when the
-`--enable-source-maps` flag is set.
+Overriding `Error.prepareStackTrace` prevents `--enable-source-maps` from
+modifying the stack trace.
 
 ### `--experimental-abortcontroller`
 <!-- YAML
@@ -355,9 +362,9 @@ Node.js instance runs out of memory when `max_count` is greater than `0`.
 
 Generating V8 snapshots takes time and memory (both memory managed by the
 V8 heap and native memory outside the V8 heap). The bigger the heap is,
-the more resources it needs. Node.js will adjust the V8 heap to accommondate
+the more resources it needs. Node.js will adjust the V8 heap to accommodate
 the additional V8 heap memory overhead, and try its best to avoid using up
-all the memory avialable to the process. When the process uses
+all the memory available to the process. When the process uses
 more memory than the system deems appropriate, the process may be terminated
 abruptly by the system, depending on the system configuration.
 
@@ -606,8 +613,8 @@ added: v6.9.0
 -->
 
 Load an OpenSSL configuration file on startup. Among other uses, this can be
-used to enable FIPS-compliant crypto if Node.js is built with
-`./configure --openssl-fips`.
+used to enable FIPS-compliant crypto if Node.js is built
+against FIPS-enabled OpenSSL.
 
 ### `--pending-deprecation`
 <!-- YAML
@@ -847,6 +854,40 @@ changes:
 Enables report to be generated on uncaught exceptions. Useful when inspecting
 the JavaScript stack in conjunction with native stack and other runtime
 environment data.
+
+### `--secure-heap=n`
+<!-- YAML
+added: v15.6.0
+-->
+
+Initializes an OpenSSL secure heap of `n` bytes. When initialized, the
+secure heap is used for selected types of allocations within OpenSSL
+during key generation and other operations. This is useful, for instance,
+to prevent sensitive information from leaking due to pointer overruns
+or underruns.
+
+The secure heap is a fixed size and cannot be resized at runtime so,
+if used, it is important to select a large enough heap to cover all
+application uses.
+
+The heap size given must be a power of two. Any value less than 2
+will disable the secure heap.
+
+The secure heap is disabled by default.
+
+The secure heap is not available on Windows.
+
+See [`CRYPTO_secure_malloc_init`][] for more details.
+
+### `--secure-heap-min=n`
+<!-- YAML
+added: v15.6.0
+-->
+
+When using `--secure-heap`, the `--secure-heap-min` flag specifies the
+minimum allocation from the secure heap. The minimum value is `2`.
+The maximum value is the lesser of `--secure-heap` or `2147483647`.
+The value given must be a power of two.
 
 ### `--throw-deprecation`
 <!-- YAML
@@ -1211,6 +1252,9 @@ Preload the specified module at startup.
 Follows `require()`'s module resolution
 rules. `module` may be either a path to a file, or a node module name.
 
+Only CommonJS modules are supported. Attempting to preload a
+ES6 Module using `--require` will fail with an error.
+
 ### `-v`, `--version`
 <!-- YAML
 added: v0.1.3
@@ -1220,6 +1264,19 @@ Print node's version.
 
 ## Environment variables
 
+### `FORCE_COLOR=[1, 2, 3]`
+
+The `FORCE_COLOR` environment variable is used to
+enable ANSI colorized output. The value may be:
+
+* `1`, `true`, or the empty string `''` indicate 16-color support,
+* `2` to indicate 256-color support, or
+* `3` to indicate 16 million-color support.
+
+When `FORCE_COLOR` is used and set to a supported value, both the `NO_COLOR`,
+and `NODE_DISABLE_COLORS` environment variables are ignored.
+
+Any other value will result in colorized output being disabled.
 ### `NODE_DEBUG=module[,…]`
 <!-- YAML
 added: v0.1.32
@@ -1254,6 +1311,10 @@ options property is explicitly specified for a TLS or HTTPS client or server.
 
 This environment variable is ignored when `node` runs as setuid root or
 has Linux file capabilities set.
+
+The `NODE_EXTRA_CA_CERTS` environment variable is only read when the Node.js
+process is first launched. Changing the value at runtime using
+`process.env.NODE_EXTRA_CA_CERTS` has no effect on the current process.
 
 ### `NODE_ICU_DATA=file`
 <!-- YAML
@@ -1358,6 +1419,8 @@ Node.js options that are allowed are:
 * `--report-signal`
 * `--report-uncaught-exception`
 * `--require`, `-r`
+* `--secure-heap-min`
+* `--secure-heap`
 * `--throw-deprecation`
 * `--title`
 * `--tls-cipher-list`
@@ -1563,6 +1626,11 @@ and the line lengths of the source file (in the key `lineLengths`).
 }
 ```
 
+### `NO_COLOR=<any>`
+
+[`NO_COLOR`][]  is an alias for `NODE_DISABLE_COLORS`. The value of the
+environment variable is arbitrary.
+
 ### `OPENSSL_CONF=file`
 <!-- YAML
 added: v6.11.0
@@ -1656,7 +1724,9 @@ $ node --max-old-space-size=1536 index.js
 [`--openssl-config`]: #cli_openssl_config_file
 [`Atomics.wait()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Atomics/wait
 [`Buffer`]: buffer.md#buffer_class_buffer
+[`CRYPTO_secure_malloc_init`]: https://www.openssl.org/docs/man1.1.0/man3/CRYPTO_secure_malloc_init.html
 [`NODE_OPTIONS`]: #cli_node_options_options
+[`NO_COLOR`]: https://no-color.org
 [`SlowBuffer`]: buffer.md#buffer_class_slowbuffer
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#process_process_setuncaughtexceptioncapturecallback_fn
 [`tls.DEFAULT_MAX_VERSION`]: tls.md#tls_tls_default_max_version

@@ -191,9 +191,10 @@ WebCryptoCipherStatus RSA_Cipher(
     const ByteSource& in,
     ByteSource* out) {
   CHECK_NE(key_data->GetKeyType(), kKeyTypeSecret);
+  ManagedEVPPKey m_pkey = key_data->GetAsymmetricKey();
+  Mutex::ScopedLock lock(*m_pkey.mutex());
 
-  EVPKeyCtxPointer ctx(
-      EVP_PKEY_CTX_new(key_data->GetAsymmetricKey().get(), nullptr));
+  EVPKeyCtxPointer ctx(EVP_PKEY_CTX_new(m_pkey.get(), nullptr));
 
   if (!ctx || init(ctx.get()) <= 0)
     return WebCryptoCipherStatus::FAILED;
@@ -363,11 +364,19 @@ Maybe<bool> ExportJWKRsaKey(
     Environment* env,
     std::shared_ptr<KeyObjectData> key,
     Local<Object> target) {
-  ManagedEVPPKey pkey = key->GetAsymmetricKey();
-  int type = EVP_PKEY_id(pkey.get());
+  ManagedEVPPKey m_pkey = key->GetAsymmetricKey();
+  Mutex::ScopedLock lock(*m_pkey.mutex());
+  int type = EVP_PKEY_id(m_pkey.get());
   CHECK(type == EVP_PKEY_RSA || type == EVP_PKEY_RSA_PSS);
 
-  RSA* rsa = EVP_PKEY_get0_RSA(pkey.get());
+  // TODO(tniessen): Remove the "else" branch once we drop support for OpenSSL
+  // versions older than 1.1.1e via FIPS / dynamic linking.
+  const RSA* rsa;
+  if (OpenSSL_version_num() >= 0x1010105fL) {
+    rsa = EVP_PKEY_get0_RSA(m_pkey.get());
+  } else {
+    rsa = static_cast<const RSA*>(EVP_PKEY_get0(m_pkey.get()));
+  }
   CHECK_NOT_NULL(rsa);
 
   const BIGNUM* n;
@@ -504,21 +513,31 @@ Maybe<bool> GetRsaKeyDetail(
   const BIGNUM* e;  // Public Exponent
   const BIGNUM* n;  // Modulus
 
-  ManagedEVPPKey pkey = key->GetAsymmetricKey();
-  int type = EVP_PKEY_id(pkey.get());
+  ManagedEVPPKey m_pkey = key->GetAsymmetricKey();
+  Mutex::ScopedLock lock(*m_pkey.mutex());
+  int type = EVP_PKEY_id(m_pkey.get());
   CHECK(type == EVP_PKEY_RSA || type == EVP_PKEY_RSA_PSS);
 
-  RSA* rsa = EVP_PKEY_get0_RSA(pkey.get());
+  // TODO(tniessen): Remove the "else" branch once we drop support for OpenSSL
+  // versions older than 1.1.1e via FIPS / dynamic linking.
+  const RSA* rsa;
+  if (OpenSSL_version_num() >= 0x1010105fL) {
+    rsa = EVP_PKEY_get0_RSA(m_pkey.get());
+  } else {
+    rsa = static_cast<const RSA*>(EVP_PKEY_get0(m_pkey.get()));
+  }
   CHECK_NOT_NULL(rsa);
 
   RSA_get0_key(rsa, &n, &e, nullptr);
 
   size_t modulus_length = BN_num_bytes(n) * CHAR_BIT;
 
-  if (target->Set(
-          env->context(),
-          env->modulus_length_string(),
-          Number::New(env->isolate(), modulus_length)).IsNothing()) {
+  if (target
+          ->Set(
+              env->context(),
+              env->modulus_length_string(),
+              Number::New(env->isolate(), static_cast<double>(modulus_length)))
+          .IsNothing()) {
     return Nothing<bool>();
   }
 
@@ -540,7 +559,7 @@ void Initialize(Environment* env, Local<Object> target) {
   RSAKeyExportJob::Initialize(env, target);
   RSACipherJob::Initialize(env, target);
 
-  NODE_DEFINE_CONSTANT(target, kKeyVariantRSA_SSA_PKCS1_V1_5);
+  NODE_DEFINE_CONSTANT(target, kKeyVariantRSA_SSA_PKCS1_v1_5);
   NODE_DEFINE_CONSTANT(target, kKeyVariantRSA_PSS);
   NODE_DEFINE_CONSTANT(target, kKeyVariantRSA_OAEP);
 }

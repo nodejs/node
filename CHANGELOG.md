@@ -2,6 +2,7 @@
 
 Select a Node.js version below to view the changelog history:
 
+* [Node.js 16](doc/changelogs/CHANGELOG_V16.md) **Current**
 * [Node.js 15](doc/changelogs/CHANGELOG_V15.md) **Current**
 * [Node.js 14](doc/changelogs/CHANGELOG_V14.md) **Long Term Support**
 * [Node.js 13](doc/changelogs/CHANGELOG_V13.md) End-of-Life
@@ -25,6 +26,7 @@ release.
 <!--lint disable maximum-line-length-->
 <table>
 <tr>
+  <th title="Current"><a href="doc/changelogs/CHANGELOG_V16.md">16</a><sup>Current</sup></th>
   <th title="Current"><a href="doc/changelogs/CHANGELOG_V15.md">15</a><sup>Current</sup></th>
   <th title="LTS Until 2023-04"><a href="doc/changelogs/CHANGELOG_V14.md">14</a><sup>LTS</sup></th>
   <th title="LTS Until 2022-04"><a href="doc/changelogs/CHANGELOG_V12.md">12</a><sup>LTS</sup></th>
@@ -32,7 +34,19 @@ release.
 </tr>
 <tr>
     <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V15.md#15.5.1">15.5.1</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V16.md#16.0.0">16.0.0</a></b><br/>
+    </td>
+    <td valign="top">
+<b><a href="doc/changelogs/CHANGELOG_V15.md#15.14.0">15.14.0</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V15.md#15.13.0">15.13.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V15.md#15.12.0">15.12.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V15.md#15.11.0">15.11.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V15.md#15.10.0">15.10.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V15.md#15.9.0">15.9.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V15.md#15.8.0">15.8.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V15.md#15.7.0">15.7.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V15.md#15.6.0">15.6.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V15.md#15.5.1">15.5.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V15.md#15.5.0">15.5.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V15.md#15.4.0">15.4.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V15.md#15.3.0">15.3.0</a><br/>
@@ -43,7 +57,10 @@ release.
 <a href="doc/changelogs/CHANGELOG_V15.md#15.0.0">15.0.0</a><br/>
     </td>
     <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V14.md#14.15.4">14.15.4</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V14.md#14.16.1">14.16.1</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V14.md#14.16.0">14.16.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V14.md#14.15.5">14.15.5</a><br/>
+<a href="doc/changelogs/CHANGELOG_V14.md#14.15.4">14.15.4</a><br/>
 <a href="doc/changelogs/CHANGELOG_V14.md#14.15.3">14.15.3</a><br/>
 <a href="doc/changelogs/CHANGELOG_V14.md#14.15.2">14.15.2</a><br/>
 <a href="doc/changelogs/CHANGELOG_V14.md#14.15.1">14.15.1</a><br/>
@@ -67,7 +84,11 @@ release.
 <a href="doc/changelogs/CHANGELOG_V14.md#14.0.0">14.0.0</a><br/>
     </td>
     <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V12.md#12.20.1">12.20.1</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V12.md#12.22.1">12.22.1</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V12.md#12.22.0">12.22.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V12.md#12.21.0">12.21.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V12.md#12.20.2">12.20.2</a><br/>
+<a href="doc/changelogs/CHANGELOG_V12.md#12.20.1">12.20.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V12.md#12.20.0">12.20.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V12.md#12.19.1">12.19.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V12.md#12.19.0">12.19.0</a><br/>
@@ -105,7 +126,11 @@ release.
 <a href="doc/changelogs/CHANGELOG_V12.md#12.0.0">12.0.0</a><br/>
     </td>
     <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V10.md#10.23.1">10.23.1</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V10.md#10.24.1">10.24.1</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V10.md#10.24.0">10.24.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V10.md#10.23.3">10.23.3</a><br/>
+<a href="doc/changelogs/CHANGELOG_V10.md#10.23.2">10.23.2</a><br/>
+<a href="doc/changelogs/CHANGELOG_V10.md#10.23.1">10.23.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V10.md#10.23.0">10.23.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V10.md#10.22.1">10.22.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V10.md#10.22.0">10.22.0</a><br/>

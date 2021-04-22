@@ -22,6 +22,8 @@ namespace internal {
 class BreakPoint;
 class BytecodeArray;
 
+#include "torque-generated/src/objects/debug-objects-tq.inc"
+
 // The DebugInfo class holds additional information for a function being
 // debugged.
 class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
@@ -43,6 +45,9 @@ class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
   ExecutionMode DebugExecutionMode() const;
   void SetDebugExecutionMode(ExecutionMode value);
 
+  DECL_RELEASE_ACQUIRE_ACCESSORS(debug_bytecode_array, HeapObject)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(original_bytecode_array, HeapObject)
+
   // Specifies whether the associated function has an instrumented bytecode
   // array. If so, OriginalBytecodeArray returns the non-instrumented bytecode,
   // and DebugBytecodeArray returns the instrumented bytecode.
@@ -57,7 +62,7 @@ class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
   bool HasBreakInfo() const;
 
   // Clears all fields related to break points.
-  void ClearBreakInfo(Isolate* isolate);
+  V8_EXPORT_PRIVATE void ClearBreakInfo(Isolate* isolate);
 
   // Accessors to flag whether to break before entering the function.
   // This is used to break for functions with no source, e.g. builtins.
@@ -165,10 +170,6 @@ class BreakPointInfo
 class CoverageInfo
     : public TorqueGeneratedCoverageInfo<CoverageInfo, HeapObject> {
  public:
-  int StartSourcePosition(int slot_index) const;
-  int EndSourcePosition(int slot_index) const;
-  int BlockCount(int slot_index) const;
-
   void InitializeSlot(int slot_index, int start_pos, int end_pos);
   void ResetBlockCount(int slot_index);
 
@@ -186,9 +187,6 @@ class CoverageInfo
   // Description of layout within each slot.
   using Slot = TorqueGeneratedCoverageInfoSlotOffsets;
 
- private:
-  int SlotFieldOffset(int slot_index, int field_offset) const;
-
   TQ_OBJECT_CONSTRUCTORS(CoverageInfo)
 };
 
@@ -196,14 +194,6 @@ class CoverageInfo
 class BreakPoint : public TorqueGeneratedBreakPoint<BreakPoint, Struct> {
  public:
   TQ_OBJECT_CONSTRUCTORS(BreakPoint)
-};
-
-// Holds Wasm values. This is used by the inspector.
-class WasmValue : public TorqueGeneratedWasmValue<WasmValue, Struct> {
- public:
-  NEVER_READ_ONLY_SPACE
-
-  TQ_OBJECT_CONSTRUCTORS(WasmValue)
 };
 
 }  // namespace internal

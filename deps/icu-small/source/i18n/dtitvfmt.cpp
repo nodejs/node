@@ -704,7 +704,7 @@ DateIntervalFormat::create(const Locale& locale,
         status = U_MEMORY_ALLOCATION_ERROR;
         delete dtitvinf;
     } else if ( U_FAILURE(status) ) {
-        // safe to delete f, although nothing acutally is saved
+        // safe to delete f, although nothing actually is saved
         delete f;
         f = 0;
     }
@@ -863,6 +863,14 @@ DateIntervalFormat::initializePattern(UErrorCode& status) {
                 setPatternInfo(UCAL_DATE, nullptr, &pattern, fInfo->getDefaultOrder());
                 setPatternInfo(UCAL_MONTH, nullptr, &pattern, fInfo->getDefaultOrder());
                 setPatternInfo(UCAL_YEAR, nullptr, &pattern, fInfo->getDefaultOrder());
+
+                timeSkeleton.insert(0, CAP_G);
+                pattern = DateFormat::getBestPattern(
+                        locale, timeSkeleton, status);
+                if ( U_FAILURE(status) ) {
+                    return;
+                }
+                setPatternInfo(UCAL_ERA, nullptr, &pattern, fInfo->getDefaultOrder());
             } else {
                 // TODO: fall back
             }
@@ -889,15 +897,23 @@ DateIntervalFormat::initializePattern(UErrorCode& status) {
         setPatternInfo(UCAL_DATE, nullptr, &pattern, fInfo->getDefaultOrder());
         setPatternInfo(UCAL_MONTH, nullptr, &pattern, fInfo->getDefaultOrder());
         setPatternInfo(UCAL_YEAR, nullptr, &pattern, fInfo->getDefaultOrder());
+
+        timeSkeleton.insert(0, CAP_G);
+        pattern = DateFormat::getBestPattern(
+                locale, timeSkeleton, status);
+        if ( U_FAILURE(status) ) {
+            return;
+        }
+        setPatternInfo(UCAL_ERA, nullptr, &pattern, fInfo->getDefaultOrder());
     } else {
         /* if both present,
-         * 1) when the year, month, or day differs,
+         * 1) when the era, year, month, or day differs,
          * concatenate the two original expressions with a separator between,
          * 2) otherwise, present the date followed by the
          * range expression for the time.
          */
         /*
-         * 1) when the year, month, or day differs,
+         * 1) when the era, year, month, or day differs,
          * concatenate the two original expressions with a separator between,
          */
         // if field exists, use fall back
@@ -916,6 +932,11 @@ DateIntervalFormat::initializePattern(UErrorCode& status) {
             // then prefix skeleton with 'y'
             skeleton.insert(0, LOW_Y);
             setFallbackPattern(UCAL_YEAR, skeleton, status);
+        }
+        if ( !fieldExistsInSkeleton(UCAL_ERA, dateSkeleton) ) {
+            // then prefix skeleton with 'G'
+            skeleton.insert(0, CAP_G);
+            setFallbackPattern(UCAL_ERA, skeleton, status);
         }
 
         /*
@@ -1422,7 +1443,11 @@ DateIntervalFormat::setIntervalPattern(UCalendarDateFields field,
         if ( field == UCAL_AM_PM ) {
             fInfo->getIntervalPattern(*bestSkeleton, UCAL_HOUR, pattern,status);
             if ( !pattern.isEmpty() ) {
-                setIntervalPattern(field, pattern);
+                UBool suppressDayPeriodField = fSkeleton.indexOf(CAP_J) != -1;
+                UnicodeString adjustIntervalPattern;
+                adjustFieldWidth(*skeleton, *bestSkeleton, pattern, differenceInfo,
+                                 suppressDayPeriodField, adjustIntervalPattern);
+                setIntervalPattern(field, adjustIntervalPattern);
             }
             return false;
         }
@@ -1694,27 +1719,23 @@ DateIntervalFormat::adjustFieldWidth(const UnicodeString& inputSkeleton,
     DateIntervalInfo::parseSkeleton(inputSkeleton, inputSkeletonFieldWidth);
     DateIntervalInfo::parseSkeleton(bestMatchSkeleton, bestMatchSkeletonFieldWidth);
     if (suppressDayPeriodField) {
-        adjustedPtn.findAndReplace(UnicodeString(LOW_A), UnicodeString());
-        adjustedPtn.findAndReplace(UnicodeString("  "), UnicodeString(" "));
+        findReplaceInPattern(adjustedPtn, UnicodeString(LOW_A), UnicodeString());
+        findReplaceInPattern(adjustedPtn, UnicodeString("  "), UnicodeString(" "));
         adjustedPtn.trim();
     }
     if ( differenceInfo == 2 ) {
         if (inputSkeleton.indexOf(LOW_Z) != -1) {
-            adjustedPtn.findAndReplace(UnicodeString(LOW_V),
-                                       UnicodeString(LOW_Z));
-        }
-        if (inputSkeleton.indexOf(CAP_K) != -1) {
-            adjustedPtn.findAndReplace(UnicodeString(LOW_H),
-                                       UnicodeString(CAP_K));
-        }
-        if (inputSkeleton.indexOf(LOW_K) != -1) {
-            adjustedPtn.findAndReplace(UnicodeString(CAP_H),
-                                       UnicodeString(LOW_K));
-        }
-        if (inputSkeleton.indexOf(LOW_B) != -1) {
-            adjustedPtn.findAndReplace(UnicodeString(LOW_A),
-                                       UnicodeString(LOW_B));
-        }
+             findReplaceInPattern(adjustedPtn, UnicodeString(LOW_V), UnicodeString(LOW_Z));
+         }
+         if (inputSkeleton.indexOf(CAP_K) != -1) {
+             findReplaceInPattern(adjustedPtn, UnicodeString(LOW_H), UnicodeString(CAP_K));
+         }
+         if (inputSkeleton.indexOf(LOW_K) != -1) {
+             findReplaceInPattern(adjustedPtn, UnicodeString(CAP_H), UnicodeString(LOW_K));
+         }
+         if (inputSkeleton.indexOf(LOW_B) != -1) {
+             findReplaceInPattern(adjustedPtn, UnicodeString(LOW_A), UnicodeString(LOW_B));
+         }
     }
     if (adjustedPtn.indexOf(LOW_A) != -1 && bestMatchSkeletonFieldWidth[LOW_A - PATTERN_CHAR_BASE] == 0) {
         bestMatchSkeletonFieldWidth[LOW_A - PATTERN_CHAR_BASE] = 1;
@@ -1789,6 +1810,39 @@ DateIntervalFormat::adjustFieldWidth(const UnicodeString& inputSkeleton,
                 adjustedPtn.append(prevCh);
             }
         }
+    }
+}
+
+void
+DateIntervalFormat::findReplaceInPattern(UnicodeString& targetString,
+                                         const UnicodeString& strToReplace,
+                                         const UnicodeString& strToReplaceWith) {
+    int32_t firstQuoteIndex = targetString.indexOf(u'\'');
+    if (firstQuoteIndex == -1) {
+        targetString.findAndReplace(strToReplace, strToReplaceWith);
+    } else {
+        UnicodeString result;
+        UnicodeString source = targetString;
+
+        while (firstQuoteIndex >= 0) {
+            int32_t secondQuoteIndex = source.indexOf(u'\'', firstQuoteIndex + 1);
+            if (secondQuoteIndex == -1) {
+                secondQuoteIndex = source.length() - 1;
+            }
+
+            UnicodeString unquotedText(source, 0, firstQuoteIndex);
+            UnicodeString quotedText(source, firstQuoteIndex, secondQuoteIndex - firstQuoteIndex + 1);
+
+            unquotedText.findAndReplace(strToReplace, strToReplaceWith);
+            result += unquotedText;
+            result += quotedText;
+
+            source.remove(0, secondQuoteIndex + 1);
+            firstQuoteIndex = source.indexOf(u'\'');
+        }
+        source.findAndReplace(strToReplace, strToReplaceWith);
+        result += source;
+        targetString = result;
     }
 }
 

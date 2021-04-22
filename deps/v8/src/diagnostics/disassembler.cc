@@ -253,8 +253,7 @@ static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
         host.as_wasm_code()->native_module()->GetRuntimeStubId(
             relocinfo->wasm_stub_call_address()));
     out->AddFormatted("    ;; wasm stub: %s", runtime_stub_name);
-  } else if (RelocInfo::IsRuntimeEntry(rmode) && isolate &&
-             isolate->deoptimizer_data() != nullptr) {
+  } else if (RelocInfo::IsRuntimeEntry(rmode) && isolate != nullptr) {
     // A runtime entry relocinfo might be a deoptimization bailout.
     Address addr = relocinfo->target_address();
     DeoptimizeKind type;
@@ -426,11 +425,13 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
 
 int Disassembler::Decode(Isolate* isolate, std::ostream* os, byte* begin,
                          byte* end, CodeReference code, Address current_pc) {
+  DCHECK_WITH_MSG(FLAG_text_is_readable,
+                  "Builtins disassembly requires a readable .text section");
   V8NameConverter v8NameConverter(isolate, code);
   if (isolate) {
     // We have an isolate, so support external reference names.
     SealHandleScope shs(isolate);
-    DisallowHeapAllocation no_alloc;
+    DisallowGarbageCollection no_alloc;
     ExternalReferenceEncoder ref_encoder(isolate);
     return DecodeIt(isolate, &ref_encoder, os, code, v8NameConverter, begin,
                     end, current_pc);

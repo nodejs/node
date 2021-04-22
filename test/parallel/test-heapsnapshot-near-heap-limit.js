@@ -16,7 +16,7 @@ const env = {
   const child = spawnSync(process.execPath, [
     '--heapsnapshot-near-heap-limit=-15',
     '--max-old-space-size=50',
-    fixtures.path('workload', 'grow.js')
+    fixtures.path('workload', 'grow.js'),
   ], {
     cwd: tmpdir.path,
     env,
@@ -31,7 +31,7 @@ const env = {
     '--trace-gc',
     '--heapsnapshot-near-heap-limit=0',
     '--max-old-space-size=50',
-    fixtures.path('workload', 'grow.js')
+    fixtures.path('workload', 'grow.js'),
   ], {
     cwd: tmpdir.path,
     env,
@@ -52,18 +52,23 @@ const env = {
     '--trace-gc',
     '--heapsnapshot-near-heap-limit=1',
     '--max-old-space-size=50',
-    fixtures.path('workload', 'grow.js')
+    fixtures.path('workload', 'grow.js'),
   ], {
     cwd: tmpdir.path,
     env,
   });
   console.log(child.stdout.toString());
-  console.log(child.stderr.toString());
+  const stderr = child.stderr.toString();
+  console.log(stderr);
   assert(common.nodeProcessAborted(child.status, child.signal),
          'process should have aborted, but did not');
   const list = fs.readdirSync(tmpdir.path)
     .filter((file) => file.endsWith('.heapsnapshot'));
-  assert.strictEqual(list.length, 1);
+  const risky = [...stderr.matchAll(
+    /Not generating snapshots because it's too risky/g)].length;
+  assert(list.length + risky > 0 && list.length <= 3,
+         `Generated ${list.length} snapshots ` +
+                     `and ${risky} was too risky`);
 }
 
 {
@@ -73,42 +78,21 @@ const env = {
     '--trace-gc',
     '--heapsnapshot-near-heap-limit=3',
     '--max-old-space-size=50',
-    fixtures.path('workload', 'grow.js')
+    fixtures.path('workload', 'grow.js'),
   ], {
     cwd: tmpdir.path,
     env,
   });
   console.log(child.stdout.toString());
-  console.log(child.stderr.toString());
+  const stderr = child.stderr.toString();
+  console.log(stderr);
   assert(common.nodeProcessAborted(child.status, child.signal),
          'process should have aborted, but did not');
   const list = fs.readdirSync(tmpdir.path)
     .filter((file) => file.endsWith('.heapsnapshot'));
-  assert(list.length > 0 && list.length <= 3);
-}
-
-
-{
-  console.log('\nTesting worker');
-  tmpdir.refresh();
-  const child = spawnSync(process.execPath, [
-    fixtures.path('workload', 'grow-worker.js')
-  ], {
-    cwd: tmpdir.path,
-    env: {
-      TEST_SNAPSHOTS: 1,
-      TEST_OLD_SPACE_SIZE: 50,
-      ...env
-    }
-  });
-  console.log(child.stdout.toString());
-  const stderr = child.stderr.toString();
-  console.log(stderr);
-  // There should be one snapshot taken and then after the
-  // snapshot heap limit callback is popped, the OOM callback
-  // becomes effective.
-  assert(stderr.includes('ERR_WORKER_OUT_OF_MEMORY'));
-  const list = fs.readdirSync(tmpdir.path)
-    .filter((file) => file.endsWith('.heapsnapshot'));
-  assert.strictEqual(list.length, 1);
+  const risky = [...stderr.matchAll(
+    /Not generating snapshots because it's too risky/g)].length;
+  assert(list.length + risky > 0 && list.length <= 3,
+         `Generated ${list.length} snapshots ` +
+        `and ${risky} was too risky`);
 }

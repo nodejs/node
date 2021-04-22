@@ -41,6 +41,7 @@
 #define V8_CODEGEN_ARM_ASSEMBLER_ARM_H_
 
 #include <stdio.h>
+
 #include <memory>
 #include <vector>
 
@@ -48,6 +49,7 @@
 #include "src/codegen/arm/register-arm.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/constant-pool.h"
+#include "src/codegen/machine-type.h"
 #include "src/numbers/double.h"
 #include "src/utils/boxed-float.h"
 
@@ -839,10 +841,16 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // All these APIs support D0 to D31 and Q0 to Q15.
   void vld1(NeonSize size, const NeonListOperand& dst,
             const NeonMemOperand& src);
+  // vld1s(ingle element to one lane).
+  void vld1s(NeonSize size, const NeonListOperand& dst, uint8_t index,
+             const NeonMemOperand& src);
   void vld1r(NeonSize size, const NeonListOperand& dst,
              const NeonMemOperand& src);
   void vst1(NeonSize size, const NeonListOperand& src,
             const NeonMemOperand& dst);
+  // vst1s(single element from one lane).
+  void vst1s(NeonSize size, const NeonListOperand& src, uint8_t index,
+             const NeonMemOperand& dst);
   // dt represents the narrower type
   void vmovl(NeonDataType dt, QwNeonRegister dst, DwVfpRegister src);
   // dst_dt represents the narrower type, src_dt represents the src type.
@@ -853,6 +861,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vmov(NeonDataType dt, DwVfpRegister dst, int index, Register src);
   void vmov(NeonDataType dt, Register dst, DwVfpRegister src, int index);
 
+  void vmov(DwVfpRegister dst, uint64_t imm);
   void vmov(QwNeonRegister dst, uint64_t imm);
   void vmov(QwNeonRegister dst, QwNeonRegister src);
   void vdup(NeonSize size, QwNeonRegister dst, Register src);
@@ -909,6 +918,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vpmax(NeonDataType dt, DwVfpRegister dst, DwVfpRegister src1,
              DwVfpRegister src2);
 
+  void vpaddl(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src);
+  void vqrdmulh(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
+                QwNeonRegister src2);
+
   // ARMv8 rounding instructions (NEON).
   void vrintm(NeonDataType dt, const QwNeonRegister dst,
               const QwNeonRegister src);
@@ -922,9 +935,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vshl(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src, int shift);
   void vshl(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src,
             QwNeonRegister shift);
+  void vshr(NeonDataType dt, DwVfpRegister dst, DwVfpRegister src, int shift);
   void vshr(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src, int shift);
   void vsli(NeonSize size, DwVfpRegister dst, DwVfpRegister src, int shift);
   void vsri(NeonSize size, DwVfpRegister dst, DwVfpRegister src, int shift);
+  void vsra(NeonDataType size, DwVfpRegister dst, DwVfpRegister src, int imm);
+
   // vrecpe and vrsqrte only support floating point lanes.
   void vrecpe(QwNeonRegister dst, QwNeonRegister src);
   void vrsqrte(QwNeonRegister dst, QwNeonRegister src);
@@ -935,12 +951,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vceq(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void vceq(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
             QwNeonRegister src2);
+  void vceq(NeonSize size, QwNeonRegister dst, QwNeonRegister src, int value);
   void vcge(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void vcge(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
             QwNeonRegister src2);
   void vcgt(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void vcgt(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
             QwNeonRegister src2);
+  void vclt(NeonSize size, QwNeonRegister dst, QwNeonRegister src, int value);
   void vrhadd(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
               QwNeonRegister src2);
   void vext(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2,
@@ -958,6 +976,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
             DwVfpRegister index);
   void vtbx(DwVfpRegister dst, const NeonListOperand& list,
             DwVfpRegister index);
+
+  void vcnt(QwNeonRegister dst, QwNeonRegister src);
 
   // Pseudo instructions
 
@@ -1023,7 +1043,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   bool ImmediateFitsAddrMode2Instruction(int32_t imm32);
 
   // Class for scoping postponing the constant pool generation.
-  class BlockConstPoolScope {
+  class V8_NODISCARD BlockConstPoolScope {
    public:
     explicit BlockConstPoolScope(Assembler* assem) : assem_(assem) {
       assem_->StartBlockConstPool();
@@ -1068,9 +1088,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // called before any use of db/dd/dq/dp to ensure that constant pools
   // are not emitted as part of the tables generated.
   void db(uint8_t data);
-  void dd(uint32_t data);
-  void dq(uint64_t data);
-  void dp(uintptr_t data) { dd(data); }
+  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NONE);
+  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NONE);
+  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NONE) {
+    dd(data, rmode);
+  }
 
   // Read/patch instructions
   Instr instr_at(int pos) {
@@ -1335,7 +1357,7 @@ class PatchingAssembler : public Assembler {
 // state, even if the list is modified by some other means. Note that this scope
 // can be nested but the destructors need to run in the opposite order as the
 // constructors. We do not have assertions for this.
-class V8_EXPORT_PRIVATE UseScratchRegisterScope {
+class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
  public:
   explicit UseScratchRegisterScope(Assembler* assembler);
   ~UseScratchRegisterScope();
@@ -1373,6 +1395,25 @@ class V8_EXPORT_PRIVATE UseScratchRegisterScope {
   // Available scratch registers at the start of this scope.
   RegList old_available_;
   VfpRegList old_available_vfp_;
+};
+
+// Helper struct for load lane and store lane to indicate which opcode to use
+// and what memory size to be encoded in the opcode, and the new lane index.
+class LoadStoreLaneParams {
+ public:
+  bool low_op;
+  NeonSize sz;
+  uint8_t laneidx;
+  // The register mapping on ARM (1 Q to 2 D), means that loading/storing high
+  // lanes of a Q register is equivalent to loading/storing the high D reg,
+  // modulo number of lanes in a D reg. This constructor decides, based on the
+  // laneidx and load/store size, whether the low or high D reg is accessed, and
+  // what the new lane index is.
+  LoadStoreLaneParams(MachineRepresentation rep, uint8_t laneidx);
+
+ private:
+  LoadStoreLaneParams(uint8_t laneidx, NeonSize sz, int lanes)
+      : low_op(laneidx < lanes), sz(sz), laneidx(laneidx % lanes) {}
 };
 
 }  // namespace internal

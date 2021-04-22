@@ -62,8 +62,7 @@ class LocalFactoryTest : public TestWithIsolateAndZone {
                 isolate(), true, construct_language_mode(FLAG_use_strict),
                 REPLMode::kNo),
             &state_),
-        local_isolate_(isolate()) {
-    FLAG_concurrent_allocation = true;
+        local_isolate_(isolate()->main_thread_local_isolate()) {
   }
 
   FunctionLiteral* ParseProgram(const char* source) {
@@ -78,8 +77,7 @@ class LocalFactoryTest : public TestWithIsolateAndZone {
         ScannerStream::ForTesting(utf16_source.data(), utf16_source.size()));
 
     {
-      DisallowHeapAllocation no_allocation;
-      DisallowHandleAllocation no_handles;
+      DisallowGarbageCollection no_gc;
       DisallowHeapAccess no_heap_access;
 
       Parser parser(parse_info());
@@ -106,14 +104,14 @@ class LocalFactoryTest : public TestWithIsolateAndZone {
 
   Handle<Script> script() { return script_; }
 
-  LocalIsolate* local_isolate() { return &local_isolate_; }
+  LocalIsolate* local_isolate() { return local_isolate_; }
   LocalFactory* local_factory() { return local_isolate()->factory(); }
 
  private:
   SaveFlags save_flags_;
   UnoptimizedCompileState state_;
   ParseInfo parse_info_;
-  LocalIsolate local_isolate_;
+  LocalIsolate* local_isolate_;
   Handle<String> source_string_;
   Handle<Script> script_;
 };

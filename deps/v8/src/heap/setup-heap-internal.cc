@@ -24,7 +24,6 @@
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/js-weak-refs.h"
-#include "src/objects/layout-descriptor.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/lookup-cache.h"
 #include "src/objects/map.h"
@@ -42,11 +41,9 @@
 #include "src/objects/string.h"
 #include "src/objects/synthetic-module.h"
 #include "src/objects/template-objects-inl.h"
+#include "src/objects/torque-defined-classes-inl.h"
 #include "src/regexp/regexp.h"
 #include "src/wasm/wasm-objects.h"
-#include "torque-generated/class-definitions.h"
-#include "torque-generated/exported-class-definitions-inl.h"
-#include "torque-generated/internal-class-definitions-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -165,11 +162,6 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
       SKIP_WRITE_BARRIER);
   map.set_instance_type(instance_type);
   map.set_instance_size(instance_size);
-  // Initialize to only containing tagged fields.
-  if (FLAG_unbox_double_fields) {
-    map.set_layout_descriptor(LayoutDescriptor::FastPointerLayout());
-  }
-  // GetVisitorId requires a properly initialized LayoutDescriptor.
   map.set_visitor_id(Map::GetVisitorId(map));
   map.set_inobject_properties_start_or_constructor_function_index(0);
   DCHECK(!map.IsJSObjectMap());
@@ -193,11 +185,8 @@ void Heap::FinalizePartialMap(Map map) {
   map.set_dependent_code(DependentCode::cast(roots.empty_weak_fixed_array()));
   map.set_raw_transitions(MaybeObject::FromSmi(Smi::zero()));
   map.SetInstanceDescriptors(isolate(), roots.empty_descriptor_array(), 0);
-  if (FLAG_unbox_double_fields) {
-    map.set_layout_descriptor(LayoutDescriptor::FastPointerLayout());
-  }
   map.set_prototype(roots.null_value());
-  map.set_constructor_or_backpointer(roots.null_value());
+  map.set_constructor_or_back_pointer(roots.null_value());
 }
 
 AllocationResult Heap::Allocate(Map map, AllocationType allocation_type) {
@@ -423,12 +412,15 @@ bool Heap::CreateInitialMaps() {
                          small_ordered_name_dictionary)
 
 #define TORQUE_ALLOCATE_MAP(NAME, Name, name) \
-  ALLOCATE_MAP(NAME, Name::kSize, name)
+  ALLOCATE_MAP(NAME, Name::SizeFor(), name)
     TORQUE_DEFINED_FIXED_INSTANCE_TYPE_LIST(TORQUE_ALLOCATE_MAP);
 #undef TORQUE_ALLOCATE_MAP
 
-#define TORQUE_ALLOCATE_VARSIZE_MAP(NAME, Name, name) \
-  ALLOCATE_VARSIZE_MAP(NAME, name)
+#define TORQUE_ALLOCATE_VARSIZE_MAP(NAME, Name, name)                   \
+  /* The DescriptorArray map is pre-allocated and initialized above. */ \
+  if (NAME != DESCRIPTOR_ARRAY_TYPE) {                                  \
+    ALLOCATE_VARSIZE_MAP(NAME, name)                                    \
+  }
     TORQUE_DEFINED_VARSIZE_INSTANCE_TYPE_LIST(TORQUE_ALLOCATE_VARSIZE_MAP);
 #undef TORQUE_ALLOCATE_VARSIZE_MAP
 
@@ -467,6 +459,7 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(ORDERED_HASH_SET_TYPE, ordered_hash_set)
     ALLOCATE_VARSIZE_MAP(ORDERED_NAME_DICTIONARY_TYPE, ordered_name_dictionary)
     ALLOCATE_VARSIZE_MAP(NAME_DICTIONARY_TYPE, name_dictionary)
+    ALLOCATE_VARSIZE_MAP(SWISS_NAME_DICTIONARY_TYPE, swiss_name_dictionary)
     ALLOCATE_VARSIZE_MAP(GLOBAL_DICTIONARY_TYPE, global_dictionary)
     ALLOCATE_VARSIZE_MAP(NUMBER_DICTIONARY_TYPE, number_dictionary)
     ALLOCATE_VARSIZE_MAP(SIMPLE_NUMBER_DICTIONARY_TYPE,
@@ -492,12 +485,6 @@ bool Heap::CreateInitialMaps() {
                  next_call_side_effect_free_call_handler_info)
 
     ALLOCATE_VARSIZE_MAP(PREPARSE_DATA_TYPE, preparse_data)
-    ALLOCATE_MAP(UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE,
-                 UncompiledDataWithoutPreparseData::kSize,
-                 uncompiled_data_without_preparse_data)
-    ALLOCATE_MAP(UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE,
-                 UncompiledDataWithPreparseData::kSize,
-                 uncompiled_data_with_preparse_data)
     ALLOCATE_MAP(SHARED_FUNCTION_INFO_TYPE, SharedFunctionInfo::kAlignedSize,
                  shared_function_info)
     ALLOCATE_MAP(SOURCE_TEXT_MODULE_TYPE, SourceTextModule::kSize,
@@ -507,13 +494,6 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_MAP(CODE_DATA_CONTAINER_TYPE, CodeDataContainer::kSize,
                  code_data_container)
 
-    // The wasm_rttcanon_* maps are never used for real objects, only as
-    // sentinels. They are maps so that they fit in with their subtype maps
-    // (which are real maps).
-    ALLOCATE_MAP(WASM_STRUCT_TYPE, 0, wasm_rttcanon_eqref)
-    ALLOCATE_MAP(WASM_STRUCT_TYPE, 0, wasm_rttcanon_externref)
-    ALLOCATE_MAP(WASM_STRUCT_TYPE, 0, wasm_rttcanon_funcref)
-    ALLOCATE_MAP(WASM_STRUCT_TYPE, 0, wasm_rttcanon_i31ref)
     ALLOCATE_MAP(WASM_TYPE_INFO_TYPE, WasmTypeInfo::kSize, wasm_type_info)
 
     ALLOCATE_MAP(WEAK_CELL_TYPE, WeakCell::kSize, weak_cell)
@@ -530,10 +510,20 @@ bool Heap::CreateInitialMaps() {
 
   {
     AllocationResult alloc =
-        AllocateRaw(FixedArray::SizeFor(0), AllocationType::kReadOnly);
+        AllocateRaw(FixedArray::SizeFor(ScopeInfo::kVariablePartIndex),
+                    AllocationType::kReadOnly);
     if (!alloc.To(&obj)) return false;
     obj.set_map_after_allocation(roots.scope_info_map(), SKIP_WRITE_BARRIER);
-    FixedArray::cast(obj).set_length(0);
+    ScopeInfo::cast(obj).set_length(ScopeInfo::kVariablePartIndex);
+    int flags = ScopeInfo::IsEmptyBit::encode(true);
+    DCHECK_EQ(ScopeInfo::LanguageModeBit::decode(flags), LanguageMode::kSloppy);
+    DCHECK_EQ(ScopeInfo::ReceiverVariableBits::decode(flags),
+              VariableAllocationInfo::NONE);
+    DCHECK_EQ(ScopeInfo::FunctionVariableBits::decode(flags),
+              VariableAllocationInfo::NONE);
+    ScopeInfo::cast(obj).set_flags(flags);
+    ScopeInfo::cast(obj).set_context_local_count(0);
+    ScopeInfo::cast(obj).set_parameter_count(0);
   }
   set_empty_scope_info(ScopeInfo::cast(obj));
 
@@ -612,36 +602,6 @@ bool Heap::CreateInitialMaps() {
     FixedArray::cast(obj).set_length(0);
     set_empty_closure_feedback_cell_array(ClosureFeedbackCellArray::cast(obj));
   }
-
-  // Set up the WasmTypeInfo objects for built-in generic Wasm RTTs.
-#define ALLOCATE_TYPE_INFO(which)                                           \
-  {                                                                         \
-    int slot_count = ArrayList::kHeaderFields;                              \
-    if (!AllocateRaw(ArrayList::SizeFor(slot_count), AllocationType::kOld)  \
-             .To(&obj)) {                                                   \
-      return false;                                                         \
-    }                                                                       \
-    obj.set_map_after_allocation(roots.array_list_map());                   \
-    ArrayList subtypes = ArrayList::cast(obj);                              \
-    subtypes.set_length(slot_count);                                        \
-    subtypes.SetLength(0);                                                  \
-    if (!AllocateRaw(WasmTypeInfo::kSize, AllocationType::kOld).To(&obj)) { \
-      return false;                                                         \
-    }                                                                       \
-    obj.set_map_after_allocation(roots.wasm_type_info_map(),                \
-                                 SKIP_WRITE_BARRIER);                       \
-    WasmTypeInfo type_info = WasmTypeInfo::cast(obj);                       \
-    type_info.set_subtypes(subtypes);                                       \
-    type_info.set_parent(roots.null_map());                                 \
-    type_info.clear_foreign_address(isolate());                             \
-    wasm_rttcanon_##which##_map().set_wasm_type_info(type_info);            \
-  }
-
-  ALLOCATE_TYPE_INFO(eqref)
-  ALLOCATE_TYPE_INFO(externref)
-  ALLOCATE_TYPE_INFO(funcref)
-  ALLOCATE_TYPE_INFO(i31ref)
-#undef ALLOCATE_TYPE_INFO
 
   DCHECK(!InYoungGeneration(roots.empty_fixed_array()));
 
@@ -842,24 +802,27 @@ void Heap::CreateInitialObjects() {
   set_next_template_serial_number(Smi::zero());
 
   // Allocate the empty OrderedHashMap.
-  Handle<FixedArray> empty_ordered_hash_map = factory->NewFixedArray(
-      OrderedHashMap::HashTableStartIndex(), AllocationType::kReadOnly);
-  empty_ordered_hash_map->set_map_no_write_barrier(
-      *factory->ordered_hash_map_map());
-  for (int i = 0; i < empty_ordered_hash_map->length(); ++i) {
-    empty_ordered_hash_map->set(i, Smi::zero());
-  }
+  Handle<OrderedHashMap> empty_ordered_hash_map =
+      OrderedHashMap::AllocateEmpty(isolate(), AllocationType::kReadOnly)
+          .ToHandleChecked();
   set_empty_ordered_hash_map(*empty_ordered_hash_map);
 
   // Allocate the empty OrderedHashSet.
-  Handle<FixedArray> empty_ordered_hash_set = factory->NewFixedArray(
-      OrderedHashSet::HashTableStartIndex(), AllocationType::kReadOnly);
-  empty_ordered_hash_set->set_map_no_write_barrier(
-      *factory->ordered_hash_set_map());
-  for (int i = 0; i < empty_ordered_hash_set->length(); ++i) {
-    empty_ordered_hash_set->set(i, Smi::zero());
-  }
+  Handle<OrderedHashSet> empty_ordered_hash_set =
+      OrderedHashSet::AllocateEmpty(isolate(), AllocationType::kReadOnly)
+          .ToHandleChecked();
   set_empty_ordered_hash_set(*empty_ordered_hash_set);
+
+  // Allocate the empty OrderedNameDictionary
+  Handle<OrderedNameDictionary> empty_ordered_property_dictionary =
+      OrderedNameDictionary::AllocateEmpty(isolate(), AllocationType::kReadOnly)
+          .ToHandleChecked();
+  set_empty_ordered_property_dictionary(*empty_ordered_property_dictionary);
+
+  // Allocate the empty SwissNameDictionary
+  Handle<SwissNameDictionary> empty_swiss_property_dictionary =
+      factory->CreateCanonicalEmptySwissNameDictionary();
+  set_empty_swiss_property_dictionary(*empty_swiss_property_dictionary);
 
   // Allocate the empty FeedbackMetadata.
   Handle<FeedbackMetadata> empty_feedback_metadata =
@@ -887,125 +850,23 @@ void Heap::CreateInitialObjects() {
   script->set_origin_options(ScriptOriginOptions(true, false));
   set_empty_script(*script);
 
-  {
-    Handle<PropertyCell> cell = factory->NewPropertyCell(
-        factory->empty_string(), AllocationType::kReadOnly);
-    cell->set_value(roots.the_hole_value());
-    set_empty_property_cell(*cell);
-  }
-
   // Protectors
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_array_constructor_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_no_elements_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_array_iterator_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_map_iterator_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_set_iterator_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_is_concat_spreadable_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_array_species_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_typed_array_species_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_promise_species_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_regexp_species_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_string_iterator_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_string_length_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_array_buffer_detaching_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_promise_hook_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_promise_resolve_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_promise_then_protector(*cell);
-  }
+  set_array_buffer_detaching_protector(*factory->NewProtector());
+  set_array_constructor_protector(*factory->NewProtector());
+  set_array_iterator_protector(*factory->NewProtector());
+  set_array_species_protector(*factory->NewProtector());
+  set_is_concat_spreadable_protector(*factory->NewProtector());
+  set_map_iterator_protector(*factory->NewProtector());
+  set_no_elements_protector(*factory->NewProtector());
+  set_promise_hook_protector(*factory->NewProtector());
+  set_promise_resolve_protector(*factory->NewProtector());
+  set_promise_species_protector(*factory->NewProtector());
+  set_promise_then_protector(*factory->NewProtector());
+  set_regexp_species_protector(*factory->NewProtector());
+  set_set_iterator_protector(*factory->NewProtector());
+  set_string_iterator_protector(*factory->NewProtector());
+  set_string_length_protector(*factory->NewProtector());
+  set_typed_array_species_protector(*factory->NewProtector());
 
   set_serialized_objects(roots.empty_fixed_array());
   set_serialized_global_proxy_sizes(roots.empty_fixed_array());
@@ -1024,8 +885,8 @@ void Heap::CreateInitialObjects() {
           AllocationType::kReadOnly));
 
   // Evaluate the hash values which will then be cached in the strings.
-  isolate()->factory()->zero_string()->Hash();
-  isolate()->factory()->one_string()->Hash();
+  isolate()->factory()->zero_string()->EnsureHash();
+  isolate()->factory()->one_string()->EnsureHash();
 
   // Initialize builtins constants table.
   set_builtins_constants_table(roots.empty_fixed_array());

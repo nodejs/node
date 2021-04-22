@@ -9,7 +9,7 @@ const node = process.execPath;
 // Test both sets of arguments that check syntax
 const syntaxArgs = [
   '-c',
-  '--check'
+  '--check',
 ];
 
 // Match on the name of the `Error` but not the message as it is different

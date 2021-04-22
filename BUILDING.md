@@ -8,7 +8,7 @@ If you can reproduce a test failure, search for it in the
 [Node.js issue tracker](https://github.com/nodejs/node/issues) or
 file a new issue.
 
-## Table of Contents
+## Table of contents
 
 * [Supported platforms](#supported-platforms)
   * [Input](#input)
@@ -19,7 +19,7 @@ file a new issue.
     * [OpenSSL asm support](#openssl-asm-support)
   * [Previous versions of this document](#previous-versions-of-this-document)
 * [Building Node.js on supported platforms](#building-nodejs-on-supported-platforms)
-  * [Note about Python 2 and Python 3](#note-about-python-2-and-python-3)
+  * [Note about Python](#note-about-python)
   * [Unix and macOS](#unix-and-macos)
     * [Unix prerequisites](#unix-prerequisites)
     * [macOS prerequisites](#macos-prerequisites)
@@ -116,17 +116,17 @@ platforms. This is true regardless of entries in the table below.
 | macOS            | x64              | >= 10.13                        | Tier 1       |                                   |
 | macOS            | arm64            | >= 11                           | Experimental |                                   |
 | SmartOS          | x64              | >= 18                           | Tier 2       |                                   |
-| AIX              | ppc64be >=power7 | >= 7.2 TL02                     | Tier 2       |                                   |
+| AIX              | ppc64be >=power7 | >= 7.2 TL04                     | Tier 2       |                                   |
 | FreeBSD          | x64              | >= 11                           | Experimental | Downgraded as of Node.js 12  <sup>[7](#fn7)</sup>     |
 
-<em id="fn1">1</em>: GCC 6 is not provided on the base platform. Users will
+<em id="fn1">1</em>: GCC 8 is not provided on the base platform. Users will
   need the
   [Toolchain test builds PPA](https://launchpad.net/~ubuntu-toolchain-r/+archive/ubuntu/test?field.series_filter=xenial)
   or similar to source a newer compiler.
 
-<em id="fn2">2</em>: GCC 6 is not provided on the base platform. Users will
+<em id="fn2">2</em>: GCC 8 is not provided on the base platform. Users will
   need the
-  [devtoolset-6](https://www.softwarecollections.org/en/scls/rhscl/devtoolset-6/)
+  [devtoolset-8](https://www.softwarecollections.org/en/scls/rhscl/devtoolset-8/)
   or later to source a newer compiler.
 
 <em id="fn3">3</em>: Older kernel versions may work for ARM64. However the
@@ -161,24 +161,25 @@ Depending on the host platform, the selection of toolchains may vary.
 
 | Operating System | Compiler Versions                                              |
 | ---------------- | -------------------------------------------------------------- |
-| Linux            | GCC >= 6.3                                                     |
+| Linux            | GCC >= 8.3                                                     |
 | Windows          | Visual Studio >= 2019 with the Windows 10 SDK on a 64-bit host |
-| macOS            | Xcode >= 10 (Apple LLVM >= 10)                                 |
+| macOS            | Xcode >= 11 (Apple LLVM >= 11)                                 |
 
 ### Official binary platforms and toolchains
 
 Binaries at <https://nodejs.org/download/release/> are produced on:
 
-| Binary package        | Platform and Toolchain                                                                                        |
-| --------------------- | ------------------------------------------------------------------------------------------------------------- |
-| aix-ppc64             | AIX 7.1 TL05 on PPC64BE with GCC 6                                                                            |
-| darwin-x64 (and .pkg) | macOS 10.15, Xcode Command Line Tools 11 with -mmacosx-version-min=10.13                                      |
-| linux-arm64           | CentOS 7 with devtoolset-8 / GCC 8 <sup>[8](#fn8)</sup>                                                       |
-| linux-armv7l          | Cross-compiled on Ubuntu 18.04 x64 with [custom GCC toolchain](https://github.com/rvagg/rpi-newer-crosstools) |
-| linux-ppc64le         | CentOS 7 with devtoolset-8 / GCC 8 <sup>[8](#fn8)</sup>                                                       |
-| linux-s390x           | RHEL 7 with devtoolset-8 / GCC 8 <sup>[8](#fn8)</sup>                                                         |
-| linux-x64             | CentOS 7 with devtoolset-8 / GCC 8 <sup>[8](#fn8)</sup>                                                       |
-| win-x64 and win-x86   | Windows 2012 R2 (x64) with Visual Studio 2019                                                                 |
+| Binary package          | Platform and Toolchain                                                                                        |
+| ---------------------   | ------------------------------------------------------------------------------------------------------------- |
+| aix-ppc64               | AIX 7.2 TL04 on PPC64BE with GCC 8                                                                            |
+| darwin-x64              | macOS 10.15, Xcode Command Line Tools 11 with -mmacosx-version-min=10.13                                      |
+| darwin-arm64 (and .pkg) | macOS 11 (arm64), Xcode Command Line Tools 12 with -mmacosx-version-min=10.13                                 |
+| linux-arm64             | CentOS 7 with devtoolset-8 / GCC 8 <sup>[8](#fn8)</sup>                                                       |
+| linux-armv7l            | Cross-compiled on Ubuntu 18.04 x64 with [custom GCC toolchain](https://github.com/rvagg/rpi-newer-crosstools) |
+| linux-ppc64le           | CentOS 7 with devtoolset-8 / GCC 8 <sup>[8](#fn8)</sup>                                                       |
+| linux-s390x             | RHEL 7 with devtoolset-8 / GCC 8 <sup>[8](#fn8)</sup>                                                         |
+| linux-x64               | CentOS 7 with devtoolset-8 / GCC 8 <sup>[8](#fn8)</sup>                                                       |
+| win-x64 and win-x86     | Windows 2012 R2 (x64) with Visual Studio 2019                                                                 |
 
 <em id="fn8">8</em>: The Enterprise Linux devtoolset-8 allows us to compile
 binaries with GCC 8 but linked to the glibc and libstdc++ versions of the host
@@ -218,36 +219,29 @@ Supported platforms and toolchains change with each major version of Node.js.
 This document is only valid for the current major version of Node.js.
 Consult previous versions of this document for older versions of Node.js:
 
-* [Node.js 13](https://github.com/nodejs/node/blob/v13.x/BUILDING.md)
+* [Node.js 14](https://github.com/nodejs/node/blob/v14.x/BUILDING.md)
 * [Node.js 12](https://github.com/nodejs/node/blob/v12.x/BUILDING.md)
 * [Node.js 10](https://github.com/nodejs/node/blob/v10.x/BUILDING.md)
-* [Node.js 8](https://github.com/nodejs/node/blob/v8.x/BUILDING.md)
 
 ## Building Node.js on supported platforms
 
-### Note about Python 2 and Python 3
+### Note about Python
 
-The Node.js project supports both Python 3 and Python 2 for building.
-If both are installed Python 3 will be used. If only Python 2 is available
-it will be used instead. When possible we recommend that you build and
-test with Python 3.
-
+The Node.js project supports Python >= 3 for building and testing.
 ### Unix and macOS
 
 #### Unix prerequisites
 
-* `gcc` and `g++` >= 6.3 or newer, or
+* `gcc` and `g++` >= 8.3 or newer, or
 * GNU Make 3.81 or newer
-* Python (see note above)
-  * Python 2.7
-  * Python 3.5, 3.6, 3.7, and 3.8
+* Python 3.6, 3.7, 3.8, and 3.9 (see note above)
 
 Installation via Linux package manager can be achieved with:
 
-* Ubuntu, Debian: `sudo apt-get install python g++ make`
-* Fedora: `sudo dnf install python gcc-c++ make`
-* CentOS and RHEL: `sudo yum install python gcc-c++ make`
-* OpenSUSE: `sudo zypper install python gcc-c++ make`
+* Ubuntu, Debian: `sudo apt-get install python3 g++ make`
+* Fedora: `sudo dnf install python3 gcc-c++ make`
+* CentOS and RHEL: `sudo yum install python3 gcc-c++ make`
+* OpenSUSE: `sudo zypper install python3 gcc-c++ make`
 * Arch Linux, Manjaro: `sudo pacman -S python gcc make`
 
 FreeBSD and OpenBSD users may also need to install `libexecinfo`.
@@ -256,10 +250,8 @@ Python 3 users may also need to install `python3-distutils`.
 
 #### macOS prerequisites
 
-* Xcode Command Line Tools >= 10 for macOS
-* Python (see note above)
-  * Python 2.7
-  * Python 3.5, 3.6, 3.7, and 3.8
+* Xcode Command Line Tools >= 11 for macOS
+* Python 3.6, 3.7, 3.8, and 3.9 (see note above)
 
 macOS users can install the `Xcode Command Line Tools` by running
 `xcode-select --install`. Alternatively, if you already have the full Xcode
@@ -310,7 +302,7 @@ To install this version of Node.js into a system directory:
 [sudo] make install
 ```
 
-#### Running Tests
+#### Running tests
 
 To verify the build:
 
@@ -380,7 +372,7 @@ You can use
 [node-code-ide-configs](https://github.com/nodejs/node-code-ide-configs)
 to run/debug tests, if your IDE configs are present.
 
-#### Running Coverage
+#### Running coverage
 
 It's good practice to ensure any code you add or change is covered by tests.
 You can do so by running the test suite with coverage enabled:
@@ -568,7 +560,7 @@ to run it again before invoking `make -j4`.
 
 ##### Option 1: Manual install
 
-* [Python 3.8](https://www.python.org/downloads/)
+* [Python 3.9](https://www.microsoft.com/en-us/p/python-39/9p7qfqmjrfp7)
 * The "Desktop development with C++" workload from
   [Visual Studio 2019](https://visualstudio.microsoft.com/downloads/) or
   the "Visual C++ build tools" workload from the
@@ -606,15 +598,14 @@ packages:
 
 * [Git for Windows](https://chocolatey.org/packages/git) with the `git` and
   Unix tools added to the `PATH`
-* [Python 3.x](https://chocolatey.org/packages/python) and
-  [legacy Python](https://chocolatey.org/packages/python2)
+* [Python 3.x](https://chocolatey.org/packages/python)
 * [Visual Studio 2019 Build Tools](https://chocolatey.org/packages/visualstudio2019buildtools)
   with [Visual C++ workload](https://chocolatey.org/packages/visualstudio2019-workload-vctools)
 * [NetWide Assembler](https://chocolatey.org/packages/nasm)
 
 To install Node.js prerequisites using
 [Boxstarter WebLauncher](https://boxstarter.org/WebLauncher), open
-<https://boxstarter.org/package/nr/url?https://raw.githubusercontent.com/nodejs/node/master/tools/bootstrap/windows_boxstarter>
+<https://boxstarter.org/package/nr/url?https://raw.githubusercontent.com/nodejs/node/HEAD/tools/bootstrap/windows_boxstarter>
 with Internet Explorer or Edge browser on the target machine.
 
 Alternatively, you can use PowerShell. Run those commands from an elevated
@@ -624,7 +615,7 @@ PowerShell terminal:
 Set-ExecutionPolicy Unrestricted -Force
 iex ((New-Object System.Net.WebClient).DownloadString('https://boxstarter.org/bootstrapper.ps1'))
 get-boxstarter -Force
-Install-BoxstarterPackage https://raw.githubusercontent.com/nodejs/node/master/tools/bootstrap/windows_boxstarter -DisableReboots
+Install-BoxstarterPackage https://raw.githubusercontent.com/nodejs/node/HEAD/tools/bootstrap/windows_boxstarter -DisableReboots
 ```
 
 The entire installation using Boxstarter will take up approximately 10 GB of

@@ -16,9 +16,9 @@ namespace internal {
   HR(code_cache_reject_reason, V8.CodeCacheRejectReason, 1, 6, 6)              \
   HR(errors_thrown_per_context, V8.ErrorsThrownPerContext, 0, 200, 20)         \
   HR(debug_feature_usage, V8.DebugFeatureUsage, 1, 7, 7)                       \
-  HR(incremental_marking_reason, V8.GCIncrementalMarkingReason, 0, 22, 23)     \
+  HR(incremental_marking_reason, V8.GCIncrementalMarkingReason, 0, 25, 26)     \
   HR(incremental_marking_sum, V8.GCIncrementalMarkingSum, 0, 10000, 101)       \
-  HR(mark_compact_reason, V8.GCMarkCompactReason, 0, 22, 23)                   \
+  HR(mark_compact_reason, V8.GCMarkCompactReason, 0, 25, 26)                   \
   HR(gc_finalize_clear, V8.GCFinalizeMC.Clear, 0, 10000, 101)                  \
   HR(gc_finalize_epilogue, V8.GCFinalizeMC.Epilogue, 0, 10000, 101)            \
   HR(gc_finalize_evacuate, V8.GCFinalizeMC.Evacuate, 0, 10000, 101)            \
@@ -33,7 +33,7 @@ namespace internal {
   /* Range and bucket matches BlinkGC.MainThreadMarkingThroughput. */          \
   HR(gc_main_thread_marking_throughput, V8.GCMainThreadMarkingThroughput, 0,   \
      100000, 50)                                                               \
-  HR(scavenge_reason, V8.GCScavengeReason, 0, 22, 23)                          \
+  HR(scavenge_reason, V8.GCScavengeReason, 0, 25, 26)                          \
   HR(young_generation_handling, V8.GCYoungGenerationHandling, 0, 2, 3)         \
   /* Asm/Wasm. */                                                              \
   HR(wasm_functions_per_asm_module, V8.WasmFunctionsPerModule.asm, 1, 1000000, \
@@ -85,6 +85,12 @@ namespace internal {
   HR(wasm_modules_per_engine, V8.WasmModulesPerEngine, 1, 1024, 30)            \
   /* bailout reason if Liftoff failed, or {kSuccess} (per function) */         \
   HR(liftoff_bailout_reasons, V8.LiftoffBailoutReasons, 0, 20, 21)             \
+  /* number of thrown exceptions per isolate */                                \
+  HR(wasm_throw_count, V8.WasmThrowCount, 0, 100000, 30)                       \
+  /* number of rethrown exceptions per isolate */                              \
+  HR(wasm_rethrow_count, V8.WasmReThrowCount, 0, 100000, 30)                   \
+  /* number of caught exceptions per isolate */                                \
+  HR(wasm_catch_count, V8.WasmCatchCount, 0, 100000, 30)                       \
   /* Ticks observed in a single Turbofan compilation, in 1K */                 \
   HR(turbofan_ticks, V8.TurboFan1KTicks, 0, 100000, 200)                       \
   /* Backtracks observed in a single regexp interpreter execution */           \
@@ -138,9 +144,11 @@ namespace internal {
   HT(gc_scavenger, V8.GCScavenger, 10000, MILLISECOND)                         \
   HT(gc_scavenger_background, V8.GCScavengerBackground, 10000, MILLISECOND)    \
   HT(gc_scavenger_foreground, V8.GCScavengerForeground, 10000, MILLISECOND)    \
-  HT(time_to_safepoint, V8.TimeToSafepoint, 10000, MILLISECOND)                \
   HT(measure_memory_delay_ms, V8.MeasureMemoryDelayMilliseconds, 100000,       \
      MILLISECOND)                                                              \
+  HT(gc_time_to_safepoint, V8.GC.TimeToSafepoint, 10000000, MICROSECOND)       \
+  HT(gc_time_to_collection_on_background, V8.GC.TimeToCollectionOnBackground,  \
+     10000000, MICROSECOND)                                                    \
   /* TurboFan timers. */                                                       \
   HT(turbofan_optimize_prepare, V8.TurboFanOptimizePrepare, 1000000,           \
      MICROSECOND)                                                              \
@@ -183,12 +191,16 @@ namespace internal {
      1000000, MICROSECOND)                                                     \
   HT(wasm_compile_wasm_function_time, V8.WasmCompileFunctionMicroSeconds.wasm, \
      1000000, MICROSECOND)                                                     \
-  HT(liftoff_compile_time, V8.LiftoffCompileMicroSeconds, 10000000,            \
-     MICROSECOND)                                                              \
   HT(wasm_instantiate_wasm_module_time,                                        \
      V8.WasmInstantiateModuleMicroSeconds.wasm, 10000000, MICROSECOND)         \
   HT(wasm_instantiate_asm_module_time,                                         \
      V8.WasmInstantiateModuleMicroSeconds.asm, 10000000, MICROSECOND)          \
+  HT(wasm_time_between_throws, V8.WasmTimeBetweenThrowsMilliseconds, 1000,     \
+     MILLISECOND)                                                              \
+  HT(wasm_time_between_rethrows, V8.WasmTimeBetweenRethrowsMilliseconds, 1000, \
+     MILLISECOND)                                                              \
+  HT(wasm_time_between_catch, V8.WasmTimeBetweenCatchMilliseconds, 1000,       \
+     MILLISECOND)                                                              \
   /* Total compilation time incl. caching/parsing for various cache states. */ \
   HT(compile_script_with_produce_cache,                                        \
      V8.CompileScriptMicroSeconds.ProduceCache, 1000000, MICROSECOND)          \
@@ -315,12 +327,10 @@ namespace internal {
   /* Total count of functions compiled using the baseline compiler. */         \
   SC(total_baseline_compile_count, V8.TotalBaselineCompileCount)
 
-#define STATS_COUNTER_TS_LIST(SC)                                    \
-  SC(wasm_generated_code_size, V8.WasmGeneratedCodeBytes)            \
-  SC(wasm_reloc_size, V8.WasmRelocBytes)                             \
-  SC(wasm_lazily_compiled_functions, V8.WasmLazilyCompiledFunctions) \
-  SC(liftoff_compiled_functions, V8.LiftoffCompiledFunctions)        \
-  SC(liftoff_unsupported_functions, V8.LiftoffUnsupportedFunctions)
+#define STATS_COUNTER_TS_LIST(SC)                         \
+  SC(wasm_generated_code_size, V8.WasmGeneratedCodeBytes) \
+  SC(wasm_reloc_size, V8.WasmRelocBytes)                  \
+  SC(wasm_lazily_compiled_functions, V8.WasmLazilyCompiledFunctions)
 
 // List of counters that can be incremented from generated code. We need them in
 // a separate list to be able to relocate them.

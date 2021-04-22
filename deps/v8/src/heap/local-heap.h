@@ -22,10 +22,21 @@ class Heap;
 class Safepoint;
 class LocalHandles;
 
+// LocalHeap is used by the GC to track all threads with heap access in order to
+// stop them before performing a collection. LocalHeaps can be either Parked or
+// Running and are in Parked mode when initialized.
+//   Running: Thread is allowed to access the heap but needs to give the GC the
+//            chance to run regularly by manually invoking Safepoint(). The
+//            thread can be parked using ParkedScope.
+//   Parked:  Heap access is not allowed, so the GC will not stop this thread
+//            for a collection. Useful when threads do not need heap access for
+//            some time or for blocking operations like locking a mutex.
 class V8_EXPORT_PRIVATE LocalHeap {
  public:
+  using GCEpilogueCallback = void(void* data);
+
   explicit LocalHeap(
-      Heap* heap,
+      Heap* heap, ThreadKind kind,
       std::unique_ptr<PersistentHandles> persistent_handles = nullptr);
   ~LocalHeap();
 
@@ -36,9 +47,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
   // Frequently invoked by local thread to check whether safepoint was requested
   // from the main thread.
   void Safepoint() {
-    // In case garbage collection is disabled, the thread isn't even allowed to
-    // invoke Safepoint(). Otherwise a GC might happen here.
-    DCHECK(AllowGarbageCollection::IsAllowed());
+    DCHECK(AllowSafepoints::IsAllowed());
 
     if (IsSafepointRequested()) {
       ClearSafepointRequested();
@@ -70,6 +79,8 @@ class V8_EXPORT_PRIVATE LocalHeap {
     return kNullMaybeHandle;
   }
 
+  void AttachPersistentHandles(
+      std::unique_ptr<PersistentHandles> persistent_handles);
   std::unique_ptr<PersistentHandles> DetachPersistentHandles();
 #ifdef DEBUG
   bool ContainsPersistentHandle(Address* location);
@@ -102,6 +113,10 @@ class V8_EXPORT_PRIVATE LocalHeap {
   // with the current thread.
   static LocalHeap* Current();
 
+#ifdef DEBUG
+  void VerifyCurrent();
+#endif
+
   // Allocate an uninitialized object.
   V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRaw(
       int size_in_bytes, AllocationType allocation,
@@ -114,6 +129,18 @@ class V8_EXPORT_PRIVATE LocalHeap {
       int size_in_bytes, AllocationType allocation,
       AllocationOrigin origin = AllocationOrigin::kRuntime,
       AllocationAlignment alignment = kWordAligned);
+
+  bool is_main_thread() const { return is_main_thread_; }
+
+  // Requests GC and blocks until the collection finishes.
+  void PerformCollection();
+
+  // Adds a callback that is invoked with the given |data| after each GC.
+  // The callback is invoked on the main thread before any background thread
+  // resumes. The callback must not allocate or make any other calls that
+  // can trigger GC.
+  void AddGCEpilogueCallback(GCEpilogueCallback* callback, void* data);
+  void RemoveGCEpilogueCallback(GCEpilogueCallback* callback, void* data);
 
  private:
   enum class ThreadState {
@@ -146,7 +173,10 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   void EnterSafepoint();
 
+  void InvokeGCEpilogueCallbacksInSafepoint();
+
   Heap* heap_;
+  bool is_main_thread_;
 
   base::Mutex state_mutex_;
   base::ConditionVariable state_change_;
@@ -163,6 +193,8 @@ class V8_EXPORT_PRIVATE LocalHeap {
   std::unique_ptr<PersistentHandles> persistent_handles_;
   std::unique_ptr<MarkingBarrier> marking_barrier_;
 
+  std::vector<std::pair<GCEpilogueCallback*, void*>> gc_epilogue_callbacks_;
+
   ConcurrentAllocator old_space_allocator_;
 
   friend class Heap;
@@ -170,47 +202,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
   friend class ParkedScope;
   friend class UnparkedScope;
   friend class ConcurrentAllocator;
-};
-
-// Scope that explicitly parks LocalHeap prohibiting access to the heap and the
-// creation of Handles.
-class ParkedScope {
- public:
-  explicit ParkedScope(LocalHeap* local_heap) : local_heap_(local_heap) {
-    local_heap_->Park();
-  }
-
-  ~ParkedScope() { local_heap_->Unpark(); }
-
- private:
-  LocalHeap* const local_heap_;
-};
-
-// Scope that explicitly unparks LocalHeap allowing access to the heap and the
-// creation of Handles.
-class UnparkedScope {
- public:
-  explicit UnparkedScope(LocalHeap* local_heap) : local_heap_(local_heap) {
-    local_heap_->Unpark();
-  }
-
-  ~UnparkedScope() { local_heap_->Park(); }
-
- private:
-  LocalHeap* const local_heap_;
-};
-
-class ParkedMutexGuard {
-  base::Mutex* guard_;
-
- public:
-  explicit ParkedMutexGuard(LocalHeap* local_heap, base::Mutex* guard)
-      : guard_(guard) {
-    ParkedScope scope(local_heap);
-    guard_->Lock();
-  }
-
-  ~ParkedMutexGuard() { guard_->Unlock(); }
+  friend class Isolate;
 };
 
 }  // namespace internal

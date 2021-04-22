@@ -37,4 +37,4 @@ jobs:
       - name: Build
         run: make build-ci -j2 V=1
       - name: Test
-        run: make run-ci -j2 V=1 TEST_CI_ARGS="-p actions"
+        run: make run-ci -j2 V=1 TEST_CI_ARGS="-p actions -t 300"

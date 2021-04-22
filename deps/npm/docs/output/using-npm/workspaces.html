@@ -141,7 +141,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#installing-workspaces">Installing workspaces</a></li><li><a href="#using-workspaces">Using workspaces</a></li><li><a href="#see-also">See also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#installing-workspaces">Installing workspaces</a></li><li><a href="#using-workspaces">Using workspaces</a></li><li><a href="#running-commands-in-the-context-of-workspaces">Running commands in the context of workspaces</a></li><li><a href="#see-also">See also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="description">Description</h3>
@@ -206,10 +206,40 @@ console.log(moduleA) // -&gt; a
 <strong>workspaces</strong> to enable a portable workflow for requiring each <strong>workspace</strong>
 in such a way that is also easy to <a href="../commands/npm-publish.html">publish</a> these
 nested workspaces to be consumed elsewhere.</p>
+<h3 id="running-commands-in-the-context-of-workspaces">Running commands in the context of workspaces</h3>
+<p>You can use the <code>workspace</code> configuration option to run commands in the context
+of a configured workspace.</p>
+<p>Following is a quick example on how to use the <code>npm run</code> command in the context
+of nested workspaces. For a project containing multiple workspaces, e.g:</p>
+<pre><code>.
++-- package.json
+`-- packages
+   +-- a
+   |   `-- package.json
+   `-- b
+       `-- package.json
+</code></pre>
+<p>By running a command using the <code>workspace</code> option, it’s possible to run the
+given command in the context of that specific workspace. e.g:</p>
+<pre><code>npm run test --workspace=a
+</code></pre>
+<p>This will run the <code>test</code> script defined within the
+<code>./packages/a/package.json</code> file.</p>
+<p>Please note that you can also specify this argument multiple times in the
+command-line in order to target multiple workspaces, e.g:</p>
+<pre><code>npm run test --workspace=a --workspace=b
+</code></pre>
+<p>It’s also possible to use the <code>workspaces</code> (plural) configuration option to
+enable the same behavior but running that command in the context of <strong>all</strong>
+configured workspaces. e.g:</p>
+<pre><code>npm run test --workspaces
+</code></pre>
+<p>Will run the <code>test</code> script in both <code>./packages/a</code> and <code>./packages/b</code>.</p>
 <h3 id="see-also">See also</h3>
 <ul>
 <li><a href="../commands/npm-install.html">npm install</a></li>
 <li><a href="../commands/npm-publish.html">npm publish</a></li>
+<li><a href="../commands/npm-run-script.html">npm run-script</a></li>
 </ul>
 </div>
 

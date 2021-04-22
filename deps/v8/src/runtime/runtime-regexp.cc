@@ -316,7 +316,7 @@ bool CompiledReplacement::Compile(Isolate* isolate, Handle<JSRegExp> regexp,
                                   Handle<String> replacement, int capture_count,
                                   int subject_length) {
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     String::FlatContent content = replacement->GetFlatContent(no_gc);
     DCHECK(content.IsFlat());
 
@@ -454,7 +454,7 @@ void FindStringIndices(Isolate* isolate, Vector<const SubjectChar> subject,
 void FindStringIndicesDispatch(Isolate* isolate, String subject, String pattern,
                                std::vector<int>* indices, unsigned int limit) {
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     String::FlatContent subject_content = subject.GetFlatContent(no_gc);
     String::FlatContent pattern_content = pattern.GetFlatContent(no_gc);
     DCHECK(subject_content.IsFlat());
@@ -570,7 +570,7 @@ V8_WARN_UNUSED_RESULT static Object StringReplaceGlobalAtomRegExpWithString(
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, untyped_res, maybe_res);
   Handle<ResultSeqString> result = Handle<ResultSeqString>::cast(untyped_res);
 
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   for (int index : *indices) {
     // Copy non-matched subject content.
     if (subject_pos < index) {
@@ -728,7 +728,7 @@ V8_WARN_UNUSED_RESULT static Object StringReplaceGlobalRegExpWithEmptyString(
   int prev = 0;
   int position = 0;
 
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   do {
     start = current_match[0];
     end = current_match[1];
@@ -861,6 +861,36 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
   return *result;
 }
 
+namespace {
+
+MaybeHandle<Object> RegExpExec(Isolate* isolate, Handle<JSRegExp> regexp,
+                               Handle<String> subject, int32_t index,
+                               Handle<RegExpMatchInfo> last_match_info,
+                               RegExp::ExecQuirks exec_quirks) {
+  // Due to the way the JS calls are constructed this must be less than the
+  // length of a string, i.e. it is always a Smi.  We check anyway for security.
+  CHECK_LE(0, index);
+  CHECK_GE(subject->length(), index);
+  isolate->counters()->regexp_entry_runtime()->Increment();
+  return RegExp::Exec(isolate, regexp, subject, index, last_match_info,
+                      exec_quirks);
+}
+
+MaybeHandle<Object> ExperimentalOneshotExec(
+    Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> subject,
+    int32_t index, Handle<RegExpMatchInfo> last_match_info,
+    RegExp::ExecQuirks exec_quirks) {
+  // Due to the way the JS calls are constructed this must be less than the
+  // length of a string, i.e. it is always a Smi.  We check anyway for security.
+  CHECK_LE(0, index);
+  CHECK_GE(subject->length(), index);
+  isolate->counters()->regexp_entry_runtime()->Increment();
+  return RegExp::ExperimentalOneshotExec(isolate, regexp, subject, index,
+                                         last_match_info, exec_quirks);
+}
+
+}  // namespace
+
 RUNTIME_FUNCTION(Runtime_RegExpExec) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
@@ -868,13 +898,63 @@ RUNTIME_FUNCTION(Runtime_RegExpExec) {
   CONVERT_ARG_HANDLE_CHECKED(String, subject, 1);
   CONVERT_INT32_ARG_CHECKED(index, 2);
   CONVERT_ARG_HANDLE_CHECKED(RegExpMatchInfo, last_match_info, 3);
-  // Due to the way the JS calls are constructed this must be less than the
-  // length of a string, i.e. it is always a Smi.  We check anyway for security.
-  CHECK_LE(0, index);
-  CHECK_GE(subject->length(), index);
-  isolate->counters()->regexp_entry_runtime()->Increment();
   RETURN_RESULT_OR_FAILURE(
-      isolate, RegExp::Exec(isolate, regexp, subject, index, last_match_info));
+      isolate, RegExpExec(isolate, regexp, subject, index, last_match_info,
+                          RegExp::ExecQuirks::kNone));
+}
+
+RUNTIME_FUNCTION(Runtime_RegExpExecTreatMatchAtEndAsFailure) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(4, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, subject, 1);
+  CONVERT_INT32_ARG_CHECKED(index, 2);
+  CONVERT_ARG_HANDLE_CHECKED(RegExpMatchInfo, last_match_info, 3);
+  RETURN_RESULT_OR_FAILURE(
+      isolate, RegExpExec(isolate, regexp, subject, index, last_match_info,
+                          RegExp::ExecQuirks::kTreatMatchAtEndAsFailure));
+}
+
+RUNTIME_FUNCTION(Runtime_RegExpExperimentalOneshotExec) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(4, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, subject, 1);
+  CONVERT_INT32_ARG_CHECKED(index, 2);
+  CONVERT_ARG_HANDLE_CHECKED(RegExpMatchInfo, last_match_info, 3);
+  RETURN_RESULT_OR_FAILURE(
+      isolate,
+      ExperimentalOneshotExec(isolate, regexp, subject, index, last_match_info,
+                              RegExp::ExecQuirks::kNone));
+}
+
+RUNTIME_FUNCTION(
+    Runtime_RegExpExperimentalOneshotExecTreatMatchAtEndAsFailure) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(4, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, subject, 1);
+  CONVERT_INT32_ARG_CHECKED(index, 2);
+  CONVERT_ARG_HANDLE_CHECKED(RegExpMatchInfo, last_match_info, 3);
+  RETURN_RESULT_OR_FAILURE(
+      isolate,
+      ExperimentalOneshotExec(isolate, regexp, subject, index, last_match_info,
+                              RegExp::ExecQuirks::kTreatMatchAtEndAsFailure));
+}
+
+RUNTIME_FUNCTION(Runtime_RegExpBuildIndices) {
+  DCHECK(FLAG_harmony_regexp_match_indices);
+
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(RegExpMatchInfo, match_info, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, maybe_names, 2);
+#ifdef DEBUG
+  CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 0);
+  DCHECK(regexp->GetFlags() & JSRegExp::kHasIndices);
+#endif
+
+  return *JSRegExpResultIndices::BuildIndices(isolate, match_info, maybe_names);
 }
 
 namespace {

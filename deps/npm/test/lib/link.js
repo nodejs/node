@@ -2,7 +2,7 @@ const { resolve } = require('path')
 
 const Arborist = require('@npmcli/arborist')
 const t = require('tap')
-const requireInject = require('require-inject')
+const mockNpm = require('../fixtures/mock-npm')
 
 const redactCwd = (path) => {
   const normalizePath = p => p
@@ -15,17 +15,13 @@ const redactCwd = (path) => {
 t.cleanSnapshot = (str) => redactCwd(str)
 
 let reifyOutput
-const npm = {
+const config = {}
+const npm = mockNpm({
   globalDir: null,
   prefix: null,
-  flatOptions: {},
-  config: {
-    get () {
-      return false
-    },
-    find () {},
-  },
-}
+  config,
+})
+
 const printLinks = async (opts) => {
   let res = ''
   const arb = new Arborist(opts)
@@ -40,11 +36,11 @@ const printLinks = async (opts) => {
 }
 
 const mocks = {
-  '../../lib/npm.js': npm,
   '../../lib/utils/reify-output.js': () => reifyOutput(),
 }
 
-const link = requireInject('../../lib/link.js', mocks)
+const Link = t.mock('../../lib/link.js', mocks)
+const link = new Link(npm)
 
 t.test('link to globalDir when in current working dir of pkg and no args', (t) => {
   t.plan(2)
@@ -83,8 +79,8 @@ t.test('link to globalDir when in current working dir of pkg and no args', (t) =
     t.matchSnapshot(links, 'should create a global link to current pkg')
   }
 
-  link([], (err) => {
-    t.ifError(err, 'should not error out')
+  link.exec([], (err) => {
+    t.error(err, 'should not error out')
   })
 })
 
@@ -185,14 +181,14 @@ t.test('link global linked pkg to local nm when using args', (t) => {
   // - @myscope/bar: prev installed scoped package available in globalDir
   // - a: prev installed package available in globalDir
   // - file:./link-me-too: pkg that needs to be reified in globalDir first
-  link([
+  link.exec([
     'test-pkg-link',
     '@myscope/linked',
     '@myscope/bar',
     'a',
     'file:../link-me-too',
   ], (err) => {
-    t.ifError(err, 'should not error out')
+    t.error(err, 'should not error out')
   })
 })
 
@@ -254,12 +250,70 @@ t.test('link pkg already in global space', (t) => {
   // - @myscope/bar: prev installed scoped package available in globalDir
   // - a: prev installed package available in globalDir
   // - file:./link-me-too: pkg that needs to be reified in globalDir first
-  link(['@myscope/linked'], (err) => {
-    t.ifError(err, 'should not error out')
+  link.exec(['@myscope/linked'], (err) => {
+    t.error(err, 'should not error out')
   })
 })
 
-t.test('completion', (t) => {
+t.test('link pkg already in global space when prefix is a symlink', (t) => {
+  t.plan(3)
+
+  const testdir = t.testdir({
+    'global-prefix': t.fixture('symlink', './real-global-prefix'),
+    'real-global-prefix': {
+      lib: {
+        node_modules: {
+          '@myscope': {
+            linked: t.fixture('symlink', '../../../../scoped-linked'),
+          },
+        },
+      },
+    },
+    'scoped-linked': {
+      'package.json': JSON.stringify({
+        name: '@myscope/linked',
+        version: '1.0.0',
+      }),
+    },
+    'my-project': {
+      'package.json': JSON.stringify({
+        name: 'my-project',
+        version: '1.0.0',
+      }),
+    },
+  })
+  npm.globalDir = resolve(testdir, 'global-prefix', 'lib', 'node_modules')
+  npm.prefix = resolve(testdir, 'my-project')
+
+  npm.config.find = () => 'default'
+
+  const _cwd = process.cwd()
+  process.chdir(npm.prefix)
+
+  reifyOutput = async () => {
+    reifyOutput = undefined
+    process.chdir(_cwd)
+    npm.config.find = () => null
+
+    const links = await printLinks({
+      path: npm.prefix,
+    })
+
+    t.equal(
+      require(resolve(testdir, 'my-project', 'package.json')).dependencies,
+      undefined,
+      'should not save to package.json upon linking'
+    )
+
+    t.matchSnapshot(links, 'should create a local symlink to global pkg')
+  }
+
+  link.exec(['@myscope/linked'], (err) => {
+    t.error(err, 'should not error out')
+  })
+})
+
+t.test('completion', async t => {
   const testdir = t.testdir({
     'global-prefix': {
       lib: {
@@ -274,31 +328,27 @@ t.test('completion', (t) => {
   })
   npm.globalDir = resolve(testdir, 'global-prefix', 'lib', 'node_modules')
 
-  link.completion({}, (err, words) => {
-    t.ifError(err, 'should not error out')
-    t.deepEqual(
-      words,
-      ['bar', 'foo', 'ipsum', 'lorem'],
-      'should list all package names available in globalDir'
-    )
-    t.end()
-  })
+  const words = await link.completion({})
+  t.same(
+    words,
+    ['bar', 'foo', 'ipsum', 'lorem'],
+    'should list all package names available in globalDir'
+  )
+  t.end()
 })
 
-t.test('--global option', (t) => {
+t.test('--global option', t => {
   const _config = npm.config
   npm.config = { get () {
     return true
   } }
-  link([], (err) => {
+  link.exec([], (err) => {
     npm.config = _config
-
     t.match(
       err.message,
       /link should never be --global/,
       'should throw an useful error'
     )
-
     t.end()
   })
 })

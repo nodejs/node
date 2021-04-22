@@ -1,48 +1,48 @@
-# Node.js Release Process
+# Node.js release process
 
 This document describes the technical aspects of the Node.js release process.
 The intended audience is those who have been authorized by the Node.js
 Technical Steering Committee (TSC) to create, promote, and sign
 official release builds for Node.js, hosted on <https://nodejs.org/>.
 
-## Table of Contents
+## Table of contents
 
 * [Who can make a release?](#who-can-make-a-release)
-  * [1. Jenkins Release Access](#1-jenkins-release-access)
-  * [2. <nodejs.org> Access](#2-nodejsorg-access)
-  * [3. A Publicly Listed GPG Key](#3-a-publicly-listed-gpg-key)
+  * [1. Jenkins release access](#1-jenkins-release-access)
+  * [2. <nodejs.org> access](#2-nodejsorg-access)
+  * [3. A publicly listed GPG key](#3-a-publicly-listed-gpg-key)
 * [How to create a release](#how-to-create-a-release)
   * [0. Pre-release steps](#0-pre-release-steps)
   * [1. Update the staging branch](#1-update-the-staging-branch)
   * [2. Create a new branch for the release](#2-create-a-new-branch-for-the-release)
   * [3. Update `src/node_version.h`](#3-update-srcnode_versionh)
-  * [4. Update the Changelog](#4-update-the-changelog)
-  * [5. Create Release Commit](#5-create-release-commit)
-  * [6. Propose Release on GitHub](#6-propose-release-on-github)
-  * [7. Ensure that the Release Branch is Stable](#7-ensure-that-the-release-branch-is-stable)
-  * [8. Produce a Nightly Build _(optional)_](#8-produce-a-nightly-build-optional)
-  * [9. Produce Release Builds](#9-produce-release-builds)
-  * [10. Test the Build](#10-test-the-build)
-  * [11. Tag and Sign the Release Commit](#11-tag-and-sign-the-release-commit)
-  * [12. Set Up For the Next Release](#12-set-up-for-the-next-release)
-  * [13. Cherry-pick the Release Commit to `master`](#13-cherry-pick-the-release-commit-to-master)
+  * [4. Update the changelog](#4-update-the-changelog)
+  * [5. Create release commit](#5-create-release-commit)
+  * [6. Propose release on GitHub](#6-propose-release-on-github)
+  * [7. Ensure that the release branch is stable](#7-ensure-that-the-release-branch-is-stable)
+  * [8. Produce a nightly build _(optional)_](#8-produce-a-nightly-build-optional)
+  * [9. Produce release builds](#9-produce-release-builds)
+  * [10. Test the build](#10-test-the-build)
+  * [11. Tag and sign the release commit](#11-tag-and-sign-the-release-commit)
+  * [12. Set up for the next release](#12-set-up-for-the-next-release)
+  * [13. Cherry-pick the release commit to `master`](#13-cherry-pick-the-release-commit-to-master)
   * [14. Push the release tag](#14-push-the-release-tag)
-  * [15. Promote and Sign the Release Builds](#15-promote-and-sign-the-release-builds)
-  * [16. Check the Release](#16-check-the-release)
-  * [17. Create a Blog Post](#17-create-a-blog-post)
+  * [15. Promote and sign the release builds](#15-promote-and-sign-the-release-builds)
+  * [16. Check the release](#16-check-the-release)
+  * [17. Create a blog post](#17-create-a-blog-post)
   * [18. Create the release on GitHub](#18-create-the-release-on-github)
   * [19. Cleanup](#19-cleanup)
   * [20. Announce](#20-announce)
   * [21. Celebrate](#21-celebrate)
-* [LTS Releases](#lts-releases)
-* [Major Releases](#major-releases)
+* [LTS releases](#lts-releases)
+* [Major releases](#major-releases)
 
 ## Who can make a release?
 
 Release authorization is given by the Node.js TSC. Once authorized, an
 individual must have the following:
 
-### 1. Jenkins Release Access
+### 1. Jenkins release access
 
 There are three relevant Jenkins jobs that should be used for a release flow:
 
@@ -64,7 +64,7 @@ a manual step once they are ready (see below).
 The [Node.js build team](https://github.com/nodejs/build) is able to provide
 this access to individuals authorized by the TSC.
 
-### 2. <nodejs.org> Access
+### 2. <nodejs.org> access
 
 The _dist_ user on nodejs.org controls the assets available in
 <https://nodejs.org/download/>. <https://nodejs.org/dist/> is an alias for
@@ -82,7 +82,7 @@ server as the _dist_ user. The
 [Node.js build team](https://github.com/nodejs/build) is able to provide this
 access to individuals authorized by the TSC.
 
-### 3. A Publicly Listed GPG Key
+### 3. A publicly-listed GPG key
 
 A `SHASUMS256.txt` file is produced for every promoted build, nightly, and
 releases. Additionally for releases, this file is signed by the individual
@@ -175,10 +175,10 @@ duplicate or not.
 For a list of commits that could be landed in a patch release on v1.x:
 
 ```console
-$ branch-diff v1.x-staging master --exclude-label=semver-major,semver-minor,dont-land-on-v1.x,backport-requested-v1.x --filter-release --format=simple
+$ branch-diff v1.x-staging master --exclude-label=semver-major,semver-minor,dont-land-on-v1.x,backport-requested-v1.x,backport-blocked-v1.x --filter-release --format=simple
 ```
 
-Previous release commits and version bumps do not need to be
+Previously released commits and version bumps do not need to be
 cherry-picked.
 
 Carefully review the list of commits:
@@ -187,17 +187,30 @@ Carefully review the list of commits:
 * Checking semver status - Commits labeled as `semver-minor` or `semver-major`
 should only be cherry-picked when appropriate for the type of release being
 made.
-* If you think it's risky so should wait for a while, add the `baking-for-lts`
-tag.
+* If you think it's risky and the change should wait for a while, add the
+`baking-for-lts` tag.
+
+When you are ready to cherry-pick commits, you can automate with the following
+command. (For semver-minor releases, make sure to remove the `semver-minor` tag
+from `exclude-label`.)
+
+```console
+$ branch-diff v1.x-staging master --exclude-label=semver-major,semver-minor,dont-land-on-v1.x,backport-requested-v1.x,backport-blocked-v1.x --filter-release --format=sha --reverse | xargs git cherry-pick
+```
 
 When cherry-picking commits, if there are simple conflicts you can resolve
 them. Otherwise, add the `backport-requested-vN.x` label to the original PR
 and post a comment stating that it does not land cleanly and will require a
 backport PR. You can refer the owner of the PR to the "[Backporting to Release
- Lines](https://github.com/nodejs/node/blob/master/doc/guides/backporting-to-release-lines.md)" guide.
+ Lines](https://github.com/nodejs/node/blob/HEAD/doc/guides/backporting-to-release-lines.md)" guide.
 
-If commits were cherry-picked in this step, check that the test still pass and
-push to the staging branch to keep it up-to-date.
+If commits were cherry-picked in this step, check that the test still pass.
+
+```console
+$ make test
+```
+
+Then, push to the staging branch to keep it up-to-date.
 
 ```console
 $ git push upstream v1.x-staging
@@ -249,7 +262,7 @@ defined, so if in doubt, please confer with someone that will have a more
 informed perspective, such as a member of the NAN team.
 
 A registry of currently used `NODE_MODULE_VERSION` values is maintained at
-<https://github.com/nodejs/node/blob/master/doc/abi_version_registry.json>.
+<https://github.com/nodejs/node/blob/HEAD/doc/abi_version_registry.json>.
 When bumping `NODE_MODULE_VERSION`, you should choose a new value not listed
 in the registry. Also include a change to the registry in your commit to
 reflect the newly used value.
@@ -258,7 +271,7 @@ It is current TSC policy to bump major version when ABI changes. If you
 see a need to bump `NODE_MODULE_VERSION` then you should consult the TSC.
 Commits may need to be reverted or a major version bump may need to happen.
 
-### 4. Update the Changelog
+### 4. Update the changelog
 
 #### Step 1: Collect the formatted list of changes
 
@@ -274,8 +287,10 @@ in the repository was not on the current branch you may have to supply a
 `--start-ref` argument:
 
 ```console
-$ changelog-maker --group --start-ref v1.2.2
+$ changelog-maker --group --filter-release --start-ref v1.2.2
 ```
+
+`--filter-release` will remove the release commit from the previous release.
 
 #### Step 2: Update the appropriate doc/changelogs/CHANGELOG_*.md file
 
@@ -344,7 +359,7 @@ must be assigned a number (e.g. `DEP0012`). This assignment should
 occur when the PR is landed, but a check will be made when the release build is
 run.
 
-### 5. Create Release Commit
+### 5. Create release commit
 
 The `CHANGELOG.md`, `doc/changelogs/CHANGELOG_Vx.md`, `src/node_version.h`, and
 `REPLACEME` changes should be the final commit that will be tagged for the
@@ -373,7 +388,7 @@ Notable changes:
 * Copy the notable changes list here, reformatted for plain-text
 ```
 
-### 6. Propose Release on GitHub
+### 6. Propose release on GitHub
 
 Push the release branch to `nodejs/node`, not to your own fork. This allows
 release branches to more easily be passed between members of the release team if
@@ -391,7 +406,7 @@ good place to @-mention the relevant contributors.
 After opening the PR, update the release commit to include `PR-URL` metadata and
 force-push the proposal.
 
-### 7. Ensure that the Release Branch is Stable
+### 7. Ensure that the release branch is stable
 
 Run a **[`node-test-pull-request`](https://ci.nodejs.org/job/node-test-pull-request/)**
 test run to ensure that the build is stable and the HEAD commit is ready for
@@ -406,7 +421,7 @@ purpose. Run it once with the base `vx.x` branch as a reference and with the
 proposal branch to check if new regressions could be introduced in the
 ecosystem.
 
-### 8. Produce a Nightly Build _(optional)_
+### 8. Produce a nightly build _(optional)_
 
 If there is a reason to produce a test release for the purpose of having others
 try out installers or specifics of builds, produce a nightly build using
@@ -418,7 +433,7 @@ enter a proper length commit SHA, enter a date string, and select "nightly" for
 This is particularly recommended if there has been recent work relating to the
 macOS or Windows installers as they are not tested in any way by CI.
 
-### 9. Produce Release Builds
+### 9. Produce release builds
 
 Use **[iojs+release](https://ci-release.nodejs.org/job/iojs+release/)** to
 produce release artifacts. Enter the commit that you want to build from and
@@ -464,14 +479,14 @@ can use the
 build in the release CI to re-run the build only for ARMv6. When launching the
 build make sure to use the same commit hash as for the original release.
 
-### 10. Test the Build
+### 10. Test the build
 
 Jenkins collects the artifacts from the builds, allowing you to download and
 install the new build. Make sure that the build appears correct. Check the
 version numbers, and perform some basic checks to confirm that all is well with
 the build before moving forward.
 
-### 11. Tag and Sign the Release Commit
+### 11. Tag and sign the release commit
 
 Once you have produced builds that you're happy with, create a new tag. By
 waiting until this stage to create tags, you can discard a proposed release if
@@ -506,7 +521,7 @@ $ git secure-tag <vx.y.z> <commit-sha> -sm "YYYY-MM-DD Node.js vx.y.z (<release-
 The tag **must** be signed using the GPG key that's listed for you on the
 project README.
 
-### 12. Set Up For the Next Release
+### 12. Set up for the next release
 
 On release proposal branch, edit `src/node_version.h` again and:
 
@@ -536,7 +551,7 @@ $ git rebase v1.x
 $ git push upstream v1.x-staging
 ```
 
-### 13. Cherry-pick the Release Commit to `master`
+### 13. Cherry-pick the release commit to `master`
 
 ```console
 $ git checkout master
@@ -579,7 +594,7 @@ $ git push <remote> <vx.y.z>
 *Note*: Please do not push the tag unless you are ready to complete the
 remainder of the release steps.
 
-### 15. Promote and Sign the Release Builds
+### 15. Promote and sign the release builds
 
 **The same individual who signed the release tag must be the one
 to promote the builds as the `SHASUMS256.txt` file needs to be signed with the
@@ -655,7 +670,7 @@ be prompted to re-sign `SHASUMS256.txt`.
 **It is possible to only sign a release by running `./tools/release.sh -s
 vX.Y.Z`.**
 
-### 16. Check the Release
+### 16. Check the release
 
 Your release should be available at `https://nodejs.org/dist/vx.y.z/` and
 <https://nodejs.org/dist/latest/>. Check that the appropriate files are in
@@ -664,7 +679,7 @@ have the right internal version strings. Check that the API docs are available
 at <https://nodejs.org/api/>. Check that the release catalog files are correct
 at <https://nodejs.org/dist/index.tab> and <https://nodejs.org/dist/index.json>.
 
-### 17. Create a Blog Post
+### 17. Create a blog post
 
 There is an automatic build that is kicked off when you promote new builds, so
 within a few minutes nodejs.org will be listing your new version as the latest
@@ -732,7 +747,7 @@ _In whatever form you do this..._
 
 ## LTS Releases
 
-### Marking a Release Line as LTS
+### Marking a release line as LTS
 
 To mark a release line as LTS, the following changes must be made to
 `src/node_version.h`:
@@ -770,7 +785,7 @@ existing labels for that release line, such as `vN.x`.
 If the release is transitioning from Active LTS to Maintenance, the
 `backport-requested-vN.x` label must be deleted.
 
-## Major Releases
+## Major releases
 
 The process for cutting a new Node.js major release has a number of differences
 from cutting a minor or patch release.
@@ -791,7 +806,7 @@ The release date for the next major release should be announced immediately
 following the current release (e.g. the release date for 13.0.0 should be
 announced immediately following the release of 12.0.0).
 
-### Release Branch
+### Release branch
 
 Approximately three months before a major release, new `vN.x` and
 `vN.x-staging` branches (where `N` indicates the major release) should be
@@ -821,7 +836,7 @@ The label description can be copied from existing labels of previous releases.
 The label color must be the same for all new labels, but different from the
 labels of previous releases.
 
-### Release Proposal
+### Release proposal
 
 A draft release proposal should be created two months before the release. A
 separate `vN.x-proposal` branch should be created that tracks the `vN.x`
@@ -832,7 +847,7 @@ Notify the `@nodejs/npm` team in the release proposal PR to inform them of the
 upcoming release. `npm` maintains a list of [supported versions](https://github.com/npm/cli/blob/latest/lib/utils/unsupported.js#L3)
 that will need updating to include the new major release.
 
-### Test Releases and Release Candidates
+### Test releases and release candidates
 
 Test builds should be generated from the `vN.x-proposal` branch starting at
 about 6 weeks before the release.
@@ -882,8 +897,8 @@ commits may be listed as notable changes on a case-by-case basis. Use your
 judgment there.
 
 [Build issue tracker]: https://github.com/nodejs/build/issues/new
-[CI lockdown procedure]: https://github.com/nodejs/build/blob/master/doc/jenkins-guide.md#restricting-access-for-security-releases
-[Partner Communities]: https://github.com/nodejs/community-committee/blob/master/governance/PARTNER_COMMUNITIES.md
-[nodejs.org release-post.js script]: https://github.com/nodejs/nodejs.org/blob/master/scripts/release-post.js
+[CI lockdown procedure]: https://github.com/nodejs/build/blob/HEAD/doc/jenkins-guide.md#restricting-access-for-security-releases
+[Partner Communities]: https://github.com/nodejs/community-committee/blob/HEAD/governance/PARTNER_COMMUNITIES.md
+[nodejs.org release-post.js script]: https://github.com/nodejs/nodejs.org/blob/HEAD/scripts/release-post.js
 [nodejs.org repository]: https://github.com/nodejs/nodejs.org
 [webchat.freenode.net]: https://webchat.freenode.net/

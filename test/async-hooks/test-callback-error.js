@@ -30,7 +30,7 @@ switch (arg) {
     return;
 }
 
-// This part should run only for the master test
+// This part should run only for the primary test
 assert.ok(!arg);
 {
   // console.log should stay until this test's flakiness is solved
@@ -75,7 +75,7 @@ assert.ok(!arg);
     assert.strictEqual(child.status, null);
     // Most posix systems will show 'SIGABRT', but alpine34 does not
     if (child.signal !== 'SIGABRT') {
-      console.log(`parent received signal ${child.signal}\nchild's stderr:`);
+      console.log(`primary received signal ${child.signal}\nchild's stderr:`);
       console.log(child.stderr);
       process.exit(1);
     }

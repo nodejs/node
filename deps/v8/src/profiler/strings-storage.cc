@@ -27,6 +27,7 @@ StringsStorage::~StringsStorage() {
 }
 
 const char* StringsStorage::GetCopy(const char* src) {
+  base::MutexGuard guard(&mutex_);
   int len = static_cast<int>(strlen(src));
   base::HashMap::Entry* entry = GetEntry(src, len);
   if (entry->value == nullptr) {
@@ -49,6 +50,7 @@ const char* StringsStorage::GetFormatted(const char* format, ...) {
 }
 
 const char* StringsStorage::AddOrDisposeString(char* str, int len) {
+  base::MutexGuard guard(&mutex_);
   base::HashMap::Entry* entry = GetEntry(str, len);
   if (entry->value == nullptr) {
     // New entry added.
@@ -74,7 +76,7 @@ const char* StringsStorage::GetVFormatted(const char* format, va_list args) {
 const char* StringsStorage::GetName(Name name) {
   if (name.IsString()) {
     String str = String::cast(name);
-    int length = Min(FLAG_heap_snapshot_string_limit, str.length());
+    int length = std::min(FLAG_heap_snapshot_string_limit, str.length());
     int actual_length = 0;
     std::unique_ptr<char[]> data = str.ToCString(
         DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL, 0, length, &actual_length);
@@ -92,7 +94,7 @@ const char* StringsStorage::GetName(int index) {
 const char* StringsStorage::GetConsName(const char* prefix, Name name) {
   if (name.IsString()) {
     String str = String::cast(name);
-    int length = Min(FLAG_heap_snapshot_string_limit, str.length());
+    int length = std::min(FLAG_heap_snapshot_string_limit, str.length());
     int actual_length = 0;
     std::unique_ptr<char[]> data = str.ToCString(
         DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL, 0, length, &actual_length);
@@ -101,19 +103,33 @@ const char* StringsStorage::GetConsName(const char* prefix, Name name) {
     char* cons_result = NewArray<char>(cons_length);
     snprintf(cons_result, cons_length, "%s%s", prefix, data.get());
 
-    return AddOrDisposeString(cons_result, cons_length);
+    return AddOrDisposeString(cons_result, cons_length - 1);
   } else if (name.IsSymbol()) {
     return "<symbol>";
   }
   return "";
 }
 
+namespace {
+
+inline uint32_t ComputeStringHash(const char* str, int len) {
+  uint32_t raw_hash_field =
+      StringHasher::HashSequentialString(str, len, kZeroHashSeed);
+  return raw_hash_field >> Name::kHashShift;
+}
+
+}  // namespace
+
 bool StringsStorage::Release(const char* str) {
+  base::MutexGuard guard(&mutex_);
   int len = static_cast<int>(strlen(str));
-  uint32_t hash = StringHasher::HashSequentialString(str, len, kZeroHashSeed);
+  uint32_t hash = ComputeStringHash(str, len);
   base::HashMap::Entry* entry = names_.Lookup(const_cast<char*>(str), hash);
-  DCHECK(entry);
-  if (!entry) {
+
+  // If an entry wasn't found or the address of the found entry doesn't match
+  // the one passed in, this string wasn't managed by this StringsStorage
+  // instance (i.e. a constant). Ignore this.
+  if (!entry || entry->key != str) {
     return false;
   }
 
@@ -133,7 +149,7 @@ size_t StringsStorage::GetStringCountForTesting() const {
 }
 
 base::HashMap::Entry* StringsStorage::GetEntry(const char* str, int len) {
-  uint32_t hash = StringHasher::HashSequentialString(str, len, kZeroHashSeed);
+  uint32_t hash = ComputeStringHash(str, len);
   return names_.LookupOrInsert(const_cast<char*>(str), hash);
 }
 

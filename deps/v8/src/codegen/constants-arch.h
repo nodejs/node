@@ -21,6 +21,8 @@
 #include "src/codegen/s390/constants-s390.h"  // NOLINT
 #elif V8_TARGET_ARCH_X64
 #include "src/codegen/x64/constants-x64.h"  // NOLINT
+#elif V8_TARGET_ARCH_RISCV64
+#include "src/codegen/riscv64/constants-riscv64.h"  // NOLINT
 #else
 #error Unsupported target architecture.
 #endif

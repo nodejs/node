@@ -55,8 +55,6 @@ struct V8_EXPORT TraceTraitFromInnerAddressImpl {
   static TraceDescriptor GetTraceDescriptor(const void* address);
 };
 
-}  // namespace internal
-
 /**
  * Trait specifying how the garbage collector processes an object of type T.
  *
@@ -64,7 +62,7 @@ struct V8_EXPORT TraceTraitFromInnerAddressImpl {
  * type.
  */
 template <typename T>
-struct TraceTrait {
+struct TraceTraitBase {
   static_assert(internal::IsTraceableV<T>, "T must have a Trace() method");
 
   /**
@@ -89,10 +87,17 @@ struct TraceTrait {
   }
 };
 
+}  // namespace internal
+
+template <typename T>
+struct TraceTrait : public internal::TraceTraitBase<T> {};
+
 namespace internal {
 
 template <typename T>
 struct TraceTraitImpl<T, false> {
+  static_assert(IsGarbageCollectedTypeV<T>,
+                "T must be of type GarbageCollected or GarbageCollectedMixin");
   static TraceDescriptor GetTraceDescriptor(const void* self) {
     return {self, TraceTrait<T>::Trace};
   }

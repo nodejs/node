@@ -1,0 +1,17 @@
+// Copyright 2020 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/objects/js-break-iterator.h'
+
+@generateCppClass
+extern class JSV8BreakIterator extends JSObject {
+  locale: String;
+  break_iterator: Foreign;  // Managed<icu::BreakIterator>;
+  unicode_string: Foreign;  // Managed<icu::UnicodeString>;
+  bound_adopt_text: Undefined|JSFunction;
+  bound_first: Undefined|JSFunction;
+  bound_next: Undefined|JSFunction;
+  bound_current: Undefined|JSFunction;
+  bound_break_type: Undefined|JSFunction;
+}

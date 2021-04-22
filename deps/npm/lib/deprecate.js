@@ -1,75 +1,79 @@
-const npm = require('./npm.js')
 const fetch = require('npm-registry-fetch')
 const otplease = require('./utils/otplease.js')
 const npa = require('npm-package-arg')
 const semver = require('semver')
 const getIdentity = require('./utils/get-identity.js')
 const libaccess = require('libnpmaccess')
-const usageUtil = require('./utils/usage.js')
+const BaseCommand = require('./base-command.js')
 
-const UsageError = () =>
-  Object.assign(new Error(`\nUsage: ${usage}`), {
-    code: 'EUSAGE',
-  })
+class Deprecate extends BaseCommand {
+  static get description () {
+    return 'Deprecate a version of a package'
+  }
 
-const usage = usageUtil(
-  'deprecate',
-  'npm deprecate <pkg>[@<version>] <message>'
-)
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'deprecate'
+  }
 
-const completion = (opts, cb) => {
-  if (opts.conf.argv.remain.length > 1)
-    return cb(null, [])
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get usage () {
+    return ['<pkg>[@<version>] <message>']
+  }
 
-  return getIdentity(npm.flatOptions).then((username) => {
-    return libaccess.lsPackages(username, npm.flatOptions).then((packages) => {
-      return Object.keys(packages)
-        .filter((name) => packages[name] === 'write' &&
-          (opts.conf.argv.remain.length === 0 ||
-            name.startsWith(opts.conf.argv.remain[0]))
-        )
-    })
-  }).then((list) => cb(null, list), (err) => cb(err))
-}
+  async completion (opts) {
+    if (opts.conf.argv.remain.length > 1)
+      return []
 
-const cmd = (args, cb) =>
-  deprecate(args)
-    .then(() => cb())
-    .catch(err => cb(err.code === 'EUSAGE' ? err.message : err))
+    const username = await getIdentity(this.npm, this.npm.flatOptions)
+    const packages = await libaccess.lsPackages(username, this.npm.flatOptions)
+    return Object.keys(packages)
+      .filter((name) =>
+        packages[name] === 'write' &&
+        (opts.conf.argv.remain.length === 0 ||
+          name.startsWith(opts.conf.argv.remain[0])))
+  }
 
-const deprecate = async ([pkg, msg]) => {
-  if (!pkg || !msg)
-    throw UsageError()
+  exec (args, cb) {
+    this.deprecate(args)
+      .then(() => cb())
+      .catch(err => cb(err.code === 'EUSAGE' ? err.message : err))
+  }
 
-  // fetch the data and make sure it exists.
-  const p = npa(pkg)
-  // npa makes the default spec "latest", but for deprecation
-  // "*" is the appropriate default.
-  const spec = p.rawSpec === '' ? '*' : p.fetchSpec
+  async deprecate ([pkg, msg]) {
+    if (!pkg || !msg)
+      throw this.usageError()
 
-  if (semver.validRange(spec, true) === null)
-    throw new Error(`invalid version range: ${spec}`)
+    // fetch the data and make sure it exists.
+    const p = npa(pkg)
+    // npa makes the default spec "latest", but for deprecation
+    // "*" is the appropriate default.
+    const spec = p.rawSpec === '' ? '*' : p.fetchSpec
 
-  const uri = '/' + p.escapedName
-  const packument = await fetch.json(uri, {
-    ...npm.flatOptions,
-    spec: p,
-    query: { write: true },
-  })
+    if (semver.validRange(spec, true) === null)
+      throw new Error(`invalid version range: ${spec}`)
 
-  Object.keys(packument.versions)
-    .filter(v => semver.satisfies(v, spec, { includePrerelease: true }))
-    .forEach(v => {
-      packument.versions[v].deprecated = msg
+    const uri = '/' + p.escapedName
+    const packument = await fetch.json(uri, {
+      ...this.npm.flatOptions,
+      spec: p,
+      query: { write: true },
     })
 
-  return otplease(npm.flatOptions, opts => fetch(uri, {
-    ...opts,
-    spec: p,
-    method: 'PUT',
-    body: packument,
-    ignoreBody: true,
-  }))
+    Object.keys(packument.versions)
+      .filter(v => semver.satisfies(v, spec, { includePrerelease: true }))
+      .forEach(v => {
+        packument.versions[v].deprecated = msg
+      })
+
+    return otplease(this.npm.flatOptions, opts => fetch(uri, {
+      ...opts,
+      spec: p,
+      method: 'PUT',
+      body: packument,
+      ignoreBody: true,
+    }))
+  }
 }
 
-module.exports = Object.assign(cmd, { completion, usage })
+module.exports = Deprecate

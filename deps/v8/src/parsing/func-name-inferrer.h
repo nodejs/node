@@ -39,6 +39,9 @@ class FuncNameInferrer {
  public:
   explicit FuncNameInferrer(AstValueFactory* ast_value_factory);
 
+  FuncNameInferrer(const FuncNameInferrer&) = delete;
+  FuncNameInferrer& operator=(const FuncNameInferrer&) = delete;
+
   // To enter function name inference state, put a FuncNameInferrer::State
   // on the stack.
   class State {
@@ -52,12 +55,12 @@ class FuncNameInferrer {
       fni_->names_stack_.resize(top_);
       --fni_->scope_depth_;
     }
+    State(const State&) = delete;
+    State& operator=(const State&) = delete;
 
    private:
     FuncNameInferrer* fni_;
     size_t top_;
-
-    DISALLOW_COPY_AND_ASSIGN(State);
   };
 
   // Returns whether we have entered name collection state.
@@ -119,8 +122,6 @@ class FuncNameInferrer {
   std::vector<Name> names_stack_;
   std::vector<FunctionLiteral*> funcs_to_infer_;
   size_t scope_depth_ = 0;
-
-  DISALLOW_COPY_AND_ASSIGN(FuncNameInferrer);
 };
 
 

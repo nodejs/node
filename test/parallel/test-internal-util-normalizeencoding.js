@@ -33,6 +33,9 @@ const tests = [
   ['base64', 'base64'],
   ['BASE64', 'base64'],
   ['Base64', 'base64'],
+  ['base64url', 'base64url'],
+  ['BASE64url', 'base64url'],
+  ['Base64url', 'base64url'],
   ['hex', 'hex'],
   ['HEX', 'hex'],
   ['ASCII', 'ascii'],
@@ -43,7 +46,7 @@ const tests = [
   [NaN, undefined],
   [0, undefined],
   [[], undefined],
-  [{}, undefined]
+  [{}, undefined],
 ];
 
 tests.forEach((e, i) => {

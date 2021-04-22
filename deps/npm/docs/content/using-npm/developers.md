@@ -20,7 +20,7 @@ These are man pages.  If you install npm, you should be able to
 then do `man npm-thing` to get the documentation on a particular
 topic, or `npm help thing` to see the same information.
 
-### What is a package
+### What is a Package
 
 A package is:
 
@@ -93,7 +93,7 @@ You can use `npm init` in the root of your package in order to get you
 started with a pretty basic package.json file.  See [`npm
 init`](/commands/npm-init) for more info.
 
-### Keeping files *out* of your package
+### Keeping files *out* of your Package
 
 Use a `.npmignore` file to keep stuff out of your package.  If there's no
 `.npmignore` file, but there *is* a `.gitignore` file, then npm will ignore
@@ -210,7 +210,7 @@ and then follow the prompts.
 
 This is documented better in [npm adduser](/commands/npm-adduser).
 
-### Publish your package
+### Publish your Package
 
 This part's easy.  In the root of your folder, do this:
 

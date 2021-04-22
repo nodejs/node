@@ -674,6 +674,9 @@ TEST_IMPL(fs_event_watch_file_twice) {
 #if defined(NO_FS_EVENTS)
   RETURN_SKIP(NO_FS_EVENTS);
 #endif
+#if defined(__ASAN__)
+  RETURN_SKIP("Test does not currently work in ASAN");
+#endif
   const char path[] = "test/fixtures/empty_file";
   uv_fs_event_t watchers[2];
   uv_timer_t timer;

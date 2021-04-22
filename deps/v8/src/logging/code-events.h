@@ -28,6 +28,7 @@ class WasmCode;
 using WasmName = Vector<const char>;
 }  // namespace wasm
 
+// clang-format off
 #define LOG_EVENTS_LIST(V)                             \
   V(CODE_CREATION_EVENT, code-creation)                \
   V(CODE_DISABLE_OPT_EVENT, code-disable-optimization) \
@@ -36,7 +37,9 @@ using WasmName = Vector<const char>;
   V(CODE_MOVING_GC, code-moving-gc)                    \
   V(SHARED_FUNC_MOVE_EVENT, sfi-move)                  \
   V(SNAPSHOT_CODE_NAME_EVENT, snapshot-code-name)      \
-  V(TICK_EVENT, tick)
+  V(TICK_EVENT, tick)                                  \
+  V(BYTECODE_FLUSH_EVENT, bytecode-flush)
+// clang-format on
 
 #define TAGS_LIST(V)                               \
   V(BUILTIN_TAG, Builtin)                          \
@@ -84,7 +87,8 @@ class CodeEventListener {
                                Handle<Name> script_name, int line,
                                int column) = 0;
   virtual void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
-                               wasm::WasmName name) = 0;
+                               wasm::WasmName name, const char* source_url,
+                               int code_offset, int script_id) = 0;
 
   virtual void CallbackEvent(Handle<Name> name, Address entry_point) = 0;
   virtual void GetterCallbackEvent(Handle<Name> name, Address entry_point) = 0;
@@ -105,6 +109,8 @@ class CodeEventListener {
   virtual void CodeDependencyChangeEvent(Handle<Code> code,
                                          Handle<SharedFunctionInfo> shared,
                                          const char* reason) = 0;
+  // Invoked during GC. No allocation allowed.
+  virtual void BytecodeFlushEvent(Address compiled_data_start) = 0;
 
   virtual bool is_listening_to_code_events() { return false; }
 };
@@ -115,6 +121,8 @@ class CodeEventDispatcher : public CodeEventListener {
   using LogEventsAndTags = CodeEventListener::LogEventsAndTags;
 
   CodeEventDispatcher() = default;
+  CodeEventDispatcher(const CodeEventDispatcher&) = delete;
+  CodeEventDispatcher& operator=(const CodeEventDispatcher&) = delete;
 
   bool AddListener(CodeEventListener* listener) {
     base::MutexGuard guard(&mutex_);
@@ -168,9 +176,11 @@ class CodeEventDispatcher : public CodeEventListener {
     });
   }
   void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
-                       wasm::WasmName name) override {
+                       wasm::WasmName name, const char* source_url,
+                       int code_offset, int script_id) override {
     DispatchEventToListeners([=](CodeEventListener* listener) {
-      listener->CodeCreateEvent(tag, code, name);
+      listener->CodeCreateEvent(tag, code, name, source_url, code_offset,
+                                script_id);
     });
   }
   void CallbackEvent(Handle<Name> name, Address entry_point) override {
@@ -227,12 +237,15 @@ class CodeEventDispatcher : public CodeEventListener {
       listener->CodeDependencyChangeEvent(code, sfi, reason);
     });
   }
+  void BytecodeFlushEvent(Address compiled_data_start) override {
+    DispatchEventToListeners([=](CodeEventListener* listener) {
+      listener->BytecodeFlushEvent(compiled_data_start);
+    });
+  }
 
  private:
   std::unordered_set<CodeEventListener*> listeners_;
   base::Mutex mutex_;
-
-  DISALLOW_COPY_AND_ASSIGN(CodeEventDispatcher);
 };
 
 }  // namespace internal

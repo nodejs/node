@@ -126,11 +126,18 @@ class DeserializerDelegate : public ValueDeserializer::Delegate {
 }  // anonymous namespace
 
 MaybeLocal<Value> Message::Deserialize(Environment* env,
-                                       Local<Context> context) {
+                                       Local<Context> context,
+                                       Local<Value>* port_list) {
+  Context::Scope context_scope(context);
+
   CHECK(!IsCloseMessage());
+  if (port_list != nullptr && !transferables_.empty()) {
+    // Need to create this outside of the EscapableHandleScope, but inside
+    // the Context::Scope.
+    *port_list = Array::New(env->isolate());
+  }
 
   EscapableHandleScope handle_scope(env->isolate());
-  Context::Scope context_scope(context);
 
   // Create all necessary objects for transferables, e.g. MessagePort handles.
   std::vector<BaseObjectPtr<BaseObject>> host_objects(transferables_.size());
@@ -146,10 +153,27 @@ MaybeLocal<Value> Message::Deserialize(Environment* env,
   });
 
   for (uint32_t i = 0; i < transferables_.size(); ++i) {
+    HandleScope handle_scope(env->isolate());
     TransferData* data = transferables_[i].get();
     host_objects[i] = data->Deserialize(
         env, context, std::move(transferables_[i]));
     if (!host_objects[i]) return {};
+    if (port_list != nullptr) {
+      // If we gather a list of all message ports, and this transferred object
+      // is a message port, add it to that list. This is a bit of an odd case
+      // of special handling for MessagePorts (as opposed to applying to all
+      // transferables), but it's required for spec compliancy.
+      DCHECK((*port_list)->IsArray());
+      Local<Array> port_list_array = port_list->As<Array>();
+      Local<Object> obj = host_objects[i]->object();
+      if (env->message_port_constructor_template()->HasInstance(obj)) {
+        if (port_list_array->Set(context,
+                                 port_list_array->Length(),
+                                 obj).IsNothing()) {
+          return {};
+        }
+      }
+    }
   }
   transferables_.clear();
 
@@ -565,7 +589,7 @@ MessagePort::MessagePort(Environment* env,
   auto onmessage = [](uv_async_t* handle) {
     // Called when data has been put into the queue.
     MessagePort* channel = ContainerOf(&MessagePort::async_, handle);
-    channel->OnMessage();
+    channel->OnMessage(MessageProcessingMode::kNormalOperation);
   };
 
   CHECK_EQ(uv_async_init(env->event_loop(),
@@ -664,7 +688,8 @@ MessagePort* MessagePort::New(
 }
 
 MaybeLocal<Value> MessagePort::ReceiveMessage(Local<Context> context,
-                                              bool only_if_receiving) {
+                                              MessageProcessingMode mode,
+                                              Local<Value>* port_list) {
   std::shared_ptr<Message> received;
   {
     // Get the head of the message queue.
@@ -672,7 +697,9 @@ MaybeLocal<Value> MessagePort::ReceiveMessage(Local<Context> context,
 
     Debug(this, "MessagePort has message");
 
-    bool wants_message = receiving_messages_ || !only_if_receiving;
+    bool wants_message =
+        receiving_messages_ ||
+        mode == MessageProcessingMode::kForceReadMessages;
     // We have nothing to do if:
     // - There are no pending messages
     // - We are not intending to receive messages, and the message we would
@@ -694,19 +721,22 @@ MaybeLocal<Value> MessagePort::ReceiveMessage(Local<Context> context,
 
   if (!env()->can_call_into_js()) return MaybeLocal<Value>();
 
-  return received->Deserialize(env(), context);
+  return received->Deserialize(env(), context, port_list);
 }
 
-void MessagePort::OnMessage() {
+void MessagePort::OnMessage(MessageProcessingMode mode) {
   Debug(this, "Running MessagePort::OnMessage()");
   HandleScope handle_scope(env()->isolate());
-  Local<Context> context = object(env()->isolate())->CreationContext();
+  Local<Context> context =
+      object(env()->isolate())->GetCreationContext().ToLocalChecked();
 
   size_t processing_limit;
-  {
+  if (mode == MessageProcessingMode::kNormalOperation) {
     Mutex::ScopedLock(data_->mutex_);
     processing_limit = std::max(data_->incoming_messages_.size(),
                                 static_cast<size_t>(1000));
+  } else {
+    processing_limit = std::numeric_limits<size_t>::max();
   }
 
   // data_ can only ever be modified by the owner thread, so no need to lock.
@@ -731,14 +761,15 @@ void MessagePort::OnMessage() {
     Local<Function> emit_message = PersistentToLocal::Strong(emit_message_fn_);
 
     Local<Value> payload;
+    Local<Value> port_list = Undefined(env()->isolate());
     Local<Value> message_error;
-    Local<Value> argv[2];
+    Local<Value> argv[3];
 
     {
       // Catch any exceptions from parsing the message itself (not from
       // emitting it) as 'messageeror' events.
       TryCatchScope try_catch(env());
-      if (!ReceiveMessage(context, true).ToLocal(&payload)) {
+      if (!ReceiveMessage(context, mode, &port_list).ToLocal(&payload)) {
         if (try_catch.HasCaught() && !try_catch.HasTerminated())
           message_error = try_catch.Exception();
         goto reschedule;
@@ -753,13 +784,15 @@ void MessagePort::OnMessage() {
     }
 
     argv[0] = payload;
-    argv[1] = env()->message_string();
+    argv[1] = port_list;
+    argv[2] = env()->message_string();
 
     if (MakeCallback(emit_message, arraysize(argv), argv).IsEmpty()) {
     reschedule:
       if (!message_error.IsEmpty()) {
         argv[0] = message_error;
-        argv[1] = env()->messageerror_string();
+        argv[1] = Undefined(env()->isolate());
+        argv[2] = env()->messageerror_string();
         USE(MakeCallback(emit_message, arraysize(argv), argv));
       }
 
@@ -811,7 +844,7 @@ Maybe<bool> MessagePort::PostMessage(Environment* env,
                                      const TransferList& transfer_v) {
   Isolate* isolate = env->isolate();
   Local<Object> obj = object(isolate);
-  Local<Context> context = obj->CreationContext();
+  Local<Context> context = obj->GetCreationContext().ToLocalChecked();
 
   std::shared_ptr<Message> msg = std::make_shared<Message>();
 
@@ -909,7 +942,7 @@ static Maybe<bool> ReadIterable(Environment* env,
 void MessagePort::PostMessage(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Local<Object> obj = args.This();
-  Local<Context> context = obj->CreationContext();
+  Local<Context> context = obj->GetCreationContext().ToLocalChecked();
 
   if (args.Length() == 0) {
     return THROW_ERR_MISSING_ARGS(env, "Not enough arguments to "
@@ -999,7 +1032,7 @@ void MessagePort::CheckType(const FunctionCallbackInfo<Value>& args) {
 void MessagePort::Drain(const FunctionCallbackInfo<Value>& args) {
   MessagePort* port;
   ASSIGN_OR_RETURN_UNWRAP(&port, args[0].As<Object>());
-  port->OnMessage();
+  port->OnMessage(MessageProcessingMode::kForceReadMessages);
 }
 
 void MessagePort::ReceiveMessage(const FunctionCallbackInfo<Value>& args) {
@@ -1017,8 +1050,9 @@ void MessagePort::ReceiveMessage(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  MaybeLocal<Value> payload =
-      port->ReceiveMessage(port->object()->CreationContext(), false);
+  MaybeLocal<Value> payload = port->ReceiveMessage(
+      port->object()->GetCreationContext().ToLocalChecked(),
+      MessageProcessingMode::kForceReadMessages);
   if (!payload.IsEmpty())
     args.GetReturnValue().Set(payload.ToLocalChecked());
 }
@@ -1377,7 +1411,7 @@ static void MessageChannel(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  Local<Context> context = args.This()->CreationContext();
+  Local<Context> context = args.This()->GetCreationContext().ToLocalChecked();
   Context::Scope context_scope(context);
 
   MessagePort* port1 = MessagePort::New(env, context);

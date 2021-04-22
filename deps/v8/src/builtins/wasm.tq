@@ -16,8 +16,8 @@ extern runtime WasmFunctionTableGet(
 extern runtime WasmFunctionTableSet(
     Context, WasmInstanceObject, Smi, Smi, Object): JSAny;
 extern runtime ThrowWasmError(Context, Smi): JSAny;
-extern runtime Throw(Context, Object): JSAny;
-extern runtime ReThrow(Context, Object): JSAny;
+extern runtime WasmThrow(Context, Object, FixedArray): JSAny;
+extern runtime WasmReThrow(Context, Object): JSAny;
 extern runtime WasmTriggerTierUp(Context, WasmInstanceObject): JSAny;
 extern runtime WasmStackGuard(Context): JSAny;
 extern runtime ThrowWasmStackOverflow(Context): JSAny;
@@ -35,7 +35,7 @@ extern runtime WasmAllocateRtt(Context, Smi, Map): Map;
 
 namespace unsafe {
 extern macro TimesTaggedSize(intptr): intptr;
-extern macro Allocate(intptr): HeapObject;
+extern macro Allocate(intptr, constexpr AllocationFlag): HeapObject;
 }
 
 namespace wasm {
@@ -192,13 +192,19 @@ builtin WasmRefFunc(index: uint32): Object {
   }
 }
 
-builtin WasmThrow(exception: Object): JSAny {
-  tail runtime::Throw(LoadContextFromFrame(), exception);
+builtin WasmAllocateFixedArray(size: intptr): FixedArray {
+  if (size == 0) return kEmptyFixedArray;
+  return UnsafeCast<FixedArray>(AllocateFixedArray(
+      ElementsKind::PACKED_ELEMENTS, size, AllocationFlag::kNone));
+}
+
+builtin WasmThrow(tag: Object, values: FixedArray): JSAny {
+  tail runtime::WasmThrow(LoadContextFromFrame(), tag, values);
 }
 
 builtin WasmRethrow(exception: Object): JSAny {
   if (exception == Null) tail ThrowWasmTrapRethrowNull();
-  tail runtime::ReThrow(LoadContextFromFrame(), exception);
+  tail runtime::WasmReThrow(LoadContextFromFrame(), exception);
 }
 
 builtin WasmTriggerTierUp(): JSAny {
@@ -231,34 +237,38 @@ builtin WasmAllocateJSArray(implicit context: Context)(size: Smi): JSArray {
   return AllocateJSArray(ElementsKind::PACKED_ELEMENTS, map, size, size);
 }
 
-builtin WasmAllocateRtt(implicit context: Context)(
-    typeIndex: Smi, parent: Map): Map {
-  tail runtime::WasmAllocateRtt(context, typeIndex, parent);
+builtin WasmAllocatePair(first: Object, second: Object): Tuple2 {
+  const tuple2Map: Map = %GetClassMapConstant<Tuple2>();
+  return new Tuple2{map: tuple2Map, value1: first, value2: second};
 }
 
-builtin WasmAllocateStructWithRtt(implicit context: Context)(rtt: Map):
-    HeapObject {
+builtin WasmAllocateRtt(typeIndex: intptr, parent: Map): Map {
+  tail runtime::WasmAllocateRtt(
+      LoadContextFromFrame(), SmiTag(typeIndex), parent);
+}
+
+builtin WasmAllocateStructWithRtt(rtt: Map): HeapObject {
   const instanceSize: intptr =
       unsafe::TimesTaggedSize(Convert<intptr>(rtt.instance_size_in_words));
-  const result: HeapObject = unsafe::Allocate(instanceSize);
+  const result: HeapObject = unsafe::Allocate(
+      instanceSize, AllocationFlag::kAllowLargeObjectAllocation);
   *UnsafeConstCast(&result.map) = rtt;
   return result;
 }
 
-builtin WasmIsRttSubtype(implicit context: Context)(sub: Map, super: Map): Smi {
-  let map = sub;
-  while (true) {
-    if (map == super) return SmiConstant(1);  // "true"
-    // This code relies on the fact that we use a non-WasmObject map as the
-    // end of the chain, e.g. for "rtt any", which then doesn't have a
-    // WasmTypeInfo.
-    // TODO(7748): Use a more explicit sentinel mechanism?
-    const maybeTypeInfo = map.constructor_or_back_pointer_or_native_context;
-    if (!Is<WasmTypeInfo>(maybeTypeInfo)) return SmiConstant(0);  // "false"
-    const typeInfo = %RawDownCast<WasmTypeInfo>(maybeTypeInfo);
-    map = typeInfo.parent;
-  }
-  unreachable;
+builtin WasmAllocateArrayWithRtt(
+    rtt: Map, length: uint32, elementSize: uint32): HeapObject {
+  // instanceSize = RoundUp(elementSize * length, kObjectAlignment)
+  //              + WasmArray::kHeaderSize
+  const instanceSize: intptr =
+      torque_internal::AlignTagged(
+          Convert<intptr>(length) * Convert<intptr>(elementSize)) +
+      Convert<intptr>(kWasmArrayHeaderSize);
+  const result: HeapObject = unsafe::Allocate(
+      instanceSize, AllocationFlag::kAllowLargeObjectAllocation);
+  *UnsafeConstCast(&result.map) = rtt;
+  %RawDownCast<WasmArray>(result).length = length;
+  return result;
 }
 
 // Redeclaration with different typing (value is an Object, not JSAny).
@@ -274,6 +284,23 @@ transitioning builtin WasmAllocateObjectWrapper(implicit context: Context)(
   return wrapper;
 }
 
+builtin WasmSubtypeCheck(objectSupertypes: FixedArray, rtt: Map): int32 {
+  const rttSupertypeLength: Smi =
+      %RawDownCast<WasmTypeInfo>(
+          rtt.constructor_or_back_pointer_or_native_context)
+          .supertypes.length;
+
+  if (objectSupertypes.length <= rttSupertypeLength) {
+    return 0;
+  }
+
+  const supertype: Map = %RawDownCast<Map>(
+      LoadFixedArrayElement(objectSupertypes, rttSupertypeLength));
+
+  if (supertype == rtt) return 1;
+  return 0;
+}
+
 builtin WasmInt32ToNumber(value: int32): Number {
   return ChangeInt32ToTagged(value);
 }
@@ -282,24 +309,32 @@ builtin WasmUint32ToNumber(value: uint32): Number {
   return ChangeUint32ToTagged(value);
 }
 
+builtin UintPtr53ToNumber(value: uintptr): Number {
+  if (value <= kSmiMaxValue) return Convert<Smi>(Convert<intptr>(value));
+  const valueFloat = ChangeUintPtrToFloat64(value);
+  // Values need to be within [0..2^53], such that they can be represented as
+  // float64.
+  assert(ChangeFloat64ToUintPtr(valueFloat) == value);
+  return AllocateHeapNumberWithValue(valueFloat);
+}
+
 extern builtin I64ToBigInt(intptr): BigInt;
 
-builtin WasmAtomicNotify(address: uint32, count: uint32): uint32 {
+builtin WasmAtomicNotify(offset: uintptr, count: uint32): uint32 {
   const instance: WasmInstanceObject = LoadInstanceFromFrame();
   const result: Smi = runtime::WasmAtomicNotify(
-      LoadContextFromInstance(instance), instance, WasmUint32ToNumber(address),
+      LoadContextFromInstance(instance), instance, UintPtr53ToNumber(offset),
       WasmUint32ToNumber(count));
   return Unsigned(SmiToInt32(result));
 }
 
 builtin WasmI32AtomicWait64(
-    address: uint32, expectedValue: int32, timeout: intptr): uint32 {
+    offset: uintptr, expectedValue: int32, timeout: intptr): uint32 {
   if constexpr (Is64()) {
     const instance: WasmInstanceObject = LoadInstanceFromFrame();
     const result: Smi = runtime::WasmI32AtomicWait(
-        LoadContextFromInstance(instance), instance,
-        WasmUint32ToNumber(address), WasmInt32ToNumber(expectedValue),
-        I64ToBigInt(timeout));
+        LoadContextFromInstance(instance), instance, UintPtr53ToNumber(offset),
+        WasmInt32ToNumber(expectedValue), I64ToBigInt(timeout));
     return Unsigned(SmiToInt32(result));
   } else {
     unreachable;
@@ -307,13 +342,12 @@ builtin WasmI32AtomicWait64(
 }
 
 builtin WasmI64AtomicWait64(
-    address: uint32, expectedValue: intptr, timeout: intptr): uint32 {
+    offset: uintptr, expectedValue: intptr, timeout: intptr): uint32 {
   if constexpr (Is64()) {
     const instance: WasmInstanceObject = LoadInstanceFromFrame();
     const result: Smi = runtime::WasmI64AtomicWait(
-        LoadContextFromInstance(instance), instance,
-        WasmUint32ToNumber(address), I64ToBigInt(expectedValue),
-        I64ToBigInt(timeout));
+        LoadContextFromInstance(instance), instance, UintPtr53ToNumber(offset),
+        I64ToBigInt(expectedValue), I64ToBigInt(timeout));
     return Unsigned(SmiToInt32(result));
   } else {
     unreachable;
@@ -385,10 +419,6 @@ builtin ThrowWasmTrapFloatUnrepresentable(): JSAny {
   tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapFloatUnrepresentable));
 }
 
-builtin ThrowWasmTrapFuncInvalid(): JSAny {
-  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapFuncInvalid));
-}
-
 builtin ThrowWasmTrapFuncSigMismatch(): JSAny {
   tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapFuncSigMismatch));
 }
@@ -405,10 +435,6 @@ builtin ThrowWasmTrapTableOutOfBounds(): JSAny {
   tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapTableOutOfBounds));
 }
 
-builtin ThrowWasmTrapBrOnExnNull(): JSAny {
-  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapBrOnExnNull));
-}
-
 builtin ThrowWasmTrapRethrowNull(): JSAny {
   tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapRethrowNull));
 }
@@ -423,9 +449,5 @@ builtin ThrowWasmTrapIllegalCast(): JSAny {
 
 builtin ThrowWasmTrapArrayOutOfBounds(): JSAny {
   tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapArrayOutOfBounds));
-}
-
-builtin ThrowWasmTrapWasmJSFunction(): JSAny {
-  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapWasmJSFunction));
 }
 }

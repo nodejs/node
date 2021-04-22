@@ -46,6 +46,7 @@ Scale::Scale(const Scale& other)
 }
 
 Scale& Scale::operator=(const Scale& other) {
+    if (this == &other) { return *this; }  // self-assignment: no-op
     fMagnitude = other.fMagnitude;
     if (other.fArbitrary != nullptr) {
         UErrorCode localStatus = U_ZERO_ERROR;

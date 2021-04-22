@@ -25,9 +25,16 @@ rules:
       message: "Please use `require('internal/errors').hideStackFrames()` instead."
     - selector: "AssignmentExpression:matches([left.name='prepareStackTrace'], [left.property.name='prepareStackTrace'])"
       message: "Use 'overrideStackTrace' from 'lib/internal/errors.js' instead of 'Error.prepareStackTrace'."
+  no-restricted-globals:
+    - error
+    - name: globalThis
+      message: "Use `const { globalThis } = primordials;` instead of the global."
+    - name: global
+      message: "Use `const { globalThis } = primordials;` instead of `global`."
   # Custom rules in tools/eslint-rules
   node-core/lowercase-name-for-primitive: error
   node-core/non-ascii-character: error
+  node-core/no-array-destructuring: error
   node-core/prefer-primordials:
     - error
     - name: Array
@@ -38,11 +45,17 @@ rules:
     - name: Boolean
     - name: DataView
     - name: Date
+    - name: decodeURI
+    - name: decodeURIComponent
+    - name: encodeURI
+    - name: encodeURIComponent
     - name: Error
       ignore:
         - prepareStackTrace
         - stackTraceLimit
     - name: EvalError
+    - name: FinalizationRegistry
+      into: Safe
     - name: Float32Array
     - name: Float64Array
     - name: Function
@@ -80,6 +93,8 @@ rules:
     - name: Uint8ClampedArray
     - name: URIError
     - name: WeakMap
+      into: Safe
+    - name: WeakRef
       into: Safe
     - name: WeakSet
       into: Safe

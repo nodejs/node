@@ -8,7 +8,7 @@ const p = child_process.spawn(process.execPath, [
   'vm = require("vm");' +
       'context = vm.createContext({});' +
       'try { vm.runInContext("throw new Error(\'boo\')", context); } ' +
-      'catch (e) { console.log(e.message); }'
+      'catch (e) { console.log(e.message); }',
 ]);
 
 p.stderr.on('data', common.mustNotCall());

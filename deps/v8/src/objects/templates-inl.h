@@ -17,6 +17,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/templates-tq-inl.inc"
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(TemplateInfo)
 TQ_OBJECT_CONSTRUCTORS_IMPL(FunctionTemplateInfo)
 TQ_OBJECT_CONSTRUCTORS_IMPL(ObjectTemplateInfo)
@@ -35,6 +37,9 @@ BOOL_ACCESSORS(FunctionTemplateInfo, flag, remove_prototype,
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, do_not_cache, DoNotCacheBit::kShift)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, accept_any_receiver,
                AcceptAnyReceiverBit::kShift)
+
+RELEASE_ACQUIRE_ACCESSORS(FunctionTemplateInfo, call_code, HeapObject,
+                          kCallCodeOffset)
 
 // static
 FunctionTemplateRareData FunctionTemplateInfo::EnsureFunctionTemplateRareData(
@@ -127,6 +132,14 @@ bool ObjectTemplateInfo::immutable_proto() const {
 
 void ObjectTemplateInfo::set_immutable_proto(bool immutable) {
   return set_data(IsImmutablePrototypeBit::update(data(), immutable));
+}
+
+bool ObjectTemplateInfo::code_like() const {
+  return IsCodeKindBit::decode(data());
+}
+
+void ObjectTemplateInfo::set_code_like(bool is_code_like) {
+  return set_data(IsCodeKindBit::update(data(), is_code_like));
 }
 
 bool FunctionTemplateInfo::IsTemplateFor(JSObject object) {

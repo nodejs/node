@@ -29,11 +29,9 @@
 #include <string.h>
 
 #ifdef _WIN32
-# if defined(__MINGW32__)
-#  include <basetyps.h>
-# endif
 # include <shellapi.h>
 # include <wchar.h>
+  typedef BOOL (WINAPI *sCompareObjectHandles)(_In_ HANDLE, _In_ HANDLE);
 #else
 # include <unistd.h>
 # include <sys/wait.h>
@@ -49,9 +47,7 @@ static char exepath[1024];
 static size_t exepath_size = 1024;
 static char* args[5];
 static int no_term_signal;
-#ifndef _WIN32
 static int timer_counter;
-#endif
 static uv_tcp_t tcp_server;
 
 #define OUTPUT_SIZE 1024
@@ -140,17 +136,20 @@ static void on_read(uv_stream_t* tcp, ssize_t nread, const uv_buf_t* buf) {
 }
 
 
-#ifndef _WIN32
 static void on_read_once(uv_stream_t* tcp, ssize_t nread, const uv_buf_t* buf) {
   uv_read_stop(tcp);
   on_read(tcp, nread, buf);
 }
-#endif
 
 
 static void write_cb(uv_write_t* req, int status) {
   ASSERT(status == 0);
   uv_close((uv_handle_t*) req->handle, close_cb);
+}
+
+
+static void write_null_cb(uv_write_t* req, int status) {
+  ASSERT(status == 0);
 }
 
 
@@ -177,11 +176,9 @@ static void timer_cb(uv_timer_t* handle) {
 }
 
 
-#ifndef _WIN32
 static void timer_counter_cb(uv_timer_t* handle) {
   ++timer_counter;
 }
-#endif
 
 
 TEST_IMPL(spawn_fails) {
@@ -1328,9 +1325,8 @@ TEST_IMPL(environment_creation) {
         found = 1;
       }
     }
-    if (prev) { /* verify sort order -- requires Vista */
-#if _WIN32_WINNT >= 0x0600 && \
-    (!defined(__MINGW32__) || defined(__MINGW64_VERSION_MAJOR))
+    if (prev) { /* verify sort order */
+#if !defined(__MINGW32__) || defined(__MINGW64_VERSION_MAJOR)
       ASSERT(CompareStringOrdinal(prev, -1, str, -1, TRUE) == 1);
 #endif
     }
@@ -1579,17 +1575,27 @@ TEST_IMPL(spawn_auto_unref) {
 }
 
 
-#ifndef _WIN32
 TEST_IMPL(spawn_fs_open) {
-  int fd;
+  int r;
+  uv_os_fd_t fd;
+  uv_os_fd_t dup_fd;
   uv_fs_t fs_req;
   uv_pipe_t in;
   uv_write_t write_req;
+  uv_write_t write_req2;
   uv_buf_t buf;
   uv_stdio_container_t stdio[1];
+#ifdef _WIN32
+  const char dev_null[] = "NUL";
+  HMODULE kernelbase_module;
+  sCompareObjectHandles pCompareObjectHandles; /* function introduced in Windows 10 */
+#else
+  const char dev_null[] = "/dev/null";
+#endif
 
-  fd = uv_fs_open(NULL, &fs_req, "/dev/null", O_RDWR, 0, NULL);
-  ASSERT(fd >= 0);
+  r = uv_fs_open(NULL, &fs_req, dev_null, O_RDWR, 0, NULL);
+  ASSERT(r != -1);
+  fd = uv_get_osfhandle((uv_file) fs_req.result);
   uv_fs_req_cleanup(&fs_req);
 
   init_process_options("spawn_helper8", exit_cb);
@@ -1601,13 +1607,28 @@ TEST_IMPL(spawn_fs_open) {
   options.stdio[0].data.stream = (uv_stream_t*) &in;
   options.stdio_count = 1;
 
+  /* make an inheritable copy */
+#ifdef _WIN32
+  ASSERT(0 != DuplicateHandle(GetCurrentProcess(), fd, GetCurrentProcess(), &dup_fd,
+                              0, /* inherit */ TRUE, DUPLICATE_SAME_ACCESS));
+  kernelbase_module = GetModuleHandleA("kernelbase.dll");
+  pCompareObjectHandles = (sCompareObjectHandles)
+      GetProcAddress(kernelbase_module, "CompareObjectHandles");
+  ASSERT(pCompareObjectHandles == NULL || pCompareObjectHandles(fd, dup_fd));
+#else
+  dup_fd = dup(fd);
+#endif
+
   ASSERT(0 == uv_spawn(uv_default_loop(), &process, &options));
 
   buf = uv_buf_init((char*) &fd, sizeof(fd));
-  ASSERT(0 == uv_write(&write_req, (uv_stream_t*) &in, &buf, 1, write_cb));
+  ASSERT(0 == uv_write(&write_req, (uv_stream_t*) &in, &buf, 1, write_null_cb));
+
+  buf = uv_buf_init((char*) &dup_fd, sizeof(fd));
+  ASSERT(0 == uv_write(&write_req2, (uv_stream_t*) &in, &buf, 1, write_cb));
 
   ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
-  ASSERT(0 == uv_fs_close(NULL, &fs_req, fd, NULL));
+  ASSERT(0 == uv_fs_close(NULL, &fs_req, r, NULL));
 
   ASSERT(exit_cb_called == 1);
   ASSERT(close_cb_called == 2);  /* One for `in`, one for process */
@@ -1615,17 +1636,20 @@ TEST_IMPL(spawn_fs_open) {
   MAKE_VALGRIND_HAPPY();
   return 0;
 }
-#endif  /* !_WIN32 */
 
 
-#ifndef _WIN32
 TEST_IMPL(closed_fd_events) {
   uv_stdio_container_t stdio[3];
   uv_pipe_t pipe_handle;
-  int fd[2];
+  uv_fs_t req;
+  uv_buf_t bufs[1];
+  uv_file fd[2];
+  bufs[0] = uv_buf_init("", 1);
 
   /* create a pipe and share it with a child process */
-  ASSERT(0 == pipe(fd));
+  ASSERT(0 == uv_pipe(fd, 0, 0));
+  ASSERT(fd[0] > 2);
+  ASSERT(fd[1] > 2);
 
   /* spawn_helper4 blocks indefinitely. */
   init_process_options("spawn_helper4", exit_cb);
@@ -1642,12 +1666,18 @@ TEST_IMPL(closed_fd_events) {
   /* read from the pipe with uv */
   ASSERT(0 == uv_pipe_init(uv_default_loop(), &pipe_handle, 0));
   ASSERT(0 == uv_pipe_open(&pipe_handle, fd[0]));
+  /* uv_pipe_open() takes ownership of the file descriptor. */
   fd[0] = -1;
 
   ASSERT(0 == uv_read_start((uv_stream_t*) &pipe_handle, on_alloc, on_read_once));
 
-  ASSERT(1 == write(fd[1], "", 1));
+  ASSERT(1 == uv_fs_write(NULL, &req, fd[1], bufs, 1, -1, NULL));
+  ASSERT(req.result == 1);
+  uv_fs_req_cleanup(&req);
 
+#ifdef _WIN32
+  ASSERT(1 == uv_run(uv_default_loop(), UV_RUN_ONCE));
+#endif
   ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_ONCE));
 
   /* should have received just one byte */
@@ -1656,7 +1686,9 @@ TEST_IMPL(closed_fd_events) {
   /* close the pipe and see if we still get events */
   uv_close((uv_handle_t*) &pipe_handle, close_cb);
 
-  ASSERT(1 == write(fd[1], "", 1));
+  ASSERT(1 == uv_fs_write(NULL, &req, fd[1], bufs, 1, -1, NULL));
+  ASSERT(req.result == 1);
+  uv_fs_req_cleanup(&req);
 
   ASSERT(0 == uv_timer_init(uv_default_loop(), &timer));
   ASSERT(0 == uv_timer_start(&timer, timer_counter_cb, 10, 0));
@@ -1669,13 +1701,17 @@ TEST_IMPL(closed_fd_events) {
   ASSERT(timer_counter == 1);
 
   /* cleanup */
-  ASSERT(0 == uv_process_kill(&process, /* SIGTERM */ 15));
+  ASSERT(0 == uv_process_kill(&process, SIGTERM));
+#ifdef _WIN32
+  ASSERT(0 == _close(fd[1]));
+#else
   ASSERT(0 == close(fd[1]));
+#endif
 
   MAKE_VALGRIND_HAPPY();
   return 0;
 }
-#endif  /* !_WIN32 */
+
 
 TEST_IMPL(spawn_reads_child_path) {
   int r;
@@ -1746,38 +1782,6 @@ TEST_IMPL(spawn_reads_child_path) {
   return 0;
 }
 
-#ifndef _WIN32
-static int mpipe(int *fds) {
-  if (pipe(fds) == -1)
-    return -1;
-  if (fcntl(fds[0], F_SETFD, FD_CLOEXEC) == -1 ||
-      fcntl(fds[1], F_SETFD, FD_CLOEXEC) == -1) {
-    close(fds[0]);
-    close(fds[1]);
-    return -1;
-  }
-  return 0;
-}
-#else
-static int mpipe(int *fds) {
-  SECURITY_ATTRIBUTES attr;
-  HANDLE readh, writeh;
-  attr.nLength = sizeof(attr);
-  attr.lpSecurityDescriptor = NULL;
-  attr.bInheritHandle = FALSE;
-  if (!CreatePipe(&readh, &writeh, &attr, 0))
-    return -1;
-  fds[0] = _open_osfhandle((intptr_t)readh, 0);
-  fds[1] = _open_osfhandle((intptr_t)writeh, 0);
-  if (fds[0] == -1 || fds[1] == -1) {
-    CloseHandle(readh);
-    CloseHandle(writeh);
-    return -1;
-  }
-  return 0;
-}
-#endif /* !_WIN32 */
-
 TEST_IMPL(spawn_inherit_streams) {
   uv_process_t child_req;
   uv_stdio_container_t child_stdio[2];
@@ -1803,8 +1807,8 @@ TEST_IMPL(spawn_inherit_streams) {
   ASSERT(uv_pipe_init(loop, &pipe_stdin_parent, 0) == 0);
   ASSERT(uv_pipe_init(loop, &pipe_stdout_parent, 0) == 0);
 
-  ASSERT(mpipe(fds_stdin) != -1);
-  ASSERT(mpipe(fds_stdout) != -1);
+  ASSERT(uv_pipe(fds_stdin, 0, 0) == 0);
+  ASSERT(uv_pipe(fds_stdout, 0, 0) == 0);
 
   ASSERT(uv_pipe_open(&pipe_stdin_child, fds_stdin[0]) == 0);
   ASSERT(uv_pipe_open(&pipe_stdout_child, fds_stdout[1]) == 0);

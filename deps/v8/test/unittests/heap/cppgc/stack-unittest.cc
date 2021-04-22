@@ -261,6 +261,8 @@ TEST_F(GCStackTest, IteratePointersFindsParameterNesting7) {
   EXPECT_TRUE(scanner->found());
 }
 
+// Disabled on msvc, due to miscompilation, see https://crbug.com/v8/10658.
+#if !defined(_MSC_VER) || defined(__clang__)
 TEST_F(GCStackTest, IteratePointersFindsParameterNesting8) {
   auto scanner = std::make_unique<StackScanner>();
   void* needle = RecursivelyPassOnParameter(8, scanner->needle(), GetStack(),
@@ -268,6 +270,7 @@ TEST_F(GCStackTest, IteratePointersFindsParameterNesting8) {
   EXPECT_EQ(scanner->needle(), needle);
   EXPECT_TRUE(scanner->found());
 }
+#endif  // !_MSC_VER || __clang__
 
 // The following test uses inline assembly and has been checked to work on clang
 // to verify that the stack-scanning trampoline pushes callee-saved registers.

@@ -110,19 +110,43 @@ TEST(CppgcWorkListTest, LocalPushPop) {
 
 TEST(CppgcWorkListTest, LocalPushStaysPrivate) {
   TestWorklist worklist;
-  TestWorklist::Local worklist_view1(&worklist);
-  TestWorklist::Local worklist_view2(&worklist);
+  TestWorklist::Local worklist_local1(&worklist);
+  TestWorklist::Local worklist_local2(&worklist);
   SomeObject dummy;
   SomeObject* retrieved = nullptr;
   EXPECT_TRUE(worklist.IsEmpty());
   EXPECT_EQ(0U, worklist.Size());
-  worklist_view1.Push(&dummy);
+  worklist_local1.Push(&dummy);
   EXPECT_EQ(0U, worklist.Size());
-  EXPECT_FALSE(worklist_view2.Pop(&retrieved));
+  EXPECT_FALSE(worklist_local2.Pop(&retrieved));
   EXPECT_EQ(nullptr, retrieved);
-  EXPECT_TRUE(worklist_view1.Pop(&retrieved));
+  EXPECT_TRUE(worklist_local1.Pop(&retrieved));
   EXPECT_EQ(&dummy, retrieved);
   EXPECT_EQ(0U, worklist.Size());
+}
+
+TEST(CppgcWorkListTest, LocalClear) {
+  TestWorklist worklist;
+  TestWorklist::Local worklist_local(&worklist);
+  SomeObject* object;
+  object = reinterpret_cast<SomeObject*>(&object);
+  // Check push segment:
+  EXPECT_TRUE(worklist_local.IsEmpty());
+  worklist_local.Push(object);
+  EXPECT_FALSE(worklist_local.IsEmpty());
+  worklist_local.Clear();
+  EXPECT_TRUE(worklist_local.IsEmpty());
+  // Check pop segment:
+  worklist_local.Push(object);
+  worklist_local.Push(object);
+  EXPECT_FALSE(worklist_local.IsEmpty());
+  worklist_local.Publish();
+  EXPECT_TRUE(worklist_local.IsEmpty());
+  SomeObject* retrieved;
+  worklist_local.Pop(&retrieved);
+  EXPECT_FALSE(worklist_local.IsEmpty());
+  worklist_local.Clear();
+  EXPECT_TRUE(worklist_local.IsEmpty());
 }
 
 TEST(CppgcWorkListTest, GlobalUpdateNull) {

@@ -16,6 +16,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/heap-number-tq-inl.inc"
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(HeapNumber)
 
 uint64_t HeapNumber::value_as_bits() const {

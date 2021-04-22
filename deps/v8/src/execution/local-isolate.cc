@@ -12,12 +12,15 @@
 namespace v8 {
 namespace internal {
 
-LocalIsolate::LocalIsolate(Isolate* isolate)
+LocalIsolate::LocalIsolate(Isolate* isolate, ThreadKind kind)
     : HiddenLocalFactory(isolate),
-      heap_(isolate->heap()),
+      heap_(isolate->heap(), kind),
       isolate_(isolate),
       logger_(new LocalLogger(isolate)),
-      thread_id_(ThreadId::Current()) {}
+      thread_id_(ThreadId::Current()),
+      stack_limit_(kind == ThreadKind::kMain
+                       ? isolate->stack_guard()->real_climit()
+                       : GetCurrentStackPosition() - FLAG_stack_size * KB) {}
 
 LocalIsolate::~LocalIsolate() = default;
 
@@ -29,9 +32,14 @@ int LocalIsolate::GetNextUniqueSharedFunctionInfoId() {
 }
 #endif  // V8_SFI_HAS_UNIQUE_ID
 
-bool LocalIsolate::is_collecting_type_profile() {
+bool LocalIsolate::is_collecting_type_profile() const {
   // TODO(leszeks): Figure out if it makes sense to check this asynchronously.
   return isolate_->is_collecting_type_profile();
+}
+
+// static
+bool StackLimitCheck::HasOverflowed(LocalIsolate* local_isolate) {
+  return GetCurrentStackPosition() < local_isolate->stack_limit();
 }
 
 }  // namespace internal

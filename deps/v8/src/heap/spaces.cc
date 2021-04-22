@@ -269,8 +269,8 @@ Address SpaceWithLinearArea::ComputeLimit(Address start, Address end,
         RoundSizeDownToObjectAlignment(static_cast<int>(step - 1));
     // Use uint64_t to avoid overflow on 32-bit
     uint64_t step_end =
-        static_cast<uint64_t>(start) + Max(min_size, rounded_step);
-    uint64_t new_end = Min(step_end, static_cast<uint64_t>(end));
+        static_cast<uint64_t>(start) + std::max(min_size, rounded_step);
+    uint64_t new_end = std::min(step_end, static_cast<uint64_t>(end));
     return static_cast<Address>(new_end);
   } else {
     // The entire node can be used as the linear allocation area.

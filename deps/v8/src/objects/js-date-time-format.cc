@@ -437,7 +437,7 @@ std::string CanonicalizeTimeZoneID(const std::string& input) {
         title[1] = 'S';
       }
       return title;
-    } else if (memcmp(upper.c_str(), "SYSTEMV/", 8) == 0) {
+    } else if (strncmp(upper.c_str(), "SYSTEMV/", 8) == 0) {
       upper.replace(0, 8, "SystemV/");
       return upper;
     }
@@ -510,7 +510,11 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
   // and
   // http://www.unicode.org/repos/cldr/tags/latest/common/bcp47/calendar.xml
   if (calendar_str == "gregorian") {
-    calendar_str = "gregory";
+    if (date_time_format->iso8601()) {
+      calendar_str = "iso8601";
+    } else {
+      calendar_str = "gregory";
+    }
   } else if (calendar_str == "ethiopic-amete-alem") {
     calendar_str = "ethioaa";
   }
@@ -770,16 +774,16 @@ MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
     return factory->Invalid_Date_string();
   }
 
-  // We only cache the instance when both locales and options are undefined,
-  // as that is the only case when the specified side-effects of examining
-  // those arguments are unobservable.
-  bool can_cache =
-      locales->IsUndefined(isolate) && options->IsUndefined(isolate);
+  // We only cache the instance when locales is a string/undefined and
+  // options is undefined, as that is the only case when the specified
+  // side-effects of examining those arguments are unobservable.
+  bool can_cache = (locales->IsString() || locales->IsUndefined(isolate)) &&
+                   options->IsUndefined(isolate);
   if (can_cache) {
     // Both locales and options are undefined, check the cache.
     icu::SimpleDateFormat* cached_icu_simple_date_format =
         static_cast<icu::SimpleDateFormat*>(
-            isolate->get_cached_icu_object(cache_type));
+            isolate->get_cached_icu_object(cache_type, locales));
     if (cached_icu_simple_date_format != nullptr) {
       return FormatDateTime(isolate, *cached_icu_simple_date_format, x);
     }
@@ -807,8 +811,9 @@ MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
 
   if (can_cache) {
     isolate->set_icu_object_in_cache(
-        cache_type, std::static_pointer_cast<icu::UMemory>(
-                        date_time_format->icu_simple_date_format().get()));
+        cache_type, locales,
+        std::static_pointer_cast<icu::UMemory>(
+            date_time_format->icu_simple_date_format().get()));
   }
   // 5. Return FormatDateTime(dateFormat, x).
   icu::SimpleDateFormat* format =
@@ -1102,6 +1107,7 @@ icu::UnicodeString ReplaceHourCycleInPattern(icu::UnicodeString pattern,
   }
   bool replace = true;
   icu::UnicodeString result;
+  char16_t last = u'\0';
   for (int32_t i = 0; i < pattern.length(); i++) {
     char16_t ch = pattern.charAt(i);
     switch (ch) {
@@ -1116,12 +1122,17 @@ icu::UnicodeString ReplaceHourCycleInPattern(icu::UnicodeString pattern,
       case 'K':
         V8_FALLTHROUGH;
       case 'k':
+        // If the previous field is a day, add a space before the hour.
+        if (replace && last == u'd') {
+          result.append(' ');
+        }
         result.append(replace ? replacement : ch);
         break;
       default:
         result.append(ch);
         break;
     }
+    last = ch;
   }
   return result;
 }
@@ -1562,6 +1573,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
     icu_locale.setUnicodeKeywordValue("ca", calendar_str.get(), status);
     DCHECK(U_SUCCESS(status));
   }
+  bool iso8601 = strstr(icu_locale.getName(), "calendar=iso8601") != nullptr;
 
   if (numbering_system_str != nullptr &&
       Intl::IsValidNumberingSystem(numbering_system_str.get())) {
@@ -1860,7 +1872,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
   // Now all properties are ready, so we can allocate the result object.
   Handle<JSDateTimeFormat> date_time_format = Handle<JSDateTimeFormat>::cast(
       isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   date_time_format->set_flags(0);
   if (date_style != DateTimeStyle::kUndefined) {
     date_time_format->set_date_style(date_style);
@@ -1869,6 +1881,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
     date_time_format->set_time_style(time_style);
   }
   date_time_format->set_hour_cycle(dateTimeFormatHourCycle);
+  date_time_format->set_iso8601(iso8601);
   date_time_format->set_locale(*locale_str);
   date_time_format->set_icu_locale(*managed_locale);
   date_time_format->set_icu_simple_date_format(*managed_format);

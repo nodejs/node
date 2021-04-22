@@ -29,6 +29,7 @@ SUPPORTED_SWARMING_DIMENSIONS = [
   'cpu',
   'device_os',
   'device_type',
+  'gpu',
   'os',
   'pool',
 ]

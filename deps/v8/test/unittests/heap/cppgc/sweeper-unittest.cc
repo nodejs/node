@@ -46,9 +46,14 @@ class SweeperTest : public testing::TestWithHeap {
     Sweeper& sweeper = heap->sweeper();
     // Pretend do finish marking as StatsCollector verifies that Notify*
     // methods are called in the right order.
-    heap->stats_collector()->NotifyMarkingStarted();
+    heap->stats_collector()->NotifyMarkingStarted(
+        GarbageCollector::Config::CollectionType::kMajor,
+        GarbageCollector::Config::IsForcedGC::kNotForced);
     heap->stats_collector()->NotifyMarkingCompleted(0);
-    sweeper.Start(Sweeper::Config::kAtomic);
+    const Sweeper::SweepingConfig sweeping_config{
+        Sweeper::SweepingConfig::SweepingType::kAtomic,
+        Sweeper::SweepingConfig::CompactableSpaceHandling::kSweep};
+    sweeper.Start(sweeping_config);
     sweeper.FinishIfRunning();
   }
 
@@ -262,6 +267,63 @@ TEST_F(SweeperTest, UnmarkObjects) {
   EXPECT_TRUE(normal_object_header.IsMarked());
   EXPECT_TRUE(large_object_header.IsMarked());
 #endif
+}
+
+TEST_F(SweeperTest, LazySweepingDuringAllocation) {
+  using GCedObject = GCed<256>;
+  static const size_t kObjectsPerPage =
+      NormalPage::PayloadSize() /
+      (sizeof(GCedObject) + sizeof(HeapObjectHeader));
+  // This test expects each page contain at least 2 objects.
+  DCHECK_LT(2u, kObjectsPerPage);
+  PreciseGC();
+  std::vector<Persistent<GCedObject>> first_page;
+  first_page.push_back(MakeGarbageCollected<GCedObject>(GetAllocationHandle()));
+  GCedObject* expected_address_on_first_page =
+      MakeGarbageCollected<GCedObject>(GetAllocationHandle());
+  for (size_t i = 2; i < kObjectsPerPage; ++i) {
+    first_page.push_back(
+        MakeGarbageCollected<GCedObject>(GetAllocationHandle()));
+  }
+  std::vector<Persistent<GCedObject>> second_page;
+  second_page.push_back(
+      MakeGarbageCollected<GCedObject>(GetAllocationHandle()));
+  GCedObject* expected_address_on_second_page =
+      MakeGarbageCollected<GCedObject>(GetAllocationHandle());
+  for (size_t i = 2; i < kObjectsPerPage; ++i) {
+    second_page.push_back(
+        MakeGarbageCollected<GCedObject>(GetAllocationHandle()));
+  }
+  testing::TestPlatform::DisableBackgroundTasksScope no_concurrent_sweep_scope(
+      GetPlatformHandle().get());
+  g_destructor_callcount = 0;
+  static constexpr Heap::Config config = {
+      Heap::Config::CollectionType::kMajor,
+      Heap::Config::StackState::kNoHeapPointers,
+      Heap::Config::MarkingType::kAtomic,
+      Heap::Config::SweepingType::kIncrementalAndConcurrent};
+  Heap::From(GetHeap())->CollectGarbage(config);
+  // Incremetal sweeping is active and the space should have two pages with
+  // no room for an additional GCedObject. Allocating a new GCedObject should
+  // trigger sweeping. All objects other than the 2nd object on each page are
+  // marked. Lazy sweeping on allocation should reclaim the object on one of
+  // the pages and reuse its memory. The object on the other page should remain
+  // un-reclaimed. To confirm: the newly object will be allcoated at one of the
+  // expected addresses and the GCedObject destructor is only called once.
+  GCedObject* new_object1 =
+      MakeGarbageCollected<GCedObject>(GetAllocationHandle());
+  EXPECT_EQ(1u, g_destructor_callcount);
+  EXPECT_TRUE((new_object1 == expected_address_on_first_page) ||
+              (new_object1 == expected_address_on_second_page));
+  // Allocating again should reclaim the other unmarked object and reuse its
+  // memory. The destructor will be called again and the new object will be
+  // allocated in one of the expected addresses but not the same one as before.
+  GCedObject* new_object2 =
+      MakeGarbageCollected<GCedObject>(GetAllocationHandle());
+  EXPECT_EQ(2u, g_destructor_callcount);
+  EXPECT_TRUE((new_object2 == expected_address_on_first_page) ||
+              (new_object2 == expected_address_on_second_page));
+  EXPECT_NE(new_object1, new_object2);
 }
 
 }  // namespace internal

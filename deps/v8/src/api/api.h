@@ -33,7 +33,6 @@ namespace debug {
 class AccessorPair;
 class GeneratorObject;
 class Script;
-class WasmValue;
 class WeakMap;
 }  // namespace debug
 
@@ -123,18 +122,20 @@ class RegisteredExtension {
   V(Context, Context)                          \
   V(External, Object)                          \
   V(StackTrace, FixedArray)                    \
-  V(StackFrame, StackTraceFrame)               \
+  V(StackFrame, StackFrameInfo)                \
   V(Proxy, JSProxy)                            \
   V(debug::GeneratorObject, JSGeneratorObject) \
   V(debug::Script, Script)                     \
   V(debug::WeakMap, JSWeakMap)                 \
   V(debug::AccessorPair, AccessorPair)         \
-  V(debug::WasmValue, WasmValue)               \
   V(Promise, JSPromise)                        \
   V(Primitive, Object)                         \
   V(PrimitiveArray, FixedArray)                \
   V(BigInt, BigInt)                            \
-  V(ScriptOrModule, Script)
+  V(ScriptOrModule, Script)                    \
+  V(FixedArray, FixedArray)                    \
+  V(ModuleRequest, ModuleRequest)              \
+  V(WasmMemoryObject, WasmMemoryObject)
 
 class Utils {
  public:
@@ -217,7 +218,7 @@ class Utils {
   static inline Local<StackTrace> StackTraceToLocal(
       v8::internal::Handle<v8::internal::FixedArray> obj);
   static inline Local<StackFrame> StackFrameToLocal(
-      v8::internal::Handle<v8::internal::StackTraceFrame> obj);
+      v8::internal::Handle<v8::internal::StackFrameInfo> obj);
   static inline Local<Number> NumberToLocal(
       v8::internal::Handle<v8::internal::Object> obj);
   static inline Local<Integer> IntegerToLocal(
@@ -240,7 +241,9 @@ class Utils {
       v8::internal::Handle<v8::internal::JSReceiver> obj);
   static inline Local<Primitive> ToLocalPrimitive(
       v8::internal::Handle<v8::internal::Object> obj);
-  static inline Local<PrimitiveArray> ToLocal(
+  static inline Local<FixedArray> FixedArrayToLocal(
+      v8::internal::Handle<v8::internal::FixedArray> obj);
+  static inline Local<PrimitiveArray> PrimitiveArrayToLocal(
       v8::internal::Handle<v8::internal::FixedArray> obj);
   static inline Local<ScriptOrModule> ScriptOrModuleToLocal(
       v8::internal::Handle<v8::internal::Script> obj);
@@ -315,7 +318,7 @@ class PersistentHandles;
 // data.
 class HandleScopeImplementer {
  public:
-  class EnteredContextRewindScope {
+  class V8_NODISCARD EnteredContextRewindScope {
    public:
     explicit EnteredContextRewindScope(HandleScopeImplementer* hsi)
         : hsi_(hsi), saved_entered_context_count_(hsi->EnteredContextCount()) {}
@@ -337,6 +340,9 @@ class HandleScopeImplementer {
         last_handle_before_deferred_block_(nullptr) {}
 
   ~HandleScopeImplementer() { DeleteArray(spare_); }
+
+  HandleScopeImplementer(const HandleScopeImplementer&) = delete;
+  HandleScopeImplementer& operator=(const HandleScopeImplementer&) = delete;
 
   // Threading support for handle data.
   static int ArchiveSpacePerThread();
@@ -434,8 +440,6 @@ class HandleScopeImplementer {
 
   friend class HandleScopeImplementerOffsets;
   friend class PersistentHandlesScope;
-
-  DISALLOW_COPY_AND_ASSIGN(HandleScopeImplementer);
 };
 
 const int kHandleBlockSize = v8::internal::KB - 2;  // fit in one page

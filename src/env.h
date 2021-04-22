@@ -37,6 +37,7 @@
 #include "node_main_instance.h"
 #include "node_options.h"
 #include "node_perf_common.h"
+#include "node_snapshotable.h"
 #include "req_wrap.h"
 #include "util.h"
 #include "uv.h"
@@ -253,10 +254,14 @@ constexpr size_t kFsStatsBufferLength =
   V(fd_string, "fd")                                                           \
   V(fields_string, "fields")                                                   \
   V(file_string, "file")                                                       \
+  V(filename_string, "filename")                                               \
   V(fingerprint256_string, "fingerprint256")                                   \
   V(fingerprint_string, "fingerprint")                                         \
   V(flags_string, "flags")                                                     \
+  V(flowlabel_string, "flowlabel")                                             \
   V(fragment_string, "fragment")                                               \
+  V(frames_received_string, "framesReceived")                                  \
+  V(frames_sent_string, "framesSent")                                          \
   V(function_string, "function")                                               \
   V(get_data_clone_error_string, "_getDataCloneError")                         \
   V(get_shared_array_buffer_id_string, "_getSharedArrayBufferId")              \
@@ -268,6 +273,7 @@ constexpr size_t kFsStatsBufferLength =
   V(host_string, "host")                                                       \
   V(hostmaster_string, "hostmaster")                                           \
   V(http_1_1_string, "http/1.1")                                               \
+  V(id_string, "id")                                                           \
   V(identity_string, "identity")                                               \
   V(ignore_string, "ignore")                                                   \
   V(infoaccess_string, "infoAccess")                                           \
@@ -280,6 +286,7 @@ constexpr size_t kFsStatsBufferLength =
   V(isclosing_string, "isClosing")                                             \
   V(issuer_string, "issuer")                                                   \
   V(issuercert_string, "issuerCertificate")                                    \
+  V(jwk_crv_string, "crv")                                                     \
   V(jwk_d_string, "d")                                                         \
   V(jwk_dp_string, "dp")                                                       \
   V(jwk_dq_string, "dq")                                                       \
@@ -294,6 +301,7 @@ constexpr size_t kFsStatsBufferLength =
   V(jwk_kty_string, "kty")                                                     \
   V(jwk_n_string, "n")                                                         \
   V(jwk_oct_string, "oct")                                                     \
+  V(jwk_okp_string, "OKP")                                                     \
   V(jwk_rsa_string, "RSA")                                                     \
   V(jwk_x_string, "x")                                                         \
   V(jwk_y_string, "y")                                                         \
@@ -303,6 +311,7 @@ constexpr size_t kFsStatsBufferLength =
   V(library_string, "library")                                                 \
   V(mac_string, "mac")                                                         \
   V(max_buffer_string, "maxBuffer")                                            \
+  V(max_concurrent_streams_string, "maxConcurrentStreams")                     \
   V(message_port_constructor_string, "MessagePort")                            \
   V(message_port_string, "messagePort")                                        \
   V(message_string, "message")                                                 \
@@ -349,6 +358,7 @@ constexpr size_t kFsStatsBufferLength =
   V(path_string, "path")                                                       \
   V(pending_handle_string, "pendingHandle")                                    \
   V(pid_string, "pid")                                                         \
+  V(ping_rtt_string, "pingRTT")                                                \
   V(pipe_source_string, "pipeSource")                                          \
   V(pipe_string, "pipe")                                                       \
   V(pipe_target_string, "pipeTarget")                                          \
@@ -364,7 +374,6 @@ constexpr size_t kFsStatsBufferLength =
   V(pubkey_string, "pubkey")                                                   \
   V(public_exponent_string, "publicExponent")                                  \
   V(query_string, "query")                                                     \
-  V(http3_alpn_string, "h3-29")                                                \
   V(rate_string, "rate")                                                       \
   V(raw_string, "raw")                                                         \
   V(read_host_object_string, "_readHostObject")                                \
@@ -397,6 +406,8 @@ constexpr size_t kFsStatsBufferLength =
   V(stats_string, "stats")                                                     \
   V(status_string, "status")                                                   \
   V(stdio_string, "stdio")                                                     \
+  V(stream_average_duration_string, "streamAverageDuration")                   \
+  V(stream_count_string, "streamCount")                                        \
   V(subject_string, "subject")                                                 \
   V(subjectaltname_string, "subjectaltname")                                   \
   V(syscall_string, "syscall")                                                 \
@@ -404,6 +415,9 @@ constexpr size_t kFsStatsBufferLength =
   V(thread_id_string, "threadId")                                              \
   V(ticketkeycallback_string, "onticketkeycallback")                           \
   V(timeout_string, "timeout")                                                 \
+  V(time_to_first_byte_string, "timeToFirstByte")                              \
+  V(time_to_first_byte_sent_string, "timeToFirstByteSent")                     \
+  V(time_to_first_header_string, "timeToFirstHeader")                          \
   V(tls_ticket_string, "tlsTicket")                                            \
   V(transfer_string, "transfer")                                               \
   V(ttl_string, "ttl")                                                         \
@@ -433,22 +447,13 @@ constexpr size_t kFsStatsBufferLength =
   V(x_forwarded_string, "x-forwarded-for")                                     \
   V(zero_return_string, "ZERO_RETURN")
 
-#if defined(NODE_EXPERIMENTAL_QUIC) && NODE_EXPERIMENTAL_QUIC
-# define QUIC_ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)                       \
-  V(quicclientsession_instance_template, v8::ObjectTemplate)                   \
-  V(quicserversession_instance_template, v8::ObjectTemplate)                   \
-  V(quicserverstream_instance_template, v8::ObjectTemplate)                    \
-  V(quicsocketsendwrap_instance_template, v8::ObjectTemplate)
-#else
-# define QUIC_ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)
-#endif
-
 #define ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)                             \
   V(async_wrap_ctor_template, v8::FunctionTemplate)                            \
   V(async_wrap_object_ctor_template, v8::FunctionTemplate)                     \
   V(base_object_ctor_template, v8::FunctionTemplate)                           \
   V(binding_data_ctor_template, v8::FunctionTemplate)                          \
-  V(blocklist_instance_template, v8::ObjectTemplate)                           \
+  V(blob_constructor_template, v8::FunctionTemplate)                           \
+  V(blocklist_constructor_template, v8::FunctionTemplate)                      \
   V(compiled_fn_entry_template, v8::ObjectTemplate)                            \
   V(dir_instance_template, v8::ObjectTemplate)                                 \
   V(fd_constructor_template, v8::ObjectTemplate)                               \
@@ -456,11 +461,12 @@ constexpr size_t kFsStatsBufferLength =
   V(filehandlereadwrap_template, v8::ObjectTemplate)                           \
   V(fsreqpromise_constructor_template, v8::ObjectTemplate)                     \
   V(handle_wrap_ctor_template, v8::FunctionTemplate)                           \
-  V(histogram_instance_template, v8::ObjectTemplate)                           \
+  V(histogram_ctor_template, v8::FunctionTemplate)                             \
   V(http2settings_constructor_template, v8::ObjectTemplate)                    \
   V(http2stream_constructor_template, v8::ObjectTemplate)                      \
   V(http2ping_constructor_template, v8::ObjectTemplate)                        \
   V(i18n_converter_template, v8::ObjectTemplate)                               \
+  V(intervalhistogram_constructor_template, v8::FunctionTemplate)              \
   V(libuv_stream_wrap_ctor_template, v8::FunctionTemplate)                     \
   V(message_port_constructor_template, v8::FunctionTemplate)                   \
   V(microtask_queue_ctor_template, v8::FunctionTemplate)                       \
@@ -470,39 +476,14 @@ constexpr size_t kFsStatsBufferLength =
   V(script_context_constructor_template, v8::FunctionTemplate)                 \
   V(secure_context_constructor_template, v8::FunctionTemplate)                 \
   V(shutdown_wrap_template, v8::ObjectTemplate)                                \
+  V(socketaddress_constructor_template, v8::FunctionTemplate)                  \
   V(streambaseoutputstream_constructor_template, v8::ObjectTemplate)           \
   V(qlogoutputstream_constructor_template, v8::ObjectTemplate)                 \
   V(tcp_constructor_template, v8::FunctionTemplate)                            \
   V(tty_constructor_template, v8::FunctionTemplate)                            \
   V(write_wrap_template, v8::ObjectTemplate)                                   \
   V(worker_heap_snapshot_taker_template, v8::ObjectTemplate)                   \
-  QUIC_ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)
-
-#if defined(NODE_EXPERIMENTAL_QUIC) && NODE_EXPERIMENTAL_QUIC
-# define QUIC_ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)                          \
-  V(quic_on_socket_close_function, v8::Function)                               \
-  V(quic_on_socket_server_busy_function, v8::Function)                         \
-  V(quic_on_session_cert_function, v8::Function)                               \
-  V(quic_on_session_client_hello_function, v8::Function)                       \
-  V(quic_on_session_close_function, v8::Function)                              \
-  V(quic_on_session_handshake_function, v8::Function)                          \
-  V(quic_on_session_keylog_function, v8::Function)                             \
-  V(quic_on_session_path_validation_function, v8::Function)                    \
-  V(quic_on_session_use_preferred_address_function, v8::Function)              \
-  V(quic_on_session_qlog_function, v8::Function)                               \
-  V(quic_on_session_ready_function, v8::Function)                              \
-  V(quic_on_session_status_function, v8::Function)                             \
-  V(quic_on_session_ticket_function, v8::Function)                             \
-  V(quic_on_session_version_negotiation_function, v8::Function)                \
-  V(quic_on_stream_close_function, v8::Function)                               \
-  V(quic_on_stream_error_function, v8::Function)                               \
-  V(quic_on_stream_ready_function, v8::Function)                               \
-  V(quic_on_stream_reset_function, v8::Function)                               \
-  V(quic_on_stream_headers_function, v8::Function)                             \
-  V(quic_on_stream_blocked_function, v8::Function)
-#else
-# define QUIC_ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
-#endif
+  V(x509_constructor_template, v8::FunctionTemplate)
 
 #define ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)                                \
   V(async_hooks_after_function, v8::Function)                                  \
@@ -546,6 +527,10 @@ constexpr size_t kFsStatsBufferLength =
   V(prepare_stack_trace_callback, v8::Function)                                \
   V(process_object, v8::Object)                                                \
   V(primordials, v8::Object)                                                   \
+  V(primordials_safe_map_prototype_object, v8::Object)                         \
+  V(primordials_safe_set_prototype_object, v8::Object)                         \
+  V(primordials_safe_weak_map_prototype_object, v8::Object)                    \
+  V(primordials_safe_weak_set_prototype_object, v8::Object)                    \
   V(promise_hook_handler, v8::Function)                                        \
   V(promise_reject_callback, v8::Function)                                     \
   V(script_data_constructor_function, v8::Function)                            \
@@ -555,8 +540,7 @@ constexpr size_t kFsStatsBufferLength =
   V(tls_wrap_constructor_function, v8::Function)                               \
   V(trace_category_state_function, v8::Function)                               \
   V(udp_constructor_function, v8::Function)                                    \
-  V(url_constructor_function, v8::Function)                                    \
-  QUIC_ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
+  V(url_constructor_function, v8::Function)
 
 class Environment;
 struct AllocatedBuffer;
@@ -928,7 +912,22 @@ struct PropInfo {
   SnapshotIndex index;  // In the snapshot
 };
 
+typedef void (*DeserializeRequestCallback)(v8::Local<v8::Context> context,
+                                           v8::Local<v8::Object> holder,
+                                           int index,
+                                           InternalFieldInfo* info);
+struct DeserializeRequest {
+  DeserializeRequestCallback cb;
+  v8::Global<v8::Object> holder;
+  int index;
+  InternalFieldInfo* info = nullptr;  // Owned by the request
+
+  // Move constructor
+  DeserializeRequest(DeserializeRequest&& other) = default;
+};
+
 struct EnvSerializeInfo {
+  std::vector<PropInfo> bindings;
   std::vector<std::string> native_modules;
   AsyncHooks::SerializeInfo async_hooks;
   TickInfo::SerializeInfo tick_info;
@@ -961,8 +960,14 @@ class Environment : public MemoryRetainer {
   void CreateProperties();
   void DeserializeProperties(const EnvSerializeInfo* info);
 
+  void PrintInfoForSnapshotIfDebug();
   void PrintAllBaseObjects();
   void VerifyNoStrongBaseObjects();
+  void EnqueueDeserializeRequest(DeserializeRequestCallback cb,
+                                 v8::Local<v8::Object> holder,
+                                 int index,
+                                 InternalFieldInfo* info);
+  void RunDeserializeRequests();
   // Should be called before InitializeInspector()
   void InitializeDiagnostics();
 
@@ -1062,6 +1067,8 @@ class Environment : public MemoryRetainer {
   inline void AssignToContext(v8::Local<v8::Context> context,
                               const ContextInfo& info);
 
+  void StartProfilerIdleNotifier();
+
   inline v8::Isolate* isolate() const;
   inline uv_loop_t* event_loop() const;
   inline void TryLoadAddon(
@@ -1117,6 +1124,7 @@ class Environment : public MemoryRetainer {
   // List of id's that have been destroyed and need the destroy() cb called.
   inline std::vector<double>* destroy_async_id_list();
 
+  std::set<struct node_module*> internal_bindings;
   std::set<std::string> native_modules_with_cache;
   std::set<std::string> native_modules_without_cache;
   // This is only filled during deserialization. We use a vector since
@@ -1136,7 +1144,6 @@ class Environment : public MemoryRetainer {
   EnabledDebugList* enabled_debug_list() { return &enabled_debug_list_; }
 
   inline performance::PerformanceState* performance_state();
-  inline std::unordered_map<std::string, uint64_t>* performance_marks();
 
   void CollectUVExceptionInfo(v8::Local<v8::Value> context,
                               int errorno,
@@ -1160,7 +1167,7 @@ class Environment : public MemoryRetainer {
   inline void add_refs(int64_t diff);
 
   inline bool has_run_bootstrapping_code() const;
-  inline void set_has_run_bootstrapping_code(bool has_run_bootstrapping_code);
+  inline void DoneBootstrapping();
 
   inline bool has_serialized_options() const;
   inline void set_has_serialized_options(bool has_serialized_options);
@@ -1234,13 +1241,22 @@ class Environment : public MemoryRetainer {
                                          const char* name,
                                          v8::FunctionCallback callback);
 
+  enum class SetConstructorFunctionFlag {
+    NONE,
+    SET_CLASS_NAME,
+  };
+
   inline void SetConstructorFunction(v8::Local<v8::Object> that,
                           const char* name,
-                          v8::Local<v8::FunctionTemplate> tmpl);
+                          v8::Local<v8::FunctionTemplate> tmpl,
+                          SetConstructorFunctionFlag flag =
+                              SetConstructorFunctionFlag::SET_CLASS_NAME);
 
   inline void SetConstructorFunction(v8::Local<v8::Object> that,
                           v8::Local<v8::String> name,
-                          v8::Local<v8::FunctionTemplate> tmpl);
+                          v8::Local<v8::FunctionTemplate> tmpl,
+                          SetConstructorFunctionFlag flag =
+                              SetConstructorFunctionFlag::SET_CLASS_NAME);
 
   void AtExit(void (*cb)(void* arg), void* arg);
   void RunAtExitCallbacks();
@@ -1346,6 +1362,7 @@ class Environment : public MemoryRetainer {
   // no memory leaks caused by BaseObjects staying alive longer than expected
   // (in particular, no circular BaseObjectPtr references).
   inline void modify_base_object_count(int64_t delta);
+  inline int64_t base_object_created_after_bootstrap() const;
   inline int64_t base_object_count() const;
 
   inline int32_t stack_trace_limit() const { return 10; }
@@ -1399,6 +1416,9 @@ class Environment : public MemoryRetainer {
   void AddUnmanagedFd(int fd);
   void RemoveUnmanagedFd(int fd);
 
+  template <typename T>
+  void ForEachBindingData(T&& iterator);
+
  private:
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
                          const char* errmsg);
@@ -1409,6 +1429,8 @@ class Environment : public MemoryRetainer {
   uv_timer_t timer_handle_;
   uv_check_t immediate_check_handle_;
   uv_idle_t immediate_idle_handle_;
+  uv_prepare_t idle_prepare_handle_;
+  uv_check_t idle_check_handle_;
   uv_async_t task_queues_async_;
   int64_t task_queues_async_refs_ = 0;
 
@@ -1469,7 +1491,6 @@ class Environment : public MemoryRetainer {
 
   uint64_t environment_start_time_;
   std::unique_ptr<performance::PerformanceState> performance_state_;
-  std::unordered_map<std::string, uint64_t> performance_marks_;
 
   bool has_run_bootstrapping_code_ = false;
   bool has_serialized_options_ = false;
@@ -1486,6 +1507,8 @@ class Environment : public MemoryRetainer {
   std::unique_ptr<inspector::Agent> inspector_agent_;
   bool is_in_inspector_console_call_ = false;
 #endif
+
+  std::list<DeserializeRequest> deserialize_requests_;
 
   // handle_wrap_queue_ and req_wrap_queue_ needs to be at a fixed offset from
   // the start of the class because it is used by
@@ -1539,7 +1562,7 @@ class Environment : public MemoryRetainer {
   bool started_cleanup_ = false;
 
   int64_t base_object_count_ = 0;
-  int64_t initial_base_object_count_ = 0;
+  int64_t base_object_created_by_bootstrap_ = 0;
   std::atomic_bool is_stopping_ { false };
 
   std::unordered_set<int> unmanaged_fds_;

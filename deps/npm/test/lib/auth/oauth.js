@@ -1,7 +1,6 @@
-const requireInject = require('require-inject')
-const { test } = require('tap')
+const t = require('tap')
 
-test('oauth login', (t) => {
+t.test('oauth login', (t) => {
   t.plan(3)
   const oauthOpts = {
     creds: {},
@@ -9,21 +8,21 @@ test('oauth login', (t) => {
     scope: 'myscope',
   }
 
-  const oauth = requireInject('../../../lib/auth/oauth.js', {
-    '../../../lib/auth/sso.js': (opts) => {
-      t.equal(opts, oauthOpts, 'should forward opts')
-    },
-    '../../../lib/npm.js': {
-      config: {
-        set: (key, value) => {
-          t.equal(key, 'sso-type', 'should define sso-type')
-          t.equal(value, 'oauth', 'should set sso-type to oauth')
-        },
+  const npm = {
+    config: {
+      set: (key, value) => {
+        t.equal(key, 'sso-type', 'should define sso-type')
+        t.equal(value, 'oauth', 'should set sso-type to oauth')
       },
+    },
+  }
+  const oauth = t.mock('../../../lib/auth/oauth.js', {
+    '../../../lib/auth/sso.js': (npm, opts) => {
+      t.equal(opts, oauthOpts, 'should forward opts')
     },
   })
 
-  oauth(oauthOpts)
+  oauth(npm, oauthOpts)
 
   t.end()
 })

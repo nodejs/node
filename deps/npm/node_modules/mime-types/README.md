@@ -3,7 +3,7 @@
 [![NPM Version][npm-version-image]][npm-url]
 [![NPM Downloads][npm-downloads-image]][npm-url]
 [![Node.js Version][node-version-image]][node-version-url]
-[![Build Status][travis-image]][travis-url]
+[![Build Status][ci-image]][ci-url]
 [![Test Coverage][coveralls-image]][coveralls-url]
 
 The ultimate javascript content-type utility.
@@ -36,8 +36,6 @@ so open a PR there if you'd like to add mime types.
 
 ## API
 
-<!-- eslint-disable no-unused-vars -->
-
 ```js
 var mime = require('mime-types')
 ```
@@ -47,8 +45,6 @@ All functions return `false` if input is invalid or not found.
 ### mime.lookup(path)
 
 Lookup the content-type associated with a file.
-
-<!-- eslint-disable no-undef -->
 
 ```js
 mime.lookup('json') // 'application/json'
@@ -68,8 +64,6 @@ content-type, otherwise the given content-type is used. Then if the
 content-type does not already have a `charset` parameter, `mime.charset`
 is used to get the default charset and add to the returned content-type.
 
-<!-- eslint-disable no-undef -->
-
 ```js
 mime.contentType('markdown') // 'text/x-markdown; charset=utf-8'
 mime.contentType('file.json') // 'application/json; charset=utf-8'
@@ -84,8 +78,6 @@ mime.contentType(path.extname('/path/to/file.json')) // 'application/json; chars
 
 Get the default extension for a content-type.
 
-<!-- eslint-disable no-undef -->
-
 ```js
 mime.extension('application/octet-stream') // 'bin'
 ```
@@ -93,8 +85,6 @@ mime.extension('application/octet-stream') // 'bin'
 ### mime.charset(type)
 
 Lookup the implied default charset of a content-type.
-
-<!-- eslint-disable no-undef -->
 
 ```js
 mime.charset('text/markdown') // 'UTF-8'
@@ -112,6 +102,8 @@ A map of extensions by content-type.
 
 [MIT](LICENSE)
 
+[ci-image]: https://badgen.net/github/checks/jshttp/mime-types/master?label=ci
+[ci-url]: https://github.com/jshttp/mime-types/actions?query=workflow%3Aci
 [coveralls-image]: https://badgen.net/coveralls/c/github/jshttp/mime-types/master
 [coveralls-url]: https://coveralls.io/r/jshttp/mime-types?branch=master
 [node-version-image]: https://badgen.net/npm/node/mime-types
@@ -119,5 +111,3 @@ A map of extensions by content-type.
 [npm-downloads-image]: https://badgen.net/npm/dm/mime-types
 [npm-url]: https://npmjs.org/package/mime-types
 [npm-version-image]: https://badgen.net/npm/v/mime-types
-[travis-image]: https://badgen.net/travis/jshttp/mime-types/master
-[travis-url]: https://travis-ci.org/jshttp/mime-types

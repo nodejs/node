@@ -3,6 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --experimental-wasm-reftypes --expose-gc --liftoff
-// Flags: --no-wasm-tier-up --liftoff-extern-ref
+// Flags: --no-wasm-tier-up --experimental-liftoff-extern-ref
 
 load("test/mjsunit/wasm/externref-globals.js");

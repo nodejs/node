@@ -55,7 +55,8 @@ InspectedContext::InspectedContext(V8InspectorImpl* inspector,
       m_contextGroupId(info.contextGroupId),
       m_origin(toString16(info.origin)),
       m_humanReadableName(toString16(info.humanReadableName)),
-      m_auxData(toString16(info.auxData)) {
+      m_auxData(toString16(info.auxData)),
+      m_uniqueId(V8DebuggerId::generate(inspector)) {
   v8::debug::SetContextId(info.context, contextId);
   m_weakCallbackData =
       new WeakCallbackData(this, m_inspector, m_contextGroupId, m_contextId);
@@ -70,8 +71,8 @@ InspectedContext::InspectedContext(V8InspectorImpl* inspector,
   if (global->Get(info.context, toV8String(m_inspector->isolate(), "console"))
           .ToLocal(&console) &&
       console->IsObject()) {
-    m_inspector->console()->installMemoryGetter(
-        info.context, v8::Local<v8::Object>::Cast(console));
+    m_inspector->console()->installMemoryGetter(info.context,
+                                                console.As<v8::Object>());
   }
 }
 

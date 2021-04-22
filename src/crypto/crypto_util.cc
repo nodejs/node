@@ -18,6 +18,7 @@ namespace node {
 
 using v8::ArrayBuffer;
 using v8::BackingStore;
+using v8::BigInt;
 using v8::Context;
 using v8::Exception;
 using v8::FunctionCallbackInfo;
@@ -31,6 +32,8 @@ using v8::NewStringType;
 using v8::Nothing;
 using v8::Object;
 using v8::String;
+using v8::Uint32;
+using v8::Uint8Array;
 using v8::Value;
 
 namespace crypto {
@@ -111,22 +114,43 @@ void InitCryptoOnce() {
   settings = nullptr;
 #endif
 
-#ifdef NODE_FIPS_MODE
+#ifndef _WIN32
+  if (per_process::cli_options->secure_heap != 0) {
+    switch (CRYPTO_secure_malloc_init(
+                per_process::cli_options->secure_heap,
+                static_cast<int>(per_process::cli_options->secure_heap_min))) {
+      case 0:
+        fprintf(stderr, "Unable to initialize openssl secure heap.\n");
+        break;
+      case 2:
+        // Not a fatal error but worthy of a warning.
+        fprintf(stderr, "Unable to memory map openssl secure heap.\n");
+        break;
+      case 1:
+        // OK!
+        break;
+    }
+  }
+#endif
+
   /* Override FIPS settings in cnf file, if needed. */
   unsigned long err = 0;  // NOLINT(runtime/int)
   if (per_process::cli_options->enable_fips_crypto ||
       per_process::cli_options->force_fips_crypto) {
+#if OPENSSL_VERSION_MAJOR >= 3
+    if (0 == EVP_default_properties_is_fips_enabled(nullptr) &&
+        !EVP_default_properties_enable_fips(nullptr, 1)) {
+#else
     if (0 == FIPS_mode() && !FIPS_mode_set(1)) {
+#endif
       err = ERR_get_error();
     }
   }
   if (0 != err) {
-    fprintf(stderr,
-            "openssl fips failed: %s\n",
-            ERR_error_string(err, nullptr));
-    UNREACHABLE();
+    auto* isolate = Isolate::GetCurrent();
+    auto* env = Environment::GetCurrent(isolate);
+    return ThrowCryptoError(env, err);
   }
-#endif  // NODE_FIPS_MODE
 
   // Turn off compression. Saves memory and protects against CRIME attacks.
   // No-op with OPENSSL_NO_COMP builds of OpenSSL.
@@ -140,9 +164,13 @@ void InitCryptoOnce() {
   NodeBIO::GetMethod();
 }
 
-#ifdef NODE_FIPS_MODE
 void GetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
+#if OPENSSL_VERSION_MAJOR >= 3
+  args.GetReturnValue().Set(EVP_default_properties_is_fips_enabled(nullptr) ?
+      1 : 0);
+#else
   args.GetReturnValue().Set(FIPS_mode() ? 1 : 0);
+#endif
 }
 
 void SetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
@@ -150,54 +178,79 @@ void SetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   bool enable = args[0]->BooleanValue(env->isolate());
 
+#if OPENSSL_VERSION_MAJOR >= 3
+  if (enable == EVP_default_properties_is_fips_enabled(nullptr))
+#else
   if (enable == FIPS_mode())
+#endif
     return;  // No action needed.
 
+#if OPENSSL_VERSION_MAJOR >= 3
+  if (!EVP_default_properties_enable_fips(nullptr, enable)) {
+#else
   if (!FIPS_mode_set(enable)) {
+#endif
     unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
     return ThrowCryptoError(env, err);
   }
 }
-#endif /* NODE_FIPS_MODE */
 
-void CryptoErrorVector::Capture() {
-  clear();
-  while (auto err = ERR_get_error()) {
-    char buf[256];
-    ERR_error_string_n(err, buf, sizeof(buf));
-    push_back(buf);
-  }
-  std::reverse(begin(), end());
+void TestFipsCrypto(const v8::FunctionCallbackInfo<v8::Value>& args) {
+#ifdef OPENSSL_FIPS
+  const auto enabled = FIPS_selftest() ? 1 : 0;
+#else  // OPENSSL_FIPS
+  const auto enabled = 0;
+#endif  // OPENSSL_FIPS
+
+  args.GetReturnValue().Set(enabled);
 }
 
-MaybeLocal<Value> CryptoErrorVector::ToException(
+void CryptoErrorStore::Capture() {
+  errors_.clear();
+  while (const uint32_t err = ERR_get_error()) {
+    char buf[256];
+    ERR_error_string_n(err, buf, sizeof(buf));
+    errors_.emplace_back(buf);
+  }
+  std::reverse(std::begin(errors_), std::end(errors_));
+}
+
+bool CryptoErrorStore::Empty() const {
+  return errors_.empty();
+}
+
+MaybeLocal<Value> CryptoErrorStore::ToException(
     Environment* env,
     Local<String> exception_string) const {
   if (exception_string.IsEmpty()) {
-    CryptoErrorVector copy(*this);
-    if (copy.empty()) copy.push_back("no error");  // But possibly a bug...
+    CryptoErrorStore copy(*this);
+    if (copy.Empty()) {
+      // But possibly a bug...
+      copy.Insert(NodeCryptoError::OK);
+    }
     // Use last element as the error message, everything else goes
     // into the .opensslErrorStack property on the exception object.
+    const std::string& last_error_string = copy.errors_.back();
     Local<String> exception_string;
     if (!String::NewFromUtf8(
             env->isolate(),
-            copy.back().data(),
+            last_error_string.data(),
             NewStringType::kNormal,
-            copy.back().size()).ToLocal(&exception_string)) {
+            last_error_string.size()).ToLocal(&exception_string)) {
       return MaybeLocal<Value>();
     }
-    copy.pop_back();
+    copy.errors_.pop_back();
     return copy.ToException(env, exception_string);
   }
 
   Local<Value> exception_v = Exception::Error(exception_string);
   CHECK(!exception_v.IsEmpty());
 
-  if (!empty()) {
+  if (!Empty()) {
     CHECK(exception_v->IsObject());
     Local<Object> exception = exception_v.As<Object>();
     Local<Value> stack;
-    if (!ToV8Value(env->context(), *this).ToLocal(&stack) ||
+    if (!ToV8Value(env->context(), errors_).ToLocal(&stack) ||
         exception->Set(env->context(), env->openssl_error_stack(), stack)
             .IsNothing()) {
       return MaybeLocal<Value>();
@@ -482,7 +535,7 @@ void ThrowCryptoError(Environment* env,
   Local<Object> obj;
   if (!String::NewFromUtf8(env->isolate(), message).ToLocal(&exception_string))
     return;
-  CryptoErrorVector errors;
+  CryptoErrorStore errors;
   errors.Capture();
   if (!errors.ToException(env, exception_string).ToLocal(&exception) ||
       !exception->ToObject(env->context()).ToLocal(&obj) ||
@@ -493,7 +546,7 @@ void ThrowCryptoError(Environment* env,
 }
 
 #ifndef OPENSSL_NO_ENGINE
-EnginePointer LoadEngineById(const char* id, CryptoErrorVector* errors) {
+EnginePointer LoadEngineById(const char* id, CryptoErrorStore* errors) {
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
   EnginePointer engine(ENGINE_by_id(id));
@@ -512,14 +565,14 @@ EnginePointer LoadEngineById(const char* id, CryptoErrorVector* errors) {
     if (ERR_get_error() != 0) {
       errors->Capture();
     } else {
-      errors->push_back(std::string("Engine \"") + id + "\" was not found");
+      errors->Insert(NodeCryptoError::ENGINE_NOT_FOUND, id);
     }
   }
 
   return engine;
 }
 
-bool SetEngine(const char* id, uint32_t flags, CryptoErrorVector* errors) {
+bool SetEngine(const char* id, uint32_t flags, CryptoErrorStore* errors) {
   ClearErrorOnReturn clear_error_on_return;
   EnginePointer engine = LoadEngineById(id, errors);
   if (!engine)
@@ -587,19 +640,58 @@ CryptoJobMode GetCryptoJobMode(v8::Local<v8::Value> args) {
   return static_cast<CryptoJobMode>(mode);
 }
 
+namespace {
+// SecureBuffer uses openssl to allocate a Uint8Array using
+// OPENSSL_secure_malloc. Because we do not yet actually
+// make use of secure heap, this has the same semantics as
+// using OPENSSL_malloc. However, if the secure heap is
+// initialized, SecureBuffer will automatically use it.
+void SecureBuffer(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsUint32());
+  Environment* env = Environment::GetCurrent(args);
+  uint32_t len = args[0].As<Uint32>()->Value();
+  char* data = static_cast<char*>(OPENSSL_secure_malloc(len));
+  if (data == nullptr) {
+    // There's no memory available for the allocation.
+    // Return nothing.
+    return;
+  }
+  memset(data, 0, len);
+  std::shared_ptr<BackingStore> store =
+      ArrayBuffer::NewBackingStore(
+          data,
+          len,
+          [](void* data, size_t len, void* deleter_data) {
+            OPENSSL_secure_clear_free(data, len);
+          },
+          data);
+  Local<ArrayBuffer> buffer = ArrayBuffer::New(env->isolate(), store);
+  args.GetReturnValue().Set(Uint8Array::New(buffer, 0, len));
+}
+
+void SecureHeapUsed(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (CRYPTO_secure_malloc_initialized())
+    args.GetReturnValue().Set(
+        BigInt::New(env->isolate(), CRYPTO_secure_used()));
+}
+}  // namespace
+
 namespace Util {
 void Initialize(Environment* env, Local<Object> target) {
 #ifndef OPENSSL_NO_ENGINE
   env->SetMethod(target, "setEngine", SetEngine);
 #endif  // !OPENSSL_NO_ENGINE
 
-#ifdef NODE_FIPS_MODE
   env->SetMethodNoSideEffect(target, "getFipsCrypto", GetFipsCrypto);
   env->SetMethod(target, "setFipsCrypto", SetFipsCrypto);
-#endif
+  env->SetMethodNoSideEffect(target, "testFipsCrypto", TestFipsCrypto);
 
   NODE_DEFINE_CONSTANT(target, kCryptoJobAsync);
   NODE_DEFINE_CONSTANT(target, kCryptoJobSync);
+
+  env->SetMethod(target, "secureBuffer", SecureBuffer);
+  env->SetMethod(target, "secureHeapUsed", SecureHeapUsed);
 }
 }  // namespace Util
 

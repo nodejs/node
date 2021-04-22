@@ -68,24 +68,37 @@ class ArrayBufferSweeper {
   size_t OldBytes();
 
  private:
-  enum class SweepingScope { Young, Full };
+  enum class SweepingScope { kYoung, kFull };
 
-  enum class SweepingState { Uninitialized, Prepared, Swept };
+  enum class SweepingState { kInProgress, kDone };
 
   struct SweepingJob {
-    CancelableTaskManager::Id id;
-    SweepingState state;
-    ArrayBufferList young;
-    ArrayBufferList old;
-    SweepingScope scope;
+    ArrayBufferSweeper* sweeper_;
+    CancelableTaskManager::Id id_;
+    std::atomic<SweepingState> state_;
+    ArrayBufferList young_;
+    ArrayBufferList old_;
+    SweepingScope scope_;
 
-    SweepingJob();
+    SweepingJob(ArrayBufferSweeper* sweeper, ArrayBufferList young,
+                ArrayBufferList old, SweepingScope scope)
+        : sweeper_(sweeper),
+          id_(0),
+          state_(SweepingState::kInProgress),
+          young_(young),
+          old_(old),
+          scope_(scope) {}
 
-    static SweepingJob Prepare(ArrayBufferList young, ArrayBufferList old,
-                               SweepingScope scope);
-  } job_;
+    void Sweep();
+    void SweepYoung();
+    void SweepFull();
+    ArrayBufferList SweepListFull(ArrayBufferList* list);
+  };
+
+  base::Optional<SweepingJob> job_;
 
   void Merge();
+  void AdjustCountersAndMergeIfPossible();
 
   void DecrementExternalMemoryCounters();
   void IncrementExternalMemoryCounters(size_t bytes);
@@ -93,11 +106,6 @@ class ArrayBufferSweeper {
 
   void RequestSweep(SweepingScope sweeping_task);
   void Prepare(SweepingScope sweeping_task);
-
-  void Sweep();
-  void SweepYoung();
-  void SweepFull();
-  ArrayBufferList SweepListFull(ArrayBufferList* list);
 
   ArrayBufferList SweepYoungGen();
   void SweepOldGen(ArrayBufferExtension* extension);

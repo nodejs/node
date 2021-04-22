@@ -86,22 +86,43 @@ class RegExp final : public AllStatic {
     kFromJs = 1,
   };
 
+  enum class ExecQuirks {
+    kNone,
+    // Used to work around an issue in the RegExpPrototypeSplit fast path,
+    // which diverges from the spec by not creating a sticky copy of the RegExp
+    // instance and calling `exec` in a loop. If called in this context, we
+    // must not update the last_match_info on a successful match at the subject
+    // string end. See crbug.com/1075514 for more information.
+    kTreatMatchAtEndAsFailure,
+  };
+
   // See ECMA-262 section 15.10.6.2.
   // This function calls the garbage collector if necessary.
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Exec(
       Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> subject,
-      int index, Handle<RegExpMatchInfo> last_match_info);
+      int index, Handle<RegExpMatchInfo> last_match_info,
+      ExecQuirks exec_quirks = ExecQuirks::kNone);
+
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
+  ExperimentalOneshotExec(Isolate* isolate, Handle<JSRegExp> regexp,
+                          Handle<String> subject, int index,
+                          Handle<RegExpMatchInfo> last_match_info,
+                          ExecQuirks exec_quirks = ExecQuirks::kNone);
 
   // Integral return values used throughout regexp code layers.
   static constexpr int kInternalRegExpFailure = 0;
   static constexpr int kInternalRegExpSuccess = 1;
   static constexpr int kInternalRegExpException = -1;
   static constexpr int kInternalRegExpRetry = -2;
+  static constexpr int kInternalRegExpFallbackToExperimental = -3;
+  static constexpr int kInternalRegExpSmallestResult = -3;
 
   enum IrregexpResult : int32_t {
     RE_FAILURE = kInternalRegExpFailure,
     RE_SUCCESS = kInternalRegExpSuccess,
     RE_EXCEPTION = kInternalRegExpException,
+    RE_RETRY = kInternalRegExpRetry,
+    RE_FALLBACK_TO_EXPERIMENTAL = kInternalRegExpFallbackToExperimental,
   };
 
   // Set last match info.  If match is nullptr, then setting captures is
@@ -129,6 +150,8 @@ class RegExp final : public AllStatic {
                                                   RegExpError error);
   static void ThrowRegExpException(Isolate* isolate, Handle<JSRegExp> re,
                                    RegExpError error_text);
+
+  static bool IsUnmodifiedRegExp(Isolate* isolate, Handle<JSRegExp> regexp);
 };
 
 // Uses a special global mode of irregexp-generated code to perform a global

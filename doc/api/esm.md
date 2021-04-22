@@ -7,6 +7,7 @@ added: v8.5.0
 changes:
   - version:
     - v15.3.0
+    - v12.22.0
     pr-url: https://github.com/nodejs/node/pull/35781
     description: Stabilize modules implementation.
   - version:
@@ -204,6 +205,10 @@ import _ from 'data:application/json,"world!"';
 added:
   - v14.13.1
   - v12.20.0
+changes:
+  - version: v16.0.0
+    pr-url: https://github.com/nodejs/node/pull/37246
+    description: Added `node:` import support to `require(...)`.
 -->
 
 `node:` URLs are supported as an alternative means to load Node.js builtin
@@ -278,6 +283,9 @@ const buffer = readFileSync(new URL('./data.proto', import.meta.url));
 
 > Stability: 1 - Experimental
 
+This feature is only available with the `--experimental-import-meta-resolve`
+command flag enabled.
+
 * `specifier` {string} The module specifier to resolve relative to `parent`.
 * `parent` {string|URL} The absolute parent module URL to resolve from. If none
   is specified, the value of `import.meta.url` is used as the default.
@@ -320,7 +328,7 @@ compatibility.
 The CommonJS module `require` always treats the files it references as CommonJS.
 
 Using `require` to load an ES module is not supported because ES modules have
-asynchronous execution. Instead, use use [`import()`][] to load an ES module
+asynchronous execution. Instead, use [`import()`][] to load an ES module
 from a CommonJS module.
 
 ### CommonJS Namespaces
@@ -435,13 +443,13 @@ import { readFile } from 'fs/promises';
 const json = JSON.parse(await readFile(new URL('./dat.json', import.meta.url)));
 ```
 
-Alterantively `module.createRequire()` can be used.
+Alternatively `module.createRequire()` can be used.
 
 #### No Native Module Loading
 
 Native modules are not currently supported with ES module imports.
 
-The can instead be loaded with [`module.createRequire()`][] or
+They can instead be loaded with [`module.createRequire()`][] or
 [`process.dlopen`][].
 
 #### No `require.resolve`
@@ -1016,6 +1024,8 @@ The resolver can throw the following errors:
   subpath in the package for the given module.
 * _Package Import Not Defined_: Package imports do not define the specifier.
 * _Module Not Found_: The package or module requested does not exist.
+* _Unsupported Directory Import_: The resolved path corresponds to a directory,
+  which is not a supported target for module imports.
 
 ### Resolver Algorithm Specification
 
@@ -1326,7 +1336,7 @@ success!
 [`transformSource` hook]: #esm_transformsource_source_context_defaulttransformsource
 [`string`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String
 [`util.TextDecoder`]: util.md#util_class_util_textdecoder
-[cjs-module-lexer]: https://github.com/guybedford/cjs-module-lexer/tree/1.0.0
+[cjs-module-lexer]: https://github.com/guybedford/cjs-module-lexer/tree/1.1.1
 [custom https loader]: #esm_https_loader
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
 [the official standard format]: https://tc39.github.io/ecma262/#sec-modules

@@ -89,12 +89,6 @@ addlicense "gtest" "test/cctest/gtest" "$(cat "${rootdir}"/test/cctest/gtest/LIC
 # nghttp2
 addlicense "nghttp2" "deps/nghttp2" "$(cat "${rootdir}"/deps/nghttp2/COPYING)"
 
-# ngtcp2
-addlicense "ngtcp2" "deps/ngtcp2" "$(cat "${rootdir}"/deps/ngtcp2/COPYING)"
-
-# nghttp3
-addlicense "nghttp3" "deps/nghttp3" "$(cat "${rootdir}"/deps/nghttp3/COPYING)"
-
 # node-inspect
 addlicense "node-inspect" "deps/node-inspect" "$(cat "${rootdir}"/deps/node-inspect/LICENSE)"
 
@@ -119,5 +113,7 @@ addlicense "rimraf" "lib/internal/fs/rimraf.js" \
            "$(curl -sL https://raw.githubusercontent.com/isaacs/rimraf/0e365ac4e4d64a25aa2a3cc026348f13410210e1/LICENSE)"
 
 addlicense "uvwasi" "deps/uvwasi" "$(cat "${rootdir}"/deps/uvwasi/LICENSE)"
+addlicense "ngtcp2" "deps/ngtcp2/ngtcp2/" "$(cat "${rootdir}"/deps/ngtcp2/LICENSE_ngtcp2)"
+addlicense "nghttp3" "deps/ngtcp2/nghttp3/" "$(cat "${rootdir}"/deps/ngtcp2/LICENSE_nghttp3)"
 
 mv "$tmplicense" "$licensefile"

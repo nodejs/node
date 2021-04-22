@@ -1,24 +1,43 @@
 // dedupe duplicated packages, or find them in the tree
-const npm = require('./npm.js')
 const Arborist = require('@npmcli/arborist')
-const usageUtil = require('./utils/usage.js')
 const reifyFinish = require('./utils/reify-finish.js')
 
-const usage = usageUtil('dedupe', 'npm dedupe')
-const completion = require('./utils/completion/none.js')
+const BaseCommand = require('./base-command.js')
 
-const cmd = (args, cb) => dedupe(args).then(() => cb()).catch(cb)
+class Dedupe extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'Reduce duplication in the package tree'
+  }
 
-const dedupe = async (args) => {
-  const dryRun = (args && args.dryRun) || npm.flatOptions.dryRun
-  const where = npm.prefix
-  const arb = new Arborist({
-    ...npm.flatOptions,
-    path: where,
-    dryRun,
-  })
-  await arb.dedupe(npm.flatOptions)
-  await reifyFinish(arb)
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'dedupe'
+  }
+
+  exec (args, cb) {
+    this.dedupe(args).then(() => cb()).catch(cb)
+  }
+
+  async dedupe (args) {
+    if (this.npm.config.get('global')) {
+      const er = new Error('`npm dedupe` does not work in global mode.')
+      er.code = 'EDEDUPEGLOBAL'
+      throw er
+    }
+
+    const dryRun = this.npm.config.get('dry-run')
+    const where = this.npm.prefix
+    const opts = {
+      ...this.npm.flatOptions,
+      log: this.npm.log,
+      path: where,
+      dryRun,
+    }
+    const arb = new Arborist(opts)
+    await arb.dedupe(opts)
+    await reifyFinish(this.npm, arb)
+  }
 }
 
-module.exports = Object.assign(cmd, { usage, completion })
+module.exports = Dedupe

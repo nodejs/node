@@ -12,37 +12,39 @@
 #include "src/objects/property-details.h"
 
 namespace v8 {
-
-std::unique_ptr<debug::PropertyIterator> debug::PropertyIterator::Create(
-    v8::Local<v8::Object> v8_object) {
-  internal::Isolate* isolate =
-      reinterpret_cast<internal::Isolate*>(v8_object->GetIsolate());
-  return std::unique_ptr<debug::PropertyIterator>(
-      new internal::DebugPropertyIterator(isolate,
-                                          Utils::OpenHandle(*v8_object)));
-}
-
 namespace internal {
+
+std::unique_ptr<DebugPropertyIterator> DebugPropertyIterator::Create(
+    Isolate* isolate, Handle<JSReceiver> receiver) {
+  // Can't use std::make_unique as Ctor is private.
+  auto iterator = std::unique_ptr<DebugPropertyIterator>(
+      new DebugPropertyIterator(isolate, receiver));
+
+  if (receiver->IsJSProxy()) {
+    iterator->is_own_ = false;
+    iterator->prototype_iterator_.AdvanceIgnoringProxies();
+  }
+  if (iterator->prototype_iterator_.IsAtEnd()) return iterator;
+
+  if (!iterator->FillKeysForCurrentPrototypeAndStage()) return nullptr;
+  if (iterator->should_move_to_next_stage() && !iterator->AdvanceInternal()) {
+    return nullptr;
+  }
+
+  return iterator;
+}
 
 DebugPropertyIterator::DebugPropertyIterator(Isolate* isolate,
                                              Handle<JSReceiver> receiver)
     : isolate_(isolate),
       prototype_iterator_(isolate, receiver, kStartAtReceiver,
-                          PrototypeIterator::END_AT_NULL) {
-  if (receiver->IsJSProxy()) {
-    is_own_ = false;
-    prototype_iterator_.AdvanceIgnoringProxies();
-  }
-  if (prototype_iterator_.IsAtEnd()) return;
-  FillKeysForCurrentPrototypeAndStage();
-  if (should_move_to_next_stage()) Advance();
-}
+                          PrototypeIterator::END_AT_NULL) {}
 
 bool DebugPropertyIterator::Done() const {
   return prototype_iterator_.IsAtEnd();
 }
 
-void DebugPropertyIterator::Advance() {
+bool DebugPropertyIterator::AdvanceInternal() {
   ++current_key_index_;
   calculated_native_accessor_flags_ = false;
   while (should_move_to_next_stage()) {
@@ -59,8 +61,9 @@ void DebugPropertyIterator::Advance() {
         prototype_iterator_.AdvanceIgnoringProxies();
         break;
     }
-    FillKeysForCurrentPrototypeAndStage();
+    if (!FillKeysForCurrentPrototypeAndStage()) return false;
   }
+  return true;
 }
 
 bool DebugPropertyIterator::is_native_accessor() {
@@ -138,19 +141,19 @@ bool DebugPropertyIterator::is_array_index() {
   return raw_name()->AsArrayIndex(&index);
 }
 
-void DebugPropertyIterator::FillKeysForCurrentPrototypeAndStage() {
+bool DebugPropertyIterator::FillKeysForCurrentPrototypeAndStage() {
   current_key_index_ = 0;
   exotic_length_ = 0;
   keys_ = Handle<FixedArray>::null();
-  if (prototype_iterator_.IsAtEnd()) return;
+  if (prototype_iterator_.IsAtEnd()) return true;
   Handle<JSReceiver> receiver =
       PrototypeIterator::GetCurrent<JSReceiver>(prototype_iterator_);
   bool has_exotic_indices = receiver->IsJSTypedArray();
   if (stage_ == kExoticIndices) {
-    if (!has_exotic_indices) return;
+    if (!has_exotic_indices) return true;
     Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(receiver);
     exotic_length_ = typed_array->WasDetached() ? 0 : typed_array->length();
-    return;
+    return true;
   }
   bool skip_indices = has_exotic_indices;
   PropertyFilter filter =
@@ -160,7 +163,9 @@ void DebugPropertyIterator::FillKeysForCurrentPrototypeAndStage() {
                                skip_indices)
            .ToHandle(&keys_)) {
     keys_ = Handle<FixedArray>::null();
+    return false;
   }
+  return true;
 }
 
 bool DebugPropertyIterator::should_move_to_next_stage() const {

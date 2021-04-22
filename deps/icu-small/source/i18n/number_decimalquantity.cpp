@@ -273,6 +273,9 @@ double DecimalQuantity::getPluralOperand(PluralOperand operand) const {
             return fractionCountWithoutTrailingZeros();
         case PLURAL_OPERAND_E:
             return static_cast<double>(getExponent());
+        case PLURAL_OPERAND_C:
+            // Plural operand `c` is currently an alias for `e`.
+            return static_cast<double>(getExponent());
         default:
             return std::abs(toDouble());
     }

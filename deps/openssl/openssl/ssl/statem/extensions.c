@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -58,6 +58,7 @@ static int final_maxfragmentlen(SSL *s, unsigned int context, int sent);
 static int init_post_handshake_auth(SSL *s, unsigned int context);
 #ifndef OPENSSL_NO_QUIC
 static int init_quic_transport_params(SSL *s, unsigned int context);
+static int final_quic_transport_params_draft(SSL *s, unsigned int context, int sent);
 static int final_quic_transport_params(SSL *s, unsigned int context, int sent);
 #endif
 
@@ -340,6 +341,8 @@ static const EXTENSION_DEFINITION ext_defs[] = {
         tls_construct_stoc_key_share, tls_construct_ctos_key_share,
         final_key_share
     },
+#else
+    INVALID_EXTENSION,
 #endif
     {
         /* Must be after key_share */
@@ -378,6 +381,15 @@ static const EXTENSION_DEFINITION ext_defs[] = {
         tls_construct_certificate_authorities, NULL,
     },
 #ifndef OPENSSL_NO_QUIC
+    {
+        TLSEXT_TYPE_quic_transport_parameters_draft,
+        SSL_EXT_CLIENT_HELLO | SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS
+        | SSL_EXT_TLS_IMPLEMENTATION_ONLY | SSL_EXT_TLS1_3_ONLY,
+        init_quic_transport_params,
+        tls_parse_ctos_quic_transport_params_draft, tls_parse_stoc_quic_transport_params_draft,
+        tls_construct_stoc_quic_transport_params_draft, tls_construct_ctos_quic_transport_params_draft,
+        final_quic_transport_params_draft,
+    },
     {
         TLSEXT_TYPE_quic_transport_parameters,
         SSL_EXT_CLIENT_HELLO | SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS
@@ -983,7 +995,8 @@ static int final_server_name(SSL *s, unsigned int context, int sent)
      * context, to avoid the confusing situation of having sess_accept_good
      * exceed sess_accept (zero) for the new context.
      */
-    if (SSL_IS_FIRST_HANDSHAKE(s) && s->ctx != s->session_ctx) {
+    if (SSL_IS_FIRST_HANDSHAKE(s) && s->ctx != s->session_ctx
+		    && s->hello_retry_request == SSL_HRR_NONE) {
         tsan_counter(&s->ctx->stats.sess_accept);
         tsan_decr(&s->session_ctx->stats.sess_accept);
     }
@@ -1153,6 +1166,7 @@ static int init_sig_algs(SSL *s, unsigned int context)
     /* Clear any signature algorithms extension received */
     OPENSSL_free(s->s3->tmp.peer_sigalgs);
     s->s3->tmp.peer_sigalgs = NULL;
+    s->s3->tmp.peer_sigalgslen = 0;
 
     return 1;
 }
@@ -1162,6 +1176,7 @@ static int init_sig_algs_cert(SSL *s, unsigned int context)
     /* Clear any signature algorithms extension received */
     OPENSSL_free(s->s3->tmp.peer_cert_sigalgs);
     s->s3->tmp.peer_cert_sigalgs = NULL;
+    s->s3->tmp.peer_cert_sigalgslen = 0;
 
     return 1;
 }
@@ -1737,8 +1752,38 @@ static int init_quic_transport_params(SSL *s, unsigned int context)
     return 1;
 }
 
+static int final_quic_transport_params_draft(SSL *s, unsigned int context,
+                                             int sent)
+{
+    return 1;
+}
+
 static int final_quic_transport_params(SSL *s, unsigned int context, int sent)
 {
+    /* called after final_quic_transport_params_draft */
+    if (SSL_IS_QUIC(s)) {
+        if (s->ext.peer_quic_transport_params_len == 0
+                && s->ext.peer_quic_transport_params_draft_len == 0) {
+            SSLfatal(s, SSL_AD_MISSING_EXTENSION,
+                     SSL_F_FINAL_QUIC_TRANSPORT_PARAMS,
+                     SSL_R_MISSING_QUIC_TRANSPORT_PARAMETERS_EXTENSION);
+            return 0;
+        }
+        /* if we got both, discard the one we can't use */
+        if (s->ext.peer_quic_transport_params_len != 0
+                && s->ext.peer_quic_transport_params_draft_len != 0) {
+            if (s->quic_transport_version == TLSEXT_TYPE_quic_transport_parameters_draft) {
+                OPENSSL_free(s->ext.peer_quic_transport_params);
+                s->ext.peer_quic_transport_params = NULL;
+                s->ext.peer_quic_transport_params_len = 0;
+            } else {
+                OPENSSL_free(s->ext.peer_quic_transport_params_draft);
+                s->ext.peer_quic_transport_params_draft = NULL;
+                s->ext.peer_quic_transport_params_draft_len = 0;
+            }
+        }
+    }
+
     return 1;
 }
 #endif

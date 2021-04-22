@@ -49,6 +49,8 @@ const server = http.createServer(function(req, res) {
   res.id = request_number;
   req.id = request_number++;
 
+  assert.strictEqual(res.req, req);
+
   if (req.id === 0) {
     assert.strictEqual(req.method, 'GET');
     assert.strictEqual(url.parse(req.url).pathname, '/hello');

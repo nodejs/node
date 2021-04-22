@@ -328,7 +328,7 @@ base::Optional<MapRef> NodeProperties::GetJSCreateMap(JSHeapBroker* broker,
          receiver->opcode() == IrOpcode::kJSCreateArray);
   HeapObjectMatcher mtarget(GetValueInput(receiver, 0));
   HeapObjectMatcher mnewtarget(GetValueInput(receiver, 1));
-  if (mtarget.HasValue() && mnewtarget.HasValue() &&
+  if (mtarget.HasResolvedValue() && mnewtarget.HasResolvedValue() &&
       mnewtarget.Ref(broker).IsJSFunction()) {
     ObjectRef target = mtarget.Ref(broker);
     JSFunctionRef newtarget = mnewtarget.Ref(broker).AsJSFunction();
@@ -349,11 +349,11 @@ base::Optional<MapRef> NodeProperties::GetJSCreateMap(JSHeapBroker* broker,
 }
 
 // static
-NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMapsUnsafe(
+NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
     JSHeapBroker* broker, Node* receiver, Node* effect,
     ZoneHandleSet<Map>* maps_return) {
   HeapObjectMatcher m(receiver);
-  if (m.HasValue()) {
+  if (m.HasResolvedValue()) {
     HeapObjectRef receiver = m.Ref(broker);
     // We don't use ICs for the Array.prototype and the Object.prototype
     // because the runtime has to be able to intercept them properly, so
@@ -368,11 +368,11 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMapsUnsafe(
         // The {receiver_map} is only reliable when we install a stability
         // code dependency.
         *maps_return = ZoneHandleSet<Map>(receiver.map().object());
-        return kUnreliableReceiverMaps;
+        return kUnreliableMaps;
       }
     }
   }
-  InferReceiverMapsResult result = kReliableReceiverMaps;
+  InferMapsResult result = kReliableMaps;
   while (true) {
     switch (effect->opcode()) {
       case IrOpcode::kMapGuard: {
@@ -399,9 +399,9 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMapsUnsafe(
             return result;
           }
           // We reached the allocation of the {receiver}.
-          return kNoReceiverMaps;
+          return kNoMaps;
         }
-        result = kUnreliableReceiverMaps;  // JSCreate can have side-effect.
+        result = kUnreliableMaps;  // JSCreate can have side-effect.
         break;
       }
       case IrOpcode::kJSCreatePromise: {
@@ -423,14 +423,14 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMapsUnsafe(
           if (IsSame(receiver, object)) {
             Node* const value = GetValueInput(effect, 1);
             HeapObjectMatcher m(value);
-            if (m.HasValue()) {
+            if (m.HasResolvedValue()) {
               *maps_return = ZoneHandleSet<Map>(m.Ref(broker).AsMap().object());
               return result;
             }
           }
           // Without alias analysis we cannot tell whether this
           // StoreField[map] affects {receiver} or not.
-          result = kUnreliableReceiverMaps;
+          result = kUnreliableMaps;
         }
         break;
       }
@@ -453,25 +453,25 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMapsUnsafe(
         if (control->opcode() != IrOpcode::kLoop) {
           DCHECK(control->opcode() == IrOpcode::kDead ||
                  control->opcode() == IrOpcode::kMerge);
-          return kNoReceiverMaps;
+          return kNoMaps;
         }
 
         // Continue search for receiver map outside the loop. Since operations
         // inside the loop may change the map, the result is unreliable.
         effect = GetEffectInput(effect, 0);
-        result = kUnreliableReceiverMaps;
+        result = kUnreliableMaps;
         continue;
       }
       default: {
         DCHECK_EQ(1, effect->op()->EffectOutputCount());
         if (effect->op()->EffectInputCount() != 1) {
           // Didn't find any appropriate CheckMaps node.
-          return kNoReceiverMaps;
+          return kNoMaps;
         }
         if (!effect->op()->HasProperty(Operator::kNoWrite)) {
           // Without alias/escape analysis we cannot tell whether this
           // {effect} affects {receiver} or not.
-          result = kUnreliableReceiverMaps;
+          result = kUnreliableMaps;
         }
         break;
       }
@@ -479,7 +479,7 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMapsUnsafe(
 
     // Stop walking the effect chain once we hit the definition of
     // the {receiver} along the {effect}s.
-    if (IsSame(receiver, effect)) return kNoReceiverMaps;
+    if (IsSame(receiver, effect)) return kNoMaps;
 
     // Continue with the next {effect}.
     DCHECK_EQ(1, effect->op()->EffectInputCount());
@@ -568,10 +568,9 @@ Node* NodeProperties::GetOuterContext(Node* node, size_t* depth) {
 }
 
 // static
-Type NodeProperties::GetTypeOrAny(Node* node) {
+Type NodeProperties::GetTypeOrAny(const Node* node) {
   return IsTyped(node) ? node->type() : Type::Any();
 }
-
 
 // static
 bool NodeProperties::AllValueInputsAreTyped(Node* node) {

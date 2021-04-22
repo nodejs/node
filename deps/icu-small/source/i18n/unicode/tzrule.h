@@ -372,7 +372,7 @@ public:
 
 /**
  * <code>AnnualTimeZoneRule</code> is a class used for representing a time zone
- * rule which takes effect annually.  The calenday system used for the rule is
+ * rule which takes effect annually.  The calendar system used for the rule is
  * is based on Gregorian calendar
  *
  * @stable ICU 3.8

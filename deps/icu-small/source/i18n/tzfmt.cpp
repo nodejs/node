@@ -1873,7 +1873,7 @@ TimeZoneFormat::parseOffsetFieldsWithPattern(const UnicodeString& text, int32_t 
                 // When TimeZoneFormat parse() is called from SimpleDateFormat,
                 // leading space characters might be truncated. If the first pattern text
                 // starts with such character (e.g. Bidi control), then we need to
-                // skip the leading space charcters.
+                // skip the leading space characters.
                 if (idx < text.length() && !PatternProps::isWhiteSpace(text.char32At(idx))) {
                     while (len > 0) {
                         UChar32 ch;

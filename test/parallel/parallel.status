@@ -7,32 +7,16 @@ prefix parallel
 [true] # This section applies to all platforms
 
 [$system==win32]
-# https://github.com/nodejs/node/issues/20750
-test-http2-client-upload-reject: PASS,FLAKY
-# https://github.com/nodejs/node/issues/30847
-test-http2-compat-client-upload-reject: PASS,FLAKY
-# https://github.com/nodejs/node/issues/30845
-test-http2-multistream-destroy-on-read-tls: PASS,FLAKY
-# https://github.com/nodejs/node/issues/20750
-test-http2-pipe: PASS,FLAKY
-# https://github.com/nodejs/node/issues/20750
-test-stream-pipeline-http2: PASS,FLAKY
 # https://github.com/nodejs/node/issues/24497
 test-timers-immediate-queue: PASS,FLAKY
 # https://github.com/nodejs/node/issues/23277
 test-worker-memory: PASS,FLAKY
-# https://github.com/nodejs/node/issues/30846
-test-worker-message-port-transfer-terminate: PASS,FLAKY
 
 [$system==linux]
-# https://github.com/nodejs/node/issues/35586
-test-webcrypto-encrypt-decrypt-aes: PASS,FLAKY
 
 [$system==macos]
 
 [$arch==arm || $arch==arm64]
-# https://github.com/nodejs/node/issues/26610
-test-async-hooks-http-parser-destroy: PASS,FLAKY
 # https://github.com/nodejs/node/pull/31178
 test-crypto-dh-stateless: SKIP
 test-crypto-keygen: SKIP
@@ -69,3 +53,5 @@ test-net-write-after-end-nt: SKIP
 test-tls-env-extra-ca: SKIP
 # https://github.com/nodejs/node/pull/34209
 test-dgram-error-message-address: SKIP
+# https://github.com/nodejs/node/issues/36929
+test-crypto-secure-heap: SKIP

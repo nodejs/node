@@ -77,21 +77,6 @@ MachineSignature* CallDescriptor::GetMachineSignature(Zone* zone) const {
   return zone->New<MachineSignature>(return_count, param_count, types);
 }
 
-int CallDescriptor::GetFirstUnusedStackSlot() const {
-  int slots_above_sp = 0;
-  for (size_t i = 0; i < InputCount(); ++i) {
-    LinkageLocation operand = GetInputLocation(i);
-    if (!operand.IsRegister()) {
-      int new_candidate =
-          -operand.GetLocation() + operand.GetSizeInPointers() - 1;
-      if (new_candidate > slots_above_sp) {
-        slots_above_sp = new_candidate;
-      }
-    }
-  }
-  return slots_above_sp;
-}
-
 int CallDescriptor::GetStackParameterDelta(
     CallDescriptor const* tail_caller) const {
   // In the IsTailCallForTierUp case, the callee has
@@ -100,8 +85,8 @@ int CallDescriptor::GetStackParameterDelta(
   // inputs to the TailCall node, since they already exist on the stack.
   if (IsTailCallForTierUp()) return 0;
 
-  int callee_slots_above_sp = GetFirstUnusedStackSlot();
-  int tail_caller_slots_above_sp = tail_caller->GetFirstUnusedStackSlot();
+  int callee_slots_above_sp = GetOffsetToReturns();
+  int tail_caller_slots_above_sp = tail_caller->GetOffsetToReturns();
   int stack_param_delta = callee_slots_above_sp - tail_caller_slots_above_sp;
   if (ShouldPadArguments(stack_param_delta)) {
     if (callee_slots_above_sp % 2 != 0) {
@@ -119,6 +104,45 @@ int CallDescriptor::GetStackParameterDelta(
   return stack_param_delta;
 }
 
+int CallDescriptor::GetFirstUnusedStackSlot() const {
+  int start_of_args = 0;
+  for (size_t i = 0; i < InputCount(); ++i) {
+    LinkageLocation operand = GetInputLocation(i);
+    if (!operand.IsRegister()) {
+      // Reverse, since arguments have negative offsets in the frame.
+      int reverse_location =
+          -operand.GetLocation() + operand.GetSizeInPointers() - 1;
+      DCHECK_GE(reverse_location, 0);
+      start_of_args = std::max(start_of_args, reverse_location);
+    }
+  }
+  return start_of_args;
+}
+
+int CallDescriptor::GetOffsetToReturns() const {
+  // If there are return stack slots, return the first slot of the last one.
+  constexpr int kNoReturnSlot = std::numeric_limits<int>::max();
+  int end_of_returns = kNoReturnSlot;
+  for (size_t i = 0; i < ReturnCount(); ++i) {
+    LinkageLocation operand = GetReturnLocation(i);
+    if (!operand.IsRegister()) {
+      // Reverse, since returns have negative offsets in the frame.
+      int reverse_location = -operand.GetLocation() - 1;
+      DCHECK_GE(reverse_location, 0);
+      end_of_returns = std::min(end_of_returns, reverse_location);
+    }
+  }
+  if (end_of_returns != kNoReturnSlot) return end_of_returns;
+
+  // Otherwise, return the first unused slot before the parameters, with any
+  // additional padding slot if it exists.
+  end_of_returns = GetFirstUnusedStackSlot();
+  if (ShouldPadArguments(end_of_returns)) end_of_returns++;
+
+  DCHECK_EQ(end_of_returns == 0, StackParameterCount() == 0);
+  return end_of_returns;
+}
+
 int CallDescriptor::GetTaggedParameterSlots() const {
   int result = 0;
   for (size_t i = 0; i < InputCount(); ++i) {
@@ -132,11 +156,12 @@ int CallDescriptor::GetTaggedParameterSlots() const {
 
 bool CallDescriptor::CanTailCall(const CallDescriptor* callee) const {
   if (ReturnCount() != callee->ReturnCount()) return false;
-  const int stack_param_delta = callee->GetStackParameterDelta(this);
+  const int stack_returns_delta =
+      GetOffsetToReturns() - callee->GetOffsetToReturns();
   for (size_t i = 0; i < ReturnCount(); ++i) {
     if (GetReturnLocation(i).IsCallerFrameSlot() &&
         callee->GetReturnLocation(i).IsCallerFrameSlot()) {
-      if (GetReturnLocation(i).AsCallerFrameSlot() - stack_param_delta !=
+      if (GetReturnLocation(i).AsCallerFrameSlot() + stack_returns_delta !=
           callee->GetReturnLocation(i).AsCallerFrameSlot()) {
         return false;
       }
@@ -339,11 +364,7 @@ CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
 
   // All parameters to JS calls go on the stack.
   for (int i = 0; i < js_parameter_count; i++) {
-#ifdef V8_REVERSE_JSARGS
     int spill_slot_index = -i - 1;
-#else
-    int spill_slot_index = i - js_parameter_count;
-#endif
     locations.AddParam(LinkageLocation::ForCallerFrameSlot(
         spill_slot_index, MachineType::AnyTagged()));
   }

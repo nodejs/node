@@ -91,7 +91,7 @@ TEST(async function test_resolve4_ttl(done) {
       assert.strictEqual(typeof item, 'object');
       assert.strictEqual(typeof item.ttl, 'number');
       assert.strictEqual(typeof item.address, 'string');
-      assert.ok(item.ttl > 0);
+      assert.ok(item.ttl >= 0);
       assert.ok(isIPv4(item.address));
     }
   }
@@ -119,7 +119,7 @@ TEST(async function test_resolve6_ttl(done) {
       assert.strictEqual(typeof item, 'object');
       assert.strictEqual(typeof item.ttl, 'number');
       assert.strictEqual(typeof item.address, 'string');
-      assert.ok(item.ttl > 0);
+      assert.ok(item.ttl >= 0);
       assert.ok(isIPv6(item.address));
     }
   }
@@ -163,13 +163,13 @@ TEST(async function test_resolveMx(done) {
 });
 
 TEST(function test_resolveMx_failure(done) {
-  dnsPromises.resolveMx(addresses.INVALID_HOST)
+  dnsPromises.resolveMx(addresses.NOT_FOUND)
     .then(common.mustNotCall())
     .catch(common.mustCall((err) => {
       assert.strictEqual(err.code, 'ENOTFOUND');
     }));
 
-  const req = dns.resolveMx(addresses.INVALID_HOST, function(err, result) {
+  const req = dns.resolveMx(addresses.NOT_FOUND, function(err, result) {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.code, 'ENOTFOUND');
 
@@ -203,13 +203,13 @@ TEST(async function test_resolveNs(done) {
 });
 
 TEST(function test_resolveNs_failure(done) {
-  dnsPromises.resolveNs(addresses.INVALID_HOST)
+  dnsPromises.resolveNs(addresses.NOT_FOUND)
     .then(common.mustNotCall())
     .catch(common.mustCall((err) => {
       assert.strictEqual(err.code, 'ENOTFOUND');
     }));
 
-  const req = dns.resolveNs(addresses.INVALID_HOST, function(err, result) {
+  const req = dns.resolveNs(addresses.NOT_FOUND, function(err, result) {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.code, 'ENOTFOUND');
 
@@ -247,13 +247,13 @@ TEST(async function test_resolveSrv(done) {
 });
 
 TEST(function test_resolveSrv_failure(done) {
-  dnsPromises.resolveSrv(addresses.INVALID_HOST)
+  dnsPromises.resolveSrv(addresses.NOT_FOUND)
     .then(common.mustNotCall())
     .catch(common.mustCall((err) => {
       assert.strictEqual(err.code, 'ENOTFOUND');
     }));
 
-  const req = dns.resolveSrv(addresses.INVALID_HOST, function(err, result) {
+  const req = dns.resolveSrv(addresses.NOT_FOUND, function(err, result) {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.code, 'ENOTFOUND');
 
@@ -287,13 +287,13 @@ TEST(async function test_resolvePtr(done) {
 });
 
 TEST(function test_resolvePtr_failure(done) {
-  dnsPromises.resolvePtr(addresses.INVALID_HOST)
+  dnsPromises.resolvePtr(addresses.NOT_FOUND)
     .then(common.mustNotCall())
     .catch(common.mustCall((err) => {
       assert.strictEqual(err.code, 'ENOTFOUND');
     }));
 
-  const req = dns.resolvePtr(addresses.INVALID_HOST, function(err, result) {
+  const req = dns.resolvePtr(addresses.NOT_FOUND, function(err, result) {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.code, 'ENOTFOUND');
 
@@ -332,13 +332,13 @@ TEST(async function test_resolveNaptr(done) {
 });
 
 TEST(function test_resolveNaptr_failure(done) {
-  dnsPromises.resolveNaptr(addresses.INVALID_HOST)
+  dnsPromises.resolveNaptr(addresses.NOT_FOUND)
     .then(common.mustNotCall())
     .catch(common.mustCall((err) => {
       assert.strictEqual(err.code, 'ENOTFOUND');
     }));
 
-  const req = dns.resolveNaptr(addresses.INVALID_HOST, function(err, result) {
+  const req = dns.resolveNaptr(addresses.NOT_FOUND, function(err, result) {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.code, 'ENOTFOUND');
 
@@ -381,13 +381,13 @@ TEST(async function test_resolveSoa(done) {
 });
 
 TEST(function test_resolveSoa_failure(done) {
-  dnsPromises.resolveSoa(addresses.INVALID_HOST)
+  dnsPromises.resolveSoa(addresses.NOT_FOUND)
     .then(common.mustNotCall())
     .catch(common.mustCall((err) => {
       assert.strictEqual(err.code, 'ENOTFOUND');
     }));
 
-  const req = dns.resolveSoa(addresses.INVALID_HOST, function(err, result) {
+  const req = dns.resolveSoa(addresses.NOT_FOUND, function(err, result) {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.code, 'ENOTFOUND');
 
@@ -421,13 +421,13 @@ TEST(async function test_resolveCaa(done) {
 });
 
 TEST(function test_resolveCaa_failure(done) {
-  dnsPromises.resolveTxt(addresses.INVALID_HOST)
+  dnsPromises.resolveTxt(addresses.NOT_FOUND)
     .then(common.mustNotCall())
     .catch(common.mustCall((err) => {
       assert.strictEqual(err.code, 'ENOTFOUND');
     }));
 
-  const req = dns.resolveCaa(addresses.INVALID_HOST, function(err, result) {
+  const req = dns.resolveCaa(addresses.NOT_FOUND, function(err, result) {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.code, 'ENOTFOUND');
 
@@ -461,13 +461,13 @@ TEST(async function test_resolveCname(done) {
 });
 
 TEST(function test_resolveCname_failure(done) {
-  dnsPromises.resolveCname(addresses.INVALID_HOST)
+  dnsPromises.resolveCname(addresses.NOT_FOUND)
     .then(common.mustNotCall())
     .catch(common.mustCall((err) => {
       assert.strictEqual(err.code, 'ENOTFOUND');
     }));
 
-  const req = dns.resolveCname(addresses.INVALID_HOST, function(err, result) {
+  const req = dns.resolveCname(addresses.NOT_FOUND, function(err, result) {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.code, 'ENOTFOUND');
 
@@ -499,13 +499,13 @@ TEST(async function test_resolveTxt(done) {
 });
 
 TEST(function test_resolveTxt_failure(done) {
-  dnsPromises.resolveTxt(addresses.INVALID_HOST)
+  dnsPromises.resolveTxt(addresses.NOT_FOUND)
     .then(common.mustNotCall())
     .catch(common.mustCall((err) => {
       assert.strictEqual(err.code, 'ENOTFOUND');
     }));
 
-  const req = dns.resolveTxt(addresses.INVALID_HOST, function(err, result) {
+  const req = dns.resolveTxt(addresses.NOT_FOUND, function(err, result) {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.code, 'ENOTFOUND');
 
@@ -519,16 +519,16 @@ TEST(function test_resolveTxt_failure(done) {
 
 
 TEST(function test_lookup_failure(done) {
-  dnsPromises.lookup(addresses.INVALID_HOST, 4)
+  dnsPromises.lookup(addresses.NOT_FOUND, 4)
     .then(common.mustNotCall())
     .catch(common.expectsError({ code: dns.NOTFOUND }));
 
-  const req = dns.lookup(addresses.INVALID_HOST, 4, (err) => {
+  const req = dns.lookup(addresses.NOT_FOUND, 4, (err) => {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.code, dns.NOTFOUND);
     assert.strictEqual(err.code, 'ENOTFOUND');
     assert.ok(!/ENOENT/.test(err.message));
-    assert.ok(err.message.includes(addresses.INVALID_HOST));
+    assert.ok(err.message.includes(addresses.NOT_FOUND));
 
     done();
   });
@@ -672,18 +672,18 @@ TEST(function test_reverse_failure(done) {
 
 
 TEST(function test_lookup_failure(done) {
-  dnsPromises.lookup(addresses.INVALID_HOST)
+  dnsPromises.lookup(addresses.NOT_FOUND)
     .then(common.mustNotCall())
     .catch(common.expectsError({
       code: 'ENOTFOUND',
-      hostname: addresses.INVALID_HOST
+      hostname: addresses.NOT_FOUND
     }));
 
-  const req = dns.lookup(addresses.INVALID_HOST, (err) => {
+  const req = dns.lookup(addresses.NOT_FOUND, (err) => {
     assert(err instanceof Error);
     assert.strictEqual(err.code, 'ENOTFOUND');  // Silly error code...
-    assert.strictEqual(err.hostname, addresses.INVALID_HOST);
-    assert.ok(err.message.includes(addresses.INVALID_HOST));
+    assert.strictEqual(err.hostname, addresses.NOT_FOUND);
+    assert.ok(err.message.includes(addresses.NOT_FOUND));
 
     done();
   });
@@ -693,7 +693,7 @@ TEST(function test_lookup_failure(done) {
 
 
 TEST(function test_resolve_failure(done) {
-  const req = dns.resolve4(addresses.INVALID_HOST, (err) => {
+  const req = dns.resolve4(addresses.NOT_FOUND, (err) => {
     assert(err instanceof Error);
 
     switch (err.code) {
@@ -705,8 +705,8 @@ TEST(function test_resolve_failure(done) {
         break;
     }
 
-    assert.strictEqual(err.hostname, addresses.INVALID_HOST);
-    assert.ok(err.message.includes(addresses.INVALID_HOST));
+    assert.strictEqual(err.hostname, addresses.NOT_FOUND);
+    assert.ok(err.message.includes(addresses.NOT_FOUND));
 
     done();
   });

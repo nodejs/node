@@ -131,7 +131,7 @@ class VirtualObject : public Dependable {
     CHECK(IsAligned(offset, kTaggedSize));
     CHECK(!HasEscaped());
     if (offset >= size()) {
-      // TODO(tebbi): Reading out-of-bounds can only happen in unreachable
+      // TODO(turbofan): Reading out-of-bounds can only happen in unreachable
       // code. In this case, we have to mark the object as escaping to avoid
       // dead nodes in the graph. This is a workaround that should be removed
       // once we can handle dead nodes everywhere.

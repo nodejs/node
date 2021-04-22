@@ -57,7 +57,7 @@ TEST(Object, InstanceTypeList) {
 
 TEST(Object, InstanceTypeListOrder) {
   int current = 0;
-  int last = -1;
+  int prev = -1;
   InstanceType current_type = static_cast<InstanceType>(current);
   EXPECT_EQ(current_type, InstanceType::FIRST_TYPE);
   EXPECT_EQ(current_type, InstanceType::INTERNALIZED_STRING_TYPE);
@@ -65,12 +65,12 @@ TEST(Object, InstanceTypeListOrder) {
   current_type = InstanceType::type;                                       \
   current = static_cast<int>(current_type);                                \
   if (current > static_cast<int>(LAST_NAME_TYPE)) {                        \
-    EXPECT_LE(last + 1, current);                                          \
+    EXPECT_LE(prev + 1, current);                                          \
   }                                                                        \
-  EXPECT_LT(last, current) << " INSTANCE_TYPE_LIST is not ordered: "       \
-                           << "last = " << static_cast<InstanceType>(last) \
+  EXPECT_LT(prev, current) << " INSTANCE_TYPE_LIST is not ordered: "       \
+                           << "last = " << static_cast<InstanceType>(prev) \
                            << " vs. current = " << current_type;           \
-  last = current;
+  prev = current;
 
   // Only test hand-written portion of instance type list. The generated portion
   // doesn't run the same risk of getting out of order, and it does emit type
@@ -83,17 +83,17 @@ TEST(Object, InstanceTypeListOrder) {
 
 TEST(Object, StructListOrder) {
   int current = static_cast<int>(InstanceType::FIRST_STRUCT_TYPE);
-  int last = current - 1;
-  ASSERT_LT(0, last);
+  int prev = current - 1;
+  ASSERT_LT(0, prev);
   InstanceType current_type = static_cast<InstanceType>(current);
 #define TEST_STRUCT(TYPE, class, name)                 \
   current_type = InstanceType::TYPE;                   \
   current = static_cast<int>(current_type);            \
-  EXPECT_LE(last + 1, current)                         \
+  EXPECT_LE(prev + 1, current)                         \
       << " STRUCT_LIST is not ordered: "               \
-      << " last = " << static_cast<InstanceType>(last) \
+      << " last = " << static_cast<InstanceType>(prev) \
       << " vs. current = " << current_type;            \
-  last = current;
+  prev = current;
 
   // Only test the _BASE portion (the hand-coded part). Note that the values are
   // not necessarily consecutive because some Structs that need special
@@ -171,7 +171,6 @@ TEST_F(TestWithNativeContext, EmptyFunctionScopeInfo) {
       isolate()->empty_function()->shared().scope_info(),
       function->GetIsolate());
 
-  EXPECT_EQ(scope_info->length(), empty_function_scope_info->length());
   EXPECT_EQ(scope_info->Flags(), empty_function_scope_info->Flags());
   EXPECT_EQ(scope_info->ParameterCount(),
             empty_function_scope_info->ParameterCount());
@@ -197,7 +196,7 @@ TEST_F(TestWithNativeContext, RecreateScopeInfoWithLocalsBlocklistWorks) {
   Handle<ScopeInfo> scope_info = ScopeInfo::RecreateWithBlockList(
       isolate(), original_scope_info, blocklist);
 
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   EXPECT_TRUE(scope_info->HasLocalsBlockList());
   EXPECT_TRUE(scope_info->LocalsBlockList().Has(isolate(), foo_string));
   EXPECT_FALSE(scope_info->LocalsBlockList().Has(isolate(), bar_string));

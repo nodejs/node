@@ -19,10 +19,11 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "memory_tracker-inl.h"
 #include "node_stat_watcher.h"
 #include "async_wrap-inl.h"
 #include "env-inl.h"
+#include "memory_tracker-inl.h"
+#include "node_external_reference.h"
 #include "node_file-inl.h"
 #include "util-inl.h"
 
@@ -55,6 +56,11 @@ void StatWatcher::Initialize(Environment* env, Local<Object> target) {
   env->SetConstructorFunction(target, "StatWatcher", t);
 }
 
+void StatWatcher::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(StatWatcher::New);
+  registry->Register(StatWatcher::Start);
+}
 
 StatWatcher::StatWatcher(fs::BindingData* binding_data,
                          Local<Object> wrap,

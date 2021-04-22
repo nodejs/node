@@ -28,11 +28,11 @@ function serialFork() {
   });
 }
 
-if (cluster.isMaster) {
+if (cluster.isPrimary) {
   Promise.all([serialFork(), serialFork(), serialFork()])
     .then(common.mustCall((ports) => {
       ports.splice(0, 0, process.debugPort);
-      // 4 = [master, worker1, worker2, worker3].length()
+      // 4 = [primary, worker1, worker2, worker3].length()
       assert.strictEqual(ports.length, 4);
       assert(ports.every((port) => port > 0));
       assert(ports.every((port) => port < 65536));

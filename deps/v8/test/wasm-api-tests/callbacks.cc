@@ -44,7 +44,7 @@ class WasmCapiCallbacksTest : public WasmCapiTest {
     // int32 stage1(int32 arg0) { return stage2(arg0); }
     uint32_t stage2_index =
         builder()->AddImport(CStrVector("stage2"), wasm_i_i_sig());
-    byte code[] = {WASM_CALL_FUNCTION(stage2_index, WASM_GET_LOCAL(0))};
+    byte code[] = {WASM_CALL_FUNCTION(stage2_index, WASM_LOCAL_GET(0))};
     AddExportedFunction(CStrVector("stage1"), code, sizeof(code));
 
     stage2_ = Func::make(store(), cpp_i_i_sig(), Stage2, this);
@@ -82,7 +82,7 @@ TEST_F(WasmCapiCallbacksTest, GC) {
   // int32 stage3_to4(int32 arg0) { return stage4(arg0); }
   uint32_t stage4_index =
       builder()->AddImport(CStrVector("stage4"), wasm_i_i_sig());
-  byte code[] = {WASM_CALL_FUNCTION(stage4_index, WASM_GET_LOCAL(0))};
+  byte code[] = {WASM_CALL_FUNCTION(stage4_index, WASM_LOCAL_GET(0))};
   AddExportedFunction(CStrVector("stage3_to4"), code, sizeof(code));
 
   i::Isolate* isolate =
@@ -136,15 +136,15 @@ TEST_F(WasmCapiTest, Recursion) {
   uint32_t fibo_c_index =
       builder()->AddImport(CStrVector("fibonacci_c"), wasm_i_i_sig());
   byte code_fibo[] = {
-      WASM_IF(WASM_I32_EQ(WASM_GET_LOCAL(0), WASM_ZERO),
+      WASM_IF(WASM_I32_EQ(WASM_LOCAL_GET(0), WASM_ZERO),
               WASM_RETURN1(WASM_ZERO)),
-      WASM_IF(WASM_I32_EQ(WASM_GET_LOCAL(0), WASM_ONE), WASM_RETURN1(WASM_ONE)),
+      WASM_IF(WASM_I32_EQ(WASM_LOCAL_GET(0), WASM_ONE), WASM_RETURN1(WASM_ONE)),
       // Muck with the parameter to ensure callers don't depend on its value.
-      WASM_SET_LOCAL(0, WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_ONE)),
+      WASM_LOCAL_SET(0, WASM_I32_SUB(WASM_LOCAL_GET(0), WASM_ONE)),
       WASM_RETURN1(WASM_I32_ADD(
-          WASM_CALL_FUNCTION(fibo_c_index, WASM_GET_LOCAL(0)),
+          WASM_CALL_FUNCTION(fibo_c_index, WASM_LOCAL_GET(0)),
           WASM_CALL_FUNCTION(fibo_c_index,
-                             WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_ONE))))};
+                             WASM_I32_SUB(WASM_LOCAL_GET(0), WASM_ONE))))};
   AddExportedFunction(CStrVector("fibonacci_wasm"), code_fibo,
                       sizeof(code_fibo), wasm_i_i_sig());
 

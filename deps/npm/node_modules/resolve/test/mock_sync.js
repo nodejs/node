@@ -139,3 +139,78 @@ test('symlinked', function (t) {
         path.resolve('/foo/bar/symlinked/baz.js')
     );
 });
+
+test('readPackageSync', function (t) {
+    t.plan(3);
+
+    var files = {};
+    files[path.resolve('/foo/node_modules/bar/something-else.js')] = 'beep';
+    files[path.resolve('/foo/node_modules/bar/package.json')] = JSON.stringify({
+        main: './baz.js'
+    });
+    files[path.resolve('/foo/node_modules/bar/baz.js')] = 'boop';
+
+    var dirs = {};
+    dirs[path.resolve('/foo')] = true;
+    dirs[path.resolve('/foo/node_modules')] = true;
+
+    function opts(basedir, useReadPackage) {
+        return {
+            basedir: path.resolve(basedir),
+            isFile: function (file) {
+                return Object.prototype.hasOwnProperty.call(files, path.resolve(file));
+            },
+            isDirectory: function (dir) {
+                return !!dirs[path.resolve(dir)];
+            },
+            readFileSync: useReadPackage ? null : function (file) {
+                return files[path.resolve(file)];
+            },
+            realpathSync: function (file) {
+                return file;
+            }
+        };
+    }
+    t.test('with readFile', function (st) {
+        st.plan(1);
+
+        st.equal(
+            resolve.sync('bar', opts('/foo')),
+            path.resolve('/foo/node_modules/bar/baz.js')
+        );
+    });
+
+    var readPackageSync = function (readFileSync, file) {
+        if (file.indexOf(path.join('bar', 'package.json')) >= 0) {
+            return { main: './something-else.js' };
+        } else {
+            return JSON.parse(files[path.resolve(file)]);
+        }
+    };
+
+    t.test('with readPackage', function (st) {
+        st.plan(1);
+
+        var options = opts('/foo');
+        delete options.readFileSync;
+        options.readPackageSync = readPackageSync;
+
+        st.equal(
+            resolve.sync('bar', options),
+            path.resolve('/foo/node_modules/bar/something-else.js')
+        );
+    });
+
+    t.test('with readFile and readPackage', function (st) {
+        st.plan(1);
+
+        var options = opts('/foo');
+        options.readPackageSync = readPackageSync;
+        st.throws(
+            function () { resolve.sync('bar', options); },
+            TypeError,
+            'errors when both readFile and readPackage are provided'
+        );
+    });
+});
+

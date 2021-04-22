@@ -1,7 +1,10 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const url = require('url');
+
+if (!common.hasIntl)
+  common.skip('missing Intl');
 
 // Formatting tests to verify that it'll format slightly wonky content to a
 // valid URL.

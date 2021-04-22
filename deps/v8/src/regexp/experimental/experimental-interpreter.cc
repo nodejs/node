@@ -5,6 +5,9 @@
 #include "src/regexp/experimental/experimental-interpreter.h"
 
 #include "src/base/optional.h"
+#include "src/common/assert-scope.h"
+#include "src/objects/fixed-array-inl.h"
+#include "src/objects/string-inl.h"
 #include "src/regexp/experimental/experimental.h"
 #include "src/strings/char-predicates-inl.h"
 #include "src/zone/zone-allocator.h"
@@ -48,6 +51,37 @@ bool SatisfiesAssertion(RegExpAssertion::AssertionType type,
     case RegExpAssertion::NON_BOUNDARY:
       return !SatisfiesAssertion(RegExpAssertion::BOUNDARY, context, position);
   }
+}
+
+Vector<RegExpInstruction> ToInstructionVector(
+    ByteArray raw_bytes, const DisallowGarbageCollection& no_gc) {
+  RegExpInstruction* inst_begin =
+      reinterpret_cast<RegExpInstruction*>(raw_bytes.GetDataStartAddress());
+  int inst_num = raw_bytes.length() / sizeof(RegExpInstruction);
+  DCHECK_EQ(sizeof(RegExpInstruction) * inst_num, raw_bytes.length());
+  return Vector<RegExpInstruction>(inst_begin, inst_num);
+}
+
+template <class Character>
+Vector<const Character> ToCharacterVector(
+    String str, const DisallowGarbageCollection& no_gc);
+
+template <>
+Vector<const uint8_t> ToCharacterVector<uint8_t>(
+    String str, const DisallowGarbageCollection& no_gc) {
+  DCHECK(str.IsFlat());
+  String::FlatContent content = str.GetFlatContent(no_gc);
+  DCHECK(content.IsOneByte());
+  return content.ToOneByteVector();
+}
+
+template <>
+Vector<const uc16> ToCharacterVector<uc16>(
+    String str, const DisallowGarbageCollection& no_gc) {
+  DCHECK(str.IsFlat());
+  String::FlatContent content = str.GetFlatContent(no_gc);
+  DCHECK(content.IsTwoByte());
+  return content.ToUC16Vector();
 }
 
 template <class Character>
@@ -100,12 +134,16 @@ class NfaInterpreter {
   // with high priority are left, we return the match that was produced by the
   // ACCEPTing thread with highest priority.
  public:
-  NfaInterpreter(Vector<const RegExpInstruction> bytecode,
-                 int register_count_per_match, Vector<const Character> input,
+  NfaInterpreter(Isolate* isolate, RegExp::CallOrigin call_origin,
+                 ByteArray bytecode, int register_count_per_match, String input,
                  int32_t input_index, Zone* zone)
-      : bytecode_(bytecode),
+      : isolate_(isolate),
+        call_origin_(call_origin),
+        bytecode_object_(bytecode),
+        bytecode_(ToInstructionVector(bytecode, no_gc_)),
         register_count_per_match_(register_count_per_match),
-        input_(input),
+        input_object_(input),
+        input_(ToCharacterVector<Character>(input, no_gc_)),
         input_index_(input_index),
         pc_last_input_index_(zone->NewArray<int>(bytecode.length()),
                              bytecode.length()),
@@ -131,12 +169,15 @@ class NfaInterpreter {
 
     int match_num = 0;
     while (match_num != max_match_num) {
-      FindNextMatch();
-      if (!FoundMatch()) break;
-      Vector<int> registers = *best_match_registers_;
+      int err_code = FindNextMatch();
+      if (err_code != RegExp::kInternalRegExpSuccess) return err_code;
 
+      if (!FoundMatch()) break;
+
+      Vector<int> registers = *best_match_registers_;
       output_registers =
           std::copy(registers.begin(), registers.end(), output_registers);
+
       ++match_num;
 
       const int match_begin = registers[0];
@@ -177,6 +218,69 @@ class NfaInterpreter {
     int* register_array_begin;
   };
 
+  // Handles pending interrupts if there are any.  Returns
+  // RegExp::kInternalRegExpSuccess if execution can continue, and an error
+  // code otherwise.
+  int HandleInterrupts() {
+    StackLimitCheck check(isolate_);
+    if (call_origin_ == RegExp::CallOrigin::kFromJs) {
+      // Direct calls from JavaScript can be interrupted in two ways:
+      // 1. A real stack overflow, in which case we let the caller throw the
+      //    exception.
+      // 2. The stack guard was used to interrupt execution for another purpose,
+      //    forcing the call through the runtime system.
+      if (check.JsHasOverflowed()) {
+        return RegExp::kInternalRegExpException;
+      } else if (check.InterruptRequested()) {
+        return RegExp::kInternalRegExpRetry;
+      }
+    } else {
+      DCHECK(call_origin_ == RegExp::CallOrigin::kFromRuntime);
+      HandleScope handles(isolate_);
+      Handle<ByteArray> bytecode_handle(bytecode_object_, isolate_);
+      Handle<String> input_handle(input_object_, isolate_);
+
+      if (check.JsHasOverflowed()) {
+        // We abort the interpreter now anyway, so gc can't invalidate any
+        // pointers.
+        AllowGarbageCollection yes_gc;
+        isolate_->StackOverflow();
+        return RegExp::kInternalRegExpException;
+      } else if (check.InterruptRequested()) {
+        // TODO(mbid): Is this really equivalent to whether the string is
+        // one-byte or two-byte? A comment at the declaration of
+        // IsOneByteRepresentationUnderneath says that this might fail for
+        // external strings.
+        const bool was_one_byte =
+            String::IsOneByteRepresentationUnderneath(input_object_);
+
+        Object result;
+        {
+          AllowGarbageCollection yes_gc;
+          result = isolate_->stack_guard()->HandleInterrupts();
+        }
+        if (result.IsException(isolate_)) {
+          return RegExp::kInternalRegExpException;
+        }
+
+        // If we changed between a LATIN1 and a UC16 string, we need to restart
+        // regexp matching with the appropriate template instantiation of
+        // RawMatch.
+        if (String::IsOneByteRepresentationUnderneath(*input_handle) !=
+            was_one_byte) {
+          return RegExp::kInternalRegExpRetry;
+        }
+
+        // Update objects and pointers in case they have changed during gc.
+        bytecode_object_ = *bytecode_handle;
+        bytecode_ = ToInstructionVector(bytecode_object_, no_gc_);
+        input_object_ = *input_handle;
+        input_ = ToCharacterVector<Character>(input_object_, no_gc_);
+      }
+    }
+    return RegExp::kInternalRegExpSuccess;
+  }
+
   // Change the current input index for future calls to `FindNextMatch`.
   void SetInputIndex(int new_input_index) {
     DCHECK_GE(input_index_, 0);
@@ -187,8 +291,10 @@ class NfaInterpreter {
 
   // Find the next match and return the corresponding capture registers and
   // write its capture registers to `best_match_registers_`.  The search starts
-  // at the current `input_index_`.
-  void FindNextMatch() {
+  // at the current `input_index_`.  Returns RegExp::kInternalRegExpSuccess if
+  // execution could finish regularly (with or without a match) and an error
+  // code due to interrupt otherwise.
+  int FindNextMatch() {
     DCHECK(active_threads_.is_empty());
     // TODO(mbid,v8:10765): Can we get around resetting `pc_last_input_index_`
     // here? As long as
@@ -240,12 +346,20 @@ class NfaInterpreter {
       uc16 input_char = input_[input_index_];
       ++input_index_;
 
+      static constexpr int kTicksBetweenInterruptHandling = 64;
+      if (input_index_ % kTicksBetweenInterruptHandling == 0) {
+        int err_code = HandleInterrupts();
+        if (err_code != RegExp::kInternalRegExpSuccess) return err_code;
+      }
+
       // We unblock all blocked_threads_ by feeding them the input char.
       FlushBlockedThreads(input_char);
 
       // Run all threads until they block or accept.
       RunActiveThreads();
     }
+
+    return RegExp::kInternalRegExpSuccess;
   }
 
   // Run an active thread `t` until it executes a CONSUME_RANGE or ACCEPT
@@ -394,12 +508,20 @@ class NfaInterpreter {
     pc_last_input_index_[pc] = input_index_;
   }
 
-  const Vector<const RegExpInstruction> bytecode_;
+  Isolate* const isolate_;
+
+  const RegExp::CallOrigin call_origin_;
+
+  DisallowGarbageCollection no_gc_;
+
+  ByteArray bytecode_object_;
+  Vector<const RegExpInstruction> bytecode_;
 
   // Number of registers used per thread.
   const int register_count_per_match_;
 
-  const Vector<const Character> input_;
+  String input_object_;
+  Vector<const Character> input_;
   int input_index_;
 
   // pc_last_input_index_[k] records the value of input_index_ the last
@@ -432,22 +554,25 @@ class NfaInterpreter {
 
 }  // namespace
 
-int ExperimentalRegExpInterpreter::FindMatchesNfaOneByte(
-    Vector<const RegExpInstruction> bytecode, int register_count_per_match,
-    Vector<const uint8_t> input, int start_index, int32_t* output_registers,
-    int output_register_count, Zone* zone) {
-  NfaInterpreter<uint8_t> interpreter(bytecode, register_count_per_match, input,
-                                      start_index, zone);
-  return interpreter.FindMatches(output_registers, output_register_count);
-}
+int ExperimentalRegExpInterpreter::FindMatches(
+    Isolate* isolate, RegExp::CallOrigin call_origin, ByteArray bytecode,
+    int register_count_per_match, String input, int start_index,
+    int32_t* output_registers, int output_register_count, Zone* zone) {
+  DCHECK(input.IsFlat());
+  DisallowGarbageCollection no_gc;
 
-int ExperimentalRegExpInterpreter::FindMatchesNfaTwoByte(
-    Vector<const RegExpInstruction> bytecode, int register_count_per_match,
-    Vector<const uc16> input, int start_index, int32_t* output_registers,
-    int output_register_count, Zone* zone) {
-  NfaInterpreter<uc16> interpreter(bytecode, register_count_per_match, input,
-                                   start_index, zone);
-  return interpreter.FindMatches(output_registers, output_register_count);
+  if (input.GetFlatContent(no_gc).IsOneByte()) {
+    NfaInterpreter<uint8_t> interpreter(isolate, call_origin, bytecode,
+                                        register_count_per_match, input,
+                                        start_index, zone);
+    return interpreter.FindMatches(output_registers, output_register_count);
+  } else {
+    DCHECK(input.GetFlatContent(no_gc).IsTwoByte());
+    NfaInterpreter<uc16> interpreter(isolate, call_origin, bytecode,
+                                     register_count_per_match, input,
+                                     start_index, zone);
+    return interpreter.FindMatches(output_registers, output_register_count);
+  }
 }
 
 }  // namespace internal

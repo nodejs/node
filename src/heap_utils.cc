@@ -1,6 +1,7 @@
 #include "diagnosticfilename-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
+#include "node_external_reference.h"
 #include "stream_base-inl.h"
 #include "util-inl.h"
 
@@ -118,16 +119,16 @@ class JSGraph : public EmbedderGraph {
           name_str += " ";
           name_str += n->Name();
         }
-        if (!String::NewFromUtf8(isolate_, name_str.c_str())
-                 .ToLocal(&value) ||
+        if (!String::NewFromUtf8(isolate_, name_str.c_str()).ToLocal(&value) ||
             obj->Set(context, name_string, value).IsNothing() ||
             obj->Set(context,
                      is_root_string,
                      Boolean::New(isolate_, n->IsRootNode()))
                 .IsNothing() ||
-            obj->Set(context,
-                     size_string,
-                     Number::New(isolate_, n->SizeInBytes()))
+            obj->Set(
+                   context,
+                   size_string,
+                   Number::New(isolate_, static_cast<double>(n->SizeInBytes())))
                 .IsNothing() ||
             obj->Set(context, edges_string, Array::New(isolate_)).IsNothing()) {
           return MaybeLocal<Array>();
@@ -172,7 +173,7 @@ class JSGraph : public EmbedderGraph {
             return MaybeLocal<Array>();
           }
         } else {
-          edge_name_value = Number::New(isolate_, j++);
+          edge_name_value = Number::New(isolate_, static_cast<double>(j++));
         }
         if (edge_obj->Set(context, name_string, edge_name_value).IsNothing() ||
             edge_obj->Set(context, to_string, to_object).IsNothing() ||
@@ -262,7 +263,7 @@ class HeapSnapshotStream : public AsyncWrap,
         avail = buf.len;
       memcpy(buf.base, data, avail);
       data += avail;
-      len -= avail;
+      len -= static_cast<int>(avail);
       EmitRead(size, buf);
     }
     return kContinue;
@@ -399,7 +400,15 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "createHeapSnapshotStream", CreateHeapSnapshotStream);
 }
 
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(BuildEmbedderGraph);
+  registry->Register(TriggerHeapSnapshot);
+  registry->Register(CreateHeapSnapshotStream);
+}
+
 }  // namespace heap
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(heap_utils, node::heap::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(heap_utils,
+                               node::heap::RegisterExternalReferences)

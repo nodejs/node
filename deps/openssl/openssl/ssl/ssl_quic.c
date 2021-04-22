@@ -7,8 +7,6 @@
  * https://www.openssl.org/source/license.html
  */
 
-#ifndef OPENSSL_NO_QUIC
-
 #include "ssl_local.h"
 #include "internal/cryptlib.h"
 #include "internal/refcount.h"
@@ -37,8 +35,45 @@ void SSL_get_peer_quic_transport_params(const SSL *ssl,
                                         const uint8_t **out_params,
                                         size_t *out_params_len)
 {
-    *out_params = ssl->ext.peer_quic_transport_params;
-    *out_params_len = ssl->ext.peer_quic_transport_params_len;
+    if (ssl->ext.peer_quic_transport_params_len) {
+        *out_params = ssl->ext.peer_quic_transport_params;
+        *out_params_len = ssl->ext.peer_quic_transport_params_len;
+    } else {
+        *out_params = ssl->ext.peer_quic_transport_params_draft;
+        *out_params_len = ssl->ext.peer_quic_transport_params_draft_len;
+    }
+}
+
+/* Returns the negotiated version, or -1 on error */
+int SSL_get_peer_quic_transport_version(const SSL *ssl)
+{
+    if (ssl->ext.peer_quic_transport_params_len != 0
+            && ssl->ext.peer_quic_transport_params_draft_len != 0)
+        return -1;
+    if (ssl->ext.peer_quic_transport_params_len != 0)
+        return TLSEXT_TYPE_quic_transport_parameters;
+    if (ssl->ext.peer_quic_transport_params_draft_len != 0)
+        return TLSEXT_TYPE_quic_transport_parameters_draft;
+
+    return -1;
+}
+
+void SSL_set_quic_use_legacy_codepoint(SSL *ssl, int use_legacy)
+{
+    if (use_legacy)
+        ssl->quic_transport_version = TLSEXT_TYPE_quic_transport_parameters_draft;
+    else
+        ssl->quic_transport_version = TLSEXT_TYPE_quic_transport_parameters;
+}
+
+void SSL_set_quic_transport_version(SSL *ssl, int version)
+{
+    ssl->quic_transport_version = version;
+}
+
+int SSL_get_quic_transport_version(const SSL *ssl)
+{
+    return ssl->quic_transport_version;
 }
 
 size_t SSL_quic_max_handshake_flight_len(const SSL *ssl, OSSL_ENCRYPTION_LEVEL level)
@@ -108,14 +143,17 @@ int SSL_provide_quic_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
         return 0;
     }
 
+    if (len == 0)
+        return 1;
+
     if (ssl->quic_buf == NULL) {
         BUF_MEM *buf;
         if ((buf = BUF_MEM_new()) == NULL) {
-            SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, SSL_R_INTERNAL_ERROR);
+            SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, ERR_R_INTERNAL_ERROR);
             return 0;
         }
         if (!BUF_MEM_grow(buf, SSL3_RT_MAX_PLAIN_LENGTH)) {
-            SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, SSL_R_INTERNAL_ERROR);
+            SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, ERR_R_INTERNAL_ERROR);
             BUF_MEM_free(buf);
             return 0;
         }
@@ -136,7 +174,7 @@ int SSL_provide_quic_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
 
     offset = ssl->quic_buf->length;
     if (!BUF_MEM_grow(ssl->quic_buf, offset + len)) {
-        SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, SSL_R_INTERNAL_ERROR);
+        SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, ERR_R_INTERNAL_ERROR);
         return 0;
     }
     memcpy(ssl->quic_buf->data + offset, data, len);
@@ -158,7 +196,7 @@ int SSL_provide_quic_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
 
         qd = OPENSSL_zalloc(sizeof(*qd));
         if (qd == NULL) {
-            SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, SSL_R_INTERNAL_ERROR);
+            SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, ERR_R_INTERNAL_ERROR);
             return 0;
         }
 
@@ -223,24 +261,49 @@ int quic_set_encryption_secrets(SSL *ssl, OSSL_ENCRYPTION_LEVEL level)
         return 1;
     }
 
-    md = ssl_handshake_md(ssl);
-    if (md == NULL) {
-        /* May not have selected cipher, yet */
-        const SSL_CIPHER *c = NULL;
-
-        /*
-         * It probably doesn't make sense to use an (external) PSK session,
-         * but in theory some kinds of external session caches could be
-         * implemented using it, so allow psksession to be used as well as
-         * the regular session.
-         */
-        if (ssl->session != NULL)
-            c = SSL_SESSION_get0_cipher(ssl->session);
-        else if (ssl->psksession != NULL)
+    if (level == ssl_encryption_early_data) {
+        const SSL_CIPHER *c = SSL_SESSION_get0_cipher(ssl->session);
+        if (ssl->early_data_state == SSL_EARLY_DATA_CONNECTING
+                && ssl->max_early_data > 0
+                && ssl->session->ext.max_early_data == 0) {
+            if (!ossl_assert(ssl->psksession != NULL
+                             && ssl->max_early_data
+                                    == ssl->psksession->ext.max_early_data)) {
+                SSLfatal(ssl, SSL_AD_INTERNAL_ERROR,
+                         SSL_F_QUIC_SET_ENCRYPTION_SECRETS,
+                         ERR_R_INTERNAL_ERROR);
+                return 0;
+            }
             c = SSL_SESSION_get0_cipher(ssl->psksession);
+        }
 
-        if (c != NULL)
-            md = SSL_CIPHER_get_handshake_digest(c);
+        if (c == NULL) {
+            SSLfatal(ssl, SSL_AD_INTERNAL_ERROR,
+                     SSL_F_QUIC_SET_ENCRYPTION_SECRETS, ERR_R_INTERNAL_ERROR);
+            return 0;
+        }
+
+        md = ssl_md(c->algorithm2);
+    } else {
+        md = ssl_handshake_md(ssl);
+        if (md == NULL) {
+            /* May not have selected cipher, yet */
+            const SSL_CIPHER *c = NULL;
+
+            /*
+             * It probably doesn't make sense to use an (external) PSK session,
+             * but in theory some kinds of external session caches could be
+             * implemented using it, so allow psksession to be used as well as
+             * the regular session.
+             */
+            if (ssl->session != NULL)
+                c = SSL_SESSION_get0_cipher(ssl->session);
+            else if (ssl->psksession != NULL)
+                c = SSL_SESSION_get0_cipher(ssl->psksession);
+
+            if (c != NULL)
+                md = SSL_CIPHER_get_handshake_digest(c);
+        }
     }
 
     if ((len = EVP_MD_size(md)) <= 0) {
@@ -277,17 +340,20 @@ int SSL_process_quic_post_handshake(SSL *ssl)
         return 0;
     }
 
-    /*
-     * This is always safe (we are sure to be at a record boundary) because
-     * SSL_read()/SSL_write() are never used for QUIC connections -- the
-     * application data is handled at the QUIC layer instead.
-     */
-    ossl_statem_set_in_init(ssl, 1);
-    ret = ssl->handshake_func(ssl);
-    ossl_statem_set_in_init(ssl, 0);
+    /* if there is no data, return success as BoringSSL */
+    while (ssl->quic_input_data_head != NULL) {
+        /*
+         * This is always safe (we are sure to be at a record boundary) because
+         * SSL_read()/SSL_write() are never used for QUIC connections -- the
+         * application data is handled at the QUIC layer instead.
+         */
+        ossl_statem_set_in_init(ssl, 1);
+        ret = ssl->handshake_func(ssl);
+        ossl_statem_set_in_init(ssl, 0);
 
-    if (ret <= 0)
-        return 0;
+        if (ret <= 0)
+            return 0;
+    }
     return 1;
 }
 
@@ -296,4 +362,24 @@ int SSL_is_quic(SSL* ssl)
     return SSL_IS_QUIC(ssl);
 }
 
-#endif  // OPENSSL_NO_QUIC
+void SSL_set_quic_early_data_enabled(SSL *ssl, int enabled)
+{
+    if (!SSL_is_quic(ssl) || !SSL_in_before(ssl))
+        return;
+
+    if (!enabled) {
+      ssl->early_data_state = SSL_EARLY_DATA_NONE;
+      return;
+    }
+
+    if (ssl->server) {
+        ssl->early_data_state = SSL_EARLY_DATA_ACCEPTING;
+        return;
+    }
+
+    if ((ssl->session == NULL || ssl->session->ext.max_early_data == 0)
+            && ssl->psk_use_session_cb == NULL)
+        return;
+
+    ssl->early_data_state = SSL_EARLY_DATA_CONNECTING;
+}

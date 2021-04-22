@@ -15,6 +15,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/js-regexp-string-iterator-tq-inl.inc"
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSRegExpStringIterator)
 
 BOOL_ACCESSORS(JSRegExpStringIterator, flags, done, DoneBit::kShift)

@@ -14,12 +14,6 @@
 #define NODE_BUILTIN_OPENSSL_MODULES(V)
 #endif
 
-#if defined(NODE_EXPERIMENTAL_QUIC) && NODE_EXPERIMENTAL_QUIC
-#define NODE_BUILTIN_QUIC_MODULES(V) V(quic)
-#else
-#define NODE_BUILTIN_QUIC_MODULES(V)
-#endif
-
 #if NODE_HAVE_I18N_SUPPORT
 #define NODE_BUILTIN_ICU_MODULES(V) V(icu)
 #else
@@ -98,7 +92,6 @@
 #define NODE_BUILTIN_MODULES(V)                                                \
   NODE_BUILTIN_STANDARD_MODULES(V)                                             \
   NODE_BUILTIN_OPENSSL_MODULES(V)                                              \
-  NODE_BUILTIN_QUIC_MODULES(V)                                                 \
   NODE_BUILTIN_ICU_MODULES(V)                                                  \
   NODE_BUILTIN_PROFILER_MODULES(V)                                             \
   NODE_BUILTIN_DTRACE_MODULES(V)
@@ -589,6 +582,7 @@ void GetInternalBinding(const FunctionCallbackInfo<Value>& args) {
   node_module* mod = FindModule(modlist_internal, *module_v, NM_F_INTERNAL);
   if (mod != nullptr) {
     exports = InitModule(env, mod, module);
+    env->internal_bindings.insert(mod);
   } else if (!strcmp(*module_v, "constants")) {
     exports = Object::New(env->isolate());
     CHECK(

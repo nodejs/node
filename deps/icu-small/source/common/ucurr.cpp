@@ -844,7 +844,7 @@ typedef struct {
 #endif
 
 
-// Comparason function used in quick sort.
+// Comparison function used in quick sort.
 static int U_CALLCONV currencyNameComparator(const void* a, const void* b) {
     const CurrencyNameStruct* currName_1 = (const CurrencyNameStruct*)a;
     const CurrencyNameStruct* currName_2 = (const CurrencyNameStruct*)b;
@@ -1530,7 +1530,7 @@ uprv_parseCurrency(const char* locale,
 
     int32_t max = 0;
     int32_t matchIndex = -1;
-    // case in-sensitive comparision against currency names
+    // case in-sensitive comparison against currency names
     searchCurrencyName(currencyNames, total_currency_name_count,
                        upperText, textLen, partialMatchLen, &max, &matchIndex);
 

@@ -2,15 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/runtime/runtime-utils.h"
-
 #include <stdlib.h>
+
 #include <limits>
 
 #include "src/builtins/accessors.h"
+#include "src/common/globals.h"
 #include "src/common/message-template.h"
 #include "src/debug/debug.h"
 #include "src/execution/arguments-inl.h"
+#include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
@@ -20,6 +21,7 @@
 #include "src/objects/lookup-inl.h"
 #include "src/objects/smi.h"
 #include "src/objects/struct-inl.h"
+#include "src/runtime/runtime-utils.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -111,18 +113,12 @@ RUNTIME_FUNCTION(Runtime_ThrowNotSuperConstructor) {
   return ThrowNotSuperConstructor(isolate, constructor, function);
 }
 
-RUNTIME_FUNCTION(Runtime_HomeObjectSymbol) {
-  DCHECK_EQ(0, args.length());
-  return ReadOnlyRoots(isolate).home_object_symbol();
-}
-
 namespace {
 
 template <typename Dictionary>
-Handle<Name> KeyToName(Isolate* isolate, Handle<Object> key);
-
-template <>
-Handle<Name> KeyToName<NameDictionary>(Isolate* isolate, Handle<Object> key) {
+Handle<Name> KeyToName(Isolate* isolate, Handle<Object> key) {
+  STATIC_ASSERT((std::is_same<Dictionary, OrderedNameDictionary>::value ||
+                 std::is_same<Dictionary, NameDictionary>::value));
   DCHECK(key->IsName());
   return Handle<Name>::cast(key);
 }
@@ -133,34 +129,17 @@ Handle<Name> KeyToName<NumberDictionary>(Isolate* isolate, Handle<Object> key) {
   return isolate->factory()->NumberToString(key);
 }
 
-inline void SetHomeObject(Isolate* isolate, JSFunction method,
-                          JSObject home_object) {
-  if (method.shared().needs_home_object()) {
-    const InternalIndex kPropertyIndex(
-        JSFunction::kMaybeHomeObjectDescriptorIndex);
-    CHECK_EQ(method.map().instance_descriptors().GetKey(kPropertyIndex),
-             ReadOnlyRoots(isolate).home_object_symbol());
-
-    FieldIndex field_index =
-        FieldIndex::ForDescriptor(method.map(), kPropertyIndex);
-    method.RawFastPropertyAtPut(field_index, home_object);
-  }
-}
-
 // Gets |index|'th argument which may be a class constructor object, a class
 // prototype object or a class method. In the latter case the following
 // post-processing may be required:
-// 1) set [[HomeObject]] slot to given |home_object| value if the method's
-//    shared function info indicates that the method requires that;
-// 2) set method's name to a concatenation of |name_prefix| and |key| if the
+// 1) set method's name to a concatenation of |name_prefix| and |key| if the
 //    method's shared function info indicates that method does not have a
 //    shared name.
 template <typename Dictionary>
-MaybeHandle<Object> GetMethodAndSetHomeObjectAndName(
+MaybeHandle<Object> GetMethodAndSetName(
     Isolate* isolate,
     RuntimeArguments& args,  // NOLINT(runtime/references)
-    Smi index, Handle<JSObject> home_object, Handle<String> name_prefix,
-    Handle<Object> key) {
+    Smi index, Handle<String> name_prefix, Handle<Object> key) {
   int int_index = index.value();
 
   // Class constructor and prototype values do not require post processing.
@@ -169,8 +148,6 @@ MaybeHandle<Object> GetMethodAndSetHomeObjectAndName(
   }
 
   Handle<JSFunction> method = args.at<JSFunction>(int_index);
-
-  SetHomeObject(isolate, *method, *home_object);
 
   if (!method->shared().HasSharedName()) {
     // TODO(ishell): method does not have a shared name at this point only if
@@ -187,18 +164,15 @@ MaybeHandle<Object> GetMethodAndSetHomeObjectAndName(
 }
 
 // Gets |index|'th argument which may be a class constructor object, a class
-// prototype object or a class method. In the latter case the following
-// post-processing may be required:
-// 1) set [[HomeObject]] slot to given |home_object| value if the method's
-//    shared function info indicates that the method requires that;
-// This is a simplified version of GetMethodWithSharedNameAndSetHomeObject()
+// prototype object or a class method.
+// This is a simplified version of GetMethodAndSetName()
 // function above that is used when it's guaranteed that the method has
 // shared name.
-Object GetMethodWithSharedNameAndSetHomeObject(
+Object GetMethodWithSharedName(
     Isolate* isolate,
     RuntimeArguments& args,  // NOLINT(runtime/references)
-    Object index, JSObject home_object) {
-  DisallowHeapAllocation no_gc;
+    Object index) {
+  DisallowGarbageCollection no_gc;
   int int_index = Smi::ToInt(index);
 
   // Class constructor and prototype values do not require post processing.
@@ -207,9 +181,6 @@ Object GetMethodWithSharedNameAndSetHomeObject(
   }
 
   Handle<JSFunction> method = args.at<JSFunction>(int_index);
-
-  SetHomeObject(isolate, *method, home_object);
-
   DCHECK(method->shared().HasSharedName());
   return *method;
 }
@@ -235,7 +206,6 @@ Handle<Dictionary> ShallowCopyDictionaryTemplate(
 
 template <typename Dictionary>
 bool SubstituteValues(Isolate* isolate, Handle<Dictionary> dictionary,
-                      Handle<JSObject> receiver,
                       RuntimeArguments& args,  // NOLINT(runtime/references)
                       bool* install_name_accessor = nullptr) {
   Handle<Name> name_string = isolate->factory()->name_string();
@@ -258,9 +228,9 @@ bool SubstituteValues(Isolate* isolate, Handle<Dictionary> dictionary,
         Handle<Object> result;
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
             isolate, result,
-            GetMethodAndSetHomeObjectAndName<Dictionary>(
-                isolate, args, Smi::cast(tmp), receiver,
-                isolate->factory()->get_string(), key),
+            GetMethodAndSetName<Dictionary>(isolate, args, Smi::cast(tmp),
+                                            isolate->factory()->get_string(),
+                                            key),
             false);
         pair->set_getter(*result);
       }
@@ -269,9 +239,9 @@ bool SubstituteValues(Isolate* isolate, Handle<Dictionary> dictionary,
         Handle<Object> result;
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
             isolate, result,
-            GetMethodAndSetHomeObjectAndName<Dictionary>(
-                isolate, args, Smi::cast(tmp), receiver,
-                isolate->factory()->set_string(), key),
+            GetMethodAndSetName<Dictionary>(isolate, args, Smi::cast(tmp),
+                                            isolate->factory()->set_string(),
+                                            key),
             false);
         pair->set_setter(*result);
       }
@@ -279,9 +249,9 @@ bool SubstituteValues(Isolate* isolate, Handle<Dictionary> dictionary,
       Handle<Object> result;
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate, result,
-          GetMethodAndSetHomeObjectAndName<Dictionary>(
-              isolate, args, Smi::cast(*value), receiver,
-              isolate->factory()->empty_string(), key),
+          GetMethodAndSetName<Dictionary>(isolate, args, Smi::cast(*value),
+                                          isolate->factory()->empty_string(),
+                                          key),
           false);
       dictionary->ValueAtPut(i, *result);
     }
@@ -289,12 +259,13 @@ bool SubstituteValues(Isolate* isolate, Handle<Dictionary> dictionary,
   return true;
 }
 
+template <typename Dictionary>
 void UpdateProtectors(Isolate* isolate, Handle<JSObject> receiver,
-                      Handle<NameDictionary> properties_dictionary) {
+                      Handle<Dictionary> properties_dictionary) {
   ReadOnlyRoots roots(isolate);
   for (InternalIndex i : properties_dictionary->IterateEntries()) {
     Object maybe_key = properties_dictionary->KeyAt(i);
-    if (!NameDictionary::IsKey(roots, maybe_key)) continue;
+    if (!Dictionary::IsKey(roots, maybe_key)) continue;
     Handle<Name> name(Name::cast(maybe_key), isolate);
     LookupIterator::UpdateProtector(isolate, receiver, name);
   }
@@ -349,15 +320,14 @@ bool AddDescriptorsByTemplate(
           isolate, handle(AccessorPair::cast(value), isolate));
       value = *pair;
     }
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     Name name = descriptors_template->GetKey(i);
     DCHECK(name.IsUniqueName());
     PropertyDetails details = descriptors_template->GetDetails(i);
     if (details.location() == kDescriptor) {
       if (details.kind() == kData) {
         if (value.IsSmi()) {
-          value = GetMethodWithSharedNameAndSetHomeObject(isolate, args, value,
-                                                          *receiver);
+          value = GetMethodWithSharedName(isolate, args, value);
         }
         details = details.CopyWithRepresentation(
             value.OptimalRepresentation(isolate));
@@ -367,13 +337,11 @@ bool AddDescriptorsByTemplate(
           AccessorPair pair = AccessorPair::cast(value);
           Object tmp = pair.getter();
           if (tmp.IsSmi()) {
-            pair.set_getter(GetMethodWithSharedNameAndSetHomeObject(
-                isolate, args, tmp, *receiver));
+            pair.set_getter(GetMethodWithSharedName(isolate, args, tmp));
           }
           tmp = pair.setter();
           if (tmp.IsSmi()) {
-            pair.set_setter(GetMethodWithSharedNameAndSetHomeObject(
-                isolate, args, tmp, *receiver));
+            pair.set_setter(GetMethodWithSharedName(isolate, args, tmp));
           }
         }
       }
@@ -398,11 +366,10 @@ bool AddDescriptorsByTemplate(
 
   UpdateProtectors(isolate, receiver, descriptors_template);
 
-  map->InitializeDescriptors(isolate, *descriptors,
-                             LayoutDescriptor::FastPointerLayout());
+  map->InitializeDescriptors(isolate, *descriptors);
   if (elements_dictionary->NumberOfElements() > 0) {
     if (!SubstituteValues<NumberDictionary>(isolate, elements_dictionary,
-                                            receiver, args)) {
+                                            args)) {
       return false;
     }
     map->set_elements_kind(DICTIONARY_ELEMENTS);
@@ -419,9 +386,23 @@ bool AddDescriptorsByTemplate(
   return true;
 }
 
+// TODO(v8:7569): This is a workaround for the Handle vs MaybeHandle difference
+// in the return types of the different Add functions:
+// OrderedNameDictionary::Add returns MaybeHandle, NameDictionary::Add returns
+// Handle.
+template <typename T>
+Handle<T> ToHandle(Handle<T> h) {
+  return h;
+}
+template <typename T>
+Handle<T> ToHandle(MaybeHandle<T> h) {
+  return h.ToHandleChecked();
+}
+
+template <typename Dictionary>
 bool AddDescriptorsByTemplate(
     Isolate* isolate, Handle<Map> map,
-    Handle<NameDictionary> properties_dictionary_template,
+    Handle<Dictionary> properties_dictionary_template,
     Handle<NumberDictionary> elements_dictionary_template,
     Handle<FixedArray> computed_properties, Handle<JSObject> receiver,
     bool install_name_accessor,
@@ -429,7 +410,7 @@ bool AddDescriptorsByTemplate(
   int computed_properties_length = computed_properties->length();
 
   // Shallow-copy properties template.
-  Handle<NameDictionary> properties_dictionary =
+  Handle<Dictionary> properties_dictionary =
       ShallowCopyDictionaryTemplate(isolate, properties_dictionary_template);
   Handle<NumberDictionary> elements_dictionary =
       ShallowCopyDictionaryTemplate(isolate, elements_dictionary_template);
@@ -463,18 +444,18 @@ bool AddDescriptorsByTemplate(
   }
 
   // Replace all indices with proper methods.
-  if (!SubstituteValues<NameDictionary>(isolate, properties_dictionary,
-                                        receiver, args,
-                                        &install_name_accessor)) {
+  if (!SubstituteValues<Dictionary>(isolate, properties_dictionary, args,
+                                    &install_name_accessor)) {
     return false;
   }
   if (install_name_accessor) {
     PropertyAttributes attribs =
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
-    PropertyDetails details(kAccessor, attribs, PropertyCellType::kNoCell);
-    Handle<NameDictionary> dict = NameDictionary::Add(
+    PropertyDetails details(kAccessor, attribs,
+                            PropertyDetails::kConstIfDictConstnessTracking);
+    Handle<Dictionary> dict = ToHandle(Dictionary::Add(
         isolate, properties_dictionary, isolate->factory()->name_string(),
-        isolate->factory()->function_name_accessor(), details);
+        isolate->factory()->function_name_accessor(), details));
     CHECK_EQ(*dict, *properties_dictionary);
   }
 
@@ -482,7 +463,7 @@ bool AddDescriptorsByTemplate(
 
   if (elements_dictionary->NumberOfElements() > 0) {
     if (!SubstituteValues<NumberDictionary>(isolate, elements_dictionary,
-                                            receiver, args)) {
+                                            args)) {
       return false;
     }
     map->set_elements_kind(DICTIONARY_ELEMENTS);
@@ -528,23 +509,8 @@ bool InitClassPrototype(Isolate* isolate,
 
   Handle<Object> properties_template(
       class_boilerplate->instance_properties_template(), isolate);
-  if (properties_template->IsNameDictionary()) {
-    Handle<NameDictionary> properties_dictionary_template =
-        Handle<NameDictionary>::cast(properties_template);
 
-    map->set_is_dictionary_map(true);
-    map->set_is_migration_target(false);
-    map->set_may_have_interesting_symbols(true);
-    map->set_construction_counter(Map::kNoSlackTracking);
-
-    // Class prototypes do not have a name accessor.
-    const bool install_name_accessor = false;
-
-    return AddDescriptorsByTemplate(
-        isolate, map, properties_dictionary_template,
-        elements_dictionary_template, computed_properties, prototype,
-        install_name_accessor, args);
-  } else {
+  if (properties_template->IsDescriptorArray()) {
     Handle<DescriptorArray> descriptors_template =
         Handle<DescriptorArray>::cast(properties_template);
 
@@ -554,6 +520,30 @@ bool InitClassPrototype(Isolate* isolate,
     return AddDescriptorsByTemplate(isolate, map, descriptors_template,
                                     elements_dictionary_template, prototype,
                                     args);
+  } else {
+    map->set_is_dictionary_map(true);
+    map->set_is_migration_target(false);
+    map->set_may_have_interesting_symbols(true);
+    map->set_construction_counter(Map::kNoSlackTracking);
+
+    // Class prototypes do not have a name accessor.
+    const bool install_name_accessor = false;
+
+    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      Handle<OrderedNameDictionary> properties_dictionary_template =
+          Handle<OrderedNameDictionary>::cast(properties_template);
+      return AddDescriptorsByTemplate(
+          isolate, map, properties_dictionary_template,
+          elements_dictionary_template, computed_properties, prototype,
+          install_name_accessor, args);
+    } else {
+      Handle<NameDictionary> properties_dictionary_template =
+          Handle<NameDictionary>::cast(properties_template);
+      return AddDescriptorsByTemplate(
+          isolate, map, properties_dictionary_template,
+          elements_dictionary_template, computed_properties, prototype,
+          install_name_accessor, args);
+    }
   }
 }
 
@@ -569,6 +559,8 @@ bool InitClassConstructor(
     // Set map's prototype without enabling prototype setup mode for superclass
     // because it does not make sense.
     Map::SetPrototype(isolate, map, constructor_parent, false);
+    // Ensure that setup mode will never be enabled for superclass.
+    JSObject::MakePrototypesFast(constructor_parent, kStartAtReceiver, isolate);
   }
 
   Handle<NumberDictionary> elements_dictionary_template(
@@ -580,14 +572,17 @@ bool InitClassConstructor(
   Handle<Object> properties_template(
       class_boilerplate->static_properties_template(), isolate);
 
-  if (properties_template->IsNameDictionary()) {
-    Handle<NameDictionary> properties_dictionary_template =
-        Handle<NameDictionary>::cast(properties_template);
+  if (properties_template->IsDescriptorArray()) {
+    Handle<DescriptorArray> descriptors_template =
+        Handle<DescriptorArray>::cast(properties_template);
 
+    return AddDescriptorsByTemplate(isolate, map, descriptors_template,
+                                    elements_dictionary_template, constructor,
+                                    args);
+  } else {
     map->set_is_dictionary_map(true);
     map->InitializeDescriptors(isolate,
-                               ReadOnlyRoots(isolate).empty_descriptor_array(),
-                               LayoutDescriptor::FastPointerLayout());
+                               ReadOnlyRoots(isolate).empty_descriptor_array());
     map->set_is_migration_target(false);
     map->set_may_have_interesting_symbols(true);
     map->set_construction_counter(Map::kNoSlackTracking);
@@ -595,17 +590,22 @@ bool InitClassConstructor(
     // All class constructors have a name accessor.
     const bool install_name_accessor = true;
 
-    return AddDescriptorsByTemplate(
-        isolate, map, properties_dictionary_template,
-        elements_dictionary_template, computed_properties, constructor,
-        install_name_accessor, args);
-  } else {
-    Handle<DescriptorArray> descriptors_template =
-        Handle<DescriptorArray>::cast(properties_template);
+    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      Handle<OrderedNameDictionary> properties_dictionary_template =
+          Handle<OrderedNameDictionary>::cast(properties_template);
 
-    return AddDescriptorsByTemplate(isolate, map, descriptors_template,
-                                    elements_dictionary_template, constructor,
-                                    args);
+      return AddDescriptorsByTemplate(
+          isolate, map, properties_dictionary_template,
+          elements_dictionary_template, computed_properties, constructor,
+          install_name_accessor, args);
+    } else {
+      Handle<NameDictionary> properties_dictionary_template =
+          Handle<NameDictionary>::cast(properties_template);
+      return AddDescriptorsByTemplate(
+          isolate, map, properties_dictionary_template,
+          elements_dictionary_template, computed_properties, constructor,
+          install_name_accessor, args);
+    }
   }
 }
 
@@ -661,12 +661,13 @@ MaybeHandle<Object> DefineClass(
     DCHECK(isolate->has_pending_exception());
     return MaybeHandle<Object>();
   }
-  if (FLAG_trace_maps) {
+  if (FLAG_log_maps) {
     Handle<Map> empty_map;
     LOG(isolate,
         MapEvent("InitialMap", empty_map, handle(constructor->map(), isolate),
                  "init class constructor",
-                 handle(constructor->shared().DebugName(), isolate)));
+                 SharedFunctionInfo::DebugName(
+                     handle(constructor->shared(), isolate))));
     LOG(isolate,
         MapEvent("InitialMap", empty_map, handle(prototype->map(), isolate),
                  "init class prototype"));

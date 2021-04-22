@@ -1,18 +1,29 @@
 const t = require('tap')
-const requireInject = require('require-inject')
-const lifecycleCmd = requireInject('../../../lib/utils/lifecycle-cmd.js', {
-  '../../../lib/npm.js': {
-    commands: {
-      run: (args, cb) => cb(null, 'called npm.commands.run'),
+const LifecycleCmd = require('../../../lib/utils/lifecycle-cmd.js')
+let runArgs = null
+const npm = {
+  commands: {
+    'run-script': (args, cb) => {
+      runArgs = args
+      cb(null, 'called npm.commands.run')
     },
   },
-})
-
+}
 t.test('create a lifecycle command', t => {
-  const cmd = lifecycleCmd('asdf')
-  t.equal(cmd.completion, require('../../../lib/utils/completion/none.js'), 'empty completion')
-  cmd(['some', 'args'], (er, result) => {
+  t.plan(5)
+  class TestStage extends LifecycleCmd {
+    static get name () {
+      return 'test-stage'
+    }
+  }
+  const cmd = new TestStage(npm)
+  t.match(cmd.usage, /test-stage/)
+  cmd.exec(['some', 'args'], (er, result) => {
+    t.same(runArgs, ['test-stage', 'some', 'args'])
     t.strictSame(result, 'called npm.commands.run')
-    t.end()
+  })
+  cmd.execWorkspaces(['some', 'args'], [], (er, result) => {
+    t.same(runArgs, ['test-stage', 'some', 'args'])
+    t.strictSame(result, 'called npm.commands.run')
   })
 })

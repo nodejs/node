@@ -173,7 +173,7 @@ changes:
     description: A deprecation code has been assigned.
   - version: v0.11.14
     description: Runtime deprecation.
-  - version: v0.5.11
+  - version: v0.5.10
     description: Documentation-only deprecation.
 -->
 
@@ -1347,6 +1347,7 @@ The `http` module `OutgoingMessage.prototype._headers` and
 the public methods (e.g. `OutgoingMessage.prototype.getHeader()`,
 `OutgoingMessage.prototype.getHeaders()`,
 `OutgoingMessage.prototype.getHeaderNames()`,
+`OutgoingMessage.prototype.getRawHeaderNames()`,
 `OutgoingMessage.prototype.hasHeader()`,
 `OutgoingMessage.prototype.removeHeader()`,
 `OutgoingMessage.prototype.setHeader()`) for working with outgoing headers.
@@ -2051,12 +2052,15 @@ expose values under these names.
 ### DEP0109: `http`, `https`, and `tls` support for invalid URLs
 <!-- YAML
 changes:
+  - version: v16.0.0
+    pr-url: https://github.com/nodejs/node/pull/36853
+    description: End-of-Life.
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/20270
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 Some previously supported (but strictly invalid) URLs were accepted through the
 [`http.request()`][], [`http.get()`][], [`https.request()`][],
@@ -2169,12 +2173,15 @@ future release.
 ### DEP0116: Legacy URL API
 <!-- YAML
 changes:
+  - version: v15.13.0
+    pr-url: https://github.com/nodejs/node/pull/37784
+    description: Deprecation revoked. Status changed to "Legacy".
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/22715
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Deprecation revoked
 
 The [Legacy URL API][] is deprecated. This includes [`url.format()`][],
 [`url.parse()`][], [`url.resolve()`][], and the [legacy `urlObject`][]. Please
@@ -2347,12 +2354,15 @@ with no performance impact since Node.js 10.
 ### DEP0128: modules with an invalid `main` entry and an `index.js` file
 <!-- YAML
 changes:
+  - version: v16.0.0
+    pr-url: https://github.com/nodejs/node/pull/37204
+    description: Runtime deprecation.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/26823
     description: Documentation-only.
 -->
 
-Type: Documentation-only (supports [`--pending-deprecation`][])
+Type: Runtime
 
 Modules that have an invalid `main` entry (e.g., `./does-not-exist.js`) and
 also have an `index.js` file in the top level directory will resolve the
@@ -2379,6 +2389,9 @@ instead.
 ### DEP0130: `Module.createRequireFromPath()`
 <!-- YAML
 changes:
+  - version: v16.0.0
+    pr-url: https://github.com/nodejs/node/pull/37201
+    description: End-of-life.
   - version: v13.0.0
     pr-url: https://github.com/nodejs/node/pull/27951
     description: Runtime deprecation.
@@ -2387,10 +2400,9 @@ changes:
     description: Documentation-only.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-Module.createRequireFromPath() is deprecated. Please use
-[`module.createRequire()`][] instead.
+Use [`module.createRequire()`][] instead.
 
 ### DEP0131: Legacy HTTP parser
 <!-- YAML
@@ -2398,6 +2410,9 @@ changes:
   - version: v13.0.0
     pr-url: https://github.com/nodejs/node/pull/29589
     description: This feature has been removed.
+  - version: v12.22.0
+    pr-url: https://github.com/nodejs/node/pull/37603
+    description: Runtime deprecation.
   - version: v12.3.0
     pr-url: https://github.com/nodejs/node/pull/27498
     description: Documentation-only.
@@ -2480,7 +2495,7 @@ called, not whether `'finish'` has been emitted and the underlying data
 is flushed.
 
 Use [`response.writableFinished`][] or [`response.writableEnded`][]
-accordingly instead to avoid the ambigiuty.
+accordingly instead to avoid the ambiguity.
 
 To maintain existing behaviour `response.finished` should be replaced with
 `response.writableEnded`.
@@ -2663,9 +2678,12 @@ The [`crypto.Certificate()` constructor][] is deprecated. Use
 ### DEP0147: `fs.rmdir(path, { recursive: true })`
 <!-- YAML
 changes:
+  - version: v16.0.0
+    pr-url: https://github.com/nodejs/node/pull/37302
+    description: Runtime deprecation.
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/35562
-    description: Runtime deprecation.
+    description: Runtime deprecation for permissive behavior.
   - version: v14.14.0
     pr-url: https://github.com/nodejs/node/pull/35579
     description: Documentation-only deprecation.
@@ -2673,36 +2691,101 @@ changes:
 
 Type: Runtime
 
-In future versions of Node.js, `fs.rmdir(path, { recursive: true })` will throw
-if `path` does not exist or is a file.
-Use `fs.rm(path, { recursive: true, force: true })` instead.
+In future versions of Node.js, `recursive` option will be ignored for
+`fs.rmdir`, `fs.rmdirSync`, and `fs.promises.rmdir`.
+
+Use `fs.rm(path, { recursive: true, force: true })`,
+`fs.rmSync(path, { recursive: true, force: true })` or
+`fs.promises.rm(path, { recursive: true, force: true })` instead.
 
 ### DEP0148: Folder mappings in `"exports"` (trailing `"/"`)
 <!-- YAML
 changes:
-  - version: v15.1.0
-    pr-url: https://github.com/nodejs/node/pull/35746
+  - version: v16.0.0
+    pr-url: https://github.com/nodejs/node/pull/37215
     description: Runtime deprecation.
+  - version: v15.1.0
+    pr-url: https://github.com/nodejs/node/pull/35747
+    description: Runtime deprecation for self-referencing imports.
   - version: v14.13.0
     pr-url: https://github.com/nodejs/node/pull/34718
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime (supports [`--pending-deprecation`][])
+Type: Runtime
 
-Prior to [subpath patterns][] support, it was possible to define
+Using a trailing `"/"` to define
 [subpath folder mappings][] in the [subpath exports][] or
-[subpath imports][] fields using a trailing `"/"`.
+[subpath imports][] fields is deprecated. Use [subpath patterns][] instead.
 
-Without `--pending-deprecation`, runtime warnings occur only for exports
-resolutions not in `node_modules`. This means there will not be deprecation
-warnings for `"exports"` in dependencies. With `--pending-deprecation`, a
-runtime warning results no matter where the `"exports"` usage occurs.
+### DEP0149: `http.IncomingMessage#connection`
+<!-- YAML
+changes:
+  - version: v16.0.0
+    pr-url: https://github.com/nodejs/node/pull/33768
+    description: Documentation-only deprecation.
+ -->
+
+Type: Documentation-only.
+
+Prefer [`message.socket`][] over [`message.connection`][].
+
+### DEP0150: Changing the value of `process.config`
+<!-- YAML
+changes:
+  - version: v16.0.0
+    pr-url: https://github.com/nodejs/node/pull/36902
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+The `process.config` property is intended to provide access to configuration
+settings set when the Node.js binary was compiled. However, the property has
+been mutable by user code making it impossible to rely on. The ability to
+change the value has been deprecated and will be disabled in the future.
+
+### DEP0151: Main index lookup and extension searching
+<!-- YAML
+changes:
+  - version: v16.0.0
+    pr-url: https://github.com/nodejs/node/pull/37206
+    description: Runtime deprecation.
+  - version: v15.8.0
+    pr-url: https://github.com/nodejs/node/pull/36918
+    description: Documentation-only deprecation
+                 with `--pending-deprecation` support.
+-->
+
+Type: Runtime
+
+Previously, `index.js` and extension searching lookups would apply to
+`import 'pkg'` main entry point resolution, even when resolving ES modules.
+
+With this deprecation, all ES module main entry point resolutions require
+an explicit [`"exports"` or `"main"` entry][] with the exact file extension.
+
+### DEP0152: Extension PerformanceEntry properties
+<!-- YAML
+changes:
+  - version: v16.0.0
+    pr-url: https://github.com/nodejs/node/pull/37136
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+The `'gc'`, `'http2'`, and `'http'` {PerformanceEntry} object types have
+additional properties assigned to them that provide additional information.
+These properties are now available within the standard `detail` property
+of the `PerformanceEntry` object. The existing accessors have been
+deprecated and should no longer be used.
 
 [Legacy URL API]: url.md#url_legacy_url_api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
 [WHATWG URL API]: url.md#url_the_whatwg_url_api
+[`"exports"` or `"main"` entry]: packages.md#packages_main_entry_point_export
 [`--pending-deprecation`]: cli.md#cli_pending_deprecation
 [`--throw-deprecation`]: cli.md#cli_throw_deprecation
 [`--unhandled-rejections`]: cli.md#cli_unhandled_rejections_mode
@@ -2757,6 +2840,8 @@ runtime warning results no matter where the `"exports"` usage occurs.
 [`http.request()`]: http.md#http_http_request_options_callback
 [`https.get()`]: https.md#https_https_get_options_callback
 [`https.request()`]: https.md#https_https_request_options_callback
+[`message.connection`]: http.md#http_message_connection
+[`message.socket`]: http.md#http_message_socket
 [`module.createRequire()`]: module.md#module_module_createrequire_filename
 [`os.networkInterfaces()`]: os.md#os_os_networkinterfaces
 [`os.tmpdir()`]: os.md#os_os_tmpdir
@@ -2823,7 +2908,7 @@ runtime warning results no matter where the `"exports"` usage occurs.
 [from_string_encoding]: buffer.md#buffer_static_method_buffer_from_string_encoding
 [legacy `urlObject`]: url.md#url_legacy_urlobject
 [static methods of `crypto.Certificate()`]: crypto.md#crypto_class_certificate
-[subpath exports]: #packages_subpath_exports
-[subpath folder mappings]: #packages_subpath_folder_mappings
-[subpath imports]: #packages_subpath_imports
-[subpath patterns]: #packages_subpath_patterns
+[subpath exports]: packages.md#packages_subpath_exports
+[subpath folder mappings]: packages.md#packages_subpath_folder_mappings
+[subpath imports]: packages.md#packages_subpath_imports
+[subpath patterns]: packages.md#packages_subpath_patterns

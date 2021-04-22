@@ -21,7 +21,8 @@ class WasmCode;
 
 class SafepointEntry {
  public:
-  SafepointEntry() : deopt_index_(0), bits_(nullptr), trampoline_pc_(-1) {}
+  SafepointEntry()
+      : deopt_index_(0), bits_(nullptr), trampoline_pc_(kNoTrampolinePC) {}
 
   SafepointEntry(unsigned deopt_index, uint8_t* bits, int trampoline_pc)
       : deopt_index_(deopt_index), bits_(bits), trampoline_pc_(trampoline_pc) {
@@ -42,6 +43,7 @@ class SafepointEntry {
   int trampoline_pc() { return trampoline_pc_; }
 
   static const unsigned kNoDeoptIndex = kMaxUInt32;
+  static constexpr int kNoTrampolinePC = -1;
 
   int deoptimization_index() const {
     DCHECK(is_valid() && has_deoptimization_index());
@@ -70,6 +72,9 @@ class SafepointTable {
   explicit SafepointTable(Code code);
   explicit SafepointTable(const wasm::WasmCode* code);
 
+  SafepointTable(const SafepointTable&) = delete;
+  SafepointTable& operator=(const SafepointTable&) = delete;
+
   int size() const {
     return kHeaderSize + (length_ * (kFixedEntrySize + entry_size_));
   }
@@ -93,8 +98,9 @@ class SafepointTable {
     unsigned deopt_index =
         base::Memory<uint32_t>(GetEncodedInfoLocation(index));
     uint8_t* bits = &base::Memory<uint8_t>(entries() + (index * entry_size_));
-    int trampoline_pc =
-        has_deopt_ ? base::Memory<int>(GetTrampolineLocation(index)) : -1;
+    int trampoline_pc = has_deopt_
+                            ? base::Memory<int>(GetTrampolineLocation(index))
+                            : SafepointEntry::kNoTrampolinePC;
     return SafepointEntry(deopt_index, bits, trampoline_pc);
   }
 
@@ -145,7 +151,7 @@ class SafepointTable {
 
   static void PrintBits(std::ostream& os, uint8_t byte, int digits);
 
-  DISALLOW_HEAP_ALLOCATION(no_allocation_)
+  DISALLOW_GARBAGE_COLLECTION(no_gc_)
 
   const Address instruction_start_;
   const uint32_t stack_slots_;
@@ -158,14 +164,10 @@ class SafepointTable {
 
   friend class SafepointTableBuilder;
   friend class SafepointEntry;
-
-  DISALLOW_COPY_AND_ASSIGN(SafepointTable);
 };
 
 class Safepoint {
  public:
-  enum DeoptMode { kNoLazyDeopt, kLazyDeopt };
-
   static const int kNoDeoptimizationIndex = SafepointEntry::kNoDeoptIndex;
 
   void DefinePointerSlot(int index) { indexes_->push_back(index); }
@@ -184,11 +186,14 @@ class SafepointTableBuilder {
         emitted_(false),
         zone_(zone) {}
 
+  SafepointTableBuilder(const SafepointTableBuilder&) = delete;
+  SafepointTableBuilder& operator=(const SafepointTableBuilder&) = delete;
+
   // Get the offset of the emitted safepoint table in the code.
   unsigned GetCodeOffset() const;
 
   // Define a new safepoint for the current position in the body.
-  Safepoint DefineSafepoint(Assembler* assembler, Safepoint::DeoptMode mode);
+  Safepoint DefineSafepoint(Assembler* assembler);
 
   // Emit the safepoint table after the body. The number of bits per
   // entry must be enough to hold all the pointer indexes.
@@ -228,8 +233,6 @@ class SafepointTableBuilder {
   bool emitted_;
 
   Zone* zone_;
-
-  DISALLOW_COPY_AND_ASSIGN(SafepointTableBuilder);
 };
 
 }  // namespace internal

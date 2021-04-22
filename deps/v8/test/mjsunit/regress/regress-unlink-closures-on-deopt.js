@@ -27,7 +27,7 @@ g1({ f : 1});
 %OptimizeFunctionOnNextCall(g2);
 g2({ f : 2});
 g1({});
-if (%DynamicMapChecksEnabled()) {
+if (%DynamicCheckMapsEnabled()) {
   // One more call to ensure a deopt even if dynamic map checks is enabled.
   g1({});
 }

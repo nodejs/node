@@ -30,21 +30,21 @@ let contextGroup2 = new InspectorTest.ContextGroup();
 let session2 = contextGroup2.connect();
 session2.setupScriptMap();
 
-(async function test() {
-  await session1.Protocol.Debugger.enable();
-  await session2.Protocol.Debugger.enable();
+InspectorTest.runAsyncTestSuite([
+  async function test() {
+    await session1.Protocol.Debugger.enable();
+    await session2.Protocol.Debugger.enable();
 
-  session1.Protocol.Runtime.evaluate({
-    expression: `var instance = (${WasmInspectorTest.instantiateFromBuffer})(${JSON.stringify(module_bytes)})`});
+    session1.Protocol.Runtime.evaluate({
+      expression: `var instance = (${WasmInspectorTest.instantiateFromBuffer})(${JSON.stringify(module_bytes)})`});
 
-  session2.Protocol.Runtime.evaluate({
-    expression: `var instance = (${WasmInspectorTest.instantiateFromBuffer})(${JSON.stringify(module_bytes)})`});
+    session2.Protocol.Runtime.evaluate({
+      expression: `var instance = (${WasmInspectorTest.instantiateFromBuffer})(${JSON.stringify(module_bytes)})`});
 
-  contextGroup2.reset();
+    contextGroup2.reset();
 
-  await session1.Protocol.Debugger.onceScriptParsed(2);
-  InspectorTest.logMessage(await session1.Protocol.Runtime.evaluate({expression: 'instance.exports.main(4)'}));
-  InspectorTest.logMessage(await session2.Protocol.Runtime.evaluate({expression: 'instance.exports.main(5)'}));
-
-  InspectorTest.completeTest();
-})();
+    await session1.Protocol.Debugger.onceScriptParsed(2);
+    InspectorTest.logMessage(await session1.Protocol.Runtime.evaluate({expression: 'instance.exports.main(4)'}));
+    InspectorTest.logMessage(await session2.Protocol.Runtime.evaluate({expression: 'instance.exports.main(5)'}));
+  }
+]);

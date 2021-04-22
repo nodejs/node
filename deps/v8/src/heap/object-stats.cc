@@ -16,7 +16,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/mark-compact.h"
 #include "src/logging/counters.h"
-#include "src/objects/compilation-cache-inl.h"
+#include "src/objects/compilation-cache-table-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
@@ -36,13 +36,11 @@ class FieldStatsCollector : public ObjectVisitor {
   FieldStatsCollector(size_t* tagged_fields_count,
                       size_t* embedder_fields_count,
                       size_t* inobject_smi_fields_count,
-                      size_t* unboxed_double_fields_count,
                       size_t* boxed_double_fields_count,
                       size_t* string_data_count, size_t* raw_fields_count)
       : tagged_fields_count_(tagged_fields_count),
         embedder_fields_count_(embedder_fields_count),
         inobject_smi_fields_count_(inobject_smi_fields_count),
-        unboxed_double_fields_count_(unboxed_double_fields_count),
         boxed_double_fields_count_(boxed_double_fields_count),
         string_data_count_(string_data_count),
         raw_fields_count_(raw_fields_count) {}
@@ -68,20 +66,9 @@ class FieldStatsCollector : public ObjectVisitor {
       *embedder_fields_count_ += field_stats.embedded_fields_count_;
 
       // Smi fields are also included into pointer words.
-      DCHECK_LE(
-          field_stats.unboxed_double_fields_count_ * kDoubleSize / kTaggedSize,
-          raw_fields_count_in_object);
       tagged_fields_count_in_object -= field_stats.smi_fields_count_;
       *tagged_fields_count_ -= field_stats.smi_fields_count_;
       *inobject_smi_fields_count_ += field_stats.smi_fields_count_;
-
-      // The rest are data words.
-      DCHECK_LE(
-          field_stats.unboxed_double_fields_count_ * kDoubleSize / kTaggedSize,
-          raw_fields_count_in_object);
-      raw_fields_count_in_object -=
-          field_stats.unboxed_double_fields_count_ * kDoubleSize / kTaggedSize;
-      *unboxed_double_fields_count_ += field_stats.unboxed_double_fields_count_;
     } else if (host.IsHeapNumber()) {
       DCHECK_LE(kDoubleSize / kTaggedSize, raw_fields_count_in_object);
       raw_fields_count_in_object -= kDoubleSize / kTaggedSize;
@@ -117,14 +104,10 @@ class FieldStatsCollector : public ObjectVisitor {
 
  private:
   struct JSObjectFieldStats {
-    JSObjectFieldStats()
-        : embedded_fields_count_(0),
-          smi_fields_count_(0),
-          unboxed_double_fields_count_(0) {}
+    JSObjectFieldStats() : embedded_fields_count_(0), smi_fields_count_(0) {}
 
     unsigned embedded_fields_count_ : kDescriptorIndexBitCount;
     unsigned smi_fields_count_ : kDescriptorIndexBitCount;
-    unsigned unboxed_double_fields_count_ : kDescriptorIndexBitCount;
   };
   std::unordered_map<Map, JSObjectFieldStats, Object::Hasher>
       field_stats_cache_;
@@ -134,7 +117,6 @@ class FieldStatsCollector : public ObjectVisitor {
   size_t* const tagged_fields_count_;
   size_t* const embedder_fields_count_;
   size_t* const inobject_smi_fields_count_;
-  size_t* const unboxed_double_fields_count_;
   size_t* const boxed_double_fields_count_;
   size_t* const string_data_count_;
   size_t* const raw_fields_count_;
@@ -150,17 +132,13 @@ FieldStatsCollector::GetInobjectFieldStats(Map map) {
   JSObjectFieldStats stats;
   stats.embedded_fields_count_ = JSObject::GetEmbedderFieldCount(map);
   if (!map.is_dictionary_map()) {
-    DescriptorArray descriptors = map.instance_descriptors();
+    DescriptorArray descriptors = map.instance_descriptors(kRelaxedLoad);
     for (InternalIndex descriptor : map.IterateOwnDescriptors()) {
       PropertyDetails details = descriptors.GetDetails(descriptor);
       if (details.location() == kField) {
         FieldIndex index = FieldIndex::ForDescriptor(map, descriptor);
         // Stop on first out-of-object field.
         if (!index.is_inobject()) break;
-        if (details.representation().IsDouble() &&
-            map.IsUnboxedDoubleField(index)) {
-          ++stats.unboxed_double_fields_count_;
-        }
         if (details.representation().IsSmi()) {
           ++stats.smi_fields_count_;
         }
@@ -184,7 +162,6 @@ void ObjectStats::ClearObjectStats(bool clear_last_time_stats) {
   tagged_fields_count_ = 0;
   embedder_fields_count_ = 0;
   inobject_smi_fields_count_ = 0;
-  unboxed_double_fields_count_ = 0;
   boxed_double_fields_count_ = 0;
   string_data_count_ = 0;
   raw_fields_count_ = 0;
@@ -247,8 +224,6 @@ void ObjectStats::PrintJSON(const char* key) {
          embedder_fields_count_ * kEmbedderDataSlotSize);
   PrintF(", \"inobject_smi_fields\": %zu",
          inobject_smi_fields_count_ * kTaggedSize);
-  PrintF(", \"unboxed_double_fields\": %zu",
-         unboxed_double_fields_count_ * kDoubleSize);
   PrintF(", \"boxed_double_fields\": %zu",
          boxed_double_fields_count_ * kDoubleSize);
   PrintF(", \"string_data\": %zu", string_data_count_ * kTaggedSize);
@@ -307,8 +282,6 @@ void ObjectStats::Dump(std::stringstream& stream) {
          << (embedder_fields_count_ * kEmbedderDataSlotSize);
   stream << ",\"inobject_smi_fields\": "
          << (inobject_smi_fields_count_ * kTaggedSize);
-  stream << ",\"unboxed_double_fields\": "
-         << (unboxed_double_fields_count_ * kDoubleSize);
   stream << ",\"boxed_double_fields\": "
          << (boxed_double_fields_count_ * kDoubleSize);
   stream << ",\"string_data\": " << (string_data_count_ * kTaggedSize);
@@ -355,8 +328,8 @@ int Log2ForSize(size_t size) {
 
 int ObjectStats::HistogramIndexFromSize(size_t size) {
   if (size == 0) return 0;
-  return Min(Max(Log2ForSize(size) + 1 - kFirstBucketShift, 0),
-             kLastValueBucketIndex);
+  return std::min({std::max(Log2ForSize(size) + 1 - kFirstBucketShift, 0),
+                   kLastValueBucketIndex});
 }
 
 void ObjectStats::RecordObjectStats(InstanceType type, size_t size,
@@ -475,7 +448,6 @@ ObjectStatsCollectorImpl::ObjectStatsCollectorImpl(Heap* heap,
       field_stats_collector_(
           &stats->tagged_fields_count_, &stats->embedder_fields_count_,
           &stats->inobject_smi_fields_count_,
-          &stats->unboxed_double_fields_count_,
           &stats->boxed_double_fields_count_, &stats->string_data_count_,
           &stats->raw_fields_count_) {}
 
@@ -565,9 +537,10 @@ void ObjectStatsCollectorImpl::RecordVirtualFunctionTemplateInfoDetails(
     FunctionTemplateInfo fti) {
   // named_property_handler and indexed_property_handler are recorded as
   // INTERCEPTOR_INFO_TYPE.
-  if (!fti.call_code().IsUndefined(isolate())) {
+  HeapObject call_code = fti.call_code(kAcquireLoad);
+  if (!call_code.IsUndefined(isolate())) {
     RecordSimpleVirtualObjectStats(
-        fti, CallHandlerInfo::cast(fti.call_code()),
+        fti, CallHandlerInfo::cast(call_code),
         ObjectStats::FUNCTION_TEMPLATE_INFO_ENTRIES_TYPE);
   }
   if (!fti.GetInstanceCallHandler().IsUndefined(isolate())) {
@@ -580,7 +553,7 @@ void ObjectStatsCollectorImpl::RecordVirtualFunctionTemplateInfoDetails(
 void ObjectStatsCollectorImpl::RecordVirtualJSGlobalObjectDetails(
     JSGlobalObject object) {
   // Properties.
-  GlobalDictionary properties = object.global_dictionary();
+  GlobalDictionary properties = object.global_dictionary(kAcquireLoad);
   RecordHashTableVirtualObjectStats(object, properties,
                                     ObjectStats::GLOBAL_PROPERTIES_TYPE);
   // Elements.
@@ -883,7 +856,7 @@ void ObjectStatsCollectorImpl::RecordVirtualMapDetails(Map map) {
     // This will be logged as MAP_TYPE in Phase2.
   }
 
-  DescriptorArray array = map.instance_descriptors();
+  DescriptorArray array = map.instance_descriptors(kRelaxedLoad);
   if (map.owns_descriptors() &&
       array != ReadOnlyRoots(heap_).empty_descriptor_array()) {
     // Generally DescriptorArrays have their own instance type already
@@ -1091,7 +1064,7 @@ class ObjectStatsVisitor {
             heap->mark_compact_collector()->non_atomic_marking_state()),
         phase_(phase) {}
 
-  bool Visit(HeapObject obj, int size) {
+  void Visit(HeapObject obj) {
     if (marking_state_->IsBlack(obj)) {
       live_collector_->CollectStatistics(
           obj, phase_, ObjectStatsCollectorImpl::CollectFieldStats::kYes);
@@ -1100,7 +1073,6 @@ class ObjectStatsVisitor {
       dead_collector_->CollectStatistics(
           obj, phase_, ObjectStatsCollectorImpl::CollectFieldStats::kNo);
     }
-    return true;
   }
 
  private:
@@ -1116,7 +1088,7 @@ void IterateHeap(Heap* heap, ObjectStatsVisitor* visitor) {
   CombinedHeapObjectIterator iterator(heap);
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
-    visitor->Visit(obj, obj.Size());
+    visitor->Visit(obj);
   }
 }
 

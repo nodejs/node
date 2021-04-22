@@ -32,6 +32,8 @@ struct WasmFunction;
 class WasmInstructionBuffer final {
  public:
   WasmInstructionBuffer() = delete;
+  WasmInstructionBuffer(const WasmInstructionBuffer&) = delete;
+  WasmInstructionBuffer& operator=(const WasmInstructionBuffer&) = delete;
   ~WasmInstructionBuffer();
   std::unique_ptr<AssemblerBuffer> CreateView();
   std::unique_ptr<uint8_t[]> ReleaseBuffer();
@@ -43,9 +45,6 @@ class WasmInstructionBuffer final {
   // Override {operator delete} to avoid implicit instantiation of {operator
   // delete} with {size_t} argument. The {size_t} argument would be incorrect.
   void operator delete(void* ptr) { ::operator delete(ptr); }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(WasmInstructionBuffer);
 };
 
 struct WasmCompilationResult {
@@ -113,10 +112,15 @@ STATIC_ASSERT(sizeof(WasmCompilationUnit) <= 2 * kSystemPointerSize);
 
 class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
  public:
+  // A flag to mark whether the compilation unit can skip the compilation
+  // and return the builtin (generic) wrapper, when available.
+  enum AllowGeneric : bool { kAllowGeneric = true, kDontAllowGeneric = false };
+
   JSToWasmWrapperCompilationUnit(Isolate* isolate, WasmEngine* wasm_engine,
                                  const FunctionSig* sig,
                                  const wasm::WasmModule* module, bool is_import,
-                                 const WasmFeatures& enabled_features);
+                                 const WasmFeatures& enabled_features,
+                                 AllowGeneric allow_generic);
   ~JSToWasmWrapperCompilationUnit();
 
   void Execute();
@@ -130,6 +134,12 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
                                              const FunctionSig* sig,
                                              const WasmModule* module,
                                              bool is_import);
+
+  // Run a compilation unit synchronously, but ask for the specific
+  // wrapper.
+  static Handle<Code> CompileSpecificJSToWasmWrapper(Isolate* isolate,
+                                                     const FunctionSig* sig,
+                                                     const WasmModule* module);
 
  private:
   bool is_import_;

@@ -28,7 +28,17 @@ struct DijkstraWriteBarrierPolicy {
     // barrier doesn't break the tri-color invariant.
   }
   static void AssigningBarrier(const void* slot, const void* value) {
-    WriteBarrier::MarkingBarrier(slot, value);
+    WriteBarrier::Params params;
+    switch (WriteBarrier::GetWriteBarrierType(slot, value, params)) {
+      case WriteBarrier::Type::kGenerational:
+        WriteBarrier::GenerationalBarrier(params, slot);
+        break;
+      case WriteBarrier::Type::kMarking:
+        WriteBarrier::DijkstraMarkingBarrier(params, value);
+        break;
+      case WriteBarrier::Type::kNone:
+        break;
+    }
   }
 };
 
@@ -62,6 +72,7 @@ class KeepLocationPolicy {
   constexpr const SourceLocation& Location() const { return location_; }
 
  protected:
+  constexpr KeepLocationPolicy() = default;
   constexpr explicit KeepLocationPolicy(const SourceLocation& location)
       : location_(location) {}
 
@@ -82,6 +93,7 @@ class IgnoreLocationPolicy {
   constexpr SourceLocation Location() const { return {}; }
 
  protected:
+  constexpr IgnoreLocationPolicy() = default;
   constexpr explicit IgnoreLocationPolicy(const SourceLocation&) {}
 };
 
@@ -93,17 +105,29 @@ using DefaultLocationPolicy = IgnoreLocationPolicy;
 
 struct StrongPersistentPolicy {
   using IsStrongPersistent = std::true_type;
-
-  static V8_EXPORT PersistentRegion& GetPersistentRegion(void* object);
+  static V8_EXPORT PersistentRegion& GetPersistentRegion(const void* object);
 };
 
 struct WeakPersistentPolicy {
   using IsStrongPersistent = std::false_type;
-
-  static V8_EXPORT PersistentRegion& GetPersistentRegion(void* object);
+  static V8_EXPORT PersistentRegion& GetPersistentRegion(const void* object);
 };
 
-// Persistent/Member forward declarations.
+struct StrongCrossThreadPersistentPolicy {
+  using IsStrongPersistent = std::true_type;
+  static V8_EXPORT PersistentRegion& GetPersistentRegion(const void* object);
+};
+
+struct WeakCrossThreadPersistentPolicy {
+  using IsStrongPersistent = std::false_type;
+  static V8_EXPORT PersistentRegion& GetPersistentRegion(const void* object);
+};
+
+// Forward declarations setting up the default policies.
+template <typename T, typename WeaknessPolicy,
+          typename LocationPolicy = DefaultLocationPolicy,
+          typename CheckingPolicy = DisabledCheckingPolicy>
+class BasicCrossThreadPersistent;
 template <typename T, typename WeaknessPolicy,
           typename LocationPolicy = DefaultLocationPolicy,
           typename CheckingPolicy = DefaultCheckingPolicy>
@@ -112,22 +136,7 @@ template <typename T, typename WeaknessTag, typename WriteBarrierPolicy,
           typename CheckingPolicy = DefaultCheckingPolicy>
 class BasicMember;
 
-// Special tag type used to denote some sentinel member. The semantics of the
-// sentinel is defined by the embedder.
-struct SentinelPointer {
-  template <typename T>
-  operator T*() const {  // NOLINT
-    static constexpr intptr_t kSentinelValue = 1;
-    return reinterpret_cast<T*>(kSentinelValue);
-  }
-  // Hidden friends.
-  friend bool operator==(SentinelPointer, SentinelPointer) { return true; }
-  friend bool operator!=(SentinelPointer, SentinelPointer) { return false; }
-};
-
 }  // namespace internal
-
-constexpr internal::SentinelPointer kSentinelPointer;
 
 }  // namespace cppgc
 

@@ -10,6 +10,8 @@ description: Check your npm environment
 npm doctor
 ```
 
+Note: This command is unaware of workspaces.
+
 ### Description
 
 `npm doctor` runs a set of checks to ensure that your npm installation has

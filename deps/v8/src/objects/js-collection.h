@@ -17,6 +17,8 @@ namespace internal {
 class OrderedHashSet;
 class OrderedHashMap;
 
+#include "torque-generated/src/objects/js-collection-tq.inc"
+
 class JSCollection
     : public TorqueGeneratedJSCollection<JSCollection, JSObject> {
  public:

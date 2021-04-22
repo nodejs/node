@@ -7,7 +7,7 @@
   static napi_value binding_name(napi_env env, napi_callback_info info) { \
     napi_value return_value;                                              \
     output_type result;                                                   \
-    NAPI_CALL(env, napi_create_object(env, &return_value));               \
+    NODE_API_CALL(env, napi_create_object(env, &return_value));           \
     add_returned_status(env,                                              \
                         "envIsNull",                                      \
                         return_value,                                     \
@@ -35,7 +35,7 @@ GEN_NULL_CHECK_BINDING(CoerceToString, napi_value, napi_coerce_to_string)
 #define GEN_NULL_CHECK_STRING_BINDING(binding_name, arg_type, api)         \
   static napi_value binding_name(napi_env env, napi_callback_info info) {  \
     napi_value return_value;                                               \
-    NAPI_CALL(env, napi_create_object(env, &return_value));                \
+    NODE_API_CALL(env, napi_create_object(env, &return_value));            \
     arg_type buf1[4];                                                      \
     size_t length1 = 3;                                                    \
     add_returned_status(env,                                               \
@@ -51,7 +51,7 @@ GEN_NULL_CHECK_BINDING(CoerceToString, napi_value, napi_coerce_to_string)
     api(env, return_value, NULL, 3, NULL);                                 \
     add_last_status(env, "wrongTypeIn", return_value);                     \
     napi_value string;                                                     \
-    NAPI_CALL(env,                                                         \
+    NODE_API_CALL(env,                                                     \
               napi_create_string_utf8(env,                                 \
                                       "Something",                         \
                                       NAPI_AUTO_LENGTH,                    \
@@ -75,21 +75,21 @@ void init_test_null(napi_env env, napi_value exports) {
   napi_value test_null;
 
   const napi_property_descriptor test_null_props[] = {
-    DECLARE_NAPI_PROPERTY("getValueBool", GetValueBool),
-    DECLARE_NAPI_PROPERTY("getValueInt32", GetValueInt32),
-    DECLARE_NAPI_PROPERTY("getValueUint32", GetValueUint32),
-    DECLARE_NAPI_PROPERTY("getValueInt64", GetValueInt64),
-    DECLARE_NAPI_PROPERTY("getValueDouble", GetValueDouble),
-    DECLARE_NAPI_PROPERTY("coerceToBool", CoerceToBool),
-    DECLARE_NAPI_PROPERTY("coerceToObject", CoerceToObject),
-    DECLARE_NAPI_PROPERTY("coerceToString", CoerceToString),
-    DECLARE_NAPI_PROPERTY("getValueStringUtf8", GetValueStringUtf8),
-    DECLARE_NAPI_PROPERTY("getValueStringLatin1", GetValueStringLatin1),
-    DECLARE_NAPI_PROPERTY("getValueStringUtf16", GetValueStringUtf16),
+    DECLARE_NODE_API_PROPERTY("getValueBool", GetValueBool),
+    DECLARE_NODE_API_PROPERTY("getValueInt32", GetValueInt32),
+    DECLARE_NODE_API_PROPERTY("getValueUint32", GetValueUint32),
+    DECLARE_NODE_API_PROPERTY("getValueInt64", GetValueInt64),
+    DECLARE_NODE_API_PROPERTY("getValueDouble", GetValueDouble),
+    DECLARE_NODE_API_PROPERTY("coerceToBool", CoerceToBool),
+    DECLARE_NODE_API_PROPERTY("coerceToObject", CoerceToObject),
+    DECLARE_NODE_API_PROPERTY("coerceToString", CoerceToString),
+    DECLARE_NODE_API_PROPERTY("getValueStringUtf8", GetValueStringUtf8),
+    DECLARE_NODE_API_PROPERTY("getValueStringLatin1", GetValueStringLatin1),
+    DECLARE_NODE_API_PROPERTY("getValueStringUtf16", GetValueStringUtf16),
   };
 
-  NAPI_CALL_RETURN_VOID(env, napi_create_object(env, &test_null));
-  NAPI_CALL_RETURN_VOID(env, napi_define_properties(
+  NODE_API_CALL_RETURN_VOID(env, napi_create_object(env, &test_null));
+  NODE_API_CALL_RETURN_VOID(env, napi_define_properties(
       env, test_null, sizeof(test_null_props) / sizeof(*test_null_props),
       test_null_props));
 
@@ -97,6 +97,6 @@ void init_test_null(napi_env env, napi_value exports) {
     "testNull", NULL, NULL, NULL, NULL, test_null, napi_enumerable, NULL
   };
 
-  NAPI_CALL_RETURN_VOID(env,
+  NODE_API_CALL_RETURN_VOID(env,
       napi_define_properties(env, exports, 1, &test_null_set));
 }

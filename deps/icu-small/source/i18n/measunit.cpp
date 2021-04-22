@@ -41,26 +41,26 @@ static const int32_t gOffsets[] = {
     2,
     7,
     17,
-    25,
-    29,
-    328,
-    339,
-    355,
-    359,
-    368,
-    370,
-    374,
-    382,
-    404,
-    408,
-    423,
+    26,
+    30,
+    329,
+    340,
+    356,
+    360,
+    369,
+    371,
+    375,
+    383,
+    405,
+    409,
     424,
-    430,
-    440,
-    444,
-    448,
-    450,
-    484
+    425,
+    431,
+    441,
+    445,
+    449,
+    451,
+    485
 };
 
 static const int32_t kCurrencyOffset = 5;
@@ -112,6 +112,7 @@ static const char * const gSubTypes[] = {
     "square-mile",
     "square-yard",
     "karat",
+    "milligram-ofglucose-per-deciliter",
     "milligram-per-deciliter",
     "millimole-per-liter",
     "mole",
@@ -728,60 +729,68 @@ MeasureUnit MeasureUnit::getKarat() {
     return MeasureUnit(3, 0);
 }
 
-MeasureUnit *MeasureUnit::createMilligramPerDeciliter(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createMilligramOfglucosePerDeciliter(UErrorCode &status) {
     return MeasureUnit::create(3, 1, status);
 }
 
-MeasureUnit MeasureUnit::getMilligramPerDeciliter() {
+MeasureUnit MeasureUnit::getMilligramOfglucosePerDeciliter() {
     return MeasureUnit(3, 1);
 }
 
-MeasureUnit *MeasureUnit::createMillimolePerLiter(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createMilligramPerDeciliter(UErrorCode &status) {
     return MeasureUnit::create(3, 2, status);
 }
 
-MeasureUnit MeasureUnit::getMillimolePerLiter() {
+MeasureUnit MeasureUnit::getMilligramPerDeciliter() {
     return MeasureUnit(3, 2);
 }
 
-MeasureUnit *MeasureUnit::createMole(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createMillimolePerLiter(UErrorCode &status) {
     return MeasureUnit::create(3, 3, status);
 }
 
-MeasureUnit MeasureUnit::getMole() {
+MeasureUnit MeasureUnit::getMillimolePerLiter() {
     return MeasureUnit(3, 3);
 }
 
-MeasureUnit *MeasureUnit::createPercent(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createMole(UErrorCode &status) {
     return MeasureUnit::create(3, 4, status);
 }
 
-MeasureUnit MeasureUnit::getPercent() {
+MeasureUnit MeasureUnit::getMole() {
     return MeasureUnit(3, 4);
 }
 
-MeasureUnit *MeasureUnit::createPermille(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createPercent(UErrorCode &status) {
     return MeasureUnit::create(3, 5, status);
 }
 
-MeasureUnit MeasureUnit::getPermille() {
+MeasureUnit MeasureUnit::getPercent() {
     return MeasureUnit(3, 5);
 }
 
-MeasureUnit *MeasureUnit::createPartPerMillion(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createPermille(UErrorCode &status) {
     return MeasureUnit::create(3, 6, status);
 }
 
-MeasureUnit MeasureUnit::getPartPerMillion() {
+MeasureUnit MeasureUnit::getPermille() {
     return MeasureUnit(3, 6);
 }
 
-MeasureUnit *MeasureUnit::createPermyriad(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createPartPerMillion(UErrorCode &status) {
     return MeasureUnit::create(3, 7, status);
 }
 
-MeasureUnit MeasureUnit::getPermyriad() {
+MeasureUnit MeasureUnit::getPartPerMillion() {
     return MeasureUnit(3, 7);
+}
+
+MeasureUnit *MeasureUnit::createPermyriad(UErrorCode &status) {
+    return MeasureUnit::create(3, 8, status);
+}
+
+MeasureUnit MeasureUnit::getPermyriad() {
+    return MeasureUnit(3, 8);
 }
 
 MeasureUnit *MeasureUnit::createLiterPer100Kilometers(UErrorCode &status) {
@@ -2105,7 +2114,9 @@ MeasureUnit &MeasureUnit::operator=(const MeasureUnit &other) {
     if (this == &other) {
         return *this;
     }
-    delete fImpl;
+    if (fImpl != nullptr) {
+        delete fImpl;
+    }
     if (other.fImpl) {
         ErrorCode localStatus;
         fImpl = new MeasureUnitImpl(other.fImpl->copy(localStatus));
@@ -2126,7 +2137,9 @@ MeasureUnit &MeasureUnit::operator=(MeasureUnit &&other) noexcept {
     if (this == &other) {
         return *this;
     }
-    delete fImpl;
+    if (fImpl != nullptr) {
+        delete fImpl;
+    }
     fImpl = other.fImpl;
     other.fImpl = nullptr;
     fTypeId = other.fTypeId;
@@ -2139,8 +2152,10 @@ MeasureUnit *MeasureUnit::clone() const {
 }
 
 MeasureUnit::~MeasureUnit() {
-    delete fImpl;
-    fImpl = nullptr;
+    if (fImpl != nullptr) {
+        delete fImpl;
+        fImpl = nullptr;
+    }
 }
 
 const char *MeasureUnit::getType() const {
@@ -2298,8 +2313,10 @@ void MeasureUnit::initCurrency(StringPiece isoCurrency) {
 void MeasureUnit::setTo(int32_t typeId, int32_t subTypeId) {
     fTypeId = typeId;
     fSubTypeId = subTypeId;
-    delete fImpl;
-    fImpl = nullptr;
+    if (fImpl != nullptr) {
+        delete fImpl;
+        fImpl = nullptr;
+    }
 }
 
 int32_t MeasureUnit::getOffset() const {
@@ -2313,8 +2330,8 @@ MeasureUnitImpl MeasureUnitImpl::copy(UErrorCode &status) const {
     MeasureUnitImpl result;
     result.complexity = complexity;
     result.identifier.append(identifier, status);
-    for (int32_t i = 0; i < units.length(); i++) {
-        SingleUnitImpl *item = result.units.emplaceBack(*units[i]);
+    for (int32_t i = 0; i < singleUnits.length(); i++) {
+        SingleUnitImpl *item = result.singleUnits.emplaceBack(*singleUnits[i]);
         if (!item) {
             status = U_MEMORY_ALLOCATION_ERROR;
             return result;

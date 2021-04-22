@@ -19,7 +19,7 @@ const fields = [
   'ipcReceived',
   'signalsCount',
   'voluntaryContextSwitches',
-  'involuntaryContextSwitches'
+  'involuntaryContextSwitches',
 ];
 
 assert.deepStrictEqual(Object.keys(rusage).sort(), fields.sort());

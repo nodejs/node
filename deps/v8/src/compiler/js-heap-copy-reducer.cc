@@ -29,8 +29,10 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kCheckClosure: {
       FeedbackCellRef cell(broker(), FeedbackCellOf(node->op()));
-      FeedbackVectorRef feedback_vector = cell.value().AsFeedbackVector();
-      feedback_vector.Serialize();
+      base::Optional<FeedbackVectorRef> feedback_vector = cell.value();
+      if (feedback_vector.has_value()) {
+        feedback_vector->Serialize();
+      }
       break;
     }
     case IrOpcode::kHeapConstant: {
@@ -152,10 +154,9 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
     case IrOpcode::kJSGetTemplateObject: {
       GetTemplateObjectParameters const& p =
           GetTemplateObjectParametersOf(node->op());
-      SharedFunctionInfoRef shared(broker(), p.shared());
-      TemplateObjectDescriptionRef description(broker(), p.description());
-      shared.GetTemplateObject(description, p.feedback(),
-                               SerializationPolicy::kSerializeIfNeeded);
+      SharedFunctionInfoRef(broker(), p.shared());
+      TemplateObjectDescriptionRef(broker(), p.description());
+      broker()->ProcessFeedbackForTemplateObject(p.feedback());
       break;
     }
     case IrOpcode::kJSCreateWithContext: {
@@ -172,10 +173,12 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
       break;
     }
     case IrOpcode::kJSLoadNamedFromSuper: {
-      // TODO(marja, v8:9237): Process feedback once it's added to the byte
-      // code.
       NamedAccess const& p = NamedAccessOf(node->op());
       NameRef name(broker(), p.name());
+      if (p.feedback().IsValid()) {
+        broker()->ProcessFeedbackForPropertyAccess(p.feedback(),
+                                                   AccessMode::kLoad, name);
+      }
       break;
     }
     case IrOpcode::kJSStoreNamed: {

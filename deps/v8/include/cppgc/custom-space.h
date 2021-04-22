@@ -9,8 +9,11 @@
 
 namespace cppgc {
 
+/**
+ * Index identifying a custom space.
+ */
 struct CustomSpaceIndex {
-  CustomSpaceIndex(size_t value) : value(value) {}  // NOLINT
+  constexpr CustomSpaceIndex(size_t value) : value(value) {}  // NOLINT
   size_t value;
 };
 
@@ -22,11 +25,12 @@ class CustomSpaceBase {
  public:
   virtual ~CustomSpaceBase() = default;
   virtual CustomSpaceIndex GetCustomSpaceIndex() const = 0;
+  virtual bool IsCompactable() const = 0;
 };
 
 /**
  * Base class custom spaces should directly inherit from. The class inheriting
- * from CustomSpace must define kSpaceIndex as unique space index. These
+ * from `CustomSpace` must define `kSpaceIndex` as unique space index. These
  * indices need for form a sequence starting at 0.
  *
  * Example:
@@ -44,8 +48,17 @@ class CustomSpaceBase {
 template <typename ConcreteCustomSpace>
 class CustomSpace : public CustomSpaceBase {
  public:
+  /**
+   * Compaction is only supported on spaces that manually manage slots
+   * recording.
+   */
+  static constexpr bool kSupportsCompaction = false;
+
   CustomSpaceIndex GetCustomSpaceIndex() const final {
     return ConcreteCustomSpace::kSpaceIndex;
+  }
+  bool IsCompactable() const final {
+    return ConcreteCustomSpace::kSupportsCompaction;
   }
 };
 
@@ -56,6 +69,28 @@ template <typename T, typename = void>
 struct SpaceTrait {
   using Space = void;
 };
+
+namespace internal {
+
+template <typename CustomSpace>
+struct IsAllocatedOnCompactableSpaceImpl {
+  static constexpr bool value = CustomSpace::kSupportsCompaction;
+};
+
+template <>
+struct IsAllocatedOnCompactableSpaceImpl<void> {
+  // Non-custom spaces are by default not compactable.
+  static constexpr bool value = false;
+};
+
+template <typename T>
+struct IsAllocatedOnCompactableSpace {
+ public:
+  static constexpr bool value =
+      IsAllocatedOnCompactableSpaceImpl<typename SpaceTrait<T>::Space>::value;
+};
+
+}  // namespace internal
 
 }  // namespace cppgc
 

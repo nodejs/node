@@ -35,9 +35,9 @@ simply to store it as a Handle.
 
 PREREQUISITES -----------------------------------------------------------------
 
-(1) Install Lua 5.1
+(1) Install Python
 
-    $ sudo apt-get install lua5.1
+    $ sudo apt-get install python
 
 (2) Get LLVM 8.0 and Clang 8.0 sources and build them.
 
@@ -62,14 +62,14 @@ PREREQUISITES -----------------------------------------------------------------
 
 USING GCMOLE ------------------------------------------------------------------
 
-gcmole consists of driver script written in Lua and Clang plugin that does
+gcmole consists of driver script written in Python and Clang plugin that does
 C++ AST processing. Plugin (libgcmole.so) is expected to be in the same
-folder as driver (gcmole.lua).
+folder as driver (gcmole.py).
 
 To start analysis cd into the root of v8 checkout and execute the following
 command:
 
-CLANG_BIN=<path-to-clang-bin-folder> lua tools/gcmole/gcmole.lua [<arch>]
+CLANG_BIN=<path-to-clang-bin-folder> python tools/gcmole/gcmole.py [<arch>]
 
 where arch should be one of architectures supported by V8 (arm, ia32, x64).
 
@@ -89,7 +89,7 @@ If any errors were found driver exits with non-zero status.
 
 TESTING -----------------------------------------------------------------------
 
-Tests are automatically run by the main lua runner. Expectations are in
+Tests are automatically run by the main python runner. Expectations are in
 test-expectations.txt and need to be updated whenever the sources of the tests
 in gcmole-test.cc are modified (line numbers also count).
 

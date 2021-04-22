@@ -34,7 +34,7 @@
 #include "crypto/crypto_context.h"
 #include "crypto/crypto_dh.h"
 #include "crypto/crypto_dsa.h"
-#include "crypto/crypto_ecdh.h"
+#include "crypto/crypto_ec.h"
 #include "crypto/crypto_groups.h"
 #include "crypto/crypto_hash.h"
 #include "crypto/crypto_hkdf.h"
@@ -50,6 +50,7 @@
 #include "crypto/crypto_tls.h"
 #include "crypto/crypto_timing.h"
 #include "crypto/crypto_util.h"
+#include "crypto/crypto_x509.h"
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 

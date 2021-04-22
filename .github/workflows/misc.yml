@@ -29,5 +29,5 @@ jobs:
         with:
           name: docs
           path: out/doc
-      - name: Check links
-        run: node tools/doc/checkLinks.js .
+      - name: Test
+        run: NODE=$(command -v node) make test-doc-ci TEST_CI_ARGS="-p actions"

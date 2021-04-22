@@ -25,9 +25,7 @@ as the abstract concept that is a resource.
 If [`Worker`][]s are used, each thread has an independent `async_hooks`
 interface, and each thread will use a new set of async IDs.
 
-## Public API
-
-### Overview
+## Overview
 
 Following is a simple overview of the public API.
 
@@ -79,7 +77,7 @@ function destroy(asyncId) { }
 function promiseResolve(asyncId) { }
 ```
 
-#### `async_hooks.createHook(callbacks)`
+## `async_hooks.createHook(callbacks)`
 
 <!-- YAML
 added: v8.1.0
@@ -129,7 +127,11 @@ class MyAddedCallbacks extends MyAsyncCallbacks {
 const asyncHook = async_hooks.createHook(new MyAddedCallbacks());
 ```
 
-##### Error handling
+Because promises are asynchronous resources whose lifecycle is tracked
+via the async hooks mechanism, the `init()`, `before()`, `after()`, and
+`destroy()` callbacks *must not* be async functions that return promises.
+
+### Error handling
 
 If any `AsyncHook` callbacks throw, the application will print the stack trace
 and exit. The exit path does follow that of an uncaught exception, but
@@ -146,7 +148,7 @@ future. This is subject to change in the future if a comprehensive analysis is
 performed to ensure an exception can follow the normal control flow without
 unintentional side effects.
 
-##### Printing in AsyncHooks callbacks
+### Printing in AsyncHooks callbacks
 
 Because printing to the console is an asynchronous operation, `console.log()`
 will cause the AsyncHooks callbacks to be called. Using `console.log()` or
@@ -172,12 +174,12 @@ provided by AsyncHooks itself. The logging should then be skipped when
 it was the logging itself that caused AsyncHooks callback to call. By
 doing this the otherwise infinite recursion is broken.
 
-### Class: `AsyncHook`
+## Class: `AsyncHook`
 
 The class `AsyncHook` exposes an interface for tracking lifetime events
 of asynchronous operations.
 
-#### `asyncHook.enable()`
+### `asyncHook.enable()`
 
 * Returns: {AsyncHook} A reference to `asyncHook`.
 
@@ -193,7 +195,7 @@ const async_hooks = require('async_hooks');
 const hook = async_hooks.createHook(callbacks).enable();
 ```
 
-#### `asyncHook.disable()`
+### `asyncHook.disable()`
 
 * Returns: {AsyncHook} A reference to `asyncHook`.
 
@@ -203,13 +205,13 @@ be called again until enabled.
 
 For API consistency `disable()` also returns the `AsyncHook` instance.
 
-#### Hook callbacks
+### Hook callbacks
 
 Key events in the lifetime of asynchronous events have been categorized into
 four areas: instantiation, before/after the callback is called, and when the
 instance is destroyed.
 
-##### `init(asyncId, type, triggerAsyncId, resource)`
+#### `init(asyncId, type, triggerAsyncId, resource)`
 
 * `asyncId` {number} A unique ID for the async resource.
 * `type` {string} The type of the async resource.
@@ -236,7 +238,7 @@ clearTimeout(setTimeout(() => {}, 10));
 Every new resource is assigned an ID that is unique within the scope of the
 current Node.js instance.
 
-###### `type`
+##### `type`
 
 The `type` is a string identifying the type of resource that caused
 `init` to be called. Generally, it will correspond to the name of the
@@ -259,7 +261,7 @@ It is possible to have type name collisions. Embedders are encouraged to use
 unique prefixes, such as the npm package name, to prevent collisions when
 listening to the hooks.
 
-###### `triggerAsyncId`
+##### `triggerAsyncId`
 
 `triggerAsyncId` is the `asyncId` of the resource that caused (or "triggered")
 the new resource to initialize and that caused `init` to call. This is different
@@ -298,7 +300,7 @@ that information, it would be impossible to link resources together in
 terms of what caused them to be created, so `triggerAsyncId` is given the task
 of propagating what resource is responsible for the new resource's existence.
 
-###### `resource`
+##### `resource`
 
 `resource` is an object that represents the actual async resource that has
 been initialized. This can contain useful information that can vary based on
@@ -312,7 +314,7 @@ could contain the SQL query being executed.
 In some cases the resource object is reused for performance reasons, it is
 thus not safe to use it as a key in a `WeakMap` or add properties to it.
 
-###### Asynchronous context example
+##### Asynchronous context example
 
 The following is an example with additional information about the calls to
 `init` between the `before` and `after` calls, specifically what the
@@ -411,7 +413,7 @@ TCPSERVERWRAP(5)
   Timeout(7)
 ```
 
-##### `before(asyncId)`
+#### `before(asyncId)`
 
 * `asyncId` {number}
 
@@ -428,7 +430,7 @@ asynchronous resources like a TCP server will typically call the `before`
 callback multiple times, while other operations like `fs.open()` will call
 it only once.
 
-##### `after(asyncId)`
+#### `after(asyncId)`
 
 * `asyncId` {number}
 
@@ -438,7 +440,7 @@ If an uncaught exception occurs during execution of the callback, then `after`
 will run *after* the `'uncaughtException'` event is emitted or a `domain`'s
 handler runs.
 
-##### `destroy(asyncId)`
+#### `destroy(asyncId)`
 
 * `asyncId` {number}
 
@@ -450,7 +452,7 @@ made to the `resource` object passed to `init` it is possible that `destroy`
 will never be called, causing a memory leak in the application. If the resource
 does not depend on garbage collection, then this will not be an issue.
 
-##### `promiseResolve(asyncId)`
+#### `promiseResolve(asyncId)`
 
 <!-- YAML
 added: v8.6.0
@@ -481,7 +483,7 @@ init for PROMISE with id 6, trigger id: 5  # the Promise returned by then()
   after 6
 ```
 
-#### `async_hooks.executionAsyncResource()`
+### `async_hooks.executionAsyncResource()`
 
 <!-- YAML
 added:
@@ -539,7 +541,7 @@ const server = createServer((req, res) => {
 }).listen(3000);
 ```
 
-#### `async_hooks.executionAsyncId()`
+### `async_hooks.executionAsyncId()`
 
 <!-- YAML
 added: v8.1.0
@@ -580,7 +582,7 @@ const server = net.createServer((conn) => {
 Promise contexts may not get precise `executionAsyncIds` by default.
 See the section on [promise execution tracking][].
 
-#### `async_hooks.triggerAsyncId()`
+### `async_hooks.triggerAsyncId()`
 
 * Returns: {number} The ID of the resource responsible for calling the callback
   that is currently being executed.
@@ -730,30 +732,40 @@ class DBQuery extends AsyncResource {
 }
 ```
 
-#### Static method: `AsyncResource.bind(fn[, type])`
+#### Static method: `AsyncResource.bind(fn[, type, [thisArg]])`
 <!-- YAML
 added:
   - v14.8.0
   - v12.19.0
+changes:
+  - version: v16.0.0
+    pr-url: https://github.com/nodejs/node/pull/36782
+    description: Added optional thisArg.
 -->
 
 * `fn` {Function} The function to bind to the current execution context.
 * `type` {string} An optional name to associate with the underlying
   `AsyncResource`.
+* `thisArg` {any}
 
 Binds the given function to the current execution context.
 
 The returned function will have an `asyncResource` property referencing
 the `AsyncResource` to which the function is bound.
 
-#### `asyncResource.bind(fn)`
+#### `asyncResource.bind(fn[, thisArg])`
 <!-- YAML
 added:
   - v14.8.0
   - v12.19.0
+changes:
+  - version: v16.0.0
+    pr-url: https://github.com/nodejs/node/pull/36782
+    description: Added optional thisArg.
 -->
 
 * `fn` {Function} The function to bind to the current `AsyncResource`.
+* `thisArg` {any}
 
 Binds the given function to execute to this `AsyncResource`'s scope.
 
@@ -839,9 +851,19 @@ class WorkerPool extends EventEmitter {
     this.numThreads = numThreads;
     this.workers = [];
     this.freeWorkers = [];
+    this.tasks = [];
 
     for (let i = 0; i < numThreads; i++)
       this.addNewWorker();
+
+    // Any time the kWorkerFreedEvent is emitted, dispatch
+    // the next task pending in the queue, if any.
+    this.on(kWorkerFreedEvent, () => {
+      if (this.tasks.length > 0) {
+        const { task, callback } = this.tasks.shift();
+        this.runTask(task, callback);
+      }
+    });
   }
 
   addNewWorker() {
@@ -875,7 +897,7 @@ class WorkerPool extends EventEmitter {
   runTask(task, callback) {
     if (this.freeWorkers.length === 0) {
       // No free threads, wait until a worker thread becomes free.
-      this.once(kWorkerFreedEvent, () => this.runTask(task, callback));
+      this.tasks.push({ task, callback });
       return;
     }
 
@@ -953,6 +975,11 @@ chains. It allows storing data throughout the lifetime of a web request
 or any other asynchronous duration. It is similar to thread-local storage
 in other languages.
 
+While you can create your own implementation on top of the `async_hooks` module,
+`AsyncLocalStorage` should be preferred as it is a performant and memory safe
+implementation that involves significant optimizations that are non-obvious to
+implement.
+
 The following example uses `AsyncLocalStorage` to build a simple logger
 that assigns IDs to incoming HTTP requests and includes them in messages
 logged within each request.
@@ -1000,7 +1027,7 @@ added:
 -->
 
 Creates a new instance of `AsyncLocalStorage`. Store is only provided within a
-`run` or after `enterWith` method call.
+`run()` call or after an `enterWith()` call.
 
 ### `asyncLocalStorage.disable()`
 <!-- YAML
@@ -1009,7 +1036,7 @@ added:
  - v12.17.0
 -->
 
-This method disables the instance of `AsyncLocalStorage`. All subsequent calls
+Disables the instance of `AsyncLocalStorage`. All subsequent calls
 to `asyncLocalStorage.getStore()` will return `undefined` until
 `asyncLocalStorage.run()` or `asyncLocalStorage.enterWith()` is called again.
 
@@ -1021,7 +1048,7 @@ Calling `asyncLocalStorage.disable()` is required before the
 provided by the `asyncLocalStorage`, as those objects are garbage collected
 along with the corresponding async resources.
 
-This method is to be used when the `asyncLocalStorage` is not in use anymore
+Use this method when the `asyncLocalStorage` is not in use anymore
 in the current process.
 
 ### `asyncLocalStorage.getStore()`
@@ -1033,10 +1060,10 @@ added:
 
 * Returns: {any}
 
-This method returns the current store.
-If this method is called outside of an asynchronous context initialized by
-calling `asyncLocalStorage.run()` or `asyncLocalStorage.enterWith()`, it will
-return `undefined`.
+Returns the current store.
+If called outside of an asynchronous context initialized by
+calling `asyncLocalStorage.run()` or `asyncLocalStorage.enterWith()`, it
+returns `undefined`.
 
 ### `asyncLocalStorage.enterWith(store)`
 <!-- YAML
@@ -1047,7 +1074,7 @@ added:
 
 * `store` {any}
 
-This method transitions into the context for the remainder of the current
+Transitions into the context for the remainder of the current
 synchronous execution and then persists the store through any following
 asynchronous calls.
 
@@ -1067,7 +1094,7 @@ This transition will continue for the _entire_ synchronous execution.
 This means that if, for example, the context is entered within an event
 handler subsequent event handlers will also run within that context unless
 specifically bound to another context with an `AsyncResource`. That is why
-`run` should be preferred over `enterWith` unless there are strong reasons
+`run()` should be preferred over `enterWith()` unless there are strong reasons
 to use the latter method.
 
 ```js
@@ -1096,16 +1123,15 @@ added:
 * `callback` {Function}
 * `...args` {any}
 
-This methods runs a function synchronously within a context and return its
-return value. The store is not accessible outside of the callback function or
-the asynchronous operations created within the callback.
+Runs a function synchronously within a context and returns its
+return value. The store is not accessible outside of the callback function.
+The store is accessible to any asynchronous operations created within the
+callback.
 
-Optionally, arguments can be passed to the function. They will be passed to
-the callback function.
+The optional `args` are passed to the callback function.
 
-If the callback function throws an error, it will be thrown by `run` too.
-The stacktrace will not be impacted by this call and the context will
-be exited.
+If the callback function throws an error, the error is thrown by `run()` too.
+The stacktrace is not impacted by this call and the context is exited.
 
 Example:
 
@@ -1114,6 +1140,9 @@ const store = { id: 2 };
 try {
   asyncLocalStorage.run(store, () => {
     asyncLocalStorage.getStore(); // Returns the store object
+    setTimeout(() => {
+      asyncLocalStorage.getStore(); // Returns the store object
+    }, 200);
     throw new Error();
   });
 } catch (e) {
@@ -1132,17 +1161,15 @@ added:
 * `callback` {Function}
 * `...args` {any}
 
-This methods runs a function synchronously outside of a context and return its
+Runs a function synchronously outside of a context and returns its
 return value. The store is not accessible within the callback function or
 the asynchronous operations created within the callback. Any `getStore()`
 call done within the callback function will always return `undefined`.
 
-Optionally, arguments can be passed to the function. They will be passed to
-the callback function.
+The optional `args` are passed to the callback function.
 
-If the callback function throws an error, it will be thrown by `exit` too.
-The stacktrace will not be impacted by this call and the context will be
-re-entered.
+If the callback function throws an error, the error is thrown by `exit()` too.
+The stacktrace is not impacted by this call and the context is re-entered.
 
 Example:
 

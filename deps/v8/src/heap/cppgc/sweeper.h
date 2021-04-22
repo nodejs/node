@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "include/cppgc/heap.h"
 #include "src/base/macros.h"
 
 namespace cppgc {
@@ -17,10 +18,19 @@ namespace internal {
 
 class StatsCollector;
 class RawHeap;
+class ConcurrentSweeperTest;
+class NormalPageSpace;
 
 class V8_EXPORT_PRIVATE Sweeper final {
  public:
-  enum class Config { kAtomic, kIncrementalAndConcurrent };
+  struct SweepingConfig {
+    using SweepingType = cppgc::Heap::SweepingType;
+    enum class CompactableSpaceHandling { kSweep, kIgnore };
+
+    SweepingType sweeping_type = SweepingType::kIncrementalAndConcurrent;
+    CompactableSpaceHandling compactable_space_handling =
+        CompactableSpaceHandling::kSweep;
+  };
 
   Sweeper(RawHeap*, cppgc::Platform*, StatsCollector*);
   ~Sweeper();
@@ -29,12 +39,24 @@ class V8_EXPORT_PRIVATE Sweeper final {
   Sweeper& operator=(const Sweeper&) = delete;
 
   // Sweeper::Start assumes the heap holds no linear allocation buffers.
-  void Start(Config);
+  void Start(SweepingConfig);
   void FinishIfRunning();
+  void NotifyDoneIfNeeded();
+  // SweepForAllocationIfRunning sweeps the given |space| until a slot that can
+  // fit an allocation of size |size| is found. Returns true if a slot was
+  // found.
+  bool SweepForAllocationIfRunning(NormalPageSpace* space, size_t size);
+
+  bool IsSweepingOnMutatorThread() const;
+  bool IsSweepingInProgress() const;
 
  private:
+  void WaitForConcurrentSweepingForTesting();
+
   class SweeperImpl;
   std::unique_ptr<SweeperImpl> impl_;
+
+  friend class ConcurrentSweeperTest;
 };
 
 }  // namespace internal

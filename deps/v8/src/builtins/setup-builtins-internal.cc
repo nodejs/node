@@ -38,8 +38,7 @@ AssemblerOptions BuiltinAssemblerOptions(Isolate* isolate,
   CHECK(!options.use_pc_relative_calls_and_jumps);
   CHECK(!options.collect_win64_unwind_info);
 
-  if (!isolate->IsGeneratingEmbeddedBuiltins() ||
-      !Builtins::IsIsolateIndependent(builtin_index)) {
+  if (!isolate->IsGeneratingEmbeddedBuiltins()) {
     return options;
   }
 
@@ -222,7 +221,7 @@ void SetupIsolateDelegate::PopulateWithPlaceholders(Isolate* isolate) {
 void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
   // Replace references from all code objects to placeholders.
   Builtins* builtins = isolate->builtins();
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
   static const int kRelocMask =
       RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |

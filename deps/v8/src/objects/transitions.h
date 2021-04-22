@@ -40,7 +40,7 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
  public:
   // For concurrent access, use the other constructor.
   inline TransitionsAccessor(Isolate* isolate, Map map,
-                             DisallowHeapAllocation* no_gc);
+                             DisallowGarbageCollection* no_gc);
   // {concurrent_access} signals that the TransitionsAccessor will only be used
   // in background threads. It acquires a reader lock for critical paths, as
   // well as blocking the accessor from modifying the TransitionsArray.
@@ -94,8 +94,8 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   // Traverse the transition tree in postorder.
   void TraverseTransitionTree(TraverseCallback callback, void* data) {
     // Make sure that we do not allocate in the callback.
-    DisallowHeapAllocation no_allocation;
-    TraverseTransitionTreeInternal(callback, data, &no_allocation);
+    DisallowGarbageCollection no_gc;
+    TraverseTransitionTreeInternal(callback, data, &no_gc);
   }
 
   // ===== PROTOTYPE TRANSITIONS =====
@@ -122,7 +122,7 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   static void PrintOneTransition(std::ostream& os, Name key, Map target);
   void PrintTransitionTree();
   void PrintTransitionTree(std::ostream& os, int level,
-                           DisallowHeapAllocation* no_gc);
+                           DisallowGarbageCollection* no_gc);
 #endif
 #if DEBUG
   void CheckNewTransitionsAreConsistent(TransitionArray old_transitions,
@@ -182,7 +182,7 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   WeakFixedArray GetPrototypeTransitions();
 
   void TraverseTransitionTreeInternal(TraverseCallback callback, void* data,
-                                      DisallowHeapAllocation* no_gc);
+                                      DisallowGarbageCollection* no_gc);
 
   Isolate* isolate_;
   Handle<Map> map_handle_;

@@ -24,7 +24,7 @@ namespace internal {
 V8_INLINE Address PointerAuthentication::AuthenticatePC(
     Address* pc_address, unsigned offset_from_sp) {
   uint64_t sp = reinterpret_cast<uint64_t>(pc_address) + offset_from_sp;
-  uint64_t pc = reinterpret_cast<uint64_t>(*pc_address);
+  uint64_t pc = static_cast<uint64_t>(*pc_address);
 #ifdef USE_SIMULATOR
   pc = Simulator::AuthPAC(pc, sp, Simulator::kPACKeyIB,
                           Simulator::kInstructionPointer);
@@ -67,7 +67,7 @@ V8_INLINE void PointerAuthentication::ReplacePC(Address* pc_address,
                                                 Address new_pc,
                                                 int offset_from_sp) {
   uint64_t sp = reinterpret_cast<uint64_t>(pc_address) + offset_from_sp;
-  uint64_t old_pc = reinterpret_cast<uint64_t>(*pc_address);
+  uint64_t old_pc = static_cast<uint64_t>(*pc_address);
 #ifdef USE_SIMULATOR
   uint64_t auth_old_pc = Simulator::AuthPAC(old_pc, sp, Simulator::kPACKeyIB,
                                             Simulator::kInstructionPointer);

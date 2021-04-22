@@ -24,6 +24,7 @@ namespace wasm {
 
 class NativeModule;
 class WasmCode;
+class WasmEngine;
 class WasmError;
 
 enum RuntimeExceptionSupport : bool {
@@ -116,6 +117,8 @@ class V8_EXPORT_PRIVATE CompilationState {
 
   ~CompilationState();
 
+  void InitCompileJob(WasmEngine*);
+
   void CancelCompilation();
 
   void SetError();
@@ -138,6 +141,8 @@ class V8_EXPORT_PRIVATE CompilationState {
   bool baseline_compilation_finished() const;
   bool top_tier_compilation_finished() const;
   bool recompilation_finished() const;
+
+  void set_compilation_id(int compilation_id);
 
   // Override {operator delete} to avoid implicit instantiation of {operator
   // delete} with {size_t} argument. The {size_t} argument would be incorrect.

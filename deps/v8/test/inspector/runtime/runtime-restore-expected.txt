@@ -8,6 +8,7 @@ Running test: testExecutionContextsNotificationsOnRestore
             id : 1
             name : 
             origin : 
+            uniqueId : <uniqueId>
         }
     }
 }
@@ -24,6 +25,7 @@ will reconnect..
             id : 1
             name : 
             origin : 
+            uniqueId : <uniqueId>
         }
     }
 }

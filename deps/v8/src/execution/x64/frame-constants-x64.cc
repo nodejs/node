@@ -17,7 +17,7 @@ Register JavaScriptFrame::fp_register() { return rbp; }
 Register JavaScriptFrame::context_register() { return rsi; }
 Register JavaScriptFrame::constant_pool_pointer_register() { UNREACHABLE(); }
 
-int InterpreterFrameConstants::RegisterStackSlotCount(int register_count) {
+int UnoptimizedFrameConstants::RegisterStackSlotCount(int register_count) {
   return register_count;
 }
 

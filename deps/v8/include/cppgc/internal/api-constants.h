@@ -28,7 +28,7 @@ constexpr size_t kGB = kMB * 1024;
 static constexpr size_t kFullyConstructedBitFieldOffsetFromPayload =
     2 * sizeof(uint16_t);
 // Mask for in-construction bit.
-static constexpr size_t kFullyConstructedBitMask = size_t{1};
+static constexpr uint16_t kFullyConstructedBitMask = uint16_t{1};
 
 static constexpr size_t kPageSize = size_t{1} << 17;
 

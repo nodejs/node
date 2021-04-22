@@ -31,6 +31,7 @@ namespace node {
 using v8::Context;
 using v8::Local;
 using v8::Object;
+using v8::TryCatch;
 using v8::Value;
 
 namespace crypto {
@@ -39,10 +40,15 @@ void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
                 void* priv) {
-  static uv_once_t init_once = UV_ONCE_INIT;
-  uv_once(&init_once, InitCryptoOnce);
-
   Environment* env = Environment::GetCurrent(context);
+
+  static uv_once_t init_once = UV_ONCE_INIT;
+  TryCatch try_catch{env->isolate()};
+  uv_once(&init_once, InitCryptoOnce);
+  if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
+    try_catch.ReThrow();
+    return;
+  }
 
   AES::Initialize(env, target);
   CipherBase::Initialize(env, target);
@@ -64,6 +70,7 @@ void Initialize(Local<Object> target,
   Timing::Initialize(env, target);
   Util::Initialize(env, target);
   Verify::Initialize(env, target);
+  X509Certificate::Initialize(env, target);
 
 #ifndef OPENSSL_NO_SCRYPT
   ScryptJob::Initialize(env, target);

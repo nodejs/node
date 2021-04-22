@@ -21,6 +21,8 @@ class V8_EXPORT_PRIVATE TypeNarrowingReducer final
  public:
   TypeNarrowingReducer(Editor* editor, JSGraph* jsgraph, JSHeapBroker* broker);
   ~TypeNarrowingReducer() final;
+  TypeNarrowingReducer(const TypeNarrowingReducer&) = delete;
+  TypeNarrowingReducer& operator=(const TypeNarrowingReducer&) = delete;
 
   const char* reducer_name() const override { return "TypeNarrowingReducer"; }
 
@@ -33,8 +35,6 @@ class V8_EXPORT_PRIVATE TypeNarrowingReducer final
 
   JSGraph* const jsgraph_;
   OperationTyper op_typer_;
-
-  DISALLOW_COPY_AND_ASSIGN(TypeNarrowingReducer);
 };
 
 }  // namespace compiler

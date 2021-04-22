@@ -145,6 +145,7 @@ V8InspectorSessionImpl::V8InspectorSessionImpl(V8InspectorImpl* inspector,
 }
 
 V8InspectorSessionImpl::~V8InspectorSessionImpl() {
+  v8::Isolate::Scope scope(m_inspector->isolate());
   discardInjectedScripts();
   m_consoleAgent->disable();
   m_profilerAgent->disable();
@@ -239,6 +240,8 @@ Response V8InspectorSessionImpl::findInjectedScript(
 
 Response V8InspectorSessionImpl::findInjectedScript(
     RemoteObjectIdBase* objectId, InjectedScript*& injectedScript) {
+  if (objectId->isolateId() != m_inspector->isolateId())
+    return Response::ServerError("Cannot find context with specified id");
   return findInjectedScript(objectId->contextId(), injectedScript);
 }
 

@@ -20,5 +20,7 @@
   "v8_enable_concurrent_marking": true,
   "v8_enable_verify_csa": false,
   "v8_enable_lite_mode": false,
-  "v8_enable_pointer_compression": true
+  "v8_enable_pointer_compression": true,
+  "v8_control_flow_integrity": false,
+  "v8_enable_webassembly": true
 }

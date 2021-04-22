@@ -24,6 +24,7 @@
 #include "src/objects/js-number-format-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property-descriptor.h"
+#include "src/objects/smi.h"
 #include "src/objects/string.h"
 #include "src/strings/string-case.h"
 #include "unicode/basictz.h"
@@ -193,7 +194,7 @@ const uint8_t* Intl::ToLatin1LowerTable() { return &kToLower[0]; }
 icu::UnicodeString Intl::ToICUUnicodeString(Isolate* isolate,
                                             Handle<String> string) {
   DCHECK(string->IsFlat());
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   std::unique_ptr<uc16[]> sap;
   // Short one-byte strings can be expanded on the stack to avoid allocating a
   // temporary buffer.
@@ -214,7 +215,7 @@ icu::UnicodeString Intl::ToICUUnicodeString(Isolate* isolate,
 namespace {
 icu::StringPiece ToICUStringPiece(Isolate* isolate, Handle<String> string) {
   DCHECK(string->IsFlat());
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   const String::FlatContent& flat = string->GetFlatContent(no_gc);
   if (!flat.IsOneByte()) return icu::StringPiece(nullptr, 0);
@@ -248,7 +249,7 @@ MaybeHandle<String> LocaleConvertCase(Isolate* isolate, Handle<String> s,
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, result, isolate->factory()->NewRawTwoByteString(dest_length),
         String);
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     DCHECK(s->IsFlat());
     String::FlatContent flat = s->GetFlatContent(no_gc);
     const UChar* src = GetUCharBufferFromFlat(flat, &sap, src_length);
@@ -284,7 +285,7 @@ String Intl::ConvertOneByteToLower(String src, String dst) {
   DCHECK(src.IsFlat());
   DCHECK(dst.IsSeqOneByteString());
 
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   const int length = src.length();
   String::FlatContent src_flat = src.GetFlatContent(no_gc);
@@ -364,7 +365,7 @@ MaybeHandle<String> Intl::ConvertToUpper(Isolate* isolate, Handle<String> s) {
     int sharp_s_count;
     bool is_result_single_byte;
     {
-      DisallowHeapAllocation no_gc;
+      DisallowGarbageCollection no_gc;
       String::FlatContent flat = s->GetFlatContent(no_gc);
       uint8_t* dest = result->GetChars(no_gc);
       if (flat.IsOneByte()) {
@@ -404,7 +405,7 @@ MaybeHandle<String> Intl::ConvertToUpper(Isolate* isolate, Handle<String> s) {
         isolate, result,
         isolate->factory()->NewRawOneByteString(length + sharp_s_count),
         String);
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     String::FlatContent flat = s->GetFlatContent(no_gc);
     if (flat.IsOneByte()) {
       ToUpperWithSharpS(flat.ToOneByteVector(), result);
@@ -432,7 +433,7 @@ std::string Intl::GetNumberingSystem(const icu::Locale& icu_locale) {
 namespace {
 
 Maybe<icu::Locale> CreateICULocale(const std::string& bcp47_locale) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   // Convert BCP47 into ICU locale format.
   UErrorCode status = U_ZERO_ERROR;
@@ -587,27 +588,6 @@ Maybe<std::string> Intl::ToLanguageTag(const icu::Locale& locale) {
     return Nothing<std::string>();
   }
   DCHECK(U_SUCCESS(status));
-
-  // Hack to remove -true and -yes from unicode extensions
-  // Address https://crbug.com/v8/8565
-  // TODO(ftang): Move the following "remove true" logic into ICU toLanguageTag
-  // by fixing ICU-20310.
-  size_t u_ext_start = res.find("-u-");
-  if (u_ext_start != std::string::npos) {
-    // remove "-true" and "-yes" after -u-
-    const std::vector<std::string> remove_items({"-true", "-yes"});
-    for (auto item = remove_items.begin(); item != remove_items.end(); item++) {
-      for (size_t sep_remove =
-               res.find(*item, u_ext_start + 5 /* strlen("-u-xx") == 5 */);
-           sep_remove != std::string::npos; sep_remove = res.find(*item)) {
-        size_t end_of_sep_remove = sep_remove + item->length();
-        if (res.length() == end_of_sep_remove ||
-            res.at(end_of_sep_remove) == '-') {
-          res.erase(sep_remove, item->length());
-        }
-      }
-    }
-  }
   return Just(res);
 }
 
@@ -637,15 +617,15 @@ MaybeHandle<Object> Intl::LegacyUnwrapReceiver(Isolate* isolate,
                                                Handle<JSReceiver> receiver,
                                                Handle<JSFunction> constructor,
                                                bool has_initialized_slot) {
-  Handle<Object> obj_is_instance_of;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, obj_is_instance_of,
-                             Object::InstanceOf(isolate, receiver, constructor),
-                             Object);
-  bool is_instance_of = obj_is_instance_of->BooleanValue(isolate);
+  Handle<Object> obj_ordinary_has_instance;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, obj_ordinary_has_instance,
+      Object::OrdinaryHasInstance(isolate, constructor, receiver), Object);
+  bool ordinary_has_instance = obj_ordinary_has_instance->BooleanValue(isolate);
 
   // 2. If receiver does not have an [[Initialized...]] internal slot
-  //    and ? InstanceofOperator(receiver, constructor) is true, then
-  if (!has_initialized_slot && is_instance_of) {
+  //    and ? OrdinaryHasInstance(constructor, receiver) is true, then
+  if (!has_initialized_slot && ordinary_has_instance) {
     // 2. a. Let new_receiver be ? Get(receiver, %Intl%.[[FallbackSymbol]]).
     Handle<Object> new_receiver;
     ASSIGN_RETURN_ON_EXCEPTION(
@@ -743,22 +723,12 @@ bool IsTwoLetterLanguage(const std::string& locale) {
          IsAsciiLower(locale[1]);
 }
 
-bool IsDeprecatedLanguage(const std::string& locale) {
+bool IsDeprecatedOrLegacyLanguage(const std::string& locale) {
   //  Check if locale is one of the deprecated language tags:
   return locale == "in" || locale == "iw" || locale == "ji" || locale == "jw" ||
-         locale == "mo";
-}
-
-// Reference:
-// https://www.iana.org/assignments/language-subtag-registry/language-subtag-registry
-bool IsGrandfatheredTagWithoutPreferredVaule(const std::string& locale) {
-  if (V8_UNLIKELY(locale == "zh-min" || locale == "cel-gaulish")) return true;
-  if (locale.length() > 6 /* i-mingo is 7 chars long */ &&
-      V8_UNLIKELY(locale[0] == 'i' && locale[1] == '-')) {
-    return locale.substr(2) == "default" || locale.substr(2) == "enochian" ||
-           locale.substr(2) == "mingo";
-  }
-  return false;
+         locale == "mo" ||
+         //  Check if locale is one of the legacy language tags:
+         locale == "sh" || locale == "tl" || locale == "no";
 }
 
 bool IsStructurallyValidLanguageTag(const std::string& tag) {
@@ -787,7 +757,7 @@ Maybe<std::string> CanonicalizeLanguageTag(Isolate* isolate,
   // (in, iw, ji, jw). Don't check for ~70 of 3-letter deprecated language
   // codes. Instead, let them be handled by ICU in the slow path. However,
   // fast-track 'fil' (3-letter canonical code).
-  if ((IsTwoLetterLanguage(locale) && !IsDeprecatedLanguage(locale)) ||
+  if ((IsTwoLetterLanguage(locale) && !IsDeprecatedOrLegacyLanguage(locale)) ||
       locale == "fil") {
     return Just(locale);
   }
@@ -795,13 +765,6 @@ Maybe<std::string> CanonicalizeLanguageTag(Isolate* isolate,
   // Because per BCP 47 2.1.1 language tags are case-insensitive, lowercase
   // the input before any more check.
   std::transform(locale.begin(), locale.end(), locale.begin(), ToAsciiLower);
-
-  // ICU maps a few grandfathered tags to what looks like a regular language
-  // tag even though IANA language tag registry does not have a preferred
-  // entry map for them. Return them as they're with lowercasing.
-  if (IsGrandfatheredTagWithoutPreferredVaule(locale)) {
-    return Just(locale);
-  }
 
   // // ECMA 402 6.2.3
   // TODO(jshin): uloc_{for,to}TanguageTag can fail even for a structually valid
@@ -816,6 +779,19 @@ Maybe<std::string> CanonicalizeLanguageTag(Isolate* isolate,
   // is structurally valid. Due to a couple of bugs, we can't use it
   // without Chromium patches or ICU 62 or earlier.
   icu::Locale icu_locale = icu::Locale::forLanguageTag(locale.c_str(), error);
+
+  if (U_FAILURE(error) || icu_locale.isBogus()) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate,
+        NewRangeError(
+            MessageTemplate::kInvalidLanguageTag,
+            isolate->factory()->NewStringFromAsciiChecked(locale.c_str())),
+        Nothing<std::string>());
+  }
+
+  // Use LocaleBuilder to validate locale.
+  icu_locale = icu::LocaleBuilder().setLocale(icu_locale).build(error);
+  icu_locale.canonicalize(error);
   if (U_FAILURE(error) || icu_locale.isBogus()) {
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
@@ -1013,16 +989,16 @@ MaybeHandle<String> Intl::StringLocaleConvertCase(Isolate* isolate,
 MaybeHandle<Object> Intl::StringLocaleCompare(
     Isolate* isolate, Handle<String> string1, Handle<String> string2,
     Handle<Object> locales, Handle<Object> options, const char* method) {
-  // We only cache the instance when both locales and options are undefined,
-  // as that is the only case when the specified side-effects of examining
-  // those arguments are unobservable.
-  bool can_cache =
-      locales->IsUndefined(isolate) && options->IsUndefined(isolate);
+  // We only cache the instance when locales is a string/undefined and
+  // options is undefined, as that is the only case when the specified
+  // side-effects of examining those arguments are unobservable.
+  bool can_cache = (locales->IsString() || locales->IsUndefined(isolate)) &&
+                   options->IsUndefined(isolate);
   if (can_cache) {
     // Both locales and options are undefined, check the cache.
     icu::Collator* cached_icu_collator =
         static_cast<icu::Collator*>(isolate->get_cached_icu_object(
-            Isolate::ICUObjectCacheType::kDefaultCollator));
+            Isolate::ICUObjectCacheType::kDefaultCollator, locales));
     // We may use the cached icu::Collator for a fast path.
     if (cached_icu_collator != nullptr) {
       return Intl::CompareStrings(isolate, *cached_icu_collator, string1,
@@ -1041,7 +1017,7 @@ MaybeHandle<Object> Intl::StringLocaleCompare(
       New<JSCollator>(isolate, constructor, locales, options, method), Object);
   if (can_cache) {
     isolate->set_icu_object_in_cache(
-        Isolate::ICUObjectCacheType::kDefaultCollator,
+        Isolate::ICUObjectCacheType::kDefaultCollator, locales,
         std::static_pointer_cast<icu::UMemory>(collator->icu_collator().get()));
   }
   icu::Collator* icu_collator = collator->icu_collator().raw();
@@ -1103,16 +1079,16 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
   ASSIGN_RETURN_ON_EXCEPTION(isolate, numeric_obj,
                              Object::ToNumeric(isolate, num), String);
 
-  // We only cache the instance when both locales and options are undefined,
-  // as that is the only case when the specified side-effects of examining
-  // those arguments are unobservable.
-  bool can_cache =
-      locales->IsUndefined(isolate) && options->IsUndefined(isolate);
+  // We only cache the instance when locales is a string/undefined and
+  // options is undefined, as that is the only case when the specified
+  // side-effects of examining those arguments are unobservable.
+  bool can_cache = (locales->IsString() || locales->IsUndefined(isolate)) &&
+                   options->IsUndefined(isolate);
   if (can_cache) {
     icu::number::LocalizedNumberFormatter* cached_number_format =
         static_cast<icu::number::LocalizedNumberFormatter*>(
             isolate->get_cached_icu_object(
-                Isolate::ICUObjectCacheType::kDefaultNumberFormat));
+                Isolate::ICUObjectCacheType::kDefaultNumberFormat, locales));
     // We may use the cached icu::NumberFormat for a fast path.
     if (cached_number_format != nullptr) {
       return JSNumberFormat::FormatNumeric(isolate, *cached_number_format,
@@ -1133,7 +1109,7 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
 
   if (can_cache) {
     isolate->set_icu_object_in_cache(
-        Isolate::ICUObjectCacheType::kDefaultNumberFormat,
+        Isolate::ICUObjectCacheType::kDefaultNumberFormat, locales,
         std::static_pointer_cast<icu::UMemory>(
             number_format->icu_number_formatter().get()));
   }
@@ -1275,28 +1251,72 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
 
     // 15. Else If mnfd is not undefined or mxfd is not undefined, then
     if (!mnfd_obj->IsUndefined(isolate) || !mxfd_obj->IsUndefined(isolate)) {
-      // 15. b. Let mnfd be ? DefaultNumberOption(mnfd, 0, 20, mnfdDefault).
+      Handle<String> mxfd_str = factory->maximumFractionDigits_string();
       Handle<String> mnfd_str = factory->minimumFractionDigits_string();
-      if (!DefaultNumberOption(isolate, mnfd_obj, 0, 20, mnfd_default, mnfd_str)
+
+      int specified_mnfd;
+      int specified_mxfd;
+
+      // a. Let _specifiedMnfd_ be ? DefaultNumberOption(_mnfd_, 0, 20,
+      // *undefined*).
+      if (!DefaultNumberOption(isolate, mnfd_obj, 0, 20, -1, mnfd_str)
+               .To(&specified_mnfd)) {
+        return Nothing<NumberFormatDigitOptions>();
+      }
+      Handle<Object> specifiedMnfd_obj;
+      if (specified_mnfd < 0) {
+        specifiedMnfd_obj = factory->undefined_value();
+      } else {
+        specifiedMnfd_obj = handle(Smi::FromInt(specified_mnfd), isolate);
+      }
+
+      // b.  Let _specifiedMxfd_ be ? DefaultNumberOption(_mxfd_, 0, 20,
+      // *undefined*).
+      if (!DefaultNumberOption(isolate, mxfd_obj, 0, 20, -1, mxfd_str)
+               .To(&specified_mxfd)) {
+        return Nothing<NumberFormatDigitOptions>();
+      }
+      Handle<Object> specifiedMxfd_obj;
+      if (specified_mxfd < 0) {
+        specifiedMxfd_obj = factory->undefined_value();
+      } else {
+        specifiedMxfd_obj = handle(Smi::FromInt(specified_mxfd), isolate);
+      }
+
+      // c. If _specifiedMxfd_ is not *undefined*, set _mnfdDefault_ to
+      // min(_mnfdDefault_, _specifiedMxfd_).
+      if (specified_mxfd >= 0) {
+        mnfd_default = std::min(mnfd_default, specified_mxfd);
+      }
+
+      // d. Set _mnfd_ to ! DefaultNumberOption(_specifiedMnfd_, 0, 20,
+      // _mnfdDefault_).
+      if (!DefaultNumberOption(isolate, specifiedMnfd_obj, 0, 20, mnfd_default,
+                               mnfd_str)
                .To(&mnfd)) {
         return Nothing<NumberFormatDigitOptions>();
       }
 
-      // 15. c. Let mxfdActualDefault be max( mnfd, mxfdDefault ).
-      int mxfd_actual_default = std::max(mnfd, mxfd_default);
-
-      // 15. d. Let mxfd be ? DefaultNumberOption(mxfd, mnfd, 20,
-      // mxfdActualDefault).
-      Handle<String> mxfd_str = factory->maximumFractionDigits_string();
-      if (!DefaultNumberOption(isolate, mxfd_obj, mnfd, 20, mxfd_actual_default,
-                               mxfd_str)
+      // e. Set _mxfd_ to ! DefaultNumberOption(_specifiedMxfd_, 0, 20,
+      // max(_mxfdDefault_, _mnfd_)).
+      if (!DefaultNumberOption(isolate, specifiedMxfd_obj, 0, 20,
+                               std::max(mxfd_default, mnfd), mxfd_str)
                .To(&mxfd)) {
         return Nothing<NumberFormatDigitOptions>();
       }
-      // 15. e. Set intlObj.[[MinimumFractionDigits]] to mnfd.
+
+      // f. If _mnfd_ is greater than _mxfd_, throw a *RangeError* exception.
+      if (mnfd > mxfd) {
+        THROW_NEW_ERROR_RETURN_VALUE(
+            isolate,
+            NewRangeError(MessageTemplate::kPropertyValueOutOfRange, mxfd_str),
+            Nothing<NumberFormatDigitOptions>());
+      }
+
+      // g. Set intlObj.[[MinimumFractionDigits]] to mnfd.
       digit_options.minimum_fraction_digits = mnfd;
 
-      // 15. f. Set intlObj.[[MaximumFractionDigits]] to mxfd.
+      // h. Set intlObj.[[MaximumFractionDigits]] to mxfd.
       digit_options.maximum_fraction_digits = mxfd;
       // Else If intlObj.[[Notation]] is "compact", then
     } else if (notation_is_compact) {

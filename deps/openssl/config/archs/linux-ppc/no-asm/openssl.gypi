@@ -689,6 +689,7 @@
     'openssl_defines_linux-ppc': [
       'NDEBUG',
       'OPENSSL_USE_NODELETE',
+      'B_ENDIAN',
       'OPENSSL_PIC',
     ],
     'openssl_cflags_linux-ppc': [

@@ -11,6 +11,10 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#10.24.1">10.24.1</a><br/>
+<a href="#10.24.0">10.24.0</a><br/>
+<a href="#10.23.3">10.23.3</a><br/>
+<a href="#10.23.2">10.23.2</a><br/>
 <a href="#10.23.1">10.23.1</a><br/>
 <a href="#10.23.0">10.23.0</a><br/>
 <a href="#10.22.1">10.22.1</a><br/>
@@ -56,6 +60,7 @@
 </table>
 
 * Other Versions
+  * [16.x](CHANGELOG_V16.md)
   * [15.x](CHANGELOG_V15.md)
   * [14.x](CHANGELOG_V14.md)
   * [13.x](CHANGELOG_V13.md)
@@ -71,6 +76,91 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="10.24.1"></a>
+## 2021-04-06, Version 10.24.1 'Dubnium' (LTS), @mylesborins
+
+This is a security release.
+
+### Notable Changes
+
+Vulerabilties fixed:
+
+* **CVE-2021-3450**: OpenSSL - CA certificate check bypass with X509_V_FLAG_X509_STRICT (High)
+  * This is a vulnerability in OpenSSL which may be exploited through Node.js. You can read more about it in https://www.openssl.org/news/secadv/20210325.txt
+  * Impacts:
+    * All versions of the 15.x, 14.x, 12.x and 10.x releases lines
+* **CVE-2021-3449**: OpenSSL - NULL pointer deref in signature_algorithms processing (High)
+  * This is a vulnerability in OpenSSL which may be exploited through Node.js. You can read more about it in https://www.openssl.org/news/secadv/20210325.txt
+  * Impacts:
+    * All versions of the 15.x, 14.x, 12.x and 10.x releases lines
+* **CVE-2020-7774**: npm upgrade - Update y18n to fix Prototype-Pollution (High)
+  * This is a vulnerability in the y18n npm module which may be exploited by prototype pollution. You can read more about it in https://github.com/advisories/GHSA-c4w7-xm78-47vh
+  * Impacts:
+    * All versions of the 14.x, 12.x and 10.x releases lines
+
+### Commits
+
+* [[`5e526b96ce`](https://github.com/nodejs/node/commit/5e526b96ce)] - **deps**: upgrade npm to 6.14.12 (Ruy Adorno) [#37918](https://github.com/nodejs/node/pull/37918)
+* [[`781cb6df5c`](https://github.com/nodejs/node/commit/781cb6df5c)] - **deps**: update archs files for OpenSSL-1.1.1k (Tobias Nießen) [#37940](https://github.com/nodejs/node/pull/37940)
+* [[`5db0a05a90`](https://github.com/nodejs/node/commit/5db0a05a90)] - **deps**: upgrade openssl sources to 1.1.1k (Tobias Nießen) [#37940](https://github.com/nodejs/node/pull/37940)
+
+<a id="10.24.0"></a>
+## 2021-02-23, Version 10.24.0 'Dubnium' (LTS), @richardlau
+
+This is a security release.
+
+### Notable changes
+
+Vulnerabilities fixed:
+
+* **CVE-2021-22883**: HTTP2 'unknownProtocol' cause Denial of Service by resource exhaustion
+  * Affected Node.js versions are vulnerable to denial of service attacks when too many connection attempts with an 'unknownProtocol' are established. This leads to a leak of file descriptors. If a file descriptor limit is configured on the system, then the server is unable to accept new connections and prevent the process also from opening, e.g. a file. If no file descriptor limit is configured, then this lead to an excessive memory usage and cause the system to run out of memory.
+* **CVE-2021-22884**: DNS rebinding in --inspect
+  * Affected Node.js versions are vulnerable to denial of service attacks when the whitelist includes “localhost6”. When “localhost6” is not present in /etc/hosts, it is just an ordinary domain that is resolved via DNS, i.e., over network. If the attacker controls the victim's DNS server or can spoof its responses, the DNS rebinding protection can be bypassed by using the “localhost6” domain. As long as the attacker uses the “localhost6” domain, they can still apply the attack described in CVE-2018-7160.
+* **CVE-2021-23840**: OpenSSL - Integer overflow in CipherUpdate
+  * This is a vulnerability in OpenSSL which may be exploited through Node.js. You can read more about it in https://www.openssl.org/news/secadv/20210216.txt
+
+### Commits
+
+* [[`0afcb4f6bb`](https://github.com/nodejs/node/commit/0afcb4f6bb)] - **deps**: update archs files for OpenSSL-1.1.1j (Daniel Bevenius) [#37415](https://github.com/nodejs/node/pull/37415)
+* [[`447be941cd`](https://github.com/nodejs/node/commit/447be941cd)] - **deps**: upgrade openssl sources to 1.1.1j (Daniel Bevenius) [#37415](https://github.com/nodejs/node/pull/37415)
+* [[`3f2e9dc40c`](https://github.com/nodejs/node/commit/3f2e9dc40c)] - **(SEMVER-MINOR)** **http2**: add unknownProtocol timeout (Daniel Bevenius) [nodejs-private/node-private#246](https://github.com/nodejs-private/node-private/pull/246)
+* [[`d1cf6a9b0f`](https://github.com/nodejs/node/commit/d1cf6a9b0f)] - **src**: drop localhost6 as allowed host for inspector (Matteo Collina) [nodejs-private/node-private#244](https://github.com/nodejs-private/node-private/pull/244)
+
+<a id="10.23.3"></a>
+## 2021-02-09, Version 10.23.3 'Dubnium' (LTS), @richardlau
+
+### Notable changes
+
+The update to npm 6.14.11 has been relanded so that npm correctly reports its version.
+
+### Commits
+
+* [[`953a85035d`](https://github.com/nodejs/node/commit/953a85035d)] - **crypto**: fix crash when calling digest after piping (Tobias Nießen) [#28251](https://github.com/nodejs/node/pull/28251)
+* [[`fe2c98003e`](https://github.com/nodejs/node/commit/fe2c98003e)] - **deps**: upgrade npm to 6.14.11 (Ruy Adorno) [#37173](https://github.com/nodejs/node/pull/37173)
+* [[`7b7fb43b8a`](https://github.com/nodejs/node/commit/7b7fb43b8a)] - ***Revert*** "**deps**: upgrade npm to 6.14.11" (Richard Lau) [#37278](https://github.com/nodejs/node/pull/37278)
+* [[`1c6fbd6ffe`](https://github.com/nodejs/node/commit/1c6fbd6ffe)] - **test**: add test that verifies crypto stream pipeline (Evan Lucas) [#37009](https://github.com/nodejs/node/pull/37009)
+
+<a id="10.23.2"></a>
+## 2021-01-26, Version 10.23.2 'Dubnium' (LTS), @richardlau
+
+### Notable changes
+
+Release keys have been synchronized with the main branch.
+
+* **deps**:
+  * upgrade npm to 6.14.11 (Darcy Clarke) [#36838](https://github.com/nodejs/node/pull/36838)
+
+### Commits
+
+* [[`cc6b69557a`](https://github.com/nodejs/node/commit/cc6b69557a)] - **deps**: upgrade npm to 6.14.11 (Darcy Clarke) [#36838](https://github.com/nodejs/node/pull/36838)
+* [[`aefb66528a`](https://github.com/nodejs/node/commit/aefb66528a)] - **doc**: update contact information for @BethGriggs (Beth Griggs) [#35451](https://github.com/nodejs/node/pull/35451)
+* [[`08931481d8`](https://github.com/nodejs/node/commit/08931481d8)] - **doc**: update contact information for richardlau (Richard Lau) [#35450](https://github.com/nodejs/node/pull/35450)
+* [[`bc0617f4ea`](https://github.com/nodejs/node/commit/bc0617f4ea)] - **doc**: update release key for Danielle Adams (Danielle Adams) [#36793](https://github.com/nodejs/node/pull/36793)
+* [[`d7c09fcfd3`](https://github.com/nodejs/node/commit/d7c09fcfd3)] - **doc**: add release key for Danielle Adams (Danielle Adams) [#35545](https://github.com/nodejs/node/pull/35545)
+* [[`ac49d415b0`](https://github.com/nodejs/node/commit/ac49d415b0)] - **doc**: add release key for Ruy Adorno (Ruy Adorno) [#34628](https://github.com/nodejs/node/pull/34628)
+* [[`b8426ae3ce`](https://github.com/nodejs/node/commit/b8426ae3ce)] - **doc**: add release key for Richard Lau (Richard Lau) [#34397](https://github.com/nodejs/node/pull/34397)
 
 <a id="10.23.1"></a>
 ## 2021-01-04, Version 10.23.1 'Dubnium' (LTS), @richardlau

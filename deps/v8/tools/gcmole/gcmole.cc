@@ -27,21 +27,22 @@
 
 // This is clang plugin used by gcmole tool. See README for more details.
 
-#include "clang/AST/AST.h"
-#include "clang/AST/ASTConsumer.h"
-#include "clang/AST/Mangle.h"
-#include "clang/AST/RecursiveASTVisitor.h"
-#include "clang/AST/StmtVisitor.h"
-#include "clang/Frontend/FrontendPluginRegistry.h"
-#include "clang/Frontend/CompilerInstance.h"
-#include "llvm/Support/raw_ostream.h"
-
 #include <bitset>
 #include <fstream>
 #include <iostream>
 #include <map>
 #include <set>
 #include <stack>
+
+#include "clang/AST/AST.h"
+#include "clang/AST/ASTConsumer.h"
+#include "clang/AST/Mangle.h"
+#include "clang/AST/RecursiveASTVisitor.h"
+#include "clang/AST/StmtVisitor.h"
+#include "clang/Basic/FileManager.h"
+#include "clang/Frontend/CompilerInstance.h"
+#include "clang/Frontend/FrontendPluginRegistry.h"
+#include "llvm/Support/raw_ostream.h"
 
 namespace {
 
@@ -228,8 +229,9 @@ class CalleesPrinter : public clang::RecursiveASTVisitor<CalleesPrinter> {
   virtual bool VisitDeclRefExpr(clang::DeclRefExpr* expr) {
     // If function mentions EXTERNAL VMState add artificial garbage collection
     // mark.
-    if (IsExternalVMState(expr->getDecl()))
+    if (IsExternalVMState(expr->getDecl())) {
       AddCallee("CollectGarbage", "CollectGarbage");
+    }
     return true;
   }
 
@@ -684,17 +686,13 @@ class FunctionAnalyzer {
   FunctionAnalyzer(clang::MangleContext* ctx, clang::CXXRecordDecl* object_decl,
                    clang::CXXRecordDecl* maybe_object_decl,
                    clang::CXXRecordDecl* smi_decl,
-                   clang::CXXRecordDecl* no_gc_decl,
-                   clang::CXXRecordDecl* no_gc_or_safepoint_decl,
-                   clang::CXXRecordDecl* no_heap_access_decl,
+                   clang::CXXRecordDecl* no_gc_mole_decl,
                    clang::DiagnosticsEngine& d, clang::SourceManager& sm)
       : ctx_(ctx),
         object_decl_(object_decl),
         maybe_object_decl_(maybe_object_decl),
         smi_decl_(smi_decl),
-        no_gc_decl_(no_gc_decl),
-        no_gc_or_safepoint_decl_(no_gc_or_safepoint_decl),
-        no_heap_access_decl_(no_heap_access_decl),
+        no_gc_mole_decl_(no_gc_mole_decl),
         d_(d),
         sm_(sm),
         block_(NULL) {}
@@ -1067,6 +1065,8 @@ class FunctionAnalyzer {
     if (callee != NULL) {
       if (KnownToCauseGC(ctx_, callee)) {
         out.setGC();
+        scopes_.back().SetGCCauseLocation(
+            clang::FullSourceLoc(call->getExprLoc(), sm_));
       }
 
       // Support for virtual methods that might be GC suspects.
@@ -1081,6 +1081,8 @@ class FunctionAnalyzer {
           if (target != NULL) {
             if (KnownToCauseGC(ctx_, target)) {
               out.setGC();
+              scopes_.back().SetGCCauseLocation(
+                  clang::FullSourceLoc(call->getExprLoc(), sm_));
             }
           } else {
             // According to the documentation, {getDevirtualizedMethod} might
@@ -1089,6 +1091,8 @@ class FunctionAnalyzer {
             // to increase coverage.
             if (SuspectedToCauseGC(ctx_, method)) {
               out.setGC();
+              scopes_.back().SetGCCauseLocation(
+                  clang::FullSourceLoc(call->getExprLoc(), sm_));
             }
           }
         }
@@ -1244,7 +1248,7 @@ class FunctionAnalyzer {
   }
 
   DECL_VISIT_STMT(CompoundStmt) {
-    scopes_.push_back(GCGuard(stmt, false));
+    scopes_.push_back(GCScope());
     Environment out = env;
     clang::CompoundStmt::body_iterator end = stmt->body_end();
     for (clang::CompoundStmt::body_iterator s = stmt->body_begin();
@@ -1275,9 +1279,7 @@ class FunctionAnalyzer {
   DECL_VISIT_STMT(ForStmt) {
     Block block (VisitStmt(stmt->getInit(), env), this);
     do {
-      block.Loop(stmt->getCond(),
-                 stmt->getBody(),
-                 stmt->getInc());
+      block.Loop(stmt->getCond(), stmt->getBody(), stmt->getInc());
     } while (block.changed());
     return block.out();
   }
@@ -1332,25 +1334,15 @@ class FunctionAnalyzer {
 
   const clang::CXXRecordDecl* GetDefinitionOrNull(
       const clang::CXXRecordDecl* record) {
-    if (record == NULL) {
-      return NULL;
-    }
-
+    if (record == NULL) return NULL;
     if (!InV8Namespace(record)) return NULL;
-
-    if (!record->hasDefinition()) {
-      return NULL;
-    }
-
+    if (!record->hasDefinition()) return NULL;
     return record->getDefinition();
   }
 
   bool IsDerivedFromInternalPointer(const clang::CXXRecordDecl* record) {
     const clang::CXXRecordDecl* definition = GetDefinitionOrNull(record);
-    if (!definition) {
-      return false;
-    }
-
+    if (!definition) return false;
     bool result = (IsDerivedFrom(record, object_decl_) &&
                    !IsDerivedFrom(record, smi_decl_)) ||
                   IsDerivedFrom(record, maybe_object_decl_);
@@ -1375,13 +1367,9 @@ class FunctionAnalyzer {
   // such. For V8 that means Object and MaybeObject instances.
   bool RepresentsRawPointerType(clang::QualType qtype) {
     // Not yet assigned pointers can't get moved by the GC.
-    if (qtype.isNull()) {
-      return false;
-    }
+    if (qtype.isNull()) return false;
     // nullptr can't get moved by the GC.
-    if (qtype->isNullPtrType()) {
-      return false;
-    }
+    if (qtype->isNullPtrType()) return false;
 
     const clang::PointerType* pointer_type =
         llvm::dyn_cast_or_null<clang::PointerType>(qtype.getTypePtrOrNull());
@@ -1393,25 +1381,15 @@ class FunctionAnalyzer {
   }
 
   bool IsGCGuard(clang::QualType qtype) {
-    if (qtype.isNull()) {
-      return false;
-    }
-    if (qtype->isNullPtrType()) {
-      return false;
-    }
+    if (!no_gc_mole_decl_) return false;
+    if (qtype.isNull()) return false;
+    if (qtype->isNullPtrType()) return false;
 
     const clang::CXXRecordDecl* record = qtype->getAsCXXRecordDecl();
     const clang::CXXRecordDecl* definition = GetDefinitionOrNull(record);
 
-    if (!definition) {
-      return false;
-    }
-
-    return (no_gc_decl_ && IsDerivedFrom(definition, no_gc_decl_)) ||
-           (no_gc_or_safepoint_decl_ &&
-            IsDerivedFrom(definition, no_gc_or_safepoint_decl_)) ||
-           (no_heap_access_decl_ &&
-            IsDerivedFrom(definition, no_heap_access_decl_));
+    if (!definition) return false;
+    return no_gc_mole_decl_ == definition;
   }
 
   Environment VisitDecl(clang::Decl* decl, Environment& env) {
@@ -1422,7 +1400,8 @@ class FunctionAnalyzer {
         out = out.Define(var->getNameAsString());
       }
       if (IsGCGuard(var->getType())) {
-        scopes_.back().has_guard = true;
+        scopes_.back().guard_location =
+            clang::FullSourceLoc(decl->getLocation(), sm_);
       }
 
       return out;
@@ -1477,7 +1456,7 @@ class FunctionAnalyzer {
 
   bool HasActiveGuard() {
     for (auto s : scopes_) {
-      if (s.has_guard) return true;
+      if (s.IsBeforeGCCause()) return true;
     }
     return false;
   }
@@ -1494,8 +1473,7 @@ class FunctionAnalyzer {
   clang::CXXRecordDecl* object_decl_;
   clang::CXXRecordDecl* maybe_object_decl_;
   clang::CXXRecordDecl* smi_decl_;
-  clang::CXXRecordDecl* no_gc_decl_;
-  clang::CXXRecordDecl* no_gc_or_safepoint_decl_;
+  clang::CXXRecordDecl* no_gc_mole_decl_;
   clang::CXXRecordDecl* no_heap_access_decl_;
 
   clang::DiagnosticsEngine& d_;
@@ -1503,14 +1481,26 @@ class FunctionAnalyzer {
 
   Block* block_;
 
-  struct GCGuard {
-    clang::CompoundStmt* stmt = NULL;
-    bool has_guard = false;
+  struct GCScope {
+    clang::FullSourceLoc guard_location;
+    clang::FullSourceLoc gccause_location;
 
-    GCGuard(clang::CompoundStmt* stmt_, bool has_guard_)
-        : stmt(stmt_), has_guard(has_guard_) {}
+    // We're only interested in guards that are declared before any further GC
+    // causing calls (see TestGuardedDeadVarAnalysisMidFunction for example).
+    bool IsBeforeGCCause() {
+      if (!guard_location.isValid()) return false;
+      if (!gccause_location.isValid()) return true;
+      return guard_location.isBeforeInTranslationUnitThan(gccause_location);
+    }
+
+    // After we set the first GC cause in the scope, we don't need the later
+    // ones.
+    void SetGCCauseLocation(clang::FullSourceLoc gccause_location_) {
+      if (gccause_location.isValid()) return;
+      gccause_location = gccause_location_;
+    }
   };
-  std::vector<GCGuard> scopes_;
+  std::vector<GCScope> scopes_;
 };
 
 class ProblemsFinder : public clang::ASTConsumer,
@@ -1548,58 +1538,38 @@ class ProblemsFinder : public clang::ASTConsumer,
   }
 
   virtual void HandleTranslationUnit(clang::ASTContext &ctx) {
-    if (TranslationUnitIgnored()) {
-      return;
-    }
+    if (TranslationUnitIgnored()) return;
 
     Resolver r(ctx);
 
-    // It is a valid situation that no_gc_decl == NULL when the
-    // DisallowHeapAllocation is not included and can't be resolved.
-    // This is gracefully handled in the FunctionAnalyzer later.
-    clang::CXXRecordDecl* no_gc_decl =
-        r.ResolveNamespace("v8")
-            .ResolveNamespace("internal")
-            .ResolveTemplate("DisallowHeapAllocation");
-
-    clang::CXXRecordDecl* no_gc_or_safepoint_decl =
-        r.ResolveNamespace("v8")
-            .ResolveNamespace("internal")
-            .ResolveTemplate("DisallowGarbageCollection");
-
-    clang::CXXRecordDecl* no_heap_access_decl =
-        r.ResolveNamespace("v8")
-            .ResolveNamespace("internal")
-            .Resolve<clang::CXXRecordDecl>("DisallowHeapAccess");
+    // It is a valid situation that no_gc_mole_decl == NULL when DisableGCMole
+    // is not included and can't be resolved. This is gracefully handled in the
+    // FunctionAnalyzer later.
+    auto v8_internal = r.ResolveNamespace("v8").ResolveNamespace("internal");
+    clang::CXXRecordDecl* no_gc_mole_decl =
+        v8_internal.ResolveTemplate("DisableGCMole");
 
     clang::CXXRecordDecl* object_decl =
-        r.ResolveNamespace("v8").ResolveNamespace("internal").
-            Resolve<clang::CXXRecordDecl>("Object");
+        v8_internal.Resolve<clang::CXXRecordDecl>("Object");
 
     clang::CXXRecordDecl* maybe_object_decl =
-        r.ResolveNamespace("v8")
-            .ResolveNamespace("internal")
-            .Resolve<clang::CXXRecordDecl>("MaybeObject");
+        v8_internal.Resolve<clang::CXXRecordDecl>("MaybeObject");
 
     clang::CXXRecordDecl* smi_decl =
-        r.ResolveNamespace("v8").ResolveNamespace("internal").
-            Resolve<clang::CXXRecordDecl>("Smi");
+        v8_internal.Resolve<clang::CXXRecordDecl>("Smi");
 
     if (object_decl != NULL) object_decl = object_decl->getDefinition();
 
-    if (maybe_object_decl != NULL)
+    if (maybe_object_decl != NULL) {
       maybe_object_decl = maybe_object_decl->getDefinition();
+    }
 
     if (smi_decl != NULL) smi_decl = smi_decl->getDefinition();
-
-    if (no_heap_access_decl != NULL)
-      no_heap_access_decl = no_heap_access_decl->getDefinition();
 
     if (object_decl != NULL && smi_decl != NULL && maybe_object_decl != NULL) {
       function_analyzer_ = new FunctionAnalyzer(
           clang::ItaniumMangleContext::create(ctx, d_), object_decl,
-          maybe_object_decl, smi_decl, no_gc_decl, no_gc_or_safepoint_decl,
-          no_heap_access_decl, d_, sm_);
+          maybe_object_decl, smi_decl, no_gc_mole_decl, d_, sm_);
       TraverseDecl(ctx.getTranslationUnitDecl());
     } else {
       if (object_decl == NULL) {

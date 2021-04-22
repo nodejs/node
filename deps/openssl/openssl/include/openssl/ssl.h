@@ -2473,7 +2473,22 @@ __owur int SSL_process_quic_post_handshake(SSL *ssl);
 
 __owur int SSL_is_quic(SSL *ssl);
 
+/* BoringSSL API */
+void SSL_set_quic_use_legacy_codepoint(SSL *ssl, int use_legacy);
+
+/*
+ * Set an explicit value that you want to use
+ * If 0 (default) the server will use the highest extenstion the client sent
+ * If 0 (default) the client will send both extensions
+ */
+void SSL_set_quic_transport_version(SSL *ssl, int version);
+__owur int SSL_get_quic_transport_version(const SSL *ssl);
+/* Returns the negotiated version, or -1 on error */
+__owur int SSL_get_peer_quic_transport_version(const SSL *ssl);
+
 int SSL_CIPHER_get_prf_nid(const SSL_CIPHER *c);
+
+void SSL_set_quic_early_data_enabled(SSL *ssl, int enabled);
 
 #  endif
 

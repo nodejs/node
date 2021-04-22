@@ -1,6 +1,6 @@
 'use strict';
 
-const resolve = require('@rollup/plugin-node-resolve');
+const { nodeResolve } = require('@rollup/plugin-node-resolve');
 const commonjs = require('@rollup/plugin-commonjs');
 const json = require('@rollup/plugin-json');
 
@@ -10,6 +10,7 @@ module.exports = {
     file: 'dist/index.js',
     format: 'cjs',
     sourcemap: false,
+    exports: 'default',
   },
   external: [
     'stream',
@@ -44,7 +45,7 @@ module.exports = {
     json({
       preferConst: true
     }),
-    resolve(), // tells Rollup how to find date-fns in node_modules
+    nodeResolve(), // tells Rollup how to find date-fns in node_modules
     commonjs(), // Converts date-fns to ES modules
     {
       name: 'banner',

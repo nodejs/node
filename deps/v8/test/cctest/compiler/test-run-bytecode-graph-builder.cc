@@ -80,6 +80,8 @@ class BytecodeGraphTester {
     i::FLAG_allow_natives_syntax = true;
   }
   virtual ~BytecodeGraphTester() = default;
+  BytecodeGraphTester(const BytecodeGraphTester&) = delete;
+  BytecodeGraphTester& operator=(const BytecodeGraphTester&) = delete;
 
   template <class... A>
   BytecodeGraphCallable<A...> GetCallable(
@@ -123,7 +125,7 @@ class BytecodeGraphTester {
     Zone zone(isolate_->allocator(), ZONE_NAME);
     Handle<SharedFunctionInfo> shared(function->shared(), isolate_);
     OptimizedCompilationInfo compilation_info(&zone, isolate_, shared, function,
-                                              CodeKind::OPTIMIZED_FUNCTION);
+                                              CodeKind::TURBOFAN);
 
     // Compiler relies on canonicalized handles, let's create
     // a canonicalized scope and migrate existing handles there.
@@ -133,12 +135,10 @@ class BytecodeGraphTester {
     Handle<Code> code =
         Pipeline::GenerateCodeForTesting(&compilation_info, isolate_)
             .ToHandleChecked();
-    function->set_code(*code);
+    function->set_code(*code, kReleaseStore);
 
     return function;
   }
-
-  DISALLOW_COPY_AND_ASSIGN(BytecodeGraphTester);
 };
 
 #define SPACE()

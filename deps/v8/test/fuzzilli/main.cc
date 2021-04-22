@@ -5,12 +5,34 @@
 extern "C" {
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "libreprl.h"
 
+struct reprl_context* ctx;
+
+int execute(const char* code) {
+  uint64_t exec_time;
+  return reprl_execute(ctx, code, strlen(code), 1000, &exec_time, 0);
+}
+
+void expect_success(const char* code) {
+  if (execute(code) != 0) {
+    printf("Execution of \"%s\" failed\n", code);
+    exit(1);
+  }
+}
+
+void expect_failure(const char* code) {
+  if (execute(code) == 0) {
+    printf("Execution of \"%s\" unexpectedly succeeded\n", code);
+    exit(1);
+  }
+}
+
 int main(int argc, char** argv) {
-  struct reprl_context* ctx = reprl_create_context();
+  ctx = reprl_create_context();
 
   const char* env[] = {nullptr};
   const char* prog = argc > 1 ? argv[1] : "./out.gn/x64.debug/d8";
@@ -20,39 +42,27 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  uint64_t exec_time;
-
   // Basic functionality test
-  const char* code = "let greeting = \"Hello World!\";";
-  if (reprl_execute(ctx, code, strlen(code), 1000, &exec_time, 0) != 0) {
-    printf("Execution of \"%s\" failed\n", code);
-    printf("Is %s the path to d8 built with v8_fuzzilli=true?\n", prog);
+  if (execute("let greeting = \"Hello World!\";") != 0) {
+    printf(
+        "Script execution failed, is %s the path to d8 built with "
+        "v8_fuzzilli=true?\n",
+        prog);
     return -1;
   }
 
   // Verify that runtime exceptions can be detected
-  code = "throw 'failure';";
-  if (reprl_execute(ctx, code, strlen(code), 1000, &exec_time, 0) == 0) {
-    printf("Execution of \"%s\" unexpectedly succeeded\n", code);
-    return -1;
-  }
+  expect_failure("throw 'failure';");
 
   // Verify that existing state is property reset between executions
-  code = "globalProp = 42; Object.prototype.foo = \"bar\";";
-  if (reprl_execute(ctx, code, strlen(code), 1000, &exec_time, 0) != 0) {
-    printf("Execution of \"%s\" failed\n", code);
-    return -1;
-  }
-  code = "if (typeof(globalProp) !== 'undefined') throw 'failure'";
-  if (reprl_execute(ctx, code, strlen(code), 1000, &exec_time, 0) != 0) {
-    printf("Execution of \"%s\" failed\n", code);
-    return -1;
-  }
-  code = "if (typeof(Object.prototype.foo) !== 'undefined') throw 'failure'";
-  if (reprl_execute(ctx, code, strlen(code), 1000, &exec_time, 0) != 0) {
-    printf("Execution of \"%s\" failed\n", code);
-    return -1;
-  }
+  expect_success("globalProp = 42; Object.prototype.foo = \"bar\";");
+  expect_success("if (typeof(globalProp) !== 'undefined') throw 'failure'");
+  expect_success("if (typeof(({}).foo) !== 'undefined') throw 'failure'");
+
+  // Verify that rejected promises are properly reset between executions
+  expect_failure("async function fail() { throw 42; }; fail()");
+  expect_success("42");
+  expect_failure("async function fail() { throw 42; }; fail()");
 
   puts("OK");
   return 0;

@@ -10,6 +10,7 @@
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
+#include "src/objects/synthetic-module-inl.h"
 #include "src/utils/ostreams.h"
 
 namespace v8 {
@@ -59,7 +60,7 @@ MaybeHandle<Cell> SyntheticModule::ResolveExport(
 
   if (!must_resolve) return MaybeHandle<Cell>();
 
-  return isolate->Throw<Cell>(
+  return isolate->ThrowAt<Cell>(
       isolate->factory()->NewSyntaxError(MessageTemplate::kUnresolvableExport,
                                          module_specifier, export_name),
       &loc);
@@ -69,8 +70,7 @@ MaybeHandle<Cell> SyntheticModule::ResolveExport(
 // https://heycam.github.io/webidl/#smr-instantiate
 bool SyntheticModule::PrepareInstantiate(Isolate* isolate,
                                          Handle<SyntheticModule> module,
-                                         v8::Local<v8::Context> context,
-                                         v8::Module::ResolveCallback callback) {
+                                         v8::Local<v8::Context> context) {
   Handle<ObjectHashTable> exports(module->exports(), isolate);
   Handle<FixedArray> export_names(module->export_names(), isolate);
   // Spec step 7: For each export_name in module->export_names...
@@ -116,7 +116,27 @@ MaybeHandle<Object> SyntheticModule::Evaluate(Isolate* isolate,
   }
 
   module->SetStatus(kEvaluated);
-  return Utils::OpenHandle(*result);
+
+  Handle<Object> result_from_callback = Utils::OpenHandle(*result);
+
+  if (FLAG_harmony_top_level_await) {
+    Handle<JSPromise> capability;
+    if (result_from_callback->IsJSPromise()) {
+      capability = Handle<JSPromise>::cast(result_from_callback);
+    } else {
+      // The host's evaluation steps should have returned a resolved Promise,
+      // but as an allowance to hosts that have not yet finished the migration
+      // to top-level await, create a Promise if the callback result didn't give
+      // us one.
+      capability = isolate->factory()->NewJSPromise();
+      JSPromise::Resolve(capability, isolate->factory()->undefined_value())
+          .ToHandleChecked();
+    }
+
+    module->set_top_level_capability(*capability);
+  }
+
+  return result_from_callback;
 }
 
 }  // namespace internal

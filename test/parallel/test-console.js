@@ -49,7 +49,7 @@ common.expectWarning(
     ['No such label \'default\' for console.timeLog()'],
     ['No such label \'default\' for console.timeEnd()'],
     ['Label \'default\' already exists for console.time()'],
-    ['Label \'test\' already exists for console.time()']
+    ['Label \'test\' already exists for console.time()'],
   ]
 );
 
@@ -216,7 +216,7 @@ console.timeEnd('label3');
 assert.strictEqual(console._times.size, timesMapSize);
 
 const expectedStrings = [
-  'foo', 'foo bar', 'foo bar hop', "{ slashes: '\\\\\\\\' }", 'inspect'
+  'foo', 'foo bar', 'foo bar hop', "{ slashes: '\\\\\\\\' }", 'inspect',
 ];
 
 for (const expected of expectedStrings) {

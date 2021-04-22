@@ -119,7 +119,7 @@ class RuntimeCallStatsTest : public TestWithNativeContext {
 };
 
 // Temporarily use the native time to modify the test time.
-class ElapsedTimeScope {
+class V8_NODISCARD ElapsedTimeScope {
  public:
   explicit ElapsedTimeScope(RuntimeCallStatsTest* test) : test_(test) {
     timer_.Start();
@@ -132,7 +132,7 @@ class ElapsedTimeScope {
 };
 
 // Temporarily use the default time source.
-class NativeTimeScope {
+class V8_NODISCARD NativeTimeScope {
  public:
   NativeTimeScope() {
     CHECK_EQ(RuntimeCallTimer::Now, &RuntimeCallStatsTestNow);
@@ -811,6 +811,20 @@ TEST_F(RuntimeCallStatsTest, ApiGetter) {
   EXPECT_EQ(100, counter()->time().InMicroseconds());
   EXPECT_EQ(0, callback_counter->time().InMicroseconds());
   EXPECT_EQ(kCustomCallbackTime * 4013, counter2()->time().InMicroseconds());
+}
+
+TEST_F(RuntimeCallStatsTest, GarbageCollection) {
+  FLAG_expose_gc = true;
+  v8::Isolate* isolate = v8_isolate();
+  RunJS(
+      "let root = [];"
+      "for (let i = 0; i < 10; i++) root.push((new Array(1000)).fill(0));"
+      "root.push((new Array(1000000)).fill(0));"
+      "((new Array(1000000)).fill(0));");
+  isolate->RequestGarbageCollectionForTesting(
+      v8::Isolate::kFullGarbageCollection);
+  isolate->RequestGarbageCollectionForTesting(
+      v8::Isolate::kFullGarbageCollection);
 }
 
 TEST_F(SnapshotNativeCounterTest, StringAddNative) {

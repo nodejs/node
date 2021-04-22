@@ -11,6 +11,9 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#14.16.1">14.16.1</a><br/>
+<a href="#14.16.0">14.16.0</a><br/>
+<a href="#14.15.5">14.15.5</a><br/>
 <a href="#14.15.4">14.15.4</a><br/>
 <a href="#14.15.3">14.15.3</a><br/>
 <a href="#14.15.2">14.15.2</a><br/>
@@ -40,6 +43,7 @@
 </table>
 
 * Other Versions
+  * [16.x](CHANGELOG_V16.md)
   * [15.x](CHANGELOG_V15.md)
   * [13.x](CHANGELOG_V13.md)
   * [12.x](CHANGELOG_V12.md)
@@ -55,6 +59,80 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="14.16.1"></a>
+## 2021-04-06, Version 14.16.1 'Fermium' (LTS), @mylesborins
+
+This is a security release.
+
+### Notable Changes
+
+Vulnerabilities fixed:
+
+* **CVE-2021-3450**: OpenSSL - CA certificate check bypass with X509_V_FLAG_X509_STRICT (High)
+  * This is a vulnerability in OpenSSL which may be exploited through Node.js. You can read more about it in https://www.openssl.org/news/secadv/20210325.txt
+  * Impacts:
+    * All versions of the 15.x, 14.x, 12.x and 10.x releases lines
+* **CVE-2021-3449**: OpenSSL - NULL pointer deref in signature_algorithms processing (High)
+  * This is a vulnerability in OpenSSL which may be exploited through Node.js. You can read more about it in https://www.openssl.org/news/secadv/20210325.txt
+  * Impacts:
+    * All versions of the 15.x, 14.x, 12.x and 10.x releases lines
+* **CVE-2020-7774**: npm upgrade - Update y18n to fix Prototype-Pollution (High)
+  * This is a vulnerability in the y18n npm module which may be exploited by prototype pollution. You can read more about it in https://github.com/advisories/GHSA-c4w7-xm78-47vh
+  * Impacts:
+    * All versions of the 14.x, 12.x and 10.x releases lines
+
+### Commits
+
+* [[`467be7a950`](https://github.com/nodejs/node/commit/467be7a950)] - **deps**: upgrade npm to 6.14.12 (Ruy Adorno) [#37918](https://github.com/nodejs/node/pull/37918)
+* [[`6bc8f58182`](https://github.com/nodejs/node/commit/6bc8f58182)] - **deps**: update archs files for OpenSSL-1.1.1k (Tobias Nießen) [#37938](https://github.com/nodejs/node/pull/37938)
+* [[`403a014ef6`](https://github.com/nodejs/node/commit/403a014ef6)] - **deps**: upgrade openssl sources to 1.1.1k (Tobias Nießen) [#37938](https://github.com/nodejs/node/pull/37938)
+
+<a id="14.16.0"></a>
+## 2021-02-23, Version 14.16.0 'Fermium' (LTS), @BethGriggs
+
+This is a security release.
+
+### Notable changes
+
+Vulnerabilities fixed:
+
+* **CVE-2021-22883**: HTTP2 'unknownProtocol' cause Denial of Service by resource exhaustion
+  * Affected Node.js versions are vulnerable to denial of service attacks when too many connection attempts with an 'unknownProtocol' are established. This leads to a leak of file descriptors. If a file descriptor limit is configured on the system, then the server is unable to accept new connections and prevent the process also from opening, e.g. a file. If no file descriptor limit is configured, then this lead to an excessive memory usage and cause the system to run out of memory.
+* **CVE-2021-22884**: DNS rebinding in --inspect
+  * Affected Node.js versions are vulnerable to denial of service attacks when the whitelist includes “localhost6”. When “localhost6” is not present in /etc/hosts, it is just an ordinary domain that is resolved via DNS, i.e., over network. If the attacker controls the victim's DNS server or can spoof its responses, the DNS rebinding protection can be bypassed by using the “localhost6” domain. As long as the attacker uses the “localhost6” domain, they can still apply the attack described in CVE-2018-7160.
+* **CVE-2021-23840**: OpenSSL - Integer overflow in CipherUpdate
+  * This is a vulnerability in OpenSSL which may be exploited through Node.js. You can read more about it in https://www.openssl.org/news/secadv/20210216.txt
+
+### Commits
+
+* [[`313d26800c`](https://github.com/nodejs/node/commit/313d26800c)] - **deps**: update archs files for OpenSSL-1.1.1j (Daniel Bevenius) [#37412](https://github.com/nodejs/node/pull/37412)
+* [[`6098012b48`](https://github.com/nodejs/node/commit/6098012b48)] - **deps**: upgrade openssl sources to 1.1.1j (Daniel Bevenius) [#37412](https://github.com/nodejs/node/pull/37412)
+* [[`afea10b097`](https://github.com/nodejs/node/commit/afea10b097)] - **(SEMVER-MINOR)** **http2**: add unknownProtocol timeout (Daniel Bevenius) [nodejs-private/node-private#246](https://github.com/nodejs-private/node-private/pull/246)
+* [[`1ca3f5abcb`](https://github.com/nodejs/node/commit/1ca3f5abcb)] - **src**: drop localhost6 as allowed host for inspector (Matteo Collina) [nodejs-private/node-private#244](https://github.com/nodejs-private/node-private/pull/244)
+
+<a id="14.15.5"></a>
+## 2021-02-09, Version 14.15.5 'Fermium' (LTS), @BethGriggs
+
+### Notable Changes
+
+* **deps**:
+  * upgrade npm to 6.14.11 (Ruy Adorno) [#37173](https://github.com/nodejs/node/pull/37173)
+  * V8: backport dfcf1e86fac0 (Michaël Zasso) [#37245](https://github.com/nodejs/node/pull/37245)
+    * **Note**: Node.js is not believed to be vulnerable to CVE-2021-21148.
+* **stream,zlib**: do not use \_stream\_\* anymore (Matteo Collina) [#36618](https://github.com/nodejs/node/pull/36618)
+
+### Commits
+
+* [[`20b1e6c802`](https://github.com/nodejs/node/commit/20b1e6c802)] - **deps**: V8: backport dfcf1e86fac0 (Michaël Zasso) [#37245](https://github.com/nodejs/node/pull/37245)
+* [[`408c7a65f3`](https://github.com/nodejs/node/commit/408c7a65f3)] - **deps**: upgrade npm to 6.14.11 (Ruy Adorno) [#37173](https://github.com/nodejs/node/pull/37173)
+* [[`017eed665b`](https://github.com/nodejs/node/commit/017eed665b)] - **http**: do not loop over prototype in Agent (Michaël Zasso) [#36410](https://github.com/nodejs/node/pull/36410)
+* [[`25a3204fe2`](https://github.com/nodejs/node/commit/25a3204fe2)] - **http**: don't cork .end when not needed (Dimitris Halatsis) [#36633](https://github.com/nodejs/node/pull/36633)
+* [[`2a1e4e9244`](https://github.com/nodejs/node/commit/2a1e4e9244)] - **stream**: accept iterable as a valid first argument (ZiJian Liu) [#36479](https://github.com/nodejs/node/pull/36479)
+* [[`9ff73fcdbe`](https://github.com/nodejs/node/commit/9ff73fcdbe)] - **stream,zlib**: do not use \_stream\_\* anymore (Matteo Collina) [#36618](https://github.com/nodejs/node/pull/36618)
+* [[`c03cddb46f`](https://github.com/nodejs/node/commit/c03cddb46f)] - **test**: http complete response after socket double end (Dimitris Halatsis) [#36633](https://github.com/nodejs/node/pull/36633)
+* [[`f206505e9d`](https://github.com/nodejs/node/commit/f206505e9d)] - **util**: fix instanceof checks with null prototypes during inspection (Ruben Bridgewater) [#36178](https://github.com/nodejs/node/pull/36178)
+* [[`2f7944b18b`](https://github.com/nodejs/node/commit/2f7944b18b)] - **util**: fix module prefixes during inspection (Ruben Bridgewater) [#36178](https://github.com/nodejs/node/pull/36178)
 
 <a id="14.15.4"></a>
 ## 2021-01-04, Version 14.15.4 'Fermium' (LTS), @BethGriggs

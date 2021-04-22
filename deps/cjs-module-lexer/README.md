@@ -80,7 +80,7 @@ EXPORTS_DOT_ASSIGN: EXPORTS_IDENTIFIER `.` IDENTIFIER `=`
 
 EXPORTS_LITERAL_COMPUTED_ASSIGN: EXPORTS_IDENTIFIER `[` IDENTIFIER_STRING `]` `=`
 
-EXPORTS_LITERAL_PROP: (IDENTIFIER  `:` IDENTIFIER)?) | (IDENTIFIER_STRING `:` IDENTIFIER)
+EXPORTS_LITERAL_PROP: (IDENTIFIER  (`:` IDENTIFIER)?) | (IDENTIFIER_STRING `:` IDENTIFIER)
 
 EXPORTS_SPREAD: `...` (IDENTIFIER | REQUIRE)
 
@@ -92,7 +92,7 @@ EXPORTS_DEFINE_VALUE: EXPORTS_DEFINE `, {`
   (`enumerable: true,`)?
   (
     `value:` |
-    `get` (`: function` IDENTIFIER? )?  `()` {` return IDENTIFIER (`.` IDENTIFIER | `[` IDENTIFIER_STRING `]`)? `;`? `}`
+    `get` (`: function` IDENTIFIER? )?  `() {` return IDENTIFIER (`.` IDENTIFIER | `[` IDENTIFIER_STRING `]`)? `;`? `}` `,`?
   )
   `})`
 
@@ -100,7 +100,7 @@ EXPORTS_LITERAL: MODULE_EXPORTS `=` `{` (EXPORTS_LITERAL_PROP | EXPORTS_SPREAD) 
 
 REQUIRE: `require` `(` STRING_LITERAL `)`
 
-EXPORTS_ASSIGN: (`var` | `const` | `let`) IDENTIFIER `=` REQUIRE
+EXPORTS_ASSIGN: (`var` | `const` | `let`) IDENTIFIER `=` (`_interopRequireWildcard (`)? REQUIRE
 
 MODULE_EXPORTS_ASSIGN: MODULE_EXPORTS `=` REQUIRE
 
@@ -108,15 +108,18 @@ EXPORT_STAR: (`__export` | `__exportStar`) `(` REQUIRE
 
 EXPORT_STAR_LIB: `Object.keys(` IDENTIFIER$1 `).forEach(function (` IDENTIFIER$2 `) {`
   (
-    `if (` IDENTIFIER$2 `===` ( `'default'` | `"default"` ) `||` IDENTIFIER$2 `===` ( '__esModule' | `"__esModule"` ) `) return` `;`? |
-    `if (` IDENTIFIER$2 `!==` ( `'default'` | `"default"` ) `)`
+    (
+      `if (` IDENTIFIER$2 `===` ( `'default'` | `"default"` ) `||` IDENTIFIER$2 `===` ( '__esModule' | `"__esModule"` ) `) return` `;`?
+      (
+        (`if (Object` `.prototype`? `.hasOwnProperty.call(`  IDENTIFIER `, ` IDENTIFIER$2 `)) return` `;`?)?
+        (`if (` IDENTIFIER$2 `in` EXPORTS_IDENTIFIER `&&` EXPORTS_IDENTIFIER `[` IDENTIFIER$2 `] ===` IDENTIFIER$1 `[` IDENTIFIER$2 `]) return` `;`)?
+      )?
+    ) |
+    `if (` IDENTIFIER$2 `!==` ( `'default'` | `"default"` ) (`&& !` (`Object` `.prototype`? `.hasOwnProperty.call(`  IDENTIFIER$1 `, ` IDENTIFIER$2 `)` | IDENTIFIER$1 `.hasOwnProperty(` IDENTIFIER$2 `)`))? `)`
   )
   (
-    `if (` IDENTIFIER$2 `in` EXPORTS_IDENTIFIER `&&` EXPORTS_IDENTIFIER `[` IDENTIFIER$2 `] ===` IDENTIFIER$1 `[` IDENTIFIER$2 `]) return` `;`?
-  )?
-  (
     EXPORTS_IDENTIFIER `[` IDENTIFIER$2 `] =` IDENTIFIER$1 `[` IDENTIFIER$2 `]` `;`? |
-    `Object.defineProperty(` EXPORTS_IDENTIFIER `, ` IDENTIFIER$2 `, { enumerable: true, get: function () { return ` IDENTIFIER$1 `[` IDENTIFIER$2 `]` `;`? } })` `;`?
+    `Object.defineProperty(` EXPORTS_IDENTIFIER `, ` IDENTIFIER$2 `, { enumerable: true, get` (`: function` IDENTIFIER? )?  `() { return ` IDENTIFIER$1 `[` IDENTIFIER$2 `]` `;`? `}` `,`? `})` `;`?
   )
   `})`
 ```
@@ -126,7 +129,7 @@ Spacing between tokens is taken to be any ECMA-262 whitespace, ECMA-262 block co
 * The returned export names are taken to be the combination of:
   1. All `IDENTIFIER` and `IDENTIFIER_STRING` slots for `EXPORTS_MEMBER` and `EXPORTS_LITERAL` matches.
   2. The first `IDENTIFIER_STRING` slot for all `EXPORTS_DEFINE_VALUE` matches where that same string is not an `EXPORTS_DEFINE` match that is not also an `EXPORTS_DEFINE_VALUE` match.
-* The reexport specifiers are taken to be the the combination of:
+* The reexport specifiers are taken to be the combination of:
   1. The `REQUIRE` matches of the last matched of either `MODULE_EXPORTS_ASSIGN` or `EXPORTS_LITERAL`.
   2. All _top-level_ `EXPORT_STAR` `REQUIRE` matches and `EXPORTS_ASSIGN` matches whose `IDENTIFIER` also matches the first `IDENTIFIER` in `EXPORT_STAR_LIB`.
 
@@ -194,13 +197,23 @@ Object.defineProperty(exports, 'd', { value: 'd' });
 Object.defineProperty(exports, '__esModule', { value: true });
 ```
 
+Value properties are also detected specifically:
+
+```js
+Object.defineProperty(exports, 'a', {
+  value: 'no problem'
+});
+```
+
 To avoid matching getters that have side effects, any getter for an export name that does not support the forms above will
 opt-out of the getter matching:
 
 ```js
 // DETECTS: NO EXPORTS
 Object.defineProperty(exports, 'a', {
-  value: 'no problem'
+  get () {
+    return 'nope';
+  }
 });
 
 if (false) {

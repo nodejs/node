@@ -158,6 +158,7 @@ macro Cast<A : type extends Object>(implicit context: Context)(o: Object): A
       otherwise CastError;
 }
 
+// This is required for casting MaybeObject to Object.
 Cast<Smi>(o: Object): Smi
     labels CastError {
   return TaggedToSmi(o) otherwise CastError;
@@ -257,7 +258,7 @@ Cast<Boolean>(o: HeapObject): Boolean labels CastError {
   return Cast<Boolean>(o) otherwise CastError;
 }
 
-// TODO(tebbi): These trivial casts for union types should be generated
+// TODO(turbofan): These trivial casts for union types should be generated
 // automatically.
 
 Cast<JSPrimitive>(o: Object): JSPrimitive labels CastError {
@@ -403,7 +404,7 @@ Cast<PrivateSymbol>(o: HeapObject): PrivateSymbol labels CastError {
   return Cast<PrivateSymbol>(s) otherwise CastError;
 }
 
-Cast<DirectString>(o: HeapObject): DirectString
+Cast<DirectString>(o: String): DirectString
     labels CastError {
   return TaggedToDirectString(o) otherwise CastError;
 }
@@ -537,9 +538,110 @@ Cast<FastJSArrayForReadWithNoCustomIteration>(implicit context: Context)(
   return %RawDownCast<FastJSArrayForReadWithNoCustomIteration>(a);
 }
 
+macro Cast<T: type>(o: String): T labels CastError;
+
 Cast<SeqOneByteString>(o: HeapObject): SeqOneByteString labels CastError {
-  if (!IsSeqOneByteString(o)) goto CastError;
+  return Cast<SeqOneByteString>(Cast<String>(o) otherwise CastError)
+      otherwise CastError;
+}
+
+Cast<SeqOneByteString>(o: String): SeqOneByteString labels CastError {
+  const instanceType = o.StringInstanceType();
+  // Using & instead of && enables Turbofan to merge the two checks into one.
+  if (!(instanceType.representation == StringRepresentationTag::kSeqStringTag &
+        instanceType.is_one_byte)) {
+    goto CastError;
+  }
   return %RawDownCast<SeqOneByteString>(o);
+}
+
+Cast<SeqTwoByteString>(o: HeapObject): SeqTwoByteString labels CastError {
+  return Cast<SeqTwoByteString>(Cast<String>(o) otherwise CastError)
+      otherwise CastError;
+}
+
+Cast<SeqTwoByteString>(o: String): SeqTwoByteString labels CastError {
+  const instanceType = o.StringInstanceType();
+  // Using & instead of && enables Turbofan to merge the two checks into one.
+  if (!(instanceType.representation == StringRepresentationTag::kSeqStringTag &
+        !instanceType.is_one_byte)) {
+    goto CastError;
+  }
+  return %RawDownCast<SeqTwoByteString>(o);
+}
+
+Cast<ThinString>(o: HeapObject): ThinString labels CastError {
+  return Cast<ThinString>(Cast<String>(o) otherwise CastError)
+      otherwise CastError;
+}
+
+Cast<ThinString>(o: String): ThinString labels CastError {
+  const instanceType = o.StringInstanceType();
+  if (instanceType.representation != StringRepresentationTag::kThinStringTag) {
+    goto CastError;
+  }
+  return %RawDownCast<ThinString>(o);
+}
+
+Cast<ConsString>(o: HeapObject): ConsString labels CastError {
+  return Cast<ConsString>(Cast<String>(o) otherwise CastError)
+      otherwise CastError;
+}
+
+Cast<ConsString>(o: String): ConsString labels CastError {
+  const instanceType = o.StringInstanceType();
+  if (instanceType.representation != StringRepresentationTag::kConsStringTag) {
+    goto CastError;
+  }
+  return %RawDownCast<ConsString>(o);
+}
+
+Cast<SlicedString>(o: HeapObject): SlicedString labels CastError {
+  return Cast<SlicedString>(Cast<String>(o) otherwise CastError)
+      otherwise CastError;
+}
+
+Cast<SlicedString>(o: String): SlicedString labels CastError {
+  const instanceType = o.StringInstanceType();
+  if (instanceType.representation !=
+      StringRepresentationTag::kSlicedStringTag) {
+    goto CastError;
+  }
+  return %RawDownCast<SlicedString>(o);
+}
+
+Cast<ExternalOneByteString>(o: HeapObject):
+    ExternalOneByteString labels CastError {
+  return Cast<ExternalOneByteString>(Cast<String>(o) otherwise CastError)
+      otherwise CastError;
+}
+
+Cast<ExternalOneByteString>(o: String): ExternalOneByteString labels CastError {
+  const instanceType = o.StringInstanceType();
+  // Using & instead of && enables Turbofan to merge the two checks into one.
+  if (!(instanceType.representation ==
+            StringRepresentationTag::kExternalStringTag &
+        instanceType.is_one_byte)) {
+    goto CastError;
+  }
+  return %RawDownCast<ExternalOneByteString>(o);
+}
+
+Cast<ExternalTwoByteString>(o: HeapObject):
+    ExternalTwoByteString labels CastError {
+  return Cast<ExternalTwoByteString>(Cast<String>(o) otherwise CastError)
+      otherwise CastError;
+}
+
+Cast<ExternalTwoByteString>(o: String): ExternalTwoByteString labels CastError {
+  const instanceType = o.StringInstanceType();
+  // Using & instead of && enables Turbofan to merge the two checks into one.
+  if (!(instanceType.representation ==
+            StringRepresentationTag::kExternalStringTag &
+        !instanceType.is_one_byte)) {
+    goto CastError;
+  }
+  return %RawDownCast<ExternalTwoByteString>(o);
 }
 
 Cast<JSReceiver|Null>(o: HeapObject): JSReceiver|Null
@@ -667,7 +769,19 @@ UnsafeCast<RegExpMatchInfo>(implicit context: Context)(o: Object):
   return %RawDownCast<RegExpMatchInfo>(o);
 }
 
-macro CastOrDefault<T: type, Arg: type, Default: type>(
-    implicit context: Context)(x: Arg, default: Default): T|Default {
+macro UnsafeCast<A : type extends WeakHeapObject>(o: A|Object): A {
+  assert(IsWeakOrCleared(o));
+  return %RawDownCast<A>(o);
+}
+
+macro
+CastOrDefault<T: type, Arg: type, Default: type>(implicit context: Context)(
+    x: Arg, default: Default): T|Default {
   return Cast<T>(x) otherwise return default;
+}
+
+// This is required for casting MaybeObject to Object.
+Cast<Object>(o: Object): Object
+labels _CastError {
+  return o;
 }

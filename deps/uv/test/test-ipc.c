@@ -693,6 +693,11 @@ static void ipc_on_connection(uv_stream_t* server, int status) {
 }
 
 
+static void close_and_free_cb(uv_handle_t* handle) {
+  close_cb_called++;
+  free(handle);
+}
+
 static void ipc_on_connection_tcp_conn(uv_stream_t* server, int status) {
   int r;
   uv_buf_t buf;
@@ -721,7 +726,7 @@ static void ipc_on_connection_tcp_conn(uv_stream_t* server, int status) {
                     on_tcp_child_process_read);
   ASSERT_EQ(r, 0);
 
-  uv_close((uv_handle_t*)conn, close_cb);
+  uv_close((uv_handle_t*)conn, close_and_free_cb);
 }
 
 

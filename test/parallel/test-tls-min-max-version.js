@@ -14,6 +14,14 @@ const DEFAULT_MAX_VERSION = tls.DEFAULT_MAX_VERSION;
 
 function test(cmin, cmax, cprot, smin, smax, sprot, proto, cerr, serr) {
   assert(proto || cerr || serr, 'test missing any expectations');
+
+  let ciphers;
+  if (common.hasOpenSSL3 && (proto === 'TLSv1' || proto === 'TLSv1.1' ||
+      proto === 'TLSv1_1_method' || proto === 'TLSv1_method' ||
+      sprot === 'TLSv1_1_method' || sprot === 'TLSv1_method')) {
+    if (serr !== 'ERR_SSL_UNSUPPORTED_PROTOCOL')
+      ciphers = 'ALL@SECLEVEL=0';
+  }
   // Report where test was called from. Strip leading garbage from
   //     at Object.<anonymous> (file:line)
   // from the stack location, we only want the file:line part.
@@ -25,6 +33,7 @@ function test(cmin, cmax, cprot, smin, smax, sprot, proto, cerr, serr) {
       minVersion: cmin,
       maxVersion: cmax,
       secureProtocol: cprot,
+      ciphers: ciphers
     },
     server: {
       cert: keys.agent6.cert,
@@ -32,11 +41,12 @@ function test(cmin, cmax, cprot, smin, smax, sprot, proto, cerr, serr) {
       minVersion: smin,
       maxVersion: smax,
       secureProtocol: sprot,
+      ciphers: ciphers
     },
   }, common.mustCall((err, pair, cleanup) => {
     function u(_) { return _ === undefined ? 'U' : _; }
     console.log('test:', u(cmin), u(cmax), u(cprot), u(smin), u(smax), u(sprot),
-                'expect', u(proto), u(cerr), u(serr));
+                u(ciphers), 'expect', u(proto), u(cerr), u(serr));
     console.log('  ', where);
     if (!proto) {
       console.log('client', pair.client.err ? pair.client.err.code : undefined);
@@ -109,16 +119,19 @@ test(U, U, 'TLS_method', U, U, 'TLSv1_method', 'TLSv1');
 // minimum (which is configurable via command line).
 if (DEFAULT_MIN_VERSION === 'TLSv1.3') {
   test(U, U, 'TLSv1_2_method', U, U, 'SSLv23_method',
-       U, 'ECONNRESET', 'ERR_SSL_INTERNAL_ERROR');
+       U, 'ECONNRESET', common.hasOpenSSL3 ?
+         'ERR_SSL_NO_PROTOCOLS_AVAILABLE' : 'ERR_SSL_INTERNAL_ERROR');
 } else {
   test(U, U, 'TLSv1_2_method', U, U, 'SSLv23_method', 'TLSv1.2');
 }
 
 if (DEFAULT_MIN_VERSION === 'TLSv1.3') {
   test(U, U, 'TLSv1_1_method', U, U, 'SSLv23_method',
-       U, 'ECONNRESET', 'ERR_SSL_INTERNAL_ERROR');
+       U, 'ECONNRESET', common.hasOpenSSL3 ?
+         'ERR_SSL_NO_PROTOCOLS_AVAILABLE' : 'ERR_SSL_INTERNAL_ERROR');
   test(U, U, 'TLSv1_method', U, U, 'SSLv23_method',
-       U, 'ECONNRESET', 'ERR_SSL_INTERNAL_ERROR');
+       U, 'ECONNRESET', common.hasOpenSSL3 ?
+         'ERR_SSL_NO_PROTOCOLS_AVAILABLE' : 'ERR_SSL_INTERNAL_ERROR');
   test(U, U, 'SSLv23_method', U, U, 'TLSv1_1_method',
        U, 'ERR_SSL_NO_PROTOCOLS_AVAILABLE', 'ERR_SSL_UNEXPECTED_MESSAGE');
   test(U, U, 'SSLv23_method', U, U, 'TLSv1_method',

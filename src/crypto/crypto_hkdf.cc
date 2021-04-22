@@ -110,15 +110,15 @@ bool HKDFTraits::DeriveBits(
       !EVP_PKEY_CTX_set_hkdf_md(ctx.get(), params.digest) ||
       !EVP_PKEY_CTX_set1_hkdf_salt(
         ctx.get(),
-        params.salt.get(),
+        reinterpret_cast<const unsigned char*>(params.salt.get()),
         params.salt.size()) ||
       !EVP_PKEY_CTX_set1_hkdf_key(
         ctx.get(),
-        params.key->GetSymmetricKey(),
+        reinterpret_cast<const unsigned char*>(params.key->GetSymmetricKey()),
         params.key->GetSymmetricKeySize()) ||
       !EVP_PKEY_CTX_add1_hkdf_info(
         ctx.get(),
-        params.info.get(),
+        reinterpret_cast<const unsigned char*>(params.info.get()),
         params.info.size())) {
     return false;
   }

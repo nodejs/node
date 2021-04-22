@@ -59,21 +59,23 @@ class FlagsContinuation final {
   }
 
   // Creates a new flags continuation for an eager deoptimization exit.
-  static FlagsContinuation ForDeoptimize(FlagsCondition condition,
-                                         DeoptimizeKind kind,
-                                         DeoptimizeReason reason,
-                                         FeedbackSource const& feedback,
-                                         Node* frame_state) {
+  static FlagsContinuation ForDeoptimize(
+      FlagsCondition condition, DeoptimizeKind kind, DeoptimizeReason reason,
+      FeedbackSource const& feedback, Node* frame_state,
+      InstructionOperand* extra_args = nullptr, int extra_args_count = 0) {
     return FlagsContinuation(kFlags_deoptimize, condition, kind, reason,
-                             feedback, frame_state);
+                             feedback, frame_state, extra_args,
+                             extra_args_count);
   }
 
   // Creates a new flags continuation for an eager deoptimization exit.
   static FlagsContinuation ForDeoptimizeAndPoison(
       FlagsCondition condition, DeoptimizeKind kind, DeoptimizeReason reason,
-      FeedbackSource const& feedback, Node* frame_state) {
+      FeedbackSource const& feedback, Node* frame_state,
+      InstructionOperand* extra_args = nullptr, int extra_args_count = 0) {
     return FlagsContinuation(kFlags_deoptimize_and_poison, condition, kind,
-                             reason, feedback, frame_state);
+                             reason, feedback, frame_state, extra_args,
+                             extra_args_count);
   }
 
   // Creates a new flags continuation for a boolean value.
@@ -119,6 +121,18 @@ class FlagsContinuation final {
   Node* frame_state() const {
     DCHECK(IsDeoptimize());
     return frame_state_or_result_;
+  }
+  bool has_extra_args() const {
+    DCHECK(IsDeoptimize());
+    return extra_args_ != nullptr;
+  }
+  const InstructionOperand* extra_args() const {
+    DCHECK(has_extra_args());
+    return extra_args_;
+  }
+  int extra_args_count() const {
+    DCHECK(has_extra_args());
+    return extra_args_count_;
   }
   Node* result() const {
     DCHECK(IsSet());
@@ -198,13 +212,16 @@ class FlagsContinuation final {
 
   FlagsContinuation(FlagsMode mode, FlagsCondition condition,
                     DeoptimizeKind kind, DeoptimizeReason reason,
-                    FeedbackSource const& feedback, Node* frame_state)
+                    FeedbackSource const& feedback, Node* frame_state,
+                    InstructionOperand* extra_args, int extra_args_count)
       : mode_(mode),
         condition_(condition),
         kind_(kind),
         reason_(reason),
         feedback_(feedback),
-        frame_state_or_result_(frame_state) {
+        frame_state_or_result_(frame_state),
+        extra_args_(extra_args),
+        extra_args_count_(extra_args_count) {
     DCHECK(mode == kFlags_deoptimize || mode == kFlags_deoptimize_and_poison);
     DCHECK_NOT_NULL(frame_state);
   }
@@ -226,14 +243,16 @@ class FlagsContinuation final {
 
   FlagsMode const mode_;
   FlagsCondition condition_;
-  DeoptimizeKind kind_;          // Only valid if mode_ == kFlags_deoptimize*
-  DeoptimizeReason reason_;      // Only valid if mode_ == kFlags_deoptimize*
-  FeedbackSource feedback_;      // Only valid if mode_ == kFlags_deoptimize*
-  Node* frame_state_or_result_;  // Only valid if mode_ == kFlags_deoptimize*
-                                 // or mode_ == kFlags_set.
-  BasicBlock* true_block_;       // Only valid if mode_ == kFlags_branch*.
-  BasicBlock* false_block_;      // Only valid if mode_ == kFlags_branch*.
-  TrapId trap_id_;               // Only valid if mode_ == kFlags_trap.
+  DeoptimizeKind kind_;             // Only valid if mode_ == kFlags_deoptimize*
+  DeoptimizeReason reason_;         // Only valid if mode_ == kFlags_deoptimize*
+  FeedbackSource feedback_;         // Only valid if mode_ == kFlags_deoptimize*
+  Node* frame_state_or_result_;     // Only valid if mode_ == kFlags_deoptimize*
+                                    // or mode_ == kFlags_set.
+  InstructionOperand* extra_args_;  // Only valid if mode_ == kFlags_deoptimize*
+  int extra_args_count_;            // Only valid if mode_ == kFlags_deoptimize*
+  BasicBlock* true_block_;          // Only valid if mode_ == kFlags_branch*.
+  BasicBlock* false_block_;         // Only valid if mode_ == kFlags_branch*.
+  TrapId trap_id_;                  // Only valid if mode_ == kFlags_trap.
 };
 
 // This struct connects nodes of parameters which are going to be pushed on the
@@ -272,7 +291,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
       InstructionSequence* sequence, Schedule* schedule,
       SourcePositionTable* source_positions, Frame* frame,
       EnableSwitchJumpTable enable_switch_jump_table, TickCounter* tick_counter,
-      size_t* max_unoptimized_frame_height, size_t* max_pushed_argument_count,
+      JSHeapBroker* broker, size_t* max_unoptimized_frame_height,
+      size_t* max_pushed_argument_count,
       SourcePositionMode source_position_mode = kCallSourcePositions,
       Features features = SupportedFeatures(),
       EnableScheduling enable_scheduling = FLAG_turbo_instruction_scheduling
@@ -471,7 +491,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void AppendDeoptimizeArguments(InstructionOperandVector* args,
                                  DeoptimizeKind kind, DeoptimizeReason reason,
                                  FeedbackSource const& feedback,
-                                 Node* frame_state);
+                                 FrameState frame_state);
 
   void EmitTableSwitch(const SwitchInfo& sw,
                        InstructionOperand const& index_operand);
@@ -541,13 +561,12 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
                             CallBufferFlags flags, bool is_tail_call,
                             int stack_slot_delta = 0);
   bool IsTailCallAddressImmediate();
-  int GetTempsCountForTailCallFromJSFunction();
 
   void UpdateMaxPushedArgumentCount(size_t count);
 
-  FrameStateDescriptor* GetFrameStateDescriptor(Node* node);
+  FrameStateDescriptor* GetFrameStateDescriptor(FrameState node);
   size_t AddInputsToFrameStateDescriptor(FrameStateDescriptor* descriptor,
-                                         Node* state, OperandGenerator* g,
+                                         FrameState state, OperandGenerator* g,
                                          StateObjectDeduplicator* deduplicator,
                                          InstructionOperandVector* inputs,
                                          FrameStateInputKind kind, Zone* zone);
@@ -600,6 +619,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void VisitCall(Node* call, BasicBlock* handler = nullptr);
   void VisitDeoptimizeIf(Node* node);
   void VisitDeoptimizeUnless(Node* node);
+  void VisitDynamicCheckMapsWithDeoptUnless(Node* node);
   void VisitTrapIf(Node* node, TrapId trap_id);
   void VisitTrapUnless(Node* node, TrapId trap_id);
   void VisitTailCall(Node* call);
@@ -607,7 +627,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void VisitBranch(Node* input, BasicBlock* tbranch, BasicBlock* fbranch);
   void VisitSwitch(Node* node, const SwitchInfo& sw);
   void VisitDeoptimize(DeoptimizeKind kind, DeoptimizeReason reason,
-                       FeedbackSource const& feedback, Node* frame_state);
+                       FeedbackSource const& feedback, FrameState frame_state);
   void VisitReturn(Node* ret);
   void VisitThrow(Node* node);
   void VisitRetain(Node* node);
@@ -708,6 +728,9 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   ZoneVector<std::pair<int, int>> instr_origins_;
   EnableTraceTurboJson trace_turbo_;
   TickCounter* const tick_counter_;
+  // The broker is only used for unparking the LocalHeap for diagnostic printing
+  // for failed StaticAsserts.
+  JSHeapBroker* const broker_;
 
   // Store the maximal unoptimized frame height and an maximal number of pushed
   // arguments (for calls). Later used to apply an offset to stack checks.

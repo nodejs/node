@@ -22,6 +22,7 @@ declare class SocksClient extends EventEmitter implements SocksClient {
     private state;
     private receiveBuffer;
     private nextRequiredPacketBufferSize;
+    private socks5ChosenAuthType;
     private onDataReceived;
     private onClose;
     private onError;
@@ -132,6 +133,10 @@ declare class SocksClient extends EventEmitter implements SocksClient {
      * Note: No auth and user/pass are currently supported.
      */
     private sendSocks5UserPassAuthentication;
+    private sendSocks5CustomAuthentication;
+    private handleSocks5CustomAuthHandshakeResponse;
+    private handleSocks5AuthenticationNoAuthHandshakeResponse;
+    private handleSocks5AuthenticationUserPassHandshakeResponse;
     /**
      * Handles Socks v5 auth handshake response.
      * @param data

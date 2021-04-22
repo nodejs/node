@@ -14,7 +14,7 @@ namespace internal {
 
 namespace {
 
-class IncrementalMarkingScheduleTest : public testing::Test {
+class IncrementalMarkingScheduleTest : public ::testing::Test {
  public:
   static const size_t kObjectSize;
 };
@@ -38,7 +38,7 @@ TEST_F(IncrementalMarkingScheduleTest, NoTimePassedReturnsMinimumDuration) {
   IncrementalMarkingSchedule schedule;
   schedule.NotifyIncrementalMarkingStart();
   // Add incrementally marked bytes to tell oracle this is not the first step.
-  schedule.UpdateIncrementalMarkedBytes(
+  schedule.UpdateMutatorThreadMarkedBytes(
       IncrementalMarkingSchedule::kMinimumMarkedBytesPerIncrementalStep);
   schedule.SetElapsedTimeForTesting(0);
   EXPECT_EQ(IncrementalMarkingSchedule::kMinimumMarkedBytesPerIncrementalStep,
@@ -50,7 +50,7 @@ TEST_F(IncrementalMarkingScheduleTest, OracleDoesntExccedMaximumStepDuration) {
   schedule.NotifyIncrementalMarkingStart();
   // Add incrementally marked bytes to tell oracle this is not the first step.
   static constexpr size_t kMarkedBytes = 1;
-  schedule.UpdateIncrementalMarkedBytes(kMarkedBytes);
+  schedule.UpdateMutatorThreadMarkedBytes(kMarkedBytes);
   schedule.SetElapsedTimeForTesting(
       IncrementalMarkingSchedule::kEstimatedMarkingTimeMs);
   EXPECT_EQ(kObjectSize - kMarkedBytes,
@@ -61,7 +61,7 @@ TEST_F(IncrementalMarkingScheduleTest, AheadOfScheduleReturnsMinimumDuration) {
   IncrementalMarkingSchedule schedule;
   schedule.NotifyIncrementalMarkingStart();
   // Add incrementally marked bytes to tell oracle this is not the first step.
-  schedule.UpdateIncrementalMarkedBytes(
+  schedule.UpdateMutatorThreadMarkedBytes(
       IncrementalMarkingSchedule::kMinimumMarkedBytesPerIncrementalStep);
   schedule.AddConcurrentlyMarkedBytes(0.6 * kObjectSize);
   schedule.SetElapsedTimeForTesting(
@@ -73,7 +73,7 @@ TEST_F(IncrementalMarkingScheduleTest, AheadOfScheduleReturnsMinimumDuration) {
 TEST_F(IncrementalMarkingScheduleTest, BehindScheduleReturnsCorrectDuration) {
   IncrementalMarkingSchedule schedule;
   schedule.NotifyIncrementalMarkingStart();
-  schedule.UpdateIncrementalMarkedBytes(0.1 * kObjectSize);
+  schedule.UpdateMutatorThreadMarkedBytes(0.1 * kObjectSize);
   schedule.AddConcurrentlyMarkedBytes(0.25 * kObjectSize);
   schedule.SetElapsedTimeForTesting(
       0.5 * IncrementalMarkingSchedule::kEstimatedMarkingTimeMs);

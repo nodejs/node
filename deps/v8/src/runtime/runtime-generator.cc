@@ -55,7 +55,7 @@ RUNTIME_FUNCTION(Runtime_CreateJSGeneratorObject) {
   // Underlying function needs to have bytecode available.
   DCHECK(function->shared().HasBytecodeArray());
   int size = function->shared().internal_formal_parameter_count() +
-             function->shared().GetBytecodeArray().register_count();
+             function->shared().GetBytecodeArray(isolate).register_count();
   Handle<FixedArray> parameters_and_registers =
       isolate->factory()->NewFixedArray(size);
 
@@ -126,7 +126,7 @@ RUNTIME_FUNCTION(Runtime_GeneratorGetResumeMode) {
 // Return true if {generator}'s PC has a catch handler. This allows
 // catch prediction to happen from the AsyncGeneratorResumeNext stub.
 RUNTIME_FUNCTION(Runtime_AsyncGeneratorHasCatchHandlerForPC) {
-  DisallowHeapAllocation no_allocation_scope;
+  DisallowGarbageCollection no_gc_scope;
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(JSAsyncGeneratorObject, generator, 0);
 
@@ -140,7 +140,7 @@ RUNTIME_FUNCTION(Runtime_AsyncGeneratorHasCatchHandlerForPC) {
 
   SharedFunctionInfo shared = generator.function().shared();
   DCHECK(shared.HasBytecodeArray());
-  HandlerTable handler_table(shared.GetBytecodeArray());
+  HandlerTable handler_table(shared.GetBytecodeArray(isolate));
 
   int pc = Smi::cast(generator.input_or_debug_pos()).value();
   HandlerTable::CatchPrediction catch_prediction = HandlerTable::ASYNC_AWAIT;

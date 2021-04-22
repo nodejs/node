@@ -16,6 +16,7 @@ const {
   link,
   lchmod,
   lstat,
+  lutimes,
   mkdir,
   mkdtemp,
   open,
@@ -140,6 +141,13 @@ async function getHandle(dest) {
       await handle.close();
     }
 
+    // Use fallback buffer allocation when input not buffer
+    {
+      const handle = await getHandle(dest);
+      const ret = await handle.read(0, 0, 0, 0);
+      assert.strictEqual(ret.buffer.length, 16384);
+    }
+
     // Bytes written to file match buffer
     {
       const handle = await getHandle(dest);
@@ -183,24 +191,24 @@ async function getHandle(dest) {
 
       assert.rejects(
         async () => {
-          await chown(dest, 1, -1);
+          await chown(dest, 1, -2);
         },
         {
           code: 'ERR_OUT_OF_RANGE',
           name: 'RangeError',
           message: 'The value of "gid" is out of range. ' +
-                  'It must be >= 0 && < 4294967296. Received -1'
+                  'It must be >= -1 && <= 4294967295. Received -2'
         });
 
       assert.rejects(
         async () => {
-          await handle.chown(1, -1);
+          await handle.chown(1, -2);
         },
         {
           code: 'ERR_OUT_OF_RANGE',
           name: 'RangeError',
           message: 'The value of "gid" is out of range. ' +
-                    'It must be >= 0 && < 4294967296. Received -1'
+                    'It must be >= -1 && <= 4294967295. Received -2'
         });
 
       await handle.close();
@@ -224,6 +232,19 @@ async function getHandle(dest) {
       }
 
       await handle.close();
+    }
+
+    // Set modification times with lutimes
+    {
+      const a_time = new Date();
+      a_time.setMinutes(a_time.getMinutes() - 1);
+      const m_time = new Date();
+      m_time.setHours(m_time.getHours() - 1);
+      await lutimes(dest, a_time, m_time);
+      const stats = await stat(dest);
+
+      assert.strictEqual(a_time.toString(), stats.atime.toString());
+      assert.strictEqual(m_time.toString(), stats.mtime.toString());
     }
 
     // create symlink
@@ -262,12 +283,21 @@ async function getHandle(dest) {
                 name: 'Error',
                 message: 'The lchmod() method is not implemented'
               })
-            )
+            ),
           ]);
         }
 
         await unlink(newLink);
       }
+    }
+
+    // specify symlink type
+    {
+      const dir = path.join(tmpDir, nextdir());
+      await symlink(tmpDir, dir, 'dir');
+      const stats = await lstat(dir);
+      assert.strictEqual(stats.isSymbolicLink(), true);
+      await unlink(dir);
     }
 
     // create hard link
@@ -294,6 +324,14 @@ async function getHandle(dest) {
       assert.notStrictEqual(list.indexOf('foo.js'), -1);
       await rmdir(newDir);
       await unlink(newFile);
+    }
+
+    // Use fallback encoding when input is null
+    {
+      const newFile = path.resolve(tmpDir, 'dogs_running.js');
+      await writeFile(newFile, 'dogs running', { encoding: null });
+      const fileExists = fs.existsSync(newFile);
+      assert.strictEqual(fileExists, true);
     }
 
     // `mkdir` when options is number.
@@ -398,6 +436,22 @@ async function getHandle(dest) {
       );
     }
 
+    // Regression test for https://github.com/nodejs/node/issues/38168
+    {
+      const handle = await getHandle(dest);
+
+      assert.rejects(
+        async () => handle.write('abc', 0, 'hex'),
+        {
+          code: 'ERR_INVALID_ARG_VALUE',
+          message: /'encoding' is invalid for data of length 3/
+        }
+      );
+
+      const ret = await handle.write('abcd', 0, 'hex');
+      assert.strictEqual(ret.bytesWritten, 2);
+      await handle.close();
+    }
   }
 
   doTest().then(common.mustCall());

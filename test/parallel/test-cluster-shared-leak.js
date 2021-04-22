@@ -9,7 +9,7 @@ const net = require('net');
 const cluster = require('cluster');
 cluster.schedulingPolicy = cluster.SCHED_NONE;
 
-if (cluster.isMaster) {
+if (cluster.isPrimary) {
   let conn, worker2;
 
   const worker1 = cluster.fork();

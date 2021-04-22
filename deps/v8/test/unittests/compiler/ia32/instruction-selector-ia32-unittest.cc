@@ -836,6 +836,56 @@ TEST_F(InstructionSelectorTest, Word32Clz) {
   EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
 }
 
+// SIMD.
+
+TEST_F(InstructionSelectorTest, SIMDSplatZero) {
+  // Test optimization for splat of contant 0.
+  // {i8x16,i16x8,i32x4,i64x2}.splat(const(0)) -> v128.zero().
+  // Optimizations for f32x4.splat and f64x2.splat not implemented since it
+  // doesn't improve the codegen as much (same number of instructions).
+  {
+    StreamBuilder m(this, MachineType::Simd128());
+    Node* const splat =
+        m.I64x2SplatI32Pair(m.Int32Constant(0), m.Int32Constant(0));
+    m.Return(splat);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kIA32S128Zero, s[0]->arch_opcode());
+    ASSERT_EQ(0U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  {
+    StreamBuilder m(this, MachineType::Simd128());
+    Node* const splat = m.I32x4Splat(m.Int32Constant(0));
+    m.Return(splat);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kIA32S128Zero, s[0]->arch_opcode());
+    ASSERT_EQ(0U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  {
+    StreamBuilder m(this, MachineType::Simd128());
+    Node* const splat = m.I16x8Splat(m.Int32Constant(0));
+    m.Return(splat);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kIA32S128Zero, s[0]->arch_opcode());
+    ASSERT_EQ(0U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  {
+    StreamBuilder m(this, MachineType::Simd128());
+    Node* const splat = m.I8x16Splat(m.Int32Constant(0));
+    m.Return(splat);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kIA32S128Zero, s[0]->arch_opcode());
+    ASSERT_EQ(0U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

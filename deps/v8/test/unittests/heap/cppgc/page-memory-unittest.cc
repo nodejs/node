@@ -117,9 +117,16 @@ TEST(PageMemoryRegionTest, PlatformUsesGuardPages) {
   v8::base::PageAllocator allocator;
 #if defined(V8_HOST_ARCH_PPC64) && !defined(_AIX)
   EXPECT_FALSE(SupportsCommittingGuardPages(&allocator));
-#else   // !V8_HOST_ARCH_PPC64
+#elif defined(V8_HOST_ARCH_ARM64)
+  if (allocator.CommitPageSize() == 4096) {
+    EXPECT_TRUE(SupportsCommittingGuardPages(&allocator));
+  } else {
+    // Arm64 supports both 16k and 64k OS pages.
+    EXPECT_FALSE(SupportsCommittingGuardPages(&allocator));
+  }
+#else  // Regular case.
   EXPECT_TRUE(SupportsCommittingGuardPages(&allocator));
-#endif  // !V8_HOST_ARCH_PPC64
+#endif
 }
 
 namespace {

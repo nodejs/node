@@ -101,8 +101,10 @@ class SemiSpace;
 #define DCHECK_OBJECT_SIZE(size) \
   DCHECK((0 < size) && (size <= kMaxRegularHeapObjectSize))
 
-#define DCHECK_CODEOBJECT_SIZE(size, code_space) \
-  DCHECK((0 < size) && (size <= code_space->AreaSize()))
+#define DCHECK_CODEOBJECT_SIZE(size, code_space)                          \
+  DCHECK((0 < size) &&                                                    \
+         (size <= std::min(MemoryChunkLayout::MaxRegularCodeObjectSize(), \
+                           code_space->AreaSize())))
 
 // ----------------------------------------------------------------------------
 // Space is the abstract superclass for all allocation spaces that are not
@@ -118,6 +120,9 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
     external_backing_store_bytes_[ExternalBackingStoreType::kExternalString] =
         0;
   }
+
+  Space(const Space&) = delete;
+  Space& operator=(const Space&) = delete;
 
   static inline void MoveExternalBackingStoreBytes(
       ExternalBackingStoreType type, Space* from, Space* to, size_t amount);
@@ -192,8 +197,6 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
   std::atomic<size_t>* external_backing_store_bytes_;
 
   std::unique_ptr<FreeList> free_list_;
-
-  DISALLOW_COPY_AND_ASSIGN(Space);
 };
 
 STATIC_ASSERT(sizeof(std::atomic<intptr_t>) == kSystemPointerSize);

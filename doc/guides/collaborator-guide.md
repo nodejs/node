@@ -13,8 +13,8 @@
   * [Consensus seeking](#consensus-seeking)
   * [Waiting for approvals](#waiting-for-approvals)
   * [Testing and CI](#testing-and-ci)
-    * [Useful CI jobs](#useful-ci-jobs)
-    * [Starting a CI job](#starting-a-ci-job)
+    * [Useful Jenkins CI jobs](#useful-jenkins-ci-jobs)
+    * [Starting a Jenkins CI job](#starting-a-jenkins-ci-job)
   * [Internal vs. public API](#internal-vs-public-api)
   * [Breaking changes](#breaking-changes)
     * [Breaking changes and deprecations](#breaking-changes-and-deprecations)
@@ -22,7 +22,7 @@
     * [Unintended breaking changes](#unintended-breaking-changes)
       * [Reverting commits](#reverting-commits)
   * [Introducing new modules](#introducing-new-modules)
-  * [Additions to N-API](#additions-to-n-api)
+  * [Additions to Node-API](#additions-to-n-api)
   * [Deprecations](#deprecations)
   * [Involving the TSC](#involving-the-tsc)
 * [Landing pull requests](#landing-pull-requests)
@@ -90,31 +90,25 @@ to land but is [author ready](#author-ready-pull-requests), add the
 
 ### Managing security issues
 
-Security issues should ideally be reported through the processes outlined in
-[SECURITY.md][security reporting]. This allows the collaborators to
-appropriately triage the report and address vulnerabilities in a planned
-security release. If an issue is opened in the public repo
-which describes a security issue, or if an issue is later identified to be
-describing a security issue, take the following steps:
+Use the process outlined in [SECURITY.md][] to report security
+issues. If a user opens a security issue in the public repository:
 
-* Ask the originator to submit a report through Hacker one as outlined in
-  [SECURITY.md][security reporting].
+* Ask the user to submit a report through HackerOne as outlined in
+  [SECURITY.md][].
 * Move the issue to the private repo called
   [premature-disclosures](https://github.com/nodejs/premature-disclosures).
-* For any related pull requests create an associated issue in the
-  `premature-disclosures` repo and add a copy of the patch for the
-  pull request, and screenshots of discussion on the PR to the issue.
-* Open a ticket with GitHub asking that the PRs be deleted through
-  [GitHub suppport](https://support.github.com/contact)
-  using Node.js(team) as the account organization.
-* Open a new issue in the repository in which the issue was originally
-  reported with a brief FYI to the originator. `FYI @xxxx we asked github
-  to delete your PR while we work on releases in private.` with the title
-  `FYI - PR deleted #YYYY`.
-* Email `tsc@iojs.org` with the link to the issues in the
-  `premature-disclosures` repo so that the TSC is aware that they
-  may need to expedite handling of the issue due to premature
-  disclosure.
+* For any related pull requests, create an associated issue in the
+  `premature-disclosures` repository.  Add a copy of the patch for the
+  pull request to the issue. Add screenshots of discussion from the pull request
+  to the issue.
+* [Open a ticket with GitHub](https://support.github.com/contact) to delete the
+  pull request using Node.js (team) as the account organization.
+* Open a new issue in the public repository with the title `FYI - pull request
+  deleted #YYYY`. Include an explanation for the user:
+  > FYI @xxxx we asked GitHub to delete your pull request while we work on
+  > releases in private.
+* Email `tsc@iojs.org` with links to the issues in the
+  `premature-disclosures` repository.
 
 ## Accepting modifications
 
@@ -153,21 +147,21 @@ requirements. If a pull request meets all requirements except the
 
 #### Objections
 
-**Collaborators can object to a pull request by using the "Request
-Changes" GitHub feature**. Dissent comments alone don't constitute an
-objection. **Any PR objection must include a clear reason for that objection,
-and the objector must remain responsive for further discussion towards
-consensus about the direction of the pull request**. Providing a set of
-actionable steps alongside the objection is recommended.
+Collaborators can object to a pull request by using the "Request
+Changes" GitHub feature. Dissent comments alone don't constitute an
+objection. Any pull request objection must include a clear reason for that
+objection, and the objector must remain responsive for further discussion
+towards consensus about the direction of the pull request. Where possible,
+provide a set of actionable steps alongside the objection.
 
 If the objection is not clear to others, another collaborator can ask an
 objecting collaborator to explain their objection or to provide actionable
-steps to resolve the objection. **If the objector is unresponsive for seven
-days after a collaborator asks for clarification, another collaborator can
-dismiss the objection**.
+steps to resolve the objection. If the objector is unresponsive for seven
+days after a collaborator asks for clarification, a collaborator may
+dismiss the objection.
 
-**Pull requests with outstanding objections must remain open until all
-objections are satisfied**. If reaching consensus is not possible, a
+Pull requests with outstanding objections must remain open until all
+objections are satisfied. If reaching consensus is not possible, a
 collaborator can escalate the issue to the TSC by pinging `@nodejs/tsc` and
 adding the `tsc-agenda` label to the issue.
 
@@ -209,21 +203,56 @@ the comment anyway to avoid any doubt.
 All fixes must have a test case which demonstrates the defect. The test should
 fail before the change, and pass after the change.
 
-All pull requests must pass continuous integration tests. Code changes must pass
-on [project CI server](https://ci.nodejs.org/). Pull requests that only change
-documentation and comments can use GitHub Actions results.
+Do not land any pull requests without the necessary passing CI runs.
+A passing (green) GitHub Actions CI result is required. A passing (green or
+yellow) [Jenkins CI](https://ci.nodejs.org/) is also required if the pull
+request contains changes that will affect the `node` binary. This is because
+GitHub Actions CI does not cover all the environments supported by Node.js.
 
-Do not land any pull requests without a passing (green or yellow) CI run.
-For documentation-only changes, GitHub Actions CI is sufficient.
-For all other code changes, Jenkins CI must pass as well. If there are
-Jenkins CI failures unrelated to the change in the pull request, try "Resume
-Build". It is in the left navigation of the relevant `node-test-pull-request`
-job. It will preserve all the green results from the current job but re-run
-everything else. Start a fresh CI if more than seven days have elapsed since
-the original failing CI as the compiled binaries for the Windows and ARM
-platforms are only kept for seven days.
+<details>
+<summary>Changes that affect the `node` binary</summary>
 
-#### Useful CI jobs
+Changes in the following folders (except comment-only changes) are guaranteed to
+affect the `node` binary:
+
+* `deps/`
+* `lib/`
+* `src/`
+* `test/`
+* `tools/code_cache/`
+* `tools/gyp/`
+* `tools/icu/`
+* `tools/inspector-protocol/`
+* `tools/msvs/`
+* `tools/snapshot/`
+* `tools/v8_gypfiles/`
+
+There are some other files that touch the build chain. Changes in the following
+files also qualify as affecting the `node` binary:
+
+* `tools/*.py`
+* `tools/build-addons.js`
+* `*.gyp`
+* `*.gypi`
+* `configure`
+* `configure.py`
+* `Makefile`
+* `vcbuilt.bat`
+
+</details>
+
+If there are GitHub Actions CI failures unrelated to the change in the pull
+request, try "Re-run all jobs". It's under the "🔄 Re-run jobs" button, on the
+right-hand side of "Checks" tab.
+
+If there are Jenkins CI failures unrelated to the change in the pull request,
+try "Resume Build". It is in the left navigation of the relevant
+`node-test-pull-request` job. It will preserve all the green results from the
+current job but re-run everything else. Start a fresh CI if more than seven days
+have elapsed since the original failing CI as the compiled binaries for the
+Windows and ARM platforms are only kept for seven days.
+
+#### Useful Jenkins CI jobs
 
 * [`node-test-pull-request`](https://ci.nodejs.org/job/node-test-pull-request/)
 is the CI job to test pull requests. It runs the `build-ci` and `test-ci`
@@ -248,7 +277,7 @@ not used in other CI test runs (such as tests in the `internet` or `pummel`
 directories). It can also make sure tests pass when provided with a flag not
 used in other CI test runs (such as `--worker`).
 
-#### Starting a CI job
+#### Starting a Jenkins CI job
 
 From the CI Job page, click "Build with Parameters" on the left side.
 
@@ -259,7 +288,7 @@ in the form:
 To specify the branch this way, `refs/heads/BRANCH` is used
 (e.g. for `master` -> `refs/heads/master`).
 For pull requests, it will look like `refs/pull/PR_NUMBER/head`
-(e.g. for PR#42 -> `refs/pull/42/head`).
+(e.g. for pull request #42 -> `refs/pull/42/head`).
 * `REBASE_ONTO`: Change that to `origin/master` so the pull request gets rebased
 onto master. This can especially be important for pull requests that have been
 open a while.
@@ -373,12 +402,12 @@ For pull requests introducing new core modules:
 * Land with a [Stability Index][] of Experimental. The module must remain
   Experimental until a semver-major release.
 
-### Additions to N-API
+### Additions to Node-API
 
-N-API provides an ABI-stable API guaranteed for future Node.js versions. N-API
-additions call for unusual care and scrutiny. If a change adds to `node_api.h`,
-`js_native_api.h`, `node_api_types.h`, or `js_native_api_types.h`, consult [the relevant
-guide](https://github.com/nodejs/node/blob/master/doc/guides/adding-new-napi-api.md).
+Node-API provides an ABI-stable API guaranteed for future Node.js versions.
+Node-API additions call for unusual care and scrutiny. If a change adds to
+`node_api.h`, `js_native_api.h`, `node_api_types.h`, or `js_native_api_types.h`,
+consult [the relevant guide](https://github.com/nodejs/node/blob/HEAD/doc/guides/adding-new-napi-api.md).
 
 ### Deprecations
 
@@ -724,10 +753,10 @@ Each LTS release has a corresponding branch (v10.x, v8.x, etc.). Each also has a
 corresponding staging branch (v10.x-staging, v8.x-staging, etc.).
 
 Commits that land on master are cherry-picked to each staging branch as
-appropriate. If a change applies only to the LTS branch, open the PR against the
-*staging* branch. Commits from the staging branch land on the LTS branch only
-when a release is being prepared. They can land on the LTS branch in a different
-order than they were in staging.
+appropriate. If a change applies only to the LTS branch, open the pull request
+against the *staging* branch. Commits from the staging branch land on the LTS
+branch only when a release is being prepared. They might land on the LTS branch
+in a different order than they do in staging.
 
 Only members of @nodejs/backporters should land commits onto LTS staging
 branches.
@@ -806,6 +835,7 @@ If you cannot find who to cc for a file, `git shortlog -n -s <file>` can help.
 
 ["Merge Pull Request"]: https://help.github.com/articles/merging-a-pull-request/#merging-a-pull-request-on-github
 [Deprecation]: https://en.wikipedia.org/wiki/Deprecation
+[SECURITY.md]: https://github.com/nodejs/node/blob/HEAD/SECURITY.md
 [Stability Index]: ../api/documentation.md#stability-index
 [TSC]: https://github.com/nodejs/TSC
 [`--pending-deprecation`]: ../api/cli.md#--pending-deprecation
@@ -815,10 +845,9 @@ If you cannot find who to cc for a file, `git shortlog -n -s <file>` can help.
 [commit message guidelines]: contributing/pull-requests.md#commit-message-guidelines
 [commit-example]: https://github.com/nodejs/node/commit/b636ba8186
 [git-email]: https://help.github.com/articles/setting-your-commit-email-address-in-git/
-[git-node]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md
-[git-node-metadata]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md#git-node-metadata
+[git-node]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md
+[git-node-metadata]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md#git-node-metadata
 [git-username]: https://help.github.com/articles/setting-your-username-in-git/
 [node-core-utils-credentials]: https://github.com/nodejs/node-core-utils#setting-up-credentials
 [node-core-utils-issues]: https://github.com/nodejs/node-core-utils/issues
-[security reporting]: https://github.com/nodejs/node/blob/HEAD/SECURITY.md
 [unreliable tests]: https://github.com/nodejs/node/issues?q=is%3Aopen+is%3Aissue+label%3A%22CI+%2F+flaky+test%22

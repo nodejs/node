@@ -502,7 +502,7 @@ typedef enum USpoofChecks {
     USPOOF_ALL_CHECKS               = 0xFFFF,
 
     /**
-      * Enable the return of auxillary (non-error) information in the
+      * Enable the return of auxiliary (non-error) information in the
       * upper bits of the check results value.
       *
       * If this "check" is not enabled, the results of {@link uspoof_check} will be

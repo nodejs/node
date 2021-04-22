@@ -674,7 +674,7 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
     Node* node, MachineRepresentation output_rep, Type output_type,
     Node* use_node, UseInfo use_info) {
   NumberMatcher m(node);
-  if (m.HasValue()) {
+  if (m.HasResolvedValue()) {
     // BigInts are not used as number constants.
     DCHECK(use_info.type_check() != TypeCheckKind::kBigInt);
     switch (use_info.type_check()) {
@@ -682,7 +682,7 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
       case TypeCheckKind::kNumber:
       case TypeCheckKind::kNumberOrBoolean:
       case TypeCheckKind::kNumberOrOddball:
-        return jsgraph()->Float64Constant(m.Value());
+        return jsgraph()->Float64Constant(m.ResolvedValue());
       case TypeCheckKind::kBigInt:
       case TypeCheckKind::kHeapObject:
       case TypeCheckKind::kSigned32:
@@ -949,10 +949,10 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
     return node;
   } else if (output_rep == MachineRepresentation::kWord64) {
     if (output_type.Is(Type::Signed32()) ||
-        output_type.Is(Type::Unsigned32())) {
-      op = machine()->TruncateInt64ToInt32();
-    } else if (output_type.Is(cache_->kSafeInteger) &&
-               use_info.truncation().IsUsedAsWord32()) {
+        (output_type.Is(Type::Unsigned32()) &&
+         use_info.type_check() == TypeCheckKind::kNone) ||
+        (output_type.Is(cache_->kSafeInteger) &&
+         use_info.truncation().IsUsedAsWord32())) {
       op = machine()->TruncateInt64ToInt32();
     } else if (use_info.type_check() == TypeCheckKind::kSignedSmall ||
                use_info.type_check() == TypeCheckKind::kSigned32 ||
@@ -1089,7 +1089,7 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
     }
     case IrOpcode::kHeapConstant: {
       HeapObjectMatcher m(node);
-      if (m.HasValue() && m.Ref(broker_).IsBigInt() &&
+      if (m.HasResolvedValue() && m.Ref(broker_).IsBigInt() &&
           use_info.truncation().IsUsedAsWord64()) {
         auto bigint = m.Ref(broker_).AsBigInt();
         return jsgraph()->Int64Constant(
@@ -1105,7 +1105,7 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
     // BigInts are only represented as tagged pointer and word64.
     if (!CanBeTaggedPointer(output_rep) &&
         output_rep != MachineRepresentation::kWord64) {
-      DCHECK(!output_type.Is(Type::BigInt()));
+      DCHECK(!output_type.Equals(Type::BigInt()));
       Node* unreachable =
           InsertUnconditionalDeopt(use_node, DeoptimizeReason::kNotABigInt);
       return jsgraph()->graph()->NewNode(

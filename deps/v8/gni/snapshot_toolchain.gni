@@ -79,7 +79,8 @@ if (v8_snapshot_toolchain == "") {
 
     if (v8_current_cpu == "x64" || v8_current_cpu == "x86") {
       _cpus = v8_current_cpu
-    } else if (v8_current_cpu == "arm64" || v8_current_cpu == "mips64el") {
+    } else if (v8_current_cpu == "arm64" || v8_current_cpu == "mips64el" ||
+               v8_current_cpu == "riscv64") {
       if (is_win && v8_current_cpu == "arm64") {
         # set _cpus to blank for Windows ARM64 so host_toolchain could be
         # selected as snapshot toolchain later.

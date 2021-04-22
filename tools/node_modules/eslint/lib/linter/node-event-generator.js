@@ -208,10 +208,12 @@ class NodeEventGenerator {
      * An SafeEmitter which is the destination of events. This emitter must already
      * have registered listeners for all of the events that it needs to listen for.
      * (See lib/linter/safe-emitter.js for more details on `SafeEmitter`.)
+     * @param {ESQueryOptions} esqueryOptions `esquery` options for traversing custom nodes.
      * @returns {NodeEventGenerator} new instance
      */
-    constructor(emitter) {
+    constructor(emitter, esqueryOptions) {
         this.emitter = emitter;
+        this.esqueryOptions = esqueryOptions;
         this.currentAncestry = [];
         this.enterSelectorsByNodeType = new Map();
         this.exitSelectorsByNodeType = new Map();
@@ -250,7 +252,7 @@ class NodeEventGenerator {
      * @returns {void}
      */
     applySelector(node, selector) {
-        if (esquery.matches(node, selector.parsedSelector, this.currentAncestry)) {
+        if (esquery.matches(node, selector.parsedSelector, this.currentAncestry, this.esqueryOptions)) {
             this.emitter.emit(selector.rawSelector, node);
         }
     }

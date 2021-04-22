@@ -6,6 +6,7 @@
 
 #include <fstream>
 
+#include "include/cppgc/platform.h"
 #include "src/api/api.h"
 #include "src/base/atomicops.h"
 #include "src/base/once.h"
@@ -56,6 +57,38 @@ void V8::TearDown() {
 }
 
 void V8::InitializeOncePerProcessImpl() {
+  // Update logging information before enforcing flag implications.
+  bool* log_all_flags[] = {&FLAG_turbo_profiling_log_builtins,
+                           &FLAG_log_all,
+                           &FLAG_log_api,
+                           &FLAG_log_code,
+                           &FLAG_log_code_disassemble,
+                           &FLAG_log_handles,
+                           &FLAG_log_suspect,
+                           &FLAG_log_source_code,
+                           &FLAG_log_function_events,
+                           &FLAG_log_internal_timer_events,
+                           &FLAG_log_deopt,
+                           &FLAG_log_ic,
+                           &FLAG_log_maps};
+  if (FLAG_log_all) {
+    // Enable all logging flags
+    for (auto* flag : log_all_flags) {
+      *flag = true;
+    }
+    FLAG_log = true;
+  } else if (!FLAG_log) {
+    // Enable --log if any log flag is set.
+    for (const auto* flag : log_all_flags) {
+      if (!*flag) continue;
+      FLAG_log = true;
+      break;
+    }
+    // Profiling flags depend on logging.
+    FLAG_log |= FLAG_perf_prof || FLAG_perf_basic_prof || FLAG_ll_prof ||
+                FLAG_prof || FLAG_prof_cpp;
+  }
+
   FlagList::EnforceFlagImplications();
 
   if (FLAG_predictable && FLAG_random_seed == 0) {
@@ -86,7 +119,11 @@ void V8::InitializeOncePerProcessImpl() {
   // TODO(jgruber): Remove this once / if wasm can run without executable
   // memory.
   if (FLAG_jitless && !FLAG_correctness_fuzzer_suppressions) {
+#if V8_ENABLE_WEBASSEMBLY
     FLAG_expose_wasm = false;
+#else
+    STATIC_ASSERT(!FLAG_expose_wasm);
+#endif
   }
 
   if (FLAG_regexp_interpret_all && FLAG_regexp_tier_up) {
@@ -105,7 +142,7 @@ void V8::InitializeOncePerProcessImpl() {
   if (FLAG_random_seed) SetRandomMmapSeed(FLAG_random_seed);
 
 #if defined(V8_USE_PERFETTO)
-  TrackEvent::Register();
+  if (perfetto::Tracing::IsInitialized()) TrackEvent::Register();
 #endif
   Isolate::InitializeOncePerProcess();
 

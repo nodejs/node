@@ -1,4 +1,5 @@
-import _ from 'lodash';
+import isNumber from 'is-number-object';
+import isString from 'is-string';
 import stringWidth from 'string-width';
 
 const alignments = [
@@ -54,11 +55,11 @@ const alignCenter = (subject, width) => {
  * @returns {string}
  */
 export default (subject, containerWidth, alignment) => {
-  if (!_.isString(subject)) {
+  if (!isString(subject)) {
     throw new TypeError('Subject parameter value must be a string.');
   }
 
-  if (!_.isNumber(containerWidth)) {
+  if (!isNumber(containerWidth)) {
     throw new TypeError('Container width parameter value must be a number.');
   }
 
@@ -70,7 +71,7 @@ export default (subject, containerWidth, alignment) => {
     throw new Error('Subject parameter value width cannot be greater than the container width.');
   }
 
-  if (!_.isString(alignment)) {
+  if (!isString(alignment)) {
     throw new TypeError('Alignment parameter value must be a string.');
   }
 

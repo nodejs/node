@@ -104,20 +104,15 @@ Handle<Object> UnicodeKeywordValue(Isolate* isolate, Handle<JSLocale> locale,
   if (value == "yes") {
     value = "true";
   }
+  if (value == "true" && strcmp(key, "kf") == 0) {
+    return isolate->factory()->NewStringFromStaticChars("");
+  }
   return isolate->factory()->NewStringFromAsciiChecked(value.c_str());
-}
-
-bool InRange(size_t value, size_t start, size_t end) {
-  return (start <= value) && (value <= end);
-}
-
-bool InRange(char value, char start, char end) {
-  return (start <= value) && (value <= end);
 }
 
 bool IsCheckRange(const std::string& str, size_t min, size_t max,
                   bool(range_check_func)(char)) {
-  if (!InRange(str.length(), min, max)) return false;
+  if (!base::IsInRange(str.length(), min, max)) return false;
   for (size_t i = 0; i < str.length(); i++) {
     if (!range_check_func(str[i])) return false;
   }
@@ -125,18 +120,20 @@ bool IsCheckRange(const std::string& str, size_t min, size_t max,
 }
 bool IsAlpha(const std::string& str, size_t min, size_t max) {
   return IsCheckRange(str, min, max, [](char c) -> bool {
-    return InRange(c, 'a', 'z') || InRange(c, 'A', 'Z');
+    return base::IsInRange(c, 'a', 'z') || base::IsInRange(c, 'A', 'Z');
   });
 }
 
 bool IsDigit(const std::string& str, size_t min, size_t max) {
-  return IsCheckRange(str, min, max,
-                      [](char c) -> bool { return InRange(c, '0', '9'); });
+  return IsCheckRange(str, min, max, [](char c) -> bool {
+    return base::IsInRange(c, '0', '9');
+  });
 }
 
 bool IsAlphanum(const std::string& str, size_t min, size_t max) {
   return IsCheckRange(str, min, max, [](char c) -> bool {
-    return InRange(c, 'a', 'z') || InRange(c, 'A', 'Z') || InRange(c, '0', '9');
+    return base::IsInRange(c, 'a', 'z') || base::IsInRange(c, 'A', 'Z') ||
+           base::IsInRange(c, '0', '9');
   });
 }
 
@@ -156,7 +153,7 @@ bool IsUnicodeRegionSubtag(const std::string& value) {
 }
 
 bool IsDigitAlphanum3(const std::string& value) {
-  return value.length() == 4 && InRange(value[0], '0', '9') &&
+  return value.length() == 4 && base::IsInRange(value[0], '0', '9') &&
          IsAlphanum(value.substr(1), 3, 3);
 }
 
@@ -242,10 +239,12 @@ Maybe<bool> ApplyOptionsToTag(Isolate* isolate, Handle<String> tag,
     return Just(false);
   }
   UErrorCode status = U_ZERO_ERROR;
-  builder->build(status);
+  icu::Locale canonicalized = builder->build(status);
+  canonicalized.canonicalize(status);
   if (U_FAILURE(status)) {
     return Just(false);
   }
+  builder->setLocale(canonicalized);
 
   // 3. Let language be ? GetOption(options, "language", "string", undefined,
   // undefined).
@@ -346,6 +345,9 @@ MaybeHandle<JSLocale> JSLocale::New(Isolate* isolate, Handle<Map> map,
   MAYBE_RETURN(maybe_insert, MaybeHandle<JSLocale>());
   UErrorCode status = U_ZERO_ERROR;
   icu::Locale icu_locale = builder.build(status);
+
+  icu_locale.canonicalize(status);
+
   if (!maybe_insert.FromJust() || U_FAILURE(status)) {
     THROW_NEW_ERROR(isolate,
                     NewRangeError(MessageTemplate::kLocaleBadParameters),
@@ -359,7 +361,7 @@ MaybeHandle<JSLocale> JSLocale::New(Isolate* isolate, Handle<Map> map,
   // Now all properties are ready, so we can allocate the result object.
   Handle<JSLocale> locale = Handle<JSLocale>::cast(
       isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   locale->set_icu_locale(*managed_locale);
   return locale;
 }
@@ -381,7 +383,7 @@ MaybeHandle<JSLocale> Construct(Isolate* isolate,
 
   Handle<JSLocale> locale = Handle<JSLocale>::cast(
       isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   locale->set_icu_locale(*managed_locale);
   return locale;
 }
@@ -390,22 +392,62 @@ MaybeHandle<JSLocale> Construct(Isolate* isolate,
 
 MaybeHandle<JSLocale> JSLocale::Maximize(Isolate* isolate,
                                          Handle<JSLocale> locale) {
-  icu::Locale icu_locale(*(locale->icu_locale().raw()));
+  // ICU has limitation on the length of the locale while addLikelySubtags
+  // is called. Work around the issue by only perform addLikelySubtags
+  // on the base locale and merge the extension if needed.
+  icu::Locale source(*(locale->icu_locale().raw()));
+  icu::Locale result = icu::Locale::createFromName(source.getBaseName());
   UErrorCode status = U_ZERO_ERROR;
-  icu_locale.addLikelySubtags(status);
+  result.addLikelySubtags(status);
+  if (strlen(source.getBaseName()) != strlen(result.getBaseName())) {
+    // Base name is changed
+    if (strlen(source.getBaseName()) != strlen(source.getName())) {
+      // the source has extensions, get the extensions from the source.
+      result = icu::LocaleBuilder()
+                   .setLocale(source)
+                   .setLanguage(result.getLanguage())
+                   .setRegion(result.getCountry())
+                   .setScript(result.getScript())
+                   .setVariant(result.getVariant())
+                   .build(status);
+    }
+  } else {
+    // Base name is not changed
+    result = source;
+  }
   DCHECK(U_SUCCESS(status));
-  DCHECK(!icu_locale.isBogus());
-  return Construct(isolate, icu_locale);
+  DCHECK(!result.isBogus());
+  return Construct(isolate, result);
 }
 
 MaybeHandle<JSLocale> JSLocale::Minimize(Isolate* isolate,
                                          Handle<JSLocale> locale) {
-  icu::Locale icu_locale(*(locale->icu_locale().raw()));
+  // ICU has limitation on the length of the locale while minimizeSubtags
+  // is called. Work around the issue by only perform addLikelySubtags
+  // on the base locale and merge the extension if needed.
+  icu::Locale source(*(locale->icu_locale().raw()));
+  icu::Locale result = icu::Locale::createFromName(source.getBaseName());
   UErrorCode status = U_ZERO_ERROR;
-  icu_locale.minimizeSubtags(status);
+  result.minimizeSubtags(status);
+  if (strlen(source.getBaseName()) != strlen(result.getBaseName())) {
+    // Base name is changed
+    if (strlen(source.getBaseName()) != strlen(source.getName())) {
+      // the source has extensions, get the extensions from the source.
+      result = icu::LocaleBuilder()
+                   .setLocale(source)
+                   .setLanguage(result.getLanguage())
+                   .setRegion(result.getCountry())
+                   .setScript(result.getScript())
+                   .setVariant(result.getVariant())
+                   .build(status);
+    }
+  } else {
+    // Base name is not changed
+    result = source;
+  }
   DCHECK(U_SUCCESS(status));
-  DCHECK(!icu_locale.isBogus());
-  return Construct(isolate, icu_locale);
+  DCHECK(!result.isBogus());
+  return Construct(isolate, result);
 }
 
 Handle<Object> JSLocale::Language(Isolate* isolate, Handle<JSLocale> locale) {
