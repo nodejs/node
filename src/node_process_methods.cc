@@ -36,7 +36,6 @@ typedef int mode_t;
 namespace node {
 
 using v8::ApiObject;
-using v8::Array;
 using v8::ArrayBuffer;
 using v8::BackingStore;
 using v8::CFunction;
@@ -255,7 +254,7 @@ static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   Local<Context> ctx = env->context();
-  Local<Array> return_array = Array::New(args.GetIsolate());
+  Local<Object> return_obj = Object::New(args.GetIsolate());
 
   for (ReqWrapBase* req_wrap : *env->req_wrap_queue()) {
     AsyncWrap* w = req_wrap->GetAsyncWrap();
@@ -264,12 +263,12 @@ static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
     double async_id = w->get_async_id();
     Local<Object> req_obj = w->object();
 
-    USE(return_array->Set(ctx,
-                          Number::New(args.GetIsolate(), async_id),
-                          req_obj));
+    USE(return_obj->Set(ctx,
+                        Number::New(args.GetIsolate(), async_id),
+                        req_obj));
   }
 
-  args.GetReturnValue().Set(return_array);
+  args.GetReturnValue().Set(return_obj);
 }
 
 // Non-static, friend of HandleWrap. Could have been a HandleWrap method but
@@ -278,19 +277,19 @@ void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   Local<Context> ctx = env->context();
-  Local<Array> return_array = Array::New(args.GetIsolate());
+  Local<Object> return_obj = Object::New(args.GetIsolate());
 
   for (auto w : *env->handle_wrap_queue()) {
     if (w->persistent().IsEmpty() || !HandleWrap::HasRef(w))
       continue;
     double async_id = w->get_async_id();
     Local<Object> handle_object = w->object();
-    USE(return_array->Set(ctx, Number::New(args.GetIsolate(),
-                                           async_id),
-                                           handle_object));
+    USE(return_obj->Set(ctx, Number::New(args.GetIsolate(),
+                                         async_id),
+                                         handle_object));
   }
 
-  args.GetReturnValue().Set(return_array);
+  args.GetReturnValue().Set(return_obj);
 }
 
 static void ResourceUsage(const FunctionCallbackInfo<Value>& args) {
