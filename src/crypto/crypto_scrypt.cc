@@ -111,9 +111,7 @@ Maybe<bool> ScryptTraits::AdditionalConfig(
 
   params->length = args[offset + 6].As<Int32>()->Value();
   if (params->length < 0) {
-    char msg[1024];
-    snprintf(msg, sizeof(msg), "length must be <= %d", INT_MAX);
-    THROW_ERR_OUT_OF_RANGE(env, msg);
+    THROW_ERR_OUT_OF_RANGE(env, "length must be <= %d", INT_MAX);
     return Nothing<bool>();
   }
 
@@ -151,4 +149,3 @@ bool ScryptTraits::DeriveBits(
 
 }  // namespace crypto
 }  // namespace node
-
