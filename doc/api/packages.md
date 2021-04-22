@@ -1118,7 +1118,9 @@ All paths defined in the `"exports"` must be relative file URLs starting with
 
 ### `"imports"`
 <!-- YAML
-added: v14.6.0
+added:
+ - v14.6.0
+ - v12.19.0
 -->
 
 * Type: {Object}
