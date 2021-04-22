@@ -138,9 +138,7 @@ Maybe<bool> RsaKeyGenTraits::AdditionalConfig(
       Utf8Value digest(env->isolate(), args[*offset]);
       params->params.md = EVP_get_digestbyname(*digest);
       if (params->params.md == nullptr) {
-        char msg[1024];
-        snprintf(msg, sizeof(msg), "md specifies an invalid digest");
-        THROW_ERR_CRYPTO_INVALID_DIGEST(env, msg);
+        THROW_ERR_CRYPTO_INVALID_DIGEST(env, "md specifies an invalid digest");
         return Nothing<bool>();
       }
     }
@@ -150,9 +148,8 @@ Maybe<bool> RsaKeyGenTraits::AdditionalConfig(
       Utf8Value digest(env->isolate(), args[*offset + 1]);
       params->params.mgf1_md = EVP_get_digestbyname(*digest);
       if (params->params.mgf1_md == nullptr) {
-        char msg[1024];
-        snprintf(msg, sizeof(msg), "mgf1_md specifies an invalid digest");
-        THROW_ERR_CRYPTO_INVALID_DIGEST(env, msg);
+        THROW_ERR_CRYPTO_INVALID_DIGEST(env,
+          "mgf1_md specifies an invalid digest");
         return Nothing<bool>();
       }
     }
@@ -161,9 +158,9 @@ Maybe<bool> RsaKeyGenTraits::AdditionalConfig(
       CHECK(args[*offset + 2]->IsInt32());
       params->params.saltlen = args[*offset + 2].As<Int32>()->Value();
       if (params->params.saltlen < 0) {
-        char msg[1024];
-        snprintf(msg, sizeof(msg), "salt length is out of range");
-        THROW_ERR_OUT_OF_RANGE(env, msg);
+        THROW_ERR_OUT_OF_RANGE(
+          env,
+          "salt length is out of range");
         return Nothing<bool>();
       }
     }

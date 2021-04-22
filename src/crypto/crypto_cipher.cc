@@ -511,10 +511,10 @@ bool CipherBase::InitAuthenticated(
   if (mode == EVP_CIPH_GCM_MODE) {
     if (auth_tag_len != kNoAuthTagLength) {
       if (!IsValidGCMTagLength(auth_tag_len)) {
-        char msg[50];
-        snprintf(msg, sizeof(msg),
-            "Invalid authentication tag length: %u", auth_tag_len);
-        THROW_ERR_CRYPTO_INVALID_AUTH_TAG(env(), msg);
+        THROW_ERR_CRYPTO_INVALID_AUTH_TAG(
+          env(),
+          "Invalid authentication tag length: %u",
+          auth_tag_len);
         return false;
       }
 
@@ -523,9 +523,8 @@ bool CipherBase::InitAuthenticated(
     }
   } else {
     if (auth_tag_len == kNoAuthTagLength) {
-      char msg[128];
-      snprintf(msg, sizeof(msg), "authTagLength required for %s", cipher_type);
-      THROW_ERR_CRYPTO_INVALID_AUTH_TAG(env(), msg);
+      THROW_ERR_CRYPTO_INVALID_AUTH_TAG(
+        env(), "authTagLength required for %s", cipher_type);
       return false;
     }
 
@@ -633,10 +632,8 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (!is_valid) {
-    char msg[50];
-    snprintf(msg, sizeof(msg),
-        "Invalid authentication tag length: %u", tag_len);
-    return THROW_ERR_CRYPTO_INVALID_AUTH_TAG(env, msg);
+    return THROW_ERR_CRYPTO_INVALID_AUTH_TAG(
+      env, "Invalid authentication tag length: %u", tag_len);
   }
 
   cipher->auth_tag_len_ = tag_len;
