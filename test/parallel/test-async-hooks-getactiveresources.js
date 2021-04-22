@@ -3,7 +3,7 @@
 require('../common');
 const assert = require('assert');
 const net = require('net');
-const { getActiveResources } = require('util');
+const { getActiveResources } = require('async_hooks');
 
 const NUM = 8;
 const connections = [];

@@ -4,7 +4,7 @@
 const common = require('../common');
 const strictEqual = require('assert').strictEqual;
 const { internalBinding } = require('internal/test/binding');
-const { getActiveResources } = require('util');
+const { getActiveResources } = require('async_hooks');
 
 // child_process
 {

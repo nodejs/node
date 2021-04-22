@@ -6,7 +6,7 @@ require('../common');
 const { internalBinding } = require('internal/test/binding');
 const { TTY, isTTY } = internalBinding('tty_wrap');
 const strictEqual = require('assert').strictEqual;
-const { getActiveResources } = require('util');
+const { getActiveResources } = require('async_hooks');
 
 strictEqual(isTTY(0), true, 'fd 0 is not a TTY');
 
