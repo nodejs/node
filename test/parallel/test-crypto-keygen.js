@@ -958,7 +958,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   }
 
   // Test invalid divisor lengths.
-  for (const divisorLength of ['a', true, {}, [], 4096.1]) {
+  for (const divisorLength of ['a', true, {}, [], 4096.1, 2147483648, -1]) {
     assert.throws(() => generateKeyPair('dsa', {
       modulusLength: 2048,
       divisorLength
@@ -1081,6 +1081,52 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     message: 'Unknown DH group'
   });
 
+  assert.throws(() => {
+    generateKeyPair('dh', {
+      primeLength: 2147483648
+    }, common.mustNotCall());
+  }, {
+    name: 'TypeError',
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: "The property 'options.primeLength' is invalid. " +
+             'Received 2147483648',
+  });
+
+  assert.throws(() => {
+    generateKeyPair('dh', {
+      primeLength: -1
+    }, common.mustNotCall());
+  }, {
+    name: 'TypeError',
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: "The property 'options.primeLength' is invalid. " +
+             'Received -1',
+  });
+
+  assert.throws(() => {
+    generateKeyPair('dh', {
+      primeLength: 2,
+      generator: 2147483648,
+    }, common.mustNotCall());
+  }, {
+    name: 'TypeError',
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: "The property 'options.generator' is invalid. " +
+             'Received 2147483648',
+  });
+
+  assert.throws(() => {
+    generateKeyPair('dh', {
+      primeLength: 2,
+      generator: -1,
+    }, common.mustNotCall());
+  }, {
+    name: 'TypeError',
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: "The property 'options.generator' is invalid. " +
+             'Received -1',
+  });
+
   // Test incompatible options.
   const allOpts = {
     group: 'modp5',
@@ -1141,6 +1187,35 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
         `Received ${inspect(hashValue)}`
     });
   }
+
+  // too long salt length
+  assert.throws(() => {
+    generateKeyPair('rsa-pss', {
+      modulusLength: 512,
+      saltLength: 2147483648,
+      hash: 'sha256',
+      mgf1Hash: 'sha256'
+    }, common.mustNotCall());
+  }, {
+    name: 'TypeError',
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: "The property 'options.saltLength' is invalid. " +
+             'Received 2147483648'
+  });
+
+  assert.throws(() => {
+    generateKeyPair('rsa-pss', {
+      modulusLength: 512,
+      saltLength: -1,
+      hash: 'sha256',
+      mgf1Hash: 'sha256'
+    }, common.mustNotCall());
+  }, {
+    name: 'TypeError',
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: "The property 'options.saltLength' is invalid. " +
+             'Received -1'
+  });
 
   // Invalid private key type.
   for (const type of ['foo', 'spki']) {
