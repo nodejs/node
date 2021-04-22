@@ -16,7 +16,7 @@ function launchTarget(...args) {
   const childProc = spawn(process.execPath, args);
   return new Promise((resolve, reject) => {
     const onExit = () => {
-      reject(new Error('Child process exits unexpectly'));
+      reject(new Error('Child process exits unexpectedly'));
     };
     childProc.on('exit', onExit);
     childProc.stderr.setEncoding('utf8');
