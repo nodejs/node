@@ -38,7 +38,7 @@ information described.
   * Described in the pre/post announcements
 
 * [ ] Pre-release announcement [email][]: ***LINK TO EMAIL***
-  ```
+  ```text
   Security updates for all active release lines, Month Year
 
   The Node.js project will release new versions of all supported release lines on or shortly after Day of week, Month Day of Month, Year
@@ -70,7 +70,7 @@ information described.
 * [ ] [Unlock CI](https://github.com/nodejs/build/blob/HEAD/doc/jenkins-guide.md#after-the-release)
 
 * [ ] Post-release announcement in reply [email][]: ***LINK TO EMAIL***
-  ```
+  ```text
   Security updates for all active release lines, Month Year
 
   The Node.js project has now released new versions of all supported release lines.
