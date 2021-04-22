@@ -1378,6 +1378,9 @@
           '<(V8_ROOT)/src/heap/base/worklist.h',
         ],
         'conditions': [
+          ['enable_lto=="true"', {
+            'cflags_cc': [ '-fno-lto' ],
+          }],
           ['clang or OS!="win"', {
             'conditions': [
               ['_toolset == "host" and host_arch == "x64" or _toolset == "target" and target_arch=="x64"', {
