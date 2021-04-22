@@ -1473,7 +1473,7 @@ changes:
     responsibility; calling `tls.connect()` will not cause `net.connect()` to be
     called.
   * `allowHalfOpen` {boolean} If the `socket` option is missing, indicates
-    whether or not to allow the internally created socket to be half-open,
+    whether to automatically end the writable side when the readable side ends,
     otherwise the option is ignored. See the `allowHalfOpen` option of
     [`net.Socket`][] for details. **Default:** `false`.
   * `rejectUnauthorized` {boolean} If not `false`, the server certificate is
