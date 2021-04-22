@@ -54,8 +54,8 @@ function pummel() {
 
 function check() {
   setTimeout(common.mustCall(function() {
-    assert.strictEqual(process._getActiveRequests().length, 0);
-    const activeHandles = process._getActiveHandles();
+    assert.strictEqual(Object.values(process._getActiveRequests()).length, 0);
+    const activeHandles = Object.values(process._getActiveHandles());
     assert.ok(activeHandles.every((val) => val.constructor.name !== 'Socket'));
   }), 0);
 }
