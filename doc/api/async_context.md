@@ -28,10 +28,7 @@ changes:
    description: AsyncLocalStorage is now Stable. Previously, it had been Experimental.
 -->
 
-This class is used to create asynchronous state within callbacks and promise
-chains. It allows storing data throughout the lifetime of a web request
-or any other asynchronous duration. It is similar to thread-local storage
-in other languages.
+This class creates stores that stay coherent through asynchronous operations.
 
 While you can create your own implementation on top of the `async_hooks` module,
 `AsyncLocalStorage` should be preferred as it is a performant and memory safe
@@ -283,12 +280,6 @@ context loss. You can do that by logging the content of
 `asyncLocalStorage.getStore()` after the calls you suspect are responsible for
 the loss. When the code logs `undefined`, the last callback called is probably
 responsible for the context loss.
-
-[`AsyncResource`]: #async_context_class_asyncresource
-[`EventEmitter`]: events.md#events_class_eventemitter
-[`Stream`]: stream.md#stream_stream
-[`Worker`]: worker_threads.md#worker_threads_class_worker
-[`util.promisify()`]: util.md#util_util_promisify_original
 
 ## Class: `AsyncResource`
 <!-- YAML

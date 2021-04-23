@@ -664,11 +664,11 @@ like I/O, connection pooling, or managing callback queues may use the
 
 ### Class: `AsyncResource`
 
-The documentation for this class has moved [`AsyncResource`].
+The documentation for this class has moved [`AsyncResource`][].
 
 ## Class: `AsyncLocalStorage`
 
-The documentation for this class has moved [`AsyncLocalStorage`].
+The documentation for this class has moved [`AsyncLocalStorage`][].
 
 [`AsyncLocalStorage`]: async_context.md#class_asynclocalstorage
 [`AsyncResource`]: async_context.md#class_asyncresource
@@ -679,8 +679,5 @@ The documentation for this class has moved [`AsyncLocalStorage`].
 [`destroy` callback]: #async_hooks_destroy_asyncid
 [`init` callback]: #async_hooks_init_asyncid_type_triggerasyncid_resource
 [`promiseResolve` callback]: #async_hooks_promiseresolve_asyncid
-[`EventEmitter`]: events.md#events_class_eventemitter
-[`Stream`]: stream.md#stream_stream
 [`Worker`]: worker_threads.md#worker_threads_class_worker
-[`util.promisify()`]: util.md#util_util_promisify_original
 [promise execution tracking]: #async_hooks_promise_execution_tracking
