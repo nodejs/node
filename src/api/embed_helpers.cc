@@ -19,9 +19,10 @@ Maybe<int> SpinEventLoop(Environment* env) {
   MultiIsolatePlatform* platform = GetMultiIsolatePlatform(env);
   CHECK_NOT_NULL(platform);
 
-  HandleScope handle_scope(env->isolate());
+  Isolate* isolate = env->isolate();
+  HandleScope handle_scope(isolate);
   Context::Scope context_scope(env->context());
-  SealHandleScope seal(env->isolate());
+  SealHandleScope seal(isolate);
 
   if (env->is_stopping()) return Nothing<int>();
 
@@ -35,7 +36,7 @@ Maybe<int> SpinEventLoop(Environment* env) {
       uv_run(env->event_loop(), UV_RUN_DEFAULT);
       if (env->is_stopping()) break;
 
-      platform->DrainTasks(env->isolate());
+      platform->DrainTasks(isolate);
 
       more = uv_loop_alive(env->event_loop());
       if (more && !env->is_stopping()) continue;
