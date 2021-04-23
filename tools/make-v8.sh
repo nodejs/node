@@ -40,6 +40,6 @@ if [ "$ARCH" = "s390x" ] || [ "$ARCH" = "ppc64le" ]; then
   ninja -v -C "out.gn/$BUILD_ARCH_TYPE" d8 cctest inspector-test
 else
   # shellcheck disable=SC2086
-  PATH=~/_depot_tools:"$DEPOT_TOOLS_DIR":$PATH tools/dev/v8gen.py "$BUILD_ARCH_TYPE" --no-goma $V8_BUILD_OPTIONS
-  PATH=~/_depot_tools:"$DEPOT_TOOLS_DIR":$PATH ninja -C "out.gn/$BUILD_ARCH_TYPE/" d8 cctest inspector-test
+  PATH="$DEPOT_TOOLS_DIR":$PATH tools/dev/v8gen.py "$BUILD_ARCH_TYPE" --no-goma $V8_BUILD_OPTIONS
+  PATH="$DEPOT_TOOLS_DIR":$PATH ninja -C "out.gn/$BUILD_ARCH_TYPE/" d8 cctest inspector-test
 fi
