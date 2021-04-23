@@ -666,7 +666,7 @@ Depending on how a `Buffer` instance was created, it may or may
 not own its underlying `ArrayBuffer`. An `ArrayBuffer` must not
 be transferred unless it is known that the `Buffer` instance
 owns it. In particular, for `Buffer`s created from the internal
-`Buffer` pool (using, for instance `Buffer.from()` or `Buffer.alloc()`),
+`Buffer` pool (using, for instance `Buffer.from()` or `Buffer.allocUnsafe()`),
 transferring them is not possible and they are always cloned,
 which sends a copy of the entire `Buffer` pool.
 This behavior may come with unintended higher memory
