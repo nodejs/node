@@ -1,5 +1,5 @@
-/* eslint-disable node-core/require-common-first, node-core/required-modules */
 'use strict';
+const common = require('../common');
 const spawn = require('child_process').spawn;
 
 const BREAK_MESSAGE = new RegExp('(?:' + [
