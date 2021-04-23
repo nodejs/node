@@ -14,19 +14,32 @@ const handle = new TTY(0);
 handle.readStart();
 handle.onread = () => {};
 
-function isHandleActive(handle) {
-  return Object.values(getActiveResources())
-    .some((active) => active === handle);
-}
-
-strictEqual(isHandleActive(handle), true, 'TTY handle not initially active');
+strictEqual(
+  Object.values(getActiveResources('handles')).length,
+  1,
+  'TTY handle not initially active'
+);
 
 handle.unref();
 
-strictEqual(isHandleActive(handle), false, 'TTY handle active after unref()');
+strictEqual(
+  Object.values(getActiveResources('handles')).length,
+  1,
+  'TTY handle not initially active'
+);
 
 handle.ref();
 
-strictEqual(isHandleActive(handle), true, 'TTY handle inactive after ref()');
+strictEqual(
+  Object.values(getActiveResources('handles')).length,
+  2,
+  'TTY handle not initially active'
+);
 
 handle.unref();
+
+strictEqual(
+  Object.values(getActiveResources('handles')).length,
+  1,
+  'TTY handle not initially active'
+);

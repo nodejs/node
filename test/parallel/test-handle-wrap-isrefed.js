@@ -110,23 +110,13 @@ const { kStateSymbol } = require('internal/dgram');
 
 // timers
 {
-  const { Timeout } = require('internal/timers');
-  strictEqual(Object.values(getActiveResources()).filter(
-    (handle) => (handle instanceof Timeout)).length, 0);
-  const timer = setTimeout(() => {}, 500);
-  const handles = Object.values(getActiveResources()).filter(
-    (handle) => (handle instanceof Timeout));
-  strictEqual(handles.length, 1);
-  const handle = handles[0];
-  strictEqual(Object.getPrototypeOf(handle).hasOwnProperty('hasRef'),
-              true, 'timer: hasRef() missing');
-  strictEqual(handle.hasRef(), true);
-  timer.unref();
-  strictEqual(handle.hasRef(),
-              false, 'timer: unref() ineffective');
-  timer.ref();
-  strictEqual(handle.hasRef(),
-              true, 'timer: ref() ineffective');
+  strictEqual(Object.values(getActiveResources('timeouts')).length, 0);
+  setTimeout(() => {}, 500);
+  strictEqual(Object.values(getActiveResources('timeouts')).length, 1);
+
+  strictEqual(Object.values(getActiveResources('immediates')).length, 0);
+  setImmediate(() => {});
+  strictEqual(Object.values(getActiveResources('immediates')).length, 1);
 }
 
 // See also test/pseudo-tty/test-handle-wrap-isrefed-tty.js

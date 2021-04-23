@@ -25,6 +25,7 @@
 const common = require('../common');
 const assert = require('assert');
 const net = require('net');
+const { getActiveRequests } = require('async_hooks');
 
 const ROUNDS = 5;
 const ATTEMPTS_PER_ROUND = 50;
@@ -54,9 +55,8 @@ function pummel() {
 
 function check() {
   setTimeout(common.mustCall(function() {
-    assert.strictEqual(Object.values(process._getActiveRequests()).length, 0);
-    const activeHandles = Object.values(process._getActiveHandles());
-    assert.ok(activeHandles.every((val) => val.constructor.name !== 'Socket'));
+    assert.strictEqual(Object.values(getActiveRequests('requests')).length, 0);
+    assert.strictEqual(Object.values(getActiveRequests('handles')).length, 2);
   }), 0);
 }
 

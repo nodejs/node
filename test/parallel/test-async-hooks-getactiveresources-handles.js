@@ -32,18 +32,20 @@ function clientConnected(client) {
 
 
 function checkAll() {
-  const handles = Object.values(getActiveResources());
+  const handles = Object.values(getActiveResources('handles'));
+
+  assert.strictEqual(
+    handles.length,
+    clients.length + connections.length + [server].length
+  );
 
   clients.forEach(function(item) {
-    assert.ok(handles.includes(item._handle));
     item.destroy();
   });
 
   connections.forEach(function(item) {
-    assert.ok(handles.includes(item._handle));
     item.end();
   });
 
-  assert.ok(handles.includes(server._handle));
   server.close();
 }
