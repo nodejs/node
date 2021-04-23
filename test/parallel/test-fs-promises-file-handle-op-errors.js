@@ -29,38 +29,34 @@ async function createFile() {
   return filePath;
 }
 
-async function checkAggregateError(op) {
+async function checkOperationError(op) {
   try {
     const filePath = await createFile();
     Object.defineProperty(FileHandle.prototype, 'fd', {
       get: function() {
-        // Close is set by using a setter,
-        // so it needs to be set on the instance.
-        const originalClose = this.close;
-        this.close = common.mustCall(function(...args) {
-          return originalClose.apply(this, args);
-        });
+        // Verify that close is called when an error is thrown
+        this.close = common.mustCall(this.close);
         const opError = new Error('INTERNAL_ERROR');
         opError.code = 123;
         throw opError;
       }
     });
 
-    await op(filePath).catch(common.mustCall((err) => {
-      assert.strictEqual(err.constructor.name, 'Error');
-      assert.strictEqual(err.message, 'INTERNAL_ERROR');
-      assert.strictEqual(err.code, 123);
-    }));
+    await assert.rejects(op(filePath), {
+      name: 'Error',
+      message: 'INTERNAL_ERROR',
+      code: 123,
+    });
   } finally {
     Object.defineProperty(FileHandle.prototype, 'fd', originalFd);
   }
 }
 (async function() {
   tmpdir.refresh();
-  await checkAggregateError((filePath) => truncate(filePath));
-  await checkAggregateError((filePath) => readFile(filePath));
-  await checkAggregateError((filePath) => writeFile(filePath, '123'));
+  await checkOperationError((filePath) => truncate(filePath));
+  await checkOperationError((filePath) => readFile(filePath));
+  await checkOperationError((filePath) => writeFile(filePath, '123'));
   if (common.isOSX) {
-    await checkAggregateError((filePath) => lchmod(filePath, 0o777));
+    await checkOperationError((filePath) => lchmod(filePath, 0o777));
   }
 })().then(common.mustCall());

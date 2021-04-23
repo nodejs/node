@@ -50,12 +50,13 @@ async function checkAggregateError(op) {
       }
     });
 
-    await op(filePath).catch(common.mustCall((err) => {
-      assert.strictEqual(err.constructor.name, 'AggregateError');
+    await assert.rejects(op(filePath), common.mustCall((err) => {
+      assert.strictEqual(err.name, 'AggregateError');
       assert.strictEqual(err.code, 123);
       assert.strictEqual(err.errors.length, 2);
       assert.strictEqual(err.errors[0].message, 'INTERNAL_ERROR');
       assert.strictEqual(err.errors[1].message, 'CLOSE_ERROR');
+      return true;
     }));
   } finally {
     Object.defineProperty(FileHandle.prototype, 'fd', originalFd);

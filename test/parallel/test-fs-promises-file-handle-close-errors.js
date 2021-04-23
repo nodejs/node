@@ -29,7 +29,7 @@ async function createFile() {
   return filePath;
 }
 
-async function checkAggregateError(op) {
+async function checkCloseError(op) {
   try {
     const filePath = await createFile();
     Object.defineProperty(FileHandle.prototype, 'fd', {
@@ -48,21 +48,21 @@ async function checkAggregateError(op) {
       }
     });
 
-    await op(filePath).catch(common.mustCall((err) => {
-      assert.strictEqual(err.constructor.name, 'Error');
-      assert.strictEqual(err.message, 'CLOSE_ERROR');
-      assert.strictEqual(err.code, 456);
-    }));
+    await assert.rejects(op(filePath), {
+      name: 'Error',
+      message: 'CLOSE_ERROR',
+      code: 456,
+    });
   } finally {
     Object.defineProperty(FileHandle.prototype, 'fd', originalFd);
   }
 }
 (async function() {
   tmpdir.refresh();
-  await checkAggregateError((filePath) => truncate(filePath));
-  await checkAggregateError((filePath) => readFile(filePath));
-  await checkAggregateError((filePath) => writeFile(filePath, '123'));
+  await checkCloseError((filePath) => truncate(filePath));
+  await checkCloseError((filePath) => readFile(filePath));
+  await checkCloseError((filePath) => writeFile(filePath, '123'));
   if (common.isOSX) {
-    await checkAggregateError((filePath) => lchmod(filePath, 0o777));
+    await checkCloseError((filePath) => lchmod(filePath, 0o777));
   }
 })().then(common.mustCall());
