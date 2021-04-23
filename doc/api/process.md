@@ -1405,6 +1405,8 @@ Indicates whether a callback has been set using
 added: v0.7.6
 -->
 
+> Stability: 3 - Legacy. Use [`process.hrtime.bigint()`][] instead.
+
 * `time` {integer[]} The result of a previous call to `process.hrtime()`
 * Returns: {integer[]}
 
