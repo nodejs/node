@@ -283,7 +283,7 @@ function formatResult(data) {
   let rate = data.rate.toString().split('.');
   rate[0] = rate[0].replace(/(\d)(?=(?:\d\d\d)+(?!\d))/g, '$1,');
   rate = (rate[1] ? rate.join('.') : rate[0]);
-  return `${data.name}${conf}: ${rate}`;
+  return `${data.name}${conf}: ${rate}\n`;
 }
 
 function sendResult(data) {
@@ -292,7 +292,7 @@ function sendResult(data) {
     process.send(data);
   } else {
     // Otherwise report by stdout
-    console.log(formatResult(data));
+    process.stdout.write(formatResult(data));
   }
 }
 
