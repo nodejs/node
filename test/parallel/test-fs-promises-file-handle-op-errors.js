@@ -7,14 +7,13 @@ const tmpdir = require('../common/tmpdir');
 // The following tests validate aggregate errors are thrown correctly
 // when both an operation and close throw.
 
-const fs = require('fs');
 const path = require('path');
 const {
   readFile,
   writeFile,
   truncate,
   lchmod,
-} = fs.promises;
+} = require('fs/promises');
 const {
   FileHandle,
 } = require('internal/fs/promises');
