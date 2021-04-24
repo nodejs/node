@@ -275,7 +275,7 @@ async_hooks.createHook({
   init(asyncId, type, triggerAsyncId) {
     const eid = async_hooks.executionAsyncId();
     fs.writeSync(
-      process.stdout.fd,
+      1,
       `${type}(${asyncId}): trigger: ${triggerAsyncId} execution: ${eid}\n`);
   }
 }).enable();
@@ -328,7 +328,7 @@ async_hooks.createHook({
     const eid = async_hooks.executionAsyncId();
     const indentStr = ' '.repeat(indent);
     fs.writeSync(
-      process.stdout.fd,
+      1,
       `${indentStr}${type}(${asyncId}):` +
       ` trigger: ${triggerAsyncId} execution: ${eid}\n`);
   },
