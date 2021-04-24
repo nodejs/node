@@ -624,10 +624,18 @@ module.exports = {
 
                     // Report the first declaration.
                     if (unusedVar.defs.length > 0) {
+
+                        // report last write reference, https://github.com/eslint/eslint/issues/14324
+                        const writeReferences = unusedVar.references.filter(ref => ref.isWrite() && ref.from.variableScope === unusedVar.scope.variableScope);
+
+                        let referenceToReport;
+
+                        if (writeReferences.length > 0) {
+                            referenceToReport = writeReferences[writeReferences.length - 1];
+                        }
+
                         context.report({
-                            node: unusedVar.references.length ? unusedVar.references[
-                                unusedVar.references.length - 1
-                            ].identifier : unusedVar.identifiers[0],
+                            node: referenceToReport ? referenceToReport.identifier : unusedVar.identifiers[0],
                             messageId: "unusedVar",
                             data: unusedVar.references.some(ref => ref.isWrite())
                                 ? getAssignedMessageData(unusedVar)
