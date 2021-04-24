@@ -271,11 +271,16 @@ created, while `triggerAsyncId` shows *why* a resource was created.
 The following is a simple demonstration of `triggerAsyncId`:
 
 ```js
+const async_hooks = require('async_hooks');
+const fs = require('fs');
+
+const { fd } = process.stdout;
+
 async_hooks.createHook({
   init(asyncId, type, triggerAsyncId) {
     const eid = async_hooks.executionAsyncId();
     fs.writeSync(
-      1,
+      fd,
       `${type}(${asyncId}): trigger: ${triggerAsyncId} execution: ${eid}\n`);
   }
 }).enable();
@@ -322,29 +327,34 @@ callback to `listen()` will look like. The output formatting is slightly more
 elaborate to make calling context easier to see.
 
 ```js
+const async_hooks = require('async_hooks');
+const fs = require('fs');
+
+const { fd } = process.stdout;
+
 let indent = 0;
 async_hooks.createHook({
   init(asyncId, type, triggerAsyncId) {
     const eid = async_hooks.executionAsyncId();
     const indentStr = ' '.repeat(indent);
     fs.writeSync(
-      1,
+      fd,
       `${indentStr}${type}(${asyncId}):` +
       ` trigger: ${triggerAsyncId} execution: ${eid}\n`);
   },
   before(asyncId) {
     const indentStr = ' '.repeat(indent);
-    fs.writeSync(process.stdout.fd, `${indentStr}before:  ${asyncId}\n`);
+    fs.writeSync(fd, `${indentStr}before:  ${asyncId}\n`);
     indent += 2;
   },
   after(asyncId) {
     indent -= 2;
     const indentStr = ' '.repeat(indent);
-    fs.writeSync(process.stdout.fd, `${indentStr}after:  ${asyncId}\n`);
+    fs.writeSync(fd, `${indentStr}after:  ${asyncId}\n`);
   },
   destroy(asyncId) {
     const indentStr = ' '.repeat(indent);
-    fs.writeSync(process.stdout.fd, `${indentStr}destroy:  ${asyncId}\n`);
+    fs.writeSync(fd, `${indentStr}destroy:  ${asyncId}\n`);
   },
 }).enable();
 
