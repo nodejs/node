@@ -13,6 +13,7 @@
 namespace node {
 namespace performance {
 
+using v8::BigInt;
 using v8::Context;
 using v8::DontDelete;
 using v8::Function;
@@ -347,6 +348,10 @@ void Initialize(Local<Object> target,
   target->DefineOwnProperty(context,
                             FIXED_ONE_BYTE_STRING(isolate, "timeOrigin"),
                             Number::New(isolate, timeOrigin / 1e6),
+                            attr).ToChecked();
+  target->DefineOwnProperty(context,
+                            FIXED_ONE_BYTE_STRING(isolate, "timeOriginBigInt"),
+                            BigInt::New(isolate, timeOrigin),
                             attr).ToChecked();
 
   target->DefineOwnProperty(

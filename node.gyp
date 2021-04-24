@@ -196,6 +196,7 @@
       'lib/internal/options.js',
       'lib/internal/perf/perf.js',
       'lib/internal/perf/nodetiming.js',
+      'lib/internal/perf/now.js',
       'lib/internal/perf/usertiming.js',
       'lib/internal/perf/observe.js',
       'lib/internal/perf/event_loop_delay.js',
