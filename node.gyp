@@ -229,6 +229,7 @@
       'lib/internal/source_map/source_map.js',
       'lib/internal/source_map/source_map_cache.js',
       'lib/internal/test/binding.js',
+      'lib/internal/test/transfer.js',
       'lib/internal/timers.js',
       'lib/internal/tls.js',
       'lib/internal/trace_events_async_hooks.js',
