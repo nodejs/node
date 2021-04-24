@@ -551,9 +551,10 @@ changes:
 * `options` {Object} Available options are:
   * `fd` {number} If specified, wrap around an existing socket with
     the given file descriptor, otherwise a new socket will be created.
-  * `allowHalfOpen` {boolean} Indicates whether to automatically end the
-    writable side when the readable side ends. See [`net.createServer()`][] and
-    the [`'end'`][] event for details. **Default:** `false`.
+  * `allowHalfOpen` {boolean} If set to `false`, then the socket will
+    automatically end the writable side when the readable side ends. See
+    [`net.createServer()`][] and the [`'end'`][] event for details. **Default:**
+    `false`.
   * `readable` {boolean} Allow reads on the socket when an `fd` is passed,
     otherwise ignored. **Default:** `false`.
   * `writable` {boolean} Allow writes on the socket when an `fd` is passed,
@@ -1295,8 +1296,9 @@ added: v0.5.0
 -->
 
 * `options` {Object}
-  * `allowHalfOpen` {boolean} Indicates whether to automatically end the
-    writable side when the readable side ends. **Default:** `false`.
+  * `allowHalfOpen` {boolean} If set to `false`, then the socket will
+    automatically end the writable side when the readable side ends.
+    **Default:** `false`.
   * `pauseOnConnect` {boolean} Indicates whether the socket should be
     paused on incoming connections. **Default:** `false`.
 * `connectionListener` {Function} Automatically set as a listener for the
