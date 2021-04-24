@@ -958,7 +958,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   }
 
   // Test invalid divisor lengths.
-  for (const divisorLength of ['a', true, {}, [], 4096.1, 2147483648]) {
+  for (const divisorLength of ['a', true, {}, [], 4096.1, 2147483648, -1]) {
     assert.throws(() => generateKeyPair('dsa', {
       modulusLength: 2048,
       divisorLength
@@ -1094,6 +1094,17 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
 
   assert.throws(() => {
     generateKeyPair('dh', {
+      primeLength: -1
+    }, common.mustNotCall());
+  }, {
+    name: 'TypeError',
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: "The property 'options.primeLength' is invalid. " +
+             'Received -1',
+  });
+
+  assert.throws(() => {
+    generateKeyPair('dh', {
       primeLength: 2,
       generator: 2147483648,
     }, common.mustNotCall());
@@ -1102,6 +1113,18 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     code: 'ERR_INVALID_ARG_VALUE',
     message: "The property 'options.generator' is invalid. " +
              'Received 2147483648',
+  });
+
+  assert.throws(() => {
+    generateKeyPair('dh', {
+      primeLength: 2,
+      generator: -1,
+    }, common.mustNotCall());
+  }, {
+    name: 'TypeError',
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: "The property 'options.generator' is invalid. " +
+             'Received -1',
   });
 
   // Test incompatible options.
@@ -1178,6 +1201,20 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     code: 'ERR_INVALID_ARG_VALUE',
     message: "The property 'options.saltLength' is invalid. " +
              'Received 2147483648'
+  });
+
+  assert.throws(() => {
+    generateKeyPair('rsa-pss', {
+      modulusLength: 512,
+      saltLength: -1,
+      hash: 'sha256',
+      mgf1Hash: 'sha256'
+    }, common.mustNotCall());
+  }, {
+    name: 'TypeError',
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: "The property 'options.saltLength' is invalid. " +
+             'Received -1'
   });
 
   // Invalid private key type.
