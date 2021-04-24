@@ -1308,9 +1308,9 @@ class Linter {
                 return [];
             }
 
-            // Resolve configuration again if the file extension was changed.
-            if (configForRecursive && path.extname(blockName) !== originalExtname) {
-                debug("Resolving configuration again because the file extension was changed.");
+            // Resolve configuration again if the file content or extension was changed.
+            if (configForRecursive && (text !== blockText || path.extname(blockName) !== originalExtname)) {
+                debug("Resolving configuration again because the file content or extension was changed.");
                 return this._verifyWithConfigArray(
                     blockText,
                     configForRecursive,
