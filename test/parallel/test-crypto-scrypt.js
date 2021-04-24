@@ -143,6 +143,10 @@ const badargs = [
     args: ['', '', -42],
     expected: { code: 'ERR_OUT_OF_RANGE', message: /"keylen"/ },
   },
+  {
+    args: ['', '', 2147485780],
+    expected: { code: 'ERR_OUT_OF_RANGE', message: /"keylen"/ },
+  },
 ];
 
 for (const options of good) {
