@@ -70,7 +70,7 @@ class Worker : public AsyncWrap {
   static void LoopStartTime(const v8::FunctionCallbackInfo<v8::Value>& args);
 
  private:
-  void CreateEnvMessagePort(Environment* env);
+  bool CreateEnvMessagePort(Environment* env);
   static size_t NearHeapLimit(void* data, size_t current_heap_limit,
                               size_t initial_heap_limit);
 
