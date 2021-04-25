@@ -271,9 +271,6 @@ created, while `triggerAsyncId` shows *why* a resource was created.
 The following is a simple demonstration of `triggerAsyncId`:
 
 ```js
-const async_hooks = require('async_hooks');
-const fs = require('fs');
-
 const { fd } = process.stdout;
 
 async_hooks.createHook({
@@ -285,7 +282,7 @@ async_hooks.createHook({
   }
 }).enable();
 
-require('net').createServer((conn) => {}).listen(8080);
+net.createServer((conn) => {}).listen(8080);
 ```
 
 Output when hitting the server with `nc localhost 8080`:
@@ -327,9 +324,6 @@ callback to `listen()` will look like. The output formatting is slightly more
 elaborate to make calling context easier to see.
 
 ```js
-const async_hooks = require('async_hooks');
-const fs = require('fs');
-
 const { fd } = process.stdout;
 
 let indent = 0;
@@ -358,7 +352,7 @@ async_hooks.createHook({
   },
 }).enable();
 
-require('net').createServer(() => {}).listen(8080, () => {
+net.createServer(() => {}).listen(8080, () => {
   // Let's wait 10ms before logging the server started.
   setTimeout(() => {
     console.log('>>>', async_hooks.executionAsyncId());
