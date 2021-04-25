@@ -291,7 +291,7 @@ void FileHandle::CloseReq::Resolve() {
   HandleScope scope(isolate);
   Context::Scope context_scope(env()->context());
   InternalCallbackScope callback_scope(this);
-  Local<Promise> promise = promise_.Get(isolate);
+  auto promise = promise_.Get(isolate);
   Local<Promise::Resolver> resolver = promise.As<Promise::Resolver>();
   resolver->Resolve(env()->context(), Undefined(isolate)).Check();
 }
