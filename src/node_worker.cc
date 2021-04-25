@@ -328,7 +328,10 @@ void Worker::Run() {
       Debug(this, "Created Environment for worker with id %llu", thread_id_.id);
       if (is_stopped()) return;
       {
-        CreateEnvMessagePort(env_.get());
+        if (!CreateEnvMessagePort(env_.get())) {
+          return;
+        }
+
         Debug(this, "Created message port for worker %llu", thread_id_.id);
         if (LoadEnvironment(env_.get(), StartExecutionCallback{}).IsEmpty())
           return;
@@ -352,17 +355,24 @@ void Worker::Run() {
   Debug(this, "Worker %llu thread stops", thread_id_.id);
 }
 
-void Worker::CreateEnvMessagePort(Environment* env) {
+bool Worker::CreateEnvMessagePort(Environment* env) {
   HandleScope handle_scope(isolate_);
-  Mutex::ScopedLock lock(mutex_);
+  std::unique_ptr<MessagePortData> data;
+  {
+    Mutex::ScopedLock lock(mutex_);
+    data = std::move(child_port_data_);
+  }
+
   // Set up the message channel for receiving messages in the child.
   MessagePort* child_port = MessagePort::New(env,
                                              env->context(),
-                                             std::move(child_port_data_));
+                                             std::move(data));
   // MessagePort::New() may return nullptr if execution is terminated
   // within it.
   if (child_port != nullptr)
     env->set_message_port(child_port->object(isolate_));
+
+  return child_port;
 }
 
 void Worker::JoinThread() {
