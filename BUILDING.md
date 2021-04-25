@@ -117,6 +117,7 @@ platforms. This is true regardless of entries in the table below.
 | macOS            | arm64            | >= 11                           | Experimental |                                   |
 | SmartOS          | x64              | >= 18                           | Tier 2       |                                   |
 | AIX              | ppc64be >=power7 | >= 7.2 TL04                     | Tier 2       |                                   |
+| IBM i            | ppc64be >=power7 | >= 7.3                          | Tier 2       |                                   |
 | FreeBSD          | x64              | >= 11                           | Experimental | Downgraded as of Node.js 12  <sup>[7](#fn7)</sup>     |
 
 <em id="fn1">1</em>: GCC 8 is not provided on the base platform. Users will
