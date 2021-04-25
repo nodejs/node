@@ -5,10 +5,18 @@ const child_process = require('child_process');
 const fs = require('fs');
 const stream = require('stream');
 
-if (!common.isLinux)
+if (!common.isLinux) {
   common.skip('The fs watch limit is OS-dependent');
-if (!common.enoughTestCpu)
+}
+
+if (!common.enoughTestCpu) {
   common.skip('This test is resource-intensive');
+}
+
+if ((process.config.variables.arm_version === '6') ||
+  (process.config.variables.arm_version === '7')) {
+  common.skip('Too slow for armv6 and armv7 bots');
+}
 
 try {
   // Ensure inotify limit is low enough for the test to actually exercise the
