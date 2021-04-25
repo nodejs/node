@@ -43,7 +43,7 @@ let filename = null;
 let nodeVersion = null;
 let outputDir = null;
 let apilinks = {};
-let versions = {};
+let versions = [];
 
 async function main() {
   for (const arg of args) {
