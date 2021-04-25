@@ -1,6 +1,12 @@
 'use strict';
 
 const common = require('../common');
+
+if ((process.config.variables.arm_version === '6') ||
+  (process.config.variables.arm_version === '7')) {
+  common.skip('Too slow for armv6 and armv7 bots');
+}
+
 const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const { spawnSync } = require('child_process');
