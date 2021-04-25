@@ -54,10 +54,21 @@ process.nextTick(function() {
   assert.strictEqual(this, undefined);
 }, 1, 2, 3, 4);
 
-process.nextTick(() => {
+assert.strictEqual(process.nextTick(() => {
   assert.deepStrictEqual(this, {});
-}, 1, 2, 3, 4);
+}, 1, 2, 3, 4), undefined);
+
+const array = [];
+async function schedule() {
+  const p = process.nextTick();
+  assert(p instanceof Promise);
+  await p;
+  array.push(1);
+}
+schedule();
+array.push(2);
 
 process.on('exit', function() {
+  assert.deepStrictEqual(array, [ 2, 1 ]);
   process.nextTick(common.mustNotCall());
 });
