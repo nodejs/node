@@ -211,7 +211,10 @@ Node* RepresentationChanger::GetRepresentationFor(
       return GetFloat32RepresentationFor(node, output_rep, output_type,
                                          use_info.truncation());
     case MachineRepresentation::kFloat64:
-      DCHECK_NE(TypeCheckKind::kBigInt, use_info.type_check());
+      DCHECK(use_info.type_check() == TypeCheckKind::kNone ||
+             use_info.type_check() == TypeCheckKind::kNumber ||
+             use_info.type_check() == TypeCheckKind::kNumberOrBoolean ||
+             use_info.type_check() == TypeCheckKind::kNumberOrOddball);
       return GetFloat64RepresentationFor(node, output_rep, output_type,
                                          use_node, use_info);
     case MachineRepresentation::kBit:
@@ -727,15 +730,22 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
     }
   } else if (IsAnyTagged(output_rep)) {
     if (output_type.Is(Type::Undefined())) {
-      if (use_info.type_check() == TypeCheckKind::kNumberOrBoolean) {
+      if (use_info.type_check() == TypeCheckKind::kNumberOrOddball ||
+          (use_info.type_check() == TypeCheckKind::kNone &&
+           use_info.truncation().TruncatesOddballAndBigIntToNumber())) {
+        return jsgraph()->Float64Constant(
+            std::numeric_limits<double>::quiet_NaN());
+      } else {
+        DCHECK(use_info.type_check() == TypeCheckKind::kNone ||
+               use_info.type_check() == TypeCheckKind::kNumber ||
+               use_info.type_check() == TypeCheckKind::kNumberOrBoolean);
         Node* unreachable = InsertUnconditionalDeopt(
-            use_node, DeoptimizeReason::kNotANumberOrBoolean);
+            use_node, use_info.type_check() == TypeCheckKind::kNumber
+                          ? DeoptimizeReason::kNotANumber
+                          : DeoptimizeReason::kNotANumberOrBoolean);
         return jsgraph()->graph()->NewNode(
             jsgraph()->common()->DeadValue(MachineRepresentation::kFloat64),
             unreachable);
-      } else {
-        return jsgraph()->Float64Constant(
-            std::numeric_limits<double>::quiet_NaN());
       }
     } else if (output_rep == MachineRepresentation::kTaggedSigned) {
       node = InsertChangeTaggedSignedToInt32(node);
@@ -747,12 +757,13 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
                output_type.Is(Type::NumberOrHole())) {
       // JavaScript 'null' is an Oddball that results in +0 when truncated to
       // Number. In a context like -0 == null, which must evaluate to false,
-      // this truncation must not happen. For this reason we restrict this case
-      // to when either the user explicitly requested a float (and thus wants
-      // +0 if null is the input) or we know from the types that the input can
-      // only be Number | Hole. The latter is necessary to handle the operator
-      // CheckFloat64Hole. We did not put in the type (Number | Oddball \ Null)
-      // to discover more bugs related to this conversion via crashes.
+      // this truncation must not happen. For this reason we restrict this
+      // case to when either the user explicitly requested a float (and thus
+      // wants +0 if null is the input) or we know from the types that the
+      // input can only be Number | Hole. The latter is necessary to handle
+      // the operator CheckFloat64Hole. We did not put in the type (Number |
+      // Oddball \ Null) to discover more bugs related to this conversion via
+      // crashes.
       op = simplified()->TruncateTaggedToFloat64();
     } else if (use_info.type_check() == TypeCheckKind::kNumber ||
                (use_info.type_check() == TypeCheckKind::kNumberOrOddball &&
