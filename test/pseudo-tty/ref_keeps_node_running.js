@@ -24,7 +24,7 @@ handle.unref();
 
 strictEqual(
   Object.values(getActiveResources('handles')).length,
-  1,
+  0,
   'TTY handle not initially active'
 );
 
@@ -32,7 +32,7 @@ handle.ref();
 
 strictEqual(
   Object.values(getActiveResources('handles')).length,
-  2,
+  1,
   'TTY handle not initially active'
 );
 
@@ -40,6 +40,6 @@ handle.unref();
 
 strictEqual(
   Object.values(getActiveResources('handles')).length,
-  1,
+  0,
   'TTY handle not initially active'
 );
