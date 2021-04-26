@@ -1,0 +1,15 @@
+0.3.1 (09/02/2019)
+Restaurar la compatibilidad con los métodos privados de bellota
+0.3.0 (09/02/2019)
+Requiere bellota> = 6.1.0
+0.2.1 (06/11/2018)
+Adaptarse a los cambios en bellota 6.0.3
+0.2.0 (14 de septiembre de 2018)
+Actualización a la nueva interfaz de Acorn 6
+Cambiar licencia a MIT
+0.1.2 (26/01/2018)
+No acepte espacios en blanco entre hash y nombre privado
+0.1.1 (17/01/2018)
+Analizar correctamente todos los campos nombrados async
+0.1.0 (13 de enero de 2018)
+Versión inicial
