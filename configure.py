@@ -1456,6 +1456,12 @@ def configure_openssl(o):
   if options.openssl_fips or options.openssl_fips == '':
      error('FIPS is not supported in this version of Node.js')
 
+  if options.openssl_is_fips and not options.shared_openssl:
+    error('--openssl-is-fips is only available with --shared-openssl')
+
+  if options.openssl_is_fips:
+    o['defines'] += ['OPENSSL_FIPS']
+
   if options.shared_openssl:
     variables['openssl_quic'] = b(getsharedopensslhasquic.get_has_quic(options.__dict__['shared_openssl_includes']))
 

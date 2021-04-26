@@ -24,7 +24,7 @@
 #endif  // !OPENSSL_NO_ENGINE
 // The FIPS-related functions are only available
 // when the OpenSSL itself was compiled with FIPS support.
-#ifdef  OPENSSL_FIPS
+#if defined(OPENSSL_FIPS) && OPENSSL_VERSION_MAJOR < 3
 #  include <openssl/fips.h>
 #endif  // OPENSSL_FIPS
 
