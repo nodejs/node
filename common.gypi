@@ -567,6 +567,11 @@
           'OPENSSL_NO_ASM',
         ],
       }],
+      ['node_use_openssl=="true"', {
+        'defines': [
+          'MODULESDIR="<(PRODUCT_DIR)/ossl-modules"',
+        ],
+      }],
     ],
   }
 }

@@ -14,6 +14,9 @@
         # the real driver but that poses a security liability when an attacker
         # is able to create a malicious DLL in one of the default search paths.
         'OPENSSL_NO_HW',
+        'OPENSSL_API_COMPAT=0x10100001L',
+        'MODULESDIR="<(PRODUCT_DIR)/ossl-modules"',
+        #'OPENSSL_NO_DEPRECATED',
       ],
       'conditions': [
         [ 'openssl_no_asm==1', {
@@ -32,7 +35,7 @@
         }],
       ],
       'direct_dependent_settings': {
-        'include_dirs': [ 'openssl/include']
+        'include_dirs': [ 'openssl/include', 'openssl/crypto/include']
       }
     }, {
       # openssl-cli target
@@ -40,6 +43,12 @@
       'type': 'executable',
       'dependencies': ['openssl'],
       'includes': ['./openssl_common.gypi'],
+      'include_dirs+': ['openssl/apps/include'],
+      'defines': [
+        'OPENSSL_API_COMPAT=0x10100001L',
+        #'OPENSSL_NO_DEPRECATED',
+        'MODULESDIR="<(PRODUCT_DIR)/ossl-modules"',
+      ],
       'conditions': [
         ['openssl_no_asm==1', {
           'includes': ['./openssl-cl_no_asm.gypi'],
