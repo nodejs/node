@@ -14,6 +14,12 @@
 
 #include "math.h"
 
+#ifdef OPENSSL_FIPS
+#if OPENSSL_VERSION_MAJOR >= 3
+#include "openssl/provider.h"
+#endif
+#endif
+
 namespace node {
 
 using v8::ArrayBuffer;
@@ -197,7 +203,16 @@ void SetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
 
 void TestFipsCrypto(const v8::FunctionCallbackInfo<v8::Value>& args) {
 #ifdef OPENSSL_FIPS
+#if OPENSSL_VERSION_MAJOR >= 3
+  OSSL_PROVIDER* fips_provider = nullptr;
+  if (OSSL_PROVIDER_available(nullptr, "fips")) {
+    fips_provider = OSSL_PROVIDER_load(nullptr, "fips");
+  }
+  const auto enabled = fips_provider == nullptr ? 0 :
+      OSSL_PROVIDER_self_test(fips_provider) ? 1 : 0;
+#else
   const auto enabled = FIPS_selftest() ? 1 : 0;
+#endif
 #else  // OPENSSL_FIPS
   const auto enabled = 0;
 #endif  // OPENSSL_FIPS
