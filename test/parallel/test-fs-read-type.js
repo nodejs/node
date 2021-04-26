@@ -44,8 +44,6 @@ assert.throws(() => {
 }, {
   code: 'ERR_OUT_OF_RANGE',
   name: 'RangeError',
-  message: 'The value of "offset" is out of range. It must be >= 0. ' +
-           'Received -1'
 });
 
 assert.throws(() => {
@@ -157,8 +155,6 @@ assert.throws(() => {
 }, {
   code: 'ERR_OUT_OF_RANGE',
   name: 'RangeError',
-  message: 'The value of "offset" is out of range. ' +
-           'It must be >= 0. Received -1'
 });
 
 assert.throws(() => {
