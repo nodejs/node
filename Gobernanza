@@ -1,0 +1,106 @@
+Gobernanza del proyecto Node.js
+Triagers
+Colaboradores
+Actividades del colaborador
+Comité de dirección técnica
+Reuniones TSC
+Nominaciones de colaboradores
+Inducción
+Proceso de búsqueda de consenso
+Triagers
+Los Triagers evalúan los problemas recientemente abiertos en los repositorios nodejs / node y nodejs / help. No hay un equipo de GitHub para triagers en este momento.
+
+Los Triagers tienen:
+
+capacidad para etiquetar problemas
+capacidad para comentar, cerrar y reabrir problemas
+Ver:
+
+Una guía para triagers
+Colaboradores
+Los colaboradores principales de Node.js mantienen el repositorio de GitHub de nodejs / node . El equipo de GitHub para Colaboradores principales de Node.js es @ nodejs / colaboradores. Los colaboradores tienen:
+
+Confirme el acceso al repositorio de nodejs / node
+Acceso a los trabajos de integración continua (CI) de Node.js
+Tanto los Colaboradores como los no colaboradores pueden proponer cambios al código fuente de Node.js. El mecanismo para proponer tal cambio es una solicitud de extracción de GitHub. Los colaboradores revisan y fusionan ( aterrizan ) las solicitudes de extracción.
+
+Dos colaboradores deben aprobar una solicitud de extracción antes de que pueda aterrizar. (La aprobación de un colaborador es suficiente si la solicitud de extracción ha estado abierta durante más de 7 días). La aprobación de una solicitud de extracción indica que el colaborador acepta la responsabilidad del cambio. La aprobación debe ser de Colaboradores que no sean autores del cambio.
+
+Si un colaborador se opone a un cambio propuesto, entonces el cambio no puede aterrizar. La excepción es si el TSC vota para aprobar el cambio a pesar de la oposición. Por lo general, no es necesario involucrar al TSC. A menudo, las discusiones o cambios adicionales dan como resultado que los Colaboradores eliminen su oposición.
+
+Ver:
+
+Lista de colaboradores
+Una guía para colaboradores
+Actividades del colaborador
+Ayudar a los usuarios y a los contribuyentes novatos
+Contribuir con cambios de código y documentación que mejoren el proyecto
+Revisar y comentar problemas y solicitudes de extracción
+Participación en grupos de trabajo
+Fusionar solicitudes de extracción
+El TSC puede eliminar a los Colaboradores inactivos o proporcionarles el estado Emérito . Emeriti puede solicitar que el TSC los restablezca a su estado activo.
+
+Comité Directivo Técnico
+Un subconjunto de Colaboradores forma el Comité Directivo Técnico (TSC). El TSC tiene la autoridad final sobre este proyecto, que incluye:
+
+Dirección técnica
+Gobernanza y proceso del proyecto (incluida esta política)
+Política de contribución
+Alojamiento del repositorio de GitHub
+Pautas de conducta
+Manteniendo la lista de Colaboradores
+La lista actual de miembros de TSC está en el proyecto README .
+
+La Carta del TSC rige las operaciones del TSC. Todos los cambios a la Carta deben ser aprobados por el Consejo de Proyectos Cruzados de la Fundación OpenJS (CPC).
+
+Reuniones TSC
+El TSC se reúne en una conferencia telefónica de voz. Cada año, el TSC elige un presidente para dirigir las reuniones. El TSC transmite sus reuniones para que el público las vea en YouTube o un servicio similar.
+
+La agenda del TSC incluye temas que están estancados. La intención de la agenda no es revisar o aprobar todos los parches. Los colaboradores revisan y aprueban los parches en GitHub.
+
+Cualquier miembro de la comunidad puede crear un problema de GitHub pidiendo que el TSC revise algo. Si la búsqueda de consenso falla para un problema, un Colaborador puede aplicar la tsc-agendaetiqueta. Eso lo agregará a la agenda de la reunión del TSC.
+
+Antes de cada reunión del TSC, el presidente de la reunión compartirá la agenda con los miembros del TSC. Los miembros del TSC también pueden agregar elementos a la agenda al comienzo de cada reunión. El presidente de la reunión y el TSC no pueden vetar ni eliminar elementos.
+
+El TSC puede invitar a personas a participar sin derecho a voto.
+
+Durante la reunión, el presidente del TSC se asegura de que alguien tome los minutos. Después de la reunión, el presidente del TSC se asegura de que alguien abra una solicitud de extracción con el acta.
+
+El TSC busca resolver tantos problemas como sea posible fuera de las reuniones utilizando el rastreador de problemas del TSC . El proceso en el rastreador de problemas es:
+
+Un miembro de TSC abre un problema explicando la propuesta / problema y @ -mentions @ nodejs / tsc.
+La propuesta pasa si, después de 72 horas, hay dos o más aprobaciones del TSC y no hay oposición del TSC.
+Si hay un estancamiento prolongado, un miembro del TSC puede presentar una moción para votar.
+Nominaciones de colaboradores
+Los Colaboradores existentes pueden nominar a alguien para que se convierta en Colaborador. Los nominados deben tener contribuciones significativas y valiosas en toda la organización de Node.js.
+
+Para nominar un nuevo colaborador, abra un problema en el repositorio de nodejs / node . Proporcione un resumen de las contribuciones del nominado. Por ejemplo:
+
+Se confirma en el repositorio de nodejs / node .
+Utilizar el enlace https://github.com/nodejs/node/commits?author=GITHUB_ID
+Solicitudes de extracción y problemas abiertos en el repositorio de nodejs / node .
+Utilizar el enlace https://github.com/nodejs/node/issues?q=author:GITHUB_ID
+Comentarios sobre solicitudes de extracción y problemas en el repositorio de nodejs / node
+Utilizar el enlace https://github.com/nodejs/node/issues?q=commenter:GITHUB_ID
+Reseñas sobre solicitudes de extracción en el repositorio de nodejs / node
+Utilizar el enlace https://github.com/nodejs/node/pulls?q=reviewed-by:GITHUB_ID
+Ayuda proporcionada a usuarios finales y colaboradores novatos
+Solicitudes de extracción y problemas abiertos en toda la organización de Node.js
+Utilizar el enlace https://github.com/search?q=author:GITHUB_ID+org:nodejs
+Comentarios sobre solicitudes de extracción y problemas en toda la organización de Node.js
+Utilizar el enlace https://github.com/search?q=commenter:GITHUB_ID+org:nodejs
+Participación en otros proyectos, equipos y grupos de trabajo de la organización Node.js
+Otra participación en la comunidad Node.js más amplia
+Mencione a @ nodejs / colaboradores en el problema para notificar a otros Colaboradores sobre la nominación.
+
+La nominación pasa si ningún Colaborador se opone al cabo de una semana. De lo contrario, la nominación fracasa.
+
+Hay pasos que un nominador puede tomar con anticipación para que una nominación sea lo más sencilla posible. Para solicitar comentarios de otros Colaboradores en privado, use la página de discusión de Colaboradores (que solo los Colaboradores pueden ver). Un nominador también puede trabajar con el nominado para mejorar su perfil de contribución.
+
+Los colaboradores pueden pasar por alto a alguien con contribuciones valiosas. En ese caso, el colaborador puede abrir un problema o ponerse en contacto con un colaborador para solicitar una nominación.
+
+Inducción
+Una vez aprobada la nominación, un miembro de TSC se incorpora al nuevo Colaborador. Consulte la guía de incorporación para obtener detalles sobre el proceso de incorporación.
+
+Proceso de búsqueda de consenso
+El TSC sigue un modelo de toma de decisiones de búsqueda de consenso según la Carta del TSC .
