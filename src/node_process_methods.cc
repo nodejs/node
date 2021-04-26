@@ -34,7 +34,6 @@ typedef int mode_t;
 
 namespace node {
 
-using v8::ApiObject;
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::BackingStore;
@@ -478,8 +477,8 @@ class FastHrtime : public BaseObject {
   SET_MEMORY_INFO_NAME(FastHrtime)
   SET_SELF_SIZE(FastHrtime)
 
-  static FastHrtime* FromV8ApiObject(ApiObject api_object) {
-    Object* v8_object = reinterpret_cast<Object*>(&api_object);
+  static FastHrtime* FromV8Value(Local<Value> value) {
+    Local<Object> v8_object = value.As<Object>();
     return static_cast<FastHrtime*>(
         v8_object->GetAlignedPointerFromInternalField(BaseObject::kSlot));
   }
@@ -501,8 +500,8 @@ class FastHrtime : public BaseObject {
     fields[2] = t % NANOS_PER_SEC;
   }
 
-  static void FastNumber(ApiObject receiver) {
-    NumberImpl(FromV8ApiObject(receiver));
+  static void FastNumber(Local<Value> receiver) {
+    NumberImpl(FromV8Value(receiver));
   }
 
   static void SlowNumber(const FunctionCallbackInfo<Value>& args) {
@@ -515,8 +514,8 @@ class FastHrtime : public BaseObject {
     fields[0] = t;
   }
 
-  static void FastBigInt(ApiObject receiver) {
-    BigIntImpl(FromV8ApiObject(receiver));
+  static void FastBigInt(Local<Value> receiver) {
+    BigIntImpl(FromV8Value(receiver));
   }
 
   static void SlowBigInt(const FunctionCallbackInfo<Value>& args) {
