@@ -31,8 +31,8 @@ rules:
       message: "Use `const { AbortController } = require('internal/abort_controller');` instead of the global."
     - name: AbortSignal
       message: "Use `const { AbortSignal } = require('internal/abort_controller');` instead of the global."
-      # Atomics is not available in primordials because it's behind
-      # --no-harmony-atomics CLI flag.
+      # Atomics is not available in primordials because it can be
+      # disabled with --no-harmony-atomics CLI flag.
     - name: Atomics
       message: "Use `const { Atomics } = globalThis;` instead of the global."
     - name: Buffer
@@ -41,8 +41,8 @@ rules:
       message: "Use `const { Event } = require('internal/event_target');` instead of the global."
     - name: EventTarget
       message: "Use `const { EventTarget } = require('internal/event_target');` instead of the global."
-      # Intl is not available in primordials because it's behind
-      # --without-intl build flag.
+      # Intl is not available in primordials because it can be
+      # disabled with --without-intl build flag.
     - name: Intl
       message: "Use `const { Intl } = globalThis;` instead of the global."
     - name: MessageChannel
@@ -51,8 +51,8 @@ rules:
       message: "Use `const { MessageEvent } = require('internal/worker/io');` instead of the global."
     - name: MessagePort
       message: "Use `const { MessagePort } = require('internal/worker/io');` instead of the global."
-      # SharedArrayBuffer is not available in primordials because it's behind
-      # --no-harmony-sharedarraybuffer CLI flag.
+      # SharedArrayBuffer is not available in primordials because it can be
+      # disabled with --no-harmony-sharedarraybuffer CLI flag.
     - name: SharedArrayBuffer
       message: "Use `const { SharedArrayBuffer } = globalThis;` instead of the global."
     - name: TextDecoder
@@ -63,8 +63,8 @@ rules:
       message: "Use `const { URL } = require('internal/url');` instead of the global."
     - name: URLSearchParams
       message: "Use `const { URLSearchParams } = require('internal/url');` instead of the global."
-      # WebAssembly is not available in primordials because it's behind
-      # --no-harmony-sharedarraybuffer CLI flag.
+      # WebAssembly is not available in primordials because it can be
+      # disabled with --jitless CLI flag.
     - name: WebAssembly
       message: "Use `const { WebAssembly } = globalThis;` instead of the global."
     - name: atob
