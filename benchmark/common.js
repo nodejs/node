@@ -338,7 +338,7 @@ function getUrlData(withBase) {
  * @param {number} e The repetition of the data, as exponent of 2
  * @param {boolean} withBase Whether to include a base URL
  * @param {boolean} asUrl Whether to return the results as URL objects
- * @return {string[] | string[][] | URL[]}
+ * @returns {string[] | string[][] | URL[]}
  */
 function bakeUrlData(type, e = 0, withBase = false, asUrl = false) {
   let result = [];
