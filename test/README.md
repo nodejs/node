@@ -15,7 +15,7 @@ For the tests to run on Windows, be sure to clone Node.js source code with the
 
 | Directory        | Runs on CI | Purpose         |
 | ---------------- | ---------- | --------------- |
-| `abort`          | Yes        | Tests for when the `--abort-on-uncaught-exception` flag is used. |
+| `abort`          | Yes        | Tests that use `--abort-on-uncaught-exception` and other situations where we want to test something but avoid generating a core file. |
 | `addons`         | Yes        | Tests for [addon](https://nodejs.org/api/addons.html) functionality along with some tests that require an addon. |
 | `async-hooks`    | Yes       | Tests for [async_hooks](https://nodejs.org/api/async_hooks.html) functionality. |
 | `benchmark`      | Yes       | Test minimal functionality of benchmarks. |
