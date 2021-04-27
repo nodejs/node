@@ -218,6 +218,8 @@
       'lib/internal/process/signal.js',
       'lib/internal/process/task_queues.js',
       'lib/internal/querystring.js',
+      'lib/internal/readline/callbacks.js',
+      'lib/internal/readline/emitKeypressEvents.js',
       'lib/internal/readline/utils.js',
       'lib/internal/repl.js',
       'lib/internal/repl/await.js',
