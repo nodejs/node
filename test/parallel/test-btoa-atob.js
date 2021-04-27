@@ -1,6 +1,5 @@
 'use strict';
 
-const common = require('../common');
 const assert = require('assert');
 
 let s1 = '';
@@ -19,7 +18,7 @@ assert.strictEqual(btoa(s3), s3B64);
 
 const s4 = '哇咔咔';
 const s4B64 = Buffer.from(s4).toString('base64');
-assert.throws(() => { btoa(s4) }, {
+assert.throws(() => { btoa(s4); }, {
   name: 'InvalidCharacterError',
   message: 'Invalid character',
   code: 5,
