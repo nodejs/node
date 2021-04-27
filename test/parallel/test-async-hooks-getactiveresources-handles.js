@@ -34,8 +34,8 @@ function clientConnected(client) {
 function checkAll() {
   const handles = Object.values(getActiveResources('handles'));
 
-  assert.strictEqual(
-    handles.length,
+  assert.ok(
+    handles.length >=
     clients.length + connections.length + [server].length
   );
 

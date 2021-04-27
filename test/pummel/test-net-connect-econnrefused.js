@@ -55,8 +55,14 @@ function pummel() {
 
 function check() {
   setTimeout(common.mustCall(function() {
-    assert.strictEqual(Object.values(getActiveResources('requests')).length, 0);
-    assert.strictEqual(Object.values(getActiveResources('handles')).length, 2);
+    assert.strictEqual(
+      Object.values(getActiveResources('requests')).length,
+      0
+    );
+    assert.strictEqual(
+      Object.values(getActiveResources('handles')).length,
+      0
+    );
   }), 0);
 }
 
