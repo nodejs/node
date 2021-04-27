@@ -5138,9 +5138,6 @@ Subsequent reads will result in errors.
 A promise is returned that will be resolved after the resource has been
 closed.
 
-When using the async iterator, the {fs.Dir} object will be automatically
-closed after the iterator exits.
-
 #### `dir.close(callback)`
 <!-- YAML
 added: v12.12.0
