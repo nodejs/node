@@ -293,7 +293,7 @@ listed as supporting a later version.
     <td>v10.16.0</td>
     <td>v10.17.0</td>
     <td>v10.20.0</td>
-    <td></td>
+    <td>v10.23.0</td>
     <td></td>
   </tr>
   <tr>
