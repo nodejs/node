@@ -21,7 +21,7 @@ Last update:
 - html/webappapis/timers: https://github.com/web-platform-tests/wpt/tree/5873f2d8f1/html/webappapis/timers
 - interfaces: https://github.com/web-platform-tests/wpt/tree/79fa4cf76e/interfaces
 - resources: https://github.com/web-platform-tests/wpt/tree/972ca5b669/resources
-- url: https://github.com/web-platform-tests/wpt/tree/5eebfdb1f6/url
+- url: https://github.com/web-platform-tests/wpt/tree/1439087f27/url
 
 [Web Platform Tests]: https://github.com/web-platform-tests/wpt
 [`git node wpt`]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md#git-node-wpt
