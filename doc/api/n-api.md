@@ -310,7 +310,7 @@ listed as supporting a later version.
     <td>v12.11.0</td>
     <td>v12.17.0</td>
     <td>v12.19.0</td>
-    <td></td>
+    <td>v12.22.0</td>
   </tr>
   <tr>
     <th scope="row">v13.x</th>
