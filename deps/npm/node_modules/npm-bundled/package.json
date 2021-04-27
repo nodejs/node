@@ -1,6 +1,6 @@
 {
   "name": "npm-bundled",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "list things in node_modules that are bundledDependencies, or transitive dependencies thereof",
   "main": "index.js",
   "repository": {

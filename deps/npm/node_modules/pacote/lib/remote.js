@@ -8,6 +8,7 @@ const Minipass = require('minipass')
 // The default registry URL is a string of great magic.
 const magic = /^https?:\/\/registry\.npmjs\.org\//
 
+const _cacheFetches = Symbol.for('pacote.Fetcher._cacheFetches')
 const _headers = Symbol('_headers')
 class RemoteFetcher extends Fetcher {
   constructor (spec, opts) {
@@ -19,6 +20,12 @@ class RemoteFetcher extends Fetcher {
     // nam is a fermented pork sausage that is good to eat
     const nameat = this.spec.name ? `${this.spec.name}@` : ''
     this.pkgid = opts.pkgid ? opts.pkgid : `remote:${nameat}${this.resolved}`
+  }
+
+  // Don't need to cache tarball fetches in pacote, because make-fetch-happen
+  // will write into cacache anyway.
+  get [_cacheFetches] () {
+    return false
   }
 
   [_tarballFromResolved] () {

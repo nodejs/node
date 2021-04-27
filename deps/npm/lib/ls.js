@@ -166,7 +166,10 @@ class LS extends BaseCommand {
       )
     }
 
-    if (problems.size) {
+    const shouldThrow = problems.size &&
+      ![...problems].every(problem => problem.startsWith('extraneous:'))
+
+    if (shouldThrow) {
       throw Object.assign(
         new Error([...problems].join(EOL)),
         { code: 'ELSPROBLEMS' }
@@ -302,7 +305,7 @@ const getJsonOutputItem = (node, { global, long }) => {
   if (node.isRoot && hasPackageJson)
     item.name = node.package.name || node.name
 
-  if (long) {
+  if (long && !node[_missing]) {
     item.name = item[_name]
     const { dependencies, ...packageInfo } = node.package
     Object.assign(item, packageInfo)

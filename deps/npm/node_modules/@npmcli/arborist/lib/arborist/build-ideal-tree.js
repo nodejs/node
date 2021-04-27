@@ -1188,6 +1188,16 @@ This is a one-time fix-up, please be patient...
         }
       }
 
+      // There is something present already, and we're not happy about it
+      // See if the thing we WOULD be happy with is also going to satisfy
+      // the other dependents on the current node.
+      const current = edge.to
+      const dep = await this[_nodeFromEdge](edge, null, null, required)
+      if (dep.canReplace(current)) {
+        await this[_nodeFromEdge](edge, node.parent, null, required)
+        continue
+      }
+
       // at this point we know that there is a dep there, and
       // we don't like it.  always fail strictly, always allow forcibly or
       // in non-strict mode if it's not our fault.  don't warn here, because

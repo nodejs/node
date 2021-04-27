@@ -226,12 +226,6 @@ exports[`test/lib/ls.js TAP ls --parseable json read problems > should print emp
 {CWD}/tap-testdir-ls-ls---parseable-json-read-problems
 `
 
-exports[`test/lib/ls.js TAP ls --parseable missing package.json > should log all extraneous deps on error msg 1`] = `
-extraneous: bar@1.0.0 {CWD}/tap-testdir-ls-ls---parseable-missing-package.json/node_modules/bar
-extraneous: foo@1.0.0 {CWD}/tap-testdir-ls-ls---parseable-missing-package.json/node_modules/foo
-extraneous: lorem@1.0.0 {CWD}/tap-testdir-ls-ls---parseable-missing-package.json/node_modules/lorem
-`
-
 exports[`test/lib/ls.js TAP ls --parseable missing package.json > should output parseable missing name/version of top-level package 1`] = `
 {CWD}/tap-testdir-ls-ls---parseable-missing-package.json
 {CWD}/tap-testdir-ls-ls---parseable-missing-package.json/node_modules/bar
@@ -456,12 +450,6 @@ filter-by-child-of-missing-dep@1.0.0 {CWD}/tap-testdir-ls-ls-loading-a-tree-cont
 | \`-- c@1.0.0
 \`-- b@1.0.0 -> {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspaces/b
 
-`
-
-exports[`test/lib/ls.js TAP ls missing package.json > should log all extraneous deps on error msg 1`] = `
-extraneous: bar@1.0.0 {CWD}/tap-testdir-ls-ls-missing-package.json/node_modules/bar
-extraneous: foo@1.0.0 {CWD}/tap-testdir-ls-ls-missing-package.json/node_modules/foo
-extraneous: lorem@1.0.0 {CWD}/tap-testdir-ls-ls-missing-package.json/node_modules/lorem
 `
 
 exports[`test/lib/ls.js TAP ls missing package.json > should output tree missing name/version of top-level package 1`] = `

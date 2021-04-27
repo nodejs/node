@@ -12,6 +12,7 @@
 
 // run in debug mode if explicitly requested, running arborist tests,
 // or working in the arborist project directory.
+
 const debug = process.env.ARBORIST_DEBUG !== '0' && (
   process.env.ARBORIST_DEBUG === '1' ||
   /\barborist\b/.test(process.env.NODE_DEBUG || '') ||
@@ -21,4 +22,10 @@ const debug = process.env.ARBORIST_DEBUG !== '0' && (
 )
 
 module.exports = debug ? fn => fn() : () => {}
-module.exports.log = (...msg) => module.exports(() => console.error(...msg))
+const red = process.stderr.isTTY ? msg => `\x1B[31m${msg}\x1B[39m` : m => m
+module.exports.log = (...msg) => module.exports(() => {
+  const { format } = require('util')
+  const prefix = `\n${process.pid} ${red(format(msg.shift()))} `
+  msg = (prefix + format(...msg).trim().split('\n').join(prefix)).trim()
+  console.error(msg)
+})

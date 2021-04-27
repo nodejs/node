@@ -7,7 +7,7 @@ description: Add a registry user account
 ### Synopsis
 
 ```bash
-npm adduser [--registry=url] [--scope=@orgname] [--always-auth] [--auth-type=legacy]
+npm adduser [--registry=url] [--scope=@orgname] [--auth-type=legacy]
 
 aliases: login, add-user
 ```
@@ -57,23 +57,6 @@ npm adduser --registry=http://myregistry.example.com --scope=@myco
 
 This will set a registry for the given scope and login or create a user for
 that registry at the same time.
-
-#### always-auth
-
-Default: false
-
-If specified, save configuration indicating that all requests to the given
-registry should include authorization information. Useful for private
-registries. Can be used with `--registry` and / or `--scope`, e.g.
-
-```bash
-npm adduser --registry=http://private-registry.example.com --always-auth
-```
-
-This will ensure that all requests to that registry (including for tarballs)
-include an authorization header. This setting may be necessary for use with
-private registries where metadata and package tarballs are stored on hosts with
-different hostnames. See `always-auth` in [`config`](/using-npm/config) for more details on always-auth. Registry-specific configuration of `always-auth` takes precedence over any global configuration.
 
 #### auth-type
 

@@ -29,7 +29,7 @@ const logout = new Logout(npm)
 t.test('token logout', async (t) => {
   t.plan(6)
 
-  flatOptions.token = '@foo/'
+  flatOptions['//registry.npmjs.org/:_authToken'] = '@foo/'
 
   npmlog.verbose = (title, msg) => {
     t.equal(title, 'logout', 'should have correcct log prefix')
@@ -63,7 +63,7 @@ t.test('token logout', async (t) => {
           opts: {
             registry: 'https://registry.npmjs.org/',
             scope: '',
-            token: '@foo/',
+            '//registry.npmjs.org/:_authToken': '@foo/',
             method: 'DELETE',
             ignoreBody: true,
           },
@@ -87,7 +87,8 @@ t.test('token logout', async (t) => {
 t.test('token scoped logout', async (t) => {
   t.plan(8)
 
-  flatOptions.token = '@foo/'
+  flatOptions['//diff-registry.npmjs.com/:_authToken'] = '@bar/'
+  flatOptions['//registry.npmjs.org/:_authToken'] = '@foo/'
   config.scope = '@myscope'
   config['@myscope:registry'] = 'https://diff-registry.npmjs.com/'
   flatOptions.scope = '@myscope'
@@ -130,12 +131,13 @@ t.test('token scoped logout', async (t) => {
       t.same(
         result,
         {
-          url: '/-/user/token/%40foo%2F',
+          url: '/-/user/token/%40bar%2F',
           opts: {
             registry: 'https://registry.npmjs.org/',
             '@myscope:registry': 'https://diff-registry.npmjs.com/',
             scope: '@myscope',
-            token: '@foo/',
+            '//registry.npmjs.org/:_authToken': '@foo/', // <- removed by npm-registry-fetch
+            '//diff-registry.npmjs.com/:_authToken': '@bar/',
             method: 'DELETE',
             ignoreBody: true,
           },
@@ -144,8 +146,10 @@ t.test('token scoped logout', async (t) => {
       )
 
       config.scope = ''
+      delete flatOptions['//diff-registry.npmjs.com/:_authToken']
+      delete flatOptions['//registry.npmjs.org/:_authToken']
       delete config['@myscope:registry']
-      delete flatOptions.token
+      delete flatOptions.scope
       result = null
       mocks['npm-registry-fetch'] = null
       config.clearCredentialsByURI = null
@@ -161,11 +165,11 @@ t.test('token scoped logout', async (t) => {
 t.test('user/pass logout', async (t) => {
   t.plan(3)
 
-  flatOptions.username = 'foo'
-  flatOptions.password = 'bar'
+  flatOptions['//registry.npmjs.org/:username'] = 'foo'
+  flatOptions['//registry.npmjs.org/:_password'] = 'bar'
 
   npmlog.verbose = (title, msg) => {
-    t.equal(title, 'logout', 'should have correcct log prefix')
+    t.equal(title, 'logout', 'should have correct log prefix')
     t.equal(
       msg,
       'clearing user credentials for https://registry.npmjs.org/',
@@ -180,8 +184,8 @@ t.test('user/pass logout', async (t) => {
     logout.exec([], (err) => {
       t.error(err, 'should not error out')
 
-      delete flatOptions.username
-      delete flatOptions.password
+      delete flatOptions['//registry.npmjs.org/:username']
+      delete flatOptions['//registry.npmjs.org/:_password']
       npm.config.clearCredentialsByURI = null
       npm.config.save = null
       npmlog.verbose = null
@@ -206,7 +210,7 @@ t.test('missing credentials', (t) => {
 t.test('ignore invalid scoped registry config', async (t) => {
   t.plan(5)
 
-  flatOptions.token = '@foo/'
+  flatOptions['//registry.npmjs.org/:_authToken'] = '@foo/'
   config.scope = '@myscope'
   flatOptions['@myscope:registry'] = ''
 
@@ -239,10 +243,9 @@ t.test('ignore invalid scoped registry config', async (t) => {
         {
           url: '/-/user/token/%40foo%2F',
           opts: {
+            '//registry.npmjs.org/:_authToken': '@foo/',
             registry: 'https://registry.npmjs.org/',
-            scope: '@myscope',
             '@myscope:registry': '',
-            token: '@foo/',
             method: 'DELETE',
             ignoreBody: true,
           },

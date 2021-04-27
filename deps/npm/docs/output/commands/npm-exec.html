@@ -149,7 +149,7 @@ npm command-line interface
 npm exec --package=&lt;pkg&gt;[@&lt;version&gt;] -- &lt;cmd&gt; [args...]
 npm exec -c '&lt;cmd&gt; [args...]'
 npm exec --package=foo -c '&lt;cmd&gt; [args...]'
-npm exec [-ws] [-w &lt;workspace-name] [args...]
+npm exec [--ws] [-w &lt;workspace-name] [args...]
 
 npx &lt;pkg&gt;[@&lt;specifier&gt;] [args...]
 npx -p &lt;pkg&gt;[@&lt;specifier&gt;] &lt;cmd&gt; [args...]
@@ -276,7 +276,7 @@ at a time.</p>
 the configured workspaces when using the <code>workspaces</code> configuration options,
 in this example we’re using <strong>eslint</strong> to lint any js file found within each
 workspace folder:</p>
-<pre><code>npm exec -ws -- eslint ./*.js
+<pre><code>npm exec --ws -- eslint ./*.js
 </code></pre>
 <h4 id="filtering-workspaces">Filtering workspaces</h4>
 <p>It’s also possible to execute a command in a single workspace using the
@@ -348,7 +348,7 @@ children workspaces)</li>
 </ul>
 <h4 id="workspaces">workspaces</h4>
 <ul>
-<li>Alias: <code>-ws</code></li>
+<li>Alias: <code>--ws</code></li>
 <li>Type: Boolean</li>
 <li>Default: <code>false</code></li>
 </ul>
@@ -363,6 +363,7 @@ project.</p>
 <li><a href="../commands/npm-restart.html">npm restart</a></li>
 <li><a href="../commands/npm-stop.html">npm stop</a></li>
 <li><a href="../commands/npm-config.html">npm config</a></li>
+<li><a href="../using-npm/workspaces.html">npm workspaces</a></li>
 </ul>
 </div>
 

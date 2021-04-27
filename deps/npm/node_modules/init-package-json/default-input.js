@@ -12,7 +12,7 @@ function isTestPkg (p) {
 }
 
 function niceName (n) {
-  return n.replace(/^node-|[.-]js$/g, '').replace(' ', '-').toLowerCase()
+  return n.replace(/^node-|[.-]js$/g, '').replace(/\s+/g, ' ').replace(/ /g, '-').toLowerCase()
 }
 
 function readDeps (test, excluded) { return function (cb) {
@@ -45,7 +45,7 @@ function readDeps (test, excluded) { return function (cb) {
   })
 }}
 
-var name = package.name || basename
+var name = niceName(package.name || basename)
 var spec
 try {
   spec = npa(name)
@@ -61,7 +61,7 @@ if (scope) {
     name = scope + '/' + name
   }
 }
-exports.name =  yes ? name : prompt('package name', niceName(name), function (data) {
+exports.name =  yes ? name : prompt('package name', name, function (data) {
   var its = validateName(data)
   if (its.validForNewPackages) return data
   var errors = (its.errors || []).concat(its.warnings || [])

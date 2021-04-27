@@ -22,6 +22,7 @@ function packageName (href) {
 class HttpErrorBase extends Error {
   constructor (method, res, body, spec) {
     super()
+    this.name = this.constructor.name
     this.headers = res.headers.raw()
     this.statusCode = res.status
     this.code = `E${res.status}`

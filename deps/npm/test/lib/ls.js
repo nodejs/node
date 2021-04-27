@@ -149,11 +149,7 @@ t.test('ls', (t) => {
       ...simpleNmFixture,
     })
     ls.exec([], (err) => {
-      t.match(err.code, 'ELSPROBLEMS', 'should have ELSPROBLEMS error code')
-      t.matchSnapshot(
-        redactCwd(err.message),
-        'should log all extraneous deps on error msg'
-      )
+      t.error(err) // should not error for extraneous
       t.matchSnapshot(redactCwd(result), 'should output tree missing name/version of top-level package')
       t.end()
     })
@@ -171,12 +167,7 @@ t.test('ls', (t) => {
       ...simpleNmFixture,
     })
     ls.exec([], (err) => {
-      t.equal(err.code, 'ELSPROBLEMS', 'should have error code')
-      t.equal(
-        redactCwd(err.message),
-        'extraneous: lorem@1.0.0 {CWD}/tap-testdir-ls-ls-extraneous-deps/node_modules/lorem',
-        'should log extraneous dep as error'
-      )
+      t.error(err) // should not error for extraneous
       t.matchSnapshot(redactCwd(result), 'should output containing problems info')
       t.end()
     })
@@ -1410,7 +1401,7 @@ t.test('ls', (t) => {
     })
 
     ls.exec(['c'], (err) => {
-      t.match(err.code, 'ELSPROBLEMS', 'should have ELSPROBLEMS error code')
+      t.error(err) // should not error for extraneous
       t.matchSnapshot(redactCwd(result), 'should print tree and not duplicate child of missing items')
       t.end()
     })
@@ -1570,11 +1561,7 @@ t.test('ls --parseable', (t) => {
       ...simpleNmFixture,
     })
     ls.exec([], (err) => {
-      t.match(err.code, 'ELSPROBLEMS', 'should have ELSPROBLEMS error code')
-      t.matchSnapshot(
-        redactCwd(err.message),
-        'should log all extraneous deps on error msg'
-      )
+      t.error(err) // should not error for extraneous
       t.matchSnapshot(redactCwd(result), 'should output parseable missing name/version of top-level package')
       t.end()
     })
@@ -1592,7 +1579,7 @@ t.test('ls --parseable', (t) => {
       ...simpleNmFixture,
     })
     ls.exec([], (err) => {
-      t.equal(err.code, 'ELSPROBLEMS', 'should have error code')
+      t.error(err) // should not error for extraneous
       t.matchSnapshot(redactCwd(result), 'should output containing problems info')
       t.end()
     })
@@ -1973,8 +1960,7 @@ t.test('ls --parseable', (t) => {
       ...simpleNmFixture,
     })
     ls.exec([], (err) => {
-      t.equal(err.code, 'ELSPROBLEMS', 'should have error code')
-      t.match(redactCwd(err.message), 'extraneous: lorem@1.0.0 {CWD}/tap-testdir-ls-ls---parseable---long-with-extraneous-deps/node_modules/lorem', 'should have error code')
+      t.error(err) // should not error for extraneous
       t.matchSnapshot(redactCwd(result), 'should output long parseable output with extraneous info')
       t.end()
     })
@@ -2414,7 +2400,7 @@ t.test('ls --json', (t) => {
       ...simpleNmFixture,
     })
     ls.exec([], (err) => {
-      t.match(err, { code: 'ELSPROBLEMS' }, 'should list dep problems')
+      t.error(err) // should not error for extraneous
       t.same(
         jsonParse(result),
         {
@@ -2470,16 +2456,7 @@ t.test('ls --json', (t) => {
       ...simpleNmFixture,
     })
     ls.exec([], (err) => {
-      t.equal(
-        redactCwd(err.message),
-        'extraneous: lorem@1.0.0 {CWD}/tap-testdir-ls-ls---json-extraneous-deps/node_modules/lorem',
-        'should log extraneous dep as error'
-      )
-      t.equal(
-        err.code,
-        'ELSPROBLEMS',
-        'should have ELSPROBLEMS error code'
-      )
+      t.error(err) // should not error for extraneous
       t.same(
         jsonParse(result),
         {
@@ -2508,6 +2485,48 @@ t.test('ls --json', (t) => {
         },
         'should output json containing problems info'
       )
+      t.end()
+    })
+  })
+
+  t.test('missing deps --long', (t) => {
+    config.long = true
+    npm.prefix = t.testdir({
+      'package.json': JSON.stringify({
+        name: 'test-npm-ls',
+        version: '1.0.0',
+        dependencies: {
+          foo: '^1.0.0',
+          bar: '^1.0.0',
+          lorem: '^1.0.0',
+          ipsum: '^1.0.0',
+        },
+      }),
+      ...simpleNmFixture,
+    })
+    ls.exec([], (err) => {
+      t.equal(
+        redactCwd(err.message),
+        'missing: ipsum@^1.0.0, required by test-npm-ls@1.0.0',
+        'should log missing dep as error'
+      )
+      t.equal(
+        err.code,
+        'ELSPROBLEMS',
+        'should have ELSPROBLEMS error code'
+      )
+      t.match(
+        jsonParse(result),
+        {
+          name: 'test-npm-ls',
+          version: '1.0.0',
+          problems: [
+            'missing: ipsum@^1.0.0, required by test-npm-ls@1.0.0',
+          ],
+        },
+        'should output json containing problems info'
+      )
+      config.long = false
       t.end()
     })
   })

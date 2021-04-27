@@ -1,3 +1,5 @@
+const fs = require('fs')
+const { resolve } = require('path')
 const t = require('tap')
 const mockNpm = require('../fixtures/mock-npm')
 
@@ -12,121 +14,195 @@ const npmLog = {
 }
 const config = {
   'init-module': '~/.npm-init.js',
+  yes: true,
 }
 const npm = mockNpm({
   config,
   log: npmLog,
-  commands: {},
   output: (...msg) => {
     result += msg.join('\n')
   },
 })
 const mocks = {
-  'init-package-json': (dir, initFile, config, cb) => cb(null, 'data'),
   '../../lib/utils/usage.js': () => 'usage instructions',
 }
 const Init = t.mock('../../lib/init.js', mocks)
 const init = new Init(npm)
+const _cwd = process.cwd()
+const _consolelog = console.log
+const noop = () => {}
 
 t.afterEach(() => {
   result = ''
+  config.yes = true
   config.package = undefined
-  npm.commands = {}
   npm.log = npmLog
+  process.chdir(_cwd)
+  console.log = _consolelog
 })
 
-t.test('classic npm init no args', t => {
+t.test('classic npm init -y', t => {
+  npm.localPrefix = t.testdir({})
+
+  // init-package-json prints directly to console.log
+  // this avoids poluting test output with those logs
+  console.log = noop
+
+  process.chdir(npm.localPrefix)
   init.exec([], err => {
-    t.error(err, 'npm init no args')
-    t.matchSnapshot(result, 'should print helper info')
+    if (err)
+      throw err
+
+    const pkg = require(resolve(npm.localPrefix, 'package.json'))
+    t.equal(pkg.version, '1.0.0')
+    t.equal(pkg.license, 'ISC')
     t.end()
   })
 })
 
-t.test('classic npm init -y', t => {
-  t.plan(7)
-  config.yes = true
-  Object.defineProperty(npm, 'flatOptions', { value: { yes: true} })
-  npm.log = { ...npm.log }
-  npm.log.silly = (title, msg) => {
-    t.equal(title, 'package data', 'should print title')
-    t.equal(msg, 'data', 'should print pkg data info')
-  }
-  npm.log.resume = () => {
-    t.ok('should resume logs')
-  }
-  npm.log.info = (title, msg) => {
-    t.equal(title, 'init', 'should print title')
-    t.equal(msg, 'written successfully', 'should print done info')
-  }
+t.test('classic interactive npm init', t => {
+  npm.localPrefix = t.testdir({})
+  config.yes = undefined
+
+  const Init = t.mock('../../lib/init.js', {
+    ...mocks,
+    'init-package-json': (path, initFile, config, cb) => {
+      t.equal(
+        path,
+        resolve(npm.localPrefix),
+        'should start init package.json in expected path'
+      )
+      cb()
+    },
+  })
+  const init = new Init(npm)
+
+  process.chdir(npm.localPrefix)
   init.exec([], err => {
-    t.error(err, 'npm init -y')
-    t.equal(result, '')
+    if (err)
+      throw err
+
+    t.end()
   })
 })
 
 t.test('npm init <arg>', t => {
-  t.plan(3)
-  npm.commands.exec = (arr, cb) => {
-    t.same(config.package, [], 'should set empty array value')
-    t.same(
-      arr,
-      ['create-react-app'],
-      'should npx with listed packages'
-    )
-    cb()
-  }
+  t.plan(1)
+  npm.localPrefix = t.testdir({})
+
+  const Init = t.mock('../../lib/init.js', {
+    libnpmexec: ({ args }) => {
+      t.same(
+        args,
+        ['create-react-app'],
+        'should npx with listed packages'
+      )
+    },
+  })
+  const init = new Init(npm)
+
+  process.chdir(npm.localPrefix)
   init.exec(['react-app'], err => {
-    t.error(err, 'npm init react-app')
+    if (err)
+      throw err
   })
 })
 
+t.test('npm init <arg> -- other-args', t => {
+  t.plan(1)
+  npm.localPrefix = t.testdir({})
+
+  const Init = t.mock('../../lib/init.js', {
+    libnpmexec: ({ args }) => {
+      t.same(
+        args,
+        ['create-react-app', 'my-path', '--some-option', 'some-value'],
+        'should npm exec with expected args'
+      )
+    },
+  })
+  const init = new Init(npm)
+
+  process.chdir(npm.localPrefix)
+  init.exec(
+    ['react-app', 'my-path', '--some-option', 'some-value'],
+    err => {
+      if (err)
+        throw err
+    }
+  )
+})
+
 t.test('npm init @scope/name', t => {
-  t.plan(2)
-  npm.commands.exec = (arr, cb) => {
-    t.same(
-      arr,
-      ['@npmcli/create-something'],
-      'should npx with scoped packages'
-    )
-    cb()
-  }
+  t.plan(1)
+  npm.localPrefix = t.testdir({})
+
+  const Init = t.mock('../../lib/init.js', {
+    libnpmexec: ({ args }) => {
+      t.same(
+        args,
+        ['@npmcli/create-something'],
+        'should npx with scoped packages'
+      )
+    },
+  })
+  const init = new Init(npm)
+
+  process.chdir(npm.localPrefix)
   init.exec(['@npmcli/something'], err => {
-    t.error(err, 'npm init init @scope/name')
+    if (err)
+      throw err
   })
 })
 
 t.test('npm init git spec', t => {
-  t.plan(2)
-  npm.commands.exec = (arr, cb) => {
-    t.same(
-      arr,
-      ['npm/create-something'],
-      'should npx with git-spec packages'
-    )
-    cb()
-  }
+  t.plan(1)
+  npm.localPrefix = t.testdir({})
+
+  const Init = t.mock('../../lib/init.js', {
+    libnpmexec: ({ args }) => {
+      t.same(
+        args,
+        ['npm/create-something'],
+        'should npx with git-spec packages'
+      )
+    },
+  })
+  const init = new Init(npm)
+
+  process.chdir(npm.localPrefix)
   init.exec(['npm/something'], err => {
-    t.error(err, 'npm init init @scope/name')
+    if (err)
+      throw err
   })
 })
 
 t.test('npm init @scope', t => {
-  t.plan(2)
-  npm.commands.exec = (arr, cb) => {
-    t.same(
-      arr,
-      ['@npmcli/create'],
-      'should npx with @scope/create pkgs'
-    )
-    cb()
-  }
+  t.plan(1)
+  npm.localPrefix = t.testdir({})
+
+  const Init = t.mock('../../lib/init.js', {
+    libnpmexec: ({ args }) => {
+      t.same(
+        args,
+        ['@npmcli/create'],
+        'should npx with @scope/create pkgs'
+      )
+    },
+  })
+  const init = new Init(npm)
+
+  process.chdir(npm.localPrefix)
   init.exec(['@npmcli'], err => {
-    t.error(err, 'npm init init @scope/create')
+    if (err)
+      throw err
   })
 })
 
 t.test('npm init tgz', t => {
+  npm.localPrefix = t.testdir({})
+
+  process.chdir(npm.localPrefix)
   init.exec(['something.tgz'], err => {
     t.match(
       err,
@@ -138,24 +214,38 @@ t.test('npm init tgz', t => {
 })
 
 t.test('npm init <arg>@next', t => {
-  t.plan(2)
-  npm.commands.exec = (arr, cb) => {
-    t.same(
-      arr,
-      ['create-something@next'],
-      'should npx with something@next'
-    )
-    cb()
-  }
+  t.plan(1)
+  npm.localPrefix = t.testdir({})
+
+  const Init = t.mock('../../lib/init.js', {
+    libnpmexec: ({ args }) => {
+      t.same(
+        args,
+        ['create-something@next'],
+        'should npx with something@next'
+      )
+    },
+  })
+  const init = new Init(npm)
+
+  process.chdir(npm.localPrefix)
   init.exec(['something@next'], err => {
-    t.error(err, 'npm init init something@next')
+    if (err)
+      throw err
   })
 })
 
 t.test('npm init exec error', t => {
-  npm.commands.exec = (arr, cb) => {
-    cb(new Error('ERROR'))
-  }
+  npm.localPrefix = t.testdir({})
+
+  const Init = t.mock('../../lib/init.js', {
+    libnpmexec: async ({ args }) => {
+      throw new Error('ERROR')
+    },
+  })
+  const init = new Init(npm)
+
+  process.chdir(npm.localPrefix)
   init.exec(['something@next'], err => {
     t.match(
       err,
@@ -167,23 +257,31 @@ t.test('npm init exec error', t => {
 })
 
 t.test('should not rewrite flatOptions', t => {
-  t.plan(3)
-  npm.commands.exec = (arr, cb) => {
-    t.same(config.package, [], 'should set empty array value')
-    t.same(
-      arr,
-      ['create-react-app', 'my-app'],
-      'should npx with extra args'
-    )
-    cb()
-  }
+  t.plan(1)
+  npm.localPrefix = t.testdir({})
+
+  const Init = t.mock('../../lib/init.js', {
+    libnpmexec: async ({ args }) => {
+      t.same(
+        args,
+        ['create-react-app', 'my-app'],
+        'should npx with extra args'
+      )
+    },
+  })
+  const init = new Init(npm)
+
+  process.chdir(npm.localPrefix)
   init.exec(['react-app', 'my-app'], err => {
-    t.error(err, 'npm init react-app')
+    if (err)
+      throw err
   })
 })
 
 t.test('npm init cancel', t => {
-  t.plan(3)
+  t.plan(2)
+  npm.localPrefix = t.testdir({})
+
   const Init = t.mock('../../lib/init.js', {
     ...mocks,
     'init-package-json': (dir, initFile, config, cb) => cb(
@@ -196,12 +294,17 @@ t.test('npm init cancel', t => {
     t.equal(title, 'init', 'should have init title')
     t.equal(msg, 'canceled', 'should log canceled')
   }
+
+  process.chdir(npm.localPrefix)
   init.exec([], err => {
-    t.error(err, 'npm init cancel')
+    if (err)
+      throw err
   })
 })
 
 t.test('npm init error', t => {
+  npm.localPrefix = t.testdir({})
+
   const Init = t.mock('../../lib/init.js', {
     ...mocks,
     'init-package-json': (dir, initFile, config, cb) => cb(
@@ -209,8 +312,204 @@ t.test('npm init error', t => {
     ),
   })
   const init = new Init(npm)
+
+  process.chdir(npm.localPrefix)
   init.exec([], err => {
     t.match(err, /Unknown Error/, 'should throw error')
     t.end()
   })
+})
+
+t.test('workspaces', t => {
+  t.test('no args', t => {
+    npm.localPrefix = t.testdir({
+      'package.json': JSON.stringify({
+        name: 'top-level',
+      }),
+    })
+
+    const Init = t.mock('../../lib/init.js', {
+      ...mocks,
+      'init-package-json': (dir, initFile, config, cb) => {
+        t.equal(dir, resolve(npm.localPrefix, 'a'), 'should use the ws path')
+        cb()
+      },
+    })
+    const init = new Init(npm)
+    init.execWorkspaces([], ['a'], err => {
+      if (err)
+        throw err
+
+      t.matchSnapshot(result, 'should print helper info')
+      t.end()
+    })
+  })
+
+  t.test('no args, existing folder', t => {
+    // init-package-json prints directly to console.log
+    // this avoids poluting test output with those logs
+    console.log = noop
+
+    npm.localPrefix = t.testdir({
+      packages: {
+        a: {
+          'package.json': JSON.stringify({
+            name: 'a',
+            version: '1.0.0',
+          }),
+        },
+      },
+      'package.json': JSON.stringify({
+        name: 'top-level',
+        workspaces: ['packages/a'],
+      }),
+    })
+
+    init.execWorkspaces([], ['packages/a'], err => {
+      if (err)
+        throw err
+
+      t.matchSnapshot(result, 'should print helper info')
+      t.end()
+    })
+  })
+
+  t.test('with arg but missing workspace folder', t => {
+    // init-package-json prints directly to console.log
+    // this avoids poluting test output with those logs
+    console.log = noop
+
+    npm.localPrefix = t.testdir({
+      node_modules: {
+        a: t.fixture('symlink', '../a'),
+        'create-index': {
+          'index.js': ``,
+        },
+      },
+      a: {
+        'package.json': JSON.stringify({
+          name: 'a',
+          version: '1.0.0',
+        }),
+      },
+      'package.json': JSON.stringify({
+        name: 'top-level',
+      }),
+    })
+
+    init.execWorkspaces([], ['packages/a'], err => {
+      if (err)
+        throw err
+
+      t.matchSnapshot(result, 'should print helper info')
+      t.end()
+    })
+  })
+
+  t.test('fail parsing top-level package.json to set workspace', t => {
+    // init-package-json prints directly to console.log
+    // this avoids poluting test output with those logs
+    console.log = noop
+
+    npm.localPrefix = t.testdir({
+      'package.json': JSON.stringify({
+        name: 'top-level',
+      }),
+    })
+
+    const Init = t.mock('../../lib/init.js', {
+      ...mocks,
+      'json-parse-even-better-errors': () => {
+        throw new Error('ERR')
+      },
+    })
+    const init = new Init(npm)
+
+    init.execWorkspaces([], ['a'], err => {
+      t.match(
+        err,
+        /Invalid package.json: Error: ERR/,
+        'should exit with error'
+      )
+      t.end()
+    })
+  })
+
+  t.test('missing top-level package.json when settting workspace', t => {
+    // init-package-json prints directly to console.log
+    // this avoids poluting test output with those logs
+    console.log = noop
+
+    npm.localPrefix = t.testdir({
+      'package.json': JSON.stringify({
+        name: 'top-level',
+      }),
+    })
+
+    const Init = t.mock('../../lib/init.js', {
+      ...mocks,
+      fs: {
+        statSync () {
+          return true
+        },
+        readFileSync () {
+          throw new Error('ERR')
+        },
+      },
+    })
+    const init = new Init(npm)
+
+    init.execWorkspaces([], ['a'], err => {
+      t.match(
+        err,
+        /package.json not found/,
+        'should exit with error'
+      )
+      t.end()
+    })
+  })
+
+  t.test('using args', t => {
+    npm.localPrefix = t.testdir({
+      b: {
+        'package.json': JSON.stringify({
+          name: 'b',
+        }),
+      },
+      'package.json': JSON.stringify({
+        name: 'top-level',
+        workspaces: ['b'],
+      }),
+    })
+
+    const Init = t.mock('../../lib/init.js', {
+      ...mocks,
+      libnpmexec: ({ args, path }) => {
+        t.same(
+          args,
+          ['create-react-app'],
+          'should npx with listed packages'
+        )
+        t.same(
+          path,
+          resolve(npm.localPrefix, 'a'),
+          'should use workspace path'
+        )
+        fs.writeFileSync(
+          resolve(npm.localPrefix, 'a/package.json'),
+          JSON.stringify({ name: 'a' })
+        )
+      },
+    })
+
+    const init = new Init(npm)
+    init.execWorkspaces(['react-app'], ['a'], err => {
+      if (err)
+        throw err
+
+      t.end()
+    })
+  })
+
+  t.end()
 })
