@@ -368,6 +368,24 @@ changes:
     {fs.Stats} object should be `bigint`. **Default:** `false`.
 * Returns: {Promise} Fulfills with an {fs.Stats} for the file.
 
+#### `filehandle.stream(dst, [options])`
+<!-- YAML
+added: REPLACEME
+-->
+* dst {stream.Writable} Option
+* `options` {Object}
+  * `start` {integer} Optional, the position where stream starts from.
+    **Default:** `0`
+  * `end` {integer} Optional, the position where stream ends.
+    If it isn't provided. Stream will terminate at the EOF.
+  * `signal` {AbortSignal} Optional, signal of `AbortController`
+
+Push all contents of the file designated by `filehandle` to a writable
+stream `dst`.
+
+It is similar to `stream.pipe`, but it has better performance than
+`stream.pipe` on piping file.
+
 #### `filehandle.sync()`
 <!-- YAML
 added: v10.0.0
