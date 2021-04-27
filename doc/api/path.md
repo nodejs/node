@@ -203,7 +203,7 @@ A [`TypeError`][] is thrown if `path` is not a string.
 added: v0.11.15
 -->
 
-* `pathObject` {Object}
+* `pathObject` {Object} Any JavaScript object having the following properties:
   * `dir` {string}
   * `root` {string}
   * `base` {string}
