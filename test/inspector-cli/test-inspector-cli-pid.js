@@ -40,16 +40,7 @@ function launchTarget(...args) {
     })
     .then(() => cli.command('sb("alive.js", 3)'))
     .then(() => cli.waitFor(/break/))
-    // TODO: There is a known issue on AIX and some other operating systems
-    // where the breakpoints aren't properly resolved yet when we reach this
-    // point. Eventually that should be figured out but for now we don't
-    // want to fail builds because of it.
-    // What it should be:
-    //
-    // .then(() => cli.waitForPrompt())
-    //
-    // What we're diong for now:
-    .then(() => cli.waitFor(/>\s+(?:\n1 breakpoints restored\.)?$/))
+    .then(() => cli.waitForPrompt())
     .then(() => {
       assert.match(
         cli.output,

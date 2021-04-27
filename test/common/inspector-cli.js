@@ -23,7 +23,10 @@ function startCLI(args, flags = [], spawnOpts = {}) {
     if (this === child.stderr) {
       stderrOutput += chunk;
     }
-    outputBuffer.push(chunk);
+    // TODO(trott): Figure out why the "breakpoints restored." message appears
+    // in unpredictable places especially on AIX in CI. We shouldn't be
+    // excluding it, but it gets in the way of the output checking for tests.
+    outputBuffer.push(chunk.replace(/\n*\d+ breakpoints restored\.\n*/mg, ''));
   }
 
   function getOutput() {
