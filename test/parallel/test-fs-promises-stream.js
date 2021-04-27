@@ -42,12 +42,10 @@ async function testStreamWithStart() {
   assert.deepStrictEqual(
     destContent.toString().length,
     content.slice(1).length,
-    'length of copied text is not match with the origin'
   );
   assert.deepStrictEqual(
     destContent.toString(),
     content.slice(1),
-    'content of copied text is not match with the origin'
   );
 }
 
@@ -61,12 +59,10 @@ async function testStreamWithEnd() {
   assert.deepStrictEqual(
     destContent.toString().length,
     content.slice(0, 1).length,
-    'length of copied text is not match with the origin'
   );
   assert.deepStrictEqual(
     destContent.toString(),
     content.slice(0, 1),
-    'content of copied text is not match with the origin'
   );
 }
 
@@ -80,12 +76,10 @@ async function testStreamWithStartAndEnd() {
   assert.deepStrictEqual(
     destContent.toString().length,
     content.slice(1, 5).length,
-    'length of copied text is not match with the origin'
   );
   assert.deepStrictEqual(
     destContent.toString(),
     content.slice(1, 5),
-    'content of copied text is not match with the origin'
   );
 }
 
