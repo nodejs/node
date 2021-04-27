@@ -905,6 +905,9 @@ try {
 }
 ```
 
+When using the async iterator, the {fs.Dir} object will be automatically
+closed after the iterator exits.
+
 ### `fsPromises.readdir(path[, options])`
 <!-- YAML
 added: v10.0.0
@@ -5075,6 +5078,9 @@ try {
   console.error(err);
 }
 ```
+
+When using the async iterator, the {fs.Dir} object will be automatically
+closed after the iterator exits.
 
 #### `dir.close()`
 <!-- YAML
