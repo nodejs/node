@@ -191,6 +191,10 @@
       'dependencies': [ 'deps/brotli/brotli.gyp:brotli' ],
     }],
 
+    [ 'node_shared_modp_b64=="false"', {
+      'dependencies': [ 'deps/modp_b64/modp_b64.gyp:modp_b64' ],
+    }],
+
     [ 'OS=="mac"', {
       # linking Corefoundation is needed since certain OSX debugging tools
       # like Instruments require it for some features
