@@ -213,7 +213,8 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     const publicKey = { key: publicKeyDER, ...publicKeyEncoding };
     const expectedError = common.hasOpenSSL3 ? {
       name: 'Error',
-      message: 'Failed to read private key'
+      message: 'error:07880109:common libcrypto routines::interrupted or ' +
+               'cancelled'
     } : {
       name: 'TypeError',
       code: 'ERR_MISSING_PASSPHRASE',
@@ -477,7 +478,8 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     // Since the private key is encrypted, signing shouldn't work anymore.
     assert.throws(() => testSignVerify(publicKey, privateKey),
                   common.hasOpenSSL3 ? {
-                    message: 'Failed to read private key'
+                    message: 'error:07880109:common libcrypto ' +
+                             'routines::interrupted or cancelled'
                   } : {
                     name: 'TypeError',
                     code: 'ERR_MISSING_PASSPHRASE',
@@ -510,7 +512,8 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     // Since the private key is encrypted, signing shouldn't work anymore.
     assert.throws(() => testSignVerify(publicKey, privateKey),
                   common.hasOpenSSL3 ? {
-                    message: 'Failed to read private key'
+                    message: 'error:07880109:common libcrypto ' +
+                             'routines::interrupted or cancelled'
                   } : {
                     name: 'TypeError',
                     code: 'ERR_MISSING_PASSPHRASE',
@@ -546,7 +549,8 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     // Since the private key is encrypted, signing shouldn't work anymore.
     assert.throws(() => testSignVerify(publicKey, privateKey),
                   common.hasOpenSSL3 ? {
-                    message: 'Failed to read private key'
+                    message: 'error:07880109:common libcrypto ' +
+                    'routines::interrupted or cancelled'
                   } : {
                     name: 'TypeError',
                     code: 'ERR_MISSING_PASSPHRASE',
@@ -583,7 +587,8 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     // Since the private key is encrypted, signing shouldn't work anymore.
     assert.throws(() => testSignVerify(publicKey, privateKey),
                   common.hasOpenSSL3 ? {
-                    message: 'Failed to read private key'
+                    message: 'error:07880109:common libcrypto ' +
+                    'routines::interrupted or cancelled'
                   } : {
                     name: 'TypeError',
                     code: 'ERR_MISSING_PASSPHRASE',

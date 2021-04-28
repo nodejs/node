@@ -44,9 +44,7 @@ const keySize = 2048;
       `-----BEGIN RSA PRIVATE KEY-----
       AAAAAAAAAAAA
       -----END RSA PRIVATE KEY-----`);
-  }, { message: common.hasOpenSSL3 ?
-    'Failed to read private key' :
-    'bye, bye, library' });
+  }, { message: 'bye, bye, library' });
 
   delete Object.prototype.library;
 

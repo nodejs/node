@@ -37,10 +37,11 @@ const openssl1DecryptError = {
 };
 
 const decryptError = common.hasOpenSSL3 ?
-  { message: 'Failed to read asymmetric key' } : openssl1DecryptError;
+  { message: 'error:1C800064:Provider routines::bad decrypt' } :
+  openssl1DecryptError;
 
 const decryptPrivateKeyError = common.hasOpenSSL3 ? {
-  message: 'Failed to read private key',
+  message: 'error:1C800064:Provider routines::bad decrypt',
 } : openssl1DecryptError;
 
 function getBufferCopy(buf) {
