@@ -493,8 +493,6 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5690
   'language/expressions/call/eval-spread': [FAIL],
-  'language/expressions/call/eval-spread-empty-leading': [FAIL],
-  'language/expressions/call/eval-spread-empty-trailing': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7472
   'intl402/NumberFormat/currency-digits': [FAIL],

@@ -1186,6 +1186,7 @@ class ParserBase {
   BlockT ParseClassStaticBlock(ClassInfo* class_info);
   ObjectLiteralPropertyT ParseObjectPropertyDefinition(
       ParsePropertyInfo* prop_info, bool* has_seen_proto);
+  // TODO(syg): Remove has_spread once SpreadCallNew is removed.
   void ParseArguments(
       ExpressionListT* args, bool* has_spread,
       ParsingArrowHeadFlag maybe_arrow = kCertainlyNotArrowHead);
@@ -3392,11 +3393,7 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
       return result;
     }
 
-    if (has_spread) {
-      result = impl()->SpreadCall(result, args, pos, Call::NOT_EVAL, false);
-    } else {
-      result = factory()->NewCall(result, args, pos, Call::NOT_EVAL);
-    }
+    result = factory()->NewCall(result, args, pos, has_spread);
 
     maybe_arrow.ValidateExpression();
 
@@ -3490,13 +3487,8 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
         Call::PossiblyEval is_possibly_eval =
             CheckPossibleEvalCall(result, is_optional, scope());
 
-        if (has_spread) {
-          result = impl()->SpreadCall(result, args, pos, is_possibly_eval,
-                                      is_optional);
-        } else {
-          result = factory()->NewCall(result, args, pos, is_possibly_eval,
-                                      is_optional);
-        }
+        result = factory()->NewCall(result, args, pos, has_spread,
+                                    is_possibly_eval, is_optional);
 
         fni_.RemoveLastFunction();
         break;
