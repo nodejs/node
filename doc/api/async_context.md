@@ -5,7 +5,7 @@
 <!-- source_link=lib/async_hooks.js -->
 
 ## Introduction
-These classes are used to create asynchronous state within callbacks and promise
+These classes are used to associate state and propagate it throughout callbacks and promise
 chains. They allow storing data throughout the lifetime of a web request
 or any other asynchronous duration. It is similar to thread-local storage
 in other languages.
