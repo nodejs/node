@@ -69,7 +69,8 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
 
         args.Add(spread_args);
         Expression* super_call_ref = NewSuperCallReference(pos);
-        call = factory()->NewCall(super_call_ref, args, pos);
+        constexpr bool has_spread = true;
+        call = factory()->NewCall(super_call_ref, args, pos, has_spread);
       }
       body.Add(factory()->NewReturnStatement(call, pos));
     }
@@ -3371,47 +3372,10 @@ ArrayLiteral* Parser::ArrayLiteralFromListWithSpread(
   return factory()->NewArrayLiteral(list, first_spread, kNoSourcePosition);
 }
 
-Expression* Parser::SpreadCall(Expression* function,
-                               const ScopedPtrList<Expression>& args_list,
-                               int pos, Call::PossiblyEval is_possibly_eval,
-                               bool optional_chain) {
-  // Handle this case in BytecodeGenerator.
-  if (OnlyLastArgIsSpread(args_list) || function->IsSuperCallReference()) {
-    return factory()->NewCall(function, args_list, pos, Call::NOT_EVAL,
-                              optional_chain);
-  }
-
-  ScopedPtrList<Expression> args(pointer_buffer());
-  if (function->IsProperty()) {
-    // Method calls
-    if (function->AsProperty()->IsSuperAccess()) {
-      Expression* home = ThisExpression();
-      args.Add(function);
-      args.Add(home);
-    } else {
-      Variable* temp = NewTemporary(ast_value_factory()->empty_string());
-      VariableProxy* obj = factory()->NewVariableProxy(temp);
-      Assignment* assign_obj = factory()->NewAssignment(
-          Token::ASSIGN, obj, function->AsProperty()->obj(), kNoSourcePosition);
-      function =
-          factory()->NewProperty(assign_obj, function->AsProperty()->key(),
-                                 kNoSourcePosition, optional_chain);
-      args.Add(function);
-      obj = factory()->NewVariableProxy(temp);
-      args.Add(obj);
-    }
-  } else {
-    // Non-method calls
-    args.Add(function);
-    args.Add(factory()->NewUndefinedLiteral(kNoSourcePosition));
-  }
-  args.Add(ArrayLiteralFromListWithSpread(args_list));
-  return factory()->NewCallRuntime(Context::REFLECT_APPLY_INDEX, args, pos);
-}
-
 Expression* Parser::SpreadCallNew(Expression* function,
                                   const ScopedPtrList<Expression>& args_list,
                                   int pos) {
+  // TODO(syg): Handle all spread cases in BytecodeGenerator.
   if (OnlyLastArgIsSpread(args_list)) {
     // Handle in BytecodeGenerator.
     return factory()->NewCallNew(function, args_list, pos);

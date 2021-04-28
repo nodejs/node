@@ -645,6 +645,7 @@ class PreParserFactory {
   }
   PreParserExpression NewCall(PreParserExpression expression,
                               const PreParserExpressionList& arguments, int pos,
+                              bool has_spread,
                               Call::PossiblyEval possibly_eval = Call::NOT_EVAL,
                               bool optional_chain = false) {
     if (possibly_eval == Call::IS_POSSIBLY_EVAL) {
@@ -1049,11 +1050,6 @@ class PreParser : public ParserBase<PreParser> {
   }
   V8_INLINE void SetAsmModule() {}
 
-  V8_INLINE PreParserExpression SpreadCall(const PreParserExpression& function,
-                                           const PreParserExpressionList& args,
-                                           int pos,
-                                           Call::PossiblyEval possibly_eval,
-                                           bool optional_chain);
   V8_INLINE PreParserExpression
   SpreadCallNew(const PreParserExpression& function,
                 const PreParserExpressionList& args, int pos);
@@ -1681,14 +1677,6 @@ class PreParser : public ParserBase<PreParser> {
   PreparseDataBuilder* preparse_data_builder_;
   std::vector<void*> preparse_data_builder_buffer_;
 };
-
-PreParserExpression PreParser::SpreadCall(const PreParserExpression& function,
-                                          const PreParserExpressionList& args,
-                                          int pos,
-                                          Call::PossiblyEval possibly_eval,
-                                          bool optional_chain) {
-  return factory()->NewCall(function, args, pos, possibly_eval, optional_chain);
-}
 
 PreParserExpression PreParser::SpreadCallNew(
     const PreParserExpression& function, const PreParserExpressionList& args,
