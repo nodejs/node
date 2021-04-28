@@ -27,25 +27,25 @@
 #include "node_external_reference.h"
 #include "node_internals.h"
 
+#include "base64-inl.h"
 #include "env-inl.h"
 #include "string_bytes.h"
 #include "string_search.h"
 #include "util-inl.h"
 #include "v8.h"
-#include "modp_b64.h"
 
-#include <cstring>
 #include <climits>
+#include <cstring>
 
-#define THROW_AND_RETURN_UNLESS_BUFFER(env, obj)                            \
-  THROW_AND_RETURN_IF_NOT_BUFFER(env, obj, "argument")                      \
+#define THROW_AND_RETURN_UNLESS_BUFFER(env, obj)                               \
+  THROW_AND_RETURN_IF_NOT_BUFFER(env, obj, "argument")
 
-#define THROW_AND_RETURN_IF_OOB(r)                                          \
-  do {                                                                      \
-    if ((r).IsNothing()) return;                                            \
-    if (!(r).FromJust())                                                    \
-      return node::THROW_ERR_OUT_OF_RANGE(env, "Index out of range");       \
-  } while (0)                                                               \
+#define THROW_AND_RETURN_IF_OOB(r)                                             \
+  do {                                                                         \
+    if ((r).IsNothing()) return;                                               \
+    if (!(r).FromJust())                                                       \
+      return node::THROW_ERR_OUT_OF_RANGE(env, "Index out of range");          \
+  } while (0)
 
 namespace node {
 namespace Buffer {
@@ -104,21 +104,22 @@ class CallbackInfo {
   Environment* const env_;
 };
 
-
-Local<ArrayBuffer> CallbackInfo::CreateTrackedArrayBuffer(
-    Environment* env,
-    char* data,
-    size_t length,
-    FreeCallback callback,
-    void* hint) {
+Local<ArrayBuffer> CallbackInfo::CreateTrackedArrayBuffer(Environment* env,
+                                                          char* data,
+                                                          size_t length,
+                                                          FreeCallback callback,
+                                                          void* hint) {
   CHECK_NOT_NULL(callback);
   CHECK_IMPLIES(data == nullptr, length == 0);
 
   CallbackInfo* self = new CallbackInfo(env, callback, data, hint);
-  std::unique_ptr<BackingStore> bs =
-      ArrayBuffer::NewBackingStore(data, length, [](void*, size_t, void* arg) {
+  std::unique_ptr<BackingStore> bs = ArrayBuffer::NewBackingStore(
+      data,
+      length,
+      [](void*, size_t, void* arg) {
         static_cast<CallbackInfo*>(arg)->OnBackingStoreFree();
-      }, self);
+      },
+      self);
   Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(bs));
 
   // V8 simply ignores the BackingStore deleter callback if data == nullptr,
@@ -135,15 +136,11 @@ Local<ArrayBuffer> CallbackInfo::CreateTrackedArrayBuffer(
   return ab;
 }
 
-
 CallbackInfo::CallbackInfo(Environment* env,
                            FreeCallback callback,
                            char* data,
                            void* hint)
-    : callback_(callback),
-      data_(data),
-      hint_(hint),
-      env_(env) {
+    : callback_(callback), data_(data), hint_(hint), env_(env) {
   env->AddCleanupHook(CleanupHook, this);
   env->isolate()->AdjustAmountOfExternalAllocatedMemory(sizeof(*this));
 }
@@ -184,7 +181,7 @@ void CallbackInfo::CallAndResetCallback() {
 
 void CallbackInfo::OnBackingStoreFree() {
   // This method should always release the memory for `this`.
-  std::unique_ptr<CallbackInfo> self { this };
+  std::unique_ptr<CallbackInfo> self{this};
   Mutex::ScopedLock lock(mutex_);
   // If callback_ == nullptr, that means that the callback has already run from
   // the cleanup hook, and there is nothing left to do here besides to clean
@@ -199,7 +196,6 @@ void CallbackInfo::OnBackingStoreFree() {
   });
 }
 
-
 // Parse index for external array data. An empty Maybe indicates
 // a pending exception. `false` indicates that the index is out-of-bounds.
 inline MUST_USE_RESULT Maybe<bool> ParseArrayIndex(Environment* env,
@@ -212,17 +208,14 @@ inline MUST_USE_RESULT Maybe<bool> ParseArrayIndex(Environment* env,
   }
 
   int64_t tmp_i;
-  if (!arg->IntegerValue(env->context()).To(&tmp_i))
-    return Nothing<bool>();
+  if (!arg->IntegerValue(env->context()).To(&tmp_i)) return Nothing<bool>();
 
-  if (tmp_i < 0)
-    return Just(false);
+  if (tmp_i < 0) return Just(false);
 
   // Check that the result fits in a size_t.
   const uint64_t kSizeMax = static_cast<uint64_t>(static_cast<size_t>(-1));
   // coverity[pointless_expression]
-  if (static_cast<uint64_t>(tmp_i) > kSizeMax)
-    return Just(false);
+  if (static_cast<uint64_t>(tmp_i) > kSizeMax) return Just(false);
 
   *ret = static_cast<size_t>(tmp_i);
   return Just(true);
@@ -236,24 +229,20 @@ bool HasInstance(Local<Value> val) {
   return val->IsArrayBufferView();
 }
 
-
 bool HasInstance(Local<Object> obj) {
   return obj->IsArrayBufferView();
 }
-
 
 char* Data(Local<Value> val) {
   CHECK(val->IsArrayBufferView());
   Local<ArrayBufferView> ui = val.As<ArrayBufferView>();
   return static_cast<char*>(ui->Buffer()->GetBackingStore()->Data()) +
-      ui->ByteOffset();
+         ui->ByteOffset();
 }
-
 
 char* Data(Local<Object> obj) {
   return Data(obj.As<Value>());
 }
-
 
 size_t Length(Local<Value> val) {
   CHECK(val->IsArrayBufferView());
@@ -261,13 +250,11 @@ size_t Length(Local<Value> val) {
   return ui->ByteLength();
 }
 
-
 size_t Length(Local<Object> obj) {
   CHECK(obj->IsArrayBufferView());
   Local<ArrayBufferView> ui = obj.As<ArrayBufferView>();
   return ui->ByteLength();
 }
-
 
 MaybeLocal<Uint8Array> New(Environment* env,
                            Local<ArrayBuffer> ab,
@@ -277,8 +264,7 @@ MaybeLocal<Uint8Array> New(Environment* env,
   Local<Uint8Array> ui = Uint8Array::New(ab, byte_offset, length);
   Maybe<bool> mb =
       ui->SetPrototype(env->context(), env->buffer_prototype_object());
-  if (mb.IsNothing())
-    return MaybeLocal<Uint8Array>();
+  if (mb.IsNothing()) return MaybeLocal<Uint8Array>();
   return ui;
 }
 
@@ -293,7 +279,6 @@ MaybeLocal<Uint8Array> New(Isolate* isolate,
   }
   return New(env, ab, byte_offset, length);
 }
-
 
 MaybeLocal<Object> New(Isolate* isolate,
                        Local<String> string,
@@ -315,11 +300,7 @@ MaybeLocal<Object> New(Isolate* isolate,
     }
 
     actual = StringBytes::Write(
-        isolate,
-        static_cast<char*>(store->Data()),
-        length,
-        string,
-        enc);
+        isolate, static_cast<char*>(store->Data()), length, string, enc);
     CHECK(actual <= length);
 
     if (LIKELY(actual > 0)) {
@@ -336,7 +317,6 @@ MaybeLocal<Object> New(Isolate* isolate,
   return scope.EscapeMaybe(New(isolate, 0));
 }
 
-
 MaybeLocal<Object> New(Isolate* isolate, size_t length) {
   EscapableHandleScope handle_scope(isolate);
   Local<Object> obj;
@@ -345,11 +325,9 @@ MaybeLocal<Object> New(Isolate* isolate, size_t length) {
     THROW_ERR_BUFFER_CONTEXT_NOT_AVAILABLE(isolate);
     return MaybeLocal<Object>();
   }
-  if (Buffer::New(env, length).ToLocal(&obj))
-    return handle_scope.Escape(obj);
+  if (Buffer::New(env, length).ToLocal(&obj)) return handle_scope.Escape(obj);
   return Local<Object>();
 }
-
 
 MaybeLocal<Object> New(Environment* env, size_t length) {
   EscapableHandleScope scope(env->isolate());
@@ -364,7 +342,6 @@ MaybeLocal<Object> New(Environment* env, size_t length) {
       AllocatedBuffer::AllocateManaged(env, length).ToBuffer());
 }
 
-
 MaybeLocal<Object> Copy(Isolate* isolate, const char* data, size_t length) {
   EscapableHandleScope handle_scope(isolate);
   Environment* env = Environment::GetCurrent(isolate);
@@ -377,7 +354,6 @@ MaybeLocal<Object> Copy(Isolate* isolate, const char* data, size_t length) {
     return handle_scope.Escape(obj);
   return Local<Object>();
 }
-
 
 MaybeLocal<Object> Copy(Environment* env, const char* data, size_t length) {
   EscapableHandleScope scope(env->isolate());
@@ -396,7 +372,6 @@ MaybeLocal<Object> Copy(Environment* env, const char* data, size_t length) {
   return scope.EscapeMaybe(ret.ToBuffer());
 }
 
-
 MaybeLocal<Object> New(Isolate* isolate,
                        char* data,
                        size_t length,
@@ -412,7 +387,6 @@ MaybeLocal<Object> New(Isolate* isolate,
   return handle_scope.EscapeMaybe(
       Buffer::New(env, data, length, callback, hint));
 }
-
 
 MaybeLocal<Object> New(Environment* env,
                        char* data,
@@ -431,14 +405,14 @@ MaybeLocal<Object> New(Environment* env,
       CallbackInfo::CreateTrackedArrayBuffer(env, data, length, callback, hint);
   if (ab->SetPrivate(env->context(),
                      env->untransferable_object_private_symbol(),
-                     True(env->isolate())).IsNothing()) {
+                     True(env->isolate()))
+          .IsNothing()) {
     return Local<Object>();
   }
   MaybeLocal<Uint8Array> maybe_ui = Buffer::New(env, ab, 0, length);
 
   Local<Uint8Array> ui;
-  if (!maybe_ui.ToLocal(&ui))
-    return MaybeLocal<Object>();
+  if (!maybe_ui.ToLocal(&ui)) return MaybeLocal<Object>();
 
   return scope.Escape(ui);
 }
@@ -461,9 +435,7 @@ MaybeLocal<Object> New(Isolate* isolate, char* data, size_t length) {
 
 // The contract for this function is that `data` is allocated with malloc()
 // and not necessarily isolate's ArrayBuffer::Allocator.
-MaybeLocal<Object> New(Environment* env,
-                       char* data,
-                       size_t length) {
+MaybeLocal<Object> New(Environment* env, char* data, size_t length) {
   if (length > 0) {
     CHECK_NOT_NULL(data);
     CHECK(length <= kMaxLength);
@@ -485,7 +457,6 @@ void CreateFromString(const FunctionCallbackInfo<Value>& args) {
     args.GetReturnValue().Set(buf);
 }
 
-
 template <encoding encoding>
 void StringSlice(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -494,8 +465,7 @@ void StringSlice(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
   ArrayBufferViewContents<char> buffer(args.This());
 
-  if (buffer.length() == 0)
-    return args.GetReturnValue().SetEmptyString();
+  if (buffer.length() == 0) return args.GetReturnValue().SetEmptyString();
 
   size_t start = 0;
   size_t end = 0;
@@ -506,12 +476,8 @@ void StringSlice(const FunctionCallbackInfo<Value>& args) {
   size_t length = end - start;
 
   Local<Value> error;
-  MaybeLocal<Value> maybe_ret =
-      StringBytes::Encode(isolate,
-                          buffer.data() + start,
-                          length,
-                          encoding,
-                          &error);
+  MaybeLocal<Value> maybe_ret = StringBytes::Encode(
+      isolate, buffer.data() + start, length, encoding, &error);
   Local<Value> ret;
   if (!maybe_ret.ToLocal(&ret)) {
     CHECK(!error.IsEmpty());
@@ -521,9 +487,8 @@ void StringSlice(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(ret);
 }
 
-
 // bytesCopied = copy(buffer, target[, targetStart][, sourceStart][, sourceEnd])
-void Copy(const FunctionCallbackInfo<Value> &args) {
+void Copy(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
@@ -538,8 +503,8 @@ void Copy(const FunctionCallbackInfo<Value> &args) {
 
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[2], 0, &target_start));
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[3], 0, &source_start));
-  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[4], source.length(),
-                                          &source_end));
+  THROW_AND_RETURN_IF_OOB(
+      ParseArrayIndex(env, args[4], source.length(), &source_end));
 
   // Copy 0 bytes; we're done
   if (target_start >= target_length || source_start >= source_end)
@@ -559,7 +524,6 @@ void Copy(const FunctionCallbackInfo<Value> &args) {
   memmove(target_data + target_start, source.data() + source_start, to_copy);
   args.GetReturnValue().Set(to_copy);
 }
-
 
 void Fill(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -632,16 +596,14 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
 
 start_fill:
 
-  if (str_length >= fill_length)
-    return;
+  if (str_length >= fill_length) return;
 
   // If str_length is zero, then either an empty buffer was provided, or Write()
   // indicated that no bytes could be written. If no bytes could be written,
   // then return -1 because the fill value is invalid. This will trigger a throw
   // in JavaScript. Silently failing should be avoided because it can lead to
   // buffers with unexpected contents.
-  if (str_length == 0)
-    return args.GetReturnValue().Set(-1);
+  if (str_length == 0) return args.GetReturnValue().Set(-1);
 
   size_t in_there = str_length;
   char* ptr = ts_obj_data + start + str_length;
@@ -656,7 +618,6 @@ start_fill:
     memcpy(ptr, ts_obj_data + start, fill_length - in_there);
   }
 }
-
 
 template <encoding encoding>
 void StringWrite(const FunctionCallbackInfo<Value>& args) {
@@ -678,24 +639,19 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
         env, "\"offset\" is outside of buffer bounds");
   }
 
-  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[2], ts_obj_length - offset,
-                                          &max_length));
+  THROW_AND_RETURN_IF_OOB(
+      ParseArrayIndex(env, args[2], ts_obj_length - offset, &max_length));
 
   max_length = std::min(ts_obj_length - offset, max_length);
 
-  if (max_length == 0)
-    return args.GetReturnValue().Set(0);
+  if (max_length == 0) return args.GetReturnValue().Set(0);
 
-  uint32_t written = StringBytes::Write(env->isolate(),
-                                        ts_obj_data + offset,
-                                        max_length,
-                                        str,
-                                        encoding,
-                                        nullptr);
+  uint32_t written = StringBytes::Write(
+      env->isolate(), ts_obj_data + offset, max_length, str, encoding, nullptr);
   args.GetReturnValue().Set(written);
 }
 
-void ByteLengthUtf8(const FunctionCallbackInfo<Value> &args) {
+void ByteLengthUtf8(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(args[0]->IsString());
 
@@ -720,7 +676,7 @@ static int normalizeCompareVal(int val, size_t a_length, size_t b_length) {
   return val;
 }
 
-void CompareOffset(const FunctionCallbackInfo<Value> &args) {
+void CompareOffset(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
@@ -735,10 +691,10 @@ void CompareOffset(const FunctionCallbackInfo<Value> &args) {
 
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[2], 0, &target_start));
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[3], 0, &source_start));
-  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[4], target.length(),
-                                          &target_end));
-  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[5], source.length(),
-                                          &source_end));
+  THROW_AND_RETURN_IF_OOB(
+      ParseArrayIndex(env, args[4], target.length(), &target_end));
+  THROW_AND_RETURN_IF_OOB(
+      ParseArrayIndex(env, args[5], source.length(), &source_end));
 
   if (source_start > source.length())
     return THROW_ERR_OUT_OF_RANGE(
@@ -754,17 +710,18 @@ void CompareOffset(const FunctionCallbackInfo<Value> &args) {
       std::min(std::min(source_end - source_start, target_end - target_start),
                source.length() - source_start);
 
-  int val = normalizeCompareVal(to_cmp > 0 ?
-                                  memcmp(source.data() + source_start,
-                                         target.data() + target_start,
-                                         to_cmp) : 0,
-                                source_end - source_start,
-                                target_end - target_start);
+  int val =
+      normalizeCompareVal(to_cmp > 0 ? memcmp(source.data() + source_start,
+                                              target.data() + target_start,
+                                              to_cmp)
+                                     : 0,
+                          source_end - source_start,
+                          target_end - target_start);
 
   args.GetReturnValue().Set(val);
 }
 
-void Compare(const FunctionCallbackInfo<Value> &args) {
+void Compare(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
@@ -774,12 +731,12 @@ void Compare(const FunctionCallbackInfo<Value> &args) {
 
   size_t cmp_length = std::min(a.length(), b.length());
 
-  int val = normalizeCompareVal(cmp_length > 0 ?
-                                memcmp(a.data(), b.data(), cmp_length) : 0,
-                                a.length(), b.length());
+  int val = normalizeCompareVal(
+      cmp_length > 0 ? memcmp(a.data(), b.data(), cmp_length) : 0,
+      a.length(),
+      b.length());
   args.GetReturnValue().Set(val);
 }
-
 
 // Computes the offset for starting an indexOf or lastIndexOf search.
 // Returns either a valid offset in [0...<length - 1>], ie inside the Buffer,
@@ -837,16 +794,15 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
 
   const char* haystack = buffer.data();
   // Round down to the nearest multiple of 2 in case of UCS2.
-  const size_t haystack_length = (enc == UCS2) ?
-      buffer.length() &~ 1 : buffer.length();  // NOLINT(whitespace/operators)
+  const size_t haystack_length =
+      (enc == UCS2) ? buffer.length() & ~1
+                    : buffer.length();  // NOLINT(whitespace/operators)
 
   size_t needle_length;
   if (!StringBytes::Size(isolate, needle, enc).To(&needle_length)) return;
 
-  int64_t opt_offset = IndexOfOffset(haystack_length,
-                                     offset_i64,
-                                     needle_length,
-                                     is_forward);
+  int64_t opt_offset =
+      IndexOfOffset(haystack_length, offset_i64, needle_length, is_forward);
 
   if (needle_length == 0) {
     // Match String#indexOf() and String#lastIndexOf() behavior.
@@ -872,8 +828,7 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
 
   if (enc == UCS2) {
     String::Value needle_value(isolate, needle);
-    if (*needle_value == nullptr)
-      return args.GetReturnValue().Set(-1);
+    if (*needle_value == nullptr) return args.GetReturnValue().Set(-1);
 
     if (haystack_length < 2 || needle_value.length() < 1) {
       return args.GetReturnValue().Set(-1);
@@ -885,8 +840,7 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
       const uint16_t* decoded_string =
           reinterpret_cast<const uint16_t*>(decoder.out());
 
-      if (decoded_string == nullptr)
-        return args.GetReturnValue().Set(-1);
+      if (decoded_string == nullptr) return args.GetReturnValue().Set(-1);
 
       result = SearchString(reinterpret_cast<const uint16_t*>(haystack),
                             haystack_length / 2,
@@ -905,8 +859,7 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
     result *= 2;
   } else if (enc == UTF8) {
     String::Utf8Value needle_value(isolate, needle);
-    if (*needle_value == nullptr)
-      return args.GetReturnValue().Set(-1);
+    if (*needle_value == nullptr) return args.GetReturnValue().Set(-1);
 
     result = SearchString(reinterpret_cast<const uint8_t*>(haystack),
                           haystack_length,
@@ -955,10 +908,8 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
   const char* needle = needle_contents.data();
   const size_t needle_length = needle_contents.length();
 
-  int64_t opt_offset = IndexOfOffset(haystack_length,
-                                     offset_i64,
-                                     needle_length,
-                                     is_forward);
+  int64_t opt_offset =
+      IndexOfOffset(haystack_length, offset_i64, needle_length, is_forward);
 
   if (needle_length == 0) {
     // Match String#indexOf() and String#lastIndexOf() behavior.
@@ -986,22 +937,20 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
     if (haystack_length < 2 || needle_length < 2) {
       return args.GetReturnValue().Set(-1);
     }
-    result = SearchString(
-        reinterpret_cast<const uint16_t*>(haystack),
-        haystack_length / 2,
-        reinterpret_cast<const uint16_t*>(needle),
-        needle_length / 2,
-        offset / 2,
-        is_forward);
+    result = SearchString(reinterpret_cast<const uint16_t*>(haystack),
+                          haystack_length / 2,
+                          reinterpret_cast<const uint16_t*>(needle),
+                          needle_length / 2,
+                          offset / 2,
+                          is_forward);
     result *= 2;
   } else {
-    result = SearchString(
-        reinterpret_cast<const uint8_t*>(haystack),
-        haystack_length,
-        reinterpret_cast<const uint8_t*>(needle),
-        needle_length,
-        offset,
-        is_forward);
+    result = SearchString(reinterpret_cast<const uint8_t*>(haystack),
+                          haystack_length,
+                          reinterpret_cast<const uint8_t*>(needle),
+                          needle_length,
+                          offset,
+                          is_forward);
   }
 
   args.GetReturnValue().Set(
@@ -1039,7 +988,6 @@ void IndexOfNumber(const FunctionCallbackInfo<Value>& args) {
                                 : -1);
 }
 
-
 void Swap16(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
@@ -1047,7 +995,6 @@ void Swap16(const FunctionCallbackInfo<Value>& args) {
   SwapBytes16(ts_obj_data, ts_obj_length);
   args.GetReturnValue().Set(args[0]);
 }
-
 
 void Swap32(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -1057,7 +1004,6 @@ void Swap32(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(args[0]);
 }
 
-
 void Swap64(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
@@ -1065,7 +1011,6 @@ void Swap64(const FunctionCallbackInfo<Value>& args) {
   SwapBytes64(ts_obj_data, ts_obj_length);
   args.GetReturnValue().Set(args[0]);
 }
-
 
 // Encode a single string to a UTF-8 Uint8Array (not Buffer).
 // Used in TextEncoder.prototype.encode.
@@ -1086,7 +1031,6 @@ static void EncodeUtf8String(const FunctionCallbackInfo<Value>& args) {
   auto array = Uint8Array::New(buf.ToArrayBuffer(), 0, length);
   args.GetReturnValue().Set(array);
 }
-
 
 static void EncodeInto(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -1121,7 +1065,6 @@ static void EncodeInto(const FunctionCallbackInfo<Value>& args) {
   results[1] = written;
 }
 
-
 void SetBufferPrototype(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -1151,50 +1094,12 @@ void GetZeroFillToggle(const FunctionCallbackInfo<Value>& args) {
     ab = ArrayBuffer::New(env->isolate(), std::move(backing));
   }
 
-  ab->SetPrivate(
-      env->context(),
-      env->untransferable_object_private_symbol(),
-      True(env->isolate())).Check();
+  ab->SetPrivate(env->context(),
+                 env->untransferable_object_private_symbol(),
+                 True(env->isolate()))
+      .Check();
 
   args.GetReturnValue().Set(Uint32Array::New(ab, 0, 1));
-}
-
-void BToA(const FunctionCallbackInfo<Value>& args) {
-  CHECK(args[0]->IsString());
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
-  Local<String> input = args[0].As<String>();
-
-  if (!input->IsOneByte()) {
-    env->isolate()->ThrowException(ERR_INVALID_CHARACTER(env->isolate()));
-    return;
-  }
-
-  node::Utf8Value input_utf8_value(isolate, input);
-
-  // Check latin
-  std::string input_str = input_utf8_value.ToString();
-
-  size_t max_dest_len = modp_b64_encode_len(input_str.length()) + 1;
-  char* dest = static_cast<char*>(malloc(max_dest_len * sizeof(char)));
-  int dest_len = modp_b64_encode(dest, input_str.c_str(), input_str.length());
-
-  if (dest_len == -1) {
-    free(dest);
-    env->isolate()->ThrowException(ERR_INVALID_CHARACTER(env->isolate()));
-    return;
-  }
-
-  dest[dest_len] = 0;
-  MaybeLocal<String> maybe_dest = String::NewFromUtf8(
-      isolate,
-      dest,
-      v8::NewStringType::kNormal,
-      dest_len);
-  CHECK(!maybe_dest.IsEmpty());
-  args.GetReturnValue().Set(maybe_dest.ToLocalChecked());
-
-  free(dest);
 }
 
 void AToB(const FunctionCallbackInfo<Value>& args) {
@@ -1203,6 +1108,7 @@ void AToB(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
   Local<String> input = args[0].As<String>();
 
+  // Check latin
   if (!input->IsOneByte()) {
     env->isolate()->ThrowException(ERR_INVALID_CHARACTER(env->isolate()));
     return;
@@ -1210,25 +1116,62 @@ void AToB(const FunctionCallbackInfo<Value>& args) {
 
   node::Utf8Value input_utf8_value(isolate, input);
 
-  // Check latin
   std::string input_str = input_utf8_value.ToString();
 
-  size_t max_dest_len = modp_b64_decode_len(input_str.length()) + 1;
+  size_t max_dest_len = base64_decoded_size_fast(input_str.length());
   char* dest = static_cast<char*>(malloc(max_dest_len * sizeof(char)));
+  bool succ;
+  int dest_len = base64_decode(dest,
+                               max_dest_len,
+                               input_str.c_str(),
+                               input_str.length(),
+                               &succ,
+                               true /* strict */);
 
-  int dest_len = modp_b64_decode(dest, input_str.c_str(), input_str.length());
-  if (dest_len == -1) {
+  if (!succ) {
     free(dest);
     env->isolate()->ThrowException(ERR_INVALID_CHARACTER(env->isolate()));
     return;
   }
 
-  dest[dest_len] = 0;
-  MaybeLocal<String> maybe_dest = String::NewFromOneByte(
-      isolate,
-      reinterpret_cast<const unsigned char*>(dest),
-      v8::NewStringType::kNormal,
-      dest_len);
+  MaybeLocal<String> maybe_dest =
+      String::NewFromOneByte(isolate,
+                             reinterpret_cast<const unsigned char*>(dest),
+                             v8::NewStringType::kNormal,
+                             dest_len);
+  CHECK(!maybe_dest.IsEmpty());
+  args.GetReturnValue().Set(maybe_dest.ToLocalChecked());
+
+  free(dest);
+}
+
+void BToA(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsString());
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  Local<String> input = args[0].As<String>();
+
+  // Check latin
+  if (!input->IsOneByte()) {
+    env->isolate()->ThrowException(ERR_INVALID_CHARACTER(env->isolate()));
+    return;
+  }
+
+  node::Utf8Value input_utf8_value(isolate, input);
+
+  std::string input_str = input_utf8_value.ToString();
+
+  size_t max_dest_len = base64_encoded_size(input_str.length());
+  char* dest = static_cast<char*>(malloc(max_dest_len * sizeof(char)));
+
+  int dest_len =
+      base64_encode(input_str.c_str(), input_str.length(), dest, max_dest_len);
+
+  MaybeLocal<String> maybe_dest =
+      String::NewFromOneByte(isolate,
+                             reinterpret_cast<const unsigned char*>(dest),
+                             v8::NewStringType::kNormal,
+                             dest_len);
   CHECK(!maybe_dest.IsEmpty());
   args.GetReturnValue().Set(maybe_dest.ToLocalChecked());
 
@@ -1260,13 +1203,17 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "encodeInto", EncodeInto);
   env->SetMethodNoSideEffect(target, "encodeUtf8String", EncodeUtf8String);
 
-  target->Set(env->context(),
-              FIXED_ONE_BYTE_STRING(env->isolate(), "kMaxLength"),
-              Number::New(env->isolate(), kMaxLength)).Check();
+  target
+      ->Set(env->context(),
+            FIXED_ONE_BYTE_STRING(env->isolate(), "kMaxLength"),
+            Number::New(env->isolate(), kMaxLength))
+      .Check();
 
-  target->Set(env->context(),
-              FIXED_ONE_BYTE_STRING(env->isolate(), "kStringMaxLength"),
-              Integer::New(env->isolate(), String::kMaxLength)).Check();
+  target
+      ->Set(env->context(),
+            FIXED_ONE_BYTE_STRING(env->isolate(), "kStringMaxLength"),
+            Integer::New(env->isolate(), String::kMaxLength))
+      .Check();
 
   env->SetMethodNoSideEffect(target, "asciiSlice", StringSlice<ASCII>);
   env->SetMethodNoSideEffect(target, "base64Slice", StringSlice<BASE64>);

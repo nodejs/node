@@ -10,17 +10,14 @@ namespace node {
 
 extern const int8_t unbase64_table[256];
 
-
 inline static int8_t unbase64(uint8_t x) {
   return unbase64_table[x];
 }
 
-
 inline uint32_t ReadUint32BE(const unsigned char* p) {
   return static_cast<uint32_t>(p[0] << 24U) |
          static_cast<uint32_t>(p[1] << 16U) |
-         static_cast<uint32_t>(p[2] << 8U) |
-         static_cast<uint32_t>(p[3]);
+         static_cast<uint32_t>(p[2] << 8U) | static_cast<uint32_t>(p[3]);
 }
 
 #ifdef _MSC_VER
@@ -30,9 +27,12 @@ inline uint32_t ReadUint32BE(const unsigned char* p) {
 #endif
 
 template <typename TypeName>
-bool base64_decode_group_slow(char* const dst, const size_t dstlen,
-                              const TypeName* const src, const size_t srclen,
-                              size_t* const i, size_t* const k) {
+bool base64_decode_group_slow(char* const dst,
+                              const size_t dstlen,
+                              const TypeName* const src,
+                              const size_t srclen,
+                              size_t* const i,
+                              size_t* const k) {
   uint8_t hi;
   uint8_t lo;
 #define V(expr)                                                                \
@@ -60,9 +60,21 @@ bool base64_decode_group_slow(char* const dst, const size_t dstlen,
 #endif
 
 template <typename TypeName>
-size_t base64_decode_fast(char* const dst, const size_t dstlen,
-                          const TypeName* const src, const size_t srclen,
-                          const size_t decoded_size) {
+size_t base64_decode_fast(char* const dst,
+                          const size_t dstlen,
+                          const TypeName* const src,
+                          size_t srclen,
+                          const size_t decoded_size,
+                          bool* succ,
+                          const bool strict) {
+  CHECK(!strict || succ != nullptr);
+
+  if (static_cast<unsigned char>(src[srclen - 1]) == '=') {
+    srclen--;
+    if (static_cast<unsigned char>(src[srclen - 1]) == '=') srclen--;
+  }
+
+  if (succ != nullptr) *succ = true;
   const size_t available = dstlen < decoded_size ? dstlen : decoded_size;
   const size_t max_k = available / 3 * 3;
   size_t max_i = srclen / 4 * 4;
@@ -79,52 +91,93 @@ size_t base64_decode_fast(char* const dst, const size_t dstlen,
     const uint32_t v = ReadUint32BE(txt);
     // If MSB is set, input contains whitespace or is not valid base64.
     if (v & 0x80808080) {
-      if (!base64_decode_group_slow(dst, dstlen, src, srclen, &i, &k))
-        return k;
+      if (strict) {
+        *succ = false;
+        return 0;
+      }
+      if (!base64_decode_group_slow(dst, dstlen, src, srclen, &i, &k)) return k;
       max_i = i + (srclen - i) / 4 * 4;  // Align max_i again.
     } else {
       dst[k + 0] = ((v >> 22) & 0xFC) | ((v >> 20) & 0x03);
       dst[k + 1] = ((v >> 12) & 0xF0) | ((v >> 10) & 0x0F);
-      dst[k + 2] = ((v >>  2) & 0xC0) | ((v >>  0) & 0x3F);
+      dst[k + 2] = ((v >> 2) & 0xC0) | ((v >> 0) & 0x3F);
       i += 4;
       k += 3;
     }
   }
+
   if (i < srclen && k < dstlen) {
+#define CHECK_INVALID(x)                                                       \
+  if (txt[(x)] & 0x80) {                                                       \
+    if (strict) {                                                              \
+      *succ = false;                                                           \
+      return 0;                                                                \
+    } else {                                                                   \
+      break;                                                                   \
+    }                                                                          \
+  }
+
+    int leftover = srclen - i;
+    unsigned char txt[] = {0, 0, 0, 0};
+    switch (leftover) {
+      case 4:
+        txt[3] = static_cast<unsigned char>(
+            unbase64(static_cast<uint8_t>(src[i + 3])));
+        CHECK_INVALID(3);
+        // DO NOT break;
+
+      case 3:
+        txt[2] = static_cast<unsigned char>(
+            unbase64(static_cast<uint8_t>(src[i + 2])));
+        CHECK_INVALID(2);
+        // DO NOT break;
+
+      case 2:
+        txt[1] = static_cast<unsigned char>(
+            unbase64(static_cast<uint8_t>(src[i + 1])));
+        CHECK_INVALID(1);
+        // DO NOT break;
+
+      default:
+        txt[0] = static_cast<unsigned char>(
+            unbase64(static_cast<uint8_t>(src[i + 0])));
+        CHECK_INVALID(0);
+    }
+
+#undef CHECK_INVALID
+
     base64_decode_group_slow(dst, dstlen, src, srclen, &i, &k);
   }
+
   return k;
 }
-
 
 template <typename TypeName>
 size_t base64_decoded_size(const TypeName* src, size_t size) {
   // 1-byte input cannot be decoded
-  if (size < 2)
-    return 0;
+  if (size < 2) return 0;
 
   if (src[size - 1] == '=') {
     size--;
-    if (src[size - 1] == '=')
-      size--;
+    if (src[size - 1] == '=') size--;
   }
   return base64_decoded_size_fast(size);
 }
 
-
 template <typename TypeName>
-size_t base64_decode(char* const dst, const size_t dstlen,
-                     const TypeName* const src, const size_t srclen) {
+size_t base64_decode(char* const dst,
+                     const size_t dstlen,
+                     const TypeName* const src,
+                     const size_t srclen,
+                     bool* succ,
+                     const bool strict) {
   const size_t decoded_size = base64_decoded_size(src, srclen);
-  return base64_decode_fast(dst, dstlen, src, srclen, decoded_size);
+  return base64_decode_fast(
+      dst, dstlen, src, srclen, decoded_size, succ, strict);
 }
 
-
-inline size_t base64_encode(const char* src,
-                            size_t slen,
-                            char* dst,
-                            size_t dlen,
-                            Base64Mode mode) {
+inline size_t base64_encode(
+    const char* src, size_t slen, char* dst, size_t dlen, Base64Mode mode) {
   // We know how much we'll write, just make sure that there's space.
   CHECK(dlen >= base64_encoded_size(slen, mode) &&
         "not enough space provided for base64 encode");
@@ -174,8 +227,7 @@ inline size_t base64_encode(const char* src,
       dst[k + 0] = table[a >> 2];
       dst[k + 1] = table[((a & 3) << 4) | (b >> 4)];
       dst[k + 2] = table[(b & 0x0f) << 2];
-      if (mode == Base64Mode::NORMAL)
-        dst[k + 3] = '=';
+      if (mode == Base64Mode::NORMAL) dst[k + 3] = '=';
       break;
   }
 
@@ -185,5 +237,4 @@ inline size_t base64_encode(const char* src,
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-
 #endif  // SRC_BASE64_INL_H_
