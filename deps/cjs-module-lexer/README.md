@@ -70,29 +70,27 @@ IDENTIFIER: As defined by ECMA-262, without support for identifier `\` escapes, 
 
 STRING_LITERAL: A `"` or `'` bounded ECMA-262 string literal.
 
-IDENTIFIER_STRING: ( `"` IDENTIFIER `"` | `'` IDENTIFIER `'` )
-
 MODULE_EXPORTS: `module` `.` `exports`
 
 EXPORTS_IDENTIFIER: MODULE_EXPORTS_IDENTIFIER | `exports`
 
 EXPORTS_DOT_ASSIGN: EXPORTS_IDENTIFIER `.` IDENTIFIER `=`
 
-EXPORTS_LITERAL_COMPUTED_ASSIGN: EXPORTS_IDENTIFIER `[` IDENTIFIER_STRING `]` `=`
+EXPORTS_LITERAL_COMPUTED_ASSIGN: EXPORTS_IDENTIFIER `[` STRING_LITERAL `]` `=`
 
-EXPORTS_LITERAL_PROP: (IDENTIFIER  (`:` IDENTIFIER)?) | (IDENTIFIER_STRING `:` IDENTIFIER)
+EXPORTS_LITERAL_PROP: (IDENTIFIER  (`:` IDENTIFIER)?) | (STRING_LITERAL `:` IDENTIFIER)
 
 EXPORTS_SPREAD: `...` (IDENTIFIER | REQUIRE)
 
 EXPORTS_MEMBER: EXPORTS_DOT_ASSIGN | EXPORTS_LITERAL_COMPUTED_ASSIGN
 
-EXPORTS_DEFINE: `Object` `.` `defineProperty `(` EXPORTS_IDENFITIER `,` IDENTIFIER_STRING
+EXPORTS_DEFINE: `Object` `.` `defineProperty `(` EXPORTS_IDENFITIER `,` STRING_LITERAL
 
 EXPORTS_DEFINE_VALUE: EXPORTS_DEFINE `, {`
   (`enumerable: true,`)?
   (
     `value:` |
-    `get` (`: function` IDENTIFIER? )?  `() {` return IDENTIFIER (`.` IDENTIFIER | `[` IDENTIFIER_STRING `]`)? `;`? `}` `,`?
+    `get` (`: function` IDENTIFIER? )?  `() {` return IDENTIFIER (`.` IDENTIFIER | `[` STRING_LITERAL `]`)? `;`? `}` `,`?
   )
   `})`
 
@@ -127,8 +125,8 @@ EXPORT_STAR_LIB: `Object.keys(` IDENTIFIER$1 `).forEach(function (` IDENTIFIER$2
 Spacing between tokens is taken to be any ECMA-262 whitespace, ECMA-262 block comment or ECMA-262 line comment.
 
 * The returned export names are taken to be the combination of:
-  1. All `IDENTIFIER` and `IDENTIFIER_STRING` slots for `EXPORTS_MEMBER` and `EXPORTS_LITERAL` matches.
-  2. The first `IDENTIFIER_STRING` slot for all `EXPORTS_DEFINE_VALUE` matches where that same string is not an `EXPORTS_DEFINE` match that is not also an `EXPORTS_DEFINE_VALUE` match.
+  1. All `IDENTIFIER` and `STRING_LITERAL` slots for `EXPORTS_MEMBER` and `EXPORTS_LITERAL` matches.
+  2. The first `STRING_LITERAL` slot for all `EXPORTS_DEFINE_VALUE` matches where that same string is not an `EXPORTS_DEFINE` match that is not also an `EXPORTS_DEFINE_VALUE` match.
 * The reexport specifiers are taken to be the combination of:
   1. The `REQUIRE` matches of the last matched of either `MODULE_EXPORTS_ASSIGN` or `EXPORTS_LITERAL`.
   2. All _top-level_ `EXPORT_STAR` `REQUIRE` matches and `EXPORTS_ASSIGN` matches whose `IDENTIFIER` also matches the first `IDENTIFIER` in `EXPORT_STAR_LIB`.

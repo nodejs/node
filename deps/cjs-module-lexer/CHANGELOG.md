@@ -1,3 +1,10 @@
+1.2.1
+- Support Unicode escapes in strings (https://github.com/guybedford/cjs-module-lexer/pull/55)
+- Filter export strings to valid surrogate pairs (https://github.com/guybedford/cjs-module-lexer/pull/56)
+
+1.2.0
+- Support for non-identifier exports (https://github.com/guybedford/cjs-module-lexer/pull/54, @nicolo-ribaudo)
+
 1.1.1
 - Better support for Babel reexport getter function forms (https://github.com/guybedford/cjs-module-lexer/issues/50)
 - Support Babel interopRequireWildcard reexports patterns (https://github.com/guybedford/cjs-module-lexer/issues/52)
