@@ -31,7 +31,7 @@ async function main(conf) {
   const destName = `${destRoot}-${fileSize}`;
 
   const testFixtures = await Promise.all(
-    new Array(conf.n).fill(null).map((_, i) => prepareFixture(i))
+    Array.from({ length: conf.n }, prepareFixture)
   );
 
   bench.start();
@@ -42,18 +42,16 @@ async function main(conf) {
   );
   bench.end(conf.n);
 
-  await Promise.all(testFixtures.map((_, i) => {
-    return cleanUp(i);
-  }));
+  await Promise.all(testFixtures.flatMap(cleanUp));
 
-  async function prepareFixture(i) {
+  async function prepareFixture(_, i) {
     await fsp.writeFile(`${sourceName}-${i}`, content);
     const destStream = fs.createWriteStream(`${destName}-${i}`);
     const sourceHandle = await fsp.open(`${sourceName}-${i}`);
     return [sourceHandle, destStream];
   }
 
-  async function cleanUp(i) {
+  async function cleanUp(_, i) {
     await Promise.all([fsp.unlink(`${sourceName}-${i}`), fsp.unlink(`${destName}-${i}`)]);
   }
 }

@@ -4,17 +4,17 @@ const tmpdir = require('../../test/common/tmpdir');
 const path = require('path');
 const fsp = require('fs/promises');
 const fs = require('fs');
-const stream = require('stream');
+const { pipeline } = require('stream/promises');
 
-const KB = 2 ** 10;
-const MB = 2 ** 20;
+const KiB = 2 ** 10;
+const MiB = 2 ** 20;
 
 const configs = {
   n: [100],
   fileSize: [
-    1 * KB,
-    1 * MB,
-    10 * MB,
+    1 * KiB,
+    1 * MiB,
+    10 * MiB,
   ],
 };
 
@@ -33,35 +33,28 @@ async function main(conf) {
   const destName = `${destRoot}-${fileSize}`;
 
   const testFixtures = await Promise.all(
-    new Array(conf.n).fill(null).map((_, i) => prepareFixture(i))
+    Array.from({ length: conf.n }, prepareFixture)
   );
 
   bench.start();
 
   await Promise.all(
     testFixtures.map(
-      (testFixture) => {
-        return new Promise((resolve) => {
-          stream.pipeline(testFixture[0], testFixture[1], () => {
-            resolve();
-          });
-        });
-      })
+      (testFixture) => pipeline(testFixture[0], testFixture[1])
+    )
   );
   bench.end(conf.n);
 
-  await Promise.all(testFixtures.map((_, i) => {
-    return cleanUp(i);
-  }));
+  await Promise.all(testFixtures.flatMap(cleanUp));
 
-  async function prepareFixture(i) {
+  async function prepareFixture(_, i) {
     await fsp.writeFile(`${sourceName}-${i}`, content);
     const destStream = fs.createWriteStream(`${destName}-${i}`);
     const sourceStream = fs.createReadStream(`${sourceName}-${i}`);
     return [sourceStream, destStream];
   }
 
-  async function cleanUp(i) {
+  async function cleanUp(_, i) {
     await Promise.all([fsp.unlink(`${sourceName}-${i}`), fsp.unlink(`${destName}-${i}`)]);
   }
 }
