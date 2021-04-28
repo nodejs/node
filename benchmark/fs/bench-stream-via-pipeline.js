@@ -54,7 +54,7 @@ async function main(conf) {
     return [sourceStream, destStream];
   }
 
-  async function cleanUp(_, i) {
-    await Promise.all([fsp.unlink(`${sourceName}-${i}`), fsp.unlink(`${destName}-${i}`)]);
+  function cleanUp(_, i) {
+    return [fsp.unlink(`${sourceName}-${i}`), fsp.unlink(`${destName}-${i}`)];
   }
 }
