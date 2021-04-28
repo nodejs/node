@@ -12,7 +12,10 @@
 namespace node {
 //// Base 64 ////
 
-enum class Base64Mode { NORMAL, URL };
+enum class Base64Mode {
+  NORMAL,
+  URL
+};
 
 static constexpr char base64_table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                                        "abcdefghijklmnopqrstuvwxyz"
@@ -24,17 +27,15 @@ static constexpr char base64_table_url[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 static inline const char* base64_select_table(Base64Mode mode) {
   switch (mode) {
-    case Base64Mode::NORMAL:
-      return base64_table;
-    case Base64Mode::URL:
-      return base64_table_url;
-    default:
-      UNREACHABLE();
+    case Base64Mode::NORMAL: return base64_table;
+    case Base64Mode::URL: return base64_table_url;
+    default: UNREACHABLE();
   }
 }
 
 static inline constexpr size_t base64_encoded_size(
-    size_t size, Base64Mode mode = Base64Mode::NORMAL) {
+    size_t size,
+    Base64Mode mode = Base64Mode::NORMAL) {
   return mode == Base64Mode::NORMAL ? ((size + 2) / 3 * 4)
                                     : static_cast<size_t>(std::ceil(
                                           static_cast<double>(size * 4) / 3));
@@ -66,5 +67,7 @@ inline size_t base64_encode(const char* src,
                             Base64Mode mode = Base64Mode::NORMAL);
 }  // namespace node
 
+
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #endif  // SRC_BASE64_H_

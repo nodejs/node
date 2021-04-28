@@ -95,7 +95,8 @@ size_t base64_decode_fast(char* const dst,
         *succ = false;
         return 0;
       }
-      if (!base64_decode_group_slow(dst, dstlen, src, srclen, &i, &k)) return k;
+      if (!base64_decode_group_slow(dst, dstlen, src, srclen, &i, &k))
+        return k;
       max_i = i + (srclen - i) / 4 * 4;  // Align max_i again.
     } else {
       dst[k + 0] = ((v >> 22) & 0xFC) | ((v >> 20) & 0x03);
