@@ -3,11 +3,13 @@ import { strictEqual, deepEqual } from 'assert';
 import m, { π } from './exports-cases.js';
 import * as ns from './exports-cases.js';
 
-deepEqual(Object.keys(ns), ['default', 'isObject', 'z', 'π']);
+deepEqual(Object.keys(ns), ['?invalid', 'default', 'invalid identifier', 'isObject', 'z', 'π']);
 strictEqual(π, 'yes');
 strictEqual(typeof m.isObject, 'undefined');
 strictEqual(m.π, 'yes');
 strictEqual(m.z, 'yes');
+strictEqual(m['invalid identifier'], 'yes');
+strictEqual(m['?invalid'], 'yes');
 
 import m2, { __esModule as __esModule2, name as name2 } from './exports-cases2.js';
 import * as ns2 from './exports-cases2.js';

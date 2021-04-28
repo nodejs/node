@@ -37,8 +37,6 @@ const Import = 0;
 const ExportAssign = 1;
 const ExportStar = 2;
 
-const strictReserved = new Set(['implements', 'interface', 'let', 'package', 'private', 'protected', 'public', 'static', 'yield', 'enum']);
-
 function parseCJS (source, name = '@') {
   resetState();
   try {
@@ -55,8 +53,7 @@ function parseCJS (source, name = '@') {
 }
 
 function addExport (name) {
-  if (!strictReserved.has(name))
-    _exports.add(name);
+  _exports.add(name);
 }
 
 function parseSource (cjsSource) {
@@ -173,10 +170,8 @@ function parseSource (cjsSource) {
         // TODO: <!-- XML comment support
         break;
       case 39/*'*/:
-        singleQuoteString();
-        break;
       case 34/*"*/:
-        doubleQuoteString();
+        stringLiteral(ch);
         break;
       case 47/*/*/: {
         const next_ch = source.charCodeAt(pos + 1);
@@ -329,9 +324,8 @@ function tryParseObjectDefineOrKeys (keys) {
         pos++;
         ch = commentWhitespace();
         if (ch !== 39/*'*/ && ch !== 34/*"*/) break;
-        let quot = ch;
         const exportPos = ++pos;
-        if (!identifier() || source.charCodeAt(pos) !== quot) break;
+        stringLiteral(ch);
         expt = source.slice(exportPos, pos);
         pos++;
         ch = commentWhitespace();
@@ -403,8 +397,7 @@ function tryParseObjectDefineOrKeys (keys) {
           else if (ch === 91/*[*/) {
             pos++;
             ch = commentWhitespace();
-            if (ch === 39/*'*/) singleQuoteString();
-            else if (ch === 34/*"*/) doubleQuoteString();
+            if (ch === 39/*'*/ || ch === 34/*"*/) stringLiteral(ch);
             else break;
             pos++;
             ch = commentWhitespace();
@@ -876,17 +869,14 @@ function tryParseExportsDotAssign (assign) {
       if (ch === 39/*'*/ || ch === 34/*"*/) {
         pos++;
         const startPos = pos;
-        if (identifier() && source.charCodeAt(pos) === ch) {
-          const endPos = pos++;
-          ch = commentWhitespace();
-          if (ch !== 93/*]*/)
-            break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch !== 61/*=*/)
-            break;
-          addExport(source.slice(startPos, endPos));
-        }
+        stringLiteral(ch);
+        const endPos = pos++;
+        ch = commentWhitespace();
+        if (ch !== 93/*]*/) break;
+        pos++;
+        ch = commentWhitespace();
+        if (ch !== 61/*=*/) break;
+        addExport(source.slice(startPos, endPos));
       }
       break;
     }
@@ -922,26 +912,8 @@ function tryParseRequire (requireType) {
       pos++;
       ch = commentWhitespace();
       const reexportStart = pos + 1;
-      if (ch === 39/*'*/) {
-        singleQuoteString();
-        const reexportEnd = pos++;
-        ch = commentWhitespace();
-        if (ch === 41/*)*/) {
-          switch (requireType) {
-            case ExportAssign:
-              reexports.add(source.slice(reexportStart, reexportEnd));
-              return true;
-            case ExportStar:
-              reexports.add(source.slice(reexportStart, reexportEnd));
-              return true;
-            default:
-              lastStarExportSpecifier = source.slice(reexportStart, reexportEnd);
-              return true;
-          }
-        }
-      }
-      else if (ch === 34/*"*/) {
-        doubleQuoteString();
+      if (ch === 39/*'*/ || ch === 34/*"*/) {
+        stringLiteral(ch);
         const reexportEnd = pos++;
         ch = commentWhitespace();
         if (ch === 41/*)*/) {
@@ -997,20 +969,19 @@ function tryParseLiteralExports () {
     }
     else if (ch === 39/*'*/ || ch === 34/*"*/) {
       const startPos = ++pos;
-      if (identifier() && source.charCodeAt(pos) === ch) {
-        const endPos = pos++;
+      stringLiteral(ch);
+      const endPos = pos++;
+      ch = commentWhitespace();
+      if (ch === 58/*:*/) {
+        pos++;
         ch = commentWhitespace();
-        if (ch === 58/*:*/) {
-          pos++;
-          ch = commentWhitespace();
-          // nothing more complex than identifier expressions for now
-          if (!identifier()) {
-            pos = revertPos;
-            return;
-          }
-          ch = source.charCodeAt(pos);
-          addExport(source.slice(startPos, endPos));
+        // nothing more complex than identifier expressions for now
+        if (!identifier()) {
+          pos = revertPos;
+          return;
         }
+        ch = source.charCodeAt(pos);
+        addExport(source.slice(startPos, endPos));
       }
     }
     else {
@@ -1248,26 +1219,10 @@ function lineComment () {
   }
 }
 
-function singleQuoteString () {
+function stringLiteral (quote) {
   while (pos++ < end) {
     let ch = source.charCodeAt(pos);
-    if (ch === 39/*'*/)
-      return;
-    if (ch === 92/*\*/) {
-      ch = source.charCodeAt(++pos);
-      if (ch === 13/*\r*/ && source.charCodeAt(pos + 1) === 10/*\n*/)
-        pos++;
-    }
-    else if (isBr(ch))
-      break;
-  }
-  throw new Error('Unterminated string.');
-}
-
-function doubleQuoteString () {
-  while (pos++ < end) {
-    let ch = source.charCodeAt(pos);
-    if (ch === 34/*"*/)
+    if (ch === quote)
       return;
     if (ch === 92/*\*/) {
       ch = source.charCodeAt(++pos);
