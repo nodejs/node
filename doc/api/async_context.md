@@ -266,7 +266,7 @@ functions called by `foo`. Outside of `run`, calling `getStore` will return
 
 In most cases your application or library code should have no issues with
 `AsyncLocalStorage`. But in rare cases you may face situations when the
-current store is lost in one of asynchronous operations. In those cases,
+current store is lost in one of the asynchronous operations. In those cases,
 consider the following options.
 
 If your code is callback-based, it is enough to promisify it with
