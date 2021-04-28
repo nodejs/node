@@ -850,6 +850,9 @@ determine if the server certificate was signed by one of the specified CAs. If
 `tlsSocket.alpnProtocol` property can be checked to determine the negotiated
 protocol.
 
+The `'secureConnect'` event is not emitted when a {tls.TLSSocket} is created
+using the `new tls.TLSSocket()` constructor.
+
 ### Event: `'session'`
 <!-- YAML
 added: v11.10.0
