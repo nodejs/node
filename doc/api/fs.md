@@ -374,9 +374,9 @@ added: REPLACEME
 -->
 * dst {stream.Writable} Option
 * `options` {Object}
-  * `start` {integer} Optional, the position where stream starts from.
-    **Default:** `0`
-  * `end` {integer} Optional, the position where stream ends.
+  * `start` {integer} Optional, the position where stream starts from
+    (inclusive). **Default:** `0`
+  * `end` {integer} Optional, the position where stream ends (inclusive)
     If it isn't provided. Stream will terminate at the EOF.
   * `signal` {AbortSignal} Optional, signal of `AbortController`
 

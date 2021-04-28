@@ -58,11 +58,11 @@ async function testStreamWithEnd() {
 
   assert.deepStrictEqual(
     destContent.toString().length,
-    content.slice(0, 1).length,
+    content.slice(0, 2).length,
   );
   assert.deepStrictEqual(
     destContent.toString(),
-    content.slice(0, 1),
+    content.slice(0, 2),
   );
 }
 
@@ -75,11 +75,11 @@ async function testStreamWithStartAndEnd() {
 
   assert.deepStrictEqual(
     destContent.toString().length,
-    content.slice(1, 5).length,
+    content.slice(1, 6).length,
   );
   assert.deepStrictEqual(
     destContent.toString(),
-    content.slice(1, 5),
+    content.slice(1, 6),
   );
 }
 
@@ -134,7 +134,7 @@ async function testArgumentValidation(options, expectedError) {
   }, {
     code: 'ERR_OUT_OF_RANGE',
     message: 'The value of "start" is out of range. ' +
-      'It must be greater than 0. Received -1'
+      'It must be >= 0 && <= 9007199254740991. Received -1'
   }];
 
   const negativeEnd = [{
@@ -142,7 +142,7 @@ async function testArgumentValidation(options, expectedError) {
   }, {
     code: 'ERR_OUT_OF_RANGE',
     message: 'The value of "end" is out of range. ' +
-      'It must be greater than 0. Received -1'
+      'It must be >= 0 && <= 9007199254740991. Received -1'
   }];
 
   const nonNumberStart = [{
@@ -166,8 +166,8 @@ async function testArgumentValidation(options, expectedError) {
     end: 2
   }, {
     code: 'ERR_OUT_OF_RANGE',
-    message: 'The value of "start" is out of range. ' +
-      'It must be less than end 2. Received 4'
+    message: 'The value of "end" is out of range. ' +
+      'It must be >= 4 && <= 9007199254740991. Received 2'
   }];
   await Promise.all(
     [
