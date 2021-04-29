@@ -29,9 +29,9 @@ t.equal(definitions['node-version'].default, process.version, 'node-version defa
 
 t.test('basic flattening function camelCases from css-case', t => {
   const flat = {}
-  const obj = { 'always-auth': true }
-  definitions['always-auth'].flatten('always-auth', obj, flat)
-  t.strictSame(flat, { alwaysAuth: true })
+  const obj = { 'prefer-online': true }
+  definitions['prefer-online'].flatten('prefer-online', obj, flat)
+  t.strictSame(flat, { preferOnline: true })
   t.end()
 })
 

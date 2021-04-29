@@ -9,7 +9,7 @@ npm exec \-\- <pkg>[@<version>] [args\.\.\.]
 npm exec \-\-package=<pkg>[@<version>] \-\- <cmd> [args\.\.\.]
 npm exec \-c '<cmd> [args\.\.\.]'
 npm exec \-\-package=foo \-c '<cmd> [args\.\.\.]'
-npm exec [\-ws] [\-w <workspace\-name] [args\.\.\.]
+npm exec [\-\-ws] [\-w <workspace\-name] [args\.\.\.]
 
 npx <pkg>[@<specifier>] [args\.\.\.]
 npx \-p <pkg>[@<specifier>] <cmd> [args\.\.\.]
@@ -205,7 +205,7 @@ workspace folder:
 .P
 .RS 2
 .nf
-npm exec \-ws \-\- eslint \./*\.js
+npm exec \-\-ws \-\- eslint \./*\.js
 .fi
 .RE
 .SS Filtering workspaces
@@ -317,7 +317,7 @@ children workspaces)
 .SS workspaces
 .RS 0
 .IP \(bu 2
-Alias: \fB\-ws\fP
+Alias: \fB\-\-ws\fP
 .IP \(bu 2
 Type: Boolean
 .IP \(bu 2
@@ -343,5 +343,7 @@ npm help restart
 npm help stop
 .IP \(bu 2
 npm help config
+.IP \(bu 2
+npm help workspaces
 
 .RE

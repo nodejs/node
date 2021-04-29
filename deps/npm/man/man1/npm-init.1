@@ -6,8 +6,9 @@
 .RS 2
 .nf
 npm init [\-\-force|\-f|\-\-yes|\-y|\-\-scope]
-npm init <@scope> (same as `npx <@scope>/create`)
-npm init [<@scope>/]<name> (same as `npx [<@scope>/]create\-<name>`)
+npm init <@scope> (same as `npm exec <@scope>/create`)
+npm init [<@scope>/]<name> (same as `npm exec [<@scope>/]create\-<name>`)
+npm init [\-w <dir>] [args\.\.\.]
 .fi
 .RE
 .SS Description
@@ -16,24 +17,21 @@ npm init [<@scope>/]<name> (same as `npx [<@scope>/]create\-<name>`)
 package\.
 .P
 \fBinitializer\fP in this case is an npm package named \fBcreate\-<initializer>\fP,
-which will be installed by \fBnpx\fP \fIhttps://npm\.im/npx\fR, and then have its
+which will be installed by npm help \fBnpm\-exec\fP, and then have its
 main bin executed \-\- presumably creating or updating \fBpackage\.json\fP and
 running any other initialization\-related operations\.
 .P
-The init command is transformed to a corresponding \fBnpx\fP operation as
+The init command is transformed to a corresponding \fBnpm exec\fP operation as
 follows:
 .RS 0
 .IP \(bu 2
-\fBnpm init foo\fP \-> \fBnpx create\-foo\fP
+\fBnpm init foo\fP \-> \fBnpm exec create\-foo\fP
 .IP \(bu 2
-\fBnpm init @usr/foo\fP \-> \fBnpx @usr/create\-foo\fP
+\fBnpm init @usr/foo\fP \-> \fBnpm exec @usr/create\-foo\fP
 .IP \(bu 2
-\fBnpm init @usr\fP \-> \fBnpx @usr/create\fP
+\fBnpm init @usr\fP \-> \fBnpm exec @usr/create\fP
 
 .RE
-.P
-Any additional options will be passed directly to the command, so \fBnpm init
-foo \-\- \-\-hello\fP will map to \fBnpx create\-foo \-\-hello\fP\|\.
 .P
 If the initializer is omitted (by just calling \fBnpm init\fP), init will fall
 back to legacy init behavior\. It will ask you a bunch of questions, and
@@ -42,6 +40,21 @@ guesses based on existing fields, dependencies, and options selected\. It is
 strictly additive, so it will keep any fields and values that were already
 set\. You can also use \fB\-y\fP/\fB\-\-yes\fP to skip the questionnaire altogether\. If
 you pass \fB\-\-scope\fP, it will create a scoped package\.
+.SS Forwarding additional options
+.P
+Any additional options will be passed directly to the command, so \fBnpm init
+foo \-\- \-\-hello\fP will map to \fBnpm exec \-\- create\-foo \-\-hello\fP\|\.
+.P
+To better illustrate how options are forwarded, here's a more evolved
+example showing options passed to both the \fBnpm cli\fR and a create package,
+both following commands are equivalent:
+.RS 0
+.IP \(bu 2
+\fBnpm init foo \-y \-\-registry=<url> \-\- \-\-hello \-a\fP
+.IP \(bu 2
+\fBnpm exec \-y \-\-registry=<url> \-\- create\-foo \-\-hello \-a\fP
+
+.RE
 .SS Examples
 .P
 Create a new React\-based project using
@@ -80,6 +93,77 @@ Generate it without having it ask any questions:
 $ npm init \-y
 .fi
 .RE
+.SS Workspaces support
+.P
+It's possible to create a new workspace within your project by using the
+\fBworkspace\fP config option\. When using \fBnpm init \-w <dir>\fP the cli will
+create the folders and boilerplate expected while also adding a reference
+to your project \fBpackage\.json\fP \fB"workspaces": []\fP property in order to make
+sure that new generated \fBworkspace\fR is properly set up as such\.
+.P
+Given a project with no workspaces, e\.g:
+.P
+.RS 2
+.nf
+\|\.
++\-\- package\.json
+.fi
+.RE
+.P
+You may generate a new workspace using the legacy init:
+.P
+.RS 2
+.nf
+$ npm init \-w packages/a
+.fi
+.RE
+.P
+That will generate a new folder and \fBpackage\.json\fP file, while also updating
+your top\-level \fBpackage\.json\fP to add the reference to this new workspace:
+.P
+.RS 2
+.nf
+\|\.
++\-\- package\.json
+`\-\- packages
+   `\-\- a
+       `\-\- package\.json
+.fi
+.RE
+.P
+The workspaces init also supports the \fBnpm init <initializer> \-w <dir>\fP
+syntax, following the same set of rules explained earlier in the initial
+\fBDescription\fR section of this page\. Similar to the previous example of
+creating a new React\-based project using
+\fBcreate\-react\-app\fP \fIhttps://npm\.im/create\-react\-app\fR, the following syntax
+will make sure to create the new react app as a nested \fBworkspace\fR within your
+project and configure your \fBpackage\.json\fP to recognize it as such:
+.P
+.RS 2
+.nf
+npm init \-w packages/my\-react\-app react\-app \.
+.fi
+.RE
+.P
+This will make sure to generate your react app as expected, one important
+consideration to have in mind is that \fBnpm exec\fP is going to be run in the
+context of the newly created folder for that workspace, and that's the reason
+why in this example the initializer uses the initializer name followed with a
+dot to represent the current directory in that context, e\.g: \fBreact\-app \.\fP:
+.P
+.RS 2
+.nf
+\|\.
++\-\- package\.json
+`\-\- packages
+   +\-\- a
+   |   `\-\- package\.json
+   `\-\- my\-react\-app
+       +\-\- README
+       +\-\- package\.json
+       `\-\- \.\.\.
+.fi
+.RE
 .SS A note on caching
 .P
 The npm cli utilizes its internal package cache when using the package
@@ -98,6 +182,47 @@ requested from the server\. To force full offline mode, use \fBoffline\fP\|\.
 .P
 Forces full offline mode\. Any packages not locally cached will result in
 an error\.
+.SS workspace
+.RS 0
+.IP \(bu 2
+Alias: \fB\-w\fP
+.IP \(bu 2
+Type: Array
+.IP \(bu 2
+Default: \fB[]\fP
+
+.RE
+.P
+Enable running \fBnpm init\fP in the context of workspaces, creating any missing
+folders, generating files and adding/updating the \fB"workspaces"\fP property of
+the project \fBpackage\.json\fP\|\.
+.P
+the provided names or paths provided\.
+.P
+Valid values for the \fBworkspace\fP config are either:
+.RS 0
+.IP \(bu 2
+Workspace names
+.IP \(bu 2
+Path to a workspace directory
+.IP \(bu 2
+Path to a parent workspace directory (will result to selecting all of the
+children workspaces)
+
+.RE
+.SS workspaces
+.RS 0
+.IP \(bu 2
+Alias: \fB\-ws\fP
+.IP \(bu 2
+Type: Boolean
+.IP \(bu 2
+Default: \fBfalse\fP
+
+.RE
+.P
+Run \fBnpm init\fP in the context of all configured workspaces for the
+current project\.
 .SS See Also
 .RS 0
 .IP \(bu 2
@@ -110,5 +235,7 @@ npm help version
 npm help scope
 .IP \(bu 2
 npm help exec
+.IP \(bu 2
+npm help workspaces
 
 .RE

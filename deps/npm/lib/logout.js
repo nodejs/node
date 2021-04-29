@@ -41,7 +41,7 @@ class Logout extends BaseCommand {
         method: 'DELETE',
         ignoreBody: true,
       })
-    } else if (auth.username || auth.password)
+    } else if (auth.isBasicAuth)
       log.verbose('logout', `clearing user credentials for ${reg}`)
     else {
       const msg = `not logged in to ${reg}, so can't log out!`

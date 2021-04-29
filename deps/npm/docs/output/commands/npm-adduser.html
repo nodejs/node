@@ -141,11 +141,11 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#registry">registry</a></li><li><a href="#scope">scope</a></li><li><a href="#always-auth">always-auth</a></li><li><a href="#auth-type">auth-type</a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#registry">registry</a></li><li><a href="#scope">scope</a></li><li><a href="#auth-type">auth-type</a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm adduser [--registry=url] [--scope=@orgname] [--always-auth] [--auth-type=legacy]
+<pre lang="bash"><code>npm adduser [--registry=url] [--scope=@orgname] [--auth-type=legacy]
 
 aliases: login, add-user
 </code></pre>
@@ -177,17 +177,6 @@ e.g.</p>
 </code></pre>
 <p>This will set a registry for the given scope and login or create a user for
 that registry at the same time.</p>
-<h4 id="always-auth">always-auth</h4>
-<p>Default: false</p>
-<p>If specified, save configuration indicating that all requests to the given
-registry should include authorization information. Useful for private
-registries. Can be used with <code>--registry</code> and / or <code>--scope</code>, e.g.</p>
-<pre lang="bash"><code>npm adduser --registry=http://private-registry.example.com --always-auth
-</code></pre>
-<p>This will ensure that all requests to that registry (including for tarballs)
-include an authorization header. This setting may be necessary for use with
-private registries where metadata and package tarballs are stored on hosts with
-different hostnames. See <code>always-auth</code> in <a href="../using-npm/config.html"><code>config</code></a> for more details on always-auth. Registry-specific configuration of <code>always-auth</code> takes precedence over any global configuration.</p>
 <h4 id="auth-type">auth-type</h4>
 <ul>
 <li>Default: <code>'legacy'</code></li>

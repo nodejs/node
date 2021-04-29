@@ -34,7 +34,7 @@ const config = {
   yes: true,
   call: '',
   package: [],
-  shell: 'shell-cmd',
+  'script-shell': 'shell-cmd',
 }
 const npm = mockNpm({
   flatOptions,
@@ -86,12 +86,14 @@ const PATH = require('../../lib/utils/path.js')
 let CI_NAME = 'travis-ci'
 
 const mocks = {
-  '@npmcli/arborist': Arborist,
-  '@npmcli/run-script': runScript,
-  '@npmcli/ci-detect': () => CI_NAME,
-  pacote,
-  read,
-  'mkdirp-infer-owner': mkdirp,
+  libnpmexec: t.mock('libnpmexec', {
+    '@npmcli/arborist': Arborist,
+    '@npmcli/run-script': runScript,
+    '@npmcli/ci-detect': () => CI_NAME,
+    pacote,
+    read,
+    'mkdirp-infer-owner': mkdirp,
+  }),
 }
 const Exec = t.mock('../../lib/exec.js', mocks)
 const exec = new Exec(npm)
@@ -108,6 +110,7 @@ t.afterEach(() => {
   PROGRESS_IGNORED = false
   flatOptions.legacyPeerDeps = false
   config.color = false
+  config['script-shell'] = 'shell-cmd'
   config.package = []
   flatOptions.package = []
   config.call = ''
@@ -284,6 +287,29 @@ t.test('npm exec <noargs>, run interactive shell', t => {
         ['exec', 'Interactive mode disabled in CI environment'],
       ])
       t.strictSame(OUTPUT, [], 'no message about interactive shell')
+      t.end()
+    })
+  })
+
+  t.test('not defined script-shell config value', t => {
+    CI_NAME = null
+    process.stdin.isTTY = true
+    config['script-shell'] = undefined
+
+    exec.exec([], er => {
+      if (er)
+        throw er
+
+      t.match(RUN_SCRIPTS, [{
+        pkg: { scripts: { npx: undefined } },
+      }])
+
+      LOG_WARN.length = 0
+      ARB_CTOR.length = 0
+      MKDIRPS.length = 0
+      ARB_REIFY.length = 0
+      OUTPUT.length = 0
+      RUN_SCRIPTS.length = 0
       t.end()
     })
   })
