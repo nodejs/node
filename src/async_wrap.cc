@@ -313,7 +313,7 @@ void AsyncWrap::EmitDestroy(bool from_gc) {
 
   if (!persistent().IsEmpty() && !from_gc) {
     HandleScope handle_scope(env()->isolate());
-    USE(object()->Set(env()->context(), env()->resource_symbol(), object()));
+    USE(object()->Set(env()->context(), env()->owner_symbol(), object()));
   }
 }
 
@@ -586,7 +586,7 @@ void AsyncWrap::AsyncReset(Local<Object> resource, double execution_async_id,
     Local<Object> obj = object();
     CHECK(!obj.IsEmpty());
     if (resource != obj) {
-      USE(obj->Set(env()->context(), env()->resource_symbol(), resource));
+      USE(obj->Set(env()->context(), env()->owner_symbol(), resource));
     }
   }
 
