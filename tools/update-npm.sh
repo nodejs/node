@@ -24,12 +24,11 @@ mkdir -p "$WORKSPACE"
 
 cd "$WORKSPACE"
 
-git clone git@github.com:npm/cli.git
+git clone --depth=1 --branch="v$NPM_VERSION" git@github.com:npm/cli.git
 cd cli
 
 echo "Preparing npm release"
 
-git checkout v"$NPM_VERSION"
 make
 make release
 
