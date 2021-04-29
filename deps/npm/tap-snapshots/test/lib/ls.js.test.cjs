@@ -5,6 +5,46 @@
  * Make sure to inspect the output below.  Do not ignore changes!
  */
 'use strict'
+exports[`test/lib/ls.js TAP ignore missing optional deps --json > ls --json problems 1`] = `
+Array [
+  "invalid: optional-wrong@3.2.1 {project}/node_modules/optional-wrong",
+  "missing: peer-missing@1, required by test-npm-ls-ignore-missing-optional@1.2.3",
+  "invalid: peer-optional-wrong@3.2.1 {project}/node_modules/peer-optional-wrong",
+  "invalid: peer-wrong@3.2.1 {project}/node_modules/peer-wrong",
+  "missing: prod-missing@1, required by test-npm-ls-ignore-missing-optional@1.2.3",
+  "invalid: prod-wrong@3.2.1 {project}/node_modules/prod-wrong",
+]
+`
+
+exports[`test/lib/ls.js TAP ignore missing optional deps --parseable > ls --parseable result 1`] = `
+{project}
+{project}/node_modules/optional-ok
+{project}/node_modules/optional-wrong
+{project}/node_modules/peer-ok
+{project}/node_modules/peer-optional-ok
+{project}/node_modules/peer-optional-wrong
+{project}/node_modules/peer-wrong
+{project}/node_modules/prod-ok
+{project}/node_modules/prod-wrong
+`
+
+exports[`test/lib/ls.js TAP ignore missing optional deps human output > ls result 1`] = `
+test-npm-ls-ignore-missing-optional@1.2.3 {project}
++-- unmet optional dependency optional-missing@1
++-- optional-ok@1.2.3
++-- optional-wrong@3.2.1 invalid
++-- unmet dependency peer-missing@1
++-- peer-ok@1.2.3
++-- unmet optional dependency peer-optional-missing@1
++-- peer-optional-ok@1.2.3
++-- peer-optional-wrong@3.2.1 invalid
++-- peer-wrong@3.2.1 invalid
++-- unmet dependency prod-missing@1
++-- prod-ok@1.2.3
+\`-- prod-wrong@3.2.1 invalid
+
+`
+
 exports[`test/lib/ls.js TAP ls --depth=0 > should output tree containing only top-level dependencies 1`] = `
 test-npm-ls@1.0.0 {CWD}/tap-testdir-ls-ls---depth-0
 +-- foo@1.0.0
@@ -226,12 +266,6 @@ exports[`test/lib/ls.js TAP ls --parseable json read problems > should print emp
 {CWD}/tap-testdir-ls-ls---parseable-json-read-problems
 `
 
-exports[`test/lib/ls.js TAP ls --parseable missing package.json > should log all extraneous deps on error msg 1`] = `
-extraneous: bar@1.0.0 {CWD}/tap-testdir-ls-ls---parseable-missing-package.json/node_modules/bar
-extraneous: foo@1.0.0 {CWD}/tap-testdir-ls-ls---parseable-missing-package.json/node_modules/foo
-extraneous: lorem@1.0.0 {CWD}/tap-testdir-ls-ls---parseable-missing-package.json/node_modules/lorem
-`
-
 exports[`test/lib/ls.js TAP ls --parseable missing package.json > should output parseable missing name/version of top-level package 1`] = `
 {CWD}/tap-testdir-ls-ls---parseable-missing-package.json
 {CWD}/tap-testdir-ls-ls---parseable-missing-package.json/node_modules/bar
@@ -347,7 +381,7 @@ exports[`test/lib/ls.js TAP ls cycle deps with filter args > should print tree o
 exports[`test/lib/ls.js TAP ls deduped missing dep > should output parseable signaling missing peer dep in problems 1`] = `
 test-npm-ls@1.0.0 {CWD}/tap-testdir-ls-ls-deduped-missing-dep
 +-- a@1.0.0
-| \`-- UNMET DEPENDENCY b@^1.0.0 deduped
+| \`-- UNMET DEPENDENCY b@^1.0.0
 \`-- UNMET DEPENDENCY b@^1.0.0
 
 `
@@ -456,12 +490,6 @@ filter-by-child-of-missing-dep@1.0.0 {CWD}/tap-testdir-ls-ls-loading-a-tree-cont
 | \`-- c@1.0.0
 \`-- b@1.0.0 -> {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspaces/b
 
-`
-
-exports[`test/lib/ls.js TAP ls missing package.json > should log all extraneous deps on error msg 1`] = `
-extraneous: bar@1.0.0 {CWD}/tap-testdir-ls-ls-missing-package.json/node_modules/bar
-extraneous: foo@1.0.0 {CWD}/tap-testdir-ls-ls-missing-package.json/node_modules/foo
-extraneous: lorem@1.0.0 {CWD}/tap-testdir-ls-ls-missing-package.json/node_modules/lorem
 `
 
 exports[`test/lib/ls.js TAP ls missing package.json > should output tree missing name/version of top-level package 1`] = `

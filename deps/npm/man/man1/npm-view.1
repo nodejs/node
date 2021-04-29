@@ -111,6 +111,20 @@ this:
 npm view connect versions
 .fi
 .RE
+.SS Configuration
+.SS json
+.P
+Show information in JSON format\. See \fBOutput\fP \fI#output\fR below\.
+.SS workspaces
+.P
+Enables workspaces context while searching the \fBpackage\.json\fP in the
+current folder\.  Information about packages named in each workspace will
+be viewed\.
+.SS workspace
+.P
+Enables workspaces context and limits results to only those specified by
+this config item\.  Only the information about packages named in the
+workspaces given here will be viewed\.
 .SS Output
 .P
 If only a single string field for a single version is output, then it

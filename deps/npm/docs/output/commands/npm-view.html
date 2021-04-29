@@ -141,7 +141,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#output">Output</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#json">json</a></li><li><a href="#workspaces">workspaces</a></li><li><a href="#workspace">workspace</a></li></ul><li><a href="#output">Output</a></li><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -198,6 +198,17 @@ was required by each matching version of <code>yui3</code>:</p>
 this:</p>
 <pre lang="bash"><code>npm view connect versions
 </code></pre>
+<h3 id="configuration">Configuration</h3>
+<h4 id="json">json</h4>
+<p>Show information in JSON format. See <a href="#output"><code>Output</code></a> below.</p>
+<h4 id="workspaces">workspaces</h4>
+<p>Enables workspaces context while searching the <code>package.json</code> in the
+current folder.  Information about packages named in each workspace will
+be viewed.</p>
+<h4 id="workspace">workspace</h4>
+<p>Enables workspaces context and limits results to only those specified by
+this config item.  Only the information about packages named in the
+workspaces given here will be viewed.</p>
 <h3 id="output">Output</h3>
 <p>If only a single string field for a single version is output, then it
 will not be colorized or quoted, to enable piping the output to

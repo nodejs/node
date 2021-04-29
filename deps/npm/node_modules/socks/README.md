@@ -409,7 +409,7 @@ Note: When using 4a please specify type: 4, and when using 5h please specify typ
 | --- | :---: | :---: | :---: | :---: | :---: |
 | SOCKS v4 | ✅ | ❌ | ✅ | ❌ | ❌ |
 | SOCKS v4a | ✅ | ❌ | ✅ | ❌ | ✅ |
-| SOCKS v5 (includes 5hh) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| SOCKS v5 (includes v5h) | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ### new SocksClient(options)
 

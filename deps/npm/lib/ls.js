@@ -166,7 +166,10 @@ class LS extends BaseCommand {
       )
     }
 
-    if (problems.size) {
+    const shouldThrow = problems.size &&
+      ![...problems].every(problem => problem.startsWith('extraneous:'))
+
+    if (shouldThrow) {
       throw Object.assign(
         new Error([...problems].join(EOL)),
         { code: 'ELSPROBLEMS' }
@@ -302,7 +305,7 @@ const getJsonOutputItem = (node, { global, long }) => {
   if (node.isRoot && hasPackageJson)
     item.name = node.package.name || node.name
 
-  if (long) {
+  if (long && !node[_missing]) {
     item.name = item[_name]
     const { dependencies, ...packageInfo } = node.package
     Object.assign(item, packageInfo)
@@ -411,9 +414,11 @@ const augmentNodesWithMetadata = ({
       path: node.path,
       isLink: node.isLink,
       realpath: node.realpath,
+      [_type]: node[_type],
       [_invalid]: node[_invalid],
       [_missing]: node[_missing],
-      [_dedupe]: true,
+      // if it's missing, it's not deduped, it's just missing
+      [_dedupe]: !node[_missing],
     }
   } else {
     // keeps track of already seen nodes in order to check for dedupes

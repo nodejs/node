@@ -1,3 +1,125 @@
+## v7.11.2 (2021-04-29)
+
+### BUG FIXES
+
+* [`c371f183e`](https://github.com/npm/cli/commit/c371f183ebe833c2439e98b679f14e7a59f22c34)
+  [#3137](https://github.com/npm/cli/issues/3137)
+  [#3140](https://github.com/npm/cli/issues/3140)
+  fix(ls): do not warn on missing optional deps
+  ([@isaacs](https://github.com/isaacs))
+* [`861f606c7`](https://github.com/npm/cli/commit/861f606c7609d177c644814a171581afbb72f6db)
+  [#3156](https://github.com/npm/cli/issues/3156)
+  fix(build): make prune rule work on case-sensitive file systems
+  ([@lpinca](https://github.com/lpinca))
+
+### DEPENDENCIES
+
+* [`fb79d89a0`](https://github.com/npm/cli/commit/fb79d89a07ef03e76633db275463f701d3dae42f)
+  `tap@15.0.6`
+* [`ce3820043`](https://github.com/npm/cli/commit/ce38200437e9ed527df973794909b2699909bc9b)
+  `@npmcli/arborist@2.4.1`
+    * fix: prevent and eliminate unnecessary duplicates
+    * fix: support resolvable partial intersecting peerSets
+
+### DOCUMENTATION
+
+* [`e479f1dac`](https://github.com/npm/cli/commit/e479f1dac9a7639304d20116583034861635b2b1)
+  [#3146](https://github.com/npm/cli/issues/3146)
+  mention `directories.bin` in `bin`
+  ([@felipecrs](https://github.com/felipecrs))
+
+## v7.11.1 (2021-04-23)
+
+### DEPENDENCIES
+
+* [`7925cca24`](https://github.com/npm/cli/commit/7925cca24543d9e1a8297844b3e53e11057643ef)
+  `pacote@11.3.3`:
+  * fix(registry): normalize manfest
+* [`b61eac693`](https://github.com/npm/cli/commit/b61eac693df82c52b955e6c18ec4dcf4cedea8a3)
+  [#3130](https://github.com/npm/cli/issues/3130)
+  `@npmcli/config@2.2.0`
+* [`c74e67fc6`](https://github.com/npm/cli/commit/c74e67fc6572bb001d74c7486c05d211a0e03de8)
+  [#3130](https://github.com/npm/cli/issues/3130)
+  `npm-registry-fetch@10.1.1`
+
+### DOCUMENTATION
+
+* [`efdd7dd44`](https://github.com/npm/cli/commit/efdd7dd4427a0ee856c18aab1df2d3d30a307997)
+  Remove unused and incorrectly documented `--always-auth` config definition
+  ([@isaacs](https://github.com/isaacs))
+
+## v7.11.0 (2021-04-22)
+
+### FEATURES
+
+* [`4c1f16d2c`](https://github.com/npm/cli/commit/4c1f16d2c29a7a56c19b97f2820e6305a6075083)
+  [#3095](https://github.com/npm/cli/issues/3095)
+  feat(init): add workspaces support
+  ([@ruyadorno](https://github.com/ruyadorno))
+
+### BUG FIXES
+
+* [`42ca59eee`](https://github.com/npm/cli/commit/42ca59eeedd3e402aa1c606941f7f52864e6039b)
+  [#3086](https://github.com/npm/cli/issues/3086)
+  fix(ls): do not exit with error when all problems are extraneous deps
+  ([@nlf](https://github.com/nlf))
+* [`2aecec591`](https://github.com/npm/cli/commit/2aecec591df6866e27d0b17dc49cef8f7d738d77)
+  [#2724](https://github.com/npm/cli/issues/2724)
+  [#3119](https://github.com/npm/cli/issues/3119)
+  fix(ls): make --long work when missing deps
+  ([@ruyadorno](https://github.com/ruyadorno))
+* [`42e0587a9`](https://github.com/npm/cli/commit/42e0587a9ea6940a5d5be5903370ad1113feef21)
+  [#3115](https://github.com/npm/cli/issues/3115)
+  fix(pack): refuse to pack invalid packument
+  ([@wraithgar](https://github.com/wraithgar))
+* [`1c4eff7b5`](https://github.com/npm/cli/commit/1c4eff7b513b8e84876818ede014d3ab19d203c6)
+  [#3126](https://github.com/npm/cli/issues/3126)
+  fix(logout): use isBasicAuth attribute
+  ([@wraithgar](https://github.com/wraithgar))
+### DOCUMENTATION
+
+
+* [`c93f1c39e`](https://github.com/npm/cli/commit/c93f1c39e326feff0857712a10ef6183fbafe1ab)
+  [#3101](https://github.com/npm/cli/issues/3101)
+  chore(docs): update view docs
+  ([@wraithgar](https://github.com/wraithgar))
+* [`c4ff4bc11`](https://github.com/npm/cli/commit/c4ff4bc113c3a5b6ee5d74ab0b1adee95169ed32)
+  [npm/statusboard#313](https://github.com/npm/statusboard/issues/313)
+  [#3109](https://github.com/npm/cli/issues/3109)
+  fix(usage): fix refs to ws shorthand
+  ([@ruyadorno](https://github.com/ruyadorno))
+
+
+### DEPENDENCIES
+
+* [`83166ebcc`](https://github.com/npm/cli/commit/83166ebcc4ba5e3bf215f08151437d96637f4f33)
+  `npm-registry-fetch@10.1.0`
+    * feat(auth): set isBasicAuth
+* [`e02bda6da`](https://github.com/npm/cli/commit/e02bda6da68b8e8f490bf270cb5d6adec81685ea)
+  `npm-registry-fetch@10.0.0`
+    * feat(auth) load/send based on URI, not registry
+* [`a0382deba`](https://github.com/npm/cli/commit/a0382deba346b09834e75db89e1fd4527f1f07dd)
+  `@npmcli/run-script@1.8.5`
+    * fix: windows ComSpec env variable name
+* [`7f82ef5a8`](https://github.com/npm/cli/commit/7f82ef5a84d70e28983ed43ba1d8aced0fb4ba45)
+  `pacote@11.3.2`
+* [`35e49b94f`](https://github.com/npm/cli/commit/35e49b94fba478a63df6cc9b62816eafe5f1fbdd)
+  `@npmcli/arborist@2.4.0`
+* [`95faf8ce6`](https://github.com/npm/cli/commit/95faf8ce6c007082a02c160977da194c08ee9d82)
+  `libnpmaccess@4.0.2`
+* [`17fffc0e4`](https://github.com/npm/cli/commit/17fffc0e42b2a9e7b84691093e45ba511906cbfa)
+  `libnpmhook@6.0.2`
+* [`1b5a213aa`](https://github.com/npm/cli/commit/1b5a213aaf39652661ba72ba2e8751f049b170fb)
+  `libnpmorg@2.0.2`
+* [`9f83e6484`](https://github.com/npm/cli/commit/9f83e6484aa163d066f318df42ec89c8234b614e)
+  `libnpmpublish@4.0.1`
+* [`251f788c5`](https://github.com/npm/cli/commit/251f788c554a198ab42682453fa5504f8abe93fe)
+  `libnpmsearch@3.1.1`
+* [`35873a989`](https://github.com/npm/cli/commit/35873a989fe67041ddcf30a0a278ed77ace5ee3c)
+  `libnpmteam@2.0.3`
+* [`23e12b4d8`](https://github.com/npm/cli/commit/23e12b4d8f63d765a48036e7bb08f53319c73304)
+  `npm-profile@5.0.3`
+
 ## v7.10.0 (2021-04-15)
 
 ### FEATURES

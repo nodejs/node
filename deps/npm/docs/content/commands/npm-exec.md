@@ -11,7 +11,7 @@ npm exec -- <pkg>[@<version>] [args...]
 npm exec --package=<pkg>[@<version>] -- <cmd> [args...]
 npm exec -c '<cmd> [args...]'
 npm exec --package=foo -c '<cmd> [args...]'
-npm exec [-ws] [-w <workspace-name] [args...]
+npm exec [--ws] [-w <workspace-name] [args...]
 
 npx <pkg>[@<specifier>] [args...]
 npx -p <pkg>[@<specifier>] <cmd> [args...]
@@ -184,7 +184,7 @@ in this example we're using **eslint** to lint any js file found within each
 workspace folder:
 
 ```
-npm exec -ws -- eslint ./*.js
+npm exec --ws -- eslint ./*.js
 ```
 
 #### Filtering workspaces
@@ -275,7 +275,7 @@ children workspaces)
 
 #### workspaces
 
-* Alias: `-ws`
+* Alias: `--ws`
 * Type: Boolean
 * Default: `false`
 
@@ -291,3 +291,4 @@ project.
 * [npm restart](/commands/npm-restart)
 * [npm stop](/commands/npm-stop)
 * [npm config](/commands/npm-config)
+* [npm workspaces](/using-npm/workspaces)

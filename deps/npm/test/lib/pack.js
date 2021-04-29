@@ -15,10 +15,12 @@ const mockPacote = {
   manifest: (spec) => {
     if (spec.type === 'directory')
       return pacote.manifest(spec)
-    return {
+    const m = {
       name: spec.name || 'test-package',
       version: spec.version || '1.0.0-test',
     }
+    m._id = `${m.name}@${m.version}`
+    return m
   },
 }
 
@@ -43,9 +45,8 @@ t.test('should pack current directory with no arguments', (t) => {
   })
   const pack = new Pack(npm)
 
-  pack.exec([], er => {
-    if (er)
-      throw er
+  pack.exec([], err => {
+    t.error(err, { bail: true })
 
     const filename = `npm-${require('../../package.json').version}.tgz`
     t.strictSame(OUTPUT, [[filename]])
@@ -79,9 +80,8 @@ t.test('should pack given directory', (t) => {
   })
   const pack = new Pack(npm)
 
-  pack.exec([testDir], er => {
-    if (er)
-      throw er
+  pack.exec([testDir], err => {
+    t.error(err, { bail: true })
 
     const filename = 'my-cool-pkg-1.0.0.tgz'
     t.strictSame(OUTPUT, [[filename]])
@@ -115,9 +115,8 @@ t.test('should pack given directory for scoped package', (t) => {
   })
   const pack = new Pack(npm)
 
-  return pack.exec([testDir], er => {
-    if (er)
-      throw er
+  return pack.exec([testDir], err => {
+    t.error(err, { bail: true })
 
     const filename = 'cool-my-pkg-1.0.0.tgz'
     t.strictSame(OUTPUT, [[filename]])
@@ -150,12 +149,43 @@ t.test('should log pack contents', (t) => {
   })
   const pack = new Pack(npm)
 
-  pack.exec([], er => {
-    if (er)
-      throw er
+  pack.exec([], err => {
+    t.error(err, { bail: true })
 
     const filename = `npm-${require('../../package.json').version}.tgz`
     t.strictSame(OUTPUT, [[filename]])
+    t.end()
+  })
+})
+
+t.test('invalid packument', (t) => {
+  const mockPacote = {
+    manifest: () => {
+      return {}
+    },
+  }
+  const Pack = t.mock('../../lib/pack.js', {
+    libnpmpack,
+    pacote: mockPacote,
+    npmlog: {
+      notice: () => {},
+      showProgress: () => {},
+      clearProgress: () => {},
+    },
+  })
+  const npm = mockNpm({
+    config: {
+      unicode: true,
+      json: true,
+      'dry-run': true,
+    },
+    output,
+  })
+  const pack = new Pack(npm)
+  pack.exec([], err => {
+    t.match(err, { message: 'Invalid package, must have name and version' })
+
+    t.strictSame(OUTPUT, [])
     t.end()
   })
 })
@@ -201,9 +231,8 @@ t.test('workspaces', (t) => {
   const pack = new Pack(npm)
 
   t.test('all workspaces', (t) => {
-    pack.execWorkspaces([], [], er => {
-      if (er)
-        throw er
+    pack.execWorkspaces([], [], err => {
+      t.error(err, { bail: true })
 
       t.strictSame(OUTPUT, [
         ['workspace-a-1.0.0.tgz'],
@@ -214,9 +243,8 @@ t.test('workspaces', (t) => {
   })
 
   t.test('all workspaces, `.` first arg', (t) => {
-    pack.execWorkspaces(['.'], [], er => {
-      if (er)
-        throw er
+    pack.execWorkspaces(['.'], [], err => {
+      t.error(err, { bail: true })
 
       t.strictSame(OUTPUT, [
         ['workspace-a-1.0.0.tgz'],
@@ -227,9 +255,8 @@ t.test('workspaces', (t) => {
   })
 
   t.test('one workspace', (t) => {
-    pack.execWorkspaces([], ['workspace-a'], er => {
-      if (er)
-        throw er
+    pack.execWorkspaces([], ['workspace-a'], err => {
+      t.error(err, { bail: true })
 
       t.strictSame(OUTPUT, [
         ['workspace-a-1.0.0.tgz'],
@@ -239,9 +266,8 @@ t.test('workspaces', (t) => {
   })
 
   t.test('specific package', (t) => {
-    pack.execWorkspaces(['abbrev'], [], er => {
-      if (er)
-        throw er
+    pack.execWorkspaces(['abbrev'], [], err => {
+      t.error(err, { bail: true })
 
       t.strictSame(OUTPUT, [
         ['abbrev-1.0.0-test.tgz'],

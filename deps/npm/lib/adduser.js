@@ -21,7 +21,6 @@ class AddUser extends BaseCommand {
     return [
       'registry',
       'scope',
-      'always-auth',
     ]
   }
 

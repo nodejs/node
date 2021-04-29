@@ -54,7 +54,7 @@ class Arborist extends Base {
       ...options,
       path: options.path || '.',
       cache: options.cache || `${homedir()}/.npm/_cacache`,
-      packumentCache: new Map(),
+      packumentCache: options.packumentCache || new Map(),
       log: options.log || procLog,
     }
     this.cache = resolve(this.options.cache)

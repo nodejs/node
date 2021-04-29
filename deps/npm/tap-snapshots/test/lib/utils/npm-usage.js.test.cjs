@@ -190,7 +190,7 @@ All commands:
                     npm adduser
 
                     Options:
-                    [--registry <registry>] [--scope <@scope>] [--always-auth]
+                    [--registry <registry>] [--scope <@scope>]
 
                     aliases: login, add-user
 
@@ -467,6 +467,10 @@ All commands:
                     npm init <@scope> (same as \`npx <@scope>/create\`)
                     npm init [<@scope>/]<name> (same as \`npx [<@scope>/]create-<name>\`)
 
+                    Options:
+                    [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
+                    [-ws|--workspaces]
+
                     aliases: create, innit
 
                     Run "npm help init" for more info
@@ -561,7 +565,7 @@ All commands:
                     npm adduser
 
                     Options:
-                    [--registry <registry>] [--scope <@scope>] [--always-auth]
+                    [--registry <registry>] [--scope <@scope>]
 
                     aliases: login, add-user
 

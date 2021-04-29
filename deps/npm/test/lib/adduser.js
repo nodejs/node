@@ -25,7 +25,6 @@ const authDummy = (npm, options) => {
       username: 'u',
       password: 'p',
       email: 'u@npmjs.org',
-      alwaysAuth: false,
     },
   })
 }
@@ -97,12 +96,15 @@ t.test('simple login', (t) => {
         _token: 'user',
         _password: 'user',
         username: 'user',
-        email: 'user',
         _auth: 'user',
         _authtoken: 'user',
+        '-authtoken': 'user',
         _authToken: 'user',
-        '//registry.npmjs.org/:-authtoken': undefined,
+        '//registry.npmjs.org/:-authtoken': 'user',
         '//registry.npmjs.org/:_authToken': 'user',
+        '//registry.npmjs.org/:_authtoken': 'user',
+        '//registry.npmjs.org/:always-auth': 'user',
+        '//registry.npmjs.org/:email': 'user',
       },
       'should delete token in user config'
     )
@@ -112,8 +114,7 @@ t.test('simple login', (t) => {
       {
         '//registry.npmjs.org/:_password': { value: 'cA==', where: 'user' },
         '//registry.npmjs.org/:username': { value: 'u', where: 'user' },
-        '//registry.npmjs.org/:email': { value: 'u@npmjs.org', where: 'user' },
-        '//registry.npmjs.org/:always-auth': { value: false, where: 'user' },
+        email: { value: 'u@npmjs.org', where: 'user' },
       },
       'should set expected user configs'
     )

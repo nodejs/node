@@ -165,14 +165,6 @@ upon by the current project.
 Prevents throwing an error when `npm version` is used to set the new version
 to the same value as the current version.
 
-#### `always-auth`
-
-* Default: false
-* Type: Boolean
-
-Force npm to always require authentication when accessing the registry, even
-for `GET` requests.
-
 #### `audit`
 
 * Default: true
@@ -1087,7 +1079,8 @@ installation of packages specified according to the pattern
 * Default: '/bin/sh' on POSIX systems, 'cmd.exe' on Windows
 * Type: null or String
 
-The shell to use for scripts run with the `npm run` command.
+The shell to use for scripts run with the `npm exec`, `npm run` and `npm
+init <pkg>` commands.
 
 #### `searchexclude`
 

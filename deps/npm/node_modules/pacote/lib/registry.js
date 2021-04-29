@@ -3,6 +3,7 @@ const RemoteFetcher = require('./remote.js')
 const _tarballFromResolved = Symbol.for('pacote.Fetcher._tarballFromResolved')
 const pacoteVersion = require('../package.json').version
 const npa = require('npm-package-arg')
+const rpj = require('read-package-json-fast')
 const pickManifest = require('npm-pick-manifest')
 const ssri = require('ssri')
 const Minipass = require('minipass')
@@ -156,7 +157,8 @@ class RegistryFetcher extends Fetcher {
         }
         if (this.integrity)
           mani._integrity = String(this.integrity)
-        return this.package = mani
+        this.package = rpj.normalize(mani)
+        return this.package
       })
   }
 

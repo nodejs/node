@@ -94,6 +94,25 @@ this:
 npm view connect versions
 ```
 
+### Configuration
+
+#### json
+
+Show information in JSON format. See [`Output`](#output) below.
+
+#### workspaces
+
+Enables workspaces context while searching the `package.json` in the
+current folder.  Information about packages named in each workspace will
+be viewed.
+
+#### workspace
+
+Enables workspaces context and limits results to only those specified by
+this config item.  Only the information about packages named in the
+workspaces given here will be viewed.
+
+
 ### Output
 
 If only a single string field for a single version is output, then it

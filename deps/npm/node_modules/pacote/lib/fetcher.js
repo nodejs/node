@@ -40,6 +40,7 @@ const _istream = Symbol('_istream')
 const _assertType = Symbol('_assertType')
 const _tarballFromCache = Symbol('_tarballFromCache')
 const _tarballFromResolved = Symbol.for('pacote.Fetcher._tarballFromResolved')
+const _cacheFetches = Symbol.for('pacote.Fetcher._cacheFetches')
 
 class FetcherBase {
   constructor (spec, opts) {
@@ -166,25 +167,19 @@ class FetcherBase {
   }
 
   // private, should be overridden.
-  // Note that they should *not* calculate or check integrity, but *just*
-  // return the raw tarball data stream.
+  // Note that they should *not* calculate or check integrity or cache,
+  // but *just*  return the raw tarball data stream.
   [_tarballFromResolved] () {
     throw this.notImplementedError
   }
 
   // public, should not be overridden
   tarball () {
-    return this.tarballStream(stream => new Promise((res, rej) => {
-      const buf = []
-      stream.on('error', er => rej(er))
-      stream.on('end', () => {
-        const data = Buffer.concat(buf)
-        data.integrity = this.integrity && String(this.integrity)
-        data.resolved = this.resolved
-        data.from = this.from
-        return res(data)
-      })
-      stream.on('data', d => buf.push(d))
+    return this.tarballStream(stream => stream.concat().then(data => {
+      data.integrity = this.integrity && String(this.integrity)
+      data.resolved = this.resolved
+      data.from = this.from
+      return data
     }))
   }
 
@@ -192,6 +187,10 @@ class FetcherBase {
   // Note: cacache will raise a EINTEGRITY error if the integrity doesn't match
   [_tarballFromCache] () {
     return cacache.get.stream.byDigest(this.cache, this.integrity, this.opts)
+  }
+
+  get [_cacheFetches] () {
+    return true
   }
 
   [_istream] (stream) {
@@ -203,7 +202,31 @@ class FetcherBase {
     // gets to the point of re-setting the integrity.
     const istream = ssri.integrityStream(this.opts)
     istream.on('integrity', i => this.integrity = i)
-    return stream.on('error', er => istream.emit('error', er)).pipe(istream)
+    stream.on('error', er => istream.emit('error', er))
+
+    // if not caching this, just pipe through to the istream and return it
+    if (!this.opts.cache || !this[_cacheFetches])
+      return stream.pipe(istream)
+
+    // we have to return a stream that gets ALL the data, and proxies errors,
+    // but then pipe from the original tarball stream into the cache as well.
+    // To do this without losing any data, and since the cacache put stream
+    // is not a passthrough, we have to pipe from the original stream into
+    // the cache AFTER we pipe into the istream.  Since the cache stream
+    // has an asynchronous flush to write its contents to disk, we need to
+    // defer the istream end until the cache stream ends.
+    stream.pipe(istream, { end: false })
+    const cstream = cacache.put.stream(
+      this.opts.cache,
+      `pacote:tarball:${this.from}`,
+      this.opts
+    )
+    stream.pipe(cstream)
+    // defer istream end until after cstream
+    // cache write errors should not crash the fetch, this is best-effort.
+    cstream.promise().catch(() => {}).then(() => istream.end())
+
+    return istream
   }
 
   pickIntegrityAlgorithm () {
@@ -232,7 +255,9 @@ class FetcherBase {
   // An ENOENT trying to read a tgz file, for example, is Right Out.
   isRetriableError (er) {
     // TODO: check error class, once those are rolled out to our deps
-    return this.isDataCorruptionError(er) || er.code === 'ENOENT'
+    return this.isDataCorruptionError(er) ||
+      er.code === 'ENOENT' ||
+      er.code === 'EISDIR'
   }
 
   // Mostly internal, but has some uses

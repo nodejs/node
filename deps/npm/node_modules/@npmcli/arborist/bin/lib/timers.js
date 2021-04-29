@@ -1,4 +1,5 @@
 const timers = Object.create(null)
+const { format } = require('util')
 
 process.on('time', name => {
   if (timers[name])
@@ -6,17 +7,20 @@ process.on('time', name => {
   timers[name] = process.hrtime()
 })
 
+const dim = process.stderr.isTTY ? msg => `\x1B[2m${msg}\x1B[22m` : m => m
+const red = process.stderr.isTTY ? msg => `\x1B[31m${msg}\x1B[39m` : m => m
 process.on('timeEnd', name => {
   if (!timers[name])
     throw new Error('timer not started! ' + name)
   const res = process.hrtime(timers[name])
   delete timers[name]
-  console.error(`${process.pid} ${name}`, res[0] * 1e3 + res[1] / 1e6)
+  const msg = format(`${process.pid} ${name}`, res[0] * 1e3 + res[1] / 1e6)
+  console.error(dim(msg))
 })
 
 process.on('exit', () => {
   for (const name of Object.keys(timers)) {
-    console.error('Dangling timer: ', name)
+    console.error(red('Dangling timer:'), name)
     process.exitCode = 1
   }
 })

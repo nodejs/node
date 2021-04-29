@@ -5,7 +5,7 @@
 .P
 .RS 2
 .nf
-npm adduser [\-\-registry=url] [\-\-scope=@orgname] [\-\-always\-auth] [\-\-auth\-type=legacy]
+npm adduser [\-\-registry=url] [\-\-scope=@orgname] [\-\-auth\-type=legacy]
 
 aliases: login, add\-user
 .fi
@@ -54,24 +54,6 @@ npm adduser \-\-registry=http://myregistry\.example\.com \-\-scope=@myco
 .P
 This will set a registry for the given scope and login or create a user for
 that registry at the same time\.
-.SS always\-auth
-.P
-Default: false
-.P
-If specified, save configuration indicating that all requests to the given
-registry should include authorization information\. Useful for private
-registries\. Can be used with \fB\-\-registry\fP and / or \fB\-\-scope\fP, e\.g\.
-.P
-.RS 2
-.nf
-npm adduser \-\-registry=http://private\-registry\.example\.com \-\-always\-auth
-.fi
-.RE
-.P
-This will ensure that all requests to that registry (including for tarballs)
-include an authorization header\. This setting may be necessary for use with
-private registries where metadata and package tarballs are stored on hosts with
-different hostnames\. See \fBalways\-auth\fP in npm help \fBconfig\fP for more details on always\-auth\. Registry\-specific configuration of \fBalways\-auth\fP takes precedence over any global configuration\.
 .SS auth\-type
 .RS 0
 .IP \(bu 2

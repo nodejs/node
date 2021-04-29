@@ -199,16 +199,6 @@ define('also', {
   },
 })
 
-define('always-auth', {
-  default: false,
-  type: Boolean,
-  description: `
-    Force npm to always require authentication when accessing the registry,
-    even for \`GET\` requests.
-  `,
-  flatten,
-})
-
 define('audit', {
   default: true,
   type: Boolean,
@@ -1660,7 +1650,8 @@ define('script-shell', {
   `,
   type: [null, String],
   description: `
-    The shell to use for scripts run with the \`npm run\` command.
+    The shell to use for scripts run with the \`npm exec\`,
+    \`npm run\` and \`npm init <pkg>\` commands.
   `,
   flatten (key, obj, flatOptions) {
     flatOptions.scriptShell = obj[key] || undefined

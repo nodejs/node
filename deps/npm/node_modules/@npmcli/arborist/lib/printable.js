@@ -29,6 +29,15 @@ class ArboristNode {
       this.peer = true
     if (tree.inBundle)
       this.bundled = true
+    if (tree.inDepBundle)
+      this.bundler = tree.getBundler().location
+    const bd = tree.package && tree.package.bundleDependencies
+    if (bd && bd.length)
+      this.bundleDependencies = bd
+    if (tree.inShrinkwrap)
+      this.inShrinkwrap = true
+    else if (tree.hasShrinkwrap)
+      this.hasShrinkwrap = true
     if (tree.error)
       this.error = treeError(tree.error)
     if (tree.errors && tree.errors.length)
