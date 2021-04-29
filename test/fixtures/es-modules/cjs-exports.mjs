@@ -3,7 +3,7 @@ import { strictEqual, deepEqual } from 'assert';
 import m, { π } from './exports-cases.js';
 import * as ns from './exports-cases.js';
 
-deepEqual(Object.keys(ns), ['?invalid', 'default', 'invalid identifier', 'isObject', 'package', 'z', 'π']);
+deepEqual(Object.keys(ns), ['?invalid', 'default', 'invalid identifier', 'isObject', 'package', 'z', 'π', '\u{d83c}\u{df10}']);
 strictEqual(π, 'yes');
 strictEqual(typeof m.isObject, 'undefined');
 strictEqual(m.π, 'yes');

@@ -47,13 +47,39 @@ function parseCJS (source, name = '@') {
     e.loc = pos;
     throw e;
   }
-  const result = { exports: [..._exports].filter(expt => !unsafeGetters.has(expt)), reexports: [...reexports] };
+  const result = { exports: [..._exports].filter(expt => expt !== undefined && !unsafeGetters.has(expt)), reexports: [...reexports].filter(reexpt => reexpt !== undefined) };
   resetState();
   return result;
 }
 
-function addExport (name) {
-  _exports.add(name);
+function decode (str) {
+  if (str[0] === '"' || str[0] === '\'') {
+    try {
+      const decoded = (0, eval)(str);
+      // Filter to exclude non-matching UTF-16 surrogate strings
+      for (let i = 0; i < decoded.length; i++) {
+        const surrogatePrefix = decoded.charCodeAt(i) & 0xFC00;
+        if (surrogatePrefix < 0xD800) {
+          // Not a surrogate
+          continue;
+        }
+        else if (surrogatePrefix === 0xD800) {
+          // Validate surrogate pair
+          if ((decoded.charCodeAt(++i) & 0xFC00) !== 0xDC00)
+            return;
+        }
+        else {
+          // Out-of-range surrogate code (above 0xD800)
+          return;
+        }
+      }
+      return decoded;
+    }
+    catch {}
+  }
+  else {
+    return str;
+  }
 }
 
 function parseSource (cjsSource) {
@@ -324,10 +350,9 @@ function tryParseObjectDefineOrKeys (keys) {
         pos++;
         ch = commentWhitespace();
         if (ch !== 39/*'*/ && ch !== 34/*"*/) break;
-        const exportPos = ++pos;
+        const exportPos = pos;
         stringLiteral(ch);
-        expt = source.slice(exportPos, pos);
-        pos++;
+        expt = source.slice(exportPos, ++pos);
         ch = commentWhitespace();
         if (ch !== 44/*,*/) break;
         pos++;
@@ -354,7 +379,7 @@ function tryParseObjectDefineOrKeys (keys) {
           pos += 5;
           ch = commentWhitespace();
           if (ch !== 58/*:*/) break;
-          addExport(expt);
+          _exports.add(decode(expt));
           pos = revertPos;
           return;
         }
@@ -420,13 +445,13 @@ function tryParseObjectDefineOrKeys (keys) {
           pos++;
           ch = commentWhitespace();
           if (ch !== 41/*)*/) break;
-          addExport(expt);
+          _exports.add(decode(expt));
           return;
         }
         break;
       }
       if (expt) {
-        unsafeGetters.add(expt);
+        unsafeGetters.add(decode(expt));
       }
     }
     else if (keys && ch === 107/*k*/ && source.startsWith('eys', pos + 1)) {
@@ -794,7 +819,7 @@ function tryParseObjectDefineOrKeys (keys) {
 
         const starExportSpecifier = starExportMap[id];
         if (starExportSpecifier) {
-          reexports.add(starExportSpecifier);
+          reexports.add(decode(starExportSpecifier));
           pos = revertPos;
           return;
         }
@@ -856,7 +881,7 @@ function tryParseExportsDotAssign (assign) {
         const endPos = pos;
         ch = commentWhitespace();
         if (ch === 61/*=*/) {
-          addExport(source.slice(startPos, endPos));
+          _exports.add(decode(source.slice(startPos, endPos)));
           return;
         }
       }
@@ -867,16 +892,15 @@ function tryParseExportsDotAssign (assign) {
       pos++;
       ch = commentWhitespace();
       if (ch === 39/*'*/ || ch === 34/*"*/) {
-        pos++;
         const startPos = pos;
         stringLiteral(ch);
-        const endPos = pos++;
+        const endPos = ++pos;
         ch = commentWhitespace();
         if (ch !== 93/*]*/) break;
         pos++;
         ch = commentWhitespace();
         if (ch !== 61/*=*/) break;
-        addExport(source.slice(startPos, endPos));
+        _exports.add(decode(source.slice(startPos, endPos)));
       }
       break;
     }
@@ -911,21 +935,21 @@ function tryParseRequire (requireType) {
     if (ch === 40/*(*/) {
       pos++;
       ch = commentWhitespace();
-      const reexportStart = pos + 1;
+      const reexportStart = pos;
       if (ch === 39/*'*/ || ch === 34/*"*/) {
         stringLiteral(ch);
-        const reexportEnd = pos++;
+        const reexportEnd = ++pos;
         ch = commentWhitespace();
         if (ch === 41/*)*/) {
           switch (requireType) {
             case ExportAssign:
-              reexports.add(source.slice(reexportStart, reexportEnd));
+              reexports.add(decode(source.slice(reexportStart, reexportEnd)));
               return true;
             case ExportStar:
-              reexports.add(source.slice(reexportStart, reexportEnd));
+              reexports.add(decode(source.slice(reexportStart, reexportEnd)));
               return true;
             default:
-              lastStarExportSpecifier = source.slice(reexportStart, reexportEnd);
+              lastStarExportSpecifier = decode(source.slice(reexportStart, reexportEnd));
               return true;
           }
         }
@@ -954,7 +978,7 @@ function tryParseLiteralExports () {
         }
         ch = source.charCodeAt(pos);
       }
-      addExport(source.slice(startPos, endPos));
+      _exports.add(decode(source.slice(startPos, endPos)));
     }
     else if (ch === 46/*.*/ && source.startsWith('..', pos + 1)) {
       pos += 3;
@@ -968,9 +992,9 @@ function tryParseLiteralExports () {
       ch = commentWhitespace();
     }
     else if (ch === 39/*'*/ || ch === 34/*"*/) {
-      const startPos = ++pos;
+      const startPos = pos;
       stringLiteral(ch);
-      const endPos = pos++;
+      const endPos = ++pos;
       ch = commentWhitespace();
       if (ch === 58/*:*/) {
         pos++;
@@ -981,7 +1005,7 @@ function tryParseLiteralExports () {
           return;
         }
         ch = source.charCodeAt(pos);
-        addExport(source.slice(startPos, endPos));
+        _exports.add(decode(source.slice(startPos, endPos)));
       }
     }
     else {
