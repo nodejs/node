@@ -386,6 +386,8 @@ Please make sure that your file(s) referenced in `bin` starts with
 `#!/usr/bin/env node`, otherwise the scripts are started without the node
 executable!
 
+Note that you can also set the executable files using [directories.bin](#directoriesbin).
+
 ### man
 
 Specify either a single file or an array of filenames to put in place for

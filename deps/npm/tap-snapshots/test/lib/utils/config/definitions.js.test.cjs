@@ -12,7 +12,6 @@ Array [
   "all",
   "allow-same-version",
   "also",
-  "always-auth",
   "audit",
   "audit-level",
   "auth-type",

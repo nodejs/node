@@ -28,6 +28,7 @@
 // where we need to quickly find all instances of a given package name within a
 // tree.
 
+const semver = require('semver')
 const nameFromFolder = require('@npmcli/name-from-folder')
 const Edge = require('./edge.js')
 const Inventory = require('./inventory.js')
@@ -883,6 +884,43 @@ class Node {
 
   canReplace (node) {
     return node.canReplaceWith(this)
+  }
+
+  // return true if it's safe to remove this node, because anything that
+  // is depending on it would be fine with the thing that they would resolve
+  // to if it was removed, or nothing is depending on it in the first place.
+  canDedupe (preferDedupe = false) {
+    // not allowed to mess with shrinkwraps or bundles
+    if (this.inDepBundle || this.inShrinkwrap)
+      return false
+
+    // it's a top level pkg, or a dep of one
+    if (!this.parent || !this.parent.parent)
+      return false
+
+    // no one wants it, remove it
+    if (this.edgesIn.size === 0)
+      return true
+
+    const other = this.parent.parent.resolve(this.name)
+
+    // nothing else, need this one
+    if (!other)
+      return false
+
+    // if it's the same thing, then always fine to remove
+    if (other.matches(this))
+      return true
+
+    // if the other thing can't replace this, then skip it
+    if (!other.canReplace(this))
+      return false
+
+    // if we prefer dedupe, or if the version is greater/equal, take the other
+    if (preferDedupe || semver.gte(other.version, this.version))
+      return true
+
+    return false
   }
 
   satisfies (requested) {

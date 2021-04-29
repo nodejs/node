@@ -115,10 +115,6 @@ module.exports = cls => class Builder extends cls {
       await this[_runScripts]('preinstall')
     if (this[_binLinks] && type !== 'links')
       await this[_linkAllBins]()
-    if (!this[_ignoreScripts]) {
-      await this[_runScripts]('install')
-      await this[_runScripts]('postinstall')
-    }
 
     // links should also run prepare scripts and only link bins after that
     if (type === 'links') {
@@ -126,6 +122,11 @@ module.exports = cls => class Builder extends cls {
 
       if (this[_binLinks])
         await this[_linkAllBins]()
+    }
+
+    if (!this[_ignoreScripts]) {
+      await this[_runScripts]('install')
+      await this[_runScripts]('postinstall')
     }
 
     process.emit('timeEnd', `build:${type}`)

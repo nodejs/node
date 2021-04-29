@@ -45,22 +45,34 @@ class Pack extends BaseCommand {
       args = ['.']
 
     const unicode = this.npm.config.get('unicode')
+    const dryRun = this.npm.config.get('dry-run')
 
-    // clone the opts because pacote mutates it with resolved/integrity
-    const tarballs = await Promise.all(args.map(async (arg) => {
+    // Get the manifests and filenames first so we can bail early on manifest
+    // errors before making any tarballs
+    const manifests = []
+    for (const arg of args) {
       const spec = npa(arg)
-      const dryRun = this.npm.config.get('dry-run')
       const manifest = await pacote.manifest(spec, this.npm.flatOptions)
+      if (!manifest._id)
+        throw new Error('Invalid package, must have name and version')
+
       const filename = `${manifest.name}-${manifest.version}.tgz`
         .replace(/^@/, '').replace(/\//, '-')
+      manifests.push({ arg, filename, manifest })
+    }
+
+    // Load tarball names up for printing afterward to isolate from the
+    // noise generated during packing
+    const tarballs = []
+    for (const { arg, filename, manifest } of manifests) {
       const tarballData = await libpack(arg, this.npm.flatOptions)
       const pkgContents = await getContents(manifest, tarballData)
 
       if (!dryRun)
         await writeFile(filename, tarballData)
 
-      return pkgContents
-    }))
+      tarballs.push(pkgContents)
+    }
 
     for (const tar of tarballs) {
       logTar(tar, { log, unicode })
