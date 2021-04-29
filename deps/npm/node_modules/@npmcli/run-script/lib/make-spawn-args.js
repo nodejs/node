@@ -8,7 +8,7 @@ const makeSpawnArgs = options => {
   const {
     event,
     path,
-    scriptShell = isWindows ? process.env.comspec || 'cmd' : 'sh',
+    scriptShell = isWindows ? process.env.ComSpec || 'cmd' : 'sh',
     env = {},
     stdio,
     cmd,

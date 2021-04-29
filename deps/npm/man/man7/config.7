@@ -217,17 +217,6 @@ Type: Boolean
 .P
 Prevents throwing an error when \fBnpm version\fP is used to set the new version
 to the same value as the current version\.
-.SS \fBalways\-auth\fP
-.RS 0
-.IP \(bu 2
-Default: false
-.IP \(bu 2
-Type: Boolean
-
-.RE
-.P
-Force npm to always require authentication when accessing the registry, even
-for \fBGET\fP requests\.
 .SS \fBaudit\fP
 .RS 0
 .IP \(bu 2
@@ -1455,7 +1444,8 @@ Type: null or String
 
 .RE
 .P
-The shell to use for scripts run with the \fBnpm run\fP command\.
+The shell to use for scripts run with the \fBnpm exec\fP, \fBnpm run\fP and \fBnpm
+init <pkg>\fP commands\.
 .SS \fBsearchexclude\fP
 .RS 0
 .IP \(bu 2
