@@ -3528,12 +3528,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return IsAnyPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(
         PromiseHookFlags());
   }
-  TNode<BoolT> IsAnyPromiseHookEnabledOrHasAsyncEventDelegate(
-      TNode<Uint32T> flags);
-  TNode<BoolT>
-  IsAnyPromiseHookEnabledOrHasAsyncEventDelegate() {
-    return IsAnyPromiseHookEnabledOrHasAsyncEventDelegate(
-        PromiseHookFlags());
+
+  TNode<BoolT> NeedsAnyPromiseHooks(TNode<Uint32T> flags);
+  TNode<BoolT> NeedsAnyPromiseHooks() {
+    return NeedsAnyPromiseHooks(PromiseHookFlags());
   }
 
   // for..in helpers
