@@ -62,10 +62,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=4709
   'language/expressions/assignment/fn-name-lhs-cover': [FAIL],
 
-  # https://github.com/tc39/test262/issues/2591
-  'intl402/DateTimeFormat/prototype/resolvedOptions/order': ['--no-harmony-intl_dateformat_fractional_second_digits'],
-  'intl402/DateTimeFormat/prototype/resolvedOptions/order-dayPeriod': ['--no-harmony-intl_dateformat_fractional_second_digits'],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=9084
   'intl402/supportedLocalesOf-consistent-with-resolvedOptions': [FAIL],
   'intl402/fallback-locales-are-supported': [FAIL],
@@ -132,6 +128,8 @@
   'built-ins/TypedArray/prototype/reduce/BigInt/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/reduceRight/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/reduceRight/BigInt/callbackfn-detachbuffer': [FAIL],
+  'built-ins/TypedArray/prototype/set/array-arg-primitive-toobject': [FAIL],
+  'built-ins/TypedArray/prototype/set/BigInt/array-arg-primitive-toobject': [FAIL],
   'built-ins/TypedArray/prototype/some/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/some/BigInt/callbackfn-detachbuffer': [FAIL],
   # DataView functions should also throw on detached buffers
@@ -483,9 +481,6 @@
   'language/expressions/prefix-increment/eval': [SKIP],
   'language/expressions/prefix-increment/eval-nostrict': [SKIP],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9047
-  'annexB/built-ins/Function/createdynfn-no-line-terminator-html-close-comment-body': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=9049
   'language/comments/hashbang/use-strict': [SKIP],
 
@@ -507,26 +502,14 @@
   'intl402/Intl/getCanonicalLocales/unicode-ext-canonicalize-yes-to-true': [FAIL],
   'intl402/Intl/getCanonicalLocales/unicode-ext-key-with-digit': [FAIL],
 
-  # http://crbug/v8/10448
-  'intl402/Locale/prototype/minimize/removing-likely-subtags-first-adds-likely-subtags': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=9646
   'built-ins/ThrowTypeError/name': [FAIL],
-  'language/expressions/class/name': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=9742
   'intl402/Locale/getters': [FAIL],
 
   # https://github.com/tc39/test262/pull/2349
   'intl402/Locale/constructor-options-region-valid': [FAIL],
-
-  # http://crbug/v8/10443
-  'intl402/RelativeTimeFormat/prototype/format/pl-pl-style-long': [FAIL],
-  'intl402/RelativeTimeFormat/prototype/format/pl-pl-style-narrow': [FAIL],
-  'intl402/RelativeTimeFormat/prototype/format/pl-pl-style-short': [FAIL],
-  'intl402/RelativeTimeFormat/prototype/formatToParts/pl-pl-style-long': [FAIL],
-  'intl402/RelativeTimeFormat/prototype/formatToParts/pl-pl-style-narrow': [FAIL],
-  'intl402/RelativeTimeFormat/prototype/formatToParts/pl-pl-style-short': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=9818
   'built-ins/AsyncFunction/proto-from-ctor-realm': [FAIL],
@@ -541,58 +524,8 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=10383
   'built-ins/RegExp/prototype/Symbol.replace/fn-invoke-args-empty-result': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=10395
-  'built-ins/AsyncFromSyncIteratorPrototype/next/absent-value-not-passed': [FAIL],
-  'built-ins/AsyncFromSyncIteratorPrototype/return/absent-value-not-passed': [FAIL],
-
-  # http://crbug/v8/10449
-  'built-ins/Atomics/waitAsync/bad-range': [FAIL],
-  'built-ins/Atomics/waitAsync/descriptor': [FAIL],
-  'built-ins/Atomics/waitAsync/false-for-timeout': [FAIL],
-  'built-ins/Atomics/waitAsync/is-function': [FAIL],
-  'built-ins/Atomics/waitAsync/length': [FAIL],
-  'built-ins/Atomics/waitAsync/name': [FAIL],
-  'built-ins/Atomics/waitAsync/nan-for-timeout-agent': [FAIL],
-  'built-ins/Atomics/waitAsync/negative-index-throws': [FAIL],
-  'built-ins/Atomics/waitAsync/negative-timeout': [FAIL],
-  'built-ins/Atomics/waitAsync/null-for-timeout': [FAIL],
-  'built-ins/Atomics/waitAsync/object-for-timeout': [FAIL],
-  'built-ins/Atomics/waitAsync/poisoned-object-for-timeout-throws-agent': [FAIL],
-  'built-ins/Atomics/waitAsync/returns-result-object-value-is-promise-resolves-to-ok': [FAIL],
-  'built-ins/Atomics/waitAsync/returns-result-object-value-is-promise-resolves-to-timed-out': [FAIL],
-  'built-ins/Atomics/waitAsync/returns-result-object-value-is-string-not-equal': [FAIL],
-  'built-ins/Atomics/waitAsync/returns-result-object-value-is-string-timed-out': [FAIL],
-  'built-ins/Atomics/waitAsync/symbol-for-index-throws': [FAIL],
-  'built-ins/Atomics/waitAsync/symbol-for-index-throws-agent': [FAIL],
-  'built-ins/Atomics/waitAsync/symbol-for-timeout-throws': [FAIL],
-  'built-ins/Atomics/waitAsync/symbol-for-timeout-throws-agent': [FAIL],
-  'built-ins/Atomics/waitAsync/symbol-for-value-throws': [FAIL],
-  'built-ins/Atomics/waitAsync/symbol-for-value-throws-agent': [FAIL],
-  'built-ins/Atomics/waitAsync/true-for-timeout': [FAIL],
-  'built-ins/Atomics/waitAsync/undefined-for-timeout-agent': [FAIL],
-  'built-ins/Atomics/waitAsync/undefined-for-timeout': [FAIL],
-  'built-ins/Atomics/waitAsync/undefined-index-defaults-to-zero-agent': [FAIL],
-  'built-ins/Atomics/waitAsync/value-not-equal': [FAIL],
-  'built-ins/Atomics/waitAsync/waiterlist-block-indexedposition-wake': [FAIL],
-  'built-ins/Atomics/waitAsync/was-woken-before-timeout': [FAIL],
-
-  # SKIP the following TIMEOUT tests instead of FAIL
-  'built-ins/Atomics/waitAsync/false-for-timeout-agent': [SKIP],
-  'built-ins/Atomics/waitAsync/good-views': [SKIP],
-  'built-ins/Atomics/waitAsync/negative-timeout-agent': [SKIP],
-  'built-ins/Atomics/waitAsync/no-spurious-wakeup-no-operation': [SKIP],
-  'built-ins/Atomics/waitAsync/no-spurious-wakeup-on-add': [SKIP],
-  'built-ins/Atomics/waitAsync/no-spurious-wakeup-on-and': [SKIP],
-  'built-ins/Atomics/waitAsync/no-spurious-wakeup-on-compareExchange': [SKIP],
-  'built-ins/Atomics/waitAsync/no-spurious-wakeup-on-exchange': [SKIP],
-  'built-ins/Atomics/waitAsync/no-spurious-wakeup-on-or': [SKIP],
-  'built-ins/Atomics/waitAsync/no-spurious-wakeup-on-store': [SKIP],
-  'built-ins/Atomics/waitAsync/no-spurious-wakeup-on-sub': [SKIP],
-  'built-ins/Atomics/waitAsync/no-spurious-wakeup-on-xor': [SKIP],
-  'built-ins/Atomics/waitAsync/null-for-timeout-agent': [SKIP],
-  'built-ins/Atomics/waitAsync/object-for-timeout-agent': [SKIP],
-  'built-ins/Atomics/waitAsync/true-for-timeout-agent': [SKIP],
-  'built-ins/Atomics/waitAsync/value-not-equal-agent': [SKIP],
+  # https://crbug.com/v8/10789
+  'built-ins/Function/prototype/toString/built-in-function-object': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 

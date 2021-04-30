@@ -537,7 +537,7 @@ bool InitClassPrototype(Isolate* isolate,
     map->set_may_have_interesting_symbols(true);
     map->set_construction_counter(Map::kNoSlackTracking);
 
-    // We care about name property only for class constructor.
+    // Class prototypes do not have a name accessor.
     const bool install_name_accessor = false;
 
     return AddDescriptorsByTemplate(
@@ -592,8 +592,8 @@ bool InitClassConstructor(
     map->set_may_have_interesting_symbols(true);
     map->set_construction_counter(Map::kNoSlackTracking);
 
-    bool install_name_accessor =
-        class_boilerplate->install_class_name_accessor() != 0;
+    // All class constructors have a name accessor.
+    const bool install_name_accessor = true;
 
     return AddDescriptorsByTemplate(
         isolate, map, properties_dictionary_template,
