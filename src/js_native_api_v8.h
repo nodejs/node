@@ -122,6 +122,37 @@ struct napi_env__ {
   void* instance_data = nullptr;
 };
 
+// This class is used to keep a napi_env live in a way that
+// is exception safe versus calling Ref/Unref directly
+class EnvRefHolder {
+ public:
+  explicit EnvRefHolder(napi_env env) : _env(env) {
+      _env->Ref();
+  }
+
+  explicit EnvRefHolder(const EnvRefHolder& other): _env(other.env()) {
+    _env->Ref();
+  }
+
+  EnvRefHolder(EnvRefHolder&& other) {
+    _env = other._env;
+    other._env = nullptr;
+  }
+
+  ~EnvRefHolder() {
+    if (_env != nullptr) {
+      _env->Unref();
+    }
+  }
+
+  napi_env env(void) const {
+    return _env;
+  }
+
+ private:
+  napi_env _env;
+};
+
 static inline napi_status napi_clear_last_error(napi_env env) {
   env->last_error.error_code = napi_ok;
 

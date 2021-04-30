@@ -39,8 +39,13 @@ struct node_napi_env__ : public napi_env__ {
   }
 
   void CallFinalizer(napi_finalize cb, void* data, void* hint) override {
-    napi_env env = static_cast<napi_env>(this);
-    node_env()->SetImmediate([=](node::Environment* node_env) {
+    // we need to keep the env live until the finalizer has been run
+    // EnvRefHolder provides an exception safe wrapper to Ref and then
+    // Unref once the lamba is freed
+    EnvRefHolder liveEnv(static_cast<napi_env>(this));
+    node_env()->SetImmediate([=, liveEnv = std::move(liveEnv)]
+        (node::Environment* node_env) {
+      napi_env env = liveEnv.env();
       v8::HandleScope handle_scope(env->isolate);
       v8::Context::Scope context_scope(env->context());
       env->CallIntoModule([&](napi_env env) {
