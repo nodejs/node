@@ -6,6 +6,8 @@
 #include "node.h"
 
 #include <openssl/crypto.h>
+#include <openssl/hmac.h>
+#include <openssl/sha.h>
 
 namespace node {
 
@@ -42,8 +44,47 @@ void TimingSafeEqual(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  uint16_t bufKey[8];
+  CHECK(crypto::EntropySource(reinterpret_cast<unsigned char*>(bufKey),
+                              sizeof(bufKey)));
+  char key[kKeySize];
+  snprintf(key,
+           sizeof(key),
+           "%04x%04x%04x%04x%04x%04x%04x%04x",
+           bufKey[0],
+           bufKey[1],
+           bufKey[2],
+           bufKey[3],
+           bufKey[4],
+           bufKey[5],
+           bufKey[6],
+           bufKey[7]);
+
+  std::array<unsigned char, EVP_MAX_MD_SIZE> hash1;
+  std::array<unsigned char, EVP_MAX_MD_SIZE> hash2;
+  unsigned int hash1Len;
+  unsigned int hash2Len;
+
+  HMAC(EVP_sha256(),
+       key,
+       kKeySize,
+       reinterpret_cast<unsigned char const*>(buf1.data()),
+       static_cast<int>(buf1.size()),
+       hash1.data(),
+       &hash1Len);
+
+  HMAC(EVP_sha256(),
+       key,
+       kKeySize,
+       reinterpret_cast<unsigned char const*>(buf2.data()),
+       static_cast<int>(buf2.size()),
+       hash2.data(),
+       &hash2Len);
+
+  assert(hash1Len == hash2Len);
+
   return args.GetReturnValue().Set(
-      CRYPTO_memcmp(buf1.data(), buf2.data(), buf1.size()) == 0);
+      CRYPTO_memcmp(hash1.data(), hash2.data(), hash1Len) == 0);
 }
 
 void Initialize(Environment* env, Local<Object> target) {

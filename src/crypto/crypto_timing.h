@@ -11,6 +11,9 @@ namespace crypto {
 namespace Timing {
 void Initialize(Environment* env, v8::Local<v8::Object> target);
 void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+
+static const int kKeySize = 256;
+
 }  // namespace Timing
 }  // namespace crypto
 }  // namespace node
