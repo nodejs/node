@@ -54,7 +54,8 @@ class RefTracker {
 struct napi_env__ {
   explicit napi_env__(v8::Local<v8::Context> context)
       : isolate(context->GetIsolate()),
-        context_persistent(isolate, context) {
+        context_persistent(isolate, context),
+        is_env_teardown(false) {
     CHECK_EQ(isolate, context->GetIsolate());
   }
   virtual ~napi_env__() {
@@ -63,11 +64,15 @@ struct napi_env__ {
     // they delete during their `napi_finalizer` callbacks. If we deleted such
     // references here first, they would be doubly deleted when the
     // `napi_finalizer` deleted them subsequently.
+    is_env_teardown = true;
     v8impl::RefTracker::FinalizeAll(&finalizing_reflist);
     v8impl::RefTracker::FinalizeAll(&reflist);
   }
   v8::Isolate* const isolate;  // Shortcut for context()->GetIsolate()
   v8impl::Persistent<v8::Context> context_persistent;
+  bool is_env_teardown;
+
+  inline bool isEnvTeardown() { return is_env_teardown; }
 
   inline v8::Local<v8::Context> context() const {
     return v8impl::PersistentToLocal::Strong(context_persistent);
