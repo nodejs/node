@@ -211,6 +211,15 @@ new Promise(function testWithoutJSMarshaller(resolve) {
 }))
 .then((result) => assert.strictEqual(result.indexOf(0), -1))
 
+// Make sure that threadsafe function isn't stalled when we hit
+// `kMaxIterationCount` in `src/node_api.cc`
+.then(() => testWithJSMarshaller({
+  threadStarter: 'StartThreadNonblocking',
+  maxQueueSize: binding.ARRAY_LENGTH >>> 1,
+  quitAfter: binding.ARRAY_LENGTH
+}))
+.then((result) => assert.deepStrictEqual(result, expectedArray))
+
 // Start a child process to test rapid teardown
 .then(() => testUnref(binding.MAX_QUEUE_SIZE))
 
