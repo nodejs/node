@@ -532,7 +532,7 @@ class V8_EXPORT CFunction {
   };
 };
 
-struct V8_DEPRECATED("Use v8::Local<v8::Value> instead.") ApiObject {
+struct ApiObject {
   uintptr_t address;
 };
 
