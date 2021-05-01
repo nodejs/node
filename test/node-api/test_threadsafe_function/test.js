@@ -43,7 +43,7 @@ function testWithJSMarshaller({
     binding[threadStarter](function testCallback(value) {
       array.push(value);
       if (array.length === quitAfter) {
-        setImmediate(() => {
+        process.nextTick(() => {
           binding.StopThread(common.mustCall(() => {
             resolve(array);
           }), !!abort);
@@ -85,7 +85,7 @@ new Promise(function testWithoutJSMarshaller(resolve) {
     // The default call-into-JS implementation passes no arguments.
     assert.strictEqual(arguments.length, 0);
     if (callCount === binding.ARRAY_LENGTH) {
-      setImmediate(() => {
+      process.nextTick(() => {
         binding.StopThread(common.mustCall(() => {
           resolve();
         }), false);
