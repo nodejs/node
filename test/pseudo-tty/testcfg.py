@@ -48,6 +48,7 @@ class TTYTestCase(test.TestCase):
     self.config = config
     self.arch = arch
     self.mode = mode
+    self.parallel = True
 
   def IgnoreLine(self, str_arg):
     """Ignore empty lines and valgrind output."""
