@@ -77,8 +77,22 @@ class BufferFinalizer : private Finalizer {
 
     node::Environment* node_env =
         static_cast<node_napi_env>(finalizer->_env)->node_env();
-    node_env->SetImmediate(
-        [finalizer = std::move(finalizer)](node::Environment* env) {
+    if (!finalizer->_env->isEnvTeardown()) {
+      node_env->SetImmediate(
+          [finalizer = std::move(finalizer)](node::Environment* env) {
+        if (finalizer->_finalize_callback == nullptr) return;
+
+        v8::HandleScope handle_scope(finalizer->_env->isolate);
+        v8::Context::Scope context_scope(finalizer->_env->context());
+
+        finalizer->_env->CallIntoModule([&](napi_env env) {
+          finalizer->_finalize_callback(
+              env,
+              finalizer->_finalize_data,
+              finalizer->_finalize_hint);
+        });
+      });
+    } else {
       if (finalizer->_finalize_callback == nullptr) return;
 
       v8::HandleScope handle_scope(finalizer->_env->isolate);
@@ -89,8 +103,8 @@ class BufferFinalizer : private Finalizer {
             env,
             finalizer->_finalize_data,
             finalizer->_finalize_hint);
-      });
-    });
+       });
+    }
   }
 
   struct Deleter {
