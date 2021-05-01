@@ -43,6 +43,7 @@ class MessageTestCase(test.TestCase):
     self.config = config
     self.arch = arch
     self.mode = mode
+    self.parallel = True
 
   def IgnoreLine(self, str):
     """Ignore empty lines and valgrind output."""
