@@ -563,7 +563,7 @@ to run it again before invoking `make -j4`.
 * [Python 3.9](https://www.microsoft.com/en-us/p/python-39/9p7qfqmjrfp7)
 * The "Desktop development with C++" workload from
   [Visual Studio 2019](https://visualstudio.microsoft.com/downloads/) or
-  the "Visual C++ build tools" workload from the
+  the "C++ build tools" workload from the
   [Build Tools](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2019),
   with the default optional components
 * Basic Unix tools required for some tests,
