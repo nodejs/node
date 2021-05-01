@@ -8,6 +8,14 @@ if (!common.enoughTestMem)
 
 const assert = require('assert');
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
+
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
+const file1 = path.join(tmpdir.path, 'file1');
+const file2 = path.join(tmpdir.path, 'file2');
+const file3 = path.join(tmpdir.path, 'file3');
 
 function runOneBenchmark(compareFunc, firstBufFill, secondBufFill, bufSize) {
   return eval(`
@@ -27,7 +35,7 @@ function runOneBenchmark(compareFunc, firstBufFill, secondBufFill, bufSize) {
 }
 
 function getTValue(compareFunc) {
-  const numTrials = 1e5;
+  const numTrials = 1e4;
   const bufSize = 10000;
   // Perform benchmarks to verify that timingSafeEqual is actually timing-safe.
 
@@ -35,15 +43,35 @@ function getTValue(compareFunc) {
   const rawUnequalBenches = Array(numTrials);
 
   for (let i = 0; i < numTrials; i++) {
+    const buf = crypto.randomUUID();
+    fs.writeFileSync(file1, buf);
+    fs.writeFileSync(file2, buf);
+    fs.writeFileSync(file3, crypto.randomUUID());
     if (Math.random() < 0.5) {
       // First benchmark: comparing two equal buffers
-      rawEqualBenches[i] = runOneBenchmark(compareFunc, 'A', 'A', bufSize);
+      rawEqualBenches[i] = runOneBenchmark(
+        compareFunc,
+        fs.readFileSync(file1, 'utf8'),
+        fs.readFileSync(file2, 'utf8'),
+        bufSize);
       // Second benchmark: comparing two unequal buffers
-      rawUnequalBenches[i] = runOneBenchmark(compareFunc, 'B', 'C', bufSize);
+      rawUnequalBenches[i] = runOneBenchmark(
+        compareFunc,
+        fs.readFileSync(file1, 'utf8'),
+        fs.readFileSync(file3, 'utf8'),
+        bufSize);
     } else {
       // Flip the order of the benchmarks half of the time.
-      rawUnequalBenches[i] = runOneBenchmark(compareFunc, 'B', 'C', bufSize);
-      rawEqualBenches[i] = runOneBenchmark(compareFunc, 'A', 'A', bufSize);
+      rawUnequalBenches[i] = runOneBenchmark(
+        compareFunc,
+        fs.readFileSync(file2, 'utf8'),
+        fs.readFileSync(file3, 'utf8'),
+        bufSize);
+      rawEqualBenches[i] = runOneBenchmark(
+        compareFunc,
+        fs.readFileSync(file2, 'utf8'),
+        fs.readFileSync(file1, 'utf8'),
+        bufSize);
     }
   }
 
