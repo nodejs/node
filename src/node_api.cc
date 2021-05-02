@@ -48,7 +48,7 @@ struct node_napi_env__ : public napi_env__ {
           env->CallIntoModule([&](napi_env env) {
             cb(env, data, hint);
           });
-	}
+        }
         env->Unref();
       });
     } else {
@@ -89,10 +89,10 @@ class BufferFinalizer : private Finalizer {
         if (finalizer->_finalize_callback == nullptr) {
           finalizer->_env->Unref();
           return;
-	}
+        }
 
-	{
-	  v8::HandleScope handle_scope(finalizer->_env->isolate);
+        {
+          v8::HandleScope handle_scope(finalizer->_env->isolate);
           v8::Context::Scope context_scope(finalizer->_env->context());
 
           finalizer->_env->CallIntoModule([&](napi_env env) {
@@ -101,7 +101,7 @@ class BufferFinalizer : private Finalizer {
                 finalizer->_finalize_data,
                 finalizer->_finalize_hint);
           });
-	}
+        }
         finalizer->_env->Unref();
       });
     } else {
