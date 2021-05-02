@@ -178,10 +178,8 @@ class ThreadSafeFunction : public node::AsyncResource {
         return napi_closing;
       }
     } else {
-      if (Send() != 0) {
-        return napi_generic_failure;
-      }
       queue.push(data);
+      Send();
       return napi_ok;
     }
   }
@@ -213,9 +211,7 @@ class ThreadSafeFunction : public node::AsyncResource {
         if (is_closing && max_queue_size > 0) {
           cond->Signal(lock);
         }
-        if (Send() != 0) {
-          return napi_generic_failure;
-        }
+        Send();
       }
     }
 
@@ -240,7 +236,6 @@ class ThreadSafeFunction : public node::AsyncResource {
         cond = std::make_unique<node::ConditionVariable>();
       }
       if (max_queue_size == 0 || cond) {
-        CHECK_EQ(0, uv_idle_init(loop, &idle));
         return napi_ok;
       }
 
@@ -265,14 +260,12 @@ class ThreadSafeFunction : public node::AsyncResource {
 
   napi_status Unref() {
     uv_unref(reinterpret_cast<uv_handle_t*>(&async));
-    uv_unref(reinterpret_cast<uv_handle_t*>(&idle));
 
     return napi_ok;
   }
 
   napi_status Ref() {
     uv_ref(reinterpret_cast<uv_handle_t*>(&async));
-    uv_ref(reinterpret_cast<uv_handle_t*>(&idle));
 
     return napi_ok;
   }
@@ -296,6 +289,10 @@ class ThreadSafeFunction : public node::AsyncResource {
       if (dispatch_state.exchange(kDispatchIdle) != kDispatchRunning) {
         has_more = true;
       }
+    }
+
+    if (has_more) {
+      Send();
     }
   }
 
@@ -327,8 +324,6 @@ class ThreadSafeFunction : public node::AsyncResource {
               cond->Signal(lock);
             }
             CloseHandlesAndMaybeDelete();
-          } else {
-            CHECK_EQ(0, uv_idle_stop(&idle));
           }
         } else {
           has_more = true;
@@ -383,26 +378,18 @@ class ThreadSafeFunction : public node::AsyncResource {
           ThreadSafeFunction* ts_fn =
               node::ContainerOf(&ThreadSafeFunction::async,
                                 reinterpret_cast<uv_async_t*>(handle));
-          v8::HandleScope scope(ts_fn->env->isolate);
-          ts_fn->env->node_env()->CloseHandle(
-              reinterpret_cast<uv_handle_t*>(&ts_fn->idle),
-              [](uv_handle_t* handle) -> void {
-                ThreadSafeFunction* ts_fn =
-                    node::ContainerOf(&ThreadSafeFunction::idle,
-                                      reinterpret_cast<uv_idle_t*>(handle));
-                ts_fn->Finalize();
-              });
+          ts_fn->Finalize();
         });
   }
 
-  int Send() {
+  void Send() {
     // Ask currently running Dispatch() to make one more iteration
     unsigned char current_state = dispatch_state.fetch_or(kDispatchPending);
     if ((current_state & kDispatchRunning) == kDispatchRunning) {
-      return 0;
+      return;
     }
 
-    return uv_async_send(&async);
+    CHECK_EQ(0, uv_async_send(&async));
   }
 
   // Default way of calling into JavaScript. Used when ThreadSafeFunction is
@@ -428,16 +415,10 @@ class ThreadSafeFunction : public node::AsyncResource {
     }
   }
 
-  static void IdleCb(uv_idle_t* idle) {
-    ThreadSafeFunction* ts_fn =
-        node::ContainerOf(&ThreadSafeFunction::idle, idle);
-    ts_fn->Dispatch();
-  }
-
   static void AsyncCb(uv_async_t* async) {
     ThreadSafeFunction* ts_fn =
         node::ContainerOf(&ThreadSafeFunction::async, async);
-    CHECK_EQ(0, uv_idle_start(&ts_fn->idle, IdleCb));
+    ts_fn->Dispatch();
   }
 
   static void Cleanup(void* data) {
@@ -457,7 +438,6 @@ class ThreadSafeFunction : public node::AsyncResource {
   std::unique_ptr<node::ConditionVariable> cond;
   std::queue<void*> queue;
   uv_async_t async;
-  uv_idle_t idle;
   size_t thread_count;
   bool is_closing;
   std::atomic_uchar dispatch_state;

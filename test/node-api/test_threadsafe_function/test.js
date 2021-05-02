@@ -43,7 +43,7 @@ function testWithJSMarshaller({
     binding[threadStarter](function testCallback(value) {
       array.push(value);
       if (array.length === quitAfter) {
-        process.nextTick(() => {
+        setImmediate(() => {
           binding.StopThread(common.mustCall(() => {
             resolve(array);
           }), !!abort);
@@ -85,7 +85,7 @@ new Promise(function testWithoutJSMarshaller(resolve) {
     // The default call-into-JS implementation passes no arguments.
     assert.strictEqual(arguments.length, 0);
     if (callCount === binding.ARRAY_LENGTH) {
-      process.nextTick(() => {
+      setImmediate(() => {
         binding.StopThread(common.mustCall(() => {
           resolve();
         }), false);
@@ -210,6 +210,15 @@ new Promise(function testWithoutJSMarshaller(resolve) {
   abort: true
 }))
 .then((result) => assert.strictEqual(result.indexOf(0), -1))
+
+// Make sure that threadsafe function isn't stalled when we hit
+// `kMaxIterationCount` in `src/node_api.cc`
+.then(() => testWithJSMarshaller({
+  threadStarter: 'StartThreadNonblocking',
+  maxQueueSize: binding.ARRAY_LENGTH >>> 1,
+  quitAfter: binding.ARRAY_LENGTH
+}))
+.then((result) => assert.deepStrictEqual(result, expectedArray))
 
 // Start a child process to test rapid teardown
 .then(() => testUnref(binding.MAX_QUEUE_SIZE))

@@ -7,7 +7,7 @@
 #include <node_api.h>
 #include "../../js-native-api/common.h"
 
-#define ARRAY_LENGTH 10
+#define ARRAY_LENGTH 10000
 #define MAX_QUEUE_SIZE 2
 
 static uv_thread_t uv_threads[2];
@@ -72,7 +72,7 @@ static void data_source_thread(void* data) {
   for (index = ARRAY_LENGTH - 1; index > -1 && !queue_was_closing; index--) {
     status = napi_call_threadsafe_function(ts_fn, &ints[index],
         ts_fn_info->block_on_full);
-    if (ts_fn_info->max_queue_size == 0) {
+    if (ts_fn_info->max_queue_size == 0 && (index % 1000 == 0)) {
       // Let's make this thread really busy for 200 ms to give the main thread a
       // chance to abort.
       uint64_t start = uv_hrtime();
