@@ -40,12 +40,16 @@ struct node_napi_env__ : public napi_env__ {
   void CallFinalizer(napi_finalize cb, void* data, void* hint) override {
     napi_env env = static_cast<napi_env>(this);
     if (!env->isEnvTeardown()) {
+      env->Ref();
       node_env()->SetImmediate([=](node::Environment* node_env) {
-        v8::HandleScope handle_scope(env->isolate);
-        v8::Context::Scope context_scope(env->context());
-        env->CallIntoModule([&](napi_env env) {
-          cb(env, data, hint);
-        });
+        {
+          v8::HandleScope handle_scope(env->isolate);
+          v8::Context::Scope context_scope(env->context());
+          env->CallIntoModule([&](napi_env env) {
+            cb(env, data, hint);
+          });
+	}
+        env->Unref();
       });
     } else {
       v8::HandleScope handle_scope(env->isolate);
@@ -78,19 +82,27 @@ class BufferFinalizer : private Finalizer {
     node::Environment* node_env =
         static_cast<node_napi_env>(finalizer->_env)->node_env();
     if (!finalizer->_env->isEnvTeardown()) {
+      finalizer->_env->Ref();
       node_env->SetImmediate(
           [finalizer = std::move(finalizer)](node::Environment* env) {
-        if (finalizer->_finalize_callback == nullptr) return;
 
-        v8::HandleScope handle_scope(finalizer->_env->isolate);
-        v8::Context::Scope context_scope(finalizer->_env->context());
+        if (finalizer->_finalize_callback == nullptr) {
+          finalizer->_env->Unref();
+          return;
+	}
 
-        finalizer->_env->CallIntoModule([&](napi_env env) {
-          finalizer->_finalize_callback(
-              env,
-              finalizer->_finalize_data,
-              finalizer->_finalize_hint);
-        });
+	{
+	  v8::HandleScope handle_scope(finalizer->_env->isolate);
+          v8::Context::Scope context_scope(finalizer->_env->context());
+
+          finalizer->_env->CallIntoModule([&](napi_env env) {
+            finalizer->_finalize_callback(
+                env,
+                finalizer->_finalize_data,
+                finalizer->_finalize_hint);
+          });
+	}
+        finalizer->_env->Unref();
       });
     } else {
       if (finalizer->_finalize_callback == nullptr) return;
