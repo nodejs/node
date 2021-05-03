@@ -452,6 +452,16 @@ async function getHandle(dest) {
       assert.strictEqual(ret.bytesWritten, 2);
       await handle.close();
     }
+
+    // Test prototype methods calling with contexts other than FileHandle
+    {
+      const handle = await getHandle(dest);
+      assert.rejects(() => handle.stat.call({}), {
+        code: 'ERR_INTERNAL_ASSERTION',
+        message: /handle must be an instance of FileHandle/
+      });
+      await handle.close();
+    }
   }
 
   doTest().then(common.mustCall());
