@@ -1,9 +1,15 @@
 // Flags: --expose-gc --expose-internals
 'use strict';
 
-require('../common');
+const common = require('../common');
 const { deepStrictEqual, strictEqual } = require('assert');
 const { IterableWeakMap } = require('internal/util/iterable_weak_map');
+
+// Ensures iterating over the map does not rely on methods which can be
+// mutated by users.
+Reflect.getPrototypeOf(function*() {}).prototype.next = common.mustNotCall();
+Reflect.getPrototypeOf(new Set()[Symbol.iterator]()).next =
+  common.mustNotCall();
 
 // It drops entry if a reference is no longer held.
 {
