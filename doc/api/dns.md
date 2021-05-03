@@ -119,7 +119,9 @@ callbacks will be called with an error with code `ECANCELLED`.
 
 ### `resolver.setLocalAddress([ipv4][, ipv6])`
 <!-- YAML
-added: v15.1.0
+added:
+  - v15.1.0
+  - v14.17.0
 -->
 
 * `ipv4` {string} A string representation of an IPv4 address.
@@ -439,7 +441,9 @@ will contain an array of canonical name records available for the `hostname`
 
 ## `dns.resolveCaa(hostname, callback)`
 <!-- YAML
-added: v15.0.0
+added:
+  - v15.0.0
+  - v14.17.0
 -->
 
 * `hostname` {string}
@@ -732,7 +736,9 @@ The following methods from the `dnsPromises` API are available:
 
 ### `resolver.cancel()`
 <!-- YAML
-added: v15.3.0
+added:
+  - v15.3.0
+  - v14.17.0
 -->
 
 Cancel all outstanding DNS queries made by this resolver. The corresponding
@@ -960,7 +966,9 @@ Here is an example of the result object:
 
 ### `dnsPromises.resolveCaa(hostname)`
 <!-- YAML
-added: v15.0.0
+added:
+  - v15.0.0
+  - v14.17.0
 -->
 
 * `hostname` {string}

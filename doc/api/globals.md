@@ -19,7 +19,9 @@ accessible.
 
 ## Class: `AbortController`
 <!-- YAML
-added: v15.0.0
+added:
+  - v15.0.0
+  - v14.17.0
 changes:
   - version: v15.4.0
     pr-url: https://github.com/nodejs/node/pull/35949
@@ -44,7 +46,9 @@ console.log(ac.signal.aborted);  // Prints True
 
 ### `abortController.abort()`
 <!-- YAML
-added: v15.0.0
+added:
+  - v15.0.0
+  - v14.17.0
 -->
 
 Triggers the abort signal, causing the `abortController.signal` to emit
@@ -52,14 +56,18 @@ the `'abort'` event.
 
 ### `abortController.signal`
 <!-- YAML
-added: v15.0.0
+added:
+  - v15.0.0
+  - v14.17.0
 -->
 
 * Type: {AbortSignal}
 
 ### Class: `AbortSignal`
 <!-- YAML
-added: v15.0.0
+added:
+  - v15.0.0
+  - v14.17.0
 -->
 
 * Extends: {EventTarget}
@@ -69,7 +77,9 @@ The `AbortSignal` is used to notify observers when the
 
 #### Static method: `AbortSignal.abort()`
 <!-- YAML
-added: v15.12.0
+added:
+  - v15.12.0
+  - v14.17.0
 -->
 
 * Returns: {AbortSignal}
@@ -78,7 +88,9 @@ Returns a new already aborted `AbortSignal`.
 
 #### Event: `'abort'`
 <!-- YAML
-added: v15.0.0
+added:
+  - v15.0.0
+  - v14.17.0
 -->
 
 The `'abort'` event is emitted when the `abortController.abort()` method
@@ -112,14 +124,18 @@ result in memory leaks.
 
 #### `abortSignal.aborted`
 <!-- YAML
-added: v15.0.0
+added:
+  - v15.0.0
+  - v14.17.0
 -->
 
 * Type: {boolean} True after the `AbortController` has been aborted.
 
 #### `abortSignal.onabort`
 <!-- YAML
-added: v15.0.0
+added:
+  - v15.0.0
+  - v14.17.0
 -->
 
 * Type: {Function}

@@ -814,6 +814,7 @@ regular `'error'` listener is installed.
 <!-- YAML
 added:
  - v15.2.0
+ - v14.17.0
 -->
 * `emitterOrTarget` {EventEmitter|EventTarget}
 * `eventName` {string|symbol}

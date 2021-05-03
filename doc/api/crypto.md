@@ -4707,7 +4707,9 @@ console.log(`The dice rolled: ${n}`);
 
 ### `crypto.randomUUID([options])`
 <!-- YAML
-added: v15.6.0
+added:
+  - v15.6.0
+  - v14.17.0
 -->
 
 * `options` {Object}

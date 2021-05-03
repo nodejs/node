@@ -2030,6 +2030,7 @@ added: v11.12.0
 changes:
   - version:
      - v15.0.0
+     - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/35654
     description: This API is no longer experimental.
 -->

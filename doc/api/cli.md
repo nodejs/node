@@ -210,7 +210,9 @@ modifying the stack trace.
 
 ### `--experimental-abortcontroller`
 <!-- YAML
-added: v15.0.0
+added:
+  - v15.0.0
+  - v14.17.0
 changes:
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/33527

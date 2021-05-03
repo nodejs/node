@@ -1721,7 +1721,9 @@ See the POSIX chown(2) documentation for more detail.
 <!-- YAML
 added: v0.0.2
 changes:
-  - version: v15.9.0
+  - version:
+      - v15.9.0
+      - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/37174
     description: A default callback is now used if one is not provided.
   - version: v10.0.0
@@ -2836,7 +2838,9 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/37460
     description: The error returned may be an `AggregateError` if more than one
                  error is returned.
-  - version: v15.2.0
+  - version:
+      - v15.2.0
+      - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/35911
     description: The options argument may include an AbortSignal to abort an
                  ongoing readFile request.
@@ -3554,7 +3558,9 @@ The `atime` and `mtime` arguments follow these rules:
 <!-- YAML
 added: v0.5.10
 changes:
-  - version: v15.9.0
+  - version:
+      - v15.9.0
+      - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/37190
     description: Added support for closing the watcher with an AbortSignal.
   - version: v7.6.0
@@ -3883,7 +3889,9 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/37460
     description: The error returned may be an `AggregateError` if more than one
                  error is returned.
-  - version: v15.2.0
+  - version:
+      - v15.2.0
+      - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/35993
     description: The options argument may include an AbortSignal to abort an
                  ongoing writeFile request.
@@ -5924,7 +5932,22 @@ Emitted when the {fs.WriteStream}'s underlying file descriptor has been closed.
 
 #### Event: `'open'`
 <!-- YAML
-added: v0.1.93
+added:
+  - v10.0.0
+  - v0.1.93
+changes:
+  - version: v14.17.0
+    pr-url: https://github.com/nodejs/node/pull/35993
+    description: The options argument may include an AbortSignal to abort an
+                 ongoing writeFile request.
+  - version: v14.12.0
+    pr-url: https://github.com/nodejs/node/pull/34993
+    description: The `data` parameter will stringify an object with an
+                 explicit `toString` function.
+  - version: v14.0.0
+    pr-url: https://github.com/nodejs/node/pull/31030
+    description: The `data` parameter won't coerce unsupported input to
+                 strings anymore.
 -->
 
 * `fd` {integer} Integer file descriptor used by the {fs.WriteStream}.

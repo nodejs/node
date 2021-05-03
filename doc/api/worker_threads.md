@@ -1016,6 +1016,7 @@ immediately with an [`ERR_WORKER_NOT_RUNNING`][] error.
 <!-- YAML
 added:
   - v15.1.0
+  - v14.17.0
   - v12.22.0
 -->
 
@@ -1026,6 +1027,7 @@ instance. Similar to [`perf_hooks.performance`][].
 <!-- YAML
 added:
   - v15.1.0
+  - v14.17.0
   - v12.22.0
 -->
 

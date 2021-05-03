@@ -2176,7 +2176,9 @@ future release.
 ### DEP0116: Legacy URL API
 <!-- YAML
 changes:
-  - version: v15.13.0
+  - version:
+      - v15.13.0
+      - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/37784
     description: Deprecation revoked. Status changed to "Legacy".
   - version: v11.0.0
