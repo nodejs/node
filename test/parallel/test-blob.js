@@ -3,6 +3,7 @@
 const common = require('../common');
 const assert = require('assert');
 const { Blob } = require('buffer');
+const { inspect } = require('util');
 const { MessageChannel } = require('worker_threads');
 
 {
@@ -190,4 +191,11 @@ assert.throws(() => new Blob({}), {
   b.text().then(common.mustCall((text) => {
     assert.strictEqual(text, 'test42');
   }));
+}
+
+{
+  const b = new Blob();
+  assert.strictEqual(inspect(b, { depth: null }),
+                     'Blob { size: 0, type: \'\' }');
+  assert.strictEqual(inspect(b, { depth: -1 }), '[Blob]');
 }
