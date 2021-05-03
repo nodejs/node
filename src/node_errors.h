@@ -32,6 +32,7 @@ void OnFatalError(const char* location, const char* message);
   V(ERR_BUFFER_CONTEXT_NOT_AVAILABLE, Error)                                   \
   V(ERR_BUFFER_OUT_OF_BOUNDS, RangeError)                                      \
   V(ERR_BUFFER_TOO_LARGE, Error)                                               \
+  V(ERR_CLOSED_MESSAGE_PORT, Error)                                            \
   V(ERR_CONSTRUCT_CALL_REQUIRED, TypeError)                                    \
   V(ERR_CONSTRUCT_CALL_INVALID, TypeError)                                     \
   V(ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH, RangeError)                           \
@@ -98,6 +99,7 @@ ERRORS_WITH_CODE(V)
 #define PREDEFINED_ERROR_MESSAGES(V)                                           \
   V(ERR_BUFFER_CONTEXT_NOT_AVAILABLE,                                          \
     "Buffer is not available for the current Context")                         \
+  V(ERR_CLOSED_MESSAGE_PORT, "Cannot send data on closed MessagePort")         \
   V(ERR_CONSTRUCT_CALL_INVALID, "Constructor cannot be called")                \
   V(ERR_CONSTRUCT_CALL_REQUIRED, "Cannot call constructor without `new`")      \
   V(ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH,                                       \
