@@ -307,6 +307,7 @@ assert.strictEqual(qs.stringify({ foo: -0 }), 'foo=0');
 assert.strictEqual(qs.stringify({ foo: 3 }), 'foo=3');
 assert.strictEqual(qs.stringify({ foo: -72.42 }), 'foo=-72.42');
 assert.strictEqual(qs.stringify({ foo: NaN }), 'foo=');
+assert.strictEqual(qs.stringify({ foo: 1e21 }), 'foo=1e%2B21');
 assert.strictEqual(qs.stringify({ foo: Infinity }), 'foo=');
 
 // nested
@@ -448,6 +449,14 @@ check(qs.parse('%\u0100=%\u0101'), { '%Ā': '%ā' });
   assert.strictEqual(
     qs.stringify(obj, null, null, { encodeURIComponent: demoEncode }),
     'a=a&b=b&c=c');
+}
+
+// Test custom encode for different types
+{
+  const obj = { number: 1, bigint: 2n, true: true, false: false, object: {} };
+  assert.strictEqual(
+    qs.stringify(obj, null, null, { encodeURIComponent: (v) => v }),
+    'number=1&bigint=2&true=true&false=false&object=');
 }
 
 // Test QueryString.unescapeBuffer
