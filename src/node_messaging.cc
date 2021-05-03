@@ -1065,7 +1065,11 @@ void MessagePort::MoveToContext(const FunctionCallbackInfo<Value>& args) {
         "The \"port\" argument must be a MessagePort instance");
   }
   MessagePort* port = Unwrap<MessagePort>(args[0].As<Object>());
-  CHECK_NOT_NULL(port);
+  if (port == nullptr || port->IsHandleClosing()) {
+    Isolate* isolate = env->isolate();
+    THROW_ERR_CLOSED_MESSAGE_PORT(isolate);
+    return;
+  }
 
   Local<Value> context_arg = args[1];
   ContextifyContext* context_wrapper;
