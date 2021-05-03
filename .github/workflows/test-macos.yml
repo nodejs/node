@@ -21,7 +21,7 @@ env:
 
 jobs:
   test-macOS:
-    if: github.event.pull_request.draft == false
+    if: github.event.pull_request.draft == true
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v2
