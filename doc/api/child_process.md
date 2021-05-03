@@ -271,7 +271,9 @@ controller.abort();
 <!-- YAML
 added: v0.1.91
 changes:
-  - version: v15.4.0
+  - version:
+      - v15.4.0
+      - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/36308
     description: AbortSignal support was added.
   - version: v8.8.0
@@ -380,7 +382,9 @@ changes:
   - version: v15.11.0
     pr-url: https://github.com/nodejs/node/pull/37325
     description: killSignal for AbortSignal was added.
-  - version: v15.6.0
+  - version:
+      - v15.6.0
+      - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/36603
     description: AbortSignal support was added.
   - version:
@@ -489,7 +493,9 @@ changes:
   - version: v15.11.0
     pr-url: https://github.com/nodejs/node/pull/37325
     description: killSignal for AbortSignal was added.
-  - version: v15.5.0
+  - version:
+      - v15.5.0
+      - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/36432
     description: AbortSignal support was added.
   - version:
@@ -1160,7 +1166,9 @@ See [Advanced serialization][] for more details.
 
 ### Event: `'spawn'`
 <!-- YAML
-added: v15.1.0
+added:
+  - v15.1.0
+  - v14.17.0
 -->
 
 The `'spawn'` event is emitted once the child process has spawned successfully.
