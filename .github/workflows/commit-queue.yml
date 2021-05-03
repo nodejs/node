@@ -28,7 +28,7 @@ jobs:
           # See https://github.com/nodejs/node-core-utils/pull/486
           fetch-depth: 0
           # A personal token is required because pushing with GITHUB_TOKEN will
-          # prevent commits from running CI after they land on master. It needs
+          # prevent commits from running CI after they land. It needs
           # to be set here because `checkout` configures GitHub authentication
           # for push as well.
           token: ${{ secrets.GH_USER_TOKEN }}
@@ -63,15 +63,13 @@ jobs:
           owner: ${{ env.OWNER }}
           repo: ${{ env.REPOSITORY }}
           # Commit queue is only enabled for the default branch on the repository
-          # TODO(mmarchini): get the default branch programmatically instead of
-          # assuming `master`
-          base_ref: "master"
+          base_ref: ${{ github.repository.default_branch }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Configure node-core-utils
         run: |
-          ncu-config set branch master
+          ncu-config set branch ${{ github.repository.default_branch }}
           ncu-config set upstream origin
           ncu-config set username "${{ secrets.GH_USER_NAME }}"
           ncu-config set token "${{ secrets.GH_USER_TOKEN }}"
