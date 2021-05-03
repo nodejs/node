@@ -250,7 +250,7 @@ lsExample();
 <!-- YAML
 added: v0.1.91
 changes:
-  - version: REPLACEME
+  - version: v14.17.0
     pr-url: https://github.com/nodejs/node/pull/36308
     description: AbortSignal support was added.
   - version: v8.8.0
@@ -351,7 +351,7 @@ controller.abort();
 <!-- YAML
 added: v0.5.0
 changes:
-  - version: REPLACEME
+  - version: v14.17.0
     pr-url: https://github.com/nodejs/node/pull/36603
     description: AbortSignal support was added.
   - version:
@@ -431,7 +431,7 @@ The `signal` option works exactly the same way it does in
 <!-- YAML
 added: v0.1.90
 changes:
-  - version: REPLACEME
+  - version: v14.17.0
     pr-url: https://github.com/nodejs/node/pull/36432
     description: AbortSignal support was added.
   - version:
@@ -1086,7 +1086,7 @@ See [Advanced serialization][] for more details.
 
 ### Event: `'spawn'`
 <!-- YAML
-added: REPLACEME
+added: v14.17.0
 -->
 
 The `'spawn'` event is emitted once the child process has spawned successfully.

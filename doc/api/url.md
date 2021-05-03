@@ -1039,7 +1039,7 @@ pathToFileURL('/some/path%.c');    // Correct:   file:///some/path%25.c (POSIX)
 ## Legacy URL API
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v14.17.0
     pr-url: https://github.com/nodejs/node/pull/37784
     description: Deprecation revoked. Status changed to "Legacy".
   - version: v11.0.0
@@ -1052,7 +1052,7 @@ changes:
 ### Legacy `urlObject`
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v14.17.0
     pr-url: https://github.com/nodejs/node/pull/37784
     description: Deprecation revoked. Status changed to "Legacy".
   - version: v11.0.0
@@ -1166,7 +1166,7 @@ forward-slash characters (`/`) are required following the colon in the
 <!-- YAML
 added: v0.1.25
 changes:
-  - version: REPLACEME
+  - version: v14.17.0
     pr-url: https://github.com/nodejs/node/pull/37784
     description: Deprecation revoked. Status changed to "Legacy".
   - version: v11.0.0
@@ -1262,7 +1262,7 @@ The formatting process operates as follows:
 <!-- YAML
 added: v0.1.25
 changes:
-  - version: REPLACEME
+  - version: v14.17.0
     pr-url: https://github.com/nodejs/node/pull/37784
     description: Deprecation revoked. Status changed to "Legacy".
   - version: v11.14.0
@@ -1309,7 +1309,7 @@ incorrect handling of usernames and passwords have been identified.
 <!-- YAML
 added: v0.1.25
 changes:
-  - version: REPLACEME
+  - version: v14.17.0
     pr-url: https://github.com/nodejs/node/pull/37784
     description: Deprecation revoked. Status changed to "Legacy".
   - version: v11.0.0

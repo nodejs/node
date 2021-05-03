@@ -1612,7 +1612,7 @@ See also: chown(2).
 <!-- YAML
 added: v0.0.2
 changes:
-  - version: REPLACEME
+  - version: v14.17.0
     pr-url: https://github.com/nodejs/node/pull/37174
     description: A default callback is now used if one is not provided.
   - version: v10.0.0
@@ -3031,7 +3031,7 @@ If `options.withFileTypes` is set to `true`, the result will contain
 <!-- YAML
 added: v0.1.29
 changes:
-  - version: REPLACEME
+  - version: v14.17.0
     pr-url: https://github.com/nodejs/node/pull/35911
     description: The options argument may include an AbortSignal to abort an
                  ongoing readFile request.
@@ -4083,7 +4083,7 @@ this API: [`fs.utimes()`][].
 <!-- YAML
 added: v0.5.10
 changes:
-  - version: REPLACEME
+  - version: v14.17.0
     pr-url: https://github.com/nodejs/node/pull/37190
     description: Added support for closing the watcher with an AbortSignal.
   - version: v7.6.0
@@ -4405,7 +4405,7 @@ details.
 <!-- YAML
 added: v0.1.29
 changes:
-  - version: REPLACEME
+  - version: v14.17.0
     pr-url: https://github.com/nodejs/node/pull/35993
     description: The options argument may include an AbortSignal to abort an
                  ongoing writeFile request.
@@ -5491,7 +5491,7 @@ print('./').catch(console.error);
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v14.17.0
     pr-url: https://github.com/nodejs/node/pull/35911
     description: The options argument may include an AbortSignal to abort an
                  ongoing readFile request.
@@ -5741,7 +5741,7 @@ The `atime` and `mtime` arguments follow these rules:
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v14.17.0
     pr-url: https://github.com/nodejs/node/pull/35993
     description: The options argument may include an AbortSignal to abort an
                  ongoing writeFile request.

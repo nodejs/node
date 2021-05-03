@@ -2,7 +2,7 @@
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v14.17.0
     pr-url: https://github.com/nodejs/node/pull/36070
     description: It is possible to abort a request with an AbortSignal.
   - version: v10.10.0
@@ -1880,7 +1880,7 @@ value only affects new connections to the server, not any existing connections.
 
 #### `server.updateSettings([settings])`
 <!-- YAML
-added: REPLACEME
+added: v14.17.0
 -->
 
 * `settings` {HTTP/2 Settings Object}
@@ -2074,7 +2074,7 @@ value only affects new connections to the server, not any existing connections.
 
 #### `server.updateSettings([settings])`
 <!-- YAML
-added: REPLACEME
+added: v14.17.0
 -->
 
 * `settings` {HTTP/2 Settings Object}

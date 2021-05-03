@@ -199,7 +199,7 @@ Currently, overriding `Error.prepareStackTrace` is ignored when the
 
 ### `--experimental-abortcontroller`
 <!-- YAML
-added: REPLACEME
+added: v14.17.0
 -->
 
 Enable experimental `AbortController` and `AbortSignal` support.

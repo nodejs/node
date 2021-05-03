@@ -2843,7 +2843,7 @@ console.log(`The dice rolled: ${n}`);
 
 ### `crypto.randomUUID([options])`
 <!-- YAML
-added: REPLACEME
+added: v14.17.0
 -->
 
 * `options` {Object}
