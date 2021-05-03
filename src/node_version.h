@@ -84,7 +84,7 @@
  * if it can be made ABI compatible with the previous version.
  *
  * The registry of used NODE_MODULE_VERSION numbers is located at
- *   https://github.com/nodejs/node/blob/master/doc/abi_version_registry.json
+ *   https://github.com/nodejs/node/blob/HEAD/doc/abi_version_registry.json
  * Extenders, embedders and other consumers of Node.js that require ABI
  * version matching should open a pull request to reserve a number in this
  * registry.
