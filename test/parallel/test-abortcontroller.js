@@ -2,6 +2,7 @@
 'use strict';
 
 const common = require('../common');
+const { inspect } = require('util');
 
 const { ok, strictEqual, throws } = require('assert');
 const { Event } = require('internal/event_target');
@@ -132,4 +133,12 @@ const { Event } = require('internal/event_target');
       { code: 'ERR_INVALID_THIS', name: 'TypeError' }
     );
   }
+}
+
+{
+  const ac = new AbortController();
+  strictEqual(inspect(ac, { depth: 1 }),
+              'AbortController { signal: [AbortSignal] }');
+  strictEqual(inspect(ac, { depth: null }),
+              'AbortController { signal: AbortSignal { aborted: false } }');
 }
