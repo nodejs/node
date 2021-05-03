@@ -27,6 +27,9 @@
 #ifndef POWER_9
 #define POWER_9 0x20000
 #endif
+#ifndef POWER_10
+#define POWER_10 0x40000
+#endif
 #endif
 #if V8_OS_POSIX
 #include <unistd.h>  // sysconf()
@@ -639,7 +642,10 @@ CPU::CPU()
 
   part_ = -1;
   if (auxv_cpu_type) {
-    if (strcmp(auxv_cpu_type, "power9") == 0) {
+    if (strcmp(auxv_cpu_type, "power10") == 0) {
+      part_ = PPC_POWER10;
+    }
+    else if (strcmp(auxv_cpu_type, "power9") == 0) {
       part_ = PPC_POWER9;
     } else if (strcmp(auxv_cpu_type, "power8") == 0) {
       part_ = PPC_POWER8;
@@ -660,6 +666,9 @@ CPU::CPU()
 
 #elif V8_OS_AIX
   switch (_system_configuration.implementation) {
+    case POWER_10:
+      part_ = PPC_POWER10;
+      break;
     case POWER_9:
       part_ = PPC_POWER9;
       break;
