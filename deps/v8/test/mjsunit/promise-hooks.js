@@ -246,7 +246,7 @@ exceptions();
 (function regress1126309() {
   function __f_16(test) {
     test();
-    d8.promise.setHooks( undefined, () => {});
+    d8.promise.setHooks(undefined, () => {});
     %PerformMicrotaskCheckpoint();
     d8.promise.setHooks();
   }
@@ -260,5 +260,16 @@ exceptions();
   Promise.resolve();
   Promise.reject();
   %PerformMicrotaskCheckpoint();
+  d8.promise.setHooks();
+})();
+
+
+(function promiseAll() {
+  let initCount = 0;
+  d8.promise.setHooks(() => { initCount++});
+  Promise.all([Promise.resolve(1)]);
+  %PerformMicrotaskCheckpoint();
+  assertEquals(initCount, 3);
+
   d8.promise.setHooks();
 })();
