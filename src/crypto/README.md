@@ -1,4 +1,4 @@
-# Node.js src/crypto Documentation
+# Node.js `src/crypto` documentation
 
 Welcome. You've found your way to the Node.js native crypto subsystem.
 
@@ -64,7 +64,7 @@ instead.)
 This section aims to explain some of the utilities that have been
 provided to make working with the OpenSSL APIs a bit easier.
 
-### Pointer Types
+### Pointer types
 
 Most of the key OpenSSL types need to be explicitly freed when they are
 no longer needed. Failure to do so introduces memory leaks. To make this
@@ -123,7 +123,7 @@ crypto functions (generated hash values, or ciphertext, for instance).
 to directly using the `v8::BackingStore` API. This will take some time.
 New uses of `AllocatedBuffer` should be avoided if possible.*
 
-### Key Objects
+### Key objects
 
 Most crypto operations involve the use of keys -- cryptographic inputs
 that protect data. There are three general types of keys:
@@ -272,9 +272,9 @@ These can be called from within the C++ code as functions,
 like `THROW_ERR_CRYPTO_INVALID_IV(env)`. These methods
 should be used to throw JavaScript errors when necessary.
 
-## Crypto API Patterns
+## Crypto API patterns
 
-### Operation Mode
+### Operation mode
 
 All crypto functions in Node.js operate in one of three
 modes:
