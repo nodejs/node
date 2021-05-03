@@ -70,6 +70,7 @@ class V8_BASE_EXPORT CPU final {
     PPC_POWER7,
     PPC_POWER8,
     PPC_POWER9,
+    PPC_POWER10,
     PPC_G4,
     PPC_G5,
     PPC_PA6T
