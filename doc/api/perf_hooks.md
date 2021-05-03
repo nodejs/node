@@ -263,7 +263,7 @@ invoked.
 
 ### `performance.toJSON()`
 <!-- YAML
-added: REPLACEME
+added: v16.1.0
 -->
 
 An object which is JSON representation of the `performance` object. It
