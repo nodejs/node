@@ -1547,7 +1547,7 @@ async function printIterator(readable) {
     console.log(chunk); // Will print 2 and then 3
   }
 
-  console.log(readable.destroyed); // true, stream was totally consumed
+  console.log(readable.destroyed); // True, stream was totally consumed
 }
 
 async function printSymbolAsyncIterator(readable) {
