@@ -4,7 +4,7 @@ const common = require('../common');
 common.skipIfInspectorDisabled();
 
 const fixtures = require('../common/fixtures');
-const startCLI = require('../common/inspector-cli');
+const startCLI = require('../common/debugger');
 const tmpdir = require('../common/tmpdir');
 const path = require('path');
 
