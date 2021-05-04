@@ -793,6 +793,20 @@ async function tests() {
 
     assert.ok(readable.destroyed);
   })().then(common.mustCall());
+
+  // Check non-object options.
+  {
+    const readable = createReadable();
+    assert.throws(
+      () => readable.iterator(42),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        name: 'TypeError',
+        message: 'The "options" argument must be of type object. Received ' +
+                 'type number (42)',
+      }
+    );
+  }
 }
 
 {

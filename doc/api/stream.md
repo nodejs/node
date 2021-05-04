@@ -1528,7 +1528,7 @@ added: REPLACEME
 * Returns: {AsyncIterator} to consume the stream.
 
 The iterator created by this method gives users the option to cancel the
-destruction the stream if the `for await...of` loop is exited by `return`,
+destruction of the stream if the `for await...of` loop is exited by `return`,
 `break` or `throw`, or if the iterator should destroy the stream if the stream
 emitted an error during iteration.
 
