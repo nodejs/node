@@ -3,6 +3,8 @@
 require('../common');
 const assert = require('assert');
 const net = require('net');
+const { getActiveResources } = require('async_hooks');
+
 const NUM = 8;
 const connections = [];
 const clients = [];
@@ -30,18 +32,20 @@ function clientConnected(client) {
 
 
 function checkAll() {
-  const handles = process._getActiveHandles();
+  const handles = Object.values(getActiveResources('handles'));
+
+  assert.ok(
+    handles.length >=
+    clients.length + connections.length + [server].length
+  );
 
   clients.forEach(function(item) {
-    assert.ok(handles.includes(item));
     item.destroy();
   });
 
   connections.forEach(function(item) {
-    assert.ok(handles.includes(item));
     item.end();
   });
 
-  assert.ok(handles.includes(server));
   server.close();
 }

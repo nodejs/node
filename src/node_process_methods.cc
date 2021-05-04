@@ -1,3 +1,4 @@
+#include "async_wrap-inl.h"
 #include "base_object-inl.h"
 #include "debug_utils-inl.h"
 #include "env-inl.h"
@@ -35,7 +36,6 @@ typedef int mode_t;
 namespace node {
 
 using v8::ApiObject;
-using v8::Array;
 using v8::ArrayBuffer;
 using v8::BackingStore;
 using v8::CFunction;
@@ -253,16 +253,22 @@ static void Uptime(const FunctionCallbackInfo<Value>& args) {
 static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  std::vector<Local<Value>> request_v;
+  Local<Context> ctx = env->context();
+  Local<Object> return_obj = Object::New(args.GetIsolate());
+
   for (ReqWrapBase* req_wrap : *env->req_wrap_queue()) {
     AsyncWrap* w = req_wrap->GetAsyncWrap();
     if (w->persistent().IsEmpty())
       continue;
-    request_v.emplace_back(w->GetOwner());
+    double async_id = w->get_async_id();
+    Local<Object> req_obj = w->object();
+
+    USE(return_obj->Set(ctx,
+                        Number::New(args.GetIsolate(), async_id),
+                        req_obj));
   }
 
-  args.GetReturnValue().Set(
-      Array::New(env->isolate(), request_v.data(), request_v.size()));
+  args.GetReturnValue().Set(return_obj);
 }
 
 // Non-static, friend of HandleWrap. Could have been a HandleWrap method but
@@ -270,14 +276,20 @@ static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
 void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  std::vector<Local<Value>> handle_v;
+  Local<Context> ctx = env->context();
+  Local<Object> return_obj = Object::New(args.GetIsolate());
+
   for (auto w : *env->handle_wrap_queue()) {
-    if (!HandleWrap::HasRef(w))
+    if (w->persistent().IsEmpty() || !HandleWrap::HasRef(w))
       continue;
-    handle_v.emplace_back(w->GetOwner());
+    double async_id = w->get_async_id();
+    Local<Object> handle_object = w->object();
+    USE(return_obj->Set(ctx, Number::New(args.GetIsolate(),
+                                         async_id),
+                                         handle_object));
   }
-  args.GetReturnValue().Set(
-      Array::New(env->isolate(), handle_v.data(), handle_v.size()));
+
+  args.GetReturnValue().Set(return_obj);
 }
 
 static void ResourceUsage(const FunctionCallbackInfo<Value>& args) {

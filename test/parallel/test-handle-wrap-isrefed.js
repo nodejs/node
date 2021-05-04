@@ -4,6 +4,7 @@
 const common = require('../common');
 const strictEqual = require('assert').strictEqual;
 const { internalBinding } = require('internal/test/binding');
+const { getActiveResources } = require('async_hooks');
 
 // child_process
 {
@@ -106,5 +107,28 @@ const { kStateSymbol } = require('internal/dgram');
                 false, 'tcp_wrap: not unrefed on close')));
 }
 
+
+// timers
+{
+  strictEqual(
+    Object.values(getActiveResources('timeouts'))
+      .filter((timeout) => timeout.type === 'Timer'),
+    0);
+  setTimeout(() => {}, 500);
+  strictEqual(
+    Object.values(getActiveResources('timeouts'))
+      .filter((timeout) => timeout.type === 'Timer'),
+    1);
+
+  strictEqual(
+    Object.values(getActiveResources('immediates'))
+      .filter((immediate) => immediate.type === 'Immediate'),
+    0);
+  setImmediate(() => {});
+  strictEqual(
+    Object.values(getActiveResources('immediates'))
+      .filter((immediate) => immediate.type === 'Immediate'),
+    1);
+}
 
 // See also test/pseudo-tty/test-handle-wrap-isrefed-tty.js
