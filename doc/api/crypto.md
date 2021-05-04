@@ -1401,7 +1401,7 @@ Example (obtaining a shared secret):
 const {
   createECDH,
   createHash,
-} = await crypto('crypto');
+} = await import('crypto');
 
 const alice = createECDH('secp256k1');
 const bob = createECDH('secp256k1');
