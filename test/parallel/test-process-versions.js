@@ -19,11 +19,6 @@ if (common.hasCrypto) {
   expected_keys.push('openssl');
 }
 
-if (common.hasQuic) {
-  expected_keys.push('ngtcp2');
-  expected_keys.push('nghttp3');
-}
-
 if (common.hasIntl) {
   expected_keys.push('icu');
   expected_keys.push('cldr');
