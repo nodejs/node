@@ -775,7 +775,8 @@ changes:
 * Returns: {Promise}  Fulfills with the {fs.Stats} object for the given
   symbolic link `path`.
 
-Equivalent to `fsPromises.stats()` when `path` refers to a symbolic link.
+Equivalent to [`fsPromises.stat()`][] unless `path` refers to a symbolic link,
+in which case the link itself is stat-ed, not the file that it refers to.
 Refer to the POSIX lstat(2) document for more detail.
 
 ### `fsPromises.mkdir(path[, options])`
@@ -6718,6 +6719,7 @@ the file contents.
 [`fsPromises.open()`]: #fs_fspromises_open_path_flags_mode
 [`fsPromises.opendir()`]: #fs_fspromises_opendir_path_options
 [`fsPromises.rm()`]: #fs_fspromises_rm_path_options
+[`fsPromises.stat()`]: #fs_fspromises_stat_path_options
 [`fsPromises.utimes()`]: #fs_fspromises_utimes_path_atime_mtime
 [`inotify(7)`]: https://man7.org/linux/man-pages/man7/inotify.7.html
 [`kqueue(2)`]: https://www.freebsd.org/cgi/man.cgi?query=kqueue&sektion=2
