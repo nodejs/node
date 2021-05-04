@@ -8,7 +8,7 @@ if (!common.isMainThread) {
 }
 
 const fixtures = require('../common/fixtures');
-const startCLI = require('../common/inspector-cli');
+const startCLI = require('../common/debugger');
 const tmpdir = require('../common/tmpdir');
 
 tmpdir.refresh();
