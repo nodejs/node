@@ -15,7 +15,10 @@ exec python "$0" "$@"
 del _
 
 import sys
-from distutils.spawn import find_executable
+try:
+  from shutil import which
+except ImportError:
+  from distutils.spawn import find_executable as which
 
 print('Node.js configure: Found Python {}.{}.{}...'.format(*sys.version_info))
 acceptable_pythons = ((3, 9), (3, 8), (3, 7), (3, 6))
@@ -25,7 +28,7 @@ else:
   python_cmds = ['python{}.{}'.format(*vers) for vers in acceptable_pythons]
   sys.stderr.write('Please use {}.\n'.format(' or '.join(python_cmds)))
   for python_cmd in python_cmds:
-      python_cmd_path = find_executable(python_cmd)
+      python_cmd_path = which(python_cmd)
       if python_cmd_path and 'pyenv/shims' not in python_cmd_path:
         sys.stderr.write('\t{} {}\n'.format(python_cmd_path, ' '.join(sys.argv[:1])))
   sys.exit(1)

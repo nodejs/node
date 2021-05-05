@@ -246,8 +246,6 @@ Installation via Linux package manager can be achieved with:
 
 FreeBSD and OpenBSD users may also need to install `libexecinfo`.
 
-Python 3 users may also need to install `python3-distutils`.
-
 #### macOS prerequisites
 
 * Xcode Command Line Tools >= 11 for macOS
@@ -270,11 +268,6 @@ To build Node.js:
 $ ./configure
 $ make -j4
 ```
-
-If you run into a `No module named 'distutils.spawn'` error when executing
-`./configure`, please try `python3 -m pip install --upgrade setuptools` or
-`sudo apt install python3-distutils -y`.
-For more information, see <https://github.com/nodejs/node/issues/30189>.
 
 The `-j4` option will cause `make` to run 4 simultaneous compilation jobs which
 may reduce build time. For more information, see the
