@@ -869,7 +869,7 @@ void AsyncWrap::AsyncReset(Local<Object> resource, double execution_async_id,
       USE(obj->Set(
             env()->context(),
             env()->owner_symbol(),
-            Null(env()->isolate())));
+            resource));
     }
   }
 
