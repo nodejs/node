@@ -6,6 +6,7 @@ const {
   createHistogram,
   monitorEventLoopDelay,
 } = require('perf_hooks');
+const { inspect } = require('util');
 
 {
   const h = createHistogram();
@@ -66,4 +67,19 @@ const {
     mc.port1.close();
   });
   setTimeout(() => mc.port2.postMessage(e), 100);
+}
+
+{
+  const h = createHistogram();
+  assert(inspect(h, { depth: null }).startsWith('Histogram'));
+  assert.strictEqual(inspect(h, { depth: -1 }), '[RecordableHistogram]');
+}
+
+{
+  // Tests that RecordableHistogram is impossible to construct manually
+  const h = createHistogram();
+  assert.throws(
+    () => new h.constructor(),
+    /^TypeError: illegal constructor$/
+  );
 }
