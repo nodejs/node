@@ -775,7 +775,7 @@ changes:
 * Returns: {Promise}  Fulfills with the {fs.Stats} object for the given
   symbolic link `path`.
 
-Equivalent to [`fsPromises.stat()`] unless `path` refers to a symbolic link,
+Equivalent to [`fsPromises.stat()`][] unless `path` refers to a symbolic link,
 in which case the link itself is stat-ed, not the file that it refers to.
 Refer to the POSIX lstat(2) document for more detail.
 
