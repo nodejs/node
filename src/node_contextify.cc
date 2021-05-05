@@ -444,6 +444,7 @@ void ContextifyContext::PropertySetterCallback(
   }
 
   USE(ctx->sandbox()->Set(context, property, value));
+  args.GetReturnValue().Set(value);
 }
 
 // static
@@ -516,6 +517,7 @@ void ContextifyContext::PropertyDefinerCallback(
         desc.has_set() ? desc.set() : Undefined(isolate).As<Value>());
 
     define_prop_on_sandbox(&desc_for_sandbox);
+    args.GetReturnValue().Set(sandbox);
   } else {
     Local<Value> value =
         desc.has_value() ? desc.value() : Undefined(isolate).As<Value>();
@@ -527,6 +529,7 @@ void ContextifyContext::PropertyDefinerCallback(
       PropertyDescriptor desc_for_sandbox(value);
       define_prop_on_sandbox(&desc_for_sandbox);
     }
+    args.GetReturnValue().Set(sandbox);
   }
 }
 
