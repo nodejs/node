@@ -294,6 +294,26 @@ added: v0.1.7
 
 The process object. See the [`process` object][] section.
 
+## `prompt([message[, defaultValue]])`
+<!-- YAML
+added: REPLACEME
+-->
+
+<!-- type=global -->
+
+* `message` {string} Optional, Message shown to user. Default: `'prompt'`.
+* `defaultValue` {string} Optional, Returned value when user inputs the
+  empty string.
+* Returns: {string|null}
+
+`prompt()` the given message and waits for the user's input.
+If the `stdin` is not interactive, it returns `null`.
+If default value is not given and the user's input is empty string, it also
+returns `null`.
+If default value is given and the user's input is empty string, it returns
+`defaultValue`.
+Otherwise, it returns the user's input as `string`.
+
 ## `queueMicrotask(callback)`
 <!-- YAML
 added: v11.0.0

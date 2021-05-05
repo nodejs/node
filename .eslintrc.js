@@ -333,5 +333,6 @@ module.exports = {
     btoa: 'readable',
     atob: 'readable',
     performance: 'readable',
+    prompt: 'readable'
   },
 };

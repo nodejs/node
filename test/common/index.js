@@ -291,6 +291,10 @@ if (global.performance) {
   knownGlobals.push(global.performance);
 }
 
+if (global.prompt) {
+  knownGlobals.push(global.prompt);
+}
+
 function allowGlobals(...allowlist) {
   knownGlobals = knownGlobals.concat(allowlist);
 }
