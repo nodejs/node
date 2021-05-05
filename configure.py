@@ -14,7 +14,7 @@ import shutil
 import bz2
 import io
 
-from distutils.spawn import find_executable as which
+from shutil import which
 from distutils.version import StrictVersion
 
 # If not run from node/, cd to node/.
