@@ -123,9 +123,6 @@
     'v8_enable_pointer_compression%': 0,
     'v8_enable_31bit_smis_on_64bit_arch%': 0,
 
-    # Reverse JS arguments order in the stack (sets -dV8_REVERSE_JSARGS).
-    'v8_enable_reverse_jsargs%': 0,
-
     # Sets -dOBJECT_PRINT.
     'v8_enable_object_print%': 0,
 
@@ -307,9 +304,6 @@
         'defines': ['V8_IMMINENT_DEPRECATION_WARNINGS',],
       },{
         'defines!': ['V8_IMMINENT_DEPRECATION_WARNINGS',],
-      }],
-      ['v8_enable_reverse_jsargs==1', {
-        'defines': ['V8_REVERSE_JSARGS',],
       }],
       ['v8_enable_i18n_support==1', {
         'defines': ['V8_INTL_SUPPORT',],
