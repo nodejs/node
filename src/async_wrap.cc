@@ -45,7 +45,6 @@ using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Name;
 using v8::Nothing;
-using v8::Null;
 using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
@@ -580,14 +579,6 @@ void AsyncWrap::EmitDestroy(bool from_gc) {
   AsyncWrap::EmitDestroy(env(), async_id_);
   // Ensure no double destroy is emitted via AsyncReset().
   async_id_ = kInvalidAsyncId;
-
-  if (!persistent().IsEmpty() && !from_gc) {
-    HandleScope handle_scope(env()->isolate());
-    USE(object()->Set(
-          env()->context(),
-          env()->owner_symbol(),
-          Null(env()->isolate())));
-  }
 }
 
 void AsyncWrap::QueueDestroyAsyncId(const FunctionCallbackInfo<Value>& args) {
