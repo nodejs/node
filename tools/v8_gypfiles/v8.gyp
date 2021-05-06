@@ -166,6 +166,9 @@
           '<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-verifiers.h',
           '<(SHARED_INTERMEDIATE_DIR)/torque-generated/factory.cc',
           '<(SHARED_INTERMEDIATE_DIR)/torque-generated/objects-printer.cc',
+          '<@(torque_outputs_inl_inc)',
+          '<@(torque_outputs_cc)',
+          '<@(torque_outputs_inc)',
         ],
         'include_dirs': [
           '<(SHARED_INTERMEDIATE_DIR)',
