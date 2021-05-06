@@ -97,6 +97,7 @@
       'lib/tty.js',
       'lib/url.js',
       'lib/util.js',
+      'lib/util/errors.js',
       'lib/util/types.js',
       'lib/v8.js',
       'lib/vm.js',

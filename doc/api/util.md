@@ -1304,6 +1304,110 @@ const { read, written } = encoder.encodeInto(src, dest);
 
 The encoding supported by the `TextEncoder` instance. Always set to `'utf-8'`.
 
+## `util/errors`
+<!-- YAML
+added: REPLACEME
+-->
+
+The `util/errors` module provides access to additional utilities related
+to the Node.js custom error types.
+
+```mjs
+import {
+  AbortError,
+  DOMException,
+  makeErrorWithCode
+} from 'util/errors';
+```
+
+```cjs
+const {
+  AbortError,
+  DOMException,
+  makeErrorWithCode
+} = require('util/errors');
+```
+
+### Class: `AbortError`
+<!-- YAML
+added: REPLACEME
+-->
+
+The `AbortError` is used with the {AbortController} and is thrown
+when an {AbortSignal} is triggered.
+
+```mjs
+import { AbortError } from 'util/errors';
+
+throw new AbortError();
+```
+
+```cjs
+const { AbortError } = require('util/errors');
+
+throw new AbortError();
+```
+
+### Class: `DOMException`
+<!-- YAML
+added: REPLACEME
+-->
+
+The `DOMException` class is an implementation of the standard
+[HTML `DOMException`][].
+
+#### `new DOMException([message[, name]])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `message` {string}
+* `name` {string}
+
+### `makeErrorWithCode(code[, options])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `code` {string}
+* `options` {Object}
+  * `Base` {Function} The base {Error} class for the generated error.
+    **Defaults**: {Error}.
+  * `messages` {Map} A map containing the error message definitions for
+    the codes.
+
+The `makeErrorWithCode()` function generates and returns a Function that
+can be used to generate Node.js-style {Error} objects with `code`
+properties. It is the same underlying mechanism that Node.js uses to
+define it's own internal errors.
+
+The `messages` option is a `Map` whose entries map a `code` to either a
+`string` or a `Function`. The string may contain formatting tags that
+are replaced when the error is created. The function must return a string
+generated from the provided arguments.
+
+```js
+const messages = new Map([
+  ['FOO', 'hello %s'],
+  ['BAR', (name) => `hello ${name}`],
+]);
+
+const FOO = makeErrorWithCode('FOO', { messages });
+
+throw new FOO('world');  // message: hello world
+```
+
+```js
+const messages = new Map([
+  ['FOO', 'hello %s'],
+  ['BAR', (name) => `hello ${name}`],
+]);
+
+const BAR = makeErrorWithCode('BAR', { messages, Base: TypeError });
+
+throw new BAR('world');  // message: hello world
+```
+
 ## `util.types`
 <!-- YAML
 added: v10.0.0
@@ -2474,6 +2578,7 @@ util.log('Timestamped message.');
 [Custom inspection functions on objects]: #util_custom_inspection_functions_on_objects
 [Custom promisified functions]: #util_custom_promisified_functions
 [Customizing `util.inspect` colors]: #util_customizing_util_inspect_colors
+[HTML `DOMException`]: https://developer.mozilla.org/en-US/docs/Web/API/DOMException
 [Internationalization]: intl.md
 [Module Namespace Object]: https://tc39.github.io/ecma262/#sec-module-namespace-exotic-objects
 [WHATWG Encoding Standard]: https://encoding.spec.whatwg.org/

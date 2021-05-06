@@ -1517,6 +1517,13 @@ Invalid characters were detected in headers.
 A cursor on a given stream cannot be moved to a specified row without a
 specified column.
 
+<a id="ERR_INVALID_ERROR_MESSAGE"></a>
+### `ERR_INVALID_ERROR_MESSAGE`
+
+When using the `util/errors` module to create a new `Error` with a
+code, the message defined for the error code must be either a string
+or a function.
+
 <a id="ERR_INVALID_FD"></a>
 ### `ERR_INVALID_FD`
 
@@ -1795,6 +1802,12 @@ strict compliance with the API specification (which in some cases may accept
 `func(undefined)` but not `func()`). In most native Node.js APIs,
 `func(undefined)` and `func()` are treated identically, and the
 [`ERR_INVALID_ARG_TYPE`][] error code may be used instead.
+
+<a id="ERR_MISSING_ERROR_MESSAGE"></a>
+### `ERR_MISSING_ERROR_MESSAGE`
+
+When using the `util/errors` module to create a new `Error` with a
+code, the messages map must contain a definition for the given code.
 
 <a id="ERR_MISSING_OPTION"></a>
 ### `ERR_MISSING_OPTION`
