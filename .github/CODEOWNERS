@@ -115,3 +115,7 @@
 /lib/internal/bootstrap/* @nodejs/startup
 /tools/code_cache/* @nodejs/startup
 /tools/snapshot/* @nodejs/startup
+
+# V8
+/deps/v8/* @nodejs/v8-update
+/tools/v8_gypfiles/* @nodejs/v8-update
