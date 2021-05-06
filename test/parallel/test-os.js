@@ -257,3 +257,10 @@ if (!common.isIBMi) {
 
 is.number(+os.freemem, 'freemem');
 is.number(os.freemem(), 'freemem');
+
+const devNull = os.devNull;
+if (common.isWindows) {
+  assert.strictEqual(devNull, '\\\\.\\nul');
+} else {
+  assert.strictEqual(devNull, '/dev/null');
+}
