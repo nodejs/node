@@ -281,10 +281,12 @@ const buffer = readFileSync(new URL('./data.proto', import.meta.url));
 
 ### `import.meta.resolve(specifier[, parent])`
 <!--
-added: v12.0.0
+added:
+  - v13.9.0
+  - v12.16.2
 changes:
   - version: REPLACEME
-    pr-url: TODO
+    pr-url: https://github.com/nodejs/node/pull/38587
     description: Add support for WHATWG `URL` object to `parentURL` parameter.
 -->
 
