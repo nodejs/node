@@ -271,6 +271,11 @@ const buffer = readFileSync(new URL('./data.proto', import.meta.url));
 ```
 
 ### `import.meta.resolve(specifier[, parent])`
+<!--
+added:
+  - v13.9.0
+  - v12.16.2
+-->
 
 > Stability: 1 - Experimental
 
@@ -278,7 +283,7 @@ This feature is only available with the `--experimental-import-meta-resolve`
 command flag enabled.
 
 * `specifier` {string} The module specifier to resolve relative to `parent`.
-* `parent` {string|URL} The absolute parent module URL to resolve from. If none
+* `parent` {string} The absolute parent module URL to resolve from. If none
   is specified, the value of `import.meta.url` is used as the default.
 * Returns: {Promise}
 
