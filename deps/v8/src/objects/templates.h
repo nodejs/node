@@ -14,6 +14,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/templates-tq.inc"
+
 class TemplateInfo : public TorqueGeneratedTemplateInfo<TemplateInfo, Struct> {
  public:
   NEVER_READ_ONLY_SPACE
@@ -84,6 +86,8 @@ class FunctionTemplateInfo
   DECL_RARE_ACCESSORS(c_function, CFunction, Object)
   DECL_RARE_ACCESSORS(c_signature, CSignature, Object)
 #undef DECL_RARE_ACCESSORS
+
+  DECL_RELEASE_ACQUIRE_ACCESSORS(call_code, HeapObject)
 
   // Begin flag bits ---------------------
   DECL_BOOLEAN_ACCESSORS(undetectable)
@@ -156,6 +160,7 @@ class ObjectTemplateInfo
  public:
   DECL_INT_ACCESSORS(embedder_field_count)
   DECL_BOOLEAN_ACCESSORS(immutable_proto)
+  DECL_BOOLEAN_ACCESSORS(code_like)
 
   // Dispatched behavior.
   DECL_PRINTER(ObjectTemplateInfo)

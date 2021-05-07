@@ -191,7 +191,7 @@ class IncrementalStringBuilder {
   class NoExtend {
    public:
     NoExtend(Handle<String> string, int offset,
-             const DisallowHeapAllocation& no_gc) {
+             const DisallowGarbageCollection& no_gc) {
       DCHECK(string->IsSeqOneByteString() || string->IsSeqTwoByteString());
       if (sizeof(DestChar) == 1) {
         start_ = reinterpret_cast<DestChar*>(
@@ -214,7 +214,7 @@ class IncrementalStringBuilder {
    private:
     DestChar* start_;
     DestChar* cursor_;
-    DISALLOW_HEAP_ALLOCATION(no_gc_)
+    DISALLOW_GARBAGE_COLLECTION(no_gc_)
   };
 
   template <typename DestChar>
@@ -241,7 +241,7 @@ class IncrementalStringBuilder {
   class NoExtendBuilder : public NoExtend<DestChar> {
    public:
     NoExtendBuilder(IncrementalStringBuilder* builder, int required_length,
-                    const DisallowHeapAllocation& no_gc)
+                    const DisallowGarbageCollection& no_gc)
         : NoExtend<DestChar>(builder->current_part(), builder->current_index_,
                              no_gc),
           builder_(builder) {

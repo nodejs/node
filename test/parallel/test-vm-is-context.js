@@ -25,7 +25,7 @@ const assert = require('assert');
 const vm = require('vm');
 
 for (const valToTest of [
-  'string', null, undefined, 8.9, Symbol('sym'), true
+  'string', null, undefined, 8.9, Symbol('sym'), true,
 ]) {
   assert.throws(() => {
     vm.isContext(valToTest);

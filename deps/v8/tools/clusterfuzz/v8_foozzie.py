@@ -96,10 +96,10 @@ RETURN_PASS = 0
 RETURN_FAIL = 2
 
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
-SANITY_CHECKS = os.path.join(BASE_PATH, 'v8_sanity_checks.js')
+SMOKE_TESTS = os.path.join(BASE_PATH, 'v8_smoke_tests.js')
 
 # Timeout for one d8 run.
-SANITY_CHECK_TIMEOUT_SEC = 1
+SMOKE_TEST_TIMEOUT_SEC = 1
 TEST_TIMEOUT_SEC = 3
 
 SUPPORTED_ARCHS = ['ia32', 'x64', 'arm', 'arm64']
@@ -243,6 +243,10 @@ class ExecutionConfig(object):
   def flags(self):
     return self.command.flags
 
+  @property
+  def is_error_simulation(self):
+    return '--simulate-errors' in self.flags
+
 
 def parse_args():
   first_config_arguments = ExecutionArgumentsConfig('first')
@@ -253,8 +257,8 @@ def parse_args():
     '--random-seed', type=int, required=True,
     help='random seed passed to both runs')
   parser.add_argument(
-      '--skip-sanity-checks', default=False, action='store_true',
-      help='skip sanity checks for testing purposes')
+      '--skip-smoke-tests', default=False, action='store_true',
+      help='skip smoke tests for testing purposes')
   parser.add_argument(
       '--skip-suppressions', default=False, action='store_true',
       help='skip suppressions to reproduce known issues')
@@ -384,7 +388,7 @@ def run_comparisons(suppress, execution_configs, test_case, timeout,
     timeout: Timeout in seconds for one run.
     verbose: Prints the executed commands.
     ignore_crashes: Typically we ignore crashes during fuzzing as they are
-        frequent. However, when running sanity checks we should not crash
+        frequent. However, when running smoke tests we should not crash
         and immediately flag crashes as a failure.
     source_key: A fixed source key. If not given, it will be inferred from the
         output.
@@ -396,11 +400,13 @@ def run_comparisons(suppress, execution_configs, test_case, timeout,
   baseline_config = execution_configs[0]
   baseline_output = run_test_case(baseline_config)
   has_crashed = baseline_output.HasCrashed()
+  simulated = baseline_config.is_error_simulation
 
   # Iterate over the remaining configurations, run and compare.
   for comparison_config in execution_configs[1:]:
     comparison_output = run_test_case(comparison_config)
     has_crashed = has_crashed or comparison_output.HasCrashed()
+    simulated = simulated or comparison_config.is_error_simulation
     difference, source = suppress.diff(baseline_output, comparison_output)
 
     if difference:
@@ -421,10 +427,11 @@ def run_comparisons(suppress, execution_configs, test_case, timeout,
       # detected. This is only for the statistics during experiments.
       raise PassException('# V8 correctness - C-R-A-S-H')
     else:
-      # Subsume unexpected crashes (e.g. during sanity checks) with one failure
-      # state.
+      # Subsume simulated and unexpected crashes (e.g. during smoke tests)
+      # with one failure state.
+      crash_state = '_simulated_crash_' if simulated else '_unexpected_crash_'
       raise FailException(FAILURE_HEADER_TEMPLATE % dict(
-          configs='', source_key='', suppression='unexpected crash'))
+          configs='', source_key='', suppression=crash_state))
 
 
 def main():
@@ -451,18 +458,18 @@ def main():
 
   # First, run some fixed smoke tests in all configs to ensure nothing
   # is fundamentally wrong, in order to prevent bug flooding.
-  if not options.skip_sanity_checks:
+  if not options.skip_smoke_tests:
     run_comparisons(
         suppress, execution_configs,
-        test_case=SANITY_CHECKS,
-        timeout=SANITY_CHECK_TIMEOUT_SEC,
+        test_case=SMOKE_TESTS,
+        timeout=SMOKE_TEST_TIMEOUT_SEC,
         verbose=False,
-        # Don't accept crashes during sanity checks. A crash would hint at
+        # Don't accept crashes during smoke tests. A crash would hint at
         # a flag that might be incompatible or a broken test file.
         ignore_crashes=False,
-        # Special source key for sanity checks so that clusterfuzz dedupes all
+        # Special source key for smoke tests so that clusterfuzz dedupes all
         # cases on this in case it's hit.
-        source_key = 'sanity check failed',
+        source_key = 'smoke test failed',
     )
 
   # Second, run all configs against the fuzz test case.

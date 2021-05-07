@@ -22,7 +22,8 @@ class BoundedPageAllocator;
 namespace internal {
 
 // IsolateAllocator object is responsible for allocating memory for one (!)
-// Isolate object. Depending on the allocation mode the memory can be allocated
+// Isolate object. Depending on the whether pointer compression is enabled,
+// the memory can be allocated
 // 1) in the C++ heap (when pointer compression is disabled)
 // 2) in a proper part of a properly aligned region of a reserved address space
 //   (when pointer compression is enabled).
@@ -34,17 +35,14 @@ namespace internal {
 // Isolate::Delete() takes care of the proper order of the objects destruction.
 class V8_EXPORT_PRIVATE IsolateAllocator final {
  public:
-  explicit IsolateAllocator(IsolateAllocationMode mode);
+  IsolateAllocator();
   ~IsolateAllocator();
+  IsolateAllocator(const IsolateAllocator&) = delete;
+  IsolateAllocator& operator=(const IsolateAllocator&) = delete;
 
   void* isolate_memory() const { return isolate_memory_; }
 
   v8::PageAllocator* page_allocator() const { return page_allocator_; }
-
-  IsolateAllocationMode mode() {
-    return reservation_.IsReserved() ? IsolateAllocationMode::kInV8Heap
-                                     : IsolateAllocationMode::kInCppHeap;
-  }
 
  private:
   Address InitReservation();
@@ -55,8 +53,6 @@ class V8_EXPORT_PRIVATE IsolateAllocator final {
   v8::PageAllocator* page_allocator_ = nullptr;
   std::unique_ptr<base::BoundedPageAllocator> page_allocator_instance_;
   VirtualMemory reservation_;
-
-  DISALLOW_COPY_AND_ASSIGN(IsolateAllocator);
 };
 
 }  // namespace internal

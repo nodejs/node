@@ -34,6 +34,9 @@ class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
         simplified_(simplified) {
   }
 
+  JSGraph(const JSGraph&) = delete;
+  JSGraph& operator=(const JSGraph&) = delete;
+
   // CEntryStubs are cached depending on the result size and other flags.
   Node* CEntryStubConstant(int result_size,
                            SaveFPRegsMode save_doubles = kDontSaveFPRegs,
@@ -132,8 +135,6 @@ class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
 
   // Internal helper to canonicalize a number constant.
   Node* NumberConstant(double value);
-
-  DISALLOW_COPY_AND_ASSIGN(JSGraph);
 };
 
 }  // namespace compiler

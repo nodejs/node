@@ -2,14 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-mv
+// Flags: --experimental-wasm-mv --wasm-loop-unrolling
 
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function MultiBlockResultTest() {
   print("MultiBlockResultTest");
   let builder = new WasmModuleBuilder();
-  let sig_i_ii = builder.addType(kSig_i_ii);
   let sig_ii_v = builder.addType(kSig_ii_v);
 
   builder.addFunction("main", kSig_i_ii)

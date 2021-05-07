@@ -1,6 +1,6 @@
-const { test } = require('tap')
-const requireInject = require('require-inject')
+const t = require('tap')
 
+const output = []
 const npm = {
   flatOptions: {
     json: false,
@@ -8,6 +8,9 @@ const npm = {
     silent: false,
     loglevel: 'info',
     unicode: false,
+  },
+  output: (msg) => {
+    output.push(msg)
   },
 }
 
@@ -51,30 +54,26 @@ const libnpmhook = {
   },
 }
 
-const output = []
-const hook = requireInject('../../lib/hook.js', {
-  '../../lib/npm.js': npm,
+const Hook = t.mock('../../lib/hook.js', {
   '../../lib/utils/otplease.js': async (opts, fn) => fn(opts),
-  '../../lib/utils/output.js': (msg) => {
-    output.push(msg)
-  },
   libnpmhook,
 })
+const hook = new Hook(npm)
 
-test('npm hook no args', t => {
-  return hook([], (err) => {
+t.test('npm hook no args', t => {
+  return hook.exec([], (err) => {
     t.match(err, /npm hook add/, 'throws usage with no arguments')
     t.end()
   })
 })
 
-test('npm hook add', t => {
+t.test('npm hook add', t => {
   t.teardown(() => {
     hookArgs = null
     output.length = 0
   })
 
-  return hook(['add', 'semver', 'https://google.com', 'some-secret'], (err) => {
+  return hook.exec(['add', 'semver', 'https://google.com', 'some-secret'], (err) => {
     if (err)
       throw err
 
@@ -89,7 +88,7 @@ test('npm hook add', t => {
   })
 })
 
-test('npm hook add - unicode output', t => {
+t.test('npm hook add - unicode output', t => {
   npm.flatOptions.unicode = true
   t.teardown(() => {
     npm.flatOptions.unicode = false
@@ -97,7 +96,7 @@ test('npm hook add - unicode output', t => {
     output.length = 0
   })
 
-  return hook(['add', 'semver', 'https://google.com', 'some-secret'], (err) => {
+  return hook.exec(['add', 'semver', 'https://google.com', 'some-secret'], (err) => {
     if (err)
       throw err
 
@@ -112,7 +111,7 @@ test('npm hook add - unicode output', t => {
   })
 })
 
-test('npm hook add - json output', t => {
+t.test('npm hook add - json output', t => {
   npm.flatOptions.json = true
   t.teardown(() => {
     npm.flatOptions.json = false
@@ -120,7 +119,7 @@ test('npm hook add - json output', t => {
     output.length = 0
   })
 
-  return hook(['add', '@npmcli', 'https://google.com', 'some-secret'], (err) => {
+  return hook.exec(['add', '@npmcli', 'https://google.com', 'some-secret'], (err) => {
     if (err)
       throw err
 
@@ -140,7 +139,7 @@ test('npm hook add - json output', t => {
   })
 })
 
-test('npm hook add - parseable output', t => {
+t.test('npm hook add - parseable output', t => {
   npm.flatOptions.parseable = true
   t.teardown(() => {
     npm.flatOptions.parseable = false
@@ -148,7 +147,7 @@ test('npm hook add - parseable output', t => {
     output.length = 0
   })
 
-  return hook(['add', '@npmcli', 'https://google.com', 'some-secret'], (err) => {
+  return hook.exec(['add', '@npmcli', 'https://google.com', 'some-secret'], (err) => {
     if (err)
       throw err
 
@@ -168,7 +167,7 @@ test('npm hook add - parseable output', t => {
   })
 })
 
-test('npm hook add - silent output', t => {
+t.test('npm hook add - silent output', t => {
   npm.flatOptions.silent = true
   t.teardown(() => {
     npm.flatOptions.silent = false
@@ -176,7 +175,7 @@ test('npm hook add - silent output', t => {
     output.length = 0
   })
 
-  return hook(['add', '@npmcli', 'https://google.com', 'some-secret'], (err) => {
+  return hook.exec(['add', '@npmcli', 'https://google.com', 'some-secret'], (err) => {
     if (err)
       throw err
 
@@ -191,13 +190,13 @@ test('npm hook add - silent output', t => {
   })
 })
 
-test('npm hook ls', t => {
+t.test('npm hook ls', t => {
   t.teardown(() => {
     hookArgs = null
     output.length = 0
   })
 
-  return hook(['ls'], (err) => {
+  return hook.exec(['ls'], (err) => {
     if (err)
       throw err
 
@@ -214,7 +213,7 @@ test('npm hook ls', t => {
   })
 })
 
-test('npm hook ls, no results', t => {
+t.test('npm hook ls, no results', t => {
   hookResponse = []
   t.teardown(() => {
     hookResponse = null
@@ -222,7 +221,7 @@ test('npm hook ls, no results', t => {
     output.length = 0
   })
 
-  return hook(['ls'], (err) => {
+  return hook.exec(['ls'], (err) => {
     if (err)
       throw err
 
@@ -235,7 +234,7 @@ test('npm hook ls, no results', t => {
   })
 })
 
-test('npm hook ls, single result', t => {
+t.test('npm hook ls, single result', t => {
   hookResponse = [{
     id: 1,
     name: 'semver',
@@ -249,7 +248,7 @@ test('npm hook ls, single result', t => {
     output.length = 0
   })
 
-  return hook(['ls'], (err) => {
+  return hook.exec(['ls'], (err) => {
     if (err)
       throw err
 
@@ -264,7 +263,7 @@ test('npm hook ls, single result', t => {
   })
 })
 
-test('npm hook ls - json output', t => {
+t.test('npm hook ls - json output', t => {
   npm.flatOptions.json = true
   t.teardown(() => {
     npm.flatOptions.json = false
@@ -272,7 +271,7 @@ test('npm hook ls - json output', t => {
     output.length = 0
   })
 
-  return hook(['ls'], (err) => {
+  return hook.exec(['ls'], (err) => {
     if (err)
       throw err
 
@@ -301,7 +300,7 @@ test('npm hook ls - json output', t => {
   })
 })
 
-test('npm hook ls - parseable output', t => {
+t.test('npm hook ls - parseable output', t => {
   npm.flatOptions.parseable = true
   t.teardown(() => {
     npm.flatOptions.parseable = false
@@ -309,7 +308,7 @@ test('npm hook ls - parseable output', t => {
     output.length = 0
   })
 
-  return hook(['ls'], (err) => {
+  return hook.exec(['ls'], (err) => {
     if (err)
       throw err
 
@@ -327,7 +326,7 @@ test('npm hook ls - parseable output', t => {
   })
 })
 
-test('npm hook ls - silent output', t => {
+t.test('npm hook ls - silent output', t => {
   npm.flatOptions.silent = true
   t.teardown(() => {
     npm.flatOptions.silent = false
@@ -335,7 +334,7 @@ test('npm hook ls - silent output', t => {
     output.length = 0
   })
 
-  return hook(['ls'], (err) => {
+  return hook.exec(['ls'], (err) => {
     if (err)
       throw err
 
@@ -348,13 +347,13 @@ test('npm hook ls - silent output', t => {
   })
 })
 
-test('npm hook rm', t => {
+t.test('npm hook rm', t => {
   t.teardown(() => {
     hookArgs = null
     output.length = 0
   })
 
-  return hook(['rm', '1'], (err) => {
+  return hook.exec(['rm', '1'], (err) => {
     if (err)
       throw err
 
@@ -369,7 +368,7 @@ test('npm hook rm', t => {
   })
 })
 
-test('npm hook rm - unicode output', t => {
+t.test('npm hook rm - unicode output', t => {
   npm.flatOptions.unicode = true
   t.teardown(() => {
     npm.flatOptions.unicode = false
@@ -377,7 +376,7 @@ test('npm hook rm - unicode output', t => {
     output.length = 0
   })
 
-  return hook(['rm', '1'], (err) => {
+  return hook.exec(['rm', '1'], (err) => {
     if (err)
       throw err
 
@@ -392,7 +391,7 @@ test('npm hook rm - unicode output', t => {
   })
 })
 
-test('npm hook rm - silent output', t => {
+t.test('npm hook rm - silent output', t => {
   npm.flatOptions.silent = true
   t.teardown(() => {
     npm.flatOptions.silent = false
@@ -400,7 +399,7 @@ test('npm hook rm - silent output', t => {
     output.length = 0
   })
 
-  return hook(['rm', '1'], (err) => {
+  return hook.exec(['rm', '1'], (err) => {
     if (err)
       throw err
 
@@ -413,7 +412,7 @@ test('npm hook rm - silent output', t => {
   })
 })
 
-test('npm hook rm - json output', t => {
+t.test('npm hook rm - json output', t => {
   npm.flatOptions.json = true
   t.teardown(() => {
     npm.flatOptions.json = false
@@ -421,7 +420,7 @@ test('npm hook rm - json output', t => {
     output.length = 0
   })
 
-  return hook(['rm', '1'], (err) => {
+  return hook.exec(['rm', '1'], (err) => {
     if (err)
       throw err
 
@@ -439,7 +438,7 @@ test('npm hook rm - json output', t => {
   })
 })
 
-test('npm hook rm - parseable output', t => {
+t.test('npm hook rm - parseable output', t => {
   npm.flatOptions.parseable = true
   t.teardown(() => {
     npm.flatOptions.parseable = false
@@ -447,7 +446,7 @@ test('npm hook rm - parseable output', t => {
     output.length = 0
   })
 
-  return hook(['rm', '1'], (err) => {
+  return hook.exec(['rm', '1'], (err) => {
     if (err)
       throw err
 
@@ -463,13 +462,13 @@ test('npm hook rm - parseable output', t => {
   })
 })
 
-test('npm hook update', t => {
+t.test('npm hook update', t => {
   t.teardown(() => {
     hookArgs = null
     output.length = 0
   })
 
-  return hook(['update', '1', 'https://google.com', 'some-secret'], (err) => {
+  return hook.exec(['update', '1', 'https://google.com', 'some-secret'], (err) => {
     if (err)
       throw err
 
@@ -486,7 +485,7 @@ test('npm hook update', t => {
   })
 })
 
-test('npm hook update - unicode', t => {
+t.test('npm hook update - unicode', t => {
   npm.flatOptions.unicode = true
   t.teardown(() => {
     npm.flatOptions.unicode = false
@@ -494,7 +493,7 @@ test('npm hook update - unicode', t => {
     output.length = 0
   })
 
-  return hook(['update', '1', 'https://google.com', 'some-secret'], (err) => {
+  return hook.exec(['update', '1', 'https://google.com', 'some-secret'], (err) => {
     if (err)
       throw err
 
@@ -511,7 +510,7 @@ test('npm hook update - unicode', t => {
   })
 })
 
-test('npm hook update - json output', t => {
+t.test('npm hook update - json output', t => {
   npm.flatOptions.json = true
   t.teardown(() => {
     npm.flatOptions.json = false
@@ -519,7 +518,7 @@ test('npm hook update - json output', t => {
     output.length = 0
   })
 
-  return hook(['update', '1', 'https://google.com', 'some-secret'], (err) => {
+  return hook.exec(['update', '1', 'https://google.com', 'some-secret'], (err) => {
     if (err)
       throw err
 
@@ -539,7 +538,7 @@ test('npm hook update - json output', t => {
   })
 })
 
-test('npm hook update - parseable output', t => {
+t.test('npm hook update - parseable output', t => {
   npm.flatOptions.parseable = true
   t.teardown(() => {
     npm.flatOptions.parseable = false
@@ -547,7 +546,7 @@ test('npm hook update - parseable output', t => {
     output.length = 0
   })
 
-  return hook(['update', '1', 'https://google.com', 'some-secret'], (err) => {
+  return hook.exec(['update', '1', 'https://google.com', 'some-secret'], (err) => {
     if (err)
       throw err
 
@@ -565,7 +564,7 @@ test('npm hook update - parseable output', t => {
   })
 })
 
-test('npm hook update - silent output', t => {
+t.test('npm hook update - silent output', t => {
   npm.flatOptions.silent = true
   t.teardown(() => {
     npm.flatOptions.silent = false
@@ -573,7 +572,7 @@ test('npm hook update - silent output', t => {
     output.length = 0
   })
 
-  return hook(['update', '1', 'https://google.com', 'some-secret'], (err) => {
+  return hook.exec(['update', '1', 'https://google.com', 'some-secret'], (err) => {
     if (err)
       throw err
 

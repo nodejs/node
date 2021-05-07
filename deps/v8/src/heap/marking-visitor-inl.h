@@ -9,6 +9,8 @@
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/spaces.h"
+#include "src/objects/objects.h"
+#include "src/snapshot/deserializer.h"
 
 namespace v8 {
 namespace internal {
@@ -175,7 +177,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::
     this->VisitMapPointer(object);
     start = FixedArray::BodyDescriptor::kStartOffset;
   }
-  int end = Min(size, start + kProgressBarScanningChunk);
+  int end = std::min(size, start + kProgressBarScanningChunk);
   if (start < end) {
     VisitPointers(object, object.RawField(start), object.RawField(end));
     bool success = chunk->TrySetProgressBar(current_progress_bar, end);
@@ -349,8 +351,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitWeakCell(
 // ===========================================================================
 
 template <typename ConcreteVisitor, typename MarkingState>
-size_t
-MarkingVisitorBase<ConcreteVisitor, MarkingState>::MarkDescriptorArrayBlack(
+int MarkingVisitorBase<ConcreteVisitor, MarkingState>::MarkDescriptorArrayBlack(
     DescriptorArray descriptors) {
   concrete_visitor()->marking_state()->WhiteToGrey(descriptors);
   if (concrete_visitor()->marking_state()->GreyToBlack(descriptors)) {
@@ -389,36 +390,64 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitDescriptorArray(
 }
 
 template <typename ConcreteVisitor, typename MarkingState>
+int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitDescriptorsForMap(
+    Map map) {
+  if (!map.CanTransition()) return 0;
+
+  // Maps that can transition share their descriptor arrays and require
+  // special visiting logic to avoid memory leaks.
+  // Since descriptor arrays are potentially shared, ensure that only the
+  // descriptors that belong to this map are marked. The first time a
+  // non-empty descriptor array is marked, its header is also visited. The
+  // slot holding the descriptor array will be implicitly recorded when the
+  // pointer fields of this map are visited.
+
+  Object maybe_descriptors =
+      TaggedField<Object, Map::kInstanceDescriptorsOffset>::Acquire_Load(
+          heap_->isolate(), map);
+
+  // If the descriptors are a Smi, then this Map is in the process of being
+  // deserialized, and doesn't yet have an initialized descriptor field.
+  if (maybe_descriptors.IsSmi()) {
+    DCHECK_EQ(maybe_descriptors, Deserializer::uninitialized_field_value());
+    return 0;
+  }
+
+  DescriptorArray descriptors = DescriptorArray::cast(maybe_descriptors);
+
+  // Don't do any special processing of strong descriptor arrays, let them get
+  // marked through the normal visitor mechanism.
+  if (descriptors.IsStrongDescriptorArray()) {
+    return 0;
+  }
+  concrete_visitor()->SynchronizePageAccess(descriptors);
+  int size = MarkDescriptorArrayBlack(descriptors);
+  int number_of_own_descriptors = map.NumberOfOwnDescriptors();
+  if (number_of_own_descriptors) {
+    // It is possible that the concurrent marker observes the
+    // number_of_own_descriptors out of sync with the descriptors. In that
+    // case the marking write barrier for the descriptor array will ensure
+    // that all required descriptors are marked. The concurrent marker
+    // just should avoid crashing in that case. That's why we need the
+    // std::min<int>() below.
+    VisitDescriptors(descriptors,
+                     std::min<int>(number_of_own_descriptors,
+                                   descriptors.number_of_descriptors()));
+  }
+
+  return size;
+}
+
+template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitMap(Map meta_map,
                                                                 Map map) {
   if (!concrete_visitor()->ShouldVisit(map)) return 0;
   int size = Map::BodyDescriptor::SizeOf(meta_map, map);
-  if (map.CanTransition()) {
-    // Maps that can transition share their descriptor arrays and require
-    // special visiting logic to avoid memory leaks.
-    // Since descriptor arrays are potentially shared, ensure that only the
-    // descriptors that belong to this map are marked. The first time a
-    // non-empty descriptor array is marked, its header is also visited. The
-    // slot holding the descriptor array will be implicitly recorded when the
-    // pointer fields of this map are visited.
-    DescriptorArray descriptors = map.synchronized_instance_descriptors();
-    size += MarkDescriptorArrayBlack(descriptors);
-    int number_of_own_descriptors = map.NumberOfOwnDescriptors();
-    if (number_of_own_descriptors) {
-      // It is possible that the concurrent marker observes the
-      // number_of_own_descriptors out of sync with the descriptors. In that
-      // case the marking write barrier for the descriptor array will ensure
-      // that all required descriptors are marked. The concurrent marker
-      // just should avoid crashing in that case. That's why we need the
-      // std::min<int>() below.
-      VisitDescriptors(descriptors,
-                       std::min<int>(number_of_own_descriptors,
-                                     descriptors.number_of_descriptors()));
-    }
-    // Mark the pointer fields of the Map. Since the transitions array has
-    // been marked already, it is fine that one of these fields contains a
-    // pointer to it.
-  }
+  size += VisitDescriptorsForMap(map);
+
+  // Mark the pointer fields of the Map. If there is a transitions array, it has
+  // been marked already, so it is fine that one of these fields contains a
+  // pointer to it.
   Map::BodyDescriptor::IterateBody(meta_map, map, size, this);
   return size;
 }

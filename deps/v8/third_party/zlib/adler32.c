@@ -74,10 +74,10 @@ uLong ZEXPORT adler32_z(adler, buf, len)
     unsigned n;
 
 #if defined(ADLER32_SIMD_SSSE3)
-    if (x86_cpu_enable_ssse3 && buf && len >= 64)
+    if (buf != Z_NULL && len >= 64 && x86_cpu_enable_ssse3)
         return adler32_simd_(adler, buf, len);
 #elif defined(ADLER32_SIMD_NEON)
-    if (buf && len >= 64)
+    if (buf != Z_NULL && len >= 64)
         return adler32_simd_(adler, buf, len);
 #endif
 

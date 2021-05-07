@@ -5,6 +5,9 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+if (common.hasOpenSSL3)
+  common.skip('temporarily skipping for OpenSSL 3.0-alpha15');
+
 const assert = require('assert');
 const { subtle } = require('crypto').webcrypto;
 
@@ -94,7 +97,7 @@ const testVectors = [
     name: 'ECDH',
     privateUsages: ['deriveKey', 'deriveBits'],
     publicUsages: []
-  }
+  },
 ];
 
 async function testImportSpki({ name, publicUsages }, namedCurve, extractable) {
@@ -173,7 +176,7 @@ async function testImportJwk(
 
   const [
     publicKey,
-    privateKey
+    privateKey,
   ] = await Promise.all([
     subtle.importKey(
       'jwk',
@@ -210,7 +213,7 @@ async function testImportJwk(
       },
       { name, namedCurve },
       extractable,
-      privateUsages)
+      privateUsages),
   ]);
 
   assert.strictEqual(publicKey.type, 'public');
@@ -228,10 +231,10 @@ async function testImportJwk(
     // Test the round trip
     const [
       pubJwk,
-      pvtJwk
+      pvtJwk,
     ] = await Promise.all([
       subtle.exportKey('jwk', publicKey),
-      subtle.exportKey('jwk', privateKey)
+      subtle.exportKey('jwk', privateKey),
     ]);
 
     assert.deepStrictEqual(pubJwk.key_ops, publicUsages);

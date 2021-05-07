@@ -14,9 +14,8 @@ namespace internal {
 class PreParserTest : public TestWithNativeContext {
  public:
   PreParserTest() = default;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(PreParserTest);
+  PreParserTest(const PreParserTest&) = delete;
+  PreParserTest& operator=(const PreParserTest&) = delete;
 };
 
 TEST_F(PreParserTest, LazyFunctionLength) {

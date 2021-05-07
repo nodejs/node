@@ -141,48 +141,41 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#examples">Examples</a></li><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm uninstall [&lt;@scope&gt;/]&lt;pkg&gt;[@&lt;version&gt;]... [-S|--save|-D|--save-dev|-O|--save-optional|--no-save]
+<pre lang="bash"><code>npm uninstall [&lt;@scope&gt;/]&lt;pkg&gt;[@&lt;version&gt;]... [-S|--save|--no-save]
 
 aliases: remove, rm, r, un, unlink
 </code></pre>
 <h3 id="description">Description</h3>
 <p>This uninstalls a package, completely removing everything npm installed
 on its behalf.</p>
-<p>Example:</p>
+<p>It also removes the package from the <code>dependencies</code>, <code>devDependencies</code>,
+<code>optionalDependencies</code>, and <code>peerDependencies</code> objects in your
+<code>package.json</code>.</p>
+<p>Futher, if you have an <code>npm-shrinkwrap.json</code> or <code>package-lock.json</code>, npm
+will update those files as well.</p>
+<p><code>--no-save</code> will tell npm not to remove the package from your
+<code>package.json</code>, <code>npm-shrinkwrap.json</code>, or <code>package-lock.json</code> files.</p>
+<p><code>--save</code> or <code>-S</code> will tell npm to remove the package from your
+<code>package.json</code>, <code>npm-shrinkwrap.json</code>, and <code>package-lock.json</code> files.
+This is the default, but you may need to use this if you have for
+instance <code>save=false</code> in your <code>npmrc</code> file</p>
+<p>In global mode (ie, with <code>-g</code> or <code>--global</code> appended to the command),
+it uninstalls the current package context as a global package.
+<code>--no-save</code> is ignored in this case.</p>
+<p>Scope is optional and follows the usual rules for <a href="../using-npm/scope.html"><code>scope</code></a>.</p>
+<h3 id="examples">Examples</h3>
 <pre lang="bash"><code>npm uninstall sax
 </code></pre>
-<p>In global mode (ie, with <code>-g</code> or <code>--global</code> appended to the command),
-it uninstalls the current package context as a global package.</p>
-<p><code>npm uninstall</code> takes 3 exclusive, optional flags which save or update
-the package version in your main package.json:</p>
-<ul>
-<li>
-<p><code>-S, --save</code>: Package will be removed from your <code>dependencies</code>.</p>
-</li>
-<li>
-<p><code>-D, --save-dev</code>: Package will be removed from your <code>devDependencies</code>.</p>
-</li>
-<li>
-<p><code>-O, --save-optional</code>: Package will be removed from your <code>optionalDependencies</code>.</p>
-</li>
-<li>
-<p><code>--no-save</code>: Package will not be removed from your <code>package.json</code> file.</p>
-</li>
-</ul>
-<p>Further, if you have an <code>npm-shrinkwrap.json</code> then it will be updated as
-well.</p>
-<p>Scope is optional and follows the usual rules for <a href="../using-npm/scope.html"><code>scope</code></a>.</p>
-<p>Examples:</p>
-<pre lang="bash"><code>npm uninstall sax --save
-npm uninstall @myorg/privatepackage --save
-npm uninstall node-tap --save-dev
-npm uninstall dtrace-provider --save-optional
-npm uninstall lodash --no-save
+<p><code>sax</code> will no longer be in your <code>package.json</code>, <code>npm-shrinkwrap.json</code>, or
+<code>package-lock.json</code> files.</p>
+<pre lang="bash"><code>npm uninstall lodash --no-save
 </code></pre>
+<p><code>lodash</code> will not be removed from your <code>package.json</code>,
+<code>npm-shrinkwrap.json</code>, or <code>package-lock.json</code> files.</p>
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../commands/npm-prune.html">npm prune</a></li>

@@ -56,7 +56,7 @@ async function lookupPositive() {
       stub: getaddrinfoPositive(['some-address2']),
       factory: () => dnsPromises.lookup('example.com', { family: 6 }),
       expectation: { address: 'some-address2', family: 6 }
-    }
+    },
   ].forEach(async ({ stub, factory, expectation }) => {
     getaddrinfoStub = stub;
     assert.deepStrictEqual(await factory(), expectation);
@@ -80,7 +80,7 @@ async function lookupallPositive() {
       factory: () => dnsPromises.lookup('example', { all: true }),
       expectation: [
         { address: '::1', family: 6 },
-        { address: '::2', family: 6 }
+        { address: '::2', family: 6 },
       ]
     },
     {
@@ -88,7 +88,7 @@ async function lookupallPositive() {
       factory: () => dnsPromises.lookup('example', { all: true, family: 4 }),
       expectation: [
         { address: '::1', family: 4 },
-        { address: '::2', family: 4 }
+        { address: '::2', family: 4 },
       ]
     },
     {
@@ -96,7 +96,7 @@ async function lookupallPositive() {
       factory: () => dnsPromises.lookup('example', { all: true }),
       expectation: [
         { address: '127.0.0.1', family: 4 },
-        { address: 'some-address', family: 0 }
+        { address: 'some-address', family: 0 },
       ]
     },
     {
@@ -104,14 +104,14 @@ async function lookupallPositive() {
       factory: () => dnsPromises.lookup('example', { all: true, family: 6 }),
       expectation: [
         { address: '127.0.0.1', family: 6 },
-        { address: 'some-address', family: 6 }
+        { address: 'some-address', family: 6 },
       ]
     },
     {
       stub: getaddrinfoPositive([]),
       factory: () => dnsPromises.lookup('example', { all: true }),
       expectation: []
-    }
+    },
   ].forEach(async ({ stub, factory, expectation }) => {
     getaddrinfoStub = stub;
     assert.deepStrictEqual(await factory(), expectation);
@@ -134,6 +134,6 @@ async function lookupallNegative() {
     lookupPositive(),
     lookupNegative(),
     lookupallPositive(),
-    lookupallNegative()
+    lookupallNegative(),
   ]);
 })().then(common.mustCall());

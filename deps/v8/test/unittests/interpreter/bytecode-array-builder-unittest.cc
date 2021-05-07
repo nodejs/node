@@ -84,6 +84,12 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreAccumulatorInRegister(reg)
       .LoadNull();
 
+  // The above had a lot of Star0, but we must also emit the rest of
+  // the short-star codes.
+  for (int i = 1; i < 16; ++i) {
+    builder.StoreAccumulatorInRegister(Register(i));
+  }
+
   // Emit register-register transfer.
   builder.MoveRegister(reg, other);
   builder.MoveRegister(reg, wide);
@@ -277,6 +283,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit GetSuperConstructor.
   builder.GetSuperConstructor(reg);
 
+  // Constructor check for GetSuperConstructor.
+  builder.ThrowIfNotSuperConstructor(reg);
+
   // Hole checks.
   builder.ThrowReferenceErrorIfHole(name)
       .ThrowSuperAlreadyCalledIfNotHole()
@@ -443,7 +452,13 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.Return();
 
   // Generate BytecodeArray.
-  scope.SetScriptScopeInfo(factory->NewScopeInfo(1));
+  Handle<ScopeInfo> scope_info =
+      factory->NewScopeInfo(ScopeInfo::kVariablePartIndex);
+  scope_info->set_flags(0);
+  scope_info->set_context_local_count(0);
+  scope_info->set_parameter_count(0);
+  scope.SetScriptScopeInfo(scope_info);
+
   ast_factory.Internalize(isolate());
   Handle<BytecodeArray> the_array = builder.ToBytecodeArray(isolate());
   CHECK_EQ(the_array->frame_size(),
@@ -532,11 +547,7 @@ TEST_F(BytecodeArrayBuilderTest, Parameters) {
 
   Register receiver(builder.Receiver());
   Register param8(builder.Parameter(8));
-#ifdef V8_REVERSE_JSARGS
   CHECK_EQ(receiver.index() - param8.index(), 9);
-#else
-  CHECK_EQ(param8.index() - receiver.index(), 9);
-#endif
 }
 
 TEST_F(BytecodeArrayBuilderTest, Constants) {
@@ -694,8 +705,6 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
 
 TEST_F(BytecodeArrayBuilderTest, BackwardJumps) {
   BytecodeArrayBuilder builder(zone(), 1, 1);
-
-  Register reg(0);
 
   BytecodeLabel end;
   builder.JumpIfNull(&end);

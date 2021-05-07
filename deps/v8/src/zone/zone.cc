@@ -135,7 +135,7 @@ Address Zone::NewExpand(size_t size) {
     // exponentially, thus putting pressure on contiguous virtual address space.
     // All the while making sure to allocate a segment large enough to hold the
     // requested size.
-    new_size = Max(min_new_size, kMaximumSegmentSize);
+    new_size = std::max({min_new_size, kMaximumSegmentSize});
   }
   if (new_size > INT_MAX) {
     V8::FatalProcessOutOfMemory(nullptr, "Zone");

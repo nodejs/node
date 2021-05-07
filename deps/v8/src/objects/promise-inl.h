@@ -16,6 +16,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/promise-tq-inl.inc"
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(PromiseReactionJobTask)
 TQ_OBJECT_CONSTRUCTORS_IMPL(PromiseFulfillReactionJobTask)
 TQ_OBJECT_CONSTRUCTORS_IMPL(PromiseRejectReactionJobTask)

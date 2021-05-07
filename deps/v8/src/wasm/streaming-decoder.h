@@ -39,6 +39,7 @@ class V8_EXPORT_PRIVATE StreamingProcessor {
   // finished successfully and the decoding should continue.
   virtual bool ProcessCodeSectionHeader(int num_functions, uint32_t offset,
                                         std::shared_ptr<WireBytesStorage>,
+                                        int code_section_start,
                                         int code_section_length) = 0;
 
   // Process a function body. Returns true if the processing finished

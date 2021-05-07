@@ -27,6 +27,8 @@ using AtomicsWaitEvent = v8::Isolate::AtomicsWaitEvent;
 class FutexWaitList {
  public:
   FutexWaitList() = default;
+  FutexWaitList(const FutexWaitList&) = delete;
+  FutexWaitList& operator=(const FutexWaitList&) = delete;
 
   void AddNode(FutexWaitListNode* node);
   void RemoveNode(FutexWaitListNode* node);
@@ -95,8 +97,6 @@ class FutexWaitList {
   // Isolate* -> linked list of Nodes which are waiting for their Promises to
   // be resolved.
   std::map<Isolate*, HeadAndTail> isolate_promises_to_resolve_;
-
-  DISALLOW_COPY_AND_ASSIGN(FutexWaitList);
 };
 
 namespace {
@@ -130,7 +130,7 @@ void FutexWaitListNode::NotifyWake() {
   // variable. The mutex will not be locked if FutexEmulation::Wait hasn't
   // locked it yet. In that case, we set the interrupted_
   // flag to true, which will be tested after the mutex locked by a future wait.
-  NoHeapAllocationMutexGuard lock_guard(g_mutex.Pointer());
+  NoGarbageCollectionMutexGuard lock_guard(g_mutex.Pointer());
 
   // if not waiting, this will not have any effect.
   cond_.NotifyOne();
@@ -247,7 +247,7 @@ void AtomicsWaitWakeHandle::Wake() {
   // The split lock by itself isn’t an issue, as long as the caller properly
   // synchronizes this with the closing `AtomicsWaitCallback`.
   {
-    NoHeapAllocationMutexGuard lock_guard(g_mutex.Pointer());
+    NoGarbageCollectionMutexGuard lock_guard(g_mutex.Pointer());
     stopped_ = true;
   }
   isolate_->futex_wait_list_node()->NotifyWake();
@@ -380,7 +380,7 @@ Object FutexEmulation::WaitSync(Isolate* isolate,
   AtomicsWaitEvent callback_result = AtomicsWaitEvent::kWokenUp;
 
   do {  // Not really a loop, just makes it easier to break out early.
-    NoHeapAllocationMutexGuard lock_guard(g_mutex.Pointer());
+    NoGarbageCollectionMutexGuard lock_guard(g_mutex.Pointer());
 
     std::shared_ptr<BackingStore> backing_store =
         array_buffer->GetBackingStore();
@@ -586,7 +586,7 @@ Object FutexEmulation::WaitAsync(Isolate* isolate,
       new FutexWaitListNode(backing_store, addr, promise_capability, isolate);
 
   {
-    NoHeapAllocationMutexGuard lock_guard(g_mutex.Pointer());
+    NoGarbageCollectionMutexGuard lock_guard(g_mutex.Pointer());
     g_wait_list.Pointer()->AddNode(node);
   }
   if (use_timeout) {
@@ -619,7 +619,7 @@ Object FutexEmulation::Wake(Handle<JSArrayBuffer> array_buffer, size_t addr,
   std::shared_ptr<BackingStore> backing_store = array_buffer->GetBackingStore();
   auto wait_location = FutexWaitList::ToWaitLocation(backing_store.get(), addr);
 
-  NoHeapAllocationMutexGuard lock_guard(g_mutex.Pointer());
+  NoGarbageCollectionMutexGuard lock_guard(g_mutex.Pointer());
 
   auto& location_lists = g_wait_list.Pointer()->location_lists_;
   auto it = location_lists.find(wait_location);
@@ -783,7 +783,7 @@ void FutexEmulation::ResolveAsyncWaiterPromises(Isolate* isolate) {
 
   FutexWaitListNode* node;
   {
-    NoHeapAllocationMutexGuard lock_guard(g_mutex.Pointer());
+    NoGarbageCollectionMutexGuard lock_guard(g_mutex.Pointer());
 
     auto& isolate_map = g_wait_list.Pointer()->isolate_promises_to_resolve_;
     auto it = isolate_map.find(isolate);
@@ -817,7 +817,7 @@ void FutexEmulation::HandleAsyncWaiterTimeout(FutexWaitListNode* node) {
   DCHECK(node->IsAsync());
 
   {
-    NoHeapAllocationMutexGuard lock_guard(g_mutex.Pointer());
+    NoGarbageCollectionMutexGuard lock_guard(g_mutex.Pointer());
 
     node->timeout_task_id_ = CancelableTaskManager::kInvalidTaskId;
     if (!node->waiting_) {
@@ -838,7 +838,7 @@ void FutexEmulation::HandleAsyncWaiterTimeout(FutexWaitListNode* node) {
 }
 
 void FutexEmulation::IsolateDeinit(Isolate* isolate) {
-  NoHeapAllocationMutexGuard lock_guard(g_mutex.Pointer());
+  NoGarbageCollectionMutexGuard lock_guard(g_mutex.Pointer());
 
   // Iterate all locations to find nodes belonging to "isolate" and delete them.
   // The Isolate is going away; don't bother cleaning up the Promises in the
@@ -883,7 +883,7 @@ Object FutexEmulation::NumWaitersForTesting(Handle<JSArrayBuffer> array_buffer,
   DCHECK_LT(addr, array_buffer->byte_length());
   std::shared_ptr<BackingStore> backing_store = array_buffer->GetBackingStore();
 
-  NoHeapAllocationMutexGuard lock_guard(g_mutex.Pointer());
+  NoGarbageCollectionMutexGuard lock_guard(g_mutex.Pointer());
 
   auto wait_location = FutexWaitList::ToWaitLocation(backing_store.get(), addr);
   auto& location_lists = g_wait_list.Pointer()->location_lists_;
@@ -907,7 +907,7 @@ Object FutexEmulation::NumWaitersForTesting(Handle<JSArrayBuffer> array_buffer,
 }
 
 Object FutexEmulation::NumAsyncWaitersForTesting(Isolate* isolate) {
-  NoHeapAllocationMutexGuard lock_guard(g_mutex.Pointer());
+  NoGarbageCollectionMutexGuard lock_guard(g_mutex.Pointer());
 
   int waiters = 0;
   for (const auto& it : g_wait_list.Pointer()->location_lists_) {
@@ -928,7 +928,7 @@ Object FutexEmulation::NumUnresolvedAsyncPromisesForTesting(
   DCHECK_LT(addr, array_buffer->byte_length());
   std::shared_ptr<BackingStore> backing_store = array_buffer->GetBackingStore();
 
-  NoHeapAllocationMutexGuard lock_guard(g_mutex.Pointer());
+  NoGarbageCollectionMutexGuard lock_guard(g_mutex.Pointer());
 
   int waiters = 0;
   auto& isolate_map = g_wait_list.Pointer()->isolate_promises_to_resolve_;

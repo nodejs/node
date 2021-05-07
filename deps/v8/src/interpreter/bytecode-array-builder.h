@@ -43,6 +43,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
       SourcePositionTableBuilder::RecordingMode source_position_mode =
           SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS);
 
+  BytecodeArrayBuilder(const BytecodeArrayBuilder&) = delete;
+  BytecodeArrayBuilder& operator=(const BytecodeArrayBuilder&) = delete;
+
   template <typename LocalIsolate>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
   Handle<BytecodeArray> ToBytecodeArray(LocalIsolate* isolate);
@@ -87,7 +90,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BytecodeArrayBuilder& LoadLiteral(const AstRawString* raw_string);
   BytecodeArrayBuilder& LoadLiteral(const Scope* scope);
   BytecodeArrayBuilder& LoadLiteral(AstBigInt bigint);
-  BytecodeArrayBuilder& LoadLiteral(AstSymbol symbol);
   BytecodeArrayBuilder& LoadUndefined();
   BytecodeArrayBuilder& LoadNull();
   BytecodeArrayBuilder& LoadTheHole();
@@ -197,11 +199,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   // in the accumulator.
   BytecodeArrayBuilder& StoreInArrayLiteral(Register array, Register index,
                                             int feedback_slot);
-  // Store the home object property. The value to be stored should be in the
-  // accumulator.
-  BytecodeArrayBuilder& StoreHomeObjectProperty(Register object,
-                                                int feedback_slot,
-                                                LanguageMode language_mode);
 
   // Store the class fields property. The initializer to be stored should
   // be in the accumulator.
@@ -459,6 +456,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BytecodeArrayBuilder& ThrowReferenceErrorIfHole(const AstRawString* name);
   BytecodeArrayBuilder& ThrowSuperNotCalledIfHole();
   BytecodeArrayBuilder& ThrowSuperAlreadyCalledIfNotHole();
+  BytecodeArrayBuilder& ThrowIfNotSuperConstructor(Register constructor);
 
   // Debugger.
   BytecodeArrayBuilder& Debugger();
@@ -569,7 +567,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
 
  private:
   friend class BytecodeRegisterAllocator;
-  template <Bytecode bytecode, AccumulatorUse accumulator_use,
+  template <Bytecode bytecode, ImplicitRegisterUse implicit_register_use,
             OperandType... operand_types>
   friend class BytecodeNodeBuilder;
 
@@ -615,7 +613,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   // during bytecode generation.
   BytecodeArrayBuilder& Illegal();
 
-  template <Bytecode bytecode, AccumulatorUse accumulator_use>
+  template <Bytecode bytecode, ImplicitRegisterUse implicit_register_use>
   void PrepareToOutputBytecode();
 
   BytecodeArrayWriter* bytecode_array_writer() {
@@ -643,8 +641,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BytecodeRegisterOptimizer* register_optimizer_;
   BytecodeSourceInfo latest_source_info_;
   BytecodeSourceInfo deferred_source_info_;
-
-  DISALLOW_COPY_AND_ASSIGN(BytecodeArrayBuilder);
 };
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(

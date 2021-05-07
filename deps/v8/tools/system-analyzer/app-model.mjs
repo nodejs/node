@@ -3,100 +3,143 @@
 // found in the LICENSE file.
 
 class State {
-  #timeSelection = { start: 0, end: Infinity };
-  #map;
-  #ic;
-  #selectedMapLogEvents;
-  #selectedIcLogEvents;
-  #selectedSourcePositionLogEvents;
-  #nofChunks;
-  #chunks;
-  #icTimeline;
-  #mapTimeline;
-  #minStartTime = Number.POSITIVE_INFINITY;
-  #maxEndTime = Number.NEGATIVE_INFINITY;
+  _timeSelection = {start: 0, end: Infinity};
+  _map;
+  _ic;
+  _selectedMapLogEntries;
+  _selectedIcLogEntries;
+  _selectedDeoptLogEntries;
+  _selecteCodeLogEntries;
+  _selectedSourcePositions;
+  _nofChunks;
+  _chunks;
+  _icTimeline;
+  _mapTimeline;
+  _deoptTimeline;
+  _codeTimeline;
+  _apiTimeline;
+  _minStartTime = Number.POSITIVE_INFINITY;
+  _maxEndTime = Number.NEGATIVE_INFINITY;
+
   get minStartTime() {
-    return this.#minStartTime;
+    return this._minStartTime;
   }
+
   get maxEndTime() {
-    return this.#maxEndTime;
+    return this._maxEndTime;
   }
-  #updateTimeRange(timeline) {
-    this.#minStartTime = Math.min(this.#minStartTime, timeline.startTime);
-    this.#maxEndTime = Math.max(this.#maxEndTime, timeline.endTime);
+
+  selectTimeRange(start, end) {
+    this.timeSelection.start = start;
+    this.timeSelection.end = end;
+    if (start == 0 && end == Infinity) {
+      this.timelines.forEach(each => each.clearSelection());
+    } else {
+      this.timelines.forEach(each => each.selectTimeRange(start, end));
+    }
   }
+
+  setTimelines(
+      mapTimeline, icTimeline, deoptTimeline, codeTimeline, apiTimeline) {
+    this._mapTimeline = mapTimeline;
+    this._icTimeline = icTimeline;
+    this._deoptTimeline = deoptTimeline;
+    this._codeTimeline = codeTimeline;
+    this._apiTimeline = apiTimeline;
+    for (let timeline of arguments) {
+      if (timeline === undefined) return;
+      this._minStartTime = Math.min(this._minStartTime, timeline.startTime);
+      this._maxEndTime = Math.max(this._maxEndTime, timeline.endTime);
+    }
+    for (let timeline of arguments) {
+      timeline.startTime = this._minStartTime;
+      timeline.endTime = this._maxEndTime;
+    }
+  }
+
   get mapTimeline() {
-    return this.#mapTimeline;
+    return this._mapTimeline;
   }
-  set mapTimeline(timeline) {
-    this.#updateTimeRange(timeline);
-    timeline.startTime = this.#minStartTime;
-    timeline.endTime = this.#maxEndTime;
-    this.#mapTimeline = timeline;
-  }
-  set icTimeline(timeline) {
-    this.#updateTimeRange(timeline);
-    timeline.startTime = this.#minStartTime;
-    timeline.endTime = this.#maxEndTime;
-    this.#icTimeline = timeline;
-  }
+
   get icTimeline() {
-    return this.#icTimeline;
+    return this._icTimeline;
   }
+
+  get deoptTimeline() {
+    return this._deoptTimeline;
+  }
+
+  get codeTimeline() {
+    return this._codeTimeline;
+  }
+
+  get apiTimeline() {
+    return this._apiTimeline;
+  }
+
+  get timelines() {
+    return [
+      this._mapTimeline, this._icTimeline, this._deoptTimeline,
+      this._codeTimeline, this._apiTimeline
+    ];
+  }
+
   set chunks(value) {
-    //TODO(zcankara) split up between maps and ics, and every timeline track
-    this.#chunks = value;
+    // TODO(zcankara) split up between maps and ics, and every timeline track
+    this._chunks = value;
   }
+
   get chunks() {
-    //TODO(zcankara) split up between maps and ics, and every timeline track
-    return this.#chunks;
+    // TODO(zcankara) split up between maps and ics, and every timeline track
+    return this._chunks;
   }
+
   get nofChunks() {
-    return this.#nofChunks;
+    return this._nofChunks;
   }
   set nofChunks(count) {
-    this.#nofChunks = count;
+    this._nofChunks = count;
   }
   get map() {
-    //TODO(zcankara) rename as selectedMapEvents, array of selected events
-    return this.#map;
+    // TODO(zcankara) rename as selectedMapEvents, array of selected events
+    return this._map;
   }
   set map(value) {
-    //TODO(zcankara) rename as selectedMapEvents, array of selected events
+    // TODO(zcankara) rename as selectedMapEvents, array of selected events
     if (!value) return;
-    this.#map = value;
+    this._map = value;
   }
   get ic() {
-    //TODO(zcankara) rename selectedICEvents, array of selected events
-    return this.#ic;
+    // TODO(zcankara) rename selectedICEvents, array of selected events
+    return this._ic;
   }
   set ic(value) {
-    //TODO(zcankara) rename selectedIcEvents, array of selected events
+    // TODO(zcankara) rename selectedIcEvents, array of selected events
     if (!value) return;
-    this.#ic = value;
+    this._ic = value;
   }
-  get selectedMapLogEvents() {
-    return this.#selectedMapLogEvents;
+  get selectedMapLogEntries() {
+    return this._selectedMapLogEntries;
   }
-  set selectedMapLogEvents(value) {
+  set selectedMapLogEntries(value) {
     if (!value) return;
-    this.#selectedMapLogEvents = value;
+    this._selectedMapLogEntries = value;
   }
-  get selectedSourcePositionLogEvents() {
-    return this.#selectedSourcePositionLogEvents;
+  get selectedSourcePositions() {
+    return this._selectedSourcePositions;
   }
-  set selectedSourcePositionLogEvents(value) {
-    this.#selectedSourcePositionLogEvents = value;
+  set selectedSourcePositions(value) {
+    this._selectedSourcePositions = value;
   }
-  get selectedIcLogEvents() {
-    return this.#selectedIcLogEvents;
+  get selectedIcLogEntries() {
+    return this._selectedIcLogEntries;
   }
-  set selectedIcLogEvents(value) {
+  set selectedIcLogEntries(value) {
     if (!value) return;
-    this.#selectedIcLogEvents = value;
+    this._selectedIcLogEntries = value;
   }
   get timeSelection() {
-    return this.#timeSelection;
+    return this._timeSelection;
   }
   get entries() {
     if (!this.map) return {};
@@ -106,4 +149,4 @@ class State {
   }
 }
 
-export { State };
+export {State};

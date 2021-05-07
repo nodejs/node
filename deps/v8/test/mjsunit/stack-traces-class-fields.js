@@ -43,13 +43,13 @@ function testClassConstruction() {
 
 // ReferenceError: FAIL is not defined
 //     at thrower
-//     at <static_fields_initializer>
+//     at <static_initializer>
 //     at testClassConstruction
 //     at testTrace
 testTrace(
   "during class construction",
   testClassConstruction,
-  ["thrower", "<static_fields_initializer>"],
+  ["thrower", "<static_initializer>"],
   ["anonymous"]
 );
 

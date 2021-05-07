@@ -15,6 +15,7 @@
 #include "src/codegen/arm64/assembler-arm64.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/common/globals.h"
+#include "src/objects/tagged-index.h"
 
 // Simulator specific helpers.
 #if USE_SIMULATOR
@@ -145,6 +146,10 @@ enum PreShiftImmMode {
   kAnyShift          // Allow any pre-shift.
 };
 
+// TODO(victorgomes): Move definition to macro-assembler.h, once all other
+// platforms are updated.
+enum class StackLimitKind { kInterruptStackLimit, kRealStackLimit };
+
 class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
  public:
   using TurboAssemblerBase::TurboAssemblerBase;
@@ -196,9 +201,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     mov(rd, vn, vn_index);
   }
 
-  // This is required for compatibility with architecture independent code.
+  // These are required for compatibility with architecture independent code.
   // Remove if not needed.
   void Move(Register dst, Smi src);
+  void Move(Register dst, MemOperand src);
+  void Move(Register dst, Register src);
 
   // Move src0 to dst0 and src1 to dst1, handling possible overlaps.
   void MovePair(Register dst0, Register src0, Register dst1, Register src1);
@@ -257,8 +264,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   V(faddp, Faddp)                \
   V(fcvtas, Fcvtas)              \
   V(fcvtau, Fcvtau)              \
+  V(fcvtl, Fcvtl)                \
   V(fcvtms, Fcvtms)              \
   V(fcvtmu, Fcvtmu)              \
+  V(fcvtn, Fcvtn)                \
   V(fcvtns, Fcvtns)              \
   V(fcvtnu, Fcvtnu)              \
   V(fcvtps, Fcvtps)              \
@@ -828,14 +837,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   template <StoreLRMode lr_mode = kDontStoreLR>
   void Push(const Register& src0, const VRegister& src1);
 
-  // This is a convenience method for pushing a single Handle<Object>.
-  inline void Push(Handle<HeapObject> object);
-  inline void Push(Smi smi);
-
-  // Aliases of Push and Pop, required for V8 compatibility.
-  inline void push(Register src) { Push(src); }
-  inline void pop(Register dst) { Pop(dst); }
-
   void SaveRegisters(RegList registers);
   void RestoreRegisters(RegList registers);
 
@@ -927,6 +928,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   inline void JumpIfEqual(Register x, int32_t y, Label* dest);
   inline void JumpIfLessThan(Register x, int32_t y, Label* dest);
 
+  void LoadMap(Register dst, Register object);
+
   inline void Fmov(VRegister fd, VRegister fn);
   inline void Fmov(VRegister fd, Register rn);
   // Provide explicit double and float interfaces for FP immediate moves, rather
@@ -968,20 +971,25 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Load the builtin given by the Smi in |builtin_index| into the same
   // register.
   void LoadEntryFromBuiltinIndex(Register builtin_index);
+  void LoadEntryFromBuiltinIndex(Builtins::Name builtin_index,
+                                 Register destination);
+  MemOperand EntryFromBuiltinIndexAsOperand(Builtins::Name builtin_index);
   void CallBuiltinByIndex(Register builtin_index) override;
   void CallBuiltin(int builtin_index);
 
   void LoadCodeObjectEntry(Register destination, Register code_object) override;
   void CallCodeObject(Register code_object) override;
-  void JumpCodeObject(Register code_object) override;
+  void JumpCodeObject(Register code_object,
+                      JumpMode jump_mode = JumpMode::kJump) override;
 
   // Generates an instruction sequence s.t. the return address points to the
   // instruction following the call.
   // The return address on the stack is used by frame iteration.
   void StoreReturnAddressAndCall(Register target);
 
-  void CallForDeoptimization(Address target, int deopt_id, Label* exit,
-                             DeoptimizeKind kind);
+  void CallForDeoptimization(Builtins::Name target, int deopt_id, Label* exit,
+                             DeoptimizeKind kind, Label* ret,
+                             Label* jump_deoptimization_entry_label);
 
   // Calls a C function.
   // The called function is not allowed to trigger a
@@ -1260,6 +1268,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Load an object from the root table.
   void LoadRoot(Register destination, RootIndex index) override;
+  void PushRoot(RootIndex index);
 
   inline void Ret(const Register& xn = lr);
 
@@ -1292,6 +1301,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Cmeq(const VRegister& vd, const VRegister& vn, int imm) {
     DCHECK(allow_macro_instructions());
     cmeq(vd, vn, imm);
+  }
+  void Cmlt(const VRegister& vd, const VRegister& vn, int imm) {
+    DCHECK(allow_macro_instructions());
+    cmlt(vd, vn, imm);
   }
 
   inline void Neg(const Register& rd, const Operand& operand);
@@ -1336,6 +1349,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadAnyTaggedField(const Register& destination,
                           const MemOperand& field_operand);
 
+  // Loads a field containing a tagged signed value and decompresses it if
+  // necessary.
+  void LoadTaggedSignedField(const Register& destination,
+                             const MemOperand& field_operand);
+
   // Loads a field containing smi value and untags it.
   void SmiUntagField(Register dst, const MemOperand& src);
 
@@ -1357,6 +1375,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void RestoreFPAndLR();
 
   void StoreReturnAddressInWasmExitFrame(Label* return_location);
+
+  // Wasm SIMD helpers. These instructions don't have direct lowering to native
+  // instructions. These helpers allow us to define the optimal code sequence,
+  // and be used in both TurboFan and Liftoff.
+  void I64x2BitMask(Register dst, VRegister src);
+  void V64x2AllTrue(Register dst, VRegister src);
 
  protected:
   // The actual Push and Pop implementations. These don't generate any code
@@ -1427,7 +1451,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void CallRecordWriteStub(Register object, Operand offset,
                            RememberedSetAction remembered_set_action,
-                           SaveFPRegsMode fp_mode, Handle<Code> code_target,
+                           SaveFPRegsMode fp_mode, int builtin_index,
                            Address wasm_target);
 };
 
@@ -1540,10 +1564,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void Cmle(const VRegister& vd, const VRegister& vn, int imm) {
     DCHECK(allow_macro_instructions());
     cmle(vd, vn, imm);
-  }
-  void Cmlt(const VRegister& vd, const VRegister& vn, int imm) {
-    DCHECK(allow_macro_instructions());
-    cmlt(vd, vn, imm);
   }
 
   void Ld1(const VRegister& vt, const MemOperand& src) {
@@ -1781,8 +1801,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
     DecodeField<Field>(reg, reg);
   }
 
-  // TODO(victorgomes): inline this function once we remove V8_REVERSE_JSARGS
-  // flag.
   Operand ReceiverOperand(const Register arg_count);
 
   // ---- SMI and Number Utilities ----
@@ -1901,6 +1919,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // sets the flags and leaves the object type in the type_reg register.
   void CompareInstanceType(Register map, Register type_reg, InstanceType type);
 
+  // Compare instance type ranges for a map (lower_limit and higher_limit
+  // inclusive).
+  //
+  // Always use unsigned comparisons: ls for a positive result.
+  void CompareInstanceTypeRange(Register map, Register type_reg,
+                                InstanceType lower_limit,
+                                InstanceType higher_limit);
+
   // Load the elements kind field from a map, and return it in the result
   // register.
   void LoadElementsKindFromMap(Register result, Register map);
@@ -1961,8 +1987,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void LeaveExitFrame(bool save_doubles, const Register& scratch,
                       const Register& scratch2);
 
-  void LoadMap(Register dst, Register object);
-
   // Load the global proxy from the current context.
   void LoadGlobalProxy(Register dst);
 
@@ -1977,6 +2001,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                         Register scratch2);
   void DecrementCounter(StatsCounter* counter, int value, Register scratch1,
                         Register scratch2);
+
+  // ---------------------------------------------------------------------------
+  // Stack limit utilities
+  void LoadStackLimit(Register destination, StackLimitKind kind);
+  void StackOverflowCheck(Register num_args, Label* stack_overflow);
 
   // ---------------------------------------------------------------------------
   // Garbage collector support (GC).
@@ -2012,7 +2041,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 // instructions. This scope prevents the MacroAssembler from being called and
 // literal pools from being emitted. It also asserts the number of instructions
 // emitted is what you specified when creating the scope.
-class InstructionAccurateScope {
+class V8_NODISCARD InstructionAccurateScope {
  public:
   explicit InstructionAccurateScope(TurboAssembler* tasm, size_t count = 0)
       : tasm_(tasm),
@@ -2062,7 +2091,7 @@ class InstructionAccurateScope {
 // original state, even if the lists were modified by some other means. Note
 // that this scope can be nested but the destructors need to run in the opposite
 // order as the constructors. We do not have assertions for this.
-class UseScratchRegisterScope {
+class V8_NODISCARD UseScratchRegisterScope {
  public:
   explicit UseScratchRegisterScope(TurboAssembler* tasm)
       : available_(tasm->TmpList()),
@@ -2100,7 +2129,7 @@ class UseScratchRegisterScope {
 #endif
     available_->Remove(list);
   }
-  void Include(const Register& reg1, const Register& reg2) {
+  void Include(const Register& reg1, const Register& reg2 = NoReg) {
     CPURegList list(reg1, reg2);
     Include(list);
   }

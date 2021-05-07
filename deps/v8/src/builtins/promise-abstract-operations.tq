@@ -196,6 +196,8 @@ FulfillPromise(implicit context: Context)(
   // Assert: The value of promise.[[PromiseState]] is "pending".
   assert(promise.Status() == PromiseState::kPending);
 
+  RunContextPromiseHookResolve(promise);
+
   // 2. Let reactions be promise.[[PromiseFulfillReactions]].
   const reactions =
       UnsafeCast<(Zero | PromiseReaction)>(promise.reactions_or_result);
@@ -214,17 +216,24 @@ FulfillPromise(implicit context: Context)(
 }
 
 extern macro PromiseBuiltinsAssembler::
-    IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(): bool;
+    IsIsolatePromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(): bool;
+
+extern macro PromiseBuiltinsAssembler::
+    IsIsolatePromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(uint32):
+        bool;
 
 // https://tc39.es/ecma262/#sec-rejectpromise
 transitioning builtin
 RejectPromise(implicit context: Context)(
     promise: JSPromise, reason: JSAny, debugEvent: Boolean): JSAny {
+  const promiseHookFlags = PromiseHookFlags();
+
   // If promise hook is enabled or the debugger is active, let
   // the runtime handle this operation, which greatly reduces
   // the complexity here and also avoids a couple of back and
   // forth between JavaScript and C++ land.
-  if (IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate() ||
+  if (IsIsolatePromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(
+          promiseHookFlags) ||
       !promise.HasHandler()) {
     // 7. If promise.[[PromiseIsHandled]] is false, perform
     //    HostPromiseRejectionTracker(promise, "reject").
@@ -232,6 +241,8 @@ RejectPromise(implicit context: Context)(
     // here, but we let the C++ code take care of this completely.
     return runtime::RejectPromise(promise, reason, debugEvent);
   }
+
+  RunContextPromiseHookResolve(promise, promiseHookFlags);
 
   // 2. Let reactions be promise.[[PromiseRejectReactions]].
   const reactions =

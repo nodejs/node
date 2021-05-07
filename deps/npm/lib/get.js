@@ -1,14 +1,28 @@
-const npm = require('./npm.js')
-const usageUtil = require('./utils/usage.js')
+const BaseCommand = require('./base-command.js')
 
-const usage = usageUtil(
-  'get',
-  'npm get [<key> ...] (See `npm config`)'
-)
+class Get extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'Get a value from the npm configuration'
+  }
 
-const completion = npm.commands.config.completion
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'get'
+  }
 
-const cmd = (args, cb) =>
-  npm.commands.config(['get'].concat(args), cb)
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get usage () {
+    return ['[<key> ...] (See `npm config`)']
+  }
 
-module.exports = Object.assign(cmd, { usage, completion })
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  async completion (opts) {
+    return this.npm.commands.config.completion(opts)
+  }
+
+  exec (args, cb) {
+    this.npm.commands.config(['get'].concat(args), cb)
+  }
+}
+module.exports = Get

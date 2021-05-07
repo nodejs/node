@@ -118,7 +118,7 @@ bool TurboAssemblerBase::IsAddressableThroughRootRegister(
 void TurboAssemblerBase::RecordCommentForOffHeapTrampoline(int builtin_index) {
   if (!FLAG_code_comments) return;
   std::ostringstream str;
-  str << "-- Inlined Trampoline to " << Builtins::name(builtin_index) << " --";
+  str << "[ Inlined Trampoline to " << Builtins::name(builtin_index);
   RecordComment(str.str().c_str());
 }
 

@@ -11,6 +11,9 @@
 #include <unistd.h>  // NOLINT
 #endif               // !defined(_WIN32) && !defined(_WIN64)
 
+namespace v8 {
+namespace internal {
+
 namespace {
 
 void ReportUncaughtException(v8::Isolate* isolate,
@@ -26,16 +29,17 @@ void ReportUncaughtException(v8::Isolate* isolate,
       isolate, try_catch.Message()
                    ->GetSourceLine(isolate->GetCurrentContext())
                    .ToLocalChecked());
-  fprintf(stderr, "Unhandle exception: %s @%s[%d]\n", message.data(),
+  fprintf(stderr, "Unhandled exception: %s @%s[%d]\n", message.data(),
           source_line.data(), line);
 }
 
 }  //  namespace
 
 TaskRunner::TaskRunner(IsolateData::SetupGlobalTasks setup_global_tasks,
-                       bool catch_exceptions,
+                       CatchExceptions catch_exceptions,
                        v8::base::Semaphore* ready_semaphore,
-                       v8::StartupData* startup_data, bool with_inspector)
+                       v8::StartupData* startup_data,
+                       WithInspector with_inspector)
     : Thread(Options("Task Runner")),
       setup_global_tasks_(std::move(setup_global_tasks)),
       startup_data_(startup_data),
@@ -61,33 +65,43 @@ void TaskRunner::Run() {
 void TaskRunner::RunMessageLoop(bool only_protocol) {
   int loop_number = ++nested_loop_count_;
   while (nested_loop_count_ == loop_number && !is_terminated_) {
-    TaskRunner::Task* task = GetNext(only_protocol);
+    std::unique_ptr<TaskRunner::Task> task = GetNext(only_protocol);
     if (!task) return;
     v8::Isolate::Scope isolate_scope(isolate());
-    if (catch_exceptions_) {
-      v8::TryCatch try_catch(isolate());
-      task->Run(data_.get());
-      delete task;
-      if (try_catch.HasCaught()) {
-        ReportUncaughtException(isolate(), try_catch);
-        fflush(stdout);
-        fflush(stderr);
-        _exit(0);
-      }
-    } else {
-      task->Run(data_.get());
-      delete task;
+    v8::TryCatch try_catch(isolate());
+    if (catch_exceptions_ == kStandardPropagateUncaughtExceptions) {
+      try_catch.SetVerbose(true);
     }
+    task->Run(data_.get());
+    if (catch_exceptions_ == kFailOnUncaughtExceptions &&
+        try_catch.HasCaught()) {
+      ReportUncaughtException(isolate(), try_catch);
+      base::OS::ExitProcess(0);
+    }
+    try_catch.Reset();
+    task.reset();
     // Also pump isolate's foreground task queue to ensure progress.
     // This can be removed once https://crbug.com/v8/10747 is fixed.
     // TODO(10748): Enable --stress-incremental-marking after the existing
     // tests are fixed.
     if (!i::FLAG_stress_incremental_marking) {
       while (v8::platform::PumpMessageLoop(
-          v8::internal::V8::GetCurrentPlatform(), isolate())) {
+          v8::internal::V8::GetCurrentPlatform(), isolate(),
+          isolate()->HasPendingBackgroundTasks()
+              ? platform::MessageLoopBehavior::kWaitForWork
+              : platform::MessageLoopBehavior::kDoNotWait)) {
       }
     }
   }
+}
+
+static void RunMessageLoopInInterrupt(v8::Isolate* isolate, void* task_runner) {
+  TaskRunner* runner = reinterpret_cast<TaskRunner*>(task_runner);
+  runner->RunMessageLoop(true);
+}
+
+void TaskRunner::InterruptForMessages() {
+  isolate()->RequestInterrupt(&RunMessageLoopInInterrupt, this);
 }
 
 void TaskRunner::QuitMessageLoop() {
@@ -95,31 +109,35 @@ void TaskRunner::QuitMessageLoop() {
   --nested_loop_count_;
 }
 
-void TaskRunner::Append(Task* task) {
-  queue_.Enqueue(task);
+void TaskRunner::Append(std::unique_ptr<Task> task) {
+  queue_.Enqueue(std::move(task));
   process_queue_semaphore_.Signal();
 }
 
 void TaskRunner::Terminate() {
   is_terminated_++;
+  isolate()->TerminateExecution();
   process_queue_semaphore_.Signal();
 }
 
-TaskRunner::Task* TaskRunner::GetNext(bool only_protocol) {
+std::unique_ptr<TaskRunner::Task> TaskRunner::GetNext(bool only_protocol) {
   for (;;) {
     if (is_terminated_) return nullptr;
     if (only_protocol) {
-      Task* task = nullptr;
+      std::unique_ptr<Task> task;
       if (queue_.Dequeue(&task)) {
         if (task->is_priority_task()) return task;
-        deffered_queue_.Enqueue(task);
+        deferred_queue_.Enqueue(std::move(task));
       }
     } else {
-      Task* task = nullptr;
-      if (deffered_queue_.Dequeue(&task)) return task;
+      std::unique_ptr<Task> task;
+      if (deferred_queue_.Dequeue(&task)) return task;
       if (queue_.Dequeue(&task)) return task;
     }
     process_queue_semaphore_.Wait();
   }
   return nullptr;
 }
+
+}  // namespace internal
+}  // namespace v8

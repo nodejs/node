@@ -97,7 +97,7 @@ const Pack = warner(class Pack extends MiniPass {
 
     this.filter = typeof opt.filter === 'function' ? opt.filter : _ => true
 
-    this[QUEUE] = new Yallist
+    this[QUEUE] = new Yallist()
     this[JOBS] = 0
     this.jobs = +opt.jobs || 4
     this[PROCESSING] = false
@@ -209,8 +209,8 @@ const Pack = warner(class Pack extends MiniPass {
 
     this[PROCESSING] = true
     for (let w = this[QUEUE].head;
-         w !== null && this[JOBS] < this.jobs;
-         w = w.next) {
+      w !== null && this[JOBS] < this.jobs;
+      w = w.next) {
       this[PROCESSJOB](w.value)
       if (w.value.ignore) {
         const p = w.next
@@ -297,7 +297,7 @@ const Pack = warner(class Pack extends MiniPass {
       linkCache: this.linkCache,
       statCache: this.statCache,
       noMtime: this.noMtime,
-      mtime: this.mtime
+      mtime: this.mtime,
     }
   }
 
@@ -321,7 +321,7 @@ const Pack = warner(class Pack extends MiniPass {
   [PIPE] (job) {
     job.piped = true
 
-    if (job.readdir)
+    if (job.readdir) {
       job.readdir.forEach(entry => {
         const p = this.prefix ?
           job.path.slice(this.prefix.length + 1) || './'
@@ -330,20 +330,22 @@ const Pack = warner(class Pack extends MiniPass {
         const base = p === './' ? '' : p.replace(/\/*$/, '/')
         this[ADDFSENTRY](base + entry)
       })
+    }
 
     const source = job.entry
     const zip = this.zip
 
-    if (zip)
+    if (zip) {
       source.on('data', chunk => {
         if (!zip.write(chunk))
           source.pause()
       })
-    else
+    } else {
       source.on('data', chunk => {
         if (!super.write(chunk))
           source.pause()
       })
+    }
   }
 
   pause () {
@@ -377,7 +379,7 @@ class PackSync extends Pack {
     const source = job.entry
     const zip = this.zip
 
-    if (job.readdir)
+    if (job.readdir) {
       job.readdir.forEach(entry => {
         const p = this.prefix ?
           job.path.slice(this.prefix.length + 1) || './'
@@ -386,15 +388,17 @@ class PackSync extends Pack {
         const base = p === './' ? '' : p.replace(/\/*$/, '/')
         this[ADDFSENTRY](base + entry)
       })
+    }
 
-    if (zip)
+    if (zip) {
       source.on('data', chunk => {
         zip.write(chunk)
       })
-    else
+    } else {
       source.on('data', chunk => {
         super[WRITE](chunk)
       })
+    }
   }
 }
 

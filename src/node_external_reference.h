@@ -53,7 +53,10 @@ class ExternalReferenceRegistry {
   V(credentials)                                                               \
   V(env_var)                                                                   \
   V(errors)                                                                    \
+  V(fs)                                                                        \
+  V(fs_dir)                                                                    \
   V(handle_wrap)                                                               \
+  V(heap_utils)                                                                \
   V(messaging)                                                                 \
   V(native_module)                                                             \
   V(process_methods)                                                           \
@@ -61,10 +64,14 @@ class ExternalReferenceRegistry {
   V(task_queue)                                                                \
   V(url)                                                                       \
   V(util)                                                                      \
+  V(serdes)                                                                    \
   V(string_decoder)                                                            \
+  V(stream_wrap)                                                               \
   V(trace_events)                                                              \
   V(timers)                                                                    \
   V(types)                                                                     \
+  V(uv)                                                                        \
+  V(v8)                                                                        \
   V(worker)
 
 #if NODE_HAVE_I18N_SUPPORT
@@ -74,7 +81,9 @@ class ExternalReferenceRegistry {
 #endif  // NODE_HAVE_I18N_SUPPORT
 
 #if HAVE_INSPECTOR
-#define EXTERNAL_REFERENCE_BINDING_LIST_INSPECTOR(V) V(inspector)
+#define EXTERNAL_REFERENCE_BINDING_LIST_INSPECTOR(V)                           \
+  V(inspector)                                                                 \
+  V(profiler)
 #else
 #define EXTERNAL_REFERENCE_BINDING_LIST_INSPECTOR(V)
 #endif  // HAVE_INSPECTOR

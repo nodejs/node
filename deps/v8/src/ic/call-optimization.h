@@ -42,13 +42,8 @@ class CallOptimization {
   Handle<JSObject> LookupHolderOfExpectedType(
       Handle<Map> receiver_map, HolderLookup* holder_lookup) const;
 
-  // Check if the api holder is between the receiver and the holder.
-  bool IsCompatibleReceiver(Handle<Object> receiver,
-                            Handle<JSObject> holder) const;
-
-  // Check if the api holder is between the receiver and the holder.
-  bool IsCompatibleReceiverMap(Handle<Map> receiver_map,
-                               Handle<JSObject> holder) const;
+  bool IsCompatibleReceiverMap(Handle<JSObject> api_holder,
+                               Handle<JSObject> holder, HolderLookup) const;
 
  private:
   void Initialize(Isolate* isolate, Handle<JSFunction> function);

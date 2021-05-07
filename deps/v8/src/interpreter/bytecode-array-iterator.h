@@ -16,15 +16,10 @@ namespace interpreter {
 class V8_EXPORT_PRIVATE BytecodeArrayIterator final
     : public BytecodeArrayAccessor {
  public:
-  explicit BytecodeArrayIterator(std::unique_ptr<AbstractBytecodeArray> array);
-
   explicit BytecodeArrayIterator(Handle<BytecodeArray> array);
 
-  void Advance();
-  bool done() const;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(BytecodeArrayIterator);
+  BytecodeArrayIterator(const BytecodeArrayIterator&) = delete;
+  BytecodeArrayIterator& operator=(const BytecodeArrayIterator&) = delete;
 };
 
 }  // namespace interpreter

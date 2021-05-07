@@ -317,13 +317,15 @@ void ReplaceFileContentsIfDifferent(const std::string& file_path,
                                     const std::string& contents) {
   std::ifstream old_contents_stream(file_path.c_str());
   std::string old_contents;
+  bool file_exists = false;
   if (old_contents_stream.good()) {
+    file_exists = true;
     std::istreambuf_iterator<char> eos;
     old_contents =
         std::string(std::istreambuf_iterator<char>(old_contents_stream), eos);
     old_contents_stream.close();
   }
-  if (old_contents.length() == 0 || old_contents != contents) {
+  if (!file_exists || old_contents != contents) {
     std::ofstream new_contents_stream;
     new_contents_stream.open(file_path.c_str());
     new_contents_stream << contents;

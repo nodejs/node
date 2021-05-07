@@ -14,8 +14,10 @@
 #include "src/compiler/graph.h"
 #include "src/compiler/node.h"
 #include "src/compiler/schedule.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames.h"
 #include "src/utils/ostreams.h"
+#include "src/wasm/value-type.h"
 
 namespace v8 {
 namespace internal {
@@ -999,31 +1001,32 @@ namespace {
 size_t GetConservativeFrameSizeInBytes(FrameStateType type,
                                        size_t parameters_count,
                                        size_t locals_count,
-                                       BailoutId bailout_id) {
+                                       BytecodeOffset bailout_id) {
   switch (type) {
-    case FrameStateType::kInterpretedFunction: {
-      auto info = InterpretedFrameInfo::Conservative(
+    case FrameStateType::kUnoptimizedFunction: {
+      auto info = UnoptimizedFrameInfo::Conservative(
           static_cast<int>(parameters_count), static_cast<int>(locals_count));
       return info.frame_size_in_bytes();
     }
-    case FrameStateType::kArgumentsAdaptor: {
-      auto info = ArgumentsAdaptorFrameInfo::Conservative(
-          static_cast<int>(parameters_count));
-      return info.frame_size_in_bytes();
-    }
+    case FrameStateType::kArgumentsAdaptor:
+      // The arguments adaptor frame state is only used in the deoptimizer and
+      // does not occupy any extra space in the stack. Check out the design doc:
+      // https://docs.google.com/document/d/150wGaUREaZI6YWqOQFD5l2mWQXaPbbZjcAIJLOFrzMs/edit
+      return 0;
     case FrameStateType::kConstructStub: {
       auto info = ConstructStubFrameInfo::Conservative(
           static_cast<int>(parameters_count));
       return info.frame_size_in_bytes();
     }
     case FrameStateType::kBuiltinContinuation:
+    case FrameStateType::kJSToWasmBuiltinContinuation:
     case FrameStateType::kJavaScriptBuiltinContinuation:
     case FrameStateType::kJavaScriptBuiltinContinuationWithCatch: {
       const RegisterConfiguration* config = RegisterConfiguration::Default();
       auto info = BuiltinContinuationFrameInfo::Conservative(
           static_cast<int>(parameters_count),
           Builtins::CallInterfaceDescriptorFor(
-              Builtins::GetBuiltinFromBailoutId(bailout_id)),
+              Builtins::GetBuiltinFromBytecodeOffset(bailout_id)),
           config);
       return info.frame_size_in_bytes();
     }
@@ -1034,7 +1037,7 @@ size_t GetConservativeFrameSizeInBytes(FrameStateType type,
 size_t GetTotalConservativeFrameSizeInBytes(FrameStateType type,
                                             size_t parameters_count,
                                             size_t locals_count,
-                                            BailoutId bailout_id,
+                                            BytecodeOffset bailout_id,
                                             FrameStateDescriptor* outer_state) {
   size_t outer_total_conservative_frame_size_in_bytes =
       (outer_state == nullptr)
@@ -1048,7 +1051,7 @@ size_t GetTotalConservativeFrameSizeInBytes(FrameStateType type,
 }  // namespace
 
 FrameStateDescriptor::FrameStateDescriptor(
-    Zone* zone, FrameStateType type, BailoutId bailout_id,
+    Zone* zone, FrameStateType type, BytecodeOffset bailout_id,
     OutputFrameStateCombine state_combine, size_t parameters_count,
     size_t locals_count, size_t stack_count,
     MaybeHandle<SharedFunctionInfo> shared_info,
@@ -1068,9 +1071,10 @@ FrameStateDescriptor::FrameStateDescriptor(
 
 size_t FrameStateDescriptor::GetHeight() const {
   switch (type()) {
-    case FrameStateType::kInterpretedFunction:
+    case FrameStateType::kUnoptimizedFunction:
       return locals_count();  // The accumulator is *not* included.
     case FrameStateType::kBuiltinContinuation:
+    case FrameStateType::kJSToWasmBuiltinContinuation:
       // Custom, non-JS calling convention (that does not have a notion of
       // a receiver or context).
       return parameters_count();
@@ -1121,6 +1125,17 @@ size_t FrameStateDescriptor::GetJSFrameCount() const {
   }
   return count;
 }
+
+JSToWasmFrameStateDescriptor::JSToWasmFrameStateDescriptor(
+    Zone* zone, FrameStateType type, BytecodeOffset bailout_id,
+    OutputFrameStateCombine state_combine, size_t parameters_count,
+    size_t locals_count, size_t stack_count,
+    MaybeHandle<SharedFunctionInfo> shared_info,
+    FrameStateDescriptor* outer_state, const wasm::FunctionSig* wasm_signature)
+    : FrameStateDescriptor(zone, type, bailout_id, state_combine,
+                           parameters_count, locals_count, stack_count,
+                           shared_info, outer_state),
+      return_type_(wasm::WasmReturnTypeFromSignature(wasm_signature)) {}
 
 std::ostream& operator<<(std::ostream& os, const RpoNumber& rpo) {
   return os << rpo.ToSize();

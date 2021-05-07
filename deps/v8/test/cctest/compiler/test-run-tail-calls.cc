@@ -28,8 +28,8 @@ Handle<Code> BuildCallee(Isolate* isolate, CallDescriptor* call_descriptor) {
   int param_count = static_cast<int>(call_descriptor->StackParameterCount());
   TNode<IntPtrT> sum = __ IntPtrConstant(0);
   for (int i = 0; i < param_count; ++i) {
-    TNode<WordT> product =
-        __ IntPtrMul(__ Parameter(i), __ IntPtrConstant(i + 1));
+    TNode<WordT> product = __ IntPtrMul(__ UncheckedParameter<IntPtrT>(i),
+                                        __ IntPtrConstant(i + 1));
     sum = __ Signed(__ IntPtrAdd(sum, product));
   }
   __ Return(sum);
@@ -73,9 +73,10 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
     params.push_back(__ IntPtrConstant(i + 42));
   }
   DCHECK_EQ(param_count + 1, params.size());
-  Node* raw_result = tester.raw_assembler_for_testing()->CallN(
-      caller_descriptor, param_count + 1, params.data());
-  __ Return(__ SmiTag(raw_result));
+  TNode<IntPtrT> intptr_result =
+      __ UncheckedCast<IntPtrT>(tester.raw_assembler_for_testing()->CallN(
+          caller_descriptor, param_count + 1, params.data()));
+  __ Return(__ SmiTag(intptr_result));
   return tester.GenerateCodeCloseAndEscape();
 }
 

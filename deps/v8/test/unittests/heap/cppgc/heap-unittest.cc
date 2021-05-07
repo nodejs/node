@@ -9,6 +9,9 @@
 #include <numeric>
 
 #include "include/cppgc/allocation.h"
+#include "include/cppgc/heap-consistency.h"
+#include "include/cppgc/persistent.h"
+#include "include/cppgc/prefinalizer.h"
 #include "src/heap/cppgc/globals.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -29,6 +32,8 @@ class GCHeapTest : public testing::TestWithHeap {
         Heap::Config::PreciseAtomicConfig());
   }
 };
+
+class GCHeapDeathTest : public GCHeapTest {};
 
 class Foo : public GarbageCollected<Foo> {
  public:
@@ -92,7 +97,7 @@ TEST_F(GCHeapTest, ObjectPayloadSize) {
   Heap::From(GetHeap())->CollectGarbage(
       GarbageCollector::Config::ConservativeAtomicConfig());
 
-  Heap::NoGCScope no_gc_scope(*Heap::From(GetHeap()));
+  subtle::NoGarbageCollectionScope no_gc(*Heap::From(GetHeap()));
 
   for (size_t k = 0; k < kNumberOfObjectsPerArena; ++k) {
     MakeGarbageCollected<GCed<kObjectSizes[0]>>(GetAllocationHandle());
@@ -115,6 +120,206 @@ TEST_F(GCHeapTest, ObjectPayloadSize) {
   // TODO(chromium:1056170): Change to EXPECT_EQ when proper sweeping is
   // implemented.
   EXPECT_LE(expected_size, Heap::From(GetHeap())->ObjectPayloadSize());
+}
+
+TEST_F(GCHeapTest, AllocateWithAdditionalBytes) {
+  static constexpr size_t kBaseSize = sizeof(HeapObjectHeader) + sizeof(Foo);
+  static constexpr size_t kAdditionalBytes = 10u * kAllocationGranularity;
+  {
+    Foo* object = MakeGarbageCollected<Foo>(GetAllocationHandle());
+    EXPECT_LE(kBaseSize, HeapObjectHeader::FromPayload(object).GetSize());
+  }
+  {
+    Foo* object = MakeGarbageCollected<Foo>(GetAllocationHandle(),
+                                            AdditionalBytes(kAdditionalBytes));
+    EXPECT_LE(kBaseSize + kAdditionalBytes,
+              HeapObjectHeader::FromPayload(object).GetSize());
+  }
+  {
+    Foo* object = MakeGarbageCollected<Foo>(
+        GetAllocationHandle(),
+        AdditionalBytes(kAdditionalBytes * kAdditionalBytes));
+    EXPECT_LE(kBaseSize + kAdditionalBytes * kAdditionalBytes,
+              HeapObjectHeader::FromPayload(object).GetSize());
+  }
+}
+
+TEST_F(GCHeapTest, AllocatedSizeDependOnAdditionalBytes) {
+  static constexpr size_t kAdditionalBytes = 10u * kAllocationGranularity;
+  Foo* object = MakeGarbageCollected<Foo>(GetAllocationHandle());
+  Foo* object_with_bytes = MakeGarbageCollected<Foo>(
+      GetAllocationHandle(), AdditionalBytes(kAdditionalBytes));
+  Foo* object_with_more_bytes = MakeGarbageCollected<Foo>(
+      GetAllocationHandle(),
+      AdditionalBytes(kAdditionalBytes * kAdditionalBytes));
+  EXPECT_LT(HeapObjectHeader::FromPayload(object).GetSize(),
+            HeapObjectHeader::FromPayload(object_with_bytes).GetSize());
+  EXPECT_LT(HeapObjectHeader::FromPayload(object_with_bytes).GetSize(),
+            HeapObjectHeader::FromPayload(object_with_more_bytes).GetSize());
+}
+
+TEST_F(GCHeapTest, Epoch) {
+  const size_t epoch_before = internal::Heap::From(GetHeap())->epoch();
+  PreciseGC();
+  const size_t epoch_after_gc = internal::Heap::From(GetHeap())->epoch();
+  EXPECT_EQ(epoch_after_gc, epoch_before + 1);
+}
+
+TEST_F(GCHeapTest, NoGarbageCollectionScope) {
+  const size_t epoch_before = internal::Heap::From(GetHeap())->epoch();
+  {
+    subtle::NoGarbageCollectionScope scope(GetHeap()->GetHeapHandle());
+    PreciseGC();
+  }
+  const size_t epoch_after_gc = internal::Heap::From(GetHeap())->epoch();
+  EXPECT_EQ(epoch_after_gc, epoch_before);
+}
+
+TEST_F(GCHeapTest, IsGarbageCollectionAllowed) {
+  EXPECT_TRUE(
+      subtle::DisallowGarbageCollectionScope::IsGarbageCollectionAllowed(
+          GetHeap()->GetHeapHandle()));
+  {
+    subtle::DisallowGarbageCollectionScope disallow_gc(*Heap::From(GetHeap()));
+    EXPECT_FALSE(
+        subtle::DisallowGarbageCollectionScope::IsGarbageCollectionAllowed(
+            GetHeap()->GetHeapHandle()));
+  }
+}
+
+TEST_F(GCHeapTest, IsMarking) {
+  GarbageCollector::Config config = GarbageCollector::Config::
+      PreciseIncrementalMarkingConcurrentSweepingConfig();
+  auto* heap = Heap::From(GetHeap());
+  EXPECT_FALSE(subtle::HeapState::IsMarking(*heap));
+  heap->StartIncrementalGarbageCollection(config);
+  EXPECT_TRUE(subtle::HeapState::IsMarking(*heap));
+  heap->FinalizeIncrementalGarbageCollectionIfRunning(config);
+  EXPECT_FALSE(subtle::HeapState::IsMarking(*heap));
+  heap->AsBase().sweeper().FinishIfRunning();
+  EXPECT_FALSE(subtle::HeapState::IsMarking(*heap));
+}
+
+TEST_F(GCHeapTest, IsSweeping) {
+  GarbageCollector::Config config = GarbageCollector::Config::
+      PreciseIncrementalMarkingConcurrentSweepingConfig();
+  auto* heap = Heap::From(GetHeap());
+  EXPECT_FALSE(subtle::HeapState::IsSweeping(*heap));
+  heap->StartIncrementalGarbageCollection(config);
+  EXPECT_FALSE(subtle::HeapState::IsSweeping(*heap));
+  heap->FinalizeIncrementalGarbageCollectionIfRunning(config);
+  EXPECT_TRUE(subtle::HeapState::IsSweeping(*heap));
+  heap->AsBase().sweeper().FinishIfRunning();
+  EXPECT_FALSE(subtle::HeapState::IsSweeping(*heap));
+}
+
+namespace {
+
+class ExpectAtomicPause final : public GarbageCollected<ExpectAtomicPause> {
+  CPPGC_USING_PRE_FINALIZER(ExpectAtomicPause, PreFinalizer);
+
+ public:
+  explicit ExpectAtomicPause(HeapHandle& handle) : handle_(handle) {}
+  ~ExpectAtomicPause() {
+    EXPECT_TRUE(subtle::HeapState::IsInAtomicPause(handle_));
+  }
+  void PreFinalizer() {
+    EXPECT_TRUE(subtle::HeapState::IsInAtomicPause(handle_));
+  }
+  void Trace(Visitor*) const {}
+
+ private:
+  HeapHandle& handle_;
+};
+
+}  // namespace
+
+TEST_F(GCHeapTest, IsInAtomicPause) {
+  GarbageCollector::Config config =
+      GarbageCollector::Config::PreciseIncrementalConfig();
+  auto* heap = Heap::From(GetHeap());
+  MakeGarbageCollected<ExpectAtomicPause>(heap->object_allocator(), *heap);
+  EXPECT_FALSE(subtle::HeapState::IsInAtomicPause(*heap));
+  heap->StartIncrementalGarbageCollection(config);
+  EXPECT_FALSE(subtle::HeapState::IsInAtomicPause(*heap));
+  heap->FinalizeIncrementalGarbageCollectionIfRunning(config);
+  EXPECT_FALSE(subtle::HeapState::IsInAtomicPause(*heap));
+  heap->AsBase().sweeper().FinishIfRunning();
+  EXPECT_FALSE(subtle::HeapState::IsInAtomicPause(*heap));
+}
+
+TEST_F(GCHeapTest, TerminateEmptyHeap) { Heap::From(GetHeap())->Terminate(); }
+
+TEST_F(GCHeapTest, TerminateClearsPersistent) {
+  Persistent<Foo> foo = MakeGarbageCollected<Foo>(GetAllocationHandle());
+  EXPECT_TRUE(foo.Get());
+  Heap::From(GetHeap())->Terminate();
+  EXPECT_FALSE(foo.Get());
+}
+
+TEST_F(GCHeapTest, TerminateInvokesDestructor) {
+  Persistent<Foo> foo = MakeGarbageCollected<Foo>(GetAllocationHandle());
+  EXPECT_EQ(0u, Foo::destructor_callcount);
+  Heap::From(GetHeap())->Terminate();
+  EXPECT_EQ(1u, Foo::destructor_callcount);
+}
+
+namespace {
+
+class Cloner final : public GarbageCollected<Cloner> {
+ public:
+  static size_t destructor_count;
+
+  Cloner(cppgc::AllocationHandle& handle, size_t count)
+      : handle_(handle), count_(count) {}
+
+  ~Cloner() {
+    EXPECT_FALSE(new_instance_);
+    destructor_count++;
+    if (count_) {
+      new_instance_ =
+          MakeGarbageCollected<Cloner>(handle_, handle_, count_ - 1);
+    }
+  }
+
+  void Trace(Visitor*) const {}
+
+ private:
+  static Persistent<Cloner> new_instance_;
+
+  cppgc::AllocationHandle& handle_;
+  size_t count_;
+};
+
+Persistent<Cloner> Cloner::new_instance_;
+size_t Cloner::destructor_count;
+
+}  // namespace
+
+TEST_F(GCHeapTest, TerminateReclaimsNewState) {
+  Persistent<Cloner> cloner = MakeGarbageCollected<Cloner>(
+      GetAllocationHandle(), GetAllocationHandle(), 1);
+  Cloner::destructor_count = 0;
+  EXPECT_TRUE(cloner.Get());
+  Heap::From(GetHeap())->Terminate();
+  EXPECT_FALSE(cloner.Get());
+  EXPECT_EQ(2u, Cloner::destructor_count);
+}
+
+TEST_F(GCHeapDeathTest, TerminateProhibitsAllocation) {
+  Heap::From(GetHeap())->Terminate();
+  EXPECT_DEATH_IF_SUPPORTED(MakeGarbageCollected<Foo>(GetAllocationHandle()),
+                            "");
+}
+
+TEST_F(GCHeapDeathTest, LargeChainOfNewStates) {
+  Persistent<Cloner> cloner = MakeGarbageCollected<Cloner>(
+      GetAllocationHandle(), GetAllocationHandle(), 1000);
+  Cloner::destructor_count = 0;
+  EXPECT_TRUE(cloner.Get());
+  // Terminate() requires destructors to stop creating new state within a few
+  // garbage collections.
+  EXPECT_DEATH_IF_SUPPORTED(Heap::From(GetHeap())->Terminate(), "");
 }
 
 }  // namespace internal

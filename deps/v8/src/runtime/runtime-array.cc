@@ -47,13 +47,8 @@ RUNTIME_FUNCTION(Runtime_NewArray) {
   DCHECK_LE(3, args.length());
   int const argc = args.length() - 3;
   // argv points to the arguments constructed by the JavaScript call.
-#ifdef V8_REVERSE_JSARGS
   JavaScriptArguments argv(argc, args.address_of_arg_at(0));
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, argc);
-#else
-  JavaScriptArguments argv(argc, args.address_of_arg_at(1));
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 0);
-#endif
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, new_target, argc + 1);
   CONVERT_ARG_HANDLE_CHECKED(HeapObject, type_info, argc + 2);
   // TODO(bmeurer): Use MaybeHandle to pass around the AllocationSite.

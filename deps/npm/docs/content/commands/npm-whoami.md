@@ -10,6 +10,8 @@ description: Display npm username
 npm whoami [--registry <registry>]
 ```
 
+Note: This command is unaware of workspaces.
+
 ### Description
 
 Print the `username` config to standard output.

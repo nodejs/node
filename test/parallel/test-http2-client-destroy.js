@@ -8,15 +8,14 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const h2 = require('http2');
 const { kSocket } = require('internal/http2/util');
-const { kEvents } = require('internal/event_target');
 const Countdown = require('../common/countdown');
-
+const { getEventListeners } = require('events');
 {
   const server = h2.createServer();
   server.listen(0, common.mustCall(() => {
     const destroyCallbacks = [
       (client) => client.destroy(),
-      (client) => client[kSocket].destroy()
+      (client) => client[kSocket].destroy(),
     ];
 
     const countdown = new Countdown(destroyCallbacks.length, () => {
@@ -180,11 +179,11 @@ const Countdown = require('../common/countdown');
     client.on('close', common.mustCall());
 
     const { signal } = controller;
-    assert.strictEqual(signal[kEvents].get('abort'), undefined);
+    assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
 
     client.on('error', common.mustCall(() => {
       // After underlying stream dies, signal listener detached
-      assert.strictEqual(signal[kEvents].get('abort'), undefined);
+      assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
     }));
 
     const req = client.request({}, { signal });
@@ -198,7 +197,7 @@ const Countdown = require('../common/countdown');
     assert.strictEqual(req.aborted, false);
     assert.strictEqual(req.destroyed, false);
     // Signal listener attached
-    assert.strictEqual(signal[kEvents].get('abort').size, 1);
+    assert.strictEqual(getEventListeners(signal, 'abort').length, 1);
 
     controller.abort();
 
@@ -219,16 +218,16 @@ const Countdown = require('../common/countdown');
     const { signal } = controller;
     controller.abort();
 
-    assert.strictEqual(signal[kEvents].get('abort'), undefined);
+    assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
 
     client.on('error', common.mustCall(() => {
       // After underlying stream dies, signal listener detached
-      assert.strictEqual(signal[kEvents].get('abort'), undefined);
+      assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
     }));
 
     const req = client.request({}, { signal });
     // Signal already aborted, so no event listener attached.
-    assert.strictEqual(signal[kEvents].get('abort'), undefined);
+    assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
 
     assert.strictEqual(req.aborted, false);
     // Destroyed on same tick as request made
@@ -240,4 +239,49 @@ const Countdown = require('../common/countdown');
     }));
     req.on('close', common.mustCall(() => server.close()));
   }));
+}
+
+
+// Destroy ClientHttpSession with AbortSignal
+{
+  function testH2ConnectAbort(secure) {
+    const server = secure ? h2.createSecureServer() : h2.createServer();
+    const controller = new AbortController();
+
+    server.on('stream', common.mustNotCall());
+    server.listen(0, common.mustCall(() => {
+      const { signal } = controller;
+      const protocol = secure ? 'https' : 'http';
+      const client = h2.connect(`${protocol}://localhost:${server.address().port}`, {
+        signal,
+      });
+      client.on('close', common.mustCall());
+      assert.strictEqual(getEventListeners(signal, 'abort').length, 1);
+
+      client.on('error', common.mustCall(common.mustCall((err) => {
+        assert.strictEqual(err.code, 'ABORT_ERR');
+        assert.strictEqual(err.name, 'AbortError');
+      })));
+
+      const req = client.request({}, {});
+      assert.strictEqual(getEventListeners(signal, 'abort').length, 1);
+
+      req.on('error', common.mustCall((err) => {
+        assert.strictEqual(err.code, 'ERR_HTTP2_STREAM_CANCEL');
+        assert.strictEqual(err.name, 'Error');
+        assert.strictEqual(req.aborted, false);
+        assert.strictEqual(req.destroyed, true);
+      }));
+      req.on('close', common.mustCall(() => server.close()));
+
+      assert.strictEqual(req.aborted, false);
+      assert.strictEqual(req.destroyed, false);
+      // Signal listener attached
+      assert.strictEqual(getEventListeners(signal, 'abort').length, 1);
+
+      controller.abort();
+    }));
+  }
+  testH2ConnectAbort(false);
+  testH2ConnectAbort(true);
 }

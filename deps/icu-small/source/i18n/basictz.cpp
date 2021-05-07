@@ -423,7 +423,7 @@ BasicTimeZone::getTimeZoneRulesAfter(UDate start, InitialTimeZoneRule*& initial,
                         goto error;
                     }
                 } else {
-                    // Colllect transitions after the start time
+                    // Collect transitions after the start time
                     int32_t startTimes;
                     DateTimeRule::TimeRuleType timeType;
                     int32_t idx;
@@ -547,12 +547,21 @@ error:
 }
 
 void
-BasicTimeZone::getOffsetFromLocal(UDate /*date*/, int32_t /*nonExistingTimeOpt*/, int32_t /*duplicatedTimeOpt*/,
-                            int32_t& /*rawOffset*/, int32_t& /*dstOffset*/, UErrorCode& status) const {
+BasicTimeZone::getOffsetFromLocal(UDate /*date*/, UTimeZoneLocalOption /*nonExistingTimeOpt*/,
+                                  UTimeZoneLocalOption /*duplicatedTimeOpt*/,
+                                  int32_t& /*rawOffset*/, int32_t& /*dstOffset*/,
+                                  UErrorCode& status) const {
     if (U_FAILURE(status)) {
         return;
     }
     status = U_UNSUPPORTED_ERROR;
+}
+
+void BasicTimeZone::getOffsetFromLocal(UDate date, int32_t nonExistingTimeOpt, int32_t duplicatedTimeOpt,
+                                       int32_t& rawOffset, int32_t& dstOffset,
+                                       UErrorCode& status) const {
+    getOffsetFromLocal(date, (UTimeZoneLocalOption)nonExistingTimeOpt,
+                       (UTimeZoneLocalOption)duplicatedTimeOpt, rawOffset, dstOffset, status);
 }
 
 U_NAMESPACE_END

@@ -57,7 +57,7 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
   // TODO(jkummerow): support dictionary properties?
   if (map->is_dictionary_map()) return false;
   Handle<DescriptorArray> descs =
-      Handle<DescriptorArray>(map->instance_descriptors(), isolate);
+      Handle<DescriptorArray>(map->instance_descriptors(kRelaxedLoad), isolate);
   for (InternalIndex i : map->IterateOwnDescriptors()) {
     PropertyDetails details = descs->GetDetails(i);
     Handle<Object> value;

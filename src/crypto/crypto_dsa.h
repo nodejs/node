@@ -61,17 +61,6 @@ struct DSAKeyExportTraits final {
 
 using DSAKeyExportJob = KeyExportJob<DSAKeyExportTraits>;
 
-v8::Maybe<bool> ExportJWKDsaKey(
-    Environment* env,
-    std::shared_ptr<KeyObjectData> key,
-    v8::Local<v8::Object> target);
-
-std::shared_ptr<KeyObjectData> ImportJWKDsaKey(
-    Environment* env,
-    v8::Local<v8::Object> jwk,
-    const v8::FunctionCallbackInfo<v8::Value>& args,
-    unsigned int offset);
-
 v8::Maybe<bool> GetDsaKeyDetail(
     Environment* env,
     std::shared_ptr<KeyObjectData> key,

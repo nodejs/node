@@ -17,7 +17,7 @@ TypeNarrowingReducer::TypeNarrowingReducer(Editor* editor, JSGraph* jsgraph,
 TypeNarrowingReducer::~TypeNarrowingReducer() = default;
 
 Reduction TypeNarrowingReducer::Reduce(Node* node) {
-  DisallowHeapAccess no_heap_access;
+  DisallowHeapAccessIf no_heap_access(!FLAG_turbo_direct_heap_access);
 
   Type new_type = Type::Any();
 

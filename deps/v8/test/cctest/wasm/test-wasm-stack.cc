@@ -196,11 +196,11 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmUrl) {
   Handle<FixedArray> stack_trace_object =
       isolate->GetDetailedStackTrace(Handle<JSObject>::cast(exception));
   CHECK(!stack_trace_object.is_null());
-  Handle<StackTraceFrame> stack_frame = Handle<StackTraceFrame>::cast(
-      handle(stack_trace_object->get(0), isolate));
+  Handle<StackFrameInfo> stack_frame(
+      StackFrameInfo::cast(stack_trace_object->get(0)), isolate);
 
   MaybeHandle<String> maybe_stack_trace_str =
-      SerializeStackTraceFrame(isolate, stack_frame);
+      SerializeStackFrameInfo(isolate, stack_frame);
   CHECK(!maybe_stack_trace_str.is_null());
   Handle<String> stack_trace_str = maybe_stack_trace_str.ToHandleChecked();
 

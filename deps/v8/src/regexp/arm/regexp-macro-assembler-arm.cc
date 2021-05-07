@@ -127,6 +127,7 @@ RegExpMacroAssemblerARM::~RegExpMacroAssemblerARM() {
   exit_label_.Unuse();
   check_preempt_label_.Unuse();
   stack_overflow_label_.Unuse();
+  fallback_label_.Unuse();
 }
 
 
@@ -164,8 +165,13 @@ void RegExpMacroAssemblerARM::Backtrack() {
     __ cmp(r0, Operand(backtrack_limit()));
     __ b(ne, &next);
 
-    // Exceeded limits are treated as a failed match.
-    Fail();
+    // Backtrack limit exceeded.
+    if (can_fallback()) {
+      __ jmp(&fallback_label_);
+    } else {
+      // Can't fallback, so we treat it as a failed match.
+      Fail();
+    }
 
     __ bind(&next);
   }
@@ -901,6 +907,12 @@ Handle<HeapObject> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
     __ jmp(&return_r0);
   }
 
+  if (fallback_label_.is_linked()) {
+    __ bind(&fallback_label_);
+    __ mov(r0, Operand(FALLBACK_TO_EXPERIMENTAL));
+    __ jmp(&return_r0);
+  }
+
   CodeDesc code_desc;
   masm_->GetCode(isolate(), &code_desc);
   Handle<Code> code =
@@ -1072,7 +1084,6 @@ void RegExpMacroAssemblerARM::CallCheckStackGuardState() {
   __ mov(ip, Operand(stack_guard_check));
 
   EmbeddedData d = EmbeddedData::FromBlob();
-  CHECK(Builtins::IsIsolateIndependent(Builtins::kDirectCEntry));
   Address entry = d.InstructionStartOfBuiltin(Builtins::kDirectCEntry);
   __ mov(lr, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
   __ Call(lr);

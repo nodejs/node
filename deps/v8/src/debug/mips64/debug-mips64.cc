@@ -34,14 +34,12 @@ void DebugCodegen::GenerateFrameDropperTrampoline(MacroAssembler* masm) {
   // - Restart the frame by calling the function.
   __ mov(fp, a1);
   __ Ld(a1, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
+  __ Ld(a0, MemOperand(fp, StandardFrameConstants::kArgCOffset));
 
   // Pop return address and frame.
   __ LeaveFrame(StackFrame::INTERNAL);
 
-  __ Ld(a0, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
-  __ Lhu(a0,
-         FieldMemOperand(a0, SharedFunctionInfo::kFormalParameterCountOffset));
-  __ mov(a2, a0);
+  __ li(a2, Operand(kDontAdaptArgumentsSentinel));
 
   __ InvokeFunction(a1, a2, a0, JUMP_FUNCTION);
 }

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --modify-field-representation-inplace
+// Flags: --allow-natives-syntax
 // Flags: --no-always-opt --opt
 
 // Test that code embedding accesses to a Smi field gets properly

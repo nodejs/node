@@ -1,0 +1,11 @@
+Tests reported code offsets on wasm scripts
+
+Running test: test
+Wasm script parsed: ID 0, startColumn: 0, endColumn: 29, codeOffset: 0
+Wasm script parsed: ID 1, startColumn: 0, endColumn: 29, codeOffset: 0
+Wasm script parsed: ID 2, startColumn: 0, endColumn: 32, codeOffset: 31
+Wasm script parsed: ID 3, startColumn: 0, endColumn: 32, codeOffset: 0
+Wasm script parsed: ID 4, startColumn: 0, endColumn: 40, codeOffset: 36
+Wasm script parsed: ID 5, startColumn: 0, endColumn: 40, codeOffset: 36
+Wasm script parsed: ID 6, startColumn: 0, endColumn: 44, codeOffset: 36
+Wasm script parsed: ID 7, startColumn: 0, endColumn: 44, codeOffset: 36

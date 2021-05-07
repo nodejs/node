@@ -30,7 +30,12 @@ class Heap {
 
   static bool InReadOnlySpace(Address address);
 
+  static bool InLargeObjectSpace(Address address);
+
   static bool IsValidHeapObject(HeapObject object);
+
+  void ResetIterator();
+  HeapObject NextObject();
 
   bool CollectGarbage();
 };

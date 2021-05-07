@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL licenses, (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,6 +36,8 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
         /* This will load and print the public key as well as extensions */
         X509_print(bio, x509);
         BIO_free(bio);
+
+        X509_issuer_and_serial_hash(x509);
 
         i2d_X509(x509, &der);
         OPENSSL_free(der);

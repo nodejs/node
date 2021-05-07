@@ -44,6 +44,17 @@ V8_PLATFORM_EXPORT std::unique_ptr<v8::Platform> NewDefaultPlatform(
     std::unique_ptr<v8::TracingController> tracing_controller = {});
 
 /**
+ * The same as NewDefaultPlatform but disables the worker thread pool.
+ * It must be used with the --single-threaded V8 flag.
+ */
+V8_PLATFORM_EXPORT std::unique_ptr<v8::Platform>
+NewSingleThreadedDefaultPlatform(
+    IdleTaskSupport idle_task_support = IdleTaskSupport::kDisabled,
+    InProcessStackDumping in_process_stack_dumping =
+        InProcessStackDumping::kDisabled,
+    std::unique_ptr<v8::TracingController> tracing_controller = {});
+
+/**
  * Returns a new instance of the default v8::JobHandle implementation.
  *
  * The job will be executed by spawning up to |num_worker_threads| many worker

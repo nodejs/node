@@ -26,6 +26,8 @@ class Zone;
 class V8_EXPORT_PRIVATE AccountingAllocator {
  public:
   AccountingAllocator();
+  AccountingAllocator(const AccountingAllocator&) = delete;
+  AccountingAllocator& operator=(const AccountingAllocator&) = delete;
   virtual ~AccountingAllocator();
 
   // Allocates a new segment. Returns nullptr on failed allocation.
@@ -69,8 +71,6 @@ class V8_EXPORT_PRIVATE AccountingAllocator {
 
   std::unique_ptr<VirtualMemory> reserved_area_;
   std::unique_ptr<base::BoundedPageAllocator> bounded_page_allocator_;
-
-  DISALLOW_COPY_AND_ASSIGN(AccountingAllocator);
 };
 
 }  // namespace internal

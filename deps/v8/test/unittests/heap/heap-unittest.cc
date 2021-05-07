@@ -19,8 +19,7 @@
 namespace v8 {
 namespace internal {
 
-using HeapTest = TestWithIsolate;
-using HeapWithPointerCompressionTest = TestWithIsolateAndPointerCompression;
+using HeapTest = TestWithContext;
 
 TEST(Heap, YoungGenerationSizeFromOldGenerationSize) {
   const size_t MB = static_cast<size_t>(i::MB);
@@ -136,8 +135,8 @@ TEST_F(HeapTest, ExternalLimitStaysAboveDefaultForExplicitHandling) {
   EXPECT_GE(heap->external_memory_limit(), kExternalAllocationSoftLimit);
 }
 
-#if V8_TARGET_ARCH_64_BIT
-TEST_F(HeapWithPointerCompressionTest, HeapLayout) {
+#ifdef V8_COMPRESS_POINTERS
+TEST_F(HeapTest, HeapLayout) {
   // Produce some garbage.
   RunJS(
       "let ar = [];"
@@ -163,7 +162,7 @@ TEST_F(HeapWithPointerCompressionTest, HeapLayout) {
     EXPECT_TRUE(heap_reservation.contains(address, size));
   }
 }
-#endif  // V8_TARGET_ARCH_64_BIT
+#endif  // V8_COMPRESS_POINTERS
 
 }  // namespace internal
 }  // namespace v8

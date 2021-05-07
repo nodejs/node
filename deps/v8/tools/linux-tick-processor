@@ -34,4 +34,4 @@ fi
 
 # nm spits out 'no symbols found' messages to stderr.
 cat $log_file | $d8_exec --enable-os-system \
-  --module $tools_path/tickprocessor-driver.mjs -- $@ 2>/dev/null
+  --module $tools_path/tickprocessor-driver.mjs -- $@

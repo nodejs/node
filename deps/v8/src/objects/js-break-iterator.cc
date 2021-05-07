@@ -113,7 +113,7 @@ MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::New(
   Handle<JSV8BreakIterator> break_iterator_holder =
       Handle<JSV8BreakIterator>::cast(
           isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   break_iterator_holder->set_locale(*locale_str);
   break_iterator_holder->set_break_iterator(*managed_break_iterator);
   break_iterator_holder->set_unicode_string(*managed_unicode_string);

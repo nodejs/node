@@ -163,30 +163,21 @@ This use of the [`domain`][] module in the REPL has these side effects:
 
 * Uncaught exceptions only emit the [`'uncaughtException'`][] event in the
   standalone REPL. Adding a listener for this event in a REPL within
-  another Node.js program throws [`ERR_INVALID_REPL_INPUT`][].
+  another Node.js program results in [`ERR_INVALID_REPL_INPUT`][].
+
+  ```js
+  const r = repl.start();
+
+  r.write('process.on("uncaughtException", () => console.log("Foobar"));\n');
+  // Output stream includes:
+  //   TypeError [ERR_INVALID_REPL_INPUT]: Listeners for `uncaughtException`
+  //   cannot be used in the REPL
+
+  r.close();
+  ```
+
 * Trying to use [`process.setUncaughtExceptionCaptureCallback()`][] throws
   an [`ERR_DOMAIN_CANNOT_SET_UNCAUGHT_EXCEPTION_CAPTURE`][] error.
-
-As standalone program:
-
-```js
-process.on('uncaughtException', () => console.log('Uncaught'));
-
-throw new Error('foobar');
-// Uncaught
-```
-
-When used in another application:
-
-```js
-process.on('uncaughtException', () => console.log('Uncaught'));
-// TypeError [ERR_INVALID_REPL_INPUT]: Listeners for `uncaughtException`
-// cannot be used in the REPL
-
-throw new Error('foobar');
-// Thrown:
-// Error: foobar
-```
 
 #### Assignment of the `_` (underscore) variable
 <!-- YAML
@@ -242,6 +233,23 @@ undefined
 undefined
 ```
 
+One known limitation of using the `await` keyword in the REPL is that
+it will invalidate the lexical scoping of the `const` and `let`
+keywords.
+
+For example:
+
+```console
+> const m = await Promise.resolve(123)
+undefined
+> m
+123
+> const m = await Promise.resolve(234)
+undefined
+> m
+234
+```
+
 ### Reverse-i-search
 <!-- YAML
 added:
@@ -254,7 +262,7 @@ triggered with <kbd>Ctrl</kbd>+<kbd>R</kbd> to search backward and
 <kbd>Ctrl</kbd>+<kbd>S</kbd> to search
 forwards.
 
-Duplicated history entires will be skipped.
+Duplicated history entries will be skipped.
 
 Entries are accepted as soon as any key is pressed that doesn't correspond
 with the reverse search. Cancelling is possible by pressing <kbd>Esc</kbd> or

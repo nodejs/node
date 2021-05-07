@@ -82,6 +82,13 @@ constexpr RegList kJSCallerSaved =
                      rbx,  // used as a caller-saved register in JavaScript code
                      rdi);  // callee function
 
+constexpr RegList kCallerSaved =
+#ifdef V8_TARGET_OS_WIN
+    Register::ListOf(rax, rcx, rdx, r8, r9, r10, r11);
+#else
+    Register::ListOf(rax, rcx, rdx, rdi, rsi, r8, r9, r10, r11);
+#endif  // V8_TARGET_OS_WIN
+
 constexpr int kNumJSCallerSaved = 5;
 
 // Number of registers for which space is reserved in safepoints.

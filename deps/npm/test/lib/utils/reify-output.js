@@ -1,5 +1,4 @@
 const t = require('tap')
-const requireInject = require('require-inject')
 
 const log = require('npmlog')
 log.level = 'warn'
@@ -9,30 +8,20 @@ t.cleanSnapshot = str => str.replace(/in [0-9]+m?s/g, 'in {TIME}')
 const settings = {
   fund: true,
 }
-const npmock = {
+const npm = {
   started: Date.now(),
   flatOptions: settings,
 }
-const getReifyOutput = tester =>
-  requireInject(
-    '../../../lib/utils/reify-output.js',
-    {
-      '../../../lib/npm.js': npmock,
-      '../../../lib/utils/output.js': tester,
-    }
-  )
-
+const reifyOutput = require('../../../lib/utils/reify-output.js')
 t.test('missing info', (t) => {
   t.plan(1)
-  const reifyOutput = getReifyOutput(
-    out => t.doesNotHave(
-      out,
-      'looking for funding',
-      'should not print fund message if missing info'
-    )
+  npm.output = out => t.notMatch(
+    out,
+    'looking for funding',
+    'should not print fund message if missing info'
   )
 
-  reifyOutput({
+  reifyOutput(npm, {
     actualTree: {
       children: [],
     },
@@ -44,15 +33,13 @@ t.test('missing info', (t) => {
 
 t.test('even more missing info', t => {
   t.plan(1)
-  const reifyOutput = getReifyOutput(
-    out => t.doesNotHave(
-      out,
-      'looking for funding',
-      'should not print fund message if missing info'
-    )
+  npm.output = out => t.notMatch(
+    out,
+    'looking for funding',
+    'should not print fund message if missing info'
   )
 
-  reifyOutput({
+  reifyOutput(npm, {
     actualTree: {
       children: [],
     },
@@ -61,19 +48,17 @@ t.test('even more missing info', t => {
 
 t.test('single package', (t) => {
   t.plan(1)
-  const reifyOutput = getReifyOutput(
-    out => {
-      if (out.endsWith('looking for funding')) {
-        t.match(
-          out,
-          '1 package is looking for funding',
-          'should print single package message'
-        )
-      }
+  npm.output = out => {
+    if (out.endsWith('looking for funding')) {
+      t.match(
+        out,
+        '1 package is looking for funding',
+        'should print single package message'
+      )
     }
-  )
+  }
 
-  reifyOutput({
+  reifyOutput(npm, {
     // a report with an error is the same as no report at all, if
     // the command is not 'audit'
     auditReport: {
@@ -111,14 +96,12 @@ t.test('no message when funding config is false', (t) => {
     settings.fund = true
   })
   settings.fund = false
-  const reifyOutput = getReifyOutput(
-    out => {
-      if (out.endsWith('looking for funding'))
-        t.fail('should not print funding info', { actual: out })
-    }
-  )
+  npm.output = out => {
+    if (out.endsWith('looking for funding'))
+      t.fail('should not print funding info', { actual: out })
+  }
 
-  reifyOutput({
+  reifyOutput(npm, {
     actualTree: {
       name: 'foo',
       package: {
@@ -148,19 +131,17 @@ t.test('no message when funding config is false', (t) => {
 
 t.test('print appropriate message for many packages', (t) => {
   t.plan(1)
-  const reifyOutput = getReifyOutput(
-    out => {
-      if (out.endsWith('looking for funding')) {
-        t.match(
-          out,
-          '3 packages are looking for funding',
-          'should print single package message'
-        )
-      }
+  npm.output = out => {
+    if (out.endsWith('looking for funding')) {
+      t.match(
+        out,
+        '3 packages are looking for funding',
+        'should print single package message'
+      )
     }
-  )
+  }
 
-  reifyOutput({
+  reifyOutput(npm, {
     actualTree: {
       name: 'foo',
       package: {
@@ -207,12 +188,12 @@ t.test('print appropriate message for many packages', (t) => {
 })
 
 t.test('no output when silent', t => {
-  const reifyOutput = getReifyOutput(out => {
+  npm.output = out => {
     t.fail('should not get output when silent', { actual: out })
-  })
+  }
   t.teardown(() => log.level = 'warn')
   log.level = 'silent'
-  reifyOutput({
+  reifyOutput(npm, {
     actualTree: { inventory: { size: 999 }, children: [] },
     auditReport: {
       toJSON: () => {
@@ -236,14 +217,14 @@ t.test('no output when silent', t => {
 
 t.test('packages changed message', t => {
   const output = []
-  const reifyOutput = getReifyOutput(out => {
+  npm.output = out => {
     output.push(out)
-  })
+  }
 
   // return a test function that builds up the mock and snapshots output
   const testCase = (t, added, removed, changed, audited, json, command) => {
     settings.json = json
-    npmock.command = command
+    npm.command = command
     const mock = {
       actualTree: {
         inventory: { size: audited, has: () => true },
@@ -276,7 +257,7 @@ t.test('packages changed message', t => {
       mock.diff.children.push({ action: 'CHANGE', actual, ideal })
     }
     output.length = 0
-    reifyOutput(mock)
+    reifyOutput(npm, mock)
     t.matchSnapshot(output.join('\n'), JSON.stringify({
       added,
       removed,
@@ -312,11 +293,9 @@ t.test('packages changed message', t => {
 t.test('added packages should be looked up within returned tree', t => {
   t.test('has added pkg in inventory', t => {
     t.plan(1)
-    const reifyOutput = getReifyOutput(
-      out => t.matchSnapshot(out)
-    )
+    npm.output = out => t.matchSnapshot(out)
 
-    reifyOutput({
+    reifyOutput(npm, {
       actualTree: {
         name: 'foo',
         inventory: {
@@ -333,11 +312,9 @@ t.test('added packages should be looked up within returned tree', t => {
 
   t.test('missing added pkg in inventory', t => {
     t.plan(1)
-    const reifyOutput = getReifyOutput(
-      out => t.matchSnapshot(out)
-    )
+    npm.output = out => t.matchSnapshot(out)
 
-    reifyOutput({
+    reifyOutput(npm, {
       actualTree: {
         name: 'foo',
         inventory: {

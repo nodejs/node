@@ -20,7 +20,7 @@ if (!common.enoughTestMem)
   const child = spawnSync(process.execPath, [
     '--heapsnapshot-near-heap-limit=3',
     '--max-old-space-size=512',
-    fixtures.path('workload', 'grow.js')
+    fixtures.path('workload', 'grow.js'),
   ], {
     cwd: tmpdir.path,
     env: {
@@ -34,10 +34,9 @@ if (!common.enoughTestMem)
          'process should have aborted, but did not');
   const list = fs.readdirSync(tmpdir.path)
     .filter((file) => file.endsWith('.heapsnapshot'));
-  if (list.length === 0) {
-    assert(stderr.includes(
-      'Not generating snapshots because it\'s too risky'));
-  } else {
-    assert(list.length > 0 && list.length <= 3);
-  }
+  const risky = [...stderr.matchAll(
+    /Not generating snapshots because it's too risky/g)].length;
+  assert(list.length + risky > 0 && list.length <= 3,
+         `Generated ${list.length} snapshots ` +
+    `and ${risky} was too risky`);
 }

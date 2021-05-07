@@ -72,7 +72,7 @@ async function testBreakpointOnStart(session) {
       'params': { 'interval': 100 } },
     { 'method': 'Debugger.setBlackboxPatterns',
       'params': { 'patterns': [] } },
-    { 'method': 'Runtime.runIfWaitingForDebugger' }
+    { 'method': 'Runtime.runIfWaitingForDebugger' },
   ];
 
   await session.send(commands);
@@ -86,15 +86,14 @@ async function testBreakpoint(session) {
       'params': { 'lineNumber': 5,
                   'url': session.scriptURL(),
                   'columnNumber': 0,
-                  'condition': ''
-      }
-    },
+                  'condition': '' } },
     { 'method': 'Debugger.resume' },
   ];
   await session.send(commands);
   const { scriptSource } = await session.send({
     'method': 'Debugger.getScriptSource',
-    'params': { 'scriptId': session.mainScriptId } });
+    'params': { 'scriptId': session.mainScriptId },
+  });
   assert(scriptSource && (scriptSource.includes(session.script())),
          `Script source is wrong: ${scriptSource}`);
 
@@ -188,7 +187,7 @@ async function testCommandLineAPI(session) {
         'expression': [
           'typeof require.resolve === "function"',
           'typeof require.extensions === "object"',
-          'typeof require.cache === "object"'
+          'typeof require.cache === "object"',
         ].join(' && '),
         'includeCommandLineAPI': true
       }

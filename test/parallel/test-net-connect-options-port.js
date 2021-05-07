@@ -128,7 +128,7 @@ function doConnect(args, getCb) {
       return socket.connect.apply(socket, args)
         .on('connect', getCb())
         .resume();
-    }
+    },
   ];
 }
 

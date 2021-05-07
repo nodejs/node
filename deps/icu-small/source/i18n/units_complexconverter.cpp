@@ -10,6 +10,7 @@
 #include "cmemory.h"
 #include "number_decimalquantity.h"
 #include "number_roundingutils.h"
+#include "putilimp.h"
 #include "uarrsort.h"
 #include "uassert.h"
 #include "unicode/fmtable.h"
@@ -21,44 +22,73 @@
 
 U_NAMESPACE_BEGIN
 namespace units {
+ComplexUnitsConverter::ComplexUnitsConverter(const MeasureUnitImpl &targetUnit,
+                                             const ConversionRates &ratesInfo, UErrorCode &status)
+    : units_(targetUnit.extractIndividualUnitsWithIndices(status)) {
+    if (U_FAILURE(status)) {
+        return;
+    }
+    U_ASSERT(units_.length() != 0);
+
+    // Just borrowing a pointer to the instance
+    MeasureUnitImpl *biggestUnit = &units_[0]->unitImpl;
+    for (int32_t i = 1; i < units_.length(); i++) {
+        if (UnitsConverter::compareTwoUnits(units_[i]->unitImpl, *biggestUnit, ratesInfo, status) > 0 &&
+            U_SUCCESS(status)) {
+            biggestUnit = &units_[i]->unitImpl;
+        }
+
+        if (U_FAILURE(status)) {
+            return;
+        }
+    }
+
+    this->init(*biggestUnit, ratesInfo, status);
+}
+
+ComplexUnitsConverter::ComplexUnitsConverter(StringPiece inputUnitIdentifier,
+                                             StringPiece outputUnitsIdentifier, UErrorCode &status) {
+    if (U_FAILURE(status)) {
+        return;
+    }
+    MeasureUnitImpl inputUnit = MeasureUnitImpl::forIdentifier(inputUnitIdentifier, status);
+    MeasureUnitImpl outputUnits = MeasureUnitImpl::forIdentifier(outputUnitsIdentifier, status);
+
+    this->units_ = outputUnits.extractIndividualUnitsWithIndices(status);
+    U_ASSERT(units_.length() != 0);
+
+    this->init(inputUnit, ConversionRates(status), status);
+}
 
 ComplexUnitsConverter::ComplexUnitsConverter(const MeasureUnitImpl &inputUnit,
                                              const MeasureUnitImpl &outputUnits,
                                              const ConversionRates &ratesInfo, UErrorCode &status)
-    : units_(outputUnits.extractIndividualUnits(status)) {
+    : units_(outputUnits.extractIndividualUnitsWithIndices(status)) {
     if (U_FAILURE(status)) {
         return;
     }
 
     U_ASSERT(units_.length() != 0);
 
-    // Save the desired order of output units before we sort units_
-    for (int32_t i = 0; i < units_.length(); i++) {
-        outputUnits_.emplaceBackAndCheckErrorCode(status, units_[i]->copy(status).build(status));
-    }
+    this->init(inputUnit, ratesInfo, status);
+}
 
-    // NOTE:
-    //  This comparator is used to sort the units in a descending order. Therefore, we return -1 if
-    //  the left is bigger than right and so on.
+void ComplexUnitsConverter::init(const MeasureUnitImpl &inputUnit,
+                                 const ConversionRates &ratesInfo,
+                                 UErrorCode &status) {
+    // Sorts units in descending order. Therefore, we return -1 if
+    // the left is bigger than right and so on.
     auto descendingCompareUnits = [](const void *context, const void *left, const void *right) {
         UErrorCode status = U_ZERO_ERROR;
 
-        const auto *leftPointer = static_cast<const MeasureUnitImpl *const *>(left);
-        const auto *rightPointer = static_cast<const MeasureUnitImpl *const *>(right);
+        const auto *leftPointer = static_cast<const MeasureUnitImplWithIndex *const *>(left);
+        const auto *rightPointer = static_cast<const MeasureUnitImplWithIndex *const *>(right);
 
-        UnitConverter fromLeftToRight(**leftPointer,                                  //
-                                      **rightPointer,                                 //
-                                      *static_cast<const ConversionRates *>(context), //
-                                      status);
-
-        double rightFromOneLeft = fromLeftToRight.convert(1.0);
-        if (std::abs(rightFromOneLeft - 1.0) < 0.0000000001) { // Equals To
-            return 0;
-        } else if (rightFromOneLeft > 1.0) { // Greater Than
-            return -1;
-        }
-
-        return 1; // Less Than
+        // Multiply by -1 to sort in descending order
+        return (-1) * UnitsConverter::compareTwoUnits((**leftPointer).unitImpl,                       //
+                                                      (**rightPointer).unitImpl,                      //
+                                                      *static_cast<const ConversionRates *>(context), //
+                                                      status);
     };
 
     uprv_sortArray(units_.getAlias(),                                                                  //
@@ -86,11 +116,11 @@ ComplexUnitsConverter::ComplexUnitsConverter(const MeasureUnitImpl &inputUnit,
     //              3. then, the final result will be (6 feet and 6.74016 inches)
     for (int i = 0, n = units_.length(); i < n; i++) {
         if (i == 0) { // first element
-            unitConverters_.emplaceBackAndCheckErrorCode(status, inputUnit, *units_[i], ratesInfo,
-                                                         status);
+            unitsConverters_.emplaceBackAndCheckErrorCode(status, inputUnit, units_[i]->unitImpl,
+                                                          ratesInfo, status);
         } else {
-            unitConverters_.emplaceBackAndCheckErrorCode(status, *units_[i - 1], *units_[i], ratesInfo,
-                                                         status);
+            unitsConverters_.emplaceBackAndCheckErrorCode(status, units_[i - 1]->unitImpl,
+                                                          units_[i]->unitImpl, ratesInfo, status);
         }
 
         if (U_FAILURE(status)) {
@@ -100,17 +130,17 @@ ComplexUnitsConverter::ComplexUnitsConverter(const MeasureUnitImpl &inputUnit,
 }
 
 UBool ComplexUnitsConverter::greaterThanOrEqual(double quantity, double limit) const {
-    U_ASSERT(unitConverters_.length() > 0);
+    U_ASSERT(unitsConverters_.length() > 0);
 
     // First converter converts to the biggest quantity.
-    double newQuantity = unitConverters_[0]->convert(quantity);
+    double newQuantity = unitsConverters_[0]->convert(quantity);
     return newQuantity >= limit;
 }
 
 MaybeStackVector<Measure> ComplexUnitsConverter::convert(double quantity,
                                                          icu::number::impl::RoundingImpl *rounder,
                                                          UErrorCode &status) const {
-    // TODO(hugovdm): return an error for "foot-and-foot"?
+    // TODO: return an error for "foot-and-foot"?
     MaybeStackVector<Measure> result;
     int sign = 1;
     if (quantity < 0) {
@@ -120,131 +150,116 @@ MaybeStackVector<Measure> ComplexUnitsConverter::convert(double quantity,
 
     // For N converters:
     // - the first converter converts from the input unit to the largest unit,
-    // - N-1 converters convert to bigger units for which we want integers,
+    // - the following N-2 converters convert to bigger units for which we want integers,
     // - the Nth converter (index N-1) converts to the smallest unit, for which
     //   we keep a double.
-    MaybeStackArray<int64_t, 5> intValues(unitConverters_.length() - 1, status);
+    MaybeStackArray<int64_t, 5> intValues(unitsConverters_.length() - 1, status);
     if (U_FAILURE(status)) {
         return result;
     }
-    uprv_memset(intValues.getAlias(), 0, (unitConverters_.length() - 1) * sizeof(int64_t));
+    uprv_memset(intValues.getAlias(), 0, (unitsConverters_.length() - 1) * sizeof(int64_t));
 
-    for (int i = 0, n = unitConverters_.length(); i < n; ++i) {
-        quantity = (*unitConverters_[i]).convert(quantity);
+    for (int i = 0, n = unitsConverters_.length(); i < n; ++i) {
+        quantity = (*unitsConverters_[i]).convert(quantity);
         if (i < n - 1) {
-            // The double type has 15 decimal digits of precision. For choosing
-            // whether to use the current unit or the next smaller unit, we
-            // therefore nudge up the number with which the thresholding
-            // decision is made. However after the thresholding, we use the
-            // original values to ensure unbiased accuracy (to the extent of
-            // double's capabilities).
-            int64_t roundedQuantity = floor(quantity * (1 + DBL_EPSILON));
-            intValues[i] = roundedQuantity;
+            // If quantity is at the limits of double's precision from an
+            // integer value, we take that integer value.
+            int64_t flooredQuantity = floor(quantity * (1 + DBL_EPSILON));
+            if (uprv_isNaN(quantity)) {
+                // With clang on Linux: floor does not support NaN, resulting in
+                // a giant negative number. For now, we produce "0 feet, NaN
+                // inches". TODO(icu-units#131): revisit desired output.
+                flooredQuantity = 0;
+            }
+            intValues[i] = flooredQuantity;
 
             // Keep the residual of the quantity.
             //   For example: `3.6 feet`, keep only `0.6 feet`
-            //
-            // When the calculation is near enough +/- DBL_EPSILON, we round to
-            // zero. (We also ensure no negative values here.)
-            if ((quantity - roundedQuantity) / quantity < DBL_EPSILON) {
+            double remainder = quantity - flooredQuantity;
+            if (remainder < 0) {
+                // Because we nudged flooredQuantity up by eps, remainder may be
+                // negative: we must treat such a remainder as zero.
                 quantity = 0;
             } else {
-                quantity -= roundedQuantity;
-            }
-        } else { // LAST ELEMENT
-            if (rounder == nullptr) {
-                // Nothing to do for the last element.
-                break;
-            }
-
-            // Round the last value
-            // TODO(ICU-21288): get smarter about precision for mixed units.
-            number::impl::DecimalQuantity quant;
-            quant.setToDouble(quantity);
-            rounder->apply(quant, status);
-            if (U_FAILURE(status)) {
-                return result;
-            }
-            quantity = quant.toDouble();
-            if (i == 0) {
-                // Last element is also the first element, so we're done
-                break;
-            }
-
-            // Check if there's a carry, and bubble it back up the resulting intValues.
-            int64_t carry = floor(unitConverters_[i]->convertInverse(quantity) * (1 + DBL_EPSILON));
-            if (carry <= 0) {
-                break;
-            }
-            quantity -= unitConverters_[i]->convert(carry);
-            intValues[i - 1] += carry;
-
-            // We don't use the first converter: that one is for the input unit
-            for (int32_t j = i - 1; j > 0; j--) {
-                carry = floor(unitConverters_[j]->convertInverse(intValues[j]) * (1 + DBL_EPSILON));
-                if (carry <= 0) {
-                    break;
-                }
-                intValues[j] -= round(unitConverters_[j]->convert(carry));
-                intValues[j - 1] += carry;
+                quantity = remainder;
             }
         }
     }
 
-    // Package values into Measure instances in result:
-    for (int i = 0, n = unitConverters_.length(); i < n; ++i) {
+    applyRounder(intValues, quantity, rounder, status);
+
+    // Initialize empty result. We use a MaybeStackArray directly so we can
+    // assign pointers - for this privilege we have to take care of cleanup.
+    MaybeStackArray<Measure *, 4> tmpResult(unitsConverters_.length(), status);
+    if (U_FAILURE(status)) {
+        return result;
+    }
+
+    // Package values into temporary Measure instances in tmpResult:
+    for (int i = 0, n = unitsConverters_.length(); i < n; ++i) {
         if (i < n - 1) {
             Formattable formattableQuantity(intValues[i] * sign);
             // Measure takes ownership of the MeasureUnit*
-            MeasureUnit *type = new MeasureUnit(units_[i]->copy(status).build(status));
-            if (result.emplaceBackAndCheckErrorCode(status, formattableQuantity, type, status) ==
-                nullptr) {
-                // Ownership wasn't taken
-                U_ASSERT(U_FAILURE(status));
-                delete type;
-            }
-            if (U_FAILURE(status)) {
-                return result;
-            }
+            MeasureUnit *type = new MeasureUnit(units_[i]->unitImpl.copy(status).build(status));
+            tmpResult[units_[i]->index] = new Measure(formattableQuantity, type, status);
         } else { // LAST ELEMENT
-            // Add the last element, not an integer:
             Formattable formattableQuantity(quantity * sign);
             // Measure takes ownership of the MeasureUnit*
-            MeasureUnit *type = new MeasureUnit(units_[i]->copy(status).build(status));
-            if (result.emplaceBackAndCheckErrorCode(status, formattableQuantity, type, status) ==
-                nullptr) {
-                // Ownership wasn't taken
-                U_ASSERT(U_FAILURE(status));
-                delete type;
-            }
-            if (U_FAILURE(status)) {
-                return result;
-            }
-            U_ASSERT(result.length() == i + 1);
-            U_ASSERT(result[i] != nullptr);
+            MeasureUnit *type = new MeasureUnit(units_[i]->unitImpl.copy(status).build(status));
+            tmpResult[units_[i]->index] = new Measure(formattableQuantity, type, status);
         }
     }
 
-    MaybeStackVector<Measure> orderedResult;
-    int32_t unitsCount = outputUnits_.length();
-    U_ASSERT(unitsCount == units_.length());
-    Measure **arr = result.getAlias();
-    // O(N^2) is fine: mixed units' unitsCount is usually 2 or 3.
-    for (int32_t i = 0; i < unitsCount; i++) {
-        for (int32_t j = i; j < unitsCount; j++) {
-            // Find the next expected unit, and swap it into place.
-            U_ASSERT(result[j] != nullptr);
-            if (result[j]->getUnit() == *outputUnits_[i]) {
-                if (j != i) {
-                    Measure *tmp = arr[j];
-                    arr[j] = arr[i];
-                    arr[i] = tmp;
-                }
-            }
-        }
+
+    // Transfer values into result and return:
+    for(int32_t i = 0, n = unitsConverters_.length(); i < n; ++i) {
+        U_ASSERT(tmpResult[i] != nullptr);
+        result.emplaceBackAndCheckErrorCode(status, *tmpResult[i]);
+        delete tmpResult[i];
     }
 
     return result;
+}
+
+void ComplexUnitsConverter::applyRounder(MaybeStackArray<int64_t, 5> &intValues, double &quantity,
+                                         icu::number::impl::RoundingImpl *rounder,
+                                         UErrorCode &status) const {
+    if (rounder == nullptr) {
+        // Nothing to do for the quantity.
+        return;
+    }
+
+    number::impl::DecimalQuantity decimalQuantity;
+    decimalQuantity.setToDouble(quantity);
+    rounder->apply(decimalQuantity, status);
+    if (U_FAILURE(status)) {
+        return;
+    }
+    quantity = decimalQuantity.toDouble();
+
+    int32_t lastIndex = unitsConverters_.length() - 1;
+    if (lastIndex == 0) {
+        // Only one element, no need to bubble up the carry
+        return;
+    }
+
+    // Check if there's a carry, and bubble it back up the resulting intValues.
+    int64_t carry = floor(unitsConverters_[lastIndex]->convertInverse(quantity) * (1 + DBL_EPSILON));
+    if (carry <= 0) {
+        return;
+    }
+    quantity -= unitsConverters_[lastIndex]->convert(carry);
+    intValues[lastIndex - 1] += carry;
+
+    // We don't use the first converter: that one is for the input unit
+    for (int32_t j = lastIndex - 1; j > 0; j--) {
+        carry = floor(unitsConverters_[j]->convertInverse(intValues[j]) * (1 + DBL_EPSILON));
+        if (carry <= 0) {
+            return;
+        }
+        intValues[j] -= round(unitsConverters_[j]->convert(carry));
+        intValues[j - 1] += carry;
+    }
 }
 
 } // namespace units

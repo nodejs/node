@@ -209,6 +209,7 @@ static void on_recv(uv_udp_t* handle,
                     const struct sockaddr* addr,
                     unsigned flags) {
   uv_buf_t sndbuf;
+  uv_udp_send_t* req;
 
   if (nread == 0) {
     /* Everything OK, but nothing read. */
@@ -218,7 +219,7 @@ static void on_recv(uv_udp_t* handle,
   ASSERT(nread > 0);
   ASSERT(addr->sa_family == AF_INET);
 
-  uv_udp_send_t* req = send_alloc();
+  req = send_alloc();
   ASSERT(req != NULL);
   sndbuf = uv_buf_init(rcvbuf->base, nread);
   ASSERT(0 <= uv_udp_send(req, handle, &sndbuf, 1, addr, on_send));
@@ -228,7 +229,7 @@ static int tcp4_echo_start(int port) {
   struct sockaddr_in addr;
   int r;
 
-  ASSERT(0 == uv_ip4_addr("0.0.0.0", port, &addr));
+  ASSERT(0 == uv_ip4_addr("127.0.0.1", port, &addr));
 
   server = (uv_handle_t*)&tcpServer;
   serverType = TCP;

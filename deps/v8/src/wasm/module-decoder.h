@@ -179,13 +179,6 @@ void DecodeFunctionNames(const byte* module_start, const byte* module_end,
                          std::unordered_map<uint32_t, WireBytesRef>* names,
                          const Vector<const WasmExport> export_table);
 
-// Decode the global or memory names from import table and export table. Returns
-// the result as an unordered map.
-void GenerateNamesFromImportsAndExports(
-    ImportExportKindCode kind, const Vector<const WasmImport> import_table,
-    const Vector<const WasmExport> export_table,
-    std::unordered_map<uint32_t, std::pair<WireBytesRef, WireBytesRef>>* names);
-
 // Decode the local names assignment from the name section.
 // The result will be empty if no name section is present. On encountering an
 // error in the name section, returns all information decoded up to the first
@@ -210,7 +203,9 @@ class ModuleDecoder {
   void DecodeSection(SectionCode section_code, Vector<const uint8_t> bytes,
                      uint32_t offset, bool verify_functions = true);
 
-  bool CheckFunctionsCount(uint32_t functions_count, uint32_t offset);
+  void StartCodeSection();
+
+  bool CheckFunctionsCount(uint32_t functions_count, uint32_t error_offset);
 
   void DecodeFunctionBody(uint32_t index, uint32_t size, uint32_t offset,
                           bool verify_functions = true);
@@ -220,6 +215,7 @@ class ModuleDecoder {
   void set_code_section(uint32_t offset, uint32_t size);
 
   const std::shared_ptr<WasmModule>& shared_module() const;
+
   WasmModule* module() const { return shared_module().get(); }
 
   bool ok();

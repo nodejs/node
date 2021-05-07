@@ -50,24 +50,6 @@ function createInstance(moduleBytes) {
       new WebAssembly.Instance(module, {module_name: {imported_mem: memory}});
 }
 
-async function logMemoryName(msg, Protocol) {
-  let callFrames = msg.params.callFrames;
-  InspectorTest.log('Paused in debugger.');
-
-  let scopeChain = callFrames[0].scopeChain;
-  for (let scope of scopeChain) {
-    if (scope.type != 'module') continue;
-    let moduleObjectProps = (await Protocol.Runtime.getProperties({
-                              'objectId': scope.object.objectId
-                            })).result.result;
-
-    for (let prop of moduleObjectProps) {
-      if (prop.name == 'instance') continue;
-      InspectorTest.log(`name: ${prop.name}`);
-    }
-  }
-}
-
 async function check(moduleBytes) {
   Protocol.Runtime.evaluate({
     expression: `
@@ -91,8 +73,17 @@ async function check(moduleBytes) {
   InspectorTest.log('Running main.');
   Protocol.Runtime.evaluate({expression: 'instance.exports.main()'});
 
-  let msg = await Protocol.Debugger.oncePaused();
-  await logMemoryName(msg, Protocol);
+  const {params: {callFrames: [{callFrameId}]}} =
+      await Protocol.Debugger.oncePaused();
+  InspectorTest.log('Paused in debugger.');
+  const {result: {result: {objectId}}} =
+      await Protocol.Debugger.evaluateOnCallFrame(
+          {callFrameId, expression: `memories`});
+  const {result: {result: properties}} =
+      await Protocol.Runtime.getProperties({objectId});
+  for (const {name} of properties) {
+    InspectorTest.log(`name: ${name}`);
+  }
   await Protocol.Debugger.resume();
 
   InspectorTest.log('Finished.');
@@ -102,17 +93,11 @@ contextGroup.addScript(`
   let instance;
   ${createInstance.toString()}`);
 
-(async function test() {
-  try {
+InspectorTest.runAsyncTestSuite([
+  async function test() {
     Protocol.Debugger.enable();
-
     await check(createModuleBytesUnnamedMemory());
     await check(createModuleBytesExportedMemory());
     await check(createModuleBytesImportedMemory());
-
-  } catch (exc) {
-    InspectorTest.log(`Failed with exception: ${exc}.`);
-  } finally {
-    InspectorTest.completeTest();
   }
-})();
+]);

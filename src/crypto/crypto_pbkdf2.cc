@@ -33,7 +33,7 @@ PBKDF2Config& PBKDF2Config::operator=(PBKDF2Config&& other) noexcept {
 }
 
 void PBKDF2Config::MemoryInfo(MemoryTracker* tracker) const {
-  // The the job is sync, the PBKDF2Config does not own the data
+  // The job is sync, the PBKDF2Config does not own the data.
   if (mode == kCryptoJobAsync) {
     tracker->TrackFieldWithSize("pass", pass.size());
     tracker->TrackFieldWithSize("salt", salt.size());
@@ -92,26 +92,20 @@ Maybe<bool> PBKDF2Traits::AdditionalConfig(
 
   params->iterations = args[offset + 2].As<Int32>()->Value();
   if (params->iterations < 0) {
-    char msg[1024];
-    snprintf(msg, sizeof(msg), "iterations must be <= %d", INT_MAX);
-    THROW_ERR_OUT_OF_RANGE(env, msg);
+    THROW_ERR_OUT_OF_RANGE(env, "iterations must be <= %d", INT_MAX);
     return Nothing<bool>();
   }
 
   params->length = args[offset + 3].As<Int32>()->Value();
   if (params->length < 0) {
-    char msg[1024];
-    snprintf(msg, sizeof(msg), "length must be <= %d", INT_MAX);
-    THROW_ERR_OUT_OF_RANGE(env, msg);
+    THROW_ERR_OUT_OF_RANGE(env, "length must be <= %d", INT_MAX);
     return Nothing<bool>();
   }
 
   Utf8Value name(args.GetIsolate(), args[offset + 4]);
   params->digest = EVP_get_digestbyname(*name);
   if (params->digest == nullptr) {
-    char errmsg[1024];
-    snprintf(errmsg, sizeof(errmsg), "Invalid digest: %s", *name);
-    THROW_ERR_CRYPTO_INVALID_DIGEST(env, errmsg);
+    THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *name);
     return Nothing<bool>();
   }
 

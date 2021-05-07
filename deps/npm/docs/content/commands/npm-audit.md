@@ -190,5 +190,4 @@ $ npm audit --audit-level=moderate
 ### See Also
 
 * [npm install](/commands/npm-install)
-* [package-locks](/configuring-npm/package-locks)
 * [config](/using-npm/config)

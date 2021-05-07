@@ -118,3 +118,21 @@ API
     function is blocking.
 
     .. versionadded:: 1.16.0
+
+.. c:function:: int uv_pipe(uv_file fds[2], int read_flags, int write_flags)
+
+    Create a pair of connected pipe handles.
+    Data may be written to `fds[1]` and read from `fds[0]`.
+    The resulting handles can be passed to `uv_pipe_open`, used with `uv_spawn`,
+    or for any other purpose.
+
+    Valid values for `flags` are:
+
+      - UV_NONBLOCK_PIPE: Opens the specified socket handle for `OVERLAPPED`
+        or `FIONBIO`/`O_NONBLOCK` I/O usage.
+        This is recommended for handles that will be used by libuv,
+        and not usually recommended otherwise.
+
+    Equivalent to :man:`pipe(2)` with the `O_CLOEXEC` flag set.
+
+    .. versionadded:: 1.41.0

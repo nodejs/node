@@ -45,6 +45,14 @@ var maybeRealpathSync = function maybeRealpathSync(realpathSync, x, opts) {
     return x;
 };
 
+var defaultReadPackageSync = function defaultReadPackageSync(readFileSync, pkgfile) {
+    var body = readFileSync(pkgfile);
+    try {
+        var pkg = JSON.parse(body);
+        return pkg;
+    } catch (jsonErr) {}
+};
+
 var getPackageCandidates = function getPackageCandidates(x, start, opts) {
     var dirs = nodeModulesPaths(start, opts, x);
     for (var i = 0; i < dirs.length; i++) {
@@ -63,6 +71,10 @@ module.exports = function resolveSync(x, options) {
     var readFileSync = opts.readFileSync || fs.readFileSync;
     var isDirectory = opts.isDirectory || defaultIsDir;
     var realpathSync = opts.realpathSync || defaultRealpathSync;
+    var readPackageSync = opts.readPackageSync || defaultReadPackageSync;
+    if (opts.readFileSync && opts.readPackageSync) {
+        throw new TypeError('`readFileSync` and `readPackageSync` are mutually exclusive.');
+    }
     var packageIterator = opts.packageIterator;
 
     var extensions = opts.extensions || ['.js'];
@@ -127,11 +139,7 @@ module.exports = function resolveSync(x, options) {
             return loadpkg(path.dirname(dir));
         }
 
-        var body = readFileSync(pkgfile);
-
-        try {
-            var pkg = JSON.parse(body);
-        } catch (jsonErr) {}
+        var pkg = readPackageSync(readFileSync, pkgfile);
 
         if (pkg && opts.packageFilter) {
             // v2 will pass pkgfile
@@ -145,8 +153,7 @@ module.exports = function resolveSync(x, options) {
         var pkgfile = path.join(maybeRealpathSync(realpathSync, x, opts), '/package.json');
         if (isFile(pkgfile)) {
             try {
-                var body = readFileSync(pkgfile, 'UTF8');
-                var pkg = JSON.parse(body);
+                var pkg = readPackageSync(readFileSync, pkgfile);
             } catch (e) {}
 
             if (pkg && opts.packageFilter) {

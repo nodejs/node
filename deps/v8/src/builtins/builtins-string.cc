@@ -112,7 +112,7 @@ BUILTIN(StringFromCodePoint) {
       isolate->factory()->NewRawTwoByteString(
           static_cast<int>(one_byte_buffer.size() + two_byte_buffer.size())));
 
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   CopyChars(result->GetChars(no_gc), one_byte_buffer.data(),
             one_byte_buffer.size());
   CopyChars(result->GetChars(no_gc) + one_byte_buffer.size(),
@@ -150,7 +150,7 @@ BUILTIN(StringPrototypeLocaleCompare) {
                    isolate, str1, str2, args.atOrUndefined(isolate, 2),
                    args.atOrUndefined(isolate, 3), method));
 #else
-  DCHECK_EQ(2, args.length());
+  DCHECK_LE(2, args.length());
 
   TO_THIS_STRING(str1, method);
   Handle<String> str2;
@@ -180,7 +180,7 @@ BUILTIN(StringPrototypeLocaleCompare) {
   str1 = String::Flatten(isolate, str1);
   str2 = String::Flatten(isolate, str2);
 
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   String::FlatContent flat1 = str1->GetFlatContent(no_gc);
   String::FlatContent flat2 = str2->GetFlatContent(no_gc);
 
@@ -242,7 +242,7 @@ template <class Converter>
 V8_WARN_UNUSED_RESULT static Object ConvertCaseHelper(
     Isolate* isolate, String string, SeqString result, int result_length,
     unibrow::Mapping<Converter, 128>* mapping) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   // We try this twice, once with the assumption that the result is no longer
   // than the input and, if that assumption breaks, again with the exact
   // length.  This may not be pretty, but it is nicer than what was here before
@@ -306,7 +306,7 @@ V8_WARN_UNUSED_RESULT static Object ConvertCaseHelper(
         if (char_length == 0) char_length = 1;
         current_length += char_length;
         if (current_length > String::kMaxLength) {
-          AllowHeapAllocation allocate_error_and_return;
+          AllowGarbageCollection allocate_error_and_return;
           THROW_NEW_ERROR_RETURN_FAILURE(isolate,
                                          NewInvalidStringLengthError());
         }
@@ -354,7 +354,7 @@ V8_WARN_UNUSED_RESULT static Object ConvertCase(
     // Same length as input.
     Handle<SeqOneByteString> result =
         isolate->factory()->NewRawOneByteString(length).ToHandleChecked();
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     String::FlatContent flat_content = s->GetFlatContent(no_gc);
     DCHECK(flat_content.IsFlat());
     bool has_changed_character = false;

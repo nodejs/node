@@ -10,6 +10,8 @@ description: Log out of the registry
 npm logout [--registry=<url>] [--scope=<@scope>]
 ```
 
+Note: This command is unaware of workspaces.
+
 ### Description
 
 When logged into a registry that supports token-based authentication, tell

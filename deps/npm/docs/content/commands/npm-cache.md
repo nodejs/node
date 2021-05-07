@@ -18,6 +18,8 @@ aliases: npm cache clear, npm cache rm
 npm cache verify
 ```
 
+Note: This command is unaware of workspaces.
+
 ### Description
 
 Used to add, list, or clean the npm cache folder.

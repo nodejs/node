@@ -17,7 +17,7 @@ const names = new Set([
   'RunTimers',
   'BeforeExit',
   'RunCleanup',
-  'AtExit'
+  'AtExit',
 ]);
 
 if (process.argv[2] === 'child') {
@@ -37,7 +37,7 @@ if (process.argv[2] === 'child') {
                          cwd: tmpdir.path,
                          execArgv: [
                            '--trace-event-categories',
-                           'node.environment'
+                           'node.environment',
                          ]
                        });
 

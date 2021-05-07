@@ -7,14 +7,11 @@
 // CLI, we can remove this, and fold the lib/auth/legacy.js back into
 // lib/adduser.js
 
-const { promisify } = require('util')
-
 const log = require('npmlog')
 const profile = require('npm-profile')
 const npmFetch = require('npm-registry-fetch')
 
-const npm = require('../npm.js')
-const openUrl = promisify(require('../utils/open-url.js'))
+const openUrl = require('../utils/open-url.js')
 const otplease = require('../utils/otplease.js')
 
 const pollForSession = ({ registry, token, opts }) => {
@@ -38,7 +35,7 @@ function sleep (time) {
   return new Promise((resolve) => setTimeout(resolve, time))
 }
 
-const login = async ({ creds, registry, scope }) => {
+const login = async (npm, { creds, registry, scope }) => {
   log.warn('deprecated', 'SSO --auth-type is deprecated')
 
   const opts = { ...npm.flatOptions, creds, registry, scope }
@@ -65,7 +62,7 @@ const login = async ({ creds, registry, scope }) => {
   if (!sso)
     throw new Error('no SSO URL returned by services')
 
-  await openUrl(sso, 'to complete your login please visit')
+  await openUrl(npm, sso, 'to complete your login please visit')
 
   const username = await pollForSession({ registry, token, opts })
 

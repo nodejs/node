@@ -6,13 +6,16 @@
 
 #include <memory>
 
+#include "src/base/logging.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
+#include "src/execution/isolate.h"
 #include "src/handles/local-handles.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/heap/local-heap-inl.h"
 #include "src/heap/marking-barrier.h"
+#include "src/heap/parked-scope.h"
 #include "src/heap/safepoint.h"
 
 namespace v8 {
@@ -24,10 +27,22 @@ thread_local LocalHeap* current_local_heap = nullptr;
 
 LocalHeap* LocalHeap::Current() { return current_local_heap; }
 
-LocalHeap::LocalHeap(Heap* heap,
+#ifdef DEBUG
+void LocalHeap::VerifyCurrent() {
+  LocalHeap* current = LocalHeap::Current();
+
+  if (is_main_thread())
+    DCHECK_NULL(current);
+  else
+    DCHECK_EQ(current, this);
+}
+#endif
+
+LocalHeap::LocalHeap(Heap* heap, ThreadKind kind,
                      std::unique_ptr<PersistentHandles> persistent_handles)
     : heap_(heap),
-      state_(ThreadState::Running),
+      is_main_thread_(kind == ThreadKind::kMain),
+      state_(ThreadState::Parked),
       safepoint_requested_(false),
       allocation_failed_(false),
       prev_(nullptr),
@@ -36,37 +51,42 @@ LocalHeap::LocalHeap(Heap* heap,
       persistent_handles_(std::move(persistent_handles)),
       marking_barrier_(new MarkingBarrier(this)),
       old_space_allocator_(this, heap->old_space()) {
-  heap_->safepoint()->AddLocalHeap(this);
+  heap_->safepoint()->AddLocalHeap(this, [this] {
+    if (!is_main_thread()) {
+      WriteBarrier::SetForThread(marking_barrier_.get());
+      if (heap_->incremental_marking()->IsMarking()) {
+        marking_barrier_->Activate(
+            heap_->incremental_marking()->IsCompacting());
+      }
+    }
+  });
+
   if (persistent_handles_) {
     persistent_handles_->Attach(this);
   }
   DCHECK_NULL(current_local_heap);
-  current_local_heap = this;
-  // TODO(ulan): Ensure that LocalHeap cannot be created without --local-heaps.
-  if (FLAG_local_heaps) {
-    WriteBarrier::SetForThread(marking_barrier_.get());
-    if (heap_->incremental_marking()->IsMarking()) {
-      marking_barrier_->Activate(heap_->incremental_marking()->IsCompacting());
-    }
-  }
+  if (!is_main_thread()) current_local_heap = this;
 }
 
 LocalHeap::~LocalHeap() {
-  // TODO(ulan): Ensure that LocalHeap cannot be created without --local-heaps.
-  if (FLAG_local_heaps) {
-    marking_barrier_->Publish();
-    WriteBarrier::ClearForThread(marking_barrier_.get());
-  }
-  // Give up LAB before parking thread
-  old_space_allocator_.FreeLinearAllocationArea();
-
   // Park thread since removing the local heap could block.
   EnsureParkedBeforeDestruction();
 
-  heap_->safepoint()->RemoveLocalHeap(this);
+  heap_->safepoint()->RemoveLocalHeap(this, [this] {
+    old_space_allocator_.FreeLinearAllocationArea();
 
-  DCHECK_EQ(current_local_heap, this);
-  current_local_heap = nullptr;
+    if (!is_main_thread()) {
+      marking_barrier_->Publish();
+      WriteBarrier::ClearForThread(marking_barrier_.get());
+    }
+  });
+
+  if (!is_main_thread()) {
+    DCHECK_EQ(current_local_heap, this);
+    current_local_heap = nullptr;
+  }
+
+  DCHECK(gc_epilogue_callbacks_.empty());
 }
 
 void LocalHeap::EnsurePersistentHandles() {
@@ -75,6 +95,13 @@ void LocalHeap::EnsurePersistentHandles() {
         heap_->isolate()->NewPersistentHandles().release());
     persistent_handles_->Attach(this);
   }
+}
+
+void LocalHeap::AttachPersistentHandles(
+    std::unique_ptr<PersistentHandles> persistent_handles) {
+  DCHECK_NULL(persistent_handles_);
+  persistent_handles_ = std::move(persistent_handles);
+  persistent_handles_->Attach(this);
 }
 
 std::unique_ptr<PersistentHandles> LocalHeap::DetachPersistentHandles() {
@@ -92,19 +119,23 @@ bool LocalHeap::ContainsLocalHandle(Address* location) {
 }
 
 bool LocalHeap::IsHandleDereferenceAllowed() {
-  DCHECK_EQ(LocalHeap::Current(), this);
+#ifdef DEBUG
+  VerifyCurrent();
+#endif
   return state_ == ThreadState::Running;
 }
 #endif
 
 bool LocalHeap::IsParked() {
-  DCHECK_EQ(LocalHeap::Current(), this);
+#ifdef DEBUG
+  VerifyCurrent();
+#endif
   return state_ == ThreadState::Parked;
 }
 
 void LocalHeap::Park() {
   base::MutexGuard guard(&state_mutex_);
-  CHECK(state_ == ThreadState::Running);
+  CHECK_EQ(ThreadState::Running, state_);
   state_ = ThreadState::Parked;
   state_change_.NotifyAll();
 }
@@ -116,6 +147,7 @@ void LocalHeap::Unpark() {
 }
 
 void LocalHeap::EnsureParkedBeforeDestruction() {
+  if (IsParked()) return;
   base::MutexGuard guard(&state_mutex_);
   state_ = ThreadState::Parked;
   state_change_.NotifyAll();
@@ -150,6 +182,11 @@ void LocalHeap::UnmarkLinearAllocationArea() {
   old_space_allocator_.UnmarkLinearAllocationArea();
 }
 
+void LocalHeap::PerformCollection() {
+  ParkedScope scope(this);
+  heap_->RequestCollectionBackground(this);
+}
+
 Address LocalHeap::PerformCollectionAndAllocateAgain(
     int object_size, AllocationType type, AllocationOrigin origin,
     AllocationAlignment alignment) {
@@ -157,10 +194,7 @@ Address LocalHeap::PerformCollectionAndAllocateAgain(
   static const int kMaxNumberOfRetries = 3;
 
   for (int i = 0; i < kMaxNumberOfRetries; i++) {
-    {
-      ParkedScope scope(this);
-      heap_->RequestAndWaitForCollection();
-    }
+    PerformCollection();
 
     AllocationResult result = AllocateRaw(object_size, type, origin, alignment);
     if (!result.IsRetry()) {
@@ -170,6 +204,32 @@ Address LocalHeap::PerformCollectionAndAllocateAgain(
   }
 
   heap_->FatalProcessOutOfMemory("LocalHeap: allocation failed");
+}
+
+void LocalHeap::AddGCEpilogueCallback(GCEpilogueCallback* callback,
+                                      void* data) {
+  DCHECK(!IsParked());
+  std::pair<GCEpilogueCallback*, void*> callback_and_data(callback, data);
+  DCHECK_EQ(std::find(gc_epilogue_callbacks_.begin(),
+                      gc_epilogue_callbacks_.end(), callback_and_data),
+            gc_epilogue_callbacks_.end());
+  gc_epilogue_callbacks_.push_back(callback_and_data);
+}
+
+void LocalHeap::RemoveGCEpilogueCallback(GCEpilogueCallback* callback,
+                                         void* data) {
+  DCHECK(!IsParked());
+  std::pair<GCEpilogueCallback*, void*> callback_and_data(callback, data);
+  auto it = std::find(gc_epilogue_callbacks_.begin(),
+                      gc_epilogue_callbacks_.end(), callback_and_data);
+  *it = gc_epilogue_callbacks_.back();
+  gc_epilogue_callbacks_.pop_back();
+}
+
+void LocalHeap::InvokeGCEpilogueCallbacksInSafepoint() {
+  for (auto callback_and_data : gc_epilogue_callbacks_) {
+    callback_and_data.first(callback_and_data.second);
+  }
 }
 
 }  // namespace internal

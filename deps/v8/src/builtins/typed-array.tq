@@ -157,6 +157,10 @@ macro GetTypedArrayAccessor(elementsKind: ElementsKind): TypedArrayAccessor {
   unreachable;
 }
 
+extern macro
+TypedArrayBuiltinsAssembler::AllocateJSTypedArrayExternalPointerEntry(
+    JSTypedArray): void;
+
 extern macro TypedArrayBuiltinsAssembler::SetJSTypedArrayOnHeapDataPtr(
     JSTypedArray, ByteArray, uintptr): void;
 extern macro TypedArrayBuiltinsAssembler::SetJSTypedArrayOffHeapDataPtr(

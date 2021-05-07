@@ -38,6 +38,12 @@ information described.
   * Described in the pre/post announcements
 
 * [ ] Pre-release announcement [email][]: ***LINK TO EMAIL***
+  ```text
+  Security updates for all active release lines, Month Year
+
+  The Node.js project will release new versions of all supported release lines on or shortly after Day of week, Month Day of Month, Year
+  For more information see: https://nodejs.org/en/blog/vulnerability/month-year-security-releases/
+  ```
   (Get access from existing manager: Ben Noordhuis, Rod Vagg, Michael Dawson)
 
 * [ ] Pre-release announcement to nodejs.org blog: ***LINK TO BLOG***
@@ -57,13 +63,19 @@ information described.
 
 ## Release day
 
-* [ ] [Lock CI](https://github.com/nodejs/build/blob/master/doc/jenkins-guide.md#before-the-release)
+* [ ] [Lock CI](https://github.com/nodejs/build/blob/HEAD/doc/jenkins-guide.md#before-the-release)
 
 * [ ] The releaser(s) run the release process to completion.
 
-* [ ] [Unlock CI](https://github.com/nodejs/build/blob/master/doc/jenkins-guide.md#after-the-release)
+* [ ] [Unlock CI](https://github.com/nodejs/build/blob/HEAD/doc/jenkins-guide.md#after-the-release)
 
 * [ ] Post-release announcement in reply [email][]: ***LINK TO EMAIL***
+  ```text
+  Security updates for all active release lines, Month Year
+
+  The Node.js project has now released new versions of all supported release lines.
+  For more information see: https://nodejs.org/en/blog/vulnerability/month-year-security-releases/
+  ```
 
 * [ ] Post-release announcement to Nodejs.org blog: ***LINK TO BLOG POST***
   * (Re-PR the pre-approved branch from nodejs-private/nodejs.org-private to
@@ -84,7 +96,7 @@ information described.
       links to the release blogs in the "Public Reference" section)
 
 * [ ] PR machine-readable JSON descriptions of the vulnerabilities to the
-  [core](https://github.com/nodejs/security-wg/tree/master/vuln/core)
+  [core](https://github.com/nodejs/security-wg/tree/HEAD/vuln/core)
   vulnerability DB. ***LINK TO PR***
 
 * [ ] Close this issue

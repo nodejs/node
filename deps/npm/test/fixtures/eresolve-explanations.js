@@ -16,10 +16,10 @@ module.exports = {
             type: 'prod',
             name: '@isaacs/peer-dep-cycle-a',
             spec: '1.x',
-            from: { location: '/some/project' }
-          }
-        ]
-      }
+            from: { location: '/some/project' },
+          },
+        ],
+      },
     },
     current: {
       name: '@isaacs/peer-dep-cycle-c',
@@ -30,9 +30,9 @@ module.exports = {
           type: 'prod',
           name: '@isaacs/peer-dep-cycle-c',
           spec: '2.x',
-          from: { location: '/some/project' }
-        }
-      ]
+          from: { location: '/some/project' },
+        },
+      ],
     },
     peerConflict: {
       name: '@isaacs/peer-dep-cycle-c',
@@ -63,15 +63,15 @@ module.exports = {
                       type: 'prod',
                       name: '@isaacs/peer-dep-cycle-a',
                       spec: '1.x',
-                      from: { location: '/some/project' }
-                    }
-                  ]
-                }
-              }
-            ]
-          }
-        }
-      ]
+                      from: { location: '/some/project' },
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        },
+      ],
     },
     strictPeerDeps: true,
   },
@@ -102,13 +102,13 @@ module.exports = {
                   type: 'prod',
                   name: '@isaacs/peer-dep-cycle-a',
                   spec: '1.x',
-                  from: { location: '/some/project' }
-                }
-              ]
-            }
-          }
-        ]
-      }
+                  from: { location: '/some/project' },
+                },
+              ],
+            },
+          },
+        ],
+      },
     },
     current: {
       name: '@isaacs/peer-dep-cycle-c',
@@ -119,9 +119,9 @@ module.exports = {
           type: 'prod',
           name: '@isaacs/peer-dep-cycle-c',
           spec: '2.x',
-          from: { location: '/some/project' }
-        }
-      ]
+          from: { location: '/some/project' },
+        },
+      ],
     },
     strictPeerDeps: true,
   },
@@ -134,7 +134,7 @@ module.exports = {
       whileInstalling: {
         name: 'project',
         version: '1.2.3',
-        path: '/some/project'
+        path: '/some/project',
       },
       location: 'node_modules/@isaacs/testing-peer-dep-conflict-chain-d',
       dependents: [
@@ -142,9 +142,9 @@ module.exports = {
           type: 'prod',
           name: '@isaacs/testing-peer-dep-conflict-chain-d',
           spec: '2',
-          from: { location: '/some/project' }
-        }
-      ]
+          from: { location: '/some/project' },
+        },
+      ],
     },
     edge: {
       type: 'peer',
@@ -157,7 +157,7 @@ module.exports = {
         whileInstalling: {
           name: 'project',
           version: '1.2.3',
-          path: '/some/project'
+          path: '/some/project',
         },
         location: 'node_modules/@isaacs/testing-peer-dep-conflict-chain-c',
         dependents: [
@@ -165,13 +165,13 @@ module.exports = {
             type: 'prod',
             name: '@isaacs/testing-peer-dep-conflict-chain-c',
             spec: '1',
-            from: { location: '/some/project' }
-          }
-        ]
-      }
+            from: { location: '/some/project' },
+          },
+        ],
+      },
     },
     peerConflict: null,
-    strictPeerDeps: false
+    strictPeerDeps: false,
   },
 
   gatsby: {
@@ -182,7 +182,7 @@ module.exports = {
       whileInstalling: {
         name: 'gatsby-recipes',
         version: '0.2.31',
-        path: '/some/project/node_modules/gatsby-recipes'
+        path: '/some/project/node_modules/gatsby-recipes',
       },
       location: 'node_modules/ink',
       dependents: [
@@ -218,19 +218,19 @@ module.exports = {
                             name: 'gatsby',
                             spec: '',
                             from: {
-                              location: '/some/project/gatsby-user'
-                            }
-                          }
-                        ]
-                      }
-                    }
-                  ]
-                }
-              }
-            ]
-          }
-        }
-      ]
+                              location: '/some/project/gatsby-user',
+                            },
+                          },
+                        ],
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        },
+      ],
     },
     edge: {
       type: 'peer',
@@ -243,7 +243,7 @@ module.exports = {
         whileInstalling: {
           name: 'gatsby-recipes',
           version: '0.2.31',
-          path: '/some/project/gatsby-user/node_modules/gatsby-recipes'
+          path: '/some/project/gatsby-user/node_modules/gatsby-recipes',
         },
         location: 'node_modules/ink-box',
         dependents: [
@@ -279,23 +279,98 @@ module.exports = {
                               name: 'gatsby',
                               spec: '',
                               from: {
-                                location: '/some/project/gatsby-user'
-                              }
-                            }
-                          ]
-                        }
-                      }
-                    ]
-                  }
-                }
-              ]
-            }
-          }
-        ]
-      }
+                                location: '/some/project/gatsby-user',
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
     },
     peerConflict: null,
-    strictPeerDeps: true
-  }
+    strictPeerDeps: true,
+  },
 
+  'no current node, but has current edge': {
+    code: 'ERESOLVE',
+    current: null,
+    currentEdge: {
+      type: 'dev',
+      name: 'eslint',
+      spec: 'file:.',
+      error: 'MISSING',
+      from: {
+        location: '/some/projects/eslint',
+      },
+    },
+    edge: {
+      type: 'peer',
+      name: 'eslint',
+      spec: '^6.0.0',
+      error: 'MISSING',
+      from: {
+        name: 'eslint-plugin-jsdoc',
+        version: '22.2.0',
+        whileInstalling: {
+          name: 'eslint',
+          version: '7.22.0',
+          path: '/Users/isaacs/dev/npm/cli/eslint',
+        },
+        location: 'node_modules/eslint-plugin-jsdoc',
+        dependents: [
+          {
+            type: 'dev',
+            name: 'eslint-plugin-jsdoc',
+            spec: '^22.1.0',
+            from: {
+              location: '/some/projects/eslint',
+            },
+          },
+        ],
+      },
+    },
+    peerConflict: null,
+    strictPeerDeps: false,
+    force: false,
+  },
+  'no current node, no current edge, idk': {
+    code: 'ERESOLVE',
+    current: null,
+    edge: {
+      type: 'peer',
+      name: 'eslint',
+      spec: '^6.0.0',
+      error: 'MISSING',
+      from: {
+        name: 'eslint-plugin-jsdoc',
+        version: '22.2.0',
+        whileInstalling: {
+          name: 'eslint',
+          version: '7.22.0',
+          path: '/Users/isaacs/dev/npm/cli/eslint',
+        },
+        location: 'node_modules/eslint-plugin-jsdoc',
+        dependents: [
+          {
+            type: 'dev',
+            name: 'eslint-plugin-jsdoc',
+            spec: '^22.1.0',
+            from: {
+              location: '/some/projects/eslint',
+            },
+          },
+        ],
+      },
+    },
+    peerConflict: null,
+    strictPeerDeps: false,
+    force: false,
+  },
 }

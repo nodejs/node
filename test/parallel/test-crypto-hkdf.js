@@ -113,11 +113,14 @@ const {
     });
 }
 
-[
+const algorithms = [
   ['sha256', 'secret', 'salt', 'info', 10],
   ['sha512', 'secret', 'salt', '', 15],
-  ['whirlpool', 'secret', '', 'info', 20],
-].forEach(([ hash, secret, salt, info, length ]) => {
+];
+if (!common.hasOpenSSL3)
+  algorithms.push(['whirlpool', 'secret', '', 'info', 20]);
+
+algorithms.forEach(([ hash, secret, salt, info, length ]) => {
   {
     const syncResult = hkdfSync(hash, secret, salt, info, length);
     assert(syncResult instanceof ArrayBuffer);
@@ -204,7 +207,8 @@ const {
   }
 });
 
-{
+
+if (!common.hasOpenSSL3) {
   const kKnownUnsupported = ['shake128', 'shake256'];
   getHashes()
     .filter((hash) => !kKnownUnsupported.includes(hash))

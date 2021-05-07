@@ -1,0 +1,63 @@
+{
+  "name": "libnpmexec",
+  "version": "1.0.1",
+  "files": [
+    "lib"
+  ],
+  "main": "lib/index.js",
+  "engines": {
+    "node": ">=10"
+  },
+  "description": "npm exec (npx) programmatic API",
+  "repository": "https://github.com/npm/libnpmexec",
+  "keywords": [
+    "npm",
+    "npmcli",
+    "libnpm",
+    "cli",
+    "workspaces",
+    "libnpmexec"
+  ],
+  "author": "GitHub Inc.",
+  "contributors": [
+    {
+      "name": "Ruy Adorno",
+      "url": "https://ruyadorno.com",
+      "twitter": "ruyadorno"
+    }
+  ],
+  "license": "ISC",
+  "scripts": {
+    "lint": "eslint lib/*.js",
+    "pretest": "npm run lint",
+    "test": "tap test/*.js",
+    "snap": "tap test/*.js",
+    "preversion": "npm test",
+    "postversion": "npm publish",
+    "prepublishOnly": "git push origin --follow-tags"
+  },
+  "tap": {
+    "check-coverage": true
+  },
+  "devDependencies": {
+    "bin-links": "^2.2.1",
+    "eslint": "^7.24.0",
+    "eslint-plugin-import": "^2.22.1",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-promise": "^5.1.0",
+    "eslint-plugin-standard": "^5.0.0",
+    "tap": "^15.0.2"
+  },
+  "dependencies": {
+    "@npmcli/arborist": "^2.3.0",
+    "@npmcli/ci-detect": "^1.3.0",
+    "@npmcli/run-script": "^1.8.4",
+    "chalk": "^4.1.0",
+    "mkdirp-infer-owner": "^2.0.0",
+    "npm-package-arg": "^8.1.2",
+    "pacote": "^11.3.1",
+    "proc-log": "^1.0.0",
+    "read": "^1.0.7",
+    "read-package-json-fast": "^2.0.2"
+  }
+}

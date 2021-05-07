@@ -73,7 +73,7 @@ assert.strictEqual(typeof PRIORITY_HIGHEST, 'number');
   3.14,
   2 ** 32,
   PRIORITY_HIGHEST - 1,
-  PRIORITY_LOW + 1
+  PRIORITY_LOW + 1,
 ].forEach((priority) => {
   assert.throws(() => {
     os.setPriority(0, priority);

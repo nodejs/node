@@ -18,32 +18,51 @@ namespace internal {
 
 ReadOnlySerializer::ReadOnlySerializer(Isolate* isolate,
                                        Snapshot::SerializerFlags flags)
-    : RootsSerializer(isolate, flags, RootIndex::kFirstReadOnlyRoot) {
+    : RootsSerializer(isolate, flags, RootIndex::kFirstReadOnlyRoot)
+#ifdef DEBUG
+      ,
+      serialized_objects_(isolate->heap()),
+      did_serialize_not_mapped_symbol_(false)
+#endif
+{
   STATIC_ASSERT(RootIndex::kFirstReadOnlyRoot == RootIndex::kFirstRoot);
-  allocator()->UseCustomChunkSize(FLAG_serialization_chunk_size);
 }
 
 ReadOnlySerializer::~ReadOnlySerializer() {
   OutputStatistics("ReadOnlySerializer");
 }
 
-void ReadOnlySerializer::SerializeObject(HeapObject obj) {
-  CHECK(ReadOnlyHeap::Contains(obj));
-  CHECK_IMPLIES(obj.IsString(), obj.IsInternalizedString());
+void ReadOnlySerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
+  CHECK(ReadOnlyHeap::Contains(*obj));
+  CHECK_IMPLIES(obj->IsString(), obj->IsInternalizedString());
 
-  if (SerializeHotObject(obj)) return;
-  if (IsRootAndHasBeenSerialized(obj) && SerializeRoot(obj)) {
-    return;
+  // There should be no references to the not_mapped_symbol except for the entry
+  // in the root table, so don't try to serialize a reference and rely on the
+  // below CHECK(!did_serialize_not_mapped_symbol_) to make sure it doesn't
+  // serialize twice.
+  if (*obj != ReadOnlyRoots(isolate()).not_mapped_symbol()) {
+    if (SerializeHotObject(obj)) return;
+    if (IsRootAndHasBeenSerialized(*obj) && SerializeRoot(obj)) {
+      return;
+    }
+    if (SerializeBackReference(obj)) return;
   }
-  if (SerializeBackReference(obj)) return;
 
-  CheckRehashability(obj);
+  CheckRehashability(*obj);
 
   // Object has not yet been serialized.  Serialize it here.
   ObjectSerializer object_serializer(this, obj, &sink_);
   object_serializer.Serialize();
 #ifdef DEBUG
-  serialized_objects_.insert(obj);
+  if (*obj == ReadOnlyRoots(isolate()).not_mapped_symbol()) {
+    CHECK(!did_serialize_not_mapped_symbol_);
+    did_serialize_not_mapped_symbol_ = true;
+  } else {
+    CHECK_NULL(serialized_objects_.Find(obj));
+    // There's no "IdentitySet", so use an IdentityMap with a value that is
+    // later ignored.
+    serialized_objects_.Insert(obj, 0);
+  }
 #endif
 }
 
@@ -73,7 +92,11 @@ void ReadOnlySerializer::FinalizeSerialization() {
   ReadOnlyHeapObjectIterator iterator(isolate()->read_only_heap());
   for (HeapObject object = iterator.Next(); !object.is_null();
        object = iterator.Next()) {
-    CHECK(serialized_objects_.count(object));
+    if (object == ReadOnlyRoots(isolate()).not_mapped_symbol()) {
+      CHECK(did_serialize_not_mapped_symbol_);
+    } else {
+      CHECK_NOT_NULL(serialized_objects_.Find(object));
+    }
   }
 #endif
 }
@@ -92,8 +115,8 @@ bool ReadOnlySerializer::MustBeDeferred(HeapObject object) {
 }
 
 bool ReadOnlySerializer::SerializeUsingReadOnlyObjectCache(
-    SnapshotByteSink* sink, HeapObject obj) {
-  if (!ReadOnlyHeap::Contains(obj)) return false;
+    SnapshotByteSink* sink, Handle<HeapObject> obj) {
+  if (!ReadOnlyHeap::Contains(*obj)) return false;
 
   // Get the cache index and serialize it into the read-only snapshot if
   // necessary.

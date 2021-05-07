@@ -9,6 +9,7 @@
 
 namespace v8 {
 namespace internal {
+class WasmFrame;
 
 namespace wasm {
 class StreamingDecoder;

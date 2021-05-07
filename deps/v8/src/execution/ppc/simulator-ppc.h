@@ -18,14 +18,14 @@
 #if defined(USE_SIMULATOR)
 // Running with a simulator.
 
+#include "src/base/hashmap.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/platform/mutex.h"
-#include "src/utils/allocation.h"
-
-#include "src/base/hashmap.h"
+#include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/ppc/constants-ppc.h"
 #include "src/execution/simulator-base.h"
+#include "src/utils/allocation.h"
 
 namespace v8 {
 namespace internal {
@@ -253,7 +253,7 @@ class Simulator : public SimulatorBase {
   template <typename T>
   inline void Read(uintptr_t address, T* value) {
     base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
-    memcpy(value, reinterpret_cast<const char*>(address), sizeof(T));
+    base::Memcpy(value, reinterpret_cast<const char*>(address), sizeof(T));
   }
 
   template <typename T>
@@ -262,7 +262,7 @@ class Simulator : public SimulatorBase {
     GlobalMonitor::Get()->NotifyLoadExcl(
         address, static_cast<TransactionSize>(sizeof(T)),
         isolate_->thread_id());
-    memcpy(value, reinterpret_cast<const char*>(address), sizeof(T));
+    base::Memcpy(value, reinterpret_cast<const char*>(address), sizeof(T));
   }
 
   template <typename T>
@@ -271,7 +271,7 @@ class Simulator : public SimulatorBase {
     GlobalMonitor::Get()->NotifyStore(address,
                                       static_cast<TransactionSize>(sizeof(T)),
                                       isolate_->thread_id());
-    memcpy(reinterpret_cast<char*>(address), &value, sizeof(T));
+    base::Memcpy(reinterpret_cast<char*>(address), &value, sizeof(T));
   }
 
   template <typename T>
@@ -280,7 +280,7 @@ class Simulator : public SimulatorBase {
     if (GlobalMonitor::Get()->NotifyStoreExcl(
             address, static_cast<TransactionSize>(sizeof(T)),
             isolate_->thread_id())) {
-      memcpy(reinterpret_cast<char*>(address), &value, sizeof(T));
+      base::Memcpy(reinterpret_cast<char*>(address), &value, sizeof(T));
       return 0;
     } else {
       return 1;

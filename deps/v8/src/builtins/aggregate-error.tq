@@ -9,10 +9,6 @@ namespace error {
 transitioning javascript builtin AggregateErrorConstructor(
     js-implicit context: NativeContext, target: JSFunction,
     newTarget: JSAny)(...arguments): JSAny {
-  // This function is implementing the spec as suggested by
-  // https://github.com/tc39/proposal-promise-any/pull/59 . FIXME(marja):
-  // change this if the PR is declined, otherwise remove the comment.
-
   // 1. If NewTarget is undefined, let newTarget be the active function
   // object, else let newTarget be NewTarget.
   // 2. Let O be ? OrdinaryCreateFromConstructor(newTarget,

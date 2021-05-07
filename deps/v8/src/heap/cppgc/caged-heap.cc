@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "v8config.h"  // NOLINT(build/include_directory)
+
 #if !defined(CPPGC_CAGED_HEAP)
 #error "Must be compiled with caged heap enabled"
 #endif

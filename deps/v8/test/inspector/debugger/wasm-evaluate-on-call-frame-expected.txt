@@ -1,0 +1,137 @@
+Test wasm debug evaluate
+
+Running test: testInstanceAndModule
+Compile module.
+Set breakpoint in main.
+Instantiate module.
+Call main.
+Debugger paused in main.
+> instance = Instance
+> module = Module
+
+Running test: testGlobals
+Compile module.
+Set breakpoint in main.
+Instantiate module.
+Call main.
+Debugger paused in main.
+> globals = Globals
+> typeof globals = "object"
+> Object.keys(globals) = Array(2)
+> globals[0] = i32 {0}
+> globals[1] = i32 {1}
+> globals[2] = i64 {2n}
+> globals[3] = i64 {3n}
+> globals["$global0"] = i32 {0}
+> $global0 = i32 {0}
+> globals["$global3"] = i64 {2n}
+> $global3 = i64 {2n}
+Stepping twice in main.
+Debugger paused in main.
+> globals[0] = i32 {0}
+> globals[1] = i32 {1}
+> globals[2] = i64 {2n}
+> globals[3] = i64 {42n}
+> globals["$global0"] = i32 {0}
+> $global0 = i32 {0}
+> globals["$global3"] = i64 {2n}
+> $global3 = i64 {2n}
+Changing global from JavaScript.
+> globals[0] = i32 {0}
+> globals[1] = i32 {21}
+> globals[2] = i64 {2n}
+> globals[3] = i64 {42n}
+> globals["$global0"] = i32 {0}
+> $global0 = i32 {0}
+> globals["$global3"] = i64 {2n}
+> $global3 = i64 {2n}
+
+Running test: testFunctions
+Compile module.
+Set breakpoint in main.
+Instantiate module.
+Call main.
+Debugger paused in main.
+> functions = Functions
+> typeof functions = "object"
+> Object.keys(functions) = Array(4)
+> functions[0] = function 0() { [native code] }
+> functions[1] = function 1() { [native code] }
+> functions[2] = function 2() { [native code] }
+> functions[3] = function 3() { [native code] }
+> functions[4] = function 4() { [native code] }
+> functions["$foo.bar"] = function 0() { [native code] }
+> functions["$main"] = function 1() { [native code] }
+> $main = function 1() { [native code] }
+> functions["$func2"] = function 2() { [native code] }
+> $func2 = function 2() { [native code] }
+> functions["$func4"] = function 4() { [native code] }
+> $func4 = function 4() { [native code] }
+
+Running test: testLocals
+Compile module.
+Set breakpoint in main.
+Instantiate module.
+Call main.
+Debugger paused in main.
+> locals = Locals
+> typeof locals = "object"
+> Object.keys(locals) = Array(2)
+> locals[0] = i32 {3}
+> locals[1] = i32 {6}
+> locals[2] = i32 {0}
+> locals["$x"] = i32 {3}
+> $x = i32 {3}
+> locals["$var2"] = i32 {0}
+> $var2 = i32 {0}
+Stepping twice in main.
+Debugger paused in main.
+> locals[0] = i32 {3}
+> locals[1] = i32 {6}
+> locals[2] = i32 {42}
+> locals["$x"] = i32 {3}
+> $x = i32 {3}
+> locals["$var2"] = i32 {42}
+> $var2 = i32 {42}
+
+Running test: testMemories
+Compile module.
+Set breakpoint in main.
+Instantiate module.
+Call main.
+Debugger paused in main.
+> memories = Memories
+> typeof memories = "object"
+> Object.keys(memories) = Array(1)
+> memories[0] = Memory(1)
+> memories["$foo"] = Memory(1)
+> $foo = Memory(1)
+
+Running test: testTables
+Compile module.
+Set breakpoint in main.
+Instantiate module.
+Call main.
+Debugger paused in main.
+> tables = Tables
+> typeof tables = "object"
+> Object.keys(tables) = Array(1)
+> tables[0] = Table
+> tables["$bar"] = Table
+> $bar = Table
+
+Running test: testStack
+Compile module.
+Set breakpoint in main.
+Instantiate module.
+Call main.
+Debugger paused in main.
+> stack = Stack
+> typeof stack = "object"
+> Object.keys(stack) = Array(0)
+Stepping twice in main.
+Debugger paused in main.
+> stack = Stack
+> Object.keys(stack) = Array(2)
+> stack[0] = i32 {5}
+> stack[1] = i32 {42}

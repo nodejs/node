@@ -21,7 +21,7 @@ class Operator;
 class CommonOperatorBuilder;
 
 // A facade that simplifies access to the different kinds of inputs to a node.
-class V8_EXPORT_PRIVATE NodeProperties final {
+class V8_EXPORT_PRIVATE NodeProperties {
  public:
   // ---------------------------------------------------------------------------
   // Input layout.
@@ -121,6 +121,21 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   // the IfSuccess projection of {node} if present and {node} itself otherwise.
   static Node* FindSuccessfulControlProjection(Node* node);
 
+  // Returns whether the node acts as the identity function on a value
+  // input. The input that is passed through is returned via {out_value}.
+  static bool IsValueIdentity(Node* node, Node** out_value) {
+    switch (node->opcode()) {
+      case IrOpcode::kTypeGuard:
+        *out_value = GetValueInput(node, 0);
+        return true;
+      case IrOpcode::kFoldConstant:
+        *out_value = GetValueInput(node, 1);
+        return true;
+      default:
+        return false;
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Miscellaneous mutators.
 
@@ -188,15 +203,15 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   // Walks up the {effect} chain to find a witness that provides map
   // information about the {receiver}. Can look through potentially
   // side effecting nodes.
-  enum InferReceiverMapsResult {
-    kNoReceiverMaps,         // No receiver maps inferred.
-    kReliableReceiverMaps,   // Receiver maps can be trusted.
-    kUnreliableReceiverMaps  // Receiver maps might have changed (side-effect).
+  enum InferMapsResult {
+    kNoMaps,         // No maps inferred.
+    kReliableMaps,   // Maps can be trusted.
+    kUnreliableMaps  // Maps might have changed (side-effect).
   };
-  // DO NOT USE InferReceiverMapsUnsafe IN NEW CODE. Use MapInference instead.
-  static InferReceiverMapsResult InferReceiverMapsUnsafe(
-      JSHeapBroker* broker, Node* receiver, Node* effect,
-      ZoneHandleSet<Map>* maps_return);
+  // DO NOT USE InferMapsUnsafe IN NEW CODE. Use MapInference instead.
+  static InferMapsResult InferMapsUnsafe(JSHeapBroker* broker, Node* object,
+                                         Node* effect,
+                                         ZoneHandleSet<Map>* maps);
 
   // Return the initial map of the new-target if the allocation can be inlined.
   static base::Optional<MapRef> GetJSCreateMap(JSHeapBroker* broker,
@@ -229,12 +244,12 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   // ---------------------------------------------------------------------------
   // Type.
 
-  static bool IsTyped(Node* node) { return !node->type().IsInvalid(); }
+  static bool IsTyped(const Node* node) { return !node->type().IsInvalid(); }
   static Type GetType(Node* node) {
     DCHECK(IsTyped(node));
     return node->type();
   }
-  static Type GetTypeOrAny(Node* node);
+  static Type GetTypeOrAny(const Node* node);
   static void SetType(Node* node, Type type) {
     DCHECK(!type.IsInvalid());
     node->set_type(type);

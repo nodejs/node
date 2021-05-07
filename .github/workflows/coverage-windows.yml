@@ -10,6 +10,7 @@ on:
   push:
     branches:
       - master
+      - main
     paths-ignore:
       - 'doc/**'
       - 'deps/**'
@@ -44,6 +45,8 @@ jobs:
           NODE_V8_COVERAGE: ./coverage/tmp
       - name: Report
         run: npx c8 report
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
       - name: Clean tmp
         run: npx rimraf ./coverage/tmp
       - name: Upload

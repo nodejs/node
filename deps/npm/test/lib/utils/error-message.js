@@ -10,22 +10,6 @@ Object.defineProperty(process, 'arch', {
   configurable: true,
 })
 
-const beWindows = () => {
-  Object.defineProperty(process, 'platform', {
-    value: 'win32',
-    configurable: true,
-  })
-  delete require.cache[require.resolve('../../../lib/utils/is-windows.js')]
-}
-
-const bePosix = () => {
-  Object.defineProperty(process, 'platform', {
-    value: 'posix',
-    configurable: true,
-  })
-  delete require.cache[require.resolve('../../../lib/utils/is-windows.js')]
-}
-
 const { resolve } = require('path')
 const npm = require('../../../lib/npm.js')
 const CACHE = '/some/cache/dir'
@@ -56,16 +40,36 @@ npmlog.verbose = (...message) => {
   verboseLogs.push(message)
 }
 
-const requireInject = require('require-inject')
 const EXPLAIN_CALLED = []
-const errorMessage = requireInject('../../../lib/utils/error-message.js', {
+const mocks = {
   '../../../lib/utils/explain-eresolve.js': {
     report: (...args) => {
       EXPLAIN_CALLED.push(args)
       return 'explanation'
     },
   },
-})
+  '../../../lib/npm.js': require('../../../lib/npm.js'),
+  get '../../../lib/utils/is-windows.js' () {
+    return process.platform === 'win32'
+  },
+}
+let errorMessage = t.mock('../../../lib/utils/error-message.js', { ...mocks })
+
+const beWindows = () => {
+  Object.defineProperty(process, 'platform', {
+    value: 'win32',
+    configurable: true,
+  })
+  errorMessage = t.mock('../../../lib/utils/error-message.js', { ...mocks })
+}
+
+const bePosix = () => {
+  Object.defineProperty(process, 'platform', {
+    value: 'posix',
+    configurable: true,
+  })
+  errorMessage = t.mock('../../../lib/utils/error-message.js', { ...mocks })
+}
 
 t.test('just simple messages', t => {
   npm.command = 'audit'

@@ -23,7 +23,6 @@ TestingModuleBuilder::TestingModuleBuilder(
     TestExecutionTier tier, RuntimeExceptionSupport exception_support,
     LowerSimd lower_simd)
     : test_module_(std::make_shared<WasmModule>()),
-      test_module_ptr_(test_module_.get()),
       isolate_(CcTest::InitIsolateOnce()),
       enabled_features_(WasmFeatures::FromIsolate(isolate_)),
       execution_tier_(tier),
@@ -73,7 +72,7 @@ TestingModuleBuilder::TestingModuleBuilder(
 
   if (tier == TestExecutionTier::kInterpreter) {
     interpreter_ = std::make_unique<WasmInterpreter>(
-        isolate_, test_module_ptr_,
+        isolate_, test_module_.get(),
         ModuleWireBytes{native_module_->wire_bytes()}, instance_object_);
   }
 }
@@ -170,7 +169,8 @@ Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
 }
 
 void TestingModuleBuilder::AddIndirectFunctionTable(
-    const uint16_t* function_indexes, uint32_t table_size) {
+    const uint16_t* function_indexes, uint32_t table_size,
+    ValueType table_type) {
   Handle<WasmInstanceObject> instance = instance_object();
   uint32_t table_index = static_cast<uint32_t>(test_module_->tables.size());
   test_module_->tables.emplace_back();
@@ -178,7 +178,7 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
   table.initial_size = table_size;
   table.maximum_size = table_size;
   table.has_maximum_size = true;
-  table.type = kWasmFuncRef;
+  table.type = table_type;
 
   {
     // Allocate the indirect function table.
@@ -311,7 +311,7 @@ CompilationEnv TestingModuleBuilder::CreateCompilationEnv() {
   // trap_handler::IsTrapHandlerEnabled().
   const bool is_trap_handler_enabled =
       V8_TRAP_HANDLER_SUPPORTED && i::FLAG_wasm_trap_handler;
-  return {test_module_ptr_,
+  return {test_module_.get(),
           is_trap_handler_enabled ? kUseTrapHandler : kNoTrapHandler,
           runtime_exception_support_, enabled_features_, lower_simd()};
 }
@@ -335,8 +335,10 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   auto native_module = isolate_->wasm_engine()->NewNativeModule(
       isolate_, enabled_features_, test_module_, code_size_estimate);
   native_module->SetWireBytes(OwnedVector<const uint8_t>());
-  Handle<Script> script =
-      isolate_->wasm_engine()->GetOrCreateScript(isolate_, native_module);
+  native_module->compilation_state()->set_compilation_id(0);
+  constexpr Vector<const char> kNoSourceUrl{"", 0};
+  Handle<Script> script = isolate_->wasm_engine()->GetOrCreateScript(
+      isolate_, native_module, kNoSourceUrl);
 
   Handle<WasmModuleObject> module_object =
       WasmModuleObject::New(isolate_, std::move(native_module), script);
@@ -557,7 +559,13 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   WasmCode* code = native_module->PublishCode(
       native_module->AddCompiledCode(std::move(result)));
   DCHECK_NOT_NULL(code);
-  if (WasmCode::ShouldBeLogged(isolate())) code->LogCode(isolate());
+  DisallowGarbageCollection no_gc;
+  Script script = builder_->instance_object()->module_object().script();
+  std::unique_ptr<char[]> source_url =
+      String::cast(script.source_url()).ToCString();
+  if (WasmCode::ShouldBeLogged(isolate())) {
+    code->LogCode(isolate(), source_url.get(), script.id());
+  }
 }
 
 WasmFunctionCompiler::WasmFunctionCompiler(Zone* zone, const FunctionSig* sig,

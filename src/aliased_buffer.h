@@ -198,6 +198,11 @@ class AliasedBufferBase {
     return js_array_.Get(isolate_);
   }
 
+  void Release() {
+    DCHECK_NULL(index_);
+    js_array_.Reset();
+  }
+
   /**
   *  Get the underlying v8::ArrayBuffer underlying the TypedArray and
   *  overlaying the native buffer

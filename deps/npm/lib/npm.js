@@ -13,72 +13,60 @@ require('graceful-fs').gracefulify(require('fs'))
 
 const procLogListener = require('./utils/proc-log-listener.js')
 
-const hasOwnProperty = (obj, key) =>
-  Object.prototype.hasOwnProperty.call(obj, key)
+const proxyCmds = new Proxy({}, {
+  get: (target, cmd) => {
+    const actual = deref(cmd)
+    if (actual && !Reflect.has(target, actual)) {
+      const Impl = require(`./${actual}.js`)
+      const impl = new Impl(npm)
+      // Our existing npm.commands[x] act like a function with attributes, but
+      // our modules have non-inumerable attributes so we can't just assign
+      // them to an anonymous function like we used to.  This acts like that
+      // old way of doing things, until we can make breaking changes to the
+      // npm.commands[x] api
+      target[actual] = new Proxy(
+        (args, cb) => npm[_runCmd](actual, impl, args, cb),
+        {
+          get: (target, attr, receiver) => {
+            return Reflect.get(impl, attr, receiver)
+          },
+        })
+    }
+    return target[actual]
+  },
+})
 
-// the first time `npm.commands.xyz` is loaded, it gets added
-// to the cmds object, so we don't have to load it again.
-const proxyCmds = (npm) => {
-  const cmds = {}
-  return new Proxy(cmds, {
-    get: (prop, cmd) => {
-      if (hasOwnProperty(cmds, cmd))
-        return cmds[cmd]
-
-      const actual = deref(cmd)
-      if (!actual) {
-        cmds[cmd] = undefined
-        return cmds[cmd]
-      }
-      if (cmds[actual]) {
-        cmds[cmd] = cmds[actual]
-        return cmds[cmd]
-      }
-      cmds[actual] = makeCmd(actual)
-      cmds[cmd] = cmds[actual]
-      return cmds[cmd]
-    },
-  })
-}
-
-const makeCmd = cmd => {
-  const impl = require(`./${cmd}.js`)
-  const fn = (args, cb) => npm[_runCmd](cmd, impl, args, cb)
-  Object.assign(fn, impl)
-  return fn
-}
-
-const { types, defaults, shorthands } = require('./utils/config.js')
+const { definitions, flatten, shorthands } = require('./utils/config/index.js')
+const { shellouts } = require('./utils/cmd-list.js')
+const usage = require('./utils/npm-usage.js')
 
 let warnedNonDashArg = false
 const _runCmd = Symbol('_runCmd')
 const _load = Symbol('_load')
-const _flatOptions = Symbol('_flatOptions')
 const _tmpFolder = Symbol('_tmpFolder')
 const _title = Symbol('_title')
 const npm = module.exports = new class extends EventEmitter {
   constructor () {
     super()
     require('./utils/perf.js')
-    this.modes = {
-      exec: 0o755,
-      file: 0o644,
-      umask: 0o22,
-    }
     this.started = Date.now()
     this.command = null
-    this.commands = proxyCmds(this)
+    this.commands = proxyCmds
     procLogListener()
     process.emit('time', 'npm')
     this.version = require('../package.json').version
     this.config = new Config({
       npmPath: dirname(__dirname),
-      types,
-      defaults,
+      definitions,
+      flatten,
       shorthands,
     })
     this[_title] = process.title
     this.updateNotification = null
+  }
+
+  get shelloutCommands () {
+    return shellouts
   }
 
   deref (c) {
@@ -112,11 +100,20 @@ const npm = module.exports = new class extends EventEmitter {
         })
     }
 
+    const workspacesEnabled = this.config.get('workspaces')
+    const workspacesFilters = this.config.get('workspace')
+    const filterByWorkspaces = workspacesEnabled || workspacesFilters.length > 0
+
     if (this.config.get('usage')) {
-      console.log(impl.usage)
+      this.output(impl.usage)
       cb()
+    } else if (filterByWorkspaces) {
+      impl.execWorkspaces(args, this.config.get('workspace'), er => {
+        process.emit('timeEnd', `command:${cmd}`)
+        cb(er)
+      })
     } else {
-      impl(args, er => {
+      impl.exec(args, er => {
         process.emit('timeEnd', `command:${cmd}`)
         cb(er)
       })
@@ -147,9 +144,6 @@ const npm = module.exports = new class extends EventEmitter {
       if (!er && this.config.get('force'))
         this.log.warn('using --force', 'Recommended protections disabled.')
 
-      if (!er && !this[_flatOptions])
-        this[_flatOptions] = require('./utils/flat-options.js')(this)
-
       process.emit('timeEnd', 'npm:load')
       this.emit('load', er)
     })
@@ -169,14 +163,19 @@ const npm = module.exports = new class extends EventEmitter {
   }
 
   async [_load] () {
+    process.emit('time', 'npm:load:whichnode')
     const node = await which(process.argv[0]).catch(er => null)
+    process.emit('timeEnd', 'npm:load:whichnode')
     if (node && node.toUpperCase() !== process.execPath.toUpperCase()) {
       log.verbose('node symlink', node)
       process.execPath = node
+      this.config.execPath = node
     }
-    this.config.execPath = node
 
+    process.emit('time', 'npm:load:configload')
     await this.config.load()
+    process.emit('timeEnd', 'npm:load:configload')
+
     this.argv = this.config.parsedArgv.remain
     // note: this MUST be shorter than the actual argv length, because it
     // uses the same memory, so node will truncate it if it's too long.
@@ -184,33 +183,40 @@ const npm = module.exports = new class extends EventEmitter {
     // don't show that.  (Regrettable historical choice to put it there.)
     // Any other secrets are configs only, so showing only the positional
     // args keeps those from being leaked.
+    process.emit('time', 'npm:load:setTitle')
     const tokrev = deref(this.argv[0]) === 'token' && this.argv[1] === 'revoke'
     this.title = tokrev ? 'npm token revoke' + (this.argv[2] ? ' ***' : '')
       : ['npm', ...this.argv].join(' ')
+    process.emit('timeEnd', 'npm:load:setTitle')
 
-    this.color = setupLog(this.config, this)
+    process.emit('time', 'npm:load:setupLog')
+    this.color = setupLog(this.config)
+    process.emit('timeEnd', 'npm:load:setupLog')
     process.env.COLOR = this.color ? '1' : '0'
 
+    process.emit('time', 'npm:load:cleanupLog')
     cleanUpLogFiles(this.cache, this.config.get('logs-max'), log.warn)
+    process.emit('timeEnd', 'npm:load:cleanupLog')
 
     log.resume()
-    const umask = this.config.get('umask')
-    this.modes = {
-      exec: 0o777 & (~umask),
-      file: 0o666 & (~umask),
-      umask,
-    }
 
+    process.emit('time', 'npm:load:configScope')
     const configScope = this.config.get('scope')
     if (configScope && !/^@/.test(configScope))
       this.config.set('scope', `@${configScope}`, this.config.find('scope'))
+    process.emit('timeEnd', 'npm:load:configScope')
 
+    process.emit('time', 'npm:load:projectScope')
     this.projectScope = this.config.get('scope') ||
       getProjectScope(this.prefix)
+    process.emit('timeEnd', 'npm:load:projectScope')
   }
 
   get flatOptions () {
-    return this[_flatOptions]
+    const { flat } = this.config
+    if (this.command)
+      flat.npmCommand = this.command
+    return flat
   }
 
   get lockfileVersion () {
@@ -281,6 +287,10 @@ const npm = module.exports = new class extends EventEmitter {
     this[k] = r
   }
 
+  get usage () {
+    return usage(this)
+  }
+
   // XXX add logging to see if we actually use this
   get tmp () {
     if (!this[_tmpFolder]) {
@@ -288,6 +298,13 @@ const npm = module.exports = new class extends EventEmitter {
       this[_tmpFolder] = `npm-${process.pid}-${rand}`
     }
     return resolve(this.config.get('tmp'), this[_tmpFolder])
+  }
+
+  // output to stdout in a progress bar compatible way
+  output (...msg) {
+    this.log.clearProgress()
+    console.log(...msg)
+    this.log.showProgress()
   }
 }()
 

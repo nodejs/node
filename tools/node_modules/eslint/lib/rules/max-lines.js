@@ -151,7 +151,7 @@ module.exports = {
                     );
 
                     lines = lines.filter(
-                        l => !lodash.includes(commentLines, l.lineNumber)
+                        l => !commentLines.includes(l.lineNumber)
                     );
                 }
 

@@ -57,6 +57,14 @@ void DeleteArray(T* array) {
   delete[] array;
 }
 
+template <typename T>
+struct ArrayDeleter {
+  void operator()(T* array) { DeleteArray(array); }
+};
+
+template <typename T>
+using ArrayUniquePtr = std::unique_ptr<T, ArrayDeleter<T>>;
+
 // The normal strdup functions use malloc.  These versions of StrDup
 // and StrNDup uses new and calls the FatalProcessOutOfMemory handler
 // if allocation fails.
@@ -161,6 +169,9 @@ class VirtualMemory final {
   // Empty VirtualMemory object, controlling no reserved memory.
   V8_EXPORT_PRIVATE VirtualMemory();
 
+  VirtualMemory(const VirtualMemory&) = delete;
+  VirtualMemory& operator=(const VirtualMemory&) = delete;
+
   // Reserves virtual memory containing an area of the given size that is
   // aligned per |alignment| rounded up to the |page_allocator|'s allocate page
   // size. The |size| must be aligned with |page_allocator|'s commit page size.
@@ -247,8 +258,6 @@ class VirtualMemory final {
   // Page allocator that controls the virtual memory.
   v8::PageAllocator* page_allocator_ = nullptr;
   base::AddressRegion region_;
-
-  DISALLOW_COPY_AND_ASSIGN(VirtualMemory);
 };
 
 }  // namespace internal

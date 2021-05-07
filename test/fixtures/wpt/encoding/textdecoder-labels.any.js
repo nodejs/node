@@ -1,5 +1,6 @@
 // META: title=Encoding API: Encoding labels
 // META: script=resources/encodings.js
+// META: timeout=long
 
 var whitespace = [' ', '\t', '\n', '\f', '\r'];
 encodings_table.forEach(function(section) {

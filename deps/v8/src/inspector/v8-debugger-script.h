@@ -52,6 +52,8 @@ class V8DebuggerScript {
       bool isLiveEdit, V8DebuggerAgentImpl* agent, V8InspectorClient* client);
 
   virtual ~V8DebuggerScript();
+  V8DebuggerScript(const V8DebuggerScript&) = delete;
+  V8DebuggerScript& operator=(const V8DebuggerScript&) = delete;
 
   const String16& scriptId() const { return m_id; }
   bool hasSourceURLComment() const { return m_hasSourceURLComment; }
@@ -111,9 +113,6 @@ class V8DebuggerScript {
 
   v8::Isolate* m_isolate;
   String16 m_embedderName;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(V8DebuggerScript);
 };
 
 }  // namespace v8_inspector

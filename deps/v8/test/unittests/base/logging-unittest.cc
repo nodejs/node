@@ -86,20 +86,30 @@ std::string SanitizeRegexp(std::string msg) {
 }
 
 std::string FailureMessage(const char* msg, const char* lhs, const char* rhs) {
-  std::string full_msg(msg);
 #ifdef DEBUG
-  full_msg.append(" (").append(lhs).append(" vs. ").append(rhs);
+  return SanitizeRegexp(
+      std::string{msg}.append(" (").append(lhs).append(" vs. ").append(rhs));
+#elif defined(OFFICIAL_BUILD)
+  // Official release builds strip all fatal messages for saving binary size,
+  // see src/base/logging.h.
+  USE(SanitizeRegexp);
+  return "ignored";
+#else
+  return SanitizeRegexp(msg);
 #endif
-  return SanitizeRegexp(std::move(full_msg));
 }
 
 std::string LongFailureMessage(const char* msg, const char* lhs,
                                const char* rhs) {
-  std::string full_msg(msg);
 #ifdef DEBUG
-  full_msg.append("\n   ").append(lhs).append("\n vs.\n   ").append(rhs);
+  return SanitizeRegexp(std::string{msg}
+                            .append("\n   ")
+                            .append(lhs)
+                            .append("\n vs.\n   ")
+                            .append(rhs));
+#else
+  return FailureMessage(msg, lhs, rhs);
 #endif
-  return SanitizeRegexp(std::move(full_msg));
 }
 }  // namespace
 

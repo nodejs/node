@@ -17,7 +17,7 @@ const tty = require('tty');
 When Node.js detects that it is being run with a text terminal ("TTY")
 attached, [`process.stdin`][] will, by default, be initialized as an instance of
 `tty.ReadStream` and both [`process.stdout`][] and [`process.stderr`][] will, by
-default be instances of `tty.WriteStream`. The preferred method of determining
+default, be instances of `tty.WriteStream`. The preferred method of determining
 whether Node.js is being run within a TTY context is to check that the value of
 the `process.stdout.isTTY` property is `true`:
 

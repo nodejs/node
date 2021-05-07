@@ -89,7 +89,7 @@ void MemoryAllocator::InitializeCodePageAllocator(
                 page_allocator->AllocatePageSize());
   VirtualMemory reservation(
       page_allocator, requested, reinterpret_cast<void*>(hint),
-      Max(kMinExpectedOSPageSize, page_allocator->AllocatePageSize()));
+      std::max(kMinExpectedOSPageSize, page_allocator->AllocatePageSize()));
   if (!reservation.IsReserved()) {
     V8::FatalProcessOutOfMemory(isolate_,
                                 "CodeRange setup: allocate virtual memory");
@@ -154,68 +154,66 @@ void MemoryAllocator::TearDown() {
   data_page_allocator_ = nullptr;
 }
 
-class MemoryAllocator::Unmapper::UnmapFreeMemoryTask : public CancelableTask {
+class MemoryAllocator::Unmapper::UnmapFreeMemoryJob : public JobTask {
  public:
-  explicit UnmapFreeMemoryTask(Isolate* isolate, Unmapper* unmapper)
-      : CancelableTask(isolate),
-        unmapper_(unmapper),
-        tracer_(isolate->heap()->tracer()) {}
+  explicit UnmapFreeMemoryJob(Isolate* isolate, Unmapper* unmapper)
+      : unmapper_(unmapper), tracer_(isolate->heap()->tracer()) {}
 
- private:
-  void RunInternal() override {
-    TRACE_BACKGROUND_GC(tracer_,
-                        GCTracer::BackgroundScope::BACKGROUND_UNMAPPER);
-    unmapper_->PerformFreeMemoryOnQueuedChunks<FreeMode::kUncommitPooled>();
-    unmapper_->active_unmapping_tasks_--;
-    unmapper_->pending_unmapping_tasks_semaphore_.Signal();
-    if (FLAG_trace_unmapper) {
-      PrintIsolate(unmapper_->heap_->isolate(),
-                   "UnmapFreeMemoryTask Done: id=%" PRIu64 "\n", id());
+  UnmapFreeMemoryJob(const UnmapFreeMemoryJob&) = delete;
+  UnmapFreeMemoryJob& operator=(const UnmapFreeMemoryJob&) = delete;
+
+  void Run(JobDelegate* delegate) override {
+    if (delegate->IsJoiningThread()) {
+      TRACE_GC(tracer_, GCTracer::Scope::UNMAPPER);
+      RunImpl(delegate);
+
+    } else {
+      TRACE_GC1(tracer_, GCTracer::Scope::BACKGROUND_UNMAPPER,
+                ThreadKind::kBackground);
+      RunImpl(delegate);
     }
   }
 
+  size_t GetMaxConcurrency(size_t worker_count) const override {
+    const size_t kTaskPerChunk = 8;
+    return std::min<size_t>(
+        kMaxUnmapperTasks,
+        worker_count +
+            (unmapper_->NumberOfCommittedChunks() + kTaskPerChunk - 1) /
+                kTaskPerChunk);
+  }
+
+ private:
+  void RunImpl(JobDelegate* delegate) {
+    unmapper_->PerformFreeMemoryOnQueuedChunks<FreeMode::kUncommitPooled>(
+        delegate);
+    if (FLAG_trace_unmapper) {
+      PrintIsolate(unmapper_->heap_->isolate(), "UnmapFreeMemoryTask Done\n");
+    }
+  }
   Unmapper* const unmapper_;
   GCTracer* const tracer_;
-  DISALLOW_COPY_AND_ASSIGN(UnmapFreeMemoryTask);
 };
 
 void MemoryAllocator::Unmapper::FreeQueuedChunks() {
   if (!heap_->IsTearingDown() && FLAG_concurrent_sweeping) {
-    if (!MakeRoomForNewTasks()) {
-      // kMaxUnmapperTasks are already running. Avoid creating any more.
+    if (job_handle_ && job_handle_->IsValid()) {
+      job_handle_->NotifyConcurrencyIncrease();
+    } else {
+      job_handle_ = V8::GetCurrentPlatform()->PostJob(
+          TaskPriority::kUserVisible,
+          std::make_unique<UnmapFreeMemoryJob>(heap_->isolate(), this));
       if (FLAG_trace_unmapper) {
-        PrintIsolate(heap_->isolate(),
-                     "Unmapper::FreeQueuedChunks: reached task limit (%d)\n",
-                     kMaxUnmapperTasks);
+        PrintIsolate(heap_->isolate(), "Unmapper::FreeQueuedChunks: new Job\n");
       }
-      return;
     }
-    auto task = std::make_unique<UnmapFreeMemoryTask>(heap_->isolate(), this);
-    if (FLAG_trace_unmapper) {
-      PrintIsolate(heap_->isolate(),
-                   "Unmapper::FreeQueuedChunks: new task id=%" PRIu64 "\n",
-                   task->id());
-    }
-    DCHECK_LT(pending_unmapping_tasks_, kMaxUnmapperTasks);
-    DCHECK_LE(active_unmapping_tasks_, pending_unmapping_tasks_);
-    DCHECK_GE(active_unmapping_tasks_, 0);
-    active_unmapping_tasks_++;
-    task_ids_[pending_unmapping_tasks_++] = task->id();
-    V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(task));
   } else {
     PerformFreeMemoryOnQueuedChunks<FreeMode::kUncommitPooled>();
   }
 }
 
 void MemoryAllocator::Unmapper::CancelAndWaitForPendingTasks() {
-  for (int i = 0; i < pending_unmapping_tasks_; i++) {
-    if (heap_->isolate()->cancelable_task_manager()->TryAbort(task_ids_[i]) !=
-        TryAbortResult::kTaskAborted) {
-      pending_unmapping_tasks_semaphore_.Wait();
-    }
-  }
-  pending_unmapping_tasks_ = 0;
-  active_unmapping_tasks_ = 0;
+  if (job_handle_ && job_handle_->IsValid()) job_handle_->Join();
 
   if (FLAG_trace_unmapper) {
     PrintIsolate(
@@ -234,26 +232,18 @@ void MemoryAllocator::Unmapper::EnsureUnmappingCompleted() {
   PerformFreeMemoryOnQueuedChunks<FreeMode::kReleasePooled>();
 }
 
-bool MemoryAllocator::Unmapper::MakeRoomForNewTasks() {
-  DCHECK_LE(pending_unmapping_tasks_, kMaxUnmapperTasks);
-
-  if (active_unmapping_tasks_ == 0 && pending_unmapping_tasks_ > 0) {
-    // All previous unmapping tasks have been run to completion.
-    // Finalize those tasks to make room for new ones.
-    CancelAndWaitForPendingTasks();
-  }
-  return pending_unmapping_tasks_ != kMaxUnmapperTasks;
-}
-
-void MemoryAllocator::Unmapper::PerformFreeMemoryOnQueuedNonRegularChunks() {
+void MemoryAllocator::Unmapper::PerformFreeMemoryOnQueuedNonRegularChunks(
+    JobDelegate* delegate) {
   MemoryChunk* chunk = nullptr;
   while ((chunk = GetMemoryChunkSafe<kNonRegular>()) != nullptr) {
     allocator_->PerformFreeMemory(chunk);
+    if (delegate && delegate->ShouldYield()) return;
   }
 }
 
 template <MemoryAllocator::Unmapper::FreeMode mode>
-void MemoryAllocator::Unmapper::PerformFreeMemoryOnQueuedChunks() {
+void MemoryAllocator::Unmapper::PerformFreeMemoryOnQueuedChunks(
+    JobDelegate* delegate) {
   MemoryChunk* chunk = nullptr;
   if (FLAG_trace_unmapper) {
     PrintIsolate(
@@ -266,6 +256,7 @@ void MemoryAllocator::Unmapper::PerformFreeMemoryOnQueuedChunks() {
     bool pooled = chunk->IsFlagSet(MemoryChunk::POOLED);
     allocator_->PerformFreeMemory(chunk);
     if (pooled) AddMemoryChunkSafe<kPooled>(chunk);
+    if (delegate && delegate->ShouldYield()) return;
   }
   if (mode == MemoryAllocator::Unmapper::FreeMode::kReleasePooled) {
     // The previous loop uncommitted any pages marked as pooled and added them
@@ -273,13 +264,14 @@ void MemoryAllocator::Unmapper::PerformFreeMemoryOnQueuedChunks() {
     // though.
     while ((chunk = GetMemoryChunkSafe<kPooled>()) != nullptr) {
       allocator_->Free<MemoryAllocator::kAlreadyPooled>(chunk);
+      if (delegate && delegate->ShouldYield()) return;
     }
   }
   PerformFreeMemoryOnQueuedNonRegularChunks();
 }
 
 void MemoryAllocator::Unmapper::TearDown() {
-  CHECK_EQ(0, pending_unmapping_tasks_);
+  CHECK(!job_handle_ || !job_handle_->IsValid());
   PerformFreeMemoryOnQueuedChunks<FreeMode::kReleasePooled>();
   for (int i = 0; i < kNumberOfChunkQueues; i++) {
     DCHECK(chunks_[i].empty());

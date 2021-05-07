@@ -710,128 +710,168 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     }
 
     function showGraphs(page) {
-      let groups = page.groups.filter(each => each.enabled);
+      let groups = page.groups.filter(each => each.enabled && !each.isTotal);
       // Sort groups by the biggest impact
-      groups.sort((a, b) => {
-        return b.getTimeImpact() - a.getTimeImpact();
-      });
+      groups.sort((a, b) => b.getTimeImpact() - a.getTimeImpact());
       if (selectedGroup == undefined) {
         selectedGroup = groups[0];
       } else {
         groups = groups.filter(each => each.name != selectedGroup.name);
-        groups.unshift(selectedGroup);
+        if (!selectedGroup.isTotal && selectedGroup.enabled) {
+          groups.unshift(selectedGroup);
+        }
       }
-      showPageGraph(groups, page);
-      showVersionGraph(groups, page);
-      showPageVersionGraph(groups, page);
+      // Display graphs delayed for a snappier UI.
+      setTimeout(() => {
+          showPageVersionGraph(groups, page);
+          showPageGraph(groups, page);
+          showVersionGraph(groups, page)
+        }, 10);
     }
 
-    function getGraphDataTable(groups) {
+    function getGraphDataTable(groups, page) {
       let dataTable = new google.visualization.DataTable();
       dataTable.addColumn('string', 'Name');
       groups.forEach(group => {
         let column = dataTable.addColumn('number', group.name.substring(6));
         dataTable.setColumnProperty(column, 'group', group);
+        column = dataTable.addColumn({role: "annotation"});
+        dataTable.setColumnProperty(column, 'group', group);
       });
+      let column = dataTable.addColumn('number', 'Chart Total');
+      dataTable.setColumnProperty(column, 'group', page.total);
+      column = dataTable.addColumn({role: "annotation"});
+      dataTable.setColumnProperty(column, 'group', page.total);
       return dataTable;
     }
 
     let selectedGroup;
+
+    class ChartRow {
+      static kSortFirstValueRelative(chartRow) {
+        if (selectedGroup?.isTotal) return chartRow.total
+        return chartRow.data[0] / chartRow.total;
+      }
+
+      static kSortByFirstValue(chartRow) {
+        if (selectedGroup?.isTotal) return chartRow.total
+        return chartRow.data[0];
+      }
+
+      constructor(linkedPage, label, sortValue_fn, data,
+          excludeFromAverage=false) {
+        this.linkedPage = linkedPage;
+        this.label = label;
+        if (!Array.isArray(data)) {
+          throw new Error("Provide an Array for data");
+        }
+        this.data = data;
+        this.total = 0;
+        for (let i = 0; i < data.length; i++) this.total += data[i];
+        this.sortValue = sortValue_fn(this);
+        this.excludeFromAverage = excludeFromAverage;
+      }
+
+      forDataTable(maxRowsTotal) {
+        // row = [label, entry1, annotation1, entry2, annotation2, ...]
+        const rowData = [this.label];
+        const kShowLabelLimit = 0.1;
+        const kMinLabelWidth = 80;
+        const chartWidth = window.innerWidth - 400;
+        // Add value,label pairs
+        for (let i = 0; i < this.data.length; i++) {
+          const value = this.data[i];
+          let label = '';
+          // Only show labels for entries that are large enough..
+          if  (Math.abs(value / maxRowsTotal) * chartWidth > kMinLabelWidth) {
+            label = ms(value);
+          }
+          rowData.push(value, label);
+        }
+        // Add the total row, with very small negative dummy entry for correct
+        // placement of labels in diff view.
+        rowData.push(this.total >= 0 ? 0 : -0.000000001, ms(this.total));
+        return rowData;
+      }
+    }
+
+    function setDataTableRows(dataTable, rows) {
+      let skippedRows = 0;
+      // Always sort by the selected entry (first column after the label)
+      rows.sort((a,b) => b.sortValue - a.sortValue);
+      // Aggregate row data for Average/SUM chart entry:
+      const aggregateData = rows[0].data.slice().fill(0);
+      let maxTotal = 0;
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        let total = Math.abs(row.total);
+        if (total > maxTotal) maxTotal = total;
+        if (row.excludeFromAverage) {
+          skippedRows++;
+          continue
+        }
+        const chartRowData = row.data;
+        for (let j = 0; j < chartRowData.length; j++) {
+          aggregateData[j] += chartRowData[j];
+        }
+      }
+      const length = rows.length - skippedRows;
+      for (let i = 0; i < aggregateData.length; i++) {
+        aggregateData[i] /= rows.length;
+      }
+      const averageRow = new ChartRow(undefined, 'Average',
+          ChartRow.kSortByFirstValue, aggregateData);
+      dataTable.addRow(averageRow.forDataTable());
+
+      rows.forEach(chartRow => {
+        let rowIndex = dataTable.addRow(chartRow.forDataTable(maxTotal));
+        dataTable.setRowProperty(rowIndex, 'page', chartRow.linkedPage);
+      });
+    }
+
+    function showPageVersionGraph(groups, page) {
+      let dataTable = getGraphDataTable(groups, page);
+      let vs = versions.getPageVersions(page);
+      // Calculate the entries for the versions
+      const rows = vs.map(page => new ChartRow(
+          page, page.version.name, ChartRow.kSortByFirstValue,
+          groups.map(group => page.getEntry(group).time),
+          page.version === baselineVersion));
+      renderGraph(`Versions for ${page.name}`, groups, dataTable, rows,
+          'pageVersionGraph', true);
+    }
+
     function showPageGraph(groups, page) {
       let isDiffView = baselineVersion !== undefined;
-      let dataTable = getGraphDataTable(groups);
+      let dataTable = getGraphDataTable(groups, page);
       // Calculate the average row
-      let row = ['Average'];
-      groups.forEach((group) => {
-        if (isDiffView) {
-          row.push(group.isTotal ? 0 : group.getAverageTimeImpact());
-        } else {
-          row.push(group.isTotal ? 0 : group.getTimeImpact());
-        }
-      });
-      dataTable.addRow(row);
       // Sort the pages by the selected group.
       let pages = page.version.pages.filter(page => page.enabled);
-      function sumDiff(page) {
-        let sum = 0;
-        groups.forEach(group => {
-          let value = group.getTimePercentImpact() -
-            page.getEntry(group).timePercent;
-          sum += value * value;
-        });
-        return sum;
-      }
-      if (isDiffView) {
-        pages.sort((a, b) => {
-          return b.getEntry(selectedGroup).time-
-            a.getEntry(selectedGroup).time;
-        });
-      } else {
-        pages.sort((a, b) => {
-          return b.getEntry(selectedGroup).timePercent -
-            a.getEntry(selectedGroup).timePercent;
-        });
-      }
-      // Sort by sum of squared distance to the average.
-      // pages.sort((a, b) => {
-      //   return a.distanceFromTotalPercent() - b.distanceFromTotalPercent();
-      // });
       // Calculate the entries for the pages
-      pages.forEach((page) => {
-        row = [page.name];
-        groups.forEach((group) => {
-          row.push(group.isTotal ? 0 : page.getEntry(group).time);
-        });
-        let rowIndex = dataTable.addRow(row);
-        dataTable.setRowProperty(rowIndex, 'page', page);
-      });
-      renderGraph('Pages for ' + page.version.name, groups, dataTable,
+      const rows = pages.map(page => new ChartRow(
+            page, page.name,
+            isDiffView ?
+              ChartRow.kSortByFirstValue : ChartRow.kSortFirstValueRelative,
+            groups.map(group => page.getEntry(group).time)));
+      renderGraph(`Pages for ${page.version.name}`, groups, dataTable, rows,
           'pageGraph', isDiffView ? true : 'percent');
     }
 
     function showVersionGraph(groups, page) {
-      let dataTable = getGraphDataTable(groups);
-      let row;
+      let dataTable = getGraphDataTable(groups, page);
       let vs = versions.versions.filter(version => version.enabled);
-      vs.sort((a, b) => {
-        return b.getEntry(selectedGroup).getTimeImpact() -
-          a.getEntry(selectedGroup).getTimeImpact();
-      });
       // Calculate the entries for the versions
-      vs.forEach((version) => {
-        row = [version.name];
-        groups.forEach((group) => {
-          row.push(group.isTotal ? 0 : version.getEntry(group).getTimeImpact());
-        });
-        let rowIndex = dataTable.addRow(row);
-        dataTable.setRowProperty(rowIndex, 'page', page);
-      });
-      renderGraph('Versions Total Time over all Pages', groups, dataTable,
+      const rows = vs.map((version) => new ChartRow(
+          version.get(page), version.name, ChartRow.kSortByFirstValue,
+          groups.map(group => version.getEntry(group).getTimeImpact()),
+          version === baselineVersion));
+      renderGraph('Versions Total Time over all Pages', groups, dataTable, rows,
           'versionGraph', true);
     }
 
-    function showPageVersionGraph(groups, page) {
-      let dataTable = getGraphDataTable(groups);
-      let row;
-      let vs = versions.getPageVersions(page);
-      vs.sort((a, b) => {
-        return b.getEntry(selectedGroup).time - a.getEntry(selectedGroup).time;
-      });
-      // Calculate the entries for the versions
-      vs.forEach((page) => {
-        row = [page.version.name];
-        groups.forEach((group) => {
-          row.push(group.isTotal ? 0 : page.getEntry(group).time);
-        });
-        let rowIndex = dataTable.addRow(row);
-        dataTable.setRowProperty(rowIndex, 'page', page);
-      });
-      renderGraph('Versions for ' + page.name, groups, dataTable,
-          'pageVersionGraph', true);
-    }
-
-    function renderGraph(title, groups, dataTable, id, isStacked) {
+    function renderGraph(title, groups, dataTable, rows, id, isStacked) {
       let isDiffView = baselineVersion !== undefined;
+      setDataTableRows(dataTable, rows);
       let formatter = new google.visualization.NumberFormat({
         suffix: (isDiffView ? 'msΔ' : 'ms'),
         negativeColor: 'red',
@@ -848,21 +888,18 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           minValue: 0,
           textStyle: { fontSize: 14 }
         },
-        animation:{
-          duration: dataTable.getNumberOfRows() > 50 ? 0 : 500 ,
-          easing: 'out',
-        },
         vAxis: {
           textStyle: { fontSize: 14 }
         },
         tooltip: { textStyle: { fontSize: 14 }},
+        annotations: { textStyle: { fontSize: 8 }},
         explorer: {
           actions: ['dragToZoom', 'rightClickToReset'],
           maxZoomIn: 0.01
         },
-        legend: {position:'top', maxLines: 1, textStyle: { fontSize: 14 }},
-        chartArea: {left:200, top:50, width:'98%', height:'80%'},
-        colors: groups.map(each => each.color)
+        legend: {position:'top', maxLines: 3, textStyle: { fontSize: 12 }},
+        chartArea: {left:200, top:50 },
+        colors: [...groups.map(each => each.color), /* Chart Total */ "#000000"]
       };
       let parentNode = $(id);
       parentNode.querySelector('h2>span, h3>span').textContent = title;
@@ -886,7 +923,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         if (!page) return selectedGroup;
         return page.getEntry(selectedGroup);
       }
-      function selectHandler() {
+      function selectHandler(e) {
         selectedGroup = getChartEntry(chart.getSelection()[0])
         if (!selectedGroup) return;
         selectEntry(selectedGroup, true);
@@ -1066,27 +1103,45 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     // EventHandlers
     function handleBodyLoad() {
       $('uploadInput').focus();
-      if (defaultData) {
-        handleLoadJSON(defaultData);
-      } else if (window.location.protocol !== 'file:') {
-        tryLoadDefaultResults();
-      }
+      if (defaultData) return handleLoadJSON(defaultData);
+      if (tryLoadFromURLParams()) return;
+      if (window.location.protocol !== 'file:') return tryLoadDefaultResults();
     }
 
-    function tryLoadDefaultResults() {
+    async function tryLoadDefaultResults() {
      // Try to load a results.json file adjacent to this day.
-     let xhr = new XMLHttpRequest();
      // The markers on the following line can be used to replace the url easily
      // with scripts.
-     xhr.open('GET', /*results-url-start*/'results.json'/*results-url-end*/, true);
-     xhr.onreadystatechange = function(e) {
-       if(this.readyState !== XMLHttpRequest.DONE || this.status !== 200) return;
-       handleLoadText(this.responseText);
-     };
-     xhr.send();
+     const url = /*results-url-start*/'results.json'/*results-url-end*/;
+     tryLoadFile(url);
     }
 
-    function handleAppendFile() {
+    async function tryLoadFile(url, append=false) {
+      if (!url.startsWith('http')) {
+        // hack to get relative urls
+        let location = window.location;
+        let parts = location.pathname.split("/").slice(0, -1);
+        url = location.origin + parts.join('/') + '/' + url;
+      }
+      let response = await fetch(url);
+      if (!response.ok) return false;
+      let filename = url.split('/');
+      filename = filename[filename.length-1];
+      handleLoadText(await response.text(), append, filename);
+    }
+
+    async function tryLoadFromURLParams() {
+      let params = new URLSearchParams(document.location.search);
+      let hasFile = false;
+      params.forEach((value, key) => {
+        if (key !== 'file') return;
+        hasFile = true;
+        tryLoadFile(value, true);
+      });
+      return hasFile;
+    }
+
+    function handleAppendFiles() {
       let files = document.getElementById("appendInput").files;
       loadFiles(files, true);
     }
@@ -1096,25 +1151,30 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       loadFiles(files, false)
     }
 
-    function loadFiles(files, append) {
-      let file = files[0];
-      let reader = new FileReader();
-
-      reader.onload = function(evt) {
-        handleLoadText(this.result, append, file.name);
+    async function loadFiles(files, append) {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        console.log(file.name);
+        let text = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result)
+          reader.readAsText(file);
+        });
+        handleLoadText(text, append, file.name);
       }
-      reader.readAsText(file);
     }
 
     function handleLoadText(text, append, fileName) {
-      try {
+      if (fileName.endsWith('.json')) {
         handleLoadJSON(JSON.parse(text), append, fileName);
-      } catch(e) {
-        if (!fileName.endsWith('.txt')) {
-          alert(`Error parsing "${fileName}"`);
-          console.error(e);
-        }
+      } else if (fileName.endsWith('.csv') ||
+          fileName.endsWith('.output') || fileName.endsWith('.output.txt')) {
+        handleLoadCSV(text, append, fileName);
+      } else if (fileName.endsWith('.txt')) {
         handleLoadTXT(text, append, fileName);
+      } else {
+        alert(`Error parsing "${fileName}"`);
+        console.error(e);
       }
     }
 
@@ -1130,10 +1190,10 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     }
 
     function handleLoadJSON(json, append, fileName) {
-      let isFirstLoad = pages === undefined;
       json = fixClusterTelemetryResults(json);
       json = fixTraceImportJSON(json);
       json = fixSingleVersionJSON(json, fileName);
+      let isFirstLoad = pages === undefined;
       if (append && !isFirstLoad) {
         json = createUniqueVersions(json)
       }
@@ -1146,6 +1206,162 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       displayResultsAfterLoading(isFirstLoad)
     }
 
+    function handleLoadCSV(csv, append, fileName) {
+      let isFirstLoad = pages === undefined;
+      if (!append || isFirstLoad) {
+        pages = new Pages();
+        versions = new Versions();
+      }
+      const lines = csv.split(/\r?\n/);
+      // The first line contains only the field names.
+      const fields = new Map();
+      csvSplit(lines[0]).forEach((name, index) => {
+        fields.set(name, index);
+      });
+      if (fields.has('displayLabel') && fields.has('stories')) {
+        handleLoadResultCSV(fields, lines, fileName)
+      } else if (fields.has('page_name')) {
+        handleLoadClusterTelemetryCSV(fields, lines, fileName)
+      } else {
+        return alert("Unknown CSV format");
+      }
+      displayResultsAfterLoading(isFirstLoad)
+    }
+
+
+    function csvSplit(line) {
+      let fields = [];
+      let index = 0;
+      while (index < line.length) {
+        let lastIndex = index;
+        if (line[lastIndex] == '"') {
+          index = line.indexOf('"', lastIndex+1);
+          if (index < 0) index = line.length;
+          fields.push(line.substring(lastIndex+1, index));
+          // Consume ','
+          index++;
+        } else {
+          index = line.indexOf(',', lastIndex);
+          if (index === -1) index = line.length;
+          fields.push(line.substring(lastIndex, index))
+        }
+        // Consume ','
+        index++;
+      }
+      return fields;
+    }
+
+    function handleLoadClusterTelemetryCSV(fields, lines, fileName) {
+      const rscFields = Array.from(fields.keys())
+        .filter(field => field.endsWith(':duration (ms)'))
+        .map(field => {
+          let name = field.split(':')[0];
+          return [name, fields.get(field), fields.get(`${name}:count`)];
+        })
+      const page_name_i = fields.get('page_name');
+      const version = versions.getOrCreate(fileName);
+      for (let i=1; i<lines.length; i++) {
+        const line = csvSplit(lines[i]);
+        if (line.length == 0) continue;
+        let page_name = line[page_name_i];
+        if (page_name === undefined) continue;
+        page_name = page_name.split(' ')[0];
+        const pageVersion = version.getOrCreate(page_name);
+        for (let [fieldName, duration_i, count_i] of rscFields) {
+          const duration = Number.parseFloat(line[duration_i]);
+          const count = Number.parseFloat(line[count_i]);
+          // Skip over entries without metrics (most likely crashes)
+          if (Number.isNaN(count)|| Number.isNaN(duration)) {
+            console.warn(`BROKEN ${page_name}`, lines[i])
+            break;
+          }
+          pageVersion.add(new Entry(0, fieldName, duration, 0, 0, count, 0 ,0))
+        }
+      }
+    }
+
+    function handleLoadResultCSV(fields, lines, fileName) {
+      const version_i = fields.get('displayLabel');
+      const page_i = fields.get('stories');
+      const category_i = fields.get('name');
+      const value_i = fields.get('avg');
+      // Ignore the following categories as they are aggregated values and are
+      // created by callstats.html on the fly.
+      const skip_categories = new Set([
+          'V8-Only', 'V8-Only-Main-Thread', 'Total-Main-Thread', 'Blink_Total'])
+      const tempEntriesCache = new Map();
+      for (let i=1; i<lines.length; i++) {
+        const line = csvSplit(lines[i]);
+        if (line.length == 0) continue;
+        const raw_category = line[category_i];
+        if (!raw_category.endsWith(':duration') &&
+            !raw_category.endsWith(':count')) {
+          continue;
+        }
+        let [category, type] = raw_category.split(':');
+        if (skip_categories.has(category)) continue;
+        const version = versions.getOrCreate(line[version_i]);
+        const pageVersion = version.getOrCreate(line[page_i]);
+        const value = Number.parseFloat(line[value_i]);
+        const entry = TempEntry.get(tempEntriesCache, pageVersion, category);
+        if (type == 'duration') {
+          entry.durations.push(value)
+        } else {
+          entry.counts.push(value)
+        }
+      }
+
+      tempEntriesCache.forEach((tempEntries, pageVersion) => {
+        tempEntries.forEach(tmpEntry => {
+          pageVersion.add(tmpEntry.toEntry())
+        })
+      });
+    }
+
+    class TempEntry {
+      constructor(category) {
+        this.category = category;
+        this.durations = [];
+        this.counts = [];
+      }
+
+      static get(cache, pageVersion, category) {
+        let tempEntries = cache.get(pageVersion);
+        if (tempEntries === undefined) {
+          tempEntries = new Map();
+          cache.set(pageVersion, tempEntries);
+        }
+        let tempEntry =  tempEntries.get(category);
+        if (tempEntry === undefined) {
+          tempEntry = new TempEntry(category);
+          tempEntries.set(category, tempEntry);
+        }
+        return tempEntry;
+      }
+
+      toEntry() {
+        const [duration, durationStddev] = this.stats(this.durations);
+        const [count, countStddev] = this.stats(this.durations);
+        return new Entry(0, this.category,
+            duration, durationStddev, 0, count, countStddev, 0)
+      }
+
+      stats(values) {
+        let sum = 0;
+        for (let i = 0; i < values.length; i++) {
+          sum += values[i];
+        }
+        const avg = sum / values.length;
+        let stddevSquared = 0;
+        for (let i = 0; i < values.length; i++) {
+          const delta = values[i] - avg;
+          stddevSquared += delta * delta;
+        }
+        const stddev = Math.sqrt(stddevSquared / values.length);
+        return [avg, stddev];
+      }
+    }
+
     function handleLoadTXT(txt, append, fileName) {
       let isFirstLoad = pages === undefined;
       // Load raw RCS output which contains a single page
@@ -1153,21 +1369,22 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         pages = new Pages();
         versions = new Versions()
       }
-      versions.add(Version.fromTXT(fileName, txt))
-      displayResultsAfterLoading()
+      versions.add(Version.fromTXT(fileName, txt));
+      displayResultsAfterLoading(isFirstLoad);
 
     }
 
-    function displayResultsAfterLoading(isFirstLoad) {
+    function displayResultsAfterLoading(isFirstLoad=true) {
       let state = getStateFromParams();
       initialize()
       if (isFirstLoad && !popHistoryState(state) && selectedPage) {
         showEntry(selectedPage.total);
         return;
       }
-      selectedPage = versions.versions[0].pages[0]
-      if (selectedPage == undefined) return;
-      showPage(selectedPage);
+      const page = versions.versions[0].pages[0]
+      if (page  == undefined) return;
+      showPage(page);
+      showEntry(page.total);
     }
 
     function fixClusterTelemetryResults(json) {
@@ -1193,7 +1410,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           let count = entry.count;
           let time = entry.time;
           entries.push([name, time, 0, 0, count, 0, 0]);
-        } 
+        }
         let domain = file_name.split("/").slice(-1)[0];
         result[domain] = entries;
       }
@@ -1236,7 +1453,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
             let total = page_data['Total'];
             total.duration.average += metric_duration * kMicroToMilli;
             total.count.average += metric_count;
-          } 
+          }
         }
         version_data[page_name] = page_data;
       }
@@ -1277,6 +1494,24 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         result[key+"_"+appendIndex] = json[key];
       }
       return result
+    }
+
+    function handleCopyToClipboard(event) {
+      const names =[ "Group", ...versions.versions.map(e=>e.name)];
+      let result = [ names.join("\t") ];
+      let groups = Array.from(Group.groups.values());
+      // Move the total group to the end.
+      groups.push(groups.shift())
+      groups.forEach(group => {
+        let row = [group.name];
+        versions.forEach(v => {
+          const time = v.pages[0].get("Group-"+group.name)?._time ?? 0;
+          row.push(time)
+        })
+        result.push(row.join("\t"));
+      });
+      result = result.join("\n");
+      navigator.clipboard.writeText(result)
     }
 
     function handleToggleGroup(event) {
@@ -1397,7 +1632,8 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         this.versions = [];
       }
       add(version) {
-        this.versions.push(version)
+        this.versions.push(version);
+        return version;
       }
       getPageVersions(page) {
         let result = [];
@@ -1416,6 +1652,9 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       }
       getByName(name) {
         return this.versions.find((each) => each.name == name);
+      }
+      getOrCreate(name) {
+        return this.getByName(name) ?? this.add(new Version(name))
       }
       forEach(f) {
         this.versions.forEach(f);
@@ -1450,6 +1689,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       }
       add(page) {
         this.pages.push(page);
+        return page;
       }
       indexOf(name) {
         for (let i = 0; i < this.pages.length; i++) {
@@ -1465,6 +1705,10 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         let index = this.indexOf(name);
         if (0 <= index) return this.pages[index];
         return undefined
+      }
+      getOrCreate(name) {
+        return this.get(name) ??
+            this.add(new PageVersion(this, pages.getOrCreate(name)));
       }
       get length() {
         return this.pages.length
@@ -1577,6 +1821,9 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         }
         return super.get(name);
       }
+      getOrCreate(name) {
+        return this.get(name);
+      }
     }
 
     class Page {
@@ -1585,8 +1832,9 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         this.enabled = true;
         this.versions = [];
       }
-      add(page) {
-        this.versions.push(page);
+      add(pageVersion) {
+        this.versions.push(pageVersion);
+        return pageVersion;
       }
     }
 
@@ -1609,6 +1857,8 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           Group.groups.get('blink').entry(),
           Group.groups.get('callback').entry(),
           Group.groups.get('api').entry(),
+          Group.groups.get('gc-custom').entry(),
+          Group.groups.get('gc-background').entry(),
           Group.groups.get('gc').entry(),
           Group.groups.get('javascript').entry(),
           Group.groups.get('runtime').entry(),
@@ -1629,13 +1879,26 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       }
       add(entry) {
         // Ignore accidentally added Group entries.
-        if (entry.name.startsWith(GroupedEntry.prefix)) return;
-        entry.page = this;
-        this.entryDict.set(entry.name, entry);
-        for (let group of this.groups) { 
-          if (group.add(entry)) return;
+        if (entry.name.startsWith(GroupedEntry.prefix)) {
+          console.warn("Skipping accidentally added Group entry:", entry, this);
+          return;
         }
-        console.error("Sould not get here", entry);
+        let existingEntry = this.entryDict.get(entry.name);
+        if (existingEntry !== undefined) {
+          // Duplicate entries happen when multiple runs are combined into a
+          // single file.
+          existingEntry.add(entry);
+          for (let group of this.groups) {
+            if (group.addTimeAndCount(entry)) return;
+          }
+        } else {
+          entry.page = this;
+          this.entryDict.set(entry.name, entry);
+          for (let group of this.groups) {
+            if (group.add(entry)) return;
+          }
+        }
+        console.error("Should not get here", entry);
       }
       get(name) {
         return this.entryDict.get(name)
@@ -1718,6 +1981,9 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         // Skip the first two lines (HEADER and SEPARATOR)
         for (let i = 2; i < lines.length; i++) {
           let line = lines[i].trim().split(split)
+          // Skip header lines
+          if (lines[i].startsWith("======")) continue;
+          if (lines[i+1]?.startsWith("======")) continue;
           if (line.length != 5) continue;
           let position = i-2;
           pageVersion.add(Entry.fromTXT(position, line));
@@ -1729,19 +1995,34 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
 
     class Entry {
       constructor(position, name, time, timeVariance, timeVariancePercent,
-        count,
-        countVariance, countVariancePercent) {
+            count, countVariance, countVariancePercent) {
         this.position = position;
         this.name = name;
         this._time = time;
         this._timeVariance = timeVariance;
-        this._timeVariancePercent = timeVariancePercent;
+        this._timeVariancePercent =
+            this._variancePercent(time, timeVariance, timeVariancePercent);
         this._count = count;
         this.countVariance = countVariance;
-        this.countVariancePercent = countVariancePercent;
+        this.countVariancePercent =
+            this._variancePercent(count, countVariance, countVariancePercent);
         this.page = undefined;
         this.parent = undefined;
         this.isTotal = false;
+      }
+      _variancePercent(value, valueVariance, valueVariancePercent) {
+        if (valueVariancePercent) return valueVariancePercent;
+        if (!valueVariance) return 0;
+        return valueVariance / value * 100;
+      }
+
+      add(entry) {
+        if (this.name != entry.name) {
+          console.error("Should not combine entries with different names");
+          return;
+        }
+        this._time += entry._time;
+        this._count += entry._count;
       }
       urlParams() {
         let params = this.page.urlParams();
@@ -1841,7 +2122,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         this.regexp = regexp;
         this.color = color;
         this.enabled = enabled;
-        this.addsToTotal = addsToTotal; 
+        this.addsToTotal = addsToTotal;
       }
       entry() { return new GroupedEntry(this) };
     }
@@ -1851,27 +2132,32 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       return group;
     }
     Group.add('total', new Group('Total', /.*Total.*/, '#BBB', true, false));
-    Group.add('ic', new Group('IC', /.*IC_.*/, "#3366CC"));
+    Group.add('ic', new Group('IC', /(.*IC_.*)|IC/, "#3366CC"));
     Group.add('optimize-background', new Group('Optimize-Background',
-        /(.*OptimizeBackground.*)/, "#702000"));
+        /(.*Optimize-?Background.*)/, "#702000"));
     Group.add('optimize', new Group('Optimize',
         /StackGuard|.*Optimize.*|.*Deoptimize.*|Recompile.*/, "#DC3912"));
     Group.add('compile-background', new Group('Compile-Background',
-        /(.*CompileBackground.*)/, "#b08000"));
+        /(.*Compile-?Background.*)/, "#b08000"));
     Group.add('compile', new Group('Compile',
         /(^Compile.*)|(.*_Compile.*)/, "#FFAA00"));
     Group.add('parse-background',
-        new Group('Parse-Background', /.*ParseBackground.*/, "#c05000"));
+        new Group('Parse-Background', /.*Parse-?Background.*/, "#c05000"));
     Group.add('parse', new Group('Parse', /.*Parse.*/, "#FF6600"));
-    Group.add('callback', new Group('Blink C++', /.*Callback*/, "#109618"));
+    Group.add('callback',
+        new Group('Blink C++', /.*(Callback)|(Blink C\+\+).*/, "#109618"));
     Group.add('api', new Group('API', /.*API.*/, "#990099"));
     Group.add('gc-custom', new Group('GC-Custom', /GC_Custom_.*/, "#0099C6"));
     Group.add('gc-background',
-        new Group('GC-Background', /.*GC.*BACKGROUND.*/, "#00597c"));
-    Group.add('gc', new Group('GC', /GC_.*|AllocateInTargetSpace/, "#00799c"));
-    Group.add('javascript', new Group('JavaScript', /JS_Execution/, "#DD4477"));
+        new Group(
+          'GC-Background', /.*GC.*(BACKGROUND|Background).*/, "#00597c"));
+    Group.add('gc',
+        new Group('GC', /GC_.*|AllocateInTargetSpace|GC/, "#00799c"));
+    Group.add('javascript',
+        new Group('JavaScript', /JS_Execution|JavaScript/, "#DD4477"));
     Group.add('runtime', new Group('V8 C++', /.*/, "#88BB00"));
-    Group.add('blink', new Group('Blink RCS', /.*Blink_.*/, "#006600", false, false));
+    Group.add('blink',
+        new Group('Blink RCS', /.*Blink_.*/, "#006600", false, false));
     Group.add('unclassified', new Group('Unclassified', /.*/, "#000", false));
 
     class GroupedEntry extends Entry {
@@ -1886,18 +2172,23 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       get color() { return this.group.color }
       get enabled() { return this.group.enabled }
       add(entry) {
-        if (!this.regexp.test(entry.name)) return false;
-        this._time += entry.time;
-        this._count += entry.count;
+        if (!this.addTimeAndCount(entry)) return;
         // TODO: sum up variance
         this.entries.push(entry);
         entry.parent = this;
         return true;
       }
+      addTimeAndCount(entry) {
+        if (!this.regexp.test(entry.name)) return false;
+        this._time += entry.time;
+        this._count += entry.count;
+        return true;
+      }
       _initializeMissingEntries() {
         let dummyEntryNames = new Set();
         versions.forEach((version) => {
-          let groupEntry = version.getEntry(this);
+          let page = version.getOrCreate(this.page.name);
+          let groupEntry = page.get(this.name);
           if (groupEntry != this) {
             for (let entry of groupEntry.entries) {
               if (this.page.get(entry.name) == undefined) {
@@ -1913,7 +2204,6 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           this.missingEntries.push(tmpEntry);
         };
       }
-
       forEach(fun) {
         // Show also all entries which are in at least one version.
         // Concatenate our real entries.
@@ -1942,9 +2232,10 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       }
       getVarianceForProperty(property) {
         let sum = 0;
+        const key = property + 'Variance';
         this.entries.forEach((entry) => {
-          sum += entry[property + 'Variance'] * entry[property +
-            'Variance'];
+          const value = entry[key];
+          sum += value * value;
         });
         return Math.sqrt(sum);
       }
@@ -2009,13 +2300,16 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       <form name="fileForm">
         <p>
           <label for="uploadInput">Load File:</label>
-          <input id="uploadInput" type="file" name="files" onchange="handleLoadFile();" accept=".json,.txt">
+          <input id="uploadInput" type="file" name="files" onchange="handleLoadFile();" accept=".json,.txt,.csv,.output">
         </p>
         <p>
-          <label for="appendInput">Append File:</label>
-          <input id="appendInput" type="file" name="files" onchange="handleAppendFile();" accept=".json,.txt">
+          <label for="appendInput">Append Files:</label>
+          <input id="appendInput" type="file" name="files" onchange="handleAppendFiles();" multiple accept=".json,.txt,.csv,.output">
         </p>
       </form>
+      <p>
+        <button onclick="handleCopyToClipboard()">Copy Table to Clipboard</button>
+      </p>
     </div>
 
     <div class="inline hidden">
@@ -2167,7 +2461,13 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       </li>
       <li>Load the generated <code>out.json</code></li>
     </ol>
-    <h3>Raw approach</h3>
+    <h3>Merged CSV from results.html</h3>
+    <ol>
+      <li>Open a results.html page for RCS-enabled benchmarks</li>
+      <li>Select "Export merged CSV" in the toolbar</li>
+      <li>Load the downloading .csv file normally in callstats.html</li>
+    </ol>
+    <h3>Aggregated raw txt output</h3>
     <ol>
       <li>Install scipy, e.g. <code>sudo aptitude install python-scipy</code>
       <li>Check out a known working version of webpagereply:

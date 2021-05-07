@@ -22,6 +22,10 @@ using protocol::Runtime::PropertyPreview;
 using protocol::Runtime::RemoteObject;
 
 namespace {
+
+// WebAssembly memory is organized in pages of size 64KiB.
+const size_t kWasmPageSize = 64 * 1024;
+
 V8InspectorClient* clientFor(v8::Local<v8::Context> context) {
   return static_cast<V8InspectorImpl*>(
              v8::debug::GetInspector(context->GetIsolate()))
@@ -38,35 +42,6 @@ V8InternalValueType v8InternalValueTypeFrom(v8::Local<v8::Context> context,
   if (!inspectedContext) return V8InternalValueType::kNone;
   return inspectedContext->getInternalType(value.As<v8::Object>());
 }
-
-template <typename ResultType>
-ResultType unpackWasmValue(v8::Local<v8::Context> context,
-                           v8::Local<v8::Array> array) {
-  ResultType result;
-  constexpr int kSize = sizeof(result);
-  uint8_t buffer[kSize];
-  for (int i = 0; i < kSize; i++) {
-    v8::Local<v8::Int32> i32 =
-        array->Get(context, i).ToLocalChecked().As<v8::Int32>();
-    buffer[i] = static_cast<uint8_t>(i32->Value());
-  }
-  memcpy(&result, buffer, kSize);
-  return result;
-}
-
-String16 descriptionForWasmS128(std::array<uint8_t, 16> arr) {
-  String16Builder builder;
-  for (int i = 0; i < 16; i++) {
-    builder.appendUnsignedAsHex(arr.at(i));
-    builder.append(" ");
-  }
-  return builder.toString();
-}
-
-// Partial list of Wasm's ValueType, copied here to avoid including internal
-// header. Using an unscoped enumeration here to allow implicit conversions from
-// int. Keep in sync with ValueType::Kind in wasm/value-type.h.
-enum WasmValueType { kStmt, kI32, kI64, kF32, kF64, kS128, kExternRef };
 
 Response toProtocolValue(v8::Local<v8::Context> context,
                          v8::Local<v8::Value> value, int maxDepth,
@@ -123,7 +98,7 @@ Response toProtocolValue(v8::Local<v8::Context> context,
   if (value->IsObject()) {
     std::unique_ptr<protocol::DictionaryValue> jsonObject =
         protocol::DictionaryValue::create();
-    v8::Local<v8::Object> object = v8::Local<v8::Object>::Cast(value);
+    v8::Local<v8::Object> object = value.As<v8::Object>();
     v8::Local<v8::Array> propertyNames;
     if (!object->GetPropertyNames(context).ToLocal(&propertyNames))
       return Response::InternalError();
@@ -134,8 +109,8 @@ Response toProtocolValue(v8::Local<v8::Context> context,
         return Response::InternalError();
       // FIXME(yurys): v8::Object should support GetOwnPropertyNames
       if (name->IsString()) {
-        v8::Maybe<bool> hasRealNamedProperty = object->HasRealNamedProperty(
-            context, v8::Local<v8::String>::Cast(name));
+        v8::Maybe<bool> hasRealNamedProperty =
+            object->HasRealNamedProperty(context, name.As<v8::String>());
         if (hasRealNamedProperty.IsNothing() ||
             !hasRealNamedProperty.FromJust())
           continue;
@@ -158,56 +133,6 @@ Response toProtocolValue(v8::Local<v8::Context> context,
     return Response::Success();
   }
 
-  if (v8::debug::WasmValue::IsWasmValue(value)) {
-    auto wasmValue = value.As<v8::debug::WasmValue>();
-
-    // Convert serializable Wasm values (i32, f32, f64) into protocol values.
-    // Not all i64 values are representable by double, so always represent it as
-    // a String here.
-    switch (wasmValue->value_type()) {
-      case kI32: {
-        *result = protocol::FundamentalValue::create(
-            unpackWasmValue<int32_t>(context, wasmValue->bytes()));
-        break;
-      }
-      case kI64: {
-        *result = protocol::StringValue::create(String16::fromInteger64(
-            unpackWasmValue<int64_t>(context, wasmValue->bytes())));
-        break;
-      }
-      case kF32: {
-        *result = protocol::FundamentalValue::create(
-            unpackWasmValue<float>(context, wasmValue->bytes()));
-        break;
-      }
-      case kF64: {
-        *result = protocol::FundamentalValue::create(
-            unpackWasmValue<double>(context, wasmValue->bytes()));
-        break;
-      }
-      case kS128: {
-        auto bytes = wasmValue->bytes();
-        DCHECK_EQ(16, bytes->Length());
-        auto s128 = unpackWasmValue<std::array<uint8_t, 16>>(context, bytes);
-        String16 desc = descriptionForWasmS128(s128);
-        *result = protocol::StringValue::create(desc);
-        break;
-      }
-      case kExternRef: {
-        std::unique_ptr<protocol::Value> externrefValue;
-        Response response = toProtocolValue(context, wasmValue->ref(), maxDepth,
-                                            &externrefValue);
-        if (!response.IsSuccess()) return response;
-        *result = std::move(externrefValue);
-        break;
-      }
-      default: {
-        UNIMPLEMENTED();
-      }
-    }
-    return Response::Success();
-  }
-
   return Response::ServerError("Object couldn't be returned by value");
 }
 
@@ -215,7 +140,13 @@ Response toProtocolValue(v8::Local<v8::Context> context,
                          v8::Local<v8::Value> value,
                          std::unique_ptr<protocol::Value>* result) {
   if (value->IsUndefined()) return Response::Success();
-  return toProtocolValue(context, value, 1000, result);
+#if defined(V8_USE_ADDRESS_SANITIZER) && V8_OS_MACOSX
+  // For whatever reason, ASan on MacOS has bigger stack frames.
+  static const int kMaxDepth = 900;
+#else
+  static const int kMaxDepth = 1000;
+#endif
+  return toProtocolValue(context, value, kMaxDepth, result);
 }
 
 enum AbbreviateMode { kMiddle, kEnd };
@@ -272,6 +203,7 @@ String16 descriptionForRegExp(v8::Isolate* isolate,
   v8::RegExp::Flags flags = value->GetFlags();
   if (flags & v8::RegExp::Flags::kGlobal) description.append('g');
   if (flags & v8::RegExp::Flags::kIgnoreCase) description.append('i');
+  if (flags & v8::RegExp::Flags::kLinear) description.append('l');
   if (flags & v8::RegExp::Flags::kMultiline) description.append('m');
   if (flags & v8::RegExp::Flags::kDotAll) description.append('s');
   if (flags & v8::RegExp::Flags::kUnicode) description.append('u');
@@ -476,121 +408,6 @@ class PrimitiveValueMirror final : public ValueMirror {
   v8::Local<v8::Value> m_value;
   String16 m_type;
   String16 m_subtype;
-};
-
-class WasmValueMirror final : public ValueMirror {
- public:
-  explicit WasmValueMirror(v8::Local<v8::debug::WasmValue> value)
-      : m_value(value) {}
-
-  v8::Local<v8::Value> v8Value() const override { return m_value; }
-
-  Response buildRemoteObject(
-      v8::Local<v8::Context> context, WrapMode mode,
-      std::unique_ptr<RemoteObject>* result) const override {
-    bool serializable;
-    String16 descriptionValue = description(context, &serializable);
-    *result = RemoteObject::create()
-                  .setType(RemoteObject::TypeEnum::Wasm)
-                  .setSubtype(subtype())
-                  .setDescription(descriptionValue)
-                  .build();
-    if (serializable) {
-      std::unique_ptr<protocol::Value> protocolValue;
-      toProtocolValue(context, m_value, &protocolValue);
-      (*result)->setValue(std::move(protocolValue));
-    } else {
-      (*result)->setUnserializableValue(descriptionValue);
-    }
-    return Response::Success();
-  }
-
-  void buildPropertyPreview(
-      v8::Local<v8::Context> context, const String16& name,
-      std::unique_ptr<PropertyPreview>* result) const override {
-    bool serializable;
-    *result = PropertyPreview::create()
-                  .setName(name)
-                  .setType(RemoteObject::TypeEnum::Wasm)
-                  .setSubtype(subtype())
-                  .setValue(description(context, &serializable))
-                  .build();
-  }
-
-  void buildEntryPreview(
-      v8::Local<v8::Context> context, int* nameLimit, int* indexLimit,
-      std::unique_ptr<ObjectPreview>* preview) const override {
-    bool serializable;
-    *preview =
-        ObjectPreview::create()
-            .setType(RemoteObject::TypeEnum::Wasm)
-            .setSubtype(subtype())
-            .setDescription(description(context, &serializable))
-            .setOverflow(false)
-            .setProperties(std::make_unique<protocol::Array<PropertyPreview>>())
-            .build();
-  }
-
- private:
-  String16 subtype() const {
-    switch (m_value->value_type()) {
-      case kI32:
-        return RemoteObject::SubtypeEnum::I32;
-      case kI64:
-        return RemoteObject::SubtypeEnum::I64;
-      case kF32:
-        return RemoteObject::SubtypeEnum::F32;
-      case kF64:
-        return RemoteObject::SubtypeEnum::F64;
-      case kS128:
-        return RemoteObject::SubtypeEnum::V128;
-      case kExternRef:
-        return RemoteObject::SubtypeEnum::Externref;
-      default:
-        UNREACHABLE();
-    }
-  }
-
-  String16 description(v8::Local<v8::Context> context,
-                       bool* serializable) const {
-    *serializable = true;
-    switch (m_value->value_type()) {
-      case kI32: {
-        return String16::fromInteger(
-            unpackWasmValue<int32_t>(context, m_value->bytes()));
-      }
-      case kI64: {
-        *serializable = false;
-        return String16::fromInteger64(
-            unpackWasmValue<int64_t>(context, m_value->bytes()));
-      }
-      case kF32: {
-        return String16::fromDouble(
-            unpackWasmValue<float>(context, m_value->bytes()));
-      }
-      case kF64: {
-        return String16::fromDouble(
-            unpackWasmValue<double>(context, m_value->bytes()));
-      }
-      case kS128: {
-        *serializable = false;
-        auto bytes = m_value->bytes();
-        DCHECK_EQ(16, bytes->Length());
-        auto s128 = unpackWasmValue<std::array<uint8_t, 16>>(context, bytes);
-        return descriptionForWasmS128(s128);
-      }
-      case kExternRef: {
-        return descriptionForObject(context->GetIsolate(),
-                                    m_value->ref().As<v8::Object>());
-      }
-      default: {
-        *serializable = false;
-        return String16("Unknown");
-      }
-    }
-  }
-
-  v8::Local<v8::debug::WasmValue> m_value;
 };
 
 class NumberMirror final : public ValueMirror {
@@ -882,7 +699,7 @@ bool isArrayLike(v8::Local<v8::Context> context, v8::Local<v8::Value> value,
       !lengthValue->IsUint32()) {
     return false;
   }
-  *length = v8::Local<v8::Uint32>::Cast(lengthValue)->Value();
+  *length = lengthValue.As<v8::Uint32>()->Value();
   return true;
 }
 
@@ -976,6 +793,8 @@ bool getPropertiesForPreview(v8::Local<v8::Context> context,
   if (object->IsArray() || isArrayLike(context, object, &length) ||
       object->IsStringObject()) {
     blocklist.push_back("length");
+  } else if (v8::debug::WasmValueObject::IsWasmValueObject(object)) {
+    blocklist.push_back("type");
   } else {
     auto clientSubtype = clientFor(context)->valueSubtype(object);
     if (clientSubtype && toString16(clientSubtype->string()) == "array") {
@@ -1355,45 +1174,7 @@ bool doesAttributeHaveObservableSideEffectOnGet(v8::Local<v8::Context> context,
   }
   return false;
 }
-template <typename ArrayView, typename ArrayBuffer>
-void addTypedArrayView(v8::Local<v8::Context> context,
-                       v8::Local<ArrayBuffer> buffer, size_t length,
-                       const char* name,
-                       ValueMirror::PropertyAccumulator* accumulator) {
-  accumulator->Add(PropertyMirror{
-      String16(name), false, false, false, true, false,
-      ValueMirror::create(context, ArrayView::New(buffer, 0, length)), nullptr,
-      nullptr, nullptr, nullptr});
-}
 
-template <typename ArrayBuffer>
-void addTypedArrayViews(v8::Local<v8::Context> context,
-                        v8::Local<ArrayBuffer> buffer,
-                        ValueMirror::PropertyAccumulator* accumulator) {
-  // TODO(alph): these should be internal properties.
-  // TODO(v8:9308): Reconsider how large arrays are previewed.
-  const size_t byte_length = buffer->ByteLength();
-
-  size_t length = byte_length;
-  if (length > v8::TypedArray::kMaxLength) return;
-
-  addTypedArrayView<v8::Int8Array>(context, buffer, length, "[[Int8Array]]",
-                                   accumulator);
-  addTypedArrayView<v8::Uint8Array>(context, buffer, length, "[[Uint8Array]]",
-                                    accumulator);
-
-  length = byte_length / 2;
-  if (length > v8::TypedArray::kMaxLength || (byte_length % 2) != 0) return;
-
-  addTypedArrayView<v8::Int16Array>(context, buffer, length, "[[Int16Array]]",
-                                    accumulator);
-
-  length = byte_length / 4;
-  if (length > v8::TypedArray::kMaxLength || (byte_length % 4) != 0) return;
-
-  addTypedArrayView<v8::Int32Array>(context, buffer, length, "[[Int32Array]]",
-                                    accumulator);
-}
 }  // anonymous namespace
 
 ValueMirror::~ValueMirror() = default;
@@ -1428,23 +1209,24 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
 
   bool formatAccessorsAsProperties =
       clientFor(context)->formatAccessorsAsProperties(object);
-
-  if (object->IsArrayBuffer()) {
-    addTypedArrayViews(context, object.As<v8::ArrayBuffer>(), accumulator);
+  auto iterator = v8::debug::PropertyIterator::Create(context, object);
+  if (!iterator) {
+    CHECK(tryCatch.HasCaught());
+    return false;
   }
-  if (object->IsSharedArrayBuffer()) {
-    addTypedArrayViews(context, object.As<v8::SharedArrayBuffer>(),
-                       accumulator);
-  }
-
-  for (auto iterator = v8::debug::PropertyIterator::Create(object);
-       !iterator->Done(); iterator->Advance()) {
+  while (!iterator->Done()) {
     bool isOwn = iterator->is_own();
     if (!isOwn && ownProperties) break;
     v8::Local<v8::Name> v8Name = iterator->name();
     v8::Maybe<bool> result = set->Has(context, v8Name);
     if (result.IsNothing()) return false;
-    if (result.FromJust()) continue;
+    if (result.FromJust()) {
+      if (!iterator->Advance().FromMaybe(false)) {
+        CHECK(tryCatch.HasCaught());
+        return false;
+      }
+      continue;
+    }
     if (!set->Add(context, v8Name).ToLocal(&set)) return false;
 
     String16 name;
@@ -1540,6 +1322,11 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
                                  std::move(symbolMirror),
                                  std::move(exceptionMirror)};
     if (!accumulator->Add(std::move(mirror))) return true;
+
+    if (!iterator->Advance().FromMaybe(false)) {
+      CHECK(tryCatch.HasCaught());
+      return false;
+    }
   }
   if (!shouldSkipProto && ownProperties && !object->IsProxy() &&
       !accessorPropertiesOnly) {
@@ -1742,6 +1529,12 @@ std::unique_ptr<ValueMirror> clientMirror(v8::Local<v8::Context> context,
                                           v8::Local<v8::Value> value,
                                           const String16& subtype) {
   // TODO(alph): description and length retrieval should move to embedder.
+  auto descriptionForValueSubtype =
+      clientFor(context)->descriptionForValueSubtype(context, value);
+  if (descriptionForValueSubtype) {
+    return std::make_unique<ObjectMirror>(
+        value, subtype, toString16(descriptionForValueSubtype->string()));
+  }
   if (subtype == "node") {
     return std::make_unique<ObjectMirror>(value, subtype,
                                           descriptionForNode(context, value));
@@ -1795,9 +1588,6 @@ std::unique_ptr<ValueMirror> ValueMirror::create(v8::Local<v8::Context> context,
   }
   if (value->IsSymbol()) {
     return std::make_unique<SymbolMirror>(value.As<v8::Symbol>());
-  }
-  if (v8::debug::WasmValue::IsWasmValue(value)) {
-    return std::make_unique<WasmValueMirror>(value.As<v8::debug::WasmValue>());
   }
   auto clientSubtype = (value->IsUndefined() || value->IsObject())
                            ? clientFor(context)->valueSubtype(value)
@@ -1896,8 +1686,22 @@ std::unique_ptr<ValueMirror> ValueMirror::create(v8::Local<v8::Context> context,
         value, RemoteObject::SubtypeEnum::Dataview,
         descriptionForCollection(isolate, view, view->ByteLength()));
   }
+  if (value->IsWasmMemoryObject()) {
+    v8::Local<v8::WasmMemoryObject> memory = value.As<v8::WasmMemoryObject>();
+    return std::make_unique<ObjectMirror>(
+        value, RemoteObject::SubtypeEnum::Webassemblymemory,
+        descriptionForCollection(
+            isolate, memory, memory->Buffer()->ByteLength() / kWasmPageSize));
+  }
+  if (v8::debug::WasmValueObject::IsWasmValueObject(value)) {
+    v8::Local<v8::debug::WasmValueObject> object =
+        value.As<v8::debug::WasmValueObject>();
+    return std::make_unique<ObjectMirror>(
+        value, RemoteObject::SubtypeEnum::Wasmvalue,
+        descriptionForObject(isolate, object));
+  }
   V8InternalValueType internalType =
-      v8InternalValueTypeFrom(context, v8::Local<v8::Object>::Cast(value));
+      v8InternalValueTypeFrom(context, value.As<v8::Object>());
   if (value->IsArray() && internalType == V8InternalValueType::kScopeList) {
     return std::make_unique<ObjectMirror>(
         value, "internal#scopeList",

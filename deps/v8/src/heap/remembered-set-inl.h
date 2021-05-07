@@ -32,6 +32,10 @@ SlotCallbackResult UpdateTypedSlotHelper::UpdateTypedSlot(Heap* heap,
       RelocInfo rinfo(addr, RelocInfo::FULL_EMBEDDED_OBJECT, 0, Code());
       return UpdateEmbeddedPointer(heap, &rinfo, callback);
     }
+    case DATA_EMBEDDED_OBJECT_SLOT: {
+      RelocInfo rinfo(addr, RelocInfo::DATA_EMBEDDED_OBJECT, 0, Code());
+      return UpdateEmbeddedPointer(heap, &rinfo, callback);
+    }
     case COMPRESSED_OBJECT_SLOT: {
       HeapObject old_target = HeapObject::cast(Object(
           DecompressTaggedAny(heap->isolate(), base::Memory<Tagged_t>(addr))));

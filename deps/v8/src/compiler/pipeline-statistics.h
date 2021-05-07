@@ -23,6 +23,8 @@ class PipelineStatistics : public Malloced {
   PipelineStatistics(OptimizedCompilationInfo* info,
                      CompilationStatistics* turbo_stats, ZoneStats* zone_stats);
   ~PipelineStatistics();
+  PipelineStatistics(const PipelineStatistics&) = delete;
+  PipelineStatistics& operator=(const PipelineStatistics&) = delete;
 
   void BeginPhaseKind(const char* phase_kind_name);
   void EndPhaseKind();
@@ -35,6 +37,8 @@ class PipelineStatistics : public Malloced {
   class CommonStats {
    public:
     CommonStats() : outer_zone_initial_size_(0) {}
+    CommonStats(const CommonStats&) = delete;
+    CommonStats& operator=(const CommonStats&) = delete;
 
     void Begin(PipelineStatistics* pipeline_stats);
     void End(PipelineStatistics* pipeline_stats,
@@ -44,9 +48,6 @@ class PipelineStatistics : public Malloced {
     base::ElapsedTimer timer_;
     size_t outer_zone_initial_size_;
     size_t allocated_bytes_at_start_;
-
-   private:
-    DISALLOW_COPY_AND_ASSIGN(CommonStats);
   };
 
   bool InPhaseKind() { return !!phase_kind_stats_.scope_; }
@@ -71,12 +72,9 @@ class PipelineStatistics : public Malloced {
   // Stats for phase.
   const char* phase_name_;
   CommonStats phase_stats_;
-
-  DISALLOW_COPY_AND_ASSIGN(PipelineStatistics);
 };
 
-
-class PhaseScope {
+class V8_NODISCARD PhaseScope {
  public:
   PhaseScope(PipelineStatistics* pipeline_stats, const char* name)
       : pipeline_stats_(pipeline_stats) {
@@ -85,11 +83,11 @@ class PhaseScope {
   ~PhaseScope() {
     if (pipeline_stats_ != nullptr) pipeline_stats_->EndPhase();
   }
+  PhaseScope(const PhaseScope&) = delete;
+  PhaseScope& operator=(const PhaseScope&) = delete;
 
  private:
   PipelineStatistics* const pipeline_stats_;
-
-  DISALLOW_COPY_AND_ASSIGN(PhaseScope);
 };
 
 }  // namespace compiler

@@ -61,14 +61,10 @@ class MemoryAllocator {
   // chunks.
   class Unmapper {
    public:
-    class UnmapFreeMemoryTask;
+    class UnmapFreeMemoryJob;
 
     Unmapper(Heap* heap, MemoryAllocator* allocator)
-        : heap_(heap),
-          allocator_(allocator),
-          pending_unmapping_tasks_semaphore_(0),
-          pending_unmapping_tasks_(0),
-          active_unmapping_tasks_(0) {
+        : heap_(heap), allocator_(allocator) {
       chunks_[kRegular].reserve(kReservedQueueingSlots);
       chunks_[kPooled].reserve(kReservedQueueingSlots);
     }
@@ -142,18 +138,16 @@ class MemoryAllocator {
     bool MakeRoomForNewTasks();
 
     template <FreeMode mode>
-    void PerformFreeMemoryOnQueuedChunks();
+    void PerformFreeMemoryOnQueuedChunks(JobDelegate* delegate = nullptr);
 
-    void PerformFreeMemoryOnQueuedNonRegularChunks();
+    void PerformFreeMemoryOnQueuedNonRegularChunks(
+        JobDelegate* delegate = nullptr);
 
     Heap* const heap_;
     MemoryAllocator* const allocator_;
     base::Mutex mutex_;
     std::vector<MemoryChunk*> chunks_[kNumberOfChunkQueues];
-    CancelableTaskManager::Id task_ids_[kMaxUnmapperTasks];
-    base::Semaphore pending_unmapping_tasks_semaphore_;
-    intptr_t pending_unmapping_tasks_;
-    std::atomic<intptr_t> active_unmapping_tasks_;
+    std::unique_ptr<v8::JobHandle> job_handle_;
 
     friend class MemoryAllocator;
   };

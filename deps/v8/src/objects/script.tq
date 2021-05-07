@@ -10,6 +10,8 @@ bitfield struct ScriptFlags extends uint31 {
   compilation_state: CompilationState: 1 bit;
   is_repl_mode: bool: 1 bit;
   origin_options: int32: 4 bit;
+  // Whether an instrumentation breakpoint is set for this script (wasm only).
+  break_on_entry: bool: 1 bit;
 }
 
 @generateCppClass

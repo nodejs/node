@@ -141,12 +141,24 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#dry-run">dry-run</a></li><li><a href="#workspaces">workspaces</a></li><li><a href="#workspace">workspace</a></li></ul><li><a href="#description">Description</a></li><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
 <pre lang="bash"><code>npm pack [[&lt;@scope&gt;/]&lt;pkg&gt;...] [--dry-run]
 </code></pre>
+<h3 id="configuration">Configuration</h3>
+<h4 id="dry-run">dry-run</h4>
+<p>Do everything that pack usually does without actually packing anything.
+That is, report on what would have gone into the tarball, but nothing
+else.</p>
+<h4 id="workspaces">workspaces</h4>
+<p>Enables workspaces context while creating tarballs. Tarballs for each
+workspaces will be generated.</p>
+<h4 id="workspace">workspace</h4>
+<p>Enables workspaces context and limits results to only those specified by
+this config item.  Tarballs will only be generated for the packages
+named in the workspaces given here.</p>
 <h3 id="description">Description</h3>
 <p>For anything that’s installable (that is, a package folder, tarball,
 tarball url, git url, name@tag, name@version, name, or scoped name), this
@@ -156,9 +168,6 @@ stdout.</p>
 <p>If the same package is specified multiple times, then the file will be
 overwritten the second time.</p>
 <p>If no arguments are supplied, then npm packs the current package folder.</p>
-<p>The <code>--dry-run</code> argument will do everything that pack usually does without
-actually packing anything.  That is, it reports on what would have gone
-into the tarball, but nothing else.</p>
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="http://npm.im/npm-packlist">npm-packlist package</a></li>

@@ -277,7 +277,7 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
   int length() const { return length_; }
 
 #ifdef DEBUG
-  void Print();
+  void Print() const;
 #endif
 
   MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(BitVector);

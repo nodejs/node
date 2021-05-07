@@ -71,9 +71,18 @@ class MockPlatform : public TestPlatform {
       task_ = std::move(task);
     }
 
+    void PostNonNestableTask(std::unique_ptr<Task> task) override {
+      PostTask(std::move(task));
+    }
+
     void PostDelayedTask(std::unique_ptr<Task> task,
                          double delay_in_seconds) override {
-      task_ = std::move(task);
+      PostTask(std::move(task));
+    }
+
+    void PostNonNestableDelayedTask(std::unique_ptr<Task> task,
+                                    double delay_in_seconds) override {
+      PostTask(std::move(task));
     }
 
     void PostIdleTask(std::unique_ptr<IdleTask> task) override {
@@ -81,6 +90,8 @@ class MockPlatform : public TestPlatform {
     }
 
     bool IdleTasksEnabled() override { return false; }
+    bool NonNestableTasksEnabled() const override { return true; }
+    bool NonNestableDelayedTasksEnabled() const override { return true; }
 
     bool PendingTask() { return task_ != nullptr; }
 
@@ -98,24 +109,35 @@ class MockPlatform : public TestPlatform {
   v8::Platform* old_platform_;
 };
 
-TEST(IncrementalMarkingUsingTasks) {
+UNINITIALIZED_TEST(IncrementalMarkingUsingTasks) {
   if (!i::FLAG_incremental_marking) return;
   FLAG_stress_concurrent_allocation = false;  // For SimulateFullSpace.
   FLAG_stress_incremental_marking = false;
-  CcTest::InitializeVM();
   MockPlatform platform;
-  i::heap::SimulateFullSpace(CcTest::heap()->old_space());
-  i::IncrementalMarking* marking = CcTest::heap()->incremental_marking();
-  marking->Stop();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
   {
-    SafepointScope scope(CcTest::heap());
-    marking->Start(i::GarbageCollectionReason::kTesting);
+    v8::HandleScope handle_scope(isolate);
+    v8::Local<v8::Context> context = CcTest::NewContext(isolate);
+    v8::Context::Scope context_scope(context);
+    Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    Heap* heap = i_isolate->heap();
+
+    i::heap::SimulateFullSpace(heap->old_space());
+    i::IncrementalMarking* marking = heap->incremental_marking();
+    marking->Stop();
+    {
+      SafepointScope scope(heap);
+      marking->Start(i::GarbageCollectionReason::kTesting);
+    }
+    CHECK(platform.PendingTask());
+    while (platform.PendingTask()) {
+      platform.PerformTask();
+    }
+    CHECK(marking->IsStopped());
   }
-  CHECK(platform.PendingTask());
-  while (platform.PendingTask()) {
-    platform.PerformTask();
-  }
-  CHECK(marking->IsStopped());
+  isolate->Dispose();
 }
 
 }  // namespace heap

@@ -53,6 +53,7 @@ Maybe<int> SpinEventLoop(Environment* env) {
   if (env->is_stopping()) return Nothing<int>();
 
   env->set_trace_sync_io(false);
+  env->PrintInfoForSnapshotIfDebug();
   env->VerifyNoStrongBaseObjects();
   return EmitProcessExit(env);
 }

@@ -60,8 +60,6 @@ class SigUnmaskStack {
     pthread_sigmask(SIG_UNBLOCK, &sigs, &old_mask_);
   }
 
-  // We'd normally use DISALLOW_COPY_AND_ASSIGN, but we're avoiding a dependency
-  // on base/macros.h
   SigUnmaskStack(const SigUnmaskStack&) = delete;
   void operator=(const SigUnmaskStack&) = delete;
 
@@ -108,20 +106,22 @@ bool TryHandleSignal(int signum, siginfo_t* info, void* context) {
     SigUnmaskStack unmask(sigs);
 
     ucontext_t* uc = reinterpret_cast<ucontext_t*>(context);
-#if V8_OS_LINUX
-    auto* context_rip = &uc->uc_mcontext.gregs[REG_RIP];
-#elif V8_OS_MACOSX
-    auto* context_rip = &uc->uc_mcontext->__ss.__rip;
-#elif V8_OS_FREEBSD
-    auto* context_rip = &uc->uc_mcontext.mc_rip;
+#if V8_OS_LINUX && V8_TARGET_ARCH_X64
+    auto* context_ip = &uc->uc_mcontext.gregs[REG_RIP];
+#elif V8_OS_MACOSX && V8_TARGET_ARCH_ARM64
+    auto* context_ip = &uc->uc_mcontext->__ss.__pc;
+#elif V8_OS_MACOSX && V8_TARGET_ARCH_X64
+    auto* context_ip = &uc->uc_mcontext->__ss.__rip;
+#elif V8_OS_FREEBSD && V8_TARGET_ARCH_X64
+    auto* context_ip = &uc->uc_mcontext.mc_rip;
 #else
 #error Unsupported platform
 #endif
-    uintptr_t fault_addr = *context_rip;
+    uintptr_t fault_addr = *context_ip;
     uintptr_t landing_pad = 0;
     if (TryFindLandingPad(fault_addr, &landing_pad)) {
       // Tell the caller to return to the landing pad.
-      *context_rip = landing_pad;
+      *context_ip = landing_pad;
       // We will return to wasm code, so restore the g_thread_in_wasm_code flag.
       g_thread_in_wasm_code = true;
       return true;

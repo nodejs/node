@@ -996,7 +996,8 @@ void RegExpBytecodePeephole::EmitArgument(int start_pc, const byte* bytecode,
       EmitValue(GetValue<uint64_t>(bytecode, arg_pos));
       break;
     default:
-      CopyRangeToOutput(bytecode, arg_pos, Min(arg.length, arg.new_length));
+      CopyRangeToOutput(bytecode, arg_pos,
+                        std::min(arg.length, arg.new_length));
       if (arg.length < arg.new_length) {
         SetRange(0x00, arg.new_length - arg.length);
       }

@@ -1,5 +1,13 @@
 
 # file-entry-cache - Changelog
+## v6.0.1
+- **Other changes**
+  - Delete previous mtime when checksum is used and vice versa - [abcf0f9]( https://github.com/royriojas/file-entry-cache/commit/abcf0f9 ), [Milos Djermanovic](https://github.com/Milos Djermanovic), 19/02/2021 18:19:43
+
+    
+  - Adds travis jobs on ppc64le - [92e4d4a]( https://github.com/royriojas/file-entry-cache/commit/92e4d4a ), [dineshks1](https://github.com/dineshks1), 25/11/2020 04:52:11
+
+    
 ## v6.0.0
 - **Refactoring**
   - Align file-entry-cache with latest eslint - [4c6f1fb]( https://github.com/royriojas/file-entry-cache/commit/4c6f1fb ), [Roy Riojas](https://github.com/Roy Riojas), 08/11/2020 02:43:09

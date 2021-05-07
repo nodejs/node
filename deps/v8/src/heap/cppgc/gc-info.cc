@@ -11,9 +11,10 @@ namespace internal {
 
 RegisteredGCInfoIndex::RegisteredGCInfoIndex(
     FinalizationCallback finalization_callback, TraceCallback trace_callback,
-    bool has_v_table)
+    NameCallback name_callback, bool has_v_table)
     : index_(GlobalGCInfoTable::GetMutable().RegisterNewGCInfo(
-          {finalization_callback, trace_callback, has_v_table})) {}
+          {finalization_callback, trace_callback, name_callback,
+           has_v_table})) {}
 
 }  // namespace internal
 }  // namespace cppgc

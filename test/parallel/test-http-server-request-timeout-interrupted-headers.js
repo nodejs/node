@@ -8,8 +8,12 @@ const { connect } = require('net');
 // This test validates that the server returns 408
 // after server.requestTimeout if the client
 // pauses sending in the middle of a header.
-
+let sendDelayedRequestHeaders;
 const server = createServer(common.mustNotCall());
+server.on('connection', common.mustCall(() => {
+  assert.strictEqual(typeof sendDelayedRequestHeaders, 'function');
+  sendDelayedRequestHeaders();
+}));
 
 // 120 seconds is the default
 assert.strictEqual(server.requestTimeout, 0);
@@ -42,7 +46,9 @@ server.listen(0, common.mustCall(() => {
   client.write('Connection: close\r\n');
   client.write('X-CRASH: ');
 
-  setTimeout(() => {
-    client.write('1234567890\r\n\r\n');
-  }, common.platformTimeout(2000)).unref();
+  sendDelayedRequestHeaders = common.mustCall(() => {
+    setTimeout(() => {
+      client.write('1234567890\r\n\r\n');
+    }, common.platformTimeout(2000)).unref();
+  });
 }));

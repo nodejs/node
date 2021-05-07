@@ -17,6 +17,8 @@ namespace internal {
 
 class ClassLiteral;
 
+#include "torque-generated/src/objects/literal-objects-tq.inc"
+
 // ObjectBoilerplateDescription is a list of properties consisting of name value
 // pairs. In addition to the properties, it provides the projected number
 // of properties in the backing store. This number includes properties with
@@ -26,10 +28,10 @@ class ClassLiteral;
 class ObjectBoilerplateDescription : public FixedArray {
  public:
   inline Object name(int index) const;
-  inline Object name(const Isolate* isolate, int index) const;
+  inline Object name(IsolateRoot isolate, int index) const;
 
   inline Object value(int index) const;
-  inline Object value(const Isolate* isolate, int index) const;
+  inline Object value(IsolateRoot isolate, int index) const;
 
   inline void set_key_value(int index, Object key, Object value);
 
@@ -73,6 +75,18 @@ class ArrayBoilerplateDescription
   TQ_OBJECT_CONSTRUCTORS(ArrayBoilerplateDescription)
 };
 
+class RegExpBoilerplateDescription
+    : public TorqueGeneratedRegExpBoilerplateDescription<
+          RegExpBoilerplateDescription, Struct> {
+ public:
+  // Dispatched behavior.
+  DECL_PRINTER(RegExpBoilerplateDescription)
+  void BriefPrintDetails(std::ostream& os);
+
+ private:
+  TQ_OBJECT_CONSTRUCTORS(RegExpBoilerplateDescription)
+};
+
 class ClassBoilerplate : public FixedArray {
  public:
   enum ValueKind { kData, kGetter, kSetter };
@@ -108,9 +122,9 @@ class ClassBoilerplate : public FixedArray {
   DECL_ACCESSORS(instance_elements_template, Object)
   DECL_ACCESSORS(instance_computed_properties, FixedArray)
 
-  template <typename LocalIsolate>
+  template <typename LocalIsolate, typename Dictionary>
   static void AddToPropertiesTemplate(LocalIsolate* isolate,
-                                      Handle<NameDictionary> dictionary,
+                                      Handle<Dictionary> dictionary,
                                       Handle<Name> name, int key_index,
                                       ValueKind value_kind, Smi value);
 

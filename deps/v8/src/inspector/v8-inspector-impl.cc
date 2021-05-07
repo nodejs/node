@@ -62,7 +62,7 @@ V8InspectorImpl::V8InspectorImpl(v8::Isolate* isolate,
       m_capturingStackTracesCount(0),
       m_lastExceptionId(0),
       m_lastContextId(0),
-      m_isolateId(v8::debug::GetNextRandomInt64(m_isolate)) {
+      m_isolateId(generateUniqueId()) {
   v8::debug::SetInspector(m_isolate, this);
   v8::debug::SetConsoleDelegate(m_isolate, console());
 }
@@ -81,6 +81,11 @@ int V8InspectorImpl::contextGroupId(int contextId) const {
   return it != m_contextIdToGroupIdMap.end() ? it->second : 0;
 }
 
+int V8InspectorImpl::resolveUniqueContextId(V8DebuggerId uniqueId) const {
+  auto it = m_uniqueIdToContextId.find(uniqueId.pair());
+  return it == m_uniqueIdToContextId.end() ? 0 : it->second;
+}
+
 v8::MaybeLocal<v8::Value> V8InspectorImpl::compileAndRunInternalScript(
     v8::Local<v8::Context> context, v8::Local<v8::String> source) {
   v8::Local<v8::UnboundScript> unboundScript;
@@ -97,12 +102,8 @@ v8::MaybeLocal<v8::Value> V8InspectorImpl::compileAndRunInternalScript(
 v8::MaybeLocal<v8::Script> V8InspectorImpl::compileScript(
     v8::Local<v8::Context> context, const String16& code,
     const String16& fileName) {
-  v8::ScriptOrigin origin(
-      toV8String(m_isolate, fileName), v8::Integer::New(m_isolate, 0),
-      v8::Integer::New(m_isolate, 0),
-      v8::False(m_isolate),                                         // sharable
-      v8::Local<v8::Integer>(), toV8String(m_isolate, String16()),  // sourceMap
-      v8::True(m_isolate));  // opaqueresource
+  v8::ScriptOrigin origin(m_isolate, toV8String(m_isolate, fileName), 0, 0,
+                          false);
   v8::ScriptCompiler::Source source(toV8String(m_isolate, code), origin);
   return v8::ScriptCompiler::Compile(context, &source,
                                      v8::ScriptCompiler::kNoCompileOptions);
@@ -195,6 +196,11 @@ void V8InspectorImpl::contextCreated(const V8ContextInfo& info) {
   auto* context = new InspectedContext(this, info, contextId);
   m_contextIdToGroupIdMap[contextId] = info.contextGroupId;
 
+  DCHECK(m_uniqueIdToContextId.find(context->uniqueId().pair()) ==
+         m_uniqueIdToContextId.end());
+  m_uniqueIdToContextId.insert(
+      std::make_pair(context->uniqueId().pair(), contextId));
+
   auto contextIt = m_contexts.find(info.contextGroupId);
   if (contextIt == m_contexts.end())
     contextIt = m_contexts
@@ -238,14 +244,15 @@ void V8InspectorImpl::contextCollected(int groupId, int contextId) {
 void V8InspectorImpl::resetContextGroup(int contextGroupId) {
   m_consoleStorageMap.erase(contextGroupId);
   m_muteExceptionsMap.erase(contextGroupId);
-  std::vector<int> contextIdsToClear;
-  forEachContext(contextGroupId,
-                 [&contextIdsToClear](InspectedContext* context) {
-                   contextIdsToClear.push_back(context->contextId());
-                 });
+  auto contextsIt = m_contexts.find(contextGroupId);
+  // Context might have been removed already by discardContextScript()
+  if (contextsIt != m_contexts.end()) {
+    for (const auto& map_entry : *contextsIt->second)
+      m_uniqueIdToContextId.erase(map_entry.second->uniqueId().pair());
+    m_contexts.erase(contextsIt);
+  }
   forEachSession(contextGroupId,
                  [](V8InspectorSessionImpl* session) { session->reset(); });
-  m_contexts.erase(contextGroupId);
 }
 
 void V8InspectorImpl::idleStarted() { m_isolate->SetIdle(true); }
@@ -359,15 +366,22 @@ std::shared_ptr<V8Inspector::Counters> V8InspectorImpl::enableCounters() {
   return std::make_shared<Counters>(m_isolate);
 }
 
-v8::Local<v8::Context> V8InspectorImpl::regexContext() {
-  if (m_regexContext.IsEmpty())
+v8::MaybeLocal<v8::Context> V8InspectorImpl::regexContext() {
+  if (m_regexContext.IsEmpty()) {
     m_regexContext.Reset(m_isolate, v8::Context::New(m_isolate));
+    if (m_regexContext.IsEmpty()) {
+      DCHECK(m_isolate->IsExecutionTerminating());
+      return {};
+    }
+  }
   return m_regexContext.Get(m_isolate);
 }
 
 void V8InspectorImpl::discardInspectedContext(int contextGroupId,
                                               int contextId) {
-  if (!getContext(contextGroupId, contextId)) return;
+  auto* context = getContext(contextGroupId, contextId);
+  if (!context) return;
+  m_uniqueIdToContextId.erase(context->uniqueId().pair());
   m_contexts[contextGroupId]->erase(contextId);
   if (m_contexts[contextGroupId]->empty()) m_contexts.erase(contextGroupId);
 }
@@ -419,6 +433,13 @@ void V8InspectorImpl::forEachSession(
     auto sessionIt = it->second.find(sessionId);
     if (sessionIt != it->second.end()) callback(sessionIt->second);
   }
+}
+
+int64_t V8InspectorImpl::generateUniqueId() {
+  int64_t id = m_client->generateUniqueId();
+  if (!id) id = v8::debug::GetNextRandomInt64(m_isolate);
+  if (!id) id = 1;
+  return id;
 }
 
 V8InspectorImpl::EvaluateScope::EvaluateScope(

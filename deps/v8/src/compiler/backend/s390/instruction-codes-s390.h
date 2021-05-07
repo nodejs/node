@@ -23,13 +23,10 @@ namespace compiler {
   V(S390_Xor64)                             \
   V(S390_ShiftLeft32)                       \
   V(S390_ShiftLeft64)                       \
-  V(S390_ShiftLeftPair)                     \
   V(S390_ShiftRight32)                      \
   V(S390_ShiftRight64)                      \
-  V(S390_ShiftRightPair)                    \
   V(S390_ShiftRightArith32)                 \
   V(S390_ShiftRightArith64)                 \
-  V(S390_ShiftRightArithPair)               \
   V(S390_RotRight32)                        \
   V(S390_RotRight64)                        \
   V(S390_Not32)                             \
@@ -40,15 +37,12 @@ namespace compiler {
   V(S390_Lay)                               \
   V(S390_Add32)                             \
   V(S390_Add64)                             \
-  V(S390_AddPair)                           \
   V(S390_AddFloat)                          \
   V(S390_AddDouble)                         \
   V(S390_Sub32)                             \
   V(S390_Sub64)                             \
   V(S390_SubFloat)                          \
   V(S390_SubDouble)                         \
-  V(S390_SubPair)                           \
-  V(S390_MulPair)                           \
   V(S390_Mul32)                             \
   V(S390_Mul32WithOverflow)                 \
   V(S390_Mul64)                             \
@@ -98,7 +92,6 @@ namespace compiler {
   V(S390_Tst64)                             \
   V(S390_Push)                              \
   V(S390_PushFrame)                         \
-  V(S390_StackClaim)                        \
   V(S390_StoreToStackSlot)                  \
   V(S390_SignExtendWord8ToInt32)            \
   V(S390_SignExtendWord16ToInt32)           \
@@ -221,6 +214,9 @@ namespace compiler {
   V(S390_F64x2Floor)                        \
   V(S390_F64x2Trunc)                        \
   V(S390_F64x2NearestInt)                   \
+  V(S390_F64x2ConvertLowI32x4S)             \
+  V(S390_F64x2ConvertLowI32x4U)             \
+  V(S390_F64x2PromoteLowF32x4)              \
   V(S390_F32x4Splat)                        \
   V(S390_F32x4ExtractLane)                  \
   V(S390_F32x4ReplaceLane)                  \
@@ -250,6 +246,7 @@ namespace compiler {
   V(S390_F32x4Floor)                        \
   V(S390_F32x4Trunc)                        \
   V(S390_F32x4NearestInt)                   \
+  V(S390_F32x4DemoteF64x2Zero)              \
   V(S390_I64x2Neg)                          \
   V(S390_I64x2Add)                          \
   V(S390_I64x2Sub)                          \
@@ -261,15 +258,20 @@ namespace compiler {
   V(S390_I64x2ReplaceLane)                  \
   V(S390_I64x2ExtractLane)                  \
   V(S390_I64x2Eq)                           \
+  V(S390_I64x2BitMask)                      \
+  V(S390_I64x2ExtMulLowI32x4S)              \
+  V(S390_I64x2ExtMulHighI32x4S)             \
+  V(S390_I64x2ExtMulLowI32x4U)              \
+  V(S390_I64x2ExtMulHighI32x4U)             \
+  V(S390_I64x2SConvertI32x4Low)             \
+  V(S390_I64x2SConvertI32x4High)            \
+  V(S390_I64x2UConvertI32x4Low)             \
+  V(S390_I64x2UConvertI32x4High)            \
+  V(S390_I64x2SignSelect)                   \
   V(S390_I64x2Ne)                           \
   V(S390_I64x2GtS)                          \
   V(S390_I64x2GeS)                          \
-  V(S390_I64x2GtU)                          \
-  V(S390_I64x2GeU)                          \
-  V(S390_I64x2MinS)                         \
-  V(S390_I64x2MinU)                         \
-  V(S390_I64x2MaxS)                         \
-  V(S390_I64x2MaxU)                         \
+  V(S390_I64x2Abs)                          \
   V(S390_I32x4Splat)                        \
   V(S390_I32x4ExtractLane)                  \
   V(S390_I32x4ReplaceLane)                  \
@@ -300,6 +302,15 @@ namespace compiler {
   V(S390_I32x4Abs)                          \
   V(S390_I32x4BitMask)                      \
   V(S390_I32x4DotI16x8S)                    \
+  V(S390_I32x4ExtMulLowI16x8S)              \
+  V(S390_I32x4ExtMulHighI16x8S)             \
+  V(S390_I32x4ExtMulLowI16x8U)              \
+  V(S390_I32x4ExtMulHighI16x8U)             \
+  V(S390_I32x4ExtAddPairwiseI16x8S)         \
+  V(S390_I32x4ExtAddPairwiseI16x8U)         \
+  V(S390_I32x4SignSelect)                   \
+  V(S390_I32x4TruncSatF64x2SZero)           \
+  V(S390_I32x4TruncSatF64x2UZero)           \
   V(S390_I16x8Splat)                        \
   V(S390_I16x8ExtractLaneU)                 \
   V(S390_I16x8ExtractLaneS)                 \
@@ -328,13 +339,21 @@ namespace compiler {
   V(S390_I16x8SConvertI8x16High)            \
   V(S390_I16x8UConvertI8x16Low)             \
   V(S390_I16x8UConvertI8x16High)            \
-  V(S390_I16x8AddSaturateS)                 \
-  V(S390_I16x8SubSaturateS)                 \
-  V(S390_I16x8AddSaturateU)                 \
-  V(S390_I16x8SubSaturateU)                 \
+  V(S390_I16x8AddSatS)                      \
+  V(S390_I16x8SubSatS)                      \
+  V(S390_I16x8AddSatU)                      \
+  V(S390_I16x8SubSatU)                      \
   V(S390_I16x8RoundingAverageU)             \
   V(S390_I16x8Abs)                          \
   V(S390_I16x8BitMask)                      \
+  V(S390_I16x8ExtMulLowI8x16S)              \
+  V(S390_I16x8ExtMulHighI8x16S)             \
+  V(S390_I16x8ExtMulLowI8x16U)              \
+  V(S390_I16x8ExtMulHighI8x16U)             \
+  V(S390_I16x8ExtAddPairwiseI8x16S)         \
+  V(S390_I16x8ExtAddPairwiseI8x16U)         \
+  V(S390_I16x8Q15MulRSatS)                  \
+  V(S390_I16x8SignSelect)                   \
   V(S390_I8x16Splat)                        \
   V(S390_I8x16ExtractLaneU)                 \
   V(S390_I8x16ExtractLaneS)                 \
@@ -358,23 +377,22 @@ namespace compiler {
   V(S390_I8x16Neg)                          \
   V(S390_I8x16SConvertI16x8)                \
   V(S390_I8x16UConvertI16x8)                \
-  V(S390_I8x16AddSaturateS)                 \
-  V(S390_I8x16SubSaturateS)                 \
-  V(S390_I8x16AddSaturateU)                 \
-  V(S390_I8x16SubSaturateU)                 \
+  V(S390_I8x16AddSatS)                      \
+  V(S390_I8x16SubSatS)                      \
+  V(S390_I8x16AddSatU)                      \
+  V(S390_I8x16SubSatU)                      \
   V(S390_I8x16RoundingAverageU)             \
   V(S390_I8x16Abs)                          \
   V(S390_I8x16BitMask)                      \
   V(S390_I8x16Shuffle)                      \
   V(S390_I8x16Swizzle)                      \
-  V(S390_V64x2AnyTrue)                      \
-  V(S390_V32x4AnyTrue)                      \
-  V(S390_V16x8AnyTrue)                      \
-  V(S390_V8x16AnyTrue)                      \
+  V(S390_I8x16SignSelect)                   \
+  V(S390_I8x16Popcnt)                       \
   V(S390_V64x2AllTrue)                      \
   V(S390_V32x4AllTrue)                      \
   V(S390_V16x8AllTrue)                      \
   V(S390_V8x16AllTrue)                      \
+  V(S390_V128AnyTrue)                       \
   V(S390_S128And)                           \
   V(S390_S128Or)                            \
   V(S390_S128Xor)                           \

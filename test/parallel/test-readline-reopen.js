@@ -23,7 +23,7 @@ rl1.on('line', common.mustCall(rl1OnLine));
 // that it doesn’t get lost when closing the readline instance.
 input.write(Buffer.concat([
   Buffer.from('foo\n'),
-  Buffer.from([ 0xe2 ])  // Exactly one third of a ☃ snowman.
+  Buffer.from([ 0xe2 ]),  // Exactly one third of a ☃ snowman.
 ]));
 
 function rl1OnLine(line) {

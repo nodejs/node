@@ -1,7 +1,6 @@
 const t = require('tap')
-const requireInject = require('require-inject')
 const npm = {}
-const { explainNode, printNode } = requireInject('../../../lib/utils/explain-dep.js', {
+const { explainNode, printNode } = t.mock('../../../lib/utils/explain-dep.js', {
   '../../../lib/npm.js': npm,
 })
 
@@ -90,6 +89,24 @@ const cases = {
         type: 'peer',
         name: 'peer',
         spec: '1.0.0',
+        from: {
+          location: '/path/to/project',
+        },
+      },
+    ],
+  },
+
+  bundled: {
+    name: 'bundle-of-joy',
+    version: '1.0.0',
+    location: 'node_modules/bundle-of-joy',
+    bundled: true,
+    dependents: [
+      {
+        type: 'prod',
+        name: 'prod-dep',
+        spec: '1.x',
+        bundled: true,
         from: {
           location: '/path/to/project',
         },

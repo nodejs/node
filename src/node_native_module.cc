@@ -7,7 +7,6 @@ namespace native_module {
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Function;
-using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
@@ -99,16 +98,13 @@ void NativeModuleLoader::InitializeModuleCategories() {
       "tls",
       "_tls_common",
       "_tls_wrap",
+      "internal/tls",
       "internal/http2/core",
       "internal/http2/compat",
       "internal/policy/manifest",
       "internal/process/policy",
       "internal/streams/lazy_transform",
 #endif  // !HAVE_OPENSSL
-#if !NODE_EXPERIMENTAL_QUIC
-      "internal/quic/core",
-      "internal/quic/util",
-#endif
       "sys",  // Deprecated.
       "wasi",  // Experimental.
       "internal/test/binding",
@@ -264,9 +260,7 @@ MaybeLocal<Function> NativeModuleLoader::LookupAndCompile(
   std::string filename_s = std::string("node:") + id;
   Local<String> filename =
       OneByteString(isolate, filename_s.c_str(), filename_s.size());
-  Local<Integer> line_offset = Integer::New(isolate, 0);
-  Local<Integer> column_offset = Integer::New(isolate, 0);
-  ScriptOrigin origin(filename, line_offset, column_offset, True(isolate));
+  ScriptOrigin origin(isolate, filename, 0, 0, true);
 
   ScriptCompiler::CachedData* cached_data = nullptr;
   {

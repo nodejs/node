@@ -6,6 +6,7 @@
 #define V8_API_API_INL_H_
 
 #include "src/api/api.h"
+#include "src/execution/microtask-queue.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/foreign-inl.h"
 #include "src/objects/js-weak-refs.h"
@@ -96,7 +97,7 @@ MAKE_TO_LOCAL(AccessorSignatureToLocal, FunctionTemplateInfo, AccessorSignature)
 MAKE_TO_LOCAL(MessageToLocal, Object, Message)
 MAKE_TO_LOCAL(PromiseToLocal, JSObject, Promise)
 MAKE_TO_LOCAL(StackTraceToLocal, FixedArray, StackTrace)
-MAKE_TO_LOCAL(StackFrameToLocal, StackTraceFrame, StackFrame)
+MAKE_TO_LOCAL(StackFrameToLocal, StackFrameInfo, StackFrame)
 MAKE_TO_LOCAL(NumberToLocal, Object, Number)
 MAKE_TO_LOCAL(IntegerToLocal, Object, Integer)
 MAKE_TO_LOCAL(Uint32ToLocal, Object, Uint32)
@@ -104,7 +105,8 @@ MAKE_TO_LOCAL(ToLocal, BigInt, BigInt)
 MAKE_TO_LOCAL(ExternalToLocal, JSObject, External)
 MAKE_TO_LOCAL(CallableToLocal, JSReceiver, Function)
 MAKE_TO_LOCAL(ToLocalPrimitive, Object, Primitive)
-MAKE_TO_LOCAL(ToLocal, FixedArray, PrimitiveArray)
+MAKE_TO_LOCAL(FixedArrayToLocal, FixedArray, FixedArray)
+MAKE_TO_LOCAL(PrimitiveArrayToLocal, FixedArray, PrimitiveArray)
 MAKE_TO_LOCAL(ScriptOrModuleToLocal, Script, ScriptOrModule)
 
 #undef MAKE_TO_LOCAL_TYPED_ARRAY
@@ -129,6 +131,111 @@ OPEN_HANDLE_LIST(MAKE_OPEN_HANDLE)
 
 #undef MAKE_OPEN_HANDLE
 #undef OPEN_HANDLE_LIST
+
+template <bool do_callback>
+class V8_NODISCARD CallDepthScope {
+ public:
+  CallDepthScope(i::Isolate* isolate, Local<Context> context)
+      : isolate_(isolate),
+        context_(context),
+        escaped_(false),
+        safe_for_termination_(isolate->next_v8_call_is_safe_for_termination()),
+        interrupts_scope_(isolate_, i::StackGuard::TERMINATE_EXECUTION,
+                          isolate_->only_terminate_in_safe_scope()
+                              ? (safe_for_termination_
+                                     ? i::InterruptsScope::kRunInterrupts
+                                     : i::InterruptsScope::kPostponeInterrupts)
+                              : i::InterruptsScope::kNoop) {
+    isolate_->thread_local_top()->IncrementCallDepth(this);
+    isolate_->set_next_v8_call_is_safe_for_termination(false);
+    if (!context.IsEmpty()) {
+      i::Handle<i::Context> env = Utils::OpenHandle(*context);
+      i::HandleScopeImplementer* impl = isolate->handle_scope_implementer();
+      if (!isolate->context().is_null() &&
+          isolate->context().native_context() == env->native_context()) {
+        context_ = Local<Context>();
+      } else {
+        impl->SaveContext(isolate->context());
+        isolate->set_context(*env);
+      }
+    }
+    if (do_callback) isolate_->FireBeforeCallEnteredCallback();
+  }
+  ~CallDepthScope() {
+    i::MicrotaskQueue* microtask_queue = isolate_->default_microtask_queue();
+    if (!context_.IsEmpty()) {
+      i::HandleScopeImplementer* impl = isolate_->handle_scope_implementer();
+      isolate_->set_context(impl->RestoreContext());
+
+      i::Handle<i::Context> env = Utils::OpenHandle(*context_);
+      microtask_queue = env->native_context().microtask_queue();
+    }
+    if (!escaped_) isolate_->thread_local_top()->DecrementCallDepth(this);
+    if (do_callback) isolate_->FireCallCompletedCallback(microtask_queue);
+// TODO(jochen): This should be #ifdef DEBUG
+#ifdef V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY
+    if (do_callback) {
+      if (microtask_queue && microtask_queue->microtasks_policy() ==
+                                 v8::MicrotasksPolicy::kScoped) {
+        DCHECK(microtask_queue->GetMicrotasksScopeDepth() ||
+               !microtask_queue->DebugMicrotasksScopeDepthIsZero());
+      }
+    }
+#endif
+    DCHECK(CheckKeptObjectsClearedAfterMicrotaskCheckpoint(microtask_queue));
+    isolate_->set_next_v8_call_is_safe_for_termination(safe_for_termination_);
+  }
+
+  CallDepthScope(const CallDepthScope&) = delete;
+  CallDepthScope& operator=(const CallDepthScope&) = delete;
+
+  void Escape() {
+    DCHECK(!escaped_);
+    escaped_ = true;
+    auto thread_local_top = isolate_->thread_local_top();
+    thread_local_top->DecrementCallDepth(this);
+    bool clear_exception = thread_local_top->CallDepthIsZero() &&
+                           thread_local_top->try_catch_handler_ == nullptr;
+    isolate_->OptionalRescheduleException(clear_exception);
+  }
+
+ private:
+  bool CheckKeptObjectsClearedAfterMicrotaskCheckpoint(
+      i::MicrotaskQueue* microtask_queue) {
+    bool did_perform_microtask_checkpoint =
+        isolate_->thread_local_top()->CallDepthIsZero() && do_callback &&
+        microtask_queue &&
+        microtask_queue->microtasks_policy() == MicrotasksPolicy::kAuto;
+    return !did_perform_microtask_checkpoint ||
+           isolate_->heap()->weak_refs_keep_during_job().IsUndefined(isolate_);
+  }
+
+  i::Isolate* const isolate_;
+  Local<Context> context_;
+  bool escaped_;
+  bool do_callback_;
+  bool safe_for_termination_;
+  i::InterruptsScope interrupts_scope_;
+  i::Address previous_stack_height_;
+
+  friend class i::ThreadLocalTop;
+
+  DISALLOW_NEW_AND_DELETE()
+};
+
+class V8_NODISCARD InternalEscapableScope : public EscapableHandleScope {
+ public:
+  explicit inline InternalEscapableScope(i::Isolate* isolate)
+      : EscapableHandleScope(reinterpret_cast<v8::Isolate*>(isolate)) {}
+};
+
+inline bool IsExecutionTerminatingCheck(i::Isolate* isolate) {
+  if (isolate->has_scheduled_exception()) {
+    return isolate->scheduled_exception() ==
+           i::ReadOnlyRoots(isolate).termination_exception();
+  }
+  return false;
+}
 
 namespace internal {
 

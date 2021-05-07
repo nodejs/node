@@ -1,6 +1,5 @@
 const { resolve } = require('path')
-const { test } = require('tap')
-const requireInject = require('require-inject')
+const t = require('tap')
 
 let prefix
 let globalDir = 'MISSING_GLOBAL_DIR'
@@ -11,22 +10,22 @@ const _flatOptions = {
     return prefix
   },
 }
-const installedDeep = requireInject('../../../../lib/utils/completion/installed-deep.js', {
-  '../../../../lib/npm.js': {
-    flatOptions: _flatOptions,
-    get prefix () {
-      return _flatOptions.prefix
-    },
-    get globalDir () {
-      return globalDir
-    },
-    config: {
-      get (key) {
-        return _flatOptions[key]
-      },
+const p = '../../../../lib/utils/completion/installed-deep.js'
+const installedDeep = require(p)
+const npm = {
+  flatOptions: _flatOptions,
+  get prefix () {
+    return _flatOptions.prefix
+  },
+  get globalDir () {
+    return globalDir
+  },
+  config: {
+    get (key) {
+      return _flatOptions[key]
     },
   },
-})
+}
 
 const fixture = {
   'package.json': JSON.stringify({
@@ -144,7 +143,7 @@ const globalFixture = {
   },
 }
 
-test('get list of package names', (t) => {
+t.test('get list of package names', async t => {
   const fix = t.testdir({
     local: fixture,
     global: globalFixture,
@@ -153,25 +152,23 @@ test('get list of package names', (t) => {
   prefix = resolve(fix, 'local')
   globalDir = resolve(fix, 'global/node_modules')
 
-  installedDeep(null, (err, res) => {
-    t.ifError(err, 'should not error out')
-    t.deepEqual(
-      res,
-      [
-        ['bar', '-g'],
-        ['foo', '-g'],
-        ['a-bar', '-g'],
-        'a', 'b', 'c',
-        'd', 'e', 'f',
-        'g', 'bb',
-      ],
-      'should return list of package names and global flag'
-    )
-    t.end()
-  })
+  const res = await installedDeep(npm, null)
+  t.same(
+    res,
+    [
+      ['bar', '-g'],
+      ['foo', '-g'],
+      ['a-bar', '-g'],
+      'a', 'b', 'c',
+      'd', 'e', 'f',
+      'g', 'bb',
+    ],
+    'should return list of package names and global flag'
+  )
+  t.end()
 })
 
-test('get list of package names as global', (t) => {
+t.test('get list of package names as global', async t => {
   const fix = t.testdir({
     local: fixture,
     global: globalFixture,
@@ -182,23 +179,21 @@ test('get list of package names as global', (t) => {
 
   _flatOptions.global = true
 
-  installedDeep(null, (err, res) => {
-    t.ifError(err, 'should not error out')
-    t.deepEqual(
-      res,
-      [
-        'bar',
-        'foo',
-        'a-bar',
-      ],
-      'should return list of global packages with no extra flags'
-    )
-    _flatOptions.global = false
-    t.end()
-  })
+  const res = await installedDeep(npm, null)
+  t.same(
+    res,
+    [
+      'bar',
+      'foo',
+      'a-bar',
+    ],
+    'should return list of global packages with no extra flags'
+  )
+  _flatOptions.global = false
+  t.end()
 })
 
-test('limit depth', (t) => {
+t.test('limit depth', async t => {
   const fix = t.testdir({
     local: fixture,
     global: globalFixture,
@@ -209,26 +204,24 @@ test('limit depth', (t) => {
 
   _flatOptions.depth = 0
 
-  installedDeep(null, (err, res) => {
-    t.ifError(err, 'should not error out')
-    t.deepEqual(
-      res,
-      [
-        ['bar', '-g'],
-        ['foo', '-g'],
-        'a', 'b',
-        'c', 'd',
-        'e', 'f',
-        'g',
-      ],
-      'should print only packages up to the specified depth'
-    )
-    _flatOptions.depth = 0
-    t.end()
-  })
+  const res = await installedDeep(npm, null)
+  t.same(
+    res,
+    [
+      ['bar', '-g'],
+      ['foo', '-g'],
+      'a', 'b',
+      'c', 'd',
+      'e', 'f',
+      'g',
+    ],
+    'should print only packages up to the specified depth'
+  )
+  _flatOptions.depth = 0
+  t.end()
 })
 
-test('limit depth as global', (t) => {
+t.test('limit depth as global', async t => {
   const fix = t.testdir({
     local: fixture,
     global: globalFixture,
@@ -240,18 +233,16 @@ test('limit depth as global', (t) => {
   _flatOptions.global = true
   _flatOptions.depth = 0
 
-  installedDeep(null, (err, res) => {
-    t.ifError(err, 'should not error out')
-    t.deepEqual(
-      res,
-      [
-        'bar',
-        'foo',
-      ],
-      'should reorder so that packages above that level depth goes last'
-    )
-    _flatOptions.global = false
-    _flatOptions.depth = 0
-    t.end()
-  })
+  const res = await installedDeep(npm, null)
+  t.same(
+    res,
+    [
+      'bar',
+      'foo',
+    ],
+    'should reorder so that packages above that level depth goes last'
+  )
+  _flatOptions.global = false
+  _flatOptions.depth = 0
+  t.end()
 })

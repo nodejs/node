@@ -23,7 +23,8 @@ class MarkingVerifierTest : public testing::TestWithHeap {
 
   void VerifyMarking(HeapBase& heap, StackState stack_state) {
     Heap::From(GetHeap())->object_allocator().ResetLinearAllocationBuffers();
-    MarkingVerifier verifier(heap, stack_state);
+    MarkingVerifier verifier(heap);
+    verifier.Run(stack_state);
   }
 };
 
@@ -96,6 +97,48 @@ TEST_F(MarkingVerifierTest, DoesntDieOnInConstructionOnObject) {
         VerifyMarking(Heap::From(GetHeap())->AsBase(),
                       StackState::kMayContainHeapPointers);
       });
+}
+
+namespace {
+class GCedWithCallbackAndChild final
+    : public GarbageCollected<GCedWithCallbackAndChild> {
+ public:
+  template <typename Callback>
+  GCedWithCallbackAndChild(GCed* gced, Callback callback) : child_(gced) {
+    callback(this);
+  }
+  void Trace(cppgc::Visitor* visitor) const { visitor->Trace(child_); }
+
+ private:
+  Member<GCed> child_;
+};
+
+template <typename T>
+struct Holder : public GarbageCollected<Holder<T>> {
+ public:
+  void Trace(cppgc::Visitor* visitor) const { visitor->Trace(object); }
+  Member<T> object = nullptr;
+};
+}  // namespace
+
+TEST_F(MarkingVerifierTest, DoesntDieOnInConstructionObjectWithWriteBarrier) {
+  // Regression test:  https://crbug.com/v8/10989.
+  // GCedWithCallbackAndChild is marked by write barrier and then discarded by
+  // FlushNotFullyConstructedObjects because it is already marked.
+  Persistent<Holder<GCedWithCallbackAndChild>> persistent =
+      MakeGarbageCollected<Holder<GCedWithCallbackAndChild>>(
+          GetAllocationHandle());
+  GarbageCollector::Config config =
+      GarbageCollector::Config::PreciseIncrementalConfig();
+  Heap::From(GetHeap())->StartIncrementalGarbageCollection(config);
+  MakeGarbageCollected<GCedWithCallbackAndChild>(
+      GetAllocationHandle(), MakeGarbageCollected<GCed>(GetAllocationHandle()),
+      [&persistent](GCedWithCallbackAndChild* obj) {
+        persistent->object = obj;
+      });
+  GetMarkerRef()->IncrementalMarkingStepForTesting(
+      GarbageCollector::Config::StackState::kNoHeapPointers);
+  Heap::From(GetHeap())->FinalizeIncrementalGarbageCollectionIfRunning(config);
 }
 
 // Death tests.

@@ -125,10 +125,6 @@ enum InstanceType : uint16_t {
 // - JSSpecialObject and JSCustomElementsObject are aligned with the beginning
 //   of the JSObject range, so that we can use a larger range check from
 //   FIRST_JS_RECEIVER_TYPE to the end of those ranges and include JSProxy too.
-// - JSFunction is last, meaning we can use a single inequality check to
-//   determine whether an instance type is within the range for any class in the
-//   inheritance hierarchy of JSFunction. This includes commonly-checked classes
-//   JSObject and JSReceiver.
 #define MAKE_TORQUE_INSTANCE_TYPE(TYPE, value) TYPE = value,
   TORQUE_ASSIGNED_INSTANCE_TYPES(MAKE_TORQUE_INSTANCE_TYPE)
 #undef MAKE_TORQUE_INSTANCE_TYPE
@@ -147,8 +143,6 @@ enum InstanceType : uint16_t {
   // Convenient names for things where the generated name is awkward:
   FIRST_TYPE = FIRST_HEAP_OBJECT_TYPE,
   LAST_TYPE = LAST_HEAP_OBJECT_TYPE,
-  FIRST_FUNCTION_TYPE = FIRST_JS_FUNCTION_OR_BOUND_FUNCTION_TYPE,
-  LAST_FUNCTION_TYPE = LAST_JS_FUNCTION_OR_BOUND_FUNCTION_TYPE,
   BIGINT_TYPE = BIG_INT_BASE_TYPE,
 };
 
@@ -244,45 +238,41 @@ TYPED_ARRAYS(TYPED_ARRAY_IS_TYPE_FUNCTION_DECL)
 
 // This list must contain only maps that are shared by all objects of their
 // instance type.
-#define UNIQUE_INSTANCE_TYPE_MAP_LIST_GENERATOR(V, _)                       \
-  V(_, AccessorInfoMap, accessor_info_map, AccessorInfo)                    \
-  V(_, AccessorPairMap, accessor_pair_map, AccessorPair)                    \
-  V(_, AllocationMementoMap, allocation_memento_map, AllocationMemento)     \
-  V(_, ArrayBoilerplateDescriptionMap, array_boilerplate_description_map,   \
-    ArrayBoilerplateDescription)                                            \
-  V(_, BreakPointMap, break_point_map, BreakPoint)                          \
-  V(_, BreakPointInfoMap, break_point_info_map, BreakPointInfo)             \
-  V(_, CachedTemplateObjectMap, cached_template_object_map,                 \
-    CachedTemplateObject)                                                   \
-  V(_, CellMap, cell_map, Cell)                                             \
-  V(_, WeakCellMap, weak_cell_map, WeakCell)                                \
-  V(_, CodeMap, code_map, Code)                                             \
-  V(_, CoverageInfoMap, coverage_info_map, CoverageInfo)                    \
-  V(_, DebugInfoMap, debug_info_map, DebugInfo)                             \
-  V(_, FeedbackVectorMap, feedback_vector_map, FeedbackVector)              \
-  V(_, FixedDoubleArrayMap, fixed_double_array_map, FixedDoubleArray)       \
-  V(_, FunctionTemplateInfoMap, function_template_info_map,                 \
-    FunctionTemplateInfo)                                                   \
-  V(_, HeapNumberMap, heap_number_map, HeapNumber)                          \
-  V(_, MetaMap, meta_map, Map)                                              \
-  V(_, PreparseDataMap, preparse_data_map, PreparseData)                    \
-  V(_, PrototypeInfoMap, prototype_info_map, PrototypeInfo)                 \
-  V(_, SharedFunctionInfoMap, shared_function_info_map, SharedFunctionInfo) \
-  V(_, SmallOrderedHashSetMap, small_ordered_hash_set_map,                  \
-    SmallOrderedHashSet)                                                    \
-  V(_, SmallOrderedHashMapMap, small_ordered_hash_map_map,                  \
-    SmallOrderedHashMap)                                                    \
-  V(_, SmallOrderedNameDictionaryMap, small_ordered_name_dictionary_map,    \
-    SmallOrderedNameDictionary)                                             \
-  V(_, SymbolMap, symbol_map, Symbol)                                       \
-  V(_, TransitionArrayMap, transition_array_map, TransitionArray)           \
-  V(_, Tuple2Map, tuple2_map, Tuple2)                                       \
-  V(_, UncompiledDataWithoutPreparseDataMap,                                \
-    uncompiled_data_without_preparse_data_map,                              \
-    UncompiledDataWithoutPreparseData)                                      \
-  V(_, UncompiledDataWithPreparseDataMap,                                   \
-    uncompiled_data_with_preparse_data_map, UncompiledDataWithPreparseData) \
-  V(_, WeakFixedArrayMap, weak_fixed_array_map, WeakFixedArray)             \
+#define UNIQUE_INSTANCE_TYPE_MAP_LIST_GENERATOR(V, _)                          \
+  V(_, AccessorInfoMap, accessor_info_map, AccessorInfo)                       \
+  V(_, AccessorPairMap, accessor_pair_map, AccessorPair)                       \
+  V(_, AllocationMementoMap, allocation_memento_map, AllocationMemento)        \
+  V(_, ArrayBoilerplateDescriptionMap, array_boilerplate_description_map,      \
+    ArrayBoilerplateDescription)                                               \
+  V(_, BreakPointMap, break_point_map, BreakPoint)                             \
+  V(_, BreakPointInfoMap, break_point_info_map, BreakPointInfo)                \
+  V(_, CachedTemplateObjectMap, cached_template_object_map,                    \
+    CachedTemplateObject)                                                      \
+  V(_, CellMap, cell_map, Cell)                                                \
+  V(_, WeakCellMap, weak_cell_map, WeakCell)                                   \
+  V(_, CodeMap, code_map, Code)                                                \
+  V(_, CoverageInfoMap, coverage_info_map, CoverageInfo)                       \
+  V(_, DebugInfoMap, debug_info_map, DebugInfo)                                \
+  V(_, FeedbackVectorMap, feedback_vector_map, FeedbackVector)                 \
+  V(_, FixedDoubleArrayMap, fixed_double_array_map, FixedDoubleArray)          \
+  V(_, FunctionTemplateInfoMap, function_template_info_map,                    \
+    FunctionTemplateInfo)                                                      \
+  V(_, HeapNumberMap, heap_number_map, HeapNumber)                             \
+  V(_, MetaMap, meta_map, Map)                                                 \
+  V(_, PreparseDataMap, preparse_data_map, PreparseData)                       \
+  V(_, PrototypeInfoMap, prototype_info_map, PrototypeInfo)                    \
+  V(_, SharedFunctionInfoMap, shared_function_info_map, SharedFunctionInfo)    \
+  V(_, SmallOrderedHashSetMap, small_ordered_hash_set_map,                     \
+    SmallOrderedHashSet)                                                       \
+  V(_, SmallOrderedHashMapMap, small_ordered_hash_map_map,                     \
+    SmallOrderedHashMap)                                                       \
+  V(_, SmallOrderedNameDictionaryMap, small_ordered_name_dictionary_map,       \
+    SmallOrderedNameDictionary)                                                \
+  V(_, SwissNameDictionaryMap, swiss_name_dictionary_map, SwissNameDictionary) \
+  V(_, SymbolMap, symbol_map, Symbol)                                          \
+  V(_, TransitionArrayMap, transition_array_map, TransitionArray)              \
+  V(_, Tuple2Map, tuple2_map, Tuple2)                                          \
+  V(_, WeakFixedArrayMap, weak_fixed_array_map, WeakFixedArray)                \
   TORQUE_DEFINED_MAP_CSA_LIST_GENERATOR(V, _)
 
 }  // namespace internal

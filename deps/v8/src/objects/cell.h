@@ -6,13 +6,14 @@
 #define V8_OBJECTS_CELL_H_
 
 #include "src/objects/heap-object.h"
-#include "torque-generated/class-definitions.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
+
+#include "torque-generated/src/objects/cell-tq.inc"
 
 class Cell : public TorqueGeneratedCell<Cell, HeapObject> {
  public:

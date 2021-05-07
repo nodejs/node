@@ -12,6 +12,8 @@ npm org rm <orgname> <username>
 npm org ls <orgname> [<username>]
 ```
 
+Note: This command is unaware of workspaces.
+
 ### Example
 
 Add a new developer to an org:

@@ -40,7 +40,7 @@ AUTO_EXCLUDE_PATTERNS = [
   # platform-specific headers
   '\\b{}\\b'.format(p) for p in
     ('win', 'win32', 'ia32', 'x64', 'arm', 'arm64', 'mips', 'mips64', 's390',
-     'ppc')]
+     'ppc','riscv64')]
 
 args = None
 def parse_args():

@@ -36,9 +36,7 @@ ScriptData::ScriptData(const byte* data, int length)
 
 CodeSerializer::CodeSerializer(Isolate* isolate, uint32_t source_hash)
     : Serializer(isolate, Snapshot::kDefaultSerializerFlags),
-      source_hash_(source_hash) {
-  allocator()->UseCustomChunkSize(FLAG_serialization_chunk_size);
-}
+      source_hash_(source_hash) {}
 
 // static
 ScriptCompiler::CachedData* CodeSerializer::Serialize(
@@ -64,11 +62,11 @@ ScriptCompiler::CachedData* CodeSerializer::Serialize(
 
   // Serialize code object.
   Handle<String> source(String::cast(script->source()), isolate);
+  HandleScope scope(isolate);
   CodeSerializer cs(isolate, SerializedCodeData::SourceHash(
                                  source, script->origin_options()));
   DisallowGarbageCollection no_gc;
-  cs.reference_map()->AddAttachedReference(
-      reinterpret_cast<void*>(source->ptr()));
+  cs.reference_map()->AddAttachedReference(*source);
   ScriptData* script_data = cs.SerializeSharedFunctionInfo(info);
 
   if (FLAG_profile_deserialization) {
@@ -100,13 +98,13 @@ ScriptData* CodeSerializer::SerializeSharedFunctionInfo(
   return data.GetScriptData();
 }
 
-bool CodeSerializer::SerializeReadOnlyObject(HeapObject obj) {
-  if (!ReadOnlyHeap::Contains(obj)) return false;
+bool CodeSerializer::SerializeReadOnlyObject(Handle<HeapObject> obj) {
+  if (!ReadOnlyHeap::Contains(*obj)) return false;
 
   // For objects on the read-only heap, never serialize the object, but instead
   // create a back reference that encodes the page number as the chunk_index and
   // the offset within the page as the chunk_offset.
-  Address address = obj.address();
+  Address address = obj->address();
   BasicMemoryChunk* chunk = BasicMemoryChunk::FromAddress(address);
   uint32_t chunk_index = 0;
   ReadOnlySpace* const read_only_space = isolate()->heap()->read_only_space();
@@ -115,14 +113,13 @@ bool CodeSerializer::SerializeReadOnlyObject(HeapObject obj) {
     ++chunk_index;
   }
   uint32_t chunk_offset = static_cast<uint32_t>(chunk->Offset(address));
-  SerializerReference back_reference = SerializerReference::BackReference(
-      SnapshotSpace::kReadOnlyHeap, chunk_index, chunk_offset);
-  reference_map()->Add(reinterpret_cast<void*>(obj.ptr()), back_reference);
-  CHECK(SerializeBackReference(obj));
+  sink_.Put(kReadOnlyHeapRef, "ReadOnlyHeapRef");
+  sink_.PutInt(chunk_index, "ReadOnlyHeapRefChunkIndex");
+  sink_.PutInt(chunk_offset, "ReadOnlyHeapRefChunkOffset");
   return true;
 }
 
-void CodeSerializer::SerializeObject(HeapObject obj) {
+void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
   if (SerializeHotObject(obj)) return;
 
   if (SerializeRoot(obj)) return;
@@ -131,60 +128,60 @@ void CodeSerializer::SerializeObject(HeapObject obj) {
 
   if (SerializeReadOnlyObject(obj)) return;
 
-  CHECK(!obj.IsCode());
+  CHECK(!obj->IsCode());
 
   ReadOnlyRoots roots(isolate());
-  if (ElideObject(obj)) {
-    return SerializeObject(roots.undefined_value());
+  if (ElideObject(*obj)) {
+    return SerializeObject(roots.undefined_value_handle());
   }
 
-  if (obj.IsScript()) {
-    Script script_obj = Script::cast(obj);
-    DCHECK_NE(script_obj.compilation_type(), Script::COMPILATION_TYPE_EVAL);
+  if (obj->IsScript()) {
+    Handle<Script> script_obj = Handle<Script>::cast(obj);
+    DCHECK_NE(script_obj->compilation_type(), Script::COMPILATION_TYPE_EVAL);
     // We want to differentiate between undefined and uninitialized_symbol for
     // context_data for now. It is hack to allow debugging for scripts that are
     // included as a part of custom snapshot. (see debug::Script::IsEmbedded())
-    Object context_data = script_obj.context_data();
+    Object context_data = script_obj->context_data();
     if (context_data != roots.undefined_value() &&
         context_data != roots.uninitialized_symbol()) {
-      script_obj.set_context_data(roots.undefined_value());
+      script_obj->set_context_data(roots.undefined_value());
     }
     // We don't want to serialize host options to avoid serializing unnecessary
     // object graph.
-    FixedArray host_options = script_obj.host_defined_options();
-    script_obj.set_host_defined_options(roots.empty_fixed_array());
+    FixedArray host_options = script_obj->host_defined_options();
+    script_obj->set_host_defined_options(roots.empty_fixed_array());
     SerializeGeneric(obj);
-    script_obj.set_host_defined_options(host_options);
-    script_obj.set_context_data(context_data);
+    script_obj->set_host_defined_options(host_options);
+    script_obj->set_context_data(context_data);
     return;
   }
 
-  if (obj.IsSharedFunctionInfo()) {
-    SharedFunctionInfo sfi = SharedFunctionInfo::cast(obj);
+  if (obj->IsSharedFunctionInfo()) {
+    Handle<SharedFunctionInfo> sfi = Handle<SharedFunctionInfo>::cast(obj);
     // TODO(7110): Enable serializing of Asm modules once the AsmWasmData
     // is context independent.
-    DCHECK(!sfi.IsApiFunction() && !sfi.HasAsmWasmData());
+    DCHECK(!sfi->IsApiFunction() && !sfi->HasAsmWasmData());
 
     DebugInfo debug_info;
     BytecodeArray debug_bytecode_array;
-    if (sfi.HasDebugInfo()) {
+    if (sfi->HasDebugInfo()) {
       // Clear debug info.
-      debug_info = sfi.GetDebugInfo();
+      debug_info = sfi->GetDebugInfo();
       if (debug_info.HasInstrumentedBytecodeArray()) {
         debug_bytecode_array = debug_info.DebugBytecodeArray();
-        sfi.SetDebugBytecodeArray(debug_info.OriginalBytecodeArray());
+        sfi->SetActiveBytecodeArray(debug_info.OriginalBytecodeArray());
       }
-      sfi.set_script_or_debug_info(debug_info.script());
+      sfi->set_script_or_debug_info(debug_info.script(), kReleaseStore);
     }
-    DCHECK(!sfi.HasDebugInfo());
+    DCHECK(!sfi->HasDebugInfo());
 
     SerializeGeneric(obj);
 
     // Restore debug info
     if (!debug_info.is_null()) {
-      sfi.set_script_or_debug_info(debug_info);
+      sfi->set_script_or_debug_info(debug_info, kReleaseStore);
       if (!debug_bytecode_array.is_null()) {
-        sfi.SetDebugBytecodeArray(debug_bytecode_array);
+        sfi->SetActiveBytecodeArray(debug_bytecode_array);
       }
     }
     return;
@@ -197,24 +194,24 @@ void CodeSerializer::SerializeObject(HeapObject obj) {
   // --interpreted-frames-native-stack is on. See v8:9122 for more context
 #ifndef V8_TARGET_ARCH_ARM
   if (V8_UNLIKELY(FLAG_interpreted_frames_native_stack) &&
-      obj.IsInterpreterData()) {
-    obj = InterpreterData::cast(obj).bytecode_array();
+      obj->IsInterpreterData()) {
+    obj = handle(InterpreterData::cast(*obj).bytecode_array(), isolate());
   }
 #endif  // V8_TARGET_ARCH_ARM
 
   // Past this point we should not see any (context-specific) maps anymore.
-  CHECK(!obj.IsMap());
+  CHECK(!obj->IsMap());
   // There should be no references to the global object embedded.
-  CHECK(!obj.IsJSGlobalProxy() && !obj.IsJSGlobalObject());
+  CHECK(!obj->IsJSGlobalProxy() && !obj->IsJSGlobalObject());
   // Embedded FixedArrays that need rehashing must support rehashing.
-  CHECK_IMPLIES(obj.NeedsRehashing(), obj.CanBeRehashed());
+  CHECK_IMPLIES(obj->NeedsRehashing(), obj->CanBeRehashed());
   // We expect no instantiated function objects or contexts.
-  CHECK(!obj.IsJSFunction() && !obj.IsContext());
+  CHECK(!obj->IsJSFunction() && !obj->IsContext());
 
   SerializeGeneric(obj);
 }
 
-void CodeSerializer::SerializeGeneric(HeapObject heap_object) {
+void CodeSerializer::SerializeGeneric(Handle<HeapObject> heap_object) {
   // Object has not yet been serialized.  Serialize it here.
   ObjectSerializer serializer(this, heap_object, &sink_);
   serializer.Serialize();
@@ -245,7 +242,7 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
         Handle<InterpreterData>::cast(isolate->factory()->NewStruct(
             INTERPRETER_DATA_TYPE, AllocationType::kOld));
 
-    interpreter_data->set_bytecode_array(info->GetBytecodeArray());
+    interpreter_data->set_bytecode_array(info->GetBytecodeArray(isolate));
     interpreter_data->set_interpreter_trampoline(*code);
 
     info->set_interpreter_data(*interpreter_data);
@@ -265,26 +262,27 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
 namespace {
 class StressOffThreadDeserializeThread final : public base::Thread {
  public:
-  explicit StressOffThreadDeserializeThread(LocalIsolate* local_isolate,
+  explicit StressOffThreadDeserializeThread(Isolate* isolate,
                                             const SerializedCodeData* scd)
       : Thread(
             base::Thread::Options("StressOffThreadDeserializeThread", 2 * MB)),
-        local_isolate_(local_isolate),
+        isolate_(isolate),
         scd_(scd) {}
 
   MaybeHandle<SharedFunctionInfo> maybe_result() const { return maybe_result_; }
 
   void Run() final {
+    LocalIsolate local_isolate(isolate_, ThreadKind::kBackground);
     MaybeHandle<SharedFunctionInfo> local_maybe_result =
         ObjectDeserializer::DeserializeSharedFunctionInfoOffThread(
-            local_isolate_, scd_, local_isolate_->factory()->empty_string());
+            &local_isolate, scd_, local_isolate.factory()->empty_string());
 
     maybe_result_ =
-        local_isolate_->heap()->NewPersistentMaybeHandle(local_maybe_result);
+        local_isolate.heap()->NewPersistentMaybeHandle(local_maybe_result);
   }
 
  private:
-  LocalIsolate* local_isolate_;
+  Isolate* isolate_;
   const SerializedCodeData* scd_;
   MaybeHandle<SharedFunctionInfo> maybe_result_;
 };
@@ -315,9 +313,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
   MaybeHandle<SharedFunctionInfo> maybe_result;
   // TODO(leszeks): Add LocalHeap support to deserializer
   if (false && FLAG_stress_background_compile) {
-    LocalIsolate local_isolate(isolate);
-
-    StressOffThreadDeserializeThread thread(&local_isolate, &scd);
+    StressOffThreadDeserializeThread thread(isolate, &scd);
     CHECK(thread.Start());
     thread.Join();
 
@@ -390,9 +386,10 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
           int column_num =
               script->GetColumnNumber(shared_info->StartPosition()) + 1;
           PROFILE(isolate,
-                  CodeCreateEvent(CodeEventListener::SCRIPT_TAG,
-                                  handle(shared_info->abstract_code(), isolate),
-                                  shared_info, name, line_num, column_num));
+                  CodeCreateEvent(
+                      CodeEventListener::SCRIPT_TAG,
+                      handle(shared_info->abstract_code(isolate), isolate),
+                      shared_info, name, line_num, column_num));
         }
       }
     }
@@ -408,44 +405,29 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
 SerializedCodeData::SerializedCodeData(const std::vector<byte>* payload,
                                        const CodeSerializer* cs) {
   DisallowGarbageCollection no_gc;
-  std::vector<Reservation> reservations = cs->EncodeReservations();
 
   // Calculate sizes.
-  uint32_t reservation_size =
-      static_cast<uint32_t>(reservations.size()) * kUInt32Size;
-  uint32_t num_stub_keys = 0;  // TODO(jgruber): Remove.
-  uint32_t stub_keys_size = num_stub_keys * kUInt32Size;
-  uint32_t payload_offset = kHeaderSize + reservation_size + stub_keys_size;
-  uint32_t padded_payload_offset = POINTER_SIZE_ALIGN(payload_offset);
-  uint32_t size =
-      padded_payload_offset + static_cast<uint32_t>(payload->size());
+  uint32_t size = kHeaderSize + static_cast<uint32_t>(payload->size());
   DCHECK(IsAligned(size, kPointerAlignment));
 
   // Allocate backing store and create result data.
   AllocateData(size);
 
   // Zero out pre-payload data. Part of that is only used for padding.
-  memset(data_, 0, padded_payload_offset);
+  memset(data_, 0, kHeaderSize);
 
   // Set header values.
   SetMagicNumber();
   SetHeaderValue(kVersionHashOffset, Version::Hash());
   SetHeaderValue(kSourceHashOffset, cs->source_hash());
   SetHeaderValue(kFlagHashOffset, FlagList::Hash());
-  SetHeaderValue(kNumReservationsOffset,
-                 static_cast<uint32_t>(reservations.size()));
   SetHeaderValue(kPayloadLengthOffset, static_cast<uint32_t>(payload->size()));
 
   // Zero out any padding in the header.
   memset(data_ + kUnalignedHeaderSize, 0, kHeaderSize - kUnalignedHeaderSize);
 
-  // Copy reservation chunk sizes.
-  CopyBytes(data_ + kHeaderSize,
-            reinterpret_cast<const byte*>(reservations.data()),
-            reservation_size);
-
   // Copy serialized data.
-  CopyBytes(data_ + padded_payload_offset, payload->data(),
+  CopyBytes(data_ + kHeaderSize, payload->data(),
             static_cast<size_t>(payload->size()));
 
   SetHeaderValue(kChecksumOffset, Checksum(ChecksummedContent()));
@@ -464,10 +446,7 @@ SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
   if (version_hash != Version::Hash()) return VERSION_MISMATCH;
   if (source_hash != expected_source_hash) return SOURCE_MISMATCH;
   if (flags_hash != FlagList::Hash()) return FLAGS_MISMATCH;
-  uint32_t max_payload_length =
-      this->size_ -
-      POINTER_SIZE_ALIGN(kHeaderSize +
-                         GetHeaderValue(kNumReservationsOffset) * kInt32Size);
+  uint32_t max_payload_length = this->size_ - kHeaderSize;
   if (payload_length > max_payload_length) return LENGTH_MISMATCH;
   if (Checksum(ChecksummedContent()) != c) return CHECKSUM_MISMATCH;
   return CHECK_SUCCESS;
@@ -494,20 +473,8 @@ ScriptData* SerializedCodeData::GetScriptData() {
   return result;
 }
 
-std::vector<SerializedData::Reservation> SerializedCodeData::Reservations()
-    const {
-  uint32_t size = GetHeaderValue(kNumReservationsOffset);
-  std::vector<Reservation> reservations(size);
-  memcpy(reservations.data(), data_ + kHeaderSize,
-         size * sizeof(SerializedData::Reservation));
-  return reservations;
-}
-
 Vector<const byte> SerializedCodeData::Payload() const {
-  int reservations_size = GetHeaderValue(kNumReservationsOffset) * kInt32Size;
-  int payload_offset = kHeaderSize + reservations_size;
-  int padded_payload_offset = POINTER_SIZE_ALIGN(payload_offset);
-  const byte* payload = data_ + padded_payload_offset;
+  const byte* payload = data_ + kHeaderSize;
   DCHECK(IsAligned(reinterpret_cast<intptr_t>(payload), kPointerAlignment));
   int length = GetHeaderValue(kPayloadLengthOffset);
   DCHECK_EQ(data_ + size_, payload + length);

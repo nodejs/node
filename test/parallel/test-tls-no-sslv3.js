@@ -38,7 +38,7 @@ server.listen(0, '127.0.0.1', function() {
 server.on('tlsClientError', (err) => errors.push(err));
 
 process.on('exit', function() {
-  if (/unknown option -ssl3/.test(stderr)) {
+  if (/[Uu]nknown option:? -ssl3/.test(stderr)) {
     common.printSkipMessage('`openssl s_client -ssl3` not supported.');
   } else {
     assert.strictEqual(errors.length, 1);

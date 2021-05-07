@@ -5,6 +5,7 @@
 #if defined(CPPGC_YOUNG_GENERATION)
 
 #include "include/cppgc/allocation.h"
+#include "include/cppgc/heap-consistency.h"
 #include "include/cppgc/persistent.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap.h"
@@ -88,7 +89,7 @@ TYPED_TEST(MinorGCTestForType, MinorCollection) {
   EXPECT_EQ(1u, TestFixture::DestructedObjects());
 
   {
-    Heap::NoGCScope no_gc_scope_(*Heap::From(this->GetHeap()));
+    subtle::NoGarbageCollectionScope no_gc_scope(*Heap::From(this->GetHeap()));
 
     Type* prev = nullptr;
     for (size_t i = 0; i < 64; ++i) {
@@ -143,7 +144,7 @@ void InterGenerationalPointerTest(MinorGCTest* test, cppgc::Heap* heap) {
   Type2* young = nullptr;
 
   {
-    Heap::NoGCScope no_gc_scope_(*Heap::From(heap));
+    subtle::NoGarbageCollectionScope no_gc_scope(*Heap::From(heap));
 
     // Allocate young objects.
     for (size_t i = 0; i < 64; ++i) {
@@ -200,17 +201,13 @@ TYPED_TEST(MinorGCTestForType, OmitGenerationalBarrierForOnStackObject) {
     Type* ptr = nullptr;
   } stack_object;
 
-  auto* new_object = MakeGarbageCollected<Type>(this->GetAllocationHandle());
-
-  const auto& set = Heap::From(this->GetHeap())->remembered_slots();
-  const size_t set_size_before_barrier = set.size();
-
   // Try issuing generational barrier for on-stack object.
-  stack_object.ptr = new_object;
-  WriteBarrier::MarkingBarrier(reinterpret_cast<void*>(&stack_object.ptr),
-                               new_object);
-
-  EXPECT_EQ(set_size_before_barrier, set.size());
+  stack_object.ptr = MakeGarbageCollected<Type>(this->GetAllocationHandle());
+  subtle::HeapConsistency::WriteBarrierParams params;
+  EXPECT_EQ(subtle::HeapConsistency::WriteBarrierType::kNone,
+            subtle::HeapConsistency::GetWriteBarrierType(
+                reinterpret_cast<void*>(&stack_object.ptr), stack_object.ptr,
+                params));
 }
 
 TYPED_TEST(MinorGCTestForType, OmitGenerationalBarrierForSentinels) {

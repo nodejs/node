@@ -24,6 +24,7 @@ function parseOptions(options) {
         boolean: "boolean" in options ? options.boolean : true,
         number: "number" in options ? options.number : true,
         string: "string" in options ? options.string : true,
+        disallowTemplateShorthand: "disallowTemplateShorthand" in options ? options.disallowTemplateShorthand : false,
         allow: options.allow || []
     };
 }
@@ -180,6 +181,10 @@ module.exports = {
                     type: "boolean",
                     default: true
                 },
+                disallowTemplateShorthand: {
+                    type: "boolean",
+                    default: false
+                },
                 allow: {
                     type: "array",
                     items: {
@@ -299,6 +304,38 @@ module.exports = {
 
                     report(node, recommendation, true);
                 }
+            },
+
+            TemplateLiteral(node) {
+                if (!options.disallowTemplateShorthand) {
+                    return;
+                }
+
+                // tag`${foo}`
+                if (node.parent.type === "TaggedTemplateExpression") {
+                    return;
+                }
+
+                // `` or `${foo}${bar}`
+                if (node.expressions.length !== 1) {
+                    return;
+                }
+
+
+                //  `prefix${foo}`
+                if (node.quasis[0].value.cooked !== "") {
+                    return;
+                }
+
+                //  `${foo}postfix`
+                if (node.quasis[1].value.cooked !== "") {
+                    return;
+                }
+
+                const code = sourceCode.getText(node.expressions[0]);
+                const recommendation = `String(${code})`;
+
+                report(node, recommendation, true);
             }
         };
     }

@@ -83,11 +83,9 @@ class Recorder : public std::enable_shared_from_this<Recorder> {
 
 template <class T, int64_t (base::TimeDelta::*precision)() const =
                        &base::TimeDelta::InMicroseconds>
-class TimedScope {
+class V8_NODISCARD TimedScope {
  public:
-  TimedScope(T* event, int64_t T::*time) : event_(event), time_(time) {
-    Start();
-  }
+  explicit TimedScope(T* event) : event_(event) { Start(); }
   ~TimedScope() { Stop(); }
 
   void Start() { start_time_ = base::TimeTicks::Now(); }
@@ -95,13 +93,12 @@ class TimedScope {
   void Stop() {
     if (start_time_.IsMin()) return;
     base::TimeDelta duration = base::TimeTicks::Now() - start_time_;
-    event_->*time_ = (duration.*precision)();
+    event_->wall_clock_duration_in_us = (duration.*precision)();
     start_time_ = base::TimeTicks::Min();
   }
 
  private:
   T* event_;
-  int64_t T::*time_;
   base::TimeTicks start_time_;
 };
 

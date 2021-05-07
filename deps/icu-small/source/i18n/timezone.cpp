@@ -1678,7 +1678,7 @@ TimeZone::getIDForWindowsID(const UnicodeString& winid, const char* region, Unic
     winidKey[winKeyLen] = 0;
 
     ures_getByKey(zones, winidKey, zones, &tmperr); // use tmperr, because windows mapping might not
-                                                    // be avaiable by design
+                                                    // be available by design
     if (U_FAILURE(tmperr)) {
         ures_close(zones);
         return id;

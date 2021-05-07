@@ -29,6 +29,8 @@ class V8_BASE_EXPORT BoundedPageAllocator : public v8::PageAllocator {
 
   BoundedPageAllocator(v8::PageAllocator* page_allocator, Address start,
                        size_t size, size_t allocate_page_size);
+  BoundedPageAllocator(const BoundedPageAllocator&) = delete;
+  BoundedPageAllocator& operator=(const BoundedPageAllocator&) = delete;
   ~BoundedPageAllocator() override = default;
 
   // These functions are not inlined to avoid https://crbug.com/v8/8275.
@@ -75,8 +77,6 @@ class V8_BASE_EXPORT BoundedPageAllocator : public v8::PageAllocator {
   const size_t commit_page_size_;
   v8::PageAllocator* const page_allocator_;
   v8::base::RegionAllocator region_allocator_;
-
-  DISALLOW_COPY_AND_ASSIGN(BoundedPageAllocator);
 };
 
 }  // namespace base

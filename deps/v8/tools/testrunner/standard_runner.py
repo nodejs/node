@@ -46,7 +46,7 @@ VARIANT_ALIASES = {
   'exhaustive': MORE_VARIANTS + VARIANTS,
   # Additional variants, run on a subset of bots.
   'extra': ['nooptimization', 'future', 'no_wasm_traps', 'turboprop',
-            'instruction_scheduling'],
+            'instruction_scheduling', 'turboprop_as_toptier'],
 }
 
 # Extra flags passed to all tests using the standard test runner.

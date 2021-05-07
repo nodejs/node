@@ -93,6 +93,83 @@ const http = require('http');
 }
 
 {
+  // Check pre-cancelled
+  const signal = new EventTarget();
+  signal.aborted = true;
+
+  const rs = Readable.from((function* () {})());
+  finished(rs, { signal }, common.mustCall((err) => {
+    assert.strictEqual(err.name, 'AbortError');
+  }));
+}
+
+{
+  // Check cancelled before the stream ends sync.
+  const ac = new AbortController();
+  const { signal } = ac;
+
+  const rs = Readable.from((function* () {})());
+  finished(rs, { signal }, common.mustCall((err) => {
+    assert.strictEqual(err.name, 'AbortError');
+  }));
+
+  ac.abort();
+}
+
+{
+  // Check cancelled before the stream ends async.
+  const ac = new AbortController();
+  const { signal } = ac;
+
+  const rs = Readable.from((function* () {})());
+  setTimeout(() => ac.abort(), 1);
+  finished(rs, { signal }, common.mustCall((err) => {
+    assert.strictEqual(err.name, 'AbortError');
+  }));
+}
+
+{
+  // Check cancelled after doesn't throw.
+  const ac = new AbortController();
+  const { signal } = ac;
+
+  const rs = Readable.from((function* () {
+    yield 5;
+    setImmediate(() => ac.abort());
+  })());
+  rs.resume();
+  finished(rs, { signal }, common.mustSucceed());
+}
+
+{
+  // Promisified abort works
+  const finishedPromise = promisify(finished);
+  async function run() {
+    const ac = new AbortController();
+    const { signal } = ac;
+    const rs = Readable.from((function* () {})());
+    setImmediate(() => ac.abort());
+    await finishedPromise(rs, { signal });
+  }
+
+  assert.rejects(run, { name: 'AbortError' }).then(common.mustCall());
+}
+
+{
+  // Promisified pre-aborted works
+  const finishedPromise = promisify(finished);
+  async function run() {
+    const signal = new EventTarget();
+    signal.aborted = true;
+    const rs = Readable.from((function* () {})());
+    await finishedPromise(rs, { signal });
+  }
+
+  assert.rejects(run, { name: 'AbortError' }).then(common.mustCall());
+}
+
+
+{
   const rs = fs.createReadStream('file-does-not-exist');
 
   finished(rs, common.expectsError({

@@ -25,7 +25,6 @@ function spawnChildProcess(inspectorFlags, scriptContents, scriptFile) {
   const handler = tearDown.bind(null, child);
   process.on('exit', handler);
   process.on('uncaughtException', handler);
-  common.disableCrashOnUnhandledRejection();
   process.on('unhandledRejection', handler);
   process.on('SIGINT', handler);
 
@@ -515,7 +514,7 @@ function fires(promise, error, timeoutMs) {
   const timeout = timeoutPromise(error, timeoutMs);
   return Promise.race([
     onResolvedOrRejected(promise, () => timeout.clear()),
-    timeout
+    timeout,
   ]);
 }
 

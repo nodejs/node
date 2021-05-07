@@ -8,8 +8,6 @@ const common = require('../common');
 
 const assert = require('assert');
 const { exec } = require('child_process');
-const { internalBinding } = require('internal/test/binding');
-const { fipsMode } = internalBinding('config');
 let stdOut;
 
 
@@ -28,9 +26,8 @@ function validateNodePrintHelp() {
   const cliHelpOptions = [
     { compileConstant: HAVE_OPENSSL,
       flags: [ '--openssl-config=...', '--tls-cipher-list=...',
-               '--use-bundled-ca', '--use-openssl-ca' ] },
-    { compileConstant: fipsMode,
-      flags: [ '--enable-fips', '--force-fips' ] },
+               '--use-bundled-ca', '--use-openssl-ca',
+               '--enable-fips', '--force-fips' ] },
     { compileConstant: NODE_HAVE_I18N_SUPPORT,
       flags: [ '--icu-data-dir=...', 'NODE_ICU_DATA' ] },
     { compileConstant: HAVE_INSPECTOR,

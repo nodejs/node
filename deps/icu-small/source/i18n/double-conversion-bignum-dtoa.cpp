@@ -384,7 +384,7 @@ static void BignumToFixed(int requested_digits, int* decimal_point,
 // Returns an estimation of k such that 10^(k-1) <= v < 10^k where
 // v = f * 2^exponent and 2^52 <= f < 2^53.
 // v is hence a normalized double with the given exponent. The output is an
-// approximation for the exponent of the decimal approimation .digits * 10^k.
+// approximation for the exponent of the decimal approximation .digits * 10^k.
 //
 // The result might undershoot by 1 in which case 10^k <= v < 10^k+1.
 // Note: this property holds for v's upper boundary m+ too.
@@ -562,7 +562,7 @@ static void InitialScaledStartValuesNegativeExponentNegativePower(
 //
 // Let ep == estimated_power, then the returned values will satisfy:
 //  v / 10^ep = numerator / denominator.
-//  v's boundarys m- and m+:
+//  v's boundaries m- and m+:
 //    m- / 10^ep == v / 10^ep - delta_minus / denominator
 //    m+ / 10^ep == v / 10^ep + delta_plus / denominator
 //  Or in other words:

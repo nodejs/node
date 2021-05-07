@@ -4,6 +4,7 @@
 
 #include "src/objects/debug-objects.h"
 
+#include "src/base/platform/mutex.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/debug-objects-inl.h"
@@ -29,10 +30,6 @@ void DebugInfo::SetDebugExecutionMode(ExecutionMode value) {
 
 void DebugInfo::ClearBreakInfo(Isolate* isolate) {
   if (HasInstrumentedBytecodeArray()) {
-    // Reset function's bytecode array field to point to the original bytecode
-    // array.
-    shared().SetDebugBytecodeArray(OriginalBytecodeArray());
-
     // If the function is currently running on the stack, we need to update the
     // bytecode pointers on the stack so they point to the original
     // BytecodeArray before releasing that BytecodeArray from this DebugInfo.
@@ -44,8 +41,7 @@ void DebugInfo::ClearBreakInfo(Isolate* isolate) {
       isolate->thread_manager()->IterateArchivedThreads(&redirect_visitor);
     }
 
-    set_original_bytecode_array(ReadOnlyRoots(isolate).undefined_value());
-    set_debug_bytecode_array(ReadOnlyRoots(isolate).undefined_value());
+    SharedFunctionInfo::UninstallDebugBytecode(shared(), isolate);
   }
   set_break_points(ReadOnlyRoots(isolate).empty_fixed_array());
 
@@ -360,44 +356,21 @@ int BreakPointInfo::GetBreakPointCount(Isolate* isolate) {
   return FixedArray::cast(break_points()).length();
 }
 
-int CoverageInfo::SlotFieldOffset(int slot_index, int field_offset) const {
-  DCHECK_LT(field_offset, Slot::kSize);
-  DCHECK_LT(slot_index, slot_count());
-  return kSlotsOffset + slot_index * Slot::kSize + field_offset;
-}
-
-int CoverageInfo::StartSourcePosition(int slot_index) const {
-  return ReadField<int32_t>(
-      SlotFieldOffset(slot_index, Slot::kStartSourcePositionOffset));
-}
-
-int CoverageInfo::EndSourcePosition(int slot_index) const {
-  return ReadField<int32_t>(
-      SlotFieldOffset(slot_index, Slot::kEndSourcePositionOffset));
-}
-
-int CoverageInfo::BlockCount(int slot_index) const {
-  return ReadField<int32_t>(
-      SlotFieldOffset(slot_index, Slot::kBlockCountOffset));
-}
-
 void CoverageInfo::InitializeSlot(int slot_index, int from_pos, int to_pos) {
-  WriteField<int32_t>(
-      SlotFieldOffset(slot_index, Slot::kStartSourcePositionOffset), from_pos);
-  WriteField<int32_t>(
-      SlotFieldOffset(slot_index, Slot::kEndSourcePositionOffset), to_pos);
+  set_slots_start_source_position(slot_index, from_pos);
+  set_slots_end_source_position(slot_index, to_pos);
   ResetBlockCount(slot_index);
-  WriteField<int32_t>(SlotFieldOffset(slot_index, Slot::kPaddingOffset), 0);
+  set_slots_padding(slot_index, 0);
 }
 
 void CoverageInfo::ResetBlockCount(int slot_index) {
-  WriteField<int32_t>(SlotFieldOffset(slot_index, Slot::kBlockCountOffset), 0);
+  set_slots_block_count(slot_index, 0);
 }
 
 void CoverageInfo::CoverageInfoPrint(std::ostream& os,
                                      std::unique_ptr<char[]> function_name) {
   DCHECK(FLAG_trace_block_coverage);
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   os << "Coverage info (";
   if (function_name == nullptr) {
@@ -410,8 +383,8 @@ void CoverageInfo::CoverageInfoPrint(std::ostream& os,
   os << "):" << std::endl;
 
   for (int i = 0; i < slot_count(); i++) {
-    os << "{" << StartSourcePosition(i) << "," << EndSourcePosition(i) << "}"
-       << std::endl;
+    os << "{" << slots_start_source_position(i) << ","
+       << slots_end_source_position(i) << "}" << std::endl;
   }
 }
 

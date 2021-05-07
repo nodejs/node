@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "include/cppgc/platform.h"
 #include "include/libplatform/libplatform.h"
 #include "include/v8.h"
 #include "src/base/compiler-specific.h"
@@ -18,6 +19,7 @@ class DefaultPlatformEnvironment final : public ::testing::Environment {
         0, v8::platform::IdleTaskSupport::kEnabled);
     ASSERT_TRUE(platform_.get() != nullptr);
     v8::V8::InitializePlatform(platform_.get());
+    cppgc::InitializeProcess(platform_->GetPageAllocator());
     ASSERT_TRUE(v8::V8::Initialize());
   }
 

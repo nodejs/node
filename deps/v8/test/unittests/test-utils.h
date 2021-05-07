@@ -27,21 +27,13 @@ using CounterMap = std::map<std::string, int>;
 
 enum CountersMode { kNoCounters, kEnableCounters };
 
-// When PointerCompressionMode is kEnforcePointerCompression, the Isolate is
-// created with pointer compression force enabled. When it's
-// kDefaultPointerCompression then the Isolate is created with the default
-// pointer compression state for the current build.
-enum PointerCompressionMode {
-  kDefaultPointerCompression,
-  kEnforcePointerCompression
-};
-
 // RAII-like Isolate instance wrapper.
 class IsolateWrapper final {
  public:
-  explicit IsolateWrapper(CountersMode counters_mode,
-                          PointerCompressionMode pointer_compression_mode);
+  explicit IsolateWrapper(CountersMode counters_mode);
   ~IsolateWrapper();
+  IsolateWrapper(const IsolateWrapper&) = delete;
+  IsolateWrapper& operator=(const IsolateWrapper&) = delete;
 
   v8::Isolate* isolate() const { return isolate_; }
 
@@ -49,20 +41,15 @@ class IsolateWrapper final {
   std::unique_ptr<v8::ArrayBuffer::Allocator> array_buffer_allocator_;
   std::unique_ptr<CounterMap> counter_map_;
   v8::Isolate* isolate_;
-
-  DISALLOW_COPY_AND_ASSIGN(IsolateWrapper);
 };
 
 //
 // A set of mixins from which the test fixtures will be constructed.
 //
-template <typename TMixin, CountersMode kCountersMode = kNoCounters,
-          PointerCompressionMode kPointerCompressionMode =
-              kDefaultPointerCompression>
+template <typename TMixin, CountersMode kCountersMode = kNoCounters>
 class WithIsolateMixin : public TMixin {
  public:
-  WithIsolateMixin()
-      : isolate_wrapper_(kCountersMode, kPointerCompressionMode) {}
+  WithIsolateMixin() : isolate_wrapper_(kCountersMode) {}
 
   v8::Isolate* v8_isolate() const { return isolate_wrapper_.isolate(); }
 
@@ -70,15 +57,13 @@ class WithIsolateMixin : public TMixin {
   v8::IsolateWrapper isolate_wrapper_;
 };
 
-template <typename TMixin, CountersMode kCountersMode = kNoCounters>
-using WithPointerCompressionIsolateMixin =
-    WithIsolateMixin<TMixin, kCountersMode, kEnforcePointerCompression>;
-
 template <typename TMixin>
 class WithIsolateScopeMixin : public TMixin {
  public:
   WithIsolateScopeMixin()
       : isolate_scope_(this->v8_isolate()), handle_scope_(this->v8_isolate()) {}
+  WithIsolateScopeMixin(const WithIsolateScopeMixin&) = delete;
+  WithIsolateScopeMixin& operator=(const WithIsolateScopeMixin&) = delete;
 
   v8::Isolate* isolate() const { return this->v8_isolate(); }
 
@@ -89,8 +74,6 @@ class WithIsolateScopeMixin : public TMixin {
  private:
   v8::Isolate::Scope isolate_scope_;
   v8::HandleScope handle_scope_;
-
-  DISALLOW_COPY_AND_ASSIGN(WithIsolateScopeMixin);
 };
 
 template <typename TMixin>
@@ -98,6 +81,8 @@ class WithContextMixin : public TMixin {
  public:
   WithContextMixin()
       : context_(Context::New(this->v8_isolate())), context_scope_(context_) {}
+  WithContextMixin(const WithContextMixin&) = delete;
+  WithContextMixin& operator=(const WithContextMixin&) = delete;
 
   const Local<Context>& context() const { return v8_context(); }
   const Local<Context>& v8_context() const { return context_; }
@@ -133,8 +118,6 @@ class WithContextMixin : public TMixin {
 
   v8::Local<v8::Context> context_;
   v8::Context::Scope context_scope_;
-
-  DISALLOW_COPY_AND_ASSIGN(WithContextMixin);
 };
 
 // Use v8::internal::TestWithIsolate if you are testing internals,
@@ -152,12 +135,6 @@ using TestWithContext =         //
             WithIsolateMixin<   //
                 ::testing::Test>>>;
 
-using TestWithIsolateAndPointerCompression =     //
-    WithContextMixin<                            //
-        WithIsolateScopeMixin<                   //
-            WithPointerCompressionIsolateMixin<  //
-                ::testing::Test>>>;
-
 namespace internal {
 
 // Forward declarations.
@@ -167,6 +144,8 @@ template <typename TMixin>
 class WithInternalIsolateMixin : public TMixin {
  public:
   WithInternalIsolateMixin() = default;
+  WithInternalIsolateMixin(const WithInternalIsolateMixin&) = delete;
+  WithInternalIsolateMixin& operator=(const WithInternalIsolateMixin&) = delete;
 
   Factory* factory() const { return isolate()->factory(); }
   Isolate* isolate() const { return TMixin::i_isolate(); }
@@ -197,9 +176,6 @@ class WithInternalIsolateMixin : public TMixin {
   base::RandomNumberGenerator* random_number_generator() const {
     return isolate()->random_number_generator();
   }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(WithInternalIsolateMixin);
 };
 
 template <typename TMixin>
@@ -207,14 +183,14 @@ class WithZoneMixin : public TMixin {
  public:
   explicit WithZoneMixin(bool support_zone_compression = false)
       : zone_(&allocator_, ZONE_NAME, support_zone_compression) {}
+  WithZoneMixin(const WithZoneMixin&) = delete;
+  WithZoneMixin& operator=(const WithZoneMixin&) = delete;
 
   Zone* zone() { return &zone_; }
 
  private:
   v8::internal::AccountingAllocator allocator_;
   Zone zone_;
-
-  DISALLOW_COPY_AND_ASSIGN(WithZoneMixin);
 };
 
 using TestWithIsolate =         //
@@ -254,17 +230,17 @@ using TestWithNativeContextAndZone =    //
                     WithIsolateMixin<   //
                         ::testing::Test>>>>>;
 
-class SaveFlags {
+class V8_NODISCARD SaveFlags {
  public:
   SaveFlags();
   ~SaveFlags();
+  SaveFlags(const SaveFlags&) = delete;
+  SaveFlags& operator=(const SaveFlags&) = delete;
 
  private:
 #define FLAG_MODE_APPLY(ftype, ctype, nam, def, cmt) ctype SAVED_##nam;
 #include "src/flags/flag-definitions.h"  // NOLINT
 #undef FLAG_MODE_APPLY
-
-  DISALLOW_COPY_AND_ASSIGN(SaveFlags);
 };
 
 // For GTest.

@@ -705,6 +705,9 @@ class V8_EXPORT_PRIVATE MoveOperands final
     DCHECK(!source.IsInvalid() && !destination.IsInvalid());
   }
 
+  MoveOperands(const MoveOperands&) = delete;
+  MoveOperands& operator=(const MoveOperands&) = delete;
+
   const InstructionOperand& source() const { return source_; }
   InstructionOperand& source() { return source_; }
   void set_source(const InstructionOperand& operand) { source_ = operand; }
@@ -742,8 +745,6 @@ class V8_EXPORT_PRIVATE MoveOperands final
  private:
   InstructionOperand source_;
   InstructionOperand destination_;
-
-  DISALLOW_COPY_AND_ASSIGN(MoveOperands);
 };
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, const MoveOperands&);
@@ -753,6 +754,8 @@ class V8_EXPORT_PRIVATE ParallelMove final
       public NON_EXPORTED_BASE(ZoneObject) {
  public:
   explicit ParallelMove(Zone* zone) : ZoneVector<MoveOperands*>(zone) {}
+  ParallelMove(const ParallelMove&) = delete;
+  ParallelMove& operator=(const ParallelMove&) = delete;
 
   MoveOperands* AddMove(const InstructionOperand& from,
                         const InstructionOperand& to) {
@@ -777,9 +780,6 @@ class V8_EXPORT_PRIVATE ParallelMove final
   // to_eliminate must be Eliminated.
   void PrepareInsertAfter(MoveOperands* move,
                           ZoneVector<MoveOperands*>* to_eliminate) const;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(ParallelMove);
 };
 
 std::ostream& operator<<(std::ostream&, const ParallelMove&);
@@ -814,6 +814,9 @@ class InstructionBlock;
 
 class V8_EXPORT_PRIVATE Instruction final {
  public:
+  Instruction(const Instruction&) = delete;
+  Instruction& operator=(const Instruction&) = delete;
+
   size_t OutputCount() const { return OutputCountField::decode(bit_field_); }
   const InstructionOperand* OutputAt(size_t i) const {
     DCHECK_LT(i, OutputCount());
@@ -927,6 +930,23 @@ class V8_EXPORT_PRIVATE Instruction final {
     return arch_opcode() == ArchOpcode::kArchThrowTerminator;
   }
 
+  static constexpr bool IsCallWithDescriptorFlags(InstructionCode arch_opcode) {
+    return arch_opcode <= ArchOpcode::kArchCallBuiltinPointer;
+  }
+  bool IsCallWithDescriptorFlags() const {
+    return IsCallWithDescriptorFlags(arch_opcode());
+  }
+  bool HasCallDescriptorFlag(CallDescriptor::Flag flag) const {
+    DCHECK(IsCallWithDescriptorFlags());
+    STATIC_ASSERT(CallDescriptor::kFlagsBitsEncodedInInstructionCode == 10);
+#ifdef DEBUG
+    static constexpr int kInstructionCodeFlagsMask =
+        ((1 << CallDescriptor::kFlagsBitsEncodedInInstructionCode) - 1);
+    DCHECK_EQ(static_cast<int>(flag) & kInstructionCodeFlagsMask, flag);
+#endif
+    return MiscField::decode(opcode()) & flag;
+  }
+
   enum GapPosition {
     START,
     END,
@@ -990,8 +1010,6 @@ class V8_EXPORT_PRIVATE Instruction final {
   ReferenceMap* reference_map_;
   InstructionBlock* block_;
   InstructionOperand operands_[1];
-
-  DISALLOW_COPY_AND_ASSIGN(Instruction);
 };
 
 std::ostream& operator<<(std::ostream&, const Instruction&);
@@ -1282,7 +1300,8 @@ class StateValueList {
 
 class FrameStateDescriptor : public ZoneObject {
  public:
-  FrameStateDescriptor(Zone* zone, FrameStateType type, BailoutId bailout_id,
+  FrameStateDescriptor(Zone* zone, FrameStateType type,
+                       BytecodeOffset bailout_id,
                        OutputFrameStateCombine state_combine,
                        size_t parameters_count, size_t locals_count,
                        size_t stack_count,
@@ -1290,7 +1309,7 @@ class FrameStateDescriptor : public ZoneObject {
                        FrameStateDescriptor* outer_state = nullptr);
 
   FrameStateType type() const { return type_; }
-  BailoutId bailout_id() const { return bailout_id_; }
+  BytecodeOffset bailout_id() const { return bailout_id_; }
   OutputFrameStateCombine state_combine() const { return frame_state_combine_; }
   size_t parameters_count() const { return parameters_count_; }
   size_t locals_count() const { return locals_count_; }
@@ -1300,6 +1319,7 @@ class FrameStateDescriptor : public ZoneObject {
   bool HasContext() const {
     return FrameStateFunctionInfo::IsJSFunctionType(type_) ||
            type_ == FrameStateType::kBuiltinContinuation ||
+           type_ == FrameStateType::kJSToWasmBuiltinContinuation ||
            type_ == FrameStateType::kConstructStub;
   }
 
@@ -1328,7 +1348,7 @@ class FrameStateDescriptor : public ZoneObject {
 
  private:
   FrameStateType type_;
-  BailoutId bailout_id_;
+  BytecodeOffset bailout_id_;
   OutputFrameStateCombine frame_state_combine_;
   const size_t parameters_count_;
   const size_t locals_count_;
@@ -1337,6 +1357,23 @@ class FrameStateDescriptor : public ZoneObject {
   StateValueList values_;
   MaybeHandle<SharedFunctionInfo> const shared_info_;
   FrameStateDescriptor* const outer_state_;
+};
+
+class JSToWasmFrameStateDescriptor : public FrameStateDescriptor {
+ public:
+  JSToWasmFrameStateDescriptor(Zone* zone, FrameStateType type,
+                               BytecodeOffset bailout_id,
+                               OutputFrameStateCombine state_combine,
+                               size_t parameters_count, size_t locals_count,
+                               size_t stack_count,
+                               MaybeHandle<SharedFunctionInfo> shared_info,
+                               FrameStateDescriptor* outer_state,
+                               const wasm::FunctionSig* wasm_signature);
+
+  base::Optional<wasm::ValueKind> return_type() const { return return_type_; }
+
+ private:
+  base::Optional<wasm::ValueKind> return_type_;
 };
 
 // A deoptimization entry is a pair of the reason why we deoptimize and the
@@ -1514,6 +1551,8 @@ class V8_EXPORT_PRIVATE InstructionSequence final
                                                  const Schedule* schedule);
   InstructionSequence(Isolate* isolate, Zone* zone,
                       InstructionBlocks* instruction_blocks);
+  InstructionSequence(const InstructionSequence&) = delete;
+  InstructionSequence& operator=(const InstructionSequence&) = delete;
 
   int NextVirtualRegister();
   int VirtualRegisterCount() const { return next_virtual_register_; }
@@ -1696,8 +1735,6 @@ class V8_EXPORT_PRIVATE InstructionSequence final
 
   // Used at construction time
   InstructionBlock* current_block_;
-
-  DISALLOW_COPY_AND_ASSIGN(InstructionSequence);
 };
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,

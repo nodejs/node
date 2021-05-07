@@ -80,6 +80,14 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
     }
   }
 
+  bool is_code_like = true;
+  for (int i = 0; i < argc; ++i) {
+    if (!args.at(i + 1)->IsCodeLike(isolate)) {
+      is_code_like = false;
+      break;
+    }
+  }
+
   // Compile the string in the constructor and not a helper so that errors to
   // come from here.
   Handle<JSFunction> function;
@@ -88,7 +96,7 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
         isolate, function,
         Compiler::GetFunctionFromString(
             handle(target->native_context(), isolate), source,
-            ONLY_SINGLE_FUNCTION_LITERAL, parameters_end_pos),
+            ONLY_SINGLE_FUNCTION_LITERAL, parameters_end_pos, is_code_like),
         Object);
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
@@ -119,8 +127,10 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
     Handle<Map> map = Map::AsLanguageMode(isolate, initial_map, shared_info);
 
     Handle<Context> context(function->context(), isolate);
-    function = isolate->factory()->NewFunctionFromSharedFunctionInfo(
-        map, shared_info, context, AllocationType::kYoung);
+    function = Factory::JSFunctionBuilder{isolate, shared_info, context}
+                   .set_map(map)
+                   .set_allocation_type(AllocationType::kYoung)
+                   .Build();
   }
   return function;
 }

@@ -173,9 +173,8 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
                  Builtins::IsIsolateIndependentBuiltin(*code));
 
   int builtin_index = Builtins::kNoBuiltinId;
-  bool target_is_isolate_independent_builtin =
-      isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
-      Builtins::IsIsolateIndependent(builtin_index);
+  bool target_is_builtin =
+      isolate()->builtins()->IsBuiltinHandle(code, &builtin_index);
 
   if (root_array_available_ && options().isolate_independent_code) {
     Label skip;
@@ -187,8 +186,7 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
     Jump(scratch);
     bind(&skip);
     return;
-  } else if (options().inline_offheap_trampolines &&
-             target_is_isolate_independent_builtin) {
+  } else if (options().inline_offheap_trampolines && target_is_builtin) {
     // Inline the trampoline.
     Label skip;
     RecordCommentForOffHeapTrampoline(builtin_index);
@@ -264,9 +262,8 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
                  Builtins::IsIsolateIndependentBuiltin(*code));
 
   int builtin_index = Builtins::kNoBuiltinId;
-  bool target_is_isolate_independent_builtin =
-      isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
-      Builtins::IsIsolateIndependent(builtin_index);
+  bool target_is_builtin =
+      isolate()->builtins()->IsBuiltinHandle(code, &builtin_index);
 
   if (root_array_available_ && options().isolate_independent_code) {
     Label skip;
@@ -277,8 +274,7 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
     Call(ip);
     bind(&skip);
     return;
-  } else if (options().inline_offheap_trampolines &&
-             target_is_isolate_independent_builtin) {
+  } else if (options().inline_offheap_trampolines && target_is_builtin) {
     // Inline the trampoline.
     RecordCommentForOffHeapTrampoline(builtin_index);
     EmbeddedData d = EmbeddedData::FromBlob();
@@ -433,6 +429,21 @@ void TurboAssembler::MultiPushDoubles(RegList dregs, Register location) {
   }
 }
 
+void TurboAssembler::MultiPushV128(RegList dregs, Register location) {
+  int16_t num_to_push = base::bits::CountPopulation(dregs);
+  int16_t stack_offset = num_to_push * kSimd128Size;
+
+  subi(location, location, Operand(stack_offset));
+  for (int16_t i = Simd128Register::kNumRegisters - 1; i >= 0; i--) {
+    if ((dregs & (1 << i)) != 0) {
+      Simd128Register dreg = Simd128Register::from_code(i);
+      stack_offset -= kSimd128Size;
+      li(ip, Operand(stack_offset));
+      StoreSimd128(dreg, MemOperand(location, ip), r0, kScratchSimd128Reg);
+    }
+  }
+}
+
 void TurboAssembler::MultiPopDoubles(RegList dregs, Register location) {
   int16_t stack_offset = 0;
 
@@ -441,6 +452,20 @@ void TurboAssembler::MultiPopDoubles(RegList dregs, Register location) {
       DoubleRegister dreg = DoubleRegister::from_code(i);
       lfd(dreg, MemOperand(location, stack_offset));
       stack_offset += kDoubleSize;
+    }
+  }
+  addi(location, location, Operand(stack_offset));
+}
+
+void TurboAssembler::MultiPopV128(RegList dregs, Register location) {
+  int16_t stack_offset = 0;
+
+  for (int16_t i = 0; i < Simd128Register::kNumRegisters; i++) {
+    if ((dregs & (1 << i)) != 0) {
+      Simd128Register dreg = Simd128Register::from_code(i);
+      li(ip, Operand(stack_offset));
+      LoadSimd128(dreg, MemOperand(location, ip), r0, kScratchSimd128Reg);
+      stack_offset += kSimd128Size;
     }
   }
   addi(location, location, Operand(stack_offset));
@@ -651,10 +676,8 @@ void TurboAssembler::CallEphemeronKeyBarrier(Register object, Register address,
 void TurboAssembler::CallRecordWriteStub(
     Register object, Register address,
     RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode) {
-  CallRecordWriteStub(
-      object, address, remembered_set_action, fp_mode,
-      isolate()->builtins()->builtin_handle(Builtins::kRecordWrite),
-      kNullAddress);
+  CallRecordWriteStub(object, address, remembered_set_action, fp_mode,
+                      Builtins::kRecordWrite, kNullAddress);
 }
 
 void TurboAssembler::CallRecordWriteStub(
@@ -662,14 +685,15 @@ void TurboAssembler::CallRecordWriteStub(
     RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
     Address wasm_target) {
   CallRecordWriteStub(object, address, remembered_set_action, fp_mode,
-                      Handle<Code>::null(), wasm_target);
+                      Builtins::kNoBuiltinId, wasm_target);
 }
 
 void TurboAssembler::CallRecordWriteStub(
     Register object, Register address,
     RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
-    Handle<Code> code_target, Address wasm_target) {
-  DCHECK_NE(code_target.is_null(), wasm_target == kNullAddress);
+    int builtin_index, Address wasm_target) {
+  DCHECK_NE(builtin_index == Builtins::kNoBuiltinId,
+            wasm_target == kNullAddress);
   // TODO(albertnetymk): For now we ignore remembered_set_action and fp_mode,
   // i.e. always emit remember set and save FP registers in RecordWriteStub. If
   // large performance regression is observed, we should use these values to
@@ -697,9 +721,19 @@ void TurboAssembler::CallRecordWriteStub(
 
   Move(remembered_set_parameter, Smi::FromEnum(remembered_set_action));
   Move(fp_mode_parameter, Smi::FromEnum(fp_mode));
-  if (code_target.is_null()) {
+  if (builtin_index == Builtins::kNoBuiltinId) {
     Call(wasm_target, RelocInfo::WASM_STUB_CALL);
+  } else if (options().inline_offheap_trampolines) {
+    RecordCommentForOffHeapTrampoline(builtin_index);
+    EmbeddedData d = EmbeddedData::FromBlob();
+    Address entry = d.InstructionStartOfBuiltin(builtin_index);
+    // Use ip directly instead of using UseScratchRegisterScope, as we do
+    // not preserve scratch registers across calls.
+    mov(ip, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+    Call(ip);
   } else {
+    Handle<Code> code_target =
+        isolate()->builtins()->builtin_handle(Builtins::kRecordWrite);
     Call(code_target, RelocInfo::CODE_TARGET);
   }
 
@@ -1057,10 +1091,16 @@ void TurboAssembler::ShiftRightAlgPair(Register dst_low, Register dst_high,
 
 void TurboAssembler::LoadConstantPoolPointerRegisterFromCodeTargetAddress(
     Register code_target_address) {
+  // Builtins do not use the constant pool (see is_constant_pool_available).
+  STATIC_ASSERT(Code::kOnHeapBodyIsContiguous);
+
+  lwz(r0, MemOperand(code_target_address,
+                     Code::kInstructionSizeOffset - Code::kHeaderSize));
   lwz(kConstantPoolRegister,
       MemOperand(code_target_address,
                  Code::kConstantPoolOffsetOffset - Code::kHeaderSize));
   add(kConstantPoolRegister, kConstantPoolRegister, code_target_address);
+  add(kConstantPoolRegister, kConstantPoolRegister, r0);
 }
 
 void TurboAssembler::LoadPC(Register dst) {
@@ -1076,6 +1116,10 @@ void TurboAssembler::ComputeCodeStartAddress(Register dst) {
 }
 
 void TurboAssembler::LoadConstantPoolPointerRegister() {
+  //
+  // Builtins do not use the constant pool (see is_constant_pool_available).
+  STATIC_ASSERT(Code::kOnHeapBodyIsContiguous);
+
   LoadPC(kConstantPoolRegister);
   int32_t delta = -pc_offset() + 4;
   add_label_offset(kConstantPoolRegister, kConstantPoolRegister,
@@ -1334,38 +1378,104 @@ void TurboAssembler::PrepareForTailCall(Register callee_args_count,
   mr(sp, dst_reg);
 }
 
+void MacroAssembler::LoadStackLimit(Register destination, StackLimitKind kind) {
+  DCHECK(root_array_available());
+  Isolate* isolate = this->isolate();
+  ExternalReference limit =
+      kind == StackLimitKind::kRealStackLimit
+          ? ExternalReference::address_of_real_jslimit(isolate)
+          : ExternalReference::address_of_jslimit(isolate);
+  DCHECK(TurboAssembler::IsAddressableThroughRootRegister(isolate, limit));
+
+  intptr_t offset =
+      TurboAssembler::RootRegisterOffsetForExternalReference(isolate, limit);
+  CHECK(is_int32(offset));
+  LoadP(destination, MemOperand(kRootRegister, offset), r0);
+}
+
+void MacroAssembler::StackOverflowCheck(Register num_args, Register scratch,
+                                        Label* stack_overflow) {
+  // Check the stack for overflow. We are not trying to catch
+  // interruptions (e.g. debug break and preemption) here, so the "real stack
+  // limit" is checked.
+  LoadStackLimit(scratch, StackLimitKind::kRealStackLimit);
+  // Make scratch the space we have left. The stack might already be overflowed
+  // here which will cause scratch to become negative.
+  sub(scratch, sp, scratch);
+  // Check if the arguments will overflow the stack.
+  ShiftLeftImm(r0, num_args, Operand(kSystemPointerSizeLog2));
+  cmp(scratch, r0);
+  ble(stack_overflow);  // Signed comparison.
+}
+
 void MacroAssembler::InvokePrologue(Register expected_parameter_count,
                                     Register actual_parameter_count,
                                     Label* done, InvokeFlag flag) {
   Label regular_invoke;
 
-  // Check whether the expected and actual arguments count match. If not,
-  // setup registers according to contract with ArgumentsAdaptorTrampoline:
   //  r3: actual arguments count
   //  r4: function (passed through to callee)
   //  r5: expected arguments count
 
-  // The code below is made a lot easier because the calling code already sets
-  // up actual and expected registers according to the contract if values are
-  // passed in registers.
+  DCHECK_EQ(actual_parameter_count, r3);
+  DCHECK_EQ(expected_parameter_count, r5);
 
-  // The code below is made a lot easier because the calling code already sets
-  // up actual and expected registers according to the contract.
-  // ARM has some checks as per below, considering add them for PPC
-  // DCHECK_EQ(actual_parameter_count, r3);
-  // DCHECK_EQ(expected_parameter_count, r5);
-
-  cmp(expected_parameter_count, actual_parameter_count);
+  // If the expected parameter count is equal to the adaptor sentinel, no need
+  // to push undefined value as arguments.
+  mov(r0, Operand(kDontAdaptArgumentsSentinel));
+  cmp(expected_parameter_count, r0);
   beq(&regular_invoke);
 
-  Handle<Code> adaptor = BUILTIN_CODE(isolate(), ArgumentsAdaptorTrampoline);
-  if (flag == CALL_FUNCTION) {
-    Call(adaptor);
-    b(done);
-  } else {
-    Jump(adaptor, RelocInfo::CODE_TARGET);
+  // If overapplication or if the actual argument count is equal to the
+  // formal parameter count, no need to push extra undefined values.
+  sub(expected_parameter_count, expected_parameter_count,
+      actual_parameter_count, LeaveOE, SetRC);
+  ble(&regular_invoke, cr0);
+
+  Label stack_overflow;
+  Register scratch = r7;
+  StackOverflowCheck(expected_parameter_count, scratch, &stack_overflow);
+
+  // Underapplication. Move the arguments already in the stack, including the
+  // receiver and the return address.
+  {
+    Label copy;
+    Register src = r9, dest = r8;
+    addi(src, sp, Operand(-kSystemPointerSize));
+    ShiftLeftImm(r0, expected_parameter_count, Operand(kSystemPointerSizeLog2));
+    sub(sp, sp, r0);
+    // Update stack pointer.
+    addi(dest, sp, Operand(-kSystemPointerSize));
+    addi(r0, actual_parameter_count, Operand(1));
+    mtctr(r0);
+
+    bind(&copy);
+    LoadPU(r0, MemOperand(src, kSystemPointerSize));
+    StorePU(r0, MemOperand(dest, kSystemPointerSize));
+    bdnz(&copy);
   }
-    bind(&regular_invoke);
+
+  // Fill remaining expected arguments with undefined values.
+  LoadRoot(scratch, RootIndex::kUndefinedValue);
+  {
+    mtctr(expected_parameter_count);
+
+    Label loop;
+    bind(&loop);
+    StorePU(scratch, MemOperand(r8, kSystemPointerSize));
+    bdnz(&loop);
+  }
+  b(&regular_invoke);
+
+  bind(&stack_overflow);
+  {
+    FrameScope frame(this,
+                     has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
+    CallRuntime(Runtime::kThrowStackOverflow);
+    bkpt(0);
+  }
+
+  bind(&regular_invoke);
 }
 
 void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
@@ -1545,6 +1655,18 @@ void MacroAssembler::CompareInstanceType(Register map, Register type_reg,
   STATIC_ASSERT(LAST_TYPE <= 0xFFFF);
   lhz(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
   cmpi(type_reg, Operand(type));
+}
+
+void MacroAssembler::CompareInstanceTypeRange(Register map, Register type_reg,
+                                              InstanceType lower_limit,
+                                              InstanceType higher_limit) {
+  DCHECK_LT(lower_limit, higher_limit);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  LoadHalfWord(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  mov(scratch, Operand(lower_limit));
+  sub(scratch, type_reg, scratch);
+  cmpli(scratch, Operand(higher_limit - lower_limit));
 }
 
 void MacroAssembler::CompareRoot(Register obj, RootIndex index) {
@@ -1840,7 +1962,7 @@ void TurboAssembler::Abort(AbortReason reason) {
   // will not return here
 }
 
-void MacroAssembler::LoadMap(Register destination, Register object) {
+void TurboAssembler::LoadMap(Register destination, Register object) {
   LoadTaggedPointerField(destination,
                          FieldMemOperand(object, HeapObject::kMapOffset));
 }
@@ -1889,9 +2011,11 @@ void MacroAssembler::AssertFunction(Register object) {
     TestIfSmi(object, r0);
     Check(ne, AbortReason::kOperandIsASmiAndNotAFunction, cr0);
     push(object);
-    CompareObjectType(object, object, object, JS_FUNCTION_TYPE);
+    LoadMap(object, object);
+    CompareInstanceTypeRange(object, object, FIRST_JS_FUNCTION_TYPE,
+                             LAST_JS_FUNCTION_TYPE);
     pop(object);
-    Check(eq, AbortReason::kOperandIsNotAFunction);
+    Check(le, AbortReason::kOperandIsNotAFunction);
   }
 }
 
@@ -2872,7 +2996,7 @@ void TurboAssembler::LoadSimd128(Simd128Register dst, const MemOperand& mem,
       sp, sp,
       Operand(base::bits::WhichPowerOfTwo(16)));  // equivalent to &= -16
   addi(sp, sp, Operand(-16));
-  stxvd(kScratchDoubleReg, MemOperand(r0, sp));
+  stxvd(ScratchDoubleReg, MemOperand(r0, sp));
   // Load it with correct lane ordering.
   lvx(dst, MemOperand(r0, sp));
   mr(sp, ScratchReg);
@@ -3083,40 +3207,40 @@ void TurboAssembler::SwapSimd128(Simd128Register src, Simd128Register dst,
 
 void TurboAssembler::SwapSimd128(Simd128Register src, MemOperand dst,
                                  Simd128Register scratch) {
-  DCHECK(!AreAliased(src, scratch));
-  // push d0, to be used as scratch
+  DCHECK(src != scratch);
+  // push v0, to be used as scratch
   addi(sp, sp, Operand(-kSimd128Size));
-  StoreSimd128(d0, MemOperand(r0, sp), r0, scratch);
+  StoreSimd128(v0, MemOperand(r0, sp), r0, scratch);
   mov(ip, Operand(dst.offset()));
-  LoadSimd128(d0, MemOperand(dst.ra(), ip), r0, scratch);
+  LoadSimd128(v0, MemOperand(dst.ra(), ip), r0, scratch);
   StoreSimd128(src, MemOperand(dst.ra(), ip), r0, scratch);
-  vor(src, d0, d0);
-  // restore d0
-  LoadSimd128(d0, MemOperand(r0, sp), ip, scratch);
+  vor(src, v0, v0);
+  // restore v0
+  LoadSimd128(v0, MemOperand(r0, sp), ip, scratch);
   addi(sp, sp, Operand(kSimd128Size));
 }
 
 void TurboAssembler::SwapSimd128(MemOperand src, MemOperand dst,
                                  Simd128Register scratch) {
-  // push d0 and d1, to be used as scratch
+  // push v0 and v1, to be used as scratch
   addi(sp, sp, Operand(2 * -kSimd128Size));
-  StoreSimd128(d0, MemOperand(r0, sp), ip, scratch);
+  StoreSimd128(v0, MemOperand(r0, sp), ip, scratch);
   li(ip, Operand(kSimd128Size));
-  StoreSimd128(d1, MemOperand(ip, sp), r0, scratch);
+  StoreSimd128(v1, MemOperand(ip, sp), r0, scratch);
 
   mov(ip, Operand(src.offset()));
-  LoadSimd128(d0, MemOperand(src.ra(), ip), r0, scratch);
+  LoadSimd128(v0, MemOperand(src.ra(), ip), r0, scratch);
   mov(ip, Operand(dst.offset()));
-  LoadSimd128(d1, MemOperand(dst.ra(), ip), r0, scratch);
+  LoadSimd128(v1, MemOperand(dst.ra(), ip), r0, scratch);
 
-  StoreSimd128(d0, MemOperand(dst.ra(), ip), r0, scratch);
+  StoreSimd128(v0, MemOperand(dst.ra(), ip), r0, scratch);
   mov(ip, Operand(src.offset()));
-  StoreSimd128(d1, MemOperand(src.ra(), ip), r0, scratch);
+  StoreSimd128(v1, MemOperand(src.ra(), ip), r0, scratch);
 
-  // restore d0 and d1
-  LoadSimd128(d0, MemOperand(r0, sp), ip, scratch);
+  // restore v0 and v1
+  LoadSimd128(v0, MemOperand(r0, sp), ip, scratch);
   li(ip, Operand(kSimd128Size));
-  LoadSimd128(d1, MemOperand(ip, sp), r0, scratch);
+  LoadSimd128(v1, MemOperand(ip, sp), r0, scratch);
   addi(sp, sp, Operand(2 * kSimd128Size));
 }
 
@@ -3213,7 +3337,8 @@ void TurboAssembler::CallCodeObject(Register code_object) {
   Call(code_object);
 }
 
-void TurboAssembler::JumpCodeObject(Register code_object) {
+void TurboAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
+  DCHECK_EQ(JumpMode::kJump, jump_mode);
   LoadCodeObjectEntry(code_object, code_object);
   Jump(code_object);
 }
@@ -3251,16 +3376,22 @@ void TurboAssembler::StoreReturnAddressAndCall(Register target) {
             SizeOfCodeGeneratedSince(&start_call));
 }
 
-void TurboAssembler::CallForDeoptimization(Address target, int deopt_id,
-                                           Label* exit, DeoptimizeKind kind) {
-  USE(exit, kind);
-  NoRootArrayScope no_root_array(this);
-
-  // Save the deopt id in r29 (we don't need the roots array from now on).
-  DCHECK_LE(deopt_id, 0xFFFF);
-
-  mov(r29, Operand(deopt_id));
-  Call(target, RelocInfo::RUNTIME_ENTRY);
+void TurboAssembler::CallForDeoptimization(Builtins::Name target, int,
+                                           Label* exit, DeoptimizeKind kind,
+                                           Label* ret, Label*) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  LoadP(ip, MemOperand(kRootRegister,
+                       IsolateData::builtin_entry_slot_offset(target)));
+  Call(ip);
+  DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
+            (kind == DeoptimizeKind::kLazy)
+                ? Deoptimizer::kLazyDeoptExitSize
+                : Deoptimizer::kNonLazyDeoptExitSize);
+  if (kind == DeoptimizeKind::kEagerWithResume) {
+    b(ret);
+    DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
+              Deoptimizer::kEagerWithResumeBeforeArgsSize);
+  }
 }
 
 void TurboAssembler::ZeroExtByte(Register dst, Register src) {

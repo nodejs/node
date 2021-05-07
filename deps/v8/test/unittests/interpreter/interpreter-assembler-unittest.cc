@@ -48,6 +48,9 @@ InterpreterAssemblerTest::InterpreterAssemblerForTest::
   if (Bytecodes::WritesAccumulator(bytecode())) {
     SetAccumulator(NullConstant());
   }
+  if (Bytecodes::WritesImplicitRegister(bytecode())) {
+    StoreRegisterForShortStar(NullConstant(), IntPtrConstant(2));
+  }
 }
 
 Matcher<Node*> InterpreterAssemblerTest::InterpreterAssemblerForTest::IsLoad(
@@ -419,7 +422,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, LoadConstantPoolEntry) {
                      LoadSensitivity::kCritical));
     }
     {
-      Node* index = m.Parameter(2);
+      Node* index = m.UntypedParameter(2);
       TNode<Object> load_constant =
           m.LoadConstantPoolEntry(m.ReinterpretCast<IntPtrT>(index));
         Matcher<Node*> constant_pool_matcher = m.IsLoadFromObject(

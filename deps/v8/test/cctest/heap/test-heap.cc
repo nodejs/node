@@ -47,19 +47,20 @@
 #include "src/heap/mark-compact.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/memory-reducer.h"
+#include "src/heap/parked-scope.h"
 #include "src/heap/remembered-set-inl.h"
 #include "src/heap/safepoint.h"
 #include "src/ic/ic.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/elements.h"
 #include "src/objects/field-type.h"
-#include "src/objects/frame-array-inl.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/managed.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
+#include "src/objects/stack-frame-info-inl.h"
 #include "src/objects/transitions.h"
 #include "src/regexp/regexp.h"
 #include "src/snapshot/snapshot.h"
@@ -202,12 +203,20 @@ HEAP_TEST(TestNewSpaceRefsInCopiedCode) {
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   // Add a new-space reference to the code.
+#if V8_TARGET_ARCH_ARM64
+  // Arm64 requires stack alignment.
+  UseScratchRegisterScope temps(&masm);
+  Register tmp = temps.AcquireX();
+  masm.Mov(tmp, Operand(value));
+  masm.Push(tmp, padreg);
+#else
   masm.Push(value);
+#endif
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
   Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
   Handle<Code> copy;
   {
@@ -231,7 +240,7 @@ static void CheckFindCodeObject(Isolate* isolate) {
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   CHECK(code->IsCode());
 
   HeapObject obj = HeapObject::cast(*code);
@@ -243,7 +252,7 @@ static void CheckFindCodeObject(Isolate* isolate) {
   }
 
   Handle<Code> copy =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   HeapObject obj_copy = HeapObject::cast(*copy);
   Object not_right =
       isolate->FindCodeObject(obj_copy.address() + obj_copy.Size() / 2);
@@ -375,7 +384,7 @@ TEST(GarbageCollection) {
   {
     HandleScope inner_scope(isolate);
     // Allocate a function and keep it in global object's property.
-    Handle<JSFunction> function = factory->NewFunctionForTest(name);
+    Handle<JSFunction> function = factory->NewFunctionForTesting(name);
     Object::SetProperty(isolate, global, name, function).Check();
     // Allocate an object.  Unrooted after leaving the scope.
     Handle<JSObject> obj = factory->NewJSObject(function);
@@ -746,7 +755,7 @@ TEST(FunctionAllocation) {
 
   v8::HandleScope sc(CcTest::isolate());
   Handle<String> name = factory->InternalizeUtf8String("theFunction");
-  Handle<JSFunction> function = factory->NewFunctionForTest(name);
+  Handle<JSFunction> function = factory->NewFunctionForTesting(name);
 
   Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
   Handle<Smi> twenty_four(Smi::FromInt(24), isolate);
@@ -849,7 +858,7 @@ TEST(JSObjectMaps) {
 
   v8::HandleScope sc(CcTest::isolate());
   Handle<String> name = factory->InternalizeUtf8String("theFunction");
-  Handle<JSFunction> function = factory->NewFunctionForTest(name);
+  Handle<JSFunction> function = factory->NewFunctionForTesting(name);
 
   Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
   Handle<JSObject> obj = factory->NewJSObject(function);
@@ -1011,15 +1020,14 @@ TEST(StringAllocation) {
     Handle<String> one_byte_sym =
         factory->InternalizeString(OneByteVector(one_byte, length));
     CHECK_EQ(length, one_byte_sym->length());
+    CHECK(one_byte_sym->HasHashCode());
     Handle<String> non_one_byte_str =
         factory->NewStringFromUtf8(Vector<const char>(non_one_byte, 3 * length))
             .ToHandleChecked();
-    non_one_byte_str->Hash();
     CHECK_EQ(length, non_one_byte_str->length());
     Handle<String> one_byte_str =
         factory->NewStringFromUtf8(Vector<const char>(one_byte, length))
             .ToHandleChecked();
-    one_byte_str->Hash();
     CHECK_EQ(length, one_byte_str->length());
     DeleteArray(non_one_byte);
     DeleteArray(one_byte);
@@ -1182,27 +1190,19 @@ HEAP_TEST(Regress10560) {
     CHECK(function->shared().HasBytecodeArray());
     const int kAgingThreshold = 6;
     for (int i = 0; i < kAgingThreshold; i++) {
-      function->shared().GetBytecodeArray().MakeOlder();
-      if (function->shared().GetBytecodeArray().IsOld()) break;
+      function->shared().GetBytecodeArray(i_isolate).MakeOlder();
+      if (function->shared().GetBytecodeArray(i_isolate).IsOld()) break;
     }
 
-    CHECK(function->shared().GetBytecodeArray().IsOld());
+    CHECK(function->shared().GetBytecodeArray(i_isolate).IsOld());
 
     heap::SimulateFullSpace(heap->old_space());
 
     // Just check bytecode isn't flushed still
-    CHECK(function->shared().GetBytecodeArray().IsOld());
+    CHECK(function->shared().GetBytecodeArray(i_isolate).IsOld());
     CHECK(function->shared().is_compiled());
 
-    heap->set_force_oom(true);
-    heap->AddNearHeapLimitCallback(
-        [](void* data, size_t current_heap_limit,
-           size_t initial_heap_limit) -> size_t {
-          Heap* heap = static_cast<Heap*>(data);
-          heap->set_force_oom(false);
-          return 0;
-        },
-        heap);
+    heap->set_force_gc_on_next_allocation();
 
     // Allocate feedback vector.
     IsCompiledScope is_compiled_scope(
@@ -1259,7 +1259,9 @@ UNINITIALIZED_TEST(Regress10843) {
 // Tests that spill slots from optimized code don't have weak pointers.
 TEST(Regress10774) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_dynamic_map_checks = true;
+  i::FLAG_turboprop = true;
+  i::FLAG_turbo_dynamic_map_checks = true;
+  i::FLAG_turbo_direct_heap_access = true;
 #ifdef VERIFY_HEAP
   i::FLAG_verify_heap = true;
 #endif
@@ -1375,7 +1377,7 @@ TEST(TestOptimizeAfterBytecodeFlushingCandidate) {
   // the loop breaks once the function is enqueued as a candidate.
   for (int i = 0; i < kAgingThreshold; i++) {
     heap::SimulateIncrementalMarking(CcTest::heap());
-    if (function->shared().GetBytecodeArray().IsOld()) break;
+    if (function->shared().GetBytecodeArray(CcTest::i_isolate()).IsOld()) break;
     CcTest::CollectAllGarbage();
   }
 
@@ -1494,7 +1496,7 @@ TEST(CompilationCacheCachingBehavior) {
     CHECK(shared->HasBytecodeArray());
     const int kAgingThreshold = 6;
     for (int i = 0; i < kAgingThreshold; i++) {
-      shared->GetBytecodeArray().MakeOlder();
+      shared->GetBytecodeArray(CcTest::i_isolate()).MakeOlder();
     }
   }
 
@@ -2645,19 +2647,11 @@ TEST(OptimizedPretenuringMixedInObjectProperties) {
   FieldIndex idx1 = FieldIndex::ForPropertyIndex(o->map(), 0);
   FieldIndex idx2 = FieldIndex::ForPropertyIndex(o->map(), 1);
   CHECK(CcTest::heap()->InOldSpace(o->RawFastPropertyAt(idx1)));
-  if (!o->IsUnboxedDoubleField(idx2)) {
-    CHECK(CcTest::heap()->InOldSpace(o->RawFastPropertyAt(idx2)));
-  } else {
-    CHECK_EQ(1.1, o->RawFastDoublePropertyAt(idx2));
-  }
+  CHECK(CcTest::heap()->InOldSpace(o->RawFastPropertyAt(idx2)));
 
   JSObject inner_object = JSObject::cast(o->RawFastPropertyAt(idx1));
   CHECK(CcTest::heap()->InOldSpace(inner_object));
-  if (!inner_object.IsUnboxedDoubleField(idx1)) {
-    CHECK(CcTest::heap()->InOldSpace(inner_object.RawFastPropertyAt(idx1)));
-  } else {
-    CHECK_EQ(2.2, inner_object.RawFastDoublePropertyAt(idx1));
-  }
+  CHECK(CcTest::heap()->InOldSpace(inner_object.RawFastPropertyAt(idx1)));
   CHECK(CcTest::heap()->InOldSpace(inner_object.RawFastPropertyAt(idx2)));
 }
 
@@ -2922,7 +2916,7 @@ TEST(OptimizedAllocationArrayLiterals) {
 }
 
 static int CountMapTransitions(i::Isolate* isolate, Map map) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   return TransitionsAccessor(isolate, map, &no_gc).NumberOfTransitions();
 }
 
@@ -3536,7 +3530,7 @@ UNINITIALIZED_TEST(ReleaseStackTraceData) {
 
 // TODO(mmarchini) also write tests for async/await and Promise.all
 void DetailedErrorStackTraceTest(const char* src,
-                                 std::function<void(Handle<FrameArray>)> test) {
+                                 std::function<void(Handle<FixedArray>)> test) {
   FLAG_detailed_error_stack_trace = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -3552,8 +3546,11 @@ void DetailedErrorStackTraceTest(const char* src,
 
   Handle<FixedArray> stack_trace(Handle<FixedArray>::cast(
       Object::GetProperty(isolate, exception, key).ToHandleChecked()));
+  test(stack_trace);
+}
 
-  test(GetFrameArrayFromStackTrace(isolate, stack_trace));
+FixedArray ParametersOf(Handle<FixedArray> stack_trace, int frame_index) {
+  return StackFrameInfo::cast(stack_trace->get(frame_index)).parameters();
 }
 
 // * Test interpreted function error
@@ -3573,13 +3570,13 @@ TEST(DetailedErrorStackTrace) {
       "var foo = new Foo();         "
       "main(foo);                   ";
 
-  DetailedErrorStackTraceTest(source, [](Handle<FrameArray> stack_trace) {
-    FixedArray foo_parameters = stack_trace->Parameters(0);
+  DetailedErrorStackTraceTest(source, [](Handle<FixedArray> stack_trace) {
+    FixedArray foo_parameters = ParametersOf(stack_trace, 0);
     CHECK_EQ(foo_parameters.length(), 1);
     CHECK(foo_parameters.get(0).IsSmi());
     CHECK_EQ(Smi::ToInt(foo_parameters.get(0)), 42);
 
-    FixedArray bar_parameters = stack_trace->Parameters(1);
+    FixedArray bar_parameters = ParametersOf(stack_trace, 1);
     CHECK_EQ(bar_parameters.length(), 2);
     CHECK(bar_parameters.get(0).IsJSObject());
     CHECK(bar_parameters.get(1).IsBoolean());
@@ -3587,7 +3584,7 @@ TEST(DetailedErrorStackTrace) {
     CHECK_EQ(bar_parameters.get(0), *foo);
     CHECK(!bar_parameters.get(1).BooleanValue(CcTest::i_isolate()));
 
-    FixedArray main_parameters = stack_trace->Parameters(2);
+    FixedArray main_parameters = ParametersOf(stack_trace, 2);
     CHECK_EQ(main_parameters.length(), 2);
     CHECK(main_parameters.get(0).IsJSObject());
     CHECK(main_parameters.get(1).IsUndefined());
@@ -3614,13 +3611,13 @@ TEST(DetailedErrorStackTraceInline) {
       "%OptimizeFunctionOnNextCall(foo);     "
       "foo(41);                              ";
 
-  DetailedErrorStackTraceTest(source, [](Handle<FrameArray> stack_trace) {
-    FixedArray parameters_add = stack_trace->Parameters(0);
+  DetailedErrorStackTraceTest(source, [](Handle<FixedArray> stack_trace) {
+    FixedArray parameters_add = ParametersOf(stack_trace, 0);
     CHECK_EQ(parameters_add.length(), 1);
     CHECK(parameters_add.get(0).IsSmi());
     CHECK_EQ(Smi::ToInt(parameters_add.get(0)), 42);
 
-    FixedArray parameters_foo = stack_trace->Parameters(1);
+    FixedArray parameters_foo = ParametersOf(stack_trace, 1);
     CHECK_EQ(parameters_foo.length(), 1);
     CHECK(parameters_foo.get(0).IsSmi());
     CHECK_EQ(Smi::ToInt(parameters_foo.get(0)), 41);
@@ -3635,17 +3632,12 @@ TEST(DetailedErrorStackTraceBuiltinExit) {
       "}                               "
       "test(9999);                     ";
 
-  DetailedErrorStackTraceTest(source, [](Handle<FrameArray> stack_trace) {
-    FixedArray parameters = stack_trace->Parameters(0);
+  DetailedErrorStackTraceTest(source, [](Handle<FixedArray> stack_trace) {
+    FixedArray parameters = ParametersOf(stack_trace, 0);
 
     CHECK_EQ(parameters.length(), 2);
-#ifdef V8_REVERSE_JSARGS
     CHECK(parameters.get(1).IsSmi());
     CHECK_EQ(Smi::ToInt(parameters.get(1)), 9999);
-#else
-    CHECK(parameters.get(0).IsSmi());
-    CHECK_EQ(Smi::ToInt(parameters.get(0)), 9999);
-#endif
   });
 }
 
@@ -3752,7 +3744,7 @@ TEST(LargeObjectSlotRecording) {
   FixedArray old_location = *lit;
 
   // Allocate a large object.
-  int size = Max(1000000, kMaxRegularHeapObjectSize + KB);
+  int size = std::max(1000000, kMaxRegularHeapObjectSize + KB);
   CHECK_LT(kMaxRegularHeapObjectSize, size);
   Handle<FixedArray> lo =
       isolate->factory()->NewFixedArray(size, AllocationType::kOld);
@@ -4474,7 +4466,7 @@ TEST(NextCodeLinkInCodeDataContainerIsCleared) {
         OptimizeDummyFunction(CcTest::isolate(), "mortal2");
     CHECK_EQ(mortal2->code().next_code_link(), mortal1->code());
     code_data_container = scope.CloseAndEscape(Handle<CodeDataContainer>(
-        mortal2->code().code_data_container(), isolate));
+        mortal2->code().code_data_container(kAcquireLoad), isolate));
     CompileRun("mortal1 = null; mortal2 = null;");
   }
   CcTest::CollectAllAvailableGarbage();
@@ -4486,14 +4478,20 @@ static Handle<Code> DummyOptimizedCode(Isolate* isolate) {
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   CodeDesc desc;
+#if V8_TARGET_ARCH_ARM64
+  UseScratchRegisterScope temps(&masm);
+  Register tmp = temps.AcquireX();
+  masm.Mov(tmp, Operand(isolate->factory()->undefined_value()));
+  masm.Push(tmp, tmp);
+#else
   masm.Push(isolate->factory()->undefined_value());
   masm.Push(isolate->factory()->undefined_value());
+#endif
   masm.Drop(2);
   masm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::OPTIMIZED_FUNCTION)
-          .set_self_reference(masm.CodeObject())
-          .Build();
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, CodeKind::TURBOFAN)
+                          .set_self_reference(masm.CodeObject())
+                          .Build();
   CHECK(code->IsCode());
   return code;
 }
@@ -5289,8 +5287,8 @@ TEST(PreprocessStackTrace) {
       Object::GetElement(isolate, stack_trace, 3).ToHandleChecked();
   CHECK(pos->IsSmi());
 
-  Handle<FrameArray> frame_array = Handle<FrameArray>::cast(stack_trace);
-  int array_length = frame_array->FrameCount();
+  Handle<FixedArray> frame_array = Handle<FixedArray>::cast(stack_trace);
+  int array_length = frame_array->length();
   for (int i = 0; i < array_length; i++) {
     Handle<Object> element =
         Object::GetElement(isolate, stack_trace, i).ToHandleChecked();
@@ -5597,6 +5595,11 @@ HEAP_TEST(Regress589413) {
     // Add the array in root set.
     handle(byte_array, isolate);
   }
+  auto reset_oom = [](void* heap, size_t limit, size_t) -> size_t {
+    reinterpret_cast<Heap*>(heap)->set_force_oom(false);
+    return limit;
+  };
+  heap->AddNearHeapLimitCallback(reset_oom, heap);
 
   {
     // Ensure that incremental marking is not started unexpectedly.
@@ -5660,6 +5663,7 @@ HEAP_TEST(Regress589413) {
   // Force allocation from the free list.
   heap->set_force_oom(true);
   CcTest::CollectGarbage(OLD_SPACE);
+  heap->RemoveNearHeapLimitCallback(reset_oom, 0);
 }
 
 TEST(Regress598319) {
@@ -5674,7 +5678,8 @@ TEST(Regress598319) {
   Isolate* isolate = heap->isolate();
 
   // The size of the array should be larger than kProgressBarScanningChunk.
-  const int kNumberOfObjects = Max(FixedArray::kMaxRegularLength + 1, 128 * KB);
+  const int kNumberOfObjects =
+      std::max(FixedArray::kMaxRegularLength + 1, 128 * KB);
 
   struct Arr {
     Arr(Isolate* isolate, int number_of_objects) {
@@ -6286,7 +6291,7 @@ TEST(RememberedSet_InsertInLargePage) {
   HandleScope scope(isolate);
 
   // Allocate an object in Large space.
-  const int count = Max(FixedArray::kMaxRegularLength + 1, 128 * KB);
+  const int count = std::max(FixedArray::kMaxRegularLength + 1, 128 * KB);
   Handle<FixedArray> arr = factory->NewFixedArray(count, AllocationType::kOld);
   CHECK(heap->lo_space()->Contains(*arr));
   CHECK_EQ(0, GetRememberedSetSize<OLD_TO_NEW>(*arr));
@@ -6521,67 +6526,6 @@ HEAP_TEST(Regress670675) {
         deadline, IncrementalMarking::GC_VIA_STACK_GUARD, StepOrigin::kV8);
   }
   DCHECK(marking->IsStopped());
-}
-
-namespace {
-Handle<Code> GenerateDummyImmovableCode(Isolate* isolate) {
-  Assembler assm(AssemblerOptions{});
-
-  const int kNumberOfNops = 1 << 10;
-  for (int i = 0; i < kNumberOfNops; i++) {
-    assm.nop();  // supported on all architectures
-  }
-
-  CodeDesc desc;
-  assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, CodeKind::STUB)
-                          .set_immovable()
-                          .Build();
-  CHECK(code->IsCode());
-
-  return code;
-}
-}  // namespace
-
-HEAP_TEST(Regress5831) {
-  CcTest::InitializeVM();
-  Heap* heap = CcTest::heap();
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope handle_scope(isolate);
-
-  // Used to ensure that the generated code is not collected.
-  const int kInitialSize = 32;
-  Handle<FixedArray> array = isolate->factory()->NewFixedArray(kInitialSize);
-
-  // Ensure that all immovable code space pages are full and we overflow into
-  // LO_SPACE.
-  const int kMaxIterations = 1 << 16;
-  bool overflowed_into_lospace = false;
-  for (int i = 0; i < kMaxIterations; i++) {
-    Handle<Code> code = GenerateDummyImmovableCode(isolate);
-    array = FixedArray::SetAndGrow(isolate, array, i, code);
-    CHECK(heap->code_space()->Contains(*code) ||
-          heap->code_lo_space()->Contains(*code));
-    if (heap->code_lo_space()->Contains(*code)) {
-      overflowed_into_lospace = true;
-      break;
-    }
-  }
-
-  CHECK(overflowed_into_lospace);
-
-  // Fake a serializer run.
-  isolate->serializer_enabled_ = true;
-
-  // Generate the code.
-  Handle<Code> code = GenerateDummyImmovableCode(isolate);
-  CHECK_GE(i::kMaxRegularHeapObjectSize, code->Size());
-  CHECK(!heap->code_space()->first_page()->Contains(code->address()));
-
-  // Ensure it's not in large object space.
-  MemoryChunk* chunk = MemoryChunk::FromHeapObject(*code);
-  CHECK(chunk->owner_identity() != LO_SPACE);
-  CHECK(chunk->NeverEvacuate());
 }
 
 HEAP_TEST(RegressMissingWriteBarrierInAllocate) {
@@ -6898,7 +6842,10 @@ UNINITIALIZED_TEST(OutOfMemoryLargeObjects) {
       factory->NewFixedArray(kFixedArrayLength);
     }
   }
-  CHECK_LE(state.old_generation_capacity_at_oom, kOldGenerationLimit);
+  CHECK_LE(state.old_generation_capacity_at_oom,
+           kOldGenerationLimit + state.new_space_capacity_at_oom +
+               state.new_lo_space_size_at_oom +
+               FixedArray::SizeFor(kFixedArrayLength));
   CHECK_LE(kOldGenerationLimit, state.old_generation_capacity_at_oom +
                                     state.new_space_capacity_at_oom +
                                     state.new_lo_space_size_at_oom +
@@ -7063,7 +7010,7 @@ TEST(CodeObjectRegistry) {
   {
     // Ensure that both code objects end up on the same page.
     CHECK(HeapTester::CodeEnsureLinearAllocationArea(
-        heap, kMaxRegularHeapObjectSize));
+        heap, MemoryChunkLayout::MaxRegularCodeObjectSize()));
     code1 = DummyOptimizedCode(isolate);
     Handle<Code> code2 = DummyOptimizedCode(isolate);
     code2_address = code2->address();
@@ -7179,15 +7126,14 @@ TEST(Regress978156) {
 }
 
 TEST(GarbageCollectionWithLocalHeap) {
-  EnsureFlagLocalHeapsEnabled();
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
 
-  Heap* heap = CcTest::i_isolate()->heap();
+  LocalHeap* local_heap = CcTest::i_isolate()->main_thread_local_heap();
 
-  LocalHeap local_heap(heap);
   CcTest::CollectGarbage(OLD_SPACE);
-  { ParkedScope parked_scope(&local_heap); }
+
+  { ParkedScope parked_scope(local_heap); }
   CcTest::CollectGarbage(OLD_SPACE);
 }
 
@@ -7232,18 +7178,133 @@ class TestAllocationTracker : public HeapObjectAllocationTracker {
 
 HEAP_TEST(CodeLargeObjectSpace) {
   Heap* heap = CcTest::heap();
-  int size_in_bytes = kMaxRegularHeapObjectSize + kSystemPointerSize;
+  int size_in_bytes =
+      MemoryChunkLayout::MaxRegularCodeObjectSize() + kTaggedSize;
   TestAllocationTracker allocation_tracker{size_in_bytes};
   heap->AddHeapObjectAllocationTracker(&allocation_tracker);
 
-  AllocationResult allocation = heap->AllocateRaw(
-      size_in_bytes, AllocationType::kCode, AllocationOrigin::kGeneratedCode,
-      AllocationAlignment::kCodeAligned);
+  HeapObject obj;
+  {
+    AllocationResult allocation = heap->AllocateRaw(
+        size_in_bytes, AllocationType::kCode, AllocationOrigin::kRuntime);
+    CHECK(allocation.To(&obj));
+    CHECK_EQ(allocation.ToAddress(), allocation_tracker.address());
 
-  CHECK(allocation.ToAddress() == allocation_tracker.address());
-  heap->CreateFillerObjectAt(allocation.ToAddress(), size_in_bytes,
-                             ClearRecordedSlots::kNo);
+    heap->CreateFillerObjectAt(obj.address(), size_in_bytes,
+                               ClearRecordedSlots::kNo);
+  }
+
+  CHECK(Heap::IsLargeObject(obj));
   heap->RemoveHeapObjectAllocationTracker(&allocation_tracker);
+}
+
+UNINITIALIZED_HEAP_TEST(CodeLargeObjectSpace64k) {
+  // Simulate having a system with 64k OS pages.
+  i::FLAG_v8_os_page_size = 64;
+
+  // Initialize the isolate manually to make sure --v8-os-page-size is taken
+  // into account.
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+
+  Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
+
+  // Allocate a regular code object.
+  {
+    int size_in_bytes =
+        MemoryChunkLayout::MaxRegularCodeObjectSize() - kTaggedSize;
+    TestAllocationTracker allocation_tracker{size_in_bytes};
+    heap->AddHeapObjectAllocationTracker(&allocation_tracker);
+
+    HeapObject obj;
+    {
+      AllocationResult allocation = heap->AllocateRaw(
+          size_in_bytes, AllocationType::kCode, AllocationOrigin::kRuntime);
+      CHECK(allocation.To(&obj));
+      CHECK_EQ(allocation.ToAddress(), allocation_tracker.address());
+
+      heap->CreateFillerObjectAt(obj.address(), size_in_bytes,
+                                 ClearRecordedSlots::kNo);
+    }
+
+    CHECK(!Heap::IsLargeObject(obj));
+    heap->RemoveHeapObjectAllocationTracker(&allocation_tracker);
+  }
+
+  // Allocate a large code object.
+  {
+    int size_in_bytes =
+        MemoryChunkLayout::MaxRegularCodeObjectSize() + kTaggedSize;
+    TestAllocationTracker allocation_tracker{size_in_bytes};
+    heap->AddHeapObjectAllocationTracker(&allocation_tracker);
+
+    HeapObject obj;
+    {
+      AllocationResult allocation = heap->AllocateRaw(
+          size_in_bytes, AllocationType::kCode, AllocationOrigin::kRuntime);
+      CHECK(allocation.To(&obj));
+      CHECK_EQ(allocation.ToAddress(), allocation_tracker.address());
+
+      heap->CreateFillerObjectAt(obj.address(), size_in_bytes,
+                                 ClearRecordedSlots::kNo);
+    }
+
+    CHECK(Heap::IsLargeObject(obj));
+    heap->RemoveHeapObjectAllocationTracker(&allocation_tracker);
+  }
+
+  isolate->Dispose();
+}
+
+TEST(IsPendingAllocationNewSpace) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  Factory* factory = isolate->factory();
+  HandleScope handle_scope(isolate);
+  Handle<FixedArray> object = factory->NewFixedArray(5, AllocationType::kYoung);
+  CHECK(heap->IsPendingAllocation(*object));
+  heap->PublishPendingAllocations();
+  CHECK(!heap->IsPendingAllocation(*object));
+}
+
+TEST(IsPendingAllocationNewLOSpace) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  Factory* factory = isolate->factory();
+  HandleScope handle_scope(isolate);
+  Handle<FixedArray> object = factory->NewFixedArray(
+      FixedArray::kMaxRegularLength + 1, AllocationType::kYoung);
+  CHECK(heap->IsPendingAllocation(*object));
+  heap->PublishPendingAllocations();
+  CHECK(!heap->IsPendingAllocation(*object));
+}
+
+TEST(IsPendingAllocationOldSpace) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  Factory* factory = isolate->factory();
+  HandleScope handle_scope(isolate);
+  Handle<FixedArray> object = factory->NewFixedArray(5, AllocationType::kOld);
+  CHECK(heap->IsPendingAllocation(*object));
+  heap->PublishPendingAllocations();
+  CHECK(!heap->IsPendingAllocation(*object));
+}
+
+TEST(IsPendingAllocationLOSpace) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  Factory* factory = isolate->factory();
+  HandleScope handle_scope(isolate);
+  Handle<FixedArray> object = factory->NewFixedArray(
+      FixedArray::kMaxRegularLength + 1, AllocationType::kOld);
+  CHECK(heap->IsPendingAllocation(*object));
+  heap->PublishPendingAllocations();
+  CHECK(!heap->IsPendingAllocation(*object));
 }
 
 TEST(Regress10900) {
@@ -7256,11 +7317,19 @@ TEST(Regress10900) {
   i::byte buffer[i::Assembler::kDefaultBufferSize];
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
+#if V8_TARGET_ARCH_ARM64
+  UseScratchRegisterScope temps(&masm);
+  Register tmp = temps.AcquireX();
+  masm.Mov(tmp, Operand(static_cast<int32_t>(
+                    ReadOnlyRoots(heap).undefined_value_handle()->ptr())));
+  masm.Push(tmp, tmp);
+#else
   masm.Push(ReadOnlyRoots(heap).undefined_value_handle());
+#endif
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
   Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   {
     // Generate multiple code pages.
     CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
@@ -7271,6 +7340,23 @@ TEST(Regress10900) {
   // Force garbage collection that compacts code pages and triggers
   // an assertion in Isolate::AddCodeMemoryRange before the bug fix.
   CcTest::CollectAllAvailableGarbage();
+}
+
+TEST(Regress11181) {
+  FLAG_always_compact = true;
+  CcTest::InitializeVM();
+  TracingFlags::runtime_stats.store(
+      v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE,
+      std::memory_order_relaxed);
+  v8::HandleScope scope(CcTest::isolate());
+  const char* source =
+      "let roots = [];"
+      "for (let i = 0; i < 100; i++) roots.push(new Array(1000).fill(0));"
+      "roots.push(new Array(1000000).fill(0));"
+      "roots;";
+  CompileRun(source);
+  CcTest::CollectAllAvailableGarbage();
+  TracingFlags::runtime_stats.store(0, std::memory_order_relaxed);
 }
 
 }  // namespace heap

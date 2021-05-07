@@ -38,6 +38,10 @@ bool Scavenger::PromotionList::View::Pop(struct PromotionListEntry* entry) {
   return promotion_list_->Pop(task_id_, entry);
 }
 
+void Scavenger::PromotionList::View::FlushToGlobal() {
+  promotion_list_->FlushToGlobal(task_id_);
+}
+
 bool Scavenger::PromotionList::View::IsGlobalPoolEmpty() {
   return promotion_list_->IsGlobalPoolEmpty();
 }
@@ -78,6 +82,16 @@ bool Scavenger::PromotionList::Pop(int task_id,
   return large_object_promotion_list_.Pop(task_id, entry);
 }
 
+void Scavenger::PromotionList::FlushToGlobal(int task_id) {
+  regular_object_promotion_list_.FlushToGlobal(task_id);
+  large_object_promotion_list_.FlushToGlobal(task_id);
+}
+
+size_t Scavenger::PromotionList::GlobalPoolSize() const {
+  return regular_object_promotion_list_.GlobalPoolSize() +
+         large_object_promotion_list_.GlobalPoolSize();
+}
+
 bool Scavenger::PromotionList::IsGlobalPoolEmpty() {
   return regular_object_promotion_list_.IsGlobalPoolEmpty() &&
          large_object_promotion_list_.IsGlobalPoolEmpty();
@@ -109,7 +123,7 @@ bool Scavenger::MigrateObject(Map map, HeapObject source, HeapObject target,
   heap()->CopyBlock(target.address() + kTaggedSize,
                     source.address() + kTaggedSize, size - kTaggedSize);
 
-  if (!source.synchronized_compare_and_swap_map_word(
+  if (!source.release_compare_and_swap_map_word(
           MapWord::FromMap(map), MapWord::FromForwardingAddress(target))) {
     // Other task migrated the object.
     return false;
@@ -214,7 +228,7 @@ bool Scavenger::HandleLargeObject(Map map, HeapObject object, int object_size,
           BasicMemoryChunk::FromHeapObject(object)->InNewLargeObjectSpace())) {
     DCHECK_EQ(NEW_LO_SPACE,
               MemoryChunk::FromHeapObject(object)->owner_identity());
-    if (object.synchronized_compare_and_swap_map_word(
+    if (object.release_compare_and_swap_map_word(
             MapWord::FromMap(map), MapWord::FromForwardingAddress(object))) {
       surviving_new_large_objects_.insert({object, map});
       promoted_size_ += object_size;

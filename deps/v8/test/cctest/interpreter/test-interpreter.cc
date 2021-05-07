@@ -1722,18 +1722,20 @@ TEST(InterpreterJumpConstantWith16BitOperand) {
 
   ast_factory.Internalize(isolate);
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
-  BytecodeArrayIterator iterator(bytecode_array);
+  {
+    BytecodeArrayIterator iterator(bytecode_array);
 
-  bool found_16bit_constant_jump = false;
-  while (!iterator.done()) {
-    if (iterator.current_bytecode() == Bytecode::kJumpConstant &&
-        iterator.current_operand_scale() == OperandScale::kDouble) {
-      found_16bit_constant_jump = true;
-      break;
+    bool found_16bit_constant_jump = false;
+    while (!iterator.done()) {
+      if (iterator.current_bytecode() == Bytecode::kJumpConstant &&
+          iterator.current_operand_scale() == OperandScale::kDouble) {
+        found_16bit_constant_jump = true;
+        break;
+      }
+      iterator.Advance();
     }
-    iterator.Advance();
+    CHECK(found_16bit_constant_jump);
   }
-  CHECK(found_16bit_constant_jump);
 
   InterpreterTester tester(isolate, bytecode_array, metadata);
   auto callable = tester.GetCallable<>();
@@ -1766,19 +1768,20 @@ TEST(InterpreterJumpWith32BitOperand) {
 
   ast_factory.Internalize(isolate);
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
+  {
+    BytecodeArrayIterator iterator(bytecode_array);
 
-  BytecodeArrayIterator iterator(bytecode_array);
-
-  bool found_32bit_jump = false;
-  while (!iterator.done()) {
-    if (iterator.current_bytecode() == Bytecode::kJump &&
-        iterator.current_operand_scale() == OperandScale::kQuadruple) {
-      found_32bit_jump = true;
-      break;
+    bool found_32bit_jump = false;
+    while (!iterator.done()) {
+      if (iterator.current_bytecode() == Bytecode::kJump &&
+          iterator.current_operand_scale() == OperandScale::kQuadruple) {
+        found_32bit_jump = true;
+        break;
+      }
+      iterator.Advance();
     }
-    iterator.Advance();
+    CHECK(found_32bit_jump);
   }
-  CHECK(found_32bit_jump);
 
   InterpreterTester tester(isolate, bytecode_array);
   auto callable = tester.GetCallable<>();
@@ -2269,7 +2272,7 @@ TEST(InterpreterInstanceOf) {
   Zone* zone = handles.main_zone();
   Factory* factory = isolate->factory();
   Handle<i::String> name = factory->NewStringFromAsciiChecked("cons");
-  Handle<i::JSFunction> func = factory->NewFunctionForTest(name);
+  Handle<i::JSFunction> func = factory->NewFunctionForTesting(name);
   Handle<i::JSObject> instance = factory->NewJSObject(func);
   Handle<i::Object> other = factory->NewNumber(3.3333);
   Handle<i::Object> cases[] = {Handle<i::Object>::cast(instance), other};
@@ -2352,7 +2355,6 @@ TEST(InterpreterUnaryNot) {
     bool expected_value = ((i & 1) == 1);
     BytecodeArrayBuilder builder(zone, 1, 0);
 
-    Register r0(0);
     builder.LoadFalse();
     for (size_t j = 0; j < i; j++) {
       builder.LogicalNot(ToBooleanMode::kAlreadyBoolean);
@@ -2390,7 +2392,6 @@ TEST(InterpreterUnaryNotNonBoolean) {
   for (size_t i = 0; i < arraysize(object_type_tuples); i++) {
     BytecodeArrayBuilder builder(zone, 1, 0);
 
-    Register r0(0);
     LoadLiteralForTest(&builder, object_type_tuples[i].first);
     builder.LogicalNot(ToBooleanMode::kConvertToBoolean).Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
@@ -5120,7 +5121,7 @@ TEST(InterpreterCollectSourcePositions) {
 
   Handle<SharedFunctionInfo> sfi = handle(function->shared(), isolate);
   Handle<BytecodeArray> bytecode_array =
-      handle(sfi->GetBytecodeArray(), isolate);
+      handle(sfi->GetBytecodeArray(isolate), isolate);
   CHECK(!bytecode_array->HasSourcePositionTable());
 
   Compiler::CollectSourcePositions(isolate, sfi);
@@ -5146,7 +5147,7 @@ TEST(InterpreterCollectSourcePositions_StackOverflow) {
 
   Handle<SharedFunctionInfo> sfi = handle(function->shared(), isolate);
   Handle<BytecodeArray> bytecode_array =
-      handle(sfi->GetBytecodeArray(), isolate);
+      handle(sfi->GetBytecodeArray(isolate), isolate);
   CHECK(!bytecode_array->HasSourcePositionTable());
 
   // Make the stack limit the same as the current position so recompilation
@@ -5186,7 +5187,7 @@ TEST(InterpreterCollectSourcePositions_ThrowFrom1stFrame) {
   Handle<SharedFunctionInfo> sfi = handle(function->shared(), isolate);
   // This is the bytecode for the top-level iife.
   Handle<BytecodeArray> bytecode_array =
-      handle(sfi->GetBytecodeArray(), isolate);
+      handle(sfi->GetBytecodeArray(isolate), isolate);
   CHECK(!bytecode_array->HasSourcePositionTable());
 
   {
@@ -5224,7 +5225,7 @@ TEST(InterpreterCollectSourcePositions_ThrowFrom2ndFrame) {
   Handle<SharedFunctionInfo> sfi = handle(function->shared(), isolate);
   // This is the bytecode for the top-level iife.
   Handle<BytecodeArray> bytecode_array =
-      handle(sfi->GetBytecodeArray(), isolate);
+      handle(sfi->GetBytecodeArray(isolate), isolate);
   CHECK(!bytecode_array->HasSourcePositionTable());
 
   {
@@ -5282,7 +5283,7 @@ TEST(InterpreterCollectSourcePositions_GenerateStackTrace) {
 
   Handle<SharedFunctionInfo> sfi = handle(function->shared(), isolate);
   Handle<BytecodeArray> bytecode_array =
-      handle(sfi->GetBytecodeArray(), isolate);
+      handle(sfi->GetBytecodeArray(isolate), isolate);
   CHECK(!bytecode_array->HasSourcePositionTable());
 
   {

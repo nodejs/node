@@ -17,6 +17,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/js-segment-iterator-tq-inl.inc"
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSSegmentIterator)
 
 // Base segment iterator accessors.

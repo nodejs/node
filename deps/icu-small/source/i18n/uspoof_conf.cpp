@@ -15,7 +15,7 @@
 *   created on: 2009Jan05  (refactoring earlier files)
 *   created by: Andy Heninger
 *
-*   Internal classes for compililing confusable data into its binary (runtime) form.
+*   Internal classes for compiling confusable data into its binary (runtime) form.
 */
 
 #include "unicode/utypes.h"

@@ -58,10 +58,7 @@ FromConstexpr<int8, constexpr int31>(i: constexpr int31): int8 {
   return %RawDownCast<int8>(i);
 }
 FromConstexpr<char8, constexpr int31>(i: constexpr int31): char8 {
-  const i: int32 = i;
-  static_assert(i <= 255);
-  static_assert(0 <= i);
-  return %RawDownCast<char8>(i);
+  return %RawDownCast<char8>(FromConstexpr<uint8>(i));
 }
 FromConstexpr<Number, constexpr Smi>(s: constexpr Smi): Number {
   return SmiConstant(s);
@@ -113,6 +110,11 @@ FromConstexpr<InstanceType, constexpr InstanceType>(c: constexpr InstanceType):
 FromConstexpr<IterationKind, constexpr IterationKind>(
     c: constexpr IterationKind): IterationKind {
   return %RawDownCast<IterationKind>(Unsigned(%FromConstexpr<int32>(c)));
+}
+
+FromConstexpr<string::TrimMode, string::constexpr TrimMode>(
+    c: string::constexpr TrimMode): string::TrimMode {
+  return %RawDownCast<string::TrimMode>(Unsigned(%FromConstexpr<int32>(c)));
 }
 
 macro Convert<To: type, From: type>(i: From): To {
@@ -170,6 +172,9 @@ Convert<int32, uint8>(i: uint8): int32 {
   return Signed(Convert<uint32>(i));
 }
 Convert<int32, uint16>(i: uint16): int32 {
+  return Signed(Convert<uint32>(i));
+}
+Convert<int32, char16|char8>(i: char16|char8): int32 {
   return Signed(Convert<uint32>(i));
 }
 Convert<int32, uint31>(i: uint31): int32 {

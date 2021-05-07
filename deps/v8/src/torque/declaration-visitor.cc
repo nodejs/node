@@ -98,9 +98,11 @@ Builtin* DeclarationVisitor::CreateBuiltin(BuiltinDeclaration* decl,
     }
   }
 
-  if (signature.return_type->StructSupertype()) {
-    Error("Builtins cannot return structs, but the return type is ",
-          *signature.return_type, ".");
+  if (signature.return_type->StructSupertype() && javascript) {
+    Error(
+        "Builtins with JS linkage cannot return structs, but the return type "
+        "is ",
+        *signature.return_type, ".");
   }
 
   if (signature.return_type == TypeOracle::GetVoidType()) {

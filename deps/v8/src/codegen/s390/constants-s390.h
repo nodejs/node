@@ -101,16 +101,7 @@ enum Condition {
   mask0xC = 12,
   mask0xD = 13,
   mask0xE = 14,
-  mask0xF = 15,
-
-  // Rounding modes for floating poing facility
-  CURRENT_ROUNDING_MODE = 0,
-  ROUND_TO_NEAREST_WITH_TIES_AWAY_FROM_0 = 1,
-  ROUND_TO_PREPARE_FOR_SHORTER_PRECISION = 3,
-  ROUND_TO_NEAREST_WITH_TIES_TO_EVEN = 4,
-  ROUND_TOWARD_0 = 5,
-  ROUND_TOWARD_PLUS_INFINITE = 6,
-  ROUND_TOWARD_MINUS_INFINITE = 7
+  mask0xF = 15
 };
 
 inline Condition NegateCondition(Condition cond) {
@@ -1787,16 +1778,18 @@ const int32_t kDefaultStopCode = -1;
 
 // FP rounding modes.
 enum FPRoundingMode {
-  RN = 0,  // Round to Nearest.
-  RZ = 1,  // Round towards zero.
-  RP = 2,  // Round towards Plus Infinity.
-  RM = 3,  // Round towards Minus Infinity.
+  CURRENT_ROUNDING_MODE = 0,
+  ROUND_TO_NEAREST_AWAY_FROM_0 = 1,
+  ROUND_TO_NEAREST_TO_EVEN = 4,
+  ROUND_TOWARD_0 = 5,
+  ROUND_TOWARD_POS_INF = 6,
+  ROUND_TOWARD_NEG_INF = 7,
 
   // Aliases.
-  kRoundToNearest = RN,
-  kRoundToZero = RZ,
-  kRoundToPlusInf = RP,
-  kRoundToMinusInf = RM
+  kRoundToNearest = ROUND_TO_NEAREST_TO_EVEN,
+  kRoundToZero = ROUND_TOWARD_0,
+  kRoundToPlusInf = ROUND_TOWARD_POS_INF,
+  kRoundToMinusInf = ROUND_TOWARD_NEG_INF
 };
 
 const uint32_t kFPRoundingModeMask = 3;

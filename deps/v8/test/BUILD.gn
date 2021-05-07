@@ -152,6 +152,7 @@ v8_header_set("common_test_headers") {
 
   sources = [
     "common/assembler-tester.h",
+    "common/flag-utils.h",
     "common/types-fuzz.h",
     "common/wasm/flag-utils.h",
     "common/wasm/test-signatures.h",

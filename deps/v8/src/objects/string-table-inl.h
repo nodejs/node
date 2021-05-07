@@ -13,15 +13,15 @@
 namespace v8 {
 namespace internal {
 
-StringTableKey::StringTableKey(uint32_t hash_field, int length)
-    : hash_field_(hash_field), length_(length) {}
+StringTableKey::StringTableKey(uint32_t raw_hash_field, int length)
+    : raw_hash_field_(raw_hash_field), length_(length) {}
 
-void StringTableKey::set_hash_field(uint32_t hash_field) {
-  hash_field_ = hash_field;
+void StringTableKey::set_raw_hash_field(uint32_t raw_hash_field) {
+  raw_hash_field_ = raw_hash_field;
 }
 
 uint32_t StringTableKey::hash() const {
-  return hash_field_ >> Name::kHashShift;
+  return raw_hash_field_ >> Name::kHashShift;
 }
 
 }  // namespace internal

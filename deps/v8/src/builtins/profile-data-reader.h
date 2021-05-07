@@ -20,7 +20,7 @@ class ProfileDataFromFile {
 
   // Returns how many times the block with the given ID was executed during
   // profiling.
-  uint32_t GetCounter(size_t block_id) const {
+  double GetCounter(size_t block_id) const {
     // The profile data is allowed to omit blocks which were never hit, so be
     // careful to avoid out-of-bounds access.
     return block_id < block_counts_by_id_.size() ? block_counts_by_id_[block_id]
@@ -38,7 +38,7 @@ class ProfileDataFromFile {
   // How many times each block was executed, indexed by block ID. This vector
   // may be shorter than the total number of blocks; any omitted block should be
   // treated as a zero.
-  std::vector<uint32_t> block_counts_by_id_;
+  std::vector<double> block_counts_by_id_;
 };
 
 // The following strings can't be static members of ProfileDataFromFile until

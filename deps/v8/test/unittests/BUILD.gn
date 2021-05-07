@@ -10,6 +10,7 @@ if (is_fuchsia) {
   cr_fuchsia_package("v8_unittests_pkg") {
     testonly = true
     binary = ":unittests"
+    manifest = "//build/config/fuchsia/tests-with-exec.cmx"
     package_name_override = "v8_unittests"
   }
 
@@ -57,32 +58,40 @@ v8_source_set("v8_cppgc_shared_unittests_sources") {
 # Stand-alone target for C++ GC unittests. This is used to ensure that it
 # builds without V8 as well. They are also included in the regular unittests
 # target for simplicity.
-v8_executable("cppgc_unittests") {
-  testonly = true
+if (cppgc_is_standalone) {
+  v8_executable("cppgc_unittests") {
+    testonly = true
+    if (v8_current_cpu == "riscv64") {
+      libs = [ "atomic" ]
+    }
 
-  configs = [
-    "../..:external_config",
-    "../..:internal_config_base",
-  ]
+    configs = [
+      "../..:external_config",
+      "../..:internal_config_base",
+    ]
 
-  sources = [ "heap/cppgc/run-all-unittests.cc" ]
+    sources = [ "heap/cppgc/run-all-unittests.cc" ]
 
-  deps = [
-    ":cppgc_unittests_sources",
-    ":v8_cppgc_shared_unittests_sources",
-    "../..:cppgc_for_testing",
-    "//testing/gmock",
-    "//testing/gtest",
-  ]
+    deps = [
+      ":cppgc_unittests_sources",
+      ":v8_cppgc_shared_unittests_sources",
+      "../..:cppgc_for_testing",
+      "//testing/gmock",
+      "//testing/gtest",
+    ]
+  }
 }
 
 v8_source_set("cppgc_unittests_sources") {
   testonly = true
 
   sources = [
+    "heap/cppgc/compactor-unittest.cc",
     "heap/cppgc/concurrent-marking-unittest.cc",
     "heap/cppgc/concurrent-sweeper-unittest.cc",
+    "heap/cppgc/cross-thread-persistent-unittest.cc",
     "heap/cppgc/custom-spaces-unittest.cc",
+    "heap/cppgc/ephemeron-pair-unittest.cc",
     "heap/cppgc/finalizer-trait-unittest.cc",
     "heap/cppgc/free-list-unittest.cc",
     "heap/cppgc/garbage-collected-unittest.cc",
@@ -91,6 +100,7 @@ v8_source_set("cppgc_unittests_sources") {
     "heap/cppgc/heap-growing-unittest.cc",
     "heap/cppgc/heap-object-header-unittest.cc",
     "heap/cppgc/heap-page-unittest.cc",
+    "heap/cppgc/heap-statistics-collector-unittest.cc",
     "heap/cppgc/heap-unittest.cc",
     "heap/cppgc/incremental-marking-schedule-unittest.cc",
     "heap/cppgc/logging-unittest.cc",
@@ -98,20 +108,26 @@ v8_source_set("cppgc_unittests_sources") {
     "heap/cppgc/marking-verifier-unittest.cc",
     "heap/cppgc/marking-visitor-unittest.cc",
     "heap/cppgc/member-unittest.cc",
+    "heap/cppgc/metric-recorder-unittest.cc",
     "heap/cppgc/minor-gc-unittest.cc",
+    "heap/cppgc/name-trait-unittest.cc",
+    "heap/cppgc/object-size-trait-unittest.cc",
     "heap/cppgc/object-start-bitmap-unittest.cc",
     "heap/cppgc/page-memory-unittest.cc",
-    "heap/cppgc/persistent-unittest.cc",
+    "heap/cppgc/persistent-family-unittest.cc",
     "heap/cppgc/prefinalizer-unittest.cc",
     "heap/cppgc/source-location-unittest.cc",
     "heap/cppgc/stack-unittest.cc",
+    "heap/cppgc/stats-collector-scopes-unittest.cc",
     "heap/cppgc/stats-collector-unittest.cc",
     "heap/cppgc/sweeper-unittest.cc",
     "heap/cppgc/test-platform.cc",
     "heap/cppgc/test-platform.h",
+    "heap/cppgc/testing-unittest.cc",
     "heap/cppgc/tests.cc",
     "heap/cppgc/tests.h",
     "heap/cppgc/visitor-unittest.cc",
+    "heap/cppgc/weak-container-unittest.cc",
     "heap/cppgc/write-barrier-unittest.cc",
   ]
 
@@ -125,6 +141,15 @@ v8_source_set("cppgc_unittests_sources") {
     "//testing/gmock",
     "//testing/gtest",
   ]
+
+  if (cppgc_is_standalone) {
+    deps += [ "../..:cppgc_for_testing" ]
+  } else {
+    deps += [
+      "../..:v8_for_testing",
+      "../..:v8_tracing",
+    ]
+  }
 }
 
 v8_executable("unittests") {
@@ -136,7 +161,6 @@ v8_executable("unittests") {
   #}],
 
   deps = [
-    ":cppgc_unittests_sources",
     ":unittests_sources",
     ":v8_cppgc_shared_unittests_sources",
     "../..:v8_for_testing",
@@ -146,6 +170,10 @@ v8_executable("unittests") {
     "//testing/gmock",
     "//testing/gtest",
   ]
+
+  if (!cppgc_is_standalone) {
+    deps += [ ":cppgc_unittests_sources" ]
+  }
 
   data_deps = [ "../../tools:v8_testrunner" ]
 
@@ -175,8 +203,6 @@ v8_source_set("unittests_sources") {
     "api/remote-object-unittest.cc",
     "api/resource-constraints-unittest.cc",
     "api/v8-object-unittest.cc",
-    "asmjs/asm-scanner-unittest.cc",
-    "asmjs/asm-types-unittest.cc",
     "base/address-region-unittest.cc",
     "base/atomic-utils-unittest.cc",
     "base/bits-unittest.cc",
@@ -279,10 +305,10 @@ v8_source_set("unittests_sources") {
     "heap/gc-tracer-unittest.cc",
     "heap/heap-controller-unittest.cc",
     "heap/heap-unittest.cc",
+    "heap/heap-utils.cc",
     "heap/heap-utils.h",
     "heap/index-generator-unittest.cc",
     "heap/item-parallel-job-unittest.cc",
-    "heap/js-member-unittest.cc",
     "heap/list-unittest.cc",
     "heap/local-factory-unittest.cc",
     "heap/local-heap-unittest.cc",
@@ -294,7 +320,11 @@ v8_source_set("unittests_sources") {
     "heap/safepoint-unittest.cc",
     "heap/slot-set-unittest.cc",
     "heap/spaces-unittest.cc",
+    "heap/traced-reference-unittest.cc",
+    "heap/unified-heap-snapshot-unittest.cc",
     "heap/unified-heap-unittest.cc",
+    "heap/unified-heap-utils.cc",
+    "heap/unified-heap-utils.h",
     "heap/unmapper-unittest.cc",
     "heap/worklist-unittest.cc",
     "interpreter/bytecode-array-builder-unittest.cc",
@@ -371,6 +401,13 @@ v8_source_set("unittests_sources") {
     "zone/zone-unittest.cc",
   ]
 
+  if (v8_enable_webassembly) {
+    sources += [
+      "asmjs/asm-scanner-unittest.cc",
+      "asmjs/asm-types-unittest.cc",
+    ]
+  }
+
   if (v8_enable_wasm_gdb_remote_debugging) {
     sources += [ "wasm/wasm-gdbserver-unittest.cc" ]
   }
@@ -403,6 +440,11 @@ v8_source_set("unittests_sources") {
     sources += [
       "assembler/turbo-assembler-mips64-unittest.cc",
       "compiler/mips64/instruction-selector-mips64-unittest.cc",
+    ]
+  } else if (v8_current_cpu == "riscv64") {
+    sources += [
+      "assembler/turbo-assembler-riscv64-unittest.cc",
+      "compiler/riscv64/instruction-selector-riscv64-unittest.cc",
     ]
   } else if (v8_current_cpu == "x64") {
     sources += [
@@ -441,6 +483,8 @@ v8_source_set("unittests_sources") {
     "../..:v8_for_testing",
     "../..:v8_libbase",
     "../..:v8_libplatform",
+    "../..:v8_shared_internal_headers",
+    "../..:v8_wrappers",
     "../..:wasm_test_common",
     "../../third_party/inspector_protocol:crdtp_test",
     "//build/win:default_exe_manifest",

@@ -19,7 +19,8 @@ namespace internal {
 
 // Other platforms have CSA support, see builtins-sharedarraybuffer-gen.h.
 #if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64 || \
-    V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
+    V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X ||    \
+    V8_TARGET_ARCH_RISCV64
 
 namespace {
 
@@ -568,6 +569,6 @@ RUNTIME_FUNCTION(Runtime_AtomicsXor) { UNREACHABLE(); }
 
 #endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64
         // || V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
-
+        // || V8_TARGET_ARCH_RISCV64
 }  // namespace internal
 }  // namespace v8

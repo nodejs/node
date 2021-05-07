@@ -44,7 +44,11 @@ namespace internal {
   LOW_DOUBLE_REGISTERS(V) NON_LOW_DOUBLE_REGISTERS(V)
 
 #define FLOAT_REGISTERS DOUBLE_REGISTERS
-#define SIMD128_REGISTERS DOUBLE_REGISTERS
+#define SIMD128_REGISTERS(V)                              \
+  V(v0)  V(v1)  V(v2)  V(v3)  V(v4)  V(v5)  V(v6)  V(v7)  \
+  V(v8)  V(v9)  V(v10) V(v11) V(v12) V(v13) V(v14) V(v15) \
+  V(v16) V(v17) V(v18) V(v19) V(v20) V(v21) V(v22) V(v23) \
+  V(v24) V(v25) V(v26) V(v27) V(v28) V(v29) V(v30) V(v31)
 
 #define ALLOCATABLE_DOUBLE_REGISTERS(V)                   \
   V(d1)  V(d2)  V(d3)  V(d4)  V(d5)  V(d6)  V(d7)         \
@@ -228,7 +232,11 @@ class DoubleRegister : public RegisterBase<DoubleRegister, kDoubleAfterLast> {
   // d14: 0.0
   // d15: scratch register.
   static constexpr int kSizeInBytes = 8;
-  inline static int NumRegisters();
+
+  // This function differs from kNumRegisters by returning the number of double
+  // registers supported by the current CPU, while kNumRegisters always returns
+  // 32.
+  inline static int SupportedRegisterCount();
 
  private:
   friend class RegisterBase;
@@ -241,8 +249,29 @@ static_assert(sizeof(DoubleRegister) == sizeof(int),
 
 using FloatRegister = DoubleRegister;
 
-// TODO(ppc) Define SIMD registers.
-using Simd128Register = DoubleRegister;
+enum Simd128RegisterCode {
+#define REGISTER_CODE(R) kSimd128Code_##R,
+  SIMD128_REGISTERS(REGISTER_CODE)
+#undef REGISTER_CODE
+      kSimd128AfterLast
+};
+
+// Simd128 register.
+class Simd128Register
+    : public RegisterBase<Simd128Register, kSimd128AfterLast> {
+ private:
+  friend class RegisterBase;
+  explicit constexpr Simd128Register(int code) : RegisterBase(code) {}
+};
+ASSERT_TRIVIALLY_COPYABLE(Simd128Register);
+static_assert(sizeof(Simd128Register) == sizeof(int),
+              "Simd128Register can efficiently be passed by value");
+
+#define DECLARE_SIMD128_REGISTER(R) \
+  constexpr Simd128Register R = Simd128Register::from_code(kSimd128Code_##R);
+SIMD128_REGISTERS(DECLARE_SIMD128_REGISTER)
+#undef DECLARE_SIMD128_REGISTER
+const Simd128Register no_simdreg = Simd128Register::no_reg();
 
 #define DEFINE_REGISTER(R) \
   constexpr DoubleRegister R = DoubleRegister::from_code(kDoubleCode_##R);
@@ -254,6 +283,10 @@ constexpr DoubleRegister kFirstCalleeSavedDoubleReg = d14;
 constexpr DoubleRegister kLastCalleeSavedDoubleReg = d31;
 constexpr DoubleRegister kDoubleRegZero = d14;
 constexpr DoubleRegister kScratchDoubleReg = d13;
+// Simd128 zero and scratch regs must have the same numbers as Double zero and
+// scratch
+constexpr Simd128Register kSimd128RegZero = v14;
+constexpr Simd128Register kScratchSimd128Reg = v13;
 
 Register ToRegister(int num);
 
@@ -279,6 +312,7 @@ C_REGISTERS(DECLARE_C_REGISTER)
 // Define {RegisterName} methods for the register types.
 DEFINE_REGISTER_NAMES(Register, GENERAL_REGISTERS)
 DEFINE_REGISTER_NAMES(DoubleRegister, DOUBLE_REGISTERS)
+DEFINE_REGISTER_NAMES(Simd128Register, SIMD128_REGISTERS)
 
 // Give alias names to registers for calling conventions.
 constexpr Register kReturnRegister0 = r3;

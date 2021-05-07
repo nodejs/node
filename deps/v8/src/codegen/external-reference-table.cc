@@ -12,7 +12,10 @@
 #if defined(DEBUG) && defined(V8_OS_LINUX) && !defined(V8_OS_ANDROID)
 #define SYMBOLIZE_FUNCTION
 #include <execinfo.h>
+
 #include <vector>
+
+#include "src/base/platform/wrappers.h"
 #endif  // DEBUG && V8_OS_LINUX && !V8_OS_ANDROID
 
 namespace v8 {
@@ -98,7 +101,7 @@ const char* ExternalReferenceTable::ResolveSymbol(void* address) {
   const char* name = names[0];
   // The array of names is malloc'ed. However, each name string is static
   // and do not need to be freed.
-  free(names);
+  base::Free(names);
   return name;
 #else
   return "<unresolved>";

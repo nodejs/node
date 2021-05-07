@@ -54,6 +54,11 @@ HEAP_TEST(CompactionFullAbortedPage) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
+  auto reset_oom = [](void* heap, size_t limit, size_t) -> size_t {
+    reinterpret_cast<Heap*>(heap)->set_force_oom(false);
+    return limit;
+  };
+  heap->AddNearHeapLimitCallback(reset_oom, heap);
   {
     HandleScope scope1(isolate);
 
@@ -84,6 +89,7 @@ HEAP_TEST(CompactionFullAbortedPage) {
       CheckInvariantsOfAbortedPage(to_be_aborted_page);
     }
   }
+  heap->RemoveNearHeapLimitCallback(reset_oom, 0u);
 }
 
 namespace {
@@ -94,7 +100,7 @@ int GetObjectSize(int objects_per_page) {
   // Make sure that object_size is a multiple of kTaggedSize.
   int object_size =
       ((allocatable / kTaggedSize) / objects_per_page) * kTaggedSize;
-  return Min(kMaxRegularHeapObjectSize, object_size);
+  return std::min(kMaxRegularHeapObjectSize, object_size);
 }
 
 }  // namespace
@@ -115,6 +121,11 @@ HEAP_TEST(CompactionPartiallyAbortedPage) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
+  auto reset_oom = [](void* heap, size_t limit, size_t) -> size_t {
+    reinterpret_cast<Heap*>(heap)->set_force_oom(false);
+    return limit;
+  };
+  heap->AddNearHeapLimitCallback(reset_oom, heap);
   {
     HandleScope scope1(isolate);
 
@@ -171,6 +182,7 @@ HEAP_TEST(CompactionPartiallyAbortedPage) {
       }
     }
   }
+  heap->RemoveNearHeapLimitCallback(reset_oom, 0u);
 }
 
 HEAP_TEST(CompactionPartiallyAbortedPageWithInvalidatedSlots) {
@@ -189,6 +201,12 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithInvalidatedSlots) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
+  auto reset_oom = [](void* heap, size_t limit, size_t) -> size_t {
+    reinterpret_cast<Heap*>(heap)->set_force_oom(false);
+    return limit;
+  };
+  heap->AddNearHeapLimitCallback(reset_oom, heap);
+
   {
     HandleScope scope1(isolate);
 
@@ -247,6 +265,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithInvalidatedSlots) {
       }
     }
   }
+  heap->RemoveNearHeapLimitCallback(reset_oom, 0u);
 }
 
 HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
@@ -267,6 +286,11 @@ HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
+  auto reset_oom = [](void* heap, size_t limit, size_t) -> size_t {
+    reinterpret_cast<Heap*>(heap)->set_force_oom(false);
+    return limit;
+  };
+  heap->AddNearHeapLimitCallback(reset_oom, heap);
   {
     HandleScope scope1(isolate);
     Handle<FixedArray> root_array =
@@ -334,6 +358,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
       CheckInvariantsOfAbortedPage(to_be_aborted_page);
     }
   }
+  heap->RemoveNearHeapLimitCallback(reset_oom, 0u);
 }
 
 HEAP_TEST(CompactionPartiallyAbortedPageWithRememberedSetEntries) {
@@ -357,6 +382,11 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithRememberedSetEntries) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
+  auto reset_oom = [](void* heap, size_t limit, size_t) -> size_t {
+    reinterpret_cast<Heap*>(heap)->set_force_oom(false);
+    return limit;
+  };
+  heap->AddNearHeapLimitCallback(reset_oom, heap);
   {
     HandleScope scope1(isolate);
     Handle<FixedArray> root_array =
@@ -458,6 +488,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithRememberedSetEntries) {
       CcTest::CollectGarbage(NEW_SPACE);
     }
   }
+  heap->RemoveNearHeapLimitCallback(reset_oom, 0u);
 }
 
 }  // namespace heap

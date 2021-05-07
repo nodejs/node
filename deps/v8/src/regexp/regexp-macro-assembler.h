@@ -44,6 +44,7 @@ class RegExpMacroAssembler {
     kARMImplementation,
     kARM64Implementation,
     kMIPSImplementation,
+    kRISCVImplementation,
     kS390Implementation,
     kPPCImplementation,
     kX64Implementation,
@@ -183,9 +184,18 @@ class RegExpMacroAssembler {
   void set_slow_safe(bool ssc) { slow_safe_compiler_ = ssc; }
   bool slow_safe() { return slow_safe_compiler_; }
 
+  // Controls after how many backtracks irregexp should abort execution.  If it
+  // can fall back to the experimental engine (see `set_can_fallback`), it will
+  // return the appropriate error code, otherwise it will return the number of
+  // matches found so far (perhaps none).
   void set_backtrack_limit(uint32_t backtrack_limit) {
     backtrack_limit_ = backtrack_limit;
   }
+
+  // Set whether or not irregexp can fall back to the experimental engine on
+  // excessive backtracking.  The number of backtracks considered excessive can
+  // be controlled with set_backtrack_limit.
+  void set_can_fallback(bool val) { can_fallback_ = val; }
 
   enum GlobalMode {
     NOT_GLOBAL,
@@ -211,9 +221,12 @@ class RegExpMacroAssembler {
   }
   uint32_t backtrack_limit() const { return backtrack_limit_; }
 
+  bool can_fallback() const { return can_fallback_; }
+
  private:
   bool slow_safe_compiler_;
   uint32_t backtrack_limit_ = JSRegExp::kNoBacktrackLimit;
+  bool can_fallback_ = false;
   GlobalMode global_mode_;
   Isolate* isolate_;
   Zone* zone_;
@@ -228,16 +241,20 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
   // RETRY: Something significant changed during execution, and the matching
   //        should be retried from scratch.
   // EXCEPTION: Something failed during execution. If no exception has been
-  //        thrown, it's an internal out-of-memory, and the caller should
-  //        throw the exception.
+  //            thrown, it's an internal out-of-memory, and the caller should
+  //            throw the exception.
   // FAILURE: Matching failed.
   // SUCCESS: Matching succeeded, and the output array has been filled with
-  //        capture positions.
+  //          capture positions.
+  // FALLBACK_TO_EXPERIMENTAL: Execute the regexp on this subject using the
+  //                           experimental engine instead.
   enum Result {
     FAILURE = RegExp::kInternalRegExpFailure,
     SUCCESS = RegExp::kInternalRegExpSuccess,
     EXCEPTION = RegExp::kInternalRegExpException,
     RETRY = RegExp::kInternalRegExpRetry,
+    FALLBACK_TO_EXPERIMENTAL = RegExp::kInternalRegExpFallbackToExperimental,
+    SMALLEST_REGEXP_RESULT = RegExp::kInternalRegExpSmallestResult,
   };
 
   NativeRegExpMacroAssembler(Isolate* isolate, Zone* zone);

@@ -161,7 +161,7 @@ void JSUDPWrap::EmitReceived(const FunctionCallbackInfo<Value>& args) {
     ssize_t avail = std::min<size_t>(buf.len, len);
     memcpy(buf.base, data, avail);
     data += avail;
-    len -= avail;
+    len -= static_cast<int>(avail);
     wrap->listener()->OnRecv(
         avail, buf, reinterpret_cast<sockaddr*>(&addr), flags);
   }

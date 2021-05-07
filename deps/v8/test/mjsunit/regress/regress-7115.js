@@ -7,13 +7,18 @@
 function TestBuiltinSubclassing(Builtin) {
   assertTrue(%HasFastProperties(Builtin));
   assertTrue(%HasFastProperties(Builtin.prototype));
-  assertTrue(%HasFastProperties(Builtin.prototype.__proto__));
+  assertEquals(!%IsDictPropertyConstTrackingEnabled(),
+               %HasFastProperties(Builtin.prototype.__proto__));
 
   class SubClass extends Builtin {}
 
-  assertTrue(%HasFastProperties(Builtin));
-  assertTrue(%HasFastProperties(Builtin.prototype));
-  assertTrue(%HasFastProperties(Builtin.prototype.__proto__));
+  assertEquals(!%IsDictPropertyConstTrackingEnabled(),
+               %HasFastProperties(Builtin));
+  assertEquals(!%IsDictPropertyConstTrackingEnabled(),
+               %HasFastProperties(Builtin.prototype));
+  assertEquals(!%IsDictPropertyConstTrackingEnabled(),
+               %HasFastProperties(Builtin.prototype.__proto__));
+
 }
 
 let TypedArray = Uint8Array.__proto__;

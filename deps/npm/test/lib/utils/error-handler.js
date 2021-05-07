@@ -1,7 +1,6 @@
 /* eslint-disable no-extend-native */
 /* eslint-disable no-global-assign */
 const EventEmitter = require('events')
-const requireInject = require('require-inject')
 const t = require('tap')
 
 // NOTE: Although these unit tests may look like the rest on the surface,
@@ -43,6 +42,7 @@ const config = {
 const npm = {
   version: '1.0.0',
   config,
+  shelloutCommands: ['exec', 'run-script'],
 }
 
 const npmlog = {
@@ -104,6 +104,7 @@ process = Object.assign(
       cb()
     } },
     stderr: { write () {} },
+    hrtime: _process.hrtime,
   }
 )
 // needs to put process back in its place
@@ -123,8 +124,7 @@ const mocks = {
   '../../../lib/utils/cache-file.js': cacheFile,
 }
 
-requireInject.installGlobally('../../../lib/utils/error-handler.js', mocks)
-let errorHandler = require('../../../lib/utils/error-handler.js')
+let errorHandler = t.mock('../../../lib/utils/error-handler.js', mocks)
 
 t.test('default exit code', (t) => {
   t.plan(1)
@@ -225,7 +225,7 @@ t.test('console.log output using --json', (t) => {
 
   const _error = console.error
   console.error = (jsonOutput) => {
-    t.deepEqual(
+    t.same(
       JSON.parse(jsonOutput),
       {
         error: {
@@ -257,7 +257,7 @@ t.test('throw a non-error obj', (t) => {
   const _logError = npmlog.error
   npmlog.error = (title, err) => {
     t.equal(title, 'weird error', 'should name it a weird error')
-    t.deepEqual(err, weirdError, 'should log given weird error')
+    t.same(err, weirdError, 'should log given weird error')
   }
 
   const _exit = process.exit
@@ -281,7 +281,7 @@ t.test('throw a string error', (t) => {
   const _logError = npmlog.error
   npmlog.error = (title, err) => {
     t.equal(title, '', 'should have an empty name ref')
-    t.deepEqual(err, 'foo bar', 'should log string error')
+    t.same(err, 'foo bar', 'should log string error')
   }
 
   const _exit = process.exit
@@ -371,9 +371,7 @@ t.test('it worked', (t) => {
 t.test('uses code from errno', (t) => {
   t.plan(1)
 
-  // RESET MODULE INTERNAL VARS AND GLOBAL REFS
-  requireInject.installGlobally.andClearCache('../../../lib/utils/error-handler.js', mocks)
-  errorHandler = require('../../../lib/utils/error-handler.js')
+  errorHandler = t.mock('../../../lib/utils/error-handler.js', mocks)
 
   npmlog.level = 'silent'
   const _exit = process.exit
@@ -397,12 +395,7 @@ t.test('uses code from errno', (t) => {
 t.test('uses exitCode as code if using a number', (t) => {
   t.plan(1)
 
-  // RESET MODULE INTERNAL VARS AND GLOBAL REFS
-  requireInject.installGlobally.andClearCache(
-    '../../../lib/utils/error-handler.js',
-    mocks
-  )
-  errorHandler = require('../../../lib/utils/error-handler.js')
+  errorHandler = t.mock('../../../lib/utils/error-handler.js', mocks)
 
   npmlog.level = 'silent'
   const _exit = process.exit
@@ -426,12 +419,7 @@ t.test('uses exitCode as code if using a number', (t) => {
 t.test('call errorHandler with no error', (t) => {
   t.plan(1)
 
-  // RESET MODULE INTERNAL VARS AND GLOBAL REFS
-  requireInject.installGlobally.andClearCache(
-    '../../../lib/utils/error-handler.js',
-    mocks
-  )
-  errorHandler = require('../../../lib/utils/error-handler.js')
+  errorHandler = t.mock('../../../lib/utils/error-handler.js', mocks)
 
   const _exit = process.exit
   process.exit = (code) => {
@@ -489,12 +477,7 @@ t.test('defaults to log error msg if stack is missing', (t) => {
 t.test('set it worked', (t) => {
   t.plan(1)
 
-  // RESET MODULE INTERNAL VARS AND GLOBAL REFS
-  requireInject.installGlobally.andClearCache(
-    '../../../lib/utils/error-handler.js',
-    mocks
-  )
-  errorHandler = require('../../../lib/utils/error-handler.js')
+  errorHandler = t.mock('../../../lib/utils/error-handler.js', mocks)
 
   const _exit = process.exit
   process.exit = () => {
@@ -524,4 +507,62 @@ t.test('use exitCode when emitting exit event', (t) => {
   })
 
   process.emit('exit')
+})
+
+t.test('do no fancy handling for shellouts', t => {
+  const { exit } = process
+  const { command } = npm
+  const { log } = npmlog
+  const LOG_RECORD = []
+  t.teardown(() => {
+    npmlog.log = log
+    process.exit = exit
+    npm.command = command
+  })
+
+  npmlog.log = function (level, ...args) {
+    log.call(this, level, ...args)
+    LOG_RECORD.push(npmlog.record[npmlog.record.length - 1])
+  }
+
+  npm.command = 'exec'
+
+  let EXPECT_EXIT = 0
+  process.exit = code => {
+    t.equal(code, EXPECT_EXIT, 'got expected exit code')
+    EXPECT_EXIT = 0
+  }
+  t.beforeEach(() => LOG_RECORD.length = 0)
+
+  const loudNoises = () => LOG_RECORD
+    .filter(({ level }) => ['warn', 'error'].includes(level))
+
+  t.test('shellout with a numeric error code', t => {
+    EXPECT_EXIT = 5
+    errorHandler(Object.assign(new Error(), { code: 5 }))
+    t.equal(EXPECT_EXIT, 0, 'called process.exit')
+    // should log no warnings or errors, verbose/silly is fine.
+    t.strictSame(loudNoises(), [], 'no noisy warnings')
+    t.end()
+  })
+
+  t.test('shellout without a numeric error code (something in npm)', t => {
+    EXPECT_EXIT = 1
+    errorHandler(Object.assign(new Error(), { code: 'banana stand' }))
+    t.equal(EXPECT_EXIT, 0, 'called process.exit')
+    // should log some warnings and errors, because something weird happened
+    t.strictNotSame(loudNoises(), [], 'bring the noise')
+    t.end()
+  })
+
+  t.test('shellout with code=0 (extra weird?)', t => {
+    EXPECT_EXIT = 1
+    errorHandler(Object.assign(new Error(), { code: 0 }))
+    t.equal(EXPECT_EXIT, 0, 'called process.exit')
+    // should log some warnings and errors, because something weird happened
+    t.strictNotSame(loudNoises(), [], 'bring the noise')
+    t.end()
+  })
+
+  t.end()
 })

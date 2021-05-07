@@ -20,9 +20,19 @@ extern "C" void PushAllRegistersAndIterateStack(const Stack*, StackVisitor*,
 Stack::Stack(const void* stack_start) : stack_start_(stack_start) {}
 
 bool Stack::IsOnStack(void* slot) const {
-  void* raw_slot = v8::base::Stack::GetStackSlot(slot);
-  return v8::base::Stack::GetCurrentStackPosition() <= raw_slot &&
-         raw_slot <= stack_start_;
+#ifdef V8_USE_ADDRESS_SANITIZER
+  // If the slot is part of a fake frame, then it is definitely on the stack.
+  void* real_frame = __asan_addr_is_in_fake_stack(
+      __asan_get_current_fake_stack(), reinterpret_cast<void*>(slot), nullptr,
+      nullptr);
+  if (real_frame) {
+    return true;
+  }
+  // Fall through as there is still a regular stack present even when running
+  // with ASAN fake stacks.
+#endif  // V8_USE_ADDRESS_SANITIZER
+  return v8::base::Stack::GetCurrentStackPosition() <= slot &&
+         slot <= stack_start_;
 }
 
 namespace {

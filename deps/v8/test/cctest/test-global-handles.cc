@@ -158,13 +158,13 @@ void TracedGlobalTest(v8::Isolate* isolate,
   NonRootingEmbedderHeapTracer tracer;
   heap::TemporaryEmbedderHeapTracerScope tracer_scope(isolate, &tracer);
 
-  TracedGlobalWrapper fp;
-  construct_function(isolate, context, &fp);
-  CHECK(heap::InCorrectGeneration(isolate, fp.handle));
-  modifier_function(&fp);
+  auto fp = std::make_unique<TracedGlobalWrapper>();
+  construct_function(isolate, context, fp.get());
+  CHECK(heap::InCorrectGeneration(isolate, fp->handle));
+  modifier_function(fp.get());
   gc_function();
-  CHECK_IMPLIES(survives == SurvivalMode::kSurvives, !fp.handle.IsEmpty());
-  CHECK_IMPLIES(survives == SurvivalMode::kDies, fp.handle.IsEmpty());
+  CHECK_IMPLIES(survives == SurvivalMode::kSurvives, !fp->handle.IsEmpty());
+  CHECK_IMPLIES(survives == SurvivalMode::kDies, fp->handle.IsEmpty());
 }
 
 void ResurrectingFinalizer(

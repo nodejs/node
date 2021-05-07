@@ -14,7 +14,7 @@ new RuleTester().run('require-common-first', rule, {
     {
       code: 'require("common")\n' +
             'require("assert")'
-    }
+    },
   ],
   invalid: [
     {
@@ -22,6 +22,6 @@ new RuleTester().run('require-common-first', rule, {
             'require("common")',
       errors: [{ message: 'Mandatory module "common" must be loaded ' +
                           'before any other modules.' }]
-    }
+    },
   ]
 });

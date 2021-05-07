@@ -1,5 +1,4 @@
 const t = require('tap')
-const fs = require('fs')
 
 // delete this so that we don't have configs from the fact that it
 // is being run by 'npm test'
@@ -16,12 +15,12 @@ for (const env of Object.keys(process.env).filter(e => /^npm_/.test(e))) {
         'should match "npm test" or "npm run test"'
       )
     } else
-      t.match(process.env[env], 'run-script')
+      t.match(process.env[env], /^(run-script|exec)$/)
   }
   delete process.env[env]
 }
 
-const { resolve } = require('path')
+const { resolve, dirname } = require('path')
 
 const actualPlatform = process.platform
 
@@ -43,7 +42,7 @@ const npmlog = require('npmlog')
 
 const npmPath = resolve(__dirname, '..', '..')
 const Config = require('@npmcli/config')
-const { types, defaults, shorthands } = require('../../lib/utils/config.js')
+const { definitions, shorthands, flatten } = require('../../lib/utils/config')
 const freshConfig = (opts = {}) => {
   for (const env of Object.keys(process.env).filter(e => /^npm_/.test(e)))
     delete process.env[env]
@@ -51,12 +50,12 @@ const freshConfig = (opts = {}) => {
   process.env.npm_config_cache = CACHE
 
   npm.config = new Config({
-    types,
-    defaults,
+    definitions,
     shorthands,
     npmPath,
     log: npmlog,
     ...opts,
+    flatten,
   })
 }
 
@@ -79,6 +78,7 @@ t.test('not yet loaded', t => {
       set: Function,
     },
     version: String,
+    shelloutCommands: Array,
   })
   t.throws(() => npm.config.set('foo', 'bar'))
   t.throws(() => npm.config.get('foo'))
@@ -145,6 +145,7 @@ t.test('npm.load', t => {
 
     t.equal(npm.loading, false, 'not loading yet')
     const p = npm.load(first).then(() => {
+      t.ok(npm.usage, 'has usage')
       npm.config.set('prefix', dir)
       t.match(npm, {
         loaded: true,
@@ -160,7 +161,7 @@ t.test('npm.load', t => {
       npm.load(third)
       t.equal(thirdCalled, true, 'third callbback got called')
       t.match(logs, [
-        ['timing', 'npm:load', /Completed in [0-9]+ms/],
+        ['timing', 'npm:load', /Completed in [0-9.]+ms/],
       ])
       logs.length = 0
 
@@ -173,34 +174,34 @@ t.test('npm.load', t => {
       t.equal(npm.log, npmlog, 'npmlog getter')
       t.equal(npm.lockfileVersion, 2, 'lockfileVersion getter')
       t.equal(npm.prefix, npm.localPrefix, 'prefix is local prefix')
-      t.notEqual(npm.prefix, npm.globalPrefix, 'prefix is not global prefix')
+      t.not(npm.prefix, npm.globalPrefix, 'prefix is not global prefix')
       npm.globalPrefix = npm.prefix
       t.equal(npm.prefix, npm.globalPrefix, 'globalPrefix setter')
       npm.localPrefix = dir + '/extra/prefix'
       t.equal(npm.prefix, npm.localPrefix, 'prefix is local prefix after localPrefix setter')
-      t.notEqual(npm.prefix, npm.globalPrefix, 'prefix is not global prefix after localPrefix setter')
+      t.not(npm.prefix, npm.globalPrefix, 'prefix is not global prefix after localPrefix setter')
 
       npm.prefix = dir + '/some/prefix'
       t.equal(npm.prefix, npm.localPrefix, 'prefix is local prefix after prefix setter')
-      t.notEqual(npm.prefix, npm.globalPrefix, 'prefix is not global prefix after prefix setter')
+      t.not(npm.prefix, npm.globalPrefix, 'prefix is not global prefix after prefix setter')
       t.equal(npm.bin, npm.localBin, 'bin is local bin after prefix setter')
-      t.notEqual(npm.bin, npm.globalBin, 'bin is not global bin after prefix setter')
+      t.not(npm.bin, npm.globalBin, 'bin is not global bin after prefix setter')
       t.equal(npm.dir, npm.localDir, 'dir is local dir after prefix setter')
-      t.notEqual(npm.dir, npm.globalDir, 'dir is not global dir after prefix setter')
+      t.not(npm.dir, npm.globalDir, 'dir is not global dir after prefix setter')
 
       npm.config.set('global', true)
       t.equal(npm.prefix, npm.globalPrefix, 'prefix is global prefix after setting global')
-      t.notEqual(npm.prefix, npm.localPrefix, 'prefix is not local prefix after setting global')
+      t.not(npm.prefix, npm.localPrefix, 'prefix is not local prefix after setting global')
       t.equal(npm.bin, npm.globalBin, 'bin is global bin after setting global')
-      t.notEqual(npm.bin, npm.localBin, 'bin is not local bin after setting global')
+      t.not(npm.bin, npm.localBin, 'bin is not local bin after setting global')
       t.equal(npm.dir, npm.globalDir, 'dir is global dir after setting global')
-      t.notEqual(npm.dir, npm.localDir, 'dir is not local dir after setting global')
+      t.not(npm.dir, npm.localDir, 'dir is not local dir after setting global')
 
       npm.prefix = dir + '/new/global/prefix'
       t.equal(npm.prefix, npm.globalPrefix, 'prefix is global prefix after prefix setter')
-      t.notEqual(npm.prefix, npm.localPrefix, 'prefix is not local prefix after prefix setter')
+      t.not(npm.prefix, npm.localPrefix, 'prefix is not local prefix after prefix setter')
       t.equal(npm.bin, npm.globalBin, 'bin is global bin after prefix setter')
-      t.notEqual(npm.bin, npm.localBin, 'bin is not local bin after prefix setter')
+      t.not(npm.bin, npm.localBin, 'bin is not local bin after prefix setter')
 
       beWindows()
       t.equal(npm.bin, npm.globalBin, 'bin is global bin in windows mode')
@@ -214,7 +215,7 @@ t.test('npm.load', t => {
 
     t.equal(npm.loaded, false, 'not loaded yet')
     t.equal(npm.loading, true, 'working on it tho')
-    t.isa(p, Promise, 'npm.load() returned a Promise first time')
+    t.type(p, Promise, 'npm.load() returned a Promise first time')
     t.equal(npm.load(second), undefined,
       'npm.load() returns nothing second time')
 
@@ -248,13 +249,11 @@ t.test('npm.load', t => {
     const node = actualPlatform === 'win32' ? 'node.exe' : 'node'
     const dir = t.testdir({
       '.npmrc': 'foo = bar',
+      bin: t.fixture('symlink', dirname(process.execPath)),
     })
 
-    // create manually to set the 'file' option in windows
-    fs.symlinkSync(process.execPath, resolve(dir, node), 'file')
-
     const PATH = process.env.PATH || process.env.Path
-    process.env.PATH = dir
+    process.env.PATH = resolve(dir, 'bin')
     const { execPath, argv: processArgv } = process
     process.argv = [
       node,
@@ -291,34 +290,45 @@ t.test('npm.load', t => {
       t.equal(npm.config.get('scope'), '@foo', 'added the @ sign to scope')
       t.match(logs.filter(l => l[0] !== 'timing' || !/^config:/.test(l[1])), [
         [
+          'timing',
+          'npm:load:whichnode',
+          /Completed in [0-9.]+ms/,
+        ],
+        [
           'verbose',
           'node symlink',
-          resolve(dir, node),
+          resolve(dir, 'bin', node),
         ],
         [
           'timing',
           'npm:load',
-          /Completed in [0-9]+ms/,
+          /Completed in [0-9.]+ms/,
         ],
       ])
       logs.length = 0
-      t.equal(process.execPath, resolve(dir, node))
+      t.equal(process.execPath, resolve(dir, 'bin', node))
     })
 
     await npm.commands.ll([], (er) => {
       if (er)
         throw er
 
-      t.same(consoleLogs, [[require('../../lib/ls.js').usage]], 'print usage')
+      t.equal(npm.command, 'll', 'command set to first npm command')
+      t.equal(npm.flatOptions.npmCommand, 'll', 'npmCommand flatOption set')
+
+      t.same(consoleLogs, [[npm.commands.ll.usage]], 'print usage')
       consoleLogs.length = 0
       npm.config.set('usage', false)
-      t.equal(npm.commands.ll, npm.commands.la, 'same command, different name')
+      t.equal(npm.commands.ll, npm.commands.ll, 'same command, different name')
       logs.length = 0
     })
 
     await npm.commands.get(['scope', '\u2010not-a-dash'], (er) => {
       if (er)
         throw er
+
+      t.strictSame([npm.command, npm.flatOptions.npmCommand], ['ll', 'll'],
+        'does not change npm.command when another command is called')
 
       t.match(logs, [
         [
@@ -330,12 +340,12 @@ t.test('npm.load', t => {
         [
           'timing',
           'command:config',
-          /Completed in [0-9]+ms/,
+          /Completed in [0-9.]+ms/,
         ],
         [
           'timing',
           'command:get',
-          /Completed in [0-9]+ms/,
+          /Completed in [0-9.]+ms/,
         ],
       ])
       t.same(consoleLogs, [['scope=@foo\n\u2010not-a-dash=undefined']])
@@ -345,19 +355,104 @@ t.test('npm.load', t => {
     await new Promise((res) => setTimeout(res))
   })
 
+  t.test('workpaces-aware configs and commands', async t => {
+    const dir = t.testdir({
+      packages: {
+        a: {
+          'package.json': JSON.stringify({
+            name: 'a',
+            version: '1.0.0',
+            scripts: { test: 'echo test a' },
+          }),
+        },
+        b: {
+          'package.json': JSON.stringify({
+            name: 'b',
+            version: '1.0.0',
+            scripts: { test: 'echo test b' },
+          }),
+        },
+      },
+      'package.json': JSON.stringify({
+        name: 'root',
+        version: '1.0.0',
+        workspaces: ['./packages/*'],
+      }),
+      '.npmrc': '',
+    })
+
+    const { log } = console
+    const consoleLogs = []
+    console.log = (...msg) => consoleLogs.push(msg)
+
+    const { execPath } = process
+    t.teardown(() => {
+      console.log = log
+    })
+
+    freshConfig({
+      argv: [
+        execPath,
+        process.argv[1],
+        '--userconfig',
+        resolve(dir, '.npmrc'),
+        '--color',
+        'false',
+        '--workspaces',
+        'true',
+      ],
+    })
+
+    await npm.load(er => {
+      if (er)
+        throw er
+    })
+
+    npm.localPrefix = dir
+
+    await new Promise((res, rej) => {
+      // verify that calling the command with a short name still sets
+      // the npm.command property to the full canonical name of the cmd.
+      npm.command = null
+      npm.commands.run([], er => {
+        if (er)
+          rej(er)
+
+        t.equal(npm.command, 'run-script', 'npm.command set to canonical name')
+
+        t.match(
+          consoleLogs,
+          [
+            ['Lifecycle scripts included in a@1.0.0:'],
+            ['  test\n    echo test a'],
+            [''],
+            ['Lifecycle scripts included in b@1.0.0:'],
+            ['  test\n    echo test b'],
+            [''],
+          ],
+          'should exec workspaces version of commands'
+        )
+
+        res()
+      })
+    })
+  })
+
   t.end()
 })
 
 t.test('loading as main will load the cli', t => {
   const { spawn } = require('child_process')
   const npm = require.resolve('../../lib/npm.js')
+  const LS = require('../../lib/ls.js')
+  const ls = new LS({})
   const p = spawn(process.execPath, [npm, 'ls', '-h'])
   const out = []
   p.stdout.on('data', c => out.push(c))
   p.on('close', (code, signal) => {
     t.equal(code, 0)
     t.equal(signal, null)
-    t.equal(Buffer.concat(out).toString().trim(), require('../../lib/ls.js').usage)
+    t.match(Buffer.concat(out).toString(), ls.usage)
     t.end()
   })
 })
@@ -382,10 +477,7 @@ t.test('set process.title', t => {
     freshConfig()
   })
 
-  t.afterEach(cb => {
-    consoleLogs.length = 0
-    cb()
-  })
+  t.afterEach(() => consoleLogs.length = 0)
 
   t.test('basic title setting', async t => {
     freshConfig({

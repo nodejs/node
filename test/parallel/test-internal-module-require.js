@@ -70,7 +70,7 @@ const expectedPublicModules = new Set([
   'v8',
   'vm',
   'worker_threads',
-  'zlib'
+  'zlib',
 ]);
 
 if (process.argv[2] === 'child') {

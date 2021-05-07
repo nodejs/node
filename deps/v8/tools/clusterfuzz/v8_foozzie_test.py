@@ -270,7 +270,7 @@ class SystemTest(unittest.TestCase):
     build3: As build1 but with an architecture difference as well.
   """
   def testSyntaxErrorDiffPass(self):
-    stdout = run_foozzie('build1', '--skip-sanity-checks')
+    stdout = run_foozzie('build1', '--skip-smoke-tests')
     self.assertEqual('# V8 correctness - pass\n',
                      cut_verbose_output(stdout, 3))
     # Default comparison includes suppressions.
@@ -283,7 +283,7 @@ class SystemTest(unittest.TestCase):
     with open(os.path.join(TEST_DATA, 'failure_output.txt')) as f:
       expected_output = f.read()
     with self.assertRaises(subprocess.CalledProcessError) as ctx:
-      run_foozzie('build2', '--skip-sanity-checks',
+      run_foozzie('build2', '--skip-smoke-tests',
                   '--first-config-extra-flags=--flag1',
                   '--first-config-extra-flags=--flag2=0',
                   '--second-config-extra-flags=--flag3')
@@ -291,8 +291,8 @@ class SystemTest(unittest.TestCase):
     self.assertEqual(v8_foozzie.RETURN_FAIL, e.returncode)
     self.assertEqual(expected_output, cut_verbose_output(e.output, 2))
 
-  def testSanityCheck(self):
-    with open(os.path.join(TEST_DATA, 'sanity_check_output.txt')) as f:
+  def testSmokeTest(self):
+    with open(os.path.join(TEST_DATA, 'smoke_test_output.txt')) as f:
       expected_output = f.read()
     with self.assertRaises(subprocess.CalledProcessError) as ctx:
       run_foozzie('build2')
@@ -305,7 +305,7 @@ class SystemTest(unittest.TestCase):
     we use executables with different architectures.
     """
     # Build 3 simulates x86, while the baseline is x64.
-    stdout = run_foozzie('build3', '--skip-sanity-checks')
+    stdout = run_foozzie('build3', '--skip-smoke-tests')
     lines = stdout.split('\n')
     # TODO(machenbach): Don't depend on the command-lines being printed in
     # particular lines.
@@ -315,7 +315,7 @@ class SystemTest(unittest.TestCase):
   def testJitless(self):
     """Test that webassembly is mocked out when comparing with jitless."""
     stdout = run_foozzie(
-        'build1', '--skip-sanity-checks', second_config='jitless')
+        'build1', '--skip-smoke-tests', second_config='jitless')
     lines = stdout.split('\n')
     # TODO(machenbach): Don't depend on the command-lines being printed in
     # particular lines.
@@ -328,14 +328,14 @@ class SystemTest(unittest.TestCase):
     """
     # Compare baseline with baseline. This passes as there is no difference.
     stdout = run_foozzie(
-        'baseline', '--skip-sanity-checks', '--skip-suppressions')
+        'baseline', '--skip-smoke-tests', '--skip-suppressions')
     self.assertNotIn('v8_suppressions.js', stdout)
 
     # Compare with a build that usually suppresses a difference. Now we fail
     # since we skip suppressions.
     with self.assertRaises(subprocess.CalledProcessError) as ctx:
       run_foozzie(
-          'build1', '--skip-sanity-checks', '--skip-suppressions')
+          'build1', '--skip-smoke-tests', '--skip-suppressions')
     e = ctx.exception
     self.assertEqual(v8_foozzie.RETURN_FAIL, e.returncode)
     self.assertNotIn('v8_suppressions.js', e.output)

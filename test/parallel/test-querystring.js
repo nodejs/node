@@ -107,7 +107,7 @@ const qsTestCases = [
   ['%20+&', '%20%20=', { '  ': '' }],
   ['=%20+&', '=%20%20', { '': '  ' }],
   [null, '', {}],
-  [undefined, '', {}]
+  [undefined, '', {}],
 ];
 
 // [ wonkyQS, canonicalQS, obj ]
@@ -118,7 +118,7 @@ const qsColonTestCases = [
    'foo:1%26bar%3A2;baz:quux',
    { 'foo': '1&bar:2', 'baz': 'quux' }],
   ['foo%3Abaz:bar', 'foo%3Abaz:bar', { 'foo:baz': 'bar' }],
-  ['foo:baz:bar', 'foo:baz%3Abar', { 'foo': 'baz:bar' }]
+  ['foo:baz:bar', 'foo:baz%3Abar', { 'foo': 'baz:bar' }],
 ];
 
 // [wonkyObj, qs, canonicalObj]
@@ -138,14 +138,14 @@ const qsWeirdObjects = [
   [
     { f: new Boolean(false), t: new Boolean(true) },
     'f=&t=',
-    { 'f': '', 't': '' }
+    { 'f': '', 't': '' },
   ],
   [{ f: false, t: true }, 'f=false&t=true', { 'f': 'false', 't': 'true' }],
   [{ n: null }, 'n=', { 'n': '' }],
   [{ nan: NaN }, 'nan=', { 'nan': '' }],
   [{ inf: Infinity }, 'inf=', { 'inf': '' }],
   [{ a: [], b: [] }, '', {}],
-  [{ a: 1, b: [] }, 'a=1', { 'a': '1' }]
+  [{ a: 1, b: [] }, 'a=1', { 'a': '1' }],
 ];
 // }}}
 
@@ -164,7 +164,7 @@ const qsNoMungeTestCases = [
   ['gragh=1&gragh=3&goo=2', { 'gragh': ['1', '3'], 'goo': '2' }],
   ['frappucino=muffin&goat%5B%5D=scone&pond=moose',
    { 'frappucino': 'muffin', 'goat[]': 'scone', 'pond': 'moose' }],
-  ['trololol=yes&lololo=no', { 'trololol': 'yes', 'lololo': 'no' }]
+  ['trololol=yes&lololo=no', { 'trololol': 'yes', 'lololo': 'no' }],
 ];
 
 const qsUnescapeTestCases = [
@@ -178,7 +178,7 @@ const qsUnescapeTestCases = [
    ' !"#$%&\'()*+,-./01234567'],
   ['%%2a', '%*'],
   ['%2sf%2a', '%2sf*'],
-  ['%2%2af%2a', '%2*f*']
+  ['%2%2af%2a', '%2*f*'],
 ];
 
 assert.strictEqual(qs.parse('id=918854443121279438895193').id,
@@ -232,13 +232,13 @@ qsNoMungeTestCases.forEach((testCase) => {
   const f = qs.parse('a=b&q=x%3Dy%26y%3Dz');
   check(f, createWithNoPrototype([
     { key: 'a', value: 'b' },
-    { key: 'q', value: 'x=y&y=z' }
+    { key: 'q', value: 'x=y&y=z' },
   ]));
 
   f.q = qs.parse(f.q);
   const expectedInternal = createWithNoPrototype([
     { key: 'x', value: 'y' },
-    { key: 'y', value: 'z' }
+    { key: 'y', value: 'z' },
   ]);
   check(f.q, expectedInternal);
 }
@@ -248,12 +248,12 @@ qsNoMungeTestCases.forEach((testCase) => {
   const f = qs.parse('a:b;q:x%3Ay%3By%3Az', ';', ':');
   check(f, createWithNoPrototype([
     { key: 'a', value: 'b' },
-    { key: 'q', value: 'x:y;y:z' }
+    { key: 'q', value: 'x:y;y:z' },
   ]));
   f.q = qs.parse(f.q, ';', ':');
   const expectedInternal = createWithNoPrototype([
     { key: 'x', value: 'y' },
-    { key: 'y', value: 'z' }
+    { key: 'y', value: 'z' },
   ]);
   check(f.q, expectedInternal);
 }
@@ -307,6 +307,7 @@ assert.strictEqual(qs.stringify({ foo: -0 }), 'foo=0');
 assert.strictEqual(qs.stringify({ foo: 3 }), 'foo=3');
 assert.strictEqual(qs.stringify({ foo: -72.42 }), 'foo=-72.42');
 assert.strictEqual(qs.stringify({ foo: NaN }), 'foo=');
+assert.strictEqual(qs.stringify({ foo: 1e21 }), 'foo=1e%2B21');
 assert.strictEqual(qs.stringify({ foo: Infinity }), 'foo=');
 
 // nested
@@ -448,6 +449,14 @@ check(qs.parse('%\u0100=%\u0101'), { '%Ā': '%ā' });
   assert.strictEqual(
     qs.stringify(obj, null, null, { encodeURIComponent: demoEncode }),
     'a=a&b=b&c=c');
+}
+
+// Test custom encode for different types
+{
+  const obj = { number: 1, bigint: 2n, true: true, false: false, object: {} };
+  assert.strictEqual(
+    qs.stringify(obj, null, null, { encodeURIComponent: (v) => v }),
+    'number=1&bigint=2&true=true&false=false&object=');
 }
 
 // Test QueryString.unescapeBuffer

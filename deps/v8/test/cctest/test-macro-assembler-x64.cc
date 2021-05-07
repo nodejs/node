@@ -27,13 +27,13 @@
 
 #include <stdlib.h>
 
-#include "src/init/v8.h"
-
 #include "src/base/platform/platform.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/x64/assembler-x64-inl.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/simulator.h"
 #include "src/heap/factory.h"
+#include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
 #include "src/utils/ostreams.h"
@@ -115,13 +115,20 @@ TEST(SmiMove) {
   TestMoveSmi(masm, &exit, 3, Smi::FromInt(128));
   TestMoveSmi(masm, &exit, 4, Smi::FromInt(255));
   TestMoveSmi(masm, &exit, 5, Smi::FromInt(256));
-  TestMoveSmi(masm, &exit, 6, Smi::FromInt(Smi::kMaxValue));
-  TestMoveSmi(masm, &exit, 7, Smi::FromInt(-1));
-  TestMoveSmi(masm, &exit, 8, Smi::FromInt(-128));
-  TestMoveSmi(masm, &exit, 9, Smi::FromInt(-129));
-  TestMoveSmi(masm, &exit, 10, Smi::FromInt(-256));
-  TestMoveSmi(masm, &exit, 11, Smi::FromInt(-257));
-  TestMoveSmi(masm, &exit, 12, Smi::FromInt(Smi::kMinValue));
+  TestMoveSmi(masm, &exit, 6, Smi::FromInt(0xFFFF - 1));
+  TestMoveSmi(masm, &exit, 7, Smi::FromInt(0xFFFF));
+  TestMoveSmi(masm, &exit, 8, Smi::FromInt(0xFFFF + 1));
+  TestMoveSmi(masm, &exit, 9, Smi::FromInt(Smi::kMaxValue));
+
+  TestMoveSmi(masm, &exit, 10, Smi::FromInt(-1));
+  TestMoveSmi(masm, &exit, 11, Smi::FromInt(-128));
+  TestMoveSmi(masm, &exit, 12, Smi::FromInt(-129));
+  TestMoveSmi(masm, &exit, 13, Smi::FromInt(-256));
+  TestMoveSmi(masm, &exit, 14, Smi::FromInt(-257));
+  TestMoveSmi(masm, &exit, 15, Smi::FromInt(-0xFFFF + 1));
+  TestMoveSmi(masm, &exit, 16, Smi::FromInt(-0xFFFF));
+  TestMoveSmi(masm, &exit, 17, Smi::FromInt(-0xFFFF - 1));
+  TestMoveSmi(masm, &exit, 18, Smi::FromInt(Smi::kMinValue));
 
   __ xorq(rax, rax);  // Success.
   __ bind(&exit);
@@ -450,7 +457,7 @@ TEST(EmbeddedObj) {
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
   Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
   code->Print(os);
@@ -1031,6 +1038,39 @@ TEST(AreAliased) {
   // no_regs are allowed in
   DCHECK(!AreAliased(rax, no_reg, rbx, no_reg, rcx, no_reg, rdx, no_reg));
   DCHECK(AreAliased(rax, no_reg, rbx, no_reg, rcx, no_reg, rdx, rax, no_reg));
+}
+
+TEST(DeoptExitSizeIsFixed) {
+  CHECK(Deoptimizer::kSupportsFixedDeoptExitSizes);
+
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope handles(isolate);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
+                      buffer->CreateView());
+
+  STATIC_ASSERT(static_cast<int>(kFirstDeoptimizeKind) == 0);
+  for (int i = 0; i < kDeoptimizeKindCount; i++) {
+    DeoptimizeKind kind = static_cast<DeoptimizeKind>(i);
+    Label before_exit;
+    masm.bind(&before_exit);
+    if (kind == DeoptimizeKind::kEagerWithResume) {
+      Builtins::Name target = Deoptimizer::GetDeoptWithResumeBuiltin(
+          DeoptimizeReason::kDynamicCheckMaps);
+      masm.CallForDeoptimization(target, 42, &before_exit, kind, &before_exit,
+                                 nullptr);
+      CHECK_EQ(masm.SizeOfCodeGeneratedSince(&before_exit),
+               Deoptimizer::kEagerWithResumeBeforeArgsSize);
+    } else {
+      Builtins::Name target = Deoptimizer::GetDeoptimizationEntry(kind);
+      masm.CallForDeoptimization(target, 42, &before_exit, kind, &before_exit,
+                                 nullptr);
+      CHECK_EQ(masm.SizeOfCodeGeneratedSince(&before_exit),
+               kind == DeoptimizeKind::kLazy
+                   ? Deoptimizer::kLazyDeoptExitSize
+                   : Deoptimizer::kNonLazyDeoptExitSize);
+    }
+  }
 }
 
 #undef __

@@ -1,4 +1,4 @@
-# How to Backport a Pull Request to a Release Line
+# How to backport a pull request to a release line
 
 ## Staging branches
 

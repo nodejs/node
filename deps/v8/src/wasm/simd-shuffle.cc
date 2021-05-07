@@ -58,6 +58,25 @@ bool SimdShuffle::TryMatchIdentity(const uint8_t* shuffle) {
   return true;
 }
 
+bool SimdShuffle::TryMatch32x4Rotate(const uint8_t* shuffle,
+                                     uint8_t* shuffle32x4, bool is_swizzle) {
+  uint8_t offset;
+  bool is_concat = TryMatchConcat(shuffle, &offset);
+  DCHECK_NE(offset, 0);  // 0 is identity, it should not be matched.
+  // Since we already have a concat shuffle, we know that the indices goes from:
+  // [ offset, ..., 15, 0, ... ], it suffices to check that the offset points
+  // to the low byte of a 32x4 element.
+  if (!is_concat || !is_swizzle || offset % 4 != 0) {
+    return false;
+  }
+
+  uint8_t offset_32 = offset / 4;
+  for (int i = 0; i < 4; i++) {
+    shuffle32x4[i] = (offset_32 + i) % 4;
+  }
+  return true;
+}
+
 bool SimdShuffle::TryMatch32x4Shuffle(const uint8_t* shuffle,
                                       uint8_t* shuffle32x4) {
   for (int i = 0; i < 4; ++i) {

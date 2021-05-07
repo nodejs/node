@@ -245,7 +245,7 @@ const {
   HTTP2_HEADER_TK,
   HTTP2_HEADER_UPGRADE_INSECURE_REQUESTS,
   HTTP2_HEADER_USER_AGENT,
-  HTTP2_HEADER_X_CONTENT_TYPE_OPTIONS
+  HTTP2_HEADER_X_CONTENT_TYPE_OPTIONS,
 ].forEach((name) => {
   const msg = `Header field "${name}" must only have a single value`;
   assert.throws(() => mapToHeaders({ [name]: [1, 2, 3] }), {
@@ -283,7 +283,7 @@ const {
   HTTP2_HEADER_VIA,
   HTTP2_HEADER_WARNING,
   HTTP2_HEADER_WWW_AUTHENTICATE,
-  HTTP2_HEADER_X_FRAME_OPTIONS
+  HTTP2_HEADER_X_FRAME_OPTIONS,
 ].forEach((name) => {
   assert(!(mapToHeaders({ [name]: [1, 2, 3] }) instanceof Error), name);
 });
@@ -302,7 +302,7 @@ const {
   'TE',
   'Transfer-Encoding',
   'Proxy-Connection',
-  'Keep-Alive'
+  'Keep-Alive',
 ].forEach((name) => {
   assert.throws(() => mapToHeaders({ [name]: 'abc' }), {
     code: 'ERR_HTTP2_INVALID_CONNECTION_HEADERS',
@@ -349,7 +349,7 @@ assert.strictEqual(getAuthority({
     'cookie', 'foo',
     'set-cookie', 'sc1',
     'age', '10',
-    'x-multi', 'first'
+    'x-multi', 'first',
   ];
   const headers = toHeaderObject(rawHeaders);
   assert.strictEqual(headers[':status'], 200);
@@ -370,7 +370,7 @@ assert.strictEqual(getAuthority({
     'age', '10',
     'age', '20',
     'x-multi', 'first',
-    'x-multi', 'second'
+    'x-multi', 'second',
   ];
   const headers = toHeaderObject(rawHeaders);
   assert.strictEqual(headers[':status'], 200);

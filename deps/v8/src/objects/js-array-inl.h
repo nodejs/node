@@ -21,7 +21,19 @@ OBJECT_CONSTRUCTORS_IMPL(JSArrayIterator, JSObject)
 CAST_ACCESSOR(JSArray)
 CAST_ACCESSOR(JSArrayIterator)
 
-ACCESSORS(JSArray, length, Object, kLengthOffset)
+DEF_GETTER(JSArray, length, Object) {
+  return TaggedField<Object, kLengthOffset>::load(isolate, *this);
+}
+
+void JSArray::set_length(Object value, WriteBarrierMode mode) {
+  // Note the relaxed atomic store.
+  TaggedField<Object, kLengthOffset>::Relaxed_Store(*this, value);
+  CONDITIONAL_WRITE_BARRIER(*this, kLengthOffset, value, mode);
+}
+
+Object JSArray::length(IsolateRoot isolate, RelaxedLoadTag tag) const {
+  return TaggedField<Object, kLengthOffset>::Relaxed_Load(isolate, *this);
+}
 
 void JSArray::set_length(Smi length) {
   // Don't need a write barrier for a Smi.

@@ -25,10 +25,10 @@ class BasicMemoryChunk;
 class Isolate;
 class Page;
 class ReadOnlyArtifacts;
-class ReadOnlyDeserializer;
 class ReadOnlyPage;
 class ReadOnlySpace;
 class SharedReadOnlySpace;
+class SnapshotData;
 
 // This class transparently manages read-only space, roots and cache creation
 // and destruction.
@@ -39,6 +39,9 @@ class ReadOnlyHeap {
 
   virtual ~ReadOnlyHeap() = default;
 
+  ReadOnlyHeap(const ReadOnlyHeap&) = delete;
+  ReadOnlyHeap& operator=(const ReadOnlyHeap&) = delete;
+
   // If necessary creates read-only heap and initializes its artifacts (if the
   // deserializer is provided). Then attaches the read-only heap to the isolate.
   // If the deserializer is not provided, then the read-only heap will be only
@@ -47,7 +50,8 @@ class ReadOnlyHeap {
   // V8_SHARED_RO_HEAP is enabled, a lock will be held until that method is
   // called.
   // TODO(v8:7464): Ideally we'd create this without needing a heap.
-  static void SetUp(Isolate* isolate, ReadOnlyDeserializer* des);
+  static void SetUp(Isolate* isolate, SnapshotData* read_only_snapshot_data,
+                    bool can_rehash);
   // Indicates that the isolate has been set up and all read-only space objects
   // have been created and will not be written to. This should only be called if
   // a deserializer was not previously provided to Setup. When V8_SHARED_RO_HEAP
@@ -101,7 +105,9 @@ class ReadOnlyHeap {
       Isolate* isolate, std::shared_ptr<ReadOnlyArtifacts> artifacts);
   // Runs the read-only deserializer and calls InitFromIsolate to complete
   // read-only heap initialization.
-  void DeseralizeIntoIsolate(Isolate* isolate, ReadOnlyDeserializer* des);
+  void DeseralizeIntoIsolate(Isolate* isolate,
+                             SnapshotData* read_only_snapshot_data,
+                             bool can_rehash);
   // Initializes read-only heap from an already set-up isolate, copying
   // read-only roots from the isolate. This then seals the space off from
   // further writes, marks it as read-only and detaches it from the heap
@@ -118,8 +124,6 @@ class ReadOnlyHeap {
 
   explicit ReadOnlyHeap(ReadOnlySpace* ro_space) : read_only_space_(ro_space) {}
   ReadOnlyHeap(ReadOnlyHeap* ro_heap, ReadOnlySpace* ro_space);
-
-  DISALLOW_COPY_AND_ASSIGN(ReadOnlyHeap);
 };
 
 // This is used without pointer compression when there is just a single

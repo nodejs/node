@@ -15,7 +15,7 @@ const net = require('net');
 
 const requests = [
   { host: 'foo:1234', headers: { expectedhost: 'foo:1234:80' } },
-  { host: '::1', headers: { expectedhost: '[::1]:80' } }
+  { host: '::1', headers: { expectedhost: '[::1]:80' } },
 ];
 
 function createLocalConnection(options) {

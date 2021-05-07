@@ -6,8 +6,10 @@ const { WPTRunner } = require('../common/wpt');
 const runner = new WPTRunner('hr-time');
 
 runner.setInitScript(`
-  const { performance, PerformanceObserver } = require('perf_hooks');
-  global.performance = performance;
+  const { Blob } = require('buffer');
+  global.Blob = Blob;
+
+  const { PerformanceObserver } = require('perf_hooks');
   global.PerformanceObserver = PerformanceObserver;
 `);
 

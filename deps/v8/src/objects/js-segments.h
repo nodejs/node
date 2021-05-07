@@ -27,6 +27,8 @@ class UnicodeString;
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/js-segments-tq.inc"
+
 class JSSegments : public TorqueGeneratedJSSegments<JSSegments, JSObject> {
  public:
   // ecma402 #sec-createsegmentsobject

@@ -7,6 +7,7 @@
 
 #include "src/compiler/js-operator.h"
 #include "src/compiler/js-type-hint-lowering.h"
+#include "src/compiler/node-observer.h"
 #include "src/handles/handles.h"
 #include "src/objects/code-kind.h"
 #include "src/utils/utils.h"
@@ -25,6 +26,7 @@ class Zone;
 namespace compiler {
 
 class JSGraph;
+class NodeObserver;
 class SourcePositionTable;
 
 enum class BytecodeGraphBuilderFlag : uint8_t {
@@ -41,13 +43,14 @@ using BytecodeGraphBuilderFlags = base::Flags<BytecodeGraphBuilderFlag>;
 // on AIX (v8:8193).
 void BuildGraphFromBytecode(JSHeapBroker* broker, Zone* local_zone,
                             SharedFunctionInfoRef const& shared_info,
-                            FeedbackVectorRef const& feedback_vector,
-                            BailoutId osr_offset, JSGraph* jsgraph,
+                            FeedbackCellRef const& feedback_cell,
+                            BytecodeOffset osr_offset, JSGraph* jsgraph,
                             CallFrequency const& invocation_frequency,
                             SourcePositionTable* source_positions,
                             int inlining_id, CodeKind code_kind,
                             BytecodeGraphBuilderFlags flags,
-                            TickCounter* tick_counter);
+                            TickCounter* tick_counter,
+                            ObserveNodeInfo const& observe_node_info = {});
 
 }  // namespace compiler
 }  // namespace internal

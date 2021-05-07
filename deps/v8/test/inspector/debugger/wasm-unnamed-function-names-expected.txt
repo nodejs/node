@@ -1,4 +1,6 @@
 Tests unnamed function in wasm scripts
+
+Running test: test
 Running testFunction with generated wasm bytes...
 Paused on 'debugger;'
 Number of frames: 5
@@ -7,4 +9,3 @@ Number of frames: 5
   - [2] main
   - [3] testFunction
   - [4] 
-Finished!

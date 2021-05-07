@@ -51,34 +51,35 @@ namespace internal {
  *
  * The stack will have the following structure:
  *
- *  Location    Name               Description
- *              (as referred to in
- *              the code)
+ *  Location     Name               Description
+ *               (as referred to
+ *               in the code)
  *
- *  - fp[104]  Address regexp      Address of the JSRegExp object. Unused in
- *                                 native code, passed to match signature of
- *                                 the interpreter.
- *  - fp[96]   isolate             Address of the current isolate.
- *  ^^^ sp when called ^^^
- *  - fp[88]    lr                 Return from the RegExp code.
- *  - fp[80]    r29                Old frame pointer (CalleeSaved).
- *  - fp[0..72] r19-r28            Backup of CalleeSaved registers.
- *  - fp[-8]    direct_call        1 => Direct call from JavaScript code.
- *                                 0 => Call through the runtime system.
- *  - fp[-16]   stack_base         High end of the memory area to use as
- *                                 the backtracking stack.
- *  - fp[-24]   output_size        Output may fit multiple sets of matches.
- *  - fp[-32]   input              Handle containing the input string.
- *  - fp[-40]   success_counter
+ *  - fp[104]    Address regexp     Address of the JSRegExp object. Unused in
+ *                                  native code, passed to match signature of
+ *                                  the interpreter.
+ *  - fp[96]     isolate            Address of the current isolate.
+ *  ^^^^^^^^^ sp when called ^^^^^^^^^
+ *  - fp[16..88] r19-r28            Backup of CalleeSaved registers.
+ *  - fp[8]      lr                 Return from the RegExp code.
+ *  - fp[0]      fp                 Old frame pointer.
+ *  ^^^^^^^^^ fp ^^^^^^^^^
+ *  - fp[-8]     direct_call        1 => Direct call from JavaScript code.
+ *                                  0 => Call through the runtime system.
+ *  - fp[-16]    stack_base         High end of the memory area to use as
+ *                                  the backtracking stack.
+ *  - fp[-24]    output_size        Output may fit multiple sets of matches.
+ *  - fp[-32]    input              Handle containing the input string.
+ *  - fp[-40]    success_counter
  *  ^^^^^^^^^^^^^ From here and downwards we store 32 bit values ^^^^^^^^^^^^^
- *  - fp[-44]   register N         Capture registers initialized with
- *  - fp[-48]   register N + 1     non_position_value.
- *              ...                The first kNumCachedRegisters (N) registers
- *              ...                are cached in x0 to x7.
- *              ...                Only positions must be stored in the first
- *  -           ...                num_saved_registers_ registers.
- *  -           ...
- *  -           register N + num_registers - 1
+ *  - fp[-44]    register N         Capture registers initialized with
+ *  - fp[-48]    register N + 1     non_position_value.
+ *               ...                The first kNumCachedRegisters (N) registers
+ *               ...                are cached in x0 to x7.
+ *               ...                Only positions must be stored in the first
+ *  -            ...                num_saved_registers_ registers.
+ *  -            ...
+ *  -            register N + num_registers - 1
  *  ^^^^^^^^^ sp ^^^^^^^^^
  *
  * The first num_saved_registers_ registers are initialized to point to
@@ -142,6 +143,7 @@ RegExpMacroAssemblerARM64::~RegExpMacroAssemblerARM64() {
   exit_label_.Unuse();
   check_preempt_label_.Unuse();
   stack_overflow_label_.Unuse();
+  fallback_label_.Unuse();
 }
 
 int RegExpMacroAssemblerARM64::stack_limit_slack()  {
@@ -201,8 +203,13 @@ void RegExpMacroAssemblerARM64::Backtrack() {
     __ Cmp(scratch, Operand(backtrack_limit()));
     __ B(ne, &next);
 
-    // Exceeded limits are treated as a failed match.
-    Fail();
+    // Backtrack limit exceeded.
+    if (can_fallback()) {
+      __ B(&fallback_label_);
+    } else {
+      // Can't fallback, so we treat it as a failed match.
+      Fail();
+    }
 
     __ bind(&next);
   }
@@ -739,11 +746,10 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
   CPURegList argument_registers(x0, x5, x6, x7);
 
   CPURegList registers_to_retain = kCalleeSaved;
-  registers_to_retain.Combine(fp);
-  registers_to_retain.Combine(lr);
+  DCHECK_EQ(registers_to_retain.Count(), kNumCalleeSavedRegisters);
 
-  DCHECK(registers_to_retain.IncludesAliasOf(lr));
-  __ PushCPURegList<TurboAssembler::kSignLR>(registers_to_retain);
+  __ PushCPURegList<TurboAssembler::kDontStoreLR>(registers_to_retain);
+  __ Push<TurboAssembler::kSignLR>(lr, fp);
   __ PushCPURegList(argument_registers);
 
   // Set frame pointer in place.
@@ -1036,9 +1042,10 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
 
   // Set stack pointer back to first register to retain
   __ Mov(sp, fp);
+  __ Pop<TurboAssembler::kAuthLR>(fp, lr);
 
   // Restore registers.
-  __ PopCPURegList<TurboAssembler::kAuthLR>(registers_to_retain);
+  __ PopCPURegList<TurboAssembler::kDontLoadLR>(registers_to_retain);
 
   __ Ret();
 
@@ -1091,6 +1098,12 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
   if (exit_with_exception.is_linked()) {
     __ Bind(&exit_with_exception);
     __ Mov(w0, EXCEPTION);
+    __ B(&return_w0);
+  }
+
+  if (fallback_label_.is_linked()) {
+    __ Bind(&fallback_label_);
+    __ Mov(w0, FALLBACK_TO_EXPERIMENTAL);
     __ B(&return_w0);
   }
 
@@ -1399,7 +1412,6 @@ void RegExpMacroAssemblerARM64::CallCheckStackGuardState(Register scratch) {
     Register scratch = temps.AcquireX();
 
     EmbeddedData d = EmbeddedData::FromBlob();
-    CHECK(Builtins::IsIsolateIndependent(Builtins::kDirectCEntry));
     Address entry = d.InstructionStartOfBuiltin(Builtins::kDirectCEntry);
 
     __ Ldr(scratch, Operand(entry, RelocInfo::OFF_HEAP_TARGET));

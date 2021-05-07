@@ -265,7 +265,7 @@ static int uv__signal_loop_once_init(uv_loop_t* loop) {
   if (loop->signal_pipefd[0] != -1)
     return 0;
 
-  err = uv__make_pipe(loop->signal_pipefd, UV__F_NONBLOCK);
+  err = uv__make_pipe(loop->signal_pipefd, UV_NONBLOCK_PIPE);
   if (err)
     return err;
 

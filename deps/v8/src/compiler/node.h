@@ -236,6 +236,8 @@ class V8_EXPORT_PRIVATE Node final {
   // a node exceeds the maximum inline capacity.
 
   Node(NodeId id, const Operator* op, int inline_count, int inline_capacity);
+  Node(const Node&) = delete;
+  Node& operator=(const Node&) = delete;
 
   inline Address inputs_location() const;
 
@@ -300,8 +302,6 @@ class V8_EXPORT_PRIVATE Node final {
   friend class Edge;
   friend class NodeMarkerBase;
   friend class NodeProperties;
-
-  DISALLOW_COPY_AND_ASSIGN(Node);
 };
 
 Address Node::inputs_location() const {
@@ -364,25 +364,6 @@ class Control : public NodeWrapper {
     DCHECK_GT(value->op()->ControlOutputCount(), 0);
     set_node(value);
     return value;
-  }
-};
-
-class FrameState : public NodeWrapper {
- public:
-  explicit constexpr FrameState(Node* node) : NodeWrapper(node) {
-    // TODO(jgruber): Disallow kStart (needed for PromiseConstructorBasic unit
-    // test, among others).
-    SLOW_DCHECK(node->opcode() == IrOpcode::kFrameState ||
-                node->opcode() == IrOpcode::kStart);
-  }
-
-  // Duplicating here from frame-states.h for ease of access and to keep
-  // header include-balls small. Equality of the two constants is
-  // static-asserted elsewhere.
-  static constexpr int kFrameStateOuterStateInput = 5;
-
-  FrameState outer_frame_state() const {
-    return FrameState{node()->InputAt(kFrameStateOuterStateInput)};
   }
 };
 

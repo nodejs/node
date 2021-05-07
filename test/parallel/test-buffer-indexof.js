@@ -350,7 +350,7 @@ assert.strictEqual(Buffer.from('aaaaa').indexOf('b', 'ucs2'), -1);
 [
   () => {},
   {},
-  []
+  [],
 ].forEach((val) => {
   assert.throws(
     () => b.indexOf(val),

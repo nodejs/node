@@ -5,6 +5,9 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+if (common.hasOpenSSL3)
+  common.skip('temporarily skipping for OpenSSL 3.0-alpha15');
+
 const assert = require('assert');
 const { subtle } = require('crypto').webcrypto;
 
@@ -14,7 +17,7 @@ const hashes = [
   'SHA-1',
   'SHA-256',
   'SHA-384',
-  'SHA-512'
+  'SHA-512',
 ];
 
 const keyData = {
@@ -389,7 +392,7 @@ async function testImportJwk(
       { ...jwk, alg: `PS${hash.substring(4)}` },
       { name, hash },
       extractable,
-      privateUsages)
+      privateUsages),
   ]);
 
   assert.strictEqual(publicKey.type, 'public');
@@ -408,10 +411,10 @@ async function testImportJwk(
   if (extractable) {
     const [
       pubJwk,
-      pvtJwk
+      pvtJwk,
     ] = await Promise.all([
       subtle.exportKey('jwk', publicKey),
-      subtle.exportKey('jwk', privateKey)
+      subtle.exportKey('jwk', privateKey),
     ]);
 
     assert.strictEqual(pubJwk.kty, 'RSA');
@@ -457,10 +460,10 @@ const testVectors = [
     publicUsages: ['verify']
   },
   {
-    name: 'RSASSA-PKCS1-V1_5',
+    name: 'RSASSA-PKCS1-v1_5',
     privateUsages: ['sign'],
     publicUsages: ['verify']
-  }
+  },
 ];
 
 (async function() {

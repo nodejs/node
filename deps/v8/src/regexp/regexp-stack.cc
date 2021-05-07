@@ -14,12 +14,18 @@ RegExpStackScope::RegExpStackScope(Isolate* isolate)
     : regexp_stack_(isolate->regexp_stack()) {
   // Initialize, if not already initialized.
   regexp_stack_->EnsureCapacity(0);
+  // Irregexp is not reentrant in several ways; in particular, the
+  // RegExpStackScope is not reentrant since the destructor frees allocated
+  // memory. Protect against reentrancy here.
+  CHECK(!regexp_stack_->is_in_use());
+  regexp_stack_->set_is_in_use(true);
 }
 
 
 RegExpStackScope::~RegExpStackScope() {
   // Reset the buffer if it has grown.
   regexp_stack_->Reset();
+  DCHECK(!regexp_stack_->is_in_use());
 }
 
 RegExpStack::RegExpStack() : thread_local_(this), isolate_(nullptr) {}
@@ -36,17 +42,15 @@ char* RegExpStack::ArchiveStack(char* to) {
     DCHECK(thread_local_.owns_memory_);
   }
 
-  size_t size = sizeof(thread_local_);
-  MemCopy(reinterpret_cast<void*>(to), &thread_local_, size);
+  MemCopy(reinterpret_cast<void*>(to), &thread_local_, kThreadLocalSize);
   thread_local_ = ThreadLocal(this);
-  return to + size;
+  return to + kThreadLocalSize;
 }
 
 
 char* RegExpStack::RestoreStack(char* from) {
-  size_t size = sizeof(thread_local_);
-  MemCopy(&thread_local_, reinterpret_cast<void*>(from), size);
-  return from + size;
+  MemCopy(&thread_local_, reinterpret_cast<void*>(from), kThreadLocalSize);
+  return from + kThreadLocalSize;
 }
 
 void RegExpStack::Reset() { thread_local_.ResetToStaticStack(this); }
@@ -60,6 +64,7 @@ void RegExpStack::ThreadLocal::ResetToStaticStack(RegExpStack* regexp_stack) {
   limit_ = reinterpret_cast<Address>(regexp_stack->static_stack_) +
            kStackLimitSlack * kSystemPointerSize;
   owns_memory_ = false;
+  is_in_use_ = false;
 }
 
 void RegExpStack::ThreadLocal::FreeAndInvalidate() {

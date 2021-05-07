@@ -3,7 +3,7 @@
 A fork of [move-file](https://github.com/sindresorhus/move-file) with
 compatibility with all node 10.x versions.
 
-> Move a file
+> Move a file (or directory)
 
 The built-in
 [`fs.rename()`](https://nodejs.org/api/fs.html#fs_fs_rename_oldpath_newpath_callback)
@@ -18,6 +18,7 @@ would have expected `fs.rename()` to be.
 - Optionally prevent overwriting an existing file.
 - Creates non-existent destination directories for you.
 - Support for Node versions that lack built-in recursive `fs.mkdir()`
+- Automatically recurses when source is a directory.
 
 ## Install
 
@@ -48,13 +49,13 @@ Returns a `Promise` that resolves when the file has been moved.
 
 Type: `string`
 
-File you want to move.
+File, or directory, you want to move.
 
 #### destination
 
 Type: `string`
 
-Where you want the file moved.
+Where you want the file or directory moved.
 
 #### options
 
@@ -65,4 +66,4 @@ Type: `object`
 Type: `boolean`\
 Default: `true`
 
-Overwrite existing destination file.
+Overwrite existing destination file(s).

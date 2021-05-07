@@ -14,6 +14,38 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+
+int WriteDirectiveOrSeparator(PlatformEmbeddedFileWriterBase* w,
+                              int current_line_length,
+                              DataDirective directive) {
+  int printed_chars;
+  if (current_line_length == 0) {
+    printed_chars = w->IndentedDataDirective(directive);
+    DCHECK_LT(0, printed_chars);
+  } else {
+    printed_chars = fprintf(w->fp(), ",");
+    DCHECK_EQ(1, printed_chars);
+  }
+  return current_line_length + printed_chars;
+}
+
+int WriteLineEndIfNeeded(PlatformEmbeddedFileWriterBase* w,
+                         int current_line_length, int write_size) {
+  static const int kTextWidth = 100;
+  // Check if adding ',0xFF...FF\n"' would force a line wrap. This doesn't use
+  // the actual size of the string to be written to determine this so it's
+  // more conservative than strictly needed.
+  if (current_line_length + strlen(",0x") + write_size * 2 > kTextWidth) {
+    fprintf(w->fp(), "\n");
+    return 0;
+  } else {
+    return current_line_length;
+  }
+}
+
+}  // namespace
+
 void EmbeddedFileWriter::WriteBuiltin(PlatformEmbeddedFileWriterBase* w,
                                       const i::EmbeddedData* blob,
                                       const int builtin_id) const {
@@ -46,10 +78,9 @@ void EmbeddedFileWriter::WriteBuiltin(PlatformEmbeddedFileWriterBase* w,
   CHECK(positions.done());  // Release builds must not contain debug infos.
 #endif
 
-  // Some builtins (ArgumentsAdaptorTrampoline and JSConstructStubGeneric) have
-  // entry points located in the middle of them, we need to store their
-  // addresses since they are part of the list of allowed return addresses in
-  // the deoptimizer.
+  // Some builtins (JSConstructStubGeneric) have entry points located in the
+  // middle of them, we need to store their addresses since they are part of
+  // the list of allowed return addresses in the deoptimizer.
   const std::vector<LabelInfo>& current_labels = label_info_[builtin_id];
   auto label = current_labels.begin();
 
@@ -98,6 +129,40 @@ void EmbeddedFileWriter::WriteBuiltinLabels(PlatformEmbeddedFileWriterBase* w,
   w->DeclareLabel(name.c_str());
 }
 
+void EmbeddedFileWriter::WriteCodeSection(PlatformEmbeddedFileWriterBase* w,
+                                          const i::EmbeddedData* blob) const {
+  w->Comment(
+      "The embedded blob code section starts here. It contains the builtin");
+  w->Comment("instruction streams.");
+  w->SectionText();
+
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
+  // UMA needs an exposed function-type label at the start of the embedded
+  // code section.
+  static const char* kCodeStartForProfilerSymbolName =
+      "v8_code_start_for_profiler_";
+  static constexpr int kDummyFunctionLength = 1;
+  static constexpr int kDummyFunctionData = 0xcc;
+  w->DeclareFunctionBegin(kCodeStartForProfilerSymbolName,
+                          kDummyFunctionLength);
+  // The label must not be at the same address as the first builtin, insert
+  // padding bytes.
+  WriteDirectiveOrSeparator(w, 0, kByte);
+  w->HexLiteral(kDummyFunctionData);
+  w->Newline();
+  w->DeclareFunctionEnd(kCodeStartForProfilerSymbolName);
+#endif
+
+  w->AlignToCodeAlignment();
+  w->DeclareLabel(EmbeddedBlobCodeDataSymbol().c_str());
+
+  STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
+  for (int i = 0; i < i::Builtins::builtin_count; i++) {
+    WriteBuiltin(w, blob, i);
+  }
+  w->Newline();
+}
+
 void EmbeddedFileWriter::WriteFileEpilogue(PlatformEmbeddedFileWriterBase* w,
                                            const i::EmbeddedData* blob) const {
   {
@@ -112,15 +177,14 @@ void EmbeddedFileWriter::WriteFileEpilogue(PlatformEmbeddedFileWriterBase* w,
                               EmbeddedBlobCodeDataSymbol().c_str());
     w->Newline();
 
-    i::EmbeddedVector<char, kTemporaryStringLength>
-        embedded_blob_metadata_symbol;
-    i::SNPrintF(embedded_blob_metadata_symbol, "v8_%s_embedded_blob_metadata_",
+    i::EmbeddedVector<char, kTemporaryStringLength> embedded_blob_data_symbol;
+    i::SNPrintF(embedded_blob_data_symbol, "v8_%s_embedded_blob_data_",
                 embedded_variant_);
 
-    w->Comment("Pointer to the beginning of the embedded blob metadata.");
+    w->Comment("Pointer to the beginning of the embedded blob data section.");
     w->AlignToDataAlignment();
-    w->DeclarePointerToSymbol(embedded_blob_metadata_symbol.begin(),
-                              EmbeddedBlobMetadataDataSymbol().c_str());
+    w->DeclarePointerToSymbol(embedded_blob_data_symbol.begin(),
+                              EmbeddedBlobDataDataSymbol().c_str());
     w->Newline();
   }
 
@@ -137,13 +201,12 @@ void EmbeddedFileWriter::WriteFileEpilogue(PlatformEmbeddedFileWriterBase* w,
     w->Newline();
 
     i::EmbeddedVector<char, kTemporaryStringLength>
-        embedded_blob_metadata_size_symbol;
-    i::SNPrintF(embedded_blob_metadata_size_symbol,
-                "v8_%s_embedded_blob_metadata_size_", embedded_variant_);
+        embedded_blob_data_size_symbol;
+    i::SNPrintF(embedded_blob_data_size_symbol,
+                "v8_%s_embedded_blob_data_size_", embedded_variant_);
 
-    w->Comment("The size of the embedded blob metadata in bytes.");
-    w->DeclareUint32(embedded_blob_metadata_size_symbol.begin(),
-                     blob->metadata_size());
+    w->Comment("The size of the embedded blob data section in bytes.");
+    w->DeclareUint32(embedded_blob_data_size_symbol.begin(), blob->data_size());
     w->Newline();
   }
 
@@ -161,38 +224,6 @@ void EmbeddedFileWriter::WriteFileEpilogue(PlatformEmbeddedFileWriterBase* w,
 
   w->FileEpilogue();
 }
-
-namespace {
-
-int WriteDirectiveOrSeparator(PlatformEmbeddedFileWriterBase* w,
-                              int current_line_length,
-                              DataDirective directive) {
-  int printed_chars;
-  if (current_line_length == 0) {
-    printed_chars = w->IndentedDataDirective(directive);
-    DCHECK_LT(0, printed_chars);
-  } else {
-    printed_chars = fprintf(w->fp(), ",");
-    DCHECK_EQ(1, printed_chars);
-  }
-  return current_line_length + printed_chars;
-}
-
-int WriteLineEndIfNeeded(PlatformEmbeddedFileWriterBase* w,
-                         int current_line_length, int write_size) {
-  static const int kTextWidth = 100;
-  // Check if adding ',0xFF...FF\n"' would force a line wrap. This doesn't use
-  // the actual size of the string to be written to determine this so it's
-  // more conservative than strictly needed.
-  if (current_line_length + strlen(",0x") + write_size * 2 > kTextWidth) {
-    fprintf(w->fp(), "\n");
-    return 0;
-  } else {
-    return current_line_length;
-  }
-}
-
-}  // namespace
 
 // static
 void EmbeddedFileWriter::WriteBinaryContentsAsInlineAssembly(
@@ -265,14 +296,12 @@ void EmbeddedFileWriter::PrepareBuiltinSourcePositionMap(Builtins* builtins) {
   }
 }
 
-void EmbeddedFileWriter::PrepareBuiltinLabelInfoMap(
-    int create_offset, int invoke_offset, int arguments_adaptor_offset) {
+void EmbeddedFileWriter::PrepareBuiltinLabelInfoMap(int create_offset,
+                                                    int invoke_offset) {
   label_info_[Builtins::kJSConstructStubGeneric].push_back(
       {create_offset, "construct_stub_create_deopt_addr"});
   label_info_[Builtins::kJSConstructStubGeneric].push_back(
       {invoke_offset, "construct_stub_invoke_deopt_addr"});
-  label_info_[Builtins::kArgumentsAdaptorTrampoline].push_back(
-      {arguments_adaptor_offset, "arguments_adaptor_deopt_addr"});
 }
 
 }  // namespace internal

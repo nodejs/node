@@ -44,53 +44,63 @@ function RunWorkerPingTest(config) {
   // Every {config.allocInterval}, a worker creates a new thing by
   // {config.AllocThing}.
 
-  let script =
-`const kNumThings = ${config.numThings};
-  const kAllocInterval = ${config.allocInterval};
-  let index = 0;
-  let total = 0;
-  let id = 0;
-  let things = new Array(kNumThings);
-  for (let i = 0; i < kNumThings; i++) {
-    things[i] = TryAllocThing();
-  }
+  function workerCode(config, AllocThing, BeforeReceive) {
+    eval(AllocThing);
+    eval(BeforeReceive);
+    const kNumThings = config.numThings;
+    const kAllocInterval = config.allocInterval;
+    let index = 0;
+    let total = 0;
+    let id = 0;
+    let things = new Array(kNumThings);
+    for (let i = 0; i < kNumThings; i++) {
+      things[i] = TryAllocThing();
+    }
 
-  function TryAllocThing() {
-     try {
-       let thing = AllocThing(id++);
-       ${config.traceAlloc ? "print(\"alloc success\");" : ""}
+    function TryAllocThing() {
+      try {
+        let thing = AllocThing(id++);
+        if (config.traceAlloc) {
+          print("alloc success");
+        }
        return thing;
      } catch(e) {
-       ${config.abortOnFail ? "postMessage({error: e.toString()}); throw e;" : "" }
-       ${config.traceAlloc ? "print(\"alloc fail: \" + e);" : ""}
+       if (config.abortOnFail) {
+         postMessage({error: e.toString()}); throw e;
+       }
+       if (config.traceAlloc) {
+         print("alloc fail: " + e);
+       }
      }
-  }
+    }
 
-  onmessage = function(msg) {
-    BeforeReceive(msg);
-    if (msg.thing !== undefined) {
-      let reply = things[index];
-      if ((total % kAllocInterval) == 0) {
-        reply = TryAllocThing();
+    onmessage = function(msg) {
+      BeforeReceive(msg);
+      if (msg.thing !== undefined) {
+        let reply = things[index];
+        if ((total % kAllocInterval) == 0) {
+          reply = TryAllocThing();
+        }
+        things[index] = msg.thing;
+        postMessage({thing : reply});
+        index = (index + 1) % kNumThings;
+        total++;
       }
-      things[index] = msg.thing;
-      postMessage({thing : reply});
-      index = (index + 1) % kNumThings;
-      total++;
     }
   }
-  ${config.AllocThing.toString()}
-  ${beforeReceive.toString()}
-  `;
 
   if (config.traceScript) {
     print("========== Worker script ==========");
-    print(script);
+    print(workerCode.toString());
     print("===================================");
   }
 
+  let arguments = [config,
+                   config.AllocThing.toString(),
+                   beforeReceive.toString()];
   for (let i = 0; i < config.numWorkers; i++) {
-    let worker = new Worker(script, {type : 'string'});
+    let worker = new Worker(workerCode, {type: 'function',
+                                         arguments: arguments});
     workers.push(worker);
   }
 

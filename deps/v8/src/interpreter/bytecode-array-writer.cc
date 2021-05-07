@@ -253,7 +253,8 @@ void BytecodeArrayWriter::MaybeElideLastBytecode(Bytecode next_bytecode,
   // and the next bytecode clobbers this load without reading the accumulator,
   // then the previous bytecode can be elided as it has no effect.
   if (Bytecodes::IsAccumulatorLoadWithoutEffects(last_bytecode_) &&
-      Bytecodes::GetAccumulatorUse(next_bytecode) == AccumulatorUse::kWrite &&
+      Bytecodes::GetImplicitRegisterUse(next_bytecode) ==
+          ImplicitRegisterUse::kWriteAccumulator &&
       (!last_bytecode_had_source_info_ || !has_source_info)) {
     DCHECK_GT(bytecodes()->size(), last_bytecode_offset_);
     bytecodes()->resize(last_bytecode_offset_);

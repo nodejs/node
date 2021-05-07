@@ -275,7 +275,7 @@ for (let lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
 [
   () => { },
   {},
-  []
+  [],
 ].forEach((val) => {
   assert.throws(
     () => b.includes(val),

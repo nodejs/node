@@ -180,8 +180,11 @@ struct V8_EXPORT_PRIVATE AssemblerOptions {
   // info. This is useful in some platform (Win64) where the unwind info depends
   // on a function prologue/epilogue.
   bool collect_win64_unwind_info = false;
+  // Whether to emit code comments.
+  bool emit_code_comments = FLAG_code_comments;
 
   static AssemblerOptions Default(Isolate* isolate);
+  static AssemblerOptions DefaultForOffHeapTrampoline(Isolate* isolate);
 };
 
 class AssemblerBuffer {
@@ -226,6 +229,8 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   }
   // Features are usually enabled by CpuFeatureScope, which also asserts that
   // the features are supported before they are enabled.
+  // IMPORTANT:  IsEnabled() should only be used by DCHECKs. For real feature
+  // detection, use IsSupported().
   bool IsEnabled(CpuFeature f) {
     return (enabled_cpu_features_ & (static_cast<uint64_t>(1) << f)) != 0;
   }
@@ -235,7 +240,9 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 
   bool is_constant_pool_available() const {
     if (FLAG_enable_embedded_constant_pool) {
-      return constant_pool_available_;
+      // We need to disable constant pool here for embeded builtins
+      // because the metadata section is not adjacent to instructions
+      return constant_pool_available_ && !options().isolate_independent_code;
     } else {
       // Embedded constant pool not supported on this architecture.
       UNREACHABLE();
@@ -280,7 +287,7 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   // Record an inline code comment that can be used by a disassembler.
   // Use --code-comments to enable.
   void RecordComment(const char* msg) {
-    if (FLAG_code_comments) {
+    if (options().emit_code_comments) {
       code_comments_writer_.Add(pc_offset(), std::string(msg));
     }
   }
@@ -381,7 +388,7 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 };
 
 // Avoids emitting debug code during the lifetime of this scope object.
-class DontEmitDebugCodeScope {
+class V8_NODISCARD DontEmitDebugCodeScope {
  public:
   explicit DontEmitDebugCodeScope(AssemblerBase* assembler)
       : assembler_(assembler), old_value_(assembler->emit_debug_code()) {
@@ -395,7 +402,7 @@ class DontEmitDebugCodeScope {
 };
 
 // Enable a specified feature within a scope.
-class V8_EXPORT_PRIVATE CpuFeatureScope {
+class V8_EXPORT_PRIVATE V8_NODISCARD CpuFeatureScope {
  public:
   enum CheckPolicy {
     kCheckSupported,

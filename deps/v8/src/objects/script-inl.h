@@ -17,6 +17,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/script-tq-inl.inc"
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(Script)
 
 NEVER_READ_ONLY_SPACE_IMPL(Script)
@@ -103,6 +105,12 @@ bool Script::is_repl_mode() const { return IsReplModeBit::decode(flags()); }
 
 void Script::set_is_repl_mode(bool value) {
   set_flags(IsReplModeBit::update(flags(), value));
+}
+
+bool Script::break_on_entry() const { return BreakOnEntryBit::decode(flags()); }
+
+void Script::set_break_on_entry(bool value) {
+  set_flags(BreakOnEntryBit::update(flags(), value));
 }
 
 ScriptOriginOptions Script::origin_options() {

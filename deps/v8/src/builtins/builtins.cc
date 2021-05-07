@@ -88,14 +88,14 @@ const BuiltinMetadata builtin_metadata[] = {BUILTIN_LIST(
 
 }  // namespace
 
-BailoutId Builtins::GetContinuationBailoutId(Name name) {
+BytecodeOffset Builtins::GetContinuationBytecodeOffset(Name name) {
   DCHECK(Builtins::KindOf(name) == TFJ || Builtins::KindOf(name) == TFC ||
          Builtins::KindOf(name) == TFS);
-  return BailoutId(BailoutId::kFirstBuiltinContinuationId + name);
+  return BytecodeOffset(BytecodeOffset::kFirstBuiltinContinuationId + name);
 }
 
-Builtins::Name Builtins::GetBuiltinFromBailoutId(BailoutId id) {
-  int builtin_index = id.ToInt() - BailoutId::kFirstBuiltinContinuationId;
+Builtins::Name Builtins::GetBuiltinFromBytecodeOffset(BytecodeOffset id) {
+  int builtin_index = id.ToInt() - BytecodeOffset::kFirstBuiltinContinuationId;
   DCHECK(Builtins::KindOf(builtin_index) == TFJ ||
          Builtins::KindOf(builtin_index) == TFC ||
          Builtins::KindOf(builtin_index) == TFS);
@@ -335,7 +335,8 @@ class OffHeapTrampolineGenerator {
  public:
   explicit OffHeapTrampolineGenerator(Isolate* isolate)
       : isolate_(isolate),
-        masm_(isolate, CodeObjectRequired::kYes,
+        masm_(isolate, AssemblerOptions::DefaultForOffHeapTrampoline(isolate),
+              CodeObjectRequired::kYes,
               ExternalAssemblerBuffer(buffer_, kBufferSize)) {}
 
   CodeDesc Generate(Address off_heap_entry, TrampolineType type) {
@@ -347,6 +348,7 @@ class OffHeapTrampolineGenerator {
         masm_.CodeEntry();
         masm_.JumpToInstructionStream(off_heap_entry);
       } else {
+        DCHECK_EQ(type, TrampolineType::kAbort);
         masm_.Trap();
       }
     }
@@ -481,9 +483,9 @@ bool Builtins::CodeObjectIsExecutable(int builtin_index) {
     case Builtins::kCall_ReceiverIsNullOrUndefined:
     case Builtins::kCall_ReceiverIsNotNullOrUndefined:
     case Builtins::kCall_ReceiverIsAny:
-    case Builtins::kArgumentsAdaptorTrampoline:
     case Builtins::kHandleApiCall:
     case Builtins::kInstantiateAsmJs:
+    case Builtins::kGenericJSToWasmWrapper:
 
     // TODO(delphick): Remove this when calls to it have the trampoline inlined
     // or are converted to use kCallBuiltinPointer.

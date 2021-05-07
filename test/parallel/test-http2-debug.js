@@ -9,7 +9,7 @@ const path = require('path');
 process.env.NODE_DEBUG_NATIVE = 'http2';
 process.env.NODE_DEBUG = 'http2';
 const { stdout, stderr } = child_process.spawnSync(process.execPath, [
-  path.resolve(__dirname, 'test-http2-ping.js')
+  path.resolve(__dirname, 'test-http2-ping.js'),
 ], { encoding: 'utf8' });
 
 assert(stderr.match(/Setting the NODE_DEBUG environment variable to 'http2' can expose sensitive data \(such as passwords, tokens and authentication headers\) in the resulting log\.\r?\n/),

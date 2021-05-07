@@ -5,6 +5,9 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+if (common.hasOpenSSL3)
+  common.skip('temporarily skipping for OpenSSL 3.0-alpha15');
+
 const assert = require('assert');
 const { subtle } = require('crypto').webcrypto;
 
@@ -77,7 +80,7 @@ const kTestData = {
 async function prepareKeys() {
   const [
     privateKey,
-    publicKey
+    publicKey,
   ] = await Promise.all([
     subtle.importKey(
       'pkcs8',
@@ -89,7 +92,7 @@ async function prepareKeys() {
       'spki',
       Buffer.from(kTestData.spki, 'hex'),
       { name: 'NODE-DH' },
-      true, [])
+      true, []),
   ]);
   return {
     privateKey,
@@ -112,6 +115,7 @@ async function prepareKeys() {
       public: publicKey
     }, privateKey, null);
 
+    assert(bits instanceof ArrayBuffer);
     assert.strictEqual(Buffer.from(bits).toString('hex'), result);
   }
 

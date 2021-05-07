@@ -12,6 +12,7 @@
 #include "src/base/macros.h"
 #include "src/base/platform/time.h"
 #include "src/heap/base/worklist.h"
+#include "src/heap/cppgc/concurrent-marker.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/incremental-marking-schedule.h"
 #include "src/heap/cppgc/marking-state.h"
@@ -29,9 +30,9 @@ class MarkerFactory;
 // phase:
 // 1. StartMarking() [Called implicitly when creating a Marker using
 //                    MarkerFactory]
-// 2. AdvanceMarkingWithDeadline() [Optional, depending on environment.]
+// 2. AdvanceMarkingWithLimits() [Optional, depending on environment.]
 // 3. EnterAtomicPause()
-// 4. AdvanceMarkingWithDeadline()
+// 4. AdvanceMarkingWithLimits()
 // 5. LeaveAtomicPause()
 //
 // Alternatively, FinishMarking combines steps 3.-5.
@@ -43,10 +44,10 @@ class V8_EXPORT_PRIVATE MarkerBase {
       kMajor,
     };
     using StackState = cppgc::Heap::StackState;
-    enum MarkingType : uint8_t {
-      kAtomic,
-      kIncremental,
-      kIncrementalAndConcurrent
+    using MarkingType = cppgc::Heap::MarkingType;
+    enum class IsForcedGC : uint8_t {
+      kNotForced,
+      kForced,
     };
 
     static constexpr MarkingConfig Default() { return {}; }
@@ -54,6 +55,7 @@ class V8_EXPORT_PRIVATE MarkerBase {
     const CollectionType collection_type = CollectionType::kMajor;
     StackState stack_state = StackState::kMayContainHeapPointers;
     MarkingType marking_type = MarkingType::kIncremental;
+    IsForcedGC is_forced_gc = IsForcedGC::kNotForced;
   };
 
   virtual ~MarkerBase();
@@ -67,13 +69,17 @@ class V8_EXPORT_PRIVATE MarkerBase {
   // - Updates the MarkingConfig if the stack state has changed;
   void EnterAtomicPause(MarkingConfig::StackState);
 
-  // Makes marking progress.
+  // Makes marking progress.  A `marked_bytes_limit` of 0 means that the limit
+  // is determined by the internal marking scheduler.
+  //
   // TODO(chromium:1056170): Remove TimeDelta argument when unified heap no
   // longer uses it.
-  bool AdvanceMarkingWithMaxDuration(v8::base::TimeDelta);
+  bool AdvanceMarkingWithLimits(
+      v8::base::TimeDelta = kMaximumIncrementalStepDuration,
+      size_t marked_bytes_limit = 0);
 
   // Makes marking progress when allocation a new lab.
-  bool AdvanceMarkingOnAllocation();
+  void AdvanceMarkingOnAllocation();
 
   // Signals leaving the atomic marking pause. This method expects no more
   // objects to be marked and merely updates marking states if needed.
@@ -81,7 +87,8 @@ class V8_EXPORT_PRIVATE MarkerBase {
 
   // Combines:
   // - EnterAtomicPause()
-  // - AdvanceMarkingWithDeadline()
+  // - AdvanceMarkingWithLimits()
+  // - ProcessWeakness()
   // - LeaveAtomicPause()
   void FinishMarking(MarkingConfig::StackState);
 
@@ -93,8 +100,10 @@ class V8_EXPORT_PRIVATE MarkerBase {
   HeapBase& heap() { return heap_; }
 
   MarkingWorklists& MarkingWorklistsForTesting() { return marking_worklists_; }
-  MarkingState& MarkingStateForTesting() { return mutator_marking_state_; }
-  cppgc::Visitor& VisitorForTesting() { return visitor(); }
+  MutatorMarkingState& MutatorMarkingStateForTesting() {
+    return mutator_marking_state_;
+  }
+  cppgc::Visitor& Visitor() { return visitor(); }
   void ClearAllWorklistsForTesting();
 
   bool IncrementalMarkingStepForTesting(MarkingConfig::StackState);
@@ -116,7 +125,13 @@ class V8_EXPORT_PRIVATE MarkerBase {
     Handle handle_;
   };
 
-  void DisableIncrementalMarkingForTesting();
+  void SetMainThreadMarkingDisabledForTesting(bool);
+
+  void WaitForConcurrentMarkingForTesting();
+
+  void NotifyCompactionCancelled();
+
+  bool IsMarking() const { return is_marking_; }
 
  protected:
   static constexpr v8::base::TimeDelta kMaximumIncrementalStepDuration =
@@ -138,12 +153,6 @@ class V8_EXPORT_PRIVATE MarkerBase {
   virtual ConservativeTracingVisitor& conservative_visitor() = 0;
   virtual heap::base::StackVisitor& stack_visitor() = 0;
 
-  // Makes marking progress.
-  // TODO(chromium:1056170): Remove TimeDelta argument when unified heap no
-  // longer uses it.
-  bool AdvanceMarkingWithDeadline(
-      v8::base::TimeDelta = kMaximumIncrementalStepDuration);
-
   bool ProcessWorklistsWithDeadline(size_t, v8::base::TimeTicks);
 
   void VisitRoots(MarkingConfig::StackState);
@@ -162,12 +171,14 @@ class V8_EXPORT_PRIVATE MarkerBase {
   IncrementalMarkingTask::Handle incremental_marking_handle_;
 
   MarkingWorklists marking_worklists_;
-  MarkingState mutator_marking_state_;
-  bool is_marking_started_ = false;
+  MutatorMarkingState mutator_marking_state_;
+  bool is_marking_{false};
 
   IncrementalMarkingSchedule schedule_;
 
-  bool incremental_marking_disabled_for_testing_{false};
+  std::unique_ptr<ConcurrentMarkerBase> concurrent_marker_{nullptr};
+
+  bool main_marking_disabled_for_testing_{false};
 
   friend class MarkerFactory;
 };
@@ -200,12 +211,13 @@ class V8_EXPORT_PRIVATE Marker final : public MarkerBase {
   }
 
  private:
-  MarkingVisitor marking_visitor_;
+  MutatorMarkingVisitor marking_visitor_;
   ConservativeMarkingVisitor conservative_marking_visitor_;
 };
 
 void MarkerBase::WriteBarrierForInConstructionObject(HeapObjectHeader& header) {
-  mutator_marking_state_.not_fully_constructed_worklist().Push(&header);
+  mutator_marking_state_.not_fully_constructed_worklist()
+      .Push<AccessMode::kAtomic>(&header);
 }
 
 void MarkerBase::WriteBarrierForObject(HeapObjectHeader& header) {

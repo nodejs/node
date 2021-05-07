@@ -90,7 +90,8 @@ def GuessOS():
     return 'solaris'
   elif system == 'NetBSD':
     return 'netbsd'
-  elif system == 'AIX':
+  elif system in ['AIX', 'OS400']:
+    # OS400 runs an AIX emulator called PASE
     return 'aix'
   else:
     return None

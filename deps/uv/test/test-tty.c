@@ -426,6 +426,9 @@ TEST_IMPL(tty_pty) {
 #if defined(__QEMU__)
   RETURN_SKIP("Test does not currently work in QEMU");
 #endif
+#if defined(__ASAN__)
+  RETURN_SKIP("Test does not currently work in ASAN");
+#endif
 
 #if defined(__APPLE__)                            || \
     defined(__DragonFly__)                        || \

@@ -63,10 +63,9 @@ function checkFile(path) {
       if (previousDefinitionLabel &&
           previousDefinitionLabel > node.label) {
         const { line, column } = node.position.start;
-        console.error((process.env.GITHUB_ACTIONS ?
-          `::error file=${path},line=${line},col=${column}::` : '') +
-          `Unordered reference at ${path}:${line}:${column} (` +
-          `"${node.label}" should be before "${previousDefinitionLabel}")`
+        console.error(
+          (process.env.GITHUB_ACTIONS ? `::error file=${path},line=${line},col=${column}::` : '') +
+          `Unordered reference at ${path}:${line}:${column} ("${node.label}" should be before "${previousDefinitionLabel}")`
         );
         process.exitCode = 1;
       }

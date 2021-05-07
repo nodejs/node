@@ -333,30 +333,33 @@ TEST(OperandScale, PrefixesRequired) {
            Bytecode::kExtraWide);
 }
 
-TEST(AccumulatorUse, LogicalOperators) {
-  CHECK_EQ(AccumulatorUse::kNone | AccumulatorUse::kRead,
-           AccumulatorUse::kRead);
-  CHECK_EQ(AccumulatorUse::kRead | AccumulatorUse::kWrite,
-           AccumulatorUse::kReadWrite);
-  CHECK_EQ(AccumulatorUse::kRead & AccumulatorUse::kReadWrite,
-           AccumulatorUse::kRead);
-  CHECK_EQ(AccumulatorUse::kRead & AccumulatorUse::kWrite,
-           AccumulatorUse::kNone);
+TEST(ImplicitRegisterUse, LogicalOperators) {
+  CHECK_EQ(ImplicitRegisterUse::kNone | ImplicitRegisterUse::kReadAccumulator,
+           ImplicitRegisterUse::kReadAccumulator);
+  CHECK_EQ(ImplicitRegisterUse::kReadAccumulator |
+               ImplicitRegisterUse::kWriteAccumulator,
+           ImplicitRegisterUse::kReadWriteAccumulator);
+  CHECK_EQ(ImplicitRegisterUse::kReadAccumulator &
+               ImplicitRegisterUse::kReadWriteAccumulator,
+           ImplicitRegisterUse::kReadAccumulator);
+  CHECK_EQ(ImplicitRegisterUse::kReadAccumulator &
+               ImplicitRegisterUse::kWriteAccumulator,
+           ImplicitRegisterUse::kNone);
 }
 
-TEST(AccumulatorUse, SampleBytecodes) {
+TEST(ImplicitRegisterUse, SampleBytecodes) {
   CHECK(Bytecodes::ReadsAccumulator(Bytecode::kStar));
   CHECK(!Bytecodes::WritesAccumulator(Bytecode::kStar));
-  CHECK_EQ(Bytecodes::GetAccumulatorUse(Bytecode::kStar),
-           AccumulatorUse::kRead);
+  CHECK_EQ(Bytecodes::GetImplicitRegisterUse(Bytecode::kStar),
+           ImplicitRegisterUse::kReadAccumulator);
   CHECK(!Bytecodes::ReadsAccumulator(Bytecode::kLdar));
   CHECK(Bytecodes::WritesAccumulator(Bytecode::kLdar));
-  CHECK_EQ(Bytecodes::GetAccumulatorUse(Bytecode::kLdar),
-           AccumulatorUse::kWrite);
+  CHECK_EQ(Bytecodes::GetImplicitRegisterUse(Bytecode::kLdar),
+           ImplicitRegisterUse::kWriteAccumulator);
   CHECK(Bytecodes::ReadsAccumulator(Bytecode::kAdd));
   CHECK(Bytecodes::WritesAccumulator(Bytecode::kAdd));
-  CHECK_EQ(Bytecodes::GetAccumulatorUse(Bytecode::kAdd),
-           AccumulatorUse::kReadWrite);
+  CHECK_EQ(Bytecodes::GetImplicitRegisterUse(Bytecode::kAdd),
+           ImplicitRegisterUse::kReadWriteAccumulator);
 }
 
 }  // namespace interpreter

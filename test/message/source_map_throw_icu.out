@@ -3,10 +3,8 @@
                        ^
 
 Error: an error
-    at Object.createElement (*icu.js:5:7)
-        -> *icu.jsx:3:23*
-    at Object.<anonymous> (*icu.js:8:82)
-        -> *icu.jsx:9:5*
+    at *icu.jsx:3:23*
+    at *icu.jsx:9:5*
     at Module._compile (node:internal/modules/cjs/loader:*
     at Object.Module._extensions..js (node:internal/modules/cjs/loader:*
     at Module.load (node:internal/modules/cjs/loader:*

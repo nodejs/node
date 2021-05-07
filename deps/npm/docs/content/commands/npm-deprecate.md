@@ -10,6 +10,8 @@ description: Deprecate a version of a package
 npm deprecate <pkg>[@<version range>] <message>
 ```
 
+Note: This command is unaware of workspaces.
+
 ### Description
 
 This command will update the npm registry entry for a package, providing a

@@ -1,18 +1,18 @@
-# Postmortem Support
+# Postmortem support
 
 Postmortem metadata are constants present in the final build which can be used
 by debuggers and other tools to navigate through internal structures of software
 when analyzing its memory (either on a running process or a core dump). Node.js
 provides this metadata in its builds for V8 and Node.js internal structures.
 
-## V8 Postmortem metadata
+## V8 postmortem metadata
 
 V8 prefixes all postmortem constants with `v8dbg_`, and they allow inspection of
 objects on the heap as well as object properties and references. V8 generates
 those symbols with a script (`deps/v8/tools/gen-postmortem-metadata.py`), and
 Node.js always includes these constants in the final build.
 
-## Node.js Debug Symbols
+## Node.js debug symbols
 
 Node.js prefixes all postmortem constants with `nodedbg_`, and they complement
 V8 constants by providing ways to inspect Node.js-specific structures, like
@@ -64,7 +64,7 @@ class ReqWrap : public AsyncWrap {
 There are also tests on `test/cctest/test_node_postmortem_metadata.cc` to make
 sure all Node.js postmortem metadata are calculated correctly.
 
-## Tools and References
+## Tools and references
 
 * [llnode](https://github.com/nodejs/llnode): LLDB plugin
 * [`mdb_v8`](https://github.com/joyent/mdb_v8): mdb plugin

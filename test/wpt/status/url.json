@@ -18,5 +18,11 @@
   },
   "urlsearchparams-constructor.any.js": {
     "fail": "FormData is not defined"
+  },
+  "url-constructor.any.js": {
+    "requires": ["small-icu"]
+  },
+  "url-origin.any.js": {
+    "requires": ["small-icu"]
   }
 }

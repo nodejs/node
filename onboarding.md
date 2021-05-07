@@ -114,7 +114,7 @@ The project has two venues for real-time discussion:
     organization (not just Collaborators on Node.js core) have access. Its
     contents should not be shared externally.
   * You can find the full moderation policy
-    [here](https://github.com/nodejs/admin/blob/master/Moderation-Policy.md).
+    [here](https://github.com/nodejs/admin/blob/HEAD/Moderation-Policy.md).
 
 ## Reviewing PRs
 
@@ -204,11 +204,14 @@ needs to be pointed out separately during the onboarding.
 ## Exercise: Make a PR adding yourself to the README
 
 * Example:
-  <https://github.com/nodejs/node/commit/ce986de829457c39257cd205067602e765768fb0>
-  * For raw commit message: `git log ce986de829457c39257cd205067602e765768fb0
-    -1`
+  <https://github.com/nodejs/node/commit/b58fe52692659c0bc25ddbe6afa7f4ae2c7f14a8>
+  * For raw commit message:
+    `git show --format=%Bb58fe52692659c0bc25ddbe6afa7f4ae2c7f14a8`
 * Collaborators are in alphabetical order by GitHub username.
 * Optionally, include your personal pronouns.
+* Add the `Fixes: <collaborator-nomination-issue-url>` to the commit message
+  so that when the commit lands, the nomination issue url will be
+  automatically closed.
 * Label your pull request with the `doc`, `notable-change`, and `fast-track`
   labels.
 * Run CI on the PR. Use the `node-test-pull-request` CI task.
@@ -244,12 +247,12 @@ needs to be pointed out separately during the onboarding.
   including accommodations, transportation, visa fees, etc. if needed. Check out
   the [summit](https://github.com/nodejs/summit) repository for details.
 
-[Code of Conduct]: https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md
+[Code of Conduct]: https://github.com/nodejs/admin/blob/HEAD/CODE_OF_CONDUCT.md
 [Landing Pull Requests]: doc/guides/collaborator-guide.md#landing-pull-requests
 [Publicizing or hiding organization membership]: https://help.github.com/articles/publicizing-or-hiding-organization-membership/
 [`author-ready`]: doc/guides/collaborator-guide.md#author-ready-pull-requests
 [`core-validate-commit`]: https://github.com/nodejs/core-validate-commit
-[`git-node`]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md
+[`git-node`]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md
 [`node-core-utils`]: https://github.com/nodejs/node-core-utils
 [set up the credentials]: https://github.com/nodejs/node-core-utils#setting-up-credentials
 [two-factor authentication]: https://help.github.com/articles/securing-your-account-with-two-factor-authentication-2fa/

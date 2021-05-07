@@ -7,7 +7,7 @@
 
 #include <memory>
 
-#include "src/deoptimizer/deoptimizer.h"
+#include "src/deoptimizer/deoptimized-frame-info.h"
 #include "src/execution/isolate.h"
 #include "src/execution/v8threads.h"
 #include "src/objects/objects.h"
@@ -16,17 +16,17 @@ namespace v8 {
 namespace internal {
 
 class JavaScriptFrame;
-class StandardFrame;
+class CommonFrame;
 class WasmFrame;
 
 class FrameInspector {
  public:
-  FrameInspector(StandardFrame* frame, int inlined_frame_index,
-                 Isolate* isolate);
+  FrameInspector(CommonFrame* frame, int inlined_frame_index, Isolate* isolate);
+  FrameInspector(const FrameInspector&) = delete;
+  FrameInspector& operator=(const FrameInspector&) = delete;
 
   ~FrameInspector();
 
-  int GetParametersCount();
   Handle<JSFunction> GetFunction() const { return function_; }
   Handle<Script> GetScript() { return script_; }
   Handle<Object> GetParameter(int index);
@@ -49,7 +49,7 @@ class FrameInspector {
   bool ParameterIsShadowedByContextLocal(Handle<ScopeInfo> info,
                                          Handle<String> parameter_name);
 
-  StandardFrame* frame_;
+  CommonFrame* frame_;
   int inlined_frame_index_;
   std::unique_ptr<DeoptimizedFrameInfo> deoptimized_frame_;
   Isolate* isolate_;
@@ -59,11 +59,7 @@ class FrameInspector {
   Handle<String> function_name_;
   int source_position_ = -1;
   bool is_optimized_ = false;
-  bool is_interpreted_ = false;
-  bool has_adapted_arguments_ = false;
   bool is_constructor_ = false;
-
-  DISALLOW_COPY_AND_ASSIGN(FrameInspector);
 };
 
 class RedirectActiveFunctions : public ThreadVisitor {
@@ -80,7 +76,7 @@ class RedirectActiveFunctions : public ThreadVisitor {
  private:
   SharedFunctionInfo shared_;
   Mode mode_;
-  DisallowHeapAllocation no_gc_;
+  DISALLOW_GARBAGE_COLLECTION(no_gc_)
 };
 
 }  // namespace internal

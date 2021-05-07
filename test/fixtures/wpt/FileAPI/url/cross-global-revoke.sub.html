@@ -1,0 +1,61 @@
+<!doctype html>
+<meta charset="utf-8">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<body>
+<script>
+async_test(t => {
+  const blob_contents = 'test blob contents';
+  const blob = new Blob([blob_contents]);
+  const url = URL.createObjectURL(blob);
+  const frame = document.createElement('iframe');
+  frame.setAttribute('style', 'display:none;');
+  frame.src = 'resources/revoke-helper.html';
+  document.body.appendChild(frame);
+
+  frame.onload = t.step_func(e => {
+    frame.contentWindow.postMessage({url: url}, '*');
+  });
+
+  self.addEventListener('message', t.step_func(e => {
+    if (e.source !== frame.contentWindow) return;
+    assert_equals(e.data, 'revoked');
+    promise_rejects_js(t, TypeError, fetch(url)).then(t.step_func_done());
+  }));
+}, 'It is possible to revoke same-origin blob URLs from different frames.');
+
+async_test(t => {
+  const blob_contents = 'test blob contents';
+  const blob = new Blob([blob_contents]);
+  const url = URL.createObjectURL(blob);
+  const worker = new Worker('resources/revoke-helper.js');
+  worker.onmessage = t.step_func(e => {
+    assert_equals(e.data, 'revoked');
+    promise_rejects_js(t, TypeError, fetch(url)).then(t.step_func_done());
+  });
+  worker.postMessage({url: url});
+}, 'It is possible to revoke same-origin blob URLs from a different worker global.');
+
+async_test(t => {
+  const blob_contents = 'test blob contents';
+  const blob = new Blob([blob_contents]);
+  const url = URL.createObjectURL(blob);
+  const frame = document.createElement('iframe');
+  frame.setAttribute('style', 'display:none;');
+  frame.src = '//{{domains[www1]}}:{{location[port]}}/FileAPI/url/resources/revoke-helper.html';
+  document.body.appendChild(frame);
+
+  frame.onload = t.step_func(e => {
+    frame.contentWindow.postMessage({url: url}, '*');
+  });
+
+  self.addEventListener('message', t.step_func(e => {
+    if (e.source !== frame.contentWindow) return;
+    assert_equals(e.data, 'revoked');
+    fetch(url).then(response => response.text()).then(t.step_func_done(text => {
+      assert_equals(text, blob_contents);
+    }), t.unreached_func('Unexpected promise rejection'));
+  }));
+}, 'It is not possible to revoke cross-origin blob URLs.');
+
+</script>

@@ -40,6 +40,17 @@ class CallOrConstructBuiltinsAssembler : public CodeStubAssembler {
                             TNode<FunctionTemplateInfo> function_template_info,
                             TNode<IntPtrT> argc, TNode<Context> context);
 
+  void BuildConstruct(TNode<Object> target, TNode<Object> new_target,
+                      TNode<Int32T> argc, const LazyNode<Context>& context,
+                      const LazyNode<HeapObject>& feedback_vector,
+                      TNode<UintPtrT> slot, UpdateFeedbackMode mode);
+
+  void BuildConstructWithSpread(TNode<Object> target, TNode<Object> new_target,
+                                TNode<Object> spread, TNode<Int32T> argc,
+                                const LazyNode<Context>& context,
+                                const LazyNode<HeapObject>& feedback_vector,
+                                TNode<UintPtrT> slot, UpdateFeedbackMode mode);
+
  private:
   TNode<JSReceiver> GetCompatibleReceiver(TNode<JSReceiver> receiver,
                                           TNode<HeapObject> signature,

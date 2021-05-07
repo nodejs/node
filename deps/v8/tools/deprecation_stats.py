@@ -11,10 +11,12 @@ from datetime import datetime
 import re
 import subprocess
 import sys
+from os import path
 
 RE_GITHASH = re.compile(r"^[0-9a-f]{40}")
 RE_AUTHOR_TIME = re.compile(r"^author-time (\d+)$")
 RE_FILENAME = re.compile(r"^filename (.+)$")
+
 
 def GetBlame(file_path):
   result = subprocess.check_output(
@@ -43,66 +45,78 @@ def GetBlame(file_path):
   blame_list.append(current_blame)
   return blame_list
 
-RE_MACRO_END = re.compile(r"\);");
+
+RE_MACRO_END = re.compile(r"\);")
 RE_DEPRECATE_MACRO = re.compile(r"\(.*?,(.*)\);", re.MULTILINE)
 
-def FilterAndPrint(blame_list, macro, before):
+
+def FilterAndPrint(blame_list, macro, options):
+  before = options.before
   index = 0
   re_macro = re.compile(macro)
   deprecated = list()
   while index < len(blame_list):
     blame = blame_list[index]
-    match = re_macro.search(blame['content'])
-    if match and blame['time'] < before:
-      line = blame['content']
-      time = blame['time']
+    time = blame['time']
+    if time >= before:
+      index += 1
+      continue
+    line = blame['content']
+    match = re_macro.search(line)
+    if match:
       pos = match.end()
       start = -1
       parens = 0
-      quotes = 0
       while True:
         if pos >= len(line):
           # extend to next line
           index = index + 1
           blame = blame_list[index]
-          if line.endswith(','):
-            # add whitespace when breaking line due to comma
-            line = line + ' '
           line = line + blame['content']
         if line[pos] == '(':
           parens = parens + 1
         elif line[pos] == ')':
           parens = parens - 1
           if parens == 0:
+            # Exclud closing ")
+            pos = pos - 2
             break
-        elif line[pos] == '"':
-          quotes = quotes + 1
-        elif line[pos] == ',' and quotes % 2 == 0 and start == -1:
+        elif line[pos] == '"' and start == -1:
           start = pos + 1
         pos = pos + 1
-      deprecated.append([index + 1, time, line[start:pos].strip()])
+      # Extract content and replace double quotes from merged lines
+      content = line[start:pos].strip().replace('""', '')
+      deprecated.append([index + 1, time, content])
     index = index + 1
   print("Marked as " + macro + ": " + str(len(deprecated)))
   for linenumber, time, content in deprecated:
-    print(str(linenumber).rjust(8) + " : " + str(time) + " : " + content)
+    print("   " + (options.v8_header + ":" +
+                   str(linenumber)).rjust(len(options.v8_header) + 5) + "\t" +
+          str(time) + "\t" + content)
   return len(deprecated)
 
+
 def ParseOptions(args):
-  parser = argparse.ArgumentParser(description="Collect deprecation statistics")
-  parser.add_argument("file_path", help="Path to v8.h")
+  parser = argparse.ArgumentParser(
+      description="Collect deprecation statistics")
+  parser.add_argument("v8_header", nargs='?', help="Path to v8.h")
   parser.add_argument("--before", help="Filter by date")
   options = parser.parse_args(args)
   if options.before:
     options.before = datetime.strptime(options.before, '%Y-%m-%d')
   else:
     options.before = datetime.now()
+  if options.v8_header is None:
+    options.v8_header = path.join(path.dirname(__file__), '..', 'include', 'v8.h')
   return options
+
 
 def Main(args):
   options = ParseOptions(args)
-  blame_list = GetBlame(options.file_path)
-  FilterAndPrint(blame_list, "V8_DEPRECATE_SOON", options.before)
-  FilterAndPrint(blame_list, "V8_DEPRECATED", options.before)
+  blame_list = GetBlame(options.v8_header)
+  FilterAndPrint(blame_list, "V8_DEPRECATE_SOON", options)
+  FilterAndPrint(blame_list, "V8_DEPRECATED", options)
+
 
 if __name__ == "__main__":
   Main(sys.argv[1:])

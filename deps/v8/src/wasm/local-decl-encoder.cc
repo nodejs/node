@@ -4,6 +4,7 @@
 
 #include "src/wasm/local-decl-encoder.h"
 
+#include "src/base/platform/wrappers.h"
 #include "src/codegen/signature.h"
 #include "src/wasm/leb-helper.h"
 
@@ -20,7 +21,7 @@ void LocalDeclEncoder::Prepend(Zone* zone, const byte** start,
   byte* buffer = zone->NewArray<byte, LocalDeclEncoderBuffer>(Size() + size);
   size_t pos = Emit(buffer);
   if (size > 0) {
-    memcpy(buffer + pos, *start, size);
+    base::Memcpy(buffer + pos, *start, size);
   }
   pos += size;
   *start = buffer;
@@ -39,6 +40,9 @@ size_t LocalDeclEncoder::Emit(byte* buffer) const {
     if (locals_type.has_depth()) {
       *pos = locals_type.depth();
       ++pos;
+    }
+    if (locals_type.is_rtt()) {
+      LEBHelper::write_u32v(&pos, locals_type.ref_index());
     }
     if (locals_type.encoding_needs_heap_type()) {
       LEBHelper::write_i32v(&pos, locals_type.heap_type().code());
@@ -65,12 +69,14 @@ uint32_t LocalDeclEncoder::AddLocals(uint32_t count, ValueType type) {
 size_t LocalDeclEncoder::Size() const {
   size_t size = LEBHelper::sizeof_u32v(local_decls.size());
   for (auto p : local_decls) {
-    size += LEBHelper::sizeof_u32v(p.first) +  // number of locals
-            1 +                                // Opcode
-            (p.second.has_depth() ? 1 : 0) +   // Inheritance depth
-            (p.second.encoding_needs_heap_type()
-                 ? LEBHelper::sizeof_i32v(p.second.heap_type().code())
-                 : 0);  // ref. index
+    size +=
+        LEBHelper::sizeof_u32v(p.first) +  // number of locals
+        1 +                                // Opcode
+        (p.second.has_depth() ? 1 : 0) +   // Inheritance depth
+        (p.second.encoding_needs_heap_type()
+             ? LEBHelper::sizeof_i32v(p.second.heap_type().code())
+             : 0) +
+        (p.second.is_rtt() ? LEBHelper::sizeof_u32v(p.second.ref_index()) : 0);
   }
   return size;
 }

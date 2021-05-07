@@ -82,7 +82,7 @@ The current list of TSC members is in
 [the project README](./README.md#current-project-team-members).
 
 The [TSC Charter][] governs the operations of the TSC. All changes to the
-Charter need approval by the OpenJS Foundation Board of Directors.
+Charter need approval by the OpenJS Foundation Cross-Project Council (CPC).
 
 ### TSC meetings
 
@@ -173,5 +173,5 @@ The TSC follows a [Consensus Seeking][] decision-making model per the
 
 [Collaborators discussion page]: https://github.com/orgs/nodejs/teams/collaborators/discussions
 [Consensus Seeking]: https://en.wikipedia.org/wiki/Consensus-seeking_decision-making
-[TSC Charter]: https://github.com/nodejs/TSC/blob/master/TSC-Charter.md
+[TSC Charter]: https://github.com/nodejs/TSC/blob/HEAD/TSC-Charter.md
 [nodejs/node]: https://github.com/nodejs/node

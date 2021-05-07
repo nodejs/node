@@ -18,6 +18,8 @@ namespace internal {
 // Cleared at startup and prior to any gc.
 class DescriptorLookupCache {
  public:
+  DescriptorLookupCache(const DescriptorLookupCache&) = delete;
+  DescriptorLookupCache& operator=(const DescriptorLookupCache&) = delete;
   // Lookup descriptor index for (map, name).
   // If absent, kAbsent is returned.
   inline int Lookup(Map source, Name name);
@@ -51,7 +53,6 @@ class DescriptorLookupCache {
   int results_[kLength];
 
   friend class Isolate;
-  DISALLOW_COPY_AND_ASSIGN(DescriptorLookupCache);
 };
 
 }  // namespace internal

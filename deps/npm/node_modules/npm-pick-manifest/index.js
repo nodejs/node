@@ -3,6 +3,7 @@
 const npa = require('npm-package-arg')
 const semver = require('semver')
 const { checkEngine } = require('npm-install-checks')
+const normalizeBin = require('npm-normalize-package-bin')
 
 const engineOk = (manifest, npmVersion, nodeVersion) => {
   try {
@@ -183,7 +184,8 @@ const pickManifest = (packument, wanted, opts) => {
 }
 
 module.exports = (packument, wanted, opts = {}) => {
-  const picked = pickManifest(packument, wanted, opts)
+  const mani = pickManifest(packument, wanted, opts)
+  const picked = mani && normalizeBin(mani)
   const policyRestrictions = packument.policyRestrictions
   const restricted = (policyRestrictions && policyRestrictions.versions) || {}
 

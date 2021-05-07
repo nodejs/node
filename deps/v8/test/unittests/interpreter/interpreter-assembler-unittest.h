@@ -38,6 +38,9 @@ class InterpreterAssemblerTest : public TestWithIsolateAndZone {
         OperandScale operand_scale = OperandScale::kSingle)
         : InterpreterAssembler(state, bytecode, operand_scale) {}
     ~InterpreterAssemblerForTest();
+    InterpreterAssemblerForTest(const InterpreterAssemblerForTest&) = delete;
+    InterpreterAssemblerForTest& operator=(const InterpreterAssemblerForTest&) =
+        delete;
 
     Matcher<compiler::Node*> IsLoad(
         const Matcher<compiler::LoadRepresentation>& rep_matcher,
@@ -83,9 +86,6 @@ class InterpreterAssemblerTest : public TestWithIsolateAndZone {
 
     Matcher<compiler::Node*> IsLoadRegisterOperand(int offset,
                                                    OperandSize operand_size);
-
-   private:
-    DISALLOW_COPY_AND_ASSIGN(InterpreterAssemblerForTest);
   };
 };
 

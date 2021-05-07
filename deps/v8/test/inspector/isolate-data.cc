@@ -5,37 +5,20 @@
 #include "test/inspector/isolate-data.h"
 
 #include "src/inspector/test-interface.h"
+#include "src/utils/vector.h"
 #include "test/inspector/task-runner.h"
+#include "test/inspector/utils.h"
+
+namespace v8 {
+namespace internal {
 
 namespace {
 
 const int kIsolateDataIndex = 2;
 const int kContextGroupIdIndex = 3;
 
-v8::internal::Vector<uint16_t> ToVector(v8::Isolate* isolate,
-                                        v8::Local<v8::String> str) {
-  v8::internal::Vector<uint16_t> buffer =
-      v8::internal::Vector<uint16_t>::New(str->Length());
-  str->Write(isolate, buffer.begin(), 0, str->Length());
-  return buffer;
-}
-
-v8::Local<v8::String> ToString(v8::Isolate* isolate,
-                               const v8_inspector::StringView& string) {
-  if (string.is8Bit())
-    return v8::String::NewFromOneByte(isolate, string.characters8(),
-                                      v8::NewStringType::kNormal,
-                                      static_cast<int>(string.length()))
-        .ToLocalChecked();
-  else
-    return v8::String::NewFromTwoByte(isolate, string.characters16(),
-                                      v8::NewStringType::kNormal,
-                                      static_cast<int>(string.length()))
-        .ToLocalChecked();
-}
-
 void Print(v8::Isolate* isolate, const v8_inspector::StringView& string) {
-  v8::Local<v8::String> v8_string = ToString(isolate, string);
+  v8::Local<v8::String> v8_string = ToV8String(isolate, string);
   v8::String::Utf8Value utf8_string(isolate, v8_string);
   fwrite(*utf8_string, sizeof(**utf8_string), utf8_string.length(), stdout);
 }
@@ -57,7 +40,8 @@ class Inspectable : public v8_inspector::V8InspectorSession::Inspectable {
 
 IsolateData::IsolateData(TaskRunner* task_runner,
                          IsolateData::SetupGlobalTasks setup_global_tasks,
-                         v8::StartupData* startup_data, bool with_inspector)
+                         v8::StartupData* startup_data,
+                         WithInspector with_inspector)
     : task_runner_(task_runner),
       setup_global_tasks_(std::move(setup_global_tasks)) {
   v8::Isolate::CreateParams params;
@@ -87,6 +71,13 @@ IsolateData* IsolateData::FromContext(v8::Local<v8::Context> context) {
 }
 
 int IsolateData::CreateContextGroup() {
+  int context_group_id = ++last_context_group_id_;
+  CreateContext(context_group_id, v8_inspector::StringView());
+  return context_group_id;
+}
+
+void IsolateData::CreateContext(int context_group_id,
+                                v8_inspector::StringView name) {
   v8::HandleScope handle_scope(isolate_.get());
   v8::Local<v8::ObjectTemplate> global_template =
       v8::ObjectTemplate::New(isolate_.get());
@@ -97,17 +88,15 @@ int IsolateData::CreateContextGroup() {
   v8::Local<v8::Context> context =
       v8::Context::New(isolate_.get(), nullptr, global_template);
   context->SetAlignedPointerInEmbedderData(kIsolateDataIndex, this);
-  int context_group_id = ++last_context_group_id_;
   // Should be 2-byte aligned.
   context->SetAlignedPointerInEmbedderData(
       kContextGroupIdIndex, reinterpret_cast<void*>(context_group_id * 2));
-  contexts_[context_group_id].Reset(isolate_.get(), context);
-  if (inspector_) FireContextCreated(context, context_group_id);
-  return context_group_id;
+  contexts_[context_group_id].emplace_back(isolate_.get(), context);
+  if (inspector_) FireContextCreated(context, context_group_id, name);
 }
 
-v8::Local<v8::Context> IsolateData::GetContext(int context_group_id) {
-  return contexts_[context_group_id].Get(isolate_.get());
+v8::Local<v8::Context> IsolateData::GetDefaultContext(int context_group_id) {
+  return contexts_[context_group_id].begin()->Get(isolate_.get());
 }
 
 void IsolateData::ResetContextGroup(int context_group_id) {
@@ -123,7 +112,7 @@ int IsolateData::GetContextGroupId(v8::Local<v8::Context> context) {
 }
 
 void IsolateData::RegisterModule(v8::Local<v8::Context> context,
-                                 v8::internal::Vector<uint16_t> name,
+                                 std::vector<uint16_t> name,
                                  v8::ScriptCompiler::Source* source) {
   v8::Local<v8::Module> module;
   if (!v8::ScriptCompiler::CompileModule(isolate(), source).ToLocal(&module))
@@ -140,7 +129,9 @@ void IsolateData::RegisterModule(v8::Local<v8::Context> context,
 // static
 v8::MaybeLocal<v8::Module> IsolateData::ModuleResolveCallback(
     v8::Local<v8::Context> context, v8::Local<v8::String> specifier,
+    v8::Local<v8::FixedArray> import_assertions,
     v8::Local<v8::Module> referrer) {
+  // TODO(v8:11189) Consider JSON modules support in the InspectorClient
   IsolateData* data = IsolateData::FromContext(context);
   std::string str = *v8::String::Utf8Value(data->isolate(), specifier);
   return data->modules_[ToVector(data->isolate(), specifier)].Get(
@@ -267,8 +258,7 @@ int IsolateData::HandleMessage(v8::Local<v8::Message> message,
       IsolateData::FromContext(context)->inspector_.get();
 
   v8::Local<v8::StackTrace> stack = message->GetStackTrace();
-  int script_id =
-      static_cast<int>(message->GetScriptOrigin().ScriptID()->Value());
+  int script_id = message->GetScriptOrigin().ScriptId();
   if (!stack.IsEmpty() && stack->GetFrameCount() > 0) {
     int top_script_id = stack->GetFrame(isolate, 0)->GetScriptId();
     if (top_script_id == script_id) script_id = 0;
@@ -279,16 +269,15 @@ int IsolateData::HandleMessage(v8::Local<v8::Message> message,
     column_number = message->GetStartColumn(context).FromJust() + 1;
 
   v8_inspector::StringView detailed_message;
-  v8::internal::Vector<uint16_t> message_text_string =
-      ToVector(isolate, message->Get());
-  v8_inspector::StringView message_text(message_text_string.begin(),
-                                        message_text_string.length());
-  v8::internal::Vector<uint16_t> url_string;
+  std::vector<uint16_t> message_text_string = ToVector(isolate, message->Get());
+  v8_inspector::StringView message_text(message_text_string.data(),
+                                        message_text_string.size());
+  std::vector<uint16_t> url_string;
   if (message->GetScriptOrigin().ResourceName()->IsString()) {
     url_string = ToVector(
         isolate, message->GetScriptOrigin().ResourceName().As<v8::String>());
   }
-  v8_inspector::StringView url(url_string.begin(), url_string.length());
+  v8_inspector::StringView url(url_string.data(), url_string.size());
 
   v8::SealHandleScope seal_handle_scope(isolate);
   return inspector->exceptionThrown(
@@ -338,9 +327,9 @@ void IsolateData::PromiseRejectHandler(v8::PromiseRejectMessage data) {
 }
 
 void IsolateData::FireContextCreated(v8::Local<v8::Context> context,
-                                     int context_group_id) {
-  v8_inspector::V8ContextInfo info(context, context_group_id,
-                                   v8_inspector::StringView());
+                                     int context_group_id,
+                                     v8_inspector::StringView name) {
+  v8_inspector::V8ContextInfo info(context, context_group_id, name);
   info.hasMemoryOnConsole = true;
   v8::SealHandleScope seal_handle_scope(isolate());
   inspector_->contextCreated(info);
@@ -388,7 +377,7 @@ bool IsolateData::isInspectableHeapObject(v8::Local<v8::Object> object) {
 
 v8::Local<v8::Context> IsolateData::ensureDefaultContextInGroup(
     int context_group_id) {
-  return GetContext(context_group_id);
+  return GetDefaultContext(context_group_id);
 }
 
 void IsolateData::SetCurrentTimeMS(double time) {
@@ -398,7 +387,7 @@ void IsolateData::SetCurrentTimeMS(double time) {
 
 double IsolateData::currentTimeMS() {
   if (current_time_set_) return current_time_;
-  return v8::internal::V8::GetCurrentPlatform()->CurrentClockTimeMillis();
+  return V8::GetCurrentPlatform()->CurrentClockTimeMillis();
 }
 
 void IsolateData::SetMemoryInfo(v8::Local<v8::Value> memory_info) {
@@ -411,6 +400,11 @@ void IsolateData::SetLogConsoleApiMessageCalls(bool log) {
 
 void IsolateData::SetLogMaxAsyncCallStackDepthChanged(bool log) {
   log_max_async_call_stack_depth_changed_ = log;
+}
+
+void IsolateData::SetAdditionalConsoleApi(v8_inspector::StringView api_script) {
+  v8::HandleScope handle_scope(isolate());
+  additional_console_api_.Reset(isolate(), ToV8String(isolate(), api_script));
 }
 
 v8::MaybeLocal<v8::Value> IsolateData::memoryInfo(v8::Isolate* isolate,
@@ -427,6 +421,21 @@ void IsolateData::runMessageLoopOnPause(int) {
 void IsolateData::quitMessageLoopOnPause() {
   v8::SealHandleScope seal_handle_scope(isolate());
   task_runner_->QuitMessageLoop();
+}
+
+void IsolateData::installAdditionalCommandLineAPI(
+    v8::Local<v8::Context> context, v8::Local<v8::Object> object) {
+  if (additional_console_api_.IsEmpty()) return;
+  CHECK(context->GetIsolate() == isolate());
+  v8::HandleScope handle_scope(isolate());
+  v8::Context::Scope context_scope(context);
+  v8::ScriptOrigin origin(isolate(), v8::String::NewFromUtf8Literal(
+                                         isolate(), "internal-console-api"));
+  v8::ScriptCompiler::Source scriptSource(
+      additional_console_api_.Get(isolate()), origin);
+  v8::MaybeLocal<v8::Script> script =
+      v8::ScriptCompiler::Compile(context, &scriptSource);
+  CHECK(!script.ToLocalChecked()->Run(context).IsEmpty());
 }
 
 void IsolateData::consoleAPIMessage(int contextGroupId,
@@ -460,11 +469,11 @@ class StringBufferImpl : public v8_inspector::StringBuffer {
       : data_(ToVector(isolate, string)) {}
 
   v8_inspector::StringView string() const override {
-    return v8_inspector::StringView(data_.begin(), data_.length());
+    return v8_inspector::StringView(data_.data(), data_.size());
   }
 
  private:
-  v8::internal::Vector<uint16_t> data_;
+  std::vector<uint16_t> data_;
 };
 }  // anonymous namespace
 
@@ -472,9 +481,17 @@ std::unique_ptr<v8_inspector::StringBuffer> IsolateData::resourceNameToUrl(
     const v8_inspector::StringView& resourceName) {
   if (resource_name_prefix_.IsEmpty()) return nullptr;
   v8::HandleScope handle_scope(isolate());
-  v8::Local<v8::String> name = ToString(isolate(), resourceName);
+  v8::Local<v8::String> name = ToV8String(isolate(), resourceName);
   v8::Local<v8::String> prefix = resource_name_prefix_.Get(isolate());
   v8::Local<v8::String> url = v8::String::Concat(isolate(), prefix, name);
-  return std::unique_ptr<StringBufferImpl>(
-      new StringBufferImpl(isolate(), url));
+  return std::make_unique<StringBufferImpl>(isolate(), url);
 }
+
+int64_t IsolateData::generateUniqueId() {
+  static int64_t last_unique_id = 0L;
+  // Keep it not too random for tests.
+  return ++last_unique_id;
+}
+
+}  // namespace internal
+}  // namespace v8

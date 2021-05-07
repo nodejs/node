@@ -5,8 +5,6 @@
 // Make sure passing 1 or false to patched construtor won't cause crash
 
 Object.defineProperty(Intl.NumberFormat, Symbol.hasInstance, { value: _ => true });
-assertThrows(() =>
-     Intl.NumberFormat.call(1), TypeError);
+assertDoesNotThrow(() => Intl.NumberFormat.call(1));
 
-assertThrows(() =>
-     Intl.NumberFormat.call(false), TypeError);
+assertDoesNotThrow(() => Intl.NumberFormat.call(false));

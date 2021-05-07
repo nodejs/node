@@ -13,10 +13,17 @@
 namespace v8 {
 namespace internal {
 
+class HeapInternalsBase {
+ protected:
+  void SimulateIncrementalMarking(Heap* heap, bool force_completion);
+};
+
 template <typename TMixin>
-class WithHeapInternals : public TMixin {
+class WithHeapInternals : public TMixin, HeapInternalsBase {
  public:
   WithHeapInternals() = default;
+  WithHeapInternals(const WithHeapInternals&) = delete;
+  WithHeapInternals& operator=(const WithHeapInternals&) = delete;
 
   void CollectGarbage(i::AllocationSpace space) {
     heap()->CollectGarbage(space, i::GarbageCollectionReason::kTesting);
@@ -24,8 +31,10 @@ class WithHeapInternals : public TMixin {
 
   Heap* heap() const { return this->i_isolate()->heap(); }
 
- private:
-  DISALLOW_COPY_AND_ASSIGN(WithHeapInternals);
+  void SimulateIncrementalMarking(bool force_completion = true) {
+    return HeapInternalsBase::SimulateIncrementalMarking(heap(),
+                                                         force_completion);
+  }
 };
 
 using TestWithHeapInternals =       //

@@ -38,6 +38,7 @@ class JSGlobalObject;
 class JSGlobalProxy;
 class JSPromise;
 class JSWeakCollection;
+class SafepointScope;
 
 struct SourceLocation {
   SourceLocation(int entry_index, int scriptId, int line, int col)
@@ -125,6 +126,7 @@ class HeapEntry {
   void set_name(const char* name) { name_ = name; }
   SnapshotObjectId id() const { return id_; }
   size_t self_size() const { return self_size_; }
+  void add_self_size(size_t size) { self_size_ += size; }
   unsigned trace_node_id() const { return trace_node_id_; }
   int index() const { return index_; }
   V8_INLINE int children_count() const;
@@ -151,12 +153,12 @@ class HeapEntry {
                                   StringsStorage* strings);
 
   V8_EXPORT_PRIVATE void Print(const char* prefix, const char* edge_name,
-                               int max_depth, int indent);
+                               int max_depth, int indent) const;
 
  private:
   V8_INLINE std::vector<HeapGraphEdge*>::iterator children_begin() const;
   V8_INLINE std::vector<HeapGraphEdge*>::iterator children_end() const;
-  const char* TypeAsString();
+  const char* TypeAsString() const;
 
   unsigned type_: 4;
   unsigned index_ : 28;  // Supports up to ~250M objects.
@@ -187,6 +189,8 @@ class HeapEntry {
 class HeapSnapshot {
  public:
   explicit HeapSnapshot(HeapProfiler* profiler, bool global_objects_as_roots);
+  HeapSnapshot(const HeapSnapshot&) = delete;
+  HeapSnapshot& operator=(const HeapSnapshot&) = delete;
   void Delete();
 
   HeapProfiler* profiler() const { return profiler_; }
@@ -196,7 +200,9 @@ class HeapSnapshot {
     return gc_subroot_entries_[static_cast<int>(root)];
   }
   std::deque<HeapEntry>& entries() { return entries_; }
+  const std::deque<HeapEntry>& entries() const { return entries_; }
   std::deque<HeapGraphEdge>& edges() { return edges_; }
+  const std::deque<HeapGraphEdge>& edges() const { return edges_; }
   std::vector<HeapGraphEdge*>& children() { return children_; }
   const std::vector<SourceLocation>& locations() const { return locations_; }
   void RememberLastJSObjectId();
@@ -239,8 +245,6 @@ class HeapSnapshot {
   std::vector<SourceLocation> locations_;
   SnapshotObjectId max_snapshot_js_object_id_ = -1;
   bool treat_global_objects_as_roots_;
-
-  DISALLOW_COPY_AND_ASSIGN(HeapSnapshot);
 };
 
 
@@ -257,6 +261,8 @@ class HeapObjectsMap {
   };
 
   explicit HeapObjectsMap(Heap* heap);
+  HeapObjectsMap(const HeapObjectsMap&) = delete;
+  HeapObjectsMap& operator=(const HeapObjectsMap&) = delete;
 
   Heap* heap() const { return heap_; }
 
@@ -305,8 +311,6 @@ class HeapObjectsMap {
   // Map from NativeObject to EntryInfo index in entries_.
   std::unordered_map<NativeObject, size_t> merged_native_entries_map_;
   Heap* heap_;
-
-  DISALLOW_COPY_AND_ASSIGN(HeapObjectsMap);
 };
 
 // A typedef for referencing anything that can be snapshotted living
@@ -334,11 +338,14 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
                  SnapshottingProgressReportingInterface* progress,
                  v8::HeapProfiler::ObjectNameResolver* resolver);
   ~V8HeapExplorer() override = default;
+  V8HeapExplorer(const V8HeapExplorer&) = delete;
+  V8HeapExplorer& operator=(const V8HeapExplorer&) = delete;
 
   HeapEntry* AllocateEntry(HeapThing ptr) override;
   int EstimateObjectsCount();
   bool IterateAndExtractReferences(HeapSnapshotGenerator* generator);
-  void TagGlobalObjects();
+  void CollectGlobalObjectsTags();
+  void MakeGlobalObjectTagMap(const SafepointScope& safepoint_scope);
   void TagBuiltinCodeObject(Code code, const char* name);
   HeapEntry* AddEntry(Address address,
                       HeapEntry::Type type,
@@ -445,7 +452,10 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
   HeapObjectsMap* heap_object_map_;
   SnapshottingProgressReportingInterface* progress_;
   HeapSnapshotGenerator* generator_ = nullptr;
-  std::unordered_map<JSGlobalObject, const char*, Object::Hasher> objects_tags_;
+  std::vector<std::pair<Handle<JSGlobalObject>, const char*>>
+      global_object_tag_pairs_;
+  std::unordered_map<JSGlobalObject, const char*, Object::Hasher>
+      global_object_tag_map_;
   std::unordered_map<Object, const char*, Object::Hasher>
       strong_gc_subroot_names_;
   std::unordered_set<JSGlobalObject, Object::Hasher> user_roots_;
@@ -455,8 +465,6 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
 
   friend class IndexedReferencesExtractor;
   friend class RootsReferencesExtractor;
-
-  DISALLOW_COPY_AND_ASSIGN(V8HeapExplorer);
 };
 
 // An implementation of retained native objects extractor.
@@ -464,6 +472,8 @@ class NativeObjectsExplorer {
  public:
   NativeObjectsExplorer(HeapSnapshot* snapshot,
                         SnapshottingProgressReportingInterface* progress);
+  NativeObjectsExplorer(const NativeObjectsExplorer&) = delete;
+  NativeObjectsExplorer& operator=(const NativeObjectsExplorer&) = delete;
   bool IterateAndExtractReferences(HeapSnapshotGenerator* generator);
 
  private:
@@ -484,8 +494,6 @@ class NativeObjectsExplorer {
   static HeapThing const kNativesRootObject;
 
   friend class GlobalHandlesExtractor;
-
-  DISALLOW_COPY_AND_ASSIGN(NativeObjectsExplorer);
 };
 
 class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
@@ -498,6 +506,8 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
                         v8::ActivityControl* control,
                         v8::HeapProfiler::ObjectNameResolver* resolver,
                         Heap* heap);
+  HeapSnapshotGenerator(const HeapSnapshotGenerator&) = delete;
+  HeapSnapshotGenerator& operator=(const HeapSnapshotGenerator&) = delete;
   bool GenerateSnapshot();
 
   HeapEntry* FindEntry(HeapThing ptr) {
@@ -531,8 +541,6 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
   int progress_counter_;
   int progress_total_;
   Heap* heap_;
-
-  DISALLOW_COPY_AND_ASSIGN(HeapSnapshotGenerator);
 };
 
 class OutputStreamWriter;
@@ -545,6 +553,9 @@ class HeapSnapshotJSONSerializer {
         next_node_id_(1),
         next_string_id_(1),
         writer_(nullptr) {}
+  HeapSnapshotJSONSerializer(const HeapSnapshotJSONSerializer&) = delete;
+  HeapSnapshotJSONSerializer& operator=(const HeapSnapshotJSONSerializer&) =
+      delete;
   void Serialize(v8::OutputStream* stream);
 
  private:
@@ -584,8 +595,6 @@ class HeapSnapshotJSONSerializer {
 
   friend class HeapSnapshotJSONSerializerEnumerator;
   friend class HeapSnapshotJSONSerializerIterator;
-
-  DISALLOW_COPY_AND_ASSIGN(HeapSnapshotJSONSerializer);
 };
 
 

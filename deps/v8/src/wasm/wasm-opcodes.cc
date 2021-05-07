@@ -41,8 +41,8 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmModule* module,
   for (auto type : sig->all()) {
     // TODO(7748): Allow structs, arrays, rtts and i31s when their
     //             JS-interaction is decided on.
-    if ((type == kWasmI64 && !enabled_features.has_bigint()) ||
-        type == kWasmS128 || type.is_reference_to(HeapType::kI31) ||
+    if (type == kWasmS128 || type.is_reference_to(HeapType::kEq) ||
+        type.is_reference_to(HeapType::kI31) ||
         (type.has_index() && !module->has_signature(type.ref_index())) ||
         type.is_rtt()) {
       return false;

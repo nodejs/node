@@ -48,12 +48,12 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 14
+bytecode array length: 12
 bytecodes: [
   /*   15 S> */ B(LdaSmi), I8(1),
-                B(Star), R(0),
+                B(Star0),
                 B(LdaSmi), I8(2),
-                B(Star), R(1),
+                B(Star1),
                 B(CallRuntime), U16(Runtime::kAdd), R(0), U8(2),
   /*   32 S> */ B(Return),
 ]

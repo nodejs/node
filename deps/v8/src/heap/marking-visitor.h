@@ -11,57 +11,11 @@
 #include "src/heap/memory-chunk.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/spaces.h"
+#include "src/heap/weak-object-worklists.h"
 #include "src/heap/worklist.h"
-#include "src/objects/heap-object.h"   // For Worklist<HeapObject, ...>
-#include "src/objects/js-weak-refs.h"  // For Worklist<WeakCell, ...>
 
 namespace v8 {
 namespace internal {
-
-struct Ephemeron {
-  HeapObject key;
-  HeapObject value;
-};
-
-using EphemeronWorklist = Worklist<Ephemeron, 64>;
-
-// Weak objects encountered during marking.
-struct WeakObjects {
-  Worklist<TransitionArray, 64> transition_arrays;
-
-  // Keep track of all EphemeronHashTables in the heap to process
-  // them in the atomic pause.
-  Worklist<EphemeronHashTable, 64> ephemeron_hash_tables;
-
-  // Keep track of all ephemerons for concurrent marking tasks. Only store
-  // ephemerons in these Worklists if both key and value are unreachable at the
-  // moment.
-  //
-  // MarkCompactCollector::ProcessEphemeronsUntilFixpoint drains and fills these
-  // worklists.
-  //
-  // current_ephemerons is used as draining worklist in the current fixpoint
-  // iteration.
-  EphemeronWorklist current_ephemerons;
-
-  // Stores ephemerons to visit in the next fixpoint iteration.
-  EphemeronWorklist next_ephemerons;
-
-  // When draining the marking worklist new discovered ephemerons are pushed
-  // into this worklist.
-  EphemeronWorklist discovered_ephemerons;
-
-  // TODO(marja): For old space, we only need the slot, not the host
-  // object. Optimize this by adding a different storage for old space.
-  Worklist<std::pair<HeapObject, HeapObjectSlot>, 64> weak_references;
-  Worklist<std::pair<HeapObject, Code>, 64> weak_objects_in_code;
-
-  Worklist<JSWeakRef, 64> js_weak_refs;
-  Worklist<WeakCell, 64> weak_cells;
-
-  Worklist<SharedFunctionInfo, 64> bytecode_flushing_candidates;
-  Worklist<JSFunction, 64> flushed_js_functions;
-};
 
 struct EphemeronMarking {
   std::vector<HeapObject> newly_discovered;
@@ -220,6 +174,9 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
 
   V8_INLINE void VisitDescriptors(DescriptorArray descriptors,
                                   int number_of_own_descriptors);
+
+  V8_INLINE int VisitDescriptorsForMap(Map map);
+
   template <typename T>
   int VisitEmbedderTracingSubclass(Map map, T object);
   V8_INLINE int VisitFixedArrayWithProgressBar(Map map, FixedArray object,
@@ -227,7 +184,7 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
   // Marks the descriptor array black without pushing it on the marking work
   // list and visits its header. Returns the size of the descriptor array
   // if it was successully marked as black.
-  V8_INLINE size_t MarkDescriptorArrayBlack(DescriptorArray descriptors);
+  V8_INLINE int MarkDescriptorArrayBlack(DescriptorArray descriptors);
   // Marks the object grey and pushes it on the marking work list.
   V8_INLINE void MarkObject(HeapObject host, HeapObject obj);
 

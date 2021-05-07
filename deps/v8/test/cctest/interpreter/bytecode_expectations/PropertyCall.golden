@@ -13,10 +13,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 2
-bytecode array length: 11
+bytecode array length: 10
 bytecodes: [
   /*   25 S> */ B(LdaNamedProperty), R(arg0), U8(0), U8(0),
-                B(Star), R(0),
+                B(Star0),
   /*   25 E> */ B(CallProperty0), R(0), R(arg0), U8(2),
   /*   32 S> */ B(Return),
 ]
@@ -33,10 +33,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 4
-bytecode array length: 13
+bytecode array length: 12
 bytecodes: [
   /*   31 S> */ B(LdaNamedProperty), R(arg0), U8(0), U8(0),
-                B(Star), R(0),
+                B(Star0),
   /*   31 E> */ B(CallProperty2), R(0), R(arg0), R(arg1), R(arg2), U8(2),
   /*   42 S> */ B(Return),
 ]
@@ -53,13 +53,13 @@ snippet: "
 "
 frame size: 3
 parameter count: 3
-bytecode array length: 20
+bytecode array length: 18
 bytecodes: [
   /*   28 S> */ B(LdaNamedProperty), R(arg0), U8(0), U8(0),
-                B(Star), R(0),
+                B(Star0),
                 B(Ldar), R(arg1),
   /*   35 E> */ B(Add), R(arg1), U8(2),
-                B(Star), R(2),
+                B(Star2),
   /*   28 E> */ B(CallProperty2), R(0), R(arg0), R(2), R(arg1), U8(3),
   /*   43 S> */ B(Return),
 ]
@@ -207,10 +207,10 @@ snippet: "
 "
 frame size: 2
 parameter count: 2
-bytecode array length: 542
+bytecode array length: 540
 bytecodes: [
   /*   26 S> */ B(CreateEmptyObjectLiteral),
-                B(Star), R(0),
+                B(Star0),
   /*   34 S> */ B(LdaNamedProperty), R(0), U8(0), U8(0),
   /*   47 S> */ B(LdaNamedProperty), R(0), U8(1), U8(2),
   /*   60 S> */ B(LdaNamedProperty), R(0), U8(2), U8(4),
@@ -341,7 +341,7 @@ bytecodes: [
   /* 1685 S> */ B(LdaNamedProperty), R(0), U8(127), U8(254),
   /* 1698 S> */ B(Wide), B(LdaNamedProperty), R16(arg0), U16(128), U16(256),
   /* 1715 S> */ B(Wide), B(LdaNamedProperty), R16(arg0), U16(128), U16(256),
-                B(Star), R(1),
+                B(Star1),
   /* 1715 E> */ B(Wide), B(CallProperty0), R16(1), R16(arg0), U16(258),
   /* 1722 S> */ B(Return),
 ]
@@ -486,24 +486,24 @@ snippet: "
 "
 frame size: 5
 parameter count: 2
-bytecode array length: 50
+bytecode array length: 42
 bytecodes: [
   /*   25 S> */ B(LdaNamedProperty), R(arg0), U8(0), U8(0),
-                B(Star), R(2),
+                B(Star2),
                 B(LdaSmi), I8(1),
-                B(Star), R(4),
+                B(Star4),
   /*   25 E> */ B(CallProperty1), R(2), R(arg0), R(4), U8(2),
-                B(Star), R(2),
+                B(Star2),
   /*   32 E> */ B(LdaNamedProperty), R(2), U8(0), U8(4),
-                B(Star), R(1),
+                B(Star1),
                 B(LdaSmi), I8(2),
-                B(Star), R(3),
+                B(Star3),
   /*   33 E> */ B(CallProperty1), R(1), R(2), R(3), U8(6),
-                B(Star), R(1),
+                B(Star1),
   /*   40 E> */ B(LdaNamedProperty), R(1), U8(0), U8(8),
-                B(Star), R(0),
+                B(Star0),
                 B(LdaSmi), I8(3),
-                B(Star), R(2),
+                B(Star2),
   /*   41 E> */ B(CallProperty1), R(0), R(1), R(2), U8(10),
   /*   49 S> */ B(Return),
 ]

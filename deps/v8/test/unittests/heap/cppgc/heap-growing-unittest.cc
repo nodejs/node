@@ -23,7 +23,9 @@ class FakeGarbageCollector : public GarbageCollector {
   void SetLiveBytes(size_t live_bytes) { live_bytes_ = live_bytes; }
 
   void CollectGarbage(GarbageCollector::Config config) override {
-    stats_collector_->NotifyMarkingStarted();
+    stats_collector_->NotifyMarkingStarted(
+        GarbageCollector::Config::CollectionType::kMajor,
+        GarbageCollector::Config::IsForcedGC::kNotForced);
     stats_collector_->NotifyMarkingCompleted(live_bytes_);
     stats_collector_->NotifySweepingCompleted();
     callcount_++;
@@ -58,24 +60,30 @@ void FakeAllocate(StatsCollector* stats_collector, size_t bytes) {
 }  // namespace
 
 TEST(HeapGrowingTest, ConservativeGCInvoked) {
-  StatsCollector stats_collector;
+  StatsCollector stats_collector(nullptr /* metric_recorder */,
+                                 nullptr /* platform */);
   MockGarbageCollector gc;
   cppgc::Heap::ResourceConstraints constraints;
   // Force GC at the first update.
   constraints.initial_heap_size_bytes = 1;
-  HeapGrowing growing(&gc, &stats_collector, constraints);
+  HeapGrowing growing(&gc, &stats_collector, constraints,
+                      cppgc::Heap::MarkingType::kIncrementalAndConcurrent,
+                      cppgc::Heap::SweepingType::kIncrementalAndConcurrent);
   EXPECT_CALL(gc, CollectGarbage(::testing::_));
   FakeAllocate(&stats_collector, 100 * kMB);
 }
 
 TEST(HeapGrowingTest, InitialHeapSize) {
-  StatsCollector stats_collector;
+  StatsCollector stats_collector(nullptr /* metric_recorder */,
+                                 nullptr /* platform */);
   MockGarbageCollector gc;
   cppgc::Heap::ResourceConstraints constraints;
   // Use larger size to avoid running into small heap optimizations.
   constexpr size_t kObjectSize = 10 * HeapGrowing::kMinLimitIncrease;
   constraints.initial_heap_size_bytes = kObjectSize;
-  HeapGrowing growing(&gc, &stats_collector, constraints);
+  HeapGrowing growing(&gc, &stats_collector, constraints,
+                      cppgc::Heap::MarkingType::kIncrementalAndConcurrent,
+                      cppgc::Heap::SweepingType::kIncrementalAndConcurrent);
   FakeAllocate(&stats_collector, kObjectSize - 1);
   EXPECT_CALL(gc, CollectGarbage(::testing::_));
   FakeAllocate(&stats_collector, kObjectSize);
@@ -84,12 +92,15 @@ TEST(HeapGrowingTest, InitialHeapSize) {
 TEST(HeapGrowingTest, ConstantGrowingFactor) {
   // Use larger size to avoid running into small heap optimizations.
   constexpr size_t kObjectSize = 10 * HeapGrowing::kMinLimitIncrease;
-  StatsCollector stats_collector;
+  StatsCollector stats_collector(nullptr /* metric_recorder */,
+                                 nullptr /* platform */);
   FakeGarbageCollector gc(&stats_collector);
   cppgc::Heap::ResourceConstraints constraints;
   // Force GC at the first update.
   constraints.initial_heap_size_bytes = HeapGrowing::kMinLimitIncrease;
-  HeapGrowing growing(&gc, &stats_collector, constraints);
+  HeapGrowing growing(&gc, &stats_collector, constraints,
+                      cppgc::Heap::MarkingType::kIncrementalAndConcurrent,
+                      cppgc::Heap::SweepingType::kIncrementalAndConcurrent);
   EXPECT_EQ(0u, gc.epoch());
   gc.SetLiveBytes(kObjectSize);
   FakeAllocate(&stats_collector, kObjectSize + 1);
@@ -100,12 +111,15 @@ TEST(HeapGrowingTest, ConstantGrowingFactor) {
 TEST(HeapGrowingTest, SmallHeapGrowing) {
   // Larger constant to avoid running into special handling for smaller heaps.
   constexpr size_t kLargeAllocation = 100 * kMB;
-  StatsCollector stats_collector;
+  StatsCollector stats_collector(nullptr /* metric_recorder */,
+                                 nullptr /* platform */);
   FakeGarbageCollector gc(&stats_collector);
   cppgc::Heap::ResourceConstraints constraints;
   // Force GC at the first update.
   constraints.initial_heap_size_bytes = 1;
-  HeapGrowing growing(&gc, &stats_collector, constraints);
+  HeapGrowing growing(&gc, &stats_collector, constraints,
+                      cppgc::Heap::MarkingType::kIncrementalAndConcurrent,
+                      cppgc::Heap::SweepingType::kIncrementalAndConcurrent);
   EXPECT_EQ(0u, gc.epoch());
   gc.SetLiveBytes(1);
   FakeAllocate(&stats_collector, kLargeAllocation);
@@ -114,10 +128,13 @@ TEST(HeapGrowingTest, SmallHeapGrowing) {
 }
 
 TEST(HeapGrowingTest, IncrementalGCStarted) {
-  StatsCollector stats_collector;
+  StatsCollector stats_collector(nullptr /* metric_recorder */,
+                                 nullptr /* platform */);
   MockGarbageCollector gc;
   cppgc::Heap::ResourceConstraints constraints;
-  HeapGrowing growing(&gc, &stats_collector, constraints);
+  HeapGrowing growing(&gc, &stats_collector, constraints,
+                      cppgc::Heap::MarkingType::kIncrementalAndConcurrent,
+                      cppgc::Heap::SweepingType::kIncrementalAndConcurrent);
   EXPECT_CALL(gc, CollectGarbage(::testing::_)).Times(0);
   EXPECT_CALL(gc, StartIncrementalGarbageCollection(::testing::_));
   // Allocate 1 byte less the limit for atomic gc to trigger incremental gc.
@@ -125,10 +142,13 @@ TEST(HeapGrowingTest, IncrementalGCStarted) {
 }
 
 TEST(HeapGrowingTest, IncrementalGCFinalized) {
-  StatsCollector stats_collector;
+  StatsCollector stats_collector(nullptr /* metric_recorder */,
+                                 nullptr /* platform */);
   MockGarbageCollector gc;
   cppgc::Heap::ResourceConstraints constraints;
-  HeapGrowing growing(&gc, &stats_collector, constraints);
+  HeapGrowing growing(&gc, &stats_collector, constraints,
+                      cppgc::Heap::MarkingType::kIncrementalAndConcurrent,
+                      cppgc::Heap::SweepingType::kIncrementalAndConcurrent);
   EXPECT_CALL(gc, CollectGarbage(::testing::_)).Times(0);
   EXPECT_CALL(gc, StartIncrementalGarbageCollection(::testing::_));
   // Allocate 1 byte less the limit for atomic gc to trigger incremental gc.

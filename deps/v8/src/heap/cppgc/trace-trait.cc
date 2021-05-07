@@ -16,12 +16,10 @@ TraceDescriptor TraceTraitFromInnerAddressImpl::GetTraceDescriptor(
   // mixins.
   const HeapObjectHeader& header =
       BasePage::FromPayload(address)
-          ->ObjectHeaderFromInnerAddress<HeapObjectHeader::AccessMode::kAtomic>(
-              address);
-  return {header.Payload(),
-          GlobalGCInfoTable::GCInfoFromIndex(
-              header.GetGCInfoIndex<HeapObjectHeader::AccessMode::kAtomic>())
-              .trace};
+          ->ObjectHeaderFromInnerAddress<AccessMode::kAtomic>(address);
+  return {header.Payload(), GlobalGCInfoTable::GCInfoFromIndex(
+                                header.GetGCInfoIndex<AccessMode::kAtomic>())
+                                .trace};
 }
 
 }  // namespace internal

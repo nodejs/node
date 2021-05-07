@@ -68,8 +68,6 @@ extern class Map extends HeapObject {
   prototype: JSReceiver|Null;
   constructor_or_back_pointer_or_native_context: Object;
   instance_descriptors: DescriptorArray;
-  @if(V8_DOUBLE_FIELDS_UNBOXING) layout_descriptor: LayoutDescriptor;
-  @ifnot(V8_DOUBLE_FIELDS_UNBOXING) layout_descriptor: void;
   dependent_code: DependentCode;
   prototype_validity_cell: Smi|Cell;
   weak transitions_or_prototype_info: Map|Weak<Map>|TransitionArray|
@@ -89,6 +87,7 @@ macro IsSimpleObjectMap(map: Map): bool {
     return false;
   }
   const bitField = map.bit_field;
+  // Using & instead of && enables Turbofan to merge the two checks into one.
   return !bitField.has_named_interceptor & !bitField.is_access_check_needed;
 }
 

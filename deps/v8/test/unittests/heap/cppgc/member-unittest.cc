@@ -30,6 +30,27 @@ struct DerivedGCed : GCed {
 static_assert(!IsWeakV<Member<GCed>>, "Member is always strong.");
 static_assert(IsWeakV<WeakMember<GCed>>, "WeakMember is always weak.");
 
+static_assert(IsMemberTypeV<Member<GCed>>, "Member must be Member.");
+static_assert(!IsMemberTypeV<WeakMember<GCed>>,
+              "WeakMember must not be Member.");
+static_assert(!IsMemberTypeV<UntracedMember<GCed>>,
+              "UntracedMember must not be Member.");
+static_assert(!IsMemberTypeV<int>, "int must not be Member.");
+static_assert(!IsWeakMemberTypeV<Member<GCed>>,
+              "Member must not be WeakMember.");
+static_assert(IsWeakMemberTypeV<WeakMember<GCed>>,
+              "WeakMember must be WeakMember.");
+static_assert(!IsWeakMemberTypeV<UntracedMember<GCed>>,
+              "UntracedMember must not be WeakMember.");
+static_assert(!IsWeakMemberTypeV<int>, "int must not be WeakMember.");
+static_assert(!IsUntracedMemberTypeV<Member<GCed>>,
+              "Member must not be UntracedMember.");
+static_assert(!IsUntracedMemberTypeV<WeakMember<GCed>>,
+              "WeakMember must not be UntracedMember.");
+static_assert(IsUntracedMemberTypeV<UntracedMember<GCed>>,
+              "UntracedMember must be UntracedMember.");
+static_assert(!IsUntracedMemberTypeV<int>, "int must not be UntracedMember.");
+
 struct CustomWriteBarrierPolicy {
   static size_t InitializingWriteBarriersTriggered;
   static size_t AssigningWriteBarriersTriggered;
@@ -74,6 +95,12 @@ void EmptyTest() {
   }
   {
     MemberType<GCed> empty = nullptr;
+    EXPECT_EQ(nullptr, empty.Get());
+    EXPECT_EQ(nullptr, empty.Release());
+  }
+  {
+    // Move-constructs empty from another Member that is created from nullptr.
+    MemberType<const GCed> empty = nullptr;
     EXPECT_EQ(nullptr, empty.Get());
     EXPECT_EQ(nullptr, empty.Release());
   }

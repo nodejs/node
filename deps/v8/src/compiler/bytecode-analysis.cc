@@ -79,7 +79,7 @@ ResumeJumpTarget ResumeJumpTarget::AtLoopHeader(int loop_header_offset,
 }
 
 BytecodeAnalysis::BytecodeAnalysis(Handle<BytecodeArray> bytecode_array,
-                                   Zone* zone, BailoutId osr_bailout_id,
+                                   Zone* zone, BytecodeOffset osr_bailout_id,
                                    bool analyze_liveness)
     : bytecode_array_(bytecode_array),
       zone_(zone),
@@ -90,8 +90,8 @@ BytecodeAnalysis::BytecodeAnalysis(Handle<BytecodeArray> bytecode_array,
       resume_jump_targets_(zone),
       end_to_header_(zone),
       header_to_info_(zone),
-      osr_entry_point_(-1),
-      liveness_map_(bytecode_array->length(), zone) {
+      osr_entry_point_(-1) {
+  if (analyze_liveness) liveness_map_.emplace(bytecode_array->length(), zone);
   Analyze();
 }
 
@@ -164,6 +164,11 @@ void UpdateInLiveness(Bytecode bytecode, BytecodeLivenessState* in_liveness,
         DCHECK(!Bytecodes::IsRegisterOutputOperandType(operand_types[i]));
         break;
     }
+  }
+
+  if (Bytecodes::WritesImplicitRegister(bytecode)) {
+    in_liveness->MarkRegisterDead(
+        interpreter::Register::FromShortStar(bytecode).index());
   }
 
   if (Bytecodes::ReadsAccumulator(bytecode)) {
@@ -308,6 +313,10 @@ void UpdateAssignments(Bytecode bytecode, BytecodeLoopAssignments* assignments,
         break;
     }
   }
+
+  if (Bytecodes::WritesImplicitRegister(bytecode)) {
+    assignments->Add(interpreter::Register::FromShortStar(bytecode));
+  }
 }
 
 }  // namespace
@@ -433,10 +442,10 @@ void BytecodeAnalysis::Analyze() {
     }
 
     if (analyze_liveness_) {
-      BytecodeLiveness const& liveness = liveness_map_.InitializeLiveness(
+      BytecodeLiveness const& liveness = liveness_map().InitializeLiveness(
           current_offset, bytecode_array()->register_count(), zone());
       UpdateLiveness(bytecode, liveness, &next_bytecode_in_liveness, iterator,
-                     bytecode_array(), liveness_map_);
+                     bytecode_array(), liveness_map());
     }
   }
 
@@ -481,8 +490,8 @@ void BytecodeAnalysis::Analyze() {
     int end_offset = iterator.current_offset();
 
     BytecodeLiveness& header_liveness =
-        liveness_map_.GetLiveness(header_offset);
-    BytecodeLiveness& end_liveness = liveness_map_.GetLiveness(end_offset);
+        liveness_map().GetLiveness(header_offset);
+    BytecodeLiveness& end_liveness = liveness_map().GetLiveness(end_offset);
 
     if (!end_liveness.out->UnionIsChanged(*header_liveness.in)) {
       // Only update the loop body if the loop end liveness changed.
@@ -497,15 +506,15 @@ void BytecodeAnalysis::Analyze() {
       Bytecode bytecode = iterator.current_bytecode();
       int current_offset = iterator.current_offset();
       BytecodeLiveness const& liveness =
-          liveness_map_.GetLiveness(current_offset);
+          liveness_map().GetLiveness(current_offset);
       UpdateLiveness(bytecode, liveness, &next_bytecode_in_liveness, iterator,
-                     bytecode_array(), liveness_map_);
+                     bytecode_array(), liveness_map());
     }
     // Now we are at the loop header. Since the in-liveness of the header
     // can't change, we need only to update the out-liveness.
     UpdateOutLiveness(iterator.current_bytecode(), header_liveness.out,
                       next_bytecode_in_liveness, iterator, bytecode_array(),
-                      liveness_map_);
+                      liveness_map());
   }
 
   // Process the generator switch statement separately, once the loops are done.
@@ -518,12 +527,12 @@ void BytecodeAnalysis::Analyze() {
 
     int current_offset = iterator.current_offset();
     BytecodeLiveness& switch_liveness =
-        liveness_map_.GetLiveness(current_offset);
+        liveness_map().GetLiveness(current_offset);
 
     bool any_changed = false;
     for (const auto& entry : iterator.GetJumpTableTargetOffsets()) {
       if (switch_liveness.out->UnionIsChanged(
-              *liveness_map_.GetInLiveness(entry.target_offset))) {
+              *liveness_map().GetInLiveness(entry.target_offset))) {
         any_changed = true;
       }
     }
@@ -539,13 +548,13 @@ void BytecodeAnalysis::Analyze() {
         Bytecode bytecode = iterator.current_bytecode();
         int current_offset = iterator.current_offset();
         BytecodeLiveness const& liveness =
-            liveness_map_.GetLiveness(current_offset);
+            liveness_map().GetLiveness(current_offset);
 
         // There shouldn't be any more loops.
         DCHECK_NE(bytecode, Bytecode::kJumpLoop);
 
         UpdateLiveness(bytecode, liveness, &next_bytecode_in_liveness, iterator,
-                       bytecode_array(), liveness_map_);
+                       bytecode_array(), liveness_map());
       }
     }
   }
@@ -624,14 +633,14 @@ const BytecodeLivenessState* BytecodeAnalysis::GetInLivenessFor(
     int offset) const {
   if (!analyze_liveness_) return nullptr;
 
-  return liveness_map_.GetInLiveness(offset);
+  return liveness_map().GetInLiveness(offset);
 }
 
 const BytecodeLivenessState* BytecodeAnalysis::GetOutLivenessFor(
     int offset) const {
   if (!analyze_liveness_) return nullptr;
 
-  return liveness_map_.GetOutLiveness(offset);
+  return liveness_map().GetOutLiveness(offset);
 }
 
 std::ostream& BytecodeAnalysis::PrintLivenessTo(std::ostream& os) const {
@@ -826,16 +835,16 @@ bool BytecodeAnalysis::LivenessIsValid() {
 
     int current_offset = iterator.current_offset();
 
-    BytecodeLiveness& liveness = liveness_map_.GetLiveness(current_offset);
+    BytecodeLiveness& liveness = liveness_map().GetLiveness(current_offset);
 
     previous_liveness.CopyFrom(*liveness.out);
 
     UpdateOutLiveness(bytecode, liveness.out, next_bytecode_in_liveness,
-                      iterator, bytecode_array(), liveness_map_);
+                      iterator, bytecode_array(), liveness_map());
     // UpdateOutLiveness skips kJumpLoop, so we update it manually.
     if (bytecode == Bytecode::kJumpLoop) {
       int target_offset = iterator.GetJumpTargetOffset();
-      liveness.out->Union(*liveness_map_.GetInLiveness(target_offset));
+      liveness.out->Union(*liveness_map().GetInLiveness(target_offset));
     }
 
     if (!liveness.out->Equals(previous_liveness)) {
@@ -885,7 +894,7 @@ bool BytecodeAnalysis::LivenessIsValid() {
     }
 
     // The accumulator must be dead at the start of the target of the jump.
-    if (liveness_map_.GetLiveness(jump_target).in->AccumulatorIsLive()) {
+    if (liveness_map().GetLiveness(jump_target).in->AccumulatorIsLive()) {
       invalid_offset = jump_target;
       which_invalid = 0;
       break;

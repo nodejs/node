@@ -116,11 +116,20 @@ int uv_poll_stop(uv_poll_t* handle) {
 
 
 int uv_poll_start(uv_poll_t* handle, int pevents, uv_poll_cb poll_cb) {
+  uv__io_t** watchers;
+  uv__io_t* w;
   int events;
 
   assert((pevents & ~(UV_READABLE | UV_WRITABLE | UV_DISCONNECT |
                       UV_PRIORITIZED)) == 0);
   assert(!uv__is_closing(handle));
+
+  watchers = handle->loop->watchers;
+  w = &handle->io_watcher;
+
+  if (uv__fd_exists(handle->loop, w->fd))
+    if (watchers[w->fd] != w)
+      return UV_EEXIST;
 
   uv__poll_stop(handle);
 

@@ -268,8 +268,8 @@ class AuditReport extends Map {
         id,
         url,
         title,
-        severity,
-        vulnerable_versions,
+        severity = 'high',
+        vulnerable_versions = '*',
         module_name: name,
       } = advisory
       bulk[name] = bulk[name] || []

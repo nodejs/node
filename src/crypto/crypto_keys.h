@@ -74,13 +74,14 @@ struct PrivateKeyEncodingConfig : public AsymmetricKeyEncodingConfig {
 // use.
 class ManagedEVPPKey : public MemoryRetainer {
  public:
-  ManagedEVPPKey() = default;
+  ManagedEVPPKey() : mutex_(std::make_shared<Mutex>()) {}
   explicit ManagedEVPPKey(EVPKeyPointer&& pkey);
   ManagedEVPPKey(const ManagedEVPPKey& that);
   ManagedEVPPKey& operator=(const ManagedEVPPKey& that);
 
   operator bool() const;
   EVP_PKEY* get() const;
+  Mutex* mutex() const;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(ManagedEVPPKey)
@@ -127,14 +128,12 @@ class ManagedEVPPKey : public MemoryRetainer {
   size_t size_of_public_key() const;
 
   EVPKeyPointer pkey_;
+  std::shared_ptr<Mutex> mutex_;
 };
 
 // Objects of this class can safely be shared among threads.
 class KeyObjectData : public MemoryRetainer {
  public:
-  static std::shared_ptr<KeyObjectData> CreateSecret(
-      const ArrayBufferOrViewContents<char>& buf);
-
   static std::shared_ptr<KeyObjectData> CreateSecret(ByteSource key);
 
   static std::shared_ptr<KeyObjectData> CreateAsymmetric(
@@ -185,6 +184,7 @@ class KeyObjectHandle : public BaseObject {
 
   static void Init(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void InitECRaw(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void InitEDRaw(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void InitJWK(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetKeyDetail(const v8::FunctionCallbackInfo<v8::Value>& args);
 
@@ -334,22 +334,29 @@ class KeyExportJob final : public CryptoJob<KeyExportTraits> {
   WebCryptoKeyFormat format() const { return format_; }
 
   void DoThreadPoolWork() override {
-    switch (KeyExportTraits::DoExport(
-                key_,
-                format_,
-                *CryptoJob<KeyExportTraits>::params(),
-                &out_)) {
-      case WebCryptoKeyExportStatus::OK:
-        // Success!
-        break;
-      case WebCryptoKeyExportStatus::INVALID_KEY_TYPE:
-        // Fall through
-        // TODO(@jasnell): Separate error for this
-      case WebCryptoKeyExportStatus::FAILED: {
-        CryptoErrorVector* errors = CryptoJob<KeyExportTraits>::errors();
-        errors->Capture();
-        if (errors->empty())
-          errors->push_back("Key export failed.");
+    const WebCryptoKeyExportStatus status =
+        KeyExportTraits::DoExport(
+            key_,
+            format_,
+            *CryptoJob<KeyExportTraits>::params(),
+            &out_);
+    if (status == WebCryptoKeyExportStatus::OK) {
+      // Success!
+      return;
+    }
+    CryptoErrorStore* errors = CryptoJob<KeyExportTraits>::errors();
+    errors->Capture();
+    if (errors->Empty()) {
+      switch (status) {
+        case WebCryptoKeyExportStatus::OK:
+          UNREACHABLE();
+          break;
+        case WebCryptoKeyExportStatus::INVALID_KEY_TYPE:
+          errors->Insert(NodeCryptoError::INVALID_KEY_TYPE);
+          break;
+        case WebCryptoKeyExportStatus::FAILED:
+          errors->Insert(NodeCryptoError::CIPHER_JOB_FAILED);
+          break;
       }
     }
   }
@@ -358,17 +365,17 @@ class KeyExportJob final : public CryptoJob<KeyExportTraits> {
       v8::Local<v8::Value>* err,
       v8::Local<v8::Value>* result) override {
     Environment* env = AsyncWrap::env();
-    CryptoErrorVector* errors = CryptoJob<KeyExportTraits>::errors();
+    CryptoErrorStore* errors = CryptoJob<KeyExportTraits>::errors();
     if (out_.size() > 0) {
-      CHECK(errors->empty());
+      CHECK(errors->Empty());
       *err = v8::Undefined(env->isolate());
       *result = out_.ToArrayBuffer(env);
       return v8::Just(!result->IsEmpty());
     }
 
-    if (errors->empty())
+    if (errors->Empty())
       errors->Capture();
-    CHECK(!errors->empty());
+    CHECK(!errors->Empty());
     *result = v8::Undefined(env->isolate());
     return v8::Just(errors->ToException(env).ToLocal(err));
   }

@@ -52,12 +52,7 @@ class BuiltinArguments : public JavaScriptArguments {
 
   static constexpr int kNumExtraArgs = 4;
   static constexpr int kNumExtraArgsWithReceiver = 5;
-
-#ifdef V8_REVERSE_JSARGS
   static constexpr int kArgsOffset = 4;
-#else
-  static constexpr int kArgsOffset = 0;
-#endif
 
   inline Handle<Object> atOrUndefined(Isolate* isolate, int index) const;
   inline Handle<Object> receiver() const;

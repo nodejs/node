@@ -305,7 +305,7 @@ void NumberRangeFormatterImpl::formatRange(UFormattedNumberRangeData& data,
             // INNER MODIFIER
             collapseInner = micros1.modInner->semanticallyEquivalent(*micros2.modInner);
 
-            // All done checking for collapsability.
+            // All done checking for collapsibility.
             break;
         }
 
@@ -328,6 +328,7 @@ void NumberRangeFormatterImpl::formatRange(UFormattedNumberRangeData& data,
     #define UPRV_INDEX_1 (lengthPrefix + length1)
     #define UPRV_INDEX_2 (lengthPrefix + length1 + lengthInfix)
     #define UPRV_INDEX_3 (lengthPrefix + length1 + lengthInfix + length2)
+    #define UPRV_INDEX_4 (lengthPrefix + length1 + lengthInfix + length2 + lengthSuffix)
 
     int32_t lengthRange = SimpleModifier::formatTwoArgPattern(
         fRangeFormatter,
@@ -367,31 +368,38 @@ void NumberRangeFormatterImpl::formatRange(UFormattedNumberRangeData& data,
     // TODO: Support padding?
 
     if (collapseInner) {
-        // Note: this is actually a mix of prefix and suffix, but adding to infix length works
         const Modifier& mod = resolveModifierPlurals(*micros1.modInner, *micros2.modInner);
-        lengthInfix += mod.apply(string, UPRV_INDEX_0, UPRV_INDEX_3, status);
+        lengthSuffix += mod.apply(string, UPRV_INDEX_0, UPRV_INDEX_4, status);
+        lengthPrefix += mod.getPrefixLength();
+        lengthSuffix -= mod.getPrefixLength();
     } else {
         length1 += micros1.modInner->apply(string, UPRV_INDEX_0, UPRV_INDEX_1, status);
-        length2 += micros2.modInner->apply(string, UPRV_INDEX_2, UPRV_INDEX_3, status);
+        length2 += micros2.modInner->apply(string, UPRV_INDEX_2, UPRV_INDEX_4, status);
     }
 
     if (collapseMiddle) {
-        // Note: this is actually a mix of prefix and suffix, but adding to infix length works
         const Modifier& mod = resolveModifierPlurals(*micros1.modMiddle, *micros2.modMiddle);
-        lengthInfix += mod.apply(string, UPRV_INDEX_0, UPRV_INDEX_3, status);
+        lengthSuffix += mod.apply(string, UPRV_INDEX_0, UPRV_INDEX_4, status);
+        lengthPrefix += mod.getPrefixLength();
+        lengthSuffix -= mod.getPrefixLength();
     } else {
         length1 += micros1.modMiddle->apply(string, UPRV_INDEX_0, UPRV_INDEX_1, status);
-        length2 += micros2.modMiddle->apply(string, UPRV_INDEX_2, UPRV_INDEX_3, status);
+        length2 += micros2.modMiddle->apply(string, UPRV_INDEX_2, UPRV_INDEX_4, status);
     }
 
     if (collapseOuter) {
-        // Note: this is actually a mix of prefix and suffix, but adding to infix length works
         const Modifier& mod = resolveModifierPlurals(*micros1.modOuter, *micros2.modOuter);
-        lengthInfix += mod.apply(string, UPRV_INDEX_0, UPRV_INDEX_3, status);
+        lengthSuffix += mod.apply(string, UPRV_INDEX_0, UPRV_INDEX_4, status);
+        lengthPrefix += mod.getPrefixLength();
+        lengthSuffix -= mod.getPrefixLength();
     } else {
         length1 += micros1.modOuter->apply(string, UPRV_INDEX_0, UPRV_INDEX_1, status);
-        length2 += micros2.modOuter->apply(string, UPRV_INDEX_2, UPRV_INDEX_3, status);
+        length2 += micros2.modOuter->apply(string, UPRV_INDEX_2, UPRV_INDEX_4, status);
     }
+
+    // Now that all pieces are added, save the span info.
+    data.appendSpanInfo(UFIELD_CATEGORY_NUMBER_RANGE_SPAN, 0, UPRV_INDEX_0, length1, status);
+    data.appendSpanInfo(UFIELD_CATEGORY_NUMBER_RANGE_SPAN, 1, UPRV_INDEX_2, length2, status);
 }
 
 

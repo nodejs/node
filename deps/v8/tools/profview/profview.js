@@ -216,6 +216,14 @@ const bucketDescriptors =
         color : "#64dd17",
         backgroundColor : "#80e27e",
         text : "JS Optimized" },
+      { kinds : [ "JSNCI" ],
+        color : "#3289a8",
+        backgroundColor : "#3289a8",
+        text : "JS NCI" },
+      { kinds : [ "JSTURBOPROP" ],
+        color : "#693eb8",
+        backgroundColor : "#a6c452",
+        text : "JS Turboprop" },
       { kinds : [ "JSUNOPT", "BC" ],
         color : "#dd2c00",
         backgroundColor : "#ff9e80",
@@ -308,6 +316,10 @@ function codeTypeToText(type) {
       return "RegExp";
     case "JSOPT":
       return "JS opt";
+    case "JSNCI":
+      return "JS NCI";
+    case "JSTURBOPROP":
+      return "JS Turboprop";
     case "JSUNOPT":
       return "JS unopt";
   }
@@ -1275,15 +1287,27 @@ class SummaryView {
 
     addRow("Total function count:", stats.functionCount);
     addRow("Optimized function count:", stats.optimizedFunctionCount, 1);
+    if (stats.turbopropOptimizedFunctionCount != 0) {
+      addRow("Turboprop optimized function count:", stats.turbopropOptimizedFunctionCount, 1);
+    }
     addRow("Deoptimized function count:", stats.deoptimizedFunctionCount, 2);
 
     addExpandableRow("Optimization count:", stats.optimizations, 0, "opt");
+    if (stats.turbopropOptimizedFunctionCount != 0) {
+      addExpandableRow("Turboprop Optimization count:", stats.turbopropOptimizations, 0, "tp");
+    }
     let deoptCount = stats.eagerDeoptimizations.count +
         stats.softDeoptimizations.count + stats.lazyDeoptimizations.count;
     addRow("Deoptimization count:", deoptCount);
     addExpandableRow("Eager:", stats.eagerDeoptimizations, 1, "eager");
     addExpandableRow("Lazy:", stats.lazyDeoptimizations, 1, "lazy");
     addExpandableRow("Soft:", stats.softDeoptimizations, 1, "soft");
+    if (stats.softBailouts.count != 0) {
+      addExpandableRow("SoftBailout:", stats.softBailouts, 1, "softbailout");
+    }
+    if (stats.eagerBailouts.count != 0) {
+      addExpandableRow("EagerBailout:", stats.eagerBailouts, 1, "eagerbailout");
+    }
 
     table.appendChild(rows);
     this.element.appendChild(table);
@@ -1369,6 +1393,7 @@ class SourceData {
     for (let i = 0; i < file.scripts.length; i++) {
       const scriptBlock = file.scripts[i];
       if (scriptBlock === null) continue; // Array may be sparse.
+      if (scriptBlock.source === undefined) continue;
       let source = scriptBlock.source.split("\n");
       this.scripts.set(i, source);
     }

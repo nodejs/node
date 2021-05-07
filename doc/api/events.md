@@ -849,6 +849,10 @@ const { getEventListeners, EventEmitter } = require('events');
 added:
  - v11.13.0
  - v10.16.0
+changes:
+  - version: v15.0.0
+    pr-url: https://github.com/nodejs/node/pull/34912
+    description: The `signal` option is supported now.
 -->
 
 * `emitter` {EventEmitter}
@@ -1137,6 +1141,9 @@ setMaxListeners(5, target, emitter);
 <!-- YAML
 added: v14.5.0
 changes:
+  - version: v16.0.0
+    pr-url: https://github.com/nodejs/node/pull/37237
+    description: changed EventTarget error handling.
   - version: v15.4.0
     pr-url: https://github.com/nodejs/node/pull/35949
     description: No longer experimental.
@@ -1148,8 +1155,6 @@ changes:
 
 The `EventTarget` and `Event` objects are a Node.js-specific implementation
 of the [`EventTarget` Web API][] that are exposed by some Node.js core APIs.
-Neither the `EventTarget` nor `Event` classes are available for end
-user code to create.
 
 ```js
 const target = new EventTarget();
@@ -1249,12 +1254,21 @@ target.addEventListener('foo', handler4, { once: true });
 ### `EventTarget` error handling
 
 When a registered event listener throws (or returns a Promise that rejects),
-by default the error is forwarded to the `process.on('error')` event
-on `process.nextTick()`. Throwing within an event listener will *not* stop
-the other registered handlers from being invoked.
+by default the error is treated as an uncaught exception on
+`process.nextTick()`. This means uncaught exceptions in `EventTarget`s will
+terminate the Node.js process by default.
 
-The `EventTarget` does not implement any special default handling for
-`'error'` type events.
+Throwing within an event listener will *not* stop the other registered handlers
+from being invoked.
+
+The `EventTarget` does not implement any special default handling for `'error'`
+type events like `EventEmitter`.
+
+Currently errors are first forwarded to the `process.on('error')` event
+before reaching `process.on('uncaughtException')`. This behavior is
+deprecated and will change in a future release to align `EventTarget` with
+other Node.js APIs. Any code relying on the `process.on('error')` event should
+be aligned with the new behavior.
 
 ### Class: `Event`
 <!-- YAML
@@ -1344,10 +1358,10 @@ This is not used in Node.js and is provided purely for completeness.
 added: v14.5.0
 -->
 
-* Type: {boolean} True for Node.js internal events, false otherwise.
+* Type: {boolean}
 
-Currently only `AbortSignal`s' `"abort"` event is fired with `isTrusted`
-set to `true`.
+The {AbortSignal} `"abort"` event is emitted with `isTrusted` set to `true`. The
+value is `false` in all other cases.
 
 #### `event.preventDefault()`
 <!-- YAML

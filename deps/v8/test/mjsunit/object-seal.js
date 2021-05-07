@@ -520,7 +520,7 @@ assertDoesNotThrow(function() {
   });
 });
 obj.propertyA = 42;
-assertEquals(obj.propertyA, 42);
+assertEquals(obj, obj.propertyA);
 assertThrows(function() {
   Object.defineProperty(obj, 'abc', {
     value: obj,
@@ -683,7 +683,7 @@ assertDoesNotThrow(function() {
   });
 });
 obj.propertyA = 42;
-assertEquals(obj.propertyA, 42);
+assertEquals(obj, obj.propertyA);
 assertThrows(function() {
   Object.defineProperty(obj, 'abc', {
     value: obj,
@@ -967,7 +967,7 @@ assertDoesNotThrow(function() {
   });
 });
 obj.propertyA = 42;
-assertEquals(obj.propertyA, 42);
+assertEquals(obj, obj.propertyA);
 assertThrows(function() {
   Object.defineProperty(obj, 'abc', {
     value: obj,
@@ -1121,7 +1121,7 @@ assertDoesNotThrow(function() {
   });
 });
 obj.propertyA = 42;
-assertEquals(obj.propertyA, 42);
+assertEquals(obj, obj.propertyA);
 assertThrows(function() {
   Object.defineProperty(obj, 'abc', {
     value: obj,

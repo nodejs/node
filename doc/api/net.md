@@ -69,8 +69,8 @@ IP subnets.
 added: v15.0.0
 -->
 
-* `address` {string} An IPv4 or IPv6 address.
-* `type` {string} Either `'ipv4'` or `'ipv6'`. **Default**: `'ipv4'`.
+* `address` {string|net.SocketAddress} An IPv4 or IPv6 address.
+* `type` {string} Either `'ipv4'` or `'ipv6'`. **Default:** `'ipv4'`.
 
 Adds a rule to block the given IP address.
 
@@ -79,9 +79,10 @@ Adds a rule to block the given IP address.
 added: v15.0.0
 -->
 
-* `start` {string} The starting IPv4 or IPv6 address in the range.
-* `end` {string} The ending IPv4 or IPv6 address in the range.
-* `type` {string} Either `'ipv4'` or `'ipv6'`. **Default**: `'ipv4'`.
+* `start` {string|net.SocketAddress} The starting IPv4 or IPv6 address in the
+  range.
+* `end` {string|net.SocketAddress} The ending IPv4 or IPv6 address in the range.
+* `type` {string} Either `'ipv4'` or `'ipv6'`. **Default:** `'ipv4'`.
 
 Adds a rule to block a range of IP addresses from `start` (inclusive) to
 `end` (inclusive).
@@ -91,11 +92,11 @@ Adds a rule to block a range of IP addresses from `start` (inclusive) to
 added: v15.0.0
 -->
 
-* `net` {string} The network IPv4 or IPv6 address.
+* `net` {string|net.SocketAddress} The network IPv4 or IPv6 address.
 * `prefix` {number} The number of CIDR prefix bits. For IPv4, this
   must be a value between `0` and `32`. For IPv6, this must be between
   `0` and `128`.
-* `type` {string} Either `'ipv4'` or `'ipv6'`. **Default**: `'ipv4'`.
+* `type` {string} Either `'ipv4'` or `'ipv6'`. **Default:** `'ipv4'`.
 
 Adds a rule to block a range of IP addresses specified as a subnet mask.
 
@@ -104,8 +105,8 @@ Adds a rule to block a range of IP addresses specified as a subnet mask.
 added: v15.0.0
 -->
 
-* `address` {string} The IP address to check
-* `type` {string} Either `'ipv4'` or `'ipv6'`. **Default**: `'ipv4'`.
+* `address` {string|net.SocketAddress} The IP address to check
+* `type` {string} Either `'ipv4'` or `'ipv6'`. **Default:** `'ipv4'`.
 * Returns: {boolean}
 
 Returns `true` if the given IP address matches any of the rules added to the
@@ -134,6 +135,51 @@ added: v15.0.0
 * Type: {string[]}
 
 The list of rules added to the blocklist.
+
+## Class: `net.SocketAddress`
+<!-- YAML
+added: v15.14.0
+-->
+### `new net.SocketAddress([options])`
+<!-- YAML
+added: v15.14.0
+-->
+
+* `options` {Object}
+  * `address` {string} The network address as either an IPv4 or IPv6 string.
+    **Default**: `'127.0.0.1'` if `family` is `'ipv4'`; `'::'` if `family` is
+    `'ipv6'`.
+  * `family` {string} One of either `'ipv4'` or 'ipv6'`. **Default**: `'ipv4'`.
+  * `flowlabel` {number} An IPv6 flow-label used only if `family` is `'ipv6'`.
+  * `port` {number} An IP port.
+
+### `socketaddress.address`
+<!-- YAML
+added: v15.14.0
+-->
+
+* Type {string}
+
+### `socketaddress.family`
+<!-- YAML
+added: v15.14.0
+-->
+
+* Type {string} Either `'ipv4'` or `'ipv6'`.
+
+### `socketaddress.flowlabel`
+<!-- YAML
+added: v15.14.0
+-->
+
+* Type {number}
+
+### `socketaddress.port`
+<!-- YAML
+added: v15.14.0
+-->
+
+* Type {number}
 
 ## Class: `net.Server`
 <!-- YAML
@@ -324,7 +370,7 @@ Listening on a file descriptor is not supported on Windows.
 <!-- YAML
 added: v0.11.14
 changes:
-  - version: REPLACEME
+  - version: v15.6.0
     pr-url: https://github.com/nodejs/node/pull/36623
     description: AbortSignal support was added.
   - version: v11.4.0
@@ -496,18 +542,25 @@ it to interact with the client.
 ### `new net.Socket([options])`
 <!-- YAML
 added: v0.3.4
+changes:
+  - version: v15.14.0
+    pr-url: https://github.com/nodejs/node/pull/37735
+    description: AbortSignal support was added.
 -->
 
 * `options` {Object} Available options are:
   * `fd` {number} If specified, wrap around an existing socket with
     the given file descriptor, otherwise a new socket will be created.
-  * `allowHalfOpen` {boolean} Indicates whether half-opened TCP connections
-    are allowed. See [`net.createServer()`][] and the [`'end'`][] event
-    for details. **Default:** `false`.
+  * `allowHalfOpen` {boolean} If set to `false`, then the socket will
+    automatically end the writable side when the readable side ends. See
+    [`net.createServer()`][] and the [`'end'`][] event for details. **Default:**
+    `false`.
   * `readable` {boolean} Allow reads on the socket when an `fd` is passed,
     otherwise ignored. **Default:** `false`.
   * `writable` {boolean} Allow writes on the socket when an `fd` is passed,
     otherwise ignored. **Default:** `false`.
+  * `signal` {AbortSignal} An Abort signal that may be used to destroy the
+    socket.
 * Returns: {net.Socket}
 
 Creates a new socket object.
@@ -560,14 +613,14 @@ See also: the return values of `socket.write()`.
 added: v0.1.90
 -->
 
-Emitted when the other end of the socket sends a FIN packet, thus ending the
-readable side of the socket.
+Emitted when the other end of the socket signals the end of transmission, thus
+ending the readable side of the socket.
 
-By default (`allowHalfOpen` is `false`) the socket will send a FIN packet
-back and destroy its file descriptor once it has written out its pending
-write queue. However, if `allowHalfOpen` is set to `true`, the socket will
-not automatically [`end()`][`socket.end()`] its writable side, allowing the
-user to write arbitrary amounts of data. The user must call
+By default (`allowHalfOpen` is `false`) the socket will send an end of
+transmission packet back and destroy its file descriptor once it has written out
+its pending write queue. However, if `allowHalfOpen` is set to `true`, the
+socket will not automatically [`end()`][`socket.end()`] its writable side,
+allowing the user to write arbitrary amounts of data. The user must call
 [`end()`][`socket.end()`] explicitly to close the connection (i.e. sending a
 FIN packet back).
 
@@ -954,6 +1007,12 @@ Set the encoding for the socket as a [Readable Stream][]. See
 ### `socket.setKeepAlive([enable][, initialDelay])`
 <!-- YAML
 added: v0.1.92
+changes:
+  - version:
+    - v13.12.0
+    - v12.17.0
+    pr-url: https://github.com/nodejs/node/pull/32204
+    description: New defaults for `TCP_KEEPCNT` and `TCP_KEEPINTVL` socket options were added.
 -->
 
 * `enable` {boolean} **Default:** `false`
@@ -967,6 +1026,12 @@ Set `initialDelay` (in milliseconds) to set the delay between the last
 data packet received and the first keepalive probe. Setting `0` for
 `initialDelay` will leave the value unchanged from the default
 (or previous) setting.
+
+Enabling the keep-alive functionality will set the following socket options:
+* `SO_KEEPALIVE=1`
+* `TCP_KEEPIDLE=initialDelay`
+* `TCP_KEEPCNT=10`
+* `TCP_KEEPINTVL=1`
 
 ### `socket.setNoDelay([noDelay])`
 <!-- YAML
@@ -1237,22 +1302,15 @@ immediately initiates connection with
 [`socket.connect(port[, host][, connectListener])`][`socket.connect(port)`],
 then returns the `net.Socket` that starts the connection.
 
-## `net.createQuicSocket([options])`
-<!-- YAML
-added: v15.0.0
--->
-
-Creates and returns a new `QuicSocket`. Please refer to the [QUIC documentation][]
-for details.
-
 ## `net.createServer([options][, connectionListener])`
 <!-- YAML
 added: v0.5.0
 -->
 
 * `options` {Object}
-  * `allowHalfOpen` {boolean} Indicates whether half-opened TCP
-    connections are allowed. **Default:** `false`.
+  * `allowHalfOpen` {boolean} If set to `false`, then the socket will
+    automatically end the writable side when the readable side ends.
+    **Default:** `false`.
   * `pauseOnConnect` {boolean} Indicates whether the socket should be
     paused on incoming connections. **Default:** `false`.
 * `connectionListener` {Function} Automatically set as a listener for the
@@ -1262,10 +1320,12 @@ added: v0.5.0
 Creates a new TCP or [IPC][] server.
 
 If `allowHalfOpen` is set to `true`, when the other end of the socket
-sends a FIN packet, the server will only send a FIN packet back when
-[`socket.end()`][] is explicitly called, until then the connection is
-half-closed (non-readable but still writable). See [`'end'`][] event
-and [RFC 1122][half-closed] (section 4.2.2.13) for more information.
+signals the end of transmission, the server will only send back the end of
+transmission when [`socket.end()`][] is explicitly called. For example, in the
+context of TCP, when a FIN packed is received, a FIN packed is sent
+back only when [`socket.end()`][] is explicitly called. Until then the
+connection is half-closed (non-readable but still writable). See [`'end'`][]
+event and [RFC 1122][half-closed] (section 4.2.2.13) for more information.
 
 If `pauseOnConnect` is set to `true`, then the socket associated with each
 incoming connection will be paused, and no data will be read from its handle.
@@ -1352,7 +1412,6 @@ Returns `true` if input is a version 6 IP address, otherwise returns `false`.
 
 [IPC]: #net_ipc_support
 [Identifying paths for IPC connections]: #net_identifying_paths_for_ipc_connections
-[QUIC documentation]: quic.md
 [Readable Stream]: stream.md#stream_class_stream_readable
 [`'close'`]: #net_event_close
 [`'connect'`]: #net_event_connect

@@ -3,6 +3,9 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+if (common.hasOpenSSL3)
+  common.skip('temporarily skipping for OpenSSL 3.0-alpha15');
+
 const assert = require('assert');
 const crypto = require('crypto');
 
@@ -27,7 +30,7 @@ const dsaPkcs8KeyPem = fixtures.readKey('dsa_private_pkcs8.pem');
 
 const ec = new TextEncoder();
 
-const decryptError = {
+const openssl1DecryptError = {
   message: 'error:06065064:digital envelope routines:EVP_DecryptFinal_ex:' +
     'bad decrypt',
   code: 'ERR_OSSL_EVP_BAD_DECRYPT',
@@ -35,6 +38,14 @@ const decryptError = {
   function: 'EVP_DecryptFinal_ex',
   library: 'digital envelope routines',
 };
+
+const decryptError = common.hasOpenSSL3 ?
+  { message: 'error:1C800064:Provider routines::bad decrypt' } :
+  openssl1DecryptError;
+
+const decryptPrivateKeyError = common.hasOpenSSL3 ? {
+  message: 'error:1C800064:Provider routines::bad decrypt',
+} : openssl1DecryptError;
 
 function getBufferCopy(buf) {
   return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
@@ -136,19 +147,25 @@ function getBufferCopy(buf) {
   assert.strictEqual(decryptedBufferWithPassword.toString(), input);
 
   // Now with RSA_NO_PADDING. Plaintext needs to match key size.
-  const plaintext = 'x'.repeat(rsaKeySize / 8);
-  encryptedBuffer = crypto.privateEncrypt({
-    padding: crypto.constants.RSA_NO_PADDING,
-    key: rsaKeyPemEncrypted,
-    passphrase: bufferPassword
-  }, Buffer.from(plaintext));
+  // OpenSSL 3.x has a rsa_check_padding that will cause an error if
+  // RSA_NO_PADDING is used.
+  if (!common.hasOpenSSL3) {
+    {
+      const plaintext = 'x'.repeat(rsaKeySize / 8);
+      encryptedBuffer = crypto.privateEncrypt({
+        padding: crypto.constants.RSA_NO_PADDING,
+        key: rsaKeyPemEncrypted,
+        passphrase: bufferPassword
+      }, Buffer.from(plaintext));
 
-  decryptedBufferWithPassword = crypto.publicDecrypt({
-    padding: crypto.constants.RSA_NO_PADDING,
-    key: rsaKeyPemEncrypted,
-    passphrase: bufferPassword
-  }, encryptedBuffer);
-  assert.strictEqual(decryptedBufferWithPassword.toString(), plaintext);
+      decryptedBufferWithPassword = crypto.publicDecrypt({
+        padding: crypto.constants.RSA_NO_PADDING,
+        key: rsaKeyPemEncrypted,
+        passphrase: bufferPassword
+      }, encryptedBuffer);
+      assert.strictEqual(decryptedBufferWithPassword.toString(), plaintext);
+    }
+  }
 
   encryptedBuffer = crypto.publicEncrypt(certPem, bufferToEncrypt);
 
@@ -343,7 +360,7 @@ rsaSign.update(rsaPubPem);
 assert.throws(() => {
   const signOptions = { key: rsaKeyPemEncrypted, passphrase: 'wrong' };
   rsaSign.sign(signOptions, 'hex');
-}, decryptError);
+}, decryptPrivateKeyError);
 
 //
 // Test RSA signing and verification
@@ -442,7 +459,7 @@ const input = 'I AM THE WALRUS';
   sign.update(input);
   assert.throws(() => {
     sign.sign({ key: dsaKeyPemEncrypted, passphrase: 'wrong' }, 'hex');
-  }, decryptError);
+  }, decryptPrivateKeyError);
 }
 
 {

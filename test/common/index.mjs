@@ -46,7 +46,6 @@ const {
   skipIf32Bits,
   getArrayBufferViews,
   getBufferSources,
-  disableCrashOnUnhandledRejection,
   getTTYfd,
   runWithInvalidFD
 } = common;
@@ -92,7 +91,6 @@ export {
   skipIf32Bits,
   getArrayBufferViews,
   getBufferSources,
-  disableCrashOnUnhandledRejection,
   getTTYfd,
   runWithInvalidFD,
   createRequire

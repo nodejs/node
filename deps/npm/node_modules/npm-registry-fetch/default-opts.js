@@ -1,7 +1,5 @@
 const pkg = require('./package.json')
-const ciDetect = require('@npmcli/ci-detect')
 module.exports = {
-  isFromCI: ciDetect(),
   log: require('./silentlog.js'),
   maxSockets: 12,
   method: 'GET',

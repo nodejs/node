@@ -20,6 +20,9 @@ constexpr size_t kKB = 1024;
 constexpr size_t kMB = kKB * 1024;
 constexpr size_t kGB = kMB * 1024;
 
+// AccessMode used for choosing between atomic and non-atomic accesses.
+enum class AccessMode : uint8_t { kNonAtomic, kAtomic };
+
 // See 6.7.6 (http://eel.is/c++draft/basic.align) for alignment restrictions. We
 // do not fully support all alignment restrictions (following
 // alignof(std​::​max_­align_­t)) but limit to alignof(double).

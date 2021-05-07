@@ -17,7 +17,7 @@ builder.addFunction(undefined, 0 /* sig */).addBodyWithEnd([
   kExprF32Const, 0xf8, 0xf8, 0xf8, 0xf8,
   kSimdPrefix, kExprF32x4Splat,         // f32x4.splat
   kSimdPrefix, kExprF32x4Min, 0x01,     // f32x4.min
-  kSimdPrefix, kExprV32x4AnyTrue, 0x01,  // i32x4.any_true
+  kSimdPrefix, kExprV128AnyTrue, 0x01,  // v128.any_true
   kExprEnd,                             // end @16
 ]);
 builder.addExport('main', 0);

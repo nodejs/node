@@ -85,6 +85,8 @@ class V8_EXPORT_PRIVATE EscapeAnalysisReducer final
  public:
   EscapeAnalysisReducer(Editor* editor, JSGraph* jsgraph,
                         EscapeAnalysisResult analysis_result, Zone* zone);
+  EscapeAnalysisReducer(const EscapeAnalysisReducer&) = delete;
+  EscapeAnalysisReducer& operator=(const EscapeAnalysisReducer&) = delete;
 
   Reduction Reduce(Node* node) override;
   const char* reducer_name() const override { return "EscapeAnalysisReducer"; }
@@ -111,8 +113,6 @@ class V8_EXPORT_PRIVATE EscapeAnalysisReducer final
   NodeHashCache node_cache_;
   ZoneSet<Node*> arguments_elements_;
   Zone* const zone_;
-
-  DISALLOW_COPY_AND_ASSIGN(EscapeAnalysisReducer);
 };
 
 }  // namespace compiler

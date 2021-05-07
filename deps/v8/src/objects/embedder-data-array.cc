@@ -17,7 +17,7 @@ Handle<EmbedderDataArray> EmbedderDataArray::EnsureCapacity(
   DCHECK_LT(index, kMaxLength);
   Handle<EmbedderDataArray> new_array =
       isolate->factory()->NewEmbedderDataArray(index + 1);
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   // Last new space allocation does not require any write barriers.
   size_t size = array->length() * kEmbedderDataSlotSize;
   MemCopy(reinterpret_cast<void*>(new_array->slots_start()),

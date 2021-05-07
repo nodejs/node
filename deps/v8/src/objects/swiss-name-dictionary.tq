@@ -1,0 +1,15 @@
+// Copyright 2021 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/objects/swiss-name-dictionary.h'
+
+@noVerifier
+extern class SwissNameDictionary extends HeapObject {
+  hash: uint32;
+  const capacity: int32;
+  meta_table: ByteArray;
+  data_table[Convert<intptr>(capacity) * 2]: JSAny|TheHole;
+  ctrl_table[Convert<intptr>(capacity) + kSwissNameDictionaryGroupWidth]: uint8;
+  property_details_table[Convert<intptr>(capacity)]: uint8;
+}

@@ -116,9 +116,7 @@ IfInBounds(String, uintptr, uintptr), IfOutOfBounds {
       const index: uintptr = Unsigned(Convert<intptr>(indexSmi));
       // Max string length fits Smi range, so we can do an unsigned bounds
       // check.
-      const kMaxStringLengthFitsSmi: constexpr bool =
-          kStringMaxLengthUintptr < kSmiMaxValue;
-      static_assert(kMaxStringLengthFitsSmi);
+      StaticAssertStringLengthFitsSmi();
       if (index >= length) goto IfOutOfBounds;
       goto IfInBounds(string, index, length);
     }
@@ -139,7 +137,7 @@ transitioning javascript builtin StringPrototypeCharAt(
     GenerateStringAt(receiver, position, 'String.prototype.charAt')
         otherwise IfInBounds, IfOutOfBounds;
   } label IfInBounds(string: String, index: uintptr, _length: uintptr) {
-    const code: int32 = StringCharCodeAt(string, index);
+    const code: char16 = StringCharCodeAt(string, index);
     return StringFromSingleCharCode(code);
   } label IfOutOfBounds {
     return kEmptyString;
@@ -154,7 +152,7 @@ transitioning javascript builtin StringPrototypeCharCodeAt(
     GenerateStringAt(receiver, position, 'String.prototype.charCodeAt')
         otherwise IfInBounds, IfOutOfBounds;
   } label IfInBounds(string: String, index: uintptr, _length: uintptr) {
-    const code: int32 = StringCharCodeAt(string, index);
+    const code: uint32 = StringCharCodeAt(string, index);
     return Convert<Smi>(code);
   } label IfOutOfBounds {
     return kNaN;
@@ -250,7 +248,7 @@ transitioning builtin StringAddConvertRight(implicit context: Context)(
 builtin StringCharAt(implicit context: Context)(
     receiver: String, position: uintptr): String {
   // Load the character code at the {position} from the {receiver}.
-  const code: int32 = StringCharCodeAt(receiver, position);
+  const code: char16 = StringCharCodeAt(receiver, position);
   // And return the single character string with only that {code}
   return StringFromSingleCharCode(code);
 }

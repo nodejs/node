@@ -22,6 +22,7 @@
 #include "node_buffer.h"
 #include "allocated_buffer-inl.h"
 #include "node.h"
+#include "node_blob.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
@@ -302,28 +303,36 @@ MaybeLocal<Object> New(Isolate* isolate,
   if (!StringBytes::Size(isolate, string, enc).To(&length))
     return Local<Object>();
   size_t actual = 0;
-  char* data = nullptr;
+  std::unique_ptr<BackingStore> store;
 
   if (length > 0) {
-    data = UncheckedMalloc(length);
+    store = ArrayBuffer::NewBackingStore(isolate, length);
 
-    if (data == nullptr) {
+    if (UNLIKELY(!store)) {
       THROW_ERR_MEMORY_ALLOCATION_FAILED(isolate);
       return Local<Object>();
     }
 
-    actual = StringBytes::Write(isolate, data, length, string, enc);
+    actual = StringBytes::Write(
+        isolate,
+        static_cast<char*>(store->Data()),
+        length,
+        string,
+        enc);
     CHECK(actual <= length);
 
-    if (actual == 0) {
-      free(data);
-      data = nullptr;
-    } else if (actual < length) {
-      data = node::Realloc(data, actual);
+    if (LIKELY(actual > 0)) {
+      if (actual < length)
+        store = BackingStore::Reallocate(isolate, std::move(store), actual);
+      Local<ArrayBuffer> buf = ArrayBuffer::New(isolate, std::move(store));
+      Local<Object> obj;
+      if (UNLIKELY(!New(isolate, buf, 0, actual).ToLocal(&obj)))
+        return MaybeLocal<Object>();
+      return scope.Escape(obj);
     }
   }
 
-  return scope.EscapeMaybe(New(isolate, data, actual));
+  return scope.EscapeMaybe(New(isolate, 0));
 }
 
 
@@ -1184,6 +1193,7 @@ void Initialize(Local<Object> target,
 
   env->SetMethodNoSideEffect(target, "asciiSlice", StringSlice<ASCII>);
   env->SetMethodNoSideEffect(target, "base64Slice", StringSlice<BASE64>);
+  env->SetMethodNoSideEffect(target, "base64urlSlice", StringSlice<BASE64URL>);
   env->SetMethodNoSideEffect(target, "latin1Slice", StringSlice<LATIN1>);
   env->SetMethodNoSideEffect(target, "hexSlice", StringSlice<HEX>);
   env->SetMethodNoSideEffect(target, "ucs2Slice", StringSlice<UCS2>);
@@ -1191,12 +1201,15 @@ void Initialize(Local<Object> target,
 
   env->SetMethod(target, "asciiWrite", StringWrite<ASCII>);
   env->SetMethod(target, "base64Write", StringWrite<BASE64>);
+  env->SetMethod(target, "base64urlWrite", StringWrite<BASE64URL>);
   env->SetMethod(target, "latin1Write", StringWrite<LATIN1>);
   env->SetMethod(target, "hexWrite", StringWrite<HEX>);
   env->SetMethod(target, "ucs2Write", StringWrite<UCS2>);
   env->SetMethod(target, "utf8Write", StringWrite<UTF8>);
 
   env->SetMethod(target, "getZeroFillToggle", GetZeroFillToggle);
+
+  Blob::Initialize(env, target);
 }
 
 }  // anonymous namespace
@@ -1223,6 +1236,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
   registry->Register(StringSlice<ASCII>);
   registry->Register(StringSlice<BASE64>);
+  registry->Register(StringSlice<BASE64URL>);
   registry->Register(StringSlice<LATIN1>);
   registry->Register(StringSlice<HEX>);
   registry->Register(StringSlice<UCS2>);
@@ -1230,11 +1244,15 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
   registry->Register(StringWrite<ASCII>);
   registry->Register(StringWrite<BASE64>);
+  registry->Register(StringWrite<BASE64URL>);
   registry->Register(StringWrite<LATIN1>);
   registry->Register(StringWrite<HEX>);
   registry->Register(StringWrite<UCS2>);
   registry->Register(StringWrite<UTF8>);
   registry->Register(GetZeroFillToggle);
+
+  Blob::RegisterExternalReferences(registry);
+  FixedSizeBlobCopyJob::RegisterExternalReferences(registry);
 }
 
 }  // namespace Buffer

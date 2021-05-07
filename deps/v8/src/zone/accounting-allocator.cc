@@ -9,6 +9,7 @@
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
+#include "src/base/platform/wrappers.h"
 #include "src/utils/allocation.h"
 #include "src/zone/zone-compression.h"
 #include "src/zone/zone-segment.h"
@@ -109,7 +110,7 @@ void AccountingAllocator::ReturnSegment(Segment* segment,
   if (COMPRESS_ZONES_BOOL && supports_compression) {
     CHECK(FreePages(bounded_page_allocator_.get(), segment, segment_size));
   } else {
-    free(segment);
+    base::Free(segment);
   }
 }
 

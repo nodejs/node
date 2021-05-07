@@ -79,11 +79,11 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(v1, instance.exports.call1(0));
   assertEquals(v2, instance.exports.call1(1));
   assertEquals(v3, instance.exports.call1(2));
-  assertTraps(kTrapFuncInvalid, () => instance.exports.call1(3));
+  assertTraps(kTrapTableOutOfBounds, () => instance.exports.call1(3));
   assertEquals(v1, instance.exports.return_call1(0));
   assertEquals(v2, instance.exports.return_call1(1));
   assertEquals(v3, instance.exports.return_call1(2));
-  assertTraps(kTrapFuncInvalid, () => instance.exports.return_call1(3));
+  assertTraps(kTrapTableOutOfBounds, () => instance.exports.return_call1(3));
 
   // Try to call through the uninitialized table entry.
   assertTraps(kTrapFuncSigMismatch, () => instance.exports.call2(0));

@@ -1,3 +1,8 @@
+<!-- badges/ -->
+[![Build Status](https://secure.travis-ci.org/tim-kos/node-retry.png?branch=master)](http://travis-ci.org/tim-kos/node-retry "Check this project's build status on TravisCI")
+[![codecov](https://codecov.io/gh/tim-kos/node-retry/branch/master/graph/badge.svg)](https://codecov.io/gh/tim-kos/node-retry)
+<!-- /badges -->
+
 # retry
 
 Abstraction for exponential and custom retry strategies for failed operations.
@@ -60,7 +65,8 @@ var operation = retry.operation({
 Creates a new `RetryOperation` object. `options` is the same as `retry.timeouts()`'s `options`, with two additions:
 
 * `forever`: Whether to retry forever, defaults to `false`.
-* `unref`: Wether to [unref](https://nodejs.org/api/timers.html#timers_unref) the setTimeout's, defaults to `false`.
+* `unref`: Whether to [unref](https://nodejs.org/api/timers.html#timers_unref) the setTimeout's, defaults to `false`.
+* `maxRetryTime`: The maximum time (in milliseconds) that the retried operation is allowed to run. Default is `Infinity`.  
 
 ### retry.timeouts([options])
 
@@ -69,7 +75,7 @@ milliseconds. If `options` is an array, a copy of that array is returned.
 
 `options` is a JS object that can contain any of the following keys:
 
-* `retries`: The maximum amount of times to retry the operation. Default is `10`.
+* `retries`: The maximum amount of times to retry the operation. Default is `10`. Seting this to `1` means `do it once, then retry it once`.
 * `factor`: The exponential factor to use. Default is `2`.
 * `minTimeout`: The number of milliseconds before starting the first retry. Default is `1000`.
 * `maxTimeout`: The maximum number of milliseconds between two retries. Default is `Infinity`.
@@ -143,8 +149,10 @@ If `forever` is true, the following changes happen:
 
 #### retryOperation.errors()
 
-Returns an array of all errors that have been passed to
-`retryOperation.retry()` so far.
+Returns an array of all errors that have been passed to `retryOperation.retry()` so far. The
+returning array has the errors ordered chronologically based on when they were passed to
+`retryOperation.retry()`, which means the first passed error is at index zero and the last is
+at the last index.
 
 #### retryOperation.mainError()
 
@@ -184,6 +192,10 @@ the current attempt number.
 #### retryOperation.stop()
 
 Allows you to stop the operation being retried. Useful for aborting the operation on a fatal error etc.
+
+#### retryOperation.reset()
+
+Resets the internal state of the operation object, so that you can call `attempt()` again as if this was a new operation object.
 
 #### retryOperation.attempts()
 

@@ -1106,6 +1106,20 @@ PatternSignType PatternStringUtils::resolveSignDisplay(UNumberSignDisplay signDi
             }
             break;
 
+        case UNUM_SIGN_NEGATIVE:
+        case UNUM_SIGN_ACCOUNTING_NEGATIVE:
+            switch (signum) {
+                case SIGNUM_NEG:
+                    return PATTERN_SIGN_TYPE_NEG;
+                case SIGNUM_NEG_ZERO:
+                case SIGNUM_POS_ZERO:
+                case SIGNUM_POS:
+                    return PATTERN_SIGN_TYPE_POS;
+                default:
+                    break;
+            }
+            break;
+
         case UNUM_SIGN_NEVER:
             return PATTERN_SIGN_TYPE_POS;
 

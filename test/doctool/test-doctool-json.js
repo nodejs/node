@@ -79,7 +79,7 @@ const testData = [
                   name: 'array',
                   type: 'Array'
                 }]
-              }
+              },
             ]
           }],
           type: 'module',
@@ -121,8 +121,7 @@ const testData = [
                   { 'version': 'v4.2.0',
                     'pr-url': 'https://github.com/nodejs/node/pull/3276',
                     'description': 'The `error` parameter can now be ' +
-                      'an arrow function.'
-                  }
+                      'an arrow function.' },
                 ]
               },
               desc: '<p>Describe <code>Foobar II</code> in more detail ' +
@@ -150,11 +149,11 @@ const testData = [
                 'Describe <code>Something</code> in more detail here.</p>',
               type: 'module',
               displayName: 'Something'
-            }
+            },
           ],
           type: 'module',
           displayName: 'Sample Markdown with YAML info'
-        }
+        },
       ]
     }
   },
@@ -171,7 +170,7 @@ const testData = [
             {
               name: 'fullName',
               textRaw: '`Fqhqwhgads.fullName`'
-            }
+            },
           ],
           classMethods: [
             {
@@ -179,18 +178,18 @@ const testData = [
               signatures: [
                 {
                   params: []
-                }
+                },
               ],
               textRaw: 'Static method: `Fhqwhgads.again()`',
               type: 'classMethod'
-            }
+            },
           ],
           classes: [
             {
               textRaw: 'Class: `ComeOn`',
               type: 'class',
               name: 'ComeOn'
-            }
+            },
           ],
           ctors: [
             {
@@ -198,11 +197,11 @@ const testData = [
               signatures: [
                 {
                   params: []
-                }
+                },
               ],
               textRaw: 'Constructor: `new Fhqwhgads()`',
               type: 'ctor'
-            }
+            },
           ],
           methods: [
             {
@@ -210,7 +209,7 @@ const testData = [
               type: 'method',
               name: 'to',
               signatures: [{ params: [] }]
-            }
+            },
           ],
           events: [
             {
@@ -218,14 +217,14 @@ const testData = [
               type: 'event',
               name: 'FHQWHfest',
               params: []
-            }
+            },
           ],
           type: 'module',
           displayName: 'Fhqwhgads'
-        }
+        },
       ]
     }
-  }
+  },
 ];
 
 testData.forEach((item) => {

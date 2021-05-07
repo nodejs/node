@@ -10,6 +10,8 @@ description: Get help on npm
 npm help <term> [<terms..>]
 ```
 
+Note: This command is unaware of workspaces.
+
 ### Description
 
 If supplied a topic, then show the appropriate documentation page.

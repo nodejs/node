@@ -2,11 +2,9 @@
 const MiniPass = require('minipass')
 const Pax = require('./pax.js')
 const Header = require('./header.js')
-const ReadEntry = require('./read-entry.js')
 const fs = require('fs')
 const path = require('path')
 
-const types = require('./types.js')
 const maxReadSize = 16 * 1024 * 1024
 const PROCESS = Symbol('process')
 const FILE = Symbol('file')
@@ -134,12 +132,12 @@ const WriteEntry = warner(class WriteEntry extends MiniPass {
       mtime: this.noMtime ? null : this.mtime || this.stat.mtime,
       type: this.type,
       uname: this.portable ? null :
-        this.stat.uid === this.myuid ? this.myuser : '',
+      this.stat.uid === this.myuid ? this.myuser : '',
       atime: this.portable ? null : this.stat.atime,
-      ctime: this.portable ? null : this.stat.ctime
+      ctime: this.portable ? null : this.stat.ctime,
     })
 
-    if (this.header.encode() && !this.noPax)
+    if (this.header.encode() && !this.noPax) {
       this.write(new Pax({
         atime: this.portable ? null : this.header.atime,
         ctime: this.portable ? null : this.header.ctime,
@@ -152,8 +150,9 @@ const WriteEntry = warner(class WriteEntry extends MiniPass {
         uname: this.portable ? null : this.header.uname,
         dev: this.portable ? null : this.stat.dev,
         ino: this.portable ? null : this.stat.ino,
-        nlink: this.portable ? null : this.stat.nlink
+        nlink: this.portable ? null : this.stat.nlink,
       }).encode())
+    }
     this.write(this.header.block)
   }
 
@@ -256,8 +255,8 @@ const WriteEntry = warner(class WriteEntry extends MiniPass {
     if (bytesRead === remain) {
       for (let i = bytesRead; i < length && bytesRead < blockRemain; i++) {
         buf[i + offset] = 0
-        bytesRead ++
-        remain ++
+        bytesRead++
+        remain++
       }
     }
 
@@ -286,10 +285,6 @@ const WriteEntry = warner(class WriteEntry extends MiniPass {
 })
 
 class WriteEntrySync extends WriteEntry {
-  constructor (path, opt) {
-    super(path, opt)
-  }
-
   [LSTAT] () {
     this[ONLSTAT](fs.lstatSync(this.absolute))
   }
@@ -311,8 +306,11 @@ class WriteEntrySync extends WriteEntry {
     } finally {
       // ignoring the error from close(2) is a bad practice, but at
       // this point we already have an error, don't need another one
-      if (threw)
-        try { this[CLOSE](fd, () => {}) } catch (er) {}
+      if (threw) {
+        try {
+          this[CLOSE](fd, () => {})
+        } catch (er) {}
+      }
     }
   }
 
@@ -375,7 +373,7 @@ const WriteEntryTar = warner(class WriteEntryTar extends MiniPass {
       type: this.type,
       uname: this.portable ? null : this.uname,
       atime: this.portable ? null : this.atime,
-      ctime: this.portable ? null : this.ctime
+      ctime: this.portable ? null : this.ctime,
     })
 
     if (pathWarn) {
@@ -385,7 +383,7 @@ const WriteEntryTar = warner(class WriteEntryTar extends MiniPass {
       })
     }
 
-    if (this.header.encode() && !this.noPax)
+    if (this.header.encode() && !this.noPax) {
       super.write(new Pax({
         atime: this.portable ? null : this.atime,
         ctime: this.portable ? null : this.ctime,
@@ -398,8 +396,9 @@ const WriteEntryTar = warner(class WriteEntryTar extends MiniPass {
         uname: this.portable ? null : this.uname,
         dev: this.portable ? null : this.readEntry.dev,
         ino: this.portable ? null : this.readEntry.ino,
-        nlink: this.portable ? null : this.readEntry.nlink
+        nlink: this.portable ? null : this.readEntry.nlink,
       }).encode())
+    }
 
     super.write(this.header.block)
     readEntry.pipe(this)

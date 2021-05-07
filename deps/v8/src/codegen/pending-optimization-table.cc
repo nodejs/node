@@ -38,7 +38,7 @@ void PendingOptimizationTable::PreparedForOptimization(
                        isolate->heap()->pending_optimize_for_test_bytecode()),
                    isolate);
   Handle<Tuple2> tuple = isolate->factory()->NewTuple2(
-      handle(function->shared().GetBytecodeArray(), isolate),
+      handle(function->shared().GetBytecodeArray(isolate), isolate),
       handle(Smi::FromInt(status), isolate), AllocationType::kYoung);
   table =
       ObjectHashTable::Put(table, handle(function->shared(), isolate), tuple);

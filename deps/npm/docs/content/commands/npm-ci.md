@@ -68,4 +68,4 @@ cache:
 ### See Also
 
 * [npm install](/commands/npm-install)
-* [package-locks](/configuring-npm/package-locks)
+* [package-lock.json](/configuring-npm/package-lock-json)

@@ -68,7 +68,7 @@ const perfCompiledFramesArgs = [
 ];
 
 const perfArgsList = [
-  perfInterpretedFramesArgs, perfCompiledFramesArgs
+  perfInterpretedFramesArgs, perfCompiledFramesArgs,
 ];
 
 const perfScriptArgs = [

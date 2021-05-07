@@ -26,6 +26,8 @@ class BigInt;
 class ValueDeserializer;
 class ValueSerializer;
 
+#include "torque-generated/src/objects/bigint-tq.inc"
+
 // BigIntBase is just the raw data object underlying a BigInt. Use with care!
 // Most code should be using BigInts instead.
 class BigIntBase : public PrimitiveHeapObject {

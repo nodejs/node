@@ -297,6 +297,8 @@ const char* X509ErrorCode(long err) {  // NOLINT(runtime/int)
   const char* code = "UNSPECIFIED";
 #define CASE_X509_ERR(CODE) case X509_V_ERR_##CODE: code = #CODE; break;
   switch (err) {
+    // if you modify anything in here, *please* update the respective section in
+    // doc/api/tls.md as well
     CASE_X509_ERR(UNABLE_TO_GET_ISSUER_CERT)
     CASE_X509_ERR(UNABLE_TO_GET_CRL)
     CASE_X509_ERR(UNABLE_TO_DECRYPT_CERT_SIGNATURE)
@@ -478,8 +480,16 @@ MaybeLocal<Object> GetLastIssuedCert(
       return MaybeLocal<Object>();
     issuer_chain = ca_info;
 
+    // Take the value of cert->get() before the call to cert->reset()
+    // in order to compare it to ca after and provide a way to exit this loop
+    // in case it gets stuck.
+    X509* value_before_reset = cert->get();
+
     // Delete previous cert and continue aggregating issuers.
     cert->reset(ca);
+
+    if (value_before_reset == ca)
+      break;
   }
   return MaybeLocal<Object>(issuer_chain);
 }

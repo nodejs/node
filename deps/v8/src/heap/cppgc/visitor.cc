@@ -68,14 +68,19 @@ void ConservativeTracingVisitor::TraceConservativelyIfNeeded(
 
 void ConservativeTracingVisitor::TraceConservativelyIfNeeded(
     HeapObjectHeader& header) {
-  if (!header.IsInConstruction<HeapObjectHeader::AccessMode::kNonAtomic>()) {
-    visitor_.Visit(
-        header.Payload(),
-        {header.Payload(),
-         GlobalGCInfoTable::GCInfoFromIndex(header.GetGCInfoIndex()).trace});
+  if (!header.IsInConstruction<AccessMode::kNonAtomic>()) {
+    VisitFullyConstructedConservatively(header);
   } else {
-    VisitConservatively(header, TraceConservatively);
+    VisitInConstructionConservatively(header, TraceConservatively);
   }
+}
+
+void ConservativeTracingVisitor::VisitFullyConstructedConservatively(
+    HeapObjectHeader& header) {
+  visitor_.Visit(
+      header.Payload(),
+      {header.Payload(),
+       GlobalGCInfoTable::GCInfoFromIndex(header.GetGCInfoIndex()).trace});
 }
 
 }  // namespace internal

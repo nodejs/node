@@ -77,6 +77,7 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
   void DispatchTypedArrayByElementsKind(
       TNode<Word32T> elements_kind, const TypedArraySwitchCase& case_function);
 
+  void AllocateJSTypedArrayExternalPointerEntry(TNode<JSTypedArray> holder);
   void SetJSTypedArrayOnHeapDataPtr(TNode<JSTypedArray> holder,
                                     TNode<ByteArray> base,
                                     TNode<UintPtrT> offset);
@@ -94,6 +95,11 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
                                           TNode<Object> value,
                                           ElementsKind elements_kind,
                                           Label* if_detached);
+  template <typename TValue>
+  void StoreJSTypedArrayElementFromPreparedValue(
+      TNode<Context> context, TNode<JSTypedArray> typed_array,
+      TNode<UintPtrT> index_node, TNode<TValue> value,
+      ElementsKind elements_kind, Label* if_detached);
 };
 
 }  // namespace internal

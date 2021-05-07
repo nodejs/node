@@ -377,8 +377,13 @@ NODEBUG=@
         $(NODEBUG) !
         $(NODEBUG) ! Installation logical names
         $(NODEBUG) !
-        $(NODEBUG) installtop = F$PARSE(staging_instdir,"$(INSTALLTOP)","[]A.;",,"SYNTAX_ONLY,NO_CONCEAL") - ".][000000" - "[000000." - "][" - "]A.;" + ".]"
-        $(NODEBUG) datatop = F$PARSE(staging_datadir,"$(OPENSSLDIR)","[]A.;",,"SYNTAX_ONLY,NO_CONCEAL") - ".][000000" - "[000000." - "][" - "]A.;" + ".]"
+        $(NODEBUG) ! This also creates a few DCL variables that are used for
+        $(NODEBUG) ! the "install_msg" target.
+        $(NODEBUG) !
+        $(NODEBUG) installroot = F$PARSE(staging_instdir,"$(INSTALLTOP)","[]A.;",,"SYNTAX_ONLY,NO_CONCEAL") - ".][000000" - "[000000." - "][" - "]A.;"
+        $(NODEBUG) installtop = installroot + ".]"
+        $(NODEBUG) dataroot = F$PARSE(staging_datadir,"$(OPENSSLDIR)","[]A.;",,"SYNTAX_ONLY,NO_CONCEAL") - ".][000000" - "[000000." - "][" - "]A.;"
+        $(NODEBUG) datatop = dataroot + ".]"
         $(NODEBUG) DEFINE ossl_installroot 'installtop'
         $(NODEBUG) DEFINE ossl_dataroot 'datatop'
         $(NODEBUG) !
@@ -455,30 +460,19 @@ list-tests :
         @ WRITE SYS$OUTPUT "Tests are not supported with your chosen Configure options"
         @ ! {- output_on() if !$disabled{tests}; "" -}
 
-install : install_sw install_ssldirs install_docs
+install : install_sw install_ssldirs install_docs install_msg
+        @ !
+
+install_msg :
         @ WRITE SYS$OUTPUT ""
         @ WRITE SYS$OUTPUT "######################################################################"
         @ WRITE SYS$OUTPUT ""
         @ IF "$(DESTDIR)" .EQS. "" THEN -
-             PIPE ( WRITE SYS$OUTPUT "Installation complete" ; -
-                    WRITE SYS$OUTPUT "" ; -
-                    WRITE SYS$OUTPUT "Run @$(SYSTARTUP)openssl_startup{- $osslver -} to set up logical names" ; -
-                    WRITE SYS$OUTPUT "then run @$(SYSTARTUP)openssl_utils{- $osslver -} to define commands" ; -
-                    WRITE SYS$OUTPUT "" )
+             @{- sourcefile("VMS", "msg_install.com") -} "$(SYSTARTUP)" "{- $osslver -}"
         @ IF "$(DESTDIR)" .NES. "" THEN -
-             PIPE ( WRITE SYS$OUTPUT "Staging installation complete" ; -
-                    WRITE SYS$OUTPUT "" ; -
-                    WRITE SYS$OUTPUT "Finish or package in such a way that the contents of the directory tree" ; -
-                    WRITE SYS$OUTPUT staging_instdir ; -
-                    WRITE SYS$OUTPUT "ends up in $(INSTALLTOP)," ; -
-                    WRITE SYS$OUTPUT "and that the contents of the contents of the directory tree" ; -
-                    WRITE SYS$OUTPUT staging_datadir ; -
-                    WRITE SYS$OUTPUT "ends up in $(OPENSSLDIR)" ; -
-                    WRITE SYS$OUTPUT "" ; -
-                    WRITE SYS$OUTPUT "When in its final destination," ; -
-                    WRITE SYS$OUTPUT "Run @$(SYSTARTUP)openssl_startup{- $osslver -} to set up logical names" ; -
-                    WRITE SYS$OUTPUT "then run @$(SYSTARTUP)openssl_utils{- $osslver -} to define commands" ; -
-                    WRITE SYS$OUTPUT "" )
+             @{- sourcefile("VMS", "msg_staging.com") -} -
+             "''installroot']" "''dataroot']" "$(INSTALLTOP)" "$(OPENSSLDIR)" -
+             "$(SYSTARTUP)" "{- $osslver -}"
 
 check_install :
         spawn/nolog @ossl_installroot:[SYSTEST]openssl_ivp{- $osslver -}.com

@@ -148,7 +148,7 @@ the `require.resolve()` function.
 Putting together all of the above, here is the high-level algorithm
 in pseudocode of what `require()` does:
 
-```text
+<pre>
 require(X) from module at path Y
 1. If X is a core module,
    a. return the core module
@@ -210,7 +210,7 @@ LOAD_PACKAGE_IMPORTS(X, DIR)
 2. If no scope was found, return.
 3. If the SCOPE/package.json "imports" is null or undefined, return.
 4. let MATCH = PACKAGE_IMPORTS_RESOLVE(X, pathToFileURL(SCOPE),
-  ["node", "require"]) defined in the ESM resolver.
+  ["node", "require"]) <a href="esm.md#resolver-algorithm-specification">defined in the ESM resolver</a>.
 5. RESOLVE_ESM_MATCH(MATCH).
 
 LOAD_PACKAGE_EXPORTS(X, DIR)
@@ -221,7 +221,7 @@ LOAD_PACKAGE_EXPORTS(X, DIR)
 3. Parse DIR/NAME/package.json, and look for "exports" field.
 4. If "exports" is null or undefined, return.
 5. let MATCH = PACKAGE_EXPORTS_RESOLVE(pathToFileURL(DIR/NAME), "." + SUBPATH,
-   `package.json` "exports", ["node", "require"]) defined in the ESM resolver.
+   `package.json` "exports", ["node", "require"]) <a href="esm.md#resolver-algorithm-specification">defined in the ESM resolver</a>.
 6. RESOLVE_ESM_MATCH(MATCH)
 
 LOAD_PACKAGE_SELF(X, DIR)
@@ -231,7 +231,7 @@ LOAD_PACKAGE_SELF(X, DIR)
 4. If the SCOPE/package.json "name" is not the first segment of X, return.
 5. let MATCH = PACKAGE_EXPORTS_RESOLVE(pathToFileURL(SCOPE),
    "." + X.slice("name".length), `package.json` "exports", ["node", "require"])
-   defined in the ESM resolver.
+   <a href="esm.md#resolver-algorithm-specification">defined in the ESM resolver</a>.
 6. RESOLVE_ESM_MATCH(MATCH)
 
 RESOLVE_ESM_MATCH(MATCH)
@@ -244,7 +244,7 @@ RESOLVE_ESM_MATCH(MATCH)
    a. LOAD_AS_FILE(RESOLVED_PATH)
    b. LOAD_AS_DIRECTORY(RESOLVED_PATH)
 5. THROW "not found"
-```
+</pre>
 
 ## Caching
 
@@ -280,6 +280,12 @@ irrespective of whether or not `./foo` and `./FOO` are the same file.
 ## Core modules
 
 <!--type=misc-->
+<!-- YAML
+changes:
+  - version: v16.0.0
+    pr-url: https://github.com/nodejs/node/pull/37246
+    description: Added `node:` import support to `require(...)`.
+-->
 
 Node.js has several modules compiled into the binary. These modules are
 described in greater detail elsewhere in this documentation.
@@ -290,6 +296,11 @@ The core modules are defined within the Node.js source and are located in the
 Core modules are always preferentially loaded if their identifier is
 passed to `require()`. For instance, `require('http')` will always
 return the built in HTTP module, even if there is a file by that name.
+
+Core modules can also be identified using the `node:` prefix, in which case
+it bypasses the `require` cache. For instance, `require('node:http')` will
+always return the built in HTTP module, even if there is `require.cache` entry
+by that name.
 
 ## Cycles
 
@@ -642,8 +653,20 @@ error.
 
 Adding or replacing entries is also possible. This cache is checked before
 native modules and if a name matching a native module is added to the cache,
-no require call is
-going to receive the native module anymore. Use with care!
+only `node:`-prefixed require calls are going to receive the native module.
+Use with care!
+
+<!-- eslint-disable node-core/no-duplicate-requires -->
+```js
+const assert = require('assert');
+const realFs = require('fs');
+
+const fakeFs = {};
+require.cache.fs = { exports: fakeFs };
+
+assert.strictEqual(require('fs'), fakeFs);
+assert.strictEqual(require('node:fs'), realFs);
+```
 
 #### `require.extensions`
 <!-- YAML
@@ -888,6 +911,14 @@ added: v0.1.16
 The identifier for the module. Typically this is the fully resolved
 filename.
 
+### `module.isPreloading`
+<!-- YAML
+added: v15.4.0
+-->
+
+* Type: {boolean} `true` if the module is running during the Node.js preload
+  phase.
+
 ### `module.loaded`
 <!-- YAML
 added: v0.1.16
@@ -958,7 +989,6 @@ This section was moved to
 <!-- Anchors to make sure old links find a target -->
 * <a id="modules_module_builtinmodules" href="module.html#module_module_builtinmodules">`module.builtinModules`</a>
 * <a id="modules_module_createrequire_filename" href="module.html#module_module_createrequire_filename">`module.createRequire(filename)`</a>
-* <a id="modules_module_createrequirefrompath_filename" href="module.html#module_module_createrequirefrompath_filename">`module.createRequireFromPath(filename)`</a>
 * <a id="modules_module_syncbuiltinesmexports" href="module.html#module_module_syncbuiltinesmexports">`module.syncBuiltinESMExports()`</a>
 
 ## Source map v3 support

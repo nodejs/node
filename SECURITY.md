@@ -26,7 +26,7 @@ maintainers and should also be coordinated through the Node.js Ecosystem
 Security Team via [HackerOne](https://hackerone.com/nodejs-ecosystem).
 
 Details regarding this process can be found in the
-[Security Working Group repository](https://github.com/nodejs/security-wg/blob/master/processes/third_party_vuln_process.md).
+[Security Working Group repository](https://github.com/nodejs/security-wg/blob/HEAD/processes/third_party_vuln_process.md).
 
 Thank you for improving the security of Node.js and its ecosystem. Your efforts
 and responsible disclosure are greatly appreciated and will be acknowledged.

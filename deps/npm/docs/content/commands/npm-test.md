@@ -14,7 +14,28 @@ aliases: t, tst
 
 ### Description
 
-This runs a package's "test" script, if one was provided.
+This runs a predefined command specified in the `"test"` property of
+a package's `"scripts"` object.
+
+### Example
+
+```json
+{
+  "scripts": {
+    "test": "node test.js"
+  }
+}
+```
+
+```bash
+npm test
+> npm@x.x.x test
+> node test.js
+
+(test.js output would be here)
+```
+
+
 
 ### See Also
 

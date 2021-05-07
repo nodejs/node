@@ -155,7 +155,7 @@ section if a custom port is used.
   '4.4.4.4',
   '2001:4860:4860::8888',
   '4.4.4.4:1053',
-  '[2001:4860:4860::8888]:1053'
+  '[2001:4860:4860::8888]:1053',
 ]
 ```
 
@@ -450,7 +450,7 @@ added: v15.0.0
 Uses the DNS protocol to resolve `CAA` records for the `hostname`. The
 `addresses` argument passed to the `callback` function
 will contain an array of certification authority authorization records
-available for the `hostname` (e.g. `[{critial: 0, iodef:
+available for the `hostname` (e.g. `[{critical: 0, iodef:
 'mailto:pki@example.com'}, {critical: 128, issue: 'pki.example.com'}]`).
 
 ## `dns.resolveMx(hostname, callback)`
@@ -645,7 +645,7 @@ dns.setServers([
   '4.4.4.4',
   '[2001:4860:4860::8888]',
   '4.4.4.4:1053',
-  '[2001:4860:4860::8888]:1053'
+  '[2001:4860:4860::8888]:1053',
 ]);
 ```
 
@@ -755,7 +755,7 @@ section if a custom port is used.
   '4.4.4.4',
   '2001:4860:4860::8888',
   '4.4.4.4:1053',
-  '[2001:4860:4860::8888]:1053'
+  '[2001:4860:4860::8888]:1053',
 ]
 ```
 
@@ -968,7 +968,7 @@ added: v15.0.0
 Uses the DNS protocol to resolve `CAA` records for the `hostname`. On success,
 the `Promise` is resolved with an array of objects containing available
 certification authority authorization records available for the `hostname`
-(e.g. `[{critial: 0, iodef: 'mailto:pki@example.com'},{critical: 128, issue:
+(e.g. `[{critical: 0, iodef: 'mailto:pki@example.com'},{critical: 128, issue:
 'pki.example.com'}]`).
 
 ### `dnsPromises.resolveCname(hostname)`
@@ -1148,7 +1148,7 @@ dnsPromises.setServers([
   '4.4.4.4',
   '[2001:4860:4860::8888]',
   '4.4.4.4:1053',
-  '[2001:4860:4860::8888]:1053'
+  '[2001:4860:4860::8888]:1053',
 ]);
 ```
 

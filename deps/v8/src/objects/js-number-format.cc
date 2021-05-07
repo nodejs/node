@@ -389,17 +389,17 @@ Handle<String> CurrencySignString(Isolate* isolate,
 Handle<String> UnitDisplayString(Isolate* isolate,
                                  const icu::UnicodeString& skeleton) {
   // Ex: skeleton as
-  // "measure-unit/length-meter .### rounding-mode-half-up unit-width-full-name"
+  // "unit/length-meter .### rounding-mode-half-up unit-width-full-name"
   if (skeleton.indexOf("unit-width-full-name") >= 0) {
     return ReadOnlyRoots(isolate).long_string_handle();
   }
   // Ex: skeleton as
-  // "measure-unit/length-meter .### rounding-mode-half-up unit-width-narrow".
+  // "unit/length-meter .### rounding-mode-half-up unit-width-narrow".
   if (skeleton.indexOf("unit-width-narrow") >= 0) {
     return ReadOnlyRoots(isolate).narrow_string_handle();
   }
   // Ex: skeleton as
-  // "measure-unit/length-foot .### rounding-mode-half-up"
+  // "unit/length-foot .### rounding-mode-half-up"
   return ReadOnlyRoots(isolate).short_string_handle();
 }
 
@@ -422,7 +422,7 @@ Notation NotationFromSkeleton(const icu::UnicodeString& skeleton) {
     return Notation::COMPACT;
   }
   // Ex: skeleton as
-  // "measure-unit/length-foot .### rounding-mode-half-up"
+  // "unit/length-foot .### rounding-mode-half-up"
   return Notation::STANDARD;
 }
 
@@ -562,14 +562,14 @@ namespace {
 
 // Ex: percent .### rounding-mode-half-up
 // Special case for "percent"
-// Ex: "measure-unit/length-kilometer per-measure-unit/duration-hour .###
-// rounding-mode-half-up" should return "kilometer-per-unit".
-// Ex: "measure-unit/duration-year .### rounding-mode-half-up" should return
+// Ex: "unit/milliliter-per-acre .### rounding-mode-half-up"
+// should return "milliliter-per-acre".
+// Ex: "unit/year .### rounding-mode-half-up" should return
 // "year".
 std::string UnitFromSkeleton(const icu::UnicodeString& skeleton) {
   std::string str;
   str = skeleton.toUTF8String<std::string>(str);
-  std::string search("measure-unit/");
+  std::string search("unit/");
   size_t begin = str.find(search);
   if (begin == str.npos) {
     // Special case for "percent".
@@ -578,64 +578,44 @@ std::string UnitFromSkeleton(const icu::UnicodeString& skeleton) {
     }
     return "";
   }
-  // Skip the type (ex: "length").
-  // "measure-unit/length-kilometer per-measure-unit/duration-hour"
-  //                     b
-  begin = str.find("-", begin + search.size());
+  // Ex:
+  // "unit/acre .### rounding-mode-half-up"
+  //       b
+  // Ex:
+  // "unit/milliliter-per-acre .### rounding-mode-half-up"
+  //       b
+  begin += search.size();
   if (begin == str.npos) {
     return "";
   }
-  begin++;  // Skip the '-'.
   // Find the end of the subtype.
   size_t end = str.find(" ", begin);
-  // "measure-unit/length-kilometer per-measure-unit/duration-hour"
-  //                      b        e
-  if (end == str.npos) {
-    end = str.size();
-    return str.substr(begin, end - begin);
-  }
-  // "measure-unit/length-kilometer per-measure-unit/duration-hour"
-  //                      b        e
-  //                      [result ]
-  std::string result = str.substr(begin, end - begin);
-  begin = end + 1;
-  // "measure-unit/length-kilometer per-measure-unit/duration-hour"
-  //                      [result ]eb
-  std::string search_per("per-measure-unit/");
-  begin = str.find(search_per, begin);
-  // "measure-unit/length-kilometer per-measure-unit/duration-hour"
-  //                      [result ]e                 b
-  if (begin == str.npos) {
-    return result;
-  }
-  // Skip the type (ex: "duration").
-  begin = str.find("-", begin + search_per.size());
-  // "measure-unit/length-kilometer per-measure-unit/duration-hour"
-  //                      [result ]e                         b
-  if (begin == str.npos) {
-    return result;
-  }
-  begin++;  // Skip the '-'.
-  // "measure-unit/length-kilometer per-measure-unit/duration-hour"
-  //                      [result ]e                          b
-  end = str.find(" ", begin);
+  // Ex:
+  // "unit/acre .### rounding-mode-half-up"
+  //       b   e
+  // Ex:
+  // "unit/milliliter-per-acre .### rounding-mode-half-up"
+  //       b                  e
   if (end == str.npos) {
     end = str.size();
   }
-  // "measure-unit/length-kilometer per-measure-unit/duration-hour"
-  //                      [result ]                           b   e
-  return result + "-per-" + str.substr(begin, end - begin);
+  return str.substr(begin, end - begin);
 }
 
 Style StyleFromSkeleton(const icu::UnicodeString& skeleton) {
   if (skeleton.indexOf("currency/") >= 0) {
     return Style::CURRENCY;
   }
-  if (skeleton.indexOf("measure-unit/") >= 0) {
-    if (skeleton.indexOf("scale/100") >= 0 &&
-        skeleton.indexOf("measure-unit/concentr-percent") >= 0) {
+  if (skeleton.indexOf("percent") >= 0) {
+    // percent precision-integer rounding-mode-half-up scale/100
+    if (skeleton.indexOf("scale/100") >= 0) {
       return Style::PERCENT;
+    } else {
+      return Style::UNIT;
     }
+  }
+  // Before ICU68: "measure-unit/", since ICU68 "unit/"
+  if (skeleton.indexOf("unit/") >= 0) {
     return Style::UNIT;
   }
   return Style::DECIMAL;
@@ -1233,7 +1213,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   // Now all properties are ready, so we can allocate the result object.
   Handle<JSNumberFormat> number_format = Handle<JSNumberFormat>::cast(
       isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   number_format->set_locale(*locale_str);
 
   number_format->set_icu_number_formatter(*managed_number_formatter);

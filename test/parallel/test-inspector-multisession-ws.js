@@ -37,7 +37,7 @@ async function setupSession(node) {
       'params': { 'interval': 100 } },
     { 'method': 'Debugger.setBlackboxPatterns',
       'params': { 'patterns': [] } },
-    { 'method': 'Runtime.runIfWaitingForDebugger' }
+    { 'method': 'Runtime.runIfWaitingForDebugger' },
   ]);
   return session;
 }
@@ -56,7 +56,7 @@ async function testSuspend(sessionA, sessionB) {
   sessionA.send({ 'method': 'Debugger.pause' });
   return Promise.all([
     sessionA.waitForNotification('Debugger.paused', 'SessionA paused'),
-    sessionB.waitForNotification('Debugger.paused', 'SessionB paused')
+    sessionB.waitForNotification('Debugger.paused', 'SessionB paused'),
   ]);
 }
 

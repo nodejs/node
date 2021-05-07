@@ -80,10 +80,12 @@ class TrapHandlerTest : public TestWithIsolate,
                         public ::testing::WithParamInterface<TrapHandlerStyle> {
  protected:
   void SetUp() override {
+    InstallFallbackHandler();
+    SetupTrapHandler(GetParam());
     backing_store_ = BackingStore::AllocateWasmMemory(i_isolate(), 1, 1,
                                                       SharedFlag::kNotShared);
     CHECK(backing_store_);
-    CHECK(backing_store_->has_guard_regions());
+    EXPECT_TRUE(backing_store_->has_guard_regions());
     // The allocated backing store ends with a guard page.
     crash_address_ = reinterpret_cast<Address>(backing_store_->buffer_start()) +
                      backing_store_->byte_length() + 32;
@@ -92,7 +94,9 @@ class TrapHandlerTest : public TestWithIsolate,
                                       GetRandomMmapAddr());
 
     InitRecoveryCode();
+  }
 
+  void InstallFallbackHandler() {
 #if V8_OS_LINUX || V8_OS_MACOSX || V8_OS_FREEBSD
     // Set up a signal handler to recover from the expected crash.
     struct sigaction action;
@@ -100,11 +104,11 @@ class TrapHandlerTest : public TestWithIsolate,
     sigemptyset(&action.sa_mask);
     action.sa_flags = SA_SIGINFO;
     // SIGSEGV happens for wasm oob memory accesses on Linux.
-    CHECK_EQ(0, sigaction(SIGSEGV, &action, &g_old_segv_action));
+    EXPECT_EQ(0, sigaction(SIGSEGV, &action, &g_old_segv_action));
     // SIGBUS happens for wasm oob memory accesses on macOS.
-    CHECK_EQ(0, sigaction(SIGBUS, &action, &g_old_bus_action));
+    EXPECT_EQ(0, sigaction(SIGBUS, &action, &g_old_bus_action));
     // SIGFPE to simulate crashes which are not handled by the trap handler.
-    CHECK_EQ(0, sigaction(SIGFPE, &action, &g_old_fpe_action));
+    EXPECT_EQ(0, sigaction(SIGFPE, &action, &g_old_fpe_action));
 #elif V8_OS_WIN
     g_registered_handler =
         AddVectoredExceptionHandler(/*first=*/0, TestHandler);
@@ -113,7 +117,7 @@ class TrapHandlerTest : public TestWithIsolate,
 
   void TearDown() override {
     // We should always have left wasm code.
-    CHECK(!GetThreadInWasmFlag());
+    EXPECT_TRUE(!GetThreadInWasmFlag());
     buffer_.reset();
     recovery_buffer_.reset();
     backing_store_.reset();
@@ -124,9 +128,9 @@ class TrapHandlerTest : public TestWithIsolate,
 #if V8_OS_LINUX || V8_OS_MACOSX || V8_OS_FREEBSD
       // The test handler cleans up the signal handler setup in the test. If the
       // test handler was not called, we have to do the cleanup ourselves.
-      CHECK_EQ(0, sigaction(SIGSEGV, &g_old_segv_action, nullptr));
-      CHECK_EQ(0, sigaction(SIGFPE, &g_old_fpe_action, nullptr));
-      CHECK_EQ(0, sigaction(SIGBUS, &g_old_bus_action, nullptr));
+      EXPECT_EQ(0, sigaction(SIGSEGV, &g_old_segv_action, nullptr));
+      EXPECT_EQ(0, sigaction(SIGFPE, &g_old_fpe_action, nullptr));
+      EXPECT_EQ(0, sigaction(SIGBUS, &g_old_bus_action, nullptr));
 #elif V8_OS_WIN
       RemoveVectoredExceptionHandler(g_registered_handler);
       g_registered_handler = nullptr;
@@ -196,13 +200,13 @@ class TrapHandlerTest : public TestWithIsolate,
   }
 #endif
 
- public:
   void SetupTrapHandler(TrapHandlerStyle style) {
     bool use_default_handler = style == kDefault;
     g_use_as_first_chance_handler = !use_default_handler;
     CHECK(v8::V8::EnableWebAssemblyTrapHandler(use_default_handler));
   }
 
+ public:
   void GenerateSetThreadInWasmFlagCode(MacroAssembler* masm) {
     masm->Move(scratch,
                i_isolate()->thread_local_top()->thread_in_wasm_flag_address_,
@@ -228,21 +232,21 @@ class TrapHandlerTest : public TestWithIsolate,
     GeneratedCode<void>::FromAddress(
         i_isolate(), reinterpret_cast<Address>(buffer_->start()))
         .Call();
-    CHECK(!g_test_handler_executed);
+    EXPECT_FALSE(g_test_handler_executed);
   }
 
   // Execute the code in buffer. We expect a crash which we recover from in the
   // test handler.
   void ExecuteExpectCrash(TestingAssemblerBuffer* buffer,
                           bool check_wasm_flag = true) {
-    CHECK(!g_test_handler_executed);
+    EXPECT_FALSE(g_test_handler_executed);
     buffer->MakeExecutable();
     GeneratedCode<void>::FromAddress(i_isolate(),
                                      reinterpret_cast<Address>(buffer->start()))
         .Call();
-    CHECK(g_test_handler_executed);
+    EXPECT_TRUE(g_test_handler_executed);
     g_test_handler_executed = false;
-    if (check_wasm_flag) CHECK(!GetThreadInWasmFlag());
+    if (check_wasm_flag) EXPECT_FALSE(GetThreadInWasmFlag());
   }
 
   bool test_handler_executed() { return g_test_handler_executed; }
@@ -281,7 +285,6 @@ TEST_P(TrapHandlerTest, TestTrapHandlerRecovery) {
   CodeDesc desc;
   masm.GetCode(nullptr, &desc);
 
-  SetupTrapHandler(GetParam());
   trap_handler::ProtectedInstructionData protected_instruction{crash_offset,
                                                                recovery_offset};
   trap_handler::RegisterHandlerData(reinterpret_cast<Address>(desc.buffer),
@@ -313,8 +316,6 @@ TEST_P(TrapHandlerTest, TestReleaseHandlerData) {
       reinterpret_cast<Address>(desc.buffer), desc.instr_size, 1,
       &protected_instruction);
 
-  SetupTrapHandler(GetParam());
-
   ExecuteBuffer();
 
   // Deregister from the trap handler. The trap handler should not do the
@@ -344,8 +345,6 @@ TEST_P(TrapHandlerTest, TestNoThreadInWasmFlag) {
   trap_handler::RegisterHandlerData(reinterpret_cast<Address>(desc.buffer),
                                     desc.instr_size, 1, &protected_instruction);
 
-  SetupTrapHandler(GetParam());
-
   ExecuteExpectCrash(buffer_.get());
 }
 
@@ -372,8 +371,6 @@ TEST_P(TrapHandlerTest, TestCrashInWasmNoProtectedInstruction) {
   trap_handler::RegisterHandlerData(reinterpret_cast<Address>(desc.buffer),
                                     desc.instr_size, 1, &protected_instruction);
 
-  SetupTrapHandler(GetParam());
-
   ExecuteExpectCrash(buffer_.get());
 }
 
@@ -399,8 +396,6 @@ TEST_P(TrapHandlerTest, TestCrashInWasmWrongCrashType) {
                                                                recovery_offset};
   trap_handler::RegisterHandlerData(reinterpret_cast<Address>(desc.buffer),
                                     desc.instr_size, 1, &protected_instruction);
-
-  SetupTrapHandler(GetParam());
 
 #if V8_OS_POSIX
   // On Posix, the V8 default trap handler does not register for SIGFPE,
@@ -461,15 +456,13 @@ TEST_P(TrapHandlerTest, TestCrashInOtherThread) {
   trap_handler::RegisterHandlerData(reinterpret_cast<Address>(desc.buffer),
                                     desc.instr_size, 1, &protected_instruction);
 
-  SetupTrapHandler(GetParam());
-
   CodeRunner runner(this, buffer_.get());
-  CHECK(!GetThreadInWasmFlag());
+  EXPECT_FALSE(GetThreadInWasmFlag());
   // Set the thread-in-wasm flag manually in this thread.
   *trap_handler::GetThreadInWasmThreadLocalAddress() = 1;
-  CHECK(runner.Start());
+  EXPECT_TRUE(runner.Start());
   runner.Join();
-  CHECK(GetThreadInWasmFlag());
+  EXPECT_TRUE(GetThreadInWasmFlag());
   // Reset the thread-in-wasm flag.
   *trap_handler::GetThreadInWasmThreadLocalAddress() = 0;
 }

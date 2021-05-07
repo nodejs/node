@@ -29,16 +29,26 @@ class LinkageTailCall : public TestWithZone {
     DCHECK(arraysize(kMachineTypes) >=
            locations->return_count() + locations->parameter_count());
     USE(kMachineTypes);
+    size_t stack_arguments = 0;
+    for (size_t i = 0; i < locations->parameter_count(); ++i) {
+      if (locations->GetParam(i).IsCallerFrameSlot()) stack_arguments++;
+    }
+    size_t stack_returns = 0;
+    for (size_t i = 0; i < locations->return_count(); ++i) {
+      if (locations->GetReturn(i).IsCallerFrameSlot()) stack_returns++;
+    }
     return zone()->New<CallDescriptor>(
         CallDescriptor::kCallCodeObject, MachineType::AnyTagged(),
         LinkageLocation::ForAnyRegister(MachineType::Pointer()),
-        locations,                 // location_sig
-        0,                         // js_parameter_count
+        locations,  // location_sig
+        stack_arguments,
         Operator::kNoProperties,   // properties
         0,                         // callee-saved
         0,                         // callee-saved fp
         CallDescriptor::kNoFlags,  // flags,
-        "");
+        "", StackArgumentOrder::kDefault,
+        0,  // allocatable_registers
+        stack_returns);
   }
 
   LinkageLocation StackLocation(int loc) {

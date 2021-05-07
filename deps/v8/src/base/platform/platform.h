@@ -22,6 +22,7 @@
 #define V8_BASE_PLATFORM_PLATFORM_H_
 
 #include <cstdarg>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -262,7 +263,7 @@ class V8_BASE_EXPORT OS {
 
   static void AdjustSchedulingParams();
 
-  static void ExitProcess(int exit_code);
+  [[noreturn]] static void ExitProcess(int exit_code);
 
  private:
   // These classes use the private memory management API below.
@@ -353,6 +354,8 @@ class V8_BASE_EXPORT Thread {
 
   // Create new thread.
   explicit Thread(const Options& options);
+  Thread(const Thread&) = delete;
+  Thread& operator=(const Thread&) = delete;
   virtual ~Thread();
 
   // Start new thread by calling the Run() method on the new thread.
@@ -382,13 +385,7 @@ class V8_BASE_EXPORT Thread {
   static LocalStorageKey CreateThreadLocalKey();
   static void DeleteThreadLocalKey(LocalStorageKey key);
   static void* GetThreadLocal(LocalStorageKey key);
-  static int GetThreadLocalInt(LocalStorageKey key) {
-    return static_cast<int>(reinterpret_cast<intptr_t>(GetThreadLocal(key)));
-  }
   static void SetThreadLocal(LocalStorageKey key, void* value);
-  static void SetThreadLocalInt(LocalStorageKey key, int value) {
-    SetThreadLocal(key, reinterpret_cast<void*>(static_cast<intptr_t>(value)));
-  }
   static bool HasThreadLocal(LocalStorageKey key) {
     return GetThreadLocal(key) != nullptr;
   }
@@ -426,37 +423,48 @@ class V8_BASE_EXPORT Thread {
   char name_[kMaxThreadNameLength];
   int stack_size_;
   Semaphore* start_semaphore_;
-
-  DISALLOW_COPY_AND_ASSIGN(Thread);
 };
 
 // TODO(v8:10354): Make use of the stack utilities here in V8.
 class V8_BASE_EXPORT Stack {
  public:
+  // Convenience wrapper to use stack slots as unsigned values or void*
+  // pointers.
+  struct StackSlot {
+    // NOLINTNEXTLINE
+    StackSlot(void* value) : value(reinterpret_cast<uintptr_t>(value)) {}
+    StackSlot(uintptr_t value) : value(value) {}  // NOLINT
+
+    // NOLINTNEXTLINE
+    operator void*() const { return reinterpret_cast<void*>(value); }
+    operator uintptr_t() const { return value; }  // NOLINT
+
+    uintptr_t value;
+  };
+
   // Gets the start of the stack of the current thread.
-  static void* GetStackStart();
+  static StackSlot GetStackStart();
 
   // Returns the current stack top. Works correctly with ASAN and SafeStack.
   // GetCurrentStackPosition() should not be inlined, because it works on stack
   // frames if it were inlined into a function with a huge stack frame it would
   // return an address significantly above the actual current stack position.
-  static V8_NOINLINE void* GetCurrentStackPosition();
+  static V8_NOINLINE StackSlot GetCurrentStackPosition();
 
-  // Translates an ASAN-based slot to a real stack slot if necessary.
-  static void* GetStackSlot(void* slot) {
+  // Returns the real stack frame if slot is part of a fake frame, and slot
+  // otherwise.
+  static StackSlot GetRealStackAddressForSlot(StackSlot slot) {
 #ifdef V8_USE_ADDRESS_SANITIZER
-    void* fake_stack = __asan_get_current_fake_stack();
-    if (fake_stack) {
-      void* fake_frame_start;
-      void* real_frame = __asan_addr_is_in_fake_stack(
-          fake_stack, slot, &fake_frame_start, nullptr);
-      if (real_frame) {
-        return reinterpret_cast<void*>(
-            reinterpret_cast<uintptr_t>(real_frame) +
-            (reinterpret_cast<uintptr_t>(slot) -
-             reinterpret_cast<uintptr_t>(fake_frame_start)));
-      }
-    }
+    // ASAN fetches the real stack deeper in the __asan_addr_is_in_fake_stack()
+    // call (precisely, deeper in __asan_stack_malloc_()), which results in a
+    // real frame that could be outside of stack bounds. Adjust for this
+    // impreciseness here.
+    constexpr size_t kAsanRealFrameOffsetBytes = 32;
+    void* real_frame = __asan_addr_is_in_fake_stack(
+        __asan_get_current_fake_stack(), slot, nullptr, nullptr);
+    return real_frame
+               ? (static_cast<char*>(real_frame) + kAsanRealFrameOffsetBytes)
+               : slot;
 #endif  // V8_USE_ADDRESS_SANITIZER
     return slot;
   }

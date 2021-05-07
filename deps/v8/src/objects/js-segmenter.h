@@ -28,6 +28,8 @@ class BreakIterator;
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/js-segmenter-tq.inc"
+
 class JSSegmenter : public TorqueGeneratedJSSegmenter<JSSegmenter, JSObject> {
  public:
   // Creates segmenter object with properties derived from input locales and

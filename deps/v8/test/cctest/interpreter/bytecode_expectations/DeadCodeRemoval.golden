@@ -27,10 +27,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 6
+bytecode array length: 5
 bytecodes: [
   /*   66 S> */ B(LdaSmi), I8(1),
-                B(Star), R(0),
+                B(Star0),
                 B(LdaUndefined),
   /*   69 S> */ B(Return),
 ]
@@ -61,10 +61,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 12
+bytecode array length: 11
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(1),
-                B(Star), R(0),
+                B(Star0),
   /*   45 S> */ B(JumpIfToBooleanFalse), U8(5),
   /*   54 S> */ B(LdaSmi), I8(1),
   /*   63 S> */ B(Return),

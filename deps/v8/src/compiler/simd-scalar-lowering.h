@@ -119,6 +119,16 @@ class SimdScalarLowering {
   MachineType MachineTypeFrom(SimdType simdType);
   void LowerBitMaskOp(Node* node, SimdType rep_type, int msb_index);
   void LowerAllTrueOp(Node* node, SimdType rep_type);
+  void LowerFloatPseudoMinMax(Node* node, const Operator* op, bool is_max,
+                              SimdType type);
+  void LowerExtMul(Node* node, const Operator* op, SimdType output_type,
+                   SimdType input_type, bool low, bool is_signed);
+
+  // Extends node, which is a lowered node of type rep_type, e.g. int8, int16,
+  // int32 to a 32-bit or 64-bit node. node should be a lowered node (i.e. not a
+  // SIMD node). The assumption here is that small ints are stored sign
+  // extended.
+  Node* ExtendNode(Node* node, SimdType rep_type, bool is_signed);
 
   MachineGraph* const mcgraph_;
   NodeMarker<State> state_;

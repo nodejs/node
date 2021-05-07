@@ -9,6 +9,8 @@ description: View packages marked as favorites
 npm stars [<user>]
 ```
 
+Note: This command is unaware of workspaces.
+
 ### Description
 
 If you have starred a lot of neat things and want to find them again

@@ -60,19 +60,10 @@ Handle<JSObject> CallOptimization::LookupHolderOfExpectedType(
   return Handle<JSObject>::null();
 }
 
-bool CallOptimization::IsCompatibleReceiver(Handle<Object> receiver,
-                                            Handle<JSObject> holder) const {
+bool CallOptimization::IsCompatibleReceiverMap(
+    Handle<JSObject> api_holder, Handle<JSObject> holder,
+    HolderLookup holder_lookup) const {
   DCHECK(is_simple_api_call());
-  if (!receiver->IsHeapObject()) return false;
-  Handle<Map> map(HeapObject::cast(*receiver).map(), holder->GetIsolate());
-  return IsCompatibleReceiverMap(map, holder);
-}
-
-
-bool CallOptimization::IsCompatibleReceiverMap(Handle<Map> map,
-                                               Handle<JSObject> holder) const {
-  HolderLookup holder_lookup;
-  Handle<JSObject> api_holder = LookupHolderOfExpectedType(map, &holder_lookup);
   switch (holder_lookup) {
     case kHolderNotFound:
       return false;
@@ -97,9 +88,11 @@ bool CallOptimization::IsCompatibleReceiverMap(Handle<Map> map,
 
 void CallOptimization::Initialize(
     Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info) {
-  if (function_template_info->call_code().IsUndefined(isolate)) return;
+  if (function_template_info->call_code(kAcquireLoad).IsUndefined(isolate))
+    return;
   api_call_info_ = handle(
-      CallHandlerInfo::cast(function_template_info->call_code()), isolate);
+      CallHandlerInfo::cast(function_template_info->call_code(kAcquireLoad)),
+      isolate);
 
   if (!function_template_info->signature().IsUndefined(isolate)) {
     expected_receiver_type_ =
@@ -124,8 +117,9 @@ void CallOptimization::AnalyzePossibleApiFunction(Isolate* isolate,
                                     isolate);
 
   // Require a C++ callback.
-  if (info->call_code().IsUndefined(isolate)) return;
-  api_call_info_ = handle(CallHandlerInfo::cast(info->call_code()), isolate);
+  HeapObject call_code = info->call_code(kAcquireLoad);
+  if (call_code.IsUndefined(isolate)) return;
+  api_call_info_ = handle(CallHandlerInfo::cast(call_code), isolate);
 
   if (!info->signature().IsUndefined(isolate)) {
     expected_receiver_type_ =

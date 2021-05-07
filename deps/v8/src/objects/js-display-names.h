@@ -25,6 +25,8 @@ namespace internal {
 
 class DisplayNamesInternal;
 
+#include "torque-generated/src/objects/js-display-names-tq.inc"
+
 class JSDisplayNames
     : public TorqueGeneratedJSDisplayNames<JSDisplayNames, JSObject> {
  public:

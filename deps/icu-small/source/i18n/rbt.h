@@ -80,7 +80,7 @@ public:
                             UErrorCode& status);*/
 
     /**
-     * Covenience constructor with no filter.
+     * Convenience constructor with no filter.
      * @internal Use transliterator factory methods instead since this class will be removed in that release.
      */
     /*RuleBasedTransliterator(const UnicodeString& id,
@@ -89,7 +89,7 @@ public:
                             UErrorCode& status);*/
 
     /**
-     * Covenience constructor with no filter and FORWARD direction.
+     * Convenience constructor with no filter and FORWARD direction.
      * @internal Use transliterator factory methods instead since this class will be removed in that release.
      */
     /*RuleBasedTransliterator(const UnicodeString& id,
@@ -97,7 +97,7 @@ public:
                             UErrorCode& status);*/
 
     /**
-     * Covenience constructor with FORWARD direction.
+     * Convenience constructor with FORWARD direction.
      * @internal Use transliterator factory methods instead since this class will be removed in that release.
      */
     /*RuleBasedTransliterator(const UnicodeString& id,
@@ -108,7 +108,7 @@ private:
 
      friend class TransliteratorRegistry; // to access TransliterationRuleData convenience ctor
     /**
-     * Covenience constructor.
+     * Convenience constructor.
      * @param id            the id for the transliterator.
      * @param theData       the rule data for the transliterator.
      * @param adoptedFilter the filter for the transliterator

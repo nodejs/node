@@ -2,9 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "test/cctest/test-api.h"
-
 #include "src/api/api-inl.h"
+#include "test/cctest/test-api.h"
 
 using ::v8::Array;
 using ::v8::Context;
@@ -30,8 +29,7 @@ void CheckIsTypedArrayVarDetached(const char* name) {
               "%s.byteLength == 0 && %s.byteOffset == 0 && %s.length == 0",
               name, name, name);
   CHECK(CompileRun(source.begin())->IsTrue());
-  v8::Local<v8::TypedArray> ta =
-      v8::Local<v8::TypedArray>::Cast(CompileRun(name));
+  v8::Local<v8::TypedArray> ta = CompileRun(name).As<v8::TypedArray>();
   CheckIsDetached(ta);
 }
 
@@ -122,7 +120,7 @@ THREADED_TEST(ArrayBuffer_JSInternalToExternal) {
       "var u8_a = new Uint8Array(ab1);"
       "u8_a[0] = 0xAA;"
       "u8_a[1] = 0xFF; u8_a.buffer");
-  Local<v8::ArrayBuffer> ab1 = Local<v8::ArrayBuffer>::Cast(result);
+  Local<v8::ArrayBuffer> ab1 = result.As<v8::ArrayBuffer>();
   CheckInternalFieldsAreZero(ab1);
   CHECK_EQ(2, ab1->ByteLength());
   std::shared_ptr<v8::BackingStore> backing_store = Externalize(ab1);
@@ -272,10 +270,8 @@ THREADED_TEST(ArrayBuffer_DetachingScript) {
       "var f64a = new Float64Array(ab, 8, 127);"
       "var dv = new DataView(ab, 1, 1023);");
 
-  v8::Local<v8::ArrayBuffer> ab =
-      Local<v8::ArrayBuffer>::Cast(CompileRun("ab"));
-
-  v8::Local<v8::DataView> dv = v8::Local<v8::DataView>::Cast(CompileRun("dv"));
+  v8::Local<v8::ArrayBuffer> ab = CompileRun("ab").As<v8::ArrayBuffer>();
+  v8::Local<v8::DataView> dv = CompileRun("dv").As<v8::DataView>();
 
   Externalize(ab);
   ab->Detach();
@@ -424,7 +420,7 @@ THREADED_TEST(SharedArrayBuffer_JSInternalToExternal) {
       "var u8_a = new Uint8Array(ab1);"
       "u8_a[0] = 0xAA;"
       "u8_a[1] = 0xFF; u8_a.buffer");
-  Local<v8::SharedArrayBuffer> ab1 = Local<v8::SharedArrayBuffer>::Cast(result);
+  Local<v8::SharedArrayBuffer> ab1 = result.As<v8::SharedArrayBuffer>();
   CheckInternalFieldsAreZero(ab1);
   CHECK_EQ(2, ab1->ByteLength());
   CHECK(!ab1->IsExternal());

@@ -31,7 +31,7 @@ namespace v8 {
 namespace internal {
 
 Address Code::SafepointTableAddress() const {
-  return InstructionStart() + safepoint_table_offset();
+  return MetadataStart() + safepoint_table_offset();
 }
 
 int Code::safepoint_table_size() const {
@@ -42,7 +42,7 @@ int Code::safepoint_table_size() const {
 bool Code::has_safepoint_table() const { return safepoint_table_size() > 0; }
 
 Address Code::HandlerTableAddress() const {
-  return InstructionStart() + handler_table_offset();
+  return MetadataStart() + handler_table_offset();
 }
 
 int Code::handler_table_size() const {
@@ -62,13 +62,11 @@ int Code::constant_pool_size() const {
 bool Code::has_constant_pool() const { return constant_pool_size() > 0; }
 
 int Code::code_comments_size() const {
-  DCHECK_GE(InstructionSize() - code_comments_offset(), 0);
-  return InstructionSize() - code_comments_offset();
+  DCHECK_GE(unwinding_info_offset() - code_comments_offset(), 0);
+  return unwinding_info_offset() - code_comments_offset();
 }
 
 bool Code::has_code_comments() const { return code_comments_size() > 0; }
-
-int Code::ExecutableInstructionSize() const { return safepoint_table_offset(); }
 
 void Code::ClearEmbeddedObjects(Heap* heap) {
   HeapObject undefined = ReadOnlyRoots(heap).undefined_value();
@@ -93,17 +91,12 @@ void Code::FlushICache() const {
 
 void Code::CopyFromNoFlush(Heap* heap, const CodeDesc& desc) {
   // Copy code.
+  STATIC_ASSERT(kOnHeapBodyIsContiguous);
   CopyBytes(reinterpret_cast<byte*>(raw_instruction_start()), desc.buffer,
             static_cast<size_t>(desc.instr_size));
-
-  // Copy unwinding info, if any.
-  if (desc.unwinding_info) {
-    DCHECK_GT(desc.unwinding_info_size, 0);
-    set_unwinding_info_size(desc.unwinding_info_size);
-    CopyBytes(reinterpret_cast<byte*>(unwinding_info_start()),
-              desc.unwinding_info,
-              static_cast<size_t>(desc.unwinding_info_size));
-  }
+  // TODO(jgruber,v8:11036): Merge with the above.
+  CopyBytes(reinterpret_cast<byte*>(raw_instruction_start() + desc.instr_size),
+            desc.unwinding_info, static_cast<size_t>(desc.unwinding_info_size));
 
   // Copy reloc info.
   CopyRelocInfoToByteArray(unchecked_relocation_info(), desc);
@@ -143,27 +136,58 @@ SafepointEntry Code::GetSafepointEntry(Address pc) {
 
 int Code::OffHeapInstructionSize() const {
   DCHECK(is_off_heap_trampoline());
-  if (Isolate::CurrentEmbeddedBlobCode() == nullptr)
+  if (Isolate::CurrentEmbeddedBlobCode() == nullptr) {
     return raw_instruction_size();
+  }
   EmbeddedData d = EmbeddedData::FromBlob();
   return d.InstructionSizeOfBuiltin(builtin_index());
 }
 
 Address Code::OffHeapInstructionStart() const {
   DCHECK(is_off_heap_trampoline());
-  if (Isolate::CurrentEmbeddedBlobCode() == nullptr)
-    return raw_instruction_start();
+  if (Isolate::CurrentEmbeddedBlobCode() == nullptr) {
+    return raw_instruction_size();
+  }
   EmbeddedData d = EmbeddedData::FromBlob();
   return d.InstructionStartOfBuiltin(builtin_index());
 }
 
 Address Code::OffHeapInstructionEnd() const {
   DCHECK(is_off_heap_trampoline());
-  if (Isolate::CurrentEmbeddedBlobCode() == nullptr)
-    return raw_instruction_end();
+  if (Isolate::CurrentEmbeddedBlobCode() == nullptr) {
+    return raw_instruction_size();
+  }
   EmbeddedData d = EmbeddedData::FromBlob();
   return d.InstructionStartOfBuiltin(builtin_index()) +
          d.InstructionSizeOfBuiltin(builtin_index());
+}
+
+int Code::OffHeapMetadataSize() const {
+  DCHECK(is_off_heap_trampoline());
+  if (Isolate::CurrentEmbeddedBlobCode() == nullptr) {
+    return raw_instruction_size();
+  }
+  EmbeddedData d = EmbeddedData::FromBlob();
+  return d.MetadataSizeOfBuiltin(builtin_index());
+}
+
+Address Code::OffHeapMetadataStart() const {
+  DCHECK(is_off_heap_trampoline());
+  if (Isolate::CurrentEmbeddedBlobCode() == nullptr) {
+    return raw_instruction_size();
+  }
+  EmbeddedData d = EmbeddedData::FromBlob();
+  return d.MetadataStartOfBuiltin(builtin_index());
+}
+
+Address Code::OffHeapMetadataEnd() const {
+  DCHECK(is_off_heap_trampoline());
+  if (Isolate::CurrentEmbeddedBlobCode() == nullptr) {
+    return raw_instruction_size();
+  }
+  EmbeddedData d = EmbeddedData::FromBlob();
+  return d.MetadataStartOfBuiltin(builtin_index()) +
+         d.MetadataSizeOfBuiltin(builtin_index());
 }
 
 int AbstractCode::SourcePosition(int offset) {
@@ -208,7 +232,8 @@ bool Code::CanDeoptAt(Address pc) {
   for (int i = 0; i < deopt_data.DeoptCount(); i++) {
     if (deopt_data.Pc(i).value() == -1) continue;
     Address address = code_start_address + deopt_data.Pc(i).value();
-    if (address == pc && deopt_data.BytecodeOffset(i) != BailoutId::None()) {
+    if (address == pc &&
+        deopt_data.GetBytecodeOffset(i) != BytecodeOffset::None()) {
       return true;
     }
   }
@@ -226,6 +251,7 @@ bool Code::IsIsolateIndependent(Isolate* isolate) {
                  RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET) |
                  RelocInfo::ModeMask(RelocInfo::COMPRESSED_EMBEDDED_OBJECT) |
                  RelocInfo::ModeMask(RelocInfo::FULL_EMBEDDED_OBJECT) |
+                 RelocInfo::ModeMask(RelocInfo::DATA_EMBEDDED_OBJECT) |
                  RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
                  RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
                  RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
@@ -234,7 +260,7 @@ bool Code::IsIsolateIndependent(Isolate* isolate) {
                  RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL)));
 
 #if defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_PPC64) || \
-    defined(V8_TARGET_ARCH_MIPS64)
+    defined(V8_TARGET_ARCH_MIPS64) || defined(V8_TARGET_ARCH_RISCV64)
   return RelocIterator(*this, kModeMask).done();
 #elif defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) || \
     defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS) ||    \
@@ -281,6 +307,7 @@ bool Code::IsNativeContextIndependent(Isolate* isolate) {
                  RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET) |
                  RelocInfo::ModeMask(RelocInfo::COMPRESSED_EMBEDDED_OBJECT) |
                  RelocInfo::ModeMask(RelocInfo::FULL_EMBEDDED_OBJECT) |
+                 RelocInfo::ModeMask(RelocInfo::DATA_EMBEDDED_OBJECT) |
                  RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
                  RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL)));
 
@@ -323,7 +350,7 @@ bool Code::IsNativeContextIndependent(Isolate* isolate) {
 bool Code::Inlines(SharedFunctionInfo sfi) {
   // We can only check for inlining for optimized code.
   DCHECK(is_optimized_code());
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   DeoptimizationData const data =
       DeoptimizationData::cast(deoptimization_data());
   if (data.length() == 0) return false;
@@ -414,7 +441,6 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
     return;
   }
 
-  disasm::NameConverter converter;
   int const inlined_function_count = InlinedFunctionCount().value();
   os << "Inlined functions (count = " << inlined_function_count << ")\n";
   for (int id = 0; id < inlined_function_count; ++id) {
@@ -431,7 +457,7 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
   }
   for (int i = 0; i < deopt_count; i++) {
     os << std::setw(6) << i << "  " << std::setw(15)
-       << BytecodeOffset(i).ToInt() << "  " << std::setw(4);
+       << GetBytecodeOffset(i).ToInt() << "  " << std::setw(4);
     print_pc(os, Pc(i).value());
     os << std::setw(2);
 
@@ -440,202 +466,9 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
       continue;
     }
 
-    // Print details of the frame translation.
-    int translation_index = TranslationIndex(i).value();
-    TranslationIterator iterator(TranslationByteArray(), translation_index);
-    Translation::Opcode opcode =
-        static_cast<Translation::Opcode>(iterator.Next());
-    DCHECK(Translation::BEGIN == opcode);
-    int frame_count = iterator.Next();
-    int jsframe_count = iterator.Next();
-    int update_feedback_count = iterator.Next();
-    os << "  " << Translation::StringFor(opcode)
-       << " {frame count=" << frame_count
-       << ", js frame count=" << jsframe_count
-       << ", update_feedback_count=" << update_feedback_count << "}\n";
-
-    while (iterator.HasNext() &&
-           Translation::BEGIN !=
-               (opcode = static_cast<Translation::Opcode>(iterator.Next()))) {
-      os << std::setw(31) << "    " << Translation::StringFor(opcode) << " ";
-
-      switch (opcode) {
-        case Translation::BEGIN:
-          UNREACHABLE();
-          break;
-
-        case Translation::INTERPRETED_FRAME: {
-          int bytecode_offset = iterator.Next();
-          int shared_info_id = iterator.Next();
-          unsigned height = iterator.Next();
-          int return_value_offset = iterator.Next();
-          int return_value_count = iterator.Next();
-          Object shared_info = LiteralArray().get(shared_info_id);
-          os << "{bytecode_offset=" << bytecode_offset << ", function="
-             << Brief(SharedFunctionInfo::cast(shared_info).DebugName())
-             << ", height=" << height << ", retval=@" << return_value_offset
-             << "(#" << return_value_count << ")}";
-          break;
-        }
-
-        case Translation::CONSTRUCT_STUB_FRAME: {
-          int bailout_id = iterator.Next();
-          int shared_info_id = iterator.Next();
-          Object shared_info = LiteralArray().get(shared_info_id);
-          unsigned height = iterator.Next();
-          os << "{bailout_id=" << bailout_id << ", function="
-             << Brief(SharedFunctionInfo::cast(shared_info).DebugName())
-             << ", height=" << height << "}";
-          break;
-        }
-
-        case Translation::BUILTIN_CONTINUATION_FRAME:
-        case Translation::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME:
-        case Translation::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME: {
-          int bailout_id = iterator.Next();
-          int shared_info_id = iterator.Next();
-          Object shared_info = LiteralArray().get(shared_info_id);
-          unsigned height = iterator.Next();
-          os << "{bailout_id=" << bailout_id << ", function="
-             << Brief(SharedFunctionInfo::cast(shared_info).DebugName())
-             << ", height=" << height << "}";
-          break;
-        }
-
-        case Translation::ARGUMENTS_ADAPTOR_FRAME: {
-          int shared_info_id = iterator.Next();
-          Object shared_info = LiteralArray().get(shared_info_id);
-          unsigned height = iterator.Next();
-          os << "{function="
-             << Brief(SharedFunctionInfo::cast(shared_info).DebugName())
-             << ", height=" << height << "}";
-          break;
-        }
-
-        case Translation::REGISTER: {
-          int reg_code = iterator.Next();
-          os << "{input=" << converter.NameOfCPURegister(reg_code) << "}";
-          break;
-        }
-
-        case Translation::INT32_REGISTER: {
-          int reg_code = iterator.Next();
-          os << "{input=" << converter.NameOfCPURegister(reg_code)
-             << " (int32)}";
-          break;
-        }
-
-        case Translation::INT64_REGISTER: {
-          int reg_code = iterator.Next();
-          os << "{input=" << converter.NameOfCPURegister(reg_code)
-             << " (int64)}";
-          break;
-        }
-
-        case Translation::UINT32_REGISTER: {
-          int reg_code = iterator.Next();
-          os << "{input=" << converter.NameOfCPURegister(reg_code)
-             << " (uint32)}";
-          break;
-        }
-
-        case Translation::BOOL_REGISTER: {
-          int reg_code = iterator.Next();
-          os << "{input=" << converter.NameOfCPURegister(reg_code)
-             << " (bool)}";
-          break;
-        }
-
-        case Translation::FLOAT_REGISTER: {
-          int reg_code = iterator.Next();
-          os << "{input=" << FloatRegister::from_code(reg_code) << "}";
-          break;
-        }
-
-        case Translation::DOUBLE_REGISTER: {
-          int reg_code = iterator.Next();
-          os << "{input=" << DoubleRegister::from_code(reg_code) << "}";
-          break;
-        }
-
-        case Translation::STACK_SLOT: {
-          int input_slot_index = iterator.Next();
-          os << "{input=" << input_slot_index << "}";
-          break;
-        }
-
-        case Translation::INT32_STACK_SLOT: {
-          int input_slot_index = iterator.Next();
-          os << "{input=" << input_slot_index << " (int32)}";
-          break;
-        }
-
-        case Translation::INT64_STACK_SLOT: {
-          int input_slot_index = iterator.Next();
-          os << "{input=" << input_slot_index << " (int64)}";
-          break;
-        }
-
-        case Translation::UINT32_STACK_SLOT: {
-          int input_slot_index = iterator.Next();
-          os << "{input=" << input_slot_index << " (uint32)}";
-          break;
-        }
-
-        case Translation::BOOL_STACK_SLOT: {
-          int input_slot_index = iterator.Next();
-          os << "{input=" << input_slot_index << " (bool)}";
-          break;
-        }
-
-        case Translation::FLOAT_STACK_SLOT:
-        case Translation::DOUBLE_STACK_SLOT: {
-          int input_slot_index = iterator.Next();
-          os << "{input=" << input_slot_index << "}";
-          break;
-        }
-
-        case Translation::LITERAL: {
-          int literal_index = iterator.Next();
-          Object literal_value = LiteralArray().get(literal_index);
-          os << "{literal_id=" << literal_index << " (" << Brief(literal_value)
-             << ")}";
-          break;
-        }
-
-        case Translation::DUPLICATED_OBJECT: {
-          int object_index = iterator.Next();
-          os << "{object_index=" << object_index << "}";
-          break;
-        }
-
-        case Translation::ARGUMENTS_ELEMENTS: {
-          CreateArgumentsType arguments_type =
-              static_cast<CreateArgumentsType>(iterator.Next());
-          os << "{arguments_type=" << arguments_type << "}";
-          break;
-        }
-        case Translation::ARGUMENTS_LENGTH: {
-          os << "{arguments_length}";
-          break;
-        }
-
-        case Translation::CAPTURED_OBJECT: {
-          int args_length = iterator.Next();
-          os << "{length=" << args_length << "}";
-          break;
-        }
-
-        case Translation::UPDATE_FEEDBACK: {
-          int literal_index = iterator.Next();
-          FeedbackSlot slot(iterator.Next());
-          os << "{feedback={vector_index=" << literal_index << ", slot=" << slot
-             << "}}";
-          break;
-        }
-      }
-      os << "\n";
-    }
+    TranslationArrayPrintSingleFrame(os, TranslationByteArray(),
+                                     TranslationIndex(i).value(),
+                                     LiteralArray());
   }
 }
 
@@ -646,7 +479,7 @@ inline void DisassembleCodeRange(Isolate* isolate, std::ostream& os, Code code,
                                  Address current_pc) {
   Address end = begin + size;
   AllowHandleAllocation allow_handles;
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   HandleScope handle_scope(isolate);
   Disassembler::Decode(isolate, &os, reinterpret_cast<byte*>(begin),
                        reinterpret_cast<byte*>(end),
@@ -664,10 +497,14 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   if ((name != nullptr) && (name[0] != '\0')) {
     os << "name = " << name << "\n";
   }
-  if (CodeKindIsOptimizedJSFunction(kind())) {
+  if (CodeKindIsOptimizedJSFunction(kind()) && kind() != CodeKind::BASELINE) {
     os << "stack_slots = " << stack_slots() << "\n";
   }
-  os << "compiler = " << (is_turbofanned() ? "turbofan" : "unknown") << "\n";
+  os << "compiler = "
+     << (is_turbofanned()
+             ? "turbofan"
+             : kind() == CodeKind::BASELINE ? "baseline" : "unknown")
+     << "\n";
   os << "address = " << reinterpret_cast<void*>(ptr()) << "\n\n";
 
   if (is_off_heap_trampoline()) {
@@ -679,8 +516,7 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   }
 
   {
-    // Stop before reaching any embedded tables
-    int code_size = ExecutableInstructionSize();
+    int code_size = InstructionSize();
     os << "Instructions (size = " << code_size << ")\n";
     DisassembleCodeRange(isolate, os, *this, InstructionStart(), code_size,
                          current_pc);
@@ -689,8 +525,8 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
       DCHECK_EQ(pool_size & kPointerAlignmentMask, 0);
       os << "\nConstant Pool (size = " << pool_size << ")\n";
       Vector<char> buf = Vector<char>::New(50);
-      intptr_t* ptr = reinterpret_cast<intptr_t*>(InstructionStart() +
-                                                  constant_pool_offset());
+      intptr_t* ptr =
+          reinterpret_cast<intptr_t*>(MetadataStart() + constant_pool_offset());
       for (int i = 0; i < pool_size; i += kSystemPointerSize, ptr++) {
         SNPrintF(buf, "%4d %08" V8PRIxPTR, i, *ptr);
         os << static_cast<const void*>(ptr) << "  " << buf.begin() << "\n";
@@ -699,32 +535,34 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   }
   os << "\n";
 
-  {
-    SourcePositionTableIterator it(
-        SourcePositionTable(), SourcePositionTableIterator::kJavaScriptOnly);
-    if (!it.done()) {
-      os << "Source positions:\n pc offset  position\n";
-      for (; !it.done(); it.Advance()) {
-        os << std::setw(10) << std::hex << it.code_offset() << std::dec
-           << std::setw(10) << it.source_position().ScriptOffset()
-           << (it.is_statement() ? "  statement" : "") << "\n";
+  if (kind() != CodeKind::BASELINE) {
+    {
+      SourcePositionTableIterator it(
+          SourcePositionTable(), SourcePositionTableIterator::kJavaScriptOnly);
+      if (!it.done()) {
+        os << "Source positions:\n pc offset  position\n";
+        for (; !it.done(); it.Advance()) {
+          os << std::setw(10) << std::hex << it.code_offset() << std::dec
+             << std::setw(10) << it.source_position().ScriptOffset()
+             << (it.is_statement() ? "  statement" : "") << "\n";
+        }
+        os << "\n";
       }
-      os << "\n";
     }
-  }
 
-  {
-    SourcePositionTableIterator it(SourcePositionTable(),
-                                   SourcePositionTableIterator::kExternalOnly);
-    if (!it.done()) {
-      os << "External Source positions:\n pc offset  fileid  line\n";
-      for (; !it.done(); it.Advance()) {
-        DCHECK(it.source_position().IsExternal());
-        os << std::setw(10) << std::hex << it.code_offset() << std::dec
-           << std::setw(10) << it.source_position().ExternalFileId()
-           << std::setw(10) << it.source_position().ExternalLine() << "\n";
+    {
+      SourcePositionTableIterator it(
+          SourcePositionTable(), SourcePositionTableIterator::kExternalOnly);
+      if (!it.done()) {
+        os << "External Source positions:\n pc offset  fileid  line\n";
+        for (; !it.done(); it.Advance()) {
+          DCHECK(it.source_position().IsExternal());
+          os << std::setw(10) << std::hex << it.code_offset() << std::dec
+             << std::setw(10) << it.source_position().ExternalFileId()
+             << std::setw(10) << it.source_position().ExternalLine() << "\n";
+        }
+        os << "\n";
       }
-      os << "\n";
     }
   }
 
@@ -781,19 +619,17 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
     eh_frame_disassembler.DisassembleToStream(os);
     os << "\n";
   }
-
-  if (has_code_comments()) {
-    PrintCodeCommentsSection(os, code_comments(), code_comments_size());
-  }
 }
 #endif  // ENABLE_DISASSEMBLER
 
 void BytecodeArray::Disassemble(std::ostream& os) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   os << "Parameter count " << parameter_count() << "\n";
   os << "Register count " << register_count() << "\n";
   os << "Frame size " << frame_size() << "\n";
+  os << "OSR nesting level: " << osr_loop_nesting_level() << "\n";
+  os << "Bytecode Age: " << bytecode_age() << "\n";
 
   Address base_address = GetFirstBytecodeAddress();
   SourcePositionTableIterator source_positions(SourcePositionTable());
@@ -920,6 +756,11 @@ void DependentCode::InstallDependency(Isolate* isolate,
                                       const MaybeObjectHandle& code,
                                       Handle<HeapObject> object,
                                       DependencyGroup group) {
+  if (V8_UNLIKELY(FLAG_trace_code_dependencies)) {
+    StdoutStream{} << "Installing dependency of [" << code->GetHeapObject()
+                   << "] on [" << object << "] in group ["
+                   << DependencyGroupName(group) << "]\n";
+  }
   Handle<DependentCode> old_deps(DependentCode::GetDependentCode(object),
                                  isolate);
   Handle<DependentCode> new_deps =
@@ -1014,7 +855,7 @@ bool DependentCode::MarkCodeForDeoptimization(
     return next_link().MarkCodeForDeoptimization(group);
   }
   DCHECK_EQ(group, this->group());
-  DisallowHeapAllocation no_allocation_scope;
+  DisallowGarbageCollection no_gc_scope;
   // Mark all the code that needs to be deoptimized.
   bool marked = false;
   int count = this->count();
@@ -1036,7 +877,7 @@ bool DependentCode::MarkCodeForDeoptimization(
 
 void DependentCode::DeoptimizeDependentCodeGroup(
     DependentCode::DependencyGroup group) {
-  DisallowHeapAllocation no_allocation_scope;
+  DisallowGarbageCollection no_gc_scope;
   bool marked = MarkCodeForDeoptimization(group);
   if (marked) {
     DCHECK(AllowCodeDependencyChange::IsAllowed());

@@ -35,13 +35,12 @@ void DebugCodegen::GenerateFrameDropperTrampoline(MacroAssembler* masm) {
 
   __ mr(fp, r4);
   __ LoadP(r4, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
+  __ LoadP(r3, MemOperand(fp, StandardFrameConstants::kArgCOffset));
   __ LeaveFrame(StackFrame::INTERNAL);
-  __ LoadTaggedPointerField(
-      r3, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
-  __ lhz(r3,
-         FieldMemOperand(r3, SharedFunctionInfo::kFormalParameterCountOffset));
-  __ mr(r5, r3);
 
+  // The arguments are already in the stack (including any necessary padding),
+  // we should not try to massage the arguments again.
+  __ mov(r5, Operand(kDontAdaptArgumentsSentinel));
   __ InvokeFunction(r4, r5, r3, JUMP_FUNCTION);
 }
 

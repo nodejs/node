@@ -12,7 +12,7 @@ namespace wasm {
 
 WASM_EXEC_TEST(I32SExtendI8) {
   WasmRunner<int32_t, int32_t> r(execution_tier);
-  BUILD(r, WASM_I32_SIGN_EXT_I8(WASM_GET_LOCAL(0)));
+  BUILD(r, WASM_I32_SIGN_EXT_I8(WASM_LOCAL_GET(0)));
   CHECK_EQ(0, r.Call(0));
   CHECK_EQ(1, r.Call(1));
   CHECK_EQ(-1, r.Call(-1));
@@ -22,7 +22,7 @@ WASM_EXEC_TEST(I32SExtendI8) {
 
 WASM_EXEC_TEST(I32SExtendI16) {
   WasmRunner<int32_t, int32_t> r(execution_tier);
-  BUILD(r, WASM_I32_SIGN_EXT_I16(WASM_GET_LOCAL(0)));
+  BUILD(r, WASM_I32_SIGN_EXT_I16(WASM_LOCAL_GET(0)));
   CHECK_EQ(0, r.Call(0));
   CHECK_EQ(1, r.Call(1));
   CHECK_EQ(-1, r.Call(-1));
@@ -32,7 +32,7 @@ WASM_EXEC_TEST(I32SExtendI16) {
 
 WASM_EXEC_TEST(I64SExtendI8) {
   WasmRunner<int64_t, int64_t> r(execution_tier);
-  BUILD(r, WASM_I64_SIGN_EXT_I8(WASM_GET_LOCAL(0)));
+  BUILD(r, WASM_I64_SIGN_EXT_I8(WASM_LOCAL_GET(0)));
   CHECK_EQ(0, r.Call(0));
   CHECK_EQ(1, r.Call(1));
   CHECK_EQ(-1, r.Call(-1));
@@ -42,7 +42,7 @@ WASM_EXEC_TEST(I64SExtendI8) {
 
 WASM_EXEC_TEST(I64SExtendI16) {
   WasmRunner<int64_t, int64_t> r(execution_tier);
-  BUILD(r, WASM_I64_SIGN_EXT_I16(WASM_GET_LOCAL(0)));
+  BUILD(r, WASM_I64_SIGN_EXT_I16(WASM_LOCAL_GET(0)));
   CHECK_EQ(0, r.Call(0));
   CHECK_EQ(1, r.Call(1));
   CHECK_EQ(-1, r.Call(-1));
@@ -52,7 +52,7 @@ WASM_EXEC_TEST(I64SExtendI16) {
 
 WASM_EXEC_TEST(I64SExtendI32) {
   WasmRunner<int64_t, int64_t> r(execution_tier);
-  BUILD(r, WASM_I64_SIGN_EXT_I32(WASM_GET_LOCAL(0)));
+  BUILD(r, WASM_I64_SIGN_EXT_I32(WASM_LOCAL_GET(0)));
   CHECK_EQ(0, r.Call(0));
   CHECK_EQ(1, r.Call(1));
   CHECK_EQ(-1, r.Call(-1));

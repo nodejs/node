@@ -258,11 +258,6 @@ Callable CodeFactory::FastNewFunctionContext(Isolate* isolate,
 }
 
 // static
-Callable CodeFactory::ArgumentAdaptor(Isolate* isolate) {
-  return Builtins::CallableFor(isolate, Builtins::kArgumentsAdaptorTrampoline);
-}
-
-// static
 Callable CodeFactory::Call(Isolate* isolate, ConvertReceiverMode mode) {
   return Callable(isolate->builtins()->Call(mode), CallTrampolineDescriptor{});
 }

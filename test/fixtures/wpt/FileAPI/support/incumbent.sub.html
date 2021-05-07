@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<title>Incumbent page used as a test helper</title>
+
+<iframe src="//{{domains[www1]}}:{{location[port]}}/FileAPI/support/document-domain-setter.sub.html" id="c"></iframe>
+<iframe src="//{{domains[www2]}}:{{location[port]}}/FileAPI/support/document-domain-setter.sub.html" id="r"></iframe>
+<iframe src="//{{domains[élève]}}:{{location[port]}}/FileAPI/support/document-domain-setter.sub.html" id="bs"></iframe>
+
+<script>
+"use strict";
+document.domain = "{{host}}";
+
+window.createBlobURL = () => {
+    const current = document.querySelector("#c").contentWindow;
+    const relevant = document.querySelector("#r").contentWindow;
+    const blobSource = document.querySelector("#bs").contentWindow;
+
+    const blob = new blobSource.Blob(["Test Blob"]);
+
+    return current.URL.createObjectURL.call(relevant, blob);
+};
+
+</script>

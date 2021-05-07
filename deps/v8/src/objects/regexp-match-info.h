@@ -8,6 +8,7 @@
 #include "src/base/compiler-specific.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/objects.h"
+#include "torque-generated/field-offsets.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -17,6 +18,8 @@ namespace internal {
 
 class Object;
 class String;
+
+#include "torque-generated/src/objects/regexp-match-info-tq.inc"
 
 // The property RegExpMatchInfo includes the matchIndices
 // array of the last successful regexp match (an array of start/end index

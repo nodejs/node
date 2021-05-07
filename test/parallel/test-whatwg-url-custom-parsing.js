@@ -8,7 +8,6 @@ if (!common.hasIntl) {
   common.skip('missing Intl');
 }
 
-const URL = require('url').URL;
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
 
@@ -30,7 +29,7 @@ const typeFailures = [
   { input: new RegExp() },
   { input: 'test', base: null },
   { input: 'http://nodejs.org', base: null },
-  { input: () => {} }
+  { input: () => {} },
 ];
 
 // See https://github.com/w3c/web-platform-tests/pull/10955

@@ -13,8 +13,8 @@ builder.addFunction("rethrow0", kSig_v_v)
       kExprTry, kWasmStmt,
         kExprI32Const, 23,
         kExprThrow, except,
-      kExprCatch,
-        kExprRethrow,
+      kExprCatch, except,
+        kExprRethrow, 0,
       kExprEnd,
 ]).exportFunc();
 let instance = builder.instantiate();

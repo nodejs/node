@@ -20,9 +20,9 @@
 namespace v8 {
 namespace internal {
 
-class ReadOnlyDeserializer;
 class MemoryAllocator;
 class ReadOnlyHeap;
+class SnapshotData;
 
 class ReadOnlyPage : public BasicMemoryChunk {
  public:
@@ -100,8 +100,9 @@ class ReadOnlyArtifacts {
   void set_read_only_heap(std::unique_ptr<ReadOnlyHeap> read_only_heap);
   ReadOnlyHeap* read_only_heap() const { return read_only_heap_.get(); }
 
-  void InitializeChecksum(ReadOnlyDeserializer* des);
-  void VerifyChecksum(ReadOnlyDeserializer* des, bool read_only_heap_created);
+  void InitializeChecksum(SnapshotData* read_only_snapshot_data);
+  void VerifyChecksum(SnapshotData* read_only_snapshot_data,
+                      bool read_only_heap_created);
 
  protected:
   ReadOnlyArtifacts() = default;

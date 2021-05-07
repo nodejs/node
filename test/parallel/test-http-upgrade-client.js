@@ -60,8 +60,8 @@ server.listen(0, '127.0.0.1', common.mustCall(function() {
       ['Host', 'echo.websocket.org'],
       ['Connection', 'Upgrade'],
       ['Upgrade', 'websocket'],
-      ['Origin', 'http://www.websocket.org']
-    ]
+      ['Origin', 'http://www.websocket.org'],
+    ],
   ];
   const countdown = new Countdown(headers.length, () => server.close());
 

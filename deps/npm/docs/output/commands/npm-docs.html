@@ -141,7 +141,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#browser">browser</a></li><li><a href="#registry">registry</a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#browser">browser</a></li><li><a href="#registry">registry</a></li><li><a href="#workspaces">workspaces</a></li><li><a href="#workspace">workspace</a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -171,6 +171,14 @@ terminal.</p>
 <li>Type: url</li>
 </ul>
 <p>The base URL of the npm package registry.</p>
+<h4 id="workspaces">workspaces</h4>
+<p>Enables workspaces context while searching the <code>package.json</code> in the
+current folder.  Documentation urls for the packages named in each
+workspace will be opened.</p>
+<h4 id="workspace">workspace</h4>
+<p>Enables workspaces context and limits results to only those specified by
+this config item.  Only the documentation urls for the packages named in
+the workspaces given here will be opened.</p>
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../commands/npm-view.html">npm view</a></li>

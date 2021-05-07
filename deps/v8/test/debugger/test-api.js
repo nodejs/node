@@ -593,7 +593,7 @@ class DebugWrapper {
     const column = frame.location.columnNumber;
     const loc = %ScriptLocationFromLine2(scriptid, line, column, 0);
     const func = { name : () => frame.functionName };
-    const index = JSON.parse(frame.callFrameId).ordinal;
+    const index = +frame.callFrameId.split(".")[2];
 
     function allScopes() {
       const scopes = [];
@@ -715,6 +715,7 @@ class DebugWrapper {
       case "EventListener":
       case "assert":
       case "debugCommand":
+      case "CSPViolation":
         assertUnreachable();
       default:
         assertUnreachable();

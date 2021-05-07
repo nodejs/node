@@ -52,6 +52,8 @@ class V8_EXPORT_PRIVATE GCIdleTimeHandler {
   static const double kHighContextDisposalRate;
 
   GCIdleTimeHandler() = default;
+  GCIdleTimeHandler(const GCIdleTimeHandler&) = delete;
+  GCIdleTimeHandler& operator=(const GCIdleTimeHandler&) = delete;
 
   GCIdleTimeAction Compute(double idle_time_in_ms,
                            GCIdleTimeHeapState heap_state);
@@ -67,9 +69,6 @@ class V8_EXPORT_PRIVATE GCIdleTimeHandler {
   static bool ShouldDoContextDisposalMarkCompact(int context_disposed,
                                                  double contexts_disposal_rate,
                                                  size_t size_of_objects);
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(GCIdleTimeHandler);
 };
 
 }  // namespace internal

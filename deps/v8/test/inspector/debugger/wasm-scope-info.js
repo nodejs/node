@@ -1,4 +1,4 @@
-// Copyright 2017 the V8 project authors. All rights reserved.
+// Copyright 2019 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,36 +9,32 @@
 utils.load('test/inspector/wasm-inspector-test.js');
 
 let {session, contextGroup, Protocol} = InspectorTest.start(
-    'Test retrieving scope information when pausing in wasm functions');
+    'Test retrieving scope information from compiled Liftoff frames');
 session.setupScriptMap();
 Protocol.Debugger.enable();
 Protocol.Debugger.onPaused(printPauseLocationsAndContinue);
 
-let breakpointLocation = undefined;  // Will be set by {instantiateWasm}.
+let breakpointLocation = -1;
 
-(async function test() {
-  // Instantiate wasm and wait for three wasm scripts for the three functions.
-  instantiateWasm();
-  let scriptIds = await waitForWasmScripts();
+InspectorTest.runAsyncTestSuite([
+  async function test() {
+    // Instantiate wasm and wait for three wasm scripts for the three functions.
+    instantiateWasm();
+    let scriptIds = await waitForWasmScripts();
 
-  // Set a breakpoint.
-  InspectorTest.log(
-      'Setting breakpoint on first instruction of second function');
-  let breakpoint = await Protocol.Debugger.setBreakpoint({
-    'location' : {
-      'scriptId' : scriptIds[0],
-      'lineNumber' : 0,
-      'columnNumber' : breakpointLocation
-    }
-  });
-  printIfFailure(breakpoint);
-  InspectorTest.logMessage(breakpoint.result.actualLocation);
+    // Set a breakpoint.
+    InspectorTest.log(
+        'Setting breakpoint on line 2 (first instruction) of third function');
+    let breakpoint = await Protocol.Debugger.setBreakpoint(
+        {'location': {'scriptId': scriptIds[0], 'lineNumber': 0, 'columnNumber': breakpointLocation}});
+    printIfFailure(breakpoint);
+    InspectorTest.logMessage(breakpoint.result.actualLocation);
 
-  // Now run the wasm code.
-  await WasmInspectorTest.evalWithUrl('instance.exports.main(4)', 'runWasm');
-  InspectorTest.log('exports.main returned. Test finished.');
-  InspectorTest.completeTest();
-})();
+    // Now run the wasm code.
+    await WasmInspectorTest.evalWithUrl('instance.exports.main(42)', 'runWasm');
+    InspectorTest.log('exports.main returned. Test finished.');
+  }
+]);
 
 async function printPauseLocationsAndContinue(msg) {
   let loc = msg.params.callFrames[0].location;
@@ -74,67 +70,69 @@ async function instantiateWasm() {
   builder.addMemory(1,1).exportMemoryAs('exported_memory');
   builder.addTable(kWasmAnyFunc, 3).exportAs('exported_table');
 
-  // Add a function without breakpoint, to check that locals are shown
-  // correctly in compiled code.
-  const main = builder.addFunction('call_func', kSig_v_i).addLocals(kWasmF32, 1)
-    .addBody([
-      // Set local 1 to 7.2.
-      ...wasmF32Const(7.2), kExprLocalSet, 1,
-      // Call function 'func', forwarding param 0.
-      kExprLocalGet, 0, kExprCallFunction, 1
-    ]).exportAs('main');
+  // Add two functions without breakpoint, to check that locals and operand
+  // stack values are shown correctly in Liftoff code.
+  // Function A will have its parameter spilled to the stack, because it calls
+  // function B.
+  // Function B has a local with a constant value (not using a register), the
+  // parameter will be held in a register.
+  const main = builder.addFunction('A (liftoff)', kSig_v_i)
+      .addBody([
+        // Call function 'B', forwarding param 0.
+        kExprLocalGet, 0, kExprCallFunction, 1
+      ])
+      .exportAs('main');
 
-  // A second function which will be stepped through.
-  const func = builder.addFunction('func', kSig_v_i, ['i32Arg'])
-    .addLocals(kWasmI32, 1)
-    .addLocals(kWasmI64, 1, ['i64_local'])
-    .addLocals(kWasmF64, 3, ['unicode☼f64', '0', '0'])
-    .addLocals(kWasmS128, 1)
-    .addBody([
-      // Set param 0 to 11.
-      kExprI32Const, 11, kExprLocalSet, 0,
-      // Set local 1 to 47.
-      kExprI32Const, 47, kExprLocalSet, 1,
-      // Set local 2 to 0x7FFFFFFFFFFFFFFF (max i64).
-      kExprI64Const, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0,
-      kExprLocalSet, 2,
-      // Set local 2 to 0x8000000000000000 (min i64).
-      kExprI64Const, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x7f,
-      kExprLocalSet, 2,
-      // Set local 3 to 1/7.
-      kExprI32Const, 1, kExprF64UConvertI32, kExprI32Const, 7,
-      kExprF64UConvertI32, kExprF64Div, kExprLocalSet, 3,
-      // Set local 6 to [23, 23, 23, 23]
-      kExprI32Const, 23,
-      kSimdPrefix, kExprI32x4Splat,
-      kExprLocalSet, 6,
+  builder.addFunction('B (liftoff)', kSig_v_i, ['i32_arg'])
+      .addLocals(kWasmI32, 1, ['i32_local'])
+      .addLocals(kWasmF32, 4, ['f32_local', '0', '0'])
+      .addLocals(kWasmS128, 1, ['v128_local'])
+      .addBody([
+        // Load a parameter and a constant onto the operand stack.
+        kExprLocalGet, 0, kExprI32Const, 3,
+        // Set local 6 to v128 i32.x4 23, 23, 23, 23.
+        kExprI32Const, 23,
+        kSimdPrefix, kExprI32x4Splat,
+        kExprLocalSet, 6,
+        // Set local 2 to 7.2.
+        ...wasmF32Const(7.2), kExprLocalSet, 2,
+        // Call function 'C', forwarding param 0.
+        kExprLocalGet, 0, kExprCallFunction, 2,
+        // Drop the two operand stack values.
+        kExprDrop, kExprDrop
+      ]);
 
-      // Set global 0 to 15
-      kExprI32Const, 15, kExprGlobalSet, 0,
-    ]);
+  // A third function which will be stepped through.
+  let func = builder.addFunction('C (interpreted)', kSig_v_i, ['i32_arg'])
+      .addLocals(kWasmI32, 1, ['i32_local'])
+      .addLocals(kWasmF32, 1, [''])
+      .addBody([
+        // Set global 0 to param 0.
+        kExprLocalGet, 0, kExprGlobalSet, 0,
+        // Set local 1 to 47.
+        kExprI32Const, 47, kExprLocalSet, 1,
+      ]);
 
   // Append function to table to test function table output.
   builder.appendToTable([main.index]);
 
-  let moduleBytes = builder.toArray();
+  var module_bytes = builder.toArray();
   breakpointLocation = func.body_offset;
+
 
   function addWasmJSToTable() {
     // Create WasmJS functions to test the function tables output.
     const js_func = function js_func() { return 7; };
-    const wasmjs_func = new WebAssembly.Function(
-      {parameters:[], results:['i32']}, js_func);
-    const wasmjs_anonymous_func = new WebAssembly.Function(
-      {parameters:[], results:['i32']}, _ => 7);
+    const wasmjs_func = new WebAssembly.Function({parameters:[], results:['i32']}, js_func);
+    const wasmjs_anonymous_func = new WebAssembly.Function({parameters:[], results:['i32']}, _ => 7);
 
     instance.exports.exported_table.set(0, wasmjs_func);
     instance.exports.exported_table.set(1, wasmjs_anonymous_func);
   }
 
   InspectorTest.log('Calling instantiate function.');
-  await WasmInspectorTest.instantiate(moduleBytes);
-  await WasmInspectorTest.evalWithUrl(`(${addWasmJSToTable})()`,
-                                      'populateTable');
+  await WasmInspectorTest.instantiate(module_bytes);
+  await WasmInspectorTest.evalWithUrl(`(${addWasmJSToTable})()`, 'populateTable');
 }
 
 function printIfFailure(message) {

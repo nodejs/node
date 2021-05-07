@@ -1,4 +1,5 @@
 Regress 10957
+
+Running test: testRegress10957
 Instantiate
-Finished!
 7

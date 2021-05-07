@@ -18,6 +18,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/debug-objects-tq-inl.inc"
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(BreakPoint)
 TQ_OBJECT_CONSTRUCTORS_IMPL(BreakPointInfo)
 TQ_OBJECT_CONSTRUCTORS_IMPL(CoverageInfo)
@@ -34,25 +36,27 @@ BIT_FIELD_ACCESSORS(DebugInfo, debugger_hints, computed_debug_is_blackboxed,
 BIT_FIELD_ACCESSORS(DebugInfo, debugger_hints, debugging_id,
                     DebugInfo::DebuggingIdBits)
 
+// TODO(nicohartmann@, v8:11122): Remove once Torque can generate them.
+RELEASE_ACQUIRE_ACCESSORS(DebugInfo, debug_bytecode_array, HeapObject,
+                          kDebugBytecodeArrayOffset)
+RELEASE_ACQUIRE_ACCESSORS(DebugInfo, original_bytecode_array, HeapObject,
+                          kOriginalBytecodeArrayOffset)
+
 bool DebugInfo::HasInstrumentedBytecodeArray() {
-  DCHECK_EQ(debug_bytecode_array().IsBytecodeArray(),
-            original_bytecode_array().IsBytecodeArray());
-  return debug_bytecode_array().IsBytecodeArray();
+  return debug_bytecode_array(kAcquireLoad).IsBytecodeArray();
 }
 
 BytecodeArray DebugInfo::OriginalBytecodeArray() {
   DCHECK(HasInstrumentedBytecodeArray());
-  return BytecodeArray::cast(original_bytecode_array());
+  return BytecodeArray::cast(original_bytecode_array(kAcquireLoad));
 }
 
 BytecodeArray DebugInfo::DebugBytecodeArray() {
   DCHECK(HasInstrumentedBytecodeArray());
-  DCHECK_EQ(shared().GetDebugBytecodeArray(), debug_bytecode_array());
-  return BytecodeArray::cast(debug_bytecode_array());
+  DCHECK_EQ(shared().GetActiveBytecodeArray(),
+            debug_bytecode_array(kAcquireLoad));
+  return BytecodeArray::cast(debug_bytecode_array(kAcquireLoad));
 }
-
-TQ_OBJECT_CONSTRUCTORS_IMPL(WasmValue)
-NEVER_READ_ONLY_SPACE_IMPL(WasmValue)
 
 }  // namespace internal
 }  // namespace v8

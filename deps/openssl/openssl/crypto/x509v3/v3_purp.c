@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -348,14 +348,17 @@ static int setup_crldp(X509 *x)
 /* Check that issuer public key algorithm matches subject signature algorithm */
 static int check_sig_alg_match(const EVP_PKEY *pkey, const X509 *subject)
 {
-    int pkey_nid;
+    int pkey_sig_nid, subj_sig_nid;
 
     if (pkey == NULL)
         return X509_V_ERR_NO_ISSUER_PUBLIC_KEY;
+    if (OBJ_find_sigid_algs(EVP_PKEY_base_id(pkey),
+                            NULL, &pkey_sig_nid) == 0)
+        pkey_sig_nid = EVP_PKEY_base_id(pkey);
     if (OBJ_find_sigid_algs(OBJ_obj2nid(subject->cert_info.signature.algorithm),
-                            NULL, &pkey_nid) == 0)
+                            NULL, &subj_sig_nid) == 0)
         return X509_V_ERR_UNSUPPORTED_SIGNATURE_ALGORITHM;
-    if (EVP_PKEY_type(pkey_nid) != EVP_PKEY_base_id(pkey))
+    if (pkey_sig_nid != EVP_PKEY_type(subj_sig_nid))
         return X509_V_ERR_SIGNATURE_ALGORITHM_MISMATCH;
     return X509_V_OK;
 }
@@ -391,7 +394,8 @@ static void x509v3_cache_extensions(X509 *x)
     }
 
     if (!X509_digest(x, EVP_sha1(), x->sha1_hash, NULL))
-        x->ex_flags |= EXFLAG_INVALID;
+        x->ex_flags |= (EXFLAG_NO_FINGERPRINT | EXFLAG_INVALID);
+
     /* V1 should mean no extensions ... */
     if (!X509_get_version(x))
         x->ex_flags |= EXFLAG_V1;

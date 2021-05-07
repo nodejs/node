@@ -24,8 +24,9 @@ Protocol.Debugger.onPaused(async msg => {
     if (scope.type == 'module') continue;
     var scope_properties =
         await Protocol.Runtime.getProperties({objectId: scope.object.objectId});
-    let str = scope_properties.result.result.map(
-        elem => WasmInspectorTest.getWasmValue(elem.value)).join(', ');
+    let str = (await Promise.all(scope_properties.result.result.map(
+                   elem => WasmInspectorTest.getWasmValue(elem.value))))
+                  .join(', ');
     line.push(`${scope.type}: [${str}]`);
   }
   InspectorTest.log(line.join('; '));
@@ -88,11 +89,11 @@ async function testConfig(config) {
   InspectorTest.log('main returned.');
 }
 
-(async function test() {
-  await Protocol.Debugger.enable();
-  for (let config in configs) {
-    await testConfig(config);
+InspectorTest.runAsyncTestSuite([
+  async function test() {
+    await Protocol.Debugger.enable();
+    for (let config in configs) {
+      await testConfig(config);
+    }
   }
-  InspectorTest.log('Finished!');
-  InspectorTest.completeTest();
-})();
+]);

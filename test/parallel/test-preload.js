@@ -135,7 +135,7 @@ replProc.on('close', function(code) {
   assert.strictEqual(code, 0);
   const output = [
     'A',
-    '> '
+    '> ',
   ];
   assert.ok(replStdout.startsWith(output[0]));
   assert.ok(replStdout.endsWith(output[1]));

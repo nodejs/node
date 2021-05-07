@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "src/base/optional.h"
+#include "src/base/platform/wrappers.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/utils/vector.h"
@@ -186,30 +187,15 @@ class V8_EXPORT_PRIVATE LazilyGeneratedNames {
                                   uint32_t function_index,
                                   Vector<const WasmExport> export_table) const;
 
-  // For memory and global.
-  std::pair<WireBytesRef, WireBytesRef> LookupNameFromImportsAndExports(
-      ImportExportKindCode kind, uint32_t index,
-      const Vector<const WasmImport> import_table,
-      const Vector<const WasmExport> export_table) const;
-
   void AddForTesting(int function_index, WireBytesRef name);
 
  private:
-  // {function_names_}, {global_names_}, {memory_names_} and {table_names_} are
-  // populated lazily after decoding, and therefore need a mutex to protect
-  // concurrent modifications from multiple {WasmModuleObject}.
+  // {function_names_} are populated lazily after decoding, and
+  // therefore need a mutex to protect concurrent modifications
+  // from multiple {WasmModuleObject}.
   mutable base::Mutex mutex_;
   mutable std::unique_ptr<std::unordered_map<uint32_t, WireBytesRef>>
       function_names_;
-  mutable std::unique_ptr<
-      std::unordered_map<uint32_t, std::pair<WireBytesRef, WireBytesRef>>>
-      global_names_;
-  mutable std::unique_ptr<
-      std::unordered_map<uint32_t, std::pair<WireBytesRef, WireBytesRef>>>
-      memory_names_;
-  mutable std::unique_ptr<
-      std::unordered_map<uint32_t, std::pair<WireBytesRef, WireBytesRef>>>
-      table_names_;
 };
 
 class V8_EXPORT_PRIVATE AsmJsOffsetInformation {
@@ -266,6 +252,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   uint32_t maximum_pages = 0;      // maximum size of the memory in 64k pages
   bool has_shared_memory = false;  // true if memory is a SharedArrayBuffer
   bool has_maximum_pages = false;  // true if there is a maximum memory size
+  bool is_memory64 = false;        // true if the memory is 64 bit
   bool has_memory = false;         // true if the memory was defined or imported
   bool mem_export = false;         // true if the memory is exported
   int start_function_index = -1;   // start function, >= 0 if any
@@ -281,11 +268,16 @@ struct V8_EXPORT_PRIVATE WasmModule {
   uint32_t num_declared_functions = 0;  // excluding imported
   uint32_t num_exported_functions = 0;
   uint32_t num_declared_data_segments = 0;  // From the DataCount section.
+  // Position and size of the code section (payload only, i.e. without section
+  // ID and length).
   WireBytesRef code = {0, 0};
   WireBytesRef name = {0, 0};
-  std::vector<TypeDefinition> types;    // by type index
-  std::vector<uint8_t> type_kinds;      // by type index
-  std::vector<uint32_t> signature_ids;  // by signature index
+  std::vector<TypeDefinition> types;  // by type index
+  std::vector<uint8_t> type_kinds;    // by type index
+  // Map from each type index to the index of its corresponding canonical type.
+  // Note: right now, only functions are canonicalized, and arrays and structs
+  // map to themselves.
+  std::vector<uint32_t> canonicalized_type_ids;
 
   bool has_type(uint32_t index) const { return index < types.size(); }
 
@@ -293,36 +285,42 @@ struct V8_EXPORT_PRIVATE WasmModule {
     types.push_back(TypeDefinition(sig));
     type_kinds.push_back(kWasmFunctionTypeCode);
     uint32_t canonical_id = sig ? signature_map.FindOrInsert(*sig) : 0;
-    signature_ids.push_back(canonical_id);
-  }
-  const FunctionSig* signature(uint32_t index) const {
-    DCHECK(type_kinds[index] == kWasmFunctionTypeCode);
-    return types[index].function_sig;
+    canonicalized_type_ids.push_back(canonical_id);
   }
   bool has_signature(uint32_t index) const {
     return index < types.size() && type_kinds[index] == kWasmFunctionTypeCode;
   }
+  const FunctionSig* signature(uint32_t index) const {
+    DCHECK(has_signature(index));
+    return types[index].function_sig;
+  }
+
   void add_struct_type(const StructType* type) {
     types.push_back(TypeDefinition(type));
     type_kinds.push_back(kWasmStructTypeCode);
-  }
-  const StructType* struct_type(uint32_t index) const {
-    DCHECK(type_kinds[index] == kWasmStructTypeCode);
-    return types[index].struct_type;
+    // No canonicalization for structs.
+    canonicalized_type_ids.push_back(0);
   }
   bool has_struct(uint32_t index) const {
     return index < types.size() && type_kinds[index] == kWasmStructTypeCode;
   }
+  const StructType* struct_type(uint32_t index) const {
+    DCHECK(has_struct(index));
+    return types[index].struct_type;
+  }
+
   void add_array_type(const ArrayType* type) {
     types.push_back(TypeDefinition(type));
     type_kinds.push_back(kWasmArrayTypeCode);
-  }
-  const ArrayType* array_type(uint32_t index) const {
-    DCHECK(type_kinds[index] == kWasmArrayTypeCode);
-    return types[index].array_type;
+    // No canonicalization for arrays.
+    canonicalized_type_ids.push_back(0);
   }
   bool has_array(uint32_t index) const {
     return index < types.size() && type_kinds[index] == kWasmArrayTypeCode;
+  }
+  const ArrayType* array_type(uint32_t index) const {
+    DCHECK(has_array(index));
+    return types[index].array_type;
   }
 
   std::vector<WasmFunction> functions;
@@ -344,9 +342,8 @@ struct V8_EXPORT_PRIVATE WasmModule {
   std::unique_ptr<AsmJsOffsetInformation> asm_js_offset_information;
 
   explicit WasmModule(std::unique_ptr<Zone> signature_zone = nullptr);
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(WasmModule);
+  WasmModule(const WasmModule&) = delete;
+  WasmModule& operator=(const WasmModule&) = delete;
 };
 
 // Static representation of a wasm indirect call table.
@@ -360,7 +357,6 @@ struct WasmTable {
     if (!type.is_nullable()) return false;
     HeapType heap_type = type.heap_type();
     return heap_type == HeapType::kFunc || heap_type == HeapType::kExtern ||
-           heap_type == HeapType::kExn ||
            (module != nullptr && heap_type.is_index() &&
             module->has_signature(heap_type.ref_index()));
   }
@@ -503,7 +499,7 @@ class TruncatedUserString {
   TruncatedUserString(const char* start, size_t len)
       : start_(start), length_(std::min(kMaxLen, static_cast<int>(len))) {
     if (len > static_cast<size_t>(kMaxLen)) {
-      memcpy(buffer_, start, kMaxLen - 3);
+      base::Memcpy(buffer_, start, kMaxLen - 3);
       memset(buffer_ + kMaxLen - 3, '.', 3);
       start_ = buffer_;
     }

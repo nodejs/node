@@ -18,6 +18,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/js-relative-time-format-tq-inl.inc"
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSRelativeTimeFormat)
 
 // Base relative time format accessors.

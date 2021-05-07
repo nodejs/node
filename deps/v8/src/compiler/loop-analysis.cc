@@ -25,7 +25,8 @@ namespace compiler {
 // Temporary information for each node during marking.
 struct NodeInfo {
   Node* node;
-  NodeInfo* next;       // link in chaining loop members
+  NodeInfo* next;  // link in chaining loop members
+  bool backwards_visited;
 };
 
 
@@ -61,7 +62,7 @@ class LoopFinderImpl {
         end_(graph->end()),
         queue_(zone),
         queued_(graph, 2),
-        info_(graph->NodeCount(), {nullptr, nullptr}, zone),
+        info_(graph->NodeCount(), {nullptr, nullptr, false}, zone),
         loops_(zone),
         loop_num_(graph->NodeCount(), -1, zone),
         loop_tree_(loop_tree),
@@ -192,7 +193,7 @@ class LoopFinderImpl {
     while (!queue_.empty()) {
       tick_counter_->TickAndMaybeEnterSafepoint();
       Node* node = queue_.front();
-      info(node);
+      info(node).backwards_visited = true;
       queue_.pop_front();
       queued_.Set(node, false);
 
@@ -224,10 +225,18 @@ class LoopFinderImpl {
         Node* input = node->InputAt(i);
         if (IsBackedge(node, i)) {
           // Only propagate the loop mark on backedges.
-          if (SetBackwardMark(input, loop_num)) Queue(input);
+          if (SetBackwardMark(input, loop_num) ||
+              !info(input).backwards_visited) {
+            Queue(input);
+          }
         } else {
           // Entry or normal edge. Propagate all marks except loop_num.
-          if (PropagateBackwardMarks(node, input, loop_num)) Queue(input);
+          // TODO(manoskouk): Add test that needs backwards_visited to function
+          // correctly, probably using wasm loop unrolling when it is available.
+          if (PropagateBackwardMarks(node, input, loop_num) ||
+              !info(input).backwards_visited) {
+            Queue(input);
+          }
         }
       }
     }
@@ -533,13 +542,98 @@ LoopTree* LoopFinder::BuildLoopTree(Graph* graph, TickCounter* tick_counter,
   return loop_tree;
 }
 
-Node* LoopTree::HeaderNode(Loop* loop) {
+bool LoopFinder::HasMarkedExits(LoopTree* loop_tree,
+                                const LoopTree::Loop* loop) {
+  // Look for returns and if projections that are outside the loop but whose
+  // control input is inside the loop.
+  Node* loop_node = loop_tree->GetLoopControl(loop);
+  for (Node* node : loop_tree->LoopNodes(loop)) {
+    for (Node* use : node->uses()) {
+      if (!loop_tree->Contains(loop, use)) {
+        bool unmarked_exit;
+        switch (node->opcode()) {
+          case IrOpcode::kLoopExit:
+            unmarked_exit = (node->InputAt(1) != loop_node);
+            break;
+          case IrOpcode::kLoopExitValue:
+          case IrOpcode::kLoopExitEffect:
+            unmarked_exit = (node->InputAt(1)->InputAt(1) != loop_node);
+            break;
+          default:
+            unmarked_exit = (use->opcode() != IrOpcode::kTerminate);
+        }
+        if (unmarked_exit) {
+          if (FLAG_trace_turbo_loop) {
+            Node* loop_node = loop_tree->GetLoopControl(loop);
+            PrintF(
+                "Cannot peel loop %i. Loop exit without explicit mark: Node %i "
+                "(%s) is inside loop, but its use %i (%s) is outside.\n",
+                loop_node->id(), node->id(), node->op()->mnemonic(), use->id(),
+                use->op()->mnemonic());
+          }
+          return false;
+        }
+      }
+    }
+  }
+  return true;
+}
+
+Node* LoopTree::HeaderNode(const Loop* loop) {
   Node* first = *HeaderNodes(loop).begin();
   if (first->opcode() == IrOpcode::kLoop) return first;
   DCHECK(IrOpcode::IsPhiOpcode(first->opcode()));
   Node* header = NodeProperties::GetControlInput(first);
   DCHECK_EQ(IrOpcode::kLoop, header->opcode());
   return header;
+}
+
+Node* NodeCopier::map(Node* node, uint32_t copy_index) {
+  DCHECK_LT(copy_index, copy_count_);
+  if (node_map_.Get(node) == 0) return node;
+  return copies_->at(node_map_.Get(node) + copy_index);
+}
+
+void NodeCopier::Insert(Node* original, const NodeVector& new_copies) {
+  DCHECK_EQ(new_copies.size(), copy_count_);
+  node_map_.Set(original, copies_->size() + 1);
+  copies_->push_back(original);
+  copies_->insert(copies_->end(), new_copies.begin(), new_copies.end());
+}
+
+void NodeCopier::Insert(Node* original, Node* copy) {
+  DCHECK_EQ(copy_count_, 1);
+  node_map_.Set(original, copies_->size() + 1);
+  copies_->push_back(original);
+  copies_->push_back(copy);
+}
+
+void NodeCopier::CopyNodes(Graph* graph, Zone* tmp_zone_, Node* dead,
+                           NodeRange nodes,
+                           SourcePositionTable* source_positions,
+                           NodeOriginTable* node_origins) {
+  // Copy all the nodes first.
+  for (Node* original : nodes) {
+    SourcePositionTable::Scope position(
+        source_positions, source_positions->GetSourcePosition(original));
+    NodeOriginTable::Scope origin_scope(node_origins, "copy nodes", original);
+    node_map_.Set(original, copies_->size() + 1);
+    copies_->push_back(original);
+    for (uint32_t copy_index = 0; copy_index < copy_count_; copy_index++) {
+      Node* copy = graph->CloneNode(original);
+      copies_->push_back(copy);
+    }
+  }
+
+  // Fix inputs of the copies.
+  for (Node* original : nodes) {
+    for (uint32_t copy_index = 0; copy_index < copy_count_; copy_index++) {
+      Node* copy = map(original, copy_index);
+      for (int i = 0; i < copy->InputCount(); i++) {
+        copy->ReplaceInput(i, map(original->InputAt(i), copy_index));
+      }
+    }
+  }
 }
 
 }  // namespace compiler

@@ -1,7 +1,6 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const { URL } = require('url');
 
 const relativePath = '../fixtures/es-modules/test-esm-ok.mjs';
 const absolutePath = require.resolve('../fixtures/es-modules/test-esm-ok.mjs');
@@ -51,6 +50,8 @@ function expectFsNamespace(result) {
   expectFsNamespace(import('node:fs'));
 
   expectModuleError(import('node:unknown'),
+                    'ERR_UNKNOWN_BUILTIN_MODULE');
+  expectModuleError(import('node:internal/test/binding'),
                     'ERR_UNKNOWN_BUILTIN_MODULE');
   expectModuleError(import('./not-an-existing-module.mjs'),
                     'ERR_MODULE_NOT_FOUND');

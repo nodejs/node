@@ -33,13 +33,9 @@ constexpr int kJumpTableSlotCount = 128;
 constexpr uint32_t kJumpTableSize =
     JumpTableAssembler::SizeForNumberOfSlots(kJumpTableSlotCount);
 
-// Must be a safe commit page size.
-#if V8_OS_MACOSX && V8_HOST_ARCH_ARM64
-// See kAppleArmPageSize in platform-posix.cc.
-constexpr size_t kThunkBufferSize = 1 << 14;
-#else
-constexpr size_t kThunkBufferSize = 4 * KB;
-#endif
+// This must be a safe commit page size so we pick the largest OS page size that
+// V8 is known to support. Arm64 linux can support up to 64k at runtime.
+constexpr size_t kThunkBufferSize = 64 * KB;
 
 #if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
 // We need the branches (from CompileJumpTableThunk) to be within near-call
@@ -148,6 +144,11 @@ void CompileJumpTableThunk(Address thunk, Address jump_target) {
   __ lw(scratch, MemOperand(scratch, 0));
   __ Branch(&exit, ne, scratch, Operand(zero_reg));
   __ Jump(jump_target, RelocInfo::NONE);
+#elif V8_TARGET_ARCH_RISCV64
+  __ li(scratch, Operand(stop_bit_address, RelocInfo::NONE));
+  __ Lw(scratch, MemOperand(scratch, 0));
+  __ Branch(&exit, ne, scratch, Operand(zero_reg));
+  __ Jump(jump_target, RelocInfo::NONE);
 #else
 #error Unsupported architecture
 #endif
@@ -236,7 +237,8 @@ TEST(JumpTablePatchingStress) {
   constexpr int kNumberOfPatcherThreads = 3;
 
   STATIC_ASSERT(kAssemblerBufferSize >= kJumpTableSize);
-  auto buffer = AllocateAssemblerBuffer(kAssemblerBufferSize);
+  auto buffer = AllocateAssemblerBuffer(kAssemblerBufferSize, nullptr,
+                                        VirtualMemory::kMapAsJittable);
   byte* thunk_slot_buffer = buffer->start() + kBufferSlotStartOffset;
 
   std::bitset<kAvailableBufferSlots> used_thunk_slots;

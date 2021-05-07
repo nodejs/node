@@ -94,13 +94,13 @@ bool OffsetMayAlias(Node* offset1, MachineRepresentation repr1, Node* offset2,
   IntPtrMatcher matcher1(offset1);
   IntPtrMatcher matcher2(offset2);
   // If either of the offsets is variable, accesses may alias
-  if (!matcher1.HasValue() || !matcher2.HasValue()) {
+  if (!matcher1.HasResolvedValue() || !matcher2.HasResolvedValue()) {
     return true;
   }
   // Otherwise, we return whether accesses overlap
-  intptr_t start1 = matcher1.Value();
+  intptr_t start1 = matcher1.ResolvedValue();
   intptr_t end1 = start1 + ElementSizeInBytes(repr1);
-  intptr_t start2 = matcher2.Value();
+  intptr_t start2 = matcher2.ResolvedValue();
   intptr_t end2 = start2 + ElementSizeInBytes(repr2);
   return !(end1 <= start2 || end2 <= start1);
 }

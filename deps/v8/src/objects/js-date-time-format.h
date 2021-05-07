@@ -31,6 +31,8 @@ class SimpleDateFormat;
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/js-date-time-format-tq.inc"
+
 class JSDateTimeFormat
     : public TorqueGeneratedJSDateTimeFormat<JSDateTimeFormat, JSObject> {
  public:
@@ -125,6 +127,8 @@ class JSDateTimeFormat
   DECL_ACCESSORS(icu_locale, Managed<icu::Locale>)
   DECL_ACCESSORS(icu_simple_date_format, Managed<icu::SimpleDateFormat>)
   DECL_ACCESSORS(icu_date_interval_format, Managed<icu::DateIntervalFormat>)
+
+  DECL_BOOLEAN_ACCESSORS(iso8601)
 
   DECL_PRINTER(JSDateTimeFormat)
 

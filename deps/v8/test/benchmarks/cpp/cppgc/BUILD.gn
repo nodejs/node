@@ -28,10 +28,12 @@ if (v8_enable_google_benchmark) {
       "../../../../test/unittests/heap/cppgc/test-platform.h",
       "utils.h",
     ]
-    deps = [
-      "../../../..:cppgc_for_testing",
-      "//third_party/google_benchmark:benchmark_main",
-    ]
+    deps = [ "//third_party/google_benchmark:benchmark_main" ]
+    if (cppgc_is_standalone) {
+      deps += [ "../../../..:cppgc_for_testing" ]
+    } else {
+      deps += [ "../../../..:v8_for_testing" ]
+    }
   }
 
   v8_executable("cppgc_basic_benchmarks") {
@@ -48,8 +50,12 @@ if (v8_enable_google_benchmark) {
     ]
     deps = [
       ":cppgc_benchmark_support",
-      "../../../..:cppgc_for_testing",
       "//third_party/google_benchmark:benchmark_main",
     ]
+    if (cppgc_is_standalone) {
+      deps += [ "../../../..:cppgc_for_testing" ]
+    } else {
+      deps += [ "../../../..:v8_for_testing" ]
+    }
   }
 }

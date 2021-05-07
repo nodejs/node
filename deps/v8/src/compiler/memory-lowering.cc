@@ -98,6 +98,10 @@ Reduction MemoryLowering::ReduceAllocateRaw(
   DCHECK_EQ(IrOpcode::kAllocateRaw, node->opcode());
   DCHECK_IMPLIES(allocation_folding_ == AllocationFolding::kDoAllocationFolding,
                  state_ptr != nullptr);
+  // Code objects may have a maximum size smaller than kMaxHeapObjectSize due to
+  // guard pages. If we need to support allocating code here we would need to
+  // call MemoryChunkLayout::MaxRegularCodeObjectSize() at runtime.
+  DCHECK_NE(allocation_type, AllocationType::kCode);
   Node* value;
   Node* size = node->InputAt(0);
   Node* effect = node->InputAt(1);
@@ -135,7 +139,7 @@ Reduction MemoryLowering::ReduceAllocateRaw(
   IntPtrMatcher m(size);
   if (m.IsInRange(0, kMaxRegularHeapObjectSize) && FLAG_inline_new &&
       allocation_folding_ == AllocationFolding::kDoAllocationFolding) {
-    intptr_t const object_size = m.Value();
+    intptr_t const object_size = m.ResolvedValue();
     AllocationState const* state = *state_ptr;
     if (state->size() <= kMaxRegularHeapObjectSize - object_size &&
         state->group()->allocation() == allocation_type) {
@@ -306,7 +310,9 @@ Reduction MemoryLowering::ReduceLoadElement(Node* node) {
   return Changed(node);
 }
 
-Node* MemoryLowering::DecodeExternalPointer(Node* node) {
+Node* MemoryLowering::DecodeExternalPointer(
+    Node* node, ExternalPointerTag external_pointer_tag) {
+#ifdef V8_HEAP_SANDBOX
   DCHECK(V8_HEAP_SANDBOX_BOOL);
   DCHECK(node->opcode() == IrOpcode::kLoad ||
          node->opcode() == IrOpcode::kPoisonedLoad);
@@ -317,16 +323,29 @@ Node* MemoryLowering::DecodeExternalPointer(Node* node) {
   // Clone the load node and put it here.
   // TODO(turbofan): consider adding GraphAssembler::Clone() suitable for
   // cloning nodes from arbitrary locaions in effect/control chains.
-  Node* node_copy = __ AddNode(graph()->CloneNode(node));
+  Node* index = __ AddNode(graph()->CloneNode(node));
 
   // Uncomment this to generate a breakpoint for debugging purposes.
   // __ DebugBreak();
 
-  // Decode loaded enternal pointer.
+  // Decode loaded external pointer.
   STATIC_ASSERT(kExternalPointerSize == kSystemPointerSize);
-  Node* salt = __ IntPtrConstant(kExternalPointerSalt);
-  Node* decoded_ptr = __ WordXor(node_copy, salt);
+  Node* external_pointer_table_address = __ ExternalConstant(
+      ExternalReference::external_pointer_table_address(isolate()));
+  Node* table = __ Load(MachineType::Pointer(), external_pointer_table_address,
+                        Internals::kExternalPointerTableBufferOffset);
+  // TODO(v8:10391, saelo): bounds check if table is not caged
+  Node* offset = __ Int32Mul(index, __ Int32Constant(8));
+  Node* decoded_ptr =
+      __ Load(MachineType::Pointer(), table, __ ChangeUint32ToUint64(offset));
+  if (external_pointer_tag != 0) {
+    Node* tag = __ IntPtrConstant(external_pointer_tag);
+    decoded_ptr = __ WordXor(decoded_ptr, tag);
+  }
   return decoded_ptr;
+#else
+  return node;
+#endif  // V8_HEAP_SANDBOX
 }
 
 Reduction MemoryLowering::ReduceLoadField(Node* node) {
@@ -335,6 +354,11 @@ Reduction MemoryLowering::ReduceLoadField(Node* node) {
   Node* offset = __ IntPtrConstant(access.offset - access.tag());
   node->InsertInput(graph_zone(), 1, offset);
   MachineType type = access.machine_type;
+  if (V8_HEAP_SANDBOX_BOOL &&
+      access.type.Is(Type::SandboxedExternalPointer())) {
+    // External pointer table indices are 32bit numbers
+    type = MachineType::Uint32();
+  }
   if (NeedsPoisoning(access.load_sensitivity)) {
     NodeProperties::ChangeOp(node, machine()->PoisonedLoad(type));
   } else {
@@ -342,7 +366,12 @@ Reduction MemoryLowering::ReduceLoadField(Node* node) {
   }
   if (V8_HEAP_SANDBOX_BOOL &&
       access.type.Is(Type::SandboxedExternalPointer())) {
-    node = DecodeExternalPointer(node);
+#ifdef V8_HEAP_SANDBOX
+    ExternalPointerTag tag = access.external_pointer_tag;
+#else
+    ExternalPointerTag tag = kExternalPointerNullTag;
+#endif
+    node = DecodeExternalPointer(node, tag);
     return Replace(node);
   } else {
     DCHECK(!access.type.Is(Type::SandboxedExternalPointer()));

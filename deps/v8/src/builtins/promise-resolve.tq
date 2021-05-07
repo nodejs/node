@@ -30,7 +30,8 @@ transitioning builtin
 PromiseResolve(implicit context: Context)(
     constructor: JSReceiver, value: JSAny): JSAny {
   const nativeContext = LoadNativeContext(context);
-  const promiseFun = *NativeContextSlot(ContextSlot::PROMISE_FUNCTION_INDEX);
+  const promiseFun = *NativeContextSlot(
+      nativeContext, ContextSlot::PROMISE_FUNCTION_INDEX);
   try {
     // Check if {value} is a JSPromise.
     const value = Cast<JSPromise>(value) otherwise NeedToAllocate;
@@ -40,7 +41,8 @@ PromiseResolve(implicit context: Context)(
     // intact, as that guards the lookup path for "constructor" on
     // JSPromise instances which have the (initial) Promise.prototype.
     const promisePrototype =
-        *NativeContextSlot(ContextSlot::PROMISE_PROTOTYPE_INDEX);
+        *NativeContextSlot(
+        nativeContext, ContextSlot::PROMISE_PROTOTYPE_INDEX);
     // Check that Torque load elimination works.
     static_assert(nativeContext == LoadNativeContext(context));
     if (value.map.prototype != promisePrototype) {
@@ -97,7 +99,7 @@ ResolvePromise(implicit context: Context)(
   // We also let the runtime handle it if promise == resolution.
   // We can use pointer comparison here, since the {promise} is guaranteed
   // to be a JSPromise inside this function and thus is reference comparable.
-  if (IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate() ||
+  if (IsIsolatePromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate() ||
       TaggedEqual(promise, resolution))
     deferred {
       return runtime::ResolvePromise(promise, resolution);
@@ -139,7 +141,8 @@ ResolvePromise(implicit context: Context)(
       assert(IsJSReceiverMap(resolutionMap));
       assert(!IsPromiseThenProtectorCellInvalid());
       if (resolutionMap ==
-          *NativeContextSlot(ContextSlot::ITERATOR_RESULT_MAP_INDEX)) {
+          *NativeContextSlot(
+              nativeContext, ContextSlot::ITERATOR_RESULT_MAP_INDEX)) {
         return FulfillPromise(promise, resolution);
       } else {
         goto Slow;
@@ -147,10 +150,11 @@ ResolvePromise(implicit context: Context)(
     }
 
     const promisePrototype =
-        *NativeContextSlot(ContextSlot::PROMISE_PROTOTYPE_INDEX);
+        *NativeContextSlot(
+        nativeContext, ContextSlot::PROMISE_PROTOTYPE_INDEX);
     if (resolutionMap.prototype == promisePrototype) {
       // The {resolution} is a native Promise in this case.
-      then = *NativeContextSlot(ContextSlot::PROMISE_THEN_INDEX);
+      then = *NativeContextSlot(nativeContext, ContextSlot::PROMISE_THEN_INDEX);
       // Check that Torque load elimination works.
       static_assert(nativeContext == LoadNativeContext(context));
       goto Enqueue;

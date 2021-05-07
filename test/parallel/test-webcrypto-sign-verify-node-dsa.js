@@ -5,24 +5,26 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+if (common.hasOpenSSL3)
+  common.skip('temporarily skipping for OpenSSL 3.0-alpha15');
+
 const assert = require('assert');
 const { subtle } = require('crypto').webcrypto;
 
 const dsa = require('../fixtures/crypto/dsa');
 
-async function testVerify({
-  algorithm,
-  hash,
-  publicKeyBuffer,
-  privateKeyBuffer,
-  signature,
-  plaintext }) {
+async function testVerify({ algorithm,
+                            hash,
+                            publicKeyBuffer,
+                            privateKeyBuffer,
+                            signature,
+                            plaintext }) {
   const [
     publicKey,
     noVerifyPublicKey,
     privateKey,
     hmacKey,
-    wrongKeys
+    wrongKeys,
   ] = await Promise.all([
     subtle.importKey(
       'spki',
@@ -53,7 +55,7 @@ async function testVerify({
         hash: 'SHA-256',
       },
       false,
-      ['sign'])
+      ['sign']),
   ]);
 
   assert(await subtle.verify(algorithm, publicKey, signature, plaintext));
@@ -131,7 +133,8 @@ async function testSign({
   publicKeyBuffer,
   privateKeyBuffer,
   signature,
-  plaintext }) {
+  plaintext,
+}) {
   const [
     publicKey,
     noSignPrivateKey,
@@ -168,7 +171,7 @@ async function testSign({
         hash: 'SHA-256',
       },
       false,
-      ['sign'])
+      ['sign']),
   ]);
 
   {

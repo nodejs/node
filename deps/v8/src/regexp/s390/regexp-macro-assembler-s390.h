@@ -197,6 +197,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerS390
   Label check_preempt_label_;
   Label stack_overflow_label_;
   Label internal_failure_label_;
+  Label fallback_label_;
 };
 
 // Set of non-volatile registers saved/restored by generated regexp code.

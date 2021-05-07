@@ -77,7 +77,6 @@ const CheckTaggedInputMode kCheckTaggedInputModes[] = {
 const NumberOperationHint kNumberOperationHints[] = {
     NumberOperationHint::kSignedSmall,
     NumberOperationHint::kSignedSmallInputs,
-    NumberOperationHint::kSigned32,
     NumberOperationHint::kNumber,
     NumberOperationHint::kNumberOrOddball,
 };

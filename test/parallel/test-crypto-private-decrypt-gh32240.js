@@ -34,5 +34,8 @@ function decrypt(key) {
 }
 
 decrypt(pkey);
-assert.throws(() => decrypt(pkeyEncrypted), { code: 'ERR_MISSING_PASSPHRASE' });
+assert.throws(() => decrypt(pkeyEncrypted), common.hasOpenSSL3 ?
+  { message: 'error:07880109:common libcrypto routines::interrupted or ' +
+             'cancelled' } :
+  { code: 'ERR_MISSING_PASSPHRASE' });
 decrypt(pkey);  // Should not throw.

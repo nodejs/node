@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/ast/prettyprinter.h"
+#include "src/common/globals.h"
 #include "src/common/message-template.h"
 #include "src/debug/debug.h"
 #include "src/execution/arguments-inl.h"
@@ -108,8 +109,8 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
   int nof = receiver_map->NumberOfOwnDescriptors();
   if (nof == 0) return false;
   InternalIndex descriptor(nof - 1);
-  Handle<DescriptorArray> descriptors(receiver_map->instance_descriptors(),
-                                      isolate);
+  Handle<DescriptorArray> descriptors(
+      receiver_map->instance_descriptors(kRelaxedLoad), isolate);
   if (descriptors->GetKey(descriptor) != *key) return false;
   // (3) The property to be deleted must be deletable.
   PropertyDetails details = descriptors->GetDetails(descriptor);
@@ -147,12 +148,12 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
   // Zap the property to avoid keeping objects alive. Zapping is not necessary
   // for properties stored in the descriptor array.
   if (details.location() == kField) {
-    DisallowHeapAllocation no_allocation;
+    DisallowGarbageCollection no_gc;
 
     // Invalidate slots manually later in case we delete an in-object tagged
     // property. In this case we might later store an untagged value in the
     // recorded slot.
-    isolate->heap()->NotifyObjectLayoutChange(*receiver, no_allocation,
+    isolate->heap()->NotifyObjectLayoutChange(*receiver, no_gc,
                                               InvalidateRecordedSlots::kNo);
     FieldIndex index =
         FieldIndex::ForPropertyIndex(*receiver_map, details.field_index());
@@ -163,12 +164,12 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
       receiver->SetProperties(ReadOnlyRoots(isolate).empty_fixed_array());
     } else {
       Object filler = ReadOnlyRoots(isolate).one_pointer_filler_map();
-      JSObject::cast(*receiver).RawFastPropertyAtPut(index, filler);
+      JSObject::cast(*receiver).FastPropertyAtPut(index, filler);
       // We must clear any recorded slot for the deleted property, because
       // subsequent object modifications might put a raw double there.
       // Slot clearing is the reason why this entire function cannot currently
       // be implemented in the DeleteProperty stub.
-      if (index.is_inobject() && !receiver_map->IsUnboxedDoubleField(index)) {
+      if (index.is_inobject()) {
         // We need to clear the recorded slot in this case because in-object
         // slack tracking might not be finished. This ensures that we don't
         // have recorded slots in free space.
@@ -357,6 +358,38 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
   return ReadOnlyRoots(isolate).false_value();
 }
 
+RUNTIME_FUNCTION(Runtime_HasOwnConstDataProperty) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, property, 1);
+
+  bool success;
+  LookupIterator::Key key(isolate, property, &success);
+  if (!success) return ReadOnlyRoots(isolate).undefined_value();
+
+  if (object->IsJSObject()) {
+    Handle<JSObject> js_obj = Handle<JSObject>::cast(object);
+    LookupIterator it(isolate, js_obj, key, js_obj, LookupIterator::OWN);
+
+    switch (it.state()) {
+      case LookupIterator::NOT_FOUND:
+        return isolate->heap()->ToBoolean(false);
+      case LookupIterator::DATA:
+        return isolate->heap()->ToBoolean(it.constness() ==
+                                          PropertyConstness::kConst);
+      default:
+        return ReadOnlyRoots(isolate).undefined_value();
+    }
+  }
+
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_IsDictPropertyConstTrackingEnabled) {
+  return isolate->heap()->ToBoolean(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
+}
+
 RUNTIME_FUNCTION(Runtime_AddDictionaryProperty) {
   HandleScope scope(isolate);
   Handle<JSObject> receiver = args.at<JSObject>(0);
@@ -365,11 +398,22 @@ RUNTIME_FUNCTION(Runtime_AddDictionaryProperty) {
 
   DCHECK(name->IsUniqueName());
 
-  Handle<NameDictionary> dictionary(receiver->property_dictionary(), isolate);
-  PropertyDetails property_details(kData, NONE, PropertyCellType::kNoCell);
-  dictionary =
-      NameDictionary::Add(isolate, dictionary, name, value, property_details);
-  receiver->SetProperties(*dictionary);
+  PropertyDetails property_details(
+      kData, NONE, PropertyDetails::kConstIfDictConstnessTracking);
+  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    Handle<OrderedNameDictionary> dictionary(
+        receiver->property_dictionary_ordered(), isolate);
+    dictionary = OrderedNameDictionary::Add(isolate, dictionary, name, value,
+                                            property_details)
+                     .ToHandleChecked();
+    receiver->SetProperties(*dictionary);
+  } else {
+    Handle<NameDictionary> dictionary(receiver->property_dictionary(), isolate);
+    dictionary =
+        NameDictionary::Add(isolate, dictionary, name, value, property_details);
+    receiver->SetProperties(*dictionary);
+  }
+
   return *value;
 }
 
@@ -620,11 +664,11 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
       Handle<Name> key = Handle<Name>::cast(key_obj);
       key_obj = key = isolate->factory()->InternalizeName(key);
 
-      DisallowHeapAllocation no_allocation;
+      DisallowGarbageCollection no_gc;
       if (holder->IsJSGlobalObject()) {
         // Attempt dictionary lookup.
         GlobalDictionary dictionary =
-            JSGlobalObject::cast(*holder).global_dictionary();
+            JSGlobalObject::cast(*holder).global_dictionary(kAcquireLoad);
         InternalIndex entry = dictionary.FindEntry(isolate, key);
         if (entry.is_found()) {
           PropertyCell cell = dictionary.CellAt(entry);
@@ -636,11 +680,21 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
         }
       } else if (!holder->HasFastProperties()) {
         // Attempt dictionary lookup.
-        NameDictionary dictionary = holder->property_dictionary();
-        InternalIndex entry = dictionary.FindEntry(isolate, key);
-        if ((entry.is_found()) &&
-            (dictionary.DetailsAt(entry).kind() == kData)) {
-          return dictionary.ValueAt(entry);
+        if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+          OrderedNameDictionary dictionary =
+              holder->property_dictionary_ordered();
+          InternalIndex entry = dictionary.FindEntry(isolate, *key);
+          if (entry.is_found() &&
+              (dictionary.DetailsAt(entry).kind() == kData)) {
+            return dictionary.ValueAt(entry);
+          }
+        } else {
+          NameDictionary dictionary = holder->property_dictionary();
+          InternalIndex entry = dictionary.FindEntry(isolate, key);
+          if ((entry.is_found()) &&
+              (dictionary.DetailsAt(entry).kind() == kData)) {
+            return dictionary.ValueAt(entry);
+          }
         }
       }
     } else if (key_obj->IsSmi()) {
@@ -760,10 +814,19 @@ RUNTIME_FUNCTION(Runtime_ShrinkPropertyDictionary) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
-  Handle<NameDictionary> dictionary(receiver->property_dictionary(), isolate);
-  Handle<NameDictionary> new_properties =
-      NameDictionary::Shrink(isolate, dictionary);
-  receiver->SetProperties(*new_properties);
+  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    Handle<OrderedNameDictionary> dictionary(
+        receiver->property_dictionary_ordered(), isolate);
+    Handle<OrderedNameDictionary> new_properties =
+        OrderedNameDictionary::Shrink(isolate, dictionary);
+    receiver->SetProperties(*new_properties);
+  } else {
+    Handle<NameDictionary> dictionary(receiver->property_dictionary(), isolate);
+    Handle<NameDictionary> new_properties =
+        NameDictionary::Shrink(isolate, dictionary);
+    receiver->SetProperties(*new_properties);
+  }
+
   return Smi::zero();
 }
 
@@ -846,7 +909,7 @@ RUNTIME_FUNCTION(Runtime_GetDerivedMap) {
 }
 
 RUNTIME_FUNCTION(Runtime_CompleteInobjectSlackTrackingForMap) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
 
@@ -859,9 +922,7 @@ RUNTIME_FUNCTION(Runtime_CompleteInobjectSlackTrackingForMap) {
 RUNTIME_FUNCTION(Runtime_TryMigrateInstance) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
-  if (!object->IsJSObject()) return Smi::zero();
-  Handle<JSObject> js_object = Handle<JSObject>::cast(object);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, js_object, 0);
   // It could have been a DCHECK but we call this function directly from tests.
   if (!js_object->map().is_deprecated()) return Smi::zero();
   // This call must not cause lazy deopts, because it's called from deferred
@@ -869,7 +930,7 @@ RUNTIME_FUNCTION(Runtime_TryMigrateInstance) {
   // ID. So we just try migration and signal failure if necessary,
   // which will also trigger a deopt.
   if (!JSObject::TryMigrateInstance(isolate, js_object)) return Smi::zero();
-  return *object;
+  return *js_object;
 }
 
 static bool IsValidAccessor(Isolate* isolate, Handle<Object> obj) {
@@ -1041,7 +1102,9 @@ RUNTIME_FUNCTION(Runtime_SetDataProperties) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  MAYBE_RETURN(JSReceiver::SetOrCopyDataProperties(isolate, target, source),
+  MAYBE_RETURN(JSReceiver::SetOrCopyDataProperties(
+                   isolate, target, source,
+                   PropertiesEnumerationMode::kEnumerationOrder),
                ReadOnlyRoots(isolate).exception());
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -1057,9 +1120,11 @@ RUNTIME_FUNCTION(Runtime_CopyDataProperties) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  MAYBE_RETURN(JSReceiver::SetOrCopyDataProperties(isolate, target, source,
-                                                   nullptr, false),
-               ReadOnlyRoots(isolate).exception());
+  MAYBE_RETURN(
+      JSReceiver::SetOrCopyDataProperties(
+          isolate, target, source,
+          PropertiesEnumerationMode::kPropertyAdditionOrder, nullptr, false),
+      ReadOnlyRoots(isolate).exception());
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -1070,7 +1135,8 @@ RUNTIME_FUNCTION(Runtime_CopyDataPropertiesWithExcludedProperties) {
 
   // If source is undefined or null, throw a non-coercible error.
   if (source->IsNullOrUndefined(isolate)) {
-    return ErrorUtils::ThrowLoadFromNullOrUndefined(isolate, source);
+    return ErrorUtils::ThrowLoadFromNullOrUndefined(isolate, source,
+                                                    MaybeHandle<Object>());
   }
 
   ScopedVector<Handle<Object>> excluded_properties(args.length() - 1);
@@ -1091,8 +1157,10 @@ RUNTIME_FUNCTION(Runtime_CopyDataPropertiesWithExcludedProperties) {
 
   Handle<JSObject> target =
       isolate->factory()->NewJSObject(isolate->object_function());
-  MAYBE_RETURN(JSReceiver::SetOrCopyDataProperties(isolate, target, source,
-                                                   &excluded_properties, false),
+  MAYBE_RETURN(JSReceiver::SetOrCopyDataProperties(
+                   isolate, target, source,
+                   PropertiesEnumerationMode::kPropertyAdditionOrder,
+                   &excluded_properties, false),
                ReadOnlyRoots(isolate).exception());
   return *target;
 }

@@ -6,6 +6,10 @@
 #include <string>
 #include "node_version.h"
 
+#if HAVE_OPENSSL
+#include <openssl/crypto.h>
+#endif  // HAVE_OPENSSL
+
 namespace node {
 
 // if this is a release build and no explicit base has been set
@@ -38,12 +42,6 @@ namespace node {
 #define NODE_VERSIONS_KEY_CRYPTO(V)
 #endif
 
-#if defined(NODE_EXPERIMENTAL_QUIC) && NODE_EXPERIMENTAL_QUIC
-#define NODE_VERSIONS_KEY_QUIC(V) V(ngtcp2) V(nghttp3)
-#else
-#define NODE_VERSIONS_KEY_QUIC(V)
-#endif
-
 #ifdef NODE_HAVE_I18N_SUPPORT
 #define NODE_VERSIONS_KEY_INTL(V)                                              \
   V(cldr)                                                                      \
@@ -54,11 +52,19 @@ namespace node {
 #define NODE_VERSIONS_KEY_INTL(V)
 #endif  // NODE_HAVE_I18N_SUPPORT
 
+#ifdef OPENSSL_INFO_QUIC
+#define NODE_VERSIONS_KEY_QUIC(V)                                             \
+  V(ngtcp2)                                                                   \
+  V(nghttp3)
+#else
+#define NODE_VERSIONS_KEY_QUIC(V)
+#endif
+
 #define NODE_VERSIONS_KEYS(V)                                                  \
   NODE_VERSIONS_KEYS_BASE(V)                                                   \
   NODE_VERSIONS_KEY_CRYPTO(V)                                                  \
-  NODE_VERSIONS_KEY_QUIC(V)                                                    \
-  NODE_VERSIONS_KEY_INTL(V)
+  NODE_VERSIONS_KEY_INTL(V)                                                    \
+  NODE_VERSIONS_KEY_QUIC(V)
 
 class Metadata {
  public:
