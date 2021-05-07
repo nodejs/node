@@ -54,8 +54,7 @@ class RefTracker {
 struct napi_env__ {
   explicit napi_env__(v8::Local<v8::Context> context)
       : isolate(context->GetIsolate()),
-        context_persistent(isolate, context),
-        is_env_teardown(false) {
+        context_persistent(isolate, context) {
     CHECK_EQ(isolate, context->GetIsolate());
   }
   virtual ~napi_env__() {
@@ -64,15 +63,11 @@ struct napi_env__ {
     // they delete during their `napi_finalizer` callbacks. If we deleted such
     // references here first, they would be doubly deleted when the
     // `napi_finalizer` deleted them subsequently.
-    is_env_teardown = true;
     v8impl::RefTracker::FinalizeAll(&finalizing_reflist);
     v8impl::RefTracker::FinalizeAll(&reflist);
   }
   v8::Isolate* const isolate;  // Shortcut for context()->GetIsolate()
   v8impl::Persistent<v8::Context> context_persistent;
-  bool is_env_teardown;
-
-  inline bool isEnvTeardown() { return is_env_teardown; }
 
   inline v8::Local<v8::Context> context() const {
     return v8impl::PersistentToLocal::Strong(context_persistent);
@@ -125,6 +120,37 @@ struct napi_env__ {
   int open_callback_scopes = 0;
   int refs = 1;
   void* instance_data = nullptr;
+};
+
+// This class is used to keep a napi_env live in a way that
+// is exception safe versus calling Ref/Unref directly
+class LiveEnv {
+ public:
+  explicit LiveEnv(napi_env env) : _env(env) {
+      _env->Ref();
+  }
+
+  explicit LiveEnv(const LiveEnv& other): _env(other.env()) {
+    _env->Ref();
+  }
+
+  LiveEnv(LiveEnv&& other) {
+    _env = other._env;
+    other._env = nullptr;
+  }
+
+  ~LiveEnv() {
+    if (_env != nullptr) {
+      _env->Unref();
+    }
+  }
+
+  napi_env env(void) const {
+    return _env;
+  }
+
+ private:
+  napi_env _env;
 };
 
 static inline napi_status napi_clear_last_error(napi_env env) {

@@ -38,26 +38,19 @@ struct node_napi_env__ : public napi_env__ {
   }
 
   void CallFinalizer(napi_finalize cb, void* data, void* hint) override {
-    napi_env env = static_cast<napi_env>(this);
-    if (!env->isEnvTeardown()) {
-      env->Ref();
-      node_env()->SetImmediate([=](node::Environment* node_env) {
-        {
-          v8::HandleScope handle_scope(env->isolate);
-          v8::Context::Scope context_scope(env->context());
-          env->CallIntoModule([&](napi_env env) {
-            cb(env, data, hint);
-          });
-        }
-        env->Unref();
-      });
-    } else {
+    // we need to keep the env live until the finalizer has been run
+    // LiveEnv provides an exception safe wrapper to Ref and then
+    // Unref once the lamba is freed
+    LiveEnv liveEnv(static_cast<napi_env>(this));
+    node_env()->SetImmediate([=, liveEnv = std::move(liveEnv)]
+        (node::Environment* node_env) {
+      napi_env env = liveEnv.env();
       v8::HandleScope handle_scope(env->isolate);
       v8::Context::Scope context_scope(env->context());
       env->CallIntoModule([&](napi_env env) {
         cb(env, data, hint);
       });
-    }
+    });
   }
 
   const char* GetFilename() const { return filename.c_str(); }
@@ -81,30 +74,8 @@ class BufferFinalizer : private Finalizer {
 
     node::Environment* node_env =
         static_cast<node_napi_env>(finalizer->_env)->node_env();
-    if (!finalizer->_env->isEnvTeardown()) {
-      finalizer->_env->Ref();
-      node_env->SetImmediate(
-          [finalizer = std::move(finalizer)](node::Environment* env) {
-
-        if (finalizer->_finalize_callback == nullptr) {
-          finalizer->_env->Unref();
-          return;
-        }
-
-        {
-          v8::HandleScope handle_scope(finalizer->_env->isolate);
-          v8::Context::Scope context_scope(finalizer->_env->context());
-
-          finalizer->_env->CallIntoModule([&](napi_env env) {
-            finalizer->_finalize_callback(
-                env,
-                finalizer->_finalize_data,
-                finalizer->_finalize_hint);
-          });
-        }
-        finalizer->_env->Unref();
-      });
-    } else {
+    node_env->SetImmediate(
+        [finalizer = std::move(finalizer)](node::Environment* env) {
       if (finalizer->_finalize_callback == nullptr) return;
 
       v8::HandleScope handle_scope(finalizer->_env->isolate);
@@ -115,8 +86,8 @@ class BufferFinalizer : private Finalizer {
             env,
             finalizer->_finalize_data,
             finalizer->_finalize_hint);
-       });
-    }
+      });
+    });
   }
 
   struct Deleter {
