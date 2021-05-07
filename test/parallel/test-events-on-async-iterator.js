@@ -37,6 +37,13 @@ async function basic() {
   assert.strictEqual(ee.listenerCount('error'), 0);
 }
 
+async function invalidArgType() {
+  assert.throws(() => on({}, 'foo'), common.expectsError({
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError',
+  }));
+}
+
 async function error() {
   const ee = new EventEmitter();
   const _err = new Error('kaboom');
@@ -363,6 +370,7 @@ async function abortableOnAfterDone() {
 async function run() {
   const funcs = [
     basic,
+    invalidArgType,
     error,
     errorDelayed,
     throwInLoop,
