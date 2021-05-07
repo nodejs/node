@@ -83,6 +83,9 @@ class Vuln {
     if (!specObj.registry)
       return true
 
+    if (specObj.subSpec)
+      spec = specObj.subSpec.rawSpec
+
     for (const v of this.versions) {
       if (satisfies(v, spec) && !satisfies(v, this.range, semverOpt))
         return false

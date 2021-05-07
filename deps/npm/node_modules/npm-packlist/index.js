@@ -26,8 +26,7 @@ const normalizePackageBin = require('npm-normalize-package-bin')
 // localized documentation and other use cases.  Adding a `/` to
 // these rules, while tempting and arguably more "correct", is a
 // significant change that will break existing use cases.
-const packageMustHaveFileNames =
-  'readme|copying|license|licence|notice|changes|changelog|history'
+const packageMustHaveFileNames = 'readme|copying|license|licence'
 
 const packageMustHaves = `@(${packageMustHaveFileNames}){,.*[^~$]}`
 const packageMustHavesRE = new RegExp(`^(${packageMustHaveFileNames})(\\..*[^~\$])?$`, 'i')

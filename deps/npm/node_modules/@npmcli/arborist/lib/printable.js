@@ -7,8 +7,8 @@ const relpath = require('./relpath.js')
 class ArboristNode {
   constructor (tree, path) {
     this.name = tree.name
-    if (tree.package.name && tree.package.name !== this.name)
-      this.packageName = tree.package.name
+    if (tree.packageName && tree.packageName !== this.name)
+      this.packageName = tree.packageName
     if (tree.version)
       this.version = tree.version
     this.location = tree.location

@@ -1,3 +1,44 @@
+## v7.12.0 (2021-05-06)
+
+### FEATURES
+
+* [`701627c51`](https://github.com/npm/cli/commit/701627c5169934e59da2959d76a49c77278cc9dc)
+  [#3098](https://github.com/npm/cli/issues/3098)
+  feat(cache): Allow `add` to accept multiple specs
+  ([@mjsir911](https://github.com/mjsir911))
+* [`59171f030`](https://github.com/npm/cli/commit/59171f0304f048a009f1697eec6f74f778bc52ff)
+  [#3187](https://github.com/npm/cli/issues/3187)
+  feat(config): add workspaces boolean to user-agent
+  ([@nlf](https://github.com/nlf))
+
+### BUG FIXES
+
+* [`2c9b8713c`](https://github.com/npm/cli/commit/2c9b8713c4c88fbd0c3c48eb0de84dbd7269398f)
+  [#3182](https://github.com/npm/cli/issues/3182)
+  fix(docs): fix broken links
+  ([@wangsai](https://github.com/wangsai))
+* [`88cbc8c44`](https://github.com/npm/cli/commit/88cbc8c447cbaef20b5a8f19246211ce4918f4d8)
+  [#3198](https://github.com/npm/cli/issues/3198)
+  fix(tests): reflect new libnpmexec logic
+
+### DEPENDENCIES
+
+* [`d01ce5e13`](https://github.com/npm/cli/commit/d01ce5e132cb4661698012fd5017753c2bdb660b)
+  `libnpmexec@1.1.0`:
+    * feat: add walk up dir lookup to satisfy local bins
+* [`81c1dfaaa`](https://github.com/npm/cli/commit/81c1dfaaaf918229316a975aa8075769ffafdb6d)
+  `@npmcli/arborist@2.4.2`:
+    * fix(add): save packages in the right place
+    * fix(reify): do not clean up nodes with no parent
+    * fix(audit): support alias specs & root package names
+* [`87c2303ea`](https://github.com/npm/cli/commit/87c2303eaa6edfa5309da0a30f5ad291b6d57640)
+  `@npmcli/git@2.0.9`:
+    * fix(clone): Do not allow git replacement objects by default
+* [`99ff40dff`](https://github.com/npm/cli/commit/99ff40dff5e5e55a5d5f045ba90e76c08174ca38)
+  `npm-packlist@2.2.0`:
+    * feat(npmignore): Do not force include history, changelogs, notice
+    * fix(package.json): add missing bin/index.js to files
+
 ## v7.11.2 (2021-04-29)
 
 ### BUG FIXES
@@ -76,8 +117,8 @@
   [#3126](https://github.com/npm/cli/issues/3126)
   fix(logout): use isBasicAuth attribute
   ([@wraithgar](https://github.com/wraithgar))
-### DOCUMENTATION
 
+### DOCUMENTATION
 
 * [`c93f1c39e`](https://github.com/npm/cli/commit/c93f1c39e326feff0857712a10ef6183fbafe1ab)
   [#3101](https://github.com/npm/cli/issues/3101)
@@ -88,7 +129,6 @@
   [#3109](https://github.com/npm/cli/issues/3109)
   fix(usage): fix refs to ws shorthand
   ([@ruyadorno](https://github.com/ruyadorno))
-
 
 ### DEPENDENCIES
 

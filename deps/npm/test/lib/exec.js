@@ -121,11 +121,15 @@ t.afterEach(() => {
 
 t.test('npx foo, bin already exists locally', t => {
   const path = t.testdir({
-    foo: 'just some file',
+    node_modules: {
+      '.bin': {
+        foo: 'just some file',
+      },
+    },
   })
 
   PROGRESS_IGNORED = true
-  npm.localBin = path
+  npm.localBin = resolve(path, 'node_modules', '.bin')
 
   exec.exec(['foo', 'one arg', 'two arg'], er => {
     t.error(er, 'npm exec')
@@ -137,7 +141,7 @@ t.test('npx foo, bin already exists locally', t => {
       stdioString: true,
       event: 'npx',
       env: {
-        PATH: [path, ...PATH].join(delimiter),
+        PATH: [npm.localBin, ...PATH].join(delimiter),
       },
       stdio: 'inherit',
     }])
@@ -147,11 +151,15 @@ t.test('npx foo, bin already exists locally', t => {
 
 t.test('npx foo, bin already exists globally', t => {
   const path = t.testdir({
-    foo: 'just some file',
+    node_modules: {
+      '.bin': {
+        foo: 'just some file',
+      },
+    },
   })
 
   PROGRESS_IGNORED = true
-  npm.globalBin = path
+  npm.globalBin = resolve(path, 'node_modules', '.bin')
 
   exec.exec(['foo', 'one arg', 'two arg'], er => {
     t.error(er, 'npm exec')
@@ -163,7 +171,7 @@ t.test('npx foo, bin already exists globally', t => {
       stdioString: true,
       event: 'npx',
       env: {
-        PATH: [path, ...PATH].join(delimiter),
+        PATH: [npm.globalBin, ...PATH].join(delimiter),
       },
       stdio: 'inherit',
     }])

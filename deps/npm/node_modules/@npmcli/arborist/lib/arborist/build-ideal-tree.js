@@ -504,6 +504,7 @@ module.exports = cls => class IdealTreeBuilder extends cls {
         saveBundle,
         saveType,
         path: this.path,
+        log: this.log,
       })
     })
   }

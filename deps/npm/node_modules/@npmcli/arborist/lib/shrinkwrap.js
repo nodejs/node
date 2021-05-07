@@ -254,7 +254,7 @@ class Shrinkwrap {
         meta[key.replace(/^_/, '')] = val
     })
     // we only include name if different from the node path name
-    const pname = node.package.name
+    const pname = node.packageName
     if (pname && pname !== node.name)
       meta.name = pname
 
@@ -825,7 +825,7 @@ class Shrinkwrap {
   [_buildLegacyLockfile] (node, lock, path = []) {
     if (node === this.tree) {
       // the root node
-      lock.name = node.package.name || node.name
+      lock.name = node.packageName || node.name
       if (node.version)
         lock.version = node.version
     }
@@ -870,9 +870,9 @@ class Shrinkwrap {
         lock.from = spec.raw
     } else if (!node.isRoot &&
         node.package &&
-        node.package.name &&
-        node.package.name !== node.name)
-      lock.version = `npm:${node.package.name}@${node.version}`
+        node.packageName &&
+        node.packageName !== node.name)
+      lock.version = `npm:${node.packageName}@${node.version}`
     else if (node.package && node.version)
       lock.version = node.version
 
