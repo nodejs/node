@@ -19,6 +19,12 @@ const fixtures = dirname.slice(0, dirname.lastIndexOf('/', dirname.length - 2) +
     await import.meta.resolve('../fixtures/empty-with-bom.txt'),
     fixtures + 'empty-with-bom.txt');
   assert.strictEqual(await import.meta.resolve('../fixtures/'), fixtures);
+  assert.strictEqual(
+    await import.meta.resolve('../fixtures/', import.meta.url),
+    fixtures);
+  assert.strictEqual(
+    await import.meta.resolve('../fixtures/', new URL(import.meta.url)),
+    fixtures);
   assert.strictEqual(await import.meta.resolve('baz/', fixtures),
                      fixtures + 'node_modules/baz/');
 })().then(mustCall());
