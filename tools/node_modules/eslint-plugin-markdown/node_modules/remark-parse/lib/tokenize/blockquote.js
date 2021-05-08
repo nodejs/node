@@ -1,129 +1,124 @@
-'use strict';
+'use strict'
 
-var trim = require('trim');
-var interrupt = require('../util/interrupt');
+var trim = require('trim')
+var interrupt = require('../util/interrupt')
 
-module.exports = blockquote;
+module.exports = blockquote
 
-var C_NEWLINE = '\n';
-var C_TAB = '\t';
-var C_SPACE = ' ';
-var C_GT = '>';
+var lineFeed = '\n'
+var tab = '\t'
+var space = ' '
+var greaterThan = '>'
 
-/* Tokenise a blockquote. */
 function blockquote(eat, value, silent) {
-  var self = this;
-  var offsets = self.offset;
-  var tokenizers = self.blockTokenizers;
-  var interruptors = self.interruptBlockquote;
-  var now = eat.now();
-  var currentLine = now.line;
-  var length = value.length;
-  var values = [];
-  var contents = [];
-  var indents = [];
-  var add;
-  var index = 0;
-  var character;
-  var rest;
-  var nextIndex;
-  var content;
-  var line;
-  var startIndex;
-  var prefixed;
-  var exit;
+  var self = this
+  var offsets = self.offset
+  var tokenizers = self.blockTokenizers
+  var interruptors = self.interruptBlockquote
+  var now = eat.now()
+  var currentLine = now.line
+  var length = value.length
+  var values = []
+  var contents = []
+  var indents = []
+  var add
+  var index = 0
+  var character
+  var rest
+  var nextIndex
+  var content
+  var line
+  var startIndex
+  var prefixed
+  var exit
 
   while (index < length) {
-    character = value.charAt(index);
+    character = value.charAt(index)
 
-    if (character !== C_SPACE && character !== C_TAB) {
-      break;
+    if (character !== space && character !== tab) {
+      break
     }
 
-    index++;
+    index++
   }
 
-  if (value.charAt(index) !== C_GT) {
-    return;
+  if (value.charAt(index) !== greaterThan) {
+    return
   }
 
   if (silent) {
-    return true;
+    return true
   }
 
-  index = 0;
+  index = 0
 
   while (index < length) {
-    nextIndex = value.indexOf(C_NEWLINE, index);
-    startIndex = index;
-    prefixed = false;
+    nextIndex = value.indexOf(lineFeed, index)
+    startIndex = index
+    prefixed = false
 
     if (nextIndex === -1) {
-      nextIndex = length;
+      nextIndex = length
     }
 
     while (index < length) {
-      character = value.charAt(index);
+      character = value.charAt(index)
 
-      if (character !== C_SPACE && character !== C_TAB) {
-        break;
+      if (character !== space && character !== tab) {
+        break
       }
 
-      index++;
+      index++
     }
 
-    if (value.charAt(index) === C_GT) {
-      index++;
-      prefixed = true;
+    if (value.charAt(index) === greaterThan) {
+      index++
+      prefixed = true
 
-      if (value.charAt(index) === C_SPACE) {
-        index++;
+      if (value.charAt(index) === space) {
+        index++
       }
     } else {
-      index = startIndex;
+      index = startIndex
     }
 
-    content = value.slice(index, nextIndex);
+    content = value.slice(index, nextIndex)
 
     if (!prefixed && !trim(content)) {
-      index = startIndex;
-      break;
+      index = startIndex
+      break
     }
 
     if (!prefixed) {
-      rest = value.slice(index);
+      rest = value.slice(index)
 
-      /* Check if the following code contains a possible
-       * block. */
+      // Check if the following code contains a possible block.
       if (interrupt(interruptors, tokenizers, self, [eat, rest, true])) {
-        break;
+        break
       }
     }
 
-    line = startIndex === index ? content : value.slice(startIndex, nextIndex);
+    line = startIndex === index ? content : value.slice(startIndex, nextIndex)
 
-    indents.push(index - startIndex);
-    values.push(line);
-    contents.push(content);
+    indents.push(index - startIndex)
+    values.push(line)
+    contents.push(content)
 
-    index = nextIndex + 1;
+    index = nextIndex + 1
   }
 
-  index = -1;
-  length = indents.length;
-  add = eat(values.join(C_NEWLINE));
+  index = -1
+  length = indents.length
+  add = eat(values.join(lineFeed))
 
   while (++index < length) {
-    offsets[currentLine] = (offsets[currentLine] || 0) + indents[index];
-    currentLine++;
+    offsets[currentLine] = (offsets[currentLine] || 0) + indents[index]
+    currentLine++
   }
 
-  exit = self.enterBlock();
-  contents = self.tokenizeBlock(contents.join(C_NEWLINE), now);
-  exit();
+  exit = self.enterBlock()
+  contents = self.tokenizeBlock(contents.join(lineFeed), now)
+  exit()
 
-  return add({
-    type: 'blockquote',
-    children: contents
-  });
+  return add({type: 'blockquote', children: contents})
 }

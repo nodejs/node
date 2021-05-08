@@ -27,16 +27,11 @@ const {
         naming,
         CascadingConfigArrayFactory,
         IgnorePattern,
-        getUsedExtractedConfigs
+        getUsedExtractedConfigs,
+        ModuleResolver
     }
 } = require("@eslint/eslintrc");
 
-/*
- * For some reason, ModuleResolver must be included via filepath instead of by
- * API exports in order to work properly. That's why this is separated out onto
- * its own require() statement.
- */
-const ModuleResolver = require("@eslint/eslintrc/lib/shared/relative-module-resolver");
 const { FileEnumerator } = require("./file-enumerator");
 
 const { Linter } = require("../linter");

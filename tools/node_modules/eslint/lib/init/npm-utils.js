@@ -172,6 +172,7 @@ function checkPackageJson(startDir) {
 module.exports = {
     installSyncSaveDev,
     fetchPeerDependencies,
+    findPackageJson,
     checkDeps,
     checkDevDeps,
     checkPackageJson

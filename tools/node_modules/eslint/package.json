@@ -1,6 +1,6 @@
 {
   "name": "eslint",
-  "version": "7.25.0",
+  "version": "7.26.0",
   "author": "Nicholas C. Zakas <nicholas+npm@nczconsulting.com>",
   "description": "An AST-based pattern checker for JavaScript.",
   "bin": {
@@ -44,7 +44,7 @@
   "bugs": "https://github.com/eslint/eslint/issues/",
   "dependencies": {
     "@babel/code-frame": "7.12.11",
-    "@eslint/eslintrc": "^0.4.0",
+    "@eslint/eslintrc": "^0.4.1",
     "ajv": "^6.10.0",
     "chalk": "^4.0.0",
     "cross-spawn": "^7.0.2",
@@ -84,7 +84,6 @@
   "devDependencies": {
     "@babel/core": "^7.4.3",
     "@babel/preset-env": "^7.4.3",
-    "acorn": "^7.2.0",
     "babel-loader": "^8.0.5",
     "chai": "^4.0.1",
     "cheerio": "^0.22.0",

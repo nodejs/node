@@ -1,54 +1,53 @@
-'use strict';
+'use strict'
 
-var xtend = require('xtend');
-var toggle = require('state-toggle');
-var vfileLocation = require('vfile-location');
-var unescape = require('./unescape');
-var decode = require('./decode');
-var tokenizer = require('./tokenizer');
+var xtend = require('xtend')
+var toggle = require('state-toggle')
+var vfileLocation = require('vfile-location')
+var unescape = require('./unescape')
+var decode = require('./decode')
+var tokenizer = require('./tokenizer')
 
-module.exports = Parser;
+module.exports = Parser
 
 function Parser(doc, file) {
-  this.file = file;
-  this.offset = {};
-  this.options = xtend(this.options);
-  this.setOptions({});
+  this.file = file
+  this.offset = {}
+  this.options = xtend(this.options)
+  this.setOptions({})
 
-  this.inList = false;
-  this.inBlock = false;
-  this.inLink = false;
-  this.atStart = true;
+  this.inList = false
+  this.inBlock = false
+  this.inLink = false
+  this.atStart = true
 
-  this.toOffset = vfileLocation(file).toOffset;
-  this.unescape = unescape(this, 'escape');
-  this.decode = decode(this);
+  this.toOffset = vfileLocation(file).toOffset
+  this.unescape = unescape(this, 'escape')
+  this.decode = decode(this)
 }
 
-var proto = Parser.prototype;
+var proto = Parser.prototype
 
-/* Expose core. */
-proto.setOptions = require('./set-options');
-proto.parse = require('./parse');
+// Expose core.
+proto.setOptions = require('./set-options')
+proto.parse = require('./parse')
 
-/* Expose `defaults`. */
-proto.options = require('./defaults');
+// Expose `defaults`.
+proto.options = require('./defaults')
 
-/* Enter and exit helpers. */
-proto.exitStart = toggle('atStart', true);
-proto.enterList = toggle('inList', false);
-proto.enterLink = toggle('inLink', false);
-proto.enterBlock = toggle('inBlock', false);
+// Enter and exit helpers.
+proto.exitStart = toggle('atStart', true)
+proto.enterList = toggle('inList', false)
+proto.enterLink = toggle('inLink', false)
+proto.enterBlock = toggle('inBlock', false)
 
-/* Nodes that can interupt a paragraph:
- *
- * ```markdown
- * A paragraph, followed by a thematic break.
- * ___
- * ```
- *
- * In the above example, the thematic break “interupts”
- * the paragraph. */
+// Nodes that can interupt a paragraph:
+//
+// ```markdown
+// A paragraph, followed by a thematic break.
+// ___
+// ```
+//
+// In the above example, the thematic break “interupts” the paragraph.
 proto.interruptParagraph = [
   ['thematicBreak'],
   ['atxHeading'],
@@ -58,34 +57,32 @@ proto.interruptParagraph = [
   ['setextHeading', {commonmark: false}],
   ['definition', {commonmark: false}],
   ['footnote', {commonmark: false}]
-];
+]
 
-/* Nodes that can interupt a list:
- *
- * ```markdown
- * - One
- * ___
- * ```
- *
- * In the above example, the thematic break “interupts”
- * the list. */
+// Nodes that can interupt a list:
+//
+// ```markdown
+// - One
+// ___
+// ```
+//
+// In the above example, the thematic break “interupts” the list.
 proto.interruptList = [
   ['atxHeading', {pedantic: false}],
   ['fencedCode', {pedantic: false}],
   ['thematicBreak', {pedantic: false}],
   ['definition', {commonmark: false}],
   ['footnote', {commonmark: false}]
-];
+]
 
-/* Nodes that can interupt a blockquote:
- *
- * ```markdown
- * > A paragraph.
- * ___
- * ```
- *
- * In the above example, the thematic break “interupts”
- * the blockquote. */
+// Nodes that can interupt a blockquote:
+//
+// ```markdown
+// > A paragraph.
+// ___
+// ```
+//
+// In the above example, the thematic break “interupts” the blockquote.
 proto.interruptBlockquote = [
   ['indentedCode', {commonmark: true}],
   ['fencedCode', {commonmark: true}],
@@ -96,9 +93,9 @@ proto.interruptBlockquote = [
   ['list', {commonmark: true}],
   ['definition', {commonmark: false}],
   ['footnote', {commonmark: false}]
-];
+]
 
-/* Handlers. */
+// Handlers.
 proto.blockTokenizers = {
   newline: require('./tokenize/newline'),
   indentedCode: require('./tokenize/code-indented'),
@@ -113,7 +110,7 @@ proto.blockTokenizers = {
   definition: require('./tokenize/definition'),
   table: require('./tokenize/table'),
   paragraph: require('./tokenize/paragraph')
-};
+}
 
 proto.inlineTokenizers = {
   escape: require('./tokenize/escape'),
@@ -128,25 +125,25 @@ proto.inlineTokenizers = {
   code: require('./tokenize/code-inline'),
   break: require('./tokenize/break'),
   text: require('./tokenize/text')
-};
+}
 
-/* Expose precedence. */
-proto.blockMethods = keys(proto.blockTokenizers);
-proto.inlineMethods = keys(proto.inlineTokenizers);
+// Expose precedence.
+proto.blockMethods = keys(proto.blockTokenizers)
+proto.inlineMethods = keys(proto.inlineTokenizers)
 
-/* Tokenizers. */
-proto.tokenizeBlock = tokenizer('block');
-proto.tokenizeInline = tokenizer('inline');
-proto.tokenizeFactory = tokenizer;
+// Tokenizers.
+proto.tokenizeBlock = tokenizer('block')
+proto.tokenizeInline = tokenizer('inline')
+proto.tokenizeFactory = tokenizer
 
-/* Get all keys in `value`. */
+// Get all keys in `value`.
 function keys(value) {
-  var result = [];
-  var key;
+  var result = []
+  var key
 
   for (key in value) {
-    result.push(key);
+    result.push(key)
   }
 
-  return result;
+  return result
 }

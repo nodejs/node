@@ -117,6 +117,7 @@ function writeJSConfigFile(config, filePath) {
 function write(config, filePath) {
     switch (path.extname(filePath)) {
         case ".js":
+        case ".cjs":
             writeJSConfigFile(config, filePath);
             break;
 

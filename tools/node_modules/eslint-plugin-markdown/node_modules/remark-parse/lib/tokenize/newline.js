@@ -1,47 +1,48 @@
-'use strict';
+'use strict'
 
-var whitespace = require('is-whitespace-character');
+var whitespace = require('is-whitespace-character')
 
-module.exports = newline;
+module.exports = newline
 
-/* Tokenise newline. */
+var lineFeed = '\n'
+
 function newline(eat, value, silent) {
-  var character = value.charAt(0);
-  var length;
-  var subvalue;
-  var queue;
-  var index;
+  var character = value.charAt(0)
+  var length
+  var subvalue
+  var queue
+  var index
 
-  if (character !== '\n') {
-    return;
+  if (character !== lineFeed) {
+    return
   }
 
   /* istanbul ignore if - never used (yet) */
   if (silent) {
-    return true;
+    return true
   }
 
-  index = 1;
-  length = value.length;
-  subvalue = character;
-  queue = '';
+  index = 1
+  length = value.length
+  subvalue = character
+  queue = ''
 
   while (index < length) {
-    character = value.charAt(index);
+    character = value.charAt(index)
 
     if (!whitespace(character)) {
-      break;
+      break
     }
 
-    queue += character;
+    queue += character
 
-    if (character === '\n') {
-      subvalue += queue;
-      queue = '';
+    if (character === lineFeed) {
+      subvalue += queue
+      queue = ''
     }
 
-    index++;
+    index++
   }
 
-  eat(subvalue);
+  eat(subvalue)
 }

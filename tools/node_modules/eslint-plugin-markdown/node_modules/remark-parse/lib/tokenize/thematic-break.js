@@ -1,70 +1,70 @@
-'use strict';
+'use strict'
 
-module.exports = thematicBreak;
+module.exports = thematicBreak
 
-var C_NEWLINE = '\n';
-var C_TAB = '\t';
-var C_SPACE = ' ';
-var C_ASTERISK = '*';
-var C_UNDERSCORE = '_';
-var C_DASH = '-';
+var tab = '\t'
+var lineFeed = '\n'
+var space = ' '
+var asterisk = '*'
+var dash = '-'
+var underscore = '_'
 
-var THEMATIC_BREAK_MARKER_COUNT = 3;
+var maxCount = 3
 
 function thematicBreak(eat, value, silent) {
-  var index = -1;
-  var length = value.length + 1;
-  var subvalue = '';
-  var character;
-  var marker;
-  var markerCount;
-  var queue;
+  var index = -1
+  var length = value.length + 1
+  var subvalue = ''
+  var character
+  var marker
+  var markerCount
+  var queue
 
   while (++index < length) {
-    character = value.charAt(index);
+    character = value.charAt(index)
 
-    if (character !== C_TAB && character !== C_SPACE) {
-      break;
+    if (character !== tab && character !== space) {
+      break
     }
 
-    subvalue += character;
+    subvalue += character
   }
 
   if (
-    character !== C_ASTERISK &&
-    character !== C_DASH &&
-    character !== C_UNDERSCORE
+    character !== asterisk &&
+    character !== dash &&
+    character !== underscore
   ) {
-    return;
+    return
   }
 
-  marker = character;
-  subvalue += character;
-  markerCount = 1;
-  queue = '';
+  marker = character
+  subvalue += character
+  markerCount = 1
+  queue = ''
 
   while (++index < length) {
-    character = value.charAt(index);
+    character = value.charAt(index)
 
     if (character === marker) {
-      markerCount++;
-      subvalue += queue + marker;
-      queue = '';
-    } else if (character === C_SPACE) {
-      queue += character;
+      markerCount++
+      subvalue += queue + marker
+      queue = ''
+    } else if (character === space) {
+      queue += character
     } else if (
-      markerCount >= THEMATIC_BREAK_MARKER_COUNT &&
-      (!character || character === C_NEWLINE)
+      markerCount >= maxCount &&
+      (!character || character === lineFeed)
     ) {
-      subvalue += queue;
+      subvalue += queue
 
       if (silent) {
-        return true;
+        return true
       }
 
-      return eat(subvalue)({type: 'thematicBreak'});
+      return eat(subvalue)({type: 'thematicBreak'})
     } else {
-      return;
+      return
     }
   }
 }
