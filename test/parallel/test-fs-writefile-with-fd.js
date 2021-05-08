@@ -55,3 +55,31 @@ tmpdir.refresh();
     }));
   }));
 }
+
+
+// Test read-only file descriptor
+{
+  // TODO(pd4d10): https://github.com/nodejs/node/issues/38607
+  const expectedError = common.isWindows ? /EPERM/ : /EBADF/;
+
+  const file = join(tmpdir.path, 'test.txt');
+
+  fs.open(file, 'r', common.mustSucceed((fd) => {
+    fs.writeFile(fd, 'World', common.expectsError(expectedError));
+  }));
+}
+
+// Test with an AbortSignal
+{
+  const controller = new AbortController();
+  const signal = controller.signal;
+  const file = join(tmpdir.path, 'test.txt');
+
+  fs.open(file, 'w', common.mustSucceed((fd) => {
+    fs.writeFile(fd, 'World', { signal }, common.expectsError({
+      name: 'AbortError'
+    }));
+  }));
+
+  controller.abort();
+}
