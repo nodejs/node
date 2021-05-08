@@ -95,3 +95,15 @@ fs.open(filename4, 'w+', common.mustSucceed((fd) => {
 
   process.nextTick(() => controller.abort());
 }
+
+{
+  // Test read-only mode
+  const filename = join(tmpdir.path, 'test6.txt');
+  fs.writeFileSync(filename, '');
+
+  // TODO: Correct the error type
+  fs.writeFile(filename, s, { flag: 'r' }, common.expectsError({
+    code: 'EBADF',
+    message: 'EBADF: bad file descriptor, write'
+  }));
+}
