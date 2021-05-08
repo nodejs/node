@@ -4533,7 +4533,7 @@ and cleaning up the directory.
 The `encoding` option sets the encoding for the `path` while opening the
 directory and subsequent read operations.
 
-### `fs.openSync(path[, flags, mode])`
+### `fs.openSync(path[, flags[, mode]])`
 <!-- YAML
 added: v0.1.21
 changes:
