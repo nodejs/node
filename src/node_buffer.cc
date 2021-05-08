@@ -1158,6 +1158,82 @@ void GetZeroFillToggle(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(Uint32Array::New(ab, 0, 1));
 }
 
+void AToB(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsString());
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  Local<String> input = args[0].As<String>();
+
+  // Check latin
+  if (!input->IsOneByte()) {
+    env->isolate()->ThrowException(ERR_INVALID_CHARACTER(env->isolate()));
+    return;
+  }
+
+  node::Utf8Value input_utf8_value(isolate, input);
+
+  std::string input_str = input_utf8_value.ToString();
+
+  size_t max_dest_len = base64_decoded_size_fast(input_str.length());
+  char* dest = static_cast<char*>(malloc(max_dest_len * sizeof(char)));
+  bool succ;
+  int dest_len = base64_decode(dest,
+                               max_dest_len,
+                               input_str.c_str(),
+                               input_str.length(),
+                               &succ,
+                               true /* strict */);
+
+  if (!succ) {
+    free(dest);
+    env->isolate()->ThrowException(ERR_INVALID_CHARACTER(env->isolate()));
+    return;
+  }
+
+  MaybeLocal<String> maybe_dest =
+      String::NewFromOneByte(isolate,
+                             reinterpret_cast<const unsigned char*>(dest),
+                             v8::NewStringType::kNormal,
+                             dest_len);
+  CHECK(!maybe_dest.IsEmpty());
+  args.GetReturnValue().Set(maybe_dest.ToLocalChecked());
+
+  free(dest);
+}
+
+void BToA(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsString());
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  Local<String> input = args[0].As<String>();
+
+  // Check latin
+  if (!input->IsOneByte()) {
+    env->isolate()->ThrowException(ERR_INVALID_CHARACTER(env->isolate()));
+    return;
+  }
+
+  node::Utf8Value input_utf8_value(isolate, input);
+
+  std::string input_str = input_utf8_value.ToString();
+
+  size_t max_dest_len = base64_encoded_size(input_str.length());
+  char* dest = static_cast<char*>(malloc(max_dest_len * sizeof(char)));
+
+  int dest_len =
+      base64_encode(input_str.c_str(), input_str.length(), dest, max_dest_len);
+
+  MaybeLocal<String> maybe_dest =
+      String::NewFromOneByte(isolate,
+                             reinterpret_cast<const unsigned char*>(dest),
+                             v8::NewStringType::kNormal,
+                             dest_len);
+  CHECK(!maybe_dest.IsEmpty());
+  args.GetReturnValue().Set(maybe_dest.ToLocalChecked());
+
+  free(dest);
+}
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
@@ -1209,6 +1285,9 @@ void Initialize(Local<Object> target,
 
   env->SetMethod(target, "getZeroFillToggle", GetZeroFillToggle);
 
+  env->SetMethod(target, "atob", AToB);
+  env->SetMethod(target, "btoa", BToA);
+
   Blob::Initialize(env, target);
 }
 
@@ -1250,6 +1329,9 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(StringWrite<UCS2>);
   registry->Register(StringWrite<UTF8>);
   registry->Register(GetZeroFillToggle);
+
+  registry->Register(AToB);
+  registry->Register(BToA);
 
   Blob::RegisterExternalReferences(registry);
   FixedSizeBlobCopyJob::RegisterExternalReferences(registry);

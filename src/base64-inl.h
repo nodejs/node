@@ -60,9 +60,21 @@ bool base64_decode_group_slow(char* const dst, const size_t dstlen,
 #endif
 
 template <typename TypeName>
-size_t base64_decode_fast(char* const dst, const size_t dstlen,
-                          const TypeName* const src, const size_t srclen,
-                          const size_t decoded_size) {
+size_t base64_decode_fast(char* const dst,
+                          const size_t dstlen,
+                          const TypeName* const src,
+                          size_t srclen,
+                          const size_t decoded_size,
+                          bool* succ,
+                          const bool strict) {
+  CHECK(!strict || succ != nullptr);
+
+  if (static_cast<unsigned char>(src[srclen - 1]) == '=') {
+    srclen--;
+    if (static_cast<unsigned char>(src[srclen - 1]) == '=') srclen--;
+  }
+
+  if (succ != nullptr) *succ = true;
   const size_t available = dstlen < decoded_size ? dstlen : decoded_size;
   const size_t max_k = available / 3 * 3;
   size_t max_i = srclen / 4 * 4;
@@ -79,6 +91,10 @@ size_t base64_decode_fast(char* const dst, const size_t dstlen,
     const uint32_t v = ReadUint32BE(txt);
     // If MSB is set, input contains whitespace or is not valid base64.
     if (v & 0x80808080) {
+      if (strict) {
+        *succ = false;
+        return 0;
+      }
       if (!base64_decode_group_slow(dst, dstlen, src, srclen, &i, &k))
         return k;
       max_i = i + (srclen - i) / 4 * 4;  // Align max_i again.
@@ -90,9 +106,50 @@ size_t base64_decode_fast(char* const dst, const size_t dstlen,
       k += 3;
     }
   }
+
   if (i < srclen && k < dstlen) {
+#define CHECK_INVALID(x)                                                       \
+  if (txt[(x)] & 0x80) {                                                       \
+    if (strict) {                                                              \
+      *succ = false;                                                           \
+      return 0;                                                                \
+    } else {                                                                   \
+      break;                                                                   \
+    }                                                                          \
+  }
+
+    int leftover = srclen - i;
+    unsigned char txt[] = {0, 0, 0, 0};
+    switch (leftover) {
+      case 4:
+        txt[3] = static_cast<unsigned char>(
+            unbase64(static_cast<uint8_t>(src[i + 3])));
+        CHECK_INVALID(3);
+        // DO NOT break;
+
+      case 3:
+        txt[2] = static_cast<unsigned char>(
+            unbase64(static_cast<uint8_t>(src[i + 2])));
+        CHECK_INVALID(2);
+        // DO NOT break;
+
+      case 2:
+        txt[1] = static_cast<unsigned char>(
+            unbase64(static_cast<uint8_t>(src[i + 1])));
+        CHECK_INVALID(1);
+        // DO NOT break;
+
+      default:
+        txt[0] = static_cast<unsigned char>(
+            unbase64(static_cast<uint8_t>(src[i + 0])));
+        CHECK_INVALID(0);
+    }
+
+#undef CHECK_INVALID
+
     base64_decode_group_slow(dst, dstlen, src, srclen, &i, &k);
   }
+
   return k;
 }
 
@@ -113,10 +170,15 @@ size_t base64_decoded_size(const TypeName* src, size_t size) {
 
 
 template <typename TypeName>
-size_t base64_decode(char* const dst, const size_t dstlen,
-                     const TypeName* const src, const size_t srclen) {
+size_t base64_decode(char* const dst,
+                     const size_t dstlen,
+                     const TypeName* const src,
+                     const size_t srclen,
+                     bool* succ,
+                     const bool strict) {
   const size_t decoded_size = base64_decoded_size(src, srclen);
-  return base64_decode_fast(dst, dstlen, src, srclen, decoded_size);
+  return base64_decode_fast(
+      dst, dstlen, src, srclen, decoded_size, succ, strict);
 }
 
 
