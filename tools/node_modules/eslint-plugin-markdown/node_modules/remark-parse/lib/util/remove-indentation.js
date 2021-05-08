@@ -1,59 +1,59 @@
-'use strict';
+'use strict'
 
-var trim = require('trim');
-var repeat = require('repeat-string');
-var getIndent = require('./get-indentation');
+var trim = require('trim')
+var repeat = require('repeat-string')
+var getIndent = require('./get-indentation')
 
-module.exports = indentation;
+module.exports = indentation
 
-var C_SPACE = ' ';
-var C_NEWLINE = '\n';
-var C_TAB = '\t';
+var tab = '\t'
+var lineFeed = '\n'
+var space = ' '
+var exclamationMark = '!'
 
-/* Remove the minimum indent from every line in `value`.
- * Supports both tab, spaced, and mixed indentation (as
- * well as possible). */
+// Remove the minimum indent from every line in `value`.  Supports both tab,
+// spaced, and mixed indentation (as well as possible).
 function indentation(value, maximum) {
-  var values = value.split(C_NEWLINE);
-  var position = values.length + 1;
-  var minIndent = Infinity;
-  var matrix = [];
-  var index;
-  var indentation;
-  var stops;
-  var padding;
+  var values = value.split(lineFeed)
+  var position = values.length + 1
+  var minIndent = Infinity
+  var matrix = []
+  var index
+  var indentation
+  var stops
+  var padding
 
-  values.unshift(repeat(C_SPACE, maximum) + '!');
+  values.unshift(repeat(space, maximum) + exclamationMark)
 
   while (position--) {
-    indentation = getIndent(values[position]);
+    indentation = getIndent(values[position])
 
-    matrix[position] = indentation.stops;
+    matrix[position] = indentation.stops
 
     if (trim(values[position]).length === 0) {
-      continue;
+      continue
     }
 
     if (indentation.indent) {
       if (indentation.indent > 0 && indentation.indent < minIndent) {
-        minIndent = indentation.indent;
+        minIndent = indentation.indent
       }
     } else {
-      minIndent = Infinity;
+      minIndent = Infinity
 
-      break;
+      break
     }
   }
 
   if (minIndent !== Infinity) {
-    position = values.length;
+    position = values.length
 
     while (position--) {
-      stops = matrix[position];
-      index = minIndent;
+      stops = matrix[position]
+      index = minIndent
 
       while (index && !(index in stops)) {
-        index--;
+        index--
       }
 
       if (
@@ -61,18 +61,17 @@ function indentation(value, maximum) {
         minIndent &&
         index !== minIndent
       ) {
-        padding = C_TAB;
+        padding = tab
       } else {
-        padding = '';
+        padding = ''
       }
 
-      values[position] = padding + values[position].slice(
-        index in stops ? stops[index] + 1 : 0
-      );
+      values[position] =
+        padding + values[position].slice(index in stops ? stops[index] + 1 : 0)
     }
   }
 
-  values.shift();
+  values.shift()
 
-  return values.join(C_NEWLINE);
+  return values.join(lineFeed)
 }
