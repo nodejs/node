@@ -1,47 +1,46 @@
-'use strict';
+'use strict'
 
-var xtend = require('xtend');
-var escapes = require('markdown-escapes');
-var defaults = require('./defaults');
+var xtend = require('xtend')
+var escapes = require('markdown-escapes')
+var defaults = require('./defaults')
 
-module.exports = setOptions;
+module.exports = setOptions
 
 function setOptions(options) {
-  var self = this;
-  var current = self.options;
-  var key;
-  var value;
+  var self = this
+  var current = self.options
+  var key
+  var value
 
   if (options == null) {
-    options = {};
+    options = {}
   } else if (typeof options === 'object') {
-    options = xtend(options);
+    options = xtend(options)
   } else {
-    throw new Error(
-      'Invalid value `' + options + '` ' +
-      'for setting `options`'
-    );
+    throw new Error('Invalid value `' + options + '` for setting `options`')
   }
 
   for (key in defaults) {
-    value = options[key];
+    value = options[key]
 
     if (value == null) {
-      value = current[key];
+      value = current[key]
     }
 
     if (
       (key !== 'blocks' && typeof value !== 'boolean') ||
       (key === 'blocks' && typeof value !== 'object')
     ) {
-      throw new Error('Invalid value `' + value + '` for setting `options.' + key + '`');
+      throw new Error(
+        'Invalid value `' + value + '` for setting `options.' + key + '`'
+      )
     }
 
-    options[key] = value;
+    options[key] = value
   }
 
-  self.options = options;
-  self.escape = escapes(options);
+  self.options = options
+  self.escape = escapes(options)
 
-  return self;
+  return self
 }
