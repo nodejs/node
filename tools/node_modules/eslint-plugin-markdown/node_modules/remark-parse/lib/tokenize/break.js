@@ -1,40 +1,42 @@
-'use strict';
+'use strict'
 
-var locate = require('../locate/break');
+var locate = require('../locate/break')
 
-module.exports = hardBreak;
-hardBreak.locator = locate;
+module.exports = hardBreak
+hardBreak.locator = locate
 
-var MIN_BREAK_LENGTH = 2;
+var space = ' '
+var lineFeed = '\n'
+var minBreakLength = 2
 
 function hardBreak(eat, value, silent) {
-  var length = value.length;
-  var index = -1;
-  var queue = '';
-  var character;
+  var length = value.length
+  var index = -1
+  var queue = ''
+  var character
 
   while (++index < length) {
-    character = value.charAt(index);
+    character = value.charAt(index)
 
-    if (character === '\n') {
-      if (index < MIN_BREAK_LENGTH) {
-        return;
+    if (character === lineFeed) {
+      if (index < minBreakLength) {
+        return
       }
 
       /* istanbul ignore if - never used (yet) */
       if (silent) {
-        return true;
+        return true
       }
 
-      queue += character;
+      queue += character
 
-      return eat(queue)({type: 'break'});
+      return eat(queue)({type: 'break'})
     }
 
-    if (character !== ' ') {
-      return;
+    if (character !== space) {
+      return
     }
 
-    queue += character;
+    queue += character
   }
 }
