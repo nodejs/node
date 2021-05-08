@@ -1,7 +1,7 @@
-'use strict';
+'use strict'
 
-module.exports = locate;
+module.exports = locate
 
 function locate(value, fromIndex) {
-  return value.indexOf('`', fromIndex);
+  return value.indexOf('`', fromIndex)
 }

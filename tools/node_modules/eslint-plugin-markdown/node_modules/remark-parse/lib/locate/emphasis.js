@@ -1,18 +1,18 @@
-'use strict';
+'use strict'
 
-module.exports = locate;
+module.exports = locate
 
 function locate(value, fromIndex) {
-  var asterisk = value.indexOf('*', fromIndex);
-  var underscore = value.indexOf('_', fromIndex);
+  var asterisk = value.indexOf('*', fromIndex)
+  var underscore = value.indexOf('_', fromIndex)
 
   if (underscore === -1) {
-    return asterisk;
+    return asterisk
   }
 
   if (asterisk === -1) {
-    return underscore;
+    return underscore
   }
 
-  return underscore < asterisk ? underscore : asterisk;
+  return underscore < asterisk ? underscore : asterisk
 }
