@@ -25,32 +25,36 @@ const http = require('http');
 const net = require('net');
 const assert = require('assert');
 
-const server = http.createServer(common.mustCall(function(req, res) {
-  res.end();
-}, 4)).listen(0, '127.0.0.1', function() {
-  let fn = common.mustCall(createConnection);
-  http.get({ createConnection: fn }, function(res) {
-    res.resume();
-    fn = common.mustCall(createConnectionAsync);
-    http.get({ createConnection: fn }, function(res) {
-      res.resume();
-      fn = common.mustCall(createConnectionBoth1);
-      http.get({ createConnection: fn }, function(res) {
-        res.resume();
-        fn = common.mustCall(createConnectionBoth2);
-        http.get({ createConnection: fn }, function(res) {
-          res.resume();
-          fn = common.mustCall(createConnectionError);
-          http.get({ createConnection: fn }, function(res) {
-            assert.fail('Unexpected response callback');
-          }).on('error', common.mustCall(function(err) {
-            assert.strictEqual(err.message, 'Could not create socket');
-            server.close();
-          }));
-        });
-      });
+function commonHttpGet(fn) {
+  if (typeof fn === 'function') {
+    fn = common.mustCall(fn);
+  }
+  return new Promise((resolve, reject) => {
+    http.get({ createConnection: fn }, (res) => {
+      resolve(res);
+    }).on('error', (err) => {
+      reject(err);
     });
   });
+}
+
+const server = http.createServer(common.mustCall(function(req, res) {
+  res.end();
+}, 4)).listen(0, '127.0.0.1', async () => {
+  await commonHttpGet(createConnection);
+  await commonHttpGet(createConnectionAsync);
+  await commonHttpGet(createConnectionBoth1);
+  await commonHttpGet(createConnectionBoth2);
+
+  // Errors
+  await assert.rejects(() => commonHttpGet(createConnectionError), {
+    message: 'sync'
+  });
+  await assert.rejects(() => commonHttpGet(createConnectionAsyncError), {
+    message: 'async'
+  });
+
+  server.close();
 });
 
 function createConnection() {
@@ -78,5 +82,9 @@ function createConnectionBoth2(options, cb) {
 }
 
 function createConnectionError(options, cb) {
-  process.nextTick(cb, new Error('Could not create socket'));
+  throw new Error('sync');
+}
+
+function createConnectionAsyncError(options, cb) {
+  process.nextTick(cb, new Error('async'));
 }
