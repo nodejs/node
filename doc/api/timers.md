@@ -338,7 +338,7 @@ import {
   setTimeout,
   setImmediate,
   setInterval,
-} from 'timers/promises';
+} from 'node:timers/promises';
 ```
 
 ```cjs
@@ -367,7 +367,7 @@ added: v15.0.0
 ```mjs
 import {
   setTimeout,
-} from 'timers/promises';
+} from 'node:timers/promises';
 
 const res = await setTimeout(100, 'result');
 
@@ -400,7 +400,7 @@ added: v15.0.0
 ```mjs
 import {
   setImmediate,
-} from 'timers/promises';
+} from 'node:timers/promises';
 
 const res = await setImmediate('result');
 
@@ -438,7 +438,7 @@ Returns an async iterator that generates values in an interval of `delay` ms.
 ```mjs
 import {
   setInterval,
-} from 'timers/promises';
+} from 'node:timers/promises';
 
 const interval = 100;
 for await (const startTime of setInterval(interval, Date.now())) {

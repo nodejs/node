@@ -10,7 +10,7 @@ The `crypto` module provides cryptographic functionality that includes a set of
 wrappers for OpenSSL's hash, HMAC, cipher, decipher, sign, and verify functions.
 
 ```mjs
-import { createHmac } from 'crypto';
+import { createHmac } from 'node:crypto';
 
 const secret = 'abcdefg';
 const hash = createHmac('sha256', secret)
@@ -376,11 +376,11 @@ Example: Using `Cipher` and piped streams:
 import {
   createReadStream,
   createWriteStream,
-} from 'fs';
+} from 'node:fs';
 
 import {
   pipeline
-} from 'stream';
+} from 'node:stream';
 
 const {
   scrypt,
@@ -701,7 +701,7 @@ Example: Using `Decipher` and piped streams:
 import {
   createReadStream,
   createWriteStream,
-} from 'fs';
+} from 'node:fs';
 
 const {
   scryptSync,
@@ -939,7 +939,7 @@ Instances of the `DiffieHellman` class can be created using the
 [`crypto.createDiffieHellman()`][] function.
 
 ```mjs
-import assert from 'assert';
+import assert from 'node:assert';
 
 const {
   createDiffieHellman,
@@ -1156,7 +1156,7 @@ Instances of the `ECDH` class can be created using the
 [`crypto.createECDH()`][] function.
 
 ```mjs
-import assert from 'assert';
+import assert from 'node:assert';
 
 const {
   createECDH,
@@ -1735,7 +1735,7 @@ hmac.end();
 Example: Using `Hmac` and piped streams:
 
 ```mjs
-import { createReadStream } from 'fs';
+import { createReadStream } from 'node:fs';
 
 const {
   createHmac,
@@ -3027,7 +3027,7 @@ Example: generating the sha256 sum of a file
 ```mjs
 import {
   createReadStream
-} from 'fs';
+} from 'node:fs';
 
 const {
   createHash,
@@ -3113,7 +3113,7 @@ Example: generating the sha256 HMAC of a file
 ```mjs
 import {
   createReadStream
-} from 'fs';
+} from 'node:fs';
 
 const {
   createHmac,

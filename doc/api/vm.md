@@ -409,7 +409,7 @@ loader][]. There is also no way to interact with the Loader yet, though
 support is planned.
 
 ```mjs
-import vm from 'vm';
+import vm from 'node:vm';
 
 const contextifiedObject = vm.createContext({
   secret: 42,
@@ -754,7 +754,7 @@ allow the module to access information outside the specified `context`. Use
 `vm.runInContext()` to create objects in a specific context.
 
 ```mjs
-import vm from 'vm';
+import vm from 'node:vm';
 
 const contextifiedObject = vm.createContext({ secret: 42 });
 
@@ -900,7 +900,7 @@ it is called before the module is linked, an [`ERR_VM_MODULE_STATUS`][] error
 will be thrown.
 
 ```mjs
-import vm from 'vm';
+import vm from 'node:vm';
 
 const m = new vm.SyntheticModule(['x'], () => {
   m.setExport('x', 1);

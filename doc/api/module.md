@@ -32,7 +32,7 @@ by the [module wrapper][]. To access it, require the `Module` module:
 ```mjs
 // module.mjs
 // In an ECMAScript module
-import { builtinModules as builtin } from 'module';
+import { builtinModules as builtin } from 'node:module';
 ```
 
 ```cjs
@@ -52,7 +52,7 @@ added: v12.2.0
 * Returns: {require} Require function
 
 ```mjs
-import { createRequire } from 'module';
+import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 
 // sibling-module.js is a CommonJS module.
@@ -117,7 +117,7 @@ To enable source map parsing, Node.js must be run with the flag
 ```mjs
 // module.mjs
 // In an ECMAScript module
-import { findSourceMap, SourceMap } from 'module';
+import { findSourceMap, SourceMap } from 'node:module';
 ```
 
 ```cjs

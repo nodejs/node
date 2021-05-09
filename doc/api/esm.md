@@ -113,7 +113,7 @@ This section was moved to [Modules: Packages](packages.md).
 ### Terminology
 
 The _specifier_ of an `import` statement is the string after the `from` keyword,
-e.g. `'path'` in `import { sep } from 'path'`. Specifiers are also used in
+e.g. `'path'` in `import { sep } from 'node:path'`. Specifiers are also used in
 `export from` statements, and as the argument to an `import()` expression.
 
 There are three types of specifiers:
@@ -229,12 +229,12 @@ exports. Named exports of builtin modules are updated only by calling
 [`module.syncBuiltinESMExports()`][].
 
 ```js
-import EventEmitter from 'events';
+import EventEmitter from 'node:events';
 const e = new EventEmitter();
 ```
 
 ```js
-import { readFile } from 'fs';
+import { readFile } from 'node:fs';
 readFile('./foo.txt', (err, source) => {
   if (err) {
     console.error(err);
@@ -245,8 +245,8 @@ readFile('./foo.txt', (err, source) => {
 ```
 
 ```js
-import fs, { readFileSync } from 'fs';
-import { syncBuiltinESMExports } from 'module';
+import fs, { readFileSync } from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
 
 fs.readFileSync = () => Buffer.from('Hello, ESM');
 syncBuiltinESMExports();
@@ -276,7 +276,7 @@ current module file.
 This enables useful patterns such as relative file loading:
 
 ```js
-import { readFileSync } from 'fs';
+import { readFileSync } from 'node:fs';
 const buffer = readFileSync(new URL('./data.proto', import.meta.url));
 ```
 
@@ -350,11 +350,11 @@ module default import or its corresponding sugar syntax:
 
 <!-- eslint-disable no-duplicate-imports -->
 ```js
-import { default as cjs } from 'cjs';
+import { default as cjs } from 'node:cjs';
 
 // The following import statement is "syntax sugar" (equivalent but sweeter)
 // for `{ default as cjsSugar }` in the above import statement:
-import cjsSugar from 'cjs';
+import cjsSugar from 'node:cjs';
 
 console.log(cjs);
 console.log(cjs === cjsSugar);
@@ -368,11 +368,11 @@ a namespace with a `default` export key pointing to the CommonJS
 `module.exports` value.
 
 This Module Namespace Exotic Object can be directly observed either when using
-`import * as m from 'cjs'` or a dynamic import:
+`import * as m from 'node:cjs'` or a dynamic import:
 
 <!-- eslint-skip -->
 ```js
-import * as m from 'cjs';
+import * as m from 'node:cjs';
 console.log(m);
 console.log(m === await import('cjs'));
 // Prints:
@@ -449,7 +449,7 @@ Local JSON files can be loaded relative to `import.meta.url` with `fs` directly:
 
 <!-- eslint-skip -->
 ```js
-import { readFile } from 'fs/promises';
+import { readFile } from 'node:fs/promises';
 const json = JSON.parse(await readFile(new URL('./dat.json', import.meta.url)));
 ```
 
@@ -842,7 +842,7 @@ and there is no security.
 
 ```js
 // https-loader.mjs
-import { get } from 'https';
+import { get } from 'node:https';
 
 export function resolve(specifier, context, defaultResolve) {
   const { parentURL = null } = context;
@@ -919,7 +919,7 @@ purposes.
 
 ```js
 // coffeescript-loader.mjs
-import { URL, pathToFileURL } from 'url';
+import { URL, pathToFileURL } from 'node:url';
 import CoffeeScript from 'coffeescript';
 
 const baseURL = pathToFileURL(`${process.cwd()}/`).href;
@@ -975,7 +975,7 @@ export function transformSource(source, context, defaultTransformSource) {
 import { scream } from './scream.coffee'
 console.log scream 'hello, world'
 
-import { version } from 'process'
+import { version } from 'node:process'
 console.log "Brought to you by Node.js version #{version}"
 ```
 

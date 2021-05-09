@@ -15,7 +15,7 @@ To use the promise-based APIs:
 
 ```mjs
 // Using ESM Module syntax:
-import * as fs from 'fs/promises';
+import * as fs from 'node:fs/promises';
 ```
 
 ```cjs
@@ -27,7 +27,7 @@ To use the callback and sync APIs:
 
 ```mjs
 // Using ESM Module syntax:
-import * as fs from 'fs';
+import * as fs from 'node:fs';
 ```
 
 ```cjs
@@ -45,7 +45,7 @@ asynchronous operation is complete.
 
 ```mjs
 // Using ESM Module syntax:
-import { unlink } from 'fs/promises';
+import { unlink } from 'node:fs/promises';
 
 try {
   await unlink('/tmp/hello');
@@ -79,7 +79,7 @@ the first argument is `null` or `undefined`.
 
 ```mjs
 // Using ESM syntax
-import { unlink } from 'fs';
+import { unlink } from 'node:fs';
 
 unlink('/tmp/hello', (err) => {
   if (err) throw err;
@@ -109,7 +109,7 @@ and can be handled using `try…catch`, or can be allowed to bubble up.
 
 ```mjs
 // Using ESM syntax
-import { unlinkSync } from 'fs';
+import { unlinkSync } from 'node:fs';
 
 try {
   unlinkSync('/tmp/hello');
@@ -230,7 +230,7 @@ Closes the file handle after waiting for any pending operation on the handle to
 complete.
 
 ```mjs
-import { open } from 'fs/promises';
+import { open } from 'node:fs/promises';
 
 let filehandle;
 try {
@@ -395,7 +395,7 @@ retained in the file.
 The following example retains only the first four bytes of the file:
 
 ```mjs
-import { open } from 'fs/promises';
+import { open } from 'node:fs/promises';
 
 let filehandle = null;
 try {
@@ -585,8 +585,8 @@ with an {Error} object. The following example checks if the file
 `/etc/passwd` can be read and written by the current process.
 
 ```mjs
-import { access } from 'fs/promises';
-import { constants } from 'fs';
+import { access } from 'node:fs/promises';
+import { constants } from 'node:fs';
 
 try {
   await access('/etc/passwd', constants.R_OK | constants.W_OK);
@@ -681,8 +681,8 @@ error occurs after the destination file has been opened for writing, an attempt
 will be made to remove the destination.
 
 ```mjs
-import { constants } from 'fs';
-import { copyFile } from 'fs/promises';
+import { constants } from 'node:fs';
+import { copyFile } from 'node:fs/promises';
 
 try {
   await copyFile('source.txt', 'destination.txt');
@@ -820,7 +820,7 @@ The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use.
 
 ```mjs
-import { mkdtemp } from 'fs/promises';
+import { mkdtemp } from 'node:fs/promises';
 
 try {
   await mkdtemp(path.join(os.tmpdir(), 'foo-'));
@@ -891,7 +891,7 @@ directory and subsequent read operations.
 Example using async iteration:
 
 ```mjs
-import { opendir } from 'fs/promises';
+import { opendir } from 'node:fs/promises';
 
 try {
   const dir = await opendir('./');
@@ -932,7 +932,7 @@ If `options.withFileTypes` is set to `true`, the resolved array will contain
 {fs.Dirent} objects.
 
 ```mjs
-import { readdir } from 'fs/promises';
+import { readdir } from 'node:fs/promises';
 
 try {
   const files = await readdir(path);
@@ -976,7 +976,7 @@ It is possible to abort an ongoing `readFile` using an {AbortSignal}. If a
 request is aborted the promise returned is rejected with an `AbortError`:
 
 ```mjs
-import { readFile } from 'fs/promises';
+import { readFile } from 'node:fs/promises';
 
 try {
   const controller = new AbortController();
@@ -1312,7 +1312,7 @@ Cancelation is "best effort", and some amount of data is likely still
 to be written.
 
 ```mjs
-import { writeFile } from 'fs/promises';
+import { writeFile } from 'node:fs/promises';
 
 try {
   const controller = new AbortController();
@@ -1378,7 +1378,7 @@ argument will be an `Error` object. The following examples check if
 `package.json` exists, and if it is readable or writable.
 
 ```mjs
-import { access, constants } from 'fs';
+import { access, constants } from 'node:fs';
 
 const file = 'package.json';
 
@@ -1417,7 +1417,7 @@ file directly and handle the error raised if the file is not accessible.
 **write (NOT RECOMMENDED)**
 
 ```mjs
-import { access, open, close } from 'fs';
+import { access, open, close } from 'node:fs';
 
 access('myfile', (err) => {
   if (!err) {
@@ -1442,7 +1442,7 @@ access('myfile', (err) => {
 **write (RECOMMENDED)**
 
 ```mjs
-import { open, close } from 'fs';
+import { open, close } from 'node:fs';
 
 open('myfile', 'wx', (err, fd) => {
   if (err) {
@@ -1467,7 +1467,7 @@ open('myfile', 'wx', (err, fd) => {
 **read (NOT RECOMMENDED)**
 
 ```mjs
-import { access, open, close } from 'fs';
+import { access, open, close } from 'node:fs';
 access('myfile', (err) => {
   if (err) {
     if (err.code === 'ENOENT') {
@@ -1495,7 +1495,7 @@ access('myfile', (err) => {
 **read (RECOMMENDED)**
 
 ```mjs
-import { open, close } from 'fs';
+import { open, close } from 'node:fs';
 
 open('myfile', 'r', (err, fd) => {
   if (err) {
@@ -1563,7 +1563,7 @@ Asynchronously append data to a file, creating the file if it does not yet
 exist. `data` can be a string or a {Buffer}.
 
 ```mjs
-import { appendFile } from 'fs';
+import { appendFile } from 'node:fs';
 
 appendFile('message.txt', 'data to append', (err) => {
   if (err) throw err;
@@ -1574,7 +1574,7 @@ appendFile('message.txt', 'data to append', (err) => {
 If `options` is a string, then it specifies the encoding:
 
 ```mjs
-import { appendFile } from 'fs';
+import { appendFile } from 'node:fs';
 
 appendFile('message.txt', 'data to append', 'utf8', callback);
 ```
@@ -1584,7 +1584,7 @@ for appending (using `fs.open()` or `fs.openSync()`). The file descriptor will
 not be closed automatically.
 
 ```mjs
-import { open, close, appendFile } from 'fs';
+import { open, close, appendFile } from 'node:fs';
 
 function closeFd(fd) {
   close(fd, (err) => {
@@ -1636,7 +1636,7 @@ possible exception are given to the completion callback.
 See the POSIX chmod(2) documentation for more detail.
 
 ```mjs
-import { chmod } from 'fs';
+import { chmod } from 'node:fs';
 
 chmod('my_file.txt', 0o775, (err) => {
   if (err) throw err;
@@ -1790,7 +1790,7 @@ OR of two or more values (e.g.
   copy-on-write, then the operation will fail.
 
 ```mjs
-import { copyFile, constants } from 'fs';
+import { copyFile, constants } from 'node:fs';
 
 function callback(err) {
   if (err) throw err;
@@ -1886,7 +1886,7 @@ implementations for `open`, `read`, and `close`. When providing the `fs` option,
 overrides for `open`, `read`, and `close` are required.
 
 ```mjs
-import { createReadStream } from 'fs';
+import { createReadStream } from 'node:fs';
 
 // Create a stream from some character device.
 const stream = createReadStream('/dev/input/event0');
@@ -1914,7 +1914,7 @@ file was created.
 An example to read the last 10 bytes of a file which is 100 bytes long:
 
 ```mjs
-import { createReadStream } from 'fs';
+import { createReadStream } from 'node:fs';
 
 createReadStream('sample.txt', { start: 90, end: 99 });
 ```
@@ -2019,7 +2019,7 @@ Test whether or not the given path exists by checking with the file system.
 Then call the `callback` argument with either true or false:
 
 ```mjs
-import { exists } from 'fs';
+import { exists } from 'node:fs';
 
 exists('/etc/passwd', (e) => {
   console.log(e ? 'it exists' : 'no passwd!');
@@ -2041,7 +2041,7 @@ file directly and handle the error raised if the file does not exist.
 **write (NOT RECOMMENDED)**
 
 ```mjs
-import { exists, open, close } from 'fs';
+import { exists, open, close } from 'node:fs';
 
 exists('myfile', (e) => {
   if (e) {
@@ -2065,7 +2065,7 @@ exists('myfile', (e) => {
 **write (RECOMMENDED)**
 
 ```mjs
-import { open, close } from 'fs';
+import { open, close } from 'node:fs';
 open('myfile', 'wx', (err, fd) => {
   if (err) {
     if (err.code === 'EEXIST') {
@@ -2089,7 +2089,7 @@ open('myfile', 'wx', (err, fd) => {
 **read (NOT RECOMMENDED)**
 
 ```mjs
-import { open, close, exists } from 'fs';
+import { open, close, exists } from 'node:fs';
 
 exists('myfile', (e) => {
   if (e) {
@@ -2113,7 +2113,7 @@ exists('myfile', (e) => {
 **read (RECOMMENDED)**
 
 ```mjs
-import { open, close } from 'fs';
+import { open, close } from 'node:fs';
 
 open('myfile', 'r', (err, fd) => {
   if (err) {
@@ -2299,7 +2299,7 @@ For example, the following program retains only the first four bytes of the
 file:
 
 ```mjs
-import { open, close, ftruncate } from 'fs';
+import { open, close, ftruncate } from 'node:fs';
 
 function closeFd(fd) {
   close(fd, (err) => {
@@ -2548,7 +2548,7 @@ property indicating whether parent directories should be created. Calling
 when `recursive` is false.
 
 ```mjs
-import { mkdir } from 'fs';
+import { mkdir } from 'node:fs';
 
 // Creates /tmp/a/apple, regardless of whether `/tmp` and /tmp/a exist.
 mkdir('/tmp/a/apple', { recursive: true }, (err) => {
@@ -2560,7 +2560,7 @@ On Windows, using `fs.mkdir()` on the root directory even with recursion will
 result in an error:
 
 ```mjs
-import { mkdir } from 'fs';
+import { mkdir } from 'node:fs';
 
 mkdir('/', { recursive: true }, (err) => {
   // => [Error: EPERM: operation not permitted, mkdir 'C:\']
@@ -2608,7 +2608,7 @@ The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use.
 
 ```mjs
-import { mkdtemp } from 'fs';
+import { mkdtemp } from 'node:fs';
 
 mkdtemp(path.join(os.tmpdir(), 'foo-'), (err, directory) => {
   if (err) throw err;
@@ -2624,8 +2624,8 @@ must end with a trailing platform-specific path separator
 (`require('path').sep`).
 
 ```mjs
-import { tmpdir } from 'os';
-import { mkdtemp } from 'fs';
+import { tmpdir } from 'node:os';
+import { mkdtemp } from 'node:fs';
 
 // The parent directory for the new temporary directory
 const tmpDir = tmpdir();
@@ -2640,7 +2640,7 @@ mkdtemp(tmpDir, (err, directory) => {
 });
 
 // This method is *CORRECT*:
-import { sep } from 'path';
+import { sep } from 'node:path';
 mkdtemp(`${tmpDir}${sep}`, (err, directory) => {
   if (err) throw err;
   console.log(directory);
@@ -2883,7 +2883,7 @@ changes:
 Asynchronously reads the entire contents of a file.
 
 ```mjs
-import { readFile } from 'fs';
+import { readFile } from 'node:fs';
 
 readFile('/etc/passwd', (err, data) => {
   if (err) throw err;
@@ -2899,7 +2899,7 @@ If no encoding is specified, then the raw buffer is returned.
 If `options` is a string, then it specifies the encoding:
 
 ```mjs
-import { readFile } from 'fs';
+import { readFile } from 'node:fs';
 
 readFile('/etc/passwd', 'utf8', callback);
 ```
@@ -2910,7 +2910,7 @@ error will be returned. On FreeBSD, a representation of the directory's contents
 will be returned.
 
 ```mjs
-import { readFile } from 'fs';
+import { readFile } from 'node:fs';
 
 // macOS, Linux, and Windows
 readFile('<directory>', (err, data) => {
@@ -2927,7 +2927,7 @@ It is possible to abort an ongoing request using an `AbortSignal`. If a
 request is aborted the callback is called with an `AbortError`:
 
 ```mjs
-import { readFile } from 'fs';
+import { readFile } from 'node:fs';
 
 const controller = new AbortController();
 const signal = controller.signal;
@@ -3160,7 +3160,7 @@ given to the completion callback.
 See also: rename(2).
 
 ```mjs
-import { rename } from 'fs';
+import { rename } from 'node:fs';
 
 rename('oldFile.txt', 'newFile.txt', (err) => {
   if (err) throw err;
@@ -3318,7 +3318,7 @@ For example, given the following directory structure:
 The next program will check for the stats of the given paths:
 
 ```mjs
-import { stat } from 'fs';
+import { stat } from 'node:fs';
 
 const pathsToCheck = ['./txtDir', './txtDir/file.txt'];
 
@@ -3413,7 +3413,7 @@ require the destination path to be absolute. When using `'junction'`, the
 Relative targets are relative to the link’s parent directory.
 
 ```mjs
-import { symlink } from 'fs';
+import { symlink } from 'node:fs';
 
 symlink('./mew', './example/mewtwo', callback);
 ```
@@ -3486,7 +3486,7 @@ Asynchronously removes a file or symbolic link. No arguments other than a
 possible exception are given to the completion callback.
 
 ```mjs
-import { unlink } from 'fs';
+import { unlink } from 'node:fs';
 // Assuming that 'path/file.txt' is a regular file.
 unlink('path/file.txt', (err) => {
   if (err) throw err;
@@ -3677,7 +3677,7 @@ guaranteed to be provided. Therefore, don't assume that `filename` argument is
 always provided in the callback, and have some fallback logic if it is `null`.
 
 ```mjs
-import { watch } from 'fs';
+import { watch } from 'node:fs';
 watch('somedir', (eventType, filename) => {
   console.log(`event type is: ${eventType}`);
   if (filename) {
@@ -3724,7 +3724,7 @@ The `listener` gets two arguments the current stat object and the previous
 stat object:
 
 ```mjs
-import { watchFile } from 'fs';
+import { watchFile } from 'node:fs';
 
 watchFile('message.text', (curr, prev) => {
   console.log(`the current mtime is: ${curr.mtime}`);
@@ -3950,7 +3950,7 @@ The `encoding` option is ignored if `data` is a buffer.
 If `data` is a normal object, it must have an own `toString` function property.
 
 ```mjs
-import { writeFile } from 'fs';
+import { writeFile } from 'node:fs';
 
 const data = new Uint8Array(Buffer.from('Hello Node.js'));
 writeFile('message.txt', data, (err) => {
@@ -3962,7 +3962,7 @@ writeFile('message.txt', data, (err) => {
 If `options` is a string, then it specifies the encoding:
 
 ```mjs
-import { writeFile } from 'fs';
+import { writeFile } from 'node:fs';
 
 writeFile('message.txt', 'Hello Node.js', 'utf8', callback);
 ```
@@ -3980,7 +3980,7 @@ Cancelation is "best effort", and some amount of data is likely still
 to be written.
 
 ```mjs
-import { writeFile } from 'fs';
+import { writeFile } from 'node:fs';
 
 const controller = new AbortController();
 const { signal } = controller;
@@ -4001,7 +4001,7 @@ When `file` is a file descriptor, the behavior is almost identical to directly
 calling `fs.write()` like:
 
 ```mjs
-import { write } from 'fs';
+import { write } from 'node:fs';
 
 write(fd, Buffer.from(data, options.encoding), callback);
 ```
@@ -4085,7 +4085,7 @@ If any of the accessibility checks fail, an `Error` will be thrown. Otherwise,
 the method will return `undefined`.
 
 ```mjs
-import { accessSync, constants } from 'fs';
+import { accessSync, constants } from 'node:fs';
 
 try {
   accessSync('etc/passwd', constants.R_OK | constants.W_OK);
@@ -4118,7 +4118,7 @@ Synchronously append data to a file, creating the file if it does not yet
 exist. `data` can be a string or a {Buffer}.
 
 ```mjs
-import { appendFileSync } from 'fs';
+import { appendFileSync } from 'node:fs';
 
 try {
   appendFileSync('message.txt', 'data to append');
@@ -4131,7 +4131,7 @@ try {
 If `options` is a string, then it specifies the encoding:
 
 ```mjs
-import { appendFileSync } from 'fs';
+import { appendFileSync } from 'node:fs';
 
 appendFileSync('message.txt', 'data to append', 'utf8');
 ```
@@ -4141,7 +4141,7 @@ for appending (using `fs.open()` or `fs.openSync()`). The file descriptor will
 not be closed automatically.
 
 ```mjs
-import { openSync, closeSync, appendFileSync } from 'fs';
+import { openSync, closeSync, appendFileSync } from 'node:fs';
 
 let fd;
 
@@ -4241,7 +4241,7 @@ OR of two or more values (e.g.
   copy-on-write, then the operation will fail.
 
 ```mjs
-import { copyFileSync, constants } from 'fs';
+import { copyFileSync, constants } from 'node:fs';
 
 // destination.txt will be created or overwritten by default.
 copyFileSync('source.txt', 'destination.txt');
@@ -4274,7 +4274,7 @@ parameter to `fs.exists()` accepts parameters that are inconsistent with other
 Node.js callbacks. `fs.existsSync()` does not use a callback.
 
 ```mjs
-import { existsSync } from 'fs';
+import { existsSync } from 'node:fs';
 
 if (existsSync('/etc/passwd'))
   console.log('The path exists.');
@@ -4636,7 +4636,7 @@ Similar to [`fs.readFile()`][], when the path is a directory, the behavior of
 `fs.readFileSync()` is platform-specific.
 
 ```mjs
-import { readFileSync } from 'fs';
+import { readFileSync } from 'node:fs';
 
 // macOS, Linux, and Windows
 readFileSync('<directory>');
@@ -5126,7 +5126,7 @@ Created by [`fs.opendir()`][], [`fs.opendirSync()`][], or
 [`fsPromises.opendir()`][].
 
 ```mjs
-import { opendir } from 'fs/promises';
+import { opendir } from 'node:fs/promises';
 
 try {
   const dir = await opendir('./');
@@ -5378,7 +5378,7 @@ support. If `filename` is provided, it will be provided as a {Buffer} if
 `filename` will be a UTF-8 string.
 
 ```mjs
-import { watch } from 'fs';
+import { watch } from 'node:fs';
 // Example when handled through fs.watch() listener
 watch('./tmp', { encoding: 'buffer' }, (eventType, filename) => {
   if (filename) {
@@ -6027,7 +6027,7 @@ To use more than one constant, use the bitwise OR `|` operator.
 Example:
 
 ```mjs
-import { open, constants } from 'fs';
+import { open, constants } from 'node:fs';
 
 const {
   O_RDWR,
@@ -6325,7 +6325,7 @@ of one before invoking the other:
 
 ```mjs
 // Using ESM syntax
-import { rename, stat } from 'fs/promises';
+import { rename, stat } from 'node:fs/promises';
 
 const from = '/tmp/hello';
 const to = '/tmp/world';
@@ -6358,7 +6358,7 @@ Or, when using the callback APIs, move the `fs.stat()` call into the callback
 of the `fs.rename()` operation:
 
 ```mjs
-import { rename, stat } from 'fs';
+import { rename, stat } from 'node:fs';
 
 rename('/tmp/hello', '/tmp/world', (err) => {
   if (err) throw err;
@@ -6395,7 +6395,7 @@ to the current working directory as determined by calling `process.cwd()`.
 Example using an absolute path on POSIX:
 
 ```mjs
-import { open } from 'fs/promises';
+import { open } from 'node:fs/promises';
 
 let fd;
 try {
@@ -6409,7 +6409,7 @@ try {
 Example using a relative path on POSIX (relative to `process.cwd()`):
 
 ```mjs
-import { open } from 'fs/promises';
+import { open } from 'node:fs/promises';
 
 let fd;
 try {
@@ -6428,7 +6428,7 @@ For most `fs` module functions, the `path` or `filename` argument may be passed
 as a {URL} object using the `file:` protocol.
 
 ```mjs
-import { readFileSync } from 'fs';
+import { readFileSync } from 'node:fs';
 
 readFileSync(new URL('file:///tmp/hello'));
 ```
@@ -6442,7 +6442,7 @@ On Windows, `file:` {URL}s with a host name convert to UNC paths, while `file:`
 without a host name nor a drive letter will result in an error:
 
 ```mjs
-import { readFileSync } from 'fs';
+import { readFileSync } from 'node:fs';
 // On Windows :
 
 // - WHATWG file URLs with hostname convert to UNC path
@@ -6466,7 +6466,7 @@ On all other platforms, `file:` {URL}s with a host name are unsupported and
 will result in an error:
 
 ```mjs
-import { readFileSync } from 'fs';
+import { readFileSync } from 'node:fs';
 // On other platforms:
 
 // - WHATWG file URLs with hostname are unsupported
@@ -6483,7 +6483,7 @@ A `file:` {URL} having encoded slash characters will result in an error on all
 platforms:
 
 ```mjs
-import { readFileSync } from 'fs';
+import { readFileSync } from 'node:fs';
 
 // On Windows
 readFileSync(new URL('file:///C:/p/a/t/h/%2F'));
@@ -6501,7 +6501,7 @@ readFileSync(new URL('file:///p/a/t/h/%2f'));
 On Windows, `file:` {URL}s having encoded backslash will result in an error:
 
 ```mjs
-import { readFileSync } from 'fs';
+import { readFileSync } from 'node:fs';
 
 // On Windows
 readFileSync(new URL('file:///C:/path/%5C'));
@@ -6521,7 +6521,7 @@ be relative or absolute:
 Example using an absolute path on POSIX:
 
 ```mjs
-import { open } from 'fs/promises';
+import { open } from 'node:fs/promises';
 
 let fd;
 try {
@@ -6561,7 +6561,7 @@ are completed. Failure to do so will result in a memory leak that will
 eventually cause an application to crash.
 
 ```mjs
-import { open, close, fstat } from 'fs';
+import { open, close, fstat } from 'node:fs';
 
 function closeFd(fd) {
   close(fd, (err) => {
@@ -6595,7 +6595,7 @@ that resources are not leaked. However, it is still required that they are
 closed when operations are completed:
 
 ```mjs
-import { open } from 'fs/promises';
+import { open } from 'node:fs/promises';
 
 let file;
 try {
