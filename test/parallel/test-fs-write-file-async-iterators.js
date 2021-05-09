@@ -44,6 +44,26 @@ tmpdir.refresh();
   );
 }
 
+{
+  const filenameBufferIterableWithEncoding =
+    join(tmpdir.path, 'testBufferIterableWithEncoding.txt');
+  const bufferIterableWithEncoding = {
+    expected: 'ümlaut sechzig',
+    *[Symbol.iterator]() {
+      yield Buffer.from('ümlaut');
+      yield Buffer.from(' ');
+      yield Buffer.from('sechzig');
+    }
+  };
+
+  fs.writeFile(
+    filenameBufferIterableWithEncoding,
+    bufferIterableWithEncoding, common.mustSucceed(() => {
+      const data = fs.readFileSync(filenameBufferIterableWithEncoding, 'utf-8');
+      assert.strictEqual(bufferIterableWithEncoding.expected, data);
+    })
+  );
+}
 
 {
   const filenameAsyncIterable = join(tmpdir.path, 'testAsyncIterable.txt');
@@ -85,4 +105,48 @@ tmpdir.refresh();
       assert.strictEqual(expected, data);
     })
   );
+}
+
+{
+  const controller = new AbortController();
+  const signal = controller.signal;
+  const filenameIterableAbort = join(tmpdir.path, 'testIterableAbort.txt');
+  const iterable = {
+    expected: 'abc',
+    *[Symbol.iterator]() {
+      yield 'a';
+      yield 'b';
+      yield 'c';
+    }
+  };
+
+
+  fs.writeFile(filenameIterableAbort,
+               iterable, { signal }, common.mustCall((err) => {
+                 assert.strictEqual(err.name, 'AbortError');
+               }));
+
+  controller.abort();
+}
+
+{
+  const controller = new AbortController();
+  const signal = controller.signal;
+  const filenameAsyncIterableAbort =
+    join(tmpdir.path, 'testAsyncIterableAbort.txt');
+  const asyncIterable = {
+    expected: 'abc',
+    *[Symbol.asyncIterator]() {
+      yield 'a';
+      yield 'b';
+      yield 'c';
+    }
+  };
+
+  fs.writeFile(filenameAsyncIterableAbort,
+               asyncIterable, { signal }, common.mustCall((err) => {
+                 assert.strictEqual(err.name, 'AbortError');
+               }));
+
+  process.nextTick(() => controller.abort());
 }
