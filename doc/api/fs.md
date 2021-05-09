@@ -5971,6 +5971,18 @@ added: v0.4.7
 The number of bytes written so far. Does not include data that is still queued
 for writing.
 
+#### `writeStream.close([callback])`
+<!-- YAML
+added: v0.9.4
+-->
+
+* `callback` {Function}
+  * `err` {Error}
+
+Closes `writeStream`. Optionally accepts a
+callback that will be executed once the `writeStream`
+is closed.
+
 #### `writeStream.path`
 <!-- YAML
 added: v0.1.93
