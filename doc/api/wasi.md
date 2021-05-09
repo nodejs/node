@@ -31,8 +31,8 @@ wasi.start(instance);
 
 ```cjs
 'use strict';
-const fs = require('fs');
-const { WASI } = require('wasi');
+const fs = require('node:fs');
+const { WASI } = require('node:wasi');
 const wasi = new WASI({
   args: process.argv,
   env: process.env,

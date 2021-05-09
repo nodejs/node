@@ -11,13 +11,13 @@ stream (such as [`process.stdin`][]) one line at a time. It can be accessed
 using:
 
 ```js
-const readline = require('readline');
+const readline = require('node:readline');
 ```
 
 The following simple example illustrates the basic use of the `readline` module.
 
 ```js
-const readline = require('readline');
+const readline = require('node:readline');
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -313,7 +313,7 @@ Promise that fulfills with the answer. If the question is canceled using
 an `AbortController` it will reject with an `AbortError`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 const question = util.promisify(rl.question).bind(rl);
 
 async function questionExample() {
@@ -614,7 +614,7 @@ The `readline.createInterface()` method creates a new `readline.Interface`
 instance.
 
 ```js
-const readline = require('readline');
+const readline = require('node:readline');
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout
@@ -746,7 +746,7 @@ The following example illustrates the use of `readline.Interface` class to
 implement a small command-line interface:
 
 ```js
-const readline = require('readline');
+const readline = require('node:readline');
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout,
@@ -778,8 +778,8 @@ time. The easiest way to do so is leveraging the [`fs.ReadStream`][] API as
 well as a `for await...of` loop:
 
 ```js
-const fs = require('fs');
-const readline = require('readline');
+const fs = require('node:fs');
+const readline = require('node:readline');
 
 async function processLineByLine() {
   const fileStream = fs.createReadStream('input.txt');
@@ -803,8 +803,8 @@ processLineByLine();
 Alternatively, one could use the [`'line'`][] event:
 
 ```js
-const fs = require('fs');
-const readline = require('readline');
+const fs = require('node:fs');
+const readline = require('node:readline');
 
 const rl = readline.createInterface({
   input: fs.createReadStream('sample.txt'),
@@ -820,9 +820,9 @@ Currently, `for await...of` loop can be a bit slower. If `async` / `await`
 flow and speed are both essential, a mixed approach can be applied:
 
 ```js
-const { once } = require('events');
-const { createReadStream } = require('fs');
-const { createInterface } = require('readline');
+const { once } = require('node:events');
+const { createReadStream } = require('node:fs');
+const { createInterface } = require('node:readline');
 
 (async function processLineByLine() {
   try {

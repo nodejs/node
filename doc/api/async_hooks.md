@@ -10,7 +10,7 @@ The `async_hooks` module provides an API to track asynchronous resources. It
 can be accessed using:
 
 ```js
-const async_hooks = require('async_hooks');
+const async_hooks = require('node:async_hooks');
 ```
 
 ## Terminology
@@ -30,7 +30,7 @@ interface, and each thread will use a new set of async IDs.
 Following is a simple overview of the public API.
 
 ```js
-const async_hooks = require('async_hooks');
+const async_hooks = require('node:async_hooks');
 
 // Return the ID of the current execution context.
 const eid = async_hooks.executionAsyncId();
@@ -103,7 +103,7 @@ specifics of all functions that can be passed to `callbacks` is in the
 [Hook Callbacks][] section.
 
 ```js
-const async_hooks = require('async_hooks');
+const async_hooks = require('node:async_hooks');
 
 const asyncHook = async_hooks.createHook({
   init(asyncId, type, triggerAsyncId, resource) { },
@@ -159,8 +159,8 @@ This will print to the file and will not invoke AsyncHooks recursively because
 it is synchronous.
 
 ```js
-const fs = require('fs');
-const util = require('util');
+const fs = require('node:fs');
+const util = require('node:util');
 
 function debug(...args) {
   // Use a function like this one when debugging inside an AsyncHooks callback
@@ -190,7 +190,7 @@ The `AsyncHook` instance is disabled by default. If the `AsyncHook` instance
 should be enabled immediately after creation, the following pattern can be used.
 
 ```js
-const async_hooks = require('async_hooks');
+const async_hooks = require('node:async_hooks');
 
 const hook = async_hooks.createHook(callbacks).enable();
 ```
@@ -507,8 +507,8 @@ return an empty object as there is no handle or request object to use,
 but having an object representing the top-level can be helpful.
 
 ```js
-const { open } = require('fs');
-const { executionAsyncId, executionAsyncResource } = require('async_hooks');
+const { open } = require('node:fs');
+const { executionAsyncId, executionAsyncResource } = require('node:async_hooks');
 
 console.log(executionAsyncId(), executionAsyncResource());  // 1 {}
 open(__filename, 'r', (err, fd) => {
@@ -520,12 +520,12 @@ This can be used to implement continuation local storage without the
 use of a tracking `Map` to store the metadata:
 
 ```js
-const { createServer } = require('http');
+const { createServer } = require('node:http');
 const {
   executionAsyncId,
   executionAsyncResource,
   createHook
-} = require('async_hooks');
+} = require('node:async_hooks');
 const sym = Symbol('state'); // Private symbol to avoid pollution
 
 createHook({
@@ -559,7 +559,7 @@ changes:
   track when something calls.
 
 ```js
-const async_hooks = require('async_hooks');
+const async_hooks = require('node:async_hooks');
 
 console.log(async_hooks.executionAsyncId());  // 1 - bootstrap
 fs.open(path, 'r', (err, fd) => {
@@ -617,7 +617,7 @@ V8. This means that programs using promises or `async`/`await` will not get
 correct execution and trigger ids for promise callback contexts by default.
 
 ```js
-const ah = require('async_hooks');
+const ah = require('node:async_hooks');
 Promise.resolve(1729).then(() => {
   console.log(`eid ${ah.executionAsyncId()} tid ${ah.triggerAsyncId()}`);
 });
@@ -634,7 +634,7 @@ Installing async hooks via `async_hooks.createHook` enables promise execution
 tracking:
 
 ```js
-const ah = require('async_hooks');
+const ah = require('node:async_hooks');
 ah.createHook({ init() {} }).enable(); // forces PromiseHooks to be enabled.
 Promise.resolve(1729).then(() => {
   console.log(`eid ${ah.executionAsyncId()} tid ${ah.triggerAsyncId()}`);
@@ -673,7 +673,7 @@ The `init` hook will trigger when an `AsyncResource` is instantiated.
 The following is an overview of the `AsyncResource` API.
 
 ```js
-const { AsyncResource, executionAsyncId } = require('async_hooks');
+const { AsyncResource, executionAsyncId } = require('node:async_hooks');
 
 // AsyncResource() is meant to be extended. Instantiating a
 // new AsyncResource() also triggers init. If triggerAsyncId is omitted then
@@ -820,7 +820,7 @@ Assuming that the task is adding two numbers, using a file named
 `task_processor.js` with the following content:
 
 ```js
-const { parentPort } = require('worker_threads');
+const { parentPort } = require('node:worker_threads');
 parentPort.on('message', (task) => {
   parentPort.postMessage(task.a + task.b);
 });
@@ -829,10 +829,10 @@ parentPort.on('message', (task) => {
 a Worker pool around it could use the following structure:
 
 ```js
-const { AsyncResource } = require('async_hooks');
-const { EventEmitter } = require('events');
-const path = require('path');
-const { Worker } = require('worker_threads');
+const { AsyncResource } = require('node:async_hooks');
+const { EventEmitter } = require('node:events');
+const path = require('node:path');
+const { Worker } = require('node:worker_threads');
 
 const kTaskInfo = Symbol('kTaskInfo');
 const kWorkerFreedEvent = Symbol('kWorkerFreedEvent');
@@ -928,7 +928,7 @@ This pool could be used as follows:
 
 ```js
 const WorkerPool = require('./worker_pool.js');
-const os = require('os');
+const os = require('node:os');
 
 const pool = new WorkerPool(os.cpus().length);
 
@@ -953,8 +953,8 @@ associate an event listener with the correct execution context. The same
 approach can be applied to a [`Stream`][] or a similar event-driven class.
 
 ```js
-const { createServer } = require('http');
-const { AsyncResource, executionAsyncId } = require('async_hooks');
+const { createServer } = require('node:http');
+const { AsyncResource, executionAsyncId } = require('node:async_hooks');
 
 const server = createServer((req, res) => {
   req.on('close', AsyncResource.bind(() => {
@@ -989,8 +989,8 @@ that assigns IDs to incoming HTTP requests and includes them in messages
 logged within each request.
 
 ```js
-const http = require('http');
-const { AsyncLocalStorage } = require('async_hooks');
+const http = require('node:http');
+const { AsyncLocalStorage } = require('node:async_hooks');
 
 const asyncLocalStorage = new AsyncLocalStorage();
 

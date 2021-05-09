@@ -11,7 +11,7 @@ The `tls` module provides an implementation of the Transport Layer Security
 The module can be accessed using:
 
 ```js
-const tls = require('tls');
+const tls = require('node:tls');
 ```
 
 ## TLS/SSL concepts
@@ -1558,8 +1558,8 @@ The following illustrates a client for the echo server example from
 
 ```js
 // Assumes an echo server that is listening on port 8000.
-const tls = require('tls');
-const fs = require('fs');
+const tls = require('node:tls');
+const fs = require('node:fs');
 
 const options = {
   // Necessary only if the server requires client certificate authentication.
@@ -1958,8 +1958,8 @@ workers.
 The following illustrates a simple echo server:
 
 ```js
-const tls = require('tls');
-const fs = require('fs');
+const tls = require('node:tls');
+const fs = require('node:fs');
 
 const options = {
   key: fs.readFileSync('server-key.pem'),

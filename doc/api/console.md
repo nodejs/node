@@ -80,7 +80,7 @@ output streams and can be accessed using either `require('console').Console`
 or `console.Console` (or their destructured counterparts):
 
 ```js
-const { Console } = require('console');
+const { Console } = require('node:console');
 ```
 
 ```js

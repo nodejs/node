@@ -16,7 +16,7 @@ communication. To perform name resolution the way other applications on the same
 system do, use [`dns.lookup()`][].
 
 ```js
-const dns = require('dns');
+const dns = require('node:dns');
 
 dns.lookup('example.org', (err, address, family) => {
   console.log('address: %j family: IPv%s', address, family);
@@ -31,7 +31,7 @@ queries. These functions do not use the same set of configuration files used by
 DNS queries, bypassing other name-resolution facilities.
 
 ```js
-const dns = require('dns');
+const dns = require('node:dns');
 
 dns.resolve4('archive.org', (err, addresses) => {
   if (err) throw err;
@@ -64,7 +64,7 @@ the servers used for a resolver using
 other resolvers:
 
 ```js
-const { Resolver } = require('dns');
+const { Resolver } = require('node:dns');
 const resolver = new Resolver();
 resolver.setServers(['4.4.4.4']);
 
@@ -219,7 +219,7 @@ time to consult the [Implementation considerations section][] before using
 Example usage:
 
 ```js
-const dns = require('dns');
+const dns = require('node:dns');
 const options = {
   family: 6,
   hints: dns.ADDRCONFIG | dns.V4MAPPED,
@@ -282,7 +282,7 @@ will be thrown.
 On an error, `err` is an [`Error`][] object, where `err.code` is the error code.
 
 ```js
-const dns = require('dns');
+const dns = require('node:dns');
 dns.lookupService('127.0.0.1', 22, (err, hostname, service) => {
   console.log(hostname, service);
   // Prints: localhost ssh
@@ -700,7 +700,7 @@ the servers used for a resolver using
 other resolvers:
 
 ```js
-const { Resolver } = require('dns').promises;
+const { Resolver } = require('node:dns').promises;
 const resolver = new Resolver();
 resolver.setServers(['4.4.4.4']);
 
@@ -810,7 +810,7 @@ using `dnsPromises.lookup()`.
 Example usage:
 
 ```js
-const dns = require('dns');
+const dns = require('node:dns');
 const dnsPromises = dns.promises;
 const options = {
   family: 6,
@@ -849,7 +849,7 @@ On error, the `Promise` is rejected with an [`Error`][] object, where `err.code`
 is the error code.
 
 ```js
-const dnsPromises = require('dns').promises;
+const dnsPromises = require('node:dns').promises;
 dnsPromises.lookupService('127.0.0.1', 22).then((result) => {
   console.log(result.hostname, result.service);
   // Prints: localhost ssh

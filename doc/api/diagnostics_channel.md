@@ -12,7 +12,7 @@ to report arbitrary message data for diagnostics purposes.
 It can be accessed using:
 
 ```js
-const diagnostics_channel = require('diagnostics_channel');
+const diagnostics_channel = require('node:diagnostics_channel');
 ```
 
 It is intended that a module writer wanting to report diagnostics messages
@@ -34,7 +34,7 @@ other modules.
 Following is a simple overview of the public API.
 
 ```js
-const diagnostics_channel = require('diagnostics_channel');
+const diagnostics_channel = require('node:diagnostics_channel');
 
 // Get a reusable channel object
 const channel = diagnostics_channel.channel('my-channel');
@@ -65,7 +65,7 @@ This API is optional but helpful when trying to publish messages from very
 performance-sensitive code.
 
 ```js
-const diagnostics_channel = require('diagnostics_channel');
+const diagnostics_channel = require('node:diagnostics_channel');
 
 if (diagnostics_channel.hasSubscribers('my-channel')) {
   // There are subscribers, prepare and publish message
@@ -82,7 +82,7 @@ channel. It produces a channel object which is optimized to reduce overhead at
 publish time as much as possible.
 
 ```js
-const diagnostics_channel = require('diagnostics_channel');
+const diagnostics_channel = require('node:diagnostics_channel');
 
 const channel = diagnostics_channel.channel('my-channel');
 ```
@@ -108,7 +108,7 @@ This API is optional but helpful when trying to publish messages from very
 performance-sensitive code.
 
 ```js
-const diagnostics_channel = require('diagnostics_channel');
+const diagnostics_channel = require('node:diagnostics_channel');
 
 const channel = diagnostics_channel.channel('my-channel');
 
@@ -125,7 +125,7 @@ Publish a message to any subscribers to the channel. This will trigger
 message handlers synchronously so they will execute within the same context.
 
 ```js
-const diagnostics_channel = require('diagnostics_channel');
+const diagnostics_channel = require('node:diagnostics_channel');
 
 const channel = diagnostics_channel.channel('my-channel');
 
@@ -145,7 +145,7 @@ will be run synchronously whenever a message is published to the channel. Any
 errors thrown in the message handler will trigger an [`'uncaughtException'`][].
 
 ```js
-const diagnostics_channel = require('diagnostics_channel');
+const diagnostics_channel = require('node:diagnostics_channel');
 
 const channel = diagnostics_channel.channel('my-channel');
 
@@ -162,7 +162,7 @@ Remove a message handler previously registered to this channel with
 [`channel.subscribe(onMessage)`][].
 
 ```js
-const diagnostics_channel = require('diagnostics_channel');
+const diagnostics_channel = require('node:diagnostics_channel');
 
 const channel = diagnostics_channel.channel('my-channel');
 

@@ -379,9 +379,9 @@ contained by the `Blob` is copied only when the `arrayBuffer()` or `text()`
 methods are called.
 
 ```js
-const { Blob } = require('buffer');
+const { Blob } = require('node:buffer');
 const blob = new Blob(['hello there']);
-const { setTimeout: delay } = require('timers/promises');
+const { setTimeout: delay } = require('node:timers/promises');
 
 const mc1 = new MessageChannel();
 const mc2 = new MessageChannel();
@@ -3383,7 +3383,7 @@ The transcoding process will use substitution characters if a given byte
 sequence cannot be adequately represented in the target encoding. For instance:
 
 ```js
-const buffer = require('buffer');
+const buffer = require('node:buffer');
 
 const newBuf = buffer.transcode(Buffer.from('€'), 'utf8', 'ascii');
 console.log(newBuf.toString('ascii'));

@@ -11,7 +11,7 @@ Node.js applications without using `require()`. It can also be explicitly
 accessed using `require()`:
 
 ```js
-const process = require('process');
+const process = require('node:process');
 ```
 
 ## Process events
@@ -942,8 +942,8 @@ the call returns, by passing the `RTLD_NOW` constant. In this example
 the constant is assumed to be available.
 
 ```js
-const os = require('os');
-const path = require('path');
+const os = require('node:os');
+const path = require('node:path');
 const module = { exports: {} };
 process.dlopen(module, path.join(__dirname, 'local.node'),
                os.constants.dlopen.RTLD_NOW);
@@ -2027,7 +2027,7 @@ const data = process.report.getReport();
 console.log(data.header.nodejsVersion);
 
 // Similar to process.report.writeReport()
-const fs = require('fs');
+const fs = require('node:fs');
 fs.writeFileSync(util.inspect(data), 'my-report.log', 'utf8');
 ```
 

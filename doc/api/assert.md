@@ -45,7 +45,7 @@ import { strict as assert } from 'node:assert';
 ```
 
 ```cjs
-const assert = require('assert').strict;
+const assert = require('node:assert').strict;
 ```
 
 ```mjs
@@ -53,7 +53,7 @@ import assert from 'node:assert/strict';
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 ```
 
 Example error diff:
@@ -78,7 +78,7 @@ assert.deepEqual([[[1, 2, 3]], 4, 5], [[[1, 2, '3']], 4, 5]);
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 assert.deepEqual([[[1, 2, 3]], 4, 5], [[[1, 2, '3']], 4, 5]);
 // AssertionError: Expected inputs to be strictly deep-equal:
@@ -117,7 +117,7 @@ import assert from 'node:assert';
 ```
 
 ```cjs
-const assert = require('assert');
+const assert = require('node:assert');
 ```
 
 Whenever possible, use the [strict assertion mode][] instead. Otherwise, the
@@ -191,7 +191,7 @@ try {
 ```
 
 ```cjs
-const assert = require('assert');
+const assert = require('node:assert');
 
 // Generate an AssertionError to compare the error message later:
 const { message } = new assert.AssertionError({
@@ -258,7 +258,7 @@ process.on('exit', () => {
 ```
 
 ```cjs
-const assert = require('assert');
+const assert = require('node:assert');
 
 const tracker = new assert.CallTracker();
 
@@ -306,7 +306,7 @@ const callsfunc = tracker.calls(func);
 ```
 
 ```cjs
-const assert = require('assert');
+const assert = require('node:assert');
 
 // Creates call tracker.
 const tracker = new assert.CallTracker();
@@ -367,7 +367,7 @@ tracker.report();
 ```
 
 ```cjs
-const assert = require('assert');
+const assert = require('node:assert');
 
 // Creates call tracker.
 const tracker = new assert.CallTracker();
@@ -424,7 +424,7 @@ tracker.verify();
 ```
 
 ```cjs
-const assert = require('assert');
+const assert = require('node:assert');
 
 // Creates call tracker.
 const tracker = new assert.CallTracker();
@@ -540,7 +540,7 @@ assert.deepEqual('+00000000', false);
 ```
 
 ```cjs
-const assert = require('assert');
+const assert = require('node:assert');
 // WARNING: This does not throw an AssertionError!
 
 assert.deepEqual('+00000000', false);
@@ -585,7 +585,7 @@ assert.deepEqual(obj1, obj4);
 ```
 
 ```cjs
-const assert = require('assert');
+const assert = require('node:assert');
 
 const obj1 = {
   a: {
@@ -778,7 +778,7 @@ assert.deepStrictEqual(weakMap1, weakMap3);
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 // This fails because 1 !== '1'.
 assert.deepStrictEqual({ a: 1 }, { a: '1' });
@@ -906,7 +906,7 @@ assert.doesNotMatch('I will pass', /different/);
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 assert.doesNotMatch('I will fail', /fail/);
 // AssertionError [ERR_ASSERTION]: The input was expected to not match the ...
@@ -968,7 +968,7 @@ await assert.doesNotReject(
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 (async () => {
   await assert.doesNotReject(
@@ -992,7 +992,7 @@ assert.doesNotReject(Promise.reject(new TypeError('Wrong value')))
 
 <!-- eslint-disable no-restricted-syntax -->
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 assert.doesNotReject(Promise.reject(new TypeError('Wrong value')))
   .then(() => {
@@ -1053,7 +1053,7 @@ assert.doesNotThrow(
 
 <!-- eslint-disable no-restricted-syntax -->
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 assert.doesNotThrow(
   () => {
@@ -1080,7 +1080,7 @@ assert.doesNotThrow(
 
 <!-- eslint-disable no-restricted-syntax -->
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 assert.doesNotThrow(
   () => {
@@ -1110,7 +1110,7 @@ assert.doesNotThrow(
 
 <!-- eslint-disable no-restricted-syntax -->
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 assert.doesNotThrow(
   () => {
@@ -1169,7 +1169,7 @@ assert.equal({ a: { b: 1 } }, { a: { b: 1 } });
 ```
 
 ```cjs
-const assert = require('assert');
+const assert = require('node:assert');
 
 assert.equal(1, 1);
 // OK, 1 == 1
@@ -1215,7 +1215,7 @@ assert.fail(new TypeError('need array'));
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 assert.fail();
 // AssertionError [ERR_ASSERTION]: Failed
@@ -1278,7 +1278,7 @@ assert.fail(1, 2, new TypeError('need array'));
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 assert.fail('a', 'b');
 // AssertionError [ERR_ASSERTION]: 'a' != 'b'
@@ -1315,7 +1315,7 @@ suppressFrame();
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 function suppressFrame() {
   assert.fail('a', 'b', undefined, '!==', suppressFrame);
@@ -1375,7 +1375,7 @@ let err;
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 assert.ifError(null);
 // OK
@@ -1431,7 +1431,7 @@ assert.match('I will pass', /pass/);
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 assert.match('I will fail', /pass/);
 // AssertionError [ERR_ASSERTION]: The input did not match the regular ...
@@ -1533,7 +1533,7 @@ assert.notDeepEqual(obj1, obj4);
 ```
 
 ```cjs
-const assert = require('assert');
+const assert = require('node:assert');
 
 const obj1 = {
   a: {
@@ -1618,7 +1618,7 @@ assert.notDeepStrictEqual({ a: 1 }, { a: '1' });
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 assert.notDeepStrictEqual({ a: 1 }, { a: '1' });
 // OK
@@ -1674,7 +1674,7 @@ assert.notEqual(1, '1');
 ```
 
 ```cjs
-const assert = require('assert');
+const assert = require('node:assert');
 
 assert.notEqual(1, 2);
 // OK
@@ -1724,7 +1724,7 @@ assert.notStrictEqual(1, '1');
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 assert.notStrictEqual(1, 2);
 // OK
@@ -1807,7 +1807,7 @@ assert.ok(0);
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 assert.ok(true);
 // OK
@@ -1852,7 +1852,7 @@ assert(0);
 ```
 
 ```cjs
-const assert = require('assert');
+const assert = require('node:assert');
 
 // Using `assert()` works the same:
 assert(0);
@@ -1906,7 +1906,7 @@ await assert.rejects(
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 (async () => {
   await assert.rejects(
@@ -1937,7 +1937,7 @@ await assert.rejects(
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 (async () => {
   await assert.rejects(
@@ -1965,7 +1965,7 @@ assert.rejects(
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 assert.rejects(
   Promise.reject(new Error('Wrong value')),
@@ -2026,7 +2026,7 @@ assert.strictEqual(1, '1', new TypeError('Inputs are not identical'));
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 assert.strictEqual(1, 2);
 // AssertionError [ERR_ASSERTION]: Expected inputs to be strictly equal:
@@ -2164,7 +2164,7 @@ throws(
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 const err = new TypeError('Wrong value');
 err.code = 404;
@@ -2246,7 +2246,7 @@ assert.throws(
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 assert.throws(
   () => {
@@ -2273,7 +2273,7 @@ assert.throws(
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 assert.throws(
   () => {
@@ -2310,7 +2310,7 @@ assert.throws(
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 assert.throws(
   () => {
@@ -2376,7 +2376,7 @@ assert.throws(throwingFirst, /Second$/);
 
 <!-- eslint-disable no-restricted-syntax -->
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 function throwingFirst() {
   throw new Error('First');

@@ -173,7 +173,7 @@ This method has a custom variant for promises that is available using
 [`util.promisify()`][]:
 
 ```js
-const util = require('util');
+const util = require('node:util');
 const setImmediatePromise = util.promisify(setImmediate);
 
 setImmediatePromise('foobar').then((value) => {
@@ -235,7 +235,7 @@ This method has a custom variant for promises that is available using
 [`util.promisify()`][]:
 
 ```js
-const util = require('util');
+const util = require('node:util');
 const setTimeoutPromise = util.promisify(setTimeout);
 
 setTimeoutPromise(40, 'foobar').then((value) => {
@@ -257,7 +257,7 @@ returned Promises will be rejected with an `'AbortError'`.
 For `setImmediate()`:
 
 ```js
-const util = require('util');
+const util = require('node:util');
 const setImmediatePromise = util.promisify(setImmediate);
 
 const ac = new AbortController();
@@ -276,7 +276,7 @@ ac.abort();
 For `setTimeout()`:
 
 ```js
-const util = require('util');
+const util = require('node:util');
 const setTimeoutPromise = util.promisify(setTimeout);
 
 const ac = new AbortController();
@@ -346,7 +346,7 @@ const {
   setTimeout,
   setImmediate,
   setInterval,
-} = require('timers/promises');
+} = require('node:timers/promises');
 ```
 
 ### `timersPromises.setTimeout([delay[, value[, options]]])`
@@ -377,7 +377,7 @@ console.log(res);  // Prints 'result'
 ```cjs
 const {
   setTimeout,
-} = require('timers/promises');
+} = require('node:timers/promises');
 
 setTimeout(100, 'result').then((res) => {
   console.log(res);  // Prints 'result'
@@ -410,7 +410,7 @@ console.log(res);  // Prints 'result'
 ```cjs
 const {
   setImmediate,
-} = require('timers/promises');
+} = require('node:timers/promises');
 
 setImmediate('result').then((res) => {
   console.log(res);  // Prints 'result'
@@ -453,7 +453,7 @@ console.log(Date.now());
 ```cjs
 const {
   setInterval,
-} = require('timers/promises');
+} = require('node:timers/promises');
 const interval = 100;
 
 (async function() {

@@ -24,7 +24,7 @@ global variable. Any changes to global variables caused by the invoked
 code are reflected in the context object.
 
 ```js
-const vm = require('vm');
+const vm = require('node:vm');
 
 const x = 1;
 
@@ -162,7 +162,7 @@ the value of another global variable, then execute the code multiple times.
 The globals are contained in the `context` object.
 
 ```js
-const vm = require('vm');
+const vm = require('node:vm');
 
 const context = {
   animal: 'cat',
@@ -243,7 +243,7 @@ the code multiple times in different contexts. The globals are set on and
 contained within each individual `context`.
 
 ```js
-const vm = require('vm');
+const vm = require('node:vm');
 
 const script = new vm.Script('globalVar = "set"');
 
@@ -287,7 +287,7 @@ The following example compiles code that increments a `global` variable then
 executes that code multiple times:
 
 ```js
-const vm = require('vm');
+const vm = require('node:vm');
 
 global.globalVar = 0;
 
@@ -338,7 +338,7 @@ the V8 engine, while the result of `v8.getHeapSpaceStatistics()` measure
 the memory occupied by each heap space in the current V8 instance.
 
 ```js
-const vm = require('vm');
+const vm = require('node:vm');
 // Measure the memory used by the main context.
 vm.measureMemory({ mode: 'summary' })
   // This is the same as vm.measureMemory()
@@ -480,7 +480,7 @@ await bar.evaluate();
 ```
 
 ```cjs
-const vm = require('vm');
+const vm = require('node:vm');
 
 const contextifiedObject = vm.createContext({
   secret: 42,
@@ -782,7 +782,7 @@ await module.evaluate();
 ```
 
 ```cjs
-const vm = require('vm');
+const vm = require('node:vm');
 const contextifiedObject = vm.createContext({ secret: 42 });
 (async () => {
   const module = new vm.SourceTextModule(
@@ -852,7 +852,7 @@ provide a generic interface for exposing non-JavaScript sources to ECMAScript
 module graphs.
 
 ```js
-const vm = require('vm');
+const vm = require('node:vm');
 
 const source = '{ "a": 1 }';
 const module = new vm.SyntheticModule(['default'], function() {
@@ -913,7 +913,7 @@ assert.strictEqual(m.namespace.x, 1);
 ```
 
 ```cjs
-const vm = require('vm');
+const vm = require('node:vm');
 (async () => {
   const m = new vm.SyntheticModule(['x'], () => {
     m.setExport('x', 1);
@@ -1025,7 +1025,7 @@ properties but also having the built-in objects and functions any standard
 will remain unchanged.
 
 ```js
-const vm = require('vm');
+const vm = require('node:vm');
 
 global.globalVar = 3;
 
@@ -1129,7 +1129,7 @@ The following example compiles and executes different scripts using a single
 [contextified][] object:
 
 ```js
-const vm = require('vm');
+const vm = require('node:vm');
 
 const contextObject = { globalVar: 1 };
 vm.createContext(contextObject);
@@ -1231,7 +1231,7 @@ The following example compiles and executes code that increments a global
 variable and sets a new one. These globals are contained in the `contextObject`.
 
 ```js
-const vm = require('vm');
+const vm = require('node:vm');
 
 const contextObject = {
   animal: 'cat',
@@ -1306,7 +1306,7 @@ the JavaScript [`eval()`][] function to run the same code:
 
 <!-- eslint-disable prefer-const -->
 ```js
-const vm = require('vm');
+const vm = require('node:vm');
 let localVar = 'initial value';
 
 const vmResult = vm.runInThisContext('localVar = "vm";');
@@ -1336,11 +1336,11 @@ to the `http` module passed to it. For instance:
 
 ```js
 'use strict';
-const vm = require('vm');
+const vm = require('node:vm');
 
 const code = `
 ((require) => {
-  const http = require('http');
+  const http = require('node:http');
 
   http.createServer((request, response) => {
     response.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -1387,7 +1387,7 @@ timeout of 5 milliseconds schedules an infinite loop to run after a promise
 resolves. The scheduled loop is never interrupted by the timeout:
 
 ```js
-const vm = require('vm');
+const vm = require('node:vm');
 
 function loop() {
   console.log('entering loop');
@@ -1407,7 +1407,7 @@ This can be addressed by passing `microtaskMode: 'afterEvaluate'` to the code
 that creates the `Context`:
 
 ```js
-const vm = require('vm');
+const vm = require('node:vm');
 
 function loop() {
   while (1) console.log(Date.now());

@@ -19,7 +19,7 @@ Streams can be readable, writable, or both. All streams are instances of
 To access the `stream` module:
 
 ```js
-const stream = require('stream');
+const stream = require('node:stream');
 ```
 
 The `stream` module is useful for creating new types of stream instances. It is
@@ -133,7 +133,7 @@ manner. The following is an example of using streams in a Node.js application
 that implements an HTTP server:
 
 ```js
-const http = require('http');
+const http = require('node:http');
 
 const server = http.createServer((req, res) => {
   // `req` is an http.IncomingMessage, which is a readable stream.
@@ -462,7 +462,7 @@ Calling the [`stream.write()`][stream-write] method after calling
 
 ```js
 // Write 'hello, ' and then end with 'world!'.
-const fs = require('fs');
+const fs = require('node:fs');
 const file = fs.createWriteStream('example.txt');
 file.write('hello, ');
 file.end('world!');
@@ -777,7 +777,7 @@ data. While in this state, attaching a listener for the `'data'` event
 will not switch `readable.readableFlowing` to `true`.
 
 ```js
-const { PassThrough, Writable } = require('stream');
+const { PassThrough, Writable } = require('node:stream');
 const pass = new PassThrough();
 const writable = new Writable();
 
@@ -949,7 +949,7 @@ available data. In the latter case, [`stream.read()`][stream-read] will return
 `null`. For instance, in the following example, `foo.txt` is an empty file:
 
 ```js
-const fs = require('fs');
+const fs = require('node:fs');
 const rr = fs.createReadStream('foo.txt');
 rr.on('readable', () => {
   console.log(`readable: ${rr.read()}`);
@@ -1089,7 +1089,7 @@ The following example pipes all of the data from the `readable` into a file
 named `file.txt`:
 
 ```js
-const fs = require('fs');
+const fs = require('node:fs');
 const readable = getReadableStreamSomehow();
 const writable = fs.createWriteStream('file.txt');
 // All the data from readable goes into 'file.txt'.
@@ -1103,7 +1103,7 @@ The `readable.pipe()` method returns a reference to the *destination* stream
 making it possible to set up chains of piped streams:
 
 ```js
-const fs = require('fs');
+const fs = require('node:fs');
 const r = fs.createReadStream('file.txt');
 const z = zlib.createGzip();
 const w = fs.createWriteStream('file.txt.gz');
@@ -1359,7 +1359,7 @@ If the `destination` is specified, but no pipe is set up for it, then
 the method does nothing.
 
 ```js
-const fs = require('fs');
+const fs = require('node:fs');
 const readable = getReadableStreamSomehow();
 const writable = fs.createWriteStream('file.txt');
 // All the data from readable goes into 'file.txt',
@@ -1410,7 +1410,7 @@ section for more information.
 // Pull off a header delimited by \n\n.
 // Use unshift() if we get too much.
 // Call the callback with (error, header, stream).
-const { StringDecoder } = require('string_decoder');
+const { StringDecoder } = require('node:string_decoder');
 function parseHeader(stream, callback) {
   stream.on('error', callback);
   stream.on('readable', onReadable);
@@ -1473,7 +1473,7 @@ libraries.
 
 ```js
 const { OldReader } = require('./old-api-module.js');
-const { Readable } = require('stream');
+const { Readable } = require('node:stream');
 const oreader = new OldReader();
 const myReader = new Readable().wrap(oreader);
 
@@ -1494,7 +1494,7 @@ changes:
 * Returns: {AsyncIterator} to fully consume the stream.
 
 ```js
-const fs = require('fs');
+const fs = require('node:fs');
 
 async function print(readable) {
   readable.setEncoding('utf8');
@@ -1622,7 +1622,7 @@ A function to get notified when a stream is no longer readable, writable
 or has experienced an error or a premature close event.
 
 ```js
-const { finished } = require('stream');
+const { finished } = require('node:stream');
 
 const rs = fs.createReadStream('archive.tar');
 
@@ -1644,7 +1644,7 @@ or `'finish'`.
 The `finished` API provides promise version:
 
 ```js
-const { finished } = require('stream/promises');
+const { finished } = require('node:stream/promises');
 
 const rs = fs.createReadStream('archive.tar');
 
@@ -1705,9 +1705,9 @@ A module method to pipe between streams and generators forwarding errors and
 properly cleaning up and provide a callback when the pipeline is complete.
 
 ```js
-const { pipeline } = require('stream');
-const fs = require('fs');
-const zlib = require('zlib');
+const { pipeline } = require('node:stream');
+const fs = require('node:fs');
+const zlib = require('node:zlib');
 
 // Use the pipeline API to easily pipe a series of streams
 // together and get notified when the pipeline is fully done.
@@ -1735,7 +1735,7 @@ receive an options argument as the last parameter with a
 `AbortError`.
 
 ```js
-const { pipeline } = require('stream/promises');
+const { pipeline } = require('node:stream/promises');
 
 async function run() {
   await pipeline(
@@ -1753,7 +1753,7 @@ To use an `AbortSignal`, pass it inside an options object,
 as the last argument:
 
 ```js
-const { pipeline } = require('stream/promises');
+const { pipeline } = require('node:stream/promises');
 
 async function run() {
   const ac = new AbortController();
@@ -1776,8 +1776,8 @@ run().catch(console.error); // AbortError
 The `pipeline` API also supports async generators:
 
 ```js
-const { pipeline } = require('stream/promises');
-const fs = require('fs');
+const { pipeline } = require('node:stream/promises');
+const fs = require('node:fs');
 
 async function run() {
   await pipeline(
@@ -1822,7 +1822,7 @@ added:
 A utility method for creating readable streams out of iterators.
 
 ```js
-const { Readable } = require('stream');
+const { Readable } = require('node:stream');
 
 async function * generate() {
   yield 'hello';
@@ -1855,7 +1855,7 @@ Calling `abort` on the `AbortController` corresponding to the passed
 on the stream.
 
 ```js
-const fs = require('fs');
+const fs = require('node:fs');
 
 const controller = new AbortController();
 const read = addAbortSignal(
@@ -1903,7 +1903,7 @@ parent class constructor:
 
 <!-- eslint-disable no-useless-constructor -->
 ```js
-const { Writable } = require('stream');
+const { Writable } = require('node:stream');
 
 class MyWritable extends Writable {
   constructor({ highWaterMark, ...options }) {
@@ -1953,7 +1953,7 @@ inheritance. This can be accomplished by directly creating instances of the
 objects and passing appropriate methods as constructor options.
 
 ```js
-const { Writable } = require('stream');
+const { Writable } = require('node:stream');
 
 const myWritable = new Writable({
   construct(callback) {
@@ -2033,7 +2033,7 @@ changes:
 
 <!-- eslint-disable no-useless-constructor -->
 ```js
-const { Writable } = require('stream');
+const { Writable } = require('node:stream');
 
 class MyWritable extends Writable {
   constructor(options) {
@@ -2047,8 +2047,8 @@ class MyWritable extends Writable {
 Or, when using pre-ES6 style constructors:
 
 ```js
-const { Writable } = require('stream');
-const util = require('util');
+const { Writable } = require('node:stream');
+const util = require('node:util');
 
 function MyWritable(options) {
   if (!(this instanceof MyWritable))
@@ -2061,7 +2061,7 @@ util.inherits(MyWritable, Writable);
 Or, using the simplified constructor approach:
 
 ```js
-const { Writable } = require('stream');
+const { Writable } = require('node:stream');
 
 const myWritable = new Writable({
   write(chunk, encoding, callback) {
@@ -2078,7 +2078,7 @@ Calling `abort` on the `AbortController` corresponding to the passed
 on the writeable stream.
 
 ```js
-const { Writable } = require('stream');
+const { Writable } = require('node:stream');
 
 const controller = new AbortController();
 const myWritable = new Writable({
@@ -2111,8 +2111,8 @@ has returned, delaying any `_write()`, `_final()` and `_destroy()` calls until
 initialize resources before the stream can be used.
 
 ```js
-const { Writable } = require('stream');
-const fs = require('fs');
+const { Writable } = require('node:stream');
+const fs = require('node:fs');
 
 class WriteStream extends Writable {
   constructor(filename) {
@@ -2262,7 +2262,7 @@ If a `Readable` stream pipes into a `Writable` stream when `Writable` emits an
 error, the `Readable` stream will be unpiped.
 
 ```js
-const { Writable } = require('stream');
+const { Writable } = require('node:stream');
 
 const myWritable = new Writable({
   write(chunk, encoding, callback) {
@@ -2283,7 +2283,7 @@ is not of any real particular usefulness, the example illustrates each of the
 required elements of a custom [`Writable`][] stream instance:
 
 ```js
-const { Writable } = require('stream');
+const { Writable } = require('node:stream');
 
 class MyWritable extends Writable {
   _write(chunk, encoding, callback) {
@@ -2304,8 +2304,8 @@ characters encoding, such as UTF-8. The following example shows how to decode
 multi-byte strings using `StringDecoder` and [`Writable`][].
 
 ```js
-const { Writable } = require('stream');
-const { StringDecoder } = require('string_decoder');
+const { Writable } = require('node:stream');
+const { StringDecoder } = require('node:string_decoder');
 
 class StringWritable extends Writable {
   constructor(options) {
@@ -2383,7 +2383,7 @@ changes:
 
 <!-- eslint-disable no-useless-constructor -->
 ```js
-const { Readable } = require('stream');
+const { Readable } = require('node:stream');
 
 class MyReadable extends Readable {
   constructor(options) {
@@ -2397,8 +2397,8 @@ class MyReadable extends Readable {
 Or, when using pre-ES6 style constructors:
 
 ```js
-const { Readable } = require('stream');
-const util = require('util');
+const { Readable } = require('node:stream');
+const util = require('node:util');
 
 function MyReadable(options) {
   if (!(this instanceof MyReadable))
@@ -2411,7 +2411,7 @@ util.inherits(MyReadable, Readable);
 Or, using the simplified constructor approach:
 
 ```js
-const { Readable } = require('stream');
+const { Readable } = require('node:stream');
 
 const myReadable = new Readable({
   read(size) {
@@ -2425,7 +2425,7 @@ Calling `abort` on the `AbortController` corresponding to the passed
 on the readable created.
 
 ```js
-const { Readable } = require('stream');
+const { Readable } = require('node:stream');
 const controller = new AbortController();
 const read = new Readable({
   read(size) {
@@ -2455,8 +2455,8 @@ called. This is useful to initialize state or asynchronously initialize
 resources before the stream can be used.
 
 ```js
-const { Readable } = require('stream');
-const fs = require('fs');
+const { Readable } = require('node:stream');
+const fs = require('node:fs');
 
 class ReadStream extends Readable {
   constructor(filename) {
@@ -2623,7 +2623,7 @@ Throwing an `Error` from within [`readable._read()`][] or manually emitting an
 `'error'` event results in undefined behavior.
 
 ```js
-const { Readable } = require('stream');
+const { Readable } = require('node:stream');
 
 const myReadable = new Readable({
   read(size) {
@@ -2645,7 +2645,7 @@ The following is a basic example of a `Readable` stream that emits the numerals
 from 1 to 1,000,000 in ascending order, and then ends.
 
 ```js
-const { Readable } = require('stream');
+const { Readable } = require('node:stream');
 
 class Counter extends Readable {
   constructor(opt) {
@@ -2714,7 +2714,7 @@ changes:
 
 <!-- eslint-disable no-useless-constructor -->
 ```js
-const { Duplex } = require('stream');
+const { Duplex } = require('node:stream');
 
 class MyDuplex extends Duplex {
   constructor(options) {
@@ -2727,8 +2727,8 @@ class MyDuplex extends Duplex {
 Or, when using pre-ES6 style constructors:
 
 ```js
-const { Duplex } = require('stream');
-const util = require('util');
+const { Duplex } = require('node:stream');
+const util = require('node:util');
 
 function MyDuplex(options) {
   if (!(this instanceof MyDuplex))
@@ -2741,7 +2741,7 @@ util.inherits(MyDuplex, Duplex);
 Or, using the simplified constructor approach:
 
 ```js
-const { Duplex } = require('stream');
+const { Duplex } = require('node:stream');
 
 const myDuplex = new Duplex({
   read(size) {
@@ -2756,8 +2756,8 @@ const myDuplex = new Duplex({
 When using pipeline:
 
 ```js
-const { Transform, pipeline } = require('stream');
-const fs = require('fs');
+const { Transform, pipeline } = require('node:stream');
+const fs = require('node:fs');
 
 pipeline(
   fs.createReadStream('object.json')
@@ -2804,7 +2804,7 @@ incoming written data via the [`Writable`][] interface that is read back out
 via the [`Readable`][] interface.
 
 ```js
-const { Duplex } = require('stream');
+const { Duplex } = require('node:stream');
 const kSource = Symbol('source');
 
 class MyDuplex extends Duplex {
@@ -2845,7 +2845,7 @@ that accepts JavaScript numbers that are converted to hexadecimal strings on
 the `Readable` side.
 
 ```js
-const { Transform } = require('stream');
+const { Transform } = require('node:stream');
 
 // All Transform streams are also Duplex Streams.
 const myTransform = new Transform({
@@ -2909,7 +2909,7 @@ output on the `Readable` side is not consumed.
 
 <!-- eslint-disable no-useless-constructor -->
 ```js
-const { Transform } = require('stream');
+const { Transform } = require('node:stream');
 
 class MyTransform extends Transform {
   constructor(options) {
@@ -2922,8 +2922,8 @@ class MyTransform extends Transform {
 Or, when using pre-ES6 style constructors:
 
 ```js
-const { Transform } = require('stream');
-const util = require('util');
+const { Transform } = require('node:stream');
+const util = require('node:util');
 
 function MyTransform(options) {
   if (!(this instanceof MyTransform))
@@ -2936,7 +2936,7 @@ util.inherits(MyTransform, Transform);
 Or, using the simplified constructor approach:
 
 ```js
-const { Transform } = require('stream');
+const { Transform } = require('node:stream');
 
 const myTransform = new Transform({
   transform(chunk, encoding, callback) {
@@ -3080,7 +3080,7 @@ A Node.js readable stream can be created from an asynchronous generator using
 the `Readable.from()` utility method:
 
 ```js
-const { Readable } = require('stream');
+const { Readable } = require('node:stream');
 
 async function * generate() {
   yield 'a';
@@ -3102,9 +3102,9 @@ handling of backpressure and errors. [`stream.pipeline()`][] abstracts away
 the handling of backpressure and backpressure-related errors:
 
 ```js
-const fs = require('fs');
-const { pipeline } = require('stream');
-const { pipeline: pipelinePromise } = require('stream/promises');
+const fs = require('node:fs');
+const { pipeline } = require('node:stream');
+const { pipeline: pipelinePromise } = require('node:stream/promises');
 
 const writable = fs.createWriteStream('./file');
 

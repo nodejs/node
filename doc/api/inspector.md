@@ -11,7 +11,7 @@ The `inspector` module provides an API for interacting with the V8 inspector.
 It can be accessed using:
 
 ```js
-const inspector = require('inspector');
+const inspector = require('node:inspector');
 ```
 
 ## `inspector.close()`
@@ -195,8 +195,8 @@ protocol.
 Here's an example showing how to use the [CPU Profiler][]:
 
 ```js
-const inspector = require('inspector');
-const fs = require('fs');
+const inspector = require('node:inspector');
+const fs = require('node:fs');
 const session = new inspector.Session();
 session.connect();
 
@@ -220,8 +220,8 @@ session.post('Profiler.enable', () => {
 Here's an example showing how to use the [Heap Profiler][]:
 
 ```js
-const inspector = require('inspector');
-const fs = require('fs');
+const inspector = require('node:inspector');
+const fs = require('node:fs');
 const session = new inspector.Session();
 
 const fd = fs.openSync('profile.heapsnapshot', 'w');

@@ -20,7 +20,7 @@ import * as fs from 'node:fs/promises';
 
 ```cjs
 // Using CommonJS syntax:
-const fs = require('fs/promises');
+const fs = require('node:fs/promises');
 ```
 
 To use the callback and sync APIs:
@@ -32,7 +32,7 @@ import * as fs from 'node:fs';
 
 ```cjs
 // Using CommonJS syntax:
-const fs = require('fs');
+const fs = require('node:fs');
 ```
 
 All file system operations have synchronous, callback, and promise-based
@@ -57,7 +57,7 @@ try {
 
 ```cjs
 // Using CommonJS syntax
-const { unlink } = require('fs/promises');
+const { unlink } = require('node:fs/promises');
 
 (async function(path) {
   try {
@@ -89,7 +89,7 @@ unlink('/tmp/hello', (err) => {
 
 ```cjs
 // Using CommonJS syntax
-const { unlink } = require('fs');
+const { unlink } = require('node:fs');
 
 unlink('/tmp/hello', (err) => {
   if (err) throw err;
@@ -121,7 +121,7 @@ try {
 
 ```cjs
 // Using CommonJS syntax
-const { unlinkSync } = require('fs');
+const { unlinkSync } = require('node:fs');
 
 try {
   unlinkSync('/tmp/hello');
@@ -1234,7 +1234,7 @@ Returns an async iterator that watches for changes on `filename`, where `filenam
 is either a file or a directory.
 
 ```js
-const { watch } = require('fs/promises');
+const { watch } = require('node:fs/promises');
 
 const ac = new AbortController();
 const { signal } = ac;
@@ -6341,7 +6341,7 @@ try {
 
 ```cjs
 // Using CommonJS syntax
-const { rename, stat } = require('fs/promises');
+const { rename, stat } = require('node:fs/promises');
 
 (async function(from, to) {
   try {
@@ -6370,7 +6370,7 @@ rename('/tmp/hello', '/tmp/world', (err) => {
 ```
 
 ```cjs
-const { rename, stat } = require('fs/promises');
+const { rename, stat } = require('node:fs/promises');
 
 rename('/tmp/hello', '/tmp/world', (err) => {
   if (err) throw err;

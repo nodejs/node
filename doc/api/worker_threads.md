@@ -10,7 +10,7 @@ The `worker_threads` module enables the use of threads that execute JavaScript
 in parallel. To access it:
 
 ```js
-const worker = require('worker_threads');
+const worker = require('node:worker_threads');
 ```
 
 Workers (threads) are useful for performing CPU-intensive JavaScript operations.
@@ -24,7 +24,7 @@ instances.
 ```js
 const {
   Worker, isMainThread, parentPort, workerData
-} = require('worker_threads');
+} = require('node:worker_threads');
 
 if (isMainThread) {
   module.exports = function parseJSAsync(script) {
@@ -83,7 +83,7 @@ const {
   isMainThread,
   setEnvironmentData,
   getEnvironmentData,
-} = require('worker_threads');
+} = require('node:worker_threads');
 
 if (isMainThread) {
   setEnvironmentData('Hello', 'World!');
@@ -103,7 +103,7 @@ added: v10.5.0
 Is `true` if this code is not running inside of a [`Worker`][] thread.
 
 ```js
-const { Worker, isMainThread } = require('worker_threads');
+const { Worker, isMainThread } = require('node:worker_threads');
 
 if (isMainThread) {
   // This re-loads the current file inside a Worker instance.
@@ -132,7 +132,7 @@ For example, Node.js marks the `ArrayBuffer`s it uses for its
 This operation cannot be undone.
 
 ```js
-const { MessageChannel, markAsUntransferable } = require('worker_threads');
+const { MessageChannel, markAsUntransferable } = require('node:worker_threads');
 
 const pooledBuffer = new ArrayBuffer(8);
 const typedArray1 = new Uint8Array(pooledBuffer);
@@ -192,7 +192,7 @@ using `worker.postMessage()` are available in this thread using
 `parentPort.on('message')`.
 
 ```js
-const { Worker, isMainThread, parentPort } = require('worker_threads');
+const { Worker, isMainThread, parentPort } = require('node:worker_threads');
 
 if (isMainThread) {
   const worker = new Worker(__filename);
@@ -227,7 +227,7 @@ that contains the message payload, corresponding to the oldest message in the
 `MessagePort`’s queue.
 
 ```js
-const { MessageChannel, receiveMessageOnPort } = require('worker_threads');
+const { MessageChannel, receiveMessageOnPort } = require('node:worker_threads');
 const { port1, port2 } = new MessageChannel();
 port1.postMessage({ hello: 'world' });
 
@@ -271,7 +271,7 @@ constructor, to indicate that the current thread and the Worker thread should
 share read and write access to the same set of environment variables.
 
 ```js
-const { Worker, SHARE_ENV } = require('worker_threads');
+const { Worker, SHARE_ENV } = require('node:worker_threads');
 new Worker('process.env.SET_IN_WORKER = "foo"', { eval: true, env: SHARE_ENV })
   .on('exit', () => {
     console.log(process.env.SET_IN_WORKER);  // Prints 'foo'.
@@ -318,7 +318,7 @@ The data is cloned as if using [`postMessage()`][`port.postMessage()`],
 according to the [HTML structured clone algorithm][].
 
 ```js
-const { Worker, isMainThread, workerData } = require('worker_threads');
+const { Worker, isMainThread, workerData } = require('node:worker_threads');
 
 if (isMainThread) {
   const worker = new Worker(__filename, { workerData: 'Hello, world!' });
@@ -344,7 +344,7 @@ const {
   isMainThread,
   BroadcastChannel,
   Worker
-} = require('worker_threads');
+} = require('node:worker_threads');
 
 const bc = new BroadcastChannel('hello');
 
@@ -431,7 +431,7 @@ yields an object with `port1` and `port2` properties, which refer to linked
 [`MessagePort`][] instances.
 
 ```js
-const { MessageChannel } = require('worker_threads');
+const { MessageChannel } = require('node:worker_threads');
 
 const { port1, port2 } = new MessageChannel();
 port1.on('message', (message) => console.log('received', message));
@@ -468,7 +468,7 @@ The `'close'` event is emitted once either side of the channel has been
 disconnected.
 
 ```js
-const { MessageChannel } = require('worker_threads');
+const { MessageChannel } = require('node:worker_threads');
 const { port1, port2 } = new MessageChannel();
 
 // Prints:
@@ -577,7 +577,7 @@ In particular, the significant differences to `JSON` are:
   * {X509Certificate}s.
 
 ```js
-const { MessageChannel } = require('worker_threads');
+const { MessageChannel } = require('node:worker_threads');
 const { port1, port2 } = new MessageChannel();
 
 port1.on('message', (message) => console.log(message));
@@ -602,7 +602,7 @@ from either thread. They cannot be listed in `transferList`.
 `transferList`; in that case, the underlying memory is copied rather than moved.
 
 ```js
-const { MessageChannel } = require('worker_threads');
+const { MessageChannel } = require('node:worker_threads');
 const { port1, port2 } = new MessageChannel();
 
 port1.on('message', (message) => console.log(message));
@@ -818,10 +818,10 @@ and what kind of JavaScript values can be successfully transported through
 the thread barrier.
 
 ```js
-const assert = require('assert');
+const assert = require('node:assert');
 const {
   Worker, MessageChannel, MessagePort, isMainThread, parentPort
-} = require('worker_threads');
+} = require('node:worker_threads');
 if (isMainThread) {
   const worker = new Worker(__filename);
   const subChannel = new MessageChannel();
@@ -1053,7 +1053,7 @@ lifetime never accumulates any `idle` time, but is still be able to process
 messages.
 
 ```js
-const { Worker, isMainThread, parentPort } = require('worker_threads');
+const { Worker, isMainThread, parentPort } = require('node:worker_threads');
 
 if (isMainThread) {
   const worker = new Worker(__filename);

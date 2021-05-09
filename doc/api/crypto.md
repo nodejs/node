@@ -22,7 +22,7 @@ console.log(hash);
 ```
 
 ```cjs
-const crypto = require('crypto');
+const crypto = require('node:crypto');
 
 const secret = 'abcdefg';
 const hash = crypto.createHmac('sha256', secret)
@@ -44,7 +44,7 @@ When using CommonJS, the error thrown can be caught using try/catch:
 ```cjs
 let crypto;
 try {
-  crypto = require('crypto');
+  crypto = require('node:crypto');
 } catch (err) {
   console.log('crypto support is disabled!');
 }
@@ -107,7 +107,7 @@ console.log(challenge.toString('utf8'));
 ```
 
 ```cjs
-const { Certificate } = require('crypto');
+const { Certificate } = require('node:crypto');
 const spkac = getSpkacSomehow();
 const challenge = Certificate.exportChallenge(spkac);
 console.log(challenge.toString('utf8'));
@@ -138,7 +138,7 @@ console.log(publicKey);
 ```
 
 ```cjs
-const { Certificate } = require('crypto');
+const { Certificate } = require('node:crypto');
 const spkac = getSpkacSomehow();
 const publicKey = Certificate.exportPublicKey(spkac);
 console.log(publicKey);
@@ -169,7 +169,7 @@ console.log(Certificate.verifySpkac(Buffer.from(spkac)));
 ```
 
 ```cjs
-const { Certificate } = require('crypto');
+const { Certificate } = require('node:crypto');
 const spkac = getSpkacSomehow();
 console.log(Certificate.verifySpkac(Buffer.from(spkac)));
 // Prints: true or false
@@ -195,7 +195,7 @@ const cert2 = Certificate();
 ```
 
 ```cjs
-const { Certificate } = require('crypto');
+const { Certificate } = require('node:crypto');
 
 const cert1 = new Certificate();
 const cert2 = Certificate();
@@ -221,7 +221,7 @@ console.log(challenge.toString('utf8'));
 ```
 
 ```cjs
-const { Certificate } = require('crypto');
+const { Certificate } = require('node:crypto');
 const cert = Certificate();
 const spkac = getSpkacSomehow();
 const challenge = cert.exportChallenge(spkac);
@@ -249,7 +249,7 @@ console.log(publicKey);
 ```
 
 ```cjs
-const { Certificate } = require('crypto');
+const { Certificate } = require('node:crypto');
 const cert = Certificate();
 const spkac = getSpkacSomehow();
 const publicKey = cert.exportPublicKey(spkac);
@@ -276,7 +276,7 @@ console.log(cert.verifySpkac(Buffer.from(spkac)));
 ```
 
 ```cjs
-const { Certificate } = require('crypto');
+const { Certificate } = require('node:crypto');
 const cert = Certificate();
 const spkac = getSpkacSomehow();
 console.log(cert.verifySpkac(Buffer.from(spkac)));
@@ -342,7 +342,7 @@ const {
   scrypt,
   randomFill,
   createCipheriv
-} = require('crypto');
+} = require('node:crypto');
 
 const algorithm = 'aes-192-cbc';
 const password = 'Password used to generate key';
@@ -415,17 +415,17 @@ scrypt(password, 'salt', 24, (err, key) => {
 const {
   createReadStream,
   createWriteStream,
-} = require('fs');
+} = require('node:fs');
 
 const {
   pipeline
-} = require('stream');
+} = require('node:stream');
 
 const {
   scrypt,
   randomFill,
   createCipheriv,
-} = require('crypto');
+} = require('node:crypto');
 
 const algorithm = 'aes-192-cbc';
 const password = 'Password used to generate key';
@@ -484,7 +484,7 @@ const {
   scrypt,
   randomFill,
   createCipheriv,
-} = require('crypto');
+} = require('node:crypto');
 
 const algorithm = 'aes-192-cbc';
 const password = 'Password used to generate key';
@@ -664,7 +664,7 @@ decipher.end();
 const {
   scryptSync,
   createDecipheriv,
-} = require('crypto');
+} = require('node:crypto');
 
 const algorithm = 'aes-192-cbc';
 const password = 'Password used to generate key';
@@ -727,12 +727,12 @@ input.pipe(decipher).pipe(output);
 const {
   createReadStream,
   createWriteStream,
-} = require('fs');
+} = require('node:fs');
 
 const {
   scryptSync,
   createDecipheriv,
-} = require('crypto');
+} = require('node:crypto');
 
 const algorithm = 'aes-192-cbc';
 const password = 'Password used to generate key';
@@ -779,7 +779,7 @@ console.log(decrypted);
 const {
   scryptSync,
   createDecipheriv,
-} = require('crypto');
+} = require('node:crypto');
 
 const algorithm = 'aes-192-cbc';
 const password = 'Password used to generate key';
@@ -962,11 +962,11 @@ assert.strictEqual(aliceSecret.toString('hex'), bobSecret.toString('hex'));
 ```
 
 ```cjs
-const assert = require('assert');
+const assert = require('node:assert');
 
 const {
   createDiffieHellman,
-} = require('crypto');
+} = require('node:crypto');
 
 // Generate Alice's keys...
 const alice = createDiffieHellman(2048);
@@ -1125,7 +1125,7 @@ const dh = createDiffieHellmanGroup('modp1');
 ```
 
 ```cjs
-const { createDiffieHellmanGroup } = require('crypto');
+const { createDiffieHellmanGroup } = require('node:crypto');
 const dh = createDiffieHellmanGroup('modp1');
 ```
 
@@ -1179,11 +1179,11 @@ assert.strictEqual(aliceSecret.toString('hex'), bobSecret.toString('hex'));
 ```
 
 ```cjs
-const assert = require('assert');
+const assert = require('node:assert');
 
 const {
   createECDH,
-} = require('crypto');
+} = require('node:crypto');
 
 // Generate Alice's keys...
 const alice = createECDH('secp521r1');
@@ -1256,7 +1256,7 @@ console.log(uncompressedKey === ecdh.getPublicKey('hex'));
 const {
   createECDH,
   ECDH,
-} = require('crypto');
+} = require('node:crypto');
 
 const ecdh = createECDH('secp256k1');
 ecdh.generateKeys();
@@ -1428,7 +1428,7 @@ console.log(aliceSecret === bobSecret);
 const {
   createECDH,
   createHash,
-} = require('crypto');
+} = require('node:crypto');
 
 const alice = createECDH('secp256k1');
 const bob = createECDH('secp256k1');
@@ -1496,7 +1496,7 @@ hash.end();
 ```cjs
 const {
   createHash,
-} = require('crypto');
+} = require('node:crypto');
 
 const hash = createHash('sha256');
 
@@ -1520,7 +1520,7 @@ Example: Using `Hash` and piped streams:
 ```mjs
 const {
   createReadStream,
-} = require('fs');
+} = require('node:fs');
 
 const {
   createHash,
@@ -1534,11 +1534,11 @@ input.pipe(hash).setEncoding('hex').pipe(process.stdout);
 ```cjs
 const {
   createReadStream,
-} = require('fs');
+} = require('node:fs');
 
 const {
   createHash,
-} = require('crypto');
+} = require('node:crypto');
 
 const hash = createHash('sha256');
 
@@ -1551,7 +1551,7 @@ Example: Using the [`hash.update()`][] and [`hash.digest()`][] methods:
 ```mjs
 const {
   createHash,
-} = require('crypto');
+} = require('node:crypto');
 
 const hash = createHash('sha256');
 
@@ -1564,7 +1564,7 @@ console.log(hash.digest('hex'));
 ```cjs
 const {
   createHash,
-} = require('crypto');
+} = require('node:crypto');
 
 const hash = createHash('sha256');
 
@@ -1596,7 +1596,7 @@ its [`hash.digest()`][] method has been called.
 // Calculate a rolling hash.
 const {
   createHash,
-} = require('crypto');
+} = require('node:crypto');
 
 const hash = createHash('sha256');
 
@@ -1616,7 +1616,7 @@ console.log(hash.copy().digest('hex'));
 // Calculate a rolling hash.
 const {
   createHash,
-} = require('crypto');
+} = require('node:crypto');
 
 const hash = createHash('sha256');
 
@@ -1691,7 +1691,7 @@ Example: Using `Hmac` objects as streams:
 ```mjs
 const {
   createHmac,
-} = require('crypto');
+} = require('node:crypto');
 
 const hmac = createHmac('sha256', 'a secret');
 
@@ -1713,7 +1713,7 @@ hmac.end();
 ```cjs
 const {
   createHmac,
-} = require('crypto');
+} = require('node:crypto');
 
 const hmac = createHmac('sha256', 'a secret');
 
@@ -1750,11 +1750,11 @@ input.pipe(hmac).pipe(process.stdout);
 ```cjs
 const {
   createReadStream,
-} = require('fs');
+} = require('node:fs');
 
 const {
   createHmac,
-} = require('crypto');
+} = require('node:crypto');
 
 const hmac = createHmac('sha256', 'a secret');
 
@@ -1780,7 +1780,7 @@ console.log(hmac.digest('hex'));
 ```cjs
 const {
   createHmac,
-} = require('crypto');
+} = require('node:crypto');
 
 const hmac = createHmac('sha256', 'a secret');
 
@@ -1889,7 +1889,7 @@ const {
     subtle,
   },
   KeyObject,
-} = require('crypto');
+} = require('node:crypto');
 
 (async function() {
   const key = await subtle.generateKey({
@@ -2084,7 +2084,7 @@ const {
   generateKeyPairSync,
   createSign,
   createVerify,
-} = require('crypto');
+} = require('node:crypto');
 
 const { privateKey, publicKey } = generateKeyPairSync('ec', {
   namedCurve: 'sect239k1'
@@ -2132,7 +2132,7 @@ const {
   generateKeyPairSync,
   createSign,
   createVerify,
-} = require('crypto');
+} = require('node:crypto');
 
 const { privateKey, publicKey } = generateKeyPairSync('rsa', {
   modulusLength: 2048,
@@ -2361,7 +2361,7 @@ console.log(x509.subject);
 ```
 
 ```cjs
-const { X509Certificate } = require('crypto');
+const { X509Certificate } = require('node:crypto');
 
 const x509 = new X509Certificate('{... pem encoded cert ...}');
 
@@ -3053,11 +3053,11 @@ input.on('readable', () => {
 ```cjs
 const {
   createReadStream,
-} = require('fs');
+} = require('node:fs');
 
 const {
   createHash,
-} = require('crypto');
+} = require('node:crypto');
 
 const filename = process.argv[2];
 
@@ -3139,11 +3139,11 @@ input.on('readable', () => {
 ```cjs
 const {
   createReadStream,
-} = require('fs');
+} = require('node:fs');
 
 const {
   createHmac,
-} = require('crypto');
+} = require('node:crypto');
 
 const filename = process.argv[2];
 
@@ -3350,7 +3350,7 @@ generateKey('hmac', { length: 64 }, (err, key) => {
 ```cjs
 const {
   generateKey,
-} = require('crypto');
+} = require('node:crypto');
 
 generateKey('hmac', { length: 64 }, (err, key) => {
   if (err) throw err;
@@ -3433,7 +3433,7 @@ generateKeyPair('rsa', {
 ```cjs
 const {
   generateKeyPair,
-} = require('crypto');
+} = require('node:crypto');
 
 generateKeyPair('rsa', {
   modulusLength: 4096,
@@ -3531,7 +3531,7 @@ const {
 ```cjs
 const {
   generateKeyPairSync,
-} = require('crypto');
+} = require('node:crypto');
 
 const {
   publicKey,
@@ -3585,7 +3585,7 @@ console.log(key.export().toString('hex'));  // e89..........41e
 ```cjs
 const {
   generateKeySync,
-} = require('crypto');
+} = require('node:crypto');
 
 const key = generateKeySync('hmac', 64);
 console.log(key.export().toString('hex'));  // e89..........41e
@@ -3721,7 +3721,7 @@ console.log(getCiphers()); // ['aes-128-cbc', 'aes-128-ccm', ...]
 ```cjs
 const {
   getCiphers,
-} = require('crypto');
+} = require('node:crypto');
 
 console.log(getCiphers()); // ['aes-128-cbc', 'aes-128-ccm', ...]
 ```
@@ -3744,7 +3744,7 @@ console.log(getCurves()); // ['Oakley-EC2N-3', 'Oakley-EC2N-4', ...]
 ```cjs
 const {
   getCurves,
-} = require('crypto');
+} = require('node:crypto');
 
 console.log(getCurves()); // ['Oakley-EC2N-3', 'Oakley-EC2N-4', ...]
 ```
@@ -3790,7 +3790,7 @@ console.log(aliceSecret === bobSecret);
 ```cjs
 const {
   getDiffieHellman,
-} = require('crypto');
+} = require('node:crypto');
 
 const alice = getDiffieHellman('modp14');
 const bob = getDiffieHellman('modp14');
@@ -3833,7 +3833,7 @@ console.log(getHashes()); // ['DSA', 'DSA-SHA', 'DSA-SHA1', ...]
 ```cjs
 const {
   getHashes,
-} = require('crypto');
+} = require('node:crypto');
 
 console.log(getHashes()); // ['DSA', 'DSA-SHA', 'DSA-SHA1', ...]
 ```
@@ -3881,7 +3881,7 @@ hkdf('sha512', 'key', 'salt', 'info', 64, (err, derivedKey) => {
 ```cjs
 const {
   hkdf,
-} = require('crypto');
+} = require('node:crypto');
 
 hkdf('sha512', 'key', 'salt', 'info', 64, (err, derivedKey) => {
   if (err) throw err;
@@ -3928,7 +3928,7 @@ console.log(Buffer.from(derivedKey).toString('hex'));  // '24156e2...5391653'
 ```cjs
 const {
   hkdfSync,
-} = require('crypto');
+} = require('node:crypto');
 
 const derivedKey = hkdfSync('sha512', 'key', 'salt', 'info', 64);
 console.log(Buffer.from(derivedKey).toString('hex'));  // '24156e2...5391653'
@@ -4006,7 +4006,7 @@ pbkdf2('secret', 'salt', 100000, 64, 'sha512', (err, derivedKey) => {
 ```cjs
 const {
   pbkdf2,
-} = require('crypto');
+} = require('node:crypto');
 
 pbkdf2('secret', 'salt', 100000, 64, 'sha512', (err, derivedKey) => {
   if (err) throw err;
@@ -4028,7 +4028,7 @@ crypto.pbkdf2('secret', 'salt', 100000, 512, 'sha512', (err, derivedKey) => {
 ```
 
 ```cjs
-const crypto = require('crypto');
+const crypto = require('node:crypto');
 crypto.DEFAULT_ENCODING = 'hex';
 crypto.pbkdf2('secret', 'salt', 100000, 512, 'sha512', (err, derivedKey) => {
   if (err) throw err;
@@ -4101,7 +4101,7 @@ console.log(key.toString('hex'));  // '3745e48...08d59ae'
 ```cjs
 const {
   pbkdf2Sync,
-} = require('crypto');
+} = require('node:crypto');
 
 const key = pbkdf2Sync('secret', 'salt', 100000, 64, 'sha512');
 console.log(key.toString('hex'));  // '3745e48...08d59ae'
@@ -4119,7 +4119,7 @@ console.log(key);  // '3745e48...aa39b34'
 ```
 
 ```cjs
-const crypto = require('crypto');
+const crypto = require('node:crypto');
 crypto.DEFAULT_ENCODING = 'hex';
 const key = crypto.pbkdf2Sync('secret', 'salt', 100000, 512, 'sha512');
 console.log(key);  // '3745e48...aa39b34'
@@ -4342,7 +4342,7 @@ randomBytes(256, (err, buf) => {
 // Asynchronous
 const {
   randomBytes,
-} = require('crypto');
+} = require('node:crypto');
 
 randomBytes(256, (err, buf) => {
   if (err) throw err;
@@ -4369,7 +4369,7 @@ console.log(
 // Synchronous
 const {
   randomBytes,
-} = require('crypto');
+} = require('node:crypto');
 
 const buf = randomBytes(256);
 console.log(
@@ -4431,7 +4431,7 @@ console.log(buf.toString('hex'));
 ```cjs
 const {
   randomFillSync,
-} = require('crypto');
+} = require('node:crypto');
 
 const buf = Buffer.alloc(10);
 console.log(randomFillSync(buf).toString('hex'));
@@ -4467,7 +4467,7 @@ console.log(Buffer.from(randomFillSync(c)).toString('hex'));
 ```cjs
 const {
   randomFillSync,
-} = require('crypto');
+} = require('node:crypto');
 
 const a = new Uint32Array(10);
 console.log(Buffer.from(randomFillSync(a).buffer,
@@ -4531,7 +4531,7 @@ randomFill(buf, 5, 5, (err, buf) => {
 ```cjs
 const {
   randomFill,
-} = require('crypto');
+} = require('node:crypto');
 
 const buf = Buffer.alloc(10);
 randomFill(buf, (err, buf) => {
@@ -4589,7 +4589,7 @@ randomFill(c, (err, buf) => {
 ```cjs
 const {
   randomFill,
-} = require('crypto');
+} = require('node:crypto');
 
 const a = new Uint32Array(10);
 randomFill(a, (err, buf) => {
@@ -4657,7 +4657,7 @@ randomInt(3, (err, n) => {
 // Asynchronous
 const {
   randomInt,
-} = require('crypto');
+} = require('node:crypto');
 
 randomInt(3, (err, n) => {
   if (err) throw err;
@@ -4679,7 +4679,7 @@ console.log(`Random number chosen from (0, 1, 2): ${n}`);
 // Synchronous
 const {
   randomInt,
-} = require('crypto');
+} = require('node:crypto');
 
 const n = randomInt(3);
 console.log(`Random number chosen from (0, 1, 2): ${n}`);
@@ -4699,7 +4699,7 @@ console.log(`The dice rolled: ${n}`);
 // With `min` argument
 const {
   randomInt,
-} = require('crypto');
+} = require('node:crypto');
 
 const n = randomInt(1, 7);
 console.log(`The dice rolled: ${n}`);
@@ -4796,7 +4796,7 @@ scrypt('password', 'salt', 64, { N: 1024 }, (err, derivedKey) => {
 ```cjs
 const {
   scrypt,
-} = require('crypto');
+} = require('node:crypto');
 
 // Using the factory defaults.
 scrypt('password', 'salt', 64, (err, derivedKey) => {
@@ -4872,7 +4872,7 @@ console.log(key2.toString('hex'));  // '3745e48...aa39b34'
 ```cjs
 const {
   scryptSync,
-} = require('crypto');
+} = require('node:crypto');
 // Using the factory defaults.
 
 const key1 = scryptSync('password', 'salt', 64);
@@ -5262,7 +5262,7 @@ const {
   createCipheriv,
   createDecipheriv,
   randomBytes,
-} = require('crypto');
+} = require('node:crypto');
 
 const key = 'keykeykeykeykeykeykeykey';
 const nonce = randomBytes(12);

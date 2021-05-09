@@ -12,7 +12,7 @@ The `querystring` module provides utilities for parsing and formatting URL
 query strings. It can be accessed using:
 
 ```js
-const querystring = require('querystring');
+const querystring = require('node:querystring');
 ```
 
 The `querystring` API is considered Legacy. While it is still maintained,
