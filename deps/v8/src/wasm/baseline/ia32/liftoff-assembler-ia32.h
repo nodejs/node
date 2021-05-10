@@ -378,13 +378,8 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uint32_t offset_imm,
                             LoadType type, LiftoffRegList pinned,
                             uint32_t* protected_load_pc, bool is_load_mem) {
-  if (offset_imm > static_cast<uint32_t>(std::numeric_limits<int32_t>::max())) {
-    // We do not generate code here, because such an offset should never pass
-    // the bounds check. However, the spec requires us to compile code with such
-    // an offset.
-    Trap();
-    return;
-  }
+  // Offsets >=2GB are statically OOB on 32-bit systems.
+  DCHECK_LE(offset_imm, std::numeric_limits<int32_t>::max());
   DCHECK_EQ(type.value_type() == kWasmI64, dst.is_gp_pair());
   Operand src_op = offset_reg == no_reg
                        ? Operand(src_addr, offset_imm)
@@ -460,6 +455,7 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              StoreType type, LiftoffRegList pinned,
                              uint32_t* protected_store_pc, bool is_store_mem) {
   DCHECK_EQ(type.value_type() == kWasmI64, src.is_gp_pair());
+  // Offsets >=2GB are statically OOB on 32-bit systems.
   DCHECK_LE(offset_imm, std::numeric_limits<int32_t>::max());
   Operand dst_op = offset_reg == no_reg
                        ? Operand(dst_addr, offset_imm)

@@ -759,13 +759,8 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uint32_t offset_imm,
                             LoadType type, LiftoffRegList pinned,
                             uint32_t* protected_load_pc, bool is_load_mem) {
-  // If offset_imm cannot be converted to int32 safely, we abort as a separate
-  // check should cause this code to never be executed.
-  // TODO(7881): Support when >2GB is required.
-  if (!is_uint31(offset_imm)) {
-    TurboAssembler::Abort(AbortReason::kOffsetOutOfRange);
-    return;
-  }
+  // Offsets >=2GB are statically OOB on 32-bit systems.
+  DCHECK_LE(offset_imm, std::numeric_limits<int32_t>::max());
   liftoff::LoadInternal(this, dst, src_addr, offset_reg,
                         static_cast<int32_t>(offset_imm), type, pinned,
                         protected_load_pc, is_load_mem);
@@ -775,13 +770,8 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              uint32_t offset_imm, LiftoffRegister src,
                              StoreType type, LiftoffRegList pinned,
                              uint32_t* protected_store_pc, bool is_store_mem) {
-  // If offset_imm cannot be converted to int32 safely, we abort as a separate
-  // check should cause this code to never be executed.
-  // TODO(7881): Support when >2GB is required.
-  if (!is_uint31(offset_imm)) {
-    TurboAssembler::Abort(AbortReason::kOffsetOutOfRange);
-    return;
-  }
+  // Offsets >=2GB are statically OOB on 32-bit systems.
+  DCHECK_LE(offset_imm, std::numeric_limits<int32_t>::max());
   UseScratchRegisterScope temps(this);
   if (type.value() == StoreType::kF64Store) {
     Register actual_dst_addr = liftoff::CalculateActualAddress(

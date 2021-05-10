@@ -125,50 +125,6 @@ Handle<Map> MapUpdater::ReconfigureToDataField(InternalIndex descriptor,
   PropertyDetails old_details =
       old_descriptors_->GetDetails(modified_descriptor_);
 
-  // If the {descriptor} was "const" data field so far, we need to update the
-  // {old_map_} here, otherwise we could get the constants wrong, i.e.
-  //
-  //   o.x = 1;
-  //   change o.x's attributes to something else
-  //   delete o.x;
-  //   o.x = 2;
-  //
-  // could trick V8 into thinking that `o.x` is still 1 even after the second
-  // assignment.
-  // This situation is similar to what might happen with property deletion.
-  if (old_details.constness() == PropertyConstness::kConst &&
-      old_details.location() == kField &&
-      old_details.attributes() != new_attributes_) {
-    // Ensure we'll be updating constness of the up-to-date version of old_map_.
-    Handle<Map> old_map = Map::Update(isolate_, old_map_);
-    PropertyDetails details =
-        old_map->instance_descriptors(kRelaxedLoad).GetDetails(descriptor);
-    Handle<FieldType> field_type(
-        old_map->instance_descriptors(kRelaxedLoad).GetFieldType(descriptor),
-        isolate_);
-    Map::GeneralizeField(isolate_, old_map, descriptor,
-                         PropertyConstness::kMutable, details.representation(),
-                         field_type);
-    DCHECK_EQ(PropertyConstness::kMutable,
-              old_map->instance_descriptors(kRelaxedLoad)
-                  .GetDetails(descriptor)
-                  .constness());
-    // The old_map_'s property must become mutable.
-    // Note, that the {old_map_} and {old_descriptors_} are not expected to be
-    // updated by the generalization if the map is already deprecated.
-    DCHECK_IMPLIES(
-        !old_map_->is_deprecated(),
-        PropertyConstness::kMutable ==
-            old_descriptors_->GetDetails(modified_descriptor_).constness());
-    // Although the property in the old map is marked as mutable we still
-    // treat it as constant when merging with the new path in transition tree.
-    // This is fine because up until this reconfiguration the field was
-    // known to be constant, so it's fair to proceed treating it as such
-    // during this reconfiguration session. The issue is that after the
-    // reconfiguration the original field might become mutable (see the delete
-    // example above).
-  }
-
   // If property kind is not reconfigured merge the result with
   // representation/field type from the old descriptor.
   if (old_details.kind() == new_kind_) {

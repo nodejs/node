@@ -779,25 +779,28 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
   Handle<Object> receiver = lookup->GetReceiver();
   ReadOnlyRoots roots(isolate());
 
+  Handle<Object> lookup_start_object = lookup->lookup_start_object();
   // `in` cannot be called on strings, and will always return true for string
   // wrapper length and function prototypes. The latter two cases are given
   // LoadHandler::LoadNativeDataProperty below.
   if (!IsAnyHas() && !lookup->IsElement()) {
-    if (receiver->IsString() && *lookup->name() == roots.length_string()) {
+    if (lookup_start_object->IsString() &&
+        *lookup->name() == roots.length_string()) {
       TRACE_HANDLER_STATS(isolate(), LoadIC_StringLength);
       return BUILTIN_CODE(isolate(), LoadIC_StringLength);
     }
 
-    if (receiver->IsStringWrapper() &&
+    if (lookup_start_object->IsStringWrapper() &&
         *lookup->name() == roots.length_string()) {
       TRACE_HANDLER_STATS(isolate(), LoadIC_StringWrapperLength);
       return BUILTIN_CODE(isolate(), LoadIC_StringWrapperLength);
     }
 
     // Use specialized code for getting prototype of functions.
-    if (receiver->IsJSFunction() &&
+    if (lookup_start_object->IsJSFunction() &&
         *lookup->name() == roots.prototype_string() &&
-        !JSFunction::cast(*receiver).PrototypeRequiresRuntimeLookup()) {
+        !JSFunction::cast(*lookup_start_object)
+             .PrototypeRequiresRuntimeLookup()) {
       TRACE_HANDLER_STATS(isolate(), LoadIC_FunctionPrototypeStub);
       return BUILTIN_CODE(isolate(), LoadIC_FunctionPrototype);
     }
@@ -808,8 +811,7 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
   bool holder_is_lookup_start_object;
   if (lookup->state() != LookupIterator::JSPROXY) {
     holder = lookup->GetHolder<JSObject>();
-    holder_is_lookup_start_object =
-        lookup->lookup_start_object().is_identical_to(holder);
+    holder_is_lookup_start_object = lookup_start_object.is_identical_to(holder);
   }
 
   switch (lookup->state()) {

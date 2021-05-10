@@ -18,6 +18,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/property-descriptor-object.h"
 #include "src/objects/property-descriptor.h"
+#include "src/objects/property-details.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/runtime/runtime.h"
 
@@ -94,6 +95,54 @@ MaybeHandle<Object> Runtime::HasProperty(Isolate* isolate,
 
 namespace {
 
+void GeneralizeAllTransitionsToFieldAsMutable(Isolate* isolate, Handle<Map> map,
+                                              Handle<Name> name) {
+  InternalIndex descriptor(map->NumberOfOwnDescriptors());
+
+  Handle<Map> target_maps[kPropertyAttributesCombinationsCount];
+  int target_maps_count = 0;
+
+  // Collect all outgoing field transitions.
+  {
+    DisallowGarbageCollection no_gc;
+    TransitionsAccessor transitions(isolate, *map, &no_gc);
+    transitions.ForEachTransitionTo(
+        *name,
+        [&](Map target) {
+          DCHECK_EQ(descriptor, target.LastAdded());
+          DCHECK_EQ(*name, target.GetLastDescriptorName(isolate));
+          PropertyDetails details = target.GetLastDescriptorDetails(isolate);
+          // Currently, we track constness only for fields.
+          if (details.kind() == kData &&
+              details.constness() == PropertyConstness::kConst) {
+            target_maps[target_maps_count++] = handle(target, isolate);
+          }
+          DCHECK_IMPLIES(details.kind() == kAccessor,
+                         details.constness() == PropertyConstness::kConst);
+        },
+        &no_gc);
+    CHECK_LE(target_maps_count, kPropertyAttributesCombinationsCount);
+  }
+
+  for (int i = 0; i < target_maps_count; i++) {
+    Handle<Map> target = target_maps[i];
+    PropertyDetails details =
+        target->instance_descriptors(isolate, kRelaxedLoad)
+            .GetDetails(descriptor);
+    Handle<FieldType> field_type(
+        target->instance_descriptors(isolate, kRelaxedLoad)
+            .GetFieldType(descriptor),
+        isolate);
+    Map::GeneralizeField(isolate, target, descriptor,
+                         PropertyConstness::kMutable, details.representation(),
+                         field_type);
+    DCHECK_EQ(PropertyConstness::kMutable,
+              target->instance_descriptors(isolate, kRelaxedLoad)
+                  .GetDetails(descriptor)
+                  .constness());
+  }
+}
+
 bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
                               Handle<Object> raw_key) {
   // This implements a special case for fast property deletion: when the
@@ -103,6 +152,8 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
   // (1) The receiver must be a regular object and the key a unique name.
   Handle<Map> receiver_map(receiver->map(), isolate);
   if (receiver_map->IsSpecialReceiverMap()) return false;
+  DCHECK(receiver_map->IsJSObjectMap());
+
   if (!raw_key->IsUniqueName()) return false;
   Handle<Name> key = Handle<Name>::cast(raw_key);
   // (2) The property to be deleted must be the last property.
@@ -124,26 +175,6 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
   if (parent_map->NumberOfOwnDescriptors() != nof - 1) return false;
 
   // Preconditions successful. No more bailouts after this point.
-
-  // If the {descriptor} was "const" so far, we need to update the
-  // {receiver_map} here, otherwise we could get the constants wrong, i.e.
-  //
-  //   o.x = 1;
-  //   delete o.x;
-  //   o.x = 2;
-  //
-  // could trick V8 into thinking that `o.x` is still 1 even after the second
-  // assignment.
-  if (details.constness() == PropertyConstness::kConst &&
-      details.location() == kField) {
-    Handle<FieldType> field_type(descriptors->GetFieldType(descriptor),
-                                 isolate);
-    Map::GeneralizeField(isolate, receiver_map, descriptor,
-                         PropertyConstness::kMutable, details.representation(),
-                         field_type);
-    DCHECK_EQ(PropertyConstness::kMutable,
-              descriptors->GetDetails(descriptor).constness());
-  }
 
   // Zap the property to avoid keeping objects alive. Zapping is not necessary
   // for properties stored in the descriptor array.
@@ -191,6 +222,30 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
   receiver->HeapObjectVerify(isolate);
   receiver->property_array().PropertyArrayVerify(isolate);
 #endif
+
+  // If the {descriptor} was "const" so far, we need to update the
+  // {receiver_map} here, otherwise we could get the constants wrong, i.e.
+  //
+  //   o.x = 1;
+  //   [change o.x's attributes or reconfigure property kind]
+  //   delete o.x;
+  //   o.x = 2;
+  //
+  // could trick V8 into thinking that `o.x` is still 1 even after the second
+  // assignment.
+
+  // Step 1: Migrate object to an up-to-date shape.
+  if (parent_map->is_deprecated()) {
+    JSObject::MigrateInstance(isolate, Handle<JSObject>::cast(receiver));
+    parent_map = handle(receiver->map(), isolate);
+  }
+
+  // Step 2: Mark outgoing transitions from the up-to-date version of the
+  // parent_map to same property name of any kind or attributes as mutable.
+  // Also migrate object to the up-to-date map to make the object shapes
+  // converge sooner.
+  GeneralizeAllTransitionsToFieldAsMutable(isolate, parent_map, key);
+
   return true;
 }
 

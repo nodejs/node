@@ -514,8 +514,8 @@ TF_BUILTIN(DeleteProperty, DeletePropertyBaseAssembler) {
     Label dictionary(this), dont_delete(this);
     GotoIf(IsDictionaryMap(receiver_map), &dictionary);
 
-    // Fast properties need to clear recorded slots, which can only be done
-    // in C++.
+    // Fast properties need to clear recorded slots and mark the deleted
+    // property as mutable, which can only be done in C++.
     Goto(&slow);
 
     BIND(&dictionary);

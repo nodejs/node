@@ -1103,16 +1103,7 @@ void TestReconfigureDataFieldAttribute_GeneralizeField(
   CHECK(!map2->is_stable());
   CHECK(!map2->is_deprecated());
   CHECK_NE(*map2, *new_map);
-  // If the "source" property was const then update constness expectations for
-  // "source" map and ensure the deoptimization dependency was triggered.
-  if (to.constness == PropertyConstness::kConst) {
-    expectations2.SetDataField(kSplitProp, READ_ONLY,
-                               PropertyConstness::kMutable, to.representation,
-                               to.type);
-    CHECK(code_src_field_const->marked_for_deoptimization());
-  } else {
-    CHECK(!code_src_field_const->marked_for_deoptimization());
-  }
+  CHECK(!code_src_field_const->marked_for_deoptimization());
   CHECK(expectations2.Check(*map2));
 
   for (int i = kSplitProp; i < kPropCount; i++) {
@@ -3027,6 +3018,122 @@ TEST(RepresentationPredicatesAreInSync) {
       }
     }
     CHECK_EQ(from.MightCauseMapDeprecation(), might_be_deprecated);
+  }
+}
+
+TEST(DeletePropertyGeneralizesConstness) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Handle<FieldType> any_type = FieldType::Any(isolate);
+
+  // Create a map with some properties.
+  Handle<Map> initial_map = Map::Create(isolate, kPropCount + 3);
+  Handle<Map> map = initial_map;
+  for (int i = 0; i < kPropCount; i++) {
+    Handle<String> name = CcTest::MakeName("prop", i);
+    map = Map::CopyWithField(isolate, map, name, any_type, NONE,
+                             PropertyConstness::kConst, Representation::Smi(),
+                             INSERT_TRANSITION)
+              .ToHandleChecked();
+  }
+  Handle<Map> parent_map = map;
+  CHECK(!map->is_deprecated());
+
+  Handle<String> name_x = CcTest::MakeString("x");
+  Handle<String> name_y = CcTest::MakeString("y");
+
+  map = Map::CopyWithField(isolate, parent_map, name_x, any_type, NONE,
+                           PropertyConstness::kConst, Representation::Smi(),
+                           INSERT_TRANSITION)
+            .ToHandleChecked();
+
+  // Create an object, initialize its properties and add a couple of clones.
+  Handle<JSObject> object1 = isolate->factory()->NewJSObjectFromMap(map);
+  for (int i = 0; i < kPropCount; i++) {
+    FieldIndex index = FieldIndex::ForDescriptor(*map, InternalIndex(i));
+    object1->FastPropertyAtPut(index, Smi::FromInt(i));
+  }
+  Handle<JSObject> object2 = isolate->factory()->CopyJSObject(object1);
+
+  CHECK(!map->is_deprecated());
+  CHECK(!parent_map->is_deprecated());
+
+  // Transition to Double must deprecate m1.
+  CHECK(!Representation::Smi().CanBeInPlaceChangedTo(Representation::Double()));
+
+  // Reconfigure one of the first properties to make the whole transition tree
+  // deprecated (including |parent_map| and |map|).
+  Handle<Map> new_map = Map::ReconfigureProperty(
+      isolate, map, InternalIndex(0), PropertyKind::kData, NONE,
+      Representation::Double(), any_type);
+  CHECK(map->is_deprecated());
+  CHECK(parent_map->is_deprecated());
+  CHECK(!new_map->is_deprecated());
+  // The "x" property is still kConst.
+  CHECK_EQ(new_map->GetLastDescriptorDetails(isolate).constness(),
+           PropertyConstness::kConst);
+
+  Handle<Map> new_parent_map = Map::Update(isolate, parent_map);
+  CHECK(!new_parent_map->is_deprecated());
+
+  // |new_parent_map| must have exactly one outgoing transition to |new_map|.
+  {
+    TransitionsAccessor ta(isolate, new_parent_map);
+    CHECK_EQ(ta.NumberOfTransitions(), 1);
+    CHECK_EQ(ta.GetTarget(0), *new_map);
+  }
+
+  // Deletion of the property from |object1| must migrate it to |new_parent_map|
+  // which is an up-to-date version of the |parent_map|. The |new_map|'s "x"
+  // property should be marked as mutable.
+  CHECK_EQ(object1->map(isolate), *map);
+  CHECK(Runtime::DeleteObjectProperty(isolate, object1, name_x,
+                                      LanguageMode::kSloppy)
+            .ToChecked());
+  CHECK_EQ(object1->map(isolate), *new_parent_map);
+  CHECK_EQ(new_map->GetLastDescriptorDetails(isolate).constness(),
+           PropertyConstness::kMutable);
+
+  // Now add transitions to "x" and "y" properties from |new_parent_map|.
+  std::vector<Handle<Map>> transitions;
+  Handle<Object> value = handle(Smi::FromInt(0), isolate);
+  for (int i = 0; i < kPropertyAttributesCombinationsCount; i++) {
+    PropertyAttributes attributes = static_cast<PropertyAttributes>(i);
+
+    Handle<Map> tmp;
+    // Add some transitions to "x" and "y".
+    tmp = Map::TransitionToDataProperty(isolate, new_parent_map, name_x, value,
+                                        attributes, PropertyConstness::kConst,
+                                        StoreOrigin::kNamed);
+    CHECK(!tmp->map(isolate).is_dictionary_map());
+    transitions.push_back(tmp);
+
+    tmp = Map::TransitionToDataProperty(isolate, new_parent_map, name_y, value,
+                                        attributes, PropertyConstness::kConst,
+                                        StoreOrigin::kNamed);
+    CHECK(!tmp->map(isolate).is_dictionary_map());
+    transitions.push_back(tmp);
+  }
+
+  // Deletion of the property from |object2| must migrate it to |new_parent_map|
+  // which is an up-to-date version of the |parent_map|.
+  // All outgoing transitions from |new_map| that add "x" must be marked as
+  // mutable, transitions to other properties must remain const.
+  CHECK_EQ(object2->map(isolate), *map);
+  CHECK(Runtime::DeleteObjectProperty(isolate, object2, name_x,
+                                      LanguageMode::kSloppy)
+            .ToChecked());
+  CHECK_EQ(object2->map(isolate), *new_parent_map);
+  for (Handle<Map> m : transitions) {
+    if (m->GetLastDescriptorName(isolate) == *name_x) {
+      CHECK_EQ(m->GetLastDescriptorDetails(isolate).constness(),
+               PropertyConstness::kMutable);
+
+    } else {
+      CHECK_EQ(m->GetLastDescriptorDetails(isolate).constness(),
+               PropertyConstness::kConst);
+    }
   }
 }
 

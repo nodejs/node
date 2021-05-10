@@ -270,6 +270,34 @@ MaybeHandle<Map> TransitionsAccessor::FindTransitionToDataProperty(
   return Handle<Map>(target, isolate_);
 }
 
+void TransitionsAccessor::ForEachTransitionTo(
+    Name name, const ForEachTransitionCallback& callback,
+    DisallowGarbageCollection* no_gc) {
+  DCHECK(name.IsUniqueName());
+  switch (encoding()) {
+    case kPrototypeInfo:
+    case kUninitialized:
+    case kMigrationTarget:
+      return;
+    case kWeakRef: {
+      Map target = Map::cast(raw_transitions_->GetHeapObjectAssumeWeak());
+      InternalIndex descriptor = target.LastAdded();
+      DescriptorArray descriptors = target.instance_descriptors(kRelaxedLoad);
+      Name key = descriptors.GetKey(descriptor);
+      if (key == name) {
+        callback(target);
+      }
+      return;
+    }
+    case kFullTransitionArray: {
+      base::SharedMutexGuardIf<base::kShared> scope(
+          isolate_->transition_array_access(), concurrent_access_);
+      return transitions().ForEachTransitionTo(name, callback);
+    }
+  }
+  UNREACHABLE();
+}
+
 bool TransitionsAccessor::CanHaveMoreTransitions() {
   if (map_.is_dictionary_map()) return false;
   if (encoding() == kFullTransitionArray) {
@@ -611,6 +639,21 @@ Map TransitionArray::SearchAndGetTarget(PropertyKind kind, Name name,
     return Map();
   }
   return SearchDetailsAndGetTarget(transition, kind, attributes);
+}
+
+void TransitionArray::ForEachTransitionTo(
+    Name name, const ForEachTransitionCallback& callback) {
+  int transition = SearchName(name, nullptr);
+  if (transition == kNotFound) return;
+
+  int nof_transitions = number_of_transitions();
+  DCHECK(transition < nof_transitions);
+  Name key = GetKey(transition);
+  for (; transition < nof_transitions && GetKey(transition) == key;
+       transition++) {
+    Map target = GetTarget(transition);
+    callback(target);
+  }
 }
 
 void TransitionArray::Sort() {
