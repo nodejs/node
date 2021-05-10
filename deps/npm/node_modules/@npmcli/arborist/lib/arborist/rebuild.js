@@ -14,7 +14,7 @@ const {
 } = require('@npmcli/node-gyp')
 
 const boolEnv = b => b ? '1' : ''
-const sortNodes = (a, b) => (a.depth - b.depth) || a.path.localeCompare(b.path)
+const sortNodes = (a, b) => (a.depth - b.depth) || a.path.localeCompare(b.path, 'en')
 
 const _build = Symbol('build')
 const _resetQueues = Symbol('resetQueues')

@@ -145,15 +145,15 @@ t.test('situations in which we do not notify', t => {
   })
 
   t.test('only check weekly for GA releases', async t => {
-    // the 10 is fuzz factor for test environment
-    STAT_MTIME = Date.now() - (1000 * 60 * 60 * 24 * 7) + 10
+    // One week (plus five minutes to account for test environment fuzziness)
+    STAT_MTIME = Date.now() - (1000 * 60 * 60 * 24 * 7) + (1000 * 60 * 5)
     t.equal(await updateNotifier(npm), null)
     t.strictSame(MANIFEST_REQUEST, [], 'no requests for manifests')
   })
 
   t.test('only check daily for betas', async t => {
-    // the 10 is fuzz factor for test environment
-    STAT_MTIME = Date.now() - (1000 * 60 * 60 * 24) + 10
+    // One day (plus five minutes to account for test environment fuzziness)
+    STAT_MTIME = Date.now() - (1000 * 60 * 60 * 24) + (1000 * 60 * 5)
     t.equal(await updateNotifier({ ...npm, version: HAVE_BETA }), null)
     t.strictSame(MANIFEST_REQUEST, [], 'no requests for manifests')
   })

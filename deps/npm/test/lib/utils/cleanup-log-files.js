@@ -71,7 +71,7 @@ t.test('rimraf fail', t => {
   const warnings = []
   const warn = (...warning) => warnings.push(basename(warning[2]))
   return cleanup(cache, 3, warn).then(() => {
-    t.strictSame(warnings.sort((a, b) => a.localeCompare(b)), [
+    t.strictSame(warnings.sort((a, b) => a.localeCompare(b, 'en')), [
       '1-debug.log',
       '2-debug.log',
     ])

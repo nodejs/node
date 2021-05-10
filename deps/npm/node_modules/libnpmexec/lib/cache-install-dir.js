@@ -12,7 +12,7 @@ const cacheInstallDir = ({ cache, packages }) => {
 
 const getHash = (packages) =>
   crypto.createHash('sha512')
-    .update(packages.sort((a, b) => a.localeCompare(b)).join('\n'))
+    .update(packages.sort((a, b) => a.localeCompare(b, 'en')).join('\n'))
     .digest('hex')
     .slice(0, 16)
 

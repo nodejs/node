@@ -159,12 +159,12 @@ module.exports = cls => class VirtualLoader extends cls {
       ...depsToEdges('peerOptional', peerOptional),
       ...lockWS,
     ].sort(([atype, aname], [btype, bname]) =>
-      atype.localeCompare(btype) || aname.localeCompare(bname))
+      atype.localeCompare(btype, 'en') || aname.localeCompare(bname, 'en'))
 
     const rootEdges = [...root.edgesOut.values()]
       .map(e => [e.type, e.name, e.spec])
       .sort(([atype, aname], [btype, bname]) =>
-        atype.localeCompare(btype) || aname.localeCompare(bname))
+        atype.localeCompare(btype, 'en') || aname.localeCompare(bname, 'en'))
 
     if (rootEdges.length !== lockEdges.length) {
       // something added or removed
