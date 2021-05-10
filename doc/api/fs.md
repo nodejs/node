@@ -5968,11 +5968,14 @@ added: v11.2.0
 This property is `true` if the underlying file has not been opened yet,
 i.e. before the `'ready'` event is emitted.
 
-#### `writeStream.close(callback)`
+#### `writeStream.close([callback])`
 <!-- YAML
 added: REPLACEME
 -->
 
+* `callback` {Function}
+  * `err` {Error}
+  
 Closes the specified `writeStream`. Optionally accepts a
 callback that will be executed once the `writeStream`
 is closed.
