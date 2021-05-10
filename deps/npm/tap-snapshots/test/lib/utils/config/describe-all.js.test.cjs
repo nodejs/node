@@ -1132,7 +1132,8 @@ Show short usage output about the command specified.
 
 #### \`user-agent\`
 
-* Default: "npm/{npm-version} node/{node-version} {platform} {arch} {ci}"
+* Default: "npm/{npm-version} node/{node-version} {platform} {arch}
+  workspaces/{workspaces} {ci}"
 * Type: String
 
 Sets the User-Agent request header. The following fields are replaced with
@@ -1142,6 +1143,8 @@ their actual counterparts:
 * \`{node-version}\` - The Node.js version in use
 * \`{platform}\` - The value of \`process.platform\`
 * \`{arch}\` - The value of \`process.arch\`
+* \`{workspaces}\` - Set to \`true\` if the \`workspaces\` or \`workspace\` options
+  are set.
 * \`{ci}\` - The value of the \`ci-name\` config, if set, prefixed with \`ci/\`, or
   an empty string if \`ci-name\` is empty.
 

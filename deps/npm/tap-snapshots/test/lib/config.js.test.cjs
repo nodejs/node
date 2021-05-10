@@ -88,6 +88,9 @@ exports[`test/lib/config.js TAP config edit > should write config file 2`] = `
 exports[`test/lib/config.js TAP config get no args > should list configs on config get no args 1`] = `
 ; "cli" config from command line options
 
+cat = true
+chai = true
+dog = true
 editor = "vi"
 global = false
 json = false
@@ -109,6 +112,9 @@ init.version = "1.0.0"
 
 ; "cli" config from command line options
 
+cat = true
+chai = true
+dog = true
 editor = "vi"
 global = false
 json = false
@@ -118,6 +124,9 @@ long = true
 exports[`test/lib/config.js TAP config list > should list configs 1`] = `
 ; "cli" config from command line options
 
+cat = true
+chai = true
+dog = true
 editor = "vi"
 global = false
 json = false
@@ -132,6 +141,9 @@ long = false
 exports[`test/lib/config.js TAP config list overrides > should list overridden configs 1`] = `
 ; "cli" config from command line options
 
+cat = true
+chai = true
+dog = true
 editor = "vi"
 global = false
 init.author.name = "Bar"

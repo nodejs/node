@@ -80,7 +80,7 @@ dist
 .unpackedSize:[33m1[39m B
 
 dist-tags:
-
+[1m[32mlatest[39m[22m: 1.0.0
 
 published [33ma year ago[39m
 `
@@ -97,9 +97,39 @@ dist
 .unpackedSize:[33m1[39m B
 
 dist-tags:
-
+[1m[32mlatest[39m[22m: 1.0.0
 
 published [33ma year ago[39m
+`
+
+exports[`test/lib/view.js TAP should log package info package from git > must match snapshot 1`] = `
+
+
+[4m[1m[32mgreen[39m@[32m1.0.0[39m[22m[24m | [32mACME[39m | deps: [36m2[39m | versions: [33m2[39m
+green is a very important color
+
+[1m[31mDEPRECATED[39m[22m!! - true
+
+keywords:[33mcolors[39m, [33mgreen[39m, [33mcrayola[39m
+
+bin:[33mgreen[39m
+
+dist
+.tarball:[36mhttp://hm.green.com/1.0.0.tgz[39m
+.shasum:[33m123[39m
+.integrity:[33m---[39m
+.unpackedSize:[33m1[39m B
+
+dependencies:
+[33mred[39m: 1.0.0
+[33myellow[39m: 1.0.0
+
+maintainers:
+-[33mclaudia[39m <[36mc@yellow.com[39m>
+-[33misaacs[39m <[36mi@yellow.com[39m>
+
+dist-tags:
+[1m[32mlatest[39m[22m: 1.0.0
 `
 
 exports[`test/lib/view.js TAP should log package info package with --json and semver range > must match snapshot 1`] = `
@@ -108,7 +138,9 @@ exports[`test/lib/view.js TAP should log package info package with --json and se
   {
     "_npmUser": "claudia <claudia@cyan.com>",
     "name": "cyan",
-    "dist-tags": {},
+    "dist-tags": {
+      "latest": "1.0.0"
+    },
     "versions": [
       "1.0.0",
       "1.0.1"
@@ -125,7 +157,9 @@ exports[`test/lib/view.js TAP should log package info package with --json and se
   {
     "_npmUser": "claudia <claudia@cyan.com>",
     "name": "cyan",
-    "dist-tags": {},
+    "dist-tags": {
+      "latest": "1.0.0"
+    },
     "versions": [
       "1.0.0",
       "1.0.1"
@@ -249,7 +283,7 @@ dist
 .unpackedSize:[33m1[39m B
 
 dist-tags:
-
+[1m[32mlatest[39m[22m: 1.0.0
 
 published by [33mclaudia[39m <[36mclaudia@cyan.com[39m>
 `
@@ -266,7 +300,7 @@ dist
 .unpackedSize:[33m1[39m B
 
 dist-tags:
-
+[1m[32mlatest[39m[22m: 1.0.0
 
 published [33ma year ago[39m
 `

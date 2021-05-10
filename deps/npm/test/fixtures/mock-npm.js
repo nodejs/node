@@ -2,6 +2,8 @@
 // npm.config You still need a separate flatOptions but this is the first step
 // to eventually just using npm itself
 
+const realConfig = require('../../lib/utils/config')
+
 const mockLog = {
   clearProgress: () => {},
   disableProgress: () => {},
@@ -25,10 +27,10 @@ const mockNpm = (base = {}) => {
     config: {
       // for now just set `find` to what config.find should return
       // this works cause `find` is not an existing config entry
-      find: (k) => config[k],
-      get: (k) => config[k],
+      find: (k) => ({...realConfig.defaults, ...config})[k],
+      get: (k) => ({...realConfig.defaults, ...config})[k],
       set: (k, v) => config[k] = v,
-      list: [config]
+      list: [{ ...realConfig.defaults, ...config}]
     },
   }
 }

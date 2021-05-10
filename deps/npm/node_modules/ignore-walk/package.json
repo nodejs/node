@@ -1,13 +1,13 @@
 {
   "name": "ignore-walk",
-  "version": "3.0.3",
+  "version": "3.0.4",
   "description": "Nested/recursive `.gitignore`/`.npmignore` parsing and filtering.",
   "main": "index.js",
   "devDependencies": {
     "mkdirp": "^0.5.1",
     "mutate-fs": "^1.1.0",
     "rimraf": "^2.6.1",
-    "tap": "^14.6.9"
+    "tap": "^15.0.6"
   },
   "scripts": {
     "test": "tap",
@@ -36,6 +36,9 @@
     "minimatch": "^3.0.4"
   },
   "tap": {
+    "test-env": "LC_ALL=sk",
+    "before": "test/00-setup.js",
+    "after": "test/zz-cleanup.js",
     "jobs": 1
   }
 }

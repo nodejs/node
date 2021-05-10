@@ -1,3 +1,94 @@
+## v7.12.1 (2021-05-10)
+
+### BUG FIXES
+
+* [`de49f58f5`](https://github.com/npm/cli/commit/de49f58f55dc2ac3a5057cd492a43c32ae41381e)
+  [#3216](https://github.com/npm/cli/issues/3216)
+  fix(contributing): link to proper cli repo
+  ([@mrmlnc](https://github.com/mrmlnc))
+* [`1d092144e`](https://github.com/npm/cli/commit/1d092144eaaabff63ac8424b40b2286822be7677)
+  [#3203](https://github.com/npm/cli/issues/3203)
+  fix(packages): locale-agnostic string sorting
+  ([@isaacs](https://github.com/isaacs))
+* [`0696fca13`](https://github.com/npm/cli/commit/0696fca13d10726e04ca97ff50eef7bd7455a3ab)
+  [#3209](https://github.com/npm/cli/issues/3209)
+  fix(view): fix non-registry specs
+  ([@wraithgar](https://github.com/wraithgar))
+* [`71ac93597`](https://github.com/npm/cli/commit/71ac935976390e4fd05987ff510049f82bc6e2a9)
+  [#3206](https://github.com/npm/cli/issues/3206)
+  chore(github): Convert md issue template to yaml
+  ([@lukehefson](https://github.com/lukehefson))
+* [`6fb386d3b`](https://github.com/npm/cli/commit/6fb386d3bfbaa8e4771ff87a08de1f3aa6f9b34d)
+  [#3201](https://github.com/npm/cli/issues/3201)
+  fix(tests): increase test fuzziness
+  ([@wraithgar](https://github.com/wraithgar))
+* [`f3a662fcd`](https://github.com/npm/cli/commit/f3a662fcd869653f9753aef3d40cc96ed28ed509)
+  [#3211](https://github.com/npm/cli/issues/3211)
+  fix(tests): use config defaults
+  ([@wraithgar](https://github.com/wraithgar))
+
+### DEPENDENCIES
+
+* [`285976fd1`](https://github.com/npm/cli/commit/285976fd12f037f59da47307d98df7ebda5278d9)
+  `@npmcli/arborist@2.4.4`
+  * fix(reify): properly save spec if prerelease
+* [`f9f24d17c`](https://github.com/npm/cli/commit/f9f24d17c29c421de3c9b82c6b98a40268aeb920)
+  `libnpmexec@1.1.1`
+  * fix(add): Specify 'en' locale to String.localeCompare
+* [`cb9f17499`](https://github.com/npm/cli/commit/cb9f174996dbb4779a1be82890564f9abffb11f4)
+  `glob@7.1.7`
+  * force 'en' locale in string sorting
+* [`24b4e4a41`](https://github.com/npm/cli/commit/24b4e4a41b451db3de381fac6b719149db14c288)
+  `ignore-walk@3.0.4`
+  * Avoid locale-specific sorting issues
+* [`1eb7e5c7d`](https://github.com/npm/cli/commit/1eb7e5c7d466293b472c2506c64e5a89ec84ac2f)
+  `@npmcli/arborist@2.4.3`
+  * guard against locale-specific sorting
+* [`a6a826067`](https://github.com/npm/cli/commit/a6a826067cb46c711521772c2d0158257d54400a)
+  `npm-packlist@2.2.2`:
+  * fix(sort): avoid locale-dependent sorting issues
+
+## v7.12.0 (2021-05-06)
+
+### FEATURES
+
+* [`701627c51`](https://github.com/npm/cli/commit/701627c5169934e59da2959d76a49c77278cc9dc)
+  [#3098](https://github.com/npm/cli/issues/3098)
+  feat(cache): Allow `add` to accept multiple specs
+  ([@mjsir911](https://github.com/mjsir911))
+* [`59171f030`](https://github.com/npm/cli/commit/59171f0304f048a009f1697eec6f74f778bc52ff)
+  [#3187](https://github.com/npm/cli/issues/3187)
+  feat(config): add workspaces boolean to user-agent
+  ([@nlf](https://github.com/nlf))
+
+### BUG FIXES
+
+* [`2c9b8713c`](https://github.com/npm/cli/commit/2c9b8713c4c88fbd0c3c48eb0de84dbd7269398f)
+  [#3182](https://github.com/npm/cli/issues/3182)
+  fix(docs): fix broken links
+  ([@wangsai](https://github.com/wangsai))
+* [`88cbc8c44`](https://github.com/npm/cli/commit/88cbc8c447cbaef20b5a8f19246211ce4918f4d8)
+  [#3198](https://github.com/npm/cli/issues/3198)
+  fix(tests): reflect new libnpmexec logic
+
+### DEPENDENCIES
+
+* [`d01ce5e13`](https://github.com/npm/cli/commit/d01ce5e132cb4661698012fd5017753c2bdb660b)
+  `libnpmexec@1.1.0`:
+    * feat: add walk up dir lookup to satisfy local bins
+* [`81c1dfaaa`](https://github.com/npm/cli/commit/81c1dfaaaf918229316a975aa8075769ffafdb6d)
+  `@npmcli/arborist@2.4.2`:
+    * fix(add): save packages in the right place
+    * fix(reify): do not clean up nodes with no parent
+    * fix(audit): support alias specs & root package names
+* [`87c2303ea`](https://github.com/npm/cli/commit/87c2303eaa6edfa5309da0a30f5ad291b6d57640)
+  `@npmcli/git@2.0.9`:
+    * fix(clone): Do not allow git replacement objects by default
+* [`99ff40dff`](https://github.com/npm/cli/commit/99ff40dff5e5e55a5d5f045ba90e76c08174ca38)
+  `npm-packlist@2.2.0`:
+    * feat(npmignore): Do not force include history, changelogs, notice
+    * fix(package.json): add missing bin/index.js to files
+
 ## v7.11.2 (2021-04-29)
 
 ### BUG FIXES
@@ -76,8 +167,8 @@
   [#3126](https://github.com/npm/cli/issues/3126)
   fix(logout): use isBasicAuth attribute
   ([@wraithgar](https://github.com/wraithgar))
-### DOCUMENTATION
 
+### DOCUMENTATION
 
 * [`c93f1c39e`](https://github.com/npm/cli/commit/c93f1c39e326feff0857712a10ef6183fbafe1ab)
   [#3101](https://github.com/npm/cli/issues/3101)
@@ -88,7 +179,6 @@
   [#3109](https://github.com/npm/cli/issues/3109)
   fix(usage): fix refs to ws shorthand
   ([@ruyadorno](https://github.com/ruyadorno))
-
 
 ### DEPENDENCIES
 
