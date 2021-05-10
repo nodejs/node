@@ -1485,6 +1485,16 @@ util.types.isBoxedPrimitive(Object(Symbol('foo'))); // Returns true
 util.types.isBoxedPrimitive(Object(BigInt(5))); // Returns true
 ```
 
+### `util.types.isCryptoKey(value)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `value` {Object}
+* Returns: {boolean}
+
+Returns `true` if `value` is a {CryptoKey}, `false` otherwise.
+
 ### `util.types.isDataView(value)`
 <!-- YAML
 added: v10.0.0
@@ -1679,6 +1689,16 @@ util.types.isInt32Array(new ArrayBuffer());  // Returns false
 util.types.isInt32Array(new Int32Array());  // Returns true
 util.types.isInt32Array(new Float64Array());  // Returns false
 ```
+
+### `util.types.isKeyObject(value)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `value` {Object}
+* Returns: {boolean}
+
+Returns `true` if `value` is a {KeyObject}, `false` otherwise.
 
 ### `util.types.isMap(value)`
 <!-- YAML
