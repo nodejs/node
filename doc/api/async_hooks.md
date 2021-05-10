@@ -508,7 +508,10 @@ but having an object representing the top-level can be helpful.
 
 ```js
 const { open } = require('node:fs');
-const { executionAsyncId, executionAsyncResource } = require('node:async_hooks');
+const {
+  executionAsyncId,
+  executionAsyncResource
+} = require('node:async_hooks');
 
 console.log(executionAsyncId(), executionAsyncResource());  // 1 {}
 open(__filename, 'r', (err, fd) => {
