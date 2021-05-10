@@ -29,6 +29,7 @@
 const {resolve} = require('path')
 const {homedir} = require('os')
 const procLog = require('../proc-log.js')
+const { saveTypeMap } = require('../add-rm-pkg-deps.js')
 
 const mixins = [
   require('../tracker.js'),
@@ -57,6 +58,8 @@ class Arborist extends Base {
       packumentCache: options.packumentCache || new Map(),
       log: options.log || procLog,
     }
+    if (options.saveType && !saveTypeMap.get(options.saveType))
+      throw new Error(`Invalid saveType ${options.saveType}`)
     this.cache = resolve(this.options.cache)
     this.path = resolve(this.options.path)
     process.emit('timeEnd', 'arborist:ctor')

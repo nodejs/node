@@ -15,7 +15,7 @@ t.test('load each command', t => {
   npm.load((er) => {
     t.notOk(er)
     npm.config.set('usage', true)
-    for (const cmd of cmdList.sort((a, b) => a.localeCompare(b))) {
+    for (const cmd of cmdList.sort((a, b) => a.localeCompare(b, 'en'))) {
       t.test(cmd, t => {
         const impl = npm.commands[cmd]
         if (impl.completion)
