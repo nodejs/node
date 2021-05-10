@@ -466,7 +466,7 @@ the error passed to the callback will be an `AbortError`:
 if (process.argv[2] === 'child') {
   setTimeout(() => {
     console.log(`Hello from ${process.argv[2]}!`);
-  }, 1_000);
+  }, 1000);
 } else {
   const { fork } = require('child_process');
   const controller = new AbortController();
