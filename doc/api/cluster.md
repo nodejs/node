@@ -18,7 +18,7 @@ const cluster = require('cluster');
 const http = require('http');
 const numCPUs = require('os').cpus().length;
 
-if (cluster.isPrimary) {
+if (cluster.isMaster) {
   console.log(`Primary ${process.pid} is running`);
 
   // Fork workers.
