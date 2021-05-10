@@ -30,7 +30,7 @@ const pickManifest = require('npm-pick-manifest')
 const fs = require('fs')
 const mkdirp = require('mkdirp')
 
-module.exports = (repo, ref = 'HEAD', target = null, /* istanbul ignore next */ opts = {}) =>
+module.exports = (repo, ref = 'HEAD', target = null, opts = {}) =>
   revs(repo, opts).then(revs => clone(
     repo,
     revs,

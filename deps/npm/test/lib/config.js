@@ -49,6 +49,9 @@ const cliConfig = {
   json: false,
   long: false,
   global: false,
+  cat: true,
+  chai: true,
+  dog: true,
 }
 
 const npm = {
@@ -197,6 +200,9 @@ t.test('config list --json', t => {
         json: true,
         long: false,
         global: false,
+        cat: true,
+        chai: true,
+        dog: true,
       },
       'should list configs usin json'
     )

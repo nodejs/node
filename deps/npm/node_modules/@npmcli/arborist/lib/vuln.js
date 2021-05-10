@@ -83,6 +83,9 @@ class Vuln {
     if (!specObj.registry)
       return true
 
+    if (specObj.subSpec)
+      spec = specObj.subSpec.rawSpec
+
     for (const v of this.versions) {
       if (satisfies(v, spec) && !satisfies(v, this.range, semverOpt))
         return false
@@ -103,12 +106,12 @@ class Vuln {
         vulnerableVersions: undefined,
         id: undefined,
       }).sort((a, b) =>
-        String(a.source || a).localeCompare(String(b.source || b))),
+        String(a.source || a).localeCompare(String(b.source || b, 'en'))),
       effects: [...this.effects].map(v => v.name)
-        .sort(/* istanbul ignore next */(a, b) => a.localeCompare(b)),
+        .sort(/* istanbul ignore next */(a, b) => a.localeCompare(b, 'en')),
       range: this.simpleRange,
       nodes: [...this.nodes].map(n => n.location)
-        .sort(/* istanbul ignore next */(a, b) => a.localeCompare(b)),
+        .sort(/* istanbul ignore next */(a, b) => a.localeCompare(b, 'en')),
       fixAvailable: this[_fixAvailable],
     }
   }

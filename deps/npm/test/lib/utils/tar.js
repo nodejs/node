@@ -26,6 +26,9 @@ t.test('should log tarball contents', async (t) => {
         'bundle-dep',
       ],
     }, null, 2),
+    cat: 'meow',
+    chai: 'blub',
+    dog: 'woof',
     node_modules: {
       'bundle-dep': 'toto',
     },

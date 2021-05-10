@@ -16,7 +16,7 @@ const installedDeep = async (npm) => {
       })
       .filter(i => (i.depth - 1) <= depth)
       .sort((a, b) => a.depth - b.depth)
-      .sort((a, b) => a.depth === b.depth ? a.name.localeCompare(b.name) : 0)
+      .sort((a, b) => a.depth === b.depth ? a.name.localeCompare(b.name, 'en') : 0)
 
   const res = new Set()
   const gArb = new Arborist({ global: true, path: resolve(npm.globalDir, '..') })

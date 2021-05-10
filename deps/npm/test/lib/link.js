@@ -27,7 +27,7 @@ const printLinks = async (opts) => {
   const arb = new Arborist(opts)
   const tree = await arb.loadActual()
   const linkedItems = [...tree.inventory.values()]
-    .sort((a, b) => a.pkgid.localeCompare(b.pkgid))
+    .sort((a, b) => a.pkgid.localeCompare(b.pkgid, 'en'))
   for (const item of linkedItems) {
     if (item.target)
       res += `${item.path} -> ${item.target.path}\n`

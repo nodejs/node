@@ -134,20 +134,21 @@ t.test('cache add pkg only', t => {
   })
 })
 
-t.test('cache add pkg w/ spec modifier', t => {
+t.test('cache add multiple pkgs', t => {
   t.teardown(() => {
     logOutput = []
     tarballStreamSpec = ''
     tarballStreamOpts = {}
   })
 
-  cache.exec(['add', 'mypkg', 'latest'], err => {
+  cache.exec(['add', 'mypkg', 'anotherpkg'], err => {
     t.error(err)
     t.strictSame(logOutput, [
-      ['silly', 'cache add', 'args', ['mypkg', 'latest']],
-      ['silly', 'cache add', 'spec', 'mypkg@latest'],
+      ['silly', 'cache add', 'args', ['mypkg', 'anotherpkg']],
+      ['silly', 'cache add', 'spec', 'mypkg'],
+      ['silly', 'cache add', 'spec', 'anotherpkg'],
     ], 'logs correctly')
-    t.equal(tarballStreamSpec, 'mypkg@latest', 'passes the correct spec to pacote')
+    t.equal(tarballStreamSpec, 'anotherpkg', 'passes the correct spec to pacote')
     t.same(tarballStreamOpts, npm.flatOptions, 'passes the correct options to pacote')
     t.end()
   })

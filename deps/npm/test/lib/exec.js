@@ -121,11 +121,15 @@ t.afterEach(() => {
 
 t.test('npx foo, bin already exists locally', t => {
   const path = t.testdir({
-    foo: 'just some file',
+    node_modules: {
+      '.bin': {
+        foo: 'just some file',
+      },
+    },
   })
 
   PROGRESS_IGNORED = true
-  npm.localBin = path
+  npm.localBin = resolve(path, 'node_modules', '.bin')
 
   exec.exec(['foo', 'one arg', 'two arg'], er => {
     t.error(er, 'npm exec')
@@ -137,7 +141,7 @@ t.test('npx foo, bin already exists locally', t => {
       stdioString: true,
       event: 'npx',
       env: {
-        PATH: [path, ...PATH].join(delimiter),
+        PATH: [npm.localBin, ...PATH].join(delimiter),
       },
       stdio: 'inherit',
     }])
@@ -147,11 +151,15 @@ t.test('npx foo, bin already exists locally', t => {
 
 t.test('npx foo, bin already exists globally', t => {
   const path = t.testdir({
-    foo: 'just some file',
+    node_modules: {
+      '.bin': {
+        foo: 'just some file',
+      },
+    },
   })
 
   PROGRESS_IGNORED = true
-  npm.globalBin = path
+  npm.globalBin = resolve(path, 'node_modules', '.bin')
 
   exec.exec(['foo', 'one arg', 'two arg'], er => {
     t.error(er, 'npm exec')
@@ -163,7 +171,7 @@ t.test('npx foo, bin already exists globally', t => {
       stdioString: true,
       event: 'npx',
       env: {
-        PATH: [path, ...PATH].join(delimiter),
+        PATH: [npm.globalBin, ...PATH].join(delimiter),
       },
       stdio: 'inherit',
     }])
@@ -593,7 +601,7 @@ t.test('run command with 2 packages, need install, verify sort', t => {
   for (const packages of cases) {
     t.test(packages.join(', '), t => {
       config.package = packages
-      const add = packages.map(p => `${p}@`).sort((a, b) => a.localeCompare(b))
+      const add = packages.map(p => `${p}@`).sort((a, b) => a.localeCompare(b, 'en'))
       const path = t.testdir()
       const installDir = resolve('cache-dir/_npx/07de77790e5f40f2')
       npm.localPrefix = path
@@ -748,7 +756,7 @@ t.test('prompt when installs are needed if not already present and shell is a TT
   config.package = packages
   config.yes = undefined
 
-  const add = packages.map(p => `${p}@`).sort((a, b) => a.localeCompare(b))
+  const add = packages.map(p => `${p}@`).sort((a, b) => a.localeCompare(b, 'en'))
   const path = t.testdir()
   const installDir = resolve('cache-dir/_npx/07de77790e5f40f2')
   npm.localPrefix = path
@@ -817,7 +825,7 @@ t.test('skip prompt when installs are needed if not already present and shell is
   config.package = packages
   config.yes = undefined
 
-  const add = packages.map(p => `${p}@`).sort((a, b) => a.localeCompare(b))
+  const add = packages.map(p => `${p}@`).sort((a, b) => a.localeCompare(b, 'en'))
   const path = t.testdir()
   const installDir = resolve('cache-dir/_npx/07de77790e5f40f2')
   npm.localPrefix = path
@@ -884,7 +892,7 @@ t.test('skip prompt when installs are needed if not already present and shell is
   config.package = packages
   config.yes = undefined
 
-  const add = packages.map(p => `${p}@`).sort((a, b) => a.localeCompare(b))
+  const add = packages.map(p => `${p}@`).sort((a, b) => a.localeCompare(b, 'en'))
   const path = t.testdir()
   const installDir = resolve('cache-dir/_npx/f7fbba6e0636f890')
   npm.localPrefix = path

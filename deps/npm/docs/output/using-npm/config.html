@@ -1193,7 +1193,8 @@ of npm than the latest.</p>
 <p>Show short usage output about the command specified.</p>
 <h4 id="user-agent"><code>user-agent</code></h4>
 <ul>
-<li>Default: “npm/{npm-version} node/{node-version} {platform} {arch} {ci}”</li>
+<li>Default: “npm/{npm-version} node/{node-version} {platform} {arch}
+workspaces/{workspaces} {ci}”</li>
 <li>Type: String</li>
 </ul>
 <p>Sets the User-Agent request header. The following fields are replaced with
@@ -1203,6 +1204,8 @@ their actual counterparts:</p>
 <li><code>{node-version}</code> - The Node.js version in use</li>
 <li><code>{platform}</code> - The value of <code>process.platform</code></li>
 <li><code>{arch}</code> - The value of <code>process.arch</code></li>
+<li><code>{workspaces}</code> - Set to <code>true</code> if the <code>workspaces</code> or <code>workspace</code> options
+are set.</li>
 <li><code>{ci}</code> - The value of the <code>ci-name</code> config, if set, prefixed with <code>ci/</code>, or
 an empty string if <code>ci-name</code> is empty.</li>
 </ul>

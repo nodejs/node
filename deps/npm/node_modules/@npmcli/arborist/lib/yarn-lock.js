@@ -34,7 +34,7 @@ const {breadth} = require('treeverse')
 
 // sort a key/value object into a string of JSON stringified keys and vals
 const sortKV = obj => Object.keys(obj)
-  .sort((a, b) => a.localeCompare(b))
+  .sort((a, b) => a.localeCompare(b, 'en'))
   .map(k => `    ${JSON.stringify(k)} ${JSON.stringify(obj[k])}`)
   .join('\n')
 
@@ -165,7 +165,7 @@ class YarnLock {
   toString () {
     return prefix + [...new Set([...this.entries.values()])]
       .map(e => e.toString())
-      .sort((a, b) => a.localeCompare(b)).join('\n\n') + '\n'
+      .sort((a, b) => a.localeCompare(b, 'en')).join('\n\n') + '\n'
   }
 
   fromTree (tree) {
@@ -175,7 +175,7 @@ class YarnLock {
       tree,
       visit: node => this.addEntryFromNode(node),
       getChildren: node => [...node.children.values(), ...node.fsChildren]
-        .sort((a, b) => a.depth - b.depth || a.name.localeCompare(b.name)),
+        .sort((a, b) => a.depth - b.depth || a.name.localeCompare(b.name, 'en')),
     })
     return this
   }
@@ -183,7 +183,7 @@ class YarnLock {
   addEntryFromNode (node) {
     const specs = [...node.edgesIn]
       .map(e => `${node.name}@${e.spec}`)
-      .sort((a, b) => a.localeCompare(b))
+      .sort((a, b) => a.localeCompare(b, 'en'))
 
     // Note:
     // yarn will do excessive duplication in a case like this:
@@ -309,7 +309,7 @@ class YarnLockEntry {
   toString () {
     // sort objects to the bottom, then alphabetical
     return ([...this[_specs]]
-      .sort((a, b) => a.localeCompare(b))
+      .sort((a, b) => a.localeCompare(b, 'en'))
       .map(JSON.stringify).join(', ') +
       ':\n' +
       Object.getOwnPropertyNames(this)
@@ -318,7 +318,7 @@ class YarnLockEntry {
           (a, b) =>
           /* istanbul ignore next - sort call order is unpredictable */
             (typeof this[a] === 'object') === (typeof this[b] === 'object')
-              ? a.localeCompare(b)
+              ? a.localeCompare(b, 'en')
               : typeof this[a] === 'object' ? 1 : -1)
         .map(prop =>
           typeof this[prop] !== 'object'

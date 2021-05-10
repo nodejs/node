@@ -1943,6 +1943,7 @@ define('user-agent', {
            'node/{node-version} ' +
            '{platform} ' +
            '{arch} ' +
+           'workspaces/{workspaces} ' +
            '{ci}',
   type: String,
   description: `
@@ -1953,17 +1954,23 @@ define('user-agent', {
     * \`{node-version}\` - The Node.js version in use
     * \`{platform}\` - The value of \`process.platform\`
     * \`{arch}\` - The value of \`process.arch\`
+    * \`{workspaces}\` - Set to \`true\` if the \`workspaces\` or \`workspace\`
+      options are set.
     * \`{ci}\` - The value of the \`ci-name\` config, if set, prefixed with
       \`ci/\`, or an empty string if \`ci-name\` is empty.
   `,
   flatten (key, obj, flatOptions) {
     const value = obj[key]
     const ciName = obj['ci-name']
+    let inWorkspaces = false
+    if (obj.workspaces || obj.workspace && obj.workspace.length)
+      inWorkspaces = true
     flatOptions.userAgent =
       value.replace(/\{node-version\}/gi, obj['node-version'])
         .replace(/\{npm-version\}/gi, obj['npm-version'])
         .replace(/\{platform\}/gi, process.platform)
         .replace(/\{arch\}/gi, process.arch)
+        .replace(/\{workspaces\}/gi, inWorkspaces)
         .replace(/\{ci\}/gi, ciName ? `ci/${ciName}` : '')
         .trim()
     // user-agent is a unique kind of config item that gets set from a template

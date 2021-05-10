@@ -729,7 +729,7 @@ t.test('user-agent', t => {
   }
   const flat = {}
   const expectNoCI = `npm/1.2.3 node/9.8.7 ` +
-    `${process.platform} ${process.arch}`
+    `${process.platform} ${process.arch} workspaces/false`
   definitions['user-agent'].flatten('user-agent', obj, flat)
   t.equal(flat.userAgent, expectNoCI)
   t.equal(process.env.npm_config_user_agent, flat.userAgent, 'npm_user_config environment is set')
@@ -740,6 +740,23 @@ t.test('user-agent', t => {
   const expectCI = `${expectNoCI} ci/foo`
   definitions['user-agent'].flatten('user-agent', obj, flat)
   t.equal(flat.userAgent, expectCI)
+  t.equal(process.env.npm_config_user_agent, flat.userAgent, 'npm_user_config environment is set')
+  t.equal(obj['user-agent'], flat.userAgent, 'config user-agent template is translated')
+
+  delete obj['ci-name']
+  obj.workspaces = true
+  obj['user-agent'] = definitions['user-agent'].default
+  const expectWorkspaces = expectNoCI.replace('workspaces/false', 'workspaces/true')
+  definitions['user-agent'].flatten('user-agent', obj, flat)
+  t.equal(flat.userAgent, expectWorkspaces)
+  t.equal(process.env.npm_config_user_agent, flat.userAgent, 'npm_user_config environment is set')
+  t.equal(obj['user-agent'], flat.userAgent, 'config user-agent template is translated')
+
+  delete obj.workspaces
+  obj.workspace = ['foo']
+  obj['user-agent'] = definitions['user-agent'].default
+  definitions['user-agent'].flatten('user-agent', obj, flat)
+  t.equal(flat.userAgent, expectWorkspaces)
   t.equal(process.env.npm_config_user_agent, flat.userAgent, 'npm_user_config environment is set')
   t.equal(obj['user-agent'], flat.userAgent, 'config user-agent template is translated')
   t.end()

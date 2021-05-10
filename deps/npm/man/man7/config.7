@@ -1,4 +1,4 @@
-.TH "CONFIG" "7" "April 2021" "" ""
+.TH "CONFIG" "7" "May 2021" "" ""
 .SH "NAME"
 \fBconfig\fR \- More than you probably want to know about npm configuration
 .SS Description
@@ -1666,7 +1666,8 @@ Show short usage output about the command specified\.
 .SS \fBuser\-agent\fP
 .RS 0
 .IP \(bu 2
-Default: "npm/{npm\-version} node/{node\-version} {platform} {arch} {ci}"
+Default: "npm/{npm\-version} node/{node\-version} {platform} {arch}
+workspaces/{workspaces} {ci}"
 .IP \(bu 2
 Type: String
 
@@ -1683,6 +1684,9 @@ their actual counterparts:
 \fB{platform}\fP \- The value of \fBprocess\.platform\fP
 .IP \(bu 2
 \fB{arch}\fP \- The value of \fBprocess\.arch\fP
+.IP \(bu 2
+\fB{workspaces}\fP \- Set to \fBtrue\fP if the \fBworkspaces\fP or \fBworkspace\fP options
+are set\.
 .IP \(bu 2
 \fB{ci}\fP \- The value of the \fBci\-name\fP config, if set, prefixed with \fBci/\fP, or
 an empty string if \fBci\-name\fP is empty\.

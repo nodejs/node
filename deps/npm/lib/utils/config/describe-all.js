@@ -7,7 +7,7 @@ const describeAll = () => {
   const sort = ([keya, {deprecated: depa}], [keyb, {deprecated: depb}]) => {
     return depa && !depb ? 1
       : !depa && depb ? -1
-      : keya.localeCompare(keyb)
+      : keya.localeCompare(keyb, 'en')
   }
   return Object.entries(definitions).sort(sort)
     .map(([key, def]) => def.describe())

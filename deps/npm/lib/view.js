@@ -202,7 +202,10 @@ class View extends BaseCommand {
     const spec = npa(pkg)
 
     // get the data about this package
-    let version = spec.rawSpec || this.npm.config.get('tag')
+    let version = this.npm.config.get('tag')
+    // rawSpec is the git url if this is from git
+    if (spec.type !== 'git' && spec.rawSpec)
+      version = spec.rawSpec
 
     const pckmnt = await packument(spec, opts)
 

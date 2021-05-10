@@ -23,7 +23,7 @@ class Walker extends EE {
   }
 
   sort (a, b) {
-    return a.localeCompare(b)
+    return a.localeCompare(b, 'en')
   }
 
   emit (ev, data) {

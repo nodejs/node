@@ -141,7 +141,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#pre--post-scripts">Pre &amp; Post Scripts</a></li><li><a href="#life-cycle-scripts">Life Cycle Scripts</a></li><ul><li><a href="#prepare-and-prepublish">Prepare and Prepublish</a></li></ul><li><a href="#life-cycle-operation-order">Life Cycle Operation Order</a></li><ul><li><a href="#npm-cache-add"><a href="../commands/npm-cache.html"><code>npm cache add</code></a></a></li><li><a href="#npm-ci"><a href="../commands/npm-ci.html"><code>npm ci</code></a></a></li><li><a href="#npm-diff"><a href="../commands/npm-diff.html"><code>npm diff</code></a></a></li><li><a href="#npm-env"><a href="../commands/npm-env.html"><code>npm env</code></a></a></li><li><a href="#npm-install"><a href="../commands/npm-install.html"><code>npm install</code></a></a></li><li><a href="#npm-pack"><a href="../commands/npm-pack.html"><code>npm pack</code></a></a></li><li><a href="#npm-publish"><a href="../commands/npm-publish.html"><code>npm publish</code></a></a></li><li><a href="#npm-rebuild"><a href="../commands/npm-rebuild.html"><code>npm rebuild</code></a></a></li><li><a href="#npm-restart"><a href="../commands/npm-restart.html"><code>npm restart</code></a></a></li><li><a href="#npm-run-user-defined"><a href="../commands/npm-run.html"><code>npm run &lt;user defined&gt;</code></a></a></li><li><a href="#npm-start"><a href="../commands/npm-start.html"><code>npm start</code></a></a></li><li><a href="#npm-stop"><a href="../commands/npm-stop.html"><code>npm stop</code></a></a></li><li><a href="#npm-test"><a href="../commands/npm-test.html"><code>npm test</code></a></a></li></ul><li><a href="#user">User</a></li><li><a href="#environment">Environment</a></li><ul><li><a href="#path">path</a></li><li><a href="#packagejson-vars">package.json vars</a></li><li><a href="#configuration">configuration</a></li><li><a href="#special-packagejson-config-object">Special: package.json “config” object</a></li><li><a href="#current-lifecycle-event">current lifecycle event</a></li></ul><li><a href="#examples">Examples</a></li><li><a href="#exiting">Exiting</a></li><li><a href="#hook-scripts">Hook Scripts</a></li><li><a href="#best-practices">Best Practices</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#pre--post-scripts">Pre &amp; Post Scripts</a></li><li><a href="#life-cycle-scripts">Life Cycle Scripts</a></li><ul><li><a href="#prepare-and-prepublish">Prepare and Prepublish</a></li></ul><li><a href="#life-cycle-operation-order">Life Cycle Operation Order</a></li><ul><li><a href="#npm-cache-add"><a href="../commands/npm-cache.html"><code>npm cache add</code></a></a></li><li><a href="#npm-ci"><a href="../commands/npm-ci.html"><code>npm ci</code></a></a></li><li><a href="#npm-diff"><a href="../commands/npm-diff.html"><code>npm diff</code></a></a></li><li><a href="#npm-install"><a href="../commands/npm-install.html"><code>npm install</code></a></a></li><li><a href="#npm-pack"><a href="../commands/npm-pack.html"><code>npm pack</code></a></a></li><li><a href="#npm-publish"><a href="../commands/npm-publish.html"><code>npm publish</code></a></a></li><li><a href="#npm-rebuild"><a href="../commands/npm-rebuild.html"><code>npm rebuild</code></a></a></li><li><a href="#npm-restart"><a href="../commands/npm-restart.html"><code>npm restart</code></a></a></li><li><a href="#npm-run-user-defined"><a href="../commands/npm-run-script.html"><code>npm run &lt;user defined&gt;</code></a></a></li><li><a href="#npm-start"><a href="../commands/npm-start.html"><code>npm start</code></a></a></li><li><a href="#npm-stop"><a href="../commands/npm-stop.html"><code>npm stop</code></a></a></li><li><a href="#npm-test"><a href="../commands/npm-test.html"><code>npm test</code></a></a></li></ul><li><a href="#user">User</a></li><li><a href="#environment">Environment</a></li><ul><li><a href="#path">path</a></li><li><a href="#packagejson-vars">package.json vars</a></li><li><a href="#configuration">configuration</a></li><li><a href="#special-packagejson-config-object">Special: package.json “config” object</a></li><li><a href="#current-lifecycle-event">current lifecycle event</a></li></ul><li><a href="#examples">Examples</a></li><li><a href="#exiting">Exiting</a></li><li><a href="#hook-scripts">Hook Scripts</a></li><li><a href="#best-practices">Best Practices</a></li><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="description">Description</h3>
@@ -260,11 +260,6 @@ other system tools on the target machines.</li>
 <ul>
 <li><code>prepare</code></li>
 </ul>
-<h4 id="npm-env"><a href="../commands/npm-env.html"><code>npm env</code></a></h4>
-<ul>
-<li><code>env</code> (You can override the default behavior of <code>npm env</code> by defining
-a custom <code>env</code> entry in your <code>scripts</code> object)</li>
-</ul>
 <h4 id="npm-install"><a href="../commands/npm-install.html"><code>npm install</code></a></h4>
 <p>These also run when you run <code>npm install -g &lt;pkg-name&gt;</code></p>
 <ul>
@@ -314,7 +309,7 @@ linked packages)</p>
 <li><code>restart</code></li>
 <li><code>postrestart</code></li>
 </ul>
-<h4 id="npm-run-user-defined"><a href="../commands/npm-run.html"><code>npm run &lt;user defined&gt;</code></a></h4>
+<h4 id="npm-run-user-defined"><a href="../commands/npm-run-script.html"><code>npm run &lt;user defined&gt;</code></a></h4>
 <ul>
 <li><code>pre&lt;user-defined&gt;</code></li>
 <li><code>&lt;user-defined&gt;</code></li>

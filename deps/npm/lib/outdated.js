@@ -68,7 +68,7 @@ class Outdated extends BaseCommand {
     }))
 
     // sorts list alphabetically
-    const outdated = this.list.sort((a, b) => a.name.localeCompare(b.name))
+    const outdated = this.list.sort((a, b) => a.name.localeCompare(b.name, 'en'))
 
     // return if no outdated packages
     if (outdated.length === 0 && !this.npm.config.get('json'))
@@ -149,7 +149,7 @@ class Outdated extends BaseCommand {
       : edge.dev ? 'devDependencies'
       : 'dependencies'
 
-    for (const omitType of this.npm.config.get('omit') || []) {
+    for (const omitType of this.npm.config.get('omit')) {
       if (node[omitType])
         return
     }

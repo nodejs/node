@@ -199,7 +199,7 @@ class Config extends BaseCommand {
 ; Configs like \`//<hostname>/:_authToken\` are auth that is restricted
 ; to the registry host specified.
 
-${data.split('\n').sort((a, b) => a.localeCompare(b)).join('\n').trim()}
+${data.split('\n').sort((a, b) => a.localeCompare(b, 'en')).join('\n').trim()}
 
 ;;;;
 ; all available options shown below with default values
@@ -227,7 +227,7 @@ ${defData}
       if (where === 'default' && !long)
         continue
 
-      const keys = Object.keys(data).sort((a, b) => a.localeCompare(b))
+      const keys = Object.keys(data).sort((a, b) => a.localeCompare(b, 'en'))
       if (!keys.length)
         continue
 

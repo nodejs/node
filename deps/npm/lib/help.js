@@ -77,7 +77,7 @@ class Help extends BaseCommand {
       if (aManNumber !== bManNumber)
         return aManNumber - bManNumber
 
-      return a.localeCompare(b)
+      return a.localeCompare(b, 'en')
     })
     const man = mans[0]
 

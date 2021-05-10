@@ -17,8 +17,8 @@ duplications, without actually changing the package tree.
 
 ### See Also
 
-* [npm dedupe](/cli-commands/dedupe)
-* [npm ls](/cli-commands/ls)
-* [npm update](/cli-commands/update)
-* [npm install](/cli-commands/install)
+* [npm dedupe](/commands/npm-dedupe)
+* [npm ls](/commands/npm-ls)
+* [npm update](/commands/npm-update)
+* [npm install](/commands/npm-install)
 

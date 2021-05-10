@@ -47,8 +47,8 @@ test-npm-ls-ignore-missing-optional@1.2.3 {project}
 
 exports[`test/lib/ls.js TAP ls --depth=0 > should output tree containing only top-level dependencies 1`] = `
 test-npm-ls@1.0.0 {CWD}/tap-testdir-ls-ls---depth-0
-+-- foo@1.0.0
-\`-- lorem@1.0.0
++-- chai@1.0.0
+\`-- foo@1.0.0
 
 `
 
@@ -64,7 +64,7 @@ exports[`test/lib/ls.js TAP ls --dev > should output tree containing dev deps 1`
 test-npm-ls@1.0.0 {CWD}/tap-testdir-ls-ls---dev
 \`-- dev-dep@1.0.0
   \`-- foo@1.0.0
-    \`-- bar@1.0.0
+    \`-- dog@1.0.0
 
 `
 
@@ -78,10 +78,10 @@ exports[`test/lib/ls.js TAP ls --long --depth=0 > should output tree containing 
 test-npm-ls@1.0.0
 | {CWD}/tap-testdir-ls-ls---long---depth-0
 |
++-- chai@1.0.0
+|
 +-- dev-dep@1.0.0
 |   A DEV dep kind of dep
-+-- lorem@1.0.0
-|
 +-- optional-dep@1.0.0
 |   Maybe a dep?
 +-- peer-dep@1.0.0
@@ -95,13 +95,13 @@ exports[`test/lib/ls.js TAP ls --long > should output tree info with description
 test-npm-ls@1.0.0
 | {CWD}/tap-testdir-ls-ls---long
 |
++-- chai@1.0.0
+|
 +-- dev-dep@1.0.0
 | | A DEV dep kind of dep
 | \`-- foo@1.0.0
 |   |
-|   \`-- bar@1.0.0
-|
-+-- lorem@1.0.0
+|   \`-- dog@1.0.0
 |
 +-- optional-dep@1.0.0
 |   Maybe a dep?
@@ -109,7 +109,7 @@ test-npm-ls@1.0.0
 |   Peer-dep description here
 \`-- prod-dep@1.0.0
   | A PROD dep kind of dep
-  \`-- bar@2.0.0
+  \`-- dog@2.0.0
       A dep that bars
 
 `
@@ -118,37 +118,37 @@ exports[`test/lib/ls.js TAP ls --only=development > should output tree containin
 test-npm-ls@1.0.0 {CWD}/tap-testdir-ls-ls---only-development
 \`-- dev-dep@1.0.0
   \`-- foo@1.0.0
-    \`-- bar@1.0.0
+    \`-- dog@1.0.0
 
 `
 
 exports[`test/lib/ls.js TAP ls --only=prod > should output tree containing only prod deps 1`] = `
 test-npm-ls@1.0.0 {CWD}/tap-testdir-ls-ls---only-prod
-+-- lorem@1.0.0
++-- chai@1.0.0
 +-- optional-dep@1.0.0
 \`-- prod-dep@1.0.0
-  \`-- bar@2.0.0
+  \`-- dog@2.0.0
 
 `
 
 exports[`test/lib/ls.js TAP ls --parseable --depth=0 > should output tree containing only top-level dependencies 1`] = `
 {CWD}/tap-testdir-ls-ls---parseable---depth-0
+{CWD}/tap-testdir-ls-ls---parseable---depth-0/node_modules/chai
 {CWD}/tap-testdir-ls-ls---parseable---depth-0/node_modules/foo
-{CWD}/tap-testdir-ls-ls---parseable---depth-0/node_modules/lorem
 `
 
 exports[`test/lib/ls.js TAP ls --parseable --depth=1 > should output parseable containing top-level deps and their deps only 1`] = `
 {CWD}/tap-testdir-ls-ls---parseable---depth-1
+{CWD}/tap-testdir-ls-ls---parseable---depth-1/node_modules/chai
 {CWD}/tap-testdir-ls-ls---parseable---depth-1/node_modules/foo
-{CWD}/tap-testdir-ls-ls---parseable---depth-1/node_modules/lorem
-{CWD}/tap-testdir-ls-ls---parseable---depth-1/node_modules/bar
+{CWD}/tap-testdir-ls-ls---parseable---depth-1/node_modules/dog
 `
 
 exports[`test/lib/ls.js TAP ls --parseable --dev > should output tree containing dev deps 1`] = `
 {CWD}/tap-testdir-ls-ls---parseable---dev
 {CWD}/tap-testdir-ls-ls---parseable---dev/node_modules/dev-dep
 {CWD}/tap-testdir-ls-ls---parseable---dev/node_modules/foo
-{CWD}/tap-testdir-ls-ls---parseable---dev/node_modules/bar
+{CWD}/tap-testdir-ls-ls---parseable---dev/node_modules/dog
 `
 
 exports[`test/lib/ls.js TAP ls --parseable --link > should output tree containing linked deps 1`] = `
@@ -158,8 +158,8 @@ exports[`test/lib/ls.js TAP ls --parseable --link > should output tree containin
 
 exports[`test/lib/ls.js TAP ls --parseable --long --depth=0 > should output tree containing top-level deps with descriptions 1`] = `
 {CWD}/tap-testdir-ls-ls---parseable---long---depth-0:test-npm-ls@1.0.0
+{CWD}/tap-testdir-ls-ls---parseable---long---depth-0/node_modules/chai:chai@1.0.0
 {CWD}/tap-testdir-ls-ls---parseable---long---depth-0/node_modules/dev-dep:dev-dep@1.0.0
-{CWD}/tap-testdir-ls-ls---parseable---long---depth-0/node_modules/lorem:lorem@1.0.0
 {CWD}/tap-testdir-ls-ls---parseable---long---depth-0/node_modules/optional-dep:optional-dep@1.0.0
 {CWD}/tap-testdir-ls-ls---parseable---long---depth-0/node_modules/peer-dep:peer-dep@1.0.0
 {CWD}/tap-testdir-ls-ls---parseable---long---depth-0/node_modules/prod-dep:prod-dep@1.0.0
@@ -167,64 +167,64 @@ exports[`test/lib/ls.js TAP ls --parseable --long --depth=0 > should output tree
 
 exports[`test/lib/ls.js TAP ls --parseable --long > should output tree info with descriptions 1`] = `
 {CWD}/tap-testdir-ls-ls---parseable---long:test-npm-ls@1.0.0
+{CWD}/tap-testdir-ls-ls---parseable---long/node_modules/chai:chai@1.0.0
 {CWD}/tap-testdir-ls-ls---parseable---long/node_modules/dev-dep:dev-dep@1.0.0
-{CWD}/tap-testdir-ls-ls---parseable---long/node_modules/lorem:lorem@1.0.0
 {CWD}/tap-testdir-ls-ls---parseable---long/node_modules/optional-dep:optional-dep@1.0.0
 {CWD}/tap-testdir-ls-ls---parseable---long/node_modules/peer-dep:peer-dep@1.0.0
 {CWD}/tap-testdir-ls-ls---parseable---long/node_modules/prod-dep:prod-dep@1.0.0
 {CWD}/tap-testdir-ls-ls---parseable---long/node_modules/foo:foo@1.0.0
-{CWD}/tap-testdir-ls-ls---parseable---long/node_modules/prod-dep/node_modules/bar:bar@2.0.0
-{CWD}/tap-testdir-ls-ls---parseable---long/node_modules/bar:bar@1.0.0
+{CWD}/tap-testdir-ls-ls---parseable---long/node_modules/prod-dep/node_modules/dog:dog@2.0.0
+{CWD}/tap-testdir-ls-ls---parseable---long/node_modules/dog:dog@1.0.0
 `
 
 exports[`test/lib/ls.js TAP ls --parseable --long missing/invalid/extraneous > should output parseable result containing EXTRANEOUS/INVALID labels 1`] = `
 {CWD}/tap-testdir-ls-ls---parseable---long-missing-invalid-extraneous:test-npm-ls@1.0.0
+{CWD}/tap-testdir-ls-ls---parseable---long-missing-invalid-extraneous/node_modules/chai:chai@1.0.0:EXTRANEOUS
 {CWD}/tap-testdir-ls-ls---parseable---long-missing-invalid-extraneous/node_modules/foo:foo@1.0.0:INVALID
-{CWD}/tap-testdir-ls-ls---parseable---long-missing-invalid-extraneous/node_modules/lorem:lorem@1.0.0:EXTRANEOUS
-{CWD}/tap-testdir-ls-ls---parseable---long-missing-invalid-extraneous/node_modules/bar:bar@1.0.0
+{CWD}/tap-testdir-ls-ls---parseable---long-missing-invalid-extraneous/node_modules/dog:dog@1.0.0
 `
 
 exports[`test/lib/ls.js TAP ls --parseable --long print symlink target location > should output parseable results with symlink targets 1`] = `
 {CWD}/tap-testdir-ls-ls---parseable---long-print-symlink-target-location:test-npm-ls@1.0.0
+{CWD}/tap-testdir-ls-ls---parseable---long-print-symlink-target-location/node_modules/chai:chai@1.0.0
 {CWD}/tap-testdir-ls-ls---parseable---long-print-symlink-target-location/node_modules/dev-dep:dev-dep@1.0.0
 {CWD}/tap-testdir-ls-ls---parseable---long-print-symlink-target-location/node_modules/linked-dep:linked-dep@1.0.0:{CWD}/tap-testdir-ls-ls---parseable---long-print-symlink-target-location/linked-dep
-{CWD}/tap-testdir-ls-ls---parseable---long-print-symlink-target-location/node_modules/lorem:lorem@1.0.0
 {CWD}/tap-testdir-ls-ls---parseable---long-print-symlink-target-location/node_modules/optional-dep:optional-dep@1.0.0
 {CWD}/tap-testdir-ls-ls---parseable---long-print-symlink-target-location/node_modules/peer-dep:peer-dep@1.0.0
 {CWD}/tap-testdir-ls-ls---parseable---long-print-symlink-target-location/node_modules/prod-dep:prod-dep@1.0.0
 {CWD}/tap-testdir-ls-ls---parseable---long-print-symlink-target-location/node_modules/foo:foo@1.0.0
-{CWD}/tap-testdir-ls-ls---parseable---long-print-symlink-target-location/node_modules/prod-dep/node_modules/bar:bar@2.0.0
-{CWD}/tap-testdir-ls-ls---parseable---long-print-symlink-target-location/node_modules/bar:bar@1.0.0
+{CWD}/tap-testdir-ls-ls---parseable---long-print-symlink-target-location/node_modules/prod-dep/node_modules/dog:dog@2.0.0
+{CWD}/tap-testdir-ls-ls---parseable---long-print-symlink-target-location/node_modules/dog:dog@1.0.0
 `
 
 exports[`test/lib/ls.js TAP ls --parseable --long with extraneous deps > should output long parseable output with extraneous info 1`] = `
 {CWD}/tap-testdir-ls-ls---parseable---long-with-extraneous-deps:test-npm-ls@1.0.0
+{CWD}/tap-testdir-ls-ls---parseable---long-with-extraneous-deps/node_modules/chai:chai@1.0.0:EXTRANEOUS
 {CWD}/tap-testdir-ls-ls---parseable---long-with-extraneous-deps/node_modules/foo:foo@1.0.0
-{CWD}/tap-testdir-ls-ls---parseable---long-with-extraneous-deps/node_modules/lorem:lorem@1.0.0:EXTRANEOUS
-{CWD}/tap-testdir-ls-ls---parseable---long-with-extraneous-deps/node_modules/bar:bar@1.0.0
+{CWD}/tap-testdir-ls-ls---parseable---long-with-extraneous-deps/node_modules/dog:dog@1.0.0
 `
 
 exports[`test/lib/ls.js TAP ls --parseable --only=development > should output tree containing only development deps 1`] = `
 {CWD}/tap-testdir-ls-ls---parseable---only-development
 {CWD}/tap-testdir-ls-ls---parseable---only-development/node_modules/dev-dep
 {CWD}/tap-testdir-ls-ls---parseable---only-development/node_modules/foo
-{CWD}/tap-testdir-ls-ls---parseable---only-development/node_modules/bar
+{CWD}/tap-testdir-ls-ls---parseable---only-development/node_modules/dog
 `
 
 exports[`test/lib/ls.js TAP ls --parseable --only=prod > should output tree containing only prod deps 1`] = `
 {CWD}/tap-testdir-ls-ls---parseable---only-prod
-{CWD}/tap-testdir-ls-ls---parseable---only-prod/node_modules/lorem
+{CWD}/tap-testdir-ls-ls---parseable---only-prod/node_modules/chai
 {CWD}/tap-testdir-ls-ls---parseable---only-prod/node_modules/optional-dep
 {CWD}/tap-testdir-ls-ls---parseable---only-prod/node_modules/prod-dep
-{CWD}/tap-testdir-ls-ls---parseable---only-prod/node_modules/prod-dep/node_modules/bar
+{CWD}/tap-testdir-ls-ls---parseable---only-prod/node_modules/prod-dep/node_modules/dog
 `
 
 exports[`test/lib/ls.js TAP ls --parseable --production > should output tree containing production deps 1`] = `
 {CWD}/tap-testdir-ls-ls---parseable---production
-{CWD}/tap-testdir-ls-ls---parseable---production/node_modules/lorem
+{CWD}/tap-testdir-ls-ls---parseable---production/node_modules/chai
 {CWD}/tap-testdir-ls-ls---parseable---production/node_modules/optional-dep
 {CWD}/tap-testdir-ls-ls---parseable---production/node_modules/prod-dep
-{CWD}/tap-testdir-ls-ls---parseable---production/node_modules/prod-dep/node_modules/bar
+{CWD}/tap-testdir-ls-ls---parseable---production/node_modules/prod-dep/node_modules/dog
 `
 
 exports[`test/lib/ls.js TAP ls --parseable cycle deps > should print tree output omitting deduped ref 1`] = `
@@ -235,8 +235,8 @@ exports[`test/lib/ls.js TAP ls --parseable cycle deps > should print tree output
 
 exports[`test/lib/ls.js TAP ls --parseable default --depth value should be 0 > should output parseable output containing only top-level dependencies 1`] = `
 {CWD}/tap-testdir-ls-ls---parseable-default---depth-value-should-be-0
+{CWD}/tap-testdir-ls-ls---parseable-default---depth-value-should-be-0/node_modules/chai
 {CWD}/tap-testdir-ls-ls---parseable-default---depth-value-should-be-0/node_modules/foo
-{CWD}/tap-testdir-ls-ls---parseable-default---depth-value-should-be-0/node_modules/lorem
 `
 
 exports[`test/lib/ls.js TAP ls --parseable empty location > should print empty result 1`] = `
@@ -245,9 +245,9 @@ exports[`test/lib/ls.js TAP ls --parseable empty location > should print empty r
 
 exports[`test/lib/ls.js TAP ls --parseable extraneous deps > should output containing problems info 1`] = `
 {CWD}/tap-testdir-ls-ls---parseable-extraneous-deps
+{CWD}/tap-testdir-ls-ls---parseable-extraneous-deps/node_modules/chai
 {CWD}/tap-testdir-ls-ls---parseable-extraneous-deps/node_modules/foo
-{CWD}/tap-testdir-ls-ls---parseable-extraneous-deps/node_modules/lorem
-{CWD}/tap-testdir-ls-ls---parseable-extraneous-deps/node_modules/bar
+{CWD}/tap-testdir-ls-ls---parseable-extraneous-deps/node_modules/dog
 `
 
 exports[`test/lib/ls.js TAP ls --parseable from and resolved properties > should not be printed in tree output 1`] = `
@@ -268,23 +268,23 @@ exports[`test/lib/ls.js TAP ls --parseable json read problems > should print emp
 
 exports[`test/lib/ls.js TAP ls --parseable missing package.json > should output parseable missing name/version of top-level package 1`] = `
 {CWD}/tap-testdir-ls-ls---parseable-missing-package.json
-{CWD}/tap-testdir-ls-ls---parseable-missing-package.json/node_modules/bar
+{CWD}/tap-testdir-ls-ls---parseable-missing-package.json/node_modules/chai
+{CWD}/tap-testdir-ls-ls---parseable-missing-package.json/node_modules/dog
 {CWD}/tap-testdir-ls-ls---parseable-missing-package.json/node_modules/foo
-{CWD}/tap-testdir-ls-ls---parseable-missing-package.json/node_modules/lorem
 `
 
 exports[`test/lib/ls.js TAP ls --parseable missing/invalid/extraneous > should output parseable containing top-level deps and their deps only 1`] = `
 {CWD}/tap-testdir-ls-ls---parseable-missing-invalid-extraneous
+{CWD}/tap-testdir-ls-ls---parseable-missing-invalid-extraneous/node_modules/chai
 {CWD}/tap-testdir-ls-ls---parseable-missing-invalid-extraneous/node_modules/foo
-{CWD}/tap-testdir-ls-ls---parseable-missing-invalid-extraneous/node_modules/lorem
-{CWD}/tap-testdir-ls-ls---parseable-missing-invalid-extraneous/node_modules/bar
+{CWD}/tap-testdir-ls-ls---parseable-missing-invalid-extraneous/node_modules/dog
 `
 
 exports[`test/lib/ls.js TAP ls --parseable no args > should output parseable representation of dependencies structure 1`] = `
 {CWD}/tap-testdir-ls-ls---parseable-no-args
+{CWD}/tap-testdir-ls-ls---parseable-no-args/node_modules/chai
 {CWD}/tap-testdir-ls-ls---parseable-no-args/node_modules/foo
-{CWD}/tap-testdir-ls-ls---parseable-no-args/node_modules/lorem
-{CWD}/tap-testdir-ls-ls---parseable-no-args/node_modules/bar
+{CWD}/tap-testdir-ls-ls---parseable-no-args/node_modules/dog
 `
 
 exports[`test/lib/ls.js TAP ls --parseable resolved points to git ref > should output tree containing git refs 1`] = `
@@ -294,26 +294,26 @@ exports[`test/lib/ls.js TAP ls --parseable resolved points to git ref > should o
 
 exports[`test/lib/ls.js TAP ls --parseable unmet optional dep > should output parseable with empty entry for missing optional deps 1`] = `
 {CWD}/tap-testdir-ls-ls---parseable-unmet-optional-dep
+{CWD}/tap-testdir-ls-ls---parseable-unmet-optional-dep/node_modules/chai
 {CWD}/tap-testdir-ls-ls---parseable-unmet-optional-dep/node_modules/dev-dep
-{CWD}/tap-testdir-ls-ls---parseable-unmet-optional-dep/node_modules/lorem
 {CWD}/tap-testdir-ls-ls---parseable-unmet-optional-dep/node_modules/optional-dep
 {CWD}/tap-testdir-ls-ls---parseable-unmet-optional-dep/node_modules/peer-dep
 {CWD}/tap-testdir-ls-ls---parseable-unmet-optional-dep/node_modules/prod-dep
 {CWD}/tap-testdir-ls-ls---parseable-unmet-optional-dep/node_modules/foo
-{CWD}/tap-testdir-ls-ls---parseable-unmet-optional-dep/node_modules/prod-dep/node_modules/bar
-{CWD}/tap-testdir-ls-ls---parseable-unmet-optional-dep/node_modules/bar
+{CWD}/tap-testdir-ls-ls---parseable-unmet-optional-dep/node_modules/prod-dep/node_modules/dog
+{CWD}/tap-testdir-ls-ls---parseable-unmet-optional-dep/node_modules/dog
 `
 
 exports[`test/lib/ls.js TAP ls --parseable unmet peer dep > should output parseable signaling missing peer dep in problems 1`] = `
 {CWD}/tap-testdir-ls-ls---parseable-unmet-peer-dep
+{CWD}/tap-testdir-ls-ls---parseable-unmet-peer-dep/node_modules/chai
 {CWD}/tap-testdir-ls-ls---parseable-unmet-peer-dep/node_modules/dev-dep
-{CWD}/tap-testdir-ls-ls---parseable-unmet-peer-dep/node_modules/lorem
 {CWD}/tap-testdir-ls-ls---parseable-unmet-peer-dep/node_modules/optional-dep
 {CWD}/tap-testdir-ls-ls---parseable-unmet-peer-dep/node_modules/peer-dep
 {CWD}/tap-testdir-ls-ls---parseable-unmet-peer-dep/node_modules/prod-dep
 {CWD}/tap-testdir-ls-ls---parseable-unmet-peer-dep/node_modules/foo
-{CWD}/tap-testdir-ls-ls---parseable-unmet-peer-dep/node_modules/prod-dep/node_modules/bar
-{CWD}/tap-testdir-ls-ls---parseable-unmet-peer-dep/node_modules/bar
+{CWD}/tap-testdir-ls-ls---parseable-unmet-peer-dep/node_modules/prod-dep/node_modules/dog
+{CWD}/tap-testdir-ls-ls---parseable-unmet-peer-dep/node_modules/dog
 `
 
 exports[`test/lib/ls.js TAP ls --parseable using aliases > should output tree containing aliases 1`] = `
@@ -322,11 +322,11 @@ exports[`test/lib/ls.js TAP ls --parseable using aliases > should output tree co
 `
 
 exports[`test/lib/ls.js TAP ls --parseable with filter arg > should output parseable contaning only occurrences of filtered by package 1`] = `
-{CWD}/tap-testdir-ls-ls---parseable-with-filter-arg/node_modules/lorem
+{CWD}/tap-testdir-ls-ls---parseable-with-filter-arg/node_modules/chai
 `
 
 exports[`test/lib/ls.js TAP ls --parseable with filter arg nested dep > should output parseable contaning only occurrences of filtered package 1`] = `
-{CWD}/tap-testdir-ls-ls---parseable-with-filter-arg-nested-dep/node_modules/bar
+{CWD}/tap-testdir-ls-ls---parseable-with-filter-arg-nested-dep/node_modules/dog
 `
 
 exports[`test/lib/ls.js TAP ls --parseable with missing filter arg > should output parseable output containing no dependencies info 1`] = `
@@ -334,16 +334,16 @@ exports[`test/lib/ls.js TAP ls --parseable with missing filter arg > should outp
 `
 
 exports[`test/lib/ls.js TAP ls --parseable with multiple filter args > should output parseable contaning only occurrences of multiple filtered packages and their ancestors 1`] = `
-{CWD}/tap-testdir-ls-ls---parseable-with-multiple-filter-args/node_modules/lorem
-{CWD}/tap-testdir-ls-ls---parseable-with-multiple-filter-args/node_modules/bar
+{CWD}/tap-testdir-ls-ls---parseable-with-multiple-filter-args/node_modules/chai
+{CWD}/tap-testdir-ls-ls---parseable-with-multiple-filter-args/node_modules/dog
 `
 
 exports[`test/lib/ls.js TAP ls --production > should output tree containing production deps 1`] = `
 test-npm-ls@1.0.0 {CWD}/tap-testdir-ls-ls---production
-+-- lorem@1.0.0
++-- chai@1.0.0
 +-- optional-dep@1.0.0
 \`-- prod-dep@1.0.0
-  \`-- bar@2.0.0
+  \`-- dog@2.0.0
 
 `
 
@@ -355,10 +355,10 @@ npm-broken-resolved-field-test@1.0.0 {CWD}/tap-testdir-ls-ls-broken-resolved-fie
 
 exports[`test/lib/ls.js TAP ls colored output > should output tree containing color info 1`] = `
 [0mtest-npm-ls@1.0.0 {CWD}/tap-testdir-ls-ls-colored-output[0m
+[0m+-- chai@1.0.0 [32m[40mextraneous[49m[39m[0m
 [0m+-- foo@1.0.0 [31m[40minvalid[49m[39m[0m
-[0m| \`-- bar@1.0.0[0m
-[0m+-- [31m[40mUNMET DEPENDENCY[49m[39m ipsum@^1.0.0[0m
-[0m\`-- lorem@1.0.0 [32m[40mextraneous[49m[39m[0m
+[0m| \`-- dog@1.0.0[0m
+[0m\`-- [31m[40mUNMET DEPENDENCY[49m[39m ipsum@^1.0.0[0m
 [0m[0m
 `
 
@@ -388,8 +388,8 @@ test-npm-ls@1.0.0 {CWD}/tap-testdir-ls-ls-deduped-missing-dep
 
 exports[`test/lib/ls.js TAP ls default --depth value should be 0 > should output tree containing only top-level dependencies 1`] = `
 test-npm-ls@1.0.0 {CWD}/tap-testdir-ls-ls-default---depth-value-should-be-0
-+-- foo@1.0.0
-\`-- lorem@1.0.0
++-- chai@1.0.0
+\`-- foo@1.0.0
 
 `
 
@@ -401,9 +401,9 @@ exports[`test/lib/ls.js TAP ls empty location > should print empty result 1`] = 
 
 exports[`test/lib/ls.js TAP ls extraneous deps > should output containing problems info 1`] = `
 test-npm-ls@1.0.0 {CWD}/tap-testdir-ls-ls-extraneous-deps
-+-- foo@1.0.0
-| \`-- bar@1.0.0
-\`-- lorem@1.0.0 extraneous
++-- chai@1.0.0 extraneous
+\`-- foo@1.0.0
+  \`-- dog@1.0.0
 
 `
 
@@ -461,14 +461,14 @@ exports[`test/lib/ls.js TAP ls invalid deduped dep > should output tree signalin
 
 exports[`test/lib/ls.js TAP ls invalid peer dep > should output tree signaling mismatching peer dep in problems 1`] = `
 test-npm-ls@1.0.0 {CWD}/tap-testdir-ls-ls-invalid-peer-dep
++-- chai@1.0.0
 +-- dev-dep@1.0.0
 | \`-- foo@1.0.0
-|   \`-- bar@1.0.0
-+-- lorem@1.0.0
+|   \`-- dog@1.0.0
 +-- optional-dep@1.0.0
 +-- peer-dep@1.0.0 invalid
 \`-- prod-dep@1.0.0
-  \`-- bar@2.0.0
+  \`-- dog@2.0.0
 
 `
 
@@ -494,27 +494,27 @@ filter-by-child-of-missing-dep@1.0.0 {CWD}/tap-testdir-ls-ls-loading-a-tree-cont
 
 exports[`test/lib/ls.js TAP ls missing package.json > should output tree missing name/version of top-level package 1`] = `
 {CWD}/tap-testdir-ls-ls-missing-package.json
-+-- bar@1.0.0 extraneous
-+-- foo@1.0.0 extraneous
-| \`-- bar@1.0.0 deduped
-\`-- lorem@1.0.0 extraneous
++-- chai@1.0.0 extraneous
++-- dog@1.0.0 extraneous
+\`-- foo@1.0.0 extraneous
+  \`-- dog@1.0.0 deduped
 
 `
 
 exports[`test/lib/ls.js TAP ls missing/invalid/extraneous > should output tree containing missing, invalid, extraneous labels 1`] = `
 test-npm-ls@1.0.0 {CWD}/tap-testdir-ls-ls-missing-invalid-extraneous
++-- chai@1.0.0 extraneous
 +-- foo@1.0.0 invalid
-| \`-- bar@1.0.0
-+-- UNMET DEPENDENCY ipsum@^1.0.0
-\`-- lorem@1.0.0 extraneous
+| \`-- dog@1.0.0
+\`-- UNMET DEPENDENCY ipsum@^1.0.0
 
 `
 
 exports[`test/lib/ls.js TAP ls no args > should output tree representation of dependencies structure 1`] = `
 test-npm-ls@1.0.0 {CWD}/tap-testdir-ls-ls-no-args
-+-- foo@1.0.0
-| \`-- bar@1.0.0
-\`-- lorem@1.0.0
++-- chai@1.0.0
+\`-- foo@1.0.0
+  \`-- dog@1.0.0
 
 `
 
@@ -534,15 +534,15 @@ test-npm-ls@1.0.0 {CWD}/tap-testdir-ls-ls-resolved-points-to-git-ref
 
 exports[`test/lib/ls.js TAP ls unmet optional dep > should output tree with empty entry for missing optional deps 1`] = `
 [0mtest-npm-ls@1.0.0 {CWD}/tap-testdir-ls-ls-unmet-optional-dep[0m
+[0m+-- chai@1.0.0[0m
 [0m+-- dev-dep@1.0.0[0m
 [0m| \`-- foo@1.0.0[0m
-[0m|   \`-- bar@1.0.0[0m
-[0m+-- lorem@1.0.0[0m
+[0m|   \`-- dog@1.0.0[0m
 [0m+-- [33m[40mUNMET OPTIONAL DEPENDENCY[49m[39m missing-optional-dep@^1.0.0[0m
 [0m+-- optional-dep@1.0.0 [31m[40minvalid[49m[39m[0m
 [0m+-- peer-dep@1.0.0[0m
 [0m\`-- prod-dep@1.0.0[0m
-[0m  \`-- bar@2.0.0[0m
+[0m  \`-- dog@2.0.0[0m
 [0m[0m
 `
 
@@ -586,14 +586,14 @@ test-npm-ls@1.0.0 {CWD}/tap-testdir-ls-ls-with-dot-filter-arg
 
 exports[`test/lib/ls.js TAP ls with filter arg > should output tree contaning only occurrences of filtered by package and colored output 1`] = `
 [0mtest-npm-ls@1.0.0 {CWD}/tap-testdir-ls-ls-with-filter-arg[0m
-[0m\`-- [33m[40mlorem@1.0.0[49m[39m[0m
+[0m\`-- [33m[40mchai@1.0.0[49m[39m[0m
 [0m[0m
 `
 
 exports[`test/lib/ls.js TAP ls with filter arg nested dep > should output tree contaning only occurrences of filtered package and its ancestors 1`] = `
 test-npm-ls@1.0.0 {CWD}/tap-testdir-ls-ls-with-filter-arg-nested-dep
 \`-- foo@1.0.0
-  \`-- bar@1.0.0
+  \`-- dog@1.0.0
 
 `
 
@@ -605,9 +605,9 @@ test-npm-ls@1.0.0 {CWD}/tap-testdir-ls-ls-with-missing-filter-arg
 
 exports[`test/lib/ls.js TAP ls with multiple filter args > should output tree contaning only occurrences of multiple filtered packages and their ancestors 1`] = `
 test-npm-ls@1.0.0 {CWD}/tap-testdir-ls-ls-with-multiple-filter-args
-+-- foo@1.0.0
-| \`-- bar@1.0.0
-\`-- lorem@1.0.0
++-- chai@1.0.0
+\`-- foo@1.0.0
+  \`-- dog@1.0.0
 
 `
 

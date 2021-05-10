@@ -107,7 +107,7 @@ following help topics:
   Create an account or log in.  When you do this, npm will store
   credentials in the user config file config file.
 * publish:
-  Use the [`npm publish`](/commands/npm-publish`) command to upload your
+  Use the [`npm publish`](/commands/npm-publish) command to upload your
   code to the registry.
 
 #### Configuration

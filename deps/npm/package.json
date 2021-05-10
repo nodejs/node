@@ -1,5 +1,5 @@
 {
-  "version": "7.11.2",
+  "version": "7.12.1",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "keywords": [
@@ -42,7 +42,7 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@npmcli/arborist": "^2.4.1",
+    "@npmcli/arborist": "^2.4.4",
     "@npmcli/ci-detect": "^1.2.0",
     "@npmcli/config": "^2.2.0",
     "@npmcli/run-script": "^1.8.5",
@@ -57,7 +57,7 @@
     "cli-columns": "^3.1.2",
     "cli-table3": "^0.6.0",
     "columnify": "~1.5.4",
-    "glob": "^7.1.4",
+    "glob": "^7.1.7",
     "graceful-fs": "^4.2.6",
     "hosted-git-info": "^4.0.2",
     "ini": "^2.0.0",
@@ -67,7 +67,7 @@
     "leven": "^3.1.0",
     "libnpmaccess": "^4.0.2",
     "libnpmdiff": "^2.0.4",
-    "libnpmexec": "^1.0.1",
+    "libnpmexec": "^1.1.1",
     "libnpmfund": "^1.0.2",
     "libnpmhook": "^6.0.2",
     "libnpmorg": "^2.0.2",
@@ -182,15 +182,15 @@
   "devDependencies": {
     "@mdx-js/mdx": "^1.6.22",
     "cmark-gfm": "^0.8.5",
-    "eslint": "^7.23.0",
+    "eslint": "^7.26.0",
     "eslint-plugin-import": "^2.22.1",
     "eslint-plugin-node": "^11.1.0",
-    "eslint-plugin-promise": "^4.3.1",
+    "eslint-plugin-promise": "^5.1.0",
     "eslint-plugin-standard": "^5.0.0",
     "jsdom": "^16.5.2",
     "licensee": "^8.1.0",
     "marked-man": "^0.7.0",
-    "tap": "^15.0.6",
+    "tap": "^15.0.9",
     "yaml": "^1.10.2"
   },
   "scripts": {
@@ -216,6 +216,9 @@
     "Remove the 'files' below once we're done porting old tests over"
   ],
   "tap": {
+    "test-env": [
+      "LC_ALL=sk"
+    ],
     "color": 1,
     "files": "test/{lib,bin}",
     "coverage-map": "test/coverage-map.js",

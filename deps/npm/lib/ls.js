@@ -443,7 +443,7 @@ const augmentNodesWithMetadata = ({
 }
 
 const sortAlphabetically = (a, b) =>
-  a.pkgid.localeCompare(b.pkgid)
+  a.pkgid.localeCompare(b.pkgid, 'en')
 
 const humanOutput = ({ color, result, seenItems, unicode }) => {
   // we need to traverse the entire tree in order to determine which items

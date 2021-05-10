@@ -74,7 +74,7 @@ Using `npm find-dupes` will run the command in `--dry-run` mode.
 
 ### See Also
 
-* [npm find-dupes](/cli-commands/find-dupes)
-* [npm ls](/cli-commands/ls)
-* [npm update](/cli-commands/update)
-* [npm install](/cli-commands/install)
+* [npm find-dupes](/commands/npm-find-dupes)
+* [npm ls](/commands/npm-ls)
+* [npm update](/commands/npm-update)
+* [npm install](/commands/npm-install)

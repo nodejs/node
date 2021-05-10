@@ -76,7 +76,7 @@ const getContents = async (manifest, tarball) => {
   })
 
   const comparator = (a, b) => {
-    return a.path.localeCompare(b.path, undefined, {
+    return a.path.localeCompare(b.path, 'en', {
       sensitivity: 'case',
       numeric: true,
     })
@@ -84,7 +84,7 @@ const getContents = async (manifest, tarball) => {
 
   const isUpper = (str) => {
     const ch = str.charAt(0)
-    return ch >= 'A' && ch <= 'Z'
+    return ch === ch.toUpperCase()
   }
 
   const uppers = files.filter(file => isUpper(file.path))
