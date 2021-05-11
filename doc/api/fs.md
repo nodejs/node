@@ -5950,7 +5950,7 @@ for writing.
 
 #### `writeStream.close([callback])`
 <!-- YAML
-added: REPLACEME
+added: v0.9.4
 -->
 
 * `callback` {Function}
