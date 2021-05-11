@@ -40,6 +40,8 @@ namespace i18n {
 
 bool InitializeICUDirectory(const std::string& path);
 
+void SetDefaultTimeZone(const char* tzid);
+
 enum idna_mode {
   // Default mode for maximum compatibility.
   IDNA_DEFAULT,
