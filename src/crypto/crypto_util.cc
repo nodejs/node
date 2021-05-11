@@ -15,7 +15,9 @@
 #include "math.h"
 
 #ifdef OPENSSL_FIPS
+#if OPENSSL_VERSION_MAJOR >= 3
 #include "openssl/provider.h"
+#endif
 #endif
 
 namespace node {
