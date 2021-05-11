@@ -5948,6 +5948,18 @@ added: v0.4.7
 The number of bytes written so far. Does not include data that is still queued
 for writing.
 
+#### `writeStream.close([callback])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `callback` {Function}
+  * `err` {Error}
+
+Closes the specified `writeStream`. Optionally accepts a
+callback that will be executed once the `writeStream`
+is closed.
+
 #### `writeStream.path`
 <!-- YAML
 added: v0.1.93
@@ -5967,18 +5979,6 @@ added: v11.2.0
 
 This property is `true` if the underlying file has not been opened yet,
 i.e. before the `'ready'` event is emitted.
-
-#### `writeStream.close([callback])`
-<!-- YAML
-added: REPLACEME
--->
-
-* `callback` {Function}
-  * `err` {Error}
-
-Closes the specified `writeStream`. Optionally accepts a
-callback that will be executed once the `writeStream`
-is closed.
 
 ### `fs.constants`
 
