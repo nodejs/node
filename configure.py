@@ -14,7 +14,12 @@ import shutil
 import bz2
 import io
 
-from shutil import which
+# Fallback to find_executable from distutils.spawn is a stopgap for
+# supporting V8 builds, which do not yet support Python 3.
+try:
+  from shutil import which
+except ImportError:
+  from distutils.spawn import find_executable as which
 from distutils.version import StrictVersion
 
 # If not run from node/, cd to node/.
