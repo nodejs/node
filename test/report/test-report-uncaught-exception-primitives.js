@@ -15,7 +15,7 @@ process.on('uncaughtException', common.mustCall((err) => {
   assert.strictEqual(err, exception);
   const reports = helper.findReports(process.pid, tmpdir.path);
   assert.strictEqual(reports.length, 1);
-  console.log(reports[0]);
+
   helper.validate(reports[0], [
     ['header.event', 'Exception'],
     ['javascriptStack.message', `${exception}`],
