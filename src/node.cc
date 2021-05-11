@@ -937,6 +937,14 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
     return 9;
   }
   per_process::metadata.versions.InitializeIntlVersions();
+
+# ifndef __POSIX__
+  std::string tz;
+  if (credentials::SafeGetenv("TZ", &tz) && !tz.empty()) {
+    i18n::SetDefaultTimeZone(tz.c_str());
+  }
+# endif
+
 #endif
 
   NativeModuleEnv::InitializeCodeCache();
