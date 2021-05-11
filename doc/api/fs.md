@@ -5975,7 +5975,7 @@ added: REPLACEME
 
 * `callback` {Function}
   * `err` {Error}
-  
+
 Closes the specified `writeStream`. Optionally accepts a
 callback that will be executed once the `writeStream`
 is closed.
