@@ -197,6 +197,13 @@ void SetFlagsFromString(const FunctionCallbackInfo<Value>& args) {
   V8::SetFlagsFromString(*flags, static_cast<size_t>(flags.length()));
 }
 
+void NotifyDateTimeConfigurationChange(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  env->isolate()->DateTimeConfigurationChangeNotification(
+      Isolate::TimeZoneDetection::kRedetect);
+}
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
@@ -235,6 +242,10 @@ void Initialize(Local<Object> target,
                  "updateHeapSpaceStatisticsBuffer",
                  UpdateHeapSpaceStatisticsBuffer);
 
+  env->SetMethod(target,
+                 "notifyDateTimeConfigurationChange",
+                 NotifyDateTimeConfigurationChange);
+
 #define V(i, _, name)                                                          \
   target                                                                       \
       ->Set(env->context(),                                                    \
@@ -257,6 +268,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(UpdateHeapCodeStatisticsBuffer);
   registry->Register(UpdateHeapSpaceStatisticsBuffer);
   registry->Register(SetFlagsFromString);
+  registry->Register(NotifyDateTimeConfigurationChange);
 }
 
 }  // namespace v8_utils
