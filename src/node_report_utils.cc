@@ -7,6 +7,7 @@ namespace report {
 
 using node::JSONWriter;
 using node::MallocedBuffer;
+using node::MaybeStackBuffer;
 
 static constexpr auto null = JSONWriter::Null{};
 
@@ -82,6 +83,40 @@ static void ReportEndpoints(uv_handle_t* h, JSONWriter* writer) {
   ReportEndpoint(h, rc == 0 ? addr : nullptr, "remoteEndpoint", writer);
 }
 
+// Utility function to format libuv pipe information.
+static void ReportPipeEndpoints(uv_handle_t* h, JSONWriter* writer) {
+  uv_any_handle* handle = reinterpret_cast<uv_any_handle*>(h);
+  MaybeStackBuffer<char> buffer;
+  size_t buffer_size = buffer.capacity();
+  int rc = -1;
+
+  rc = uv_pipe_getsockname(&handle->pipe, buffer.out(), &buffer_size);
+  if (rc == UV_ENOBUFS) {
+    // Buffer is not large enough, reallocate to the updated buffer_size
+    // and fetch the value again.
+    buffer.AllocateSufficientStorage(buffer_size);
+    rc = uv_pipe_getsockname(&handle->pipe, buffer.out(), &buffer_size);
+  }
+  if (rc == 0 && buffer_size != 0) {
+    writer->json_keyvalue("localEndpointName", buffer.out());
+  } else {
+    writer->json_keyvalue("localEndpointName", null);
+  }
+
+  rc = uv_pipe_getpeername(&handle->pipe, buffer.out(), &buffer_size);
+  if (rc == UV_ENOBUFS) {
+    // Buffer is not large enough, reallocate to the updated buffer_size
+    // and fetch the value again.
+    buffer.AllocateSufficientStorage(buffer_size);
+    rc = uv_pipe_getpeername(&handle->pipe, buffer.out(), &buffer_size);
+  }
+  if (rc == 0 && buffer_size != 0) {
+    writer->json_keyvalue("remoteEndpointName", buffer.out());
+  } else {
+    writer->json_keyvalue("remoteEndpointName", null);
+  }
+}
+
 // Utility function to format libuv path information.
 static void ReportPath(uv_handle_t* h, JSONWriter* writer) {
   MallocedBuffer<char> buffer(0);
@@ -146,6 +181,9 @@ void WalkHandle(uv_handle_t* h, void* arg) {
     case UV_TCP:
     case UV_UDP:
       ReportEndpoints(h, writer);
+      break;
+    case UV_NAMED_PIPE:
+      ReportPipeEndpoints(h, writer);
       break;
     case UV_TIMER: {
       uint64_t due = handle->timer.timeout;
