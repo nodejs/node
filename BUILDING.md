@@ -763,7 +763,7 @@ The current version of Node.js does not support FIPS when statically linking
 (the default) with OpenSSL 1.1.1 but for dynamically linking it is possible
 to enable FIPS using the configuration flag `--openssl-is-fips`.
 
-### Configuring and Building quictls/openssl for FIPS
+### Configuring and building quictls/openssl for FIPS
 
 For quictls/openssl 3.0 it is possible to enable FIPS when dynamically linking.
 Node.js currently uses openssl-3.0.0+quic which can be configured as
@@ -771,7 +771,7 @@ follows:
 ```console
 $ git clone git@github.com:quictls/openssl.git
 $ cd openssl
-$ ./config -Werror --strict-warnings --debug --prefix=/path/to/install/dir/ shared enable-fips linux-x86_64
+$ ./config --prefix=/path/to/install/dir/ shared enable-fips linux-x86_64
 ```
 This can be compiled and installed using the following commands:
 ```console
@@ -790,7 +790,7 @@ use the generated FIPS configuration file (`fipsmodule.cnf`):
 [provider_sect]
 default = default_sect
 # The fips section name should match the section name inside the
-# included fipsmodule.cnf.
+# included /path/to/install/dir/ssl/fipsmodule.cnf.
 fips = fips_sect
 
 [default_sect]
@@ -816,16 +816,16 @@ $ make -j8
 Verify the produced executable:
 ```console
 $ ldd ./node
-	linux-vdso.so.1 (0x00007ffd7917b000)
-	libcrypto.so.81.3 => /path/to/install/dir/lib/libcrypto.so.81.3 (0x00007fd911321000)
-	libssl.so.81.3 => /path/to/install/dir/lib/libssl.so.81.3 (0x00007fd91125e000)
-	libdl.so.2 => /usr/lib64/libdl.so.2 (0x00007fd911232000)
-	libstdc++.so.6 => /usr/lib64/libstdc++.so.6 (0x00007fd911039000)
-	libm.so.6 => /usr/lib64/libm.so.6 (0x00007fd910ef3000)
-	libgcc_s.so.1 => /usr/lib64/libgcc_s.so.1 (0x00007fd910ed9000)
-	libpthread.so.0 => /usr/lib64/libpthread.so.0 (0x00007fd910eb5000)
-	libc.so.6 => /usr/lib64/libc.so.6 (0x00007fd910cec000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007fd9117f2000)
+    linux-vdso.so.1 (0x00007ffd7917b000)
+    libcrypto.so.81.3 => /path/to/install/dir/lib/libcrypto.so.81.3 (0x00007fd911321000)
+    libssl.so.81.3 => /path/to/install/dir/lib/libssl.so.81.3 (0x00007fd91125e000)
+    libdl.so.2 => /usr/lib64/libdl.so.2 (0x00007fd911232000)
+    libstdc++.so.6 => /usr/lib64/libstdc++.so.6 (0x00007fd911039000)
+    libm.so.6 => /usr/lib64/libm.so.6 (0x00007fd910ef3000)
+    libgcc_s.so.1 => /usr/lib64/libgcc_s.so.1 (0x00007fd910ed9000)
+    libpthread.so.0 => /usr/lib64/libpthread.so.0 (0x00007fd910eb5000)
+    libc.so.6 => /usr/lib64/libc.so.6 (0x00007fd910cec000)
+    /lib64/ld-linux-x86-64.so.2 (0x00007fd9117f2000)
 ```
 If the `ldd` command says that `libcrypto` cannot be found one needs to set
 `LD_LIBRARY_PATH` to point to the directory used above for
@@ -834,7 +834,7 @@ If the `ldd` command says that `libcrypto` cannot be found one needs to set
 Verify the OpenSSL version:
 ```console
 $ ./node -p process.versions.openssl
-3.0.0-alpha15+quic
+3.0.0-alpha16+quic
 ```
 
 Verify that FIPS is available:
@@ -870,7 +870,7 @@ be updated. The following shows an example:
 ```console
 openssl_conf = openssl_init
 
-.include /path/to/install/dir/lib/ossl-modules/fips.so.cnf
+.include /path/to/install/dir/ssl/fipsmodule.cnf
 
 [openssl_init]
 providers = prov
