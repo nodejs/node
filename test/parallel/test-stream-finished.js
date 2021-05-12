@@ -570,6 +570,22 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
   });
 }
 
+{
+  const server = http.createServer((req, res) => {
+    req.on('close', () => {
+      finished(req, common.mustCall(() => {
+        server.close();
+      }));
+    });
+    req.destroy();
+  }).listen(0, function() {
+    http.request({
+      method: 'GET',
+      port: this.address().port
+    }).end().on('error', common.mustCall());
+  });
+}
+
 
 {
   const w = new Writable({
