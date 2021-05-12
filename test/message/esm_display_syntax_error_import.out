@@ -6,3 +6,4 @@ SyntaxError: The requested module '../fixtures/es-module-loaders/module-named-ex
     at async ModuleJob.run (node:internal/modules/esm/module_job:*:*)
     at async Loader.import (node:internal/modules/esm/loader:*:*)
     at async Object.loadESM (node:internal/process/esm_loader:*:*)
+    at async handleMainPromise (node:internal/modules/run_main:*:*)
