@@ -175,6 +175,7 @@ const customTypesMap = {
   'vm.SourceTextModule': 'vm.html#vm_class_vm_sourcetextmodule',
 
   'MessagePort': 'worker_threads.html#worker_threads_class_messageport',
+  'Worker': 'worker_threads.html#worker_threads_class_worker',
 
   'zlib options': 'zlib.html#zlib_class_options',
 };
