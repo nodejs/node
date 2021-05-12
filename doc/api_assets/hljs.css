@@ -36,7 +36,8 @@
 }
 
 .dark-mode .hljs-keyword,
-.dark-mode .hljs-attribute {
+.dark-mode .hljs-attribute,
+.dark-mode .hljs-doctag {
   color: #66d9ef;
 }
 
