@@ -247,6 +247,7 @@ assert.strictEqual(`${os.endianness}`, os.endianness());
 assert.strictEqual(`${os.tmpdir}`, os.tmpdir());
 assert.strictEqual(`${os.arch}`, os.arch());
 assert.strictEqual(`${os.platform}`, os.platform());
+assert.strictEqual(`${os.version}`, os.version());
 
 assert.strictEqual(+os.totalmem, os.totalmem());
 
