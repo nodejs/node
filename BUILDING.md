@@ -564,7 +564,7 @@ to run it again before invoking `make -j4`.
   and tools which can be included in the global `PATH`.
 * The [NetWide Assembler](https://www.nasm.us/), for OpenSSL assembler modules.
   If not installed in the default location, it needs to be manually added
-  to `PATH`. A build with the `openssl-no-asm` option does not need this, nor
+  to `PATH`. A build with the `OPENSSL_NO_ASM` option does not need this, nor
   does a build targeting ARM64 Windows.
 
 Optional requirements to build the MSI installer package:
