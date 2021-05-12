@@ -424,6 +424,12 @@
           'xcode_settings': {
             'WARNING_CFLAGS': [ '-Werror' ],
           },
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'WarnAsError': 'true',
+              'WarningLevel': 4
+            },
+          }
         }],
         [ 'node_intermediate_lib_type=="static_library" and '
             'node_shared=="true" and OS=="aix"', {
@@ -825,6 +831,12 @@
           'xcode_settings': {
             'WARNING_CFLAGS': [ '-Werror' ],
           },
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'WarnAsError': 'true',
+              'WarningLevel': 4
+            },
+          }
         }],
         [ 'node_builtin_modules_path!=""', {
           'defines': [ 'NODE_BUILTIN_MODULES_PATH="<(node_builtin_modules_path)"' ]
