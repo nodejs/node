@@ -1506,7 +1506,7 @@ async function print(readable) {
 print(fs.createReadStream('file')).catch(console.error);
 ```
 
-If the loop terminates with a `break`, `return` or a `throw`, the stream will
+If the loop terminates with a `break`, `return`, or a `throw`, the stream will
 be destroyed. In other terms, iterating over a stream will consume the stream
 fully. The stream will be read in chunks of size equal to the `highWaterMark`
 option. In the code example above, data will be in a single chunk if the file
@@ -1521,7 +1521,7 @@ added: REPLACEME
 * `options` {Object}
   * `destroyOnReturn` {boolean} When set to `false`, calling `return` on the
     async iterator, or exiting a `for await...of` iteration using a `break`,
-    `return` or `throw` will not destroy the stream. **Default:** `true`.
+    `return`, or `throw` will not destroy the stream. **Default:** `true`.
   * `destroyOnError` {boolean} When set to `false`, if the stream emits an
     error while it's being iterated, the iterator will not destroy the stream.
     **Default:** `true`.
@@ -1529,7 +1529,7 @@ added: REPLACEME
 
 The iterator created by this method gives users the option to cancel the
 destruction of the stream if the `for await...of` loop is exited by `return`,
-`break` or `throw`, or if the iterator should destroy the stream if the stream
+`break`, or `throw`, or if the iterator should destroy the stream if the stream
 emitted an error during iteration.
 
 ```js
