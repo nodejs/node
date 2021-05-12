@@ -301,7 +301,8 @@ void ContextifyContext::MakeContext(const FunctionCallbackInfo<Value>& args) {
   }
 
   TryCatchScope try_catch(env);
-  auto context_ptr = std::make_unique<ContextifyContext>(env, sandbox, options);
+  std::unique_ptr<ContextifyContext> context_ptr =
+      std::make_unique<ContextifyContext>(env, sandbox, options);
 
   if (try_catch.HasCaught()) {
     if (!try_catch.HasTerminated())
@@ -403,7 +404,7 @@ void ContextifyContext::PropertySetterCallback(
     return;
 
   Local<Context> context = ctx->context();
-  auto attributes = PropertyAttribute::None;
+  PropertyAttribute attributes = PropertyAttribute::None;
   bool is_declared_on_global_proxy = ctx->global_proxy()
       ->GetRealNamedPropertyAttributes(context, property)
       .To(&attributes);
@@ -489,7 +490,7 @@ void ContextifyContext::PropertyDefinerCallback(
   Local<Context> context = ctx->context();
   Isolate* isolate = context->GetIsolate();
 
-  auto attributes = PropertyAttribute::None;
+  PropertyAttribute attributes = PropertyAttribute::None;
   bool is_declared =
       ctx->global_proxy()->GetRealNamedPropertyAttributes(context,
                                                           property)
