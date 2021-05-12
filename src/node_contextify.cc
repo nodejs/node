@@ -294,7 +294,8 @@ void ContextifyContext::MakeContext(const FunctionCallbackInfo<Value>& args) {
   }
 
   TryCatchScope try_catch(env);
-  std::unique_ptr<ContextifyContext> context_ptr = std::make_unique<ContextifyContext>(env, sandbox, options);
+  std::unique_ptr<ContextifyContext> context_ptr =
+      std::make_unique<ContextifyContext>(env, sandbox, options);
 
   if (try_catch.HasCaught()) {
     if (!try_catch.HasTerminated())
