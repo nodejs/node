@@ -294,7 +294,7 @@ void ContextifyContext::MakeContext(const FunctionCallbackInfo<Value>& args) {
   }
 
   TryCatchScope try_catch(env);
-  auto context_ptr = std::make_unique<ContextifyContext>(env, sandbox, options);
+  std::unique_ptr<ContextifyContext> context_ptr = std::make_unique<ContextifyContext>(env, sandbox, options);
 
   if (try_catch.HasCaught()) {
     if (!try_catch.HasTerminated())
@@ -396,7 +396,7 @@ void ContextifyContext::PropertySetterCallback(
     return;
 
   Local<Context> context = ctx->context();
-  auto attributes = PropertyAttribute::None;
+  PropertyAttribute attributes = PropertyAttribute::None;
   bool is_declared_on_global_proxy = ctx->global_proxy()
       ->GetRealNamedPropertyAttributes(context, property)
       .To(&attributes);
@@ -482,7 +482,7 @@ void ContextifyContext::PropertyDefinerCallback(
   Local<Context> context = ctx->context();
   Isolate* isolate = context->GetIsolate();
 
-  auto attributes = PropertyAttribute::None;
+  PropertyAttribute attributes = PropertyAttribute::None;
   bool is_declared =
       ctx->global_proxy()->GetRealNamedPropertyAttributes(context,
                                                           property)
@@ -498,7 +498,7 @@ void ContextifyContext::PropertyDefinerCallback(
 
   Local<Object> sandbox = ctx->sandbox();
 
-  auto define_prop_on_sandbox =
+  std::function<void(PropertyDescriptor*)> define_prop_on_sandbox =
       [&] (PropertyDescriptor* desc_for_sandbox) {
         if (desc.has_enumerable()) {
           desc_for_sandbox->set_enumerable(desc.enumerable());
@@ -954,7 +954,7 @@ bool ContextifyScript::EvalMachine(Environment* env,
   MaybeLocal<Value> result;
   bool timed_out = false;
   bool received_signal = false;
-  auto run = [&]() {
+  std::function<MaybeLocal<Value>()> run = [&]() {
     MaybeLocal<Value> result = script->Run(env->context());
     if (!result.IsEmpty() && mtask_queue)
       mtask_queue->PerformCheckpoint(env->isolate());
