@@ -7,24 +7,24 @@ later look these up from the global proxy, which can be mutated by users.
 Usage of primordials should be preferred for any new code, but replacing current
 code with primordials should be done with care.
 
-## How to access primordials
+## Accessing primoridals
 
-The primordials is meant for internal use only, and is only accessible for
-internal core modules. User-code cannot use or rely on primordials, it usually
-fine to rely on ECMAScript built-ins and assume that it will behave as specd.
+The primordials are meant for internal use only, and are only accessible for
+internal core modules. User-code cannot use or rely on primordials. It is usually
+fine to rely on ECMAScript built-ins and assume that it will behave as specified.
 
-If you'd like to access the `primordials` object to help you on the Node.js
+If you'd like to access the `primordials` object to help you with Node.js core
 development or for tinkering, you can make it globally available:
 
 ```bash
 node --expose-internals -r internal/test/binding
 ```
 
-## What is in primordials
+## Contents of primoridals
 
 ### Properties of the global object
 
-Object and functions on global objects can be deleted or replaced, using them
+Objects and functions on global objects can be deleted or replaced. Using them
 from primordials makes the code more reliable:
 
 ```js
@@ -58,8 +58,8 @@ array.push(5); // Now `push` refers to the modified method.
 console.log(array); // [5,1,2,3,4]
 ```
 
-Primordials save a reference to the original method that takes `this` as its
-first argument:
+Primordials wrap the original prototype functions with new functions that take the
+`this` value as the first argument:
 
 ```js
 const {
@@ -70,7 +70,7 @@ const array = [1, 2, 3];
 ArrayPrototypePush(array, 4);
 console.log(array); // [1,2,3,4]
 
-Array.prototype.push = function push(vush) {
+Array.prototype.push = function push(val) {
   return this.unshift(val);
 };
 
@@ -85,32 +85,33 @@ but whose implementation aims to avoid any reliance on user-mutable code.
 
 ### Variadic functions
 
-There are some built-in functions that accepts a variable number of arguments
-(E.G.: `Math.max`, `%Array.prototype.push%`), it is sometimes useful to provide
-the list of arguments as an array. You can use function with the suffix `Apply`
-(E.G.: `MathMaxApply`, `FunctionPrototypePushApply`) to do that.
+There are some built-in functions that accept a variable number of arguments
+(e.g.: `Math.max`, `%Array.prototype.push%`). It is sometimes useful to provide
+the list of arguments as an array. You can use primordial function with the suffix
+`Apply` (e.g.: `MathMaxApply`, `FunctionPrototypePushApply`) to do that.
 
 ## Primordials with known performance issues
 
-One of the reason the current Node.js API is not temper-proof today is
-performance: sometimes use of primordials removes some V8 optimisations which,
-when on a hot path, could significantly decrease the performance of Node.js.
+One of the reasons why the current Node.js API is not completely tamper-proof is
+performance: sometimes the use of primordials can cause performance regressions
+with V8, which when in a hot code path, could significantly decrease the
+performance of code in Node.js.
 
-* Methods that mutates the internal state of arrays:
+* Methods that mutate the internal state of arrays:
   * `ArrayPrototypePush`
   * `ArrayPrototypePop`
   * `ArrayPrototypeShift`
   * `ArrayPrototypeUnshift`
 * Methods of the function prototype:
-  * `FunctionPrototypeBind`: use with caution
-  * `FunctionPrototypeCall`: creates perf pitfall when used to invoke super
-    constructor.
+  * `FunctionPrototypeBind`
+  * `FunctionPrototypeCall`: creates performance issues when used to invoke super
+    constructors.
   * `FunctionPrototype`: use `() => {}` instead when referencing a no-op
     function.
 * `SafeArrayIterator`
 
-In general, when sending or reviewing a PR that touches a hot path, use extra
-caution and run extensive benchmarks.
+In general, when sending or reviewing a PR that makes changes in a hot code
+path, use extra caution and run extensive benchmarks.
 
 ## How to avoid unsafe array iteration
 
@@ -118,7 +119,7 @@ There are many usual practices in JavaScript that rely on iteration.
 
 <details>
 
-<summary>Avoid `for(of)` loops on arrays</summary>
+<summary>Avoid for-of loops on arrays</summary>
 
 ```js
 for (const item of array) {
@@ -126,7 +127,7 @@ for (const item of array) {
 }
 ```
 
-This is code can be de-sugared to:
+This code is expanded internally to something that looks like:
 
 ```js
 {
@@ -146,17 +147,18 @@ This is code can be de-sugared to:
 }
 ```
 
-Instead, you can use the old-style but still very performant `for(;;)` loop:
+Instead of utilizing iterators, you can use the more traditional but still very
+performant `for` loop:
 
 ```js
 for (let i = 0; i < array.length; i++) {
-  console.log(item);
+  console.log(array[i]);
 }
 ```
 
 This only applies if you are working with a genuine array (or array-like
-object), if you are instead expecting any iterator, `for(of)` loop may be the
-correct syntax to use.
+object). If you are instead expecting an iterator, a for-of loop may be a better
+choice.
 
 <details>
 
@@ -195,8 +197,8 @@ const second = array[1];
 ```
 
 This only applies if you are working with a genuine array (or array-like
-object), if you are instead expecting any iterator, array destructuring is the
-correct syntax to use.
+object). If you are instead expecting an iterator, array destructuring is the
+best choice.
 
 </details>
 
@@ -215,7 +217,7 @@ func(...array);
 Instead you can use other ECMAScript features to achieve the same result:
 
 ```js
-const arrayCopy = ArrayPrototypeSlice(array); // fastest: https://jsben.ch/roLVC
+const arrayCopy = ArrayPrototypeSlice(array);
 ReflectApply(func, null, array);
 ```
 
@@ -223,7 +225,7 @@ ReflectApply(func, null, array);
 
 <details>
 
-<summary>`%Promise.all%` iterate over an array</summary>
+<summary>`%Promise.all%` iterates over an array</summary>
 
 ```js
 // 1. Lookup @@iterator property on `array` (user-mutable if user provided).
