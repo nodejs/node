@@ -766,52 +766,31 @@ to enable FIPS using the configuration flag `--openssl-is-fips`.
 ### Configuring and Building quictls/openssl for FIPS
 
 For quictls/openssl 3.0 it is possible to enable FIPS when dynamically linking.
-Node.js currently uses openssl-3.0.0-alpha15+quic which can be configured as
+Node.js currently uses openssl-3.0.0+quic which can be configured as
 follows:
 ```console
 $ git clone git@github.com:quictls/openssl.git
 $ cd openssl
 $ ./config -Werror --strict-warnings --debug --prefix=/path/to/install/dir/ shared enable-fips linux-x86_64
 ```
-This can be compiled using:
+This can be compiled and installed using the following commands:
 ```console
 $ make -j8
 $ make install_ssldirs
-```
-Next set the `PATH` environment variable to point to the `openssl` executable
-in the `apps` directory:
-```console
-$ export PATH=./apps:$PATH
-```
-Now that should be enough to run the target `install_fips` but there seems to
-be an error with alpha-15 in regards to this target (this should be fixed in
-alpha-16). This can be worked around by removing the last option of the openssl
-fipsinstall command so that is looks like this:
-<!--lint disable no-tabs-->
-```console
-install_fips: install_sw
-	@$(ECHO) "*** Installing FIPS module configuration"
-	@$(ECHO) "fipsinstall $(DESTDIR)$(MODULESDIR)/$(FIPSMODULENAME).cnf"
-	@openssl fipsinstall -module $(DESTDIR)$(MODULESDIR)/$(FIPSMODULENAME) \
-		-out $(DESTDIR)$(MODULESDIR)/$(FIPSMODULENAME).cnf
-```
-<!--lint disable no-tabs-->
-With those changes it should be possible to run the `install_fips` target:
-```console
 $ make install_fips
 ```
 
 After the FIPS module and configuration file have been installed by the above
 instructions we also need to update `/path/to/install/dir/ssl/openssl.cnf` to
-use the generated FIPS configuration file (`fips.so.cnf`):
+use the generated FIPS configuration file (`fipsmodule.cnf`):
 ```text
-.include /path/to/install/dir/lib/ossl-modules/fips.so.cnf
+.include fipsmodule.cnf
 
 # List of providers to load
 [provider_sect]
 default = default_sect
 # The fips section name should match the section name inside the
-# included fips.so.cnf.
+# included fipsmodule.cnf.
 fips = fips_sect
 
 [default_sect]
