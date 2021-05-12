@@ -7,7 +7,6 @@ namespace report {
 
 using node::JSONWriter;
 using node::MallocedBuffer;
-using node::MaybeStackBuffer;
 
 static constexpr auto null = JSONWriter::Null{};
 
@@ -86,34 +85,32 @@ static void ReportEndpoints(uv_handle_t* h, JSONWriter* writer) {
 // Utility function to format libuv pipe information.
 static void ReportPipeEndpoints(uv_handle_t* h, JSONWriter* writer) {
   uv_any_handle* handle = reinterpret_cast<uv_any_handle*>(h);
-  MaybeStackBuffer<char> buffer;
-  size_t buffer_size = buffer.capacity();
+  MallocedBuffer<char> buffer(0);
+  size_t buffer_size = 0;
   int rc = -1;
 
-  rc = uv_pipe_getsockname(&handle->pipe, buffer.out(), &buffer_size);
+  // First call to get required buffer size.
+  rc = uv_pipe_getsockname(&handle->pipe, buffer.data, &buffer_size);
   if (rc == UV_ENOBUFS) {
-    // Buffer is not large enough, reallocate to the updated buffer_size
-    // and fetch the value again.
-    buffer.AllocateSufficientStorage(buffer_size);
-    rc = uv_pipe_getsockname(&handle->pipe, buffer.out(), &buffer_size);
+    buffer = MallocedBuffer<char>(buffer_size);
+    rc = uv_pipe_getsockname(&handle->pipe, buffer.data, &buffer_size);
   }
   if (rc == 0 && buffer_size != 0) {
-    writer->json_keyvalue("localEndpointName", buffer.out());
+    writer->json_keyvalue("localEndpoint", buffer.data);
   } else {
-    writer->json_keyvalue("localEndpointName", null);
+    writer->json_keyvalue("localEndpoint", null);
   }
 
-  rc = uv_pipe_getpeername(&handle->pipe, buffer.out(), &buffer_size);
+  // First call to get required buffer size.
+  rc = uv_pipe_getpeername(&handle->pipe, buffer.data, &buffer_size);
   if (rc == UV_ENOBUFS) {
-    // Buffer is not large enough, reallocate to the updated buffer_size
-    // and fetch the value again.
-    buffer.AllocateSufficientStorage(buffer_size);
-    rc = uv_pipe_getpeername(&handle->pipe, buffer.out(), &buffer_size);
+    buffer = MallocedBuffer<char>(buffer_size);
+    rc = uv_pipe_getpeername(&handle->pipe, buffer.data, &buffer_size);
   }
   if (rc == 0 && buffer_size != 0) {
-    writer->json_keyvalue("remoteEndpointName", buffer.out());
+    writer->json_keyvalue("remoteEndpoint", buffer.data);
   } else {
-    writer->json_keyvalue("remoteEndpointName", null);
+    writer->json_keyvalue("remoteEndpoint", null);
   }
 }
 

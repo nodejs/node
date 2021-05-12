@@ -207,13 +207,13 @@ if (process.argv[2] === 'child') {
         // 2. The inbound pipe making the request.
         // 3. The outbound pipe sending the response.
         const sockPath = child_data.pipe_sock_path;
-        if (handle.localEndpointName === sockPath) {
+        if (handle.localEndpoint === sockPath) {
           if (handle.writable === false) {
             found_named_pipe.push('listening');
           } else {
             found_named_pipe.push('inbound');
           }
-        } else if (handle.remoteEndpointName === sockPath) {
+        } else if (handle.remoteEndpoint === sockPath) {
           found_named_pipe.push('outbound');
         }
       }),
