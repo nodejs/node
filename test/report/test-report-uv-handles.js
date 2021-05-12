@@ -142,7 +142,6 @@ if (process.argv[2] === 'child') {
   const helper = require('../common/report.js');
   const fork = require('child_process').fork;
   const assert = require('assert');
-  const tmpdir = require('../common/tmpdir');
   tmpdir.refresh();
   const options = { encoding: 'utf8', silent: true, cwd: tmpdir.path };
   const child = fork(__filename, ['child'], options);
@@ -266,7 +265,7 @@ if (process.argv[2] === 'child') {
       assert(found_udp.includes(socket), `${socket} UDP socket was not found`);
     }
     for (const socket of ['listening', 'inbound', 'outbound']) {
-      assert(found_named_pipe.includes(socket), `${socket} Named pipe socket was not found`);
+      assert(found_named_pipe.includes(socket), `${socket} named pipe socket was not found`);
     }
 
     // Common report tests.
