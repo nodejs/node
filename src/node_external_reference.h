@@ -50,6 +50,7 @@ class ExternalReferenceRegistry {
   V(async_wrap)                                                                \
   V(binding)                                                                   \
   V(buffer)                                                                    \
+  V(contextify)                                                                \
   V(credentials)                                                               \
   V(env_var)                                                                   \
   V(errors)                                                                    \

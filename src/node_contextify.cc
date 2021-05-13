@@ -21,13 +21,14 @@
 
 #include "node_contextify.h"
 
-#include "memory_tracker-inl.h"
-#include "node_internals.h"
-#include "node_watchdog.h"
 #include "base_object-inl.h"
+#include "memory_tracker-inl.h"
+#include "module_wrap.h"
 #include "node_context_data.h"
 #include "node_errors.h"
-#include "module_wrap.h"
+#include "node_external_reference.h"
+#include "node_internals.h"
+#include "node_watchdog.h"
 #include "util-inl.h"
 
 namespace node {
@@ -255,6 +256,12 @@ void ContextifyContext::Init(Environment* env, Local<Object> target) {
   env->SetMethod(target, "compileFunction", CompileFunction);
 }
 
+void ContextifyContext::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(MakeContext);
+  registry->Register(IsContext);
+  registry->Register(CompileFunction);
+}
 
 // makeContext(sandbox, name, origin, strings, wasm);
 void ContextifyContext::MakeContext(const FunctionCallbackInfo<Value>& args) {
@@ -663,6 +670,14 @@ void ContextifyScript::Init(Environment* env, Local<Object> target) {
   target->Set(context, class_name,
       script_tmpl->GetFunction(context).ToLocalChecked()).Check();
   env->set_script_context_constructor_template(script_tmpl);
+}
+
+void ContextifyScript::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+  registry->Register(CreateCachedData);
+  registry->Register(RunInContext);
+  registry->Register(RunInThisContext);
 }
 
 void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
@@ -1293,6 +1308,10 @@ void MicrotaskQueueWrap::Init(Environment* env, Local<Object> target) {
   env->SetConstructorFunction(target, "MicrotaskQueue", tmpl);
 }
 
+void MicrotaskQueueWrap::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+}
 
 void Initialize(Local<Object> target,
                 Local<Value> unused,
@@ -1347,7 +1366,19 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "measureMemory", MeasureMemory);
 }
 
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  ContextifyContext::RegisterExternalReferences(registry);
+  ContextifyScript::RegisterExternalReferences(registry);
+  MicrotaskQueueWrap::RegisterExternalReferences(registry);
+
+  registry->Register(StartSigintWatchdog);
+  registry->Register(StopSigintWatchdog);
+  registry->Register(WatchdogHasPendingSigint);
+  registry->Register(MeasureMemory);
+}
 }  // namespace contextify
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(contextify, node::contextify::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(contextify,
+                               node::contextify::RegisterExternalReferences)
