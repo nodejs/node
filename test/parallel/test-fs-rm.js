@@ -5,6 +5,8 @@ const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
+
 const { validateRmOptionsSync } = require('internal/fs/utils');
 
 tmpdir.refresh();
@@ -279,4 +281,73 @@ function removeAsync(dir) {
     name: 'RangeError',
     message: /^The value of "options\.maxRetries" is out of range\./
   });
+}
+
+{
+  // IBMi has a different access permission mechanism
+  // This test should not be run as `root`
+  if (!common.isIBMi && (common.isWindows || process.getuid() !== 0)) {
+    function makeDirectoryReadOnly(dir) {
+      let accessErrorCode = 'EACCES';
+      if (common.isWindows) {
+        accessErrorCode = 'EPERM';
+        execSync(`icacls ${dir} /deny "everyone:(OI)(CI)(D,DC)"`);
+      } else {
+        fs.chmodSync(dir, 0o444);
+      }
+      return accessErrorCode;
+    }
+
+    function makeDirectoryWritable(dir) {
+      if (common.isWindows) {
+        execSync(`icacls ${dir} /remove:d "everyone"`);
+      } else {
+        fs.chmodSync(dir, 0o777);
+      }
+    }
+
+    {
+      // Check that deleting a file that cannot be accessed using rmsync throws
+      // https://github.com/nodejs/node/issues/38683
+      const dirname = nextDirPath();
+      const filePath = path.join(dirname, 'text.txt');
+      try {
+        fs.mkdirSync(dirname, { recursive: true });
+        fs.writeFileSync(filePath, 'hello');
+        const code = makeDirectoryReadOnly(dirname);
+        assert.throws(() => {
+          fs.rmSync(filePath, { force: true });
+        }, {
+          code,
+          name: 'Error',
+        });
+      } finally {
+        makeDirectoryWritable(dirname);
+      }
+    }
+
+    {
+      // check endless recursion.
+      // https://github.com/nodejs/node/issues/34580
+      const dirname = nextDirPath();
+      fs.mkdirSync(dirname, { recursive: true });
+      const root = fs.mkdtempSync(path.join(dirname, 'fs-'));
+      const middle = path.join(root, 'middle');
+      fs.mkdirSync(middle);
+      fs.mkdirSync(path.join(middle, 'leaf')); // Make `middle` non-empty
+      const mode = common.isWindows ? 0 : 0o555;
+      const code = common.isWindows ? 'EPERM': 'EACCES';
+      try {
+        fs.chmodSync(middle, mode);
+        assert.throws(() => {
+          fs.rmSync(root, { recursive: true });
+        }, {
+          code,
+          name: 'Error',
+        });
+      } finally {
+        makeDirectoryWritable(middle);
+      }
+    }
+  }
 }
