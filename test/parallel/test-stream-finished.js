@@ -553,14 +553,14 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
 }
 
 {
-  const server = http.createServer((req, res) => {
-    res.on('close', () => {
+  const server = http.createServer(common.mustCall((req, res) => {
+    res.on('close', common.mustCall(() => {
       finished(res, common.mustCall(() => {
         server.close();
       }));
-    });
+    }));
     res.end();
-  })
+  }))
   .listen(0, function() {
     http.request({
       method: 'GET',
@@ -571,14 +571,14 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
 }
 
 {
-  const server = http.createServer((req, res) => {
-    req.on('close', () => {
+  const server = http.createServer(common.mustCall((req, res) => {
+    req.on('close', common.mustCall(() => {
       finished(req, common.mustCall(() => {
         server.close();
       }));
-    });
+    }));
     req.destroy();
-  }).listen(0, function() {
+  })).listen(0, function() {
     http.request({
       method: 'GET',
       port: this.address().port
