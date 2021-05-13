@@ -92,3 +92,23 @@ test-multiple-funding-sources@1.0.0
 
 
 `
+
+exports[`test/lib/fund.js TAP workspaces filter funding info by a specific workspace > should display only filtered workspace name and its deps 1`] = `
+workspaces-support@1.0.0
+\`-- https://example.com/a
+  | \`-- a@1.0.0
+  \`-- http://example.com/c
+      \`-- c@1.0.0
+
+
+`
+
+exports[`test/lib/fund.js TAP workspaces filter funding info by a specific workspace > should display only filtered workspace path and its deps 1`] = `
+workspaces-support@1.0.0
+\`-- https://example.com/a
+  | \`-- a@1.0.0
+  \`-- http://example.com/c
+      \`-- c@1.0.0
+
+
+`
