@@ -49,7 +49,11 @@
 # include <arpa/nameser.h>
 #endif
 
-#if defined(__OpenBSD__)
+// OpenBSD does not define these
+#ifndef AI_ALL
+# define AI_ALL 0
+#endif
+#ifndef AI_V4MAPPED
 # define AI_V4MAPPED 0
 #endif
 
