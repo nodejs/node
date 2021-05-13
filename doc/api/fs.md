@@ -1321,7 +1321,7 @@ try {
   const data = new Uint8Array(Buffer.from('Hello Node.js'));
   const promise = writeFile('message.txt', data, { signal });
 
-  // Abort the request before the promise settled
+  // Abort the request before the promise settles.
   controller.abort();
   
   await promise;
