@@ -499,7 +499,7 @@ void ContextifyContext::PropertyDefinerCallback(
 
   Local<Object> sandbox = ctx->sandbox();
 
-  std::function<void(PropertyDescriptor*)> define_prop_on_sandbox =
+  auto define_prop_on_sandbox =
       [&] (PropertyDescriptor* desc_for_sandbox) {
         if (desc.has_enumerable()) {
           desc_for_sandbox->set_enumerable(desc.enumerable());
@@ -955,7 +955,7 @@ bool ContextifyScript::EvalMachine(Environment* env,
   MaybeLocal<Value> result;
   bool timed_out = false;
   bool received_signal = false;
-  std::function<MaybeLocal<Value>()> run = [&]() {
+  auto run = [&]() {
     MaybeLocal<Value> result = script->Run(env->context());
     if (!result.IsEmpty() && mtask_queue)
       mtask_queue->PerformCheckpoint(env->isolate());
