@@ -268,15 +268,12 @@ async function test2(namedCurve) {
         true, ['verify']),
     ]);
 
-    const [
-      rawKey1,
-      rawKey2,
-    ] = await Promise.all([
-      subtle.exportKey('raw', privateKey),
-      subtle.exportKey('raw', publicKey),
-    ]);
-    assert.deepStrictEqual(Buffer.from(rawKey1), vector.privateKey);
-    assert.deepStrictEqual(Buffer.from(rawKey2), vector.publicKey);
+    const rawPublicKey = await subtle.exportKey('raw', publicKey);
+    assert.deepStrictEqual(Buffer.from(rawPublicKey), vector.publicKey);
+
+    assert.rejects(subtle.exportKey('raw', privateKey), {
+      message: new RegExp(`Unable to export a raw ${namedCurve} private key`)
+    }).then(common.mustCall());
 
     const sig = await subtle.sign(
       { name: namedCurve },
