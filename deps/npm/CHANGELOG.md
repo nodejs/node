@@ -1,3 +1,21 @@
+## v7.13.0 (2021-05-13)
+
+* [`076420c14`](https://github.com/npm/cli/commit/076420c149d097056f687e44e21744b743b86e4e)
+  [#3231](https://github.com/npm/cli/issues/3231)
+  feat(publish): add workspace support
+  ([@wraithgar](https://github.com/wraithgar))
+* [`370b36a36`](https://github.com/npm/cli/commit/370b36a36ca226840761e4214cbccaf2a1a90e3c)
+  [#3241](https://github.com/npm/cli/issues/3241)
+  feat(fund): add workspaces support
+  ([@ruyadorno](https://github.com/ruyadorno))
+
+### DEPENDENCIES
+
+* [`0c18e4f77`](https://github.com/npm/cli/commit/0c18e4f774562fa054fedf323bea25805ebf39b3)
+  `@npmcli/arborist@2.5.0`
+* [`b551c6811`](https://github.com/npm/cli/commit/b551c6811251dbc901f47fea3c137f93e205a9e4)
+  `libnpmfund@1.1.0`
+
 ## v7.12.1 (2021-05-10)
 
 ### BUG FIXES

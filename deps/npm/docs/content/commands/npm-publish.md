@@ -47,6 +47,13 @@ by specifying a different default registry or using a
   actually publishing to the registry. Reports the details of what would
   have been published.
 
+* `[--workspaces]`: Enables workspace context while publishing. All
+  workspace packages will be published.
+
+* `[--workspace]`: Enables workspaces context and limits results to only
+  those specified by this config item.  Only the packages in the
+  workspaces given will be published.
+
 The publish will fail if the package name and version combination already
 exists in the specified registry.
 

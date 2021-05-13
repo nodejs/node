@@ -45,6 +45,13 @@ from a TTY then you'll be prompted\.
 \fB[\-\-dry\-run]\fP: As of \fBnpm@6\fP, does everything publish would do except
 actually publishing to the registry\. Reports the details of what would
 have been published\.
+.IP \(bu 2
+\fB[\-\-workspaces]\fP: Enables workspace context while publishing\. All
+workspace packages will be published\.
+.IP \(bu 2
+\fB[\-\-workspace]\fP: Enables workspaces context and limits results to only
+those specified by this config item\.  Only the packages in the
+workspaces given will be published\.
 
 .RE
 .P

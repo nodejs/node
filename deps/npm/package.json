@@ -1,5 +1,5 @@
 {
-  "version": "7.12.1",
+  "version": "7.13.0",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "keywords": [
@@ -42,7 +42,7 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@npmcli/arborist": "^2.4.4",
+    "@npmcli/arborist": "^2.5.0",
     "@npmcli/ci-detect": "^1.2.0",
     "@npmcli/config": "^2.2.0",
     "@npmcli/run-script": "^1.8.5",
@@ -68,7 +68,7 @@
     "libnpmaccess": "^4.0.2",
     "libnpmdiff": "^2.0.4",
     "libnpmexec": "^1.1.1",
-    "libnpmfund": "^1.0.2",
+    "libnpmfund": "^1.1.0",
     "libnpmhook": "^6.0.2",
     "libnpmorg": "^2.0.2",
     "libnpmpack": "^2.0.1",
@@ -205,7 +205,7 @@
     "sudotest:nocleanup": "sudo NO_TEST_CLEANUP=1 npm run test --",
     "posttest": "npm run lint",
     "eslint": "eslint",
-    "lint": "npm run eslint -- test/lib test/bin \"lib/**/*.js\"",
+    "lint": "npm run eslint -- test/lib test/bin lib",
     "lintfix": "npm run lint -- --fix",
     "prelint": "rimraf test/npm_cache*",
     "resetdeps": "bash scripts/resetdeps.sh",

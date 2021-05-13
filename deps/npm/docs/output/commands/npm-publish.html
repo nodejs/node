@@ -188,6 +188,15 @@ from a TTY then you’ll be prompted.</p>
 actually publishing to the registry. Reports the details of what would
 have been published.</p>
 </li>
+<li>
+<p><code>[--workspaces]</code>: Enables workspace context while publishing. All
+workspace packages will be published.</p>
+</li>
+<li>
+<p><code>[--workspace]</code>: Enables workspaces context and limits results to only
+those specified by this config item.  Only the packages in the
+workspaces given will be published.</p>
+</li>
 </ul>
 <p>The publish will fail if the package name and version combination already
 exists in the specified registry.</p>

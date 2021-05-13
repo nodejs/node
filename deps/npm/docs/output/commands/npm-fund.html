@@ -146,6 +146,7 @@ npm command-line interface
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
 <pre lang="bash"><code>npm fund [&lt;pkg&gt;]
+npm fund [-w &lt;workspace-name&gt;]
 </code></pre>
 <h3 id="description">Description</h3>
 <p>This command retrieves information on how to fund the dependencies of a
@@ -158,6 +159,33 @@ to pass the <code>--which</code> option to disambiguate.</p>
 <p>The list will avoid duplicated entries and will stack all packages that
 share the same url as a single entry. Thus, the list does not have the same
 shape of the output from <code>npm ls</code>.</p>
+<h4 id="example">Example</h4>
+<h3 id="workspaces-support">Workspaces support</h3>
+<p>It’s possible to filter the results to only include a single workspace and its
+dependencies using the <code>workspace</code> config option.</p>
+<h4 id="example2">Example:</h4>
+<p>Here’s an example running <code>npm fund</code> in a project with a configured
+workspace <code>a</code>:</p>
+<pre lang="bash"><code>$ npm fund
+test-workspaces-fund@1.0.0
++-- https://example.com/a
+| | `-- a@1.0.0
+| `-- https://example.com/maintainer
+|     `-- foo@1.0.0
++-- https://example.com/npmcli-funding
+|   `-- @npmcli/test-funding
+`-- https://example.com/org
+    `-- bar@2.0.0
+</code></pre>
+<p>And here is an example of the expected result when filtering only by
+a specific workspace <code>a</code> in the same project:</p>
+<pre lang="bash"><code>$ npm fund -w a
+test-workspaces-fund@1.0.0
+`-- https://example.com/a
+  | `-- a@1.0.0
+  `-- https://example.com/maintainer
+      `-- foo@2.0.0
+</code></pre>
 <h3 id="configuration">Configuration</h3>
 <h4 id="browser">browser</h4>
 <ul>
@@ -178,6 +206,22 @@ shape of the output from <code>npm ls</code>.</p>
 </ul>
 <p>Whether to represent the tree structure using unicode characters.
 Set it to <code>false</code> in order to use all-ansi output.</p>
+<h4 id="workspace"><code>workspace</code></h4>
+<ul>
+<li>Default:</li>
+<li>Type: String (can be set multiple times)</li>
+</ul>
+<p>Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option.</p>
+<p>Valid values for the <code>workspace</code> config are either:</p>
+<ul>
+<li>Workspace names</li>
+<li>Path to a workspace directory</li>
+<li>Path to a parent workspace directory (will result to selecting all of the
+nested workspaces)</li>
+</ul>
+<p>This value is not exported to the environment for child processes.</p>
 <h4 id="which">which</h4>
 <ul>
 <li>Type: Number</li>
@@ -190,6 +234,7 @@ Set it to <code>false</code> in order to use all-ansi output.</p>
 <li><a href="../commands/npm-docs.html">npm docs</a></li>
 <li><a href="../commands/npm-ls.html">npm ls</a></li>
 <li><a href="../commands/npm-config.html">npm config</a></li>
+<li><a href="../using-npm/workspaces.html">npm workspaces</a></li>
 </ul>
 </div>
 

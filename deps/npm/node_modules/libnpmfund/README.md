@@ -73,7 +73,10 @@ Options:
 - `countOnly`: Uses the tree-traversal logic from **npm fund** but skips over
 any obj definition and just returns an obj containing `{ length }` - useful for
 things such as printing a `6 packages are looking for funding` msg.
-- `path`: Location to current working directory
+- `workspaces`: `Array<String>` List of workspaces names to filter for,
+the result will only include a subset of the resulting tree that includes
+only the nodes that are children of the listed workspaces names.
+- `path`, `registry` and more [Arborist](https://github.com/npm/arborist/) options.
 
 ##### <a name="fund.readTree"></a> `> fund.readTree(tree, [opts]) -> Promise<Object>`
 

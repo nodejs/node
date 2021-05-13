@@ -45,6 +45,7 @@ const mixins = [
 ]
 
 const Base = mixins.reduce((a, b) => b(a), require('events'))
+const getWorkspaceNodes = require('../get-workspace-nodes.js')
 
 class Arborist extends Base {
   constructor (options = {}) {
@@ -63,6 +64,28 @@ class Arborist extends Base {
     this.cache = resolve(this.options.cache)
     this.path = resolve(this.options.path)
     process.emit('timeEnd', 'arborist:ctor')
+  }
+
+  // returns an array of the actual nodes for all the workspaces
+  workspaceNodes (tree, workspaces) {
+    return getWorkspaceNodes(tree, workspaces, this.log)
+  }
+
+  // returns a set of workspace nodes and all their deps
+  workspaceDependencySet (tree, workspaces) {
+    const wsNodes = this.workspaceNodes(tree, workspaces)
+    const set = new Set(wsNodes)
+    for (const node of set) {
+      for (const edge of node.edgesOut.values()) {
+        const dep = edge.to
+        if (dep) {
+          set.add(dep)
+          if (dep.target)
+            set.add(dep.target)
+        }
+      }
+    }
+    return set
   }
 }
 

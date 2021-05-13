@@ -839,3 +839,89 @@ t.test('sub dep with fund info and a parent with no funding info', t => {
     t.end()
   })
 })
+
+t.test('workspaces', t => {
+  t.test('filter funding info by a specific workspace', async t => {
+    npm.localPrefix = npm.prefix = t.testdir({
+      'package.json': JSON.stringify({
+        name: 'workspaces-support',
+        version: '1.0.0',
+        workspaces: ['packages/*'],
+        dependencies: {
+          d: '^1.0.0',
+        },
+      }),
+      node_modules: {
+        a: t.fixture('symlink', '../packages/a'),
+        b: t.fixture('symlink', '../packages/b'),
+        c: {
+          'package.json': JSON.stringify({
+            name: 'c',
+            version: '1.0.0',
+            funding: [
+              'http://example.com/c',
+              'http://example.com/c-other',
+            ],
+          }),
+        },
+        d: {
+          'package.json': JSON.stringify({
+            name: 'd',
+            version: '1.0.0',
+            funding: 'http://example.com/d',
+          }),
+        },
+      },
+      packages: {
+        a: {
+          'package.json': JSON.stringify({
+            name: 'a',
+            version: '1.0.0',
+            funding: 'https://example.com/a',
+            dependencies: {
+              c: '^1.0.0',
+            },
+          }),
+        },
+        b: {
+          'package.json': JSON.stringify({
+            name: 'b',
+            version: '1.0.0',
+            funding: 'http://example.com/b',
+            dependencies: {
+              d: '^1.0.0',
+            },
+          }),
+        },
+      },
+    })
+
+    await new Promise((res, rej) => {
+      fund.execWorkspaces([], ['a'], (err) => {
+        if (err)
+          rej(err)
+
+        t.matchSnapshot(result,
+          'should display only filtered workspace name and its deps')
+
+        result = ''
+        res()
+      })
+    })
+
+    await new Promise((res, rej) => {
+      fund.execWorkspaces([], ['./packages/a'], (err) => {
+        if (err)
+          rej(err)
+
+        t.matchSnapshot(result,
+          'should display only filtered workspace path and its deps')
+
+        result = ''
+        res()
+      })
+    })
+  })
+
+  t.end()
+})
