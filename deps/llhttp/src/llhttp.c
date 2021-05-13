@@ -1103,7 +1103,7 @@ static llparse_state_t llhttp__internal__run(
     case s_n_llhttp__internal__n_consume_content_length:
     s_n_llhttp__internal__n_consume_content_length: {
       size_t avail;
-      size_t need;
+      uint64_t need;
       
       avail = endp - p;
       need = state->content_length;
@@ -1458,7 +1458,7 @@ static llparse_state_t llhttp__internal__run(
     case s_n_llhttp__internal__n_consume_content_length_1:
     s_n_llhttp__internal__n_consume_content_length_1: {
       size_t avail;
-      size_t need;
+      uint64_t need;
       
       avail = endp - p;
       need = state->content_length;
@@ -8677,7 +8677,7 @@ static llparse_state_t llhttp__internal__run(
     case s_n_llhttp__internal__n_consume_content_length:
     s_n_llhttp__internal__n_consume_content_length: {
       size_t avail;
-      size_t need;
+      uint64_t need;
       
       avail = endp - p;
       need = state->content_length;
@@ -9025,7 +9025,7 @@ static llparse_state_t llhttp__internal__run(
     case s_n_llhttp__internal__n_consume_content_length_1:
     s_n_llhttp__internal__n_consume_content_length_1: {
       size_t avail;
-      size_t need;
+      uint64_t need;
       
       avail = endp - p;
       need = state->content_length;
