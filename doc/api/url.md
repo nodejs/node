@@ -12,6 +12,7 @@ accessed using:
 ```mjs
 import url from 'url';
 ```
+
 ```cjs
 const url = require('url');
 ```
@@ -69,6 +70,7 @@ import url from 'url';
 const myURL =
   url.parse('https://user:pass@sub.example.com:8080/p/a/t/h?query=string#hash');
 ```
+
 ```cjs
 const url = require('url');
 const myURL =
@@ -147,6 +149,7 @@ It can also be imported from the built-in url module:
 import { URL } from 'url';
 console.log(URL === globalThis.URL); // Prints 'true'.
 ```
+
 ```cjs
 console.log(URL === require('url').URL); // Prints 'true'.
 ```
@@ -939,7 +942,20 @@ invalid domain, the empty string is returned.
 
 It performs the inverse operation to [`url.domainToUnicode()`][].
 
-```js
+```mjs
+import url from 'url';
+
+console.log(url.domainToASCII('español.com'));
+// Prints xn--espaol-zwa.com
+console.log(url.domainToASCII('中文.com'));
+// Prints xn--fiq228c.com
+console.log(url.domainToASCII('xn--iñvalid.com'));
+// Prints an empty string
+```
+
+```cjs
+const url = require('url');
+
 console.log(url.domainToASCII('español.com'));
 // Prints xn--espaol-zwa.com
 console.log(url.domainToASCII('中文.com'));
@@ -963,7 +979,20 @@ domain, the empty string is returned.
 
 It performs the inverse operation to [`url.domainToASCII()`][].
 
-```js
+```mjs
+import url from 'url';
+
+console.log(url.domainToUnicode('xn--espaol-zwa.com'));
+// Prints español.com
+console.log(url.domainToUnicode('xn--fiq228c.com'));
+// Prints 中文.com
+console.log(url.domainToUnicode('xn--iñvalid.com'));
+// Prints an empty string
+```
+
+```cjs
+const url = require('url');
+
 console.log(url.domainToUnicode('xn--espaol-zwa.com'));
 // Prints español.com
 console.log(url.domainToUnicode('xn--fiq228c.com'));
@@ -1085,7 +1114,27 @@ added: v15.7.0
 This utility function converts a URL object into an ordinary options object as
 expected by the [`http.request()`][] and [`https.request()`][] APIs.
 
-```js
+```mjs
+import { urlToHttpOptions } from 'url';
+const myURL = new URL('https://a:b@測試?abc#foo');
+
+console.log(urlToHttpOptions(myUrl));
+/**
+{
+  protocol: 'https:',
+  hostname: 'xn--g6w251d',
+  hash: '#foo',
+  search: '?abc',
+  pathname: '/',
+  path: '/?abc',
+  href: 'https://a:b@xn--g6w251d/?abc#foo',
+  auth: 'a:b'
+}
+*/
+```
+
+```cjs
+const { urlToHttpOptions } = require('url');
 const myURL = new URL('https://a:b@測試?abc#foo');
 
 console.log(urlToHttpOptions(myUrl));
