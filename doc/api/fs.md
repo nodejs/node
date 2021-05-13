@@ -985,7 +985,7 @@ try {
 
   // Abort the request before the promise settles.
   controller.abort();
-  
+
   await promise;
 } catch (err) {
   // When a request is aborted - err is an AbortError
@@ -1002,7 +1002,7 @@ Any specified {FileHandle} has to support reading.
 <!-- YAML
 added: v10.0.0
 -->
-
+  
 * `path` {string|Buffer|URL}
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
@@ -1323,7 +1323,7 @@ try {
 
   // Abort the request before the promise settles.
   controller.abort();
-  
+
   await promise;
 } catch (err) {
   // When a request is aborted - err is an AbortError
