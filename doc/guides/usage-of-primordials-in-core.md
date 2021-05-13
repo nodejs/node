@@ -48,7 +48,7 @@ used to interact with JavaScript objects.
 ```js
 const array = [1, 2, 3];
 array.push(4); // Here `push` refers to %Array.prototype.push%.
-console.log(array); // [1,2,3,4]
+console.log(JSON.stringify(array)); // [1,2,3,4]
 
 // %Array.prototype%.push is modified in userland.
 Array.prototype.push = function push(val) {
@@ -56,7 +56,7 @@ Array.prototype.push = function push(val) {
 };
 
 array.push(5); // Now `push` refers to the modified method.
-console.log(array); // [5,1,2,3,4]
+console.log(JSON.stringify(array)); // [5,1,2,3,4]
 ```
 
 Primordials wrap the original prototype functions with new functions that take
@@ -69,14 +69,14 @@ const {
 
 const array = [1, 2, 3];
 ArrayPrototypePush(array, 4);
-console.log(array); // [1,2,3,4]
+console.log(JSON.stringify(array)); // [1,2,3,4]
 
 Array.prototype.push = function push(val) {
   return this.unshift(val);
 };
 
 ArrayPrototypePush(array, 5);
-console.log(array); // [1,2,3,4,5]
+console.log(JSON.stringify(array)); // [1,2,3,4,5]
 ```
 
 ### Safe classes
