@@ -19,16 +19,20 @@ if (isMainThread || !workerData) {
       transferList: [handle]
     });
   });
-  fs.promises.open(file, 'r').then((handle) => {
-    fs.createReadStream(null, { fd: handle });
-    assert.throws(() => {
-      new Worker(__filename, {
-        workerData: { handle },
-        transferList: [handle]
+  fs.promises.open(file, 'r').then(async (handle) => {
+    try {
+      fs.createReadStream(null, { fd: handle });
+      assert.throws(() => {
+        new Worker(__filename, {
+          workerData: { handle },
+          transferList: [handle]
+        });
+      }, {
+        code: 25,
       });
-    }, {
-      code: 25,
-    });
+    } finally {
+      await handle.close();
+    }
   });
 } else {
   let output = '';

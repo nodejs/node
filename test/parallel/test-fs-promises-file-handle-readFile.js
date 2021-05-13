@@ -56,13 +56,16 @@ async function doReadAndCancel() {
   {
     const filePathForHandle = path.resolve(tmpDir, 'dogs-running.txt');
     const fileHandle = await open(filePathForHandle, 'w+');
-    const buffer = Buffer.from('Dogs running'.repeat(10000), 'utf8');
-    fs.writeFileSync(filePathForHandle, buffer);
-    const signal = AbortSignal.abort();
-    await assert.rejects(readFile(fileHandle, { signal }), {
-      name: 'AbortError'
-    });
-    await fileHandle.close();
+    try {
+      const buffer = Buffer.from('Dogs running'.repeat(10000), 'utf8');
+      fs.writeFileSync(filePathForHandle, buffer);
+      const signal = AbortSignal.abort();
+      await assert.rejects(readFile(fileHandle, { signal }), {
+        name: 'AbortError'
+      });
+    } finally {
+      await fileHandle.close();
+    }
   }
 
   // Signal aborted on first tick
