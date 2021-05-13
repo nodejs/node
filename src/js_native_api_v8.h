@@ -124,22 +124,22 @@ struct napi_env__ {
 
 // This class is used to keep a napi_env live in a way that
 // is exception safe versus calling Ref/Unref directly
-class LiveEnv {
+class EnvRefHolder {
  public:
-  explicit LiveEnv(napi_env env) : _env(env) {
+  explicit EnvRefHolder(napi_env env) : _env(env) {
       _env->Ref();
   }
 
-  explicit LiveEnv(const LiveEnv& other): _env(other.env()) {
+  explicit EnvRefHolder(const EnvRefHolder& other): _env(other.env()) {
     _env->Ref();
   }
 
-  LiveEnv(LiveEnv&& other) {
+  EnvRefHolder(EnvRefHolder&& other) {
     _env = other._env;
     other._env = nullptr;
   }
 
-  ~LiveEnv() {
+  ~EnvRefHolder() {
     if (_env != nullptr) {
       _env->Unref();
     }
