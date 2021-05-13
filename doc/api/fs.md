@@ -980,12 +980,15 @@ import { readFile } from 'fs/promises';
 
 try {
   const controller = new AbortController();
-  const signal = controller.signal;
-  readFile(fileName, { signal });
+  const { signal } = controller;
+  const promise = readFile(fileName, { signal });
 
-  // Abort the request
+  // Abort the request before the promise settled
   controller.abort();
+  
+  await promise;
 } catch (err) {
+  // When a request is aborted - err is an AbortError
   console.error(err);
 }
 ```
@@ -1316,8 +1319,12 @@ try {
   const controller = new AbortController();
   const { signal } = controller;
   const data = new Uint8Array(Buffer.from('Hello Node.js'));
-  writeFile('message.txt', data, { signal });
+  const promise = writeFile('message.txt', data, { signal });
+
+  // Abort the request before the promise settled
   controller.abort();
+  
+  await promise;
 } catch (err) {
   // When a request is aborted - err is an AbortError
   console.error(err);
