@@ -32,14 +32,6 @@
 # include <arpa/nameser.h>
 #endif
 
-#ifndef T_CAA
-#  define T_CAA    257 /* Certification Authority Authorization */
-#endif
-
-#if defined(__OpenBSD__)
-# define AI_V4MAPPED 0
-#endif
-
 namespace node {
 namespace cares_wrap {
 
