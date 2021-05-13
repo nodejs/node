@@ -983,7 +983,7 @@ try {
   const { signal } = controller;
   const promise = readFile(fileName, { signal });
 
-  // Abort the request before the promise settled
+  // Abort the request before the promise settles.
   controller.abort();
   
   await promise;
