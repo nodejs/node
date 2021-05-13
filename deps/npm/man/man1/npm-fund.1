@@ -6,6 +6,7 @@
 .RS 2
 .nf
 npm fund [<pkg>]
+npm fund [\-w <workspace\-name>]
 .fi
 .RE
 .SS Description
@@ -21,6 +22,44 @@ to pass the \fB\-\-which\fP option to disambiguate\.
 The list will avoid duplicated entries and will stack all packages that
 share the same url as a single entry\. Thus, the list does not have the same
 shape of the output from \fBnpm ls\fP\|\.
+.SS Example
+.SS Workspaces support
+.P
+It's possible to filter the results to only include a single workspace and its
+dependencies using the \fBworkspace\fP config option\.
+.SS Example:
+.P
+Here's an example running \fBnpm fund\fP in a project with a configured
+workspace \fBa\fP:
+.P
+.RS 2
+.nf
+$ npm fund
+test\-workspaces\-fund@1\.0\.0
++\-\- https://example\.com/a
+| | `\-\- a@1\.0\.0
+| `\-\- https://example\.com/maintainer
+|     `\-\- foo@1\.0\.0
++\-\- https://example\.com/npmcli\-funding
+|   `\-\- @npmcli/test\-funding
+`\-\- https://example\.com/org
+    `\-\- bar@2\.0\.0
+.fi
+.RE
+.P
+And here is an example of the expected result when filtering only by
+a specific workspace \fBa\fP in the same project:
+.P
+.RS 2
+.nf
+$ npm fund \-w a
+test\-workspaces\-fund@1\.0\.0
+`\-\- https://example\.com/a
+  | `\-\- a@1\.0\.0
+  `\-\- https://example\.com/maintainer
+      `\-\- foo@2\.0\.0
+.fi
+.RE
 .SS Configuration
 .SS browser
 .RS 0
@@ -53,6 +92,32 @@ Default: true
 .P
 Whether to represent the tree structure using unicode characters\.
 Set it to \fBfalse\fP in order to use all\-ansi output\.
+.SS \fBworkspace\fP
+.RS 0
+.IP \(bu 2
+Default:
+.IP \(bu 2
+Type: String (can be set multiple times)
+
+.RE
+.P
+Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option\.
+.P
+Valid values for the \fBworkspace\fP config are either:
+.RS 0
+.IP \(bu 2
+Workspace names
+.IP \(bu 2
+Path to a workspace directory
+.IP \(bu 2
+Path to a parent workspace directory (will result to selecting all of the
+nested workspaces)
+
+.RE
+.P
+This value is not exported to the environment for child processes\.
 .SS which
 .RS 0
 .IP \(bu 2
@@ -73,5 +138,7 @@ npm help docs
 npm help ls
 .IP \(bu 2
 npm help config
+.IP \(bu 2
+npm help workspaces
 
 .RE
