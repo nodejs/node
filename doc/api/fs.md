@@ -1002,7 +1002,6 @@ Any specified {FileHandle} has to support reading.
 <!-- YAML
 added: v10.0.0
 -->
-  
 * `path` {string|Buffer|URL}
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
