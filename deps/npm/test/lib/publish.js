@@ -9,14 +9,11 @@ const fs = require('fs')
 const log = require('npmlog')
 log.level = 'silent'
 
-// mock config
 const {definitions} = require('../../lib/utils/config')
 const defaults = Object.entries(definitions).reduce((defaults, [key, def]) => {
   defaults[key] = def.default
   return defaults
 }, {})
-
-const config = defaults
 
 t.afterEach(() => log.level = 'silent')
 
@@ -54,7 +51,6 @@ t.test('should publish with libnpmpublish, passing through flatOptions and respe
     },
   })
   const npm = mockNpm({
-    config,
     flatOptions: {
       customValue: true,
     },
@@ -102,7 +98,7 @@ t.test('re-loads publishConfig.registry if added during script process', (t) => 
       },
     },
   })
-  const npm = mockNpm({ config })
+  const npm = mockNpm()
   npm.config.getCredentialsByURI = (uri) => {
     t.same(uri, registry, 'gets credentials for expected registry')
     return { token: 'some.registry.token' }
@@ -144,13 +140,13 @@ t.test('if loglevel=info and json, should not output package contents', (t) => {
     },
   })
   const npm = mockNpm({
-    config: { ...config, json: true },
+    config: { json: true },
     output: () => {
       t.pass('output is called')
     },
   })
   npm.config.getCredentialsByURI = (uri) => {
-    t.same(uri, defaults.registry, 'gets credentials for expected registry')
+    t.same(uri, npm.config.get('registry'), 'gets credentials for expected registry')
     return { token: 'some.registry.token' }
   }
   const publish = new Publish(npm)
@@ -190,7 +186,7 @@ t.test('if loglevel=silent and dry-run, should not output package contents or pu
     },
   })
   const npm = mockNpm({
-    config: { ...config, 'dry-run': true },
+    config: { 'dry-run': true },
     output: () => {
       throw new Error('should not output in dry run mode')
     },
@@ -236,7 +232,7 @@ t.test('if loglevel=info and dry-run, should not publish, should log package con
     },
   })
   const npm = mockNpm({
-    config: { ...config, 'dry-run': true },
+    config: { 'dry-run': true },
     output: () => {
       t.pass('output fn is called')
     },
@@ -270,7 +266,7 @@ t.test('throws when invalid tag', (t) => {
 
   const Publish = t.mock('../../lib/publish.js')
   const npm = mockNpm({
-    config: { ...config, tag: '0.0.13' },
+    config: { tag: '0.0.13' },
   })
   const publish = new Publish(npm)
 
@@ -313,9 +309,9 @@ t.test('can publish a tarball', t => {
       },
     },
   })
-  const npm = mockNpm({ config })
+  const npm = mockNpm()
   npm.config.getCredentialsByURI = (uri) => {
-    t.same(uri, defaults.registry, 'gets credentials for expected registry')
+    t.same(uri, npm.config.get('registry'), 'gets credentials for expected registry')
     return { token: 'some.registry.token' }
   }
   const publish = new Publish(npm)
@@ -331,9 +327,9 @@ t.test('can publish a tarball', t => {
 t.test('should check auth for default registry', t => {
   t.plan(2)
   const Publish = t.mock('../../lib/publish.js')
-  const npm = mockNpm({ config })
+  const npm = mockNpm()
   npm.config.getCredentialsByURI = (uri) => {
-    t.same(uri, defaults.registry, 'gets credentials for expected registry')
+    t.same(uri, npm.config.get('registry'), 'gets credentials for expected registry')
     return {}
   }
   const publish = new Publish(npm)
@@ -352,7 +348,6 @@ t.test('should check auth for configured registry', t => {
   const registry = 'https://some.registry'
   const Publish = t.mock('../../lib/publish.js')
   const npm = mockNpm({
-    config,
     flatOptions: { registry },
   })
   npm.config.getCredentialsByURI = (uri) => {
@@ -382,7 +377,6 @@ t.test('should check auth for scope specific registry', t => {
 
   const Publish = t.mock('../../lib/publish.js')
   const npm = mockNpm({
-    config,
     flatOptions: { '@npm:registry': registry },
   })
   npm.config.getCredentialsByURI = (uri) => {
@@ -419,7 +413,6 @@ t.test('should use auth for scope specific registry', t => {
     },
   })
   const npm = mockNpm({
-    config,
     flatOptions: { '@npm:registry': registry },
   })
   npm.config.getCredentialsByURI = (uri) => {
@@ -457,9 +450,7 @@ t.test('read registry only from publishConfig', t => {
       },
     },
   })
-  const npm = mockNpm({
-    config,
-  })
+  const npm = mockNpm()
   npm.config.getCredentialsByURI = (uri) => {
     t.same(uri, registry, 'gets credentials for expected registry')
     return { token: 'some.registry.token' }
@@ -524,4 +515,105 @@ t.test('able to publish after if encountered multiple configs', t => {
     t.pass('got to callback')
     t.end()
   })
+})
+
+t.test('workspaces', (t) => {
+  const testDir = t.testdir({
+    'package.json': JSON.stringify({
+      name: 'my-cool-pkg',
+      version: '1.0.0',
+      workspaces: ['workspace-a', 'workspace-b', 'workspace-c'],
+    }, null, 2),
+    'workspace-a': {
+      'package.json': JSON.stringify({
+        name: 'workspace-a',
+        version: '1.2.3-a',
+        repository: 'http://repo.workspace-a/',
+      }),
+    },
+    'workspace-b': {
+      'package.json': JSON.stringify({
+        name: 'workspace-b',
+        version: '1.2.3-n',
+        repository: 'https://github.com/npm/workspace-b',
+      }),
+    },
+    'workspace-c': JSON.stringify({
+      'package.json': {
+        name: 'workspace-n',
+        version: '1.2.3-n',
+      },
+    }),
+  })
+
+  const publishes = []
+  const outputs = []
+  t.beforeEach(() => {
+    npm.config.set('json', false)
+    outputs.length = 0
+    publishes.length = 0
+  })
+  const Publish = t.mock('../../lib/publish.js', {
+    '../../lib/utils/tar.js': {
+      getContents: (manifest) => ({
+        id: manifest._id,
+      }),
+      logTar: () => {},
+    },
+    libnpmpublish: {
+      publish: (manifest, tarballData, opts) => {
+        publishes.push(manifest)
+      },
+    },
+  })
+  const npm = mockNpm({
+    output: (o) => {
+      outputs.push(o)
+    },
+  })
+  npm.localPrefix = testDir
+  npm.config.getCredentialsByURI = (uri) => {
+    return { token: 'some.registry.token' }
+  }
+  const publish = new Publish(npm)
+
+  t.test('all workspaces', (t) => {
+    log.level = 'info'
+    publish.execWorkspaces([], [], (err) => {
+      t.notOk(err)
+      t.matchSnapshot(publishes, 'should publish all workspaces')
+      t.matchSnapshot(outputs, 'should output all publishes')
+      t.end()
+    })
+  })
+
+  t.test('one workspace', t => {
+    log.level = 'info'
+    publish.execWorkspaces([], ['workspace-a'], (err) => {
+      t.notOk(err)
+      t.matchSnapshot(publishes, 'should publish given workspace')
+      t.matchSnapshot(outputs, 'should output one publish')
+      t.end()
+    })
+  })
+
+  t.test('invalid workspace', t => {
+    publish.execWorkspaces([], ['workspace-x'], (err) => {
+      t.match(err, /No workspaces found/)
+      t.match(err, /workspace-x/)
+      t.end()
+    })
+  })
+
+  t.test('json', t => {
+    log.level = 'info'
+    npm.config.set('json', true)
+    publish.execWorkspaces([], [], (err) => {
+      t.notOk(err)
+      t.matchSnapshot(publishes, 'should publish all workspaces')
+      t.matchSnapshot(outputs, 'should output all publishes as json')
+      t.end()
+    })
+  })
+  t.end()
 })

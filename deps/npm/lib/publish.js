@@ -8,13 +8,19 @@ const pacote = require('pacote')
 const npa = require('npm-package-arg')
 const npmFetch = require('npm-registry-fetch')
 
-const flatten = require('./utils/config/flatten.js')
 const otplease = require('./utils/otplease.js')
 const { getContents, logTar } = require('./utils/tar.js')
+const getWorkspaces = require('./workspaces/get-workspaces.js')
 
-// this is the only case in the CLI where we use the old full slow
-// 'read-package-json' module, because we want to pull in all the
-// defaults and metadata, like git sha's and default scripts and all that.
+// for historical reasons, publishConfig in package.json can contain ANY config
+// keys that npm supports in .npmrc files and elsewhere.  We *may* want to
+// revisit this at some point, and have a minimal set that's a SemVer-major
+// change that ought to get a RFC written on it.
+const flatten = require('./utils/config/flatten.js')
+
+// this is the only case in the CLI where we want to use the old full slow
+// 'read-package-json' module, because we want to pull in all the defaults and
+// metadata, like git sha's and default scripts and all that.
 const readJson = util.promisify(require('read-package-json'))
 
 const BaseCommand = require('./base-command.js')
@@ -30,7 +36,7 @@ class Publish extends BaseCommand {
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get params () {
-    return ['tag', 'access', 'dry-run']
+    return ['tag', 'access', 'dry-run', 'workspace', 'workspaces']
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
@@ -42,6 +48,10 @@ class Publish extends BaseCommand {
 
   exec (args, cb) {
     this.publish(args).then(() => cb()).catch(cb)
+  }
+
+  execWorkspaces (args, filters, cb) {
+    this.publishWorkspaces(args, filters).then(() => cb()).catch(cb)
   }
 
   async publish (args) {
@@ -56,6 +66,7 @@ class Publish extends BaseCommand {
     const dryRun = this.npm.config.get('dry-run')
     const json = this.npm.config.get('json')
     const defaultTag = this.npm.config.get('tag')
+    const silent = log.level === 'silent'
 
     if (semver.validRange(defaultTag))
       throw new Error('Tag name must not be a valid SemVer range: ' + defaultTag.trim())
@@ -68,7 +79,7 @@ class Publish extends BaseCommand {
     let manifest = await this.getManifest(spec, opts)
 
     if (manifest.publishConfig)
-      Object.assign(opts, this.publishConfigToOpts(manifest.publishConfig))
+      flatten(manifest.publishConfig, opts)
 
     // only run scripts for directory type publishes
     if (spec.type === 'directory') {
@@ -77,7 +88,7 @@ class Publish extends BaseCommand {
         path: spec.fetchSpec,
         stdio: 'inherit',
         pkg: manifest,
-        banner: log.level !== 'silent',
+        banner: !silent,
       })
     }
 
@@ -89,7 +100,7 @@ class Publish extends BaseCommand {
     // note that publishConfig might have changed as well!
     manifest = await this.getManifest(spec, opts)
     if (manifest.publishConfig)
-      Object.assign(opts, this.publishConfigToOpts(manifest.publishConfig))
+      flatten(manifest.publishConfig, opts)
 
     // note that logTar calls npmlog.notice(), so if we ARE in silent mode,
     // this will do nothing, but we still want it in the debuglog if it fails.
@@ -114,7 +125,7 @@ class Publish extends BaseCommand {
         path: spec.fetchSpec,
         stdio: 'inherit',
         pkg: manifest,
-        banner: log.level !== 'silent',
+        banner: !silent,
       })
 
       await runScript({
@@ -122,17 +133,41 @@ class Publish extends BaseCommand {
         path: spec.fetchSpec,
         stdio: 'inherit',
         pkg: manifest,
-        banner: log.level !== 'silent',
+        banner: !silent,
       })
     }
 
-    const silent = log.level === 'silent'
-    if (!silent && json)
-      this.npm.output(JSON.stringify(pkgContents, null, 2))
-    else if (!silent)
-      this.npm.output(`+ ${pkgContents.id}`)
+    if (!this.workspaces) {
+      if (!silent && json)
+        this.npm.output(JSON.stringify(pkgContents, null, 2))
+      else if (!silent)
+        this.npm.output(`+ ${pkgContents.id}`)
+    }
 
     return pkgContents
+  }
+
+  async publishWorkspaces (args, filters) {
+    // Suppresses JSON output in publish() so we can handle it here
+    this.workspaces = true
+
+    const results = {}
+    const json = this.npm.config.get('json')
+    const silent = log.level === 'silent'
+    const workspaces =
+      await getWorkspaces(filters, { path: this.npm.localPrefix })
+    for (const [name, workspace] of workspaces.entries()) {
+      const pkgContents = await this.publish([workspace])
+      // This needs to be in-line w/ the rest of the output that non-JSON
+      // publish generates
+      if (!silent && !json)
+        this.npm.output(`+ ${pkgContents.id}`)
+      else
+        results[name] = pkgContents
+    }
+
+    if (!silent && json)
+      this.npm.output(JSON.stringify(results, null, 2))
   }
 
   // if it's a directory, read it from the file system
@@ -141,17 +176,6 @@ class Publish extends BaseCommand {
     if (spec.type === 'directory')
       return readJson(`${spec.fetchSpec}/package.json`)
     return pacote.manifest(spec, { ...opts, fullMetadata: true })
-  }
-
-  // for historical reasons, publishConfig in package.json can contain
-  // ANY config keys that npm supports in .npmrc files and elsewhere.
-  // We *may* want to revisit this at some point, and have a minimal set
-  // that's a SemVer-major change that ought to get a RFC written on it.
-  publishConfigToOpts (publishConfig) {
-    // create a new object that inherits from the config stack
-    // then squash the css-case into camelCase opts, like we do
-    // this is Object.assign()'ed onto the base npm.flatOptions
-    return flatten(publishConfig, {})
   }
 }
 module.exports = Publish
