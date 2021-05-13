@@ -1,17 +1,18 @@
 # Usage of primordials in core
 
 The file `lib/internal/per_context/primordials.js` subclasses and stores the JS
-builtins that come from the VM so that Node.js builtin modules do not need to
+built-ins that come from the VM so that Node.js built-in modules do not need to
 later look these up from the global proxy, which can be mutated by users.
 
 Usage of primordials should be preferred for any new code, but replacing current
 code with primordials should be done with care.
 
-## Accessing primoridals
+## Accessing primordials
 
 The primordials are meant for internal use only, and are only accessible for
-internal core modules. User-code cannot use or rely on primordials. It is usually
-fine to rely on ECMAScript built-ins and assume that it will behave as specified.
+internal core modules. User-code cannot use or rely on primordials. It is
+usually fine to rely on ECMAScript built-ins and assume that it will behave as
+specified.
 
 If you'd like to access the `primordials` object to help you with Node.js core
 development or for tinkering, you can make it globally available:
@@ -20,12 +21,12 @@ development or for tinkering, you can make it globally available:
 node --expose-internals -r internal/test/binding
 ```
 
-## Contents of primoridals
+## Contents of primordials
 
 ### Properties of the global object
 
-Objects and functions on global objects can be deleted or replaced. Using them
-from primordials makes the code more reliable:
+Objects and functions on the global object can be deleted or replaced. Using
+them from primordials makes the code more reliable:
 
 ```js
 globalThis.Array === primordials.Array; // true
@@ -58,8 +59,8 @@ array.push(5); // Now `push` refers to the modified method.
 console.log(array); // [5,1,2,3,4]
 ```
 
-Primordials wrap the original prototype functions with new functions that take the
-`this` value as the first argument:
+Primordials wrap the original prototype functions with new functions that take
+the `this` value as the first argument:
 
 ```js
 const {
@@ -87,8 +88,8 @@ but whose implementation aims to avoid any reliance on user-mutable code.
 
 There are some built-in functions that accept a variable number of arguments
 (e.g.: `Math.max`, `%Array.prototype.push%`). It is sometimes useful to provide
-the list of arguments as an array. You can use primordial function with the suffix
-`Apply` (e.g.: `MathMaxApply`, `FunctionPrototypePushApply`) to do that.
+the list of arguments as an array. You can use primordial function with the
+suffix `Apply` (e.g.: `MathMaxApply`, `FunctionPrototypePushApply`) to do that.
 
 ## Primordials with known performance issues
 
@@ -104,8 +105,8 @@ performance of code in Node.js.
   * `ArrayPrototypeUnshift`
 * Methods of the function prototype:
   * `FunctionPrototypeBind`
-  * `FunctionPrototypeCall`: creates performance issues when used to invoke super
-    constructors.
+  * `FunctionPrototypeCall`: creates performance issues when used to invoke
+    super constructors.
   * `FunctionPrototype`: use `() => {}` instead when referencing a no-op
     function.
 * `SafeArrayIterator`
@@ -127,7 +128,7 @@ for (const item of array) {
 }
 ```
 
-This code is expanded internally to something that looks like:
+This code is internally expanded into something that looks like:
 
 ```js
 {
