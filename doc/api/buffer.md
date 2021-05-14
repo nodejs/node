@@ -3347,6 +3347,15 @@ added: v3.0.0
 
 An alias for [`buffer.constants.MAX_LENGTH`][].
 
+### `buffer.kStringMaxLength`
+<!-- YAML
+added: v3.0.0
+-->
+
+* {integer} The largest length allowed for a single `string` instance.
+
+An alias for [`buffer.constants.MAX_STRING_LENGTH`][].
+
 ### `buffer.transcode(source, fromEnc, toEnc)`
 <!-- YAML
 added: v7.1.0
