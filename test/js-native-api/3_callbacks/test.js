@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../../common');
 const assert = require('assert');
-const addon = require(`./build/${common.buildType}/binding`);
+const addon = require(`./build/${common.buildType}/3_callbacks`);
 
 addon.RunCallback(function(msg) {
   assert.strictEqual(msg, 'hello world');

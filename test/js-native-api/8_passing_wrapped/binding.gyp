@@ -1,10 +1,10 @@
 {
   "targets": [
     {
-      "target_name": "binding",
+      "target_name": "8_passing_wrapped",
       "sources": [
         "../entry_point.c",
-        "binding.cc",
+        "8_passing_wrapped.cc",
         "myobject.cc"
       ]
     }
