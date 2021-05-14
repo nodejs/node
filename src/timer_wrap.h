@@ -32,7 +32,7 @@ class TimerWrap final : public MemoryRetainer {
   void Ref();
   void Unref();
 
-  SET_NO_MEMORY_INFO();
+  SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(TimerWrap)
   SET_SELF_SIZE(TimerWrap)
 
