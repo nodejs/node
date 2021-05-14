@@ -2,7 +2,7 @@
 
 const common = require('../../common');
 const assert = require('assert');
-const binding = require(`./build/${common.buildType}/binding`);
+const binding = require(`./build/${common.buildType}/test_new_target`);
 
 class Class extends binding.BaseClass {
   constructor() {
