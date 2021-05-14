@@ -141,8 +141,8 @@ struct NodeAresTask final : public MemoryRetainer {
   uv_poll_t poll_watcher;
 
   inline void MemoryInfo(MemoryTracker* trakcer) const override;
-  SET_MEMORY_INFO_NAME(NodeAresTask);
-  SET_SELF_SIZE(NodeAresTask);
+  SET_MEMORY_INFO_NAME(NodeAresTask)
+  SET_SELF_SIZE(NodeAresTask)
 
   struct Hash {
     inline size_t operator()(NodeAresTask* a) const {
