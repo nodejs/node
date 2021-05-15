@@ -1,5 +1,4 @@
 #include "node_main_instance.h"
-#include <iostream>
 #include <memory>
 #include "debug_utils-inl.h"
 #include "node_external_reference.h"

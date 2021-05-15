@@ -4,7 +4,6 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include <cinttypes>
-#include <iostream>
 #include "util-inl.h"
 #include "v8.h"
 
