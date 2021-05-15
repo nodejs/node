@@ -498,6 +498,30 @@ async function tests() {
   }
 
   {
+    console.log('readable side of a transform stream pushes null');
+    const transform = new Transform({
+      objectMode: true,
+      transform: (chunk, enc, cb) => { cb(null, chunk); }
+    });
+    transform.push(0);
+    transform.push(1);
+    process.nextTick(() => {
+      transform.push(null);
+    });
+
+    const mustReach = [ common.mustCall(), common.mustCall() ];
+
+    const iter = transform[Symbol.asyncIterator]();
+    assert.strictEqual((await iter.next()).value, 0);
+
+    for await (const d of iter) {
+      assert.strictEqual(d, 1);
+      mustReach[0]();
+    }
+    mustReach[1]();
+  }
+
+  {
     console.log('all next promises must be resolved on end');
     const r = new Readable({
       objectMode: true,

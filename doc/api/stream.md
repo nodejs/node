@@ -45,8 +45,8 @@ There are four fundamental stream types within Node.js:
   is written and read (for example, [`zlib.createDeflate()`][]).
 
 Additionally, this module includes the utility functions
-[`stream.pipeline()`][], [`stream.finished()`][], [`stream.Readable.from()`][]
-and [`stream.addAbortSignal()`][].
+[`stream.pipeline()`][], [`stream.finished()`][], [`stream.Readable.from()`][],
+[`stream.addAbortSignal()`][] and [`stream.Transform.by()`][].
 
 ### Streams Promises API
 <!-- YAML
@@ -1889,7 +1889,51 @@ const stream = addAbortSignal(
   }
 })();
 ```
-## API for stream implementers
+
+### stream.Transform.by(asyncGeneratorFunction[, options])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `asyncGeneratorFunction` {AsyncGeneratorFunction} A mapping function which
+accepts a `source` async iterable which can be used to read incoming data, while
+transformed data is pushed to the stream with the `yield` keyword.
+* `options` {Object} Options provided to `new stream.Transform([options])`.
+By default, `Transform.by()` will set `options.objectMode` to `true`,
+unless this is explicitly opted out by setting `options.objectMode` to `false`.
+* Returns: {stream.Transform}
+
+A utility method for creating Transform Streams with async generator functions.
+The async generator is supplied a single argument, `source`, which is used to
+read incoming chunks.
+
+Yielded values become the data chunks emitted from the stream.
+
+```js
+const { Readable, Transform } = require('stream');
+
+const readable = Readable.from(['hello', 'streams']);
+async function * mapper(source) {
+  for await (const chunk of source) {
+    // If objectMode was set to false, the buffer would have to be converted
+    // to a string here but since it is true by default for both Readable.from()
+    // and Transform.by() each chunk is already a string.
+    yield chunk.toUpperCase();
+  }
+}
+const transform = Transform.by(mapper);
+readable.pipe(transform);
+transform.on('data', (chunk) => {
+  console.log(chunk);
+});
+```
+
+The `source` parameter has an `encoding` property which represents the encoding
+of the `WriteableStream` side of the transform. This is the same `encoding`
+value that would be passed as the second parameter to the `transform()` function
+option (or `_transform()` method) supplied to `stream.Transform`.
+
+## API for Stream Implementers
 
 <!--type=misc-->
 
@@ -1928,7 +1972,7 @@ on the type of stream being created, as detailed in the chart below:
 | Reading only | [`Readable`][] | [`_read()`][stream-_read] |
 | Writing only | [`Writable`][] | [`_write()`][stream-_write], [`_writev()`][stream-_writev], [`_final()`][stream-_final] |
 | Reading and writing | [`Duplex`][] | [`_read()`][stream-_read], [`_write()`][stream-_write], [`_writev()`][stream-_writev], [`_final()`][stream-_final] |
-| Operate on written data, then read the result | [`Transform`][] | [`_transform()`][stream-_transform], [`_flush()`][stream-_flush], [`_final()`][stream-_final] |
+| Operate on written data, then read the result | [`Transform`][] | [`_transform()`][], [`_flush()`][stream-_flush], [`_final()`][stream-_final] |
 
 The implementation code for a stream should *never* call the "public" methods
 of a stream that are intended for use by consumers (as described in the
@@ -2903,7 +2947,7 @@ output on the `Readable` side is not consumed.
 * `options` {Object} Passed to both `Writable` and `Readable`
   constructors. Also has the following fields:
   * `transform` {Function} Implementation for the
-    [`stream._transform()`][stream-_transform] method.
+    [`stream._transform()`][] method.
   * `flush` {Function} Implementation for the [`stream._flush()`][stream-_flush]
     method.
 
@@ -3095,7 +3139,36 @@ readable.on('data', (chunk) => {
 });
 ```
 
-#### Piping to writable streams from async iterators
+#### Creating Transform Streams with Async Generator Functions
+
+We can construct a Node.js Transform stream with an asynchronous
+generator function using the `Transform.by()` utility method.
+
+```js
+const { Readable, Transform } = require('stream');
+
+async function * toUpperCase(source) {
+  for await (const chunk of source) {
+    yield chunk.toUpperCase();
+  }
+}
+const transform = Transform.by(toUpperCase);
+
+async function * generate() {
+  yield 'a';
+  yield 'b';
+  yield 'c';
+}
+
+const readable = Readable.from(generate());
+
+readable.pipe(transform);
+transform.on('data', (chunk) => {
+  console.log(chunk);
+});
+```
+
+#### Piping to Writable Streams from Async Iterators
 
 When writing to a writable stream from an async iterator, ensure correct
 handling of backpressure and errors. [`stream.pipeline()`][] abstracts away
@@ -3259,6 +3332,7 @@ contain multi-byte characters.
 [`readable.push('')`]: #stream_readable_push
 [`readable.setEncoding()`]: #stream_readable_setencoding_encoding
 [`stream.Readable.from()`]: #stream_stream_readable_from_iterable_options
+[`stream.Transform.by()`]: #stream_stream_transform_by_asyncgeneratorfunction_options
 [`stream.cork()`]: #stream_writable_cork
 [`stream.finished()`]: #stream_stream_finished_stream_options_callback
 [`stream.pipe()`]: #stream_readable_pipe_destination_options
@@ -3289,7 +3363,7 @@ contain multi-byte characters.
 [stream-_final]: #stream_writable_final_callback
 [stream-_flush]: #stream_transform_flush_callback
 [stream-_read]: #stream_readable_read_size_1
-[stream-_transform]: #stream_transform_transform_chunk_encoding_callback
+[]: #stream_transform_transform_chunk_encoding_callback
 [stream-_write]: #stream_writable_write_chunk_encoding_callback_1
 [stream-_writev]: #stream_writable_writev_chunks_callback
 [stream-end]: #stream_writable_end_chunk_encoding_callback
