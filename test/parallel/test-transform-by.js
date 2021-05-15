@@ -1,5 +1,5 @@
 'use strict';
-const { mustCall, expectsError } = require('../common');
+const { mustCall } = require('../common');
 const { once } = require('events');
 const { Readable, Transform } = require('stream');
 const { strictEqual } = require('assert');
@@ -236,10 +236,6 @@ async function transformByThrowPriorToForAwait() {
 Promise.all([
   transformBy(),
   transformByFuncReturnsObjectWithSymbolAsyncIterator(),
-  transformByObjReturnedWSymbolAsyncIteratorWithNonPromiseReturningNext(),
-  transformByObjReturnedWSymbolAsyncIteratorWithNoNext(),
-  transformByObjReturnedWSymbolAsyncIteratorThatIsNotFunction(),
-  transformByFuncReturnsObjectWithoutSymbolAsyncIterator(),
   transformByEncoding(),
   transformBySourceIteratorCompletes(),
   transformByYieldPlusReturn(),
@@ -249,5 +245,5 @@ Promise.all([
   transformByOnErrorAndDestroyed(),
   transformByErrorTryCatchAndDestroyed(),
   transformByOnErrorAndTryCatchAndDestroyed(),
-  transformByThrowPriorToForAwait()
+  transformByThrowPriorToForAwait(),
 ]).then(mustCall());
