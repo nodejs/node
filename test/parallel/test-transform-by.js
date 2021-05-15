@@ -41,62 +41,6 @@ async function transformByFuncReturnsObjectWithSymbolAsyncIterator() {
   }
 }
 
-async function
-transformByObjReturnedWSymbolAsyncIteratorWithNonPromiseReturningNext() {
-  const mapper = (source) => ({
-    [Symbol.asyncIterator]() {
-      return {
-        next() {
-          const { done, value } = source.next();
-          return { done, value: value ? value.toUpperCase() : value };
-        }
-      };
-    }
-  });
-
-  expectsError(() => Transform.by(mapper), {
-    message: 'asyncGeneratorFn must return an async iterable',
-    code: 'ERR_ARG_RETURN_VALUE_NOT_ASYNC_ITERABLE',
-    type: TypeError
-  });
-}
-
-async function transformByObjReturnedWSymbolAsyncIteratorWithNoNext() {
-  const mapper = () => ({
-    [Symbol.asyncIterator]() {
-      return {};
-    }
-  });
-
-  expectsError(() => Transform.by(mapper), {
-    message: 'asyncGeneratorFn must return an async iterable',
-    code: 'ERR_ARG_RETURN_VALUE_NOT_ASYNC_ITERABLE',
-    type: TypeError
-  });
-}
-
-async function transformByObjReturnedWSymbolAsyncIteratorThatIsNotFunction() {
-  const mapper = () => ({
-    [Symbol.asyncIterator]: 'wrong'
-  });
-
-  expectsError(() => Transform.by(mapper), {
-    message: 'asyncGeneratorFn must return an async iterable',
-    code: 'ERR_ARG_RETURN_VALUE_NOT_ASYNC_ITERABLE',
-    type: TypeError
-  });
-}
-
-async function transformByFuncReturnsObjectWithoutSymbolAsyncIterator() {
-  const mapper = () => ({});
-
-  expectsError(() => Transform.by(mapper), {
-    message: 'asyncGeneratorFn must return an async iterable',
-    code: 'ERR_ARG_RETURN_VALUE_NOT_ASYNC_ITERABLE',
-    type: TypeError
-  });
-}
-
 async function transformByEncoding() {
   const readable = Readable.from('test');
   async function * mapper(source) {
