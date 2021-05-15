@@ -3363,7 +3363,7 @@ contain multi-byte characters.
 [stream-_final]: #stream_writable_final_callback
 [stream-_flush]: #stream_transform_flush_callback
 [stream-_read]: #stream_readable_read_size_1
-[]: #stream_transform_transform_chunk_encoding_callback
+[stream-_transform]: #stream_transform_transform_chunk_encoding_callback
 [stream-_write]: #stream_writable_write_chunk_encoding_callback_1
 [stream-_writev]: #stream_writable_writev_chunks_callback
 [stream-end]: #stream_writable_end_chunk_encoding_callback
