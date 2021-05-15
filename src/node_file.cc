@@ -2435,7 +2435,6 @@ void Initialize(Local<Object> target,
 
   env->SetMethod(target, "chmod", Chmod);
   env->SetMethod(target, "fchmod", FChmod);
-  // env->SetMethod(target, "lchmod", LChmod);
 
   env->SetMethod(target, "chown", Chown);
   env->SetMethod(target, "fchown", FChown);
