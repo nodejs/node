@@ -42,7 +42,7 @@ globalThis.Array(0); // [1,2,3]
 
 ### Prototype methods
 
-ECMAScript provides a bunch of methods available on builtin objects that are
+ECMAScript provides a group of methods available on built-in objects that are
 used to interact with JavaScript objects.
 
 ```js
@@ -116,7 +116,11 @@ path, use extra caution and run extensive benchmarks.
 
 ## How to avoid unsafe array iteration
 
-There are many usual practices in JavaScript that rely on iteration.
+There are many usual practices in JavaScript that rely on iteration. It's useful
+to be aware of them when dealing with arrays (or `TypedArray`s) in core as array
+iteration typically calls several user-mutable methods. This sections lists most
+common patterns when ECMAScript code relies non-explicitly on array iteration
+and how to avoid it.
 
 <details>
 
@@ -226,7 +230,37 @@ ReflectApply(func, null, array);
 
 <details>
 
-<summary>`%Promise.all%` iterates over an array</summary>
+<summary>`%Object.fromEntries%` iterate over an array</summary>
+
+```js
+{
+  // Unsafe code example:
+  // 1. Lookup @@iterator property on `array` (user-mutable if user provided).
+  // 2. Lookup @@iterator property on %Array.prototype% (user-mutable).
+  // 3. Lookup `next` property on %ArrayIteratorPrototype% (user-mutable).
+  const obj = ObjectFromEntries(array);
+}
+
+{
+  // Safe example using `SafeArrayIterator`:
+  const obj = ObjectFromEntries(new SafeArrayIterator(array));
+}
+
+{
+  // Safe example without using `SafeArrayIterator`:
+  const obj = {};
+  for (let i = 0; i < array.length; i++) obj[array[i][0]] = array[i][1];
+  // In a hot code path, this would be the preferred method.
+}
+
+```
+
+</details>
+
+<details>
+
+<summary>`%Promise.all%`, `%Promise.allSettled%`, `%Promise.any%`, and
+         `%Promise.race%` iterate over an array</summary>
 
 ```js
 // 1. Lookup @@iterator property on `array` (user-mutable if user provided).
@@ -241,7 +275,8 @@ PromiseAll(new SafeArrayIterator(array)); // safe
 
 <details>
 
-<summary>`%Map%` and `%Set%` constructors iterate over an array</summary>
+<summary>`%Map%`, `%Set%`, `%WeakMap%`, and `%WeakSet%` constructors iterate
+         over an array</summary>
 
 ```js
 // 1. Lookup @@iterator property on %Array.prototype% (user-mutable).
