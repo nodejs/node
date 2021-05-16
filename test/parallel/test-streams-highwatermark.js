@@ -70,3 +70,18 @@ const { inspect } = require('util');
     assert.strictEqual(readable._readableState.highWaterMark, Number(size));
   });
 }
+
+{
+  // Test highwatermark limit
+  const hwm = 0x40000000 + 1;
+  const readable = stream.Readable({
+    read() {},
+  });
+
+  assert.throws(() => readable.read(hwm), common.expectsError({
+    code: 'ERR_OUT_OF_RANGE',
+    message: 'The value of "size" is out of range.' +
+             ' It must be <= 1GiB. Received ' +
+             hwm,
+  }));
+}
