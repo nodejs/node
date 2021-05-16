@@ -1,9 +1,12 @@
-// Flags: --no-warnings --experimental-abortcontroller
+// Flags: --no-warnings --expose-internals --experimental-abortcontroller
 'use strict';
 const common = require('../common');
 const assert = require('assert');
 const timers = require('timers');
 const { promisify } = require('util');
+
+// TODO(benjamingr) - refactor to use getEventListeners when #35991 lands
+const { NodeEventTarget } = require('internal/event_target');
 
 /* eslint-disable no-restricted-syntax */
 
@@ -83,6 +86,24 @@ process.on('multipleResolves', common.mustNotCall());
   setImmediate(10, { signal }).then(() => {
     ac.abort();
   });
+}
+
+{
+  // Check that timer adding signals does not leak handlers
+  const signal = new NodeEventTarget();
+  signal.aborted = false;
+  setTimeout(0, null, { signal }).finally(common.mustCall(() => {
+    assert.strictEqual(signal.listenerCount('abort'), 0);
+  }));
+}
+
+{
+  // Check that timer adding signals does not leak handlers
+  const signal = new NodeEventTarget();
+  signal.aborted = false;
+  setImmediate(0, { signal }).finally(common.mustCall(() => {
+    assert.strictEqual(signal.listenerCount('abort'), 0);
+  }));
 }
 
 {
