@@ -93,9 +93,11 @@ static void ReportPipeEndpoints(uv_handle_t* h, JSONWriter* writer) {
   rc = uv_pipe_getsockname(&handle->pipe, buffer.data, &buffer_size);
   if (rc == UV_ENOBUFS) {
     buffer = MallocedBuffer<char>(buffer_size);
-    rc = uv_pipe_getsockname(&handle->pipe, buffer.data, &buffer_size);
+    if (buffer.data != nullptr) {
+      rc = uv_pipe_getsockname(&handle->pipe, buffer.data, &buffer_size);
+    }
   }
-  if (rc == 0 && buffer_size != 0) {
+  if (rc == 0 && buffer_size != 0 && buffer.data != nullptr) {
     writer->json_keyvalue("localEndpoint", buffer.data);
   } else {
     writer->json_keyvalue("localEndpoint", null);
@@ -105,9 +107,11 @@ static void ReportPipeEndpoints(uv_handle_t* h, JSONWriter* writer) {
   rc = uv_pipe_getpeername(&handle->pipe, buffer.data, &buffer_size);
   if (rc == UV_ENOBUFS) {
     buffer = MallocedBuffer<char>(buffer_size);
-    rc = uv_pipe_getpeername(&handle->pipe, buffer.data, &buffer_size);
+    if (buffer.data != nullptr) {
+      rc = uv_pipe_getpeername(&handle->pipe, buffer.data, &buffer_size);
+    }
   }
-  if (rc == 0 && buffer_size != 0) {
+  if (rc == 0 && buffer_size != 0 && buffer.data != nullptr) {
     writer->json_keyvalue("remoteEndpoint", buffer.data);
   } else {
     writer->json_keyvalue("remoteEndpoint", null);
