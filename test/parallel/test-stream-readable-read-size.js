@@ -12,5 +12,5 @@ const { Readable } = require('stream');
   });
   readable.read(size);
 
-  assert.strictEqual(readable._readableState.highWaterMark, parseInt(size, 10));
+  assert.strictEqual(readable._readableState.highWaterMark, Number(size));
 });
