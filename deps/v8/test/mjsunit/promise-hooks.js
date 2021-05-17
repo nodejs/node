@@ -1,7 +1,7 @@
 // Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-//
+
 // Flags: --allow-natives-syntax --opt --no-always-opt --no-stress-opt --deopt-every-n-times=0 --ignore-unhandled-promises
 
 let log = [];
@@ -242,3 +242,13 @@ optimizerBailout(async () => {
 });
 basicTest();
 exceptions();
+
+(function regress1126309() {
+  function __f_16(test) {
+    test();
+    d8.promise.setHooks( undefined, () => {});
+    %PerformMicrotaskCheckpoint();
+    d8.promise.setHooks();
+  }
+  __f_16(async () => { await Promise.resolve()});
+})();
