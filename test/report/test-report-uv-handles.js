@@ -3,7 +3,6 @@
 // Testcase to check reporting of uv handles.
 const common = require('../common');
 const tmpdir = require('../common/tmpdir');
-const path = require('path');
 if (common.isIBMi)
   common.skip('IBMi does not support fs.watch()');
 
@@ -91,9 +90,7 @@ function createUdpHandle(childData) {
 
 function createNamedPipeHandle(childData) {
   const net = require('net');
-  const fs = require('fs');
-  fs.mkdirSync(tmpdir.path, { recursive: true });
-  const sockPath = path.join(tmpdir.path, 'test-report-uv-handles.sock');
+  const sockPath = `${common.PIPE}-listen-path-test-report-uv-handles`;
   return new Promise((resolve) => {
     const server = net.createServer((socket) => {
       childData.pipe_sock_path = server.address();
