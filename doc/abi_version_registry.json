@@ -1,5 +1,6 @@
 {
   "NODE_MODULE_VERSION": [
+    { "modules": 94, "runtime": "node",     "variant": "v8_9.1",               "versions": "17.0.0-pre" },
     { "modules": 93, "runtime": "node",     "variant": "v8_9.0",               "versions": "16.0.0" },
     { "modules": 92, "runtime": "node",     "variant": "v8_8.9",               "versions": "16.0.0-pre" },
     { "modules": 91, "runtime": "node",     "variant": "v8_8.8",               "versions": "16.0.0-pre" },
