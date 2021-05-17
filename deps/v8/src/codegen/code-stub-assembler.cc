@@ -13843,11 +13843,11 @@ TNode<BoolT> CodeStubAssembler::
   return Word32NotEqual(flags, Int32Constant(0));
 }
 
-TNode<BoolT> CodeStubAssembler::
-    IsAnyPromiseHookEnabledOrHasAsyncEventDelegate(TNode<Uint32T> flags) {
+TNode<BoolT> CodeStubAssembler::NeedsAnyPromiseHooks(TNode<Uint32T> flags) {
   uint32_t mask = Isolate::PromiseHookFields::HasContextPromiseHook::kMask |
                   Isolate::PromiseHookFields::HasIsolatePromiseHook::kMask |
-                  Isolate::PromiseHookFields::HasAsyncEventDelegate::kMask;
+                  Isolate::PromiseHookFields::HasAsyncEventDelegate::kMask |
+                  Isolate::PromiseHookFields::IsDebugActive::kMask;
   return IsSetWord32(flags, mask);
 }
 
