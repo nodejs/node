@@ -104,9 +104,7 @@ transitioning macro RunContextPromiseHookInit(implicit context: Context)(
     promise: JSPromise, parent: Object) {
   const maybeHook = *NativeContextSlot(
       ContextSlot::PROMISE_HOOK_INIT_FUNCTION_INDEX);
-  if (IsUndefined(maybeHook)) return;
-
-  const hook = Cast<JSFunction>(maybeHook) otherwise unreachable;
+  const hook = Cast<Callable>(maybeHook) otherwise return;
   const parentObject = Is<JSPromise>(parent) ? Cast<JSPromise>(parent)
       otherwise unreachable: Undefined;
 
@@ -165,13 +163,11 @@ transitioning macro RunContextPromiseHookAfter(implicit context: Context)(
 }
 
 transitioning macro RunContextPromiseHook(implicit context: Context)(
-    slot: Slot<NativeContext, Undefined|JSFunction>,
+    slot: Slot<NativeContext, Undefined|Callable>,
     promiseOrCapability: JSPromise|PromiseCapability|Undefined, flags: uint32) {
   if (!IsContextPromiseHookEnabled(flags)) return;
   const maybeHook = *NativeContextSlot(slot);
-  if (IsUndefined(maybeHook)) return;
-
-  const hook = Cast<JSFunction>(maybeHook) otherwise unreachable;
+  const hook = Cast<Callable>(maybeHook) otherwise return;
 
   let promise: JSPromise;
   typeswitch (promiseOrCapability) {
