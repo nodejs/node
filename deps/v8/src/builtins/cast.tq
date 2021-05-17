@@ -386,6 +386,12 @@ Cast<Undefined|Callable>(o: HeapObject): Undefined|Callable
   return HeapObjectToCallable(o) otherwise CastError;
 }
 
+Cast<Undefined|JSFunction>(o: HeapObject): Undefined|JSFunction
+    labels CastError {
+  if (o == Undefined) return Undefined;
+  return Cast<JSFunction>(o) otherwise CastError;
+}
+
 macro Cast<T : type extends Symbol>(o: Symbol): T labels CastError;
 Cast<PublicSymbol>(s: Symbol): PublicSymbol labels CastError {
   if (s.flags.is_private) goto CastError;
