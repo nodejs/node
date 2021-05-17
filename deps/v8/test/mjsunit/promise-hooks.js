@@ -252,3 +252,13 @@ exceptions();
   }
   __f_16(async () => { await Promise.resolve()});
 })();
+
+(function boundFunction() {
+  function hook() {};
+  const bound = hook.bind(this);
+  d8.promise.setHooks(bound, bound, bound, bound);
+  Promise.resolve();
+  Promise.reject();
+  %PerformMicrotaskCheckpoint();
+  d8.promise.setHooks();
+})();
