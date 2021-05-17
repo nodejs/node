@@ -45,6 +45,23 @@ tmpdir.refresh();
 }
 
 {
+  const filenameLargeBuffer = join(tmpdir.path, 'testLargeBuffer.txt');
+  const largeBuffer = {
+    expected: 'dogs running'.repeat(512 * 1024),
+    *[Symbol.iterator]() {
+      yield Buffer.from('dogs running'.repeat(512 * 1024), 'utf8');
+    }
+  };
+
+  fs.writeFile(
+    filenameLargeBuffer, largeBuffer, common.mustSucceed(() => {
+      const data = fs.readFileSync(filenameLargeBuffer, 'utf-8');
+      assert.strictEqual(largeBuffer.expected, data);
+    })
+  );
+}
+
+{
   const filenameBufferIterableWithEncoding =
     join(tmpdir.path, 'testBufferIterableWithEncoding.txt');
   const bufferIterableWithEncoding = {
