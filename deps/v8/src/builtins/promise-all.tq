@@ -232,7 +232,7 @@ Reject(Object) {
       // PerformPromiseThen), since this is only necessary for DevTools and
       // PromiseHooks.
       if (promiseResolveFunction != Undefined ||
-          IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate() ||
+          IsIsolatePromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate() ||
           IsPromiseSpeciesProtectorCellInvalid() || Is<Smi>(nextValue) ||
           !IsPromiseThenLookupChainIntact(
               nativeContext, UnsafeCast<HeapObject>(nextValue).map)) {
