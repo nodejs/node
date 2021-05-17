@@ -2947,7 +2947,7 @@ output on the `Readable` side is not consumed.
 * `options` {Object} Passed to both `Writable` and `Readable`
   constructors. Also has the following fields:
   * `transform` {Function} Implementation for the
-    [`stream._transform()`][] method.
+    [`stream._transform()`][stream-_transform] method.
   * `flush` {Function} Implementation for the [`stream._flush()`][stream-_flush]
     method.
 
