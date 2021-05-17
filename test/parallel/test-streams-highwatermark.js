@@ -61,7 +61,7 @@ const { inspect } = require('util');
 {
   // Parse size as decimal integer
   ['1', '1.0', 1].forEach((size) => {
-    const readable = new Readable({
+    const readable = new stream.Readable({
       read: common.mustCall(),
       highWaterMark: 0,
     });
