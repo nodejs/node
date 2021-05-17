@@ -134,7 +134,7 @@ transitioning macro RunContextPromiseHookResolve(implicit context: Context)(
 
 @export
 transitioning macro RunContextPromiseHookBefore(implicit context: Context)(
-    promiseOrCapability: JSPromise|PromiseCapability) {
+    promiseOrCapability: JSPromise|PromiseCapability|Undefined) {
   RunContextPromiseHook(
       ContextSlot::PROMISE_HOOK_BEFORE_FUNCTION_INDEX, promiseOrCapability,
       PromiseHookFlags());
@@ -142,7 +142,7 @@ transitioning macro RunContextPromiseHookBefore(implicit context: Context)(
 
 @export
 transitioning macro RunContextPromiseHookBefore(implicit context: Context)(
-    promiseOrCapability: JSPromise|PromiseCapability, flags: uint32) {
+    promiseOrCapability: JSPromise|PromiseCapability|Undefined, flags: uint32) {
   RunContextPromiseHook(
       ContextSlot::PROMISE_HOOK_BEFORE_FUNCTION_INDEX, promiseOrCapability,
       flags);
@@ -150,7 +150,7 @@ transitioning macro RunContextPromiseHookBefore(implicit context: Context)(
 
 @export
 transitioning macro RunContextPromiseHookAfter(implicit context: Context)(
-    promiseOrCapability: JSPromise|PromiseCapability) {
+    promiseOrCapability: JSPromise|PromiseCapability|Undefined) {
   RunContextPromiseHook(
       ContextSlot::PROMISE_HOOK_AFTER_FUNCTION_INDEX, promiseOrCapability,
       PromiseHookFlags());
@@ -158,7 +158,7 @@ transitioning macro RunContextPromiseHookAfter(implicit context: Context)(
 
 @export
 transitioning macro RunContextPromiseHookAfter(implicit context: Context)(
-    promiseOrCapability: JSPromise|PromiseCapability, flags: uint32) {
+    promiseOrCapability: JSPromise|PromiseCapability|Undefined, flags: uint32) {
   RunContextPromiseHook(
       ContextSlot::PROMISE_HOOK_AFTER_FUNCTION_INDEX, promiseOrCapability,
       flags);
@@ -166,7 +166,7 @@ transitioning macro RunContextPromiseHookAfter(implicit context: Context)(
 
 transitioning macro RunContextPromiseHook(implicit context: Context)(
     slot: Slot<NativeContext, Undefined|JSFunction>,
-    promiseOrCapability: JSPromise|PromiseCapability, flags: uint32) {
+    promiseOrCapability: JSPromise|PromiseCapability|Undefined, flags: uint32) {
   if (!IsContextPromiseHookEnabled(flags)) return;
   const maybeHook = *NativeContextSlot(slot);
   if (IsUndefined(maybeHook)) return;
@@ -180,6 +180,9 @@ transitioning macro RunContextPromiseHook(implicit context: Context)(
     }
     case (capability: PromiseCapability): {
       promise = Cast<JSPromise>(capability.promise) otherwise return;
+    }
+    case (Undefined): {
+      return;
     }
   }
 
