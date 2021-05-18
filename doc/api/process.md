@@ -459,7 +459,7 @@ The `*-deprecation` command-line flags only affect warnings that use the name
 
 ### Event: `'worker'`
 <!-- YAML
-added: REPLACEME
+added: v16.2.0
 -->
 
 * `worker` {Worker} The {Worker} that was created.

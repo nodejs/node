@@ -1674,7 +1674,7 @@ may cause them to trust the same CAs as node.
 added: v0.0.1
 changes:
   - version:
-     - REPLACEME
+     - v16.2.0
     pr-url: https://github.com/nodejs/node/pull/38642
     description:
       Changing the TZ variable using process.env.TZ = changes the timezone

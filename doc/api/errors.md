@@ -717,12 +717,12 @@ STDERR/STDOUT, and the data's length is longer than the `maxBuffer` option.
 <a id="ERR_CLOSED_MESSAGE_PORT"></a>
 ### `ERR_CLOSED_MESSAGE_PORT`
 <!--
-added: REPLACEME
+added: v16.2.0
 changes:
   - version: 11.12.0
     pr-url: https://github.com/nodejs/node/pull/26487
     description: The error message was removed.
-  - version: REPLACEME
+  - version: v16.2.0
     pr-url: https://github.com/nodejs/node/pull/38510
     description: The error message was reintroduced.
 -->
