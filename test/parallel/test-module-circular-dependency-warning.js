@@ -12,7 +12,7 @@ common.expectWarning({
      'of module exports inside circular dependency'],
     ["Accessing non-existent property 'missingPropModuleExportsB' " +
      'of module exports inside circular dependency'],
-  ]
+  ],
 });
 const required = require(fixtures.path('cycles', 'warning-a.js'));
 assert.strictEqual(Object.getPrototypeOf(required), Object.prototype);

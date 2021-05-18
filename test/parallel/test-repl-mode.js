@@ -45,7 +45,7 @@ function testStrictModeTerminal() {
   }
   // Verify that ReferenceErrors are reported in strict mode previews.
   const cli = initRepl(repl.REPL_MODE_STRICT, {
-    terminal: true
+    terminal: true,
   });
 
   cli.input.emit('data', 'xyz ');
@@ -83,6 +83,6 @@ function initRepl(mode, options) {
     useColors: false,
     terminal: false,
     replMode: mode,
-    ...options
+    ...options,
   });
 }

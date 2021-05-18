@@ -12,7 +12,7 @@ const assert = require('assert');
 const res = new ServerResponse({
   method: 'GET',
   httpVersionMajor: 1,
-  httpVersionMinor: 1
+  httpVersionMinor: 1,
 });
 
 let firstChunk = true;
@@ -26,7 +26,7 @@ const ws = new Writable({
       assert.strictEqual(chunk.length, 0);
     }
     setImmediate(callback);
-  }, 2)
+  }, 2),
 });
 
 res.assignSocket(ws);

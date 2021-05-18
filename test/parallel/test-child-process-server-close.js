@@ -26,7 +26,7 @@ if (process.argv[2] !== 'child') {
 // Child
 const server = net.createServer((conn) => {
   spawn(process.execPath, ['-v'], {
-    stdio: ['ignore', conn, 'ignore']
+    stdio: ['ignore', conn, 'ignore'],
   }).on('close', common.mustCall(() => {
     conn.end();
   }));

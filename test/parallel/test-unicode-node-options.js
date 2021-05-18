@@ -14,9 +14,9 @@ if (process.argv.length === 2) {
                               {
                                 env: {
                                   ...process.env,
-                                  NODE_OPTIONS
+                                  NODE_OPTIONS,
                                 },
-                                stdio: 'inherit'
+                                stdio: 'inherit',
                               });
   assert.strictEqual(result.status, 0);
 } else {

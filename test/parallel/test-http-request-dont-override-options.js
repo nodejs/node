@@ -24,7 +24,7 @@ server.listen(0, function() {
     defaultPort: undefined,
     path: undefined,
     method: undefined,
-    agent: agent
+    agent: agent,
   };
 
   http.request(options, function(res) {

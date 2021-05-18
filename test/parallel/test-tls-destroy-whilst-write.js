@@ -16,11 +16,11 @@ const delay = new stream.Duplex({
       console.log('done');
       cb();
     });
-  }
+  },
 });
 
 const secure = tls.connect({
-  socket: delay
+  socket: delay,
 });
 setImmediate(function() {
   secure.destroy();

@@ -17,7 +17,7 @@ server.listen(0, common.mustCall(function() {
       ':method': 'GET',
       ':scheme': 'http',
       ':authority': `localhost:${port}`,
-      'foo-bar': 'abc123'
+      'foo-bar': 'abc123',
     };
 
     assert.strictEqual(request.path, undefined);
@@ -50,7 +50,7 @@ server.listen(0, common.mustCall(function() {
       {
         code: 'ERR_INVALID_ARG_VALUE',
         name: 'TypeError',
-        message: "The argument 'method' is invalid. Received '   '"
+        message: "The argument 'method' is invalid. Received '   '",
       }
     );
     assert.throws(
@@ -59,7 +59,7 @@ server.listen(0, common.mustCall(function() {
         code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError',
         message: 'The "method" argument must be of type string. ' +
-                 'Received type boolean (true)'
+                 'Received type boolean (true)',
       }
     );
 
@@ -76,7 +76,7 @@ server.listen(0, common.mustCall(function() {
       ':method': 'GET',
       ':scheme': 'http',
       ':authority': `localhost:${port}`,
-      'foo-bar': 'abc123'
+      'foo-bar': 'abc123',
     };
     const request = client.request(headers);
     request.on('end', common.mustCall(function() {

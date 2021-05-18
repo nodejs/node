@@ -108,7 +108,7 @@ tmpdir.refresh();
   const data = {
     toString() {
       return 'hello world!';
-    }
+    },
   };
 
   fs.writeFileSync(file, data, { encoding: 'utf8', flag: 'a' });

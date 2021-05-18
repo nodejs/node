@@ -31,7 +31,7 @@ const {
   truncate,
   unlink,
   utimes,
-  writeFile
+  writeFile,
 } = fsPromises;
 
 const tmpDir = tmpdir.path;
@@ -56,7 +56,7 @@ assert.strictEqual(
     {
       code: 'ENOENT',
       name: 'Error',
-      message: /^ENOENT: no such file or directory, access/
+      message: /^ENOENT: no such file or directory, access/,
     }
   );
 
@@ -64,7 +64,7 @@ assert.strictEqual(
     access(__filename, 8),
     {
       code: 'ERR_OUT_OF_RANGE',
-      message: /"mode".*must be an integer >= 0 && <= 7\. Received 8$/
+      message: /"mode".*must be an integer >= 0 && <= 7\. Received 8$/,
     }
   );
 
@@ -72,7 +72,7 @@ assert.strictEqual(
     access(__filename, { [Symbol.toPrimitive]() { return 5; } }),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /"mode" argument.+integer\. Received an instance of Object$/
+      message: /"mode" argument.+integer\. Received an instance of Object$/,
     }
   );
 }
@@ -197,7 +197,7 @@ async function getHandle(dest) {
           code: 'ERR_OUT_OF_RANGE',
           name: 'RangeError',
           message: 'The value of "gid" is out of range. ' +
-                  'It must be >= -1 && <= 4294967295. Received -2'
+                  'It must be >= -1 && <= 4294967295. Received -2',
         });
 
       assert.rejects(
@@ -208,7 +208,7 @@ async function getHandle(dest) {
           code: 'ERR_OUT_OF_RANGE',
           name: 'RangeError',
           message: 'The value of "gid" is out of range. ' +
-                    'It must be >= -1 && <= 4294967295. Received -2'
+                    'It must be >= -1 && <= 4294967295. Received -2',
         });
 
       await handle.close();
@@ -227,7 +227,7 @@ async function getHandle(dest) {
         // expect it to be ENOSYS
         common.expectsError({
           code: 'ENOSYS',
-          name: 'Error'
+          name: 'Error',
         })(err);
       }
 
@@ -281,7 +281,7 @@ async function getHandle(dest) {
               common.expectsError({
                 code: 'ERR_METHOD_NOT_IMPLEMENTED',
                 name: 'Error',
-                message: 'The lchmod() method is not implemented'
+                message: 'The lchmod() method is not implemented',
               })
             ),
           ]);
@@ -417,7 +417,7 @@ async function getHandle(dest) {
           async () => mkdir(dir, { recursive }),
           {
             code: 'ERR_INVALID_ARG_TYPE',
-            name: 'TypeError'
+            name: 'TypeError',
           }
         );
       });
@@ -431,7 +431,7 @@ async function getHandle(dest) {
         async () => mkdtemp(1),
         {
           code: 'ERR_INVALID_ARG_TYPE',
-          name: 'TypeError'
+          name: 'TypeError',
         }
       );
     }
@@ -444,7 +444,7 @@ async function getHandle(dest) {
         async () => handle.write('abc', 0, 'hex'),
         {
           code: 'ERR_INVALID_ARG_VALUE',
-          message: /'encoding' is invalid for data of length 3/
+          message: /'encoding' is invalid for data of length 3/,
         }
       );
 
@@ -458,7 +458,7 @@ async function getHandle(dest) {
       const handle = await getHandle(dest);
       assert.rejects(() => handle.stat.call({}), {
         code: 'ERR_INTERNAL_ASSERTION',
-        message: /handle must be an instance of FileHandle/
+        message: /handle must be an instance of FileHandle/,
       });
       await handle.close();
     }

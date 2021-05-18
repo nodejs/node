@@ -31,7 +31,7 @@ const fixtures = require('../common/fixtures');
 
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 };
 
 const invalidLocalAddress = '1.2.3.4';
@@ -52,7 +52,7 @@ server.listen(0, '127.0.0.1', common.mustCall(function() {
     port: this.address().port,
     path: '/',
     method: 'GET',
-    localAddress: invalidLocalAddress
+    localAddress: invalidLocalAddress,
   }, function(res) {
     assert.fail('unexpectedly got response from server');
   }).on('error', common.mustCall(function(e) {

@@ -45,7 +45,7 @@ function serverTest(withPipeline, cb) {
   server.listen(0, common.mustCall(() => {
     const options = {
       port: server.address().port,
-      allowHalfOpen: true
+      allowHalfOpen: true,
     };
     const c = net.connect(options, () => {
       c.write('GET /1 HTTP/1.1\r\nHost: localhost\r\n\r\n');

@@ -28,7 +28,7 @@ const options = {
   method: 'GET',
   port: undefined,
   host: '127.0.0.1',
-  path: '/'
+  path: '/',
 };
 
 const server = http.createServer(function(req, res) {

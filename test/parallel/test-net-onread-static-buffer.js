@@ -21,8 +21,8 @@ net.createServer(common.mustCall(function(socket) {
         assert.strictEqual(buf, sockBuf);
         received += nread;
         buffers.push(Buffer.from(buf.slice(0, nread)));
-      }
-    }
+      },
+    },
   }).on('data', common.mustNotCall()).on('end', common.mustCall(() => {
     assert.strictEqual(received, message.length);
     assert.deepStrictEqual(Buffer.concat(buffers), message);
@@ -48,8 +48,8 @@ net.createServer(common.mustCall(function(socket) {
         newIncoming.set(incoming);
         newIncoming.set(buf.slice(0, nread), incoming.length);
         incoming = newIncoming;
-      }
-    }
+      },
+    },
   }).on('data', common.mustNotCall()).on('end', common.mustCall(() => {
     assert.strictEqual(received, message.length);
     assert.deepStrictEqual(incoming, new Uint8Array(message));
@@ -78,8 +78,8 @@ net.createServer(common.mustCall(function(socket) {
         assert.strictEqual(buf, bufPool[bufPoolIdx]);
         received += nread;
         incoming.push(Buffer.from(buf.slice(0, nread)));
-      }
-    }
+      },
+    },
   }).on('data', common.mustNotCall()).on('end', common.mustCall(() => {
     assert.strictEqual(received, message.length);
     assert.deepStrictEqual(Buffer.concat(incoming), message);
@@ -112,8 +112,8 @@ net.createServer(common.mustCall(function(socket) {
         newIncoming.set(incoming);
         newIncoming.set(buf.slice(0, nread), incoming.length);
         incoming = newIncoming;
-      }
-    }
+      },
+    },
   }).on('data', common.mustNotCall()).on('end', common.mustCall(() => {
     assert.strictEqual(received, message.length);
     assert.deepStrictEqual(incoming, new Uint8Array(message));
@@ -145,8 +145,8 @@ net.createServer(common.mustCall(function(socket) {
           paused = false;
           this.resume();
         }, 100);
-      }
-    }
+      },
+    },
   }).on('data', common.mustNotCall()).on('end', common.mustCall(() => {
     assert.strictEqual(received, message.length);
     assert.deepStrictEqual(Buffer.concat(buffers), message);
@@ -177,8 +177,8 @@ net.createServer(common.mustCall(function(socket) {
           this.resume();
         }, 100);
         return false;
-      }
-    }
+      },
+    },
   }).on('data', common.mustNotCall()).on('end', common.mustCall(() => {
     assert.strictEqual(received, message.length);
     assert.deepStrictEqual(Buffer.concat(buffers), message);

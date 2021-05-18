@@ -50,12 +50,12 @@ function test({ shouldFail, integrity, manifest = {} }) {
   const resources = {
     [packageURL]: {
       body: packageBody,
-      integrity: `sha256-${hash('sha256', packageBody)}`
+      integrity: `sha256-${hash('sha256', packageBody)}`,
     },
     [depURL]: {
       body: depBody,
-      integrity
-    }
+      integrity,
+    },
   };
   for (const [url, { body, integrity }] of Object.entries(resources)) {
     manifest.resources[url] = {
@@ -99,13 +99,13 @@ test({
   shouldFail: true,
   integrity: `sha256-${hash('sha256', 'file:///')}`,
   manifest: {
-    onerror: 'exit'
-  }
+    onerror: 'exit',
+  },
 });
 test({
   shouldFail: false,
   integrity: `sha256-${hash('sha256', 'file:///')}`,
   manifest: {
-    onerror: 'log'
-  }
+    onerror: 'log',
+  },
 });

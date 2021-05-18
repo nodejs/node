@@ -58,7 +58,7 @@ function testHttp() {
       path: `/${counter++}`,
       host: 'localhost',
       port: httpServer.address().port,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     }, cb).on('error', common.mustNotCall());
 
     http.request({
@@ -66,7 +66,7 @@ function testHttp() {
       path: `/${counter++}`,
       host: 'localhost',
       port: httpServer.address().port,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     }, cb).on('error', common.mustNotCall()).end();
 
     http.request({
@@ -74,7 +74,7 @@ function testHttp() {
       path: `/${counter++}`,
       host: 'localhost',
       port: httpServer.address().port,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     }, cb).on('error', common.mustNotCall()).end();
 
     http.request({
@@ -82,7 +82,7 @@ function testHttp() {
       path: `/${counter++}`,
       host: 'localhost',
       port: httpServer.address().port,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     }, cb).on('error', common.mustNotCall()).end();
 
     http.request({
@@ -90,7 +90,7 @@ function testHttp() {
       path: `/${counter++}`,
       host: 'localhost',
       port: httpServer.address().port,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     }, cb).on('error', common.mustNotCall()).end();
   });
 }

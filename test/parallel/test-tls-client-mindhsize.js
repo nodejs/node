@@ -22,7 +22,7 @@ function test(size, err, next) {
     key: key,
     cert: cert,
     dhparam: loadDHParam(size),
-    ciphers: 'DHE-RSA-AES128-GCM-SHA256'
+    ciphers: 'DHE-RSA-AES128-GCM-SHA256',
   };
 
   const server = tls.createServer(options, function(conn) {
@@ -41,7 +41,7 @@ function test(size, err, next) {
     const client = tls.connect({
       minDHSize: 2048,
       port: this.address().port,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     }, function() {
       nsuccess++;
       server.close();

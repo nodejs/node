@@ -44,7 +44,7 @@ server.listen(0, common.mustCall(() => {
   const req = http.request({
     port: server.address().port,
     method: 'CONNECT',
-    path: 'google.com:80'
+    path: 'google.com:80',
   });
   req.on('connect', common.mustCall((res, socket) => {
     socket.end();
@@ -60,7 +60,7 @@ server.listen(0, common.mustCall(() => {
 function doRequest(i) {
   http.get({
     port: server.address().port,
-    path: `/request${i}`
+    path: `/request${i}`,
   }, common.mustCall((res) => {
     let data = '';
     res.setEncoding('utf8');

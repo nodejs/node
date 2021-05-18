@@ -27,5 +27,5 @@ tls.connect({
     assert.strictEqual(host, 'localhost');
     assert.deepStrictEqual(options, { family: undefined, hints });
   }),
-  hints
+  hints,
 });

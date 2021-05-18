@@ -11,7 +11,7 @@ agent.createSocket = function(req, options, cb) {
 
 const req = http
   .request({
-    agent
+    agent,
   })
   .on('error', common.mustCall((err) => {
     assert.strictEqual(err, _err);

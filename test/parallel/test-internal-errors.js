@@ -55,7 +55,7 @@ errors.E('TEST_ERROR_2', (a, b) => `${a} ${b}`, Error);
     {
       message: /^Code: TEST_ERROR_1; The provided arguments length \(0\) does not match the required ones \(1\)\./,
       name: 'Error',
-      code: 'ERR_INTERNAL_ASSERTION'
+      code: 'ERR_INTERNAL_ASSERTION',
     }
   );
 }
@@ -77,7 +77,7 @@ assert.throws(() => {
 }, {
   code: 'TEST_ERROR_1',
   name: 'TypeError',
-  message: 'Error for testing purposes: a'
+  message: 'Error for testing purposes: a',
 });
 
 // Test that `code` property is mutable and that changing it does not change the

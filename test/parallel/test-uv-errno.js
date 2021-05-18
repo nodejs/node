@@ -5,7 +5,7 @@ const common = require('../common');
 const assert = require('assert');
 const {
   getSystemErrorName,
-  _errnoException
+  _errnoException,
 } = require('util');
 
 const { internalBinding } = require('internal/test/binding');
@@ -32,7 +32,7 @@ function runTest(fn) {
         code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError',
         message: 'The "err" argument must be of type number.' +
-                 common.invalidArgTypeHelper(err)
+                 common.invalidArgTypeHelper(err),
       });
   });
 
@@ -44,7 +44,7 @@ function runTest(fn) {
         name: 'RangeError',
         message: 'The value of "err" is out of range. ' +
                  'It must be a negative integer. ' +
-                 `Received ${err}`
+                 `Received ${err}`,
       });
   });
 }

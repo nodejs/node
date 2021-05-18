@@ -44,8 +44,8 @@ function addSpecial(x, y) {
     mt = new CoveredClass(x, y, {
       special: {
         x: Math.random() * x,
-        y: Math.random() * y
-      }
+        y: Math.random() * y,
+      },
     });
   }
   return mt.addSpecial();
@@ -64,8 +64,8 @@ function multSpecial(x, y) {
     mt = new CoveredClass(x, y, {
       special: {
         x: Math.random() * x,
-        y: Math.random() * y
-      }
+        y: Math.random() * y,
+      },
     });
   }
   return mt.multSpecial();

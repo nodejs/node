@@ -21,7 +21,7 @@ async function main({ n, sync }) {
           this.push(1);
         });
       }
-    }
+    },
   });
 
   bench.start();

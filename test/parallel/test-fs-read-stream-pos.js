@@ -33,7 +33,7 @@ setInterval(() => {
 
   stream = fs.createReadStream(file, {
     highWaterMark: hwm,
-    start: cur
+    start: cur,
   });
   stream.on('data', common.mustCallAtLeast((chunk) => {
     cur += chunk.length;

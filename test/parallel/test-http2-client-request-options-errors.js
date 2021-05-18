@@ -15,7 +15,7 @@ const optionsToTest = {
   weight: 'number',
   parent: 'number',
   exclusive: 'boolean',
-  silent: 'boolean'
+  silent: 'boolean',
 };
 
 const types = {
@@ -25,7 +25,7 @@ const types = {
   object: {},
   array: [],
   null: null,
-  symbol: Symbol('test')
+  symbol: Symbol('test'),
 };
 
 const server = http2.createServer(common.mustNotCall());
@@ -43,14 +43,14 @@ server.listen(0, common.mustCall(() => {
         assert.throws(
           () => client.request({
             ':method': 'CONNECT',
-            ':authority': `localhost:${port}`
+            ':authority': `localhost:${port}`,
           }, {
-            [option]: types[type]
+            [option]: types[type],
           }), {
             name: 'TypeError',
             code: 'ERR_INVALID_ARG_VALUE',
             message: `The property 'options.${option}' is invalid. ` +
-                    `Received ${inspect(types[type])}`
+                    `Received ${inspect(types[type])}`,
           });
       });
     });

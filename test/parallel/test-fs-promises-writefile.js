@@ -23,21 +23,21 @@ const iterable = {
     yield 'a';
     yield 'b';
     yield 'c';
-  }
+  },
 };
 
 const veryLargeBuffer = {
   expected: 'dogs running'.repeat(512 * 1024),
   *[Symbol.iterator]() {
     yield Buffer.from('dogs running'.repeat(512 * 1024), 'utf8');
-  }
+  },
 };
 
 function iterableWith(value) {
   return {
     *[Symbol.iterator]() {
       yield value;
-    }
+    },
   };
 }
 const bufferIterable = {
@@ -46,7 +46,7 @@ const bufferIterable = {
     yield Buffer.from('a');
     yield Buffer.from('b');
     yield Buffer.from('c');
-  }
+  },
 };
 const asyncIterable = {
   expected: 'abc',
@@ -54,7 +54,7 @@ const asyncIterable = {
     yield 'a';
     yield 'b';
     yield 'c';
-  }
+  },
 };
 
 async function doWrite() {
@@ -75,7 +75,7 @@ async function doWriteStreamWithCancel() {
   const { signal } = controller;
   process.nextTick(() => controller.abort());
   assert.rejects(fsPromises.writeFile(otherDest, stream, { signal }), {
-    name: 'AbortError'
+    name: 'AbortError',
   });
 }
 
@@ -135,7 +135,7 @@ async function doWriteWithCancel() {
   const { signal } = controller;
   process.nextTick(() => controller.abort());
   assert.rejects(fsPromises.writeFile(otherDest, buffer, { signal }), {
-    name: 'AbortError'
+    name: 'AbortError',
   });
 }
 

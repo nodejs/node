@@ -10,7 +10,7 @@ const { Duplex } = require('stream');
 
 const server = h2.createSecureServer({
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 });
 
 class JSSocket extends Duplex {
@@ -38,11 +38,11 @@ server.listen(0, common.mustCall(function() {
     rejectUnauthorized: false,
     host: 'localhost',
     port: this.address().port,
-    ALPNProtocols: ['h2']
+    ALPNProtocols: ['h2'],
   }, () => {
     const proxy = new JSSocket(socket);
     const client = h2.connect(`https://localhost:${this.address().port}`, {
-      createConnection: () => proxy
+      createConnection: () => proxy,
     });
     const req = client.request();
 

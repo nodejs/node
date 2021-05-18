@@ -24,13 +24,13 @@ const testCases = [
     serverOpts: {
       ca: loadPEM('ca3-key'),
       key: loadPEM('agent6-key'),
-      cert: loadPEM('agent6-cert')
+      cert: loadPEM('agent6-cert'),
     },
     clientOpts: {
       port: undefined,
-      rejectUnauthorized: true
+      rejectUnauthorized: true,
     },
-    errorCode: 'UNABLE_TO_GET_ISSUER_CERT_LOCALLY'
+    errorCode: 'UNABLE_TO_GET_ISSUER_CERT_LOCALLY',
   },
 ];
 

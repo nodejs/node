@@ -6,7 +6,7 @@ const http = require('http');
 // Regression test for https://github.com/nodejs/node/issues/31796
 
 asyncHooks.createHook({
-  after: () => {}
+  after: () => {},
 }).enable();
 
 
@@ -22,7 +22,7 @@ const server = http.createServer(common.mustCall((request, response) => {
 server.listen(0, common.mustCall(() => {
   http.get({
     host: 'localhost',
-    port: server.address().port
+    port: server.address().port,
   }, common.mustCall(() => {
     throw new Error('whoah');
   }));

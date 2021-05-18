@@ -16,7 +16,7 @@ server.on('listening', common.mustCall(() => {
   http.get({
     port: server.address().port,
     path: '/hello',
-    agent: agent
+    agent: agent,
   }, common.mustCall((res) => {
     assert.strictEqual(res.statusCode, 200);
     assert.strictEqual(res.headers['x-date'], 'foo');

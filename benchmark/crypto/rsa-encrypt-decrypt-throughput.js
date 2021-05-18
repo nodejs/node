@@ -19,7 +19,7 @@ keylen_list.forEach((key) => {
 const bench = common.createBenchmark(main, {
   n: [500],
   keylen: keylen_list,
-  len: [16, 32, 64]
+  len: [16, 32, 64],
 });
 
 function main({ len, algo, keylen, n }) {

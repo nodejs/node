@@ -19,11 +19,11 @@ function check(isTTY, colorMode, expectedColorMode, inspectOptions) {
       assert.strictEqual(chunk.trim(),
                          util.inspect(items[i++], {
                            colors: expectedColorMode,
-                           ...inspectOptions
+                           ...inspectOptions,
                          }));
       cb();
     }, items.length),
-    decodeStrings: false
+    decodeStrings: false,
   });
   stream.isTTY = isTTY;
 
@@ -33,7 +33,7 @@ function check(isTTY, colorMode, expectedColorMode, inspectOptions) {
     stdout: stream,
     ignoreErrors: false,
     colorMode,
-    inspectOptions
+    inspectOptions,
   });
   for (const item of items) {
     testConsole.log(item);
@@ -53,7 +53,7 @@ check(false, false, false);
 // Check invalid options.
 {
   const stream = new Writable({
-    write: common.mustNotCall()
+    write: common.mustNotCall(),
   });
 
   [0, 'true', null, {}, [], () => {}].forEach((colorMode) => {
@@ -63,12 +63,12 @@ check(false, false, false);
         new Console({
           stdout: stream,
           ignoreErrors: false,
-          colorMode: colorMode
+          colorMode: colorMode,
         });
       },
       {
         message: `The argument 'colorMode' is invalid. Received ${received}`,
-        code: 'ERR_INVALID_ARG_VALUE'
+        code: 'ERR_INVALID_ARG_VALUE',
       }
     );
   });
@@ -81,14 +81,14 @@ check(false, false, false);
           ignoreErrors: false,
           colorMode: colorMode,
           inspectOptions: {
-            colors: false
-          }
+            colors: false,
+          },
         });
       },
       {
         message: 'Option "options.inspectOptions.color" cannot be used in ' +
                  'combination with option "colorMode"',
-        code: 'ERR_INCOMPATIBLE_OPTION_PAIR'
+        code: 'ERR_INCOMPATIBLE_OPTION_PAIR',
       }
     );
   });

@@ -11,7 +11,7 @@ oldStream.resume = () => {};
 {
   new Readable({
     autoDestroy: false,
-    destroy: common.mustCall()
+    destroy: common.mustCall(),
   })
     .wrap(oldStream);
   oldStream.emit('destroy');
@@ -20,7 +20,7 @@ oldStream.resume = () => {};
 {
   new Readable({
     autoDestroy: false,
-    destroy: common.mustCall()
+    destroy: common.mustCall(),
   })
     .wrap(oldStream);
   oldStream.emit('close');

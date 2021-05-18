@@ -20,7 +20,7 @@ assert.throws(() => {
   operator: '!=',
   actual: 'first',
   expected: 'second',
-  generatedMessage: true
+  generatedMessage: true,
 });
 
 // Three args
@@ -33,7 +33,7 @@ assert.throws(() => {
   operator: 'fail',
   actual: 'ignored',
   expected: 'ignored',
-  generatedMessage: false
+  generatedMessage: false,
 });
 
 // Three args with custom Error
@@ -41,7 +41,7 @@ assert.throws(() => {
   assert.fail(typeof 1, 'object', new TypeError('another custom message'));
 }, {
   name: 'TypeError',
-  message: 'another custom message'
+  message: 'another custom message',
 });
 
 // No third arg (but a fourth arg)
@@ -53,7 +53,7 @@ assert.throws(() => {
   message: '\'first\' operator \'second\'',
   operator: 'operator',
   actual: 'first',
-  expected: 'second'
+  expected: 'second',
 });
 
 // The stackFrameFunction should exclude the foo frame

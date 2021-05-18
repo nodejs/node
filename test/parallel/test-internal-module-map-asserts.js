@@ -11,7 +11,7 @@ const ModuleMap = require('internal/modules/esm/module_map');
   const errorObj = {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: /^The "url" argument must be of type string/
+    message: /^The "url" argument must be of type string/,
   };
 
   const moduleMap = new ModuleMap();
@@ -36,7 +36,7 @@ const ModuleMap = require('internal/modules/esm/module_map');
     assert.throws(() => moduleMap.set('', value), {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: /^The "job" argument must be an instance of ModuleJob/
+      message: /^The "job" argument must be an instance of ModuleJob/,
     });
   });
 }

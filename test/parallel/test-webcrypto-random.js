@@ -60,7 +60,7 @@ const { getRandomValues } = require('crypto').webcrypto;
 
   if (kData !== undefined) {
     assert.throws(() => getRandomValues(kData), {
-      code: 22
+      code: 22,
     });
   }
 }

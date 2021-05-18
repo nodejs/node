@@ -182,7 +182,7 @@ function testFtruncate(cb) {
       {
         code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError',
-        message: `The "len" argument must be of type number.${received}`
+        message: `The "len" argument must be of type number.${received}`,
       }
     );
 
@@ -191,7 +191,7 @@ function testFtruncate(cb) {
       {
         code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError',
-        message: `The "len" argument must be of type number.${received}`
+        message: `The "len" argument must be of type number.${received}`,
       }
     );
   });
@@ -203,7 +203,7 @@ function testFtruncate(cb) {
         code: 'ERR_OUT_OF_RANGE',
         name: 'RangeError',
         message: 'The value of "len" is out of range. It must be ' +
-                  `an integer. Received ${input}`
+                  `an integer. Received ${input}`,
       }
     );
 
@@ -213,7 +213,7 @@ function testFtruncate(cb) {
         code: 'ERR_OUT_OF_RANGE',
         name: 'RangeError',
         message: 'The value of "len" is out of range. It must be ' +
-                  `an integer. Received ${input}`
+                  `an integer. Received ${input}`,
       }
     );
   });
@@ -262,7 +262,7 @@ function testFtruncate(cb) {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
       message: 'The "len" argument must be of type number.' +
-               common.invalidArgTypeHelper(input)
+               common.invalidArgTypeHelper(input),
     }
   );
 });
@@ -275,7 +275,7 @@ function testFtruncate(cb) {
         code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError',
         message: 'The "fd" argument must be of type number.' +
-                 common.invalidArgTypeHelper(input)
+                 common.invalidArgTypeHelper(input),
       }
     );
   });

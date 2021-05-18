@@ -17,7 +17,7 @@ const key = '0123456789';
     ],
     Warning: [
       ['Use Cipheriv for counter mode of aes-256-gcm'],
-    ]
+    ],
   });
 
   // Emits regular warning expected by expectWarning()
@@ -37,7 +37,7 @@ const realEmitWarning = process.emitWarning;
 {
   Object.defineProperty(process, 'emitWarning', {
     get() { throw new Error('bar'); },
-    configurable: true
+    configurable: true,
   });
   assert.throws(() => {
     crypto.createCipher('aes-256-gcm', key);
@@ -48,5 +48,5 @@ const realEmitWarning = process.emitWarning;
 Object.defineProperty(process, 'emitWarning', {
   value: realEmitWarning,
   configurable: true,
-  writable: true
+  writable: true,
 });

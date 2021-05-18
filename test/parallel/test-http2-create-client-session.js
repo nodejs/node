@@ -23,7 +23,7 @@ function onStream(stream, headers, flags) {
   assert.strictEqual(flags, 5);
   stream.respond({
     'content-type': 'text/html',
-    ':status': 200
+    ':status': 200,
   });
   stream.write(body.slice(0, 20));
   stream.end(body.slice(20));

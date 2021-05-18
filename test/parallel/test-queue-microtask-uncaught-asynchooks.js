@@ -25,7 +25,7 @@ async_hooks.createHook({
   },
   destroy(id) {
     if (id === µtaskId) events.push('destroy');
-  }
+  },
 }).enable();
 
 queueMicrotask(() => { throw new Error(); });

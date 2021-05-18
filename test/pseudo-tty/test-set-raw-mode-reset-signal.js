@@ -15,7 +15,7 @@ proc.stdout.on('data', common.mustCall(() => {
 proc.on('exit', common.mustCall(() => {
   const { stdout } = child_process.spawnSync('stty', {
     stdio: ['inherit', 'pipe', 'inherit'],
-    encoding: 'utf8'
+    encoding: 'utf8',
   });
 
   if (stdout.match(/-echo\b/)) {

@@ -13,7 +13,7 @@ tmpdir.refresh();
       open: common.mustCall(fs.open),
       write: common.mustCallAtLeast(fs.write, 1),
       close: common.mustCall(fs.close),
-    }
+    },
   });
   stream.end('asd');
   stream.on('close', common.mustCall());
@@ -28,7 +28,7 @@ tmpdir.refresh();
       write: fs.write,
       writev: common.mustCallAtLeast(fs.writev, 1),
       close: common.mustCall(fs.close),
-    }
+    },
   });
   stream.write('asd');
   stream.write('asd');

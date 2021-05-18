@@ -12,35 +12,35 @@ const { REPL_MODE_SLOPPY, REPL_MODE_STRICT } = require('repl');
 const tests = [
   {
     env: {},
-    expected: { terminal: true, useColors: true }
+    expected: { terminal: true, useColors: true },
   },
   {
     env: { NODE_DISABLE_COLORS: '1' },
-    expected: { terminal: true, useColors: false }
+    expected: { terminal: true, useColors: false },
   },
   {
     env: { NODE_NO_READLINE: '1' },
-    expected: { terminal: false, useColors: false }
+    expected: { terminal: false, useColors: false },
   },
   {
     env: { TERM: 'dumb' },
-    expected: { terminal: true, useColors: false }
+    expected: { terminal: true, useColors: false },
   },
   {
     env: { NODE_NO_READLINE: '1', NODE_DISABLE_COLORS: '1' },
-    expected: { terminal: false, useColors: false }
+    expected: { terminal: false, useColors: false },
   },
   {
     env: { NODE_NO_READLINE: '0' },
-    expected: { terminal: true, useColors: true }
+    expected: { terminal: true, useColors: true },
   },
   {
     env: { NODE_REPL_MODE: 'sloppy' },
-    expected: { terminal: true, useColors: true, replMode: REPL_MODE_SLOPPY }
+    expected: { terminal: true, useColors: true, replMode: REPL_MODE_SLOPPY },
   },
   {
     env: { NODE_REPL_MODE: 'strict' },
-    expected: { terminal: true, useColors: true, replMode: REPL_MODE_STRICT }
+    expected: { terminal: true, useColors: true, replMode: REPL_MODE_STRICT },
   },
 ];
 
@@ -51,7 +51,7 @@ function run(test) {
   const opts = {
     terminal: true,
     input: new stream.Readable({ read() {} }),
-    output: new stream.Writable({ write() {} })
+    output: new stream.Writable({ write() {} }),
   };
 
   Object.assign(process.env, env);

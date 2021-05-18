@@ -133,7 +133,7 @@ fs.open(fn4, 'w', 0o644, common.mustSucceed((fd) => {
   });
 
   const data = {
-    toString() { return expected; }
+    toString() { return expected; },
   };
   fs.write(fd, data, done);
 }));
@@ -143,14 +143,14 @@ fs.open(fn4, 'w', 0o644, common.mustSucceed((fd) => {
     () => fs.write(i, common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError'
+      name: 'TypeError',
     }
   );
   assert.throws(
     () => fs.writeSync(i),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError'
+      name: 'TypeError',
     }
   );
 });
@@ -160,14 +160,14 @@ fs.open(fn4, 'w', 0o644, common.mustSucceed((fd) => {
     () => fs.write(1, data, common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /"buffer"/
+      message: /"buffer"/,
     }
   );
   assert.throws(
     () => fs.writeSync(1, data),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /"buffer"/
+      message: /"buffer"/,
     }
   );
 });
@@ -180,7 +180,7 @@ fs.open(fn4, 'w', 0o644, common.mustSucceed((fd) => {
     () => fs.writeSync(fd, 'abc', 0, 'hex'),
     {
       code: 'ERR_INVALID_ARG_VALUE',
-      message: /'encoding' is invalid for data of length 3/
+      message: /'encoding' is invalid for data of length 3/,
     }
   );
 
@@ -188,7 +188,7 @@ fs.open(fn4, 'w', 0o644, common.mustSucceed((fd) => {
     () => fs.writeSync(fd, 'abc', 0, 'hex', common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_VALUE',
-      message: /'encoding' is invalid for data of length 3/
+      message: /'encoding' is invalid for data of length 3/,
     }
   );
 

@@ -6,7 +6,7 @@ const fixtures = require('../common/fixtures');
 // Confirm that for TLSv1.3, renegotiate() is disallowed.
 
 const {
-  assert, connect, keys
+  assert, connect, keys,
 } = require(fixtures.path('tls-connect'));
 
 const server = keys.agent10;

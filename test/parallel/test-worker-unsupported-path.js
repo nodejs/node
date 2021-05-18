@@ -8,7 +8,7 @@ const { Worker } = require('worker_threads');
 {
   const expectedErr = {
     code: 'ERR_WORKER_UNSUPPORTED_EXTENSION',
-    name: 'TypeError'
+    name: 'TypeError',
   };
   assert.throws(() => { new Worker('/b'); }, expectedErr);
   assert.throws(() => { new Worker('/c.wasm'); }, expectedErr);
@@ -19,7 +19,7 @@ const { Worker } = require('worker_threads');
 {
   const expectedErr = {
     code: 'ERR_WORKER_PATH',
-    name: 'TypeError'
+    name: 'TypeError',
   };
   const existingRelPathNoDot = path.relative('.', __filename);
   assert.throws(() => { new Worker(existingRelPathNoDot); }, expectedErr);
@@ -47,7 +47,7 @@ const { Worker } = require('worker_threads');
 {
   const expectedErr = {
     code: 'ERR_INVALID_URL_SCHEME',
-    name: 'TypeError'
+    name: 'TypeError',
   };
   assert.throws(() => { new Worker(new URL('https://www.url.com')); },
                 expectedErr);

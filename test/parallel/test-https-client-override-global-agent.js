@@ -11,7 +11,7 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 };
 
 const server = https.Server(options, common.mustCall((req, res) => {
@@ -30,7 +30,7 @@ server.listen(0, common.mustCall(() => {
 
 function makeRequest() {
   const req = https.get({
-    port: server.address().port
+    port: server.address().port,
   });
   req.on('close', () =>
     server.close());

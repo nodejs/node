@@ -61,6 +61,6 @@ module.exports = (context) => {
           }
         }
       }
-    }
+    },
   };
 };

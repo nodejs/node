@@ -12,7 +12,7 @@ const repl = require('repl');
       // so set a boolean that is checked later instead.
       evalCalledWithExpectedArgs = (cmd === 'function f() {}\n' &&
                                     context.foo === 'bar');
-    })
+    }),
   };
 
   const r = repl.start(options);

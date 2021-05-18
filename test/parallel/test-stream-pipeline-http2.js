@@ -19,7 +19,7 @@ const http2 = require('http2');
     const rs = new Readable({
       read() {
         rs.push('hello');
-      }
+      },
     });
 
     pipeline(rs, req, common.mustCall((err) => {

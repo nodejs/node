@@ -178,7 +178,7 @@ assert.throws(
   {
     code: 'ERR_UNKNOWN_ENCODING',
     name: 'TypeError',
-    message: 'Unknown encoding: 1'
+    message: 'Unknown encoding: 1',
   }
 );
 
@@ -187,7 +187,7 @@ assert.throws(
   {
     code: 'ERR_UNKNOWN_ENCODING',
     name: 'TypeError',
-    message: 'Unknown encoding: test'
+    message: 'Unknown encoding: test',
   }
 );
 
@@ -197,7 +197,7 @@ assert.throws(
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
     message: 'The "buf" argument must be an instance of Buffer, TypedArray,' +
-      ' or DataView. Received null'
+      ' or DataView. Received null',
   }
 );
 

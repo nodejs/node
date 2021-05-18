@@ -17,7 +17,7 @@ const asyncResource = new AsyncResource('test');
 
 [1, false, '', {}, []].forEach((i) => {
   assert.throws(() => asyncResource.bind(i), {
-    code: 'ERR_INVALID_ARG_TYPE'
+    code: 'ERR_INVALID_ARG_TYPE',
   });
 });
 

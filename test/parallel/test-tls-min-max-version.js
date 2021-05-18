@@ -6,7 +6,7 @@ const { inspect } = require('util');
 // Check min/max protocol versions.
 
 const {
-  assert, connect, keys, tls
+  assert, connect, keys, tls,
 } = require(fixtures.path('tls-connect'));
 const DEFAULT_MIN_VERSION = tls.DEFAULT_MIN_VERSION;
 const DEFAULT_MAX_VERSION = tls.DEFAULT_MAX_VERSION;
@@ -33,7 +33,7 @@ function test(cmin, cmax, cprot, smin, smax, sprot, proto, cerr, serr) {
       minVersion: cmin,
       maxVersion: cmax,
       secureProtocol: cprot,
-      ciphers: ciphers
+      ciphers: ciphers,
     },
     server: {
       cert: keys.agent6.cert,
@@ -41,7 +41,7 @@ function test(cmin, cmax, cprot, smin, smax, sprot, proto, cerr, serr) {
       minVersion: smin,
       maxVersion: smax,
       secureProtocol: sprot,
-      ciphers: ciphers
+      ciphers: ciphers,
     },
   }, common.mustCall((err, pair, cleanup) => {
     function u(_) { return _ === undefined ? 'U' : _; }

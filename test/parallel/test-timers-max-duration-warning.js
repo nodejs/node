@@ -34,7 +34,7 @@ process.on('warning', common.mustCall((warning) => {
 
 {
   const timer = {
-    _onTimeout: timerNotCanceled
+    _onTimeout: timerNotCanceled,
   };
   timers.enroll(timer, OVERFLOW);
   timers.active(timer);

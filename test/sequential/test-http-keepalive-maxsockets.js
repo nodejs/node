@@ -37,7 +37,7 @@ server.listen(0, function() {
   const agent = http.Agent({
     keepAlive: true,
     maxSockets: 5,
-    maxFreeSockets: 2
+    maxFreeSockets: 2,
   });
 
   let closed = false;
@@ -85,7 +85,7 @@ server.listen(0, function() {
     http.request({
       port: server.address().port,
       path: `/${i}`,
-      agent: agent
+      agent: agent,
     }, function(res) {
       let data = '';
       res.setEncoding('ascii');

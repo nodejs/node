@@ -4,7 +4,7 @@ const stream = require('stream');
 const assert = require('assert');
 
 const readable = new stream.Readable({
-  read: () => {}
+  read: () => {},
 });
 
 const writables = [];
@@ -14,7 +14,7 @@ for (let i = 0; i < 5; i++) {
     write: common.mustCall((chunk, encoding, callback) => {
       target.output.push(chunk);
       callback();
-    }, 1)
+    }, 1),
   });
   target.output = [];
 

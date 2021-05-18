@@ -5,7 +5,7 @@ const fs = require('fs');
 
 const bench = common.createBenchmark(main, {
   n: [20e4],
-  statType: ['fstat', 'lstat', 'stat']
+  statType: ['fstat', 'lstat', 'stat'],
 });
 
 

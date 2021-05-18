@@ -41,7 +41,7 @@ const aboutBlankFailures = originalFailures
   .map((test) => ({
     input: 'about:blank',
     base: test.input,
-    failure: true
+    failure: true,
   }));
 
 const failureTests = originalFailures

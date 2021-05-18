@@ -24,7 +24,7 @@ const testMe = repl.start({
   prompt: '',
   input: putIn,
   output: process.stdout,
-  allowBlockingCompletions: true
+  allowBlockingCompletions: true,
 });
 
 // Some errors are passed to the domain, but do not callback

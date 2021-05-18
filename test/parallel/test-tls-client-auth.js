@@ -4,7 +4,7 @@ const common = require('../common');
 const fixtures = require('../common/fixtures');
 
 const {
-  assert, connect, keys, tls
+  assert, connect, keys, tls,
 } = require(fixtures.path('tls-connect'));
 
 // Use ec10 and agent10, they are the only identities with intermediate CAs.

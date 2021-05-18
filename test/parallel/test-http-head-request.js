@@ -37,7 +37,7 @@ function test(headers) {
     const request = http.request({
       port: this.address().port,
       method: 'HEAD',
-      path: '/'
+      path: '/',
     }, common.mustCall(function(response) {
       console.error('response start');
       response.on('end', common.mustCall(function() {
@@ -50,8 +50,8 @@ function test(headers) {
 }
 
 test({
-  'Transfer-Encoding': 'chunked'
+  'Transfer-Encoding': 'chunked',
 });
 test({
-  'Content-Length': body.length
+  'Content-Length': body.length,
 });

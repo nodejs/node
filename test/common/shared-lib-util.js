@@ -46,5 +46,5 @@ function getBinaryPath() {
 module.exports = {
   addLibraryPath,
   getBinaryPath,
-  getSharedLibPath
+  getSharedLibPath,
 };

@@ -18,7 +18,7 @@ const assert = require('assert');
       () => new TextDecoder(`${ws}${i}`),
       {
         code: 'ERR_ENCODING_NOT_SUPPORTED',
-        name: 'RangeError'
+        name: 'RangeError',
       }
     );
 
@@ -26,7 +26,7 @@ const assert = require('assert');
       () => new TextDecoder(`${i}${ws}`),
       {
         code: 'ERR_ENCODING_NOT_SUPPORTED',
-        name: 'RangeError'
+        name: 'RangeError',
       }
     );
 
@@ -34,7 +34,7 @@ const assert = require('assert');
       () => new TextDecoder(`${ws}${i}${ws}`),
       {
         code: 'ERR_ENCODING_NOT_SUPPORTED',
-        name: 'RangeError'
+        name: 'RangeError',
       }
     );
   });

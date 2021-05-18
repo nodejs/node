@@ -20,7 +20,7 @@ server.on('listening', common.mustCall(function() {
   const req = http.request({
     port: this.address().port,
     method: 'POST',
-    path: '/'
+    path: '/',
   }, common.mustCall(function(res) {
     assert.strictEqual(res.statusCode, 200);
     res.resume();

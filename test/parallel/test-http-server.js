@@ -36,7 +36,7 @@ invalid_options.forEach((option) => {
   assert.throws(() => {
     new http.Server(option);
   }, {
-    code: 'ERR_INVALID_ARG_TYPE'
+    code: 'ERR_INVALID_ARG_TYPE',
   });
 });
 

@@ -14,7 +14,7 @@ const { once } = require('events');
   assert.throws(() => {
     port1.postMessage(fh);
   }, {
-    code: 'ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST'
+    code: 'ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST',
   });
 
   // Check that transferring FileHandle instances works.
@@ -80,7 +80,7 @@ const { once } = require('events');
     port1.postMessage(fh, [fh]);
   }, {
     message: 'Cannot transfer FileHandle while in use',
-    name: 'DataCloneError'
+    name: 'DataCloneError',
   });
 
   assert.deepStrictEqual(await readPromise, await fs.readFile(__filename));
@@ -97,7 +97,7 @@ const { once } = require('events');
     port1.postMessage(fh, [fh]);
   }, {
     message: 'Cannot transfer FileHandle while in use',
-    name: 'DataCloneError'
+    name: 'DataCloneError',
   });
   await closePromise;
 })().then(common.mustCall());

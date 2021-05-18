@@ -56,7 +56,7 @@ const sendRequest = (agent) => new Promise((resolve, reject) => {
   http.get({
     port: server.address().port,
     path: '/',
-    agent
+    agent,
   }, common.mustCall((res) => {
     const resData = [];
     res.on('data', (data) => resData.push(data));

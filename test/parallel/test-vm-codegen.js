@@ -51,7 +51,7 @@ assert.throws(() => {
     },
   });
 }, {
-  name: 'EvalError'
+  name: 'EvalError',
 });
 
 assert.throws(() => {
@@ -61,7 +61,7 @@ assert.throws(() => {
     },
   });
 }, {
-  name: 'CompileError'
+  name: 'CompileError',
 });
 
 assert.throws(() => {
@@ -81,7 +81,7 @@ assert.throws(() => {
     },
   });
 }, {
-  code: 'ERR_INVALID_ARG_TYPE'
+  code: 'ERR_INVALID_ARG_TYPE',
 });
 
 assert.throws(() => {

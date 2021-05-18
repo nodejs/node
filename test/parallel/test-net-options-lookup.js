@@ -10,14 +10,14 @@ function connectThrows(input) {
   const opts = {
     host: 'localhost',
     port: 0,
-    lookup: input
+    lookup: input,
   };
 
   assert.throws(() => {
     net.connect(opts);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError'
+    name: 'TypeError',
   });
 }
 
@@ -27,7 +27,7 @@ function connectDoesNotThrow(input) {
   const opts = {
     host: 'localhost',
     port: 0,
-    lookup: input
+    lookup: input,
   };
 
   return net.connect(opts);
@@ -43,6 +43,6 @@ function connectDoesNotThrow(input) {
     code: 'ERR_INVALID_ADDRESS_FAMILY',
     host: 'localhost',
     port: 0,
-    message: 'Invalid address family: 100 localhost:0'
+    message: 'Invalid address family: 100 localhost:0',
   }));
 }

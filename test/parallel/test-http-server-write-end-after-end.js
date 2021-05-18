@@ -19,7 +19,7 @@ function handle(req, res) {
     res.write('world', common.mustCall((err) => {
       common.expectsError({
         code: 'ERR_STREAM_WRITE_AFTER_END',
-        name: 'Error'
+        name: 'Error',
       })(err);
       server.close();
     }));

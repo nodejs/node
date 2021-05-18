@@ -14,7 +14,7 @@ const tls = require('tls');
 const socket = tls.connect({
   port: 42,
   lookup: () => {},
-  timeout: 1000
+  timeout: 1000,
 });
 
 assert.strictEqual(socket.timeout, 1000);

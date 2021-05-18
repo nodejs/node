@@ -73,23 +73,23 @@ async function testVerify({ name,
   // Test failure when using wrong key
   await assert.rejects(
     subtle.verify({ name, hash }, privateKey, signature, plaintext), {
-      message: /Unable to use this key to verify/
+      message: /Unable to use this key to verify/,
     });
 
   await assert.rejects(
     subtle.verify({ name, hash }, noVerifyPublicKey, signature, plaintext), {
-      message: /Unable to use this key to verify/
+      message: /Unable to use this key to verify/,
     });
 
   // Test failure when using the wrong algorithms
   await assert.rejects(
     subtle.verify({ name, hash }, hmacKey, signature, plaintext), {
-      message: /Unable to use this key to verify/
+      message: /Unable to use this key to verify/,
     });
 
   await assert.rejects(
     subtle.verify({ name, hash }, rsaKeys.publicKey, signature, plaintext), {
-      message: /Unable to use this key to verify/
+      message: /Unable to use this key to verify/,
     });
 
   // Test failure when signature is altered
@@ -120,13 +120,13 @@ async function testVerify({ name,
     const otherhash = hash === 'SHA-1' ? 'SHA-256' : 'SHA-1';
     assert(!(await subtle.verify({
       name,
-      hash: otherhash
+      hash: otherhash,
     }, publicKey, signature, copy)));
   }
 
   await assert.rejects(
     subtle.verify({ name, hash: 'sha256' }, publicKey, signature, copy), {
-      message: /Unrecognized name/
+      message: /Unrecognized name/,
     });
 }
 
@@ -194,24 +194,24 @@ async function testSign({ name,
   // Test failure when using wrong key
   await assert.rejects(
     subtle.sign({ name, hash }, publicKey, plaintext), {
-      message: /Unable to use this key to sign/
+      message: /Unable to use this key to sign/,
     });
 
   // Test failure when no sign usage
   await assert.rejects(
     subtle.sign({ name, hash }, noSignPrivateKey, plaintext), {
-      message: /Unable to use this key to sign/
+      message: /Unable to use this key to sign/,
     });
 
   // Test failure when using the wrong algorithms
   await assert.rejects(
     subtle.sign({ name, hash }, hmacKey, plaintext), {
-      message: /Unable to use this key to sign/
+      message: /Unable to use this key to sign/,
     });
 
   await assert.rejects(
     subtle.sign({ name, hash }, rsaKeys.privateKey, plaintext), {
-      message: /Unable to use this key to sign/
+      message: /Unable to use this key to sign/,
     });
 }
 

@@ -8,7 +8,7 @@ const bench = common.createBenchmark(main, {
   withBase: ['true', 'false'],
   type: common.urlDataTypes,
   e: [1],
-  method: ['legacy', 'whatwg']
+  method: ['legacy', 'whatwg'],
 });
 
 function useLegacy(data) {

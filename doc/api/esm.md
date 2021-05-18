@@ -852,11 +852,11 @@ export function resolve(specifier, context, defaultResolve) {
   // passed along to the later hooks below.
   if (specifier.startsWith('https://')) {
     return {
-      url: specifier
+      url: specifier,
     };
   } else if (parentURL && parentURL.startsWith('https://')) {
     return {
-      url: new URL(specifier, parentURL).href
+      url: new URL(specifier, parentURL).href,
     };
   }
 
@@ -868,7 +868,7 @@ export function getFormat(url, context, defaultGetFormat) {
   // This loader assumes all network-provided JavaScript is ES module code.
   if (url.startsWith('https://')) {
     return {
-      format: 'module'
+      format: 'module',
     };
   }
 
@@ -934,7 +934,7 @@ export function resolve(specifier, context, defaultResolve) {
   // specifiers ending in the CoffeeScript file extensions.
   if (extensionsRegex.test(specifier)) {
     return {
-      url: new URL(specifier, parentURL).href
+      url: new URL(specifier, parentURL).href,
     };
   }
 
@@ -948,7 +948,7 @@ export function getFormat(url, context, defaultGetFormat) {
   // purposes of this loader, all CoffeeScript URLs are ES modules.
   if (extensionsRegex.test(url)) {
     return {
-      format: 'module'
+      format: 'module',
     };
   }
 
@@ -961,7 +961,7 @@ export function transformSource(source, context, defaultTransformSource) {
 
   if (extensionsRegex.test(url)) {
     return {
-      source: CoffeeScript.compile(source, { bare: true })
+      source: CoffeeScript.compile(source, { bare: true }),
     };
   }
 

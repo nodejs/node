@@ -48,7 +48,7 @@ server.listen(0, common.mustCall(() => {
     port: server.address().port,
     method: 'GET',
     path: '/',
-    agent: agent
+    agent: agent,
   };
 
   const req1 = http.request(options);
@@ -61,7 +61,7 @@ server.listen(0, common.mustCall(() => {
       host: 'localhost',
       port: server.address().port,
       path: '/thatotherone',
-      agent: agent
+      agent: agent,
     });
     assert.strictEqual(Object.keys(agent.sockets).length, 1);
     assert.strictEqual(Object.keys(agent.requests).length, 1);

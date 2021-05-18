@@ -63,7 +63,7 @@ const { getEventListeners } = require('events');
     req.on('error', common.expectsError({
       code: 'ERR_HTTP2_STREAM_CANCEL',
       name: 'Error',
-      message: 'The pending stream has been canceled'
+      message: 'The pending stream has been canceled',
     }));
 
     client.destroy();
@@ -73,7 +73,7 @@ const { getEventListeners } = require('events');
     const sessionError = {
       name: 'Error',
       code: 'ERR_HTTP2_INVALID_SESSION',
-      message: 'The session has been destroyed'
+      message: 'The session has been destroyed',
     };
 
     assert.throws(() => client.setNextStreamID(), sessionError);
@@ -158,7 +158,7 @@ const { getEventListeners } = require('events');
     req.on('error', common.expectsError({
       code: 'ERR_HTTP2_GOAWAY_SESSION',
       name: 'Error',
-      message: 'New streams cannot be created after receiving a GOAWAY'
+      message: 'New streams cannot be created after receiving a GOAWAY',
     }));
 
     client.close();

@@ -55,7 +55,7 @@ module.exports = function(context) {
           { moduleName: requiredModule }
         );
       }
-    }
+    },
   };
 
   if (isESM) {

@@ -10,7 +10,7 @@ const heartbeatMsg = /heartbeat: still alive/;
 
 const {
   newAsyncId, getDefaultTriggerAsyncId,
-  emitInit, emitBefore, emitAfter, emitDestroy
+  emitInit, emitBefore, emitAfter, emitDestroy,
 } = internal_async_hooks;
 
 const initHooks = require('./init-hooks');

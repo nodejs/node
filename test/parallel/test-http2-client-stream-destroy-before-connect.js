@@ -39,7 +39,7 @@ server.listen(0, common.mustCall(() => {
 
   req.on('error', common.expectsError({
     name: 'Error',
-    message: 'test'
+    message: 'test',
   }));
 
   req.on('close', common.mustCall(() => {

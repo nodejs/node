@@ -35,7 +35,7 @@ const typeParser = require('./type-parser.js');
 const { highlight, getLanguage } = require('highlight.js');
 
 module.exports = {
-  toHTML, firstHeader, preprocessText, preprocessElements, buildToc
+  toHTML, firstHeader, preprocessText, preprocessElements, buildToc,
 };
 
 const docPath = path.resolve(__dirname, '..', '..', 'doc');
@@ -286,7 +286,7 @@ function preprocessElements({ filename }) {
               (noLinking ? '' :
                 '<a href="documentation.html#documentation_stability_index">') +
               `${prefix} ${number}${noLinking ? '' : '</a>'}`
-                .replace(/\n/g, ' ')
+                .replace(/\n/g, ' '),
           });
 
           // Remove prefix and number from text

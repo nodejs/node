@@ -12,15 +12,15 @@ const { inspect } = require('util');
 }
 
 assert.throws(() => new Blob(false), {
-  code: 'ERR_INVALID_ARG_TYPE'
+  code: 'ERR_INVALID_ARG_TYPE',
 });
 
 assert.throws(() => new Blob('hello'), {
-  code: 'ERR_INVALID_ARG_TYPE'
+  code: 'ERR_INVALID_ARG_TYPE',
 });
 
 assert.throws(() => new Blob({}), {
-  code: 'ERR_INVALID_ARG_TYPE'
+  code: 'ERR_INVALID_ARG_TYPE',
 });
 
 {
@@ -181,7 +181,7 @@ assert.throws(() => new Blob({}), {
     configurable: true,
     enumerable: false,
     value: 'Blob',
-    writable: false
+    writable: false,
   });
 }
 

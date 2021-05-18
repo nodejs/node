@@ -6,7 +6,7 @@ const tty = require('tty');
 const { internalBinding } = require('internal/test/binding');
 const {
   UV_EBADF,
-  UV_EINVAL
+  UV_EINVAL,
 } = internalBinding('uv');
 const assert = require('assert');
 
@@ -15,7 +15,7 @@ assert.throws(
   {
     code: 'ERR_INVALID_FD',
     name: 'RangeError',
-    message: '"fd" must be a positive integer: -1'
+    message: '"fd" must be a positive integer: -1',
   }
 );
 
@@ -24,7 +24,7 @@ assert.throws(
     code: common.isWindows ? 'EBADF' : 'EINVAL',
     message: common.isWindows ? 'bad file descriptor' : 'invalid argument',
     errno: common.isWindows ? UV_EBADF : UV_EINVAL,
-    syscall: 'uv_tty_init'
+    syscall: 'uv_tty_init',
   };
 
   const suffix = common.isWindows ?
@@ -40,7 +40,7 @@ assert.throws(
       code: 'ERR_TTY_INIT_FAILED',
       name: 'SystemError',
       message,
-      info
+      info,
     }
   );
 
@@ -53,7 +53,7 @@ assert.throws(
       code: 'ERR_TTY_INIT_FAILED',
       name: 'SystemError',
       message,
-      info
+      info,
     });
 }
 
@@ -62,6 +62,6 @@ assert.throws(
   {
     code: 'ERR_INVALID_FD',
     name: 'RangeError',
-    message: '"fd" must be a positive integer: -1'
+    message: '"fd" must be a positive integer: -1',
   }
 );

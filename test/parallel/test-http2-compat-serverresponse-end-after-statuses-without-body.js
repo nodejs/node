@@ -12,7 +12,7 @@ const h2 = require('http2');
 const {
   HTTP_STATUS_NO_CONTENT,
   HTTP_STATUS_RESET_CONTENT,
-  HTTP_STATUS_NOT_MODIFIED
+  HTTP_STATUS_NOT_MODIFIED,
 } = h2.constants;
 
 const statusWithoutBody = [

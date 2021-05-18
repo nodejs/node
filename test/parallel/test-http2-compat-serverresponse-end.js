@@ -5,7 +5,7 @@ const {
   mustNotCall,
   hasCrypto,
   platformTimeout,
-  skip
+  skip,
 } = require('../common');
 if (!hasCrypto)
   skip('missing crypto');
@@ -15,8 +15,8 @@ const {
   connect,
   constants: {
     HTTP2_HEADER_STATUS,
-    HTTP_STATUS_OK
-  }
+    HTTP_STATUS_OK,
+  },
 } = require('http2');
 
 {
@@ -45,7 +45,7 @@ const {
         ':path': '/',
         ':method': 'GET',
         ':scheme': 'http',
-        ':authority': `localhost:${port}`
+        ':authority': `localhost:${port}`,
       };
       const request = client.request(headers);
       request.setEncoding('utf8');
@@ -75,7 +75,7 @@ const {
         ':path': '/',
         ':method': 'GET',
         ':scheme': 'http',
-        ':authority': `localhost:${port}`
+        ':authority': `localhost:${port}`,
       };
       const request = client.request(headers);
       request.setEncoding('utf8');
@@ -104,7 +104,7 @@ const {
         ':path': '/',
         ':method': 'GET',
         ':scheme': 'http',
-        ':authority': `localhost:${port}`
+        ':authority': `localhost:${port}`,
       };
       const request = client.request(headers);
       request.setEncoding('utf8');
@@ -134,7 +134,7 @@ const {
         ':path': '/',
         ':method': 'GET',
         ':scheme': 'http',
-        ':authority': `localhost:${port}`
+        ':authority': `localhost:${port}`,
       };
       const request = client.request(headers);
       request.on('data', mustNotCall());
@@ -165,7 +165,7 @@ const {
         ':path': '/',
         ':method': 'HEAD',
         ':scheme': 'http',
-        ':authority': `localhost:${port}`
+        ':authority': `localhost:${port}`,
       };
       const request = client.request(headers);
       request.on('response', mustCall((headers, flags) => {
@@ -199,7 +199,7 @@ const {
         ':path': '/',
         ':method': 'HEAD',
         ':scheme': 'http',
-        ':authority': `localhost:${port}`
+        ':authority': `localhost:${port}`,
       };
       const request = client.request(headers);
       request.on('data', mustNotCall());
@@ -230,7 +230,7 @@ const {
         ':path': '/',
         ':method': 'HEAD',
         ':scheme': 'http',
-        ':authority': `localhost:${port}`
+        ':authority': `localhost:${port}`,
       };
       const request = client.request(headers);
       request.on('response', mustCall((headers, flags) => {
@@ -265,7 +265,7 @@ const {
         ':path': '/',
         ':method': 'HEAD',
         ':scheme': 'http',
-        ':authority': `localhost:${port}`
+        ':authority': `localhost:${port}`,
       };
       const request = client.request(headers);
       request.on('response', mustCall((headers, flags) => {
@@ -305,7 +305,7 @@ const {
         ':path': '/',
         ':method': 'HEAD',
         ':scheme': 'http',
-        ':authority': `localhost:${port}`
+        ':authority': `localhost:${port}`,
       };
       const request = client.request(headers);
       request.on('response', mustCall((headers, flags) => {
@@ -338,7 +338,7 @@ const {
         ':path': '/',
         ':method': 'HEAD',
         ':scheme': 'http',
-        ':authority': `localhost:${port}`
+        ':authority': `localhost:${port}`,
       };
       const request = client.request(headers);
       request.on('response', mustCall((headers, flags) => {

@@ -1964,7 +1964,7 @@ const myWritable = new Writable({
   },
   destroy() {
     // Free resources...
-  }
+  },
 });
 ```
 
@@ -2069,7 +2069,7 @@ const myWritable = new Writable({
   },
   writev(chunks, callback) {
     // ...
-  }
+  },
 });
 ```
 
@@ -2088,7 +2088,7 @@ const myWritable = new Writable({
   writev(chunks, callback) {
     // ...
   },
-  signal: controller.signal
+  signal: controller.signal,
 });
 // Later, abort the operation closing the stream
 controller.abort();
@@ -2271,7 +2271,7 @@ const myWritable = new Writable({
     } else {
       callback();
     }
-  }
+  },
 });
 ```
 
@@ -2416,7 +2416,7 @@ const { Readable } = require('stream');
 const myReadable = new Readable({
   read(size) {
     // ...
-  }
+  },
 });
 ```
 
@@ -2431,7 +2431,7 @@ const read = new Readable({
   read(size) {
     // ...
   },
-  signal: controller.signal
+  signal: controller.signal,
 });
 // Later, abort the operation closing the stream
 controller.abort();
@@ -2633,7 +2633,7 @@ const myReadable = new Readable({
     } else {
       // Do some work.
     }
-  }
+  },
 });
 ```
 
@@ -2749,7 +2749,7 @@ const myDuplex = new Duplex({
   },
   write(chunk, encoding, callback) {
     // ...
-  }
+  },
 });
 ```
 
@@ -2780,7 +2780,7 @@ pipeline(
       } catch (err) {
         callback(err);
       }
-    }
+    },
   }),
   fs.createWriteStream('valid-object.json'),
   (err) => {
@@ -2860,7 +2860,7 @@ const myTransform = new Transform({
 
     // Push the data onto the readable queue.
     callback(null, '0'.repeat(data.length % 2) + data);
-  }
+  },
 });
 
 myTransform.setEncoding('ascii');
@@ -2941,7 +2941,7 @@ const { Transform } = require('stream');
 const myTransform = new Transform({
   transform(chunk, encoding, callback) {
     // ...
-  }
+  },
 });
 ```
 

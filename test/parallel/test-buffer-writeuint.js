@@ -90,7 +90,7 @@ const assert = require('assert');
       {
         code: 'ERR_OUT_OF_RANGE',
         message: 'The value of "value" is out of range. ' +
-                 `It must be >= 0 and <= 65535. Received ${value}`
+                 `It must be >= 0 and <= 65535. Received ${value}`,
       }
     );
   });
@@ -150,7 +150,7 @@ const assert = require('assert');
         {
           code: 'ERR_OUT_OF_RANGE',
           message: 'The value of "byteLength" is out of range. ' +
-                   `It must be >= 1 and <= 6. Received ${byteLength}`
+                   `It must be >= 1 and <= 6. Received ${byteLength}`,
         }
       );
     });
@@ -162,7 +162,7 @@ const assert = require('assert');
           code: 'ERR_OUT_OF_RANGE',
           name: 'RangeError',
           message: 'The value of "byteLength" is out of range. ' +
-                   `It must be an integer. Received ${byteLength}`
+                   `It must be an integer. Received ${byteLength}`,
         });
     });
   });
@@ -180,7 +180,7 @@ const assert = require('assert');
         code: 'ERR_OUT_OF_RANGE',
         name: 'RangeError',
         message: 'The value of "value" is out of range. ' +
-                 `It must be >= 0 and <${range}. Received ${received}`
+                 `It must be >= 0 and <${range}. Received ${received}`,
       });
 
       ['', '0', null, {}, [], () => {}, true, false].forEach((o) => {
@@ -188,7 +188,7 @@ const assert = require('assert');
           () => data[fn](23, o, i),
           {
             code: 'ERR_INVALID_ARG_TYPE',
-            name: 'TypeError'
+            name: 'TypeError',
           });
       });
 
@@ -199,7 +199,7 @@ const assert = require('assert');
             code: 'ERR_OUT_OF_RANGE',
             name: 'RangeError',
             message: 'The value of "offset" is out of range. ' +
-                     `It must be >= 0 and <= ${8 - i}. Received ${offset}`
+                     `It must be >= 0 and <= ${8 - i}. Received ${offset}`,
           });
       });
 
@@ -210,7 +210,7 @@ const assert = require('assert');
             code: 'ERR_OUT_OF_RANGE',
             name: 'RangeError',
             message: 'The value of "offset" is out of range. ' +
-                     `It must be an integer. Received ${offset}`
+                     `It must be an integer. Received ${offset}`,
           });
       });
     });

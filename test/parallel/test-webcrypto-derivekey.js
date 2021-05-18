@@ -24,16 +24,16 @@ const { internalBinding } = require('internal/test/binding');
 
     const [secret1, secret2] = await Promise.all([
       subtle.deriveKey({
-        name: 'ECDH', namedCurve, public: alice.publicKey
+        name: 'ECDH', namedCurve, public: alice.publicKey,
       }, bob.privateKey, {
         name: 'AES-CBC',
-        length: 256
+        length: 256,
       }, true, ['encrypt']),
       subtle.deriveKey({
-        name: 'ECDH', namedCurve, public: bob.publicKey
+        name: 'ECDH', namedCurve, public: bob.publicKey,
       }, alice.privateKey, {
         name: 'AES-CBC',
-        length: 256
+        length: 256,
       }, true, ['encrypt']),
     ]);
 
@@ -62,10 +62,10 @@ const { internalBinding } = require('internal/test/binding');
       name: 'HKDF',
       hash,
       salt: ec.encode(salt),
-      info: ec.encode(info)
+      info: ec.encode(info),
     }, key, {
       name: 'AES-CTR',
-      length: 256
+      length: 256,
     }, true, ['encrypt']);
 
     const raw = await subtle.exportKey('raw', secret);
@@ -101,7 +101,7 @@ const { internalBinding } = require('internal/test/binding');
       iterations,
     }, key, {
       name: 'AES-CTR',
-      length: 256
+      length: 256,
     }, true, ['encrypt']);
 
     const raw = await subtle.exportKey('raw', secret);
@@ -135,7 +135,7 @@ if (typeof internalBinding('crypto').ScryptJob === 'function') {
       salt: ec.encode(salt),
     }, key, {
       name: 'AES-CTR',
-      length: 256
+      length: 256,
     }, true, ['encrypt']);
 
     const raw = await subtle.exportKey('raw', secret);

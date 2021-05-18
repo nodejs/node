@@ -14,7 +14,7 @@ process.on('uncaughtException', common.mustNotCall(onUncaught));
 
 server.listen(0, common.mustCall(() => {
   get({
-    port: server.address().port
+    port: server.address().port,
   }, (res) => {
     res.resume();
   }).on('error', (error) => {

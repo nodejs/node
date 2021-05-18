@@ -33,13 +33,13 @@ const { addresses } = require('../common/internet');
 const {
   errorLookupMock,
   mockedErrorCode,
-  mockedSysCall
+  mockedSysCall,
 } = require('../common/dns');
 
 const client = net.connect({
   host: addresses.INVALID_HOST,
   port: 80, // Port number doesn't matter because host name is invalid
-  lookup: common.mustCall(errorLookupMock())
+  lookup: common.mustCall(errorLookupMock()),
 }, common.mustNotCall());
 
 client.once('error', common.mustCall((error) => {
@@ -52,7 +52,7 @@ client.once('error', common.mustCall((error) => {
     errno: mockedErrorCode,
     syscall: mockedSysCall,
     hostname: addresses.INVALID_HOST,
-    message: 'getaddrinfo ENOTFOUND something.invalid'
+    message: 'getaddrinfo ENOTFOUND something.invalid',
   });
 }));
 

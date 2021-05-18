@@ -15,7 +15,7 @@ const hooks = initHooks({
     if (type === 'PROMISE') {
       promiseAsyncIds.push(asyncId);
     }
-  }
+  },
 });
 
 hooks.enable();

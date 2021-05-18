@@ -19,7 +19,7 @@ server.on('session', common.mustCall((session) => {
       server.on('error', common.mustNotCall());
       session.on('error', common.expectsError({
         name: 'Error',
-        message: 'test'
+        message: 'test',
       }));
       session[kSocket].emit('error', new Error('test'));
       break;

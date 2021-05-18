@@ -138,12 +138,12 @@ async function abortSignalBefore() {
 
   await Promise.all([1, {}, 'hi', null, false].map((signal) => {
     return rejects(once(ee, 'foo', { signal }), {
-      code: 'ERR_INVALID_ARG_TYPE'
+      code: 'ERR_INVALID_ARG_TYPE',
     });
   }));
 
   return rejects(once(ee, 'foo', { signal: abortedSignal }), {
-    name: 'AbortError'
+    name: 'AbortError',
   });
 }
 
@@ -152,7 +152,7 @@ async function abortSignalAfter() {
   const ac = new AbortController();
   ee.on('error', common.mustNotCall());
   const r = rejects(once(ee, 'foo', { signal: ac.signal }), {
-    name: 'AbortError'
+    name: 'AbortError',
   });
   process.nextTick(() => ac.abort());
   return r;
@@ -187,12 +187,12 @@ async function eventTargetAbortSignalBefore() {
 
   await Promise.all([1, {}, 'hi', null, false].map((signal) => {
     return rejects(once(et, 'foo', { signal }), {
-      code: 'ERR_INVALID_ARG_TYPE'
+      code: 'ERR_INVALID_ARG_TYPE',
     });
   }));
 
   return rejects(once(et, 'foo', { signal: abortedSignal }), {
-    name: 'AbortError'
+    name: 'AbortError',
   });
 }
 
@@ -200,7 +200,7 @@ async function eventTargetAbortSignalAfter() {
   const et = new EventTarget();
   const ac = new AbortController();
   const r = rejects(once(et, 'foo', { signal: ac.signal }), {
-    name: 'AbortError'
+    name: 'AbortError',
   });
   process.nextTick(() => ac.abort());
   return r;

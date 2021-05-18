@@ -29,7 +29,7 @@ const buffers = {
   writeResult: new Uint32Array(2),
   dictionary: new Uint8Array(0),
   inBuf: new Uint8Array([0x78]),
-  outBuf: new Uint8Array(1)
+  outBuf: new Uint8Array(1),
 };
 
 handle.init(

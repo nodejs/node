@@ -13,7 +13,7 @@ const server = http2.createServer();
 server.on('stream', (stream, headers) => {
   stream.respond({
     'content-type': 'text/html',
-    ':status': 200
+    ':status': 200,
   });
   switch (headers[':path']) {
     case '/singleEnd':

@@ -14,7 +14,7 @@ let clients = 0;
 
 const server = tls.createServer({
   key: pem('agent1-key'),
-  cert: pem('agent1-cert')
+  cert: pem('agent1-cert'),
 }, common.mustCall(() => {
   if (--clients === 0)
     server.close();

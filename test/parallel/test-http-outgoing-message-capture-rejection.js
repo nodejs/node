@@ -26,7 +26,7 @@ events.captureRejections = true;
     const req = request({
       method: 'GET',
       host: server.address().host,
-      port: server.address().port
+      port: server.address().port,
     });
 
     req.end();
@@ -34,7 +34,7 @@ events.captureRejections = true;
     req.on('response', common.mustCall((res) => {
       res.on('aborted', common.mustCall());
       res.on('error', common.expectsError({
-        code: 'ECONNRESET'
+        code: 'ECONNRESET',
       }));
       res.resume();
       server.close();
@@ -61,7 +61,7 @@ events.captureRejections = true;
     const req = request({
       method: 'POST',
       host: server.address().host,
-      port: server.address().port
+      port: server.address().port,
     });
 
     req.on('response', common.mustNotCall((res) => {

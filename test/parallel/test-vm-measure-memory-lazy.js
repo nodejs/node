@@ -4,7 +4,7 @@
 const common = require('../common');
 const {
   assertSummaryShape,
-  expectExperimentalWarning
+  expectExperimentalWarning,
 } = require('../common/measure-memory');
 const vm = require('vm');
 

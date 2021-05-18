@@ -30,7 +30,7 @@ for (const chunkSequence of [
 
     const req = client.request({
       ':method': 'POST',
-      ':path': '/'
+      ':path': '/',
     });
 
     req.on('response', common.mustCall((headers) => {

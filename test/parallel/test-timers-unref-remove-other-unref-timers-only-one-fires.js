@@ -20,14 +20,14 @@ const foo = {
   _onTimeout: function() {
     ++nbTimersFired;
     timers.unenroll(bar);
-  }
+  },
 };
 
 const bar = {
   _onTimeout: function() {
     ++nbTimersFired;
     timers.unenroll(foo);
-  }
+  },
 };
 
 timers.enroll(bar, 1);

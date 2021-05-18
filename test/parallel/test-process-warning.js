@@ -3,7 +3,7 @@
 const common = require('../common');
 const {
   hijackStderr,
-  restoreStderr
+  restoreStderr,
 } = require('../common/hijackstdio');
 const assert = require('assert');
 

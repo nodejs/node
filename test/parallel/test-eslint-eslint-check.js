@@ -27,7 +27,7 @@ new RuleTester().run('eslint-check', rule, {
       errors: [{ message }],
       output: 'require("common")\n' +
               'common.skipIfEslintMissing();\n' +
-              'require("../../tools/node_modules/eslint").RuleTester'
+              'require("../../tools/node_modules/eslint").RuleTester',
     },
-  ]
+  ],
 });

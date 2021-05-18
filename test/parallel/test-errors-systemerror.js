@@ -9,7 +9,7 @@ assert.throws(
   () => { new SystemError(); },
   {
     name: 'TypeError',
-    message: 'String.prototype.match called on null or undefined'
+    message: 'String.prototype.match called on null or undefined',
   }
 );
 
@@ -22,7 +22,7 @@ const { ERR_TEST } = codes;
     message: 'code message',
     syscall: 'syscall_test',
     path: '/str',
-    dest: '/str2'
+    dest: '/str2',
   };
 
   assert.throws(
@@ -32,7 +32,7 @@ const { ERR_TEST } = codes;
       name: 'SystemError',
       message: 'custom message: syscall_test returned ETEST (code message)' +
                ' /str => /str2',
-      info: ctx
+      info: ctx,
     }
   );
 }
@@ -43,7 +43,7 @@ const { ERR_TEST } = codes;
     message: 'code message',
     syscall: 'syscall_test',
     path: Buffer.from('/buf'),
-    dest: '/str2'
+    dest: '/str2',
   };
   assert.throws(
     () => { throw new ERR_TEST(ctx); },
@@ -52,7 +52,7 @@ const { ERR_TEST } = codes;
       name: 'SystemError',
       message: 'custom message: syscall_test returned ETEST (code message)' +
                ' /buf => /str2',
-      info: ctx
+      info: ctx,
     }
   );
 }
@@ -63,7 +63,7 @@ const { ERR_TEST } = codes;
     message: 'code message',
     syscall: 'syscall_test',
     path: Buffer.from('/buf'),
-    dest: Buffer.from('/buf2')
+    dest: Buffer.from('/buf2'),
   };
   assert.throws(
     () => { throw new ERR_TEST(ctx); },
@@ -72,7 +72,7 @@ const { ERR_TEST } = codes;
       name: 'SystemError',
       message: 'custom message: syscall_test returned ETEST (code message)' +
                ' /buf => /buf2',
-      info: ctx
+      info: ctx,
     }
   );
 }
@@ -84,7 +84,7 @@ const { ERR_TEST } = codes;
     message: 'something happened',
     syscall: 'syscall_test',
     path: Buffer.from('a'),
-    dest: Buffer.from('b')
+    dest: Buffer.from('b'),
   };
   const err = new ERR_TEST(ctx);
   assert.strictEqual(err.info, ctx);
@@ -116,7 +116,7 @@ const { ERR_TEST } = codes;
   const ctx = {
     code: 'ERR_TEST',
     message: 'Error occurred',
-    syscall: 'syscall_test'
+    syscall: 'syscall_test',
   };
   assert.throws(
     () => {
@@ -129,7 +129,7 @@ const { ERR_TEST } = codes;
       name: 'Foobar',
       message: 'custom message: syscall_test returned ERR_TEST ' +
                '(Error occurred)',
-      info: ctx
+      info: ctx,
     }
   );
 }

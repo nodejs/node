@@ -11,7 +11,7 @@ const fixtures = require('../common/fixtures');
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
   cert: fixtures.readKey('agent1-cert.pem'),
-  ca: fixtures.readKey('ca1-cert.pem')
+  ca: fixtures.readKey('ca1-cert.pem'),
 };
 
 const server = https.Server(options, common.mustCall((req, res) => {
@@ -20,7 +20,7 @@ const server = https.Server(options, common.mustCall((req, res) => {
 }));
 
 const agent = new https.Agent({
-  keepAlive: false
+  keepAlive: false,
 });
 
 server.listen(0, common.mustCall(() => {
@@ -30,7 +30,7 @@ server.listen(0, common.mustCall(() => {
     headers: { host: 'agent1' },
     rejectUnauthorized: true,
     ca: options.ca,
-    agent: agent
+    agent: agent,
   }, common.mustCall((res) => {
     res.resume();
     server.close();

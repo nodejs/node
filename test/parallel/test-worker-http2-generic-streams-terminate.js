@@ -31,9 +31,9 @@ if (!workerData) {
             Atomics.add(counter, 0, 1);
             process.exit();
           },
-          read() { }
+          read() { },
         });
-      }
+      },
     });
   }
 }

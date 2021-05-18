@@ -21,11 +21,11 @@ const { inspect } = require('util');
 
   [false, '', {}, undefined, null].forEach((i) => {
     assert.throws(() => h.record(i), {
-      code: 'ERR_INVALID_ARG_TYPE'
+      code: 'ERR_INVALID_ARG_TYPE',
     });
   });
   assert.throws(() => h.record(0, Number.MAX_SAFE_INTEGER + 1), {
-    code: 'ERR_OUT_OF_RANGE'
+    code: 'ERR_OUT_OF_RANGE',
   });
 
   assert.strictEqual(h.min, 1);

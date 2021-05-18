@@ -26,7 +26,7 @@ let didReceiveData = false;
 
 const server = http2.createSecureServer({
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 });
 server.on('stream', common.mustCall((stream) => {
   const content = Buffer.alloc(writeSize, 0x44);
@@ -34,7 +34,7 @@ server.on('stream', common.mustCall((stream) => {
   stream.respond({
     'Content-Type': 'application/octet-stream',
     'Content-Length': content.length.toString(),
-    'Vary': 'Accept-Encoding'
+    'Vary': 'Accept-Encoding',
   });
 
   stream.write(content);

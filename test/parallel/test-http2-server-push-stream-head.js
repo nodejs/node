@@ -25,7 +25,7 @@ server.on('stream', common.mustCall((stream, headers) => {
       push.on('error', common.expectsError({
         name: 'Error',
         code: 'ERR_STREAM_WRITE_AFTER_END',
-        message: 'write after end'
+        message: 'write after end',
       }));
       assert(!push.write('test'));
       stream.end('test');
@@ -33,7 +33,7 @@ server.on('stream', common.mustCall((stream, headers) => {
   }
   stream.respond({
     'content-type': 'text/html',
-    ':status': 200
+    ':status': 200,
   });
 }));
 

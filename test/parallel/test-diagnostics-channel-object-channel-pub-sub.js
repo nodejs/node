@@ -6,7 +6,7 @@ const assert = require('assert');
 const { Channel } = dc;
 
 const input = {
-  foo: 'bar'
+  foo: 'bar',
 };
 
 // Should not have named channel

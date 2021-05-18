@@ -12,7 +12,7 @@ const MakeDuplexPair = require('../common/duplexpair');
 
   const req = http.request({
     createConnection: common.mustCall(() => clientSide),
-    insecureHTTPParser: true
+    insecureHTTPParser: true,
   }, common.mustCall((res) => {
     assert.strictEqual(res.headers.hello, 'foo\x08foo');
     res.resume();  // We don’t actually care about contents.
@@ -32,7 +32,7 @@ const MakeDuplexPair = require('../common/duplexpair');
   const { clientSide, serverSide } = MakeDuplexPair();
 
   const req = http.request({
-    createConnection: common.mustCall(() => clientSide)
+    createConnection: common.mustCall(() => clientSide),
   }, common.mustNotCall());
   req.end();
   req.on('error', common.mustCall());
@@ -88,7 +88,7 @@ const MakeDuplexPair = require('../common/duplexpair');
     common.expectsError({
       code: 'ERR_INVALID_ARG_TYPE',
       message: 'The "options.insecureHTTPParser" property must be of' +
-      ' type boolean. Received type number (0)'
+      ' type boolean. Received type number (0)',
     })
   );
 }

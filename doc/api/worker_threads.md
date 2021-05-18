@@ -23,14 +23,14 @@ instances.
 
 ```js
 const {
-  Worker, isMainThread, parentPort, workerData
+  Worker, isMainThread, parentPort, workerData,
 } = require('worker_threads');
 
 if (isMainThread) {
   module.exports = function parseJSAsync(script) {
     return new Promise((resolve, reject) => {
       const worker = new Worker(__filename, {
-        workerData: script
+        workerData: script,
       });
       worker.on('message', resolve);
       worker.on('error', reject);
@@ -343,7 +343,7 @@ with all other `BroadcastChannel` instances bound to the same channel name.
 const {
   isMainThread,
   BroadcastChannel,
-  Worker
+  Worker,
 } = require('worker_threads');
 
 const bc = new BroadcastChannel('hello');
@@ -820,7 +820,7 @@ the thread barrier.
 ```js
 const assert = require('assert');
 const {
-  Worker, MessageChannel, MessagePort, isMainThread, parentPort
+  Worker, MessageChannel, MessagePort, isMainThread, parentPort,
 } = require('worker_threads');
 if (isMainThread) {
   const worker = new Worker(__filename);

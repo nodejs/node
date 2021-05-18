@@ -32,7 +32,7 @@ const url = require('url');
 // https options
 const httpsOptions = {
   key: readKey('agent1-key.pem'),
-  cert: readKey('agent1-cert.pem')
+  cert: readKey('agent1-cert.pem'),
 };
 
 function check(request) {

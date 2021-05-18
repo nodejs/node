@@ -11,7 +11,7 @@ const r = repl.start({
   eval: common.mustCall((code, context, filename, cb) => {
     r.setPrompt('prompt! ');
     cb(new Error('err'));
-  })
+  }),
 });
 
 input.end('foo\n');

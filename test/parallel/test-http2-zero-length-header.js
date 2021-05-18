@@ -15,7 +15,7 @@ server.on('stream', (stream, headers) => {
     ':path': '/',
     'bar': '',
     '__proto__': null,
-    [http2.sensitiveHeaders]: []
+    [http2.sensitiveHeaders]: [],
   });
   stream.session.destroy();
   server.close();

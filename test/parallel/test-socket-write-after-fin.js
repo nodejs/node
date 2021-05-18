@@ -5,7 +5,7 @@ const net = require('net');
 const expected = 'hello1hello2hello3\nbye';
 
 const server = net.createServer({
-  allowHalfOpen: true
+  allowHalfOpen: true,
 }, common.mustCall(function(sock) {
   let serverData = '';
 

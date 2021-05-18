@@ -31,7 +31,7 @@ const net = require('net');
 
 const options = {
   key: fixtures.readKey('agent2-key.pem'),
-  cert: fixtures.readKey('agent2-cert.pem')
+  cert: fixtures.readKey('agent2-cert.pem'),
 };
 
 const server = tls.createServer(options, common.mustNotCall());

@@ -9,7 +9,7 @@ if (!workerData) {
 
   const w = new Worker(__filename, {
     workerData: 'runInWorker',
-    env: SHARE_ENV
+    env: SHARE_ENV,
   }).on('exit', common.mustCall(() => {
     // Env vars from the child thread are not set globally.
     assert.strictEqual(process.env.SET_IN_WORKER, 'set');

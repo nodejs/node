@@ -8,7 +8,7 @@ const EventEmitter = require('events');
 const { Session } = require('inspector');
 const { pathToFileURL } = require('url');
 const {
-  Worker, isMainThread, parentPort, workerData
+  Worker, isMainThread, parentPort, workerData,
 } = require('worker_threads');
 
 
@@ -113,7 +113,7 @@ class WorkerSession extends EventEmitter {
   post(method, parameters) {
     const msg = {
       id: this._nextCommandId++,
-      method
+      method,
     };
     if (parameters)
       msg.params = parameters;
@@ -121,7 +121,7 @@ class WorkerSession extends EventEmitter {
     return new Promise((resolve, reject) => {
       this._requestCallbacks.set(msg.id, [resolve, reject]);
       this._parentSession.post('NodeWorker.sendMessageToWorker', {
-        sessionId: this._id, message: JSON.stringify(msg)
+        sessionId: this._id, message: JSON.stringify(msg),
       });
     });
   }
@@ -213,7 +213,7 @@ async function testWaitForDisconnectInWorker(session, post) {
   const sessionWithoutWaitingPost = doPost.bind(null, sessionWithoutWaiting);
 
   await sessionWithoutWaitingPost('NodeWorker.enable', {
-    waitForDebuggerOnStart: true
+    waitForDebuggerOnStart: true,
   });
   await post('NodeWorker.enable', { waitForDebuggerOnStart: true });
 
@@ -234,7 +234,7 @@ async function testWaitForDisconnectInWorker(session, post) {
   await workerSession2.post('Runtime.enable');
   await workerSession1.post('Runtime.enable');
   await workerSession1.post('NodeRuntime.notifyWhenWaitingForDisconnect', {
-    enabled: true
+    enabled: true,
   });
   await workerSession1.post('Runtime.runIfWaitingForDebugger');
 

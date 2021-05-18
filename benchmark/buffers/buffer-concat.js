@@ -5,7 +5,7 @@ const bench = common.createBenchmark(main, {
   pieces: [4, 16],
   pieceSize: [1, 16, 256],
   withTotalLength: [0, 1],
-  n: [8e5]
+  n: [8e5],
 });
 
 function main({ n, pieces, pieceSize, withTotalLength }) {

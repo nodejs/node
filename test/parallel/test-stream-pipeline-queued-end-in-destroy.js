@@ -9,7 +9,7 @@ const { Readable, Duplex, pipeline } = require('stream');
 // Refs: https://github.com/nodejs/node/issues/24456
 
 const readable = new Readable({
-  read: common.mustCall(() => {})
+  read: common.mustCall(() => {}),
 });
 
 const duplex = new Duplex({
@@ -22,7 +22,7 @@ const duplex = new Duplex({
     // do at the time of writing.
     this.end();
     cb(err);
-  }
+  },
 });
 
 duplex.on('finished', common.mustNotCall());

@@ -70,7 +70,7 @@ function getBufferCopy(buf) {
     crypto.publicEncrypt(new DataView(ab), new DataView(ab2enc));
     otherEncrypted = crypto.publicEncrypt({
       key: Buffer.from(ab).toString('hex'),
-      encoding: 'hex'
+      encoding: 'hex',
     }, Buffer.from(ab2enc).toString('hex'));
   }
 
@@ -84,12 +84,12 @@ function getBufferCopy(buf) {
 
   let decryptedBufferWithPassword = crypto.privateDecrypt({
     key: rsaKeyPemEncrypted,
-    passphrase: 'password'
+    passphrase: 'password',
   }, encryptedBuffer);
 
   const otherDecryptedBufferWithPassword = crypto.privateDecrypt({
     key: rsaKeyPemEncrypted,
-    passphrase: ec.encode('password')
+    passphrase: ec.encode('password'),
   }, encryptedBuffer);
 
   assert.strictEqual(
@@ -98,30 +98,30 @@ function getBufferCopy(buf) {
 
   decryptedBufferWithPassword = crypto.privateDecrypt({
     key: rsaKeyPemEncrypted,
-    passphrase: 'password'
+    passphrase: 'password',
   }, encryptedBuffer);
 
   assert.strictEqual(decryptedBufferWithPassword.toString(), input);
 
   encryptedBuffer = crypto.publicEncrypt({
     key: rsaKeyPemEncrypted,
-    passphrase: 'password'
+    passphrase: 'password',
   }, bufferToEncrypt);
 
   decryptedBufferWithPassword = crypto.privateDecrypt({
     key: rsaKeyPemEncrypted,
-    passphrase: 'password'
+    passphrase: 'password',
   }, encryptedBuffer);
   assert.strictEqual(decryptedBufferWithPassword.toString(), input);
 
   encryptedBuffer = crypto.privateEncrypt({
     key: rsaKeyPemEncrypted,
-    passphrase: bufferPassword
+    passphrase: bufferPassword,
   }, bufferToEncrypt);
 
   decryptedBufferWithPassword = crypto.publicDecrypt({
     key: rsaKeyPemEncrypted,
-    passphrase: bufferPassword
+    passphrase: bufferPassword,
   }, encryptedBuffer);
   assert.strictEqual(decryptedBufferWithPassword.toString(), input);
 
@@ -129,20 +129,20 @@ function getBufferCopy(buf) {
   encryptedBuffer = crypto.privateEncrypt({
     padding: crypto.constants.RSA_PKCS1_PADDING,
     key: rsaKeyPemEncrypted,
-    passphrase: bufferPassword
+    passphrase: bufferPassword,
   }, bufferToEncrypt);
 
   decryptedBufferWithPassword = crypto.publicDecrypt({
     padding: crypto.constants.RSA_PKCS1_PADDING,
     key: rsaKeyPemEncrypted,
-    passphrase: bufferPassword
+    passphrase: bufferPassword,
   }, encryptedBuffer);
   assert.strictEqual(decryptedBufferWithPassword.toString(), input);
 
   // Omitting padding should be okay because RSA_PKCS1_PADDING is the default.
   decryptedBufferWithPassword = crypto.publicDecrypt({
     key: rsaKeyPemEncrypted,
-    passphrase: bufferPassword
+    passphrase: bufferPassword,
   }, encryptedBuffer);
   assert.strictEqual(decryptedBufferWithPassword.toString(), input);
 
@@ -155,13 +155,13 @@ function getBufferCopy(buf) {
       encryptedBuffer = crypto.privateEncrypt({
         padding: crypto.constants.RSA_NO_PADDING,
         key: rsaKeyPemEncrypted,
-        passphrase: bufferPassword
+        passphrase: bufferPassword,
       }, Buffer.from(plaintext));
 
       decryptedBufferWithPassword = crypto.publicDecrypt({
         padding: crypto.constants.RSA_NO_PADDING,
         key: rsaKeyPemEncrypted,
-        passphrase: bufferPassword
+        passphrase: bufferPassword,
       }, encryptedBuffer);
       assert.strictEqual(decryptedBufferWithPassword.toString(), plaintext);
     }
@@ -185,26 +185,26 @@ function getBufferCopy(buf) {
   assert.throws(() => {
     crypto.privateDecrypt({
       key: rsaKeyPemEncrypted,
-      passphrase: 'wrong'
+      passphrase: 'wrong',
     }, bufferToEncrypt);
   }, decryptError);
 
   assert.throws(() => {
     crypto.publicEncrypt({
       key: rsaKeyPemEncrypted,
-      passphrase: 'wrong'
+      passphrase: 'wrong',
     }, encryptedBuffer);
   }, decryptError);
 
   encryptedBuffer = crypto.privateEncrypt({
     key: rsaKeyPemEncrypted,
-    passphrase: Buffer.from('password')
+    passphrase: Buffer.from('password'),
   }, bufferToEncrypt);
 
   assert.throws(() => {
     crypto.publicDecrypt({
       key: rsaKeyPemEncrypted,
-      passphrase: Buffer.from('wrong')
+      passphrase: Buffer.from('wrong'),
     }, encryptedBuffer);
   }, decryptError);
 }
@@ -221,20 +221,20 @@ function test_rsa(padding, encryptOaepHash, decryptOaepHash) {
   const encryptedBuffer = crypto.publicEncrypt({
     key: rsaPubPem,
     padding: padding,
-    oaepHash: encryptOaepHash
+    oaepHash: encryptOaepHash,
   }, bufferToEncrypt);
 
   let decryptedBuffer = crypto.privateDecrypt({
     key: rsaKeyPem,
     padding: padding,
-    oaepHash: decryptOaepHash
+    oaepHash: decryptOaepHash,
   }, encryptedBuffer);
   assert.deepStrictEqual(decryptedBuffer, input);
 
   decryptedBuffer = crypto.privateDecrypt({
     key: rsaPkcs8KeyPem,
     padding: padding,
-    oaepHash: decryptOaepHash
+    oaepHash: decryptOaepHash,
   }, encryptedBuffer);
   assert.deepStrictEqual(decryptedBuffer, input);
 }
@@ -251,7 +251,7 @@ test_rsa('RSA_PKCS1_OAEP_PADDING', 'sha512', 'sha512');
 assert.throws(() => {
   test_rsa('RSA_PKCS1_OAEP_PADDING', 'sha256', 'sha512');
 }, {
-  code: 'ERR_OSSL_RSA_OAEP_DECODING_ERROR'
+  code: 'ERR_OSSL_RSA_OAEP_DECODING_ERROR',
 });
 
 // The following RSA-OAEP test cases were created using the WebCrypto API to
@@ -267,7 +267,7 @@ assert.throws(() => {
     const decrypted = crypto.privateDecrypt({
       key: rsaPkcs8KeyPem,
       oaepHash,
-      oaepLabel: oaepLabel ? label : undefined
+      oaepLabel: oaepLabel ? label : undefined,
     }, Buffer.from(ct, 'hex'));
 
     assert.strictEqual(decrypted.toString('utf8'), 'Hello Node.js');
@@ -275,7 +275,7 @@ assert.throws(() => {
     const otherDecrypted = crypto.privateDecrypt({
       key: rsaPkcs8KeyPem,
       oaepHash,
-      oaepLabel: copiedLabel
+      oaepLabel: copiedLabel,
     }, Buffer.from(ct, 'hex'));
 
     assert.strictEqual(otherDecrypted.toString('utf8'), 'Hello Node.js');
@@ -287,20 +287,20 @@ for (const fn of [crypto.publicEncrypt, crypto.privateDecrypt]) {
   assert.throws(() => {
     fn({
       key: rsaPubPem,
-      oaepHash: 'Hello world'
+      oaepHash: 'Hello world',
     }, Buffer.alloc(10));
   }, {
-    code: 'ERR_OSSL_EVP_INVALID_DIGEST'
+    code: 'ERR_OSSL_EVP_INVALID_DIGEST',
   });
 
   for (const oaepHash of [0, false, null, Symbol(), () => {}]) {
     assert.throws(() => {
       fn({
         key: rsaPubPem,
-        oaepHash
+        oaepHash,
       }, Buffer.alloc(10));
     }, {
-      code: 'ERR_INVALID_ARG_TYPE'
+      code: 'ERR_INVALID_ARG_TYPE',
     });
   }
 
@@ -308,10 +308,10 @@ for (const fn of [crypto.publicEncrypt, crypto.privateDecrypt]) {
     assert.throws(() => {
       fn({
         key: rsaPubPem,
-        oaepLabel
+        oaepLabel,
       }, Buffer.alloc(10));
     }, {
-      code: 'ERR_INVALID_ARG_TYPE'
+      code: 'ERR_INVALID_ARG_TYPE',
     });
   }
 }

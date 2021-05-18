@@ -54,7 +54,7 @@ assert(existing.length > 0);
     get: () => {
       servers.length = 3;
       return '0.0.0.0';
-    }
+    },
   });
 
   dns.setServers(servers);
@@ -84,7 +84,7 @@ assert(existing.length > 0);
       },
       {
         name: 'TypeError',
-        code: 'ERR_INVALID_IP_ADDRESS'
+        code: 'ERR_INVALID_IP_ADDRESS',
       }
     );
   });
@@ -99,12 +99,12 @@ assert.deepStrictEqual(dns.getServers(), goog);
 assert.throws(() => dns.setServers(['foobar']), {
   code: 'ERR_INVALID_IP_ADDRESS',
   name: 'TypeError',
-  message: 'Invalid IP address: foobar'
+  message: 'Invalid IP address: foobar',
 });
 assert.throws(() => dns.setServers(['127.0.0.1:va']), {
   code: 'ERR_INVALID_IP_ADDRESS',
   name: 'TypeError',
-  message: 'Invalid IP address: 127.0.0.1:va'
+  message: 'Invalid IP address: 127.0.0.1:va',
 });
 assert.deepStrictEqual(dns.getServers(), goog);
 
@@ -144,7 +144,7 @@ assert.deepStrictEqual(dns.getServers(), []);
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
     message: 'The "rrtype" argument must be of type string. ' +
-             'Received an instance of Array'
+             'Received an instance of Array',
   };
   assert.throws(() => {
     dns.resolve('example.com', [], common.mustNotCall());
@@ -158,7 +158,7 @@ assert.deepStrictEqual(dns.getServers(), []);
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
     message: 'The "name" argument must be of type string. ' +
-             'Received undefined'
+             'Received undefined',
   };
   assert.throws(() => {
     dnsPromises.resolve();
@@ -170,7 +170,7 @@ assert.deepStrictEqual(dns.getServers(), []);
   const errorReg = {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: /^The "hostname" argument must be of type string\. Received .*/
+    message: /^The "hostname" argument must be of type string\. Received .*/,
   };
 
   assert.throws(() => dns.lookup({}, common.mustNotCall()), errorReg);
@@ -218,7 +218,7 @@ assert.deepStrictEqual(dns.getServers(), []);
   const err = {
     code: 'ERR_INVALID_ARG_VALUE',
     name: 'TypeError',
-    message: /The argument 'hints' is invalid\. Received \d+/
+    message: /The argument 'hints' is invalid\. Received \d+/,
   };
 
   assert.throws(() => {
@@ -231,37 +231,37 @@ assert.deepStrictEqual(dns.getServers(), []);
 
 assert.throws(() => dns.lookup('nodejs.org'), {
   code: 'ERR_INVALID_CALLBACK',
-  name: 'TypeError'
+  name: 'TypeError',
 });
 
 assert.throws(() => dns.lookup('nodejs.org', 4), {
   code: 'ERR_INVALID_CALLBACK',
-  name: 'TypeError'
+  name: 'TypeError',
 });
 
 dns.lookup('', { family: 4, hints: 0 }, common.mustCall());
 
 dns.lookup('', {
   family: 6,
-  hints: dns.ADDRCONFIG
+  hints: dns.ADDRCONFIG,
 }, common.mustCall());
 
 dns.lookup('', { hints: dns.V4MAPPED }, common.mustCall());
 
 dns.lookup('', {
-  hints: dns.ADDRCONFIG | dns.V4MAPPED
+  hints: dns.ADDRCONFIG | dns.V4MAPPED,
 }, common.mustCall());
 
 dns.lookup('', {
-  hints: dns.ALL
+  hints: dns.ALL,
 }, common.mustCall());
 
 dns.lookup('', {
-  hints: dns.V4MAPPED | dns.ALL
+  hints: dns.V4MAPPED | dns.ALL,
 }, common.mustCall());
 
 dns.lookup('', {
-  hints: dns.ADDRCONFIG | dns.V4MAPPED | dns.ALL
+  hints: dns.ADDRCONFIG | dns.V4MAPPED | dns.ALL,
 }, common.mustCall());
 
 (async function() {
@@ -272,7 +272,7 @@ dns.lookup('', {
   await dnsPromises.lookup('', { hints: dns.ALL });
   await dnsPromises.lookup('', { hints: dns.V4MAPPED | dns.ALL });
   await dnsPromises.lookup('', {
-    hints: dns.ADDRCONFIG | dns.V4MAPPED | dns.ALL
+    hints: dns.ADDRCONFIG | dns.V4MAPPED | dns.ALL,
   });
 })().then(common.mustCall());
 
@@ -281,7 +281,7 @@ dns.lookup('', {
     code: 'ERR_MISSING_ARGS',
     name: 'TypeError',
     message: 'The "address", "port", and "callback" arguments must be ' +
-    'specified'
+    'specified',
   };
 
   assert.throws(() => dns.lookupService('0.0.0.0'), err);
@@ -294,7 +294,7 @@ dns.lookup('', {
   const err = {
     code: 'ERR_INVALID_ARG_VALUE',
     name: 'TypeError',
-    message: `The argument 'address' is invalid. Received '${invalidAddress}'`
+    message: `The argument 'address' is invalid. Received '${invalidAddress}'`,
   };
 
   assert.throws(() => {
@@ -311,7 +311,7 @@ const portErr = (port) => {
     code: 'ERR_SOCKET_BAD_PORT',
     message:
       `Port should be >= 0 and < 65536. Received ${port}.`,
-    name: 'RangeError'
+    name: 'RangeError',
   };
 
   assert.throws(() => {
@@ -331,7 +331,7 @@ assert.throws(() => {
   dns.lookupService('0.0.0.0', 80, null);
 }, {
   code: 'ERR_INVALID_CALLBACK',
-  name: 'TypeError'
+  name: 'TypeError',
 });
 
 {
@@ -360,7 +360,7 @@ assert.throws(() => {
           refresh: 900,
           retry: 900,
           expire: 1800,
-          minttl: 3333333333
+          minttl: 3333333333,
         },
       ] },
 
@@ -382,7 +382,7 @@ assert.throws(() => {
           refresh: 900,
           retry: 900,
           expire: 1800,
-          minttl: 3333333333
+          minttl: 3333333333,
         },
       ] },
   ];

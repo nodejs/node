@@ -40,7 +40,7 @@ server.listen(0, common.mustCall(() => {
   const alpnOpts = {
     port: server.address().port,
     rejectUnauthorized: false,
-    ALPNProtocols: ['h2', 'http/1.1']
+    ALPNProtocols: ['h2', 'http/1.1'],
   };
 
   tls.connect(alpnOpts, common.mustCall(function() {

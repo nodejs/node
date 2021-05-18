@@ -65,7 +65,7 @@ function runTest(testCaseIndex) {
 
   http.get({
     port: server.address().port,
-    path: testCase.path
+    path: testCase.path,
   }, function(response) {
     console.log(`client: expected status message: ${testCase.statusMessage}`);
     console.log(`client: actual status message: ${response.statusMessage}`);

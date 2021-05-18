@@ -47,7 +47,7 @@ module.exports = function(context) {
                 '\ncommon.skipIfInspectorDisabled();'
               );
             }
-          }
+          },
         });
       });
     }
@@ -56,10 +56,10 @@ module.exports = function(context) {
   return {
     'CallExpression': (node) => testInspectorUsage(context, node),
     'MemberExpression': (node) => checkMemberExpression(context, node),
-    'Program:exit': () => reportIfMissing(context)
+    'Program:exit': () => reportIfMissing(context),
   };
 };
 
 module.exports.meta = {
-  fixable: 'code'
+  fixable: 'code',
 };

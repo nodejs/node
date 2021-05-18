@@ -25,7 +25,7 @@ assert.throws(
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
     message: 'The "path" argument must be of type string or an instance of ' +
-             'Buffer or URL. Received type boolean (true)'
+             'Buffer or URL. Received type boolean (true)',
   }
 );
 

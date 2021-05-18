@@ -20,7 +20,7 @@ if (!workerData && process.argv[2] !== 'child') {
 
   new Worker(__filename, {
     workerData: 'resetEnv',
-    env: { 'MANUALLY_SET': true }
+    env: { 'MANUALLY_SET': true },
   });
 
   assert.throws(() => {
@@ -30,7 +30,7 @@ if (!workerData && process.argv[2] !== 'child') {
     code: 'ERR_INVALID_ARG_TYPE',
     message: 'The "options.env" property must be of type object or ' +
       'one of undefined, null, or worker_threads.SHARE_ENV. Received type ' +
-      'number (42)'
+      'number (42)',
   });
 } else if (workerData === 'runInWorker') {
   // Env vars from the parent thread are inherited.

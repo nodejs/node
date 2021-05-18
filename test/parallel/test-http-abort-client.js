@@ -33,7 +33,7 @@ const server = http.Server(common.mustCall((req, res) => {
 server.listen(0, common.mustCall(() => {
   http.get({
     port: server.address().port,
-    headers: { connection: 'keep-alive' }
+    headers: { connection: 'keep-alive' },
   }, common.mustCall((res) => {
     server.close();
     serverRes.destroy();
@@ -42,7 +42,7 @@ server.listen(0, common.mustCall(() => {
     res.on('end', common.mustNotCall());
     res.on('aborted', common.mustCall());
     res.on('error', common.expectsError({
-      code: 'ECONNRESET'
+      code: 'ECONNRESET',
     }));
     res.on('close', common.mustCall());
     res.socket.on('close', common.mustCall());

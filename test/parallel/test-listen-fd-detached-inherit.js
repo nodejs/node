@@ -43,7 +43,7 @@ switch (process.argv[2]) {
 // a more low-level approach, use child process IPC manually.
 function test() {
   const parent = spawn(process.execPath, [__filename, 'parent'], {
-    stdio: [ 0, 'pipe', 2 ]
+    stdio: [ 0, 'pipe', 2 ],
   });
   let json = '';
   parent.stdout.on('data', function(c) {
@@ -89,7 +89,7 @@ function parent() {
 
     const child = spawn(process.execPath, [__filename, 'child'], {
       stdio: [ 0, 1, 2, server._handle ],
-      detached: true
+      detached: true,
     });
 
     console.log('%j\n', { pid: child.pid, port: this.address().port });

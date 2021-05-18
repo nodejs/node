@@ -12,7 +12,7 @@ throws(() => {
 }, {
   code: 'ERR_HTTP2_ERROR',
   constructor: NghttpError,
-  message: 'Invalid argument'
+  message: 'Invalid argument',
 });
 
 // Should convert the NghttpError object to string properly

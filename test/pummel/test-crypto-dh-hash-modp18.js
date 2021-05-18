@@ -35,7 +35,7 @@ const assert = require('assert');
 const crypto = require('crypto');
 
 const hashes = {
-  modp18: 'a870b491bbbec9b131ae9878d07449d32e54f160'
+  modp18: 'a870b491bbbec9b131ae9878d07449d32e54f160',
 };
 
 for (const name in hashes) {

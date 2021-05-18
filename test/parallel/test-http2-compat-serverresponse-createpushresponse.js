@@ -19,19 +19,19 @@ const server = h2.createServer((request, response) => {
   assert.throws(
     () => response.createPushResponse({
       ':path': '/pushed',
-      ':method': 'GET'
+      ':method': 'GET',
     }, undefined),
     {
       code: 'ERR_INVALID_CALLBACK',
       name: 'TypeError',
-      message: 'Callback must be a function. Received undefined'
+      message: 'Callback must be a function. Received undefined',
     }
   );
 
   response.stream.on('close', () => {
     response.createPushResponse({
       ':path': '/pushed',
-      ':method': 'GET'
+      ':method': 'GET',
     }, common.mustCall((error) => {
       assert.strictEqual(error.code, 'ERR_HTTP2_INVALID_STREAM');
     }));
@@ -39,7 +39,7 @@ const server = h2.createServer((request, response) => {
 
   response.createPushResponse({
     ':path': '/pushed',
-    ':method': 'GET'
+    ':method': 'GET',
   }, common.mustSucceed((push) => {
     assert.strictEqual(push.stream.id % 2, 0);
     push.end(pushExpect);

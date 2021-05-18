@@ -14,7 +14,7 @@ const r = new Readable({
     if (n++ > 10) {
       r.push(null);
     }
-  }
+  },
 });
 
 r.on('readable', () => {

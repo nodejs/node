@@ -17,7 +17,7 @@ class MyServerResponse extends http.ServerResponse {
 }
 
 const server = http.Server({
-  ServerResponse: MyServerResponse
+  ServerResponse: MyServerResponse,
 }, common.mustCall(function(req, res) {
   res.status(200);
   res.end();

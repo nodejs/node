@@ -10,7 +10,7 @@ function execute(options) {
     const expectHeaders = {
       'x-foo': 'boom',
       'cookie': 'a=1; b=2; c=3',
-      'connection': 'close'
+      'connection': 'close',
     };
 
     // no Host header when you set headers an array
@@ -32,7 +32,7 @@ function execute(options) {
   }).listen(0, function() {
     options = Object.assign(options, {
       port: this.address().port,
-      path: '/'
+      path: '/',
     });
     const req = http.request(options);
     req.end();

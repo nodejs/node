@@ -14,7 +14,7 @@ const agent = new Agent();
 
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 };
 
 const server = https.createServer(options);
@@ -26,7 +26,7 @@ server.listen(0, common.mustCall(async () => {
     port: port,
     host: host,
     rejectUnauthorized: false,
-    _agentKey: agent.getName({ port, host })
+    _agentKey: agent.getName({ port, host }),
   };
 
   async function postCreateConnection() {

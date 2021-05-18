@@ -63,7 +63,7 @@ child.on('exit', common.mustCall((code) => {
 {
   const child = fork(fixtures.path('a.js'), {
     execArgv: ['--secure-heap=3', '--secure-heap-min=3'],
-    stdio: 'pipe'
+    stdio: 'pipe',
   });
   let res = '';
   child.on('exit', common.mustCall((code) => {

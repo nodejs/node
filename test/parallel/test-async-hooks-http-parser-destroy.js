@@ -41,7 +41,7 @@ async_hooks.createHook({
     if (destroyedIdsIncomingMessage.length === N && server.listening) {
       server.close();
     }
-  }
+  },
 }).enable();
 
 const server = http.createServer((req, res) => {
@@ -61,7 +61,7 @@ server.listen(0, () => {
     (function makeRequest() {
       http.get({
         port: server.address().port,
-        agent: keepAliveAgent
+        agent: keepAliveAgent,
       }, (res) => {
         res.resume();
       });

@@ -5,7 +5,7 @@ const assert = require('assert');
 const { Readable } = require('stream');
 
 const rs = new Readable({
-  read() {}
+  read() {},
 });
 
 let closed = false;

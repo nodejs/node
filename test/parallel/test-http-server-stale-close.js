@@ -47,7 +47,7 @@ if (process.env.NODE_TEST_FORK_PORT) {
   });
   server.listen(0, function() {
     fork(__filename, {
-      env: { ...process.env, NODE_TEST_FORK_PORT: this.address().port }
+      env: { ...process.env, NODE_TEST_FORK_PORT: this.address().port },
     });
   });
 }

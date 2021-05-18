@@ -23,7 +23,7 @@ server.on('stream', common.mustCall((stream) => {
     {
       name: 'Error',
       code: 'ERR_HTTP2_HEADERS_SENT',
-      message: 'Response has already been initiated.'
+      message: 'Response has already been initiated.',
     }
   );
 
@@ -34,7 +34,7 @@ server.on('stream', common.mustCall((stream) => {
     {
       name: 'Error',
       code: 'ERR_HTTP2_INVALID_STREAM',
-      message: 'The stream has been destroyed'
+      message: 'The stream has been destroyed',
     }
   );
 }));

@@ -16,7 +16,7 @@ outputStream.on('data', function(d) {
 const r = repl.start({
   input: inputStream,
   output: outputStream,
-  terminal: true
+  terminal: true,
 });
 
 r.defineCommand('say1', {
@@ -25,7 +25,7 @@ r.defineCommand('say1', {
     output = '';
     this.output.write(`hello ${thing}\n`);
     this.displayPrompt();
-  }
+  },
 });
 
 r.defineCommand('say2', function() {

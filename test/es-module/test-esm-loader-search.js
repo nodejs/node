@@ -7,7 +7,7 @@ require('../common');
 
 const assert = require('assert');
 const {
-  defaultResolve: resolve
+  defaultResolve: resolve,
 } = require('internal/modules/esm/resolve');
 
 assert.throws(
@@ -15,6 +15,6 @@ assert.throws(
   {
     code: 'ERR_MODULE_NOT_FOUND',
     name: 'Error',
-    message: /Cannot find package 'target'/
+    message: /Cannot find package 'target'/,
   }
 );

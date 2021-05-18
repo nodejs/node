@@ -12,7 +12,7 @@ server.listen(0, common.mustCall(() => {
     createConnection(options) {
       options.readableHighWaterMark = readableHighWaterMark;
       return net.createConnection(options);
-    }
+    },
   }, common.mustCall((res) => {
     assert.strictEqual(res.socket, req.socket);
     assert.strictEqual(res.socket.readableHighWaterMark, readableHighWaterMark);

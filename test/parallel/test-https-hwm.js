@@ -29,7 +29,7 @@ function loadCallback(highWaterMark) {
 // create server
 const httpsServer = https.createServer({
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 }, common.mustCall(function(req, res) {
   res.writeHead(200, {});
   res.end('ok');

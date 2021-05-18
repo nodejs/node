@@ -55,7 +55,7 @@ server.listen(0, common.mustCall(() => {
     port: server.address().port,
     method: 'CONNECT',
     path: 'google.com:443',
-    timeout: 20000
+    timeout: 20000,
   }, common.mustNotCall());
 
   req.on('socket', common.mustCall((socket) => {

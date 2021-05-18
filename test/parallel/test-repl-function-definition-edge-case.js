@@ -31,6 +31,6 @@ function initRepl() {
     output,
     useColors: false,
     terminal: false,
-    prompt: ''
+    prompt: '',
   });
 }

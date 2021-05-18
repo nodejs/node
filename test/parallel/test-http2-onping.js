@@ -3,17 +3,17 @@
 const {
   hasCrypto,
   mustCall,
-  skip
+  skip,
 } = require('../common');
 if (!hasCrypto)
   skip('missing crypto');
 
 const {
-  deepStrictEqual
+  deepStrictEqual,
 } = require('assert');
 const {
   createServer,
-  connect
+  connect,
 } = require('http2');
 
 const check = Buffer.from([ 1, 2, 3, 4, 5, 6, 7, 8 ]);

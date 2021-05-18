@@ -27,7 +27,7 @@ const { on } = require('events');
     handleEvent: common.mustCall(function(event) {
       strictEqual(event.type, 'foo');
       strictEqual(this, ev2);
-    })
+    }),
   };
 
   eventTarget.addEventListener('foo', ev1);
@@ -54,7 +54,7 @@ const { on } = require('events');
   const ev2 = {
     handleEvent: common.mustCall((event) => {
       strictEqual(event.type, 'foo');
-    })
+    }),
   };
 
   strictEqual(eventTarget.on('foo', ev1), eventTarget);
@@ -81,7 +81,7 @@ const { on } = require('events');
   const ev2 = {
     handleEvent: common.mustCall((event) => {
       strictEqual(event.type, 'foo');
-    })
+    }),
   };
 
   eventTarget.addListener('foo', ev1);

@@ -22,11 +22,11 @@ new RuleTester().run('no-unescaped-regexp-dot', rule, {
   invalid: [
     {
       code: '/./',
-      errors: [{ message: 'Unescaped dot character in regular expression' }]
+      errors: [{ message: 'Unescaped dot character in regular expression' }],
     },
     {
       code: String.raw`/\\./`,
-      errors: [{ message: 'Unescaped dot character in regular expression' }]
+      errors: [{ message: 'Unescaped dot character in regular expression' }],
     },
-  ]
+  ],
 });

@@ -14,7 +14,7 @@ createHook({
   init(asyncId, type, triggerAsyncId, resource) {
     const cr = executionAsyncResource();
     resource[sym] = cr[sym];
-  }
+  },
 }).enable();
 
 const server = createServer(function(req, res) {

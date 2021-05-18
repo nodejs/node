@@ -37,7 +37,7 @@ async function test() {
       'lineNumber': 12,
       'url': pathToFileURL(path.resolve(__dirname, __filename)).toString(),
       'columnNumber': 0,
-      'condition': ''
+      'condition': '',
     }, (error, result) => {
       return error ? reject(error) : resolve(result);
     });

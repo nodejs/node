@@ -15,7 +15,7 @@ for (const withPendingData of [ false, true ]) {
         callbacks.push(cb);
       },
       // Effectively disable the HWM to observe 'drain' events more easily.
-      highWaterMark: 1
+      highWaterMark: 1,
     });
 
     let chunksWritten = 0;

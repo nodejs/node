@@ -23,7 +23,7 @@ server.on('stream', common.mustCall((stream) => {
       name: 'TypeError',
       message:
         'The "msecs" argument must be of type number. Received type string' +
-        " ('100')"
+        " ('100')",
     }
   );
   assert.throws(
@@ -31,7 +31,7 @@ server.on('stream', common.mustCall((stream) => {
     {
       code: 'ERR_INVALID_CALLBACK',
       name: 'TypeError',
-      message: 'Callback must be a function. Received Symbol(test)'
+      message: 'Callback must be a function. Received Symbol(test)',
     }
   );
   assert.throws(
@@ -39,7 +39,7 @@ server.on('stream', common.mustCall((stream) => {
     {
       code: 'ERR_INVALID_CALLBACK',
       name: 'TypeError',
-      message: 'Callback must be a function. Received {}'
+      message: 'Callback must be a function. Received {}',
     }
   );
 }));

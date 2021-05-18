@@ -71,7 +71,7 @@ const wrongInputs = [false, 'test', {}, [{}], ['sdf'], null, undefined];
     assert.throws(
       () => fs.readvSync(fd, wrongInput, null), {
         code: 'ERR_INVALID_ARG_TYPE',
-        name: 'TypeError'
+        name: 'TypeError',
       }
     );
   });
@@ -86,7 +86,7 @@ const wrongInputs = [false, 'test', {}, [{}], ['sdf'], null, undefined];
       () => fs.readvSync(wrongInput),
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        name: 'TypeError'
+        name: 'TypeError',
       }
     );
   });

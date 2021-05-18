@@ -13,7 +13,7 @@ const {
   HTTP2_HEADER_SCHEME,
   HTTP2_HEADER_PATH,
   NGHTTP2_CONNECT_ERROR,
-  NGHTTP2_REFUSED_STREAM
+  NGHTTP2_REFUSED_STREAM,
 } = http2.constants;
 
 const server = net.createServer(common.mustCall((socket) => {
@@ -57,33 +57,33 @@ server.listen(0, common.mustCall(() => {
     // Confirm that :authority is required and :scheme & :path are forbidden
     assert.throws(
       () => client.request({
-        [HTTP2_HEADER_METHOD]: 'CONNECT'
+        [HTTP2_HEADER_METHOD]: 'CONNECT',
       }),
       {
         code: 'ERR_HTTP2_CONNECT_AUTHORITY',
-        message: ':authority header is required for CONNECT requests'
+        message: ':authority header is required for CONNECT requests',
       }
     );
     assert.throws(
       () => client.request({
         [HTTP2_HEADER_METHOD]: 'CONNECT',
         [HTTP2_HEADER_AUTHORITY]: `localhost:${port}`,
-        [HTTP2_HEADER_SCHEME]: 'http'
+        [HTTP2_HEADER_SCHEME]: 'http',
       }),
       {
         code: 'ERR_HTTP2_CONNECT_SCHEME',
-        message: 'The :scheme header is forbidden for CONNECT requests'
+        message: 'The :scheme header is forbidden for CONNECT requests',
       }
     );
     assert.throws(
       () => client.request({
         [HTTP2_HEADER_METHOD]: 'CONNECT',
         [HTTP2_HEADER_AUTHORITY]: `localhost:${port}`,
-        [HTTP2_HEADER_PATH]: '/'
+        [HTTP2_HEADER_PATH]: '/',
       }),
       {
         code: 'ERR_HTTP2_CONNECT_PATH',
-        message: 'The :path header is forbidden for CONNECT requests'
+        message: 'The :path header is forbidden for CONNECT requests',
       }
     );
 

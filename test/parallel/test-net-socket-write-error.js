@@ -13,7 +13,7 @@ function connectToServer() {
       client.write(1337);
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError'
+      name: 'TypeError',
     });
 
     client.destroy();

@@ -16,7 +16,7 @@ const tls = require('tls');
 const options = {
   secureOptions: SSL_OP_NO_TICKET,
   key: fixtures.readKey('rsa_private.pem'),
-  cert: fixtures.readKey('rsa_cert.crt')
+  cert: fixtures.readKey('rsa_cert.crt'),
 };
 
 const server = tls.createServer(options, common.mustCall());
@@ -43,7 +43,7 @@ server.listen(0, common.mustCall(() => {
     maxVersion: 'TLSv1.2',
     port: server.address().port,
     rejectUnauthorized: false,
-    session: false
+    session: false,
   };
 
   const s1 = tls.connect(clientOpts, common.mustCall(() => {

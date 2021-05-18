@@ -21,7 +21,7 @@ const server = net.createServer(mustCall((socket) => {
       const ret = client.write('hello', expectsError({
         code: 'EPIPE',
         message: 'This socket has been ended by the other party',
-        name: 'Error'
+        name: 'Error',
       }));
 
       assert.strictEqual(ret, false);

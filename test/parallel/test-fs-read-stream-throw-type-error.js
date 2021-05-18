@@ -22,12 +22,12 @@ const createReadStreamErr = (path, opt, error) => {
 
 const typeError = {
   code: 'ERR_INVALID_ARG_TYPE',
-  name: 'TypeError'
+  name: 'TypeError',
 };
 
 const rangeError = {
   code: 'ERR_OUT_OF_RANGE',
-  name: 'RangeError'
+  name: 'RangeError',
 };
 
 [123, 0, true, false].forEach((opts) =>

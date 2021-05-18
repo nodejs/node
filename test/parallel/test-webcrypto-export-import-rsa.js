@@ -66,8 +66,8 @@ const keyData = {
       dq: 'hNRfwOSplNfhLvxLUN7a2qA3yYm-1MSz_1DWQP7srlLORlUcYPht2FZmsnEeDcAq' +
           'ynBGPQUcbG2Av_hgHz2OZw',
       qi: 'zbpJQAhinrxSbVKxBQ2EZGFUD2e3WCXbAJRYpk8HVQ5AA52OhKTicOye2hEHnrgp' +
-          'FKzC8iznTsCG3FMkvwcj4Q'
-    }
+          'FKzC8iznTsCG3FMkvwcj4Q',
+    },
   },
 
   2048: {
@@ -147,8 +147,8 @@ const keyData = {
           'TUDDIwbqUHeD3Nrx-TpOCOXped2P3Kzb7Sa0I5jF1ak',
       qi: 'nSIby2WhW-eV3_-6sq-oXcKjq2W6X24m-hcmEtVXISm7EgAVykRG7D_bnsmApmHS' +
           'qtI4UFEYmPB8FIcWCVzRvWDWMUZKyJtSRmC9RllS0uV9h0C3w_PbeUkrFrh6XNF2' +
-          'fhNSbvZtecaR4sfyUotpZSwpuiEKXmedI7IaaAy_DQc'
-    }
+          'fhNSbvZtecaR4sfyUotpZSwpuiEKXmedI7IaaAy_DQc',
+    },
   },
 
   4096: {
@@ -295,8 +295,8 @@ const keyData = {
           'HrnDh5EBVnM4_de63crEJON2sYI8Ozi-xp2OEmAr2seWKq4sxkFni6exLhqb-NE4' +
           'm9HMKlng1EtQh2rLBFG1VYD3SYYpMLc5fxzqGvSxn3Fa-Xgg-IZPY3ubrcm52KYg' +
           'mLUGmnYStfVqGSWSdhDXHlNgI5pdAA0FzpyBk3ZX-JsxhwcnneKrYBBweq06kRMG' +
-          'WgvdbdAQ-7wSeGqqj5VPwA'
-    }
+          'WgvdbdAQ-7wSeGqqj5VPwA',
+    },
   },
 };
 
@@ -325,7 +325,7 @@ async function testImportSpki({ name, publicUsages }, size, hash, extractable) {
   } else {
     await assert.rejects(
       subtle.exportKey('spki', key), {
-        message: /key is not extractable/
+        message: /key is not extractable/,
       });
   }
 }
@@ -359,7 +359,7 @@ async function testImportPkcs8(
   } else {
     await assert.rejects(
       subtle.exportKey('pkcs8', key), {
-        message: /key is not extractable/
+        message: /key is not extractable/,
       });
   }
 }
@@ -382,7 +382,7 @@ async function testImportJwk(
         kty: jwk.kty,
         n: jwk.n,
         e: jwk.e,
-        alg: `PS${hash.substring(4)}`
+        alg: `PS${hash.substring(4)}`,
       },
       { name, hash },
       extractable,
@@ -438,11 +438,11 @@ async function testImportJwk(
   } else {
     await assert.rejects(
       subtle.exportKey('jwk', publicKey), {
-        message: /key is not extractable/
+        message: /key is not extractable/,
       });
     await assert.rejects(
       subtle.exportKey('jwk', privateKey), {
-        message: /key is not extractable/
+        message: /key is not extractable/,
       });
   }
 }
@@ -452,17 +452,17 @@ const testVectors = [
   {
     name: 'RSA-OAEP',
     privateUsages: ['decrypt', 'unwrapKey'],
-    publicUsages: ['encrypt', 'wrapKey']
+    publicUsages: ['encrypt', 'wrapKey'],
   },
   {
     name: 'RSA-PSS',
     privateUsages: ['sign'],
-    publicUsages: ['verify']
+    publicUsages: ['verify'],
   },
   {
     name: 'RSASSA-PKCS1-v1_5',
     privateUsages: ['sign'],
-    publicUsages: ['verify']
+    publicUsages: ['verify'],
   },
 ];
 

@@ -35,12 +35,12 @@ const maxChunk = 768;
 
 const invalidArgumentError = {
   name: 'TypeError',
-  code: 'ERR_INVALID_ARG_TYPE'
+  code: 'ERR_INVALID_ARG_TYPE',
 };
 
 const server = tls.createServer({
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 }, function(c) {
 
   // No size is passed.
@@ -54,7 +54,7 @@ const server = tls.createServer({
   [NaN, Infinity, 2 ** 31].forEach((arg) => {
     assert.throws(() => c.setMaxSendFragment(arg), {
       name: 'RangeError',
-      code: 'ERR_OUT_OF_RANGE'
+      code: 'ERR_OUT_OF_RANGE',
     });
   });
 
@@ -70,7 +70,7 @@ const server = tls.createServer({
   c.end(buf);
 }).listen(0, common.mustCall(function() {
   const c = tls.connect(this.address().port, {
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall(function() {
     c.on('data', function(chunk) {
       assert(chunk.length <= maxChunk);

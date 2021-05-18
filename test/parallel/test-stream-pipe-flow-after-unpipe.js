@@ -8,7 +8,7 @@ const { Readable, Writable } = require('stream');
 const rs = new Readable({
   highWaterMark: 1,
   // That this gets called at least 20 times is the real test here.
-  read: common.mustCallAtLeast(() => rs.push('foo'), 20)
+  read: common.mustCallAtLeast(() => rs.push('foo'), 20),
 });
 
 const ws = new Writable({
@@ -16,7 +16,7 @@ const ws = new Writable({
   write: common.mustCall(() => {
     // Ignore the callback, this write() simply never finishes.
     setImmediate(() => rs.unpipe(ws));
-  })
+  }),
 });
 
 let chunks = 0;

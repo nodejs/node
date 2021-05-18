@@ -15,12 +15,12 @@ const credentialOptions = [
   {
     key: fixtures.readKey('agent1-key.pem'),
     cert: fixtures.readKey('agent1-cert.pem'),
-    ca: fixtures.readKey('ca1-cert.pem')
+    ca: fixtures.readKey('ca1-cert.pem'),
   },
   {
     key: fixtures.readKey('agent2-key.pem'),
     cert: fixtures.readKey('agent2-cert.pem'),
-    ca: fixtures.readKey('ca2-cert.pem')
+    ca: fixtures.readKey('ca2-cert.pem'),
   },
 ];
 let firstResponse;
@@ -82,7 +82,7 @@ function makeRequest(port, id) {
       rejectUnauthorized: true,
       ca: credentialOptions[0].ca,
       servername: 'agent1',
-      headers: { id }
+      headers: { id },
     };
 
     let errored = false;

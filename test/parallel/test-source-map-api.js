@@ -15,7 +15,7 @@ const { readFileSync } = require('fs');
         code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError',
         message: 'The "payload" argument must be of type object.' +
-               common.invalidArgTypeHelper(invalidArg)
+               common.invalidArgTypeHelper(invalidArg),
       }
     )
   );
@@ -31,7 +31,7 @@ const { readFileSync } = require('fs');
   const {
     originalLine,
     originalColumn,
-    originalSource
+    originalSource,
   } = sourceMap.findEntry(0, 29);
   assert.strictEqual(originalLine, 2);
   assert.strictEqual(originalColumn, 4);
@@ -64,7 +64,7 @@ const { readFileSync } = require('fs');
     generatedColumn,
     originalLine,
     originalColumn,
-    originalSource
+    originalSource,
   } = sourceMap.findEntry(
     callSite.getLineNumber() - 1,
     callSite.getColumnNumber() - 1
@@ -87,7 +87,7 @@ const { readFileSync } = require('fs');
   const {
     originalLine,
     originalColumn,
-    originalSource
+    originalSource,
   } = sourceMap.findEntry(0, 29);
   assert.strictEqual(originalLine, 2);
   assert.strictEqual(originalColumn, 4);
@@ -150,7 +150,7 @@ const { readFileSync } = require('fs');
       // Mapping from the 0th line, ${g}th column of the output file to the 0th
       // source file, 0th line, ${column}th column.
       mappings: generatedColumns.map((g, i) => `${g}AA${originalColumns[i]}`)
-        .join(',')
+        .join(','),
     };
   }
   // U = 10

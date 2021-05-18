@@ -13,7 +13,7 @@ let out = '';
 
 const server = tls.createServer({
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 }, function(c) {
   c.end('hello');
 }).listen(0, function() {
@@ -21,7 +21,7 @@ const server = tls.createServer({
 
   const s = tls.connect({
     socket: socket,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, function() {
     s.on('data', function(chunk) {
       out += chunk;

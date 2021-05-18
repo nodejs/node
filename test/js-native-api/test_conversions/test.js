@@ -143,28 +143,28 @@ assert.deepStrictEqual(test.testNull.getValueBool(), {
   envIsNull: 'Invalid argument',
   valueIsNull: 'Invalid argument',
   resultIsNull: 'Invalid argument',
-  inputTypeCheck: 'A boolean was expected'
+  inputTypeCheck: 'A boolean was expected',
 });
 
 assert.deepStrictEqual(test.testNull.getValueInt32(), {
   envIsNull: 'Invalid argument',
   valueIsNull: 'Invalid argument',
   resultIsNull: 'Invalid argument',
-  inputTypeCheck: 'A number was expected'
+  inputTypeCheck: 'A number was expected',
 });
 
 assert.deepStrictEqual(test.testNull.getValueUint32(), {
   envIsNull: 'Invalid argument',
   valueIsNull: 'Invalid argument',
   resultIsNull: 'Invalid argument',
-  inputTypeCheck: 'A number was expected'
+  inputTypeCheck: 'A number was expected',
 });
 
 assert.deepStrictEqual(test.testNull.getValueInt64(), {
   envIsNull: 'Invalid argument',
   valueIsNull: 'Invalid argument',
   resultIsNull: 'Invalid argument',
-  inputTypeCheck: 'A number was expected'
+  inputTypeCheck: 'A number was expected',
 });
 
 
@@ -172,47 +172,47 @@ assert.deepStrictEqual(test.testNull.getValueDouble(), {
   envIsNull: 'Invalid argument',
   valueIsNull: 'Invalid argument',
   resultIsNull: 'Invalid argument',
-  inputTypeCheck: 'A number was expected'
+  inputTypeCheck: 'A number was expected',
 });
 
 assert.deepStrictEqual(test.testNull.coerceToBool(), {
   envIsNull: 'Invalid argument',
   valueIsNull: 'Invalid argument',
   resultIsNull: 'Invalid argument',
-  inputTypeCheck: 'napi_ok'
+  inputTypeCheck: 'napi_ok',
 });
 
 assert.deepStrictEqual(test.testNull.coerceToObject(), {
   envIsNull: 'Invalid argument',
   valueIsNull: 'Invalid argument',
   resultIsNull: 'Invalid argument',
-  inputTypeCheck: 'napi_ok'
+  inputTypeCheck: 'napi_ok',
 });
 
 assert.deepStrictEqual(test.testNull.coerceToString(), {
   envIsNull: 'Invalid argument',
   valueIsNull: 'Invalid argument',
   resultIsNull: 'Invalid argument',
-  inputTypeCheck: 'napi_ok'
+  inputTypeCheck: 'napi_ok',
 });
 
 assert.deepStrictEqual(test.testNull.getValueStringUtf8(), {
   envIsNull: 'Invalid argument',
   valueIsNull: 'Invalid argument',
   wrongTypeIn: 'A string was expected',
-  bufAndOutLengthIsNull: 'Invalid argument'
+  bufAndOutLengthIsNull: 'Invalid argument',
 });
 
 assert.deepStrictEqual(test.testNull.getValueStringLatin1(), {
   envIsNull: 'Invalid argument',
   valueIsNull: 'Invalid argument',
   wrongTypeIn: 'A string was expected',
-  bufAndOutLengthIsNull: 'Invalid argument'
+  bufAndOutLengthIsNull: 'Invalid argument',
 });
 
 assert.deepStrictEqual(test.testNull.getValueStringUtf16(), {
   envIsNull: 'Invalid argument',
   valueIsNull: 'Invalid argument',
   wrongTypeIn: 'A string was expected',
-  bufAndOutLengthIsNull: 'Invalid argument'
+  bufAndOutLengthIsNull: 'Invalid argument',
 });

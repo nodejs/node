@@ -37,7 +37,7 @@ assert.throws(
   {
     code: 'ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH',
     name: 'RangeError',
-    message: 'Input buffers must have the same byte length'
+    message: 'Input buffers must have the same byte length',
   }
 );
 

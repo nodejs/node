@@ -44,8 +44,8 @@ server.listen(0, common.mustCall(() => {
       req.on('error', common.expectsError({
         code: 'ERR_HTTP2_OUT_OF_STREAMS',
         name: 'Error',
-        message:
-          'No stream ID is available because maximum stream ID has been reached'
+        message: 'No stream ID is available' +
+        ' because maximum stream ID has been reached',
       }));
       req.on('error', () => countdown.dec());
     }

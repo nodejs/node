@@ -71,7 +71,7 @@ function runTestWithoutAbortOnUncaughtException() {
 
 function runTestWithAbortOnUncaughtException() {
   child_process.exec(createTestCmdLine({
-    withAbortOnUncaughtException: true
+    withAbortOnUncaughtException: true,
   }), function onTestDone(err, stdout, stderr) {
     assert.notStrictEqual(err.code, RAN_UNCAUGHT_EXCEPTION_HANDLER_EXIT_CODE,
                           'child process should not have run its ' +

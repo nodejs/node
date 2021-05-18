@@ -26,7 +26,7 @@ const ws = new Writable({
       assert.strictEqual(chunk.length, 0);
     }
     setImmediate(callback);
-  }, 2)
+  }, 2),
 });
 
 res.socket = ws;

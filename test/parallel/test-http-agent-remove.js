@@ -10,7 +10,7 @@ const server = http.createServer(mustCall((req, res) => {
 
 server.listen(0, mustCall(() => {
   const req = http.get({
-    port: server.address().port
+    port: server.address().port,
   }, mustCall(() => {
     const { socket } = req;
     socket.emit('agentRemove');

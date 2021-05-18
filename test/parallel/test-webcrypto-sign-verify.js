@@ -19,15 +19,15 @@ const { subtle } = require('crypto').webcrypto;
       name: 'RSASSA-PKCS1-v1_5',
       modulusLength: 1024,
       publicExponent: new Uint8Array([1, 0, 1]),
-      hash: 'SHA-256'
+      hash: 'SHA-256',
     }, true, ['sign', 'verify']);
 
     const signature = await subtle.sign({
-      name: 'RSASSA-PKCS1-v1_5'
+      name: 'RSASSA-PKCS1-v1_5',
     }, privateKey, ec.encode(data));
 
     assert(await subtle.verify({
-      name: 'RSASSA-PKCS1-v1_5'
+      name: 'RSASSA-PKCS1-v1_5',
     }, publicKey, signature, ec.encode(data)));
   }
 
@@ -42,7 +42,7 @@ const { subtle } = require('crypto').webcrypto;
       name: 'RSA-PSS',
       modulusLength: 4096,
       publicExponent: new Uint8Array([1, 0, 1]),
-      hash: 'SHA-256'
+      hash: 'SHA-256',
     }, true, ['sign', 'verify']);
 
     const signature = await subtle.sign({
@@ -90,7 +90,7 @@ const { subtle } = require('crypto').webcrypto;
     const key = await subtle.generateKey({
       name: 'HMAC',
       length: 256,
-      hash: 'SHA-256'
+      hash: 'SHA-256',
     }, true, ['sign', 'verify']);
 
     const signature = await subtle.sign({

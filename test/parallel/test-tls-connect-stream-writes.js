@@ -43,12 +43,12 @@ server.listen(0, function() {
     },
     write: function write(data, enc, cb) {
       raw.write(data, enc, cb);
-    }
+    },
   });
 
   const socket = tls.connect({
     socket: p,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, function() {
     for (let i = 0; i < 50; ++i) {
       socket.write(content);

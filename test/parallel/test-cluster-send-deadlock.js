@@ -49,11 +49,11 @@ if (cluster.isPrimary) {
       assert(msg.port);
       const client1 = net.connect({
         host: 'localhost',
-        port: msg.port
+        port: msg.port,
       }, () => {
         const client2 = net.connect({
           host: 'localhost',
-          port: msg.port
+          port: msg.port,
         }, () => {
           client1.on('close', onclose);
           client2.on('close', onclose);

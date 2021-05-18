@@ -4,7 +4,7 @@ const common = require('../common.js');
 const assert = require('assert');
 const {
   hkdf,
-  hkdfSync
+  hkdfSync,
 } = require('crypto');
 
 const bench = common.createBenchmark(main, {

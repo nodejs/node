@@ -10,7 +10,7 @@ const bench = common.createBenchmark(main, {
   type: ['utf', 'asc', 'buf'],
   dur: [5],
 }, {
-  test: { len: 1024 }
+  test: { len: 1024 },
 });
 
 let chunk;

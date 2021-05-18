@@ -5,7 +5,7 @@ const path = require('path');
 
 const bench = common.createBenchmark(main, {
   value: ['@'.charCodeAt(0)],
-  n: [1e6]
+  n: [1e6],
 });
 
 function main({ n, value }) {

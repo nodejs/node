@@ -21,7 +21,7 @@ assert.throws(
   {
     code: 'ENOENT',
     message: 'getnameinfo ENOENT 127.0.0.1',
-    syscall: 'getnameinfo'
+    syscall: 'getnameinfo',
   }
 );
 
@@ -30,6 +30,6 @@ assert.rejects(
   {
     code: 'ENOENT',
     message: 'getnameinfo ENOENT 127.0.0.1',
-    syscall: 'getnameinfo'
+    syscall: 'getnameinfo',
   }
 );

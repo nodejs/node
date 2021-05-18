@@ -70,7 +70,7 @@ testTransform(0, 0, {
     name: 'TypeError',
     code: 'ERR_INVALID_ARG_VALUE',
     message: "The property 'options.readableHighWaterMark' is invalid. " +
-      'Received NaN'
+      'Received NaN',
   });
 
   assert.throws(() => {
@@ -79,7 +79,7 @@ testTransform(0, 0, {
     name: 'TypeError',
     code: 'ERR_INVALID_ARG_VALUE',
     message: "The property 'options.writableHighWaterMark' is invalid. " +
-      'Received NaN'
+      'Received NaN',
   });
 }
 

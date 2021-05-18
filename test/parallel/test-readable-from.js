@@ -154,7 +154,7 @@ async function asTransformStream() {
       this.push('b');
       this.push('c');
       this.push(null);
-    }
+    },
   });
 
   const stream = Readable.from(generate(source));

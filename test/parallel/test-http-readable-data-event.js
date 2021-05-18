@@ -10,7 +10,7 @@ let next = null;
 
 const server = http.createServer((req, res) => {
   res.writeHead(200, {
-    'Content-Length': `${(helloWorld.length + helloAgainLater.length)}`
+    'Content-Length': `${(helloWorld.length + helloAgainLater.length)}`,
   });
 
   // We need to make sure the data is flushed
@@ -25,7 +25,7 @@ const server = http.createServer((req, res) => {
   const opts = {
     hostname: 'localhost',
     port: server.address().port,
-    path: '/'
+    path: '/',
   };
 
   const expectedData = [helloWorld, helloAgainLater];

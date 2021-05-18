@@ -34,7 +34,7 @@ server.listen(0, function() {
   const req = http.request({
     port: this.address().port,
     path: '/',
-    agent: false
+    agent: false,
   }, function(res) {
     req.clearTimeout(callback);
 

@@ -34,7 +34,7 @@ process.on('warning', common.mustNotCall());
 
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 };
 
 const body = 'hello world\n';
@@ -62,7 +62,7 @@ server.listen(0, common.mustCall(() => {
     port: port,
     path: '/',
     method: 'GET',
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   };
   tests++;
   const req = https.request(options, common.mustCall((res) => {

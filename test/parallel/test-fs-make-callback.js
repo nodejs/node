@@ -20,7 +20,7 @@ function invalidCallbackThrowsTests() {
   callbackThrowValues.forEach((value) => {
     assert.throws(testMakeCallback(value), {
       code: 'ERR_INVALID_CALLBACK',
-      name: 'TypeError'
+      name: 'TypeError',
     });
   });
 }

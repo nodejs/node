@@ -21,13 +21,13 @@ common.expectWarning('DeprecationWarning', warn, 'DEP0066');
   const outgoingMessage = new OutgoingMessage();
   outgoingMessage._headers = {
     host: 'risingstack.com',
-    Origin: 'localhost'
+    Origin: 'localhost',
   };
 
   assert.deepStrictEqual(
     Object.entries(outgoingMessage[kOutHeaders]),
     Object.entries({
       host: ['host', 'risingstack.com'],
-      origin: ['Origin', 'localhost']
+      origin: ['Origin', 'localhost'],
     }));
 }

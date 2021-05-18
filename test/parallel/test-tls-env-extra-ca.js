@@ -36,7 +36,7 @@ const server = tls.createServer(options, common.mustCall(function(s) {
     ...process.env,
     CHILD: 'yes',
     PORT: this.address().port,
-    NODE_EXTRA_CA_CERTS: fixtures.path('keys', 'ca1-cert.pem')
+    NODE_EXTRA_CA_CERTS: fixtures.path('keys', 'ca1-cert.pem'),
   };
 
   fork(__filename, { env }).on('exit', common.mustCall(function(status) {

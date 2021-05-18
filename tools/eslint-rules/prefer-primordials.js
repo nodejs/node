@@ -63,8 +63,8 @@ const identifierSelector =
 module.exports = {
   meta: {
     messages: {
-      error: 'Use `const { {{name}} } = primordials;` instead of the global.'
-    }
+      error: 'Use `const { {{name}} } = primordials;` instead of the global.',
+    },
   },
   create(context) {
     const globalScope = context.getSourceCode().scopeManager.globalScope;
@@ -111,8 +111,8 @@ module.exports = {
               node,
               messageId: 'error',
               data: {
-                name: getReportName({ into, parentName, name })
-              }
+                name: getReportName({ into, parentName, name }),
+              },
             });
           }
           return;
@@ -124,8 +124,8 @@ module.exports = {
             node,
             messageId: 'error',
             data: {
-              name: getReportName({ into, parentName, name })
-            }
+              name: getReportName({ into, parentName, name }),
+            },
           });
         }
       },
@@ -144,10 +144,10 @@ module.exports = {
             messageId: 'error',
             data: {
               name: toPrimordialsName(obj, prop),
-            }
+            },
           });
         }
-      }
+      },
     };
-  }
+  },
 };

@@ -12,7 +12,7 @@ server.listen(0, common.mustCall(() => {
       socket.once('close', () => server.close());
       return socket;
     },
-    port: server.address().port
+    port: server.address().port,
   });
 
   req.abort();

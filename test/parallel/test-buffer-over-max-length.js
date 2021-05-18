@@ -10,7 +10,7 @@ const kMaxLength = buffer.kMaxLength;
 const bufferMaxSizeMsg = {
   code: 'ERR_INVALID_ARG_VALUE',
   name: 'RangeError',
-  message: /^The argument 'size' is invalid\. Received [^"]*$/
+  message: /^The argument 'size' is invalid\. Received [^"]*$/,
 };
 
 assert.throws(() => Buffer((-1 >>> 0) + 2), bufferMaxSizeMsg);

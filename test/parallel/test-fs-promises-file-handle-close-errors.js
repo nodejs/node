@@ -44,7 +44,7 @@ async function checkCloseError(op) {
           throw closeError;
         };
         return originalFd.get.call(this);
-      }
+      },
     });
 
     await assert.rejects(op(filePath), {

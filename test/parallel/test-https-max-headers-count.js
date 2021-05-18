@@ -10,7 +10,7 @@ const https = require('https');
 
 const serverOptions = {
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 };
 
 let requests = 0;
@@ -54,7 +54,7 @@ server.listen(0, common.mustCall(() => {
     const req = https.request({
       port: server.address().port,
       headers: headers,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     }, (res) => {
       assert.strictEqual(Object.keys(res.headers).length, expected);
       res.on('end', () => {

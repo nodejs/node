@@ -158,7 +158,7 @@ function runTests(iter) {
 
 const expectTypeError = {
   code: 'ERR_INVALID_ARG_TYPE',
-  name: 'TypeError'
+  name: 'TypeError',
 };
 // utimes-only error cases
 {
@@ -196,7 +196,7 @@ const expectRangeError = {
   code: 'ERR_OUT_OF_RANGE',
   name: 'RangeError',
   message: 'The value of "fd" is out of range. ' +
-           'It must be >= 0 && <= 2147483647. Received -1'
+           'It must be >= 0 && <= 2147483647. Received -1',
 };
 // futimes-only error cases
 {

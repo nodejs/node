@@ -28,8 +28,8 @@ Connection: close
   const req = http.request({
     createConnection: common.mustCall(() => clientSide),
     headers: {
-      'Expect': '100-continue'
-    }
+      'Expect': '100-continue',
+    },
   });
   req.on('continue', common.mustCall((res) => {
     let sync = true;

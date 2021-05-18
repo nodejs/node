@@ -6,7 +6,7 @@ const expected = {
   '__proto__': null,
   'testheader1': 'foo',
   'testheader2': 'bar',
-  'testheader3': 'xyz'
+  'testheader3': 'xyz',
 };
 const server = http.createServer(common.mustCall((req, res) => {
   let retval = res.setHeader('testheader1', 'foo');

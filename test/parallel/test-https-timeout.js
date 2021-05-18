@@ -30,7 +30,7 @@ const https = require('https');
 
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 };
 
 // A server that never replies
@@ -42,7 +42,7 @@ const server = https.createServer(options, function() {
     port: this.address().port,
     path: '/',
     method: 'GET',
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   });
   req.setTimeout(10);
   req.end();
@@ -54,7 +54,7 @@ const server = https.createServer(options, function() {
   req.on('error', common.expectsError({
     message: 'socket hang up',
     code: 'ECONNRESET',
-    name: 'Error'
+    name: 'Error',
   }));
 
   req.on('timeout', common.mustCall(function() {

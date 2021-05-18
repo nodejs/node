@@ -22,7 +22,7 @@ const url = require('url');
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
     message: 'The "url" argument must be of type string.' +
-             common.invalidArgTypeHelper(val)
+             common.invalidArgTypeHelper(val),
   });
 });
 

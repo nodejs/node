@@ -8,6 +8,6 @@ assert.throws(
   {
     code: 'ERR_INVALID_HTTP_TOKEN',
     name: 'TypeError',
-    message: 'Method must be a valid HTTP token ["\u0000"]'
+    message: 'Method must be a valid HTTP token ["\u0000"]',
   }
 );

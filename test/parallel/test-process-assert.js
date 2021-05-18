@@ -14,12 +14,12 @@ assert.throws(() => {
 }, {
   code: 'ERR_ASSERTION',
   name: 'Error',
-  message: 'errorMessage'
+  message: 'errorMessage',
 });
 assert.throws(() => {
   process.assert(false);
 }, {
   code: 'ERR_ASSERTION',
   name: 'Error',
-  message: 'assertion error'
+  message: 'assertion error',
 });

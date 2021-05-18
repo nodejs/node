@@ -13,7 +13,7 @@ server.on('session', common.mustCall(function(session) {
   session.on('stream', common.mustCall(function(stream) {
     stream.on('end', common.mustCall(function() {
       this.respond({
-        ':status': 200
+        ':status': 200,
       });
       this.write('foo');
       this.destroy();

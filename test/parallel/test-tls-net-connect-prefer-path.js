@@ -30,7 +30,7 @@ function mkServer(lib, tcp, cb) {
   if (lib === tls) {
     args.unshift({
       cert: fixtures.readKey('rsa_cert.crt'),
-      key: fixtures.readKey('rsa_private.pem')
+      key: fixtures.readKey('rsa_private.pem'),
     });
   }
   const server = lib.createServer(...args);
@@ -44,7 +44,7 @@ function testLib(lib, cb) {
         path: unixServer.address(),
         port: tcpServer.address().port,
         host: 'localhost',
-        rejectUnauthorized: false
+        rejectUnauthorized: false,
       }, () => {
         const bufs = [];
         client.on('data', common.mustCall((d) => {

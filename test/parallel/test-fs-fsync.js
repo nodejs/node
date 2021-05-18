@@ -50,7 +50,7 @@ fs.open(fileTemp, 'a', 0o777, common.mustSucceed((fd) => {
 ['', false, null, undefined, {}, []].forEach((input) => {
   const errObj = {
     code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError'
+    name: 'TypeError',
   };
   assert.throws(() => fs.fdatasync(input), errObj);
   assert.throws(() => fs.fdatasyncSync(input), errObj);

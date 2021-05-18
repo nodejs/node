@@ -907,7 +907,7 @@ CommonJS and ES module instances of the package:
     // ./node_modules/pkg/index.mjs
     import state from './state.cjs';
     export {
-      state
+      state,
     };
     ```
 

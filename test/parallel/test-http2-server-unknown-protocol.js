@@ -15,7 +15,7 @@ const server = h2.createSecureServer({
   key: fixtures.readKey('rsa_private.pem'),
   cert: fixtures.readKey('rsa_cert.crt'),
   unknownProtocolTimeout: 500,
-  allowHalfOpen: true
+  allowHalfOpen: true,
 });
 
 server.on('connection', (socket) => {
@@ -28,6 +28,6 @@ server.listen(0, function() {
   tls.connect({
     port: server.address().port,
     rejectUnauthorized: false,
-    ALPNProtocols: ['bogus']
+    ALPNProtocols: ['bogus'],
   });
 });

@@ -9,7 +9,7 @@ const fixtures = require('../common/fixtures');
 
 const options = {
   key: fixtures.readKey('agent2-key.pem'),
-  cert: fixtures.readKey('agent2-cert.pem')
+  cert: fixtures.readKey('agent2-cert.pem'),
 };
 
 const smallMessage = Buffer.from('hello world');
@@ -33,8 +33,8 @@ tls.createServer(options, common.mustCall(function(socket) {
         assert.strictEqual(buf, sockBuf);
         received += nread;
         buffers.push(Buffer.from(buf.slice(0, nread)));
-      }
-    }
+      },
+    },
   }).on('data', common.mustNotCall()).on('end', common.mustCall(() => {
     assert.strictEqual(received, smallMessage.length);
     assert.deepStrictEqual(Buffer.concat(buffers), smallMessage);
@@ -61,8 +61,8 @@ tls.createServer(options, common.mustCall(function(socket) {
         newIncoming.set(incoming);
         newIncoming.set(buf.slice(0, nread), incoming.length);
         incoming = newIncoming;
-      }
-    }
+      },
+    },
   }).on('data', common.mustNotCall()).on('end', common.mustCall(() => {
     assert.strictEqual(received, smallMessage.length);
     assert.deepStrictEqual(incoming, new Uint8Array(smallMessage));
@@ -92,8 +92,8 @@ tls.createServer(options, common.mustCall(function(socket) {
         assert.strictEqual(buf, bufPool[bufPoolIdx]);
         received += nread;
         incoming.push(Buffer.from(buf.slice(0, nread)));
-      }
-    }
+      },
+    },
   }).on('data', common.mustNotCall()).on('end', common.mustCall(() => {
     assert.strictEqual(received, smallMessage.length);
     assert.deepStrictEqual(Buffer.concat(incoming), smallMessage);
@@ -127,8 +127,8 @@ tls.createServer(options, common.mustCall(function(socket) {
         newIncoming.set(incoming);
         newIncoming.set(buf.slice(0, nread), incoming.length);
         incoming = newIncoming;
-      }
-    }
+      },
+    },
   }).on('data', common.mustNotCall()).on('end', common.mustCall(() => {
     assert.strictEqual(received, smallMessage.length);
     assert.deepStrictEqual(incoming, new Uint8Array(smallMessage));
@@ -162,8 +162,8 @@ tls.createServer(options, common.mustCall(function(socket) {
             client.resume();
           }, 100);
         }
-      }
-    }
+      },
+    },
   }).on('data', common.mustNotCall()).on('end', common.mustCall(() => {
     assert.strictEqual(received, largeMessage.length);
     assert.deepStrictEqual(Buffer.concat(buffers), largeMessage);
@@ -197,8 +197,8 @@ tls.createServer(options, common.mustCall(function(socket) {
           return false;
         }
         return true;
-      }
-    }
+      },
+    },
   }).on('data', common.mustNotCall()).on('end', common.mustCall(() => {
     assert.strictEqual(received, largeMessage.length);
     assert.deepStrictEqual(Buffer.concat(buffers), largeMessage);

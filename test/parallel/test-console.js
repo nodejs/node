@@ -28,7 +28,7 @@ const {
   hijackStdout,
   hijackStderr,
   restoreStdout,
-  restoreStderr
+  restoreStderr,
 } = require('../common/hijackstdio');
 
 assert.ok(process.stdout.writable);

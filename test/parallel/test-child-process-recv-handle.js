@@ -39,7 +39,7 @@ function primary() {
   const proc = spawn(process.execPath, [
     '--expose-internals', __filename, 'worker',
   ], {
-    stdio: ['pipe', 'pipe', 'pipe', 'ipc']
+    stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
   });
   let handle = null;
   proc.on('exit', () => {

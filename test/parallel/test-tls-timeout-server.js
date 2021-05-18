@@ -32,7 +32,7 @@ const fixtures = require('../common/fixtures');
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
   cert: fixtures.readKey('agent1-cert.pem'),
-  handshakeTimeout: 50
+  handshakeTimeout: 50,
 };
 
 const server = tls.createServer(options, common.mustNotCall());

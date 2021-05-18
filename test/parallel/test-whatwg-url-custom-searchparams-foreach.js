@@ -12,6 +12,6 @@ const assert = require('assert');
   }, {
     code: 'ERR_INVALID_THIS',
     name: 'TypeError',
-    message: 'Value of "this" must be of type URLSearchParams'
+    message: 'Value of "this" must be of type URLSearchParams',
   });
 }

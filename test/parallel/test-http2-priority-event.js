@@ -22,11 +22,11 @@ function onStream(stream, headers, flags) {
   stream.priority({
     parent: 0,
     weight: 1,
-    exclusive: false
+    exclusive: false,
   });
   stream.respond({
     'content-type': 'text/html',
-    ':status': 200
+    ':status': 200,
   });
   stream.end('hello world');
 }
@@ -44,7 +44,7 @@ server.on('listening', common.mustCall(() => {
     req.priority({
       parent: 0,
       weight: 1,
-      exclusive: false
+      exclusive: false,
     });
   });
 

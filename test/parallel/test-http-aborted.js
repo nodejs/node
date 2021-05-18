@@ -21,14 +21,14 @@ const assert = require('assert');
   server.listen(0, common.mustCall(() => {
     const req = http.get({
       port: server.address().port,
-      headers: { connection: 'keep-alive' }
+      headers: { connection: 'keep-alive' },
     }, common.mustCall((res) => {
       res.on('aborted', common.mustCall(() => {
         assert.strictEqual(res.aborted, true);
       }));
       res.on('error', common.expectsError({
         code: 'ECONNRESET',
-        message: 'aborted'
+        message: 'aborted',
       }));
       req.abort();
     }));
@@ -50,7 +50,7 @@ const assert = require('assert');
   server.listen(0, common.mustCall(() => {
     const req = http.get({
       port: server.address().port,
-      headers: { connection: 'keep-alive' }
+      headers: { connection: 'keep-alive' },
     }, common.mustCall((res) => {
       res.on('aborted', common.mustCall(() => {
         assert.strictEqual(res.aborted, true);

@@ -125,7 +125,7 @@ TEST(async function test_lookup_ipv4_explicit_object(done) {
   validateResult(await dnsPromises.lookup(addresses.INET4_HOST, { family: 4 }));
 
   const req = dns.lookup(addresses.INET4_HOST, {
-    family: 4
+    family: 4,
   }, common.mustSucceed((ip, family) => {
     validateResult({ address: ip, family });
     done();
@@ -141,11 +141,11 @@ TEST(async function test_lookup_ipv4_hint_addrconfig(done) {
   }
 
   validateResult(await dnsPromises.lookup(addresses.INET4_HOST, {
-    hints: dns.ADDRCONFIG
+    hints: dns.ADDRCONFIG,
   }));
 
   const req = dns.lookup(addresses.INET4_HOST, {
-    hints: dns.ADDRCONFIG
+    hints: dns.ADDRCONFIG,
   }, common.mustSucceed((ip, family) => {
     validateResult({ address: ip, family });
     done();
@@ -201,7 +201,7 @@ TEST(async function test_lookup_all_ipv4(done) {
 
   validateResult(await dnsPromises.lookup(addresses.INET4_HOST, {
     all: true,
-    family: 4
+    family: 4,
   }));
 
   const req = dns.lookup(

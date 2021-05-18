@@ -11,7 +11,7 @@ const http2 = require('http2');
 
 const server = http2.createSecureServer({
   key: fixtures.readKey('agent2-key.pem'),
-  cert: fixtures.readKey('agent2-cert.pem')
+  cert: fixtures.readKey('agent2-cert.pem'),
 });
 
 const filenames = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
@@ -27,13 +27,13 @@ server.on('stream', common.mustCall((stream) => {
 server.listen(0, common.mustCall(() => {
   const client = http2.connect(`https://localhost:${server.address().port}`, {
     ca: fixtures.readKey('agent2-cert.pem'),
-    servername: 'agent2'
+    servername: 'agent2',
   });
 
   let destroyed = 0;
   for (const entry of filenames) {
     const stream = client.request({
-      ':path': `/${entry}`
+      ':path': `/${entry}`,
     });
     stream.once('data', common.mustCall(() => {
       stream.destroy();

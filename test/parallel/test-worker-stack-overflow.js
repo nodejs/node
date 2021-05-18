@@ -6,5 +6,5 @@ const worker = new Worker('function f() { f(); } f();', { eval: true });
 
 worker.on('error', common.expectsError({
   constructor: RangeError,
-  message: 'Maximum call stack size exceeded'
+  message: 'Maximum call stack size exceeded',
 }));

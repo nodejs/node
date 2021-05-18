@@ -14,7 +14,7 @@ const ctx = {
   message: 'code message',
   syscall: 'syscall_test',
   path: '/str',
-  dest: '/str2'
+  dest: '/str2',
 };
 assert.throws(
   () => { throw new ERR_TEST(ctx); },

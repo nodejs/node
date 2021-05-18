@@ -26,7 +26,7 @@ server.on('stream', common.mustCall((stream, headers) => {
         push.pushStream({}, common.mustNotCall());
       }, {
         code: 'ERR_HTTP2_NESTED_PUSH',
-        name: 'Error'
+        name: 'Error',
       });
 
       stream.end('test');
@@ -34,7 +34,7 @@ server.on('stream', common.mustCall((stream, headers) => {
   }
   stream.respond({
     'content-type': 'text/html',
-    ':status': 200
+    ':status': 200,
   });
 }));
 

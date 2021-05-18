@@ -66,7 +66,7 @@ assert.strictEqual(util.inspect(async () => {}), '[AsyncFunction (anonymous)]');
   );
   Object.defineProperty(fn, Symbol.toStringTag, {
     value: 'Foobar',
-    configurable: true
+    configurable: true,
   });
   assert.strictEqual(
     util.inspect({ ['5']: fn }),
@@ -333,7 +333,7 @@ assert(!/Object/.test(
 assert.strictEqual(
   util.inspect(Object.create({}, {
     visible: { value: 1, enumerable: true },
-    hidden: { value: 2 }
+    hidden: { value: 2 },
   }), { showHidden: true }),
   '{ visible: 1, [hidden]: 2 }'
 );
@@ -341,7 +341,7 @@ assert.strictEqual(
 assert.strictEqual(
   util.inspect(Object.create(null, {
     name: { value: 'Tim', enumerable: true },
-    hidden: { value: 'secret' }
+    hidden: { value: 'secret' },
   }), { showHidden: true }),
   "[Object: null prototype] { name: 'Tim', [hidden]: 'secret' }"
 );
@@ -349,7 +349,7 @@ assert.strictEqual(
 assert.strictEqual(
   util.inspect(Object.create(null, {
     name: { value: 'Tim', enumerable: true },
-    hidden: { value: 'secret' }
+    hidden: { value: 'secret' },
   })),
   "[Object: null prototype] { name: 'Tim' }"
 );
@@ -375,7 +375,7 @@ assert.strictEqual(
   const getterFn = {
     get one() {
       return null;
-    }
+    },
   };
   assert.strictEqual(
     util.inspect(getterFn, { getters: true }),
@@ -391,7 +391,7 @@ assert.strictEqual(
     'growingLength',
     {
       enumerable: true,
-      get: function() { this.push(true); return this.length; }
+      get: function() { this.push(true); return this.length; },
     }
   );
   Object.defineProperty(
@@ -399,7 +399,7 @@ assert.strictEqual(
     '-1',
     {
       enumerable: true,
-      value: -1
+      value: -1,
     }
   );
   assert.strictEqual(util.inspect(value),
@@ -571,7 +571,7 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
   );
   // test 4 special case
   assert.strictEqual(util.inspect(a, {
-    maxArrayLength: 2
+    maxArrayLength: 2,
   }), "[ 'foo', <1 empty item>, ... 99 more items ]");
 }
 
@@ -606,19 +606,19 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
 {
   const getter = Object.create(null, {
     a: {
-      get: function() { return 'aaa'; }
-    }
+      get: function() { return 'aaa'; },
+    },
   });
   const setter = Object.create(null, {
     b: { // eslint-disable-line accessor-pairs
-      set: function() {}
-    }
+      set: function() {},
+    },
   });
   const getterAndSetter = Object.create(null, {
     c: {
       get: function() { return 'ccc'; },
-      set: function() {}
-    }
+      set: function() {},
+    },
   });
   assert.strictEqual(
     util.inspect(getter, true),
@@ -815,7 +815,7 @@ assert.strictEqual(util.inspect(Object.create(Date.prototype)), 'Date {}');
     '\\\\\\': 3,
     '\\\\\\\\': 4,
     '\n': 5,
-    '\r': 6
+    '\r': 6,
   };
 
   const y = ['a', 'b', 'c'];
@@ -1014,7 +1014,7 @@ assert.strictEqual(
     baz: 35,
     b: { a: 35 },
     veryLongKey: 'very long value',
-    evenLongerKey: ['with even longer value in array']
+    evenLongerKey: ['with even longer value in array'],
   });
 }
 
@@ -1264,7 +1264,7 @@ if (typeof Symbol !== 'undefined') {
   Object.defineProperty(a, Symbol.toStringTag, {
     value: 'Foo',
     configurable: true,
-    writable: true
+    writable: true,
   });
   assert.strictEqual(inspect(a, { depth: -1 }), '[Foo]');
   delete a[Symbol.toStringTag];
@@ -1274,7 +1274,7 @@ if (typeof Symbol !== 'undefined') {
   assert.strictEqual(inspect(a, { depth: -1 }), '[Foo: null prototype] {}');
   Object.defineProperty(a, Symbol.toStringTag, {
     value: 'ABC',
-    configurable: true
+    configurable: true,
   });
   assert.strictEqual(
     inspect(a, { depth: -1 }),
@@ -1282,7 +1282,7 @@ if (typeof Symbol !== 'undefined') {
   );
   Object.defineProperty(a, Symbol.toStringTag, {
     value: 'Foo',
-    configurable: true
+    configurable: true,
   });
   assert.strictEqual(
     inspect(a, { depth: -1 }),
@@ -1386,7 +1386,7 @@ if (typeof Symbol !== 'undefined') {
     get: function() {
       throw new Error('should not access constructor');
     },
-    enumerable: true
+    enumerable: true,
   });
   assert.strictEqual(util.inspect(x), '{ constructor: [Getter] }');
 }
@@ -1497,7 +1497,7 @@ if (typeof Symbol !== 'undefined') {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
     message: 'The "options" argument must be of type object. ' +
-             'Received null'
+             'Received null',
   }
   );
 
@@ -1507,7 +1507,7 @@ if (typeof Symbol !== 'undefined') {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
     message: 'The "options" argument must be of type object. ' +
-             "Received type string ('bad')"
+             "Received type string ('bad')",
   }
   );
 }
@@ -1532,7 +1532,7 @@ util.inspect(process);
   );
   Object.defineProperty(obj, Symbol.toStringTag, {
     value: 'a',
-    enumerable: false
+    enumerable: false,
   });
   assert.strictEqual(util.inspect(obj), 'Object [a] {}');
   assert.strictEqual(
@@ -1562,7 +1562,7 @@ util.inspect(process);
 
   assert.strictEqual(
     util.inspect(Object.create(Object.create(Foo.prototype), {
-      foo: { value: 'bar', enumerable: true }
+      foo: { value: 'bar', enumerable: true },
     })),
     "Foo [bar] { foo: 'bar' }");
 
@@ -1591,7 +1591,7 @@ util.inspect(process);
         'eiusmod tempor incididunt ut labore et dolore magna aliqua.',
       'test',
       'foo']], 4],
-    b: new Map([['za', 1], ['zb', 'test']])
+    b: new Map([['za', 1], ['zb', 'test']]),
   };
 
   let out = util.inspect(o, { compact: true, depth: 5, breakLength: 80 });
@@ -1797,7 +1797,7 @@ util.inspect(process);
   assert.strict.equal(out, expected);
 
   out = util.inspect(map, {
-    showHidden: true, depth: 9, breakLength: 4, compact: true
+    showHidden: true, depth: 9, breakLength: 4, compact: true,
   });
   expected = [
     'Map(2) {',
@@ -1944,7 +1944,7 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
   Object.defineProperty(foo, Symbol.toStringTag, {
     value: 'WOW',
     writable: true,
-    configurable: true
+    configurable: true,
   });
   const stack = foo.stack;
   foo.stack = 'This is a stack';
@@ -2006,7 +2006,7 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
   const inspected = util.inspect(clazz);
   assert.strictEqual(inspected, string);
   Object.defineProperty(clazz, Symbol.toStringTag, {
-    value: 'Woohoo'
+    value: 'Woohoo',
   });
   const parts = inspected.slice(0, -1).split(' ');
   const [, name, ...rest] = parts;
@@ -2097,12 +2097,12 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
   Object.defineProperty(value, 'valueOf', {
     get() {
       throw new Error('valueOf');
-    }
+    },
   });
   Object.defineProperty(value, 'toString', {
     get() {
       throw new Error('toString');
-    }
+    },
   });
   assert.strictEqual(util.inspect(value), expected);
   value.foo = 'bar';
@@ -2364,17 +2364,17 @@ assert.strictEqual(
   Object.setPrototypeOf(obj, null);
   Object.defineProperty(obj, Symbol.iterator, {
     value: iterator,
-    configurable: true
+    configurable: true,
   });
   assert.strictEqual(util.inspect(obj), '[Set(2): null prototype] { 1, 2 }');
   Object.defineProperty(obj, Symbol.iterator, {
     value: true,
-    configurable: true
+    configurable: true,
   });
   Object.defineProperty(obj, 'size', {
     value: NaN,
     configurable: true,
-    enumerable: true
+    enumerable: true,
   });
   assert.strictEqual(
     util.inspect(obj),
@@ -2389,7 +2389,7 @@ assert.strictEqual(
   const getset = {
     get foo() { return foo; },
     set foo(val) { foo = val; },
-    get inc() { return ++foo; }
+    get inc() { return ++foo; },
   };
   const thrower = { get foo() { throw new Error('Oops'); } };
   assert.strictEqual(
@@ -2424,9 +2424,9 @@ assert.strictEqual(
         c: {
           x: '10000000000000000 00000000000000000 '.repeat(1e1),
           d: 2,
-          e: 3
-        }
-      }
+          e: 3,
+        },
+      },
     },
     b: [
       1,
@@ -2441,7 +2441,7 @@ assert.strictEqual(
     f: Array(9).fill('foobar'),
     g: Array(21).fill('foobar baz'),
     h: [100].concat(Array.from({ length: 9 }).map((e, n) => (n))),
-    long: Array(9).fill('This text is too long for grouping!')
+    long: Array(9).fill('This text is too long for grouping!'),
   };
 
   let out = util.inspect(obj, { compact: 3, depth: 10, breakLength: 60 });
@@ -2577,13 +2577,13 @@ assert.strictEqual(
         x: 5,
         c: {
           d: 2,
-          e: 3
-        }
-      }
+          e: 3,
+        },
+      },
     },
     b: Array.from({ length: 9 }).map((e, n) => {
       return n % 2 === 0 ? 'foobar' : 'baz';
-    })
+    }),
   };
 
   out = util.inspect(obj, { compact: 1, breakLength: Infinity, colors: true });
@@ -2976,7 +2976,7 @@ assert.strictEqual(
     const output = util.inspect(target, {
       stylize: common.mustCall((str) => {
         return {};
-      })
+      }),
     });
     assert.strictEqual(output, '[object Object]');
     assert.strictEqual(typeof target.ctx, 'object');
@@ -2990,7 +2990,7 @@ assert.strictEqual(
     const output = util.inspect(target, {
       stylize: common.mustCall((str) => {
         throw new Error('oops');
-      })
+      }),
     });
     assert.strictEqual(output, '🐈');
     assert.strictEqual(typeof target.ctx, 'object');

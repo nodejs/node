@@ -31,12 +31,12 @@ const empty = fixtures.path('empty.js');
 
 const invalidArgValueError = {
   code: 'ERR_INVALID_ARG_VALUE',
-  name: 'TypeError'
+  name: 'TypeError',
 };
 
 const invalidArgTypeError = {
   code: 'ERR_INVALID_ARG_TYPE',
-  name: 'TypeError'
+  name: 'TypeError',
 };
 
 assert.throws(function() {

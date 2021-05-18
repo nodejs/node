@@ -4,7 +4,7 @@ const common = require('../common.js');
 const bench = common.createBenchmark(main, {
   asyncHooks: ['init', 'before', 'after', 'all', 'disabled', 'none'],
   connections: [50, 500],
-  duration: 5
+  duration: 5,
 });
 
 function main({ asyncHooks, connections, duration }) {
@@ -14,11 +14,11 @@ function main({ asyncHooks, connections, duration }) {
       before() {},
       after() {},
       destroy() {},
-      promiseResolve() {}
+      promiseResolve() {},
     };
     if (asyncHooks !== 'all' || asyncHooks !== 'disabled') {
       hooks = {
-        [asyncHooks]: () => {}
+        [asyncHooks]: () => {},
       };
     }
     const hook = require('async_hooks').createHook(hooks);
@@ -34,7 +34,7 @@ function main({ asyncHooks, connections, duration }) {
       bench.http({
         connections,
         path,
-        duration
+        duration,
       }, () => {
         server.close();
       });

@@ -10,7 +10,7 @@ common.skipIfDumbTerminal();
   const input = new PassThrough();
   const rl = readline.createInterface({
     terminal: true,
-    input: input
+    input: input,
   });
 
   rl.on('line', common.mustCall((data) => {
@@ -24,7 +24,7 @@ common.skipIfDumbTerminal();
   const input = new PassThrough();
   const rl = readline.createInterface({
     terminal: true,
-    input: input
+    input: input,
   });
 
   rl.on('line', common.mustNotCall('must not be called before newline'));
@@ -36,7 +36,7 @@ common.skipIfDumbTerminal();
   const input = new PassThrough();
   const rl = readline.createInterface({
     terminal: true,
-    input: input
+    input: input,
   });
 
   rl.on('line', common.mustCall((data) => {
@@ -50,7 +50,7 @@ common.skipIfDumbTerminal();
   const input = new PassThrough();
   const rl = readline.createInterface({
     terminal: true,
-    input: input
+    input: input,
   });
 
   rl.write('foo');
@@ -63,16 +63,16 @@ common.skipIfDumbTerminal();
     },
     gnome: {
       home: ['\x1bOH', { ctrl: true, name: 'a' }],
-      end: ['\x1bOF', { ctrl: true, name: 'e' }]
+      end: ['\x1bOF', { ctrl: true, name: 'e' }],
     },
     rxvt: {
       home: ['\x1b[7', { ctrl: true, name: 'a' }],
-      end: ['\x1b[8', { ctrl: true, name: 'e' }]
+      end: ['\x1b[8', { ctrl: true, name: 'e' }],
     },
     putty: {
       home: ['\x1b[1~', { ctrl: true, name: 'a' }],
-      end: ['\x1b[>~', { ctrl: true, name: 'e' }]
-    }
+      end: ['\x1b[>~', { ctrl: true, name: 'e' }],
+    },
   };
 
   [key.xterm, key.gnome, key.rxvt, key.putty].forEach(function(key) {
@@ -88,7 +88,7 @@ common.skipIfDumbTerminal();
   const input = new PassThrough();
   const rl = readline.createInterface({
     terminal: true,
-    input: input
+    input: input,
   });
 
   const key = {
@@ -96,7 +96,7 @@ common.skipIfDumbTerminal();
       home: ['\x1b[H', { ctrl: true, name: 'a' }],
       metab: ['\x1bb', { meta: true, name: 'b' }],
       metaf: ['\x1bf', { meta: true, name: 'f' }],
-    }
+    },
   };
 
   rl.write('foo bar.hop/zoo');
@@ -124,14 +124,14 @@ common.skipIfDumbTerminal();
   const input = new PassThrough();
   const rl = readline.createInterface({
     terminal: true,
-    input: input
+    input: input,
   });
 
   const key = {
     xterm: {
       home: ['\x1b[H', { ctrl: true, name: 'a' }],
-      metad: ['\x1bd', { meta: true, name: 'd' }]
-    }
+      metad: ['\x1bd', { meta: true, name: 'd' }],
+    },
   };
 
   rl.write('foo bar.hop/zoo');

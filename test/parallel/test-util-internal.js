@@ -9,7 +9,7 @@ const { internalBinding } = require('internal/test/binding');
 const {
   getHiddenValue,
   setHiddenValue,
-  arrow_message_private_symbol: kArrowMessagePrivateSymbolIndex
+  arrow_message_private_symbol: kArrowMessagePrivateSymbolIndex,
 } = internalBinding('util');
 
 assert.strictEqual(

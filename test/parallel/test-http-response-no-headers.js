@@ -28,7 +28,7 @@ const net = require('net');
 const expected = {
   '0.9': 'I AM THE WALRUS',
   '1.0': 'I AM THE WALRUS',
-  '1.1': ''
+  '1.1': '',
 };
 
 function test(httpVersion, callback) {
@@ -41,7 +41,7 @@ function test(httpVersion, callback) {
   server.listen(0, '127.0.0.1', common.mustCall(function() {
     const options = {
       host: '127.0.0.1',
-      port: this.address().port
+      port: this.address().port,
     };
 
     const req = http.get(options, common.mustCall(function(res) {

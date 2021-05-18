@@ -38,7 +38,7 @@ const keySize = 2048;
     configurable: true,
     set() {
       throw new Error('bye, bye, library');
-    }
+    },
   };
   Object.defineProperty(Object.prototype, 'library', library);
 
@@ -55,7 +55,7 @@ const keySize = 2048;
     configurable: true,
     set() {
       throw new Error('bye, bye, error stack');
-    }
+    },
   };
   Object.defineProperty(Object.prototype, 'opensslErrorStack', errorStack);
 
@@ -64,7 +64,7 @@ const keySize = 2048;
       .update('Test123')
       .sign({
         key: keyPem,
-        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING
+        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
       });
   }, { message: common.hasOpenSSL3 ?
     'error:1C8000A5:Provider routines::illegal or unsupported padding mode' :
@@ -197,14 +197,14 @@ assert.throws(
             .sign({
               key: keyPem,
               padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-              saltLength: signSaltLength
+              saltLength: signSaltLength,
             });
         }, errMessage);
         assert.throws(() => {
           crypto.sign(algo, data, {
             key: keyPem,
             padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-            saltLength: signSaltLength
+            saltLength: signSaltLength,
           });
         }, errMessage);
       } else {
@@ -214,12 +214,12 @@ assert.throws(
                          .sign({
                            key: keyPem,
                            padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-                           saltLength: signSaltLength
+                           saltLength: signSaltLength,
                          });
         const s4_2 = crypto.sign(algo, data, {
           key: keyPem,
           padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-          saltLength: signSaltLength
+          saltLength: signSaltLength,
         });
 
         [s4, s4_2].forEach((sig) => {
@@ -232,12 +232,12 @@ assert.throws(
                              .verify({
                                key: certPem,
                                padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-                               saltLength: verifySaltLength
+                               saltLength: verifySaltLength,
                              }, sig);
             assert.strictEqual(verified, crypto.verify(algo, data, {
               key: certPem,
               padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-              saltLength: verifySaltLength
+              saltLength: verifySaltLength,
             }, sig));
             const saltLengthCorrect = getEffectiveSaltLength(signSaltLength) ===
                                       getEffectiveSaltLength(verifySaltLength);
@@ -250,13 +250,13 @@ assert.throws(
                            .verify({
                              key: certPem,
                              padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-                             saltLength: crypto.constants.RSA_PSS_SALTLEN_AUTO
+                             saltLength: crypto.constants.RSA_PSS_SALTLEN_AUTO,
                            }, sig);
           assert.strictEqual(verified, true);
           assert.strictEqual(verified, crypto.verify(algo, data, {
             key: certPem,
             padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-            saltLength: crypto.constants.RSA_PSS_SALTLEN_AUTO
+            saltLength: crypto.constants.RSA_PSS_SALTLEN_AUTO,
           }, sig));
 
           // Verifying an incorrect message should never work
@@ -266,13 +266,13 @@ assert.throws(
                            .verify({
                              key: certPem,
                              padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-                             saltLength: crypto.constants.RSA_PSS_SALTLEN_AUTO
+                             saltLength: crypto.constants.RSA_PSS_SALTLEN_AUTO,
                            }, sig);
           assert.strictEqual(verified, false);
           assert.strictEqual(verified, crypto.verify(algo, wrongData, {
             key: certPem,
             padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-            saltLength: crypto.constants.RSA_PSS_SALTLEN_AUTO
+            saltLength: crypto.constants.RSA_PSS_SALTLEN_AUTO,
           }, sig));
         });
       }
@@ -293,7 +293,7 @@ assert.throws(
                           .verify({
                             key: cert,
                             padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-                            saltLength: vector.salt.length / 2
+                            saltLength: vector.salt.length / 2,
                           }, vector.signature, 'hex');
     assert.strictEqual(verified, true);
   }
@@ -316,11 +316,11 @@ assert.throws(
           .update('Test123')
           .sign({
             key: keyPem,
-            padding: invalidValue
+            padding: invalidValue,
           });
       }, {
         code: 'ERR_INVALID_ARG_VALUE',
-        name: 'TypeError'
+        name: 'TypeError',
       });
 
       assert.throws(() => {
@@ -329,11 +329,11 @@ assert.throws(
           .sign({
             key: keyPem,
             padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-            saltLength: invalidValue
+            saltLength: invalidValue,
           });
       }, {
         code: 'ERR_INVALID_ARG_VALUE',
-        name: 'TypeError'
+        name: 'TypeError',
       });
     });
 
@@ -342,7 +342,7 @@ assert.throws(
       .update('Test123')
       .sign({
         key: keyPem,
-        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING
+        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
       });
   }, common.hasOpenSSL3 ? {
     code: 'ERR_OSSL_ILLEGAL_OR_UNSUPPORTED_PADDING_MODE',
@@ -363,7 +363,7 @@ assert.throws(
     crypto.createSign('SHA1').update('Test123').sign(null, 'base64');
   }, {
     code: 'ERR_CRYPTO_SIGN_KEY_REQUIRED',
-    name: 'Error'
+    name: 'Error',
   });
 }
 
@@ -376,7 +376,7 @@ assert.throws(
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
       message: 'The "algorithm" argument must be of type string.' +
-               `${common.invalidArgTypeHelper(input)}`
+               `${common.invalidArgTypeHelper(input)}`,
     };
     assert.throws(() => crypto.createSign(input), errObj);
     assert.throws(() => crypto.createVerify(input), errObj);
@@ -549,7 +549,7 @@ assert.throws(
     assert.strictEqual(
       crypto.verify('sha256', data, {
         key: fixtures.readKey('ec-key.pem'),
-        dsaEncoding: 'ieee-p1363'
+        dsaEncoding: 'ieee-p1363',
       }, extSig),
       ok
     );
@@ -557,7 +557,7 @@ assert.throws(
     assert.strictEqual(
       crypto.createVerify('sha256').update(data).verify({
         key: fixtures.readKey('ec-key.pem'),
-        dsaEncoding: 'ieee-p1363'
+        dsaEncoding: 'ieee-p1363',
       }, extSig),
       ok
     );
@@ -568,20 +568,20 @@ assert.throws(
   // Non-(EC)DSA keys should ignore the option.
   const sig = crypto.sign('sha1', data, {
     key: keyPem,
-    dsaEncoding: 'ieee-p1363'
+    dsaEncoding: 'ieee-p1363',
   });
   assert.strictEqual(crypto.verify('sha1', data, certPem, sig), true);
   assert.strictEqual(
     crypto.verify('sha1', data, {
       key: certPem,
-      dsaEncoding: 'ieee-p1363'
+      dsaEncoding: 'ieee-p1363',
     }, sig),
     true
   );
   assert.strictEqual(
     crypto.verify('sha1', data, {
       key: certPem,
-      dsaEncoding: 'der'
+      dsaEncoding: 'der',
     }, sig),
     true
   );
@@ -590,10 +590,10 @@ assert.throws(
     assert.throws(() => {
       crypto.sign('sha1', data, {
         key: certPem,
-        dsaEncoding
+        dsaEncoding,
       });
     }, {
-      code: 'ERR_INVALID_ARG_VALUE'
+      code: 'ERR_INVALID_ARG_VALUE',
     });
   }
 }
@@ -614,7 +614,7 @@ assert.throws(
     .update(msg)
     .sign({
       key: privkey,
-      padding: crypto.constants.RSA_PKCS1_PSS_PADDING
+      padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
     });
 
   const tmpdir = require('../common/tmpdir');

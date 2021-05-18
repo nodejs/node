@@ -562,7 +562,7 @@ A third argument may be used to specify additional options, with these defaults:
 ```js
 const defaults = {
   cwd: undefined,
-  env: process.env
+  env: process.env,
 };
 ```
 
@@ -704,7 +704,7 @@ const { spawn } = require('child_process');
 
 const subprocess = spawn(process.argv[0], ['child_program.js'], {
   detached: true,
-  stdio: 'ignore'
+  stdio: 'ignore',
 });
 
 subprocess.unref();
@@ -720,7 +720,7 @@ const err = fs.openSync('./out.log', 'a');
 
 const subprocess = spawn('prg', [], {
   detached: true,
-  stdio: [ 'ignore', out, err ]
+  stdio: [ 'ignore', out, err ],
 });
 
 subprocess.unref();
@@ -1308,7 +1308,7 @@ const subprocess = spawn(
       console.log(process.pid, 'is alive')
     }, 500);"`,
   ], {
-    stdio: ['inherit', 'inherit', 'inherit']
+    stdio: ['inherit', 'inherit', 'inherit'],
   }
 );
 
@@ -1362,7 +1362,7 @@ const { spawn } = require('child_process');
 
 const subprocess = spawn(process.argv[0], ['child_program.js'], {
   detached: true,
-  stdio: 'ignore'
+  stdio: 'ignore',
 });
 
 subprocess.unref();
@@ -1642,7 +1642,7 @@ const subprocess = child_process.spawn('ls', {
     0, // Use parent's stdin for child.
     'pipe', // Pipe child's stdout to parent.
     fs.openSync('err.out', 'w'), // Direct child's stderr to a file.
-  ]
+  ],
 });
 
 assert.strictEqual(subprocess.stdio[0], null);
@@ -1703,7 +1703,7 @@ const { spawn } = require('child_process');
 
 const subprocess = spawn(process.argv[0], ['child_program.js'], {
   detached: true,
-  stdio: 'ignore'
+  stdio: 'ignore',
 });
 
 subprocess.unref();

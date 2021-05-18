@@ -66,7 +66,7 @@ server.listen(0, function() {
     const expected = maxAndExpected[responses][1];
     const req = http.request({
       port: server.address().port,
-      headers: headers
+      headers: headers,
     }, function(res) {
       assert.strictEqual(Object.keys(res.headers).length, expected);
       res.on('end', function() {

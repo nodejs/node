@@ -71,7 +71,7 @@ const assert = require('assert');
       SyntheticModule.prototype.setExport.call({}, 'foo');
     }, {
       code: 'ERR_VM_MODULE_NOT_MODULE',
-      message: /Provided module is not an instance of Module/
+      message: /Provided module is not an instance of Module/,
     });
   }
 

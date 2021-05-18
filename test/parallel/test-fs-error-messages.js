@@ -51,7 +51,7 @@ const {
   UV_ENOENT,
   UV_ENOTDIR,
   UV_ENOTEMPTY,
-  UV_EPERM
+  UV_EPERM,
 } = internalBinding('uv');
 
 // Template tag function for escaping special characters in strings so that:
@@ -667,7 +667,7 @@ if (!common.isAIX) {
 {
   const validateError = {
     message: /"mode".+must be an integer >= 0 && <= 7\. Received -1/,
-    code: 'ERR_OUT_OF_RANGE'
+    code: 'ERR_OUT_OF_RANGE',
   };
 
   assert.throws(

@@ -9,7 +9,7 @@ const buf = Buffer.alloc(8192);
 const readable = new Readable({
   read: common.mustCall(function() {
     this.push(buf);
-  }, 31)
+  }, 31),
 });
 
 let i = 0;

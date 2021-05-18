@@ -31,7 +31,7 @@ const fixtures = require('../common/fixtures');
 
 const server = tls.createServer({
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 }).listen(0, common.mustCall(() => {
   const socket = net.connect(server.address().port, common.mustCall(() => {
     const opts = { socket, rejectUnauthorized: false };

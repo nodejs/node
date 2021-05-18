@@ -17,7 +17,7 @@ const server = http.createServer(function(req, res) {
 server.listen(0, function() {
   const req = http.request({
     method: 'POST',
-    port: this.address().port
+    port: this.address().port,
   });
 
   const payload = Buffer.alloc(16390, 'Й');

@@ -32,7 +32,7 @@ const {
     {
       code: 'ERR_INVALID_ARG_TYPE',
       message: 'The "foo" argument must be of type object.' +
-                common.invalidArgTypeHelper(input)
+                common.invalidArgTypeHelper(input),
     });
 });
 
@@ -41,5 +41,5 @@ assertWithinRange('foo', 1, 0, 2);
 assert.throws(() => assertWithinRange('foo', 1, 2, 3),
               {
                 code: 'ERR_HTTP2_INVALID_SETTING_VALUE',
-                message: 'Invalid value for setting "foo": 1'
+                message: 'Invalid value for setting "foo": 1',
               });

@@ -10,7 +10,7 @@ const bench = common.createBenchmark(main, {
     ['C:\\foo\\BAR\\BAZ', 'C:\\foo\\bar\\baz'].join('|'),
     ['C:\\foo\\bar\\baz\\quux', 'C:\\'].join('|'),
   ],
-  n: [1e5]
+  n: [1e5],
 });
 
 function main({ n, paths }) {

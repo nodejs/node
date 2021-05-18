@@ -22,7 +22,7 @@ function onStream(stream, headers, flags) {
   }));
   stream.respond({
     'content-type': 'text/html',
-    ':status': 200
+    ':status': 200,
   }, { waitForTrailers: true });
   stream.on('wantTrailers', () => {
     stream.sendTrailers({ [trailerKey]: trailerValue });
@@ -30,7 +30,7 @@ function onStream(stream, headers, flags) {
       () => stream.sendTrailers({}),
       {
         code: 'ERR_HTTP2_TRAILERS_ALREADY_SENT',
-        name: 'Error'
+        name: 'Error',
       }
     );
   });
@@ -39,7 +39,7 @@ function onStream(stream, headers, flags) {
     () => stream.sendTrailers({}),
     {
       code: 'ERR_HTTP2_TRAILERS_NOT_READY',
-      name: 'Error'
+      name: 'Error',
     }
   );
 }
@@ -62,7 +62,7 @@ server.on('listening', common.mustCall(function() {
       () => req.sendTrailers({}),
       {
         code: 'ERR_HTTP2_INVALID_STREAM',
-        name: 'Error'
+        name: 'Error',
       }
     );
     server.close();

@@ -13,6 +13,6 @@ assert.throws(
   {
     code: 'ERR_METHOD_NOT_IMPLEMENTED',
     name: 'Error',
-    message: 'The _read() method is not implemented'
+    message: 'The _read() method is not implemented',
   }
 );

@@ -48,15 +48,15 @@ function run(buffers, initialWindowSize) {
         h2.connect({
           authority: 'localhost',
           protocol: 'http:',
-          port
+          port,
         }, {
           settings: {
-            initialWindowSize
-          }
+            initialWindowSize,
+          },
         }).on('connect', common.mustCall(() => {
           const req = client.request({
             ':method': 'GET',
-            ':path': '/'
+            ':path': '/',
           });
           const responses = [];
           req.on('data', (data) => {

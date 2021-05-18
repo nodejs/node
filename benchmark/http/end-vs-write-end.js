@@ -15,7 +15,7 @@ const bench = common.createBenchmark(main, {
   len: [64 * 1024, 128 * 1024, 256 * 1024, 1024 * 1024],
   c: [100],
   method: ['write', 'end'],
-  duration: 5
+  duration: 5,
 });
 
 function main({ len, type, method, c, duration }) {
@@ -51,7 +51,7 @@ function main({ len, type, method, c, duration }) {
   server.listen(common.PORT, () => {
     bench.http({
       connections: c,
-      duration
+      duration,
     }, () => {
       server.close();
     });

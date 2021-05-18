@@ -6,7 +6,7 @@ const fixtures = require('../common/fixtures');
 // Test sigalgs: option for TLS.
 
 const {
-  assert, connect, keys
+  assert, connect, keys,
 } = require(fixtures.path('tls-connect'));
 
 function assert_arrays_equal(left, right) {
@@ -24,7 +24,7 @@ function test(csigalgs, ssigalgs, shared_sigalgs, cerr, serr) {
       ca: `${keys.agent1.cert}\n${keys.agent6.ca}`,
       cert: keys.agent2.cert,
       key: keys.agent2.key,
-      sigalgs: csigalgs
+      sigalgs: csigalgs,
     },
     server: {
       cert: keys.agent6.cert,
@@ -32,9 +32,9 @@ function test(csigalgs, ssigalgs, shared_sigalgs, cerr, serr) {
       ca: keys.agent2.ca,
       context: {
         requestCert: true,
-        rejectUnauthorized: true
+        rejectUnauthorized: true,
       },
-      sigalgs: ssigalgs
+      sigalgs: ssigalgs,
     },
   }, common.mustCall((err, pair, cleanup) => {
     if (shared_sigalgs) {

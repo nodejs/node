@@ -3,7 +3,7 @@
 const common = require('../common');
 const assert = require('assert');
 const {
-  JSTransferable, kTransfer, kTransferList
+  JSTransferable, kTransfer, kTransferList,
 } = require('internal/worker/js_transferable');
 const { MessageChannel } = require('worker_threads');
 
@@ -26,7 +26,7 @@ class OuterTransferable extends JSTransferable {
   [kTransfer] = common.mustCall(() => {
     return {
       data: { inner: this.inner },
-      deserializeInfo: 'does-not:matter'
+      deserializeInfo: 'does-not:matter',
     };
   });
 }

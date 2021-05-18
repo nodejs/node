@@ -7,7 +7,7 @@ const assert = require('assert');
 {
   const duplex = new Duplex({
     write(chunk, enc, cb) { cb(); },
-    read() {}
+    read() {},
   });
 
   duplex.resume();
@@ -23,7 +23,7 @@ const assert = require('assert');
 {
   const duplex = new Duplex({
     write(chunk, enc, cb) { cb(); },
-    read() {}
+    read() {},
   });
   duplex.resume();
 
@@ -42,7 +42,7 @@ const assert = require('assert');
 {
   const duplex = new Duplex({
     write(chunk, enc, cb) { cb(); },
-    read() {}
+    read() {},
   });
 
   duplex._destroy = common.mustCall(function(err, cb) {
@@ -69,7 +69,7 @@ const assert = require('assert');
     destroy: common.mustCall(function(err, cb) {
       assert.strictEqual(err, expected);
       cb();
-    })
+    }),
   });
   duplex.resume();
 
@@ -87,7 +87,7 @@ const assert = require('assert');
 {
   const duplex = new Duplex({
     write(chunk, enc, cb) { cb(); },
-    read() {}
+    read() {},
   });
 
   duplex._destroy = common.mustCall(function(err, cb) {
@@ -102,7 +102,7 @@ const assert = require('assert');
 {
   const duplex = new Duplex({
     write(chunk, enc, cb) { cb(); },
-    read() {}
+    read() {},
   });
   duplex.resume();
 
@@ -132,7 +132,7 @@ const assert = require('assert');
 {
   const duplex = new Duplex({
     write(chunk, enc, cb) { cb(); },
-    read() {}
+    read() {},
   });
 
   const expected = new Error('kaboom');
@@ -156,7 +156,7 @@ const assert = require('assert');
   const duplex = new Duplex({
     write(chunk, enc, cb) { cb(); },
     read() {},
-    allowHalfOpen: true
+    allowHalfOpen: true,
   });
   duplex.resume();
 

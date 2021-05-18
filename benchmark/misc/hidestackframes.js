@@ -5,9 +5,9 @@ const common = require('../common.js');
 const bench = common.createBenchmark(main, {
   type: ['hide-stackframes-throw', 'direct-call-throw',
          'hide-stackframes-noerr', 'direct-call-noerr'],
-  n: [10e4]
+  n: [10e4],
 }, {
-  flags: ['--expose-internals']
+  flags: ['--expose-internals'],
 });
 
 function main({ n, type }) {

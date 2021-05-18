@@ -4,7 +4,7 @@ const common = require('../common');
 const { Readable } = require('stream');
 
 const readable = new Readable({
-  read() {}
+  read() {},
 });
 
 function read() {}

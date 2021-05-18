@@ -15,6 +15,6 @@ assert.rejects(
   {
     code: 'EPERM',
     syscall: 'queryA',
-    hostname: 'example.org'
+    hostname: 'example.org',
   }
 );

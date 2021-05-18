@@ -19,7 +19,7 @@ if (!binding('tls_wrap').HAVE_SSL_TRACE)
 
 const child = fork(__filename, ['test'], {
   silent: true,
-  execArgv: ['--trace-tls']
+  execArgv: ['--trace-tls'],
 });
 
 let stdout = '';
@@ -41,7 +41,7 @@ child.on('close', common.mustCall((code, signal) => {
 
 function test() {
   const {
-    connect, keys
+    connect, keys,
   } = require(fixtures.path('tls-connect'));
 
   connect({
@@ -51,7 +51,7 @@ function test() {
     },
     server: {
       cert: keys.agent6.cert,
-      key: keys.agent6.key
+      key: keys.agent6.key,
     },
   }, common.mustCall((err, pair, cleanup) => {
     if (pair.server.err) {

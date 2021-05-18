@@ -26,14 +26,14 @@ const net = require('net');
   ];
 
   const read = new Readable({
-    read() {}
+    read() {},
   });
 
   const write = new Writable({
     write(data, enc, cb) {
       processed.push(data);
       cb();
-    }
+    },
   });
 
   write.on('finish', () => {
@@ -53,7 +53,7 @@ const net = require('net');
 
 {
   const read = new Readable({
-    read() {}
+    read() {},
   });
 
   assert.throws(() => {
@@ -69,13 +69,13 @@ const net = require('net');
 
 {
   const read = new Readable({
-    read() {}
+    read() {},
   });
 
   const write = new Writable({
     write(data, enc, cb) {
       cb();
-    }
+    },
   });
 
   read.push('data');
@@ -88,13 +88,13 @@ const net = require('net');
 
 {
   const read = new Readable({
-    read() {}
+    read() {},
   });
 
   const write = new Writable({
     write(data, enc, cb) {
       cb();
-    }
+    },
   });
 
   read.push('data');
@@ -109,19 +109,19 @@ const net = require('net');
 
 {
   const read = new Readable({
-    read() {}
+    read() {},
   });
 
   const transform = new Transform({
     transform(data, enc, cb) {
       cb(new Error('kaboom'));
-    }
+    },
   });
 
   const write = new Writable({
     write(data, enc, cb) {
       cb();
-    }
+    },
   });
 
   read.on('close', common.mustCall());
@@ -149,7 +149,7 @@ const net = require('net');
       read() {
         rs.push('hello');
         rs.push(null);
-      }
+      },
     });
 
     pipeline(rs, res, () => {});
@@ -157,7 +157,7 @@ const net = require('net');
 
   server.listen(0, () => {
     const req = http.request({
-      port: server.address().port
+      port: server.address().port,
     });
 
     req.end();
@@ -189,7 +189,7 @@ const net = require('net');
       destroy: common.mustCall((err, cb) => {
         // Prevents fd leaks by destroying http pipelines
         cb();
-      })
+      }),
     });
 
     pipeline(rs, res, () => {});
@@ -197,7 +197,7 @@ const net = require('net');
 
   server.listen(0, () => {
     const req = http.request({
-      port: server.address().port
+      port: server.address().port,
     });
 
     req.end();
@@ -222,7 +222,7 @@ const net = require('net');
       },
       destroy: common.mustCall((err, cb) => {
         cb();
-      })
+      }),
     });
 
     pipeline(rs, res, () => {});
@@ -235,12 +235,12 @@ const net = require('net');
       cnt--;
       if (cnt === 0) cb(new Error('kaboom'));
       else cb();
-    }
+    },
   });
 
   server.listen(0, () => {
     const req = http.request({
-      port: server.address().port
+      port: server.address().port,
     });
 
     req.end();
@@ -260,7 +260,7 @@ const net = require('net');
 
   server.listen(0, () => {
     const req = http.request({
-      port: server.address().port
+      port: server.address().port,
     });
 
     let sent = 0;
@@ -270,7 +270,7 @@ const net = require('net');
           return;
         }
         rs.push('hello');
-      }
+      },
     });
 
     pipeline(rs, req, common.mustCall(() => {
@@ -292,7 +292,7 @@ const net = require('net');
     const tr = new Transform({
       transform(data, enc, cb) {
         cb(null, data);
-      }
+      },
     });
 
     tr.on('close', common.mustCall());
@@ -302,7 +302,7 @@ const net = require('net');
   const rs = new Readable({
     read() {
       rs.push('hello');
-    }
+    },
   });
 
   let cnt = 10;
@@ -312,7 +312,7 @@ const net = require('net');
       cnt--;
       if (cnt === 0) return cb(new Error('kaboom'));
       cb();
-    }
+    },
   });
 
   rs.on('close', common.mustCall());
@@ -356,14 +356,14 @@ const net = require('net');
         rs.push(expected[i]);
       }
       rs.push(null);
-    }
+    },
   });
 
   const ws = new Writable({
     write(data, enc, cb) {
       assert.deepStrictEqual(data, expected.shift());
       cb();
-    }
+    },
   });
 
   let finished = false;
@@ -411,13 +411,13 @@ const net = require('net');
   const rs = new Readable({
     read() {
       rs.destroy(new Error('stop'));
-    }
+    },
   });
 
   const ws = new Writable({
     write(data, enc, cb) {
       cb();
-    }
+    },
   });
 
   let finished = false;
@@ -443,13 +443,13 @@ const net = require('net');
 
   async function run() {
     const read = new Readable({
-      read() {}
+      read() {},
     });
 
     const write = new Writable({
       write(data, enc, cb) {
         cb();
-      }
+      },
     });
 
     read.push('data');
@@ -484,7 +484,7 @@ const net = require('net');
     const w = new Writable({
       write(chunk, encoding, callback) {
         callback();
-      }
+      },
     });
     await pipelinePromise(producer, w, { signal });
   }
@@ -509,7 +509,7 @@ const net = require('net');
     const w = new Writable({
       write(chunk, encoding, callback) {
         callback();
-      }
+      },
     });
     await pipelinePromise(producer, w, { signal });
   }
@@ -531,7 +531,7 @@ const net = require('net');
     const w = new Writable({
       write(chunk, encoding, callback) {
         callback();
-      }
+      },
     });
     await pipelinePromise(producer, w, { signal });
   }
@@ -541,19 +541,19 @@ const net = require('net');
 
 {
   const read = new Readable({
-    read() {}
+    read() {},
   });
 
   const transform = new Transform({
     transform(data, enc, cb) {
       cb(new Error('kaboom'));
-    }
+    },
   });
 
   const write = new Writable({
     write(data, enc, cb) {
       cb();
-    }
+    },
   });
 
   assert.throws(
@@ -592,7 +592,7 @@ const net = require('net');
     write(chunk, encoding, callback) {
       res += chunk;
       callback();
-    }
+    },
   });
   pipeline(function*() {
     yield 'hello';
@@ -608,7 +608,7 @@ const net = require('net');
     write(chunk, encoding, callback) {
       res += chunk;
       callback();
-    }
+    },
   });
   pipeline(async function*() {
     await Promise.resolve();
@@ -625,7 +625,7 @@ const net = require('net');
     write(chunk, encoding, callback) {
       res += chunk;
       callback();
-    }
+    },
   });
   pipeline(function*() {
     yield 'hello';
@@ -641,7 +641,7 @@ const net = require('net');
     write(chunk, encoding, callback) {
       res += chunk;
       callback();
-    }
+    },
   });
   pipeline(async function*() {
     await Promise.resolve();
@@ -906,7 +906,7 @@ const net = require('net');
   }, new Transform({
     transform(chunk, encoding, cb) {
       cb(new Error('kaboom'));
-    }
+    },
   }), async function(source) {
     for await (const chunk of source) {
       res += chunk;
@@ -926,7 +926,7 @@ const net = require('net');
   }, new Transform({
     transform(chunk, encoding, cb) {
       process.nextTick(cb, new Error('kaboom'));
-    }
+    },
   }), async function(source) {
     for await (const chunk of source) {
       res += chunk;
@@ -947,7 +947,7 @@ const net = require('net');
     decodeStrings: false,
     transform(chunk, encoding, cb) {
       cb(null, chunk.toUpperCase());
-    }
+    },
   }), async function(source) {
     for await (const chunk of source) {
       res += chunk;
@@ -987,7 +987,7 @@ const net = require('net');
   const w = new Writable({
     write(chunk, encoding, cb) {
       cb();
-    }
+    },
   });
   pipeline(r, w, (err) => {
     assert.strictEqual(err, undefined);
@@ -1003,7 +1003,7 @@ const net = require('net');
 
   server.listen(0, () => {
     const req = http.request({
-      port: server.address().port
+      port: server.address().port,
     });
 
     const body = new PassThrough();
@@ -1047,10 +1047,10 @@ const net = require('net');
       setImmediate(() => {
         rs.push('hello');
       });
-    }
+    },
   });
   const ws = new Writable({
-    write: common.mustNotCall()
+    write: common.mustNotCall(),
   });
   pipeline(rs, async function*(stream) {
     /* eslint no-unused-vars: off */
@@ -1080,7 +1080,7 @@ const net = require('net');
   server.listen(0, () => {
     const req = http.request({
       method: 'PUT',
-      port: server.address().port
+      port: server.address().port,
     });
     req.end('asd123');
     req.on('response', common.mustCall());
@@ -1137,12 +1137,12 @@ const net = require('net');
     read() {},
     destroy(err, cb) {
       process.nextTick(cb);
-    }
+    },
   });
   const dst = new Writable({
     write(chunk, encoding, callback) {
       callback();
-    }
+    },
   });
   src.on('close', () => {
     closed = true;
@@ -1159,7 +1159,7 @@ const net = require('net');
     read() {},
     destroy(err, cb) {
       process.nextTick(cb);
-    }
+    },
   });
   const dst = new Duplex({});
   src.on('close', common.mustCall(() => {
@@ -1201,13 +1201,13 @@ const net = require('net');
         cb();
       }, 1000);
     }),
-    destroy: common.mustNotCall()
+    destroy: common.mustNotCall(),
   });
 
   const sink = new Writable({
     write: common.mustCall((data, enc, cb) => {
       cb();
-    })
+    }),
   });
 
   pipeline(d, sink, common.mustSucceed());
@@ -1248,13 +1248,13 @@ const net = require('net');
     // `destroy()` won't be invoked by pipeline since
     // the writable side has not completed when
     // the pipeline has completed.
-    destroy: common.mustNotCall()
+    destroy: common.mustNotCall(),
   });
 
   const sink = new Writable({
     write: common.mustCall((data, enc, cb) => {
       cb();
-    })
+    }),
   });
 
   pipeline(d, sink, common.mustSucceed());
@@ -1265,7 +1265,7 @@ const net = require('net');
 
 {
   const r = new Readable({
-    read() {}
+    read() {},
   });
   r.push('hello');
   r.push('world');
@@ -1275,7 +1275,7 @@ const net = require('net');
     write(chunk, encoding, callback) {
       res += chunk;
       callback();
-    }
+    },
   });
   pipeline([r, w], common.mustSucceed(() => {
     assert.strictEqual(res, 'helloworld');
@@ -1344,7 +1344,7 @@ const net = require('net');
     write(chunk, encoding, callback) {
       res += chunk;
       callback();
-    }
+    },
   });
   const cb = common.mustCall((err) => {
     assert.strictEqual(err.name, 'AbortError');

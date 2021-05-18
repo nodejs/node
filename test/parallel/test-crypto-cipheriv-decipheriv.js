@@ -93,7 +93,7 @@ function testCipher3(key, iv) {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
       message: 'The "cipher" argument must be of type string. ' +
-               'Received null'
+               'Received null',
     });
 
   assert.throws(
@@ -126,7 +126,7 @@ function testCipher3(key, iv) {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
       message: 'The "cipher" argument must be of type string. ' +
-               'Received null'
+               'Received null',
     });
 
   assert.throws(
@@ -207,7 +207,7 @@ for (let n = minIvLength; n < maxIvLength; n += 1) {
     {
       name: 'Error',
       code: 'ERR_CRYPTO_UNKNOWN_CIPHER',
-      message: 'Unknown cipher'
+      message: 'Unknown cipher',
     });
 
   // Passing a key with an invalid length should throw.

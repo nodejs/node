@@ -58,7 +58,7 @@ server.listen(0, common.mustCall(() => {
     port: server.address().port,
     method: 'POST',
     path: '/',
-    headers: { 'content-length': buffer.length }
+    headers: { 'content-length': buffer.length },
   }, common.mustCall((res) => {
     res.setEncoding('utf8');
     let data = '';

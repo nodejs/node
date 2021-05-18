@@ -29,7 +29,7 @@ server.listen(0, '127.0.0.1', common.mustCall(() => {
     options
   );
   const req = client.request({
-    ':path': '/'
+    ':path': '/',
   });
   req.on('data', () => req.resume());
   req.on('end', common.mustCall(function() {

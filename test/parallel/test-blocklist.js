@@ -14,37 +14,37 @@ const util = require('util');
 
   [1, [], {}, null, 1n, undefined, null].forEach((i) => {
     assert.throws(() => blockList.addAddress(i), {
-      code: 'ERR_INVALID_ARG_TYPE'
+      code: 'ERR_INVALID_ARG_TYPE',
     });
   });
 
   [1, [], {}, null, 1n, null].forEach((i) => {
     assert.throws(() => blockList.addAddress('1.1.1.1', i), {
-      code: 'ERR_INVALID_ARG_TYPE'
+      code: 'ERR_INVALID_ARG_TYPE',
     });
   });
 
   assert.throws(() => blockList.addAddress('1.1.1.1', 'foo'), {
-    code: 'ERR_INVALID_ARG_VALUE'
+    code: 'ERR_INVALID_ARG_VALUE',
   });
 
   [1, [], {}, null, 1n, undefined, null].forEach((i) => {
     assert.throws(() => blockList.addRange(i), {
-      code: 'ERR_INVALID_ARG_TYPE'
+      code: 'ERR_INVALID_ARG_TYPE',
     });
     assert.throws(() => blockList.addRange('1.1.1.1', i), {
-      code: 'ERR_INVALID_ARG_TYPE'
+      code: 'ERR_INVALID_ARG_TYPE',
     });
   });
 
   [1, [], {}, null, 1n, null].forEach((i) => {
     assert.throws(() => blockList.addRange('1.1.1.1', '1.1.1.2', i), {
-      code: 'ERR_INVALID_ARG_TYPE'
+      code: 'ERR_INVALID_ARG_TYPE',
     });
   });
 
   assert.throws(() => blockList.addRange('1.1.1.1', '1.1.1.2', 'foo'), {
-    code: 'ERR_INVALID_ARG_VALUE'
+    code: 'ERR_INVALID_ARG_VALUE',
   });
 }
 
@@ -73,7 +73,7 @@ const util = require('util');
   const sa1 = new SocketAddress({ address: '1.1.1.1' });
   const sa2 = new SocketAddress({
     address: '8592:757c:efae:4e45:fb5d:d62a:0d00:8e17',
-    family: 'ipv6'
+    family: 'ipv6',
   });
   const sa3 = new SocketAddress({ address: '1.1.1.2' });
 

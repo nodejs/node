@@ -51,7 +51,7 @@ test(function serverTimeout(cb) {
     }));
     assert.ok(s instanceof http.Server);
     http.get({
-      port: server.address().port
+      port: server.address().port,
     }).on('error', common.mustCall());
   }));
 });
@@ -69,7 +69,7 @@ test(function serverRequestTimeout(cb) {
   server.listen(common.mustCall(() => {
     const req = http.request({
       port: server.address().port,
-      method: 'POST'
+      method: 'POST',
     });
     req.on('error', common.mustCall());
     req.write('Hello');
@@ -89,7 +89,7 @@ test(function serverResponseTimeout(cb) {
   }));
   server.listen(common.mustCall(() => {
     http.get({
-      port: server.address().port
+      port: server.address().port,
     }).on('error', common.mustCall());
   }));
 });
@@ -108,7 +108,7 @@ test(function serverRequestNotTimeoutAfterEnd(cb) {
   }));
   server.listen(common.mustCall(() => {
     http.get({
-      port: server.address().port
+      port: server.address().port,
     }).on('error', common.mustCall());
   }));
 });

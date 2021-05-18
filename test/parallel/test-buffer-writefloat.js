@@ -81,7 +81,7 @@ assert.ok(Number.isNaN(buffer.readFloatLE(4)));
       {
         code: 'ERR_BUFFER_OUT_OF_BOUNDS',
         name: 'RangeError',
-        message: 'Attempt to access memory outside buffer bounds'
+        message: 'Attempt to access memory outside buffer bounds',
       });
 
     ['', '0', null, {}, [], () => {}, true, false].forEach((off) => {
@@ -98,7 +98,7 @@ assert.ok(Number.isNaN(buffer.readFloatLE(4)));
           code: 'ERR_OUT_OF_RANGE',
           name: 'RangeError',
           message: 'The value of "offset" is out of range. ' +
-                   `It must be >= 0 and <= 4. Received ${offset}`
+                   `It must be >= 0 and <= 4. Received ${offset}`,
         }
       );
     });
@@ -110,7 +110,7 @@ assert.ok(Number.isNaN(buffer.readFloatLE(4)));
           code: 'ERR_OUT_OF_RANGE',
           name: 'RangeError',
           message: 'The value of "offset" is out of range. ' +
-                   `It must be an integer. Received ${offset}`
+                   `It must be an integer. Received ${offset}`,
         });
     });
   });

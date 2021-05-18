@@ -10,14 +10,14 @@ const src = new stream.Readable({
   read() {
     if (loops--)
       this.push(Buffer.alloc(20000));
-  }
+  },
 });
 
 const dst = new stream.Transform({
   transform(chunk, output, fn) {
     this.push(null);
     fn();
-  }
+  },
 });
 
 src.pipe(dst);

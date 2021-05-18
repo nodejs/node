@@ -10,7 +10,7 @@ const h2 = require('http2');
 
 const expectedTrailers = {
   'x-foo': 'xOxOxOx, OxOxOxO, xOxOxOx, OxOxOxO',
-  'x-foo-test': 'test, test'
+  'x-foo-test': 'test, test',
 };
 
 const server = h2.createServer();
@@ -48,7 +48,7 @@ server.listen(0, common.mustCall(function() {
       ':path': '/foobar',
       ':method': 'POST',
       ':scheme': 'http',
-      ':authority': `localhost:${port}`
+      ':authority': `localhost:${port}`,
     };
     const request = client.request(headers, { waitForTrailers: true });
 
@@ -58,7 +58,7 @@ server.listen(0, common.mustCall(function() {
         'x-foO': 'OxOxOxO',
         'X-fOo': 'xOxOxOx',
         'X-foO': 'OxOxOxO',
-        'x-foo-test': 'test, test'
+        'x-foo-test': 'test, test',
       });
     });
 

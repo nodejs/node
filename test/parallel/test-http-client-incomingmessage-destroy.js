@@ -18,7 +18,7 @@ process.on('uncaughtException', common.mustCall(onUncaught));
 
 server.listen(0, () => {
   get({
-    port: server.address().port
+    port: server.address().port,
   }, common.mustCall((res) => {
     res.destroy(new Error('Destroy test'));
   }));

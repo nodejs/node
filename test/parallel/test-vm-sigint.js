@@ -28,7 +28,7 @@ if (process.argv[2] === 'child') {
     () => { vm[method](script, ...args, options); },
     {
       code: 'ERR_SCRIPT_EXECUTION_INTERRUPTED',
-      message: 'Script execution was interrupted by `SIGINT`'
+      message: 'Script execution was interrupted by `SIGINT`',
     });
   return;
 }
@@ -37,7 +37,7 @@ for (const method of ['runInThisContext', 'runInContext']) {
   for (const listeners of [0, 1, 2]) {
     const args = [__filename, 'child', method, listeners];
     const child = spawn(process.execPath, args, {
-      stdio: [null, 'pipe', 'inherit', 'ipc']
+      stdio: [null, 'pipe', 'inherit', 'ipc'],
     });
 
     child.on('message', common.mustCall(() => {

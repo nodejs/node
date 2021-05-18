@@ -74,7 +74,7 @@ assert.rejects(subtle.digest(''), { message: /Unrecognized name/ }).then(common.
 
 Promise.all([1, [], {}, null, undefined].map((i) =>
   assert.rejects(subtle.digest('SHA-256', i), {
-    code: 'ERR_INVALID_ARG_TYPE'
+    code: 'ERR_INVALID_ARG_TYPE',
   })
 )).then(common.mustCall());
 
@@ -83,7 +83,7 @@ Promise.all([1, [], {}, null, undefined].map((i) =>
 // addition to the API, and is added as a support for future additional
 // hash algorithms that support variable digest output lengths.
 assert.rejects(subtle.digest({ name: 'SHA-512', length: 510 }, kData), {
-  message: /Digest method not supported/
+  message: /Digest method not supported/,
 }).then(common.mustCall());
 
 const kSourceData = {
@@ -94,7 +94,7 @@ const kSourceData = {
           'f340a3962a446b815b794b4bd43a4403502077b22' +
           '56cc807837f3aacd118eb4b9c2baeb897068625ab' +
           'aca193',
-  long: null
+  long: null,
 };
 
 kSourceData.long = kSourceData.medium.repeat(1024);
@@ -104,13 +104,13 @@ const kDigestedData = {
     empty: 'da39a3ee5e6b4b0d3255bfef95601890afd80709',
     short: 'c91318cdf2396a015e3f4e6a86a0ba65b8635944',
     medium: 'e541060870eb16bf33b68e51f513526893986729',
-    long: '3098b50037ecd02ebd657653b2bfa01eee27a2ea'
+    long: '3098b50037ecd02ebd657653b2bfa01eee27a2ea',
   },
   'sha-256': {
     empty: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
     short: 'a2831186984792c7d32d59c89740687f19addc1b959e71a1cc538a3b7ed843f2',
     medium: '535367877ef014d7fc717e5cb7843e59b61aee62c7029cec7ec6c12fd924e0e4',
-    long: '14cdea9dc75f5a6274d9fc1e64009912f1dcd306b48fe8e9cf122de671571781'
+    long: '14cdea9dc75f5a6274d9fc1e64009912f1dcd306b48fe8e9cf122de671571781',
   },
   'sha-384': {
     empty: '38b060a751ac96384cd9327eb1b1e36a21fdb71114b' +
@@ -124,7 +124,7 @@ const kDigestedData = {
             '9d279540e977',
     long: '49f4fdb3981968f97d57370f85345067cd5296a97dd1' +
           'a18e06911e756e9608492529870e1ad130998d57cbfb' +
-          'b7c1d09e'
+          'b7c1d09e',
   },
   'sha-512': {
     empty: 'cf83e1357eefb8bdf1542850d66d8007d620e4050b5' +
@@ -138,8 +138,8 @@ const kDigestedData = {
             '761ff5be85328eeaf42c3830f1d95e7a41165b7d2d36',
     long: '4b02caf650276030ea5617e597c5d53fd9daa68b78bfe' +
           '60b22aab8d36a4c2a3affdb71234f49276737c575ddf7' +
-          '4d14054cbd6fdb98fd0ddcbcb46f91ad76b6ee'
-  }
+          '4d14054cbd6fdb98fd0ddcbcb46f91ad76b6ee',
+  },
 };
 
 async function testDigest(size, name) {

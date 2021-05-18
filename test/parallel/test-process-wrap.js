@@ -61,7 +61,7 @@ p.spawn({
     { type: 'ignore' },
     { type: 'pipe', handle: pipe },
     { type: 'ignore' },
-  ]
+  ],
 });
 
 // 'this' safety
@@ -75,7 +75,7 @@ assert.throws(function() {
       { type: 'ignore' },
       { type: 'pipe', handle: pipe },
       { type: 'ignore' },
-    ]
+    ],
   });
 }, TypeError);
 

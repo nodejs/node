@@ -18,7 +18,7 @@ const options = {
   port: undefined,
   host: common.localhostIPv4,
   path: '/',
-  timeout: timeout
+  timeout: timeout,
 };
 
 server.listen(0, options.host, common.mustCall(() => {

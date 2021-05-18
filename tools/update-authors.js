@@ -18,7 +18,7 @@ const log = spawn(
   'git',
   // Inspect author name/email and body.
   ['log', '--reverse', '--format=Author: %aN <%aE>\n%b'], {
-    stdio: ['inherit', 'pipe', 'inherit']
+    stdio: ['inherit', 'pipe', 'inherit'],
   });
 const rl = readline.createInterface({ input: log.stdout });
 
@@ -48,13 +48,13 @@ const mailmap = new CaseIndifferentMap();
     // Replaced Name <replaced@example.com> <original@example.com>
     } else if (match = line.match(/^([^<]+)\s+(<[^>]+>)\s+(<[^>]+>)$/)) {
       mailmap.set(match[3], {
-        author: match[1], email: match[2]
+        author: match[1], email: match[2],
       });
     // Replaced Name <replaced@example.com> Original Name <original@example.com>
     } else if (match =
         line.match(/^([^<]+)\s+(<[^>]+>)\s+([^<]+)\s+(<[^>]+>)$/)) {
       mailmap.set(match[3] + '\0' + match[4], {
-        author: match[1], email: match[2]
+        author: match[1], email: match[2],
       });
     } else {
       console.warn('Unknown .mailmap format:', line);

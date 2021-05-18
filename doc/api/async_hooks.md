@@ -107,7 +107,7 @@ const async_hooks = require('async_hooks');
 
 const asyncHook = async_hooks.createHook({
   init(asyncId, type, triggerAsyncId, resource) { },
-  destroy(asyncId) { }
+  destroy(asyncId) { },
 });
 ```
 
@@ -279,7 +279,7 @@ async_hooks.createHook({
     fs.writeSync(
       fd,
       `${type}(${asyncId}): trigger: ${triggerAsyncId} execution: ${eid}\n`);
-  }
+  },
 }).enable();
 
 net.createServer((conn) => {}).listen(8080);
@@ -524,7 +524,7 @@ const { createServer } = require('http');
 const {
   executionAsyncId,
   executionAsyncResource,
-  createHook
+  createHook,
 } = require('async_hooks');
 const sym = Symbol('state'); // Private symbol to avoid pollution
 
@@ -534,7 +534,7 @@ createHook({
     if (cr) {
       resource[sym] = cr[sym];
     }
-  }
+  },
 }).enable();
 
 const server = createServer((req, res) => {

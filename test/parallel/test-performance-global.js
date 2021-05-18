@@ -5,7 +5,7 @@ require('../common');
 
 const perf_hooks = require('perf_hooks');
 const {
-  strictEqual
+  strictEqual,
 } = require('assert');
 
 const perf = performance;

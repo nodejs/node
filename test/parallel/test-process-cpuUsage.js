@@ -39,7 +39,7 @@ assert.throws(
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
     message: 'The "prevValue" argument must be of type object. ' +
-             'Received type number (1)'
+             'Received type number (1)',
   }
 );
 
@@ -55,7 +55,7 @@ assert.throws(
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
       message: 'The "prevValue.user" property must be of type number.' +
-               common.invalidArgTypeHelper(value.user)
+               common.invalidArgTypeHelper(value.user),
     }
   );
 });
@@ -70,7 +70,7 @@ assert.throws(
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
       message: 'The "prevValue.system" property must be of type number.' +
-               common.invalidArgTypeHelper(value.system)
+               common.invalidArgTypeHelper(value.system),
     }
   );
 });

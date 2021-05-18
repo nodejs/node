@@ -20,7 +20,7 @@ class MyWritable extends stream.Writable {
   assert.throws(() => {
     m.write(null);
   }, {
-    code: 'ERR_STREAM_NULL_VALUES'
+    code: 'ERR_STREAM_NULL_VALUES',
   });
 }
 
@@ -30,7 +30,7 @@ class MyWritable extends stream.Writable {
   assert.throws(() => {
     m.write(false);
   }, {
-    code: 'ERR_INVALID_ARG_TYPE'
+    code: 'ERR_INVALID_ARG_TYPE',
   });
 }
 

@@ -8,7 +8,7 @@ const fs = require('fs');
 const { internalBinding } = require('internal/test/binding');
 const {
   UV_ENOENT,
-  UV_EEXIST
+  UV_EEXIST,
 } = internalBinding('uv');
 const path = require('path');
 const src = fixtures.path('a.js');
@@ -19,7 +19,7 @@ const {
   COPYFILE_FICLONE_FORCE,
   UV_FS_COPYFILE_EXCL,
   UV_FS_COPYFILE_FICLONE,
-  UV_FS_COPYFILE_FICLONE_FORCE
+  UV_FS_COPYFILE_FICLONE_FORCE,
 } = fs.constants;
 
 function verify(src, dest) {
@@ -104,7 +104,7 @@ assert.throws(() => {
   fs.copyFile(src, dest, 0, 0);
 }, {
   code: 'ERR_INVALID_CALLBACK',
-  name: 'TypeError'
+  name: 'TypeError',
 });
 
 // Throws if the source path is not a string.
@@ -114,7 +114,7 @@ assert.throws(() => {
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: /src/
+      message: /src/,
     }
   );
   assert.throws(
@@ -122,7 +122,7 @@ assert.throws(() => {
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: /dest/
+      message: /dest/,
     }
   );
   assert.throws(
@@ -130,7 +130,7 @@ assert.throws(() => {
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: /src/
+      message: /src/,
     }
   );
   assert.throws(
@@ -138,7 +138,7 @@ assert.throws(() => {
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: /dest/
+      message: /dest/,
     }
   );
 });
@@ -148,7 +148,7 @@ assert.throws(() => {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   name: 'TypeError',
-  message: /mode/
+  message: /mode/,
 });
 
 assert.throws(() => {
@@ -157,7 +157,7 @@ assert.throws(() => {
   code: 'ERR_OUT_OF_RANGE',
   name: 'RangeError',
   message: 'The value of "mode" is out of range. It must be an integer ' +
-           '>= 0 && <= 7. Received 8'
+           '>= 0 && <= 7. Received 8',
 });
 
 assert.throws(() => {
@@ -165,5 +165,5 @@ assert.throws(() => {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   name: 'TypeError',
-  message: /mode/
+  message: /mode/,
 });

@@ -33,7 +33,7 @@ if (process.argv[2] !== 'child') {
   const child = spawn(process.execPath, [
     '--expose-internals', __filename, 'child',
   ], {
-    stdio: ['inherit', 'inherit', 'inherit', 'ipc']
+    stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
   });
   child.on('exit', common.mustCall((code, signal) => {
     assert.strictEqual(code, 0);

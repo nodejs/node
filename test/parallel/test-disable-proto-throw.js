@@ -13,7 +13,7 @@ assert.throws(() => {
   // eslint-disable-next-line no-proto,no-unused-expressions
   ({}).__proto__;
 }, {
-  code: 'ERR_PROTO_ACCESS'
+  code: 'ERR_PROTO_ACCESS',
 });
 
 assert.throws(() => {
@@ -28,7 +28,7 @@ const ctx = vm.createContext();
 assert.throws(() => {
   vm.runInContext('({}).__proto__;', ctx);
 }, {
-  code: 'ERR_PROTO_ACCESS'
+  code: 'ERR_PROTO_ACCESS',
 });
 
 assert.throws(() => {

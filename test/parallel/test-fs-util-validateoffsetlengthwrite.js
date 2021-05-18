@@ -21,7 +21,7 @@ const kIoMaxLength = 2 ** 31 - 1;
       code: 'ERR_OUT_OF_RANGE',
       name: 'RangeError',
       message: 'The value of "offset" is out of range. ' +
-               `It must be <= ${byteLength}. Received ${offset}`
+               `It must be <= ${byteLength}. Received ${offset}`,
     }
   );
 }
@@ -37,7 +37,7 @@ const kIoMaxLength = 2 ** 31 - 1;
       code: 'ERR_OUT_OF_RANGE',
       name: 'RangeError',
       message: 'The value of "length" is out of range. ' +
-               `It must be <= ${byteLength - offset}. Received ${length}`
+               `It must be <= ${byteLength - offset}. Received ${length}`,
     }
   );
 }

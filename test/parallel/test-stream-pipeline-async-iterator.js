@@ -9,7 +9,7 @@ const _err = new Error('kaboom');
 async function run() {
   const source = new Readable({
     read() {
-    }
+    },
   });
   source.push('hello');
   source.push('world');

@@ -30,7 +30,7 @@ process.chdir(tmpdir.path);
     name: 'TypeError',
     message: 'The "path" argument must be of type string or an instance of ' +
              'Buffer or URL.' +
-             common.invalidArgTypeHelper(i)
+             common.invalidArgTypeHelper(i),
   });
 });
 

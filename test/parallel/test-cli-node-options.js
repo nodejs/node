@@ -134,7 +134,7 @@ function workerTest(opts, command, wantsError, test) {
     execArgv: [],
     eval: true,
     stdout: true,
-    stderr: true
+    stderr: true,
   });
   worker.on('error', (err) => {
     workerError = err;

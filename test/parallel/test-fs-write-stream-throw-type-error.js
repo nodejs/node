@@ -22,7 +22,7 @@ const createWriteStreamErr = (path, opt) => {
     },
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError'
+      name: 'TypeError',
     });
 };
 

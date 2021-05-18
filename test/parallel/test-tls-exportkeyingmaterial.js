@@ -19,7 +19,7 @@ const server = net.createServer(common.mustCall((s) => {
   const tlsSocket = new tls.TLSSocket(s, {
     isServer: true,
     server: server,
-    secureContext: tls.createSecureContext({ key, cert })
+    secureContext: tls.createSecureContext({ key, cert }),
   });
 
   assert.throws(() => {
@@ -27,7 +27,7 @@ const server = net.createServer(common.mustCall((s) => {
   }, {
     name: 'Error',
     message: 'TLS socket connection must be securely established',
-    code: 'ERR_TLS_INVALID_STATE'
+    code: 'ERR_TLS_INVALID_STATE',
   });
 
   tlsSocket.on('secure', common.mustCall(() => {
@@ -51,42 +51,42 @@ const server = net.createServer(common.mustCall((s) => {
       tlsSocket.exportKeyingMaterial(128, label, 'stringAsContextNotSupported');
     }, {
       name: 'TypeError',
-      code: 'ERR_INVALID_ARG_TYPE'
+      code: 'ERR_INVALID_ARG_TYPE',
     });
 
     assert.throws(() => {
       tlsSocket.exportKeyingMaterial(128, label, 1234);
     }, {
       name: 'TypeError',
-      code: 'ERR_INVALID_ARG_TYPE'
+      code: 'ERR_INVALID_ARG_TYPE',
     });
 
     assert.throws(() => {
       tlsSocket.exportKeyingMaterial(10, null);
     }, {
       name: 'TypeError',
-      code: 'ERR_INVALID_ARG_TYPE'
+      code: 'ERR_INVALID_ARG_TYPE',
     });
 
     assert.throws(() => {
       tlsSocket.exportKeyingMaterial('length', 1234);
     }, {
       name: 'TypeError',
-      code: 'ERR_INVALID_ARG_TYPE'
+      code: 'ERR_INVALID_ARG_TYPE',
     });
 
     assert.throws(() => {
       tlsSocket.exportKeyingMaterial(-3, 'a');
     }, {
       name: 'RangeError',
-      code: 'ERR_OUT_OF_RANGE'
+      code: 'ERR_OUT_OF_RANGE',
     });
 
     assert.throws(() => {
       tlsSocket.exportKeyingMaterial(0, 'a');
     }, {
       name: 'RangeError',
-      code: 'ERR_OUT_OF_RANGE'
+      code: 'ERR_OUT_OF_RANGE',
     });
 
     tlsSocket.end();
@@ -95,7 +95,7 @@ const server = net.createServer(common.mustCall((s) => {
 })).listen(0, () => {
   const opts = {
     port: server.address().port,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   };
 
   tls.connect(opts, common.mustCall(function() { this.end(); }));

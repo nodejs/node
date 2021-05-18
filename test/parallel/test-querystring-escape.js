@@ -18,7 +18,7 @@ assert.throws(
   {
     code: 'ERR_INVALID_URI',
     name: 'URIError',
-    message: 'URI malformed'
+    message: 'URI malformed',
   }
 );
 

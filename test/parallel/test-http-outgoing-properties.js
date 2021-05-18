@@ -38,7 +38,7 @@ const OutgoingMessage = http.OutgoingMessage;
     const clientRequest = http.request({
       port: server.address().port,
       method: 'GET',
-      path: '/'
+      path: '/',
     });
     clientRequest.end();
   }));
@@ -64,7 +64,7 @@ const OutgoingMessage = http.OutgoingMessage;
     const req = http.request({
       port: server.address().port,
       method: 'GET',
-      path: '/'
+      path: '/',
     });
 
     assert.strictEqual(req.path, '/');

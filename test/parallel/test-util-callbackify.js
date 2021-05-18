@@ -51,7 +51,7 @@ const values = [
       return {
         then(onRes, onRej) {
           onRes(value);
-        }
+        },
       };
     }
 
@@ -97,7 +97,7 @@ const values = [
       value: obj,
       writable: false,
       enumerable: false,
-      configurable: true
+      configurable: true,
     });
 
     const cbPromiseFn = callbackify(promiseFn);
@@ -122,7 +122,7 @@ const values = [
       return {
         then(onRes, onRej) {
           onRej(value);
-        }
+        },
       };
     }
 
@@ -172,7 +172,7 @@ const values = [
       value: obj,
       writable: false,
       enumerable: false,
-      configurable: true
+      configurable: true,
     });
 
     const cbPromiseFn = callbackify(promiseFn);
@@ -253,7 +253,7 @@ const values = [
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
       message: 'The "original" argument must be of type function.' +
-               common.invalidArgTypeHelper(value)
+               common.invalidArgTypeHelper(value),
     });
   });
 }
@@ -275,7 +275,7 @@ const values = [
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
       message: 'The last argument must be of type function.' +
-               common.invalidArgTypeHelper(value)
+               common.invalidArgTypeHelper(value),
     });
   });
 }

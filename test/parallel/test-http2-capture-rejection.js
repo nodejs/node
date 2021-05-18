@@ -118,7 +118,7 @@ events.captureRejections = true;
     }, common.mustCall((err, push) => {
       push.respond({
         'content-type': 'text/html',
-        ':status': 200
+        ':status': 200,
       });
       push.end('pushed by the server');
 
@@ -126,7 +126,7 @@ events.captureRejections = true;
     }));
 
     stream.respond({
-      ':status': 200
+      ':status': 200,
     });
   }));
 

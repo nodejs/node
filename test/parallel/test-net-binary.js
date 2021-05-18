@@ -50,7 +50,7 @@ let recv = '';
 echoServer.on('listening', function() {
   let j = 0;
   const c = net.createConnection({
-    port: this.address().port
+    port: this.address().port,
   });
 
   c.setEncoding('latin1');

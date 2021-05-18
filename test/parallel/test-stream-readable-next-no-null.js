@@ -11,7 +11,7 @@ const stream = Readable.from(generate());
 stream.on('error', expectsError({
   code: 'ERR_STREAM_NULL_VALUES',
   name: 'TypeError',
-  message: 'May not write null values to stream'
+  message: 'May not write null values to stream',
 }));
 
 stream.on('data', mustNotCall((chunk) => {}));

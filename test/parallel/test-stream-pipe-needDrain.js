@@ -10,7 +10,7 @@ const { Readable, Writable } = require('stream');
     write(buf, encoding, callback) {
       process.nextTick(callback);
     },
-    highWaterMark: 1
+    highWaterMark: 1,
   });
 
   while (w.write('asd'));
@@ -21,7 +21,7 @@ const { Readable, Writable } = require('stream');
     read() {
       this.push('asd');
       this.push(null);
-    }
+    },
   });
 
   r.on('pause', common.mustCall(2));

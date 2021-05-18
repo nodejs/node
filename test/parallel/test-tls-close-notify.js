@@ -33,7 +33,7 @@ const { ShutdownWrap } = internalBinding('stream_wrap');
 
 const server = tls.createServer({
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 }, function(c) {
   // Ensure that we receive 'end' event anyway.
   c.on('end', common.mustCall(function() {
@@ -41,7 +41,7 @@ const server = tls.createServer({
   }));
 }).listen(0, common.mustCall(function() {
   const c = tls.connect(this.address().port, {
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall(function() {
     // Send close-notify without shutting down TCP socket.
     const req = new ShutdownWrap();

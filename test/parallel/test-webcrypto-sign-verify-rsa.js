@@ -74,23 +74,23 @@ async function testVerify({
   // Test failure when using wrong key
   await assert.rejects(
     subtle.verify(algorithm, privateKey, signature, plaintext), {
-      message: /Unable to use this key to verify/
+      message: /Unable to use this key to verify/,
     });
 
   await assert.rejects(
     subtle.verify(algorithm, noVerifyPublicKey, signature, plaintext), {
-      message: /Unable to use this key to verify/
+      message: /Unable to use this key to verify/,
     });
 
   // Test failure when using the wrong algorithms
   await assert.rejects(
     subtle.verify(algorithm, hmacKey, signature, plaintext), {
-      message: /Unable to use this key to verify/
+      message: /Unable to use this key to verify/,
     });
 
   await assert.rejects(
     subtle.verify(algorithm, ecdsaKeys.publicKey, signature, plaintext), {
-      message: /Unable to use this key to verify/
+      message: /Unable to use this key to verify/,
     });
 
   // Test failure when signature is altered
@@ -117,7 +117,7 @@ async function testVerify({
     const otherhash = hash === 'SHA-1' ? 'SHA-256' : 'SHA-1';
     assert(!(await subtle.verify({
       ...algorithm,
-      hash: otherhash
+      hash: otherhash,
     }, publicKey, signature, copy)));
   }
 
@@ -194,24 +194,24 @@ async function testSign({
   // Test failure when using wrong key
   await assert.rejects(
     subtle.sign(algorithm, publicKey, plaintext), {
-      message: /Unable to use this key to sign/
+      message: /Unable to use this key to sign/,
     });
 
   // Test failure when no sign usage
   await assert.rejects(
     subtle.sign(algorithm, noSignPrivateKey, plaintext), {
-      message: /Unable to use this key to sign/
+      message: /Unable to use this key to sign/,
     });
 
   // Test failure when using the wrong algorithms
   await assert.rejects(
     subtle.sign(algorithm, hmacKey, plaintext), {
-      message: /Unable to use this key to sign/
+      message: /Unable to use this key to sign/,
     });
 
   await assert.rejects(
     subtle.sign(algorithm, ecdsaKeys.privateKey, plaintext), {
-      message: /Unable to use this key to sign/
+      message: /Unable to use this key to sign/,
     });
 }
 

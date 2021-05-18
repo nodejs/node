@@ -10,7 +10,7 @@ const tls = require('tls');
 const options = {
   SNICallback: (name, callback) => {
     callback(null, tls.createSecureContext());
-  }
+  },
 };
 
 const server = tls.createServer(options, (c) => {
@@ -22,7 +22,7 @@ const server = tls.createServer(options, (c) => {
   const c = tls.connect({
     port: server.address().port,
     rejectUnauthorized: false,
-    servername: 'any.name'
+    servername: 'any.name',
   }, common.mustNotCall());
 
   c.on('error', common.mustCall((err) => {

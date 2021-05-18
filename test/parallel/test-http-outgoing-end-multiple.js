@@ -32,7 +32,7 @@ server.on('listening', common.mustCall(function() {
     .request({
       port: server.address().port,
       method: 'GET',
-      path: '/'
+      path: '/',
     })
     .end();
 }));

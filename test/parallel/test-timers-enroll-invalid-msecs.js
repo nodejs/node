@@ -15,7 +15,7 @@ const timers = require('timers');
     () => timers.enroll({}, val),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError'
+      name: 'TypeError',
     }
   );
 });
@@ -32,7 +32,7 @@ const timers = require('timers');
       name: 'RangeError',
       message: 'The value of "msecs" is out of range. ' +
                'It must be a non-negative finite number. ' +
-               `Received ${val}`
+               `Received ${val}`,
     }
   );
 });

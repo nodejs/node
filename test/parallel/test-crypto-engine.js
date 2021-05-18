@@ -14,7 +14,7 @@ assert.throws(
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
     message: 'The "id" argument must be of type string. Received type boolean' +
-             ' (true)'
+             ' (true)',
   });
 
 assert.throws(
@@ -23,7 +23,7 @@ assert.throws(
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
     message: 'The "flags" argument must be of type number. Received type' +
-             " string ('notANumber')"
+             " string ('notANumber')",
   });
 
 assert.throws(
@@ -31,7 +31,7 @@ assert.throws(
   {
     code: 'ERR_CRYPTO_ENGINE_UNKNOWN',
     name: 'Error',
-    message: `Engine "${invalidEngineName}" was not found`
+    message: `Engine "${invalidEngineName}" was not found`,
   });
 
 assert.throws(
@@ -39,5 +39,5 @@ assert.throws(
   {
     code: 'ERR_CRYPTO_ENGINE_UNKNOWN',
     name: 'Error',
-    message: `Engine "${invalidEngineName}" was not found`
+    message: `Engine "${invalidEngineName}" was not found`,
   });

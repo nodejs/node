@@ -30,7 +30,7 @@ const https = require('https');
 
 const options = {
   key: fixtures.readKey('rsa_private.pem'),
-  cert: fixtures.readKey('rsa_cert.crt')
+  cert: fixtures.readKey('rsa_cert.crt'),
 };
 
 const bufSize = 1024 * 1024;
@@ -47,7 +47,7 @@ server.listen(0, function() {
   const req = https.request({
     method: 'POST',
     port: this.address().port,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, function(res) {
     let timer;
     res.pause();

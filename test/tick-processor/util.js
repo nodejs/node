@@ -6,7 +6,7 @@ const {
   isSunOS,
   isAIX,
   isLinuxPPCBE,
-  isFreeBSD
+  isFreeBSD,
 } = require('../common');
 
 module.exports = {
@@ -14,5 +14,5 @@ module.exports = {
                          isSunOS ||
                          isAIX ||
                          isLinuxPPCBE ||
-                         isFreeBSD
+                         isFreeBSD,
 };

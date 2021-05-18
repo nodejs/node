@@ -8,7 +8,7 @@ const httpServer = http.createServer(common.mustCall(function(req, res) {
   assert.throws(() => {
     res.end(['Throws.']);
   }, {
-    code: 'ERR_INVALID_ARG_TYPE'
+    code: 'ERR_INVALID_ARG_TYPE',
   });
   res.end();
 }));

@@ -45,5 +45,5 @@ tester.run('async-iife-no-unused-result', rule, {
       output: "const common = require('../common');(async function() {})()" +
         '.then(common.mustCall())',
     },
-  ]
+  ],
 });

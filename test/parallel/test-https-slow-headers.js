@@ -45,7 +45,7 @@ server.once('timeout', common.mustCall((socket) => {
 server.listen(0, common.mustCall(() => {
   const client = connect({
     port: server.address().port,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   });
   client.write(headers);
   client.write('X-CRASH: ');

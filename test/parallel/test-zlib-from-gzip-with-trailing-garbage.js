@@ -40,7 +40,7 @@ zlib.gunzip(data, common.mustCall((err, result) => {
   common.expectsError({
     code: 'Z_DATA_ERROR',
     name: 'Error',
-    message: 'unknown compression method'
+    message: 'unknown compression method',
   })(err);
   assert.strictEqual(result, undefined);
 }));

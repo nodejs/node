@@ -18,7 +18,7 @@ function onAttachToWorker({ params: { sessionId } }) {
   function postToWorkerInspector(method, params) {
     session.post('NodeWorker.sendMessageToWorker', {
       sessionId,
-      message: JSON.stringify({ id: id++, method, params })
+      message: JSON.stringify({ id: id++, method, params }),
     }, () => console.log(`Message ${method} received the response`));
   }
 

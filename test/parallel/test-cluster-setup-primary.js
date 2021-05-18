@@ -34,7 +34,7 @@ if (cluster.isWorker) {
   const checks = {
     args: false,
     setupEvent: false,
-    settingsObject: false
+    settingsObject: false,
   };
 
   const totalWorkers = 2;
@@ -43,7 +43,7 @@ if (cluster.isWorker) {
   // Setup primary
   cluster.setupPrimary({
     args: ['custom argument'],
-    silent: true
+    silent: true,
   });
 
   cluster.once('setup', function() {

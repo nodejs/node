@@ -28,11 +28,11 @@ assert.throws(() => {
     'Promise.resolve().then(() => loop());',
     {
       hrtime,
-      loop
+      loop,
     },
     { timeout: 10, microtaskMode: 'afterEvaluate' }
   );
 }, {
   code: 'ERR_SCRIPT_EXECUTION_TIMEOUT',
-  message: 'Script execution timed out after 10ms'
+  message: 'Script execution timed out after 10ms',
 });

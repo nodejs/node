@@ -4,7 +4,7 @@ const common = require('../common.js');
 const tls = require('tls');
 
 const bench = common.createBenchmark(main, {
-  n: [1, 50000]
+  n: [1, 50000],
 });
 
 function main({ n }) {

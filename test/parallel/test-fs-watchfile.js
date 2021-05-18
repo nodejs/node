@@ -14,7 +14,7 @@ assert.throws(
   },
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError'
+    name: 'TypeError',
   });
 
 assert.throws(
@@ -23,7 +23,7 @@ assert.throws(
   },
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError'
+    name: 'TypeError',
   });
 
 assert.throws(() => {

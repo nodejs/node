@@ -22,7 +22,7 @@ const { inspect } = require('util');
 
   const result = inspect(new X(), {
     getters: true,
-    showHidden: true
+    showHidden: true,
   });
 
   assert.strictEqual(
@@ -54,7 +54,7 @@ const { inspect } = require('util');
   const result = inspect(new B(), {
     depth: 1,
     getters: true,
-    showHidden: true
+    showHidden: true,
   });
 
   assert.strictEqual(

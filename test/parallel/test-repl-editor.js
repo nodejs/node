@@ -29,7 +29,7 @@ function run({ input, output, event, checkTerminalCodes = true }) {
     terminal: true,
     input: stream,
     output: stream,
-    useColors: false
+    useColors: false,
   });
 
   stream.emit('data', '.editor\n');
@@ -49,22 +49,22 @@ const tests = [
   {
     input: '',
     output: '\n(To exit, press Ctrl+C again or Ctrl+D or type .exit)',
-    event: { ctrl: true, name: 'c' }
+    event: { ctrl: true, name: 'c' },
   },
   {
     input: 'let i = 1;',
     output: '',
-    event: { ctrl: true, name: 'c' }
+    event: { ctrl: true, name: 'c' },
   },
   {
     input: 'let i = 1;\ni + 3',
     output: '\n4',
-    event: { ctrl: true, name: 'd' }
+    event: { ctrl: true, name: 'd' },
   },
   {
     input: '  let i = 1;\ni + 3',
     output: '\n4',
-    event: { ctrl: true, name: 'd' }
+    event: { ctrl: true, name: 'd' },
   },
   {
     input: '',
@@ -88,7 +88,7 @@ function testCodeAlignment({ input, cursor = 0, line = '' }) {
     terminal: true,
     input: stream,
     output: outputStream,
-    useColors: false
+    useColors: false,
   });
 
   stream.emit('data', '.editor\n');
@@ -105,22 +105,22 @@ function testCodeAlignment({ input, cursor = 0, line = '' }) {
 
 const codeAlignmentTests = [
   {
-    input: 'let i = 1;\n'
+    input: 'let i = 1;\n',
   },
   {
     input: '  let i = 1;\n',
     cursor: 2,
-    line: '  '
+    line: '  ',
   },
   {
     input: '     let i = 1;\n',
     cursor: 5,
-    line: '     '
+    line: '     ',
   },
   {
     input: ' let i = 1;\n let j = 2\n',
     cursor: 2,
-    line: '  '
+    line: '  ',
   },
 ];
 

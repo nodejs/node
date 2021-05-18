@@ -6,7 +6,7 @@ const { Console } = require('console');
 const stream = new Writable({
   write() {
     throw null; // eslint-disable-line no-throw-literal
-  }
+  },
 });
 
 const console = new Console({ stdout: stream });

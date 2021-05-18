@@ -68,7 +68,7 @@ module.exports = {
       files: ['**/*.md/*.cjs', '**/*.md/*.js'],
       parserOptions: {
         sourceType: 'script',
-        ecmaFeatures: { impliedStrict: true }
+        ecmaFeatures: { impliedStrict: true },
       },
       rules: { strict: 'off' },
     },
@@ -106,10 +106,10 @@ module.exports = {
     }],
     'comma-dangle': ['error', {
       arrays: 'always-multiline',
-      exports: 'only-multiline',
+      exports: 'always-multiline',
       functions: 'only-multiline',
-      imports: 'only-multiline',
-      objects: 'only-multiline',
+      imports: 'always-multiline',
+      objects: 'always-multiline',
     }],
     'comma-spacing': 'error',
     'comma-style': 'error',

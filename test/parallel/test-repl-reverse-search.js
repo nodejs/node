@@ -74,7 +74,7 @@ const tests = [
       'Array(100).fill(1)', ENTER,
     ],
     expected: [],
-    clean: false
+    clean: false,
   },
   {
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
@@ -181,7 +181,7 @@ const tests = [
       '\x1B[3G',
       '\r\n',
     ],
-    clean: false
+    clean: false,
   },
   {
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
@@ -264,7 +264,7 @@ const tests = [
       prompt, '\x1B[3G',
       '\r\n',
     ],
-    clean: false
+    clean: false,
   },
 ];
 const numtests = tests.length;
@@ -316,7 +316,7 @@ function runTest() {
           } catch (e) {
             console.error(`Failed test # ${numtests - tests.length}`);
             console.error('Last outputs: ' + inspect(lastChunks, {
-              breakLength: 5, colors: true
+              breakLength: 5, colors: true,
             }));
             throw e;
           }
@@ -324,12 +324,12 @@ function runTest() {
         }
 
         next();
-      }
+      },
     }),
     completer: opts.completer,
     prompt,
     useColors: opts.useColors || false,
-    terminal: true
+    terminal: true,
   }, function(err, repl) {
     if (err) {
       console.error(`Failed test # ${numtests - tests.length}`);
@@ -353,7 +353,7 @@ function runTest() {
     if (opts.columns) {
       Object.defineProperty(repl, 'columns', {
         value: opts.columns,
-        enumerable: true
+        enumerable: true,
       });
     }
     repl.inputStream.run(opts.test);

@@ -17,13 +17,13 @@ const checkTickCreated = common.mustCall();
 async_hooks.createHook({
   init(id, type, triggerId, resoure) {
     if (type === 'TickObject') checkTickCreated();
-  }
+  },
 }).enable();
 
 const console = new Console(new Writable({
   write: common.mustCall((chunk, encoding, cb) => {
     cb();
-  }, 100)
+  }, 100),
 }));
 
 for (let i = 0; i < 100; i++)

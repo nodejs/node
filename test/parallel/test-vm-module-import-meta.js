@@ -11,7 +11,7 @@ async function testBasic() {
     initializeImportMeta: common.mustCall((meta, module) => {
       assert.strictEqual(module, m);
       meta.prop = 42;
-    })
+    }),
   });
   await m.link(common.mustNotCall());
   await m.evaluate();
@@ -29,11 +29,11 @@ async function testInvalid() {
   ]) {
     assert.throws(() => {
       new SourceTextModule('', {
-        initializeImportMeta: invalidValue
+        initializeImportMeta: invalidValue,
       });
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError'
+      name: 'TypeError',
     });
   }
 }

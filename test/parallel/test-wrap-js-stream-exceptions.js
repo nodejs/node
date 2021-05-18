@@ -13,11 +13,11 @@ const socket = new JSStreamWrap(new Duplex({
   read: common.mustCall(),
   write: common.mustCall((buffer, data, cb) => {
     throw new Error('exception!');
-  })
+  }),
 }));
 
 socket.end('foo');
 socket.on('error', common.expectsError({
   name: 'Error',
-  message: 'write EPROTO'
+  message: 'write EPROTO',
 }));

@@ -11,7 +11,7 @@ const { OutgoingMessage } = require('http');
   outgoingMessage.socket = {
     setTimeout: common.mustCall((msecs) => {
       assert.strictEqual(msecs, expectedMsecs);
-    })
+    }),
   };
   outgoingMessage.setTimeout(expectedMsecs);
 }
@@ -25,6 +25,6 @@ const { OutgoingMessage } = require('http');
   outgoingMessage.emit('socket', {
     setTimeout: common.mustCall((msecs) => {
       assert.strictEqual(msecs, expectedMsecs);
-    })
+    }),
   });
 }

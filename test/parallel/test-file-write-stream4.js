@@ -14,7 +14,7 @@ const filepath = path.join(tmpdir.path, 'write_pos.txt');
 
 const fileReadStream = fs.createReadStream(process.execPath);
 const fileWriteStream = fs.createWriteStream(filepath, {
-  emitClose: true
+  emitClose: true,
 });
 
 fileReadStream.pipe(fileWriteStream);

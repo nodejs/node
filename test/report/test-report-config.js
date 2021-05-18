@@ -76,13 +76,13 @@ if (!common.isWindows) {
     process.report.signal = 'foo';
   }, {
     code: 'ERR_UNKNOWN_SIGNAL',
-    message: 'Unknown signal: foo'
+    message: 'Unknown signal: foo',
   });
   assert.throws(() => {
     process.report.signal = 'sigusr1';
   }, {
     code: 'ERR_UNKNOWN_SIGNAL',
-    message: 'Unknown signal: sigusr1 (signals must use all capital letters)'
+    message: 'Unknown signal: sigusr1 (signals must use all capital letters)',
   });
   assert.strictEqual(process.report.signal, 'SIGUSR2');
   process.report.signal = 'SIGUSR1';

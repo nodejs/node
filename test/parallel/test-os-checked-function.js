@@ -16,5 +16,5 @@ internalBinding('os').getHomeDirectory = function(ctx) {
 const os = require('os');
 
 assert.throws(os.homedir, {
-  message: /^A system error occurred: foo returned bar \(baz\)$/
+  message: /^A system error occurred: foo returned bar \(baz\)$/,
 });

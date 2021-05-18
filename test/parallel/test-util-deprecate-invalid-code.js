@@ -9,6 +9,6 @@ const util = require('util');
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
     message: 'The "code" argument must be of type string.' +
-             common.invalidArgTypeHelper(notString)
+             common.invalidArgTypeHelper(notString),
   });
 });

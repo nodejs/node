@@ -26,9 +26,9 @@ const assert = require('assert');
     const manifest = new Manifest({
       scopes: {
         'file:///': {
-          integrity: true
-        }
-      }
+          integrity: true,
+        },
+      },
     });
 
     for (const href of baseURLs) {
@@ -50,9 +50,9 @@ const assert = require('assert');
     const manifest = new Manifest({
       scopes: {
         'file:': {
-          integrity: true
-        }
-      }
+          integrity: true,
+        },
+      },
     });
 
     for (const href of baseURLs) {
@@ -75,8 +75,8 @@ const assert = require('assert');
       resources: {
         'file:///root/dir1/isolated': {},
         'file:///root/dir1/cascade': {
-          cascade: true
-        }
+          cascade: true,
+        },
       },
       scopes: {
         'file:///root/dir1/': {
@@ -87,7 +87,7 @@ const assert = require('assert');
         },
         'file:///root/dir1/censor/': {
         },
-      }
+      },
     });
     assert.throws(
       () => {
@@ -127,9 +127,9 @@ const assert = require('assert');
     const manifest = new Manifest({
       scopes: {
         'data:text/': {
-          integrity: true
-        }
-      }
+          integrity: true,
+        },
+      },
     });
 
     for (const href of baseURLs) {
@@ -145,9 +145,9 @@ const assert = require('assert');
     const manifest = new Manifest({
       scopes: {
         'data:/': {
-          integrity: true
-        }
-      }
+          integrity: true,
+        },
+      },
     });
 
     for (const href of baseURLs) {
@@ -163,9 +163,9 @@ const assert = require('assert');
     const manifest = new Manifest({
       scopes: {
         'data:': {
-          integrity: true
-        }
-      }
+          integrity: true,
+        },
+      },
     });
 
     for (const href of baseURLs) {
@@ -176,9 +176,9 @@ const assert = require('assert');
     const manifest = new Manifest({
       scopes: {
         'data:text/javascript,0/': {
-          integrity: true
+          integrity: true,
         },
-      }
+      },
     });
 
     for (const href of baseURLs) {
@@ -198,9 +198,9 @@ const assert = require('assert');
     const manifest = new Manifest({
       scopes: {
         'https://example.com/': {
-          integrity: true
-        }
-      }
+          integrity: true,
+        },
+      },
     });
 
     assert.strictEqual(
@@ -211,7 +211,7 @@ const assert = require('assert');
   {
     const manifest = new Manifest({
       scopes: {
-      }
+      },
     });
 
     assert.throws(
@@ -225,9 +225,9 @@ const assert = require('assert');
     const manifest = new Manifest({
       scopes: {
         'blob:https://example.com/has-origin': {
-          cascade: true
-        }
-      }
+          cascade: true,
+        },
+      },
     });
 
     assert.throws(
@@ -241,14 +241,14 @@ const assert = require('assert');
     const manifest = new Manifest({
       resources: {
         'blob:https://example.com/has-origin': {
-          cascade: true
-        }
+          cascade: true,
+        },
       },
       scopes: {
         'https://example.com': {
-          integrity: true
-        }
-      }
+          integrity: true,
+        },
+      },
     });
 
     assert.strictEqual(
@@ -260,12 +260,12 @@ const assert = require('assert');
     const manifest = new Manifest({
       scopes: {
         'blob:': {
-          integrity: true
+          integrity: true,
         },
         'https://example.com': {
-          cascade: true
-        }
-      }
+          cascade: true,
+        },
+      },
     });
 
     assert.throws(
@@ -286,10 +286,10 @@ const assert = require('assert');
   const manifest = new Manifest({
     scopes: {
       'file:///': {
-        integrity: true
-      }
+        integrity: true,
+      },
     },
-    onerror: 'throw'
+    onerror: 'throw',
   });
   assert.throws(
     () => {
@@ -304,10 +304,10 @@ const assert = require('assert');
       new Manifest({
         scopes: {
           'file:///': {
-            integrity: true
-          }
+            integrity: true,
+          },
         },
-        onerror: 'unknown'
+        onerror: 'unknown',
       });
     },
     /ERR_MANIFEST_UNKNOWN_ONERROR/

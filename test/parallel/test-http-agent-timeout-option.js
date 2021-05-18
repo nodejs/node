@@ -10,7 +10,7 @@ const { Agent, get } = require('http');
 
 const request = get({
   agent: new Agent({ timeout: 50 }),
-  lookup: () => {}
+  lookup: () => {},
 });
 
 request.on('socket', mustCall((socket) => {

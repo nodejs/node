@@ -39,7 +39,7 @@ invalidUrls.forEach((invalid) => {
     () => { http.request(url.parse(invalid)); },
     {
       code: 'ERR_INVALID_PROTOCOL',
-      name: 'TypeError'
+      name: 'TypeError',
     }
   );
 });

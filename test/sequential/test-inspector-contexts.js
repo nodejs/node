@@ -84,7 +84,7 @@ async function testContextCreatedAndDestroyed() {
 
     vm.runInNewContext('1 + 1', {}, {
       contextName: 'Custom context',
-      contextOrigin: 'https://origin.example'
+      contextOrigin: 'https://origin.example',
     });
 
     const contextCreated = await vmContextCreatedPromise;

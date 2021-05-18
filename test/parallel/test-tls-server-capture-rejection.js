@@ -27,7 +27,7 @@ server.listen(0, common.mustCall(() => {
   const sock = connect({
     port: server.address().port,
     host: server.address().host,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   });
 
   sock.on('close', common.mustCall());

@@ -69,7 +69,7 @@ if (typeof Symbol !== 'undefined' && 'hasInstance' in Symbol &&
   Object.defineProperty(MyClass, Symbol.hasInstance, {
     value: function(candidate) {
       return 'mark' in candidate;
-    }
+    },
   });
 
   function MySubClass() {}

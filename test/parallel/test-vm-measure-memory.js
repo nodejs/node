@@ -3,7 +3,7 @@ const common = require('../common');
 const {
   assertSummaryShape,
   assertSingleDetailedShape,
-  expectExperimentalWarning
+  expectExperimentalWarning,
 } = require('../common/measure-memory');
 const assert = require('assert');
 const vm = require('vm');
@@ -22,15 +22,15 @@ expectExperimentalWarning();
     .then(common.mustCall(assertSummaryShape));
 
   assert.throws(() => vm.measureMemory(null), {
-    code: 'ERR_INVALID_ARG_TYPE'
+    code: 'ERR_INVALID_ARG_TYPE',
   });
   assert.throws(() => vm.measureMemory('summary'), {
-    code: 'ERR_INVALID_ARG_TYPE'
+    code: 'ERR_INVALID_ARG_TYPE',
   });
   assert.throws(() => vm.measureMemory({ mode: 'random' }), {
-    code: 'ERR_INVALID_ARG_VALUE'
+    code: 'ERR_INVALID_ARG_VALUE',
   });
   assert.throws(() => vm.measureMemory({ execution: 'random' }), {
-    code: 'ERR_INVALID_ARG_VALUE'
+    code: 'ERR_INVALID_ARG_VALUE',
   });
 }

@@ -26,7 +26,7 @@ const TYPE = 'udp4';
     }, {
       code: 'EEXIST',
       name: 'Error',
-      message: /^open EEXIST$/
+      message: /^open EEXIST$/,
     });
 
     socket.close();
@@ -49,7 +49,7 @@ const TYPE = 'udp4';
   }, {
     code: 'ERR_INVALID_FD_TYPE',
     name: 'TypeError',
-    message: /^Unsupported fd type: TCP$/
+    message: /^Unsupported fd type: TCP$/,
   });
 
   handle.close();

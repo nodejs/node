@@ -11,105 +11,105 @@ const {
   createSecretKey,
   hkdf,
   hkdfSync,
-  getHashes
+  getHashes,
 } = require('crypto');
 
 {
   [1, {}, [], false, Infinity].forEach((i) => {
     assert.throws(() => hkdf(i, 'a'), {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /^The "digest" argument must be of type string/
+      message: /^The "digest" argument must be of type string/,
     });
     assert.throws(() => hkdfSync(i, 'a'), {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /^The "digest" argument must be of type string/
+      message: /^The "digest" argument must be of type string/,
     });
   });
 
   [1, {}, [], false, Infinity].forEach((i) => {
     assert.throws(() => hkdf('sha256', i), {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /^The "key" argument must be /
+      message: /^The "key" argument must be /,
     });
     assert.throws(() => hkdfSync('sha256', i), {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /^The "key" argument must be /
+      message: /^The "key" argument must be /,
     });
   });
 
   [1, {}, [], false, Infinity].forEach((i) => {
     assert.throws(() => hkdf('sha256', 'secret', i), {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /^The "salt" argument must be /
+      message: /^The "salt" argument must be /,
     });
     assert.throws(() => hkdfSync('sha256', 'secret', i), {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /^The "salt" argument must be /
+      message: /^The "salt" argument must be /,
     });
   });
 
   [1, {}, [], false, Infinity].forEach((i) => {
     assert.throws(() => hkdf('sha256', 'secret', 'salt', i), {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /^The "info" argument must be /
+      message: /^The "info" argument must be /,
     });
     assert.throws(() => hkdfSync('sha256', 'secret', 'salt', i), {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /^The "info" argument must be /
+      message: /^The "info" argument must be /,
     });
   });
 
   ['test', {}, [], false].forEach((i) => {
     assert.throws(() => hkdf('sha256', 'secret', 'salt', 'info', i), {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /^The "length" argument must be of type number/
+      message: /^The "length" argument must be of type number/,
     });
     assert.throws(() => hkdfSync('sha256', 'secret', 'salt', 'info', i), {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /^The "length" argument must be of type number/
+      message: /^The "length" argument must be of type number/,
     });
   });
 
   assert.throws(() => hkdf('sha256', 'secret', 'salt', 'info', -1), {
-    code: 'ERR_OUT_OF_RANGE'
+    code: 'ERR_OUT_OF_RANGE',
   });
   assert.throws(() => hkdfSync('sha256', 'secret', 'salt', 'info', -1), {
-    code: 'ERR_OUT_OF_RANGE'
+    code: 'ERR_OUT_OF_RANGE',
   });
   assert.throws(() => hkdf('sha256', 'secret', 'salt', 'info',
                            kMaxLength + 1), {
-    code: 'ERR_OUT_OF_RANGE'
+    code: 'ERR_OUT_OF_RANGE',
   });
   assert.throws(() => hkdfSync('sha256', 'secret', 'salt', 'info',
                                kMaxLength + 1), {
-    code: 'ERR_OUT_OF_RANGE'
+    code: 'ERR_OUT_OF_RANGE',
   });
 
   assert.throws(() => hkdfSync('unknown', 'a', '', '', 10), {
-    code: 'ERR_CRYPTO_INVALID_DIGEST'
+    code: 'ERR_CRYPTO_INVALID_DIGEST',
   });
 
   assert.throws(() => hkdf('unknown', 'a', '', '', 10, common.mustNotCall()), {
-    code: 'ERR_CRYPTO_INVALID_DIGEST'
+    code: 'ERR_CRYPTO_INVALID_DIGEST',
   });
 
   assert.throws(() => hkdf('unknown', 'a', '', Buffer.alloc(1025), 10,
                            common.mustNotCall()), {
-    code: 'ERR_OUT_OF_RANGE'
+    code: 'ERR_OUT_OF_RANGE',
   });
 
   assert.throws(() => hkdfSync('unknown', 'a', '', Buffer.alloc(1025), 10), {
-    code: 'ERR_OUT_OF_RANGE'
+    code: 'ERR_OUT_OF_RANGE',
   });
 
   assert.throws(
     () => hkdf('sha512', 'a', '', '', 64 * 255 + 1, common.mustNotCall()), {
-      code: 'ERR_CRYPTO_INVALID_KEYLEN'
+      code: 'ERR_CRYPTO_INVALID_KEYLEN',
     });
 
   assert.throws(
     () => hkdfSync('sha512', 'a', '', '', 64 * 255 + 1), {
-      code: 'ERR_CRYPTO_INVALID_KEYLEN'
+      code: 'ERR_CRYPTO_INVALID_KEYLEN',
     });
 }
 

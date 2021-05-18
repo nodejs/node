@@ -10,7 +10,7 @@ const http2 = require('http2');
 
 const serverOptions = {
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 };
 const server = http2.createSecureServer(serverOptions, common.mustCall(
   (req, res) => {
@@ -24,7 +24,7 @@ server.listen(common.mustCall(() => {
   const port = server.address().port;
   const client = http2.connect('https://localhost:' + port, {
     ca: fixtures.readKey('agent1-cert.pem'),
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   });
   const req = client.request({});
   req.on('response', common.mustCall((headers, flags) => {

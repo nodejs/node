@@ -17,8 +17,8 @@ const sampleBuffer = fixtures.readSync('/pss-vectors.json');
     quality++) {
     const encoded = zlib.brotliCompressSync(sampleBuffer, {
       params: {
-        [zlib.constants.BROTLI_PARAM_QUALITY]: quality
-      }
+        [zlib.constants.BROTLI_PARAM_QUALITY]: quality,
+      },
     });
     sizes.push(encoded.length);
   }
@@ -35,13 +35,13 @@ const sampleBuffer = fixtures.readSync('/pss-vectors.json');
   assert.throws(() => {
     zlib.createBrotliCompress({
       params: {
-        10000: 0
-      }
+        10000: 0,
+      },
     });
   }, {
     code: 'ERR_BROTLI_INVALID_PARAM',
     name: 'RangeError',
-    message: '10000 is not a valid Brotli parameter'
+    message: '10000 is not a valid Brotli parameter',
   });
 
   // Test that accidentally using duplicate keys fails.
@@ -49,26 +49,26 @@ const sampleBuffer = fixtures.readSync('/pss-vectors.json');
     zlib.createBrotliCompress({
       params: {
         '0': 0,
-        '00': 0
-      }
+        '00': 0,
+      },
     });
   }, {
     code: 'ERR_BROTLI_INVALID_PARAM',
     name: 'RangeError',
-    message: '00 is not a valid Brotli parameter'
+    message: '00 is not a valid Brotli parameter',
   });
 
   assert.throws(() => {
     zlib.createBrotliCompress({
       params: {
         // This is a boolean flag
-        [zlib.constants.BROTLI_PARAM_DISABLE_LITERAL_CONTEXT_MODELING]: 42
-      }
+        [zlib.constants.BROTLI_PARAM_DISABLE_LITERAL_CONTEXT_MODELING]: 42,
+      },
     });
   }, {
     code: 'ERR_ZLIB_INITIALIZATION_FAILED',
     name: 'Error',
-    message: 'Initialization failed'
+    message: 'Initialization failed',
   });
 }
 

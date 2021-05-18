@@ -41,7 +41,7 @@ server.listen(0, common.mustCall(() => {
     ':path': '/foobar',
     ':method': 'POST',
     ':scheme': 'http',
-    ':authority': `localhost:${port}`
+    ':authority': `localhost:${port}`,
   });
   request.resume();
   request.end(testStr);

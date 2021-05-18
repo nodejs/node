@@ -41,7 +41,7 @@ const env = {
   'DUPLICATE': 'uppercase',
 };
 Object.setPrototypeOf(env, {
-  'FOO': 'BAR'
+  'FOO': 'BAR',
 });
 
 let child;

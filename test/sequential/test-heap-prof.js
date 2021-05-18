@@ -63,7 +63,7 @@ const TEST_ALLOCATION = kHeapProfInterval * 2;
 const env = {
   ...process.env,
   TEST_ALLOCATION,
-  NODE_DEBUG_NATIVE: 'INSPECTOR_PROFILER'
+  NODE_DEBUG_NATIVE: 'INSPECTOR_PROFILER',
 };
 
 // Test --heap-prof without --heap-prof-interval. Here we just verify that
@@ -75,7 +75,7 @@ const env = {
     fixtures.path('workload', 'allocation.js'),
   ], {
     cwd: tmpdir.path,
-    env
+    env,
   });
   if (output.status !== 0) {
     console.log(output.stderr.toString());
@@ -97,7 +97,7 @@ const env = {
     fixtures.path('workload', 'allocation.js'),
   ], {
     cwd: tmpdir.path,
-    env
+    env,
   });
   if (output.status !== 0) {
     console.log(output.stderr.toString());
@@ -119,7 +119,7 @@ const env = {
     fixtures.path('workload', 'allocation-exit.js'),
   ], {
     cwd: tmpdir.path,
-    env
+    env,
   });
   if (output.status !== 55) {
     console.log(output.stderr.toString());
@@ -140,7 +140,7 @@ const env = {
     fixtures.path('workload', 'allocation-sigint.js'),
   ], {
     cwd: tmpdir.path,
-    env
+    env,
   });
   if (!common.isWindows) {
     if (output.signal !== 'SIGINT') {
@@ -162,8 +162,8 @@ const env = {
     cwd: tmpdir.path,
     env: {
       ...process.env,
-      HEAP_PROF_INTERVAL: '128'
-    }
+      HEAP_PROF_INTERVAL: '128',
+    },
   });
   if (output.status !== 0) {
     console.log(output.stderr.toString());
@@ -183,7 +183,7 @@ const env = {
     fixtures.path('workload', 'allocation.js'),
   ], {
     cwd: tmpdir.path,
-    env
+    env,
   });
   const stderr = output.stderr.toString().trim();
   if (output.status !== 9) {
@@ -204,7 +204,7 @@ const env = {
     fixtures.path('workload', 'allocation.js'),
   ], {
     cwd: tmpdir.path,
-    env
+    env,
   });
   const stderr = output.stderr.toString().trim();
   if (output.status !== 9) {
@@ -225,7 +225,7 @@ const env = {
     fixtures.path('workload', 'allocation.js'),
   ], {
     cwd: tmpdir.path,
-    env
+    env,
   });
   const stderr = output.stderr.toString().trim();
   if (output.status !== 9) {
@@ -251,7 +251,7 @@ const env = {
     fixtures.path('workload', 'allocation.js'),
   ], {
     cwd: tmpdir.path,
-    env
+    env,
   });
   if (output.status !== 0) {
     console.log(output.stderr.toString());
@@ -274,7 +274,7 @@ const env = {
     fixtures.path('workload', 'allocation.js'),
   ], {
     cwd: tmpdir.path,
-    env
+    env,
   });
   if (output.status !== 0) {
     console.log(output.stderr.toString());
@@ -300,7 +300,7 @@ const env = {
     fixtures.path('workload', 'allocation.js'),
   ], {
     cwd: tmpdir.path,
-    env
+    env,
   });
   if (output.status !== 0) {
     console.log(output.stderr.toString());
@@ -328,7 +328,7 @@ const env = {
     fixtures.path('workload', 'allocation.js'),
   ], {
     cwd: tmpdir.path,
-    env
+    env,
   });
   if (output.status !== 0) {
     console.log(output.stderr.toString());
@@ -351,7 +351,7 @@ const env = {
     fixtures.path('workload', 'allocation-worker.js'),
   ], {
     cwd: tmpdir.path,
-    env
+    env,
   });
   if (output.status !== 0) {
     console.log(output.stderr.toString());

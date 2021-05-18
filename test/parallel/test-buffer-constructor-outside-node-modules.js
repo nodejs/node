@@ -19,11 +19,11 @@ process.addListener('warning', common.mustCall((warning) => {
 }));
 
 vm.runInNewContext('new Buffer(10)', { Buffer }, {
-  filename: '/a/node_modules/b'
+  filename: '/a/node_modules/b',
 });
 
 common.expectWarning('DeprecationWarning', bufferWarning, 'DEP0005');
 
 vm.runInNewContext('new Buffer(10)', { Buffer }, {
-  filename: '/this_should_emit_a_warning'
+  filename: '/this_should_emit_a_warning',
 });

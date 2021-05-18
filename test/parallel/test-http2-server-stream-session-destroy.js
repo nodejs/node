@@ -22,7 +22,7 @@ server.on('stream', common.mustCall((stream) => {
   const invalidStreamError = {
     name: 'Error',
     code: 'ERR_HTTP2_INVALID_STREAM',
-    message: 'The stream has been destroyed'
+    message: 'The stream has been destroyed',
   };
   assert.throws(() => stream.additionalHeaders(), invalidStreamError);
   assert.throws(() => stream.priority(), invalidStreamError);
@@ -31,7 +31,7 @@ server.on('stream', common.mustCall((stream) => {
     () => stream.pushStream({}, common.mustNotCall()),
     {
       code: 'ERR_HTTP2_PUSH_DISABLED',
-      name: 'Error'
+      name: 'Error',
     }
   );
   // When session is detroyed all streams are destroyed and no further
@@ -40,7 +40,7 @@ server.on('stream', common.mustCall((stream) => {
   assert.strictEqual(stream.write('data', common.expectsError({
     name: 'Error',
     code: 'ERR_STREAM_WRITE_AFTER_END',
-    message: 'write after end'
+    message: 'write after end',
   })), false);
 }));
 

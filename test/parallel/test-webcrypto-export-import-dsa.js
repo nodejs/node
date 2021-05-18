@@ -75,7 +75,7 @@ async function testImportSpki({ name, publicUsages }, size, hash, extractable) {
   } else {
     await assert.rejects(
       subtle.exportKey('spki', key), {
-        message: /key is not extractable/
+        message: /key is not extractable/,
       });
   }
 }
@@ -107,7 +107,7 @@ async function testImportPkcs8(
   } else {
     await assert.rejects(
       subtle.exportKey('pkcs8', key), {
-        message: /key is not extractable/
+        message: /key is not extractable/,
       });
   }
 }
@@ -117,7 +117,7 @@ const testVectors = [
   {
     name: 'NODE-DSA',
     privateUsages: ['sign'],
-    publicUsages: ['verify']
+    publicUsages: ['verify'],
   },
 ];
 

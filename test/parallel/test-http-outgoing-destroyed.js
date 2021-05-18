@@ -15,7 +15,7 @@ const server = http.createServer(common.mustCall((req, res) => {
   http
     .request({
       port: server.address().port,
-      method: 'PUT'
+      method: 'PUT',
     })
     .on('response', (res) => {
       res.destroy();

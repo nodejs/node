@@ -34,7 +34,7 @@ const harnessMock = {
   assert_array_equals: assert.deepStrictEqual,
   assert_unreached(desc) {
     assert.fail(`Reached unreachable code: ${desc}`);
-  }
+  },
 };
 
 class ResourceLoader {
@@ -70,7 +70,7 @@ class ResourceLoader {
           return {
             ok: true,
             json() { return JSON.parse(data.toString()); },
-            text() { return data.toString(); }
+            text() { return data.toString(); },
           };
         });
     }
@@ -352,14 +352,14 @@ class WPTRunner {
         for (const script of meta.script) {
           scriptsToRun.push({
             filename: this.resource.toRealFilePath(relativePath, script),
-            code: this.resource.read(relativePath, script, false)
+            code: this.resource.read(relativePath, script, false),
           });
         }
       }
       // The actual test
       scriptsToRun.push({
         code: content,
-        filename: absolutePath
+        filename: absolutePath,
       });
 
       const workerPath = path.join(__dirname, 'wpt/worker.js');
@@ -402,7 +402,7 @@ class WPTRunner {
             status: NODE_UNCAUGHT,
             name: 'evaluation in WPTRunner.runJsTests()',
             message: err.message,
-            stack: inspect(err)
+            stack: inspect(err),
           },
           kUncaught
         );
@@ -555,7 +555,7 @@ class WPTRunner {
     this.addTestResult(filename, {
       expected,
       status: kFail,
-      reason: test.message || status
+      reason: test.message || status,
     });
   }
 
@@ -566,7 +566,7 @@ class WPTRunner {
     console.log(`[SKIPPED] ${joinedReasons}`);
     this.addTestResult(filename, {
       status: kSkip,
-      reason: joinedReasons
+      reason: joinedReasons,
     });
   }
 
@@ -617,5 +617,5 @@ class WPTRunner {
 module.exports = {
   harness: harnessMock,
   ResourceLoader,
-  WPTRunner
+  WPTRunner,
 };

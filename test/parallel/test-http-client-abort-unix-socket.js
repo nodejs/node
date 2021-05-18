@@ -18,7 +18,7 @@ tmpdir.refresh();
 server.listen(common.PIPE, common.mustCall(() => {
   const req = http.get({
     agent: new Agent(),
-    socketPath: common.PIPE
+    socketPath: common.PIPE,
   });
 
   req.abort();

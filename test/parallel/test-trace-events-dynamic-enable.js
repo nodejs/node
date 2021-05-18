@@ -10,8 +10,8 @@ const { internalBinding } = require('internal/test/binding');
 
 const {
   trace: {
-    TRACE_EVENT_PHASE_NESTABLE_ASYNC_BEGIN: kBeforeEvent
-  }
+    TRACE_EVENT_PHASE_NESTABLE_ASYNC_BEGIN: kBeforeEvent,
+  },
 } = internalBinding('constants');
 
 const { trace } = internalBinding('trace_events');

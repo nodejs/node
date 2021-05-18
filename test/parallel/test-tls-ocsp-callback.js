@@ -44,7 +44,7 @@ function test(testOptions, cb) {
   const options = {
     key,
     cert,
-    ca: [ca]
+    ca: [ca],
   };
   const requestCount = testOptions.response ? 0 : 1;
 
@@ -86,7 +86,7 @@ function test(testOptions, cb) {
       port: this.address().port,
       requestOCSP: testOptions.ocsp,
       secureOptions: testOptions.ocsp ? 0 : SSL_OP_NO_TICKET,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     }, common.mustCall(() => { }, requestCount));
 
     client.on('OCSPResponse', common.mustCall((resp) => {

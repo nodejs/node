@@ -12,7 +12,7 @@ class MyServerResponse extends h2.Http2ServerResponse {
 }
 
 const server = h2.createServer({
-  Http2ServerResponse: MyServerResponse
+  Http2ServerResponse: MyServerResponse,
 }, (req, res) => {
   res.status(200);
   res.end();

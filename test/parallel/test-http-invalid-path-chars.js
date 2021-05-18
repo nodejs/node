@@ -14,7 +14,7 @@ for (let i = 0; i <= theExperimentallyDeterminedNumber; i++) {
     }, {
       code: 'ERR_UNESCAPED_CHARACTERS',
       name: 'TypeError',
-      message: 'Request path contains unescaped characters'
+      message: 'Request path contains unescaped characters',
     });
   }
 }

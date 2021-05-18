@@ -6,7 +6,7 @@ const fixtures = require('../common/fixtures');
 
 const assert = require('assert');
 const {
-  connect, keys, tls
+  connect, keys, tls,
 } = require(fixtures.path('tls-connect'));
 
 test(undefined, (err) => {

@@ -32,7 +32,7 @@ validateNormalizedArgs([{ port: 1234 }, assert.fail], res);
     assert.throws(() => {
       socket.connect([{ port }, assert.fail]);
     }, {
-      code: 'ERR_MISSING_ARGS'
+      code: 'ERR_MISSING_ARGS',
     });
     server.close();
   }));

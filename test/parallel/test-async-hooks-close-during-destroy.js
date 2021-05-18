@@ -27,7 +27,7 @@ async_hooks.createHook({
         assert.fail('More than 2 destroy() invocations');
         break;
     }
-  }, 2)
+  }, 2),
 }).enable();
 
 const res1 = new async_hooks.AsyncResource('foobar');

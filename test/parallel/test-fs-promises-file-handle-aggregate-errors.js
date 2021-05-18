@@ -46,7 +46,7 @@ async function checkAggregateError(op) {
         const opError = new Error('INTERNAL_ERROR');
         opError.code = 123;
         throw opError;
-      }
+      },
     });
 
     await assert.rejects(op(filePath), common.mustCall((err) => {

@@ -22,7 +22,7 @@ function test(host) {
       const throws = () => { modules[module][fn](host, doNotCall); };
       assert.throws(throws, {
         name: 'TypeError',
-        code: 'ERR_INVALID_URL'
+        code: 'ERR_INVALID_URL',
       });
     });
   });

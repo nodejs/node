@@ -6,11 +6,11 @@ const vm = require('vm');
 const assert = require('assert');
 
 let base = {
-  propBase: 1
+  propBase: 1,
 };
 
 let sandbox = Object.create(base, {
-  propSandbox: { value: 3 }
+  propSandbox: { value: 3 },
 });
 
 const context = vm.createContext(sandbox);

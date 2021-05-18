@@ -15,7 +15,7 @@ for (const method of ['abort', 'destroy']) {
     const req = http
       .request({
         port: server.address().port,
-        agent
+        agent,
       })
       .on('socket', common.mustCall((socket) => {
         socket.on('free', common.mustCall());

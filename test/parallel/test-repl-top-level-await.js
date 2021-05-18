@@ -61,7 +61,7 @@ const testMe = repl.start({
   stream: putIn,
   terminal: true,
   useColors: true,
-  breakEvalOnSigint: true
+  breakEvalOnSigint: true,
 });
 
 function runAndWait(cmds) {

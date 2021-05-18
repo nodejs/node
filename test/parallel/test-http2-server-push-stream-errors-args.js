@@ -22,7 +22,7 @@ server.on('stream', common.mustCall((stream, headers) => {
     }, {}, 'callback'),
     {
       code: 'ERR_INVALID_CALLBACK',
-      message: "Callback must be a function. Received 'callback'"
+      message: "Callback must be a function. Received 'callback'",
     }
   );
 
@@ -32,7 +32,7 @@ server.on('stream', common.mustCall((stream, headers) => {
     {
       code: 'ERR_HTTP2_INVALID_CONNECTION_HEADERS',
       name: 'TypeError',
-      message: 'HTTP/1 Connection specific headers are forbidden: "connection"'
+      message: 'HTTP/1 Connection specific headers are forbidden: "connection"',
     }
   );
 

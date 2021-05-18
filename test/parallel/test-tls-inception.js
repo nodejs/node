@@ -33,7 +33,7 @@ const net = require('net');
 
 const options = {
   key: fixtures.readKey('rsa_private.pem'),
-  cert: fixtures.readKey('rsa_cert.crt')
+  cert: fixtures.readKey('rsa_cert.crt'),
 };
 
 const body = 'A'.repeat(40000);
@@ -43,7 +43,7 @@ const a = tls.createServer(options, function(socket) {
   const myOptions = {
     host: '127.0.0.1',
     port: b.address().port,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   };
   const dest = net.connect(myOptions);
   dest.pipe(socket);
@@ -64,12 +64,12 @@ a.listen(0, function() {
     const myOptions = {
       host: '127.0.0.1',
       port: a.address().port,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     };
     const socket = tls.connect(myOptions);
     const ssl = tls.connect({
       socket: socket,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     });
     ssl.setEncoding('utf8');
     let buf = '';

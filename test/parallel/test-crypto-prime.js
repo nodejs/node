@@ -19,55 +19,55 @@ const pCheckPrime = promisify(checkPrime);
 
 ['hello', false, {}, []].forEach((i) => {
   assert.throws(() => generatePrime(i), {
-    code: 'ERR_INVALID_ARG_TYPE'
+    code: 'ERR_INVALID_ARG_TYPE',
   });
   assert.throws(() => generatePrimeSync(i), {
-    code: 'ERR_INVALID_ARG_TYPE'
+    code: 'ERR_INVALID_ARG_TYPE',
   });
 });
 
 ['hello', false, 123].forEach((i) => {
   assert.throws(() => generatePrime(80, i, common.mustNotCall()), {
-    code: 'ERR_INVALID_ARG_TYPE'
+    code: 'ERR_INVALID_ARG_TYPE',
   });
   assert.throws(() => generatePrimeSync(80, i), {
-    code: 'ERR_INVALID_ARG_TYPE'
+    code: 'ERR_INVALID_ARG_TYPE',
   });
 });
 
 ['hello', false, 123].forEach((i) => {
   assert.throws(() => generatePrime(80, {}), {
-    code: 'ERR_INVALID_CALLBACK'
+    code: 'ERR_INVALID_CALLBACK',
   });
 });
 
 [-1, 0].forEach((i) => {
   assert.throws(() => generatePrime(i, common.mustNotCall()), {
-    code: 'ERR_OUT_OF_RANGE'
+    code: 'ERR_OUT_OF_RANGE',
   });
   assert.throws(() => generatePrimeSync(i), {
-    code: 'ERR_OUT_OF_RANGE'
+    code: 'ERR_OUT_OF_RANGE',
   });
 });
 
 ['test', -1, {}, []].forEach((i) => {
   assert.throws(() => generatePrime(8, { safe: i }, common.mustNotCall()), {
-    code: 'ERR_INVALID_ARG_TYPE'
+    code: 'ERR_INVALID_ARG_TYPE',
   });
   assert.throws(() => generatePrime(8, { rem: i }, common.mustNotCall()), {
-    code: 'ERR_INVALID_ARG_TYPE'
+    code: 'ERR_INVALID_ARG_TYPE',
   });
   assert.throws(() => generatePrime(8, { add: i }, common.mustNotCall()), {
-    code: 'ERR_INVALID_ARG_TYPE'
+    code: 'ERR_INVALID_ARG_TYPE',
   });
   assert.throws(() => generatePrimeSync(8, { safe: i }), {
-    code: 'ERR_INVALID_ARG_TYPE'
+    code: 'ERR_INVALID_ARG_TYPE',
   });
   assert.throws(() => generatePrimeSync(8, { rem: i }), {
-    code: 'ERR_INVALID_ARG_TYPE'
+    code: 'ERR_INVALID_ARG_TYPE',
   });
   assert.throws(() => generatePrimeSync(8, { add: i }), {
-    code: 'ERR_INVALID_ARG_TYPE'
+    code: 'ERR_INVALID_ARG_TYPE',
   });
 });
 
@@ -77,19 +77,19 @@ const pCheckPrime = promisify(checkPrime);
   assert.throws(() => generatePrime(20, { add: -1n }, common.mustNotCall()), {
     code: 'ERR_OUT_OF_RANGE',
     message: 'The value of "options.add" is out of range. It must be >= 0. ' +
-             'Received -1n'
+             'Received -1n',
   });
 
   assert.throws(() => generatePrime(20, { rem: -1n }, common.mustNotCall()), {
     code: 'ERR_OUT_OF_RANGE',
     message: 'The value of "options.rem" is out of range. It must be >= 0. ' +
-             'Received -1n'
+             'Received -1n',
   });
 
   assert.throws(() => checkPrime(-1n, common.mustNotCall()), {
     code: 'ERR_OUT_OF_RANGE',
     message: 'The value of "candidate" is out of range. It must be >= 0. ' +
-             'Received -1n'
+             'Received -1n',
   });
 }
 
@@ -164,7 +164,7 @@ generatePrime(
   if (process.versions.openssl >= '1.1.1f') {
     generatePrime(128, {
       bigint: true,
-      add: 5n
+      add: 5n,
     }, common.mustSucceed((prime) => {
       assert(checkPrimeSync(prime));
       assert.strictEqual(prime % 5n, 1n);
@@ -173,7 +173,7 @@ generatePrime(
     generatePrime(128, {
       bigint: true,
       safe: true,
-      add: 5n
+      add: 5n,
     }, common.mustSucceed((prime) => {
       assert(checkPrimeSync(prime));
       assert.strictEqual(prime % 5n, 3n);
@@ -189,7 +189,7 @@ generatePrime(
       generatePrimeSync(64, { add });
     }, {
       code: 'ERR_OUT_OF_RANGE',
-      message: 'invalid options.add'
+      message: 'invalid options.add',
     });
   }
 
@@ -199,7 +199,7 @@ generatePrime(
       generatePrimeSync(64, { add: 7n, rem });
     }, {
       code: 'ERR_OUT_OF_RANGE',
-      message: 'invalid options.rem'
+      message: 'invalid options.rem',
     });
   }
 
@@ -208,7 +208,7 @@ generatePrime(
   assert.throws(() => {
     generatePrimeSync(3, { add: 8n, rem: 7n });
   }, {
-    code: 'ERR_OUT_OF_RANGE'
+    code: 'ERR_OUT_OF_RANGE',
   });
 
   if (process.versions.openssl >= '1.1.1f') {
@@ -216,23 +216,23 @@ generatePrime(
     assert.strictEqual(generatePrimeSync(4, {
       add: 15n,
       rem: 13n,
-      bigint: true
+      bigint: true,
     }), 13n);
   }
 }
 
 [1, 'hello', {}, []].forEach((i) => {
   assert.throws(() => checkPrime(i), {
-    code: 'ERR_INVALID_ARG_TYPE'
+    code: 'ERR_INVALID_ARG_TYPE',
   });
 });
 
 ['hello', {}, []].forEach((i) => {
   assert.throws(() => checkPrime(2, { checks: i }), {
-    code: 'ERR_INVALID_ARG_TYPE'
+    code: 'ERR_INVALID_ARG_TYPE',
   }, common.mustNotCall());
   assert.throws(() => checkPrimeSync(2, { checks: i }), {
-    code: 'ERR_INVALID_ARG_TYPE'
+    code: 'ERR_INVALID_ARG_TYPE',
   });
 });
 
@@ -247,7 +247,7 @@ assert(
     {
       fast: true,
       trialDivision: true,
-      checks: 10
+      checks: 10,
     }));
 
 (async function() {

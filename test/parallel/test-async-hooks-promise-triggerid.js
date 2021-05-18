@@ -23,7 +23,7 @@ async_hooks.createHook({
   }),
   after: common.mustCall((id) => {
     assert.strictEqual(id, promiseAsyncIds[1]);
-  })
+  }),
 }).enable();
 
 Promise.resolve(42).then(common.mustCall(() => {

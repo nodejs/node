@@ -6,7 +6,7 @@ if (!common.hasCrypto)
 
 const {
   getCiphers,
-  getCipherInfo
+  getCipherInfo,
 } = require('crypto');
 
 const assert = require('assert');
@@ -33,25 +33,25 @@ assert.strictEqual(info.mode, 'cbc');
 
 [null, undefined, [], {}].forEach((arg) => {
   assert.throws(() => getCipherInfo(arg), {
-    code: 'ERR_INVALID_ARG_TYPE'
+    code: 'ERR_INVALID_ARG_TYPE',
   });
 });
 
 [null, '', 1, true].forEach((options) => {
   assert.throws(
     () => getCipherInfo('aes-192-cbc', options), {
-      code: 'ERR_INVALID_ARG_TYPE'
+      code: 'ERR_INVALID_ARG_TYPE',
     });
 });
 
 [null, '', {}, [], true].forEach((len) => {
   assert.throws(
     () => getCipherInfo('aes-192-cbc', { keyLength: len }), {
-      code: 'ERR_INVALID_ARG_TYPE'
+      code: 'ERR_INVALID_ARG_TYPE',
     });
   assert.throws(
     () => getCipherInfo('aes-192-cbc', { ivLength: len }), {
-      code: 'ERR_INVALID_ARG_TYPE'
+      code: 'ERR_INVALID_ARG_TYPE',
     });
 });
 

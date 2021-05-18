@@ -16,7 +16,7 @@ for (const variant of ['ping', 'settings']) {
   server.on('session', common.mustCall((session) => {
     if (variant === 'ping') {
       session.ping(common.expectsError({
-        code: 'ERR_HTTP2_PING_CANCEL'
+        code: 'ERR_HTTP2_PING_CANCEL',
       }));
     } else {
       session.settings(undefined, common.mustNotCall());

@@ -12,7 +12,7 @@ function fail(value) {
     },
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError'
+      name: 'TypeError',
     });
 }
 
@@ -23,7 +23,7 @@ function failAsync(value) {
     },
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError'
+      name: 'TypeError',
     });
 }
 

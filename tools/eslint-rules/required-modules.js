@@ -66,7 +66,7 @@ module.exports = function(context) {
           );
         });
       }
-    }
+    },
   };
 
   if (isESM) {
@@ -95,7 +95,7 @@ module.exports.meta = {
   schema: [{
     'type': 'object',
     'additionalProperties': {
-      'type': 'string'
+      'type': 'string',
     },
   }],
 };

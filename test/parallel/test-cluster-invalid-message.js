@@ -14,7 +14,7 @@ if (cluster.isPrimary) {
   worker.on('online', () => {
     worker.send({
       cmd: 'NODE_CLUSTER',
-      ack: -1
+      ack: -1,
     }, () => {
       worker.disconnect();
     });

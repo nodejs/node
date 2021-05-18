@@ -12,7 +12,7 @@ server1.listen(0, common.mustCall(() => {
   assert.throws(() => {
     session.request({ 'no underscore': 123 });
   }, {
-    code: 'ERR_INVALID_HTTP_TOKEN'
+    code: 'ERR_INVALID_HTTP_TOKEN',
   });
   session.on('error', common.mustCall((e) => {
     assert.strictEqual(e.code, 'ERR_INVALID_HTTP_TOKEN');
@@ -25,7 +25,7 @@ const server2 = http2.createServer(common.mustCall((req, res) => {
   assert.throws(() => {
     res.setHeader('x y z', 123);
   }, {
-    code: 'ERR_INVALID_HTTP_TOKEN'
+    code: 'ERR_INVALID_HTTP_TOKEN',
   });
   res.end();
 }));
@@ -43,10 +43,10 @@ const server3 = http2.createServer(common.mustCall((req, res) => {
   // check for writeHead
   assert.throws(common.mustCall(() => {
     res.writeHead(200, {
-      'an invalid header': 123
+      'an invalid header': 123,
     });
   }), {
-    code: 'ERR_INVALID_HTTP_TOKEN'
+    code: 'ERR_INVALID_HTTP_TOKEN',
   });
   res.end();
 }));

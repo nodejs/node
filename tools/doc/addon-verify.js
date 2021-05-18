@@ -70,7 +70,7 @@ ${files[name].replace(
     return {
       path: resolve(dir, name),
       name: name,
-      content: files[name]
+      content: files[name],
     };
   });
 
@@ -83,8 +83,8 @@ ${files[name].replace(
           sources: files.map(({ name }) => name),
           includes: ['../common.gypi'],
         },
-      ]
-    })
+      ],
+    }),
   });
 
   mkdir(dir, () => {

@@ -28,7 +28,7 @@ invalidTypes.forEach((invalidType) => {
   }, {
     code: 'ERR_SOCKET_BAD_TYPE',
     name: 'TypeError',
-    message: errMessage
+    message: errMessage,
   });
 });
 
@@ -43,7 +43,7 @@ validTypes.forEach((validType) => {
   const socket = dgram.createSocket({
     type: 'udp4',
     recvBufferSize: 10000,
-    sendBufferSize: 15000
+    sendBufferSize: 15000,
   });
 
   socket.bind(common.mustCall(() => {

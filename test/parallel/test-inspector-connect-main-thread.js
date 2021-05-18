@@ -44,7 +44,7 @@ async function waitForNotification(session, notification) {
 function startWorker(skipChild, sharedBuffer) {
   return new Promise((resolve) => {
     const worker = new Worker(__filename, {
-      workerData: { skipChild, sharedBuffer }
+      workerData: { skipChild, sharedBuffer },
     });
     worker.on('error', (e) => {
       console.error(e);
@@ -127,7 +127,7 @@ async function childMain() {
     'lineNumber': 18,
     'url': pathToFileURL(path.resolve(__dirname, __filename)).toString(),
     'columnNumber': 0,
-    'condition': ''
+    'condition': '',
   });
   const pausedPromise = waitForNotification(session, 'Debugger.paused');
   parentPort.postMessage('Ready');

@@ -13,7 +13,7 @@ const assert = require('assert');
   const writable = new Writable({
     write: common.mustCall((buf, enc, cb) => {
       cb(new Error());
-    })
+    }),
   });
   writable.on('error', common.mustCall(() => {
     assert.strictEqual(callbackCalled, true);
@@ -29,7 +29,7 @@ const assert = require('assert');
   const writable = new Writable({
     write: common.mustCall((buf, enc, cb) => {
       process.nextTick(cb, new Error());
-    })
+    }),
   });
   writable.on('error', common.mustCall(() => {
     assert.strictEqual(callbackCalled, true);
@@ -44,7 +44,7 @@ const assert = require('assert');
   const writable = new Writable({
     write: common.mustCall((buf, enc, cb) => {
       cb(new Error());
-    })
+    }),
   });
 
   writable.on('error', common.mustCall());

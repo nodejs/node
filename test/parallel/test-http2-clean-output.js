@@ -3,27 +3,27 @@
 const {
   hasCrypto,
   mustCall,
-  skip
+  skip,
 } = require('../common');
 if (!hasCrypto)
   skip('missing crypto');
 
 const {
-  strictEqual
+  strictEqual,
 } = require('assert');
 const {
   createServer,
-  connect
+  connect,
 } = require('http2');
 const {
-  spawnSync
+  spawnSync,
 } = require('child_process');
 
 // Validate that there is no unexpected output when
 // using http2
 if (process.argv[2] !== 'child') {
   const {
-    stdout, stderr, status
+    stdout, stderr, status,
   } = spawnSync(process.execPath, [__filename, 'child'], { encoding: 'utf8' });
   strictEqual(stderr, '');
   strictEqual(stdout, '');

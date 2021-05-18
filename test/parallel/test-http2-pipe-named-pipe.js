@@ -34,7 +34,7 @@ server.listen(common.PIPE, common.mustCall(() => {
   const client = http2.connect('http://localhost', {
     createConnection(url) {
       return net.connect(server.address());
-    }
+    },
   });
 
   const req = client.request({ ':method': 'POST' });

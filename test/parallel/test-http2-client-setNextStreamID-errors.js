@@ -20,7 +20,7 @@ const types = {
   object: {},
   array: [],
   null: null,
-  symbol: Symbol('test')
+  symbol: Symbol('test'),
 };
 
 server.listen(0, common.mustCall(() => {
@@ -34,7 +34,7 @@ server.listen(0, common.mustCall(() => {
         name: 'RangeError',
         code: 'ERR_OUT_OF_RANGE',
         message: 'The value of "id" is out of range.' +
-           ' It must be > 0 and <= 4294967295. Received ' + outOfRangeNum
+           ' It must be > 0 and <= 4294967295. Received ' + outOfRangeNum,
       }
     );
 
@@ -50,7 +50,7 @@ server.listen(0, common.mustCall(() => {
           name: 'TypeError',
           code: 'ERR_INVALID_ARG_TYPE',
           message: 'The "id" argument must be of type number.' +
-                   common.invalidArgTypeHelper(value)
+                   common.invalidArgTypeHelper(value),
         }
       );
     });

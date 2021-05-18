@@ -40,8 +40,8 @@ const keyData = {
       y: 'AVAXNs_iRzlDINjkr8L9ObWpMxBhuB4iQSgrnheJGCK1t54FL0W' +
           'XtZZD_Tk3nFG9USXE9IvD8CXOPNNpUyhsyzj7',
       d: 'APQIdYNoupMPMPdq4FT-XNLOf9osn3am1DbPddZsRAv-YzHHw' +
-          'XKhJHgZPIJRSHvJEmP6UCF_hf9jb1nNVG46tIO0'
-    }
+          'XKhJHgZPIJRSHvJEmP6UCF_hf9jb1nNVG46tIO0',
+    },
   },
   'P-384': {
     jwsAlg: 'ES384',
@@ -62,8 +62,8 @@ const keyData = {
       crv: 'P-384',
       x: 'IZwU1mYXs27G2IVrOFtzp000T9iude8EZDXdpU47RL1fvevR0I3Wni19wdwhjLQ1',
       y: 'vSgTjMd4M3qEL2vWGyQOdCSfJGZ8KlgQp2v8KOAzX4imUB3sAZdtqFr7AIactqzo',
-      d: 'RTe1mQeE08LSLpao-S-hqkku6HPldqQVguFEGDyYiNEOa560ztSyzEAS5KxeqEBz'
-    }
+      d: 'RTe1mQeE08LSLpao-S-hqkku6HPldqQVguFEGDyYiNEOa560ztSyzEAS5KxeqEBz',
+    },
   },
   'P-256': {
     jwsAlg: 'ES256',
@@ -82,8 +82,8 @@ const keyData = {
       crv: 'P-256',
       x: '1ugyipX-Ka_Nwwl3uSUe-7IZAigH9rFLs0aVtrS9uT4',
       y: '5mhFSKStE8SdAEM8RTFegnTzVA9Y9dee96GxhPTCHRc',
-      d: 'K8LtomXkaGbvqPj5namTF1tshcJG4V3OrtfjBw8T-_g'
-    }
+      d: 'K8LtomXkaGbvqPj5namTF1tshcJG4V3OrtfjBw8T-_g',
+    },
   },
 };
 
@@ -91,12 +91,12 @@ const testVectors = [
   {
     name: 'ECDSA',
     privateUsages: ['sign'],
-    publicUsages: ['verify']
+    publicUsages: ['verify'],
   },
   {
     name: 'ECDH',
     privateUsages: ['deriveKey', 'deriveBits'],
-    publicUsages: []
+    publicUsages: [],
   },
 ];
 
@@ -122,7 +122,7 @@ async function testImportSpki({ name, publicUsages }, namedCurve, extractable) {
   } else {
     await assert.rejects(
       subtle.exportKey('spki', key), {
-        message: /key is not extractable/
+        message: /key is not extractable/,
       });
   }
 
@@ -162,7 +162,7 @@ async function testImportPkcs8(
   } else {
     await assert.rejects(
       subtle.exportKey('pkcs8', key), {
-        message: /key is not extractable/
+        message: /key is not extractable/,
       });
   }
 }
@@ -254,11 +254,11 @@ async function testImportJwk(
   } else {
     await assert.rejects(
       subtle.exportKey('jwk', publicKey), {
-        message: /key is not extractable/
+        message: /key is not extractable/,
       });
     await assert.rejects(
       subtle.exportKey('jwk', privateKey), {
-        message: /key is not extractable/
+        message: /key is not extractable/,
       });
   }
 }

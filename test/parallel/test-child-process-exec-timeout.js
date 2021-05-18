@@ -40,7 +40,7 @@ cp.exec(cmd, { timeout: 1 }, common.mustCall((err, stdout, stderr) => {
 // Test with a different kill signal.
 cp.exec(cmd, {
   timeout: 1,
-  killSignal: 'SIGKILL'
+  killSignal: 'SIGKILL',
 }, common.mustCall((err, stdout, stderr) => {
   assert.strictEqual(err.killed, true);
   assert.strictEqual(err.code, null);

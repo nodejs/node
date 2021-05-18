@@ -34,7 +34,7 @@ const https = require('https');
 
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 };
 
 const server = https.createServer(options, function(req, res) {
@@ -55,7 +55,7 @@ server.listen(0, '127.0.0.1', function() {
     path: '/',
     method: 'GET',
     localAddress: '127.0.0.2',
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   };
 
   const req = https.request(options, function(res) {

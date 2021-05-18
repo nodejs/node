@@ -31,14 +31,14 @@ assert.strictEqual(finished, promisify(stream.finished));
   ];
 
   const read = new Readable({
-    read() { }
+    read() { },
   });
 
   const write = new Writable({
     write(data, enc, cb) {
       processed.push(data);
       cb();
-    }
+    },
   });
 
   write.on('finish', () => {
@@ -59,13 +59,13 @@ assert.strictEqual(finished, promisify(stream.finished));
 // pipeline error
 {
   const read = new Readable({
-    read() { }
+    read() { },
   });
 
   const write = new Writable({
     write(data, enc, cb) {
       cb();
-    }
+    },
   });
 
   read.push('data');
@@ -98,6 +98,6 @@ assert.strictEqual(finished, promisify(stream.finished));
   const rs = fs.createReadStream('file-does-not-exist');
 
   assert.rejects(finished(rs), {
-    code: 'ENOENT'
+    code: 'ENOENT',
   }).then(common.mustCall());
 }

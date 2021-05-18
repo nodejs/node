@@ -12,14 +12,14 @@ const bonkers = Buffer.alloc(1024, 42);
 
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 };
 
 const server = net.createServer(common.mustCall(function(c) {
   setTimeout(common.mustCall(function() {
     const s = new tls.TLSSocket(c, {
       isServer: true,
-      secureContext: tls.createSecureContext(options)
+      secureContext: tls.createSecureContext(options),
     });
 
     s.on('_tlsError', common.mustCall());

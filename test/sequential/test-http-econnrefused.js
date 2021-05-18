@@ -107,7 +107,7 @@ function ping() {
   const opt = {
     port: common.PORT,
     path: '/ping',
-    method: 'POST'
+    method: 'POST',
   };
 
   const req = http.request(opt, function(res) {

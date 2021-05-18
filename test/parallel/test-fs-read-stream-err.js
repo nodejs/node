@@ -25,7 +25,7 @@ const assert = require('assert');
 const fs = require('fs');
 
 const stream = fs.createReadStream(__filename, {
-  bufferSize: 64
+  bufferSize: 64,
 });
 const err = new Error('BAM');
 

@@ -12,6 +12,6 @@ spawn(
   ],
   {
     cwd: fixturesDir,
-    stdio: 'inherit'
+    stdio: 'inherit',
   }
 );

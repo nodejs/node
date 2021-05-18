@@ -22,7 +22,7 @@ const intervals = 40;
     env: {
       ...process.env,
       NODE_DEBUG_NATIVE: 'INSPECTOR_PROFILER',
-      TEST_INTERVALS: intervals
+      TEST_INTERVALS: intervals,
     },
   });
   console.log(output.stderr.toString());

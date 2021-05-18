@@ -32,8 +32,8 @@ const htmlStringify = require('rehype-stringify');
 const testLinksMapper = {
   'foo': {
     'command line options': 'cli.html#cli-options',
-    'web server': 'example.html'
-  }
+    'web server': 'example.html',
+  },
 };
 
 function toHTML({ input, filename, nodeVersion, versions }) {
@@ -65,7 +65,7 @@ const testData = [
       'id="foo_static_method_buffer_from_array">#</a> </span> </h4>' +
       '<ul><li><code>array</code><a ' +
       'href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/' +
-      'Reference/Global_Objects/Array" class="type">&#x3C;Array></a></li></ul>'
+      'Reference/Global_Objects/Array" class="type">&#x3C;Array></a></li></ul>',
   },
   {
     file: fixtures.path('doc_with_yaml.md'),
@@ -98,7 +98,7 @@ const testData = [
       '<h3>Something<span><a class="mark" href="#foo_something' +
       '" id="foo_something">#</a></span></h3> ' +
       '<!-- This is not a metadata comment --> ' +
-      '<p>Describe <code>Something</code> in more detail here. </p></section>'
+      '<p>Describe <code>Something</code> in more detail here. </p></section>',
   },
   {
     file: fixtures.path('sample_document.md'),
@@ -124,7 +124,7 @@ const testData = [
     '\'Hello, World!\'</code>:</p></section><section>' +
     '<h3>See also<span><a class="mark"' +
     'href="#foo_see_also" id="foo_see_also">#</a></span></h3><p>Check' +
-    'out also<a href="https://nodejs.org/">this guide</a></p></section>'
+    'out also<a href="https://nodejs.org/">this guide</a></p></section>',
   },
   {
     file: fixtures.path('document_with_special_heading.md'),

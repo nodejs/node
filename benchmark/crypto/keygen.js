@@ -4,7 +4,7 @@ const common = require('../common.js');
 const assert = require('assert');
 const {
   generateKeyPair,
-  generateKeyPairSync
+  generateKeyPairSync,
 } = require('crypto');
 
 const bench = common.createBenchmark(main, {
@@ -18,7 +18,7 @@ const methods = {
     for (let i = 0; i < n; ++i) {
       generateKeyPairSync('rsa', {
         modulusLength: 1024,
-        publicExponent: 0x10001
+        publicExponent: 0x10001,
       });
     }
     bench.end(n);
@@ -35,7 +35,7 @@ const methods = {
     for (let i = 0; i < n; ++i)
       generateKeyPair('rsa', {
         modulusLength: 512,
-        publicExponent: 0x10001
+        publicExponent: 0x10001,
       }, done);
   },
 

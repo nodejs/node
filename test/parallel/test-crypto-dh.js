@@ -158,7 +158,7 @@ if (common.hasOpenSSL3) {
     message: 'error:1C80006B:Provider routines::wrong final block length',
     code: 'ERR_OSSL_WRONG_FINAL_BLOCK_LENGTH',
     library: 'Provider routines',
-    reason: 'wrong final block length'
+    reason: 'wrong final block length',
   };
 } else {
   wrongBlockLength = {
@@ -166,7 +166,7 @@ if (common.hasOpenSSL3) {
       ' routines:EVP_DecryptFinal_ex:wrong final block length',
     code: 'ERR_OSSL_EVP_WRONG_FINAL_BLOCK_LENGTH',
     library: 'digital envelope routines',
-    reason: 'wrong final block length'
+    reason: 'wrong final block length',
   };
 }
 
@@ -312,7 +312,7 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
     {
       code: 'ERR_CRYPTO_ECDH_INVALID_FORMAT',
       name: 'TypeError',
-      message: 'Invalid ECDH format: 10'
+      message: 'Invalid ECDH format: 10',
     });
 
   // ECDH should check that point is on curve
@@ -324,7 +324,7 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
     {
       code: 'ERR_CRYPTO_ECDH_INVALID_PUBLIC_KEY',
       name: 'Error',
-      message: 'Public key is not valid for specified curve'
+      message: 'Public key is not valid for specified curve',
     });
 
   // ECDH should allow .setPrivateKey()/.setPublicKey()
@@ -437,7 +437,7 @@ if (availableCurves.has('prime256v1') && availableHashes.has('sha256')) {
     {
       code: 'ERR_CRYPTO_ECDH_INVALID_PUBLIC_KEY',
       name: 'Error',
-      message: 'Public key is not valid for specified curve'
+      message: 'Public key is not valid for specified curve',
     });
   // Check that signing operations are not impacted by the above error.
   const ecPrivateKey =
@@ -456,7 +456,7 @@ assert.throws(
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
     message: 'The "curve" argument must be of type string. ' +
-             'Received undefined'
+             'Received undefined',
   });
 
 assert.throws(
@@ -466,7 +466,7 @@ assert.throws(
   {
     name: 'Error',
     code: 'ERR_CRYPTO_UNKNOWN_DH_GROUP',
-    message: 'Unknown DH group'
+    message: 'Unknown DH group',
   },
   'crypto.getDiffieHellman(\'unknown-group\') ' +
   'failed to throw the expected error.'
@@ -492,7 +492,7 @@ assert.throws(
 assert.throws(
   () => crypto.createDiffieHellman('', true),
   {
-    code: 'ERR_INVALID_ARG_TYPE'
+    code: 'ERR_INVALID_ARG_TYPE',
   }
 );
 [true, Symbol(), {}, () => {}, []].forEach((generator) => assert.throws(

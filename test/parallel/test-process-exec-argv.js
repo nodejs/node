@@ -43,7 +43,7 @@ if (process.argv[2] === 'child' || !isMainThread) {
         case 'worker':
           child = new Worker(__filename, {
             execArgv: [...execArgv, ...extra],
-            stdout: true
+            stdout: true,
           });
           break;
         case 'cp+worker':

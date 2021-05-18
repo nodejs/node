@@ -11,7 +11,7 @@ assert.throws(
   {
     code: 'ERR_UNHANDLED_ERROR',
     name: 'Error',
-    message: "Unhandled error. ('Accepts a string')"
+    message: "Unhandled error. ('Accepts a string')",
   }
 );
 
@@ -20,18 +20,18 @@ assert.throws(
   {
     code: 'ERR_UNHANDLED_ERROR',
     name: 'Error',
-    message: "Unhandled error. ({ message: 'Error!' })"
+    message: "Unhandled error. ({ message: 'Error!' })",
   }
 );
 
 assert.throws(
   () => EE.emit('error', {
     message: 'Error!',
-    [util.inspect.custom]() { throw new Error(); }
+    [util.inspect.custom]() { throw new Error(); },
   }),
   {
     code: 'ERR_UNHANDLED_ERROR',
     name: 'Error',
-    message: 'Unhandled error. ([object Object])'
+    message: 'Unhandled error. ([object Object])',
   }
 );

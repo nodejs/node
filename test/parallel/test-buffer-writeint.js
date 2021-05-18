@@ -8,7 +8,7 @@ const errorOutOfBounds = {
   code: 'ERR_OUT_OF_RANGE',
   name: 'RangeError',
   message: new RegExp('^The value of "value" is out of range\\. ' +
-                      'It must be >= -\\d+ and <= \\d+\\. Received .+$')
+                      'It must be >= -\\d+ and <= \\d+\\. Received .+$'),
 };
 
 // Test 8 bit
@@ -195,7 +195,7 @@ const errorOutOfBounds = {
         {
           code: 'ERR_OUT_OF_RANGE',
           message: 'The value of "byteLength" is out of range. ' +
-                   `It must be >= 1 and <= 6. Received ${byteLength}`
+                   `It must be >= 1 and <= 6. Received ${byteLength}`,
         }
       );
     });
@@ -207,7 +207,7 @@ const errorOutOfBounds = {
           code: 'ERR_OUT_OF_RANGE',
           name: 'RangeError',
           message: 'The value of "byteLength" is out of range. ' +
-                   `It must be an integer. Received ${byteLength}`
+                   `It must be an integer. Received ${byteLength}`,
         });
     });
   });
@@ -231,7 +231,7 @@ const errorOutOfBounds = {
           code: 'ERR_OUT_OF_RANGE',
           name: 'RangeError',
           message: 'The value of "value" is out of range. ' +
-                   `It must be ${range}. Received ${received}`
+                   `It must be ${range}. Received ${received}`,
         });
       });
 
@@ -240,7 +240,7 @@ const errorOutOfBounds = {
           () => data[fn](min, o, i),
           {
             code: 'ERR_INVALID_ARG_TYPE',
-            name: 'TypeError'
+            name: 'TypeError',
           });
       });
 
@@ -251,7 +251,7 @@ const errorOutOfBounds = {
             code: 'ERR_OUT_OF_RANGE',
             name: 'RangeError',
             message: 'The value of "offset" is out of range. ' +
-                     `It must be >= 0 and <= ${8 - i}. Received ${offset}`
+                     `It must be >= 0 and <= ${8 - i}. Received ${offset}`,
           });
       });
 
@@ -262,7 +262,7 @@ const errorOutOfBounds = {
             code: 'ERR_OUT_OF_RANGE',
             name: 'RangeError',
             message: 'The value of "offset" is out of range. ' +
-                     `It must be an integer. Received ${offset}`
+                     `It must be an integer. Received ${offset}`,
           });
       });
     });

@@ -25,7 +25,7 @@ outgoingFinishChannel.subscribe(common.mustCall((message) => {
     request,
     response,
     server,
-    socket: request.socket
+    socket: request.socket,
   };
 
   // Context is maintained

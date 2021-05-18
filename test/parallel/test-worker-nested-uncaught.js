@@ -10,5 +10,5 @@ const w = new Worker(
   { eval: true });
 w.on('error', common.expectsError({
   name: 'Error',
-  message: 'uncaught'
+  message: 'uncaught',
 }));

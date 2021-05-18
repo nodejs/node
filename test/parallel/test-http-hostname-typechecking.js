@@ -17,7 +17,7 @@ vals.forEach((v) => {
       name: 'TypeError',
       message: 'The "options.hostname" property must be of ' +
                'type string or one of undefined or null.' +
-               received
+               received,
     }
   );
 
@@ -28,7 +28,7 @@ vals.forEach((v) => {
       name: 'TypeError',
       message: 'The "options.host" property must be of ' +
                'type string or one of undefined or null.' +
-               received
+               received,
     }
   );
 });

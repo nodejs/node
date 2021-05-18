@@ -12,7 +12,7 @@ const {
   NGHTTP2_NO_ERROR,
   NGHTTP2_PROTOCOL_ERROR,
   NGHTTP2_REFUSED_STREAM,
-  NGHTTP2_INTERNAL_ERROR
+  NGHTTP2_INTERNAL_ERROR,
 } = http2.constants;
 
 const tests = [
@@ -31,7 +31,7 @@ server.on('stream', (stream, headers) => {
     stream.on('error', common.expectsError({
       name: 'Error',
       code: 'ERR_HTTP2_STREAM_ERROR',
-      message: `Stream closed with error code ${test[2]}`
+      message: `Stream closed with error code ${test[2]}`,
     }));
   }
   stream.close(headers.rstcode | 0);
@@ -48,7 +48,7 @@ server.listen(0, common.mustCall(() => {
   tests.forEach((test) => {
     const req = client.request({
       ':method': 'POST',
-      'rstcode': test[0]
+      'rstcode': test[0],
     });
     req.on('close', common.mustCall(() => {
       assert.strictEqual(req.rstCode, test[0]);

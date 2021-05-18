@@ -26,7 +26,7 @@ function test(ca) {
       servername: 'agent3',
       host,
       port: server.address().port,
-      ca
+      ca,
     }, common.mustCall(() => {
       socket.end();
     }));

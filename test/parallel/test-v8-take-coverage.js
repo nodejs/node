@@ -23,7 +23,7 @@ const intervals = 40;
       ...process.env,
       NODE_V8_COVERAGE: tmpdir.path,
       NODE_DEBUG_NATIVE: 'INSPECTOR_PROFILER',
-      TEST_INTERVALS: intervals
+      TEST_INTERVALS: intervals,
     },
   });
   console.log(output.stderr.toString());
@@ -38,7 +38,7 @@ const intervals = 40;
         coverages.push({
           file: coverageFile,
           func: result.functions.find((f) => f.functionName === 'interval'),
-          timestamp: coverage.timestamp
+          timestamp: coverage.timestamp,
         });
       }
     }

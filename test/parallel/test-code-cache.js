@@ -8,11 +8,11 @@
 const { isMainThread } = require('../common');
 const assert = require('assert');
 const {
-  internalBinding
+  internalBinding,
 } = require('internal/test/binding');
 const {
   getCacheUsage,
-  moduleCategories: { canBeRequired, cannotBeRequired }
+  moduleCategories: { canBeRequired, cannotBeRequired },
 } = internalBinding('native_module');
 
 for (const key of canBeRequired) {
@@ -23,7 +23,7 @@ for (const key of canBeRequired) {
 const {
   compiledWithoutCache,
   compiledWithCache,
-  compiledInSnapshot
+  compiledInSnapshot,
 } = getCacheUsage();
 
 function extractModules(list) {

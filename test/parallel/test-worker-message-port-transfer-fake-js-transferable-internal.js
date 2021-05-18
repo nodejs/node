@@ -18,7 +18,7 @@ const { once } = require('events');
   fh[kTransfer] = () => {
     return {
       data: '✨',
-      deserializeInfo: 'net:Socket'
+      deserializeInfo: 'net:Socket',
     };
   };
 

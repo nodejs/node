@@ -12,7 +12,7 @@ const tls = require('tls');
 
 const server = tls.createServer({
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 }, common.mustCall(function(c) {
   console.log('new client');
 
@@ -46,12 +46,12 @@ const server = tls.createServer({
     write: function write(data, enc, cb) {
       console.log('write', data, enc);
       raw.write(data, enc, cb);
-    }
+    },
   });
 
   const socket = tls.connect({
     socket: p,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall(function() {
     console.log('client secure');
 

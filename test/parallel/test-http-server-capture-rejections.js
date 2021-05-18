@@ -18,7 +18,7 @@ events.captureRejections = true;
     const req = request({
       method: 'GET',
       host: server.address().host,
-      port: server.address().port
+      port: server.address().port,
     });
 
     req.end();
@@ -62,7 +62,7 @@ events.captureRejections = true;
     const req = request({
       method: 'GET',
       host: server.address().host,
-      port: server.address().port
+      port: server.address().port,
     });
 
     req.end();
@@ -96,7 +96,7 @@ events.captureRejections = true;
     const req = request({
       method: 'GET',
       host: server.address().host,
-      port: server.address().port
+      port: server.address().port,
     });
 
     req.end();

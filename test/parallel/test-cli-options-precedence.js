@@ -9,7 +9,7 @@ assert.strictEqual(spawnSync(process.execPath, [
   '--max-http-header-size=5678',
   '-p', 'http.maxHeaderSize',
 ], {
-  encoding: 'utf8'
+  encoding: 'utf8',
 }).stdout.trim(), '5678');
 
 // The command line takes precedence over NODE_OPTIONS:
@@ -18,5 +18,5 @@ assert.strictEqual(spawnSync(process.execPath, [
   '-p', 'http.maxHeaderSize',
 ], {
   encoding: 'utf8',
-  env: { ...process.env, NODE_OPTIONS: '--max-http-header-size=1234' }
+  env: { ...process.env, NODE_OPTIONS: '--max-http-header-size=1234' },
 }).stdout.trim(), '5678');

@@ -13,7 +13,7 @@ const fs = require('fs');
 const {
   HTTP2_HEADER_CONTENT_TYPE,
   HTTP2_HEADER_CONTENT_LENGTH,
-  HTTP2_HEADER_LAST_MODIFIED
+  HTTP2_HEADER_LAST_MODIFIED,
 } = http2.constants;
 
 const fname = fixtures.path('elipses.txt');
@@ -28,13 +28,13 @@ server.on('stream', (stream) => {
 
   stream.pushStream({
     ':path': '/file.txt',
-    ':method': 'GET'
+    ':method': 'GET',
   }, (err, stream) => {
     assert.ifError(err);
     stream.respondWithFD(fd, {
       [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain',
       [HTTP2_HEADER_CONTENT_LENGTH]: stat.size,
-      [HTTP2_HEADER_LAST_MODIFIED]: stat.mtime.toUTCString()
+      [HTTP2_HEADER_LAST_MODIFIED]: stat.mtime.toUTCString(),
     });
   });
 

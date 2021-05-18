@@ -32,7 +32,7 @@ const server = http.createServer(function(req, res) {
   const body = url.parse(req.url).pathname === '/1' ? body1_s : body2_s;
   res.writeHead(200, {
     'Content-Type': 'text/plain',
-    'Content-Length': body.length
+    'Content-Length': body.length,
   });
   res.end(body);
 });

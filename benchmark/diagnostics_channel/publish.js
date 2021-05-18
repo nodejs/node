@@ -16,7 +16,7 @@ function main({ n, subscribers }) {
   }
 
   const data = {
-    foo: 'bar'
+    foo: 'bar',
   };
 
   bench.start();

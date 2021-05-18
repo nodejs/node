@@ -29,7 +29,7 @@ const readline = require('readline');
 const util = require('util');
 const {
   getStringWidth,
-  stripVTControlCharacters
+  stripVTControlCharacters,
 } = require('internal/util/inspect');
 const { EventEmitter, getEventListeners } = require('events');
 const { Writable, Readable } = require('stream');
@@ -91,11 +91,11 @@ function assertCursorRowsAndCols(rli, rows, cols) {
     assert.throws(() => {
       readline.createInterface({
         input,
-        completer: invalid
+        completer: invalid,
       });
     }, {
       name: 'TypeError',
-      code: 'ERR_INVALID_ARG_VALUE'
+      code: 'ERR_INVALID_ARG_VALUE',
     });
   });
 
@@ -108,7 +108,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
       });
     }, {
       name: 'TypeError',
-      code: 'ERR_INVALID_ARG_TYPE'
+      code: 'ERR_INVALID_ARG_TYPE',
     });
   });
 
@@ -121,7 +121,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
       });
     }, {
       name: 'RangeError',
-      code: 'ERR_INVALID_ARG_VALUE'
+      code: 'ERR_INVALID_ARG_VALUE',
     });
   });
 
@@ -129,19 +129,19 @@ function assertCursorRowsAndCols(rli, rows, cols) {
   assert.throws(
     () => new readline.Interface({
       input,
-      tabSize: 0
+      tabSize: 0,
     }),
     {
       message: 'The value of "tabSize" is out of range. ' +
                 'It must be >= 1 && < 4294967296. Received 0',
-      code: 'ERR_OUT_OF_RANGE'
+      code: 'ERR_OUT_OF_RANGE',
     }
   );
 
   assert.throws(
     () => new readline.Interface({
       input,
-      tabSize: '4'
+      tabSize: '4',
     }),
     { code: 'ERR_INVALID_ARG_TYPE' }
   );
@@ -149,12 +149,12 @@ function assertCursorRowsAndCols(rli, rows, cols) {
   assert.throws(
     () => new readline.Interface({
       input,
-      tabSize: 4.5
+      tabSize: 4.5,
     }),
     {
       code: 'ERR_OUT_OF_RANGE',
       message: 'The value of "tabSize" is out of range. ' +
-                'It must be an integer. Received 4.5'
+                'It must be an integer. Received 4.5',
     }
   );
 }
@@ -254,7 +254,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
 {
   const [rli, fi] = getInterface({
     terminal: true,
-    removeHistoryDuplicates: true
+    removeHistoryDuplicates: true,
   });
   const expectedLines = ['foo', 'bar', 'baz', 'bar', 'bat', 'bat'];
   // ['foo', 'baz', 'bar', bat'];
@@ -331,7 +331,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
 {
   const [rli, fi] = getInterface({
     terminal: true,
-    removeHistoryDuplicates: false
+    removeHistoryDuplicates: false,
   });
   const expectedLines = ['foo', 'bar', 'baz', 'bar', 'bat', 'bat'];
   let callCount = 0;
@@ -713,7 +713,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
 {
   const [rli, fi] = getInterface({
     terminal: true,
-    prompt: '\nfilledline\nwraping text\n> '
+    prompt: '\nfilledline\nwraping text\n> ',
   });
   fi.columns = 10;
   fi.emit('data', 't');
@@ -770,7 +770,7 @@ assert.strictEqual(getStringWidth('> '), 2);
 for (let i = 0; i < 12; i++) {
   const rl = readline.createInterface({
     input: process.stdin,
-    output: process.stdout
+    output: process.stdout,
   });
   rl.close();
   assert.strictEqual(isWarned(process.stdin._events), false);
@@ -1012,14 +1012,14 @@ for (let i = 0; i < 12; i++) {
         assert.strictEqual(chunk.toString(), expected.shift());
         cb();
         rl.close();
-      }, expected.length)
+      }, expected.length),
     });
 
     const rl = readline.createInterface({
       input: new Readable({ read: common.mustCall() }),
       output,
       prompt: '$ ',
-      terminal
+      terminal,
     });
 
     rl.prompt();
@@ -1191,6 +1191,6 @@ for (let i = 0; i < 12; i++) {
     });
   }, {
     name: 'TypeError',
-    code: 'ERR_INVALID_ARG_TYPE'
+    code: 'ERR_INVALID_ARG_TYPE',
   });
 }

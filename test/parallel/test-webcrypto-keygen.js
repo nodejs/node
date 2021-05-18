@@ -31,7 +31,7 @@ const vectors = {
       'wrapKey',
       'unwrapKey',
     ],
-    mandatoryUsages: []
+    mandatoryUsages: [],
   },
   'AES-CBC': {
     algorithm: { length: 256 },
@@ -41,7 +41,7 @@ const vectors = {
       'wrapKey',
       'unwrapKey',
     ],
-    mandatoryUsages: []
+    mandatoryUsages: [],
   },
   'AES-GCM': {
     algorithm: { length: 256 },
@@ -51,7 +51,7 @@ const vectors = {
       'wrapKey',
       'unwrapKey',
     ],
-    mandatoryUsages: []
+    mandatoryUsages: [],
   },
   'AES-KW': {
     algorithm: { length: 256 },
@@ -59,7 +59,7 @@ const vectors = {
       'wrapKey',
       'unwrapKey',
     ],
-    mandatoryUsages: []
+    mandatoryUsages: [],
   },
   'HMAC': {
     algorithm: { length: 256, hash: 'SHA-256' },
@@ -67,13 +67,13 @@ const vectors = {
       'sign',
       'verify',
     ],
-    mandatoryUsages: []
+    mandatoryUsages: [],
   },
   'RSASSA-PKCS1-v1_5': {
     algorithm: {
       modulusLength: 1024,
       publicExponent: new Uint8Array([1, 0, 1]),
-      hash: 'SHA-256'
+      hash: 'SHA-256',
     },
     usages: [
       'sign',
@@ -85,19 +85,19 @@ const vectors = {
     algorithm: {
       modulusLength: 1024,
       publicExponent: new Uint8Array([1, 0, 1]),
-      hash: 'SHA-256'
+      hash: 'SHA-256',
     },
     usages: [
       'sign',
       'verify',
     ],
-    mandatoryUsages: ['sign']
+    mandatoryUsages: ['sign'],
   },
   'RSA-OAEP': {
     algorithm: {
       modulusLength: 1024,
       publicExponent: new Uint8Array([1, 0, 1]),
-      hash: 'SHA-256'
+      hash: 'SHA-256',
     },
     usages: [
       'encrypt',
@@ -108,7 +108,7 @@ const vectors = {
     mandatoryUsages: [
       'decrypt',
       'unwrapKey',
-    ]
+    ],
   },
   'ECDSA': {
     algorithm: { namedCurve: 'P-521' },
@@ -116,7 +116,7 @@ const vectors = {
       'sign',
       'verify',
     ],
-    mandatoryUsages: ['sign']
+    mandatoryUsages: ['sign'],
   },
   'ECDH': {
     algorithm: { namedCurve: 'P-521' },
@@ -127,7 +127,7 @@ const vectors = {
     mandatoryUsages: [
       'deriveKey',
       'deriveBits',
-    ]
+    ],
   },
   'NODE-DSA': {
     algorithm: { modulusLength: 1024, hash: 'SHA-256' },
@@ -138,8 +138,8 @@ const vectors = {
     mandatoryUsages: [
       'sign',
       'verify',
-    ]
-  }
+    ],
+  },
 };
 
 // Test invalid algorithms
@@ -149,7 +149,7 @@ const vectors = {
       // The extractable and usages values are invalid here also,
       // but the unrecognized algorithm name should be caught first.
       subtle.generateKey(algorithm, 7, ['zebra']), {
-        message: /Unrecognized name/
+        message: /Unrecognized name/,
       });
   }
 
@@ -163,17 +163,17 @@ const vectors = {
       name: 'RSA',
       hash: 'SHA-256',
       modulusLength: 2048,
-      publicExponent: new Uint8Array([1, 0, 1])
+      publicExponent: new Uint8Array([1, 0, 1]),
     },
     {
       name: 'RSA-PSS',
       hash: 'SHA',
       modulusLength: 2048,
-      publicExponent: new Uint8Array([1, 0, 1])
+      publicExponent: new Uint8Array([1, 0, 1]),
     },
     {
       name: 'EC',
-      namedCurve: 'P521'
+      namedCurve: 'P521',
     },
   ].map(async (algorithm) => test(algorithm));
 
@@ -191,7 +191,7 @@ const vectors = {
     return assert.rejects(
       subtle.generateKey(
         {
-          name, ...vectors[name].algorithm
+          name, ...vectors[name].algorithm,
         },
         true,
         invalidUsages),
@@ -219,7 +219,7 @@ const vectors = {
       name,
       modulusLength,
       publicExponent,
-      hash
+      hash,
     }, true, usages);
 
     assert(publicKey);
@@ -248,17 +248,17 @@ const vectors = {
     // Missing parameters
     await assert.rejects(
       subtle.generateKey({ name, publicExponent, hash }, true, usages), {
-        code: 'ERR_INVALID_ARG_TYPE'
+        code: 'ERR_INVALID_ARG_TYPE',
       });
 
     await assert.rejects(
       subtle.generateKey({ name, modulusLength, hash }, true, usages), {
-        code: 'ERR_INVALID_ARG_TYPE'
+        code: 'ERR_INVALID_ARG_TYPE',
       });
 
     await assert.rejects(
       subtle.generateKey({ name, modulusLength }, true, usages), {
-        code: 'ERR_MISSING_OPTION'
+        code: 'ERR_MISSING_OPTION',
       });
 
     await Promise.all(['', true, {}].map((modulusLength) => {
@@ -266,9 +266,9 @@ const vectors = {
         name,
         modulusLength,
         publicExponent,
-        hash
+        hash,
       }, true, usages), {
-        code: 'ERR_INVALID_ARG_TYPE'
+        code: 'ERR_INVALID_ARG_TYPE',
       });
     }));
 
@@ -292,9 +292,9 @@ const vectors = {
         name,
         modulusLength,
         publicExponent,
-        hash
+        hash,
       }, true, usages), {
-        message: /Unrecognized name/
+        message: /Unrecognized name/,
       });
     }));
 
@@ -303,9 +303,9 @@ const vectors = {
         name,
         modulusLength,
         publicExponent,
-        hash
+        hash,
       }, extractable, usages), {
-        code: 'ERR_INVALID_ARG_TYPE'
+        code: 'ERR_INVALID_ARG_TYPE',
       });
     }));
 
@@ -314,9 +314,9 @@ const vectors = {
         name,
         modulusLength,
         publicExponent,
-        hash
+        hash,
       }, true, usages), {
-        code: 'ERR_INVALID_ARG_TYPE'
+        code: 'ERR_INVALID_ARG_TYPE',
       });
     }));
   }
@@ -367,7 +367,7 @@ const vectors = {
 
     const { publicKey, privateKey } = await subtle.generateKey({
       name,
-      namedCurve
+      namedCurve,
     }, true, usages);
 
     assert(publicKey);
@@ -390,7 +390,7 @@ const vectors = {
     [1, true, {}, [], undefined, null].forEach(async (namedCurve) => {
       await assert.rejects(
         subtle.generateKey({ name, namedCurve }, true, privateUsages), {
-          code: 'ERR_INVALID_ARG_TYPE'
+          code: 'ERR_INVALID_ARG_TYPE',
         });
     });
   }
@@ -434,7 +434,7 @@ const vectors = {
   async function test(name, length, usages) {
     const key = await subtle.generateKey({
       name,
-      length
+      length,
     }, true, usages);
 
     assert(key);
@@ -450,14 +450,14 @@ const vectors = {
     [1, 100, 257].forEach(async (length) => {
       await assert.rejects(
         subtle.generateKey({ name, length }, true, usages), {
-          code: 'ERR_INVALID_ARG_VALUE'
+          code: 'ERR_INVALID_ARG_VALUE',
         });
     });
 
     ['', {}, [], false, null, undefined].forEach(async (length) => {
       await assert.rejects(
         subtle.generateKey({ name, length }, true, usages), {
-          code: 'ERR_INVALID_ARG_TYPE'
+          code: 'ERR_INVALID_ARG_TYPE',
         });
     });
   }
@@ -484,7 +484,7 @@ const vectors = {
     const key = await subtle.generateKey({
       name: 'HMAC',
       length,
-      hash
+      hash,
     }, true, usages);
 
     if (length === undefined) {
@@ -509,14 +509,14 @@ const vectors = {
     ['', {}, [], false, null].forEach(async (length) => {
       await assert.rejects(
         subtle.generateKey({ name: 'HMAC', length, hash }, true, usages), {
-          code: 'ERR_INVALID_ARG_TYPE'
+          code: 'ERR_INVALID_ARG_TYPE',
         });
     });
 
     [1, {}, [], false, null].forEach(async (hash) => {
       await assert.rejects(
         subtle.generateKey({ name: 'HMAC', length, hash }, true, usages), {
-          message: /Unrecognized name/
+          message: /Unrecognized name/,
         });
     });
   }
@@ -549,7 +549,7 @@ const vectors = {
     const { publicKey, privateKey } = await subtle.generateKey({
       name,
       modulusLength,
-      hash
+      hash,
     }, true, usages);
 
     assert(publicKey);
@@ -573,21 +573,21 @@ const vectors = {
     // Missing parameters
     await assert.rejects(
       subtle.generateKey({ name, hash }, true, usages), {
-        code: 'ERR_INVALID_ARG_TYPE'
+        code: 'ERR_INVALID_ARG_TYPE',
       });
 
     await assert.rejects(
       subtle.generateKey({ name, modulusLength }, true, usages), {
-        code: 'ERR_MISSING_OPTION'
+        code: 'ERR_MISSING_OPTION',
       });
 
     await Promise.all(['', true, {}].map((modulusLength) => {
       return assert.rejects(subtle.generateKey({
         name,
         modulusLength,
-        hash
+        hash,
       }, true, usages), {
-        code: 'ERR_INVALID_ARG_TYPE'
+        code: 'ERR_INVALID_ARG_TYPE',
       });
     }));
 
@@ -595,9 +595,9 @@ const vectors = {
       return assert.rejects(subtle.generateKey({
         name,
         modulusLength,
-        hash
+        hash,
       }, true, usages), {
-        message: /Unrecognized name/
+        message: /Unrecognized name/,
       });
     }));
 
@@ -605,9 +605,9 @@ const vectors = {
       return assert.rejects(subtle.generateKey({
         name,
         modulusLength,
-        hash
+        hash,
       }, extractable, usages), {
-        code: 'ERR_INVALID_ARG_TYPE'
+        code: 'ERR_INVALID_ARG_TYPE',
       });
     }));
 
@@ -615,9 +615,9 @@ const vectors = {
       return assert.rejects(subtle.generateKey({
         name,
         modulusLength,
-        hash
+        hash,
       }, true, usages), {
-        code: 'ERR_INVALID_ARG_TYPE'
+        code: 'ERR_INVALID_ARG_TYPE',
       });
     }));
   }
@@ -642,7 +642,7 @@ const vectors = {
   const { publicKey, privateKey } =
     await subtle.generateKey({
       name: 'NODE-DH',
-      group: 'modp15'
+      group: 'modp15',
     }, true, ['deriveKey']);
   assert(publicKey);
   assert(privateKey);
@@ -658,7 +658,7 @@ const vectors = {
 
 // End user code cannot create CryptoKey directly
 assert.throws(() => new CryptoKey(), {
-  code: 'ERR_OPERATION_FAILED'
+  code: 'ERR_OPERATION_FAILED',
 });
 
 {

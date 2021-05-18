@@ -16,7 +16,7 @@ common.expectWarning({
   ],
   DeprecationWarning: [
     ['crypto.createCipher is deprecated.', 'DEP0106'],
-  ]
+  ],
 });
 
 function testCipher1(key) {
@@ -91,14 +91,14 @@ testCipher2(Buffer.from('0123456789abcdef'));
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
       message: 'The "cipher" argument must be of type string. ' +
-               'Received null'
+               'Received null',
     });
 
   assert.throws(
     () => crypto.createCipher('aes-256-cbc', null),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError'
+      name: 'TypeError',
     });
 
   assert.throws(
@@ -128,7 +128,7 @@ testCipher2(Buffer.from('0123456789abcdef'));
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
       message: 'The "cipher" argument must be of type string. ' +
-               'Received null'
+               'Received null',
     });
 
   assert.throws(
@@ -243,7 +243,7 @@ testCipher2(Buffer.from('0123456789abcdef'));
     {
       code: 'ERR_CRYPTO_INVALID_STATE',
       name: 'Error',
-      message: 'Invalid state for operation getAuthTag'
+      message: 'Invalid state for operation getAuthTag',
     }
   );
 
@@ -261,7 +261,7 @@ testCipher2(Buffer.from('0123456789abcdef'));
     {
       code: 'ERR_CRYPTO_INVALID_STATE',
       name: 'Error',
-      message: 'Invalid state for operation setAAD'
+      message: 'Invalid state for operation setAAD',
     });
 
   assert.throws(
@@ -269,7 +269,7 @@ testCipher2(Buffer.from('0123456789abcdef'));
     {
       code: 'ERR_CRYPTO_INVALID_STATE',
       name: 'Error',
-      message: 'Invalid state for operation setAuthTag'
+      message: 'Invalid state for operation setAuthTag',
     });
 
   assert.throws(
@@ -277,7 +277,7 @@ testCipher2(Buffer.from('0123456789abcdef'));
     {
       code: 'ERR_CRYPTO_INVALID_STATE',
       name: 'Error',
-      message: 'Invalid state for operation setAutoPadding'
+      message: 'Invalid state for operation setAutoPadding',
     }
   );
 }

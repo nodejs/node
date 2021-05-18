@@ -61,7 +61,7 @@ for (let i = 0; i < invalidCallbacks.length; i++) {
         code: 'ERR_INVALID_CALLBACK',
         name: 'TypeError',
         message: 'Callback must be a function. ' +
-                 `Received ${inspect(invalidCallbacks[i])}`
+                 `Received ${inspect(invalidCallbacks[i])}`,
       }
     )
   );

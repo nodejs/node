@@ -29,7 +29,7 @@ const Readable = require('stream').Readable;
   // First test, not reading when the readable is added.
   // make sure that on('readable', ...) triggers a readable event.
   const r = new Readable({
-    highWaterMark: 3
+    highWaterMark: 3,
   });
 
   r._read = common.mustNotCall();
@@ -49,7 +49,7 @@ const Readable = require('stream').Readable;
   // already a length, while it IS reading.
 
   const r = new Readable({
-    highWaterMark: 3
+    highWaterMark: 3,
   });
 
   r._read = common.mustCall();
@@ -68,7 +68,7 @@ const Readable = require('stream').Readable;
   // Third test, not reading when the stream has not passed
   // the highWaterMark but *has* reached EOF.
   const r = new Readable({
-    highWaterMark: 30
+    highWaterMark: 30,
   });
 
   r._read = common.mustNotCall();

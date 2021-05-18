@@ -12,7 +12,7 @@ server.on('connection', common.mustCall());
 
 server.listen(common.mustCall(function() {
   const socket = net.createConnection({
-    port: server.address().port
+    port: server.address().port,
   });
 
   socket.on('connect', common.mustCall(function() {

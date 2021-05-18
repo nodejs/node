@@ -6,7 +6,7 @@ const { Readable } = require('stream');
 
 {
   const r = new Readable({
-    read() {}
+    read() {},
   });
   assert.strictEqual(r.readable, true);
   r.destroy();
@@ -16,7 +16,7 @@ const { Readable } = require('stream');
 {
   const mustNotCall = common.mustNotCall();
   const r = new Readable({
-    read() {}
+    read() {},
   });
   assert.strictEqual(r.readable, true);
   r.on('end', mustNotCall);
@@ -36,7 +36,7 @@ const { Readable } = require('stream');
         r.destroy(new Error());
         assert.strictEqual(r.readable, false);
       });
-    })
+    }),
   });
   r.resume();
   r.on('error', common.mustCall(() => {

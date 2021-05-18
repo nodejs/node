@@ -40,10 +40,10 @@ module.exports = {
             'fsevents = require(\'fsevents\');', 'fsevents = undefined;'
           );
         }
-      }
+      },
     },
     json({
-      preferConst: true
+      preferConst: true,
     }),
     nodeResolve(), // tells Rollup how to find date-fns in node_modules
     commonjs(), // Converts date-fns to ES modules
@@ -53,7 +53,7 @@ module.exports = {
         const banner = '// Don\'t change this file manually,\n' +
           '// it is generated from tools/node-lint-md-cli-rollup';
         return code.replace('\'use strict\';', '\'use strict\';\n\n' + banner);
-      }
+      },
     },
-  ]
+  ],
 };

@@ -31,7 +31,7 @@ const net = require('net');
 
 const options = {
   key: fixtures.readKey('rsa_private.pem'),
-  cert: fixtures.readKey('rsa_cert.crt')
+  cert: fixtures.readKey('rsa_cert.crt'),
 };
 
 const server = tls.createServer(options, common.mustCall((socket) => {
@@ -41,7 +41,7 @@ const server = tls.createServer(options, common.mustCall((socket) => {
   function establish(socket, calls) {
     const client = tls.connect({
       rejectUnauthorized: false,
-      socket: socket
+      socket: socket,
     }, common.mustCall(() => {
       let data = '';
       client.on('data', common.mustCall((chunk) => {

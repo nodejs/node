@@ -22,7 +22,7 @@ assert(
 const args = ['--inspect', '-e', script];
 const child = spawn(process.execPath, args, {
   stdio: 'inherit',
-  env: { ...process.env, NODE_V8_COVERAGE: '' }
+  env: { ...process.env, NODE_V8_COVERAGE: '' },
 });
 child.on('exit', (code, signal) => {
   process.exit(code || signal);

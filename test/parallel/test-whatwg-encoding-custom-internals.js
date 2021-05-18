@@ -258,7 +258,7 @@ const { getEncodingFromLabel } = require('internal/encoding');
       'ksc5601',
       'ksc_5601',
       'windows-949',
-    ]
+    ],
   };
   Object.entries(mappings).forEach((i) => {
     const enc = i[0];

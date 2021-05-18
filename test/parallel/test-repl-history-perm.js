@@ -52,7 +52,7 @@ repl.createInternalRepl(
   {
     terminal: true,
     input: stream,
-    output: stream
+    output: stream,
   },
   checkResults
 );

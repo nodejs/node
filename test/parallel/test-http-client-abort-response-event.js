@@ -8,7 +8,7 @@ const server = http.createServer(function(req, res) {
 
 server.listen(0, common.mustCall(function() {
   const req = http.request({
-    port: this.address().port
+    port: this.address().port,
   }, common.mustCall());
 
   req.on('abort', common.mustCall(function() {

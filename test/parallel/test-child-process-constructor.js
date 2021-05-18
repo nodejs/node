@@ -16,7 +16,7 @@ assert.strictEqual(typeof ChildProcess, 'function');
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
       message: 'The "options" argument must be of type object.' +
-               `${common.invalidArgTypeHelper(options)}`
+               `${common.invalidArgTypeHelper(options)}`,
     });
   });
 }
@@ -32,7 +32,7 @@ assert.strictEqual(typeof ChildProcess, 'function');
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
       message: 'The "options.file" property must be of type string.' +
-               `${common.invalidArgTypeHelper(file)}`
+               `${common.invalidArgTypeHelper(file)}`,
     });
   });
 }
@@ -48,7 +48,7 @@ assert.strictEqual(typeof ChildProcess, 'function');
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
       message: 'The "options.envPairs" property must be an instance of Array.' +
-              common.invalidArgTypeHelper(envPairs)
+              common.invalidArgTypeHelper(envPairs),
     });
   });
 }
@@ -64,7 +64,7 @@ assert.strictEqual(typeof ChildProcess, 'function');
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
       message: 'The "options.args" property must be an instance of Array.' +
-               common.invalidArgTypeHelper(args)
+               common.invalidArgTypeHelper(args),
     });
   });
 }
@@ -75,7 +75,7 @@ child.spawn({
   file: process.execPath,
   args: ['--interactive'],
   cwd: process.cwd(),
-  stdio: 'pipe'
+  stdio: 'pipe',
 });
 
 assert.strictEqual(child.hasOwnProperty('pid'), true);

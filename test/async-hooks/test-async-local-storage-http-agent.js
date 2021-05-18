@@ -7,7 +7,7 @@ const http = require('http');
 const asyncLocalStorage = new AsyncLocalStorage();
 
 const agent = new http.Agent({
-  maxSockets: 1
+  maxSockets: 1,
 });
 
 const N = 3;

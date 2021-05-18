@@ -13,7 +13,7 @@ assert.throws(
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
     message: 'The "options.ciphers" property must be of type string.' +
-      ' Received type number (1)'
+      ' Received type number (1)',
   });
 
 assert.throws(
@@ -22,7 +22,7 @@ assert.throws(
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
     message: 'The "options.ciphers" property must be of type string.' +
-      ' Received type number (1)'
+      ' Received type number (1)',
   });
 
 assert.throws(
@@ -30,7 +30,7 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: /The "options\.passphrase" property must be of type string/
+    message: /The "options\.passphrase" property must be of type string/,
   });
 
 assert.throws(
@@ -38,7 +38,7 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: /The "options\.passphrase" property must be of type string/
+    message: /The "options\.passphrase" property must be of type string/,
   });
 
 assert.throws(
@@ -46,7 +46,7 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: /The "options\.ecdhCurve" property must be of type string/
+    message: /The "options\.ecdhCurve" property must be of type string/,
   });
 
 assert.throws(
@@ -55,7 +55,7 @@ assert.throws(
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
     message: 'The "options.handshakeTimeout" property must be of type number.' +
-              " Received type string ('abcd')"
+              " Received type string ('abcd')",
   }
 );
 
@@ -64,7 +64,7 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: /The "options\.sessionTimeout" property must be of type number/
+    message: /The "options\.sessionTimeout" property must be of type number/,
   });
 
 assert.throws(
@@ -72,12 +72,12 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: /The "options\.ticketKeys" property must be an instance of/
+    message: /The "options\.ticketKeys" property must be an instance of/,
   });
 
 assert.throws(() => tls.createServer({ ticketKeys: Buffer.alloc(0) }), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.ticketKeys' must be exactly 48 bytes/
+  message: /The property 'options\.ticketKeys' must be exactly 48 bytes/,
 });
 
 assert.throws(
@@ -116,7 +116,7 @@ assert.throws(
     {
       code: 'ERR_OUT_OF_RANGE',
       message: 'The byte length of the protocol at index 0 exceeds the ' +
-        'maximum length. It must be <= 255. Received 500'
+        'maximum length. It must be <= 255. Received 500',
     }
   );
 }
@@ -124,11 +124,11 @@ assert.throws(
 assert.throws(() => { tls.createSecureContext({ minVersion: 'fhqwhgads' }); },
               {
                 code: 'ERR_TLS_INVALID_PROTOCOL_VERSION',
-                name: 'TypeError'
+                name: 'TypeError',
               });
 
 assert.throws(() => { tls.createSecureContext({ maxVersion: 'fhqwhgads' }); },
               {
                 code: 'ERR_TLS_INVALID_PROTOCOL_VERSION',
-                name: 'TypeError'
+                name: 'TypeError',
               });

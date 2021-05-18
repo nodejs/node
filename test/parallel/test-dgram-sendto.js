@@ -8,7 +8,7 @@ const errObj = {
   code: 'ERR_INVALID_ARG_TYPE',
   name: 'TypeError',
   message: 'The "offset" argument must be of type number. Received ' +
-           'undefined'
+           'undefined',
 };
 assert.throws(() => socket.sendto(), errObj);
 

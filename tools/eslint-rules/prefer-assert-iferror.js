@@ -9,7 +9,7 @@ const utils = require('./rules-utils.js');
 
 module.exports = {
   meta: {
-    fixable: 'code'
+    fixable: 'code',
   },
   create(context) {
     const sourceCode = context.getSourceCode();
@@ -55,10 +55,10 @@ module.exports = {
                   `assert.ifError(${argument});`
                 );
               }
-            }
+            },
           });
         }
-      }
+      },
     };
-  }
+  },
 };

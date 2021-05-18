@@ -11,7 +11,7 @@ const expectedHeadersMultipleWrites = {
 
 const expectedHeadersEndWithData = {
   'connection': 'close',
-  'content-length': String('hello world'.length)
+  'content-length': String('hello world'.length),
 };
 
 const expectedHeadersEndNoData = {
@@ -52,7 +52,7 @@ server.listen(0, function() {
   req = http.request({
     port: this.address().port,
     method: 'POST',
-    path: '/multiple-writes'
+    path: '/multiple-writes',
   });
   req.removeHeader('Date');
   req.removeHeader('Host');
@@ -65,7 +65,7 @@ server.listen(0, function() {
   req = http.request({
     port: this.address().port,
     method: 'POST',
-    path: '/end-with-data'
+    path: '/end-with-data',
   });
   req.removeHeader('Date');
   req.removeHeader('Host');
@@ -77,7 +77,7 @@ server.listen(0, function() {
   req = http.request({
     port: this.address().port,
     method: 'POST',
-    path: '/empty'
+    path: '/empty',
   });
   req.removeHeader('Date');
   req.removeHeader('Host');

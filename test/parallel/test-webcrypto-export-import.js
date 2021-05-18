@@ -17,57 +17,57 @@ const { subtle, getRandomValues } = require('crypto').webcrypto;
     await Promise.all([1, null, undefined, {}, []].map((format) =>
       assert.rejects(
         subtle.importKey(format, keyData, {}, false, ['wrapKey']), {
-          code: 'ERR_INVALID_ARG_TYPE'
+          code: 'ERR_INVALID_ARG_TYPE',
         })
     ));
     await assert.rejects(
       subtle.importKey('not valid', keyData, {}, false, ['wrapKey']), {
-        code: 'ERR_INVALID_ARG_VALUE'
+        code: 'ERR_INVALID_ARG_VALUE',
       });
     await Promise.all([1, null, undefined, {}, []].map((keyData) =>
       assert.rejects(
         subtle.importKey('raw', keyData, {}, false, ['deriveBits']), {
-          code: 'ERR_INVALID_ARG_TYPE'
+          code: 'ERR_INVALID_ARG_TYPE',
         })
     ));
     await assert.rejects(
       subtle.importKey('raw', keyData, {
-        name: 'HMAC'
+        name: 'HMAC',
       }, false, ['sign', 'verify']), {
-        code: 'ERR_MISSING_OPTION'
+        code: 'ERR_MISSING_OPTION',
       });
     await assert.rejects(
       subtle.importKey('raw', keyData, {
         name: 'HMAC',
-        hash: 'SHA-256'
+        hash: 'SHA-256',
       }, false, ['deriveBits']), {
         name: 'SyntaxError',
-        message: 'Unsupported key usage for an HMAC key'
+        message: 'Unsupported key usage for an HMAC key',
       });
     await assert.rejects(
       subtle.importKey('node.keyObject', '', {
         name: 'HMAC',
-        hash: 'SHA-256'
+        hash: 'SHA-256',
       }, false, ['sign', 'verify']), {
-        code: 'ERR_INVALID_ARG_TYPE'
+        code: 'ERR_INVALID_ARG_TYPE',
       });
     await assert.rejects(
       subtle.importKey('raw', keyData, {
         name: 'HMAC',
         hash: 'SHA-256',
-        length: 0
+        length: 0,
       }, false, ['sign', 'verify']), {
         name: 'DataError',
-        message: 'Zero-length key is not supported'
+        message: 'Zero-length key is not supported',
       });
     await assert.rejects(
       subtle.importKey('raw', keyData, {
         name: 'HMAC',
         hash: 'SHA-256',
-        length: 1
+        length: 1,
       }, false, ['sign', 'verify']), {
         name: 'DataError',
-        message: 'Invalid key length'
+        message: 'Invalid key length',
       });
     await assert.rejects(
       subtle.importKey('jwk', null, {
@@ -75,7 +75,7 @@ const { subtle, getRandomValues } = require('crypto').webcrypto;
         hash: 'SHA-256',
       }, false, ['sign', 'verify']), {
         name: 'DataError',
-        message: 'Invalid JWK keyData'
+        message: 'Invalid JWK keyData',
       });
   }
 
@@ -90,7 +90,7 @@ const { subtle, getRandomValues } = require('crypto').webcrypto;
       'raw',
       keyData, {
         name: 'HMAC',
-        hash: 'SHA-256'
+        hash: 'SHA-256',
       }, true, ['sign', 'verify']);
 
     const raw = await subtle.exportKey('raw', key);
@@ -149,7 +149,7 @@ const { subtle, getRandomValues } = require('crypto').webcrypto;
       name: 'RSA-PSS',
       modulusLength: 1024,
       publicExponent: new Uint8Array([1, 0, 1]),
-      hash: 'SHA-384'
+      hash: 'SHA-384',
     }, true, ['sign', 'verify']);
 
     const [
@@ -207,7 +207,7 @@ const { subtle, getRandomValues } = require('crypto').webcrypto;
   async function test() {
     const { publicKey, privateKey } = await subtle.generateKey({
       name: 'ECDSA',
-      namedCurve: 'P-384'
+      namedCurve: 'P-384',
     }, true, ['sign', 'verify']);
 
     const [
@@ -235,19 +235,19 @@ const { subtle, getRandomValues } = require('crypto').webcrypto;
     ] = await Promise.all([
       subtle.importKey('spki', spki, {
         name: 'ECDSA',
-        namedCurve: 'P-384'
+        namedCurve: 'P-384',
       }, true, ['verify']),
       subtle.importKey('pkcs8', pkcs8, {
         name: 'ECDSA',
-        namedCurve: 'P-384'
+        namedCurve: 'P-384',
       }, true, ['sign']),
       subtle.importKey('jwk', publicJwk, {
         name: 'ECDSA',
-        namedCurve: 'P-384'
+        namedCurve: 'P-384',
       }, true, ['verify']),
       subtle.importKey('jwk', privateJwk, {
         name: 'ECDSA',
-        namedCurve: 'P-384'
+        namedCurve: 'P-384',
       }, true, ['sign']),
     ]);
 

@@ -12,7 +12,7 @@ const MakeDuplexPair = require('../common/duplexpair');
 
   const req = http.request({
     createConnection: common.mustCall(() => clientSide),
-    maxHeaderSize: http.maxHeaderSize * 4
+    maxHeaderSize: http.maxHeaderSize * 4,
   }, common.mustCall((res) => {
     assert.strictEqual(res.headers.hello, 'A'.repeat(http.maxHeaderSize * 3));
     res.resume();  // We don’t actually care about contents.
@@ -32,7 +32,7 @@ const MakeDuplexPair = require('../common/duplexpair');
   const { clientSide, serverSide } = MakeDuplexPair();
 
   const req = http.request({
-    createConnection: common.mustCall(() => clientSide)
+    createConnection: common.mustCall(() => clientSide),
   }, common.mustNotCall());
   req.end();
   req.on('error', common.mustCall());

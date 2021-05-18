@@ -90,7 +90,7 @@ function test(cb) {
     const spawn = require('child_process').spawn;
     const primary = spawn(process.execPath, [__filename, 'primary'], {
       stdio: [ 0, 'pipe', 2, server._handle, 'ipc' ],
-      detached: true
+      detached: true,
     });
 
     // Now close the parent, so that the primary is the only thing
@@ -117,7 +117,7 @@ function test(cb) {
 function primary() {
   console.error('in primary, spawning worker');
   cluster.setupPrimary({
-    args: [ 'worker' ]
+    args: [ 'worker' ],
   });
   const worker = cluster.fork();
   worker.on('message', function(msg) {

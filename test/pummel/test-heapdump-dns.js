@@ -13,6 +13,6 @@ validateSnapshotNodes('Node / ChannelWrap', [
       { node_name: 'Node / NodeAresTask::List', edge_name: 'task_list' },
       // `Node / ChannelWrap` (C++) -> `ChannelWrap` (JS)
       { node_name: 'ChannelWrap', edge_name: 'wrapped' },
-    ]
+    ],
   },
 ]);

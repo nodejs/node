@@ -18,6 +18,6 @@ assert.throws(
   () => require('.'),
   {
     message: /Cannot find module '\.'/,
-    code: 'MODULE_NOT_FOUND'
+    code: 'MODULE_NOT_FOUND',
   }
 );

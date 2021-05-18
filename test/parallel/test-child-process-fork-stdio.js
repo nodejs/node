@@ -27,7 +27,7 @@ if (process.argv[2] === 'child') {
   let stderr = '';
   const buf = Buffer.from('data to send via pipe');
   const child = cp.fork(__filename, ['child'], {
-    stdio: [0, 'ignore', 'pipe', 'ipc', 'pipe']
+    stdio: [0, 'ignore', 'pipe', 'ipc', 'pipe'],
   });
 
   assert.strictEqual(child.stdout, null);

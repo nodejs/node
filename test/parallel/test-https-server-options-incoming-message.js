@@ -26,7 +26,7 @@ const server = https.createServer({
   key: fixtures.readKey('agent1-key.pem'),
   cert: fixtures.readKey('agent1-cert.pem'),
   ca: fixtures.readKey('ca1-cert.pem'),
-  IncomingMessage: MyIncomingMessage
+  IncomingMessage: MyIncomingMessage,
 }, common.mustCall(function(req, res) {
   assert.strictEqual(req.getUserAgent(), 'node-test');
   res.statusCode = 200;
@@ -39,8 +39,8 @@ server.on('listening', function makeRequest() {
     port: this.address().port,
     rejectUnauthorized: false,
     headers: {
-      'User-Agent': 'node-test'
-    }
+      'User-Agent': 'node-test',
+    },
   }, (res) => {
     assert.strictEqual(res.statusCode, 200);
     res.on('end', () => {

@@ -8,7 +8,7 @@ const fixtures = require('../common/fixtures');
 const fs = require('fs');
 const env = {
   ...process.env,
-  NODE_DEBUG_NATIVE: 'diagnostics'
+  NODE_DEBUG_NATIVE: 'diagnostics',
 };
 
 {
@@ -20,8 +20,8 @@ const env = {
     env: {
       TEST_SNAPSHOTS: 1,
       TEST_OLD_SPACE_SIZE: 50,
-      ...env
-    }
+      ...env,
+    },
   });
   console.log(child.stdout.toString());
   const stderr = child.stderr.toString();

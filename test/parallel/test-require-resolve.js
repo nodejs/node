@@ -45,14 +45,14 @@ require(fixtures.path('resolve-paths', 'default', 'verify-paths.js'));
     () => { require.resolve(value); },
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      message
+      message,
     });
 
   assert.throws(
     () => { require.resolve.paths(value); },
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      message
+      message,
     });
 });
 

@@ -33,7 +33,7 @@ server.listen(0, common.mustCall(() => {
       {
         code: 'ERR_HTTP2_HEADER_SINGLE_VALUE',
         name: 'TypeError',
-        message: `Header field "${i}" must only have a single value`
+        message: `Header field "${i}" must only have a single value`,
       }
     );
 
@@ -42,7 +42,7 @@ server.listen(0, common.mustCall(() => {
       {
         code: 'ERR_HTTP2_HEADER_SINGLE_VALUE',
         name: 'TypeError',
-        message: `Header field "${i}" must only have a single value`
+        message: `Header field "${i}" must only have a single value`,
       }
     );
   });

@@ -28,7 +28,7 @@ const options = {
   server.listen(0, common.mustCall(() => {
     const socket = tls.connect({
       port: server.address().port,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     }, common.mustCall(() => {
       socket.end();
     }));
@@ -43,7 +43,7 @@ const options = {
   const server = tls.createServer({
     allowHalfOpen: true,
     pauseOnConnect: true,
-    ...options
+    ...options,
   }, common.mustCall((socket) => {
     assert.strictEqual(socket.allowHalfOpen, true);
     assert.strictEqual(socket.isPaused(), true);
@@ -56,7 +56,7 @@ const options = {
   server.listen(0, common.mustCall(() => {
     const socket = tls.connect({
       port: server.address().port,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     }, common.mustCall(() => {
       socket.end();
     }));

@@ -18,7 +18,7 @@ check(new Readable({
     }
 
     this.push(null);
-  }
+  },
 }));
 
 function check(s) {

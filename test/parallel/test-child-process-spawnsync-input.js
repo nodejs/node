@@ -60,7 +60,7 @@ if (process.argv.includes('spawnchild')) {
       break;
     case '2':
       ret = spawnSync(process.execPath, args, {
-        stdio: ['inherit', 'inherit', 'inherit']
+        stdio: ['inherit', 'inherit', 'inherit'],
       });
       checkSpawnSyncRet(ret);
       break;
@@ -73,7 +73,7 @@ verifyBufOutput(spawnSync(process.execPath, [__filename, 'spawnchild', 1]));
 verifyBufOutput(spawnSync(process.execPath, [__filename, 'spawnchild', 2]));
 
 let options = {
-  input: 1234
+  input: 1234,
 };
 
 assert.throws(
@@ -81,7 +81,7 @@ assert.throws(
   { code: 'ERR_INVALID_ARG_TYPE', name: 'TypeError' });
 
 options = {
-  input: 'hello world'
+  input: 'hello world',
 };
 
 ret = spawnSync('cat', [], options);
@@ -91,7 +91,7 @@ assert.strictEqual(ret.stdout.toString('utf8'), options.input);
 assert.strictEqual(ret.stderr.toString('utf8'), '');
 
 options = {
-  input: Buffer.from('hello world')
+  input: Buffer.from('hello world'),
 };
 
 ret = spawnSync('cat', [], options);
@@ -105,7 +105,7 @@ assert.deepStrictEqual(ret.stderr, Buffer.from(''));
 const msgBuf = Buffer.from('hello world'.repeat(8));
 for (const arrayBufferView of common.getArrayBufferViews(msgBuf)) {
   options = {
-    input: arrayBufferView
+    input: arrayBufferView,
   };
 
   ret = spawnSync('cat', [], options);

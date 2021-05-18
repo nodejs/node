@@ -8,7 +8,7 @@ const httpServer = http.createServer(common.mustCall(function(req, res) {
   assert.throws(() => {
     res.write(['Throws.']);
   }, {
-    code: 'ERR_INVALID_ARG_TYPE'
+    code: 'ERR_INVALID_ARG_TYPE',
   });
   // should not throw
   res.write('1a2b3c');

@@ -237,7 +237,7 @@ function initRepl(mode, useGlobal) {
     terminal: false,
     prompt: '',
     replMode: mode,
-    useGlobal: useGlobal
+    useGlobal: useGlobal,
   });
 }
 

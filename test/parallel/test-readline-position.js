@@ -14,7 +14,7 @@ common.skipIfDumbTerminal();
   const rl = readline.createInterface({
     terminal: true,
     input: input,
-    prompt: ''
+    prompt: '',
   });
 
   const tests = [

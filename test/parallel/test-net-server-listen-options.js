@@ -27,7 +27,7 @@ const listenOnPort = [
   const assertPort = () => {
     return common.expectsError({
       code: 'ERR_SOCKET_BAD_PORT',
-      name: 'RangeError'
+      name: 'RangeError',
     });
   };
 

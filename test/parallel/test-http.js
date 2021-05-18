@@ -69,9 +69,9 @@ server.on('listening', () => {
     headers: {
       Accept: '*/*',
       Foo: 'bar',
-      Cookie: [ 'foo=bar', 'bar=baz', 'baz=quux' ]
+      Cookie: [ 'foo=bar', 'bar=baz', 'baz=quux' ],
     },
-    agent: agent
+    agent: agent,
   }, common.mustCall((res) => {
     const cookieHeaders = req._header.match(/^Cookie: .+$/img);
     assert.deepStrictEqual(cookieHeaders,
@@ -90,7 +90,7 @@ server.on('listening', () => {
       port: server.address().port,
       method: 'PUT',
       path: '/there',
-      agent: agent
+      agent: agent,
     }, common.mustCall((res) => {
       const cookieHeaders = req._header.match(/^Cookie: .+$/img);
       assert.deepStrictEqual(cookieHeaders, ['Cookie: node=awesome; ta=da']);
@@ -114,7 +114,7 @@ server.on('listening', () => {
       headers: [ ['Cookie', 'abc=123'],
                  ['Cookie', 'def=456'],
                  ['Cookie', 'ghi=789'] ],
-      agent: agent
+      agent: agent,
     }, common.mustCall((res) => {
       const cookieHeaders = req._header.match(/^Cookie: .+$/img);
       assert.deepStrictEqual(cookieHeaders,

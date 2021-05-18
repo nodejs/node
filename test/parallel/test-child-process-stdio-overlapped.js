@@ -34,7 +34,7 @@ const exe = 'overlapped-checker' + exeExtension;
 const exePath = path.join(path.dirname(process.execPath), exe);
 
 const child = child_process.spawn(exePath, [], {
-  stdio: ['overlapped', 'pipe', 'pipe']
+  stdio: ['overlapped', 'pipe', 'pipe'],
 });
 
 child.stdin.setEncoding('utf8');

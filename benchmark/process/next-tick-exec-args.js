@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common.js');
 const bench = common.createBenchmark(main, {
-  n: [4e6]
+  n: [4e6],
 });
 
 function main({ n }) {

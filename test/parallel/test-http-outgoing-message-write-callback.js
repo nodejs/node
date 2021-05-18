@@ -16,13 +16,13 @@ for (const method of ['GET, HEAD']) {
   const writable = new stream.Writable({
     write(chunk, encoding, callback) {
       callback();
-    }
+    },
   });
 
   const res = new http.ServerResponse({
     method: method,
     httpVersionMajor: 1,
-    httpVersionMinor: 1
+    httpVersionMinor: 1,
   });
 
   res.assignSocket(writable);

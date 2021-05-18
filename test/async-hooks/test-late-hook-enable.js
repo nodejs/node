@@ -37,7 +37,7 @@ const hook = async_hooks.createHook({
   destroy: common.mustCall(() => {
     hook.disable();
     nextTest();
-  }, 3)
+  }, 3),
 });
 
 nextTest();

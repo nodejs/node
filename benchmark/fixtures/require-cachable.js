@@ -2,7 +2,7 @@
 
 const { internalBinding } = require('internal/test/binding');
 const {
-  moduleCategories: { canBeRequired }
+  moduleCategories: { canBeRequired },
 } = internalBinding('native_module');
 
 for (const key of canBeRequired) {

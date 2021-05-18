@@ -40,7 +40,7 @@ http.createServer(function(req, res) {
     'host': `localhost:${this.address().port}`,
     'transfer-encoding': 'CHUNKED',
     'x-bar': 'yoyoyo',
-    'connection': 'close'
+    'connection': 'close',
   };
   const expectRawTrailers = [
     'x-bAr',
@@ -99,7 +99,7 @@ http.createServer(function(req, res) {
       'trailer': 'x-foo',
       'date': null,
       'connection': 'close',
-      'transfer-encoding': 'chunked'
+      'transfer-encoding': 'chunked',
     };
     res.rawHeaders[3] = null;
     res.headers.date = null;

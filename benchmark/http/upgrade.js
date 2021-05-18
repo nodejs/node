@@ -4,7 +4,7 @@ const common = require('../common.js');
 const net = require('net');
 
 const bench = common.createBenchmark(main, {
-  n: [5, 1000]
+  n: [5, 1000],
 });
 
 const reqData = 'GET / HTTP/1.1\r\n' +

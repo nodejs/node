@@ -81,7 +81,7 @@ for (const [ value, _method ] of [
   assert(types.isUint8Array(vm.runInNewContext('new Uint8Array')));
 
   assert(!types.isUint8ClampedArray({
-    [Symbol.toStringTag]: 'Uint8ClampedArray'
+    [Symbol.toStringTag]: 'Uint8ClampedArray',
   }));
   assert(types.isUint8ClampedArray(
     vm.runInNewContext('new Uint8ClampedArray')
@@ -259,7 +259,7 @@ for (const [ value, _method ] of [
     ],
     isBigUint64Array: [
       bigUint64Array, stealthyBigUint64Array,
-    ]
+    ],
   };
 
   for (const testedFunc of Object.keys(expected)) {

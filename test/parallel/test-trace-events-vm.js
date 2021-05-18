@@ -24,7 +24,7 @@ if (process.argv[2] === 'child') {
                          execArgv: [
                            '--trace-event-categories',
                            'node.vm.script',
-                         ]
+                         ],
                        });
 
   proc.once('exit', common.mustCall(() => {

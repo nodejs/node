@@ -49,7 +49,7 @@ if (cluster.isPrimary) {
   }));
 
   cluster.setupPrimary({
-    stdio: ['pipe', 'pipe', 'pipe', 'ipc', 'pipe', 'pipe', 'pipe']
+    stdio: ['pipe', 'pipe', 'pipe', 'ipc', 'pipe', 'pipe', 'pipe'],
   });
 
   const worker = cluster.fork();

@@ -48,7 +48,7 @@ function tryConnect() {
       assert.strictEqual(addr, HOSTNAME);
       assert.strictEqual(opt.family, 6);
       cb(null, hostAddrIPv6, opt.family);
-    })
+    }),
   };
   // No `mustCall`, since test could skip, and it's the only path to `close`.
   const client = net.connect(connectOpt, () => {

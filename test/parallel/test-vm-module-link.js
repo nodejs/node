@@ -104,7 +104,7 @@ async function circular2() {
     './b.mjs': `
       export * from './a.mjs';
       export let fromB;
-    `
+    `,
   };
   const moduleMap = new Map();
   const rootModule = new SourceTextModule(sourceMap.root, {

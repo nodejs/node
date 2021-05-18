@@ -11,13 +11,13 @@ const server = http2.createServer();
 server.on('stream', common.mustCall((stream) => {
   stream.respond({
     ':status': 200,
-    'content-type': 'text/html'
+    'content-type': 'text/html',
   });
   const input = new Readable({
     read() {
       this.push('test');
       this.push(null);
-    }
+    },
   });
   input.pipe(stream);
 }));

@@ -9,7 +9,7 @@ function makeIterableFunc(array) {
   return Object.assign(() => {}, {
     [Symbol.iterator]() {
       return array[Symbol.iterator]();
-    }
+    },
   });
 }
 
@@ -17,12 +17,12 @@ function makeIterableFunc(array) {
   const iterableError = {
     code: 'ERR_ARG_NOT_ITERABLE',
     name: 'TypeError',
-    message: 'Query pairs must be iterable'
+    message: 'Query pairs must be iterable',
   };
   const tupleError = {
     code: 'ERR_INVALID_TUPLE',
     name: 'TypeError',
-    message: 'Each query pair must be an iterable [name, value] tuple'
+    message: 'Each query pair must be an iterable [name, value] tuple',
   };
 
   let params;
@@ -52,7 +52,7 @@ function makeIterableFunc(array) {
 {
   const obj = {
     toString() { throw new Error('toString'); },
-    valueOf() { throw new Error('valueOf'); }
+    valueOf() { throw new Error('valueOf'); },
   };
   const sym = Symbol();
   const toStringError = /^Error: toString$/;

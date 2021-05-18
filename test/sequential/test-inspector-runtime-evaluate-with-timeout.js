@@ -14,11 +14,11 @@ common.skipIfInspectorDisabled();
   await assert.rejects(
     session.post('Runtime.evaluate', {
       expression: 'for(;;);',
-      timeout: 0
+      timeout: 0,
     }),
     {
       code: 'ERR_INSPECTOR_COMMAND',
-      message: 'Inspector error -32000: Execution was terminated'
+      message: 'Inspector error -32000: Execution was terminated',
     }
   );
   session.disconnect();

@@ -47,7 +47,7 @@ nonStringInputs.forEach(common.mustCall((input) => {
     zlib.gunzip(input);
   }, {
     name: 'TypeError',
-    code: 'ERR_INVALID_ARG_TYPE'
+    code: 'ERR_INVALID_ARG_TYPE',
   });
 }, nonStringInputs.length));
 

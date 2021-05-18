@@ -10,7 +10,7 @@ const asyncIds = [];
 async_hooks.createHook({
   init: (asyncId, type, triggerAsyncId) => {
     asyncIds.push([triggerAsyncId, asyncId]);
-  }
+  },
 }).enable();
 
 async function main() {

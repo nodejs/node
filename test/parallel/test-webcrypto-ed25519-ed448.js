@@ -8,14 +8,14 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const {
   generateKeyPairSync,
-  webcrypto: { subtle }
+  webcrypto: { subtle },
 } = require('crypto');
 
 async function generateKey(namedCurve) {
   return subtle.generateKey(
     {
       name: namedCurve,
-      namedCurve
+      namedCurve,
     },
     true,
     ['sign', 'verify']);
@@ -59,12 +59,12 @@ assert.rejects(
     Buffer.alloc(10),
     {
       name: 'NODE-ED25519',
-      namedCurve: 'NODE-ED25519'
+      namedCurve: 'NODE-ED25519',
     },
     false,
     ['sign']),
   {
-    message: /NODE-ED25519 raw keys must be exactly 32-bytes/
+    message: /NODE-ED25519 raw keys must be exactly 32-bytes/,
   }).then(common.mustCall());
 
 assert.rejects(
@@ -73,12 +73,12 @@ assert.rejects(
     Buffer.alloc(10),
     {
       name: 'NODE-ED448',
-      namedCurve: 'NODE-ED448'
+      namedCurve: 'NODE-ED448',
     },
     false,
     ['sign']),
   {
-    message: /NODE-ED448 raw keys must be exactly 57-bytes/
+    message: /NODE-ED448 raw keys must be exactly 57-bytes/,
   }).then(common.mustCall());
 
 const testVectors = {
@@ -239,7 +239,7 @@ const testVectors = {
           '028961c9bf8ffd973fe5d5c206492b140e00', 'hex'),
       crv: 'Ed448',
     },
-  ]
+  ],
 };
 
 async function test2(namedCurve) {
@@ -254,7 +254,7 @@ async function test2(namedCurve) {
         vector.privateKey,
         {
           name: namedCurve,
-          namedCurve
+          namedCurve,
         },
         true, ['sign']),
       subtle.importKey(
@@ -263,7 +263,7 @@ async function test2(namedCurve) {
         {
           name: namedCurve,
           namedCurve,
-          public: true
+          public: true,
         },
         true, ['verify']),
     ]);
@@ -272,7 +272,7 @@ async function test2(namedCurve) {
     assert.deepStrictEqual(Buffer.from(rawPublicKey), vector.publicKey);
 
     assert.rejects(subtle.exportKey('raw', privateKey), {
-      message: new RegExp(`Unable to export a raw ${namedCurve} private key`)
+      message: new RegExp(`Unable to export a raw ${namedCurve} private key`),
     }).then(common.mustCall());
 
     const sig = await subtle.sign(
@@ -322,48 +322,48 @@ assert.rejects(
   subtle.generateKey(
     {
       name: 'ECDSA',
-      namedCurve: 'NODE-X25519'
+      namedCurve: 'NODE-X25519',
     },
     true,
     ['sign', 'verify']),
   {
-    message: /Unsupported named curves for ECDSA/
+    message: /Unsupported named curves for ECDSA/,
   }).then(common.mustCall());
 
 assert.rejects(
   subtle.generateKey(
     {
       name: 'ECDSA',
-      namedCurve: 'NODE-X448'
+      namedCurve: 'NODE-X448',
     },
     true,
     ['sign', 'verify']),
   {
-    message: /Unsupported named curves for ECDSA/
+    message: /Unsupported named curves for ECDSA/,
   }).then(common.mustCall());
 
 assert.rejects(
   subtle.generateKey(
     {
       name: 'ECDSA',
-      namedCurve: 'NODE-ED25519'
+      namedCurve: 'NODE-ED25519',
     },
     true,
     ['sign', 'verify']),
   {
-    message: /Unsupported named curves for ECDSA/
+    message: /Unsupported named curves for ECDSA/,
   }).then(common.mustCall());
 
 assert.rejects(
   subtle.generateKey(
     {
       name: 'ECDSA',
-      namedCurve: 'NODE-ED448'
+      namedCurve: 'NODE-ED448',
     },
     true,
     ['sign', 'verify']),
   {
-    message: /Unsupported named curves for ECDSA/
+    message: /Unsupported named curves for ECDSA/,
   }).then(common.mustCall());
 
 {
@@ -394,7 +394,7 @@ assert.rejects(
           keyObject.type === 'private' ? ['sign'] : ['verify']
         ),
         {
-          message: /Invalid algorithm name/
+          message: /Invalid algorithm name/,
         }).then(common.mustCall());
 
       assert.rejects(
@@ -409,7 +409,7 @@ assert.rejects(
           keyObject.type === 'private' ? ['deriveBits', 'deriveKey'] : [],
         ),
         {
-          message: /Invalid algorithm name/
+          message: /Invalid algorithm name/,
         }).then(common.mustCall());
     }
   }

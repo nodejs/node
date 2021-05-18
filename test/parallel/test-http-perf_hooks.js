@@ -46,13 +46,13 @@ server.listen(0, common.mustCall(async () => {
       port: server.address().port,
       path: '/',
       method: 'POST',
-      data: expected
+      data: expected,
     }),
     makeRequest({
       port: server.address().port,
       path: '/',
       method: 'POST',
-      data: expected
+      data: expected,
     }),
   ]);
   server.close();

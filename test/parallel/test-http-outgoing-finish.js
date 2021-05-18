@@ -34,7 +34,7 @@ http.createServer(function(req, res) {
 }).listen(0, function() {
   const req = http.request({
     port: this.address().port,
-    method: 'PUT'
+    method: 'PUT',
   });
   write(req);
   req.on('response', function(res) {

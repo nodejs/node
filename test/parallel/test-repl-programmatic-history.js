@@ -78,17 +78,17 @@ const tests = [
   {
     env: { NODE_REPL_HISTORY: '' },
     test: [UP],
-    expected: [prompt, replDisabled, prompt]
+    expected: [prompt, replDisabled, prompt],
   },
   {
     env: { NODE_REPL_HISTORY: ' ' },
     test: [UP],
-    expected: [prompt, replDisabled, prompt]
+    expected: [prompt, replDisabled, prompt],
   },
   {
     env: { NODE_REPL_HISTORY: historyPath },
     test: [UP, CLEAR],
-    expected: [prompt, `${prompt}'you look fabulous today'`, prompt]
+    expected: [prompt, `${prompt}'you look fabulous today'`, prompt],
   },
   {
     env: {},
@@ -100,7 +100,7 @@ const tests = [
       '2', '1', '21\n', prompt, prompt,
       "'", '4', '2', "'", "'42'\n", prompt, prompt,
     ],
-    clean: false
+    clean: false,
   },
   { // Requires the above test case
     env: {},
@@ -113,7 +113,7 @@ const tests = [
       `${prompt}21`,
       '21\n',
       prompt,
-    ]
+    ],
   },
   {
     env: { NODE_REPL_HISTORY: historyPath,
@@ -125,13 +125,13 @@ const tests = [
       prompt,
       `${prompt}'you look fabulous today'`,
       prompt,
-    ]
+    ],
   },
   {
     env: { NODE_REPL_HISTORY: historyPathFail,
            NODE_REPL_HISTORY_SIZE: 1 },
     test: [UP],
-    expected: [prompt, replFailedRead, prompt, replDisabled, prompt]
+    expected: [prompt, replFailedRead, prompt, replDisabled, prompt],
   },
   {
     before: function before() {
@@ -144,7 +144,7 @@ const tests = [
     },
     env: { NODE_REPL_HISTORY: emptyHiddenHistoryPath },
     test: [UP],
-    expected: [prompt]
+    expected: [prompt],
   },
   {
     before: function before() {
@@ -153,7 +153,7 @@ const tests = [
     },
     env: { NODE_REPL_HISTORY: devNullHistoryPath },
     test: [UP],
-    expected: [prompt]
+    expected: [prompt],
   },
   { // Make sure this is always the last test, since we change os.homedir()
     before: function before() {
@@ -164,7 +164,7 @@ const tests = [
     },
     env: {},
     test: [UP],
-    expected: [prompt, homedirErr, prompt, replDisabled, prompt]
+    expected: [prompt, homedirErr, prompt, replDisabled, prompt],
   },
 ];
 const numtests = tests.length;
@@ -231,12 +231,12 @@ function runTest(assertCleaned) {
           throw err;
         }
         next();
-      }
+      },
     }),
     prompt: prompt,
     useColors: false,
     terminal: true,
-    historySize: historySize
+    historySize: historySize,
   });
 
   repl.setupHistory(historyFile, function(err, repl) {

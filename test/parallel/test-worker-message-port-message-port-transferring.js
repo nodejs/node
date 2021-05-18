@@ -7,7 +7,7 @@ const { MessageChannel } = require('worker_threads');
 {
   const { port1: basePort1, port2: basePort2 } = new MessageChannel();
   const {
-    port1: transferredPort1, port2: transferredPort2
+    port1: transferredPort1, port2: transferredPort2,
   } = new MessageChannel();
 
   basePort1.postMessage({ transferredPort1 }, [ transferredPort1 ]);

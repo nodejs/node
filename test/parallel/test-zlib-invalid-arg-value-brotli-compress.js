@@ -11,10 +11,10 @@ const { BrotliCompress, constants } = require('zlib');
 
 const opts = {
   params: {
-    [constants.BROTLI_PARAM_MODE]: 'lol'
-  }
+    [constants.BROTLI_PARAM_MODE]: 'lol',
+  },
 };
 
 assert.throws(() => BrotliCompress(opts), {
-  code: 'ERR_INVALID_ARG_TYPE'
+  code: 'ERR_INVALID_ARG_TYPE',
 });

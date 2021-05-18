@@ -20,7 +20,7 @@ const r = repl.start({
   output,
   terminal: false,
   useColors: false,
-  global: false
+  global: false,
 });
 
 r.write(

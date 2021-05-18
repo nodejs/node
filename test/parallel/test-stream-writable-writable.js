@@ -6,7 +6,7 @@ const { Writable } = require('stream');
 
 {
   const w = new Writable({
-    write() {}
+    write() {},
   });
   assert.strictEqual(w.writable, true);
   w.destroy();
@@ -17,7 +17,7 @@ const { Writable } = require('stream');
   const w = new Writable({
     write: common.mustCall((chunk, encoding, callback) => {
       callback(new Error());
-    })
+    }),
   });
   assert.strictEqual(w.writable, true);
   w.write('asd');
@@ -32,7 +32,7 @@ const { Writable } = require('stream');
         callback(new Error());
         assert.strictEqual(w.writable, false);
       });
-    })
+    }),
   });
   w.write('asd');
   w.on('error', common.mustCall());
@@ -40,7 +40,7 @@ const { Writable } = require('stream');
 
 {
   const w = new Writable({
-    write: common.mustNotCall()
+    write: common.mustNotCall(),
   });
   assert.strictEqual(w.writable, true);
   w.end();

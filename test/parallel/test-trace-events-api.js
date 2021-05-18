@@ -17,7 +17,7 @@ const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
 const {
   createTracing,
-  getEnabledCategories
+  getEnabledCategories,
 } = require('trace_events');
 
 function getEnabledCategoriesFromCommandLine() {
@@ -35,11 +35,11 @@ assert.strictEqual(getEnabledCategories(), enabledCategories);
 [1, 'foo', true, false, null, undefined].forEach((i) => {
   assert.throws(() => createTracing(i), {
     code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError'
+    name: 'TypeError',
   });
   assert.throws(() => createTracing({ categories: i }), {
     code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError'
+    name: 'TypeError',
   });
 });
 
@@ -47,7 +47,7 @@ assert.throws(
   () => createTracing({ categories: [] }),
   {
     code: 'ERR_TRACE_EVENTS_CATEGORY_REQUIRED',
-    name: 'TypeError'
+    name: 'TypeError',
   }
 );
 
@@ -84,7 +84,7 @@ if (isChild) {
     trace: {
       TRACE_EVENT_PHASE_NESTABLE_ASYNC_BEGIN: kBeforeEvent,
       TRACE_EVENT_PHASE_NESTABLE_ASYNC_END: kEndEvent,
-    }
+    },
   } = internalBinding('constants');
 
   const { trace } = internalBinding('trace_events');
@@ -143,7 +143,7 @@ function testApiInChildProcess(execArgs, cb) {
                            '--expose-internals',
                            '--no-warnings',
                            ...execArgs,
-                         ]
+                         ],
                        });
 
   proc.once('exit', common.mustCall(() => {

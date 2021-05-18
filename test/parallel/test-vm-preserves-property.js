@@ -10,7 +10,7 @@ Object.defineProperty(x, 'prop', {
   configurable: false,
   enumerable: false,
   writable: false,
-  value: 'val'
+  value: 'val',
 });
 const o = vm.createContext(x);
 

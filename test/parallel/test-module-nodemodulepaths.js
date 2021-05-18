@@ -40,7 +40,7 @@ const cases = {
       'C:\\Users\\hefangshi\\node_modules',
       'C:\\Users\\node_modules',
       'C:\\node_modules',
-    ]
+    ],
   }, {
     file: 'C:\\Users\\Rocko Artischocko\\node_stuff\\foo',
     expect: [
@@ -49,7 +49,7 @@ const cases = {
       'C:\\Users\\Rocko Artischocko\\node_modules',
       'C:\\Users\\node_modules',
       'C:\\node_modules',
-    ]
+    ],
   }, {
     file: 'C:\\Users\\Rocko Artischocko\\node_stuff\\foo_node_modules',
     expect: [
@@ -59,17 +59,17 @@ Artischocko\\node_stuff\\foo_node_modules\\node_modules',
       'C:\\Users\\Rocko Artischocko\\node_modules',
       'C:\\Users\\node_modules',
       'C:\\node_modules',
-    ]
+    ],
   }, {
     file: 'C:\\node_modules',
     expect: [
       'C:\\node_modules',
-    ]
+    ],
   }, {
     file: 'C:\\',
     expect: [
       'C:\\node_modules',
-    ]
+    ],
   }],
   'POSIX': [{
     file: '/usr/lib/node_modules/npm/node_modules/\
@@ -84,7 +84,7 @@ node-gyp/node_modules/glob/node_modules',
       '/usr/lib/node_modules',
       '/usr/node_modules',
       '/node_modules',
-    ]
+    ],
   }, {
     file: '/usr/test/lib/node_modules/npm/foo',
     expect: [
@@ -94,7 +94,7 @@ node-gyp/node_modules/glob/node_modules',
       '/usr/test/node_modules',
       '/usr/node_modules',
       '/node_modules',
-    ]
+    ],
   }, {
     file: '/usr/test/lib/node_modules/npm/foo_node_modules',
     expect: [
@@ -104,18 +104,18 @@ node-gyp/node_modules/glob/node_modules',
       '/usr/test/node_modules',
       '/usr/node_modules',
       '/node_modules',
-    ]
+    ],
   }, {
     file: '/node_modules',
     expect: [
       '/node_modules',
-    ]
+    ],
   }, {
     file: '/',
     expect: [
       '/node_modules',
-    ]
-  }]
+    ],
+  }],
 };
 
 const platformCases = common.isWindows ? cases.WIN : cases.POSIX;

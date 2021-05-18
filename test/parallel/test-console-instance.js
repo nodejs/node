@@ -48,7 +48,7 @@ assert.throws(
   {
     code: 'ERR_CONSOLE_WRITABLE_STREAM',
     name: 'TypeError',
-    message: /stdout/
+    message: /stdout/,
   }
 );
 
@@ -62,7 +62,7 @@ assert.throws(
   {
     code: 'ERR_CONSOLE_WRITABLE_STREAM',
     name: 'TypeError',
-    message: /stderr/
+    message: /stderr/,
   }
 );
 
@@ -136,13 +136,13 @@ out.write = err.write = (d) => {};
       new Console({
         stdout: out,
         stderr: err,
-        inspectOptions
+        inspectOptions,
       });
     },
     {
       message: 'The "options.inspectOptions" property must be of type object.' +
                common.invalidArgTypeHelper(inspectOptions),
-      code: 'ERR_INVALID_ARG_TYPE'
+      code: 'ERR_INVALID_ARG_TYPE',
     }
   );
 });

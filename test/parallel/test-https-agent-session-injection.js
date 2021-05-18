@@ -17,7 +17,7 @@ const options = {
   // NOTE: TLS 1.3 creates new session ticket **after** handshake so
   // `getSession()` output will be different even if the session was reused
   // during the handshake.
-  secureProtocol: 'TLSv1_2_method'
+  secureProtocol: 'TLSv1_2_method',
 };
 
 const ca = [ fixtures.readKey('ca1-cert.pem') ];

@@ -25,7 +25,7 @@ server.listen(0, common.mustCall(() => {
     assert(settings.enableConnectProtocol);
     const req = client.request({
       ':method': 'CONNECT',
-      ':protocol': 'foo'
+      ':protocol': 'foo',
     });
     req.resume();
     req.on('end', common.mustCall());

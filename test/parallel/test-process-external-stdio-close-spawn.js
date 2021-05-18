@@ -18,7 +18,7 @@ if (process.argv[2] === 'child') {
   // the debugger. This test was added to help debug the fork-based
   // test with the same name.
   const child = cp.spawn(process.execPath, [__filename, 'child'], {
-    stdio: ['pipe', 'pipe', 'pipe', 'ipc']
+    stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
   });
 
   child.on('close', common.mustCall((exitCode, signal) => {

@@ -15,14 +15,14 @@ function test(throwCodeInbetween) {
         rs.push({ counter });
       else
         rs.push(null);
-    }, n)
+    }, n),
   });
 
   const ws = stream.Writable({
     objectMode: true,
     write: common.mustCall((data, enc, cb) => {
       setImmediate(cb);
-    }, n)
+    }, n),
   });
 
   setImmediate(() => throwCodeInbetween(rs, ws));

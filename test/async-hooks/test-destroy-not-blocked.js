@@ -23,7 +23,7 @@ createHook({
     if (activeId === id) {
       activeId = -1;
     }
-  }
+  },
 }).enable();
 
 function testNextTick() {

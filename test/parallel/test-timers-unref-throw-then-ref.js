@@ -4,7 +4,7 @@ const assert = require('assert');
 
 process.once('uncaughtException', common.mustCall((err) => {
   common.expectsError({
-    message: 'Timeout Error'
+    message: 'Timeout Error',
   })(err);
 }));
 

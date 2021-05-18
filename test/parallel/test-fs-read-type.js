@@ -16,7 +16,7 @@ assert.throws(
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
     message: 'The "buffer" argument must be an instance of Buffer, ' +
-             'TypedArray, or DataView. Received type number (4)'
+             'TypedArray, or DataView. Received type number (4)',
   }
 );
 
@@ -30,7 +30,7 @@ assert.throws(
             common.mustNotCall());
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError'
+    name: 'TypeError',
   });
 });
 
@@ -57,7 +57,7 @@ assert.throws(() => {
   code: 'ERR_OUT_OF_RANGE',
   name: 'RangeError',
   message: 'The value of "offset" is out of range. It must be an integer. ' +
-           'Received NaN'
+           'Received NaN',
 });
 
 assert.throws(() => {
@@ -71,7 +71,7 @@ assert.throws(() => {
   code: 'ERR_OUT_OF_RANGE',
   name: 'RangeError',
   message: 'The value of "length" is out of range. ' +
-           'It must be >= 0. Received -1'
+           'It must be >= 0. Received -1',
 });
 
 [true, () => {}, {}, ''].forEach((value) => {
@@ -84,7 +84,7 @@ assert.throws(() => {
             common.mustNotCall());
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError'
+    name: 'TypeError',
   });
 });
 
@@ -98,7 +98,7 @@ assert.throws(() => {
             common.mustNotCall());
   }, {
     code: 'ERR_OUT_OF_RANGE',
-    name: 'RangeError'
+    name: 'RangeError',
   });
 });
 
@@ -129,7 +129,7 @@ assert.throws(
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
     message: 'The "buffer" argument must be an instance of Buffer, ' +
-             'TypedArray, or DataView. Received type number (4)'
+             'TypedArray, or DataView. Received type number (4)',
   }
 );
 
@@ -142,7 +142,7 @@ assert.throws(
                 0);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError'
+    name: 'TypeError',
   });
 });
 
@@ -167,7 +167,7 @@ assert.throws(() => {
   code: 'ERR_OUT_OF_RANGE',
   name: 'RangeError',
   message: 'The value of "offset" is out of range. It must be an integer. ' +
-           'Received NaN'
+           'Received NaN',
 });
 
 assert.throws(() => {
@@ -180,7 +180,7 @@ assert.throws(() => {
   code: 'ERR_OUT_OF_RANGE',
   name: 'RangeError',
   message: 'The value of "length" is out of range. ' +
-           'It must be >= 0. Received -1'
+           'It must be >= 0. Received -1',
 });
 
 assert.throws(() => {
@@ -193,7 +193,7 @@ assert.throws(() => {
   code: 'ERR_OUT_OF_RANGE',
   name: 'RangeError',
   message: 'The value of "length" is out of range. ' +
-           'It must be <= 4. Received 5'
+           'It must be <= 4. Received 5',
 });
 
 [true, () => {}, {}, ''].forEach((value) => {
@@ -205,7 +205,7 @@ assert.throws(() => {
                 value);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError'
+    name: 'TypeError',
   });
 });
 
@@ -218,7 +218,7 @@ assert.throws(() => {
                 value);
   }, {
     code: 'ERR_OUT_OF_RANGE',
-    name: 'RangeError'
+    name: 'RangeError',
   });
 });
 

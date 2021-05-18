@@ -28,7 +28,7 @@ if (!process.env.HAS_STARTED_WORKER) {
     const mask = 0o600;
     assert.throws(() => { process.umask(mask); }, {
       code: 'ERR_WORKER_UNSUPPORTED_OPERATION',
-      message: 'Setting process.umask() is not supported in workers'
+      message: 'Setting process.umask() is not supported in workers',
     });
   }
 
@@ -45,7 +45,7 @@ if (!process.env.HAS_STARTED_WORKER) {
       process[fn]();
     }, {
       code: 'ERR_WORKER_UNSUPPORTED_OPERATION',
-      message: `process.${fn}() is not supported in workers`
+      message: `process.${fn}() is not supported in workers`,
     });
   });
 
@@ -54,7 +54,7 @@ if (!process.env.HAS_STARTED_WORKER) {
       process[fn]; // eslint-disable-line no-unused-expressions
     }, {
       code: 'ERR_WORKER_UNSUPPORTED_OPERATION',
-      message: `process.${fn} is not supported in workers`
+      message: `process.${fn} is not supported in workers`,
     });
   });
 

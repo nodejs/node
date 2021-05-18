@@ -7,7 +7,7 @@ const {
   Transform,
   finished,
   Duplex,
-  PassThrough
+  PassThrough,
 } = require('stream');
 const assert = require('assert');
 const EE = require('events');
@@ -17,7 +17,7 @@ const http = require('http');
 
 {
   const rs = new Readable({
-    read() {}
+    read() {},
   });
 
   finished(rs, common.mustSucceed());
@@ -30,7 +30,7 @@ const http = require('http');
   const ws = new Writable({
     write(data, enc, cb) {
       cb();
-    }
+    },
   });
 
   finished(ws, common.mustSucceed());
@@ -42,7 +42,7 @@ const http = require('http');
   const tr = new Transform({
     transform(data, enc, cb) {
       cb();
-    }
+    },
   });
 
   let finish = false;
@@ -173,7 +173,7 @@ const http = require('http');
   const rs = fs.createReadStream('file-does-not-exist');
 
   finished(rs, common.expectsError({
-    code: 'ENOENT'
+    code: 'ENOENT',
   }));
 }
 
@@ -202,28 +202,28 @@ const http = require('http');
 // Test faulty input values and options.
 {
   const rs = new Readable({
-    read() {}
+    read() {},
   });
 
   assert.throws(
     () => finished(rs, 'foo'),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /callback/
+      message: /callback/,
     }
   );
   assert.throws(
     () => finished(rs, 'foo', () => {}),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /options/
+      message: /options/,
     }
   );
   assert.throws(
     () => finished(rs, {}, 'foo'),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /callback/
+      message: /callback/,
     }
   );
 
@@ -238,7 +238,7 @@ const http = require('http');
   const ws = new Writable({
     write(data, env, cb) {
       cb();
-    }
+    },
   });
   const removeListener = finished(ws, common.mustNotCall());
   removeListener();
@@ -285,7 +285,7 @@ const http = require('http');
   const w = new Writable({
     write(chunk, encoding, callback) {
       setImmediate(callback);
-    }
+    },
   });
   finished(w, common.mustCall((err) => {
     assert.strictEqual(err.code, 'ERR_STREAM_PREMATURE_CLOSE');
@@ -323,7 +323,7 @@ function testClosed(factory) {
           destroyed = true;
           cb();
         });
-      }
+      },
     });
     s.destroy();
     finished(s, common.mustCall(() => {
@@ -339,7 +339,7 @@ function testClosed(factory) {
       destroy(err, cb) {
         cb();
         finished(s, common.mustCall());
-      }
+      },
     });
     s.destroy();
   }
@@ -355,7 +355,7 @@ function testClosed(factory) {
             finished(s, common.mustCall());
           });
         });
-      }
+      },
     });
     s.destroy();
   }
@@ -369,7 +369,7 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
     write(chunk, encoding, cb) {
       cb();
     },
-    autoDestroy: false
+    autoDestroy: false,
   });
   w.end('asd');
   process.nextTick(() => {
@@ -382,7 +382,7 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
     write(chunk, encoding, cb) {
       cb(new Error());
     },
-    autoDestroy: false
+    autoDestroy: false,
   });
   w.write('asd');
   w.on('error', common.mustCall(() => {
@@ -392,7 +392,7 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
 
 {
   const r = new Readable({
-    autoDestroy: false
+    autoDestroy: false,
   });
   r.push(null);
   r.resume();
@@ -436,7 +436,7 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
     final(cb) { }, // Never close writable side for test purpose
     read() {
       this.push(null);
-    }
+    },
   });
 
   d.on('end', common.mustCall());
@@ -452,7 +452,7 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
     final(cb) { }, // Never close writable side for test purpose
     read() {
       this.push(null);
-    }
+    },
   });
 
   d.on('end', common.mustCall());
@@ -482,7 +482,7 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
   class HelloWorld extends Duplex {
     constructor(response) {
       super({
-        autoDestroy: false
+        autoDestroy: false,
       });
 
       this.response = response;
@@ -564,7 +564,7 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
   .listen(0, function() {
     http.request({
       method: 'GET',
-      port: this.address().port
+      port: this.address().port,
     }).end()
       .on('response', common.mustCall());
   });
@@ -581,7 +581,7 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
   })).listen(0, function() {
     http.request({
       method: 'GET',
-      port: this.address().port
+      port: this.address().port,
     }).end().on('error', common.mustCall());
   });
 }
@@ -591,7 +591,7 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
   const w = new Writable({
     write(chunk, encoding, callback) {
       process.nextTick(callback);
-    }
+    },
   });
   w.aborted = false;
   w.end();

@@ -35,7 +35,7 @@ const cert =
 
 const serverOptions = {
   key: key,
-  cert: cert
+  cert: cert,
 };
 
 // Start the server
@@ -51,7 +51,7 @@ httpsServer.on('listening', () => {
   const clientOptions = {
     hostname: '127.0.0.1',
     port: httpsServer.address().port,
-    ca: cert
+    ca: cert,
   };
   // Try to connect
   const req = https.request(clientOptions, common.mustCall((res) => {
