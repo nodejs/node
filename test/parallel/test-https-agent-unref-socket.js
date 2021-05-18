@@ -6,7 +6,7 @@ if (!common.hasCrypto)
 
 const https = require('https');
 
-const request = https.get('https://www.google.com');
+const request = https.get('https://example.com');
 
 request.on('socket', (socket) => {
   socket.unref();
