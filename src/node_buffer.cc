@@ -567,7 +567,7 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
   SPREAD_BUFFER_ARG(args[0], ts_obj);
 
-  size_t start;
+  size_t start = 0;
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[2], 0, &start));
   size_t end;
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[3], 0, &end));
@@ -668,8 +668,8 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
 
   Local<String> str = args[0]->ToString(env->context()).ToLocalChecked();
 
-  size_t offset;
-  size_t max_length;
+  size_t offset = 0;
+  size_t max_length = 0;
 
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[1], 0, &offset));
   if (offset > ts_obj_length) {
