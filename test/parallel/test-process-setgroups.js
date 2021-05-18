@@ -53,6 +53,6 @@ assert.throws(() => {
   process.setgroups([1, 'fhqwhgadshgnsdhjsdbkhsdabkfabkveyb']);
 }, {
   code: 'ERR_UNKNOWN_CREDENTIAL',
-  message: 'Group identifier does not exist:' +
+  message: 'Group identifier does not exist: ' +
   'fhqwhgadshgnsdhjsdbkhsdabkfabkveyb',
 });
