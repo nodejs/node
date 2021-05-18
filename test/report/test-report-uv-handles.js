@@ -251,7 +251,7 @@ if (process.argv[2] === 'child') {
         assert(handle.is_referenced);
       }, 2),
     };
-
+    console.log(report.libuv);
     for (const entry of report.libuv) {
       if (validators[entry.type]) validators[entry.type](entry);
     }
