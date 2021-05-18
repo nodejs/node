@@ -30,7 +30,7 @@ function makeDirectoryWritable(dir) {
   if (common.isWindows) {
     execSync(`icacls ${dir} /remove:d "everyone"`);
   } else {
-    fs.chmodSync(dirname, 0o777);
+    fs.chmodSync(dir, 0o777);
   }
 }
 
