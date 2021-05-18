@@ -106,7 +106,7 @@ int NoPasswordCallback(char* buf, int size, int rwflag, void* u) {
 }
 
 void InitCryptoOnce() {
-#ifndef OPENSSL_IS_BORINGSSL
+#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_MAJOR < 3
   OPENSSL_INIT_SETTINGS* settings = OPENSSL_INIT_new();
 
   // --openssl-config=...
