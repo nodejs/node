@@ -1485,7 +1485,7 @@ util.types.isBoxedPrimitive(Object(BigInt(5))); // Returns true
 
 ### `util.types.isCryptoKey(value)`
 <!-- YAML
-added: REPLACEME
+added: v16.2.0
 -->
 
 * `value` {Object}
@@ -1690,7 +1690,7 @@ util.types.isInt32Array(new Float64Array());  // Returns false
 
 ### `util.types.isKeyObject(value)`
 <!-- YAML
-added: REPLACEME
+added: v16.2.0
 -->
 
 * `value` {Object}
