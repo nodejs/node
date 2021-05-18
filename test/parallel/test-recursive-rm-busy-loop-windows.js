@@ -7,6 +7,7 @@ const common = require('../common');
 
 const assert = require('assert');
 const fs = require('fs');
+const { execSync } = require('child_process');
 const tmpdir = require('../common/tmpdir');
 const { join } = require('path');
 
