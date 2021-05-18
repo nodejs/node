@@ -5,7 +5,10 @@ built-ins that come from the VM so that Node.js built-in modules do not need to
 later look these up from the global proxy, which can be mutated by users.
 
 Usage of primordials should be preferred for any new code, but replacing current
-code with primordials should be done with care.
+code with primordials should be
+[done with care](#primordials-with-known-performance-issues). It is highly
+recommended to ping the relevant team when reviewing a pull request that touches
+one of the subsystem they "own".
 
 ## Accessing primordials
 
@@ -15,7 +18,8 @@ usually fine to rely on ECMAScript built-ins and assume that it will behave as
 specified.
 
 If you'd like to access the `primordials` object to help you with Node.js core
-development or for tinkering, you can make it globally available:
+development or for tinkering, you can expose it on the global scope using this
+combination of CLI flags:
 
 ```bash
 node --expose-internals -r internal/test/binding
@@ -83,6 +87,8 @@ console.log(JSON.stringify(array)); // [1,2,3,4,5]
 
 Safe classes are classes that provide the same API as their equivalent class,
 but whose implementation aims to avoid any reliance on user-mutable code.
+Safe classes should not be exposed to user-land, use unsafe equivalent when
+dealing with objects that are accessible from user-land.
 
 ### Variadic functions
 
@@ -110,11 +116,15 @@ performance of code in Node.js.
   * `FunctionPrototype`: use `() => {}` instead when referencing a no-op
     function.
 * `SafeArrayIterator`
+* `SafeStringIterator`
+* `SafePromisePrototypeFinally`: use `try {} finally {}` block instead.
 
 In general, when sending or reviewing a PR that makes changes in a hot code
 path, use extra caution and run extensive benchmarks.
 
-## How to avoid unsafe array iteration
+## Implicit use of user-mutable methods
+
+### Unsafe array iteration
 
 There are many usual practices in JavaScript that rely on iteration. It's useful
 to be aware of them when dealing with arrays (or `TypedArray`s) in core as array
@@ -292,3 +302,177 @@ set.add(1).add(2).add(3);
 ```
 
 </details>
+
+### Promise objects
+
+<details>
+
+<summary>`%Promise.prototype.finally%` looks up `then` property of the Promise
+         instance</summary>
+
+```js
+// User-land
+Promise.prototype.then = function then(a, b) {
+  return Promise.resolve();
+};
+
+// Core
+let cleanedUp = false;
+PromisePrototypeFinally(somePromise, () => { cleanedUp = true; });
+console.log(cleanedUp); // false
+```
+
+```js
+// User-land
+Promise.prototype.then = function then(a, b) {
+  return Promise.resolve();
+};
+
+// Core
+let cleanedUp = false;
+(async () => {
+  try {
+    return await somePromise;
+  } finally {
+    cleanedUp = true;
+  }
+})();
+console.log(cleanedUp); // true
+```
+
+</details>
+
+### (Async) Generator functions
+
+Generator and async generators returned by generator functions and async
+generator functions are relying on user-mutable, their use in core should be
+avoided.
+
+<details>
+
+<summary>`%GeneratorFunction.prototype.prototype%.next` is user-mutable</summary>
+
+```js
+// User-land
+Object.getPrototypeOf(function* () {}).prototype.next = function next() {
+  return { done: true };
+};
+
+// Core
+function* someGenerator() {
+  yield 1;
+  yield 2;
+  yield 3;
+}
+let loopCodeExecuted = false;
+for (const nb of someGenerator()) {
+  loopCodeExecuted = true;
+}
+console.log(loopCodeExecuted); // false
+```
+
+</details>
+
+<details>
+
+<summary>`%AsyncGeneratorFunction.prototype.prototype%.next` is user-mutable</summary>
+
+```js
+// User-land
+Object.getPrototypeOf(async function* () {}).prototype.next = function next() {
+  return new Promise(() => {});
+};
+
+// Core
+async function* someGenerator() {
+  yield 1;
+  yield 2;
+  yield 3;
+}
+let finallyBlockExecuted = false;
+async () => {
+  try {
+    for await (const nb of someGenerator()) {
+      // some code;
+    }
+  } finally {
+    finallyBlockExecuted = true;
+  }
+};
+process.on('exit', () => console.log(finallyBlockExecuted)); // false
+```
+
+</details>
+
+### Text processing
+
+#### Unsafe string methods
+
+| The string method             | looks up the property |
+| ----------------------------- | --------------------- |
+| `String.prototype.match`      | `Symbol.match`        |
+| `String.prototype.matchAll`   | `Symbol.matchAll`     |
+| `String.prototype.replace`    | `Symbol.replace`      |
+| `String.prototype.replaceAll` | `Symbol.replace`      |
+| `String.prototype.search`     | `Symbol.search`       |
+| `String.prototype.split`      | `Symbol.split`        |
+
+```js
+// User-land
+RegExp.prototype[Symbol.replace] = () => 'foo';
+String.prototype[Symbol.replace] = () => 'baz';
+
+// Core
+console.log(StringPrototypeReplace('ber', /e/, 'a')); // 'foo'
+console.log(StringPrototypeReplace('ber', 'e', 'a')); // 'baz'
+console.log(RegExpPrototypeSymbolReplace(/e/, 'ber', 'a')); // 'bar'
+```
+
+#### Unsafe string iteration
+
+As with arrays, iterating over strings calls several user mutable methods. Avoid
+iterating over strings when possible, or use `SafeStringIterator`.
+
+#### Unsafe `RegExp` methods
+
+Functions that lookup the `exec` property on the prototype chain:
+
+* `RegExp.prototype[Symbol.match]`
+* `RegExp.prototype[Symbol.matchAll]`
+* `RegExp.prototype[Symbol.replace]`
+* `RegExp.prototype[Symbol.search]`
+* `RegExp.prototype[Symbol.split]`
+* `RegExp.prototype.test`
+
+```js
+// User-land
+RegExp.prototype.exec = () => null;
+
+// Core
+console.log(RegExpPrototypeTest(/o/, 'foo')); // false
+console.log(RegExpPrototypeExec(/o/, 'foo') !== null); // true
+```
+
+#### Don't trust `RegExp` flags
+
+RegExp flags are not own properties of the regex instances, which means flags
+can be reset from user-land.
+
+```js
+// User-land
+Object.defineProperty(RegExp.prototype, 'global', { value: false });
+
+// Core
+console.log(RegExpPrototypeSymbolReplace(/o/g, 'foo', 'a')); // 'fao'
+
+const regex = /o/g;
+ObjectDefineProperties(regex, {
+  dotAll: { value: false },
+  global: { value: true },
+  ignoreCase: { value: false },
+  multiline: { value: false },
+  unicode: { value: false },
+  sticky: { value: false },
+});
+console.log(RegExpPrototypeSymbolReplace(regex, 'foo', 'a')); // 'faa'
+```
