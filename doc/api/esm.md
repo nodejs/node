@@ -350,11 +350,11 @@ module default import or its corresponding sugar syntax:
 
 <!-- eslint-disable no-duplicate-imports -->
 ```js
-import { default as cjs } from 'node:cjs';
+import { default as cjs } from 'cjs';
 
 // The following import statement is "syntax sugar" (equivalent but sweeter)
 // for `{ default as cjsSugar }` in the above import statement:
-import cjsSugar from 'node:cjs';
+import cjsSugar from 'cjs';
 
 console.log(cjs);
 console.log(cjs === cjsSugar);
@@ -368,11 +368,11 @@ a namespace with a `default` export key pointing to the CommonJS
 `module.exports` value.
 
 This Module Namespace Exotic Object can be directly observed either when using
-`import * as m from 'node:cjs'` or a dynamic import:
+`import * as m from 'cjs'` or a dynamic import:
 
 <!-- eslint-skip -->
 ```js
-import * as m from 'node:cjs';
+import * as m from 'cjs';
 console.log(m);
 console.log(m === await import('cjs'));
 // Prints:
