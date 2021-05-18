@@ -291,7 +291,8 @@ automatically closed by workers, and disconnect does not wait for them to close
 before exiting.
 
 In a worker, `process.disconnect` exists, but it is not this function;
-it is [`disconnect()`][].
+it is [`disconnect()`][]. Because [`disconnect()`][] does not set
+`.exitedAfterDisconnect`, the worker calls `process.exit(0)`.
 
 Because long living server connections may block workers from disconnecting, it
 may be useful to send a message, so application specific actions may be taken to
