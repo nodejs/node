@@ -286,7 +286,7 @@ added:
   - v13.9.0
   - v12.16.2
 changes:
-  - version: REPLACEME
+  - version: v16.2.0
     pr-url: https://github.com/nodejs/node/pull/38587
     description: Add support for WHATWG `URL` object to `parentURL` parameter.
 -->
