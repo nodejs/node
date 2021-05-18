@@ -165,6 +165,8 @@ This only applies if you are working with a genuine array (or array-like
 object). If you are instead expecting an iterator, a for-of loop may be a better
 choice.
 
+</details>
+
 <details>
 
 <summary>Avoid array destructuring assignment on arrays</summary>
