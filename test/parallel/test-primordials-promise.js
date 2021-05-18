@@ -6,17 +6,17 @@ const assert = require('assert');
 
 const {
   PromisePrototypeCatch,
-  PromisePrototypeFinally,
   PromisePrototypeThen,
+  SafePromisePrototypeFinally,
 } = require('internal/test/binding').primordials;
 
 Promise.prototype.catch = common.mustNotCall();
 Promise.prototype.finally = common.mustNotCall();
 Promise.prototype.then = common.mustNotCall();
 
-assertIsPromise(PromisePrototypeCatch(test(), common.mustNotCall()));
-assertIsPromise(PromisePrototypeFinally(test(), common.mustCall()));
+assertIsPromise(PromisePrototypeCatch(Promise.reject(), common.mustCall()));
 assertIsPromise(PromisePrototypeThen(test(), common.mustCall()));
+assertIsPromise(SafePromisePrototypeFinally(test(), common.mustCall()));
 
 async function test() {
   const catchFn = common.mustCall();
