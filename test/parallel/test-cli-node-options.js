@@ -61,7 +61,8 @@ if (common.isLinux) {
 if (common.hasCrypto) {
   expectNoWorker('--use-openssl-ca', 'B\n');
   expectNoWorker('--use-bundled-ca', 'B\n');
-  expectNoWorker('--openssl-config=_ossl_cfg', 'B\n');
+  if (!common.hasOpenSSL3)
+    expectNoWorker('--openssl-config=_ossl_cfg', 'B\n');
 }
 
 // V8 options
