@@ -56,6 +56,7 @@ class ExternalReferenceRegistry {
   V(errors)                                                                    \
   V(fs)                                                                        \
   V(fs_dir)                                                                    \
+  V(fs_event_wrap)                                                             \
   V(handle_wrap)                                                               \
   V(heap_utils)                                                                \
   V(messaging)                                                                 \

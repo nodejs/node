@@ -21,10 +21,10 @@
 
 #include "async_wrap-inl.h"
 #include "env-inl.h"
-#include "node.h"
 #include "handle_wrap.h"
+#include "node.h"
+#include "node_external_reference.h"
 #include "string_bytes.h"
-
 
 namespace node {
 
@@ -52,6 +52,7 @@ class FSEventWrap: public HandleWrap {
                          Local<Value> unused,
                          Local<Context> context,
                          void* priv);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
   static void New(const FunctionCallbackInfo<Value>& args);
   static void Start(const FunctionCallbackInfo<Value>& args);
   static void GetInitialized(const FunctionCallbackInfo<Value>& args);
@@ -117,6 +118,12 @@ void FSEventWrap::Initialize(Local<Object> target,
   env->SetConstructorFunction(target, "FSEvent", t);
 }
 
+void FSEventWrap::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+  registry->Register(Start);
+  registry->Register(GetInitialized);
+}
 
 void FSEventWrap::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
@@ -229,3 +236,5 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(fs_event_wrap, node::FSEventWrap::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(fs_event_wrap,
+                               node::FSEventWrap::RegisterExternalReferences)
