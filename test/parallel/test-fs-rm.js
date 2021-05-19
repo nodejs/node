@@ -327,7 +327,7 @@ function removeAsync(dir) {
     }
 
     {
-      // check endless recursion.
+      // Check endless recursion.
       // https://github.com/nodejs/node/issues/34580
       const dirname = nextDirPath();
       fs.mkdirSync(dirname, { recursive: true });
@@ -336,7 +336,7 @@ function removeAsync(dir) {
       fs.mkdirSync(middle);
       fs.mkdirSync(path.join(middle, 'leaf')); // Make `middle` non-empty
       const mode = common.isWindows ? 0 : 0o555;
-      const code = common.isWindows ? 'EPERM': 'EACCES';
+      const code = common.isWindows ? 'EPERM' : 'EACCES';
       try {
         fs.chmodSync(middle, mode);
         assert.throws(() => {
