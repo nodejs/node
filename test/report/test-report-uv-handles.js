@@ -3,16 +3,8 @@
 // Testcase to check reporting of uv handles.
 const common = require('../common');
 const tmpdir = require('../common/tmpdir');
-const path = require('path');
 if (common.isIBMi)
   common.skip('IBMi does not support fs.watch()');
-
-function pipeName(windowsExtended) {
-  const localRelative = path.relative(process.cwd(), `${tmpdir.path}/`);
-  const pipePrefix = common.isWindows ? `\\\\${windowsExtended ? '?' : '.'}\\pipe\\` : localRelative;
-  const filename = `node-test.${process.pid}.sock`;
-  return path.join(pipePrefix, filename);
-}
 
 function createFsHandle(childData) {
   const fs = require('fs');
@@ -98,7 +90,7 @@ function createUdpHandle(childData) {
 
 function createNamedPipeHandle(childData) {
   const net = require('net');
-  const sockPath = `${pipeName(true)}-listen-path-test-report-uv-handles`;
+  const sockPath = common.PIPE;
   return new Promise((resolve) => {
     const server = net.createServer((socket) => {
       childData.pipe_sock_path = server.address();
