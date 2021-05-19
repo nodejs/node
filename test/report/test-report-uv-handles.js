@@ -3,8 +3,16 @@
 // Testcase to check reporting of uv handles.
 const common = require('../common');
 const tmpdir = require('../common/tmpdir');
+const path = require('path');
 if (common.isIBMi)
   common.skip('IBMi does not support fs.watch()');
+
+function pipeName(windowsExtended) {
+  const localRelative = path.relative(process.cwd(), `${tmpdir.path}/`);
+  const pipePrefix = common.isWindows ? `\\\\${windowsExtended ? '?' : '.'}\\pipe\\` : localRelative;
+  const filename = `node-test.${process.pid}.sock`;
+  return path.join(pipePrefix, filename);
+}
 
 function createFsHandle(childData) {
   const fs = require('fs');
@@ -90,7 +98,7 @@ function createUdpHandle(childData) {
 
 function createNamedPipeHandle(childData) {
   const net = require('net');
-  const sockPath = `${common.PIPE}-listen-path-test-report-uv-handles`;
+  const sockPath = `${pipeName(true)}-listen-path-test-report-uv-handles`;
   return new Promise((resolve) => {
     const server = net.createServer((socket) => {
       childData.pipe_sock_path = server.address();
@@ -202,15 +210,16 @@ if (process.argv[2] === 'child') {
         // 1. The server's listening pipe.
         // 2. The inbound pipe making the request.
         // 3. The outbound pipe sending the response.
+        //
+        // There is no way to distinguish inbound and outbound in a cross
+        // platform manner, so we just check inbound here.
         const sockPath = child_data.pipe_sock_path;
         if (handle.localEndpoint === sockPath) {
           if (handle.writable === false) {
             found_named_pipe.push('listening');
-          } else {
-            found_named_pipe.push('inbound');
           }
         } else if (handle.remoteEndpoint === sockPath) {
-          found_named_pipe.push('outbound');
+          found_named_pipe.push('inbound');
         }
       }),
       process: common.mustCall(function process_validator(handle) {
@@ -251,7 +260,7 @@ if (process.argv[2] === 'child') {
         assert(handle.is_referenced);
       }, 2),
     };
-    console.log(report.libuv);
+
     for (const entry of report.libuv) {
       if (validators[entry.type]) validators[entry.type](entry);
     }
@@ -261,7 +270,7 @@ if (process.argv[2] === 'child') {
     for (const socket of ['connected', 'unconnected']) {
       assert(found_udp.includes(socket), `${socket} UDP socket was not found`);
     }
-    for (const socket of ['listening', 'inbound', 'outbound']) {
+    for (const socket of ['listening', 'inbound']) {
       assert(found_named_pipe.includes(socket), `${socket} named pipe socket was not found`);
     }
 
