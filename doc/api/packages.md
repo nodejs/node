@@ -358,7 +358,7 @@ For these use cases, subpath export patterns can be used instead:
 }
 ```
 
-**`*` matches expose nested subpaths as it is a string replacement syntax 
+**`*` maps expose nested subpaths as it is a string replacement syntax
 only.**
 
 The left hand matching pattern must always end in `*`. All instances of `*` on
