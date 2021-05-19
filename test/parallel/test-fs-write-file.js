@@ -102,8 +102,6 @@ fs.open(filename4, 'w+', common.mustSucceed((fd) => {
   fs.writeFileSync(filename, '');
 
   // TODO: Correct the error type
-  fs.writeFile(filename, s, { flag: 'r' }, common.expectsError({
-    code: 'EBADF',
-    message: 'EBADF: bad file descriptor, write'
-  }));
+  const expectedError = common.isWindows ? /EPERM/ : /EBADF/;
+  fs.writeFile(filename, s, { flag: 'r' }, common.expectsError(expectedError));
 }

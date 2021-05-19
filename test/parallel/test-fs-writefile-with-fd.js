@@ -60,16 +60,12 @@ tmpdir.refresh();
 // Test read-only file descriptor
 {
   // TODO(pd4d10): https://github.com/nodejs/node/issues/38607
-  const isWindows = process.platform === 'win32';
-  const expectedCode = isWindows ? 'EPERM' : 'EBADF';
+  const expectedError = common.isWindows ? /EPERM/ : /EBADF/;
 
   const file = join(tmpdir.path, 'test.txt');
 
   fs.open(file, 'r', common.mustSucceed((fd) => {
-    fs.writeFile(fd, 'World', common.expectsError({
-      code: expectedCode,
-      message: expectedCode + ': bad file descriptor, write'
-    }));
+    fs.writeFile(fd, 'World', common.expectsError(expectedError));
   }));
 }
 
