@@ -16,7 +16,7 @@ const child = spawn(process.execPath, [
 ]);
 child.on('exit', common.mustCall((code, sig) => {
   if (common.isWindows) {
-    assert.strictEqual(code, 0xC0000005);
+    assert.strictEqual(code, 0x80000003);
   } else {
     assert(['SIGABRT', 'SIGTRAP', 'SIGILL'].includes(sig),
            `Unexpected signal ${sig}`);

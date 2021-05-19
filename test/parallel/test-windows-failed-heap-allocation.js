@@ -23,6 +23,6 @@ const cmd = `"${process.execPath}" --max-old-space-size=3 "${__filename}"`;
 exec(`${cmd} heapBomb`, { cwd: tmpdir.path }, common.mustCall((err) => {
   const msg = `Wrong exit code of ${err.code}! Expected 134 for abort`;
   // Note: common.nodeProcessAborted() is not asserted here because it
-  // returns true on 134 as well as 0xC0000005 (V8's base::OS::Abort)
+  // returns true on 134 as well as 0x80000003 (V8's base::OS::Abort)
   assert.strictEqual(err.code, 134, msg);
 }));
