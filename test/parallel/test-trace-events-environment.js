@@ -38,7 +38,7 @@ if (process.argv[2] === 'child') {
                          execArgv: [
                            '--trace-event-categories',
                            'node.environment',
-                         ]
+                         ],
                        });
 
   proc.once('exit', common.mustCall(async () => {

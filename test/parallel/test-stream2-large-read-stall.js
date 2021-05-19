@@ -33,7 +33,7 @@ const HWM = 50;
 
 const Readable = require('stream').Readable;
 const r = new Readable({
-  highWaterMark: HWM
+  highWaterMark: HWM,
 });
 const rs = r._readableState;
 

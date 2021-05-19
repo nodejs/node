@@ -15,7 +15,7 @@ tmpdir.refresh();
 const server = http.createServer({ maxHeaderSize: 64000 }, (req, res) => {
   const headers = {
     'content-type': 'text/plain',
-    'content-length': '2'
+    'content-length': '2',
   };
   res.writeHead(200, headers);
   res.end('ok');

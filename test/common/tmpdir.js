@@ -58,5 +58,5 @@ function onexit() {
 
 module.exports = {
   path: tmpPath,
-  refresh
+  refresh,
 };

@@ -139,7 +139,7 @@ assert.throws(
   },
   {
     code: 'ERR_INVALID_CALLBACK',
-    name: 'TypeError'
+    name: 'TypeError',
   });
 
 assert.throws(
@@ -148,7 +148,7 @@ assert.throws(
   },
   {
     code: 'ERR_INVALID_CALLBACK',
-    name: 'TypeError'
+    name: 'TypeError',
   });
 
 // Regular access should not throw.
@@ -169,14 +169,14 @@ fs.accessSync(readWriteFile, mode);
     () => fs.access(readWriteFile, mode, common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /"mode" argument.+integer/
+      message: /"mode" argument.+integer/,
     }
   );
   assert.throws(
     () => fs.accessSync(readWriteFile, mode),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /"mode" argument.+integer/
+      message: /"mode" argument.+integer/,
     }
   );
 });
@@ -193,14 +193,14 @@ fs.accessSync(readWriteFile, mode);
     () => fs.access(readWriteFile, mode, common.mustNotCall()),
     {
       code: 'ERR_OUT_OF_RANGE',
-      message: /"mode".+It must be an integer >= 0 && <= 7/
+      message: /"mode".+It must be an integer >= 0 && <= 7/,
     }
   );
   assert.throws(
     () => fs.accessSync(readWriteFile, mode),
     {
       code: 'ERR_OUT_OF_RANGE',
-      message: /"mode".+It must be an integer >= 0 && <= 7/
+      message: /"mode".+It must be an integer >= 0 && <= 7/,
     }
   );
 });

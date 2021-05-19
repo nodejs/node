@@ -6,11 +6,11 @@ const assert = require('assert');
 const {
   createHistogram,
   performance,
-  PerformanceObserver
+  PerformanceObserver,
 } = require('perf_hooks');
 
 const {
-  setTimeout: sleep
+  setTimeout: sleep,
 } = require('timers/promises');
 
 {
@@ -70,7 +70,7 @@ const {
                   {
                     code: 'ERR_INVALID_ARG_TYPE',
                     name: 'TypeError',
-                    message: /The "fn" argument must be of type function/
+                    message: /The "fn" argument must be of type function/,
                   });
   });
 }
@@ -99,7 +99,7 @@ const {
   assert.notStrictEqual(histogram.max, 0);
   [1, '', {}, [], false].forEach((histogram) => {
     assert.throws(() => performance.timerify(m, { histogram }), {
-      code: 'ERR_INVALID_ARG_TYPE'
+      code: 'ERR_INVALID_ARG_TYPE',
     });
   });
 })().then(common.mustCall());
@@ -117,7 +117,7 @@ const {
   assert.notStrictEqual(histogram.max, 0);
   [1, '', {}, [], false].forEach((histogram) => {
     assert.throws(() => performance.timerify(m, { histogram }), {
-      code: 'ERR_INVALID_ARG_TYPE'
+      code: 'ERR_INVALID_ARG_TYPE',
     });
   });
 })().then(common.mustCall());

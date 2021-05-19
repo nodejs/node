@@ -45,7 +45,7 @@ function download() {
     const writable = new Writable({
       write(chunk, encoding, callback) {
         callback();
-      }
+      },
     });
     res.pipe(writable);
     const _handle = res.socket._handle;
@@ -68,7 +68,7 @@ function download() {
         writable.end();
       }));
       res.on('error', common.expectsError({
-        code: 'ECONNRESET'
+        code: 'ECONNRESET',
       }));
     }
 

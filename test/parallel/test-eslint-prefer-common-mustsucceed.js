@@ -15,7 +15,7 @@ const msg2 = 'Please use common.mustSucceed instead of ' +
              'common.mustCall with assert.ifError.';
 
 new RuleTester({
-  parserOptions: { ecmaVersion: 2015 }
+  parserOptions: { ecmaVersion: 2015 },
 }).run('prefer-common-mustsucceed', rule, {
   valid: [
     'foo((err) => assert.ifError(err))',
@@ -26,27 +26,27 @@ new RuleTester({
   invalid: [
     {
       code: 'common.mustCall(assert.ifError)',
-      errors: [{ message: msg1 }]
+      errors: [{ message: msg1 }],
     },
     {
       code: 'common.mustCall((err) => assert.ifError(err))',
-      errors: [{ message: msg2 }]
+      errors: [{ message: msg2 }],
     },
     {
       code: 'common.mustCall((e) => assert.ifError(e))',
-      errors: [{ message: msg2 }]
+      errors: [{ message: msg2 }],
     },
     {
       code: 'common.mustCall(function(e) { assert.ifError(e); })',
-      errors: [{ message: msg2 }]
+      errors: [{ message: msg2 }],
     },
     {
       code: 'common.mustCall(function(e) { return assert.ifError(e); })',
-      errors: [{ message: msg2 }]
+      errors: [{ message: msg2 }],
     },
     {
       code: 'common.mustCall(function(e) {{ assert.ifError(e); }})',
-      errors: [{ message: msg2 }]
+      errors: [{ message: msg2 }],
     },
-  ]
+  ],
 });

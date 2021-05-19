@@ -5,7 +5,7 @@ const assert = require('assert');
 const stream = require('stream');
 
 const r = new stream.Readable({
-  read: () => {}
+  read: () => {},
 });
 
 // readableListening state should start in `false`.
@@ -19,7 +19,7 @@ r.on('readable', common.mustCall(() => {
 r.push(Buffer.from('Testing readableListening state'));
 
 const r2 = new stream.Readable({
-  read: () => {}
+  read: () => {},
 });
 
 // readableListening state should start in `false`.

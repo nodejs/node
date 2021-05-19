@@ -13,7 +13,7 @@ const sent = 'hello world';
 const serverOptions = {
   isServer: true,
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 };
 
 let ssl = null;

@@ -4,7 +4,7 @@ const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
   n: [1e6],
-  direction: ['start', 'end']
+  direction: ['start', 'end'],
 });
 
 function main({ n, direction }) {

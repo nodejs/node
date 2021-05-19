@@ -11,7 +11,7 @@ server.listen(0, common.mustCall(() => {
   const port = server.address().port;
   server.once('request', common.mustCall((request, response) => {
     response.addTrailers({
-      ABC: 123
+      ABC: 123,
     });
     response.setTrailer('ABCD', 123);
 
@@ -20,7 +20,7 @@ server.listen(0, common.mustCall(() => {
       {
         code: 'ERR_INVALID_HTTP_TOKEN',
         name: 'TypeError',
-        message: 'Header name must be a valid HTTP token [""]'
+        message: 'Header name must be a valid HTTP token [""]',
       }
     );
     assert.throws(
@@ -28,7 +28,7 @@ server.listen(0, common.mustCall(() => {
       {
         code: 'ERR_HTTP2_INVALID_HEADER_VALUE',
         name: 'TypeError',
-        message: 'Invalid value "undefined" for header "test"'
+        message: 'Invalid value "undefined" for header "test"',
       }
     );
     assert.throws(
@@ -36,7 +36,7 @@ server.listen(0, common.mustCall(() => {
       {
         code: 'ERR_HTTP2_INVALID_HEADER_VALUE',
         name: 'TypeError',
-        message: 'Invalid value "null" for header "test"'
+        message: 'Invalid value "null" for header "test"',
       }
     );
     assert.throws(
@@ -45,7 +45,7 @@ server.listen(0, common.mustCall(() => {
         code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError',
         message: 'The "name" argument must be of type string. Received ' +
-                 'undefined'
+                 'undefined',
       }
     );
     assert.throws(
@@ -53,7 +53,7 @@ server.listen(0, common.mustCall(() => {
       {
         code: 'ERR_INVALID_HTTP_TOKEN',
         name: 'TypeError',
-        message: 'Header name must be a valid HTTP token [""]'
+        message: 'Header name must be a valid HTTP token [""]',
       }
     );
 

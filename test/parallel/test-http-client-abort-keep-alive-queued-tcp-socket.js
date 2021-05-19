@@ -21,7 +21,7 @@ for (const destroyer of ['destroy', 'abort']) {
     const port = server.address().port;
     const agent = new Agent({
       keepAlive: true,
-      maxSockets: 1
+      maxSockets: 1,
     });
 
     http.get({ agent, port }, (res) => res.resume());

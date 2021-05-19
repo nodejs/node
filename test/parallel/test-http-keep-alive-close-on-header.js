@@ -44,7 +44,7 @@ server.listen(0, function() {
     path: '/',
     headers: headers,
     port: this.address().port,
-    agent: agent
+    agent: agent,
   }, function(res) {
     assert.strictEqual(agent.sockets[name].length, 1);
     res.resume();
@@ -61,7 +61,7 @@ server.listen(0, function() {
     path: '/',
     headers: headers,
     port: this.address().port,
-    agent: agent
+    agent: agent,
   }, function(res) {
     assert.strictEqual(agent.sockets[name].length, 1);
     res.resume();
@@ -77,7 +77,7 @@ server.listen(0, function() {
     path: '/',
     headers: headers,
     port: this.address().port,
-    agent: agent
+    agent: agent,
   }, function(response) {
     response.on('end', function() {
       assert.strictEqual(agent.sockets[name].length, 1);

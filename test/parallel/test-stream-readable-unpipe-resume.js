@@ -10,7 +10,7 @@ const transformStream = new stream.Transform({
   transform: common.mustCall(() => {
     readStream.unpipe();
     readStream.resume();
-  })
+  }),
 });
 
 readStream.on('end', common.mustCall());

@@ -10,7 +10,7 @@ const {
   DTRACE_HTTP_SERVER_REQUEST,
   DTRACE_HTTP_SERVER_RESPONSE,
   DTRACE_NET_SERVER_CONNECTION,
-  DTRACE_NET_STREAM_END
+  DTRACE_NET_STREAM_END,
 } = require('internal/dtrace');
 
 // We're just testing to make sure these are always defined and

@@ -6,7 +6,7 @@ const assert = require('assert');
 
 {
   const write = new Writable({
-    write(chunk, enc, cb) { cb(); }
+    write(chunk, enc, cb) { cb(); },
   });
 
   write.on('finish', common.mustNotCall());
@@ -21,7 +21,7 @@ const assert = require('assert');
     write(chunk, enc, cb) {
       this.destroy(new Error('asd'));
       cb();
-    }
+    },
   });
 
   write.on('error', common.mustCall());
@@ -32,7 +32,7 @@ const assert = require('assert');
 
 {
   const write = new Writable({
-    write(chunk, enc, cb) { cb(); }
+    write(chunk, enc, cb) { cb(); },
   });
 
   const expected = new Error('kaboom');
@@ -49,7 +49,7 @@ const assert = require('assert');
 
 {
   const write = new Writable({
-    write(chunk, enc, cb) { cb(); }
+    write(chunk, enc, cb) { cb(); },
   });
 
   write._destroy = function(err, cb) {
@@ -75,7 +75,7 @@ const assert = require('assert');
     destroy: common.mustCall(function(err, cb) {
       assert.strictEqual(err, expected);
       cb();
-    })
+    }),
   });
 
   const expected = new Error('kaboom');
@@ -92,7 +92,7 @@ const assert = require('assert');
 
 {
   const write = new Writable({
-    write(chunk, enc, cb) { cb(); }
+    write(chunk, enc, cb) { cb(); },
   });
 
   write._destroy = common.mustCall(function(err, cb) {
@@ -106,7 +106,7 @@ const assert = require('assert');
 
 {
   const write = new Writable({
-    write(chunk, enc, cb) { cb(); }
+    write(chunk, enc, cb) { cb(); },
   });
 
   write._destroy = common.mustCall(function(err, cb) {
@@ -131,7 +131,7 @@ const assert = require('assert');
 
 {
   const write = new Writable({
-    write(chunk, enc, cb) { cb(); }
+    write(chunk, enc, cb) { cb(); },
   });
 
   const expected = new Error('kaboom');
@@ -154,7 +154,7 @@ const assert = require('assert');
 {
   // double error case
   const write = new Writable({
-    write(chunk, enc, cb) { cb(); }
+    write(chunk, enc, cb) { cb(); },
   });
 
   let ticked = false;
@@ -183,7 +183,7 @@ const assert = require('assert');
     }),
     write(chunk, enc, cb) {
       cb();
-    }
+    },
   });
 
   let ticked = false;
@@ -215,7 +215,7 @@ const assert = require('assert');
 
 {
   const write = new Writable({
-    write(chunk, enc, cb) { cb(); }
+    write(chunk, enc, cb) { cb(); },
   });
 
   write.destroyed = true;
@@ -242,7 +242,7 @@ const assert = require('assert');
 {
   // Destroy and destroy callback
   const write = new Writable({
-    write(chunk, enc, cb) { cb(); }
+    write(chunk, enc, cb) { cb(); },
   });
 
   write.destroy();
@@ -260,7 +260,7 @@ const assert = require('assert');
   const write = new Writable({
     write: common.mustNotCall(),
     final: common.mustCall((cb) => cb(), 2),
-    autoDestroy: true
+    autoDestroy: true,
   });
 
   write.end();
@@ -278,13 +278,13 @@ const assert = require('assert');
   write.write('asd', common.expectsError({
     name: 'Error',
     code: 'ERR_STREAM_DESTROYED',
-    message: 'Cannot call write after a stream was destroyed'
+    message: 'Cannot call write after a stream was destroyed',
   }));
 }
 
 {
   const write = new Writable({
-    write(chunk, enc, cb) { cb(); }
+    write(chunk, enc, cb) { cb(); },
   });
 
   write.on('error', common.mustNotCall());
@@ -297,13 +297,13 @@ const assert = require('assert');
   write.write('asd', common.expectsError({
     name: 'Error',
     code: 'ERR_STREAM_DESTROYED',
-    message: 'Cannot call write after a stream was destroyed'
+    message: 'Cannot call write after a stream was destroyed',
   }));
   write.destroy();
   write.write('asd', common.expectsError({
     name: 'Error',
     code: 'ERR_STREAM_DESTROYED',
-    message: 'Cannot call write after a stream was destroyed'
+    message: 'Cannot call write after a stream was destroyed',
   }));
   write.uncork();
 }
@@ -312,7 +312,7 @@ const assert = require('assert');
   // Call end(cb) after error & destroy
 
   const write = new Writable({
-    write(chunk, enc, cb) { cb(new Error('asd')); }
+    write(chunk, enc, cb) { cb(new Error('asd')); },
   });
   write.on('error', common.mustCall(() => {
     write.destroy();
@@ -330,7 +330,7 @@ const assert = require('assert');
   // Call end(cb) after finish & destroy
 
   const write = new Writable({
-    write(chunk, enc, cb) { cb(); }
+    write(chunk, enc, cb) { cb(); },
   });
   write.on('finish', common.mustCall(() => {
     write.destroy();
@@ -349,7 +349,7 @@ const assert = require('assert');
   // unhandled exception.
 
   const write = new Writable({
-    write(chunk, enc, cb) { process.nextTick(cb); }
+    write(chunk, enc, cb) { process.nextTick(cb); },
   });
   write.once('error', common.mustCall((err) => {
     assert.strictEqual(err.message, 'asd');
@@ -367,7 +367,7 @@ const assert = require('assert');
     write(chunk, enc, cb) {
       process.nextTick(cb, new Error('asd'));
     },
-    autoDestroy: false
+    autoDestroy: false,
   });
   write.cork();
   write.write('asd', common.mustCall((err) => {
@@ -391,7 +391,7 @@ const assert = require('assert');
       // `setImmediate()` is used on purpose to ensure the callback is called
       // after `process.nextTick()` callbacks.
       setImmediate(cb);
-    }
+    },
   });
   write.write('asd', common.mustCall(() => {
     assert.strictEqual(state++, 0);
@@ -409,7 +409,7 @@ const assert = require('assert');
     write(chunk, enc, cb) {
       cb();
       cb();
-    }
+    },
   });
 
   write.on('error', common.mustCall(() => {
@@ -421,7 +421,7 @@ const assert = require('assert');
 {
   const ac = new AbortController();
   const write = addAbortSignal(ac.signal, new Writable({
-    write(chunk, enc, cb) { cb(); }
+    write(chunk, enc, cb) { cb(); },
   }));
 
   write.on('error', common.mustCall((e) => {
@@ -436,7 +436,7 @@ const assert = require('assert');
   const ac = new AbortController();
   const write = new Writable({
     signal: ac.signal,
-    write(chunk, enc, cb) { cb(); }
+    write(chunk, enc, cb) { cb(); },
   });
 
   write.on('error', common.mustCall((e) => {
@@ -452,7 +452,7 @@ const assert = require('assert');
 
   const write = new Writable({
     signal,
-    write(chunk, enc, cb) { cb(); }
+    write(chunk, enc, cb) { cb(); },
   });
 
   write.on('error', common.mustCall((e) => {
@@ -464,7 +464,7 @@ const assert = require('assert');
 {
   // Destroy twice
   const write = new Writable({
-    write(chunk, enc, cb) { cb(); }
+    write(chunk, enc, cb) { cb(); },
   });
 
   write.end(common.mustCall());

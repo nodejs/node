@@ -423,8 +423,8 @@ class NodeInstance extends EventEmitter {
         'Connection': 'Upgrade',
         'Upgrade': 'websocket',
         'Sec-WebSocket-Version': 13,
-        'Sec-WebSocket-Key': 'key=='
-      }
+        'Sec-WebSocket-Key': 'key==',
+      },
     });
   }
 
@@ -519,5 +519,5 @@ function fires(promise, error, timeoutMs) {
 }
 
 module.exports = {
-  NodeInstance
+  NodeInstance,
 };

@@ -12,7 +12,7 @@ const fixtures = require('../common/fixtures');
   const options = {
     key: fixtures.readKey('agent2-key.pem'),
     cert: fixtures.readKey('agent2-cert.pem'),
-    ciphers: 'aes256-sha'
+    ciphers: 'aes256-sha',
   };
   assert.throws(() => tls.createServer(options, common.mustNotCall()),
                 /no cipher match/i);

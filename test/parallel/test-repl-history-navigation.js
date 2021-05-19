@@ -78,7 +78,7 @@ const tests = [
             'Array(100).fill(1).map((e, i) => i ** i)', LEFT, LEFT, DELETE,
             '2', ENTER],
     expected: [],
-    clean: false
+    clean: false,
   },
   {
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
@@ -108,7 +108,7 @@ const tests = [
                  '1225, 1296, 1369, 1444, 1521, 1600, 1681, 1764, 1849, 1936,' +
                  ' 2025, 2116, 2209,...',
                prompt].filter((e) => typeof e === 'string'),
-    clean: false
+    clean: false,
   },
   { // Creates more history entries to navigate through.
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
@@ -120,7 +120,7 @@ const tests = [
       '55 - 13 === 42', ENTER,
     ],
     expected: [],
-    clean: false
+    clean: false,
   },
   {
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
@@ -153,7 +153,7 @@ const tests = [
       '> ', '\x1B[3G',
       '\r\n',
     ],
-    clean: true
+    clean: true,
   },
   {
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
@@ -193,7 +193,7 @@ const tests = [
       ENTER,
     ],
     expected: [],
-    clean: false
+    clean: false,
   },
   {
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
@@ -318,7 +318,7 @@ const tests = [
       '> ', '\x1B[3G',
       '\r\n',
     ],
-    clean: true
+    clean: true,
   },
   {
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
@@ -423,7 +423,7 @@ const tests = [
       '... ', '\x1B[5G',
       '\r\n',
     ],
-    clean: true
+    clean: true,
   },
   {
     // Check changed inspection defaults.
@@ -434,7 +434,7 @@ const tests = [
       ENTER,
     ],
     expected: [],
-    clean: false
+    clean: false,
   },
   {
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
@@ -463,7 +463,7 @@ const tests = [
       '[ [length]: 0 ]\n',
       '> ',
     ],
-    clean: true
+    clean: true,
   },
   {
     // Check that the completer ignores completions that are outdated.
@@ -504,7 +504,7 @@ const tests = [
       ' // Always visible',
       prompt,
     ],
-    clean: true
+    clean: true,
   },
   {
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
@@ -553,7 +553,7 @@ const tests = [
       yield ENTER;
     })(),
     expected: [],
-    clean: false
+    clean: false,
   },
   {
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
@@ -567,7 +567,7 @@ const tests = [
       '{}\n',
       prompt,
     ],
-    clean: false
+    clean: false,
   },
   {
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
@@ -589,7 +589,7 @@ const tests = [
       'true\n',
       prompt,
     ],
-    clean: false
+    clean: false,
   },
 ];
 const numtests = tests.length;
@@ -640,7 +640,7 @@ function runTest() {
           } catch (e) {
             console.error(`Failed test # ${numtests - tests.length}`);
             console.error('Last outputs: ' + inspect(lastChunks, {
-              breakLength: 5, colors: true
+              breakLength: 5, colors: true,
             }));
             throw e;
           }
@@ -649,13 +649,13 @@ function runTest() {
         }
 
         next();
-      }
+      },
     }),
     completer: opts.completer,
     prompt,
     useColors: false,
     preview: opts.preview,
-    terminal: true
+    terminal: true,
   }, function(err, repl) {
     if (err) {
       console.error(`Failed test # ${numtests - tests.length}`);
@@ -679,7 +679,7 @@ function runTest() {
     if (opts.columns) {
       Object.defineProperty(repl, 'columns', {
         value: opts.columns,
-        enumerable: true
+        enumerable: true,
       });
     }
     repl.input.run(opts.test);

@@ -28,7 +28,7 @@ const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
 const stream = fs.createWriteStream(`${tmpdir.path}/out`, {
-  highWaterMark: 10
+  highWaterMark: 10,
 });
 const err = new Error('BAM');
 

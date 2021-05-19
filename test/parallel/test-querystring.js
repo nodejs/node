@@ -297,7 +297,7 @@ assert.throws(
   {
     code: 'ERR_INVALID_URI',
     name: 'URIError',
-    message: 'URI malformed'
+    message: 'URI malformed',
   }
 );
 
@@ -316,8 +316,8 @@ assert.strictEqual(qs.stringify({ foo: Infinity }), 'foo=');
     a: 'b',
     q: qs.stringify({
       x: 'y',
-      y: 'z'
-    })
+      y: 'z',
+    }),
   });
   assert.strictEqual(f, 'a=b&q=x%3Dy%26y%3Dz');
 }
@@ -330,8 +330,8 @@ qs.parse(undefined); // Should not throw.
     a: 'b',
     q: qs.stringify({
       x: 'y',
-      y: 'z'
-    }, ';', ':')
+      y: 'z',
+    }, ';', ':'),
   }, ';', ':');
   assert.strictEqual(f, 'a:b;q:x%3Ay%3By%3Az');
 }

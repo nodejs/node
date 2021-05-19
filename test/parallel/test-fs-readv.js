@@ -73,7 +73,7 @@ const wrongInputs = [false, 'test', {}, [{}], ['sdf'], null, undefined];
     assert.throws(
       () => fs.readv(fd, wrongInput, null, common.mustNotCall()), {
         code: 'ERR_INVALID_ARG_TYPE',
-        name: 'TypeError'
+        name: 'TypeError',
       }
     );
   });
@@ -88,7 +88,7 @@ const wrongInputs = [false, 'test', {}, [{}], ['sdf'], null, undefined];
       () => fs.readv(wrongInput, common.mustNotCall()),
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        name: 'TypeError'
+        name: 'TypeError',
       }
     );
   });

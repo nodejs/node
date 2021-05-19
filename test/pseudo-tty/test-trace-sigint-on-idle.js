@@ -13,7 +13,7 @@ if (process.env.CHILD === 'true') {
     ['--trace-sigint', __filename],
     {
       env: { ...process.env, CHILD: 'true' },
-      stdio: ['inherit', 'inherit', 'inherit', 'ipc']
+      stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
     });
   cp.on('message', mustCall(() => {
     setTimeout(() => cp.kill('SIGINT'), platformTimeout(100));

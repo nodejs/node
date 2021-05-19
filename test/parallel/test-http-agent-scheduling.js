@@ -51,7 +51,7 @@ function defaultTest() {
     const url = `http://localhost:${server.address().port}`;
     const agent = new http.Agent({
       keepAlive: true,
-      maxSockets: 5
+      maxSockets: 5,
     });
 
     bulkRequest(url, agent, (ports) => {
@@ -79,7 +79,7 @@ function fifoTest() {
     const agent = new http.Agent({
       keepAlive: true,
       maxSockets: 5,
-      scheduling: 'fifo'
+      scheduling: 'fifo',
     });
 
     bulkRequest(url, agent, (ports) => {
@@ -107,7 +107,7 @@ function lifoTest() {
     const agent = new http.Agent({
       keepAlive: true,
       maxSockets: 5,
-      scheduling: 'lifo'
+      scheduling: 'lifo',
     });
 
     bulkRequest(url, agent, (ports) => {
@@ -131,7 +131,7 @@ function badSchedulingOptionTest() {
     new http.Agent({
       keepAlive: true,
       maxSockets: 5,
-      scheduling: 'filo'
+      scheduling: 'filo',
     });
   } catch (err) {
     assert.strictEqual(err.code, 'ERR_INVALID_ARG_VALUE');

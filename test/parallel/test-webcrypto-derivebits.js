@@ -24,10 +24,10 @@ const { internalBinding } = require('internal/test/binding');
 
     const [secret1, secret2] = await Promise.all([
       subtle.deriveBits({
-        name: 'ECDH', namedCurve, public: alice.publicKey
+        name: 'ECDH', namedCurve, public: alice.publicKey,
       }, bob.privateKey, 128),
       subtle.deriveBits({
-        name: 'ECDH', namedCurve, public: bob.publicKey
+        name: 'ECDH', namedCurve, public: bob.publicKey,
       }, alice.privateKey, 128),
     ]);
 
@@ -52,7 +52,7 @@ const { internalBinding } = require('internal/test/binding');
       name: 'HKDF',
       hash,
       salt: ec.encode(salt),
-      info: ec.encode(info)
+      info: ec.encode(info),
     }, key, length);
     assert.strictEqual(Buffer.from(secret).toString('hex'), expected);
   }

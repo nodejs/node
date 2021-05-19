@@ -27,7 +27,7 @@ const net = require('net');
 
 const options = {
   host: '127.0.0.1',
-  port: undefined
+  port: undefined,
 };
 
 process.env.NODE_DEBUG = 'http';

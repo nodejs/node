@@ -46,7 +46,7 @@ module.exports = function(context) {
                 '\ncommon.skipIfEslintMissing();'
               );
             }
-          }
+          },
         });
       });
     }
@@ -55,10 +55,10 @@ module.exports = function(context) {
   return {
     'CallExpression': (node) => testEslintUsage(context, node),
     'MemberExpression': (node) => checkMemberExpression(context, node),
-    'Program:exit': () => reportIfMissing(context)
+    'Program:exit': () => reportIfMissing(context),
   };
 };
 
 module.exports.meta = {
-  fixable: 'code'
+  fixable: 'code',
 };

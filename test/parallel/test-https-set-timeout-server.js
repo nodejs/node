@@ -35,7 +35,7 @@ const tests = [];
 
 const serverOptions = {
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 };
 
 function test(fn) {
@@ -62,7 +62,7 @@ test(function serverTimeout(cb) {
     assert.ok(s instanceof https.Server);
     https.get({
       port: server.address().port,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     }).on('error', common.mustCall());
   }));
 });
@@ -83,7 +83,7 @@ test(function serverRequestTimeout(cb) {
     const req = https.request({
       port: server.address().port,
       method: 'POST',
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     });
     req.on('error', common.mustCall());
     req.write('Hello');
@@ -106,7 +106,7 @@ test(function serverResponseTimeout(cb) {
   server.listen(common.mustCall(() => {
     https.get({
       port: server.address().port,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     }).on('error', common.mustCall());
   }));
 });
@@ -128,7 +128,7 @@ test(function serverRequestNotTimeoutAfterEnd(cb) {
   server.listen(common.mustCall(() => {
     https.get({
       port: server.address().port,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     }).on('error', common.mustCall());
   }));
 });
@@ -162,7 +162,7 @@ test(function serverResponseTimeoutWithPipeline(cb) {
     const options = {
       port: server.address().port,
       allowHalfOpen: true,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     };
     const c = tls.connect(options, () => {
       c.write('GET /1 HTTP/1.1\r\nHost: localhost\r\n\r\n');
@@ -185,7 +185,7 @@ test(function idleTimeout(cb) {
     const options = {
       port: server.address().port,
       allowHalfOpen: true,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     };
     const c = tls.connect(options, () => {
       // ECONNRESET could happen on a heavily-loaded server.
@@ -231,7 +231,7 @@ test(function fastTimeout(cb) {
     const options = {
       port: server.address().port,
       allowHalfOpen: true,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     };
     const c = tls.connect(options, () => {
       c.write('GET /1 HTTP/1.1\r\nHost: localhost\r\n\r\n');

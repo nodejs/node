@@ -16,14 +16,14 @@ const destroyedIds = new Set();
 async_hooks.createHook({
   destroy: common.mustCallAtLeast((asyncId) => {
     destroyedIds.add(asyncId);
-  }, 1)
+  }, 1),
 }).enable();
 
 // Make sure a single socket is transparently reused for 2 requests.
 const agent = new http.Agent({
   keepAlive: true,
   keepAliveMsecs: Infinity,
-  maxSockets: 1
+  maxSockets: 1,
 });
 
 const server = http.createServer(common.mustCall((req, res) => {
@@ -41,7 +41,7 @@ const server = http.createServer(common.mustCall((req, res) => {
   // First request. This is useless except for adding a socket to the
   // agent’s pool for reuse.
   const r1 = http.request({
-    agent, port, method: 'POST'
+    agent, port, method: 'POST',
   }, common.mustCall((res) => {
     // Remember which socket we used.
     const socket = res.socket;
@@ -59,7 +59,7 @@ const server = http.createServer(common.mustCall((req, res) => {
 
         // second request:
         const r2 = http.request({
-          agent, port, method: 'POST'
+          agent, port, method: 'POST',
         }, common.mustCall((res) => {
           assert.ok(destroyedIds.has(asyncIdAtFirstRequest));
 

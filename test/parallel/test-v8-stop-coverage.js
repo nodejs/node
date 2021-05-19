@@ -24,7 +24,7 @@ const intervals = 20;
       ...process.env,
       NODE_V8_COVERAGE: tmpdir.path,
       NODE_DEBUG_NATIVE: 'INSPECTOR_PROFILER',
-      TEST_INTERVALS: intervals
+      TEST_INTERVALS: intervals,
     },
   });
   console.log(output.stderr.toString());

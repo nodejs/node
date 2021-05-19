@@ -9,7 +9,7 @@ const {
   WriteWrap,
   kReadBytesOrError,
   kArrayBufferOffset,
-  streamBaseState
+  streamBaseState,
 } = internalBinding('stream_wrap');
 
 const server = new TCP(TCPConstants.SOCKET);

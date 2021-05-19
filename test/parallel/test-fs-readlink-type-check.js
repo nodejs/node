@@ -9,14 +9,14 @@ const fs = require('fs');
     () => fs.readlink(i, common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError'
+      name: 'TypeError',
     }
   );
   assert.throws(
     () => fs.readlinkSync(i),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError'
+      name: 'TypeError',
     }
   );
 });

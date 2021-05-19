@@ -21,11 +21,11 @@ new RuleTester().run('prefer-common-mustnotcall', rule, {
   invalid: [
     {
       code: 'common.mustCall(fn, 0)',
-      errors: [{ message }]
+      errors: [{ message }],
     },
     {
       code: 'common.mustCall(0)',
-      errors: [{ message }]
+      errors: [{ message }],
     },
-  ]
+  ],
 });

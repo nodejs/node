@@ -16,11 +16,11 @@ async function main() {
 
   for (const maxSessionInvalidFrames of [0, 2]) {
     const client = http2.connect(`http://localhost:${server.address().port}`, {
-      maxSessionInvalidFrames
+      maxSessionInvalidFrames,
     });
     const stream = client.request({
       ':method': 'GET',
-      ':path': '/'
+      ':path': '/',
     });
     if (maxSessionInvalidFrames) {
       stream.on('error', common.mustNotCall());
@@ -28,7 +28,7 @@ async function main() {
     } else {
       const expected = {
         code: 'ERR_HTTP2_TOO_MANY_INVALID_FRAMES',
-        message: 'Too many invalid HTTP/2 frames'
+        message: 'Too many invalid HTTP/2 frames',
       };
       stream.on('error', common.expectsError(expected));
       client.on('error', common.expectsError(expected));

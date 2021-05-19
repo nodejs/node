@@ -4,16 +4,16 @@ const common = require('../common');
 const {
   BroadcastChannel,
   Worker,
-  receiveMessageOnPort
+  receiveMessageOnPort,
 } = require('worker_threads');
 const assert = require('assert');
 
 assert.throws(() => new BroadcastChannel(Symbol('test')), {
-  message: /Cannot convert a Symbol value to a string/
+  message: /Cannot convert a Symbol value to a string/,
 });
 
 assert.throws(() => new BroadcastChannel(), {
-  message: /The "name" argument must be specified/
+  message: /The "name" argument must be specified/,
 });
 
 // These should all just work
@@ -27,7 +27,7 @@ assert.throws(() => new BroadcastChannel(), {
   // Empty postMessage throws
   const bc = new BroadcastChannel('whatever');
   assert.throws(() => bc.postMessage(), {
-    message: /The "message" argument must be specified/
+    message: /The "message" argument must be specified/,
   });
   bc.close();
   // Calling close multiple times should not throw
@@ -35,7 +35,7 @@ assert.throws(() => new BroadcastChannel(), {
 
   // Calling postMessage after close should throw
   assert.throws(() => bc.postMessage(null), {
-    message: /BroadcastChannel is closed/
+    message: /BroadcastChannel is closed/,
   });
 }
 
@@ -131,14 +131,14 @@ assert.throws(() => new BroadcastChannel(), {
   const bc1 = new BroadcastChannel('channel3');
   const mc = new MessageChannel();
   assert.throws(() => bc1.postMessage(mc), {
-    message: /Object that needs transfer was found/
+    message: /Object that needs transfer was found/,
   });
   assert.throws(() => bc1.postMessage(Symbol()), {
-    message: /Symbol\(\) could not be cloned/
+    message: /Symbol\(\) could not be cloned/,
   });
   bc1.close();
   assert.throws(() => bc1.postMessage(Symbol()), {
-    message: /BroadcastChannel is closed/
+    message: /BroadcastChannel is closed/,
   });
 }
 

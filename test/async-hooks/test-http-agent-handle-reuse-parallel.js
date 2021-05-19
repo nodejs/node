@@ -21,7 +21,7 @@ let responses = 0;
 const agent = new http.Agent({
   keepAlive: true,
   keepAliveMsecs: Infinity,
-  maxSockets: 1
+  maxSockets: 1,
 });
 
 const verifyRequest = (idx) => (res) => {
@@ -58,13 +58,13 @@ const server = http.createServer(common.mustCall((req, res) => {
 
   // First request.
   const r1 = http.request({
-    agent, port, method: 'POST'
+    agent, port, method: 'POST',
   }, common.mustCall(verifyRequest(0)));
   r1.end(payload);
 
   // Second request. Sent in parallel with the first one.
   const r2 = http.request({
-    agent, port, method: 'POST'
+    agent, port, method: 'POST',
   }, common.mustCall(verifyRequest(1)));
   r2.end(payload);
 }));

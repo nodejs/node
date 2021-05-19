@@ -26,7 +26,7 @@ const assert = require('assert');
 
 const s = new Readable({
   highWaterMark: 20,
-  encoding: 'ascii'
+  encoding: 'ascii',
 });
 
 const list = ['1', '2', '3', '4', '5', '6'];

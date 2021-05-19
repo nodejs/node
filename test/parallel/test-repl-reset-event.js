@@ -35,7 +35,7 @@ function testReset(cb) {
   const r = repl.start({
     input: dummy,
     output: dummy,
-    useGlobal: false
+    useGlobal: false,
   });
   r.context.foo = 42;
   r.on('reset', common.mustCall(function(context) {
@@ -58,7 +58,7 @@ function testResetGlobal() {
   const r = repl.start({
     input: dummy,
     output: dummy,
-    useGlobal: true
+    useGlobal: true,
   });
   r.context.foo = 42;
   r.on('reset', common.mustCall(function(context) {

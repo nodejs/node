@@ -9,14 +9,14 @@ const fs = require('fs');
     () => fs.rmdir(i, common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError'
+      name: 'TypeError',
     }
   );
   assert.throws(
     () => fs.rmdirSync(i),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError'
+      name: 'TypeError',
     }
   );
 });

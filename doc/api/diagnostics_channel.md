@@ -48,7 +48,7 @@ channel.subscribe((message, name) => {
 if (channel.hasSubscribers) {
   // Publish data to the channel
   channel.publish({
-    some: 'data'
+    some: 'data',
   });
 }
 ```
@@ -130,7 +130,7 @@ const diagnostics_channel = require('diagnostics_channel');
 const channel = diagnostics_channel.channel('my-channel');
 
 channel.publish({
-  some: 'message'
+  some: 'message',
 });
 ```
 

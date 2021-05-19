@@ -32,7 +32,7 @@ async function runTest() {
       'Runtime.executionContextDestroyed should not be sent');
   }
   const { result: { value } } = await session.send({
-    method: 'Runtime.evaluate', params: { expression: '42' }
+    method: 'Runtime.evaluate', params: { expression: '42' },
   });
   assert.strictEqual(value, 42);
   await session.disconnect();

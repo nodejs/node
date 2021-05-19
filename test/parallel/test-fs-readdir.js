@@ -40,14 +40,14 @@ fs.readdir(__filename, common.mustCall(function(e) {
     () => fs.readdir(i, common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError'
+      name: 'TypeError',
     }
   );
   assert.throws(
     () => fs.readdirSync(i),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError'
+      name: 'TypeError',
     }
   );
 });

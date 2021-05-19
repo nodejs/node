@@ -8,7 +8,7 @@ const vm = require('vm');
 const handler = {
   getOwnPropertyDescriptor: common.mustCallAtLeast(() => {
     return {};
-  })
+  }),
 };
 
 const proxy = new Proxy({}, handler);

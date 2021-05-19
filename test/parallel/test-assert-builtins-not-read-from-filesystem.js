@@ -42,7 +42,7 @@ if (process.argv[2] !== 'child') {
   assert.throws(
     () => e.emit('hello', false),
     {
-      message: 'false == true'
+      message: 'false == true',
     }
   );
 }

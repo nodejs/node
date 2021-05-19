@@ -822,12 +822,12 @@ const cluster = require('cluster');
 cluster.setupPrimary({
   exec: 'worker.js',
   args: ['--use', 'https'],
-  silent: true
+  silent: true,
 });
 cluster.fork(); // https worker
 cluster.setupPrimary({
   exec: 'worker.js',
-  args: ['--use', 'http']
+  args: ['--use', 'http'],
 });
 cluster.fork(); // http worker
 ```

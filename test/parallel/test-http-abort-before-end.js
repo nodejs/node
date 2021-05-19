@@ -29,7 +29,7 @@ server.listen(0, common.mustCall(() => {
   const req = http.request({
     method: 'GET',
     host: '127.0.0.1',
-    port: server.address().port
+    port: server.address().port,
   });
 
   req.on('abort', common.mustCall(() => {

@@ -17,7 +17,7 @@ const agent = new http.Agent({ maxSockets: 1, keepAlive: true });
 
 server.listen(0, common.mustCall(function() {
   http.get({
-    path: '/', port: this.address().port, agent: agent
+    path: '/', port: this.address().port, agent: agent,
   }, common.mustCall((response) => {
     response.resume();
     assert.strictEqual(

@@ -124,7 +124,7 @@ function runTest(testIndex) {
     ca: tcase.ca.map(loadPEM),
     key: loadPEM(tcase.key),
     cert: loadPEM(tcase.cert),
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   };
 
 

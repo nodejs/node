@@ -43,7 +43,7 @@ const additionalTestCases =
   const url = new URL('http://example.com/');
   const obj = {
     toString() { throw new Error('toString'); },
-    valueOf() { throw new Error('valueOf'); }
+    valueOf() { throw new Error('valueOf'); },
   };
   const sym = Symbol();
   const props = Object.getOwnPropertyDescriptors(Object.getPrototypeOf(url));

@@ -37,7 +37,7 @@ if (cluster.isWorker) {
     // Send PID
     process.send({
       cmd: 'worker',
-      workerPID: worker.process.pid
+      workerPID: worker.process.pid,
     });
 
     // Stop listening when done

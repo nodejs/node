@@ -83,7 +83,7 @@ const forAllClients = (cb) => common.mustCall(cb, CLIENT_VARIANTS);
       return { fd: handle.fd, readable: true, writable: true };
     };
     const getConnectOpt = () => ({
-      path: serverPath
+      path: serverPath,
     });
     const getConnectCb = (index) => common.mustCall(function clientOnConnect() {
       // Test if it's wrapping an existing fd

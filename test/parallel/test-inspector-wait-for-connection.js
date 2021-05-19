@@ -20,8 +20,8 @@ async function runTests() {
     method: 'Runtime.evaluate',
     params: {
       expression: 'process._ws',
-      includeCommandLineAPI: true
-    }
+      includeCommandLineAPI: true,
+    },
   });
   assert.ok(value.startsWith('ws://'));
   session.send({ method: 'Runtime.runIfWaitingForDebugger' });

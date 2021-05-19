@@ -8,7 +8,7 @@ if (cluster.isPrimary) {
   const buf = Buffer.from('foobar');
 
   cluster.setupPrimary({
-    stdio: ['pipe', 'pipe', 'pipe', 'ipc', 'pipe']
+    stdio: ['pipe', 'pipe', 'pipe', 'ipc', 'pipe'],
   });
 
   const worker = cluster.fork();

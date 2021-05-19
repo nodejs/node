@@ -25,7 +25,7 @@ if (cluster.isPrimary) {
 
   const socket1 = dgram.createSocket({
     type: 'udp6',
-    ipv6Only: true
+    ipv6Only: true,
   });
   const socket2 = dgram.createSocket({
     type: 'udp4',

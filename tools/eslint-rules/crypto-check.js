@@ -77,7 +77,7 @@ module.exports = function(context) {
           if (beforeAllChecks) {
             context.report({
               node: requireNode,
-              message: msg
+              message: msg,
             });
           }
         });
@@ -108,7 +108,7 @@ module.exports = function(context) {
               '}'
             );
           }
-        }
+        },
       });
     });
   }
@@ -117,10 +117,10 @@ module.exports = function(context) {
     'CallExpression': (node) => testCryptoUsage(node),
     'IfStatement:exit': (node) => testIfStatement(node),
     'MemberExpression:exit': (node) => testMemberExpression(node),
-    'Program:exit': () => reportIfMissingCheck()
+    'Program:exit': () => reportIfMissingCheck(),
   };
 };
 
 module.exports.meta = {
-  fixable: 'code'
+  fixable: 'code',
 };

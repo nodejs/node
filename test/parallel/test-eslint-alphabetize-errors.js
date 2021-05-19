@@ -23,7 +23,7 @@ new RuleTester().run('alphabetize-errors', rule, {
         E('AAA', 'foo');
         E('CCC', 'baz');
       `,
-      errors: [{ message: 'Out of ASCIIbetical order - BBB >= AAA', line: 3 }]
+      errors: [{ message: 'Out of ASCIIbetical order - BBB >= AAA', line: 3 }],
     },
-  ]
+  ],
 });

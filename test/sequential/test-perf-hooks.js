@@ -50,7 +50,7 @@ checkNodeTiming({
   bootstrapComplete: { around: inited, delay: 2500 },
   environment: { around: 0 },
   loopStart: -1,
-  loopExit: -1
+  loopExit: -1,
 });
 
 setTimeout(() => {
@@ -64,7 +64,7 @@ setTimeout(() => {
     bootstrapComplete: { around: inited, delay: 2500 },
     environment: { around: 0 },
     loopStart: { around: inited, delay: 2500 },
-    loopExit: -1
+    loopExit: -1,
   });
 }, 1000);
 
@@ -79,6 +79,6 @@ process.on('exit', () => {
     bootstrapComplete: { around: inited, delay: 2500 },
     environment: { around: 0 },
     loopStart: { around: inited, delay: 2500 },
-    loopExit: { around: performance.now() }
+    loopExit: { around: performance.now() },
   });
 });

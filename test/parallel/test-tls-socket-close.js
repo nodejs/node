@@ -50,7 +50,7 @@ function connectClient(server) {
   const tlsConnection = tls.connect({
     host: 'localhost',
     port: server.address().port,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   });
 
   tlsConnection.write('foo', 'utf8', common.mustCall(() => {

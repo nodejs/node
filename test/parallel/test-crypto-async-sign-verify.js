@@ -26,13 +26,13 @@ function test(
     key: privateKey.export({ format: 'der', type: 'pkcs8' }),
     format: 'der',
     type: 'pkcs8',
-    ...options
+    ...options,
   };
   const publicDer = {
     key: publicKey.export({ format: 'der', type: 'spki' }),
     format: 'der',
     type: 'spki',
-    ...options
+    ...options,
   };
 
   if (options) {
@@ -78,14 +78,14 @@ test('rsa_public.pem', 'rsa_private.pem', 'sha256', false,
 test('rsa_public.pem', 'rsa_private.pem', 'sha256', false,
      {
        padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-       saltLength: crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN
+       saltLength: crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN,
      });
 
 // RSA w/ PSS_PADDING and PSS_SALTLEN_DIGEST
 test('rsa_public.pem', 'rsa_private.pem', 'sha256', false,
      {
        padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-       saltLength: crypto.constants.RSA_PSS_SALTLEN_DIGEST
+       saltLength: crypto.constants.RSA_PSS_SALTLEN_DIGEST,
      });
 
 // ED25519

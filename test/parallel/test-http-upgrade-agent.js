@@ -53,8 +53,8 @@ server.listen(0, '127.0.0.1', common.mustCall(function() {
     host: '127.0.0.1',
     headers: {
       'connection': 'upgrade',
-      'upgrade': 'websocket'
-    }
+      'upgrade': 'websocket',
+    },
   };
   const name = `${options.host}:${options.port}`;
 

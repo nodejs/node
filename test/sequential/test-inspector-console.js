@@ -27,7 +27,7 @@ async function runTest() {
   assert.strictEqual(msg.params.type, 'log');
   assert.deepStrictEqual(msg.params.args, [{
     type: 'string',
-    value: 'hello world'
+    value: 'hello world',
   }]);
   assert.strictEqual(out, '');
 

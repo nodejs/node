@@ -10,7 +10,7 @@ function doSetTimeout(callback, after) {
 
 const errMessage = {
   code: 'ERR_INVALID_CALLBACK',
-  name: 'TypeError'
+  name: 'TypeError',
 };
 
 assert.throws(doSetTimeout('foo'), errMessage);

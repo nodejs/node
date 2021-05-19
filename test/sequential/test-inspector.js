@@ -108,8 +108,8 @@ async function testBreakpoint(session) {
       'objectId': scopeId,
       'ownProperties': false,
       'accessorPropertiesOnly': false,
-      'generatePreview': true
-    }
+      'generatePreview': true,
+    },
   });
   assertScopeValues(response, { t: 1001, k: 1 });
 
@@ -121,8 +121,8 @@ async function testBreakpoint(session) {
       'includeCommandLineAPI': true,
       'silent': false,
       'returnByValue': false,
-      'generatePreview': true
-    }
+      'generatePreview': true,
+    },
   });
   const expectedEvaluation = 1002;
   assert.strictEqual(
@@ -133,8 +133,8 @@ async function testBreakpoint(session) {
 
   result = (await session.send({
     'method': 'Runtime.evaluate', 'params': {
-      'expression': '5 * 5'
-    }
+      'expression': '5 * 5',
+    },
   })).result;
   const expectedResult = 25;
   assert.strictEqual(
@@ -155,8 +155,8 @@ async function testI18NCharacters(session) {
       'includeCommandLineAPI': true,
       'silent': false,
       'returnByValue': false,
-      'generatePreview': true
-    }
+      'generatePreview': true,
+    },
   });
   await session.waitForConsoleOutput('log', [chars]);
 }
@@ -174,8 +174,8 @@ async function testCommandLineAPI(session) {
     {
       'method': 'Runtime.evaluate', 'params': {
         'expression': 'typeof require("fs").readFile === "function"',
-        'includeCommandLineAPI': true
-      }
+        'includeCommandLineAPI': true,
+      },
     });
   checkException(result);
   assert.strictEqual(result.result.value, true);
@@ -189,8 +189,8 @@ async function testCommandLineAPI(session) {
           'typeof require.extensions === "object"',
           'typeof require.cache === "object"',
         ].join(' && '),
-        'includeCommandLineAPI': true
-      }
+        'includeCommandLineAPI': true,
+      },
     });
   checkException(result);
   assert.strictEqual(result.result.value, true);
@@ -205,8 +205,8 @@ async function testCommandLineAPI(session) {
             require(${testModuleStr}),
             { old: 'yes' }
           ) === require(${testModuleStr})`,
-        'includeCommandLineAPI': true
-      }
+        'includeCommandLineAPI': true,
+      },
     });
   checkException(result);
   assert.strictEqual(result.result.value, true);
@@ -217,8 +217,8 @@ async function testCommandLineAPI(session) {
         'expression': `JSON.stringify(
           require.cache[${testModuleStr}].exports
         )`,
-        'includeCommandLineAPI': true
-      }
+        'includeCommandLineAPI': true,
+      },
     });
   checkException(result);
   assert.deepStrictEqual(JSON.parse(result.result.value),
@@ -228,8 +228,8 @@ async function testCommandLineAPI(session) {
     {
       'method': 'Runtime.evaluate', 'params': {
         'expression': `delete require.cache[${testModuleStr}]`,
-        'includeCommandLineAPI': true
-      }
+        'includeCommandLineAPI': true,
+      },
     });
   checkException(result);
   assert.strictEqual(result.result.value, true);
@@ -238,8 +238,8 @@ async function testCommandLineAPI(session) {
     {
       'method': 'Runtime.evaluate', 'params': {
         'expression': `JSON.stringify(require(${testModuleStr}))`,
-        'includeCommandLineAPI': true
-      }
+        'includeCommandLineAPI': true,
+      },
     });
   checkException(result);
   assert.deepStrictEqual(JSON.parse(result.result.value), {});
@@ -248,8 +248,8 @@ async function testCommandLineAPI(session) {
     {
       'method': 'Runtime.evaluate', 'params': {
         'expression': `JSON.stringify(require(${printAModuleStr}))`,
-        'includeCommandLineAPI': true
-      }
+        'includeCommandLineAPI': true,
+      },
     });
   checkException(result);
   assert.deepStrictEqual(JSON.parse(result.result.value), {});
@@ -263,13 +263,13 @@ async function testCommandLineAPI(session) {
             require.cache[${printAModuleStr}].parent,
           parentId: require.cache[${testModuleStr}].parent.id,
         })`,
-        'includeCommandLineAPI': true
-      }
+        'includeCommandLineAPI': true,
+      },
     });
   checkException(result);
   assert.deepStrictEqual(JSON.parse(result.result.value), {
     parentsEqual: true,
-    parentId: '<inspector console>'
+    parentId: '<inspector console>',
   });
   // The `require` in the module shadows the command line API's `require`
   result = await session.send(
@@ -280,8 +280,8 @@ async function testCommandLineAPI(session) {
           require(${printBModuleStr}),
           require.cache[${printBModuleStr}].parent.id
         )`,
-        'includeCommandLineAPI': true
-      }
+        'includeCommandLineAPI': true,
+      },
     });
   checkException(result);
   assert.notStrictEqual(result.result.value,

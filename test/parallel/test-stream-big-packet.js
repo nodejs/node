@@ -39,7 +39,7 @@ class TestStream extends stream.Transform {
 const s1 = new stream.Transform({
   transform(chunk, encoding, cb) {
     process.nextTick(cb, null, chunk);
-  }
+  },
 });
 const s2 = new stream.PassThrough();
 const s3 = new TestStream();

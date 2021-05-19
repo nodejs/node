@@ -75,7 +75,7 @@ sp.forEach(function() {
 {
   const callbackErr = {
     code: 'ERR_INVALID_CALLBACK',
-    name: 'TypeError'
+    name: 'TypeError',
   };
   assert.throws(() => sp.forEach(), callbackErr);
   assert.throws(() => sp.forEach(1), callbackErr);

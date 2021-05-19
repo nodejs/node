@@ -50,7 +50,7 @@ function doTest(testOptions, callback) {
     requestCert: true,
     rejectUnauthorized: false,
     secureProtocol: 'TLS_method',
-    ciphers: 'RSA@SECLEVEL=0'
+    ciphers: 'RSA@SECLEVEL=0',
   };
   let requestCount = 0;
   let resumeCount = 0;
@@ -109,7 +109,7 @@ function doTest(testOptions, callback) {
 
     function spawnClient() {
       const client = spawn(common.opensslCli, args, {
-        stdio: [ 0, 1, 'pipe' ]
+        stdio: [ 0, 1, 'pipe' ],
       });
       let err = '';
       client.stderr.setEncoding('utf8');

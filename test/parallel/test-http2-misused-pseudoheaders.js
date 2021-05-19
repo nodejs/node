@@ -17,7 +17,7 @@ server.on('stream', common.mustCall((stream) => {
   ].forEach((i) => {
     assert.throws(() => stream.respond({ [i]: '/' }),
                   {
-                    code: 'ERR_HTTP2_INVALID_PSEUDOHEADER'
+                    code: 'ERR_HTTP2_INVALID_PSEUDOHEADER',
                   });
   });
 
@@ -27,7 +27,7 @@ server.on('stream', common.mustCall((stream) => {
     assert.throws(() => {
       stream.sendTrailers({ ':status': 'bar' });
     }, {
-      code: 'ERR_HTTP2_INVALID_PSEUDOHEADER'
+      code: 'ERR_HTTP2_INVALID_PSEUDOHEADER',
     });
     stream.close();
   });

@@ -19,7 +19,7 @@ err2.code = 'ERR_UNHANDLED_REJECTION';
 Object.defineProperty(err2, 'name', {
   value: 'UnhandledPromiseRejection',
   writable: true,
-  configurable: true
+  configurable: true,
 });
 
 const errors = [err1, err2];

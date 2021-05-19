@@ -30,7 +30,7 @@ const checkOnce = (fn) => {
 initHooks({
   onbefore: checkOnce(chkBefore),
   onafter: checkOnce(chkAfter),
-  allowNoInit: true
+  allowNoInit: true,
 }).enable();
 
 async_hooks.emitInit(expectedId, expectedType, expectedTriggerId);

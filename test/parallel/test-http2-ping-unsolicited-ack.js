@@ -19,7 +19,7 @@ server.on('stream', common.mustNotCall());
 server.on('session', common.mustCall((session) => {
   session.on('error', common.expectsError({
     code: 'ERR_HTTP2_ERROR',
-    message: 'Protocol error'
+    message: 'Protocol error',
   }));
   session.on('close', common.mustCall(() => server.close()));
 }));

@@ -22,7 +22,7 @@ if (process.argv[2] === 'child') {
                            '--no-warnings',
                            '--trace-event-categories',
                            'node.promises.rejections',
-                         ]
+                         ],
                        });
 
   proc.once('exit', common.mustCall(() => {

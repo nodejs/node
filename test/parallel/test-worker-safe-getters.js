@@ -9,7 +9,7 @@ if (isMainThread) {
   const w = new Worker(__filename, {
     stdin: true,
     stdout: true,
-    stderr: true
+    stderr: true,
   });
 
   const { stdin, stdout, stderr } = w;

@@ -27,13 +27,13 @@ const rs = new stream.Readable({
 
     // We will be over highWaterMark at this point
     // but a new call to _read is scheduled anyway.
-  }, 11)
+  }, 11),
 });
 
 const ws = stream.Writable({
   write: common.mustCall(function(data, enc, cb) {
     setImmediate(cb);
-  }, 41 * 10)
+  }, 41 * 10),
 });
 
 rs.pipe(ws);

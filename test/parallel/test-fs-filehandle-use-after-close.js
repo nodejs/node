@@ -18,7 +18,7 @@ const fs = require('fs').promises;
 
   assert.rejects(() => filehandle.stat(), {
     code: 'EBADF',
-    syscall: 'fstat'
+    syscall: 'fstat',
   });
 
   await otherFilehandle.close();

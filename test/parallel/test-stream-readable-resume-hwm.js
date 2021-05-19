@@ -7,7 +7,7 @@ const { Readable } = require('stream');
 
 const readable = new Readable({
   read: common.mustNotCall(),
-  highWaterMark: 100
+  highWaterMark: 100,
 });
 
 // Fill up the internal buffer so that we definitely exceed the HWM:

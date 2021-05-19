@@ -40,7 +40,7 @@ createHook({
     } else {
       destroyed.push(asyncId);
     }
-  }
+  },
 }).enable();
 
 const server = http.createServer((req, res) => {

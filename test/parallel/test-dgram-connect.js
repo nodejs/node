@@ -15,7 +15,7 @@ client.connect(PORT, common.mustCall(() => {
   }, {
     name: 'Error',
     message: 'Already connected',
-    code: 'ERR_SOCKET_DGRAM_IS_CONNECTED'
+    code: 'ERR_SOCKET_DGRAM_IS_CONNECTED',
   });
 
   client.disconnect();
@@ -24,7 +24,7 @@ client.connect(PORT, common.mustCall(() => {
   }, {
     name: 'Error',
     message: 'Not connected',
-    code: 'ERR_SOCKET_DGRAM_NOT_CONNECTED'
+    code: 'ERR_SOCKET_DGRAM_NOT_CONNECTED',
   });
 
   assert.throws(() => {
@@ -32,7 +32,7 @@ client.connect(PORT, common.mustCall(() => {
   }, {
     name: 'Error',
     message: 'Not connected',
-    code: 'ERR_SOCKET_DGRAM_NOT_CONNECTED'
+    code: 'ERR_SOCKET_DGRAM_NOT_CONNECTED',
   });
 
   client.once('connect', common.mustCall(() => client.close()));
@@ -44,7 +44,7 @@ assert.throws(() => {
 }, {
   name: 'Error',
   message: 'Already connected',
-  code: 'ERR_SOCKET_DGRAM_IS_CONNECTED'
+  code: 'ERR_SOCKET_DGRAM_IS_CONNECTED',
 });
 
 assert.throws(() => {
@@ -52,7 +52,7 @@ assert.throws(() => {
 }, {
   name: 'Error',
   message: 'Not connected',
-  code: 'ERR_SOCKET_DGRAM_NOT_CONNECTED'
+  code: 'ERR_SOCKET_DGRAM_NOT_CONNECTED',
 });
 
 [ 0, null, 78960, undefined ].forEach((port) => {
@@ -61,6 +61,6 @@ assert.throws(() => {
   }, {
     name: 'RangeError',
     message: /^Port should be > 0 and < 65536/,
-    code: 'ERR_SOCKET_BAD_PORT'
+    code: 'ERR_SOCKET_BAD_PORT',
   });
 });

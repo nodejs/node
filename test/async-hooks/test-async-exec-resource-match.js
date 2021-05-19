@@ -6,7 +6,7 @@ const { readFile } = require('fs');
 const {
   createHook,
   executionAsyncResource,
-  AsyncResource
+  AsyncResource,
 } = require('async_hooks');
 
 // Ignore any asyncIds created before our hook is active.
@@ -32,7 +32,7 @@ createHook({
     if (asyncId >= firstSeenAsyncId) {
       afterHook(asyncId);
     }
-  }
+  },
 }).enable();
 
 const beforeHook = common.mustCallAtLeast(

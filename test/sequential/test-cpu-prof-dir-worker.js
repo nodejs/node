@@ -16,7 +16,7 @@ const {
   getCpuProfiles,
   kCpuProfInterval,
   env,
-  getFrames
+  getFrames,
 } = require('../common/cpu-prof');
 
 // --cpu-prof-dir with worker
@@ -31,7 +31,7 @@ const {
     fixtures.path('workload', 'fibonacci-worker.js'),
   ], {
     cwd: tmpdir.path,
-    env
+    env,
   });
   if (output.status !== 0) {
     console.log(output.stderr.toString());

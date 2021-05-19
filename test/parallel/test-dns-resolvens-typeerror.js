@@ -35,7 +35,7 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: /^The "name" argument must be of type string/
+    message: /^The "name" argument must be of type string/,
   }
 );
 assert.throws(
@@ -43,13 +43,13 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: /^The "name" argument must be of type string/
+    message: /^The "name" argument must be of type string/,
   }
 );
 assert.throws(
   () => dns.resolveNs(''), // bad callback
   {
     code: 'ERR_INVALID_CALLBACK',
-    name: 'TypeError'
+    name: 'TypeError',
   }
 );

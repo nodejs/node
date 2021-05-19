@@ -6,7 +6,7 @@ const Duplex = require('stream').Duplex;
 
 {
   const stream = new Duplex({
-    read() {}
+    read() {},
   });
   assert.strictEqual(stream.allowHalfOpen, true);
   stream.on('finish', common.mustNotCall());
@@ -18,7 +18,7 @@ const Duplex = require('stream').Duplex;
 {
   const stream = new Duplex({
     read() {},
-    allowHalfOpen: false
+    allowHalfOpen: false,
   });
   assert.strictEqual(stream.allowHalfOpen, false);
   stream.on('finish', common.mustCall());
@@ -30,7 +30,7 @@ const Duplex = require('stream').Duplex;
 {
   const stream = new Duplex({
     read() {},
-    allowHalfOpen: false
+    allowHalfOpen: false,
   });
   assert.strictEqual(stream.allowHalfOpen, false);
   stream._writableState.ended = true;

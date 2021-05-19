@@ -29,7 +29,7 @@ let ctx = {};
 Object.defineProperty(ctx, 'getter', {
   get: function() {
     return 'ok';
-  }
+  },
 });
 
 let val;
@@ -39,7 +39,7 @@ Object.defineProperty(ctx, 'setter', {
   },
   get: function() {
     return `ok=${val}`;
-  }
+  },
 });
 
 ctx = vm.createContext(ctx);

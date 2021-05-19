@@ -78,7 +78,7 @@ bad.forEach((t) => {
         .decode(new Uint8Array(t.input));
     }, {
       code: 'ERR_ENCODING_INVALID_ENCODED_DATA',
-      name: 'TypeError'
+      name: 'TypeError',
     }
   );
 });

@@ -7,7 +7,7 @@ const assert = require('assert');
 // where it buffers the chunk it receives rather than indicating that they
 // have been consumed.
 const writable = new stream.Writable({
-  highWaterMark: 5
+  highWaterMark: 5,
 });
 
 let isCurrentlyBufferingWrites = true;
@@ -21,7 +21,7 @@ writable._write = (chunk, encoding, cb) => {
 };
 
 const readable = new stream.Readable({
-  read() {}
+  read() {},
 });
 
 readable.pipe(writable);

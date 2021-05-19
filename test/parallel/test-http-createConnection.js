@@ -48,10 +48,10 @@ const server = http.createServer(common.mustCall(function(req, res) {
 
   // Errors
   await assert.rejects(() => commonHttpGet(createConnectionError), {
-    message: 'sync'
+    message: 'sync',
   });
   await assert.rejects(() => commonHttpGet(createConnectionAsyncError), {
-    message: 'async'
+    message: 'async',
   });
 
   server.close();

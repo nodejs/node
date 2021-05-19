@@ -14,7 +14,7 @@ const rs = new Readable({
       return process.nextTick(() => rs.push({}));
     rs.push({});
     rs.push(null);
-  }
+  },
 });
 
 rs.on('end', common.mustCall());
@@ -42,7 +42,7 @@ function readAndPause() {
 
 {
   const readable = new Readable({
-    read() {}
+    read() {},
   });
 
   function read() {}

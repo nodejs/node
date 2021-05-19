@@ -15,7 +15,7 @@ const bench = common.createBenchmark(main, {
   dir: ['rel', 'abs'],
   files: [5e2],
   n: [1, 1e3],
-  cache: ['true', 'false']
+  cache: ['true', 'false'],
 });
 
 function main({ n, name, cache, files, dir }) {

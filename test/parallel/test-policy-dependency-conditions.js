@@ -66,7 +66,7 @@ for (const totalDepth of [1, 2, 3]) {
             offsets.map(
               (conditionOffset, depth) => tree[depth][conditionOffset]
             )
-          )
+          ),
         });
       } else {
         target = {};
@@ -80,10 +80,10 @@ for (const totalDepth of [1, 2, 3]) {
       resources: {
         'test:_': {
           dependencies: {
-            _: root
-          }
-        }
-      }
+            _: root,
+          },
+        },
+      },
     });
     const redirector = manifest.getDependencyMapper('test:_');
     for (const { target, conditions } of order) {

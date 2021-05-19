@@ -18,7 +18,7 @@ tmpdir.refresh();
 const file = path.resolve(tmpdir.path, 'keylog.log');
 
 const child = fork(__filename, ['test'], {
-  execArgv: ['--tls-keylog=' + file]
+  execArgv: ['--tls-keylog=' + file],
 });
 
 child.on('close', common.mustCall((code, signal) => {
@@ -33,7 +33,7 @@ child.on('close', common.mustCall((code, signal) => {
 
 function test() {
   const {
-    connect, keys
+    connect, keys,
   } = require(fixtures.path('tls-connect'));
 
   connect({

@@ -55,7 +55,7 @@ const s = http.createServer(common.mustCall((req, res) => {
         {
           code: 'ERR_INVALID_HTTP_TOKEN',
           name: 'TypeError',
-          message: 'Header name must be a valid HTTP token ["undefined"]'
+          message: 'Header name must be a valid HTTP token ["undefined"]',
         }
       );
       assert.throws(
@@ -63,7 +63,7 @@ const s = http.createServer(common.mustCall((req, res) => {
         {
           code: 'ERR_HTTP_INVALID_HEADER_VALUE',
           name: 'TypeError',
-          message: 'Invalid value "undefined" for header "someHeader"'
+          message: 'Invalid value "undefined" for header "someHeader"',
         }
       );
       assert.throws(
@@ -72,7 +72,7 @@ const s = http.createServer(common.mustCall((req, res) => {
           code: 'ERR_INVALID_ARG_TYPE',
           name: 'TypeError',
           message: 'The "name" argument must be of type string. ' +
-                   'Received undefined'
+                   'Received undefined',
         }
       );
       assert.throws(
@@ -81,7 +81,7 @@ const s = http.createServer(common.mustCall((req, res) => {
           code: 'ERR_INVALID_ARG_TYPE',
           name: 'TypeError',
           message: 'The "name" argument must be of type string. ' +
-                   'Received undefined'
+                   'Received undefined',
         }
       );
 
@@ -99,7 +99,7 @@ const s = http.createServer(common.mustCall((req, res) => {
         'x-test-header': 'testing',
         'x-test-header2': 'testing',
         'set-cookie': cookies,
-        'x-test-array-header': arrayValues
+        'x-test-array-header': arrayValues,
       };
       Object.setPrototypeOf(expected, null);
       assert.deepStrictEqual(headersCopy, expected);
@@ -129,7 +129,7 @@ const s = http.createServer(common.mustCall((req, res) => {
             code: 'ERR_INVALID_ARG_TYPE',
             name: 'TypeError',
             message: 'The "name" argument must be of type string.' +
-                     common.invalidArgTypeHelper(val)
+                     common.invalidArgTypeHelper(val),
           }
         );
       });
@@ -177,7 +177,7 @@ function nextTest() {
 
   const req = http.get({
     port: s.address().port,
-    headers: { 'X-foo': 'bar' }
+    headers: { 'X-foo': 'bar' },
   }, common.mustCall((response) => {
     switch (test) {
       case 'headers':

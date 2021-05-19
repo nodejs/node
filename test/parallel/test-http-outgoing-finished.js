@@ -23,7 +23,7 @@ const server = http.createServer(function(req, res) {
   http
     .request({
       port: this.address().port,
-      method: 'GET'
+      method: 'GET',
     })
     .on('response', function(res) {
       res.resume();

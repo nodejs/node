@@ -61,7 +61,7 @@ tmpdir.refresh();
     stream.write(42);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError'
+    name: 'TypeError',
   });
   stream.destroy();
 }

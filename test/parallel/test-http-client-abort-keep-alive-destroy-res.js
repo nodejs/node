@@ -19,7 +19,7 @@ server.listen(0, common.mustCall(() => {
   const port = server.address().port;
   const agent = new Agent({
     keepAlive: true,
-    maxSockets: 1
+    maxSockets: 1,
   });
 
   const req = http.get({ agent, port }, common.mustCall((res) => {

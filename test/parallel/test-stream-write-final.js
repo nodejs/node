@@ -15,7 +15,7 @@ const w = new stream.Writable({
   }),
   write: function(chunk, e, cb) {
     process.nextTick(cb);
-  }
+  },
 });
 w.on('finish', common.mustCall(function() {
   assert(shutdown);

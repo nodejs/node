@@ -124,7 +124,7 @@ const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
 [false, 5, {}, null, undefined].forEach(async (data) => {
   const errObj = {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: /"data"|"buffer"/
+    message: /"data"|"buffer"/,
   };
   const filename = join(tmpdir.path, 'append-invalid-data.txt');
 
@@ -147,7 +147,7 @@ const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
     () => fs.statSync(filename),
     {
       code: 'ENOENT',
-      message: /no such file or directory/
+      message: /no such file or directory/,
     }
   );
 });

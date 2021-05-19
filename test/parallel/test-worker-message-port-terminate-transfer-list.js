@@ -18,7 +18,7 @@ if (!process.env.HAS_STARTED_WORKER) {
 
   // Make sure we don’t end up running JS after the infinite loop is broken.
   port1.postMessage({}, {
-    transfer: (function*() { while (true); })()
+    transfer: (function*() { while (true); })(),
   });
 
   parentPort.postMessage('UNREACHABLE');

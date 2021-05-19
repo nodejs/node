@@ -30,14 +30,14 @@ const fixtures = require('../common/fixtures');
 
 const options = {
   key: fixtures.readKey('/ec-key.pem'),
-  cert: fixtures.readKey('ec-cert.pem')
+  cert: fixtures.readKey('ec-cert.pem'),
 };
 
 const server = tls.createServer(options, function(conn) {
   conn.end('ok');
 }).listen(0, common.mustCall(function() {
   const c = tls.connect(this.address().port, {
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall(function() {
     c.on('end', common.mustCall(function() {
       c.end();

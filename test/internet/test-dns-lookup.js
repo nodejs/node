@@ -11,11 +11,11 @@ assert.rejects(
   dnsPromises.lookup(addresses.NOT_FOUND, {
     hints: 0,
     family: 0,
-    all: false
+    all: false,
   }),
   {
     code: 'ENOTFOUND',
-    message: `getaddrinfo ENOTFOUND ${addresses.NOT_FOUND}`
+    message: `getaddrinfo ENOTFOUND ${addresses.NOT_FOUND}`,
   }
 );
 
@@ -23,18 +23,18 @@ assert.rejects(
   dnsPromises.lookup(addresses.NOT_FOUND, {
     hints: 0,
     family: 0,
-    all: true
+    all: true,
   }),
   {
     code: 'ENOTFOUND',
-    message: `getaddrinfo ENOTFOUND ${addresses.NOT_FOUND}`
+    message: `getaddrinfo ENOTFOUND ${addresses.NOT_FOUND}`,
   }
 );
 
 dns.lookup(addresses.NOT_FOUND, {
   hints: 0,
   family: 0,
-  all: true
+  all: true,
 }, common.mustCall((error) => {
   assert.strictEqual(error.code, 'ENOTFOUND');
   assert.strictEqual(

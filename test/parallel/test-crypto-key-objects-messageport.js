@@ -10,7 +10,7 @@ const {
   MessageChannel,
   Worker,
   moveMessagePortToContext,
-  parentPort
+  parentPort,
 } = require('worker_threads');
 
 function keyToString(key) {
@@ -36,7 +36,7 @@ process.env.HAS_STARTED_WORKER = 1;
 // The main thread generates keys and passes them to worker threads.
 const secretKey = createSecretKey(randomBytes(32));
 const { publicKey, privateKey } = generateKeyPairSync('rsa', {
-  modulusLength: 1024
+  modulusLength: 1024,
 });
 
 // Get immutable representations of all keys.

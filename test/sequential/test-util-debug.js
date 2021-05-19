@@ -63,8 +63,8 @@ function test(environ, shouldWrite, section, forceColors = false) {
   const child = spawn(process.execPath, [__filename, 'child', section], {
     env: Object.assign(process.env, {
       NODE_DEBUG: environ,
-      FORCE_COLOR: forceColors ? 'true' : 'false'
-    })
+      FORCE_COLOR: forceColors ? 'true' : 'false',
+    }),
   });
 
   if (shouldWrite) {
@@ -115,7 +115,7 @@ function child(section) {
   const tty = require('tty');
   // Make sure we check for colors, no matter of the stream's default.
   Object.defineProperty(process.stderr, 'hasColors', {
-    value: tty.WriteStream.prototype.hasColors
+    value: tty.WriteStream.prototype.hasColors,
   });
   // eslint-disable-next-line no-restricted-syntax
   const debug = util.debuglog(section, common.mustCall((cb) => {

@@ -26,12 +26,12 @@ const { subtle, getRandomValues } = require('crypto').webcrypto;
 
     const ciphertext = await subtle.encrypt({
       name: 'RSA-OAEP',
-      label: ec.encode('a label')
+      label: ec.encode('a label'),
     }, publicKey, buf);
 
     const plaintext = await subtle.decrypt({
       name: 'RSA-OAEP',
-      label: ec.encode('a label')
+      label: ec.encode('a label'),
     }, privateKey, ciphertext);
 
     assert.strictEqual(
@@ -50,7 +50,7 @@ const { subtle, getRandomValues } = require('crypto').webcrypto;
   async function test() {
     const key = await subtle.generateKey({
       name: 'AES-CTR',
-      length: 256
+      length: 256,
     }, true, ['encrypt', 'decrypt']);
 
     const ciphertext = await subtle.encrypt(
@@ -77,7 +77,7 @@ const { subtle, getRandomValues } = require('crypto').webcrypto;
   async function test() {
     const key = await subtle.generateKey({
       name: 'AES-CBC',
-      length: 256
+      length: 256,
     }, true, ['encrypt', 'decrypt']);
 
     const ciphertext = await subtle.encrypt(
@@ -104,7 +104,7 @@ const { subtle, getRandomValues } = require('crypto').webcrypto;
   async function test() {
     const key = await subtle.generateKey({
       name: 'AES-GCM',
-      length: 256
+      length: 256,
     }, true, ['encrypt', 'decrypt']);
 
     const ciphertext = await subtle.encrypt(

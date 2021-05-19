@@ -6,7 +6,7 @@ const child = child_process.spawn(process.execPath, [
   '--interactive',
   '--expose-gc',
 ], {
-  stdio: 'pipe'
+  stdio: 'pipe',
 });
 child.stdin.write('\nimport("fs");\n_.then(gc);\n');
 // Wait for concurrent GC to finish

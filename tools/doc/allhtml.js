@@ -22,7 +22,7 @@ let apicontent = '';
 // are added to this list to prevent dupes.
 const seen = {
   'all.html': true,
-  'index.html': true
+  'index.html': true,
 };
 
 for (const link of toc.match(/<a.*?>/g)) {

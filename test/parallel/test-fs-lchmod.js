@@ -24,14 +24,14 @@ assert.throws(() => fs.lchmod(f, {}), { code: 'ERR_INVALID_CALLBACK' });
     () => fs.lchmod(i, 0o777, common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError'
+      name: 'TypeError',
     }
   );
   assert.throws(
     () => fs.lchmodSync(i),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError'
+      name: 'TypeError',
     }
   );
 });
@@ -47,10 +47,10 @@ assert.throws(() => fs.lchmod(f, {}), { code: 'ERR_INVALID_CALLBACK' });
 });
 
 assert.throws(() => fs.lchmod(f, '123x', common.mustNotCall()), {
-  code: 'ERR_INVALID_ARG_VALUE'
+  code: 'ERR_INVALID_ARG_VALUE',
 });
 assert.throws(() => fs.lchmodSync(f, '123x'), {
-  code: 'ERR_INVALID_ARG_VALUE'
+  code: 'ERR_INVALID_ARG_VALUE',
 });
 
 [-1, 2 ** 32].forEach((input) => {
@@ -58,7 +58,7 @@ assert.throws(() => fs.lchmodSync(f, '123x'), {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
     message: 'The value of "mode" is out of range. It must be >= 0 && <= ' +
-             `4294967295. Received ${input}`
+             `4294967295. Received ${input}`,
   };
 
   assert.rejects(promises.lchmod(f, input, () => {}), errObj);

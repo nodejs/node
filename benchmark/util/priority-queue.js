@@ -3,7 +3,7 @@
 const common = require('../common');
 
 const bench = common.createBenchmark(main, {
-  n: [1e5]
+  n: [1e5],
 }, { flags: ['--expose-internals'] });
 
 function main({ n, type }) {

@@ -10,13 +10,13 @@ const content = Buffer.alloc(1e5, 0x44);
 
 const server = http2.createSecureServer({
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 });
 server.on('stream', common.mustCall((stream) => {
   stream.respond({
     'Content-Type': 'application/octet-stream',
     'Content-Length': (content.length.toString() * 2),
-    'Vary': 'Accept-Encoding'
+    'Vary': 'Accept-Encoding',
   });
 
   stream.write(content);

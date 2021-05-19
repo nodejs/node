@@ -26,7 +26,7 @@ if (process.argv[2] === 'child') {
                          execArgv: [
                            '--trace-event-categories',
                            'node.bootstrap',
-                         ]
+                         ],
                        });
 
   proc.once('exit', common.mustCall(() => {

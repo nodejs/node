@@ -21,7 +21,7 @@ function child(type, valueType) {
       }
       // eslint-disable-next-line no-throw-literal
       throw null;
-    }
+    },
   }).enable();
 
   // Trigger `promiseResolve`.

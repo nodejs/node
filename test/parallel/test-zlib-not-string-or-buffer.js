@@ -24,7 +24,7 @@ const zlib = require('zlib');
       name: 'TypeError',
       message: 'The "buffer" argument must be of type string or an instance ' +
                'of Buffer, TypedArray, DataView, or ArrayBuffer.' +
-               common.invalidArgTypeHelper(input)
+               common.invalidArgTypeHelper(input),
     }
   );
 });

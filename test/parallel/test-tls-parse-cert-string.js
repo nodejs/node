@@ -7,7 +7,7 @@ if (!common.hasCrypto)
 
 const {
   hijackStderr,
-  restoreStderr
+  restoreStderr,
 } = require('../common/hijackstdio');
 const assert = require('assert');
 // Flags: --expose-internals
@@ -29,7 +29,7 @@ hijackStderr(noOutput);
     O: 'Node.js Foundation',
     OU: 'Node.js',
     CN: 'ca1',
-    emailAddress: 'ry@clouds.org'
+    emailAddress: 'ry@clouds.org',
   });
 }
 
@@ -40,7 +40,7 @@ hijackStderr(noOutput);
   assert.deepStrictEqual(doublesOut, {
     __proto__: null,
     OU: [ 'Domain Control Validated', 'PositiveSSL Wildcard' ],
-    CN: '*.nodejs.org'
+    CN: '*.nodejs.org',
   });
 }
 

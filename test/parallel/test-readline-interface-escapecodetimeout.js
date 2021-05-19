@@ -19,7 +19,7 @@ class FakeInput extends EventEmitter {
   const rli = new readline.Interface({
     input: fi,
     output: fi,
-    escapeCodeTimeout: 50
+    escapeCodeTimeout: 50,
   });
   assert.strictEqual(rli.escapeCodeTimeout, 50);
   rli.close();
@@ -36,11 +36,11 @@ class FakeInput extends EventEmitter {
     const rli = new readline.Interface({
       input: fi,
       output: fi,
-      escapeCodeTimeout: invalidInput
+      escapeCodeTimeout: invalidInput,
     });
     rli.close();
   }, {
     name: 'TypeError',
-    code: 'ERR_INVALID_ARG_VALUE'
+    code: 'ERR_INVALID_ARG_VALUE',
   });
 });

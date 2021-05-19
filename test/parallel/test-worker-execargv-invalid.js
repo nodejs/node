@@ -7,7 +7,7 @@ const { Worker } = require('worker_threads');
 {
   const expectedErr = {
     code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError'
+    name: 'TypeError',
   };
 
   assert.throws(() => {
@@ -21,7 +21,7 @@ const { Worker } = require('worker_threads');
 {
   const expectedErr = {
     code: 'ERR_WORKER_INVALID_EXEC_ARGV',
-    name: 'Error'
+    name: 'Error',
   };
   assert.throws(() => {
     new Worker(__filename, { execArgv: ['--foo'] });
@@ -37,13 +37,13 @@ const { Worker } = require('worker_threads');
 {
   const expectedErr = {
     code: 'ERR_WORKER_INVALID_EXEC_ARGV',
-    name: 'Error'
+    name: 'Error',
   };
   assert.throws(() => {
     new Worker(__filename, {
       env: {
-        NODE_OPTIONS: '--nonexistent-options'
-      }
+        NODE_OPTIONS: '--nonexistent-options',
+      },
     });
   }, expectedErr);
 }

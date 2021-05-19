@@ -10,7 +10,7 @@ const fs = require('fs');
 
 const {
   HTTP2_HEADER_CONTENT_TYPE,
-  HTTP2_HEADER_CONTENT_LENGTH
+  HTTP2_HEADER_CONTENT_LENGTH,
 } = http2.constants;
 
 const fname = fixtures.path('elipses.txt');

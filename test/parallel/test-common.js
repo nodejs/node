@@ -42,7 +42,7 @@ const { join } = require('path');
 {
   const p = fixtures.path('leakedGlobal.js');
   execFile(process.execPath, [p], {
-    env: { ...process.env, NODE_TEST_KNOWN_GLOBALS: 0 }
+    env: { ...process.env, NODE_TEST_KNOWN_GLOBALS: 0 },
   }, common.mustCall((err, stdout, stderr) => {
     assert.strictEqual(err, null);
     assert.strictEqual(stderr.trim(), '');
@@ -67,7 +67,7 @@ assert.throws(
   () => { assert.fail('fhqwhgads'); },
   {
     code: 'ERR_ASSERTION',
-    message: /^fhqwhgads$/
+    message: /^fhqwhgads$/,
   });
 
 const fnOnce = common.mustCall(() => {});

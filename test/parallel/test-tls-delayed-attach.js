@@ -40,14 +40,14 @@ let received = '';
 
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 };
 
 const server = net.createServer(common.mustCall((c) => {
   setTimeout(function() {
     const s = new tls.TLSSocket(c, {
       isServer: true,
-      secureContext: tls.createSecureContext(options)
+      secureContext: tls.createSecureContext(options),
     });
 
     s.on('data', (chunk) => {
@@ -61,7 +61,7 @@ const server = net.createServer(common.mustCall((c) => {
   }, 200);
 })).listen(0, common.mustCall(() => {
   const c = tls.connect(server.address().port, {
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, () => {
     c.end(sent);
   });

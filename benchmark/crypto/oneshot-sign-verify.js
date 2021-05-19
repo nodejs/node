@@ -9,7 +9,7 @@ const keyFixtures = {
   publicKey: fs.readFileSync(`${fixtures_keydir}/ec_p256_public.pem`)
     .toString(),
   privateKey: fs.readFileSync(`${fixtures_keydir}/ec_p256_private.pem`)
-    .toString()
+    .toString(),
 };
 
 const data = crypto.randomBytes(256);
@@ -20,7 +20,7 @@ let keyObjects;
 function getKeyObject({ privateKey, publicKey }) {
   return {
     privateKey: crypto.createPrivateKey(privateKey),
-    publicKey: crypto.createPublicKey(publicKey)
+    publicKey: crypto.createPublicKey(publicKey),
   };
 }
 
@@ -60,7 +60,7 @@ function measureAsyncSerial(n, privateKey, publicKey, keys) {
       data,
       {
         key: privateKey || keys[n - remaining].privateKey,
-        dsaEncoding: 'ieee-p1363'
+        dsaEncoding: 'ieee-p1363',
       },
       (err, signature) => {
         crypto.verify(
@@ -68,7 +68,7 @@ function measureAsyncSerial(n, privateKey, publicKey, keys) {
           data,
           {
             key: publicKey || keys[n - remaining].publicKey,
-            dsaEncoding: 'ieee-p1363'
+            dsaEncoding: 'ieee-p1363',
           },
           signature,
           done);
@@ -104,7 +104,7 @@ function measureAsyncParallel(n, privateKey, publicKey, keys) {
 function main({ n, mode, keyFormat }) {
   pems ||= [...Buffer.alloc(n)].map(() => ({
     privateKey: keyFixtures.privateKey,
-    publicKey: keyFixtures.publicKey
+    publicKey: keyFixtures.publicKey,
   }));
   keyObjects ||= pems.map(getKeyObject);
 

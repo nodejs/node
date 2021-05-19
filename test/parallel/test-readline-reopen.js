@@ -14,7 +14,7 @@ const output = new PassThrough();
 const rl1 = readline.createInterface({
   input,
   output,
-  terminal: true
+  terminal: true,
 });
 
 rl1.on('line', common.mustCall(rl1OnLine));
@@ -32,7 +32,7 @@ function rl1OnLine(line) {
   const rl2 = readline.createInterface({
     input,
     output,
-    terminal: true
+    terminal: true,
   });
 
   rl2.on('line', common.mustCall((line) => {

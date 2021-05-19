@@ -30,7 +30,7 @@ const fixtures = require('../common/fixtures');
 
 const options = {
   key: fixtures.readKey('rsa_private.pem'),
-  cert: fixtures.readKey('rsa_cert.crt')
+  cert: fixtures.readKey('rsa_cert.crt'),
 };
 
 const server = tls.createServer(options, function(cleartext) {
@@ -49,7 +49,7 @@ server.once('secureConnection', common.mustCall(function(socket) {
 server.listen(0, common.mustCall(function() {
   const socket = tls.connect({
     port: this.address().port,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall(function() {
     const peerCert = socket.getPeerCertificate();
     assert.deepStrictEqual(

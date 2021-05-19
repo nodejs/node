@@ -54,7 +54,7 @@ const countdown = new Countdown(max, () => {
 function request(i) {
   const req = http.get({
     port: server.address().port,
-    path: `/${i}`
+    path: `/${i}`,
   }, function(res) {
     const socket = req.socket;
     socket.on('close', common.mustCall(() => {

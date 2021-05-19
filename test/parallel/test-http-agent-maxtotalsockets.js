@@ -37,7 +37,7 @@ function start(param = {}) {
     keepAliveMsecs: 1000,
     maxTotalSockets,
     maxSockets,
-    maxFreeSockets: 3
+    maxFreeSockets: 3,
   });
 
   const server = http.createServer(common.mustCall((req, res) => {

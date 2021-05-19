@@ -36,7 +36,7 @@ const fixtures = require('../common/fixtures');
 
 const server = tls.createServer({
   cert: fixtures.readKey('rsa_cert.crt'),
-  key: fixtures.readKey('rsa_private.pem')
+  key: fixtures.readKey('rsa_private.pem'),
 }).listen(0);
 
 let collected = false;

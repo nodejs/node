@@ -50,7 +50,7 @@ assert.strictEqual(flatLongLen.toString(), check);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
     message: 'The "list" argument must be an instance of Array.' +
-             `${common.invalidArgTypeHelper(value)}`
+             `${common.invalidArgTypeHelper(value)}`,
   });
 });
 
@@ -60,7 +60,7 @@ assert.strictEqual(flatLongLen.toString(), check);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
     message: 'The "list[0]" argument must be an instance of Buffer ' +
-             `or Uint8Array.${common.invalidArgTypeHelper(value[0])}`
+             `or Uint8Array.${common.invalidArgTypeHelper(value[0])}`,
   });
 });
 
@@ -69,7 +69,7 @@ assert.throws(() => {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   message: 'The "list[1]" argument must be an instance of Buffer ' +
-           'or Uint8Array. Received type number (3)'
+           'or Uint8Array. Received type number (3)',
 });
 
 // eslint-disable-next-line node-core/crypto-check

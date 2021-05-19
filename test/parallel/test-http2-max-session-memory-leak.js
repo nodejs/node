@@ -20,14 +20,14 @@ server.on('stream', (stream) => {
 
 server.listen(common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}`, {
-    maxSessionMemory
+    maxSessionMemory,
   });
 
   function request() {
     return new Promise((resolve, reject) => {
       const stream = client.request({
         ':method': 'POST',
-        'content-length': bodyLength
+        'content-length': bodyLength,
       });
       stream.on('error', reject);
       stream.on('response', resolve);

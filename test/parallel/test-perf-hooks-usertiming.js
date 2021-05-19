@@ -35,7 +35,7 @@ assert(measure);
 clearMarks();
 
 assert.throws(() => mark(Symbol('a')), {
-  message: /Cannot convert a Symbol value to a string/
+  message: /Cannot convert a Symbol value to a string/,
 });
 
 [undefined, null, 1, 'any', {}, []].forEach((detail) => {
@@ -53,7 +53,7 @@ clearMarks();
 }
 
 assert.throws(() => mark('a', { startTime: 'a' }), {
-  code: 'ERR_INVALID_ARG_TYPE'
+  code: 'ERR_INVALID_ARG_TYPE',
 });
 
 clearMarks();
@@ -61,7 +61,7 @@ clearMarks(1);
 clearMarks(null);
 
 assert.throws(() => clearMarks(Symbol('foo')), {
-  message: /Cannot convert a Symbol value to a string/
+  message: /Cannot convert a Symbol value to a string/,
 });
 
 {

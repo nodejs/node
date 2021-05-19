@@ -10,6 +10,6 @@ const { once } = require('events');
   await once(w, 'exit');
   await assert.rejects(() => w.getHeapSnapshot(), {
     name: 'Error',
-    code: 'ERR_WORKER_NOT_RUNNING'
+    code: 'ERR_WORKER_NOT_RUNNING',
   });
 })().then(common.mustCall());

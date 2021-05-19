@@ -24,5 +24,5 @@ base.runTest({
            }
            setImmediate(function() { f(); });
          };
-         f();`
+         f();`,
 });

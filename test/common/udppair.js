@@ -68,7 +68,7 @@ class FakeUDPWrap extends EventEmitter {
         address = '127.0.0.1',
         port = 1337,
       },
-      flags = 0
+      flags = 0,
     } = info;
 
     let familyInt;
@@ -98,5 +98,5 @@ function makeUDPPair() {
 
 module.exports = {
   FakeUDPWrap,
-  makeUDPPair
+  makeUDPPair,
 };

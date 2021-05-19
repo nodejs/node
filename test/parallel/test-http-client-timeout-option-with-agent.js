@@ -10,7 +10,7 @@ const { strictEqual } = require('assert');
 const request = get({
   agent: new Agent({ timeout: 50 }),
   lookup: () => {},
-  timeout: 100
+  timeout: 100,
 });
 
 request.on('socket', mustCall((socket) => {

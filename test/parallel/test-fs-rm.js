@@ -141,7 +141,7 @@ function removeAsync(dir) {
   }, {
     code: 'ENOENT',
     name: 'Error',
-    message: /^ENOENT: no such file or directory, stat/
+    message: /^ENOENT: no such file or directory, stat/,
   });
 
   // Should delete a file
@@ -169,7 +169,7 @@ function removeAsync(dir) {
   // Removal should fail without the recursive option set to true.
   assert.rejects(fs.promises.rm(dir), { syscall: 'rm' });
   assert.rejects(fs.promises.rm(dir, { recursive: false }), {
-    syscall: 'rm'
+    syscall: 'rm',
   });
 
   // Recursive removal should succeed.
@@ -185,7 +185,7 @@ function removeAsync(dir) {
   ), {
     code: 'ENOENT',
     name: 'Error',
-    message: /^ENOENT: no such file or directory, stat/
+    message: /^ENOENT: no such file or directory, stat/,
   });
 
   // Should not fail if target does not exist and force option is true
@@ -213,25 +213,25 @@ function removeAsync(dir) {
     retryDelay: 100,
     maxRetries: 0,
     recursive: false,
-    force: false
+    force: false,
   };
   const modified = {
     retryDelay: 953,
     maxRetries: 5,
     recursive: true,
-    force: false
+    force: false,
   };
 
   assert.deepStrictEqual(validateRmOptionsSync(filePath), defaults);
   assert.deepStrictEqual(validateRmOptionsSync(filePath, {}), defaults);
   assert.deepStrictEqual(validateRmOptionsSync(filePath, modified), modified);
   assert.deepStrictEqual(validateRmOptionsSync(filePath, {
-    maxRetries: 99
+    maxRetries: 99,
   }), {
     retryDelay: 100,
     maxRetries: 99,
     recursive: false,
-    force: false
+    force: false,
   });
 
   [null, 'foo', 5, NaN].forEach((bad) => {
@@ -240,7 +240,7 @@ function removeAsync(dir) {
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: /^The "options" argument must be of type object\./
+      message: /^The "options" argument must be of type object\./,
     });
   });
 
@@ -250,7 +250,7 @@ function removeAsync(dir) {
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: /^The "options\.recursive" property must be of type boolean\./
+      message: /^The "options\.recursive" property must be of type boolean\./,
     });
   });
 
@@ -260,7 +260,7 @@ function removeAsync(dir) {
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: /^The "options\.force" property must be of type boolean\./
+      message: /^The "options\.force" property must be of type boolean\./,
     });
   });
 
@@ -269,7 +269,7 @@ function removeAsync(dir) {
   }, {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
-    message: /^The value of "options\.retryDelay" is out of range\./
+    message: /^The value of "options\.retryDelay" is out of range\./,
   });
 
   assert.throws(() => {
@@ -277,6 +277,6 @@ function removeAsync(dir) {
   }, {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
-    message: /^The value of "options\.maxRetries" is out of range\./
+    message: /^The value of "options\.maxRetries" is out of range\./,
   });
 }

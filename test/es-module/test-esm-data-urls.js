@@ -75,7 +75,7 @@ function createBase64URL(mime, body) {
       return import('data:application/json;foo="test,",0');
     }, {
       name: 'SyntaxError',
-      message: /Unexpected end of JSON input/
+      message: /Unexpected end of JSON input/,
     });
   }
   {

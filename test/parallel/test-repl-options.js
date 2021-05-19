@@ -37,7 +37,7 @@ common.expectWarning({
       'repl._builtinLibs is deprecated. Check module.builtinModules instead',
     DEP0141: 'repl.inputStream and repl.outputStream are deprecated. ' +
              'Use repl.input and repl.output instead',
-  }
+  },
 });
 
 // Create a dummy stream that does nothing
@@ -47,7 +47,7 @@ const stream = new ArrayStream();
 const r1 = repl.start({
   input: stream,
   output: stream,
-  terminal: true
+  terminal: true,
 });
 
 assert.strictEqual(r1.input, stream);
@@ -75,7 +75,7 @@ const r2 = repl.start({
   eval: evaler,
   writer: writer,
   replMode: repl.REPL_MODE_STRICT,
-  historySize: 50
+  historySize: 50,
 });
 assert.strictEqual(r2.input, stream);
 assert.strictEqual(r2.output, stream);
@@ -92,13 +92,13 @@ assert.strictEqual(r2.historySize, 50);
 // 3, breakEvalOnSigint and eval supplied together should cause a throw
 const r3 = () => repl.start({
   breakEvalOnSigint: true,
-  eval: true
+  eval: true,
 });
 
 assert.throws(r3, {
   code: 'ERR_INVALID_REPL_EVAL_CONFIG',
   name: 'TypeError',
-  message: 'Cannot specify both "breakEvalOnSigint" and "eval" for REPL'
+  message: 'Cannot specify both "breakEvalOnSigint" and "eval" for REPL',
 });
 
 // 4, Verify that defaults are used when no arguments are provided

@@ -7,7 +7,7 @@ const { promisify } = require('util');
 const execPromisifed = promisify(exec);
 const invalidArgTypeError = {
   code: 'ERR_INVALID_ARG_TYPE',
-  name: 'TypeError'
+  name: 'TypeError',
 };
 
 const waitCommand = common.isLinux ?

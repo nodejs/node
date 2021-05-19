@@ -40,7 +40,7 @@ const hasIntl = !!process.config.variables.v8_enable_i18n_support;
 
 const {
   atob,
-  btoa
+  btoa,
 } = require('buffer');
 
 // Some tests assume a umask of 0o022 so set that up front. Tests that need a
@@ -163,7 +163,7 @@ if (process.env.NODE_TEST_WITH_ASYNC_HOOKS) {
       }
       initHandles[id] = {
         resource,
-        stack: util.inspect(new Error()).substr(6)
+        stack: util.inspect(new Error()).substr(6),
       };
     },
     before() { },
@@ -379,7 +379,7 @@ function _mustCallInner(fn, criteria = 1, field) {
     [field]: criteria,
     actual: 0,
     stack: util.inspect(new Error()),
-    name: fn.name || '<anonymous>'
+    name: fn.name || '<anonymous>',
   };
 
   // Add the exit listener only once to avoid listener leak warnings
@@ -881,7 +881,7 @@ const common = {
       throw new Error('common.PORT cannot be used in a parallelized test');
     }
     return +process.env.NODE_COMMON_PORT || 12346;
-  }
+  },
 
 };
 
@@ -891,5 +891,5 @@ module.exports = new Proxy(common, {
     if (!validProperties.has(prop))
       throw new Error(`Using invalid common property: '${prop}'`);
     return obj[prop];
-  }
+  },
 });

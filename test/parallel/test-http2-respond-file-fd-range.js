@@ -13,7 +13,7 @@ const Countdown = require('../common/countdown');
 
 const {
   HTTP2_HEADER_CONTENT_TYPE,
-  HTTP2_HEADER_CONTENT_LENGTH
+  HTTP2_HEADER_CONTENT_LENGTH,
 } = http2.constants;
 
 const fname = fixtures.path('printA.js');
@@ -35,7 +35,7 @@ server.on('stream', (stream, headers) => {
   const [ offset, length ] = getOffsetLength(headers.range);
 
   stream.respondWithFD(fd, {
-    [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain'
+    [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain',
   }, {
     statCheck: common.mustCall((stat, headers, options) => {
       assert.strictEqual(options.length, length);
@@ -44,7 +44,7 @@ server.on('stream', (stream, headers) => {
         Math.min(options.length, stat.size - offset);
     }),
     offset: offset,
-    length: length
+    length: length,
   });
 });
 server.on('close', common.mustCall(() => fs.closeSync(fd)));

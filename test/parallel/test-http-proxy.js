@@ -45,7 +45,7 @@ const proxy = http.createServer(function(req, res) {
   console.error(`proxy req headers: ${JSON.stringify(req.headers)}`);
   http.get({
     port: backend.address().port,
-    path: url.parse(req.url).pathname
+    path: url.parse(req.url).pathname,
   }, function(proxy_res) {
 
     console.error(`proxy res headers: ${JSON.stringify(proxy_res.headers)}`);
@@ -76,7 +76,7 @@ function startReq() {
 
   http.get({
     port: proxy.address().port,
-    path: '/test'
+    path: '/test',
   }, function(res) {
     console.error('got res');
     assert.strictEqual(res.statusCode, 200);

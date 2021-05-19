@@ -46,34 +46,34 @@ if (cluster.isWorker) {
         fork: false,
         online: false,
         listening: false,
-        exit: false
+        exit: false,
       },
       equal: {
         fork: false,
         online: false,
         listening: false,
-        exit: false
-      }
+        exit: false,
+      },
     },
 
     worker: {
       events: {
         online: false,
         listening: false,
-        exit: false
+        exit: false,
       },
       equal: {
         online: false,
         listening: false,
-        exit: false
+        exit: false,
       },
       states: {
         none: false,
         online: false,
         listening: false,
-        dead: false
-      }
-    }
+        dead: false,
+      },
+    },
   };
 
   const stateNames = Object.keys(checks.worker.states);

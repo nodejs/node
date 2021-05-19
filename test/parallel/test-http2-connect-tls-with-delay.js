@@ -10,7 +10,7 @@ const fixtures = require('../common/fixtures');
 
 const serverOptions = {
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 };
 
 const server = http2.createSecureServer(serverOptions, (req, res) => {
@@ -23,7 +23,7 @@ server.listen(0, '127.0.0.1', common.mustCall(() => {
     host: '127.0.0.1',
     servername: 'localhost',
     port: server.address().port,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   };
 
   const socket = tls.connect(options, async () => {
@@ -35,7 +35,7 @@ server.listen(0, '127.0.0.1', common.mustCall(() => {
 
       client.once('remoteSettings', common.mustCall(() => {
         const req = client.request({
-          ':path': '/'
+          ':path': '/',
         });
         req.on('data', () => req.resume());
         req.on('end', common.mustCall(() => {

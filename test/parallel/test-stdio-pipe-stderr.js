@@ -23,7 +23,7 @@ fs.writeFileSync(fakeModulePath, '', 'utf8');
 stream.on('open', () => {
   spawn(process.execPath, {
     input: `require("${fakeModulePath.replace(/\\/g, '/')}")`,
-    stdio: ['pipe', 'pipe', stream]
+    stdio: ['pipe', 'pipe', stream],
   });
   const stderr = fs.readFileSync(stderrOutputPath, 'utf8').trim();
   assert.strictEqual(

@@ -38,7 +38,7 @@ async_hooks.createHook({
 
   destroy(id) {
     if (promiseIds.includes(id)) createSnapshot();
-  }
+  },
 }).enable();
 
 

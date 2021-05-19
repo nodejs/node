@@ -172,7 +172,7 @@ import assert from 'assert';
 const { message } = new assert.AssertionError({
   actual: 1,
   expected: 2,
-  operator: 'strictEqual'
+  operator: 'strictEqual',
 });
 
 // Verify error output:
@@ -197,7 +197,7 @@ const assert = require('assert');
 const { message } = new assert.AssertionError({
   actual: 1,
   expected: 2,
-  operator: 'strictEqual'
+  operator: 'strictEqual',
 });
 
 // Verify error output:
@@ -554,18 +554,18 @@ import assert from 'assert';
 
 const obj1 = {
   a: {
-    b: 1
-  }
+    b: 1,
+  },
 };
 const obj2 = {
   a: {
-    b: 2
-  }
+    b: 2,
+  },
 };
 const obj3 = {
   a: {
-    b: 1
-  }
+    b: 1,
+  },
 };
 const obj4 = Object.create(obj1);
 
@@ -589,18 +589,18 @@ const assert = require('assert');
 
 const obj1 = {
   a: {
-    b: 1
-  }
+    b: 1,
+  },
 };
 const obj2 = {
   a: {
-    b: 2
-  }
+    b: 2,
+  },
 };
 const obj3 = {
   a: {
-    b: 1
-  }
+    b: 1,
+  },
 };
 const obj4 = Object.create(obj1);
 
@@ -1504,18 +1504,18 @@ import assert from 'assert';
 
 const obj1 = {
   a: {
-    b: 1
-  }
+    b: 1,
+  },
 };
 const obj2 = {
   a: {
-    b: 2
-  }
+    b: 2,
+  },
 };
 const obj3 = {
   a: {
-    b: 1
-  }
+    b: 1,
+  },
 };
 const obj4 = Object.create(obj1);
 
@@ -1537,18 +1537,18 @@ const assert = require('assert');
 
 const obj1 = {
   a: {
-    b: 1
-  }
+    b: 1,
+  },
 };
 const obj2 = {
   a: {
-    b: 2
-  }
+    b: 2,
+  },
 };
 const obj3 = {
   a: {
-    b: 1
-  }
+    b: 1,
+  },
 };
 const obj4 = Object.create(obj1);
 
@@ -1900,7 +1900,7 @@ await assert.rejects(
   },
   {
     name: 'TypeError',
-    message: 'Wrong value'
+    message: 'Wrong value',
   }
 );
 ```
@@ -1915,7 +1915,7 @@ const assert = require('assert/strict');
     },
     {
       name: 'TypeError',
-      message: 'Wrong value'
+      message: 'Wrong value',
     }
   );
 })();
@@ -2102,7 +2102,7 @@ err.code = 404;
 err.foo = 'bar';
 err.info = {
   nested: true,
-  baz: 'text'
+  baz: 'text',
 };
 err.reg = /abc/i;
 
@@ -2115,8 +2115,8 @@ assert.throws(
     message: 'Wrong value',
     info: {
       nested: true,
-      baz: 'text'
-    }
+      baz: 'text',
+    },
     // Only properties on the validation object will be tested for.
     // Using nested objects requires all properties to be present. Otherwise
     // the validation is going to fail.
@@ -2138,12 +2138,12 @@ throws(
     info: {
       nested: true,
       // It is not possible to use regular expressions for nested properties!
-      baz: 'text'
+      baz: 'text',
     },
     // The `reg` property contains a regular expression and only if the
     // validation object contains an identical regular expression, it is going
     // to pass.
-    reg: /abc/i
+    reg: /abc/i,
   }
 );
 
@@ -2171,7 +2171,7 @@ err.code = 404;
 err.foo = 'bar';
 err.info = {
   nested: true,
-  baz: 'text'
+  baz: 'text',
 };
 err.reg = /abc/i;
 
@@ -2184,8 +2184,8 @@ assert.throws(
     message: 'Wrong value',
     info: {
       nested: true,
-      baz: 'text'
-    }
+      baz: 'text',
+    },
     // Only properties on the validation object will be tested for.
     // Using nested objects requires all properties to be present. Otherwise
     // the validation is going to fail.
@@ -2207,12 +2207,12 @@ throws(
     info: {
       nested: true,
       // It is not possible to use regular expressions for nested properties!
-      baz: 'text'
+      baz: 'text',
     },
     // The `reg` property contains a regular expression and only if the
     // validation object contains an identical regular expression, it is going
     // to pass.
-    reg: /abc/i
+    reg: /abc/i,
   }
 );
 

@@ -15,12 +15,12 @@ const { throws, strictEqual } = require('assert');
     throws(() => {
       res.setHeader(':path', '/');
     }, {
-      code: 'ERR_HTTP2_PSEUDOHEADER_NOT_ALLOWED'
+      code: 'ERR_HTTP2_PSEUDOHEADER_NOT_ALLOWED',
     });
     throws(() => {
       res.setHeader('t est', 123);
     }, {
-      code: 'ERR_INVALID_HTTP_TOKEN'
+      code: 'ERR_INVALID_HTTP_TOKEN',
     });
     res.setHeader('TEST', 123);
     res.setHeader('test_', 123);
@@ -49,7 +49,7 @@ const { throws, strictEqual } = require('assert');
     throws(() => {
       session.request({ 't est': 123 });
     }, {
-      code: 'ERR_INVALID_HTTP_TOKEN'
+      code: 'ERR_INVALID_HTTP_TOKEN',
     });
   }));
 }
@@ -66,7 +66,7 @@ const { throws, strictEqual } = require('assert');
     throws(() => {
       session.request({ ' test': 123 });
     }, {
-      code: 'ERR_INVALID_HTTP_TOKEN'
+      code: 'ERR_INVALID_HTTP_TOKEN',
     });
   }));
 }
@@ -78,7 +78,7 @@ const { throws, strictEqual } = require('assert');
     throws(() => {
       session4.request({ ':test': 123 });
     }, {
-      code: 'ERR_HTTP2_INVALID_PSEUDOHEADER'
+      code: 'ERR_HTTP2_INVALID_PSEUDOHEADER',
     });
     session4.close();
     server.close();

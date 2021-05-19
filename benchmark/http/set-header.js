@@ -4,7 +4,7 @@ const PORT = common.PORT;
 
 const bench = common.createBenchmark(main, {
   res: ['normal', 'setHeader', 'setHeaderWH'],
-  duration: 5
+  duration: 5,
 });
 
 const type = 'bytes';
@@ -26,7 +26,7 @@ function main({ res, duration }) {
     bench.http({
       path: path,
       connections: c,
-      duration
+      duration,
     }, () => {
       server.close();
     });

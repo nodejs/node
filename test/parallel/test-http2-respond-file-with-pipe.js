@@ -24,10 +24,10 @@ if (mkfifo.error && mkfifo.error.code === 'ENOENT') {
 const server = http2.createServer();
 server.on('stream', (stream) => {
   stream.respondWithFile(pipeName, {
-    'content-type': 'text/plain'
+    'content-type': 'text/plain',
   }, {
     onError: common.mustNotCall(),
-    statCheck: common.mustCall()
+    statCheck: common.mustCall(),
   });
 });
 

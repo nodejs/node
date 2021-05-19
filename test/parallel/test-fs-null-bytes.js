@@ -46,7 +46,7 @@ function check(async, sync) {
       },
       {
         code: 'ERR_INVALID_ARG_VALUE',
-        name: 'TypeError'
+        name: 'TypeError',
       });
   }
 }

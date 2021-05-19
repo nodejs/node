@@ -17,7 +17,7 @@ const net = require('net');
 
 const options = {
   key: commonFixtures.readKey('agent2-key.pem'),
-  cert: commonFixtures.readKey('agent2-cert.pem')
+  cert: commonFixtures.readKey('agent2-cert.pem'),
 };
 
 // There should not be any throws.
@@ -83,7 +83,7 @@ server.on('error', common.mustNotCall());
     client = tls.connect({
       port: port,
       rejectUnauthorized: false,
-      ALPNProtocols: ['h2']
+      ALPNProtocols: ['h2'],
     }, common.mustCall());
   }));
 }
@@ -92,7 +92,7 @@ server.on('error', common.mustNotCall());
 {
   const server = http2.createSecureServer({
     allowHalfOpen: true,
-    ...options
+    ...options,
   });
 
   server.on('secureConnection', common.mustCall((socket) => {
@@ -108,7 +108,7 @@ server.on('error', common.mustNotCall());
     const socket = tls.connect({
       port: port,
       rejectUnauthorized: false,
-      ALPNProtocols: ['h2']
+      ALPNProtocols: ['h2'],
     }, common.mustCall());
     socket.resume();
   }));

@@ -67,7 +67,7 @@ const getFileName = (i) => path.join(tmpdir.path, `writev_sync_${i}.txt`);
     assert.throws(
       () => fs.writevSync(fd, i, null), {
         code: 'ERR_INVALID_ARG_TYPE',
-        name: 'TypeError'
+        name: 'TypeError',
       }
     );
   });
@@ -81,7 +81,7 @@ const getFileName = (i) => path.join(tmpdir.path, `writev_sync_${i}.txt`);
     () => fs.writevSync(i),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError'
+      name: 'TypeError',
     }
   );
 });

@@ -27,7 +27,7 @@ app.listen(0, mustCall(() => {
   const session = http2.connect(`http://localhost:${app.address().port}`);
   const request = session.request({
     [HTTP2_HEADER_PATH]: '/',
-    [HTTP2_HEADER_METHOD]: 'get'
+    [HTTP2_HEADER_METHOD]: 'get',
   });
   request.once('response', mustCall((headers, flags) => {
     let data = '';

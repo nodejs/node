@@ -9,7 +9,7 @@ const {
   O_RDONLY = 0,
   O_TRUNC = 0,
   O_WRONLY = 0,
-  UV_FS_O_FILEMAP = 0
+  UV_FS_O_FILEMAP = 0,
 } = fs.constants;
 
 const tmpdir = require('../common/tmpdir');

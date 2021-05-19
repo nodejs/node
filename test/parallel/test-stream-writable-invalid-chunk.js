@@ -7,7 +7,7 @@ const assert = require('assert');
 function testWriteType(val, objectMode, code) {
   const writable = new stream.Writable({
     objectMode,
-    write: () => {}
+    write: () => {},
   });
   writable.on('error', common.mustNotCall());
   if (code) {

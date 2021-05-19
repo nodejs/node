@@ -15,7 +15,7 @@ const parseTests = {
   '//some_path': {
     href: '//some_path',
     pathname: '//some_path',
-    path: '//some_path'
+    path: '//some_path',
   },
 
   'http:\\\\evil-phisher\\foo.html#h\\a\\s\\h': {
@@ -26,7 +26,7 @@ const parseTests = {
     pathname: '/foo.html',
     path: '/foo.html',
     hash: '#h%5Ca%5Cs%5Ch',
-    href: 'http://evil-phisher/foo.html#h%5Ca%5Cs%5Ch'
+    href: 'http://evil-phisher/foo.html#h%5Ca%5Cs%5Ch',
   },
 
   'http:\\\\evil-phisher\\foo.html?json="\\"foo\\""#h\\a\\s\\h': {
@@ -39,7 +39,7 @@ const parseTests = {
     query: 'json=%22%5C%22foo%5C%22%22',
     path: '/foo.html?json=%22%5C%22foo%5C%22%22',
     hash: '#h%5Ca%5Cs%5Ch',
-    href: 'http://evil-phisher/foo.html?json=%22%5C%22foo%5C%22%22#h%5Ca%5Cs%5Ch'
+    href: 'http://evil-phisher/foo.html?json=%22%5C%22foo%5C%22%22#h%5Ca%5Cs%5Ch',
   },
 
   'http:\\\\evil-phisher\\foo.html#h\\a\\s\\h?blarg': {
@@ -50,7 +50,7 @@ const parseTests = {
     pathname: '/foo.html',
     path: '/foo.html',
     hash: '#h%5Ca%5Cs%5Ch?blarg',
-    href: 'http://evil-phisher/foo.html#h%5Ca%5Cs%5Ch?blarg'
+    href: 'http://evil-phisher/foo.html#h%5Ca%5Cs%5Ch?blarg',
   },
 
 
@@ -61,7 +61,7 @@ const parseTests = {
     hostname: 'evil-phisher',
     pathname: '/foo.html',
     path: '/foo.html',
-    href: 'http://evil-phisher/foo.html'
+    href: 'http://evil-phisher/foo.html',
   },
 
   'HTTP://www.example.com/': {
@@ -71,7 +71,7 @@ const parseTests = {
     host: 'www.example.com',
     hostname: 'www.example.com',
     pathname: '/',
-    path: '/'
+    path: '/',
   },
 
   'HTTP://www.example.com': {
@@ -81,7 +81,7 @@ const parseTests = {
     host: 'www.example.com',
     hostname: 'www.example.com',
     pathname: '/',
-    path: '/'
+    path: '/',
   },
 
   'http://www.ExAmPlE.com/': {
@@ -91,7 +91,7 @@ const parseTests = {
     host: 'www.example.com',
     hostname: 'www.example.com',
     pathname: '/',
-    path: '/'
+    path: '/',
   },
 
   'http://user:pw@www.ExAmPlE.com/': {
@@ -102,7 +102,7 @@ const parseTests = {
     host: 'www.example.com',
     hostname: 'www.example.com',
     pathname: '/',
-    path: '/'
+    path: '/',
   },
 
   'http://USER:PW@www.ExAmPlE.com/': {
@@ -113,7 +113,7 @@ const parseTests = {
     host: 'www.example.com',
     hostname: 'www.example.com',
     pathname: '/',
-    path: '/'
+    path: '/',
   },
 
   'http://user@www.example.com/': {
@@ -124,7 +124,7 @@ const parseTests = {
     host: 'www.example.com',
     hostname: 'www.example.com',
     pathname: '/',
-    path: '/'
+    path: '/',
   },
 
   'http://user%3Apw@www.example.com/': {
@@ -135,7 +135,7 @@ const parseTests = {
     host: 'www.example.com',
     hostname: 'www.example.com',
     pathname: '/',
-    path: '/'
+    path: '/',
   },
 
   'http://x.com/path?that\'s#all, folks': {
@@ -148,7 +148,7 @@ const parseTests = {
     query: 'that%27s',
     pathname: '/path',
     hash: '#all,%20folks',
-    path: '/path?that%27s'
+    path: '/path?that%27s',
   },
 
   'HTTP://X.COM/Y': {
@@ -158,7 +158,7 @@ const parseTests = {
     host: 'x.com',
     hostname: 'x.com',
     pathname: '/Y',
-    path: '/Y'
+    path: '/Y',
   },
 
   // Whitespace in the front
@@ -169,7 +169,7 @@ const parseTests = {
     host: 'www.example.com',
     hostname: 'www.example.com',
     pathname: '/',
-    path: '/'
+    path: '/',
   },
 
   // + not an invalid host character
@@ -181,7 +181,7 @@ const parseTests = {
     host: 'x.y.com+a',
     hostname: 'x.y.com+a',
     pathname: '/b/c',
-    path: '/b/c'
+    path: '/b/c',
   },
 
   // An unexpected invalid char in the hostname.
@@ -195,7 +195,7 @@ const parseTests = {
     search: '?d=e',
     query: 'd=e',
     hash: '#f%20g%3Ch%3Ei',
-    path: ';a/b/c?d=e'
+    path: ';a/b/c?d=e',
   },
 
   // Make sure that we don't accidentally lcast the path parts.
@@ -209,7 +209,7 @@ const parseTests = {
     search: '?d=e',
     query: 'd=e',
     hash: '#f%20g%3Ch%3Ei',
-    path: ';A/b/c?d=e'
+    path: ';A/b/c?d=e',
   },
 
   'http://x...y...#p': {
@@ -220,7 +220,7 @@ const parseTests = {
     hostname: 'x...y...',
     hash: '#p',
     pathname: '/',
-    path: '/'
+    path: '/',
   },
 
   'http://x/p/"quoted"': {
@@ -230,13 +230,13 @@ const parseTests = {
     host: 'x',
     hostname: 'x',
     pathname: '/p/%22quoted%22',
-    path: '/p/%22quoted%22'
+    path: '/p/%22quoted%22',
   },
 
   '<http://goo.corn/bread> Is a URL!': {
     href: '%3Chttp://goo.corn/bread%3E%20Is%20a%20URL!',
     pathname: '%3Chttp://goo.corn/bread%3E%20Is%20a%20URL!',
-    path: '%3Chttp://goo.corn/bread%3E%20Is%20a%20URL!'
+    path: '%3Chttp://goo.corn/bread%3E%20Is%20a%20URL!',
   },
 
   'http://www.narwhaljs.org/blog/categories?id=news': {
@@ -248,7 +248,7 @@ const parseTests = {
     search: '?id=news',
     query: 'id=news',
     pathname: '/blog/categories',
-    path: '/blog/categories?id=news'
+    path: '/blog/categories?id=news',
   },
 
   'http://mt0.google.com/vt/lyrs=m@114&hl=en&src=api&x=2&y=2&z=3&s=': {
@@ -258,7 +258,7 @@ const parseTests = {
     host: 'mt0.google.com',
     hostname: 'mt0.google.com',
     pathname: '/vt/lyrs=m@114&hl=en&src=api&x=2&y=2&z=3&s=',
-    path: '/vt/lyrs=m@114&hl=en&src=api&x=2&y=2&z=3&s='
+    path: '/vt/lyrs=m@114&hl=en&src=api&x=2&y=2&z=3&s=',
   },
 
   'http://mt0.google.com/vt/lyrs=m@114???&hl=en&src=api&x=2&y=2&z=3&s=': {
@@ -271,7 +271,7 @@ const parseTests = {
     search: '???&hl=en&src=api&x=2&y=2&z=3&s=',
     query: '??&hl=en&src=api&x=2&y=2&z=3&s=',
     pathname: '/vt/lyrs=m@114',
-    path: '/vt/lyrs=m@114???&hl=en&src=api&x=2&y=2&z=3&s='
+    path: '/vt/lyrs=m@114???&hl=en&src=api&x=2&y=2&z=3&s=',
   },
 
   'http://user:pass@mt0.google.com/vt/lyrs=m@114???&hl=en&src=api&x=2&y=2&z=3&s=': {
@@ -284,7 +284,7 @@ const parseTests = {
     search: '???&hl=en&src=api&x=2&y=2&z=3&s=',
     query: '??&hl=en&src=api&x=2&y=2&z=3&s=',
     pathname: '/vt/lyrs=m@114',
-    path: '/vt/lyrs=m@114???&hl=en&src=api&x=2&y=2&z=3&s='
+    path: '/vt/lyrs=m@114???&hl=en&src=api&x=2&y=2&z=3&s=',
   },
 
   'file:///etc/passwd': {
@@ -294,7 +294,7 @@ const parseTests = {
     pathname: '/etc/passwd',
     hostname: '',
     host: '',
-    path: '/etc/passwd'
+    path: '/etc/passwd',
   },
 
   'file://localhost/etc/passwd': {
@@ -304,7 +304,7 @@ const parseTests = {
     pathname: '/etc/passwd',
     hostname: 'localhost',
     host: 'localhost',
-    path: '/etc/passwd'
+    path: '/etc/passwd',
   },
 
   'file://foo/etc/passwd': {
@@ -314,7 +314,7 @@ const parseTests = {
     pathname: '/etc/passwd',
     hostname: 'foo',
     host: 'foo',
-    path: '/etc/passwd'
+    path: '/etc/passwd',
   },
 
   'file:///etc/node/': {
@@ -324,7 +324,7 @@ const parseTests = {
     pathname: '/etc/node/',
     hostname: '',
     host: '',
-    path: '/etc/node/'
+    path: '/etc/node/',
   },
 
   'file://localhost/etc/node/': {
@@ -334,7 +334,7 @@ const parseTests = {
     pathname: '/etc/node/',
     hostname: 'localhost',
     host: 'localhost',
-    path: '/etc/node/'
+    path: '/etc/node/',
   },
 
   'file://foo/etc/node/': {
@@ -344,14 +344,14 @@ const parseTests = {
     pathname: '/etc/node/',
     hostname: 'foo',
     host: 'foo',
-    path: '/etc/node/'
+    path: '/etc/node/',
   },
 
   'http:/baz/../foo/bar': {
     href: 'http:/baz/../foo/bar',
     protocol: 'http:',
     pathname: '/baz/../foo/bar',
-    path: '/baz/../foo/bar'
+    path: '/baz/../foo/bar',
   },
 
   'http://user:pass@example.com:8000/foo/bar?baz=quux#frag': {
@@ -366,7 +366,7 @@ const parseTests = {
     search: '?baz=quux',
     query: 'baz=quux',
     pathname: '/foo/bar',
-    path: '/foo/bar?baz=quux'
+    path: '/foo/bar?baz=quux',
   },
 
   '//user:pass@example.com:8000/foo/bar?baz=quux#frag': {
@@ -380,7 +380,7 @@ const parseTests = {
     search: '?baz=quux',
     query: 'baz=quux',
     pathname: '/foo/bar',
-    path: '/foo/bar?baz=quux'
+    path: '/foo/bar?baz=quux',
   },
 
   '/foo/bar?baz=quux#frag': {
@@ -389,7 +389,7 @@ const parseTests = {
     search: '?baz=quux',
     query: 'baz=quux',
     pathname: '/foo/bar',
-    path: '/foo/bar?baz=quux'
+    path: '/foo/bar?baz=quux',
   },
 
   'http:/foo/bar?baz=quux#frag': {
@@ -399,7 +399,7 @@ const parseTests = {
     search: '?baz=quux',
     query: 'baz=quux',
     pathname: '/foo/bar',
-    path: '/foo/bar?baz=quux'
+    path: '/foo/bar?baz=quux',
   },
 
   'mailto:foo@bar.com?subject=hello': {
@@ -410,14 +410,14 @@ const parseTests = {
     hostname: 'bar.com',
     search: '?subject=hello',
     query: 'subject=hello',
-    path: '?subject=hello'
+    path: '?subject=hello',
   },
 
   'javascript:alert(\'hello\');': {
     href: 'javascript:alert(\'hello\');',
     protocol: 'javascript:',
     pathname: 'alert(\'hello\');',
-    path: 'alert(\'hello\');'
+    path: 'alert(\'hello\');',
   },
 
   'xmpp:isaacschlueter@jabber.org': {
@@ -425,7 +425,7 @@ const parseTests = {
     protocol: 'xmpp:',
     host: 'jabber.org',
     auth: 'isaacschlueter',
-    hostname: 'jabber.org'
+    hostname: 'jabber.org',
   },
 
   'http://atpass:foo%40bar@127.0.0.1:8080/path?search=foo#bar': {
@@ -440,7 +440,7 @@ const parseTests = {
     search: '?search=foo',
     query: 'search=foo',
     hash: '#bar',
-    path: '/path?search=foo'
+    path: '/path?search=foo',
   },
 
   'svn+ssh://foo/bar': {
@@ -450,7 +450,7 @@ const parseTests = {
     protocol: 'svn+ssh:',
     pathname: '/bar',
     path: '/bar',
-    slashes: true
+    slashes: true,
   },
 
   'dash-test://foo/bar': {
@@ -460,7 +460,7 @@ const parseTests = {
     protocol: 'dash-test:',
     pathname: '/bar',
     path: '/bar',
-    slashes: true
+    slashes: true,
   },
 
   'dash-test:foo/bar': {
@@ -469,7 +469,7 @@ const parseTests = {
     hostname: 'foo',
     protocol: 'dash-test:',
     pathname: '/bar',
-    path: '/bar'
+    path: '/bar',
   },
 
   'dot.test://foo/bar': {
@@ -479,7 +479,7 @@ const parseTests = {
     protocol: 'dot.test:',
     pathname: '/bar',
     path: '/bar',
-    slashes: true
+    slashes: true,
   },
 
   'dot.test:foo/bar': {
@@ -488,7 +488,7 @@ const parseTests = {
     hostname: 'foo',
     protocol: 'dot.test:',
     pathname: '/bar',
-    path: '/bar'
+    path: '/bar',
   },
 
   // IDNA tests
@@ -499,7 +499,7 @@ const parseTests = {
     host: 'www.xn--wgv71a119e.com',
     hostname: 'www.xn--wgv71a119e.com',
     pathname: '/',
-    path: '/'
+    path: '/',
   },
 
   'http://example.Bücher.com/': {
@@ -509,7 +509,7 @@ const parseTests = {
     host: 'example.xn--bcher-kva.com',
     hostname: 'example.xn--bcher-kva.com',
     pathname: '/',
-    path: '/'
+    path: '/',
   },
 
   'http://www.Äffchen.com/': {
@@ -519,7 +519,7 @@ const parseTests = {
     host: 'www.xn--ffchen-9ta.com',
     hostname: 'www.xn--ffchen-9ta.com',
     pathname: '/',
-    path: '/'
+    path: '/',
   },
 
   'http://www.Äffchen.cOm;A/b/c?d=e#f g<h>i': {
@@ -532,7 +532,7 @@ const parseTests = {
     search: '?d=e',
     query: 'd=e',
     hash: '#f%20g%3Ch%3Ei',
-    path: ';A/b/c?d=e'
+    path: ';A/b/c?d=e',
   },
 
   'http://SÉLIER.COM/': {
@@ -542,7 +542,7 @@ const parseTests = {
     host: 'xn--slier-bsa.com',
     hostname: 'xn--slier-bsa.com',
     pathname: '/',
-    path: '/'
+    path: '/',
   },
 
   'http://ليهمابتكلموشعربي؟.ي؟/': {
@@ -552,7 +552,7 @@ const parseTests = {
     host: 'xn--egbpdaj6bu4bxfgehfvwxn.xn--egb9f',
     hostname: 'xn--egbpdaj6bu4bxfgehfvwxn.xn--egb9f',
     pathname: '/',
-    path: '/'
+    path: '/',
   },
 
   'http://➡.ws/➡': {
@@ -562,7 +562,7 @@ const parseTests = {
     host: 'xn--hgi.ws',
     hostname: 'xn--hgi.ws',
     pathname: '/➡',
-    path: '/➡'
+    path: '/➡',
   },
 
   'http://bucket_name.s3.amazonaws.com/image.jpg': {
@@ -572,7 +572,7 @@ const parseTests = {
     hostname: 'bucket_name.s3.amazonaws.com',
     pathname: '/image.jpg',
     href: 'http://bucket_name.s3.amazonaws.com/image.jpg',
-    path: '/image.jpg'
+    path: '/image.jpg',
   },
 
   'git+http://github.com/joyent/node.git': {
@@ -582,7 +582,7 @@ const parseTests = {
     hostname: 'github.com',
     pathname: '/joyent/node.git',
     path: '/joyent/node.git',
-    href: 'git+http://github.com/joyent/node.git'
+    href: 'git+http://github.com/joyent/node.git',
   },
 
   // If local1@domain1 is uses as a relative URL it may
@@ -591,7 +591,7 @@ const parseTests = {
   'local1@domain1': {
     pathname: 'local1@domain1',
     path: 'local1@domain1',
-    href: 'local1@domain1'
+    href: 'local1@domain1',
   },
 
   // While this may seem counter-intuitive, a browser will parse
@@ -599,14 +599,14 @@ const parseTests = {
   'www.example.com': {
     href: 'www.example.com',
     pathname: 'www.example.com',
-    path: 'www.example.com'
+    path: 'www.example.com',
   },
 
   // ipv6 support
   '[fe80::1]': {
     href: '[fe80::1]',
     pathname: '[fe80::1]',
-    path: '[fe80::1]'
+    path: '[fe80::1]',
   },
 
   'coap://[FEDC:BA98:7654:3210:FEDC:BA98:7654:3210]': {
@@ -616,7 +616,7 @@ const parseTests = {
     hostname: 'fedc:ba98:7654:3210:fedc:ba98:7654:3210',
     href: 'coap://[fedc:ba98:7654:3210:fedc:ba98:7654:3210]/',
     pathname: '/',
-    path: '/'
+    path: '/',
   },
 
   'coap://[1080:0:0:0:8:800:200C:417A]:61616/': {
@@ -627,7 +627,7 @@ const parseTests = {
     hostname: '1080:0:0:0:8:800:200c:417a',
     href: 'coap://[1080:0:0:0:8:800:200c:417a]:61616/',
     pathname: '/',
-    path: '/'
+    path: '/',
   },
 
   'http://user:password@[3ffe:2a00:100:7031::1]:8080': {
@@ -639,7 +639,7 @@ const parseTests = {
     hostname: '3ffe:2a00:100:7031::1',
     href: 'http://user:password@[3ffe:2a00:100:7031::1]:8080/',
     pathname: '/',
-    path: '/'
+    path: '/',
   },
 
   'coap://u:p@[::192.9.5.5]:61616/.well-known/r?n=Temperature': {
@@ -653,7 +653,7 @@ const parseTests = {
     search: '?n=Temperature',
     query: 'n=Temperature',
     pathname: '/.well-known/r',
-    path: '/.well-known/r?n=Temperature'
+    path: '/.well-known/r?n=Temperature',
   },
 
   // empty port
@@ -664,7 +664,7 @@ const parseTests = {
     hostname: 'example.com',
     href: 'http://example.com/',
     pathname: '/',
-    path: '/'
+    path: '/',
   },
 
   'http://example.com:/a/b.html': {
@@ -674,7 +674,7 @@ const parseTests = {
     hostname: 'example.com',
     href: 'http://example.com/a/b.html',
     pathname: '/a/b.html',
-    path: '/a/b.html'
+    path: '/a/b.html',
   },
 
   'http://example.com:?a=b': {
@@ -686,7 +686,7 @@ const parseTests = {
     search: '?a=b',
     query: 'a=b',
     pathname: '/',
-    path: '/?a=b'
+    path: '/?a=b',
   },
 
   'http://example.com:#abc': {
@@ -697,7 +697,7 @@ const parseTests = {
     href: 'http://example.com/#abc',
     hash: '#abc',
     pathname: '/',
-    path: '/'
+    path: '/',
   },
 
   'http://[fe80::1]:/a/b?a=b#abc': {
@@ -710,7 +710,7 @@ const parseTests = {
     query: 'a=b',
     hash: '#abc',
     pathname: '/a/b',
-    path: '/a/b?a=b'
+    path: '/a/b?a=b',
   },
 
   'http://-lovemonsterz.tumblr.com/rss': {
@@ -809,7 +809,7 @@ const parseTests = {
     hostname: 'x',
     pathname: '/%27%20%3C%3E%22%60/%7B%7D%7C/%5E~%60/',
     path: '/%27%20%3C%3E%22%60/%7B%7D%7C/%5E~%60/',
-    href: 'http://x:1/%27%20%3C%3E%22%60/%7B%7D%7C/%5E~%60/'
+    href: 'http://x:1/%27%20%3C%3E%22%60/%7B%7D%7C/%5E~%60/',
   },
 
   'http://a@b@c/': {
@@ -820,7 +820,7 @@ const parseTests = {
     hostname: 'c',
     href: 'http://a%40b@c/',
     path: '/',
-    pathname: '/'
+    pathname: '/',
   },
 
   'http://a@b?@c': {
@@ -833,7 +833,7 @@ const parseTests = {
     path: '/?@c',
     pathname: '/',
     search: '?@c',
-    query: '@c'
+    query: '@c',
   },
 
   'http://a.b/\tbc\ndr\ref g"hq\'j<kl>?mn\\op^q=r`99{st|uv}wz': {
@@ -847,7 +847,7 @@ const parseTests = {
     path: '/%09bc%0Adr%0Def%20g%22hq%27j%3Ckl%3E?mn%5Cop%5Eq=r%6099%7Bst%7Cuv%7Dwz', // eslint-disable-line max-len
     search: '?mn%5Cop%5Eq=r%6099%7Bst%7Cuv%7Dwz',
     query: 'mn%5Cop%5Eq=r%6099%7Bst%7Cuv%7Dwz',
-    href: 'http://a.b/%09bc%0Adr%0Def%20g%22hq%27j%3Ckl%3E?mn%5Cop%5Eq=r%6099%7Bst%7Cuv%7Dwz'
+    href: 'http://a.b/%09bc%0Adr%0Def%20g%22hq%27j%3Ckl%3E?mn%5Cop%5Eq=r%6099%7Bst%7Cuv%7Dwz',
   },
 
   'http://a\r" \t\n<\'b:b@c\r\nd/e?f': {
@@ -862,7 +862,7 @@ const parseTests = {
     query: 'f',
     pathname: '%0D%0Ad/e',
     path: '%0D%0Ad/e?f',
-    href: 'http://a%0D%22%20%09%0A%3C\'b:b@c/%0D%0Ad/e?f'
+    href: 'http://a%0D%22%20%09%0A%3C\'b:b@c/%0D%0Ad/e?f',
   },
 
   // Git urls used by npm
@@ -878,7 +878,7 @@ const parseTests = {
     query: null,
     pathname: '/:npm/npm',
     path: '/:npm/npm',
-    href: 'git+ssh://git@github.com/:npm/npm'
+    href: 'git+ssh://git@github.com/:npm/npm',
   },
 
   'https://*': {
@@ -893,7 +893,7 @@ const parseTests = {
     query: null,
     pathname: '/*',
     path: '/*',
-    href: 'https:///*'
+    href: 'https:///*',
   },
 
   // The following two URLs are the same, but they differ for a capital A.
@@ -910,7 +910,7 @@ const parseTests = {
     query: null,
     pathname: "alert(1);a='@white-listed.com'",
     path: "alert(1);a='@white-listed.com'",
-    href: "javascript:alert(1);a='@white-listed.com'"
+    href: "javascript:alert(1);a='@white-listed.com'",
   },
 
   'javAscript:alert(1);a=\x27@white-listed.com\x27': {
@@ -925,7 +925,7 @@ const parseTests = {
     query: null,
     pathname: "alert(1);a='@white-listed.com'",
     path: "alert(1);a='@white-listed.com'",
-    href: "javascript:alert(1);a='@white-listed.com'"
+    href: "javascript:alert(1);a='@white-listed.com'",
   },
 
   'ws://www.example.com': {
@@ -935,7 +935,7 @@ const parseTests = {
     host: 'www.example.com',
     pathname: '/',
     path: '/',
-    href: 'ws://www.example.com/'
+    href: 'ws://www.example.com/',
   },
 
   'wss://www.example.com': {
@@ -945,8 +945,8 @@ const parseTests = {
     host: 'www.example.com',
     pathname: '/',
     path: '/',
-    href: 'wss://www.example.com/'
-  }
+    href: 'wss://www.example.com/',
+  },
 };
 
 for (const u in parseTests) {
@@ -994,7 +994,7 @@ for (const u in parseTests) {
     query: null,
     pathname: "alert(1);a='@white-listed.com'",
     path: "alert(1);a='@white-listed.com'",
-    href: "javascript:alert(1);a='@white-listed.com'"
+    href: "javascript:alert(1);a='@white-listed.com'",
   });
 
   assert.deepStrictEqual(parsed, expected);

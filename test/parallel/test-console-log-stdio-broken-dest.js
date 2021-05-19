@@ -11,7 +11,7 @@ const stream = new Writable({
   },
   writev(chunks, cb) {
     setTimeout(cb, 10, new Error('kaboom'));
-  }
+  },
 });
 const myConsole = new Console(stream, stream);
 

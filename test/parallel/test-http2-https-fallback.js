@@ -27,7 +27,7 @@ function onRequest(request, response) {
   response.writeHead(200, { 'content-type': 'application/json' });
   response.end(JSON.stringify({
     alpnProtocol,
-    httpVersion: request.httpVersion
+    httpVersion: request.httpVersion,
   }));
 }
 
@@ -36,7 +36,7 @@ function onSession(session, next) {
     ':path': '/',
     ':method': 'GET',
     ':scheme': 'https',
-    ':authority': `localhost:${this.server.address().port}`
+    ':authority': `localhost:${this.server.address().port}`,
   };
 
   const request = session.request(headers);

@@ -9,7 +9,7 @@ const { AsyncResource } = async_hooks;
 
 // Setup init hook such parameters are validated
 async_hooks.createHook({
-  init() {}
+  init() {},
 }).enable();
 
 assert.throws(() => {

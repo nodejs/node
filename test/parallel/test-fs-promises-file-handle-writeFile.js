@@ -35,7 +35,7 @@ async function doWriteAndCancel() {
   const { signal } = controller;
   process.nextTick(() => controller.abort());
   await assert.rejects(writeFile(fileHandle, buffer, { signal }), {
-    name: 'AbortError'
+    name: 'AbortError',
   });
 }
 

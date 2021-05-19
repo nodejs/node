@@ -17,7 +17,7 @@ function runTest(test) {
     '--prof',
     '-pe', test.code,
   ], {
-    stdio: [ 'ignore', 'pipe', 'inherit' ]
+    stdio: [ 'ignore', 'pipe', 'inherit' ],
   });
 
   let ticks = '';
@@ -39,7 +39,7 @@ function match(pattern, parent, ticks, flags = []) {
     ...flags,
     LOG_FILE,
   ], {
-    stdio: [ 'ignore', 'pipe', 'inherit' ]
+    stdio: [ 'ignore', 'pipe', 'inherit' ],
   });
 
   let out = '';

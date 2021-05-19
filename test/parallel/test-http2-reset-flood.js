@@ -17,7 +17,7 @@ if (process.env.HAS_STARTED_WORKER) {
   server.on('stream', (stream) => {
     stream.respond({
       'content-type': 'text/plain',
-      ':status': 200
+      ':status': 200,
     });
     stream.end('Hello, world!\n');
   });

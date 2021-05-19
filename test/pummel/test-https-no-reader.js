@@ -30,7 +30,7 @@ const fixtures = require('../common/fixtures');
 
 const options = {
   key: fixtures.readKey('rsa_private.pem'),
-  cert: fixtures.readKey('rsa_cert.crt')
+  cert: fixtures.readKey('rsa_cert.crt'),
 };
 
 const buf = Buffer.allocUnsafe(1024 * 1024);
@@ -47,7 +47,7 @@ server.listen(0, function() {
   const req = https.request({
     method: 'POST',
     port: server.address().port,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, function(res) {
     res.read(0);
 

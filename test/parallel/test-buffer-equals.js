@@ -20,6 +20,6 @@ assert.throws(
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
     message: 'The "otherBuffer" argument must be an instance of ' +
-             "Buffer or Uint8Array. Received type string ('abc')"
+             "Buffer or Uint8Array. Received type string ('abc')",
   }
 );

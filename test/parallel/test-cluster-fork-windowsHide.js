@@ -28,7 +28,7 @@ if (!process.argv[2]) {
     workerExit: common.mustCall((msg) => {
       assert.strictEqual(msg.code, 0);
       assert.strictEqual(msg.signal, null);
-    })
+    }),
   };
 
   primary.on('message', (msg) => {
@@ -45,7 +45,7 @@ if (!process.argv[2]) {
 } else if (cluster.isPrimary) {
   cluster.setupPrimary({
     silent: true,
-    windowsHide: true
+    windowsHide: true,
   });
 
   const worker = cluster.fork();

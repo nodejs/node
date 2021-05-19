@@ -31,7 +31,7 @@ const util = require('util');
   assert.deepStrictEqual(context, {
     foo: 'bar',
     baz: 'bar',
-    typeofProcess: 'undefined'
+    typeofProcess: 'undefined',
   });
 }().then(common.mustCall()));
 
@@ -88,7 +88,7 @@ const util = require('util');
     () => m[util.inspect.custom].call(Object.create(null)),
     {
       code: 'ERR_VM_MODULE_NOT_MODULE',
-      message: 'Provided module is not an instance of Module'
+      message: 'Provided module is not an instance of Module',
     },
   );
 }
@@ -121,7 +121,7 @@ const util = require('util');
 {
   assert.throws(() => new Module(), {
     message: 'Module is not a constructor',
-    name: 'TypeError'
+    name: 'TypeError',
   });
 }
 
@@ -131,7 +131,7 @@ const util = require('util');
     message: 'The "exportNames" argument must be an ' +
         'Array of unique strings.' +
         ' Received undefined',
-    name: 'TypeError'
+    name: 'TypeError',
   });
 }
 
@@ -149,7 +149,7 @@ const util = require('util');
   assert.throws(() => new SyntheticModule([], undefined, {}), {
     message: 'The "evaluateCallback" argument must be of type function.' +
       ' Received undefined',
-    name: 'TypeError'
+    name: 'TypeError',
   });
 }
 
@@ -158,7 +158,7 @@ const util = require('util');
   assert.throws(() => new SyntheticModule([], () => {}, null), {
     message: 'The "options" argument must be of type object.' +
       ' Received null',
-    name: 'TypeError'
+    name: 'TypeError',
   });
 }
 

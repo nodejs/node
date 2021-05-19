@@ -12,7 +12,7 @@ const fs = require('fs');
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
     message: 'The "fd" argument must be of type number.' +
-             common.invalidArgTypeHelper(input)
+             common.invalidArgTypeHelper(input),
   };
   assert.throws(() => fs.fchmod(input), errObj);
   assert.throws(() => fs.fchmodSync(input), errObj);
@@ -28,7 +28,7 @@ const fs = require('fs');
 });
 
 assert.throws(() => fs.fchmod(1, '123x'), {
-  code: 'ERR_INVALID_ARG_VALUE'
+  code: 'ERR_INVALID_ARG_VALUE',
 });
 
 [-1, 2 ** 32].forEach((input) => {
@@ -36,7 +36,7 @@ assert.throws(() => fs.fchmod(1, '123x'), {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
     message: 'The value of "fd" is out of range. It must be >= 0 && <= ' +
-             `2147483647. Received ${input}`
+             `2147483647. Received ${input}`,
   };
   assert.throws(() => fs.fchmod(input), errObj);
   assert.throws(() => fs.fchmodSync(input), errObj);
@@ -47,7 +47,7 @@ assert.throws(() => fs.fchmod(1, '123x'), {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
     message: 'The value of "mode" is out of range. It must be >= 0 && <= ' +
-             `4294967295. Received ${input}`
+             `4294967295. Received ${input}`,
   };
 
   assert.throws(() => fs.fchmod(1, input), errObj);
@@ -59,7 +59,7 @@ assert.throws(() => fs.fchmod(1, '123x'), {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
     message: 'The value of "fd" is out of range. It must be an integer. ' +
-             `Received ${input}`
+             `Received ${input}`,
   };
   assert.throws(() => fs.fchmod(input), errObj);
   assert.throws(() => fs.fchmodSync(input), errObj);
@@ -73,7 +73,7 @@ assert.throws(() => fs.fchmod(1, '123x'), {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
     message: 'The value of "fd" is out of range. It must be an integer. ' +
-             `Received ${input}`
+             `Received ${input}`,
   };
   assert.throws(() => fs.fchmod(input), errObj);
   assert.throws(() => fs.fchmodSync(input), errObj);

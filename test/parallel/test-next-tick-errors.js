@@ -46,7 +46,7 @@ function testNextTickWith(val) {
     process.nextTick(val);
   }, {
     code: 'ERR_INVALID_CALLBACK',
-    name: 'TypeError'
+    name: 'TypeError',
   });
 }
 

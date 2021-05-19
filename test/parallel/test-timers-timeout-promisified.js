@@ -68,7 +68,7 @@ process.on('multipleResolves', common.mustNotCall());
   Promise.all(
     [1, '', false, Infinity].map(
       (i) => assert.rejects(setPromiseTimeout(10, null, i), {
-        code: 'ERR_INVALID_ARG_TYPE'
+        code: 'ERR_INVALID_ARG_TYPE',
       })
     )
   ).then(common.mustCall());
@@ -76,7 +76,7 @@ process.on('multipleResolves', common.mustNotCall());
   Promise.all(
     [1, '', false, Infinity, null, {}].map(
       (signal) => assert.rejects(setPromiseTimeout(10, null, { signal }), {
-        code: 'ERR_INVALID_ARG_TYPE'
+        code: 'ERR_INVALID_ARG_TYPE',
       })
     )
   ).then(common.mustCall());
@@ -84,7 +84,7 @@ process.on('multipleResolves', common.mustNotCall());
   Promise.all(
     [1, '', Infinity, null, {}].map(
       (ref) => assert.rejects(setPromiseTimeout(10, null, { ref }), {
-        code: 'ERR_INVALID_ARG_TYPE'
+        code: 'ERR_INVALID_ARG_TYPE',
       })
     )
   ).then(common.mustCall());

@@ -14,7 +14,7 @@ const repl = require('repl');
     output,
     writer: String,
     terminal: false,
-    useColors: false
+    useColors: false,
   });
 
   r.write('throw new Error("foo[a]")\n');

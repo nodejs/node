@@ -41,7 +41,7 @@ server.listen(0, function() {
   const req = http.request({
     port: this.address().port,
     path: '/',
-    method: 'POST'
+    method: 'POST',
   });
 
   server.once(kResponseDestroyed, common.mustCall(function() {

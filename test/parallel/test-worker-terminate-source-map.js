@@ -30,7 +30,7 @@ function increaseCallCount() { callCount[0]++; }
 for (const property of ['_cache', 'lineLengths', 'url']) {
   Object.defineProperty(Object.prototype, property, {
     get: increaseCallCount,
-    set: increaseCallCount
+    set: increaseCallCount,
   });
 }
 Object.getPrototypeOf([][Symbol.iterator]()).next = increaseCallCount;

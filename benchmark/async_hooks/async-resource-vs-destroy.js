@@ -9,7 +9,7 @@ const {
   createHook,
   executionAsyncResource,
   executionAsyncId,
-  AsyncLocalStorage
+  AsyncLocalStorage,
 } = require('async_hooks');
 const { createServer } = require('http');
 
@@ -19,7 +19,7 @@ const bench = common.createBenchmark(main, {
   path: '/',
   connections: 500,
   duration: 5,
-  n: [1e6]
+  n: [1e6],
 });
 
 function buildCurrentResource(getServe) {
@@ -30,7 +30,7 @@ function buildCurrentResource(getServe) {
 
   return {
     server,
-    close
+    close,
   };
 
   function getCLS() {
@@ -71,7 +71,7 @@ function buildDestroy(getServe) {
 
   return {
     server,
-    close
+    close,
   };
 
   function getCLS() {
@@ -108,7 +108,7 @@ function buildAsyncLocalStorage(getServe) {
 
   return {
     server,
-    close
+    close,
   };
 
   function getCLS() {
@@ -160,12 +160,12 @@ function getServeCallbacks(getCLS, setCLS) {
 const types = {
   'async-resource': buildCurrentResource,
   'destroy': buildDestroy,
-  'async-local-storage': buildAsyncLocalStorage
+  'async-local-storage': buildAsyncLocalStorage,
 };
 
 const asyncMethods = {
   'callbacks': getServeCallbacks,
-  'async': getServeAwait
+  'async': getServeAwait,
 };
 
 function main({ type, asyncMethod, connections, duration, path }) {
@@ -178,7 +178,7 @@ function main({ type, asyncMethod, connections, duration, path }) {
       bench.http({
         path,
         connections,
-        duration
+        duration,
       }, () => {
         close();
       });

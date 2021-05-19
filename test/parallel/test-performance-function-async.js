@@ -12,7 +12,7 @@ const {
 const assert = require('assert');
 
 const {
-  setTimeout: sleep
+  setTimeout: sleep,
 } = require('timers/promises');
 
 let check = false;

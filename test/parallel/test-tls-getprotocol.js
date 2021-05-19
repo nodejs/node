@@ -20,7 +20,7 @@ const serverConfig = {
   secureProtocol: 'TLS_method',
   ciphers: 'RSA@SECLEVEL=0',
   key: fixtures.readKey('agent2-key.pem'),
-  cert: fixtures.readKey('agent2-cert.pem')
+  cert: fixtures.readKey('agent2-cert.pem'),
 };
 
 const server = tls.createServer(serverConfig, common.mustCall(function() {
@@ -32,7 +32,7 @@ const server = tls.createServer(serverConfig, common.mustCall(function() {
       host: common.localhostIPv4,
       port: server.address().port,
       rejectUnauthorized: false,
-      secureProtocol: v.secureProtocol
+      secureProtocol: v.secureProtocol,
     }, common.mustCall(function() {
       assert.strictEqual(this.getProtocol(), v.version);
       this.on('end', common.mustCall());

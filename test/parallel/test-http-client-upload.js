@@ -49,7 +49,7 @@ server.on('listening', common.mustCall(function() {
   const req = http.request({
     port: this.address().port,
     method: 'POST',
-    path: '/'
+    path: '/',
   }, common.mustCall(function(res) {
     res.setEncoding('utf8');
     res.on('data', function(chunk) {

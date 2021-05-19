@@ -19,14 +19,14 @@ testUpdateSettingsWith({
     'maxHeaderListSize': 1,
     'maxFrameSize': 16385,
     'enablePush': false,
-    'enableConnectProtocol': true
-  }
+    'enableConnectProtocol': true,
+  },
 });
 testUpdateSettingsWith({
   server: http2.createServer(),
   newServerSettings: {
-    'enablePush': false
-  }
+    'enablePush': false,
+  },
 });
 
 function testUpdateSettingsWith({ server, newServerSettings }) {
@@ -40,14 +40,14 @@ function testUpdateSettingsWith({ server, newServerSettings }) {
     message: 'The "settings" argument must be of type object. ' +
     'Received type string (\'\')',
     code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError'
+    name: 'TypeError',
   });
   assert.throws(() => server.updateSettings({
-    'maxHeaderListSize': 'foo'
+    'maxHeaderListSize': 'foo',
   }), {
     message: 'Invalid value for setting "maxHeaderListSize": foo',
     code: 'ERR_HTTP2_INVALID_SETTING_VALUE',
-    name: 'RangeError'
+    name: 'RangeError',
   });
 }
 

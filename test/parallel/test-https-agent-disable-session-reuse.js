@@ -13,14 +13,14 @@ const TOTAL_REQS = 2;
 
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 };
 
 const clientSessions = [];
 let serverRequests = 0;
 
 const agent = new https.Agent({
-  maxCachedSessions: 0
+  maxCachedSessions: 0,
 });
 
 const server = https.createServer(options, function(req, res) {
@@ -32,7 +32,7 @@ const server = https.createServer(options, function(req, res) {
     const options = {
       agent: agent,
       port: server.address().port,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     };
 
     https.request(options, function(res) {

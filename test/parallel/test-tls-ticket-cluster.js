@@ -44,7 +44,7 @@ if (cluster.isPrimary) {
                   workerPort, 'session?', !!lastSession);
     const c = tls.connect(workerPort, {
       session: lastSession,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     }, () => {
       c.end();
     }).on('close', () => {

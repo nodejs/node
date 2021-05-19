@@ -19,7 +19,7 @@ const verifyCallbacks = (server) => {
         name: 'TypeError',
         code: 'ERR_INVALID_CALLBACK',
         message: 'Callback must be a function. ' +
-                 `Received ${inspect(notFunction)}`
+                 `Received ${inspect(notFunction)}`,
       }
     );
   });

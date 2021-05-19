@@ -60,7 +60,7 @@ if (common.hasIntl) {
                     code: 'ERR_ENCODING_INVALID_ENCODED_DATA',
                     name: 'TypeError',
                     message: 'The encoded data was not valid ' +
-                          'for encoding utf-8'
+                          'for encoding utf-8',
                   });
   });
 
@@ -75,7 +75,8 @@ if (common.hasIntl) {
     {
       code: 'ERR_NO_ICU',
       name: 'TypeError',
-      message: '"fatal" option is not supported on Node.js compiled without ICU'
+      message: '"fatal" option is not supported on Node.js' +
+      'compiled without ICU',
     });
 }
 
@@ -163,7 +164,7 @@ if (common.hasIntl) {
   const expectedError = {
     code: 'ERR_INVALID_THIS',
     name: 'TypeError',
-    message: 'Value of "this" must be of type TextDecoder'
+    message: 'Value of "this" must be of type TextDecoder',
   };
 
   inspectFn.call(instance, Infinity, {});
@@ -187,7 +188,7 @@ if (common.hasIntl) {
     () => new TextDecoder('utf-8', 1),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError'
+      name: 'TypeError',
     }
   );
 }

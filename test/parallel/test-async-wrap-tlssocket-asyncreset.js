@@ -12,7 +12,7 @@ const https = require('https');
 const serverOptions = {
   key: fixtures.readKey('agent1-key.pem'),
   cert: fixtures.readKey('agent1-cert.pem'),
-  ca: fixtures.readKey('ca1-cert.pem')
+  ca: fixtures.readKey('ca1-cert.pem'),
 };
 
 const server = https.createServer(
@@ -29,9 +29,9 @@ server.listen(
     const clientOptions = {
       agent: new https.Agent({
         keepAlive: true,
-        rejectUnauthorized: false
+        rejectUnauthorized: false,
       }),
-      port: port
+      port: port,
     };
 
     const req = https.get(

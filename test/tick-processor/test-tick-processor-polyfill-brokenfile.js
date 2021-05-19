@@ -39,7 +39,7 @@ const proc = spawn(process.execPath, [
   '--prof',
   '-pe', code,
 ], {
-  stdio: ['ignore', 'pipe', 'inherit']
+  stdio: ['ignore', 'pipe', 'inherit'],
 });
 
 let ticks = '';

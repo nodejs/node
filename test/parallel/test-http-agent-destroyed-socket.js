@@ -37,7 +37,7 @@ const server = http.createServer(common.mustCall((req, res) => {
     agent: agent,
     host: 'localhost',
     port: server.address().port,
-    path: '/'
+    path: '/',
   };
 
   const request1 = http.get(requestOptions, common.mustCall((response) => {

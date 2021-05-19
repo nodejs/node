@@ -14,32 +14,32 @@ const genSetNoDelay = (desiredArg) => (enable) => {
 let socket = new net.Socket({
   handle: {
     setNoDelay: common.mustCall(genSetNoDelay(true)),
-    readStart() {}
-  }
+    readStart() {},
+  },
 });
 socket.setNoDelay();
 
 socket = new net.Socket({
   handle: {
     setNoDelay: common.mustCall(genSetNoDelay(true), 1),
-    readStart() {}
-  }
+    readStart() {},
+  },
 });
 truthyValues.forEach((testVal) => socket.setNoDelay(testVal));
 
 socket = new net.Socket({
   handle: {
     setNoDelay: common.mustNotCall(),
-    readStart() {}
-  }
+    readStart() {},
+  },
 });
 falseyValues.forEach((testVal) => socket.setNoDelay(testVal));
 
 socket = new net.Socket({
   handle: {
     setNoDelay: common.mustCall(() => {}, 3),
-    readStart() {}
-  }
+    readStart() {},
+  },
 });
 truthyValues.concat(falseyValues).concat(truthyValues)
   .forEach((testVal) => socket.setNoDelay(testVal));
@@ -49,8 +49,8 @@ truthyValues.concat(falseyValues).concat(truthyValues)
 socket = new net.Socket({
   handle: {
     setNoDelay: null,
-    readStart() {}
-  }
+    readStart() {},
+  },
 });
 const returned = socket.setNoDelay(true);
 assert.ok(returned instanceof net.Socket);

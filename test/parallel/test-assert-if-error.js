@@ -42,28 +42,28 @@ const stack = err.stack;
 assert.throws(
   () => assert.ifError(new TypeError()),
   {
-    message: 'ifError got unwanted exception: TypeError'
+    message: 'ifError got unwanted exception: TypeError',
   }
 );
 
 assert.throws(
   () => assert.ifError({ stack: false }),
   {
-    message: 'ifError got unwanted exception: { stack: false }'
+    message: 'ifError got unwanted exception: { stack: false }',
   }
 );
 
 assert.throws(
   () => assert.ifError({ constructor: null, message: '' }),
   {
-    message: 'ifError got unwanted exception: '
+    message: 'ifError got unwanted exception: ',
   }
 );
 
 assert.throws(
   () => { assert.ifError(false); },
   {
-    message: 'ifError got unwanted exception: false'
+    message: 'ifError got unwanted exception: false',
   }
 );
 

@@ -37,7 +37,7 @@ child.on('exit', common.mustCall((code) => {
 
 function test() {
   const {
-    connect, keys
+    connect, keys,
   } = require(fixtures.path('tls-connect'));
 
   connect({

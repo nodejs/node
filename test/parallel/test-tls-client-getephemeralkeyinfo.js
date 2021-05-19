@@ -23,7 +23,7 @@ function test(size, type, name, cipher) {
   const options = {
     key: key,
     cert: cert,
-    ciphers: cipher
+    ciphers: cipher,
   };
 
   if (name) options.ecdhCurve = name;
@@ -40,7 +40,7 @@ function test(size, type, name, cipher) {
   server.listen(0, '127.0.0.1', common.mustCall(() => {
     const client = tls.connect({
       port: server.address().port,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     }, common.mustCall(function() {
       const ekeyinfo = client.getEphemeralKeyInfo();
       assert.strictEqual(ekeyinfo.type, type);

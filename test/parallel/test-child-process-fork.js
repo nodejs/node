@@ -42,19 +42,19 @@ n.on('message', (m) => {
 assert.throws(() => n.send(undefined), {
   name: 'TypeError',
   message: 'The "message" argument must be specified',
-  code: 'ERR_MISSING_ARGS'
+  code: 'ERR_MISSING_ARGS',
 });
 assert.throws(() => n.send(), {
   name: 'TypeError',
   message: 'The "message" argument must be specified',
-  code: 'ERR_MISSING_ARGS'
+  code: 'ERR_MISSING_ARGS',
 });
 
 assert.throws(() => n.send(Symbol()), {
   name: 'TypeError',
   message: 'The "message" argument must be one of type string,' +
            ' object, number, or boolean. Received type symbol (Symbol())',
-  code: 'ERR_INVALID_ARG_TYPE'
+  code: 'ERR_INVALID_ARG_TYPE',
 });
 n.send({ hello: 'world' });
 

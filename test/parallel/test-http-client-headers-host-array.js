@@ -11,13 +11,13 @@ const http = require('http');
     port: '80',
     path: '/',
     headers: {
-      host: []
-    }
+      host: [],
+    },
   };
 
   assert.throws(() => {
     http.request(options);
   }, {
-    code: /ERR_INVALID_ARG_TYPE/
+    code: /ERR_INVALID_ARG_TYPE/,
   }, 'http request should throw when passing array as header host');
 }

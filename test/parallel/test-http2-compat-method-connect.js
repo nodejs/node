@@ -25,7 +25,7 @@ function testMethodConnect(testsToRun) {
   const client = http2.connect(`http://localhost:${port}`);
   const req = client.request({
     ':method': 'CONNECT',
-    ':authority': `localhost:${port}`
+    ':authority': `localhost:${port}`,
   });
 
   req.on('response', common.mustCall((headers) => {

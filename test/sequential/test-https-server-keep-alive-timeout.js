@@ -13,7 +13,7 @@ const tests = [];
 
 const serverOptions = {
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 };
 
 function test(fn) {
@@ -45,7 +45,7 @@ test(function serverKeepAliveTimeoutWithPipeline(cb) {
     const options = {
       port: server.address().port,
       allowHalfOpen: true,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     };
     const c = tls.connect(options, () => {
       c.write('GET /1 HTTP/1.1\r\nHost: localhost\r\n\r\n');
@@ -68,7 +68,7 @@ test(function serverNoEndKeepAliveTimeoutWithPipeline(cb) {
     const options = {
       port: server.address().port,
       allowHalfOpen: true,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     };
     const c = tls.connect(options, () => {
       c.write('GET /1 HTTP/1.1\r\nHost: localhost\r\n\r\n');

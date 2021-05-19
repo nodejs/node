@@ -8,7 +8,7 @@ const benchmarkDirectory =
   path.resolve(tmpdir.path, 'benchmark-module-circular');
 
 const bench = common.createBenchmark(main, {
-  n: [1e4]
+  n: [1e4],
 });
 
 function main({ n }) {

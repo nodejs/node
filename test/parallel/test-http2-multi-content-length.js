@@ -28,12 +28,12 @@ server.listen(0, common.mustCall(() => {
       client.request({
         ':method': 'POST',
         'content-length': 1,
-        'Content-Length': 2
+        'Content-Length': 2,
       });
     }, {
       code: 'ERR_HTTP2_HEADER_SINGLE_VALUE',
       name: 'TypeError',
-      message: 'Header field "content-length" must only have a single value'
+      message: 'Header field "content-length" must only have a single value',
     }
   );
 
@@ -41,7 +41,7 @@ server.listen(0, common.mustCall(() => {
     // Request 2 will succeed
     const req = client.request({
       ':method': 'POST',
-      'content-length': 1
+      'content-length': 1,
     });
     req.resume();
     req.on('end', common.mustCall());
@@ -59,7 +59,7 @@ server.listen(0, common.mustCall(() => {
     req.on('error', common.expectsError({
       code: 'ERR_HTTP2_STREAM_ERROR',
       name: 'Error',
-      message: 'Stream closed with error code NGHTTP2_PROTOCOL_ERROR'
+      message: 'Stream closed with error code NGHTTP2_PROTOCOL_ERROR',
     }));
   }
 }));

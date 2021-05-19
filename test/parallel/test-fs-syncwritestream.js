@@ -28,7 +28,7 @@ const filename = path.join(tmpdir.path, 'stdout');
 const stdoutFd = fs.openSync(filename, 'w');
 
 const proc = spawn(process.execPath, [__filename, 'child'], {
-  stdio: ['inherit', stdoutFd, stdoutFd ]
+  stdio: ['inherit', stdoutFd, stdoutFd ],
 });
 
 proc.on('close', common.mustCall(() => {

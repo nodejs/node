@@ -95,7 +95,7 @@ const { MessageChannel, MessagePort } = require('worker_threads');
   const err = {
     constructor: TypeError,
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'Optional transferList argument must be an iterable'
+    message: 'Optional transferList argument must be an iterable',
   };
 
   assert.throws(() => port1.postMessage(5, 0), err);
@@ -106,7 +106,7 @@ const { MessageChannel, MessagePort } = require('worker_threads');
   const err2 = {
     constructor: TypeError,
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'Optional options.transfer argument must be an iterable'
+    message: 'Optional options.transfer argument must be an iterable',
   };
 
   assert.throws(() => port1.postMessage(5, { transfer: null }), err2);
@@ -114,13 +114,13 @@ const { MessageChannel, MessagePort } = require('worker_threads');
   assert.throws(() => port1.postMessage(5, { transfer: false }), err2);
   assert.throws(() => port1.postMessage(5, { transfer: {} }), err2);
   assert.throws(() => port1.postMessage(5, {
-    transfer: { [Symbol.iterator]() { return {}; } }
+    transfer: { [Symbol.iterator]() { return {}; } },
   }), err2);
   assert.throws(() => port1.postMessage(5, {
-    transfer: { [Symbol.iterator]() { return { next: 42 }; } }
+    transfer: { [Symbol.iterator]() { return { next: 42 }; } },
   }), err2);
   assert.throws(() => port1.postMessage(5, {
-    transfer: { [Symbol.iterator]() { return { next: null }; } }
+    transfer: { [Symbol.iterator]() { return { next: null }; } },
   }), err2);
   port1.close();
 }
@@ -154,7 +154,7 @@ const { MessageChannel, MessagePort } = require('worker_threads');
   {
     const ab = new ArrayBuffer(10);
     port1.postMessage({ ab }, {
-      transfer: (function*() { yield ab; })()
+      transfer: (function*() { yield ab; })(),
     });
     assert.strictEqual(ab.byteLength, 0);
   }

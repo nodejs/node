@@ -40,7 +40,7 @@ if (cluster.isWorker) {
     cluster: {
       emitDisconnect: false,
       emitExit: false,
-      callback: false
+      callback: false,
     },
     worker: {
       emitDisconnect: false,
@@ -48,8 +48,8 @@ if (cluster.isWorker) {
       emitExit: false,
       state: false,
       voluntaryMode: false,
-      died: false
-    }
+      died: false,
+    },
   };
 
   // start worker

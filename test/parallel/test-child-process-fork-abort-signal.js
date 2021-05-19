@@ -10,7 +10,7 @@ const { fork } = require('child_process');
   const ac = new AbortController();
   const { signal } = ac;
   const cp = fork(fixtures.path('child-process-stay-alive-forever.js'), {
-    signal
+    signal,
   });
   cp.on('exit', mustCall((code, killSignal) => {
     strictEqual(code, null);
@@ -25,7 +25,7 @@ const { fork } = require('child_process');
   // Test passing an already aborted signal to a forked child_process
   const signal = AbortSignal.abort();
   const cp = fork(fixtures.path('child-process-stay-alive-forever.js'), {
-    signal
+    signal,
   });
   cp.on('exit', mustCall((code, killSignal) => {
     strictEqual(code, null);
@@ -57,7 +57,7 @@ const { fork } = require('child_process');
   const ac = new AbortController();
   const { signal } = ac;
   const cp = fork(fixtures.path('child-process-stay-alive-forever.js'), {
-    signal
+    signal,
   });
   cp.on('exit', mustCall(() => {
     ac.abort();

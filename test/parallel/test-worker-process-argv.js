@@ -7,14 +7,14 @@ if (isMainThread) {
   assert.throws(() => {
     new Worker(__filename, { argv: 'foo' });
   }, {
-    code: 'ERR_INVALID_ARG_TYPE'
+    code: 'ERR_INVALID_ARG_TYPE',
   });
 
   [
     new Worker(__filename, {
       argv: [null, 'foo', 123, Symbol('bar')],
       // Asserts only if the worker is started by the test.
-      workerData: 'assert-argv'
+      workerData: 'assert-argv',
     }),
     new Worker(`
       const assert = require('assert');
@@ -23,7 +23,7 @@ if (isMainThread) {
         [process.execPath, '[worker eval]']
       );
     `, {
-      eval: true
+      eval: true,
     }),
     new Worker(`
       const assert = require('assert');
@@ -34,7 +34,7 @@ if (isMainThread) {
       );
     `, {
       argv: [null, 'foo', 123, Symbol('bar')],
-      eval: true
+      eval: true,
     }),
   ].forEach((worker) => {
     worker.on('exit', common.mustCall((code) => {

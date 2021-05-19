@@ -47,7 +47,7 @@ stream.pause = function() {
 const rli = readline.createInterface({
   input: stream,
   output: stream,
-  terminal: true
+  terminal: true,
 });
 assert(rli.terminal);
 assert(rawModeCalled);

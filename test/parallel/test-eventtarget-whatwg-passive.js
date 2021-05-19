@@ -8,7 +8,7 @@ const common = require('../common');
 const {
   fail,
   ok,
-  strictEqual
+  strictEqual,
 } = require('assert');
 
 {
@@ -22,7 +22,7 @@ const {
     get dummy() {
       fail('dummy value getter invoked');
       return false;
-    }
+    },
   };
 
   document.addEventListener('test_event', null, query_options);

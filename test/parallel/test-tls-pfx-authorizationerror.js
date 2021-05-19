@@ -19,7 +19,7 @@ const server = tls
       pfx: pfx,
       passphrase: 'sample',
       requestCert: true,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     },
     common.mustCall(function(c) {
       assert.strictEqual(c.getPeerCertificate().serialNumber,
@@ -34,7 +34,7 @@ const server = tls
         port: this.address().port,
         pfx: pfx,
         passphrase: 'sample',
-        rejectUnauthorized: false
+        rejectUnauthorized: false,
       },
       function() {
         for (let i = 0; i < 10; ++i) {

@@ -26,7 +26,7 @@ assert.throws(
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
     message: 'The "url" argument must be of type string. Received type number' +
-             ' (1)'
+             ' (1)',
   }
 );
 
@@ -36,7 +36,7 @@ assert.throws(
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
     message: 'The "url" argument must be of type string. Received type number' +
-             ' (1)'
+             ' (1)',
   }
 );
 
@@ -46,7 +46,7 @@ assert.throws(
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
     message: 'The "job" argument must be an instance of ModuleJob. ' +
-             "Received type string ('notamodulejob')"
+             "Received type string ('notamodulejob')",
   }
 );
 
@@ -56,6 +56,6 @@ assert.throws(
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
     message: 'The "url" argument must be of type string. Received type number' +
-             ' (1)'
+             ' (1)',
   }
 );

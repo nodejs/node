@@ -14,7 +14,7 @@ const options = {
   key: readKey('agent1-key.pem'),
   cert: readKey('agent1-cert.pem'),
   secureOptions: SSL_OP_NO_TICKET,
-  ciphers: 'RSA@SECLEVEL=0'
+  ciphers: 'RSA@SECLEVEL=0',
 };
 
 // Create TLS1.2 server
@@ -29,7 +29,7 @@ function first(server) {
   const port = server.address().port;
   const req = https.request({
     port: port,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, function(res) {
     res.resume();
 
@@ -54,7 +54,7 @@ function faultyServer(port) {
 function second(server, session) {
   const req = https.request({
     port: server.address().port,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, function(res) {
     res.resume();
   });

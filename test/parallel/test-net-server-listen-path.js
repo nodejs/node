@@ -59,7 +59,7 @@ function randomPipePath() {
     .listen({
       path: handlePath,
       readableAll: true,
-      writableAll: true
+      writableAll: true,
     }, common.mustCall(() => {
       if (process.platform !== 'win32') {
         const mode = fs.statSync(handlePath).mode;

@@ -3,7 +3,7 @@
 const common = require('../common');
 const {
   pipeline,
-  PassThrough
+  PassThrough,
 } = require('stream');
 const assert = require('assert');
 

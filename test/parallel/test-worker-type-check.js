@@ -22,7 +22,7 @@ const { Worker } = require('worker_threads');
         name: 'TypeError',
         message: 'The "filename" argument must be of type string ' +
                  'or an instance of URL.' +
-                 common.invalidArgTypeHelper(val)
+                 common.invalidArgTypeHelper(val),
       }
     );
   });

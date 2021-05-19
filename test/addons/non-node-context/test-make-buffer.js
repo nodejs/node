@@ -3,7 +3,7 @@
 const common = require('../../common');
 const assert = require('assert');
 const {
-  makeBufferInNewContext
+  makeBufferInNewContext,
 } = require(`./build/${common.buildType}/binding`);
 
 // Because the `Buffer` function and its protoype property only (currently)

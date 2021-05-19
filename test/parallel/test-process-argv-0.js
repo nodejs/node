@@ -27,7 +27,7 @@ const spawn = require('child_process').spawn;
 
 if (process.argv[2] !== 'child') {
   const child = spawn(process.execPath, [__filename, 'child'], {
-    cwd: path.dirname(process.execPath)
+    cwd: path.dirname(process.execPath),
   });
 
   let childArgv0 = '';

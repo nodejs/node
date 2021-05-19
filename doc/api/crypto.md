@@ -308,7 +308,7 @@ Example: Using `Cipher` objects as streams:
 const {
   scrypt,
   randomFill,
-  createCipheriv
+  createCipheriv,
 } = await import('crypto');
 
 const algorithm = 'aes-192-cbc';
@@ -341,7 +341,7 @@ scrypt(password, 'salt', 24, (err, key) => {
 const {
   scrypt,
   randomFill,
-  createCipheriv
+  createCipheriv,
 } = require('crypto');
 
 const algorithm = 'aes-192-cbc';
@@ -379,7 +379,7 @@ import {
 } from 'fs';
 
 import {
-  pipeline
+  pipeline,
 } from 'stream';
 
 const {
@@ -418,7 +418,7 @@ const {
 } = require('fs');
 
 const {
-  pipeline
+  pipeline,
 } = require('stream');
 
 const {
@@ -1875,7 +1875,7 @@ const {
 const key = await subtle.generateKey({
   name: 'HMAC',
   hash: 'SHA-256',
-  length: 256
+  length: 256,
 }, true, ['sign', 'verify']);
 
 const keyObject = KeyObject.from(key);
@@ -1895,7 +1895,7 @@ const {
   const key = await subtle.generateKey({
     name: 'HMAC',
     hash: 'SHA-256',
-    length: 256
+    length: 256,
   }, true, ['sign', 'verify']);
 
   const keyObject = KeyObject.from(key);
@@ -2064,7 +2064,7 @@ const {
 } = await import('crypto');
 
 const { privateKey, publicKey } = generateKeyPairSync('ec', {
-  namedCurve: 'sect239k1'
+  namedCurve: 'sect239k1',
 });
 
 const sign = createSign('SHA256');
@@ -2087,7 +2087,7 @@ const {
 } = require('crypto');
 
 const { privateKey, publicKey } = generateKeyPairSync('ec', {
-  namedCurve: 'sect239k1'
+  namedCurve: 'sect239k1',
 });
 
 const sign = createSign('SHA256');
@@ -3026,7 +3026,7 @@ Example: generating the sha256 sum of a file
 
 ```mjs
 import {
-  createReadStream
+  createReadStream,
 } from 'fs';
 
 const {
@@ -3112,7 +3112,7 @@ Example: generating the sha256 HMAC of a file
 
 ```mjs
 import {
-  createReadStream
+  createReadStream,
 } from 'fs';
 
 const {
@@ -3417,14 +3417,14 @@ generateKeyPair('rsa', {
   modulusLength: 4096,
   publicKeyEncoding: {
     type: 'spki',
-    format: 'pem'
+    format: 'pem',
   },
   privateKeyEncoding: {
     type: 'pkcs8',
     format: 'pem',
     cipher: 'aes-256-cbc',
-    passphrase: 'top secret'
-  }
+    passphrase: 'top secret',
+  },
 }, (err, publicKey, privateKey) => {
   // Handle errors and use the generated key pair.
 });
@@ -3439,14 +3439,14 @@ generateKeyPair('rsa', {
   modulusLength: 4096,
   publicKeyEncoding: {
     type: 'spki',
-    format: 'pem'
+    format: 'pem',
   },
   privateKeyEncoding: {
     type: 'pkcs8',
     format: 'pem',
     cipher: 'aes-256-cbc',
-    passphrase: 'top secret'
-  }
+    passphrase: 'top secret',
+  },
 }, (err, publicKey, privateKey) => {
   // Handle errors and use the generated key pair.
 });
@@ -3517,14 +3517,14 @@ const {
   modulusLength: 4096,
   publicKeyEncoding: {
     type: 'spki',
-    format: 'pem'
+    format: 'pem',
   },
   privateKeyEncoding: {
     type: 'pkcs8',
     format: 'pem',
     cipher: 'aes-256-cbc',
-    passphrase: 'top secret'
-  }
+    passphrase: 'top secret',
+  },
 });
 ```
 
@@ -3540,14 +3540,14 @@ const {
   modulusLength: 4096,
   publicKeyEncoding: {
     type: 'spki',
-    format: 'pem'
+    format: 'pem',
   },
   privateKeyEncoding: {
     type: 'pkcs8',
     format: 'pem',
     cipher: 'aes-256-cbc',
-    passphrase: 'top secret'
-  }
+    passphrase: 'top secret',
+  },
 });
 ```
 
@@ -5226,11 +5226,11 @@ const nonce = randomBytes(12);
 const aad = Buffer.from('0123456789', 'hex');
 
 const cipher = createCipheriv('aes-192-ccm', key, nonce, {
-  authTagLength: 16
+  authTagLength: 16,
 });
 const plaintext = 'Hello world';
 cipher.setAAD(aad, {
-  plaintextLength: Buffer.byteLength(plaintext)
+  plaintextLength: Buffer.byteLength(plaintext),
 });
 const ciphertext = cipher.update(plaintext, 'utf8');
 cipher.final();
@@ -5239,11 +5239,11 @@ const tag = cipher.getAuthTag();
 // Now transmit { ciphertext, nonce, tag }.
 
 const decipher = createDecipheriv('aes-192-ccm', key, nonce, {
-  authTagLength: 16
+  authTagLength: 16,
 });
 decipher.setAuthTag(tag);
 decipher.setAAD(aad, {
-  plaintextLength: ciphertext.length
+  plaintextLength: ciphertext.length,
 });
 const receivedPlaintext = decipher.update(ciphertext, null, 'utf8');
 
@@ -5270,11 +5270,11 @@ const nonce = randomBytes(12);
 const aad = Buffer.from('0123456789', 'hex');
 
 const cipher = createCipheriv('aes-192-ccm', key, nonce, {
-  authTagLength: 16
+  authTagLength: 16,
 });
 const plaintext = 'Hello world';
 cipher.setAAD(aad, {
-  plaintextLength: Buffer.byteLength(plaintext)
+  plaintextLength: Buffer.byteLength(plaintext),
 });
 const ciphertext = cipher.update(plaintext, 'utf8');
 cipher.final();
@@ -5283,11 +5283,11 @@ const tag = cipher.getAuthTag();
 // Now transmit { ciphertext, nonce, tag }.
 
 const decipher = createDecipheriv('aes-192-ccm', key, nonce, {
-  authTagLength: 16
+  authTagLength: 16,
 });
 decipher.setAuthTag(tag);
 decipher.setAAD(aad, {
-  plaintextLength: ciphertext.length
+  plaintextLength: ciphertext.length,
 });
 const receivedPlaintext = decipher.update(ciphertext, null, 'utf8');
 

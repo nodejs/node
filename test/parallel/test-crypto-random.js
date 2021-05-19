@@ -45,7 +45,7 @@ common.expectWarning('DeprecationWarning',
         code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError',
         message: 'The "size" argument must be of type number.' +
-                 common.invalidArgTypeHelper(value)
+                 common.invalidArgTypeHelper(value),
       };
       assert.throws(() => f(value), errObj);
       assert.throws(() => f(value, common.mustNotCall()), errObj);
@@ -56,7 +56,7 @@ common.expectWarning('DeprecationWarning',
         code: 'ERR_OUT_OF_RANGE',
         name: 'RangeError',
         message: 'The value of "size" is out of range. It must be >= 0 && <= ' +
-                 `${kMaxPossibleLength}. Received ${value}`
+                 `${kMaxPossibleLength}. Received ${value}`,
       };
       assert.throws(() => f(value), errObj);
       assert.throws(() => f(value, common.mustNotCall()), errObj);
@@ -232,7 +232,7 @@ common.expectWarning('DeprecationWarning',
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
       message: 'The "offset" argument must be of type number. ' +
-               "Received type string ('test')"
+               "Received type string ('test')",
     };
 
     assert.throws(() => crypto.randomFillSync(buf, 'test'), typeErrObj);
@@ -254,7 +254,7 @@ common.expectWarning('DeprecationWarning',
         code: 'ERR_OUT_OF_RANGE',
         name: 'RangeError',
         message: 'The value of "offset" is out of range. ' +
-                 `It must be >= 0 && <= 10. Received ${offsetSize}`
+                 `It must be >= 0 && <= 10. Received ${offsetSize}`,
       };
 
       assert.throws(() => crypto.randomFillSync(buf, offsetSize), errObj);
@@ -277,7 +277,7 @@ common.expectWarning('DeprecationWarning',
       code: 'ERR_OUT_OF_RANGE',
       name: 'RangeError',
       message: 'The value of "size + offset" is out of range. ' +
-               'It must be <= 10. Received 11'
+               'It must be <= 10. Received 11',
     };
     assert.throws(() => crypto.randomFillSync(buf, 1, 10), rangeErrObj);
 
@@ -297,7 +297,7 @@ assert.throws(
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
     message: 'The value of "size" is out of range. ' +
-             `It must be >= 0 && <= ${kMaxPossibleLength}. Received 4294967296`
+             `It must be >= 0 && <= ${kMaxPossibleLength}. Received 4294967296`,
   }
 );
 
@@ -307,14 +307,14 @@ assert.throws(
     () => crypto.randomFillSync(i),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError'
+      name: 'TypeError',
     }
   );
   assert.throws(
     () => crypto.randomFill(i, common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError'
+      name: 'TypeError',
     }
   );
   assert.throws(
@@ -322,7 +322,7 @@ assert.throws(
     {
       code: 'ERR_INVALID_CALLBACK',
       name: 'TypeError',
-      message: `Callback must be a function. Received ${inspect(i)}`
+      message: `Callback must be a function. Received ${inspect(i)}`,
     });
 });
 
@@ -332,7 +332,7 @@ assert.throws(
     {
       code: 'ERR_INVALID_CALLBACK',
       name: 'TypeError',
-      message: `Callback must be a function. Received ${inspect(i)}`
+      message: `Callback must be a function. Received ${inspect(i)}`,
     }
   );
 });
@@ -490,7 +490,7 @@ assert.throws(
       name: 'RangeError',
       message: 'The value of "max" is out of range. It must be greater than ' +
       `the value of "min" (${arg[arg.length - 2] || 0}). ` +
-      `Received ${arg[arg.length - 1]}`
+      `Received ${arg[arg.length - 1]}`,
     });
   }
 
@@ -504,7 +504,7 @@ assert.throws(
       name: 'RangeError',
       message: 'The value of "max - min" is out of range. ' +
                `It must be <= ${MAX_RANGE}. ` +
-               'Received 281_474_976_710_656'
+               'Received 281_474_976_710_656',
     }
   );
 
@@ -513,14 +513,14 @@ assert.throws(
     name: 'RangeError',
     message: 'The value of "max" is out of range. ' +
              `It must be <= ${MAX_RANGE}. ` +
-             'Received 281_474_976_710_656'
+             'Received 281_474_976_710_656',
   });
 
   [true, NaN, null, {}, [], 10].forEach((i) => {
     const cbError = {
       code: 'ERR_INVALID_CALLBACK',
       name: 'TypeError',
-      message: `Callback must be a function. Received ${inspect(i)}`
+      message: `Callback must be a function. Received ${inspect(i)}`,
     };
     assert.throws(() => crypto.randomInt(0, 1, i), cbError);
   });

@@ -256,7 +256,7 @@ function runTest(port, testIndex) {
     ca: cas,
     crl: crl,
     requestCert: tcase.requestCert,
-    rejectUnauthorized: tcase.rejectUnauthorized
+    rejectUnauthorized: tcase.rejectUnauthorized,
   };
 
   // If renegotiating - session might be resumed and openssl won't request
@@ -283,7 +283,7 @@ function runTest(port, testIndex) {
         c.write('\n_renegotiating\n');
         return c.renegotiate({
           requestCert: true,
-          rejectUnauthorized: false
+          rejectUnauthorized: false,
         }, function(err) {
           assert.ifError(err);
           c.write('\n_renegotiated\n');

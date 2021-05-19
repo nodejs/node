@@ -9,7 +9,7 @@ const { inspect } = require('util');
 // Test cipher: option for TLS.
 
 const {
-  assert, connect, keys
+  assert, connect, keys,
 } = require(fixtures.path('tls-connect'));
 
 

@@ -59,7 +59,7 @@ assert.throws(
   () => fs.open(__filename, 'r', 'boom', common.mustNotCall()),
   {
     code: 'ERR_INVALID_ARG_VALUE',
-    name: 'TypeError'
+    name: 'TypeError',
   }
 );
 
@@ -68,7 +68,7 @@ for (const extra of [[], ['r'], ['r', 0], ['r', 0, 'bad callback']]) {
     () => fs.open(__filename, ...extra),
     {
       code: 'ERR_INVALID_CALLBACK',
-      name: 'TypeError'
+      name: 'TypeError',
     }
   );
 }
@@ -78,21 +78,21 @@ for (const extra of [[], ['r'], ['r', 0], ['r', 0, 'bad callback']]) {
     () => fs.open(i, 'r', common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError'
+      name: 'TypeError',
     }
   );
   assert.throws(
     () => fs.openSync(i, 'r', common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError'
+      name: 'TypeError',
     }
   );
   assert.rejects(
     fs.promises.open(i, 'r'),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError'
+      name: 'TypeError',
     }
   );
 });
@@ -102,19 +102,19 @@ for (const extra of [[], ['r'], ['r', 0], ['r', 0, 'bad callback']]) {
   assert.throws(
     () => fs.open(__filename, 'r', mode, common.mustNotCall()),
     {
-      code: 'ERR_INVALID_ARG_TYPE'
+      code: 'ERR_INVALID_ARG_TYPE',
     }
   );
   assert.throws(
     () => fs.openSync(__filename, 'r', mode, common.mustNotCall()),
     {
-      code: 'ERR_INVALID_ARG_TYPE'
+      code: 'ERR_INVALID_ARG_TYPE',
     }
   );
   assert.rejects(
     fs.promises.open(__filename, 'r', mode),
     {
-      code: 'ERR_INVALID_ARG_TYPE'
+      code: 'ERR_INVALID_ARG_TYPE',
     }
   );
 });

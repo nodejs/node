@@ -21,7 +21,7 @@ process.on('exit', global.gc);
     serverSideHttp2Stream = stream;
     stream.respond({
       'content-type': 'text/html',
-      ':status': 200
+      ':status': 200,
     });
 
     const originalWrite = serverSide._write;
@@ -44,7 +44,7 @@ process.on('exit', global.gc);
   server.emit('connection', serverSide);
 
   const client = http2.connect('http://localhost:80', {
-    createConnection: common.mustCall(() => clientSide)
+    createConnection: common.mustCall(() => clientSide),
   });
 
   const req = client.request({ ':path': '/' });

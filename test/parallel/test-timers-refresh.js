@@ -38,7 +38,7 @@ const { inspect } = require('util');
       () => setUnrefTimeout(cb),
       {
         code: 'ERR_INVALID_CALLBACK',
-        message: `Callback must be a function. Received ${inspect(cb)}`
+        message: `Callback must be a function. Received ${inspect(cb)}`,
       }
     );
   });

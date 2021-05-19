@@ -19,7 +19,7 @@ async function runWorker(options = {}) {
   f();`, {
     eval: true,
     workerData: { empiricalStackDepth },
-    ...options
+    ...options,
   });
 
   const [ error ] = await once(worker, 'error');
@@ -27,7 +27,7 @@ async function runWorker(options = {}) {
   if (!options.skipErrorCheck) {
     common.expectsError({
       constructor: RangeError,
-      message: 'Maximum call stack size exceeded'
+      message: 'Maximum call stack size exceeded',
     })(error);
   }
 

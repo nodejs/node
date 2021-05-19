@@ -706,7 +706,7 @@ joins all array elements with commas.
 ```js
 const params = new URLSearchParams({
   user: 'abc',
-  query: ['first', 'second']
+  query: ['first', 'second'],
 });
 console.log(params.getAll('query'));
 // Prints [ 'first,second' ]
@@ -1323,8 +1323,8 @@ url.format({
   pathname: '/some/path',
   query: {
     page: 1,
-    format: 'json'
-  }
+    format: 'json',
+  },
 });
 
 // => 'https://example.com/some/path?page=1&format=json'

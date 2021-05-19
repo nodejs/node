@@ -21,7 +21,7 @@ const readline = require('readline');
 
 const rl = readline.createInterface({
   input: process.stdin,
-  output: process.stdout
+  output: process.stdout,
 });
 
 rl.question('What do you think of Node.js? ', (answer) => {
@@ -617,7 +617,7 @@ instance.
 const readline = require('readline');
 const rl = readline.createInterface({
   input: process.stdin,
-  output: process.stdout
+  output: process.stdout,
 });
 ```
 
@@ -750,7 +750,7 @@ const readline = require('readline');
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout,
-  prompt: 'OHAI> '
+  prompt: 'OHAI> ',
 });
 
 rl.prompt();
@@ -786,7 +786,7 @@ async function processLineByLine() {
 
   const rl = readline.createInterface({
     input: fileStream,
-    crlfDelay: Infinity
+    crlfDelay: Infinity,
   });
   // Note: we use the crlfDelay option to recognize all instances of CR LF
   // ('\r\n') in input.txt as a single line break.
@@ -808,7 +808,7 @@ const readline = require('readline');
 
 const rl = readline.createInterface({
   input: fs.createReadStream('sample.txt'),
-  crlfDelay: Infinity
+  crlfDelay: Infinity,
 });
 
 rl.on('line', (line) => {
@@ -828,7 +828,7 @@ const { createInterface } = require('readline');
   try {
     const rl = createInterface({
       input: createReadStream('big-file.txt'),
-      crlfDelay: Infinity
+      crlfDelay: Infinity,
     });
 
     rl.on('line', (line) => {

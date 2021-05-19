@@ -14,7 +14,7 @@ const TOTAL_LINES = 18;
 
   const rli = readline.createInterface({
     input: readable,
-    crlfDelay: Infinity
+    crlfDelay: Infinity,
   });
 
   const it = rli[Symbol.asyncIterator]();

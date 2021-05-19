@@ -10,7 +10,7 @@ const net = require('net');
     () => server.listen({ port: 0, signal: 'INVALID_SIGNAL' }),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError'
+      name: 'TypeError',
     });
 }
 

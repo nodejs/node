@@ -21,8 +21,8 @@ server.listen(common.mustCall(() => {
     port: server.address().port,
     headers: {
       Connection: 'Upgrade',
-      Upgrade: 'WebSocket'
-    }
+      Upgrade: 'WebSocket',
+    },
   });
 
   request.on('upgrade', common.mustCall((response, socket) => {

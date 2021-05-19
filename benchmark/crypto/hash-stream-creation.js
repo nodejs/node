@@ -10,7 +10,7 @@ const bench = common.createBenchmark(main, {
   type: ['asc', 'utf', 'buf'],
   out: ['hex', 'binary', 'buffer'],
   len: [2, 1024, 102400, 1024 * 1024],
-  api: ['legacy', 'stream']
+  api: ['legacy', 'stream'],
 });
 
 function main({ api, type, len, out, writes, algo }) {

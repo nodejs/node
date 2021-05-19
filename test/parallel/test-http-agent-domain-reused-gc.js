@@ -29,7 +29,7 @@ async_hooks.createHook({
       global.gc();
       checkBeforeCalled();
     }
-  }
+  },
 }).enable();
 
 // We use a DuplexPair rather than TLS sockets to keep the domain from being
@@ -47,7 +47,7 @@ wrappedClientSide._handle.asyncReset =
 // Dummy server implementation, could be any server for this test...
 const server = http.createServer(common.mustCall((req, res) => {
   res.writeHead(200, {
-    'Content-Type': 'text/plain'
+    'Content-Type': 'text/plain',
   });
   res.end('Hello, world!');
 }, 2));

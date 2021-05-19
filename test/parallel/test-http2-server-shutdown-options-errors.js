@@ -27,7 +27,7 @@ server.on('stream', common.mustCall((stream) => {
         code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError',
         message: 'The "code" argument must be of type number.' +
-                 received
+                 received,
       }
     );
     assert.throws(
@@ -36,7 +36,7 @@ server.on('stream', common.mustCall((stream) => {
         code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError',
         message: 'The "lastStreamID" argument must be of type number.' +
-                 received
+                 received,
       }
     );
     assert.throws(
@@ -45,7 +45,7 @@ server.on('stream', common.mustCall((stream) => {
         code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError',
         message: 'The "opaqueData" argument must be an instance of Buffer, ' +
-                 `TypedArray, or DataView.${received}`
+                 `TypedArray, or DataView.${received}`,
       }
     );
   });

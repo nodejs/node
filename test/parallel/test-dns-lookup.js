@@ -16,7 +16,7 @@ const dnsPromises = dns.promises;
   const err = {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: /^The "hostname" argument must be of type string\. Received type number/
+    message: /^The "hostname" argument must be of type string\. Received type number/,
   };
 
   assert.throws(() => dns.lookup(1, {}), err);
@@ -32,34 +32,34 @@ common.expectWarning({
   // For calling `dns.lookup` with falsy `hostname`.
   'DeprecationWarning': {
     DEP0118: 'The provided hostname "false" is not a valid ' +
-      'hostname, and is supported in the dns module solely for compatibility.'
-  }
+      'hostname, and is supported in the dns module solely for compatibility.',
+  },
 });
 
 assert.throws(() => {
   dns.lookup(false, 'cb');
 }, {
   code: 'ERR_INVALID_CALLBACK',
-  name: 'TypeError'
+  name: 'TypeError',
 });
 
 assert.throws(() => {
   dns.lookup(false, 'options', 'cb');
 }, {
   code: 'ERR_INVALID_CALLBACK',
-  name: 'TypeError'
+  name: 'TypeError',
 });
 
 {
   const err = {
     code: 'ERR_INVALID_ARG_VALUE',
     name: 'TypeError',
-    message: "The argument 'hints' is invalid. Received 100"
+    message: "The argument 'hints' is invalid. Received 100",
   };
   const options = {
     hints: 100,
     family: 0,
-    all: false
+    all: false,
   };
 
   assert.throws(() => { dnsPromises.lookup(false, options); }, err);
@@ -72,12 +72,12 @@ assert.throws(() => {
   const err = {
     code: 'ERR_INVALID_ARG_VALUE',
     name: 'TypeError',
-    message: "The argument 'family' must be one of: 0, 4, 6. Received 20"
+    message: "The argument 'family' must be one of: 0, 4, 6. Received 20",
   };
   const options = {
     hints: 0,
     family: 20,
-    all: false
+    all: false,
   };
 
   assert.throws(() => { dnsPromises.lookup(false, options); }, err);
@@ -92,21 +92,21 @@ assert.throws(() => {
   res = await dnsPromises.lookup(false, {
     hints: 0,
     family: 0,
-    all: true
+    all: true,
   });
   assert.deepStrictEqual(res, []);
 
   res = await dnsPromises.lookup('127.0.0.1', {
     hints: 0,
     family: 4,
-    all: true
+    all: true,
   });
   assert.deepStrictEqual(res, [{ address: '127.0.0.1', family: 4 }]);
 
   res = await dnsPromises.lookup('127.0.0.1', {
     hints: 0,
     family: 4,
-    all: false
+    all: false,
   });
   assert.deepStrictEqual(res, { address: '127.0.0.1', family: 4 });
 })().then(common.mustCall());
@@ -114,7 +114,7 @@ assert.throws(() => {
 dns.lookup(false, {
   hints: 0,
   family: 0,
-  all: true
+  all: true,
 }, common.mustSucceed((result, addressType) => {
   assert.deepStrictEqual(result, []);
   assert.strictEqual(addressType, undefined);
@@ -123,11 +123,11 @@ dns.lookup(false, {
 dns.lookup('127.0.0.1', {
   hints: 0,
   family: 4,
-  all: true
+  all: true,
 }, common.mustSucceed((result, addressType) => {
   assert.deepStrictEqual(result, [{
     address: '127.0.0.1',
-    family: 4
+    family: 4,
   }]);
   assert.strictEqual(addressType, undefined);
 }));
@@ -135,7 +135,7 @@ dns.lookup('127.0.0.1', {
 dns.lookup('127.0.0.1', {
   hints: 0,
   family: 4,
-  all: false
+  all: false,
 }, common.mustSucceed((result, addressType) => {
   assert.deepStrictEqual(result, '127.0.0.1');
   assert.strictEqual(addressType, 4);

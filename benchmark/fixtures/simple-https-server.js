@@ -5,7 +5,7 @@ const https = require('https');
 
 const options = {
   key: fixtures.readKey('rsa_private.pem'),
-  cert: fixtures.readKey('rsa_cert.crt')
+  cert: fixtures.readKey('rsa_cert.crt'),
 };
 
 const storedBytes = Object.create(null);
@@ -52,12 +52,12 @@ module.exports = https.createServer(options, (req, res) => {
   if (chunkedEnc) {
     res.writeHead(status, {
       'Content-Type': 'text/plain',
-      'Transfer-Encoding': 'chunked'
+      'Transfer-Encoding': 'chunked',
     });
   } else {
     res.writeHead(status, {
       'Content-Type': 'text/plain',
-      'Content-Length': len.toString()
+      'Content-Length': len.toString(),
     });
   }
   // send body in chunks

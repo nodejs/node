@@ -23,12 +23,12 @@ server.on('listening', common.mustCall(() => {
 
   client.on('goaway', common.mustCall());
   client.on('error', common.expectsError({
-    code: 'ERR_HTTP2_SESSION_ERROR'
+    code: 'ERR_HTTP2_SESSION_ERROR',
   }));
 
   const req = client.request();
   req.on('error', common.expectsError({
-    code: 'ERR_HTTP2_SESSION_ERROR'
+    code: 'ERR_HTTP2_SESSION_ERROR',
   }));
   req.resume();
   req.on('data', common.mustNotCall());

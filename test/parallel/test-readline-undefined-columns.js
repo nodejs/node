@@ -19,7 +19,7 @@ readline.createInterface({
   output: oStream,
   completer: function(line, cb) {
     cb(null, [['process.stdout', 'process.stdin', 'process.stderr'], line]);
-  }
+  },
 });
 
 let output = '';

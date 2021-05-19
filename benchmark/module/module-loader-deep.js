@@ -9,7 +9,7 @@ const benchmarkDirectory = path.join(tmpdir.path, 'nodejs-benchmark-module');
 const bench = common.createBenchmark(main, {
   ext: ['', '.js'],
   files: [1e3],
-  cache: ['true', 'false']
+  cache: ['true', 'false'],
 });
 
 function main({ ext, cache, files }) {

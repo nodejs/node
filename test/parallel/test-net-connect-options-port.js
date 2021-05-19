@@ -29,7 +29,7 @@ const net = require('net');
 {
   const portTypeError = {
     code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError'
+    name: 'TypeError',
   };
 
   syncFailToConnect(true, portTypeError);
@@ -43,7 +43,7 @@ const net = require('net');
 {
   const portRangeError = {
     code: 'ERR_SOCKET_BAD_PORT',
-    name: 'RangeError'
+    name: 'RangeError',
   };
 
   syncFailToConnect('', portRangeError);
@@ -66,7 +66,7 @@ const net = require('net');
     assert.throws(fn, {
       code: 'ERR_INVALID_ARG_VALUE',
       name: 'TypeError',
-      message: /The argument 'hints' is invalid\. Received \d+/
+      message: /The argument 'hints' is invalid\. Received \d+/,
     });
   }
 }

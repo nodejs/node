@@ -17,7 +17,7 @@ const formatTests = {
     hostname: 'example.com',
     search: '?',
     query: {},
-    pathname: '/'
+    pathname: '/',
   },
   'http://example.com?foo=bar#frag': {
     href: 'http://example.com/?foo=bar#frag',
@@ -27,7 +27,7 @@ const formatTests = {
     hash: '#frag',
     search: '?foo=bar',
     query: 'foo=bar',
-    pathname: '/'
+    pathname: '/',
   },
   'http://example.com?foo=@bar#frag': {
     href: 'http://example.com/?foo=@bar#frag',
@@ -37,7 +37,7 @@ const formatTests = {
     hash: '#frag',
     search: '?foo=@bar',
     query: 'foo=@bar',
-    pathname: '/'
+    pathname: '/',
   },
   'http://example.com?foo=/bar/#frag': {
     href: 'http://example.com/?foo=/bar/#frag',
@@ -47,7 +47,7 @@ const formatTests = {
     hash: '#frag',
     search: '?foo=/bar/',
     query: 'foo=/bar/',
-    pathname: '/'
+    pathname: '/',
   },
   'http://example.com?foo=?bar/#frag': {
     href: 'http://example.com/?foo=?bar/#frag',
@@ -57,7 +57,7 @@ const formatTests = {
     hash: '#frag',
     search: '?foo=?bar/',
     query: 'foo=?bar/',
-    pathname: '/'
+    pathname: '/',
   },
   'http://example.com#frag=?bar/#frag': {
     href: 'http://example.com/#frag=?bar/#frag',
@@ -65,13 +65,13 @@ const formatTests = {
     host: 'example.com',
     hostname: 'example.com',
     hash: '#frag=?bar/#frag',
-    pathname: '/'
+    pathname: '/',
   },
   'http://google.com" onload="alert(42)/': {
     href: 'http://google.com/%22%20onload=%22alert(42)/',
     protocol: 'http:',
     host: 'google.com',
-    pathname: '/%22%20onload=%22alert(42)/'
+    pathname: '/%22%20onload=%22alert(42)/',
   },
   'http://a.com/a/b/c?s#h': {
     href: 'http://a.com/a/b/c?s#h',
@@ -79,61 +79,61 @@ const formatTests = {
     host: 'a.com',
     pathname: 'a/b/c',
     hash: 'h',
-    search: 's'
+    search: 's',
   },
   'xmpp:isaacschlueter@jabber.org': {
     href: 'xmpp:isaacschlueter@jabber.org',
     protocol: 'xmpp:',
     host: 'jabber.org',
     auth: 'isaacschlueter',
-    hostname: 'jabber.org'
+    hostname: 'jabber.org',
   },
   'http://atpass:foo%40bar@127.0.0.1/': {
     href: 'http://atpass:foo%40bar@127.0.0.1/',
     auth: 'atpass:foo@bar',
     hostname: '127.0.0.1',
     protocol: 'http:',
-    pathname: '/'
+    pathname: '/',
   },
   'http://atslash%2F%40:%2F%40@foo/': {
     href: 'http://atslash%2F%40:%2F%40@foo/',
     auth: 'atslash/@:/@',
     hostname: 'foo',
     protocol: 'http:',
-    pathname: '/'
+    pathname: '/',
   },
   'svn+ssh://foo/bar': {
     href: 'svn+ssh://foo/bar',
     hostname: 'foo',
     protocol: 'svn+ssh:',
     pathname: '/bar',
-    slashes: true
+    slashes: true,
   },
   'dash-test://foo/bar': {
     href: 'dash-test://foo/bar',
     hostname: 'foo',
     protocol: 'dash-test:',
     pathname: '/bar',
-    slashes: true
+    slashes: true,
   },
   'dash-test:foo/bar': {
     href: 'dash-test:foo/bar',
     hostname: 'foo',
     protocol: 'dash-test:',
-    pathname: '/bar'
+    pathname: '/bar',
   },
   'dot.test://foo/bar': {
     href: 'dot.test://foo/bar',
     hostname: 'foo',
     protocol: 'dot.test:',
     pathname: '/bar',
-    slashes: true
+    slashes: true,
   },
   'dot.test:foo/bar': {
     href: 'dot.test:foo/bar',
     hostname: 'foo',
     protocol: 'dot.test:',
-    pathname: '/bar'
+    pathname: '/bar',
   },
   // IPv6 support
   'coap:u:p@[::1]:61616/.well-known/r?n=Temperature': {
@@ -143,19 +143,19 @@ const formatTests = {
     hostname: '::1',
     port: '61616',
     pathname: '/.well-known/r',
-    search: 'n=Temperature'
+    search: 'n=Temperature',
   },
   'coap:[fedc:ba98:7654:3210:fedc:ba98:7654:3210]:61616/s/stopButton': {
     href: 'coap:[fedc:ba98:7654:3210:fedc:ba98:7654:3210]:61616/s/stopButton',
     protocol: 'coap',
     host: '[fedc:ba98:7654:3210:fedc:ba98:7654:3210]:61616',
-    pathname: '/s/stopButton'
+    pathname: '/s/stopButton',
   },
   'http://[::]/': {
     href: 'http://[::]/',
     protocol: 'http:',
     hostname: '[::]',
-    pathname: '/'
+    pathname: '/',
   },
 
   // Encode context-specific delimiters in path and query, but do not touch
@@ -167,9 +167,9 @@ const formatTests = {
     href: '/path/to/%%23%3F+=&.txt?foo=theA1#bar',
     pathname: '/path/to/%#?+=&.txt',
     query: {
-      foo: 'theA1'
+      foo: 'theA1',
     },
-    hash: '#bar'
+    hash: '#bar',
   },
 
   // `#`,`?` in path + `#` in query
@@ -177,9 +177,9 @@ const formatTests = {
     href: '/path/to/%%23%3F+=&.txt?foo=the%231#bar',
     pathname: '/path/to/%#?+=&.txt',
     query: {
-      foo: 'the#1'
+      foo: 'the#1',
     },
-    hash: '#bar'
+    hash: '#bar',
   },
 
   // `#` in path end + `#` in query
@@ -187,9 +187,9 @@ const formatTests = {
     href: '/path/to/%%23?foo=the%231#bar',
     pathname: '/path/to/%#',
     query: {
-      foo: 'the#1'
+      foo: 'the#1',
     },
-    hash: '#bar'
+    hash: '#bar',
   },
 
   // `?` and `#` in path and search
@@ -222,7 +222,7 @@ const formatTests = {
     hash: '#frag',
     search: '?foo=bar#1#2#3&abc=#4##5',
     query: {},
-    pathname: '/'
+    pathname: '/',
   },
 
   // More than 255 characters in hostname which exceeds the limit
@@ -233,7 +233,7 @@ const formatTests = {
     host: '',
     hostname: '',
     pathname: '/node',
-    path: '/node'
+    path: '/node',
   },
 
   // Greater than or equal to 63 characters after `.` in hostname
@@ -244,7 +244,7 @@ const formatTests = {
     host: `www.${'z'.repeat(63)}example.com`,
     hostname: `www.${'z'.repeat(63)}example.com`,
     pathname: '/node',
-    path: '/node'
+    path: '/node',
   },
 
   // https://github.com/nodejs/node/issues/3361
@@ -252,7 +252,7 @@ const formatTests = {
     href: 'file:///home/user',
     protocol: 'file',
     pathname: '/home/user',
-    path: '/home/user'
+    path: '/home/user',
   },
 
   // surrogate in auth
@@ -261,8 +261,8 @@ const formatTests = {
     protocol: 'http:',
     auth: '\uD83D\uDE00',
     hostname: 'www.example.com',
-    pathname: '/'
-  }
+    pathname: '/',
+  },
 };
 for (const u in formatTests) {
   const expect = formatTests[u].href;

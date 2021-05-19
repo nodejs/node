@@ -40,7 +40,7 @@ function verifyFrames(output, file, suffix) {
 const kCpuProfInterval = 50;
 const env = {
   ...process.env,
-  NODE_DEBUG_NATIVE: 'INSPECTOR_PROFILER'
+  NODE_DEBUG_NATIVE: 'INSPECTOR_PROFILER',
 };
 
 module.exports = {
@@ -48,5 +48,5 @@ module.exports = {
   kCpuProfInterval,
   env,
   getFrames,
-  verifyFrames
+  verifyFrames,
 };

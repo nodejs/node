@@ -40,11 +40,11 @@ server.listen(0, common.mustCall(() => {
   for (let i = 0; i < 2; i++) {
     http.get({
       port: server.address().port,
-      path: '/'
+      path: '/',
     }).on('error', common.mustCall((e) => {
       common.expectsError({
         code: 'HPE_INVALID_CONSTANT',
-        message: 'Parse Error: Expected HTTP/'
+        message: 'Parse Error: Expected HTTP/',
       })(e);
       countdown.dec();
     }));

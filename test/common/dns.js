@@ -14,11 +14,11 @@ const types = {
   MX: 15,
   TXT: 16,
   ANY: 255,
-  CAA: 257
+  CAA: 257,
 };
 
 const classes = {
-  IN: 1
+  IN: 1,
 };
 
 // Naïve DNS parser/serializer.
@@ -35,7 +35,7 @@ function readDomainFromPacket(buffer, offset) {
     const { nread, domain } = readDomainFromPacket(buffer, offset + length);
     return {
       nread: 1 + length + nread,
-      domain: domain ? `${chunk}.${domain}` : chunk
+      domain: domain ? `${chunk}.${domain}` : chunk,
     };
   }
   // Pointer to another part of the packet.
@@ -44,7 +44,7 @@ function readDomainFromPacket(buffer, offset) {
   const pointeeOffset = buffer.readUInt16BE(offset) &~ 0xC000;
   return {
     nread: 2,
-    domain: readDomainFromPacket(buffer, pointeeOffset)
+    domain: readDomainFromPacket(buffer, pointeeOffset),
   };
 }
 
@@ -316,5 +316,5 @@ module.exports = {
   parseDNSPacket,
   errorLookupMock,
   mockedErrorCode,
-  mockedSysCall
+  mockedSysCall,
 };

@@ -12,7 +12,7 @@ const fixtures = require('../common/fixtures');
 const request = {
   response: require(fixtures.path(
     'wpt', 'url', 'resources', 'setters_tests.json'
-  ))
+  )),
 };
 
 // The following tests are copied from WPT. Modifications to them should be

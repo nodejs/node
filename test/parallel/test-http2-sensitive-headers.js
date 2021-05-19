@@ -17,7 +17,7 @@ const makeDuplexPair = require('../common/duplexpair');
       'not-sensitive': 'foo',
       'sensitive': 'bar',
       // sensitiveHeaders entries are case-insensitive
-      [http2.sensitiveHeaders]: ['Sensitive']
+      [http2.sensitiveHeaders]: ['Sensitive'],
     });
     stream.end(testData);
   }));
@@ -26,7 +26,7 @@ const makeDuplexPair = require('../common/duplexpair');
   server.emit('connection', serverSide);
 
   const client = http2.connect('http://localhost:80', {
-    createConnection: common.mustCall(() => clientSide)
+    createConnection: common.mustCall(() => clientSide),
   });
 
   const req = client.request({ ':path': '/' });

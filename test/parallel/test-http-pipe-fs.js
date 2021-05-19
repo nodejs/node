@@ -49,8 +49,8 @@ const server = http.createServer(common.mustCall(function(req, res) {
       port: server.address().port,
       method: 'POST',
       headers: {
-        'Content-Length': 5
-      }
+        'Content-Length': 5,
+      },
     }, function(res) {
       res.on('end', function() {
         console.error(`res${i + 1} end`);

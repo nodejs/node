@@ -37,7 +37,7 @@ server.on('listening', common.mustCall(function() {
   const req = http.request({
     port: this.address().port,
     method: 'HEAD',
-    path: '/'
+    path: '/',
   }, common.mustCall(function(res) {
     res.on('end', common.mustCall(function() {
       server.close();

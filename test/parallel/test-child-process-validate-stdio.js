@@ -53,7 +53,7 @@ if (common.isMainThread) {
       { type: 'fd', fd: 2 },
     ],
     ipc: undefined,
-    ipcFd: undefined
+    ipcFd: undefined,
   });
 } else {
   common.printSkipMessage(

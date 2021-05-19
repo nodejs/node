@@ -43,17 +43,17 @@ module.exports = function(context) {
             node,
             `'${lowercaseName}'`
           );
-        }
+        },
       });
     }
 
   }
 
   return {
-    [astSelector]: (node) => checkNamesArgument(node)
+    [astSelector]: (node) => checkNamesArgument(node),
   };
 };
 
 module.exports.meta = {
-  fixable: 'code'
+  fixable: 'code',
 };

@@ -10,7 +10,7 @@ const dgram = require('dgram');
     () => dgram.createSocket({ type: 'udp4', signal: {} }),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError'
+      name: 'TypeError',
     });
 }
 

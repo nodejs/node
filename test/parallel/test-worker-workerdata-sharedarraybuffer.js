@@ -19,7 +19,7 @@ const { Worker } = require('worker_threads');
     });
   `, {
     eval: true,
-    workerData: { sharedArrayBuffer }
+    workerData: { sharedArrayBuffer },
   });
   w.on('message', common.mustCall(() => {
     assert.strictEqual(local.toString(), 'Hello world!');

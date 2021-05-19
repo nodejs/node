@@ -32,7 +32,7 @@ server.bind(0, common.mustCall(async () => {
     .catch(common.expectsError({
       code: 'EBADRESP',
       syscall: 'queryAny',
-      hostname: 'example.org'
+      hostname: 'example.org',
     }));
 
   dns.resolveAny('example.org', common.mustCall((err) => {

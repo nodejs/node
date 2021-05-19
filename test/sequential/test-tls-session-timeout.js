@@ -84,7 +84,7 @@ function doTest() {
       '-sess_out', sessionFileName,
     ];
     const client = spawn(common.opensslCli, flags, {
-      stdio: ['ignore', 'pipe', 'ignore']
+      stdio: ['ignore', 'pipe', 'ignore'],
     });
 
     let clientOutput = '';

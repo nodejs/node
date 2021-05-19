@@ -12,8 +12,8 @@ const {
   createPrivateKey,
   createPublicKey,
   webcrypto: {
-    subtle
-  }
+    subtle,
+  },
 } = require('crypto');
 
 const fixtures = require('../common/fixtures');
@@ -23,11 +23,11 @@ const fixtures = require('../common/fixtures');
 
   const pkcs8 = createPrivateKey(rsaPssKeyWithoutParams).export({
     type: 'pkcs8',
-    format: 'der'
+    format: 'der',
   });
   const spki = createPublicKey(rsaPssKeyWithoutParams).export({
     type: 'spki',
-    format: 'der'
+    format: 'der',
   });
 
   const hashes = ['SHA-1', 'SHA-256', 'SHA-384', 'SHA-512'];

@@ -20,11 +20,11 @@ const msg = {};
 const pem = (n) => fixtures.readKey(`${n}.pem`);
 const server = tls.createServer({
   key: pem('agent1-key'),
-  cert: pem('agent1-cert')
+  cert: pem('agent1-cert'),
 }, common.mustCall((alice) => {
   msg.server = {
     alice: alice.getFinished(),
-    bob: alice.getPeerFinished()
+    bob: alice.getPeerFinished(),
   };
   server.close();
 }));
@@ -32,18 +32,18 @@ const server = tls.createServer({
 server.listen(0, common.mustCall(() => {
   const bob = tls.connect({
     port: server.address().port,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall(() => {
     msg.client = {
       alice: bob.getPeerFinished(),
-      bob: bob.getFinished()
+      bob: bob.getFinished(),
     };
     bob.end();
   }));
 
   msg.before = {
     alice: bob.getPeerFinished(),
-    bob: bob.getFinished()
+    bob: bob.getFinished(),
   };
 }));
 

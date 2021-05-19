@@ -33,7 +33,7 @@ const fixtures = require('../common/fixtures');
 
 const options = {
   key: fixtures.readKey('rsa_private.pem'),
-  cert: fixtures.readKey('rsa_cert.crt')
+  cert: fixtures.readKey('rsa_cert.crt'),
 };
 
 const bufSize = 1024 * 1024;
@@ -51,7 +51,7 @@ server.listen(0, common.mustCall(() => {
   let resumed = false;
   const client = tls.connect({
     port: server.address().port,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall(() => {
     console.error('connected');
     client.pause();

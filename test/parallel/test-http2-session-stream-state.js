@@ -41,7 +41,7 @@ function onStream(stream, headers, flags) {
 
   stream.respond({
     'content-type': 'text/html',
-    ':status': 200
+    ':status': 200,
   });
   stream.end('hello world');
 }

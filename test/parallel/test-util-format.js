@@ -217,7 +217,7 @@ assert.strictEqual(util.format('%s', -Infinity), '-Infinity');
     get() {
       throw new Error();
     },
-    configurable: true
+    configurable: true,
   });
   assert.strictEqual(
     util.format('%s', new D()),
@@ -241,19 +241,19 @@ assert.strictEqual(util.format('%j %j', 42), '42 %j');
 const obj = {
   foo: 'bar',
   foobar: 1,
-  func: function() {}
+  func: function() {},
 };
 const nestedObj = {
   foo: 'bar',
   foobar: {
     foo: 'bar',
-    func: function() {}
-  }
+    func: function() {},
+  },
 };
 const nestedObj2 = {
   foo: 'bar',
   foobar: 1,
-  func: [{ a: function() {} }]
+  func: [{ a: function() {} }],
 };
 assert.strictEqual(util.format('%o'), '%o');
 assert.strictEqual(util.format('%o', 42), '42');
@@ -401,7 +401,7 @@ assert.strictEqual(util.format('%cab', 'color: blue', 'c'), 'ab c');
   const o = {
     toJSON() {
       throw new Error('Not a circular object but still not serializable');
-    }
+    },
   };
   assert.throws(() => util.format('%j', o),
                 /^Error: Not a circular object but still not serializable$/);
@@ -490,6 +490,6 @@ assert.strictEqual(
     util.formatWithOptions(invalidOptions, { a: true });
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: /"inspectOptions".+object/
+    message: /"inspectOptions".+object/,
   });
 });

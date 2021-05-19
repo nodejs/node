@@ -8,7 +8,7 @@ const assert = require('assert');
   const r = new stream.Readable({
     captureRejections: true,
     read() {
-    }
+    },
   });
   r.push('hello');
   r.push('world');
@@ -31,7 +31,7 @@ const assert = require('assert');
     highWaterMark: 1,
     write(chunk, enc, cb) {
       process.nextTick(cb);
-    }
+    },
   });
 
   const err = new Error('kaboom');

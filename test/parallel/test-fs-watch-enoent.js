@@ -16,7 +16,7 @@ const nonexistentFile = path.join(tmpdir.path, 'non-existent');
 const { internalBinding } = require('internal/test/binding');
 const {
   UV_ENODEV,
-  UV_ENOENT
+  UV_ENOENT,
 } = internalBinding('uv');
 
 tmpdir.refresh();

@@ -34,7 +34,7 @@ function testTerminalMode() {
   const r1 = repl.start({
     input: stream,
     output: stream,
-    terminal: true
+    terminal: true,
   });
 
   process.nextTick(function() {
@@ -53,7 +53,7 @@ function testRegularMode() {
   const r2 = repl.start({
     input: stream,
     output: stream,
-    terminal: false
+    terminal: false,
   });
 
   process.nextTick(function() {

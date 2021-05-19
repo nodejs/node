@@ -12,7 +12,7 @@ const fs = require('fs');
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
     message: 'The "fd" argument must be of type number.' +
-             common.invalidArgTypeHelper(input)
+             common.invalidArgTypeHelper(input),
   };
   assert.throws(() => fs.close(input), errObj);
   assert.throws(() => fs.closeSync(input), errObj);
@@ -24,7 +24,7 @@ const fs = require('fs');
 
   const errObj = {
     code: 'ERR_INVALID_CALLBACK',
-    name: 'TypeError'
+    name: 'TypeError',
   };
 
   ['', false, null, {}, []].forEach((input) => {

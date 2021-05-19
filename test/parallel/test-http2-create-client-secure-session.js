@@ -31,7 +31,7 @@ function onStream(stream, headers) {
   stream.respond({ 'content-type': 'application/json' });
   stream.end(JSON.stringify({
     servername: socket.servername,
-    alpnProtocol: socket.alpnProtocol
+    alpnProtocol: socket.alpnProtocol,
   }));
 }
 

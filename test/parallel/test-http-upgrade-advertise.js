@@ -28,7 +28,7 @@ function fire() {
   const req = http.request({
     port: server.address().port,
     path: '/',
-    headers: test.headers
+    headers: test.headers,
   }, function onResponse(res) {
     res.resume();
     done('regular');
@@ -52,7 +52,7 @@ function fire() {
 const server = http.createServer(function(req, res) {
   res.writeHead(200, {
     Connection: 'upgrade, keep-alive',
-    Upgrade: 'h2c'
+    Upgrade: 'h2c',
   });
   res.end('hello world');
 }).on('upgrade', function(req, socket) {

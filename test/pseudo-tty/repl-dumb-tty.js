@@ -25,7 +25,7 @@ process.stdin.push('.exit\n');
     terminal: true,
     input: stream,
     output: process.stdout,
-    useColors: false
+    useColors: false,
   });
 
   replServer.on('close', common.mustCall());

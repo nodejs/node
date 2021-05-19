@@ -46,7 +46,7 @@ function createServer() {
   const server = tls.createServer({
     key: fixtures.readKey('agent1-key.pem'),
     cert: fixtures.readKey('agent1-cert.pem'),
-    ticketKeys: keys
+    ticketKeys: keys,
   }, function(c) {
     serverLog.push(id);
     // TODO(@sam-github) Triggers close_notify before NewSessionTicket bug.
@@ -120,7 +120,7 @@ function start(callback) {
   function connect() {
     s = tls.connect(shared.address().port, {
       session: sess,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     }, function() {
       if (s.isSessionReused())
         ticketLog.push(s.getTLSTicket().toString('hex'));

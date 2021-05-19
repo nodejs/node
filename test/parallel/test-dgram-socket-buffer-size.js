@@ -9,7 +9,7 @@ const { internalBinding } = require('internal/test/binding');
 const {
   UV_EBADF,
   UV_EINVAL,
-  UV_ENOTSOCK
+  UV_ENOTSOCK,
 } = internalBinding('uv');
 
 function getExpectedError(type) {
@@ -28,8 +28,8 @@ function getExpectedError(type) {
       code,
       message,
       errno,
-      syscall
-    }
+      syscall,
+    },
   };
   return error;
 }
@@ -85,7 +85,7 @@ function getExpectedError(type) {
   const errorObj = {
     code: 'ERR_SOCKET_BAD_BUFFER_SIZE',
     name: 'TypeError',
-    message: /^Buffer size must be a positive integer$/
+    message: /^Buffer size must be a positive integer$/,
   };
 
   const badBufferSizes = [-1, Infinity, 'Doh!'];
@@ -127,14 +127,14 @@ function getExpectedError(type) {
     code: 'EINVAL',
     message: 'invalid argument',
     errno: UV_EINVAL,
-    syscall: 'uv_recv_buffer_size'
+    syscall: 'uv_recv_buffer_size',
   };
   const errorObj = {
     code: 'ERR_SOCKET_BUFFER_SIZE',
     name: 'SystemError',
     message: 'Could not get or set buffer size: uv_recv_buffer_size ' +
              'returned EINVAL (invalid argument)',
-    info
+    info,
   };
   const socket = dgram.createSocket('udp4');
   socket.bind(common.mustCall(() => {
@@ -150,14 +150,14 @@ function getExpectedError(type) {
     code: 'EINVAL',
     message: 'invalid argument',
     errno: UV_EINVAL,
-    syscall: 'uv_send_buffer_size'
+    syscall: 'uv_send_buffer_size',
   };
   const errorObj = {
     code: 'ERR_SOCKET_BUFFER_SIZE',
     name: 'SystemError',
     message: 'Could not get or set buffer size: uv_send_buffer_size ' +
              'returned EINVAL (invalid argument)',
-    info
+    info,
   };
   const socket = dgram.createSocket('udp4');
   socket.bind(common.mustCall(() => {

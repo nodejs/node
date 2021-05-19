@@ -2,10 +2,10 @@
 'use strict';
 
 const {
-  expectWarning
+  expectWarning,
 } = require('../common');
 const {
-  _setSimultaneousAccepts
+  _setSimultaneousAccepts,
 } = require('net');
 
 expectWarning(

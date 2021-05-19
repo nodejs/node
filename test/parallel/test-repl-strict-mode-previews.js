@@ -25,10 +25,10 @@ if (process.argv[2] === 'child') {
       write(chunk, _, next) {
         console.log(chunk.toString());
         next();
-      }
+      },
     }),
     useColors: false,
-    terminal: true
+    terminal: true,
   }).inputStream.run('xyz');
 } else {
   const assert = require('assert');

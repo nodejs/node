@@ -12,7 +12,7 @@ const keepAliveAgent = new http.Agent({ keepAlive: true });
 server.listen(0, common.mustCall(() => {
   const req = http.get({
     port: server.address().port,
-    agent: keepAliveAgent
+    agent: keepAliveAgent,
   });
 
   req

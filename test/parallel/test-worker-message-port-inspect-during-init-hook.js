@@ -13,7 +13,7 @@ async_hooks.createHook({
     assert.strictEqual(
       util.inspect(resource),
       'MessagePort [EventTarget] { active: true, refed: false }');
-  }, 2)
+  }, 2),
 }).enable();
 
 const { port1 } = new MessageChannel();

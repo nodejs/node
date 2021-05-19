@@ -27,7 +27,7 @@ async function testSimpleDestroy() {
     const readable = fs.createReadStream(filename);
     const rli = readline.createInterface({
       input: readable,
-      crlfDelay: Infinity
+      crlfDelay: Infinity,
     });
 
     const iteratedLines = [];
@@ -58,7 +58,7 @@ async function testMutualDestroy() {
     const readable = fs.createReadStream(filename);
     const rli = readline.createInterface({
       input: readable,
-      crlfDelay: Infinity
+      crlfDelay: Infinity,
     });
 
     const expectedLines = fileContent.split('\n');

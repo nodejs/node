@@ -47,7 +47,7 @@ server.listen(0, function() {
   const req = http.request({
     port: this.address().port,
     path: '/',
-    method: 'POST'
+    method: 'POST',
   }, function(res) {
     console.log(res.statusCode);
     res.resume();

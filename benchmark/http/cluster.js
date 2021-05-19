@@ -34,7 +34,7 @@ function main({ type, len, c, duration }) {
       bench.http({
         path: path,
         connections: c,
-        duration
+        duration,
       }, () => {
         w1.destroy();
         w2.destroy();

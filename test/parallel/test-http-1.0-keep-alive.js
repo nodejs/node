@@ -31,19 +31,19 @@ check([{
     expectClose: true,
     data: 'POST / HTTP/1.0\r\n' +
           'Connection: keep-alive\r\n' +
-          '\r\n'
+          '\r\n',
   }, {
     expectClose: true,
     data: 'POST / HTTP/1.0\r\n' +
           'Connection: keep-alive\r\n' +
-          '\r\n'
+          '\r\n',
   }],
   responses: [{
     headers: { 'Connection': 'keep-alive' },
-    chunks: ['OK']
+    chunks: ['OK'],
   }, {
-    chunks: []
-  }]
+    chunks: [],
+  }],
 }, {
   name: 'keep-alive, with TE: chunked',
   requests: [{
@@ -51,56 +51,56 @@ check([{
     data: 'POST / HTTP/1.0\r\n' +
           'Connection: keep-alive\r\n' +
           'TE: chunked\r\n' +
-          '\r\n'
+          '\r\n',
   }, {
     expectClose: true,
     data: 'POST / HTTP/1.0\r\n' +
-          '\r\n'
+          '\r\n',
   }],
   responses: [{
     headers: { 'Connection': 'keep-alive' },
-    chunks: ['OK']
+    chunks: ['OK'],
   }, {
-    chunks: []
-  }]
+    chunks: [],
+  }],
 }, {
   name: 'keep-alive, with Transfer-Encoding: chunked',
   requests: [{
     expectClose: false,
     data: 'POST / HTTP/1.0\r\n' +
           'Connection: keep-alive\r\n' +
-          '\r\n'
+          '\r\n',
   }, {
     expectClose: true,
     data: 'POST / HTTP/1.0\r\n' +
-          '\r\n'
+          '\r\n',
   }],
   responses: [{
     headers: { 'Connection': 'keep-alive',
                'Transfer-Encoding': 'chunked' },
-    chunks: ['OK']
+    chunks: ['OK'],
   }, {
-    chunks: []
-  }]
+    chunks: [],
+  }],
 }, {
   name: 'keep-alive, with Content-Length',
   requests: [{
     expectClose: false,
     data: 'POST / HTTP/1.0\r\n' +
           'Connection: keep-alive\r\n' +
-          '\r\n'
+          '\r\n',
   }, {
     expectClose: true,
     data: 'POST / HTTP/1.0\r\n' +
-          '\r\n'
+          '\r\n',
   }],
   responses: [{
     headers: { 'Connection': 'keep-alive',
                'Content-Length': '2' },
-    chunks: ['OK']
+    chunks: ['OK'],
   }, {
-    chunks: []
-  }]
+    chunks: [],
+  }],
 }]);
 
 function check(tests) {

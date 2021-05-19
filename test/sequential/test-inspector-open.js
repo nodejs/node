@@ -103,7 +103,7 @@ function beChild() {
         assert.throws(() => {
           inspector.open(0, false, undefined);
         }, {
-          code: 'ERR_INSPECTOR_ALREADY_ACTIVATED'
+          code: 'ERR_INSPECTOR_ALREADY_ACTIVATED',
         });
       } else if (msg.args[0] === kReOpen) {
         inspector.open(0, false, undefined);

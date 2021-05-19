@@ -86,7 +86,7 @@ function test(decode, uncork, multi, next) {
       return {
         encoding: chunk.encoding,
         chunk: Buffer.isBuffer(chunk.chunk) ?
-          Array.prototype.slice.call(chunk.chunk) : chunk.chunk
+          Array.prototype.slice.call(chunk.chunk) : chunk.chunk,
       };
     });
     cb();
@@ -124,7 +124,7 @@ function test(decode, uncork, multi, next) {
   const w = new stream.Writable({
     writev: common.mustCall(function(chunks, cb) {
       cb();
-    })
+    }),
   });
   w.write('asd', common.mustCall());
 }

@@ -10,7 +10,7 @@ const iter = 10;
 
 const server = tls.createServer({
   key: fixtures.readKey('agent2-key.pem'),
-  cert: fixtures.readKey('agent2-cert.pem')
+  cert: fixtures.readKey('agent2-cert.pem'),
 }, common.mustCall((socket) => {
   let str = '';
   socket.setEncoding('utf-8');
@@ -25,7 +25,7 @@ const server = tls.createServer({
 server.listen(0, common.mustCall(() => {
   const client = tls.connect({
     port: server.address().port,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall(() => {
     assert.strictEqual(client.bufferSize, 0);
 

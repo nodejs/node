@@ -39,7 +39,7 @@ const fixtures = require('../common/fixtures');
 
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 };
 
 
@@ -68,7 +68,7 @@ server.listen(0, common.mustCall(function() {
   console.log('1) Making Request');
   https.get({
     port: this.address().port,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall(function(res) {
     let bodyBuffer = '';
 

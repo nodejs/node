@@ -45,7 +45,7 @@ async function testEncryptNoEncrypt({ keyBuffer, algorithm, plaintext }) {
     ['decrypt']);
 
   return assert.rejects(subtle.encrypt(algorithm, key, plaintext), {
-    message: /The requested operation is not valid for the provided key/
+    message: /The requested operation is not valid for the provided key/,
   });
 }
 
@@ -60,7 +60,7 @@ async function testEncryptNoDecrypt({ keyBuffer, algorithm, plaintext }) {
   const output = await subtle.encrypt(algorithm, key, plaintext);
 
   return assert.rejects(subtle.decrypt(algorithm, key, output), {
-    message: /The requested operation is not valid for the provided key/
+    message: /The requested operation is not valid for the provided key/,
   });
 }
 
@@ -74,7 +74,7 @@ async function testEncryptWrongAlg({ keyBuffer, algorithm, plaintext }, alg) {
     ['encrypt']);
 
   return assert.rejects(subtle.encrypt(algorithm, key, plaintext), {
-    message: /The requested operation is not valid for the provided key/
+    message: /The requested operation is not valid for the provided key/,
   });
 }
 
@@ -94,7 +94,7 @@ async function testDecrypt({ keyBuffer, algorithm, result }) {
   const {
     passing,
     failing,
-    decryptionFailing
+    decryptionFailing,
   } = require('../fixtures/crypto/aes_cbc')();
 
   (async function() {
@@ -109,16 +109,16 @@ async function testDecrypt({ keyBuffer, algorithm, result }) {
 
     failing.forEach((vector) => {
       variations.push(assert.rejects(testEncrypt(vector), {
-        message: /algorithm\.iv must contain exactly 16 bytes/
+        message: /algorithm\.iv must contain exactly 16 bytes/,
       }));
       variations.push(assert.rejects(testDecrypt(vector), {
-        message: /algorithm\.iv must contain exactly 16 bytes/
+        message: /algorithm\.iv must contain exactly 16 bytes/,
       }));
     });
 
     decryptionFailing.forEach((vector) => {
       variations.push(assert.rejects(testDecrypt(vector), {
-        message: /bad decrypt/
+        message: /bad decrypt/,
       }));
     });
 
@@ -131,7 +131,7 @@ async function testDecrypt({ keyBuffer, algorithm, result }) {
   const {
     passing,
     failing,
-    decryptionFailing
+    decryptionFailing,
   } = require('../fixtures/crypto/aes_ctr')();
 
   (async function() {
@@ -148,16 +148,16 @@ async function testDecrypt({ keyBuffer, algorithm, result }) {
     // make them consistent
     failing.forEach((vector) => {
       variations.push(assert.rejects(testEncrypt(vector), {
-        message: /.*/
+        message: /.*/,
       }));
       variations.push(assert.rejects(testDecrypt(vector), {
-        message: /.*/
+        message: /.*/,
       }));
     });
 
     decryptionFailing.forEach((vector) => {
       variations.push(assert.rejects(testDecrypt(vector), {
-        message: /bad decrypt/
+        message: /bad decrypt/,
       }));
     });
 
@@ -170,7 +170,7 @@ async function testDecrypt({ keyBuffer, algorithm, result }) {
   const {
     passing,
     failing,
-    decryptionFailing
+    decryptionFailing,
   } = require('../fixtures/crypto/aes_gcm')();
 
   (async function() {
@@ -185,16 +185,16 @@ async function testDecrypt({ keyBuffer, algorithm, result }) {
 
     failing.forEach((vector) => {
       variations.push(assert.rejects(testEncrypt(vector), {
-        message: /is not a valid AES-GCM tag length/
+        message: /is not a valid AES-GCM tag length/,
       }));
       variations.push(assert.rejects(testDecrypt(vector), {
-        message: /is not a valid AES-GCM tag length/
+        message: /is not a valid AES-GCM tag length/,
       }));
     });
 
     decryptionFailing.forEach((vector) => {
       variations.push(assert.rejects(testDecrypt(vector), {
-        message: /bad decrypt/
+        message: /bad decrypt/,
       }));
     });
 
@@ -221,7 +221,7 @@ async function testDecrypt({ keyBuffer, algorithm, result }) {
         name: 'AES-GCM',
         iv,
         additionalData: aad,
-        tagLength: 128
+        tagLength: 128,
       },
       secretKey,
       getRandomValues(new Uint8Array(32))

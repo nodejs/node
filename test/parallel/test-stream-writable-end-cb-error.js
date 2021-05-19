@@ -54,7 +54,7 @@ const stream = require('stream');
     },
     finish(callback) {
       setImmediate(callback);
-    }
+    },
   });
   w.end('testing ended state', common.mustCall((err) => {
     // This errors since .destroy(err), which is invoked by errors

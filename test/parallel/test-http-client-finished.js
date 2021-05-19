@@ -12,7 +12,7 @@ const { finished } = require('stream');
 
   server.listen(0, common.mustCall(function() {
     http.request({
-      port: this.address().port
+      port: this.address().port,
     })
     .on('response', (res) => {
       res.on('readable', () => {

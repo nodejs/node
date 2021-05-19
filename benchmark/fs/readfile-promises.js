@@ -16,7 +16,7 @@ const filename = path.resolve(tmpdir.path,
 const bench = common.createBenchmark(main, {
   duration: [5],
   len: [1024, 16 * 1024 * 1024],
-  concurrent: [1, 10]
+  concurrent: [1, 10],
 });
 
 function main({ len, duration, concurrent }) {

@@ -3,7 +3,7 @@ require('../common');
 const assert = require('assert');
 const {
   AsyncLocalStorage,
-  executionAsyncResource
+  executionAsyncResource,
 } = require('async_hooks');
 
 const asyncLocalStorage = new AsyncLocalStorage();

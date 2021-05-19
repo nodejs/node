@@ -28,7 +28,7 @@ assert.throws(() => {
   vm.createContext('string is not supported');
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
-  name: 'TypeError'
+  name: 'TypeError',
 });
 
 // Should not throw.

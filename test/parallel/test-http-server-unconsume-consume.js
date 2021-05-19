@@ -14,6 +14,6 @@ testServer.on('connect', common.mustCall((req, socket, head) => {
 testServer.listen(0, common.mustCall(() => {
   http.request({
     port: testServer.address().port,
-    method: 'CONNECT'
+    method: 'CONNECT',
   }, (res) => {}).end();
 }));

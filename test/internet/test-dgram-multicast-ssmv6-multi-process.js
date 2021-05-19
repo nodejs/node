@@ -189,7 +189,7 @@ if (process.argv[2] === 'child') {
   const receivedMessages = [];
   const listenSocket = dgram.createSocket({
     type: 'udp6',
-    reuseAddr: true
+    reuseAddr: true,
   });
 
   listenSocket.on('listening', function() {

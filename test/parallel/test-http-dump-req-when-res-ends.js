@@ -34,7 +34,7 @@ const server = http.createServer(mustCall(function(req, res) {
 server.listen(0, mustCall(function() {
   const req = http.request({
     method: 'POST',
-    port: server.address().port
+    port: server.address().port,
   });
 
   // Send the http request without waiting

@@ -37,5 +37,5 @@ new RuleTester().run('lowercase-name-for-primitive', rule, {
       ],
       output: "new e.TypeError('ERR_INVALID_ARG_TYPE', a, ['string','number'])",
     },
-  ]
+  ],
 });

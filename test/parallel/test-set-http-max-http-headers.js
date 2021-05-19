@@ -34,7 +34,7 @@ test(function(cb) {
   console.log('running subtest expecting success');
 
   const env = Object.assign({}, process.env, {
-    NODE_DEBUG: 'http'
+    NODE_DEBUG: 'http',
   });
 
   // Validate that the test now passes if the same limit is large enough.
@@ -44,7 +44,7 @@ test(function(cb) {
                 '1024'];
   const cp = spawn(process.execPath, args, {
     env,
-    stdio: 'inherit'
+    stdio: 'inherit',
   });
 
   cp.on('close', common.mustCall((code, signal) => {
@@ -57,7 +57,7 @@ test(function(cb) {
 // Next, repeat the same checks using NODE_OPTIONS if it is supported.
 if (!process.config.variables.node_without_node_options) {
   const env = Object.assign({}, process.env, {
-    NODE_OPTIONS: '--max-http-header-size=1024'
+    NODE_OPTIONS: '--max-http-header-size=1024',
   });
 
   test(function(cb) {

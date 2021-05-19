@@ -53,7 +53,7 @@ assert.throws(
   {
     code: 'ERR_ASSERTION',
     constructor: assert.AssertionError,
-    message: 'undefined does not inherit from CustomWritable'
+    message: 'undefined does not inherit from CustomWritable',
   }
 );
 

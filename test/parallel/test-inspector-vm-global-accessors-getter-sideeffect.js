@@ -16,13 +16,13 @@ const context = vm.createContext({
   get a() {
     global.foo = '1';
     return 100;
-  }
+  },
 });
 
 session.post('Runtime.evaluate', {
   expression: 'a',
   throwOnSideEffect: true,
-  contextId: 2 // context's id
+  contextId: 2, // context's id
 }, (error, res) => {
   assert.ifError(error);
   const { exception } = res.exceptionDetails;

@@ -175,7 +175,7 @@ function nextdir() {
     require.resolve('../fixtures/v8-coverage/basic'),
   ], {
     cwd: tmpdir.path,
-    env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory }
+    env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory },
   });
   if (output.status !== 0) {
     console.log(output.stderr.toString());

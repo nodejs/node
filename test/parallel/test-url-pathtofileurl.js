@@ -29,12 +29,12 @@ const url = require('url');
 
     // Missing server:
     assert.throws(() => url.pathToFileURL('\\\\\\no-server'), {
-      code: 'ERR_INVALID_ARG_VALUE'
+      code: 'ERR_INVALID_ARG_VALUE',
     });
 
     // Missing share or resource:
     assert.throws(() => url.pathToFileURL('\\\\host'), {
-      code: 'ERR_INVALID_ARG_VALUE'
+      code: 'ERR_INVALID_ARG_VALUE',
     });
   } else {
     // UNC paths on posix are considered a single path that has backslashes:

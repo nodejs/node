@@ -94,7 +94,7 @@ test1({
     open: common.mustCall(fs.open),
     read: common.mustCallAtLeast(fs.read, 1),
     close: common.mustCall(fs.close),
-  }
+  },
 });
 
 {
@@ -160,7 +160,7 @@ assert.throws(
     code: 'ERR_OUT_OF_RANGE',
     message: 'The value of "start" is out of range. It must be <= "end"' +
              ' (here: 2). Received 10',
-    name: 'RangeError'
+    name: 'RangeError',
   });
 
 {

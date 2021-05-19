@@ -9,7 +9,7 @@ const { Readable, Writable, Transform } = require('stream');
     read: common.mustCall(() => {
       stream.push(undefined);
       stream.push(null);
-    })
+    }),
   });
 
   stream.on('data', common.mustCall((chunk) => {
@@ -22,7 +22,7 @@ const { Readable, Writable, Transform } = require('stream');
     objectMode: true,
     write: common.mustCall((chunk) => {
       assert.strictEqual(chunk, undefined);
-    })
+    }),
   });
 
   stream.write(undefined);
@@ -33,7 +33,7 @@ const { Readable, Writable, Transform } = require('stream');
     objectMode: true,
     transform: common.mustCall((chunk) => {
       stream.push(chunk);
-    })
+    }),
   });
 
   stream.on('data', common.mustCall((chunk) => {

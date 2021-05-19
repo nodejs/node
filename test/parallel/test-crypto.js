@@ -28,7 +28,7 @@ if (!common.hasCrypto)
 common.expectWarning({
   DeprecationWarning: [
     ['crypto.createCipher is deprecated.', 'DEP0106'],
-  ]
+  ],
 });
 
 const assert = require('assert');
@@ -97,7 +97,7 @@ assert.throws(
   () => crypto.createHash('sha1').update({ foo: 'bar' }),
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError'
+    name: 'TypeError',
   });
 
 
@@ -228,7 +228,7 @@ assert.throws(() => {
     library: 'rsa routines',
     function: 'RSA_sign',
     reason: 'digest too big for rsa key',
-    code: 'ERR_OSSL_RSA_DIGEST_TOO_BIG_FOR_RSA_KEY'
+    code: 'ERR_OSSL_RSA_DIGEST_TOO_BIG_FOR_RSA_KEY',
   });
   return true;
 });
@@ -305,9 +305,9 @@ testEncoding(undefined, assertionHashUtf8);
 testEncoding({}, assertionHashUtf8);
 
 testEncoding({
-  defaultEncoding: 'utf8'
+  defaultEncoding: 'utf8',
 }, assertionHashUtf8);
 
 testEncoding({
-  defaultEncoding: 'latin1'
+  defaultEncoding: 'latin1',
 }, assertionHashLatin1);

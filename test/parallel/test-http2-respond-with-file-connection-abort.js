@@ -8,14 +8,14 @@ const http2 = require('http2');
 const net = require('net');
 
 const {
-  HTTP2_HEADER_CONTENT_TYPE
+  HTTP2_HEADER_CONTENT_TYPE,
 } = http2.constants;
 
 const server = http2.createServer();
 server.on('stream', common.mustCall((stream) => {
   stream.on('error', (err) => assert.strictEqual(err.code, 'ECONNRESET'));
   stream.respondWithFile(process.execPath, {
-    [HTTP2_HEADER_CONTENT_TYPE]: 'application/octet-stream'
+    [HTTP2_HEADER_CONTENT_TYPE]: 'application/octet-stream',
   });
 }));
 

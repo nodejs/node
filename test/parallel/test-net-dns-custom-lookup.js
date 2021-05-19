@@ -16,7 +16,7 @@ function check(addressType, cb) {
       port: this.address().port,
       host: 'localhost',
       family: addressType,
-      lookup: lookup
+      lookup: lookup,
     }).on('lookup', common.mustCall(function(err, ip, type) {
       assert.strictEqual(err, null);
       assert.strictEqual(address, ip);
@@ -49,6 +49,6 @@ check(4, function() {
     port: 80,
     lookup(host, dnsopts, cb) {
       cb(null, undefined, 4);
-    }
+    },
   }).on('error', common.expectsError({ code: 'ERR_INVALID_IP_ADDRESS' }));
 }

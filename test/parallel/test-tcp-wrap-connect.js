@@ -6,7 +6,7 @@ const { internalBinding } = require('internal/test/binding');
 const {
   TCP,
   constants: TCPConstants,
-  TCPConnectWrap
+  TCPConnectWrap,
 } = internalBinding('tcp_wrap');
 const { ShutdownWrap } = internalBinding('stream_wrap');
 

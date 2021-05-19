@@ -9,7 +9,7 @@ const url = new URL('http://example.com/path');
 assert.throws(() => {
   url.href = '';
 }, {
-  name: 'TypeError'
+  name: 'TypeError',
 });
 
 assert.deepStrictEqual(url, ref);

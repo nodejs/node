@@ -37,7 +37,7 @@ const alternateNames = {
   info: 'log',
   dirxml: 'log',
   error: 'warn',
-  groupCollapsed: 'group'
+  groupCollapsed: 'group',
 };
 
 function assertEqualName(method) {

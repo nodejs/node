@@ -26,7 +26,7 @@ const server = https.createServer({
   key: fixtures.readKey('agent1-key.pem'),
   cert: fixtures.readKey('agent1-cert.pem'),
   ca: fixtures.readKey('ca1-cert.pem'),
-  ServerResponse: MyServerResponse
+  ServerResponse: MyServerResponse,
 }, common.mustCall(function(req, res) {
   res.status(200);
   res.end();
@@ -36,7 +36,7 @@ server.listen();
 server.on('listening', function makeRequest() {
   https.get({
     port: this.address().port,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, (res) => {
     assert.strictEqual(res.statusCode, 200);
     res.on('end', () => {

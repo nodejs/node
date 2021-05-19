@@ -18,7 +18,7 @@ const serverOptions = {
     } else {
       callback(new Error('Invalid SNI context'), null);
     }
-  }
+  },
 };
 
 function test(options) {
@@ -46,11 +46,11 @@ function test(options) {
 test({
   port: undefined,
   servername: 'c.another.com',
-  rejectUnauthorized: false
+  rejectUnauthorized: false,
 });
 
 test({
   port: undefined,
   servername: 'c.wrong.com',
-  rejectUnauthorized: false
+  rejectUnauthorized: false,
 });

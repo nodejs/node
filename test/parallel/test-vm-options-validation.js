@@ -6,12 +6,12 @@ const vm = require('vm');
 
 const invalidArgType = {
   name: 'TypeError',
-  code: 'ERR_INVALID_ARG_TYPE'
+  code: 'ERR_INVALID_ARG_TYPE',
 };
 
 const outOfRange = {
   name: 'RangeError',
-  code: 'ERR_OUT_OF_RANGE'
+  code: 'ERR_OUT_OF_RANGE',
 };
 
 assert.throws(() => {

@@ -38,7 +38,7 @@ tmpdir.refresh();
 
 {
   const s = fs.createWriteStream(path.join(tmpdir.path, 'rw'), {
-    autoClose: false
+    autoClose: false,
   });
 
   s.close(common.mustCall());

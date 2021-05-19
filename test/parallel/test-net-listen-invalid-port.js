@@ -23,7 +23,7 @@ assert.throws(() => {
   net.Server().listen({ port: invalidPort }, common.mustNotCall());
 }, {
   code: 'ERR_SOCKET_BAD_PORT',
-  name: 'RangeError'
+  name: 'RangeError',
 });
 
 // The first argument is the port, no IP given.
@@ -31,7 +31,7 @@ assert.throws(() => {
   net.Server().listen(invalidPort, common.mustNotCall());
 }, {
   code: 'ERR_SOCKET_BAD_PORT',
-  name: 'RangeError'
+  name: 'RangeError',
 });
 
 // The first argument is the port, the second an IP.
@@ -39,5 +39,5 @@ assert.throws(() => {
   net.Server().listen(invalidPort, '0.0.0.0', common.mustNotCall());
 }, {
   code: 'ERR_SOCKET_BAD_PORT',
-  name: 'RangeError'
+  name: 'RangeError',
 });

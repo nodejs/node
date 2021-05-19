@@ -13,7 +13,7 @@ server.listen(0, common.mustCall(async () => {
   const options = {
     port: port,
     host: host,
-    _agentKey: agent.getName({ port, host })
+    _agentKey: agent.getName({ port, host }),
   };
 
   async function postCreateConnection() {

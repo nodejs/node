@@ -33,7 +33,7 @@ const fixtures = require('../common/fixtures');
 const options = {
   key: fixtures.readKey('agent2-key.pem'),
   cert: fixtures.readKey('agent2-cert.pem'),
-  honorCipherOrder: true
+  honorCipherOrder: true,
 };
 
 let clients = 0;
@@ -48,7 +48,7 @@ server.listen(0, '127.0.0.1', common.mustCall(function() {
     host: '127.0.0.1',
     port: this.address().port,
     ciphers: 'AES128-SHA256',
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall(function() {
     const cipher = this.getCipher();
     assert.strictEqual(cipher.name, 'AES128-SHA256');
@@ -62,7 +62,7 @@ server.listen(0, '127.0.0.1', common.mustCall(function() {
     host: '127.0.0.1',
     port: this.address().port,
     ciphers: 'ECDHE-RSA-AES128-GCM-SHA256',
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall(function() {
     const cipher = this.getCipher();
     assert.strictEqual(cipher.name, 'ECDHE-RSA-AES128-GCM-SHA256');
@@ -85,7 +85,7 @@ tls.createServer({
     port: this.address().port,
     ciphers: 'TLS_AES_128_CCM_8_SHA256',
     maxVersion: 'TLSv1.3',
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall(() => {
     const cipher = client.getCipher();
     assert.strictEqual(cipher.name, 'TLS_AES_128_CCM_8_SHA256');

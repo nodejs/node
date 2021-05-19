@@ -24,20 +24,20 @@ if (mkfifo.error && mkfifo.error.code === 'ENOENT') {
 const server = http2.createServer();
 server.on('stream', (stream) => {
   stream.respondWithFile(pipeName, {
-    'content-type': 'text/plain'
+    'content-type': 'text/plain',
   }, {
     offset: 10,
     onError(err) {
       common.expectsError({
         code: 'ERR_HTTP2_SEND_FILE_NOSEEK',
         name: 'Error',
-        message: 'Offset or length can only be specified for regular files'
+        message: 'Offset or length can only be specified for regular files',
       })(err);
 
       stream.respond({ ':status': 404 });
       stream.end();
     },
-    statCheck: common.mustNotCall()
+    statCheck: common.mustNotCall(),
   });
 });
 server.listen(0, () => {

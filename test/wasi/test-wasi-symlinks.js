@@ -14,8 +14,8 @@ if (process.argv[2] === 'wasi-child') {
     args: [],
     env: process.env,
     preopens: {
-      '/sandbox': process.argv[4]
-    }
+      '/sandbox': process.argv[4],
+    },
   });
   const importObject = { wasi_snapshot_preview1: wasi.wasiImport };
   const modulePath = path.join(wasmDir, `${process.argv[3]}.wasm`);

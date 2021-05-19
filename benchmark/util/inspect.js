@@ -6,7 +6,7 @@ const common = require('../common.js');
 const opts = {
   showHidden: { showHidden: true },
   colors: { colors: true },
-  none: undefined
+  none: undefined,
 };
 const bench = common.createBenchmark(main, {
   n: [2e4],
@@ -25,7 +25,7 @@ const bench = common.createBenchmark(main, {
     'TypedArray_extra',
     'Number',
   ],
-  option: Object.keys(opts)
+  option: Object.keys(opts),
 });
 
 function benchmark(n, obj, options) {

@@ -35,7 +35,7 @@ const initOnlyHook = async_hooks.createHook({
     lastAsyncId = asyncId;
     lastTriggerAsyncId = triggerAsyncId;
     lastResource = resource;
-  }
+  },
 }).enable();
 
 // Check that no PromiseWrap is created when only using an init hook.
@@ -59,7 +59,7 @@ const hookWithDestroy = async_hooks.createHook({
 
   destroy() {
 
-  }
+  },
 }).enable();
 
 // Check that the internal field returns the same PromiseWrap passed to init().
@@ -90,7 +90,7 @@ setImmediate(() => {
 
     before() {},
     after() {},
-    resolve() {}
+    resolve() {},
   }).enable();
 
   // Check that no PromiseWrap is created when there is no destroy hook.

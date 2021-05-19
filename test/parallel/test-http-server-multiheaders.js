@@ -75,6 +75,6 @@ server.listen(0, function() {
       ['constructor', 'foo'],
       ['constructor', 'bar'],
       ['constructor', 'baz'],
-    ]
+    ],
   });
 });

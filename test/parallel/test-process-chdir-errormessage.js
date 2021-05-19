@@ -15,6 +15,6 @@ assert.throws(
     message: /ENOENT: no such file or directory, chdir .+ -> 'does-not-exist'/,
     path: process.cwd(),
     syscall: 'chdir',
-    dest: 'does-not-exist'
+    dest: 'does-not-exist',
   }
 );

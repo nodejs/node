@@ -5,8 +5,8 @@ const {
   createHash,
   webcrypto: {
     subtle,
-    getRandomValues
-  }
+    getRandomValues,
+  },
 } = require('crypto');
 
 const bench = common.createBenchmark(main, {
@@ -20,7 +20,7 @@ const kMethods = {
   'SHA-1': 'sha1',
   'SHA-256': 'sha256',
   'SHA-384': 'sha384',
-  'SHA-512': 'sha512'
+  'SHA-512': 'sha512',
 };
 
 // This benchmark only looks at clock time and ignores factors

@@ -28,7 +28,7 @@ console.error('beginning');
 try {
   vm.runInThisContext('throw new Error("boo!")', {
     filename: 'test.vm',
-    displayErrors: false
+    displayErrors: false,
   });
 } catch {}
 
@@ -36,7 +36,7 @@ console.error('middle');
 
 vm.runInThisContext('throw new Error("boo!")', {
   filename: 'test.vm',
-  displayErrors: false
+  displayErrors: false,
 });
 
 console.error('end');

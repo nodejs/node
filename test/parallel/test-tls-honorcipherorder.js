@@ -35,7 +35,7 @@ function test(honorCipherOrder, clientCipher, expectedCipher, defaultCiphers) {
   server.listen(0, localhost, mustCall(function() {
     const coptions = {
       rejectUnauthorized: false,
-      secureProtocol: SSL_Method
+      secureProtocol: SSL_Method,
     };
     if (clientCipher) {
       coptions.ciphers = clientCipher;

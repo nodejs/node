@@ -4,7 +4,7 @@ const {
   hijackStdout,
   hijackStderr,
   restoreStdout,
-  restoreStderr
+  restoreStderr,
 } = require('../common/hijackstdio');
 
 const assert = require('assert');
@@ -202,7 +202,7 @@ function teardown() {
       },
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        name: 'TypeError'
+        name: 'TypeError',
       }
     );
   });

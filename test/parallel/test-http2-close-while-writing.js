@@ -16,7 +16,7 @@ const ca = fixtures.readKey('fake-startcom-root-cert.pem', 'binary');
 const server = http2.createSecureServer({
   key,
   cert,
-  maxSessionMemory: 1000
+  maxSessionMemory: 1000,
 });
 
 let client_stream;
@@ -34,7 +34,7 @@ server.on('session', common.mustCall(function(session) {
 server.listen(0, function() {
   const client = http2.connect(`https://localhost:${server.address().port}`, {
     ca,
-    maxSessionMemory: 1000
+    maxSessionMemory: 1000,
   });
   client_stream = client.request({ ':method': 'POST' });
   client_stream.on('close', common.mustCall(() => {

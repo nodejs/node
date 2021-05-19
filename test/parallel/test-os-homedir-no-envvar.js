@@ -23,7 +23,7 @@ if (process.argv[2] === 'child') {
     delete process.env.HOME;
 
   const child = cp.spawnSync(process.execPath, [__filename, 'child'], {
-    env: process.env
+    env: process.env,
   });
 
   assert.strictEqual(child.status, 0);

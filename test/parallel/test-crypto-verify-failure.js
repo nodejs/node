@@ -33,7 +33,7 @@ const certPem = fixtures.readKey('rsa_cert.crt');
 
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 };
 
 const server = tls.Server(options, (socket) => {
@@ -54,7 +54,7 @@ function verify() {
 server.listen(0, common.mustCall(() => {
   tls.connect({
     port: server.address().port,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall(() => {
     verify();
   }))

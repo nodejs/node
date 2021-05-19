@@ -49,10 +49,10 @@ for (let n = 0; n < 130; n++) {
   testMatch(randomUUID({ disableEntropyCache: true }));
 
   assert.throws(() => randomUUID(1), {
-    code: 'ERR_INVALID_ARG_TYPE'
+    code: 'ERR_INVALID_ARG_TYPE',
   });
 
   assert.throws(() => randomUUID({ disableEntropyCache: '' }), {
-    code: 'ERR_INVALID_ARG_TYPE'
+    code: 'ERR_INVALID_ARG_TYPE',
   });
 }

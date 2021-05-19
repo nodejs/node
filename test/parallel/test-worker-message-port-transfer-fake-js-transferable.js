@@ -9,7 +9,7 @@ const { once } = require('events');
 // not enable loading arbitrary code from the disk.
 
 module.exports = {
-  NotARealClass: common.mustNotCall()
+  NotARealClass: common.mustNotCall(),
 };
 
 (async function() {
@@ -22,7 +22,7 @@ module.exports = {
   fh[kTransfer] = () => {
     return {
       data: '✨',
-      deserializeInfo: `${__filename}:NotARealClass`
+      deserializeInfo: `${__filename}:NotARealClass`,
     };
   };
 

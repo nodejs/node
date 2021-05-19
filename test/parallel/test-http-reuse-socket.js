@@ -30,7 +30,7 @@ function nextRequest() {
     port: server.address().port,
     path: '/',
     agent: agent,
-    method: methods.shift()
+    method: methods.shift(),
   }, common.mustCall((response) => {
     response.on('end', common.mustCall(() => {
       if (countdown.dec()) {

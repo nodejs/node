@@ -16,7 +16,7 @@ server.listen(0, common.mustCall(function() {
     const expected = {
       version: '2.0',
       httpVersionMajor: 2,
-      httpVersionMinor: 0
+      httpVersionMinor: 0,
     };
 
     assert.strictEqual(request.httpVersion, expected.version);
@@ -42,7 +42,7 @@ server.listen(0, common.mustCall(function() {
       ':path': '/foobar',
       ':method': 'GET',
       ':scheme': 'http',
-      ':authority': `localhost:${port}`
+      ':authority': `localhost:${port}`,
     };
     const request = client.request(headers);
     request.on('end', common.mustCall(function() {

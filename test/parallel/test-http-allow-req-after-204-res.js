@@ -42,7 +42,7 @@ function nextRequest() {
 
   const request = http.get({
     port: server.address().port,
-    path: '/'
+    path: '/',
   }, common.mustCall((response) => {
     response.on('end', common.mustCall(() => {
       if (countdown.dec()) {

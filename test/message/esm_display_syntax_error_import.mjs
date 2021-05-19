@@ -2,5 +2,5 @@
 import '../common/index.mjs';
 import {
   foo,
-  notfound
+  notfound,
 } from '../fixtures/es-module-loaders/module-named-exports.mjs';

@@ -59,7 +59,7 @@ assert.throws(
   () => crypto.pbkdf2('password', 'salt', 1, 20, 'sha1'),
   {
     code: 'ERR_INVALID_CALLBACK',
-    name: 'TypeError'
+    name: 'TypeError',
   }
 );
 
@@ -70,7 +70,7 @@ for (const iterations of [-1, 0]) {
       code: 'ERR_OUT_OF_RANGE',
       name: 'RangeError',
       message: 'The value of "iterations" is out of range. ' +
-               `It must be >= 1 && < 4294967296. Received ${iterations}`
+               `It must be >= 1 && < 4294967296. Received ${iterations}`,
     }
   );
 }
@@ -83,7 +83,7 @@ for (const iterations of [-1, 0]) {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
       message: 'The "keylen" argument must be of type number.' +
-               `${common.invalidArgTypeHelper(notNumber)}`
+               `${common.invalidArgTypeHelper(notNumber)}`,
     });
 });
 
@@ -96,7 +96,7 @@ for (const iterations of [-1, 0]) {
       code: 'ERR_OUT_OF_RANGE',
       name: 'RangeError',
       message: 'The value of "keylen" is out of range. It ' +
-               `must be an integer. Received ${input}`
+               `must be an integer. Received ${input}`,
     });
 });
 
@@ -109,7 +109,7 @@ for (const iterations of [-1, 0]) {
       code: 'ERR_OUT_OF_RANGE',
       name: 'RangeError',
       message: 'The value of "keylen" is out of range. It must be >= 0 && < ' +
-               `4294967296. Received ${input === -1 ? '-1' : '4_294_967_297'}`
+               `4294967296. Received ${input === -1 ? '-1' : '4_294_967_297'}`,
     });
 });
 
@@ -123,7 +123,7 @@ assert.throws(
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
     message: 'The "digest" argument must be of type string. ' +
-             'Received undefined'
+             'Received undefined',
   });
 
 assert.throws(
@@ -132,7 +132,7 @@ assert.throws(
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
     message: 'The "digest" argument must be of type string. ' +
-             'Received undefined'
+             'Received undefined',
   });
 
 assert.throws(
@@ -141,7 +141,7 @@ assert.throws(
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
     message: 'The "digest" argument must be of type string. ' +
-             'Received null'
+             'Received null',
   });
 [1, {}, [], true, undefined, null].forEach((input) => {
   assert.throws(
@@ -184,7 +184,7 @@ assert.throws(
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: `The "iterations" argument must be of type number.${received}`
+      message: `The "iterations" argument must be of type number.${received}`,
     }
   );
 
@@ -193,7 +193,7 @@ assert.throws(
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: `The "iterations" argument must be of type number.${received}`
+      message: `The "iterations" argument must be of type number.${received}`,
     }
   );
 });
@@ -210,7 +210,7 @@ assert.throws(
   {
     code: 'ERR_CRYPTO_INVALID_DIGEST',
     name: 'TypeError',
-    message: 'Invalid digest: md55'
+    message: 'Invalid digest: md55',
   }
 );
 
@@ -219,7 +219,7 @@ assert.throws(
   {
     code: 'ERR_CRYPTO_INVALID_DIGEST',
     name: 'TypeError',
-    message: 'Invalid digest: md55'
+    message: 'Invalid digest: md55',
   }
 );
 
@@ -239,7 +239,7 @@ if (!common.hasOpenSSL3) {
     {
       code: 'ERR_CRYPTO_INVALID_DIGEST',
       name: 'TypeError',
-      message: 'Invalid digest: %'
+      message: 'Invalid digest: %',
     }
   );
 }

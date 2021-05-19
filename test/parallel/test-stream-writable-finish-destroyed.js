@@ -9,7 +9,7 @@ const { Writable } = require('stream');
       w.on('close', common.mustCall(() => {
         cb();
       }));
-    })
+    }),
   });
 
   w.on('finish', common.mustNotCall());
@@ -24,7 +24,7 @@ const { Writable } = require('stream');
         cb();
         w.end();
       }));
-    })
+    }),
   });
 
   w.on('finish', common.mustNotCall());

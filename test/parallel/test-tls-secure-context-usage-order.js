@@ -25,13 +25,13 @@ const serverOptions = {
 const badSecureContext = {
   key: loadPEM('agent1-key'),
   cert: loadPEM('agent1-cert'),
-  ca: [ loadPEM('ca2-cert') ]
+  ca: [ loadPEM('ca2-cert') ],
 };
 
 const goodSecureContext = {
   key: loadPEM('agent1-key'),
   cert: loadPEM('agent1-cert'),
-  ca: [ loadPEM('ca1-cert') ]
+  ca: [ loadPEM('ca1-cert') ],
 };
 
 const server = tls.createServer(serverOptions, (c) => {

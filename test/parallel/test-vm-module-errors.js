@@ -19,7 +19,7 @@ async function checkArgType() {
     new SourceTextModule();
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError'
+    name: 'TypeError',
   });
 
   for (const invalidOptions of [
@@ -30,7 +30,7 @@ async function checkArgType() {
       new SourceTextModule('', invalidOptions);
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError'
+      name: 'TypeError',
     });
   }
 
@@ -42,7 +42,7 @@ async function checkArgType() {
       await m.link(invalidLinker);
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError'
+      name: 'TypeError',
     });
   }
 }
@@ -55,7 +55,7 @@ async function checkModuleState() {
     assert.strictEqual(m.status, 'linked');
     await m.link(common.mustNotCall());
   }, {
-    code: 'ERR_VM_MODULE_ALREADY_LINKED'
+    code: 'ERR_VM_MODULE_ALREADY_LINKED',
   });
 
   await assert.rejects(async () => {
@@ -64,7 +64,7 @@ async function checkModuleState() {
     assert.strictEqual(m.status, 'linking');
     await m.link(common.mustNotCall());
   }, {
-    code: 'ERR_VM_MODULE_STATUS'
+    code: 'ERR_VM_MODULE_STATUS',
   });
 
   await assert.rejects(async () => {
@@ -72,7 +72,7 @@ async function checkModuleState() {
     await m.evaluate();
   }, {
     code: 'ERR_VM_MODULE_STATUS',
-    message: 'Module status must be one of linked, evaluated, or errored'
+    message: 'Module status must be one of linked, evaluated, or errored',
   });
 
   await assert.rejects(async () => {
@@ -81,7 +81,7 @@ async function checkModuleState() {
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
     message: 'The "options" argument must be of type object. ' +
-             'Received type boolean (false)'
+             'Received type boolean (false)',
   });
 
   assert.throws(() => {
@@ -89,7 +89,7 @@ async function checkModuleState() {
     m.error; // eslint-disable-line no-unused-expressions
   }, {
     code: 'ERR_VM_MODULE_STATUS',
-    message: 'Module status must be errored'
+    message: 'Module status must be errored',
   });
 
   await assert.rejects(async () => {
@@ -98,7 +98,7 @@ async function checkModuleState() {
     m.error; // eslint-disable-line no-unused-expressions
   }, {
     code: 'ERR_VM_MODULE_STATUS',
-    message: 'Module status must be errored'
+    message: 'Module status must be errored',
   });
 
   assert.throws(() => {
@@ -106,7 +106,7 @@ async function checkModuleState() {
     m.namespace; // eslint-disable-line no-unused-expressions
   }, {
     code: 'ERR_VM_MODULE_STATUS',
-    message: 'Module status must not be unlinked or linking'
+    message: 'Module status must not be unlinked or linking',
   });
 }
 
@@ -121,7 +121,7 @@ async function checkLinking() {
       throw err;
     }
   }, {
-    code: 'ERR_VM_MODULE_NOT_MODULE'
+    code: 'ERR_VM_MODULE_NOT_MODULE',
   });
 
   await assert.rejects(async () => {
@@ -136,7 +136,7 @@ async function checkLinking() {
       throw err;
     }
   }, {
-    code: 'ERR_VM_MODULE_DIFFERENT_CONTEXT'
+    code: 'ERR_VM_MODULE_DIFFERENT_CONTEXT',
   });
 
   await assert.rejects(async () => {
@@ -152,19 +152,19 @@ async function checkLinking() {
     const rootModule = new SourceTextModule('import "errored";');
     await rootModule.link(common.mustCall(() => erroredModule));
   }, {
-    code: 'ERR_VM_MODULE_LINKING_ERRORED'
+    code: 'ERR_VM_MODULE_LINKING_ERRORED',
   });
 }
 
 assert.throws(() => {
   new SourceTextModule('', {
-    importModuleDynamically: 'hucairz'
+    importModuleDynamically: 'hucairz',
   });
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   name: 'TypeError',
   message: 'The "options.importModuleDynamically" property must be of type ' +
-    "function. Received type string ('hucairz')"
+    "function. Received type string ('hucairz')",
 });
 
 // Check the JavaScript engine deals with exceptions correctly
@@ -203,7 +203,7 @@ async function checkInvalidOptionForEvaluate() {
     message:
       'The "options.breakOnSigint" property must be of type boolean. ' +
       "Received type string ('a-string')",
-    code: 'ERR_INVALID_ARG_TYPE'
+    code: 'ERR_INVALID_ARG_TYPE',
   });
 
   {
@@ -212,7 +212,7 @@ async function checkInvalidOptionForEvaluate() {
         await Module.prototype[method]();
       }, {
         code: 'ERR_VM_MODULE_NOT_MODULE',
-        message: /Provided module is not an instance of Module/
+        message: /Provided module is not an instance of Module/,
       });
     });
   }
@@ -237,7 +237,7 @@ function checkInvalidCachedData() {
 function checkGettersErrors() {
   const expectedError = {
     code: 'ERR_VM_MODULE_NOT_MODULE',
-    message: /Provided module is not an instance of Module/
+    message: /Provided module is not an instance of Module/,
   };
   const getters = ['identifier', 'context', 'namespace', 'status', 'error'];
   getters.forEach((getter) => {

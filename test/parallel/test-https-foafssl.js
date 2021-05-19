@@ -36,7 +36,7 @@ const options = {
   key: fixtures.readKey('rsa_private.pem'),
   cert: fixtures.readKey('rsa_cert.crt'),
   requestCert: true,
-  rejectUnauthorized: false
+  rejectUnauthorized: false,
 };
 
 const webIdUrl = 'URI:http://example.com/#me';

@@ -35,7 +35,7 @@ const assert = require('assert');
   const w = new Writable({
     write(chunk, encoding, cb) {
       cb();
-    }
+    },
   });
 
   w.end();
@@ -48,7 +48,7 @@ const assert = require('assert');
   const w = new Writable({
     write(chunk, encoding, cb) {
       cb();
-    }
+    },
   });
 
   let sync = true;
@@ -68,7 +68,7 @@ const assert = require('assert');
     },
     final(cb) {
       cb();
-    }
+    },
   });
 
   let sync = true;
@@ -91,7 +91,7 @@ const assert = require('assert');
     final: common.mustCall((cb) => {
       assert.strictEqual(sync, true);
       cb();
-    })
+    }),
   });
 
   w.end();

@@ -58,7 +58,7 @@ class FakeAgent extends http.Agent {
 let received = '';
 
 const req = http.request({
-  agent: new FakeAgent()
+  agent: new FakeAgent(),
 }, common.mustCall(function requestCallback(res) {
   res.on('data', function dataCallback(chunk) {
     received += chunk;

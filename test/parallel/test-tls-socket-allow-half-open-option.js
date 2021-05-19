@@ -23,7 +23,7 @@ const tls = require('tls');
   // `stream.Duplex`.
   const duplex = new stream.Duplex({
     allowHalfOpen: false,
-    read() {}
+    read() {},
   });
   const socket = new tls.TLSSocket(duplex, { allowHalfOpen: true });
   assert.strictEqual(socket.allowHalfOpen, false);

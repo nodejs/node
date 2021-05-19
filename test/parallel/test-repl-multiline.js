@@ -17,7 +17,7 @@ function run({ useColors }) {
     input: inputStream,
     output: outputStream,
     terminal: true,
-    useColors
+    useColors,
   });
 
   r.on('exit', common.mustCall(() => {

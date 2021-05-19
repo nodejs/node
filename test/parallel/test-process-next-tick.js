@@ -45,7 +45,7 @@ process.on('exit', function() {
     {
       code: 'ERR_INVALID_CALLBACK',
       name: 'TypeError',
-      message: `Callback must be a function. Received ${inspect(i)}`
+      message: `Callback must be a function. Received ${inspect(i)}`,
     }
   );
 });

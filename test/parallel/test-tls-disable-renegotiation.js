@@ -23,7 +23,7 @@ const server = tls.Server(options, common.mustCall((socket) => {
     common.expectsError({
       name: 'Error',
       code: 'ERR_TLS_RENEGOTIATION_DISABLED',
-      message: 'TLS session renegotiation disabled for this socket'
+      message: 'TLS session renegotiation disabled for this socket',
     })(err);
     socket.destroy();
     server.close();
@@ -46,7 +46,7 @@ server.listen(0, common.mustCall(() => {
   const port = server.address().port;
   const options = {
     rejectUnauthorized: false,
-    port
+    port,
   };
   const client = tls.connect(options, common.mustCall(() => {
 

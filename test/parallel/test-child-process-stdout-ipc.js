@@ -10,7 +10,7 @@ if (process.argv[2] === 'child') {
 }
 
 const proc = spawn(process.execPath, [__filename, 'child'], {
-  stdio: ['inherit', 'ipc', 'inherit']
+  stdio: ['inherit', 'ipc', 'inherit'],
 });
 
 proc.on('exit', common.mustCall(function(code) {

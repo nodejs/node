@@ -77,15 +77,15 @@ function checkMethods(certificate) {
   if (!skip) {
     assert.throws(
       () => Certificate.verifySpkac(buf), {
-        code: 'ERR_OUT_OF_RANGE'
+        code: 'ERR_OUT_OF_RANGE',
       });
     assert.throws(
       () => Certificate.exportChallenge(buf), {
-        code: 'ERR_OUT_OF_RANGE'
+        code: 'ERR_OUT_OF_RANGE',
       });
     assert.throws(
       () => Certificate.exportPublicKey(buf), {
-        code: 'ERR_OUT_OF_RANGE'
+        code: 'ERR_OUT_OF_RANGE',
       });
   }
 }

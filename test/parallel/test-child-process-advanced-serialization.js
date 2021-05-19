@@ -13,7 +13,7 @@ if (process.argv[2] !== 'child') {
       code: 'ERR_INVALID_ARG_VALUE',
       message: "The property 'options.serialization' " +
         "must be one of: undefined, 'json', 'advanced'. " +
-        `Received ${inspect(value)}`
+        `Received ${inspect(value)}`,
     });
   }
 
@@ -21,7 +21,7 @@ if (process.argv[2] !== 'child') {
     const cp = child_process.spawn(process.execPath, [__filename, 'child'],
                                    {
                                      stdio: ['ipc', 'inherit', 'inherit'],
-                                     serialization: 'advanced'
+                                     serialization: 'advanced',
                                    });
 
     const circular = {};

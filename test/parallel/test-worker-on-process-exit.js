@@ -9,7 +9,7 @@ const { Worker } = require('worker_threads');
 
 if (process.argv[2] !== 'child') {
   const {
-    stdout, stderr, status
+    stdout, stderr, status,
   } = spawnSync(process.execPath, [__filename, 'child'], { encoding: 'utf8' });
   assert.strictEqual(stderr, '');
   assert.strictEqual(stdout, '');

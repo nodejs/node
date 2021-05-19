@@ -20,14 +20,14 @@ const results = {
   modules: [],
   classes: [],
   globals: [],
-  methods: []
+  methods: [],
 };
 
 // Identify files that should be skipped. As files are processed, they
 // are added to this list to prevent dupes.
 const seen = {
   'all.json': true,
-  'index.json': true
+  'index.json': true,
 };
 
 // Extract (and concatenate) the selected data from each document.

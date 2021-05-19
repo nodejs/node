@@ -4,7 +4,7 @@ const common = require('../common');
 const assert = require('assert');
 const vm = require('vm');
 const {
-  MessagePort, MessageChannel, moveMessagePortToContext
+  MessagePort, MessageChannel, moveMessagePortToContext,
 } = require('worker_threads');
 
 const context = vm.createContext();
@@ -15,7 +15,7 @@ Object.assign(context, {
   global: context,
   assert,
   MessagePort,
-  MessageChannel
+  MessageChannel,
 });
 
 vm.runInContext('(' + function() {

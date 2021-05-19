@@ -19,7 +19,7 @@ server.listen(0, common.mustCall(function() {
       ':path': '/foobar',
       ':method': 'GET',
       ':scheme': 'http',
-      'host': `localhost:${port}`
+      'host': `localhost:${port}`,
     };
 
     assert.strictEqual(request.authority, expected.host);
@@ -51,7 +51,7 @@ server.listen(0, common.mustCall(function() {
       ':path': '/foobar',
       ':method': 'GET',
       ':scheme': 'http',
-      'host': `localhost:${port}`
+      'host': `localhost:${port}`,
     };
     const request = client.request(headers);
     request.on('end', common.mustCall(function() {

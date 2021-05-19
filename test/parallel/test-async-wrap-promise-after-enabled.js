@@ -27,7 +27,7 @@ const hooks = async_hooks.createHook({
     assert.ok(id > 1);
     seenEvents.push('after');
     hooks.disable();
-  })
+  }),
 });
 
 setImmediate(() => {

@@ -9,7 +9,7 @@ const assert = require('assert');
 
 const {
   generateKeyPairSync,
-  webcrypto: { subtle }
+  webcrypto: { subtle },
 } = require('crypto');
 
 // X25519 and X448 are ECDH named curves that should work
@@ -20,7 +20,7 @@ async function generateKeys(namedCurve, ...usages) {
   return subtle.generateKey(
     {
       name: 'ECDH',
-      namedCurve
+      namedCurve,
     },
     true,
     usages);
@@ -58,10 +58,10 @@ async function importKey(namedCurve, keyData, isPublic = false) {
 }
 
 assert.rejects(importKey('NODE-X25519', Buffer.alloc(10), true), {
-  message: /NODE-X25519 raw keys must be exactly 32-bytes/
+  message: /NODE-X25519 raw keys must be exactly 32-bytes/,
 }).then(common.mustCall());
 assert.rejects(importKey('NODE-X448', Buffer.alloc(10), true), {
-  message: /NODE-X448 raw keys must be exactly 56-bytes/
+  message: /NODE-X448 raw keys must be exactly 56-bytes/,
 }).then(common.mustCall());
 
 async function test1(namedCurve) {
@@ -229,24 +229,24 @@ assert.rejects(
   subtle.generateKey(
     {
       name: 'ECDH',
-      namedCurve: 'NODE-ED25519'
+      namedCurve: 'NODE-ED25519',
     },
     true,
     ['deriveBits']),
   {
-    message: /Unsupported named curves for ECDH/
+    message: /Unsupported named curves for ECDH/,
   }).then(common.mustCall());
 
 assert.rejects(
   subtle.generateKey(
     {
       name: 'ECDH',
-      namedCurve: 'NODE-ED448'
+      namedCurve: 'NODE-ED448',
     },
     true,
     ['deriveBits']),
   {
-    message: /Unsupported named curves for ECDH/
+    message: /Unsupported named curves for ECDH/,
   }).then(common.mustCall());
 
 {
@@ -257,11 +257,11 @@ assert.rejects(
       crv: 'X25519',
       d: '8CE-XY7cvbR-Pu7mILHq8YZ4hLGAA2-RD01he5q2wUA',
       x: '42IbTo34ZYANub5o42547vB6OxdEd44ztwZewoRch0Q',
-      kty: 'OKP'
+      kty: 'OKP',
     },
     {
       name: 'ECDH',
-      namedCurve: 'NODE-X25519'
+      namedCurve: 'NODE-X25519',
     },
     true,
     ['deriveBits']).then(common.mustCall(), common.mustNotCall());
@@ -272,11 +272,11 @@ assert.rejects(
     {
       crv: 'X25519',
       x: '42IbTo34ZYANub5o42547vB6OxdEd44ztwZewoRch0Q',
-      kty: 'OKP'
+      kty: 'OKP',
     },
     {
       name: 'ECDH',
-      namedCurve: 'NODE-X25519'
+      namedCurve: 'NODE-X25519',
     },
     true,
     []).then(common.mustCall(), common.mustNotCall());

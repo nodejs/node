@@ -79,7 +79,7 @@ function test() {
 
   // Also verify that symlinks works for setting preserve via env variables
   const childEnv = spawn(node, [linkScript], {
-    env: { ...process.env, NODE_PRESERVE_SYMLINKS: '1' }
+    env: { ...process.env, NODE_PRESERVE_SYMLINKS: '1' },
   });
   childEnv.on('close', function(code, signal) {
     assert.strictEqual(code, 0);
@@ -89,7 +89,7 @@ function test() {
   // Also verify that symlinks works for setting preserve via env variables in
   // Workers.
   const worker = new Worker(linkScript, {
-    env: { ...process.env, NODE_PRESERVE_SYMLINKS: '1' }
+    env: { ...process.env, NODE_PRESERVE_SYMLINKS: '1' },
   });
   worker.on('error', (err) => {
     console.log('Worker failed');
@@ -103,7 +103,7 @@ function test() {
   // Workers with explicit execArgv.
   const workerArgv = new Worker(linkScript, {
     execArgv: [],
-    env: { ...process.env, NODE_PRESERVE_SYMLINKS: '1' }
+    env: { ...process.env, NODE_PRESERVE_SYMLINKS: '1' },
   });
   workerArgv.on('error', (err) => {
     console.log('Worker with execArgv failed');

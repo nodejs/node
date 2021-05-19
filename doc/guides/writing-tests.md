@@ -46,7 +46,7 @@ const server = http.createServer(common.mustCall((req, res) => {       // 11
 server.listen(0, () => {                                               // 14
   http.get({                                                           // 15
     port: server.address().port,                                       // 16
-    headers: { 'Test': 'Düsseldorf' }                                  // 17
+    headers: { 'Test': 'Düsseldorf' },                                  // 17
   }, common.mustCall((res) => {                                        // 18
     assert.strictEqual(res.statusCode, 200);                           // 19
     server.close();                                                    // 20
@@ -116,7 +116,7 @@ const server = http.createServer(common.mustCall((req, res) => {
 server.listen(0, () => {
   http.get({
     port: server.address().port,
-    headers: { 'Test': 'Düsseldorf' }
+    headers: { 'Test': 'Düsseldorf' },
   }, common.mustCall((res) => {
     assert.strictEqual(res.statusCode, 200);
     server.close();
@@ -192,7 +192,7 @@ const server = http.createServer((req, res) => {
   listening++;
   const options = {
     agent: null,
-    port: server.address().port
+    port: server.address().port,
   };
   http.get(options, (res) => {
     response++;
@@ -214,7 +214,7 @@ const server = http.createServer(common.mustCall((req, res) => {
 })).listen(0, common.mustCall(() => {
   const options = {
     agent: null,
-    port: server.address().port
+    port: server.address().port,
   };
   http.get(options, common.mustCall((res) => {
     res.resume();

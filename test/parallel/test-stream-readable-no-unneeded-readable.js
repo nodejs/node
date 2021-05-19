@@ -32,7 +32,7 @@ function test(r) {
 
 {
   const source = new Readable({
-    read: () => {}
+    read: () => {},
   });
   source.push('foo');
   source.push('bar');

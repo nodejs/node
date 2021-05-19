@@ -13,7 +13,7 @@ const test = {
   iv: Buffer.alloc(0),
   plaintext: '32|RmVZZkFUVmpRRkp0TmJaUm56ZU9qcnJkaXNNWVNpTTU*|iXmckfRWZBG' +
     'WWELweCBsThSsfUHLeRe0KCsK8ooHgxie0zOINpXxfZi/oNG7uq9JWFVCk70gfzQH8ZU' +
-    'JjAfaFg**'
+    'JjAfaFg**',
 };
 
 const cipher = crypto.createCipheriv('des3-wrap', test.key, test.iv);

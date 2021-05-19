@@ -150,7 +150,7 @@ const hostObject = new (internalBinding('js_stream').JSStream)();
 {
   assert.throws(() => v8.serialize(hostObject), {
     constructor: Error,
-    message: 'Unserializable host object: JSStream {}'
+    message: 'Unserializable host object: JSStream {}',
   });
 }
 
@@ -185,12 +185,12 @@ const hostObject = new (internalBinding('js_stream').JSStream)();
   assert.throws(() => v8.Serializer(), {
     constructor: TypeError,
     message: "Class constructor Serializer cannot be invoked without 'new'",
-    code: 'ERR_CONSTRUCT_CALL_REQUIRED'
+    code: 'ERR_CONSTRUCT_CALL_REQUIRED',
   });
   assert.throws(() => v8.Deserializer(), {
     constructor: TypeError,
     message: "Class constructor Deserializer cannot be invoked without 'new'",
-    code: 'ERR_CONSTRUCT_CALL_REQUIRED'
+    code: 'ERR_CONSTRUCT_CALL_REQUIRED',
   });
 }
 

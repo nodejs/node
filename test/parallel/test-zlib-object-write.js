@@ -10,5 +10,5 @@ assert.throws(() => {
   gunzip.write({});
 }, {
   name: 'TypeError',
-  code: 'ERR_INVALID_ARG_TYPE'
+  code: 'ERR_INVALID_ARG_TYPE',
 });

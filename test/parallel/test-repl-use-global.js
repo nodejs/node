@@ -71,7 +71,7 @@ function runRepl(useGlobal, testFunc, cb) {
     useGlobal: useGlobal,
     useColors: false,
     terminal: false,
-    prompt: ''
+    prompt: '',
   };
 
   repl.createInternalRepl(

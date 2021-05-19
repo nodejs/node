@@ -33,7 +33,7 @@ function runTest() {
 }
 
 dns.lookup('localhost', {
-  family: 6, all: true
+  family: 6, all: true,
 }, common.mustCall((err, addresses) => {
   if (err) {
     if (err.code === 'ENOTFOUND' || err.code === 'EAI_AGAIN')

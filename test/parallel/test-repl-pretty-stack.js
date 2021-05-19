@@ -21,7 +21,7 @@ function run({ command, expected, ...extraREPLOptions }, i) {
     output: outputStream,
     terminal: false,
     useColors: false,
-    ...extraREPLOptions
+    ...extraREPLOptions,
   });
 
   r.write(`${command}\n`);
@@ -39,16 +39,16 @@ const tests = [
     command: `.load ${fixtures.path('repl-pretty-stack.js')}`,
     expected: 'Uncaught Error: Whoops!\n    at REPL1:*:*\n' +
               '    at d (REPL1:*:*)\n    at c (REPL1:*:*)\n' +
-              '    at b (REPL1:*:*)\n    at a (REPL1:*:*)\n'
+              '    at b (REPL1:*:*)\n    at a (REPL1:*:*)\n',
   },
   {
     command: 'let x y;',
     expected: 'let x y;\n      ^\n\n' +
-              'Uncaught SyntaxError: Unexpected identifier\n'
+              'Uncaught SyntaxError: Unexpected identifier\n',
   },
   {
     command: 'throw new Error(\'Whoops!\')',
-    expected: 'Uncaught Error: Whoops!\n'
+    expected: 'Uncaught Error: Whoops!\n',
   },
   {
     command: '(() => { const err = Error(\'Whoops!\'); ' +
@@ -60,16 +60,16 @@ const tests = [
              'err.foo = \'bar\'; throw err; })()',
     expected: 'Uncaught Error: Whoops!\n    at REPL5:*:* {\n  foo: ' +
               "\u001b[32m'bar'\u001b[39m\n}\n",
-    useColors: true
+    useColors: true,
   },
   {
     command: 'foo = bar;',
-    expected: 'Uncaught ReferenceError: bar is not defined\n'
+    expected: 'Uncaught ReferenceError: bar is not defined\n',
   },
   // Test anonymous IIFE.
   {
     command: '(function() { throw new Error(\'Whoops!\'); })()',
-    expected: 'Uncaught Error: Whoops!\n    at REPL7:*:*\n'
+    expected: 'Uncaught Error: Whoops!\n    at REPL7:*:*\n',
   },
 ];
 

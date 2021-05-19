@@ -22,7 +22,7 @@ async_hooks.createHook({
   after: common.mustNotCall(),
   destroy: common.mustCall((id) => {
     assert.strictEqual(seenId, id);
-  })
+  }),
 }).enable();
 
 const immediate = setImmediate(common.mustNotCall());

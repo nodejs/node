@@ -46,7 +46,7 @@ server.listen(0, common.mustCall(() => {
   // Unref destroyed client
   {
     const client = http2.connect(`http://localhost:${port}`, {
-      createConnection: common.mustCall(() => clientSide)
+      createConnection: common.mustCall(() => clientSide),
     });
 
     client.on('connect', common.mustCall(() => {

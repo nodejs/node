@@ -52,7 +52,7 @@ const url = require('url');
 
   const options = {
     key: fixtures.readKey('agent3-key.pem'),
-    cert: fixtures.readKey('agent3-cert.pem')
+    cert: fixtures.readKey('agent3-cert.pem'),
   };
 
   const server = h2.createSecureServer(options);

@@ -31,7 +31,7 @@ const net = require('net');
 
   assert.throws(() => server.listen(), {
     code: 'ERR_SERVER_ALREADY_LISTEN',
-    name: 'Error'
+    name: 'Error',
   });
 }
 

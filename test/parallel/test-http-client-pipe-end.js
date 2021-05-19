@@ -42,7 +42,7 @@ server.listen(common.PIPE, function() {
     socketPath: common.PIPE,
     headers: { 'Content-Length': '1' },
     method: 'POST',
-    path: '/'
+    path: '/',
   });
 
   req.write('.');

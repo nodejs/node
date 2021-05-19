@@ -15,7 +15,7 @@ const tests = {
   'ascii': [0x74, 0x3f, 0x73, 0x74, 0x20, 0x3f],
   'ucs2': [0x74, 0x00, 0x1b, 0x01, 0x73,
            0x00, 0x74, 0x00, 0x20, 0x00,
-           0x15, 0x26]
+           0x15, 0x26],
 };
 
 for (const test in tests) {
@@ -47,7 +47,7 @@ assert.throws(
     name: 'TypeError',
     code: 'ERR_INVALID_ARG_TYPE',
     message: 'The "source" argument must be an instance of Buffer ' +
-             'or Uint8Array. Received null'
+             'or Uint8Array. Received null',
   }
 );
 

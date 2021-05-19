@@ -7,13 +7,13 @@ const bench = common.createBenchmark(main, {
   size: [512, 4096, 16386],
   type: ['fast'],
   method: ['for', 'forOf', 'iterator'],
-  n: [1e3]
+  n: [1e3],
 });
 
 const methods = {
   'for': benchFor,
   'forOf': benchForOf,
-  'iterator': benchIterator
+  'iterator': benchIterator,
 };
 
 function main({ size, type, method, n }) {

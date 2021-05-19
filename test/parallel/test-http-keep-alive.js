@@ -39,7 +39,7 @@ let name;
 server.listen(0, common.mustCall(function() {
   name = agent.getName({ port: this.address().port });
   http.get({
-    path: '/', headers: headers, port: this.address().port, agent: agent
+    path: '/', headers: headers, port: this.address().port, agent: agent,
   }, common.mustCall((response) => {
     assert.strictEqual(agent.sockets[name].length, 1);
     assert.strictEqual(agent.requests[name].length, 2);
@@ -47,7 +47,7 @@ server.listen(0, common.mustCall(function() {
   }));
 
   http.get({
-    path: '/', headers: headers, port: this.address().port, agent: agent
+    path: '/', headers: headers, port: this.address().port, agent: agent,
   }, common.mustCall((response) => {
     assert.strictEqual(agent.sockets[name].length, 1);
     assert.strictEqual(agent.requests[name].length, 1);
@@ -55,7 +55,7 @@ server.listen(0, common.mustCall(function() {
   }));
 
   http.get({
-    path: '/', headers: headers, port: this.address().port, agent: agent
+    path: '/', headers: headers, port: this.address().port, agent: agent,
   }, common.mustCall((response) => {
     response.on('end', common.mustCall(() => {
       assert.strictEqual(agent.sockets[name].length, 1);

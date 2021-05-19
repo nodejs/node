@@ -122,7 +122,7 @@ function fromArray(list) {
 {
   // Verify that strings can be read as objects
   const r = new Readable({
-    objectMode: true
+    objectMode: true,
   });
   r._read = common.mustNotCall();
   const list = ['one', 'two', 'three'];
@@ -139,7 +139,7 @@ function fromArray(list) {
 {
   // Verify read(0) behavior for object streams
   const r = new Readable({
-    objectMode: true
+    objectMode: true,
   });
   r._read = common.mustNotCall();
 
@@ -154,7 +154,7 @@ function fromArray(list) {
 {
   // Verify the behavior of pushing falsey values
   const r = new Readable({
-    objectMode: true
+    objectMode: true,
   });
   r._read = common.mustNotCall();
 
@@ -172,7 +172,7 @@ function fromArray(list) {
   // Verify high watermark _read() behavior
   const r = new Readable({
     highWaterMark: 6,
-    objectMode: true
+    objectMode: true,
   });
   let calls = 0;
   const list = ['1', '2', '3', '4', '5', '6', '7', '8'];
@@ -203,7 +203,7 @@ function fromArray(list) {
   // Verify high watermark push behavior
   const r = new Readable({
     highWaterMark: 6,
-    objectMode: true
+    objectMode: true,
   });
   r._read = common.mustNotCall();
   for (let i = 0; i < 6; i++) {
@@ -251,7 +251,7 @@ function fromArray(list) {
 {
   // Verify that strings can be written as objects
   const w = new Writable({
-    objectMode: true
+    objectMode: true,
   });
   const list = [];
 
@@ -275,7 +275,7 @@ function fromArray(list) {
 {
   // Verify that stream buffers finish until callback is called
   const w = new Writable({
-    objectMode: true
+    objectMode: true,
   });
   let called = false;
 

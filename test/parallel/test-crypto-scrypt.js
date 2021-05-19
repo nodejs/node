@@ -170,7 +170,7 @@ for (const options of bad) {
 
 for (const options of toobig) {
   const expected = {
-    message: /Invalid scrypt param/
+    message: /Invalid scrypt param/,
   };
   assert.throws(() => crypto.scrypt('pass', 'salt', 1, options, () => {}),
                 expected);
@@ -228,7 +228,7 @@ for (const { args, expected } of badargs) {
 
   // Values that exceed Number.isSafeInteger should not be allowed.
   assert.throws(() => crypto.scryptSync('', '', 0, { maxmem: 2 ** 53 }), {
-    code: 'ERR_OUT_OF_RANGE'
+    code: 'ERR_OUT_OF_RANGE',
   });
 }
 
@@ -243,7 +243,7 @@ for (const { args, expected } of badargs) {
       get [name]() {
         accessCount++;
         return value;
-      }
+      },
     });
 
     // Try to crash the process on the last access.
@@ -253,10 +253,10 @@ for (const { args, expected } of badargs) {
           if (--accessCount === 0)
             return '';
           return value;
-        }
+        },
       });
     }, {
-      code: 'ERR_INVALID_ARG_TYPE'
+      code: 'ERR_INVALID_ARG_TYPE',
     });
   }
 

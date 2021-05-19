@@ -27,7 +27,7 @@ const { PassThrough, Transform } = require('stream');
 {
   // Verify writable side consumption
   const tx = new Transform({
-    highWaterMark: 10
+    highWaterMark: 10,
   });
 
   let transformed = 0;

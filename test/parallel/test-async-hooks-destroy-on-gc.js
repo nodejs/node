@@ -12,7 +12,7 @@ const destroyedIds = new Set();
 async_hooks.createHook({
   destroy: common.mustCallAtLeast((asyncId) => {
     destroyedIds.add(asyncId);
-  }, 1)
+  }, 1),
 }).enable();
 
 let asyncId = null;

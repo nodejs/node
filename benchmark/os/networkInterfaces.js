@@ -4,7 +4,7 @@ const common = require('../common.js');
 const networkInterfaces = require('os').networkInterfaces;
 
 const bench = common.createBenchmark(main, {
-  n: [1e4]
+  n: [1e4],
 });
 
 function main({ n }) {

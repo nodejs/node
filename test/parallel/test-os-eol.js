@@ -18,7 +18,7 @@ Object.defineProperties(os, {
     configurable: true,
     enumerable: true,
     writable: false,
-    value: foo
-  }
+    value: foo,
+  },
 });
 assert.strictEqual(os.EOL, foo);

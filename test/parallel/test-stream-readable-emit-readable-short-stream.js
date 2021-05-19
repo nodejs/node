@@ -9,7 +9,7 @@ const assert = require('assert');
     read: common.mustCall(function() {
       this.push('content');
       this.push(null);
-    })
+    }),
   });
 
   const t = new stream.Transform({
@@ -19,7 +19,7 @@ const assert = require('assert');
     }),
     flush: common.mustCall(function(callback) {
       return callback();
-    })
+    }),
   });
 
   r.pipe(t);
@@ -42,7 +42,7 @@ const assert = require('assert');
     }),
     flush: common.mustCall(function(callback) {
       return callback();
-    })
+    }),
   });
 
   t.end('content');
@@ -65,7 +65,7 @@ const assert = require('assert');
     }),
     flush: common.mustCall(function(callback) {
       return callback();
-    })
+    }),
   });
 
   t.write('content');
@@ -84,7 +84,7 @@ const assert = require('assert');
 {
   const t = new stream.Readable({
     read() {
-    }
+    },
   });
 
   t.on('readable', common.mustCall(function() {
@@ -103,7 +103,7 @@ const assert = require('assert');
 {
   const t = new stream.Readable({
     read() {
-    }
+    },
   });
 
   t.on('readable', common.mustCall(function() {
@@ -129,7 +129,7 @@ const assert = require('assert');
     }),
     flush: common.mustCall(function(callback) {
       return callback();
-    })
+    }),
   });
 
   t.on('readable', common.mustCall(function() {

@@ -13,7 +13,7 @@ const assert = require('assert');
       new TextDecoder(undefined, null).decode(invalidInputType);
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError'
+      name: 'TypeError',
     });
   });
 }

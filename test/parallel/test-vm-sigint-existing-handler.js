@@ -40,7 +40,7 @@ if (process.argv[2] === 'child') {
     () => { vm[method](script, ...args, options); },
     {
       code: 'ERR_SCRIPT_EXECUTION_INTERRUPTED',
-      message: 'Script execution was interrupted by `SIGINT`'
+      message: 'Script execution was interrupted by `SIGINT`',
     });
   assert.strictEqual(firstHandlerCalled, 0);
   assert.strictEqual(onceHandlerCalled, 0);
@@ -73,7 +73,7 @@ if (process.argv[2] === 'child') {
 
 for (const method of methods) {
   const child = spawn(process.execPath, [__filename, 'child', method], {
-    stdio: [null, 'inherit', 'inherit', 'ipc']
+    stdio: [null, 'inherit', 'inherit', 'ipc'],
   });
 
   child.on('message', common.mustCall(() => {

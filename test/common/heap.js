@@ -42,7 +42,7 @@ function createJSHeapSnapshot(stream = getHeapSnapshot()) {
       type,
       to: toNode,
       from: fromNode,
-      name: typeof name_or_index === 'string' ? name_or_index : null
+      name: typeof name_or_index === 'string' ? name_or_index : null,
     };
     toNode.incomingEdges.push(edge);
     fromNode.outgoingEdges.push(edge);
@@ -198,5 +198,5 @@ function validateSnapshotNodes(...args) {
 
 module.exports = {
   recordState,
-  validateSnapshotNodes
+  validateSnapshotNodes,
 };

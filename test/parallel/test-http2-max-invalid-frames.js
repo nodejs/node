@@ -16,7 +16,7 @@ const server = http2.createServer({ maxSessionInvalidFrames });
 server.on('stream', (stream) => {
   stream.respond({
     'content-type': 'text/plain',
-    ':status': 200
+    ':status': 200,
   });
   stream.end('Hello, world!\n');
 });
@@ -25,7 +25,7 @@ server.listen(0, () => {
   const h2header = Buffer.alloc(9);
   const conn = net.connect({
     port: server.address().port,
-    allowHalfOpen: true
+    allowHalfOpen: true,
   });
 
   conn.write('PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n');

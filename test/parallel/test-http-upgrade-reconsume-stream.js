@@ -23,7 +23,7 @@ server.listen(0, common.mustCall(() => {
     port: server.address().port,
     headers: {
       'Connection': 'Upgrade',
-      'Upgrade': 'websocket'
-    }
+      'Upgrade': 'websocket',
+    },
   }).on('error', () => {});
 }));

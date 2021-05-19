@@ -57,13 +57,13 @@ if (cluster.isWorker) {
     ],
     worker_died: [true, 'the worker is still running'],
     worker_exitCode: [EXIT_CODE, 'the worker exited w/ incorrect exitCode'],
-    worker_signalCode: [null, 'the worker exited w/ incorrect signalCode']
+    worker_signalCode: [null, 'the worker exited w/ incorrect signalCode'],
   };
   const results = {
     cluster_emitDisconnect: 0,
     cluster_emitExit: 0,
     worker_emitDisconnect: 0,
-    worker_emitExit: 0
+    worker_emitExit: 0,
   };
 
 

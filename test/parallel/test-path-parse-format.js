@@ -180,7 +180,7 @@ function checkErrors(path) {
       path[method].apply(path, input);
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError'
+      name: 'TypeError',
     });
   });
 }
@@ -220,7 +220,7 @@ function checkFormat(path, testCases) {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
       message: 'The "pathObject" argument must be of type object.' +
-               common.invalidArgTypeHelper(pathObject)
+               common.invalidArgTypeHelper(pathObject),
     });
   });
 }

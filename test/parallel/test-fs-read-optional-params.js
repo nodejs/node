@@ -28,7 +28,7 @@ fs.read(fd, {
   buffer: bufferAsOption,
   offset: 0,
   length: bufferAsOption.length,
-  position: 0
+  position: 0,
 },
         common.mustCall((err, bytesRead, buffer) => {
           assert.strictEqual(bytesRead, expected.length);

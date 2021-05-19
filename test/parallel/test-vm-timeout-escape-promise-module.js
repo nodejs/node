@@ -31,12 +31,12 @@ assert.rejects(async () => {
     {
       context: vm.createContext({
         hrtime,
-        loop
-      }, { microtaskMode: 'afterEvaluate' })
+        loop,
+      }, { microtaskMode: 'afterEvaluate' }),
     });
   await module.link(common.mustNotCall());
   await module.evaluate({ timeout: 5 });
 }, {
   code: 'ERR_SCRIPT_EXECUTION_TIMEOUT',
-  message: 'Script execution timed out after 5ms'
+  message: 'Script execution timed out after 5ms',
 });

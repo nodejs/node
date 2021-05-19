@@ -19,8 +19,8 @@ generateKeyPair('rsa', {
   modulusLength: 2048,
   privateKeyEncoding: {
     type: 'pkcs1',
-    format: 'pem'
-  }
+    format: 'pem',
+  },
 }, (err/* , publicKey, privateKey */) => {
   assert.ifError(err);
 });

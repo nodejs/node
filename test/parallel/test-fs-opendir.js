@@ -30,16 +30,16 @@ function assertDirent(dirent) {
 }
 
 const dirclosedError = {
-  code: 'ERR_DIR_CLOSED'
+  code: 'ERR_DIR_CLOSED',
 };
 
 const dirconcurrentError = {
-  code: 'ERR_DIR_CONCURRENT_OPERATION'
+  code: 'ERR_DIR_CONCURRENT_OPERATION',
 };
 
 const invalidCallbackObj = {
   code: 'ERR_INVALID_CALLBACK',
-  name: 'TypeError'
+  name: 'TypeError',
 };
 
 // Check the opendir Sync version
@@ -105,14 +105,14 @@ fs.opendir(__filename, common.mustCall(function(e) {
     () => fs.opendir(i, common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError'
+      name: 'TypeError',
     }
   );
   assert.throws(
     () => fs.opendirSync(i),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError'
+      name: 'TypeError',
     }
   );
 });
@@ -198,14 +198,14 @@ for (const bufferSize of [-1, 0, 0.5, 1.5, Infinity, NaN]) {
   assert.throws(
     () => fs.opendirSync(testDir, { bufferSize }),
     {
-      code: 'ERR_OUT_OF_RANGE'
+      code: 'ERR_OUT_OF_RANGE',
     });
 }
 for (const bufferSize of ['', '1', null]) {
   assert.throws(
     () => fs.opendirSync(testDir, { bufferSize }),
     {
-      code: 'ERR_INVALID_ARG_TYPE'
+      code: 'ERR_INVALID_ARG_TYPE',
     });
 }
 

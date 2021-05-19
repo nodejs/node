@@ -5,7 +5,7 @@ const {
   hasCrypto,
   hasIPv6,
   skip,
-  expectsError
+  expectsError,
 } = require('../common');
 if (!hasCrypto)
   skip('missing crypto');
@@ -76,7 +76,7 @@ const { connect: tlsConnect } = require('tls');
 {
   const serverOptions = {
     key: fixtures.readKey('agent1-key.pem'),
-    cert: fixtures.readKey('agent1-cert.pem')
+    cert: fixtures.readKey('agent1-cert.pem'),
   };
   const server = createSecureServer(serverOptions);
   server.listen(0, mustCall(() => {
@@ -97,7 +97,7 @@ const { connect: tlsConnect } = require('tls');
     const clientOptions = {
       ALPNProtocols: ['h2'],
       port,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     };
     const socket = tlsConnect(clientOptions, mustCall(onSocketConnect));
   }));
@@ -108,11 +108,11 @@ const { connect: tlsConnect } = require('tls');
   createServer(function() {
     connect(`http://localhost:${this.address().port}`, {
       settings: {
-        maxFrameSize: 1   // An incorrect settings
-      }
+        maxFrameSize: 1,   // An incorrect settings
+      },
     }).on('error', expectsError({
       code: 'ERR_HTTP2_INVALID_SETTING_VALUE',
-      name: 'RangeError'
+      name: 'RangeError',
     }));
   });
 }
@@ -124,7 +124,7 @@ const { connect: tlsConnect } = require('tls');
     connect(authority);
   }, {
     code: 'ERR_HTTP2_UNSUPPORTED_PROTOCOL',
-    name: 'Error'
+    name: 'Error',
   });
 }
 
@@ -157,7 +157,7 @@ if (hasIPv6) {
   server.listen(0, mustCall(() => {
     connect('http://foo.bar', {
       host: 'localhost',
-      port: server.address().port
+      port: server.address().port,
     }, mustCall((session) => {
       session.close();
       server.close();

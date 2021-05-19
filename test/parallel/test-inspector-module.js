@@ -15,7 +15,7 @@ assert.throws(
   {
     code: 'ERR_INSPECTOR_NOT_CONNECTED',
     name: 'Error',
-    message: 'Session is not connected'
+    message: 'Session is not connected',
   }
 );
 
@@ -30,7 +30,7 @@ session.post('Runtime.evaluate', { expression: '2 + 2' });
       name: 'TypeError',
       message:
         'The "method" argument must be of type string.' +
-        common.invalidArgTypeHelper(i)
+        common.invalidArgTypeHelper(i),
     }
   );
 });
@@ -43,7 +43,7 @@ session.post('Runtime.evaluate', { expression: '2 + 2' });
       name: 'TypeError',
       message:
         'The "params" argument must be of type object.' +
-        common.invalidArgTypeHelper(i)
+        common.invalidArgTypeHelper(i),
     }
   );
 });
@@ -54,7 +54,7 @@ session.post('Runtime.evaluate', { expression: '2 + 2' });
     {
       code: 'ERR_INVALID_CALLBACK',
       name: 'TypeError',
-      message: `Callback must be a function. Received ${inspect(i)}`
+      message: `Callback must be a function. Received ${inspect(i)}`,
     }
   );
 });
@@ -64,7 +64,7 @@ assert.throws(
   {
     code: 'ERR_INSPECTOR_ALREADY_CONNECTED',
     name: 'Error',
-    message: 'The inspector session is already connected'
+    message: 'The inspector session is already connected',
   }
 );
 

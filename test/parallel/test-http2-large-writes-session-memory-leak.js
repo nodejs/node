@@ -27,7 +27,7 @@ server.listen(0, common.mustCall(() => {
     servername: 'agent2',
 
     // Set maxSessionMemory to 1MB so the leak causes errors faster.
-    maxSessionMemory: 1
+    maxSessionMemory: 1,
   });
 
   // Repeatedly create a new stream and read the incoming data. Even though we

@@ -16,7 +16,7 @@ const preferredAssertMethod = {
   '===': 'strictEqual',
   '!==': 'notStrictEqual',
   '==': 'equal',
-  '!=': 'notEqual'
+  '!=': 'notEqual',
 };
 
 module.exports = function(context) {
@@ -36,13 +36,13 @@ module.exports = function(context) {
               node,
               `assert.${assertMethod}(${left}, ${right});`
             );
-          }
+          },
         });
       }
-    }
+    },
   };
 };
 
 module.exports.meta = {
-  fixable: 'code'
+  fixable: 'code',
 };

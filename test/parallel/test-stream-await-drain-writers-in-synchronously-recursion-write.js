@@ -3,11 +3,11 @@ const common = require('../common');
 const { PassThrough } = require('stream');
 
 const encode = new PassThrough({
-  highWaterMark: 1
+  highWaterMark: 1,
 });
 
 const decode = new PassThrough({
-  highWaterMark: 1
+  highWaterMark: 1,
 });
 
 const send = common.mustCall((buf) => {

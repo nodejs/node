@@ -12,19 +12,19 @@ const session = new inspector.Session();
 session.connect();
 
 const context = vm.createContext({
-  a: 100
+  a: 100,
 });
 
 session.post('Runtime.evaluate', {
   expression: 'a',
   throwOnSideEffect: true,
-  contextId: 2 // context's id
+  contextId: 2, // context's id
 }, common.mustSucceed((res) => {
   assert.deepStrictEqual(res, {
     result: {
       type: 'number',
       value: context.a,
-      description: '100'
-    }
+      description: '100',
+    },
   });
 }));

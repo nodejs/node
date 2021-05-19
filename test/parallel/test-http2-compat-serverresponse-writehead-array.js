@@ -26,7 +26,7 @@ server.listen(0, common.mustCall(() => {
       ':path': '/',
       ':method': 'GET',
       ':scheme': 'http',
-      ':authority': `localhost:${port}`
+      ':authority': `localhost:${port}`,
     };
     const request = client.request(headers);
     request.on('response', common.mustCall((headers) => {

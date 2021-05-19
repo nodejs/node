@@ -24,8 +24,8 @@ new RuleTester({ parserOptions: { ecmaVersion: 6 } })
         code: 'E(\'ABC\', (arg1, arg2) => `${arg1}${arg2}`);',
         errors: [{
           message: 'Please use a printf-like formatted string that ' +
-                   'util.format can consume.'
-        }]
+                   'util.format can consume.',
+        }],
       },
-    ]
+    ],
   });

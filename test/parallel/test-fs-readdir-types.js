@@ -20,7 +20,7 @@ const types = {
   isCharacterDevice: constants.UV_DIRENT_CHAR,
   isSymbolicLink: constants.UV_DIRENT_LINK,
   isFIFO: constants.UV_DIRENT_FIFO,
-  isSocket: constants.UV_DIRENT_SOCKET
+  isSocket: constants.UV_DIRENT_SOCKET,
 };
 const typeMethods = Object.keys(types);
 
@@ -52,28 +52,28 @@ function assertDirents(dirents) {
 assertDirents(fs.readdirSync(readdirDir, { withFileTypes: true }));
 
 fs.readdir(__filename, {
-  withFileTypes: true
+  withFileTypes: true,
 }, common.mustCall((err) => {
   assert.throws(
     () => { throw err; },
     {
       code: 'ENOTDIR',
       name: 'Error',
-      message: `ENOTDIR: not a directory, scandir '${__filename}'`
+      message: `ENOTDIR: not a directory, scandir '${__filename}'`,
     }
   );
 }));
 
 // Check the readdir async version
 fs.readdir(readdirDir, {
-  withFileTypes: true
+  withFileTypes: true,
 }, common.mustSucceed((dirents) => {
   assertDirents(dirents);
 }));
 
 (async () => {
   const dirents = await fs.promises.readdir(readdirDir, {
-    withFileTypes: true
+    withFileTypes: true,
   });
   assertDirents(dirents);
 })().then(common.mustCall());
@@ -102,7 +102,7 @@ binding.readdir = common.mustCall((path, encoding, types, req, ctx) => {
 }, 2);
 assertDirents(fs.readdirSync(readdirDir, { withFileTypes: true }));
 fs.readdir(readdirDir, {
-  withFileTypes: true
+  withFileTypes: true,
 }, common.mustSucceed((dirents) => {
   assertDirents(dirents);
 }));

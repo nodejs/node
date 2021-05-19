@@ -11,7 +11,7 @@ const fixture = path('is-object.js');
 const r = repl.start({
   input: inputStream,
   output: outputStream,
-  useGlobal: false
+  useGlobal: false,
 });
 
 let output = '';

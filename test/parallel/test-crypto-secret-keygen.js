@@ -7,67 +7,67 @@ const assert = require('assert');
 
 const {
   generateKey,
-  generateKeySync
+  generateKeySync,
 } = require('crypto');
 
 [1, true, [], {}, Infinity, null, undefined].forEach((i) => {
   assert.throws(() => generateKey(i, 1, common.mustNotCall()), {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: /The "type" argument must be /
+    message: /The "type" argument must be /,
   });
   assert.throws(() => generateKeySync(i, 1), {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: /The "type" argument must be /
+    message: /The "type" argument must be /,
   });
 });
 
 ['', true, [], null, undefined].forEach((i) => {
   assert.throws(() => generateKey('aes', i, common.mustNotCall()), {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: /The "options" argument must be /
+    message: /The "options" argument must be /,
   });
   assert.throws(() => generateKeySync('aes', i), {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: /The "options" argument must be /
+    message: /The "options" argument must be /,
   });
 });
 
 ['', true, {}, [], null, undefined].forEach((length) => {
   assert.throws(() => generateKey('hmac', { length }, common.mustNotCall()), {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: /The "options\.length" property must be /
+    message: /The "options\.length" property must be /,
   });
   assert.throws(() => generateKeySync('hmac', { length }), {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: /The "options\.length" property must be /
+    message: /The "options\.length" property must be /,
   });
 });
 
 assert.throws(() => generateKey('aes', { length: 256 }), {
-  code: 'ERR_INVALID_CALLBACK'
+  code: 'ERR_INVALID_CALLBACK',
 });
 
 assert.throws(() => generateKey('hmac', { length: -1 }, common.mustNotCall()), {
-  code: 'ERR_OUT_OF_RANGE'
+  code: 'ERR_OUT_OF_RANGE',
 });
 
 assert.throws(
   () => generateKey('hmac', { length: 2 ** 31 }, common.mustNotCall()), {
-    code: 'ERR_OUT_OF_RANGE'
+    code: 'ERR_OUT_OF_RANGE',
   });
 
 assert.throws(() => generateKeySync('hmac', { length: -1 }), {
-  code: 'ERR_OUT_OF_RANGE'
+  code: 'ERR_OUT_OF_RANGE',
 });
 
 assert.throws(
   () => generateKeySync('hmac', { length: 2 ** 31 }), {
-    code: 'ERR_OUT_OF_RANGE'
+    code: 'ERR_OUT_OF_RANGE',
   });
 
 assert.throws(() => generateKeySync('aes', { length: 123 }), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The property 'options\.length' must be one of: 128, 192, 256/
+  message: /The property 'options\.length' must be one of: 128, 192, 256/,
 });
 
 {
@@ -112,10 +112,10 @@ assert.throws(() => generateKeySync('aes', { length: 123 }), {
 assert.throws(
   () => generateKey('unknown', { length: 123 }, common.mustNotCall()), {
     code: 'ERR_INVALID_ARG_VALUE',
-    message: /The argument 'type' must be a supported key type/
+    message: /The argument 'type' must be a supported key type/,
   });
 
 assert.throws(() => generateKeySync('unknown', { length: 123 }), {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: /The argument 'type' must be a supported key type/
+  message: /The argument 'type' must be a supported key type/,
 });

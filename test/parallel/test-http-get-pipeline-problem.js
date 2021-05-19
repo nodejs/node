@@ -50,7 +50,7 @@ const server = http.Server(function(req, res) {
     res.writeHead(200, {
       'content-type': 'image/jpeg',
       'connection': 'close',
-      'content-length': image.length
+      'content-length': image.length,
     });
     res.end(image);
   }, 1);
@@ -64,7 +64,7 @@ server.listen(0, function() {
 
       const opts = {
         port: server.address().port,
-        headers: { connection: 'close' }
+        headers: { connection: 'close' },
       };
 
       http.get(opts, function(res) {

@@ -10,12 +10,12 @@ const http2 = require('http2');
 const content = fixtures.readSync('person-large.jpg');
 
 const server = http2.createServer({
-  maxSessionMemory: 1000
+  maxSessionMemory: 1000,
 });
 server.on('stream', (stream, headers) => {
   stream.respond({
     'content-type': 'image/jpeg',
-    ':status': 200
+    ':status': 200,
   });
   stream.end(content);
 });

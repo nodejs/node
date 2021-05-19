@@ -30,14 +30,14 @@ server.listen(0, common.mustCall(() => {
   req.on('error', common.expectsError({
     code: 'ERR_HTTP2_ERROR',
     constructor: NghttpError,
-    message: 'Protocol error'
+    message: 'Protocol error',
   }));
 
   client.on('error', common.expectsError({
     code: 'ERR_HTTP2_ERROR',
     constructor: NghttpError,
     name: 'Error',
-    message: 'Protocol error'
+    message: 'Protocol error',
   }));
 
   client.on('close', common.mustCall(() => server.close()));

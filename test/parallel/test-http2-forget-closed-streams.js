@@ -24,9 +24,9 @@ server.on('session', function(session) {
   session.on('stream', function(stream) {
     stream.on('end', common.mustCall(function() {
       this.respond({
-        ':status': 200
+        ':status': 200,
       }, {
-        endStream: true
+        endStream: true,
       });
     }));
     stream.resume();

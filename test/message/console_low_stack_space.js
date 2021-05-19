@@ -4,7 +4,7 @@ const consoleDescriptor = Object.getOwnPropertyDescriptor(global, 'console');
 Object.defineProperty(global, 'console', {
   configurable: true,
   writable: true,
-  value: {}
+  value: {},
 });
 
 require('../common');

@@ -2,7 +2,7 @@
 const common = require('../common');
 const {
   assertDetailedShape,
-  expectExperimentalWarning
+  expectExperimentalWarning,
 } = require('../common/measure-memory');
 const vm = require('vm');
 const assert = require('assert');
@@ -13,7 +13,7 @@ expectExperimentalWarning();
   const count = 10;
   for (let i = 0; i < count; ++i) {
     const context = vm.createContext({
-      test: new Array(100).fill('foo')
+      test: new Array(100).fill('foo'),
     });
     arr.push(context);
   }

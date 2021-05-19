@@ -34,7 +34,7 @@ const fixtures = require('../common/fixtures');
 
 const options = {
   key: fixtures.readKey('agent2-key.pem'),
-  cert: fixtures.readKey('agent2-cert.pem')
+  cert: fixtures.readKey('agent2-cert.pem'),
 };
 
 // create server
@@ -50,7 +50,7 @@ server.listen(0, common.mustCall(function() {
   let tls13;
   const client1 = tls.connect({
     port: this.address().port,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall(() => {
     tls13 = client1.getProtocol() === 'TLSv1.3';
     assert.strictEqual(client1.isSessionReused(), false);

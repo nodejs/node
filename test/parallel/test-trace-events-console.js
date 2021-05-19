@@ -38,7 +38,7 @@ if (process.argv[2] === 'child') {
                          execArgv: [
                            '--trace-event-categories',
                            'node.console',
-                         ]
+                         ],
                        });
 
   proc.once('exit', common.mustCall(async () => {

@@ -35,27 +35,27 @@ async function lookupPositive() {
     {
       stub: getaddrinfoPositive(['::1']),
       factory: () => dnsPromises.lookup('example.com'),
-      expectation: { address: '::1', family: 6 }
+      expectation: { address: '::1', family: 6 },
     },
     {
       stub: getaddrinfoPositive(['127.0.0.1']),
       factory: () => dnsPromises.lookup('example.com'),
-      expectation: { address: '127.0.0.1', family: 4 }
+      expectation: { address: '127.0.0.1', family: 4 },
     },
     {
       stub: getaddrinfoPositive(['127.0.0.1'], { family: 4 }),
       factory: () => dnsPromises.lookup('example.com'),
-      expectation: { address: '127.0.0.1', family: 4 }
+      expectation: { address: '127.0.0.1', family: 4 },
     },
     {
       stub: getaddrinfoPositive(['some-address']),
       factory: () => dnsPromises.lookup('example.com'),
-      expectation: { address: 'some-address', family: 0 }
+      expectation: { address: 'some-address', family: 0 },
     },
     {
       stub: getaddrinfoPositive(['some-address2']),
       factory: () => dnsPromises.lookup('example.com', { family: 6 }),
-      expectation: { address: 'some-address2', family: 6 }
+      expectation: { address: 'some-address2', family: 6 },
     },
   ].forEach(async ({ stub, factory, expectation }) => {
     getaddrinfoStub = stub;
@@ -68,7 +68,7 @@ async function lookupNegative() {
   const expected = {
     code: 'ENOMEM',
     hostname: 'example.com',
-    syscall: 'getaddrinfo'
+    syscall: 'getaddrinfo',
   };
   return assert.rejects(dnsPromises.lookup('example.com'), expected);
 }
@@ -81,7 +81,7 @@ async function lookupallPositive() {
       expectation: [
         { address: '::1', family: 6 },
         { address: '::2', family: 6 },
-      ]
+      ],
     },
     {
       stub: getaddrinfoPositive(['::1', '::2']),
@@ -89,7 +89,7 @@ async function lookupallPositive() {
       expectation: [
         { address: '::1', family: 4 },
         { address: '::2', family: 4 },
-      ]
+      ],
     },
     {
       stub: getaddrinfoPositive(['127.0.0.1', 'some-address']),
@@ -97,7 +97,7 @@ async function lookupallPositive() {
       expectation: [
         { address: '127.0.0.1', family: 4 },
         { address: 'some-address', family: 0 },
-      ]
+      ],
     },
     {
       stub: getaddrinfoPositive(['127.0.0.1', 'some-address']),
@@ -105,12 +105,12 @@ async function lookupallPositive() {
       expectation: [
         { address: '127.0.0.1', family: 6 },
         { address: 'some-address', family: 6 },
-      ]
+      ],
     },
     {
       stub: getaddrinfoPositive([]),
       factory: () => dnsPromises.lookup('example', { all: true }),
-      expectation: []
+      expectation: [],
     },
   ].forEach(async ({ stub, factory, expectation }) => {
     getaddrinfoStub = stub;
@@ -123,7 +123,7 @@ async function lookupallNegative() {
   const expected = {
     code: 'ENOMEM',
     hostname: 'example.com',
-    syscall: 'getaddrinfo'
+    syscall: 'getaddrinfo',
   };
   return assert.rejects(dnsPromises.lookup('example.com', { all: true }),
                         expected);

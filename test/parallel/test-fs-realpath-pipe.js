@@ -29,7 +29,7 @@ for (const code of [
   }`,
 ]) {
   const child = spawnSync(process.execPath, ['-e', code], {
-    stdio: 'pipe'
+    stdio: 'pipe',
   });
   if (child.status !== 2) {
     console.log(code);

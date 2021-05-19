@@ -20,7 +20,7 @@ for (const urlObject of throwsObjsAndReportTypes) {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
     message: 'The "urlObject" argument must be one of type object or string.' +
-             common.invalidArgTypeHelper(urlObject)
+             common.invalidArgTypeHelper(urlObject),
   });
 }
 assert.strictEqual(url.format(''), '');

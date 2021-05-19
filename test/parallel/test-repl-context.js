@@ -13,7 +13,7 @@ const stream = new ArrayStream();
   const r = repl.start({
     input: stream,
     output: stream,
-    useGlobal: false
+    useGlobal: false,
   });
 
   let output = '';

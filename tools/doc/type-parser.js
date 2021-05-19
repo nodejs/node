@@ -10,7 +10,7 @@ const jsPrimitives = {
   number: 'Number',
   string: 'String',
   symbol: 'Symbol',
-  undefined: 'Undefined'
+  undefined: 'Undefined',
 };
 
 const jsGlobalObjectsUrl = `${jsDocPrefix}Reference/Global_Objects/`;

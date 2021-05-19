@@ -12,6 +12,6 @@ const fs = require('fs');
 
   assert.rejects(() => fh.close(), {
     code: 'EBADF',
-    syscall: 'close'
+    syscall: 'close',
   });
 })().then(common.mustCall());

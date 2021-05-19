@@ -33,7 +33,7 @@ const net = require('net');
 
   const server = tls.createServer({
     key: fixtures.readKey('agent2-key.pem'),
-    cert: fixtures.readKey('agent2-cert.pem')
+    cert: fixtures.readKey('agent2-cert.pem'),
   }, common.mustCall((socket) => {
     let str = '';
     socket.setEncoding('utf-8');

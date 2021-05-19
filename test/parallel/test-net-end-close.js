@@ -16,9 +16,9 @@ const s = new net.Socket({
         this.onread();
       });
     },
-    close: (cb) => setImmediate(cb)
+    close: (cb) => setImmediate(cb),
   },
-  writable: false
+  writable: false,
 });
 assert.strictEqual(s, s.resume());
 

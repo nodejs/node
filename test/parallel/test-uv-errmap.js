@@ -5,7 +5,7 @@ require('../common');
 const assert = require('assert');
 const {
   getSystemErrorMap,
-  _errnoException
+  _errnoException,
 } = require('util');
 
 const { internalBinding } = require('internal/test/binding');

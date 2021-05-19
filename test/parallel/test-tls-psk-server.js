@@ -23,7 +23,7 @@ const server = tls.createServer({
     assert.ok(typeof identity === 'string');
     if (identity === IDENTITY)
       return Buffer.from(KEY, 'hex');
-  }
+  },
 });
 
 server.on('connection', common.mustCall());

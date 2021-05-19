@@ -14,7 +14,7 @@ const https = require('https');
 
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 };
 
 const server = https.createServer(options, function(req, res) {
@@ -28,7 +28,7 @@ server.listen(0, common.mustCall(function() {
     agent: false,
     path: '/',
     port: this.address().port,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall(function(res) {
     console.error(res.statusCode, res.headers);
     res.resume();

@@ -14,7 +14,7 @@ const server = net.createServer(function(c) {
   setTimeout(function() {
     const s = new tls.TLSSocket(c, {
       isServer: true,
-      server: server
+      server: server,
     });
 
     s.on('error', common.mustCall(function(e) {

@@ -10,7 +10,7 @@ const TTY = internalBinding('tty_wrap').TTY = function() {};
 
 TTY.prototype = {
   setBlocking: noop,
-  getWindowSize: noop
+  getWindowSize: noop,
 };
 
 const { WriteStream } = require('tty');

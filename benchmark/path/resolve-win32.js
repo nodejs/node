@@ -9,7 +9,7 @@ const bench = common.createBenchmark(main, {
     ['c:/ignore', 'd:\\a/b\\c/d', '\\e.exe'].join('|'),
     ['c:/blah\\blah', 'd:/games', 'c:../a'].join('|'),
   ],
-  n: [1e5]
+  n: [1e5],
 });
 
 function main({ n, paths }) {

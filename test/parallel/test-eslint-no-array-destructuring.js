@@ -16,7 +16,7 @@ const USE_ARRAY_METHODS =
 
 new RuleTester({
   parserOptions: { ecmaVersion: 2021 },
-  env: { es6: true }
+  env: { es6: true },
 })
   .run('no-array-destructuring', rule, {
     valid: [
@@ -29,7 +29,7 @@ new RuleTester({
       {
         code: 'const [Array] = args;',
         errors: [{ message: USE_OBJ_DESTRUCTURING }],
-        output: 'const {0:Array} = args;'
+        output: 'const {0:Array} = args;',
       },
       {
         code: 'const [ , res] = args;',
@@ -137,5 +137,5 @@ new RuleTester({
         errors: [{ message: USE_OBJ_DESTRUCTURING }],
         output: 'class name{ method({0:key}, ...args){} }',
       },
-    ]
+    ],
   });

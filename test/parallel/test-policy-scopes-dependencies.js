@@ -26,9 +26,9 @@ const assert = require('assert');
     const manifest = new Manifest({
       scopes: {
         'file:///': {
-          dependencies: true
-        }
-      }
+          dependencies: true,
+        },
+      },
     });
 
     for (const href of baseURLs) {
@@ -42,9 +42,9 @@ const assert = require('assert');
     const manifest = new Manifest({
       scopes: {
         'file:': {
-          dependencies: true
-        }
-      }
+          dependencies: true,
+        },
+      },
     });
 
     for (const href of baseURLs) {
@@ -66,23 +66,23 @@ const assert = require('assert');
       resources: {
         'file:///root/dir1': {
           dependencies: {
-            fs: 'test:fs1'
-          }
+            fs: 'test:fs1',
+          },
         },
         'file:///root/dir1/isolated': {},
         'file:///root/dir1/cascade': {
-          cascade: true
-        }
+          cascade: true,
+        },
       },
       scopes: {
         'file:///root/dir1/': {
           dependencies: {
-            fs: 'test:fs2'
-          }
+            fs: 'test:fs2',
+          },
         },
         'file:///root/dir1/censor/': {
         },
-      }
+      },
     });
 
     for (const href of baseURLs) {
@@ -135,10 +135,10 @@ const assert = require('assert');
       scopes: {
         'data:text/': {
           dependencies: {
-            fs: true
-          }
-        }
-      }
+            fs: true,
+          },
+        },
+      },
     });
 
     for (const href of baseURLs) {
@@ -152,10 +152,10 @@ const assert = require('assert');
       scopes: {
         'data:/': {
           dependencies: {
-            fs: true
-          }
-        }
-      }
+            fs: true,
+          },
+        },
+      },
     });
 
     for (const href of baseURLs) {
@@ -168,9 +168,9 @@ const assert = require('assert');
     const manifest = new Manifest({
       scopes: {
         'data:': {
-          dependencies: true
-        }
-      }
+          dependencies: true,
+        },
+      },
     });
 
     for (const href of baseURLs) {
@@ -185,10 +185,10 @@ const assert = require('assert');
       scopes: {
         'data:text/javascript,0/': {
           dependencies: {
-            fs: 'test:fs1'
-          }
+            fs: 'test:fs1',
+          },
         },
-      }
+      },
     });
 
     for (const href of baseURLs) {
@@ -205,9 +205,9 @@ const assert = require('assert');
     const manifest = new Manifest({
       scopes: {
         'https://example.com/': {
-          dependencies: true
-        }
-      }
+          dependencies: true,
+        },
+      },
     });
 
     assert.strictEqual(
@@ -221,9 +221,9 @@ const assert = require('assert');
     const manifest = new Manifest({
       scopes: {
         'https://example.com': {
-          dependencies: true
-        }
-      }
+          dependencies: true,
+        },
+      },
     });
 
     assert.strictEqual(
@@ -236,7 +236,7 @@ const assert = require('assert');
   {
     const manifest = new Manifest({
       scopes: {
-      }
+      },
     });
 
     assert.strictEqual(
@@ -249,9 +249,9 @@ const assert = require('assert');
     const manifest = new Manifest({
       scopes: {
         'blob:https://example.com/has-origin': {
-          cascade: true
-        }
-      }
+          cascade: true,
+        },
+      },
     });
 
     assert.strictEqual(
@@ -265,12 +265,12 @@ const assert = require('assert');
       scopes: {
         // FIXME
         'https://example.com/': {
-          dependencies: true
+          dependencies: true,
         },
         'blob:https://example.com/has-origin': {
-          cascade: true
-        }
-      }
+          cascade: true,
+        },
+      },
     });
 
     assert.strictEqual(
@@ -284,12 +284,12 @@ const assert = require('assert');
     const manifest = new Manifest({
       scopes: {
         'blob:': {
-          dependencies: true
+          dependencies: true,
         },
         'blob:https://example.com/has-origin': {
-          cascade: true
-        }
-      }
+          cascade: true,
+        },
+      },
     });
 
     assert.strictEqual(

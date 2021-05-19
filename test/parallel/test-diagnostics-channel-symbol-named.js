@@ -5,7 +5,7 @@ const dc = require('diagnostics_channel');
 const assert = require('assert');
 
 const input = {
-  foo: 'bar'
+  foo: 'bar',
 };
 
 const symbol = Symbol('test');

@@ -32,7 +32,7 @@ const assert = require('assert');
 const hostExpect = 'localhost';
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 };
 
 for (const { mod, createServer } of [
@@ -51,8 +51,8 @@ for (const { mod, createServer } of [
       host: 'localhost',
       rejectUnauthorized: false,
       headers: {
-        'x-port': server.address().port
-      }
+        'x-port': server.address().port,
+      },
     }, common.mustCall((res) => {
       res.resume();
     }));

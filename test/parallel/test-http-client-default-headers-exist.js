@@ -33,7 +33,7 @@ const expectedHeaders = {
   'OPTIONS': ['host', 'connection'],
   'POST': ['host', 'connection', 'content-length'],
   'PUT': ['host', 'connection', 'content-length'],
-  'TRACE': ['host', 'connection']
+  'TRACE': ['host', 'connection'],
 };
 
 const expectedMethods = Object.keys(expectedHeaders);
@@ -63,7 +63,7 @@ server.listen(0, common.mustCall(() => {
   Promise.all(expectedMethods.map(async (method) => {
     const request = http.request({
       method: method,
-      port: server.address().port
+      port: server.address().port,
     }).end();
     return once(request, 'response');
   })).then(common.mustCall(() => { server.close(); }));

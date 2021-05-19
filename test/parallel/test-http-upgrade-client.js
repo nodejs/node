@@ -54,7 +54,7 @@ server.listen(0, '127.0.0.1', common.mustCall(function() {
   const headers = [
     {
       connection: 'upgrade',
-      upgrade: 'websocket'
+      upgrade: 'websocket',
     },
     [
       ['Host', 'echo.websocket.org'],
@@ -68,7 +68,7 @@ server.listen(0, '127.0.0.1', common.mustCall(function() {
   headers.forEach(function(h) {
     const req = http.get({
       port: port,
-      headers: h
+      headers: h,
     });
     let sawUpgrade = false;
     req.on('upgrade', common.mustCall(function(res, socket, upgradeHead) {
@@ -86,7 +86,7 @@ server.listen(0, '127.0.0.1', common.mustCall(function() {
       const expectedHeaders = {
         hello: 'world',
         connection: 'upgrade',
-        upgrade: 'websocket'
+        upgrade: 'websocket',
       };
       assert.deepStrictEqual(res.headers, expectedHeaders);
       socket.end();

@@ -10,7 +10,7 @@ const fs = require('fs');
     },
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError'
+      name: 'TypeError',
     });
 });
 
@@ -20,7 +20,7 @@ assert.throws(
   },
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError'
+    name: 'TypeError',
   });
 
 const okInputs = [1, -1, '1', '-1', Date.now()];

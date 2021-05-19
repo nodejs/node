@@ -19,7 +19,7 @@ const target = {
       }
     }
     return [1, 2, 3];
-  }
+  },
 };
 const handler = {
   getPrototypeOf() { throw new Error('getPrototypeOf'); },
@@ -34,7 +34,7 @@ const handler = {
   deleteProperty() { throw new Error('deleteProperty'); },
   ownKeys() { throw new Error('ownKeys'); },
   apply() { throw new Error('apply'); },
-  construct() { throw new Error('construct'); }
+  construct() { throw new Error('construct'); },
 };
 proxyObj = new Proxy(target, handler);
 
@@ -152,7 +152,7 @@ const proxy11 = new Proxy(() => {}, {
   },
   apply() {
     return proxy11;
-  }
+  },
 });
 const expected10 = '[Function (anonymous)]';
 const expected11 = '[Function (anonymous)]';

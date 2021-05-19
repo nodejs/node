@@ -12,9 +12,9 @@ const bench = common.createBenchmark(main, {
     'benchmark/fixtures/require-cachable',
     'test/fixtures/semicolon',
   ],
-  mode: ['process', 'worker']
+  mode: ['process', 'worker'],
 }, {
-  flags: ['--expose-internals']
+  flags: ['--expose-internals'],
 });
 
 function spawnProcess(script) {
@@ -61,7 +61,7 @@ function start(state, script, bench, getNode) {
 function main({ dur, script, mode }) {
   const state = {
     go: true,
-    throughput: 0
+    throughput: 0,
   };
 
   setTimeout(() => {

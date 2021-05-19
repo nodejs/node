@@ -9,7 +9,7 @@ const assert = require('assert');
 for (const extraFlags of [[], ['-e', '42']]) {
   const flags = ['--interactive', ...extraFlags];
   const proc = child_process.spawn(process.execPath, flags, {
-    stdio: ['pipe', 'pipe', 'inherit']
+    stdio: ['pipe', 'pipe', 'inherit'],
   });
   proc.stdin.write('module.id\n.exit\n');
 

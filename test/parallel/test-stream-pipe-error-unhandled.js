@@ -10,11 +10,11 @@ process.on('uncaughtException', common.mustCall((err) => {
 const r = new Readable({
   read() {
     this.push('asd');
-  }
+  },
 });
 const w = new Writable({
   autoDestroy: true,
-  write() {}
+  write() {},
 });
 
 r.pipe(w);

@@ -33,7 +33,7 @@ server.on(
 
     stream.respond({
       'content-type': 'text/html',
-      ':status': 200
+      ':status': 200,
     });
     stream.end('hello world');
   })
@@ -41,7 +41,7 @@ server.on(
 
 server.on('session', (session) => {
   session.settings({
-    maxConcurrentStreams: 2
+    maxConcurrentStreams: 2,
   });
 });
 
@@ -51,8 +51,8 @@ server.listen(
     const client = h2.connect(`http://localhost:${server.address().port}`, {
       settings: {
         enablePush: false,
-        initialWindowSize: 123456
-      }
+        initialWindowSize: 123456,
+      },
     });
 
     client.on(
@@ -112,7 +112,7 @@ server.listen(
           {
             name: 'RangeError',
             code: 'ERR_HTTP2_INVALID_SETTING_VALUE',
-            message: `Invalid value for setting "${i[0]}": ${i[1]}`
+            message: `Invalid value for setting "${i[0]}": ${i[1]}`,
           }
         );
       });
@@ -124,7 +124,7 @@ server.listen(
           {
             name: 'TypeError',
             code: 'ERR_HTTP2_INVALID_SETTING_VALUE',
-            message: `Invalid value for setting "enablePush": ${i}`
+            message: `Invalid value for setting "enablePush": ${i}`,
           }
         );
       });
