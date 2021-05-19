@@ -116,6 +116,7 @@ const expectedModules = new Set([
   'NativeModule internal/blob',
   'NativeModule async_hooks',
   'NativeModule path',
+  'NativeModule querystring',
   'NativeModule stream',
   'NativeModule stream/promises',
   'NativeModule string_decoder',
