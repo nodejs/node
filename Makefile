@@ -103,7 +103,7 @@ $(NODE_EXE): build_type:=Release
 $(NODE_G_EXE): build_type:=Debug
 $(NODE_EXE) $(NODE_G_EXE): config.gypi out/Makefile
 	$(MAKE) -C out BUILDTYPE=${build_type} V=$(V)
-	if [ ! -r $@ -o ! -L $@ ]; then \
+	if [ ! -r $@ ] || [ ! -L $@ ]; then \
 	  ln -fs out/${build_type}/$(NODE_EXE) $@; fi
 else
 ifeq ($(BUILD_WITH), ninja)
@@ -117,11 +117,11 @@ else
 endif
 $(NODE_EXE): config.gypi out/Release/build.ninja
 	ninja -C out/Release $(NINJA_ARGS)
-	if [ ! -r $@ -o ! -L $@ ]; then ln -fs out/Release/$(NODE_EXE) $@; fi
+	if [ ! -r $@ ] || [ ! -L $@ ]; then ln -fs out/Release/$(NODE_EXE) $@; fi
 
 $(NODE_G_EXE): config.gypi out/Debug/build.ninja
 	ninja -C out/Debug $(NINJA_ARGS)
-	if [ ! -r $@ -o ! -L $@ ]; then ln -fs out/Debug/$(NODE_EXE) $@; fi
+	if [ ! -r $@ ] || [ ! -L $@ ]; then ln -fs out/Debug/$(NODE_EXE) $@; fi
 else
 $(NODE_EXE) $(NODE_G_EXE):
 	$(warning This Makefile currently only supports building with 'make' or 'ninja')
@@ -908,7 +908,7 @@ BINARYTAR=$(BINARYNAME).tar
 HAS_XZ ?= $(shell command -v xz > /dev/null 2>&1; [ $$? -eq 0 ] && echo 1 || echo 0)
 # Supply SKIP_XZ=1 to explicitly skip .tar.xz creation
 SKIP_XZ ?= 0
-XZ = $(shell [ $(HAS_XZ) -eq 1 -a $(SKIP_XZ) -eq 0 ] && echo 1 || echo 0)
+XZ = $(shell [ $(HAS_XZ) -eq 1 ] && [ $(SKIP_XZ) -eq 0 ] && echo 1 || echo 0)
 XZ_COMPRESSION ?= 9e
 PKG=$(TARNAME).pkg
 MACOSOUTDIR=out/macos
@@ -949,7 +949,7 @@ release-only: check-xz
 		echo "" >&2 ; \
 		exit 1 ; \
 	fi
-	@if [ "$(DISTTYPE)" != "release" -o "$(RELEASE)" = "1" ]; then \
+	@if [ "$(DISTTYPE)" != "release" ] || [ "$(RELEASE)" = "1" ]; then \
 		exit 0; \
 	else \
 		echo "" >&2 ; \
@@ -958,7 +958,7 @@ release-only: check-xz
 		echo "" >&2 ; \
 		exit 1 ; \
 	fi
-	@if [ "$(RELEASE)" = "0" -o -f "$(CHANGELOG)" ]; then \
+	@if [ "$(RELEASE)" = "0" ] || [ -f "$(CHANGELOG)" ]; then \
 		exit 0; \
 	else \
 		echo "" >&2 ; \
