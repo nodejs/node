@@ -498,12 +498,12 @@ function nodeProcessAborted(exitCode, signal) {
   const expectedSignals = ['SIGILL', 'SIGTRAP', 'SIGABRT'];
 
   // On Windows, 'aborts' are of 2 types, depending on the context:
-  // (i) Forced access violation, if --abort-on-uncaught-exception is on
-  // which corresponds to exit code 3221225477 (0xC0000005)
+  // (i) Exception breakpoint, if --abort-on-uncaught-exception is on
+  // which corresponds to exit code 2147483651 (0x80000003)
   // (ii) Otherwise, _exit(134) which is called in place of abort() due to
   // raising SIGABRT exiting with ambiguous exit code '3' by default
   if (isWindows)
-    expectedExitCodes = [0xC0000005, 134];
+    expectedExitCodes = [0x80000003, 134];
 
   // When using --abort-on-uncaught-exception, V8 will use
   // base::OS::Abort to terminate the process.
