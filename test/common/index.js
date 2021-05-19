@@ -199,7 +199,7 @@ const localIPv6Hosts =
 
 const PIPE = (() => {
   const localRelative = path.relative(process.cwd(), `${tmpdir.path}/`);
-  const pipePrefix = isWindows ? '\\\\?\\pipe\\' : localRelative;
+  const pipePrefix = isWindows ? '\\\\.\\pipe\\' : localRelative;
   const pipeName = `node-test.${process.pid}.sock`;
   return path.join(pipePrefix, pipeName);
 })();
