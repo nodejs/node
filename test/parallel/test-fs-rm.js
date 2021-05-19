@@ -287,22 +287,24 @@ function removeAsync(dir) {
   // IBMi has a different access permission mechanism
   // This test should not be run as `root`
   if (!common.isIBMi && (common.isWindows || process.getuid() !== 0)) {
-    function makeDirectoryReadOnly(dir) {
+    function makeDirectoryReadOnly(dir, mode) {
       let accessErrorCode = 'EACCES';
       if (common.isWindows) {
         accessErrorCode = 'EPERM';
-        execSync(`icacls ${dir} /deny "everyone:(OI)(CI)(D,DC)"`);
+        execSync(`icacls ${dir} /deny "everyone:(OI)(CI)(DE,DC)"`);
       } else {
-        fs.chmodSync(dir, 0o444);
+        fs.chmodSync(dir, mode);
       }
       return accessErrorCode;
     }
 
     function makeDirectoryWritable(dir) {
-      if (common.isWindows) {
-        execSync(`icacls ${dir} /remove:d "everyone"`);
-      } else {
-        fs.chmodSync(dir, 0o777);
+      if (fs.existsSync(dir)) {
+        if (common.isWindows) {
+          execSync(`icacls ${dir} /remove:d "everyone"`);
+        } else {
+          fs.chmodSync(dir, 0o777);
+        }
       }
     }
 
@@ -314,7 +316,7 @@ function removeAsync(dir) {
       try {
         fs.mkdirSync(dirname, { recursive: true });
         fs.writeFileSync(filePath, 'hello');
-        const code = makeDirectoryReadOnly(dirname);
+        const code = makeDirectoryReadOnly(dirname, 0o444);
         assert.throws(() => {
           fs.rmSync(filePath, { force: true });
         }, {
@@ -335,10 +337,8 @@ function removeAsync(dir) {
       const middle = path.join(root, 'middle');
       fs.mkdirSync(middle);
       fs.mkdirSync(path.join(middle, 'leaf')); // Make `middle` non-empty
-      const mode = common.isWindows ? 0 : 0o555;
-      const code = common.isWindows ? 'EPERM' : 'EACCES';
       try {
-        fs.chmodSync(middle, mode);
+        const code = makeDirectoryReadOnly(middle, 0o555);
         assert.throws(() => {
           fs.rmSync(root, { recursive: true });
         }, {

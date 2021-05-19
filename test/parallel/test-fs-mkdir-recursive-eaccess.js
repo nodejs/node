@@ -26,7 +26,7 @@ function makeDirectoryReadOnly(dir) {
   let accessErrorCode = 'EACCES';
   if (common.isWindows) {
     accessErrorCode = 'EPERM';
-    execSync(`icacls ${dir} /deny "everyone:(OI)(CI)(D,DC,AD,WD)"`);
+    execSync(`icacls ${dir} /deny "everyone:(OI)(CI)(DE,DC,AD,WD)"`);
   } else {
     fs.chmodSync(dir, '444');
   }
