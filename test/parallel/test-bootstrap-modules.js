@@ -56,6 +56,7 @@ const expectedModules = new Set([
   'NativeModule internal/fs/dir',
   'NativeModule internal/fs/utils',
   'NativeModule internal/fs/promises',
+  'NativeModule internal/fs/read_file_context',
   'NativeModule internal/fs/rimraf',
   'NativeModule internal/fs/watchers',
   'NativeModule internal/heap_utils',
