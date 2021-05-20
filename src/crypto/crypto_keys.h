@@ -149,8 +149,8 @@ class KeyObjectData : public MemoryRetainer {
   size_t GetSymmetricKeySize() const;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(KeyObjectData);
-  SET_SELF_SIZE(KeyObjectData);
+  SET_MEMORY_INFO_NAME(KeyObjectData)
+  SET_SELF_SIZE(KeyObjectData)
 
  private:
   explicit KeyObjectData(ByteSource symmetric_key);

@@ -29,8 +29,8 @@ struct HKDFConfig final : public MemoryRetainer {
   HKDFConfig& operator=(HKDFConfig&& other) noexcept;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(HKDFConfig);
-  SET_SELF_SIZE(HKDFConfig);
+  SET_MEMORY_INFO_NAME(HKDFConfig)
+  SET_SELF_SIZE(HKDFConfig)
 };
 
 struct HKDFTraits final {

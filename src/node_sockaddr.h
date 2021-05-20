@@ -173,8 +173,8 @@ class SocketAddressBase : public BaseObject {
   }
 
   void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(SocketAddressBase);
-  SET_SELF_SIZE(SocketAddressBase);
+  SET_MEMORY_INFO_NAME(SocketAddressBase)
+  SET_SELF_SIZE(SocketAddressBase)
 
   TransferMode GetTransferMode() const override {
     return TransferMode::kCloneable;

@@ -112,7 +112,7 @@ class KeyGenJob final : public CryptoJob<KeyGenTraits> {
     return v8::Just(errors->ToException(env).ToLocal(err));
   }
 
-  SET_SELF_SIZE(KeyGenJob);
+  SET_SELF_SIZE(KeyGenJob)
 
  private:
   KeyGenJobStatus status_ = KeyGenJobStatus::FAILED;

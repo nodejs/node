@@ -52,8 +52,8 @@ struct AESCipherConfig final : public MemoryRetainer {
   AESCipherConfig& operator=(AESCipherConfig&& other) noexcept;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(AESCipherConfig);
-  SET_SELF_SIZE(AESCipherConfig);
+  SET_MEMORY_INFO_NAME(AESCipherConfig)
+  SET_SELF_SIZE(AESCipherConfig)
 };
 
 struct AESCipherTraits final {
