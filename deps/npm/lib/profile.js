@@ -57,6 +57,16 @@ class Profile extends BaseCommand {
     ]
   }
 
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return [
+      'registry',
+      'json',
+      'parseable',
+      'otp',
+    ]
+  }
+
   async completion (opts) {
     var argv = opts.conf.argv.remain
 

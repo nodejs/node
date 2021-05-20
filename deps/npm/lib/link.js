@@ -30,6 +30,25 @@ class Link extends BaseCommand {
     ]
   }
 
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return [
+      'save',
+      'save-exact',
+      'global',
+      'global-style',
+      'legacy-bundling',
+      'strict-peer-deps',
+      'package-lock',
+      'omit',
+      'ignore-scripts',
+      'audit',
+      'bin-links',
+      'fund',
+      'dry-run',
+    ]
+  }
+
   async completion (opts) {
     const dir = this.npm.globalDir
     const files = await readdir(dir)

@@ -28,7 +28,7 @@ const BaseCommand = require('./base-command.js')
 class Search extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get description () {
-    return 'Search for pacakges'
+    return 'Search for packages'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
@@ -41,8 +41,15 @@ class Search extends BaseCommand {
     return [
       'long',
       'json',
+      'color',
       'parseable',
       'description',
+      'searchopts',
+      'searchexclude',
+      'registry',
+      'prefer-online',
+      'prefer-offline',
+      'offline',
     ]
   }
 

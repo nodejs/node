@@ -17,9 +17,9 @@ const removeNodeModules = async where => {
   await Promise.all(entries.map(f => rimraf(`${path}/${f}`, rimrafOpts)))
   process.emit('timeEnd', 'npm-ci:rm')
 }
-const BaseCommand = require('./base-command.js')
+const ArboristWorkspaceCmd = require('./workspaces/arborist-cmd.js')
 
-class CI extends BaseCommand {
+class CI extends ArboristWorkspaceCmd {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get description () {
     return 'Install a project with a clean slate'
@@ -28,6 +28,14 @@ class CI extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'ci'
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return [
+      'ignore-scripts',
+      'script-shell',
+    ]
   }
 
   exec (args, cb) {
@@ -47,6 +55,7 @@ class CI extends BaseCommand {
       path: where,
       log: this.npm.log,
       save: false, // npm ci should never modify the lockfile or package.json
+      workspaces: this.workspaces,
     }
 
     const arb = new Arborist(opts)

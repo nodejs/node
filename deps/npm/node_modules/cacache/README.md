@@ -36,6 +36,8 @@ just as easily be used on its own.
     * [`rm.all`](#rm-all)
     * [`rm.entry`](#rm-entry)
     * [`rm.content`](#rm-content)
+    * [`index.compact`](#index-compact)
+    * [`index.insert`](#index-insert)
   * Utilities
     * [`clearMemoized`](#clear-memoized)
     * [`tmp.mkdir`](#tmp-mkdir)
@@ -488,6 +490,25 @@ cacache.rm.content(cachePath, 'sha512-SoMeDIGest/IN+BaSE64==').then(() => {
   console.log('data for my-thing is gone!')
 })
 ```
+
+#### <a name="index-compact"></a> `> cacache.index.compact(cache, key, matchFn) -> Promise`
+
+Uses `matchFn`, which must be a synchronous function that accepts two entries
+and returns a boolean indicating whether or not the two entries match, to
+deduplicate all entries in the cache for the given `key`.
+
+The deduplicated list of entries is both written to the index, replacing the
+existing content, and returned in the Promise.
+
+#### <a name="index-insert"></a> `> cacache.index.insert(cache, key, integrity, opts) -> Promise`
+
+Writes an index entry to the cache for the given `key` without writing content.
+
+It is assumed if you are using this method, you have already stored the content
+some other way and you only wish to add a new index to that content. The `metadata`
+and `size` properties are read from `opts` and used as part of the index entry.
+
+Returns a Promise resolving to the newly added entry.
 
 #### <a name="clear-memoized"></a> `> cacache.clearMemoized()`
 

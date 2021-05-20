@@ -107,3 +107,19 @@ t.test('arborist-cmd', async t => {
     cmd.execWorkspaces([], ['./group'], res)
   })
 })
+
+t.test('handle getWorkspaces raising an error', t => {
+  const ArboristCmd = t.mock('../../../lib/workspaces/arborist-cmd.js', {
+    '../../../lib/workspaces/get-workspaces.js': async () => {
+      throw new Error('oopsie')
+    },
+  })
+  class TestCmd extends ArboristCmd {}
+  const cmd = new TestCmd()
+  cmd.npm = {}
+
+  cmd.execWorkspaces(['foo'], ['a'], er => {
+    t.match(er, { message: 'oopsie' })
+    t.end()
+  })
+})

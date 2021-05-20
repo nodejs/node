@@ -42,6 +42,11 @@ class Doctor extends BaseCommand {
     return 'doctor'
   }
 
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return ['registry']
+  }
+
   exec (args, cb) {
     this.doctor(args).then(() => cb()).catch(cb)
   }

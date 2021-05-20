@@ -28,6 +28,16 @@ class Token extends BaseCommand {
     ]
   }
 
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return [
+      'read-only',
+      'cidr',
+      'registry',
+      'otp',
+    ]
+  }
+
   async completion (opts) {
     const argv = opts.conf.argv.remain
     const subcommands = ['list', 'revoke', 'create']

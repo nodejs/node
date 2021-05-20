@@ -16,6 +16,7 @@ const {
 const boolEnv = b => b ? '1' : ''
 const sortNodes = (a, b) => (a.depth - b.depth) || a.path.localeCompare(b.path, 'en')
 
+const _workspaces = Symbol.for('workspaces')
 const _build = Symbol('build')
 const _resetQueues = Symbol('resetQueues')
 const _rebuildBundle = Symbol('rebuildBundle')
@@ -70,8 +71,14 @@ module.exports = cls => class Builder extends cls {
 
     // if we don't have a set of nodes, then just rebuild
     // the actual tree on disk.
-    if (!nodes)
-      nodes = (await this.loadActual()).inventory.values()
+    if (!nodes) {
+      const tree = await this.loadActual()
+      if (this[_workspaces] && this[_workspaces].length) {
+        const filterSet = this.workspaceDependencySet(tree, this[_workspaces])
+        nodes = tree.inventory.filter(node => filterSet.has(node))
+      } else
+        nodes = tree.inventory.values()
+    }
 
     // separates links nodes so that it can run
     // prepare scripts and link bins in the expected order

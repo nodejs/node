@@ -12,6 +12,14 @@ class Test extends LifecycleCmd {
     return 'test'
   }
 
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return [
+      'ignore-scripts',
+      'script-shell',
+    ]
+  }
+
   exec (args, cb) {
     super.exec(args, er => {
       if (er && er.code === 'ELIFECYCLE') {

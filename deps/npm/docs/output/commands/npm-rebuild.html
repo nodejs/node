@@ -141,7 +141,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#global"><code>global</code></a></li><li><a href="#bin-links"><code>bin-links</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -158,6 +158,71 @@ packages to build and/or link bins.</p>
 <p>If one or more package names (and optionally version ranges) are provided,
 then only packages with a name and version matching one of the specifiers
 will be rebuilt.</p>
+<h3 id="configuration">Configuration</h3>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="global"><code>global</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Operates in “global” mode, so that packages are installed into the <code>prefix</code>
+folder instead of the current working directory. See
+<a href="../configuring-npm/folders.html">folders</a> for more on the differences in behavior.</p>
+<ul>
+<li>packages are installed into the <code>{prefix}/lib/node_modules</code> folder, instead
+of the current working directory.</li>
+<li>bin files are linked to <code>{prefix}/bin</code></li>
+<li>man pages are linked to <code>{prefix}/share/man</code></li>
+</ul>
+<h4 id="bin-links"><code>bin-links</code></h4>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Tells npm to create symlinks (or <code>.cmd</code> shims on Windows) for package
+executables.</p>
+<p>Set to false to have it not do this. This can be used to work around the
+fact that some file systems don’t support symlinks, even on ostensibly Unix
+systems.</p>
+<h4 id="ignore-scripts"><code>ignore-scripts</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If true, npm does not run scripts specified in package.json files.</p>
+<p>Note that commands explicitly intended to run a particular script, such as
+<code>npm start</code>, <code>npm stop</code>, <code>npm restart</code>, <code>npm test</code>, and <code>npm run-script</code>
+will still run their intended script if <code>ignore-scripts</code> is set, but they
+will <em>not</em> run any pre- or post-scripts.</p>
+<h4 id="workspace"><code>workspace</code></h4>
+<ul>
+<li>Default:</li>
+<li>Type: String (can be set multiple times)</li>
+</ul>
+<p>Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option.</p>
+<p>Valid values for the <code>workspace</code> config are either:</p>
+<ul>
+<li>Workspace names</li>
+<li>Path to a workspace directory</li>
+<li>Path to a parent workspace directory (will result to selecting all of the
+nested workspaces)</li>
+</ul>
+<p>When set for the <code>npm init</code> command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project.</p>
+<p>This value is not exported to the environment for child processes.</p>
+<h4 id="workspaces"><code>workspaces</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Enable running a command in the context of <strong>all</strong> the configured
+workspaces.</p>
+<p>This value is not exported to the environment for child processes.</p>
+<!-- raw HTML omitted -->
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../commands/npm-install.html">npm install</a></li>

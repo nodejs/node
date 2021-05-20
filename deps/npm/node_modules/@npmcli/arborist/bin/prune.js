@@ -1,0 +1,46 @@
+const Arborist = require('../')
+
+const options = require('./lib/options.js')
+const print = require('./lib/print-tree.js')
+require('./lib/logging.js')
+require('./lib/timers.js')
+
+const printDiff = diff => {
+  const {depth} = require('treeverse')
+  depth({
+    tree: diff,
+    visit: d => {
+      if (d.location === '')
+        return
+      switch (d.action) {
+        case 'REMOVE':
+          console.error('REMOVE', d.actual.location)
+          break
+        case 'ADD':
+          console.error('ADD', d.ideal.location, d.ideal.resolved)
+          break
+        case 'CHANGE':
+          console.error('CHANGE', d.actual.location, {
+            from: d.actual.resolved,
+            to: d.ideal.resolved,
+          })
+          break
+      }
+    },
+    getChildren: d => d.children,
+  })
+}
+
+const start = process.hrtime()
+process.emit('time', 'install')
+const arb = new Arborist(options)
+arb.prune(options).then(tree => {
+  process.emit('timeEnd', 'install')
+  const end = process.hrtime(start)
+  print(tree)
+  if (options.dryRun)
+    printDiff(arb.diff)
+  console.error(`resolved ${tree.inventory.size} deps in ${end[0] + end[1] / 1e9}s`)
+  if (tree.meta && options.save)
+    tree.meta.save()
+}).catch(er => console.error(require('util').inspect(er, { depth: Infinity })))

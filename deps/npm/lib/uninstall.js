@@ -5,8 +5,8 @@ const rpj = require('read-package-json-fast')
 const reifyFinish = require('./utils/reify-finish.js')
 const completion = require('./utils/completion/installed-shallow.js')
 
-const BaseCommand = require('./base-command.js')
-class Uninstall extends BaseCommand {
+const ArboristWorkspaceCmd = require('./workspaces/arborist-cmd.js')
+class Uninstall extends ArboristWorkspaceCmd {
   static get description () {
     return 'Remove a package'
   }
@@ -18,7 +18,7 @@ class Uninstall extends BaseCommand {
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get params () {
-    return ['save']
+    return ['save', ...super.params]
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
@@ -66,7 +66,7 @@ class Uninstall extends BaseCommand {
       path,
       log: this.npm.log,
       rm: args,
-
+      workspaces: this.workspaces,
     }
     const arb = new Arborist(opts)
     await arb.reify(opts)

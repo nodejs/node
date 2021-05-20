@@ -28,6 +28,14 @@ class Access extends BaseCommand {
     return 'access'
   }
 
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return [
+      'registry',
+      'otp',
+    ]
+  }
+
   static get usage () {
     return [
       'public [<package>]',

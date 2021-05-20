@@ -2,9 +2,9 @@
 const Arborist = require('@npmcli/arborist')
 const reifyFinish = require('./utils/reify-finish.js')
 
-const BaseCommand = require('./base-command.js')
+const ArboristWorkspaceCmd = require('./workspaces/arborist-cmd.js')
 
-class Dedupe extends BaseCommand {
+class Dedupe extends ArboristWorkspaceCmd {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get description () {
     return 'Reduce duplication in the package tree'
@@ -13,6 +13,23 @@ class Dedupe extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'dedupe'
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return [
+      'global-style',
+      'legacy-bundling',
+      'strict-peer-deps',
+      'package-lock',
+      'omit',
+      'ignore-scripts',
+      'audit',
+      'bin-links',
+      'fund',
+      'dry-run',
+      ...super.params,
+    ]
   }
 
   exec (args, cb) {
@@ -33,6 +50,7 @@ class Dedupe extends BaseCommand {
       log: this.npm.log,
       path: where,
       dryRun,
+      workspaces: this.workspaces,
     }
     const arb = new Arborist(opts)
     await arb.dedupe(opts)

@@ -26,7 +26,10 @@ t.test('load each command', t => {
         t.match(impl.usage, cmd, 'usage contains the command')
         impl([], (err) => {
           t.notOk(err)
-          t.match(npmOutput, impl.usage, 'usage is output')
+          t.match(npmOutput, impl.usage, 'usage is what is output')
+          // This ties usage to a snapshot so we have to re-run snap if usage
+          // changes, which rebuilds the man pages
+          t.matchSnapshot(npmOutput)
           t.end()
         })
       })

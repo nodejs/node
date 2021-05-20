@@ -141,7 +141,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#registry">registry</a></li><li><a href="#scope">scope</a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#registry"><code>registry</code></a></li><li><a href="#scope"><code>scope</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -158,15 +158,36 @@ In this case, it will <em>only</em> affect the current environment.</p>
 <p>If <code>--scope</code> is provided, this will find the credentials for the registry
 connected to that scope, if set.</p>
 <h3 id="configuration">Configuration</h3>
-<h4 id="registry">registry</h4>
-<p>Default: <a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a></p>
-<p>The base URL of the npm package registry. If <code>scope</code> is also specified,
-it takes precedence.</p>
-<h4 id="scope">scope</h4>
-<p>Default: The scope of your current project, if any, otherwise none.</p>
-<p>If specified, you will be logged out of the specified scope. See <a href="../using-npm/scope.html"><code>scope</code></a>.</p>
-<pre lang="bash"><code>npm logout --scope=@myco
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="registry"><code>registry</code></h4>
+<ul>
+<li>Default: “<a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a>”</li>
+<li>Type: URL</li>
+</ul>
+<p>The base URL of the npm registry.</p>
+<h4 id="scope"><code>scope</code></h4>
+<ul>
+<li>Default: the scope of the current project, if any, or “”</li>
+<li>Type: String</li>
+</ul>
+<p>Associate an operation with a scope for a scoped registry.</p>
+<p>Useful when logging in to or out of a private registry:</p>
+<pre><code># log in, linking the scope to the custom registry
+npm login --scope=@mycorp --registry=https://registry.mycorp.com
+
+# log out, removing the link and the auth token
+npm logout --scope=@mycorp
 </code></pre>
+<p>This will cause <code>@mycorp</code> to be mapped to the registry for future
+installation of packages specified according to the pattern
+<code>@mycorp/package</code>.</p>
+<p>This will also cause <code>npm init</code> to create a scoped package.</p>
+<pre><code># accept all defaults, and create a package named "@foo/whatever",
+# instead of just named "whatever"
+npm init --scope=@foo --yes
+</code></pre>
+<!-- raw HTML omitted -->
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../commands/npm-adduser.html">npm adduser</a></li>

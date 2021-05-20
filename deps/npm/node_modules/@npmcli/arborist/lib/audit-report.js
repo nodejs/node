@@ -89,7 +89,8 @@ class AuditReport extends Map {
 
   constructor (tree, opts = {}) {
     super()
-    this[_omit] = new Set(opts.omit || [])
+    const { omit } = opts
+    this[_omit] = new Set(omit || [])
     this.topVulns = new Map()
 
     this.calculator = new Calculator(opts)
@@ -97,6 +98,7 @@ class AuditReport extends Map {
     this.options = opts
     this.log = opts.log || procLog
     this.tree = tree
+    this.filterSet = opts.filterSet
   }
 
   async run () {
@@ -146,7 +148,7 @@ class AuditReport extends Map {
 
       const p = []
       for (const node of this.tree.inventory.query('packageName', name)) {
-        if (shouldOmit(node, this[_omit]))
+        if (!shouldAudit(node, this[_omit], this.filterSet))
           continue
 
         // if not vulnerable by this advisory, keep searching
@@ -292,7 +294,7 @@ class AuditReport extends Map {
     try {
       try {
         // first try the super fast bulk advisory listing
-        const body = prepareBulkData(this.tree, this[_omit])
+        const body = prepareBulkData(this.tree, this[_omit], this.filterSet)
         this.log.silly('audit', 'bulk request', body)
 
         // no sense asking if we don't have anything to audit,
@@ -333,22 +335,25 @@ class AuditReport extends Map {
   }
 }
 
-// return true if we should ignore this one
-const shouldOmit = (node, omit) =>
-  !node.version ? true
-  : node.isRoot ? true
-  : omit.size === 0 ? false
-  : node.dev && omit.has('dev') ||
+// return true if we should audit this one
+const shouldAudit = (node, omit, filterSet) =>
+  !node.version ? false
+  : node.isRoot ? false
+  : filterSet && filterSet.size !== 0 && !filterSet.has(node) ? false
+  : omit.size === 0 ? true
+  : !( // otherwise, just ensure we're not omitting this one
+    node.dev && omit.has('dev') ||
     node.optional && omit.has('optional') ||
     node.devOptional && omit.has('dev') && omit.has('optional') ||
     node.peer && omit.has('peer')
+  )
 
-const prepareBulkData = (tree, omit) => {
+const prepareBulkData = (tree, omit, filterSet) => {
   const payload = {}
   for (const name of tree.inventory.query('packageName')) {
     const set = new Set()
     for (const node of tree.inventory.query('packageName', name)) {
-      if (shouldOmit(node, omit))
+      if (!shouldAudit(node, omit, filterSet))
         continue
 
       set.add(node.version)

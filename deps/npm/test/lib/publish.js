@@ -538,12 +538,12 @@ t.test('workspaces', (t) => {
         repository: 'https://github.com/npm/workspace-b',
       }),
     },
-    'workspace-c': JSON.stringify({
-      'package.json': {
+    'workspace-c': {
+      'package.json': JSON.stringify({
         name: 'workspace-n',
         version: '1.2.3-n',
-      },
-    }),
+      }),
+    },
   })
 
   const publishes = []

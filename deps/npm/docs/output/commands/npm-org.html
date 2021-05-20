@@ -141,7 +141,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#example">Example</a></li><li><a href="#description">Description</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#example">Example</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#registry"><code>registry</code></a></li><li><a href="#otp"><code>otp</code></a></li><li><a href="#json"><code>json</code></a></li><li><a href="#parseable"><code>parseable</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -173,6 +173,39 @@ npm org ls &lt;orgname&gt; [&lt;username&gt;]
 <p>You can use the <code>npm org</code> commands to manage and view users of an
 organization.  It supports adding and removing users, changing their roles,
 listing them, and finding specific ones and their roles.</p>
+<h3 id="configuration">Configuration</h3>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="registry"><code>registry</code></h4>
+<ul>
+<li>Default: “<a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a>”</li>
+<li>Type: URL</li>
+</ul>
+<p>The base URL of the npm registry.</p>
+<h4 id="otp"><code>otp</code></h4>
+<ul>
+<li>Default: null</li>
+<li>Type: null or String</li>
+</ul>
+<p>This is a one-time password from a two-factor authenticator. It’s needed
+when publishing or changing package permissions with <code>npm access</code>.</p>
+<p>If not set, and a registry response fails with a challenge for a one-time
+password, npm will prompt on the command line for one.</p>
+<h4 id="json"><code>json</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Whether or not to output JSON data, rather than the normal output.</p>
+<p>Not supported by all npm commands.</p>
+<h4 id="parseable"><code>parseable</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Output parseable results from commands that write to standard output. For
+<code>npm search</code>, this will be tab-separated table format.</p>
+<!-- raw HTML omitted -->
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../using-npm/orgs.html">using orgs</a></li>

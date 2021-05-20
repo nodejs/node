@@ -1,12 +1,12 @@
 const path = require('path')
 const util = require('util')
-const log = require('npmlog')
 const npa = require('npm-package-arg')
 const libaccess = require('libnpmaccess')
 const npmFetch = require('npm-registry-fetch')
 const libunpub = require('libnpmpublish').unpublish
 const readJson = util.promisify(require('read-package-json'))
 
+const getWorkspaces = require('./workspaces/get-workspaces.js')
 const otplease = require('./utils/otplease.js')
 const getIdentity = require('./utils/get-identity.js')
 
@@ -19,6 +19,11 @@ class Unpublish extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'unpublish'
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return ['dry-run', 'force', 'workspace', 'workspaces']
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
@@ -62,25 +67,29 @@ class Unpublish extends BaseCommand {
     this.unpublish(args).then(() => cb()).catch(cb)
   }
 
+  execWorkspaces (args, filters, cb) {
+    this.unpublishWorkspaces(args, filters).then(() => cb()).catch(cb)
+  }
+
   async unpublish (args) {
     if (args.length > 1)
-      throw new Error(this.usage)
+      throw this.usageError()
 
     const spec = args.length && npa(args[0])
     const force = this.npm.config.get('force')
-    const silent = this.npm.config.get('silent')
     const loglevel = this.npm.config.get('loglevel')
+    const silent = loglevel === 'silent'
+    const dryRun = this.npm.config.get('dry-run')
     let pkgName
     let pkgVersion
 
-    log.silly('unpublish', 'args[0]', args[0])
-    log.silly('unpublish', 'spec', spec)
+    this.npm.log.silly('unpublish', 'args[0]', args[0])
+    this.npm.log.silly('unpublish', 'spec', spec)
 
-    if (!spec.rawSpec && !force) {
-      throw new Error(
+    if ((!spec || !spec.rawSpec) && !force) {
+      throw this.usageError(
         'Refusing to delete entire project.\n' +
-        'Run with --force to do this.\n' +
-        this.usage
+        'Run with --force to do this.'
       )
     }
 
@@ -96,25 +105,43 @@ class Unpublish extends BaseCommand {
         if (err && err.code !== 'ENOENT' && err.code !== 'ENOTDIR')
           throw err
         else
-          throw new Error(`Usage: ${this.usage}`)
+          throw this.usageError()
       }
 
-      log.verbose('unpublish', manifest)
+      this.npm.log.verbose('unpublish', manifest)
 
       const { name, version, publishConfig } = manifest
       const pkgJsonSpec = npa.resolve(name, version)
       const optsWithPub = { ...opts, publishConfig }
-      await otplease(opts, opts => libunpub(pkgJsonSpec, optsWithPub))
+      if (!dryRun)
+        await otplease(opts, opts => libunpub(pkgJsonSpec, optsWithPub))
       pkgName = name
       pkgVersion = version ? `@${version}` : ''
     } else {
-      await otplease(opts, opts => libunpub(spec, opts))
+      if (!dryRun)
+        await otplease(opts, opts => libunpub(spec, opts))
       pkgName = spec.name
       pkgVersion = spec.type === 'version' ? `@${spec.rawSpec}` : ''
     }
 
-    if (!silent && loglevel !== 'silent')
+    if (!silent)
       this.npm.output(`- ${pkgName}${pkgVersion}`)
+  }
+
+  async unpublishWorkspaces (args, filters) {
+    const workspaces =
+      await getWorkspaces(filters, { path: this.npm.localPrefix })
+
+    const force = this.npm.config.get('force')
+    if (!force) {
+      throw this.usageError(
+        'Refusing to delete entire project(s).\n' +
+        'Run with --force to do this.'
+      )
+    }
+
+    for (const [name] of workspaces.entries())
+      await this.unpublish([name])
   }
 }
 module.exports = Unpublish

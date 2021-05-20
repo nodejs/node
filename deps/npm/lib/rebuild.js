@@ -4,8 +4,8 @@ const npa = require('npm-package-arg')
 const semver = require('semver')
 const completion = require('./utils/completion/installed-deep.js')
 
-const BaseCommand = require('./base-command.js')
-class Rebuild extends BaseCommand {
+const ArboristWorkspaceCmd = require('./workspaces/arborist-cmd.js')
+class Rebuild extends ArboristWorkspaceCmd {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get description () {
     return 'Rebuild a package'
@@ -14,6 +14,16 @@ class Rebuild extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'rebuild'
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return [
+      'global',
+      'bin-links',
+      'ignore-scripts',
+      ...super.params,
+    ]
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
@@ -36,6 +46,8 @@ class Rebuild extends BaseCommand {
     const arb = new Arborist({
       ...this.npm.flatOptions,
       path: where,
+      // TODO when extending ReifyCmd
+      // workspaces: this.workspaces,
     })
 
     if (args.length) {

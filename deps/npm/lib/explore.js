@@ -23,6 +23,11 @@ class Explore extends BaseCommand {
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return ['shell']
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
   async completion (opts) {
     return completion(this.npm, opts)
   }

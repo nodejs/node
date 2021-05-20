@@ -40,6 +40,7 @@ class Diff {
     // - Add set of Nodes depended on by the filterNode to filterSet.
     // - Anything outside of that set should be ignored by getChildren
     const filterSet = new Set()
+    const extraneous = new Set()
     for (const filterNode of filterNodes) {
       const { root } = filterNode
       if (root !== ideal && root !== actual)
@@ -72,10 +73,19 @@ class Diff {
           const actualNode = actual.inventory.get(loc)
           const actuals = !actualNode ? []
             : [...actualNode.edgesOut.values()].filter(e => e.to).map(e => e.to)
+          if (actualNode) {
+            for (const child of actualNode.children.values()) {
+              if (child.extraneous)
+                extraneous.add(child)
+            }
+          }
+
           return ideals.concat(actuals)
         },
       })
     }
+    for (const extra of extraneous)
+      filterSet.add(extra)
 
     return depth({
       tree: new Diff({actual, ideal, filterSet, shrinkwrapInflated}),

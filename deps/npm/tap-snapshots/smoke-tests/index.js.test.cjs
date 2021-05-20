@@ -107,11 +107,11 @@ index v1.0.4..v1.1.1 100644
 +
 +Copyright Isaac Z. Schlueter and Contributors
  All rights reserved.
-
+ 
  Permission is hereby granted, free of charge, to any person
 diff --git a/lib/abbrev.js b/lib/abbrev.js
 deleted file mode 100644
-index v1.0.4..v1.1.1
+index v1.0.4..v1.1.1 
 --- a/lib/abbrev.js
 +++ b/lib/abbrev.js
 @@ -1,111 +0,0 @@
@@ -229,7 +229,7 @@ index v1.0.4..v1.1.1
 / No newline at end of file
 diff --git a/abbrev.js b/abbrev.js
 new file mode 100644
-index v1.0.4..v1.1.1
+index v1.0.4..v1.1.1 
 --- a/abbrev.js
 +++ b/abbrev.js
 @@ -0,0 +1,61 @@
@@ -405,7 +405,7 @@ exports[`smoke-tests/index.js TAP npm install dev dep > should have expected dev
 
 exports[`smoke-tests/index.js TAP npm install dev dep > should have expected dev dep added reify output 1`] = `
 
-added 1 package
+added 1 package 
 
 1 package is looking for funding
   run \`npm fund\` for details
@@ -414,7 +414,7 @@ added 1 package
 
 exports[`smoke-tests/index.js TAP npm install prodDep@version > should have expected install reify output 1`] = `
 
-added 1 package
+added 1 package 
 
 `
 
@@ -576,7 +576,7 @@ exports[`smoke-tests/index.js TAP npm uninstall > should have expected uninstall
 
 exports[`smoke-tests/index.js TAP npm uninstall > should have expected uninstall reify output 1`] = `
 
-removed 1 package
+removed 1 package 
 
 `
 
@@ -654,7 +654,7 @@ exports[`smoke-tests/index.js TAP npm update dep > should have expected update p
 
 exports[`smoke-tests/index.js TAP npm update dep > should have expected update reify output 1`] = `
 
-changed 1 package
+changed 1 package 
 
 1 package is looking for funding
   run \`npm fund\` for details

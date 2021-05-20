@@ -398,38 +398,14 @@ module.exports = cls => class IdealTreeBuilder extends cls {
     process.emit('time', 'idealTree:userRequests')
     const tree = this.idealTree.target || this.idealTree
 
-    if (!this[_workspaces].length) {
-      return this[_applyUserRequestsToNode](tree, options).then(() =>
-        process.emit('timeEnd', 'idealTree:userRequests'))
+    if (!this[_workspaces].length)
+      await this[_applyUserRequestsToNode](tree, options)
+    else {
+      await Promise.all(this.workspaceNodes(tree, this[_workspaces])
+        .map(node => this[_applyUserRequestsToNode](node, options)))
     }
 
-    const wsMap = tree.workspaces
-    if (!wsMap) {
-      this.log.warn('idealTree', 'Workspace filter set, but no workspaces present')
-      return
-    }
-
-    const promises = []
-    for (const name of this[_workspaces]) {
-      const path = wsMap.get(name)
-      if (!path) {
-        this.log.warn('idealTree', `Workspace ${name} in filter set, but not in workspaces`)
-        continue
-      }
-      const loc = relpath(tree.realpath, path)
-      const node = tree.inventory.get(loc)
-
-      /* istanbul ignore if - should be impossible */
-      if (!node) {
-        this.log.warn('idealTree', `Workspace ${name} in filter set, but no workspace folder present`)
-        continue
-      }
-
-      promises.push(this[_applyUserRequestsToNode](node, options))
-    }
-
-    return Promise.all(promises).then(() =>
-      process.emit('timeEnd', 'idealTree:userRequests'))
+    process.emit('timeEnd', 'idealTree:userRequests')
   }
 
   async [_applyUserRequestsToNode] (tree, options) {
@@ -456,7 +432,7 @@ module.exports = cls => class IdealTreeBuilder extends cls {
     }
 
     if (this.auditReport && this.auditReport.size > 0)
-      this[_queueVulnDependents](options)
+      await this[_queueVulnDependents](options)
 
     const { add, rm } = options
 
@@ -475,10 +451,14 @@ module.exports = cls => class IdealTreeBuilder extends cls {
     if (add && add.length || rm && rm.length || this[_global])
       tree.package = tree.package
 
-    for (const spec of this[_resolvedAdd])
-      this[_explicitRequests].add(tree.edgesOut.get(spec.name))
+    for (const spec of this[_resolvedAdd]) {
+      if (spec.tree === tree)
+        this[_explicitRequests].add(tree.edgesOut.get(spec.name))
+    }
     for (const name of globalExplicitUpdateNames)
       this[_explicitRequests].add(tree.edgesOut.get(name))
+
+    this[_depsQueue].push(tree)
   }
 
   // This returns a promise because we might not have the name yet,
@@ -488,12 +468,14 @@ module.exports = cls => class IdealTreeBuilder extends cls {
     // ie, doing `foo@bar` we just return foo
     // but if it's a url or git, we don't know the name until we
     // fetch it and look in its manifest.
-    return Promise.all(add.map(rawSpec => {
-      // We do NOT provide the path here, because user-additions need
-      // to be resolved relative to the CWD the user is in.
-      return this[_retrieveSpecName](npa(rawSpec))
-        .then(add => this[_updateFilePath](add))
-        .then(add => this[_followSymlinkPath](add))
+    return Promise.all(add.map(async rawSpec => {
+      // We do NOT provide the path to npa here, because user-additions
+      // need to be resolved relative to the CWD the user is in.
+      const spec = await this[_retrieveSpecName](npa(rawSpec))
+        .then(spec => this[_updateFilePath](spec))
+        .then(spec => this[_followSymlinkPath](spec))
+      spec.tree = tree
+      return spec
     })).then(add => {
       this[_resolvedAdd].push(...add)
       // now add is a list of spec objects with names.
@@ -528,7 +510,7 @@ module.exports = cls => class IdealTreeBuilder extends cls {
 
   async [_updateFilePath] (spec) {
     if (spec.type === 'file')
-      spec = this[_getRelpathSpec](spec, spec.fetchSpec)
+      return this[_getRelpathSpec](spec, spec.fetchSpec)
 
     return spec
   }
@@ -541,7 +523,7 @@ module.exports = cls => class IdealTreeBuilder extends cls {
           .catch(/* istanbul ignore next */() => null)
       )
 
-      spec = this[_getRelpathSpec](spec, real)
+      return this[_getRelpathSpec](spec, real)
     }
     return spec
   }
@@ -561,9 +543,9 @@ module.exports = cls => class IdealTreeBuilder extends cls {
   // what's in the bundle at each published manifest.  Without that, we
   // can't possibly fix bundled deps without breaking a ton of other stuff,
   // and leaving the user subject to getting it overwritten later anyway.
-  [_queueVulnDependents] (options) {
-    for (const {nodes} of this.auditReport.values()) {
-      for (const node of nodes) {
+  async [_queueVulnDependents] (options) {
+    for (const vuln of this.auditReport.values()) {
+      for (const node of vuln.nodes) {
         const bundler = node.getBundler()
 
         // XXX this belongs in the audit report itself, not here.
@@ -595,6 +577,7 @@ module.exports = cls => class IdealTreeBuilder extends cls {
     if (this[_force] && this.auditReport && this.auditReport.topVulns.size) {
       options.add = options.add || []
       options.rm = options.rm || []
+      const nodesTouched = new Set()
       for (const [name, topVuln] of this.auditReport.topVulns.entries()) {
         const {
           simpleRange,
@@ -602,7 +585,7 @@ module.exports = cls => class IdealTreeBuilder extends cls {
           fixAvailable,
         } = topVuln
         for (const node of topNodes) {
-          if (node !== this.idealTree && node !== this.idealTree.target) {
+          if (!node.isProjectRoot && !node.isWorkspace) {
             // not something we're going to fix, sorry.  have to cd into
             // that directory and fix it yourself.
             this.log.warn('audit', 'Manual fix required in linked project ' +
@@ -622,9 +605,13 @@ module.exports = cls => class IdealTreeBuilder extends cls {
             : 'outside your stated dependency range'
           this.log.warn('audit', `Updating ${name} to ${version},` +
             `which is ${breakingMessage}.`)
-          options.add.push(`${name}@${version}`)
+
+          await this[_add](node, { add: [`${name}@${version}`] })
+          nodesTouched.add(node)
         }
       }
+      for (const node of nodesTouched)
+        node.package = node.package
     }
   }
 
@@ -646,7 +633,7 @@ module.exports = cls => class IdealTreeBuilder extends cls {
     // probably have their own project associated with them.
 
     // for every node with one of the names on the list, we add its
-    // dependents to the queue to be evaluated.  in buildDepStem,
+    // dependents to the queue to be evaluated.  in buildDepStep,
     // anything on the update names list will get refreshed, even if
     // it isn't a problem.
 
@@ -1025,7 +1012,8 @@ This is a one-time fix-up, please be patient...
 
     // also skip over any nodes in the tree that failed to load, since those
     // will crash the install later on anyway.
-    const bd = node.isProjectRoot ? null : node.package.bundleDependencies
+    const bd = node.isProjectRoot || node.isWorkspace ? null
+      : node.package.bundleDependencies
     const bundled = new Set(bd || [])
 
     return [...node.edgesOut.values()]
@@ -1061,8 +1049,8 @@ This is a one-time fix-up, please be patient...
         if (this[_isVulnerable](edge.to))
           return true
 
-        // If the user has explicitly asked to install this package, it's a problem.
-        if (node.isProjectRoot && this[_explicitRequests].has(edge))
+        // If the user has explicitly asked to install this package, it's a "problem".
+        if (this[_explicitRequests].has(edge))
           return true
 
         // No problems!
@@ -1358,7 +1346,7 @@ This is a one-time fix-up, please be patient...
       // first in x, then in the root, ending with KEEP, because we already
       // have it.  In that case, we ought to REMOVE the nm/x/nm/y node, because
       // it is an unnecessary duplicate.
-      this[_pruneDedupable](target, true)
+      this[_pruneDedupable](target)
       return []
     }
 
@@ -1475,8 +1463,20 @@ This is a one-time fix-up, please be patient...
       return
     }
     if (descend) {
-      for (const child of node.children.values())
+      // sort these so that they're deterministically ordered
+      // otherwise, resulting tree shape is dependent on the order
+      // in which they happened to be resolved.
+      const nodeSort = (a, b) => a.location.localeCompare(b.location, 'en')
+
+      const children = [...node.children.values()].sort(nodeSort)
+      const fsChildren = [...node.fsChildren].sort(nodeSort)
+      for (const child of children)
         this[_pruneDedupable](child)
+      for (const topNode of fsChildren) {
+        const children = [...topNode.children.values()].sort(nodeSort)
+        for (const child of children)
+          this[_pruneDedupable](child)
+      }
     }
   }
 

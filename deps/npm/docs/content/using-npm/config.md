@@ -494,6 +494,7 @@ mistakes, unnecessary performance degradation, and malicious input.
   range (including SemVer-major changes).
 * Allow unpublishing all versions of a published package.
 * Allow conflicting peerDependencies to be installed in the root project.
+* Implicitly set `--yes` during `npm init`.
 
 If you don't have a clear idea of what you want to do, it is strongly
 recommended that you do not use this option!
@@ -612,6 +613,11 @@ CI setup.
 
 If true, npm does not run scripts specified in package.json files.
 
+Note that commands explicitly intended to run a particular script, such as
+`npm start`, `npm stop`, `npm restart`, `npm test`, and `npm run-script`
+will still run their intended script if `ignore-scripts` is set, but they
+will *not* run any pre- or post-scripts.
+
 #### `include`
 
 * Default:
@@ -688,10 +694,7 @@ number, if not already set in package.json.
 
 Whether or not to output JSON data, rather than the normal output.
 
-This feature is currently experimental, and the output data structures for
-many commands is either not implemented in JSON yet, or subject to change.
-Only the output from `npm ls --json` and `npm search --json` are currently
-valid.
+Not supported by all npm commands.
 
 #### `key`
 
@@ -751,6 +754,8 @@ two conditions are met:
 * the globally installed version is identical to the version that is being
   installed locally.
 
+When used with `npm ls`, only show packages that are linked.
+
 #### `local-address`
 
 * Default: null
@@ -783,7 +788,7 @@ The maximum number of log files to store.
 * Default: false
 * Type: Boolean
 
-Show extended information in `npm ls` and `npm search`.
+Show extended information in `ls`, `search`, and `help-search`.
 
 #### `maxsockets`
 
@@ -844,8 +849,8 @@ allow the CLI to fill in missing cache data, see `--prefer-offline`.
 
 #### `omit`
 
-* Default: 'dev' if the NODE_ENV environment variable is set to 'production',
-  otherwise empty.
+* Default: 'dev' if the `NODE_ENV` environment variable is set to
+  'production', otherwise empty.
 * Type: "dev", "optional", or "peer" (can be set multiple times)
 
 Dependency types to omit from the installation tree on disk.
@@ -1064,15 +1069,28 @@ or `--save-optional` are true.
 
 Associate an operation with a scope for a scoped registry.
 
-Useful when logging in to a private registry for the first time:
+Useful when logging in to or out of a private registry:
 
-```bash
+```
+# log in, linking the scope to the custom registry
 npm login --scope=@mycorp --registry=https://registry.mycorp.com
+
+# log out, removing the link and the auth token
+npm logout --scope=@mycorp
 ```
 
 This will cause `@mycorp` to be mapped to the registry for future
 installation of packages specified according to the pattern
 `@mycorp/package`.
+
+This will also cause `npm init` to create a scoped package.
+
+```
+# accept all defaults, and create a package named "@foo/whatever",
+# instead of just named "whatever"
+npm init --scope=@foo --yes
+```
+
 
 #### `script-shell`
 
@@ -1182,6 +1200,9 @@ then it will install the specified tag.
 Also the tag that is added to the package@version specified by the `npm tag`
 command, if no explicit tag is given.
 
+When used by the `npm diff` command, this is the tag used to fetch the
+tarball that will be compared with the local files by default.
+
 #### `tag-version-prefix`
 
 * Default: "v"
@@ -1230,7 +1251,7 @@ other files are created with a mode of 0o644.
 #### `unicode`
 
 * Default: false on windows, true on mac/unix systems with a unicode locale,
-  as defined by the LC_ALL, LC_CTYPE, or LANG environment variables.
+  as defined by the `LC_ALL`, `LC_CTYPE`, or `LANG` environment variables.
 * Type: Boolean
 
 When set to true, npm uses unicode characters in the tree output. When
@@ -1325,9 +1346,16 @@ Enable running a command in the context of the configured workspaces of the
 current project while filtering by running only the workspaces defined by
 this configuration option.
 
-Valid values for the `workspace` config are either: - Workspace names - Path
-to a workspace directory - Path to a parent workspace directory (will result
-to selecting all of the nested workspaces)
+Valid values for the `workspace` config are either:
+
+* Workspace names
+* Path to a workspace directory
+* Path to a parent workspace directory (will result to selecting all of the
+  nested workspaces)
+
+When set for the `npm init` command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project.
 
 This value is not exported to the environment for child processes.
 

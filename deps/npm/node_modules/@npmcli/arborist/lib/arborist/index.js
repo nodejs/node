@@ -75,6 +75,7 @@ class Arborist extends Base {
   workspaceDependencySet (tree, workspaces) {
     const wsNodes = this.workspaceNodes(tree, workspaces)
     const set = new Set(wsNodes)
+    const extraneous = new Set()
     for (const node of set) {
       for (const edge of node.edgesOut.values()) {
         const dep = edge.to
@@ -84,7 +85,13 @@ class Arborist extends Base {
             set.add(dep.target)
         }
       }
+      for (const child of node.children.values()) {
+        if (child.extraneous)
+          extraneous.add(child)
+      }
     }
+    for (const extra of extraneous)
+      set.add(extra)
     return set
   }
 }

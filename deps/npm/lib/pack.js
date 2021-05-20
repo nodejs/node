@@ -24,7 +24,7 @@ class Pack extends BaseCommand {
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get params () {
-    return ['dry-run', 'workspace', 'workspaces']
+    return ['dry-run', 'json', 'workspace', 'workspaces']
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
@@ -46,6 +46,7 @@ class Pack extends BaseCommand {
 
     const unicode = this.npm.config.get('unicode')
     const dryRun = this.npm.config.get('dry-run')
+    const json = this.npm.config.get('json')
 
     // Get the manifests and filenames first so we can bail early on manifest
     // errors before making any tarballs
@@ -72,6 +73,11 @@ class Pack extends BaseCommand {
         await writeFile(filename, tarballData)
 
       tarballs.push(pkgContents)
+    }
+
+    if (json) {
+      this.npm.output(JSON.stringify(tarballs, null, 2))
+      return
     }
 
     for (const tar of tarballs) {

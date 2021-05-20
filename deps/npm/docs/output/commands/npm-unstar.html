@@ -141,7 +141,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#more">More</a></li><ul><li><a href="#star">Star</a></li><li><a href="#listing-stars">Listing stars</a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#more">More</a></li><ul><li><a href="#star">Star</a></li><li><a href="#listing-stars">Listing stars</a></li></ul><li><a href="#configuration">Configuration</a></li><ul><li><a href="#registry"><code>registry</code></a></li><li><a href="#unicode"><code>unicode</code></a></li><li><a href="#otp"><code>otp</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -157,6 +157,33 @@ it removes an item from your list of favorite packages.</p>
 <p>You can “star” a package using <a href="../commands/npm-star.html"><code>npm star</code></a></p>
 <h4 id="listing-stars">Listing stars</h4>
 <p>You can see all your starred packages using <a href="../commands/npm-stars.html"><code>npm stars</code></a></p>
+<h3 id="configuration">Configuration</h3>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="registry"><code>registry</code></h4>
+<ul>
+<li>Default: “<a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a>”</li>
+<li>Type: URL</li>
+</ul>
+<p>The base URL of the npm registry.</p>
+<h4 id="unicode"><code>unicode</code></h4>
+<ul>
+<li>Default: false on windows, true on mac/unix systems with a unicode locale,
+as defined by the <code>LC_ALL</code>, <code>LC_CTYPE</code>, or <code>LANG</code> environment variables.</li>
+<li>Type: Boolean</li>
+</ul>
+<p>When set to true, npm uses unicode characters in the tree output. When
+false, it uses ascii characters instead of unicode glyphs.</p>
+<h4 id="otp"><code>otp</code></h4>
+<ul>
+<li>Default: null</li>
+<li>Type: null or String</li>
+</ul>
+<p>This is a one-time password from a two-factor authenticator. It’s needed
+when publishing or changing package permissions with <code>npm access</code>.</p>
+<p>If not set, and a registry response fails with a challenge for a one-time
+password, npm will prompt on the command line for one.</p>
+<!-- raw HTML omitted -->
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../commands/npm-star.html">npm star</a></li>

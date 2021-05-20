@@ -25,6 +25,16 @@ class Team extends BaseCommand {
     ]
   }
 
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return [
+      'registry',
+      'otp',
+      'parseable',
+      'json',
+    ]
+  }
+
   async completion (opts) {
     const { conf: { argv: { remain: argv } } } = opts
     const subcommands = ['create', 'destroy', 'add', 'rm', 'ls']

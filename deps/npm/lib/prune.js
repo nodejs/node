@@ -2,8 +2,8 @@
 const Arborist = require('@npmcli/arborist')
 const reifyFinish = require('./utils/reify-finish.js')
 
-const BaseCommand = require('./base-command.js')
-class Prune extends BaseCommand {
+const ArboristWorkspaceCmd = require('./workspaces/arborist-cmd.js')
+class Prune extends ArboristWorkspaceCmd {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get description () {
     return 'Remove extraneous packages'
@@ -16,7 +16,7 @@ class Prune extends BaseCommand {
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get params () {
-    return ['production']
+    return ['omit', 'dry-run', 'json', ...super.params]
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
@@ -34,6 +34,7 @@ class Prune extends BaseCommand {
       ...this.npm.flatOptions,
       path: where,
       log: this.npm.log,
+      workspaces: this.workspaces,
     }
     const arb = new Arborist(opts)
     await arb.prune(opts)

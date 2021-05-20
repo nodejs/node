@@ -141,7 +141,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#registry"><code>registry</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -149,7 +149,22 @@ npm command-line interface
 </code></pre>
 <p>Note: This command is unaware of workspaces.</p>
 <h3 id="description">Description</h3>
-<p>Print the <code>username</code> config to standard output.</p>
+<p>Display the npm username of the currently logged-in user.</p>
+<p>If logged into a registry that provides token-based authentication, then
+connect to the <code>/-/whoami</code> registry endpoint to find the username
+associated with the token, and print to standard output.</p>
+<p>If logged into a registry that uses Basic Auth, then simply print the
+<code>username</code> portion of the authentication string.</p>
+<h3 id="configuration">Configuration</h3>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="registry"><code>registry</code></h4>
+<ul>
+<li>Default: “<a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a>”</li>
+<li>Type: URL</li>
+</ul>
+<p>The base URL of the npm registry.</p>
+<!-- raw HTML omitted -->
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../commands/npm-config.html">npm config</a></li>

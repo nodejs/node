@@ -19,7 +19,7 @@ class Init extends BaseCommand {
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get params () {
-    return ['workspace', 'workspaces']
+    return ['yes', 'force', 'workspace', 'workspaces']
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */

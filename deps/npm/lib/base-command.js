@@ -6,6 +6,7 @@ class BaseCommand {
   constructor (npm) {
     this.wrapWidth = 80
     this.npm = npm
+    this.workspaces = null
   }
 
   get name () {
