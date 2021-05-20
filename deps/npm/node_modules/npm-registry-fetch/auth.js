@@ -52,7 +52,7 @@ const getAuth = (uri, opts = {}) => {
   if (forceAuth && !regKey) {
     return new Auth({
       scopeAuthKey: null,
-      token: forceAuth._authToken,
+      token: forceAuth._authToken || forceAuth.token,
       username: forceAuth.username,
       password: forceAuth._password || forceAuth.password,
       auth: forceAuth._auth || forceAuth.auth,

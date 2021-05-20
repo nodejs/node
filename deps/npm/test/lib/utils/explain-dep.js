@@ -1,8 +1,16 @@
+const { resolve } = require('path')
 const t = require('tap')
-const npm = {}
-const { explainNode, printNode } = t.mock('../../../lib/utils/explain-dep.js', {
-  '../../../lib/npm.js': npm,
-})
+const { explainNode, printNode } = require('../../../lib/utils/explain-dep.js')
+const testdir = t.testdirName
+
+const redactCwd = (path) => {
+  const normalizePath = p => p
+    .replace(/\\+/g, '/')
+    .replace(/\r\n/g, '\n')
+  return normalizePath(path)
+    .replace(new RegExp(normalizePath(process.cwd()), 'g'), '{CWD}')
+}
+t.cleanSnapshot = (str) => redactCwd(str)
 
 const cases = {
   prodDep: {
@@ -204,9 +212,32 @@ cases.manyDeps = {
   ],
 }
 
+cases.workspaces = {
+  name: 'a',
+  version: '1.0.0',
+  location: 'a',
+  isWorkspace: true,
+  dependents: [],
+  linksIn: [
+    {
+      name: 'a',
+      version: '1.0.0',
+      location: 'node_modules/a',
+      isWorkspace: true,
+      dependents: [
+        {
+          type: 'workspace',
+          name: 'a',
+          spec: `file:${resolve(testdir, 'ws-project', 'a')}`,
+          from: { location: resolve(testdir, 'ws-project') },
+        },
+      ],
+    },
+  ],
+}
+
 for (const [name, expl] of Object.entries(cases)) {
   t.test(name, t => {
-    npm.color = true
     t.matchSnapshot(printNode(expl, true), 'print color')
     t.matchSnapshot(printNode(expl, false), 'print nocolor')
     t.matchSnapshot(explainNode(expl, Infinity, true), 'explain color deep')

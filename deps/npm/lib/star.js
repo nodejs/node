@@ -20,6 +20,14 @@ class Star extends BaseCommand {
     return ['[<pkg>...]']
   }
 
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return [
+      'registry',
+      'unicode',
+    ]
+  }
+
   exec (args, cb) {
     this.star(args).then(() => cb()).catch(cb)
   }

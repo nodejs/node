@@ -50,6 +50,16 @@ class Config extends BaseCommand {
     ]
   }
 
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return [
+      'json',
+      'global',
+      'editor',
+      'long',
+    ]
+  }
+
   async completion (opts) {
     const argv = opts.conf.argv.remain
     if (argv[1] !== 'config')

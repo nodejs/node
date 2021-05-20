@@ -11,5 +11,13 @@ class Stop extends LifecycleCmd {
   static get name () {
     return 'stop'
   }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return [
+      'ignore-scripts',
+      'script-shell',
+    ]
+  }
 }
 module.exports = Stop

@@ -32,6 +32,22 @@ class Diff extends BaseCommand {
     ]
   }
 
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return [
+      'diff',
+      'diff-name-only',
+      'diff-unified',
+      'diff-ignore-all-space',
+      'diff-no-prefix',
+      'diff-src-prefix',
+      'diff-dst-prefix',
+      'diff-text',
+      'global',
+      'tag',
+    ]
+  }
+
   get where () {
     const globalTop = resolve(this.npm.globalDir, '..')
     const global = this.npm.config.get('global')

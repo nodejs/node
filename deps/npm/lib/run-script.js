@@ -36,7 +36,13 @@ class RunScript extends BaseCommand {
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get params () {
-    return ['workspace', 'workspaces']
+    return [
+      'workspace',
+      'workspaces',
+      'if-present',
+      'ignore-scripts',
+      'script-shell',
+    ]
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
