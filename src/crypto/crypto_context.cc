@@ -475,6 +475,9 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   // SSLv3 is disabled because it's susceptible to downgrade attacks (POODLE.)
   SSL_CTX_set_options(sc->ctx_.get(), SSL_OP_NO_SSLv2);
   SSL_CTX_set_options(sc->ctx_.get(), SSL_OP_NO_SSLv3);
+#if OPENSSL_VERSION_MAJOR >= 3
+  SSL_CTX_set_options(sc->ctx_.get(), SSL_OP_ALLOW_CLIENT_RENEGOTIATION);
+#endif
 
   // Enable automatic cert chaining. This is enabled by default in OpenSSL, but
   // disabled by default in BoringSSL. Enable it explicitly to make the
