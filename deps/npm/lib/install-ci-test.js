@@ -13,6 +13,14 @@ class InstallCITest extends CI {
     return 'install-ci-test'
   }
 
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return [
+      'ignore-scripts',
+      'script-shell',
+    ]
+  }
+
   exec (args, cb) {
     this.npm.commands.ci(args, (er) => {
       if (er)

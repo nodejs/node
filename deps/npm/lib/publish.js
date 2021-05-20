@@ -36,7 +36,7 @@ class Publish extends BaseCommand {
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get params () {
-    return ['tag', 'access', 'dry-run', 'workspace', 'workspaces']
+    return ['tag', 'access', 'dry-run', 'otp', 'workspace', 'workspaces']
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
@@ -58,7 +58,7 @@ class Publish extends BaseCommand {
     if (args.length === 0)
       args = ['.']
     if (args.length !== 1)
-      throw this.usage
+      throw this.usageError()
 
     log.verbose('publish', args)
 

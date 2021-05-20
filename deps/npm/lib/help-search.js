@@ -21,6 +21,11 @@ class HelpSearch extends BaseCommand {
     return ['<text>']
   }
 
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return ['long']
+  }
+
   exec (args, cb) {
     this.helpSearch(args).then(() => cb()).catch(cb)
   }

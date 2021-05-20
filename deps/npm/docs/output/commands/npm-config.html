@@ -141,7 +141,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#sub-commands">Sub-commands</a></li><ul><li><a href="#set">set</a></li><li><a href="#get">get</a></li><li><a href="#list">list</a></li><li><a href="#delete">delete</a></li><li><a href="#edit2">edit</a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#sub-commands">Sub-commands</a></li><ul><li><a href="#set">set</a></li><li><a href="#get">get</a></li><li><a href="#list">list</a></li><li><a href="#delete">delete</a></li><li><a href="#edit2">edit</a></li></ul><li><a href="#configuration">Configuration</a></li><ul><li><a href="#json"><code>json</code></a></li><li><a href="#global"><code>global</code></a></li><li><a href="#editor"><code>editor</code></a></li><li><a href="#long"><code>long</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -197,6 +197,44 @@ to show the settings in json format.</p>
 </code></pre>
 <p>Opens the config file in an editor.  Use the <code>--global</code> flag to edit the
 global config.</p>
+<h3 id="configuration">Configuration</h3>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="json"><code>json</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Whether or not to output JSON data, rather than the normal output.</p>
+<p>Not supported by all npm commands.</p>
+<h4 id="global"><code>global</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Operates in “global” mode, so that packages are installed into the <code>prefix</code>
+folder instead of the current working directory. See
+<a href="../configuring-npm/folders.html">folders</a> for more on the differences in behavior.</p>
+<ul>
+<li>packages are installed into the <code>{prefix}/lib/node_modules</code> folder, instead
+of the current working directory.</li>
+<li>bin files are linked to <code>{prefix}/bin</code></li>
+<li>man pages are linked to <code>{prefix}/share/man</code></li>
+</ul>
+<h4 id="editor"><code>editor</code></h4>
+<ul>
+<li>Default: The EDITOR or VISUAL environment variables, or ‘notepad.exe’ on
+Windows, or ‘vim’ on Unix systems</li>
+<li>Type: String</li>
+</ul>
+<p>The command to run for <code>npm edit</code> and <code>npm config edit</code>.</p>
+<h4 id="long"><code>long</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Show extended information in <code>ls</code>, <code>search</code>, and <code>help-search</code>.</p>
+<!-- raw HTML omitted -->
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../configuring-npm/folders.html">npm folders</a></li>

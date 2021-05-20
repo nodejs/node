@@ -36,7 +36,7 @@ class Exec extends BaseCommand {
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get params () {
-    return ['workspace', 'workspaces']
+    return ['package', 'call', 'workspace', 'workspaces']
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */

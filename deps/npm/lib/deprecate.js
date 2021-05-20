@@ -21,6 +21,14 @@ class Deprecate extends BaseCommand {
     return ['<pkg>[@<version>] <message>']
   }
 
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return [
+      'registry',
+      'otp',
+    ]
+  }
+
   async completion (opts) {
     if (opts.conf.argv.remain.length > 1)
       return []

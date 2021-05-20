@@ -22,6 +22,16 @@ class Org extends BaseCommand {
     ]
   }
 
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return [
+      'registry',
+      'otp',
+      'json',
+      'parseable',
+    ]
+  }
+
   async completion (opts) {
     const argv = opts.conf.argv.remain
     if (argv.length === 2)
