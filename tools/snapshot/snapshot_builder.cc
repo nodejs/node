@@ -113,7 +113,7 @@ std::string SnapshotBuilder::Generate(
       creator.SetDefaultContext(Context::New(isolate));
       isolate_data_indexes = main_instance->isolate_data()->Serialize(&creator);
 
-      // Run the per-contenxt scripts
+      // Run the per-context scripts
       Local<Context> context;
       {
         TryCatch bootstrapCatch(isolate);
