@@ -1041,15 +1041,13 @@ InitializationResult InitializeOncePerProcess(int argc, char** argv) {
   credentials::SafeGetenv("OPENSSL_CONF", &env_openssl_conf);
 
   bool has_cli_conf = !per_process::cli_options->openssl_config.empty();
-  bool has_env_conf = !env_openssl_conf.empty();
-
-  if (has_cli_conf || has_env_conf) {
-    const char* conf = has_cli_conf ?
-        per_process::cli_options->openssl_config.c_str() :
-        env_openssl_conf.c_str();
+  if (has_cli_conf || !env_openssl_conf.empty()) {
     OPENSSL_INIT_SETTINGS* settings = OPENSSL_INIT_new();
-    OPENSSL_INIT_set_config_filename(settings, conf);
     OPENSSL_INIT_set_config_file_flags(settings, CONF_MFLAGS_DEFAULT_SECTION);
+    if (has_cli_conf) {
+      const char* conf = per_process::cli_options->openssl_config.c_str();
+      OPENSSL_INIT_set_config_filename(settings, conf);
+    }
     OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CONFIG, settings);
     OPENSSL_INIT_free(settings);
 
