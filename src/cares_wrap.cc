@@ -32,7 +32,6 @@
 #include "v8.h"
 #include "uv.h"
 
-#include <cerrno>
 #include <cstring>
 #include <memory>
 #include <vector>
@@ -73,7 +72,7 @@ namespace {
 
 Mutex ares_library_mutex;
 
-inline uint16_t cares_get_16bit(const unsigned char* p) {
+inline const uint16_t cares_get_16bit(const unsigned char* p) {
   return static_cast<uint32_t>(p[0] << 8U) | (static_cast<uint32_t>(p[1]));
 }
 
@@ -520,8 +519,6 @@ int ParseSoaReply(
   };
   using ares_unique_ptr = std::unique_ptr<char[], AresDeleter>;
 
-  // Can't use ares_parse_soa_reply() here which can only parse single record
-  const unsigned int ancount = cares_get_16bit(buf + 6);
   unsigned char* ptr = buf + NS_HFIXEDSZ;
   char* name_temp = nullptr;
   long temp_len;  // NOLINT(runtime/int)
@@ -538,6 +535,8 @@ int ParseSoaReply(
   }
   ptr += temp_len + NS_QFIXEDSZ;
 
+  // Can't use ares_parse_soa_reply() here which can only parse single record
+  const uint16_t ancount = cares_get_16bit(buf + 6);
   for (unsigned int i = 0; i < ancount; i++) {
     char* rr_name_temp = nullptr;
     long rr_temp_len;  // NOLINT(runtime/int)
@@ -553,8 +552,8 @@ int ParseSoaReply(
       return ARES_EBADRESP;
     }
 
-    const int rr_type = cares_get_16bit(ptr);
-    const int rr_len = cares_get_16bit(ptr + 8);
+    const uint16_t rr_type = cares_get_16bit(ptr);
+    const uint16_t rr_len = cares_get_16bit(ptr + 8);
     ptr += NS_RRFIXEDSZ;
 
     // only need SOA
