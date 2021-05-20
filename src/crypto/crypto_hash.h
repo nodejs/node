@@ -52,8 +52,8 @@ struct HashConfig final : public MemoryRetainer {
   HashConfig& operator=(HashConfig&& other) noexcept;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(HashConfig);
-  SET_SELF_SIZE(HashConfig);
+  SET_MEMORY_INFO_NAME(HashConfig)
+  SET_SELF_SIZE(HashConfig)
 };
 
 struct HashTraits final {
