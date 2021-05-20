@@ -2,7 +2,7 @@ const os = require('os')
 const path = require('path')
 const pacote = require('pacote')
 const table = require('text-table')
-const color = require('ansicolors')
+const color = require('chalk')
 const styles = require('ansistyles')
 const npa = require('npm-package-arg')
 const pickManifest = require('npm-pick-manifest')
@@ -10,9 +10,9 @@ const pickManifest = require('npm-pick-manifest')
 const Arborist = require('@npmcli/arborist')
 
 const ansiTrim = require('./utils/ansi-trim.js')
-const BaseCommand = require('./base-command.js')
+const ArboristWorkspaceCmd = require('./workspaces/arborist-cmd.js')
 
-class Outdated extends BaseCommand {
+class Outdated extends ArboristWorkspaceCmd {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get description () {
     return 'Check for outdated packages'
@@ -26,6 +26,18 @@ class Outdated extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get usage () {
     return ['[[<@scope>/]<pkg> ...]']
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return [
+      'all',
+      'json',
+      'long',
+      'parseable',
+      'global',
+      'workspace',
+    ]
   }
 
   exec (args, cb) {
@@ -46,6 +58,9 @@ class Outdated extends BaseCommand {
     this.edges = new Set()
     this.list = []
     this.tree = await arb.loadActual()
+
+    if (this.workspaces && this.workspaces.length)
+      this.filterSet = arb.workspaceDependencySet(this.tree, this.workspaces)
 
     if (args.length !== 0) {
       // specific deps
@@ -105,8 +120,14 @@ class Outdated extends BaseCommand {
   }
 
   getEdges (nodes, type) {
-    if (!nodes)
-      return this.getEdgesOut(this.tree)
+    // when no nodes are provided then it should only read direct deps
+    // from the root node and its workspaces direct dependencies
+    if (!nodes) {
+      this.getEdgesOut(this.tree)
+      this.getWorkspacesEdges()
+      return
+    }
+
     for (const node of nodes) {
       type === 'edgesOut'
         ? this.getEdgesOut(node)
@@ -116,16 +137,45 @@ class Outdated extends BaseCommand {
 
   getEdgesIn (node) {
     for (const edge of node.edgesIn)
-      this.edges.add(edge)
+      this.trackEdge(edge)
   }
 
   getEdgesOut (node) {
+    // TODO: normalize usage of edges and avoid looping through nodes here
     if (this.npm.config.get('global')) {
       for (const child of node.children.values())
-        this.edges.add(child)
+        this.trackEdge(child)
     } else {
       for (const edge of node.edgesOut.values())
-        this.edges.add(edge)
+        this.trackEdge(edge)
+    }
+  }
+
+  trackEdge (edge) {
+    const filteredOut =
+      edge.from
+        && this.filterSet
+        && this.filterSet.size > 0
+        && !this.filterSet.has(edge.from.target || edge.from)
+
+    if (filteredOut)
+      return
+
+    this.edges.add(edge)
+  }
+
+  getWorkspacesEdges (node) {
+    if (this.npm.config.get('global'))
+      return
+
+    for (const edge of this.tree.edgesOut.values()) {
+      const workspace = edge
+        && edge.to
+        && edge.to.target
+        && edge.to.target.isWorkspace
+
+      if (workspace)
+        this.getEdgesOut(edge.to.target)
     }
   }
 
@@ -177,6 +227,10 @@ class Outdated extends BaseCommand {
         current !== wanted.version ||
         wanted.version !== latest.version
       ) {
+        const dependent = edge.from ?
+          this.maybeWorkspaceName(edge.from)
+          : 'global'
+
         this.list.push({
           name: edge.name,
           path,
@@ -185,7 +239,7 @@ class Outdated extends BaseCommand {
           location,
           wanted: wanted.version,
           latest: latest.version,
-          dependent: edge.from ? edge.from.name : 'global',
+          dependent,
           homepage: packument.homepage,
         })
       }
@@ -199,6 +253,23 @@ class Outdated extends BaseCommand {
       )
         throw err
     }
+  }
+
+  maybeWorkspaceName (node) {
+    if (!node.isWorkspace)
+      return node.name
+
+    const humanOutput =
+      !this.npm.config.get('json') && !this.npm.config.get('parseable')
+
+    const workspaceName =
+      humanOutput
+        ? node.pkgid
+        : node.name
+
+    return this.npm.color && humanOutput
+      ? color.green(workspaceName)
+      : workspaceName
   }
 
   // formatting functions

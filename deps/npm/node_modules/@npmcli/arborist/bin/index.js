@@ -11,6 +11,7 @@ Version: ${require('../package.json').version}
 # COMMANDS
 
 * reify: reify ideal tree to node_modules (install, update, rm, ...)
+* prune: prune the ideal tree and reify (like npm prune)
 * ideal: generate and print the ideal tree
 * actual: read and print the actual tree in node_modules
 * virtual: read and print the virtual tree in the local shrinkwrap file
@@ -49,6 +50,9 @@ switch (cmd) {
     break
   case 'ideal':
     require('./ideal.js')
+    break
+  case 'prune':
+    require('./prune.js')
     break
   case 'reify':
     require('./reify.js')

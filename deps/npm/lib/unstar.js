@@ -11,6 +11,15 @@ class Unstar extends Star {
     return 'unstar'
   }
 
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return [
+      'registry',
+      'unicode',
+      'otp',
+    ]
+  }
+
   exec (args, cb) {
     this.npm.config.set('star.unstar', true)
     super.exec(args, cb)

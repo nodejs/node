@@ -37,7 +37,12 @@ t.test('no args', t => {
     constructor (args) {
       t.same(
         args,
-        { ...npm.flatOptions, path: npm.prefix, log: noop },
+        {
+          ...npm.flatOptions,
+          path: npm.prefix,
+          log: noop,
+          workspaces: null,
+        },
         'should call arborist contructor with expected args'
       )
     }
@@ -71,7 +76,12 @@ t.test('with args', t => {
     constructor (args) {
       t.same(
         args,
-        { ...npm.flatOptions, path: npm.prefix, log: noop },
+        {
+          ...npm.flatOptions,
+          path: npm.prefix,
+          log: noop,
+          workspaces: null,
+        },
         'should call arborist contructor with expected args'
       )
     }
@@ -139,7 +149,7 @@ t.test('update --global', t => {
       const { path, ...opts } = args
       t.same(
         opts,
-        { ...npm.flatOptions, log: noop },
+        { ...npm.flatOptions, log: noop, workspaces: undefined },
         'should call arborist contructor with expected options'
       )
 

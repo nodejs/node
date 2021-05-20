@@ -141,7 +141,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#browser">browser</a></li><li><a href="#workspaces">workspaces</a></li><li><a href="#workspace">workspace</a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#browser"><code>browser</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -153,23 +153,45 @@ repository URL, and then tries to open it using the <code>--browser</code> confi
 param. If no package name is provided, it will search for a <code>package.json</code>
 in the current folder and use the <code>repository</code> property.</p>
 <h3 id="configuration">Configuration</h3>
-<h4 id="browser">browser</h4>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="browser"><code>browser</code></h4>
 <ul>
 <li>Default: OS X: <code>"open"</code>, Windows: <code>"start"</code>, Others: <code>"xdg-open"</code></li>
-<li>Type: String or Boolean</li>
+<li>Type: null, Boolean, or String</li>
 </ul>
-<p>The browser that is called by the <code>npm repo</code> command to open websites.</p>
+<p>The browser that is called by npm commands to open websites.</p>
 <p>Set to <code>false</code> to suppress browser behavior and instead print urls to
 terminal.</p>
 <p>Set to <code>true</code> to use default system URL opener.</p>
-<h4 id="workspaces">workspaces</h4>
-<p>Enables workspaces context while searching the <code>package.json</code> in the
-current folder.  Repo urls for the packages named in each workspace will
-be opened.</p>
-<h4 id="workspace">workspace</h4>
-<p>Enables workspaces context and limits results to only those specified by
-this config item.  Only the repo urls for the packages named in the
-workspaces given here will be opened.</p>
+<h4 id="workspace"><code>workspace</code></h4>
+<ul>
+<li>Default:</li>
+<li>Type: String (can be set multiple times)</li>
+</ul>
+<p>Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option.</p>
+<p>Valid values for the <code>workspace</code> config are either:</p>
+<ul>
+<li>Workspace names</li>
+<li>Path to a workspace directory</li>
+<li>Path to a parent workspace directory (will result to selecting all of the
+nested workspaces)</li>
+</ul>
+<p>When set for the <code>npm init</code> command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project.</p>
+<p>This value is not exported to the environment for child processes.</p>
+<h4 id="workspaces"><code>workspaces</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Enable running a command in the context of <strong>all</strong> the configured
+workspaces.</p>
+<p>This value is not exported to the environment for child processes.</p>
+<!-- raw HTML omitted -->
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../commands/npm-docs.html">npm docs</a></li>

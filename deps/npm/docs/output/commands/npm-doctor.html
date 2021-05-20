@@ -141,7 +141,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><ul><li><a href="#npm-ping"><code>npm ping</code></a></li><li><a href="#npm--v"><code>npm -v</code></a></li><li><a href="#node--v"><code>node -v</code></a></li><li><a href="#npm-config-get-registry"><code>npm config get registry</code></a></li><li><a href="#which-git"><code>which git</code></a></li><li><a href="#permissions-checks">Permissions checks</a></li><li><a href="#validate-the-checksums-of-cached-packages">Validate the checksums of cached packages</a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><ul><li><a href="#npm-ping"><code>npm ping</code></a></li><li><a href="#npm--v"><code>npm -v</code></a></li><li><a href="#node--v"><code>node -v</code></a></li><li><a href="#npm-config-get-registry"><code>npm config get registry</code></a></li><li><a href="#which-git"><code>which git</code></a></li><li><a href="#permissions-checks">Permissions checks</a></li><li><a href="#validate-the-checksums-of-cached-packages">Validate the checksums of cached packages</a></li></ul><li><a href="#configuration">Configuration</a></li><ul><li><a href="#registry"><code>registry</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -221,6 +221,16 @@ package tarballs in your local cache (you can see where that cache is
 located with <code>npm config get cache</code>). In the event that there are corrupt
 packages in your cache, you should probably run <code>npm cache clean -f</code> and
 reset the cache.</p>
+<h3 id="configuration">Configuration</h3>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="registry"><code>registry</code></h4>
+<ul>
+<li>Default: “<a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a>”</li>
+<li>Type: URL</li>
+</ul>
+<p>The base URL of the npm registry.</p>
+<!-- raw HTML omitted -->
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../commands/npm-bugs.html">npm bugs</a></li>

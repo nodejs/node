@@ -1,4 +1,57 @@
+## v7.14.0 (2021-05-20)
+
+### FEATURES
+
+* [`0d1a9d787`](https://github.com/npm/cli/commit/0d1a9d78779dc015242fc03d2dad2039004fa2df)
+  [#3227](https://github.com/npm/cli/issues/3227)
+  feat(install): add workspaces support to npm install commands
+  ([@isaacs](https://github.com/isaacs))
+* [`c18626f04`](https://github.com/npm/cli/commit/c18626f047e3a0fedd3c86554a4a0a8f27925e77)
+  [#3250](https://github.com/npm/cli/issues/3250)
+  feat(ls): add workspaces support
+  ([@ruyadorno](https://github.com/ruyadorno))
+* [`41099d395`](https://github.com/npm/cli/commit/41099d3958d08f166313b7eb69b76458f8f9224c)
+  [#3265](https://github.com/npm/cli/issues/3265)
+  feat(explain): add workspaces support
+  ([@ruyadorno](https://github.com/ruyadorno))
+* [`fde354669`](https://github.com/npm/cli/commit/fde35466915b5ac5958c827fa7e919e1f186db51)
+  [#3251](https://github.com/npm/cli/issues/3251)
+  feat(unpublish): add workspace/dry-run support
+  ([@wraithgar](https://github.com/wraithgar))
+* [`83df3666c`](https://github.com/npm/cli/commit/83df3666cd82819230fb45f2a40afd531fe3b3c7)
+  [#3260](https://github.com/npm/cli/issues/3260)
+  feat(outdated): add workspaces support
+  ([@ruyadorno](https://github.com/ruyadorno))
+* [`63a7635f7`](https://github.com/npm/cli/commit/63a7635f7a2225a4edd1fe92f94a563965ac06c7)
+  [#3217](https://github.com/npm/cli/issues/3217)
+  feat(pack): add support to json config/output
+  ([@mrmlnc](https://github.com/mrmlnc))
+
+### BUG FIXES
+
+* [`faa12ccc2`](https://github.com/npm/cli/commit/faa12ccc26b5f0790f79b2589780e536f4284491)
+  [#3253](https://github.com/npm/cli/issues/3253)
+  fix search description typos
+  ([@juanpicado](https://github.com/juanpicado))
+* [`2f5c28a68`](https://github.com/npm/cli/commit/2f5c28a68719e948d2efedf463ebcb35972aaefb)
+  [#3243](https://github.com/npm/cli/issues/3243)
+  fix(docs): autogenerate config docs for commands
+  ([@isaacs](https://github.com/isaacs))
+
+### DEPENDENCIES
+
+* [`ec256a14a`](https://github.com/npm/cli/commit/ec256a14aa6eb2bd59fd55dcc6a4bc0148662c4e)
+  `@npmcli/arborist@2.6.0`
+* [`5f15aba86`](https://github.com/npm/cli/commit/5f15aba866026e7c0d6844e6c07a528dc7454f14)
+  `cacache@15.1.0`
+* [`b3add87e6`](https://github.com/npm/cli/commit/b3add87e686968b7af3067c685d2561baf90e397)
+  [#3262](https://github.com/npm/cli/pull/3262)
+  `npm-registry-client@10.1.2`:
+    * fixed sso login token
+
 ## v7.13.0 (2021-05-13)
+
+### FEATURES
 
 * [`076420c14`](https://github.com/npm/cli/commit/076420c149d097056f687e44e21744b743b86e4e)
   [#3231](https://github.com/npm/cli/issues/3231)

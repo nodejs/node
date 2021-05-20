@@ -20,6 +20,13 @@ class Stars extends BaseCommand {
     return ['[<user>]']
   }
 
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return [
+      'registry',
+    ]
+  }
+
   exec (args, cb) {
     this.stars(args).then(() => cb()).catch(er => {
       if (er.code === 'ENEEDAUTH')

@@ -9,8 +9,8 @@ const { resolve, join } = require('path')
 const Arborist = require('@npmcli/arborist')
 const runScript = require('@npmcli/run-script')
 
-const BaseCommand = require('./base-command.js')
-class Install extends BaseCommand {
+const ArboristWorkspaceCmd = require('./workspaces/arborist-cmd.js')
+class Install extends ArboristWorkspaceCmd {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get description () {
     return 'Install a package'
@@ -26,6 +26,18 @@ class Install extends BaseCommand {
     return [
       'save',
       'save-exact',
+      'global',
+      'global-style',
+      'legacy-bundling',
+      'strict-peer-deps',
+      'package-lock',
+      'omit',
+      'ignore-scripts',
+      'audit',
+      'bin-links',
+      'fund',
+      'dry-run',
+      ...super.params,
     ]
   }
 
@@ -132,6 +144,7 @@ class Install extends BaseCommand {
       auditLevel: null,
       path: where,
       add: args,
+      workspaces: this.workspaces,
     }
     const arb = new Arborist(opts)
     await arb.reify(opts)

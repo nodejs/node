@@ -1407,14 +1407,16 @@ t.test('ls', (t) => {
     })
   })
 
-  t.test('loading a tree containing workspaces', (t) => {
-    npm.prefix = t.testdir({
+  t.test('loading a tree containing workspaces', async (t) => {
+    npm.localPrefix = npm.prefix = t.testdir({
       'package.json': JSON.stringify({
-        name: 'filter-by-child-of-missing-dep',
+        name: 'workspaces-tree',
         version: '1.0.0',
         workspaces: [
           './a',
           './b',
+          './d',
+          './group/*',
         ],
       }),
       node_modules: {
@@ -1426,6 +1428,21 @@ t.test('ls', (t) => {
             version: '1.0.0',
           }),
         },
+        d: t.fixture('symlink', '../d'),
+        e: t.fixture('symlink', '../group/e'),
+        f: t.fixture('symlink', '../group/f'),
+        foo: {
+          'package.json': JSON.stringify({
+            name: 'foo',
+            version: '1.1.1',
+            dependencies: {
+              bar: '^1.0.0',
+            },
+          }),
+        },
+        bar: {
+          'package.json': JSON.stringify({ name: 'bar', version: '1.0.0' }),
+        },
       },
       a: {
         'package.json': JSON.stringify({
@@ -1433,6 +1450,7 @@ t.test('ls', (t) => {
           version: '1.0.0',
           dependencies: {
             c: '^1.0.0',
+            d: '^1.0.0',
           },
         }),
       },
@@ -1442,18 +1460,104 @@ t.test('ls', (t) => {
           version: '1.0.0',
         }),
       },
+      d: {
+        'package.json': JSON.stringify({
+          name: 'd',
+          version: '1.0.0',
+          dependencies: {
+            foo: '^1.1.1',
+          },
+        }),
+      },
+      group: {
+        e: {
+          'package.json': JSON.stringify({
+            name: 'e',
+            version: '1.0.0',
+          }),
+        },
+        f: {
+          'package.json': JSON.stringify({
+            name: 'f',
+            version: '1.0.0',
+          }),
+        },
+      },
     })
 
-    ls.exec([], (err) => {
-      t.error(err, 'should NOT have ELSPROBLEMS error code')
-      t.matchSnapshot(redactCwd(result), 'should list workspaces properly')
+    await new Promise((res, rej) => {
+      config.all = false
+      config.depth = 0
+      npm.color = true
+      ls.exec([], (err) => {
+        if (err)
+          rej(err)
 
-      // should also be able to filter out one of the workspaces
-      ls.exec(['a'], (err) => {
-        t.error(err, 'should NOT have ELSPROBLEMS error code when filter')
+        t.matchSnapshot(redactCwd(result),
+          'should list workspaces properly with default configs')
+        config.all = true
+        config.depth = Infinity
+        npm.color = false
+        res()
+      })
+    })
+
+    // --all
+    await new Promise((res, rej) => {
+      ls.exec([], (err) => {
+        if (err)
+          rej(err)
+
+        t.matchSnapshot(redactCwd(result),
+          'should list --all workspaces properly')
+        res()
+      })
+    })
+
+    // filter out a single workspace using args
+    await new Promise((res, rej) => {
+      ls.exec(['d'], (err) => {
+        if (err)
+          rej(err)
+
         t.matchSnapshot(redactCwd(result), 'should filter single workspace')
+        res()
+      })
+    })
 
-        t.end()
+    // filter out a single workspace and its deps using workspaces filters
+    await new Promise((res, rej) => {
+      ls.execWorkspaces([], ['a'], (err) => {
+        if (err)
+          rej(err)
+
+        t.matchSnapshot(redactCwd(result),
+          'should filter using workspace config')
+        res()
+      })
+    })
+
+    // filter out a workspace by parent path
+    await new Promise((res, rej) => {
+      ls.execWorkspaces([], ['./group'], (err) => {
+        if (err)
+          rej(err)
+
+        t.matchSnapshot(redactCwd(result),
+          'should filter by parent folder workspace config')
+        res()
+      })
+    })
+
+    // filter by a dep within a workspaces sub tree
+    await new Promise((res, rej) => {
+      ls.execWorkspaces(['bar'], ['d'], (err) => {
+        if (err)
+          rej(err)
+
+        t.matchSnapshot(redactCwd(result),
+          'should print all tree and filter by dep within only the ws subtree')
+        res()
       })
     })
   })
