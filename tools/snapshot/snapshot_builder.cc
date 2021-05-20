@@ -3,6 +3,7 @@
 #include <sstream>
 #include "debug_utils-inl.h"
 #include "env-inl.h"
+#include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
 #include "node_main_instance.h"
@@ -15,10 +16,8 @@ using v8::Context;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
-using v8::Object;
 using v8::SnapshotCreator;
 using v8::StartupData;
-using v8::String;
 using v8::TryCatch;
 using v8::Value;
 
@@ -112,42 +111,19 @@ std::string SnapshotBuilder::Generate(
       creator.SetDefaultContext(Context::New(isolate));
       isolate_data_indexes = main_instance->isolate_data()->Serialize(&creator);
 
-      TryCatch bootstrapCatch(isolate);
-      Local<Context> context = NewContext(isolate);
-      if (bootstrapCatch.HasCaught()) {
-        Local<Object> obj = bootstrapCatch.Exception()->ToObject(context)
-            .ToLocalChecked();
-        Local<Value> stack = obj->Get(
-            context,
-            FIXED_ONE_BYTE_STRING(isolate, "stack")).ToLocalChecked();
-        if (stack->IsUndefined()) {
-          Local<String> str = obj->Get(
-              context,
-              FIXED_ONE_BYTE_STRING(isolate, "name"))
-            .ToLocalChecked()->ToString(context).ToLocalChecked();
-          str = String::Concat(
-            isolate,
-            str,
-            FIXED_ONE_BYTE_STRING(isolate, ": "));
-          stack = String::Concat(
-            isolate,
-            str,
-            obj->Get(
-                context,
-                FIXED_ONE_BYTE_STRING(isolate, "message"))
-              .ToLocalChecked()->ToString(context).ToLocalChecked());
+      // Run the per-context scripts
+      Local<Context> context;
+      {
+        TryCatch bootstrapCatch(isolate);
+        context = NewContext(isolate);
+        if (bootstrapCatch.HasCaught()) {
+          PrintCaughtException(isolate, context, bootstrapCatch);
+          abort();
         }
-        v8::String::Utf8Value utf8_value(isolate, stack);
-        if (*utf8_value != nullptr) {
-          std::string out(*utf8_value, utf8_value.length());
-          fprintf(stderr, "Had Exception: %s\n", out.c_str());
-        } else {
-          fprintf(stderr, "Unknown JS Exception\n");
-        }
-        abort();
       }
       Context::Scope context_scope(context);
 
+      // Create the environment
       env = new Environment(main_instance->isolate_data(),
                             context,
                             args,
@@ -155,12 +131,24 @@ std::string SnapshotBuilder::Generate(
                             nullptr,
                             node::EnvironmentFlags::kDefaultFlags,
                             {});
-      env->RunBootstrapping().ToLocalChecked();
+      // Run scripts in lib/internal/bootstrap/
+      {
+        TryCatch bootstrapCatch(isolate);
+        v8::MaybeLocal<Value> result = env->RunBootstrapping();
+        if (bootstrapCatch.HasCaught()) {
+          PrintCaughtException(isolate, context, bootstrapCatch);
+        }
+        result.ToLocalChecked();
+      }
+
       if (per_process::enabled_debug_list.enabled(DebugCategory::MKSNAPSHOT)) {
         env->PrintAllBaseObjects();
         printf("Environment = %p\n", env);
       }
+
+      // Serialize the native states
       env_info = env->Serialize(&creator);
+      // Serialize the context
       size_t index = creator.AddContext(
           context, {SerializeNodeContextInternalFields, env});
       CHECK_EQ(index, NodeMainInstance::kNodeContextIndex);
