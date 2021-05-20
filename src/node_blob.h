@@ -46,8 +46,8 @@ class Blob : public BaseObject {
   }
 
   void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(Blob);
-  SET_SELF_SIZE(Blob);
+  SET_MEMORY_INFO_NAME(Blob)
+  SET_SELF_SIZE(Blob)
 
   // Copies the contents of the Blob into an ArrayBuffer.
   v8::MaybeLocal<v8::Value> GetArrayBuffer(Environment* env);

@@ -114,9 +114,9 @@ using DHKeyExportJob = KeyExportJob<DHKeyExportTraits>;
 struct DHBitsConfig final : public MemoryRetainer {
   std::shared_ptr<KeyObjectData> private_key;
   std::shared_ptr<KeyObjectData> public_key;
-  SET_NO_MEMORY_INFO();
-  SET_MEMORY_INFO_NAME(DHBitsConfig);
-  SET_SELF_SIZE(DHBitsConfig);
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(DHBitsConfig)
+  SET_SELF_SIZE(DHBitsConfig)
 };
 
 struct DHBitsTraits final {

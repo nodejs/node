@@ -41,8 +41,8 @@ struct ScryptConfig final : public MemoryRetainer {
   ScryptConfig& operator=(ScryptConfig&& other) noexcept;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(ScryptConfig);
-  SET_SELF_SIZE(ScryptConfig);
+  SET_MEMORY_INFO_NAME(ScryptConfig)
+  SET_SELF_SIZE(ScryptConfig)
 };
 
 struct ScryptTraits final {

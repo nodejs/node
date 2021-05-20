@@ -16,9 +16,9 @@ namespace crypto {
 struct RandomBytesConfig final : public MemoryRetainer {
   unsigned char* buffer;
   size_t size;
-  SET_NO_MEMORY_INFO();
-  SET_MEMORY_INFO_NAME(RandomBytesConfig);
-  SET_SELF_SIZE(RandomBytesConfig);
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(RandomBytesConfig)
+  SET_SELF_SIZE(RandomBytesConfig)
 };
 
 struct RandomBytesTraits final {
@@ -54,8 +54,8 @@ struct RandomPrimeConfig final : public MemoryRetainer {
   int bits;
   bool safe;
   void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(RandomPrimeConfig);
-  SET_SELF_SIZE(RandomPrimeConfig);
+  SET_MEMORY_INFO_NAME(RandomPrimeConfig)
+  SET_SELF_SIZE(RandomPrimeConfig)
 };
 
 struct RandomPrimeTraits final {
@@ -89,8 +89,8 @@ struct CheckPrimeConfig final : public MemoryRetainer {
   int checks = 1;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(CheckPrimeConfig);
-  SET_SELF_SIZE(CheckPrimeConfig);
+  SET_MEMORY_INFO_NAME(CheckPrimeConfig)
+  SET_SELF_SIZE(CheckPrimeConfig)
 };
 
 struct CheckPrimeTraits final {

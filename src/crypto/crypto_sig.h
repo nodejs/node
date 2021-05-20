@@ -127,8 +127,8 @@ struct SignConfiguration final : public MemoryRetainer {
   SignConfiguration& operator=(SignConfiguration&& other) noexcept;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(SignConfiguration);
-  SET_SELF_SIZE(SignConfiguration);
+  SET_MEMORY_INFO_NAME(SignConfiguration)
+  SET_SELF_SIZE(SignConfiguration)
 };
 
 struct SignTraits final {

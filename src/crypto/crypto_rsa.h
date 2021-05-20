@@ -31,8 +31,8 @@ struct RsaKeyPairParams final : public MemoryRetainer {
   int saltlen = 0;
 
   SET_NO_MEMORY_INFO()
-  SET_MEMORY_INFO_NAME(RsaKeyPairParams);
-  SET_SELF_SIZE(RsaKeyPairParams);
+  SET_MEMORY_INFO_NAME(RsaKeyPairParams)
+  SET_SELF_SIZE(RsaKeyPairParams)
 };
 
 using RsaKeyPairGenConfig = KeyPairGenConfig<RsaKeyPairParams>;
@@ -88,8 +88,8 @@ struct RSACipherConfig final : public MemoryRetainer {
   RSACipherConfig(RSACipherConfig&& other) noexcept;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(RSACipherConfig);
-  SET_SELF_SIZE(RSACipherConfig);
+  SET_MEMORY_INFO_NAME(RSACipherConfig)
+  SET_SELF_SIZE(RSACipherConfig)
 };
 
 struct RSACipherTraits final {

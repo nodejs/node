@@ -98,8 +98,8 @@ class X509Certificate : public BaseObject {
   X509* get() { return cert_->get(); }
 
   void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(X509Certificate);
-  SET_SELF_SIZE(X509Certificate);
+  SET_MEMORY_INFO_NAME(X509Certificate)
+  SET_SELF_SIZE(X509Certificate)
 
   class X509CertificateTransferData : public worker::TransferData {
    public:
