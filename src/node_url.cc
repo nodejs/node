@@ -1766,6 +1766,9 @@ void URL::Parse(const char* input,
             url->flags |= URL_FLAGS_FAILED;
             return;
           }
+          if (state_override == kHostname) {
+            return;
+          }
           url->flags |= URL_FLAGS_HAS_HOST;
           if (!ParseHost(buffer, &url->host, special)) {
             url->flags |= URL_FLAGS_FAILED;
@@ -1773,9 +1776,6 @@ void URL::Parse(const char* input,
           }
           buffer.clear();
           state = kPort;
-          if (state_override == kHostname) {
-            return;
-          }
         } else if (ch == kEOL ||
                    ch == '/' ||
                    ch == '?' ||
