@@ -106,14 +106,16 @@ int NoPasswordCallback(char* buf, int size, int rwflag, void* u) {
 }
 
 void InitCryptoOnce() {
-#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_MAJOR < 3
+#ifndef OPENSSL_IS_BORINGSSL
   OPENSSL_INIT_SETTINGS* settings = OPENSSL_INIT_new();
 
+#if OPENSSL_VERSION_MAJOR < 3
   // --openssl-config=...
   if (!per_process::cli_options->openssl_config.empty()) {
     const char* conf = per_process::cli_options->openssl_config.c_str();
     OPENSSL_INIT_set_config_filename(settings, conf);
   }
+#endif
 
   OPENSSL_init_ssl(0, settings);
   OPENSSL_INIT_free(settings);
