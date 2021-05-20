@@ -1153,24 +1153,24 @@
             }
         },
         {
-            "comment": "Stuff after a : delimiter is ignored",
+            "comment": ": delimiter invalidates entire value",
             "href": "http://example.net/path",
             "new_value": "example.com:8080",
             "expected": {
-                "href": "http://example.com/path",
-                "host": "example.com",
-                "hostname": "example.com",
+                "href": "http://example.net/path",
+                "host": "example.net",
+                "hostname": "example.net",
                 "port": ""
             }
         },
         {
-            "comment": "Stuff after a : delimiter is ignored",
+            "comment": ": delimiter invalidates entire value",
             "href": "http://example.net:8080/path",
             "new_value": "example.com:",
             "expected": {
-                "href": "http://example.com:8080/path",
-                "host": "example.com:8080",
-                "hostname": "example.com",
+                "href": "http://example.net:8080/path",
+                "host": "example.net:8080",
+                "hostname": "example.net",
                 "port": "8080"
             }
         },

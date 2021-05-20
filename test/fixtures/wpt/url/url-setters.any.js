@@ -1,9 +1,5 @@
-<!doctype html>
-<meta charset=utf-8>
-<script src=/resources/testharness.js></script>
-<script src=/resources/testharnessreport.js></script>
-<div id=log></div>
-<script>
+// Keep this file in sync with url-setters-a-area.window.js.
+
 promise_test(() => fetch("resources/setters_tests.json").then(res => res.json()).then(runURLSettersTests), "Loading data…");
 
 function runURLSettersTests(all_test_cases) {
@@ -26,23 +22,6 @@ function runURLSettersTests(all_test_cases) {
           assert_equals(url[attribute], test_case.expected[attribute])
         }
       }, "URL: " + name)
-      test(function() {
-        var url = document.createElement("a");
-        url.href = test_case.href;
-        url[attribute_to_be_set] = test_case.new_value;
-        for (var attribute in test_case.expected) {
-          assert_equals(url[attribute], test_case.expected[attribute])
-        }
-      }, "<a>: " + name)
-      test(function() {
-        var url = document.createElement("area");
-        url.href = test_case.href;
-        url[attribute_to_be_set] = test_case.new_value;
-        for (var attribute in test_case.expected) {
-          assert_equals(url[attribute], test_case.expected[attribute])
-        }
-      }, "<area>: " + name)
     }
   }
 }
-</script>

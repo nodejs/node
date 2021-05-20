@@ -24,5 +24,11 @@
   },
   "url-origin.any.js": {
     "requires": ["small-icu"]
+  },
+  "url-setters.any.js": {
+    "requires": ["small-icu"]
+  },
+  "url-setters-a-area.window.js": {
+    "skip": "already tested in url-setters.any.js"
   }
 }

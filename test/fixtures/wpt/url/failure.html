@@ -28,22 +28,27 @@ function runTests(testData) {
       assert_throws_js(TypeError, () => url.href = test.input)
     }, "URL's href: " + name)
 
-    self.test(() => {
-      const client = new XMLHttpRequest()
-      assert_throws_dom("SyntaxError", () => client.open("GET", test.input))
-    }, "XHR: " + name)
+    // The following use cases resolve the URL input relative to the current
+    // document's URL. If this test input could be construed as a valid URL
+    // when resolved against a base URL, skip these cases.
+    if (!test.inputCanBeRelative) {
+      self.test(() => {
+        const client = new XMLHttpRequest()
+        assert_throws_dom("SyntaxError", () => client.open("GET", test.input))
+      }, "XHR: " + name)
 
-    self.test(() => {
-      assert_throws_js(TypeError, () => self.navigator.sendBeacon(test.input))
-    }, "sendBeacon(): " + name)
+      self.test(() => {
+        assert_throws_js(TypeError, () => self.navigator.sendBeacon(test.input))
+      }, "sendBeacon(): " + name)
 
-    self.test(() => {
-      assert_throws_js(self[0].TypeError, () => self[0].location = test.input)
-    }, "Location's href: " + name)
+      self.test(() => {
+        assert_throws_js(self[0].TypeError, () => self[0].location = test.input)
+      }, "Location's href: " + name)
 
-    self.test(() => {
-      assert_throws_dom("SyntaxError", () => self.open(test.input).close())
-    }, "window.open(): " + name)
+      self.test(() => {
+        assert_throws_dom("SyntaxError", () => self.open(test.input).close())
+      }, "window.open(): " + name)
+    }
   }
 }
 </script>
