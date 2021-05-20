@@ -5,8 +5,9 @@
 <!-- source_link=lib/async_hooks.js -->
 
 ## Introduction
-These classes are used to associate state and propagate it throughout callbacks and promise
-chains. They allow storing data throughout the lifetime of a web request
+These classes are used to associate state and propagate it throughout
+callbacks and promise chains.
+They allow storing data throughout the lifetime of a web request
 or any other asynchronous duration. It is similar to thread-local storage
 in other languages.
 
@@ -71,8 +72,9 @@ http.get('http://localhost:8080');
 //   1: finish
 ```
 
-When having multiple instances of `AsyncLocalStorage`, they are independent
-from each other. It is safe to instantiate this class multiple times.
+Each instance of `AsyncLocalStorage` maintains an independent storage context.
+Multiple instances can safely exist simultaneously without risk of interfering
+with each other data.
 
 ### `new AsyncLocalStorage()`
 <!-- YAML
