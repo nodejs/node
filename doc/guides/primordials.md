@@ -242,7 +242,7 @@ ReflectApply(func, null, array);
 
 <details>
 
-<summary>`%Object.fromEntries%` iterate over an array</summary>
+<summary><code>%Object.fromEntries%</code> iterate over an array</summary>
 
 ```js
 {
@@ -271,8 +271,10 @@ ReflectApply(func, null, array);
 
 <details>
 
-<summary>`%Promise.all%`, `%Promise.allSettled%`, `%Promise.any%`, and
-         `%Promise.race%` iterate over an array</summary>
+<summary><code>%Promise.all%</code>,
+         <code>%Promise.allSettled%</code>,
+         <code>%Promise.any%</code>, and
+         <code>%Promise.race%</code> iterate over an array</summary>
 
 ```js
 // 1. Lookup @@iterator property on `array` (user-mutable if user provided).
@@ -287,8 +289,8 @@ PromiseAll(new SafeArrayIterator(array)); // safe
 
 <details>
 
-<summary>`%Map%`, `%Set%`, `%WeakMap%`, and `%WeakSet%` constructors iterate
-         over an array</summary>
+<summary><code>%Map%</code>, <code>%Set%</code>, <code>%WeakMap%</code>, and
+         <code>%WeakSet%</code> constructors iterate over an array</summary>
 
 ```js
 // 1. Lookup @@iterator property on %Array.prototype% (user-mutable).
@@ -307,8 +309,8 @@ set.add(1).add(2).add(3);
 
 <details>
 
-<summary>`%Promise.prototype.finally%` looks up `then` property of the Promise
-         instance</summary>
+<summary><code>%Promise.prototype.finally%</code> looks up <code>then</code>
+         property of the Promise instance</summary>
 
 ```js
 // User-land
@@ -350,7 +352,8 @@ avoided.
 
 <details>
 
-<summary>`%GeneratorFunction.prototype.prototype%.next` is user-mutable</summary>
+<summary><code>%GeneratorFunction.prototype.prototype%.next</code> is
+         user-mutable</summary>
 
 ```js
 // User-land
@@ -375,7 +378,8 @@ console.log(loopCodeExecuted); // false
 
 <details>
 
-<summary>`%AsyncGeneratorFunction.prototype.prototype%.next` is user-mutable</summary>
+<summary><code>%AsyncGeneratorFunction.prototype.prototype%.next</code> is
+         user-mutable</summary>
 
 ```js
 // User-land
