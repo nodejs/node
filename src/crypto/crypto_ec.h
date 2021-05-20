@@ -60,8 +60,8 @@ struct ECDHBitsConfig final : public MemoryRetainer {
   std::shared_ptr<KeyObjectData> public_;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(ECDHBitsConfig);
-  SET_SELF_SIZE(ECDHBitsConfig);
+  SET_MEMORY_INFO_NAME(ECDHBitsConfig)
+  SET_SELF_SIZE(ECDHBitsConfig)
 };
 
 struct ECDHBitsTraits final {
