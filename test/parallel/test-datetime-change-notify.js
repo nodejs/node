@@ -11,14 +11,27 @@ if (!isMainThread)
 
 const assert = require('assert');
 
-process.env.TZ = 'Etc/UTC';
-assert.match(new Date().toString(), /GMT\+0000/);
+const cases = [
+  {
+    timeZone: 'Etc/UTC',
+    expected: /Coordinated Universal Time/,
+  },
+  {
+    timeZone: 'America/New_York',
+    expected: /Eastern (Standard|Daylight) Time/,
+  },
+  {
+    timeZone: 'America/Los_Angeles',
+    expected: /Pacific (Standard|Daylight) Time/,
+  },
+  {
+    timeZone: 'Europe/Dublin',
+    expected: /Irish/,
+  },
+];
 
-process.env.TZ = 'America/New_York';
-assert.match(new Date().toString(), /Eastern (Standard|Daylight) Time/);
-
-process.env.TZ = 'America/Los_Angeles';
-assert.match(new Date().toString(), /Pacific (Standard|Daylight) Time/);
-
-process.env.TZ = 'Europe/Dublin';
-assert.match(new Date().toString(), /Irish/);
+for (const { timeZone, expected } of cases) {
+  process.env.TZ = timeZone;
+  const date = new Date().toLocaleString('en-US', { timeZoneName: 'long' });
+  assert.match(date, expected);
+}
