@@ -32,14 +32,6 @@
 # include <arpa/nameser.h>
 #endif
 
-#ifndef T_CAA
-#  define T_CAA    257 /* Certification Authority Authorization */
-#endif
-
-#if defined(__OpenBSD__)
-# define AI_V4MAPPED 0
-#endif
-
 namespace node {
 namespace cares_wrap {
 
@@ -141,8 +133,8 @@ struct NodeAresTask final : public MemoryRetainer {
   uv_poll_t poll_watcher;
 
   inline void MemoryInfo(MemoryTracker* trakcer) const override;
-  SET_MEMORY_INFO_NAME(NodeAresTask);
-  SET_SELF_SIZE(NodeAresTask);
+  SET_MEMORY_INFO_NAME(NodeAresTask)
+  SET_SELF_SIZE(NodeAresTask)
 
   struct Hash {
     inline size_t operator()(NodeAresTask* a) const {

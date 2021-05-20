@@ -198,6 +198,11 @@ enum ContextLookupFlags {
   V(NUMBER_FUNCTION_INDEX, JSFunction, number_function)                        \
   V(OBJECT_FUNCTION_INDEX, JSFunction, object_function)                        \
   V(OBJECT_FUNCTION_PROTOTYPE_MAP_INDEX, Map, object_function_prototype_map)   \
+  V(PROMISE_HOOK_INIT_FUNCTION_INDEX, Object, promise_hook_init_function)      \
+  V(PROMISE_HOOK_BEFORE_FUNCTION_INDEX, Object, promise_hook_before_function)  \
+  V(PROMISE_HOOK_AFTER_FUNCTION_INDEX, Object, promise_hook_after_function)    \
+  V(PROMISE_HOOK_RESOLVE_FUNCTION_INDEX, Object,                               \
+    promise_hook_resolve_function)                                             \
   V(PROXY_CALLABLE_MAP_INDEX, Map, proxy_callable_map)                         \
   V(PROXY_CONSTRUCTOR_MAP_INDEX, Map, proxy_constructor_map)                   \
   V(PROXY_FUNCTION_INDEX, JSFunction, proxy_function)                          \
@@ -691,6 +696,9 @@ class NativeContext : public Context {
   void ResetErrorsThrown();
   void IncrementErrorsThrown();
   int GetErrorsThrown();
+
+  void RunPromiseHook(PromiseHookType type, Handle<JSPromise> promise,
+                      Handle<Object> parent);
 
  private:
   STATIC_ASSERT(OffsetOfElementAt(EMBEDDER_DATA_INDEX) ==

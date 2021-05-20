@@ -62,7 +62,7 @@ const usages = (npm) => {
     maxLen = Math.max(maxLen, c.length)
     return set
   }, [])
-    .sort((a, b) => a[0].localeCompare(b[0]))
+    .sort((a, b) => a[0].localeCompare(b[0], 'en'))
     .map(([c, usage]) => `\n    ${c}${' '.repeat(maxLen - c.length + 1)}${
       (usage.split('\n').join('\n' + ' '.repeat(maxLen + 5)))}`)
     .join('\n')

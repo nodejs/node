@@ -542,6 +542,16 @@ bool InitializeICUDirectory(const std::string& path) {
   return status == U_ZERO_ERROR;
 }
 
+void SetDefaultTimeZone(const char* tzid) {
+  size_t tzidlen = strlen(tzid) + 1;
+  UErrorCode status = U_ZERO_ERROR;
+  MaybeStackBuffer<UChar, 256> id(tzidlen);
+  u_charsToUChars(tzid, id.out(), tzidlen);
+  // This is threadsafe:
+  ucal_setDefaultTimeZone(id.out(), &status);
+  CHECK(U_SUCCESS(status));
+}
+
 int32_t ToUnicode(MaybeStackBuffer<char>* buf,
                   const char* input,
                   size_t length) {

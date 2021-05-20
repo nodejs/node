@@ -7,6 +7,7 @@ added: v8.5.0
 changes:
   - version:
     - v15.3.0
+    - v14.17.0
     - v12.22.0
     pr-url: https://github.com/nodejs/node/pull/35781
     description: Stabilize modules implementation.
@@ -280,6 +281,15 @@ const buffer = readFileSync(new URL('./data.proto', import.meta.url));
 ```
 
 ### `import.meta.resolve(specifier[, parent])`
+<!--
+added:
+  - v13.9.0
+  - v12.16.2
+changes:
+  - version: v16.2.0
+    pr-url: https://github.com/nodejs/node/pull/38587
+    description: Add support for WHATWG `URL` object to `parentURL` parameter.
+-->
 
 > Stability: 1 - Experimental
 

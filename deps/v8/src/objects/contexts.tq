@@ -124,6 +124,11 @@ extern enum ContextSlot extends intptr constexpr 'Context::Field' {
   PROMISE_PROTOTYPE_INDEX: Slot<NativeContext, JSObject>,
   STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX: Slot<NativeContext, Map>,
 
+  PROMISE_HOOK_INIT_FUNCTION_INDEX: Slot<NativeContext, Undefined|Callable>,
+  PROMISE_HOOK_BEFORE_FUNCTION_INDEX: Slot<NativeContext, Undefined|Callable>,
+  PROMISE_HOOK_AFTER_FUNCTION_INDEX: Slot<NativeContext, Undefined|Callable>,
+  PROMISE_HOOK_RESOLVE_FUNCTION_INDEX: Slot<NativeContext, Undefined|Callable>,
+
   CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX: Slot<NativeContext, HeapObject>,
 
   BOUND_FUNCTION_WITH_CONSTRUCTOR_MAP_INDEX: Slot<NativeContext, Map>,

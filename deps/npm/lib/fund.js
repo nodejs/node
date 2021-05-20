@@ -13,15 +13,14 @@ const {
 
 const completion = require('./utils/completion/installed-deep.js')
 const openUrl = require('./utils/open-url.js')
+const ArboristWorkspaceCmd = require('./workspaces/arborist-cmd.js')
 
 const getPrintableName = ({ name, version }) => {
   const printableVersion = version ? `@${version}` : ''
   return `${name}${printableVersion}`
 }
 
-const BaseCommand = require('./base-command.js')
-
-class Fund extends BaseCommand {
+class Fund extends ArboristWorkspaceCmd {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get description () {
     return 'Retrieve funding information'
@@ -38,6 +37,7 @@ class Fund extends BaseCommand {
       'json',
       'browser',
       'unicode',
+      'workspace',
       'which',
     ]
   }
@@ -92,10 +92,16 @@ class Fund extends BaseCommand {
       return
     }
 
+    const fundingInfo = getFundingInfo(tree, {
+      ...this.flatOptions,
+      log: this.npm.log,
+      workspaces: this.workspaces,
+    })
+
     if (this.npm.config.get('json'))
-      this.npm.output(this.printJSON(getFundingInfo(tree)))
+      this.npm.output(this.printJSON(fundingInfo))
     else
-      this.npm.output(this.printHuman(getFundingInfo(tree)))
+      this.npm.output(this.printHuman(fundingInfo))
   }
 
   printJSON (fundingInfo) {

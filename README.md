@@ -176,7 +176,7 @@ For information about the governance of the Node.js project, see
 * [fhinkel](https://github.com/fhinkel) -
 **Franziska Hinkelmann** &lt;franziska.hinkelmann@gmail.com&gt; (she/her)
 * [gabrielschulhof](https://github.com/gabrielschulhof) -
-**Gabriel Schulhof** &lt;gabriel.schulhof@intel.com&gt;
+**Gabriel Schulhof** &lt;gabrielschulhof@gmail.com&gt;
 * [gireeshpunathil](https://github.com/gireeshpunathil) -
 **Gireesh Punathil** &lt;gpunathi@in.ibm.com&gt; (he/him)
 * [jasnell](https://github.com/jasnell) -
@@ -314,7 +314,7 @@ For information about the governance of the Node.js project, see
 * [Flarna](https://github.com/Flarna) -
 **Gerhard Stöbich** &lt;deb2001-github@yahoo.de&gt;  (he/they)
 * [gabrielschulhof](https://github.com/gabrielschulhof) -
-**Gabriel Schulhof** &lt;gabriel.schulhof@intel.com&gt;
+**Gabriel Schulhof** &lt;gabrielschulhof@gmail.com&gt;
 * [gdams](https://github.com/gdams) -
 **George Adams** &lt;george.adams@uk.ibm.com&gt; (he/him)
 * [geek](https://github.com/geek) -
@@ -681,13 +681,13 @@ Other keys used to sign some previous releases:
 Node.js is available under the
 [MIT license](https://opensource.org/licenses/MIT). Node.js also includes
 external libraries that are available under a variety of licenses.  See
-[LICENSE](https://github.com/nodejs/node/blob/master/LICENSE) for the full
+[LICENSE](https://github.com/nodejs/node/blob/HEAD/LICENSE) for the full
 license text.
 
-[Code of Conduct]: https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md
+[Code of Conduct]: https://github.com/nodejs/admin/blob/HEAD/CODE_OF_CONDUCT.md
 [Contributing to the project]: CONTRIBUTING.md
 [Node.js Website]: https://nodejs.org/
 [OpenJS Foundation]: https://openjsf.org/
-[Strategic Initiatives]: https://github.com/nodejs/TSC/blob/master/Strategic-Initiatives.md
+[Strategic Initiatives]: https://github.com/nodejs/TSC/blob/HEAD/Strategic-Initiatives.md
 [Technical values and prioritization]: doc/guides/technical-values.md
-[Working Groups]: https://github.com/nodejs/TSC/blob/master/WORKING_GROUPS.md
+[Working Groups]: https://github.com/nodejs/TSC/blob/HEAD/WORKING_GROUPS.md

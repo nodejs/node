@@ -3,6 +3,9 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+if (common.hasOpenSSL3)
+  common.skip('temporarily skipping for OpenSSL 3.0-alpha15');
+
 const assert = require('assert');
 const crypto = require('crypto');
 
@@ -226,7 +229,7 @@ assert.throws(() => {
        crypto.generateKeyPairSync('ec', { namedCurve: not256k1 }));
 }, common.hasOpenSSL3 ? {
   name: 'Error',
-  code: 'ERR_OSSL_EC_INCOMPATIBLE_OBJECTS'
+  code: 'ERR_OSSL_MISMATCHING_SHARED_PARAMETERS'
 } : {
   name: 'Error',
   code: 'ERR_OSSL_EVP_DIFFERENT_PARAMETERS'

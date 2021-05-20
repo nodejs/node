@@ -559,14 +559,14 @@ const tests = [
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
     test: ['const util = {}', ENTER,
            'ut', RIGHT, ENTER],
-    expected: common.hasIntl && common.hasCrypto ? [
+    expected: [
       prompt, ...'const util = {}',
       'undefined\n',
-      prompt, ...'ut', ' // il', '\n// {}',
-      'il', '\n// {}',
+      prompt, ...'ut', ...(prev ? [' // il', '\n// {}',
+                                   'il', '\n// {}'] : [' // il', 'il']),
       '{}\n',
       prompt,
-    ] : [],
+    ],
     clean: false
   },
   {
@@ -577,7 +577,7 @@ const tests = [
       'globalThis.util = {}', ENTER,
       'ut', RIGHT, ENTER,
       'Reflect.defineProperty(globalThis, "util", utilDesc)', ENTER],
-    expected: common.hasIntl && common.hasCrypto ? [
+    expected: [
       prompt, ...'const utilDesc = ' +
       'Reflect.getOwnPropertyDescriptor(globalThis, "util")',
       'undefined\n',
@@ -588,7 +588,7 @@ const tests = [
       prompt, ...'Reflect.defineProperty(globalThis, "util", utilDesc)',
       'true\n',
       prompt,
-    ] : [],
+    ],
     clean: false
   },
 ];

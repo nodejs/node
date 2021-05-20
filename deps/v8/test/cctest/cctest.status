@@ -466,6 +466,12 @@
 }],
 
 ##############################################################################
+['arch == ppc64 and not simulator_run', {
+  # crbug.com/v8/11134
+  'test-cpu-profiler/MultipleThreadsSingleIsolate': [SKIP],
+}],  # 'arch == ppc64 and not simulator_run'
+
+##############################################################################
 ['variant == stress_incremental_marking', {
   'test-heap-profiler/SamplingHeapProfiler': [SKIP],
 }],  # variant == stress_incremental_marking

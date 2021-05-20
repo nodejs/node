@@ -7,10 +7,10 @@ description: Manipulates packages cache
 ### Synopsis
 
 ```bash
-npm cache add <tarball file>
-npm cache add <folder>
-npm cache add <tarball url>
-npm cache add <name>@<version>
+npm cache add <tarball file>...
+npm cache add <folder>...
+npm cache add <tarball url>...
+npm cache add <name>@<version>...
 
 npm cache clean
 aliases: npm cache clear, npm cache rm
@@ -25,7 +25,7 @@ Note: This command is unaware of workspaces.
 Used to add, list, or clean the npm cache folder.
 
 * add:
-  Add the specified package to the local cache.  This command is primarily
+  Add the specified packages to the local cache.  This command is primarily
   intended to be used internally by npm, but it can provide a way to
   add data to the local installation cache explicitly.
 

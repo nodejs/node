@@ -164,18 +164,12 @@ async function ordinaryTests() {
 }
 
 async function ctrlCTest() {
-  putIn.run([
-    `const timeout = (msecs) => new Promise((resolve) => {
-       setTimeout(resolve, msecs).unref();
-     });`,
-  ]);
-
   console.log('Testing Ctrl+C');
   assert.deepStrictEqual(await runAndWait([
-    'await timeout(100000)',
+    'await new Promise(() => {})',
     { ctrl: true, name: 'c' },
   ]), [
-    'await timeout(100000)\r',
+    'await new Promise(() => {})\r',
     'Uncaught:',
     '[Error [ERR_SCRIPT_EXECUTION_INTERRUPTED]: ' +
       'Script execution was interrupted by `SIGINT`] {',
@@ -190,4 +184,4 @@ async function main() {
   await ctrlCTest();
 }
 
-main();
+main().then(common.mustCall());

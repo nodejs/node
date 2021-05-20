@@ -3,7 +3,7 @@
 
 const common = require('../../common');
 const assert = require('assert');
-const addon = require(`./build/${common.buildType}/binding`);
+const addon = require(`./build/${common.buildType}/8_passing_wrapped`);
 
 async function runTest() {
   let obj1 = addon.createObject(10);

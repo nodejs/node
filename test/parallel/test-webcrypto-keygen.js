@@ -6,7 +6,11 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { subtle, CryptoKey } = require('crypto').webcrypto;
+const { types: { isCryptoKey } } = require('util');
+const {
+  webcrypto: { subtle, CryptoKey },
+  createSecretKey,
+} = require('crypto');
 
 const allUsages = [
   'encrypt',
@@ -220,6 +224,8 @@ const vectors = {
 
     assert(publicKey);
     assert(privateKey);
+    assert(isCryptoKey(publicKey));
+    assert(isCryptoKey(privateKey));
 
     assert(publicKey instanceof CryptoKey);
     assert(privateKey instanceof CryptoKey);
@@ -366,6 +372,8 @@ const vectors = {
 
     assert(publicKey);
     assert(privateKey);
+    assert(isCryptoKey(publicKey));
+    assert(isCryptoKey(privateKey));
 
     assert.strictEqual(publicKey.type, 'public');
     assert.strictEqual(privateKey.type, 'private');
@@ -430,6 +438,7 @@ const vectors = {
     }, true, usages);
 
     assert(key);
+    assert(isCryptoKey(key));
 
     assert.strictEqual(key.type, 'secret');
     assert.strictEqual(key.extractable, true);
@@ -488,6 +497,7 @@ const vectors = {
     }
 
     assert(key);
+    assert(isCryptoKey(key));
 
     assert.strictEqual(key.type, 'secret');
     assert.strictEqual(key.extractable, true);
@@ -544,6 +554,8 @@ const vectors = {
 
     assert(publicKey);
     assert(privateKey);
+    assert(isCryptoKey(publicKey));
+    assert(isCryptoKey(privateKey));
 
     assert.strictEqual(publicKey.type, 'public');
     assert.strictEqual(privateKey.type, 'private');
@@ -634,6 +646,8 @@ const vectors = {
     }, true, ['deriveKey']);
   assert(publicKey);
   assert(privateKey);
+  assert(isCryptoKey(publicKey));
+  assert(isCryptoKey(privateKey));
   assert.strictEqual(publicKey.type, 'public');
   assert.strictEqual(privateKey.type, 'private');
   assert.strictEqual(publicKey.algorithm.name, 'NODE-DH');
@@ -646,3 +660,10 @@ const vectors = {
 assert.throws(() => new CryptoKey(), {
   code: 'ERR_OPERATION_FAILED'
 });
+
+{
+  const buffer = Buffer.from('Hello World');
+  const keyObject = createSecretKey(buffer);
+  assert(!isCryptoKey(buffer));
+  assert(!isCryptoKey(keyObject));
+}

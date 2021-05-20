@@ -3,8 +3,8 @@ const mockNpm = require('../fixtures/mock-npm')
 
 const packument = spec => {
   const mocks = {
-    alpha: {
-      name: 'alpha',
+    cat: {
+      name: 'cat',
       'dist-tags': {
         latest: '1.0.1',
       },
@@ -12,13 +12,13 @@ const packument = spec => {
         '1.0.1': {
           version: '1.0.1',
           dependencies: {
-            gamma: '2.0.0',
+            dog: '2.0.0',
           },
         },
       },
     },
-    beta: {
-      name: 'beta',
+    chai: {
+      name: 'chai',
       'dist-tags': {
         latest: '1.0.1',
       },
@@ -28,8 +28,8 @@ const packument = spec => {
         },
       },
     },
-    gamma: {
-      name: 'gamma',
+    dog: {
+      name: 'dog',
       'dist-tags': {
         latest: '2.0.0',
       },
@@ -74,9 +74,9 @@ const output = (msg) => {
 
 const globalDir = t.testdir({
   node_modules: {
-    alpha: {
+    cat: {
       'package.json': JSON.stringify({
-        name: 'alpha',
+        name: 'cat',
         version: '1.0.0',
       }, null, 2),
     },
@@ -116,8 +116,8 @@ t.test('should display outdated deps', t => {
       name: 'delta',
       version: '1.0.0',
       dependencies: {
-        alpha: '^1.0.0',
-        gamma: '^1.0.0',
+        cat: '^1.0.0',
+        dog: '^1.0.0',
         theta: '^1.0.0',
       },
       devDependencies: {
@@ -127,36 +127,36 @@ t.test('should display outdated deps', t => {
         lorem: '^1.0.0',
       },
       peerDependencies: {
-        beta: '^1.0.0',
+        chai: '^1.0.0',
       },
     }, null, 2),
     node_modules: {
-      alpha: {
+      cat: {
         'package.json': JSON.stringify({
-          name: 'alpha',
+          name: 'cat',
           version: '1.0.0',
           dependencies: {
-            gamma: '2.0.0',
+            dog: '2.0.0',
           },
         }, null, 2),
         node_modules: {
-          gamma: {
+          dog: {
             'package.json': JSON.stringify({
-              name: 'gamma',
+              name: 'dog',
               version: '2.0.0',
             }, null, 2),
           },
         },
       },
-      beta: {
+      chai: {
         'package.json': JSON.stringify({
-          name: 'beta',
+          name: 'chai',
           version: '1.0.0',
         }, null, 2),
       },
-      gamma: {
+      dog: {
         'package.json': JSON.stringify({
-          name: 'gamma',
+          name: 'dog',
           version: '1.0.1',
         }, null, 2),
       },
@@ -307,7 +307,7 @@ t.test('should display outdated deps', t => {
       config: {
         global: false,
       },
-    }).exec(['alpha'], () => {
+    }).exec(['cat'], () => {
       t.matchSnapshot(logs)
       t.end()
     })
@@ -322,13 +322,13 @@ t.test('should return if no outdated deps', t => {
       name: 'delta',
       version: '1.0.0',
       dependencies: {
-        alpha: '^1.0.0',
+        cat: '^1.0.0',
       },
     }, null, 2),
     node_modules: {
-      alpha: {
+      cat: {
         'package.json': JSON.stringify({
-          name: 'alpha',
+          name: 'cat',
           version: '1.0.1',
         }, null, 2),
       },
@@ -376,7 +376,7 @@ t.test('should skip missing non-prod deps', t => {
       name: 'delta',
       version: '1.0.0',
       devDependencies: {
-        beta: '^1.0.0',
+        chai: '^1.0.0',
       },
     }, null, 2),
     node_modules: {},
@@ -396,13 +396,13 @@ t.test('should skip invalid pkg ranges', t => {
       name: 'delta',
       version: '1.0.0',
       dependencies: {
-        alpha: '>=^2',
+        cat: '>=^2',
       },
     }, null, 2),
     node_modules: {
-      alpha: {
+      cat: {
         'package.json': JSON.stringify({
-          name: 'alpha',
+          name: 'cat',
           version: '1.0.0',
         }, null, 2),
       },
@@ -421,13 +421,13 @@ t.test('should skip git specs', t => {
       name: 'delta',
       version: '1.0.0',
       dependencies: {
-        alpha: 'github:username/foo',
+        cat: 'github:username/foo',
       },
     }, null, 2),
     node_modules: {
-      alpha: {
+      cat: {
         'package.json': JSON.stringify({
-          name: 'alpha',
+          name: 'cat',
           version: '1.0.0',
         }, null, 2),
       },
