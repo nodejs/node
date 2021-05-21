@@ -339,12 +339,20 @@ function removeAsync(dir) {
       fs.mkdirSync(path.join(middle, 'leaf')); // Make `middle` non-empty
       try {
         const code = makeDirectoryReadOnly(middle, 0o555);
-        assert.throws(() => {
-          fs.rmSync(root, { recursive: true });
-        }, {
-          code,
-          name: 'Error',
-        });
+        try {
+          assert.throws(() => {
+            fs.rmSync(root, { recursive: true });
+          }, {
+            code,
+            name: 'Error',
+          });
+        } catch (err) {
+          // Only fail the test if the folder was not deleted.
+          // as in some cases rmSync succesfully deletes read-only folders.
+          if (fs.existsSync(root)) {
+            throw err;
+          }
+        }
       } finally {
         makeDirectoryWritable(middle);
       }
