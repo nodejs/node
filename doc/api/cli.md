@@ -80,20 +80,26 @@ $ node --completion-bash > node_bash_completion
 $ source node_bash_completion
 ```
 
-### `--conditions=condition`
+### `-C=condition`, `--conditions=condition`
 <!-- YAML
 added: v14.9.0
 -->
 
 > Stability: 1 - Experimental
 
-Enable experimental support for custom conditional exports resolution
+Enable experimental support for custom [conditional exports][] resolution
 conditions.
 
 Any number of custom string condition names are permitted.
 
 The default Node.js conditions of `"node"`, `"default"`, `"import"`, and
 `"require"` will always apply as defined.
+
+For example, to run a module with "development" resolutions:
+
+```console
+$ node -C=development app.js
+```
 
 ### `--cpu-prof`
 <!-- YAML
@@ -1259,7 +1265,7 @@ node --require "./a.js" --require "./b.js"
 
 Node.js options that are allowed are:
 <!-- node-options-node start -->
-* `--conditions`
+* `--conditions`, `-C`
 * `--diagnostic-dir`
 * `--disable-proto`
 * `--enable-fips`
@@ -1620,6 +1626,7 @@ $ node --max-old-space-size=1536 index.js
 [`tls.DEFAULT_MIN_VERSION`]: tls.md#tls_tls_default_min_version
 [`unhandledRejection`]: process.md#process_event_unhandledrejection
 [`worker_threads.threadId`]: worker_threads.md#worker_threads_worker_threadid
+[conditional exports]: packages.md#packages_conditional_exports
 [context-aware]: addons.md#addons_context_aware_addons
 [customizing ESM specifier resolution]: esm.md#esm_customizing_esm_specifier_resolution_algorithm
 [debugger]: debugger.md
