@@ -51,7 +51,7 @@ const assert = require('assert');
 // Assert all "canonical" flags begin with dash(es)
 {
   process.allowedNodeEnvironmentFlags.forEach((flag) => {
-    assert(/^--?[a-z0-9._-]+$/.test(flag),
+    assert(/^--?[a-zA-Z0-9._-]+$/.test(flag),
            `Unexpected format for flag ${flag}`);
   });
 }
