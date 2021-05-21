@@ -121,6 +121,34 @@ console.error('%s %s', 'foo', 'bar', 'hop');
 console.error({ slashes: '\\\\' });
 console.error(custom_inspect);
 
+// Test console.logAndReturn() goes to stdout and returns first argument
+assert.strictEqual(console.logAndReturn('foo'), 'foo');
+assert.strictEqual(console.logAndReturn('foo', 'bar'), 'foo');
+assert.strictEqual(console.logAndReturn('%s %s', 'foo', 'bar', 'hop'), '%s %s');
+assert.deepEqual(console.logAndReturn({ slashes: '\\\\' }), { slashes: '\\\\' });
+assert.deepEqual(console.logAndReturn(custom_inspect), custom_inspect);
+
+// Test console.errorAndReturn() goes to stdout and returns first argument
+assert.strictEqual(console.errorAndReturn('foo'), 'foo');
+assert.strictEqual(console.errorAndReturn('foo', 'bar'), 'foo');
+assert.strictEqual(console.errorAndReturn('%s %s', 'foo', 'bar', 'hop'), '%s %s');
+assert.deepEqual(console.errorAndReturn({ slashes: '\\\\' }), { slashes: '\\\\' });
+assert.deepEqual(console.errorAndReturn(custom_inspect), custom_inspect);
+
+// Test console.debugAndReturn() goes to stdout and returns first argument
+assert.strictEqual(console.debugAndReturn('foo'), 'foo');
+assert.strictEqual(console.debugAndReturn('foo', 'bar'), 'foo');
+assert.strictEqual(console.debugAndReturn('%s %s', 'foo', 'bar', 'hop'), '%s %s');
+assert.deepEqual(console.debugAndReturn({ slashes: '\\\\' }), { slashes: '\\\\' });
+assert.deepEqual(console.debugAndReturn(custom_inspect), custom_inspect);
+
+// Test console.warnAndReturn() goes to stdout and returns first argument
+assert.strictEqual(console.warnAndReturn('foo'), 'foo');
+assert.strictEqual(console.warnAndReturn('foo', 'bar'), 'foo');
+assert.strictEqual(console.warnAndReturn('%s %s', 'foo', 'bar', 'hop'), '%s %s');
+assert.deepEqual(console.warnAndReturn({ slashes: '\\\\' }), { slashes: '\\\\' });
+assert.deepEqual(console.warnAndReturn(custom_inspect), custom_inspect);
+
 // Test console.warn() goes to stderr
 console.warn('foo');
 console.warn('foo', 'bar');
@@ -218,6 +246,16 @@ assert.strictEqual(console._times.size, timesMapSize);
 const expectedStrings = [
   'foo', 'foo bar', 'foo bar hop', "{ slashes: '\\\\\\\\' }", 'inspect',
 ];
+
+for (const expected of expectedStrings) {
+  assert.strictEqual(strings.shift(), `${expected}\n`);
+  assert.strictEqual(errStrings.shift(), `${expected}\n`);
+}
+
+for (const expected of expectedStrings) {
+  assert.strictEqual(strings.shift(), `${expected}\n`);
+  assert.strictEqual(errStrings.shift(), `${expected}\n`);
+}
 
 for (const expected of expectedStrings) {
   assert.strictEqual(strings.shift(), `${expected}\n`);

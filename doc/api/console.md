@@ -260,6 +260,17 @@ changes:
 
 The `console.debug()` function is an alias for [`console.log()`][].
 
+### `console.debugAndReturn([data][, ...args])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `data` {any}
+* `...args` {any}
+
+The `console.debugAndReturn()` function is an alias for
+[`console.errorAndReturn()`][].
+
 ### `console.dir(obj[, options])`
 <!-- YAML
 added: v0.1.101
@@ -317,6 +328,17 @@ console.error('error', code);
 If formatting elements (e.g. `%d`) are not found in the first string then
 [`util.inspect()`][] is called on each argument and the resulting string
 values are concatenated. See [`util.format()`][] for more information.
+
+### `console.errorAndReturn([data][, ...args])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `data` {any}
+* `...args` {any}
+
+The `console.errorAndReturn()` function behaves like [`console.error()`][]
+except it returns `data` instead of `undefined`.
 
 ### `console.group([...label])`
 <!-- YAML
@@ -378,6 +400,17 @@ console.log('count:', count);
 ```
 
 See [`util.format()`][] for more information.
+
+### `console.logAndReturn([data][, ...args])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `data` {any}
+* `...args` {any}
+
+The `console.logAndReturn()` function behaves like [`console.log()`][]
+except it returns `data` instead of `undefined`.
 
 ### `console.table(tabularData[, properties])`
 <!-- YAML
@@ -510,6 +543,17 @@ added: v0.1.100
 * `...args` {any}
 
 The `console.warn()` function is an alias for [`console.error()`][].
+
+### `console.warnAndReturn([data][, ...args])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `data` {any}
+* `...args` {any}
+
+The `console.warnAndReturn()` function is an alias for
+[`console.errorAndReturn()`][].
 
 ## Inspector only methods
 The following methods are exposed by the V8 engine in the general API but do
