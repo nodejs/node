@@ -34,7 +34,7 @@
 #include "node_native_module_env.h"
 #include "node_options-inl.h"
 #include "node_perf.h"
-#include "node_process.h"
+#include "node_process-inl.h"
 #include "node_report.h"
 #include "node_revert.h"
 #include "node_v8_platform-inl.h"
