@@ -4,7 +4,7 @@
 #include "node.h"
 #include "node_errors.h"
 #include "node_internals.h"
-#include "node_process.h"
+#include "node_process-inl.h"
 #include "util-inl.h"
 #include "uv.h"
 #include "v8.h"
