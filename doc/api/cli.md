@@ -80,7 +80,7 @@ $ node --completion-bash > node_bash_completion
 $ source node_bash_completion
 ```
 
-### `-m`, `--conditions=condition`
+### `-m=condition`, `--conditions=condition`
 <!-- YAML
 added:
   - v14.9.0
@@ -89,13 +89,19 @@ added:
 
 > Stability: 1 - Experimental
 
-Enable experimental support for custom conditional exports resolution
+Enable experimental support for custom [conditional exports][] resolution
 conditions.
 
 Any number of custom string condition names are permitted.
 
 The default Node.js conditions of `"node"`, `"default"`, `"import"`, and
 `"require"` will always apply as defined.
+
+For example, to run a module with "development" resolutions:
+
+```console
+$ node -m=development app.js
+```
 
 ### `--cpu-prof`
 <!-- YAML
@@ -1748,6 +1754,7 @@ $ node --max-old-space-size=1536 index.js
 ```
 
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
+[Conditional exports]: packages.md#packages_conditional_exports
 [ECMAScript Module loader]: esm.md#esm_loaders
 [REPL]: repl.md
 [ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage
