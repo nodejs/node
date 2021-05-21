@@ -5,7 +5,7 @@
 #include "node_contextify.h"
 #include "node_errors.h"
 #include "node_internals.h"
-#include "node_process.h"
+#include "node_process-inl.h"
 #include "node_url.h"
 #include "node_watchdog.h"
 #include "util-inl.h"
