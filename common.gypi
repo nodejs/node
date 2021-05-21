@@ -164,17 +164,28 @@
           'v8_enable_handle_zapping': 0,
           'pgo_generate': ' -fprofile-generate ',
           'pgo_use': ' -fprofile-use -fprofile-correction ',
-          'lto': ' -flto=4 -fuse-linker-plugin -ffat-lto-objects ',
           'conditions': [
             ['node_shared != "true"', {
               'MSVC_runtimeType': 0    # MultiThreaded (/MT)
             }, {
               'MSVC_runtimeType': 2   # MultiThreadedDLL (/MD)
             }],
+            ['llvm_version=="0.0"', {
+              'lto': ' -flto=4 -fuse-linker-plugin -ffat-lto-objects ', # GCC
+            }, {
+              'lto': ' -flto ', # Clang
+            }],
           ],
         },
         'cflags': [ '-O3' ],
         'conditions': [
+          ['enable_lto=="true"', {
+            'cflags': ['<(lto)'],
+            'ldflags': ['<(lto)'],
+            'xcode_settings': {
+              'LLVM_LTO': 'YES',
+            },
+          }],
           ['OS=="linux"', {
             'conditions': [
               ['node_section_ordering_info!=""', {
@@ -205,10 +216,6 @@
               ['enable_pgo_use=="true"', {
                 'cflags': ['<(pgo_use)'],
                 'ldflags': ['<(pgo_use)'],
-              },],
-              ['enable_lto=="true"', {
-                'cflags': ['<(lto)'],
-                'ldflags': ['<(lto)'],
               },],
             ],
           },],
