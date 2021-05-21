@@ -24,7 +24,7 @@
 #include "memory_tracker-inl.h"
 #include "node_buffer.h"
 #include "node_external_reference.h"
-#include "node_process.h"
+#include "node_process-inl.h"
 #include "node_stat_watcher.h"
 #include "util-inl.h"
 

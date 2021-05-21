@@ -1,6 +1,6 @@
 #include "env-inl.h"
 #include "node_internals.h"
-#include "node_process.h"
+#include "node_process-inl.h"
 #include "async_wrap.h"
 
 namespace node {

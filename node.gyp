@@ -749,6 +749,7 @@
         'src/node_perf_common.h',
         'src/node_platform.h',
         'src/node_process.h',
+        'src/node_process-inl.h',
         'src/node_report.h',
         'src/node_revert.h',
         'src/node_root_certs.h',
