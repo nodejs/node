@@ -80,7 +80,7 @@ $ node --completion-bash > node_bash_completion
 $ source node_bash_completion
 ```
 
-### `--conditions=condition`
+### `-m`, `--conditions=condition`
 <!-- YAML
 added:
   - v14.9.0
