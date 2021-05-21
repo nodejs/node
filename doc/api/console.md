@@ -269,7 +269,7 @@ added: REPLACEME
 * `...args` {any}
 
 The `console.debugAndReturn()` function is an alias for
-[`console.errorAndReturn()`][].
+`console.errorAndReturn()`.
 
 ### `console.dir(obj[, options])`
 <!-- YAML
@@ -553,7 +553,7 @@ added: REPLACEME
 * `...args` {any}
 
 The `console.warnAndReturn()` function is an alias for
-[`console.errorAndReturn()`][].
+`console.errorAndReturn()`.
 
 ## Inspector only methods
 The following methods are exposed by the V8 engine in the general API but do

@@ -125,29 +125,43 @@ console.error(custom_inspect);
 assert.strictEqual(console.logAndReturn('foo'), 'foo');
 assert.strictEqual(console.logAndReturn('foo', 'bar'), 'foo');
 assert.strictEqual(console.logAndReturn('%s %s', 'foo', 'bar', 'hop'), '%s %s');
-assert.deepEqual(console.logAndReturn({ slashes: '\\\\' }), { slashes: '\\\\' });
-assert.deepEqual(console.logAndReturn(custom_inspect), custom_inspect);
+assert.deepStrictEqual(
+  console.logAndReturn({ slashes: '\\\\' }), { slashes: '\\\\' }
+);
+assert.deepStrictEqual(console.logAndReturn(custom_inspect), custom_inspect);
 
 // Test console.errorAndReturn() goes to stdout and returns first argument
 assert.strictEqual(console.errorAndReturn('foo'), 'foo');
 assert.strictEqual(console.errorAndReturn('foo', 'bar'), 'foo');
-assert.strictEqual(console.errorAndReturn('%s %s', 'foo', 'bar', 'hop'), '%s %s');
-assert.deepEqual(console.errorAndReturn({ slashes: '\\\\' }), { slashes: '\\\\' });
-assert.deepEqual(console.errorAndReturn(custom_inspect), custom_inspect);
+assert.strictEqual(
+  console.errorAndReturn('%s %s', 'foo', 'bar', 'hop'), '%s %s'
+);
+assert.deepStrictEqual(console.errorAndReturn(
+  { slashes: '\\\\' }), { slashes: '\\\\' }
+);
+assert.deepStrictEqual(console.errorAndReturn(custom_inspect), custom_inspect);
 
 // Test console.debugAndReturn() goes to stdout and returns first argument
 assert.strictEqual(console.debugAndReturn('foo'), 'foo');
 assert.strictEqual(console.debugAndReturn('foo', 'bar'), 'foo');
-assert.strictEqual(console.debugAndReturn('%s %s', 'foo', 'bar', 'hop'), '%s %s');
-assert.deepEqual(console.debugAndReturn({ slashes: '\\\\' }), { slashes: '\\\\' });
-assert.deepEqual(console.debugAndReturn(custom_inspect), custom_inspect);
+assert.strictEqual(
+  console.debugAndReturn('%s %s', 'foo', 'bar', 'hop'), '%s %s'
+);
+assert.deepStrictEqual(
+  console.debugAndReturn({ slashes: '\\\\' }), { slashes: '\\\\' }
+);
+assert.deepStrictEqual(console.debugAndReturn(custom_inspect), custom_inspect);
 
 // Test console.warnAndReturn() goes to stdout and returns first argument
 assert.strictEqual(console.warnAndReturn('foo'), 'foo');
 assert.strictEqual(console.warnAndReturn('foo', 'bar'), 'foo');
-assert.strictEqual(console.warnAndReturn('%s %s', 'foo', 'bar', 'hop'), '%s %s');
-assert.deepEqual(console.warnAndReturn({ slashes: '\\\\' }), { slashes: '\\\\' });
-assert.deepEqual(console.warnAndReturn(custom_inspect), custom_inspect);
+assert.strictEqual(
+  console.warnAndReturn('%s %s', 'foo', 'bar', 'hop'), '%s %s'
+);
+assert.deepStrictEqual(
+  console.warnAndReturn({ slashes: '\\\\' }), { slashes: '\\\\' }
+);
+assert.deepStrictEqual(console.warnAndReturn(custom_inspect), custom_inspect);
 
 // Test console.warn() goes to stderr
 console.warn('foo');
