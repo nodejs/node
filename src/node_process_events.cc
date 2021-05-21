@@ -2,6 +2,7 @@
 #include <set>
 
 #include "env-inl.h"
+#include "debug_utils-inl.h"
 #include "node_process.h"
 #include "util.h"
 
@@ -85,15 +86,13 @@ Maybe<bool> ProcessEmitWarningGeneric(Environment* env,
 }
 
 // Call process.emitWarning(str), fmt is a snprintf() format string
-Maybe<bool> ProcessEmitWarning(Environment* env, const char* fmt, ...) {
-  char warning[1024];
-  va_list ap;
+template <typename... Args>
+v8::Maybe<bool> ProcessEmitWarning(Environment* env,
+                                   const char* fmt,
+                                   Args&&... args) {
+  std::string warning = SPrintF(fmt, std::forward<Args>(args)...);
 
-  va_start(ap, fmt);
-  vsnprintf(warning, sizeof(warning), fmt, ap);
-  va_end(ap);
-
-  return ProcessEmitWarningGeneric(env, warning);
+  return ProcessEmitWarningGeneric(env, warning.c_str());
 }
 
 
