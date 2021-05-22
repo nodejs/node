@@ -2900,7 +2900,7 @@ upload a file with a POST request, then write to the `ClientRequest` object.
 ```js
 const http = require("http")
 
-const postData = querystring.stringify({
+const postData = JSON.stringify({
   'msg': 'Hello World!'
 });
 
