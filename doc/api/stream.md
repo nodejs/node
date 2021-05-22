@@ -1518,6 +1518,8 @@ has less then 64KB of data because no `highWaterMark` option is provided to
 added: REPLACEME
 -->
 
+> Stability: 1 - Experimental
+
 * `options` {Object}
   * `destroyOnReturn` {boolean} When set to `false`, calling `return` on the
     async iterator, or exiting a `for await...of` iteration using a `break`,
