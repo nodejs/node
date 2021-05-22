@@ -8,8 +8,8 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const lodash = require("lodash");
 const astUtils = require("./utils/ast-utils");
+const { upperCaseFirst } = require("../shared/string-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -164,7 +164,7 @@ module.exports = {
                     funcInfo.data = {
                         name: funcInfo.node.type === "Program"
                             ? "Program"
-                            : lodash.upperFirst(astUtils.getFunctionNameWithKind(funcInfo.node))
+                            : upperCaseFirst(astUtils.getFunctionNameWithKind(funcInfo.node))
                     };
                 } else if (funcInfo.hasReturnValue !== hasReturnValue) {
                     context.report({

@@ -10,12 +10,6 @@
 
 const ignore = require("ignore");
 
-const arrayOfStrings = {
-    type: "array",
-    items: { type: "string" },
-    uniqueItems: true
-};
-
 const arrayOfStringsOrObjects = {
     type: "array",
     items: {
@@ -44,6 +38,41 @@ const arrayOfStringsOrObjects = {
     uniqueItems: true
 };
 
+const arrayOfStringsOrObjectPatterns = {
+    anyOf: [
+        {
+            type: "array",
+            items: {
+                type: "string"
+            },
+            uniqueItems: true
+        },
+        {
+            type: "array",
+            items: {
+                type: "object",
+                properties: {
+                    group: {
+                        type: "array",
+                        items: {
+                            type: "string"
+                        },
+                        minItems: 1,
+                        uniqueItems: true
+                    },
+                    message: {
+                        type: "string",
+                        minLength: 1
+                    }
+                },
+                additionalProperties: false,
+                required: ["group"]
+            },
+            uniqueItems: true
+        }
+    ]
+};
+
 module.exports = {
     meta: {
         type: "suggestion",
@@ -61,6 +90,8 @@ module.exports = {
             pathWithCustomMessage: "'{{importSource}}' import is restricted from being used. {{customMessage}}",
 
             patterns: "'{{importSource}}' import is restricted from being used by a pattern.",
+            // eslint-disable-next-line eslint-plugin/report-message-format
+            patternWithCustomMessage: "'{{importSource}}' import is restricted from being used by a pattern. {{customMessage}}",
 
             everything: "* import is invalid because '{{importNames}}' from '{{importSource}}' is restricted.",
             // eslint-disable-next-line eslint-plugin/report-message-format
@@ -80,7 +111,7 @@ module.exports = {
                         type: "object",
                         properties: {
                             paths: arrayOfStringsOrObjects,
-                            patterns: arrayOfStrings
+                            patterns: arrayOfStringsOrObjectPatterns
                         },
                         additionalProperties: false
                     }],
@@ -98,13 +129,6 @@ module.exports = {
             (Object.prototype.hasOwnProperty.call(options[0], "paths") || Object.prototype.hasOwnProperty.call(options[0], "patterns"));
 
         const restrictedPaths = (isPathAndPatternsObject ? options[0].paths : context.options) || [];
-        const restrictedPatterns = (isPathAndPatternsObject ? options[0].patterns : []) || [];
-
-        // if no imports are restricted we don"t need to check
-        if (Object.keys(restrictedPaths).length === 0 && restrictedPatterns.length === 0) {
-            return {};
-        }
-
         const restrictedPathMessages = restrictedPaths.reduce((memo, importSource) => {
             if (typeof importSource === "string") {
                 memo[importSource] = { message: null };
@@ -117,7 +141,16 @@ module.exports = {
             return memo;
         }, {});
 
-        const restrictedPatternsMatcher = ignore().add(restrictedPatterns);
+        // Handle patterns too, either as strings or groups
+        const restrictedPatterns = (isPathAndPatternsObject ? options[0].patterns : []) || [];
+        const restrictedPatternGroups = restrictedPatterns.length > 0 && typeof restrictedPatterns[0] === "string"
+            ? [{ matcher: ignore().add(restrictedPatterns) }]
+            : restrictedPatterns.map(({ group, message }) => ({ matcher: ignore().add(group), customMessage: message }));
+
+        // if no imports are restricted we don"t need to check
+        if (Object.keys(restrictedPaths).length === 0 && restrictedPatternGroups.length === 0) {
+            return {};
+        }
 
         /**
          * Report a restricted path.
@@ -184,17 +217,19 @@ module.exports = {
         /**
          * Report a restricted path specifically for patterns.
          * @param {node} node representing the restricted path reference
+         * @param {Object} group contains a Ignore instance for paths, and the customMessage to show if it fails
          * @returns {void}
          * @private
          */
-        function reportPathForPatterns(node) {
+        function reportPathForPatterns(node, group) {
             const importSource = node.source.value.trim();
 
             context.report({
                 node,
-                messageId: "patterns",
+                messageId: group.customMessage ? "patternWithCustomMessage" : "patterns",
                 data: {
-                    importSource
+                    importSource,
+                    customMessage: group.customMessage
                 }
             });
         }
@@ -202,11 +237,12 @@ module.exports = {
         /**
          * Check if the given importSource is restricted by a pattern.
          * @param {string} importSource path of the import
+         * @param {Object} group contains a Ignore instance for paths, and the customMessage to show if it fails
          * @returns {boolean} whether the variable is a restricted pattern or not
          * @private
          */
-        function isRestrictedPattern(importSource) {
-            return restrictedPatterns.length > 0 && restrictedPatternsMatcher.ignores(importSource);
+        function isRestrictedPattern(importSource, group) {
+            return group.matcher.ignores(importSource);
         }
 
         /**
@@ -249,10 +285,11 @@ module.exports = {
             }
 
             checkRestrictedPathAndReport(importSource, importNames, node);
-
-            if (isRestrictedPattern(importSource)) {
-                reportPathForPatterns(node);
-            }
+            restrictedPatternGroups.forEach(group => {
+                if (isRestrictedPattern(importSource, group)) {
+                    reportPathForPatterns(node, group);
+                }
+            });
         }
 
         return {
