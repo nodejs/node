@@ -1,7 +1,7 @@
 #include <set>
 
 #include "env-inl.h"
-#include "node_process.h"
+#include "node_process-inl.h"
 #include "util.h"
 
 namespace node {
