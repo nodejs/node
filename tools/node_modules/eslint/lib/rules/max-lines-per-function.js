@@ -9,8 +9,7 @@
 //------------------------------------------------------------------------------
 
 const astUtils = require("./utils/ast-utils");
-
-const lodash = require("lodash");
+const { upperCaseFirst } = require("../shared/string-utils");
 
 //------------------------------------------------------------------------------
 // Constants
@@ -191,7 +190,7 @@ module.exports = {
             }
 
             if (lineCount > maxLines) {
-                const name = lodash.upperFirst(astUtils.getFunctionNameWithKind(funcNode));
+                const name = upperCaseFirst(astUtils.getFunctionNameWithKind(funcNode));
 
                 context.report({
                     node,

@@ -5,12 +5,6 @@
 "use strict";
 
 //------------------------------------------------------------------------------
-// Requirements
-//------------------------------------------------------------------------------
-
-const lodash = require("lodash");
-
-//------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
@@ -25,7 +19,7 @@ const DEFAULT_FALLTHROUGH_COMMENT = /falls?\s?through/iu;
  */
 function hasFallthroughComment(node, context, fallthroughCommentPattern) {
     const sourceCode = context.getSourceCode();
-    const comment = lodash.last(sourceCode.getCommentsBefore(node));
+    const comment = sourceCode.getCommentsBefore(node).pop();
 
     return Boolean(comment && fallthroughCommentPattern.test(comment.value));
 }
@@ -133,7 +127,7 @@ module.exports = {
                  */
                 if (currentCodePath.currentSegments.some(isReachable) &&
                     (node.consequent.length > 0 || hasBlankLinesBetween(node, nextToken)) &&
-                    lodash.last(node.parent.cases) !== node) {
+                    node.parent.cases[node.parent.cases.length - 1] !== node) {
                     fallthroughCase = node;
                 }
             }

@@ -5,12 +5,6 @@
 "use strict";
 
 //------------------------------------------------------------------------------
-// Requirements
-//------------------------------------------------------------------------------
-
-const lodash = require("lodash");
-
-//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -48,8 +42,9 @@ module.exports = {
             Program: function checkBadEOF(node) {
                 const sourceCode = context.getSourceCode(),
                     src = sourceCode.getText(),
+                    lastLine = sourceCode.lines[sourceCode.lines.length - 1],
                     location = {
-                        column: lodash.last(sourceCode.lines).length,
+                        column: lastLine.length,
                         line: sourceCode.lines.length
                     },
                     LF = "\n",
