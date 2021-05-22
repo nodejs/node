@@ -15,7 +15,7 @@ const
     eslintScope = require("eslint-scope"),
     evk = require("eslint-visitor-keys"),
     espree = require("espree"),
-    lodash = require("lodash"),
+    merge = require("lodash.merge"),
     BuiltInEnvironments = require("@eslint/eslintrc/conf/environments"),
     pkg = require("../../package.json"),
     astUtils = require("../shared/ast-utils"),
@@ -529,8 +529,8 @@ function normalizeVerifyOptions(providedOptions, config) {
 function resolveParserOptions(parserName, providedOptions, enabledEnvironments) {
     const parserOptionsFromEnv = enabledEnvironments
         .filter(env => env.parserOptions)
-        .reduce((parserOptions, env) => lodash.merge(parserOptions, env.parserOptions), {});
-    const mergedParserOptions = lodash.merge(parserOptionsFromEnv, providedOptions || {});
+        .reduce((parserOptions, env) => merge(parserOptions, env.parserOptions), {});
+    const mergedParserOptions = merge(parserOptionsFromEnv, providedOptions || {});
     const isModule = mergedParserOptions.sourceType === "module";
 
     if (isModule) {
@@ -1286,7 +1286,9 @@ class Linter {
         const filenameToExpose = normalizeFilename(filename);
         const text = ensureText(textOrSourceCode);
         const preprocess = options.preprocess || (rawText => [rawText]);
-        const postprocess = options.postprocess || lodash.flatten;
+
+        // TODO(stephenwade): Replace this with array.flat() when we drop support for Node v10
+        const postprocess = options.postprocess || (array => [].concat(...array));
         const filterCodeBlock =
             options.filterCodeBlock ||
             (blockFilename => blockFilename.endsWith(".js"));
