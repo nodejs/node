@@ -80,7 +80,7 @@ $ node --completion-bash > node_bash_completion
 $ source node_bash_completion
 ```
 
-### `-m=condition`, `--conditions=condition`
+### `-C=condition`, `--conditions=condition`
 <!-- YAML
 added:
   - v14.9.0
@@ -100,7 +100,7 @@ The default Node.js conditions of `"node"`, `"default"`, `"import"`, and
 For example, to run a module with "development" resolutions:
 
 ```console
-$ node -m=development app.js
+$ node -C=development app.js
 ```
 
 ### `--cpu-prof`
@@ -1376,7 +1376,7 @@ node --require "./a.js" --require "./b.js"
 
 Node.js options that are allowed are:
 <!-- node-options-node start -->
-* `--conditions`
+* `--conditions`, `-C`
 * `--diagnostic-dir`
 * `--disable-proto`
 * `--enable-fips`
