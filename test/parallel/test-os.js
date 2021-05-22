@@ -81,6 +81,12 @@ const hostname = os.hostname();
 is.string(hostname);
 assert.ok(hostname.length > 0);
 
+const DUMMY_PRIORITY = 10
+os.setPriority(DUMMY_PRIORITY)
+const proiority = os.getPriority()
+is.number(proiority)
+assert.ok(proiority === DUMMY_PRIORITY)
+
 // On IBMi, os.uptime() returns 'undefined'
 if (!common.isIBMi) {
   const uptime = os.uptime();
