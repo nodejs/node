@@ -9,7 +9,6 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const lodash = require("lodash");
 const astUtils = require("./utils/ast-utils");
 
 //------------------------------------------------------------------------------
@@ -144,23 +143,33 @@ module.exports = {
          * @returns {ASTNode|null} The last node or null.
          */
         function getLastItem(node) {
+
+            /**
+             * Returns the last element of an array
+             * @param {any[]} array The input array
+             * @returns {any} The last element
+             */
+            function last(array) {
+                return array[array.length - 1];
+            }
+
             switch (node.type) {
                 case "ObjectExpression":
                 case "ObjectPattern":
-                    return lodash.last(node.properties);
+                    return last(node.properties);
                 case "ArrayExpression":
                 case "ArrayPattern":
-                    return lodash.last(node.elements);
+                    return last(node.elements);
                 case "ImportDeclaration":
                 case "ExportNamedDeclaration":
-                    return lodash.last(node.specifiers);
+                    return last(node.specifiers);
                 case "FunctionDeclaration":
                 case "FunctionExpression":
                 case "ArrowFunctionExpression":
-                    return lodash.last(node.params);
+                    return last(node.params);
                 case "CallExpression":
                 case "NewExpression":
-                    return lodash.last(node.arguments);
+                    return last(node.arguments);
                 default:
                     return null;
             }
@@ -316,7 +325,7 @@ module.exports = {
             "always-multiline": forceTrailingCommaIfMultiline,
             "only-multiline": allowTrailingCommaIfMultiline,
             never: forbidTrailingComma,
-            ignore: lodash.noop
+            ignore: () => {}
         };
 
         return {

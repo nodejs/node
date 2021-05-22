@@ -5,8 +5,6 @@
 
 "use strict";
 
-const lodash = require("lodash");
-
 /**
  * Compares the locations of two objects in a source file
  * @param {{line: number, column: number}} itemA The first object
@@ -124,7 +122,21 @@ module.exports = ({ directives, problems, reportUnusedDisableDirectives = "off" 
         .map(directive => Object.assign({}, directive, { unprocessedDirective: directive }))
         .sort(compareLocations);
 
-    const lineDirectives = lodash.flatMap(directives, directive => {
+    /**
+     * Returns a new array formed by applying a given callback function to each element of the array, and then flattening the result by one level.
+     * TODO(stephenwade): Replace this with array.flatMap when we drop support for Node v10
+     * @param {any[]} array The array to process
+     * @param {Function} fn The function to use
+     * @returns {any[]} The result array
+     */
+    function flatMap(array, fn) {
+        const mapped = array.map(fn);
+        const flattened = [].concat(...mapped);
+
+        return flattened;
+    }
+
+    const lineDirectives = flatMap(directives, directive => {
         switch (directive.type) {
             case "disable":
             case "enable":
