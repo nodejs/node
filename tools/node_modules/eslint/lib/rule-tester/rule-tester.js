@@ -44,7 +44,8 @@ const
     assert = require("assert"),
     path = require("path"),
     util = require("util"),
-    lodash = require("lodash"),
+    merge = require("lodash.merge"),
+    equal = require("fast-deep-equal"),
     Traverser = require("../../lib/shared/traverser"),
     { getRuleOptionsSchema, validate } = require("../shared/config-validator"),
     { Linter, SourceCodeFixer, interpolate } = require("../linter");
@@ -324,10 +325,9 @@ class RuleTester {
          * configuration and the default configuration.
          * @type {Object}
          */
-        this.testerConfig = lodash.merge(
-
-            // we have to clone because merge uses the first argument for recipient
-            lodash.cloneDeep(defaultConfig),
+        this.testerConfig = merge(
+            {},
+            defaultConfig,
             testerConfig,
             { rules: { "rule-tester/validate-ast": "error" } }
         );
@@ -369,7 +369,7 @@ class RuleTester {
      * @returns {void}
      */
     static resetDefaultConfig() {
-        defaultConfig = lodash.cloneDeep(testerDefaultConfig);
+        defaultConfig = merge({}, testerDefaultConfig);
     }
 
 
@@ -465,7 +465,7 @@ class RuleTester {
          * @private
          */
         function runRuleForItem(item) {
-            let config = lodash.cloneDeep(testerConfig),
+            let config = merge({}, testerConfig),
                 code, filename, output, beforeAST, afterAST;
 
             if (typeof item === "string") {
@@ -477,13 +477,17 @@ class RuleTester {
                  * Assumes everything on the item is a config except for the
                  * parameters used by this tester
                  */
-                const itemConfig = lodash.omit(item, RuleTesterParameters);
+                const itemConfig = { ...item };
+
+                for (const parameter of RuleTesterParameters) {
+                    delete itemConfig[parameter];
+                }
 
                 /*
                  * Create the config object from the tester config and this item
                  * specific configurations.
                  */
-                config = lodash.merge(
+                config = merge(
                     config,
                     itemConfig
                 );
@@ -589,7 +593,7 @@ class RuleTester {
          * @private
          */
         function assertASTDidntChange(beforeAST, afterAST) {
-            if (!lodash.isEqual(beforeAST, afterAST)) {
+            if (!equal(beforeAST, afterAST)) {
                 assert.fail("Rule should not modify AST.");
             }
         }

@@ -38,7 +38,7 @@ const fs = require("fs");
 const path = require("path");
 const getGlobParent = require("glob-parent");
 const isGlob = require("is-glob");
-const { escapeRegExp } = require("lodash");
+const escapeRegExp = require("escape-string-regexp");
 const { Minimatch } = require("minimatch");
 
 const {

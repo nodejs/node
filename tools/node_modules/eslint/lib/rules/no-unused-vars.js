@@ -411,6 +411,31 @@ module.exports = {
         }
 
         /**
+         * Checks whether a given node is unused expression or not.
+         * @param {ASTNode} node The node itself
+         * @returns {boolean} The node is an unused expression.
+         * @private
+         */
+        function isUnusedExpression(node) {
+            const parent = node.parent;
+
+            if (parent.type === "ExpressionStatement") {
+                return true;
+            }
+
+            if (parent.type === "SequenceExpression") {
+                const isLastExpression = parent.expressions[parent.expressions.length - 1] === node;
+
+                if (!isLastExpression) {
+                    return true;
+                }
+                return isUnusedExpression(parent);
+            }
+
+            return false;
+        }
+
+        /**
          * Checks whether a given reference is a read to update itself or not.
          * @param {eslint-scope.Reference} ref A reference to check.
          * @param {ASTNode} rhsNode The RHS node of the previous assignment.
@@ -420,7 +445,6 @@ module.exports = {
         function isReadForItself(ref, rhsNode) {
             const id = ref.identifier;
             const parent = id.parent;
-            const grandparent = parent.parent;
 
             return ref.isRead() && (
 
@@ -428,12 +452,12 @@ module.exports = {
                 (// in RHS of an assignment for itself. e.g. `a = a + 1`
                     ((
                         parent.type === "AssignmentExpression" &&
-                    grandparent.type === "ExpressionStatement" &&
+                    isUnusedExpression(parent) &&
                     parent.left === id
                     ) ||
                 (
                     parent.type === "UpdateExpression" &&
-                    grandparent.type === "ExpressionStatement"
+                    isUnusedExpression(parent)
                 ) || rhsNode &&
                 isInside(id, rhsNode) &&
                 !isInsideOfStorableFunction(id, rhsNode)))

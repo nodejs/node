@@ -8,7 +8,6 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const lodash = require("lodash");
 const astUtils = require("./utils/ast-utils");
 
 //------------------------------------------------------------------------------
@@ -95,9 +94,16 @@ module.exports = {
             }
         }
 
+        /**
+         * A no-op function to act as placeholder for checking a node when the `enforceForClassMembers` option is `false`.
+         * @returns {void}
+         * @private
+         */
+        function noop() {}
+
         return {
             Property: check,
-            MethodDefinition: enforceForClassMembers ? check : lodash.noop
+            MethodDefinition: enforceForClassMembers ? check : noop
         };
     }
 };

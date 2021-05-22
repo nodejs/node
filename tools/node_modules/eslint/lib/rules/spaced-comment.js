@@ -4,7 +4,7 @@
  */
 "use strict";
 
-const lodash = require("lodash");
+const escapeRegExp = require("escape-string-regexp");
 const astUtils = require("./utils/ast-utils");
 
 //------------------------------------------------------------------------------
@@ -17,7 +17,7 @@ const astUtils = require("./utils/ast-utils");
  * @returns {string} An escaped string.
  */
 function escape(s) {
-    return `(?:${lodash.escapeRegExp(s)})`;
+    return `(?:${escapeRegExp(s)})`;
 }
 
 /**

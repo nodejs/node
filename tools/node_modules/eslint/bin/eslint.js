@@ -66,11 +66,8 @@ function readStdin() {
  */
 function getErrorMessage(error) {
 
-    // Lazy loading because those are used only if error happened.
-    const fs = require("fs");
-    const path = require("path");
+    // Lazy loading because this is used only if an error happened.
     const util = require("util");
-    const lodash = require("lodash");
 
     // Foolproof -- thirdparty module might throw non-object.
     if (typeof error !== "object" || error === null) {
@@ -80,14 +77,7 @@ function getErrorMessage(error) {
     // Use templates if `error.messageTemplate` is present.
     if (typeof error.messageTemplate === "string") {
         try {
-            const templateFilePath = path.resolve(
-                __dirname,
-                `../messages/${error.messageTemplate}.txt`
-            );
-
-            // Use sync API because Node.js should exit at this tick.
-            const templateText = fs.readFileSync(templateFilePath, "utf-8");
-            const template = lodash.template(templateText);
+            const template = require(`../messages/${error.messageTemplate}.js`);
 
             return template(error.messageData || {});
         } catch {

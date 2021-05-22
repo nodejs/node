@@ -1,11 +1,13 @@
 'use strict';
 
-var matchOperatorsRe = /[|\\{}()[\]^$+*?.]/g;
-
-module.exports = function (str) {
-	if (typeof str !== 'string') {
+module.exports = string => {
+	if (typeof string !== 'string') {
 		throw new TypeError('Expected a string');
 	}
 
-	return str.replace(matchOperatorsRe, '\\$&');
+	// Escape characters with special meaning either inside or outside character sets.
+	// Use a simple backslash escape when it’s always valid, and a \unnnn escape when the simpler form would be disallowed by Unicode patterns’ stricter grammar.
+	return string
+		.replace(/[|\\{}()[\]^$+*?.]/g, '\\$&')
+		.replace(/-/g, '\\x2d');
 };

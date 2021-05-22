@@ -10,9 +10,8 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const lodash = require("lodash");
-
 const astUtils = require("./utils/ast-utils");
+const { upperCaseFirst } = require("../shared/string-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -95,7 +94,7 @@ module.exports = {
          * @private
          */
         function endFunction(node) {
-            const name = lodash.upperFirst(astUtils.getFunctionNameWithKind(node));
+            const name = upperCaseFirst(astUtils.getFunctionNameWithKind(node));
             const complexity = fns.pop();
 
             if (complexity > THRESHOLD) {
