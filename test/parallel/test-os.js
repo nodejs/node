@@ -171,7 +171,6 @@ const netmaskToCIDRSuffixMap = new Map(Object.entries({
 }));
 
 Object.values(interfaces).flat(Infinity)
-
   .map((v) => ({ v, mask: netmaskToCIDRSuffixMap.get(v.netmask) }))
   .forEach(({ v, mask }) => {
     assert.ok('cidr' in v, `"cidr" prop not found in ${inspect(v)}`);
