@@ -181,7 +181,7 @@ module.exports = {
 
                     validateCommaItemSpacing({
                         comma: token,
-                        left: astUtils.isCommaToken(previousToken) || commaTokensToIgnore.indexOf(token) > -1 ? null : previousToken,
+                        left: astUtils.isCommaToken(previousToken) || commaTokensToIgnore.includes(token) ? null : previousToken,
                         right: astUtils.isCommaToken(nextToken) ? null : nextToken
                     }, token);
                 });

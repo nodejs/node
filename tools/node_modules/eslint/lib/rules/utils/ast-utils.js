@@ -11,7 +11,7 @@
 
 const esutils = require("esutils");
 const espree = require("espree");
-const lodash = require("lodash");
+const escapeRegExp = require("escape-string-regexp");
 const {
     breakableTypePattern,
     createGlobalLinebreakMatcher,
@@ -1756,7 +1756,7 @@ module.exports = {
      * @returns {SourceLocation} The `loc` object.
      */
     getNameLocationInGlobalDirectiveComment(sourceCode, comment, name) {
-        const namePattern = new RegExp(`[\\s,]${lodash.escapeRegExp(name)}(?:$|[\\s,:])`, "gu");
+        const namePattern = new RegExp(`[\\s,]${escapeRegExp(name)}(?:$|[\\s,:])`, "gu");
 
         // To ignore the first text "global".
         namePattern.lastIndex = comment.value.indexOf("global") + 6;
