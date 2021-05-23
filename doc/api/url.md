@@ -913,6 +913,9 @@ invalid domain, the empty string is returned.
 
 It performs the inverse operation to [`url.domainToUnicode()`][].
 
+This feature is only available if the `node` executable was compiled with
+[ICU][] enabled. If not, the domain names are passed through unchanged.
+
 ```js
 const url = require('url');
 console.log(url.domainToASCII('español.com'));
@@ -937,6 +940,9 @@ Returns the Unicode serialization of the `domain`. If `domain` is an invalid
 domain, the empty string is returned.
 
 It performs the inverse operation to [`url.domainToASCII()`][].
+
+This feature is only available if the `node` executable was compiled with
+[ICU][] enabled. If not, the domain names are passed through unchanged.
 
 ```js
 const url = require('url');
