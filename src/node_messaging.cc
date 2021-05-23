@@ -840,11 +840,11 @@ BaseObjectPtr<BaseObject> MessagePortData::Deserialize(
 }
 
 Maybe<bool> MessagePort::PostMessage(Environment* env,
+                                     Local<Context> context,
                                      Local<Value> message_v,
                                      const TransferList& transfer_v) {
   Isolate* isolate = env->isolate();
   Local<Object> obj = object(isolate);
-  Local<Context> context = obj->GetCreationContext().ToLocalChecked();
 
   std::shared_ptr<Message> msg = std::make_shared<Message>();
 
@@ -986,7 +986,7 @@ void MessagePort::PostMessage(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  Maybe<bool> res = port->PostMessage(env, args[0], transfer_list);
+  Maybe<bool> res = port->PostMessage(env, context, args[0], transfer_list);
   if (res.IsJust())
     args.GetReturnValue().Set(res.FromJust());
 }
