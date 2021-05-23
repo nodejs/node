@@ -150,9 +150,9 @@ class SiblingGroup final : public std::enable_shared_from_this<SiblingGroup> {
   size_t size() const { return ports_.size(); }
 
  private:
-  std::string name_;
+  const std::string name_;
+  RwLock group_mutex_;  // Protects ports_.
   std::set<MessagePortData*> ports_;
-  Mutex group_mutex_;
 
   static void CheckSiblingGroup(const std::string& name);
 
