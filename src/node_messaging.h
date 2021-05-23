@@ -107,6 +107,9 @@ class Message : public MemoryRetainer {
 
  private:
   MallocedBuffer<char> main_message_buf_;
+  // TODO(addaleax): Make this a std::variant to save storage size in the common
+  // case (which is that all of these vectors are empty) once that is available
+  // with C++17.
   std::vector<std::shared_ptr<v8::BackingStore>> array_buffers_;
   std::vector<std::shared_ptr<v8::BackingStore>> shared_array_buffers_;
   std::vector<std::unique_ptr<TransferData>> transferables_;
@@ -202,6 +205,9 @@ class MessagePortData : public TransferData {
   // This mutex protects all fields below it, with the exception of
   // sibling_.
   mutable Mutex mutex_;
+  // TODO(addaleax): Make this a std::variant<std::shared_ptr, std::unique_ptr>
+  // once that is available with C++17, because std::shared_ptr comes with
+  // overhead that is only necessary for BroadcastChannel.
   std::deque<std::shared_ptr<Message>> incoming_messages_;
   MessagePort* owner_ = nullptr;
   std::shared_ptr<SiblingGroup> group_;
