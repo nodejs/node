@@ -2898,7 +2898,7 @@ class. The `ClientRequest` instance is a writable stream. If one needs to
 upload a file with a POST request, then write to the `ClientRequest` object.
 
 ```js
-const http = require("http")
+const http = require('http');
 
 const postData = JSON.stringify({
   'msg': 'Hello World!'
