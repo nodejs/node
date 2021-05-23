@@ -1,4 +1,3 @@
-// Flags: --pending-deprecation
 import { mustCall } from '../common/index.mjs';
 import assert from 'assert';
 
@@ -15,7 +14,4 @@ process.addListener('warning', mustCall((warning) => {
   assert(warning.stack.includes(expectedWarnings[curWarning++]), warning.stack);
 }, expectedWarnings.length));
 
-(async () => {
-  await import('./test-esm-exports.mjs');
-})()
-.catch((err) => console.error(err));
+await import('./test-esm-exports.mjs');
