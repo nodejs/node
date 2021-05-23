@@ -267,7 +267,7 @@ class Benchmark {
 function nanoSecondsToString(bigint) {
   const str = bigint.toString();
   const decimalPointIndex = str.length - 9;
-  if (decimalPointIndex < 0) {
+  if (decimalPointIndex <= 0) {
     return `0.${'0'.repeat(-decimalPointIndex)}${str}`;
   }
   return `${str.slice(0, decimalPointIndex)}.${str.slice(decimalPointIndex)}`;
