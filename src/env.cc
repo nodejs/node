@@ -31,12 +31,14 @@
 namespace node {
 
 using errors::TryCatchScope;
+using v8::Array;
 using v8::Boolean;
 using v8::Context;
 using v8::EmbedderGraph;
 using v8::Function;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::HeapSpaceStatistics;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
@@ -1013,11 +1015,11 @@ void Environment::CollectUVExceptionInfo(Local<Value> object,
                              syscall, message, path, dest);
 }
 
-ImmediateInfo::ImmediateInfo(v8::Isolate* isolate, const SerializeInfo* info)
+ImmediateInfo::ImmediateInfo(Isolate* isolate, const SerializeInfo* info)
     : fields_(isolate, kFieldsCount, MAYBE_FIELD_PTR(info, fields)) {}
 
 ImmediateInfo::SerializeInfo ImmediateInfo::Serialize(
-    v8::Local<v8::Context> context, v8::SnapshotCreator* creator) {
+    Local<Context> context, SnapshotCreator* creator) {
   return {fields_.Serialize(context, creator)};
 }
 
@@ -1035,8 +1037,8 @@ void ImmediateInfo::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("fields", fields_);
 }
 
-TickInfo::SerializeInfo TickInfo::Serialize(v8::Local<v8::Context> context,
-                                            v8::SnapshotCreator* creator) {
+TickInfo::SerializeInfo TickInfo::Serialize(Local<Context> context,
+                                            SnapshotCreator* creator) {
   return {fields_.Serialize(context, creator)};
 }
 
@@ -1054,17 +1056,17 @@ void TickInfo::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("fields", fields_);
 }
 
-TickInfo::TickInfo(v8::Isolate* isolate, const SerializeInfo* info)
+TickInfo::TickInfo(Isolate* isolate, const SerializeInfo* info)
     : fields_(
           isolate, kFieldsCount, info == nullptr ? nullptr : &(info->fields)) {}
 
-AsyncHooks::AsyncHooks(v8::Isolate* isolate, const SerializeInfo* info)
+AsyncHooks::AsyncHooks(Isolate* isolate, const SerializeInfo* info)
     : async_ids_stack_(isolate, 16 * 2, MAYBE_FIELD_PTR(info, async_ids_stack)),
       fields_(isolate, kFieldsCount, MAYBE_FIELD_PTR(info, fields)),
       async_id_fields_(
           isolate, kUidFieldsCount, MAYBE_FIELD_PTR(info, async_id_fields)),
       info_(info) {
-  v8::HandleScope handle_scope(isolate);
+  HandleScope handle_scope(isolate);
   if (info == nullptr) {
     clear_async_id_stack();
 
@@ -1092,21 +1094,18 @@ void AsyncHooks::Deserialize(Local<Context> context) {
   fields_.Deserialize(context);
   async_id_fields_.Deserialize(context);
   if (info_->js_execution_async_resources != 0) {
-    v8::Local<v8::Array> arr = context
-                                   ->GetDataFromSnapshotOnce<v8::Array>(
-                                       info_->js_execution_async_resources)
-                                   .ToLocalChecked();
+    Local<Array> arr = context->GetDataFromSnapshotOnce<Array>(
+                                  info_->js_execution_async_resources)
+                              .ToLocalChecked();
     js_execution_async_resources_.Reset(context->GetIsolate(), arr);
   }
 
   native_execution_async_resources_.resize(
       info_->native_execution_async_resources.size());
   for (size_t i = 0; i < info_->native_execution_async_resources.size(); ++i) {
-    v8::Local<v8::Object> obj =
-        context
-            ->GetDataFromSnapshotOnce<v8::Object>(
-                info_->native_execution_async_resources[i])
-            .ToLocalChecked();
+    Local<Object> obj = context->GetDataFromSnapshotOnce<Object>(
+                                   info_->native_execution_async_resources[i])
+                               .ToLocalChecked();
     native_execution_async_resources_[i].Reset(context->GetIsolate(), obj);
   }
   info_ = nullptr;
@@ -1523,7 +1522,7 @@ size_t Environment::NearHeapLimitCallback(void* data,
   size_t young_gen_size = 0;
   size_t old_gen_size = 0;
 
-  v8::HeapSpaceStatistics stats;
+  HeapSpaceStatistics stats;
   size_t num_heap_spaces = env->isolate()->NumberOfHeapSpaces();
   for (size_t i = 0; i < num_heap_spaces; ++i) {
     env->isolate()->GetHeapSpaceStatistics(&stats, i);
