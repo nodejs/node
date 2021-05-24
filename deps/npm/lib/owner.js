@@ -18,6 +18,14 @@ class Owner extends BaseCommand {
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return [
+      'registry',
+      'otp',
+    ]
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get usage () {
     return [
       'add <user> [<@scope>/]<pkg>',

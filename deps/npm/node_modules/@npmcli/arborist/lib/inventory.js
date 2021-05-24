@@ -4,7 +4,7 @@
 // keys is the set of fields to be able to query.
 const _primaryKey = Symbol('_primaryKey')
 const _index = Symbol('_index')
-const defaultKeys = ['name', 'license', 'funding', 'realpath']
+const defaultKeys = ['name', 'license', 'funding', 'realpath', 'packageName']
 const { hasOwnProperty } = Object.prototype
 const debug = require('./debug.js')
 class Inventory extends Map {

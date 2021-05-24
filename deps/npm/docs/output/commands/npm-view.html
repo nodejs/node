@@ -141,7 +141,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#output">Output</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#json"><code>json</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li></ul><li><a href="#output">Output</a></li><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -186,7 +186,7 @@ can do this:</p>
 </code></pre>
 <p>“Person” fields are shown as a string if they would be shown as an
 object.  So, for example, this will show the list of <code>npm</code> contributors in
-the shortened string format.  (See <a href="../configuring-npm/package.json.html"><code>package.json</code></a> for more on this.)</p>
+the shortened string format.  (See <a href="../configuring-npm/package-json.html"><code>package.json</code></a> for more on this.)</p>
 <pre lang="bash"><code>npm view npm contributors
 </code></pre>
 <p>If a version range is provided, then data will be printed for every
@@ -198,6 +198,44 @@ was required by each matching version of <code>yui3</code>:</p>
 this:</p>
 <pre lang="bash"><code>npm view connect versions
 </code></pre>
+<h3 id="configuration">Configuration</h3>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="json"><code>json</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Whether or not to output JSON data, rather than the normal output.</p>
+<p>Not supported by all npm commands.</p>
+<h4 id="workspace"><code>workspace</code></h4>
+<ul>
+<li>Default:</li>
+<li>Type: String (can be set multiple times)</li>
+</ul>
+<p>Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option.</p>
+<p>Valid values for the <code>workspace</code> config are either:</p>
+<ul>
+<li>Workspace names</li>
+<li>Path to a workspace directory</li>
+<li>Path to a parent workspace directory (will result to selecting all of the
+nested workspaces)</li>
+</ul>
+<p>When set for the <code>npm init</code> command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project.</p>
+<p>This value is not exported to the environment for child processes.</p>
+<h4 id="workspaces"><code>workspaces</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Enable running a command in the context of <strong>all</strong> the configured
+workspaces.</p>
+<p>This value is not exported to the environment for child processes.</p>
+<!-- raw HTML omitted -->
 <h3 id="output">Output</h3>
 <p>If only a single string field for a single version is output, then it
 will not be colorized or quoted, to enable piping the output to

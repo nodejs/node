@@ -346,7 +346,9 @@ whenever `rl.prompt()` is called.
 
 ### `rl.getPrompt()`
 <!-- YAML
-added: v15.3.0
+added:
+  - v15.3.0
+  - v14.17.0
 -->
 
 * Returns: {string} the current prompt string

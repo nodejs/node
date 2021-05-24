@@ -586,7 +586,9 @@ the status of the `highWaterMark`.
 
 ##### `writable.writableNeedDrain`
 <!-- YAML
-added: v15.2.0
+added:
+  - v15.2.0
+  - v14.17.0
 -->
 
 * {boolean}

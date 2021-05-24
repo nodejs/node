@@ -279,7 +279,7 @@ new Worker('process.env.SET_IN_WORKER = "foo"', { eval: true, env: SHARE_ENV })
 ```
 
 ## `worker.setEnvironmentData(key[, value])`
-<!--YAML
+<!-- YAML
 added: v15.12.0
 -->
 
@@ -666,7 +666,7 @@ Depending on how a `Buffer` instance was created, it may or may
 not own its underlying `ArrayBuffer`. An `ArrayBuffer` must not
 be transferred unless it is known that the `Buffer` instance
 owns it. In particular, for `Buffer`s created from the internal
-`Buffer` pool (using, for instance `Buffer.from()` or `Buffer.alloc()`),
+`Buffer` pool (using, for instance `Buffer.from()` or `Buffer.allocUnsafe()`),
 transferring them is not possible and they are always cloned,
 which sends a copy of the entire `Buffer` pool.
 This behavior may come with unintended higher memory
@@ -1016,6 +1016,7 @@ immediately with an [`ERR_WORKER_NOT_RUNNING`][] error.
 <!-- YAML
 added:
   - v15.1.0
+  - v14.17.0
   - v12.22.0
 -->
 
@@ -1026,6 +1027,7 @@ instance. Similar to [`perf_hooks.performance`][].
 <!-- YAML
 added:
   - v15.1.0
+  - v14.17.0
   - v12.22.0
 -->
 
@@ -1190,6 +1192,45 @@ active handle in the event system. If the worker is already `unref()`ed calling
 `unref()` again has no effect.
 
 ## Notes
+
+### Synchronous blocking of stdio
+
+`Worker`s utilize message passing via {MessagePort} to implement interactions
+with `stdio`. This means that `stdio` output originating from a `Worker` can
+get blocked by synchronous code on the receiving end that is blocking the
+Node.js event loop.
+
+```mjs
+import {
+  Worker,
+  isMainThread,
+} from 'worker_threads';
+
+if (isMainThread) {
+  new Worker(new URL(import.meta.url));
+  for (let n = 0; n < 1e10; n++) {}
+} else {
+  // This output will be blocked by the for loop in the main thread.
+  console.log('foo');
+}
+```
+
+```cjs
+'use strict';
+
+const {
+  Worker,
+  isMainThread,
+} = require('worker_threads');
+
+if (isMainThread) {
+  new Worker(__filename);
+  for (let n = 0; n < 1e10; n++) {}
+} else {
+  // This output will be blocked by the for loop in the main thread.
+  console.log('foo');
+}
+```
 
 ### Launching worker threads from preload scripts
 

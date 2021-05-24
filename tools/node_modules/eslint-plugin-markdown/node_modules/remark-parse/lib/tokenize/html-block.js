@@ -1,94 +1,111 @@
-'use strict';
+'use strict'
 
-var openCloseTag = require('../util/html').openCloseTag;
+var openCloseTag = require('../util/html').openCloseTag
 
-module.exports = blockHTML;
+module.exports = blockHtml
 
-var C_TAB = '\t';
-var C_SPACE = ' ';
-var C_NEWLINE = '\n';
-var C_LT = '<';
+var tab = '\t'
+var space = ' '
+var lineFeed = '\n'
+var lessThan = '<'
 
-function blockHTML(eat, value, silent) {
-  var self = this;
-  var blocks = self.options.blocks;
-  var length = value.length;
-  var index = 0;
-  var next;
-  var line;
-  var offset;
-  var character;
-  var count;
-  var sequence;
-  var subvalue;
+var rawOpenExpression = /^<(script|pre|style)(?=(\s|>|$))/i
+var rawCloseExpression = /<\/(script|pre|style)>/i
+var commentOpenExpression = /^<!--/
+var commentCloseExpression = /-->/
+var instructionOpenExpression = /^<\?/
+var instructionCloseExpression = /\?>/
+var directiveOpenExpression = /^<![A-Za-z]/
+var directiveCloseExpression = />/
+var cdataOpenExpression = /^<!\[CDATA\[/
+var cdataCloseExpression = /\]\]>/
+var elementCloseExpression = /^$/
+var otherElementOpenExpression = new RegExp(openCloseTag.source + '\\s*$')
+
+function blockHtml(eat, value, silent) {
+  var self = this
+  var blocks = self.options.blocks.join('|')
+  var elementOpenExpression = new RegExp(
+    '^</?(' + blocks + ')(?=(\\s|/?>|$))',
+    'i'
+  )
+  var length = value.length
+  var index = 0
+  var next
+  var line
+  var offset
+  var character
+  var count
+  var sequence
+  var subvalue
 
   var sequences = [
-    [/^<(script|pre|style)(?=(\s|>|$))/i, /<\/(script|pre|style)>/i, true],
-    [/^<!--/, /-->/, true],
-    [/^<\?/, /\?>/, true],
-    [/^<![A-Za-z]/, />/, true],
-    [/^<!\[CDATA\[/, /\]\]>/, true],
-    [new RegExp('^</?(' + blocks.join('|') + ')(?=(\\s|/?>|$))', 'i'), /^$/, true],
-    [new RegExp(openCloseTag.source + '\\s*$'), /^$/, false]
-  ];
+    [rawOpenExpression, rawCloseExpression, true],
+    [commentOpenExpression, commentCloseExpression, true],
+    [instructionOpenExpression, instructionCloseExpression, true],
+    [directiveOpenExpression, directiveCloseExpression, true],
+    [cdataOpenExpression, cdataCloseExpression, true],
+    [elementOpenExpression, elementCloseExpression, true],
+    [otherElementOpenExpression, elementCloseExpression, false]
+  ]
 
-  /* Eat initial spacing. */
+  // Eat initial spacing.
   while (index < length) {
-    character = value.charAt(index);
+    character = value.charAt(index)
 
-    if (character !== C_TAB && character !== C_SPACE) {
-      break;
+    if (character !== tab && character !== space) {
+      break
     }
 
-    index++;
+    index++
   }
 
-  if (value.charAt(index) !== C_LT) {
-    return;
+  if (value.charAt(index) !== lessThan) {
+    return
   }
 
-  next = value.indexOf(C_NEWLINE, index + 1);
-  next = next === -1 ? length : next;
-  line = value.slice(index, next);
-  offset = -1;
-  count = sequences.length;
+  next = value.indexOf(lineFeed, index + 1)
+  next = next === -1 ? length : next
+  line = value.slice(index, next)
+  offset = -1
+  count = sequences.length
 
   while (++offset < count) {
     if (sequences[offset][0].test(line)) {
-      sequence = sequences[offset];
-      break;
+      sequence = sequences[offset]
+      break
     }
   }
 
   if (!sequence) {
-    return;
+    return
   }
 
   if (silent) {
-    return sequence[2];
+    return sequence[2]
   }
 
-  index = next;
+  index = next
 
   if (!sequence[1].test(line)) {
     while (index < length) {
-      next = value.indexOf(C_NEWLINE, index + 1);
-      next = next === -1 ? length : next;
-      line = value.slice(index + 1, next);
+      next = value.indexOf(lineFeed, index + 1)
+      next = next === -1 ? length : next
+      line = value.slice(index + 1, next)
 
       if (sequence[1].test(line)) {
         if (line) {
-          index = next;
+          index = next
         }
 
-        break;
+        break
       }
 
-      index = next;
+      index = next
     }
   }
 
-  subvalue = value.slice(0, index);
+  subvalue = value.slice(0, index)
 
-  return eat(subvalue)({type: 'html', value: subvalue});
+  return eat(subvalue)({type: 'html', value: subvalue})
 }

@@ -141,7 +141,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#npx-vs-npm-exec"><code>npx</code> vs <code>npm exec</code></a></li><li><a href="#examples">Examples</a></li><li><a href="#workspaces-support">Workspaces support</a></li><ul><li><a href="#filtering-workspaces">Filtering workspaces</a></li></ul><li><a href="#compatibility-with-older-npx-versions">Compatibility with Older npx Versions</a></li><li><a href="#a-note-on-caching">A note on caching</a></li><ul><li><a href="#prefer-online">prefer-online</a></li><li><a href="#prefer-offline">prefer-offline</a></li><li><a href="#offline">offline</a></li><li><a href="#workspace">workspace</a></li><li><a href="#workspaces">workspaces</a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#npx-vs-npm-exec"><code>npx</code> vs <code>npm exec</code></a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#package"><code>package</code></a></li><li><a href="#call"><code>call</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li></ul><li><a href="#examples">Examples</a></li><li><a href="#workspaces-support">Workspaces support</a></li><ul><li><a href="#filtering-workspaces">Filtering workspaces</a></li></ul><li><a href="#compatibility-with-older-npx-versions">Compatibility with Older npx Versions</a></li><li><a href="#a-note-on-caching">A note on caching</a></li><ul><li><a href="#prefer-online">prefer-online</a></li><li><a href="#prefer-offline">prefer-offline</a></li><li><a href="#offline">offline</a></li><li><a href="#workspace2">workspace</a></li><li><a href="#workspaces2">workspaces</a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -149,7 +149,7 @@ npm command-line interface
 npm exec --package=&lt;pkg&gt;[@&lt;version&gt;] -- &lt;cmd&gt; [args...]
 npm exec -c '&lt;cmd&gt; [args...]'
 npm exec --package=foo -c '&lt;cmd&gt; [args...]'
-npm exec [-ws] [-w &lt;workspace-name] [args...]
+npm exec [--ws] [-w &lt;workspace-name] [args...]
 
 npx &lt;pkg&gt;[@&lt;specifier&gt;] [args...]
 npx -p &lt;pkg&gt;[@&lt;specifier&gt;] &lt;cmd&gt; [args...]
@@ -232,6 +232,52 @@ parsing command line options and switches.  The following command would
 thus be equivalent to the <code>npx</code> command above:</p>
 <pre><code>$ npm exec -- foo@latest bar --package=@npmcli/foo
 </code></pre>
+<h3 id="configuration">Configuration</h3>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="package"><code>package</code></h4>
+<ul>
+<li>Default:</li>
+<li>Type: String (can be set multiple times)</li>
+</ul>
+<p>The package to install for <a href="../commands/npm-exec.html"><code>npm exec</code></a></p>
+<h4 id="call"><code>call</code></h4>
+<ul>
+<li>Default: “”</li>
+<li>Type: String</li>
+</ul>
+<p>Optional companion option for <code>npm exec</code>, <code>npx</code> that allows for specifying a
+custom command to be run along with the installed packages.</p>
+<pre lang="bash"><code>npm exec --package yo --package generator-node --call "yo node"
+</code></pre>
+<h4 id="workspace"><code>workspace</code></h4>
+<ul>
+<li>Default:</li>
+<li>Type: String (can be set multiple times)</li>
+</ul>
+<p>Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option.</p>
+<p>Valid values for the <code>workspace</code> config are either:</p>
+<ul>
+<li>Workspace names</li>
+<li>Path to a workspace directory</li>
+<li>Path to a parent workspace directory (will result to selecting all of the
+nested workspaces)</li>
+</ul>
+<p>When set for the <code>npm init</code> command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project.</p>
+<p>This value is not exported to the environment for child processes.</p>
+<h4 id="workspaces"><code>workspaces</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Enable running a command in the context of <strong>all</strong> the configured
+workspaces.</p>
+<p>This value is not exported to the environment for child processes.</p>
+<!-- raw HTML omitted -->
 <h3 id="examples">Examples</h3>
 <p>Run the version of <code>tap</code> in the local dependencies, with the provided
 arguments:</p>
@@ -276,7 +322,7 @@ at a time.</p>
 the configured workspaces when using the <code>workspaces</code> configuration options,
 in this example we’re using <strong>eslint</strong> to lint any js file found within each
 workspace folder:</p>
-<pre><code>npm exec -ws -- eslint ./*.js
+<pre><code>npm exec --ws -- eslint ./*.js
 </code></pre>
 <h4 id="filtering-workspaces">Filtering workspaces</h4>
 <p>It’s also possible to execute a command in a single workspace using the
@@ -331,24 +377,25 @@ requested from the server. To force full offline mode, use <code>offline</code>.
 <h4 id="offline">offline</h4>
 <p>Forces full offline mode. Any packages not locally cached will result in
 an error.</p>
-<h4 id="workspace">workspace</h4>
+<h4 id="workspace2">workspace</h4>
 <ul>
-<li>Alias: <code>-w</code></li>
-<li>Type: Array</li>
-<li>Default: <code>[]</code></li>
+<li>Default:</li>
+<li>Type: String (can be set multiple times)</li>
 </ul>
-<p>Enable running scripts in the context of workspaces while also filtering by
-the provided names or paths provided.</p>
+<p>Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option.</p>
 <p>Valid values for the <code>workspace</code> config are either:</p>
 <ul>
 <li>Workspace names</li>
 <li>Path to a workspace directory</li>
 <li>Path to a parent workspace directory (will result to selecting all of the
-children workspaces)</li>
+nested workspaces)</li>
 </ul>
-<h4 id="workspaces">workspaces</h4>
+<p>This value is not exported to the environment for child processes.</p>
+<h4 id="workspaces2">workspaces</h4>
 <ul>
-<li>Alias: <code>-ws</code></li>
+<li>Alias: <code>--ws</code></li>
 <li>Type: Boolean</li>
 <li>Default: <code>false</code></li>
 </ul>
@@ -363,6 +410,7 @@ project.</p>
 <li><a href="../commands/npm-restart.html">npm restart</a></li>
 <li><a href="../commands/npm-stop.html">npm stop</a></li>
 <li><a href="../commands/npm-config.html">npm config</a></li>
+<li><a href="../using-npm/workspaces.html">npm workspaces</a></li>
 </ul>
 </div>
 

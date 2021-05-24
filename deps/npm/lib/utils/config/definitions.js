@@ -199,16 +199,6 @@ define('also', {
   },
 })
 
-define('always-auth', {
-  default: false,
-  type: Boolean,
-  description: `
-    Force npm to always require authentication when accessing the registry,
-    even for \`GET\` requests.
-  `,
-  flatten,
-})
-
 define('audit', {
   default: true,
   type: Boolean,
@@ -720,6 +710,7 @@ define('force', {
       dependency range (including SemVer-major changes).
     * Allow unpublishing all versions of a published package.
     * Allow conflicting peerDependencies to be installed in the root project.
+    * Implicitly set \`--yes\` during \`npm init\`.
 
     If you don't have a clear idea of what you want to do, it is strongly
     recommended that you do not use this option!
@@ -869,6 +860,11 @@ define('ignore-scripts', {
   type: Boolean,
   description: `
     If true, npm does not run scripts specified in package.json files.
+
+    Note that commands explicitly intended to run a particular script, such
+    as \`npm start\`, \`npm stop\`, \`npm restart\`, \`npm test\`, and \`npm
+    run-script\` will still run their intended script if \`ignore-scripts\` is
+    set, but they will *not* run any pre- or post-scripts.
   `,
   flatten,
 })
@@ -1029,10 +1025,7 @@ define('json', {
   description: `
     Whether or not to output JSON data, rather than the normal output.
 
-    This feature is currently experimental, and the output data structures
-    for many commands is either not implemented in JSON yet, or subject to
-    change.  Only the output from \`npm ls --json\` and \`npm search --json\`
-    are currently valid.
+    Not supported by all npm commands.
   `,
   flatten,
 })
@@ -1100,6 +1093,8 @@ define('link', {
     * The package is not already installed globally, or
     * the globally installed version is identical to the version that is
       being installed locally.
+
+    When used with \`npm ls\`, only show packages that are linked.
   `,
 })
 
@@ -1149,7 +1144,7 @@ define('long', {
   type: Boolean,
   short: 'l',
   description: `
-    Show extended information in \`npm ls\` and \`npm search\`.
+    Show extended information in \`ls\`, \`search\`, and \`help-search\`.
   `,
 })
 
@@ -1236,7 +1231,7 @@ define('offline', {
 define('omit', {
   default: process.env.NODE_ENV === 'production' ? ['dev'] : [],
   defaultDescription: `
-    'dev' if the NODE_ENV environment variable is set to 'production',
+    'dev' if the \`NODE_ENV\` environment variable is set to 'production',
     otherwise empty.
   `,
   type: [Array, 'dev', 'optional', 'peer'],
@@ -1637,15 +1632,27 @@ define('scope', {
   description: `
     Associate an operation with a scope for a scoped registry.
 
-    Useful when logging in to a private registry for the first time:
+    Useful when logging in to or out of a private registry:
 
-    \`\`\`bash
+    \`\`\`
+    # log in, linking the scope to the custom registry
     npm login --scope=@mycorp --registry=https://registry.mycorp.com
+
+    # log out, removing the link and the auth token
+    npm logout --scope=@mycorp
     \`\`\`
 
     This will cause \`@mycorp\` to be mapped to the registry for future
     installation of packages specified according to the pattern
     \`@mycorp/package\`.
+
+    This will also cause \`npm init\` to create a scoped package.
+
+    \`\`\`
+    # accept all defaults, and create a package named "@foo/whatever",
+    # instead of just named "whatever"
+    npm init --scope=@foo --yes
+    \`\`\`
   `,
   flatten (key, obj, flatOptions) {
     const value = obj[key]
@@ -1660,7 +1667,8 @@ define('script-shell', {
   `,
   type: [null, String],
   description: `
-    The shell to use for scripts run with the \`npm run\` command.
+    The shell to use for scripts run with the \`npm exec\`,
+    \`npm run\` and \`npm init <pkg>\` commands.
   `,
   flatten (key, obj, flatOptions) {
     flatOptions.scriptShell = obj[key] || undefined
@@ -1841,6 +1849,9 @@ define('tag', {
 
     Also the tag that is added to the package@version specified by the \`npm
     tag\` command, if no explicit tag is given.
+
+    When used by the \`npm diff\` command, this is the tag used to fetch the
+    tarball that will be compared with the local files by default.
   `,
   flatten (key, obj, flatOptions) {
     flatOptions.defaultTag = obj[key]
@@ -1920,7 +1931,7 @@ define('unicode', {
   default: unicode,
   defaultDescription: `
     false on windows, true on mac/unix systems with a unicode locale, as
-    defined by the LC_ALL, LC_CTYPE, or LANG environment variables.
+    defined by the \`LC_ALL\`, \`LC_CTYPE\`, or \`LANG\` environment variables.
   `,
   type: Boolean,
   description: `
@@ -1952,6 +1963,7 @@ define('user-agent', {
            'node/{node-version} ' +
            '{platform} ' +
            '{arch} ' +
+           'workspaces/{workspaces} ' +
            '{ci}',
   type: String,
   description: `
@@ -1962,17 +1974,23 @@ define('user-agent', {
     * \`{node-version}\` - The Node.js version in use
     * \`{platform}\` - The value of \`process.platform\`
     * \`{arch}\` - The value of \`process.arch\`
+    * \`{workspaces}\` - Set to \`true\` if the \`workspaces\` or \`workspace\`
+      options are set.
     * \`{ci}\` - The value of the \`ci-name\` config, if set, prefixed with
       \`ci/\`, or an empty string if \`ci-name\` is empty.
   `,
   flatten (key, obj, flatOptions) {
     const value = obj[key]
     const ciName = obj['ci-name']
+    let inWorkspaces = false
+    if (obj.workspaces || obj.workspace && obj.workspace.length)
+      inWorkspaces = true
     flatOptions.userAgent =
       value.replace(/\{node-version\}/gi, obj['node-version'])
         .replace(/\{npm-version\}/gi, obj['npm-version'])
         .replace(/\{platform\}/gi, process.platform)
         .replace(/\{arch\}/gi, process.arch)
+        .replace(/\{workspaces\}/gi, inWorkspaces)
         .replace(/\{ci\}/gi, ciName ? `ci/${ciName}` : '')
         .trim()
     // user-agent is a unique kind of config item that gets set from a template
@@ -2052,10 +2070,15 @@ define('workspace', {
     this configuration option.
 
     Valid values for the \`workspace\` config are either:
-    - Workspace names
-    - Path to a workspace directory
-    - Path to a parent workspace directory (will result to selecting all of the
-    nested workspaces)
+
+    * Workspace names
+    * Path to a workspace directory
+    * Path to a parent workspace directory (will result to selecting all of the
+      nested workspaces)
+
+    When set for the \`npm init\` command, this may be set to the folder of
+    a workspace which does not yet exist, to create the folder and set it
+    up as a brand new workspace within the project.
   `,
 })
 

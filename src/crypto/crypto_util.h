@@ -24,7 +24,7 @@
 #endif  // !OPENSSL_NO_ENGINE
 // The FIPS-related functions are only available
 // when the OpenSSL itself was compiled with FIPS support.
-#ifdef  OPENSSL_FIPS
+#if defined(OPENSSL_FIPS) && OPENSSL_VERSION_MAJOR < 3
 #  include <openssl/fips.h>
 #endif  // OPENSSL_FIPS
 
@@ -188,8 +188,8 @@ struct CryptoErrorStore final : public MemoryRetainer {
       v8::Local<v8::String> exception_string = v8::Local<v8::String>()) const;
 
   SET_NO_MEMORY_INFO()
-  SET_MEMORY_INFO_NAME(CryptoErrorStore);
-  SET_SELF_SIZE(CryptoErrorStore);
+  SET_MEMORY_INFO_NAME(CryptoErrorStore)
+  SET_SELF_SIZE(CryptoErrorStore)
 
  private:
   std::vector<std::string> errors_;
@@ -502,7 +502,7 @@ class DeriveBitsJob final : public CryptoJob<DeriveBitsTraits> {
     return v8::Just(errors->ToException(env).ToLocal(err));
   }
 
-  SET_SELF_SIZE(DeriveBitsJob);
+  SET_SELF_SIZE(DeriveBitsJob)
   void MemoryInfo(MemoryTracker* tracker) const override {
     tracker->TrackFieldWithSize("out", out_.size());
     CryptoJob<DeriveBitsTraits>::MemoryInfo(tracker);

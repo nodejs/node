@@ -87,34 +87,16 @@ function assertCursorRowsAndCols(rli, rows, cols) {
   const input = new FakeInput();
 
   // Constructor throws if completer is not a function or undefined
-  assert.throws(() => {
-    readline.createInterface({
-      input,
-      completer: 'string is not valid'
+  ['not an array', 123, 123n, {}, true, Symbol(), null].forEach((invalid) => {
+    assert.throws(() => {
+      readline.createInterface({
+        input,
+        completer: invalid
+      });
+    }, {
+      name: 'TypeError',
+      code: 'ERR_INVALID_ARG_VALUE'
     });
-  }, {
-    name: 'TypeError',
-    code: 'ERR_INVALID_ARG_VALUE'
-  });
-
-  assert.throws(() => {
-    readline.createInterface({
-      input,
-      completer: ''
-    });
-  }, {
-    name: 'TypeError',
-    code: 'ERR_INVALID_ARG_VALUE'
-  });
-
-  assert.throws(() => {
-    readline.createInterface({
-      input,
-      completer: false
-    });
-  }, {
-    name: 'TypeError',
-    code: 'ERR_INVALID_ARG_VALUE'
   });
 
   // Constructor throws if history is not an array
@@ -277,7 +259,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
   const expectedLines = ['foo', 'bar', 'baz', 'bar', 'bat', 'bat'];
   // ['foo', 'baz', 'bar', bat'];
   let callCount = 0;
-  rli.on('line', function(line) {
+  rli.on('line', (line) => {
     assert.strictEqual(line, expectedLines[callCount]);
     callCount++;
   });
@@ -353,7 +335,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
   });
   const expectedLines = ['foo', 'bar', 'baz', 'bar', 'bat', 'bat'];
   let callCount = 0;
-  rli.on('line', function(line) {
+  rli.on('line', (line) => {
     assert.strictEqual(line, expectedLines[callCount]);
     callCount++;
   });
@@ -380,7 +362,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
   const [rli, fi] = getInterface({ terminal: true });
   const keys = [];
   const err = new Error('bad thing happened');
-  fi.on('keypress', function(key) {
+  fi.on('keypress', (key) => {
     keys.push(key);
     if (key === 'X') {
       throw err;
@@ -795,7 +777,7 @@ for (let i = 0; i < 12; i++) {
   assert.strictEqual(isWarned(process.stdout._events), false);
 }
 
-[true, false].forEach(function(terminal) {
+[true, false].forEach((terminal) => {
   // Disable history
   {
     const [rli, fi] = getInterface({ terminal, historySize: 0 });
@@ -890,7 +872,7 @@ for (let i = 0; i < 12; i++) {
     const buf = Buffer.from('☮', 'utf8');
     const [rli, fi] = getInterface({ terminal });
     let callCount = 0;
-    rli.on('line', function(line) {
+    rli.on('line', (line) => {
       callCount++;
       assert.strictEqual(line, buf.toString('utf8'));
     });
@@ -1004,7 +986,7 @@ for (let i = 0; i < 12; i++) {
     rli.setPrompt('ddd> ');
     rli.prompt();
     rli.write("really shouldn't be seeing this");
-    rli.question('What do you think of node.js? ', function(answer) {
+    rli.question('What do you think of node.js? ', (answer) => {
       console.log('Thank you for your valuable feedback:', answer);
       rli.close();
     });
@@ -1056,7 +1038,7 @@ for (let i = 0; i < 12; i++) {
     const crlfDelay = 200;
     const [rli, fi] = getInterface({ terminal, crlfDelay });
     let callCount = 0;
-    rli.on('line', function(line) {
+    rli.on('line', () => {
       callCount++;
     });
     fi.emit('data', '\r');
@@ -1078,7 +1060,7 @@ for (let i = 0; i < 12; i++) {
     const delay = 200;
     const [rli, fi] = getInterface({ terminal, crlfDelay });
     let callCount = 0;
-    rli.on('line', function(line) {
+    rli.on('line', () => {
       callCount++;
     });
     fi.emit('data', '\r');

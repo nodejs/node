@@ -14,7 +14,7 @@ const {
 } = require("./config-array-factory");
 
 const { CascadingConfigArrayFactory } = require("./cascading-config-array-factory");
-const { ModuleResolver } = require("./shared/relative-module-resolver");
+const ModuleResolver = require("./shared/relative-module-resolver");
 const { ConfigArray, getUsedExtractedConfigs } = require("./config-array");
 const { ConfigDependency } = require("./config-array/config-dependency");
 const { ExtractedConfig } = require("./config-array/extracted-config");

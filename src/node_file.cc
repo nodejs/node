@@ -1835,8 +1835,8 @@ static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   CHECK_LE(static_cast<uint64_t>(off_64), buffer_length);
   const size_t off = static_cast<size_t>(off_64);
 
-  CHECK(IsSafeJsInt(args[3]));
-  const size_t len = static_cast<size_t>(args[3].As<Integer>()->Value());
+  CHECK(args[3]->IsInt32());
+  const size_t len = static_cast<size_t>(args[3].As<Int32>()->Value());
   CHECK(Buffer::IsWithinBounds(off, len, buffer_length));
   CHECK_LE(len, buffer_length);
   CHECK_GE(off + len, off);
@@ -2482,7 +2482,6 @@ void Initialize(Local<Object> target,
 
   env->SetMethod(target, "chmod", Chmod);
   env->SetMethod(target, "fchmod", FChmod);
-  // env->SetMethod(target, "lchmod", LChmod);
 
   env->SetMethod(target, "chown", Chown);
   env->SetMethod(target, "fchown", FChown);
@@ -2599,7 +2598,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
   registry->Register(Chmod);
   registry->Register(FChmod);
-  // registry->Register(LChmod);
 
   registry->Register(Chown);
   registry->Register(FChown);

@@ -9,6 +9,7 @@ This directory contains modules used to test the Node.js implementation.
 * [Common module API](#common-module-api)
 * [Countdown module](#countdown-module)
 * [CPU Profiler module](#cpu-profiler-module)
+* [Debugger module](#debugger-module)
 * [DNS module](#dns-module)
 * [Duplex pair helper](#duplex-pair-helper)
 * [Environment variables](#environment-variables)
@@ -370,10 +371,12 @@ const { spawn } = require('child_process');
 spawn(...common.pwdCommand, { stdio: ['pipe'] });
 ```
 
-### `requireNoPackageJSONAbove()`
+### `requireNoPackageJSONAbove([dir])`
 
-Throws an `AssertionError` if a `package.json` file is in any ancestor
-directory. Such files may interfere with proper test functionality.
+* `dir` [&lt;string>][] default = \_\_dirname
+
+Throws an `AssertionError` if a `package.json` file exists in any ancestor
+directory above `dir`. Such files may interfere with proper test functionality.
 
 ### `runWithInvalidFD(func)`
 
@@ -502,6 +505,34 @@ Sampling interval in microseconds.
 
 Throws an `AssertionError` if there are no call frames with the expected
 `suffix` in the profiling data contained in `file`.
+
+## Debugger module
+
+Provides common functionality for tests for `node inspect`.
+
+### `startCLI(args[[, flags], spawnOpts])`
+
+* `args` [&lt;string>][]
+* `flags` [&lt;string>][] default = []
+* `showOpts` [&lt;Object>][] default = {}
+* return [&lt;Object>][]
+
+Returns a null-prototype object with properties that are functions and getters
+used to interact with the `node inspect` CLI. These functions are:
+
+* `flushOutput()`
+* `waitFor()`
+* `waitForPrompt()`
+* `waitForInitialBreak()`
+* `breakInfo`
+* `ctrlC()`
+* `output`
+* `rawOutput`
+* `parseSourceLines()`
+* `writeLine()`
+* `command()`
+* `stepCommand()`
+* `quit()`
 
 ## `DNS` Module
 

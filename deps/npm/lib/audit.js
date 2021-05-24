@@ -2,9 +2,9 @@ const Arborist = require('@npmcli/arborist')
 const auditReport = require('npm-audit-report')
 const reifyFinish = require('./utils/reify-finish.js')
 const auditError = require('./utils/audit-error.js')
-const BaseCommand = require('./base-command.js')
+const ArboristWorkspaceCmd = require('./workspaces/arborist-cmd.js')
 
-class Audit extends BaseCommand {
+class Audit extends ArboristWorkspaceCmd {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get description () {
     return 'Run a security audit'
@@ -23,7 +23,8 @@ class Audit extends BaseCommand {
       'force',
       'json',
       'package-lock-only',
-      'production',
+      'omit',
+      ...super.params,
     ]
   }
 
@@ -57,7 +58,9 @@ class Audit extends BaseCommand {
       audit: true,
       path: this.npm.prefix,
       reporter,
+      workspaces: this.workspaces,
     }
+
     const arb = new Arborist(opts)
     const fix = args[0] === 'fix'
     await arb.audit({ fix })

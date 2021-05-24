@@ -113,7 +113,9 @@ http.get({
 <!-- YAML
 added: v0.3.4
 changes:
-  - version: v15.6.0
+  - version:
+      - v15.6.0
+      - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/36685
     description: Change the default scheduling from 'fifo' to 'lifo'.
   - version:
@@ -272,7 +274,7 @@ terminates them.
 <!-- YAML
 added: v0.11.4
 changes:
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/36409
     description: The property now has a `null` prototype.
 -->
@@ -342,7 +344,7 @@ can have open. Unlike `maxSockets`, this parameter applies across all origins.
 <!-- YAML
 added: v0.5.9
 changes:
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/36409
     description: The property now has a `null` prototype.
 -->
@@ -356,7 +358,7 @@ sockets. Do not modify.
 <!-- YAML
 added: v0.3.6
 changes:
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/36409
     description: The property now has a `null` prototype.
 -->
@@ -779,7 +781,9 @@ const cookie = request.getHeader('Cookie');
 
 ### `request.getRawHeaderNames()`
 <!-- YAML
-added: v15.13.0
+added:
+  - v15.13.0
+  - v14.17.0
 -->
 
 * Returns: {string[]}
@@ -2020,7 +2024,7 @@ const req = http.request({
 ### `message.connection`
 <!-- YAML
 added: v0.1.90
-deprecated: REPLACEME
+deprecated: v16.0.0
  -->
 
 > Stability: 0 - Deprecated. Use [`message.socket`][].
@@ -2797,7 +2801,9 @@ This can be overridden for servers and client requests by passing the
 <!-- YAML
 added: v0.3.6
 changes:
-  - version: v15.3.0
+  - version:
+      - v15.3.0
+      - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/36048
     description: It is possible to abort a request with an AbortSignal.
   - version:

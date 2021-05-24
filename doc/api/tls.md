@@ -730,7 +730,8 @@ existing server. Existing connections to the server are not interrupted.
 added: v3.0.0
 -->
 
-* `keys` {Buffer} A 48-byte buffer containing the session ticket keys.
+* `keys` {Buffer|TypedArray|DataView} A 48-byte buffer containing the session
+  ticket keys.
 
 Sets the session ticket keys.
 
@@ -848,6 +849,9 @@ determine if the server certificate was signed by one of the specified CAs. If
 `tlsSocket.authorizationError` property. If ALPN was used, the
 `tlsSocket.alpnProtocol` property can be checked to determine the negotiated
 protocol.
+
+The `'secureConnect'` event is not emitted when a {tls.TLSSocket} is created
+using the `new tls.TLSSocket()` constructor.
 
 ### Event: `'session'`
 <!-- YAML
@@ -1472,10 +1476,10 @@ changes:
     Connection/disconnection/destruction of `socket` is the user's
     responsibility; calling `tls.connect()` will not cause `net.connect()` to be
     called.
-  * `allowHalfOpen` {boolean} If the `socket` option is missing, indicates
-    whether or not to allow the internally created socket to be half-open,
-    otherwise the option is ignored. See the `allowHalfOpen` option of
-    [`net.Socket`][] for details. **Default:** `false`.
+  * `allowHalfOpen` {boolean} If set to `false`, then the socket will
+    automatically end the writable side when the readable side ends. If the
+    `socket` option is set, this option has no effect. See the `allowHalfOpen`
+    option of [`net.Socket`][] for details. **Default:** `false`.
   * `rejectUnauthorized` {boolean} If not `false`, the server certificate is
     verified against the list of supplied CAs. An `'error'` event is emitted if
     verification fails; `err.code` contains the OpenSSL error code. **Default:**

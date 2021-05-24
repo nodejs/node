@@ -233,6 +233,23 @@ undefined
 undefined
 ```
 
+One known limitation of using the `await` keyword in the REPL is that
+it will invalidate the lexical scoping of the `const` and `let`
+keywords.
+
+For example:
+
+```console
+> const m = await Promise.resolve(123)
+undefined
+> m
+123
+> const m = await Promise.resolve(234)
+undefined
+> m
+234
+```
+
 ### Reverse-i-search
 <!-- YAML
 added:
@@ -245,7 +262,7 @@ triggered with <kbd>Ctrl</kbd>+<kbd>R</kbd> to search backward and
 <kbd>Ctrl</kbd>+<kbd>S</kbd> to search
 forwards.
 
-Duplicated history entires will be skipped.
+Duplicated history entries will be skipped.
 
 Entries are accepted as soon as any key is pressed that doesn't correspond
 with the reverse search. Cancelling is possible by pressing <kbd>Esc</kbd> or

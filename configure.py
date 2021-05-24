@@ -14,7 +14,12 @@ import shutil
 import bz2
 import io
 
-from distutils.spawn import find_executable as which
+# Fallback to find_executable from distutils.spawn is a stopgap for
+# supporting V8 builds, which do not yet support Python 3.
+try:
+  from shutil import which
+except ImportError:
+  from distutils.spawn import find_executable as which
 from distutils.version import StrictVersion
 
 # If not run from node/, cd to node/.
@@ -1450,6 +1455,12 @@ def configure_openssl(o):
 
   if options.openssl_fips or options.openssl_fips == '':
      error('FIPS is not supported in this version of Node.js')
+
+  if options.openssl_is_fips and not options.shared_openssl:
+    error('--openssl-is-fips is only available with --shared-openssl')
+
+  if options.openssl_is_fips:
+    o['defines'] += ['OPENSSL_FIPS']
 
   if options.shared_openssl:
     variables['openssl_quic'] = b(getsharedopensslhasquic.get_has_quic(options.__dict__['shared_openssl_includes']))

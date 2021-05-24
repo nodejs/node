@@ -457,6 +457,15 @@ of the custom deprecation.
 The `*-deprecation` command-line flags only affect warnings that use the name
 `'DeprecationWarning'`.
 
+### Event: `'worker'`
+<!-- YAML
+added: v16.2.0
+-->
+
+* `worker` {Worker} The {Worker} that was created.
+
+The `'worker'` event is emitted after a new {Worker} thread has been created.
+
 #### Emitting custom warnings
 
 See the [`process.emitWarning()`][process_emit_warning] method for issuing
@@ -760,7 +769,7 @@ This feature is not available in [`Worker`][] threads.
 <!-- YAML
 added: v0.7.7
 changes:
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/36902
     description: Modifying process.config has been deprecated.
 -->
@@ -1415,6 +1424,8 @@ Indicates whether a callback has been set using
 added: v0.7.6
 -->
 
+> Stability: 3 - Legacy. Use [`process.hrtime.bigint()`][] instead.
+
 * `time` {integer[]} The result of a previous call to `process.hrtime()`
 * Returns: {integer[]}
 
@@ -2028,6 +2039,7 @@ added: v11.12.0
 changes:
   - version:
      - v15.0.0
+     - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/35654
     description: This API is no longer experimental.
 -->

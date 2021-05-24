@@ -199,3 +199,29 @@ exports[`test/lib/utils/explain-dep.js TAP prodDep > print nocolor 1`] = `
 prod-dep@1.2.3
 node_modules/prod-dep
 `
+
+exports[`test/lib/utils/explain-dep.js TAP workspaces > explain color deep 1`] = `
+[32ma@1.0.0[39m[2m[22m
+[2ma[22m
+  [32ma@1.0.0[39m[2m[22m
+  [2mnode_modules/a[22m
+    [32mworkspace[39m [1ma[22m from the root project
+`
+
+exports[`test/lib/utils/explain-dep.js TAP workspaces > explain nocolor shallow 1`] = `
+a@1.0.0
+a
+  a@1.0.0
+  node_modules/a
+    workspace a from the root project
+`
+
+exports[`test/lib/utils/explain-dep.js TAP workspaces > print color 1`] = `
+[32ma@1.0.0[39m[2m[22m
+[2ma[22m
+`
+
+exports[`test/lib/utils/explain-dep.js TAP workspaces > print nocolor 1`] = `
+a@1.0.0
+a
+`

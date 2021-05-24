@@ -258,70 +258,84 @@ of files for a given package, e.g:</p>
 located within the folder <code>./lib/</code> and changed lines of code within the
 <code>CHANGELOG.md</code> file.</p>
 <h3 id="configuration">Configuration</h3>
-<h4 id="diff">diff</h4>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="diff"><code>diff</code></h4>
 <ul>
-<li>Type: Array</li>
-<li>Default: null</li>
+<li>Default:</li>
+<li>Type: String (can be set multiple times)</li>
 </ul>
-<p>Defines npm package specifiers to compare using the <code>npm diff</code> command.</p>
-<p>This can be specified up to 2 times.</p>
-<h4 id="diff-name-only">diff-name-only</h4>
+<p>Define arguments to compare in <code>npm diff</code>.</p>
+<h4 id="diff-name-only"><code>diff-name-only</code></h4>
 <ul>
-<li>Type: Boolean</li>
 <li>Default: false</li>
+<li>Type: Boolean</li>
 </ul>
-<p>When set to <code>true</code> running <code>npm diff</code> only returns the names of the files that
-have any difference.</p>
-<h4 id="diff-unified">diff-unified</h4>
+<p>Prints only filenames when using <code>npm diff</code>.</p>
+<h4 id="diff-unified"><code>diff-unified</code></h4>
 <ul>
+<li>Default: 3</li>
 <li>Type: Number</li>
-<li>Default: <code>3</code></li>
 </ul>
-<p>The number of lines of context to print in the unified diff format output.</p>
-<h4 id="diff-ignore-all-space">diff-ignore-all-space</h4>
+<p>The number of lines of context to print in <code>npm diff</code>.</p>
+<h4 id="diff-ignore-all-space"><code>diff-ignore-all-space</code></h4>
 <ul>
-<li>Type: Boolean</li>
 <li>Default: false</li>
-</ul>
-<p>Ignore whitespace when comparing lines. This ignores differences even if one
-line has whitespace where the other line has none.</p>
-<h4 id="diff-no-prefix">diff-no-prefix</h4>
-<ul>
 <li>Type: Boolean</li>
-<li>Default: false</li>
 </ul>
-<p>Do not show any source or destination prefix.</p>
-<h4 id="diff-src-prefix">diff-src-prefix</h4>
+<p>Ignore whitespace when comparing lines in <code>npm diff</code>.</p>
+<h4 id="diff-no-prefix"><code>diff-no-prefix</code></h4>
 <ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Do not show any source or destination prefix in <code>npm diff</code> output.</p>
+<p>Note: this causes <code>npm diff</code> to ignore the <code>--diff-src-prefix</code> and
+<code>--diff-dst-prefix</code> configs.</p>
+<h4 id="diff-src-prefix"><code>diff-src-prefix</code></h4>
+<ul>
+<li>Default: “a/”</li>
 <li>Type: String</li>
-<li>Default: <code>"a/"</code></li>
 </ul>
-<p>Show the given source prefix in diff patches headers instead of using “a/”.</p>
-<h4 id="diff-dst-prefix">diff-dst-prefix</h4>
+<p>Source prefix to be used in <code>npm diff</code> output.</p>
+<h4 id="diff-dst-prefix"><code>diff-dst-prefix</code></h4>
 <ul>
+<li>Default: “b/”</li>
 <li>Type: String</li>
-<li>Default: <code>"b/"</code></li>
 </ul>
-<p>Show the given source prefix in diff patches headers instead of using “b/”.</p>
-<h4 id="diff-text">diff-text</h4>
-<ul>
-<li>Type: Boolean</li>
-<li>Default: false</li>
-</ul>
-<p>Treat all files as text.</p>
-<h4 id="global">global</h4>
+<p>Destination prefix to be used in <code>npm diff</code> output.</p>
+<h4 id="diff-text"><code>diff-text</code></h4>
 <ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Uses packages from the global space as a source for comparison.</p>
-<h4 id="tag">tag</h4>
+<p>Treat all files as text in <code>npm diff</code>.</p>
+<h4 id="global"><code>global</code></h4>
 <ul>
-<li>Type: String</li>
-<li>Default: <code>"latest"</code></li>
+<li>Default: false</li>
+<li>Type: Boolean</li>
 </ul>
-<p>The tag used to fetch the tarball that will be compared with the local file
-system files when running npm diff with no arguments.</p>
+<p>Operates in “global” mode, so that packages are installed into the <code>prefix</code>
+folder instead of the current working directory. See
+<a href="../configuring-npm/folders.html">folders</a> for more on the differences in behavior.</p>
+<ul>
+<li>packages are installed into the <code>{prefix}/lib/node_modules</code> folder, instead
+of the current working directory.</li>
+<li>bin files are linked to <code>{prefix}/bin</code></li>
+<li>man pages are linked to <code>{prefix}/share/man</code></li>
+</ul>
+<h4 id="tag"><code>tag</code></h4>
+<ul>
+<li>Default: “latest”</li>
+<li>Type: String</li>
+</ul>
+<p>If you ask npm to install a package and don’t tell it a specific version,
+then it will install the specified tag.</p>
+<p>Also the tag that is added to the package@version specified by the <code>npm tag</code>
+command, if no explicit tag is given.</p>
+<p>When used by the <code>npm diff</code> command, this is the tag used to fetch the
+tarball that will be compared with the local files by default.</p>
+<!-- raw HTML omitted -->
 <h2 id="see-also">See Also</h2>
 <ul>
 <li><a href="../commands/npm-outdated.html">npm outdated</a></li>

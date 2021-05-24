@@ -7,38 +7,38 @@
 'use strict'
 exports[`test/lib/outdated.js TAP should display outdated deps outdated --all > must match snapshot 1`] = `
 
-Package  Current  Wanted  Latest  Location            Depended by
-alpha      1.0.0   1.0.1   1.0.1  node_modules/alpha  tap-testdir-outdated-should-display-outdated-deps
-beta       1.0.0   1.0.1   1.0.1  node_modules/beta   tap-testdir-outdated-should-display-outdated-deps
-gamma      1.0.1   1.0.1   2.0.0  node_modules/gamma  tap-testdir-outdated-should-display-outdated-deps
-theta    MISSING   1.0.1   1.0.1  -                   tap-testdir-outdated-should-display-outdated-deps
+Package  Current  Wanted  Latest  Location           Depended by
+cat        1.0.0   1.0.1   1.0.1  node_modules/cat   tap-testdir-outdated-should-display-outdated-deps
+chai       1.0.0   1.0.1   1.0.1  node_modules/chai  tap-testdir-outdated-should-display-outdated-deps
+dog        1.0.1   1.0.1   2.0.0  node_modules/dog   tap-testdir-outdated-should-display-outdated-deps
+theta    MISSING   1.0.1   1.0.1  -                  tap-testdir-outdated-should-display-outdated-deps
 `
 
 exports[`test/lib/outdated.js TAP should display outdated deps outdated --json --long > must match snapshot 1`] = `
 
 {
-  "alpha": {
+  "cat": {
     "current": "1.0.0",
     "wanted": "1.0.1",
     "latest": "1.0.1",
     "dependent": "tap-testdir-outdated-should-display-outdated-deps",
-    "location": "{CWD}/test/lib/tap-testdir-outdated-should-display-outdated-deps/node_modules/alpha",
+    "location": "{CWD}/test/lib/tap-testdir-outdated-should-display-outdated-deps/node_modules/cat",
     "type": "dependencies"
   },
-  "beta": {
+  "chai": {
     "current": "1.0.0",
     "wanted": "1.0.1",
     "latest": "1.0.1",
     "dependent": "tap-testdir-outdated-should-display-outdated-deps",
-    "location": "{CWD}/test/lib/tap-testdir-outdated-should-display-outdated-deps/node_modules/beta",
+    "location": "{CWD}/test/lib/tap-testdir-outdated-should-display-outdated-deps/node_modules/chai",
     "type": "peerDependencies"
   },
-  "gamma": {
+  "dog": {
     "current": "1.0.1",
     "wanted": "1.0.1",
     "latest": "2.0.0",
     "dependent": "tap-testdir-outdated-should-display-outdated-deps",
-    "location": "{CWD}/test/lib/tap-testdir-outdated-should-display-outdated-deps/node_modules/gamma",
+    "location": "{CWD}/test/lib/tap-testdir-outdated-should-display-outdated-deps/node_modules/dog",
     "type": "dependencies"
   },
   "theta": {
@@ -53,26 +53,26 @@ exports[`test/lib/outdated.js TAP should display outdated deps outdated --json -
 exports[`test/lib/outdated.js TAP should display outdated deps outdated --json > must match snapshot 1`] = `
 
 {
-  "alpha": {
+  "cat": {
     "current": "1.0.0",
     "wanted": "1.0.1",
     "latest": "1.0.1",
     "dependent": "tap-testdir-outdated-should-display-outdated-deps",
-    "location": "{CWD}/test/lib/tap-testdir-outdated-should-display-outdated-deps/node_modules/alpha"
+    "location": "{CWD}/test/lib/tap-testdir-outdated-should-display-outdated-deps/node_modules/cat"
   },
-  "beta": {
+  "chai": {
     "current": "1.0.0",
     "wanted": "1.0.1",
     "latest": "1.0.1",
     "dependent": "tap-testdir-outdated-should-display-outdated-deps",
-    "location": "{CWD}/test/lib/tap-testdir-outdated-should-display-outdated-deps/node_modules/beta"
+    "location": "{CWD}/test/lib/tap-testdir-outdated-should-display-outdated-deps/node_modules/chai"
   },
-  "gamma": {
+  "dog": {
     "current": "1.0.1",
     "wanted": "1.0.1",
     "latest": "2.0.0",
     "dependent": "tap-testdir-outdated-should-display-outdated-deps",
-    "location": "{CWD}/test/lib/tap-testdir-outdated-should-display-outdated-deps/node_modules/gamma"
+    "location": "{CWD}/test/lib/tap-testdir-outdated-should-display-outdated-deps/node_modules/dog"
   },
   "theta": {
     "wanted": "1.0.1",
@@ -84,71 +84,169 @@ exports[`test/lib/outdated.js TAP should display outdated deps outdated --json >
 
 exports[`test/lib/outdated.js TAP should display outdated deps outdated --long > must match snapshot 1`] = `
 
-Package  Current  Wanted  Latest  Location            Depended by                                        Package Type      Homepage
-alpha      1.0.0   1.0.1   1.0.1  node_modules/alpha  tap-testdir-outdated-should-display-outdated-deps  dependencies
-beta       1.0.0   1.0.1   1.0.1  node_modules/beta   tap-testdir-outdated-should-display-outdated-deps  peerDependencies
-gamma      1.0.1   1.0.1   2.0.0  node_modules/gamma  tap-testdir-outdated-should-display-outdated-deps  dependencies
-theta    MISSING   1.0.1   1.0.1  -                   tap-testdir-outdated-should-display-outdated-deps  dependencies
+Package  Current  Wanted  Latest  Location           Depended by                                        Package Type      Homepage
+cat        1.0.0   1.0.1   1.0.1  node_modules/cat   tap-testdir-outdated-should-display-outdated-deps  dependencies
+chai       1.0.0   1.0.1   1.0.1  node_modules/chai  tap-testdir-outdated-should-display-outdated-deps  peerDependencies
+dog        1.0.1   1.0.1   2.0.0  node_modules/dog   tap-testdir-outdated-should-display-outdated-deps  dependencies
+theta    MISSING   1.0.1   1.0.1  -                  tap-testdir-outdated-should-display-outdated-deps  dependencies
 `
 
 exports[`test/lib/outdated.js TAP should display outdated deps outdated --omit=dev --omit=peer > must match snapshot 1`] = `
 
-[4mPackage[24m  [4mCurrent[24m  [4mWanted[24m  [4mLatest[24m  [4mLocation[24m            [4mDepended by[24m
-[31malpha[39m      1.0.0   [32m1.0.1[39m   [35m1.0.1[39m  node_modules/alpha  tap-testdir-outdated-should-display-outdated-deps
-[33mgamma[39m      1.0.1   [32m1.0.1[39m   [35m2.0.0[39m  node_modules/gamma  tap-testdir-outdated-should-display-outdated-deps
-[31mtheta[39m    MISSING   [32m1.0.1[39m   [35m1.0.1[39m  -                   tap-testdir-outdated-should-display-outdated-deps
+[4mPackage[24m  [4mCurrent[24m  [4mWanted[24m  [4mLatest[24m  [4mLocation[24m          [4mDepended by[24m
+[31mcat[39m        1.0.0   [32m1.0.1[39m   [35m1.0.1[39m  node_modules/cat  tap-testdir-outdated-should-display-outdated-deps
+[33mdog[39m        1.0.1   [32m1.0.1[39m   [35m2.0.0[39m  node_modules/dog  tap-testdir-outdated-should-display-outdated-deps
+[31mtheta[39m    MISSING   [32m1.0.1[39m   [35m1.0.1[39m  -                 tap-testdir-outdated-should-display-outdated-deps
 `
 
 exports[`test/lib/outdated.js TAP should display outdated deps outdated --omit=dev > must match snapshot 1`] = `
 
-[4mPackage[24m  [4mCurrent[24m  [4mWanted[24m  [4mLatest[24m  [4mLocation[24m            [4mDepended by[24m
-[31malpha[39m      1.0.0   [32m1.0.1[39m   [35m1.0.1[39m  node_modules/alpha  tap-testdir-outdated-should-display-outdated-deps
-[31mbeta[39m       1.0.0   [32m1.0.1[39m   [35m1.0.1[39m  node_modules/beta   tap-testdir-outdated-should-display-outdated-deps
-[33mgamma[39m      1.0.1   [32m1.0.1[39m   [35m2.0.0[39m  node_modules/gamma  tap-testdir-outdated-should-display-outdated-deps
-[31mtheta[39m    MISSING   [32m1.0.1[39m   [35m1.0.1[39m  -                   tap-testdir-outdated-should-display-outdated-deps
+[4mPackage[24m  [4mCurrent[24m  [4mWanted[24m  [4mLatest[24m  [4mLocation[24m           [4mDepended by[24m
+[31mcat[39m        1.0.0   [32m1.0.1[39m   [35m1.0.1[39m  node_modules/cat   tap-testdir-outdated-should-display-outdated-deps
+[31mchai[39m       1.0.0   [32m1.0.1[39m   [35m1.0.1[39m  node_modules/chai  tap-testdir-outdated-should-display-outdated-deps
+[33mdog[39m        1.0.1   [32m1.0.1[39m   [35m2.0.0[39m  node_modules/dog   tap-testdir-outdated-should-display-outdated-deps
+[31mtheta[39m    MISSING   [32m1.0.1[39m   [35m1.0.1[39m  -                  tap-testdir-outdated-should-display-outdated-deps
 `
 
 exports[`test/lib/outdated.js TAP should display outdated deps outdated --omit=prod > must match snapshot 1`] = `
 
-[4mPackage[24m  [4mCurrent[24m  [4mWanted[24m  [4mLatest[24m  [4mLocation[24m            [4mDepended by[24m
-[31malpha[39m      1.0.0   [32m1.0.1[39m   [35m1.0.1[39m  node_modules/alpha  tap-testdir-outdated-should-display-outdated-deps
-[31mbeta[39m       1.0.0   [32m1.0.1[39m   [35m1.0.1[39m  node_modules/beta   tap-testdir-outdated-should-display-outdated-deps
-[33mgamma[39m      1.0.1   [32m1.0.1[39m   [35m2.0.0[39m  node_modules/gamma  tap-testdir-outdated-should-display-outdated-deps
+[4mPackage[24m  [4mCurrent[24m  [4mWanted[24m  [4mLatest[24m  [4mLocation[24m           [4mDepended by[24m
+[31mcat[39m        1.0.0   [32m1.0.1[39m   [35m1.0.1[39m  node_modules/cat   tap-testdir-outdated-should-display-outdated-deps
+[31mchai[39m       1.0.0   [32m1.0.1[39m   [35m1.0.1[39m  node_modules/chai  tap-testdir-outdated-should-display-outdated-deps
+[33mdog[39m        1.0.1   [32m1.0.1[39m   [35m2.0.0[39m  node_modules/dog   tap-testdir-outdated-should-display-outdated-deps
 `
 
 exports[`test/lib/outdated.js TAP should display outdated deps outdated --parseable --long > must match snapshot 1`] = `
 
-{CWD}/test/lib/tap-testdir-outdated-should-display-outdated-deps/node_modules/alpha:alpha@1.0.1:alpha@1.0.0:alpha@1.0.1:tap-testdir-outdated-should-display-outdated-deps:dependencies:
-{CWD}/test/lib/tap-testdir-outdated-should-display-outdated-deps/node_modules/beta:beta@1.0.1:beta@1.0.0:beta@1.0.1:tap-testdir-outdated-should-display-outdated-deps:peerDependencies:
-{CWD}/test/lib/tap-testdir-outdated-should-display-outdated-deps/node_modules/gamma:gamma@1.0.1:gamma@1.0.1:gamma@2.0.0:tap-testdir-outdated-should-display-outdated-deps:dependencies:
+{CWD}/test/lib/tap-testdir-outdated-should-display-outdated-deps/node_modules/cat:cat@1.0.1:cat@1.0.0:cat@1.0.1:tap-testdir-outdated-should-display-outdated-deps:dependencies:
+{CWD}/test/lib/tap-testdir-outdated-should-display-outdated-deps/node_modules/chai:chai@1.0.1:chai@1.0.0:chai@1.0.1:tap-testdir-outdated-should-display-outdated-deps:peerDependencies:
+{CWD}/test/lib/tap-testdir-outdated-should-display-outdated-deps/node_modules/dog:dog@1.0.1:dog@1.0.1:dog@2.0.0:tap-testdir-outdated-should-display-outdated-deps:dependencies:
 :theta@1.0.1:MISSING:theta@1.0.1:tap-testdir-outdated-should-display-outdated-deps:dependencies:
 `
 
 exports[`test/lib/outdated.js TAP should display outdated deps outdated --parseable > must match snapshot 1`] = `
 
-{CWD}/test/lib/tap-testdir-outdated-should-display-outdated-deps/node_modules/alpha:alpha@1.0.1:alpha@1.0.0:alpha@1.0.1:tap-testdir-outdated-should-display-outdated-deps
-{CWD}/test/lib/tap-testdir-outdated-should-display-outdated-deps/node_modules/beta:beta@1.0.1:beta@1.0.0:beta@1.0.1:tap-testdir-outdated-should-display-outdated-deps
-{CWD}/test/lib/tap-testdir-outdated-should-display-outdated-deps/node_modules/gamma:gamma@1.0.1:gamma@1.0.1:gamma@2.0.0:tap-testdir-outdated-should-display-outdated-deps
+{CWD}/test/lib/tap-testdir-outdated-should-display-outdated-deps/node_modules/cat:cat@1.0.1:cat@1.0.0:cat@1.0.1:tap-testdir-outdated-should-display-outdated-deps
+{CWD}/test/lib/tap-testdir-outdated-should-display-outdated-deps/node_modules/chai:chai@1.0.1:chai@1.0.0:chai@1.0.1:tap-testdir-outdated-should-display-outdated-deps
+{CWD}/test/lib/tap-testdir-outdated-should-display-outdated-deps/node_modules/dog:dog@1.0.1:dog@1.0.1:dog@2.0.0:tap-testdir-outdated-should-display-outdated-deps
 :theta@1.0.1:MISSING:theta@1.0.1:tap-testdir-outdated-should-display-outdated-deps
 `
 
 exports[`test/lib/outdated.js TAP should display outdated deps outdated > must match snapshot 1`] = `
 
-[4mPackage[24m  [4mCurrent[24m  [4mWanted[24m  [4mLatest[24m  [4mLocation[24m            [4mDepended by[24m
-[31malpha[39m      1.0.0   [32m1.0.1[39m   [35m1.0.1[39m  node_modules/alpha  tap-testdir-outdated-should-display-outdated-deps
-[31mbeta[39m       1.0.0   [32m1.0.1[39m   [35m1.0.1[39m  node_modules/beta   tap-testdir-outdated-should-display-outdated-deps
-[33mgamma[39m      1.0.1   [32m1.0.1[39m   [35m2.0.0[39m  node_modules/gamma  tap-testdir-outdated-should-display-outdated-deps
-[31mtheta[39m    MISSING   [32m1.0.1[39m   [35m1.0.1[39m  -                   tap-testdir-outdated-should-display-outdated-deps
+[4mPackage[24m  [4mCurrent[24m  [4mWanted[24m  [4mLatest[24m  [4mLocation[24m           [4mDepended by[24m
+[31mcat[39m        1.0.0   [32m1.0.1[39m   [35m1.0.1[39m  node_modules/cat   tap-testdir-outdated-should-display-outdated-deps
+[31mchai[39m       1.0.0   [32m1.0.1[39m   [35m1.0.1[39m  node_modules/chai  tap-testdir-outdated-should-display-outdated-deps
+[33mdog[39m        1.0.1   [32m1.0.1[39m   [35m2.0.0[39m  node_modules/dog   tap-testdir-outdated-should-display-outdated-deps
+[31mtheta[39m    MISSING   [32m1.0.1[39m   [35m1.0.1[39m  -                  tap-testdir-outdated-should-display-outdated-deps
 `
 
 exports[`test/lib/outdated.js TAP should display outdated deps outdated global > must match snapshot 1`] = `
 
-Package  Current  Wanted  Latest  Location            Depended by
-alpha      1.0.0   1.0.1   1.0.1  node_modules/alpha  global
+Package  Current  Wanted  Latest  Location          Depended by
+cat        1.0.0   1.0.1   1.0.1  node_modules/cat  global
 `
 
 exports[`test/lib/outdated.js TAP should display outdated deps outdated specific dep > must match snapshot 1`] = `
 
-Package  Current  Wanted  Latest  Location            Depended by
-alpha      1.0.0   1.0.1   1.0.1  node_modules/alpha  tap-testdir-outdated-should-display-outdated-deps
+Package  Current  Wanted  Latest  Location          Depended by
+cat        1.0.0   1.0.1   1.0.1  node_modules/cat  tap-testdir-outdated-should-display-outdated-deps
+`
+
+exports[`test/lib/outdated.js TAP workspaces > should display all dependencies 1`] = `
+
+Package  Current  Wanted  Latest  Location           Depended by
+cat        1.0.0   1.0.1   1.0.1  node_modules/cat   a@1.0.0
+chai       1.0.0   1.0.1   1.0.1  node_modules/chai  foo
+dog        1.0.1   1.0.1   2.0.0  node_modules/dog   tap-testdir-outdated-workspaces
+theta    MISSING   1.0.1   1.0.1  -                  c@1.0.0
+`
+
+exports[`test/lib/outdated.js TAP workspaces > should display json results filtered by ws 1`] = `
+
+{
+  "cat": {
+    "current": "1.0.0",
+    "wanted": "1.0.1",
+    "latest": "1.0.1",
+    "dependent": "a",
+    "location": "{CWD}/test/lib/tap-testdir-outdated-workspaces/node_modules/cat"
+  }
+}
+`
+
+exports[`test/lib/outdated.js TAP workspaces > should display missing deps when filtering by ws 1`] = `
+
+Package  Current  Wanted  Latest  Location  Depended by
+theta    MISSING   1.0.1   1.0.1  -         c@1.0.0
+`
+
+exports[`test/lib/outdated.js TAP workspaces > should display nested deps when filtering by ws and using --all 1`] = `
+
+Package  Current  Wanted  Latest  Location           Depended by
+cat        1.0.0   1.0.1   1.0.1  node_modules/cat   a@1.0.0
+chai       1.0.0   1.0.1   1.0.1  node_modules/chai  foo
+`
+
+exports[`test/lib/outdated.js TAP workspaces > should display no results if ws has no deps to display 1`] = `
+
+`
+
+exports[`test/lib/outdated.js TAP workspaces > should display parseable results filtered by ws 1`] = `
+
+{CWD}/test/lib/tap-testdir-outdated-workspaces/node_modules/cat:cat@1.0.1:cat@1.0.0:cat@1.0.1:a
+`
+
+exports[`test/lib/outdated.js TAP workspaces > should display results filtered by ws 1`] = `
+
+Package  Current  Wanted  Latest  Location          Depended by
+cat        1.0.0   1.0.1   1.0.1  node_modules/cat  a@1.0.0
+`
+
+exports[`test/lib/outdated.js TAP workspaces > should display ws outdated deps human output 1`] = `
+
+Package  Current  Wanted  Latest  Location          Depended by
+cat        1.0.0   1.0.1   1.0.1  node_modules/cat  a@1.0.0
+dog        1.0.1   1.0.1   2.0.0  node_modules/dog  tap-testdir-outdated-workspaces
+theta    MISSING   1.0.1   1.0.1  -                 c@1.0.0
+`
+
+exports[`test/lib/outdated.js TAP workspaces > should display ws outdated deps json output 1`] = `
+
+{
+  "cat": {
+    "current": "1.0.0",
+    "wanted": "1.0.1",
+    "latest": "1.0.1",
+    "dependent": "a",
+    "location": "{CWD}/test/lib/tap-testdir-outdated-workspaces/node_modules/cat"
+  },
+  "dog": {
+    "current": "1.0.1",
+    "wanted": "1.0.1",
+    "latest": "2.0.0",
+    "dependent": "tap-testdir-outdated-workspaces",
+    "location": "{CWD}/test/lib/tap-testdir-outdated-workspaces/node_modules/dog"
+  },
+  "theta": {
+    "wanted": "1.0.1",
+    "latest": "1.0.1",
+    "dependent": "c"
+  }
+}
+`
+
+exports[`test/lib/outdated.js TAP workspaces > should display ws outdated deps parseable output 1`] = `
+
+{CWD}/test/lib/tap-testdir-outdated-workspaces/node_modules/cat:cat@1.0.1:cat@1.0.0:cat@1.0.1:a
+{CWD}/test/lib/tap-testdir-outdated-workspaces/node_modules/dog:dog@1.0.1:dog@1.0.1:dog@2.0.0:tap-testdir-outdated-workspaces
+:theta@1.0.1:MISSING:theta@1.0.1:c
+`
+
+exports[`test/lib/outdated.js TAP workspaces > should highlight ws in dependend by section 1`] = `
+
+[4mPackage[24m  [4mCurrent[24m  [4mWanted[24m  [4mLatest[24m  [4mLocation[24m          [4mDepended by[24m
+[31mcat[39m        1.0.0   [32m1.0.1[39m   [35m1.0.1[39m  node_modules/cat  [32ma@1.0.0[39m
+[33mdog[39m        1.0.1   [32m1.0.1[39m   [35m2.0.0[39m  node_modules/dog  tap-testdir-outdated-workspaces
+[31mtheta[39m    MISSING   [32m1.0.1[39m   [35m1.0.1[39m  -                 [32mc@1.0.0[39m
 `

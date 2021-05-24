@@ -20,9 +20,9 @@ const _parent = Symbol('parent')
 const _problems = Symbol('problems')
 const _required = Symbol('required')
 const _type = Symbol('type')
-const BaseCommand = require('./base-command.js')
+const ArboristWorkspaceCmd = require('./workspaces/arborist-cmd.js')
 
-class LS extends BaseCommand {
+class LS extends ArboristWorkspaceCmd {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get description () {
     return 'List installed packages'
@@ -36,6 +36,22 @@ class LS extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get usage () {
     return ['npm ls [[<@scope>/]<pkg> ...]']
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return [
+      'all',
+      'json',
+      'long',
+      'parseable',
+      'global',
+      'depth',
+      'omit',
+      'link',
+      'unicode',
+      ...super.params,
+    ]
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
@@ -73,6 +89,25 @@ class LS extends BaseCommand {
     })
     const tree = await this.initTree({arb, args })
 
+    // filters by workspaces nodes when using -w <workspace-name>
+    // We only have to filter the first layer of edges, so we don't
+    // explore anything that isn't part of the selected workspace set.
+    let wsNodes
+    if (this.workspaces && this.workspaces.length)
+      wsNodes = arb.workspaceNodes(tree, this.workspaces)
+    const filterBySelectedWorkspaces = edge => {
+      if (!wsNodes || !wsNodes.length)
+        return true
+
+      if (edge.from.isProjectRoot) {
+        return edge.to &&
+          edge.to.isWorkspace &
+          wsNodes.includes(edge.to.target)
+      }
+
+      return true
+    }
+
     const seenItems = new Set()
     const seenNodes = new Map()
     const problems = new Set()
@@ -94,11 +129,14 @@ class LS extends BaseCommand {
       // `nodeResult` is going to be the returned `item` from `visit`
       getChildren (node, nodeResult) {
         const seenPaths = new Set()
+        const workspace = node.isWorkspace
+        const currentDepth = workspace ? 0 : node[_depth]
         const shouldSkipChildren =
-          !(node instanceof Arborist.Node) || (node[_depth] > depthToPrint)
+          !(node instanceof Arborist.Node) || (currentDepth > depthToPrint)
         return (shouldSkipChildren)
           ? []
           : [...(node.target || node).edgesOut.values()]
+            .filter(filterBySelectedWorkspaces)
             .filter(filterByEdgesTypes({
               dev,
               development,
@@ -114,7 +152,7 @@ class LS extends BaseCommand {
             .sort(sortAlphabetically)
             .map(augmentNodesWithMetadata({
               args,
-              currentDepth: node[_depth],
+              currentDepth,
               nodeResult,
               seenNodes,
             }))
@@ -166,7 +204,10 @@ class LS extends BaseCommand {
       )
     }
 
-    if (problems.size) {
+    const shouldThrow = problems.size &&
+      ![...problems].every(problem => problem.startsWith('extraneous:'))
+
+    if (shouldThrow) {
       throw Object.assign(
         new Error([...problems].join(EOL)),
         { code: 'ELSPROBLEMS' }
@@ -239,7 +280,8 @@ const augmentItemWithIncludeMetadata = (node, item) => {
 
 const getHumanOutputItem = (node, { args, color, global, long }) => {
   const { pkgid, path } = node
-  let printable = pkgid
+  const workspacePkgId = color ? chalk.green(pkgid) : pkgid
+  let printable = node.isWorkspace ? workspacePkgId : pkgid
 
   // special formatting for top-level package name
   if (node.isRoot) {
@@ -302,7 +344,7 @@ const getJsonOutputItem = (node, { global, long }) => {
   if (node.isRoot && hasPackageJson)
     item.name = node.package.name || node.name
 
-  if (long) {
+  if (long && !node[_missing]) {
     item.name = item[_name]
     const { dependencies, ...packageInfo } = node.package
     Object.assign(item, packageInfo)
@@ -411,9 +453,11 @@ const augmentNodesWithMetadata = ({
       path: node.path,
       isLink: node.isLink,
       realpath: node.realpath,
+      [_type]: node[_type],
       [_invalid]: node[_invalid],
       [_missing]: node[_missing],
-      [_dedupe]: true,
+      // if it's missing, it's not deduped, it's just missing
+      [_dedupe]: !node[_missing],
     }
   } else {
     // keeps track of already seen nodes in order to check for dedupes
@@ -438,7 +482,7 @@ const augmentNodesWithMetadata = ({
 }
 
 const sortAlphabetically = (a, b) =>
-  a.pkgid.localeCompare(b.pkgid)
+  a.pkgid.localeCompare(b.pkgid, 'en')
 
 const humanOutput = ({ color, result, seenItems, unicode }) => {
   // we need to traverse the entire tree in order to determine which items

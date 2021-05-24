@@ -16,8 +16,8 @@ struct DsaKeyPairParams final : public MemoryRetainer {
   unsigned int modulus_bits;
   int divisor_bits;
   SET_NO_MEMORY_INFO()
-  SET_MEMORY_INFO_NAME(DsaKeyPairParams);
-  SET_SELF_SIZE(DsaKeyPairParams);
+  SET_MEMORY_INFO_NAME(DsaKeyPairParams)
+  SET_SELF_SIZE(DsaKeyPairParams)
 };
 
 using DsaKeyPairGenConfig = KeyPairGenConfig<DsaKeyPairParams>;
@@ -38,9 +38,9 @@ struct DsaKeyGenTraits final {
 using DsaKeyPairGenJob = KeyGenJob<KeyPairGenTraits<DsaKeyGenTraits>>;
 
 struct DSAKeyExportConfig final : public MemoryRetainer {
-  SET_NO_MEMORY_INFO();
-  SET_MEMORY_INFO_NAME(DSAKeyExportConfig);
-  SET_SELF_SIZE(DSAKeyExportConfig);
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(DSAKeyExportConfig)
+  SET_SELF_SIZE(DSAKeyExportConfig)
 };
 
 struct DSAKeyExportTraits final {

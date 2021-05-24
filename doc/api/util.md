@@ -378,7 +378,9 @@ fs.access('file/that/does/not/exist', (err) => {
 
 ## `util.getSystemErrorMap()`
 <!-- YAML
-added: REPLACEME
+added:
+  - v16.0.0
+  - v14.17.0
 -->
 
 * Returns: {Map}
@@ -576,12 +578,11 @@ changes:
     (in combination with `compact` set to `true` or any number >= `1`).
     **Default:** `80`.
   * `compact` {boolean|integer} Setting this to `false` causes each object key
-    to be displayed on a new line. It will also add new lines to text that is
+    to be displayed on a new line. It will break on new lines in text that is
     longer than `breakLength`. If set to a number, the most `n` inner elements
     are united on a single line as long as all properties fit into
-    `breakLength`. Short array elements are also grouped together. No
-    text will be reduced below 16 characters, no matter the `breakLength` size.
-    For more information, see the example below. **Default:** `3`.
+    `breakLength`. Short array elements are also grouped together. For more
+    information, see the example below. **Default:** `3`.
   * `sorted` {boolean|Function} If set to `true` or a function, all properties
     of an object, and `Set` and `Map` entries are sorted in the resulting
     string. If set to `true` the [default sort][] is used. If set to a function,
@@ -649,8 +650,8 @@ const util = require('util');
 
 const o = {
   a: [1, 2, [[
-    'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do ' +
-      'eiusmod tempor incididunt ut labore et dolore magna aliqua.',
+    'Lorem ipsum dolor sit amet,\nconsectetur adipiscing elit, sed do ' +
+      'eiusmod \ntempor incididunt ut labore et dolore magna aliqua.',
     'test',
     'foo']], 4],
   b: new Map([['za', 1], ['zb', 'test']])
@@ -660,13 +661,13 @@ console.log(util.inspect(o, { compact: true, depth: 5, breakLength: 80 }));
 // { a:
 //   [ 1,
 //     2,
-//     [ [ 'Lorem ipsum dolor sit amet, consectetur [...]', // A long line
+//     [ [ 'Lorem ipsum dolor sit amet,\nconsectetur [...]', // A long line
 //           'test',
 //           'foo' ] ],
 //     4 ],
 //   b: Map(2) { 'za' => 1, 'zb' => 'test' } }
 
-// Setting `compact` to false changes the output to be more reader friendly.
+// Setting `compact` to false or an integer creates more reader friendly output.
 console.log(util.inspect(o, { compact: false, depth: 5, breakLength: 80 }));
 
 // {
@@ -675,10 +676,9 @@ console.log(util.inspect(o, { compact: false, depth: 5, breakLength: 80 }));
 //     2,
 //     [
 //       [
-//         'Lorem ipsum dolor sit amet, consectetur ' +
-//           'adipiscing elit, sed do eiusmod tempor ' +
-//           'incididunt ut labore et dolore magna ' +
-//           'aliqua.,
+//         'Lorem ipsum dolor sit amet,\n' +
+//           'consectetur adipiscing elit, sed do eiusmod \n' +
+//           'tempor incididunt ut labore et dolore magna aliqua.',
 //         'test',
 //         'foo'
 //       ]
@@ -693,8 +693,6 @@ console.log(util.inspect(o, { compact: false, depth: 5, breakLength: 80 }));
 
 // Setting `breakLength` to e.g. 150 will print the "Lorem ipsum" text in a
 // single line.
-// Reducing the `breakLength` will split the "Lorem ipsum" text in smaller
-// chunks.
 ```
 
 The `showHidden` option allows [`WeakMap`][] and [`WeakSet`][] entries to be
@@ -1487,6 +1485,16 @@ util.types.isBoxedPrimitive(Object(Symbol('foo'))); // Returns true
 util.types.isBoxedPrimitive(Object(BigInt(5))); // Returns true
 ```
 
+### `util.types.isCryptoKey(value)`
+<!-- YAML
+added: v16.2.0
+-->
+
+* `value` {Object}
+* Returns: {boolean}
+
+Returns `true` if `value` is a {CryptoKey}, `false` otherwise.
+
 ### `util.types.isDataView(value)`
 <!-- YAML
 added: v10.0.0
@@ -1681,6 +1689,16 @@ util.types.isInt32Array(new ArrayBuffer());  // Returns false
 util.types.isInt32Array(new Int32Array());  // Returns true
 util.types.isInt32Array(new Float64Array());  // Returns false
 ```
+
+### `util.types.isKeyObject(value)`
+<!-- YAML
+added: v16.2.0
+-->
+
+* `value` {Object}
+* Returns: {boolean}
+
+Returns `true` if `value` is a {KeyObject}, `false` otherwise.
 
 ### `util.types.isMap(value)`
 <!-- YAML

@@ -231,8 +231,7 @@ Reject(Object) {
       // the PromiseReaction (aka we can pass undefined to
       // PerformPromiseThen), since this is only necessary for DevTools and
       // PromiseHooks.
-      if (promiseResolveFunction != Undefined ||
-          IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate() ||
+      if (promiseResolveFunction != Undefined || NeedsAnyPromiseHooks() ||
           IsPromiseSpeciesProtectorCellInvalid() || Is<Smi>(nextValue) ||
           !IsPromiseThenLookupChainIntact(
               nativeContext, UnsafeCast<HeapObject>(nextValue).map)) {

@@ -141,14 +141,14 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#details">Details</a></li><li><a href="#a-note-about-the-caches-design">A note about the cache’s design</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#cache">cache</a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#details">Details</a></li><li><a href="#a-note-about-the-caches-design">A note about the cache’s design</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#cache"><code>cache</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm cache add &lt;tarball file&gt;
-npm cache add &lt;folder&gt;
-npm cache add &lt;tarball url&gt;
-npm cache add &lt;name&gt;@&lt;version&gt;
+<pre lang="bash"><code>npm cache add &lt;tarball file&gt;...
+npm cache add &lt;folder&gt;...
+npm cache add &lt;tarball url&gt;...
+npm cache add &lt;name&gt;@&lt;version&gt;...
 
 npm cache clean
 aliases: npm cache clear, npm cache rm
@@ -161,7 +161,7 @@ npm cache verify
 <ul>
 <li>
 <p>add:
-Add the specified package to the local cache.  This command is primarily
+Add the specified packages to the local cache.  This command is primarily
 intended to be used internally by npm, but it can provide a way to
 add data to the local installation cache explicitly.</p>
 </li>
@@ -204,9 +204,15 @@ cache makes is that, if it does return data, that data will be exactly the
 data that was inserted.</p>
 <p>To run an offline verification of existing cache contents, use <code>npm cache verify</code>.</p>
 <h3 id="configuration">Configuration</h3>
-<h4 id="cache">cache</h4>
-<p>Default: <code>~/.npm</code> on Posix, or <code>%AppData%/npm-cache</code> on Windows.</p>
-<p>The root cache folder.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="cache"><code>cache</code></h4>
+<ul>
+<li>Default: Windows: <code>%LocalAppData%\npm-cache</code>, Posix: <code>~/.npm</code></li>
+<li>Type: Path</li>
+</ul>
+<p>The location of npm’s cache directory. See <a href="../commands/npm-cache.html"><code>npm cache</code></a></p>
+<!-- raw HTML omitted -->
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../configuring-npm/folders.html">npm folders</a></li>

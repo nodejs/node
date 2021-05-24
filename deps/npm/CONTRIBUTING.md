@@ -9,7 +9,7 @@ All interactions in the **npm** organization on GitHub are considered to be cove
 **1. Clone this repository...**
 
 ```bash
-$ git clone git@github.com:npm/cli.git
+$ git clone git@github.com:npm/cli.git npm
 ```
 
 **2. Navigate into project & install development-specific dependencies...**

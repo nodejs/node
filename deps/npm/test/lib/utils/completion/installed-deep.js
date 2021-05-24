@@ -63,6 +63,15 @@ const fixture = {
       'package.json': JSON.stringify({
         name: 'c',
         version: '1.0.0',
+        dependencies: {
+          ch: '1.0.0',
+        },
+      }),
+    },
+    ch: {
+      'package.json': JSON.stringify({
+        name: 'ch',
+        version: '1.0.0',
       }),
     },
     d: {
@@ -160,8 +169,8 @@ t.test('get list of package names', async t => {
       ['foo', '-g'],
       ['a-bar', '-g'],
       'a', 'b', 'c',
-      'd', 'e', 'f',
-      'g', 'bb',
+      'ch', 'd', 'e',
+      'f', 'g', 'bb',
     ],
     'should return list of package names and global flag'
   )
@@ -211,9 +220,9 @@ t.test('limit depth', async t => {
       ['bar', '-g'],
       ['foo', '-g'],
       'a', 'b',
-      'c', 'd',
-      'e', 'f',
-      'g',
+      'c', 'ch',
+      'd', 'e',
+      'f', 'g',
     ],
     'should print only packages up to the specified depth'
   )

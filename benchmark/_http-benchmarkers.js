@@ -5,7 +5,7 @@ const path = require('path');
 const fs = require('fs');
 
 const requirementsURL =
-  'https://github.com/nodejs/node/blob/master/benchmark/writing-and-running-benchmarks.md#http-benchmark-requirements';
+  'https://github.com/nodejs/node/blob/HEAD/benchmark/writing-and-running-benchmarks.md#http-benchmark-requirements';
 
 // The port used by servers and wrk
 exports.PORT = Number(process.env.PORT) || 12346;
@@ -222,7 +222,7 @@ exports.run = function(options, callback) {
     return;
   }
 
-  const benchmarker_start = process.hrtime();
+  const benchmarker_start = process.hrtime.bigint();
 
   const child = benchmarker.create(options);
 
@@ -233,7 +233,7 @@ exports.run = function(options, callback) {
   child.stdout.on('data', (chunk) => stdout += chunk);
 
   child.once('close', (code) => {
-    const elapsed = process.hrtime(benchmarker_start);
+    const benchmark_end = process.hrtime.bigint();
     if (code) {
       let error_message = `${options.benchmarker} failed with ${code}.`;
       if (stdout !== '') {
@@ -250,6 +250,7 @@ exports.run = function(options, callback) {
       return;
     }
 
+    const elapsed = benchmark_end - benchmarker_start;
     callback(null, code, options.benchmarker, result, elapsed);
   });
 

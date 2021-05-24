@@ -27,6 +27,11 @@ class Help extends BaseCommand {
     return ['<term> [<terms..>]']
   }
 
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return ['viewer']
+  }
+
   async completion (opts) {
     if (opts.conf.argv.remain.length > 2)
       return []
@@ -77,7 +82,7 @@ class Help extends BaseCommand {
       if (aManNumber !== bManNumber)
         return aManNumber - bManNumber
 
-      return a.localeCompare(b)
+      return a.localeCompare(b, 'en')
     })
     const man = mans[0]
 

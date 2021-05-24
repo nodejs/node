@@ -435,6 +435,7 @@ package, then you can just supply it as a string.  For example:</p>
 <p>Please make sure that your file(s) referenced in <code>bin</code> starts with
 <code>#!/usr/bin/env node</code>, otherwise the scripts are started without the node
 executable!</p>
+<p>Note that you can also set the executable files using <a href="#directoriesbin">directories.bin</a>.</p>
 <h3 id="man">man</h3>
 <p>Specify either a single file or an array of filenames to put in place for
 the <code>man</code> program to find.</p>
@@ -566,7 +567,7 @@ space-separated descriptors.  Dependencies can also be identified with a
 tarball or git URL.</p>
 <p><strong>Please do not put test harnesses or transpilers or other “development”
 time tools in your <code>dependencies</code> object.</strong>  See <code>devDependencies</code>, below.</p>
-<p>See <a href="../using-npm/semver#versions.html">semver</a> for more details about specifying version ranges.</p>
+<p>See <a href="https://github.com/npm/node-semver#versions">semver</a> for more details about specifying version ranges.</p>
 <ul>
 <li><code>version</code> Must match <code>version</code> exactly</li>
 <li><code>&gt;version</code> Must be greater than <code>version</code></li>

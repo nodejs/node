@@ -29,7 +29,7 @@ Object {
     Array [
       "404",
       String(
-
+        
         Note that you can also install from a
       ),
     ],
@@ -71,7 +71,7 @@ Object {
     Array [
       "404",
       String(
-
+        
         Note that you can also install from a
       ),
     ],
@@ -120,7 +120,7 @@ Object {
     Array [
       "404",
       String(
-
+        
         Note that you can also install from a
       ),
     ],
@@ -270,10 +270,10 @@ Object {
     Array [
       "",
       String(
-
+        
         The operation was rejected by your operating system.
         It is likely you do not have the permissions to access this file as the current user
-
+        
         If you believe this might be a permissions issue, please double-check the
         permissions of the file and its containing directories, or try running
         the command again as root/Administrator.
@@ -303,10 +303,10 @@ Object {
     Array [
       "",
       String(
-
+        
         The operation was rejected by your operating system.
         It is likely you do not have the permissions to access this file as the current user
-
+        
         If you believe this might be a permissions issue, please double-check the
         permissions of the file and its containing directories, or try running
         the command again as root/Administrator.
@@ -336,10 +336,10 @@ Object {
     Array [
       "",
       String(
-
+        
         The operation was rejected by your operating system.
         It is likely you do not have the permissions to access this file as the current user
-
+        
         If you believe this might be a permissions issue, please double-check the
         permissions of the file and its containing directories, or try running
         the command again as root/Administrator.
@@ -369,10 +369,10 @@ Object {
     Array [
       "",
       String(
-
+        
         The operation was rejected by your operating system.
         It is likely you do not have the permissions to access this file as the current user
-
+        
         If you believe this might be a permissions issue, please double-check the
         permissions of the file and its containing directories, or try running
         the command again as root/Administrator.
@@ -402,10 +402,10 @@ Object {
     Array [
       "",
       String(
-
+        
         The operation was rejected by your operating system.
         It is likely you do not have the permissions to access this file as the current user
-
+        
         If you believe this might be a permissions issue, please double-check the
         permissions of the file and its containing directories, or try running
         the command again as root/Administrator.
@@ -436,10 +436,10 @@ Object {
     Array [
       "",
       String(
-
+        
         Your cache folder contains root-owned files, due to a bug in
         previous versions of npm which has since been addressed.
-
+        
         To permanently fix this problem, please run:
           sudo chown -R 69:420 "/some/cache/dir"
       ),
@@ -463,10 +463,10 @@ Object {
     Array [
       "",
       String(
-
+        
         Your cache folder contains root-owned files, due to a bug in
         previous versions of npm which has since been addressed.
-
+        
         To permanently fix this problem, please run:
           sudo chown -R 69:420 "/some/cache/dir"
       ),
@@ -490,10 +490,10 @@ Object {
     Array [
       "",
       String(
-
+        
         Your cache folder contains root-owned files, due to a bug in
         previous versions of npm which has since been addressed.
-
+        
         To permanently fix this problem, please run:
           sudo chown -R 69:420 "/some/cache/dir"
       ),
@@ -516,11 +516,11 @@ Object {
     Array [
       "",
       String(
-
+        
         The operation was rejected by your operating system.
         It's possible that the file was already in use (by a text editor or antivirus),
         or that you lack permissions to access it.
-
+        
         If you believe this might be a permissions issue, please double-check the
         permissions of the file and its containing directories, or try running
         the command again as root/Administrator.
@@ -550,11 +550,11 @@ Object {
     Array [
       "",
       String(
-
+        
         The operation was rejected by your operating system.
         It's possible that the file was already in use (by a text editor or antivirus),
         or that you lack permissions to access it.
-
+        
         If you believe this might be a permissions issue, please double-check the
         permissions of the file and its containing directories, or try running
         the command again as root/Administrator.
@@ -584,11 +584,11 @@ Object {
     Array [
       "",
       String(
-
+        
         The operation was rejected by your operating system.
         It's possible that the file was already in use (by a text editor or antivirus),
         or that you lack permissions to access it.
-
+        
         If you believe this might be a permissions issue, please double-check the
         permissions of the file and its containing directories, or try running
         the command again as root/Administrator.
@@ -618,11 +618,11 @@ Object {
     Array [
       "",
       String(
-
+        
         The operation was rejected by your operating system.
         It's possible that the file was already in use (by a text editor or antivirus),
         or that you lack permissions to access it.
-
+        
         If you believe this might be a permissions issue, please double-check the
         permissions of the file and its containing directories, or try running
         the command again as root/Administrator.
@@ -652,11 +652,11 @@ Object {
     Array [
       "",
       String(
-
+        
         The operation was rejected by your operating system.
         It's possible that the file was already in use (by a text editor or antivirus),
         or that you lack permissions to access it.
-
+        
         If you believe this might be a permissions issue, please double-check the
         permissions of the file and its containing directories, or try running
         the command again as root/Administrator.
@@ -686,11 +686,11 @@ Object {
     Array [
       "",
       String(
-
+        
         The operation was rejected by your operating system.
         It's possible that the file was already in use (by a text editor or antivirus),
         or that you lack permissions to access it.
-
+        
         If you believe this might be a permissions issue, please double-check the
         permissions of the file and its containing directories, or try running
         the command again as root/Administrator.
@@ -720,11 +720,11 @@ Object {
     Array [
       "",
       String(
-
+        
         The operation was rejected by your operating system.
         It's possible that the file was already in use (by a text editor or antivirus),
         or that you lack permissions to access it.
-
+        
         If you believe this might be a permissions issue, please double-check the
         permissions of the file and its containing directories, or try running
         the command again as root/Administrator.
@@ -754,11 +754,11 @@ Object {
     Array [
       "",
       String(
-
+        
         The operation was rejected by your operating system.
         It's possible that the file was already in use (by a text editor or antivirus),
         or that you lack permissions to access it.
-
+        
         If you believe this might be a permissions issue, please double-check the
         permissions of the file and its containing directories, or try running
         the command again as root/Administrator.
@@ -899,7 +899,7 @@ Object {
         that means you likely typed your password in incorrectly.
         Please try again, or recover your password at:
             https://www.npmjs.com/forgot
-
+        
         If you were doing some other operation then your saved credentials are
         probably out of date. To correct this please try logging in again with:
             npm login
@@ -1000,7 +1000,7 @@ Object {
       String(
         This is a problem related to network connectivity.
         In most cases you are behind a proxy or have bad network settings.
-
+        
         If you are behind a proxy, please make sure that the
         'proxy' config is set properly.  See: 'npm help config'
       ),
@@ -1023,7 +1023,7 @@ Object {
       String(
         This is a problem related to network connectivity.
         In most cases you are behind a proxy or have bad network settings.
-
+        
         If you are behind a proxy, please make sure that the
         'proxy' config is set properly.  See: 'npm help config'
       ),
@@ -1046,7 +1046,7 @@ Object {
       String(
         This is a problem related to network connectivity.
         In most cases you are behind a proxy or have bad network settings.
-
+        
         If you are behind a proxy, please make sure that the
         'proxy' config is set properly.  See: 'npm help config'
       ),
@@ -1133,7 +1133,7 @@ Object {
       "enoent",
       String(
         This is related to npm not being able to find a file.
-
+        
         Check if the file '/some/file' is present.
       ),
     ],
@@ -1295,7 +1295,7 @@ Object {
     Array [
       "",
       String(
-
+        
         If you are behind a proxy, please make sure that the
         'proxy' config is set properly.  See: 'npm help config'
       ),
@@ -1321,7 +1321,7 @@ Object {
     Array [
       "",
       String(
-
+        
         Failed using git.
         Please check if you have git installed and in your PATH.
       ),
@@ -1439,7 +1439,7 @@ Object {
       String(
         This is a problem related to network connectivity.
         In most cases you are behind a proxy or have bad network settings.
-
+        
         If you are behind a proxy, please make sure that the
         'proxy' config is set properly.  See: 'npm help config'
       ),
@@ -1513,9 +1513,9 @@ Object {
       "",
       String(
         Merge conflict detected in your package.json.
-
+        
         Please resolve the package.json conflict and retry the command:
-
+        
         $ arg v
       ),
     ],

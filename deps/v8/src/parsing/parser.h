@@ -493,10 +493,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   ArrayLiteral* ArrayLiteralFromListWithSpread(
       const ScopedPtrList<Expression>& list);
-  Expression* SpreadCall(Expression* function,
-                         const ScopedPtrList<Expression>& args, int pos,
-                         Call::PossiblyEval is_possibly_eval,
-                         bool optional_chain);
   Expression* SpreadCallNew(Expression* function,
                             const ScopedPtrList<Expression>& args, int pos);
   Expression* RewriteSuperCall(Expression* call_expression);

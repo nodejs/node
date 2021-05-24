@@ -141,7 +141,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#omit"><code>omit</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#json"><code>json</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -163,6 +163,69 @@ have made with <code>--dry-run</code>) are printed as a JSON object.</p>
 only need this command with the <code>--production</code> flag.  However, in the real
 world, operation is not always “normal”.  When crashes or mistakes happen,
 this command can help clean up any resulting garbage.</p>
+<h3 id="configuration">Configuration</h3>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="omit"><code>omit</code></h4>
+<ul>
+<li>Default: ‘dev’ if the <code>NODE_ENV</code> environment variable is set to
+‘production’, otherwise empty.</li>
+<li>Type: “dev”, “optional”, or “peer” (can be set multiple times)</li>
+</ul>
+<p>Dependency types to omit from the installation tree on disk.</p>
+<p>Note that these dependencies <em>are</em> still resolved and added to the
+<code>package-lock.json</code> or <code>npm-shrinkwrap.json</code> file. They are just not
+physically installed on disk.</p>
+<p>If a package type appears in both the <code>--include</code> and <code>--omit</code> lists, then
+it will be included.</p>
+<p>If the resulting omit list includes <code>'dev'</code>, then the <code>NODE_ENV</code> environment
+variable will be set to <code>'production'</code> for all lifecycle scripts.</p>
+<h4 id="dry-run"><code>dry-run</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Indicates that you don’t want npm to make any changes and that it should
+only report what it would have done. This can be passed into any of the
+commands that modify your local installation, eg, <code>install</code>, <code>update</code>,
+<code>dedupe</code>, <code>uninstall</code>, as well as <code>pack</code> and <code>publish</code>.</p>
+<p>Note: This is NOT honored by other network related commands, eg <code>dist-tags</code>,
+<code>owner</code>, etc.</p>
+<h4 id="json"><code>json</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Whether or not to output JSON data, rather than the normal output.</p>
+<p>Not supported by all npm commands.</p>
+<h4 id="workspace"><code>workspace</code></h4>
+<ul>
+<li>Default:</li>
+<li>Type: String (can be set multiple times)</li>
+</ul>
+<p>Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option.</p>
+<p>Valid values for the <code>workspace</code> config are either:</p>
+<ul>
+<li>Workspace names</li>
+<li>Path to a workspace directory</li>
+<li>Path to a parent workspace directory (will result to selecting all of the
+nested workspaces)</li>
+</ul>
+<p>When set for the <code>npm init</code> command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project.</p>
+<p>This value is not exported to the environment for child processes.</p>
+<h4 id="workspaces"><code>workspaces</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Enable running a command in the context of <strong>all</strong> the configured
+workspaces.</p>
+<p>This value is not exported to the environment for child processes.</p>
+<!-- raw HTML omitted -->
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../commands/npm-uninstall.html">npm uninstall</a></li>

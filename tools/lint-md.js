@@ -49667,6 +49667,11 @@ function validateMeta(node, file, meta) {
 
 function validateYAMLComments(tree, file) {
   unistUtilVisit(tree, "html", function visitor(node) {
+    if (node.value.startsWith("<!--YAML\n"))
+      file.message(
+        "Expected `<!-- YAML`, found `<!--YAML`. Please add a space",
+        node
+      );
     if (!node.value.startsWith("<!-- YAML\n")) return;
     try {
       const meta = jsYaml$2.load("#" + node.value.slice(0, -"-->".length));

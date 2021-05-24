@@ -155,6 +155,8 @@ For information about the governance of the Node.js project, see
 ### TSC (Technical Steering Committee)
 
 <!--lint disable prohibited-strings-->
+* [aduh95](https://github.com/aduh95) -
+**Antoine du Hamel** &lt;duhamelantoine1995@gmail.com&gt; (he/him)
 * [apapirovski](https://github.com/apapirovski) -
 **Anatoli Papirovski** &lt;apapirovski@mac.com&gt; (he/him)
 * [BethGriggs](https://github.com/BethGriggs) -
@@ -169,10 +171,12 @@ For information about the governance of the Node.js project, see
 **Shelley Vohr** &lt;codebytere@gmail.com&gt; (she/her)
 * [danbev](https://github.com/danbev) -
 **Daniel Bevenius** &lt;daniel.bevenius@gmail.com&gt; (he/him)
+* [danielleadams](https://github.com/danielleadams) -
+**Danielle Adams** &lt;adamzdanielle@gmail.com&gt; (she/her)
 * [fhinkel](https://github.com/fhinkel) -
 **Franziska Hinkelmann** &lt;franziska.hinkelmann@gmail.com&gt; (she/her)
 * [gabrielschulhof](https://github.com/gabrielschulhof) -
-**Gabriel Schulhof** &lt;gabriel.schulhof@intel.com&gt;
+**Gabriel Schulhof** &lt;gabrielschulhof@gmail.com&gt;
 * [gireeshpunathil](https://github.com/gireeshpunathil) -
 **Gireesh Punathil** &lt;gpunathi@in.ibm.com&gt; (he/him)
 * [jasnell](https://github.com/jasnell) -
@@ -187,6 +191,8 @@ For information about the governance of the Node.js project, see
 **Mary Marchini** &lt;oss@mmarchini.me&gt; (she/her)
 * [MylesBorins](https://github.com/MylesBorins) -
 **Myles Borins** &lt;myles.borins@gmail.com&gt; (he/him)
+* [ronag](https://github.com/ronag) -
+**Robert Nagy** &lt;ronagy@icloud.com&gt;
 * [targos](https://github.com/targos) -
 **Michaël Zasso** &lt;targos@protonmail.com&gt; (he/him)
 * [tniessen](https://github.com/tniessen) -
@@ -308,7 +314,7 @@ For information about the governance of the Node.js project, see
 * [Flarna](https://github.com/Flarna) -
 **Gerhard Stöbich** &lt;deb2001-github@yahoo.de&gt;  (he/they)
 * [gabrielschulhof](https://github.com/gabrielschulhof) -
-**Gabriel Schulhof** &lt;gabriel.schulhof@intel.com&gt;
+**Gabriel Schulhof** &lt;gabrielschulhof@gmail.com&gt;
 * [gdams](https://github.com/gdams) -
 **George Adams** &lt;george.adams@uk.ibm.com&gt; (he/him)
 * [geek](https://github.com/geek) -
@@ -675,13 +681,13 @@ Other keys used to sign some previous releases:
 Node.js is available under the
 [MIT license](https://opensource.org/licenses/MIT). Node.js also includes
 external libraries that are available under a variety of licenses.  See
-[LICENSE](https://github.com/nodejs/node/blob/master/LICENSE) for the full
+[LICENSE](https://github.com/nodejs/node/blob/HEAD/LICENSE) for the full
 license text.
 
-[Code of Conduct]: https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md
+[Code of Conduct]: https://github.com/nodejs/admin/blob/HEAD/CODE_OF_CONDUCT.md
 [Contributing to the project]: CONTRIBUTING.md
 [Node.js Website]: https://nodejs.org/
 [OpenJS Foundation]: https://openjsf.org/
-[Strategic Initiatives]: https://github.com/nodejs/TSC/blob/master/Strategic-Initiatives.md
+[Strategic Initiatives]: https://github.com/nodejs/TSC/blob/HEAD/Strategic-Initiatives.md
 [Technical values and prioritization]: doc/guides/technical-values.md
-[Working Groups]: https://github.com/nodejs/TSC/blob/master/WORKING_GROUPS.md
+[Working Groups]: https://github.com/nodejs/TSC/blob/HEAD/WORKING_GROUPS.md

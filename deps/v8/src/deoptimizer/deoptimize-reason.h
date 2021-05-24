@@ -44,6 +44,7 @@ namespace internal {
   V(NotAJavaScriptObject, "not a JavaScript object")                           \
   V(NotAJavaScriptObjectOrNullOrUndefined,                                     \
     "not a JavaScript object, Null or Undefined")                              \
+  V(NotANumber, "not a Number")                                                \
   V(NotANumberOrBoolean, "not a Number or Boolean")                            \
   V(NotANumberOrOddball, "not a Number or Oddball")                            \
   V(NotAnArrayIndex, "not an array index")                                     \

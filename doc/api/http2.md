@@ -2,7 +2,9 @@
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: v15.3.0
+  - version:
+      - v15.3.0
+      - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/36070
     description: It is possible to abort a request with an AbortSignal.
   - version: v15.0.0
@@ -1669,10 +1671,17 @@ server.on('stream', (stream) => {
   }
 
   function onError(err) {
-    if (err.code === 'ENOENT') {
-      stream.respond({ ':status': 404 });
-    } else {
-      stream.respond({ ':status': 500 });
+    // stream.respond() can throw if the stream has been destroyed by
+    // the other side.
+    try {
+      if (err.code === 'ENOENT') {
+        stream.respond({ ':status': 404 });
+      } else {
+        stream.respond({ ':status': 500 });
+      }
+    } catch (err) {
+      // Perform actual error handling.
+      console.log(err);
     }
     stream.end();
   }
@@ -1815,8 +1824,16 @@ an `Http2Session` object associated with the `Http2Server`.
 added: v8.4.0
 -->
 
+* `stream` {Http2Stream} A reference to the stream
+* `headers` {HTTP/2 Headers Object} An object describing the headers
+* `flags` {number} The associated numeric flags
+* `rawHeaders` {Array} An array containing the raw header names followed by
+  their respective values.
+
 The `'stream'` event is emitted when a `'stream'` event has been emitted by
 an `Http2Session` associated with the server.
+
+See also [`Http2Session`'s `'stream'` event][].
 
 ```js
 const http2 = require('http2');
@@ -1913,7 +1930,9 @@ value only affects new connections to the server, not any existing connections.
 
 #### `server.updateSettings([settings])`
 <!-- YAML
-added: v15.1.0
+added:
+  - v15.1.0
+  - v14.17.0
 -->
 
 * `settings` {HTTP/2 Settings Object}
@@ -2003,8 +2022,16 @@ an `Http2Session` object associated with the `Http2SecureServer`.
 added: v8.4.0
 -->
 
+* `stream` {Http2Stream} A reference to the stream
+* `headers` {HTTP/2 Headers Object} An object describing the headers
+* `flags` {number} The associated numeric flags
+* `rawHeaders` {Array} An array containing the raw header names followed by
+  their respective values.
+
 The `'stream'` event is emitted when a `'stream'` event has been emitted by
 an `Http2Session` associated with the server.
+
+See also [`Http2Session`'s `'stream'` event][].
 
 ```js
 const http2 = require('http2');
@@ -2107,7 +2134,9 @@ value only affects new connections to the server, not any existing connections.
 
 #### `server.updateSettings([settings])`
 <!-- YAML
-added: v15.1.0
+added:
+  - v15.1.0
+  - v14.17.0
 -->
 
 * `settings` {HTTP/2 Settings Object}
@@ -3838,6 +3867,7 @@ you need to implement any fall-back behaviour yourself.
 [`Http2ServerRequest`]: #http2_class_http2_http2serverrequest
 [`Http2ServerResponse`]: #http2_class_http2_http2serverresponse
 [`Http2Session` and Sockets]: #http2_http2session_and_sockets
+[`Http2Session`'s `'stream'` event]: #http2_event_stream
 [`Http2Stream`]: #http2_class_http2stream
 [`ServerHttp2Stream`]: #http2_class_serverhttp2stream
 [`TypeError`]: errors.md#errors_class_typeerror

@@ -2,18 +2,22 @@
 
 // Testcase to check reporting of uv handles.
 const common = require('../common');
+const tmpdir = require('../common/tmpdir');
+const path = require('path');
 if (common.isIBMi)
   common.skip('IBMi does not support fs.watch()');
 
-if (process.argv[2] === 'child') {
-  // Exit on loss of parent process
-  const exit = () => process.exit(2);
-  process.on('disconnect', exit);
+// This is quite similar to common.PIPE except that it uses an extended prefix
+// of "\\?\pipe" on windows.
+const PIPE = (() => {
+  const localRelative = path.relative(process.cwd(), `${tmpdir.path}/`);
+  const pipePrefix = common.isWindows ? '\\\\?\\pipe\\' : localRelative;
+  const pipeName = `node-test.${process.pid}.sock`;
+  return path.join(pipePrefix, pipeName);
+})();
 
+function createFsHandle(childData) {
   const fs = require('fs');
-  const http = require('http');
-  const spawn = require('child_process').spawn;
-
   // Watching files should result in fs_event/fs_poll uv handles.
   let watcher;
   try {
@@ -22,59 +26,129 @@ if (process.argv[2] === 'child') {
     // fs.watch() unavailable
   }
   fs.watchFile(__filename, () => {});
+  childData.skip_fs_watch = watcher === undefined;
 
+  return () => {
+    if (watcher) watcher.close();
+    fs.unwatchFile(__filename);
+  };
+}
+
+function createChildProcessHandle(childData) {
+  const spawn = require('child_process').spawn;
   // Child should exist when this returns as child_process.pid must be set.
-  const child_process = spawn(process.execPath,
-                              ['-e', "process.stdin.on('data', (x) => " +
-                                     'console.log(x.toString()));']);
+  const cp = spawn(process.execPath,
+                   ['-e', "process.stdin.on('data', (x) => " +
+          'console.log(x.toString()));']);
+  childData.pid = cp.pid;
 
+  return () => {
+    cp.kill();
+  };
+}
+
+function createTimerHandle() {
   const timeout = setInterval(() => {}, 1000);
   // Make sure the timer doesn't keep the test alive and let
   // us check we detect unref'd handles correctly.
   timeout.unref();
+  return () => {
+    clearInterval(timeout);
+  };
+}
 
+function createTcpHandle(childData) {
+  const http = require('http');
+
+  return new Promise((resolve) => {
+    // Simple server/connection to create tcp uv handles.
+    const server = http.createServer((req, res) => {
+      req.on('end', () => {
+        resolve(() => {
+          res.writeHead(200, { 'Content-Type': 'text/plain' });
+          res.end();
+          server.close();
+        });
+      });
+      req.resume();
+    });
+    server.listen(() => {
+      childData.tcp_address = server.address();
+      http.get({ port: server.address().port });
+    });
+  });
+}
+
+function createUdpHandle(childData) {
   // Datagram socket for udp uv handles.
   const dgram = require('dgram');
-  const udp_socket = dgram.createSocket('udp4');
-  const connected_udp_socket = dgram.createSocket('udp4');
-  udp_socket.bind({}, common.mustCall(() => {
-    connected_udp_socket.connect(udp_socket.address().port);
-  }));
+  const udpSocket = dgram.createSocket('udp4');
+  const connectedUdpSocket = dgram.createSocket('udp4');
 
-  // Simple server/connection to create tcp uv handles.
-  const server = http.createServer((req, res) => {
-    req.on('end', () => {
-      // Generate the report while the connection is active.
-      console.log(JSON.stringify(process.report.getReport(), null, 2));
-      child_process.kill();
+  return new Promise((resolve) => {
+    udpSocket.bind({}, common.mustCall(() => {
+      connectedUdpSocket.connect(udpSocket.address().port);
 
-      res.writeHead(200, { 'Content-Type': 'text/plain' });
-      res.end();
+      childData.udp_address = udpSocket.address();
+      resolve(() => {
+        connectedUdpSocket.close();
+        udpSocket.close();
+      });
+    }));
+  });
+}
 
-      // Tidy up to allow process to exit cleanly.
-      server.close(() => {
-        if (watcher) watcher.close();
-        fs.unwatchFile(__filename);
-        connected_udp_socket.close();
-        udp_socket.close();
-        process.removeListener('disconnect', exit);
+function createNamedPipeHandle(childData) {
+  const net = require('net');
+  const sockPath = PIPE;
+  return new Promise((resolve) => {
+    const server = net.createServer((socket) => {
+      childData.pipe_sock_path = server.address();
+      resolve(() => {
+        socket.end();
+        server.close();
       });
     });
-    req.resume();
+    server.listen(
+      sockPath,
+      () => {
+        net.connect(sockPath, (socket) => {});
+      });
   });
-  server.listen(() => {
-    const data = { pid: child_process.pid,
-                   tcp_address: server.address(),
-                   udp_address: udp_socket.address(),
-                   skip_fs_watch: (watcher === undefined) };
-    process.send(data);
-    http.get({ port: server.address().port });
+}
+
+async function child() {
+  // Exit on loss of parent process
+  const exit = () => process.exit(2);
+  process.on('disconnect', exit);
+
+  const childData = {};
+  const disposes = await Promise.all([
+    createFsHandle(childData),
+    createChildProcessHandle(childData),
+    createTimerHandle(childData),
+    createTcpHandle(childData),
+    createUdpHandle(childData),
+    createNamedPipeHandle(childData),
+  ]);
+  process.send(childData);
+
+  // Generate the report while the connection is active.
+  console.log(JSON.stringify(process.report.getReport(), null, 2));
+
+  // Tidy up to allow process to exit cleanly.
+  disposes.forEach((it) => {
+    it();
   });
+  process.removeListener('disconnect', exit);
+}
+
+if (process.argv[2] === 'child') {
+  child();
 } else {
   const helper = require('../common/report.js');
   const fork = require('child_process').fork;
   const assert = require('assert');
-  const tmpdir = require('../common/tmpdir');
   tmpdir.refresh();
   const options = { encoding: 'utf8', silent: true, cwd: tmpdir.path };
   const child = fork(__filename, ['child'], options);
@@ -86,11 +160,11 @@ if (process.argv[2] === 'child') {
   const report_msg = 'Report files were written: unexpectedly';
   child.stdout.on('data', (chunk) => { stdout += chunk; });
   child.on('exit', common.mustCall((code, signal) => {
+    assert.strictEqual(stderr.trim(), '');
     assert.deepStrictEqual(code, 0, 'Process exited unexpectedly with code: ' +
                            `${code}`);
     assert.deepStrictEqual(signal, null, 'Process should have exited cleanly,' +
                             ` but did not: ${signal}`);
-    assert.strictEqual(stderr.trim(), '');
 
     const reports = helper.findReports(child.pid, tmpdir.path);
     assert.deepStrictEqual(reports, [], report_msg, reports);
@@ -116,6 +190,7 @@ if (process.argv[2] === 'child') {
     const expected_filename = `${prefix}${__filename}`;
     const found_tcp = [];
     const found_udp = [];
+    const found_named_pipe = [];
     // Functions are named to aid debugging when they are not called.
     const validators = {
       fs_event: common.mustCall(function fs_event_validator(handle) {
@@ -133,6 +208,21 @@ if (process.argv[2] === 'child') {
       }),
       pipe: common.mustCallAtLeast(function pipe_validator(handle) {
         assert(handle.is_referenced);
+        // Pipe handles. The report should contain three pipes:
+        // 1. The server's listening pipe.
+        // 2. The inbound pipe making the request.
+        // 3. The outbound pipe sending the response.
+        //
+        // There is no way to distinguish inbound and outbound in a cross
+        // platform manner, so we just check inbound here.
+        const sockPath = child_data.pipe_sock_path;
+        if (handle.localEndpoint === sockPath) {
+          if (handle.writable === false) {
+            found_named_pipe.push('listening');
+          }
+        } else if (handle.remoteEndpoint === sockPath) {
+          found_named_pipe.push('inbound');
+        }
       }),
       process: common.mustCall(function process_validator(handle) {
         assert.strictEqual(handle.pid, child_data.pid);
@@ -172,7 +262,7 @@ if (process.argv[2] === 'child') {
         assert(handle.is_referenced);
       }, 2),
     };
-    console.log(report.libuv);
+
     for (const entry of report.libuv) {
       if (validators[entry.type]) validators[entry.type](entry);
     }
@@ -181,6 +271,9 @@ if (process.argv[2] === 'child') {
     }
     for (const socket of ['connected', 'unconnected']) {
       assert(found_udp.includes(socket), `${socket} UDP socket was not found`);
+    }
+    for (const socket of ['listening', 'inbound']) {
+      assert(found_named_pipe.includes(socket), `${socket} named pipe socket was not found`);
     }
 
     // Common report tests.

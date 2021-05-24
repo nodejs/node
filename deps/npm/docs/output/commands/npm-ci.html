@@ -141,14 +141,14 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#example">Example</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#example">Example</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#script-shell"><code>script-shell</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
 <pre lang="bash"><code>npm ci
 </code></pre>
 <h3 id="description">Description</h3>
-<p>This command is similar to <a href="../cli-commands/install.html"><code>npm install</code></a>, except
+<p>This command is similar to <a href="../commands/npm-install.html"><code>npm install</code></a>, except
 it’s meant to be used in automated environments such as test platforms,
 continuous integration, and deployment – or any situation where you want
 to make sure you’re doing a clean install of your dependencies.</p>
@@ -190,6 +190,26 @@ cache:
   directories:
   - "$HOME/.npm"
 </code></pre>
+<h3 id="configuration">Configuration</h3>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="ignore-scripts"><code>ignore-scripts</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If true, npm does not run scripts specified in package.json files.</p>
+<p>Note that commands explicitly intended to run a particular script, such as
+<code>npm start</code>, <code>npm stop</code>, <code>npm restart</code>, <code>npm test</code>, and <code>npm run-script</code>
+will still run their intended script if <code>ignore-scripts</code> is set, but they
+will <em>not</em> run any pre- or post-scripts.</p>
+<h4 id="script-shell"><code>script-shell</code></h4>
+<ul>
+<li>Default: ‘/bin/sh’ on POSIX systems, ‘cmd.exe’ on Windows</li>
+<li>Type: null or String</li>
+</ul>
+<p>The shell to use for scripts run with the <code>npm exec</code>, <code>npm run</code> and <code>npm init &lt;pkg&gt;</code> commands.</p>
+<!-- raw HTML omitted -->
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../commands/npm-install.html">npm install</a></li>

@@ -224,7 +224,7 @@ server.listen(0, common.mustCall(function() {
 })).unref();
 
 const errMessagePassword = common.hasOpenSSL3 ?
-  /Error: PEM_read_bio_PrivateKey/ : /bad decrypt/;
+  /Error: error:1400006B:UI routines::processing error/ : /bad decrypt/;
 
 // Missing passphrase
 assert.throws(function() {
@@ -254,8 +254,7 @@ assert.throws(function() {
   });
 }, errMessagePassword);
 
-const errMessageDecrypt = common.hasOpenSSL3 ?
-  /Error: PEM_read_bio_PrivateKey/ : /bad decrypt/;
+const errMessageDecrypt = /bad decrypt/;
 
 // Invalid passphrase
 assert.throws(function() {

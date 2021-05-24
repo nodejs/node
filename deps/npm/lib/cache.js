@@ -17,6 +17,11 @@ class Cache extends BaseCommand {
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return ['cache']
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get usage () {
     return [
       'add <tarball file>',
@@ -86,32 +91,30 @@ with --force.`)
     return rimraf(cachePath)
   }
 
-  // npm cache add <tarball-url>
-  // npm cache add <pkg> <ver>
-  // npm cache add <tarball>
-  // npm cache add <folder>
+  // npm cache add <tarball-url>...
+  // npm cache add <pkg> <ver>...
+  // npm cache add <tarball>...
+  // npm cache add <folder>...
   async add (args) {
     const usage = 'Usage:\n' +
-      '    npm cache add <tarball-url>\n' +
-      '    npm cache add <pkg>@<ver>\n' +
-      '    npm cache add <tarball>\n' +
-      '    npm cache add <folder>\n'
+      '    npm cache add <tarball-url>...\n' +
+      '    npm cache add <pkg>@<ver>...\n' +
+      '    npm cache add <tarball>...\n' +
+      '    npm cache add <folder>...\n'
     log.silly('cache add', 'args', args)
-    const spec = args[0] && args[0] +
-      (args[1] === undefined || args[1] === null ? '' : `@${args[1]}`)
-
-    if (!spec)
+    if (args.length === 0)
       throw Object.assign(new Error(usage), { code: 'EUSAGE' })
 
-    log.silly('cache add', 'spec', spec)
-
-    // we ask pacote for the thing, and then just throw the data
-    // away so that it tee-pipes it into the cache like it does
-    // for a normal request.
-    await pacote.tarball.stream(spec, stream => {
-      stream.resume()
-      return stream.promise()
-    }, this.npm.flatOptions)
+    return Promise.all(args.map(spec => {
+      log.silly('cache add', 'spec', spec)
+      // we ask pacote for the thing, and then just throw the data
+      // away so that it tee-pipes it into the cache like it does
+      // for a normal request.
+      return pacote.tarball.stream(spec, stream => {
+        stream.resume()
+        return stream.promise()
+      }, this.npm.flatOptions)
+    }))
   }
 
   async verify () {

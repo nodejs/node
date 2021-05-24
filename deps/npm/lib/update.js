@@ -6,8 +6,8 @@ const log = require('npmlog')
 const reifyFinish = require('./utils/reify-finish.js')
 const completion = require('./utils/completion/installed-deep.js')
 
-const BaseCommand = require('./base-command.js')
-class Update extends BaseCommand {
+const ArboristWorkspaceCmd = require('./workspaces/arborist-cmd.js')
+class Update extends ArboristWorkspaceCmd {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get description () {
     return 'Update packages'
@@ -20,7 +20,20 @@ class Update extends BaseCommand {
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get params () {
-    return ['global']
+    return [
+      'global',
+      'global-style',
+      'legacy-bundling',
+      'strict-peer-deps',
+      'package-lock',
+      'omit',
+      'ignore-scripts',
+      'audit',
+      'bin-links',
+      'fund',
+      'dry-run',
+      ...super.params,
+    ]
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
@@ -53,6 +66,7 @@ class Update extends BaseCommand {
       ...this.npm.flatOptions,
       log: this.npm.log,
       path: where,
+      workspaces: this.workspaces,
     })
 
     await arb.reify({ update })

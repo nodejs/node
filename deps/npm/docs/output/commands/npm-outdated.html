@@ -141,7 +141,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#an-example">An example</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#json">json</a></li><li><a href="#long">long</a></li><li><a href="#parseable">parseable</a></li><li><a href="#global">global</a></li><li><a href="#all">all</a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#an-example">An example</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#all"><code>all</code></a></li><li><a href="#json"><code>json</code></a></li><li><a href="#long"><code>long</code></a></li><li><a href="#parseable"><code>parseable</code></a></li><li><a href="#global"><code>global</code></a></li><li><a href="#workspace"><code>workspace</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -150,7 +150,8 @@ npm command-line interface
 <h3 id="description">Description</h3>
 <p>This command will check the registry to see if any (or, specific) installed
 packages are currently outdated.</p>
-<p>By default, only the direct dependencies of the root project are shown.
+<p>By default, only the direct dependencies of the root project and direct
+dependencies of your configured <em>workspaces</em> are shown.
 Use <code>--all</code> to find all outdated meta-dependencies as well.</p>
 <p>In the output:</p>
 <ul>
@@ -213,43 +214,77 @@ npm uses dist-tags to manage its <code>latest</code> and <code>next</code> relea
 scratch or running <code>npm update</code> will bring it up to spec.</li>
 </ul>
 <h3 id="configuration">Configuration</h3>
-<h4 id="json">json</h4>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="all"><code>all</code></h4>
 <ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Show information in JSON format.</p>
-<h4 id="long">long</h4>
+<p>When running <code>npm outdated</code> and <code>npm ls</code>, setting <code>--all</code> will show all
+outdated or installed packages, rather than only those directly depended
+upon by the current project.</p>
+<h4 id="json"><code>json</code></h4>
 <ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Show extended information.</p>
-<h4 id="parseable">parseable</h4>
+<p>Whether or not to output JSON data, rather than the normal output.</p>
+<p>Not supported by all npm commands.</p>
+<h4 id="long"><code>long</code></h4>
 <ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Show parseable output instead of tree view.</p>
-<h4 id="global">global</h4>
+<p>Show extended information in <code>ls</code>, <code>search</code>, and <code>help-search</code>.</p>
+<h4 id="parseable"><code>parseable</code></h4>
 <ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Check packages in the global install prefix instead of in the current
-project.</p>
-<h4 id="all">all</h4>
+<p>Output parseable results from commands that write to standard output. For
+<code>npm search</code>, this will be tab-separated table format.</p>
+<h4 id="global"><code>global</code></h4>
 <ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Display all outdated dependencies on the tree.</p>
+<p>Operates in “global” mode, so that packages are installed into the <code>prefix</code>
+folder instead of the current working directory. See
+<a href="../configuring-npm/folders.html">folders</a> for more on the differences in behavior.</p>
+<ul>
+<li>packages are installed into the <code>{prefix}/lib/node_modules</code> folder, instead
+of the current working directory.</li>
+<li>bin files are linked to <code>{prefix}/bin</code></li>
+<li>man pages are linked to <code>{prefix}/share/man</code></li>
+</ul>
+<h4 id="workspace"><code>workspace</code></h4>
+<ul>
+<li>Default:</li>
+<li>Type: String (can be set multiple times)</li>
+</ul>
+<p>Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option.</p>
+<p>Valid values for the <code>workspace</code> config are either:</p>
+<ul>
+<li>Workspace names</li>
+<li>Path to a workspace directory</li>
+<li>Path to a parent workspace directory (will result to selecting all of the
+nested workspaces)</li>
+</ul>
+<p>When set for the <code>npm init</code> command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project.</p>
+<p>This value is not exported to the environment for child processes.</p>
+<!-- raw HTML omitted -->
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../commands/npm-update.html">npm update</a></li>
 <li><a href="../commands/npm-dist-tag.html">npm dist-tag</a></li>
 <li><a href="../using-npm/registry.html">npm registry</a></li>
 <li><a href="../configuring-npm/folders.html">npm folders</a></li>
+<li><a href="../using-npm/workspaces.html">npm workspaces</a></li>
 </ul>
 </div>
 

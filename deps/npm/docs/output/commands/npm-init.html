@@ -141,29 +141,29 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#examples">Examples</a></li><li><a href="#a-note-on-caching">A note on caching</a></li><ul><li><a href="#prefer-online">prefer-online</a></li><li><a href="#prefer-offline">prefer-offline</a></li><li><a href="#offline">offline</a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><ul><li><a href="#forwarding-additional-options">Forwarding additional options</a></li></ul><li><a href="#examples">Examples</a></li><li><a href="#workspaces-support">Workspaces support</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#yes"><code>yes</code></a></li><li><a href="#force"><code>force</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm init [--force|-f|--yes|-y|--scope]
-npm init &lt;@scope&gt; (same as `npx &lt;@scope&gt;/create`)
-npm init [&lt;@scope&gt;/]&lt;name&gt; (same as `npx [&lt;@scope&gt;/]create-&lt;name&gt;`)
+<pre lang="bash"><code>npm init [--yes|-y|--scope]
+npm init &lt;@scope&gt; (same as `npm exec &lt;@scope&gt;/create`)
+npm init [&lt;@scope&gt;/]&lt;name&gt; (same as `npm exec [&lt;@scope&gt;/]create-&lt;name&gt;`)
+npm init [-w &lt;dir&gt;] [args...]
 </code></pre>
 <h3 id="description">Description</h3>
 <p><code>npm init &lt;initializer&gt;</code> can be used to set up a new or existing npm
 package.</p>
 <p><code>initializer</code> in this case is an npm package named <code>create-&lt;initializer&gt;</code>,
-which will be installed by <a href="https://npm.im/npx"><code>npx</code></a>, and then have its
+which will be installed by <a href="../commands/npm-exec.html"><code>npm-exec</code></a>, and then have its
 main bin executed – presumably creating or updating <code>package.json</code> and
 running any other initialization-related operations.</p>
-<p>The init command is transformed to a corresponding <code>npx</code> operation as
+<p>The init command is transformed to a corresponding <code>npm exec</code> operation as
 follows:</p>
 <ul>
-<li><code>npm init foo</code> -&gt; <code>npx create-foo</code></li>
-<li><code>npm init @usr/foo</code> -&gt; <code>npx @usr/create-foo</code></li>
-<li><code>npm init @usr</code> -&gt; <code>npx @usr/create</code></li>
+<li><code>npm init foo</code> -&gt; <code>npm exec create-foo</code></li>
+<li><code>npm init @usr/foo</code> -&gt; <code>npm exec @usr/create-foo</code></li>
+<li><code>npm init @usr</code> -&gt; <code>npm exec @usr/create</code></li>
 </ul>
-<p>Any additional options will be passed directly to the command, so <code>npm init foo -- --hello</code> will map to <code>npx create-foo --hello</code>.</p>
 <p>If the initializer is omitted (by just calling <code>npm init</code>), init will fall
 back to legacy init behavior. It will ask you a bunch of questions, and
 then write a package.json for you. It will attempt to make reasonable
@@ -171,6 +171,15 @@ guesses based on existing fields, dependencies, and options selected. It is
 strictly additive, so it will keep any fields and values that were already
 set. You can also use <code>-y</code>/<code>--yes</code> to skip the questionnaire altogether. If
 you pass <code>--scope</code>, it will create a scoped package.</p>
+<h4 id="forwarding-additional-options">Forwarding additional options</h4>
+<p>Any additional options will be passed directly to the command, so <code>npm init foo -- --hello</code> will map to <code>npm exec -- create-foo --hello</code>.</p>
+<p>To better illustrate how options are forwarded, here’s a more evolved
+example showing options passed to both the <strong>npm cli</strong> and a create package,
+both following commands are equivalent:</p>
+<ul>
+<li><code>npm init foo -y --registry=&lt;url&gt; -- --hello -a</code></li>
+<li><code>npm exec -y --registry=&lt;url&gt; -- create-foo --hello -a</code></li>
+</ul>
 <h3 id="examples">Examples</h3>
 <p>Create a new React-based project using
 <a href="https://npm.im/create-react-app"><code>create-react-app</code></a>:</p>
@@ -189,20 +198,112 @@ $ npm init
 <p>Generate it without having it ask any questions:</p>
 <pre lang="bash"><code>$ npm init -y
 </code></pre>
-<h3 id="a-note-on-caching">A note on caching</h3>
-<p>The npm cli utilizes its internal package cache when using the package
-name specified.  You can use the following to change how and when the
-cli uses this cache. See <a href="../commands/npm-cache.html"><code>npm cache</code></a> for more on
-how the cache works.</p>
-<h4 id="prefer-online">prefer-online</h4>
-<p>Forces staleness checks for packages, making the cli look for updates
-immediately even if the package is already in the cache.</p>
-<h4 id="prefer-offline">prefer-offline</h4>
-<p>Bypasses staleness checks for packages.  Missing data will still be
-requested from the server. To force full offline mode, use <code>offline</code>.</p>
-<h4 id="offline">offline</h4>
-<p>Forces full offline mode. Any packages not locally cached will result in
-an error.</p>
+<h3 id="workspaces-support">Workspaces support</h3>
+<p>It’s possible to create a new workspace within your project by using the
+<code>workspace</code> config option. When using <code>npm init -w &lt;dir&gt;</code> the cli will
+create the folders and boilerplate expected while also adding a reference
+to your project <code>package.json</code> <code>"workspaces": []</code> property in order to make
+sure that new generated <strong>workspace</strong> is properly set up as such.</p>
+<p>Given a project with no workspaces, e.g:</p>
+<pre><code>.
++-- package.json
+</code></pre>
+<p>You may generate a new workspace using the legacy init:</p>
+<pre lang="bash"><code>$ npm init -w packages/a
+</code></pre>
+<p>That will generate a new folder and <code>package.json</code> file, while also updating
+your top-level <code>package.json</code> to add the reference to this new workspace:</p>
+<pre><code>.
++-- package.json
+`-- packages
+   `-- a
+       `-- package.json
+</code></pre>
+<p>The workspaces init also supports the <code>npm init &lt;initializer&gt; -w &lt;dir&gt;</code>
+syntax, following the same set of rules explained earlier in the initial
+<strong>Description</strong> section of this page. Similar to the previous example of
+creating a new React-based project using
+<a href="https://npm.im/create-react-app"><code>create-react-app</code></a>, the following syntax
+will make sure to create the new react app as a nested <strong>workspace</strong> within your
+project and configure your <code>package.json</code> to recognize it as such:</p>
+<pre lang="bash"><code>npm init -w packages/my-react-app react-app .
+</code></pre>
+<p>This will make sure to generate your react app as expected, one important
+consideration to have in mind is that <code>npm exec</code> is going to be run in the
+context of the newly created folder for that workspace, and that’s the reason
+why in this example the initializer uses the initializer name followed with a
+dot to represent the current directory in that context, e.g: <code>react-app .</code>:</p>
+<pre><code>.
++-- package.json
+`-- packages
+   +-- a
+   |   `-- package.json
+   `-- my-react-app
+       +-- README
+       +-- package.json
+       `-- ...
+</code></pre>
+<h3 id="configuration">Configuration</h3>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="yes"><code>yes</code></h4>
+<ul>
+<li>Default: null</li>
+<li>Type: null or Boolean</li>
+</ul>
+<p>Automatically answer “yes” to any prompts that npm might print on the
+command line.</p>
+<h4 id="force"><code>force</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Removes various protections against unfortunate side effects, common
+mistakes, unnecessary performance degradation, and malicious input.</p>
+<ul>
+<li>Allow clobbering non-npm files in global installs.</li>
+<li>Allow the <code>npm version</code> command to work on an unclean git repository.</li>
+<li>Allow deleting the cache folder with <code>npm cache clean</code>.</li>
+<li>Allow installing packages that have an <code>engines</code> declaration requiring a
+different version of npm.</li>
+<li>Allow installing packages that have an <code>engines</code> declaration requiring a
+different version of <code>node</code>, even if <code>--engine-strict</code> is enabled.</li>
+<li>Allow <code>npm audit fix</code> to install modules outside your stated dependency
+range (including SemVer-major changes).</li>
+<li>Allow unpublishing all versions of a published package.</li>
+<li>Allow conflicting peerDependencies to be installed in the root project.</li>
+<li>Implicitly set <code>--yes</code> during <code>npm init</code>.</li>
+</ul>
+<p>If you don’t have a clear idea of what you want to do, it is strongly
+recommended that you do not use this option!</p>
+<h4 id="workspace"><code>workspace</code></h4>
+<ul>
+<li>Default:</li>
+<li>Type: String (can be set multiple times)</li>
+</ul>
+<p>Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option.</p>
+<p>Valid values for the <code>workspace</code> config are either:</p>
+<ul>
+<li>Workspace names</li>
+<li>Path to a workspace directory</li>
+<li>Path to a parent workspace directory (will result to selecting all of the
+nested workspaces)</li>
+</ul>
+<p>When set for the <code>npm init</code> command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project.</p>
+<p>This value is not exported to the environment for child processes.</p>
+<h4 id="workspaces"><code>workspaces</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Enable running a command in the context of <strong>all</strong> the configured
+workspaces.</p>
+<p>This value is not exported to the environment for child processes.</p>
+<!-- raw HTML omitted -->
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="http://npm.im/init-package-json">init-package-json module</a></li>
@@ -210,6 +311,7 @@ an error.</p>
 <li><a href="../commands/npm-version.html">npm version</a></li>
 <li><a href="../using-npm/scope.html">npm scope</a></li>
 <li><a href="../commands/npm-exec.html">npm exec</a></li>
+<li><a href="../using-npm/workspaces.html">npm workspaces</a></li>
 </ul>
 </div>
 

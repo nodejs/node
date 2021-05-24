@@ -10,6 +10,11 @@ module.exports = (gitArgs, opts = {}) => {
 
   if (gitPath instanceof Error) { return Promise.reject(gitPath) }
 
+  // undocumented option, mostly only here for tests
+  const args = opts.allowReplace || gitArgs[0] === '--no-replace-objects'
+    ? gitArgs
+    : ['--no-replace-objects', ...gitArgs]
+
   const log = opts.log || procLog
   let retry = opts.retry
   if (retry === null || retry === undefined) {
@@ -22,11 +27,11 @@ module.exports = (gitArgs, opts = {}) => {
   }
   return promiseRetry((retry, number) => {
     if (number !== 1) {
-      log.silly('pacote', `Retrying git command: ${
-        gitArgs.join(' ')} attempt # ${number}`)
+      log.silly('git', `Retrying git command: ${
+        args.join(' ')} attempt # ${number}`)
     }
 
-    return spawn(gitPath, gitArgs, makeOpts(opts))
+    return spawn(gitPath, args, makeOpts(opts))
       .catch(er => {
         if (!shouldRetry(er.stderr, number)) {
           throw er

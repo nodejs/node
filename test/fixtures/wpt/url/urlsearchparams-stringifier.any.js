@@ -133,3 +133,13 @@ test(() => {
     assert_equals(url.toString(), 'http://www.example.com/?a=b%2Cc&x=y');
     assert_equals(params.toString(), 'a=b%2Cc&x=y');
 }, 'URLSearchParams connected to URL');
+
+test(() => {
+    const url = new URL('http://www.example.com/');
+    const params = url.searchParams;
+
+    params.append('a\nb', 'c\rd');
+    params.append('e\n\rf', 'g\r\nh');
+
+    assert_equals(params.toString(), "a%0Ab=c%0Dd&e%0A%0Df=g%0D%0Ah");
+}, 'URLSearchParams must not do newline normalization');

@@ -285,7 +285,7 @@ Reads data from the file and stores that in the given buffer.
 If the file is not modified concurrently, the end-of-file is reached when the
 number of bytes read is zero.
 
-#### `filehandle.read(options)`
+#### `filehandle.read([options])`
 <!-- YAML
 added:
  - v13.11.0
@@ -775,7 +775,8 @@ changes:
 * Returns: {Promise}  Fulfills with the {fs.Stats} object for the given
   symbolic link `path`.
 
-Equivalent to `fsPromises.stats()` when `path` refers to a symbolic link.
+Equivalent to [`fsPromises.stat()`][] unless `path` refers to a symbolic link,
+in which case the link itself is stat-ed, not the file that it refers to.
 Refer to the POSIX lstat(2) document for more detail.
 
 ### `fsPromises.mkdir(path[, options])`
@@ -901,6 +902,9 @@ try {
 }
 ```
 
+When using the async iterator, the {fs.Dir} object will be automatically
+closed after the iterator exits.
+
 ### `fsPromises.readdir(path[, options])`
 <!-- YAML
 added: v10.0.0
@@ -932,7 +936,7 @@ import { readdir } from 'fs/promises';
 
 try {
   const files = await readdir(path);
-  for await (const file of files)
+  for (const file of files)
     console.log(file);
 } catch (err) {
   console.error(err);
@@ -976,12 +980,15 @@ import { readFile } from 'fs/promises';
 
 try {
   const controller = new AbortController();
-  const signal = controller.signal;
-  readFile(fileName, { signal });
+  const { signal } = controller;
+  const promise = readFile(fileName, { signal });
 
-  // Abort the request
+  // Abort the request before the promise settles.
   controller.abort();
+
+  await promise;
 } catch (err) {
+  // When a request is aborted - err is an AbortError
   console.error(err);
 }
 ```
@@ -995,7 +1002,6 @@ Any specified {FileHandle} has to support reading.
 <!-- YAML
 added: v10.0.0
 -->
-
 * `path` {string|Buffer|URL}
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
@@ -1049,17 +1055,17 @@ Renames `oldPath` to `newPath`.
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37216
     description: "Using `fsPromises.rmdir(path, { recursive: true })` on a `path`
                  that is a file is no longer permitted and results in an
                  `ENOENT` error on Windows and an `ENOTDIR` error on POSIX."
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37216
     description: "Using `fsPromises.rmdir(path, { recursive: true })` on a `path`
                  that does not exist is no longer permitted and results in a
                  `ENOENT` error."
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37302
     description: The `recursive` option is deprecated, using it triggers a
                  deprecation warning.
@@ -1312,8 +1318,12 @@ try {
   const controller = new AbortController();
   const { signal } = controller;
   const data = new Uint8Array(Buffer.from('Hello Node.js'));
-  writeFile('message.txt', data, { signal });
+  const promise = writeFile('message.txt', data, { signal });
+
+  // Abort the request before the promise settles.
   controller.abort();
+
+  await promise;
 } catch (err) {
   // When a request is aborted - err is an AbortError
   console.error(err);
@@ -1717,7 +1727,9 @@ See the POSIX chown(2) documentation for more detail.
 <!-- YAML
 added: v0.0.2
 changes:
-  - version: v15.9.0
+  - version:
+      - v15.9.0
+      - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/37174
     description: A default callback is now used if one is not provided.
   - version: v10.0.0
@@ -2346,7 +2358,7 @@ descriptor. See [`fs.utimes()`][].
 <!-- YAML
 deprecated: v0.4.7
 changes:
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37460
     description: The error returned may be an `AggregateError` if more than one
                  error is returned.
@@ -2481,7 +2493,7 @@ changes:
   * `stats` {fs.Stats}
 
 Retrieves the {fs.Stats} for the symbolic link referred to by the path.
-The callback gets two arguments `(err, stats)` where `stats` is a {`fs.Stats}
+The callback gets two arguments `(err, stats)` where `stats` is a {fs.Stats}
 object. `lstat()` is identical to `stat()`, except that if `path` is a symbolic
 link, then the link itself is stat-ed, not the file that it refers to.
 
@@ -2828,11 +2840,13 @@ If `options.withFileTypes` is set to `true`, the `files` array will contain
 <!-- YAML
 added: v0.1.29
 changes:
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37460
     description: The error returned may be an `AggregateError` if more than one
                  error is returned.
-  - version: v15.2.0
+  - version:
+      - v15.2.0
+      - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/35911
     description: The options argument may include an AbortSignal to abort an
                  ongoing readFile request.
@@ -3158,17 +3172,17 @@ rename('oldFile.txt', 'newFile.txt', (err) => {
 <!-- YAML
 added: v0.0.2
 changes:
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37216
     description: "Using `fs.rmdir(path, { recursive: true })` on a `path` that is
                  a file is no longer permitted and results in an `ENOENT` error
                  on Windows and an `ENOTDIR` error on POSIX."
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37216
     description: "Using `fs.rmdir(path, { recursive: true })` on a `path` that
                  does not exist is no longer permitted and results in a `ENOENT`
                  error."
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37302
     description: The `recursive` option is deprecated, using it triggers a
                  deprecation warning.
@@ -3418,7 +3432,7 @@ example/
 <!-- YAML
 added: v0.8.6
 changes:
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37460
     description: The error returned may be an `AggregateError` if more than one
                  error is returned.
@@ -3550,7 +3564,9 @@ The `atime` and `mtime` arguments follow these rules:
 <!-- YAML
 added: v0.5.10
 changes:
-  - version: v15.9.0
+  - version:
+      - v15.9.0
+      - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/37190
     description: Added support for closing the watcher with an AbortSignal.
   - version: v7.6.0
@@ -3625,7 +3641,7 @@ to be notified of filesystem changes.
   directories.
 * On SunOS systems (including Solaris and SmartOS), this uses [`event ports`][].
 * On Windows systems, this feature depends on [`ReadDirectoryChangesW`][].
-* On Aix systems, this feature depends on [`AHAFS`][], which must be enabled.
+* On AIX systems, this feature depends on [`AHAFS`][], which must be enabled.
 * On IBM i systems, this feature is not supported.
 
 If the underlying functionality is not available for some reason, then
@@ -3875,11 +3891,13 @@ details.
 <!-- YAML
 added: v0.1.29
 changes:
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37460
     description: The error returned may be an `AggregateError` if more than one
                  error is returned.
-  - version: v15.2.0
+  - version:
+      - v15.2.0
+      - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/35993
     description: The options argument may include an AbortSignal to abort an
                  ongoing writeFile request.
@@ -4529,7 +4547,7 @@ and cleaning up the directory.
 The `encoding` option sets the encoding for the `path` while opening the
 directory and subsequent read operations.
 
-### `fs.openSync(path[, flags, mode])`
+### `fs.openSync(path[, flags[, mode]])`
 <!-- YAML
 added: v0.1.21
 changes:
@@ -4797,17 +4815,17 @@ See the POSIX rename(2) documentation for more details.
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37216
     description: "Using `fs.rmdirSync(path, { recursive: true })` on a `path`
                  that is a file is no longer permitted and results in an
                  `ENOENT` error on Windows and an `ENOTDIR` error on POSIX."
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37216
     description: "Using `fs.rmdirSync(path, { recursive: true })` on a `path`
                  that does not exist is no longer permitted and results in a
                  `ENOENT` error."
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37302
     description: The `recursive` option is deprecated, using it triggers a
                  deprecation warning.
@@ -5118,6 +5136,9 @@ try {
   console.error(err);
 }
 ```
+
+When using the async iterator, the {fs.Dir} object will be automatically
+closed after the iterator exits.
 
 #### `dir.close()`
 <!-- YAML
@@ -5917,7 +5938,22 @@ Emitted when the {fs.WriteStream}'s underlying file descriptor has been closed.
 
 #### Event: `'open'`
 <!-- YAML
-added: v0.1.93
+added:
+  - v10.0.0
+  - v0.1.93
+changes:
+  - version: v14.17.0
+    pr-url: https://github.com/nodejs/node/pull/35993
+    description: The options argument may include an AbortSignal to abort an
+                 ongoing writeFile request.
+  - version: v14.12.0
+    pr-url: https://github.com/nodejs/node/pull/34993
+    description: The `data` parameter will stringify an object with an
+                 explicit `toString` function.
+  - version: v14.0.0
+    pr-url: https://github.com/nodejs/node/pull/31030
+    description: The `data` parameter won't coerce unsupported input to
+                 strings anymore.
 -->
 
 * `fd` {integer} Integer file descriptor used by the {fs.WriteStream}.
@@ -5940,6 +5976,18 @@ added: v0.4.7
 
 The number of bytes written so far. Does not include data that is still queued
 for writing.
+
+#### `writeStream.close([callback])`
+<!-- YAML
+added: v0.9.4
+-->
+
+* `callback` {Function}
+  * `err` {Error}
+
+Closes `writeStream`. Optionally accepts a
+callback that will be executed once the `writeStream`
+is closed.
 
 #### `writeStream.path`
 <!-- YAML
@@ -6666,7 +6714,7 @@ the file contents.
 [Readable Stream]: stream.md#stream_class_stream_readable
 [Writable Stream]: stream.md#stream_class_stream_writable
 [caveats]: #fs_caveats
-[`AHAFS`]: https://www.ibm.com/developerworks/aix/library/au-aix_event_infrastructure/
+[`AHAFS`]: https://developer.ibm.com/articles/au-aix_event_infrastructure/
 [`Buffer.byteLength`]: buffer.md#buffer_static_method_buffer_bytelength_string_encoding
 [`FSEvents`]: https://developer.apple.com/documentation/coreservices/file_system_events
 [`Number.MAX_SAFE_INTEGER`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/MAX_SAFE_INTEGER
@@ -6712,6 +6760,7 @@ the file contents.
 [`fsPromises.open()`]: #fs_fspromises_open_path_flags_mode
 [`fsPromises.opendir()`]: #fs_fspromises_opendir_path_options
 [`fsPromises.rm()`]: #fs_fspromises_rm_path_options
+[`fsPromises.stat()`]: #fs_fspromises_stat_path_options
 [`fsPromises.utimes()`]: #fs_fspromises_utimes_path_atime_mtime
 [`inotify(7)`]: https://man7.org/linux/man-pages/man7/inotify.7.html
 [`kqueue(2)`]: https://www.freebsd.org/cgi/man.cgi?query=kqueue&sektion=2

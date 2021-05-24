@@ -3156,7 +3156,8 @@
   {
     "input": "http:/:@/www.example.com",
     "base": "about:blank",
-    "failure": true
+    "failure": true,
+    "inputCanBeRelative": true
   },
   {
     "input": "http://user@/www.example.com",
@@ -3166,12 +3167,14 @@
   {
     "input": "http:@/www.example.com",
     "base": "about:blank",
-    "failure": true
+    "failure": true,
+    "inputCanBeRelative": true
   },
   {
     "input": "http:/@/www.example.com",
     "base": "about:blank",
-    "failure": true
+    "failure": true,
+    "inputCanBeRelative": true
   },
   {
     "input": "http://@/www.example.com",
@@ -3181,17 +3184,20 @@
   {
     "input": "https:@/www.example.com",
     "base": "about:blank",
-    "failure": true
+    "failure": true,
+    "inputCanBeRelative": true
   },
   {
     "input": "http:a:b@/www.example.com",
     "base": "about:blank",
-    "failure": true
+    "failure": true,
+    "inputCanBeRelative": true
   },
   {
     "input": "http:/a:b@/www.example.com",
     "base": "about:blank",
-    "failure": true
+    "failure": true,
+    "inputCanBeRelative": true
   },
   {
     "input": "http://a:b@/www.example.com",
@@ -3201,7 +3207,8 @@
   {
     "input": "http::@/www.example.com",
     "base": "about:blank",
-    "failure": true
+    "failure": true,
+    "inputCanBeRelative": true
   },
   {
     "input": "http:a:@www.example.com",
@@ -3644,6 +3651,17 @@
     "pathname": "/%EF%BF%BD",
     "search": "?%EF%BF%BD",
     "hash": "#%EF%BF%BD"
+  },
+  "Domain is ASCII, but a label is invalid IDNA",
+  {
+    "input": "http://a.b.c.xn--pokxncvks",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "http://10.0.0.xn--pokxncvks",
+    "base": "about:blank",
+    "failure": true
   },
   "Test name prepping, fullwidth input should be converted to ASCII and NOT IDN-ized. This is 'Go' in fullwidth UTF-8/UTF-16.",
   {
@@ -5945,6 +5963,120 @@
     "search": "",
     "hash": ""
   },
+  "# Copy the host from the base URL in the following cases",
+  {
+    "input": "C|/",
+    "base": "file://host/",
+    "href": "file://host/C:/",
+    "protocol": "file:",
+    "username": "",
+    "password": "",
+    "host": "host",
+    "hostname": "host",
+    "port": "",
+    "pathname": "/C:/",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "/C:/",
+    "base": "file://host/",
+    "href": "file://host/C:/",
+    "protocol": "file:",
+    "username": "",
+    "password": "",
+    "host": "host",
+    "hostname": "host",
+    "port": "",
+    "pathname": "/C:/",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "file:C:/",
+    "base": "file://host/",
+    "href": "file://host/C:/",
+    "protocol": "file:",
+    "username": "",
+    "password": "",
+    "host": "host",
+    "hostname": "host",
+    "port": "",
+    "pathname": "/C:/",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "file:/C:/",
+    "base": "file://host/",
+    "href": "file://host/C:/",
+    "protocol": "file:",
+    "username": "",
+    "password": "",
+    "host": "host",
+    "hostname": "host",
+    "port": "",
+    "pathname": "/C:/",
+    "search": "",
+    "hash": ""
+  },
+  "# Copy the empty host from the input in the following cases",
+  {
+    "input": "//C:/",
+    "base": "file://host/",
+    "href": "file:///C:/",
+    "protocol": "file:",
+    "username": "",
+    "password": "",
+    "host": "",
+    "hostname": "",
+    "port": "",
+    "pathname": "/C:/",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "file://C:/",
+    "base": "file://host/",
+    "href": "file:///C:/",
+    "protocol": "file:",
+    "username": "",
+    "password": "",
+    "host": "",
+    "hostname": "",
+    "port": "",
+    "pathname": "/C:/",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "///C:/",
+    "base": "file://host/",
+    "href": "file:///C:/",
+    "protocol": "file:",
+    "username": "",
+    "password": "",
+    "host": "",
+    "hostname": "",
+    "port": "",
+    "pathname": "/C:/",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "file:///C:/",
+    "base": "file://host/",
+    "href": "file:///C:/",
+    "protocol": "file:",
+    "username": "",
+    "password": "",
+    "host": "",
+    "hostname": "",
+    "port": "",
+    "pathname": "/C:/",
+    "search": "",
+    "hash": ""
+  },
   "# Windows drive letter quirk (no host)",
   {
     "input": "file:/C|/",
@@ -7206,17 +7338,20 @@
   {
     "input": "a",
     "base": "about:blank",
-    "failure": true
+    "failure": true,
+    "inputCanBeRelative": true
   },
   {
     "input": "a/",
     "base": "about:blank",
-    "failure": true
+    "failure": true,
+    "inputCanBeRelative": true
   },
   {
     "input": "a//",
     "base": "about:blank",
-    "failure": true
+    "failure": true,
+    "inputCanBeRelative": true
   },
   "Bases that don't fail to parse but fail to be bases",
   {

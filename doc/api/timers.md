@@ -324,7 +324,7 @@ Cancels a `Timeout` object created by [`setTimeout()`][].
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/38112
     description: Graduated from experimental.
 -->

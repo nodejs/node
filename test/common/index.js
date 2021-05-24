@@ -34,7 +34,7 @@ const util = require('util');
 const { isMainThread } = require('worker_threads');
 
 const tmpdir = require('./tmpdir');
-const bits = ['arm64', 'mips', 'mipsel', 'ppc64', 's390x', 'x64']
+const bits = ['arm64', 'mips', 'mipsel', 'ppc64', 'riscv64', 's390x', 'x64']
   .includes(process.arch) ? 64 : 32;
 const hasIntl = !!process.config.variables.v8_enable_i18n_support;
 
@@ -387,10 +387,28 @@ function _mustCallInner(fn, criteria = 1, field) {
 
   mustCallChecks.push(context);
 
-  return function() {
+  const _return = function() { // eslint-disable-line func-style
     context.actual++;
     return fn.apply(this, arguments);
   };
+  // Function instances have own properties that may be relevant.
+  // Let's replicate those properties to the returned function.
+  // Refs: https://tc39.es/ecma262/#sec-function-instances
+  Object.defineProperties(_return, {
+    name: {
+      value: fn.name,
+      writable: false,
+      enumerable: false,
+      configurable: true,
+    },
+    length: {
+      value: fn.length,
+      writable: false,
+      enumerable: false,
+      configurable: true,
+    },
+  });
+  return _return;
 }
 
 function hasMultiLocalhost() {
@@ -708,8 +726,8 @@ function gcUntil(name, condition) {
   });
 }
 
-function requireNoPackageJSONAbove() {
-  let possiblePackage = path.join(__dirname, '..', 'package.json');
+function requireNoPackageJSONAbove(dir = __dirname) {
+  let possiblePackage = path.join(dir, '..', 'package.json');
   let lastPackage = null;
   while (possiblePackage !== lastPackage) {
     if (fs.existsSync(possiblePackage)) {

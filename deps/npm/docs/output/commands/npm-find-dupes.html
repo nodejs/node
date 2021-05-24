@@ -141,7 +141,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#global-style"><code>global-style</code></a></li><li><a href="#legacy-bundling"><code>legacy-bundling</code></a></li><li><a href="#strict-peer-deps"><code>strict-peer-deps</code></a></li><li><a href="#package-lock"><code>package-lock</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#audit"><code>audit</code></a></li><li><a href="#bin-links"><code>bin-links</code></a></li><li><a href="#fund"><code>fund</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -150,12 +150,138 @@ npm command-line interface
 <h3 id="description">Description</h3>
 <p>Runs <code>npm dedupe</code> in <code>--dry-run</code> mode, making npm only output the
 duplications, without actually changing the package tree.</p>
+<h3 id="configuration">Configuration</h3>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="global-style"><code>global-style</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Causes npm to install the package into your local <code>node_modules</code> folder with
+the same layout it uses with the global <code>node_modules</code> folder. Only your
+direct dependencies will show in <code>node_modules</code> and everything they depend
+on will be flattened in their <code>node_modules</code> folders. This obviously will
+eliminate some deduping. If used with <code>legacy-bundling</code>, <code>legacy-bundling</code>
+will be preferred.</p>
+<h4 id="legacy-bundling"><code>legacy-bundling</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Causes npm to install the package such that versions of npm prior to 1.4,
+such as the one included with node 0.8, can install the package. This
+eliminates all automatic deduping. If used with <code>global-style</code> this option
+will be preferred.</p>
+<h4 id="strict-peer-deps"><code>strict-peer-deps</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If set to <code>true</code>, and <code>--legacy-peer-deps</code> is not set, then <em>any</em>
+conflicting <code>peerDependencies</code> will be treated as an install failure, even
+if npm could reasonably guess the appropriate resolution based on non-peer
+dependency relationships.</p>
+<p>By default, conflicting <code>peerDependencies</code> deep in the dependency graph will
+be resolved using the nearest non-peer dependency specification, even if
+doing so will result in some packages receiving a peer dependency outside
+the range set in their package’s <code>peerDependencies</code> object.</p>
+<p>When such and override is performed, a warning is printed, explaining the
+conflict and the packages involved. If <code>--strict-peer-deps</code> is set, then
+this warning is treated as a failure.</p>
+<h4 id="package-lock"><code>package-lock</code></h4>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If set to false, then ignore <code>package-lock.json</code> files when installing. This
+will also prevent <em>writing</em> <code>package-lock.json</code> if <code>save</code> is true.</p>
+<p>When package package-locks are disabled, automatic pruning of extraneous
+modules will also be disabled. To remove extraneous modules with
+package-locks disabled use <code>npm prune</code>.</p>
+<h4 id="omit"><code>omit</code></h4>
+<ul>
+<li>Default: ‘dev’ if the <code>NODE_ENV</code> environment variable is set to
+‘production’, otherwise empty.</li>
+<li>Type: “dev”, “optional”, or “peer” (can be set multiple times)</li>
+</ul>
+<p>Dependency types to omit from the installation tree on disk.</p>
+<p>Note that these dependencies <em>are</em> still resolved and added to the
+<code>package-lock.json</code> or <code>npm-shrinkwrap.json</code> file. They are just not
+physically installed on disk.</p>
+<p>If a package type appears in both the <code>--include</code> and <code>--omit</code> lists, then
+it will be included.</p>
+<p>If the resulting omit list includes <code>'dev'</code>, then the <code>NODE_ENV</code> environment
+variable will be set to <code>'production'</code> for all lifecycle scripts.</p>
+<h4 id="ignore-scripts"><code>ignore-scripts</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If true, npm does not run scripts specified in package.json files.</p>
+<p>Note that commands explicitly intended to run a particular script, such as
+<code>npm start</code>, <code>npm stop</code>, <code>npm restart</code>, <code>npm test</code>, and <code>npm run-script</code>
+will still run their intended script if <code>ignore-scripts</code> is set, but they
+will <em>not</em> run any pre- or post-scripts.</p>
+<h4 id="audit"><code>audit</code></h4>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>When “true” submit audit reports alongside <code>npm install</code> runs to the default
+registry and all registries configured for scopes. See the documentation for
+<a href="../commands/npm-audit.html"><code>npm audit</code></a> for details on what is submitted.</p>
+<h4 id="bin-links"><code>bin-links</code></h4>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Tells npm to create symlinks (or <code>.cmd</code> shims on Windows) for package
+executables.</p>
+<p>Set to false to have it not do this. This can be used to work around the
+fact that some file systems don’t support symlinks, even on ostensibly Unix
+systems.</p>
+<h4 id="fund"><code>fund</code></h4>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>When “true” displays the message at the end of each <code>npm install</code>
+acknowledging the number of dependencies looking for funding. See <a href="../commands/npm-fund.html"><code>npm fund</code></a> for details.</p>
+<h4 id="workspace"><code>workspace</code></h4>
+<ul>
+<li>Default:</li>
+<li>Type: String (can be set multiple times)</li>
+</ul>
+<p>Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option.</p>
+<p>Valid values for the <code>workspace</code> config are either:</p>
+<ul>
+<li>Workspace names</li>
+<li>Path to a workspace directory</li>
+<li>Path to a parent workspace directory (will result to selecting all of the
+nested workspaces)</li>
+</ul>
+<p>When set for the <code>npm init</code> command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project.</p>
+<p>This value is not exported to the environment for child processes.</p>
+<h4 id="workspaces"><code>workspaces</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Enable running a command in the context of <strong>all</strong> the configured
+workspaces.</p>
+<p>This value is not exported to the environment for child processes.</p>
+<!-- raw HTML omitted -->
 <h3 id="see-also">See Also</h3>
 <ul>
-<li><a href="../cli-commands/dedupe.html">npm dedupe</a></li>
-<li><a href="../cli-commands/ls.html">npm ls</a></li>
-<li><a href="../cli-commands/update.html">npm update</a></li>
-<li><a href="../cli-commands/install.html">npm install</a></li>
+<li><a href="../commands/npm-dedupe.html">npm dedupe</a></li>
+<li><a href="../commands/npm-ls.html">npm ls</a></li>
+<li><a href="../commands/npm-update.html">npm update</a></li>
+<li><a href="../commands/npm-install.html">npm install</a></li>
 </ul>
 </div>
 

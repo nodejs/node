@@ -176,12 +176,12 @@ however, subtle incompatibilities between the `Buffer` API and the
 
 In particular:
 
-* While [`TypedArray#slice()`][] creates a copy of part of the `TypedArray`,
-  [`Buffer#slice()`][`buf.slice()`] creates a view over the existing `Buffer`
+* While [`TypedArray.prototype.slice()`][] creates a copy of part of the `TypedArray`,
+  [`Buffer.prototype.slice()`][`buf.slice()`] creates a view over the existing `Buffer`
   without copying. This behavior can be surprising, and only exists for legacy
-  compatibility. [`TypedArray#subarray()`][] can be used to achieve the behavior
-  of [`Buffer#slice()`][`buf.slice()`] on both `Buffer`s and other
-  `TypedArray`s.
+  compatibility. [`TypedArray.prototype.subarray()`][] can be used to achieve
+  the behavior of [`Buffer.prototype.slice()`][`buf.slice()`] on both `Buffer`s
+  and other `TypedArray`s.
 * [`buf.toString()`][] is incompatible with its `TypedArray` equivalent.
 * A number of methods, e.g. [`buf.indexOf()`][], support additional arguments.
 
@@ -205,7 +205,7 @@ console.log(uint32array);
 
 ```js
 const buf = Buffer.from('hello', 'utf16le');
-const uint16arr = new Uint16Array(
+const uint16array = new Uint16Array(
   buf.buffer,
   buf.byteOffset,
   buf.length / Uint16Array.BYTES_PER_ELEMENT);
@@ -350,7 +350,7 @@ added: v15.7.0
 * `type` {string} The content-type for the new `Blob`
 
 Creates and returns a new `Blob` containing a subset of this `Blob` objects
-data. The original `Blob` is not alterered.
+data. The original `Blob` is not altered.
 
 ### `blob.text()`
 <!-- YAML
@@ -1086,9 +1086,9 @@ added: v0.1.90
 Copies data from a region of `buf` to a region in `target`, even if the `target`
 memory region overlaps with `buf`.
 
-[`TypedArray#set()`][] performs the same operation, and is available for all
-TypedArrays, including Node.js `Buffer`s, although it takes different
-function arguments.
+[`TypedArray.prototype.set()`][] performs the same operation, and is available
+for all TypedArrays, including Node.js `Buffer`s, although it takes
+different function arguments.
 
 ```js
 // Create two `Buffer` instances.
@@ -1349,7 +1349,7 @@ an integer between 0 and 255.
 
 If `byteOffset` is not a number, it will be coerced to a number. If the result
 of coercion is `NaN` or `0`, then the entire buffer will be searched. This
-behavior matches [`String#indexOf()`][].
+behavior matches [`String.prototype.indexOf()`][].
 
 ```js
 const b = Buffer.from('abcdef');
@@ -1449,7 +1449,7 @@ an integer between 0 and 255.
 
 If `byteOffset` is not a number, it will be coerced to a number. Any arguments
 that coerce to `NaN`, like `{}` or `undefined`, will search the whole buffer.
-This behavior matches [`String#lastIndexOf()`][].
+This behavior matches [`String.prototype.lastIndexOf()`][].
 
 ```js
 const b = Buffer.from('abcdef');
@@ -2136,7 +2136,7 @@ offset and cropped by the `start` and `end` indices.
 Specifying `end` greater than [`buf.length`][] will return the same result as
 that of `end` equal to [`buf.length`][].
 
-This method is inherited from [`TypedArray#subarray()`][].
+This method is inherited from [`TypedArray.prototype.subarray()`][].
 
 Modifying the new `Buffer` slice will modify the memory in the original `Buffer`
 because the allocated memory of the two objects overlap.
@@ -3283,7 +3283,9 @@ accessed using `require('buffer')`.
 
 ### `buffer.atob(data)`
 <!-- YAML
-added: v15.13.0
+added:
+  - v15.13.0
+  - v14.17.0
 -->
 
 > Stability: 3 - Legacy. Use `Buffer.from(data, 'base64')` instead.
@@ -3304,7 +3306,9 @@ and binary data should be performed using `Buffer.from(str, 'base64')` and
 
 ### `buffer.btoa(data)`
 <!-- YAML
-added: v15.13.0
+added:
+  - v15.13.0
+  - v14.17.0
 -->
 
 > Stability: 3 - Legacy. Use `buf.toString('base64')` instead.
@@ -3342,6 +3346,15 @@ added: v3.0.0
 * {integer} The largest size allowed for a single `Buffer` instance.
 
 An alias for [`buffer.constants.MAX_LENGTH`][].
+
+### `buffer.kStringMaxLength`
+<!-- YAML
+added: v3.0.0
+-->
+
+* {integer} The largest length allowed for a single `string` instance.
+
+An alias for [`buffer.constants.MAX_STRING_LENGTH`][].
 
 ### `buffer.transcode(source, fromEnc, toEnc)`
 <!-- YAML
@@ -3574,13 +3587,13 @@ introducing security vulnerabilities into an application.
 [`ERR_OUT_OF_RANGE`]: errors.md#ERR_OUT_OF_RANGE
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
-[`String#indexOf()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/indexOf
-[`String#lastIndexOf()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/lastIndexOf
+[`String.prototype.indexOf()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/indexOf
+[`String.prototype.lastIndexOf()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/lastIndexOf
 [`String.prototype.length`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/length
-[`TypedArray#set()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray/set
-[`TypedArray#slice()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray/slice
-[`TypedArray#subarray()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray/subarray
 [`TypedArray.from()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray/from
+[`TypedArray.prototype.set()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray/set
+[`TypedArray.prototype.slice()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray/slice
+[`TypedArray.prototype.subarray()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray/subarray
 [`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
 [`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
 [`buf.buffer`]: #buffer_buf_buffer

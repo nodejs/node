@@ -16,6 +16,7 @@ const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
 process.throwDeprecation = true;
+process.on('warning', common.mustNotCall());
 
 const defaultHistoryPath = path.join(tmpdir.path, '.node_repl_history');
 
@@ -552,6 +553,42 @@ const tests = [
       yield ENTER;
     })(),
     expected: [],
+    clean: false
+  },
+  {
+    env: { NODE_REPL_HISTORY: defaultHistoryPath },
+    test: ['const util = {}', ENTER,
+           'ut', RIGHT, ENTER],
+    expected: [
+      prompt, ...'const util = {}',
+      'undefined\n',
+      prompt, ...'ut', ...(prev ? [' // il', '\n// {}',
+                                   'il', '\n// {}'] : [' // il', 'il']),
+      '{}\n',
+      prompt,
+    ],
+    clean: false
+  },
+  {
+    env: { NODE_REPL_HISTORY: defaultHistoryPath },
+    test: [
+      'const utilDesc = Reflect.getOwnPropertyDescriptor(globalThis, "util")',
+      ENTER,
+      'globalThis.util = {}', ENTER,
+      'ut', RIGHT, ENTER,
+      'Reflect.defineProperty(globalThis, "util", utilDesc)', ENTER],
+    expected: [
+      prompt, ...'const utilDesc = ' +
+      'Reflect.getOwnPropertyDescriptor(globalThis, "util")',
+      'undefined\n',
+      prompt, ...'globalThis.util = {}',
+      '{}\n',
+      prompt, ...'ut', ' // il', 'il',
+      '{}\n',
+      prompt, ...'Reflect.defineProperty(globalThis, "util", utilDesc)',
+      'true\n',
+      prompt,
+    ],
     clean: false
   },
 ];

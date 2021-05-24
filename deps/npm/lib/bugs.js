@@ -17,6 +17,11 @@ class Bugs extends BaseCommand {
     return ['[<pkgname>]']
   }
 
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return ['browser', 'registry']
+  }
+
   exec (args, cb) {
     this.bugs(args).then(() => cb()).catch(cb)
   }

@@ -12,6 +12,7 @@
 
 const util = require("util"),
     path = require("path"),
+    fs = require("fs"),
     enquirer = require("enquirer"),
     ProgressBar = require("progress"),
     semver = require("semver"),
@@ -48,6 +49,16 @@ function writeFile(config, format) {
         extname = ".yml";
     } else if (format === "JSON") {
         extname = ".json";
+    } else if (format === "JavaScript") {
+        const pkgJSONPath = npmUtils.findPackageJson();
+
+        if (pkgJSONPath) {
+            const pkgJSONContents = JSON.parse(fs.readFileSync(pkgJSONPath, "utf8"));
+
+            if (pkgJSONContents.type === "module") {
+                extname = ".cjs";
+            }
+        }
     }
 
     const installedESLint = config.installedESLint;
@@ -531,7 +542,8 @@ function promptUser() {
             choices: [
                 { message: "Airbnb: https://github.com/airbnb/javascript", name: "airbnb" },
                 { message: "Standard: https://github.com/standard/standard", name: "standard" },
-                { message: "Google: https://github.com/google/eslint-config-google", name: "google" }
+                { message: "Google: https://github.com/google/eslint-config-google", name: "google" },
+                { message: "XO: https://github.com/xojs/eslint-config-xo", name: "xo" }
             ],
             skip() {
                 this.state.answers.packageJsonExists = npmUtils.checkPackageJson();
@@ -683,6 +695,7 @@ const init = {
     hasESLintVersionConflict,
     installModules,
     processAnswers,
+    writeFile,
     /* istanbul ignore next */initializeConfig() {
         return promptUser();
     }

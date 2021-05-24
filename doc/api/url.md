@@ -9,7 +9,11 @@
 The `url` module provides utilities for URL resolution and parsing. It can be
 accessed using:
 
-```js
+```mjs
+import url from 'url';
+```
+
+```cjs
 const url = require('url');
 ```
 
@@ -61,7 +65,13 @@ const myURL =
 
 Parsing the URL string using the Legacy API:
 
-```js
+```mjs
+import url from 'url';
+const myURL =
+  url.parse('https://user:pass@sub.example.com:8080/p/a/t/h?query=string#hash');
+```
+
+```cjs
 const url = require('url');
 const myURL =
   url.parse('https://user:pass@sub.example.com:8080/p/a/t/h?query=string#hash');
@@ -135,7 +145,12 @@ const myURL = new URL('/foo', 'https://example.org/');
 The URL constructor is accessible as a property on the global object.
 It can also be imported from the built-in url module:
 
-```js
+```mjs
+import { URL } from 'url';
+console.log(URL === globalThis.URL); // Prints 'true'.
+```
+
+```cjs
 console.log(URL === require('url').URL); // Prints 'true'.
 ```
 
@@ -573,10 +588,6 @@ and [`url.format()`][] methods would produce.
 The `toString()` method on the `URL` object returns the serialized URL. The
 value returned is equivalent to that of [`url.href`][] and [`url.toJSON()`][].
 
-Because of the need for standard compliance, this method does not allow users
-to customize the serialization process of the URL. For more flexibility,
-[`require('url').format()`][] method might be of interest.
-
 #### `url.toJSON()`
 
 * Returns: {string}
@@ -931,8 +942,20 @@ invalid domain, the empty string is returned.
 
 It performs the inverse operation to [`url.domainToUnicode()`][].
 
-```js
+```mjs
+import url from 'url';
+
+console.log(url.domainToASCII('español.com'));
+// Prints xn--espaol-zwa.com
+console.log(url.domainToASCII('中文.com'));
+// Prints xn--fiq228c.com
+console.log(url.domainToASCII('xn--iñvalid.com'));
+// Prints an empty string
+```
+
+```cjs
 const url = require('url');
+
 console.log(url.domainToASCII('español.com'));
 // Prints xn--espaol-zwa.com
 console.log(url.domainToASCII('中文.com'));
@@ -956,8 +979,20 @@ domain, the empty string is returned.
 
 It performs the inverse operation to [`url.domainToASCII()`][].
 
-```js
+```mjs
+import url from 'url';
+
+console.log(url.domainToUnicode('xn--espaol-zwa.com'));
+// Prints español.com
+console.log(url.domainToUnicode('xn--fiq228c.com'));
+// Prints 中文.com
+console.log(url.domainToUnicode('xn--iñvalid.com'));
+// Prints an empty string
+```
+
+```cjs
 const url = require('url');
+
 console.log(url.domainToUnicode('xn--espaol-zwa.com'));
 // Prints español.com
 console.log(url.domainToUnicode('xn--fiq228c.com'));
@@ -977,18 +1012,37 @@ added: v10.12.0
 This function ensures the correct decodings of percent-encoded characters as
 well as ensuring a cross-platform valid absolute path string.
 
-```js
-new URL('file:///C:/path/').pathname;    // Incorrect: /C:/path/
-fileURLToPath('file:///C:/path/');       // Correct:   C:\path\ (Windows)
+```mjs
+import { fileURLToPath } from 'url';
 
-new URL('file://nas/foo.txt').pathname;  // Incorrect: /foo.txt
-fileURLToPath('file://nas/foo.txt');     // Correct:   \\nas\foo.txt (Windows)
+const __filename = fileURLToPath(import.meta.url);
 
-new URL('file:///你好.txt').pathname;    // Incorrect: /%E4%BD%A0%E5%A5%BD.txt
-fileURLToPath('file:///你好.txt');       // Correct:   /你好.txt (POSIX)
+new URL('file:///C:/path/').pathname;      // Incorrect: /C:/path/
+fileURLToPath('file:///C:/path/');         // Correct:   C:\path\ (Windows)
 
-new URL('file:///hello world').pathname; // Incorrect: /hello%20world
-fileURLToPath('file:///hello world');    // Correct:   /hello world (POSIX)
+new URL('file://nas/foo.txt').pathname;    // Incorrect: /foo.txt
+fileURLToPath('file://nas/foo.txt');       // Correct:   \\nas\foo.txt (Windows)
+
+new URL('file:///你好.txt').pathname;      // Incorrect: /%E4%BD%A0%E5%A5%BD.txt
+fileURLToPath('file:///你好.txt');         // Correct:   /你好.txt (POSIX)
+
+new URL('file:///hello world').pathname;   // Incorrect: /hello%20world
+fileURLToPath('file:///hello world');      // Correct:   /hello world (POSIX)
+```
+
+```cjs
+const { fileURLToPath } = require('url');
+new URL('file:///C:/path/').pathname;      // Incorrect: /C:/path/
+fileURLToPath('file:///C:/path/');         // Correct:   C:\path\ (Windows)
+
+new URL('file://nas/foo.txt').pathname;    // Incorrect: /foo.txt
+fileURLToPath('file://nas/foo.txt');       // Correct:   \\nas\foo.txt (Windows)
+
+new URL('file:///你好.txt').pathname;      // Incorrect: /%E4%BD%A0%E5%A5%BD.txt
+fileURLToPath('file:///你好.txt');         // Correct:   /你好.txt (POSIX)
+
+new URL('file:///hello world').pathname;   // Incorrect: /hello%20world
+fileURLToPath('file:///hello world');      // Correct:   /hello world (POSIX)
 ```
 
 ### `url.format(URL[, options])`
@@ -1017,7 +1071,22 @@ string serializations of the URL. These are not, however, customizable in
 any way. The `url.format(URL[, options])` method allows for basic customization
 of the output.
 
-```js
+```mjs
+import url from 'url';
+const myURL = new URL('https://a:b@測試?abc#foo');
+
+console.log(myURL.href);
+// Prints https://a:b@xn--g6w251d/?abc#foo
+
+console.log(myURL.toString());
+// Prints https://a:b@xn--g6w251d/?abc#foo
+
+console.log(url.format(myURL, { fragment: false, unicode: true, auth: false }));
+// Prints 'https://測試/?abc'
+```
+
+```cjs
+const url = require('url');
 const myURL = new URL('https://a:b@測試?abc#foo');
 
 console.log(myURL.href);
@@ -1041,17 +1110,28 @@ added: v10.12.0
 This function ensures that `path` is resolved absolutely, and that the URL
 control characters are correctly encoded when converting into a File URL.
 
-```js
-new URL(__filename);                // Incorrect: throws (POSIX)
-new URL(__filename);                // Incorrect: C:\... (Windows)
-pathToFileURL(__filename);          // Correct:   file:///... (POSIX)
-pathToFileURL(__filename);          // Correct:   file:///C:/... (Windows)
+```mjs
+import { pathToFileURL } from 'url';
 
-new URL('/foo#1', 'file:');         // Incorrect: file:///foo#1
-pathToFileURL('/foo#1');            // Correct:   file:///foo%231 (POSIX)
+new URL('/foo#1', 'file:');           // Incorrect: file:///foo#1
+pathToFileURL('/foo#1');              // Correct:   file:///foo%231 (POSIX)
 
-new URL('/some/path%.c', 'file:'); // Incorrect: file:///some/path%.c
-pathToFileURL('/some/path%.c');    // Correct:   file:///some/path%25.c (POSIX)
+new URL('/some/path%.c', 'file:');    // Incorrect: file:///some/path%.c
+pathToFileURL('/some/path%.c');       // Correct:   file:///some/path%25.c (POSIX)
+```
+
+```cjs
+const { pathToFileURL } = require('url');
+new URL(__filename);                  // Incorrect: throws (POSIX)
+new URL(__filename);                  // Incorrect: C:\... (Windows)
+pathToFileURL(__filename);            // Correct:   file:///... (POSIX)
+pathToFileURL(__filename);            // Correct:   file:///C:/... (Windows)
+
+new URL('/foo#1', 'file:');           // Incorrect: file:///foo#1
+pathToFileURL('/foo#1');              // Correct:   file:///foo%231 (POSIX)
+
+new URL('/some/path%.c', 'file:');    // Incorrect: file:///some/path%.c
+pathToFileURL('/some/path%.c');       // Correct:   file:///some/path%25.c (POSIX)
 ```
 
 ### `url.urlToHttpOptions(url)`
@@ -1079,7 +1159,26 @@ added: v15.7.0
 This utility function converts a URL object into an ordinary options object as
 expected by the [`http.request()`][] and [`https.request()`][] APIs.
 
-```js
+```mjs
+import { urlToHttpOptions } from 'url';
+const myURL = new URL('https://a:b@測試?abc#foo');
+
+console.log(urlToHttpOptions(myUrl));
+/**
+{
+  protocol: 'https:',
+  hostname: 'xn--g6w251d',
+  hash: '#foo',
+  search: '?abc',
+  pathname: '/',
+  path: '/?abc',
+  href: 'https://a:b@xn--g6w251d/?abc#foo',
+  auth: 'a:b'
+}
+*/
+```
+
+```cjs
 const { urlToHttpOptions } = require('url');
 const myURL = new URL('https://a:b@測試?abc#foo');
 
@@ -1101,7 +1200,9 @@ console.log(urlToHttpOptions(myUrl));
 ## Legacy URL API
 <!-- YAML
 changes:
-  - version: v15.13.0
+  - version:
+      - v15.13.0
+      - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/37784
     description: Deprecation revoked. Status changed to "Legacy".
   - version: v11.0.0
@@ -1114,7 +1215,9 @@ changes:
 ### Legacy `urlObject`
 <!-- YAML
 changes:
-  - version: v15.13.0
+  - version:
+      - v15.13.0
+      - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/37784
     description: Deprecation revoked. Status changed to "Legacy".
   - version: v11.0.0
@@ -1124,8 +1227,8 @@ changes:
 
 > Stability: 3 - Legacy: Use the WHATWG URL API instead.
 
-The legacy `urlObject` (`require('url').Url`) is created and returned by the
-`url.parse()` function.
+The legacy `urlObject` (`require('url').Url` or `import { Url } from 'url'`) is
+created and returned by the `url.parse()` function.
 
 #### `urlObject.auth`
 
@@ -1228,7 +1331,14 @@ forward-slash characters (`/`) are required following the colon in the
 <!-- YAML
 added: v0.1.25
 changes:
-  - version: v15.13.0
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/38631
+    description: Now throws an `ERR_INVALID_URL` exception when Punycode
+                 conversion of a hostname introduces changes that could cause
+                 the URL to be re-parsed differently.
+  - version:
+      - v15.13.0
+      - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/37784
     description: Deprecation revoked. Status changed to "Legacy".
   - version: v11.0.0
@@ -1252,6 +1362,7 @@ The `url.format()` method returns a formatted URL string derived from
 `urlObject`.
 
 ```js
+const url = require('url');
 url.format({
   protocol: 'https',
   hostname: 'example.com',
@@ -1324,7 +1435,9 @@ The formatting process operates as follows:
 <!-- YAML
 added: v0.1.25
 changes:
-  - version: v15.13.0
+  - version:
+      - v15.13.0
+      - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/37784
     description: Deprecation revoked. Status changed to "Legacy".
   - version: v11.14.0
@@ -1371,7 +1484,9 @@ incorrect handling of usernames and passwords have been identified.
 <!-- YAML
 added: v0.1.25
 changes:
-  - version: v15.13.0
+  - version:
+      - v15.13.0
+      - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/37784
     description: Deprecation revoked. Status changed to "Legacy".
   - version: v11.0.0
@@ -1499,7 +1614,6 @@ console.log(myURL.origin);
 [`https.request()`]: https.md#https_https_request_options_callback
 [`new URL()`]: #url_new_url_input_base
 [`querystring`]: querystring.md
-[`require('url').format()`]: #url_url_format_url_options
 [`url.domainToASCII()`]: #url_url_domaintoascii_domain
 [`url.domainToUnicode()`]: #url_url_domaintounicode_domain
 [`url.format()`]: #url_url_format_urlobject

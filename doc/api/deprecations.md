@@ -831,12 +831,15 @@ The [`require.extensions`][] property is deprecated.
 ### DEP0040: `punycode` module
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/38444
+    description: Added support for `--pending-deprecation`.
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7941
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Documentation-only (supports [`--pending-deprecation`][])
 
 The [`punycode`][] module is deprecated. Please use a userland alternative
 instead.
@@ -2052,7 +2055,7 @@ expose values under these names.
 ### DEP0109: `http`, `https`, and `tls` support for invalid URLs
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/36853
     description: End-of-Life.
   - version: v11.0.0
@@ -2173,7 +2176,9 @@ future release.
 ### DEP0116: Legacy URL API
 <!-- YAML
 changes:
-  - version: v15.13.0
+  - version:
+      - v15.13.0
+      - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/37784
     description: Deprecation revoked. Status changed to "Legacy".
   - version: v11.0.0
@@ -2354,7 +2359,7 @@ with no performance impact since Node.js 10.
 ### DEP0128: modules with an invalid `main` entry and an `index.js` file
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37204
     description: Runtime deprecation.
   - version: v12.0.0
@@ -2389,7 +2394,7 @@ instead.
 ### DEP0130: `Module.createRequireFromPath()`
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37201
     description: End-of-life.
   - version: v13.0.0
@@ -2678,7 +2683,7 @@ The [`crypto.Certificate()` constructor][] is deprecated. Use
 ### DEP0147: `fs.rmdir(path, { recursive: true })`
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37302
     description: Runtime deprecation.
   - version: v15.0.0
@@ -2701,7 +2706,7 @@ Use `fs.rm(path, { recursive: true, force: true })`,
 ### DEP0148: Folder mappings in `"exports"` (trailing `"/"`)
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37215
     description: Runtime deprecation.
   - version: v15.1.0
@@ -2721,7 +2726,7 @@ Using a trailing `"/"` to define
 ### DEP0149: `http.IncomingMessage#connection`
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/33768
     description: Documentation-only deprecation.
  -->
@@ -2733,7 +2738,7 @@ Prefer [`message.socket`][] over [`message.connection`][].
 ### DEP0150: Changing the value of `process.config`
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/36902
     description: Runtime deprecation.
 -->
@@ -2748,7 +2753,7 @@ change the value has been deprecated and will be disabled in the future.
 ### DEP0151: Main index lookup and extension searching
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37206
     description: Runtime deprecation.
   - version: v15.8.0
@@ -2768,7 +2773,7 @@ an explicit [`"exports"` or `"main"` entry][] with the exact file extension.
 ### DEP0152: Extension PerformanceEntry properties
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37136
     description: Runtime deprecation.
 -->

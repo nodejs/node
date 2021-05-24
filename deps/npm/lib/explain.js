@@ -5,9 +5,9 @@ const npa = require('npm-package-arg')
 const semver = require('semver')
 const { relative, resolve } = require('path')
 const validName = require('validate-npm-package-name')
-const BaseCommand = require('./base-command.js')
+const ArboristWorkspaceCmd = require('./workspaces/arborist-cmd.js')
 
-class Explain extends BaseCommand {
+class Explain extends ArboristWorkspaceCmd {
   static get description () {
     return 'Explain installed packages'
   }
@@ -20,6 +20,14 @@ class Explain extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get usage () {
     return ['<folder | specifier>']
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return [
+      'json',
+      'workspace',
+    ]
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
@@ -38,10 +46,18 @@ class Explain extends BaseCommand {
     const arb = new Arborist({ path: this.npm.prefix, ...this.npm.flatOptions })
     const tree = await arb.loadActual()
 
+    if (this.workspaces && this.workspaces.length)
+      this.filterSet = arb.workspaceDependencySet(tree, this.workspaces)
+
     const nodes = new Set()
     for (const arg of args) {
-      for (const node of this.getNodes(tree, arg))
-        nodes.add(node)
+      for (const node of this.getNodes(tree, arg)) {
+        const filteredOut = this.filterSet
+          && this.filterSet.size > 0
+          && !this.filterSet.has(node)
+        if (!filteredOut)
+          nodes.add(node)
+      }
     }
     if (nodes.size === 0)
       throw `No dependencies found matching ${args.join(', ')}`
@@ -75,7 +91,7 @@ class Explain extends BaseCommand {
     // if it's just a name, return packages by that name
     const { validForOldPackages: valid } = validName(arg)
     if (valid)
-      return tree.inventory.query('name', arg)
+      return tree.inventory.query('packageName', arg)
 
     // if it's a location, get that node
     const maybeLoc = arg.replace(/\\/g, '/').replace(/\/+$/, '')

@@ -141,11 +141,11 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#registry">registry</a></li><li><a href="#scope">scope</a></li><li><a href="#always-auth">always-auth</a></li><li><a href="#auth-type">auth-type</a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#registry"><code>registry</code></a></li><li><a href="#scope"><code>scope</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm adduser [--registry=url] [--scope=@orgname] [--always-auth] [--auth-type=legacy]
+<pre lang="bash"><code>npm adduser [--registry=url] [--scope=@orgname] [--auth-type=legacy]
 
 aliases: login, add-user
 </code></pre>
@@ -163,39 +163,36 @@ the username, password and email address must all match with
 your existing record.</p>
 <p><code>npm login</code> is an alias to <code>adduser</code> and behaves exactly the same way.</p>
 <h3 id="configuration">Configuration</h3>
-<h4 id="registry">registry</h4>
-<p>Default: <a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a></p>
-<p>The base URL of the npm package registry. If <code>scope</code> is also specified,
-this registry will only be used for packages with that scope. <code>scope</code> defaults
-to the scope of the project directory you’re currently in, if any. See <a href="../using-npm/scope.html"><code>scope</code></a>.</p>
-<h4 id="scope">scope</h4>
-<p>Default: none</p>
-<p>If specified, the user and login credentials given will be associated
-with the specified scope. See <a href="../using-npm/scope.html"><code>scope</code></a>. You can use both at the same time,
-e.g.</p>
-<pre lang="bash"><code>npm adduser --registry=http://myregistry.example.com --scope=@myco
-</code></pre>
-<p>This will set a registry for the given scope and login or create a user for
-that registry at the same time.</p>
-<h4 id="always-auth">always-auth</h4>
-<p>Default: false</p>
-<p>If specified, save configuration indicating that all requests to the given
-registry should include authorization information. Useful for private
-registries. Can be used with <code>--registry</code> and / or <code>--scope</code>, e.g.</p>
-<pre lang="bash"><code>npm adduser --registry=http://private-registry.example.com --always-auth
-</code></pre>
-<p>This will ensure that all requests to that registry (including for tarballs)
-include an authorization header. This setting may be necessary for use with
-private registries where metadata and package tarballs are stored on hosts with
-different hostnames. See <code>always-auth</code> in <a href="../using-npm/config.html"><code>config</code></a> for more details on always-auth. Registry-specific configuration of <code>always-auth</code> takes precedence over any global configuration.</p>
-<h4 id="auth-type">auth-type</h4>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="registry"><code>registry</code></h4>
 <ul>
-<li>Default: <code>'legacy'</code></li>
-<li>Type: <code>'legacy'</code>, <code>'sso'</code>, <code>'saml'</code>, <code>'oauth'</code></li>
+<li>Default: “<a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a>”</li>
+<li>Type: URL</li>
 </ul>
-<p>What authentication strategy to use with <code>adduser</code>/<code>login</code>. Some npm registries
-(for example, npmE) might support alternative auth strategies besides classic
-username/password entry in legacy npm.</p>
+<p>The base URL of the npm registry.</p>
+<h4 id="scope"><code>scope</code></h4>
+<ul>
+<li>Default: the scope of the current project, if any, or “”</li>
+<li>Type: String</li>
+</ul>
+<p>Associate an operation with a scope for a scoped registry.</p>
+<p>Useful when logging in to or out of a private registry:</p>
+<pre><code># log in, linking the scope to the custom registry
+npm login --scope=@mycorp --registry=https://registry.mycorp.com
+
+# log out, removing the link and the auth token
+npm logout --scope=@mycorp
+</code></pre>
+<p>This will cause <code>@mycorp</code> to be mapped to the registry for future
+installation of packages specified according to the pattern
+<code>@mycorp/package</code>.</p>
+<p>This will also cause <code>npm init</code> to create a scoped package.</p>
+<pre><code># accept all defaults, and create a package named "@foo/whatever",
+# instead of just named "whatever"
+npm init --scope=@foo --yes
+</code></pre>
+<!-- raw HTML omitted -->
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../using-npm/registry.html">npm registry</a></li>
@@ -203,6 +200,8 @@ username/password entry in legacy npm.</p>
 <li><a href="../configuring-npm/npmrc.html">npmrc</a></li>
 <li><a href="../commands/npm-owner.html">npm owner</a></li>
 <li><a href="../commands/npm-whoami.html">npm whoami</a></li>
+<li><a href="../commands/npm-token.html">npm token</a></li>
+<li><a href="../commands/npm-profile.html">npm profile</a></li>
 </ul>
 </div>
 

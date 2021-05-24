@@ -141,7 +141,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><ul><li><a href="#command-line-flags">Command Line Flags</a></li><li><a href="#environment-variables">Environment Variables</a></li><li><a href="#npmrc-files">npmrc Files</a></li><li><a href="#default-configs">Default Configs</a></li></ul><li><a href="#shorthands-and-other-cli-niceties">Shorthands and Other CLI Niceties</a></li><li><a href="#config-settings">Config Settings</a></li><ul><li><a href="#auth"><code>_auth</code></a></li><li><a href="#access"><code>access</code></a></li><li><a href="#all"><code>all</code></a></li><li><a href="#allow-same-version"><code>allow-same-version</code></a></li><li><a href="#always-auth"><code>always-auth</code></a></li><li><a href="#audit"><code>audit</code></a></li><li><a href="#audit-level"><code>audit-level</code></a></li><li><a href="#before"><code>before</code></a></li><li><a href="#bin-links"><code>bin-links</code></a></li><li><a href="#browser"><code>browser</code></a></li><li><a href="#ca"><code>ca</code></a></li><li><a href="#cache"><code>cache</code></a></li><li><a href="#cafile"><code>cafile</code></a></li><li><a href="#call"><code>call</code></a></li><li><a href="#cert"><code>cert</code></a></li><li><a href="#ci-name"><code>ci-name</code></a></li><li><a href="#cidr"><code>cidr</code></a></li><li><a href="#color"><code>color</code></a></li><li><a href="#commit-hooks"><code>commit-hooks</code></a></li><li><a href="#depth"><code>depth</code></a></li><li><a href="#description2"><code>description</code></a></li><li><a href="#diff"><code>diff</code></a></li><li><a href="#diff-dst-prefix"><code>diff-dst-prefix</code></a></li><li><a href="#diff-ignore-all-space"><code>diff-ignore-all-space</code></a></li><li><a href="#diff-name-only"><code>diff-name-only</code></a></li><li><a href="#diff-no-prefix"><code>diff-no-prefix</code></a></li><li><a href="#diff-src-prefix"><code>diff-src-prefix</code></a></li><li><a href="#diff-text"><code>diff-text</code></a></li><li><a href="#diff-unified"><code>diff-unified</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#editor"><code>editor</code></a></li><li><a href="#engine-strict"><code>engine-strict</code></a></li><li><a href="#fetch-retries"><code>fetch-retries</code></a></li><li><a href="#fetch-retry-factor"><code>fetch-retry-factor</code></a></li><li><a href="#fetch-retry-maxtimeout"><code>fetch-retry-maxtimeout</code></a></li><li><a href="#fetch-retry-mintimeout"><code>fetch-retry-mintimeout</code></a></li><li><a href="#fetch-timeout"><code>fetch-timeout</code></a></li><li><a href="#force"><code>force</code></a></li><li><a href="#foreground-scripts"><code>foreground-scripts</code></a></li><li><a href="#format-package-lock"><code>format-package-lock</code></a></li><li><a href="#fund"><code>fund</code></a></li><li><a href="#git"><code>git</code></a></li><li><a href="#git-tag-version"><code>git-tag-version</code></a></li><li><a href="#global"><code>global</code></a></li><li><a href="#global-style"><code>global-style</code></a></li><li><a href="#globalconfig"><code>globalconfig</code></a></li><li><a href="#heading"><code>heading</code></a></li><li><a href="#https-proxy"><code>https-proxy</code></a></li><li><a href="#if-present"><code>if-present</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#include"><code>include</code></a></li><li><a href="#include-staged"><code>include-staged</code></a></li><li><a href="#init-author-email"><code>init-author-email</code></a></li><li><a href="#init-author-name"><code>init-author-name</code></a></li><li><a href="#init-author-url"><code>init-author-url</code></a></li><li><a href="#init-license"><code>init-license</code></a></li><li><a href="#init-module"><code>init-module</code></a></li><li><a href="#init-version"><code>init-version</code></a></li><li><a href="#json"><code>json</code></a></li><li><a href="#key"><code>key</code></a></li><li><a href="#legacy-bundling"><code>legacy-bundling</code></a></li><li><a href="#legacy-peer-deps"><code>legacy-peer-deps</code></a></li><li><a href="#link"><code>link</code></a></li><li><a href="#local-address"><code>local-address</code></a></li><li><a href="#loglevel"><code>loglevel</code></a></li><li><a href="#logs-max"><code>logs-max</code></a></li><li><a href="#long"><code>long</code></a></li><li><a href="#maxsockets"><code>maxsockets</code></a></li><li><a href="#message"><code>message</code></a></li><li><a href="#node-options"><code>node-options</code></a></li><li><a href="#node-version"><code>node-version</code></a></li><li><a href="#noproxy"><code>noproxy</code></a></li><li><a href="#npm-version"><code>npm-version</code></a></li><li><a href="#offline"><code>offline</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#otp"><code>otp</code></a></li><li><a href="#package"><code>package</code></a></li><li><a href="#package-lock"><code>package-lock</code></a></li><li><a href="#package-lock-only"><code>package-lock-only</code></a></li><li><a href="#parseable"><code>parseable</code></a></li><li><a href="#prefer-offline"><code>prefer-offline</code></a></li><li><a href="#prefer-online"><code>prefer-online</code></a></li><li><a href="#prefix"><code>prefix</code></a></li><li><a href="#preid"><code>preid</code></a></li><li><a href="#progress"><code>progress</code></a></li><li><a href="#proxy"><code>proxy</code></a></li><li><a href="#read-only"><code>read-only</code></a></li><li><a href="#rebuild-bundle"><code>rebuild-bundle</code></a></li><li><a href="#registry"><code>registry</code></a></li><li><a href="#save"><code>save</code></a></li><li><a href="#save-bundle"><code>save-bundle</code></a></li><li><a href="#save-dev"><code>save-dev</code></a></li><li><a href="#save-exact"><code>save-exact</code></a></li><li><a href="#save-optional"><code>save-optional</code></a></li><li><a href="#save-peer"><code>save-peer</code></a></li><li><a href="#save-prefix"><code>save-prefix</code></a></li><li><a href="#save-prod"><code>save-prod</code></a></li><li><a href="#scope"><code>scope</code></a></li><li><a href="#script-shell"><code>script-shell</code></a></li><li><a href="#searchexclude"><code>searchexclude</code></a></li><li><a href="#searchlimit"><code>searchlimit</code></a></li><li><a href="#searchopts"><code>searchopts</code></a></li><li><a href="#searchstaleness"><code>searchstaleness</code></a></li><li><a href="#shell"><code>shell</code></a></li><li><a href="#sign-git-commit"><code>sign-git-commit</code></a></li><li><a href="#sign-git-tag"><code>sign-git-tag</code></a></li><li><a href="#strict-peer-deps"><code>strict-peer-deps</code></a></li><li><a href="#strict-ssl"><code>strict-ssl</code></a></li><li><a href="#tag"><code>tag</code></a></li><li><a href="#tag-version-prefix"><code>tag-version-prefix</code></a></li><li><a href="#timing"><code>timing</code></a></li><li><a href="#umask"><code>umask</code></a></li><li><a href="#unicode"><code>unicode</code></a></li><li><a href="#update-notifier"><code>update-notifier</code></a></li><li><a href="#usage"><code>usage</code></a></li><li><a href="#user-agent"><code>user-agent</code></a></li><li><a href="#userconfig"><code>userconfig</code></a></li><li><a href="#version"><code>version</code></a></li><li><a href="#versions"><code>versions</code></a></li><li><a href="#viewer"><code>viewer</code></a></li><li><a href="#which"><code>which</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#yes"><code>yes</code></a></li><li><a href="#also"><code>also</code></a></li><li><a href="#auth-type"><code>auth-type</code></a></li><li><a href="#cache-max"><code>cache-max</code></a></li><li><a href="#cache-min"><code>cache-min</code></a></li><li><a href="#dev"><code>dev</code></a></li><li><a href="#initauthoremail"><code>init.author.email</code></a></li><li><a href="#initauthorname"><code>init.author.name</code></a></li><li><a href="#initauthorurl"><code>init.author.url</code></a></li><li><a href="#initlicense"><code>init.license</code></a></li><li><a href="#initmodule"><code>init.module</code></a></li><li><a href="#initversion"><code>init.version</code></a></li><li><a href="#only"><code>only</code></a></li><li><a href="#optional"><code>optional</code></a></li><li><a href="#production"><code>production</code></a></li><li><a href="#shrinkwrap"><code>shrinkwrap</code></a></li><li><a href="#sso-poll-frequency"><code>sso-poll-frequency</code></a></li><li><a href="#sso-type"><code>sso-type</code></a></li><li><a href="#tmp"><code>tmp</code></a></li></ul><li><a href="#see-also">See also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><ul><li><a href="#command-line-flags">Command Line Flags</a></li><li><a href="#environment-variables">Environment Variables</a></li><li><a href="#npmrc-files">npmrc Files</a></li><li><a href="#default-configs">Default Configs</a></li></ul><li><a href="#shorthands-and-other-cli-niceties">Shorthands and Other CLI Niceties</a></li><li><a href="#config-settings">Config Settings</a></li><ul><li><a href="#auth"><code>_auth</code></a></li><li><a href="#access"><code>access</code></a></li><li><a href="#all"><code>all</code></a></li><li><a href="#allow-same-version"><code>allow-same-version</code></a></li><li><a href="#audit"><code>audit</code></a></li><li><a href="#audit-level"><code>audit-level</code></a></li><li><a href="#before"><code>before</code></a></li><li><a href="#bin-links"><code>bin-links</code></a></li><li><a href="#browser"><code>browser</code></a></li><li><a href="#ca"><code>ca</code></a></li><li><a href="#cache"><code>cache</code></a></li><li><a href="#cafile"><code>cafile</code></a></li><li><a href="#call"><code>call</code></a></li><li><a href="#cert"><code>cert</code></a></li><li><a href="#ci-name"><code>ci-name</code></a></li><li><a href="#cidr"><code>cidr</code></a></li><li><a href="#color"><code>color</code></a></li><li><a href="#commit-hooks"><code>commit-hooks</code></a></li><li><a href="#depth"><code>depth</code></a></li><li><a href="#description2"><code>description</code></a></li><li><a href="#diff"><code>diff</code></a></li><li><a href="#diff-dst-prefix"><code>diff-dst-prefix</code></a></li><li><a href="#diff-ignore-all-space"><code>diff-ignore-all-space</code></a></li><li><a href="#diff-name-only"><code>diff-name-only</code></a></li><li><a href="#diff-no-prefix"><code>diff-no-prefix</code></a></li><li><a href="#diff-src-prefix"><code>diff-src-prefix</code></a></li><li><a href="#diff-text"><code>diff-text</code></a></li><li><a href="#diff-unified"><code>diff-unified</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#editor"><code>editor</code></a></li><li><a href="#engine-strict"><code>engine-strict</code></a></li><li><a href="#fetch-retries"><code>fetch-retries</code></a></li><li><a href="#fetch-retry-factor"><code>fetch-retry-factor</code></a></li><li><a href="#fetch-retry-maxtimeout"><code>fetch-retry-maxtimeout</code></a></li><li><a href="#fetch-retry-mintimeout"><code>fetch-retry-mintimeout</code></a></li><li><a href="#fetch-timeout"><code>fetch-timeout</code></a></li><li><a href="#force"><code>force</code></a></li><li><a href="#foreground-scripts"><code>foreground-scripts</code></a></li><li><a href="#format-package-lock"><code>format-package-lock</code></a></li><li><a href="#fund"><code>fund</code></a></li><li><a href="#git"><code>git</code></a></li><li><a href="#git-tag-version"><code>git-tag-version</code></a></li><li><a href="#global"><code>global</code></a></li><li><a href="#global-style"><code>global-style</code></a></li><li><a href="#globalconfig"><code>globalconfig</code></a></li><li><a href="#heading"><code>heading</code></a></li><li><a href="#https-proxy"><code>https-proxy</code></a></li><li><a href="#if-present"><code>if-present</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#include"><code>include</code></a></li><li><a href="#include-staged"><code>include-staged</code></a></li><li><a href="#init-author-email"><code>init-author-email</code></a></li><li><a href="#init-author-name"><code>init-author-name</code></a></li><li><a href="#init-author-url"><code>init-author-url</code></a></li><li><a href="#init-license"><code>init-license</code></a></li><li><a href="#init-module"><code>init-module</code></a></li><li><a href="#init-version"><code>init-version</code></a></li><li><a href="#json"><code>json</code></a></li><li><a href="#key"><code>key</code></a></li><li><a href="#legacy-bundling"><code>legacy-bundling</code></a></li><li><a href="#legacy-peer-deps"><code>legacy-peer-deps</code></a></li><li><a href="#link"><code>link</code></a></li><li><a href="#local-address"><code>local-address</code></a></li><li><a href="#loglevel"><code>loglevel</code></a></li><li><a href="#logs-max"><code>logs-max</code></a></li><li><a href="#long"><code>long</code></a></li><li><a href="#maxsockets"><code>maxsockets</code></a></li><li><a href="#message"><code>message</code></a></li><li><a href="#node-options"><code>node-options</code></a></li><li><a href="#node-version"><code>node-version</code></a></li><li><a href="#noproxy"><code>noproxy</code></a></li><li><a href="#npm-version"><code>npm-version</code></a></li><li><a href="#offline"><code>offline</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#otp"><code>otp</code></a></li><li><a href="#package"><code>package</code></a></li><li><a href="#package-lock"><code>package-lock</code></a></li><li><a href="#package-lock-only"><code>package-lock-only</code></a></li><li><a href="#parseable"><code>parseable</code></a></li><li><a href="#prefer-offline"><code>prefer-offline</code></a></li><li><a href="#prefer-online"><code>prefer-online</code></a></li><li><a href="#prefix"><code>prefix</code></a></li><li><a href="#preid"><code>preid</code></a></li><li><a href="#progress"><code>progress</code></a></li><li><a href="#proxy"><code>proxy</code></a></li><li><a href="#read-only"><code>read-only</code></a></li><li><a href="#rebuild-bundle"><code>rebuild-bundle</code></a></li><li><a href="#registry"><code>registry</code></a></li><li><a href="#save"><code>save</code></a></li><li><a href="#save-bundle"><code>save-bundle</code></a></li><li><a href="#save-dev"><code>save-dev</code></a></li><li><a href="#save-exact"><code>save-exact</code></a></li><li><a href="#save-optional"><code>save-optional</code></a></li><li><a href="#save-peer"><code>save-peer</code></a></li><li><a href="#save-prefix"><code>save-prefix</code></a></li><li><a href="#save-prod"><code>save-prod</code></a></li><li><a href="#scope"><code>scope</code></a></li><li><a href="#script-shell"><code>script-shell</code></a></li><li><a href="#searchexclude"><code>searchexclude</code></a></li><li><a href="#searchlimit"><code>searchlimit</code></a></li><li><a href="#searchopts"><code>searchopts</code></a></li><li><a href="#searchstaleness"><code>searchstaleness</code></a></li><li><a href="#shell"><code>shell</code></a></li><li><a href="#sign-git-commit"><code>sign-git-commit</code></a></li><li><a href="#sign-git-tag"><code>sign-git-tag</code></a></li><li><a href="#strict-peer-deps"><code>strict-peer-deps</code></a></li><li><a href="#strict-ssl"><code>strict-ssl</code></a></li><li><a href="#tag"><code>tag</code></a></li><li><a href="#tag-version-prefix"><code>tag-version-prefix</code></a></li><li><a href="#timing"><code>timing</code></a></li><li><a href="#umask"><code>umask</code></a></li><li><a href="#unicode"><code>unicode</code></a></li><li><a href="#update-notifier"><code>update-notifier</code></a></li><li><a href="#usage"><code>usage</code></a></li><li><a href="#user-agent"><code>user-agent</code></a></li><li><a href="#userconfig"><code>userconfig</code></a></li><li><a href="#version"><code>version</code></a></li><li><a href="#versions"><code>versions</code></a></li><li><a href="#viewer"><code>viewer</code></a></li><li><a href="#which"><code>which</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#yes"><code>yes</code></a></li><li><a href="#also"><code>also</code></a></li><li><a href="#auth-type"><code>auth-type</code></a></li><li><a href="#cache-max"><code>cache-max</code></a></li><li><a href="#cache-min"><code>cache-min</code></a></li><li><a href="#dev"><code>dev</code></a></li><li><a href="#initauthoremail"><code>init.author.email</code></a></li><li><a href="#initauthorname"><code>init.author.name</code></a></li><li><a href="#initauthorurl"><code>init.author.url</code></a></li><li><a href="#initlicense"><code>init.license</code></a></li><li><a href="#initmodule"><code>init.module</code></a></li><li><a href="#initversion"><code>init.version</code></a></li><li><a href="#only"><code>only</code></a></li><li><a href="#optional"><code>optional</code></a></li><li><a href="#production"><code>production</code></a></li><li><a href="#shrinkwrap"><code>shrinkwrap</code></a></li><li><a href="#sso-poll-frequency"><code>sso-poll-frequency</code></a></li><li><a href="#sso-type"><code>sso-type</code></a></li><li><a href="#tmp"><code>tmp</code></a></li></ul><li><a href="#see-also">See also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="description">Description</h3>
@@ -279,13 +279,6 @@ upon by the current project.</p>
 </ul>
 <p>Prevents throwing an error when <code>npm version</code> is used to set the new version
 to the same value as the current version.</p>
-<h4 id="always-auth"><code>always-auth</code></h4>
-<ul>
-<li>Default: false</li>
-<li>Type: Boolean</li>
-</ul>
-<p>Force npm to always require authentication when accessing the registry, even
-for <code>GET</code> requests.</p>
 <h4 id="audit"><code>audit</code></h4>
 <ul>
 <li>Default: true</li>
@@ -560,6 +553,7 @@ different version of <code>node</code>, even if <code>--engine-strict</code> is 
 range (including SemVer-major changes).</li>
 <li>Allow unpublishing all versions of a published package.</li>
 <li>Allow conflicting peerDependencies to be installed in the root project.</li>
+<li>Implicitly set <code>--yes</code> during <code>npm init</code>.</li>
 </ul>
 <p>If you don’t have a clear idea of what you want to do, it is strongly
 recommended that you do not use this option!</p>
@@ -664,6 +658,10 @@ CI setup.</p>
 <li>Type: Boolean</li>
 </ul>
 <p>If true, npm does not run scripts specified in package.json files.</p>
+<p>Note that commands explicitly intended to run a particular script, such as
+<code>npm start</code>, <code>npm stop</code>, <code>npm restart</code>, <code>npm test</code>, and <code>npm run-script</code>
+will still run their intended script if <code>ignore-scripts</code> is set, but they
+will <em>not</em> run any pre- or post-scripts.</p>
 <h4 id="include"><code>include</code></h4>
 <ul>
 <li>Default:</li>
@@ -728,10 +726,7 @@ number, if not already set in package.json.</p>
 <li>Type: Boolean</li>
 </ul>
 <p>Whether or not to output JSON data, rather than the normal output.</p>
-<p>This feature is currently experimental, and the output data structures for
-many commands is either not implemented in JSON yet, or subject to change.
-Only the output from <code>npm ls --json</code> and <code>npm search --json</code> are currently
-valid.</p>
+<p>Not supported by all npm commands.</p>
 <h4 id="key"><code>key</code></h4>
 <ul>
 <li>Default: null</li>
@@ -780,6 +775,7 @@ two conditions are met:</p>
 <li>the globally installed version is identical to the version that is being
 installed locally.</li>
 </ul>
+<p>When used with <code>npm ls</code>, only show packages that are linked.</p>
 <h4 id="local-address"><code>local-address</code></h4>
 <ul>
 <li>Default: null</li>
@@ -808,7 +804,7 @@ npm registry. Must be IPv4 in versions of Node prior to 0.12.</p>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Show extended information in <code>npm ls</code> and <code>npm search</code>.</p>
+<p>Show extended information in <code>ls</code>, <code>search</code>, and <code>help-search</code>.</p>
 <h4 id="maxsockets"><code>maxsockets</code></h4>
 <ul>
 <li>Default: 15</li>
@@ -859,8 +855,8 @@ how lifecycle scripts are called.</p>
 allow the CLI to fill in missing cache data, see <code>--prefer-offline</code>.</p>
 <h4 id="omit"><code>omit</code></h4>
 <ul>
-<li>Default: ‘dev’ if the NODE_ENV environment variable is set to ‘production’,
-otherwise empty.</li>
+<li>Default: ‘dev’ if the <code>NODE_ENV</code> environment variable is set to
+‘production’, otherwise empty.</li>
 <li>Type: “dev”, “optional”, or “peer” (can be set multiple times)</li>
 </ul>
 <p>Dependency types to omit from the installation tree on disk.</p>
@@ -1044,18 +1040,27 @@ or <code>--save-optional</code> are true.</p>
 <li>Type: String</li>
 </ul>
 <p>Associate an operation with a scope for a scoped registry.</p>
-<p>Useful when logging in to a private registry for the first time:</p>
-<pre lang="bash"><code>npm login --scope=@mycorp --registry=https://registry.mycorp.com
+<p>Useful when logging in to or out of a private registry:</p>
+<pre><code># log in, linking the scope to the custom registry
+npm login --scope=@mycorp --registry=https://registry.mycorp.com
+
+# log out, removing the link and the auth token
+npm logout --scope=@mycorp
 </code></pre>
 <p>This will cause <code>@mycorp</code> to be mapped to the registry for future
 installation of packages specified according to the pattern
 <code>@mycorp/package</code>.</p>
+<p>This will also cause <code>npm init</code> to create a scoped package.</p>
+<pre><code># accept all defaults, and create a package named "@foo/whatever",
+# instead of just named "whatever"
+npm init --scope=@foo --yes
+</code></pre>
 <h4 id="script-shell"><code>script-shell</code></h4>
 <ul>
 <li>Default: ‘/bin/sh’ on POSIX systems, ‘cmd.exe’ on Windows</li>
 <li>Type: null or String</li>
 </ul>
-<p>The shell to use for scripts run with the <code>npm run</code> command.</p>
+<p>The shell to use for scripts run with the <code>npm exec</code>, <code>npm run</code> and <code>npm init &lt;pkg&gt;</code> commands.</p>
 <h4 id="searchexclude"><code>searchexclude</code></h4>
 <ul>
 <li>Default: “”</li>
@@ -1140,6 +1145,8 @@ via https.</p>
 then it will install the specified tag.</p>
 <p>Also the tag that is added to the package@version specified by the <code>npm tag</code>
 command, if no explicit tag is given.</p>
+<p>When used by the <code>npm diff</code> command, this is the tag used to fetch the
+tarball that will be compared with the local files by default.</p>
 <h4 id="tag-version-prefix"><code>tag-version-prefix</code></h4>
 <ul>
 <li>Default: “v”</li>
@@ -1180,7 +1187,7 @@ other files are created with a mode of 0o644.</p>
 <h4 id="unicode"><code>unicode</code></h4>
 <ul>
 <li>Default: false on windows, true on mac/unix systems with a unicode locale,
-as defined by the LC_ALL, LC_CTYPE, or LANG environment variables.</li>
+as defined by the <code>LC_ALL</code>, <code>LC_CTYPE</code>, or <code>LANG</code> environment variables.</li>
 <li>Type: Boolean</li>
 </ul>
 <p>When set to true, npm uses unicode characters in the tree output. When
@@ -1200,7 +1207,8 @@ of npm than the latest.</p>
 <p>Show short usage output about the command specified.</p>
 <h4 id="user-agent"><code>user-agent</code></h4>
 <ul>
-<li>Default: “npm/{npm-version} node/{node-version} {platform} {arch} {ci}”</li>
+<li>Default: “npm/{npm-version} node/{node-version} {platform} {arch}
+workspaces/{workspaces} {ci}”</li>
 <li>Type: String</li>
 </ul>
 <p>Sets the User-Agent request header. The following fields are replaced with
@@ -1210,6 +1218,8 @@ their actual counterparts:</p>
 <li><code>{node-version}</code> - The Node.js version in use</li>
 <li><code>{platform}</code> - The value of <code>process.platform</code></li>
 <li><code>{arch}</code> - The value of <code>process.arch</code></li>
+<li><code>{workspaces}</code> - Set to <code>true</code> if the <code>workspaces</code> or <code>workspace</code> options
+are set.</li>
 <li><code>{ci}</code> - The value of the <code>ci-name</code> config, if set, prefixed with <code>ci/</code>, or
 an empty string if <code>ci-name</code> is empty.</li>
 </ul>
@@ -1259,9 +1269,16 @@ exists, and exit successfully.</p>
 <p>Enable running a command in the context of the configured workspaces of the
 current project while filtering by running only the workspaces defined by
 this configuration option.</p>
-<p>Valid values for the <code>workspace</code> config are either: - Workspace names - Path
-to a workspace directory - Path to a parent workspace directory (will result
-to selecting all of the nested workspaces)</p>
+<p>Valid values for the <code>workspace</code> config are either:</p>
+<ul>
+<li>Workspace names</li>
+<li>Path to a workspace directory</li>
+<li>Path to a parent workspace directory (will result to selecting all of the
+nested workspaces)</li>
+</ul>
+<p>When set for the <code>npm init</code> command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project.</p>
 <p>This value is not exported to the environment for child processes.</p>
 <h4 id="workspaces"><code>workspaces</code></h4>
 <ul>

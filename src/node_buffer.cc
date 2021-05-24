@@ -303,28 +303,36 @@ MaybeLocal<Object> New(Isolate* isolate,
   if (!StringBytes::Size(isolate, string, enc).To(&length))
     return Local<Object>();
   size_t actual = 0;
-  char* data = nullptr;
+  std::unique_ptr<BackingStore> store;
 
   if (length > 0) {
-    data = UncheckedMalloc(length);
+    store = ArrayBuffer::NewBackingStore(isolate, length);
 
-    if (data == nullptr) {
+    if (UNLIKELY(!store)) {
       THROW_ERR_MEMORY_ALLOCATION_FAILED(isolate);
       return Local<Object>();
     }
 
-    actual = StringBytes::Write(isolate, data, length, string, enc);
+    actual = StringBytes::Write(
+        isolate,
+        static_cast<char*>(store->Data()),
+        length,
+        string,
+        enc);
     CHECK(actual <= length);
 
-    if (actual == 0) {
-      free(data);
-      data = nullptr;
-    } else if (actual < length) {
-      data = node::Realloc(data, actual);
+    if (LIKELY(actual > 0)) {
+      if (actual < length)
+        store = BackingStore::Reallocate(isolate, std::move(store), actual);
+      Local<ArrayBuffer> buf = ArrayBuffer::New(isolate, std::move(store));
+      Local<Object> obj;
+      if (UNLIKELY(!New(isolate, buf, 0, actual).ToLocal(&obj)))
+        return MaybeLocal<Object>();
+      return scope.Escape(obj);
     }
   }
 
-  return scope.EscapeMaybe(New(isolate, data, actual));
+  return scope.EscapeMaybe(New(isolate, 0));
 }
 
 
@@ -559,7 +567,7 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
   SPREAD_BUFFER_ARG(args[0], ts_obj);
 
-  size_t start;
+  size_t start = 0;
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[2], 0, &start));
   size_t end;
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[3], 0, &end));
@@ -660,8 +668,8 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
 
   Local<String> str = args[0]->ToString(env->context()).ToLocalChecked();
 
-  size_t offset;
-  size_t max_length;
+  size_t offset = 0;
+  size_t max_length = 0;
 
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[1], 0, &offset));
   if (offset > ts_obj_length) {

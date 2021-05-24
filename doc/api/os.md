@@ -368,18 +368,6 @@ changes:
 
 Returns the system uptime in number of seconds.
 
-The value returned can be inaccurate in some
-rare virtualization cases. The issue arises when the virtualized
-guest instance shares the kernel with the host system.
-Due to the fact that libuv uses a syscall that
-provides host's uptime instead of guest's
-uptime on OpenVZ, `os.uptime()` may also provide
-erroneous result.
-
-Please refer to <https://github.com/nodejs/node/issues/36244> and
-<https://github.com/libuv/libuv/issues/3068> for an exploration of
-this issue, until it is resolved by libuv.
-
 ## `os.userInfo([options])`
 <!-- YAML
 added: v6.0.0

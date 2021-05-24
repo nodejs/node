@@ -3,8 +3,8 @@ const mockNpm = require('../fixtures/mock-npm')
 
 const packument = spec => {
   const mocks = {
-    alpha: {
-      name: 'alpha',
+    cat: {
+      name: 'cat',
       'dist-tags': {
         latest: '1.0.1',
       },
@@ -12,13 +12,13 @@ const packument = spec => {
         '1.0.1': {
           version: '1.0.1',
           dependencies: {
-            gamma: '2.0.0',
+            dog: '2.0.0',
           },
         },
       },
     },
-    beta: {
-      name: 'beta',
+    chai: {
+      name: 'chai',
       'dist-tags': {
         latest: '1.0.1',
       },
@@ -28,8 +28,8 @@ const packument = spec => {
         },
       },
     },
-    gamma: {
-      name: 'gamma',
+    dog: {
+      name: 'dog',
       'dist-tags': {
         latest: '2.0.0',
       },
@@ -74,9 +74,9 @@ const output = (msg) => {
 
 const globalDir = t.testdir({
   node_modules: {
-    alpha: {
+    cat: {
       'package.json': JSON.stringify({
-        name: 'alpha',
+        name: 'cat',
         version: '1.0.0',
       }, null, 2),
     },
@@ -84,6 +84,7 @@ const globalDir = t.testdir({
 })
 
 const outdated = (dir, opts) => {
+  logs = ''
   const Outdated = t.mock('../../lib/outdated.js', {
     pacote: {
       packument,
@@ -91,6 +92,7 @@ const outdated = (dir, opts) => {
   })
   const npm = mockNpm({
     ...opts,
+    localPrefix: dir,
     prefix: dir,
     globalDir: `${globalDir}/node_modules`,
     output,
@@ -116,8 +118,8 @@ t.test('should display outdated deps', t => {
       name: 'delta',
       version: '1.0.0',
       dependencies: {
-        alpha: '^1.0.0',
-        gamma: '^1.0.0',
+        cat: '^1.0.0',
+        dog: '^1.0.0',
         theta: '^1.0.0',
       },
       devDependencies: {
@@ -127,36 +129,36 @@ t.test('should display outdated deps', t => {
         lorem: '^1.0.0',
       },
       peerDependencies: {
-        beta: '^1.0.0',
+        chai: '^1.0.0',
       },
     }, null, 2),
     node_modules: {
-      alpha: {
+      cat: {
         'package.json': JSON.stringify({
-          name: 'alpha',
+          name: 'cat',
           version: '1.0.0',
           dependencies: {
-            gamma: '2.0.0',
+            dog: '2.0.0',
           },
         }, null, 2),
         node_modules: {
-          gamma: {
+          dog: {
             'package.json': JSON.stringify({
-              name: 'gamma',
+              name: 'dog',
               version: '2.0.0',
             }, null, 2),
           },
         },
       },
-      beta: {
+      chai: {
         'package.json': JSON.stringify({
-          name: 'beta',
+          name: 'chai',
           version: '1.0.0',
         }, null, 2),
       },
-      gamma: {
+      dog: {
         'package.json': JSON.stringify({
-          name: 'gamma',
+          name: 'dog',
           version: '1.0.1',
         }, null, 2),
       },
@@ -307,7 +309,7 @@ t.test('should display outdated deps', t => {
       config: {
         global: false,
       },
-    }).exec(['alpha'], () => {
+    }).exec(['cat'], () => {
       t.matchSnapshot(logs)
       t.end()
     })
@@ -322,13 +324,13 @@ t.test('should return if no outdated deps', t => {
       name: 'delta',
       version: '1.0.0',
       dependencies: {
-        alpha: '^1.0.0',
+        cat: '^1.0.0',
       },
     }, null, 2),
     node_modules: {
-      alpha: {
+      cat: {
         'package.json': JSON.stringify({
-          name: 'alpha',
+          name: 'cat',
           version: '1.0.1',
         }, null, 2),
       },
@@ -376,7 +378,7 @@ t.test('should skip missing non-prod deps', t => {
       name: 'delta',
       version: '1.0.0',
       devDependencies: {
-        beta: '^1.0.0',
+        chai: '^1.0.0',
       },
     }, null, 2),
     node_modules: {},
@@ -396,13 +398,13 @@ t.test('should skip invalid pkg ranges', t => {
       name: 'delta',
       version: '1.0.0',
       dependencies: {
-        alpha: '>=^2',
+        cat: '>=^2',
       },
     }, null, 2),
     node_modules: {
-      alpha: {
+      cat: {
         'package.json': JSON.stringify({
-          name: 'alpha',
+          name: 'cat',
           version: '1.0.0',
         }, null, 2),
       },
@@ -421,13 +423,13 @@ t.test('should skip git specs', t => {
       name: 'delta',
       version: '1.0.0',
       dependencies: {
-        alpha: 'github:username/foo',
+        cat: 'github:username/foo',
       },
     }, null, 2),
     node_modules: {
-      alpha: {
+      cat: {
         'package.json': JSON.stringify({
-          name: 'alpha',
+          name: 'cat',
           version: '1.0.0',
         }, null, 2),
       },
@@ -437,5 +439,237 @@ t.test('should skip git specs', t => {
   outdated(testDir, {}).exec([], () => {
     t.equal(logs.length, 0, 'no logs')
     t.end()
+  })
+})
+
+t.test('workspaces', async t => {
+  const testDir = t.testdir({
+    'package.json': JSON.stringify({
+      name: 'workspaces-project',
+      version: '1.0.0',
+      workspaces: ['packages/*'],
+      dependencies: {
+        dog: '^1.0.0',
+      },
+    }),
+    node_modules: {
+      a: t.fixture('symlink', '../packages/a'),
+      b: t.fixture('symlink', '../packages/b'),
+      c: t.fixture('symlink', '../packages/c'),
+      cat: {
+        'package.json': JSON.stringify({
+          name: 'cat',
+          version: '1.0.0',
+          dependencies: {
+            dog: '2.0.0',
+          },
+        }),
+        node_modules: {
+          dog: {
+            'package.json': JSON.stringify({
+              name: 'dog',
+              version: '2.0.0',
+            }),
+          },
+        },
+      },
+      chai: {
+        'package.json': JSON.stringify({
+          name: 'chai',
+          version: '1.0.0',
+        }),
+      },
+      dog: {
+        'package.json': JSON.stringify({
+          name: 'dog',
+          version: '1.0.1',
+        }),
+      },
+      foo: {
+        'package.json': JSON.stringify({
+          name: 'foo',
+          version: '1.0.0',
+          dependencies: {
+            chai: '^1.0.0',
+          },
+        }),
+      },
+      zeta: {
+        'package.json': JSON.stringify({
+          name: 'zeta',
+          version: '1.0.0',
+        }),
+      },
+    },
+    packages: {
+      a: {
+        'package.json': JSON.stringify({
+          name: 'a',
+          version: '1.0.0',
+          dependencies: {
+            b: '^1.0.0',
+            cat: '^1.0.0',
+            foo: '^1.0.0',
+          },
+        }),
+      },
+      b: {
+        'package.json': JSON.stringify({
+          name: 'b',
+          version: '1.0.0',
+          dependencies: {
+            zeta: '^1.0.0',
+          },
+        }),
+      },
+      c: {
+        'package.json': JSON.stringify({
+          name: 'c',
+          version: '1.0.0',
+          dependencies: {
+            theta: '^1.0.0',
+          },
+        }),
+      },
+    },
+  })
+
+  await new Promise((res, rej) => {
+    outdated(testDir, {}).exec([], err => {
+      if (err)
+        rej(err)
+
+      t.matchSnapshot(logs, 'should display ws outdated deps human output')
+      res()
+    })
+  })
+
+  await new Promise((res, rej) => {
+    outdated(testDir, {
+      config: {
+        json: true,
+      },
+    }).exec([], err => {
+      if (err)
+        rej(err)
+
+      t.matchSnapshot(logs, 'should display ws outdated deps json output')
+      res()
+    })
+  })
+
+  await new Promise((res, rej) => {
+    outdated(testDir, {
+      config: {
+        parseable: true,
+      },
+    }).exec([], err => {
+      if (err)
+        rej(err)
+
+      t.matchSnapshot(logs, 'should display ws outdated deps parseable output')
+      res()
+    })
+  })
+
+  await new Promise((res, rej) => {
+    outdated(testDir, {
+      config: {
+        all: true,
+      },
+    }).exec([], err => {
+      if (err)
+        rej(err)
+
+      t.matchSnapshot(logs, 'should display all dependencies')
+      res()
+    })
+  })
+
+  await new Promise((res, rej) => {
+    outdated(testDir, {
+      color: true,
+    }).exec([], err => {
+      if (err)
+        rej(err)
+
+      t.matchSnapshot(logs, 'should highlight ws in dependend by section')
+      res()
+    })
+  })
+
+  await new Promise((res, rej) => {
+    outdated(testDir, {}).execWorkspaces([], ['a'], err => {
+      if (err)
+        rej(err)
+
+      t.matchSnapshot(logs, 'should display results filtered by ws')
+      res()
+    })
+  })
+
+  await new Promise((res, rej) => {
+    outdated(testDir, {
+      config: {
+        json: true,
+      },
+    }).execWorkspaces([], ['a'], err => {
+      if (err)
+        rej(err)
+
+      t.matchSnapshot(logs, 'should display json results filtered by ws')
+      res()
+    })
+  })
+
+  await new Promise((res, rej) => {
+    outdated(testDir, {
+      config: {
+        parseable: true,
+      },
+    }).execWorkspaces([], ['a'], err => {
+      if (err)
+        rej(err)
+
+      t.matchSnapshot(logs, 'should display parseable results filtered by ws')
+      res()
+    })
+  })
+
+  await new Promise((res, rej) => {
+    outdated(testDir, {
+      config: {
+        all: true,
+      },
+    }).execWorkspaces([], ['a'], err => {
+      if (err)
+        rej(err)
+
+      t.matchSnapshot(logs,
+        'should display nested deps when filtering by ws and using --all')
+      res()
+    })
+  })
+
+  await new Promise((res, rej) => {
+    outdated(testDir, {}).execWorkspaces([], ['b'], err => {
+      if (err)
+        rej(err)
+
+      t.matchSnapshot(logs,
+        'should display no results if ws has no deps to display')
+      res()
+    })
+  })
+
+  await new Promise((res, rej) => {
+    outdated(testDir, {}).execWorkspaces([], ['c'], err => {
+      if (err)
+        rej(err)
+
+      t.matchSnapshot(logs,
+        'should display missing deps when filtering by ws')
+      res()
+    })
   })
 })
