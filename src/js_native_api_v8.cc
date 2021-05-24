@@ -2660,7 +2660,7 @@ napi_status napi_new_instance(napi_env env,
   auto maybe = ctor->NewInstance(context, argc,
     reinterpret_cast<v8::Local<v8::Value>*>(const_cast<napi_value*>(argv)));
 
-  CHECK_MAYBE_EMPTY(env, maybe, napi_generic_failure);
+  CHECK_MAYBE_EMPTY(env, maybe, napi_pending_exception);
 
   *result = v8impl::JsValueFromV8LocalValue(maybe.ToLocalChecked());
   return GET_RETURN_STATUS(env);
