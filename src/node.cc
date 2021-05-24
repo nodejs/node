@@ -148,7 +148,7 @@ unsigned int reverted_cve = 0;
 // util.h
 // Tells whether the per-process V8::Initialize() is called and
 // if it is safe to call v8::Isolate::GetCurrent().
-bool v8_initialized = false;
+thread_local bool v8_initialized = false;
 
 // node_internals.h
 // process-relative uptime base in nanoseconds, initialized in node::Start()

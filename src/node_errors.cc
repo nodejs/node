@@ -424,13 +424,11 @@ void OnFatalError(const char* location, const char* message) {
     FPrintF(stderr, "FATAL ERROR: %s\n", message);
   }
 
-  Isolate* isolate = Isolate::GetCurrent();
-  // TODO(legendecas): investigate failures on triggering node-report with
-  // nullptr isolates.
-  if (isolate == nullptr) {
+  if (!per_process::v8_initialized) {
     fflush(stderr);
     ABORT();
   }
+  Isolate* isolate = Isolate::GetCurrent();
   Environment* env = Environment::GetCurrent(isolate);
   bool report_on_fatalerror;
   {
