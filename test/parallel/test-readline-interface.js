@@ -905,6 +905,18 @@ for (let i = 0; i < 12; i++) {
     rli.close();
   }
 
+  // Calling the question multiple times
+  {
+    const [rli] = getInterface({ terminal });
+    rli.question('foo?', common.mustCall((answer) => {
+      assert.strictEqual(answer, 'baz');
+    }));
+    rli.question('bar?', common.mustNotCall(() => {
+    }));
+    rli.write('baz\n');
+    rli.close();
+  }
+
   // Calling the promisified question
   {
     const [rli] = getInterface({ terminal });
