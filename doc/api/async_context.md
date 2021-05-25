@@ -327,7 +327,7 @@ asyncResource.asyncId();
 asyncResource.triggerAsyncId();
 ```
 
-#### `new AsyncResource(type[, options])`
+### `new AsyncResource(type[, options])`
 
 * `type` {string} The type of async event.
 * `options` {Object}
@@ -363,7 +363,7 @@ class DBQuery extends AsyncResource {
 }
 ```
 
-#### Static method: `AsyncResource.bind(fn[, type, [thisArg]])`
+### Static method: `AsyncResource.bind(fn[, type, [thisArg]])`
 <!-- YAML
 added:
   - v14.8.0
@@ -384,7 +384,7 @@ Binds the given function to the current execution context.
 The returned function will have an `asyncResource` property referencing
 the `AsyncResource` to which the function is bound.
 
-#### `asyncResource.bind(fn[, thisArg])`
+### `asyncResource.bind(fn[, thisArg])`
 <!-- YAML
 added:
   - v14.8.0
@@ -403,7 +403,7 @@ Binds the given function to execute to this `AsyncResource`'s scope.
 The returned function will have an `asyncResource` property referencing
 the `AsyncResource` to which the function is bound.
 
-#### `asyncResource.runInAsyncScope(fn[, thisArg, ...args])`
+### `asyncResource.runInAsyncScope(fn[, thisArg, ...args])`
 <!-- YAML
 added: v9.6.0
 -->
@@ -418,7 +418,7 @@ of the async resource. This will establish the context, trigger the AsyncHooks
 before callbacks, call the function, trigger the AsyncHooks after callbacks, and
 then restore the original execution context.
 
-#### `asyncResource.emitDestroy()`
+### `asyncResource.emitDestroy()`
 
 * Returns: {AsyncResource} A reference to `asyncResource`.
 
@@ -427,11 +427,11 @@ be thrown if it is called more than once. This **must** be manually called. If
 the resource is left to be collected by the GC then the `destroy` hooks will
 never be called.
 
-#### `asyncResource.asyncId()`
+### `asyncResource.asyncId()`
 
 * Returns: {number} The unique `asyncId` assigned to the resource.
 
-#### `asyncResource.triggerAsyncId()`
+### `asyncResource.triggerAsyncId()`
 
 * Returns: {number} The same `triggerAsyncId` that is passed to the
   `AsyncResource` constructor.
@@ -593,7 +593,7 @@ const server = createServer((req, res) => {
   res.end();
 }).listen(3000);
 ```
-[`AsyncResource`]: #class_asyncresource
+[`AsyncResource`]: #async_context_class_asyncresource
 [`EventEmitter`]: events.md#events_class_eventemitter
 [`Stream`]: stream.md#stream_stream
 [`Worker`]: worker_threads.md#worker_threads_class_worker

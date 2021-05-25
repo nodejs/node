@@ -670,10 +670,10 @@ The documentation for this class has moved [`AsyncResource`][].
 
 The documentation for this class has moved [`AsyncLocalStorage`][].
 
-[`AsyncLocalStorage`]: async_context.md#class_asynclocalstorage
-[`AsyncResource`]: async_context.md#class_asyncresource
 [Hook Callbacks]: #async_hooks_hook_callbacks
 [PromiseHooks]: https://docs.google.com/document/d/1rda3yKGHimKIhg5YeoAmCOtyURgsbTH_qaYR79FELlk/edit
+[`AsyncLocalStorage`]: async_context.md#async_context_class_asynclocalstorage
+[`AsyncResource`]: async_context.md#async_context_class_asyncresource
 [`after` callback]: #async_hooks_after_asyncid
 [`before` callback]: #async_hooks_before_asyncid
 [`destroy` callback]: #async_hooks_destroy_asyncid

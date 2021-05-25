@@ -11,6 +11,7 @@
 <hr class="line"/>
 
 * [Assertion testing](assert.md)
+* [Async_context](async_context.md)
 * [Async hooks](async_hooks.md)
 * [Buffer](buffer.md)
 * [C++ addons](addons.md)
