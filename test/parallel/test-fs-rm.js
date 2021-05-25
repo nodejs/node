@@ -5,7 +5,6 @@ const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
 
 const { validateRmOptionsSync } = require('internal/fs/utils');
 
@@ -287,24 +286,51 @@ function removeAsync(dir) {
   // IBMi has a different access permission mechanism
   // This test should not be run as `root`
   if (!common.isIBMi && (common.isWindows || process.getuid() !== 0)) {
-    function makeDirectoryReadOnly(dir, mode) {
-      let accessErrorCode = 'EACCES';
-      if (common.isWindows) {
-        accessErrorCode = 'EPERM';
-        execSync(`icacls ${dir} /deny "everyone:(OI)(CI)(DE,DC)"`);
-      } else {
-        fs.chmodSync(dir, mode);
-      }
-      return accessErrorCode;
-    }
+    // On Windows, we are allowed to access and modify the contents of a
+    // read-only folder.
+    {
+      // Check that deleting a file that cannot be accessed using rmsync throws
+      // https://github.com/nodejs/node/issues/38683
+      const dirname = nextDirPath();
+      const filePath = path.join(dirname, 'text.txt');
 
-    function makeDirectoryWritable(dir) {
-      if (fs.existsSync(dir)) {
-        if (common.isWindows) {
-          execSync(`icacls ${dir} /remove:d "everyone"`);
-        } else {
-          fs.chmodSync(dir, 0o777);
-        }
+      fs.mkdirSync(dirname, { recursive: true });
+      fs.writeFileSync(filePath, 'hello');
+
+      fs.chmodSync(filePath, 0o444);
+      fs.chmodSync(dirname, 0o444);
+
+      let err = null;
+
+      try {
+        fs.rmSync(filePath, { force: true });
+      } catch (_err) {
+        err = _err;
+      }
+
+      try {
+        fs.chmodSync(dirname, 0o777);
+      } catch {
+      }
+
+      try {
+        fs.chmodSync(filePath, 0o777);
+      } catch {
+      }
+
+      let isValidState = true;
+      const exists = fs.existsSync(filePath);
+
+      if (common.isWindows &&
+          !(exists === false && err === null)) {
+        isValidState = false;
+      } else if (!common.isWindows &&
+                 !(exists === true && err?.code === 'EACCES')) {
+        isValidState = false;
+      }
+
+      if (!isValidState) {
+        throw err;
       }
     }
 
@@ -313,18 +339,90 @@ function removeAsync(dir) {
       // https://github.com/nodejs/node/issues/38683
       const dirname = nextDirPath();
       const filePath = path.join(dirname, 'text.txt');
+
+      fs.mkdirSync(dirname, { recursive: true });
+      fs.writeFileSync(filePath, 'hello');
+
+      fs.chmodSync(filePath, 0o444);
+      fs.chmodSync(dirname, 0o444);
+
+      fs.rm(filePath, { force: true }, common.mustCall((err) => {
+        try {
+          fs.chmodSync(dirname, 0o777);
+        } catch {
+        }
+
+        try {
+          fs.chmodSync(filePath, 0o777);
+        } catch {
+        }
+
+        let isValidState = true;
+        const exists = fs.existsSync(filePath);
+
+        if (common.isWindows &&
+            !(exists === false && err === null)) {
+          isValidState = false;
+        } else if (!common.isWindows &&
+                   !(exists === true && err?.code === 'EACCES')) {
+          isValidState = false;
+        }
+
+        if (!isValidState) {
+          throw err;
+        }
+      }));
+    }
+
+    // On Windows, we are not allowed to delete a read-only directory.
+    {
+      // Check endless recursion.
+      // https://github.com/nodejs/node/issues/34580
+      const dirname = nextDirPath();
+      fs.mkdirSync(dirname, { recursive: true });
+      const root = fs.mkdtempSync(path.join(dirname, 'fs-'));
+      const middle = path.join(root, 'middle');
+      const leaf = path.join(middle, 'leaf');
+
+      fs.mkdirSync(middle);
+      fs.mkdirSync(leaf);
+
+      fs.chmodSync(leaf, 0o555);
+      fs.chmodSync(middle, 0o555);
+
+      let err = null;
+
       try {
-        fs.mkdirSync(dirname, { recursive: true });
-        fs.writeFileSync(filePath, 'hello');
-        const code = makeDirectoryReadOnly(dirname, 0o444);
-        assert.throws(() => {
-          fs.rmSync(filePath, { force: true });
-        }, {
-          code,
-          name: 'Error',
-        });
-      } finally {
-        makeDirectoryWritable(dirname);
+        fs.rmSync(root, { recursive: true });
+      } catch (_err) {
+        err = _err;
+      }
+
+      try {
+        fs.chmodSync(middle, 0o777);
+      } catch {
+      }
+
+      try {
+        fs.chmodSync(leaf, 0o777);
+      } catch {
+      }
+
+      let isValidState = true;
+      const exists = fs.existsSync(root);
+
+      if (common.isWindows &&
+          !(exists === true && err?.code === 'EPERM')) {
+        // TODO(RaisinTen): Replace the error code with 'EACCES' if this lands:
+        // https://github.com/libuv/libuv/pull/3193
+        isValidState = false;
+      } else if (!common.isWindows &&
+                 !(exists === true && err?.code === 'EACCES')) {
+        isValidState = false;
+      }
+
+      if (!isValidState) {
+        throw err;
       }
     }
 
@@ -335,27 +433,42 @@ function removeAsync(dir) {
       fs.mkdirSync(dirname, { recursive: true });
       const root = fs.mkdtempSync(path.join(dirname, 'fs-'));
       const middle = path.join(root, 'middle');
+      const leaf = path.join(middle, 'leaf');
+
       fs.mkdirSync(middle);
-      fs.mkdirSync(path.join(middle, 'leaf')); // Make `middle` non-empty
-      try {
-        const code = makeDirectoryReadOnly(middle, 0o555);
+      fs.mkdirSync(leaf);
+
+      fs.chmodSync(leaf, 0o555);
+      fs.chmodSync(middle, 0o555);
+
+      fs.rm(root, { recursive: true }, common.mustCall((err) => {
         try {
-          assert.throws(() => {
-            fs.rmSync(root, { recursive: true });
-          }, {
-            code,
-            name: 'Error',
-          });
-        } catch (err) {
-          // Only fail the test if the folder was not deleted.
-          // as in some cases rmSync succesfully deletes read-only folders.
-          if (fs.existsSync(root)) {
-            throw err;
-          }
+          fs.chmodSync(middle, 0o777);
+        } catch {
         }
-      } finally {
-        makeDirectoryWritable(middle);
-      }
+
+        try {
+          fs.chmodSync(leaf, 0o777);
+        } catch {
+        }
+
+        let isValidState = true;
+        const exists = fs.existsSync(root);
+
+        if (common.isWindows &&
+            !(exists === true && err?.code === 'EPERM')) {
+          // TODO(RaisinTen): Replace the error code with 'EACCES' if this
+          // lands: https://github.com/libuv/libuv/pull/3193
+          isValidState = false;
+        } else if (!common.isWindows &&
+                   !(exists === true && err?.code === 'EACCES')) {
+          isValidState = false;
+        }
+
+        if (!isValidState) {
+          throw err;
+        }
+      }));
     }
   }
 }
