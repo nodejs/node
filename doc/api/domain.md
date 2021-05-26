@@ -133,9 +133,7 @@ if (cluster.isPrimary) {
 
       try {
         // Make sure we close down within 30 seconds
-        const killtimer = setTimeout(() => {
-          process.exit(1);
-        }, 30000);
+        const killtimer = setTimeout(process.exit, 30000, 1);
         // But don't keep the process open just for that!
         killtimer.unref();
 
@@ -423,12 +421,10 @@ d.on('error', (er) => {
 });
 d.run(() => {
   process.nextTick(() => {
-    setTimeout(() => { // Simulating some various async stuff
-      fs.open('non-existent file', 'r', (er, fd) => {
-        if (er) throw er;
-        // proceed...
-      });
-    }, 100);
+    setTimeout(fs.open, 100, 'non-existent file', 'r', (er, fd) => {
+      if (er) throw er;
+      // proceed...
+    });
   });
 });
 ```

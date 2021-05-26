@@ -97,9 +97,7 @@ In the following example, for instance, the timeout will never occur:
 
 ```js
 process.on('exit', (code) => {
-  setTimeout(() => {
-    console.log('This will not run');
-  }, 0);
+  setTimeout(console.log, 0, 'This will not run');
 });
 ```
 
@@ -259,9 +257,7 @@ process.on('uncaughtException', (err, origin) => {
   );
 });
 
-setTimeout(() => {
-  console.log('This will still run.');
-}, 500);
+setTimeout(console.log, 500, 'This will still run.');
 
 // Intentionally cause an exception, but don't catch it.
 nonexistentFunc();
