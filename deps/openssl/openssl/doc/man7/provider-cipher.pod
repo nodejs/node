@@ -1,0 +1,503 @@
+=pod
+
+=head1 NAME
+
+provider-cipher - The cipher library E<lt>-E<gt> provider functions
+
+=head1 SYNOPSIS
+
+=for openssl multiple includes
+
+ #include <openssl/core_dispatch.h>
+ #include <openssl/core_names.h>
+
+ /*
+  * None of these are actual functions, but are displayed like this for
+  * the function signatures for functions that are offered as function
+  * pointers in OSSL_DISPATCH arrays.
+  */
+
+ /* Context management */
+ void *OSSL_FUNC_cipher_newctx(void *provctx);
+ void OSSL_FUNC_cipher_freectx(void *cctx);
+ void *OSSL_FUNC_cipher_dupctx(void *cctx);
+
+ /* Encryption/decryption */
+ int OSSL_FUNC_cipher_encrypt_init(void *cctx, const unsigned char *key,
+                                   size_t keylen, const unsigned char *iv,
+                                   size_t ivlen, const OSSL_PARAM params[]);
+ int OSSL_FUNC_cipher_decrypt_init(void *cctx, const unsigned char *key,
+                                   size_t keylen, const unsigned char *iv,
+                                   size_t ivlen, const OSSL_PARAM params[]);
+ int OSSL_FUNC_cipher_update(void *cctx, unsigned char *out, size_t *outl,
+                             size_t outsize, const unsigned char *in, size_t inl);
+ int OSSL_FUNC_cipher_final(void *cctx, unsigned char *out, size_t *outl,
+                            size_t outsize);
+ int OSSL_FUNC_cipher_cipher(void *cctx, unsigned char *out, size_t *outl,
+                             size_t outsize, const unsigned char *in, size_t inl);
+
+ /* Cipher parameter descriptors */
+ const OSSL_PARAM *OSSL_FUNC_cipher_gettable_params(void *provctx);
+
+ /* Cipher operation parameter descriptors */
+ const OSSL_PARAM *OSSL_FUNC_cipher_gettable_ctx_params(void *cctx,
+                                                        void *provctx);
+ const OSSL_PARAM *OSSL_FUNC_cipher_settable_ctx_params(void *cctx,
+                                                        void *provctx);
+
+ /* Cipher parameters */
+ int OSSL_FUNC_cipher_get_params(OSSL_PARAM params[]);
+
+ /* Cipher operation parameters */
+ int OSSL_FUNC_cipher_get_ctx_params(void *cctx, OSSL_PARAM params[]);
+ int OSSL_FUNC_cipher_set_ctx_params(void *cctx, const OSSL_PARAM params[]);
+
+=head1 DESCRIPTION
+
+This documentation is primarily aimed at provider authors. See L<provider(7)>
+for further information.
+
+The CIPHER operation enables providers to implement cipher algorithms and make
+them available to applications via the API functions L<EVP_EncryptInit_ex(3)>,
+L<EVP_EncryptUpdate(3)> and L<EVP_EncryptFinal(3)> (as well as the decrypt
+equivalents and other related functions).
+
+All "functions" mentioned here are passed as function pointers between
+F<libcrypto> and the provider in B<OSSL_DISPATCH> arrays via
+B<OSSL_ALGORITHM> arrays that are returned by the provider's
+provider_query_operation() function
+(see L<provider-base(7)/Provider Functions>).
+
+All these "functions" have a corresponding function type definition
+named B<OSSL_FUNC_{name}_fn>, and a helper function to retrieve the
+function pointer from an B<OSSL_DISPATCH> element named
+B<OSSL_FUNC_{name}>.
+For example, the "function" OSSL_FUNC_cipher_newctx() has these:
+
+ typedef void *(OSSL_OSSL_FUNC_cipher_newctx_fn)(void *provctx);
+ static ossl_inline OSSL_OSSL_FUNC_cipher_newctx_fn
+     OSSL_FUNC_cipher_newctx(const OSSL_DISPATCH *opf);
+
+B<OSSL_DISPATCH> arrays are indexed by numbers that are provided as
+macros in L<openssl-core_dispatch.h(7)>, as follows:
+
+ OSSL_FUNC_cipher_newctx               OSSL_FUNC_CIPHER_NEWCTX
+ OSSL_FUNC_cipher_freectx              OSSL_FUNC_CIPHER_FREECTX
+ OSSL_FUNC_cipher_dupctx               OSSL_FUNC_CIPHER_DUPCTX
+
+ OSSL_FUNC_cipher_encrypt_init         OSSL_FUNC_CIPHER_ENCRYPT_INIT
+ OSSL_FUNC_cipher_decrypt_init         OSSL_FUNC_CIPHER_DECRYPT_INIT
+ OSSL_FUNC_cipher_update               OSSL_FUNC_CIPHER_UPDATE
+ OSSL_FUNC_cipher_final                OSSL_FUNC_CIPHER_FINAL
+ OSSL_FUNC_cipher_cipher               OSSL_FUNC_CIPHER_CIPHER
+
+ OSSL_FUNC_cipher_get_params           OSSL_FUNC_CIPHER_GET_PARAMS
+ OSSL_FUNC_cipher_get_ctx_params       OSSL_FUNC_CIPHER_GET_CTX_PARAMS
+ OSSL_FUNC_cipher_set_ctx_params       OSSL_FUNC_CIPHER_SET_CTX_PARAMS
+
+ OSSL_FUNC_cipher_gettable_params      OSSL_FUNC_CIPHER_GETTABLE_PARAMS
+ OSSL_FUNC_cipher_gettable_ctx_params  OSSL_FUNC_CIPHER_GETTABLE_CTX_PARAMS
+ OSSL_FUNC_cipher_settable_ctx_params  OSSL_FUNC_CIPHER_SETTABLE_CTX_PARAMS
+
+A cipher algorithm implementation may not implement all of these functions.
+In order to be a consistent set of functions there must at least be a complete
+set of "encrypt" functions, or a complete set of "decrypt" functions, or a
+single "cipher" function.
+In all cases both the OSSL_FUNC_cipher_newctx and OSSL_FUNC_cipher_freectx functions must be
+present.
+All other functions are optional.
+
+=head2 Context Management Functions
+
+OSSL_FUNC_cipher_newctx() should create and return a pointer to a provider side
+structure for holding context information during a cipher operation.
+A pointer to this context will be passed back in a number of the other cipher
+operation function calls.
+The parameter I<provctx> is the provider context generated during provider
+initialisation (see L<provider(7)>).
+
+OSSL_FUNC_cipher_freectx() is passed a pointer to the provider side cipher context in
+the I<cctx> parameter.
+This function should free any resources associated with that context.
+
+OSSL_FUNC_cipher_dupctx() should duplicate the provider side cipher context in the
+I<cctx> parameter and return the duplicate copy.
+
+=head2 Encryption/Decryption Functions
+
+OSSL_FUNC_cipher_encrypt_init() initialises a cipher operation for encryption given a
+newly created provider side cipher context in the I<cctx> parameter.
+The key to be used is given in I<key> which is I<keylen> bytes long.
+The IV to be used is given in I<iv> which is I<ivlen> bytes long.
+The I<params>, if not NULL, should be set on the context in a manner similar to
+using OSSL_FUNC_cipher_set_ctx_params().
+
+OSSL_FUNC_cipher_decrypt_init() is the same as OSSL_FUNC_cipher_encrypt_init() except that it
+initialises the context for a decryption operation.
+
+OSSL_FUNC_cipher_update() is called to supply data to be encrypted/decrypted as part of
+a previously initialised cipher operation.
+The I<cctx> parameter contains a pointer to a previously initialised provider
+side context.
+OSSL_FUNC_cipher_update() should encrypt/decrypt I<inl> bytes of data at the location
+pointed to by I<in>.
+The encrypted data should be stored in I<out> and the amount of data written to
+I<*outl> which should not exceed I<outsize> bytes.
+OSSL_FUNC_cipher_update() may be called multiple times for a single cipher operation.
+It is the responsibility of the cipher implementation to handle input lengths
+that are not multiples of the block length.
+In such cases a cipher implementation will typically cache partial blocks of
+input data until a complete block is obtained.
+I<out> may be the same location as I<in> but it should not partially overlap.
+The same expectations apply to I<outsize> as documented for
+L<EVP_EncryptUpdate(3)> and L<EVP_DecryptUpdate(3)>.
+
+OSSL_FUNC_cipher_final() completes an encryption or decryption started through previous
+OSSL_FUNC_cipher_encrypt_init() or OSSL_FUNC_cipher_decrypt_init(), and OSSL_FUNC_cipher_update()
+calls.
+The I<cctx> parameter contains a pointer to the provider side context.
+Any final encryption/decryption output should be written to I<out> and the
+amount of data written to I<*outl> which should not exceed I<outsize> bytes.
+The same expectations apply to I<outsize> as documented for
+L<EVP_EncryptFinal(3)> and L<EVP_DecryptFinal(3)>.
+
+OSSL_FUNC_cipher_cipher() performs encryption/decryption using the provider side cipher
+context in the I<cctx> parameter that should have been previously initialised via
+a call to OSSL_FUNC_cipher_encrypt_init() or OSSL_FUNC_cipher_decrypt_init().
+This should call the raw underlying cipher function without any padding.
+This will be invoked in the provider as a result of the application calling
+L<EVP_Cipher(3)>.
+The application is responsible for ensuring that the input is a multiple of the
+block length.
+The data to be encrypted/decrypted will be in I<in>, and it will be I<inl> bytes
+in length.
+The output from the encryption/decryption should be stored in I<out> and the
+amount of data stored should be put in I<*outl> which should be no more than
+I<outsize> bytes.
+
+=head2 Cipher Parameters
+
+See L<OSSL_PARAM(3)> for further details on the parameters structure used by
+these functions.
+
+OSSL_FUNC_cipher_get_params() gets details of the algorithm implementation
+and stores them in I<params>.
+
+OSSL_FUNC_cipher_set_ctx_params() sets cipher operation parameters for the
+provider side cipher context I<cctx> to I<params>.
+Any parameter settings are additional to any that were previously set.
+Passing NULL for I<params> should return true.
+
+OSSL_FUNC_cipher_get_ctx_params() gets cipher operation details details from
+the given provider side cipher context I<cctx> and stores them in I<params>.
+Passing NULL for I<params> should return true.
+
+OSSL_FUNC_cipher_gettable_params(), OSSL_FUNC_cipher_gettable_ctx_params(),
+and OSSL_FUNC_cipher_settable_ctx_params() all return constant B<OSSL_PARAM>
+arrays as descriptors of the parameters that OSSL_FUNC_cipher_get_params(),
+OSSL_FUNC_cipher_get_ctx_params(), and OSSL_FUNC_cipher_set_ctx_params()
+can handle, respectively.  OSSL_FUNC_cipher_gettable_ctx_params() and
+OSSL_FUNC_cipher_settable_ctx_params() will return the parameters associated
+with the provider side context I<cctx> in its current state if it is
+not NULL.  Otherwise, they return the parameters associated with the
+provider side algorithm I<provctx>.
+
+Parameters currently recognised by built-in ciphers are as follows. Not all
+parameters are relevant to, or are understood by all ciphers:
+
+=over 4
+
+=item "padding" (B<OSSL_CIPHER_PARAM_PADDING>) <unsigned integer>
+
+Sets the padding mode for the associated cipher ctx.
+Setting a value of 1 will turn padding on.
+Setting a value of 0 will turn padding off.
+
+=item "mode" (B<OSSL_CIPHER_PARAM_MODE>) <unsigned integer>
+
+Gets the mode for the associated cipher algorithm.
+See L<EVP_CIPHER_mode(3)> for a list of valid modes.
+
+=item "blocksize" (B<OSSL_CIPHER_PARAM_BLOCK_SIZE>) <unsigned integer>
+
+Gets the block size for the associated cipher algorithm.
+The block size should be 1 for stream ciphers.
+Note that the block size for a cipher may be different to the block size for
+the underlying encryption/decryption primitive.
+For example AES in CTR mode has a block size of 1 (because it operates like a
+stream cipher), even though AES has a block size of 16.
+The length of the "blocksize" parameter should not exceed that of a B<size_t>.
+
+=item "aead" (B<OSSL_CIPHER_PARAM_AEAD>) <integer>
+
+Gets 1 if this is an AEAD cipher algorithm, otherwise it gets 0.
+
+=item "custom-iv" (B<OSSL_CIPHER_PARAM_CUSTOM_IV>) <integer>
+
+Gets 1 if the cipher algorithm has a custom IV, otherwise it gets 0.
+Storing and initializing the IV is left entirely to the implementation, if a
+custom IV is used.
+
+=item "cts" (B<OSSL_CIPHER_PARAM_CTS>) <integer>
+
+Gets 1 if the cipher algorithm uses ciphertext stealing, otherwise it gets 0.
+This is currently used to indicate that the cipher is a one shot that only
+allows a single call to EVP_CipherUpdate().
+
+=item "tls-multi" (B<OSSL_CIPHER_PARAM_TLS1_MULTIBLOCK>) <integer>
+
+Gets 1 if the cipher algorithm supports interleaving of crypto blocks, otherwise
+it gets 0. The interleaving is an optimization only applicable to certain
+TLS ciphers.
+
+=item "keylen" (B<OSSL_CIPHER_PARAM_KEYLEN>) <unsigned integer>
+
+Gets the key length for the associated cipher algorithm.
+This can also be used to get or set the key length for the associated cipher
+ctx.
+The length of the "keylen" parameter should not exceed that of a B<size_t>.
+
+=item "ivlen" (B<OSSL_CIPHER_PARAM_IVLEN>) <unsigned integer>
+
+Gets the IV length for the associated cipher algorithm.
+The length of the "ivlen" parameter should not exceed that of a B<size_t>.
+
+=item "iv" (B<OSSL_CIPHER_PARAM_IV>) <octet string OR octet ptr>
+
+Gets the IV used to initialize the associated cipher ctx.
+
+=item "updated-iv" (B<OSSL_CIPHER_PARAM_UPDATED_IV>) <octet string OR octet ptr>
+
+Gets the updated pseudo-IV state for the associated cipher ctx, e.g.,
+the previous ciphertext block for CBC mode or the iteratively encrypted IV
+value for OFB mode.  Note that octet pointer access is deprecated and is
+provided only for backwards compatibility with historical libcrypto APIs.
+
+=item "num" (B<OSSL_CIPHER_PARAM_NUM>) <unsigned integer>
+
+Gets or sets the cipher specific "num" parameter for the associated cipher ctx.
+Built-in ciphers typically use this to track how much of the current underlying
+block has been "used" already.
+
+=item "tag" (B<OSSL_CIPHER_PARAM_AEAD_TAG>) <octet string>
+
+Gets or sets the AEAD tag for the associated cipher ctx.
+See L<EVP_EncryptInit(3)/AEAD Interface>.
+
+=item "taglen" (B<OSSL_CIPHER_PARAM_AEAD_TAGLEN>) <unsigned integer>
+
+Gets the tag length to be used for an AEAD cipher for the associated cipher ctx.
+It gets a default value if it has not been set.
+The length of the "taglen" parameter should not exceed that of a B<size_t>.
+
+=item "tlsaad" (B<OSSL_CIPHER_PARAM_AEAD_TLS1_AAD>) <octet string>
+
+Sets TLSv1.2 AAD information for the associated cipher ctx.
+TLSv1.2 AAD information is always 13 bytes in length and is as defined for the
+"additional_data" field described in section 6.2.3.3 of RFC5246.
+
+=item "tlsaadpad" (B<OSSL_CIPHER_PARAM_AEAD_TLS1_AAD_PAD>) <unsigned integer>
+
+Gets the length of the tag that will be added to a TLS record for the AEAD
+tag for the associated cipher ctx.
+The length of the "tlsaadpad" parameter should not exceed that of a B<size_t>.
+
+=item "tlsivfixed" (B<OSSL_CIPHER_PARAM_AEAD_TLS1_IV_FIXED>) <octet string>
+
+Sets the fixed portion of an IV for an AEAD cipher used in a TLS record
+encryption/ decryption for the associated cipher ctx.
+TLS record encryption/decryption always occurs "in place" so that the input and
+output buffers are always the same memory location.
+AEAD IVs in TLSv1.2 consist of an implicit "fixed" part and an explicit part
+that varies with every record.
+Setting a TLS fixed IV changes a cipher to encrypt/decrypt TLS records.
+TLS records are encrypted/decrypted using a single OSSL_FUNC_cipher_cipher call per
+record.
+For a record decryption the first bytes of the input buffer will be the explicit
+part of the IV and the final bytes of the input buffer will be the AEAD tag.
+The length of the explicit part of the IV and the tag length will depend on the
+cipher in use and will be defined in the RFC for the relevant ciphersuite.
+In order to allow for "in place" decryption the plaintext output should be
+written to the same location in the output buffer that the ciphertext payload
+was read from, i.e. immediately after the explicit IV.
+
+When encrypting a record the first bytes of the input buffer will be empty to
+allow space for the explicit IV, as will the final bytes where the tag will
+be written.
+The length of the input buffer will include the length of the explicit IV, the
+payload, and the tag bytes.
+The cipher implementation should generate the explicit IV and write it to the
+beginning of the output buffer, do "in place" encryption of the payload and
+write that to the output buffer, and finally add the tag onto the end of the
+output buffer.
+
+Whether encrypting or decrypting the value written to I<*outl> in the
+OSSL_FUNC_cipher_cipher call should be the length of the payload excluding the explicit
+IV length and the tag length.
+
+=item "ivlen" (B<OSSL_CIPHER_PARAM_AEAD_IVLEN>) <unsigned integer>
+
+Sets the IV length to be used for an AEAD cipher for the associated cipher ctx.
+The length of the "ivlen" parameter should not exceed that of a B<size_t>.
+
+=item "mackey" (B<OSSL_CIPHER_PARAM_AEAD_MAC_KEY>) <octet string>
+
+Sets the MAC key used by composite AEAD ciphers such as AES-CBC-HMAC-SHA256.
+
+=item "randkey" (B<OSSL_CIPHER_PARAM_RANDOM_KEY>) <octet string>
+
+Gets a implementation specific randomly generated key for the associated
+cipher ctx. This is currently only supported by 3DES (which sets the key to
+odd parity).
+
+=item "alg_id_param" (B<OSSL_CIPHER_PARAM_ALGORITHM_ID_PARAMS>) <octet string>
+
+Used to pass the DER encoded AlgorithmIdentifier parameter to or from
+the cipher implementation.  Functions like L<EVP_CIPHER_param_to_asn1(3)>
+and L<EVP_CIPHER_asn1_to_param(3)> use this parameter for any implementation
+that has the flag B<EVP_CIPH_FLAG_CUSTOM_ASN1> set.
+
+=item "rounds" (B<OSSL_CIPHER_PARAM_ROUNDS>) <unsigned integer>
+
+Sets or gets the number of rounds to be used for a cipher.
+This is used by the RC5 cipher.
+
+=item "keybits" (B<OSSL_CIPHER_PARAM_RC2_KEYBITS>) <unsigned integer>
+
+Gets or sets the effective keybits used for a RC2 cipher.
+The length of the "keybits" parameter should not exceed that of a B<size_t>.
+
+=item "speed" (B<OSSL_CIPHER_PARAM_SPEED>) <unsigned integer>
+
+Sets the speed option for the associated cipher ctx. This is only supported
+by AES SIV ciphers which disallow multiple operations by default.
+Setting "speed" to 1 allows another encrypt or decrypt operation to be
+performed. This is used for performance testing.
+
+=item "tlsivgen" (B<OSSL_CIPHER_PARAM_AEAD_TLS1_GET_IV_GEN>) <octet string>
+
+Gets the invocation field generated for encryption.
+Can only be called after "tlsivfixed" is set.
+This is only used for GCM mode.
+
+=item "tlsivinv" (B<OSSL_CIPHER_PARAM_AEAD_TLS1_SET_IV_INV>) <octet string>
+
+Sets the invocation field used for decryption.
+Can only be called after "tlsivfixed" is set.
+This is only used for GCM mode.
+
+=item "tls1multi_enc" (B<OSSL_CIPHER_PARAM_TLS1_MULTIBLOCK_ENC>) <octet string>
+
+Triggers a multiblock tls1 encrypt operation for a tls1 aware cipher that supports
+sending 4 or 8 records in one go.
+The cipher performs both the MAC and encrypt stages and constructs the record
+headers itself.
+"tls1multi_enc" supplies the output buffer for the encrypt operation,
+"tls1multi_encin" & "tls1multi_interleave" must also be set in order to supply
+values to the encrypt operation.
+
+=item "tls1multi_enclen" (B<OSSL_CIPHER_PARAM_TLS1_MULTIBLOCK_ENC_LEN>) <unsigned integer>
+
+Get the total length of the record returned from the "tls1multi_enc" operation.
+
+=item "tls1multi_interleave" (B<OSSL_CIPHER_PARAM_TLS1_MULTIBLOCK_INTERLEAVE>) <unsigned integer>
+
+Sets or gets the number of records being sent in one go for a tls1 multiblock
+cipher operation (either 4 or 8 records).
+
+=item "tls1multi_encin" (B<OSSL_CIPHER_PARAM_TLS1_MULTIBLOCK_ENC_IN>) <octet string>
+
+Supplies the data to encrypt for a tls1 multiblock cipher operation.
+
+=item "tls1multi_maxsndfrag" (B<OSSL_CIPHER_PARAM_TLS1_MULTIBLOCK_MAX_SEND_FRAGMENT>) <unsigned integer>
+
+Sets the maximum send fragment size for a tls1 multiblock cipher operation.
+It must be set before using "tls1multi_maxbufsz".
+The length of the "tls1multi_maxsndfrag" parameter should not exceed that of a B<size_t>.
+
+=item "tls1multi_maxbufsz" (B<OSSL_CIPHER_PARAM_TLS1_MULTIBLOCK_MAX_BUFSIZE>) <unsigned integer>
+
+Gets the maximum record length for a tls1 multiblock cipher operation.
+The length of the "tls1multi_maxbufsz" parameter should not exceed that of a B<size_t>.
+
+=item "tls1multi_aad" (B<OSSL_CIPHER_PARAM_TLS1_MULTIBLOCK_AAD>) <octet string>
+
+Sets the authenticated additional data used by a tls1 multiblock cipher operation.
+The supplied data consists of 13 bytes of record data containing:
+Bytes 0-7: The sequence number of the first record
+Byte 8: The record type
+Byte 9-10: The protocol version
+Byte 11-12: Input length (Always 0)
+
+"tls1multi_interleave" must also be set for this operation.
+
+=item "tls1multi_aadpacklen" (B<OSSL_CIPHER_PARAM_TLS1_MULTIBLOCK_AAD_PACKLEN>) <unsigned integer>
+
+Gets the result of running the "tls1multi_aad" operation.
+
+=item "cts_mode" (B<OSSL_CIPHER_PARAM_CTS_MODE>) <UTF8 string>
+
+Sets the cipher text stealing mode. For all modes the output size is the same as
+the input size.
+
+Valid values for the mode are:
+
+=over 4
+
+=item "CS1"
+
+The NIST variant of cipher text stealing.
+For message lengths that are multiples of the block size it is equivalent to
+using a "AES-CBC" cipher otherwise the second last cipher text block is a
+partial block.
+
+=item "CS2"
+
+For message lengths that are multiples of the block size it is equivalent to
+using a "AES-CBC" cipher, otherwise it is the same as "CS3".
+
+=item "CS3"
+
+The Kerberos5 variant of cipher text stealing which always swaps the last
+cipher text block with the previous block (which may be a partial or full block
+depending on the input length).
+
+=back
+
+The default is "CS1".
+This is only supported for "AES-128-CBC-CTS", "AES-192-CBC-CTS" and "AES-256-CBC-CTS".
+
+=back
+
+=head1 RETURN VALUES
+
+OSSL_FUNC_cipher_newctx() and OSSL_FUNC_cipher_dupctx() should return the newly created
+provider side cipher context, or NULL on failure.
+
+OSSL_FUNC_cipher_encrypt_init(), OSSL_FUNC_cipher_decrypt_init(), OSSL_FUNC_cipher_update(),
+OSSL_FUNC_cipher_final(), OSSL_FUNC_cipher_cipher(), OSSL_FUNC_cipher_get_params(),
+OSSL_FUNC_cipher_get_ctx_params() and OSSL_FUNC_cipher_set_ctx_params() should return 1 for
+success or 0 on error.
+
+OSSL_FUNC_cipher_gettable_params(), OSSL_FUNC_cipher_gettable_ctx_params() and
+OSSL_FUNC_cipher_settable_ctx_params() should return a constant B<OSSL_PARAM>
+array, or NULL if none is offered.
+
+=head1 SEE ALSO
+
+L<provider(7)>
+
+=head1 HISTORY
+
+The provider CIPHER interface was introduced in OpenSSL 3.0.
+
+=head1 COPYRIGHT
+
+Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

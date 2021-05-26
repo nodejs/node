@@ -1,7 +1,7 @@
 /*
- * Copyright 2005-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2005-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -30,7 +30,7 @@
 # ifdef OSSL_INTERNAL_CRYPTLIB_H
 #  error internal/cryptlib.h included before bio_local.h
 # endif
-# ifdef HEADER_BIO_H
+# ifdef OPENSSL_BIO_H
 #  error openssl/bio.h included before bio_local.h
 # endif
 
@@ -113,6 +113,7 @@ typedef struct bio_f_buffer_ctx_struct {
 } BIO_F_BUFFER_CTX;
 
 struct bio_st {
+    OSSL_LIB_CTX *libctx;
     const BIO_METHOD *method;
     /* bio, mode, argp, argi, argl, ret */
     BIO_callback_fn callback;
@@ -152,7 +153,7 @@ extern CRYPTO_RWLOCK *bio_type_lock;
 
 void bio_sock_cleanup_int(void);
 
-#if BIO_FLAGS_UPLINK==0
+#if BIO_FLAGS_UPLINK_INTERNAL==0
 /* Shortcut UPLINK calls on most platforms... */
 # define UP_stdin        stdin
 # define UP_stdout       stdout

@@ -1,7 +1,7 @@
 /*
- * Copyright 2016-2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -9,17 +9,26 @@
 
 #include "internal/nelem.h"
 #include "testutil.h"
-
-#ifdef __VMS
-# pragma names save
-# pragma names as_is,shortened
-#endif
-
 #include "../ssl/ssl_local.h"
 
-#ifdef __VMS
-# pragma names restore
-#endif
+static int cipher_enabled(const SSL_CIPHER *ciph)
+{
+    /*
+     * ssl_cipher_get_overhead() actually works with AEAD ciphers even if the
+     * underlying implementation is not present.
+     */
+    if ((ciph->algorithm_mac & SSL_AEAD) != 0)
+        return 1;
+
+    if (ciph->algorithm_enc != SSL_eNULL
+            && EVP_get_cipherbynid(SSL_CIPHER_get_cipher_nid(ciph)) == NULL)
+        return 0;
+
+    if (EVP_get_digestbynid(SSL_CIPHER_get_digest_nid(ciph)) == NULL)
+        return 0;
+
+    return 1;
+}
 
 static int cipher_overhead(void)
 {
@@ -31,6 +40,10 @@ static int cipher_overhead(void)
         ciph = ssl3_get_cipher(i);
         if (!ciph->min_dtls)
             continue;
+        if (!cipher_enabled(ciph)) {
+            TEST_skip("Skipping disabled cipher %s", ciph->name);
+            continue;
+        }
         if (!TEST_true(ssl_cipher_get_overhead(ciph, &mac, &in, &blk, &ex))) {
             TEST_info("Failed getting %s", ciph->name);
             ret = 0;

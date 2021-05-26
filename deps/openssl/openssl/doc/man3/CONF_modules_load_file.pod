@@ -2,12 +2,17 @@
 
 =head1 NAME
 
-CONF_modules_load_file, CONF_modules_load - OpenSSL configuration functions
+CONF_get1_default_config_file,
+CONF_modules_load_file_ex, CONF_modules_load_file, CONF_modules_load
+- OpenSSL configuration functions
 
 =head1 SYNOPSIS
 
  #include <openssl/conf.h>
 
+ char *CONF_get1_default_config_file(void);
+ int CONF_modules_load_file_ex(OSSL_LIB_CTX *libctx, const char *filename,
+                               const char *appname, unsigned long flags);
  int CONF_modules_load_file(const char *filename, const char *appname,
                             unsigned long flags);
  int CONF_modules_load(const CONF *cnf, const char *appname,
@@ -15,11 +20,24 @@ CONF_modules_load_file, CONF_modules_load - OpenSSL configuration functions
 
 =head1 DESCRIPTION
 
-The function CONF_modules_load_file() configures OpenSSL using file
-B<filename> and application name B<appname>. If B<filename> is NULL
-the standard OpenSSL configuration file is used. If B<appname> is
-NULL the standard OpenSSL application name B<openssl_conf> is used.
-The behaviour can be customized using B<flags>.
+The function CONF_get1_default_config_file() determines the default
+configuration file pathname as follows.
+If the B<OPENSSL_CONF> environment variable is set its value is returned.
+Else the function returns the path obtained using
+L<X509_get_default_cert_area(3)> with the filename C<"openssl.cnf"> appended.
+The caller is responsible for freeing any string returned.
+
+The function CONF_modules_load_file_ex() configures OpenSSL using
+library context B<libctx> file B<filename> and application name B<appname>.
+If B<filename> is NULL the standard OpenSSL configuration file is used
+as determined by calling CONF_get1_default_config_file().
+If B<appname> is NULL the standard OpenSSL application name B<openssl_conf> is
+used.
+The behaviour can be customized using B<flags>. Note that, the error suppressing
+can be overriden by B<config_diagnostics> as described in L<config(5)>.
+
+CONF_modules_load_file() is the same as CONF_modules_load_file_ex() but
+has a NULL library context.
 
 CONF_modules_load() is identical to CONF_modules_load_file() except it
 reads configuration information from B<cnf>.
@@ -40,8 +58,8 @@ returns success.
 This is used by default in L<OPENSSL_init_crypto(3)> to ignore any errors in
 the default system-wide configuration file, as having all OpenSSL applications
 fail to start when there are potentially minor issues in the file is too risky.
-Applications calling B<CONF_modules_load_file> explicitly should not generally
-set this flag.
+Applications calling B<CONF_modules_load_file_ex> explicitly should not
+generally set this flag.
 
 If B<CONF_MFLAGS_NO_DSO> is set configuration module loading from DSOs is
 disabled.
@@ -53,10 +71,10 @@ return an error.
 B<CONF_MFLAGS_DEFAULT_SECTION> if set and B<appname> is not NULL will use the
 default section pointed to by B<openssl_conf> if B<appname> does not exist.
 
-By using CONF_modules_load_file() with appropriate flags an application can
-customise application configuration to best suit its needs. In some cases the
-use of a configuration file is optional and its absence is not an error: in
-this case B<CONF_MFLAGS_IGNORE_MISSING_FILE> would be set.
+By using CONF_modules_load_file_ex() with appropriate flags an
+application can customise application configuration to best suit its needs.
+In some cases the use of a configuration file is optional and its absence is not
+an error: in this case B<CONF_MFLAGS_IGNORE_MISSING_FILE> would be set.
 
 Errors during configuration may also be handled differently by different
 applications. For example in some cases an error may simply print out a warning
@@ -78,7 +96,7 @@ return value of the failing module (this will always be zero or negative).
 Load a configuration file and print out any errors and exit (missing file
 considered fatal):
 
- if (CONF_modules_load_file(NULL, NULL, 0) <= 0) {
+ if (CONF_modules_load_file_ex(libctx, NULL, NULL, 0) <= 0) {
      fprintf(stderr, "FATAL: error loading configuration file\n");
      ERR_print_errors_fp(stderr);
      exit(1);
@@ -87,8 +105,8 @@ considered fatal):
 Load default configuration file using the section indicated by "myapp",
 tolerate missing files, but exit on other errors:
 
- if (CONF_modules_load_file(NULL, "myapp",
-                            CONF_MFLAGS_IGNORE_MISSING_FILE) <= 0) {
+ if (CONF_modules_load_file_ex(NULL, NULL, "myapp",
+                               CONF_MFLAGS_IGNORE_MISSING_FILE) <= 0) {
      fprintf(stderr, "FATAL: error loading configuration file\n");
      ERR_print_errors_fp(stderr);
      exit(1);
@@ -97,8 +115,8 @@ tolerate missing files, but exit on other errors:
 Load custom configuration file and section, only print warnings on error,
 missing configuration file ignored:
 
- if (CONF_modules_load_file("/something/app.cnf", "myapp",
-                            CONF_MFLAGS_IGNORE_MISSING_FILE) <= 0) {
+ if (CONF_modules_load_file_ex(NULL, "/something/app.cnf", "myapp",
+                               CONF_MFLAGS_IGNORE_MISSING_FILE) <= 0) {
      fprintf(stderr, "WARNING: error loading configuration file\n");
      ERR_print_errors_fp(stderr);
  }
@@ -114,7 +132,7 @@ Load and parse configuration file manually, custom error handling:
      fprintf(stderr, "Error opening configuration file\n");
      /* Other missing configuration file behaviour */
  } else {
-     cnf = NCONF_new(NULL);
+     cnf = NCONF_new_ex(libctx, NULL);
      if (NCONF_load_fp(cnf, fp, &eline) == 0) {
          fprintf(stderr, "Error on line %ld of configuration file\n", eline);
          ERR_print_errors_fp(stderr);
@@ -130,13 +148,15 @@ Load and parse configuration file manually, custom error handling:
 
 =head1 SEE ALSO
 
-L<config(5)>, L<OPENSSL_config(3)>
+L<config(5)>,
+L<OPENSSL_config(3)>,
+L<NCONF_new_ex(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2004-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2004-2021 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

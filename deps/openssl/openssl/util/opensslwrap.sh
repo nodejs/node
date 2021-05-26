@@ -6,6 +6,9 @@ OPENSSL="${HERE}../apps/openssl"
 if [ -d "${HERE}../engines" -a "x$OPENSSL_ENGINES" = "x" ]; then
 	OPENSSL_ENGINES="${HERE}../engines"; export OPENSSL_ENGINES
 fi
+if [ -d "${HERE}../providers" -a "x$OPENSSL_MODULES" = "x" ]; then
+	OPENSSL_MODULES="${HERE}../providers"; export OPENSSL_MODULES
+fi
 
 if [ -x "${OPENSSL}.exe" ]; then
 	# The original reason for this script existence is to work around

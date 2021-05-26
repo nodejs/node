@@ -1,7 +1,7 @@
 #! /usr/bin/env perl
-# Copyright 2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2018-2021 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
@@ -154,21 +154,28 @@ my %procedures = (
             }
             return ($objfile, $depconv_cache{$line})
                 if defined $depconv_cache{$line};
-            print STDERR "DEBUG[VMS C]: ignoring $objfile <- $line\n"
+            print STDERR "DEBUG[$producer]: ignoring $objfile <- $line\n"
                 if $debug;
 
             return undef;
         },
     'VC' =>
         sub {
-            # For the moment, we only support Visual C on native Windows, or
-            # compatible compilers.  With those, the flags /Zs /showIncludes
-            # give us the necessary output to be able to create dependencies
-            # that nmake (or any 'make' implementation) should be able to read,
-            # with a bit of help.  The output we're interested in looks like
-            # this (it always starts the same)
+            # With Microsoft Visual C the flags /Zs /showIncludes give us the
+            # necessary output to be able to create dependencies that nmake
+            # (or any 'make' implementation) should be able to read, with a
+            # bit of help.  The output we're interested in looks something
+            # like this (it always starts the same)
             #
             #   Note: including file: {whatever header file}
+            #
+            # This output is localized, so for example, the German pack gives
+            # us this:
+            #
+            #   Hinweis: Einlesen der Datei:   {whatever header file}
+            #
+            # To accomodate, we need to use a very general regular expression
+            # to parse those lines.
             #
             # Since there's no object file name at all in that information,
             # we must construct it ourselves.
@@ -180,7 +187,7 @@ my %procedures = (
             # warnings, so we simply discard anything that doesn't start with
             # the Note:
 
-            if (/^Note: including file: */) {
+            if (/^[^:]*: [^:]*: */) {
                 (my $tail = $') =~ s/\s*\R$//;
 
                 # VC gives us absolute paths for all include files, so to
@@ -199,7 +206,53 @@ my %procedures = (
                 }
                 return ($objfile, '"'.$depconv_cache{$tail}.'"')
                     if defined $depconv_cache{$tail};
-                print STDERR "DEBUG[VC]: ignoring $objfile <- $tail\n"
+                print STDERR "DEBUG[$producer]: ignoring $objfile <- $tail\n"
+                    if $debug;
+            }
+
+            return undef;
+        },
+    'embarcadero' =>
+        sub {
+            # With Embarcadero C++Builder's preprocessor (cpp32.exe) the -Sx -Hp
+            # flags give us the list of #include files read, like the following:
+            #
+            #   Including ->->{whatever header file}
+            #
+            # where each "->" indicates the nesting level of the #include.  The
+            # logic here is otherwise the same as the 'VC' scheme.
+            #
+            # Since there's no object file name at all in that information,
+            # we must construct it ourselves.
+
+            (my $objfile = shift) =~ s|\.d$|.obj|i;
+            my $line = shift;
+
+            # There are also other lines mixed in, for example compiler
+            # warnings, so we simply discard anything that doesn't start with
+            # the Note:
+
+            if (/^Including (->)*/) {
+                (my $tail = $') =~ s/\s*\R$//;
+
+                # C++Builder gives us relative paths when possible, so to
+                # remove system header dependencies, we convert them to
+                # absolute paths and check that they don't match $abs_srcdir
+                # or $abs_blddir, just as the 'VC' scheme.
+                $tail = rel2abs($tail);
+
+                unless (defined $depconv_cache{$tail}) {
+                    my $dep = $tail;
+                    # Since we have already pre-populated the cache with
+                    # mappings for generated headers, we only need to deal
+                    # with the source tree.
+                    if ($dep =~ s|^\Q$abs_srcdir\E\\|\$(SRCDIR)\\|i) {
+                        $depconv_cache{$tail} = $dep;
+                    }
+                }
+                return ($objfile, '"'.$depconv_cache{$tail}.'"')
+                    if defined $depconv_cache{$tail};
+                print STDERR "DEBUG[$producer]: ignoring $objfile <- $tail\n"
                     if $debug;
             }
 
@@ -211,6 +264,7 @@ my %continuations = (
     'makedepend' => "\\",
     'VMS C' => "-",
     'VC' => "\\",
+    'embarcadero' => "\\",
 );
 
 die "Producer unrecognised: $producer\n"

@@ -1,0 +1,2 @@
+SOURCE[../fips]=fipsprov.c self_test.c self_test_kats.c
+INCLUDE[../fips]=../implementations/include ../common/include ../..

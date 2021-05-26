@@ -1,0 +1,88 @@
+=pod
+
+=head1 NAME
+
+OSSL_ESS_signing_cert_new_init,
+OSSL_ESS_signing_cert_v2_new_init,
+OSSL_ESS_check_signing_certs
+- Enhanced Security Services (ESS) functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/ess.h>
+
+ ESS_SIGNING_CERT *OSSL_ESS_signing_cert_new_init(const X509 *signcert,
+                                                  const STACK_OF(X509) *certs,
+                                                  int set_issuer_serial);
+ ESS_SIGNING_CERT_V2 *OSSL_ESS_signing_cert_v2_new_init(const EVP_MD *hash_alg,
+                                                        const X509 *signcert,
+                                                        const
+                                                        STACK_OF(X509) *certs,
+                                                        int set_issuer_serial);
+ int OSSL_ESS_check_signing_certs(const ESS_SIGNING_CERT *ss,
+                                  const ESS_SIGNING_CERT_V2 *ssv2,
+                                  const STACK_OF(X509) *chain,
+                                  int require_signing_cert);
+
+=head1 DESCRIPTION
+
+OSSL_ESS_signing_cert_new_init() generates a new B<ESS_SIGNING_CERT> structure
+referencing the given I<signcert> and any given further I<certs>
+using their SHA-1 fingerprints.
+If I<set_issuer_serial> is nonzero then also the issuer and serial number
+of I<signcert> are included in the B<ESS_CERT_ID> as the B<issuerSerial> field.
+For all members of I<certs> the  B<issuerSerial> field is always included.
+
+OSSL_ESS_signing_cert_v2_new_init() is the same as
+OSSL_ESS_signing_cert_new_init() except that it uses the given I<hash_alg> and
+generates a B<ESS_SIGNING_CERT_V2> structure with B<ESS_CERT_ID_V2> elements.
+
+OSSL_ESS_check_signing_certs() checks if the validation chain I<chain> contains
+the certificates required by the identifiers given in I<ss> and/or I<ssv2>.
+If I<require_signing_cert> is nonzero, I<ss> or I<ssv2> must not be NULL.
+If both I<ss> and I<ssv2> are not NULL, they are evaluated independently.
+The list of certificate identifiers in I<ss> is of type B<ESS_CERT_ID>,
+while the list contained in I<ssv2> is of type B<ESS_CERT_ID_V2>.
+As far as these lists are present, they must be nonempty.
+The certificate identified by their first entry must be the first element of
+I<chain>, i.e. the signer certificate.
+Any further certficates referenced in the list must also be found in I<chain>.
+The matching is done using the given certificate hash algorithm and value.
+In addition to the checks required by RFCs 2624 and 5035,
+if the B<issuerSerial> field is included in an B<ESSCertID> or B<ESSCertIDv2>
+it must match the certificate issuer and serial number attributes.
+
+=head1 NOTES
+
+ESS has been defined in RFC 2634, which has been updated in RFC 5035
+(ESS version 2) to support hash algorithms other than SHA-1.
+This is used for TSP (RFC 3161) and CAdES-BES (informational RFC 5126).
+
+=head1 RETURN VALUES
+
+OSSL_ESS_signing_cert_new_init() and OSSL_ESS_signing_cert_v2_new_init()
+return a pointer to the new structure or NULL on malloc failure.
+
+OSSL_ESS_check_signing_certs() returns 1 on success,
+0 if a required certificate cannot be found, -1 on other error.
+
+=head1 SEE ALSO
+
+L<TS_VERIFY_CTX_set_certs(3)>,
+L<CMS_verify(3)>
+
+=head1 HISTORY
+
+OSSL_ESS_signing_cert_new_init(), OSSL_ESS_signing_cert_v2_new_init(), and
+OSSL_ESS_check_signing_certs() were added in OpenSSL 3.0.
+
+=head1 COPYRIGHT
+
+Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

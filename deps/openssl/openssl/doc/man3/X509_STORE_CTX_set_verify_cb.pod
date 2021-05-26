@@ -14,14 +14,16 @@ X509_STORE_CTX_get_check_issued,
 X509_STORE_CTX_get_get_issuer,
 X509_STORE_CTX_get_verify_cb,
 X509_STORE_CTX_set_verify_cb,
-X509_STORE_CTX_verify_cb
-- get and set verification callback
+X509_STORE_CTX_verify_cb,
+X509_STORE_CTX_print_verify_cb
+- get and set X509_STORE_CTX components such as verification callback
 
 =head1 SYNOPSIS
 
  #include <openssl/x509_vfy.h>
 
  typedef int (*X509_STORE_CTX_verify_cb)(int, X509_STORE_CTX *);
+ int X509_STORE_CTX_print_verify_cb(int ok, X509_STORE_CTX *ctx);
 
  X509_STORE_CTX_verify_cb X509_STORE_CTX_get_verify_cb(X509_STORE_CTX *ctx);
 
@@ -45,7 +47,7 @@ X509_STORE_CTX_set_verify_cb() sets the verification callback of B<ctx> to
 B<verify_cb> overwriting any existing callback.
 
 The verification callback can be used to customise the operation of certificate
-verification, either by overriding error conditions or logging errors for
+verification, for instance by overriding error conditions or logging errors for
 debugging purposes.
 
 However, a verification callback is B<not> essential and the default operation
@@ -62,6 +64,12 @@ is performing the verification operation. A callback can examine this
 structure and receive additional information about the error, for example
 by calling X509_STORE_CTX_get_current_cert(). Additional application data can
 be passed to the callback via the B<ex_data> mechanism.
+
+X509_STORE_CTX_print_verify_cb() is a verification callback function that,
+when a certificate verification has failed, adds an entry to the error queue
+with code B<X509_R_CERTIFICATE_VERIFICATION_FAILED> and with diagnostic details,
+including the most relevant fields of the target certificate that failed to
+verify and, if appropriate, of the available untrusted and trusted certificates.
 
 X509_STORE_CTX_get_verify_cb() returns the value of the current callback
 for the specific B<ctx>.
@@ -200,11 +208,13 @@ X509_STORE_CTX_get_cert_crl(), X509_STORE_CTX_get_check_policy(),
 X509_STORE_CTX_get_lookup_certs(), X509_STORE_CTX_get_lookup_crls()
 and X509_STORE_CTX_get_cleanup() functions were added in OpenSSL 1.1.0.
 
+X509_STORE_CTX_print_verify_cb() was added in OpenSSL 3.0.
+
 =head1 COPYRIGHT
 
 Copyright 2009-2020 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

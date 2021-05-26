@@ -1,0 +1,69 @@
+=pod
+
+=head1 NAME
+
+BIO_socket_wait,
+BIO_wait,
+BIO_do_connect_retry
+- BIO connection utility functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/bio.h>
+
+ #ifndef OPENSSL_NO_SOCK
+ int BIO_socket_wait(int fd, int for_read, time_t max_time);
+ #endif
+ int BIO_wait(BIO *bio, time_t max_time, unsigned int nap_milliseconds);
+ int BIO_do_connect_retry(BIO *bio, int timeout, int nap_milliseconds);
+
+=head1 DESCRIPTION
+
+BIO_socket_wait() waits on the socket B<fd> for reading if B<for_read> is not 0,
+else for writing, at most until B<max_time>.
+It succeeds immediately if B<max_time> == 0 (which means no timeout given).
+
+BIO_wait() waits at most until B<max_time> on the given (typically socket-based)
+B<bio>, for reading if B<bio> is supposed to read, else for writing.
+It is used by BIO_do_connect_retry() and can be used together L<BIO_read(3)>.
+It succeeds immediately if B<max_time> == 0 (which means no timeout given).
+If sockets are not available it supports polling by succeeding after sleeping
+at most the given B<nap_milliseconds> in order to avoid a tight busy loop.
+Via B<nap_milliseconds> the caller determines the polling granularity.
+
+BIO_do_connect_retry() connects via the given B<bio>.
+It retries BIO_do_connect() as far as needed to reach a definite outcome,
+i.e., connection succeeded, timeout has been reached, or an error occurred.
+For nonblocking and potentially even non-socket BIOs it polls
+every B<nap_milliseconds> and sleeps in between using BIO_wait().
+If B<nap_milliseconds> is < 0 then a default value of 100 ms is used.
+If the B<timeout> parameter is > 0 this indicates the maximum number of seconds
+to wait until the connection is established or a definite error occurred.
+A value of 0 enables waiting indefinitely (i.e, no timeout),
+while a value < 0 means that BIO_do_connect() is tried only once.
+The function may, directly or indirectly, invoke ERR_clear_error().
+
+=head1 RETURN VALUES
+
+BIO_socket_wait(), BIO_wait(), and BIO_do_connect_retry()
+return -1 on error, 0 on timeout, and 1 on success.
+
+=head1 SEE ALSO
+
+L<BIO_do_connect(3)>, L<BIO_read(3)>
+
+=head1 HISTORY
+
+BIO_socket_wait(), BIO_wait(), and BIO_do_connect_retry()
+were added in OpenSSL 3.0.
+
+=head1 COPYRIGHT
+
+Copyright 2019-2020 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

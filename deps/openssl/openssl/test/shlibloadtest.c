@@ -1,7 +1,7 @@
 /*
- * Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -12,8 +12,8 @@
 #include <stdlib.h>
 #include <openssl/opensslv.h>
 #include <openssl/ssl.h>
-#include <openssl/ossl_typ.h>
-#include "crypto/dso_conf.h"
+#include <openssl/types.h>
+#include "simpledynamic.h"
 
 typedef void DSO;
 
@@ -23,7 +23,9 @@ typedef void (*SSL_CTX_free_t)(SSL_CTX *);
 typedef int (*OPENSSL_init_crypto_t)(uint64_t, void *);
 typedef int (*OPENSSL_atexit_t)(void (*handler)(void));
 typedef unsigned long (*ERR_get_error_t)(void);
-typedef unsigned long (*OpenSSL_version_num_t)(void);
+typedef unsigned long (*OPENSSL_version_major_t)(void);
+typedef unsigned long (*OPENSSL_version_minor_t)(void);
+typedef unsigned long (*OPENSSL_version_patch_t)(void);
 typedef DSO * (*DSO_dsobyaddr_t)(void (*addr)(void), int flags);
 typedef int (*DSO_free_t)(DSO *dso);
 
@@ -40,67 +42,7 @@ static const char *path_crypto;
 static const char *path_ssl;
 static const char *path_atexit;
 
-#ifdef DSO_DLFCN
-
-# include <dlfcn.h>
-
-# define SHLIB_INIT NULL
-
-typedef void *SHLIB;
-typedef void *SHLIB_SYM;
-
-static int shlib_load(const char *filename, SHLIB *lib)
-{
-    int dl_flags = (RTLD_GLOBAL|RTLD_LAZY);
-#ifdef _AIX
-    if (filename[strlen(filename) - 1] == ')')
-        dl_flags |= RTLD_MEMBER;
-#endif
-    *lib = dlopen(filename, dl_flags);
-    return *lib == NULL ? 0 : 1;
-}
-
-static int shlib_sym(SHLIB lib, const char *symname, SHLIB_SYM *sym)
-{
-    *sym = dlsym(lib, symname);
-    return *sym != NULL;
-}
-
-static int shlib_close(SHLIB lib)
-{
-    return dlclose(lib) != 0 ? 0 : 1;
-}
-#endif
-
-#ifdef DSO_WIN32
-
-# include <windows.h>
-
-# define SHLIB_INIT 0
-
-typedef HINSTANCE SHLIB;
-typedef void *SHLIB_SYM;
-
-static int shlib_load(const char *filename, SHLIB *lib)
-{
-    *lib = LoadLibraryA(filename);
-    return *lib == NULL ? 0 : 1;
-}
-
-static int shlib_sym(SHLIB lib, const char *symname, SHLIB_SYM *sym)
-{
-    *sym = (SHLIB_SYM)GetProcAddress(lib, symname);
-    return *sym != NULL;
-}
-
-static int shlib_close(SHLIB lib)
-{
-    return FreeLibrary(lib) == 0 ? 0 : 1;
-}
-#endif
-
-
-#if defined(DSO_DLFCN) || defined(DSO_WIN32)
+#ifdef SD_INIT
 
 static int atexit_handler_done = 0;
 
@@ -118,18 +60,20 @@ static void atexit_handler(void)
 
 static int test_lib(void)
 {
-    SHLIB ssllib = SHLIB_INIT;
-    SHLIB cryptolib = SHLIB_INIT;
+    SD ssllib = SD_INIT;
+    SD cryptolib = SD_INIT;
     SSL_CTX *ctx;
     union {
         void (*func)(void);
-        SHLIB_SYM sym;
-    } symbols[3];
+        SD_SYM sym;
+    } symbols[5];
     TLS_method_t myTLS_method;
     SSL_CTX_new_t mySSL_CTX_new;
     SSL_CTX_free_t mySSL_CTX_free;
     ERR_get_error_t myERR_get_error;
-    OpenSSL_version_num_t myOpenSSL_version_num;
+    OPENSSL_version_major_t myOPENSSL_version_major;
+    OPENSSL_version_minor_t myOPENSSL_version_minor;
+    OPENSSL_version_patch_t myOPENSSL_version_patch;
     OPENSSL_atexit_t myOPENSSL_atexit;
     int result = 0;
 
@@ -138,7 +82,7 @@ static int test_lib(void)
     case DSO_REFTEST:
     case NO_ATEXIT:
     case CRYPTO_FIRST:
-        if (!shlib_load(path_crypto, &cryptolib)) {
+        if (!sd_load(path_crypto, &cryptolib, SD_SHLIB)) {
             fprintf(stderr, "Failed to load libcrypto\n");
             goto end;
         }
@@ -147,13 +91,13 @@ static int test_lib(void)
         /* Fall through */
 
     case SSL_FIRST:
-        if (!shlib_load(path_ssl, &ssllib)) {
+        if (!sd_load(path_ssl, &ssllib, SD_SHLIB)) {
             fprintf(stderr, "Failed to load libssl\n");
             goto end;
         }
         if (test_type != SSL_FIRST)
             break;
-        if (!shlib_load(path_crypto, &cryptolib)) {
+        if (!sd_load(path_crypto, &cryptolib, SD_SHLIB)) {
             fprintf(stderr, "Failed to load libcrypto\n");
             goto end;
         }
@@ -163,7 +107,7 @@ static int test_lib(void)
     if (test_type == NO_ATEXIT) {
         OPENSSL_init_crypto_t myOPENSSL_init_crypto;
 
-        if (!shlib_sym(cryptolib, "OPENSSL_init_crypto", &symbols[0].sym)) {
+        if (!sd_sym(cryptolib, "OPENSSL_init_crypto", &symbols[0].sym)) {
             fprintf(stderr, "Failed to load OPENSSL_init_crypto symbol\n");
             goto end;
         }
@@ -177,9 +121,9 @@ static int test_lib(void)
     if (test_type != JUST_CRYPTO
             && test_type != DSO_REFTEST
             && test_type != NO_ATEXIT) {
-        if (!shlib_sym(ssllib, "TLS_method", &symbols[0].sym)
-                || !shlib_sym(ssllib, "SSL_CTX_new", &symbols[1].sym)
-                || !shlib_sym(ssllib, "SSL_CTX_free", &symbols[2].sym)) {
+        if (!sd_sym(ssllib, "TLS_method", &symbols[0].sym)
+                || !sd_sym(ssllib, "SSL_CTX_new", &symbols[1].sym)
+                || !sd_sym(ssllib, "SSL_CTX_free", &symbols[2].sym)) {
             fprintf(stderr, "Failed to load libssl symbols\n");
             goto end;
         }
@@ -194,9 +138,11 @@ static int test_lib(void)
         mySSL_CTX_free(ctx);
     }
 
-    if (!shlib_sym(cryptolib, "ERR_get_error", &symbols[0].sym)
-           || !shlib_sym(cryptolib, "OpenSSL_version_num", &symbols[1].sym)
-           || !shlib_sym(cryptolib, "OPENSSL_atexit", &symbols[2].sym)) {
+    if (!sd_sym(cryptolib, "ERR_get_error", &symbols[0].sym)
+           || !sd_sym(cryptolib, "OPENSSL_version_major", &symbols[1].sym)
+           || !sd_sym(cryptolib, "OPENSSL_version_minor", &symbols[2].sym)
+           || !sd_sym(cryptolib, "OPENSSL_version_patch", &symbols[3].sym)
+           || !sd_sym(cryptolib, "OPENSSL_atexit", &symbols[4].sym)) {
         fprintf(stderr, "Failed to load libcrypto symbols\n");
         goto end;
     }
@@ -206,13 +152,18 @@ static int test_lib(void)
         goto end;
     }
 
-    myOpenSSL_version_num = (OpenSSL_version_num_t)symbols[1].func;
-    if (myOpenSSL_version_num()  != OPENSSL_VERSION_NUMBER) {
+    /* Library and header version should be identical in this test */
+    myOPENSSL_version_major = (OPENSSL_version_major_t)symbols[1].func;
+    myOPENSSL_version_minor = (OPENSSL_version_minor_t)symbols[2].func;
+    myOPENSSL_version_patch = (OPENSSL_version_patch_t)symbols[3].func;
+    if (myOPENSSL_version_major() != OPENSSL_VERSION_MAJOR
+            || myOPENSSL_version_minor() != OPENSSL_VERSION_MINOR
+            || myOPENSSL_version_patch() != OPENSSL_VERSION_PATCH) {
         fprintf(stderr, "Invalid library version number\n");
         goto end;
     }
 
-    myOPENSSL_atexit = (OPENSSL_atexit_t)symbols[2].func;
+    myOPENSSL_atexit = (OPENSSL_atexit_t)symbols[4].func;
     if (!myOPENSSL_atexit(atexit_handler)) {
         fprintf(stderr, "Failed to register atexit handler\n");
         goto end;
@@ -231,8 +182,8 @@ static int test_lib(void)
          * will always return an error, because DSO_pathbyaddr() is not
          * implemented there.
          */
-        if (!shlib_sym(cryptolib, "DSO_dsobyaddr", &symbols[0].sym)
-                || !shlib_sym(cryptolib, "DSO_free", &symbols[1].sym)) {
+        if (!sd_sym(cryptolib, "DSO_dsobyaddr", &symbols[0].sym)
+                || !sd_sym(cryptolib, "DSO_free", &symbols[1].sym)) {
             fprintf(stderr, "Unable to load DSO symbols\n");
             goto end;
         }
@@ -253,16 +204,18 @@ static int test_lib(void)
 # endif /* DSO_DLFCN */
     }
 
-    if (!shlib_close(cryptolib)) {
+    if (!sd_close(cryptolib)) {
         fprintf(stderr, "Failed to close libcrypto\n");
         goto end;
     }
+    cryptolib = SD_INIT;
 
     if (test_type == CRYPTO_FIRST || test_type == SSL_FIRST) {
-        if (!shlib_close(ssllib)) {
+        if (!sd_close(ssllib)) {
             fprintf(stderr, "Failed to close libssl\n");
             goto end;
         }
+        ssllib = SD_INIT;
     }
 
 # if defined(OPENSSL_NO_PINSHARED) \
@@ -284,6 +237,10 @@ static int test_lib(void)
 
     result = 1;
 end:
+    if (cryptolib != SD_INIT)
+        sd_close(cryptolib);
+    if (ssllib != SD_INIT)
+        sd_close(ssllib);
     return result;
 }
 #endif
@@ -327,7 +284,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-#if defined(DSO_DLFCN) || defined(DSO_WIN32)
+#ifdef SD_INIT
     if (!test_lib())
         return 1;
 #endif

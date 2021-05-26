@@ -1,13 +1,13 @@
 /*
- * Copyright 2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2018-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
 
-#include "ssltestlib.h"
+#include "helpers/ssltestlib.h"
 #include "testutil.h"
 #include "internal/nelem.h"
 
@@ -28,6 +28,14 @@ static struct {
     /* Server doesn't have a TLSv1.3 capable cert - should use TLSv1.2 */
     {"GOST2012-GOST8912-GOST8912", TLS1_2_VERSION, 1},
     /* Server doesn't have a TLSv1.3 capable cert - should use TLSv1.2 */
+    {"IANA-GOST2012-GOST8912-GOST8912", TLS1_2_VERSION, 0},
+    /* Server doesn't have a TLSv1.3 capable cert - should use TLSv1.2 */
+    {"IANA-GOST2012-GOST8912-GOST8912", TLS1_2_VERSION, 1},
+    /* Server doesn't have a TLSv1.3 capable cert - should use TLSv1.2 */
+    {"LEGACY-GOST2012-GOST8912-GOST8912", TLS1_2_VERSION, 0},
+    /* Server doesn't have a TLSv1.3 capable cert - should use TLSv1.2 */
+    {"LEGACY-GOST2012-GOST8912-GOST8912", TLS1_2_VERSION, 1},
+    /* Server doesn't have a TLSv1.3 capable cert - should use TLSv1.2 */
     {"GOST2001-GOST89-GOST89", TLS1_2_VERSION, 0},
 };
 
@@ -38,10 +46,10 @@ static int test_tls13(int idx)
     SSL *clientssl = NULL, *serverssl = NULL;
     int testresult = 0;
 
-    if (!TEST_true(create_ssl_ctx_pair(TLS_server_method(),
+    if (!TEST_true(create_ssl_ctx_pair(NULL, TLS_server_method(),
                                        TLS_client_method(),
                                        TLS1_VERSION,
-                                       TLS_MAX_VERSION,
+                                       0,
                                        &sctx, &cctx,
                                        ciphers[idx].certnum == 0 ? cert1
                                                                  : cert2,
@@ -78,8 +86,15 @@ static int test_tls13(int idx)
     return testresult;
 }
 
+OPT_TEST_DECLARE_USAGE("certfile1 privkeyfile1 certfile2 privkeyfile2\n")
+
 int setup_tests(void)
 {
+    if (!test_skip_common_options()) {
+        TEST_error("Error parsing test options\n");
+        return 0;
+    }
+
     if (!TEST_ptr(cert1 = test_get_argument(0))
             || !TEST_ptr(privkey1 = test_get_argument(1))
             || !TEST_ptr(cert2 = test_get_argument(2))

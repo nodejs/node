@@ -1,7 +1,7 @@
 /*
- * Copyright 1999-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -10,6 +10,8 @@
 #include <stdio.h>
 #include "internal/cryptlib.h"
 #include <openssl/asn1t.h>
+#include <openssl/core.h>
+#include <openssl/core_names.h>
 #include <openssl/x509.h>
 #include <openssl/rand.h>
 
@@ -37,9 +39,10 @@ IMPLEMENT_ASN1_FUNCTIONS(PBKDF2PARAM)
  * and IV.
  */
 
-X509_ALGOR *PKCS5_pbe2_set_iv(const EVP_CIPHER *cipher, int iter,
-                              unsigned char *salt, int saltlen,
-                              unsigned char *aiv, int prf_nid)
+X509_ALGOR *PKCS5_pbe2_set_iv_ex(const EVP_CIPHER *cipher, int iter,
+                                 unsigned char *salt, int saltlen,
+                                 unsigned char *aiv, int prf_nid,
+                                 OSSL_LIB_CTX *libctx)
 {
     X509_ALGOR *scheme = NULL, *ret = NULL;
     int alg_nid, keylen;
@@ -49,8 +52,7 @@ X509_ALGOR *PKCS5_pbe2_set_iv(const EVP_CIPHER *cipher, int iter,
 
     alg_nid = EVP_CIPHER_type(cipher);
     if (alg_nid == NID_undef) {
-        ASN1err(ASN1_F_PKCS5_PBE2_SET_IV,
-                ASN1_R_CIPHER_HAS_NO_OBJECT_IDENTIFIER);
+        ERR_raise(ERR_LIB_ASN1, ASN1_R_CIPHER_HAS_NO_OBJECT_IDENTIFIER);
         goto err;
     }
 
@@ -67,7 +69,7 @@ X509_ALGOR *PKCS5_pbe2_set_iv(const EVP_CIPHER *cipher, int iter,
     if (EVP_CIPHER_iv_length(cipher)) {
         if (aiv)
             memcpy(iv, aiv, EVP_CIPHER_iv_length(cipher));
-        else if (RAND_bytes(iv, EVP_CIPHER_iv_length(cipher)) <= 0)
+        else if (RAND_bytes_ex(libctx, iv, EVP_CIPHER_iv_length(cipher)) <= 0)
             goto err;
     }
 
@@ -79,18 +81,19 @@ X509_ALGOR *PKCS5_pbe2_set_iv(const EVP_CIPHER *cipher, int iter,
     if (!EVP_CipherInit_ex(ctx, cipher, NULL, NULL, iv, 0))
         goto err;
     if (EVP_CIPHER_param_to_asn1(ctx, scheme->parameter) <= 0) {
-        ASN1err(ASN1_F_PKCS5_PBE2_SET_IV, ASN1_R_ERROR_SETTING_CIPHER_PARAMS);
+        ERR_raise(ERR_LIB_ASN1, ASN1_R_ERROR_SETTING_CIPHER_PARAMS);
         goto err;
     }
     /*
      * If prf NID unspecified see if cipher has a preference. An error is OK
      * here: just means use default PRF.
      */
+    ERR_set_mark();
     if ((prf_nid == -1) &&
         EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_PBE_PRF_NID, 0, &prf_nid) <= 0) {
-        ERR_clear_error();
         prf_nid = NID_hmacWithSHA256;
     }
+    ERR_pop_to_mark();
     EVP_CIPHER_CTX_free(ctx);
     ctx = NULL;
 
@@ -105,9 +108,10 @@ X509_ALGOR *PKCS5_pbe2_set_iv(const EVP_CIPHER *cipher, int iter,
 
     X509_ALGOR_free(pbe2->keyfunc);
 
-    pbe2->keyfunc = PKCS5_pbkdf2_set(iter, salt, saltlen, prf_nid, keylen);
+    pbe2->keyfunc = PKCS5_pbkdf2_set_ex(iter, salt, saltlen, prf_nid, keylen,
+                                        libctx);
 
-    if (!pbe2->keyfunc)
+    if (pbe2->keyfunc == NULL)
         goto merr;
 
     /* Now set up top level AlgorithmIdentifier */
@@ -129,7 +133,7 @@ X509_ALGOR *PKCS5_pbe2_set_iv(const EVP_CIPHER *cipher, int iter,
     return ret;
 
  merr:
-    ASN1err(ASN1_F_PKCS5_PBE2_SET_IV, ERR_R_MALLOC_FAILURE);
+    ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
 
  err:
     EVP_CIPHER_CTX_free(ctx);
@@ -140,14 +144,25 @@ X509_ALGOR *PKCS5_pbe2_set_iv(const EVP_CIPHER *cipher, int iter,
     return NULL;
 }
 
+X509_ALGOR *PKCS5_pbe2_set_iv(const EVP_CIPHER *cipher, int iter,
+                              unsigned char *salt, int saltlen,
+                              unsigned char *aiv, int prf_nid)
+{
+    return PKCS5_pbe2_set_iv_ex(cipher, iter, salt, saltlen, aiv, prf_nid,
+                                NULL);
+}
+
 X509_ALGOR *PKCS5_pbe2_set(const EVP_CIPHER *cipher, int iter,
                            unsigned char *salt, int saltlen)
 {
-    return PKCS5_pbe2_set_iv(cipher, iter, salt, saltlen, NULL, -1);
+    return PKCS5_pbe2_set_iv_ex(cipher, iter, salt, saltlen, NULL, -1,
+                                NULL);
 }
 
-X509_ALGOR *PKCS5_pbkdf2_set(int iter, unsigned char *salt, int saltlen,
-                             int prf_nid, int keylen)
+
+X509_ALGOR *PKCS5_pbkdf2_set_ex(int iter, unsigned char *salt, int saltlen,
+                                int prf_nid, int keylen,
+                                OSSL_LIB_CTX *libctx)
 {
     X509_ALGOR *keyfunc = NULL;
     PBKDF2PARAM *kdf = NULL;
@@ -161,6 +176,8 @@ X509_ALGOR *PKCS5_pbkdf2_set(int iter, unsigned char *salt, int saltlen,
     kdf->salt->value.octet_string = osalt;
     kdf->salt->type = V_ASN1_OCTET_STRING;
 
+    if (saltlen < 0)
+        goto merr;
     if (saltlen == 0)
         saltlen = PKCS5_SALT_LEN;
     if ((osalt->data = OPENSSL_malloc(saltlen)) == NULL)
@@ -170,7 +187,7 @@ X509_ALGOR *PKCS5_pbkdf2_set(int iter, unsigned char *salt, int saltlen,
 
     if (salt)
         memcpy(osalt->data, salt, saltlen);
-    else if (RAND_bytes(osalt->data, saltlen) <= 0)
+    else if (RAND_bytes_ex(libctx, osalt->data, saltlen) <= 0)
         goto merr;
 
     if (iter <= 0)
@@ -214,8 +231,15 @@ X509_ALGOR *PKCS5_pbkdf2_set(int iter, unsigned char *salt, int saltlen,
     return keyfunc;
 
  merr:
-    ASN1err(ASN1_F_PKCS5_PBKDF2_SET, ERR_R_MALLOC_FAILURE);
+    ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
     PBKDF2PARAM_free(kdf);
     X509_ALGOR_free(keyfunc);
     return NULL;
 }
+
+X509_ALGOR *PKCS5_pbkdf2_set(int iter, unsigned char *salt, int saltlen,
+                             int prf_nid, int keylen)
+{
+    return PKCS5_pbkdf2_set_ex(iter, salt, saltlen, prf_nid, keylen, NULL);
+}
+

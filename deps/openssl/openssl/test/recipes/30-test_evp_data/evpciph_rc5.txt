@@ -1,0 +1,129 @@
+#
+# Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the Apache License 2.0 (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
+#The following tests were generated using legacy code, to ensure that the
+#provider ciphers have identical results.
+Title = RC5 Tests
+
+Availablein = legacy
+Cipher = RC5-ECB
+Key = 00000000000000000000000000000000
+Plaintext = 0000000000000000
+Ciphertext = 21a5dbee154b8f6d
+
+Availablein = legacy
+Cipher = RC5-ECB
+Key = 00000000000000000000000000000000
+Plaintext = 000102030405060708090A0B0C0D0E0F
+Ciphertext = d9d37019aec1161b27d7ad56b21f0f42
+
+#Self generated. Bigger key.
+Availablein = legacy
+Cipher = RC5-ECB
+Key = 0000000000000000000000000000000000000000
+Plaintext = 000102030405060708090A0B0C0D0E0F
+Ciphertext = 610084f3e141cbc5455b82e2d56da565
+
+Availablein = legacy
+Cipher = RC5-CBC
+Key = 00000000000000000000000000000000
+IV = 0000000000000000
+Plaintext = 0000000000000000
+Ciphertext = 21a5dbee154b8f6d
+NextIV = 21a5dbee154b8f6d
+
+Availablein = legacy
+Cipher = RC5-CBC
+Key = 0102030405060708090A0B0C0D0E0F10
+IV = 0102030405060708
+Plaintext = 000102030405060708090A0B0C0D0E0F
+Ciphertext = eeebae12d768ac9e5b3d6072a9c76c65
+NextIV = 5b3d6072a9c76c65
+
+#Self generated. Bigger key.
+Availablein = legacy
+Cipher = RC5-CBC
+Key = 0102030405060708090A0B0C0D0E0F1000000000
+IV = 0102030405060708
+Plaintext = 000102030405060708090A0B0C0D0E0F
+Ciphertext = af64972111a80ec28871c51dd4bfe8de
+NextIV = 8871c51dd4bfe8de
+
+Availablein = legacy
+Cipher = RC5-OFB
+Key = 00000000000000000000000000000000
+IV = 0000000000000000
+Plaintext = 0000000000000000
+Ciphertext = 21a5dbee154b8f6d
+NextIV = 21a5dbee154b8f6d
+
+Availablein = legacy
+Cipher = RC5-OFB
+Key = 0102030405060708090A0B0C0D0E0F10
+IV = 0102030405060708
+Plaintext = 000102030405060708090A0B0C0D0E0F
+Ciphertext = c0ad101b40fc7ffdfc386ea5ecf458b7
+NextIV = f43164aee0f956b8
+
+#Self generated. Bigger key.
+Availablein = legacy
+Cipher = RC5-OFB
+Key = 0102030405060708090A0B0C0D0E0F1000000000
+IV = 0102030405060708
+Plaintext = 000102030405060708090A0B0C0D0E0F
+Ciphertext = 66ff8fee03d45533dde93632e8f81f6f
+NextIV = d5e03c39e4f51160
+
+Availablein = legacy
+Cipher = RC5-CFB
+Key = 00000000000000000000000000000000
+IV = 0000000000000000
+Plaintext = 0000000000000000
+Ciphertext = 21a5dbee154b8f6d
+NextIV = 21a5dbee154b8f6d
+
+Availablein = legacy
+Cipher = RC5-CFB
+Key = 0102030405060708090A0B0C0D0E0F10
+IV = 0102030405060708
+Plaintext = 000102030405060708090A0B0C0D0E0F
+Ciphertext = c0ad101b40fc7ffdeb97c6173bf2987e
+NextIV = eb97c6173bf2987e
+
+Availablein = legacy
+Cipher = RC5-CFB
+Key = 0102030405060708090A0B0C0D0E0F10
+IV = 0102030405060708
+Rounds = 8
+Plaintext = 000102030405060708090A0B0C0D0E0F
+Ciphertext = 439945301dfa830885ac2f3cf5e61d0e
+
+Availablein = legacy
+Cipher = RC5-CFB
+Key = 0102030405060708090A0B0C0D0E0F10
+IV = 0102030405060708
+Rounds = 16
+Plaintext = 000102030405060708090A0B0C0D0E0F
+Ciphertext = 5ad80530f4a19e622d03cd4f2b165730
+
+#Bad rounds
+Availablein = legacy
+Cipher = RC5-CFB
+Key = 0102030405060708090A0B0C0D0E0F10
+IV = 0102030405060708
+Rounds = 9
+Plaintext = 000102030405060708090A0B0C0D0E0F
+Result = INVALID_ROUNDS
+
+#bigger key
+Availablein = legacy
+Cipher = RC5-CFB
+Key = 0102030405060708090A0B0C0D0E0F101213141516
+IV = 0102030405060708
+Plaintext = 000102030405060708090A0B0C0D0E0F
+Ciphertext = b3724d2d9d1b9285e1338fd266c2277d

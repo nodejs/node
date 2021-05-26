@@ -1,7 +1,7 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -22,6 +22,8 @@
 # endif
 
 # include "crypto/bn.h"
+# include "internal/cryptlib.h"
+# include "internal/numbers.h"
 
 /*
  * These preprocessor symbols control various aspects of the bignum headers
@@ -374,9 +376,9 @@ struct bn_gencb_st {
  */
 #  if defined(__SIZEOF_INT128__) && __SIZEOF_INT128__==16 && \
       (defined(SIXTY_FOUR_BIT) || defined(SIXTY_FOUR_BIT_LONG))
-#   define BN_UMULT_HIGH(a,b)          (((__uint128_t)(a)*(b))>>64)
+#   define BN_UMULT_HIGH(a,b)          (((uint128_t)(a)*(b))>>64)
 #   define BN_UMULT_LOHI(low,high,a,b) ({       \
-        __uint128_t ret=(__uint128_t)(a)*(b);   \
+        uint128_t ret=(uint128_t)(a)*(b);   \
         (high)=ret>>64; (low)=ret;      })
 #  elif defined(__alpha) && (defined(SIXTY_FOUR_BIT_LONG) || defined(SIXTY_FOUR_BIT))
 #   if defined(__DECC)
@@ -664,5 +666,8 @@ static ossl_inline BIGNUM *bn_expand(BIGNUM *a, int bits)
 
     return bn_expand2((a),(bits+BN_BITS2-1)/BN_BITS2);
 }
+
+int bn_check_prime_int(const BIGNUM *w, int checks, BN_CTX *ctx,
+                      int do_trial_division, BN_GENCB *cb);
 
 #endif

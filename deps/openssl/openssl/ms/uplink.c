@@ -1,7 +1,7 @@
 /*
- * Copyright 2004-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2004-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -99,14 +99,29 @@ void OPENSSL_Uplink(volatile void **table, int index)
     table[index] = func;
 }
 
-#if defined(_MSC_VER) && defined(_M_IX86)
-# define LAZY(i)         \
+#if (defined(_MSC_VER) || defined(__BORLANDC__)) && defined(_M_IX86)
+# if defined(_MSC_VER)
+#  define LAZY(i)         \
 __declspec(naked) static void lazy##i (void) {  \
         _asm    push i                          \
         _asm    push OFFSET OPENSSL_UplinkTable \
         _asm    call OPENSSL_Uplink             \
         _asm    add  esp,8                      \
         _asm    jmp  OPENSSL_UplinkTable+4*i    }
+# elif defined(__BORLANDC__) && defined(__clang__)
+void *OPENSSL_UplinkTable[26]; /* C++Builder requires declaration before use */
+#  define LAZY(i)         \
+__declspec(naked) static void lazy##i (void) { \
+    __asm__("pushl $" #i "; "                  \
+            "pushl %0; "                       \
+            "call  %P1; "                      \
+            "addl  $8, %%esp; "                \
+            "jmp   *%2 "                       \
+            : /* no outputs */                 \
+            : "i" (OPENSSL_UplinkTable),       \
+              "i" (OPENSSL_Uplink),            \
+              "m" (OPENSSL_UplinkTable[i]));   }
+# endif
 
 # if APPLINK_MAX>25
 #  error "Add more stubs..."

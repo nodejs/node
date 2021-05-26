@@ -1,0 +1,5 @@
+LIBS=../../libcrypto
+$COMMON=property_string.c property_parse.c property.c defn_cache.c
+SOURCE[../../libcrypto]=$COMMON property_err.c
+SOURCE[../../providers/libfips.a]=$COMMON
+SOURCE[../../providers/liblegacy.a]=$COMMON

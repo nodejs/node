@@ -1,7 +1,7 @@
 /*
- * Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -20,12 +20,24 @@
 
 #include "ct_local.h"
 
-SCT_CTX *SCT_CTX_new(void)
+SCT_CTX *SCT_CTX_new(OSSL_LIB_CTX *libctx, const char *propq)
 {
     SCT_CTX *sctx = OPENSSL_zalloc(sizeof(*sctx));
 
-    if (sctx == NULL)
-        CTerr(CT_F_SCT_CTX_NEW, ERR_R_MALLOC_FAILURE);
+    if (sctx == NULL) {
+        ERR_raise(ERR_LIB_CT, ERR_R_MALLOC_FAILURE);
+        return NULL;
+    }
+
+    sctx->libctx = libctx;
+    if (propq != NULL) {
+        sctx->propq = OPENSSL_strdup(propq);
+        if (sctx->propq == NULL) {
+            ERR_raise(ERR_LIB_CT, ERR_R_MALLOC_FAILURE);
+            OPENSSL_free(sctx);
+            return NULL;
+        }
+    }
 
     return sctx;
 }
@@ -39,6 +51,7 @@ void SCT_CTX_free(SCT_CTX *sctx)
     OPENSSL_free(sctx->ihash);
     OPENSSL_free(sctx->certder);
     OPENSSL_free(sctx->preder);
+    OPENSSL_free(sctx->propq);
     OPENSSL_free(sctx);
 }
 
@@ -155,15 +168,12 @@ int SCT_CTX_set1_cert(SCT_CTX *sctx, X509 *cert, X509 *presigner)
      * SCT.
      */
     if (idx >= 0) {
-        X509_EXTENSION *ext;
-
         /* Take a copy of certificate so we don't modify passed version */
         pretmp = X509_dup(cert);
         if (pretmp == NULL)
             goto err;
 
-        ext = X509_delete_ext(pretmp, idx);
-        X509_EXTENSION_free(ext);
+        X509_EXTENSION_free(X509_delete_ext(pretmp, idx));
 
         if (!ct_x509_cert_fixup(pretmp, presigner))
             goto err;
@@ -191,13 +201,17 @@ err:
     return 0;
 }
 
-__owur static int ct_public_key_hash(X509_PUBKEY *pkey, unsigned char **hash,
-                                     size_t *hash_len)
+__owur static int ct_public_key_hash(SCT_CTX *sctx, X509_PUBKEY *pkey,
+                                     unsigned char **hash, size_t *hash_len)
 {
     int ret = 0;
     unsigned char *md = NULL, *der = NULL;
     int der_len;
     unsigned int md_len;
+    EVP_MD *sha256 = EVP_MD_fetch(sctx->libctx, "SHA2-256", sctx->propq);
+
+    if (sha256 == NULL)
+        goto err;
 
     /* Reuse buffer if possible */
     if (*hash != NULL && *hash_len >= SHA256_DIGEST_LENGTH) {
@@ -213,7 +227,7 @@ __owur static int ct_public_key_hash(X509_PUBKEY *pkey, unsigned char **hash,
     if (der_len <= 0)
         goto err;
 
-    if (!EVP_Digest(der, der_len, md, &md_len, EVP_sha256(), NULL))
+    if (!EVP_Digest(der, der_len, md, &md_len, sha256, NULL))
         goto err;
 
     if (md != *hash) {
@@ -225,6 +239,7 @@ __owur static int ct_public_key_hash(X509_PUBKEY *pkey, unsigned char **hash,
     md = NULL;
     ret = 1;
  err:
+    EVP_MD_free(sha256);
     OPENSSL_free(md);
     OPENSSL_free(der);
     return ret;
@@ -237,7 +252,7 @@ int SCT_CTX_set1_issuer(SCT_CTX *sctx, const X509 *issuer)
 
 int SCT_CTX_set1_issuer_pubkey(SCT_CTX *sctx, X509_PUBKEY *pubkey)
 {
-    return ct_public_key_hash(pubkey, &sctx->ihash, &sctx->ihashlen);
+    return ct_public_key_hash(sctx, pubkey, &sctx->ihash, &sctx->ihashlen);
 }
 
 int SCT_CTX_set1_pubkey(SCT_CTX *sctx, X509_PUBKEY *pubkey)
@@ -247,7 +262,7 @@ int SCT_CTX_set1_pubkey(SCT_CTX *sctx, X509_PUBKEY *pubkey)
     if (pkey == NULL)
         return 0;
 
-    if (!ct_public_key_hash(pubkey, &sctx->pkeyhash, &sctx->pkeyhashlen)) {
+    if (!ct_public_key_hash(sctx, pubkey, &sctx->pkeyhash, &sctx->pkeyhashlen)) {
         EVP_PKEY_free(pkey);
         return 0;
     }

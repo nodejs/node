@@ -8,7 +8,7 @@ X509_check_purpose - Check the purpose of a certificate
 
  #include <openssl/x509v3.h>
 
- int X509_check_purpose(X509 *x, int id, int ca)
+ int X509_check_purpose(X509 *x, int id, int ca);
 
 =head1 DESCRIPTION
 

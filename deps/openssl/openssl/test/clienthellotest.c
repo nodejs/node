@@ -1,7 +1,7 @@
 /*
- * Copyright 2015-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -17,7 +17,7 @@
 #include <openssl/err.h>
 #include <time.h>
 
-#include "../ssl/packet_local.h"
+#include "internal/packet.h"
 
 #include "testutil.h"
 
@@ -45,10 +45,16 @@
 
 static const char *sessionfile = NULL;
 /* Dummy ALPN protocols used to pad out the size of the ClientHello */
+/* ASCII 'O' = 79 = 0x4F = EBCDIC '|'*/
+#ifdef CHARSET_EBCDIC
 static const char alpn_prots[] =
-    "0123456789012345678901234567890123456789012345678901234567890123456789"
-    "0123456789012345678901234567890123456789012345678901234567890123456789"
-    "01234567890123456789";
+    "|1234567890123456789012345678901234567890123456789012345678901234567890123456789"
+    "|1234567890123456789012345678901234567890123456789012345678901234567890123456789";
+#else
+static const char alpn_prots[] =
+    "O1234567890123456789012345678901234567890123456789012345678901234567890123456789"
+    "O1234567890123456789012345678901234567890123456789012345678901234567890123456789";
+#endif
 
 static int test_client_hello(int currtest)
 {
@@ -58,7 +64,7 @@ static int test_client_hello(int currtest)
     BIO *wbio;
     long len;
     unsigned char *data;
-    PACKET pkt = {0}, pkt2 = {0}, pkt3 = {0};
+    PACKET pkt, pkt2, pkt3;
     char *dummytick = "Hello World!";
     unsigned int type = 0;
     int testresult = 0;
@@ -71,6 +77,10 @@ static int test_client_hello(int currtest)
         return 1;
 #endif
 
+    memset(&pkt, 0, sizeof(pkt));
+    memset(&pkt2, 0, sizeof(pkt2));
+    memset(&pkt3, 0, sizeof(pkt3));
+
     /*
      * For each test set up an SSL_CTX and SSL and see what ClientHello gets
      * produced when we try to connect
@@ -78,13 +88,14 @@ static int test_client_hello(int currtest)
     ctx = SSL_CTX_new(TLS_method());
     if (!TEST_ptr(ctx))
         goto end;
-    if (!TEST_true(SSL_CTX_set_max_proto_version(ctx, TLS_MAX_VERSION)))
+    if (!TEST_true(SSL_CTX_set_max_proto_version(ctx, 0)))
         goto end;
 
     switch(currtest) {
     case TEST_SET_SESSION_TICK_DATA_VER_NEG:
 #if !defined(OPENSSL_NO_TLS1_3) && defined(OPENSSL_NO_TLS1_2)
         /* TLSv1.3 is enabled and TLSv1.2 is disabled so can't do this test */
+        SSL_CTX_free(ctx);
         return 1;
 #else
         /* Testing for session tickets <= TLS1.2; not relevant for 1.3 */
@@ -180,8 +191,8 @@ static int test_client_hello(int currtest)
         goto end;
     }
 
-    len = BIO_get_mem_data(wbio, (char **)&data);
-    if (!TEST_true(PACKET_buf_init(&pkt, data, len))
+    if (!TEST_long_ge(len = BIO_get_mem_data(wbio, (char **)&data), 0)
+            || !TEST_true(PACKET_buf_init(&pkt, data, len))
                /* Skip the record header */
             || !PACKET_forward(&pkt, SSL3_RT_HEADER_LENGTH))
         goto end;
@@ -241,8 +252,15 @@ end:
     return testresult;
 }
 
+OPT_TEST_DECLARE_USAGE("sessionfile\n")
+
 int setup_tests(void)
 {
+    if (!test_skip_common_options()) {
+        TEST_error("Error parsing test options\n");
+        return 0;
+    }
+
     if (!TEST_ptr(sessionfile = test_get_argument(0)))
         return 0;
 

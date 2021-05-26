@@ -1,23 +1,33 @@
 /*
- * Copyright 2005-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2005-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
 
-#ifndef HEADER_DTLS1_H
-# define HEADER_DTLS1_H
+#ifndef OPENSSL_DTLS1_H
+# define OPENSSL_DTLS1_H
+# pragma once
+
+# include <openssl/macros.h>
+# ifndef OPENSSL_NO_DEPRECATED_3_0
+#  define HEADER_DTLS1_H
+# endif
 
 #ifdef  __cplusplus
 extern "C" {
 #endif
 
+#include <openssl/opensslconf.h>
+
 # define DTLS1_VERSION                   0xFEFF
 # define DTLS1_2_VERSION                 0xFEFD
-# define DTLS_MIN_VERSION                DTLS1_VERSION
-# define DTLS_MAX_VERSION                DTLS1_2_VERSION
+# ifndef OPENSSL_NO_DEPRECATED_3_0
+#  define DTLS_MIN_VERSION                DTLS1_VERSION
+#  define DTLS_MAX_VERSION                DTLS1_2_VERSION
+# endif
 # define DTLS1_VERSION_MAJOR             0xFE
 
 # define DTLS1_BAD_VER                   0x0100
@@ -26,11 +36,8 @@ extern "C" {
 # define DTLS_ANY_VERSION                0x1FFFF
 
 /* lengths of messages */
-/*
- * Actually the max cookie length in DTLS is 255. But we can't change this now
- * due to compatibility concerns.
- */
-# define DTLS1_COOKIE_LENGTH                     256
+
+# define DTLS1_COOKIE_LENGTH                     255
 
 # define DTLS1_RT_HEADER_LENGTH                  13
 

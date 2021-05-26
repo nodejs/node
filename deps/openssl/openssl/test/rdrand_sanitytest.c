@@ -1,7 +1,7 @@
 /*
- * Copyright 2018-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2018 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "testutil.h"
-#include <openssl/opensslconf.h>
+#include "internal/cryptlib.h"
 
 #if (defined(__i386)   || defined(__i386__)   || defined(_M_IX86) || \
      defined(__x86_64) || defined(__x86_64__) || \
@@ -19,10 +19,6 @@
 
 size_t OPENSSL_ia32_rdrand_bytes(unsigned char *buf, size_t len);
 size_t OPENSSL_ia32_rdseed_bytes(unsigned char *buf, size_t len);
-
-void OPENSSL_cpuid_setup(void);
-
-extern unsigned int OPENSSL_ia32cap_P[4];
 
 static int sanity_check_bytes(size_t (*rng)(unsigned char *, size_t),
     int rounds, int min_failures, int max_retries, int max_zero_words)

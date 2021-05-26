@@ -1,0 +1,66 @@
+=pod
+
+=head1 NAME
+
+EVP_KEM-RSA
+- EVP_KEM RSA keytype and algorithm support
+
+=head1 DESCRIPTION
+
+The B<RSA> keytype and its parameters are described in L<EVP_PKEY-RSA(7)>.
+See L<EVP_PKEY_encapsulate(3)> and L<EVP_PKEY_decapsulate(3)> for more info.
+
+=head2 RSA KEM parameters
+
+=over 4
+
+=item "operation" (B<OSSL_KEM_PARAM_OPERATION>) <UTF8 string>
+
+The OpenSSL RSA Key Encapsulation Mechanism only currently supports the
+following operation
+
+=over 4
+
+=item "RSASVE"
+
+The encapsulate function simply generates a secret using random bytes and then
+encrypts the secret using the RSA public key (with no padding).
+The decapsulate function recovers the secret using the RSA private key.
+
+=back
+
+This can be set using EVP_PKEY_CTX_set_kem_op().
+
+=back
+
+
+=head1 CONFORMING TO
+
+=over 4
+
+=item SP800-56Br2
+
+Section 7.2.1.2 RSASVE Generate Operation (RSASVE.GENERATE).
+Section 7.2.1.3 RSASVE Recovery Operation (RSASVE.RECOVER).
+
+=back
+
+=head1 SEE ALSO
+
+L<EVP_PKEY_CTX_set_kem_op(3)>,
+L<EVP_PKEY_encapsulate(3)>,
+L<EVP_PKEY_decapsulate(3)>
+L<EVP_KEYMGMT(3)>,
+L<EVP_PKEY(3)>,
+L<provider-keymgmt(7)>
+
+=head1 COPYRIGHT
+
+Copyright 2020 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

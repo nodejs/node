@@ -5,7 +5,6 @@
 # This definition stops the following lines choking if HOME or CN
 # is undefined.
 HOME			= .
-RANDFILE		= $ENV::HOME/.rnd
 CN			= "Not Defined"
 default_ca		= ca
 
@@ -36,9 +35,6 @@ commonName			= $ENV::CN
 basicConstraints=critical, CA:FALSE
 keyUsage=critical, nonRepudiation, digitalSignature, keyEncipherment
 
-# This will be displayed in Netscape's comment listbox.
-nsComment			= "OpenSSL Generated Certificate"
-
 # PKIX recommendations harmless if included in all certificates.
 subjectKeyIdentifier=hash
 authorityKeyIdentifier=keyid
@@ -47,9 +43,6 @@ authorityKeyIdentifier=keyid
 
 basicConstraints=critical, CA:FALSE
 keyUsage=critical, nonRepudiation, digitalSignature, keyEncipherment
-
-# This will be displayed in Netscape's comment listbox.
-nsComment			= "OpenSSL Generated Certificate"
 
 # PKIX recommendations harmless if included in all certificates.
 subjectKeyIdentifier=hash

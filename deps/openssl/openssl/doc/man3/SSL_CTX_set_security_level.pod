@@ -168,6 +168,10 @@ to the security callback or NULL if the callback is not set.
 SSL_CTX_get0_security_ex_data() and SSL_get0_security_ex_data() return the extra
 data pointer or NULL if the ex data is not set.
 
+=head1 SEE ALSO
+
+L<ssl(7)>
+
 =head1 HISTORY
 
 These functions were added in OpenSSL 1.1.0.
@@ -176,7 +180,7 @@ These functions were added in OpenSSL 1.1.0.
 
 Copyright 2014-2020 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

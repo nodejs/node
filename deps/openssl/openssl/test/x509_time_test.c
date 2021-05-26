@@ -1,7 +1,7 @@
 /*
- * Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -297,6 +297,58 @@ static int test_x509_cmp_time_current(void)
     return failed == 0;
 }
 
+static int test_X509_cmp_timeframe_vpm(const X509_VERIFY_PARAM *vpm,
+                                       ASN1_TIME *asn1_before,
+                                       ASN1_TIME *asn1_mid,
+                                       ASN1_TIME *asn1_after)
+{
+    int always_0 = vpm != NULL
+        && (X509_VERIFY_PARAM_get_flags(vpm) & X509_V_FLAG_USE_CHECK_TIME) == 0
+        && (X509_VERIFY_PARAM_get_flags(vpm) & X509_V_FLAG_NO_CHECK_TIME) != 0;
+
+    return asn1_before != NULL && asn1_mid != NULL && asn1_after != NULL
+        && TEST_int_eq(X509_cmp_timeframe(vpm, asn1_before, asn1_after), 0)
+        && TEST_int_eq(X509_cmp_timeframe(vpm, asn1_before, NULL), 0)
+        && TEST_int_eq(X509_cmp_timeframe(vpm, NULL, asn1_after), 0)
+        && TEST_int_eq(X509_cmp_timeframe(vpm, NULL, NULL), 0)
+        && TEST_int_eq(X509_cmp_timeframe(vpm, asn1_after, asn1_after),
+                       always_0 ? 0 : -1)
+        && TEST_int_eq(X509_cmp_timeframe(vpm, asn1_before, asn1_before),
+                       always_0 ? 0 : 1)
+        && TEST_int_eq(X509_cmp_timeframe(vpm, asn1_after, asn1_before),
+                       always_0 ? 0 : 1);
+}
+
+static int test_X509_cmp_timeframe(void)
+{
+    time_t now = time(NULL);
+    ASN1_TIME *asn1_mid = ASN1_TIME_adj(NULL, now, 0, 0);
+    /* Pick a day earlier and later, relative to any system clock. */
+    ASN1_TIME *asn1_before = ASN1_TIME_adj(NULL, now, -1, 0);
+    ASN1_TIME *asn1_after = ASN1_TIME_adj(NULL, now, 1, 0);
+    X509_VERIFY_PARAM *vpm = X509_VERIFY_PARAM_new();
+    int res = 0;
+
+    if (vpm == NULL)
+        goto finish;
+    res = test_X509_cmp_timeframe_vpm(NULL, asn1_before, asn1_mid, asn1_after)
+        && test_X509_cmp_timeframe_vpm(vpm, asn1_before, asn1_mid, asn1_after);
+
+    X509_VERIFY_PARAM_set_time(vpm, now);
+    res = res
+        && test_X509_cmp_timeframe_vpm(vpm, asn1_before, asn1_mid, asn1_after)
+        && X509_VERIFY_PARAM_set_flags(vpm, X509_V_FLAG_NO_CHECK_TIME)
+        && test_X509_cmp_timeframe_vpm(vpm, asn1_before, asn1_mid, asn1_after);
+
+    X509_VERIFY_PARAM_free(vpm);
+finish:
+    ASN1_TIME_free(asn1_mid);
+    ASN1_TIME_free(asn1_before);
+    ASN1_TIME_free(asn1_after);
+
+    return res;
+}
+
 static int test_x509_time(int idx)
 {
     ASN1_TIME *t = NULL;
@@ -485,6 +537,7 @@ static int test_x509_time_print(int idx)
 int setup_tests(void)
 {
     ADD_TEST(test_x509_cmp_time_current);
+    ADD_TEST(test_X509_cmp_timeframe);
     ADD_ALL_TESTS(test_x509_cmp_time, OSSL_NELEM(x509_cmp_tests));
     ADD_ALL_TESTS(test_x509_time, OSSL_NELEM(x509_format_tests));
     ADD_ALL_TESTS(test_days, OSSL_NELEM(day_of_week_tests));

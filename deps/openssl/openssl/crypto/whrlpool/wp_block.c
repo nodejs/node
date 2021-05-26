@@ -1,7 +1,7 @@
 /*
- * Copyright 2005-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2005-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -36,6 +36,13 @@
  *
  */
 
+/*
+ * Whirlpool low level APIs are deprecated for public use, but still ok for
+ * internal use.
+ */
+#include "internal/deprecated.h"
+
+#include "internal/cryptlib.h"
 #include "wp_local.h"
 #include <string.h>
 
@@ -89,7 +96,6 @@ typedef u64 u64_aX;
 #   define OPENSSL_SMALL_FOOTPRINT
 #  endif
 #  define GO_FOR_MMX(ctx,inp,num)     do {                    \
-        extern unsigned long OPENSSL_ia32cap_P[];               \
         void whirlpool_block_mmx(void *,const void *,size_t);   \
         if (!(OPENSSL_ia32cap_P[0] & (1<<23)))  break;          \
         whirlpool_block_mmx(ctx->H.c,inp,num);  return;         \
@@ -159,7 +165,7 @@ typedef u64 u64_aX;
  */
 /*
  * Note that every Cn macro expands as two loads: one byte load and
- * one quadword load. One can argue that that many single-byte loads
+ * one quadword load. One can argue that many single-byte loads
  * is too excessive, as one could load a quadword and "milk" it for
  * eight 8-bit values instead. Well, yes, but in order to do so *and*
  * avoid excessive loads you have to accommodate a handful of 64-bit

@@ -1,7 +1,7 @@
 /*
- * Copyright 1999-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -113,7 +113,7 @@ int X509_TRUST_get_by_id(int id)
 int X509_TRUST_set(int *t, int trust)
 {
     if (X509_TRUST_get_by_id(trust) == -1) {
-        X509err(X509_F_X509_TRUST_SET, X509_R_INVALID_TRUST);
+        ERR_raise(ERR_LIB_X509, X509_R_INVALID_TRUST);
         return 0;
     }
     *t = trust;
@@ -136,7 +136,7 @@ int X509_TRUST_add(int id, int flags, int (*ck) (X509_TRUST *, X509 *, int),
     /* Need a new entry */
     if (idx == -1) {
         if ((trtmp = OPENSSL_malloc(sizeof(*trtmp))) == NULL) {
-            X509err(X509_F_X509_TRUST_ADD, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_X509, ERR_R_MALLOC_FAILURE);
             return 0;
         }
         trtmp->flags = X509_TRUST_DYNAMIC;
@@ -148,7 +148,7 @@ int X509_TRUST_add(int id, int flags, int (*ck) (X509_TRUST *, X509 *, int),
         OPENSSL_free(trtmp->name);
     /* dup supplied name */
     if ((trtmp->name = OPENSSL_strdup(name)) == NULL) {
-        X509err(X509_F_X509_TRUST_ADD, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_X509, ERR_R_MALLOC_FAILURE);
         goto err;
     }
     /* Keep the dynamic flag of existing entry */
@@ -165,11 +165,11 @@ int X509_TRUST_add(int id, int flags, int (*ck) (X509_TRUST *, X509 *, int),
     if (idx == -1) {
         if (trtable == NULL
             && (trtable = sk_X509_TRUST_new(tr_cmp)) == NULL) {
-            X509err(X509_F_X509_TRUST_ADD, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_X509, ERR_R_MALLOC_FAILURE);
             goto err;;
         }
         if (!sk_X509_TRUST_push(trtable, trtmp)) {
-            X509err(X509_F_X509_TRUST_ADD, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_X509, ERR_R_MALLOC_FAILURE);
             goto err;
         }
     }
@@ -184,7 +184,7 @@ int X509_TRUST_add(int id, int flags, int (*ck) (X509_TRUST *, X509 *, int),
 
 static void trtable_free(X509_TRUST *p)
 {
-    if (!p)
+    if (p == NULL)
         return;
     if (p->flags & X509_TRUST_DYNAMIC) {
         if (p->flags & X509_TRUST_DYNAMIC_NAME)
@@ -220,7 +220,7 @@ static int trust_1oidany(X509_TRUST *trust, X509 *x, int flags)
      * Declare the chain verified if the desired trust OID is not rejected in
      * any auxiliary trust info for this certificate, and the OID is either
      * expressly trusted, or else either "anyEKU" is trusted, or the
-     * certificate is self-signed.
+     * certificate is self-signed and X509_TRUST_NO_SS_COMPAT is not set.
      */
     flags |= X509_TRUST_DO_SS_COMPAT | X509_TRUST_OK_ANY_EKU;
     return obj_trust(trust->arg1, x, flags);

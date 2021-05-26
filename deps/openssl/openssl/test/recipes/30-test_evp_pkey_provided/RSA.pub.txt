@@ -1,0 +1,3 @@
+Public-Key: (32 bit)
+Modulus: 3161751493 (0xbc747fc5)
+Exponent: 65537 (0x10001)

@@ -1,0 +1,100 @@
+=pod
+
+=head1 NAME
+
+openssl_user_macros, OPENSSL_API_COMPAT, OPENSSL_NO_DEPRECATED
+- User defined macros
+
+=head1 DESCRIPTION
+
+User defined macros allow the programmer to control certain aspects of
+what is exposed by the OpenSSL headers.
+
+B<NOTE:> to be effective, a user defined macro I<must be defined
+before including any header file that depends on it>, either in the
+compilation command (C<cc -DMACRO=value>) or by defining the macro in
+source before including any headers.
+
+Other manual pages may refer to this page when declarations depend on
+user defined macros.
+
+=head2 The macros
+
+=over 4
+
+=item B<OPENSSL_API_COMPAT>
+
+The value is a version number, given in one of the following two forms:
+
+=over 4
+
+=item C<0xMNNFF000L>
+
+This is the form supported for all versions up to 1.1.x, where C<M>
+represents the major number, C<NN> represents the minor number, and
+C<FF> represents the fix number, as a hexadecimal number.  For version
+1.1.0, that's C<0x10100000L>.
+
+Any version number may be given, but these numbers are
+the current known major deprecation points, making them the most
+meaningful:
+
+=over 4
+
+=item C<0x00908000L> (version 0.9.8)
+
+=item C<0x10000000L> (version 1.0.0)
+
+=item C<0x10100000L> (version 1.1.0)
+
+=back
+
+For convenience, higher numbers are accepted as well, as long as
+feasible.  For example, C<0x60000000L> will work as expected.
+However, it is recommended to start using the second form instead:
+
+=item C<mmnnpp>
+
+This form is a simple decimal number calculated with this formula:
+
+I<major> * 10000 + I<minor> * 100 + I<patch>
+
+where I<major>, I<minor> and I<patch> are the desired major,
+minor and patch components of the version number.  For example:
+
+=over 4
+
+=item 30000 corresponds to version 3.0.0
+
+=item 10002 corresponds to version 1.0.2
+
+=item 420101 corresponds to version 42.1.1
+
+=back
+
+=back
+
+If not set, this macro will default to
+C<{- join('', map { my @x = split /=/,$_; $x[1] }
+              grep /^OPENSSL_CONFIGURED_API=/, @{$config{openssl_api_defines} // []})
+     || '0x00000000L'
+  -}>.
+
+=item B<OPENSSL_NO_DEPRECATED>
+
+If this macro is defined, all deprecated public symbols in all OpenSSL
+versions up to and including the version given by B<OPENSSL_API_COMPAT>
+will be hidden.
+
+=back
+
+=head1 COPYRIGHT
+
+Copyright 2018-2020 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

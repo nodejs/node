@@ -1,53 +1,59 @@
 /*
- * Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
 
-#ifndef HEADER_ENGINE_H
-# define HEADER_ENGINE_H
+#ifndef OPENSSL_ENGINE_H
+# define OPENSSL_ENGINE_H
+# pragma once
+
+# include <openssl/macros.h>
+# ifndef OPENSSL_NO_DEPRECATED_3_0
+#  define HEADER_ENGINE_H
+# endif
 
 # include <openssl/opensslconf.h>
 
 # ifndef OPENSSL_NO_ENGINE
-# if OPENSSL_API_COMPAT < 0x10100000L
-#  include <openssl/bn.h>
-#  include <openssl/rsa.h>
-#  include <openssl/dsa.h>
-#  include <openssl/dh.h>
-#  include <openssl/ec.h>
-#  include <openssl/rand.h>
-#  include <openssl/ui.h>
-#  include <openssl/err.h>
-# endif
-# include <openssl/ossl_typ.h>
-# include <openssl/symhacks.h>
-# include <openssl/x509.h>
-# include <openssl/engineerr.h>
-# ifdef  __cplusplus
+#  ifndef OPENSSL_NO_DEPRECATED_1_1_0
+#   include <openssl/bn.h>
+#   include <openssl/rsa.h>
+#   include <openssl/dsa.h>
+#   include <openssl/dh.h>
+#   include <openssl/ec.h>
+#   include <openssl/rand.h>
+#   include <openssl/ui.h>
+#   include <openssl/err.h>
+#  endif
+#  include <openssl/types.h>
+#  include <openssl/symhacks.h>
+#  include <openssl/x509.h>
+#  include <openssl/engineerr.h>
+#  ifdef  __cplusplus
 extern "C" {
-# endif
+#  endif
 
 /*
  * These flags are used to control combinations of algorithm (methods) by
  * bitwise "OR"ing.
  */
-# define ENGINE_METHOD_RSA               (unsigned int)0x0001
-# define ENGINE_METHOD_DSA               (unsigned int)0x0002
-# define ENGINE_METHOD_DH                (unsigned int)0x0004
-# define ENGINE_METHOD_RAND              (unsigned int)0x0008
-# define ENGINE_METHOD_CIPHERS           (unsigned int)0x0040
-# define ENGINE_METHOD_DIGESTS           (unsigned int)0x0080
-# define ENGINE_METHOD_PKEY_METHS        (unsigned int)0x0200
-# define ENGINE_METHOD_PKEY_ASN1_METHS   (unsigned int)0x0400
-# define ENGINE_METHOD_EC                (unsigned int)0x0800
+#  define ENGINE_METHOD_RSA               (unsigned int)0x0001
+#  define ENGINE_METHOD_DSA               (unsigned int)0x0002
+#  define ENGINE_METHOD_DH                (unsigned int)0x0004
+#  define ENGINE_METHOD_RAND              (unsigned int)0x0008
+#  define ENGINE_METHOD_CIPHERS           (unsigned int)0x0040
+#  define ENGINE_METHOD_DIGESTS           (unsigned int)0x0080
+#  define ENGINE_METHOD_PKEY_METHS        (unsigned int)0x0200
+#  define ENGINE_METHOD_PKEY_ASN1_METHS   (unsigned int)0x0400
+#  define ENGINE_METHOD_EC                (unsigned int)0x0800
 /* Obvious all-or-nothing cases. */
-# define ENGINE_METHOD_ALL               (unsigned int)0xFFFF
-# define ENGINE_METHOD_NONE              (unsigned int)0x0000
+#  define ENGINE_METHOD_ALL               (unsigned int)0xFFFF
+#  define ENGINE_METHOD_NONE              (unsigned int)0x0000
 
 /*
  * This(ese) flag(s) controls behaviour of the ENGINE_TABLE mechanism used
@@ -55,7 +61,7 @@ extern "C" {
  * set by ENGINE_set_table_flags(). The "NOINIT" flag prevents attempts to
  * initialise registered ENGINEs if they are not already initialised.
  */
-# define ENGINE_TABLE_FLAG_NOINIT        (unsigned int)0x0001
+#  define ENGINE_TABLE_FLAG_NOINIT        (unsigned int)0x0001
 
 /* ENGINE flags that can be set by ENGINE_set_flags(). */
 /* Not used */
@@ -67,7 +73,7 @@ extern "C" {
  * these control commands on behalf of the ENGINE using their "cmd_defns"
  * data.
  */
-# define ENGINE_FLAGS_MANUAL_CMD_CTRL    (int)0x0002
+#  define ENGINE_FLAGS_MANUAL_CMD_CTRL    (int)0x0002
 
 /*
  * This flag is for ENGINEs who return new duplicate structures when found
@@ -79,7 +85,7 @@ extern "C" {
  * ENGINE_by_id() just increments the existing ENGINE's structural reference
  * count.
  */
-# define ENGINE_FLAGS_BY_ID_COPY         (int)0x0004
+#  define ENGINE_FLAGS_BY_ID_COPY         (int)0x0004
 
 /*
  * This flag if for an ENGINE that does not want its methods registered as
@@ -87,7 +93,7 @@ extern "C" {
  * usable as default methods.
  */
 
-# define ENGINE_FLAGS_NO_REGISTER_ALL    (int)0x0008
+#  define ENGINE_FLAGS_NO_REGISTER_ALL    (int)0x0008
 
 /*
  * ENGINEs can support their own command types, and these flags are used in
@@ -102,23 +108,23 @@ extern "C" {
  */
 
 /* accepts a 'long' input value (3rd parameter to ENGINE_ctrl) */
-# define ENGINE_CMD_FLAG_NUMERIC         (unsigned int)0x0001
+#  define ENGINE_CMD_FLAG_NUMERIC         (unsigned int)0x0001
 /*
  * accepts string input (cast from 'void*' to 'const char *', 4th parameter
  * to ENGINE_ctrl)
  */
-# define ENGINE_CMD_FLAG_STRING          (unsigned int)0x0002
+#  define ENGINE_CMD_FLAG_STRING          (unsigned int)0x0002
 /*
  * Indicates that the control command takes *no* input. Ie. the control
  * command is unparameterised.
  */
-# define ENGINE_CMD_FLAG_NO_INPUT        (unsigned int)0x0004
+#  define ENGINE_CMD_FLAG_NO_INPUT        (unsigned int)0x0004
 /*
  * Indicates that the control command is internal. This control command won't
  * be shown in any output, and is only usable through the ENGINE_ctrl_cmd()
  * function.
  */
-# define ENGINE_CMD_FLAG_INTERNAL        (unsigned int)0x0008
+#  define ENGINE_CMD_FLAG_INTERNAL        (unsigned int)0x0008
 
 /*
  * NB: These 3 control commands are deprecated and should not be used.
@@ -137,21 +143,21 @@ extern "C" {
  * sense to some engines.  In such a case, they do nothing but return the
  * error ENGINE_R_CTRL_COMMAND_NOT_IMPLEMENTED.
  */
-# define ENGINE_CTRL_SET_LOGSTREAM               1
-# define ENGINE_CTRL_SET_PASSWORD_CALLBACK       2
-# define ENGINE_CTRL_HUP                         3/* Close and reinitialise
+#  define ENGINE_CTRL_SET_LOGSTREAM               1
+#  define ENGINE_CTRL_SET_PASSWORD_CALLBACK       2
+#  define ENGINE_CTRL_HUP                         3/* Close and reinitialise
                                                    * any handles/connections
                                                    * etc. */
-# define ENGINE_CTRL_SET_USER_INTERFACE          4/* Alternative to callback */
-# define ENGINE_CTRL_SET_CALLBACK_DATA           5/* User-specific data, used
+#  define ENGINE_CTRL_SET_USER_INTERFACE          4/* Alternative to callback */
+#  define ENGINE_CTRL_SET_CALLBACK_DATA           5/* User-specific data, used
                                                    * when calling the password
                                                    * callback and the user
                                                    * interface */
-# define ENGINE_CTRL_LOAD_CONFIGURATION          6/* Load a configuration,
+#  define ENGINE_CTRL_LOAD_CONFIGURATION          6/* Load a configuration,
                                                    * given a string that
                                                    * represents a file name
                                                    * or so */
-# define ENGINE_CTRL_LOAD_SECTION                7/* Load data from a given
+#  define ENGINE_CTRL_LOAD_SECTION                7/* Load data from a given
                                                    * section in the already
                                                    * loaded configuration */
 
@@ -175,22 +181,22 @@ extern "C" {
  * worth checking this first if the caller is trying to "discover" the
  * engine's capabilities and doesn't want errors generated unnecessarily.
  */
-# define ENGINE_CTRL_HAS_CTRL_FUNCTION           10
+#  define ENGINE_CTRL_HAS_CTRL_FUNCTION           10
 /*
  * Returns a positive command number for the first command supported by the
  * engine. Returns zero if no ctrl commands are supported.
  */
-# define ENGINE_CTRL_GET_FIRST_CMD_TYPE          11
+#  define ENGINE_CTRL_GET_FIRST_CMD_TYPE          11
 /*
  * The 'long' argument specifies a command implemented by the engine, and the
  * return value is the next command supported, or zero if there are no more.
  */
-# define ENGINE_CTRL_GET_NEXT_CMD_TYPE           12
+#  define ENGINE_CTRL_GET_NEXT_CMD_TYPE           12
 /*
  * The 'void*' argument is a command name (cast from 'const char *'), and the
  * return value is the command that corresponds to it.
  */
-# define ENGINE_CTRL_GET_CMD_FROM_NAME           13
+#  define ENGINE_CTRL_GET_CMD_FROM_NAME           13
 /*
  * The next two allow a command to be converted into its corresponding string
  * form. In each case, the 'long' argument supplies the command. In the
@@ -199,23 +205,23 @@ extern "C" {
  * string buffer large enough, and it will be populated with the name of the
  * command (WITH a trailing EOL).
  */
-# define ENGINE_CTRL_GET_NAME_LEN_FROM_CMD       14
-# define ENGINE_CTRL_GET_NAME_FROM_CMD           15
+#  define ENGINE_CTRL_GET_NAME_LEN_FROM_CMD       14
+#  define ENGINE_CTRL_GET_NAME_FROM_CMD           15
 /* The next two are similar but give a "short description" of a command. */
-# define ENGINE_CTRL_GET_DESC_LEN_FROM_CMD       16
-# define ENGINE_CTRL_GET_DESC_FROM_CMD           17
+#  define ENGINE_CTRL_GET_DESC_LEN_FROM_CMD       16
+#  define ENGINE_CTRL_GET_DESC_FROM_CMD           17
 /*
  * With this command, the return value is the OR'd combination of
  * ENGINE_CMD_FLAG_*** values that indicate what kind of input a given
  * engine-specific ctrl command expects.
  */
-# define ENGINE_CTRL_GET_CMD_FLAGS               18
+#  define ENGINE_CTRL_GET_CMD_FLAGS               18
 
 /*
  * ENGINE implementations should start the numbering of their own control
  * commands from this value. (ie. ENGINE_CMD_BASE, ENGINE_CMD_BASE + 1, etc).
  */
-# define ENGINE_CMD_BASE                         200
+#  define ENGINE_CMD_BASE                         200
 
 /*
  * NB: These 2 nCipher "chil" control commands are deprecated, and their
@@ -226,17 +232,17 @@ extern "C" {
  */
 
 /* Flags specific to the nCipher "chil" engine */
-# define ENGINE_CTRL_CHIL_SET_FORKCHECK          100
-        /*
-         * Depending on the value of the (long)i argument, this sets or
-         * unsets the SimpleForkCheck flag in the CHIL API to enable or
-         * disable checking and workarounds for applications that fork().
-         */
-# define ENGINE_CTRL_CHIL_NO_LOCKING             101
-        /*
-         * This prevents the initialisation function from providing mutex
-         * callbacks to the nCipher library.
-         */
+#  define ENGINE_CTRL_CHIL_SET_FORKCHECK          100
+         /*
+          * Depending on the value of the (long)i argument, this sets or
+          * unsets the SimpleForkCheck flag in the CHIL API to enable or
+          * disable checking and workarounds for applications that fork().
+          */
+#  define ENGINE_CTRL_CHIL_NO_LOCKING             101
+         /*
+          * This prevents the initialisation function from providing mutex
+          * callbacks to the nCipher library.
+          */
 
 /*
  * If an ENGINE supports its own specific control commands and wishes the
@@ -308,44 +314,58 @@ typedef int (*ENGINE_PKEY_ASN1_METHS_PTR) (ENGINE *, EVP_PKEY_ASN1_METHOD **,
  */
 
 /* Get the first/last "ENGINE" type available. */
-ENGINE *ENGINE_get_first(void);
-ENGINE *ENGINE_get_last(void);
+#  ifndef OPENSSL_NO_DEPRECATED_3_0
+OSSL_DEPRECATEDIN_3_0 ENGINE *ENGINE_get_first(void);
+OSSL_DEPRECATEDIN_3_0 ENGINE *ENGINE_get_last(void);
+#  endif
 /* Iterate to the next/previous "ENGINE" type (NULL = end of the list). */
-ENGINE *ENGINE_get_next(ENGINE *e);
-ENGINE *ENGINE_get_prev(ENGINE *e);
+#  ifndef OPENSSL_NO_DEPRECATED_3_0
+OSSL_DEPRECATEDIN_3_0 ENGINE *ENGINE_get_next(ENGINE *e);
+OSSL_DEPRECATEDIN_3_0 ENGINE *ENGINE_get_prev(ENGINE *e);
+#  endif
 /* Add another "ENGINE" type into the array. */
-int ENGINE_add(ENGINE *e);
+#  ifndef OPENSSL_NO_DEPRECATED_3_0
+OSSL_DEPRECATEDIN_3_0 int ENGINE_add(ENGINE *e);
+#  endif
 /* Remove an existing "ENGINE" type from the array. */
-int ENGINE_remove(ENGINE *e);
+#  ifndef OPENSSL_NO_DEPRECATED_3_0
+OSSL_DEPRECATEDIN_3_0 int ENGINE_remove(ENGINE *e);
+#  endif
 /* Retrieve an engine from the list by its unique "id" value. */
-ENGINE *ENGINE_by_id(const char *id);
+#  ifndef OPENSSL_NO_DEPRECATED_3_0
+OSSL_DEPRECATEDIN_3_0 ENGINE *ENGINE_by_id(const char *id);
+#  endif
 
-#if OPENSSL_API_COMPAT < 0x10100000L
-# define ENGINE_load_openssl() \
-    OPENSSL_init_crypto(OPENSSL_INIT_ENGINE_OPENSSL, NULL)
-# define ENGINE_load_dynamic() \
-    OPENSSL_init_crypto(OPENSSL_INIT_ENGINE_DYNAMIC, NULL)
-# ifndef OPENSSL_NO_STATIC_ENGINE
-#  define ENGINE_load_padlock() \
-    OPENSSL_init_crypto(OPENSSL_INIT_ENGINE_PADLOCK, NULL)
-#  define ENGINE_load_capi() \
-    OPENSSL_init_crypto(OPENSSL_INIT_ENGINE_CAPI, NULL)
-#  define ENGINE_load_afalg() \
-    OPENSSL_init_crypto(OPENSSL_INIT_ENGINE_AFALG, NULL)
-# endif
-# define ENGINE_load_cryptodev() \
-    OPENSSL_init_crypto(OPENSSL_INIT_ENGINE_CRYPTODEV, NULL)
-# define ENGINE_load_rdrand() \
-    OPENSSL_init_crypto(OPENSSL_INIT_ENGINE_RDRAND, NULL)
-#endif
-void ENGINE_load_builtin_engines(void);
+#  ifndef OPENSSL_NO_DEPRECATED_1_1_0
+#   define ENGINE_load_openssl() \
+        OPENSSL_init_crypto(OPENSSL_INIT_ENGINE_OPENSSL, NULL)
+#   define ENGINE_load_dynamic() \
+        OPENSSL_init_crypto(OPENSSL_INIT_ENGINE_DYNAMIC, NULL)
+#   ifndef OPENSSL_NO_STATIC_ENGINE
+#    define ENGINE_load_padlock() \
+        OPENSSL_init_crypto(OPENSSL_INIT_ENGINE_PADLOCK, NULL)
+#    define ENGINE_load_capi() \
+        OPENSSL_init_crypto(OPENSSL_INIT_ENGINE_CAPI, NULL)
+#    define ENGINE_load_afalg() \
+        OPENSSL_init_crypto(OPENSSL_INIT_ENGINE_AFALG, NULL)
+#   endif
+#   define ENGINE_load_cryptodev() \
+        OPENSSL_init_crypto(OPENSSL_INIT_ENGINE_CRYPTODEV, NULL)
+#   define ENGINE_load_rdrand() \
+        OPENSSL_init_crypto(OPENSSL_INIT_ENGINE_RDRAND, NULL)
+#  endif
+#  ifndef OPENSSL_NO_DEPRECATED_3_0
+OSSL_DEPRECATEDIN_3_0 void ENGINE_load_builtin_engines(void);
+#  endif
 
 /*
  * Get and set global flags (ENGINE_TABLE_FLAG_***) for the implementation
  * "registry" handling.
  */
-unsigned int ENGINE_get_table_flags(void);
-void ENGINE_set_table_flags(unsigned int flags);
+#  ifndef OPENSSL_NO_DEPRECATED_3_0
+OSSL_DEPRECATEDIN_3_0 unsigned int ENGINE_get_table_flags(void);
+OSSL_DEPRECATEDIN_3_0 void ENGINE_set_table_flags(unsigned int flags);
+#  endif
 
 /*- Manage registration of ENGINEs per "table". For each type, there are 3
  * functions;
@@ -354,42 +374,35 @@ void ENGINE_set_table_flags(unsigned int flags);
  *   ENGINE_register_all_***() - call ENGINE_register_***() for each 'e' in the list
  * Cleanup is automatically registered from each table when required.
  */
-
-int ENGINE_register_RSA(ENGINE *e);
-void ENGINE_unregister_RSA(ENGINE *e);
-void ENGINE_register_all_RSA(void);
-
-int ENGINE_register_DSA(ENGINE *e);
-void ENGINE_unregister_DSA(ENGINE *e);
-void ENGINE_register_all_DSA(void);
-
-int ENGINE_register_EC(ENGINE *e);
-void ENGINE_unregister_EC(ENGINE *e);
-void ENGINE_register_all_EC(void);
-
-int ENGINE_register_DH(ENGINE *e);
-void ENGINE_unregister_DH(ENGINE *e);
-void ENGINE_register_all_DH(void);
-
-int ENGINE_register_RAND(ENGINE *e);
-void ENGINE_unregister_RAND(ENGINE *e);
-void ENGINE_register_all_RAND(void);
-
-int ENGINE_register_ciphers(ENGINE *e);
-void ENGINE_unregister_ciphers(ENGINE *e);
-void ENGINE_register_all_ciphers(void);
-
-int ENGINE_register_digests(ENGINE *e);
-void ENGINE_unregister_digests(ENGINE *e);
-void ENGINE_register_all_digests(void);
-
-int ENGINE_register_pkey_meths(ENGINE *e);
-void ENGINE_unregister_pkey_meths(ENGINE *e);
-void ENGINE_register_all_pkey_meths(void);
-
-int ENGINE_register_pkey_asn1_meths(ENGINE *e);
-void ENGINE_unregister_pkey_asn1_meths(ENGINE *e);
-void ENGINE_register_all_pkey_asn1_meths(void);
+#  ifndef OPENSSL_NO_DEPRECATED_3_0
+OSSL_DEPRECATEDIN_3_0 int ENGINE_register_RSA(ENGINE *e);
+OSSL_DEPRECATEDIN_3_0 void ENGINE_unregister_RSA(ENGINE *e);
+OSSL_DEPRECATEDIN_3_0 void ENGINE_register_all_RSA(void);
+OSSL_DEPRECATEDIN_3_0 int ENGINE_register_DSA(ENGINE *e);
+OSSL_DEPRECATEDIN_3_0 void ENGINE_unregister_DSA(ENGINE *e);
+OSSL_DEPRECATEDIN_3_0 void ENGINE_register_all_DSA(void);
+OSSL_DEPRECATEDIN_3_0 int ENGINE_register_EC(ENGINE *e);
+OSSL_DEPRECATEDIN_3_0 void ENGINE_unregister_EC(ENGINE *e);
+OSSL_DEPRECATEDIN_3_0 void ENGINE_register_all_EC(void);
+OSSL_DEPRECATEDIN_3_0 int ENGINE_register_DH(ENGINE *e);
+OSSL_DEPRECATEDIN_3_0 void ENGINE_unregister_DH(ENGINE *e);
+OSSL_DEPRECATEDIN_3_0 void ENGINE_register_all_DH(void);
+OSSL_DEPRECATEDIN_3_0 int ENGINE_register_RAND(ENGINE *e);
+OSSL_DEPRECATEDIN_3_0 void ENGINE_unregister_RAND(ENGINE *e);
+OSSL_DEPRECATEDIN_3_0 void ENGINE_register_all_RAND(void);
+OSSL_DEPRECATEDIN_3_0 int ENGINE_register_ciphers(ENGINE *e);
+OSSL_DEPRECATEDIN_3_0 void ENGINE_unregister_ciphers(ENGINE *e);
+OSSL_DEPRECATEDIN_3_0 void ENGINE_register_all_ciphers(void);
+OSSL_DEPRECATEDIN_3_0 int ENGINE_register_digests(ENGINE *e);
+OSSL_DEPRECATEDIN_3_0 void ENGINE_unregister_digests(ENGINE *e);
+OSSL_DEPRECATEDIN_3_0 void ENGINE_register_all_digests(void);
+OSSL_DEPRECATEDIN_3_0 int ENGINE_register_pkey_meths(ENGINE *e);
+OSSL_DEPRECATEDIN_3_0 void ENGINE_unregister_pkey_meths(ENGINE *e);
+OSSL_DEPRECATEDIN_3_0 void ENGINE_register_all_pkey_meths(void);
+OSSL_DEPRECATEDIN_3_0 int ENGINE_register_pkey_asn1_meths(ENGINE *e);
+OSSL_DEPRECATEDIN_3_0 void ENGINE_unregister_pkey_asn1_meths(ENGINE *e);
+OSSL_DEPRECATEDIN_3_0 void ENGINE_register_all_pkey_asn1_meths(void);
+#  endif
 
 /*
  * These functions register all support from the above categories. Note, use
@@ -397,8 +410,10 @@ void ENGINE_register_all_pkey_asn1_meths(void);
  * may not need. If you only need a subset of functionality, consider using
  * more selective initialisation.
  */
-int ENGINE_register_complete(ENGINE *e);
-int ENGINE_register_all_complete(void);
+#  ifndef OPENSSL_NO_DEPRECATED_3_0
+OSSL_DEPRECATEDIN_3_0 int ENGINE_register_complete(ENGINE *e);
+OSSL_DEPRECATEDIN_3_0 int ENGINE_register_all_complete(void);
+#  endif
 
 /*
  * Send parameterised control commands to the engine. The possibilities to
@@ -410,7 +425,10 @@ int ENGINE_register_all_complete(void);
  * commands that require an operational ENGINE, and only use functional
  * references in such situations.
  */
-int ENGINE_ctrl(ENGINE *e, int cmd, long i, void *p, void (*f) (void));
+#  ifndef OPENSSL_NO_DEPRECATED_3_0
+OSSL_DEPRECATEDIN_3_0 int ENGINE_ctrl(ENGINE *e, int cmd, long i, void *p,
+                                      void (*f) (void));
+#  endif
 
 /*
  * This function tests if an ENGINE-specific command is usable as a
@@ -418,7 +436,9 @@ int ENGINE_ctrl(ENGINE *e, int cmd, long i, void *p, void (*f) (void));
  * ENGINE_ctrl_cmd_string(). If this returns zero, it is not available to
  * ENGINE_ctrl_cmd_string(), only ENGINE_ctrl().
  */
-int ENGINE_cmd_is_executable(ENGINE *e, int cmd);
+#  ifndef OPENSSL_NO_DEPRECATED_3_0
+OSSL_DEPRECATEDIN_3_0 int ENGINE_cmd_is_executable(ENGINE *e, int cmd);
+#  endif
 
 /*
  * This function works like ENGINE_ctrl() with the exception of taking a
@@ -426,8 +446,11 @@ int ENGINE_cmd_is_executable(ENGINE *e, int cmd);
  * commands. See the comment on ENGINE_ctrl_cmd_string() for an explanation
  * on how to use the cmd_name and cmd_optional.
  */
-int ENGINE_ctrl_cmd(ENGINE *e, const char *cmd_name,
-                    long i, void *p, void (*f) (void), int cmd_optional);
+#  ifndef OPENSSL_NO_DEPRECATED_3_0
+OSSL_DEPRECATEDIN_3_0 int ENGINE_ctrl_cmd(ENGINE *e, const char *cmd_name,
+                                          long i, void *p, void (*f) (void),
+                                          int cmd_optional);
+#  endif
 
 /*
  * This function passes a command-name and argument to an ENGINE. The
@@ -451,8 +474,11 @@ int ENGINE_ctrl_cmd(ENGINE *e, const char *cmd_name,
  * applications can work consistently with the same configuration for the
  * same ENGINE-enabled devices, across applications.
  */
+#  ifndef OPENSSL_NO_DEPRECATED_3_0
+OSSL_DEPRECATEDIN_3_0
 int ENGINE_ctrl_cmd_string(ENGINE *e, const char *cmd_name, const char *arg,
                            int cmd_optional);
+#  endif
 
 /*
  * These functions are useful for manufacturing new ENGINE structures. They
@@ -462,45 +488,59 @@ int ENGINE_ctrl_cmd_string(ENGINE *e, const char *cmd_name, const char *arg,
  * These are also here so that the ENGINE structure doesn't have to be
  * exposed and break binary compatibility!
  */
-ENGINE *ENGINE_new(void);
-int ENGINE_free(ENGINE *e);
-int ENGINE_up_ref(ENGINE *e);
-int ENGINE_set_id(ENGINE *e, const char *id);
-int ENGINE_set_name(ENGINE *e, const char *name);
-int ENGINE_set_RSA(ENGINE *e, const RSA_METHOD *rsa_meth);
-int ENGINE_set_DSA(ENGINE *e, const DSA_METHOD *dsa_meth);
-int ENGINE_set_EC(ENGINE *e, const EC_KEY_METHOD *ecdsa_meth);
-int ENGINE_set_DH(ENGINE *e, const DH_METHOD *dh_meth);
-int ENGINE_set_RAND(ENGINE *e, const RAND_METHOD *rand_meth);
-int ENGINE_set_destroy_function(ENGINE *e, ENGINE_GEN_INT_FUNC_PTR destroy_f);
+#  ifndef OPENSSL_NO_DEPRECATED_3_0
+OSSL_DEPRECATEDIN_3_0 ENGINE *ENGINE_new(void);
+OSSL_DEPRECATEDIN_3_0 int ENGINE_free(ENGINE *e);
+OSSL_DEPRECATEDIN_3_0 int ENGINE_up_ref(ENGINE *e);
+OSSL_DEPRECATEDIN_3_0 int ENGINE_set_id(ENGINE *e, const char *id);
+OSSL_DEPRECATEDIN_3_0 int ENGINE_set_name(ENGINE *e, const char *name);
+OSSL_DEPRECATEDIN_3_0 int ENGINE_set_RSA(ENGINE *e, const RSA_METHOD *rsa_meth);
+OSSL_DEPRECATEDIN_3_0 int ENGINE_set_DSA(ENGINE *e, const DSA_METHOD *dsa_meth);
+OSSL_DEPRECATEDIN_3_0 int ENGINE_set_EC(ENGINE *e, const EC_KEY_METHOD *ecdsa_meth);
+OSSL_DEPRECATEDIN_3_0 int ENGINE_set_DH(ENGINE *e, const DH_METHOD *dh_meth);
+OSSL_DEPRECATEDIN_3_0 int ENGINE_set_RAND(ENGINE *e, const RAND_METHOD *rand_meth);
+OSSL_DEPRECATEDIN_3_0
+int ENGINE_set_destroy_function(ENGINE *e,ENGINE_GEN_INT_FUNC_PTR destroy_f);
+OSSL_DEPRECATEDIN_3_0
 int ENGINE_set_init_function(ENGINE *e, ENGINE_GEN_INT_FUNC_PTR init_f);
+OSSL_DEPRECATEDIN_3_0
 int ENGINE_set_finish_function(ENGINE *e, ENGINE_GEN_INT_FUNC_PTR finish_f);
+OSSL_DEPRECATEDIN_3_0
 int ENGINE_set_ctrl_function(ENGINE *e, ENGINE_CTRL_FUNC_PTR ctrl_f);
-int ENGINE_set_load_privkey_function(ENGINE *e,
-                                     ENGINE_LOAD_KEY_PTR loadpriv_f);
+OSSL_DEPRECATEDIN_3_0
+int ENGINE_set_load_privkey_function(ENGINE *e, ENGINE_LOAD_KEY_PTR loadpriv_f);
+OSSL_DEPRECATEDIN_3_0
 int ENGINE_set_load_pubkey_function(ENGINE *e, ENGINE_LOAD_KEY_PTR loadpub_f);
+OSSL_DEPRECATEDIN_3_0
 int ENGINE_set_load_ssl_client_cert_function(ENGINE *e,
-                                             ENGINE_SSL_CLIENT_CERT_PTR
-                                             loadssl_f);
+                                             ENGINE_SSL_CLIENT_CERT_PTR loadssl_f);
+OSSL_DEPRECATEDIN_3_0
 int ENGINE_set_ciphers(ENGINE *e, ENGINE_CIPHERS_PTR f);
+OSSL_DEPRECATEDIN_3_0
 int ENGINE_set_digests(ENGINE *e, ENGINE_DIGESTS_PTR f);
+OSSL_DEPRECATEDIN_3_0
 int ENGINE_set_pkey_meths(ENGINE *e, ENGINE_PKEY_METHS_PTR f);
+OSSL_DEPRECATEDIN_3_0
 int ENGINE_set_pkey_asn1_meths(ENGINE *e, ENGINE_PKEY_ASN1_METHS_PTR f);
-int ENGINE_set_flags(ENGINE *e, int flags);
-int ENGINE_set_cmd_defns(ENGINE *e, const ENGINE_CMD_DEFN *defns);
+OSSL_DEPRECATEDIN_3_0 int ENGINE_set_flags(ENGINE *e, int flags);
+OSSL_DEPRECATEDIN_3_0 int ENGINE_set_cmd_defns(ENGINE *e,
+                                               const ENGINE_CMD_DEFN *defns);
+#  endif
 /* These functions allow control over any per-structure ENGINE data. */
-#define ENGINE_get_ex_new_index(l, p, newf, dupf, freef) \
+#  define ENGINE_get_ex_new_index(l, p, newf, dupf, freef) \
     CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_ENGINE, l, p, newf, dupf, freef)
-int ENGINE_set_ex_data(ENGINE *e, int idx, void *arg);
-void *ENGINE_get_ex_data(const ENGINE *e, int idx);
+# ifndef OPENSSL_NO_DEPRECATED_3_0
+OSSL_DEPRECATEDIN_3_0 int ENGINE_set_ex_data(ENGINE *e, int idx, void *arg);
+OSSL_DEPRECATEDIN_3_0 void *ENGINE_get_ex_data(const ENGINE *e, int idx);
+# endif
 
-#if OPENSSL_API_COMPAT < 0x10100000L
+#  ifndef OPENSSL_NO_DEPRECATED_1_1_0
 /*
  * This function previously cleaned up anything that needs it. Auto-deinit will
  * now take care of it so it is no longer required to call this function.
  */
-# define ENGINE_cleanup() while(0) continue
-#endif
+#   define ENGINE_cleanup() while(0) continue
+#  endif
 
 /*
  * These return values from within the ENGINE structure. These can be useful
@@ -508,37 +548,55 @@ void *ENGINE_get_ex_data(const ENGINE *e, int idx);
  * which you obtained. Using the result for functional purposes if you only
  * obtained a structural reference may be problematic!
  */
-const char *ENGINE_get_id(const ENGINE *e);
-const char *ENGINE_get_name(const ENGINE *e);
-const RSA_METHOD *ENGINE_get_RSA(const ENGINE *e);
-const DSA_METHOD *ENGINE_get_DSA(const ENGINE *e);
-const EC_KEY_METHOD *ENGINE_get_EC(const ENGINE *e);
-const DH_METHOD *ENGINE_get_DH(const ENGINE *e);
-const RAND_METHOD *ENGINE_get_RAND(const ENGINE *e);
+#  ifndef OPENSSL_NO_DEPRECATED_3_0
+OSSL_DEPRECATEDIN_3_0 const char *ENGINE_get_id(const ENGINE *e);
+OSSL_DEPRECATEDIN_3_0 const char *ENGINE_get_name(const ENGINE *e);
+OSSL_DEPRECATEDIN_3_0 const RSA_METHOD *ENGINE_get_RSA(const ENGINE *e);
+OSSL_DEPRECATEDIN_3_0 const DSA_METHOD *ENGINE_get_DSA(const ENGINE *e);
+OSSL_DEPRECATEDIN_3_0 const EC_KEY_METHOD *ENGINE_get_EC(const ENGINE *e);
+OSSL_DEPRECATEDIN_3_0 const DH_METHOD *ENGINE_get_DH(const ENGINE *e);
+OSSL_DEPRECATEDIN_3_0 const RAND_METHOD *ENGINE_get_RAND(const ENGINE *e);
+OSSL_DEPRECATEDIN_3_0
 ENGINE_GEN_INT_FUNC_PTR ENGINE_get_destroy_function(const ENGINE *e);
+OSSL_DEPRECATEDIN_3_0
 ENGINE_GEN_INT_FUNC_PTR ENGINE_get_init_function(const ENGINE *e);
+OSSL_DEPRECATEDIN_3_0
 ENGINE_GEN_INT_FUNC_PTR ENGINE_get_finish_function(const ENGINE *e);
+OSSL_DEPRECATEDIN_3_0
 ENGINE_CTRL_FUNC_PTR ENGINE_get_ctrl_function(const ENGINE *e);
+OSSL_DEPRECATEDIN_3_0
 ENGINE_LOAD_KEY_PTR ENGINE_get_load_privkey_function(const ENGINE *e);
+OSSL_DEPRECATEDIN_3_0
 ENGINE_LOAD_KEY_PTR ENGINE_get_load_pubkey_function(const ENGINE *e);
-ENGINE_SSL_CLIENT_CERT_PTR ENGINE_get_ssl_client_cert_function(const ENGINE
-                                                               *e);
+OSSL_DEPRECATEDIN_3_0
+ENGINE_SSL_CLIENT_CERT_PTR ENGINE_get_ssl_client_cert_function(const ENGINE *e);
+OSSL_DEPRECATEDIN_3_0
 ENGINE_CIPHERS_PTR ENGINE_get_ciphers(const ENGINE *e);
+OSSL_DEPRECATEDIN_3_0
 ENGINE_DIGESTS_PTR ENGINE_get_digests(const ENGINE *e);
+OSSL_DEPRECATEDIN_3_0
 ENGINE_PKEY_METHS_PTR ENGINE_get_pkey_meths(const ENGINE *e);
+OSSL_DEPRECATEDIN_3_0
 ENGINE_PKEY_ASN1_METHS_PTR ENGINE_get_pkey_asn1_meths(const ENGINE *e);
+OSSL_DEPRECATEDIN_3_0
 const EVP_CIPHER *ENGINE_get_cipher(ENGINE *e, int nid);
+OSSL_DEPRECATEDIN_3_0
 const EVP_MD *ENGINE_get_digest(ENGINE *e, int nid);
+OSSL_DEPRECATEDIN_3_0
 const EVP_PKEY_METHOD *ENGINE_get_pkey_meth(ENGINE *e, int nid);
+OSSL_DEPRECATEDIN_3_0
 const EVP_PKEY_ASN1_METHOD *ENGINE_get_pkey_asn1_meth(ENGINE *e, int nid);
+OSSL_DEPRECATEDIN_3_0
 const EVP_PKEY_ASN1_METHOD *ENGINE_get_pkey_asn1_meth_str(ENGINE *e,
                                                           const char *str,
                                                           int len);
+OSSL_DEPRECATEDIN_3_0
 const EVP_PKEY_ASN1_METHOD *ENGINE_pkey_asn1_find_str(ENGINE **pe,
-                                                      const char *str,
-                                                      int len);
+                                                      const char *str, int len);
+OSSL_DEPRECATEDIN_3_0
 const ENGINE_CMD_DEFN *ENGINE_get_cmd_defns(const ENGINE *e);
-int ENGINE_get_flags(const ENGINE *e);
+OSSL_DEPRECATEDIN_3_0 int ENGINE_get_flags(const ENGINE *e);
+#  endif
 
 /*
  * FUNCTIONAL functions. These functions deal with ENGINE structures that
@@ -558,27 +616,36 @@ int ENGINE_get_flags(const ENGINE *e);
  * already in use). This will fail if the engine is not currently operational
  * and cannot initialise.
  */
-int ENGINE_init(ENGINE *e);
+#  ifndef OPENSSL_NO_DEPRECATED_3_0
+OSSL_DEPRECATEDIN_3_0 int ENGINE_init(ENGINE *e);
+#  endif
 /*
  * Free a functional reference to a engine type. This does not require a
  * corresponding call to ENGINE_free as it also releases a structural
  * reference.
  */
-int ENGINE_finish(ENGINE *e);
+#  ifndef OPENSSL_NO_DEPRECATED_3_0
+OSSL_DEPRECATEDIN_3_0 int ENGINE_finish(ENGINE *e);
+#  endif
 
 /*
  * The following functions handle keys that are stored in some secondary
  * location, handled by the engine.  The storage may be on a card or
  * whatever.
  */
+#  ifndef OPENSSL_NO_DEPRECATED_3_0
+OSSL_DEPRECATEDIN_3_0
 EVP_PKEY *ENGINE_load_private_key(ENGINE *e, const char *key_id,
                                   UI_METHOD *ui_method, void *callback_data);
+OSSL_DEPRECATEDIN_3_0
 EVP_PKEY *ENGINE_load_public_key(ENGINE *e, const char *key_id,
                                  UI_METHOD *ui_method, void *callback_data);
-int ENGINE_load_ssl_client_cert(ENGINE *e, SSL *s,
-                                STACK_OF(X509_NAME) *ca_dn, X509 **pcert,
-                                EVP_PKEY **ppkey, STACK_OF(X509) **pother,
+OSSL_DEPRECATEDIN_3_0
+int ENGINE_load_ssl_client_cert(ENGINE *e, SSL *s, STACK_OF(X509_NAME) *ca_dn,
+                                X509 **pcert, EVP_PKEY **ppkey,
+                                STACK_OF(X509) **pother,
                                 UI_METHOD *ui_method, void *callback_data);
+#  endif
 
 /*
  * This returns a pointer for the current ENGINE structure that is (by
@@ -586,20 +653,26 @@ int ENGINE_load_ssl_client_cert(ENGINE *e, SSL *s,
  * incremented reference, so it should be free'd (ENGINE_finish) before it is
  * discarded.
  */
-ENGINE *ENGINE_get_default_RSA(void);
+#  ifndef OPENSSL_NO_DEPRECATED_3_0
+OSSL_DEPRECATEDIN_3_0 ENGINE *ENGINE_get_default_RSA(void);
+#  endif
 /* Same for the other "methods" */
-ENGINE *ENGINE_get_default_DSA(void);
-ENGINE *ENGINE_get_default_EC(void);
-ENGINE *ENGINE_get_default_DH(void);
-ENGINE *ENGINE_get_default_RAND(void);
+#  ifndef OPENSSL_NO_DEPRECATED_3_0
+OSSL_DEPRECATEDIN_3_0 ENGINE *ENGINE_get_default_DSA(void);
+OSSL_DEPRECATEDIN_3_0 ENGINE *ENGINE_get_default_EC(void);
+OSSL_DEPRECATEDIN_3_0 ENGINE *ENGINE_get_default_DH(void);
+OSSL_DEPRECATEDIN_3_0 ENGINE *ENGINE_get_default_RAND(void);
+#  endif
 /*
  * These functions can be used to get a functional reference to perform
  * ciphering or digesting corresponding to "nid".
  */
-ENGINE *ENGINE_get_cipher_engine(int nid);
-ENGINE *ENGINE_get_digest_engine(int nid);
-ENGINE *ENGINE_get_pkey_meth_engine(int nid);
-ENGINE *ENGINE_get_pkey_asn1_meth_engine(int nid);
+#  ifndef OPENSSL_NO_DEPRECATED_3_0
+OSSL_DEPRECATEDIN_3_0 ENGINE *ENGINE_get_cipher_engine(int nid);
+OSSL_DEPRECATEDIN_3_0 ENGINE *ENGINE_get_digest_engine(int nid);
+OSSL_DEPRECATEDIN_3_0 ENGINE *ENGINE_get_pkey_meth_engine(int nid);
+OSSL_DEPRECATEDIN_3_0 ENGINE *ENGINE_get_pkey_asn1_meth_engine(int nid);
+#  endif
 
 /*
  * This sets a new default ENGINE structure for performing RSA operations. If
@@ -607,17 +680,22 @@ ENGINE *ENGINE_get_pkey_asn1_meth_engine(int nid);
  * its reference count up'd so the caller should still free their own
  * reference 'e'.
  */
-int ENGINE_set_default_RSA(ENGINE *e);
-int ENGINE_set_default_string(ENGINE *e, const char *def_list);
+#  ifndef OPENSSL_NO_DEPRECATED_3_0
+OSSL_DEPRECATEDIN_3_0 int ENGINE_set_default_RSA(ENGINE *e);
+OSSL_DEPRECATEDIN_3_0 int ENGINE_set_default_string(ENGINE *e,
+                                                    const char *def_list);
+#  endif
 /* Same for the other "methods" */
-int ENGINE_set_default_DSA(ENGINE *e);
-int ENGINE_set_default_EC(ENGINE *e);
-int ENGINE_set_default_DH(ENGINE *e);
-int ENGINE_set_default_RAND(ENGINE *e);
-int ENGINE_set_default_ciphers(ENGINE *e);
-int ENGINE_set_default_digests(ENGINE *e);
-int ENGINE_set_default_pkey_meths(ENGINE *e);
-int ENGINE_set_default_pkey_asn1_meths(ENGINE *e);
+#  ifndef OPENSSL_NO_DEPRECATED_3_0
+OSSL_DEPRECATEDIN_3_0 int ENGINE_set_default_DSA(ENGINE *e);
+OSSL_DEPRECATEDIN_3_0 int ENGINE_set_default_EC(ENGINE *e);
+OSSL_DEPRECATEDIN_3_0 int ENGINE_set_default_DH(ENGINE *e);
+OSSL_DEPRECATEDIN_3_0 int ENGINE_set_default_RAND(ENGINE *e);
+OSSL_DEPRECATEDIN_3_0 int ENGINE_set_default_ciphers(ENGINE *e);
+OSSL_DEPRECATEDIN_3_0 int ENGINE_set_default_digests(ENGINE *e);
+OSSL_DEPRECATEDIN_3_0 int ENGINE_set_default_pkey_meths(ENGINE *e);
+OSSL_DEPRECATEDIN_3_0 int ENGINE_set_default_pkey_asn1_meths(ENGINE *e);
+#  endif
 
 /*
  * The combination "set" - the flags are bitwise "OR"d from the
@@ -626,9 +704,10 @@ int ENGINE_set_default_pkey_asn1_meths(ENGINE *e);
  * application requires only specific functionality, consider using more
  * selective functions.
  */
-int ENGINE_set_default(ENGINE *e, unsigned int flags);
-
-void ENGINE_add_conf_module(void);
+#  ifndef OPENSSL_NO_DEPRECATED_3_0
+OSSL_DEPRECATEDIN_3_0 int ENGINE_set_default(ENGINE *e, unsigned int flags);
+OSSL_DEPRECATEDIN_3_0 void ENGINE_add_conf_module(void);
+#  endif
 
 /* Deprecated functions ... */
 /* int ENGINE_clear_defaults(void); */
@@ -638,12 +717,12 @@ void ENGINE_add_conf_module(void);
 /**************************/
 
 /* Binary/behaviour compatibility levels */
-# define OSSL_DYNAMIC_VERSION            (unsigned long)0x00030000
+#  define OSSL_DYNAMIC_VERSION            (unsigned long)0x00030000
 /*
  * Binary versions older than this are too old for us (whether we're a loader
  * or a loadee)
  */
-# define OSSL_DYNAMIC_OLDEST             (unsigned long)0x00030000
+#  define OSSL_DYNAMIC_OLDEST             (unsigned long)0x00030000
 
 /*
  * When compiling an ENGINE entirely as an external shared library, loadable
@@ -687,7 +766,7 @@ typedef struct st_dynamic_fns {
  * IMPLEMENT_DYNAMIC_CHECK_FN().
  */
 typedef unsigned long (*dynamic_v_check_fn) (unsigned long ossl_version);
-# define IMPLEMENT_DYNAMIC_CHECK_FN() \
+#  define IMPLEMENT_DYNAMIC_CHECK_FN() \
         OPENSSL_EXPORT unsigned long v_check(unsigned long v); \
         OPENSSL_EXPORT unsigned long v_check(unsigned long v) { \
                 if (v >= OSSL_DYNAMIC_OLDEST) return OSSL_DYNAMIC_VERSION; \
@@ -713,7 +792,7 @@ typedef unsigned long (*dynamic_v_check_fn) (unsigned long ossl_version);
  */
 typedef int (*dynamic_bind_engine) (ENGINE *e, const char *id,
                                     const dynamic_fns *fns);
-# define IMPLEMENT_DYNAMIC_BIND_FN(fn) \
+#  define IMPLEMENT_DYNAMIC_BIND_FN(fn) \
         OPENSSL_EXPORT \
         int bind_engine(ENGINE *e, const char *id, const dynamic_fns *fns); \
         OPENSSL_EXPORT \
@@ -739,13 +818,15 @@ typedef int (*dynamic_bind_engine) (ENGINE *e, const char *id,
  */
 void *ENGINE_get_static_state(void);
 
-# if defined(__OpenBSD__) || defined(__FreeBSD__) || defined(__DragonFly__)
-DEPRECATEDIN_1_1_0(void ENGINE_setup_bsd_cryptodev(void))
-# endif
+#  if defined(__OpenBSD__) || defined(__FreeBSD__) || defined(__DragonFly__)
+#   ifndef OPENSSL_NO_DEPRECATED_1_1_0
+OSSL_DEPRECATEDIN_1_1_0 void ENGINE_setup_bsd_cryptodev(void);
+#   endif
+#  endif
 
 
 #  ifdef  __cplusplus
 }
 #  endif
-# endif
-#endif
+# endif /* OPENSSL_NO_ENGINE */
+#endif  /* OPENSSL_ENGINE_H */

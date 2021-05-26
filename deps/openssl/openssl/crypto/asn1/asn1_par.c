@@ -1,7 +1,7 @@
 /*
  * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -17,25 +17,44 @@
 #define ASN1_PARSE_MAXDEPTH 128
 #endif
 
-static int asn1_print_info(BIO *bp, int tag, int xclass, int constructed,
-                           int indent);
 static int asn1_parse2(BIO *bp, const unsigned char **pp, long length,
                        int offset, int depth, int indent, int dump);
-static int asn1_print_info(BIO *bp, int tag, int xclass, int constructed,
-                           int indent)
+static int asn1_print_info(BIO *bp, long offset, int depth, int hl, long len,
+                           int tag, int xclass, int constructed, int indent)
 {
-    static const char fmt[] = "%-18s";
     char str[128];
     const char *p;
+    int pop_f_prefix = 0;
+    long saved_indent = -1;
+    int i = 0;
 
     if (constructed & V_ASN1_CONSTRUCTED)
         p = "cons: ";
     else
         p = "prim: ";
-    if (BIO_write(bp, p, 6) < 6)
+    if (constructed != (V_ASN1_CONSTRUCTED | 1)) {
+        if (BIO_snprintf(str, sizeof(str), "%5ld:d=%-2d hl=%ld l=%4ld %s",
+                         offset, depth, (long)hl, len, p) <= 0)
+            goto err;
+    } else {
+        if (BIO_snprintf(str, sizeof(str), "%5ld:d=%-2d hl=%ld l=inf  %s",
+                         offset, depth, (long)hl, p) <= 0)
+            goto err;
+    }
+    if (BIO_set_prefix(bp, str) <= 0) {
+        if ((bp = BIO_push(BIO_new(BIO_f_prefix()), bp)) == NULL)
+            goto err;
+        pop_f_prefix = 1;
+    }
+    saved_indent = BIO_get_indent(bp);
+    if (BIO_set_prefix(bp, str) <= 0
+        || BIO_set_indent(bp, indent) < 0)
         goto err;
-    BIO_indent(bp, indent, 128);
 
+    /*
+     * BIO_set_prefix made a copy of |str|, so we can safely use it for
+     * something else, ASN.1 tag printout.
+     */
     p = str;
     if ((xclass & V_ASN1_PRIVATE) == V_ASN1_PRIVATE)
         BIO_snprintf(str, sizeof(str), "priv [ %d ] ", tag);
@@ -48,11 +67,15 @@ static int asn1_print_info(BIO *bp, int tag, int xclass, int constructed,
     else
         p = ASN1_tag2str(tag);
 
-    if (BIO_printf(bp, fmt, p) <= 0)
-        goto err;
-    return 1;
+    i = (BIO_printf(bp, "%-18s", p) > 0);
  err:
-    return 0;
+    if (saved_indent >= 0)
+        BIO_set_indent(bp, saved_indent);
+    if (pop_f_prefix) {
+        BIO_pop(bp);
+        BIO_free(bp);
+    }
+    return i;
 }
 
 int ASN1_parse(BIO *bp, const unsigned char *pp, long len, int indent)
@@ -102,19 +125,8 @@ static int asn1_parse2(BIO *bp, const unsigned char **pp, long length,
         /*
          * if j == 0x21 it is a constructed indefinite length object
          */
-        if (BIO_printf(bp, "%5ld:", (long)offset + (long)(op - *pp))
-            <= 0)
-            goto end;
-
-        if (j != (V_ASN1_CONSTRUCTED | 1)) {
-            if (BIO_printf(bp, "d=%-2d hl=%ld l=%4ld ",
-                           depth, (long)hl, len) <= 0)
-                goto end;
-        } else {
-            if (BIO_printf(bp, "d=%-2d hl=%ld l=inf  ", depth, (long)hl) <= 0)
-                goto end;
-        }
-        if (!asn1_print_info(bp, tag, xclass, j, (indent) ? depth : 0))
+        if (!asn1_print_info(bp, (long)offset + (long)(op - *pp), depth,
+                             hl, len, tag, xclass, j, (indent) ? depth : 0))
             goto end;
         if (j & V_ASN1_CONSTRUCTED) {
             const unsigned char *sp = p;

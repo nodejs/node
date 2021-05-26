@@ -1,7 +1,7 @@
 /*
- * Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -32,7 +32,7 @@ int TS_REQ_set_msg_imprint(TS_REQ *a, TS_MSG_IMPRINT *msg_imprint)
         return 1;
     new_msg_imprint = TS_MSG_IMPRINT_dup(msg_imprint);
     if (new_msg_imprint == NULL) {
-        TSerr(TS_F_TS_REQ_SET_MSG_IMPRINT, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_TS, ERR_R_MALLOC_FAILURE);
         return 0;
     }
     TS_MSG_IMPRINT_free(a->msg_imprint);
@@ -53,7 +53,7 @@ int TS_MSG_IMPRINT_set_algo(TS_MSG_IMPRINT *a, X509_ALGOR *alg)
         return 1;
     new_alg = X509_ALGOR_dup(alg);
     if (new_alg == NULL) {
-        TSerr(TS_F_TS_MSG_IMPRINT_SET_ALGO, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_TS, ERR_R_MALLOC_FAILURE);
         return 0;
     }
     X509_ALGOR_free(a->hash_algo);
@@ -84,7 +84,7 @@ int TS_REQ_set_policy_id(TS_REQ *a, const ASN1_OBJECT *policy)
         return 1;
     new_policy = OBJ_dup(policy);
     if (new_policy == NULL) {
-        TSerr(TS_F_TS_REQ_SET_POLICY_ID, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_TS, ERR_R_MALLOC_FAILURE);
         return 0;
     }
     ASN1_OBJECT_free(a->policy_id);
@@ -105,7 +105,7 @@ int TS_REQ_set_nonce(TS_REQ *a, const ASN1_INTEGER *nonce)
         return 1;
     new_nonce = ASN1_INTEGER_dup(nonce);
     if (new_nonce == NULL) {
-        TSerr(TS_F_TS_REQ_SET_NONCE, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_TS, ERR_R_MALLOC_FAILURE);
         return 0;
     }
     ASN1_INTEGER_free(a->nonce);

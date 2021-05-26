@@ -1,11 +1,17 @@
 /*
- * Copyright 2006-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+/*
+ * ECDH and ECDSA low level APIs are deprecated for public use, but still ok
+ * for internal use.
+ */
+#include "internal/deprecated.h"
 
 #include <stdio.h>
 #include "internal/cryptlib.h"
@@ -43,7 +49,7 @@ static int pkey_ec_init(EVP_PKEY_CTX *ctx)
     EC_PKEY_CTX *dctx;
 
     if ((dctx = OPENSSL_zalloc(sizeof(*dctx))) == NULL) {
-        ECerr(EC_F_PKEY_EC_INIT, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_EC, ERR_R_MALLOC_FAILURE);
         return 0;
     }
 
@@ -53,7 +59,7 @@ static int pkey_ec_init(EVP_PKEY_CTX *ctx)
     return 1;
 }
 
-static int pkey_ec_copy(EVP_PKEY_CTX *dst, EVP_PKEY_CTX *src)
+static int pkey_ec_copy(EVP_PKEY_CTX *dst, const EVP_PKEY_CTX *src)
 {
     EC_PKEY_CTX *dctx, *sctx;
     if (!pkey_ec_init(dst))
@@ -116,7 +122,7 @@ static int pkey_ec_sign(EVP_PKEY_CTX *ctx, unsigned char *sig, size_t *siglen,
     }
 
     if (*siglen < (size_t)sig_sz) {
-        ECerr(EC_F_PKEY_EC_SIGN, EC_R_BUFFER_TOO_SMALL);
+        ERR_raise(ERR_LIB_EC, EC_R_BUFFER_TOO_SMALL);
         return 0;
     }
 
@@ -155,9 +161,16 @@ static int pkey_ec_derive(EVP_PKEY_CTX *ctx, unsigned char *key, size_t *keylen)
     size_t outlen;
     const EC_POINT *pubkey = NULL;
     EC_KEY *eckey;
+    const EC_KEY *eckeypub;
     EC_PKEY_CTX *dctx = ctx->data;
-    if (!ctx->pkey || !ctx->peerkey) {
-        ECerr(EC_F_PKEY_EC_DERIVE, EC_R_KEYS_NOT_SET);
+
+    if (ctx->pkey == NULL || ctx->peerkey == NULL) {
+        ERR_raise(ERR_LIB_EC, EC_R_KEYS_NOT_SET);
+        return 0;
+    }
+    eckeypub = EVP_PKEY_get0_EC_KEY(ctx->peerkey);
+    if (eckeypub == NULL) {
+        ERR_raise(ERR_LIB_EC, EC_R_KEYS_NOT_SET);
         return 0;
     }
 
@@ -166,10 +179,13 @@ static int pkey_ec_derive(EVP_PKEY_CTX *ctx, unsigned char *key, size_t *keylen)
     if (!key) {
         const EC_GROUP *group;
         group = EC_KEY_get0_group(eckey);
+
+        if (group == NULL)
+            return 0;
         *keylen = (EC_GROUP_get_degree(group) + 7) / 8;
         return 1;
     }
-    pubkey = EC_KEY_get0_public_key(ctx->peerkey->pkey.ec);
+    pubkey = EC_KEY_get0_public_key(eckeypub);
 
     /*
      * NB: unlike PKCS#3 DH, if *outlen is less than maximum size this is not
@@ -203,14 +219,15 @@ static int pkey_ec_kdf_derive(EVP_PKEY_CTX *ctx,
     if (!pkey_ec_derive(ctx, NULL, &ktmplen))
         return 0;
     if ((ktmp = OPENSSL_malloc(ktmplen)) == NULL) {
-        ECerr(EC_F_PKEY_EC_KDF_DERIVE, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_EC, ERR_R_MALLOC_FAILURE);
         return 0;
     }
     if (!pkey_ec_derive(ctx, ktmp, &ktmplen))
         goto err;
     /* Do KDF stuff */
-    if (!ecdh_KDF_X9_63(key, *keylen, ktmp, ktmplen,
-                        dctx->kdf_ukm, dctx->kdf_ukmlen, dctx->kdf_md))
+    if (!ossl_ecdh_kdf_X9_63(key, *keylen, ktmp, ktmplen,
+                             dctx->kdf_ukm, dctx->kdf_ukmlen, dctx->kdf_md,
+                             ctx->libctx, ctx->propquery))
         goto err;
     rv = 1;
 
@@ -228,7 +245,7 @@ static int pkey_ec_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
     case EVP_PKEY_CTRL_EC_PARAMGEN_CURVE_NID:
         group = EC_GROUP_new_by_curve_name(p1);
         if (group == NULL) {
-            ECerr(EC_F_PKEY_EC_CTRL, EC_R_INVALID_CURVE);
+            ERR_raise(ERR_LIB_EC, EC_R_INVALID_CURVE);
             return 0;
         }
         EC_GROUP_free(dctx->gen_group);
@@ -237,7 +254,7 @@ static int pkey_ec_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
 
     case EVP_PKEY_CTRL_EC_PARAM_ENC:
         if (!dctx->gen_group) {
-            ECerr(EC_F_PKEY_EC_CTRL, EC_R_NO_PARAMETERS_SET);
+            ERR_raise(ERR_LIB_EC, EC_R_NO_PARAMETERS_SET);
             return 0;
         }
         EC_GROUP_set_asn1_flag(dctx->gen_group, p1);
@@ -327,8 +344,9 @@ static int pkey_ec_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
             EVP_MD_type((const EVP_MD *)p2) != NID_sha3_224 &&
             EVP_MD_type((const EVP_MD *)p2) != NID_sha3_256 &&
             EVP_MD_type((const EVP_MD *)p2) != NID_sha3_384 &&
-            EVP_MD_type((const EVP_MD *)p2) != NID_sha3_512) {
-            ECerr(EC_F_PKEY_EC_CTRL, EC_R_INVALID_DIGEST_TYPE);
+            EVP_MD_type((const EVP_MD *)p2) != NID_sha3_512 &&
+            EVP_MD_type((const EVP_MD *)p2) != NID_sm3) {
+            ERR_raise(ERR_LIB_EC, EC_R_INVALID_DIGEST_TYPE);
             return 0;
         }
         dctx->md = p2;
@@ -362,7 +380,7 @@ static int pkey_ec_ctrl_str(EVP_PKEY_CTX *ctx,
         if (nid == NID_undef)
             nid = OBJ_ln2nid(value);
         if (nid == NID_undef) {
-            ECerr(EC_F_PKEY_EC_CTRL_STR, EC_R_INVALID_CURVE);
+            ERR_raise(ERR_LIB_EC, EC_R_INVALID_CURVE);
             return 0;
         }
         return EVP_PKEY_CTX_set_ec_paramgen_curve_nid(ctx, nid);
@@ -378,7 +396,7 @@ static int pkey_ec_ctrl_str(EVP_PKEY_CTX *ctx,
     } else if (strcmp(type, "ecdh_kdf_md") == 0) {
         const EVP_MD *md;
         if ((md = EVP_get_digestbyname(value)) == NULL) {
-            ECerr(EC_F_PKEY_EC_CTRL_STR, EC_R_INVALID_DIGEST);
+            ERR_raise(ERR_LIB_EC, EC_R_INVALID_DIGEST);
             return 0;
         }
         return EVP_PKEY_CTX_set_ecdh_kdf_md(ctx, md);
@@ -398,7 +416,7 @@ static int pkey_ec_paramgen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey)
     int ret;
 
     if (dctx->gen_group == NULL) {
-        ECerr(EC_F_PKEY_EC_PARAMGEN, EC_R_NO_PARAMETERS_SET);
+        ERR_raise(ERR_LIB_EC, EC_R_NO_PARAMETERS_SET);
         return 0;
     }
     ec = EC_KEY_new();
@@ -417,7 +435,7 @@ static int pkey_ec_keygen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey)
     int ret;
 
     if (ctx->pkey == NULL && dctx->gen_group == NULL) {
-        ECerr(EC_F_PKEY_EC_KEYGEN, EC_R_NO_PARAMETERS_SET);
+        ERR_raise(ERR_LIB_EC, EC_R_NO_PARAMETERS_SET);
         return 0;
     }
     ec = EC_KEY_new();
@@ -436,7 +454,7 @@ static int pkey_ec_keygen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey)
     return ret ? EC_KEY_generate_key(ec) : 0;
 }
 
-const EVP_PKEY_METHOD ec_pkey_meth = {
+static const EVP_PKEY_METHOD ec_pkey_meth = {
     EVP_PKEY_EC,
     0,
     pkey_ec_init,
@@ -474,3 +492,8 @@ const EVP_PKEY_METHOD ec_pkey_meth = {
     pkey_ec_ctrl,
     pkey_ec_ctrl_str
 };
+
+const EVP_PKEY_METHOD *ossl_ec_pkey_method(void)
+{
+    return &ec_pkey_meth;
+}

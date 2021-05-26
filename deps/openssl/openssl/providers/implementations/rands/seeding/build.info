@@ -1,0 +1,10 @@
+$COMMON=rand_unix.c rand_win.c rand_tsc.c rand_cpu_x86.c
+IF[{- $config{target} =~ /vxworks/i -}]
+  $COMMON=$COMMON rand_vxworks.c
+ENDIF
+IF[{- $config{target} =~ /vms/i -}]
+  $COMMON=$COMMON rand_vms.c
+ENDIF
+
+SOURCE[../../../libdefault.a]=$COMMON
+

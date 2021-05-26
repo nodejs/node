@@ -1,7 +1,7 @@
 #! /usr/bin/env perl
 # Copyright 2006-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
@@ -49,7 +49,7 @@ my $globl = sub {
 	/osx/		&& do { $name = "_$name";
 				last;
 			      };
-	/linux.*(32|64le)/
+	/linux.*(32|64(le|v2))/
 			&& do {	$ret .= ".globl	$name";
 				if (!$$type) {
 				    $ret .= "\n.type	$name,\@function";
@@ -80,7 +80,7 @@ my $globl = sub {
 };
 my $text = sub {
     my $ret = ($flavour =~ /aix/) ? ".csect\t.text[PR],7" : ".text";
-    $ret = ".abiversion	2\n".$ret	if ($flavour =~ /linux.*64le/);
+    $ret = ".abiversion	2\n".$ret	if ($flavour =~ /linux.*64(le|v2)/);
     $ret;
 };
 my $machine = sub {
@@ -186,7 +186,7 @@ my $vmr = sub {
 
 # Some ABIs specify vrsave, special-purpose register #256, as reserved
 # for system use.
-my $no_vrsave = ($flavour =~ /aix|linux64le/);
+my $no_vrsave = ($flavour =~ /aix|linux64(le|v2)/);
 my $mtspr = sub {
     my ($f,$idx,$ra) = @_;
     if ($idx == 256 && $no_vrsave) {
@@ -273,6 +273,8 @@ my $mtvrwz	= sub {
     my ($f, $vrt, $ra) = @_;
     "	.long	".sprintf "0x%X",(31<<26)|($vrt<<21)|($ra<<16)|(243<<1)|1;
 };
+my $lvwzx_u	= sub { vsxmem_op(@_, 12); };	# lxsiwzx
+my $stvwx_u	= sub { vsxmem_op(@_, 140); };	# stxsiwx
 
 # PowerISA 3.0 stuff
 my $maddhdu	= sub { vfour(@_,49); };
@@ -304,7 +306,7 @@ while($line=<>) {
 
     $line =~ s|[#!;].*$||;	# get rid of asm-style comments...
     $line =~ s|/\*.*\*/||;	# ... and C-style comments...
-    $line =~ s|^\s+||;		# ... and skip white spaces in beginning...
+    $line =~ s|^\s+||;		# ... and skip whitespaces in beginning...
     $line =~ s|\s+$||;		# ... and at the end
 
     {
@@ -318,7 +320,7 @@ while($line=<>) {
 	if ($label) {
 	    my $xlated = ($GLOBALS{$label} or $label);
 	    print "$xlated:";
-	    if ($flavour =~ /linux.*64le/) {
+	    if ($flavour =~ /linux.*64(le|v2)/) {
 		if ($TYPES{$label} =~ /function/) {
 		    printf "\n.localentry	%s,0\n",$xlated;
 		}

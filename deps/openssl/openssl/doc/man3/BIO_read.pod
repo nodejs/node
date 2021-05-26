@@ -2,7 +2,8 @@
 
 =head1 NAME
 
-BIO_read_ex, BIO_write_ex, BIO_read, BIO_write, BIO_gets, BIO_puts
+BIO_read_ex, BIO_write_ex, BIO_read, BIO_write,
+BIO_gets, BIO_get_line, BIO_puts
 - BIO I/O functions
 
 =head1 SYNOPSIS
@@ -14,6 +15,7 @@ BIO_read_ex, BIO_write_ex, BIO_read, BIO_write, BIO_gets, BIO_puts
 
  int BIO_read(BIO *b, void *data, int dlen);
  int BIO_gets(BIO *b, char *buf, int size);
+ int BIO_get_line(BIO *b, char *buf, int size);
  int BIO_write(BIO *b, const void *data, int dlen);
  int BIO_puts(BIO *b, const char *buf);
 
@@ -36,6 +38,16 @@ however; for example, BIO_gets() on a digest BIO will calculate and
 return the digest and other BIOs may not support BIO_gets() at all.
 The returned string is always NUL-terminated and the '\n' is preserved
 if present in the input data.
+On binary input there may be NUL characters within the string;
+in this case the return value (if nonnegative) may give an incorrect length.
+
+BIO_get_line() attempts to read from BIO <b> a line of data up to the next '\n'
+or the maximum length B<size-1> is reached and places the data in B<buf>.
+The returned string is always NUL-terminated and the '\n' is preserved
+if present in the input data.
+On binary input there may be NUL characters within the string;
+in this case the return value (if nonnegative) gives the actual length read.
+For implementing this, unfortunately the data needs to be read byte-by-byte.
 
 BIO_write() attempts to write B<len> bytes from B<buf> to BIO B<b>.
 
@@ -46,11 +58,18 @@ BIO_puts() attempts to write a NUL-terminated string B<buf> to BIO B<b>.
 BIO_read_ex() and BIO_write_ex() return 1 if data was successfully read or
 written, and 0 otherwise.
 
+BIO_gets() returns -2 if the "gets" operation is not implemented by the BIO
+or -1 on other errors.
+Otherwise it typically returns the amount of data read,
+but depending on the implementation it may return only the length up to
+the first NUL character contained in the data read.
+In any case the trailing NUL that is added after the data read
+is not included in the length returned.
+
 All other functions return either the amount of data successfully read or
 written (if the return value is positive) or that no data was successfully
 read or written if the result is 0 or -1. If the return value is -2 then
-the operation is not implemented in the specific BIO type.  The trailing
-NUL is not included in the length returned by BIO_gets().
+the operation is not implemented in the specific BIO type.
 
 =head1 NOTES
 
@@ -72,9 +91,9 @@ a retry instead of blocking.
 See L<BIO_should_retry(3)> for details of how to
 determine the cause of a retry and other I/O issues.
 
-If the BIO_gets() function is not supported by a BIO then it possible to
-work around this by adding a buffering BIO L<BIO_f_buffer(3)>
-to the chain.
+If the "gets" method is not supported by a BIO then BIO_get_line() can be used.
+It is also possible to make BIO_gets() usable even if the "gets" method is not
+supported by adding a buffering BIO L<BIO_f_buffer(3)> to the chain.
 
 =head1 SEE ALSO
 
@@ -82,14 +101,16 @@ L<BIO_should_retry(3)>
 
 =head1 HISTORY
 
-BIO_gets() on 1.1.0 and older when called on BIO_fd() based BIO does not
+BIO_gets() on 1.1.0 and older when called on BIO_fd() based BIO did not
 keep the '\n' at the end of the line in the buffer.
+
+BIO_get_line() was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.
