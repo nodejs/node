@@ -955,6 +955,13 @@ struct EnvSerializeInfo {
   friend std::ostream& operator<<(std::ostream& o, const EnvSerializeInfo& i);
 };
 
+struct SnapshotData {
+  SnapshotData() { blob.data = nullptr; }
+  v8::StartupData blob;
+  std::vector<size_t> isolate_data_indices;
+  EnvSerializeInfo env_info;
+};
+
 class Environment : public MemoryRetainer {
  public:
   Environment(const Environment&) = delete;

@@ -67,7 +67,7 @@ class NodeMainInstance {
 
   // If nullptr is returned, the binary is not built with embedded
   // snapshot.
-  static const std::vector<size_t>* GetIsolateDataIndexes();
+  static const std::vector<size_t>* GetIsolateDataIndices();
   static v8::StartupData* GetEmbeddedSnapshotBlob();
   static const EnvSerializeInfo* GetEnvSerializeInfo();
   static const std::vector<intptr_t>& CollectExternalReferences();
