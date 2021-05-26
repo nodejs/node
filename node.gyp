@@ -1554,8 +1554,6 @@
         'src/node_snapshot_stub.cc',
         'src/node_code_cache_stub.cc',
         'tools/snapshot/node_mksnapshot.cc',
-        'tools/snapshot/snapshot_builder.cc',
-        'tools/snapshot/snapshot_builder.h',
       ],
 
       'conditions': [
