@@ -12,25 +12,37 @@ const join = require('path').join;
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-const fdsToCloseOnExit = [];
 {
   /* writeFileSync() test. */
   const filename = join(tmpdir.path, 'test.txt');
 
   /* Open the file descriptor. */
   const fd = fs.openSync(filename, 'w');
-  fdsToCloseOnExit.push(fd);
+  try {
+    /* Write only five characters, so that the position moves to five. */
+    assert.deepStrictEqual(fs.writeSync(fd, 'Hello'), 5);
+    assert.deepStrictEqual(fs.readFileSync(filename).toString(), 'Hello');
 
-  /* Write only five characters, so that the position moves to five. */
-  assert.deepStrictEqual(fs.writeSync(fd, 'Hello'), 5);
-  assert.deepStrictEqual(fs.readFileSync(filename).toString(), 'Hello');
+    /* Write some more with writeFileSync(). */
+    fs.writeFileSync(fd, 'World');
 
-  /* Write some more with writeFileSync(). */
-  fs.writeFileSync(fd, 'World');
-
-  /* New content should be written at position five, instead of zero. */
-  assert.deepStrictEqual(fs.readFileSync(filename).toString(), 'HelloWorld');
+    /* New content should be written at position five, instead of zero. */
+    assert.deepStrictEqual(fs.readFileSync(filename).toString(), 'HelloWorld');
+  } finally {
+    fs.closeSync(fd);
+  }
 }
+
+const fdsToCloseOnExit = [];
+process.on('beforeExit', common.mustCall(() => {
+  for (const fd of fdsToCloseOnExit) {
+    try {
+      fs.closeSync(fd);
+    } catch {
+      // Failed to close, ignore
+    }
+  }
+}));
 
 {
   /* writeFile() test. */
@@ -82,13 +94,3 @@ const fdsToCloseOnExit = [];
 
   controller.abort();
 }
-
-process.on('beforeExit', () => {
-  for (const fd of fdsToCloseOnExit) {
-    try {
-      fs.closeSync(fd);
-    } catch {
-      // Failed to close, ignore
-    }
-  }
-});
