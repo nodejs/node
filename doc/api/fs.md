@@ -4162,7 +4162,7 @@ to be notified of filesystem changes.
 * On IBM i systems, this feature is not supported.
 
 If the underlying functionality is not available for some reason, then
-`fs.watch()` will not be able to function and may thrown an exception.
+`fs.watch()` will not be able to function and may throw an exception.
 For example, watching files or directories can be unreliable, and in some
 cases impossible, on network file systems (NFS, SMB, etc) or host file systems
 when using virtualization software such as Vagrant or Docker.
