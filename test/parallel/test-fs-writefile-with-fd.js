@@ -12,12 +12,14 @@ const join = require('path').join;
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
+const fdsToCloseOnExit = [];
 {
   /* writeFileSync() test. */
   const filename = join(tmpdir.path, 'test.txt');
 
   /* Open the file descriptor. */
   const fd = fs.openSync(filename, 'w');
+  fdsToCloseOnExit.push(fd);
 
   /* Write only five characters, so that the position moves to five. */
   assert.deepStrictEqual(fs.writeSync(fd, 'Hello'), 5);
@@ -28,9 +30,6 @@ tmpdir.refresh();
 
   /* New content should be written at position five, instead of zero. */
   assert.deepStrictEqual(fs.readFileSync(filename).toString(), 'HelloWorld');
-
-  /* Close the file descriptor. */
-  fs.closeSync(fd);
 }
 
 {
@@ -39,6 +38,7 @@ tmpdir.refresh();
 
   /* Open the file descriptor. */
   fs.open(file, 'w', common.mustSucceed((fd) => {
+    fdsToCloseOnExit.push(fd);
     /* Write only five characters, so that the position moves to five. */
     fs.write(fd, 'Hello', common.mustSucceed((bytes) => {
       assert.strictEqual(bytes, 5);
@@ -48,9 +48,6 @@ tmpdir.refresh();
       fs.writeFile(fd, 'World', common.mustSucceed(() => {
         /* New content should be written at position five, instead of zero. */
         assert.deepStrictEqual(fs.readFileSync(file).toString(), 'HelloWorld');
-
-        /* Close the file descriptor. */
-        fs.closeSync(fd);
       }));
     }));
   }));
@@ -65,6 +62,7 @@ tmpdir.refresh();
   const file = join(tmpdir.path, 'test.txt');
 
   fs.open(file, 'r', common.mustSucceed((fd) => {
+    fdsToCloseOnExit.push(fd);
     fs.writeFile(fd, 'World', common.expectsError(expectedError));
   }));
 }
@@ -76,6 +74,7 @@ tmpdir.refresh();
   const file = join(tmpdir.path, 'test.txt');
 
   fs.open(file, 'w', common.mustSucceed((fd) => {
+    fdsToCloseOnExit.push(fd);
     fs.writeFile(fd, 'World', { signal }, common.expectsError({
       name: 'AbortError'
     }));
@@ -83,3 +82,13 @@ tmpdir.refresh();
 
   controller.abort();
 }
+
+process.on('beforeExit', () => {
+  for (const fd of fdsToCloseOnExit) {
+    try {
+      fs.closeSync(fd);
+    } catch {
+      // Failed to close, ignore
+    }
+  }
+});
