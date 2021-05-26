@@ -454,8 +454,8 @@ static void EnablePromiseHook(const FunctionCallbackInfo<Value>& args) {
 
 static void SetPromiseHooks(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  Local<Context> ctx = env->context();
-  ctx->SetPromiseHooks(
+
+  env->async_hooks()->SetJSPromiseHooks(
     args[0]->IsFunction() ? args[0].As<Function>() : Local<Function>(),
     args[1]->IsFunction() ? args[1].As<Function>() : Local<Function>(),
     args[2]->IsFunction() ? args[2].As<Function>() : Local<Function>(),
