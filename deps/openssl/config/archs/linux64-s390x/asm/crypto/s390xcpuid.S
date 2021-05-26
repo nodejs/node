@@ -12,7 +12,26 @@ OPENSSL_s390x_facilities:
 	stg	%r0,S390X_STFLE+8(%r4)	# wipe capability vectors
 	stg	%r0,S390X_STFLE+16(%r4)
 	stg	%r0,S390X_STFLE+24(%r4)
-	stg	%r0,S390X_KIMD(%r4)
+
+	.long	0xb2b04000		# stfle	0(%r4)
+	brc	8,.Ldone
+	lghi	%r0,1
+	.long	0xb2b04000		# stfle 0(%r4)
+	brc	8,.Ldone
+	lghi	%r0,2
+	.long	0xb2b04000		# stfle 0(%r4)
+.Ldone:
+	br	%r14
+.size	OPENSSL_s390x_facilities,.-OPENSSL_s390x_facilities
+
+.globl	OPENSSL_s390x_functions
+.type	OPENSSL_s390x_functions,@function
+.align	16
+OPENSSL_s390x_functions:
+	lghi	%r0,0
+	larl	%r4,OPENSSL_s390xcap_P
+
+	stg	%r0,S390X_KIMD(%r4)	# wipe capability vectors
 	stg	%r0,S390X_KIMD+8(%r4)
 	stg	%r0,S390X_KLMD(%r4)
 	stg	%r0,S390X_KLMD+8(%r4)
@@ -32,16 +51,13 @@ OPENSSL_s390x_facilities:
 	stg	%r0,S390X_PRNO+8(%r4)
 	stg	%r0,S390X_KMA(%r4)
 	stg	%r0,S390X_KMA+8(%r4)
+	stg	%r0,S390X_PCC(%r4)
+	stg	%r0,S390X_PCC+8(%r4)
+	stg	%r0,S390X_KDSA(%r4)
+	stg	%r0,S390X_KDSA+8(%r4)
 
-	.long	0xb2b04000		# stfle	0(%r4)
-	brc	8,.Ldone
-	lghi	%r0,1
-	.long	0xb2b04000		# stfle 0(%r4)
-	brc	8,.Ldone
-	lghi	%r0,2
-	.long	0xb2b04000		# stfle 0(%r4)
-.Ldone:
 	lmg	%r2,%r3,S390X_STFLE(%r4)
+
 	tmhl	%r2,0x4000		# check for message-security-assist
 	jz	.Lret
 
@@ -64,6 +80,13 @@ OPENSSL_s390x_facilities:
 	lghi	%r0,S390X_QUERY		# query kmac capability vector
 	la	%r1,S390X_KMAC(%r4)
 	.long	0xb91e0042		# kmac %r4,%r2
+
+	tmhh	%r3,0x0008		# check for message-security-assist-3
+	jz	.Lret
+
+	lghi	%r0,S390X_QUERY		# query pcc capability vector
+	la	%r1,S390X_PCC(%r4)
+	.long	0xb92c0000		# pcc
 
 	tmhh	%r3,0x0004		# check for message-security-assist-4
 	jz	.Lret
@@ -88,6 +111,7 @@ OPENSSL_s390x_facilities:
 	.long	0xb93c0042		# prno %r4,%r2
 
 	lg	%r2,S390X_STFLE+16(%r4)
+
 	tmhl	%r2,0x2000		# check for message-security-assist-8
 	jz	.Lret
 
@@ -95,9 +119,16 @@ OPENSSL_s390x_facilities:
 	la	%r1,S390X_KMA(%r4)
 	.long	0xb9294022		# kma %r2,%r4,%r2
 
+	tmhl	%r2,0x0010		# check for message-security-assist-9
+	jz	.Lret
+
+	lghi	%r0,S390X_QUERY		# query kdsa capability vector
+	la	%r1,S390X_KDSA(%r4)
+	.long	0xb93a0002		# kdsa %r0,%r2
+
 .Lret:
 	br	%r14
-.size	OPENSSL_s390x_facilities,.-OPENSSL_s390x_facilities
+.size	OPENSSL_s390x_functions,.-OPENSSL_s390x_functions
 
 .globl	OPENSSL_rdtsc
 .type	OPENSSL_rdtsc,@function
@@ -319,5 +350,79 @@ s390x_kma:
 	lg	%r6,6*8(%r15)
 	br	%r14
 .size	s390x_kma,.-s390x_kma
+.globl	s390x_pcc
+.type	s390x_pcc,@function
+.align	16
+s390x_pcc:
+	lr	%r0,%r2
+	lgr	%r1,%r3
+	lhi	%r2,0
+
+	.long	0xb92c0000	# pcc
+	brc	1,.-4		# pay attention to "partial completion"
+	brc	7,.Lpcc_err	# if CC==0 return 0, else return 1
+.Lpcc_out:
+	br	%r14
+.Lpcc_err:
+	lhi	%r2,1
+	j	.Lpcc_out
+.size	s390x_pcc,.-s390x_pcc
+.globl	s390x_kdsa
+.type	s390x_kdsa,@function
+.align	16
+s390x_kdsa:
+	lr	%r0,%r2
+	lgr	%r1,%r3
+	lhi	%r2,0
+
+	.long	0xb93a0004	# kdsa %r0,%r4
+	brc	1,.-4		# pay attention to "partial completion"
+	brc	7,.Lkdsa_err	# if CC==0 return 0, else return 1
+.Lkdsa_out:
+	br	%r14
+.Lkdsa_err:
+	lhi	%r2,1
+	j	.Lkdsa_out
+.size	s390x_kdsa,.-s390x_kdsa
+.globl	s390x_flip_endian32
+.type	s390x_flip_endian32,@function
+.align	16
+s390x_flip_endian32:
+	lrvg	%r0,0(%r3)
+	lrvg	%r1,8(%r3)
+	lrvg	%r4,16(%r3)
+	lrvg	%r5,24(%r3)
+	stg	%r0,24(%r2)
+	stg	%r1,16(%r2)
+	stg	%r4,8(%r2)
+	stg	%r5,0(%r2)
+	br	%r14
+.size	s390x_flip_endian32,.-s390x_flip_endian32
+.globl	s390x_flip_endian64
+.type	s390x_flip_endian64,@function
+.align	16
+s390x_flip_endian64:
+	stmg	%r6,%r9,6*8(%r15)
+
+	lrvg	%r0,0(%r3)
+	lrvg	%r1,8(%r3)
+	lrvg	%r4,16(%r3)
+	lrvg	%r5,24(%r3)
+	lrvg	%r6,32(%r3)
+	lrvg	%r7,40(%r3)
+	lrvg	%r8,48(%r3)
+	lrvg	%r9,56(%r3)
+	stg	%r0,56(%r2)
+	stg	%r1,48(%r2)
+	stg	%r4,40(%r2)
+	stg	%r5,32(%r2)
+	stg	%r6,24(%r2)
+	stg	%r7,16(%r2)
+	stg	%r8,8(%r2)
+	stg	%r9,0(%r2)
+
+	lmg	%r6,%r9,6*8(%r15)
+	br	%r14
+.size	s390x_flip_endian64,.-s390x_flip_endian64
 .section	.init
 	brasl	%r14,OPENSSL_cpuid_setup

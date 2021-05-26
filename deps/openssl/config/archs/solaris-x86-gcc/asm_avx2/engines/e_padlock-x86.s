@@ -4,6 +4,7 @@
 .align	16
 padlock_capability:
 .L_padlock_capability_begin:
+.byte	243,15,30,251
 	pushl	%ebx
 	pushfl
 	popl	%eax
@@ -64,6 +65,7 @@ padlock_capability:
 .align	16
 padlock_key_bswap:
 .L_padlock_key_bswap_begin:
+.byte	243,15,30,251
 	movl	4(%esp),%edx
 	movl	240(%edx),%ecx
 .L003bswap_loop:
@@ -80,6 +82,7 @@ padlock_key_bswap:
 .align	16
 padlock_verify_context:
 .L_padlock_verify_context_begin:
+.byte	243,15,30,251
 	movl	4(%esp),%edx
 	leal	.Lpadlock_saved_context-.L004verify_pic_point,%eax
 	pushfl
@@ -91,6 +94,7 @@ padlock_verify_context:
 .type	_padlock_verify_ctx,@function
 .align	16
 _padlock_verify_ctx:
+.byte	243,15,30,251
 	addl	(%esp),%eax
 	btl	$30,4(%esp)
 	jnc	.L005verified
@@ -107,6 +111,7 @@ _padlock_verify_ctx:
 .align	16
 padlock_reload_key:
 .L_padlock_reload_key_begin:
+.byte	243,15,30,251
 	pushfl
 	popfl
 	ret
@@ -116,6 +121,7 @@ padlock_reload_key:
 .align	16
 padlock_aes_block:
 .L_padlock_aes_block_begin:
+.byte	243,15,30,251
 	pushl	%edi
 	pushl	%esi
 	pushl	%ebx
@@ -136,6 +142,7 @@ padlock_aes_block:
 .align	16
 padlock_ecb_encrypt:
 .L_padlock_ecb_encrypt_begin:
+.byte	243,15,30,251
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -315,6 +322,7 @@ padlock_ecb_encrypt:
 .align	16
 padlock_cbc_encrypt:
 .L_padlock_cbc_encrypt_begin:
+.byte	243,15,30,251
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -498,6 +506,7 @@ padlock_cbc_encrypt:
 .align	16
 padlock_cfb_encrypt:
 .L_padlock_cfb_encrypt_begin:
+.byte	243,15,30,251
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -620,6 +629,7 @@ padlock_cfb_encrypt:
 .align	16
 padlock_ofb_encrypt:
 .L_padlock_ofb_encrypt_begin:
+.byte	243,15,30,251
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -742,6 +752,7 @@ padlock_ofb_encrypt:
 .align	16
 padlock_ctr32_encrypt:
 .L_padlock_ctr32_encrypt_begin:
+.byte	243,15,30,251
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -849,6 +860,7 @@ padlock_ctr32_encrypt:
 .align	16
 padlock_xstore:
 .L_padlock_xstore_begin:
+.byte	243,15,30,251
 	pushl	%edi
 	movl	8(%esp),%edi
 	movl	12(%esp),%edx
@@ -859,6 +871,7 @@ padlock_xstore:
 .type	_win32_segv_handler,@function
 .align	16
 _win32_segv_handler:
+.byte	243,15,30,251
 	movl	$1,%eax
 	movl	4(%esp),%edx
 	movl	12(%esp),%ecx
@@ -874,6 +887,7 @@ _win32_segv_handler:
 .align	16
 padlock_sha1_oneshot:
 .L_padlock_sha1_oneshot_begin:
+.byte	243,15,30,251
 	pushl	%edi
 	pushl	%esi
 	xorl	%eax,%eax
@@ -905,6 +919,7 @@ padlock_sha1_oneshot:
 .align	16
 padlock_sha1_blocks:
 .L_padlock_sha1_blocks_begin:
+.byte	243,15,30,251
 	pushl	%edi
 	pushl	%esi
 	movl	12(%esp),%edi
@@ -935,6 +950,7 @@ padlock_sha1_blocks:
 .align	16
 padlock_sha256_oneshot:
 .L_padlock_sha256_oneshot_begin:
+.byte	243,15,30,251
 	pushl	%edi
 	pushl	%esi
 	xorl	%eax,%eax
@@ -966,6 +982,7 @@ padlock_sha256_oneshot:
 .align	16
 padlock_sha256_blocks:
 .L_padlock_sha256_blocks_begin:
+.byte	243,15,30,251
 	pushl	%edi
 	pushl	%esi
 	movl	12(%esp),%edi
@@ -996,6 +1013,7 @@ padlock_sha256_blocks:
 .align	16
 padlock_sha512_blocks:
 .L_padlock_sha512_blocks_begin:
+.byte	243,15,30,251
 	pushl	%edi
 	pushl	%esi
 	movl	12(%esp),%edi
@@ -1037,3 +1055,20 @@ padlock_sha512_blocks:
 .align	4
 .Lpadlock_saved_context:
 .long	0
+
+	.section ".note.gnu.property", "a"
+	.p2align 2
+	.long 1f - 0f
+	.long 4f - 1f
+	.long 5
+0:
+	.asciz "GNU"
+1:
+	.p2align 2
+	.long 0xc0000002
+	.long 3f - 2f
+2:
+	.long 3
+3:
+	.p2align 2
+4:

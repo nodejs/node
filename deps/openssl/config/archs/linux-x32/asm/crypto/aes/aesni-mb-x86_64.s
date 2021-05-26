@@ -43,45 +43,53 @@ aesni_multi_cbc_encrypt:
 .Lenc4x_body:
 	movdqu	(%rsi),%xmm12
 	leaq	120(%rsi),%rsi
-	leaq	80(%rdi),%rdi
+	leaq	64(%rdi),%rdi
 
 .Lenc4x_loop_grande:
 	movl	%edx,24(%rsp)
 	xorl	%edx,%edx
-	movl	-64(%rdi),%ecx
-	movq	-80(%rdi),%r8
+
+	movl	-56(%rdi),%ecx
+	movl	-64(%rdi),%r8d
 	cmpl	%edx,%ecx
-	movq	-72(%rdi),%r12
+	movl	-60(%rdi),%r12d
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
-	movdqu	-56(%rdi),%xmm2
+
+	movdqu	-48(%rdi),%xmm2
 	movl	%ecx,32(%rsp)
 	cmovleq	%rsp,%r8
+
 	movl	-24(%rdi),%ecx
-	movq	-40(%rdi),%r9
+	movl	-32(%rdi),%r9d
 	cmpl	%edx,%ecx
-	movq	-32(%rdi),%r13
+	movl	-28(%rdi),%r13d
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
+
 	movdqu	-16(%rdi),%xmm3
 	movl	%ecx,36(%rsp)
 	cmovleq	%rsp,%r9
-	movl	16(%rdi),%ecx
-	movq	0(%rdi),%r10
+
+	movl	8(%rdi),%ecx
+	movl	0(%rdi),%r10d
 	cmpl	%edx,%ecx
-	movq	8(%rdi),%r14
+	movl	4(%rdi),%r14d
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
-	movdqu	24(%rdi),%xmm4
+
+	movdqu	16(%rdi),%xmm4
 	movl	%ecx,40(%rsp)
 	cmovleq	%rsp,%r10
-	movl	56(%rdi),%ecx
-	movq	40(%rdi),%r11
+
+	movl	40(%rdi),%ecx
+	movl	32(%rdi),%r11d
 	cmpl	%edx,%ecx
-	movq	48(%rdi),%r15
+	movl	36(%rdi),%r15d
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
-	movdqu	64(%rdi),%xmm5
+
+	movdqu	48(%rdi),%xmm5
 	movl	%ecx,44(%rsp)
 	cmovleq	%rsp,%r11
 	testl	%edx,%edx
@@ -260,7 +268,8 @@ aesni_multi_cbc_encrypt:
 
 
 
-	leaq	160(%rdi),%rdi
+
+	leaq	128(%rdi),%rdi
 	decl	%edx
 	jnz	.Lenc4x_loop_grande
 
@@ -325,45 +334,53 @@ aesni_multi_cbc_decrypt:
 .Ldec4x_body:
 	movdqu	(%rsi),%xmm12
 	leaq	120(%rsi),%rsi
-	leaq	80(%rdi),%rdi
+	leaq	64(%rdi),%rdi
 
 .Ldec4x_loop_grande:
 	movl	%edx,24(%rsp)
 	xorl	%edx,%edx
-	movl	-64(%rdi),%ecx
-	movq	-80(%rdi),%r8
+
+	movl	-56(%rdi),%ecx
+	movl	-64(%rdi),%r8d
 	cmpl	%edx,%ecx
-	movq	-72(%rdi),%r12
+	movl	-60(%rdi),%r12d
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
-	movdqu	-56(%rdi),%xmm6
+
+	movdqu	-48(%rdi),%xmm6
 	movl	%ecx,32(%rsp)
 	cmovleq	%rsp,%r8
+
 	movl	-24(%rdi),%ecx
-	movq	-40(%rdi),%r9
+	movl	-32(%rdi),%r9d
 	cmpl	%edx,%ecx
-	movq	-32(%rdi),%r13
+	movl	-28(%rdi),%r13d
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
+
 	movdqu	-16(%rdi),%xmm7
 	movl	%ecx,36(%rsp)
 	cmovleq	%rsp,%r9
-	movl	16(%rdi),%ecx
-	movq	0(%rdi),%r10
+
+	movl	8(%rdi),%ecx
+	movl	0(%rdi),%r10d
 	cmpl	%edx,%ecx
-	movq	8(%rdi),%r14
+	movl	4(%rdi),%r14d
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
-	movdqu	24(%rdi),%xmm8
+
+	movdqu	16(%rdi),%xmm8
 	movl	%ecx,40(%rsp)
 	cmovleq	%rsp,%r10
-	movl	56(%rdi),%ecx
-	movq	40(%rdi),%r11
+
+	movl	40(%rdi),%ecx
+	movl	32(%rdi),%r11d
 	cmpl	%edx,%ecx
-	movq	48(%rdi),%r15
+	movl	36(%rdi),%r15d
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
-	movdqu	64(%rdi),%xmm9
+
+	movdqu	48(%rdi),%xmm9
 	movl	%ecx,44(%rsp)
 	cmovleq	%rsp,%r11
 	testl	%edx,%edx
@@ -533,7 +550,7 @@ aesni_multi_cbc_decrypt:
 .cfi_def_cfa	%rax,8
 	movl	24(%rsp),%edx
 
-	leaq	160(%rdi),%rdi
+	leaq	128(%rdi),%rdi
 	decl	%edx
 	jnz	.Ldec4x_loop_grande
 
@@ -592,96 +609,128 @@ _avx_cbc_enc_shortcut:
 	vzeroupper
 	vmovdqu	(%rsi),%xmm15
 	leaq	120(%rsi),%rsi
-	leaq	160(%rdi),%rdi
+	leaq	128(%rdi),%rdi
 	shrl	$1,%edx
 
 .Lenc8x_loop_grande:
 
 	xorl	%edx,%edx
-	movl	-144(%rdi),%ecx
-	movq	-160(%rdi),%r8
+
+	movl	-120(%rdi),%ecx
+
+	movl	-128(%rdi),%r8d
 	cmpl	%edx,%ecx
-	movq	-152(%rdi),%rbx
+
+	movl	-124(%rdi),%ebx
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
-	vmovdqu	-136(%rdi),%xmm2
+
+	vmovdqu	-112(%rdi),%xmm2
 	movl	%ecx,32(%rsp)
 	cmovleq	%rsp,%r8
 	subq	%r8,%rbx
 	movq	%rbx,64(%rsp)
-	movl	-104(%rdi),%ecx
-	movq	-120(%rdi),%r9
+
+	movl	-88(%rdi),%ecx
+
+	movl	-96(%rdi),%r9d
 	cmpl	%edx,%ecx
-	movq	-112(%rdi),%rbp
+
+	movl	-92(%rdi),%ebp
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
-	vmovdqu	-96(%rdi),%xmm3
+
+	vmovdqu	-80(%rdi),%xmm3
 	movl	%ecx,36(%rsp)
 	cmovleq	%rsp,%r9
 	subq	%r9,%rbp
 	movq	%rbp,72(%rsp)
-	movl	-64(%rdi),%ecx
-	movq	-80(%rdi),%r10
+
+	movl	-56(%rdi),%ecx
+
+	movl	-64(%rdi),%r10d
 	cmpl	%edx,%ecx
-	movq	-72(%rdi),%rbp
+
+	movl	-60(%rdi),%ebp
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
-	vmovdqu	-56(%rdi),%xmm4
+
+	vmovdqu	-48(%rdi),%xmm4
 	movl	%ecx,40(%rsp)
 	cmovleq	%rsp,%r10
 	subq	%r10,%rbp
 	movq	%rbp,80(%rsp)
+
 	movl	-24(%rdi),%ecx
-	movq	-40(%rdi),%r11
+
+	movl	-32(%rdi),%r11d
 	cmpl	%edx,%ecx
-	movq	-32(%rdi),%rbp
+
+	movl	-28(%rdi),%ebp
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
+
 	vmovdqu	-16(%rdi),%xmm5
 	movl	%ecx,44(%rsp)
 	cmovleq	%rsp,%r11
 	subq	%r11,%rbp
 	movq	%rbp,88(%rsp)
-	movl	16(%rdi),%ecx
-	movq	0(%rdi),%r12
+
+	movl	8(%rdi),%ecx
+
+	movl	0(%rdi),%r12d
 	cmpl	%edx,%ecx
-	movq	8(%rdi),%rbp
+
+	movl	4(%rdi),%ebp
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
-	vmovdqu	24(%rdi),%xmm6
+
+	vmovdqu	16(%rdi),%xmm6
 	movl	%ecx,48(%rsp)
 	cmovleq	%rsp,%r12
 	subq	%r12,%rbp
 	movq	%rbp,96(%rsp)
-	movl	56(%rdi),%ecx
-	movq	40(%rdi),%r13
+
+	movl	40(%rdi),%ecx
+
+	movl	32(%rdi),%r13d
 	cmpl	%edx,%ecx
-	movq	48(%rdi),%rbp
+
+	movl	36(%rdi),%ebp
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
-	vmovdqu	64(%rdi),%xmm7
+
+	vmovdqu	48(%rdi),%xmm7
 	movl	%ecx,52(%rsp)
 	cmovleq	%rsp,%r13
 	subq	%r13,%rbp
 	movq	%rbp,104(%rsp)
-	movl	96(%rdi),%ecx
-	movq	80(%rdi),%r14
+
+	movl	72(%rdi),%ecx
+
+	movl	64(%rdi),%r14d
 	cmpl	%edx,%ecx
-	movq	88(%rdi),%rbp
+
+	movl	68(%rdi),%ebp
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
-	vmovdqu	104(%rdi),%xmm8
+
+	vmovdqu	80(%rdi),%xmm8
 	movl	%ecx,56(%rsp)
 	cmovleq	%rsp,%r14
 	subq	%r14,%rbp
 	movq	%rbp,112(%rsp)
-	movl	136(%rdi),%ecx
-	movq	120(%rdi),%r15
+
+	movl	104(%rdi),%ecx
+
+	movl	96(%rdi),%r15d
 	cmpl	%edx,%ecx
-	movq	128(%rdi),%rbp
+
+	movl	100(%rdi),%ebp
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
-	vmovdqu	144(%rdi),%xmm9
+
+	vmovdqu	112(%rdi),%xmm9
 	movl	%ecx,60(%rsp)
 	cmovleq	%rsp,%r15
 	subq	%r15,%rbp
@@ -1049,103 +1098,135 @@ _avx_cbc_dec_shortcut:
 	vzeroupper
 	vmovdqu	(%rsi),%xmm15
 	leaq	120(%rsi),%rsi
-	leaq	160(%rdi),%rdi
+	leaq	128(%rdi),%rdi
 	shrl	$1,%edx
 
 .Ldec8x_loop_grande:
 
 	xorl	%edx,%edx
-	movl	-144(%rdi),%ecx
-	movq	-160(%rdi),%r8
+
+	movl	-120(%rdi),%ecx
+
+	movl	-128(%rdi),%r8d
 	cmpl	%edx,%ecx
-	movq	-152(%rdi),%rbx
+
+	movl	-124(%rdi),%ebx
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
-	vmovdqu	-136(%rdi),%xmm2
+
+	vmovdqu	-112(%rdi),%xmm2
 	movl	%ecx,32(%rsp)
 	cmovleq	%rsp,%r8
 	subq	%r8,%rbx
 	movq	%rbx,64(%rsp)
 	vmovdqu	%xmm2,192(%rsp)
-	movl	-104(%rdi),%ecx
-	movq	-120(%rdi),%r9
+
+	movl	-88(%rdi),%ecx
+
+	movl	-96(%rdi),%r9d
 	cmpl	%edx,%ecx
-	movq	-112(%rdi),%rbp
+
+	movl	-92(%rdi),%ebp
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
-	vmovdqu	-96(%rdi),%xmm3
+
+	vmovdqu	-80(%rdi),%xmm3
 	movl	%ecx,36(%rsp)
 	cmovleq	%rsp,%r9
 	subq	%r9,%rbp
 	movq	%rbp,72(%rsp)
 	vmovdqu	%xmm3,208(%rsp)
-	movl	-64(%rdi),%ecx
-	movq	-80(%rdi),%r10
+
+	movl	-56(%rdi),%ecx
+
+	movl	-64(%rdi),%r10d
 	cmpl	%edx,%ecx
-	movq	-72(%rdi),%rbp
+
+	movl	-60(%rdi),%ebp
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
-	vmovdqu	-56(%rdi),%xmm4
+
+	vmovdqu	-48(%rdi),%xmm4
 	movl	%ecx,40(%rsp)
 	cmovleq	%rsp,%r10
 	subq	%r10,%rbp
 	movq	%rbp,80(%rsp)
 	vmovdqu	%xmm4,224(%rsp)
+
 	movl	-24(%rdi),%ecx
-	movq	-40(%rdi),%r11
+
+	movl	-32(%rdi),%r11d
 	cmpl	%edx,%ecx
-	movq	-32(%rdi),%rbp
+
+	movl	-28(%rdi),%ebp
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
+
 	vmovdqu	-16(%rdi),%xmm5
 	movl	%ecx,44(%rsp)
 	cmovleq	%rsp,%r11
 	subq	%r11,%rbp
 	movq	%rbp,88(%rsp)
 	vmovdqu	%xmm5,240(%rsp)
-	movl	16(%rdi),%ecx
-	movq	0(%rdi),%r12
+
+	movl	8(%rdi),%ecx
+
+	movl	0(%rdi),%r12d
 	cmpl	%edx,%ecx
-	movq	8(%rdi),%rbp
+
+	movl	4(%rdi),%ebp
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
-	vmovdqu	24(%rdi),%xmm6
+
+	vmovdqu	16(%rdi),%xmm6
 	movl	%ecx,48(%rsp)
 	cmovleq	%rsp,%r12
 	subq	%r12,%rbp
 	movq	%rbp,96(%rsp)
 	vmovdqu	%xmm6,256(%rsp)
-	movl	56(%rdi),%ecx
-	movq	40(%rdi),%r13
+
+	movl	40(%rdi),%ecx
+
+	movl	32(%rdi),%r13d
 	cmpl	%edx,%ecx
-	movq	48(%rdi),%rbp
+
+	movl	36(%rdi),%ebp
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
-	vmovdqu	64(%rdi),%xmm7
+
+	vmovdqu	48(%rdi),%xmm7
 	movl	%ecx,52(%rsp)
 	cmovleq	%rsp,%r13
 	subq	%r13,%rbp
 	movq	%rbp,104(%rsp)
 	vmovdqu	%xmm7,272(%rsp)
-	movl	96(%rdi),%ecx
-	movq	80(%rdi),%r14
+
+	movl	72(%rdi),%ecx
+
+	movl	64(%rdi),%r14d
 	cmpl	%edx,%ecx
-	movq	88(%rdi),%rbp
+
+	movl	68(%rdi),%ebp
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
-	vmovdqu	104(%rdi),%xmm8
+
+	vmovdqu	80(%rdi),%xmm8
 	movl	%ecx,56(%rsp)
 	cmovleq	%rsp,%r14
 	subq	%r14,%rbp
 	movq	%rbp,112(%rsp)
 	vmovdqu	%xmm8,288(%rsp)
-	movl	136(%rdi),%ecx
-	movq	120(%rdi),%r15
+
+	movl	104(%rdi),%ecx
+
+	movl	96(%rdi),%r15d
 	cmpl	%edx,%ecx
-	movq	128(%rdi),%rbp
+
+	movl	100(%rdi),%ebp
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
-	vmovdqu	144(%rdi),%xmm9
+
+	vmovdqu	112(%rdi),%xmm9
 	movl	%ecx,60(%rsp)
 	cmovleq	%rsp,%r15
 	subq	%r15,%rbp
@@ -1505,3 +1586,24 @@ _avx_cbc_dec_shortcut:
 	.byte	0xf3,0xc3
 .cfi_endproc	
 .size	aesni_multi_cbc_decrypt_avx,.-aesni_multi_cbc_decrypt_avx
+	.section ".note.gnu.property", "a"
+	.p2align 2
+	.long 1f - 0f
+	.long 4f - 1f
+	.long 5
+0:
+	# "GNU" encoded with .byte, since .asciz isn't supported
+	# on Solaris.
+	.byte 0x47
+	.byte 0x4e
+	.byte 0x55
+	.byte 0
+1:
+	.p2align 2
+	.long 0xc0000002
+	.long 3f - 2f
+2:
+	.long 3
+3:
+	.p2align 2
+4:

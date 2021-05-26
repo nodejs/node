@@ -3,6 +3,7 @@
 .align	4
 _ChaCha20_ctr32:
 L_ChaCha20_ctr32_begin:
+.byte	243,15,30,251
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -374,6 +375,7 @@ L000no_data:
 .align	4
 _ChaCha20_ssse3:
 L_ChaCha20_ssse3_begin:
+.byte	243,15,30,251
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -964,6 +966,7 @@ Lssse3_data:
 .align	4
 _ChaCha20_xop:
 L_ChaCha20_xop_begin:
+.byte	243,15,30,251
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi

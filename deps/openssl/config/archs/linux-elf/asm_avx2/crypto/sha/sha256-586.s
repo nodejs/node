@@ -4,6 +4,7 @@
 .align	16
 sha256_block_data_order:
 .L_sha256_block_data_order_begin:
+.byte	243,15,30,251
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -6780,3 +6781,20 @@ sha256_block_data_order:
 	ret
 .size	sha256_block_data_order,.-.L_sha256_block_data_order_begin
 .comm	OPENSSL_ia32cap_P,16,4
+
+	.section ".note.gnu.property", "a"
+	.p2align 2
+	.long 1f - 0f
+	.long 4f - 1f
+	.long 5
+0:
+	.asciz "GNU"
+1:
+	.p2align 2
+	.long 0xc0000002
+	.long 3f - 2f
+2:
+	.long 3
+3:
+	.p2align 2
+4:

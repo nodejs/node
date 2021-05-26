@@ -1,6 +1,6 @@
 @ Copyright 2007-2020 The OpenSSL Project Authors. All Rights Reserved.
 @
-@ Licensed under the OpenSSL license (the "License").  You may not use
+@ Licensed under the Apache License 2.0 (the "License").  You may not use
 @ this file except in compliance with the License.  You can obtain a copy
 @ in the file LICENSE in the source distribution or at
 @ https://www.openssl.org/source/license.html
@@ -43,6 +43,8 @@
 @
 @ Add ARMv8 code path performing at 2.0 cpb on Apple A7.
 
+@ $output is the last argument if it looks like a file (it has an extension)
+@ $flavour is the first argument if it doesn't look like a file
 #ifndef __KERNEL__
 # include "arm_arch.h"
 #else
@@ -50,13 +52,14 @@
 # define __ARM_MAX_ARCH__ 7
 #endif
 
-.text
 #if defined(__thumb2__)
 .syntax	unified
 .thumb
 #else
 .code	32
 #endif
+
+.text
 
 .type	K256,%object
 .align	5
@@ -81,7 +84,11 @@ K256:
 .word	0				@ terminator
 #if __ARM_MAX_ARCH__>=7 && !defined(__KERNEL__)
 .LOPENSSL_armcap:
+# ifdef	_WIN32
+.word	OPENSSL_armcap_P
+# else
 .word	OPENSSL_armcap_P-.Lsha256_block_data_order
+# endif
 #endif
 .align	5
 
@@ -96,10 +103,12 @@ sha256_block_data_order:
 #endif
 #if __ARM_MAX_ARCH__>=7 && !defined(__KERNEL__)
 	ldr	r12,.LOPENSSL_armcap
+# if !defined(_WIN32)
 	ldr	r12,[r3,r12]		@ OPENSSL_armcap_P
-#ifdef	__APPLE__
+# endif
+# if defined(__APPLE__) || defined(_WIN32)
 	ldr	r12,[r12]
-#endif
+# endif
 	tst	r12,#ARMV8_SHA256
 	bne	.LARMv8
 	tst	r12,#ARMV7_NEON
