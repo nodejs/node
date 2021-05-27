@@ -1161,38 +1161,127 @@ void TearDownOncePerProcess() {
   per_process::v8_platform.Dispose();
 }
 
+int GenerateAndWriteSnapshotData(const SnapshotData** snapshot_data_ptr,
+                                 InitializationResult* result) {
+  // nullptr indicates there's no snapshot data.
+  DCHECK_NULL(*snapshot_data_ptr);
+
+  // node:embedded_snapshot_main indicates that we are using the
+  // embedded snapshot and we are not supposed to clean it up.
+  if (result->args[1] == "node:embedded_snapshot_main") {
+    *snapshot_data_ptr = SnapshotBuilder::GetEmbeddedSnapshotData();
+    if (*snapshot_data_ptr == nullptr) {
+      // The Node.js binary is built without embedded snapshot
+      fprintf(stderr,
+              "node:embedded_snapshot_main was specified as snapshot "
+              "entry point but Node.js was built without embedded "
+              "snapshot.\n");
+      result->exit_code = 1;
+      return result->exit_code;
+    }
+  } else {
+    // Otherwise, load and run the specified main script.
+    std::unique_ptr<SnapshotData> generated_data =
+        std::make_unique<SnapshotData>();
+    result->exit_code = node::SnapshotBuilder::Generate(
+        generated_data.get(), result->args, result->exec_args);
+    if (result->exit_code == 0) {
+      *snapshot_data_ptr = generated_data.release();
+    } else {
+      return result->exit_code;
+    }
+  }
+
+  // Get the path to write the snapshot blob to.
+  std::string snapshot_blob_path;
+  if (!per_process::cli_options->snapshot_blob.empty()) {
+    snapshot_blob_path = per_process::cli_options->snapshot_blob;
+  } else {
+    // Defaults to snapshot.blob in the current working directory.
+    snapshot_blob_path = std::string("snapshot.blob");
+  }
+
+  FILE* fp = fopen(snapshot_blob_path.c_str(), "wb");
+  if (fp != nullptr) {
+    (*snapshot_data_ptr)->ToBlob(fp);
+    fclose(fp);
+  } else {
+    fprintf(stderr,
+            "Cannot open %s for writing a snapshot.\n",
+            snapshot_blob_path.c_str());
+    result->exit_code = 1;
+  }
+  return result->exit_code;
+}
+
+int LoadSnapshotDataAndRun(const SnapshotData** snapshot_data_ptr,
+                           InitializationResult* result) {
+  // nullptr indicates there's no snapshot data.
+  DCHECK_NULL(*snapshot_data_ptr);
+  // --snapshot-blob indicates that we are reading a customized snapshot.
+  if (!per_process::cli_options->snapshot_blob.empty()) {
+    std::string filename = per_process::cli_options->snapshot_blob;
+    FILE* fp = fopen(filename.c_str(), "rb");
+    if (fp == nullptr) {
+      fprintf(stderr, "Cannot open %s", filename.c_str());
+      result->exit_code = 1;
+      return result->exit_code;
+    }
+    std::unique_ptr<SnapshotData> read_data = std::make_unique<SnapshotData>();
+    SnapshotData::FromBlob(read_data.get(), fp);
+    *snapshot_data_ptr = read_data.release();
+    fclose(fp);
+  } else if (per_process::cli_options->node_snapshot) {
+    // If --snapshot-blob is not specified, we are reading the embedded
+    // snapshot, but we will skip it if --no-node-snapshot is specified.
+    *snapshot_data_ptr = SnapshotBuilder::GetEmbeddedSnapshotData();
+  }
+
+  if ((*snapshot_data_ptr) != nullptr) {
+    NativeModuleLoader::RefreshCodeCache((*snapshot_data_ptr)->code_cache);
+  }
+  NodeMainInstance main_instance(*snapshot_data_ptr,
+                                 uv_default_loop(),
+                                 per_process::v8_platform.Platform(),
+                                 result->args,
+                                 result->exec_args);
+  result->exit_code = main_instance.Run();
+  return result->exit_code;
+}
+
 int Start(int argc, char** argv) {
   InitializationResult result = InitializeOncePerProcess(argc, argv);
   if (result.early_return) {
     return result.exit_code;
   }
 
-  if (per_process::cli_options->build_snapshot) {
-    fprintf(stderr,
-            "--build-snapshot is not yet supported in the node binary\n");
-    return 1;
-  }
+  DCHECK_EQ(result.exit_code, 0);
+  const SnapshotData* snapshot_data = nullptr;
 
-  {
-    bool use_node_snapshot = per_process::cli_options->node_snapshot;
-    const SnapshotData* snapshot_data =
-        use_node_snapshot ? SnapshotBuilder::GetEmbeddedSnapshotData()
-                          : nullptr;
-    uv_loop_configure(uv_default_loop(), UV_METRICS_IDLE_TIME);
+  auto cleanup_process = OnScopeLeave([&]() {
+    TearDownOncePerProcess();
 
-    if (snapshot_data != nullptr) {
-      NativeModuleLoader::RefreshCodeCache(snapshot_data->code_cache);
+    if (snapshot_data != nullptr &&
+        snapshot_data->data_ownership == SnapshotData::DataOwnership::kOwned) {
+      delete snapshot_data;
     }
-    NodeMainInstance main_instance(snapshot_data,
-                                   uv_default_loop(),
-                                   per_process::v8_platform.Platform(),
-                                   result.args,
-                                   result.exec_args);
-    result.exit_code = main_instance.Run();
+  });
+
+  uv_loop_configure(uv_default_loop(), UV_METRICS_IDLE_TIME);
+
+  // --build-snapshot indicates that we are in snapshot building mode.
+  if (per_process::cli_options->build_snapshot) {
+    if (result.args.size() < 2) {
+      fprintf(stderr,
+              "--build-snapshot must be used with an entry point script.\n"
+              "Usage: node --build-snapshot /path/to/entry.js\n");
+      return 9;
+    }
+    return GenerateAndWriteSnapshotData(&snapshot_data, &result);
   }
 
-  TearDownOncePerProcess();
-  return result.exit_code;
+  // Without --build-snapshot, we are in snapshot loading mode.
+  return LoadSnapshotDataAndRun(&snapshot_data, &result);
 }
 
 int Stop(Environment* env) {
