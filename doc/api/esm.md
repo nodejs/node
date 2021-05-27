@@ -8,7 +8,9 @@ changes:
   - version:
     - REPLACEME
     pr-url: https://github.com/nodejs/node/pull/37468
-    description: Consolidate loader hooks.
+    description: Consolidate loader hooks: removed `getFormat`, `getSource`,
+                 `transformSource`, and `getGlobalPreloadCode` hooks and added
+                 `load` and `globalPreload` hooks.
   - version:
     - v15.3.0
     - v14.17.0
@@ -700,7 +702,7 @@ Note: These types all correspond to classes defined in ECMAScript.
 * The specific [`ArrayBuffer`][] object is a [`SharedArrayBuffer`][].
 * The specific [`TypedArray`][] object is a [`Uint8Array`][].
 
-Note: If the source value of a text-based format (i.e., `'json'`, `'module'`)
+If the source value of a text-based format (i.e., `'json'`, `'module'`)
 is not a string, it is converted to a string using [`util.TextDecoder`][].
 
 This hook can be used to simply map an unrecognised format to a supported
