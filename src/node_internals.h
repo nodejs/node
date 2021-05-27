@@ -406,6 +406,25 @@ std::string Basename(const std::string& str, const std::string& extension);
 
 node_module napi_module_to_node_module(const napi_module* mod);
 
+std::ostream& operator<<(std::ostream& output,
+                         const std::vector<SnapshotIndex>& v);
+std::ostream& operator<<(std::ostream& output,
+                         const std::vector<std::string>& vec);
+std::ostream& operator<<(std::ostream& output,
+                         const std::vector<PropInfo>& vec);
+std::ostream& operator<<(std::ostream& output, const PropInfo& d);
+std::ostream& operator<<(std::ostream& output, const EnvSerializeInfo& d);
+std::ostream& operator<<(std::ostream& output,
+                         const ImmediateInfo::SerializeInfo& d);
+std::ostream& operator<<(std::ostream& output,
+                         const TickInfo::SerializeInfo& d);
+std::ostream& operator<<(std::ostream& output,
+                         const AsyncHooks::SerializeInfo& d);
+
+namespace performance {
+std::ostream& operator<<(std::ostream& output,
+                         const PerformanceState::SerializeInfo& d);
+}
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

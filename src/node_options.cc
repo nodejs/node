@@ -772,6 +772,13 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             "",  // It's a debug-only option.
             &PerProcessOptions::node_snapshot,
             kAllowedInEnvironment);
+  AddOption("--snapshot-blob",
+            "Path to the snapshot blob that's either the result of snapshot"
+            "building, or the blob that is used to restore the application "
+            "state",
+            &PerProcessOptions::snapshot_blob,
+            kAllowedInEnvironment);
+
   // 12.x renamed this inadvertently, so alias it for consistency within the
   // release line, while using the original name for consistency with older
   // release lines.

@@ -239,6 +239,7 @@ class PerProcessOptions : public Options {
   // snapshot used in different isolates in the same process to be the same.
   // Therefore --node-snapshot is a per-process option.
   bool node_snapshot = true;
+  std::string snapshot_blob;
 
   std::vector<std::string> security_reverts;
   bool print_bash_completion = false;
