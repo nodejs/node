@@ -128,7 +128,8 @@ ContextifyContext::ContextifyContext(
 ContextifyContext::~ContextifyContext() {
   env()->RemoveCleanupHook(CleanupHook, this);
 
-  env()->async_hooks()->RemoveContext(PersistentToLocal::Strong(context_));
+  env()->async_hooks()
+    ->RemoveContext(PersistentToLocal::Weak(env()->isolate(), context_));
 }
 
 

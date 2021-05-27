@@ -104,7 +104,7 @@ inline void AsyncHooks::SetJSPromiseHooks(v8::Local<v8::Function> init,
   js_promise_hooks_[2].Reset(env()->isolate(), after);
   js_promise_hooks_[3].Reset(env()->isolate(), resolve);
   for (auto it = contexts_.begin(); it != contexts_.end(); it++) {
-    PersistentToLocal::Strong(*it)
+    PersistentToLocal::Weak(env()->isolate(), *it)
         ->SetPromiseHooks(init, before, after, resolve);
   }
 }
@@ -249,6 +249,7 @@ inline void AsyncHooks::AddContext(v8::Local<v8::Context> ctx) {
   size_t id = contexts_.size();
   contexts_.resize(id + 1);
   contexts_[id].Reset(env()->isolate(), ctx);
+  contexts_[id].SetWeak();
 }
 
 inline void AsyncHooks::RemoveContext(v8::Local<v8::Context> ctx) {
