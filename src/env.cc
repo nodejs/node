@@ -249,17 +249,6 @@ std::ostream& operator<<(std::ostream& output,
 }
 
 std::ostream& operator<<(std::ostream& output,
-                         const std::vector<PropInfo>& vec) {
-  output << "{\n";
-  for (const auto& info : vec) {
-    output << "  { \"" << info.name << "\", " << std::to_string(info.id) << ", "
-           << std::to_string(info.index) << " },\n";
-  }
-  output << "}";
-  return output;
-}
-
-std::ostream& operator<<(std::ostream& output,
                          const IsolateDataSerializeInfo& i) {
   output << "{\n"
          << "// -- primitive begins --\n"
@@ -298,7 +287,7 @@ IsolateDataSerializeInfo IsolateData::Serialize(SnapshotCreator* creator) {
   for (size_t i = 0; i < AsyncWrap::PROVIDERS_LENGTH; i++)
     info.primitive_values.push_back(creator->AddData(async_wrap_provider(i)));
 
-  size_t id = 0;
+  uint32_t id = 0;
 #define V(PropertyName, TypeName)                                              \
   do {                                                                         \
     Local<TypeName> field = PropertyName();                                    \
@@ -352,7 +341,7 @@ void IsolateData::DeserializeProperties(const IsolateDataSerializeInfo* info) {
 
   const std::vector<PropInfo>& values = info->template_values;
   i = 0;  // index to the array
-  size_t id = 0;
+  uint32_t id = 0;
 #define V(PropertyName, TypeName)                                              \
   do {                                                                         \
     if (values.size() > i && id == values[i].id) {                             \
@@ -1485,6 +1474,7 @@ std::ostream& operator<<(std::ostream& output,
 AsyncHooks::SerializeInfo AsyncHooks::Serialize(Local<Context> context,
                                                 SnapshotCreator* creator) {
   SerializeInfo info;
+  // TODO(joyeecheung): some of these probably don't need to be serialized.
   info.async_ids_stack = async_ids_stack_.Serialize(context, creator);
   info.fields = fields_.Serialize(context, creator);
   info.async_id_fields = async_id_fields_.Serialize(context, creator);
@@ -1679,7 +1669,7 @@ EnvSerializeInfo Environment::Serialize(SnapshotCreator* creator) {
   info.should_abort_on_uncaught_toggle =
       should_abort_on_uncaught_toggle_.Serialize(ctx, creator);
 
-  size_t id = 0;
+  uint32_t id = 0;
 #define V(PropertyName, TypeName)                                              \
   do {                                                                         \
     Local<TypeName> field = PropertyName();                                    \
@@ -1694,6 +1684,22 @@ EnvSerializeInfo Environment::Serialize(SnapshotCreator* creator) {
 
   info.context = creator->AddData(ctx, context());
   return info;
+}
+
+std::ostream& operator<<(std::ostream& output,
+                         const std::vector<PropInfo>& vec) {
+  output << "{\n";
+  for (const auto& info : vec) {
+    output << "  " << info << ",\n";
+  }
+  output << "}";
+  return output;
+}
+
+std::ostream& operator<<(std::ostream& output, const PropInfo& info) {
+  output << "{ \"" << info.name << "\", " << std::to_string(info.id) << ", "
+         << std::to_string(info.index) << " }";
+  return output;
 }
 
 std::ostream& operator<<(std::ostream& output,
@@ -1777,7 +1783,7 @@ void Environment::DeserializeProperties(const EnvSerializeInfo* info) {
 
   const std::vector<PropInfo>& values = info->persistent_values;
   size_t i = 0;  // index to the array
-  size_t id = 0;
+  uint32_t id = 0;
 #define V(PropertyName, TypeName)                                              \
   do {                                                                         \
     if (values.size() > i && id == values[i].id) {                             \
