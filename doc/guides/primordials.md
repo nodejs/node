@@ -403,7 +403,7 @@ async () => {
     finallyBlockExecuted = true;
   }
 };
-process.on('exit', () => console.log(finallyBlockExecuted)); // false
+process.on('exit', () => console.log(finallyBlockExecuted)); // true
 ```
 
 </details>
@@ -474,7 +474,7 @@ can be reset from user-land.
 | `RegExp.prototype[@@matchAll]` | `flags`                                                            |
 | `RegExp.prototype[@@replace]`  | `global`, `unicode`                                                |
 | `RegExp.prototype[@@split]`    | `flags`                                                            |
-| `RegExp.prototype.toString`    | `flags`, `source`                                                  |
+| `RegExp.prototype.toString`    | `flags`                                                            |
 
 </details>
 
