@@ -1,4 +1,5 @@
-const { resolve } = require('path')
+const { resolve, relative, sep } = require('path')
+const relativePrefix = `.${sep}`
 const { EOL } = require('os')
 
 const archy = require('archy')
@@ -298,6 +299,9 @@ const getHumanOutputItem = (node, { args, color, global, long }) => {
     ? chalk.yellow.bgBlack
     : chalk.red.bgBlack
   const missingMsg = `UNMET ${isOptional(node) ? 'OPTIONAL ' : ''}DEPENDENCY`
+  const targetLocation = node.root
+    ? relative(node.root.realpath, node.realpath)
+    : node.targetLocation
   const label =
     (
       node[_missing]
@@ -321,7 +325,7 @@ const getHumanOutputItem = (node, { args, color, global, long }) => {
         : ''
     ) +
     (isGitNode(node) ? ` (${node.resolved})` : '') +
-    (node.isLink ? ` -> ${node.realpath}` : '') +
+    (node.isLink ? ` -> ${relativePrefix}${targetLocation}` : '') +
     (long ? `${EOL}${node.package.description || ''}` : '')
 
   return augmentItemWithIncludeMetadata(node, { label, nodes: [] })
@@ -445,6 +449,9 @@ const augmentNodesWithMetadata = ({
   // revisit that node in tree traversal logic, so we make it so that
   // we have a diff obj for deduped nodes:
   if (seenNodes.has(node.path)) {
+    const { realpath, root } = node
+    const targetLocation = root ? relative(root.realpath, realpath)
+      : node.targetLocation
     node = {
       name: node.name,
       version: node.version,
@@ -453,6 +460,7 @@ const augmentNodesWithMetadata = ({
       path: node.path,
       isLink: node.isLink,
       realpath: node.realpath,
+      targetLocation,
       [_type]: node[_type],
       [_invalid]: node[_invalid],
       [_missing]: node[_missing],
