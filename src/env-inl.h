@@ -100,13 +100,9 @@ inline void AsyncHooks::SetJSPromiseHooks(v8::Local<v8::Function> init,
                                           v8::Local<v8::Function> after,
                                           v8::Local<v8::Function> resolve) {
   js_promise_hooks_[0].Reset(env()->isolate(), init);
-  if (!init.IsEmpty()) js_promise_hooks_[0].SetWeak();
   js_promise_hooks_[1].Reset(env()->isolate(), before);
-  if (!before.IsEmpty()) js_promise_hooks_[1].SetWeak();
   js_promise_hooks_[2].Reset(env()->isolate(), after);
-  if (!after.IsEmpty()) js_promise_hooks_[2].SetWeak();
   js_promise_hooks_[3].Reset(env()->isolate(), resolve);
-  if (!resolve.IsEmpty()) js_promise_hooks_[3].SetWeak();
   for (auto it = contexts_.begin(); it != contexts_.end(); it++) {
     PersistentToLocal::Weak(env()->isolate(), *it)
         ->SetPromiseHooks(init, before, after, resolve);
@@ -236,20 +232,19 @@ void AsyncHooks::clear_async_id_stack() {
 }
 
 inline void AsyncHooks::AddContext(v8::Local<v8::Context> ctx) {
-  v8::Isolate * isolate = ctx->GetIsolate();
   ctx->SetPromiseHooks(
     js_promise_hooks_[0].IsEmpty() ?
       v8::Local<v8::Function>() :
-      PersistentToLocal::Weak(isolate, js_promise_hooks_[0]),
+      PersistentToLocal::Strong(js_promise_hooks_[0]),
     js_promise_hooks_[1].IsEmpty() ?
       v8::Local<v8::Function>() :
-      PersistentToLocal::Weak(isolate, js_promise_hooks_[1]),
+      PersistentToLocal::Strong(js_promise_hooks_[1]),
     js_promise_hooks_[2].IsEmpty() ?
       v8::Local<v8::Function>() :
-      PersistentToLocal::Weak(isolate, js_promise_hooks_[2]),
+      PersistentToLocal::Strong(js_promise_hooks_[2]),
     js_promise_hooks_[3].IsEmpty() ?
       v8::Local<v8::Function>() :
-      PersistentToLocal::Weak(isolate, js_promise_hooks_[3]));
+      PersistentToLocal::Strong(js_promise_hooks_[3]));
 
   size_t id = contexts_.size();
   contexts_.resize(id + 1);
