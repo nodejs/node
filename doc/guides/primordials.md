@@ -339,7 +339,7 @@ let finallyBlockExecuted = false;
     finallyBlockExecuted = true;
   }
 })();
-process.on('exit', () => console.log(finallyBlockExecuted)); // false
+process.on('exit', () => console.log(finallyBlockExecuted)); // true
 ```
 
 </details>
@@ -403,7 +403,7 @@ async () => {
     finallyBlockExecuted = true;
   }
 };
-process.on('exit', () => console.log(finallyBlockExecuted)); // true
+process.on('exit', () => console.log(finallyBlockExecuted)); // false
 ```
 
 </details>
