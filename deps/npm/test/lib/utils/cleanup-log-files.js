@@ -1,10 +1,9 @@
 const t = require('tap')
 
-const requireInject = require('require-inject')
 const glob = require('glob')
 const rimraf = require('rimraf')
 const mocks = { glob, rimraf }
-const cleanup = requireInject('../../../lib/utils/cleanup-log-files.js', {
+const cleanup = t.mock('../../../lib/utils/cleanup-log-files.js', {
   glob: (...args) => mocks.glob(...args),
   rimraf: (...args) => mocks.rimraf(...args),
 })
@@ -72,7 +71,7 @@ t.test('rimraf fail', t => {
   const warnings = []
   const warn = (...warning) => warnings.push(basename(warning[2]))
   return cleanup(cache, 3, warn).then(() => {
-    t.strictSame(warnings.sort((a, b) => a.localeCompare(b)), [
+    t.strictSame(warnings.sort((a, b) => a.localeCompare(b, 'en')), [
       '1-debug.log',
       '2-debug.log',
     ])

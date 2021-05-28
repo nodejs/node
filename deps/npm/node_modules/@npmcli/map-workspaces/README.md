@@ -17,13 +17,16 @@ Long version: Reads the `workspaces` property from a valid **workspaces configur
 ```js
 const mapWorkspaces = require('@npmcli/map-workspaces')
 await mapWorkspaces({
-  workspaces: {
-    packages: [
-      "a",
-      "b"
-    ]
+  cwd,
+  pkg: {
+    workspaces: {
+      packages: [
+        "a",
+        "b"
+      ]
+    }
   }
-}, { cwd })
+})
 // ->
 // Map {
 //   'a': '<cwd>/a'
@@ -51,10 +54,13 @@ Given a folder structure such as:
 ```js
 const mapWorkspaces = require('@npmcli/map-workspaces')
 await mapWorkspaces({
-  workspaces: [
-    "apps/*"
-  ]
-}, { cwd })
+  cwd,
+  pkg: {
+    workspaces: [
+      "apps/*"
+    ]
+  }
+})
 // ->
 // Map {
 //   'a': '<cwd>/apps/a'
@@ -65,10 +71,10 @@ await mapWorkspaces({
 
 ## API:
 
-### `mapWorkspaces(pkg, opts = {}) -> Promise<Map>`
+### `mapWorkspaces(opts) -> Promise<Map>`
 
-- `pkg`: A valid `package.json` **Object**
 - `opts`:
+  - `pkg`: A valid `package.json` **Object**
   - `cwd`: A **String** defining the base directory to use when reading globs and paths.
   - `ignore`: An **Array** of paths to be ignored when using [globs](https://www.npmjs.com/package/glob) to look for nested package.
   - ...[Also support all other glob options](https://www.npmjs.com/package/glob#options)

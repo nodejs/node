@@ -13,9 +13,9 @@ module.exports = Base => class extends Base {
         message = message.message
       }
       this.emit('warn', data.tarCode, message, data)
-    } else if (message instanceof Error) {
+    } else if (message instanceof Error)
       this.emit('error', Object.assign(message, data))
-    } else
+    else
       this.emit('error', Object.assign(new Error(`${code}: ${message}`), data))
   }
 }

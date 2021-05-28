@@ -1,5 +1,3 @@
-'use strict'
-
 module.exports = filter
 function filter (data, include, exclude, opts) {
   return typeof data === 'object' &&

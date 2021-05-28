@@ -1,8 +1,7 @@
-'use strict'
-var aliases = require('../utils/cmd-list').aliases
+const aliases = require('../utils/cmd-list').aliases
 
 module.exports = function usage (cmd, txt, opt) {
-  var post = Object.keys(aliases).reduce(function (p, c) {
+  const post = Object.keys(aliases).reduce(function (p, c) {
     var val = aliases[c]
     if (val !== cmd)
       return p

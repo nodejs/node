@@ -1,9 +1,28 @@
-const { usage, completion } = require('./star.js')
-const npm = require('./npm.js')
+const Star = require('./star.js')
 
-const unstar = (args, cb) => {
-  npm.config.set('star.unstar', true)
-  return npm.commands.star(args, cb)
+class Unstar extends Star {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'Remove an item from your favorite packages'
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'unstar'
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return [
+      'registry',
+      'unicode',
+      'otp',
+    ]
+  }
+
+  exec (args, cb) {
+    this.npm.config.set('star.unstar', true)
+    super.exec(args, cb)
+  }
 }
-
-module.exports = Object.assign(unstar, { usage, completion })
+module.exports = Unstar

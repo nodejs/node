@@ -1,5 +1,3 @@
-'use strict'
-
 const prompt = 'This operation requires a one-time password.\nEnter OTP:'
 const readUserInfo = require('./read-user-info.js')
 

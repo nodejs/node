@@ -1,5 +1,3 @@
-'use strict'
-
 const URL = require('url').URL
 
 // replaces auth info in an array of arguments or in a strings

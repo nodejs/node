@@ -22,7 +22,7 @@ var info = hostedGitInfo.fromUrl("git@github.com:npm/hosted-git-info.git", opts)
 If the URL can't be matched with a git host, `null` will be returned.  We
 can match git, ssh and https urls.  Additionally, we can match ssh connect
 strings (`git@github.com:npm/hosted-git-info`) and shortcuts (eg,
-`github:npm/hosted-git-info`).  Github specifically, is detected in the case
+`github:npm/hosted-git-info`).  GitHub specifically, is detected in the case
 of a third, unprefixed, form: `npm/hosted-git-info`.
 
 If it does match, the returned object has properties of:
@@ -129,5 +129,5 @@ SSH connect strings will be normalized into `git+ssh` URLs.
 
 ## Supported hosts
 
-Currently this supports Github, Bitbucket and Gitlab. Pull requests for
+Currently this supports GitHub, Bitbucket and GitLab. Pull requests for
 additional hosts welcome.

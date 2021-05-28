@@ -1,5 +1,3 @@
-'use strict'
-
 // XXX these output classes should not live in here forever.  it'd be good to
 // split them out, perhaps to libnpmsearch
 
@@ -45,6 +43,7 @@ class JSONOutputStream extends Minipass {
 
   end () {
     super.write(this._didFirst ? ']\n' : '\n]\n')
+    super.end()
   }
 }
 

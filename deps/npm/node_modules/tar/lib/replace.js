@@ -3,7 +3,6 @@
 // tar -r
 const hlo = require('./high-level-opt.js')
 const Pack = require('./pack.js')
-const Parse = require('./parse.js')
 const fs = require('fs')
 const fsm = require('fs-minipass')
 const t = require('./list.js')
@@ -17,7 +16,7 @@ const path = require('path')
 
 const Header = require('./header.js')
 
-const r = module.exports = (opt_, files, cb) => {
+module.exports = (opt_, files, cb) => {
   const opt = hlo(opt_)
 
   if (!opt.file)
@@ -68,10 +67,10 @@ const replaceSync = (opt, files) => {
           break POSITION
       }
 
-      let h = new Header(headBuf)
+      const h = new Header(headBuf)
       if (!h.cksumValid)
         break
-      let entryBlockSize = 512 * Math.ceil(h.size / 512)
+      const entryBlockSize = 512 * Math.ceil(h.size / 512)
       if (position + entryBlockSize + 512 > st.size)
         break
       // the 512 for the header we just parsed will be added as well
@@ -84,15 +83,18 @@ const replaceSync = (opt, files) => {
 
     streamSync(opt, p, position, fd, files)
   } finally {
-    if (threw)
-      try { fs.closeSync(fd) } catch (er) {}
+    if (threw) {
+      try {
+        fs.closeSync(fd)
+      } catch (er) {}
+    }
   }
 }
 
 const streamSync = (opt, p, position, fd, files) => {
   const stream = new fsm.WriteStreamSync(opt.file, {
     fd: fd,
-    start: position
+    start: position,
   })
   p.pipe(stream)
   addFilesSync(p, files)
@@ -120,11 +122,12 @@ const replace = (opt, files, cb) => {
       if (er)
         return cb(er)
       bufPos += bytes
-      if (bufPos < 512 && bytes)
+      if (bufPos < 512 && bytes) {
         return fs.read(
           fd, headBuf, bufPos, headBuf.length - bufPos,
           position + bufPos, onread
         )
+      }
 
       if (position === 0 && headBuf[0] === 0x1f && headBuf[1] === 0x8b)
         return cb(new Error('cannot append to compressed archives'))
@@ -173,7 +176,7 @@ const replace = (opt, files, cb) => {
             return reject(er)
           const stream = new fsm.WriteStream(opt.file, {
             fd: fd,
-            start: position
+            start: position,
           })
           p.pipe(stream)
           stream.on('error', reject)
@@ -190,14 +193,14 @@ const replace = (opt, files, cb) => {
 
 const addFilesSync = (p, files) => {
   files.forEach(file => {
-    if (file.charAt(0) === '@')
+    if (file.charAt(0) === '@') {
       t({
         file: path.resolve(p.cwd, file.substr(1)),
         sync: true,
         noResume: true,
-        onentry: entry => p.add(entry)
+        onentry: entry => p.add(entry),
       })
-    else
+    } else
       p.add(file)
   })
   p.end()
@@ -206,13 +209,13 @@ const addFilesSync = (p, files) => {
 const addFilesAsync = (p, files) => {
   while (files.length) {
     const file = files.shift()
-    if (file.charAt(0) === '@')
+    if (file.charAt(0) === '@') {
       return t({
         file: path.resolve(p.cwd, file.substr(1)),
         noResume: true,
-        onentry: entry => p.add(entry)
+        onentry: entry => p.add(entry),
       }).then(_ => addFilesAsync(p, files))
-    else
+    } else
       p.add(file)
   }
   p.end()

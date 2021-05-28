@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [8.0.1](https://github.com/npm/ssri/compare/v8.0.0...v8.0.1) (2021-01-27)
+
+
+### Bug Fixes
+
+* simplify regex for strict mode, add tests ([76e2233](https://github.com/npm/ssri/commit/76e223317d971f19e4db8191865bdad5edee40d2))
+
 ## [8.0.0](https://github.com/npm/ssri/compare/v7.1.0...v8.0.0) (2020-02-18)
 
 

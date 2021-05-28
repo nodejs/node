@@ -103,7 +103,7 @@ terminal, then it is up to the user to end it, of course.
   - The `package.json` fields described in
     [RFC183](https://github.com/npm/rfcs/pull/183/files).
 - `scriptShell` Optional, defaults to `/bin/sh` on Unix, defaults to
-  `env.comspec` or `cmd` on Windows.  Custom script to use to execute the
+  `env.ComSpec` or `cmd` on Windows.  Custom script to use to execute the
   command.
 - `stdio` Optional, defaults to `'pipe'`.  The same as the `stdio` argument
   passed to `child_process` functions in Node.js.  Note that if a stdio

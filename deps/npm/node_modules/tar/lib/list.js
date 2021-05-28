@@ -10,7 +10,7 @@ const fs = require('fs')
 const fsm = require('fs-minipass')
 const path = require('path')
 
-const t = module.exports = (opt_, files, cb) => {
+module.exports = (opt_, files, cb) => {
   if (typeof opt_ === 'function')
     cb = opt_, files = null, opt_ = {}
   else if (Array.isArray(opt_))
@@ -79,15 +79,15 @@ const listFileSync = opt => {
   let fd
   try {
     const stat = fs.statSync(file)
-    const readSize = opt.maxReadSize || 16*1024*1024
-    if (stat.size < readSize) {
+    const readSize = opt.maxReadSize || 16 * 1024 * 1024
+    if (stat.size < readSize)
       p.end(fs.readFileSync(file))
-    } else {
+    else {
       let pos = 0
       const buf = Buffer.allocUnsafe(readSize)
       fd = fs.openSync(file, 'r')
       while (pos < stat.size) {
-        let bytesRead = fs.readSync(fd, buf, 0, readSize, pos)
+        const bytesRead = fs.readSync(fd, buf, 0, readSize, pos)
         pos += bytesRead
         p.write(buf.slice(0, bytesRead))
       }
@@ -95,14 +95,17 @@ const listFileSync = opt => {
     }
     threw = false
   } finally {
-    if (threw && fd)
-      try { fs.closeSync(fd) } catch (er) {}
+    if (threw && fd) {
+      try {
+        fs.closeSync(fd)
+      } catch (er) {}
+    }
   }
 }
 
 const listFile = (opt, cb) => {
   const parse = new Parser(opt)
-  const readSize = opt.maxReadSize || 16*1024*1024
+  const readSize = opt.maxReadSize || 16 * 1024 * 1024
 
   const file = opt.file
   const p = new Promise((resolve, reject) => {
@@ -115,7 +118,7 @@ const listFile = (opt, cb) => {
       else {
         const stream = new fsm.ReadStream(file, {
           readSize: readSize,
-          size: stat.size
+          size: stat.size,
         })
         stream.on('error', reject)
         stream.pipe(parse)

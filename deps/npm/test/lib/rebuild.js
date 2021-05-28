@@ -1,33 +1,29 @@
 const fs = require('fs')
 const { resolve } = require('path')
+const mockNpm = require('../fixtures/mock-npm')
 const t = require('tap')
-const requireInject = require('require-inject')
 
 let result = ''
 
-const npm = {
-  globalDir: '',
-  flatOptions: {
-    global: false,
-  },
-  prefix: '',
+const config = {
+  global: false,
 }
-const mocks = {
-  '../../lib/npm.js': npm,
-  '../../lib/utils/output.js': (...msg) => {
+const npm = mockNpm({
+  globalDir: '',
+  config,
+  prefix: '',
+  output: (...msg) => {
     result += msg.join('\n')
   },
-  '../../lib/utils/usage.js': () => 'usage instructions',
-}
+})
+const Rebuild = require('../../lib/rebuild.js')
+const rebuild = new Rebuild(npm)
 
-const rebuild = requireInject('../../lib/rebuild.js', mocks)
-
-t.afterEach(cb => {
+t.afterEach(() => {
   npm.prefix = ''
-  npm.flatOptions.global = false
+  config.global = false
   npm.globalDir = ''
   result = ''
-  cb()
 })
 
 t.test('no args', t => {
@@ -39,7 +35,7 @@ t.test('no args', t => {
           version: '1.0.0',
           bin: 'cwd',
           scripts: {
-            preinstall: `node -e 'require("fs").writeFileSync("cwd", "")'`,
+            preinstall: "node -e \"require('fs').writeFileSync('cwd', '')\"",
           },
         }),
       },
@@ -49,7 +45,7 @@ t.test('no args', t => {
           version: '1.0.0',
           bin: 'cwd',
           scripts: {
-            preinstall: `node -e 'require("fs").writeFileSync("cwd", "")'`,
+            preinstall: "node -e \"require('fs').writeFileSync('cwd', '')\"",
           },
         }),
       },
@@ -67,7 +63,7 @@ t.test('no args', t => {
 
   npm.prefix = path
 
-  rebuild([], err => {
+  rebuild.exec([], err => {
     if (err)
       throw err
 
@@ -115,7 +111,7 @@ t.test('filter by pkg name', t => {
   t.throws(() => fs.statSync(aBinFile))
   t.throws(() => fs.statSync(bBinFile))
 
-  rebuild(['b'], err => {
+  rebuild.exec(['b'], err => {
     if (err)
       throw err
 
@@ -163,7 +159,7 @@ t.test('filter by pkg@<range>', t => {
   const bBinFile = resolve(path, 'node_modules/.bin/b')
   const nestedBinFile = resolve(path, 'node_modules/a/node_modules/.bin/b')
 
-  rebuild(['b@2'], err => {
+  rebuild.exec(['b@2'], err => {
     if (err)
       throw err
 
@@ -174,8 +170,48 @@ t.test('filter by pkg@<range>', t => {
   })
 })
 
-t.test('filter must be a semver version/range', t => {
-  rebuild(['b:git+ssh://github.com/npm/arborist'], err => {
+t.test('filter by directory', t => {
+  const path = t.testdir({
+    node_modules: {
+      a: {
+        'index.js': '',
+        'package.json': JSON.stringify({
+          name: 'a',
+          version: '1.0.0',
+          bin: 'index.js',
+        }),
+      },
+      b: {
+        'index.js': '',
+        'package.json': JSON.stringify({
+          name: 'b',
+          version: '1.0.0',
+          bin: 'index.js',
+        }),
+      },
+    },
+  })
+
+  npm.prefix = path
+
+  const aBinFile = resolve(path, 'node_modules/.bin/a')
+  const bBinFile = resolve(path, 'node_modules/.bin/b')
+  t.throws(() => fs.statSync(aBinFile))
+  t.throws(() => fs.statSync(bBinFile))
+
+  rebuild.exec(['file:node_modules/b'], err => {
+    if (err)
+      throw err
+
+    t.throws(() => fs.statSync(aBinFile), 'should not link a bin')
+    t.ok(() => fs.statSync(bBinFile), 'should link filtered pkg bin')
+
+    t.end()
+  })
+})
+
+t.test('filter must be a semver version/range, or directory', t => {
+  rebuild.exec(['git+ssh://github.com/npm/arborist'], err => {
     t.match(
       err,
       /Error: `npm rebuild` only supports SemVer version\/range specifiers/,
@@ -202,10 +238,10 @@ t.test('global prefix', t => {
     },
   })
 
-  npm.flatOptions.global = true
+  config.global = true
   npm.globalDir = resolve(globalPath, 'lib', 'node_modules')
 
-  rebuild([], err => {
+  rebuild.exec([], err => {
     if (err)
       throw err
 

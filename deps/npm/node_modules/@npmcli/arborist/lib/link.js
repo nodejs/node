@@ -23,13 +23,19 @@ class Link extends Node {
       : null),
     })
 
-    this.target = target || new Node({
-      ...options,
-      path: realpath,
-      parent: null,
-      fsParent: null,
-      root: this.root,
-    })
+    if (target)
+      this.target = target
+    else if (this.realpath === this.root.path)
+      this.target = this.root
+    else {
+      this.target = new Node({
+        ...options,
+        path: realpath,
+        parent: null,
+        fsParent: null,
+        root: this.root,
+      })
+    }
   }
 
   get version () {

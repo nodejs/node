@@ -1,4 +1,10 @@
 
+4.1.4 / 2021-02-05
+==================
+
+**fixes**
+  * [[`4d04794`](http://github.com/node-modules/agentkeepalive/commit/4d047946b1547b4edff92ea40205aee4f0c8aa46)] - fix(types): correct `Https` constructor argument (#89) (Simen Bekkhus <<sbekkhus91@gmail.com>>)
+
 4.1.3 / 2020-06-15
 ==================
 

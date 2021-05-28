@@ -1,14 +1,12 @@
 const t = require('tap')
-const requireInject = require('require-inject')
 
 const settings = {
   level: 'warn',
 }
-t.afterEach(cb => {
+t.afterEach(() => {
   Object.keys(settings).forEach(k => {
     delete settings[k]
   })
-  cb()
 })
 
 const WARN_CALLED = []
@@ -61,7 +59,7 @@ const npmlog = {
 }
 
 const EXPLAIN_CALLED = []
-const setupLog = requireInject('../../../lib/utils/setup-log.js', {
+const setupLog = t.mock('../../../lib/utils/setup-log.js', {
   '../../../lib/utils/explain-eresolve.js': {
     explain: (...args) => {
       EXPLAIN_CALLED.push(args)

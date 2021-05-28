@@ -3,7 +3,7 @@
 [![NPM Version][npm-version-image]][npm-url]
 [![NPM Downloads][npm-downloads-image]][npm-url]
 [![Node.js Version][node-image]][node-url]
-[![Build Status][travis-image]][travis-url]
+[![Build Status][ci-image]][ci-url]
 [![Coverage Status][coveralls-image]][coveralls-url]
 
 This is a database of all mime types.
@@ -34,8 +34,6 @@ https://cdn.jsdelivr.net/gh/jshttp/mime-db@master/db.json
 
 ## Usage
 
-<!-- eslint-disable no-unused-vars -->
-
 ```js
 var db = require('mime-db')
 
@@ -61,11 +59,11 @@ If unknown, every property could be `undefined`.
 
 ## Contributing
 
-To edit the database, only make PRs against `src/custom.json` or
+To edit the database, only make PRs against `src/custom-types.json` or
 `src/custom-suffix.json`.
 
-The `src/custom.json` file is a JSON object with the MIME type as the keys
-and the values being an object with the following keys:
+The `src/custom-types.json` file is a JSON object with the MIME type as the
+keys and the values being an object with the following keys:
 
 - `compressible` - leave out if you don't know, otherwise `true`/`false` to
   indicate whether the data represented by the type is typically compressible.
@@ -91,6 +89,8 @@ definitively lists the media type. If an extension is going to be listed as
 associateed with this media type, the source must definitively link the
 media type and extension as well.
 
+[ci-image]: https://badgen.net/github/checks/jshttp/mime-db/master?label=ci
+[ci-url]: https://github.com/jshttp/mime-db/actions?query=workflow%3Aci
 [coveralls-image]: https://badgen.net/coveralls/c/github/jshttp/mime-db/master
 [coveralls-url]: https://coveralls.io/r/jshttp/mime-db?branch=master
 [node-image]: https://badgen.net/npm/node/mime-db
@@ -98,5 +98,3 @@ media type and extension as well.
 [npm-downloads-image]: https://badgen.net/npm/dm/mime-db
 [npm-url]: https://npmjs.org/package/mime-db
 [npm-version-image]: https://badgen.net/npm/v/mime-db
-[travis-image]: https://badgen.net/travis/jshttp/mime-db/master
-[travis-url]: https://travis-ci.org/jshttp/mime-db

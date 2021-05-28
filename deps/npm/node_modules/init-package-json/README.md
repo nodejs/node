@@ -23,7 +23,7 @@ var dir = process.cwd()
 var configData = { some: 'extra stuff' }
 
 // Any existing stuff from the package.json file is also exposed in the
-// PromZard module as the `package` object.  There will also be free
+// PromZard module as the `package` object.  There will also be three
 // vars for:
 // * `filename` path to the package.json file
 // * `basename` the tip of the package dir

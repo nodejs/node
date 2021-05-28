@@ -53,7 +53,7 @@ class Calculator {
     // load packument and cached advisory
     const [cached, packument] = await Promise.all([
       this[_cacheGet](advisory),
-      this[_packument](name)
+      this[_packument](name),
     ])
     process.emit('time', `metavuln:load:${k}`)
     advisory.load(cached, packument)

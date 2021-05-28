@@ -1,5 +1,4 @@
 const t = require('tap')
-const requireInject = require('require-inject')
 const { inspect } = require('util')
 
 const logs = []
@@ -8,7 +7,7 @@ const npmlog = {
   verbose: (...args) => logs.push(['verbose', ...args]),
 }
 
-requireInject('../../../lib/utils/proc-log-listener.js', {
+t.mock('../../../lib/utils/proc-log-listener.js', {
   npmlog,
 })()
 

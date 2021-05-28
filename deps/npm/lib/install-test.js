@@ -1,19 +1,24 @@
 // npm install-test
 // Runs `npm install` and then runs `npm test`
 
-const install = require('./install.js')
-const test = require('./test.js')
-const usageUtil = require('./utils/usage.js')
+const Install = require('./install.js')
 
-const usage = usageUtil(
-  'install-test',
-  'npm install-test [args]' +
-  '\nSame args as `npm install`'
-)
+class InstallTest extends Install {
+  static get description () {
+    return 'Install package(s) and run tests'
+  }
 
-const completion = install.completion
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'install-test'
+  }
 
-const installTest = (args, cb) =>
-  install(args, er => er ? cb(er) : test([], cb))
-
-module.exports = Object.assign(installTest, { usage, completion })
+  exec (args, cb) {
+    this.npm.commands.install(args, (er) => {
+      if (er)
+        return cb(er)
+      this.npm.commands.test([], cb)
+    })
+  }
+}
+module.exports = InstallTest
