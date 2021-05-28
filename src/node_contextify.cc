@@ -30,6 +30,7 @@
 #include "node_internals.h"
 #include "node_watchdog.h"
 #include "util-inl.h"
+#include "v8.h"
 
 namespace node {
 namespace contextify {
@@ -127,9 +128,11 @@ ContextifyContext::ContextifyContext(
 
 ContextifyContext::~ContextifyContext() {
   env()->RemoveCleanupHook(CleanupHook, this);
+  Isolate* isolate = env()->isolate();
+  HandleScope scope(isolate);
 
   env()->async_hooks()
-    ->RemoveContext(PersistentToLocal::Weak(env()->isolate(), context_));
+    ->RemoveContext(PersistentToLocal::Weak(isolate, context_));
 }
 
 
