@@ -800,6 +800,9 @@ std::unique_ptr<T> static_unique_pointer_cast(std::unique_ptr<U>&& ptr) {
   return std::unique_ptr<T>(static_cast<T*>(ptr.release()));
 }
 
+// Returns a non-zero code if it fails to open or read the file,
+// aborts if it fails to close the file.
+int ReadFileSync(std::string* result, const char* path);
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
