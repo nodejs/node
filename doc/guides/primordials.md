@@ -264,7 +264,6 @@ ReflectApply(func, null, array);
   for (let i = 0; i < array.length; i++) obj[array[i][0]] = array[i][1];
   // In a hot code path, this would be the preferred method.
 }
-
 ```
 
 </details>
@@ -319,9 +318,10 @@ Promise.prototype.then = function then(a, b) {
 };
 
 // Core
-let cleanedUp = false;
-PromisePrototypeFinally(somePromise, () => { cleanedUp = true; });
-console.log(cleanedUp); // false
+let finallyBlockExecuted = false;
+PromisePrototypeFinally(somePromiseThatEventuallySettles,
+                        () => { finallyBlockExecuted = true; });
+process.on('exit', () => console.log(finallyBlockExecuted)); // false
 ```
 
 ```js
@@ -331,15 +331,15 @@ Promise.prototype.then = function then(a, b) {
 };
 
 // Core
-let cleanedUp = false;
+let finallyBlockExecuted = false;
 (async () => {
   try {
-    return await somePromise;
+    return await somePromiseThatEventuallySettles;
   } finally {
-    cleanedUp = true;
+    finallyBlockExecuted = true;
   }
 })();
-console.log(cleanedUp); // true
+process.on('exit', () => console.log(finallyBlockExecuted)); // false
 ```
 
 </details>
@@ -462,6 +462,22 @@ console.log(RegExpPrototypeExec(/o/, 'foo') !== null); // true
 RegExp flags are not own properties of the regex instances, which means flags
 can be reset from user-land.
 
+<details>
+
+<summary>List of <code>RegExp</code> methods that look up properties from
+         mutable getters</summary>
+
+| `RegExp` method                | looks up the following flag-related properties                     |
+| ------------------------------ | ------------------------------------------------------------------ |
+| `get RegExp.prototype.flags`   | `global`, `ignoreCase`, `multiline`, `dotAll`, `unicode`, `sticky` |
+| `RegExp.prototype[@@match]`    | `global`, `unicode`                                                |
+| `RegExp.prototype[@@matchAll]` | `flags`                                                            |
+| `RegExp.prototype[@@replace]`  | `global`, `unicode`                                                |
+| `RegExp.prototype[@@split]`    | `flags`                                                            |
+| `RegExp.prototype.toString`    | `flags`, `source`                                                  |
+
+</details>
+
 ```js
 // User-land
 Object.defineProperty(RegExp.prototype, 'global', { value: false });
@@ -472,6 +488,8 @@ console.log(RegExpPrototypeSymbolReplace(/o/g, 'foo', 'a')); // 'fao'
 const regex = /o/g;
 ObjectDefineProperties(regex, {
   dotAll: { value: false },
+  exec: { value: undefined },
+  flags: { value: 'g' },
   global: { value: true },
   ignoreCase: { value: false },
   multiline: { value: false },
