@@ -117,6 +117,10 @@ performance of code in Node.js.
     function.
 * `SafeArrayIterator`
 * `SafeStringIterator`
+* `SafePromiseAll`
+* `SafePromiseAllSettled`
+* `SafePromiseAny`
+* `SafePromiseRace`
 * `SafePromisePrototypeFinally`: use `try {} finally {}` block instead.
 
 In general, when sending or reviewing a PR that makes changes in a hot code
@@ -169,6 +173,29 @@ performant `for` loop:
 for (let i = 0; i < array.length; i++) {
   console.log(array[i]);
 }
+```
+
+The following code snippet illustrates how user-land code could impact the
+behavior of internal modules:
+
+```js
+// User-land
+Array.prototype[Symbol.iterator] = () => ({
+  next: () => ({ done: true }),
+});
+
+// Core
+let forOfLoopBlockExecuted = false;
+let forLoopBlockExecuted = false;
+const array = [1, 2, 3];
+for(const item of array) {
+  forOfLoopBlockExecuted = true;
+}
+for(let i = 0; i < array.length; i++) {
+  forLoopBlockExecuted = true;
+}
+console.log(forOfLoopBlockExecuted); // false
+console.log(forLoopBlockExecuted); // true
 ```
 
 This only applies if you are working with a genuine array (or array-like
@@ -281,7 +308,8 @@ ReflectApply(func, null, array);
 // 3. Lookup `next` property on %ArrayIteratorPrototype% (user-mutable).
 PromiseAll(array); // unsafe
 
-PromiseAll(new SafeArrayIterator(array)); // safe
+PromiseAll(new SafeArrayIterator(array));
+SafePromiseAll(array); // safe
 ```
 
 </details>
@@ -292,14 +320,30 @@ PromiseAll(new SafeArrayIterator(array)); // safe
          <code>%WeakSet%</code> constructors iterate over an array</summary>
 
 ```js
+// User-land
+Array.prototype[Symbol.iterator] = () => ({
+  next: () => ({ done: true }),
+});
+
+// Core
+
 // 1. Lookup @@iterator property on %Array.prototype% (user-mutable).
 // 2. Lookup `next` property on %ArrayIteratorPrototype% (user-mutable).
 const set = new SafeSet([1, 2, 3]);
+
+console.log(set.size); // 0
 ```
 
 ```js
+// User-land
+Array.prototype[Symbol.iterator] = () => ({
+  next: () => ({ done: true }),
+});
+
+// Core
 const set = new SafeSet();
 set.add(1).add(2).add(3);
+console.log(set.size); // 3
 ```
 
 </details>
@@ -340,6 +384,56 @@ let finallyBlockExecuted = false;
   }
 })();
 process.on('exit', () => console.log(finallyBlockExecuted)); // true
+```
+
+</details>
+
+<details>
+
+<summary><code>%Promise.all%</code>,
+         <code>%Promise.allSettled%</code>,
+         <code>%Promise.any%</code>, and
+         <code>%Promise.race%</code> look up <code>then</code>
+         property of the Promise instances</summary>
+
+You can use safe alternatives from primordials that differ slightly from the
+original methods:
+* It expects an array (or array-like object) instead of an iterable.
+* It wraps each promise in `SafePromise` objects and wraps the result in a new
+  `Promise` instance – which may come with a performance penalty.
+* Because it doesn't look up `then` property, it may not be the right tool to
+  handle user-provided promises (which may be instances of a subclass of
+  `Promise`).
+
+```js
+// User-land
+Promise.prototype.then = function then(a, b) {
+  return Promise.resolve();
+};
+
+// Core
+let thenBlockExecuted = false;
+PromisePrototypeThen(
+  PromiseAll(new SafeArrayIterator([PromiseResolve()])),
+  () => { thenBlockExecuted = true; }
+);
+process.on('exit', () => console.log(thenBlockExecuted)); // false
+
+```
+
+```js
+// User-land
+Promise.prototype.then = function then(a, b) {
+  return Promise.resolve();
+};
+
+// Core
+let thenBlockExecuted = false;
+PromisePrototypeThen(
+  SafePromiseAll([PromiseResolve()]),
+  () => { thenBlockExecuted = true; }
+);
+process.on('exit', () => console.log(thenBlockExecuted)); // true
 ```
 
 </details>
