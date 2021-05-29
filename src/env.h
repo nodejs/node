@@ -908,7 +908,7 @@ class CleanupHookCallback {
 
 struct PropInfo {
   std::string name;     // name for debugging
-  size_t id;            // In the list - in case there are any empty entires
+  size_t id;            // In the list - in case there are any empty entries
   SnapshotIndex index;  // In the snapshot
 };
 

@@ -98,7 +98,7 @@ class SocketAddress : public MemoryRetainer {
   // for this one. The addresses are a match if:
   // 1. They are the same family and match identically
   // 2. They are different family but match semantically (
-  //     for instance, an IPv4 addres in IPv6 notation)
+  //     for instance, an IPv4 address in IPv6 notation)
   bool is_match(const SocketAddress& other) const;
 
   // Compares this SocketAddress to the given other SocketAddress.
