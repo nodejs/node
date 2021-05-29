@@ -50,7 +50,7 @@ Looking for help? Check out the
   April and October every year. Releases appearing each October have a support
   life of 8 months. Releases appearing each April convert to LTS (see below)
   each October.
-* **LTS**: Releases that receive Long-term Support, with a focus on stability
+* **LTS**: Releases that receive Long Term Support, with a focus on stability
   and security. Every even-numbered major version will become an LTS release.
   LTS releases receive 12 months of _Active LTS_ support and a further 18 months
   of _Maintenance_. LTS release lines have alphabetically-ordered code names,
