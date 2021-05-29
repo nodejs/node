@@ -797,119 +797,28 @@ bool ToASCII(const std::string& input, std::string* output) {
 }
 #endif
 
+#define NS_IN6ADDRSZ 16
+
 void URLHost::ParseIPv6Host(const char* input, size_t length) {
   CHECK_EQ(type_, HostType::H_FAILED);
-  unsigned size = arraysize(value_.ipv6);
-  for (unsigned n = 0; n < size; n++)
-    value_.ipv6[n] = 0;
-  uint16_t* piece_pointer = &value_.ipv6[0];
-  uint16_t* const buffer_end = piece_pointer + size;
-  uint16_t* compress_pointer = nullptr;
-  const char* pointer = input;
-  const char* end = pointer + length;
-  unsigned value, len, numbers_seen;
-  char ch = pointer < end ? pointer[0] : kEOL;
-  if (ch == ':') {
-    if (length < 2 || pointer[1] != ':')
-      return;
-    pointer += 2;
-    ch = pointer < end ? pointer[0] : kEOL;
-    piece_pointer++;
-    compress_pointer = piece_pointer;
-  }
-  while (ch != kEOL) {
-    if (piece_pointer >= buffer_end)
-      return;
-    if (ch == ':') {
-      if (compress_pointer != nullptr)
-        return;
-      pointer++;
-      ch = pointer < end ? pointer[0] : kEOL;
-      piece_pointer++;
-      compress_pointer = piece_pointer;
-      continue;
-    }
-    value = 0;
-    len = 0;
-    while (len < 4 && IsASCIIHexDigit(ch)) {
-      value = value * 0x10 + hex2bin(ch);
-      pointer++;
-      ch = pointer < end ? pointer[0] : kEOL;
-      len++;
-    }
-    switch (ch) {
-      case '.':
-        if (len == 0)
-          return;
-        pointer -= len;
-        ch = pointer < end ? pointer[0] : kEOL;
-        if (piece_pointer > buffer_end - 2)
-          return;
-        numbers_seen = 0;
-        while (ch != kEOL) {
-          value = 0xffffffff;
-          if (numbers_seen > 0) {
-            if (ch == '.' && numbers_seen < 4) {
-              pointer++;
-              ch = pointer < end ? pointer[0] : kEOL;
-            } else {
-              return;
-            }
-          }
-          if (!IsASCIIDigit(ch))
-            return;
-          while (IsASCIIDigit(ch)) {
-            unsigned number = ch - '0';
-            if (value == 0xffffffff) {
-              value = number;
-            } else if (value == 0) {
-              return;
-            } else {
-              value = value * 10 + number;
-            }
-            if (value > 255)
-              return;
-            pointer++;
-            ch = pointer < end ? pointer[0] : kEOL;
-          }
-          *piece_pointer = *piece_pointer * 0x100 + value;
-          numbers_seen++;
-          if (numbers_seen == 2 || numbers_seen == 4)
-            piece_pointer++;
-        }
-        if (numbers_seen != 4)
-          return;
-        continue;
-      case ':':
-        pointer++;
-        ch = pointer < end ? pointer[0] : kEOL;
-        if (ch == kEOL)
-          return;
-        break;
-      case kEOL:
-        break;
-      default:
-        return;
-    }
-    *piece_pointer = value;
-    piece_pointer++;
-  }
 
-  if (compress_pointer != nullptr) {
-    int64_t swaps = piece_pointer - compress_pointer;
-    piece_pointer = buffer_end - 1;
-    while (piece_pointer != &value_.ipv6[0] && swaps > 0) {
-      uint16_t temp = *piece_pointer;
-      uint16_t* swap_piece = compress_pointer + swaps - 1;
-      *piece_pointer = *swap_piece;
-      *swap_piece = temp;
-       piece_pointer--;
-       swaps--;
-    }
-  } else if (compress_pointer == nullptr &&
-             piece_pointer != buffer_end) {
+  unsigned char buf[sizeof(struct in6_addr)];
+  MaybeStackBuffer<char> ipv6(length + 1);
+  *(*ipv6 + length) = 0;
+  memset(buf, 0, sizeof(buf));
+  memcpy(*ipv6, input, sizeof(const char) * length);
+
+  int ret = uv_inet_pton(AF_INET6, *ipv6, buf);
+
+  if (ret != 0) {
     return;
   }
+
+  // Ref: https://sourceware.org/git/?p=glibc.git;a=blob;f=resolv/inet_ntop.c;h=c4d38c0f951013e51a4fc6eaa8a9b82e146abe5a;hb=HEAD#l119
+  for (int i = 0; i < NS_IN6ADDRSZ; i += 2) {
+    value_.ipv6[i >> 1] = (buf[i] << 8) | buf[i + 1];
+  }
+
   type_ = HostType::H_IPV6;
 }
 
