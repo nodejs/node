@@ -30,7 +30,7 @@
   * [Technical HOWTO](#technical-howto)
   * [Troubleshooting](#troubleshooting)
   * [I made a mistake](#i-made-a-mistake)
-  * [Long term support](#long-term-support)
+  * [Long Term Support](#long-term-support)
     * [What is LTS?](#what-is-lts)
     * [How are LTS branches managed?](#how-are-lts-branches-managed)
     * [How can I help?](#how-can-i-help)
@@ -737,7 +737,7 @@ git push upstream master
     change.
   * Post to `#node-dev` (IRC) if you force push.
 
-### Long term support
+### Long Term Support
 
 #### What is LTS?
 
