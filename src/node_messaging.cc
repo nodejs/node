@@ -162,7 +162,7 @@ MaybeLocal<Value> Message::Deserialize(Environment* env,
       // If we gather a list of all message ports, and this transferred object
       // is a message port, add it to that list. This is a bit of an odd case
       // of special handling for MessagePorts (as opposed to applying to all
-      // transferables), but it's required for spec compliancy.
+      // transferables), but it's required for spec compliance.
       DCHECK((*port_list)->IsArray());
       Local<Array> port_list_array = port_list->As<Array>();
       Local<Object> obj = host_objects[i]->object();
@@ -749,7 +749,7 @@ void MessagePort::OnMessage(MessageProcessingMode mode) {
       // interruption that were already present when the OnMessage() call was
       // first triggered, but at least 1000 messages because otherwise the
       // overhead of repeatedly triggering the uv_async_t instance becomes
-      // noticable, at least on Windows.
+      // noticeable, at least on Windows.
       // (That might require more investigation by somebody more familiar with
       // Windows.)
       TriggerAsync();

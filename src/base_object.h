@@ -191,7 +191,7 @@ class BaseObject : public MemoryRetainer {
     // Indicates whether MakeWeak() has been called.
     bool wants_weak_jsobj = false;
     // Indicates whether Detach() has been called. If that is the case, this
-    // object will be destryoed once the strong pointer count drops to zero.
+    // object will be destroyed once the strong pointer count drops to zero.
     bool is_detached = false;
     // Reference to the original BaseObject. This is used by weak pointers.
     BaseObject* self = nullptr;

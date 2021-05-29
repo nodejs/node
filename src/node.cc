@@ -1033,7 +1033,7 @@ InitializationResult InitializeOncePerProcess(int argc, char** argv) {
   // command. If the path to this file is incorrect no error will be reported.
   //
   // For Node.js this will mean that EntropySource will be called by V8 as part
-  // of its initalization process, and EntropySource will in turn call
+  // of its initialization process, and EntropySource will in turn call
   // CheckEntropy. CheckEntropy will call RAND_status which will now always
   // return 0, leading to an endless loop and the node process will appear to
   // hang/freeze.

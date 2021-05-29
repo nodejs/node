@@ -1809,7 +1809,7 @@ void SetLocalAddress(const FunctionCallbackInfo<Value>& args) {
       return;
     }
   } else {
-    // No second arg specifed
+    // No second arg specified
     if (type0 == 4) {
       memset(&addr1, 0, sizeof(addr1));
       ares_set_local_ip6(channel->cares_channel(), addr1);
