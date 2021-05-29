@@ -484,7 +484,7 @@ void ConverterObject::Decode(const FunctionCallbackInfo<Value>& args) {
     }
     ret = ToBufferEndian(env, &result);
     if (omit_initial_bom && !ret.IsEmpty()) {
-      // Peform `ret = ret.slice(2)`.
+      // Perform `ret = ret.slice(2)`.
       CHECK(ret.ToLocalChecked()->IsUint8Array());
       Local<Uint8Array> orig_ret = ret.ToLocalChecked().As<Uint8Array>();
       ret = Buffer::New(env,

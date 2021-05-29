@@ -736,7 +736,7 @@ void MessagePort::OnMessage() {
       // interruption that were already present when the OnMessage() call was
       // first triggered, but at least 1000 messages because otherwise the
       // overhead of repeatedly triggering the uv_async_t instance becomes
-      // noticable, at least on Windows.
+      // noticeable, at least on Windows.
       // (That might require more investigation by somebody more familiar with
       // Windows.)
       TriggerAsync();
