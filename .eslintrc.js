@@ -25,10 +25,7 @@ Module._findPath = (request, paths, isMain) => {
   if (!r && hacks.includes(request)) {
     try {
       return require.resolve(`./tools/node_modules/${request}`);
-    // Keep the variable in place to ensure that ESLint started by older Node.js
-    // versions work as expected.
-    // eslint-disable-next-line no-unused-vars
-    } catch (e) {
+    } catch {
       return require.resolve(
         `./tools/node_modules/eslint/node_modules/${request}`);
     }
