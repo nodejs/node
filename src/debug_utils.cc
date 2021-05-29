@@ -355,7 +355,7 @@ void PrintLibuvHandleInformation(uv_loop_t* loop, FILE* stream) {
     void* first_field = nullptr;
     // `handle->data` might be any value, including `nullptr`, or something
     // cast from a completely different type; therefore, check that it’s
-    // dereferencable first.
+    // dereferenceable first.
     if (sym_ctx->IsMapped(handle->data))
       first_field = *reinterpret_cast<void**>(handle->data);
 

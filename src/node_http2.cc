@@ -3189,7 +3189,7 @@ void Initialize(Local<Object> target,
 
   Local<Object> constants = Object::New(isolate);
 
-  // This does alocate one more slot than needed but it's not used.
+  // This does allocate one more slot than needed but it's not used.
 #define V(name) FIXED_ONE_BYTE_STRING(isolate, #name),
   Local<Value> error_code_names[] = {
     HTTP2_ERROR_CODES(V)

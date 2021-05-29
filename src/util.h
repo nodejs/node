@@ -404,7 +404,7 @@ class MaybeStackBuffer {
     buf_[length] = T();
   }
 
-  // Make derefencing this object return nullptr.
+  // Make dereferencing this object return nullptr.
   // This method can be called multiple times throughout the lifetime of the
   // buffer, but once this has been called AllocateSufficientStorage() cannot
   // be used.
