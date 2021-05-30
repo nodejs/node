@@ -59,7 +59,7 @@ import xml.etree.ElementTree
 # if empty, use defaults
 _valid_extensions = set([])
 
-__VERSION__ = '1.5.4'
+__VERSION__ = '1.5.5'
 
 try:
   xrange          # Python 2
@@ -127,11 +127,11 @@ Syntax: cpplint.py [--verbose=#] [--output=emacs|eclipse|vs7|junit|sed|gsed]
       error messages whose category names pass the filters will be printed.
       (Category names are printed with the message and look like
       "[whitespace/indent]".)  Filters are evaluated left to right.
-      "-FOO" and "FOO" means "do not print categories that start with FOO".
+      "-FOO" means "do not print categories that start with FOO".
       "+FOO" means "do print categories that start with FOO".
 
       Examples: --filter=-whitespace,+whitespace/braces
-                --filter=whitespace,runtime/printf,+runtime/printf_format
+                --filter=-whitespace,-runtime/printf,+runtime/printf_format
                 --filter=-,+build/include_what_you_use
 
       To see a list of all the categories used in cpplint, pass no arg:
@@ -295,7 +295,6 @@ _ERROR_CATEGORIES = [
     'build/include',
     'build/include_subdir',
     'build/include_alpha',
-    'build/include_inline',
     'build/include_order',
     'build/include_what_you_use',
     'build/namespaces_headers',
@@ -311,13 +310,11 @@ _ERROR_CATEGORIES = [
     'readability/constructors',
     'readability/fn_size',
     'readability/inheritance',
-    'readability/pointer_notation',
     'readability/multiline_comment',
     'readability/multiline_string',
     'readability/namespace',
     'readability/nolint',
     'readability/nul',
-    'readability/null_usage',
     'readability/strings',
     'readability/todo',
     'readability/utf8',
@@ -337,7 +334,6 @@ _ERROR_CATEGORIES = [
     'runtime/string',
     'runtime/threadsafe_fn',
     'runtime/vlog',
-    'runtime/v8_persistent',
     'whitespace/blank_line',
     'whitespace/braces',
     'whitespace/comma',
@@ -846,14 +842,6 @@ _SED_FIXUPS = {
   'Missing space after ,': r's/,\([^ ]\)/, \1/g',
 }
 
-_NULL_TOKEN_PATTERN = re.compile(r'\bNULL\b')
-
-_V8_PERSISTENT_PATTERN = re.compile(r'\bv8::Persistent\b')
-
-_RIGHT_LEANING_POINTER_PATTERN = re.compile(r'[^=|(,\s><);&?:}]'
-                                            r'(?<!(sizeof|return))'
-                                            r'\s\*[a-zA-Z_][0-9a-zA-Z_]*')
-
 _regexp_compile_cache = {}
 
 # {str, set(int)}: a map from error categories to sets of linenumbers
@@ -1094,11 +1082,10 @@ class _IncludeState(object):
   # needs to move backwards, CheckNextIncludeOrder will raise an error.
   _INITIAL_SECTION = 0
   _MY_H_SECTION = 1
-  _OTHER_H_SECTION = 2
-  _OTHER_SYS_SECTION = 3
-  _C_SECTION = 4
-  _CPP_SECTION = 5
-
+  _C_SECTION = 2
+  _CPP_SECTION = 3
+  _OTHER_SYS_SECTION = 4
+  _OTHER_H_SECTION = 5
 
   _TYPE_NAMES = {
       _C_SYS_HEADER: 'C system header',
@@ -2350,7 +2337,8 @@ def GetHeaderGuardCPPVariable(filename):
 
     #   --root=.. , will prepend the outer directory to the header guard
     full_path = fileinfo.FullName()
-    root_abspath = os.path.abspath(_root)
+    # adapt slashes for windows
+    root_abspath = os.path.abspath(_root).replace('\\', '/')
 
     maybe_path = StripListPrefix(PathSplitToList(full_path),
                                  PathSplitToList(root_abspath))
@@ -2531,21 +2519,6 @@ def CheckForBadCharacters(filename, lines, error):
             'Line contains invalid UTF-8 (or Unicode replacement character).')
     if '\0' in line:
       error(filename, linenum, 'readability/nul', 5, 'Line contains NUL byte.')
-
-
-def CheckInlineHeader(filename, include_state, error):
-  """Logs an error if both a header and its inline variant are included."""
-
-  all_headers = dict(item for sublist in include_state.include_list
-                     for item in sublist)
-  bad_headers = set('%s.h' % name[:-6] for name in all_headers.keys()
-                    if name.endswith('-inl.h'))
-  bad_headers &= set(all_headers.keys())
-
-  for name in bad_headers:
-    err =  '%s includes both %s and %s-inl.h' % (filename, name, name)
-    linenum = all_headers[name]
-    error(filename, linenum, 'build/include_inline', 5, err)
 
 
 def CheckForNewlineAtEOF(filename, lines, error):
@@ -3499,7 +3472,7 @@ def CheckSpacingForFunctionCall(filename, clean_lines, linenum, error):
   # Note that we assume the contents of [] to be short enough that
   # they'll never need to wrap.
   if (  # Ignore control structures.
-      not Search(r'\b(if|for|while|switch|return|new|delete|catch|sizeof)\b',
+      not Search(r'\b(if|elif|for|while|switch|return|new|delete|catch|sizeof)\b',
                  fncall) and
       # Ignore pointers/references to functions.
       not Search(r' \([^)]+\)\([^)]*(\)|,$)', fncall) and
@@ -3571,7 +3544,7 @@ def CheckForFunctionLengths(filename, clean_lines, linenum,
   """Reports for long function bodies.
 
   For an overview why this is done, see:
-  https://google.github.io/styleguide/cppguide.html#Write_Short_Functions
+  https://google-styleguide.googlecode.com/svn/trunk/cppguide.xml#Write_Short_Functions
 
   Uses a simplistic algorithm assuming other style guidelines
   (especially spacing) are followed.
@@ -4798,71 +4771,6 @@ def CheckAltTokens(filename, clean_lines, linenum, error):
           'Use operator %s instead of %s' % (
               _ALT_TOKEN_REPLACEMENT[match.group(1)], match.group(1)))
 
-def CheckNullTokens(filename, clean_lines, linenum, error):
-  """Check NULL usage.
-
-  Args:
-    filename: The name of the current file.
-    clean_lines: A CleansedLines instance containing the file.
-    linenum: The number of the line to check.
-    error: The function to call with any errors found.
-  """
-  line = clean_lines.elided[linenum]
-
-  # Avoid preprocessor lines
-  if Match(r'^\s*#', line):
-    return
-
-  if line.find('/*') >= 0 or line.find('*/') >= 0:
-    return
-
-  for match in _NULL_TOKEN_PATTERN.finditer(line):
-    error(filename, linenum, 'readability/null_usage', 2,
-          'Use nullptr instead of NULL')
-
-def CheckV8PersistentTokens(filename, clean_lines, linenum, error):
-  """Check v8::Persistent usage.
-
-  Args:
-    filename: The name of the current file.
-    clean_lines: A CleansedLines instance containing the file.
-    linenum: The number of the line to check.
-    error: The function to call with any errors found.
-  """
-  line = clean_lines.elided[linenum]
-
-  # Avoid preprocessor lines
-  if Match(r'^\s*#', line):
-    return
-
-  if line.find('/*') >= 0 or line.find('*/') >= 0:
-    return
-
-  for match in _V8_PERSISTENT_PATTERN.finditer(line):
-    error(filename, linenum, 'runtime/v8_persistent', 2,
-          'Use v8::Global instead of v8::Persistent')
-
-def CheckLeftLeaningPointer(filename, clean_lines, linenum, error):
-  """Check for left-leaning pointer placement.
-
-  Args:
-    filename: The name of the current file.
-    clean_lines: A CleansedLines instance containing the file.
-    linenum: The number of the line to check.
-    error: The function to call with any errors found.
-  """
-  line = clean_lines.elided[linenum]
-
-  # Avoid preprocessor lines
-  if Match(r'^\s*#', line):
-    return
-
-  if '/*' in line or '*/' in line:
-    return
-
-  for match in _RIGHT_LEANING_POINTER_PATTERN.finditer(line):
-    error(filename, linenum, 'readability/pointer_notation', 2,
-          'Use left leaning pointer instead of right leaning')
 
 def GetLineWidth(line):
   """Determines the width of the line in column positions.
@@ -5017,9 +4925,6 @@ def CheckStyle(filename, clean_lines, linenum, file_extension, nesting_state,
   CheckSpacingForFunctionCall(filename, clean_lines, linenum, error)
   CheckCheck(filename, clean_lines, linenum, error)
   CheckAltTokens(filename, clean_lines, linenum, error)
-  CheckNullTokens(filename, clean_lines, linenum, error)
-  CheckV8PersistentTokens(filename, clean_lines, linenum, error)
-  CheckLeftLeaningPointer(filename, clean_lines, linenum, error)
   classinfo = nesting_state.InnermostClass()
   if classinfo:
     CheckSectionSpacing(filename, clean_lines, classinfo, linenum, error)
@@ -5205,10 +5110,11 @@ def CheckIncludeLine(filename, clean_lines, linenum, include_state, error):
       include_state.include_list[-1].append((include, linenum))
 
       # We want to ensure that headers appear in the right order:
-      # 1) for foo.cc, foo.h
-      # 2) other project headers
-      # 3) c system files
-      # 4) cpp system files
+      # 1) for foo.cc, foo.h  (preferred location)
+      # 2) c system files
+      # 3) cpp system files
+      # 4) for foo.cc, foo.h  (deprecated location)
+      # 5) other google headers
       #
       # We classify each include statement as one of those 5 types
       # using a number of techniques. The include_state object keeps
@@ -5471,7 +5377,7 @@ def CheckLanguage(filename, clean_lines, linenum, file_extension,
       and line[-1] != '\\'):
     error(filename, linenum, 'build/namespaces_headers', 4,
           'Do not use unnamed namespaces in header files.  See '
-          'https://google.github.io/styleguide/cppguide.html#Namespaces'
+          'https://google-styleguide.googlecode.com/svn/trunk/cppguide.xml#Namespaces'
           ' for more information.')
 
 
@@ -5846,7 +5752,7 @@ def CheckCasts(filename, clean_lines, linenum, error):
 
   if not expecting_function:
     CheckCStyleCast(filename, clean_lines, linenum, 'static_cast',
-                    r'\((int|float|double|bool|char|u?int(16|32|64))\)', error)
+                    r'\((int|float|double|bool|char|u?int(16|32|64)|size_t)\)', error)
 
   # This doesn't catch all cases. Consider (const char * const)"hello".
   #
@@ -6593,8 +6499,6 @@ def ProcessFileData(filename, file_extension, lines, error,
 
   CheckForNewlineAtEOF(filename, lines, error)
 
-  CheckInlineHeader(filename, include_state, error)
-
 def ProcessConfigOverrides(filename):
   """ Loads the configuration files and processes the config overrides.
 
@@ -6613,7 +6517,7 @@ def ProcessConfigOverrides(filename):
     if not base_name:
       break  # Reached the root directory.
 
-    cfg_file = os.path.join(abs_path, ".cpplint")
+    cfg_file = os.path.join(abs_path, "CPPLINT.cfg")
     abs_filename = abs_path
     if not os.path.isfile(cfg_file):
       continue
@@ -6783,10 +6687,10 @@ def PrintUsage(message):
   Args:
     message: The optional error message.
   """
-  sys.stderr.write(_USAGE  % (list(GetAllExtensions()),
-       ','.join(list(GetAllExtensions())),
-       GetHeaderExtensions(),
-       ','.join(GetHeaderExtensions())))
+  sys.stderr.write(_USAGE  % (sorted(list(GetAllExtensions())),
+       ','.join(sorted(list(GetAllExtensions()))),
+       sorted(GetHeaderExtensions()),
+       ','.join(sorted(GetHeaderExtensions()))))
 
   if message:
     sys.exit('\nFATAL ERROR: ' + message)
