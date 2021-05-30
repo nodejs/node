@@ -8,12 +8,12 @@ Usage of primordials should be preferred for any new code, but replacing current
 code with primordials should be
 [done with care](#primordials-with-known-performance-issues). It is highly
 recommended to ping the relevant team when reviewing a pull request that touches
-one of the subsystem they "own".
+one of the subsystems they "own".
 
 ## Accessing primordials
 
 The primordials are meant for internal use only, and are only accessible for
-internal core modules. User-code cannot use or rely on primordials. It is
+internal core modules. User code cannot use or rely on primordials. It is
 usually fine to rely on ECMAScript built-ins and assume that it will behave as
 specified.
 
@@ -87,7 +87,7 @@ console.log(JSON.stringify(array)); // [1,2,3,4,5]
 
 Safe classes are classes that provide the same API as their equivalent class,
 but whose implementation aims to avoid any reliance on user-mutable code.
-Safe classes should not be exposed to user-land, use unsafe equivalent when
+Safe classes should not be exposed to user-land; use unsafe equivalent when
 dealing with objects that are accessible from user-land.
 
 ### Variadic functions
@@ -146,7 +146,7 @@ This code is internally expanded into something that looks like:
 
 ```js
 {
-  // 1. Lookup @@iterator property on `array` (user-mutable if user provided).
+  // 1. Lookup @@iterator property on `array` (user-mutable if user-provided).
   // 2. Lookup @@iterator property on %Array.prototype% (user-mutable).
   // 3. Call that function.
   const iterator = array[Symbol.iterator]();
@@ -346,8 +346,9 @@ process.on('exit', () => console.log(finallyBlockExecuted)); // true
 
 ### (Async) Generator functions
 
-Generator and async generators returned by generator functions and async
-generator functions are relying on user-mutable, their use in core should be
+Generators and async generators returned by generator functions and async
+generator functions are relying on user-mutable functions; their use in core
+should be avoided.
 avoided.
 
 <details>
@@ -434,7 +435,7 @@ console.log(RegExpPrototypeSymbolReplace(/e/, 'ber', 'a')); // 'bar'
 
 #### Unsafe string iteration
 
-As with arrays, iterating over strings calls several user mutable methods. Avoid
+As with arrays, iterating over strings calls several user-mutable methods. Avoid
 iterating over strings when possible, or use `SafeStringIterator`.
 
 #### Unsafe `RegExp` methods
