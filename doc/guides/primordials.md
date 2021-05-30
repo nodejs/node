@@ -188,10 +188,10 @@ Array.prototype[Symbol.iterator] = () => ({
 let forOfLoopBlockExecuted = false;
 let forLoopBlockExecuted = false;
 const array = [1, 2, 3];
-for(const item of array) {
+for (const item of array) {
   forOfLoopBlockExecuted = true;
 }
-for(let i = 0; i < array.length; i++) {
+for (let i = 0; i < array.length; i++) {
   forLoopBlockExecuted = true;
 }
 console.log(forOfLoopBlockExecuted); // false
@@ -215,7 +215,7 @@ const [first, second] = array;
 This is roughly equivalent to:
 
 ```js
-// 1. Lookup @@iterator property on `array` (user-mutable if user provided).
+// 1. Lookup @@iterator property on `array` (user-mutable if user-provided).
 // 2. Lookup @@iterator property on %Array.prototype% (user-mutable).
 // 3. Call that function.
 const iterator = array[Symbol.iterator]();
@@ -251,7 +251,7 @@ best choice.
 <summary>Avoid spread operator on arrays</summary>
 
 ```js
-// 1. Lookup @@iterator property on `array` (user-mutable if user provided).
+// 1. Lookup @@iterator property on `array` (user-mutable if user-provided).
 // 2. Lookup @@iterator property on %Array.prototype% (user-mutable).
 // 3. Lookup `next` property on %ArrayIteratorPrototype% (user-mutable).
 const arrayCopy = [...array];
@@ -274,7 +274,7 @@ ReflectApply(func, null, array);
 ```js
 {
   // Unsafe code example:
-  // 1. Lookup @@iterator property on `array` (user-mutable if user provided).
+  // 1. Lookup @@iterator property on `array` (user-mutable if user-provided).
   // 2. Lookup @@iterator property on %Array.prototype% (user-mutable).
   // 3. Lookup `next` property on %ArrayIteratorPrototype% (user-mutable).
   const obj = ObjectFromEntries(array);
@@ -303,7 +303,7 @@ ReflectApply(func, null, array);
          <code>%Promise.race%</code> iterate over an array</summary>
 
 ```js
-// 1. Lookup @@iterator property on `array` (user-mutable if user provided).
+// 1. Lookup @@iterator property on `array` (user-mutable if user-provided).
 // 2. Lookup @@iterator property on %Array.prototype% (user-mutable).
 // 3. Lookup `next` property on %ArrayIteratorPrototype% (user-mutable).
 PromiseAll(array); // unsafe
@@ -441,9 +441,8 @@ process.on('exit', () => console.log(thenBlockExecuted)); // true
 ### (Async) Generator functions
 
 Generators and async generators returned by generator functions and async
-generator functions are relying on user-mutable functions; their use in core
+generator functions are relying on user-mutable methods; their use in core
 should be avoided.
-avoided.
 
 <details>
 
