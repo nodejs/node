@@ -698,7 +698,8 @@ struct napi_async_cleanup_hook_handle__ {
   }
 
   static void Hook(void* data, void (*done_cb)(void*), void* done_data) {
-    auto handle = static_cast<napi_async_cleanup_hook_handle__*>(data);
+    napi_async_cleanup_hook_handle__* handle =
+        static_cast<napi_async_cleanup_hook_handle__*>(data);
     handle->done_cb_ = done_cb;
     handle->done_data_ = done_data;
     handle->user_hook_(handle, handle->user_data_);
@@ -832,7 +833,7 @@ napi_status napi_async_init(napi_env env,
   v8::Local<v8::String> v8_resource_name;
   CHECK_TO_STRING(env, context, v8_resource_name, async_resource_name);
 
-  auto async_context =
+  v8impl::AsyncContext* async_context =
       new v8impl::AsyncContext(reinterpret_cast<node_napi_env>(env),
                                v8_resource,
                                v8_resource_name,
@@ -888,7 +889,7 @@ napi_status napi_make_callback(napi_env env,
         reinterpret_cast<v8::Local<v8::Value>*>(const_cast<napi_value*>(argv)),
         {0, 0});
   } else {
-    auto node_async_context =
+    v8impl::AsyncContext* node_async_context =
         reinterpret_cast<v8impl::AsyncContext*>(async_context);
     callback_result = node_async_context->MakeCallback(
         v8recv,
@@ -917,7 +918,7 @@ napi_status napi_create_buffer(napi_env env,
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, result);
 
-  auto maybe = node::Buffer::New(env->isolate, length);
+  v8::MaybeLocal<v8::Object> maybe = node::Buffer::New(env->isolate, length);
 
   CHECK_MAYBE_EMPTY(env, maybe, napi_generic_failure);
 
@@ -948,11 +949,12 @@ napi_status napi_create_external_buffer(napi_env env,
       env, finalize_cb, nullptr, finalize_hint,
       v8impl::Finalizer::kKeepEnvReference);
 
-  auto maybe = node::Buffer::New(isolate,
-                                static_cast<char*>(data),
-                                length,
-                                v8impl::BufferFinalizer::FinalizeBufferCallback,
-                                finalizer);
+  v8::MaybeLocal<v8::Object> maybe = node::Buffer::New(
+      isolate,
+      static_cast<char*>(data),
+      length,
+      v8impl::BufferFinalizer::FinalizeBufferCallback,
+      finalizer);
 
   CHECK_MAYBE_EMPTY(env, maybe, napi_generic_failure);
 
@@ -972,8 +974,9 @@ napi_status napi_create_buffer_copy(napi_env env,
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, result);
 
-  auto maybe = node::Buffer::Copy(env->isolate,
-    static_cast<const char*>(data), length);
+  v8::MaybeLocal<v8::Object> maybe = node::Buffer::Copy(
+      env->isolate,
+      static_cast<const char*>(data), length);
 
   CHECK_MAYBE_EMPTY(env, maybe, napi_generic_failure);
 
