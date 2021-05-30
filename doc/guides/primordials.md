@@ -418,7 +418,6 @@ PromisePrototypeThen(
   () => { thenBlockExecuted = true; }
 );
 process.on('exit', () => console.log(thenBlockExecuted)); // false
-
 ```
 
 ```js
