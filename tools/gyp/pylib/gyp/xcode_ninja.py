@@ -43,11 +43,11 @@ def _WriteWorkspace(main_gyp, sources_gyp, params):
     workspace_file = os.path.join(workspace_path, "contents.xcworkspacedata")
 
     try:
-        with open(workspace_file, "r") as input_file:
+        with open(workspace_file) as input_file:
             input_string = input_file.read()
             if input_string == output_string:
                 return
-    except IOError:
+    except OSError:
         # Ignore errors if the file doesn't exist.
         pass
 
@@ -214,7 +214,7 @@ def CreateWrapper(target_list, target_dicts, data, params):
         if IsValidTargetForWrapper(target_extras, executable_target_pattern, spec):
             # Add to new_target_list.
             target_name = spec.get("target_name")
-            new_target_name = "%s:%s#target" % (main_gyp, target_name)
+            new_target_name = f"{main_gyp}:{target_name}#target"
             new_target_list.append(new_target_name)
 
             # Add to new_target_dicts.
@@ -282,7 +282,7 @@ def CreateWrapper(target_list, target_dicts, data, params):
 
     # Put sources_to_index in it's own gyp.
     sources_gyp = os.path.join(os.path.dirname(main_gyp), sources_target_name + ".gyp")
-    fully_qualified_target_name = "%s:%s#target" % (sources_gyp, sources_target_name)
+    fully_qualified_target_name = f"{sources_gyp}:{sources_target_name}#target"
 
     # Add to new_target_list, new_target_dicts and new_data.
     new_target_list.append(fully_qualified_target_name)
