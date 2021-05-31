@@ -90,7 +90,12 @@ const diffDepTypesNmFixture = {
 }
 
 let result = ''
-const LS = require('../../lib/ls.js')
+const LS = t.mock('../../lib/ls.js', {
+  path: {
+    ...require('path'),
+    sep: '/',
+  },
+})
 const config = {
   all: true,
   color: false,

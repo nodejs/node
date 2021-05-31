@@ -93,6 +93,20 @@ t.test('ls in current package', (t) => {
   })
 })
 
+t.test('ls global', (t) => {
+  t.teardown(() => {
+    config.global = false
+  })
+  config.global = true
+  distTag.exec(['ls'], (err) => {
+    t.matchSnapshot(
+      err,
+      'should throw basic usage'
+    )
+    t.end()
+  })
+})
+
 t.test('no args in current package', (t) => {
   npm.prefix = t.testdir({
     'package.json': JSON.stringify({

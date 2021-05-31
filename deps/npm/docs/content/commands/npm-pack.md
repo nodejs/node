@@ -27,6 +27,15 @@ commands that modify your local installation, eg, `install`, `update`,
 Note: This is NOT honored by other network related commands, eg `dist-tags`,
 `owner`, etc.
 
+#### `json`
+
+* Default: false
+* Type: Boolean
+
+Whether or not to output JSON data, rather than the normal output.
+
+Not supported by all npm commands.
+
 #### `workspace`
 
 * Default:

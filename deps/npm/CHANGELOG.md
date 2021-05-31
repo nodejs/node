@@ -1,3 +1,90 @@
+## v7.15.1 (2021-05-31)
+
+### BUG FIXES
+
+* [`598a17a26`](https://github.com/npm/cli/commit/598a17a2671c9e3bc204dddd6488169c9a72c6a1)
+  [#3329](https://github.com/npm/cli/issues/3329)
+  fix(libnpmexec): don't detach output from npm
+  ([@wraithgar](https://github.com/wraithgar))
+
+### DEPENDENCIES
+
+* [`c4fc03e9e`](https://github.com/npm/cli/commit/c4fc03e9eb3a6386e8feacb67c19f0a1578dfe38)
+  `@npmcli/arborist@2.6.1`
+    * fixes reifying deps with mismatching version ranges between
+      actual and virtual trees
+* [`9159fa62a`](https://github.com/npm/cli/commit/9159fa62a10dee09daef178fc7be161a02824004)
+  `libnpmexec@1.2.0`
+
+## v7.15.0 (2021-05-27)
+
+### FEATURES
+
+* [`399ff8cbc`](https://github.com/npm/cli/commit/399ff8cbccd5198f637518ccafa86c43bab47a4a)
+  [#3312](https://github.com/npm/cli/issues/3312)
+  feat(link): add workspace support
+  ([@isaacs](https://github.com/isaacs))
+
+### BUG FIXES
+
+* [`46a9bcbcb`](https://github.com/npm/cli/commit/46a9bcbcb0bb2435dca6f45a61b8631f580c7f06)
+  [#3282](https://github.com/npm/cli/issues/3282)
+  fix(docs): proper postinstall script file name
+  ([@KevinFCormier](https://github.com/KevinFCormier))
+* [`83590d40f`](https://github.com/npm/cli/commit/83590d40f94347f21714dbd158b9ddcad9c82de9)
+  [#3272](https://github.com/npm/cli/issues/3272)
+  fix(ls): show relative paths from root
+  ([@isaacs](https://github.com/isaacs))
+* [`a574b518a`](https://github.com/npm/cli/commit/a574b518ae5b8f0664ed388cf1be6288d8c2e68d)
+  [#3304](https://github.com/npm/cli/issues/3304)
+  fix(completion): restore IFS even if `npm completion` returns error
+  ([@NariyasuHeseri](https://github.com/NariyasuHeseri))
+* [`554e8a5cd`](https://github.com/npm/cli/commit/554e8a5cd7034052a59a9ada31e4b8f73712211a)
+  [#3311](https://github.com/npm/cli/issues/3311)
+  set audit exit code properly
+  ([@isaacs](https://github.com/isaacs))
+* [`4a4fbe33c`](https://github.com/npm/cli/commit/4a4fbe33c51413adcd558b4af6f1e204b1b87e41)
+  [#3268](https://github.com/npm/cli/issues/3268)
+  [#3285](https://github.com/npm/cli/issues/3285)
+  fix(publish): skip private workspaces
+  ([@ruyadorno](https://github.com/ruyadorno))
+
+### DOCUMENTATION
+
+* [`3c53d631f`](https://github.com/npm/cli/commit/3c53d631f557cf2484e2f6a6172c44e36aea4817)
+  [#3307](https://github.com/npm/cli/issues/3307)
+  fix(docs): typo in package-lock.json docs
+  ([@rethab](https://github.com/rethab))
+* [`96367f93f`](https://github.com/npm/cli/commit/96367f93f46c24494d084c8b8d34e4de9cd375da)
+  rebuild npm-pack doc
+  ([@isaacs](https://github.com/isaacs))
+* [`64b13dd10`](https://github.com/npm/cli/commit/64b13dd1082b6ca7eac4e8e329bfdd8cd8daf157)
+  [#3313](https://github.com/npm/cli/issues/3313)
+  Drop stale Python 3<->node-gyp remark
+  ([@spencerwilson](https://github.com/spencerwilson))
+
+### DEPENDENCIES
+
+* [`7b56bfdf3`](https://github.com/npm/cli/commit/7b56bfdf3f2ac67a926fc7893b883a16b46eb3fd)
+  `cacache@15.2.0`:
+  * feat: allow fully deleting indices
+  * feat: add a validateEntry option to compact
+  * chore: lint
+  * chore: use standard npm style release scripts
+* [`dbbc151a3`](https://github.com/npm/cli/commit/dbbc151a3bcf89e2627dc267063edd185ead1cb8)
+  `npm-audit-report@2.1.5`:
+  * fix(exit-code): account for null auditLevel default (#46)
+* [`5b2604507`](https://github.com/npm/cli/commit/5b26045076477d3d350f539e60adf48a80376fda)
+  chore(package-lock): update devDependencies
+  ([@Gar](https://github.com/Gar))
+
+### AUTOMATION
+
+* [`3d5df0082`](https://github.com/npm/cli/commit/3d5df0082ae904dacdea8644286e8362d4a2ed50)
+  [#3294](https://github.com/npm/cli/issues/3294)
+  chore(ci): move node release PR workflow to cli repo
+  ([@gimli01](https://github.com/gimli01))
+
 ## v7.14.0 (2021-05-20)
 
 ### FEATURES

@@ -8,7 +8,7 @@ const npmlog = require('npmlog')
 const pacote = require('pacote')
 const pickManifest = require('npm-pick-manifest')
 
-const readLocalPkg = require('./utils/read-local-package.js')
+const readPackageName = require('./utils/read-package-name.js')
 const BaseCommand = require('./base-command.js')
 
 class Diff extends BaseCommand {
@@ -97,7 +97,7 @@ class Diff extends BaseCommand {
     let noPackageJson
     let pkgName
     try {
-      pkgName = await readLocalPkg(this.npm)
+      pkgName = await readPackageName(this.npm.prefix)
     } catch (e) {
       npmlog.verbose('diff', 'could not read project dir package.json')
       noPackageJson = true
@@ -120,7 +120,7 @@ class Diff extends BaseCommand {
     let noPackageJson
     let pkgName
     try {
-      pkgName = await readLocalPkg(this.npm)
+      pkgName = await readPackageName(this.npm.prefix)
     } catch (e) {
       npmlog.verbose('diff', 'could not read project dir package.json')
       noPackageJson = true
@@ -238,7 +238,7 @@ class Diff extends BaseCommand {
     if (semverA && semverB) {
       let pkgName
       try {
-        pkgName = await readLocalPkg(this.npm)
+        pkgName = await readPackageName(this.npm.prefix)
       } catch (e) {
         npmlog.verbose('diff', 'could not read project dir package.json')
       }

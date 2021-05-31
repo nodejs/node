@@ -1,16 +1,18 @@
 const t = require('tap')
+const mockNpm = require('../fixtures/mock-npm.js')
 
 let result = ''
-let readLocalPkgResponse = null
+let readPackageNamePrefix = null
+let readPackageNameResponse = null
 
 const noop = () => null
 
-const npm = {
-  flatOptions: {},
+const npm = mockNpm({
   output: (msg) => {
     result = result ? `${result}\n${msg}` : msg
   },
-}
+})
+
 const npmFetch = { json: noop }
 const npmlog = { error: noop, info: noop, verbose: noop }
 const pacote = { packument: noop }
@@ -20,7 +22,10 @@ const mocks = {
   'npm-registry-fetch': npmFetch,
   pacote,
   '../../lib/utils/otplease.js': async (opts, fn) => fn({ otp: '123456', opts }),
-  '../../lib/utils/read-local-package.js': async () => readLocalPkgResponse,
+  '../../lib/utils/read-package-name.js': async (prefix) => {
+    readPackageNamePrefix = prefix
+    return readPackageNameResponse
+  },
   '../../lib/utils/usage.js': () => 'usage instructions',
 }
 
@@ -47,11 +52,11 @@ t.test('owner no args', t => {
 })
 
 t.test('owner ls no args', t => {
-  t.plan(4)
+  t.plan(5)
 
   result = ''
 
-  readLocalPkgResponse = '@npmcli/map-workspaces'
+  readPackageNameResponse = '@npmcli/map-workspaces'
   pacote.packument = async (spec, opts) => {
     t.equal(spec.name, '@npmcli/map-workspaces', 'should use expect pkg name')
     t.match(
@@ -65,14 +70,29 @@ t.test('owner ls no args', t => {
     return { maintainers: npmcliMaintainers }
   }
   t.teardown(() => {
+    npm.prefix = null
     result = ''
     pacote.packument = noop
-    readLocalPkgResponse = null
+    readPackageNameResponse = null
   })
+  npm.prefix = 'test-npm-prefix'
 
   owner.exec(['ls'], err => {
     t.error(err, 'npm owner ls no args')
     t.matchSnapshot(result, 'should output owners of cwd package')
+    t.equal(readPackageNamePrefix, 'test-npm-prefix', 'read-package-name gets npm.prefix')
+  })
+})
+
+t.test('owner ls global', t => {
+  t.teardown(() => {
+    npm.config.set('global', false)
+  })
+  npm.config.set('global', true)
+
+  owner.exec(['ls'], err => {
+    t.match(err, /usage instructions/, 'should throw usage instructions if no cwd package available')
+    t.end()
   })
 })
 
@@ -93,7 +113,7 @@ t.test('owner ls fails to retrieve packument', t => {
   t.plan(4)
 
   result = ''
-  readLocalPkgResponse = '@npmcli/map-workspaces'
+  readPackageNameResponse = '@npmcli/map-workspaces'
   pacote.packument = () => {
     throw new Error('ERR')
   }
@@ -233,7 +253,7 @@ t.test('owner add <user> <pkg>', t => {
 
 t.test('owner add <user> cwd package', t => {
   result = ''
-  readLocalPkgResponse = '@npmcli/map-workspaces'
+  readPackageNameResponse = '@npmcli/map-workspaces'
   npmFetch.json = async (uri, opts) => {
     // retrieve user info from couchdb request
     if (uri === '/-/user/org.couchdb.user:foo') {
@@ -253,7 +273,7 @@ t.test('owner add <user> cwd package', t => {
   })
   t.teardown(() => {
     result = ''
-    readLocalPkgResponse = null
+    readPackageNameResponse = null
     npmFetch.json = noop
     pacote.packument = noop
   })
@@ -308,7 +328,7 @@ t.test('owner add <user> <pkg> already an owner', t => {
 
 t.test('owner add <user> <pkg> fails to retrieve user', t => {
   result = ''
-  readLocalPkgResponse =
+  readPackageNameResponse =
   npmFetch.json = async (uri, opts) => {
     // retrieve borked user info from couchdb request
     if (uri === '/-/user/org.couchdb.user:foo')
@@ -324,7 +344,7 @@ t.test('owner add <user> <pkg> fails to retrieve user', t => {
   })
   t.teardown(() => {
     result = ''
-    readLocalPkgResponse = null
+    readPackageNameResponse = null
     npmFetch.json = noop
     pacote.packument = noop
   })
@@ -465,6 +485,18 @@ t.test('owner add no user', t => {
   })
 })
 
+t.test('owner add no pkg global', t => {
+  t.teardown(() => {
+    npm.config.set('global', false)
+  })
+  npm.config.set('global', true)
+
+  owner.exec(['add', 'gar'], err => {
+    t.match(err, /usage instructions/, 'should throw usage instructions if user provided')
+    t.end()
+  })
+})
+
 t.test('owner add <user> no cwd package', t => {
   result = ''
   t.teardown(() => {
@@ -581,7 +613,7 @@ t.test('owner rm <user> <pkg> not a current owner', t => {
 
 t.test('owner rm <user> cwd package', t => {
   result = ''
-  readLocalPkgResponse = '@npmcli/map-workspaces'
+  readPackageNameResponse = '@npmcli/map-workspaces'
   npmFetch.json = async (uri, opts) => {
     // retrieve user info from couchdb request
     if (uri === '/-/user/org.couchdb.user:ruyadorno') {
@@ -601,7 +633,7 @@ t.test('owner rm <user> cwd package', t => {
   })
   t.teardown(() => {
     result = ''
-    readLocalPkgResponse = null
+    readPackageNameResponse = null
     npmFetch.json = noop
     pacote.packument = noop
   })
@@ -615,7 +647,7 @@ t.test('owner rm <user> cwd package', t => {
 
 t.test('owner rm <user> only user', t => {
   result = ''
-  readLocalPkgResponse = 'ipt'
+  readPackageNameResponse = 'ipt'
   npmFetch.json = async (uri, opts) => {
     // retrieve user info from couchdb request
     if (uri === '/-/user/org.couchdb.user:ruyadorno') {
@@ -636,7 +668,7 @@ t.test('owner rm <user> only user', t => {
   })
   t.teardown(() => {
     result = ''
-    readLocalPkgResponse = null
+    readPackageNameResponse = null
     npmFetch.json = noop
     pacote.packument = noop
   })
@@ -660,6 +692,18 @@ t.test('owner rm no user', t => {
 
   owner.exec(['rm'], err => {
     t.match(err, /usage instructions/, 'should throw usage instructions if no user provided to rm')
+    t.end()
+  })
+})
+
+t.test('owner rm no pkg global', t => {
+  t.teardown(() => {
+    npm.config.set('global', false)
+  })
+  npm.config.set('global', true)
+
+  owner.exec(['rm', 'gar'], err => {
+    t.match(err, /usage instructions/, 'should throw usage instructions if user provided')
     t.end()
   })
 })
@@ -693,15 +737,15 @@ t.test('completion', async t => {
   // npm owner rm completion is async
   t.test('completion npm owner rm', async t => {
     t.plan(2)
-    readLocalPkgResponse = '@npmcli/map-workspaces'
+    readPackageNameResponse = '@npmcli/map-workspaces'
     pacote.packument = async spec => {
-      t.equal(spec.name, readLocalPkgResponse, 'should use package spec')
+      t.equal(spec.name, readPackageNameResponse, 'should use package spec')
       return {
         maintainers: npmcliMaintainers,
       }
     }
     t.teardown(() => {
-      readLocalPkgResponse = null
+      readPackageNameResponse = null
       pacote.packument = noop
     })
 
@@ -718,17 +762,27 @@ t.test('completion', async t => {
     t.end()
   })
 
+  t.test('completion npm owner rm global', async t => {
+    t.teardown(() => {
+      npm.config.set('global', false)
+    })
+    npm.config.set('global', true)
+    const res = await owner.completion({ conf: { argv: { remain: ['npm', 'owner', 'rm'] } } })
+    t.strictSame(res, [], 'should have no owners to autocomplete if global')
+    t.end()
+  })
+
   t.test('completion npm owner rm no owners found', async t => {
     t.plan(2)
-    readLocalPkgResponse = '@npmcli/map-workspaces'
+    readPackageNameResponse = '@npmcli/map-workspaces'
     pacote.packument = async spec => {
-      t.equal(spec.name, readLocalPkgResponse, 'should use package spec')
+      t.equal(spec.name, readPackageNameResponse, 'should use package spec')
       return {
         maintainers: [],
       }
     }
     t.teardown(() => {
-      readLocalPkgResponse = null
+      readPackageNameResponse = null
       pacote.packument = noop
     })
 

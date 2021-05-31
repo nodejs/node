@@ -15,8 +15,10 @@ module.exports = Object.assign((data, options = {}) => {
     color = true,
     unicode = true,
     indent = 2,
-    auditLevel = 'low'
   } = options
+
+  // CLI defaults this to `null` so the defaulting method above doesn't work
+  const auditLevel = options.auditLevel || 'low'
 
   if (!data)
     throw Object.assign(

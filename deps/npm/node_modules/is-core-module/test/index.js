@@ -2,8 +2,11 @@
 
 var test = require('tape');
 var keys = require('object-keys');
+var semver = require('semver');
 var isCore = require('../');
 var data = require('../core.json');
+
+var supportsNodePrefix = semver.satisfies(process.versions.node, '>= 16');
 
 test('core modules', function (t) {
 	t.test('isCore()', function (st) {
@@ -48,6 +51,17 @@ test('core modules', function (t) {
 					function () { require(mod); }, // eslint-disable-line no-loop-func
 					'requiring ' + mod + ' does not throw'
 				);
+				if (supportsNodePrefix) {
+					st.doesNotThrow(
+						function () { require('node:' + mod); }, // eslint-disable-line no-loop-func
+						'requiring node:' + mod + ' does not throw'
+					);
+				} else {
+					st['throws'](
+						function () { require('node:' + mod); }, // eslint-disable-line no-loop-func
+						'requiring node:' + mod + ' throws'
+					);
+				}
 			}
 		}
 		st.end();
@@ -73,6 +87,17 @@ test('core modules', function (t) {
 						function () { require(mod); }, // eslint-disable-line no-loop-func
 						'requiring ' + mod + ' does not throw'
 					);
+					if (supportsNodePrefix) {
+						st.doesNotThrow(
+							function () { require('node:' + mod); }, // eslint-disable-line no-loop-func
+							'requiring node:' + mod + ' does not throw'
+						);
+					} else {
+						st['throws'](
+							function () { require('node:' + mod); }, // eslint-disable-line no-loop-func
+							'requiring node:' + mod + ' throws'
+						);
+					}
 				}
 			}
 		}

@@ -7,6 +7,7 @@ const runScript = require('@npmcli/run-script')
 const pacote = require('pacote')
 const npa = require('npm-package-arg')
 const npmFetch = require('npm-registry-fetch')
+const chalk = require('chalk')
 
 const otplease = require('./utils/otplease.js')
 const { getContents, logTar } = require('./utils/tar.js')
@@ -154,10 +155,29 @@ class Publish extends BaseCommand {
     const results = {}
     const json = this.npm.config.get('json')
     const silent = log.level === 'silent'
+    const noop = a => a
+    const color = this.npm.color ? chalk : { green: noop, bold: noop }
     const workspaces =
       await getWorkspaces(filters, { path: this.npm.localPrefix })
+
     for (const [name, workspace] of workspaces.entries()) {
-      const pkgContents = await this.publish([workspace])
+      let pkgContents
+      try {
+        pkgContents = await this.publish([workspace])
+      } catch (err) {
+        if (err.code === 'EPRIVATE') {
+          log.warn(
+            'publish',
+            `Skipping workspace ${
+              color.green(name)
+            }, marked as ${
+              color.bold('private')
+            }`
+          )
+          continue
+        }
+        throw err
+      }
       // This needs to be in-line w/ the rest of the output that non-JSON
       // publish generates
       if (!silent && !json)

@@ -36,8 +36,8 @@ various purposes:
 Both of these files have the same format, and perform similar functions in
 the root of a project.
 
-The difference is that `package-lock.json` is that it cannot be published,
-and it will be ignored if found in any place other than the root project.
+The difference is that `package-lock.json` cannot be published, and it will
+be ignored if found in any place other than the root project.
 
 In contrast, [npm-shrinkwrap.json](/configuring-npm/npm-shrinkwrap-json) allows
 publication, and defines the dependency tree from the point encountered.

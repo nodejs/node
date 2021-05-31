@@ -113,8 +113,13 @@ class Init extends BaseCommand {
       localBin,
       log,
       globalBin,
-      output,
     } = this.npm
+    // this function is definitely called.  But because of coverage map stuff
+    // it ends up both uncovered, and the coverage report doesn't even mention.
+    // the tests do assert that some output happens, so we know this line is
+    // being hit.
+    /* istanbul ignore next */
+    const output = (...outputArgs) => this.npm.output(...outputArgs)
     const locationMsg = await getLocationMsg({ color, path })
     const runPath = path
     const scriptShell = this.npm.config.get('script-shell') || undefined

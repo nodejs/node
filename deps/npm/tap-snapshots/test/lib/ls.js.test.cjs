@@ -70,7 +70,7 @@ test-npm-ls@1.0.0 {CWD}/tap-testdir-ls-ls---dev
 
 exports[`test/lib/ls.js TAP ls --link > should output tree containing linked deps 1`] = `
 test-npm-ls@1.0.0 {CWD}/tap-testdir-ls-ls---link
-\`-- linked-dep@1.0.0 -> {CWD}/tap-testdir-ls-ls---link/linked-dep
+\`-- linked-dep@1.0.0 -> ./linked-dep
 
 `
 
@@ -480,24 +480,24 @@ exports[`test/lib/ls.js TAP ls json read problems > should print empty result 1`
 
 exports[`test/lib/ls.js TAP ls loading a tree containing workspaces > should filter by parent folder workspace config 1`] = `
 workspaces-tree@1.0.0 {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspaces
-+-- e@1.0.0 -> {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspaces/group/e
-\`-- f@1.0.0 -> {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspaces/group/f
++-- e@1.0.0 -> ./group/e
+\`-- f@1.0.0 -> ./group/f
 
 `
 
 exports[`test/lib/ls.js TAP ls loading a tree containing workspaces > should filter single workspace 1`] = `
 workspaces-tree@1.0.0 {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspaces
-+-- a@1.0.0 -> {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspaces/a
-| \`-- d@1.0.0 deduped -> {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspaces/d
-\`-- d@1.0.0 -> {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspaces/d
++-- a@1.0.0 -> ./a
+| \`-- d@1.0.0 deduped -> ./d
+\`-- d@1.0.0 -> ./d
 
 `
 
 exports[`test/lib/ls.js TAP ls loading a tree containing workspaces > should filter using workspace config 1`] = `
 workspaces-tree@1.0.0 {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspaces
-\`-- a@1.0.0 -> {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspaces/a
+\`-- a@1.0.0 -> ./a
   +-- c@1.0.0
-  \`-- d@1.0.0 -> {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspaces/d
+  \`-- d@1.0.0 -> ./d
     \`-- foo@1.1.1
       \`-- bar@1.0.0
 
@@ -505,34 +505,34 @@ workspaces-tree@1.0.0 {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspac
 
 exports[`test/lib/ls.js TAP ls loading a tree containing workspaces > should list --all workspaces properly 1`] = `
 workspaces-tree@1.0.0 {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspaces
-+-- a@1.0.0 -> {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspaces/a
++-- a@1.0.0 -> ./a
 | +-- c@1.0.0
-| \`-- d@1.0.0 deduped -> {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspaces/d
-+-- b@1.0.0 -> {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspaces/b
-+-- d@1.0.0 -> {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspaces/d
+| \`-- d@1.0.0 deduped -> ./d
++-- b@1.0.0 -> ./b
++-- d@1.0.0 -> ./d
 | \`-- foo@1.1.1
 |   \`-- bar@1.0.0
-+-- e@1.0.0 -> {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspaces/group/e
-\`-- f@1.0.0 -> {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspaces/group/f
++-- e@1.0.0 -> ./group/e
+\`-- f@1.0.0 -> ./group/f
 
 `
 
 exports[`test/lib/ls.js TAP ls loading a tree containing workspaces > should list workspaces properly with default configs 1`] = `
 [0mworkspaces-tree@1.0.0 {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspaces[0m
-[0m+-- [32ma@1.0.0[39m -> {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspaces/a[0m
+[0m+-- [32ma@1.0.0[39m -> ./a[0m
 [0m| +-- c@1.0.0[0m
-[0m| \`-- d@1.0.0 [90mdeduped[39m -> {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspaces/d[0m
-[0m+-- [32mb@1.0.0[39m -> {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspaces/b[0m
-[0m+-- [32md@1.0.0[39m -> {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspaces/d[0m
+[0m| \`-- d@1.0.0 [90mdeduped[39m -> ./d[0m
+[0m+-- [32mb@1.0.0[39m -> ./b[0m
+[0m+-- [32md@1.0.0[39m -> ./d[0m
 [0m| \`-- foo@1.1.1[0m
-[0m+-- [32me@1.0.0[39m -> {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspaces/group/e[0m
-[0m\`-- [32mf@1.0.0[39m -> {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspaces/group/f[0m
+[0m+-- [32me@1.0.0[39m -> ./group/e[0m
+[0m\`-- [32mf@1.0.0[39m -> ./group/f[0m
 [0m[0m
 `
 
 exports[`test/lib/ls.js TAP ls loading a tree containing workspaces > should print all tree and filter by dep within only the ws subtree 1`] = `
 workspaces-tree@1.0.0 {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspaces
-\`-- d@1.0.0 -> {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspaces/d
+\`-- d@1.0.0 -> ./d
   \`-- foo@1.1.1
     \`-- bar@1.0.0
 
@@ -567,8 +567,8 @@ test-npm-ls@1.0.0 {CWD}/tap-testdir-ls-ls-no-args
 exports[`test/lib/ls.js TAP ls print deduped symlinks > should output tree containing linked deps 1`] = `
 print-deduped-symlinks@1.0.0 {CWD}/tap-testdir-ls-ls-print-deduped-symlinks
 +-- a@1.0.0
-| \`-- b@1.0.0 deduped -> {CWD}/tap-testdir-ls-ls-print-deduped-symlinks/b
-\`-- b@1.0.0 -> {CWD}/tap-testdir-ls-ls-print-deduped-symlinks/b
+| \`-- b@1.0.0 deduped -> ./b
+\`-- b@1.0.0 -> ./b
 
 `
 
