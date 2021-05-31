@@ -781,7 +781,7 @@ class AsyncHooks : public MemoryRetainer {
 
   std::vector<v8::Global<v8::Context>> contexts_;
 
-  v8::Global<v8::Function> js_promise_hooks_[4];
+  std::array<v8::Global<v8::Function>, 4> js_promise_hooks_;
 };
 
 class ImmediateInfo : public MemoryRetainer {

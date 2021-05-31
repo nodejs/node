@@ -1164,10 +1164,7 @@ void AsyncHooks::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("async_ids_stack", async_ids_stack_);
   tracker->TrackField("fields", fields_);
   tracker->TrackField("async_id_fields", async_id_fields_);
-  tracker->TrackFieldWithSize(
-      "contexts", contexts_.size() * sizeof(v8::Global<Context>));
-  tracker->TrackFieldWithSize(
-      "js_promise_hooks", 4 * sizeof(v8::Global<Function>));
+  tracker->TrackField("js_promise_hooks", js_promise_hooks_);
 }
 
 void AsyncHooks::grow_async_ids_stack() {
