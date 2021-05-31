@@ -1,10 +1,9 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Copyright (c) 2012 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-from __future__ import print_function
 
 import copy
 import gyp.input
@@ -15,13 +14,6 @@ import shlex
 import sys
 import traceback
 from gyp.common import GypError
-
-try:
-    # Python 2
-    string_types = basestring
-except NameError:
-    # Python 3
-    string_types = str
 
 # Default debug modes for GYP
 debug = {}
@@ -193,7 +185,7 @@ def ShlexEnv(env_name):
 
 def FormatOpt(opt, value):
     if opt.startswith("--"):
-        return "%s=%s" % (opt, value)
+        return f"{opt}={value}"
     return opt + value
 
 
@@ -524,7 +516,7 @@ def gyp_main(args):
         for option, value in sorted(options.__dict__.items()):
             if option[0] == "_":
                 continue
-            if isinstance(value, string_types):
+            if isinstance(value, str):
                 DebugOutput(DEBUG_GENERAL, "  %s: '%s'", option, value)
             else:
                 DebugOutput(DEBUG_GENERAL, "  %s: %s", option, value)

@@ -26,8 +26,6 @@ import gyp.msvs_emulation
 import shlex
 import xml.etree.cElementTree as ET
 
-PY3 = bytes != str
-
 generator_wants_static_library_dependencies_adjusted = False
 
 generator_default_variables = {}
@@ -105,9 +103,7 @@ def GetAllIncludeDirectories(
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
-        output = proc.communicate()[1]
-        if PY3:
-            output = output.decode("utf-8")
+        output = proc.communicate()[1].decode("utf-8")
         # Extract the list of include dirs from the output, which has this format:
         #   ...
         #   #include "..." search starts here:
@@ -245,9 +241,7 @@ def GetAllDefines(target_list, target_dicts, data, config_name, params, compiler
         cpp_proc = subprocess.Popen(
             args=command, cwd=".", stdin=subprocess.PIPE, stdout=subprocess.PIPE
         )
-        cpp_output = cpp_proc.communicate()[0]
-        if PY3:
-            cpp_output = cpp_output.decode("utf-8")
+        cpp_output = cpp_proc.communicate()[0].decode("utf-8")
         cpp_lines = cpp_output.split("\n")
         for cpp_line in cpp_lines:
             if not cpp_line.strip():
