@@ -75,11 +75,14 @@ function testCwd(options, expectPidType, expectCode = 0, expectData) {
     }, 'number', 0, tmpdir.path);
   }, /The URL must be of scheme file/);
 
-  assert.throws(() => {
-    testCwd({
-      cwd: new URL(`file://host${tmpdir.path}`),
-    }, 'number', 0, tmpdir.path);
-  }, /File URL host must be "localhost" or empty on linux/);
+  if (process.platform !== 'win32') {
+    assert.throws(() => {
+      testCwd({
+        cwd: new URL(`file://host${tmpdir.path}`),
+      }, 'number', 0, tmpdir.path);
+    }, new RegExp(
+        `File URL host must be "localhost" or empty on ${process.platform}`));
+  }
 }
 
 // Assume these exist, and 'pwd' gives us the right directory back
