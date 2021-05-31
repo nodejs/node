@@ -81,7 +81,7 @@ function testCwd(options, expectPidType, expectCode = 0, expectData) {
         cwd: new URL(`file://host${tmpdir.path}`),
       }, 'number', 0, tmpdir.path);
     }, new RegExp(
-        `File URL host must be "localhost" or empty on ${process.platform}`));
+      `File URL host must be "localhost" or empty on ${process.platform}`));
   }
 }
 
