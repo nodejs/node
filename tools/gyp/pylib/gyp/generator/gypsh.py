@@ -49,7 +49,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
     # Use a banner that looks like the stock Python one and like what
     # code.interact uses by default, but tack on something to indicate what
     # locals are available, and identify gypsh.
-    banner = "Python %s on %s\nlocals.keys() = %s\ngypsh" % (
+    banner = "Python {} on {}\nlocals.keys() = {}\ngypsh".format(
         sys.version,
         sys.platform,
         repr(sorted(locals.keys())),

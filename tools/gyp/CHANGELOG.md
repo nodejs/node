@@ -1,5 +1,48 @@
 # Changelog
 
+### [0.9.1](https://www.github.com/nodejs/gyp-next/compare/v0.9.0...v0.9.1) (2021-05-14)
+
+
+### Bug Fixes
+
+* py lint ([3b6a8ee](https://www.github.com/nodejs/gyp-next/commit/3b6a8ee7a66193a8a6867eba9e1d2b70bdf04402))
+
+## [0.9.0](https://www.github.com/nodejs/gyp-next/compare/v0.8.1...v0.9.0) (2021-05-13)
+
+
+### Features
+
+* use LDFLAGS_host for host toolset ([#98](https://www.github.com/nodejs/gyp-next/issues/98)) ([bea5c7b](https://www.github.com/nodejs/gyp-next/commit/bea5c7bd67d6ad32acbdce79767a5481c70675a2))
+
+
+### Bug Fixes
+
+* msvs.py: remove overindentation ([#102](https://www.github.com/nodejs/gyp-next/issues/102)) ([3f83e99](https://www.github.com/nodejs/gyp-next/commit/3f83e99056d004d9579ceb786e06b624ddc36529))
+* update gyp.el to change case to cl-case ([#93](https://www.github.com/nodejs/gyp-next/issues/93)) ([13d5b66](https://www.github.com/nodejs/gyp-next/commit/13d5b66aab35985af9c2fb1174fdc6e1c1407ecc))
+
+### [0.8.1](https://www.github.com/nodejs/gyp-next/compare/v0.8.0...v0.8.1) (2021-02-18)
+
+
+### Bug Fixes
+
+* update shebang lines from python to python3 ([#94](https://www.github.com/nodejs/gyp-next/issues/94)) ([a1b0d41](https://www.github.com/nodejs/gyp-next/commit/a1b0d4171a8049a4ab7a614202063dec332f2df4))
+
+## [0.8.0](https://www.github.com/nodejs/gyp-next/compare/v0.7.0...v0.8.0) (2021-01-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* remove support for Python 2
+
+### Bug Fixes
+
+* revert posix build job ([#86](https://www.github.com/nodejs/gyp-next/issues/86)) ([39dc34f](https://www.github.com/nodejs/gyp-next/commit/39dc34f0799c074624005fb9bbccf6e028607f9d))
+
+
+### gyp
+
+* Remove support for Python 2 ([#88](https://www.github.com/nodejs/gyp-next/issues/88)) ([22e4654](https://www.github.com/nodejs/gyp-next/commit/22e465426fd892403c95534229af819a99c3f8dc))
+
 ## [0.7.0](https://www.github.com/nodejs/gyp-next/compare/v0.6.2...v0.7.0) (2020-12-17)
 
 

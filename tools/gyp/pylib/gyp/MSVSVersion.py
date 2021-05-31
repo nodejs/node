@@ -11,14 +11,12 @@ import subprocess
 import sys
 import glob
 
-PY3 = bytes != str
-
 
 def JoinPath(*args):
     return os.path.normpath(os.path.join(*args))
 
 
-class VisualStudioVersion(object):
+class VisualStudioVersion:
     """Information regarding a version of Visual Studio."""
 
     def __init__(
@@ -176,9 +174,7 @@ def _RegistryQueryBase(sysdir, key, value):
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     # Obtain the stdout from reg.exe, reading to the end so p.returncode is valid
     # Note that the error text may be in [1] in some cases
-    text = p.communicate()[0]
-    if PY3:
-        text = text.decode("utf-8")
+    text = p.communicate()[0].decode("utf-8")
     # Check return code from reg.exe; officially 0==success and 1==error
     if p.returncode:
         return None
@@ -221,21 +217,15 @@ def _RegistryGetValueUsingWinReg(key, value):
     value: The particular registry value to read.
   Return:
     contents of the registry key's value, or None on failure.  Throws
-    ImportError if _winreg is unavailable.
+    ImportError if winreg is unavailable.
   """
-    try:
-        # Python 2
-        from _winreg import HKEY_LOCAL_MACHINE, OpenKey, QueryValueEx
-    except ImportError:
-        # Python 3
-        from winreg import HKEY_LOCAL_MACHINE, OpenKey, QueryValueEx
-
+    from winreg import HKEY_LOCAL_MACHINE, OpenKey, QueryValueEx
     try:
         root, subkey = key.split("\\", 1)
         assert root == "HKLM"  # Only need HKLM for now.
         with OpenKey(HKEY_LOCAL_MACHINE, subkey) as hkey:
             return QueryValueEx(hkey, value)[0]
-    except WindowsError:
+    except OSError:
         return None
 
 
@@ -426,9 +416,7 @@ def _ConvertToCygpath(path):
     """Convert to cygwin path if we are using cygwin."""
     if sys.platform == "cygwin":
         p = subprocess.Popen(["cygpath", path], stdout=subprocess.PIPE)
-        path = p.communicate()[0].strip()
-        if PY3:
-            path = path.decode("utf-8")
+        path = p.communicate()[0].decode("utf-8").strip()
     return path
 
 
