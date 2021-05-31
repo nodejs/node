@@ -4,7 +4,7 @@ const mockNpm = require('../fixtures/mock-npm')
 
 const noop = () => null
 let libnpmdiff = noop
-let rlp = () => 'foo'
+let rpn = () => 'foo'
 
 const config = {
   global: false,
@@ -33,7 +33,7 @@ const mocks = {
   npmlog: { info: noop, verbose: noop },
   libnpmdiff: (...args) => libnpmdiff(...args),
   'npm-registry-fetch': async () => ({}),
-  '../../lib/utils/read-local-package.js': async () => rlp(),
+  '../../lib/utils/read-package-name.js': async (prefix) => rpn(prefix),
   '../../lib/utils/usage.js': () => 'usage instructions',
 }
 
@@ -52,7 +52,7 @@ t.afterEach(() => {
   npm.globalDir = __dirname
   npm.prefix = '..'
   libnpmdiff = noop
-  rlp = () => 'foo'
+  rpn = () => 'foo'
 })
 
 const Diff = t.mock('../../lib/diff.js', mocks)
@@ -77,7 +77,7 @@ t.test('no args', t => {
   })
 
   t.test('no args, missing package.json name in cwd', t => {
-    rlp = () => undefined
+    rpn = () => undefined
 
     diff.exec([], err => {
       t.match(
@@ -90,7 +90,7 @@ t.test('no args', t => {
   })
 
   t.test('no args, missing package.json in cwd', t => {
-    rlp = () => {
+    rpn = () => {
       throw new Error('ERR')
     }
 
@@ -109,14 +109,17 @@ t.test('no args', t => {
 
 t.test('single arg', t => {
   t.test('spec using cwd package name', t => {
-    t.plan(3)
+    t.plan(4)
 
+    rpn = (prefix) => {
+      t.equal(prefix, path, 'read-package-name gets proper prefix')
+      return 'foo'
+    }
     const path = t.testdir({})
     libnpmdiff = async ([a, b], opts) => {
       t.equal(a, 'foo@1.0.0', 'should forward single spec')
       t.equal(b, `file:${path}`, 'should compare to cwd')
       t.match(opts, npm.flatOptions, 'should forward flat options')
-      t.end()
     }
 
     config.diff = ['foo@1.0.0']
@@ -124,12 +127,13 @@ t.test('single arg', t => {
     diff.exec([], err => {
       if (err)
         throw err
+      t.end()
     })
   })
 
   t.test('unknown spec, no package.json', t => {
     const path = t.testdir({})
-    rlp = () => {
+    rpn = () => {
       throw new Error('ERR')
     }
 
@@ -182,7 +186,7 @@ t.test('single arg', t => {
   })
 
   t.test('version, no package.json', t => {
-    rlp = () => {
+    rpn = () => {
       throw new Error('ERR')
     }
 
@@ -273,7 +277,7 @@ t.test('single arg', t => {
 
   t.test('unknown package name, no package.json', t => {
     const path = t.testdir({})
-    rlp = () => {
+    rpn = () => {
       throw new Error('ERR')
     }
 
@@ -465,7 +469,7 @@ t.test('single arg', t => {
 
     const Diff = t.mock('../../lib/diff.js', {
       ...mocks,
-      '../../lib/utils/read-local-package.js': async () => 'my-project',
+      '../../lib/utils/read-package-name.js': async () => 'my-project',
       pacote: {
         packument: (spec) => {
           t.equal(spec.name, 'lorem', 'should have expected spec name')
@@ -502,7 +506,7 @@ t.test('single arg', t => {
 
     const Diff = t.mock('../../lib/diff.js', {
       ...mocks,
-      '../../lib/utils/read-local-package.js': async () => 'my-project',
+      '../../lib/utils/read-package-name.js': async () => 'my-project',
       '@npmcli/arborist': class {
         constructor () {
           throw new Error('ERR')
@@ -528,7 +532,7 @@ t.test('single arg', t => {
     t.plan(2)
 
     const path = t.testdir({})
-    rlp = async () => undefined
+    rpn = async () => undefined
     libnpmdiff = async ([a, b], opts) => {
       t.equal(a, 'bar@latest', 'should target latest tag of name')
       t.equal(b, `file:${path}`, 'should compare to cwd')
@@ -547,7 +551,7 @@ t.test('single arg', t => {
     t.plan(2)
 
     const path = t.testdir({})
-    rlp = async () => 'my-project'
+    rpn = async () => 'my-project'
     libnpmdiff = async ([a, b], opts) => {
       t.equal(a, 'my-project@latest', 'should target latest tag of name')
       t.equal(b, `file:${path}`, 'should compare to cwd')
@@ -565,7 +569,7 @@ t.test('single arg', t => {
     t.plan(2)
 
     const path = t.testdir({})
-    rlp = async () => 'my-project'
+    rpn = async () => 'my-project'
     libnpmdiff = async ([a, b], opts) => {
       t.equal(a, 'file:/path/to/other-dir', 'should target dir')
       t.equal(b, `file:${path}`, 'should compare to cwd')
@@ -580,7 +584,7 @@ t.test('single arg', t => {
   })
 
   t.test('unsupported spec type', t => {
-    rlp = async () => 'my-project'
+    rpn = async () => 'my-project'
 
     config.diff = ['git+https://github.com/user/foo']
 
@@ -634,7 +638,7 @@ t.test('first arg is a qualified spec', t => {
       }),
     })
 
-    rlp = async () => 'my-project'
+    rpn = async () => 'my-project'
     libnpmdiff = async ([a, b], opts) => {
       t.equal(a, 'bar@2.0.0', 'should set expected first spec')
       t.equal(b, `bar@file:${resolve(path, 'node_modules/bar')}`, 'should target local node_modules pkg')
@@ -703,7 +707,7 @@ t.test('first arg is a known dependency name', t => {
       }),
     })
 
-    rlp = async () => 'my-project'
+    rpn = async () => 'my-project'
     libnpmdiff = async ([a, b], opts) => {
       t.equal(a, `bar@file:${resolve(path, 'node_modules/bar')}`, 'should target local node_modules pkg')
       t.equal(b, 'bar@2.0.0', 'should set expected second spec')
@@ -743,7 +747,7 @@ t.test('first arg is a known dependency name', t => {
       }),
     })
 
-    rlp = async () => 'my-project'
+    rpn = async () => 'my-project'
     libnpmdiff = async ([a, b], opts) => {
       t.equal(a, `bar@file:${resolve(path, 'node_modules/bar')}`, 'should target local node_modules pkg')
       t.equal(b, `bar-fork@file:${resolve(path, 'node_modules/bar-fork')}`, 'should target fork local node_modules pkg')
@@ -777,7 +781,7 @@ t.test('first arg is a known dependency name', t => {
       }),
     })
 
-    rlp = async () => 'my-project'
+    rpn = async () => 'my-project'
     libnpmdiff = async ([a, b], opts) => {
       t.equal(a, `bar@file:${resolve(path, 'node_modules/bar')}`, 'should target local node_modules pkg')
       t.equal(b, 'bar@2.0.0', 'should use package name from first arg')
@@ -811,7 +815,7 @@ t.test('first arg is a known dependency name', t => {
       }),
     })
 
-    rlp = async () => 'my-project'
+    rpn = async () => 'my-project'
     libnpmdiff = async ([a, b], opts) => {
       t.equal(a, `bar@file:${resolve(path, 'node_modules/bar')}`, 'should target local node_modules pkg')
       t.equal(b, 'bar-fork@latest', 'should set expected second spec')
@@ -865,7 +869,7 @@ t.test('first arg is a valid semver range', t => {
       }),
     })
 
-    rlp = async () => 'my-project'
+    rpn = async () => 'my-project'
     libnpmdiff = async ([a, b], opts) => {
       t.equal(a, 'bar@1.0.0', 'should use name from second arg')
       t.equal(b, `bar@file:${resolve(path, 'node_modules/bar')}`, 'should set expected second spec from nm')
@@ -882,7 +886,7 @@ t.test('first arg is a valid semver range', t => {
   t.test('second arg is ALSO a semver version', t => {
     t.plan(2)
 
-    rlp = async () => 'my-project'
+    rpn = async () => 'my-project'
     libnpmdiff = async ([a, b], opts) => {
       t.equal(a, 'my-project@1.0.0', 'should use name from project dir')
       t.equal(b, 'my-project@2.0.0', 'should use name from project dir')
@@ -897,7 +901,7 @@ t.test('first arg is a valid semver range', t => {
 
   t.test('second arg is ALSO a semver version BUT cwd not a project dir', t => {
     const path = t.testdir({})
-    rlp = () => {
+    rpn = () => {
       throw new Error('ERR')
     }
 
@@ -916,7 +920,7 @@ t.test('first arg is a valid semver range', t => {
   t.test('second arg is an unknown dependency name', t => {
     t.plan(2)
 
-    rlp = async () => 'my-project'
+    rpn = async () => 'my-project'
     libnpmdiff = async ([a, b], opts) => {
       t.equal(a, 'bar@1.0.0', 'should use name from second arg')
       t.equal(b, 'bar@latest', 'should compare against latest tag')
@@ -940,7 +944,7 @@ t.test('first arg is a valid semver range', t => {
 
     const Diff = t.mock('../../lib/diff.js', {
       ...mocks,
-      '../../lib/utils/read-local-package.js': async () => 'my-project',
+      '../../lib/utils/read-package-name.js': async () => 'my-project',
       '@npmcli/arborist': class {
         constructor () {
           throw new Error('ERR')
@@ -1003,7 +1007,7 @@ t.test('first arg is an unknown dependency name', t => {
       }),
     })
 
-    rlp = async () => 'my-project'
+    rpn = async () => 'my-project'
     libnpmdiff = async ([a, b], opts) => {
       t.equal(a, 'bar-fork@latest', 'should use latest tag')
       t.equal(b, `bar@file:${resolve(path, 'node_modules/bar')}`, 'should target local node_modules pkg')
@@ -1051,7 +1055,7 @@ t.test('first arg is an unknown dependency name', t => {
     t.plan(2)
 
     const path = t.testdir({})
-    rlp = () => {
+    rpn = () => {
       throw new Error('ERR')
     }
     libnpmdiff = async ([a, b], opts) => {
@@ -1117,7 +1121,7 @@ t.test('various options', t => {
     t.plan(3)
 
     const path = t.testdir({})
-    rlp = async () => 'my-project'
+    rpn = async () => 'my-project'
     libnpmdiff = async ([a, b], opts) => {
       t.equal(a, 'my-project@latest', 'should have default spec')
       t.equal(b, `file:${path}`, 'should compare to cwd')

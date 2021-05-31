@@ -178,8 +178,8 @@ files, and allowing for significant performance improvements.</p>
 <h3 id="package-lockjson-vs-npm-shrinkwrapjson"><code>package-lock.json</code> vs <code>npm-shrinkwrap.json</code></h3>
 <p>Both of these files have the same format, and perform similar functions in
 the root of a project.</p>
-<p>The difference is that <code>package-lock.json</code> is that it cannot be published,
-and it will be ignored if found in any place other than the root project.</p>
+<p>The difference is that <code>package-lock.json</code> cannot be published, and it will
+be ignored if found in any place other than the root project.</p>
 <p>In contrast, <a href="../configuring-npm/npm-shrinkwrap-json.html">npm-shrinkwrap.json</a> allows
 publication, and defines the dependency tree from the point encountered.
 This is not recommended unless deploying a CLI tool or otherwise using the

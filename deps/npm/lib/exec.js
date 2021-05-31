@@ -76,8 +76,8 @@ class Exec extends BaseCommand {
       localBin,
       log,
       globalBin,
-      output,
     } = this.npm
+    const output = (...outputArgs) => this.npm.output(...outputArgs)
     const scriptShell = this.npm.config.get('script-shell') || undefined
     const packages = this.npm.config.get('package')
     const yes = this.npm.config.get('yes')
