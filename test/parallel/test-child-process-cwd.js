@@ -73,13 +73,13 @@ function testCwd(options, expectPidType, expectCode = 0, expectData) {
     testCwd({
       cwd: new URL(`http://${tmpdir.path}`),
     }, 'number', 0, tmpdir.path);
-  }, /The property 'options\.cwd' contains invalid protocol or host/);
+  }, /The URL must be of scheme file/);
 
   assert.throws(() => {
     testCwd({
       cwd: new URL(`file://host${tmpdir.path}`),
     }, 'number', 0, tmpdir.path);
-  }, /The property 'options\.cwd' contains invalid protocol or host/);
+  }, /File URL host must be "localhost" or empty on linux/);
 }
 
 // Assume these exist, and 'pwd' gives us the right directory back
