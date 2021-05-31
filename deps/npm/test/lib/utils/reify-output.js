@@ -187,31 +187,154 @@ t.test('print appropriate message for many packages', (t) => {
   })
 })
 
-t.test('no output when silent', t => {
-  npm.output = out => {
-    t.fail('should not get output when silent', { actual: out })
+t.test('showing and not showing audit report', async t => {
+  const auditReport = {
+    toJSON: () => auditReport,
+    auditReportVersion: 2,
+    vulnerabilities: {
+      minimist: {
+        name: 'minimist',
+        severity: 'low',
+        via: [
+          {
+            id: 1179,
+            url: 'https://npmjs.com/advisories/1179',
+            title: 'Prototype Pollution',
+            severity: 'low',
+            vulnerable_versions: '<0.2.1 || >=1.0.0 <1.2.3',
+          },
+        ],
+        effects: [],
+        range: '<0.2.1 || >=1.0.0 <1.2.3',
+        nodes: [
+          'node_modules/minimist',
+        ],
+        fixAvailable: true,
+      },
+    },
+    metadata: {
+      vulnerabilities: {
+        info: 0,
+        low: 1,
+        moderate: 0,
+        high: 0,
+        critical: 0,
+        total: 1,
+      },
+      dependencies: {
+        prod: 1,
+        dev: 0,
+        optional: 0,
+        peer: 0,
+        peerOptional: 0,
+        total: 1,
+      },
+    },
   }
-  t.teardown(() => log.level = 'warn')
-  log.level = 'silent'
-  reifyOutput(npm, {
-    actualTree: { inventory: { size: 999 }, children: [] },
-    auditReport: {
-      toJSON: () => {
-        throw new Error('this should not get called')
+
+  t.test('no output when silent', t => {
+    npm.output = out => {
+      t.fail('should not get output when silent', { actual: out })
+    }
+    t.teardown(() => log.level = 'warn')
+    log.level = 'silent'
+    reifyOutput(npm, {
+      actualTree: { inventory: { size: 999 }, children: [] },
+      auditReport,
+      diff: {
+        children: [
+          { action: 'ADD', ideal: { location: 'loc' } },
+        ],
       },
-      vulnerabilities: {},
-      metadata: {
-        vulnerabilities: {
-          total: 99,
-        },
-      },
-    },
-    diff: {
-      children: [
-        { action: 'ADD', ideal: { location: 'loc' } },
-      ],
-    },
+    })
+    t.end()
   })
+
+  t.test('output when not silent', t => {
+    const OUT = []
+    npm.output = out => {
+      OUT.push(out)
+    }
+    reifyOutput(npm, {
+      actualTree: { inventory: new Map(), children: [] },
+      auditReport,
+      diff: {
+        children: [
+          { action: 'ADD', ideal: { location: 'loc' } },
+        ],
+      },
+    })
+    t.match(OUT.join('\n'), /Run `npm audit` for details\.$/, 'got audit report')
+    t.end()
+  })
+
+  for (const json of [true, false]) {
+    t.test(`json=${json}`, t => {
+      t.teardown(() => {
+        delete npm.flatOptions.json
+      })
+      npm.flatOptions.json = json
+      t.test('set exit code when cmd is audit', t => {
+        npm.output = () => {}
+        const { exitCode } = process
+        const { command } = npm
+        npm.flatOptions.auditLevel = 'low'
+        t.teardown(() => {
+          delete npm.flatOptions.auditLevel
+          npm.command = command
+          // only set exitCode back if we're passing tests
+          if (t.passing())
+            process.exitCode = exitCode
+        })
+
+        process.exitCode = 0
+        npm.command = 'audit'
+        reifyOutput(npm, {
+          actualTree: { inventory: new Map(), children: [] },
+          auditReport,
+          diff: {
+            children: [
+              { action: 'ADD', ideal: { location: 'loc' } },
+            ],
+          },
+        })
+
+        t.equal(process.exitCode, 1, 'set exit code')
+        t.end()
+      })
+
+      t.test('do not set exit code when cmd is install', t => {
+        npm.output = () => {}
+        const { exitCode } = process
+        const { command } = npm
+        npm.flatOptions.auditLevel = 'low'
+        t.teardown(() => {
+          delete npm.flatOptions.auditLevel
+          npm.command = command
+          // only set exitCode back if we're passing tests
+          if (t.passing())
+            process.exitCode = exitCode
+        })
+
+        process.exitCode = 0
+        npm.command = 'install'
+        reifyOutput(npm, {
+          actualTree: { inventory: new Map(), children: [] },
+          auditReport,
+          diff: {
+            children: [
+              { action: 'ADD', ideal: { location: 'loc' } },
+            ],
+          },
+        })
+
+        t.equal(process.exitCode, 0, 'did not set exit code')
+        t.end()
+      })
+      t.end()
+    })
+  }
+
   t.end()
 })
 

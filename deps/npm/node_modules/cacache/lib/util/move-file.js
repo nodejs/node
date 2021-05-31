@@ -38,19 +38,17 @@ function moveFile (src, dest) {
         } else if (err.code === 'EEXIST' || err.code === 'EBUSY') {
           // file already exists, so whatever
           return resolve()
-        } else {
+        } else
           return reject(err)
-        }
-      } else {
+      } else
         return resolve()
-      }
     })
   })
     .then(() => {
       // content should never change for any reason, so make it read-only
       return Promise.all([
         unlink(src),
-        !isWindows && chmod(dest, '0444')
+        !isWindows && chmod(dest, '0444'),
       ])
     })
     .catch(() => {

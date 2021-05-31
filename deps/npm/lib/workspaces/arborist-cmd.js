@@ -17,6 +17,7 @@ class ArboristCmd extends BaseCommand {
     getWorkspaces(filters, { path: this.npm.localPrefix })
       .then(workspaces => {
         this.workspaces = [...workspaces.keys()]
+        this.workspacePaths = [...workspaces.values()]
         this.exec(args, cb)
       })
       .catch(er => cb(er))

@@ -5,6 +5,40 @@
  * Make sure to inspect the output below.  Do not ignore changes!
  */
 'use strict'
+exports[`test/lib/publish.js TAP private workspaces colorless > should output all publishes 1`] = `
+Array [
+  "+ @npmcli/b@1.0.0",
+]
+`
+
+exports[`test/lib/publish.js TAP private workspaces colorless > should publish all non-private workspaces 1`] = `
+Array [
+  Object {
+    "_id": "@npmcli/b@1.0.0",
+    "name": "@npmcli/b",
+    "readme": "ERROR: No README data found!",
+    "version": "1.0.0",
+  },
+]
+`
+
+exports[`test/lib/publish.js TAP private workspaces with color > should output all publishes 1`] = `
+Array [
+  "+ @npmcli/b@1.0.0",
+]
+`
+
+exports[`test/lib/publish.js TAP private workspaces with color > should publish all non-private workspaces 1`] = `
+Array [
+  Object {
+    "_id": "@npmcli/b@1.0.0",
+    "name": "@npmcli/b",
+    "readme": "ERROR: No README data found!",
+    "version": "1.0.0",
+  },
+]
+`
+
 exports[`test/lib/publish.js TAP shows usage with wrong set of arguments > should print usage 1`] = `
 Error: 
 Usage: npm publish

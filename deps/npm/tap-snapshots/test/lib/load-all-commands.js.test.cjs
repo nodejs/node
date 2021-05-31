@@ -521,6 +521,8 @@ Options:
 [--strict-peer-deps] [--package-lock]
 [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--ignore-scripts]
 [--audit] [--bin-links] [--fund] [--dry-run]
+[-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
+[-ws|--workspaces]
 
 alias: ln
 
