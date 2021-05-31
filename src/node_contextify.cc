@@ -30,7 +30,6 @@
 #include "node_internals.h"
 #include "node_watchdog.h"
 #include "util-inl.h"
-#include "v8.h"
 
 namespace node {
 namespace contextify {

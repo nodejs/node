@@ -719,7 +719,6 @@ class AsyncHooks : public MemoryRetainer {
   inline void AddContext(v8::Local<v8::Context> ctx);
   inline void RemoveContext(v8::Local<v8::Context> ctx);
 
-
   AsyncHooks(const AsyncHooks&) = delete;
   AsyncHooks& operator=(const AsyncHooks&) = delete;
   AsyncHooks(AsyncHooks&&) = delete;
