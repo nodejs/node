@@ -1517,7 +1517,7 @@ has less then 64KB of data because no `highWaterMark` option is provided to
 
 ##### `readable.iterator([options])`
 <!-- YAML
-added: REPLACEME
+added: v16.3.0
 -->
 
 > Stability: 1 - Experimental

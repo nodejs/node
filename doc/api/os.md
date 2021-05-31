@@ -124,7 +124,7 @@ are always 0.
 
 ## `os.devNull`
 <!-- YAML
-added: REPLACEME
+added: v16.3.0
 -->
 
 * {string}
