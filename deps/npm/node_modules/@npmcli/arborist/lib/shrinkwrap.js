@@ -714,6 +714,7 @@ class Shrinkwrap {
         resolved,
         integrity,
         hasShrinkwrap,
+        version,
       } = this.get(node.path)
 
       const pathFixed = !resolved ? null
@@ -727,8 +728,12 @@ class Shrinkwrap {
         node.resolved === pathFixed
       const integrityOk = !integrity || !node.integrity ||
         node.integrity === integrity
+      const versionOk = !version || !node.version || version === node.version
 
-      if ((resolved || integrity) && resolvedOk && integrityOk) {
+      const allOk = (resolved || integrity || version) &&
+        resolvedOk && integrityOk && versionOk
+
+      if (allOk) {
         node.resolved = node.resolved || pathFixed || null
         node.integrity = node.integrity || integrity || null
         node.hasShrinkwrap = node.hasShrinkwrap || hasShrinkwrap || false

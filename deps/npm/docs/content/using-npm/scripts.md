@@ -304,7 +304,7 @@ For example, if your package.json contains this:
 {
   "scripts" : {
     "install" : "scripts/install.js",
-    "postinstall" : "scripts/postinstall.js",
+    "postinstall" : "scripts/install.js",
     "uninstall" : "scripts/uninstall.js"
   }
 }

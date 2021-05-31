@@ -16,6 +16,7 @@ const getBinFromManifest = require('./get-bin-from-manifest.js')
 const manifestMissing = require('./manifest-missing.js')
 const noTTY = require('./no-tty.js')
 const runScript = require('./run-script.js')
+const isWindows = require('./is-windows.js')
 
 /* istanbul ignore next */
 const PATH = (
@@ -34,7 +35,7 @@ const exec = async (opts) => {
     packages: _packages = [],
     path = '.',
     runPath = '.',
-    scriptShell = undefined,
+    scriptShell = isWindows ? process.env.ComSpec || 'cmd' : 'sh',
     yes = undefined,
     ...flatOptions
   } = opts
