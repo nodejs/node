@@ -21,13 +21,13 @@
 
 'use strict';
 
-const { URL } = require('url');
 const common = require('../common');
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
 const assert = require('assert');
 const { spawn } = require('child_process');
+const { URL } = require('url');
 
 // Spawns 'pwd' with given options, then test
 // - whether the child pid is undefined or number,
