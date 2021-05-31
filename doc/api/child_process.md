@@ -156,7 +156,7 @@ changes:
 
 * `command` {string} The command to run, with space-separated arguments.
 * `options` {Object}
-  * `cwd` {string} Current working directory of the child process.
+  * `cwd` {string|URL} Current working directory of the child process.
     **Default:** `process.cwd()`.
   * `env` {Object} Environment key-value pairs. **Default:** `process.env`.
   * `encoding` {string} **Default:** `'utf8'`
@@ -284,7 +284,7 @@ changes:
 * `file` {string} The name or path of the executable file to run.
 * `args` {string[]} List of string arguments.
 * `options` {Object}
-  * `cwd` {string} Current working directory of the child process.
+  * `cwd` {string|URL} Current working directory of the child process.
   * `env` {Object} Environment key-value pairs. **Default:** `process.env`.
   * `encoding` {string} **Default:** `'utf8'`
   * `timeout` {number} **Default:** `0`
@@ -403,7 +403,7 @@ changes:
 * `modulePath` {string} The module to run in the child.
 * `args` {string[]} List of string arguments.
 * `options` {Object}
-  * `cwd` {string} Current working directory of the child process.
+  * `cwd` {string|URL} Current working directory of the child process.
   * `detached` {boolean} Prepare child to run independently of its parent
     process. Specific behavior depends on the platform, see
     [`options.detached`][]).
@@ -517,7 +517,7 @@ changes:
 * `command` {string} The command to run.
 * `args` {string[]} List of string arguments.
 * `options` {Object}
-  * `cwd` {string} Current working directory of the child process.
+  * `cwd` {string|URL} Current working directory of the child process.
   * `env` {Object} Environment key-value pairs. **Default:** `process.env`.
   * `argv0` {string} Explicitly set the value of `argv[0]` sent to the child
     process. This will be set to `command` if not specified.
@@ -865,7 +865,7 @@ changes:
 * `file` {string} The name or path of the executable file to run.
 * `args` {string[]} List of string arguments.
 * `options` {Object}
-  * `cwd` {string} Current working directory of the child process.
+  * `cwd` {string|URL} Current working directory of the child process.
   * `input` {string|Buffer|TypedArray|DataView} The value which will be passed
     as stdin to the spawned process. Supplying this value will override
     `stdio[0]`.
@@ -928,7 +928,7 @@ changes:
 
 * `command` {string} The command to run.
 * `options` {Object}
-  * `cwd` {string} Current working directory of the child process.
+  * `cwd` {string|URL} Current working directory of the child process.
   * `input` {string|Buffer|TypedArray|DataView} The value which will be passed
     as stdin to the spawned process. Supplying this value will override
     `stdio[0]`.
@@ -997,7 +997,7 @@ changes:
 * `command` {string} The command to run.
 * `args` {string[]} List of string arguments.
 * `options` {Object}
-  * `cwd` {string} Current working directory of the child process.
+  * `cwd` {string|URL} Current working directory of the child process.
   * `input` {string|Buffer|TypedArray|DataView} The value which will be passed
     as stdin to the spawned process. Supplying this value will override
     `stdio[0]`.

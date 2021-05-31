@@ -20,6 +20,8 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
+
+const { URL } = require('url');
 const common = require('../common');
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
@@ -66,10 +68,25 @@ function testCwd(options, expectPidType, expectCode = 0, expectData) {
     }));
 }
 
+{
+  assert.throws(() => {
+    testCwd({
+      cwd: new URL(`http://${tmpdir.path}`),
+    }, 'number', 0, tmpdir.path);
+  }, /The property 'options\.cwd' contains invalid protocol or host/);
+
+  assert.throws(() => {
+    testCwd({
+      cwd: new URL(`file://host${tmpdir.path}`),
+    }, 'number', 0, tmpdir.path);
+  }, /The property 'options\.cwd' contains invalid protocol or host/);
+}
+
 // Assume these exist, and 'pwd' gives us the right directory back
 testCwd({ cwd: tmpdir.path }, 'number', 0, tmpdir.path);
 const shouldExistDir = common.isWindows ? process.env.windir : '/dev';
 testCwd({ cwd: shouldExistDir }, 'number', 0, shouldExistDir);
+testCwd({ cwd: new URL(`file://${tmpdir.path}`) }, 'number', 0, tmpdir.path);
 
 // Spawn() shouldn't try to chdir() to invalid arg, so this should just work
 testCwd({ cwd: '' }, 'number');
