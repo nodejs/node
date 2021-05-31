@@ -201,10 +201,9 @@ NODE_MODULES_PATHS(START)
 4. while I >= 0,
    a. if PARTS[I] = "node_modules" CONTINUE
    b. DIR = path join(PARTS[0 .. I] + "node_modules")
-   c. DIRS = DIRS + DIR
+   c. DIRS = DIR + DIRS
    d. let I = I - 1
-5. DIRS = DIRS.concat(GLOBAL_FOLDERS)
-6. return DIRS
+5. return DIRS.concat(GLOBAL_FOLDERS)
 
 LOAD_PACKAGE_IMPORTS(X, DIR)
 1. Find the closest package scope SCOPE to DIR.
