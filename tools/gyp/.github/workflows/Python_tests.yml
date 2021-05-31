@@ -1,5 +1,4 @@
 # TODO: Enable os: windows-latest
-# TODO: Enable python-version: 3.5
 # TODO: Enable pytest --doctest-modules
 
 name: Python_tests
@@ -9,10 +8,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
-      max-parallel: 15
+      max-parallel: 8
       matrix:
         os: [macos-latest, ubuntu-latest] # , windows-latest]
-        python-version: [2.7, 3.6, 3.7, 3.8, 3.9]
+        python-version: [3.6, 3.7, 3.8, 3.9]
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.python-version }}
