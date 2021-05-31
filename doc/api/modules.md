@@ -203,7 +203,7 @@ NODE_MODULES_PATHS(START)
    b. DIR = path join(PARTS[0 .. I] + "node_modules")
    c. DIRS = DIR + DIRS
    d. let I = I - 1
-5. return DIRS.concat(GLOBAL_FOLDERS)
+5. return DIRS + GLOBAL_FOLDERS
 
 LOAD_PACKAGE_IMPORTS(X, DIR)
 1. Find the closest package scope SCOPE to DIR.
