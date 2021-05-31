@@ -13,6 +13,7 @@
 
 #include <openssl/x509.h>
 #include <openssl/pkcs12.h>
+#include <openssl/rand.h>
 #ifndef OPENSSL_NO_ENGINE
 #include <openssl/engine.h>
 #endif  // !OPENSSL_NO_ENGINE

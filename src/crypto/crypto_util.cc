@@ -20,6 +20,8 @@
 #endif
 #endif
 
+#include <openssl/rand.h>
+
 namespace node {
 
 using v8::ArrayBuffer;
