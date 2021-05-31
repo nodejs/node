@@ -8,6 +8,7 @@
 #include "v8.h"
 
 #include <openssl/bn.h>
+#include <openssl/rand.h>
 
 namespace node {
 
