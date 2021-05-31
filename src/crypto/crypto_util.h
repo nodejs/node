@@ -86,6 +86,8 @@ using DsaSigPointer = DeleteFnPtr<DSA_SIG, DSA_SIG_free>;
 // callback has been made.
 extern int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx);
 
+bool ProcessFipsOptions();
+
 void InitCryptoOnce();
 
 void InitCrypto(v8::Local<v8::Object> target);
