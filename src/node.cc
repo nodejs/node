@@ -1080,9 +1080,17 @@ InitializationResult InitializeOncePerProcess(
       OPENSSL_init();
     }
 #endif
-    // V8 on Windows doesn't have a good source of entropy. Seed it from
-    // OpenSSL's pool.
-    V8::SetEntropySource(crypto::EntropySource);
+  if (!crypto::ProcessFipsOptions()) {
+      result.exit_code = ERR_GET_REASON(ERR_peek_error());
+      result.early_return = true;
+      fprintf(stderr, "OpenSSL error when trying to enable FIPS:\n");
+      ERR_print_errors_fp(stderr);
+      return result;
+  }
+
+  // V8 on Windows doesn't have a good source of entropy. Seed it from
+  // OpenSSL's pool.
+  V8::SetEntropySource(crypto::EntropySource);
 #endif  // HAVE_OPENSSL
 }
   per_process::v8_platform.Initialize(
