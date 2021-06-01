@@ -31,3 +31,14 @@ common.expectWarning('DeprecationWarning', warn, 'DEP0066');
       origin: ['Origin', 'localhost']
     }));
 }
+
+{
+  // Tests for _headers set method `null`
+  const outgoingMessage = new OutgoingMessage();
+  outgoingMessage._headers = null;
+
+  assert.strictEqual(
+    outgoingMessage[kOutHeaders],
+    null
+  );
+}
