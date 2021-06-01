@@ -65,7 +65,10 @@ tmpdir.refresh();
   const file = join(tmpdir.path, 'test.txt');
 
   fs.open(file, 'r', common.mustSucceed((fd) => {
-    fs.writeFile(fd, 'World', common.expectsError(expectedError));
+    fs.writeFile(fd, 'World', common.mustCall((err) => {
+      fs.closeSync(fd);
+      common.expectsError(expectedError)(err);
+    }));
   }));
 }
 
@@ -76,8 +79,11 @@ tmpdir.refresh();
   const file = join(tmpdir.path, 'test.txt');
 
   fs.open(file, 'w', common.mustSucceed((fd) => {
-    fs.writeFile(fd, 'World', { signal }, common.expectsError({
-      name: 'AbortError'
+    fs.writeFile(fd, 'World', { signal }, common.mustCall((err) => {
+      fs.closeSync(fd);
+      common.expectsError({
+        name: 'AbortError'
+      })(err);
     }));
   }));
 
