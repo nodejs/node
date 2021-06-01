@@ -54,7 +54,7 @@ subSystemLabels:
   /^vcbuild\.bat$/: build, windows, needs-ci
   /^(android-)?configure|node\.gyp|common\.gypi$/: build, needs-ci
   # more specific tools
-  /^tools\/gyp/: tools, build, needs-ci
+  /^tools\/gyp/: tools, build, needs-ci, dont-land-on-v14.x, dont-land-on-v12.x
   /^tools\/doc\//: tools, doc
   /^tools\/icu\//: tools, intl, needs-ci
   /^tools\/(?:osx-pkg\.pmdoc|pkgsrc)\//: tools, macos, install
