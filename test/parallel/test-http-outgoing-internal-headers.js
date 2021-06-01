@@ -40,5 +40,5 @@ common.expectWarning('DeprecationWarning', warn, 'DEP0066');
   assert.strictEqual(
     outgoingMessage[kOutHeaders],
     null
-  )
+  );
 }
