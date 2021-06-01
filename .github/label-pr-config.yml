@@ -78,6 +78,7 @@ subSystemLabels:
   /^deps\/v8\/tools\/gen-postmortem-metadata\.py/: V8 Engine, post-mortem
   /^deps\/v8\//: V8 Engine
   /^deps\/uvwasi\//: wasi
+  /^deps\/npm\//: npm, dont-land-on-v14.x, dont-land-on-v12.x
   /^deps\/nghttp2\/nghttp2\.gyp/: build, http2
   /^deps\/nghttp2\//: http2
   /^deps\/ngtcp2\//: quic, dont-land-on-v14.x, dont-land-on-v12.x
