@@ -1518,9 +1518,7 @@ hash.end();
 Example: Using `Hash` and piped streams:
 
 ```mjs
-const {
-  createReadStream,
-} = require('fs');
+import { createReadStream } from 'fs';
 
 const {
   createHash,
@@ -1551,7 +1549,7 @@ Example: Using the [`hash.update()`][] and [`hash.digest()`][] methods:
 ```mjs
 const {
   createHash,
-} = require('crypto');
+} = await import('crypto');
 
 const hash = createHash('sha256');
 
@@ -1596,7 +1594,7 @@ its [`hash.digest()`][] method has been called.
 // Calculate a rolling hash.
 const {
   createHash,
-} = require('crypto');
+} = await import('crypto');
 
 const hash = createHash('sha256');
 
@@ -1691,7 +1689,7 @@ Example: Using `Hmac` objects as streams:
 ```mjs
 const {
   createHmac,
-} = require('crypto');
+} = await import('crypto');
 
 const hmac = createHmac('sha256', 'a secret');
 
