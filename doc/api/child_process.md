@@ -147,8 +147,9 @@ exec('"my script.cmd" a b', (err, stdout, stderr) => {
 added: v0.1.90
 changes:
   - version: REPLACEME
-    pr-url: ???
-    description: allow `options.cwd` receive a `URL`.
+    pr-url: https://github.com/nodejs/node/pull/38862
+    description: The `cwd` option can be a WHATWG `URL` object using
+                 `file:` protocol.
   - version: v15.4.0
     pr-url: https://github.com/nodejs/node/pull/36308
     description: AbortSignal support was added.
@@ -275,8 +276,9 @@ controller.abort();
 added: v0.1.91
 changes:
   - version: REPLACEME
-    pr-url: ???
-    description: allow `options.cwd` receive a `URL`.
+    pr-url: https://github.com/nodejs/node/pull/38862
+    description: The `cwd` option can be a WHATWG `URL` object using
+                 `file:` protocol.
   - version:
       - v15.4.0
       - v14.17.0
@@ -383,8 +385,9 @@ controller.abort();
 added: v0.5.0
 changes:
   - version: REPLACEME
-    pr-url: ???
-    description: allow `options.cwd` receive a `URL`.
+    pr-url: https://github.com/nodejs/node/pull/38862
+    description: The `cwd` option can be a WHATWG `URL` object using
+                 `file:` protocol.
   - version: v15.13.0
     pr-url: https://github.com/nodejs/node/pull/37256
     description: timeout was added.
@@ -497,8 +500,9 @@ if (process.argv[2] === 'child') {
 added: v0.1.90
 changes:
   - version: REPLACEME
-    pr-url: ???
-    description: allow `options.cwd` receive a `URL`.
+    pr-url: https://github.com/nodejs/node/pull/38862
+    description: The `cwd` option can be a WHATWG `URL` object using
+                 `file:` protocol.
   - version: v15.13.0
     pr-url: https://github.com/nodejs/node/pull/37256
     description: timeout was added.
@@ -858,8 +862,9 @@ configuration at startup.
 added: v0.11.12
 changes:
   - version: REPLACEME
-    pr-url: ???
-    description: allow `options.cwd` receive a `URL`.
+    pr-url: https://github.com/nodejs/node/pull/38862
+    description: The `cwd` option can be a WHATWG `URL` object using
+                 `file:` protocol.
   - version: v10.10.0
     pr-url: https://github.com/nodejs/node/pull/22409
     description: The `input` option can now be any `TypedArray` or a
@@ -930,8 +935,9 @@ arbitrary command execution.**
 added: v0.11.12
 changes:
   - version: REPLACEME
-    pr-url: ???
-    description: allow `options.cwd` receive a `URL`.
+    pr-url: https://github.com/nodejs/node/pull/38862
+    description: The `cwd` option can be a WHATWG `URL` object using
+                 `file:` protocol.
   - version: v10.10.0
     pr-url: https://github.com/nodejs/node/pull/22409
     description: The `input` option can now be any `TypedArray` or a
@@ -993,8 +999,9 @@ metacharacters may be used to trigger arbitrary command execution.**
 added: v0.11.12
 changes:
   - version: REPLACEME
-    pr-url: ???
-    description: allow `options.cwd` receive a `URL`.
+    pr-url: https://github.com/nodejs/node/pull/38862
+    description: The `cwd` option can be a WHATWG `URL` object using
+                 `file:` protocol.
   - version: v10.10.0
     pr-url: https://github.com/nodejs/node/pull/22409
     description: The `input` option can now be any `TypedArray` or a
