@@ -76,6 +76,29 @@ module.exports = {
         'doc/api/packages.md/*.js',
       ],
       parserOptions: { sourceType: 'module' },
+      rules: { 'no-restricted-globals': [
+        'error',
+        {
+          name: '__filename',
+          message: 'Use import.meta.url instead',
+        },
+        {
+          name: '__dirname',
+          message: 'Not available in ESM',
+        },
+        {
+          name: 'exports',
+          message: 'Not available in ESM',
+        },
+        {
+          name: 'module',
+          message: 'Not available in ESM',
+        },
+        {
+          name: 'require',
+          message: 'Use import instead',
+        },
+      ] },
     },
   ],
   rules: {
