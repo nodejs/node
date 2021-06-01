@@ -1156,6 +1156,12 @@ AsyncHooks::SerializeInfo AsyncHooks::Serialize(Local<Context> context,
         context,
         native_execution_async_resources_[i].Get(context->GetIsolate()));
   }
+  CHECK_EQ(contexts_.size(), 1);
+  CHECK_EQ(contexts_[0], env()->context());
+  CHECK(js_promise_hooks_[0].IsEmpty());
+  CHECK(js_promise_hooks_[1].IsEmpty());
+  CHECK(js_promise_hooks_[2].IsEmpty());
+  CHECK(js_promise_hooks_[3].IsEmpty());
 
   return info;
 }
