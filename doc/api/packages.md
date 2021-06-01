@@ -704,7 +704,7 @@ import { another } from 'a-package/m.mjs';
 Self-referencing is also available when using `require`, both in an ES module,
 and in a CommonJS one. For example, this code will also work:
 
-```js
+```cjs
 // ./a-module.js
 const { something } = require('a-package/foo'); // Loads from ./foo.js.
 ```
@@ -807,7 +807,7 @@ to be treated as ES modules, just as `"type": "commonjs"` would cause them
 to be treated as CommonJS.
 See [Enabling](#esm_enabling).
 
-```js
+```cjs
 // ./node_modules/pkg/index.cjs
 exports.name = 'value';
 ```
@@ -920,7 +920,7 @@ CommonJS and ES module instances of the package:
    CommonJS and ES module versions of the package. For example, if the CommonJS
    and ES module entry points are `index.cjs` and `index.mjs`, respectively:
 
-    ```js
+    ```cjs
     // ./node_modules/pkg/index.cjs
     const state = require('./state.cjs');
     module.exports.state = state;
@@ -1034,7 +1034,7 @@ The `"main"` field defines the script that is used when the [package directory
 is loaded via `require()`](modules.md#modules_folders_as_modules). Its value
 is a path.
 
-```js
+```cjs
 require('./path/to/directory'); // This resolves to ./path/to/directory/main.js.
 ```
 
