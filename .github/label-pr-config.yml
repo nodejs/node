@@ -27,7 +27,7 @@ subSystemLabels:
   /^src\/node_zlib/: c++, zlib
   /^src\/tracing/: c++, tracing
   /^src\/node_api/: c++, n-api
-  /^src\/node_http2/: c++, http2, dont-land-on-v6.x
+  /^src\/node_http2/: c++, http2
   /^src\/node_report/: c++, report
   /^src\/node_wasi/: c++, wasi
   /^src\/node_worker/: c++, worker
@@ -78,8 +78,8 @@ subSystemLabels:
   /^deps\/v8\/tools\/gen-postmortem-metadata\.py/: V8 Engine, post-mortem
   /^deps\/v8\//: V8 Engine
   /^deps\/uvwasi\//: wasi
-  /^deps\/nghttp2\/nghttp2\.gyp/: build, http2, dont-land-on-v6.x
-  /^deps\/nghttp2\//: http2, dont-land-on-v6.x
+  /^deps\/nghttp2\/nghttp2\.gyp/: build, http2
+  /^deps\/nghttp2\//: http2
   /^deps\/ngtcp2\//: quic, dont-land-on-v14.x, dont-land-on-v12.x
   /^deps\/nghttp3\//: quic, dont-land-on-v14.x, dont-land-on-v12.x
   /^deps\/([^/]+)/: $1
@@ -94,7 +94,7 @@ subSystemLabels:
   /^lib\/\w+\/v8_prof_/: tools
   /^lib\/\w+\/socket_list/: net
   /^lib\/\w+\/streams$/: stream
-  /^lib\/.*http2/: http2, dont-land-on-v6.x
+  /^lib\/.*http2/: http2
   /^lib\/worker_threads.js$/: worker
   /^lib\/internal\/url\.js$/: url-whatwg
   /^lib\/internal\/modules\/esm/: ES Modules
