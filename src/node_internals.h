@@ -316,7 +316,20 @@ struct InitializationResult {
   std::vector<std::string> exec_args;
   bool early_return = false;
 };
+
+enum InitializationSettingsFlags : uint64_t {
+  kDefaultInitialization = 1 << 0,
+  kInitializeV8 = 1 << 1,
+  kRunPlatformInit = 1 << 2,
+  kInitOpenSSL = 1 << 3
+};
+
+// TODO(codebytere): eventually document and expose to embedders.
 InitializationResult InitializeOncePerProcess(int argc, char** argv);
+InitializationResult InitializeOncePerProcess(
+  int argc,
+  char** argv,
+  InitializationSettingsFlags flags);
 void TearDownOncePerProcess();
 void SetIsolateErrorHandlers(v8::Isolate* isolate, const IsolateSettings& s);
 void SetIsolateMiscHandlers(v8::Isolate* isolate, const IsolateSettings& s);
