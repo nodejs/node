@@ -404,6 +404,8 @@ changes:
     description: The `constructor` parameter can refer to an ES6 class now.
 -->
 
+> Stability: 3 - Legacy: Use ES2015 class syntax and `extends` keyword instead.
+
 * `constructor` {Function}
 * `superConstructor` {Function}
 
