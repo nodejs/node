@@ -117,7 +117,7 @@ tools/*/*.i.tmp
 /build
 /coverage
 
-# === Rules for XCode artifacts ===
+# === Rules for Xcode artifacts ===
 *.xcodeproj
 *.xcworkspace
 *.pbxproj
