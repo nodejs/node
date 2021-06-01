@@ -86,7 +86,7 @@ function F() {
   this.test = 'test';
 }
 
-F.prototype = null;
+F.prototype = undefined;
 
 // Should throw with invalid arguments
 assert.throws(() => {
