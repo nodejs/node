@@ -82,9 +82,15 @@ assert.strictEqual(e.d(), 'd');
 assert.strictEqual(e.e(), 'e');
 assert.strictEqual(e.constructor, E);
 
+function F() {
+  this.test = 'test';
+}
+
+F.prototype = null;
+
 // Should throw with invalid arguments
 assert.throws(() => {
-  inherits(A, {});
+  inherits(A, F);
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   name: 'TypeError',
