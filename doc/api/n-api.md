@@ -32,8 +32,8 @@ properties:
   using `napi_get_last_error_info`. More information can be found in the error
   handling section [Error handling][].
 
-Node-API is a C API that ensures ABI stability across Node.js versions
-and different compiler levels. A C++ API can be easier to use.
+Node-API is a C API that ensures ABI stability across Node.js versions and
+different compiler levels. A C++ API can be easier to use.
 To support using C++, the project maintains a
 C++ wrapper module called [`node-addon-api`][].
 This wrapper provides an inlineable C++ API. Binaries built
