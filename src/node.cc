@@ -1128,18 +1128,70 @@ int Start(int argc, char** argv) {
     return result.exit_code;
   }
 
-  {
+  if (!per_process::cli_options->snapshot_main.empty()) {
+    SnapshotData data;
+    {
+      std::string entry;
+      int r =
+          ReadFileSync(&entry, per_process::cli_options->snapshot_main.c_str());
+      if (r != 0) {
+        const char* code = uv_err_name(r);
+        const char* message = uv_strerror(r);
+        FPrintF(stderr,
+                "Failed to open %s. %s: %s\n",
+                per_process::cli_options->snapshot_main.c_str(),
+                code,
+                message);
+        return 1;
+      }
+      node::SnapshotBuilder::Generate(
+          &data, entry, result.args, result.exec_args);
+    }
+
+    std::string snapshot_blob_path;
+    if (!per_process::cli_options->snapshot_blob.empty()) {
+      snapshot_blob_path = per_process::cli_options->snapshot_blob;
+    } else {
+      snapshot_blob_path = std::string("snapshot.blob");
+    }
+
+    FILE* fp = fopen(snapshot_blob_path.c_str(), "w");
+    if (fp != nullptr) {
+      data.ToBlob(fp);
+      fclose(fp);
+    } else {
+      fprintf(stderr, "Cannot open %s", snapshot_blob_path.c_str());
+      result.exit_code = 1;
+    }
+  } else {
+    SnapshotData snapshot_data;
     Isolate::CreateParams params;
     const std::vector<size_t>* indices = nullptr;
     const EnvSerializeInfo* env_info = nullptr;
     bool use_node_snapshot =
         per_process::cli_options->per_isolate->node_snapshot;
     if (use_node_snapshot) {
-      v8::StartupData* blob = NodeMainInstance::GetEmbeddedSnapshotBlob();
-      if (blob != nullptr) {
-        params.snapshot_blob = blob;
-        indices = NodeMainInstance::GetIsolateDataIndices();
-        env_info = NodeMainInstance::GetEnvSerializeInfo();
+      // TODO(joyee): return const SnapshotData* from the generated source
+      if (per_process::cli_options->snapshot_blob.empty()) {
+        v8::StartupData* blob = NodeMainInstance::GetEmbeddedSnapshotBlob();
+        if (blob != nullptr) {
+          params.snapshot_blob = blob;
+          indices = NodeMainInstance::GetIsolateDataIndices();
+          env_info = NodeMainInstance::GetEnvSerializeInfo();
+        }
+      } else {
+        std::string filename = per_process::cli_options->snapshot_blob;
+        FILE* fp = fopen(filename.c_str(), "r");
+        if (fp != nullptr) {
+          SnapshotData::FromBlob(&snapshot_data, fp);
+          params.snapshot_blob = &(snapshot_data.blob);
+          indices = &(snapshot_data.isolate_data_indices);
+          env_info = &(snapshot_data.env_info);
+          fclose(fp);
+        } else {
+          fprintf(stderr, "Cannot open %s", filename.c_str());
+          result.exit_code = 1;
+        }
       }
     }
     uv_loop_configure(uv_default_loop(), UV_METRICS_IDLE_TIME);
@@ -1151,6 +1203,9 @@ int Start(int argc, char** argv) {
                                    result.exec_args,
                                    indices);
     result.exit_code = main_instance.Run(env_info);
+    if (snapshot_data.blob.data != nullptr) {
+      delete snapshot_data.blob.data;
+    }
   }
 
   TearDownOncePerProcess();

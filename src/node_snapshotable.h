@@ -125,6 +125,12 @@ class SnapshotBuilder {
  public:
   static std::string Generate(const std::vector<std::string> args,
                               const std::vector<std::string> exec_args);
+  // Generate the snapshot into out.
+  // entry_file should be the content of the UTF-8 encoded entry files.
+  static void Generate(SnapshotData* out,
+                       const std::string& entry_file,
+                       const std::vector<std::string> args,
+                       const std::vector<std::string> exec_args);
   static void Generate(SnapshotData* out,
                        const std::vector<std::string> args,
                        const std::vector<std::string> exec_args);

@@ -910,6 +910,30 @@ minimum allocation from the secure heap. The minimum value is `2`.
 The maximum value is the lesser of `--secure-heap` or `2147483647`.
 The value given must be a power of two.
 
+### `--snapshot-blob=path`
+<!-- YAML
+added: REPLACEME
+-->
+
+When used with `--snapshot-main`, `--snapshot-blob` specifies the path
+where the generated snapshot blob will be written to. If not speficied,
+the generated blob will be written, by default, to `snapshot.blob`
+in the current working directory.
+
+When used without `--snapshot-main`, `--snapshot-blob` specifies the
+path to the blob that will be used to restore the application state.
+
+### `--snapshot-main=path`
+<!-- YAML
+added: REPLACEME
+-->
+
+Specifies the path of the entry point file used to build user land
+snapshot. If `--snapshot-blob` is not specified, the generated blob
+will be written, by default, to `snapshot.blob` in the current working
+directory. Otherwise it will be written to the path specified by
+`--snapshot-blob`.
+
 ### `--throw-deprecation`
 <!-- YAML
 added: v0.11.14
@@ -1443,6 +1467,7 @@ Node.js options that are allowed are:
 * `--require`, `-r`
 * `--secure-heap-min`
 * `--secure-heap`
+* `--snapshot-blob`
 * `--throw-deprecation`
 * `--title`
 * `--tls-cipher-list`

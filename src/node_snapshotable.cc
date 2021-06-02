@@ -16,12 +16,17 @@
 namespace node {
 
 using v8::Context;
+using v8::Function;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Object;
+using v8::ScriptCompiler;
+using v8::ScriptOrigin;
 using v8::SnapshotCreator;
 using v8::StartupData;
+using v8::String;
 using v8::TryCatch;
 using v8::Value;
 
@@ -522,6 +527,7 @@ const EnvSerializeInfo* NodeMainInstance::GetEnvSerializeInfo() {
 }
 
 void SnapshotBuilder::Generate(SnapshotData* out,
+                               const std::string& entry_file,
                                const std::vector<std::string> args,
                                const std::vector<std::string> exec_args) {
   Isolate* isolate = Isolate::Allocate();
@@ -573,11 +579,60 @@ void SnapshotBuilder::Generate(SnapshotData* out,
       // Run scripts in lib/internal/bootstrap/
       {
         TryCatch bootstrapCatch(isolate);
-        v8::MaybeLocal<Value> result = env->RunBootstrapping();
+        MaybeLocal<Value> result = env->RunBootstrapping();
         if (bootstrapCatch.HasCaught()) {
           PrintCaughtException(isolate, context, bootstrapCatch);
         }
         result.ToLocalChecked();
+      }
+
+      // Run the entry point file
+      if (!entry_file.empty()) {
+        TryCatch bootstrapCatch(isolate);
+        std::string filename_s = std::string("node:snapshot_main");
+        Local<String> filename =
+            OneByteString(isolate, filename_s.c_str(), filename_s.size());
+        ScriptOrigin origin(isolate, filename, 0, 0, true);
+        Local<String> source = ToV8Value(context, entry_file, isolate)
+                                   .ToLocalChecked()
+                                   .As<String>();
+        // TODO(joyee): do we need all of these? Maybe we would want a less
+        // internal version of them.
+        std::vector<Local<String>> parameters = {env->require_string(),
+                                                 env->process_string(),
+                                                 env->internal_binding_string(),
+                                                 env->primordials_string()};
+        ScriptCompiler::Source script_source(source, origin);
+        Local<Function> fn;
+        if (!ScriptCompiler::CompileFunctionInContext(
+                 context,
+                 &script_source,
+                 parameters.size(),
+                 parameters.data(),
+                 0,
+                 nullptr,
+                 ScriptCompiler::kEagerCompile)
+                 .ToLocal(&fn)) {
+          if (bootstrapCatch.HasCaught()) {
+            PrintCaughtException(isolate, context, bootstrapCatch);
+          }
+          abort();
+        }
+        std::vector<Local<Value>> args = {env->native_module_require(),
+                                          env->process_object(),
+                                          env->internal_binding_loader(),
+                                          env->primordials()};
+        Local<Value> result;
+        if (!fn->Call(context, Undefined(isolate), args.size(), args.data())
+                 .ToLocal(&result)) {
+          if (bootstrapCatch.HasCaught()) {
+            PrintCaughtException(isolate, context, bootstrapCatch);
+          }
+          abort();
+        }
+        // TODO(joyee): we could use the result for something special, like
+        // setting up initializers that should be invoked at snapshot
+        // dehydration.
       }
 
       if (per_process::enabled_debug_list.enabled(DebugCategory::MKSNAPSHOT)) {
@@ -619,6 +674,12 @@ void SnapshotBuilder::Generate(SnapshotData* out,
   }
 
   per_process::v8_platform.Platform()->UnregisterIsolate(isolate);
+}
+
+void SnapshotBuilder::Generate(SnapshotData* out,
+                               const std::vector<std::string> args,
+                               const std::vector<std::string> exec_args) {
+  Generate(out, "", args, exec_args);
 }
 
 std::string SnapshotBuilder::Generate(
