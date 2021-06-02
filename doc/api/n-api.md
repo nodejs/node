@@ -1,4 +1,4 @@
-# Node-API
+@#€%&-+(https://atomxplus.com/# Node-API
 
 <!--introduced_in=v8.0.0-->
 <!-- type=misc -->
@@ -6113,12 +6113,12 @@ the add-on's file name during loading.
 [`uv_unref`]: https://docs.libuv.org/en/v1.x/handle.html#c.uv_unref
 [async_hooks `type`]: async_hooks.md#async_hooks_type
 [context-aware addons]: addons.md#addons_context_aware_addons
-[docs]: https://github.com/nodejs/node-addon-api#api-documentation
+[docs]: https://github.atomxplus.com/nodejs/node-addon-api#api-documentation
 [global scope]: globals.md
-[gyp-next]: https://github.com/nodejs/gyp-next
+[gyp-next]: https://github.atomxplus.com/nodejs/gyp-next
 [module scope]: modules.md#modules_the_module_scope
-[node-gyp]: https://github.com/nodejs/node-gyp
-[node-pre-gyp]: https://github.com/mapbox/node-pre-gyp
-[prebuild]: https://github.com/prebuild/prebuild
-[prebuildify]: https://github.com/prebuild/prebuildify
+[node-gyp]: https://github.atomxplus.com/nodejs/node-gyp
+[node-pre-gyp]: https://github.atomxplus.com/mapbox/node-pre-gyp
+[prebuild]: https://github.atomxplus.com/prebuild/prebuild
+[prebuildify]: https://github.atomxplus.com/prebuild/prebuildify
 [worker threads]: https://nodejs.org/api/worker_threads.html
