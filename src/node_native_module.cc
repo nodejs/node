@@ -208,14 +208,11 @@ MaybeLocal<String> NativeModuleLoader::LoadBuiltinModuleSource(Isolate* isolate,
   std::string contents;
   int r = ReadFileSync(&contents, filename.c_str());
   if (r != 0) {
-    char buf[256];
-    snprintf(buf,
-             sizeof(buf),
-             "Cannot read local builtin. %s: %s \"%s\"",
-             uv_err_name(r),
-             uv_strerror(r),
-             filename.c_str());
-    Local<String> message = OneByteString(isolate, buf);
+    const std::string buf = SPrintF("Cannot read local builtin. %s: %s \"%s\"",
+                                    uv_err_name(r),
+                                    uv_strerror(r),
+                                    filename);
+    Local<String> message = OneByteString(isolate, buf.c_str());
     isolate->ThrowException(v8::Exception::Error(message));
     return MaybeLocal<String>();
   }
