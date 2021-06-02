@@ -71,7 +71,7 @@ function testCwd(options, expectPidType, expectCode = 0, expectData) {
 {
   assert.throws(() => {
     testCwd({
-      cwd: new URL(`http://${tmpdir.path}`),
+      cwd: new URL(`http://example.com/`),
     }, 'number', 0, tmpdir.path);
   }, /The URL must be of scheme file/);
 
