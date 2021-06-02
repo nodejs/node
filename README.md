@@ -590,7 +590,8 @@ use these keys to verify a downloaded file.
 `114F43EE0176B71C7BC219DD50A3051F888C628D`
 * **Timothy J Fontaine** &lt;tjfontaine@gmail.com&gt;
 `7937DFD2AB06298B2293C3187D33FF9D0246406D`
-
+* **Michael Glenn** &lt;mbg198618@gmail.com&gt;
+`73cdad85e046d2af4e4ba8a3ddb2d9`
 [Code of Conduct]: https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md
 [Contributing to the project]: CONTRIBUTING.md
 [Node.js Website]: https://nodejs.org/
