@@ -14,7 +14,7 @@
     "remark": "^13.0.0",
     "remark-gfm": "^1.0.0",
     "remark-lint": "^8.0.0",
-    "remark-preset-lint-node": "^2.0.1",
+    "remark-preset-lint-node": "^2.3.0",
     "unified-args": "^8.1.0"
   },
   "main": "dist/index.js",
