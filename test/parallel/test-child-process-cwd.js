@@ -27,7 +27,7 @@ tmpdir.refresh();
 
 const assert = require('assert');
 const { spawn } = require('child_process');
-const { URL } = require('url');
+const { pathToFileURL, URL } = require('url');
 
 // Spawns 'pwd' with given options, then test
 // - whether the child pid is undefined or number,
@@ -71,14 +71,14 @@ function testCwd(options, expectPidType, expectCode = 0, expectData) {
 {
   assert.throws(() => {
     testCwd({
-      cwd: new URL(`http://example.com/`),
+      cwd: new URL('http://example.com/'),
     }, 'number', 0, tmpdir.path);
   }, /The URL must be of scheme file/);
 
   if (process.platform !== 'win32') {
     assert.throws(() => {
       testCwd({
-        cwd: new URL(`file://host${tmpdir.path}`),
+        cwd: new URL(`file://host/dev/null`),
       }, 'number', 0, tmpdir.path);
     }, /File URL host must be "localhost" or empty on/);
   }
@@ -88,7 +88,7 @@ function testCwd(options, expectPidType, expectCode = 0, expectData) {
 testCwd({ cwd: tmpdir.path }, 'number', 0, tmpdir.path);
 const shouldExistDir = common.isWindows ? process.env.windir : '/dev';
 testCwd({ cwd: shouldExistDir }, 'number', 0, shouldExistDir);
-testCwd({ cwd: new URL(`file://${tmpdir.path}`) }, 'number', 0, tmpdir.path);
+testCwd({ cwd: pathToFileURL(tmpdir.path) }, 'number', 0, tmpdir.path);
 
 // Spawn() shouldn't try to chdir() to invalid arg, so this should just work
 testCwd({ cwd: '' }, 'number');
