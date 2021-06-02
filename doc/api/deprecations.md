@@ -2786,6 +2786,19 @@ These properties are now available within the standard `detail` property
 of the `PerformanceEntry` object. The existing accessors have been
 deprecated and should no longer be used.
 
+### DEP0153: Non boolean value for `verbatim` DNS lookup option
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/38906
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+Using a non-boolean value for `verbatim` option in [`dns.lookup()`][] and
+[`dnsPromises.lookup()`][] is deprecated.
+
 [Legacy URL API]: url.md#url_legacy_url_api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
@@ -2825,6 +2838,8 @@ deprecated and should no longer be used.
 [`crypto.scrypt()`]: crypto.md#crypto_crypto_scrypt_password_salt_keylen_options_callback
 [`decipher.final()`]: crypto.md#crypto_decipher_final_outputencoding
 [`decipher.setAuthTag()`]: crypto.md#crypto_decipher_setauthtag_buffer_encoding
+[`dns.lookup()`]: domain.md#dns_dns_lookup_hostname_options_callback
+[`dnsPromises.lookup()`]: domain.md#dns_dnspromises_lookup_hostname_options
 [`domain`]: domain.md
 [`ecdh.setPublicKey()`]: crypto.md#crypto_ecdh_setpublickey_publickey_encoding
 [`emitter.listenerCount(eventName)`]: events.md#events_emitter_listenercount_eventname
