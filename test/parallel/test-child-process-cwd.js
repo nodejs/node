@@ -78,7 +78,7 @@ function testCwd(options, expectPidType, expectCode = 0, expectData) {
   if (process.platform !== 'win32') {
     assert.throws(() => {
       testCwd({
-        cwd: new URL(`file://host/dev/null`),
+        cwd: new URL('file://host/dev/null'),
       }, 'number', 0, tmpdir.path);
     }, /File URL host must be "localhost" or empty on/);
   }
