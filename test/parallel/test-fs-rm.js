@@ -286,12 +286,12 @@ function removeAsync(dir) {
   // IBMi has a different access permission mechanism
   // This test should not be run as `root`
   if (!common.isIBMi && (common.isWindows || process.getuid() !== 0)) {
-    // On Windows, we are allowed to access and modify the contents of a
-    // read-only folder.
+    // Check that deleting a file that cannot be accessed using rmsync throws:
+    // https://github.com/nodejs/node/issues/38683
     {
-      // Check that deleting a file that cannot be accessed using rmsync throws:
-      // https://github.com/nodejs/node/issues/38683
       function isValidState(exists, err) {
+        // On Windows, we are allowed to access and modify the contents of a
+        // read-only folder.
         return common.isWindows ?
                (exists === false && err === null)) :
                (exists === true && err?.code === 'EACCES'));
@@ -358,12 +358,12 @@ function removeAsync(dir) {
       }
     }
 
-    // On Windows, we are not allowed to delete a read-only directory.
+    // Check endless recursion.
+    // https://github.com/nodejs/node/issues/34580
     {
-      // Check endless recursion.
-      // https://github.com/nodejs/node/issues/34580
       function isValidState(exists, err) {
-        // TODO(RaisinTen): Replace the error code with 'EACCES' if this lands:
+        // On Windows, we are not allowed to delete a read-only folder yet.
+        // TODO(RaisinTen): Remove Windows special-casing if this lands:
         // https://github.com/libuv/libuv/pull/3193
         return common.isWindows ?
                (exists === true && err?.code === 'EPERM') :
