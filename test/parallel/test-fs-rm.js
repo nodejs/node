@@ -293,8 +293,8 @@ function removeAsync(dir) {
         // On Windows, we are allowed to access and modify the contents of a
         // read-only folder.
         return common.isWindows ?
-               (exists === false && err === null) :
-               (exists === true && err?.code === 'EACCES');
+          (exists === false && err === null) :
+          (exists === true && err?.code === 'EACCES');
       }
 
       {
@@ -366,8 +366,8 @@ function removeAsync(dir) {
         // TODO(RaisinTen): Remove Windows special-casing if this lands:
         // https://github.com/libuv/libuv/pull/3193
         return common.isWindows ?
-               (exists === true && err?.code === 'EPERM') :
-               (exists === true && err?.code === 'EACCES');
+          (exists === true && err?.code === 'EPERM') :
+          (exists === true && err?.code === 'EACCES');
       }
 
       {
