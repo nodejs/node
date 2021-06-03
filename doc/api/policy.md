@@ -183,7 +183,7 @@ the application. For example, log data about timing of function durations by
 wrapping the original:
 
 ```js
-const original = require('fn');
+const original = require('node:fn');
 module.exports = function fn(...args) {
   console.time();
   try {

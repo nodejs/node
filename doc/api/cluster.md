@@ -14,9 +14,9 @@ The cluster module allows easy creation of child processes that all share
 server ports.
 
 ```js
-const cluster = require('cluster');
-const http = require('http');
-const numCPUs = require('os').cpus().length;
+const cluster = require('node:cluster');
+const http = require('node:http');
+const numCPUs = require('node:os').cpus().length;
 
 if (cluster.isPrimary) {
   console.log(`Primary ${process.pid} is running`);
@@ -205,8 +205,8 @@ Here is an example using the message system. It keeps a count in the primary
 process of the number of HTTP requests received by the workers:
 
 ```js
-const cluster = require('cluster');
-const http = require('http');
+const cluster = require('node:cluster');
+const http = require('node:http');
 
 if (cluster.isPrimary) {
 
@@ -224,7 +224,7 @@ if (cluster.isPrimary) {
   }
 
   // Start workers and listen for messages containing notifyRequest
-  const numCPUs = require('os').cpus().length;
+  const numCPUs = require('node:os').cpus().length;
   for (let i = 0; i < numCPUs; i++) {
     cluster.fork();
   }
@@ -316,7 +316,7 @@ if (cluster.isPrimary) {
   });
 
 } else if (cluster.isWorker) {
-  const net = require('net');
+  const net = require('node:net');
   const server = net.createServer((socket) => {
     // Connections never end
   });
@@ -388,9 +388,9 @@ This function returns `true` if the worker's process has terminated (either
 because of exiting or being signaled). Otherwise, it returns `false`.
 
 ```js
-const cluster = require('cluster');
-const http = require('http');
-const numCPUs = require('os').cpus().length;
+const cluster = require('node:cluster');
+const http = require('node:http');
+const numCPUs = require('node:os').cpus().length;
 
 if (cluster.isPrimary) {
   console.log(`Primary ${process.pid} is running`);
@@ -818,7 +818,7 @@ The defaults above apply to the first call only; the defaults for later
 calls are the current values at the time of `cluster.setupPrimary()` is called.
 
 ```js
-const cluster = require('cluster');
+const cluster = require('node:cluster');
 cluster.setupPrimary({
   exec: 'worker.js',
   args: ['--use', 'https'],
@@ -844,7 +844,7 @@ added: v0.7.0
 A reference to the current worker object. Not available in the primary process.
 
 ```js
-const cluster = require('cluster');
+const cluster = require('node:cluster');
 
 if (cluster.isPrimary) {
   console.log('I am primary');

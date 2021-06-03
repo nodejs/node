@@ -14,7 +14,7 @@ import url from 'url';
 ```
 
 ```cjs
-const url = require('url');
+const url = require('node:url');
 ```
 
 ## URL strings and URL objects
@@ -66,13 +66,13 @@ const myURL =
 Parsing the URL string using the Legacy API:
 
 ```mjs
-import url from 'url';
+import url from 'node:url';
 const myURL =
   url.parse('https://user:pass@sub.example.com:8080/p/a/t/h?query=string#hash');
 ```
 
 ```cjs
-const url = require('url');
+const url = require('node:url');
 const myURL =
   url.parse('https://user:pass@sub.example.com:8080/p/a/t/h?query=string#hash');
 ```
@@ -146,12 +146,12 @@ The URL constructor is accessible as a property on the global object.
 It can also be imported from the built-in url module:
 
 ```mjs
-import { URL } from 'url';
+import { URL } from 'node:url';
 console.log(URL === globalThis.URL); // Prints 'true'.
 ```
 
 ```cjs
-console.log(URL === require('url').URL); // Prints 'true'.
+console.log(URL === require('node:url').URL); // Prints 'true'.
 ```
 
 A `TypeError` will be thrown if the `input` or `base` are not valid URLs. Note
@@ -946,7 +946,7 @@ This feature is only available if the `node` executable was compiled with
 [ICU][] enabled. If not, the domain names are passed through unchanged.
 
 ```mjs
-import url from 'url';
+import url from 'node:url';
 
 console.log(url.domainToASCII('español.com'));
 // Prints xn--espaol-zwa.com
@@ -957,7 +957,7 @@ console.log(url.domainToASCII('xn--iñvalid.com'));
 ```
 
 ```cjs
-const url = require('url');
+const url = require('node:url');
 
 console.log(url.domainToASCII('español.com'));
 // Prints xn--espaol-zwa.com
@@ -986,7 +986,7 @@ This feature is only available if the `node` executable was compiled with
 [ICU][] enabled. If not, the domain names are passed through unchanged.
 
 ```mjs
-import url from 'url';
+import url from 'node:url';
 
 console.log(url.domainToUnicode('xn--espaol-zwa.com'));
 // Prints español.com
@@ -997,7 +997,7 @@ console.log(url.domainToUnicode('xn--iñvalid.com'));
 ```
 
 ```cjs
-const url = require('url');
+const url = require('node:url');
 
 console.log(url.domainToUnicode('xn--espaol-zwa.com'));
 // Prints español.com
@@ -1166,7 +1166,7 @@ This utility function converts a URL object into an ordinary options object as
 expected by the [`http.request()`][] and [`https.request()`][] APIs.
 
 ```mjs
-import { urlToHttpOptions } from 'url';
+import { urlToHttpOptions } from 'node:url';
 const myURL = new URL('https://a:b@測試?abc#foo');
 
 console.log(urlToHttpOptions(myUrl));
@@ -1185,7 +1185,7 @@ console.log(urlToHttpOptions(myUrl));
 ```
 
 ```cjs
-const { urlToHttpOptions } = require('url');
+const { urlToHttpOptions } = require('node:url');
 const myURL = new URL('https://a:b@測試?abc#foo');
 
 console.log(urlToHttpOptions(myUrl));
@@ -1522,7 +1522,7 @@ The `url.resolve()` method resolves a target URL relative to a base URL in a
 manner similar to that of a Web browser resolving an anchor tag HREF.
 
 ```js
-const url = require('url');
+const url = require('node:url');
 url.resolve('/one/two/three', 'four');         // '/one/two/four'
 url.resolve('http://example.com/', '/one');    // 'http://example.com/one'
 url.resolve('http://example.com/one', '/two'); // 'http://example.com/two'

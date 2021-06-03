@@ -1532,7 +1532,7 @@ Type: Runtime
 mistake. This function can usually be replaced with:
 
 ```js
-const querystring = require('querystring');
+const querystring = require('node:querystring');
 querystring.parse(str, '\n', '=');
 ```
 
@@ -2523,7 +2523,7 @@ Please ensure that all `fs.FileHandle` objects are explicitly closed using
 `FileHandle.prototype.close()` when the `fs.FileHandle` is no longer needed:
 
 ```js
-const fsPromises = require('fs').promises;
+const fsPromises = require('node:fs').promises;
 async function openAndClose() {
   let filehandle;
   try {

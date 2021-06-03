@@ -167,8 +167,8 @@ added: v0.3.4
 
 ```js
 // curl -k https://localhost:8000/
-const https = require('https');
-const fs = require('fs');
+const https = require('node:https');
+const fs = require('node:fs');
 
 const options = {
   key: fs.readFileSync('test/fixtures/keys/agent2-key.pem'),
@@ -184,8 +184,8 @@ https.createServer(options, (req, res) => {
 Or
 
 ```js
-const https = require('https');
-const fs = require('fs');
+const https = require('node:https');
+const fs = require('node:fs');
 
 const options = {
   pfx: fs.readFileSync('test/fixtures/test_cert.pfx'),
@@ -224,7 +224,7 @@ string, it is automatically parsed with [`new URL()`][]. If it is a [`URL`][]
 object, it will be automatically converted to an ordinary `options` object.
 
 ```js
-const https = require('https');
+const https = require('node:https');
 
 https.get('https://encrypted.google.com/', (res) => {
   console.log('statusCode:', res.statusCode);
@@ -294,7 +294,7 @@ class. The `ClientRequest` instance is a writable stream. If one needs to
 upload a file with a POST request, then write to the `ClientRequest` object.
 
 ```js
-const https = require('https');
+const https = require('node:https');
 
 const options = {
   hostname: 'encrypted.google.com',
@@ -368,9 +368,9 @@ Example pinning on certificate fingerprint, or the public key (similar to
 `pin-sha256`):
 
 ```js
-const tls = require('tls');
-const https = require('https');
-const crypto = require('crypto');
+const tls = require('node:tls');
+const https = require('node:https');
+const crypto = require('node:crypto');
 
 function sha256(s) {
   return crypto.createHash('sha256').update(s).digest('base64');

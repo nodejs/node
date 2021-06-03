@@ -10,7 +10,7 @@ The `os` module provides operating system-related utility methods and
 properties. It can be accessed using:
 
 ```js
-const os = require('os');
+const os = require('node:os');
 ```
 
 ## `os.EOL`

@@ -12,7 +12,7 @@ Deflate/Inflate, and Brotli.
 To access it:
 
 ```js
-const zlib = require('zlib');
+const zlib = require('node:zlib');
 ```
 
 Compression and decompression are built around the Node.js [Streams API][].
@@ -22,12 +22,12 @@ piping the source stream through a `zlib` `Transform` stream into a destination
 stream:
 
 ```js
-const { createGzip } = require('zlib');
-const { pipeline } = require('stream');
+const { createGzip } = require('node:zlib');
+const { pipeline } = require('node:stream');
 const {
   createReadStream,
   createWriteStream
-} = require('fs');
+} = require('node:fs');
 
 const gzip = createGzip();
 const source = createReadStream('input.txt');
@@ -42,7 +42,7 @@ pipeline(source, gzip, destination, (err) => {
 
 // Or, Promisified
 
-const { promisify } = require('util');
+const { promisify } = require('node:util');
 const pipe = promisify(pipeline);
 
 async function do_gzip(input, output) {
@@ -62,7 +62,7 @@ do_gzip('input.txt', 'input.txt.gz')
 It is also possible to compress or decompress data in a single step:
 
 ```js
-const { deflate, unzip } = require('zlib');
+const { deflate, unzip } = require('node:zlib');
 
 const input = '.................................';
 deflate(input, (err, buffer) => {
@@ -84,7 +84,7 @@ unzip(buffer, (err, buffer) => {
 
 // Or, Promisified
 
-const { promisify } = require('util');
+const { promisify } = require('node:util');
 const do_unzip = promisify(unzip);
 
 do_unzip(buffer)
@@ -105,7 +105,7 @@ Creating and using a large number of zlib objects simultaneously can cause
 significant memory fragmentation.
 
 ```js
-const zlib = require('zlib');
+const zlib = require('node:zlib');
 
 const payload = Buffer.from('This is some data');
 
@@ -140,10 +140,10 @@ tradeoffs involved in `zlib` usage.
 
 ```js
 // Client request example
-const zlib = require('zlib');
-const http = require('http');
-const fs = require('fs');
-const { pipeline } = require('stream');
+const zlib = require('node:zlib');
+const http = require('node:http');
+const fs = require('node:fs');
+const { pipeline } = require('node:stream');
 
 const request = http.get({ host: 'example.com',
                            path: '/',
@@ -181,10 +181,10 @@ request.on('response', (response) => {
 // server example
 // Running a gzip operation on every request is quite expensive.
 // It would be much more efficient to cache the compressed buffer.
-const zlib = require('zlib');
-const http = require('http');
-const fs = require('fs');
-const { pipeline } = require('stream');
+const zlib = require('node:zlib');
+const http = require('node:http');
+const fs = require('node:fs');
+const { pipeline } = require('node:stream');
 
 http.createServer((request, response) => {
   const raw = fs.createReadStream('index.html');
@@ -318,9 +318,9 @@ In the following example, `flush()` is used to write a compressed partial
 HTTP response to the client:
 
 ```js
-const zlib = require('zlib');
-const http = require('http');
-const { pipeline } = require('stream');
+const zlib = require('node:zlib');
+const http = require('node:http');
+const { pipeline } = require('node:stream');
 
 http.createServer((request, response) => {
   // For the sake of simplicity, the Accept-Encoding checks are omitted.

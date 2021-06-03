@@ -61,7 +61,7 @@ Errors that occur within _Asynchronous APIs_ may be reported in multiple ways:
 
 <!-- eslint-disable no-useless-return -->
   ```js
-  const fs = require('fs');
+  const fs = require('node:fs');
   fs.readFile('a file that does not exist', (err, data) => {
     if (err) {
       console.error('There was an error reading the file!', err);
@@ -75,7 +75,7 @@ Errors that occur within _Asynchronous APIs_ may be reported in multiple ways:
   [`EventEmitter`][], errors can be routed to that object's `'error'` event.
 
   ```js
-  const net = require('net');
+  const net = require('node:net');
   const connection = net.connect('localhost');
 
   // Adding an 'error' event handler to a stream:
@@ -107,7 +107,7 @@ used appropriately or a handler has been registered for the
 [`'uncaughtException'`][] event.
 
 ```js
-const EventEmitter = require('events');
+const EventEmitter = require('node:events');
 const ee = new EventEmitter();
 
 setImmediate(() => {
@@ -135,7 +135,7 @@ completes or an error is raised, the callback function is called with the
 the first argument will be passed as `null`.
 
 ```js
-const fs = require('fs');
+const fs = require('node:fs');
 
 function errorFirstCallback(err, data) {
   if (err) {
@@ -155,7 +155,7 @@ use `throw` inside an error-first callback:
 
 ```js
 // THIS WILL NOT WORK:
-const fs = require('fs');
+const fs = require('node:fs');
 
 try {
   fs.readFile('/some/file/that/does-not-exist', (err, data) => {
@@ -2081,7 +2081,7 @@ Prevents an abort if a string decoder was set on the Socket or if the decoder
 is in `objectMode`.
 
 ```js
-const Socket = require('net').Socket;
+const Socket = require('node:net').Socket;
 const instance = new Socket();
 
 instance.setEncoding('utf8');
