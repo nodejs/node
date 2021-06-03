@@ -289,8 +289,15 @@ function removeAsync(dir) {
     // On Windows, we are allowed to access and modify the contents of a
     // read-only folder.
     {
-      // Check that deleting a file that cannot be accessed using rmsync throws
-      // https://github.com/nodejs/node/issues/38683
+    // Check that deleting a file that cannot be accessed using rmsync
+    // throws: https://github.com/nodejs/node/issues/38683
+    function isValidState(exists, err) {
+      return common.isWindows ?
+             (exists === false && err === null)) :
+             (exists === true && err?.code === 'EACCES'));
+    }
+
+    {
       const dirname = nextDirPath();
       const filePath = path.join(dirname, 'text.txt');
 
@@ -318,25 +325,12 @@ function removeAsync(dir) {
       } catch {
       }
 
-      let isValidState = true;
-      const exists = fs.existsSync(filePath);
-
-      if (common.isWindows &&
-          !(exists === false && err === null)) {
-        isValidState = false;
-      } else if (!common.isWindows &&
-                 !(exists === true && err?.code === 'EACCES')) {
-        isValidState = false;
-      }
-
-      if (!isValidState) {
+      if (!isValidState(fs.existsSync(filePath), err)) {
         throw err;
       }
     }
 
     {
-      // Check that deleting a file that cannot be accessed using rmsync throws
-      // https://github.com/nodejs/node/issues/38683
       const dirname = nextDirPath();
       const filePath = path.join(dirname, 'text.txt');
 
@@ -357,27 +351,26 @@ function removeAsync(dir) {
         } catch {
         }
 
-        let isValidState = true;
-        const exists = fs.existsSync(filePath);
-
-        if (common.isWindows &&
-            !(exists === false && err === null)) {
-          isValidState = false;
-        } else if (!common.isWindows &&
-                   !(exists === true && err?.code === 'EACCES')) {
-          isValidState = false;
-        }
-
-        if (!isValidState) {
+        if (!isValidState(fs.existsSync(filePath), err)) {
           throw err;
         }
       }));
     }
+    }
 
     // On Windows, we are not allowed to delete a read-only directory.
     {
-      // Check endless recursion.
-      // https://github.com/nodejs/node/issues/34580
+    // Check endless recursion.
+    // https://github.com/nodejs/node/issues/34580
+    function isValidState(exists, err) {
+      // TODO(RaisinTen): Replace the error code with 'EACCES' if this lands:
+      // https://github.com/libuv/libuv/pull/3193
+      return common.isWindows ?
+             (exists === true && err?.code === 'EPERM') :
+             (exists === true && err?.code === 'EACCES');
+    }
+
+    {
       const dirname = nextDirPath();
       fs.mkdirSync(dirname, { recursive: true });
       const root = fs.mkdtempSync(path.join(dirname, 'fs-'));
@@ -408,27 +401,12 @@ function removeAsync(dir) {
       } catch {
       }
 
-      let isValidState = true;
-      const exists = fs.existsSync(root);
-
-      if (common.isWindows &&
-          !(exists === true && err?.code === 'EPERM')) {
-        // TODO(RaisinTen): Replace the error code with 'EACCES' if this lands:
-        // https://github.com/libuv/libuv/pull/3193
-        isValidState = false;
-      } else if (!common.isWindows &&
-                 !(exists === true && err?.code === 'EACCES')) {
-        isValidState = false;
-      }
-
-      if (!isValidState) {
+      if (!isValidState(fs.existsSync(root), err)) {
         throw err;
       }
     }
 
     {
-      // Check endless recursion.
-      // https://github.com/nodejs/node/issues/34580
       const dirname = nextDirPath();
       fs.mkdirSync(dirname, { recursive: true });
       const root = fs.mkdtempSync(path.join(dirname, 'fs-'));
@@ -452,23 +430,11 @@ function removeAsync(dir) {
         } catch {
         }
 
-        let isValidState = true;
-        const exists = fs.existsSync(root);
-
-        if (common.isWindows &&
-            !(exists === true && err?.code === 'EPERM')) {
-          // TODO(RaisinTen): Replace the error code with 'EACCES' if this
-          // lands: https://github.com/libuv/libuv/pull/3193
-          isValidState = false;
-        } else if (!common.isWindows &&
-                   !(exists === true && err?.code === 'EACCES')) {
-          isValidState = false;
-        }
-
-        if (!isValidState) {
+        if (!isValidState(fs.existsSync(root), err)) {
           throw err;
         }
       }));
+    }
     }
   }
 }
