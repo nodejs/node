@@ -4,6 +4,6 @@
   "description": "Formatting C++ files for Node.js core",
   "license": "MIT",
   "dependencies": {
-    "clang-format": "1.2.3"
+    "clang-format": "1.5.0"
   }
 }
