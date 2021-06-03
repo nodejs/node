@@ -21,9 +21,7 @@ crypto.subtle.importKey(
       return crypto.subtle.decrypt({
         name: 'AES-GCM',
         iv: new Uint8Array(12),
-      },
-      k,
-      new Uint8Array(0));
+      }, k, new Uint8Array(0));
     }, {
       name: 'OperationError',
       message: /The provided data is too small/,
