@@ -1113,6 +1113,9 @@ class Environment : public MemoryRetainer {
   void PrintSyncTrace() const;
   inline void set_trace_sync_io(bool value);
 
+  inline void set_unhandled_rejections_mode(const std::string& mode);
+  inline std::string unhandled_rejections_mode() const;
+
   inline void set_force_context_aware(bool value);
   inline bool force_context_aware() const;
 

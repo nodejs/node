@@ -560,6 +560,24 @@ inline bool Environment::abort_on_uncaught_exception() const {
   return options_->abort_on_uncaught_exception;
 }
 
+inline void Environment::set_unhandled_rejections_mode(
+  const std::string& mode) {
+  if (!mode.empty() &&
+      mode != "warn-with-error-code" &&
+      mode != "throw" &&
+      mode != "strict" &&
+      mode != "warn" &&
+      mode != "none") {
+    fprintf(stderr, "Invalid unhandled rejections mode: %s", mode.c_str());
+  } else {
+    options_->unhandled_rejections = mode;
+  }
+}
+
+inline std::string Environment::unhandled_rejections_mode() const {
+  return options_->unhandled_rejections;
+}
+
 inline void Environment::set_force_context_aware(bool value) {
   options_->force_context_aware = value;
 }
