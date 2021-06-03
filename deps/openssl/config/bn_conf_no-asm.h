@@ -40,7 +40,7 @@
 #elif defined(OPENSSL_LINUX) && !defined(__PPC64__) && defined(__ppc__)
 # include "./archs/linux-ppc/no-asm/crypto/include/internal/bn_conf.h"
 #elif defined(_AIX) && defined(_ARCH_PPC64)
-# include "./archs/aix64-gcc/no-asm/crypto/include/internal/bn_conf.h"
+# include "./archs/aix64-gcc-as/no-asm/crypto/include/internal/bn_conf.h"
 #elif defined(_AIX) && !defined(_ARCH_PPC64) && defined(_ARCH_PPC)
 # include "./archs/aix-gcc/no-asm/crypto/include/internal/bn_conf.h"
 #elif defined(OPENSSL_LINUX) && defined(__s390x__)
