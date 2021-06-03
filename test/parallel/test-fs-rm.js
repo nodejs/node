@@ -289,58 +289,32 @@ function removeAsync(dir) {
     // On Windows, we are allowed to access and modify the contents of a
     // read-only folder.
     {
-    // Check that deleting a file that cannot be accessed using rmsync
-    // throws: https://github.com/nodejs/node/issues/38683
-    function isValidState(exists, err) {
-      return common.isWindows ?
-             (exists === false && err === null)) :
-             (exists === true && err?.code === 'EACCES'));
-    }
-
-    {
-      const dirname = nextDirPath();
-      const filePath = path.join(dirname, 'text.txt');
-
-      fs.mkdirSync(dirname, { recursive: true });
-      fs.writeFileSync(filePath, 'hello');
-
-      fs.chmodSync(filePath, 0o444);
-      fs.chmodSync(dirname, 0o444);
-
-      let err = null;
-
-      try {
-        fs.rmSync(filePath, { force: true });
-      } catch (_err) {
-        err = _err;
+      // Check that deleting a file that cannot be accessed using rmsync throws:
+      // https://github.com/nodejs/node/issues/38683
+      function isValidState(exists, err) {
+        return common.isWindows ?
+               (exists === false && err === null)) :
+               (exists === true && err?.code === 'EACCES'));
       }
 
-      try {
-        fs.chmodSync(dirname, 0o777);
-      } catch {
-      }
+      {
+        const dirname = nextDirPath();
+        const filePath = path.join(dirname, 'text.txt');
 
-      try {
-        fs.chmodSync(filePath, 0o777);
-      } catch {
-      }
+        fs.mkdirSync(dirname, { recursive: true });
+        fs.writeFileSync(filePath, 'hello');
 
-      if (!isValidState(fs.existsSync(filePath), err)) {
-        throw err;
-      }
-    }
+        fs.chmodSync(filePath, 0o444);
+        fs.chmodSync(dirname, 0o444);
 
-    {
-      const dirname = nextDirPath();
-      const filePath = path.join(dirname, 'text.txt');
+        let err = null;
 
-      fs.mkdirSync(dirname, { recursive: true });
-      fs.writeFileSync(filePath, 'hello');
+        try {
+          fs.rmSync(filePath, { force: true });
+        } catch (_err) {
+          err = _err;
+        }
 
-      fs.chmodSync(filePath, 0o444);
-      fs.chmodSync(dirname, 0o444);
-
-      fs.rm(filePath, { force: true }, common.mustCall((err) => {
         try {
           fs.chmodSync(dirname, 0o777);
         } catch {
@@ -354,72 +328,69 @@ function removeAsync(dir) {
         if (!isValidState(fs.existsSync(filePath), err)) {
           throw err;
         }
-      }));
-    }
+      }
+
+      {
+        const dirname = nextDirPath();
+        const filePath = path.join(dirname, 'text.txt');
+
+        fs.mkdirSync(dirname, { recursive: true });
+        fs.writeFileSync(filePath, 'hello');
+
+        fs.chmodSync(filePath, 0o444);
+        fs.chmodSync(dirname, 0o444);
+
+        fs.rm(filePath, { force: true }, common.mustCall((err) => {
+          try {
+            fs.chmodSync(dirname, 0o777);
+          } catch {
+          }
+
+          try {
+            fs.chmodSync(filePath, 0o777);
+          } catch {
+          }
+
+          if (!isValidState(fs.existsSync(filePath), err)) {
+            throw err;
+          }
+        }));
+      }
     }
 
     // On Windows, we are not allowed to delete a read-only directory.
     {
-    // Check endless recursion.
-    // https://github.com/nodejs/node/issues/34580
-    function isValidState(exists, err) {
-      // TODO(RaisinTen): Replace the error code with 'EACCES' if this lands:
-      // https://github.com/libuv/libuv/pull/3193
-      return common.isWindows ?
-             (exists === true && err?.code === 'EPERM') :
-             (exists === true && err?.code === 'EACCES');
-    }
-
-    {
-      const dirname = nextDirPath();
-      fs.mkdirSync(dirname, { recursive: true });
-      const root = fs.mkdtempSync(path.join(dirname, 'fs-'));
-      const middle = path.join(root, 'middle');
-      const leaf = path.join(middle, 'leaf');
-
-      fs.mkdirSync(middle);
-      fs.mkdirSync(leaf);
-
-      fs.chmodSync(leaf, 0o555);
-      fs.chmodSync(middle, 0o555);
-
-      let err = null;
-
-      try {
-        fs.rmSync(root, { recursive: true });
-      } catch (_err) {
-        err = _err;
+      // Check endless recursion.
+      // https://github.com/nodejs/node/issues/34580
+      function isValidState(exists, err) {
+        // TODO(RaisinTen): Replace the error code with 'EACCES' if this lands:
+        // https://github.com/libuv/libuv/pull/3193
+        return common.isWindows ?
+               (exists === true && err?.code === 'EPERM') :
+               (exists === true && err?.code === 'EACCES');
       }
 
-      try {
-        fs.chmodSync(middle, 0o777);
-      } catch {
-      }
+      {
+        const dirname = nextDirPath();
+        fs.mkdirSync(dirname, { recursive: true });
+        const root = fs.mkdtempSync(path.join(dirname, 'fs-'));
+        const middle = path.join(root, 'middle');
+        const leaf = path.join(middle, 'leaf');
 
-      try {
-        fs.chmodSync(leaf, 0o777);
-      } catch {
-      }
+        fs.mkdirSync(middle);
+        fs.mkdirSync(leaf);
 
-      if (!isValidState(fs.existsSync(root), err)) {
-        throw err;
-      }
-    }
+        fs.chmodSync(leaf, 0o555);
+        fs.chmodSync(middle, 0o555);
 
-    {
-      const dirname = nextDirPath();
-      fs.mkdirSync(dirname, { recursive: true });
-      const root = fs.mkdtempSync(path.join(dirname, 'fs-'));
-      const middle = path.join(root, 'middle');
-      const leaf = path.join(middle, 'leaf');
+        let err = null;
 
-      fs.mkdirSync(middle);
-      fs.mkdirSync(leaf);
+        try {
+          fs.rmSync(root, { recursive: true });
+        } catch (_err) {
+          err = _err;
+        }
 
-      fs.chmodSync(leaf, 0o555);
-      fs.chmodSync(middle, 0o555);
-
-      fs.rm(root, { recursive: true }, common.mustCall((err) => {
         try {
           fs.chmodSync(middle, 0o777);
         } catch {
@@ -433,8 +404,37 @@ function removeAsync(dir) {
         if (!isValidState(fs.existsSync(root), err)) {
           throw err;
         }
-      }));
-    }
+      }
+
+      {
+        const dirname = nextDirPath();
+        fs.mkdirSync(dirname, { recursive: true });
+        const root = fs.mkdtempSync(path.join(dirname, 'fs-'));
+        const middle = path.join(root, 'middle');
+        const leaf = path.join(middle, 'leaf');
+
+        fs.mkdirSync(middle);
+        fs.mkdirSync(leaf);
+
+        fs.chmodSync(leaf, 0o555);
+        fs.chmodSync(middle, 0o555);
+
+        fs.rm(root, { recursive: true }, common.mustCall((err) => {
+          try {
+            fs.chmodSync(middle, 0o777);
+          } catch {
+          }
+
+          try {
+            fs.chmodSync(leaf, 0o777);
+          } catch {
+          }
+
+          if (!isValidState(fs.existsSync(root), err)) {
+            throw err;
+          }
+        }));
+      }
     }
   }
 }
