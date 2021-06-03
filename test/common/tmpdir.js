@@ -28,15 +28,8 @@ function rmSync(pathname) {
     if (errCode === 'EACCES' || errCode === 'EPERM') {
       const surroundingDir = path.join(errPath, '..');
 
-      try {
-        fs.chmodSync(surroundingDir, 0o777);
-      } catch {
-      }
-
-      try {
-        fs.chmodSync(errPath, 0o777);
-      } catch {
-      }
+      try { fs.chmodSync(surroundingDir, 0o777); } catch {}
+      try { fs.chmodSync(errPath, 0o777); } catch {}
     }
   }
 
