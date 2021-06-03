@@ -293,8 +293,8 @@ function removeAsync(dir) {
         // On Windows, we are allowed to access and modify the contents of a
         // read-only folder.
         return common.isWindows ?
-               (exists === false && err === null)) :
-               (exists === true && err?.code === 'EACCES'));
+               (exists === false && err === null) :
+               (exists === true && err?.code === 'EACCES');
       }
 
       {
