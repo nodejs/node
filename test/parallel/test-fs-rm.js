@@ -351,9 +351,8 @@ function removeAsync(dir) {
         // On Windows, we are not allowed to delete a read-only folder yet.
         // TODO(RaisinTen): Remove Windows special-casing if this lands:
         // https://github.com/libuv/libuv/pull/3193
-        return common.isWindows ?
-          (exists === true && err?.code === 'EPERM') :
-          (exists === true && err?.code === 'EACCES');
+        return exists === true &&
+               err?.code === common.isWindows ? 'EPERM' : 'EACCES';
       }
 
       {
