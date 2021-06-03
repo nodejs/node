@@ -53,7 +53,7 @@ module.exports = (process) => {
       npm.config.set('usage', false, 'cli')
     }
 
-    npm.updateNotification = await updateNotifier(npm)
+    updateNotifier(npm)
 
     const cmd = npm.argv.shift()
     const impl = npm.commands[cmd]

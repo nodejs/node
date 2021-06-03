@@ -160,7 +160,8 @@ function fetchJSON (uri, opts) {
 }
 
 module.exports.json.stream = fetchJSONStream
-function fetchJSONStream (uri, jsonPath, /* istanbul ignore next */ opts_ = {}) {
+function fetchJSONStream (uri, jsonPath,
+  /* istanbul ignore next */ opts_ = {}) {
   const opts = { ...defaultOpts, ...opts_ }
   const parser = JSONStream.parse(jsonPath, opts.mapJSON)
   regFetch(uri, opts).then(res =>

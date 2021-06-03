@@ -7,7 +7,7 @@ A list of [SPDX license](https://spdx.org/licenses/) identifiers
 
 ## Installation
 
-[Download JSON directly](https://raw.githubusercontent.com/shinnn/spdx-license-ids/master/index.json), or [use](https://docs.npmjs.com/cli/install) [npm](https://docs.npmjs.com/about-npm/):
+[Download JSON directly](https://raw.githubusercontent.com/shinnn/spdx-license-ids/main/index.json), or [use](https://docs.npmjs.com/cli/install) [npm](https://docs.npmjs.com/about-npm/):
 
 ```
 npm install spdx-license-ids

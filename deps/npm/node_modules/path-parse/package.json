@@ -1,6 +1,6 @@
 {
   "name": "path-parse",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Node.js path.parse() ponyfill",
   "main": "index.js",
   "scripts": {
