@@ -27,6 +27,10 @@ docs/nav.yml
 docs/config.json
 docs/dockhand.js
 docs/template.html
+docs/package.json
+docs/node_modules
+# docs source files are required by `npm help-search` do not exclude those
+!docs/content/
 
 # don't ignore .npmignore files
 # these are used in some tests.

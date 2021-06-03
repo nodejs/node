@@ -1,3 +1,67 @@
+## v7.16.0 (2021-06-03)
+
+## FEATURES
+
+* [`e92b5f2ba`](https://github.com/npm/cli/commit/e92b5f2ba07746ae07646566f3dc73c9e004a2fc)
+  `npm-registry-fetch@11.0.0`
+    * feat: improved logging of cache status
+
+## BUG FIXES
+
+* [`e864bd3ce`](https://github.com/npm/cli/commit/e864bd3ce8e8467e0f8ebb499dc2daf06143bc33)
+  [#3345](https://github.com/npm/cli/issues/3345)
+  fix(update-notifier): do not update notify when installing npm@spec
+  ([@isaacs](https://github.com/isaacs))
+* [`aafe23572`](https://github.com/npm/cli/commit/aafe2357279230e333d3342752a28fce6b9cd152)
+  [#3348](https://github.com/npm/cli/issues/3348)
+  fix(update-notifier): parallelize check for updates
+  ([@isaacs](https://github.com/isaacs))
+
+## DOCUMENTATION
+
+* [`bc9c57dda`](https://github.com/npm/cli/commit/bc9c57dda7cf3abcdee17550205daf1a82e90438)
+  [#3353](https://github.com/npm/cli/issues/3353)
+  fix(docs): remove documentation for '--scripts-prepend-node-path' as it was removed in npm@7
+  ([@gimli01](https://github.com/gimli01))
+* [`ca2822110`](https://github.com/npm/cli/commit/ca28221103aa0e9ccba7043ac515a541b625c53a)
+  [#3360](https://github.com/npm/cli/issues/3360)
+  fix(docs): link foreground-scripts w/ loglevel
+  ([@wraithgar](https://github.com/wraithgar))
+* [`fb630b5a9`](https://github.com/npm/cli/commit/fb630b5a9af86c71602803297634ec291eeedee0)
+  [#3342](https://github.com/npm/cli/issues/3342)
+  chore(docs): manage docs as a workspace
+  ([@ruyadorno](https://github.com/ruyadorno))
+
+## DEPENDENCIES
+
+* [`54de5c6a4`](https://github.com/npm/cli/commit/54de5c6a4cd593bbbe364132f3f7348586441b31)
+  `npm-package-arg@8.1.4`:
+    * fix: trim whitespace from fetchSpec
+    * fix: handle file: when root directory begins with a special character
+* [`e92b5f2ba`](https://github.com/npm/cli/commit/e92b5f2ba07746ae07646566f3dc73c9e004a2fc)
+  `make-fetch-happen@9.0.1`
+    * breaking: complete refactor of caching. drops warning headers,
+      prevents cache indexes from growing for every request, correctly
+      handles varied requests to the same url, and now caches redirects.
+    * fix: support url-encoded proxy authorization
+    * fix: do not lazy-load proxy agents or agentkeepalive. fixes the
+      intermittent failures to update npm on slower connections.
+  `npm-registry-fetch@11.0.0`
+    * breaking: drop handling of deprecated warning headers
+    * docs: fix header type for npm-command
+    * docs: update registry param
+    * feat: improved logging of cache status
+* [`23c50a45f`](https://github.com/npm/cli/commit/23c50a45f59ea3ed4c36f35df15e54adc5603034)
+  `make-fetch-happen@9.0.2`:
+    * fix: work around negotiator's lazy loading
+
+## AUTOMATION
+
+* [`c4ef78b08`](https://github.com/npm/cli/commit/c4ef78b08e6859fc191cabbe58c8d88c070e0612)
+  [#3344](https://github.com/npm/cli/issues/3344)
+  fix(automation): update incorrect variable name in create-cli-deps-pr workflow
+  ([@gimli01](https://github.com/gimli01))
+
 ## v7.15.1 (2021-05-31)
 
 ### BUG FIXES

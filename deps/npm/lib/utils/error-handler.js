@@ -119,7 +119,9 @@ const errorHandler = (er) => {
   if (cbCalled)
     er = er || new Error('Callback called more than once.')
 
-  if (npm.updateNotification) {
+  // only show the notification if it finished before the other stuff we
+  // were doing.  no need to hang on `npm -v` or something.
+  if (typeof npm.updateNotification === 'string') {
     const { level } = log
     log.level = log.levels.notice
     log.notice('', npm.updateNotification)

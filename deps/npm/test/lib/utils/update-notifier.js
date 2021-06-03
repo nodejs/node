@@ -86,9 +86,14 @@ t.afterEach(() => {
   WRITE_ERROR = null
 })
 
+const runUpdateNotifier = async npm => {
+  await updateNotifier(npm)
+  return npm.updateNotification
+}
+
 t.test('situations in which we do not notify', t => {
   t.test('nothing to do if notifier disabled', async t => {
-    t.equal(await updateNotifier({
+    t.equal(await runUpdateNotifier({
       ...npm,
       config: { get: (k) => k !== 'update-notifier' },
     }), null)
@@ -96,7 +101,7 @@ t.test('situations in which we do not notify', t => {
   })
 
   t.test('do not suggest update if already updating', async t => {
-    t.equal(await updateNotifier({
+    t.equal(await runUpdateNotifier({
       ...npm,
       flatOptions: { ...flatOptions, global: true },
       command: 'install',
@@ -105,32 +110,42 @@ t.test('situations in which we do not notify', t => {
     t.strictSame(MANIFEST_REQUEST, [], 'no requests for manifests')
   })
 
+  t.test('do not suggest update if already updating with spec', async t => {
+    t.equal(await runUpdateNotifier({
+      ...npm,
+      flatOptions: { ...flatOptions, global: true },
+      command: 'install',
+      argv: ['npm@latest'],
+    }), null)
+    t.strictSame(MANIFEST_REQUEST, [], 'no requests for manifests')
+  })
+
   t.test('do not update if same as latest', async t => {
-    t.equal(await updateNotifier(npm), null)
+    t.equal(await runUpdateNotifier(npm), null)
     t.strictSame(MANIFEST_REQUEST, ['npm@latest'], 'requested latest version')
   })
   t.test('check if stat errors (here for coverage)', async t => {
     STAT_ERROR = new Error('blorg')
-    t.equal(await updateNotifier(npm), null)
+    t.equal(await runUpdateNotifier(npm), null)
     t.strictSame(MANIFEST_REQUEST, ['npm@latest'], 'requested latest version')
   })
   t.test('ok if write errors (here for coverage)', async t => {
     WRITE_ERROR = new Error('grolb')
-    t.equal(await updateNotifier(npm), null)
+    t.equal(await runUpdateNotifier(npm), null)
     t.strictSame(MANIFEST_REQUEST, ['npm@latest'], 'requested latest version')
   })
   t.test('ignore pacote failures (here for coverage)', async t => {
     PACOTE_ERROR = new Error('pah-KO-tchay')
-    t.equal(await updateNotifier(npm), null)
+    t.equal(await runUpdateNotifier(npm), null)
     t.strictSame(MANIFEST_REQUEST, ['npm@latest'], 'requested latest version')
   })
   t.test('do not update if newer than latest, but same as next', async t => {
-    t.equal(await updateNotifier({ ...npm, version: NEXT_VERSION }), null)
+    t.equal(await runUpdateNotifier({ ...npm, version: NEXT_VERSION }), null)
     const reqs = ['npm@latest', `npm@^${NEXT_VERSION}`]
     t.strictSame(MANIFEST_REQUEST, reqs, 'requested latest and next versions')
   })
   t.test('do not update if on the latest beta', async t => {
-    t.equal(await updateNotifier({ ...npm, version: CURRENT_BETA }), null)
+    t.equal(await runUpdateNotifier({ ...npm, version: CURRENT_BETA }), null)
     const reqs = [`npm@^${CURRENT_BETA}`]
     t.strictSame(MANIFEST_REQUEST, reqs, 'requested latest and next versions')
   })
@@ -140,21 +155,21 @@ t.test('situations in which we do not notify', t => {
       ciMock = null
     })
     ciMock = 'something'
-    t.equal(await updateNotifier(npm), null)
+    t.equal(await runUpdateNotifier(npm), null)
     t.strictSame(MANIFEST_REQUEST, [], 'no requests for manifests')
   })
 
   t.test('only check weekly for GA releases', async t => {
     // One week (plus five minutes to account for test environment fuzziness)
     STAT_MTIME = Date.now() - (1000 * 60 * 60 * 24 * 7) + (1000 * 60 * 5)
-    t.equal(await updateNotifier(npm), null)
+    t.equal(await runUpdateNotifier(npm), null)
     t.strictSame(MANIFEST_REQUEST, [], 'no requests for manifests')
   })
 
   t.test('only check daily for betas', async t => {
     // One day (plus five minutes to account for test environment fuzziness)
     STAT_MTIME = Date.now() - (1000 * 60 * 60 * 24) + (1000 * 60 * 5)
-    t.equal(await updateNotifier({ ...npm, version: HAVE_BETA }), null)
+    t.equal(await runUpdateNotifier({ ...npm, version: HAVE_BETA }), null)
     t.strictSame(MANIFEST_REQUEST, [], 'no requests for manifests')
   })
 
@@ -164,43 +179,43 @@ t.test('situations in which we do not notify', t => {
 t.test('notification situations', t => {
   t.test('new beta available', async t => {
     const version = HAVE_BETA
-    t.matchSnapshot(await updateNotifier({ ...npm, version }), 'color')
-    t.matchSnapshot(await updateNotifier({ ...npmNoColor, version }), 'no color')
+    t.matchSnapshot(await runUpdateNotifier({ ...npm, version }), 'color')
+    t.matchSnapshot(await runUpdateNotifier({ ...npmNoColor, version }), 'no color')
     t.strictSame(MANIFEST_REQUEST, [`npm@^${version}`, `npm@^${version}`])
   })
 
   t.test('patch to next version', async t => {
     const version = NEXT_PATCH
-    t.matchSnapshot(await updateNotifier({ ...npm, version }), 'color')
-    t.matchSnapshot(await updateNotifier({ ...npmNoColor, version }), 'no color')
+    t.matchSnapshot(await runUpdateNotifier({ ...npm, version }), 'color')
+    t.matchSnapshot(await runUpdateNotifier({ ...npmNoColor, version }), 'no color')
     t.strictSame(MANIFEST_REQUEST, ['npm@latest', `npm@^${version}`, 'npm@latest', `npm@^${version}`])
   })
 
   t.test('minor to next version', async t => {
     const version = NEXT_MINOR
-    t.matchSnapshot(await updateNotifier({ ...npm, version }), 'color')
-    t.matchSnapshot(await updateNotifier({ ...npmNoColor, version }), 'no color')
+    t.matchSnapshot(await runUpdateNotifier({ ...npm, version }), 'color')
+    t.matchSnapshot(await runUpdateNotifier({ ...npmNoColor, version }), 'no color')
     t.strictSame(MANIFEST_REQUEST, ['npm@latest', `npm@^${version}`, 'npm@latest', `npm@^${version}`])
   })
 
   t.test('patch to current', async t => {
     const version = CURRENT_PATCH
-    t.matchSnapshot(await updateNotifier({ ...npm, version }), 'color')
-    t.matchSnapshot(await updateNotifier({ ...npmNoColor, version }), 'no color')
+    t.matchSnapshot(await runUpdateNotifier({ ...npm, version }), 'color')
+    t.matchSnapshot(await runUpdateNotifier({ ...npmNoColor, version }), 'no color')
     t.strictSame(MANIFEST_REQUEST, ['npm@latest', 'npm@latest'])
   })
 
   t.test('minor to current', async t => {
     const version = CURRENT_MINOR
-    t.matchSnapshot(await updateNotifier({ ...npm, version }), 'color')
-    t.matchSnapshot(await updateNotifier({ ...npmNoColor, version }), 'no color')
+    t.matchSnapshot(await runUpdateNotifier({ ...npm, version }), 'color')
+    t.matchSnapshot(await runUpdateNotifier({ ...npmNoColor, version }), 'no color')
     t.strictSame(MANIFEST_REQUEST, ['npm@latest', 'npm@latest'])
   })
 
   t.test('major to current', async t => {
     const version = CURRENT_MAJOR
-    t.matchSnapshot(await updateNotifier({ ...npm, version }), 'color')
-    t.matchSnapshot(await updateNotifier({ ...npmNoColor, version }), 'no color')
+    t.matchSnapshot(await runUpdateNotifier({ ...npm, version }), 'color')
+    t.matchSnapshot(await runUpdateNotifier({ ...npmNoColor, version }), 'no color')
     t.strictSame(MANIFEST_REQUEST, ['npm@latest', 'npm@latest'])
   })
 

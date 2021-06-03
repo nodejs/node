@@ -1,3 +1,7 @@
+## 0.6.3 / 2021-05-23
+  * Fix HKSCS encoding to prefer Big5 codes if both Big5 and HKSCS codes are possible (#264)
+
+
 ## 0.6.2 / 2020-07-08
   * Support Uint8Array-s decoding without conversion to Buffers, plus fix an edge case.
 

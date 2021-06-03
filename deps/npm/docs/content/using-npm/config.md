@@ -776,6 +776,8 @@ What level of logs to report. On failure, *all* logs are written to
 Any logs of a higher level than the setting are shown. The default is
 "notice".
 
+See also the `foreground-scripts` config.
+
 #### `logs-max`
 
 * Default: 10

@@ -1,4 +1,4 @@
-.TH "NPM\-RUN\-SCRIPT" "1" "May 2021" "" ""
+.TH "NPM\-RUN\-SCRIPT" "1" "June 2021" "" ""
 .SH "NAME"
 \fBnpm-run-script\fR \- Run arbitrary package scripts
 .SS Synopsis
@@ -74,11 +74,7 @@ can use the \fBINIT_CWD\fP environment variable, which holds the full path you
 were in when you ran \fBnpm run\fP\|\.
 .P
 \fBnpm run\fP sets the \fBNODE\fP environment variable to the \fBnode\fP executable
-with which \fBnpm\fP is executed\. Also, if the \fB\-\-scripts\-prepend\-node\-path\fP is
-passed, the directory within which \fBnode\fP resides is added to the \fBPATH\fP\|\.
-If \fB\-\-scripts\-prepend\-node\-path=auto\fP is passed (which has been the default
-in \fBnpm\fP v3), this is only performed when that \fBnode\fP executable is not
-found in the \fBPATH\fP\|\.
+with which \fBnpm\fP is executed\.
 .P
 If you try to run a script without having a \fBnode_modules\fP directory and it
 fails, you will be given a warning to run \fBnpm install\fP, just in case you've

@@ -45,6 +45,7 @@ const npmlogMock = {
 
 const cli = t.mock('../../lib/cli.js', {
   '../../lib/npm.js': npmock,
+  '../../lib/utils/update-notifier.js': async () => null,
   '../../lib/utils/did-you-mean.js': () => '\ntest did you mean',
   '../../lib/utils/unsupported.js': unsupportedMock,
   '../../lib/utils/error-handler.js': errorHandlerMock,

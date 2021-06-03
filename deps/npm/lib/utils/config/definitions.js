@@ -1128,6 +1128,8 @@ define('loglevel', {
 
     Any logs of a higher level than the setting are shown. The default is
     "notice".
+
+    See also the \`foreground-scripts\` config.
   `,
 })
 

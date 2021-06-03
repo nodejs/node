@@ -70,11 +70,7 @@ can use the `INIT_CWD` environment variable, which holds the full path you
 were in when you ran `npm run`.
 
 `npm run` sets the `NODE` environment variable to the `node` executable
-with which `npm` is executed. Also, if the `--scripts-prepend-node-path` is
-passed, the directory within which `node` resides is added to the `PATH`.
-If `--scripts-prepend-node-path=auto` is passed (which has been the default
-in `npm` v3), this is only performed when that `node` executable is not
-found in the `PATH`.
+with which `npm` is executed.
 
 If you try to run a script without having a `node_modules` directory and it
 fails, you will be given a warning to run `npm install`, just in case you've
@@ -137,7 +133,6 @@ npm test -w a -w b
 
 This last command will run `test` in both `./packages/a` and `./packages/b`
 packages.
-
 
 ### Configuration
 

@@ -20,7 +20,7 @@ pooling, proxies, retries, [and more](#features)!
   * [`fetch.defaults`](#fetch-defaults)
   * [`minipass-fetch` options](#minipass-fetch-options)
   * [`make-fetch-happen` options](#extra-options)
-    * [`opts.cacheManager`](#opts-cache-manager)
+    * [`opts.cachePath`](#opts-cache-path)
     * [`opts.cache`](#opts-cache)
     * [`opts.proxy`](#opts-proxy)
     * [`opts.noProxy`](#opts-no-proxy)
@@ -35,7 +35,7 @@ pooling, proxies, retries, [and more](#features)!
 
 ```javascript
 const fetch = require('make-fetch-happen').defaults({
-  cacheManager: './my-cache' // path where cache will be written (and read)
+  cachePath: './my-cache' // path where cache will be written (and read)
 })
 
 fetch('https://registry.npmjs.org/make-fetch-happen').then(res => {
@@ -103,7 +103,7 @@ A defaulted `fetch` will also have a `.defaults()` method, so they can be chaine
 
 ```javascript
 const fetch = require('make-fetch-happen').defaults({
-  cacheManager: './my-local-cache'
+  cachePath: './my-local-cache'
 })
 
 fetch('https://registry.npmjs.org/make-fetch-happen') // will always use the cache
@@ -136,7 +136,7 @@ For more details, see [the documentation for `minipass-fetch` itself](https://gi
 
 make-fetch-happen augments the `minipass-fetch` API with additional features available through extra options. The following extra options are available:
 
-* [`opts.cacheManager`](#opts-cache-manager) - Cache target to read/write
+* [`opts.cachePath`](#opts-cache-path) - Cache target to read/write
 * [`opts.cache`](#opts-cache) - `fetch` cache mode. Controls cache *behavior*.
 * [`opts.proxy`](#opts-proxy) - Proxy agent
 * [`opts.noProxy`](#opts-no-proxy) - Domain segments to disable proxying for.
@@ -147,15 +147,9 @@ make-fetch-happen augments the `minipass-fetch` API with additional features ava
 * [`opts.onRetry`](#opts-onretry) - a function called whenever a retry is attempted
 * [`opts.integrity`](#opts-integrity) - [Subresource Integrity](https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity) metadata.
 
-#### <a name="opts-cache-manager"></a> `> opts.cacheManager`
+#### <a name="opts-cache-path"></a> `> opts.cachePath`
 
-Either a `String` or a `Cache`. If the former, it will be assumed to be a `Path` to be used as the cache root for [`cacache`](https://npm.im/cacache).
-
-If an object is provided, it will be assumed to be a compliant [`Cache` instance](https://developer.mozilla.org/en-US/docs/Web/API/Cache). Only `Cache.match()`, `Cache.put()`, and `Cache.delete()` are required. Options objects will not be passed in to `match()` or `delete()`.
-
-By implementing this API, you can customize the storage backend for make-fetch-happen itself -- for example, you could implement a cache that uses `redis` for caching, or simply keeps everything in memory. Most of the caching logic exists entirely on the make-fetch-happen side, so the only thing you need to worry about is reading, writing, and deleting, as well as making sure `fetch.Response` objects are what gets returned.
-
-You can refer to `cache.js` in the make-fetch-happen source code for a reference implementation.
+A string `Path` to be used as the cache root for [`cacache`](https://npm.im/cacache).
 
 **NOTE**: Requests will not be cached unless their response bodies are consumed. You will need to use one of the `res.json()`, `res.buffer()`, etc methods on the response, or drain the `res.body` stream, in order for it to be written.
 
@@ -163,7 +157,9 @@ The default cache manager also adds the following headers to cached responses:
 
 * `X-Local-Cache`: Path to the cache the content was found in
 * `X-Local-Cache-Key`: Unique cache entry key for this response
+* `X-Local-Cache-Mode`: Either `stream` or `buffer` to indicate how the response was read from cacache
 * `X-Local-Cache-Hash`: Specific integrity hash for the cached entry
+* `X-Local-Cache-Status`: One of `miss`, `hit`, `stale`, `revalidated`, `updated`, or `skip` to signal how the response was created
 * `X-Local-Cache-Time`: UTCString of the cache insertion time for the entry
 
 Using [`cacache`](https://npm.im/cacache), a call like this may be used to
@@ -181,12 +177,8 @@ cacache.get.byDigest(h.get('x-local-cache'), h.get('x-local-cache-hash'))
 
 ```javascript
 fetch('https://registry.npmjs.org/make-fetch-happen', {
-  cacheManager: './my-local-cache'
+  cachePath: './my-local-cache'
 }) // -> 200-level response will be written to disk
-
-fetch('https://npm.im/cacache', {
-  cacheManager: new MyCustomRedisCache(process.env.PORT)
-}) // -> 200-level response will be written to redis
 ```
 
 A possible (minimal) implementation for `MyCustomRedisCache`:
@@ -230,7 +222,7 @@ class MyCustomRedisCache {
 
 #### <a name="opts-cache"></a> `> opts.cache`
 
-This option follows the standard `fetch` API cache option. This option will do nothing if [`opts.cacheManager`](#opts-cache-manager) is null. The following values are accepted (as strings):
+This option follows the standard `fetch` API cache option. This option will do nothing if [`opts.cachePath`](#opts-cache-path) is null. The following values are accepted (as strings):
 
 * `default` - Fetch will inspect the HTTP cache on the way to the network. If there is a fresh response it will be used. If there is a stale response a conditional request will be created, and a normal request otherwise. It then updates the HTTP cache with the response. If the revalidation request fails (for example, on a 500 or if you're offline), the stale response will be returned.
 * `no-store` - Fetch behaves as if there is no HTTP cache at all.
@@ -245,7 +237,7 @@ This option follows the standard `fetch` API cache option. This option will do n
 
 ```javascript
 const fetch = require('make-fetch-happen').defaults({
-  cacheManager: './my-cache'
+  cachePath: './my-cache'
 })
 
 // Will error with ENOTCACHED if we haven't already cached this url
@@ -330,7 +322,6 @@ An object that can be used to tune request retry settings. Retries will only be 
 The following are worth noting as explicitly not retried:
 
 * `getaddrinfo ENOTFOUND` and will be assumed to be either an unreachable domain or the user will be assumed offline. If a response is cached, it will be returned immediately.
-* `ECONNRESET` currently has no support for restarting. It will eventually be supported but requires a bit more juggling due to streaming.
 
 If `opts.retry` is `false`, it is equivalent to `{retries: 0}`
 
