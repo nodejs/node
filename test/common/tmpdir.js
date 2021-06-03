@@ -82,8 +82,6 @@ function logErrorInfo(err) {
     console.error('See http://nfs.sourceforge.net/#faq_d2 for details.');
   }
 
-  console.error();
-
   // Additionally logging err, just in case throwing err gets overshadowed by
   // an error from a test failure.
   console.error(err);
