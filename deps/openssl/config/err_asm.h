@@ -38,7 +38,7 @@
 #elif defined(OPENSSL_LINUX) && !defined(__PPC64__) && defined(__ppc__)
 # include "./archs/linux-ppc/asm/include/openssl/err.h"
 #elif defined(_AIX) && defined(_ARCH_PPC64)
-# include "./archs/aix64-gcc/asm/include/openssl/err.h"
+# include "./archs/aix64-gcc-as/asm/include/openssl/err.h"
 #elif defined(_AIX) && !defined(_ARCH_PPC64) && defined(_ARCH_PPC)
 # include "./archs/aix-gcc/asm/include/openssl/err.h"
 #elif defined(OPENSSL_LINUX) && defined(__s390x__)
