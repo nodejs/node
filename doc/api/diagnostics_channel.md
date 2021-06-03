@@ -142,7 +142,8 @@ channel.publish({
 
 Register a message handler to subscribe to this channel. This message handler
 will be run synchronously whenever a message is published to the channel. Any
-errors thrown in the message handler will trigger an [`'uncaughtException'`][].
+errors thrown in the message handler will trigger an [`'uncaughtException'`][]
+unless it is an instance of [`DCInterruptError`][].
 
 ```js
 const diagnostics_channel = require('diagnostics_channel');
@@ -175,6 +176,40 @@ channel.subscribe(onMessage);
 channel.unsubscribe(onMessage);
 ```
 
+### Class: `DCInterruptError`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Extends: {errors.Error}
+
+Can be thrown inside a subscription to interrupt the code flow. (By default,
+throwing a different kind of error inside a subscription will redirect it.
+See: [`channel.subscribe(onMessage)`][].) Throwing an instance of
+`DCInterruptError` inside a subscriber will prevent subsequent subscriptions
+from running, and will forward the exception to the publisher instead of
+redirecting it to [`'uncaughtException'`][].
+
+```js
+const diagnostics_channel = require('diagnostics_channel');
+
+const channel = diagnostics_channel.channel('my-channel');
+
+channel.subscribe((message, name) => {
+  throw new diagnostics_channel.DCInterruptError('Subscriber Interruption');
+});
+
+channel.subscribe((message, name) => {
+  // This will not run
+});
+
+channel.publish({
+  some: 'message'
+});
+// Throws "DCInterruptError: Subscriber Interruption"
+```
+
 [`diagnostics_channel.channel(name)`]: #diagnostics_channel_diagnostics_channel_channel_name
 [`channel.subscribe(onMessage)`]: #diagnostics_channel_channel_subscribe_onmessage
 [`'uncaughtException'`]: process.md#process_event_uncaughtexception
+[`DCInterruptError`]: #diagnostics_channel_class_dcinterrupterror
