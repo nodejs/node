@@ -334,8 +334,8 @@ function removeAsync(dir) {
         fs.chmodSync(dirname, 0o444);
 
         fs.rm(filePath, { force: true }, common.mustCall((err) => {
-        try { fs.chmodSync(dirname, 0o777); } catch {}
-        try { fs.chmodSync(filePath, 0o777); } catch {}
+          try { fs.chmodSync(dirname, 0o777); } catch {}
+          try { fs.chmodSync(filePath, 0o777); } catch {}
 
           if (!isValidState(fs.existsSync(filePath), err)) {
             throw err;
@@ -398,8 +398,8 @@ function removeAsync(dir) {
         fs.chmodSync(middle, 0o555);
 
         fs.rm(root, { recursive: true }, common.mustCall((err) => {
-        try { fs.chmodSync(middle, 0o777); } catch {}
-        try { fs.chmodSync(leaf, 0o777); } catch {}
+          try { fs.chmodSync(middle, 0o777); } catch {}
+          try { fs.chmodSync(leaf, 0o777); } catch {}
 
           if (!isValidState(fs.existsSync(root), err)) {
             throw err;
