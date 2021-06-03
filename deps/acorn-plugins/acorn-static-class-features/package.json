@@ -31,6 +31,6 @@
     "test262-parser-runner": "^0.5.0"
   },
   "dependencies": {
-    "acorn-private-class-elements": "^0.1.1"
+    "acorn-private-class-elements": "^0.2.7"
   }
 }
