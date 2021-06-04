@@ -906,7 +906,7 @@ bool PublicKeyCipher::Cipher(
     void* label = OPENSSL_memdup(oaep_label.data(), oaep_label.size());
     CHECK_NOT_NULL(label);
     if (0 >= EVP_PKEY_CTX_set0_rsa_oaep_label(ctx.get(),
-                reinterpret_cast<unsigned char*>(label),
+                     static_cast<unsigned char*>(label),
                                       oaep_label.size())) {
       OPENSSL_free(label);
       return false;
