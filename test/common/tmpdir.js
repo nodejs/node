@@ -28,7 +28,7 @@ function rmSync(pathname) {
     }
   }
 
-  if (err) throw err;
+  if (err !== null) throw err;
 }
 
 const testRoot = process.env.NODE_TEST_DIR ?
