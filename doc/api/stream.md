@@ -1890,7 +1890,7 @@ const stream = addAbortSignal(
 })();
 ```
 
-### stream.Transform.by(asyncGeneratorFunction[, options])
+### `stream.Transform.by(asyncGeneratorFunction[, options])`
 <!-- YAML
 added: REPLACEME
 -->
@@ -3139,9 +3139,9 @@ readable.on('data', (chunk) => {
 });
 ```
 
-#### Creating Transform Streams with Async Generator Functions
+#### Creating transform streams with async generator functions
 
-We can construct a Node.js Transform stream with an asynchronous
+We can construct a Node.js transform stream with an asynchronous
 generator function using the `Transform.by()` utility method.
 
 ```js
@@ -3168,7 +3168,8 @@ transform.on('data', (chunk) => {
 });
 ```
 
-#### Piping to Writable Streams from Async Iterators
+#### Piping to writable streams from async iterators
+```
 
 When writing to a writable stream from an async iterator, ensure correct
 handling of backpressure and errors. [`stream.pipeline()`][] abstracts away
