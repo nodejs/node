@@ -145,10 +145,14 @@ void GetCipherInfo(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  // OBJ_nid2sn(EVP_CIPHER_nid(cipher)) is used here instead of
+  // EVP_CIPHER_name(cipher) for compatibility with BoringSSL.
   if (info->Set(
           env->context(),
           env->name_string(),
-          OneByteString(env->isolate(), EVP_CIPHER_name(cipher))).IsNothing()) {
+          OneByteString(
+            env->isolate(),
+            OBJ_nid2sn(EVP_CIPHER_nid(cipher)))).IsNothing()) {
     return;
   }
 
