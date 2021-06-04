@@ -179,7 +179,7 @@ For plain C-like structs snake_case can be used.
 ```cpp
 struct foo_bar {
   int name;
-}
+};
 ```
 
 ### Space after `template`
@@ -188,7 +188,7 @@ struct foo_bar {
 template <typename T>
 class FancyContainer {
  ...
-}
+};
 ```
 
 ## Memory management
