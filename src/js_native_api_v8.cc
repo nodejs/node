@@ -1485,6 +1485,8 @@ napi_status napi_create_string_latin1(napi_env env,
                                       size_t length,
                                       napi_value* result) {
   CHECK_ENV(env);
+  if (length > 0)
+      CHECK_ARG(env, str);
   CHECK_ARG(env, result);
   RETURN_STATUS_IF_FALSE(env,
       (length == NAPI_AUTO_LENGTH) || length <= INT_MAX,
@@ -1507,6 +1509,8 @@ napi_status napi_create_string_utf8(napi_env env,
                                     size_t length,
                                     napi_value* result) {
   CHECK_ENV(env);
+  if (length > 0)
+      CHECK_ARG(env, str);
   CHECK_ARG(env, result);
   RETURN_STATUS_IF_FALSE(env,
       (length == NAPI_AUTO_LENGTH) || length <= INT_MAX,
@@ -1528,6 +1532,8 @@ napi_status napi_create_string_utf16(napi_env env,
                                      size_t length,
                                      napi_value* result) {
   CHECK_ENV(env);
+  if (length > 0)
+      CHECK_ARG(env, str);
   CHECK_ARG(env, result);
   RETURN_STATUS_IF_FALSE(env,
       (length == NAPI_AUTO_LENGTH) || length <= INT_MAX,
