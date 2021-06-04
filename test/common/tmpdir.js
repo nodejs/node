@@ -10,16 +10,11 @@ function rmSync(pathname) {
   const maxRetries = 10;
 
   for (let retryNumber = 0; retryNumber < maxRetries; ++retryNumber) {
-    err = null;
-
     try {
       fs.rmSync(pathname, { maxRetries: 3, recursive: true, force: true });
+      return;
     } catch (_err) {
       err = _err;
-    }
-
-    if (err === null) {
-      return;
     }
 
     const errPath = err.path;
@@ -33,11 +28,7 @@ function rmSync(pathname) {
     }
   }
 
-  if (err === null) {
-    return;
-  }
-
-  throw err;
+  if (err) throw err;
 }
 
 const testRoot = process.env.NODE_TEST_DIR ?
