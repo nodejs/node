@@ -336,7 +336,7 @@ if "%target%"=="Build" (
 if "%target%"=="node" if exist "%config%\cctest.exe" del "%config%\cctest.exe"
 @rem Workaround bug in MSBuild 16.10.0. (https://github.com/dotnet/msbuild/pull/6465)
 for /F %%V in ('msbuild -version -nologo') do set msbuild_ver=%%V
-if "%msbuild_ver:~0,8%"=="16.10.0." (
+if "%msbuild_ver:~0,7%"=="16.10.0" (
   if "%target%"=="node" set target="Build"
 )
 if defined msbuild_args set "extra_msbuild_args=%extra_msbuild_args% %msbuild_args%"
