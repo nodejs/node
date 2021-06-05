@@ -394,7 +394,7 @@ try {
   filehandle = await open('temp.txt', 'r+');
   await filehandle.truncate(4);
 } finally {
-  filehandle?.close();
+  await filehandle?.close();
 }
 ```
 
