@@ -13,10 +13,12 @@
   "author": "The V8 team",
   "license": "MIT",
   "dependencies": {
-    "@types/d3": "^5.7.2",
+    "@types/d3": "^5.16.4",
     "d3": "^5.7.0",
     "rollup-plugin-node-resolve": "^4.0.0",
     "rollup-plugin-typescript2": "^0.30.0"
+    "rollup-plugin-node-resolve": "^4.2.4",
+    "rollup-plugin-typescript2": "^0.20.1"
   },
   "repository": {
     "type": "git",
