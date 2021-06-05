@@ -22,7 +22,7 @@
     "acorn": "^6.1.0"
   },
   "dependencies": {
-    "acorn-private-class-elements": "^0.1.0"
+    "acorn-private-class-elements": "^0.2.7"
   },
   "version": "0.3.0",
   "devDependencies": {
