@@ -1978,7 +1978,7 @@ console.log(data.header.nodejsVersion);
 
 // Similar to process.report.writeReport()
 const fs = require('fs');
-fs.writeFileSync(util.inspect(data), 'my-report.log', 'utf8');
+fs.writeFileSync('my-report.log', util.inspect(data), 'utf8');
 ```
 
 Additional documentation is available in the [report documentation][].
