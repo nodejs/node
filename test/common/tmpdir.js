@@ -53,26 +53,6 @@ function refresh() {
   }
 }
 
-function logErrorInfo(err) {
-  console.error('Can\'t clean tmpdir:', tmpPath);
-
-  const files = fs.readdirSync(tmpPath);
-  console.error('Files blocking:', files);
-
-  if (files.some((f) => f.startsWith('.nfs'))) {
-    // Warn about NFS "silly rename"
-    console.error('Note: ".nfs*" might be files that were open and ' +
-                  'unlinked but not closed.');
-    console.error('See http://nfs.sourceforge.net/#faq_d2 for details.');
-  }
-
-  // Additionally logging err, just in case throwing err gets overshadowed by
-  // an error from a test failure.
-  console.error(err);
-
-  throw err;
-}
-
 function onexit() {
   // Change directory to avoid possible EBUSY
   if (isMainThread)
@@ -81,7 +61,23 @@ function onexit() {
   try {
     rmSync(tmpPath);
   } catch (err) {
-    logErrorInfo(err);
+    console.error('Can\'t clean tmpdir:', tmpPath);
+
+    const files = fs.readdirSync(tmpPath);
+    console.error('Files blocking:', files);
+
+    if (files.some((f) => f.startsWith('.nfs'))) {
+      // Warn about NFS "silly rename"
+      console.error('Note: ".nfs*" might be files that were open and ' +
+                    'unlinked but not closed.');
+      console.error('See http://nfs.sourceforge.net/#faq_d2 for details.');
+    }
+
+    // Additionally logging err, just in case throwing err gets overshadowed by
+    // an error from a test failure.
+    console.error(err);
+
+    throw err;
   }
 }
 
