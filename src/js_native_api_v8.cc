@@ -248,7 +248,7 @@ class RefBase : protected Finalizer, RefTracker {
       delete reference;
     } else {
       // defer until finalizer runs as
-      // it may alread be queued
+      // it may already be queued
       reference->_delete_self = true;
     }
   }
@@ -416,7 +416,7 @@ class Reference : public RefBase {
   inline void SetWeak() {
     if (_secondPassParameter == nullptr) {
       // This means that the Reference has already been processed
-      // by the second pass calback, so its already been Finalized, do
+      // by the second pass callback, so its already been Finalized, do
       // nothing
       return;
     }
@@ -455,9 +455,9 @@ class Reference : public RefBase {
   // second pass callback task. We have to make sure that parameter is kept
   // alive until the second pass callback is been invoked. In order to do
   // this and still allow our code to Finalize/delete the Reference during
-  // shutdown we have to use a seperately allocated parameter instead
+  // shutdown we have to use a separately allocated parameter instead
   // of a parameter within the Reference object itself. This is what
-  // is stored in _secondPassParameter and it is alocated in the
+  // is stored in _secondPassParameter and it is allocated in the
   // constructor for the Reference.
   static void SecondPassCallback(
       const v8::WeakCallbackInfo<SecondPassCallParameterRef>& data) {
@@ -2660,7 +2660,7 @@ napi_status napi_new_instance(napi_env env,
   auto maybe = ctor->NewInstance(context, argc,
     reinterpret_cast<v8::Local<v8::Value>*>(const_cast<napi_value*>(argv)));
 
-  CHECK_MAYBE_EMPTY(env, maybe, napi_generic_failure);
+  CHECK_MAYBE_EMPTY(env, maybe, napi_pending_exception);
 
   *result = v8impl::JsValueFromV8LocalValue(maybe.ToLocalChecked());
   return GET_RETURN_STATUS(env);

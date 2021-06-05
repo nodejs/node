@@ -32,18 +32,18 @@ function getData (byDigest, cache, key, opts = {}) {
           metadata: memoized.entry.metadata,
           data: memoized.data,
           integrity: memoized.entry.integrity,
-          size: memoized.entry.size
+          size: memoized.entry.size,
         }
     )
   }
   return (byDigest ? Promise.resolve(null) : index.find(cache, key, opts)).then(
     (entry) => {
-      if (!entry && !byDigest) {
+      if (!entry && !byDigest)
         throw new index.NotFoundError(cache, key)
-      }
+
       return read(cache, byDigest ? key : entry.integrity, {
         integrity,
-        size
+        size,
       })
         .then((data) =>
           byDigest
@@ -52,15 +52,15 @@ function getData (byDigest, cache, key, opts = {}) {
               data,
               metadata: entry.metadata,
               size: entry.size,
-              integrity: entry.integrity
+              integrity: entry.integrity,
             }
         )
         .then((res) => {
-          if (memoize && byDigest) {
+          if (memoize && byDigest)
             memo.put.byDigest(cache, key, res, opts)
-          } else if (memoize) {
+          else if (memoize)
             memo.put(cache, entry, res.data, opts)
-          }
+
           return res
         })
     }
@@ -86,16 +86,16 @@ function getDataSync (byDigest, cache, key, opts = {}) {
         metadata: memoized.entry.metadata,
         data: memoized.data,
         integrity: memoized.entry.integrity,
-        size: memoized.entry.size
+        size: memoized.entry.size,
       }
   }
   const entry = !byDigest && index.find.sync(cache, key, opts)
-  if (!entry && !byDigest) {
+  if (!entry && !byDigest)
     throw new index.NotFoundError(cache, key)
-  }
+
   const data = read.sync(cache, byDigest ? key : entry.integrity, {
     integrity: integrity,
-    size: size
+    size: size,
   })
   const res = byDigest
     ? data
@@ -103,13 +103,13 @@ function getDataSync (byDigest, cache, key, opts = {}) {
       metadata: entry.metadata,
       data: data,
       size: entry.size,
-      integrity: entry.integrity
+      integrity: entry.integrity,
     }
-  if (memoize && byDigest) {
+  if (memoize && byDigest)
     memo.put.byDigest(cache, key, res, opts)
-  } else if (memoize) {
+  else if (memoize)
     memo.put(cache, entry, res.data, opts)
-  }
+
   return res
 }
 
@@ -129,17 +129,16 @@ const getMemoizedStream = (memoized) => {
 function getStream (cache, key, opts = {}) {
   const { memoize, size } = opts
   const memoized = memo.get(cache, key, opts)
-  if (memoized && memoize !== false) {
+  if (memoized && memoize !== false)
     return getMemoizedStream(memoized)
-  }
 
   const stream = new Pipeline()
   index
     .find(cache, key)
     .then((entry) => {
-      if (!entry) {
+      if (!entry)
         throw new index.NotFoundError(cache, key)
-      }
+
       stream.emit('metadata', entry.metadata)
       stream.emit('integrity', entry.integrity)
       stream.emit('size', entry.size)
@@ -178,9 +177,9 @@ function getStreamDigest (cache, integrity, opts = {}) {
     return stream
   } else {
     const stream = read.readStream(cache, integrity, opts)
-    if (!memoize) {
+    if (!memoize)
       return stream
-    }
+
     const memoStream = new Collect.PassThrough()
     memoStream.on('collect', data => memo.put.byDigest(
       cache,
@@ -197,11 +196,10 @@ module.exports.info = info
 function info (cache, key, opts = {}) {
   const { memoize } = opts
   const memoized = memo.get(cache, key, opts)
-  if (memoized && memoize !== false) {
+  if (memoized && memoize !== false)
     return Promise.resolve(memoized.entry)
-  } else {
+  else
     return index.find(cache, key)
-  }
 }
 
 module.exports.hasContent = read.hasContent
@@ -224,9 +222,9 @@ function copy (byDigest, cache, key, dest, opts = {}) {
       ? Promise.resolve(null)
       : index.find(cache, key, opts)
     ).then((entry) => {
-      if (!entry && !byDigest) {
+      if (!entry && !byDigest)
         throw new index.NotFoundError(cache, key)
-      }
+
       return read
         .copy(cache, byDigest ? key : entry.integrity, dest, opts)
         .then(() => {
@@ -235,7 +233,7 @@ function copy (byDigest, cache, key, dest, opts = {}) {
             : {
               metadata: entry.metadata,
               size: entry.size,
-              integrity: entry.integrity
+              integrity: entry.integrity,
             }
         })
     })
@@ -248,7 +246,7 @@ function copy (byDigest, cache, key, dest, opts = {}) {
         : {
           metadata: res.metadata,
           size: res.size,
-          integrity: res.integrity
+          integrity: res.integrity,
         }
     })
   })

@@ -46,10 +46,9 @@ const resolveTests = [
     ],
   ],
 ];
-resolveTests.forEach((test) => {
-  const resolve = test[0];
-  test[1].forEach((test) => {
-    const actual = resolve.apply(null, test[0]);
+resolveTests.forEach(([resolve, tests]) => {
+  tests.forEach(([test, expected]) => {
+    const actual = resolve.apply(null, test);
     let actualAlt;
     const os = resolve === path.win32.resolve ? 'win32' : 'posix';
     if (resolve === path.win32.resolve && !common.isWindows)
@@ -57,15 +56,14 @@ resolveTests.forEach((test) => {
     else if (resolve !== path.win32.resolve && common.isWindows)
       actualAlt = actual.replace(slashRE, '\\');
 
-    const expected = test[1];
     const message =
-      `path.${os}.resolve(${test[0].map(JSON.stringify).join(',')})\n  expect=${
+      `path.${os}.resolve(${test.map(JSON.stringify).join(',')})\n  expect=${
         JSON.stringify(expected)}\n  actual=${JSON.stringify(actual)}`;
     if (actual !== expected && actualAlt !== expected)
-      failures.push(`\n${message}`);
+      failures.push(message);
   });
 });
-assert.strictEqual(failures.length, 0, failures.join(''));
+assert.strictEqual(failures.length, 0, failures.join('\n'));
 
 if (common.isWindows) {
   // Test resolving the current Windows drive letter from a spawned process.

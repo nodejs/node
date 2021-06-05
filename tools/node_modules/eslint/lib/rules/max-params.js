@@ -9,9 +9,8 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const lodash = require("lodash");
-
 const astUtils = require("./utils/ast-utils");
+const { upperCaseFirst } = require("../shared/string-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -85,7 +84,7 @@ module.exports = {
                     node,
                     messageId: "exceed",
                     data: {
-                        name: lodash.upperFirst(astUtils.getFunctionNameWithKind(node)),
+                        name: upperCaseFirst(astUtils.getFunctionNameWithKind(node)),
                         count: node.params.length,
                         max: numParams
                     }

@@ -22,16 +22,15 @@ module.exports = write
 
 function write (cache, data, opts = {}) {
   const { algorithms, size, integrity } = opts
-  if (algorithms && algorithms.length > 1) {
+  if (algorithms && algorithms.length > 1)
     throw new Error('opts.algorithms only supports a single algorithm for now')
-  }
-  if (typeof size === 'number' && data.length !== size) {
+
+  if (typeof size === 'number' && data.length !== size)
     return Promise.reject(sizeError(size, data.length))
-  }
+
   const sri = ssri.fromData(data, algorithms ? { algorithms } : {})
-  if (integrity && !ssri.checkData(data, integrity, opts)) {
+  if (integrity && !ssri.checkData(data, integrity, opts))
     return Promise.reject(checksumError(integrity, sri))
-  }
 
   return disposer(makeTmp(cache, opts), makeTmpDisposer,
     (tmp) => {
@@ -112,13 +111,17 @@ function pipeToTmp (inputStream, cache, tmpTarget, opts) {
   const hashStream = ssri.integrityStream({
     integrity: opts.integrity,
     algorithms: opts.algorithms,
-    size: opts.size
+    size: opts.size,
   })
-  hashStream.on('integrity', i => { integrity = i })
-  hashStream.on('size', s => { size = s })
+  hashStream.on('integrity', i => {
+    integrity = i
+  })
+  hashStream.on('size', s => {
+    size = s
+  })
 
   const outStream = new fsm.WriteStream(tmpTarget, {
-    flags: 'wx'
+    flags: 'wx',
   })
 
   // NB: this can throw if the hashStream has a problem with
@@ -132,21 +135,23 @@ function pipeToTmp (inputStream, cache, tmpTarget, opts) {
 
   return pipeline.promise()
     .then(() => ({ integrity, size }))
-    .catch(er => rimraf(tmpTarget).then(() => { throw er }))
+    .catch(er => rimraf(tmpTarget).then(() => {
+      throw er
+    }))
 }
 
 function makeTmp (cache, opts) {
   const tmpTarget = uniqueFilename(path.join(cache, 'tmp'), opts.tmpPrefix)
   return fixOwner.mkdirfix(cache, path.dirname(tmpTarget)).then(() => ({
     target: tmpTarget,
-    moved: false
+    moved: false,
   }))
 }
 
 function makeTmpDisposer (tmp) {
-  if (tmp.moved) {
+  if (tmp.moved)
     return Promise.resolve()
-  }
+
   return rimraf(tmp.target)
 }
 

@@ -14,9 +14,11 @@ namespace node {
 template <typename Traits> class ConditionVariableBase;
 template <typename Traits> class MutexBase;
 struct LibuvMutexTraits;
+struct LibuvRwlockTraits;
 
 using ConditionVariable = ConditionVariableBase<LibuvMutexTraits>;
 using Mutex = MutexBase<LibuvMutexTraits>;
+using RwLock = MutexBase<LibuvRwlockTraits>;
 
 template <typename T, typename MutexT = Mutex>
 class ExclusiveAccess {
@@ -70,6 +72,8 @@ class MutexBase {
   inline ~MutexBase();
   inline void Lock();
   inline void Unlock();
+  inline void RdLock();
+  inline void RdUnlock();
 
   MutexBase(const MutexBase&) = delete;
   MutexBase& operator=(const MutexBase&) = delete;
@@ -91,6 +95,21 @@ class MutexBase {
     friend class ScopedUnlock;
     const MutexBase& mutex_;
   };
+
+  class ScopedReadLock {
+   public:
+    inline explicit ScopedReadLock(const MutexBase& mutex);
+    inline ~ScopedReadLock();
+
+    ScopedReadLock(const ScopedReadLock&) = delete;
+    ScopedReadLock& operator=(const ScopedReadLock&) = delete;
+
+   private:
+    template <typename> friend class ConditionVariableBase;
+    const MutexBase& mutex_;
+  };
+
+  using ScopedWriteLock = ScopedLock;
 
   class ScopedUnlock {
    public:
@@ -167,6 +186,42 @@ struct LibuvMutexTraits {
   static inline void mutex_unlock(MutexT* mutex) {
     uv_mutex_unlock(mutex);
   }
+
+  static inline void mutex_rdlock(MutexT* mutex) {
+    uv_mutex_lock(mutex);
+  }
+
+  static inline void mutex_rdunlock(MutexT* mutex) {
+    uv_mutex_unlock(mutex);
+  }
+};
+
+struct LibuvRwlockTraits {
+  using MutexT = uv_rwlock_t;
+
+  static inline int mutex_init(MutexT* mutex) {
+    return uv_rwlock_init(mutex);
+  }
+
+  static inline void mutex_destroy(MutexT* mutex) {
+    uv_rwlock_destroy(mutex);
+  }
+
+  static inline void mutex_lock(MutexT* mutex) {
+    uv_rwlock_wrlock(mutex);
+  }
+
+  static inline void mutex_unlock(MutexT* mutex) {
+    uv_rwlock_wrunlock(mutex);
+  }
+
+  static inline void mutex_rdlock(MutexT* mutex) {
+    uv_rwlock_rdlock(mutex);
+  }
+
+  static inline void mutex_rdunlock(MutexT* mutex) {
+    uv_rwlock_rdunlock(mutex);
+  }
 };
 
 template <typename Traits>
@@ -215,6 +270,16 @@ void MutexBase<Traits>::Unlock() {
 }
 
 template <typename Traits>
+void MutexBase<Traits>::RdLock() {
+  Traits::mutex_rdlock(&mutex_);
+}
+
+template <typename Traits>
+void MutexBase<Traits>::RdUnlock() {
+  Traits::mutex_rdunlock(&mutex_);
+}
+
+template <typename Traits>
 MutexBase<Traits>::ScopedLock::ScopedLock(const MutexBase& mutex)
     : mutex_(mutex) {
   Traits::mutex_lock(&mutex_.mutex_);
@@ -227,6 +292,17 @@ MutexBase<Traits>::ScopedLock::ScopedLock(const ScopedUnlock& scoped_unlock)
 template <typename Traits>
 MutexBase<Traits>::ScopedLock::~ScopedLock() {
   Traits::mutex_unlock(&mutex_.mutex_);
+}
+
+template <typename Traits>
+MutexBase<Traits>::ScopedReadLock::ScopedReadLock(const MutexBase& mutex)
+    : mutex_(mutex) {
+  Traits::mutex_rdlock(&mutex_.mutex_);
+}
+
+template <typename Traits>
+MutexBase<Traits>::ScopedReadLock::~ScopedReadLock() {
+  Traits::mutex_rdunlock(&mutex_.mutex_);
 }
 
 template <typename Traits>

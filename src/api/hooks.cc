@@ -1,6 +1,6 @@
 #include "env-inl.h"
 #include "node_internals.h"
-#include "node_process.h"
+#include "node_process-inl.h"
 #include "async_wrap.h"
 
 namespace node {
@@ -38,14 +38,15 @@ Maybe<bool> EmitProcessBeforeExit(Environment* env) {
     AsyncWrap::DestroyAsyncIdsCallback(env);
 
   HandleScope handle_scope(env->isolate());
-  Context::Scope context_scope(env->context());
+  Local<Context> context = env->context();
+  Context::Scope context_scope(context);
 
   Local<Value> exit_code_v;
-  if (!env->process_object()->Get(env->context(), env->exit_code_string())
+  if (!env->process_object()->Get(context, env->exit_code_string())
       .ToLocal(&exit_code_v)) return Nothing<bool>();
 
   Local<Integer> exit_code;
-  if (!exit_code_v->ToInteger(env->context()).ToLocal(&exit_code)) {
+  if (!exit_code_v->ToInteger(context).ToLocal(&exit_code)) {
     return Nothing<bool>();
   }
 
@@ -59,8 +60,10 @@ int EmitExit(Environment* env) {
 
 Maybe<int> EmitProcessExit(Environment* env) {
   // process.emit('exit')
-  HandleScope handle_scope(env->isolate());
-  Context::Scope context_scope(env->context());
+  Isolate* isolate = env->isolate();
+  HandleScope handle_scope(isolate);
+  Local<Context> context = env->context();
+  Context::Scope context_scope(context);
   Local<Object> process_object = env->process_object();
 
   // TODO(addaleax): It might be nice to share process._exiting and
@@ -68,19 +71,19 @@ Maybe<int> EmitProcessExit(Environment* env) {
   // native side, so that we don't manually have to read and write JS properties
   // here. These getters could use e.g. a typed array for performance.
   if (process_object
-      ->Set(env->context(),
-            FIXED_ONE_BYTE_STRING(env->isolate(), "_exiting"),
-            True(env->isolate())).IsNothing()) return Nothing<int>();
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(isolate, "_exiting"),
+            True(isolate)).IsNothing()) return Nothing<int>();
 
   Local<String> exit_code = env->exit_code_string();
   Local<Value> code_v;
   int code;
-  if (!process_object->Get(env->context(), exit_code).ToLocal(&code_v) ||
-      !code_v->Int32Value(env->context()).To(&code) ||
-      ProcessEmit(env, "exit", Integer::New(env->isolate(), code)).IsEmpty() ||
+  if (!process_object->Get(context, exit_code).ToLocal(&code_v) ||
+      !code_v->Int32Value(context).To(&code) ||
+      ProcessEmit(env, "exit", Integer::New(isolate, code)).IsEmpty() ||
       // Reload exit code, it may be changed by `emit('exit')`
-      !process_object->Get(env->context(), exit_code).ToLocal(&code_v) ||
-      !code_v->Int32Value(env->context()).To(&code)) {
+      !process_object->Get(context, exit_code).ToLocal(&code_v) ||
+      !code_v->Int32Value(context).To(&code)) {
     return Nothing<int>();
   }
 

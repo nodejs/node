@@ -122,6 +122,18 @@ The properties included on each object include:
 `nice` values are POSIX-only. On Windows, the `nice` values of all processors
 are always 0.
 
+## `os.devNull`
+<!-- YAML
+added: v16.3.0
+-->
+
+* {string}
+
+The platform-specific file path of the null device.
+
+* `\\.\nul` on Windows
+* `/dev/null` on POSIX
+
 ## `os.endianness()`
 <!-- YAML
 added: v0.9.4

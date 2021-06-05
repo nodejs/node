@@ -80,7 +80,7 @@ $ node --completion-bash > node_bash_completion
 $ source node_bash_completion
 ```
 
-### `--conditions=condition`
+### `-C=condition`, `--conditions=condition`
 <!-- YAML
 added:
   - v14.9.0
@@ -89,13 +89,19 @@ added:
 
 > Stability: 1 - Experimental
 
-Enable experimental support for custom conditional exports resolution
+Enable experimental support for custom [conditional exports][] resolution
 conditions.
 
 Any number of custom string condition names are permitted.
 
 The default Node.js conditions of `"node"`, `"default"`, `"import"`, and
 `"require"` will always apply as defined.
+
+For example, to run a module with "development" resolutions:
+
+```console
+$ node -C=development app.js
+```
 
 ### `--cpu-prof`
 <!-- YAML
@@ -180,6 +186,19 @@ added: v9.8.0
 Make built-in language features like `eval` and `new Function` that generate
 code from strings throw an exception instead. This does not affect the Node.js
 `vm` module.
+
+### `--dns-result-order=order`
+<!-- YAML
+added: REPLACEME
+-->
+
+Set the default value of `verbatim` in [`dns.lookup()`][] and
+[`dnsPromises.lookup()`][]. The value could be:
+* `ipv4first`: sets default `verbatim` `false`.
+* `verbatim`: sets default `verbatim` `true`.
+
+The default is `ipv4first` and [`dns.setDefaultResultOrder()`][] have higher
+priority than `--dns-result-order`.
 
 ### `--enable-fips`
 <!-- YAML
@@ -1370,9 +1389,10 @@ node --require "./a.js" --require "./b.js"
 
 Node.js options that are allowed are:
 <!-- node-options-node start -->
-* `--conditions`
+* `--conditions`, `-C`
 * `--diagnostic-dir`
 * `--disable-proto`
+* `--dns-result-order`
 * `--enable-fips`
 * `--enable-source-maps`
 * `--experimental-abortcontroller`
@@ -1761,11 +1781,15 @@ $ node --max-old-space-size=1536 index.js
 [`NODE_OPTIONS`]: #cli_node_options_options
 [`NO_COLOR`]: https://no-color.org
 [`SlowBuffer`]: buffer.md#buffer_class_slowbuffer
+[`dns.lookup()`]: dns.md#dns_dns_lookup_hostname_options_callback
+[`dns.setDefaultResultOrder()`]: dns.md#dns_dns_setdefaultresultorder_order
+[`dnsPromises.lookup()`]: dns.md#dns_dnspromises_lookup_hostname_options
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#process_process_setuncaughtexceptioncapturecallback_fn
 [`tls.DEFAULT_MAX_VERSION`]: tls.md#tls_tls_default_max_version
 [`tls.DEFAULT_MIN_VERSION`]: tls.md#tls_tls_default_min_version
 [`unhandledRejection`]: process.md#process_event_unhandledrejection
 [`worker_threads.threadId`]: worker_threads.md#worker_threads_worker_threadid
+[conditional exports]: packages.md#packages_conditional_exports
 [context-aware]: addons.md#addons_context_aware_addons
 [customizing ESM specifier resolution]: esm.md#esm_customizing_esm_specifier_resolution_algorithm
 [debugger]: debugger.md

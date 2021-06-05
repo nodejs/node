@@ -110,16 +110,32 @@ const getAction = ({actual, ideal}) => {
   if (ideal.isRoot && actual.isRoot)
     return null
 
+  // if the versions don't match, it's a change no matter what
+  if (ideal.version !== actual.version)
+    return 'CHANGE'
+
   const binsExist = ideal.binPaths.every((path) => existsSync(path))
 
   // top nodes, links, and git deps won't have integrity, but do have resolved
-  if (!ideal.integrity && !actual.integrity && ideal.resolved === actual.resolved && binsExist)
+  // if neither node has integrity, the bins exist, and either (a) neither
+  // node has a resolved value or (b) they both do and match, then we can
+  // leave this one alone since we already know the versions match due to
+  // the condition above.  The "neither has resolved" case (a) cannot be
+  // treated as a 'mark CHANGE and refetch', because shrinkwraps, bundles,
+  // and link deps may lack this information, and we don't want to try to
+  // go to the registry for something that isn't there.
+  const noIntegrity = !ideal.integrity && !actual.integrity
+  const noResolved = !ideal.resolved && !actual.resolved
+  const resolvedMatch = ideal.resolved && ideal.resolved === actual.resolved
+  if (noIntegrity && binsExist && (resolvedMatch || noResolved))
     return null
 
   // otherwise, verify that it's the same bits
   // note that if ideal has integrity, and resolved doesn't, we treat
   // that as a 'change', so that it gets re-fetched and locked down.
-  if (!ideal.integrity || !actual.integrity || !ssri.parse(ideal.integrity).match(actual.integrity) || !binsExist)
+  const integrityMismatch = !ideal.integrity || !actual.integrity ||
+    !ssri.parse(ideal.integrity).match(actual.integrity)
+  if (integrityMismatch || !binsExist)
     return 'CHANGE'
 
   return null
