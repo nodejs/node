@@ -286,6 +286,13 @@ function removeAsync(dir) {
   // IBMi has a different access permission mechanism
   // This test should not be run as `root`
   if (!common.isIBMi && (common.isWindows || process.getuid() !== 0)) {
+    class InvalidStateError extends Error {
+      constructor(err) {
+        super('Invalid state');
+        this.cause = err;
+      }
+    }
+
     // Check that deleting a file that cannot be accessed using rmsync throws:
     // https://github.com/nodejs/node/issues/38683
     {
@@ -319,9 +326,7 @@ function removeAsync(dir) {
         try { fs.chmodSync(filePath, 0o777); } catch {}
 
         if (!isValidState(fs.existsSync(filePath), err)) {
-          const e = new Error('Invalid state');
-          e.cause = err;
-          throw e;
+          throw new InvalidStateError(err);
         }
       }
 
@@ -340,9 +345,7 @@ function removeAsync(dir) {
           try { fs.chmodSync(filePath, 0o777); } catch {}
 
           if (!isValidState(fs.existsSync(filePath), err)) {
-            const e = new Error('Invalid state');
-            e.cause = err;
-            throw e;
+            throw new InvalidStateError(err);
           }
         }));
       }
@@ -384,9 +387,7 @@ function removeAsync(dir) {
         try { fs.chmodSync(leaf, 0o777); } catch {}
 
         if (!isValidState(fs.existsSync(root), err)) {
-          const e = new Error('Invalid state');
-          e.cause = err;
-          throw e;
+          throw new InvalidStateError(err);
         }
       }
 
@@ -408,9 +409,7 @@ function removeAsync(dir) {
           try { fs.chmodSync(leaf, 0o777); } catch {}
 
           if (!isValidState(fs.existsSync(root), err)) {
-            const e = new Error('Invalid state');
-            e.cause = err;
-            throw e;
+            throw new InvalidStateError(err);
           }
         }));
       }
