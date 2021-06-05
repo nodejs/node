@@ -319,7 +319,9 @@ function removeAsync(dir) {
         try { fs.chmodSync(filePath, 0o777); } catch {}
 
         if (!isValidState(fs.existsSync(filePath), err)) {
-          throw err;
+          const e = new Error('Invalid state');
+          e.cause = err;
+          throw e;
         }
       }
 
@@ -338,7 +340,9 @@ function removeAsync(dir) {
           try { fs.chmodSync(filePath, 0o777); } catch {}
 
           if (!isValidState(fs.existsSync(filePath), err)) {
-            throw err;
+            const e = new Error('Invalid state');
+            e.cause = err;
+            throw e;
           }
         }));
       }
@@ -380,7 +384,9 @@ function removeAsync(dir) {
         try { fs.chmodSync(leaf, 0o777); } catch {}
 
         if (!isValidState(fs.existsSync(root), err)) {
-          throw err;
+          const e = new Error('Invalid state');
+          e.cause = err;
+          throw e;
         }
       }
 
@@ -402,7 +408,9 @@ function removeAsync(dir) {
           try { fs.chmodSync(leaf, 0o777); } catch {}
 
           if (!isValidState(fs.existsSync(root), err)) {
-            throw err;
+            const e = new Error('Invalid state');
+            e.cause = err;
+            throw e;
           }
         }));
       }
