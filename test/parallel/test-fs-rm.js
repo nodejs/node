@@ -296,12 +296,17 @@ function removeAsync(dir) {
     // Check that deleting a file that cannot be accessed using rmsync throws:
     // https://github.com/nodejs/node/issues/38683
     {
-      function isValidState(exists, err) {
+      function validateState(exists, err) {
         // On Windows, we are allowed to access and modify the contents of a
         // read-only folder.
-        return common.isWindows ?
-          (exists === false && err === null) :
-          (exists === true && err?.code === 'EACCES');
+        const isValidState =
+          common.isWindows ?
+            (exists === false && err === null) :
+            (exists === true && err?.code === 'EACCES');
+
+        if (!isValidState) {
+          throw new InvalidStateError(err);
+        }
       }
 
       {
@@ -325,9 +330,7 @@ function removeAsync(dir) {
         try { fs.chmodSync(dirname, 0o777); } catch {}
         try { fs.chmodSync(filePath, 0o777); } catch {}
 
-        if (!isValidState(fs.existsSync(filePath), err)) {
-          throw new InvalidStateError(err);
-        }
+        validateState(fs.existsSync(filePath), err);
       }
 
       {
@@ -344,9 +347,7 @@ function removeAsync(dir) {
           try { fs.chmodSync(dirname, 0o777); } catch {}
           try { fs.chmodSync(filePath, 0o777); } catch {}
 
-          if (!isValidState(fs.existsSync(filePath), err)) {
-            throw new InvalidStateError(err);
-          }
+          validateState(fs.existsSync(filePath), err);
         }));
       }
     }
@@ -354,12 +355,17 @@ function removeAsync(dir) {
     // Check endless recursion.
     // https://github.com/nodejs/node/issues/34580
     {
-      function isValidState(exists, err) {
+      function validateState(exists, err) {
         // On Windows, we are not allowed to delete a read-only folder yet.
         // TODO(RaisinTen): Remove Windows special-casing if this lands:
         // https://github.com/libuv/libuv/pull/3193
-        return exists === true &&
-               err?.code === common.isWindows ? 'EPERM' : 'EACCES';
+        const isValidState =
+          exists === true &&
+          err?.code === common.isWindows ? 'EPERM' : 'EACCES';
+
+        if (!isValidState) {
+          throw new InvalidStateError(err);
+        }
       }
 
       {
@@ -386,9 +392,7 @@ function removeAsync(dir) {
         try { fs.chmodSync(middle, 0o777); } catch {}
         try { fs.chmodSync(leaf, 0o777); } catch {}
 
-        if (!isValidState(fs.existsSync(root), err)) {
-          throw new InvalidStateError(err);
-        }
+        validateState(fs.existsSync(root), err);
       }
 
       {
@@ -408,9 +412,7 @@ function removeAsync(dir) {
           try { fs.chmodSync(middle, 0o777); } catch {}
           try { fs.chmodSync(leaf, 0o777); } catch {}
 
-          if (!isValidState(fs.existsSync(root), err)) {
-            throw new InvalidStateError(err);
-          }
+          validateState(fs.existsSync(root), err);
         }));
       }
     }
