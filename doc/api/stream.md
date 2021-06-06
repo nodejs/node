@@ -3169,7 +3169,6 @@ transform.on('data', (chunk) => {
 ```
 
 #### Piping to writable streams from async iterators
-```
 
 When writing to a writable stream from an async iterator, ensure correct
 handling of backpressure and errors. [`stream.pipeline()`][] abstracts away
