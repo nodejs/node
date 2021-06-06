@@ -32,7 +32,7 @@ void WriteReport(const FunctionCallbackInfo<Value>& info) {
   Isolate* isolate = env->isolate();
   HandleScope scope(isolate);
   std::string filename;
-  Local<Object> error;
+  Local<Value> error;
 
   CHECK_EQ(info.Length(), 4);
   String::Utf8Value message(isolate, info[0].As<String>());
@@ -40,10 +40,10 @@ void WriteReport(const FunctionCallbackInfo<Value>& info) {
 
   if (info[2]->IsString())
     filename = *String::Utf8Value(isolate, info[2]);
-  if (!info[3].IsEmpty() && info[3]->IsObject())
-    error = info[3].As<Object>();
+  if (!info[3].IsEmpty())
+    error = info[3];
   else
-    error = Local<Object>();
+    error = Local<Value>();
 
   filename = TriggerNodeReport(
       isolate, env, *message, *trigger, filename, error);
