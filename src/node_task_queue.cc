@@ -20,7 +20,6 @@ using v8::kPromiseRejectAfterResolved;
 using v8::kPromiseRejectWithNoHandler;
 using v8::kPromiseResolveAfterResolved;
 using v8::Local;
-using v8::MicrotasksScope;
 using v8::Number;
 using v8::Object;
 using v8::Promise;
@@ -95,11 +94,13 @@ static void EnqueueMicrotask(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(args[0]->IsFunction());
 
-  isolate->EnqueueMicrotask(args[0].As<Function>());
+  isolate->GetCurrentContext()->GetMicrotaskQueue()
+      ->EnqueueMicrotask(isolate, args[0].As<Function>());
 }
 
 static void RunMicrotasks(const FunctionCallbackInfo<Value>& args) {
-  MicrotasksScope::PerformCheckpoint(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
+  env->context()->GetMicrotaskQueue()->PerformCheckpoint(env->isolate());
 }
 
 static void SetTickCallback(const FunctionCallbackInfo<Value>& args) {
