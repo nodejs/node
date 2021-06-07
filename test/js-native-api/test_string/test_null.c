@@ -20,7 +20,10 @@
                                                      &result));           \
                                                                           \
     napi_create_string_##charset(env, NULL, NAPI_AUTO_LENGTH, &result);   \
-    add_last_status(env, "stringIsNull", return_value);                   \
+    add_last_status(env, "stringIsNullNonZeroLength", return_value);      \
+                                                                          \
+    napi_create_string_##charset(env, NULL, 0, &result);                  \
+    add_last_status(env, "stringIsNullZeroLength", return_value);         \
                                                                           \
     napi_create_string_##charset(env, (str_arg), NAPI_AUTO_LENGTH, NULL); \
     add_last_status(env, "resultIsNull", return_value);                   \

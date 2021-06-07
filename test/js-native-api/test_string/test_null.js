@@ -7,7 +7,8 @@ const { testNull } = require(`./build/${common.buildType}/test_string`);
 
 const expectedResult = {
   envIsNull: 'Invalid argument',
-  stringIsNull: 'Invalid argument',
+  stringIsNullNonZeroLength: 'Invalid argument',
+  stringIsNullZeroLength: 'napi_ok',
   resultIsNull: 'Invalid argument',
 };
 
