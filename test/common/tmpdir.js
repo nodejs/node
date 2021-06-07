@@ -73,11 +73,13 @@ function onexit() {
       console.error('See http://nfs.sourceforge.net/#faq_d2 for details.');
     }
 
-    // Additionally logging err, just in case throwing err gets overshadowed by
-    // an error from a test failure.
+    // Manually logging err instead of throwing it, so that it doesn't get
+    // overshadowed by an error from a test failure.
     console.error(err);
 
-    throw err;
+    // Setting the process exit code to a non-zero exit code, so that this gets
+    // marked as `not ok` during a CI run.
+    process.exitCode ||= 1;
   }
 }
 
