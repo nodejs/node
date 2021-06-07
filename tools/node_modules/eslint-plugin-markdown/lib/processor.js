@@ -11,8 +11,12 @@
  * @property {string} [lang]
  *
  * @typedef {Object} RangeMap
- * @property {number} js
- * @property {number} md
+ * @property {number} indent Number of code block indent characters trimmed from
+ *     the beginning of the line during extraction.
+ * @property {number} js Offset from the start of the code block's range in the
+ *     extracted JS.
+ * @property {number} md Offset from the start of the code block's range in the
+ *     original Markdown.
  *
  * @typedef {Object} BlockBase
  * @property {string} baseIndentText
@@ -24,16 +28,13 @@
 
 "use strict";
 
-const unified = require("unified");
-const remarkParse = require("remark-parse");
+const parse = require("mdast-util-from-markdown");
 
 const UNSATISFIABLE_RULES = [
     "eol-last", // The Markdown parser strips trailing newlines in code fences
     "unicode-bom" // Code blocks will begin in the middle of Markdown files
 ];
 const SUPPORTS_AUTOFIX = true;
-
-const markdown = unified().use(remarkParse);
 
 /**
  * @type {Map<string, Block[]>}
@@ -152,7 +153,7 @@ function getBlockRangeMap(text, node, comments) {
     /*
      * The parser sets the fenced code block's start offset to wherever content
      * should normally begin (typically the first column of the line, but more
-     * inside a list item, for example). The code block's opening fance may be
+     * inside a list item, for example). The code block's opening fence may be
      * further indented by up to three characters. If the code block has
      * additional indenting, the opening fence's first backtick may be up to
      * three whitespace characters after the start offset.
@@ -187,6 +188,7 @@ function getBlockRangeMap(text, node, comments) {
      * last range that matches, skipping this initialization entry.
      */
     const rangeMap = [{
+        indent: baseIndent,
         js: 0,
         md: 0
     }];
@@ -215,6 +217,7 @@ function getBlockRangeMap(text, node, comments) {
         const trimLength = Math.min(baseIndent, leadingWhitespaceLength);
 
         rangeMap.push({
+            indent: trimLength,
             js: jsOffset,
 
             // Advance `trimLength` character from the beginning of the Markdown
@@ -239,7 +242,7 @@ function getBlockRangeMap(text, node, comments) {
  * @returns {Array<{ filename: string, text: string }>} Source code blocks to lint.
  */
 function preprocess(text, filename) {
-    const ast = markdown.parse(text);
+    const ast = parse(text);
     const blocks = [];
 
     blocksCache.set(filename, blocks);
@@ -327,7 +330,7 @@ function adjustBlock(block) {
 
         const out = {
             line: lineInCode + blockStart,
-            column: message.column + block.position.indent[lineInCode - 1] - 1
+            column: message.column + block.rangeMap[lineInCode].indent
         };
 
         if (Number.isInteger(message.endLine)) {

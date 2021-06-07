@@ -223,11 +223,6 @@ Nicholas C. Zakas
 Brandon Mills
 </a>
 </td><td align="center" valign="top" width="11%">
-<a href="https://github.com/mysticatea">
-<img src="https://github.com/mysticatea.png?s=75" width="75" height="75"><br />
-Toru Nagashima
-</a>
-</td><td align="center" valign="top" width="11%">
 <a href="https://github.com/mdjermanovic">
 <img src="https://github.com/mdjermanovic.png?s=75" width="75" height="75"><br />
 Milos Djermanovic
