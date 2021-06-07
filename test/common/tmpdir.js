@@ -79,7 +79,9 @@ function onexit() {
 
     // Setting the process exit code to a non-zero exit code, so that this gets
     // marked as `not ok` during a CI run.
-    process.exitCode ||= 1;
+    if (!process.exitCode) {
+      process.exitCode = 1;
+    }
   }
 }
 
