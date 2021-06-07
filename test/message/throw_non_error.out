@@ -2,3 +2,4 @@
 throw ({ foo: 'bar' });
 ^
 { foo: 'bar' }
+    via Node.js *

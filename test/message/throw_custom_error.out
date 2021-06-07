@@ -2,3 +2,4 @@
 throw ({ name: 'MyCustomError', message: 'This is a custom message' });
 ^
 { name: 'MyCustomError', message: 'This is a custom message' }
+    via Node.js *

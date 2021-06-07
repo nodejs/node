@@ -408,6 +408,8 @@ static void ReportFatalException(Environment* env,
     }
   }
 
+  FPrintF(stderr, "    via Node.js %s\n", NODE_VERSION);
+
   fflush(stderr);
 }
 

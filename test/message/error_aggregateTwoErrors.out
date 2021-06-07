@@ -11,3 +11,4 @@ AggregateError: original
     at node:internal/main/run_main_module:*:* {
   code: 'ERR0'
 }
+    via Node.js *
