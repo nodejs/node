@@ -629,9 +629,8 @@ changes:
 
 The `writable.write()` method writes some data to the stream, and calls the
 supplied `callback` once the data has been fully handled. If an error
-occurs, the `callback` *may or may not* be called with the error as its
-first argument. To reliably detect write errors, add a listener for the
-`'error'` event. The `callback` is called asynchronously and before `'error'` is
+occurs, the `callback` will be called with the error as its
+first argument. The `callback` is called asynchronously and before `'error'` is
 emitted.
 
 The return value is `true` if the internal buffer is less than the
