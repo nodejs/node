@@ -444,7 +444,7 @@ function normalizeEcmaVersion(ecmaVersion) {
     return ecmaVersion >= 2015 ? ecmaVersion - 2009 : ecmaVersion;
 }
 
-const eslintEnvPattern = /\/\*\s*eslint-env\s(.+?)\*\//gu;
+const eslintEnvPattern = /\/\*\s*eslint-env\s(.+?)\*\//gsu;
 
 /**
  * Checks whether or not there is a comment which has "eslint-env *" in a given text.
@@ -828,9 +828,10 @@ const BASE_TRAVERSAL_CONTEXT = Object.freeze(
  * @param {string} filename The reported filename of the code
  * @param {boolean} disableFixes If true, it doesn't make `fix` properties.
  * @param {string | undefined} cwd cwd of the cli
+ * @param {string} physicalFilename The full path of the file on disk without any code block information
  * @returns {Problem[]} An array of reported problems
  */
-function runRules(sourceCode, configuredRules, ruleMapper, parserOptions, parserName, settings, filename, disableFixes, cwd) {
+function runRules(sourceCode, configuredRules, ruleMapper, parserOptions, parserName, settings, filename, disableFixes, cwd, physicalFilename) {
     const emitter = createEmitter();
     const nodeQueue = [];
     let currentNode = sourceCode.ast;
@@ -859,6 +860,7 @@ function runRules(sourceCode, configuredRules, ruleMapper, parserOptions, parser
                 getDeclaredVariables: sourceCode.scopeManager.getDeclaredVariables.bind(sourceCode.scopeManager),
                 getCwd: () => cwd,
                 getFilename: () => filename,
+                getPhysicalFilename: () => physicalFilename || filename,
                 getScope: () => getScope(sourceCode.scopeManager, currentNode),
                 getSourceCode: () => sourceCode,
                 markVariableAsUsed: name => markVariableAsUsed(sourceCode.scopeManager, currentNode, parserOptions, name),
@@ -1181,7 +1183,8 @@ class Linter {
                 settings,
                 options.filename,
                 options.disableFixes,
-                slots.cwd
+                slots.cwd,
+                providedOptions.physicalFilename
             );
         } catch (err) {
             err.message += `\nOccurred while linting ${options.filename}`;
@@ -1284,6 +1287,7 @@ class Linter {
     _verifyWithProcessor(textOrSourceCode, config, options, configForRecursive) {
         const filename = options.filename || "<input>";
         const filenameToExpose = normalizeFilename(filename);
+        const physicalFilename = options.physicalFilename || filenameToExpose;
         const text = ensureText(textOrSourceCode);
         const preprocess = options.preprocess || (rawText => [rawText]);
 
@@ -1316,7 +1320,7 @@ class Linter {
                 return this._verifyWithConfigArray(
                     blockText,
                     configForRecursive,
-                    { ...options, filename: blockName }
+                    { ...options, filename: blockName, physicalFilename }
                 );
             }
 
@@ -1324,7 +1328,7 @@ class Linter {
             return this._verifyWithoutProcessors(
                 blockText,
                 config,
-                { ...options, filename: blockName }
+                { ...options, filename: blockName, physicalFilename }
             );
         });
 

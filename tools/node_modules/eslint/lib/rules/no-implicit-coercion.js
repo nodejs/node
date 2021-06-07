@@ -110,6 +110,20 @@ function getNonNumericOperand(node) {
 }
 
 /**
+ * Checks whether an expression evaluates to a string.
+ * @param {ASTNode} node node that represents the expression to check.
+ * @returns {boolean} Whether or not the expression evaluates to a string.
+ */
+function isStringType(node) {
+    return astUtils.isStringLiteral(node) ||
+        (
+            node.type === "CallExpression" &&
+            node.callee.type === "Identifier" &&
+            node.callee.name === "String"
+        );
+}
+
+/**
  * Checks whether a node is an empty string literal or not.
  * @param {ASTNode} node The node to check.
  * @returns {boolean} Whether or not the passed in node is an
@@ -126,8 +140,8 @@ function isEmptyString(node) {
  */
 function isConcatWithEmptyString(node) {
     return node.operator === "+" && (
-        (isEmptyString(node.left) && !astUtils.isStringLiteral(node.right)) ||
-        (isEmptyString(node.right) && !astUtils.isStringLiteral(node.left))
+        (isEmptyString(node.left) && !isStringType(node.right)) ||
+        (isEmptyString(node.right) && !isStringType(node.left))
     );
 }
 
@@ -329,6 +343,11 @@ module.exports = {
 
                 //  `${foo}postfix`
                 if (node.quasis[1].value.cooked !== "") {
+                    return;
+                }
+
+                // if the expression is already a string, then this isn't a coercion
+                if (isStringType(node.expressions[0])) {
                     return;
                 }
 

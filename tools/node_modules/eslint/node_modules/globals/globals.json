@@ -478,6 +478,7 @@
 		"DOMPointReadOnly": false,
 		"DOMQuad": false,
 		"DOMRect": false,
+		"DOMRectList": false,
 		"DOMRectReadOnly": false,
 		"DOMStringList": false,
 		"DOMStringMap": false,
