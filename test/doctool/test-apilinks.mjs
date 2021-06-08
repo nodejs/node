@@ -1,14 +1,15 @@
-'use strict';
+import '../common/index.mjs';
+import * as fixtures from '../common/fixtures.mjs';
+import tmpdir from '../common/tmpdir.js';
 
-require('../common');
-const fixtures = require('../common/fixtures');
-const tmpdir = require('../common/tmpdir');
-const fs = require('fs');
-const assert = require('assert');
-const path = require('path');
-const { execFileSync } = require('child_process');
+import assert from 'assert';
+import { execFileSync } from 'child_process';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const script = path.join(__dirname, '..', '..', 'tools', 'doc', 'apilinks.js');
+const script = fileURLToPath(
+  new URL('../../tools/doc/apilinks.mjs', import.meta.url));
 const apilinks = fixtures.path('apilinks');
 
 tmpdir.refresh();

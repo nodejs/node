@@ -1,28 +1,26 @@
-'use strict';
-
 // Build stability table to documentation.html/json/md by generated all.json
 
-const fs = require('fs');
-const path = require('path');
-const unified = require('unified');
-const raw = require('rehype-raw');
-const markdown = require('remark-parse');
-const htmlStringify = require('rehype-stringify');
-const gfm = require('remark-gfm');
-const remark2rehype = require('remark-rehype');
-const visit = require('unist-util-visit');
+import fs from 'fs';
 
-const source = `${__dirname}/../../out/doc/api`;
-const data = require(path.join(source, 'all.json'));
+import raw from 'rehype-raw';
+import htmlStringify from 'rehype-stringify';
+import gfm from 'remark-gfm';
+import markdown from 'remark-parse';
+import remark2rehype from 'remark-rehype';
+import unified from 'unified';
+import { visit } from 'unist-util-visit';
+
+const source = new URL('../../out/doc/api/', import.meta.url);
+const data = JSON.parse(fs.readFileSync(new URL('./all.json', source), 'utf8'));
 const markBegin = '<!-- STABILITY_OVERVIEW_SLOT_BEGIN -->';
 const markEnd = '<!-- STABILITY_OVERVIEW_SLOT_END -->';
 const mark = `${markBegin}(.*)${markEnd}`;
 
 const output = {
-  json: path.join(source, 'stability.json'),
-  docHTML: path.join(source, 'documentation.html'),
-  docJSON: path.join(source, 'documentation.json'),
-  docMarkdown: path.join(source, 'documentation.md'),
+  json: new URL('./stability.json', source),
+  docHTML: new URL('./documentation.html', source),
+  docJSON: new URL('./documentation.json', source),
+  docMarkdown: new URL('./documentation.md', source),
 };
 
 function collectStability(data) {

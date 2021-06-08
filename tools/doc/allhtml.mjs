@@ -1,18 +1,16 @@
-'use strict';
-
 // Build all.html by combining the generated toc and apicontent from each
 // of the generated html files.
 
-const fs = require('fs');
+import fs from 'fs';
 
-const source = `${__dirname}/../../out/doc/api`;
+const source = new URL('../../out/doc/api/', import.meta.url);
 
 // Get a list of generated API documents.
 const htmlFiles = fs.readdirSync(source, 'utf8')
   .filter((name) => name.includes('.html') && name !== 'all.html');
 
 // Read the table of contents.
-const toc = fs.readFileSync(source + '/index.html', 'utf8');
+const toc = fs.readFileSync(new URL('./index.html', source), 'utf8');
 
 // Extract (and concatenate) the toc and apicontent from each document.
 let contents = '';
@@ -28,7 +26,7 @@ const seen = {
 for (const link of toc.match(/<a.*?>/g)) {
   const href = /href="(.*?)"/.exec(link)[1];
   if (!htmlFiles.includes(href) || seen[href]) continue;
-  const data = fs.readFileSync(source + '/' + href, 'utf8');
+  const data = fs.readFileSync(new URL(`./${href}`, source), 'utf8');
 
   // Split the doc.
   const match = /(<\/ul>\s*)?<\/\w+>\s*<\w+ id="apicontent">/.exec(data);
@@ -74,7 +72,7 @@ all = all.slice(0, apiStart.index + apiStart[0].length) +
   all.slice(apiEnd);
 
 // Write results.
-fs.writeFileSync(source + '/all.html', all, 'utf8');
+fs.writeFileSync(new URL('./all.html', source), all, 'utf8');
 
 // Validate all hrefs have a target.
 const ids = new Set();
