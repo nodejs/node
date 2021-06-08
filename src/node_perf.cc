@@ -274,6 +274,15 @@ void ELDHistogram::OnInterval() {
                  "stddev", histogram()->Stddev());
 }
 
+void GetTimeOrigin(const FunctionCallbackInfo<Value>& args) {
+  args.GetReturnValue().Set(Number::New(args.GetIsolate(), timeOrigin / 1e6));
+}
+
+void GetTimeOriginTimeStamp(const FunctionCallbackInfo<Value>& args) {
+  args.GetReturnValue().Set(
+      Number::New(args.GetIsolate(), timeOriginTimestamp / MICROS_PER_MILLIS));
+}
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
@@ -308,6 +317,8 @@ void Initialize(Local<Object> target,
                  RemoveGarbageCollectionTracking);
   env->SetMethod(target, "notify", Notify);
   env->SetMethod(target, "loopIdleTime", LoopIdleTime);
+  env->SetMethod(target, "getTimeOrigin", GetTimeOrigin);
+  env->SetMethod(target, "getTimeOriginTimestamp", GetTimeOriginTimeStamp);
 
   Local<Object> constants = Object::New(isolate);
 
@@ -343,17 +354,6 @@ void Initialize(Local<Object> target,
 
   PropertyAttribute attr =
       static_cast<PropertyAttribute>(ReadOnly | DontDelete);
-
-  target->DefineOwnProperty(context,
-                            FIXED_ONE_BYTE_STRING(isolate, "timeOrigin"),
-                            Number::New(isolate, timeOrigin / 1e6),
-                            attr).ToChecked();
-
-  target->DefineOwnProperty(
-      context,
-      FIXED_ONE_BYTE_STRING(isolate, "timeOriginTimestamp"),
-      Number::New(isolate, timeOriginTimestamp / MICROS_PER_MILLIS),
-      attr).ToChecked();
 
   target->DefineOwnProperty(context,
                             env->constants_string(),
