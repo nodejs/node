@@ -18,6 +18,8 @@
 
 namespace node {
 
+class ExternalReferenceRegistry;
+
 constexpr int kDefaultHistogramFigures = 3;
 
 class Histogram : public MemoryRetainer {
@@ -78,6 +80,7 @@ class HistogramBase : public BaseObject, public HistogramImpl {
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
     Environment* env);
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   static BaseObjectPtr<HistogramBase> Create(
       Environment* env,
@@ -153,6 +156,8 @@ class IntervalHistogram : public HandleWrap, public HistogramImpl {
     NONE,
     RESET
   };
+
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);

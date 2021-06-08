@@ -1,10 +1,11 @@
+#include "node_perf.h"
 #include "aliased_buffer.h"
 #include "env-inl.h"
 #include "histogram-inl.h"
 #include "memory_tracker-inl.h"
-#include "node_internals.h"
-#include "node_perf.h"
 #include "node_buffer.h"
+#include "node_external_reference.h"
+#include "node_internals.h"
 #include "node_process-inl.h"
 #include "util-inl.h"
 
@@ -250,6 +251,12 @@ void ELDHistogram::Initialize(Environment* env, Local<Object> target) {
   env->SetConstructorFunction(target, "ELDHistogram", tmpl);
 }
 
+void ELDHistogram::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+  IntervalHistogram::RegisterExternalReferences(registry);
+}
+
 ELDHistogram::ELDHistogram(
     Environment* env,
     Local<Object> wrap,
@@ -364,7 +371,21 @@ void Initialize(Local<Object> target,
   ELDHistogram::Initialize(env, target);
 }
 
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(MarkMilestone);
+  registry->Register(SetupPerformanceObservers);
+  registry->Register(InstallGarbageCollectionTracking);
+  registry->Register(RemoveGarbageCollectionTracking);
+  registry->Register(Notify);
+  registry->Register(LoopIdleTime);
+  registry->Register(GetTimeOrigin);
+  registry->Register(GetTimeOriginTimeStamp);
+  HistogramBase::RegisterExternalReferences(registry);
+  ELDHistogram::RegisterExternalReferences(registry);
+}
 }  // namespace performance
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(performance, node::performance::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(performance,
+                               node::performance::RegisterExternalReferences)

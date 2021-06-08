@@ -1,8 +1,10 @@
 #include "histogram.h"  // NOLINT(build/include_inline)
-#include "histogram-inl.h"
 #include "base_object-inl.h"
+#include "histogram-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_errors.h"
+#include "node_external_reference.h"
+
 namespace node {
 
 using v8::BigInt;
@@ -197,6 +199,21 @@ Local<FunctionTemplate> HistogramBase::GetConstructorTemplate(
   return tmpl;
 }
 
+void HistogramBase::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+  registry->Register(GetExceeds);
+  registry->Register(GetMin);
+  registry->Register(GetMax);
+  registry->Register(GetMean);
+  registry->Register(GetStddev);
+  registry->Register(GetPercentile);
+  registry->Register(GetPercentiles);
+  registry->Register(DoReset);
+  registry->Register(Record);
+  registry->Register(RecordDelta);
+}
+
 void HistogramBase::Initialize(Environment* env, Local<Object> target) {
   env->SetConstructorFunction(target, "Histogram", GetConstructorTemplate(env));
 }
@@ -238,6 +255,20 @@ Local<FunctionTemplate> IntervalHistogram::GetConstructorTemplate(
     env->set_intervalhistogram_constructor_template(tmpl);
   }
   return tmpl;
+}
+
+void IntervalHistogram::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(GetExceeds);
+  registry->Register(GetMin);
+  registry->Register(GetMax);
+  registry->Register(GetMean);
+  registry->Register(GetStddev);
+  registry->Register(GetPercentile);
+  registry->Register(GetPercentiles);
+  registry->Register(DoReset);
+  registry->Register(Start);
+  registry->Register(Stop);
 }
 
 IntervalHistogram::IntervalHistogram(

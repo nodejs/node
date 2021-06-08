@@ -3,10 +3,11 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "node.h"
-#include "node_perf_common.h"
 #include "base_object-inl.h"
 #include "histogram.h"
+#include "node.h"
+#include "node_internals.h"
+#include "node_perf_common.h"
 
 #include "v8.h"
 #include "uv.h"
@@ -16,6 +17,7 @@
 namespace node {
 
 class Environment;
+class ExternalReferenceRegistry;
 
 namespace performance {
 
@@ -160,6 +162,7 @@ using GCPerformanceEntry = PerformanceEntry<GCPerformanceEntryTraits>;
 
 class ELDHistogram : public IntervalHistogram {
  public:
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
 
