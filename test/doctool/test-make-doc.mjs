@@ -1,5 +1,9 @@
-'use strict';
-const common = require('../common');
+import * as common from '../common/index.mjs';
+
+import assert from 'assert';
+import fs from 'fs';
+import path from 'path';
+
 if (common.isWindows) {
   common.skip('`make doc` does not run on Windows');
 }
@@ -7,14 +11,10 @@ if (common.isWindows) {
 // This tests that `make doc` generates the documentation properly.
 // Note that for this test to pass, `make doc` must be run first.
 
-const assert = require('assert');
-const fs = require('fs');
-const path = require('path');
-
-const apiPath = path.resolve(__dirname, '..', '..', 'out', 'doc', 'api');
-const mdPath = path.resolve(__dirname, '..', '..', 'doc', 'api');
-const allMD = fs.readdirSync(mdPath);
-const allDocs = fs.readdirSync(apiPath);
+const apiURL = new URL('../../out/doc/api/', import.meta.url);
+const mdURL = new URL('../../doc/api/', import.meta.url);
+const allMD = fs.readdirSync(mdURL);
+const allDocs = fs.readdirSync(apiURL);
 assert.ok(allDocs.includes('index.html'));
 
 const actualDocs = allDocs.filter(
@@ -33,7 +33,7 @@ for (const name of actualDocs) {
   );
 }
 
-const toc = fs.readFileSync(path.resolve(apiPath, 'index.html'), 'utf8');
+const toc = fs.readFileSync(new URL('./index.html', apiURL), 'utf8');
 const re = /href="([^/]+\.html)"/;
 const globalRe = new RegExp(re, 'g');
 const links = toc.match(globalRe);
@@ -56,8 +56,9 @@ for (const actualDoc of actualDocs) {
   assert.ok(
     expectedDocs.includes(actualDoc), `${actualDoc} does not match TOC`);
 
-  assert.ok(
-    fs.statSync(path.join(apiPath, actualDoc)).size !== 0,
+  assert.notStrictEqual(
+    fs.statSync(new URL(`./${actualDoc}`, apiURL)).size,
+    0,
     `${actualDoc} is empty`
   );
 }

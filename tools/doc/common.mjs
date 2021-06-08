@@ -1,20 +1,18 @@
-'use strict';
+import yaml from 'js-yaml';
 
-const yaml = require('js-yaml');
-
-function isYAMLBlock(text) {
+export function isYAMLBlock(text) {
   return /^<!-- YAML/.test(text);
 }
 
-function isSourceLink(text) {
+export function isSourceLink(text) {
   return /^<!-- source_link=([^\s/]+\/)+\w+\.\w+ -->/.test(text);
 }
 
-function arrify(value) {
+export function arrify(value) {
   return Array.isArray(value) ? value : [value];
 }
 
-function extractAndParseYAML(text) {
+export function extractAndParseYAML(text) {
   text = text.trim()
              .replace(/^<!-- YAML/, '')
              .replace(/-->$/, '');
@@ -45,5 +43,3 @@ function extractAndParseYAML(text) {
 
   return meta;
 }
-
-module.exports = { arrify, isYAMLBlock, isSourceLink, extractAndParseYAML };

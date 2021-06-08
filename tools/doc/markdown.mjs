@@ -1,15 +1,8 @@
-'use strict';
+import { visit } from 'unist-util-visit';
 
-const visit = require('unist-util-visit');
+export const referenceToLocalMdFile = /^(?![+a-z]+:)([^#?]+)\.md(#.+)?$/i;
 
-const referenceToLocalMdFile = /^(?![+a-z]+:)([^#?]+)\.md(#.+)?$/i;
-
-module.exports = {
-  replaceLinks,
-  referenceToLocalMdFile,
-};
-
-function replaceLinks({ filename, linksMapper }) {
+export function replaceLinks({ filename, linksMapper }) {
   return (tree) => {
     const fileHtmlUrls = linksMapper[filename];
 
