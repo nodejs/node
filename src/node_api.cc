@@ -4,6 +4,7 @@
 #include "js_native_api_v8.h"
 #include "memory_tracker-inl.h"
 #include "node_api.h"
+#include "node_api_internals.h"
 #include "node_binding.h"
 #include "node_buffer.h"
 #include "node_errors.h"
@@ -15,51 +16,36 @@
 #include <atomic>
 #include <memory>
 
-struct node_napi_env__ : public napi_env__ {
-  explicit node_napi_env__(v8::Local<v8::Context> context,
-                           const std::string& module_filename):
-      napi_env__(context), filename(module_filename) {
-    CHECK_NOT_NULL(node_env());
-  }
+node_napi_env__::node_napi_env__(v8::Local<v8::Context> context,
+                                 const std::string& module_filename)
+    : napi_env__(context), filename(module_filename) {
+  CHECK_NOT_NULL(node_env());
+}
 
-  inline node::Environment* node_env() const {
-    return node::Environment::GetCurrent(context());
-  }
+bool node_napi_env__::can_call_into_js() const {
+  return node_env()->can_call_into_js();
+}
 
-  bool can_call_into_js() const override {
-    return node_env()->can_call_into_js();
-  }
+v8::Maybe<bool> node_napi_env__::mark_arraybuffer_as_untransferable(
+    v8::Local<v8::ArrayBuffer> ab) const {
+  return ab->SetPrivate(context(),
+                        node_env()->untransferable_object_private_symbol(),
+                        v8::True(isolate));
+}
 
-  v8::Maybe<bool> mark_arraybuffer_as_untransferable(
-      v8::Local<v8::ArrayBuffer> ab) const override {
-    return ab->SetPrivate(
-        context(),
-        node_env()->untransferable_object_private_symbol(),
-        v8::True(isolate));
-  }
-
-  void CallFinalizer(napi_finalize cb, void* data, void* hint) override {
-    // we need to keep the env live until the finalizer has been run
-    // EnvRefHolder provides an exception safe wrapper to Ref and then
-    // Unref once the lamba is freed
-    EnvRefHolder liveEnv(static_cast<napi_env>(this));
-    node_env()->SetImmediate([=, liveEnv = std::move(liveEnv)]
-        (node::Environment* node_env) {
-      napi_env env = liveEnv.env();
-      v8::HandleScope handle_scope(env->isolate);
-      v8::Context::Scope context_scope(env->context());
-      env->CallIntoModule([&](napi_env env) {
-        cb(env, data, hint);
+void node_napi_env__::CallFinalizer(napi_finalize cb, void* data, void* hint) {
+  // we need to keep the env live until the finalizer has been run
+  // EnvRefHolder provides an exception safe wrapper to Ref and then
+  // Unref once the lamba is freed
+  EnvRefHolder liveEnv(static_cast<napi_env>(this));
+  node_env()->SetImmediate(
+      [=, liveEnv = std::move(liveEnv)](node::Environment* node_env) {
+        napi_env env = liveEnv.env();
+        v8::HandleScope handle_scope(env->isolate);
+        v8::Context::Scope context_scope(env->context());
+        env->CallIntoModule([&](napi_env env) { cb(env, data, hint); });
       });
-    });
-  }
-
-  const char* GetFilename() const { return filename.c_str(); }
-
-  std::string filename;
-};
-
-typedef node_napi_env__* node_napi_env;
+}
 
 namespace v8impl {
 
