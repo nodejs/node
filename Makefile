@@ -36,6 +36,11 @@ V8_TEST_OPTIONS = $(V8_EXTRA_TEST_OPTIONS)
 ifdef DISABLE_V8_I18N
 	V8_BUILD_OPTIONS += i18nsupport=off
 endif
+# V8 build and test toolchains are not currently compatible with Python 3.
+# config.mk may have prepended a symlink for `python` to PATH which we need
+# to undo before calling V8's tools.
+OVERRIDE_BIN_DIR=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))out/tools/bin
+NO_BIN_OVERRIDE_PATH=$(subst $() $(),:,$(filter-out $(OVERRIDE_BIN_DIR),$(subst :, ,$(PATH))))
 
 ifeq ($(OSTYPE), darwin)
 	GCOV = xcrun llvm-cov gcov
@@ -274,7 +279,8 @@ endif
 # Rebuilds deps/v8 as a git tree, pulls its third-party dependencies, and
 # builds it.
 v8:
-	tools/make-v8.sh $(V8_ARCH).$(BUILDTYPE_LOWER) $(V8_BUILD_OPTIONS)
+	export PATH="$(NO_BIN_OVERRIDE_PATH)" && \
+		tools/make-v8.sh $(V8_ARCH).$(BUILDTYPE_LOWER) $(V8_BUILD_OPTIONS)
 
 .PHONY: jstest
 jstest: build-addons build-js-native-api-tests build-node-api-tests ## Runs addon tests and JS tests
@@ -651,19 +657,22 @@ test-with-async-hooks:
 ifneq ("","$(wildcard deps/v8/tools/run-tests.py)")
 # Related CI job: node-test-commit-v8-linux
 test-v8: v8  ## Runs the V8 test suite on deps/v8.
-	deps/v8/tools/run-tests.py --gn --arch=$(V8_ARCH) $(V8_TEST_OPTIONS) \
+	export PATH="$(NO_BIN_OVERRIDE_PATH)" && \
+		deps/v8/tools/run-tests.py --gn --arch=$(V8_ARCH) $(V8_TEST_OPTIONS) \
 				mjsunit cctest debugger inspector message preparser \
 				$(TAP_V8)
 	$(info Testing hash seed)
 	$(MAKE) test-hash-seed
 
 test-v8-intl: v8
-	deps/v8/tools/run-tests.py --gn --arch=$(V8_ARCH) \
+	export PATH="$(NO_BIN_OVERRIDE_PATH)" && \
+		deps/v8/tools/run-tests.py --gn --arch=$(V8_ARCH) \
 				--mode=$(BUILDTYPE_LOWER) intl \
 				$(TAP_V8_INTL)
 
 test-v8-benchmarks: v8
-	deps/v8/tools/run-tests.py --gn --arch=$(V8_ARCH) --mode=$(BUILDTYPE_LOWER) \
+	export PATH="$(NO_BIN_OVERRIDE_PATH)" && \
+		deps/v8/tools/run-tests.py --gn --arch=$(V8_ARCH) --mode=$(BUILDTYPE_LOWER) \
 				benchmarks \
 				$(TAP_V8_BENCHMARKS)
 
