@@ -1,18 +1,16 @@
-'use strict';
-
 // Build all.json by combining the miscs, modules, classes, globals, and methods
 // from the generated json files.
 
-const fs = require('fs');
+import fs from 'fs';
 
-const source = `${__dirname}/../../out/doc/api`;
+const source = new URL('../../out/doc/api/', import.meta.url);
 
 // Get a list of generated API documents.
 const jsonFiles = fs.readdirSync(source, 'utf8')
   .filter((name) => name.includes('.json') && name !== 'all.json');
 
 // Read the table of contents.
-const toc = fs.readFileSync(source + '/index.html', 'utf8');
+const toc = fs.readFileSync(new URL('./index.html', source), 'utf8');
 
 // Initialize results. Only these four data values will be collected.
 const results = {
@@ -37,7 +35,7 @@ for (const link of toc.match(/<a.*?>/g)) {
   const json = href.replace('.html', '.json');
   if (!jsonFiles.includes(json) || seen[json]) continue;
   const data = JSON.parse(
-    fs.readFileSync(source + '/' + json, 'utf8')
+    fs.readFileSync(new URL(`./${json}`, source), 'utf8')
       .replace(/<a href=\\"#/g, `<a href=\\"${href}#`)
   );
 
@@ -55,5 +53,5 @@ for (const link of toc.match(/<a.*?>/g)) {
 }
 
 // Write results.
-fs.writeFileSync(source + '/all.json',
+fs.writeFileSync(new URL('./all.json', source),
                  `${JSON.stringify(results, null, 2)}\n`, 'utf8');

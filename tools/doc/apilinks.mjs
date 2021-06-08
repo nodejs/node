@@ -1,5 +1,3 @@
-'use strict';
-
 // Scan API sources for definitions.
 //
 // Note the output is produced based on a world class parser, adherence to
@@ -18,10 +16,11 @@
 //    `function X(...) {...}`). Over time, we expect to handle more
 //    cases (example: ES2015 class definitions).
 
-const acorn = require('../../deps/acorn/acorn');
-const fs = require('fs');
-const path = require('path');
-const child_process = require('child_process');
+import child_process from 'child_process';
+import fs from 'fs';
+import path from 'path';
+
+import * as acorn from '../../deps/acorn/acorn/dist/acorn.mjs';
 
 // Run a command, capturing stdout, ignoring errors.
 function execSync(command) {

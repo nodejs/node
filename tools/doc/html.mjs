@@ -19,26 +19,24 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-'use strict';
+import fs from 'fs';
+import path from 'path';
 
-const common = require('./common.js');
-const fs = require('fs');
-const unified = require('unified');
-const visit = require('unist-util-visit');
-const markdown = require('remark-parse');
-const gfm = require('remark-gfm');
-const remark2rehype = require('remark-rehype');
-const raw = require('rehype-raw');
-const htmlStringify = require('rehype-stringify');
-const path = require('path');
-const typeParser = require('./type-parser.js');
-const { highlight, getLanguage } = require('highlight.js');
+import highlightJs from 'highlight.js';
+import raw from 'rehype-raw';
+import htmlStringify from 'rehype-stringify';
+import gfm from 'remark-gfm';
+import markdown from 'remark-parse';
+import remark2rehype from 'remark-rehype';
+import unified from 'unified';
+import { visit } from 'unist-util-visit';
 
-module.exports = {
-  toHTML, firstHeader, preprocessText, preprocessElements, buildToc
-};
+import * as common from './common.mjs';
+import * as typeParser from './type-parser.mjs';
 
-const docPath = path.resolve(__dirname, '..', '..', 'doc');
+const { highlight, getLanguage } = highlightJs;
+
+const docPath = new URL('../../doc/', import.meta.url);
 
 // Add class attributes to index navigation links.
 function navClasses() {
@@ -50,7 +48,7 @@ function navClasses() {
   };
 }
 
-const gtocPath = path.join(docPath, 'api', 'index.md');
+const gtocPath = new URL('./api/index.md', docPath);
 const gtocMD = fs.readFileSync(gtocPath, 'utf8')
   .replace(/\(([^#?]+?)\.md\)/ig, (_, filename) => `(${filename}.html)`)
   .replace(/^<!--.*?-->/gms, '');
@@ -63,7 +61,7 @@ const gtocHTML = unified()
   .use(htmlStringify)
   .processSync(gtocMD).toString();
 
-const templatePath = path.join(docPath, 'template.html');
+const templatePath = new URL('./template.html', docPath);
 const template = fs.readFileSync(templatePath, 'utf8');
 
 function processContent(content) {
@@ -87,7 +85,7 @@ function processContent(content) {
     }) + (firstTime ? '' : '</section>');
 }
 
-function toHTML({ input, content, filename, nodeVersion, versions }) {
+export function toHTML({ input, content, filename, nodeVersion, versions }) {
   filename = path.basename(filename, '.md');
 
   const id = filename.replace(/\W+/g, '-');
@@ -115,7 +113,7 @@ function toHTML({ input, content, filename, nodeVersion, versions }) {
 }
 
 // Set the section name based on the first header.  Default to 'Index'.
-function firstHeader() {
+export function firstHeader() {
   return (tree, file) => {
     let heading;
     visit(tree, (node) => {
@@ -137,7 +135,7 @@ function firstHeader() {
 
 // Handle general body-text replacements.
 // For example, link man page references to the actual page.
-function preprocessText({ nodeVersion }) {
+export function preprocessText({ nodeVersion }) {
   return (tree) => {
     visit(tree, null, (node) => {
       if (common.isSourceLink(node.value)) {
@@ -197,7 +195,7 @@ function linkJsTypeDocs(text) {
 const isJSFlavorSnippet = (node) => node.lang === 'cjs' || node.lang === 'mjs';
 
 // Preprocess headers, stability blockquotes, and YAML blocks.
-function preprocessElements({ filename }) {
+export function preprocessElements({ filename }) {
   return (tree) => {
     const STABILITY_RE = /(.*:)\s*(\d)([\s\S]*)/;
     let headingIndex = -1;
@@ -217,7 +215,7 @@ function preprocessElements({ filename }) {
           `language-js ${node.lang}` :
           `language-${node.lang}`;
         const highlighted =
-          `<code class='${className}'>${(getLanguage(node.lang || '') ? highlight(node.lang, node.value) : node).value}</code>`;
+          `<code class='${className}'>${(getLanguage(node.lang || '') ? highlight(node.value, { language: node.lang }) : node).value}</code>`;
         node.type = 'html';
 
         if (isJSFlavorSnippet(node)) {
@@ -380,7 +378,7 @@ function versionSort(a, b) {
 }
 
 const DEPRECATION_HEADING_PATTERN = /^DEP\d+:/;
-function buildToc({ filename, apilinks }) {
+export function buildToc({ filename, apilinks }) {
   return (tree, file) => {
     const idCounters = Object.create(null);
     let toc = '';

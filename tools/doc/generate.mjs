@@ -19,21 +19,22 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-'use strict';
+import { readFileSync, promises as fs } from 'fs';
+import path from 'path';
 
-const { promises: fs } = require('fs');
-const path = require('path');
-const unified = require('unified');
-const markdown = require('remark-parse');
-const gfm = require('remark-gfm');
-const remark2rehype = require('remark-rehype');
-const raw = require('rehype-raw');
-const htmlStringify = require('rehype-stringify');
+import raw from 'rehype-raw';
+import htmlStringify from 'rehype-stringify';
+import gfm from 'remark-gfm';
+import markdown from 'remark-parse';
+import remark2rehype from 'remark-rehype';
+import unified from 'unified';
 
-const { replaceLinks } = require('./markdown');
-const linksMapper = require('./links-mapper');
-const html = require('./html');
-const json = require('./json');
+import * as html from './html.mjs';
+import * as json from './json.mjs';
+import { replaceLinks } from './markdown.mjs';
+
+const linksMapperFile = new URL('links-mapper.json', import.meta.url);
+const linksMapper = JSON.parse(readFileSync(linksMapperFile, 'utf8'));
 
 // Parse the args.
 // Don't use nopt or whatever for this. It's simple enough.

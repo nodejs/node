@@ -1,9 +1,11 @@
-'use strict';
+import fs from 'fs';
+import { extname, join, resolve } from 'path';
+import { pathToFileURL } from 'url';
 
-const fs = require('fs');
-const { extname, join, resolve } = require('path');
-const unified = require('unified');
-const { pathToFileURL } = require('url');
+import gfm from 'remark-gfm';
+import markdown from 'remark-parse';
+import unified from 'unified';
+
 const DIR = resolve(process.argv[2]);
 
 console.log('Running Markdown link checker...');
@@ -44,8 +46,8 @@ function findMarkdownFilesRecursively(dirPath) {
 
 function checkFile(path) {
   const tree = unified()
-    .use(require('remark-parse'))
-    .use(require('remark-gfm'))
+    .use(markdown)
+    .use(gfm)
     .parse(fs.readFileSync(path));
 
   const base = pathToFileURL(path);
