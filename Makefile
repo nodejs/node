@@ -983,7 +983,7 @@ $(PKG): release-only
 ifneq ($(OSTYPE),darwin)
 	$(warning Invalid OSTYPE)
 	$(error OSTYPE should be `darwin` currently is $(OSTYPE))
-endif 
+endif
 ifneq ($(ARCHTYPE),arm64)
 	$(warning Invalid ARCHTYPE)
 	$(error ARCHTYPE should be `arm64` currently is $(ARCHTYPE))
