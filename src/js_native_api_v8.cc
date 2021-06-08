@@ -188,296 +188,6 @@ inline static napi_status ConcludeDeferred(napi_env env,
   return GET_RETURN_STATUS(env);
 }
 
-// Wrapper around v8impl::Persistent that implements reference counting.
-class RefBase : protected Finalizer, RefTracker {
- protected:
-  RefBase(napi_env env,
-          uint32_t initial_refcount,
-          bool delete_self,
-          napi_finalize finalize_callback,
-          void* finalize_data,
-          void* finalize_hint)
-       : Finalizer(env, finalize_callback, finalize_data, finalize_hint),
-        _refcount(initial_refcount),
-        _delete_self(delete_self) {
-    Link(finalize_callback == nullptr
-        ? &env->reflist
-        : &env->finalizing_reflist);
-  }
-
- public:
-  static RefBase* New(napi_env env,
-                      uint32_t initial_refcount,
-                      bool delete_self,
-                      napi_finalize finalize_callback,
-                      void* finalize_data,
-                      void* finalize_hint) {
-    return new RefBase(env,
-                       initial_refcount,
-                       delete_self,
-                       finalize_callback,
-                       finalize_data,
-                       finalize_hint);
-  }
-
-  virtual ~RefBase() { Unlink(); }
-
-  inline void* Data() {
-    return _finalize_data;
-  }
-
-  // Delete is called in 2 ways. Either from the finalizer or
-  // from one of Unwrap or napi_delete_reference.
-  //
-  // When it is called from Unwrap or napi_delete_reference we only
-  // want to do the delete if the finalizer has already run or
-  // cannot have been queued to run (ie the reference count is > 0),
-  // otherwise we may crash when the finalizer does run.
-  // If the finalizer may have been queued and has not already run
-  // delay the delete until the finalizer runs by not doing the delete
-  // and setting _delete_self to true so that the finalizer will
-  // delete it when it runs.
-  //
-  // The second way this is called is from
-  // the finalizer and _delete_self is set. In this case we
-  // know we need to do the deletion so just do it.
-  static inline void Delete(RefBase* reference) {
-    if ((reference->RefCount() != 0) ||
-        (reference->_delete_self) ||
-        (reference->_finalize_ran)) {
-      delete reference;
-    } else {
-      // defer until finalizer runs as
-      // it may already be queued
-      reference->_delete_self = true;
-    }
-  }
-
-  inline uint32_t Ref() {
-    return ++_refcount;
-  }
-
-  inline uint32_t Unref() {
-    if (_refcount == 0) {
-        return 0;
-    }
-    return --_refcount;
-  }
-
-  inline uint32_t RefCount() {
-    return _refcount;
-  }
-
- protected:
-  inline void Finalize(bool is_env_teardown = false) override {
-    // In addition to being called during environment teardown, this method is
-    // also the entry point for the garbage collector. During environment
-    // teardown we have to remove the garbage collector's reference to this
-    // method so that, if, as part of the user's callback, JS gets executed,
-    // resulting in a garbage collection pass, this method is not re-entered as
-    // part of that pass, because that'll cause a double free (as seen in
-    // https://github.com/nodejs/node/issues/37236).
-    //
-    // Since this class does not have access to the V8 persistent reference,
-    // this method is overridden in the `Reference` class below. Therein the
-    // weak callback is removed, ensuring that the garbage collector does not
-    // re-enter this method, and the method chains up to continue the process of
-    // environment-teardown-induced finalization.
-
-    // During environment teardown we have to convert a strong reference to
-    // a weak reference to force the deferring behavior if the user's finalizer
-    // happens to delete this reference so that the code in this function that
-    // follows the call to the user's finalizer may safely access variables from
-    // this instance.
-    if (is_env_teardown && RefCount() > 0) _refcount = 0;
-
-    if (_finalize_callback != nullptr) {
-      // This ensures that we never call the finalizer twice.
-      napi_finalize fini = _finalize_callback;
-      _finalize_callback = nullptr;
-      _env->CallFinalizer(fini, _finalize_data, _finalize_hint);
-    }
-
-    // this is safe because if a request to delete the reference
-    // is made in the finalize_callback it will defer deletion
-    // to this block and set _delete_self to true
-    if (_delete_self || is_env_teardown) {
-      Delete(this);
-    } else {
-      _finalize_ran = true;
-    }
-  }
-
- private:
-  uint32_t _refcount;
-  bool _delete_self;
-};
-
-class Reference : public RefBase {
-  using SecondPassCallParameterRef = Reference*;
-
- protected:
-  template <typename... Args>
-  Reference(napi_env env, v8::Local<v8::Value> value, Args&&... args)
-      : RefBase(env, std::forward<Args>(args)...),
-        _persistent(env->isolate, value),
-        _secondPassParameter(new SecondPassCallParameterRef(this)),
-        _secondPassScheduled(false) {
-    if (RefCount() == 0) {
-      SetWeak();
-    }
-  }
-
- public:
-  static inline Reference* New(napi_env env,
-                             v8::Local<v8::Value> value,
-                             uint32_t initial_refcount,
-                             bool delete_self,
-                             napi_finalize finalize_callback = nullptr,
-                             void* finalize_data = nullptr,
-                             void* finalize_hint = nullptr) {
-    return new Reference(env,
-                         value,
-                         initial_refcount,
-                         delete_self,
-                         finalize_callback,
-                         finalize_data,
-                         finalize_hint);
-  }
-
-  virtual ~Reference() {
-    // If the second pass callback is scheduled, it will delete the
-    // parameter passed to it, otherwise it will never be scheduled
-    // and we need to delete it here.
-    if (!_secondPassScheduled) {
-      delete _secondPassParameter;
-    }
-  }
-
-  inline uint32_t Ref() {
-    uint32_t refcount = RefBase::Ref();
-    if (refcount == 1) {
-      ClearWeak();
-    }
-    return refcount;
-  }
-
-  inline uint32_t Unref() {
-    uint32_t old_refcount = RefCount();
-    uint32_t refcount = RefBase::Unref();
-    if (old_refcount == 1 && refcount == 0) {
-      SetWeak();
-    }
-    return refcount;
-  }
-
-  inline v8::Local<v8::Value> Get() {
-    if (_persistent.IsEmpty()) {
-      return v8::Local<v8::Value>();
-    } else {
-      return v8::Local<v8::Value>::New(_env->isolate, _persistent);
-    }
-  }
-
- protected:
-  inline void Finalize(bool is_env_teardown = false) override {
-    if (is_env_teardown) env_teardown_finalize_started_ = true;
-    if (!is_env_teardown && env_teardown_finalize_started_) return;
-
-    // During env teardown, `~napi_env()` alone is responsible for finalizing.
-    // Thus, we don't want any stray gc passes to trigger a second call to
-    // `RefBase::Finalize()`. ClearWeak will ensure that even if the
-    // gc is in progress no Finalization will be run for this Reference
-    // by the gc.
-    if (is_env_teardown) {
-      ClearWeak();
-    }
-
-    // Chain up to perform the rest of the finalization.
-    RefBase::Finalize(is_env_teardown);
-  }
-
- private:
-  // ClearWeak is marking the Reference so that the gc should not
-  // collect it, but it is possible that a second pass callback
-  // may have been scheduled already if we are in shutdown. We clear
-  // the secondPassParameter so that even if it has been
-  // secheduled no Finalization will be run.
-  inline void ClearWeak() {
-    if (!_persistent.IsEmpty()) {
-      _persistent.ClearWeak();
-    }
-    if (_secondPassParameter != nullptr) {
-      *_secondPassParameter = nullptr;
-    }
-  }
-
-  // Mark the reference as weak and eligible for collection
-  // by the gc.
-  inline void SetWeak() {
-    if (_secondPassParameter == nullptr) {
-      // This means that the Reference has already been processed
-      // by the second pass callback, so its already been Finalized, do
-      // nothing
-      return;
-    }
-    _persistent.SetWeak(
-        _secondPassParameter, FinalizeCallback,
-        v8::WeakCallbackType::kParameter);
-    *_secondPassParameter = this;
-  }
-
-  // The N-API finalizer callback may make calls into the engine. V8's heap is
-  // not in a consistent state during the weak callback, and therefore it does
-  // not support calls back into it. However, it provides a mechanism for adding
-  // a finalizer which may make calls back into the engine by allowing us to
-  // attach such a second-pass finalizer from the first pass finalizer. Thus,
-  // we do that here to ensure that the N-API finalizer callback is free to call
-  // into the engine.
-  static void FinalizeCallback(
-      const v8::WeakCallbackInfo<SecondPassCallParameterRef>& data) {
-    SecondPassCallParameterRef* parameter = data.GetParameter();
-    Reference* reference = *parameter;
-    if (reference == nullptr) {
-      return;
-    }
-
-    // The reference must be reset during the first pass.
-    reference->_persistent.Reset();
-    // Mark the parameter not delete-able until the second pass callback is
-    // invoked.
-    reference->_secondPassScheduled = true;
-    data.SetSecondPassCallback(SecondPassCallback);
-  }
-
-  // Second pass callbacks are scheduled with platform tasks. At env teardown,
-  // the tasks may have already be scheduled and we are unable to cancel the
-  // second pass callback task. We have to make sure that parameter is kept
-  // alive until the second pass callback is been invoked. In order to do
-  // this and still allow our code to Finalize/delete the Reference during
-  // shutdown we have to use a separately allocated parameter instead
-  // of a parameter within the Reference object itself. This is what
-  // is stored in _secondPassParameter and it is allocated in the
-  // constructor for the Reference.
-  static void SecondPassCallback(
-      const v8::WeakCallbackInfo<SecondPassCallParameterRef>& data) {
-    SecondPassCallParameterRef* parameter = data.GetParameter();
-    Reference* reference = *parameter;
-    delete parameter;
-    if (reference == nullptr) {
-      // the reference itself has already been deleted so nothing to do
-      return;
-    }
-    reference->_secondPassParameter = nullptr;
-    reference->Finalize();
-  }
-
-  bool env_teardown_finalize_started_ = false;
-  v8impl::Persistent<v8::Value> _persistent;
-  SecondPassCallParameterRef* _secondPassParameter;
-  bool _secondPassScheduled;
-};
-
 enum UnwrapAction {
   KeepWrap,
   RemoveWrap
@@ -739,6 +449,273 @@ inline napi_status Wrap(napi_env env,
 }
 
 }  // end of anonymous namespace
+
+// Wrapper around v8impl::Persistent that implements reference counting.
+RefBase::RefBase(napi_env env,
+                 uint32_t initial_refcount,
+                 bool delete_self,
+                 napi_finalize finalize_callback,
+                 void* finalize_data,
+                 void* finalize_hint)
+    : Finalizer(env, finalize_callback, finalize_data, finalize_hint),
+      _refcount(initial_refcount),
+      _delete_self(delete_self) {
+  Link(finalize_callback == nullptr ? &env->reflist : &env->finalizing_reflist);
+}
+
+RefBase* RefBase::New(napi_env env,
+                      uint32_t initial_refcount,
+                      bool delete_self,
+                      napi_finalize finalize_callback,
+                      void* finalize_data,
+                      void* finalize_hint) {
+  return new RefBase(env,
+                     initial_refcount,
+                     delete_self,
+                     finalize_callback,
+                     finalize_data,
+                     finalize_hint);
+}
+
+RefBase::~RefBase() {
+  Unlink();
+}
+
+void* RefBase::Data() {
+  return _finalize_data;
+}
+
+// Delete is called in 2 ways. Either from the finalizer or
+// from one of Unwrap or napi_delete_reference.
+//
+// When it is called from Unwrap or napi_delete_reference we only
+// want to do the delete if the finalizer has already run or
+// cannot have been queued to run (ie the reference count is > 0),
+// otherwise we may crash when the finalizer does run.
+// If the finalizer may have been queued and has not already run
+// delay the delete until the finalizer runs by not doing the delete
+// and setting _delete_self to true so that the finalizer will
+// delete it when it runs.
+//
+// The second way this is called is from
+// the finalizer and _delete_self is set. In this case we
+// know we need to do the deletion so just do it.
+void RefBase::Delete(RefBase* reference) {
+  if ((reference->RefCount() != 0) || (reference->_delete_self) ||
+      (reference->_finalize_ran)) {
+    delete reference;
+  } else {
+    // defer until finalizer runs as
+    // it may already be queued
+    reference->_delete_self = true;
+  }
+}
+
+uint32_t RefBase::Ref() {
+  return ++_refcount;
+}
+
+uint32_t RefBase::Unref() {
+  if (_refcount == 0) {
+    return 0;
+  }
+  return --_refcount;
+}
+
+uint32_t RefBase::RefCount() {
+  return _refcount;
+}
+
+void RefBase::Finalize(bool is_env_teardown) {
+  // In addition to being called during environment teardown, this method is
+  // also the entry point for the garbage collector. During environment
+  // teardown we have to remove the garbage collector's reference to this
+  // method so that, if, as part of the user's callback, JS gets executed,
+  // resulting in a garbage collection pass, this method is not re-entered as
+  // part of that pass, because that'll cause a double free (as seen in
+  // https://github.com/nodejs/node/issues/37236).
+  //
+  // Since this class does not have access to the V8 persistent reference,
+  // this method is overridden in the `Reference` class below. Therein the
+  // weak callback is removed, ensuring that the garbage collector does not
+  // re-enter this method, and the method chains up to continue the process of
+  // environment-teardown-induced finalization.
+
+  // During environment teardown we have to convert a strong reference to
+  // a weak reference to force the deferring behavior if the user's finalizer
+  // happens to delete this reference so that the code in this function that
+  // follows the call to the user's finalizer may safely access variables from
+  // this instance.
+  if (is_env_teardown && RefCount() > 0) _refcount = 0;
+
+  if (_finalize_callback != nullptr) {
+    // This ensures that we never call the finalizer twice.
+    napi_finalize fini = _finalize_callback;
+    _finalize_callback = nullptr;
+    _env->CallFinalizer(fini, _finalize_data, _finalize_hint);
+  }
+
+  // this is safe because if a request to delete the reference
+  // is made in the finalize_callback it will defer deletion
+  // to this block and set _delete_self to true
+  if (_delete_self || is_env_teardown) {
+    Delete(this);
+  } else {
+    _finalize_ran = true;
+  }
+}
+
+template <typename... Args>
+Reference::Reference(napi_env env, v8::Local<v8::Value> value, Args&&... args)
+    : RefBase(env, std::forward<Args>(args)...),
+      _persistent(env->isolate, value),
+      _secondPassParameter(new SecondPassCallParameterRef(this)),
+      _secondPassScheduled(false) {
+  if (RefCount() == 0) {
+    SetWeak();
+  }
+}
+
+Reference* Reference::New(napi_env env,
+                          v8::Local<v8::Value> value,
+                          uint32_t initial_refcount,
+                          bool delete_self,
+                          napi_finalize finalize_callback,
+                          void* finalize_data,
+                          void* finalize_hint) {
+  return new Reference(env,
+                       value,
+                       initial_refcount,
+                       delete_self,
+                       finalize_callback,
+                       finalize_data,
+                       finalize_hint);
+}
+
+Reference::~Reference() {
+  // If the second pass callback is scheduled, it will delete the
+  // parameter passed to it, otherwise it will never be scheduled
+  // and we need to delete it here.
+  if (!_secondPassScheduled) {
+    delete _secondPassParameter;
+  }
+}
+
+uint32_t Reference::Ref() {
+  uint32_t refcount = RefBase::Ref();
+  if (refcount == 1) {
+    ClearWeak();
+  }
+  return refcount;
+}
+
+uint32_t Reference::Unref() {
+  uint32_t old_refcount = RefCount();
+  uint32_t refcount = RefBase::Unref();
+  if (old_refcount == 1 && refcount == 0) {
+    SetWeak();
+  }
+  return refcount;
+}
+
+v8::Local<v8::Value> Reference::Get() {
+  if (_persistent.IsEmpty()) {
+    return v8::Local<v8::Value>();
+  } else {
+    return v8::Local<v8::Value>::New(_env->isolate, _persistent);
+  }
+}
+
+void Reference::Finalize(bool is_env_teardown) {
+  if (is_env_teardown) env_teardown_finalize_started_ = true;
+  if (!is_env_teardown && env_teardown_finalize_started_) return;
+
+  // During env teardown, `~napi_env()` alone is responsible for finalizing.
+  // Thus, we don't want any stray gc passes to trigger a second call to
+  // `RefBase::Finalize()`. ClearWeak will ensure that even if the
+  // gc is in progress no Finalization will be run for this Reference
+  // by the gc.
+  if (is_env_teardown) {
+    ClearWeak();
+  }
+
+  // Chain up to perform the rest of the finalization.
+  RefBase::Finalize(is_env_teardown);
+}
+
+// ClearWeak is marking the Reference so that the gc should not
+// collect it, but it is possible that a second pass callback
+// may have been scheduled already if we are in shutdown. We clear
+// the secondPassParameter so that even if it has been
+// scheduled no Finalization will be run.
+void Reference::ClearWeak() {
+  if (!_persistent.IsEmpty()) {
+    _persistent.ClearWeak();
+  }
+  if (_secondPassParameter != nullptr) {
+    *_secondPassParameter = nullptr;
+  }
+}
+
+// Mark the reference as weak and eligible for collection
+// by the gc.
+void Reference::SetWeak() {
+  if (_secondPassParameter == nullptr) {
+    // This means that the Reference has already been processed
+    // by the second pass callback, so its already been Finalized, do
+    // nothing
+    return;
+  }
+  _persistent.SetWeak(
+      _secondPassParameter, FinalizeCallback, v8::WeakCallbackType::kParameter);
+  *_secondPassParameter = this;
+}
+
+// The N-API finalizer callback may make calls into the engine. V8's heap is
+// not in a consistent state during the weak callback, and therefore it does
+// not support calls back into it. However, it provides a mechanism for adding
+// a finalizer which may make calls back into the engine by allowing us to
+// attach such a second-pass finalizer from the first pass finalizer. Thus,
+// we do that here to ensure that the N-API finalizer callback is free to call
+// into the engine.
+void Reference::FinalizeCallback(
+    const v8::WeakCallbackInfo<SecondPassCallParameterRef>& data) {
+  SecondPassCallParameterRef* parameter = data.GetParameter();
+  Reference* reference = *parameter;
+  if (reference == nullptr) {
+    return;
+  }
+
+  // The reference must be reset during the first pass.
+  reference->_persistent.Reset();
+  // Mark the parameter not delete-able until the second pass callback is
+  // invoked.
+  reference->_secondPassScheduled = true;
+
+  data.SetSecondPassCallback(SecondPassCallback);
+}
+
+// Second pass callbacks are scheduled with platform tasks. At env teardown,
+// the tasks may have already be scheduled and we are unable to cancel the
+// second pass callback task. We have to make sure that parameter is kept
+// alive until the second pass callback is been invoked. In order to do
+// this and still allow our code to Finalize/delete the Reference during
+// shutdown we have to use a separately allocated parameter instead
+// of a parameter within the Reference object itself. This is what
+// is stored in _secondPassParameter and it is allocated in the
+// constructor for the Reference.
+void Reference::SecondPassCallback(
+    const v8::WeakCallbackInfo<SecondPassCallParameterRef>& data) {
+  SecondPassCallParameterRef* parameter = data.GetParameter();
+  Reference* reference = *parameter;
+  delete parameter;
+  if (reference == nullptr) {
+    // the reference itself has already been deleted so nothing to do
+    return;
+  }
+  reference->_secondPassParameter = nullptr;
+  reference->Finalize();
+}
 
 }  // end of namespace v8impl
 
