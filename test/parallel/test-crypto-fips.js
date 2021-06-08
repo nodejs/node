@@ -50,8 +50,10 @@ function testHelper(stream, args, expectedOutput, cmd, env) {
       // In the case of expected errors just look for a substring.
       assert.ok(response.includes(expectedOutput));
     } else {
-      // Normal path where we expect either FIPS enabled or disabled.
-      assert.strictEqual(Number(response), expectedOutput);
+      const getFipsValue = Number(response);
+      if (!Number.isNaN(getFipsValue))
+        // Normal path where we expect either FIPS enabled or disabled.
+        assert.strictEqual(getFipsValue, expectedOutput);
     }
     childOk(child);
   }
