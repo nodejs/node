@@ -208,12 +208,12 @@ TEST_F(SweeperTest, CoalesceFreeListEntries) {
       object2_start, static_cast<size_t>(object3_end - object2_start)};
 
   EXPECT_EQ(0u, g_destructor_callcount);
-  EXPECT_FALSE(freelist.Contains(coalesced_block));
+  EXPECT_FALSE(freelist.ContainsForTesting(coalesced_block));
 
   Sweep();
 
   EXPECT_EQ(2u, g_destructor_callcount);
-  EXPECT_TRUE(freelist.Contains(coalesced_block));
+  EXPECT_TRUE(freelist.ContainsForTesting(coalesced_block));
 }
 
 namespace {

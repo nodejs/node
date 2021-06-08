@@ -31,6 +31,8 @@ class PageBackend;
 
 class V8_EXPORT_PRIVATE ObjectAllocator final : public cppgc::AllocationHandle {
  public:
+  static constexpr size_t kSmallestSpaceSize = 32;
+
   ObjectAllocator(RawHeap* heap, PageBackend* page_backend,
                   StatsCollector* stats_collector);
 
@@ -85,8 +87,10 @@ void* ObjectAllocator::AllocateObject(size_t size, GCInfoIndex gcinfo,
 // static
 RawHeap::RegularSpaceType ObjectAllocator::GetInitialSpaceIndexForSize(
     size_t size) {
+  static_assert(kSmallestSpaceSize == 32,
+                "should be half the next larger size");
   if (size < 64) {
-    if (size < 32) return RawHeap::RegularSpaceType::kNormal1;
+    if (size < kSmallestSpaceSize) return RawHeap::RegularSpaceType::kNormal1;
     return RawHeap::RegularSpaceType::kNormal2;
   }
   if (size < 128) return RawHeap::RegularSpaceType::kNormal3;

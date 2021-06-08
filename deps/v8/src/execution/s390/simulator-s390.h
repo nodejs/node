@@ -399,12 +399,10 @@ class Simulator : public SimulatorBase {
 
   static constexpr fpr_t fp_zero = {{0}};
 
-  fpr_t get_simd_register(int reg) {
-    return get_simd_register_by_lane<fpr_t>(reg, 0);
-  }
+  fpr_t get_simd_register(int reg) { return fp_registers_[reg]; }
 
-  void set_simd_register(int reg, const fpr_t& v) {
-    set_simd_register_by_lane(reg, 0, v);
+  void set_simd_register(int reg, const fpr_t& value) {
+    fp_registers_[reg] = value;
   }
 
   // Vector register lane numbers on IBM machines are reversed compared to

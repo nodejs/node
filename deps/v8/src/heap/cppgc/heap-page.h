@@ -210,6 +210,7 @@ class V8_EXPORT_PRIVATE LargePage final : public BasePage {
   ConstAddress PayloadEnd() const;
 
   size_t PayloadSize() const { return payload_size_; }
+  size_t ObjectSize() const { return payload_size_ - sizeof(HeapObjectHeader); }
 
   bool PayloadContains(ConstAddress address) const {
     return (PayloadStart() <= address) && (address < PayloadEnd());

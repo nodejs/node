@@ -11,10 +11,13 @@
 #include "src/handles/global-handles.h"
 #include "src/logging/counters.h"
 #include "src/trap-handler/trap-handler.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-objects-inl.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 #define TRACE_BS(...)                                  \
   do {                                                 \
@@ -25,6 +28,15 @@ namespace v8 {
 namespace internal {
 
 namespace {
+
+#if V8_ENABLE_WEBASSEMBLY
+// Trying to allocate 4 GiB on a 32-bit platform is guaranteed to fail.
+// We don't lower the official max_mem_pages() limit because that would be
+// observable upon instantiation; this way the effective limit on 32-bit
+// platforms is defined by the allocator.
+constexpr size_t kPlatformMaxPages =
+    std::numeric_limits<size_t>::max() / wasm::kWasmPageSize;
+
 #if V8_TARGET_ARCH_MIPS64
 // MIPS64 has a user space of 2^40 bytes on most processors,
 // address space limits needs to be smaller.
@@ -98,6 +110,7 @@ void RecordStatus(Isolate* isolate, AllocationStatus status) {
   isolate->counters()->wasm_memory_allocation_result()->AddSample(
       static_cast<int>(status));
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 inline void DebugCheckZero(void* start, size_t byte_length) {
 #if DEBUG
@@ -118,25 +131,6 @@ inline void DebugCheckZero(void* start, size_t byte_length) {
 #endif
 }
 }  // namespace
-
-bool BackingStore::ReserveAddressSpace(uint64_t num_bytes) {
-  uint64_t reservation_limit = kAddressSpaceLimit;
-  uint64_t old_count = reserved_address_space_.load(std::memory_order_relaxed);
-  while (true) {
-    if (old_count > reservation_limit) return false;
-    if (reservation_limit - old_count < num_bytes) return false;
-    if (reserved_address_space_.compare_exchange_weak(
-            old_count, old_count + num_bytes, std::memory_order_acq_rel)) {
-      return true;
-    }
-  }
-}
-
-void BackingStore::ReleaseReservation(uint64_t num_bytes) {
-  uint64_t old_reserved = reserved_address_space_.fetch_sub(num_bytes);
-  USE(old_reserved);
-  DCHECK_LE(num_bytes, old_reserved);
-}
 
 // The backing store for a Wasm shared memory remembers all the isolates
 // with which it has been shared.
@@ -164,6 +158,7 @@ BackingStore::~BackingStore() {
     return;
   }
 
+#if V8_ENABLE_WEBASSEMBLY
   if (is_wasm_memory_) {
     DCHECK(free_on_destruct_);
     DCHECK(!custom_deleter_);
@@ -192,6 +187,8 @@ BackingStore::~BackingStore() {
     Clear();
     return;
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   if (custom_deleter_) {
     DCHECK(free_on_destruct_);
     TRACE_BS("BS:custom deleter bs=%p mem=%p (length=%zu, capacity=%zu)\n",
@@ -271,13 +268,6 @@ std::unique_ptr<BackingStore> BackingStore::Allocate(
   return std::unique_ptr<BackingStore>(result);
 }
 
-// Trying to allocate 4 GiB on a 32-bit platform is guaranteed to fail.
-// We don't lower the official max_mem_pages() limit because that would be
-// observable upon instantiation; this way the effective limit on 32-bit
-// platforms is defined by the allocator.
-constexpr size_t kPlatformMaxPages =
-    std::numeric_limits<size_t>::max() / wasm::kWasmPageSize;
-
 void BackingStore::SetAllocatorFromIsolate(Isolate* isolate) {
   if (auto allocator_shared = isolate->array_buffer_allocator_shared()) {
     holds_shared_ptr_to_allocator_ = true;
@@ -288,6 +278,26 @@ void BackingStore::SetAllocatorFromIsolate(Isolate* isolate) {
     type_specific_data_.v8_api_array_buffer_allocator =
         isolate->array_buffer_allocator();
   }
+}
+
+#if V8_ENABLE_WEBASSEMBLY
+bool BackingStore::ReserveAddressSpace(uint64_t num_bytes) {
+  uint64_t reservation_limit = kAddressSpaceLimit;
+  uint64_t old_count = reserved_address_space_.load(std::memory_order_relaxed);
+  while (true) {
+    if (old_count > reservation_limit) return false;
+    if (reservation_limit - old_count < num_bytes) return false;
+    if (reserved_address_space_.compare_exchange_weak(
+            old_count, old_count + num_bytes, std::memory_order_acq_rel)) {
+      return true;
+    }
+  }
+}
+
+void BackingStore::ReleaseReservation(uint64_t num_bytes) {
+  uint64_t old_reserved = reserved_address_space_.fetch_sub(num_bytes);
+  USE(old_reserved);
+  DCHECK_LE(num_bytes, old_reserved);
 }
 
 // Allocate a backing store for a Wasm memory. Always use the page allocator
@@ -571,6 +581,7 @@ void BackingStore::RemoveSharedWasmMemoryObjects(Isolate* isolate) {
 void BackingStore::UpdateSharedWasmMemoryObjects(Isolate* isolate) {
   GlobalBackingStoreRegistry::UpdateSharedWasmMemoryObjects(isolate);
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 std::unique_ptr<BackingStore> BackingStore::WrapAllocation(
     Isolate* isolate, void* allocation_base, size_t allocation_length,
@@ -674,17 +685,8 @@ inline GlobalBackingStoreRegistryImpl* impl() {
 void GlobalBackingStoreRegistry::Register(
     std::shared_ptr<BackingStore> backing_store) {
   if (!backing_store || !backing_store->buffer_start()) return;
-
-  if (!backing_store->free_on_destruct()) {
-    // If the backing store buffer is managed by the embedder,
-    // then we don't have to guarantee that there is single unique
-    // BackingStore per buffer_start() because the destructor of
-    // of the BackingStore will be a no-op in that case.
-
-    // All Wasm memory has to be registered.
-    CHECK(!backing_store->is_wasm_memory());
-    return;
-  }
+  // Only wasm memory backing stores need to be registered globally.
+  CHECK(backing_store->is_wasm_memory());
 
   base::MutexGuard scope_lock(&impl()->mutex_);
   if (backing_store->globally_registered_) return;
@@ -700,6 +702,8 @@ void GlobalBackingStoreRegistry::Register(
 void GlobalBackingStoreRegistry::Unregister(BackingStore* backing_store) {
   if (!backing_store->globally_registered_) return;
 
+  CHECK(backing_store->is_wasm_memory());
+
   DCHECK_NOT_NULL(backing_store->buffer_start());
 
   base::MutexGuard scope_lock(&impl()->mutex_);
@@ -709,26 +713,6 @@ void GlobalBackingStoreRegistry::Unregister(BackingStore* backing_store) {
     impl()->map_.erase(result);
   }
   backing_store->globally_registered_ = false;
-}
-
-std::shared_ptr<BackingStore> GlobalBackingStoreRegistry::Lookup(
-    void* buffer_start, size_t length) {
-  base::MutexGuard scope_lock(&impl()->mutex_);
-  TRACE_BS("BS:lookup   mem=%p (%zu bytes)\n", buffer_start, length);
-  const auto& result = impl()->map_.find(buffer_start);
-  if (result == impl()->map_.end()) {
-    return std::shared_ptr<BackingStore>();
-  }
-  auto backing_store = result->second.lock();
-  CHECK_EQ(buffer_start, backing_store->buffer_start());
-  if (backing_store->is_wasm_memory()) {
-    // Grow calls to shared WebAssembly threads can be triggered from different
-    // workers, length equality cannot be guaranteed here.
-    CHECK_LE(length, backing_store->byte_length());
-  } else {
-    CHECK_EQ(length, backing_store->byte_length());
-  }
-  return backing_store;
 }
 
 void GlobalBackingStoreRegistry::Purge(Isolate* isolate) {
@@ -744,7 +728,7 @@ void GlobalBackingStoreRegistry::Purge(Isolate* isolate) {
     auto backing_store = entry.second.lock();
     prevent_destruction_under_lock.emplace_back(backing_store);
     if (!backing_store) continue;  // skip entries where weak ptr is null
-    if (!backing_store->is_wasm_memory()) continue;  // skip non-wasm memory
+    CHECK(backing_store->is_wasm_memory());
     if (!backing_store->is_shared()) continue;       // skip non-shared memory
     SharedWasmMemoryData* shared_data =
         backing_store->get_shared_wasm_memory_data();
@@ -756,6 +740,7 @@ void GlobalBackingStoreRegistry::Purge(Isolate* isolate) {
   }
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 void GlobalBackingStoreRegistry::AddSharedWasmMemoryObject(
     Isolate* isolate, BackingStore* backing_store,
     Handle<WasmMemoryObject> memory_object) {
@@ -815,6 +800,7 @@ void GlobalBackingStoreRegistry::UpdateSharedWasmMemoryObjects(
     memory_object->update_instances(isolate, new_buffer);
   }
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 }  // namespace internal
 }  // namespace v8

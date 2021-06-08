@@ -6,7 +6,6 @@
 
 #include "src/builtins/accessors.h"
 #include "src/execution/frames-inl.h"
-#include "src/wasm/wasm-objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -30,9 +29,13 @@ FrameInspector::FrameInspector(CommonFrame* frame, int inlined_frame_index,
     function_ = summary.AsJavaScript().function();
   }
 
+#if V8_ENABLE_WEBASSEMBLY
   JavaScriptFrame* js_frame =
       frame->is_java_script() ? javascript_frame() : nullptr;
   DCHECK(js_frame || frame->is_wasm());
+#else
+  JavaScriptFrame* js_frame = javascript_frame();
+#endif  // V8_ENABLE_WEBASSEMBLY
   is_optimized_ = frame_->is_optimized();
 
   // Calculate the deoptimized frame.
@@ -67,7 +70,9 @@ Handle<Object> FrameInspector::GetContext() {
                             : handle(frame_->context(), isolate_);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 bool FrameInspector::IsWasm() { return frame_->is_wasm(); }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 bool FrameInspector::IsJavaScript() { return frame_->is_java_script(); }
 

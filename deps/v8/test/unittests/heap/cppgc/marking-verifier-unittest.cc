@@ -7,6 +7,7 @@
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/member.h"
 #include "include/cppgc/persistent.h"
+#include "include/cppgc/prefinalizer.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap.h"
 #include "test/unittests/heap/cppgc/tests.h"
@@ -145,7 +146,11 @@ TEST_F(MarkingVerifierTest, DoesntDieOnInConstructionObjectWithWriteBarrier) {
 
 namespace {
 
-class MarkingVerifierDeathTest : public MarkingVerifierTest {};
+class MarkingVerifierDeathTest : public MarkingVerifierTest {
+ protected:
+  template <template <typename T> class Reference>
+  void TestResurrectingPreFinalizer();
+};
 
 }  // namespace
 
@@ -174,6 +179,59 @@ TEST_F(MarkingVerifierDeathTest, DieOnUnmarkedWeakMember) {
                                           StackState::kNoHeapPointers),
                             "");
 }
+
+namespace {
+
+template <template <typename T> class Reference>
+class ResurrectingPreFinalizer
+    : public GarbageCollected<ResurrectingPreFinalizer<Reference>> {
+  CPPGC_USING_PRE_FINALIZER(ResurrectingPreFinalizer<Reference>, Dispose);
+
+ public:
+  class Storage : public GarbageCollected<Storage> {
+   public:
+    void Trace(Visitor* visitor) const { visitor->Trace(ref); }
+
+    Reference<GCed> ref;
+  };
+
+  ResurrectingPreFinalizer(Storage* storage, GCed* object_that_dies)
+      : storage_(storage), object_that_dies_(object_that_dies) {}
+
+  void Trace(Visitor* visitor) const {
+    visitor->Trace(storage_);
+    visitor->Trace(object_that_dies_);
+  }
+
+ private:
+  void Dispose() { storage_->ref = object_that_dies_; }
+
+  Member<Storage> storage_;
+  Member<GCed> object_that_dies_;
+};
+
+}  // namespace
+
+template <template <typename T> class Reference>
+void MarkingVerifierDeathTest::TestResurrectingPreFinalizer() {
+  Persistent<typename ResurrectingPreFinalizer<Reference>::Storage> storage(
+      MakeGarbageCollected<
+          typename ResurrectingPreFinalizer<Reference>::Storage>(
+          GetAllocationHandle()));
+  MakeGarbageCollected<ResurrectingPreFinalizer<Reference>>(
+      GetAllocationHandle(), storage.Get(),
+      MakeGarbageCollected<GCed>(GetAllocationHandle()));
+  EXPECT_DEATH_IF_SUPPORTED(PreciseGC(), "");
+}
+#if DEBUG
+TEST_F(MarkingVerifierDeathTest, DiesOnResurrectedMember) {
+  TestResurrectingPreFinalizer<Member>();
+}
+
+TEST_F(MarkingVerifierDeathTest, DiesOnResurrectedWeakMember) {
+  TestResurrectingPreFinalizer<WeakMember>();
+}
+#endif  // DEBUG
 
 }  // namespace internal
 }  // namespace cppgc

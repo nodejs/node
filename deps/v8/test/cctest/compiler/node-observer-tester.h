@@ -9,7 +9,6 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/objects/type-hints.h"
 #include "test/cctest/cctest.h"
-#include "test/common/wasm/flag-utils.h"
 
 namespace v8 {
 namespace internal {

@@ -44,13 +44,13 @@ class JSReceiver : public HeapObject {
   // map.
   DECL_GETTER(property_array, PropertyArray)
 
-  // Gets slow properties for non-global objects (if v8_dict_mode_prototypes is
-  // not set).
+  // Gets slow properties for non-global objects (if
+  // v8_enable_swiss_name_dictionary is not set).
   DECL_GETTER(property_dictionary, NameDictionary)
 
-  // Gets slow properties for non-global objects (if v8_dict_mode_prototypes is
-  // set).
-  DECL_GETTER(property_dictionary_ordered, OrderedNameDictionary)
+  // Gets slow properties for non-global objects (if
+  // v8_enable_swiss_name_dictionary is set).
+  DECL_GETTER(property_dictionary_swiss, SwissNameDictionary)
 
   // Sets the properties backing store and makes sure any existing hash is moved
   // to the new properties store. To clear out the properties store, pass in the
@@ -319,7 +319,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // acquire/release semantics ever become necessary, the default setter should
   // be reverted to non-atomic behavior, and setters with explicit tags
   // introduced and used when required.
-  FixedArrayBase elements(IsolateRoot isolate,
+  FixedArrayBase elements(PtrComprCageBase cage_base,
                           AcquireLoadTag tag) const = delete;
   void set_elements(FixedArrayBase value, ReleaseStoreTag tag,
                     WriteBarrierMode mode = UPDATE_WRITE_BARRIER) = delete;
@@ -643,12 +643,17 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
                                                   int unused_property_fields,
                                                   const char* reason);
 
+  // Access property in dictionary mode object at the given dictionary index.
+  static Handle<Object> DictionaryPropertyAt(Handle<JSObject> object,
+                                             InternalIndex dict_index);
+
   // Access fast-case object properties at index.
   static Handle<Object> FastPropertyAt(Handle<JSObject> object,
                                        Representation representation,
                                        FieldIndex index);
   inline Object RawFastPropertyAt(FieldIndex index) const;
-  inline Object RawFastPropertyAt(IsolateRoot isolate, FieldIndex index) const;
+  inline Object RawFastPropertyAt(PtrComprCageBase cage_base,
+                                  FieldIndex index) const;
 
   inline void FastPropertyAtPut(FieldIndex index, Object value,
                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
@@ -738,14 +743,16 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // If a GC was caused while constructing this object, the elements pointer
   // may point to a one pointer filler map. The object won't be rooted, but
   // our heap verification code could stumble across it.
-  V8_EXPORT_PRIVATE bool ElementsAreSafeToExamine(IsolateRoot isolate) const;
+  V8_EXPORT_PRIVATE bool ElementsAreSafeToExamine(
+      PtrComprCageBase cage_base) const;
 #endif
 
   Object SlowReverseLookup(Object value);
 
   // Maximal number of elements (numbered 0 .. kMaxElementCount - 1).
   // Also maximal value of JSArray's length property.
-  static const uint32_t kMaxElementCount = 0xffffffffu;
+  static constexpr uint32_t kMaxElementCount = kMaxUInt32;
+  static constexpr uint32_t kMaxElementIndex = kMaxElementCount - 1;
 
   // Constants for heuristics controlling conversion of fast elements
   // to slow elements.
@@ -1116,6 +1123,9 @@ class JSMessageObject : public JSObject {
   // Returns the offset of the given position within the containing line.
   // EnsureSourcePositionsAvailable must have been called before calling this.
   V8_EXPORT_PRIVATE int GetColumnNumber() const;
+
+  // Returns the source code
+  V8_EXPORT_PRIVATE String GetSource() const;
 
   // Returns the source code line containing the given source
   // position, or the empty string if the position is invalid.

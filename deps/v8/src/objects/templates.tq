@@ -35,6 +35,7 @@ bitfield struct FunctionTemplateInfoFlags extends uint31 {
   remove_prototype: bool: 1 bit;
   do_not_cache: bool: 1 bit;
   accept_any_receiver: bool: 1 bit;
+  published: bool: 1 bit;
 }
 
 @generateCppClass
@@ -51,7 +52,7 @@ extern class FunctionTemplateInfo extends TemplateInfo {
   // If any of the setters declared by DECL_RARE_ACCESSORS are used then a
   // FunctionTemplateRareData will be stored here. Until then this contains
   // undefined.
-  @acquireRead @releaseWrite rare_data: FunctionTemplateRareData|Undefined;
+  rare_data: FunctionTemplateRareData|Undefined;
   shared_function_info: SharedFunctionInfo|Undefined;
   // Internal field to store a flag bitfield.
   flag: SmiTagged<FunctionTemplateInfoFlags>;

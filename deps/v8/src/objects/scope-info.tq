@@ -99,7 +99,7 @@ struct ModuleVariable {
 
 @generateCppClass
 @generateBodyDescriptor
-extern class ScopeInfo extends FixedArrayBase {
+extern class ScopeInfo extends HeapObject {
   const flags: SmiTagged<ScopeFlags>;
 
   // The number of parameters. For non-function scopes this is 0.
@@ -121,50 +121,51 @@ extern class ScopeInfo extends FixedArrayBase {
   // If the scope is a class scope and it has static private methods that
   // may be accessed directly or through eval, one slot is reserved to hold
   // the context slot index for the class variable.
-  saved_class_variable_info[flags.has_saved_class_variable_index ? 1 : 0]: Smi;
+  saved_class_variable_info?[flags.has_saved_class_variable_index]: Smi;
 
   // If the scope binds a "this" value, one slot is reserved to hold the
   // context or stack slot index for the variable.
-  receiver_info[
-      flags.receiver_variable ==
-          FromConstexpr<VariableAllocationInfo>(VariableAllocationInfo::STACK)
-      || flags.receiver_variable ==
-          FromConstexpr<VariableAllocationInfo>(VariableAllocationInfo::CONTEXT)
-      ? 1 : 0]: Smi;
+  receiver_info?[
+    flags.receiver_variable ==
+        FromConstexpr<VariableAllocationInfo>(VariableAllocationInfo::STACK) ||
+    flags.receiver_variable ==
+        FromConstexpr<VariableAllocationInfo>(VariableAllocationInfo::CONTEXT)
+  ]: Smi;
 
   // If the scope belongs to a named function expression this part contains
   // information about the function variable. It always occupies two array
   // slots:  a. The name of the function variable.
   //         b. The context or stack slot index for the variable.
-  function_variable_info[flags.function_variable != FromConstexpr<VariableAllocationInfo>(VariableAllocationInfo::NONE) ? 1 : 0]:
-      FunctionVariableInfo;
+  function_variable_info?
+      [flags.function_variable !=
+       FromConstexpr<VariableAllocationInfo>(VariableAllocationInfo::NONE)]:
+          FunctionVariableInfo;
 
-  inferred_function_name[flags.has_inferred_function_name ? 1 : 0]: String|
-      Undefined;
+  inferred_function_name?[flags.has_inferred_function_name]: String|Undefined;
 
   // Contains two slots with a) the startPosition and b) the endPosition if
   // the scope belongs to a function or script.
-  position_info[flags.scope_type == ScopeType::FUNCTION_SCOPE ||
-                flags.scope_type == ScopeType::SCRIPT_SCOPE ||
-                flags.scope_type == ScopeType::EVAL_SCOPE ||
-                flags.scope_type == ScopeType::MODULE_SCOPE
-                ? 1 : 0]: PositionInfo;
+  position_info?
+      [flags.scope_type == ScopeType::FUNCTION_SCOPE ||
+       flags.scope_type == ScopeType::SCRIPT_SCOPE ||
+       flags.scope_type == ScopeType::EVAL_SCOPE ||
+       flags.scope_type == ScopeType::MODULE_SCOPE]: PositionInfo;
 
-  outer_scope_info[flags.has_outer_scope_info ? 1 : 0]: ScopeInfo|TheHole;
+  outer_scope_info?[flags.has_outer_scope_info]: ScopeInfo|TheHole;
 
   // List of stack allocated local variables. Used by debug evaluate to properly
   // abort variable lookup when a name clashes with a stack allocated local that
   // can't be materialized.
-  locals_block_list[flags.has_locals_block_list ? 1 : 0]: HashTable;
+  locals_block_list?[flags.has_locals_block_list]: HashTable;
 
   // For a module scope, this part contains the SourceTextModuleInfo, the
   // number of MODULE-allocated variables, and the metadata of those
   // variables.  For non-module scopes it is empty.
-  module_info[flags.scope_type == ScopeType::MODULE_SCOPE ? 1 : 0]:
-      SourceTextModuleInfo;
-  const module_variable_count[flags.scope_type == ScopeType::MODULE_SCOPE ? 1 : 0]:
-      Smi;
-  module_variables[flags.scope_type == ScopeType::MODULE_SCOPE ? module_variable_count[0] : 0]:
+  module_info?
+      [flags.scope_type == ScopeType::MODULE_SCOPE]: SourceTextModuleInfo;
+  const module_variable_count?
+      [flags.scope_type == ScopeType::MODULE_SCOPE]: Smi;
+  module_variables[flags.scope_type == ScopeType::MODULE_SCOPE ? module_variable_count : 0]:
       ModuleVariable;
 }
 

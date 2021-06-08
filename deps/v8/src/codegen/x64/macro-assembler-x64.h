@@ -11,6 +11,7 @@
 
 #include "src/base/flags.h"
 #include "src/codegen/bailout-reason.h"
+#include "src/codegen/shared-ia32-x64/macro-assembler-shared-ia32-x64.h"
 #include "src/codegen/x64/assembler-x64.h"
 #include "src/common/globals.h"
 #include "src/objects/contexts.h"
@@ -58,99 +59,17 @@ class StackArgumentsAccessor {
   DISALLOW_IMPLICIT_CONSTRUCTORS(StackArgumentsAccessor);
 };
 
-class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
+class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
  public:
-  using TurboAssemblerBase::TurboAssemblerBase;
-
-  template <typename Dst, typename... Args>
-  struct AvxHelper {
-    Assembler* assm;
-    base::Optional<CpuFeature> feature = base::nullopt;
-    // Call a method where the AVX version expects the dst argument to be
-    // duplicated.
-    template <void (Assembler::*avx)(Dst, Dst, Args...),
-              void (Assembler::*no_avx)(Dst, Args...)>
-    void emit(Dst dst, Args... args) {
-      if (CpuFeatures::IsSupported(AVX)) {
-        CpuFeatureScope scope(assm, AVX);
-        (assm->*avx)(dst, dst, args...);
-      } else if (feature.has_value()) {
-        DCHECK(CpuFeatures::IsSupported(*feature));
-        CpuFeatureScope scope(assm, *feature);
-        (assm->*no_avx)(dst, args...);
-      } else {
-        (assm->*no_avx)(dst, args...);
-      }
-    }
-
-    // Call a method where the AVX version expects no duplicated dst argument.
-    template <void (Assembler::*avx)(Dst, Args...),
-              void (Assembler::*no_avx)(Dst, Args...)>
-    void emit(Dst dst, Args... args) {
-      if (CpuFeatures::IsSupported(AVX)) {
-        CpuFeatureScope scope(assm, AVX);
-        (assm->*avx)(dst, args...);
-      } else if (feature.has_value()) {
-        DCHECK(CpuFeatures::IsSupported(*feature));
-        CpuFeatureScope scope(assm, *feature);
-        (assm->*no_avx)(dst, args...);
-      } else {
-        (assm->*no_avx)(dst, args...);
-      }
-    }
-  };
-
-#define AVX_OP(macro_name, name)                                             \
-  template <typename Dst, typename... Args>                                  \
-  void macro_name(Dst dst, Args... args) {                                   \
-    AvxHelper<Dst, Args...>{this}                                            \
-        .template emit<&Assembler::v##name, &Assembler::name>(dst, args...); \
-  }
-
-#define AVX_OP_SSE3(macro_name, name)                                        \
-  template <typename Dst, typename... Args>                                  \
-  void macro_name(Dst dst, Args... args) {                                   \
-    AvxHelper<Dst, Args...>{this, base::Optional<CpuFeature>(SSE3)}          \
-        .template emit<&Assembler::v##name, &Assembler::name>(dst, args...); \
-  }
-
-#define AVX_OP_SSSE3(macro_name, name)                                       \
-  template <typename Dst, typename... Args>                                  \
-  void macro_name(Dst dst, Args... args) {                                   \
-    AvxHelper<Dst, Args...>{this, base::Optional<CpuFeature>(SSSE3)}         \
-        .template emit<&Assembler::v##name, &Assembler::name>(dst, args...); \
-  }
-
-#define AVX_OP_SSE4_1(macro_name, name)                                      \
-  template <typename Dst, typename... Args>                                  \
-  void macro_name(Dst dst, Args... args) {                                   \
-    AvxHelper<Dst, Args...>{this, base::Optional<CpuFeature>(SSE4_1)}        \
-        .template emit<&Assembler::v##name, &Assembler::name>(dst, args...); \
-  }
-#define AVX_OP_SSE4_2(macro_name, name)                                      \
-  template <typename Dst, typename... Args>                                  \
-  void macro_name(Dst dst, Args... args) {                                   \
-    AvxHelper<Dst, Args...>{this, base::Optional<CpuFeature>(SSE4_2)}        \
-        .template emit<&Assembler::v##name, &Assembler::name>(dst, args...); \
-  }
+  using SharedTurboAssembler::SharedTurboAssembler;
   AVX_OP(Subsd, subsd)
   AVX_OP(Divss, divss)
   AVX_OP(Divsd, divsd)
   AVX_OP(Orps, orps)
   AVX_OP(Xorps, xorps)
   AVX_OP(Xorpd, xorpd)
-  AVX_OP(Movd, movd)
   AVX_OP(Movq, movq)
-  AVX_OP(Movaps, movaps)
-  AVX_OP(Movups, movups)
-  AVX_OP(Movmskps, movmskps)
-  AVX_OP(Movmskpd, movmskpd)
-  AVX_OP(Pmovmskb, pmovmskb)
-  AVX_OP(Movss, movss)
-  AVX_OP(Movsd, movsd)
   AVX_OP(Movhlps, movhlps)
-  AVX_OP(Movlps, movlps)
-  AVX_OP(Movhps, movhps)
   AVX_OP(Pcmpeqb, pcmpeqb)
   AVX_OP(Pcmpeqw, pcmpeqw)
   AVX_OP(Pcmpeqd, pcmpeqd)
@@ -182,9 +101,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Cmpnlepd, cmpnlepd)
   AVX_OP(Sqrtss, sqrtss)
   AVX_OP(Sqrtsd, sqrtsd)
-  AVX_OP(Sqrtps, sqrtps)
-  AVX_OP(Sqrtpd, sqrtpd)
-  AVX_OP(Cvttps2dq, cvttps2dq)
   AVX_OP(Cvttpd2dq, cvttpd2dq)
   AVX_OP(Ucomiss, ucomiss)
   AVX_OP(Ucomisd, ucomisd)
@@ -218,7 +134,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Paddusb, paddusb)
   AVX_OP(Paddusw, paddusw)
   AVX_OP(Pcmpgtd, pcmpgtd)
-  AVX_OP(Pmullw, pmullw)
   AVX_OP(Pmuludq, pmuludq)
   AVX_OP(Addpd, addpd)
   AVX_OP(Subpd, subpd)
@@ -228,18 +143,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Divpd, divpd)
   AVX_OP(Maxps, maxps)
   AVX_OP(Maxpd, maxpd)
-  AVX_OP(Cvtdq2ps, cvtdq2ps)
-  AVX_OP(Cvtdq2pd, cvtdq2pd)
-  AVX_OP(Cvtpd2ps, cvtpd2ps)
-  AVX_OP(Cvtps2pd, cvtps2pd)
-  AVX_OP(Rcpps, rcpps)
-  AVX_OP(Rsqrtps, rsqrtps)
   AVX_OP(Addps, addps)
   AVX_OP(Subps, subps)
   AVX_OP(Mulps, mulps)
   AVX_OP(Divps, divps)
-  AVX_OP(Pshuflw, pshuflw)
-  AVX_OP(Pshufhw, pshufhw)
   AVX_OP(Packsswb, packsswb)
   AVX_OP(Packuswb, packuswb)
   AVX_OP(Packssdw, packssdw)
@@ -251,13 +158,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Punpckhdq, punpckhdq)
   AVX_OP(Punpcklqdq, punpcklqdq)
   AVX_OP(Punpckhqdq, punpckhqdq)
-  AVX_OP(Pshufd, pshufd)
   AVX_OP(Cmpps, cmpps)
   AVX_OP(Cmppd, cmppd)
   AVX_OP(Movlhps, movlhps)
   AVX_OP_SSE3(Haddps, haddps)
-  AVX_OP_SSE3(Movddup, movddup)
-  AVX_OP_SSE3(Movshdup, movshdup)
   AVX_OP_SSSE3(Phaddd, phaddd)
   AVX_OP_SSSE3(Phaddw, phaddw)
   AVX_OP_SSSE3(Pshufb, pshufb)
@@ -265,9 +169,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP_SSSE3(Psignw, psignw)
   AVX_OP_SSSE3(Psignd, psignd)
   AVX_OP_SSSE3(Palignr, palignr)
-  AVX_OP_SSSE3(Pabsb, pabsb)
-  AVX_OP_SSSE3(Pabsw, pabsw)
-  AVX_OP_SSSE3(Pabsd, pabsd)
   AVX_OP_SSE4_1(Pcmpeqq, pcmpeqq)
   AVX_OP_SSE4_1(Packusdw, packusdw)
   AVX_OP_SSE4_1(Pminsb, pminsb)
@@ -279,22 +180,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP_SSE4_1(Pmaxuw, pmaxuw)
   AVX_OP_SSE4_1(Pmaxud, pmaxud)
   AVX_OP_SSE4_1(Pmulld, pmulld)
-  AVX_OP_SSE4_1(Extractps, extractps)
   AVX_OP_SSE4_1(Insertps, insertps)
   AVX_OP_SSE4_1(Pinsrq, pinsrq)
   AVX_OP_SSE4_1(Pblendw, pblendw)
-  AVX_OP_SSE4_1(Ptest, ptest)
-  AVX_OP_SSE4_1(Pmovsxbw, pmovsxbw)
-  AVX_OP_SSE4_1(Pmovsxwd, pmovsxwd)
-  AVX_OP_SSE4_1(Pmovsxdq, pmovsxdq)
-  AVX_OP_SSE4_1(Pmovzxbw, pmovzxbw)
-  AVX_OP_SSE4_1(Pmovzxwd, pmovzxwd)
-  AVX_OP_SSE4_1(Pmovzxdq, pmovzxdq)
-  AVX_OP_SSE4_1(Pextrb, pextrb)
-  AVX_OP_SSE4_1(Pextrw, pextrw)
   AVX_OP_SSE4_1(Pextrq, pextrq)
-  AVX_OP_SSE4_1(Roundps, roundps)
-  AVX_OP_SSE4_1(Roundpd, roundpd)
   AVX_OP_SSE4_1(Roundss, roundss)
   AVX_OP_SSE4_1(Roundsd, roundsd)
   AVX_OP_SSE4_2(Pcmpgtq, pcmpgtq)
@@ -361,12 +250,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                      Label* condition_met,
                      Label::Distance condition_met_distance = Label::kFar);
 
-  void Movapd(XMMRegister dst, XMMRegister src);
   void Movdqa(XMMRegister dst, Operand src);
   void Movdqa(XMMRegister dst, XMMRegister src);
-
-  template <typename Dst, typename Src>
-  void Movdqu(Dst dst, Src src);
 
   void Cvtss2sd(XMMRegister dst, XMMRegister src);
   void Cvtss2sd(XMMRegister dst, Operand src);
@@ -524,7 +409,15 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   Operand EntryFromBuiltinIndexAsOperand(Builtins::Name builtin_index);
   Operand EntryFromBuiltinIndexAsOperand(Register builtin_index);
   void CallBuiltinByIndex(Register builtin_index) override;
+  void CallBuiltin(Builtins::Name builtin) {
+    // TODO(11527): drop the int overload in favour of the Builtins::Name one.
+    return CallBuiltin(static_cast<int>(builtin));
+  }
   void CallBuiltin(int builtin_index);
+  void TailCallBuiltin(Builtins::Name builtin) {
+    // TODO(11527): drop the int overload in favour of the Builtins::Name one.
+    return TailCallBuiltin(static_cast<int>(builtin));
+  }
   void TailCallBuiltin(int builtin_index);
 
   void LoadCodeObjectEntry(Register destination, Register code_object) override;
@@ -598,28 +491,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // These Wasm SIMD ops do not have direct lowerings on x64. These
   // helpers are optimized to produce the fastest and smallest codegen.
   // Defined here to allow usage on both TurboFan and Liftoff.
-  void I16x8SConvertI8x16High(XMMRegister dst, XMMRegister src);
-  void I16x8UConvertI8x16High(XMMRegister dst, XMMRegister src);
-  void I32x4SConvertI16x8High(XMMRegister dst, XMMRegister src);
-  void I32x4UConvertI16x8High(XMMRegister dst, XMMRegister src);
-  void I64x2SConvertI32x4High(XMMRegister dst, XMMRegister src);
-  void I64x2UConvertI32x4High(XMMRegister dst, XMMRegister src);
-
-  // Requires dst == mask when AVX is not supported.
-  void S128Select(XMMRegister dst, XMMRegister mask, XMMRegister src1,
-                  XMMRegister src2);
-
-  void I64x2ExtMul(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-                   bool low, bool is_signed);
-  // Requires that dst == src1 if AVX is not supported.
-  void I32x4ExtMul(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-                   bool low, bool is_signed);
-  void I16x8ExtMul(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-                   bool low, bool is_signed);
-
   void I16x8Q15MulRSatS(XMMRegister dst, XMMRegister src1, XMMRegister src2);
 
-  void S128Store32Lane(Operand dst, XMMRegister src, uint8_t laneidx);
   void S128Store64Lane(Operand dst, XMMRegister src, uint8_t laneidx);
 
   void I8x16Popcnt(XMMRegister dst, XMMRegister src, XMMRegister tmp);
@@ -628,14 +501,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void I32x4TruncSatF64x2SZero(XMMRegister dst, XMMRegister src);
   void I32x4TruncSatF64x2UZero(XMMRegister dst, XMMRegister src);
 
-  void I64x2Abs(XMMRegister dst, XMMRegister src);
-  void I64x2GtS(XMMRegister dst, XMMRegister src0, XMMRegister src1);
-  void I64x2GeS(XMMRegister dst, XMMRegister src0, XMMRegister src1);
-
   void I16x8ExtAddPairwiseI8x16S(XMMRegister dst, XMMRegister src);
   void I32x4ExtAddPairwiseI16x8U(XMMRegister dst, XMMRegister src);
 
-  void I8x16Swizzle(XMMRegister dst, XMMRegister src, XMMRegister mask);
+  void I8x16Swizzle(XMMRegister dst, XMMRegister src, XMMRegister mask,
+                    bool omit_add = false);
 
   void Abspd(XMMRegister dst);
   void Negpd(XMMRegister dst);
@@ -704,6 +574,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void InitializeRootRegister() {
     ExternalReference isolate_root = ExternalReference::isolate_root(isolate());
     Move(kRootRegister, isolate_root);
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+    Move(kPointerCageBaseRegister, isolate_root);
+#endif
   }
 
   void SaveRegisters(RegList registers);
@@ -1091,11 +964,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // Load the global proxy from the current context.
   void LoadGlobalProxy(Register dst) {
-    LoadNativeContextSlot(Context::GLOBAL_PROXY_INDEX, dst);
+    LoadNativeContextSlot(dst, Context::GLOBAL_PROXY_INDEX);
   }
 
   // Load the native context slot with the current index.
-  void LoadNativeContextSlot(int index, Register dst);
+  void LoadNativeContextSlot(Register dst, int index);
 
   // ---------------------------------------------------------------------------
   // Runtime calls
@@ -1140,40 +1013,20 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // In-place weak references.
   void LoadWeakValue(Register in_out, Label* target_if_cleared);
 
-  // ---------------------------------------------------------------------------
-  // Debugging
-
-  static int SafepointRegisterStackIndex(Register reg) {
-    return SafepointRegisterStackIndex(reg.code());
-  }
-
  private:
-  // Order general registers are pushed by Pushad.
-  // rax, rcx, rdx, rbx, rsi, rdi, r8, r9, r11, r12, r14, r15.
-  static const int kSafepointPushRegisterIndices[Register::kNumRegisters];
-  static const int kNumSafepointSavedRegisters = 12;
-
   // Helper functions for generating invokes.
   void InvokePrologue(Register expected_parameter_count,
                       Register actual_parameter_count, Label* done,
                       InvokeFlag flag);
 
-  void EnterExitFramePrologue(bool save_rax, StackFrame::Type frame_type);
+  void EnterExitFramePrologue(Register saved_rax_reg,
+                              StackFrame::Type frame_type);
 
   // Allocates arg_stack_space * kSystemPointerSize memory (not GCed) on the
   // stack accessible via StackSpaceOperand.
   void EnterExitFrameEpilogue(int arg_stack_space, bool save_doubles);
 
   void LeaveExitFrameEpilogue();
-
-  // Compute memory operands for safepoint stack slots.
-  static int SafepointRegisterStackIndex(int reg_code) {
-    return kNumSafepointRegisters - kSafepointPushRegisterIndices[reg_code] - 1;
-  }
-
-  // Needs access to SafepointRegisterStackIndex for compiled frame
-  // traversal.
-  friend class CommonFrame;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MacroAssembler);
 };

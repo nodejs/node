@@ -125,8 +125,13 @@
         let v1 = b.value;
         maybe_sideeffect(b);
         let v2 = b.value;
-        %TurbofanStaticAssert(Object.is(v1, v2));
-        %TurbofanStaticAssert(Object.is(v2, k));
+        if (!%IsDictPropertyConstTrackingEnabled()) {
+          // TODO(v8:11457) If v8_dict_property_const_tracking is enabled, then
+          // b has a dictionary mode prototype and the load elimination doesn't
+          // work, yet.
+          %TurbofanStaticAssert(Object.is(v1, v2));
+          %TurbofanStaticAssert(Object.is(v2, k));
+        }
     }
 
     %EnsureFeedbackVectorForFunction(B);
@@ -151,8 +156,13 @@
         let v1 = b.value;
         maybe_sideeffect(b);
         let v2 = b.value;
-        %TurbofanStaticAssert(Object.is(v1, v2));
-        %TurbofanStaticAssert(Object.is(v2, kk));
+        if (!%IsDictPropertyConstTrackingEnabled()) {
+          // TODO(v8:11457) If v8_dict_property_const_tracking is enabled, then
+          // b has a dictionary mode prototype and the load elimination doesn't
+          // work, yet.
+          %TurbofanStaticAssert(Object.is(v1, v2));
+          %TurbofanStaticAssert(Object.is(v2, kk));
+        }
     }
 
     %EnsureFeedbackVectorForFunction(B);

@@ -880,9 +880,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Store-release exclusive half-word.
   void stlxrh(const Register& rs, const Register& rt, const Register& rn);
 
-  void prfm(int prfop, const MemOperand& addr);
-  void prfm(PrefetchOperation prfop, const MemOperand& addr);
-
   // Move instructions. The default shift of -1 indicates that the move
   // instruction will calculate an appropriate 16-bit immediate and left shift
   // that is equal to the 64-bit immediate argument. If an explicit left shift
@@ -2392,18 +2389,23 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     constpool_.Check(Emission::kIfNeeded, Jump::kRequired, margin);
   }
 
+  // Used by veneer checks below - returns the max (= overapproximated) pc
+  // offset after the veneer pool, if the veneer pool were to be emitted
+  // immediately.
+  intptr_t MaxPCOffsetAfterVeneerPoolIfEmittedNow(size_t margin);
   // Returns true if we should emit a veneer as soon as possible for a branch
   // which can at most reach to specified pc.
-  bool ShouldEmitVeneer(int max_reachable_pc,
-                        size_t margin = kVeneerDistanceMargin);
+  bool ShouldEmitVeneer(int max_reachable_pc, size_t margin) {
+    return max_reachable_pc < MaxPCOffsetAfterVeneerPoolIfEmittedNow(margin);
+  }
   bool ShouldEmitVeneers(size_t margin = kVeneerDistanceMargin) {
     return ShouldEmitVeneer(unresolved_branches_first_limit(), margin);
   }
 
-  // The maximum code size generated for a veneer. Currently one branch
+  // The code size generated for a veneer. Currently one branch
   // instruction. This is for code size checking purposes, and can be extended
   // in the future for example if we decide to add nops between the veneers.
-  static constexpr int kMaxVeneerCodeSize = 1 * kInstrSize;
+  static constexpr int kVeneerCodeSize = 1 * kInstrSize;
 
   void RecordVeneerPool(int location_offset, int size);
   // Emits veneers for branches that are approaching their maximum range.

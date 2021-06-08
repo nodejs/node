@@ -25,7 +25,10 @@
 #include "src/runtime/runtime.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/snapshot.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-code-manager.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 // Satisfy cpplint check, but don't include platform-specific header. It is
 // included recursively via macro-assembler.h.
@@ -300,6 +303,18 @@ void TurboAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
 void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
   LoadEntryFromBuiltinIndex(builtin_index);
   Call(builtin_index);
+}
+
+void TurboAssembler::LoadEntryFromBuiltinIndex(Builtins::Name builtin_index,
+                                               Register destination) {
+  ldr(destination, EntryFromBuiltinIndexAsOperand(builtin_index));
+}
+
+MemOperand TurboAssembler::EntryFromBuiltinIndexAsOperand(
+    Builtins::Name builtin_index) {
+  DCHECK(root_array_available());
+  return MemOperand(kRootRegister,
+                    IsolateData::builtin_entry_slot_offset(builtin_index));
 }
 
 void TurboAssembler::CallBuiltin(int builtin_index, Condition cond) {
@@ -1344,8 +1359,11 @@ void TurboAssembler::EnterFrame(StackFrame::Type type,
                                 bool load_constant_pool_pointer_reg) {
   // r0-r3: preserved
   UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  mov(scratch, Operand(StackFrame::TypeToMarker(type)));
+  Register scratch = no_reg;
+  if (!StackFrame::IsJavaScript(type)) {
+    scratch = temps.Acquire();
+    mov(scratch, Operand(StackFrame::TypeToMarker(type)));
+  }
   PushCommonFrame(scratch);
 }
 
@@ -1386,6 +1404,7 @@ void TurboAssembler::AllocateStackSpace(Register bytes_scratch) {
 }
 
 void TurboAssembler::AllocateStackSpace(int bytes) {
+  DCHECK_GE(bytes, 0);
   UseScratchRegisterScope temps(this);
   DwVfpRegister scratch = no_dreg;
   while (bytes > kStackPageSize) {
@@ -1396,6 +1415,7 @@ void TurboAssembler::AllocateStackSpace(int bytes) {
     vldr(scratch, MemOperand(sp));
     bytes -= kStackPageSize;
   }
+  if (bytes == 0) return;
   sub(sp, sp, Operand(bytes));
 }
 #endif
@@ -1913,8 +1933,13 @@ void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
   AllocateStackSpace(kDoubleSize);  // Put input on stack.
   vstr(double_input, MemOperand(sp, 0));
 
+#if V8_ENABLE_WEBASSEMBLY
   if (stub_mode == StubCallMode::kCallWasmRuntimeStub) {
     Call(wasm::WasmCode::kDoubleToI, RelocInfo::WASM_STUB_CALL);
+#else
+  // For balance.
+  if (false) {
+#endif  // V8_ENABLE_WEBASSEMBLY
   } else if (options().inline_offheap_trampolines) {
     CallBuiltin(Builtins::kDoubleToI);
   } else {
@@ -2070,10 +2095,10 @@ void TurboAssembler::LoadMap(Register destination, Register object) {
 }
 
 void MacroAssembler::LoadGlobalProxy(Register dst) {
-  LoadNativeContextSlot(Context::GLOBAL_PROXY_INDEX, dst);
+  LoadNativeContextSlot(dst, Context::GLOBAL_PROXY_INDEX);
 }
 
-void MacroAssembler::LoadNativeContextSlot(int index, Register dst) {
+void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {
   LoadMap(dst, cp);
   ldr(dst, FieldMemOperand(
                dst, Map::kConstructorOrBackPointerOrNativeContextOffset));
@@ -2650,6 +2675,16 @@ void TurboAssembler::I64x2Eq(QwNeonRegister dst, QwNeonRegister src1,
   vand(dst, dst, scratch);
 }
 
+void TurboAssembler::I64x2Ne(QwNeonRegister dst, QwNeonRegister src1,
+                             QwNeonRegister src2) {
+  UseScratchRegisterScope temps(this);
+  Simd128Register tmp = temps.AcquireQ();
+  vceq(Neon32, dst, src1, src2);
+  vrev64(Neon32, tmp, dst);
+  vmvn(dst, dst);
+  vorn(dst, dst, tmp);
+}
+
 void TurboAssembler::I64x2GtS(QwNeonRegister dst, QwNeonRegister src1,
                               QwNeonRegister src2) {
   vqsub(NeonS64, dst, src2, src1);
@@ -2663,7 +2698,7 @@ void TurboAssembler::I64x2GeS(QwNeonRegister dst, QwNeonRegister src1,
   vmvn(dst, dst);
 }
 
-void TurboAssembler::V64x2AllTrue(Register dst, QwNeonRegister src) {
+void TurboAssembler::I64x2AllTrue(Register dst, QwNeonRegister src) {
   UseScratchRegisterScope temps(this);
   QwNeonRegister tmp = temps.AcquireQ();
   // src = | a | b | c | d |
@@ -2684,6 +2719,49 @@ void TurboAssembler::V64x2AllTrue(Register dst, QwNeonRegister src) {
   // = max(a,b) != 0 && max(c,d) != 0
   // = (a != 0 || b != 0) && (c != 0 || d != 0)
   // = defintion of i64x2.all_true.
+}
+
+void TurboAssembler::I64x2Abs(QwNeonRegister dst, QwNeonRegister src) {
+  UseScratchRegisterScope temps(this);
+  Simd128Register tmp = temps.AcquireQ();
+  vshr(NeonS64, tmp, src, 63);
+  veor(dst, src, tmp);
+  vsub(Neon64, dst, dst, tmp);
+}
+
+namespace {
+using AssemblerFunc = void (Assembler::*)(DwVfpRegister, SwVfpRegister,
+                                          VFPConversionMode, const Condition);
+// Helper function for f64x2 convert low instructions.
+// This ensures that we do not overwrite src, if dst == src.
+void F64x2ConvertLowHelper(Assembler* assm, QwNeonRegister dst,
+                           QwNeonRegister src, AssemblerFunc convert_fn) {
+  LowDwVfpRegister src_d = LowDwVfpRegister::from_code(src.low().code());
+  UseScratchRegisterScope temps(assm);
+  if (dst == src) {
+    LowDwVfpRegister tmp = temps.AcquireLowD();
+    assm->vmov(tmp, src_d);
+    src_d = tmp;
+  }
+  // Default arguments are not part of the function type
+  (assm->*convert_fn)(dst.low(), src_d.low(), kDefaultRoundToZero, al);
+  (assm->*convert_fn)(dst.high(), src_d.high(), kDefaultRoundToZero, al);
+}
+}  // namespace
+
+void TurboAssembler::F64x2ConvertLowI32x4S(QwNeonRegister dst,
+                                           QwNeonRegister src) {
+  F64x2ConvertLowHelper(this, dst, src, &Assembler::vcvt_f64_s32);
+}
+
+void TurboAssembler::F64x2ConvertLowI32x4U(QwNeonRegister dst,
+                                           QwNeonRegister src) {
+  F64x2ConvertLowHelper(this, dst, src, &Assembler::vcvt_f64_u32);
+}
+
+void TurboAssembler::F64x2PromoteLowF32x4(QwNeonRegister dst,
+                                          QwNeonRegister src) {
+  F64x2ConvertLowHelper(this, dst, src, &Assembler::vcvt_f64_f32);
 }
 
 }  // namespace internal

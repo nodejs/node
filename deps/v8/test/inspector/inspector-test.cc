@@ -322,8 +322,9 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
         ToVector(args.GetIsolate(), args[1].As<v8::String>());
 
     RunSyncTask(backend_runner_, [&context_group_id, name](IsolateData* data) {
-      data->CreateContext(context_group_id,
-                          v8_inspector::StringView(name.data(), name.size()));
+      CHECK(data->CreateContext(
+          context_group_id,
+          v8_inspector::StringView(name.data(), name.size())));
     });
   }
 

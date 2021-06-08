@@ -6,6 +6,7 @@
 #include "include/cppgc/garbage-collected.h"
 #include "include/cppgc/persistent.h"
 #include "include/cppgc/platform.h"
+#include "include/cppgc/testing.h"
 #include "include/v8-cppgc.h"
 #include "include/v8.h"
 #include "src/api/api-inl.h"
@@ -140,6 +141,7 @@ TEST_F(UnifiedHeapDetachedTest, AllocationBeforeConfigureHeap) {
     cpp_heap.AsBase().sweeper().FinishIfRunning();
     EXPECT_TRUE(weak_holder);
   }
+  USE(object);
   {
     js_heap.SetEmbedderStackStateForNextFinalization(
         EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers);
@@ -147,6 +149,42 @@ TEST_F(UnifiedHeapDetachedTest, AllocationBeforeConfigureHeap) {
     cpp_heap.AsBase().sweeper().FinishIfRunning();
     EXPECT_FALSE(weak_holder);
   }
+}
+
+TEST_F(UnifiedHeapDetachedTest, StandAloneCppGC) {
+  // Test ensures that stand-alone C++ GC are possible when using CppHeap. This
+  // works even in the presence of wrappables using TracedReference as long
+  // as the reference is empty.
+  auto heap = v8::CppHeap::Create(
+      V8::GetCurrentPlatform(),
+      CppHeapCreateParams{{}, WrapperHelper::DefaultWrapperDescriptor()});
+  auto* object =
+      cppgc::MakeGarbageCollected<Wrappable>(heap->GetAllocationHandle());
+  cppgc::WeakPersistent<Wrappable> weak_holder{object};
+
+  heap->EnableDetachedGarbageCollectionsForTesting();
+  {
+    heap->CollectGarbageForTesting(
+        cppgc::EmbedderStackState::kMayContainHeapPointers);
+    EXPECT_TRUE(weak_holder);
+  }
+  USE(object);
+  {
+    heap->CollectGarbageForTesting(cppgc::EmbedderStackState::kNoHeapPointers);
+    EXPECT_FALSE(weak_holder);
+  }
+}
+
+TEST_F(UnifiedHeapDetachedTest, StandaloneTestingHeap) {
+  // Perform garbage collection through the StandaloneTestingHeap API.
+  auto cpp_heap = v8::CppHeap::Create(
+      V8::GetCurrentPlatform(),
+      CppHeapCreateParams{{}, WrapperHelper::DefaultWrapperDescriptor()});
+  cpp_heap->EnableDetachedGarbageCollectionsForTesting();
+  cppgc::testing::StandaloneTestingHeap heap(cpp_heap->GetHeapHandle());
+  heap.StartGarbageCollection();
+  heap.PerformMarkingStep(cppgc::EmbedderStackState::kNoHeapPointers);
+  heap.FinalizeGarbageCollection(cppgc::EmbedderStackState::kNoHeapPointers);
 }
 
 }  // namespace internal

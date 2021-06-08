@@ -18,8 +18,6 @@
 namespace v8 {
 namespace internal {
 
-using Node = compiler::Node;
-
 TNode<RawPtrT> StringBuiltinsAssembler::DirectStringData(
     TNode<String> string, TNode<Word32T> string_instance_type) {
   // Compute the effective offset of the first character.

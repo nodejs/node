@@ -25,6 +25,9 @@ void CallInterfaceDescriptorData::InitializePlatformSpecific(
     // within the calling convention are disallowed.
 #ifdef DEBUG
     CHECK_NE(registers[i], kRootRegister);
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+    CHECK_NE(registers[i], kPointerCageBaseRegister);
+#endif
     // Check for duplicated registers.
     for (int j = i + 1; j < register_parameter_count; j++) {
       CHECK_NE(registers[i], registers[j]);
@@ -331,11 +334,16 @@ void StoreTransitionDescriptor::InitializePlatformSpecific(
 void BaselineOutOfLinePrologueDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // TODO(v8:11421): Implement on other platforms.
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
-  Register registers[] = {
-      kContextRegister, kJSFunctionRegister, kJavaScriptCallArgCountRegister,
-      kInterpreterBytecodeArrayRegister, kJavaScriptCallNewTargetRegister};
-  data->InitializePlatformSpecific(kParameterCount, registers);
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32 || \
+    V8_TARGET_ARCH_ARM
+  Register registers[] = {kContextRegister,
+                          kJSFunctionRegister,
+                          kJavaScriptCallArgCountRegister,
+                          kJavaScriptCallExtraArg1Register,
+                          kJavaScriptCallNewTargetRegister,
+                          kInterpreterBytecodeArrayRegister};
+  data->InitializePlatformSpecific(kParameterCount - kStackArgumentsCount,
+                                   registers);
 #else
   InitializePlatformUnimplemented(data, kParameterCount);
 #endif
@@ -344,7 +352,8 @@ void BaselineOutOfLinePrologueDescriptor::InitializePlatformSpecific(
 void BaselineLeaveFrameDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // TODO(v8:11421): Implement on other platforms.
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || \
+    V8_TARGET_ARCH_ARM
   Register registers[] = {ParamsSizeRegister(), WeightRegister()};
   data->InitializePlatformSpecific(kParameterCount, registers);
 #else
@@ -605,6 +614,16 @@ void UnaryOp_BaselineDescriptor::InitializePlatformSpecific(
 }
 
 void ForInPrepareDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  DefaultInitializePlatformSpecific(data, kParameterCount);
+}
+
+void SuspendGeneratorBaselineDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  DefaultInitializePlatformSpecific(data, kParameterCount);
+}
+
+void ResumeGeneratorBaselineDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   DefaultInitializePlatformSpecific(data, kParameterCount);
 }

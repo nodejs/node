@@ -183,7 +183,7 @@ TestGlobalIndexSpace(kWasmF64, 12345.678);
   builder.addFunction("set", kSig_v_ii)
     .addBody([
       kExprLocalGet, 0,
-      kExprIf, kWasmStmt,
+      kExprIf, kWasmVoid,
       kExprLocalGet, 1,
       kExprGlobalSet, g.index,
       kExprElse,

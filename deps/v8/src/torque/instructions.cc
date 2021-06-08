@@ -129,6 +129,11 @@ DefinitionLocation NamespaceConstantInstruction::GetValueDefinition(
   return DefinitionLocation::Instruction(this, index);
 }
 
+std::ostream& operator<<(std::ostream& os,
+                         const NamespaceConstantInstruction& instruction) {
+  return os << "NamespaceConstant " << instruction.constant->external_name();
+}
+
 void InstructionBase::InvalidateTransientTypes(
     Stack<const Type*>* stack) const {
   auto current = stack->begin();
@@ -181,6 +186,22 @@ DefinitionLocation CallIntrinsicInstruction::GetValueDefinition(
     std::size_t index) const {
   DCHECK_LT(index, GetValueDefinitionCount());
   return DefinitionLocation::Instruction(this, index);
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         const CallIntrinsicInstruction& instruction) {
+  os << "CallIntrinsic " << instruction.intrinsic->ReadableName();
+  if (!instruction.specialization_types.empty()) {
+    os << "<";
+    PrintCommaSeparatedList(
+        os, instruction.specialization_types,
+        [](const Type* type) -> const Type& { return *type; });
+    os << ">";
+  }
+  os << "(";
+  PrintCommaSeparatedList(os, instruction.constexpr_arguments);
+  os << ")";
+  return os;
 }
 
 void CallCsaMacroInstruction::TypeInstruction(Stack<const Type*>* stack,
@@ -241,6 +262,18 @@ DefinitionLocation CallCsaMacroInstruction::GetValueDefinition(
     std::size_t index) const {
   DCHECK_LT(index, GetValueDefinitionCount());
   return DefinitionLocation::Instruction(this, index);
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         const CallCsaMacroInstruction& instruction) {
+  os << "CallCsaMacro " << instruction.macro->ReadableName();
+  os << "(";
+  PrintCommaSeparatedList(os, instruction.constexpr_arguments);
+  os << ")";
+  if (instruction.catch_block) {
+    os << ", catch block " << (*instruction.catch_block)->id();
+  }
+  return os;
 }
 
 void CallCsaMacroAndBranchInstruction::TypeInstruction(
@@ -363,6 +396,26 @@ CallCsaMacroAndBranchInstruction::GetExceptionObjectDefinition() const {
   return DefinitionLocation::Instruction(this, GetValueDefinitionCount());
 }
 
+std::ostream& operator<<(std::ostream& os,
+                         const CallCsaMacroAndBranchInstruction& instruction) {
+  os << "CallCsaMacroAndBranch " << instruction.macro->ReadableName();
+  os << "(";
+  PrintCommaSeparatedList(os, instruction.constexpr_arguments);
+  os << ")";
+  if (instruction.return_continuation) {
+    os << ", return continuation " << (*instruction.return_continuation)->id();
+  }
+  if (!instruction.label_blocks.empty()) {
+    os << ", label blocks ";
+    PrintCommaSeparatedList(os, instruction.label_blocks,
+                            [](Block* block) { return block->id(); });
+  }
+  if (instruction.catch_block) {
+    os << ", catch block " << (*instruction.catch_block)->id();
+  }
+  return os;
+}
+
 void CallBuiltinInstruction::TypeInstruction(Stack<const Type*>* stack,
                                              ControlFlowGraph* cfg) const {
   std::vector<const Type*> argument_types = stack->PopMany(argc);
@@ -447,6 +500,19 @@ DefinitionLocation CallBuiltinPointerInstruction::GetValueDefinition(
   return DefinitionLocation::Instruction(this, index);
 }
 
+std::ostream& operator<<(std::ostream& os,
+                         const CallBuiltinInstruction& instruction) {
+  os << "CallBuiltin " << instruction.builtin->ReadableName()
+     << ", argc: " << instruction.argc;
+  if (instruction.is_tailcall) {
+    os << ", is_tailcall";
+  }
+  if (instruction.catch_block) {
+    os << ", catch block " << (*instruction.catch_block)->id();
+  }
+  return os;
+}
+
 void CallRuntimeInstruction::TypeInstruction(Stack<const Type*>* stack,
                                              ControlFlowGraph* cfg) const {
   std::vector<const Type*> argument_types = stack->PopMany(argc);
@@ -507,6 +573,19 @@ CallRuntimeInstruction::GetExceptionObjectDefinition() const {
   return DefinitionLocation::Instruction(this, GetValueDefinitionCount());
 }
 
+std::ostream& operator<<(std::ostream& os,
+                         const CallRuntimeInstruction& instruction) {
+  os << "CallRuntime " << instruction.runtime_function->ReadableName()
+     << ", argc: " << instruction.argc;
+  if (instruction.is_tailcall) {
+    os << ", is_tailcall";
+  }
+  if (instruction.catch_block) {
+    os << ", catch block " << (*instruction.catch_block)->id();
+  }
+  return os;
+}
+
 void BranchInstruction::TypeInstruction(Stack<const Type*>* stack,
                                         ControlFlowGraph* cfg) const {
   const Type* condition_type = stack->Pop();
@@ -524,6 +603,12 @@ void BranchInstruction::RecomputeDefinitionLocations(
   if_false->MergeInputDefinitions(*locations, worklist);
 }
 
+std::ostream& operator<<(std::ostream& os,
+                         const BranchInstruction& instruction) {
+  return os << "Branch true: " << instruction.if_true->id()
+            << ", false: " << instruction.if_false->id();
+}
+
 void ConstexprBranchInstruction::TypeInstruction(Stack<const Type*>* stack,
                                                  ControlFlowGraph* cfg) const {
   if_true->SetInputTypes(*stack);
@@ -536,6 +621,13 @@ void ConstexprBranchInstruction::RecomputeDefinitionLocations(
   if_false->MergeInputDefinitions(*locations, worklist);
 }
 
+std::ostream& operator<<(std::ostream& os,
+                         const ConstexprBranchInstruction& instruction) {
+  return os << "ConstexprBranch " << instruction.condition
+            << ", true: " << instruction.if_true->id()
+            << ", false: " << instruction.if_false->id();
+}
+
 void GotoInstruction::TypeInstruction(Stack<const Type*>* stack,
                                       ControlFlowGraph* cfg) const {
   destination->SetInputTypes(*stack);
@@ -544,6 +636,10 @@ void GotoInstruction::TypeInstruction(Stack<const Type*>* stack,
 void GotoInstruction::RecomputeDefinitionLocations(
     Stack<DefinitionLocation>* locations, Worklist<Block*>* worklist) const {
   destination->MergeInputDefinitions(*locations, worklist);
+}
+
+std::ostream& operator<<(std::ostream& os, const GotoInstruction& instruction) {
+  return os << "Goto " << instruction.destination->id();
 }
 
 void GotoExternalInstruction::TypeInstruction(Stack<const Type*>* stack,
@@ -691,6 +787,16 @@ void MakeLazyNodeInstruction::RecomputeDefinitionLocations(
 
 DefinitionLocation MakeLazyNodeInstruction::GetValueDefinition() const {
   return DefinitionLocation::Instruction(this, 0);
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         const MakeLazyNodeInstruction& instruction) {
+  os << "MakeLazyNode " << instruction.macro->ReadableName() << ", "
+     << *instruction.result_type;
+  for (const std::string& arg : instruction.constexpr_arguments) {
+    os << ", " << arg;
+  }
+  return os;
 }
 
 bool CallRuntimeInstruction::IsBlockTerminator() const {

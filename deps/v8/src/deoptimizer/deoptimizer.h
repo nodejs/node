@@ -15,6 +15,10 @@
 #include "src/diagnostics/code-tracer.h"
 #include "src/objects/js-function.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/value-type.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 namespace v8 {
 namespace internal {
 
@@ -164,8 +168,10 @@ class Deoptimizer : public Malloced {
   static Builtins::Name TrampolineForBuiltinContinuation(
       BuiltinContinuationMode mode, bool must_handle_result);
 
-  TranslatedValue TranslatedValueForWasmReturnType(
-      base::Optional<wasm::ValueKind> wasm_call_return_type);
+#if V8_ENABLE_WEBASSEMBLY
+  TranslatedValue TranslatedValueForWasmReturnKind(
+      base::Optional<wasm::ValueKind> wasm_call_return_kind);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   void DoComputeBuiltinContinuation(TranslatedFrame* translated_frame,
                                     int frame_index,

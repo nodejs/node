@@ -23,7 +23,10 @@
 #include "src/objects/synthetic-module.h"
 #include "src/objects/torque-defined-classes-inl.h"
 #include "src/objects/transitions.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-objects-inl.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -560,6 +563,7 @@ class Foreign::BodyDescriptor final : public BodyDescriptorBase {
   static inline int SizeOf(Map map, HeapObject object) { return kSize; }
 };
 
+#if V8_ENABLE_WEBASSEMBLY
 class WasmTypeInfo::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
@@ -577,6 +581,85 @@ class WasmTypeInfo::BodyDescriptor final : public BodyDescriptorBase {
 
   static inline int SizeOf(Map map, HeapObject object) { return kSize; }
 };
+
+class WasmInstanceObject::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(Map map, HeapObject obj, int offset) {
+    SLOW_DCHECK(std::is_sorted(std::begin(kTaggedFieldOffsets),
+                               std::end(kTaggedFieldOffsets)));
+    STATIC_ASSERT(sizeof(*kTaggedFieldOffsets) == sizeof(uint16_t));
+    if (offset < int{8 * sizeof(*kTaggedFieldOffsets)} &&
+        std::binary_search(std::begin(kTaggedFieldOffsets),
+                           std::end(kTaggedFieldOffsets),
+                           static_cast<uint16_t>(offset))) {
+      return true;
+    }
+    return IsValidJSObjectSlotImpl(map, obj, offset);
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map map, HeapObject obj, int object_size,
+                                 ObjectVisitor* v) {
+    IteratePointers(obj, kPropertiesOrHashOffset, JSObject::kHeaderSize, v);
+    for (uint16_t offset : kTaggedFieldOffsets) {
+      IteratePointer(obj, offset, v);
+    }
+    IterateJSObjectBodyImpl(map, obj, kHeaderSize, object_size, v);
+  }
+
+  static inline int SizeOf(Map map, HeapObject object) {
+    return map.instance_size();
+  }
+};
+
+class WasmArray::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(Map map, HeapObject obj, int offset) {
+    // Fields in WasmArrays never change their types in place, so
+    // there should never be a need to call this function.
+    UNREACHABLE();
+    return false;
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map map, HeapObject obj, int object_size,
+                                 ObjectVisitor* v) {
+    if (!WasmArray::GcSafeType(map)->element_type().is_reference()) return;
+    IteratePointers(obj, WasmArray::kHeaderSize, object_size, v);
+  }
+
+  static inline int SizeOf(Map map, HeapObject object) {
+    return WasmArray::GcSafeSizeFor(map, WasmArray::cast(object).length());
+  }
+};
+
+class WasmStruct::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(Map map, HeapObject obj, int offset) {
+    // Fields in WasmStructs never change their types in place, so
+    // there should never be a need to call this function.
+    UNREACHABLE();
+    return false;
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map map, HeapObject obj, int object_size,
+                                 ObjectVisitor* v) {
+    WasmStruct wasm_struct = WasmStruct::cast(obj);
+    wasm::StructType* type = WasmStruct::GcSafeType(map);
+    for (uint32_t i = 0; i < type->field_count(); i++) {
+      if (!type->field(i).is_reference()) continue;
+      int offset = static_cast<int>(type->field_offset(i));
+      v->VisitPointer(wasm_struct, wasm_struct.RawField(offset));
+    }
+  }
+
+  static inline int SizeOf(Map map, HeapObject object) {
+    return map.instance_size();
+  }
+};
+
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 class ExternalOneByteString::BodyDescriptor final : public BodyDescriptorBase {
  public:
@@ -619,9 +702,8 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
   STATIC_ASSERT(kRelocationInfoOffset + kTaggedSize ==
                 kDeoptimizationDataOffset);
   STATIC_ASSERT(kDeoptimizationDataOffset + kTaggedSize ==
-                kSourcePositionTableOffset);
-  STATIC_ASSERT(kSourcePositionTableOffset + kTaggedSize ==
-                kCodeDataContainerOffset);
+                kPositionTableOffset);
+  STATIC_ASSERT(kPositionTableOffset + kTaggedSize == kCodeDataContainerOffset);
   STATIC_ASSERT(kCodeDataContainerOffset + kTaggedSize == kDataStart);
 
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
@@ -658,36 +740,6 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
 
   static inline int SizeOf(Map map, HeapObject object) {
     return Code::unchecked_cast(object).CodeSize();
-  }
-};
-
-class WasmInstanceObject::BodyDescriptor final : public BodyDescriptorBase {
- public:
-  static bool IsValidSlot(Map map, HeapObject obj, int offset) {
-    SLOW_DCHECK(std::is_sorted(std::begin(kTaggedFieldOffsets),
-                               std::end(kTaggedFieldOffsets)));
-    STATIC_ASSERT(sizeof(*kTaggedFieldOffsets) == sizeof(uint16_t));
-    if (offset < int{8 * sizeof(*kTaggedFieldOffsets)} &&
-        std::binary_search(std::begin(kTaggedFieldOffsets),
-                           std::end(kTaggedFieldOffsets),
-                           static_cast<uint16_t>(offset))) {
-      return true;
-    }
-    return IsValidJSObjectSlotImpl(map, obj, offset);
-  }
-
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Map map, HeapObject obj, int object_size,
-                                 ObjectVisitor* v) {
-    IteratePointers(obj, kPropertiesOrHashOffset, JSObject::kHeaderSize, v);
-    for (uint16_t offset : kTaggedFieldOffsets) {
-      IteratePointer(obj, offset, v);
-    }
-    IterateJSObjectBodyImpl(map, obj, kHeaderSize, object_size, v);
-  }
-
-  static inline int SizeOf(Map map, HeapObject object) {
-    return map.instance_size();
   }
 };
 
@@ -774,53 +826,6 @@ class CodeDataContainer::BodyDescriptor final : public BodyDescriptorBase {
 
   static inline int SizeOf(Map map, HeapObject object) {
     return CodeDataContainer::kSize;
-  }
-};
-
-class WasmArray::BodyDescriptor final : public BodyDescriptorBase {
- public:
-  static bool IsValidSlot(Map map, HeapObject obj, int offset) {
-    // Fields in WasmArrays never change their types in place, so
-    // there should never be a need to call this function.
-    UNREACHABLE();
-    return false;
-  }
-
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Map map, HeapObject obj, int object_size,
-                                 ObjectVisitor* v) {
-    if (!WasmArray::GcSafeType(map)->element_type().is_reference_type()) return;
-    IteratePointers(obj, WasmArray::kHeaderSize, object_size, v);
-  }
-
-  static inline int SizeOf(Map map, HeapObject object) {
-    return WasmArray::GcSafeSizeFor(map, WasmArray::cast(object).length());
-  }
-};
-
-class WasmStruct::BodyDescriptor final : public BodyDescriptorBase {
- public:
-  static bool IsValidSlot(Map map, HeapObject obj, int offset) {
-    // Fields in WasmStructs never change their types in place, so
-    // there should never be a need to call this function.
-    UNREACHABLE();
-    return false;
-  }
-
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Map map, HeapObject obj, int object_size,
-                                 ObjectVisitor* v) {
-    WasmStruct wasm_struct = WasmStruct::cast(obj);
-    wasm::StructType* type = WasmStruct::GcSafeType(map);
-    for (uint32_t i = 0; i < type->field_count(); i++) {
-      if (!type->field(i).is_reference_type()) continue;
-      int offset = static_cast<int>(type->field_offset(i));
-      v->VisitPointer(wasm_struct, wasm_struct.RawField(offset));
-    }
-  }
-
-  static inline int SizeOf(Map map, HeapObject object) {
-    return map.instance_size();
   }
 };
 
@@ -936,12 +941,14 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
       return Op::template apply<FeedbackCell::BodyDescriptor>(p1, p2, p3, p4);
     case COVERAGE_INFO_TYPE:
       return Op::template apply<CoverageInfo::BodyDescriptor>(p1, p2, p3, p4);
+#if V8_ENABLE_WEBASSEMBLY
     case WASM_ARRAY_TYPE:
       return Op::template apply<WasmArray::BodyDescriptor>(p1, p2, p3, p4);
     case WASM_STRUCT_TYPE:
       return Op::template apply<WasmStruct::BodyDescriptor>(p1, p2, p3, p4);
     case WASM_TYPE_INFO_TYPE:
       return Op::template apply<WasmTypeInfo::BodyDescriptor>(p1, p2, p3, p4);
+#endif  // V8_ENABLE_WEBASSEMBLY
     case JS_API_OBJECT_TYPE:
     case JS_ARGUMENTS_OBJECT_TYPE:
     case JS_ARRAY_ITERATOR_PROTOTYPE_TYPE:
@@ -997,16 +1004,20 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case JS_SEGMENTER_TYPE:
     case JS_SEGMENTS_TYPE:
 #endif  // V8_INTL_SUPPORT
+#if V8_ENABLE_WEBASSEMBLY
     case WASM_EXCEPTION_OBJECT_TYPE:
     case WASM_GLOBAL_OBJECT_TYPE:
     case WASM_MEMORY_OBJECT_TYPE:
     case WASM_MODULE_OBJECT_TYPE:
     case WASM_TABLE_OBJECT_TYPE:
     case WASM_VALUE_OBJECT_TYPE:
+#endif  // V8_ENABLE_WEBASSEMBLY
       return Op::template apply<JSObject::BodyDescriptor>(p1, p2, p3, p4);
+#if V8_ENABLE_WEBASSEMBLY
     case WASM_INSTANCE_OBJECT_TYPE:
       return Op::template apply<WasmInstanceObject::BodyDescriptor>(p1, p2, p3,
                                                                     p4);
+#endif  // V8_ENABLE_WEBASSEMBLY
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_SET_TYPE:
       return Op::template apply<JSWeakCollection::BodyDescriptor>(p1, p2, p3,
@@ -1083,15 +1094,18 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
       if (type == PROTOTYPE_INFO_TYPE) {
         return Op::template apply<PrototypeInfo::BodyDescriptor>(p1, p2, p3,
                                                                  p4);
-      } else if (type == WASM_CAPI_FUNCTION_DATA_TYPE) {
+      }
+#if V8_ENABLE_WEBASSEMBLY
+      if (type == WASM_CAPI_FUNCTION_DATA_TYPE) {
         return Op::template apply<WasmCapiFunctionData::BodyDescriptor>(p1, p2,
                                                                         p3, p4);
-      } else if (type == WASM_INDIRECT_FUNCTION_TABLE_TYPE) {
+      }
+      if (type == WASM_INDIRECT_FUNCTION_TABLE_TYPE) {
         return Op::template apply<WasmIndirectFunctionTable::BodyDescriptor>(
             p1, p2, p3, p4);
-      } else {
-        return Op::template apply<StructBodyDescriptor>(p1, p2, p3, p4);
       }
+#endif  // V8_ENABLE_WEBASSEMBLY
+      return Op::template apply<StructBodyDescriptor>(p1, p2, p3, p4);
     case CALL_HANDLER_INFO_TYPE:
       return Op::template apply<StructBodyDescriptor>(p1, p2, p3, p4);
     case LOAD_HANDLER_TYPE:

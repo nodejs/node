@@ -230,11 +230,26 @@ void operator<<(std::ostream& str, TestEnum6 val) {
 TEST(LoggingDeathTest, OutputEnumWithOutputOperator) {
   ASSERT_DEATH_IF_SUPPORTED(
       ([&] { CHECK_EQ(TEST_A, TEST_B); })(),
-      FailureMessage("Check failed: TEST_A == TEST_B", "A", "B"));
+      FailureMessage("Check failed: TEST_A == TEST_B", "A (0)", "B (1)"));
   ASSERT_DEATH_IF_SUPPORTED(
       ([&] { CHECK_GE(TestEnum6::TEST_C, TestEnum6::TEST_D); })(),
       FailureMessage("Check failed: TestEnum6::TEST_C >= TestEnum6::TEST_D",
-                     "C", "D"));
+                     "C (0)", "D (1)"));
+}
+
+enum TestEnum7 : uint8_t { A = 2, B = 7 };
+enum class TestEnum8 : int8_t { A, B };
+
+TEST(LoggingDeathTest, OutputSingleCharEnum) {
+  ASSERT_DEATH_IF_SUPPORTED(
+      ([&] { CHECK_EQ(TestEnum7::A, TestEnum7::B); })(),
+      FailureMessage("Check failed: TestEnum7::A == TestEnum7::B", "2", "7"));
+  ASSERT_DEATH_IF_SUPPORTED(
+      ([&] { CHECK_GT(TestEnum7::A, TestEnum7::B); })(),
+      FailureMessage("Check failed: TestEnum7::A > TestEnum7::B", "2", "7"));
+  ASSERT_DEATH_IF_SUPPORTED(
+      ([&] { CHECK_GE(TestEnum8::A, TestEnum8::B); })(),
+      FailureMessage("Check failed: TestEnum8::A >= TestEnum8::B", "0", "1"));
 }
 
 TEST(LoggingDeathTest, OutputLongValues) {
@@ -327,6 +342,12 @@ TEST(LoggingTest, LogFunctionPointers) {
   delete error_message;
 }
 #endif  // defined(DEBUG)
+
+TEST(LoggingDeathTest, CheckChars) {
+  ASSERT_DEATH_IF_SUPPORTED(
+      ([&] { CHECK_EQ('a', 'b'); })(),
+      FailureMessage("Check failed: 'a' == 'b'", "'97'", "'98'"));
+}
 
 }  // namespace logging_unittest
 }  // namespace base

@@ -16,6 +16,7 @@ namespace cppgc {
 namespace internal {
 
 class PersistentRegion;
+class CrossThreadPersistentRegion;
 
 // Tags to distinguish between strong and weak member types.
 class StrongMemberTag;
@@ -115,12 +116,14 @@ struct WeakPersistentPolicy {
 
 struct StrongCrossThreadPersistentPolicy {
   using IsStrongPersistent = std::true_type;
-  static V8_EXPORT PersistentRegion& GetPersistentRegion(const void* object);
+  static V8_EXPORT CrossThreadPersistentRegion& GetPersistentRegion(
+      const void* object);
 };
 
 struct WeakCrossThreadPersistentPolicy {
   using IsStrongPersistent = std::false_type;
-  static V8_EXPORT PersistentRegion& GetPersistentRegion(const void* object);
+  static V8_EXPORT CrossThreadPersistentRegion& GetPersistentRegion(
+      const void* object);
 };
 
 // Forward declarations setting up the default policies.

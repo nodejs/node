@@ -1407,16 +1407,7 @@ void RegExpMacroAssemblerARM64::CallCheckStackGuardState(Register scratch) {
       ExternalReference::re_check_stack_guard_state(isolate());
   __ Mov(scratch, check_stack_guard_state);
 
-  {
-    UseScratchRegisterScope temps(masm_);
-    Register scratch = temps.AcquireX();
-
-    EmbeddedData d = EmbeddedData::FromBlob();
-    Address entry = d.InstructionStartOfBuiltin(Builtins::kDirectCEntry);
-
-    __ Ldr(scratch, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
-    __ Call(scratch);
-  }
+  __ CallBuiltin(Builtins::kDirectCEntry);
 
   // The input string may have been moved in memory, we need to reload it.
   __ Peek(input_start(), kSystemPointerSize);
@@ -1579,6 +1570,8 @@ void RegExpMacroAssemblerARM64::CallIf(Label* to, Condition condition) {
 
 
 void RegExpMacroAssemblerARM64::RestoreLinkRegister() {
+  // TODO(v8:10026): Remove when we stop compacting for code objects that are
+  // active on the call stack.
   __ Pop<TurboAssembler::kAuthLR>(padreg, lr);
   __ Add(lr, lr, Operand(masm_->CodeObject()));
 }

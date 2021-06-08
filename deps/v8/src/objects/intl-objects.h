@@ -330,6 +330,14 @@ class Intl {
   static const std::set<std::string>& GetAvailableLocales();
 
   static const std::set<std::string>& GetAvailableLocalesForDateFormat();
+
+  // ecma402/#sec-getoptionsobject
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> GetOptionsObject(
+      Isolate* isolate, Handle<Object> options, const char* service);
+
+  // ecma402/#sec-coerceoptionstoobject
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> CoerceOptionsToObject(
+      Isolate* isolate, Handle<Object> options, const char* service);
 };
 
 }  // namespace internal

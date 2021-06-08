@@ -2,16 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "test/unittests/test-utils.h"
+#include "src/wasm/module-decoder.h"
 
 #include "src/handles/handles.h"
 #include "src/objects/objects-inl.h"
-#include "src/wasm/module-decoder.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "test/common/wasm/flag-utils.h"
 #include "test/common/wasm/wasm-macro-gen.h"
+#include "test/unittests/test-utils.h"
 #include "testing/gmock-support.h"
 
 using testing::HasSubstr;
@@ -495,7 +496,7 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
               1)               // mutable
   };
   EXPECT_FAILURE_WITH_MSG(no_initializer_no_end,
-                          "Global initializer is missing 'end'");
+                          "Initializer expression is missing 'end'");
 
   static const byte no_initializer[] = {
       SECTION(Global,          //--
@@ -505,7 +506,7 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
               kExprEnd)        // --
   };
   EXPECT_FAILURE_WITH_MSG(no_initializer,
-                          "Found 'end' in global initalizer, but no "
+                          "Found 'end' in initializer expression, but no "
                           "expressions were found on the stack");
 
   static const byte too_many_initializers_no_end[] = {
@@ -517,7 +518,7 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
               WASM_I32V_1(43))  // another value is too much
   };
   EXPECT_FAILURE_WITH_MSG(too_many_initializers_no_end,
-                          "Global initializer is missing 'end'");
+                          "Initializer expression is missing 'end'");
 
   static const byte too_many_initializers[] = {
       SECTION(Global,           // --
@@ -528,8 +529,8 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
               WASM_I32V_1(43),  // another value is too much
               kExprEnd)};
   EXPECT_FAILURE_WITH_MSG(too_many_initializers,
-                          "Found 'end' in global initalizer, but more than one "
-                          "expressions were found on the stack");
+                          "Found 'end' in initializer expression, but more than"
+                          " one expressions were found on the stack");
 
   static const byte missing_end_opcode[] = {
       SECTION(Global,           // --
@@ -539,7 +540,7 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
               WASM_I32V_1(42))  // init value
   };
   EXPECT_FAILURE_WITH_MSG(missing_end_opcode,
-                          "Global initializer is missing 'end'");
+                          "Initializer expression is missing 'end'");
 
   static const byte referencing_out_of_bounds_global[] = {
       SECTION(Global, ENTRY_COUNT(1),         // --
@@ -1971,6 +1972,24 @@ TEST_F(WasmModuleVerifyTest, TypedFunctionTable) {
   EXPECT_EQ(ValueType::Ref(0, kNullable), result.value()->tables[0].type);
 }
 
+TEST_F(WasmModuleVerifyTest, NullableTableIllegalInitializer) {
+  WASM_FEATURE_SCOPE(reftypes);
+  WASM_FEATURE_SCOPE(typed_funcref);
+
+  static const byte data[] = {
+      SECTION(Type, ENTRY_COUNT(1), SIG_ENTRY_v_v),  // type section
+      ONE_EMPTY_FUNCTION(0),                         // function section
+      SECTION(Table,                                 // table section
+              ENTRY_COUNT(1),                        // 1 table
+              kOptRefCode, 0,                        // table 0: type
+              0, 10,                                 // table 0: limits
+              kExprRefFunc, 0, kExprEnd)};           // table 0: initializer
+
+  EXPECT_FAILURE_WITH_MSG(
+      data,
+      "section was shorter than expected size (8 bytes expected, 5 decoded)");
+}
+
 TEST_F(WasmModuleVerifyTest, IllegalTableTypes) {
   WASM_FEATURE_SCOPE(reftypes);
   WASM_FEATURE_SCOPE(typed_funcref);
@@ -1999,11 +2018,45 @@ TEST_F(WasmModuleVerifyTest, IllegalTableTypes) {
 
     auto result = DecodeModule(data.data(), data.data() + data.size());
 
-    EXPECT_NOT_OK(
-        result,
-        "Currently, only externref and function references are allowed "
-        "as table types");
+    EXPECT_NOT_OK(result,
+                  "Currently, only externref and function references are "
+                  "allowed as table types");
   }
+}
+
+TEST_F(WasmModuleVerifyTest, NonNullableTable) {
+  WASM_FEATURE_SCOPE(reftypes);
+  WASM_FEATURE_SCOPE(typed_funcref);
+
+  static const byte data[] = {
+      SECTION(Type, ENTRY_COUNT(1), SIG_ENTRY_v_v),  // type section
+      ONE_EMPTY_FUNCTION(0),                         // function section
+      SECTION(Table,                                 // table section
+              ENTRY_COUNT(1),                        // 1 table
+              kRefCode, 0,                           // table 0: type
+              0, 10,                                 // table 0: limits
+              kExprRefFunc, 0, kExprEnd),  // table 0: init. expression
+      SECTION(Code, ENTRY_COUNT(1), NOP_BODY)};
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_OK(result);
+  EXPECT_EQ(ValueType::Ref(0, kNonNullable), result.value()->tables[0].type);
+}
+
+TEST_F(WasmModuleVerifyTest, NonNullableTableNoInitializer) {
+  WASM_FEATURE_SCOPE(reftypes);
+  WASM_FEATURE_SCOPE(typed_funcref);
+
+  static const byte data[] = {
+      SECTION(Type, ENTRY_COUNT(1), SIG_ENTRY_v_x(kI32Code)),
+      SECTION(Table,           // table section
+              ENTRY_COUNT(2),  // 2 tables
+              kRefCode, 0,     // table 0: type
+              0, 10,           // table 0: limits
+              kRefCode, 0,     // table 1: type
+              5, 6)};          // table 1: limits
+
+  EXPECT_FAILURE_WITH_MSG(data,
+                          "invalid opcode 0x6b in initializer expression");
 }
 
 TEST_F(WasmModuleVerifyTest, TieringCompilationHints) {

@@ -98,6 +98,10 @@ inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
   Operand dst(base, offset);
   switch (kind) {
     case kI32:
+    case kOptRef:
+    case kRef:
+    case kRtt:
+    case kRttWithDepth:
       assm->mov(dst, src.gp());
       break;
     case kI64:
@@ -118,27 +122,30 @@ inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
   }
 }
 
-inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueKind kind) {
+inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueKind kind,
+                 int padding = 0) {
   switch (kind) {
     case kI32:
     case kRef:
     case kOptRef:
+      assm->AllocateStackSpace(padding);
       assm->push(reg.gp());
       break;
     case kI64:
+      assm->AllocateStackSpace(padding);
       assm->push(reg.high_gp());
       assm->push(reg.low_gp());
       break;
     case kF32:
-      assm->AllocateStackSpace(sizeof(float));
+      assm->AllocateStackSpace(sizeof(float) + padding);
       assm->movss(Operand(esp, 0), reg.fp());
       break;
     case kF64:
-      assm->AllocateStackSpace(sizeof(double));
+      assm->AllocateStackSpace(sizeof(double) + padding);
       assm->movsd(Operand(esp, 0), reg.fp());
       break;
     case kS128:
-      assm->AllocateStackSpace(sizeof(double) * 2);
+      assm->AllocateStackSpace(sizeof(double) * 2 + padding);
       assm->movdqu(Operand(esp, 0), reg.fp());
       break;
     default:
@@ -262,12 +269,11 @@ constexpr int LiftoffAssembler::StaticStackFrameSize() {
 }
 
 int LiftoffAssembler::SlotSizeForType(ValueKind kind) {
-  return is_reference_type(kind) ? kSystemPointerSize
-                                 : element_size_bytes(kind);
+  return is_reference(kind) ? kSystemPointerSize : element_size_bytes(kind);
 }
 
 bool LiftoffAssembler::NeedsAlignment(ValueKind kind) {
-  return is_reference_type(kind);
+  return is_reference(kind);
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
@@ -340,6 +346,11 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
        static_cast<uint32_t>(offset_imm), LoadType::kI32Load, pinned);
 }
 
+void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
+                                       int32_t offset_imm) {
+  mov(dst, Operand(src_addr, offset_imm));
+}
+
 void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                                           Register offset_reg,
                                           int32_t offset_imm,
@@ -378,13 +389,8 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uint32_t offset_imm,
                             LoadType type, LiftoffRegList pinned,
                             uint32_t* protected_load_pc, bool is_load_mem) {
-  if (offset_imm > static_cast<uint32_t>(std::numeric_limits<int32_t>::max())) {
-    // We do not generate code here, because such an offset should never pass
-    // the bounds check. However, the spec requires us to compile code with such
-    // an offset.
-    Trap();
-    return;
-  }
+  // Offsets >=2GB are statically OOB on 32-bit systems.
+  DCHECK_LE(offset_imm, std::numeric_limits<int32_t>::max());
   DCHECK_EQ(type.value_type() == kWasmI64, dst.is_gp_pair());
   Operand src_op = offset_reg == no_reg
                        ? Operand(src_addr, offset_imm)
@@ -460,6 +466,7 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              StoreType type, LiftoffRegList pinned,
                              uint32_t* protected_store_pc, bool is_store_mem) {
   DCHECK_EQ(type.value_type() == kWasmI64, src.is_gp_pair());
+  // Offsets >=2GB are statically OOB on 32-bit systems.
   DCHECK_LE(offset_imm, std::numeric_limits<int32_t>::max());
   Operand dst_op = offset_reg == no_reg
                        ? Operand(dst_addr, offset_imm)
@@ -1120,7 +1127,7 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
 
 void LiftoffAssembler::Move(Register dst, Register src, ValueKind kind) {
   DCHECK_NE(dst, src);
-  DCHECK(kI32 == kind || is_reference_type(kind));
+  DCHECK(kI32 == kind || is_reference(kind));
   mov(dst, src);
 }
 
@@ -2882,13 +2889,9 @@ void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
 void LiftoffAssembler::emit_i8x16_swizzle(LiftoffRegister dst,
                                           LiftoffRegister lhs,
                                           LiftoffRegister rhs) {
-  XMMRegister mask = liftoff::kScratchDoubleReg;
-  // Out-of-range indices should return 0, add 112 (0x70) so that any value > 15
-  // saturates to 128 (top bit set), so pshufb will zero that lane.
-  TurboAssembler::Move(mask, uint32_t{0x70707070});
-  Pshufd(mask, mask, uint8_t{0x0});
-  Paddusb(mask, rhs.fp());
-  Pshufb(dst.fp(), lhs.fp(), mask);
+  Register scratch = GetUnusedRegister(RegClass::kGpReg, {}).gp();
+  I8x16Swizzle(dst.fp(), lhs.fp(), rhs.fp(), liftoff::kScratchDoubleReg,
+               scratch);
 }
 
 void LiftoffAssembler::emit_i8x16_popcnt(LiftoffRegister dst,
@@ -2910,21 +2913,21 @@ void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,
 void LiftoffAssembler::emit_i16x8_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   Movd(dst.fp(), src.gp());
-  Pshuflw(dst.fp(), dst.fp(), 0);
-  Pshufd(dst.fp(), dst.fp(), 0);
+  Pshuflw(dst.fp(), dst.fp(), uint8_t{0});
+  Pshufd(dst.fp(), dst.fp(), uint8_t{0});
 }
 
 void LiftoffAssembler::emit_i32x4_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   Movd(dst.fp(), src.gp());
-  Pshufd(dst.fp(), dst.fp(), 0);
+  Pshufd(dst.fp(), dst.fp(), uint8_t{0});
 }
 
 void LiftoffAssembler::emit_i64x2_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   Pinsrd(dst.fp(), src.low_gp(), 0);
   Pinsrd(dst.fp(), src.high_gp(), 1);
-  Pshufd(dst.fp(), dst.fp(), 0x44);
+  Pshufd(dst.fp(), dst.fp(), uint8_t{0x44});
 }
 
 void LiftoffAssembler::emit_f32x4_splat(LiftoffRegister dst,
@@ -3145,7 +3148,7 @@ void LiftoffAssembler::emit_i64x2_gt_s(LiftoffRegister dst, LiftoffRegister lhs,
   } else if (CpuFeatures::IsSupported(SSE4_2)) {
     // 2. SSE4_2, dst == lhs.
     if (dst != lhs) {
-      movdqa(dst.fp(), lhs.fp());
+      movaps(dst.fp(), lhs.fp());
     }
     I64x2GtS(dst.fp(), dst.fp(), rhs.fp(), liftoff::kScratchDoubleReg);
   } else {
@@ -3174,7 +3177,7 @@ void LiftoffAssembler::emit_i64x2_ge_s(LiftoffRegister dst, LiftoffRegister lhs,
                                               LiftoffRegList::ForRegs(lhs));
       // macro-assembler uses kScratchDoubleReg, so don't use it.
       I64x2GeS(tmp.fp(), lhs.fp(), rhs.fp(), liftoff::kScratchDoubleReg);
-      movdqa(dst.fp(), tmp.fp());
+      movaps(dst.fp(), tmp.fp());
     } else {
       I64x2GeS(dst.fp(), lhs.fp(), rhs.fp(), liftoff::kScratchDoubleReg);
     }
@@ -3290,11 +3293,11 @@ void LiftoffAssembler::emit_s128_select(LiftoffRegister dst,
                                         LiftoffRegister src1,
                                         LiftoffRegister src2,
                                         LiftoffRegister mask) {
-  // Ensure that we don't overwrite any inputs with the movdqu below.
+  // Ensure that we don't overwrite any inputs with the movaps below.
   DCHECK_NE(dst, src1);
   DCHECK_NE(dst, src2);
   if (!CpuFeatures::IsSupported(AVX) && dst != mask) {
-    movdqu(dst.fp(), mask.fp());
+    movaps(dst.fp(), mask.fp());
     S128Select(dst.fp(), dst.fp(), src1.fp(), src2.fp(),
                liftoff::kScratchDoubleReg);
   } else {
@@ -3319,7 +3322,7 @@ void LiftoffAssembler::emit_v128_anytrue(LiftoffRegister dst,
   liftoff::EmitAnyTrue(this, dst, src);
 }
 
-void LiftoffAssembler::emit_v8x16_alltrue(LiftoffRegister dst,
+void LiftoffAssembler::emit_i8x16_alltrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
   liftoff::EmitAllTrue<&TurboAssembler::Pcmpeqb>(this, dst, src);
 }
@@ -3350,7 +3353,7 @@ void LiftoffAssembler::emit_i8x16_shl(LiftoffRegister dst, LiftoffRegister lhs,
     vpand(dst.fp(), lhs.fp(), liftoff::kScratchDoubleReg);
   } else {
     if (dst.fp() != lhs.fp()) movaps(dst.fp(), lhs.fp());
-    pand(dst.fp(), liftoff::kScratchDoubleReg);
+    andps(dst.fp(), liftoff::kScratchDoubleReg);
   }
   sub(tmp.gp(), Immediate(8));
   Movd(tmp_simd.fp(), tmp.gp());
@@ -3412,7 +3415,7 @@ void LiftoffAssembler::emit_i8x16_shri_u(LiftoffRegister dst,
   uint32_t mask = bmask << 24 | bmask << 16 | bmask << 8 | bmask;
   mov(tmp, mask);
   Movd(liftoff::kScratchDoubleReg, tmp);
-  Pshufd(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg, 0);
+  Pshufd(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg, uint8_t{0});
   Pand(dst.fp(), liftoff::kScratchDoubleReg);
 }
 
@@ -3457,68 +3460,6 @@ void LiftoffAssembler::emit_i8x16_sub_sat_u(LiftoffRegister dst,
                                                             rhs);
 }
 
-void LiftoffAssembler::emit_i8x16_mul(LiftoffRegister dst, LiftoffRegister lhs,
-                                      LiftoffRegister rhs) {
-  static constexpr RegClass tmp_rc = reg_class_for(kS128);
-  LiftoffRegister tmp =
-      GetUnusedRegister(tmp_rc, LiftoffRegList::ForRegs(dst, lhs, rhs));
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    // I16x8 view of I8x16
-    // left = AAaa AAaa ... AAaa AAaa
-    // right= BBbb BBbb ... BBbb BBbb
-    // t = 00AA 00AA ... 00AA 00AA
-    // s = 00BB 00BB ... 00BB 00BB
-    vpsrlw(tmp.fp(), lhs.fp(), 8);
-    vpsrlw(liftoff::kScratchDoubleReg, rhs.fp(), 8);
-    // t = I16x8Mul(t0, t1)
-    //    => __PP __PP ...  __PP  __PP
-    vpmullw(tmp.fp(), tmp.fp(), liftoff::kScratchDoubleReg);
-    // s = left * 256
-    vpsllw(liftoff::kScratchDoubleReg, lhs.fp(), 8);
-    // dst = I16x8Mul(left * 256, right)
-    //    => pp__ pp__ ...  pp__  pp__
-    vpmullw(dst.fp(), liftoff::kScratchDoubleReg, rhs.fp());
-    // dst = I16x8Shr(dst, 8)
-    //    => 00pp 00pp ...  00pp  00pp
-    vpsrlw(dst.fp(), dst.fp(), 8);
-    // t = I16x8Shl(t, 8)
-    //    => PP00 PP00 ...  PP00  PP00
-    vpsllw(tmp.fp(), tmp.fp(), 8);
-    // dst = I16x8Or(dst, t)
-    //    => PPpp PPpp ...  PPpp  PPpp
-    vpor(dst.fp(), dst.fp(), tmp.fp());
-  } else {
-    if (dst.fp() != lhs.fp()) movaps(dst.fp(), lhs.fp());
-    // I16x8 view of I8x16
-    // left = AAaa AAaa ... AAaa AAaa
-    // right= BBbb BBbb ... BBbb BBbb
-    // t = 00AA 00AA ... 00AA 00AA
-    // s = 00BB 00BB ... 00BB 00BB
-    movaps(tmp.fp(), dst.fp());
-    movaps(liftoff::kScratchDoubleReg, rhs.fp());
-    psrlw(tmp.fp(), 8);
-    psrlw(liftoff::kScratchDoubleReg, 8);
-    // dst = left * 256
-    psllw(dst.fp(), 8);
-    // t = I16x8Mul(t, s)
-    //    => __PP __PP ...  __PP  __PP
-    pmullw(tmp.fp(), liftoff::kScratchDoubleReg);
-    // dst = I16x8Mul(left * 256, right)
-    //    => pp__ pp__ ...  pp__  pp__
-    pmullw(dst.fp(), rhs.fp());
-    // t = I16x8Shl(t, 8)
-    //    => PP00 PP00 ...  PP00  PP00
-    psllw(tmp.fp(), 8);
-    // dst = I16x8Shr(dst, 8)
-    //    => 00pp 00pp ...  00pp  00pp
-    psrlw(dst.fp(), 8);
-    // dst = I16x8Or(dst, t)
-    //    => PPpp PPpp ...  PPpp  PPpp
-    por(dst.fp(), tmp.fp());
-  }
-}
-
 void LiftoffAssembler::emit_i8x16_min_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
@@ -3558,7 +3499,7 @@ void LiftoffAssembler::emit_i16x8_neg(LiftoffRegister dst,
   }
 }
 
-void LiftoffAssembler::emit_v16x8_alltrue(LiftoffRegister dst,
+void LiftoffAssembler::emit_i16x8_alltrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
   liftoff::EmitAllTrue<&TurboAssembler::Pcmpeqw>(this, dst, src);
 }
@@ -3699,29 +3640,27 @@ void LiftoffAssembler::emit_i16x8_extadd_pairwise_i8x16_u(LiftoffRegister dst,
 void LiftoffAssembler::emit_i16x8_extmul_low_i8x16_s(LiftoffRegister dst,
                                                      LiftoffRegister src1,
                                                      LiftoffRegister src2) {
-  I16x8ExtMul(dst.fp(), src1.fp(), src2.fp(), liftoff::kScratchDoubleReg,
-              /*low=*/true, /*is_signed=*/true);
+  I16x8ExtMulLow(dst.fp(), src1.fp(), src2.fp(), liftoff::kScratchDoubleReg,
+                 /*is_signed=*/true);
 }
 
 void LiftoffAssembler::emit_i16x8_extmul_low_i8x16_u(LiftoffRegister dst,
                                                      LiftoffRegister src1,
                                                      LiftoffRegister src2) {
-  I16x8ExtMul(dst.fp(), src1.fp(), src2.fp(), liftoff::kScratchDoubleReg,
-              /*low=*/true, /*is_signed=*/false);
+  I16x8ExtMulLow(dst.fp(), src1.fp(), src2.fp(), liftoff::kScratchDoubleReg,
+                 /*is_signed=*/false);
 }
 
 void LiftoffAssembler::emit_i16x8_extmul_high_i8x16_s(LiftoffRegister dst,
                                                       LiftoffRegister src1,
                                                       LiftoffRegister src2) {
-  I16x8ExtMul(dst.fp(), src1.fp(), src2.fp(), liftoff::kScratchDoubleReg,
-              /*low=*/false, /*is_signed=*/true);
+  I16x8ExtMulHighS(dst.fp(), src1.fp(), src2.fp(), liftoff::kScratchDoubleReg);
 }
 
 void LiftoffAssembler::emit_i16x8_extmul_high_i8x16_u(LiftoffRegister dst,
                                                       LiftoffRegister src1,
                                                       LiftoffRegister src2) {
-  I16x8ExtMul(dst.fp(), src1.fp(), src2.fp(), liftoff::kScratchDoubleReg,
-              /*low=*/false, /*is_signed=*/false);
+  I16x8ExtMulHighU(dst.fp(), src1.fp(), src2.fp(), liftoff::kScratchDoubleReg);
 }
 
 void LiftoffAssembler::emit_i16x8_q15mulr_sat_s(LiftoffRegister dst,
@@ -3741,7 +3680,7 @@ void LiftoffAssembler::emit_i32x4_neg(LiftoffRegister dst,
   }
 }
 
-void LiftoffAssembler::emit_v32x4_alltrue(LiftoffRegister dst,
+void LiftoffAssembler::emit_i32x4_alltrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
   liftoff::EmitAllTrue<&TurboAssembler::Pcmpeqd>(this, dst, src);
 }
@@ -3922,7 +3861,7 @@ void LiftoffAssembler::emit_i64x2_neg(LiftoffRegister dst,
   }
 }
 
-void LiftoffAssembler::emit_v64x2_alltrue(LiftoffRegister dst,
+void LiftoffAssembler::emit_i64x2_alltrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
   liftoff::EmitAllTrue<&TurboAssembler::Pcmpeqq>(this, dst, src, SSE4_1);
 }
@@ -4193,7 +4132,7 @@ void LiftoffAssembler::emit_f32x4_min(LiftoffRegister dst, LiftoffRegister lhs,
   Cmpunordps(dst.fp(), dst.fp(), liftoff::kScratchDoubleReg);
   Orps(liftoff::kScratchDoubleReg, dst.fp());
   Psrld(dst.fp(), dst.fp(), byte{10});
-  Andnps(dst.fp(), liftoff::kScratchDoubleReg);
+  Andnps(dst.fp(), dst.fp(), liftoff::kScratchDoubleReg);
 }
 
 void LiftoffAssembler::emit_f32x4_max(LiftoffRegister dst, LiftoffRegister lhs,
@@ -4224,7 +4163,7 @@ void LiftoffAssembler::emit_f32x4_max(LiftoffRegister dst, LiftoffRegister lhs,
   // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
   Cmpunordps(dst.fp(), dst.fp(), liftoff::kScratchDoubleReg);
   Psrld(dst.fp(), dst.fp(), byte{10});
-  Andnps(dst.fp(), liftoff::kScratchDoubleReg);
+  Andnps(dst.fp(), dst.fp(), liftoff::kScratchDoubleReg);
 }
 
 void LiftoffAssembler::emit_f32x4_pmin(LiftoffRegister dst, LiftoffRegister lhs,
@@ -4424,7 +4363,7 @@ void LiftoffAssembler::emit_i32x4_sconvert_f32x4(LiftoffRegister dst,
     movaps(liftoff::kScratchDoubleReg, src.fp());
     cmpeqps(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg);
     if (dst.fp() != src.fp()) movaps(dst.fp(), src.fp());
-    pand(dst.fp(), liftoff::kScratchDoubleReg);
+    andps(dst.fp(), liftoff::kScratchDoubleReg);
   }
   // Set top bit if >= 0 (but not -0.0!).
   Pxor(liftoff::kScratchDoubleReg, dst.fp());
@@ -4913,7 +4852,7 @@ void LiftoffAssembler::CallC(const ValueKindSig* sig,
   }
 
   // Load potential output value from the buffer on the stack.
-  if (out_argument_kind != kStmt) {
+  if (out_argument_kind != kVoid) {
     liftoff::Load(this, *next_result_reg, esp, 0, out_argument_kind);
   }
 
@@ -4967,36 +4906,49 @@ void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
   add(esp, Immediate(size));
 }
 
-void LiftoffStackSlots::Construct() {
+void LiftoffStackSlots::Construct(int param_slots) {
+  DCHECK_LT(0, slots_.size());
+  SortInPushOrder();
+  int last_stack_slot = param_slots;
   for (auto& slot : slots_) {
+    const int stack_slot = slot.dst_slot_;
+    int stack_decrement = (last_stack_slot - stack_slot) * kSystemPointerSize;
+    DCHECK_LT(0, stack_decrement);
+    last_stack_slot = stack_slot;
     const LiftoffAssembler::VarState& src = slot.src_;
     switch (src.loc()) {
       case LiftoffAssembler::VarState::kStack:
         // The combination of AllocateStackSpace and 2 movdqu is usually smaller
         // in code size than doing 4 pushes.
         if (src.kind() == kS128) {
-          asm_->AllocateStackSpace(sizeof(double) * 2);
+          asm_->AllocateStackSpace(stack_decrement);
           asm_->movdqu(liftoff::kScratchDoubleReg,
                        liftoff::GetStackSlot(slot.src_offset_));
           asm_->movdqu(Operand(esp, 0), liftoff::kScratchDoubleReg);
           break;
         }
         if (src.kind() == kF64) {
+          asm_->AllocateStackSpace(stack_decrement - kDoubleSize);
           DCHECK_EQ(kLowWord, slot.half_);
           asm_->push(liftoff::GetHalfStackSlot(slot.src_offset_, kHighWord));
+          stack_decrement = kSystemPointerSize;
         }
+        asm_->AllocateStackSpace(stack_decrement - kSystemPointerSize);
         asm_->push(liftoff::GetHalfStackSlot(slot.src_offset_, slot.half_));
         break;
       case LiftoffAssembler::VarState::kRegister:
         if (src.kind() == kI64) {
           liftoff::push(
               asm_, slot.half_ == kLowWord ? src.reg().low() : src.reg().high(),
-              kI32);
+              kI32, stack_decrement - kSystemPointerSize);
         } else {
-          liftoff::push(asm_, src.reg(), src.kind());
+          int pushed_bytes = SlotSizeInBytes(slot);
+          liftoff::push(asm_, src.reg(), src.kind(),
+                        stack_decrement - pushed_bytes);
         }
         break;
       case LiftoffAssembler::VarState::kIntConst:
+        asm_->AllocateStackSpace(stack_decrement - kSystemPointerSize);
         // The high word is the sign extension of the low word.
         asm_->push(Immediate(slot.half_ == kLowWord ? src.i32_const()
                                                     : src.i32_const() >> 31));

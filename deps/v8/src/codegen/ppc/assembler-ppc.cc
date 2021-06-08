@@ -54,6 +54,10 @@ static unsigned CpuFeaturesImpliedByCompiler() {
   return answer;
 }
 
+bool CpuFeatures::SupportsWasmSimd128() {
+  return CpuFeatures::IsSupported(SIMD);
+}
+
 void CpuFeatures::ProbeImpl(bool cross_compile) {
   supported_ |= CpuFeaturesImpliedByCompiler();
   icache_line_size_ = 128;
@@ -67,33 +71,42 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 #ifndef USE_SIMULATOR
   // Probe for additional features at runtime.
   base::CPU cpu;
-  if (cpu.part() == base::CPU::PPC_POWER9) {
+  if (cpu.part() == base::CPU::kPPCPower9 ||
+      cpu.part() == base::CPU::kPPCPower10) {
     supported_ |= (1u << MODULO);
   }
 #if V8_TARGET_ARCH_PPC64
-  if (cpu.part() == base::CPU::PPC_POWER8 ||
-      cpu.part() == base::CPU::PPC_POWER9) {
+  if (cpu.part() == base::CPU::kPPCPower8 ||
+      cpu.part() == base::CPU::kPPCPower9 ||
+      cpu.part() == base::CPU::kPPCPower10) {
     supported_ |= (1u << FPR_GPR_MOV);
   }
+  // V8 PPC Simd implementations need P9 at a minimum.
+  if (cpu.part() == base::CPU::kPPCPower9 ||
+      cpu.part() == base::CPU::kPPCPower10) {
+    supported_ |= (1u << SIMD);
+  }
 #endif
-  if (cpu.part() == base::CPU::PPC_POWER6 ||
-      cpu.part() == base::CPU::PPC_POWER7 ||
-      cpu.part() == base::CPU::PPC_POWER8 ||
-      cpu.part() == base::CPU::PPC_POWER9) {
+  if (cpu.part() == base::CPU::kPPCPower6 ||
+      cpu.part() == base::CPU::kPPCPower7 ||
+      cpu.part() == base::CPU::kPPCPower8 ||
+      cpu.part() == base::CPU::kPPCPower9 ||
+      cpu.part() == base::CPU::kPPCPower10) {
     supported_ |= (1u << LWSYNC);
   }
-  if (cpu.part() == base::CPU::PPC_POWER7 ||
-      cpu.part() == base::CPU::PPC_POWER8 ||
-      cpu.part() == base::CPU::PPC_POWER9) {
+  if (cpu.part() == base::CPU::kPPCPower7 ||
+      cpu.part() == base::CPU::kPPCPower8 ||
+      cpu.part() == base::CPU::kPPCPower9 ||
+      cpu.part() == base::CPU::kPPCPower10) {
     supported_ |= (1u << ISELECT);
     supported_ |= (1u << VSX);
   }
 #if V8_OS_LINUX
-  if (!(cpu.part() == base::CPU::PPC_G5 || cpu.part() == base::CPU::PPC_G4)) {
+  if (!(cpu.part() == base::CPU::kPPCG5 || cpu.part() == base::CPU::kPPCG4)) {
     // Assume support
     supported_ |= (1u << FPU);
   }
-  if (cpu.icache_line_size() != base::CPU::UNKNOWN_CACHE_LINE_SIZE) {
+  if (cpu.icache_line_size() != base::CPU::kUnknownCacheLineSize) {
     icache_line_size_ = cpu.icache_line_size();
   }
 #elif V8_OS_AIX
@@ -106,6 +119,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   supported_ |= (1u << ISELECT);
   supported_ |= (1u << VSX);
   supported_ |= (1u << MODULO);
+  supported_ |= (1u << SIMD);
 #if V8_TARGET_ARCH_PPC64
   supported_ |= (1u << FPR_GPR_MOV);
 #endif
@@ -1475,7 +1489,7 @@ void Assembler::mcrfs(CRegister cr, FPSCRBit bit) {
 
 void Assembler::mfcr(Register dst) { emit(EXT2 | MFCR | dst.code() * B21); }
 
-void Assembler::mtcrf(unsigned char FXM, Register src) {
+void Assembler::mtcrf(Register src, uint8_t FXM) {
   emit(MTCRF | src.code() * B21 | FXM * B12);
 }
 #if V8_TARGET_ARCH_PPC64
@@ -1868,6 +1882,12 @@ void Assembler::xxspltib(const Simd128Register rt, const Operand& imm) {
   int TX = 1;
   CHECK(is_uint8(imm.immediate()));
   emit(XXSPLTIB | rt.code() * B21 | imm.immediate() * B11 | TX);
+}
+
+void Assembler::xxbrq(const Simd128Register rt, const Simd128Register rb) {
+  int BX = 1;
+  int TX = 1;
+  emit(XXBRQ | rt.code() * B21 | 31 * B16 | rb.code() * B11 | BX * B1 | TX);
 }
 
 // Pseudo instructions.

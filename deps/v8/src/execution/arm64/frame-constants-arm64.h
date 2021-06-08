@@ -7,6 +7,9 @@
 
 #include "src/base/bits.h"
 #include "src/base/macros.h"
+#include "src/codegen/arm64/register-arm64.h"
+#include "src/codegen/register.h"
+#include "src/codegen/reglist.h"
 #include "src/common/globals.h"
 #include "src/execution/frame-constants.h"
 
@@ -93,15 +96,23 @@ class WasmCompileLazyFrameConstants : public TypedFrameConstants {
 // registers (see liftoff-assembler-defs.h).
 class WasmDebugBreakFrameConstants : public TypedFrameConstants {
  public:
-  // {x0 .. x28} \ {x16, x17, x18, x26, x27}
-  static constexpr uint32_t kPushedGpRegs =
-      (1 << 29) - 1 - (1 << 16) - (1 << 17) - (1 << 18) - (1 << 26) - (1 << 27);
-  // {d0 .. d29}; {d15} is not used, but we still keep it for alignment reasons
-  // (the frame size needs to be a multiple of 16).
-  static constexpr uint32_t kPushedFpRegs = (1 << 30) - 1;
+  // x16: ip0, x17: ip1, x18: platform register, x26: root, x28: base, x29: fp,
+  // x30: lr, x31: xzr.
+  static constexpr RegList kPushedGpRegs = CPURegister::ListOf(
+      x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x19,
+      x20, x21, x22, x23, x24, x25, x27);
+
+  // We push FpRegs as 128-bit SIMD registers, so 16-byte frame alignment
+  // is guaranteed regardless of register count.
+  static constexpr RegList kPushedFpRegs = CPURegister::ListOf(
+      d0, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12, d13, d14, d16, d17,
+      d18, d19, d20, d21, d22, d23, d24, d25, d26, d27, d28, d29);
 
   static constexpr int kNumPushedGpRegisters =
       base::bits::CountPopulation(kPushedGpRegs);
+  static_assert(kNumPushedGpRegisters % 2 == 0,
+                "stack frames need to be 16-byte aligned");
+
   static constexpr int kNumPushedFpRegisters =
       base::bits::CountPopulation(kPushedFpRegs);
 

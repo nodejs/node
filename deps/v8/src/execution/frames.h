@@ -96,13 +96,13 @@ class StackHandler {
   V(ENTRY, EntryFrame)                                                    \
   V(CONSTRUCT_ENTRY, ConstructEntryFrame)                                 \
   V(EXIT, ExitFrame)                                                      \
-  V(WASM, WasmFrame)                                                      \
-  V(WASM_TO_JS, WasmToJsFrame)                                            \
-  V(JS_TO_WASM, JsToWasmFrame)                                            \
-  V(WASM_DEBUG_BREAK, WasmDebugBreakFrame)                                \
-  V(C_WASM_ENTRY, CWasmEntryFrame)                                        \
-  V(WASM_EXIT, WasmExitFrame)                                             \
-  V(WASM_COMPILE_LAZY, WasmCompileLazyFrame)                              \
+  IF_WASM(V, WASM, WasmFrame)                                             \
+  IF_WASM(V, WASM_TO_JS, WasmToJsFrame)                                   \
+  IF_WASM(V, JS_TO_WASM, JsToWasmFrame)                                   \
+  IF_WASM(V, WASM_DEBUG_BREAK, WasmDebugBreakFrame)                       \
+  IF_WASM(V, C_WASM_ENTRY, CWasmEntryFrame)                               \
+  IF_WASM(V, WASM_EXIT, WasmExitFrame)                                    \
+  IF_WASM(V, WASM_COMPILE_LAZY, WasmCompileLazyFrame)                     \
   V(INTERPRETED, InterpretedFrame)                                        \
   V(BASELINE, BaselineFrame)                                              \
   V(OPTIMIZED, OptimizedFrame)                                            \
@@ -216,9 +216,14 @@ class StackFrame {
   }
   bool is_interpreted() const { return type() == INTERPRETED; }
   bool is_baseline() const { return type() == BASELINE; }
+#if V8_ENABLE_WEBASSEMBLY
   bool is_wasm() const { return this->type() == WASM; }
+  bool is_c_wasm_entry() const { return type() == C_WASM_ENTRY; }
   bool is_wasm_compile_lazy() const { return type() == WASM_COMPILE_LAZY; }
   bool is_wasm_debug_break() const { return type() == WASM_DEBUG_BREAK; }
+  bool is_wasm_to_js() const { return type() == WASM_TO_JS; }
+  bool is_js_to_wasm() const { return type() == JS_TO_WASM; }
+#endif  // V8_ENABLE_WEBASSEMBLY
   bool is_builtin() const { return type() == BUILTIN; }
   bool is_internal() const { return type() == INTERNAL; }
   bool is_builtin_continuation() const {
@@ -239,8 +244,6 @@ class StackFrame {
     return t >= INTERPRETED && t <= OPTIMIZED;
   }
   bool is_java_script() const { return IsJavaScript(type()); }
-  bool is_wasm_to_js() const { return type() == WASM_TO_JS; }
-  bool is_js_to_wasm() const { return type() == JS_TO_WASM; }
 
   // Accessors.
   Address sp() const { return state_.sp; }
@@ -283,8 +286,8 @@ class StackFrame {
   V8_EXPORT_PRIVATE Code LookupCode() const;
 
   virtual void Iterate(RootVisitor* v) const = 0;
-  static void IteratePc(RootVisitor* v, Address* pc_address,
-                        Address* constant_pool_address, Code holder);
+  void IteratePc(RootVisitor* v, Address* pc_address,
+                 Address* constant_pool_address, Code holder) const;
 
   // Sets a callback function for return-address rewriting profilers
   // to resolve the location of a return address to the location of the
@@ -348,7 +351,7 @@ class V8_EXPORT_PRIVATE FrameSummary {
 // Subclasses for the different summary kinds:
 #define FRAME_SUMMARY_VARIANTS(F)                                          \
   F(JAVA_SCRIPT, JavaScriptFrameSummary, java_script_summary_, JavaScript) \
-  F(WASM, WasmFrameSummary, wasm_summary_, Wasm)
+  IF_WASM(F, WASM, WasmFrameSummary, wasm_summary_, Wasm)
 
 #define FRAME_SUMMARY_KIND(kind, type, field, desc) kind,
   enum Kind { FRAME_SUMMARY_VARIANTS(FRAME_SUMMARY_KIND) };
@@ -398,6 +401,7 @@ class V8_EXPORT_PRIVATE FrameSummary {
     Handle<FixedArray> parameters_;
   };
 
+#if V8_ENABLE_WEBASSEMBLY
   class WasmFrameSummary : public FrameSummaryBase {
    public:
     WasmFrameSummary(Isolate*, Handle<WasmInstanceObject>, wasm::WasmCode*,
@@ -424,6 +428,7 @@ class V8_EXPORT_PRIVATE FrameSummary {
     wasm::WasmCode* const code_;
     int code_offset_;
   };
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 #define FRAME_SUMMARY_CONS(kind, type, field, desc) \
   FrameSummary(type summ) : field(summ) {}  // NOLINT
@@ -943,6 +948,7 @@ class BuiltinFrame final : public TypedFrameWithJSLinkage {
   friend class StackFrameIteratorBase;
 };
 
+#if V8_ENABLE_WEBASSEMBLY
 class WasmFrame : public TypedFrame {
  public:
   Type type() const override { return WASM; }
@@ -1074,6 +1080,7 @@ class WasmCompileLazyFrame : public TypedFrame {
  private:
   friend class StackFrameIteratorBase;
 };
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 class InternalFrame : public TypedFrame {
  public:
@@ -1266,7 +1273,9 @@ class V8_EXPORT_PRIVATE StackTraceFrameIterator {
   inline CommonFrame* Reframe();
 
   inline bool is_javascript() const;
+#if V8_ENABLE_WEBASSEMBLY
   inline bool is_wasm() const;
+#endif  // V8_ENABLE_WEBASSEMBLY
   inline JavaScriptFrame* javascript_frame() const;
 
  private:
@@ -1353,6 +1362,8 @@ class UnoptimizedFrameInfo {
     return {parameters_count_with_receiver, locals_count, false, true,
             FrameInfoKind::kConservative};
   }
+
+  static uint32_t GetStackSizeForAdditionalArguments(int parameters_count);
 
   uint32_t register_stack_slot_count() const {
     return register_stack_slot_count_;

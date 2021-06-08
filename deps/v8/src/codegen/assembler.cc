@@ -73,6 +73,12 @@ AssemblerOptions AssemblerOptions::Default(Isolate* isolate) {
   DCHECK_IMPLIES(code_range.begin() != kNullAddress, !code_range.is_empty());
   options.code_range_start = code_range.begin();
 #endif
+  options.short_builtin_calls =
+      isolate->is_short_builtin_calls_enabled() &&
+      !generating_embedded_builtin &&
+      (options.code_range_start != kNullAddress) &&
+      // Serialization of RUNTIME_ENTRY reloc infos is not supported yet.
+      !serializer;
   return options;
 }
 

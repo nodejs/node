@@ -16,10 +16,7 @@ v8_executable("cctest") {
 
   sources = [ "cctest.cc" ]
 
-  deps = [
-    ":cctest_sources",
-    "../..:v8_wrappers",
-  ]
+  deps = [ ":cctest_sources" ]
 
   data_deps = [ "../../tools:v8_testrunner" ]
 
@@ -60,7 +57,11 @@ v8_header_set("cctest_headers") {
     "../..:internal_config_base",
   ]
 
-  deps = [ "../..:v8_config_headers" ]
+  deps = [
+    "../..:v8_internal_headers",
+    "../..:v8_libbase",
+    "../..:v8_libplatform",
+  ]
 
   sources = [ "cctest.h" ]
 }
@@ -78,9 +79,6 @@ v8_source_set("cctest_sources") {
     ### gcmole(all) ###
     "../common/assembler-tester.h",
     "../common/flag-utils.h",
-    "../common/wasm/flag-utils.h",
-    "../common/wasm/test-signatures.h",
-    "../common/wasm/wasm-macro-gen.h",
     "cctest-utils.h",
     "collector.h",
     "compiler/c-signature.h",
@@ -109,7 +107,6 @@ v8_source_set("cctest_sources") {
     "compiler/test-linkage.cc",
     "compiler/test-loop-analysis.cc",
     "compiler/test-machine-operator-reducer.cc",
-    "compiler/test-multiple-return.cc",
     "compiler/test-node.cc",
     "compiler/test-operator.cc",
     "compiler/test-representation-change.cc",
@@ -124,7 +121,6 @@ v8_source_set("cctest_sources") {
     "compiler/test-run-jsops.cc",
     "compiler/test-run-load-store.cc",
     "compiler/test-run-machops.cc",
-    "compiler/test-run-native-calls.cc",
     "compiler/test-run-retpoline.cc",
     "compiler/test-run-stackcheck.cc",
     "compiler/test-run-tail-calls.cc",
@@ -198,12 +194,10 @@ v8_source_set("cctest_sources") {
     "test-api-interceptors.cc",
     "test-api-stack-traces.cc",
     "test-api-typed-array.cc",
-    "test-api-wasm.cc",
     "test-api.cc",
     "test-api.h",
     "test-array-list.cc",
     "test-atomicops.cc",
-    "test-backing-store.cc",
     "test-bignum-dtoa.cc",
     "test-bignum.cc",
     "test-bit-vector.cc",
@@ -251,7 +245,6 @@ v8_source_set("cctest_sources") {
     "test-inobject-slack-tracking.cc",
     "test-inspector.cc",
     "test-intl.cc",
-    "test-js-to-wasm.cc",
     "test-js-weak-refs.cc",
     "test-liveedit.cc",
     "test-local-handles.cc",
@@ -276,6 +269,8 @@ v8_source_set("cctest_sources") {
     "test-smi-lexicographic-compare.cc",
     "test-strings.cc",
     "test-strtod.cc",
+    "test-swiss-name-dictionary-csa.cc",
+    "test-swiss-name-dictionary-infra.cc",
     "test-swiss-name-dictionary.cc",
     "test-symbols.cc",
     "test-thread-termination.cc",
@@ -294,45 +289,12 @@ v8_source_set("cctest_sources") {
     "test-version.cc",
     "test-weakmaps.cc",
     "test-weaksets.cc",
+    "test-web-snapshots.cc",
     "torque/test-torque.cc",
     "trace-extension.cc",
     "trace-extension.h",
     "unicode-helpers.cc",
     "unicode-helpers.h",
-    "wasm/test-c-wasm-entry.cc",
-    "wasm/test-compilation-cache.cc",
-    "wasm/test-gc.cc",
-    "wasm/test-grow-memory.cc",
-    "wasm/test-jump-table-assembler.cc",
-    "wasm/test-liftoff-inspection.cc",
-    "wasm/test-run-wasm-64.cc",
-    "wasm/test-run-wasm-asmjs.cc",
-    "wasm/test-run-wasm-atomics.cc",
-    "wasm/test-run-wasm-atomics64.cc",
-    "wasm/test-run-wasm-bulk-memory.cc",
-    "wasm/test-run-wasm-exceptions.cc",
-    "wasm/test-run-wasm-interpreter.cc",
-    "wasm/test-run-wasm-js.cc",
-    "wasm/test-run-wasm-memory64.cc",
-    "wasm/test-run-wasm-module.cc",
-    "wasm/test-run-wasm-sign-extension.cc",
-    "wasm/test-run-wasm-simd-liftoff.cc",
-    "wasm/test-run-wasm-simd-scalar-lowering.cc",
-    "wasm/test-run-wasm-simd.cc",
-    "wasm/test-run-wasm-wrappers.cc",
-    "wasm/test-run-wasm.cc",
-    "wasm/test-streaming-compilation.cc",
-    "wasm/test-wasm-breakpoints.cc",
-    "wasm/test-wasm-codegen.cc",
-    "wasm/test-wasm-import-wrapper-cache.cc",
-    "wasm/test-wasm-metrics.cc",
-    "wasm/test-wasm-serialization.cc",
-    "wasm/test-wasm-shared-engine.cc",
-    "wasm/test-wasm-stack.cc",
-    "wasm/test-wasm-trap-position.cc",
-    "wasm/wasm-atomics-utils.h",
-    "wasm/wasm-run-utils.cc",
-    "wasm/wasm-run-utils.h",
   ]
 
   if (v8_current_cpu == "arm") {
@@ -441,11 +403,62 @@ v8_source_set("cctest_sources") {
     "../..:v8_for_testing",
     "../..:v8_libbase",
     "../..:v8_libplatform",
-    "../..:v8_wrappers",
-    "../..:wasm_test_common",
     "../../tools/debug_helper:v8_debug_helper",
     "//build/win:default_exe_manifest",
   ]
+
+  if (v8_enable_webassembly) {
+    sources += [
+      "../common/wasm/flag-utils.h",
+      "../common/wasm/test-signatures.h",
+      "../common/wasm/wasm-macro-gen.h",
+      "compiler/test-multiple-return.cc",
+
+      # test-run-native-calls uses wasm's LinkageAllocator.
+      "compiler/test-run-native-calls.cc",
+      "test-api-wasm.cc",
+      "test-js-to-wasm.cc",
+      "wasm/test-backing-store.cc",
+      "wasm/test-c-wasm-entry.cc",
+      "wasm/test-compilation-cache.cc",
+      "wasm/test-gc.cc",
+      "wasm/test-grow-memory.cc",
+      "wasm/test-jump-table-assembler.cc",
+      "wasm/test-liftoff-inspection.cc",
+      "wasm/test-run-wasm-64.cc",
+      "wasm/test-run-wasm-asmjs.cc",
+      "wasm/test-run-wasm-atomics.cc",
+      "wasm/test-run-wasm-atomics64.cc",
+      "wasm/test-run-wasm-bulk-memory.cc",
+      "wasm/test-run-wasm-exceptions.cc",
+      "wasm/test-run-wasm-interpreter.cc",
+      "wasm/test-run-wasm-js.cc",
+      "wasm/test-run-wasm-memory64.cc",
+      "wasm/test-run-wasm-module.cc",
+      "wasm/test-run-wasm-relaxed-simd.cc",
+      "wasm/test-run-wasm-sign-extension.cc",
+      "wasm/test-run-wasm-simd-liftoff.cc",
+      "wasm/test-run-wasm-simd-scalar-lowering.cc",
+      "wasm/test-run-wasm-simd.cc",
+      "wasm/test-run-wasm-wrappers.cc",
+      "wasm/test-run-wasm.cc",
+      "wasm/test-streaming-compilation.cc",
+      "wasm/test-wasm-breakpoints.cc",
+      "wasm/test-wasm-codegen.cc",
+      "wasm/test-wasm-import-wrapper-cache.cc",
+      "wasm/test-wasm-metrics.cc",
+      "wasm/test-wasm-serialization.cc",
+      "wasm/test-wasm-shared-engine.cc",
+      "wasm/test-wasm-stack.cc",
+      "wasm/test-wasm-trap-position.cc",
+      "wasm/wasm-atomics-utils.h",
+      "wasm/wasm-run-utils.cc",
+      "wasm/wasm-run-utils.h",
+      "wasm/wasm-simd-utils.cc",
+      "wasm/wasm-simd-utils.h",
+    ]
+    public_deps += [ "../..:wasm_test_common" ]
+  }
 
   defines = []
   deps = [
@@ -516,7 +529,6 @@ v8_executable("generate-bytecode-expectations") {
     "../..:v8",
     "../..:v8_libbase",
     "../..:v8_libplatform",
-    "../..:v8_wrappers",
     "//build/win:default_exe_manifest",
   ]
 

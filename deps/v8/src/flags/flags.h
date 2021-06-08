@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "src/common/globals.h"
-#include "src/wasm/wasm-limits.h"
 
 namespace v8 {
 namespace internal {

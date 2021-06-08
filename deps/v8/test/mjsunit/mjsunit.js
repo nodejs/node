@@ -193,6 +193,9 @@ var isInterpreted;
 // Returns true if given function in baseline.
 var isBaseline;
 
+// Returns true if given function in unoptimized (interpreted or baseline).
+var isUnoptimized;
+
 // Returns true if given function is optimized.
 var isOptimized;
 
@@ -681,8 +684,7 @@ var prettyPrinted;
       return;
     }
     var is_optimized = (opt_status & V8OptimizationStatus.kOptimized) !== 0;
-    var is_baseline = (opt_status & V8OptimizationStatus.kBaseline) !== 0;
-    assertFalse(is_optimized && !is_baseline, name_opt);
+    assertFalse(is_optimized, name_opt);
   }
 
   assertOptimized = function assertOptimized(
@@ -743,6 +745,10 @@ var prettyPrinted;
                "not a function");
     return (opt_status & V8OptimizationStatus.kOptimized) === 0 &&
            (opt_status & V8OptimizationStatus.kBaseline) !== 0;
+  }
+
+  isUnoptimized = function isUnoptimized(fun) {
+    return isInterpreted(fun) || isBaseline(fun);
   }
 
   isOptimized = function isOptimized(fun) {

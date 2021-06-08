@@ -7,10 +7,27 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
 
 <head>
   <meta charset="utf-8">
-  <title>V8 Runtime Stats Komparator</title>
+  <title>V8 Runtime Call Stats Komparator</title>
+  <link rel="stylesheet" type="text/css" href="system-analyzer/index.css">
   <style>
     body {
       font-family: arial;
+    }
+
+    .panel {
+      display: none;
+    }
+
+    .loaded .panel {
+      display: block;
+    }
+
+    .panel.alwaysVisible {
+      display: inherit !important;
+    }
+
+    .error #inputs {
+      background-color: var(--error-color);
     }
 
     table {
@@ -30,12 +47,8 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
 
     .inline {
       display: inline-block;
-      vertical-align: top;
-    }
-
-    h2,
-    h3 {
-      margin-bottom: 0px;
+      vertical-align: middle;
+      margin-right: 10px;
     }
 
     .hidden {
@@ -44,6 +57,15 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
 
     .view {
       display: table;
+    }
+
+    .panel-group {
+      display: grid;
+      align-content: center;
+      grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
+      grid-auto-flow: row dense;
+      grid-gap: 10px;
+      margin-top: 10px;
     }
 
     .column {
@@ -73,11 +95,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     }
 
     .list tr:nth-child(even) {
-      background-color: #EFEFEF;
-    }
-
-    .list tr:nth-child(even).selected {
-      background-color: #DDD;
+      background-color: rgba(0.5, 0.5, 0.5, 0.1);
     }
 
     .list tr.child {
@@ -100,23 +118,17 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       font-weight: bold
     }
 
-    .list tr.parent {
-      background-color: #FFF;
-    }
-
-    .list tr.parent.selected {
-      background-color: #DDD;
-    }
-
+    .list tr.parent.selected,
+    .list tr:nth-child(even).selected,
     tr.selected {
-      background-color: #DDD;
+      background-color: rgba(0.5, 0.5, 0.5, 0.1);
     }
 
     .codeSearch {
       display: block-inline;
       float: right;
       border-radius: 5px;
-      background-color: #EEE;
+      background-color: #333;
       width: 1em;
       text-align: center;
     }
@@ -155,10 +167,6 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       width: auto;
     }
 
-    .compareSelector {
-      padding-bottom: 20px;
-    }
-
     .pageDetailTable tbody {
       cursor: pointer
     }
@@ -173,7 +181,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       box-shadow: -2px 10px 44px -10px #000;
       border-radius: 5px;
       z-index: 1;
-      background-color: #FFF;
+      background-color: var(--surface-color);
       display: none;
       white-space: nowrap;
     }
@@ -184,13 +192,14 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       text-align: right;
       margin: 10px;
     }
+
     #popover td {
       padding: 3px 0px 3px 5px;
       white-space: nowrap;
     }
 
     .popoverArrow {
-      background-color: #FFF;
+      background-color: var(--surface-color);
       position: absolute;
       width: 30px;
       height: 30px;
@@ -218,14 +227,11 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     #popover .compare .version {
       padding-left: 10px;
     }
-    .graph,
-    .graph .content {
-      width: 100%;
-    }
 
     .diff .hideDiff {
       display: none;
     }
+
     .noDiff .hideNoDiff {
       display: none;
     }
@@ -233,11 +239,13 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
   <script src="https://www.gstatic.com/charts/loader.js"></script>
   <script>
     "use strict"
-    google.charts.load('current', {packages: ['corechart']});
+    google.charts.load('current', {
+      packages: ['corechart']
+    });
 
     // Did anybody say monkeypatching?
     if (!NodeList.prototype.forEach) {
-      NodeList.prototype.forEach = function(func) {
+      NodeList.prototype.forEach = function (func) {
         for (let i = 0; i < this.length; i++) {
           func(this[i]);
         }
@@ -249,17 +257,18 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     let selectedPage;
     let baselineVersion;
     let selectedEntry;
+    let sortByLabel = false;
 
     // Marker to programatically replace the defaultData.
-    let defaultData = /*default-data-start*/undefined/*default-data-end*/;
+    let defaultData = /*default-data-start*/ undefined /*default-data-end*/;
 
     function initialize() {
       // Initialize the stats table and toggle lists.
       let original = $("column");
-      let view = document.createElement('div');
-      view.id = 'view';
+      let viewBody = $("view").querySelector('.panelBody');
+      removeAllChildren(viewBody);
       let i = 0;
-      versions.forEach((version) =>  {
+      versions.forEach((version) => {
         if (!version.enabled) return;
         // add column
         let column = original.cloneNode(true);
@@ -292,11 +301,9 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           });
           select.appendChild(optgroup);
         });
-        view.appendChild(column);
+        viewBody.appendChild(column);
         i++;
       });
-      let oldView = $('view');
-      oldView.parentNode.replaceChild(view, oldView);
 
       let select = $('baseline');
       removeAllChildren(select);
@@ -310,7 +317,6 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       initializeToggleList(versions.versions, $('versionSelector'));
       initializeToggleList(pages.values(), $('pageSelector'));
       initializeToggleList(Group.groups.values(), $('groupSelector'));
-      initializeToggleContentVisibility();
     }
 
     function initializeToggleList(items, node) {
@@ -328,25 +334,6 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         li.appendChild(checkbox);
         li.appendChild(document.createTextNode(item.name));
         list.appendChild(li);
-      });
-      $('results').querySelectorAll('#results > .hidden').forEach((node) => {
-        toggleCssClass(node, 'hidden', false);
-      })
-    }
-
-    function initializeToggleContentVisibility() {
-      let nodes = document.querySelectorAll('.toggleContentVisibility');
-      nodes.forEach((node) => {
-        let content = node.querySelector('.content');
-        let header = node.querySelector('h1,h2,h3');
-        if (content === undefined || header === undefined) return;
-        if (header.querySelector('input') != undefined) return;
-        let checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.checked = content.className.indexOf('hidden') == -1;
-        checkbox.contentNode = content;
-        checkbox.addEventListener('click', handleToggleContentVisibility);
-        header.insertBefore(checkbox, header.childNodes[0]);
       });
     }
 
@@ -382,8 +369,8 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       if (JSON.stringify(window.history.state) === JSON.stringify(state)) return;
       let params = "?";
       for (let pairs of Object.entries(state)) {
-        params += encodeURIComponent(pairs[0]) + "="
-            + encodeURIComponent(pairs[1]) + "&";
+        params += encodeURIComponent(pairs[0]) + "=" +
+          encodeURIComponent(pairs[1]) + "&";
       }
       window.history.pushState(state, selection.toString(), params);
     }
@@ -396,8 +383,8 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     }
 
     function showPage(firstPage) {
-      let changeSelectedEntry = selectedEntry !== undefined
-          && selectedEntry.page === selectedPage;
+      let changeSelectedEntry = selectedEntry !== undefined &&
+        selectedEntry.page === selectedPage;
       selectedPage = firstPage;
       selectedPage.sort();
       showPageInColumn(firstPage, 0);
@@ -417,30 +404,42 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       pushHistoryState();
     }
 
+    function clamp(value, min, max) {
+      if (value < min) return min;
+      if (value > max) return max;
+      return value;
+    }
+
+    function diffColorFromRatio(ratio) {
+      if (ratio > 1) {
+        // ratio > 1: #FFFFFF => #00FF00
+        const red = clamp(((ratio - 1) * 255 * 10) | 0, 0, 255);
+        const other = (255 - red).toString(16).padStart(2, '0');
+        return `#ff${other}${other}`;
+      }
+      // ratio < 1: #FF0000 => #FFFFFF
+      const green = clamp(((1 - ratio) * 255 * 10) | 0, 0, 255);
+      const other = (255 - green).toString(16).padStart(2, '0');
+      return `#${other}ff${other}`;
+    }
+
     function showPageInColumn(page, columnIndex) {
       page.sort();
-      let showDiff = (baselineVersion === undefined && columnIndex !== 0) ||
-        (baselineVersion !== undefined && page.version !== baselineVersion);
-      let diffStatus = (td, a, b) => {};
+      let showDiff = columnIndex !== 0;
+      if (baselineVersion) showDiff = page.version !== baselineVersion;
+      let diffColor = (td, a, b) => { };
       if (showDiff) {
-        if (baselineVersion !== undefined) {
-          diffStatus = (td, a, b) => {
-            if (a == 0) return;
-            td.style.color = a < 0 ? '#FF0000' : '#00BB00';
+        if (baselineVersion) {
+          diffColor = (td, diff, baseline) => {
+            if (diff == 0) return;
+            const ratio = (baseline + diff) / baseline;
+            td.style.color = diffColorFromRatio(ratio);
           };
         } else {
-          diffStatus = (td, a, b) => {
-            if (a == b) return;
-            let color;
-            let ratio = a / b;
-            if (ratio > 1) {
-              ratio = Math.min(Math.round((ratio - 1) * 255 * 10), 200);
-              color = '#' + ratio.toString(16) + "0000";
-            } else {
-              ratio = Math.min(Math.round((1 - ratio) * 255 * 10), 200);
-              color = '#00' + ratio.toString(16) + "00";
-            }
-            td.style.color = color;
+          diffColor = (td, value, reference) => {
+            if (value == reference) return;
+            const ratio = value / reference;
+            td.style.color = diffColorFromRatio(ratio);
           }
         }
       }
@@ -476,31 +475,31 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
             td(tr, entry.position == 0 ? '' : entry.position, 'position');
           }
           addCodeSearchButton(entry,
-              td(tr, entry.name, 'name ' + entry.cssClass()));
+            td(tr, entry.name, 'name ' + entry.cssClass()));
 
-          diffStatus(
+          diffColor(
             td(tr, ms(entry.time), 'value time'),
             entry.time, referenceEntry.time);
-          diffStatus(
+          diffColor(
             td(tr, percent(entry.timePercent), 'value time'),
             entry.time, referenceEntry.time);
-          diffStatus(
+          diffColor(
             td(tr, count(entry.count), 'value count'),
             entry.count, referenceEntry.count);
-        } else if (baselineVersion !== undefined && referenceEntry
-            && page.version !== baselineVersion) {
+        } else if (baselineVersion !== undefined && referenceEntry &&
+          page.version !== baselineVersion) {
           // Show comparison of entry that does not exist on the current page.
           tr.entry = new Entry(0, referenceEntry.name);
           tr.entry.page = page;
           td(tr, '-', 'position');
           td(tr, referenceEntry.name, 'name');
-          diffStatus(
+          diffColor(
             td(tr, ms(referenceEntry.time), 'value time'),
             referenceEntry.time, 0);
-          diffStatus(
+          diffColor(
             td(tr, percent(referenceEntry.timePercent), 'value time'),
             referenceEntry.timePercent, 0);
-          diffStatus(
+          diffColor(
             td(tr, count(referenceEntry.count), 'value count'),
             referenceEntry.count, 0);
         } else {
@@ -549,7 +548,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       let childNodes = $('column_0').querySelector('.list tbody').childNodes;
       for (let i = 0; i < childNodes.length; i++) {
         if (childNodes[i].entry !== undefined &&
-            childNodes[i].entry.name == entry.name) {
+          childNodes[i].entry.name == entry.name) {
           rowIndex = i;
           break;
         }
@@ -588,10 +587,10 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
 
     function showVersionDetails(entry) {
       let table, tbody, entries;
-      table = $('detailView').querySelector('.versionDetailTable');
+      table = $('versionDetails').querySelector('.versionDetailTable');
       tbody = document.createElement('tbody');
       if (entry !== undefined) {
-        $('detailView').querySelector('.versionDetail h3 span').textContent =
+        $('versionDetails').querySelector('h2 span').textContent =
           entry.name + ' in ' + entry.page.name;
         entries = versions.getPageVersions(entry.page).map(
           (page) => {
@@ -618,7 +617,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
 
     function showPageDetails(entry) {
       let table, tbody, entries;
-      table = $('detailView').querySelector('.pageDetailTable');
+      table = $('pageDetail').querySelector('.pageDetailTable');
       tbody = document.createElement('tbody');
       if (entry === undefined) {
         table.replaceChild(tbody, table.querySelector('tbody'));
@@ -626,12 +625,12 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       }
       let version = entry.page.version;
       let showDiff = version !== baselineVersion;
-      $('detailView').querySelector('.pageDetail h3 span').textContent =
+      $('pageDetail').querySelector('h2 span').textContent =
         version.name;
       entries = version.pages.map((page) => {
-          if (!page.enabled) return;
-          return page.get(entry.name)
-        });
+        if (!page.enabled) return;
+        return page.get(entry.name)
+      });
       entries.sort((a, b) => {
         let cmp = b.timePercent - a.timePercent;
         if (cmp.toFixed(1) == 0) return b.time - a.time;
@@ -646,7 +645,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         td(tr, ms(pageEntry.time, showDiff), 'value time');
         td(tr, percent(pageEntry.timePercent, showDiff), 'value time');
         td(tr, percent(pageEntry.timePercentPerEntry, showDiff),
-            'value time hideNoDiff');
+          'value time hideNoDiff');
         td(tr, count(pageEntry.count, showDiff), 'value count');
         tbody.appendChild(tr);
       });
@@ -661,15 +660,15 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     }
 
     function showImpactList(page) {
-      let impactView = $('detailView').querySelector('.impactView');
-      impactView.querySelector('h3 span').textContent = page.version.name;
+      let impactView = $('impactView');
+      impactView.querySelector('h2 span').textContent = page.version.name;
 
       let table = impactView.querySelector('table');
       let tbody = document.createElement('tbody');
       let version = page.version;
       let entries = version.allEntries();
       if (selectedEntry !== undefined && selectedEntry.isGroup) {
-        impactView.querySelector('h3 span').textContent += " " + selectedEntry.name;
+        impactView.querySelector('h2 span').textContent += " " + selectedEntry.name;
         entries = entries.filter((entry) => {
           return entry.name == selectedEntry.name ||
             (entry.parent && entry.parent.name == selectedEntry.name)
@@ -723,10 +722,10 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       }
       // Display graphs delayed for a snappier UI.
       setTimeout(() => {
-          showPageVersionGraph(groups, page);
-          showPageGraph(groups, page);
-          showVersionGraph(groups, page)
-        }, 10);
+        showPageVersionGraph(groups, page);
+        showPageGraph(groups, page);
+        showVersionGraph(groups, page);
+      }, 10);
     }
 
     function getGraphDataTable(groups, page) {
@@ -735,12 +734,16 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       groups.forEach(group => {
         let column = dataTable.addColumn('number', group.name.substring(6));
         dataTable.setColumnProperty(column, 'group', group);
-        column = dataTable.addColumn({role: "annotation"});
+        column = dataTable.addColumn({
+          role: "annotation"
+        });
         dataTable.setColumnProperty(column, 'group', group);
       });
       let column = dataTable.addColumn('number', 'Chart Total');
       dataTable.setColumnProperty(column, 'group', page.total);
-      column = dataTable.addColumn({role: "annotation"});
+      column = dataTable.addColumn({
+        role: "annotation"
+      });
       dataTable.setColumnProperty(column, 'group', page.total);
       return dataTable;
     }
@@ -749,17 +752,17 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
 
     class ChartRow {
       static kSortFirstValueRelative(chartRow) {
-        if (selectedGroup?.isTotal) return chartRow.total
+        if (selectedGroup?.isTotal) return chartRow.total;
         return chartRow.data[0] / chartRow.total;
       }
 
       static kSortByFirstValue(chartRow) {
-        if (selectedGroup?.isTotal) return chartRow.total
+        if (selectedGroup?.isTotal) return chartRow.total;
         return chartRow.data[0];
       }
 
       constructor(linkedPage, label, sortValue_fn, data,
-          excludeFromAverage=false) {
+        excludeFromAverage = false) {
         this.linkedPage = linkedPage;
         this.label = label;
         if (!Array.isArray(data)) {
@@ -783,7 +786,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           const value = this.data[i];
           let label = '';
           // Only show labels for entries that are large enough..
-          if  (Math.abs(value / maxRowsTotal) * chartWidth > kMinLabelWidth) {
+          if (Math.abs(value / maxRowsTotal) * chartWidth > kMinLabelWidth) {
             label = ms(value);
           }
           rowData.push(value, label);
@@ -794,11 +797,16 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         return rowData;
       }
     }
+    const collator = new Intl.Collator('en-UK');
 
     function setDataTableRows(dataTable, rows) {
       let skippedRows = 0;
       // Always sort by the selected entry (first column after the label)
-      rows.sort((a,b) => b.sortValue - a.sortValue);
+      if (sortByLabel) {
+        rows.sort((a, b) => collator.compare(a.label, b.label));
+      } else {
+        rows.sort((a, b) => b.sortValue - a.sortValue);
+      }
       // Aggregate row data for Average/SUM chart entry:
       const aggregateData = rows[0].data.slice().fill(0);
       let maxTotal = 0;
@@ -820,7 +828,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         aggregateData[i] /= rows.length;
       }
       const averageRow = new ChartRow(undefined, 'Average',
-          ChartRow.kSortByFirstValue, aggregateData);
+        ChartRow.kSortByFirstValue, aggregateData);
       dataTable.addRow(averageRow.forDataTable());
 
       rows.forEach(chartRow => {
@@ -834,11 +842,11 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       let vs = versions.getPageVersions(page);
       // Calculate the entries for the versions
       const rows = vs.map(page => new ChartRow(
-          page, page.version.name, ChartRow.kSortByFirstValue,
-          groups.map(group => page.getEntry(group).time),
-          page.version === baselineVersion));
+        page, page.version.name, ChartRow.kSortByFirstValue,
+        groups.map(group => page.getEntry(group).time),
+        page.version === baselineVersion));
       renderGraph(`Versions for ${page.name}`, groups, dataTable, rows,
-          'pageVersionGraph', true);
+        'pageVersionGraph', true);
     }
 
     function showPageGraph(groups, page) {
@@ -849,12 +857,12 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       let pages = page.version.pages.filter(page => page.enabled);
       // Calculate the entries for the pages
       const rows = pages.map(page => new ChartRow(
-            page, page.name,
-            isDiffView ?
-              ChartRow.kSortByFirstValue : ChartRow.kSortFirstValueRelative,
-            groups.map(group => page.getEntry(group).time)));
+        page, page.name,
+        isDiffView ?
+          ChartRow.kSortByFirstValue : ChartRow.kSortFirstValueRelative,
+        groups.map(group => page.getEntry(group).time)));
       renderGraph(`Pages for ${page.version.name}`, groups, dataTable, rows,
-          'pageGraph', isDiffView ? true : 'percent');
+        'pageGraph', isDiffView ? true : 'percent');
     }
 
     function showVersionGraph(groups, page) {
@@ -862,11 +870,11 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       let vs = versions.versions.filter(version => version.enabled);
       // Calculate the entries for the versions
       const rows = vs.map((version) => new ChartRow(
-          version.get(page), version.name, ChartRow.kSortByFirstValue,
-          groups.map(group => version.getEntry(group).getTimeImpact()),
-          version === baselineVersion));
+        version.get(page), version.name, ChartRow.kSortByFirstValue,
+        groups.map(group => version.getEntry(group).getTimeImpact()),
+        version === baselineVersion));
       renderGraph('Versions Total Time over all Pages', groups, dataTable, rows,
-          'versionGraph', true);
+        'versionGraph', true);
     }
 
     function renderGraph(title, groups, dataTable, rows, id, isStacked) {
@@ -886,24 +894,49 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         height: height,
         hAxis: {
           minValue: 0,
-          textStyle: { fontSize: 14 }
+          textStyle: {
+            fontSize: 14
+          }
         },
         vAxis: {
-          textStyle: { fontSize: 14 }
+          textStyle: {
+            fontSize: 14
+          }
         },
-        tooltip: { textStyle: { fontSize: 14 }},
-        annotations: { textStyle: { fontSize: 8 }},
+        tooltip: {
+          textStyle: {
+            fontSize: 14
+          }
+        },
+        annotations: {
+          textStyle: {
+            fontSize: 8
+          }
+        },
         explorer: {
           actions: ['dragToZoom', 'rightClickToReset'],
           maxZoomIn: 0.01
         },
-        legend: {position:'top', maxLines: 3, textStyle: { fontSize: 12 }},
-        chartArea: {left:200, top:50 },
-        colors: [...groups.map(each => each.color), /* Chart Total */ "#000000"]
+        legend: {
+          position: 'top',
+          maxLines: 3,
+          textStyle: {
+            fontSize: 12
+          }
+        },
+        chartArea: {
+          left: 200,
+          top: 50
+        },
+        colors: [
+          ...groups.map(each => each.color),
+          /* Chart Total */
+          "#000000",
+        ]
       };
       let parentNode = $(id);
       parentNode.querySelector('h2>span, h3>span').textContent = title;
-      let graphNode = parentNode.querySelector('.content');
+      let graphNode = parentNode.querySelector('.panelBody');
 
       let chart = graphNode.chart;
       if (chart === undefined) {
@@ -912,6 +945,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         google.visualization.events.removeAllListeners(chart);
       }
       google.visualization.events.addListener(chart, 'select', selectHandler);
+
       function getChartEntry(selection) {
         if (!selection) return undefined;
         let column = selection.column;
@@ -923,16 +957,27 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         if (!page) return selectedGroup;
         return page.getEntry(selectedGroup);
       }
+
       function selectHandler(e) {
-        selectedGroup = getChartEntry(chart.getSelection()[0])
-        if (!selectedGroup) return;
+        const newSelectedGroup = getChartEntry(chart.getSelection()[0]);
+        if (newSelectedGroup == selectedGroup) {
+          sortByLabel = !sortByLabel;
+        } else if (newSelectedGroup === undefined && selectedPage) {
+          sortByLabel = true;
+          return showGraphs(selectedPage);
+        } else {
+          sortByLabel = false;
+        }
+        selectedGroup = newSelectedGroup;
         selectEntry(selectedGroup, true);
       }
 
       // Make our global tooltips work
       google.visualization.events.addListener(chart, 'onmouseover', mouseOverHandler);
+
       function mouseOverHandler(selection) {
-        graphNode.entry = getChartEntry(selection);
+        const selectedGroup = getChartEntry(selection);
+        graphNode.entry = selectedGroup;
       }
       chart.draw(dataTable, options);
     }
@@ -971,33 +1016,27 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         node('.timeVariance').textContent = '-';
         node('.percent').textContent = '-';
         node('.percentPerEntry').textContent = '-';
-        node('.percentVariance').textContent  = '-';
-        node('.count').textContent =  '-';
+        node('.percentVariance').textContent = '-';
+        node('.count').textContent = '-';
         node('.countVariance').textContent = '-';
         node('.timeImpact').textContent = '-';
         node('.timePercentImpact').textContent = '-';
       } else {
         node('.version').textContent = entry.page.version.name;
         node('.time').textContent = ms(entry._time, false);
-        node('.timeVariance').textContent
-            = percent(entry.timeVariancePercent, false);
+        node('.timeVariance').textContent = percent(entry.timeVariancePercent, false);
         node('.percent').textContent = percent(entry.timePercent, false);
-        node('.percentPerEntry').textContent
-            = percent(entry.timePercentPerEntry, false);
-        node('.percentVariance').textContent
-            = percent(entry.timePercentVariancePercent, false);
+        node('.percentPerEntry').textContent = percent(entry.timePercentPerEntry, false);
+        node('.percentVariance').textContent = percent(entry.timePercentVariancePercent, false);
         node('.count').textContent = count(entry._count, false);
-        node('.countVariance').textContent
-            = percent(entry.timeVariancePercent, false);
-        node('.timeImpact').textContent
-            = ms(entry.getTimeImpact(false), false);
-        node('.timePercentImpact').textContent
-            = percent(entry.getTimeImpactVariancePercent(false), false);
+        node('.countVariance').textContent = percent(entry.timeVariancePercent, false);
+        node('.timeImpact').textContent = ms(entry.getTimeImpact(false), false);
+        node('.timePercentImpact').textContent = percent(entry.getTimeImpactVariancePercent(false), false);
       }
     }
   </script>
   <script>
-  "use strict"
+    "use strict"
     // =========================================================================
     // Helpers
     function $(id) {
@@ -1053,7 +1092,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       return -1;
     }
 
-    function toggleCssClass(node, cssClass, toggleState) {
+    function toggleCssClass(node, cssClass, toggleState = true) {
       let index = -1;
       let classes;
       if (node.className != undefined) {
@@ -1095,28 +1134,45 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     function percent(value, showDiff) {
       return diffSign(value, 1, '%', showDiff);
     }
-
   </script>
   <script>
-  "use strict"
+    "use strict"
     // =========================================================================
     // EventHandlers
-    function handleBodyLoad() {
+    async function handleBodyLoad() {
       $('uploadInput').focus();
-      if (defaultData) return handleLoadJSON(defaultData);
-      if (tryLoadFromURLParams()) return;
-      if (window.location.protocol !== 'file:') return tryLoadDefaultResults();
+      if (tryLoadDefaultData() || await tryLoadFromURLParams() ||
+        await tryLoadDefaultResults()) {
+        displayResultsAfterLoading();
+      }
+    }
+
+    function tryLoadDefaultData() {
+      if (!defaultData) return false;
+      handleLoadJSON(defaultData);
+      return true;
+    }
+
+    async function tryLoadFromURLParams() {
+      let params = new URLSearchParams(document.location.search);
+      let hasFile = false;
+      params.forEach(async (value, key) => {
+        if (key !== 'file') return;
+        hasFile ||= await tryLoadFile(value, true);
+      });
+      return hasFile;
     }
 
     async function tryLoadDefaultResults() {
-     // Try to load a results.json file adjacent to this day.
-     // The markers on the following line can be used to replace the url easily
-     // with scripts.
-     const url = /*results-url-start*/'results.json'/*results-url-end*/;
-     tryLoadFile(url);
+      if (window.location.protocol === 'file:') return false;
+      // Try to load a results.json file adjacent to this day.
+      // The markers on the following line can be used to replace the url easily
+      // with scripts.
+      const url = /*results-url-start*/ 'results.json' /*results-url-end*/;
+      return tryLoadFile(url);
     }
 
-    async function tryLoadFile(url, append=false) {
+    async function tryLoadFile(url, append = false) {
       if (!url.startsWith('http')) {
         // hack to get relative urls
         let location = window.location;
@@ -1126,19 +1182,9 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       let response = await fetch(url);
       if (!response.ok) return false;
       let filename = url.split('/');
-      filename = filename[filename.length-1];
+      filename = filename[filename.length - 1];
       handleLoadText(await response.text(), append, filename);
-    }
-
-    async function tryLoadFromURLParams() {
-      let params = new URLSearchParams(document.location.search);
-      let hasFile = false;
-      params.forEach((value, key) => {
-        if (key !== 'file') return;
-        hasFile = true;
-        tryLoadFile(value, true);
-      });
-      return hasFile;
+      return true;
     }
 
     function handleAppendFiles() {
@@ -1146,7 +1192,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       loadFiles(files, true);
     }
 
-    function handleLoadFile() {
+    function handleLoadFiles() {
       let files = document.getElementById("uploadInput").files;
       loadFiles(files, false)
     }
@@ -1161,20 +1207,24 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           reader.readAsText(file);
         });
         handleLoadText(text, append, file.name);
+        // Only the first file might clear existing data, all sequent files
+        // are always append.
+        append = true;
       }
+      displayResultsAfterLoading();
+      toggleCssClass(document.body, "loaded");
     }
 
     function handleLoadText(text, append, fileName) {
       if (fileName.endsWith('.json')) {
         handleLoadJSON(JSON.parse(text), append, fileName);
       } else if (fileName.endsWith('.csv') ||
-          fileName.endsWith('.output') || fileName.endsWith('.output.txt')) {
+        fileName.endsWith('.output') || fileName.endsWith('.output.txt')) {
         handleLoadCSV(text, append, fileName);
       } else if (fileName.endsWith('.txt')) {
         handleLoadTXT(text, append, fileName);
       } else {
-        alert(`Error parsing "${fileName}"`);
-        console.error(e);
+        alert(`Unsupported file extension: "${fileName}"`);
       }
     }
 
@@ -1195,7 +1245,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       json = fixSingleVersionJSON(json, fileName);
       let isFirstLoad = pages === undefined;
       if (append && !isFirstLoad) {
-        json = createUniqueVersions(json)
+        json = createUniqueVersions(json);
       }
       if (!append || isFirstLoad) {
         pages = new Pages();
@@ -1203,7 +1253,6 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       } else {
         Versions.fromJSON(json).forEach(e => versions.add(e))
       }
-      displayResultsAfterLoading(isFirstLoad)
     }
 
     function handleLoadCSV(csv, append, fileName) {
@@ -1219,15 +1268,13 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         fields.set(name, index);
       });
       if (fields.has('displayLabel') && fields.has('stories')) {
-        handleLoadResultCSV(fields, lines, fileName)
+        handleLoadResultCSV(fields, lines);
       } else if (fields.has('page_name')) {
-        handleLoadClusterTelemetryCSV(fields, lines, fileName)
+        handleLoadClusterTelemetryCSV(fields, lines, fileName);
       } else {
         return alert("Unknown CSV format");
       }
-      displayResultsAfterLoading(isFirstLoad)
     }
-
 
     function csvSplit(line) {
       let fields = [];
@@ -1235,9 +1282,9 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       while (index < line.length) {
         let lastIndex = index;
         if (line[lastIndex] == '"') {
-          index = line.indexOf('"', lastIndex+1);
+          index = line.indexOf('"', lastIndex + 1);
           if (index < 0) index = line.length;
-          fields.push(line.substring(lastIndex+1, index));
+          fields.push(line.substring(lastIndex + 1, index));
           // Consume ','
           index++;
         } else {
@@ -1251,16 +1298,25 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       return fields;
     }
 
+    // Ignore the following categories as they are aggregated values and are
+    // created by callstats.html on the fly.
+    const import_skip_categories = new Set([
+      'V8-Only', 'V8-Only-Main-Thread', 'Total-Main-Thread', 'Blink_Total'
+    ])
+
     function handleLoadClusterTelemetryCSV(fields, lines, fileName) {
       const rscFields = Array.from(fields.keys())
-        .filter(field => field.endsWith(':duration (ms)'))
+        .filter(field => {
+          return field.endsWith(':duration (ms)') &&
+            !import_skip_categories.has(field.split(':')[0])
+        })
         .map(field => {
           let name = field.split(':')[0];
           return [name, fields.get(field), fields.get(`${name}:count`)];
         })
       const page_name_i = fields.get('page_name');
       const version = versions.getOrCreate(fileName);
-      for (let i=1; i<lines.length; i++) {
+      for (let i = 1; i < lines.length; i++) {
         const line = csvSplit(lines[i]);
         if (line.length == 0) continue;
         let page_name = line[page_name_i];
@@ -1271,35 +1327,31 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           const duration = Number.parseFloat(line[duration_i]);
           const count = Number.parseFloat(line[count_i]);
           // Skip over entries without metrics (most likely crashes)
-          if (Number.isNaN(count)|| Number.isNaN(duration)) {
+          if (Number.isNaN(count) || Number.isNaN(duration)) {
             console.warn(`BROKEN ${page_name}`, lines[i])
             break;
           }
-          pageVersion.add(new Entry(0, fieldName, duration, 0, 0, count, 0 ,0))
+          pageVersion.add(new Entry(0, fieldName, duration, 0, 0, count, 0, 0))
         }
       }
     }
 
-    function handleLoadResultCSV(fields, lines, fileName) {
+    function handleLoadResultCSV(fields, lines) {
       const version_i = fields.get('displayLabel');
       const page_i = fields.get('stories');
       const category_i = fields.get('name');
       const value_i = fields.get('avg');
-      // Ignore the following categories as they are aggregated values and are
-      // created by callstats.html on the fly.
-      const skip_categories = new Set([
-          'V8-Only', 'V8-Only-Main-Thread', 'Total-Main-Thread', 'Blink_Total'])
       const tempEntriesCache = new Map();
-      for (let i=1; i<lines.length; i++) {
+      for (let i = 1; i < lines.length; i++) {
         const line = csvSplit(lines[i]);
         if (line.length == 0) continue;
         const raw_category = line[category_i];
         if (!raw_category.endsWith(':duration') &&
-            !raw_category.endsWith(':count')) {
+          !raw_category.endsWith(':count')) {
           continue;
         }
         let [category, type] = raw_category.split(':');
-        if (skip_categories.has(category)) continue;
+        if (import_skip_categories.has(category)) continue;
         const version = versions.getOrCreate(line[version_i]);
         const pageVersion = version.getOrCreate(line[page_i]);
         const value = Number.parseFloat(line[value_i]);
@@ -1331,7 +1383,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           tempEntries = new Map();
           cache.set(pageVersion, tempEntries);
         }
-        let tempEntry =  tempEntries.get(category);
+        let tempEntry = tempEntries.get(category);
         if (tempEntry === undefined) {
           tempEntry = new TempEntry(category);
           tempEntries.set(category, tempEntry);
@@ -1343,7 +1395,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         const [duration, durationStddev] = this.stats(this.durations);
         const [count, countStddev] = this.stats(this.durations);
         return new Entry(0, this.category,
-            duration, durationStddev, 0, count, countStddev, 0)
+          duration, durationStddev, 0, count, countStddev, 0)
       }
 
       stats(values) {
@@ -1363,6 +1415,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     }
 
     function handleLoadTXT(txt, append, fileName) {
+      fileName = window.prompt('Version name:', fileName);
       let isFirstLoad = pages === undefined;
       // Load raw RCS output which contains a single page
       if (!append || isFirstLoad) {
@@ -1370,11 +1423,11 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         versions = new Versions()
       }
       versions.add(Version.fromTXT(fileName, txt));
-      displayResultsAfterLoading(isFirstLoad);
 
     }
 
-    function displayResultsAfterLoading(isFirstLoad=true) {
+    function displayResultsAfterLoading() {
+      const isFirstLoad = pages === undefined;
       let state = getStateFromParams();
       initialize()
       if (isFirstLoad && !popHistoryState(state) && selectedPage) {
@@ -1382,7 +1435,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         return;
       }
       const page = versions.versions[0].pages[0]
-      if (page  == undefined) return;
+      if (page == undefined) return;
       showPage(page);
       showEntry(page.total);
     }
@@ -1405,7 +1458,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         let entries = [];
         let file_data = json[file_name].pairs;
         for (let name in file_data) {
-          if(name != "Total" && groupNames.has(name)) continue;
+          if (name != "Total" && groupNames.has(name)) continue;
           let entry = file_data[name];
           let count = entry.count;
           let time = entry.time;
@@ -1414,38 +1467,55 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         let domain = file_name.split("/").slice(-1)[0];
         result[domain] = entries;
       }
-      return {__proto__:null, ClusterTelemetry: result};
+      return {
+        __proto__: null,
+        ClusterTelemetry: result
+      };
     }
 
     function fixTraceImportJSON(json) {
       // Fix json file that was created by converting a trace json output
       if (!('telemetry-results' in json)) return json;
       // { telemetry-results: { PAGE:[ { METRIC: [ COUNT TIME ], ... }, ... ]}}
-      let version_data = {__proto__:null};
+      let version_data = {
+        __proto__: null
+      };
       json = json["telemetry-results"];
       for (let page_name in json) {
         if (page_name == "placeholder") continue;
         let page_data = {
-              __proto__:null,
-              Total: {
-                duration: {average: 0, stddev: 0},
-                count: {average:0, stddev: 0}
-              }
-            };
+          __proto__: null,
+          Total: {
+            duration: {
+              average: 0,
+              stddev: 0
+            },
+            count: {
+              average: 0,
+              stddev: 0
+            }
+          }
+        };
         let page = json[page_name];
-        for (let slice of page ) {
+        for (let slice of page) {
           for (let metric_name in slice) {
             if (metric_name == "Blink_V8") continue;
             // sum up entries
             if (!(metric_name in page_data)) {
               page_data[metric_name] = {
-                duration: {average: 0, stddev: 0},
-                count: {average:0, stddev: 0}
+                duration: {
+                  average: 0,
+                  stddev: 0
+                },
+                count: {
+                  average: 0,
+                  stddev: 0
+                }
               }
             }
             let [metric_count, metric_duration] = slice[metric_name]
             let metric = page_data[metric_name];
-            const kMicroToMilli = 1/1000;
+            const kMicroToMilli = 1 / 1000;
             metric.duration.average += metric_duration * kMicroToMilli;
             metric.count.average += metric_count;
 
@@ -1463,7 +1533,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     function fixSingleVersionJSON(json, name) {
       // Try to detect the single-version case, where we're missing the toplevel
       // version object. The incoming JSON is of the form:
-        //   { PAGE: ... , PAGE_2:  }
+      //   { PAGE: ... , PAGE_2:  }
       // Instead of the default multi-page JSON:
       //    {"Version 1": { "Page 1": ..., ...}, "Version 2": {...}, ...}
       // In this case insert a single "Default" version as top-level entry.
@@ -1475,48 +1545,55 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       let tempName = name ? name : new Date().toISOString();
       tempName = window.prompt('Enter a name for the loaded file:', tempName);
       if ('count' in maybeMetrics && 'duration' in maybeMetrics) {
-        return {[tempName]: json}
+        return {
+          [tempName]: json
+        }
       }
       // Legacy fallback where the metrics are encoded as arrays:
       //  { PAGE: [[metric_name, ...], [...], ]}
       if (Array.isArray(maybeMetrics)) {
-        return {[tempName]: json}
+        return {
+          [tempName]: json
+        }
       }
       return json
     }
 
     let appendIndex = 0;
+
     function createUniqueVersions(json) {
       // Make sure all toplevel entries are unique names and added properly
       appendIndex++;
-      let result = {__proto__:null}
+      let result = {
+        __proto__: null
+      }
       for (let key in json) {
-        result[key+"_"+appendIndex] = json[key];
+        result[key + "_" + appendIndex] = json[key];
       }
       return result
     }
 
     function handleCopyToClipboard(event) {
-      const names =[ "Group", ...versions.versions.map(e=>e.name)];
-      let result = [ names.join("\t") ];
+      const names = ["Group", ...versions.versions.map(e => e.name)];
+      let result = [names.join("\t")];
       let groups = Array.from(Group.groups.values());
       // Move the total group to the end.
       groups.push(groups.shift())
       groups.forEach(group => {
         let row = [group.name];
         versions.forEach(v => {
-          const time = v.pages[0].get("Group-"+group.name)?._time ?? 0;
-          row.push(time)
+          const time = v.pages[0].get("Group-" + group.name)?._time ?? 0;
+          row.push(time);
         })
         result.push(row.join("\t"));
       });
       result = result.join("\n");
-      navigator.clipboard.writeText(result)
+      navigator.clipboard.writeText(result);
     }
 
     function handleToggleGroup(event) {
       let group = event.target.parentNode.parentNode.entry;
-      toggleGroup(selectedPage.get(group.name));
+      toggleGroup(selectedPage.get(group.name), 'toggle');
     }
 
     function handleSelectPage(select, event) {
@@ -1593,9 +1670,9 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     }
 
     function handleToggleVersionOrPageEnable(event) {
-      let item = this.item ;
-      if (item  === undefined) return;
-      item .enabled = this.checked;
+      let item = this.item;
+      if (item === undefined) return;
+      item.enabled = this.checked;
       initialize();
       let page = selectedPage;
       if (page === undefined || !page.version.enabled) {
@@ -1607,11 +1684,6 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       showPage(page);
     }
 
-    function handleToggleContentVisibility(event) {
-      let content = event.target.contentNode;
-      toggleCssClass(content, 'hidden');
-    }
-
     function handleCodeSearch(event) {
       let entry = findEntry(event);
       if (entry === undefined) return;
@@ -1621,11 +1693,11 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         name = name.substring(4);
       }
       url += encodeURIComponent(name) + "+file:src/v8/src";
-      window.open(url,'_blank');
+      window.open(url, '_blank');
     }
   </script>
   <script>
-  "use strict"
+    "use strict"
     // =========================================================================
     class Versions {
       constructor() {
@@ -1640,7 +1712,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         this.versions.forEach((version) => {
           if (!version.enabled) return;
           let versionPage = version.get(page.name);
-          if (versionPage  !== undefined) result.push(versionPage);
+          if (versionPage !== undefined) result.push(versionPage);
         });
         return result;
       }
@@ -1654,7 +1726,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         return this.versions.find((each) => each.name == name);
       }
       getOrCreate(name) {
-        return this.getByName(name) ?? this.add(new Version(name))
+        return this.getByName(name) ?? this.add(new Version(name));
       }
       forEach(f) {
         this.versions.forEach(f);
@@ -1704,14 +1776,14 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       get(name) {
         let index = this.indexOf(name);
         if (0 <= index) return this.pages[index];
-        return undefined
+        return undefined;
       }
       getOrCreate(name) {
         return this.get(name) ??
             this.add(new PageVersion(this, pages.getOrCreate(name)));
       }
       get length() {
-        return this.pages.length
+        return this.pages.length;
       }
       getEntry(entry) {
         if (entry === undefined) return undefined;
@@ -1758,7 +1830,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         // Otherwise return the difference to the sum of the baseline version.
         let baselineValue = baselineVersion.getTotalTime(name, false);
         let total = this.getTotalValue(name, '_time');
-        return (total / baselineValue - 1)  * 100;
+        return (total / baselineValue - 1) * 100;
       }
       getTotalTimeVariance(name, showDiff) {
         // Calculate the overall error for a given entry name
@@ -1805,8 +1877,9 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
 
       static fromTXT(name, txt) {
         let version = new Version(name);
-        let pageName = "RAW DATA";
-        version.add(PageVersion.fromTXT(version, pageName, txt));
+        let defaultName = "RAW DATA";
+        PageVersion.fromTXT(version, defaultName, txt)
+          .forEach(each => version.add(each));
         return version;
       }
     }
@@ -1875,23 +1948,27 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         return this.version.name + ": " + this.name;
       }
       urlParams() {
-        return { version: this.version.name, page: this.name};
+        return {
+          version: this.version.name,
+          page: this.name
+        };
       }
       add(entry) {
-        // Ignore accidentally added Group entries.
-        if (entry.name.startsWith(GroupedEntry.prefix)) {
-          console.warn("Skipping accidentally added Group entry:", entry, this);
-          return;
-        }
         let existingEntry = this.entryDict.get(entry.name);
         if (existingEntry !== undefined) {
           // Duplicate entries happen when multiple runs are combined into a
           // single file.
           existingEntry.add(entry);
-          for (let group of this.groups) {
+          for (let i = 0; i < this.groups.length; i++) {
+            const group = this.groups[i];
             if (group.addTimeAndCount(entry)) return;
           }
         } else {
+          // Ignore accidentally added Group entries.
+          if (entry.name.startsWith(GroupedEntry.prefix)) {
+            console.warn("Skipping accidentally added Group entry:", entry, this);
+            return;
+          }
           entry.page = this;
           this.entryDict.set(entry.name, entry);
           for (let group of this.groups) {
@@ -1910,8 +1987,12 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       get length() {
         return this.versions.length
       }
-      get name() { return this.page.name }
-      get enabled() { return this.page.enabled }
+      get name() {
+        return this.page.name
+      }
+      get enabled() {
+        return this.page.enabled
+      }
       forEachSorted(referencePage, func) {
         // Iterate over all the entries in the order they appear on the
         // reference page.
@@ -1946,7 +2027,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         this.groups.forEach(group => {
           if (group == this.total) return;
           let value = group.getTimePercentImpact() -
-              this.getEntry(group).timePercent;
+            this.getEntry(group).timePercent;
           sum += value * value;
         });
         return sum;
@@ -1974,28 +2055,43 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         return page
       }
 
-      static fromTXT(version, name, txt) {
-        let pageVersion = new PageVersion(version, pages.get(name));
-        let lines = txt.split('\n');
-        let split = / +/g
-        // Skip the first two lines (HEADER and SEPARATOR)
-        for (let i = 2; i < lines.length; i++) {
-          let line = lines[i].trim().split(split)
-          // Skip header lines
-          if (lines[i].startsWith("======")) continue;
-          if (lines[i+1]?.startsWith("======")) continue;
-          if (line.length != 5) continue;
-          let position = i-2;
-          pageVersion.add(Entry.fromTXT(position, line));
+      static fromTXT(version, defaultName, txt) {
+        const kPageNameIdentifier = "== Page:";
+        const kCommentStart = "=="
+        const lines = txt.split('\n');
+        const split = / +/g
+        const result = [];
+        let pageVersion = undefined;
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          // Skip header separators
+          if (line.startsWith(kCommentStart)) {
+            // Check for page names
+            if (line.startsWith(kPageNameIdentifier)) {
+              const name = line.split(kPageNameIdentifier)[1];
+              pageVersion = new PageVersion(version, pages.get(name));
+              result.push(pageVersion);
+            }
+          }
+          // Skip header lines.
+          if (lines[i + 1]?.startsWith(kCommentStart)) continue;
+          const split_line = line.trim().split(split)
+          if (split_line.length != 5) continue;
+          if (pageVersion === undefined) {
+            pageVersion = new PageVersion(version, pages.get(defaultName));
+            result.push(pageVersion);
+          }
+          const position = i - 2;
+          pageVersion.add(Entry.fromTXT(position, split_line));
         }
-        return pageVersion;
+        return result;
       }
     }
 
 
     class Entry {
       constructor(position, name, time, timeVariance, timeVariancePercent,
-            count, countVariance, countVariancePercent) {
+        count, countVariance, countVariancePercent) {
         this.position = position;
         this.name = name;
         this._time = time;
@@ -2017,7 +2113,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       }
 
       add(entry) {
-        if (this.name != entry.name) {
+        if (this.name !== entry.name) {
           console.error("Should not combine entries with different names");
           return;
         }
@@ -2085,13 +2181,13 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         return this.page.version.getPagesByPercentImpact(this.name);
       }
       get isGroup() {
-        return false
+        return false;
       }
       get timeVariance() {
-        return this._timeVariance
+        return this._timeVariance;
       }
       get timeVariancePercent() {
-        return this._timeVariancePercent
+        return this._timeVariancePercent;
       }
 
       static fromLegacyJSON(position, data) {
@@ -2102,14 +2198,21 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         let time = data.duration;
         let count = data.count;
         return new Entry(position, name, time.average, time.stddev, 0,
-                        count.average, count.stddev, 0);
+            count.average, count.stddev, 0);
       }
 
       static fromTXT(position, splitLine) {
-        let [name, time, timePercent, count, countPercent] = splitLine;
-        time = time.split('ms')
-        let timeDeviation = 0, countDeviation = 0;
-        let timeDeviationPercent = 0, countDeviationPercent = 0
+        const name = splitLine[0];
+        let time = splitLine[1];
+        const msIndex = time.indexOf('m');
+        if (msIndex > 0) time = time.substring(0, msIndex);
+        const timePercent = splitLine[2];
+        const count = splitLine[3];
+        const countPercent = splitLine[4];
+        const timeDeviation = 0;
+        const countDeviation = 0;
+        const timeDeviationPercent = 0;
+        const countDeviationPercent = 0
         return new Entry(position, name,
           Number.parseFloat(time), timeDeviation, timeDeviationPercent,
           Number.parseInt(count), countDeviation, countDeviationPercent)
@@ -2117,47 +2220,49 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     }
 
     class Group {
-      constructor(name, regexp, color, enabled=true, addsToTotal=true) {
+      constructor(name, regexp, color, enabled = true, addsToTotal = true) {
         this.name = name;
         this.regexp = regexp;
         this.color = color;
         this.enabled = enabled;
         this.addsToTotal = addsToTotal;
       }
-      entry() { return new GroupedEntry(this) };
+      entry() {
+        return new GroupedEntry(this);
+      }
     }
     Group.groups = new Map();
-    Group.add = function(name, group) {
+    Group.add = function (name, group) {
       this.groups.set(name, group);
       return group;
     }
     Group.add('total', new Group('Total', /.*Total.*/, '#BBB', true, false));
     Group.add('ic', new Group('IC', /(.*IC_.*)|IC/, "#3366CC"));
     Group.add('optimize-background', new Group('Optimize-Background',
-        /(.*Optimize-?Background.*)/, "#702000"));
+      /.*Optimize(d?-?)(Background|Concurrent).*/, "#702000"));
     Group.add('optimize', new Group('Optimize',
-        /StackGuard|.*Optimize.*|.*Deoptimize.*|Recompile.*/, "#DC3912"));
+      /(StackGuard|Optimize|Deoptimize|Recompile).*/, "#DC3912"));
     Group.add('compile-background', new Group('Compile-Background',
-        /(.*Compile-?Background.*)/, "#b08000"));
+      /(.*Compile-?Background.*)/, "#b08000"));
     Group.add('compile', new Group('Compile',
-        /(^Compile.*)|(.*_Compile.*)/, "#FFAA00"));
+      /(^Compile.*)|(.*_Compile.*)/, "#FFAA00"));
     Group.add('parse-background',
-        new Group('Parse-Background', /.*Parse-?Background.*/, "#c05000"));
+      new Group('Parse-Background', /.*Parse-?Background.*/, "#c05000"));
     Group.add('parse', new Group('Parse', /.*Parse.*/, "#FF6600"));
     Group.add('callback',
-        new Group('Blink C++', /.*(Callback)|(Blink C\+\+).*/, "#109618"));
+      new Group('Blink C++', /.*(Callback)|(Blink C\+\+).*/, "#109618"));
     Group.add('api', new Group('API', /.*API.*/, "#990099"));
     Group.add('gc-custom', new Group('GC-Custom', /GC_Custom_.*/, "#0099C6"));
     Group.add('gc-background',
-        new Group(
-          'GC-Background', /.*GC.*(BACKGROUND|Background).*/, "#00597c"));
+      new Group(
+        'GC-Background', /.*GC.*(BACKGROUND|Background).*/, "#00597c"));
     Group.add('gc',
-        new Group('GC', /GC_.*|AllocateInTargetSpace|GC/, "#00799c"));
+      new Group('GC', /GC_.*|AllocateInTargetSpace|GC/, "#00799c"));
     Group.add('javascript',
-        new Group('JavaScript', /JS_Execution|JavaScript/, "#DD4477"));
+      new Group('JavaScript', /JS_Execution|JavaScript/, "#DD4477"));
     Group.add('runtime', new Group('V8 C++', /.*/, "#88BB00"));
     Group.add('blink',
-        new Group('Blink RCS', /.*Blink_.*/, "#006600", false, false));
+      new Group('Blink RCS', /.*Blink_.*/, "#006600", false, false));
     Group.add('unclassified', new Group('Unclassified', /.*/, "#000", false));
 
     class GroupedEntry extends Entry {
@@ -2168,9 +2273,15 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         this.missingEntries = null;
         this.addsToTotal = group.addsToTotal;
       }
-      get regexp() { return this.group.regexp }
-      get color() { return this.group.color }
-      get enabled() { return this.group.enabled }
+      get regexp() {
+        return this.group.regexp;
+      }
+      get color() {
+        return this.group.color;
+      }
+      get enabled() {
+        return this.group.enabled;
+      }
       add(entry) {
         if (!this.addTimeAndCount(entry)) return;
         // TODO: sum up variance
@@ -2197,7 +2308,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
             }
           }
         });
-        this.missingEntries  = [];
+        this.missingEntries = [];
         for (let name of dummyEntryNames) {
           let tmpEntry = new Entry(0, name, 0, 0, 0, 0, 0, 0);
           tmpEntry.page = this.page;
@@ -2241,7 +2352,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       }
       get timeVariancePercent() {
         if (this._time == 0) return 0;
-        return this.getVarianceForProperty('time')  / this._time * 100
+        return this.getVarianceForProperty('time') / this._time * 100
       }
       get timeVariance() {
         return this.getVarianceForProperty('time')
@@ -2294,199 +2405,235 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
 <body id="body" onmousemove="handleUpdatePopover(event)" onload="handleBodyLoad()" class="noDiff">
   <h1>Runtime Stats Komparator</h1>
 
-  <div id="results">
-    <div class="inline">
-      <h2>Data</h2>
-      <form name="fileForm">
-        <p>
-          <label for="uploadInput">Load File:</label>
-          <input id="uploadInput" type="file" name="files" onchange="handleLoadFile();" accept=".json,.txt,.csv,.output">
+  <section id="inputs" class="panel alwaysVisible">
+    <input type="checkbox" id="inputsCheckbox" class="panelCloserInput">
+    <label class="panelCloserLabel" for="inputsCheckbox">▼</label>
+    <h2>Input/Output</h2>
+    <div class="panelBody">
+      <form name="fileForm" class="inline">
+        <p class="inline">
+          <label for="uploadInput">Load Files:</label>
+          <input id="uploadInput" type="file" name="files" onchange="handleLoadFiles();" multiple
+            accept=".json,.txt,.csv,.output">
         </p>
-        <p>
+        <p class="inline">
           <label for="appendInput">Append Files:</label>
-          <input id="appendInput" type="file" name="files" onchange="handleAppendFiles();" multiple accept=".json,.txt,.csv,.output">
+          <input id="appendInput" type="file" name="files" onchange="handleAppendFiles();" multiple
+            accept=".json,.txt,.csv,.output">
         </p>
       </form>
-      <p>
+      <p class="inline">
         <button onclick="handleCopyToClipboard()">Copy Table to Clipboard</button>
       </p>
     </div>
+  </section>
 
-    <div class="inline hidden">
-      <h2>Result</h2>
-      <div class="compareSelector inline">
-        Compare against:&nbsp;<select id="baseline" onchange="handleSelectBaseline(this, event)"></select><br/>
-        <span style="color: #060">Green</span> the selected version above performs
-        better on this measurement.
-      </div>
+  <section class="panel">
+    <h2>Baseline Selector</h2>
+    <div class="panel-body">
+      Compare against baseline:&nbsp;<select id="baseline" onchange="handleSelectBaseline(this, event)"></select><br />
+      <span style="color: #060">Green</span> a selected version performs
+      better than the baseline.
     </div>
+  </section>
 
-    <div id="versionSelector" class="inline toggleContentVisibility">
-      <h2>Versions</h2>
-      <div class="content hidden">
+  <section class="panel-group">
+    <div id="versionSelector" class="panel">
+      <input type="checkbox" checked id="versionSelectorCheckbox" class="panelCloserInput">
+      <label class="panelCloserLabel" for="versionSelectorCheckbox">▼</label>
+      <h2>Selected Versions</h2>
+      <div class="panelBody">
         <ul></ul>
       </div>
     </div>
 
-    <div id="pageSelector" class="inline toggleContentVisibility">
-      <h2>Pages</h2>
-      <div class="content hidden">
+    <div id="pageSelector" class="panel">
+      <input type="checkbox" checked id="pageSelectorCheckbox" class="panelCloserInput">
+      <label class="panelCloserLabel" for="pageSelectorCheckbox">▼</label>
+      <h2>Selected Pages</h2>
+      <div class="panelBody">
         <ul></ul>
       </div>
     </div>
 
-    <div id="groupSelector" class="inline toggleContentVisibility">
-      <h2>Groups</h2>
-      <div class="content hidden">
+    <div id="groupSelector" class="panel">
+      <input type="checkbox" checked id="groupSelectorCheckbox" class="panelCloserInput">
+      <label class="panelCloserLabel" for="groupSelectorCheckbox">▼</label>
+      <h2>Selected RCS Groups</h2>
+      <div class="panelBody">
         <ul></ul>
       </div>
     </div>
+  </section>
 
-    <div id="view">
-    </div>
+  <section id="view" class="panel">
+    <input type="checkbox" id="tableViewCheckbox" class="panelCloserInput">
+    <label class="panelCloserLabel" for="tableViewCheckbox">▼</label>
+    <h2>RCS Table</h2>
+    <div class="panelBody"></div>
+  </section>
 
-    <div id="detailView" class="hidden">
-      <div class="versionDetail inline toggleContentVisibility">
-        <h3><span></span></h3>
-        <div class="content">
-          <table class="versionDetailTable" onclick="handleSelectDetailRow(this, event);">
-            <thead>
-              <tr>
-                <th class="version">Version&nbsp;</th>
-                <th class="position">Pos.&nbsp;</th>
-                <th class="value time">Time▴&nbsp;</th>
-                <th class="value time">Percent&nbsp;</th>
-                <th class="value count">Count&nbsp;</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
+  <section class="panel-group">
+    <div id="versionDetails" class="panel">
+      <input type="checkbox" checked id="versionDetailCheckbox" class="panelCloserInput">
+      <label class="panelCloserLabel" for="versionDetailCheckbox">▼</label>
+      <h2><span>Compare Page Versions</span></h2>
+      <div class="conten panelBody">
+        <table class="versionDetailTable" onclick="handleSelectDetailRow(this, event);">
+          <thead>
+            <tr>
+              <th class="version">Version&nbsp;</th>
+              <th class="position">Pos.&nbsp;</th>
+              <th class="value time">Time▴&nbsp;</th>
+              <th class="value time">Percent&nbsp;</th>
+              <th class="value count">Count&nbsp;</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
       </div>
-      <div class="pageDetail inline toggleContentVisibility">
-        <h3>Page Comparison for <span></span></h3>
-        <div class="content">
-          <table class="pageDetailTable" onclick="handleSelectDetailRow(this, event);">
-            <thead>
-              <tr>
-                <th class="page">Page&nbsp;</th>
-                <th class="value time">Time&nbsp;</th>
-                <th class="value time">Percent▾&nbsp;</th>
-                <th class="value time hideNoDiff">%/Entry&nbsp;</th>
-                <th class="value count">Count&nbsp;</th>
-              </tr>
-            </thead>
-            <tfoot>
-              <tr>
-                <td class="page">Total:</td>
-                <td class="value time"></td>
-                <td class="value time"></td>
-                <td class="value time hideNoDiff"></td>
-                <td class="value count"></td>
-              </tr>
-            </tfoot>
-            <tbody></tbody>
-          </table>
-        </div>
-      </div>
-      <div class="impactView inline toggleContentVisibility">
-        <h3>Impact list for <span></span></h3>
-        <div class="content">
-          <table class="pageDetailTable" onclick="handleSelectDetailRow(this, event);">
-            <thead>
-              <tr>
-                <th class="page">Name&nbsp;</th>
-                <th class="value time">Time&nbsp;</th>
-                <th class="value time">Percent▾&nbsp;</th>
-                <th class="">Top Pages</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-    <div id="pageVersionGraph" class="graph hidden toggleContentVisibility">
-      <h3><span></span></h3>
-      <div class="content"></div>
-    </div>
-    <div id="pageGraph" class="graph hidden toggleContentVisibility">
-      <h3><span></span></h3>
-      <div class="content"></div>
-    </div>
-    <div id="versionGraph" class="graph hidden toggleContentVisibility">
-      <h3><span></span></h3>
-      <div class="content"></div>
     </div>
 
-    <div id="column" class="column">
-      <div class="header">
-        <select class="version" onchange="handleSelectVersion(this, event);"></select>
-        <select class="pageVersion" onchange="handleSelectPage(this, event);"></select>
+    <div id="pageDetail" class="panel">
+      <input type="checkbox" checked id="pageDetailCheckbox" class="panelCloserInput">
+      <label class="panelCloserLabel" for="pageDetailCheckbox">▼</label>
+      <h2>Page Comparison for <span></span></h2>
+      <div class="panelBody">
+        <table class="pageDetailTable" onclick="handleSelectDetailRow(this, event);">
+          <thead>
+            <tr>
+              <th class="page">Page&nbsp;</th>
+              <th class="value time">Time&nbsp;</th>
+              <th class="value time">Percent▾&nbsp;</th>
+              <th class="value time hideNoDiff">%/Entry&nbsp;</th>
+              <th class="value count">Count&nbsp;</th>
+            </tr>
+          </thead>
+          <tfoot>
+            <tr>
+              <td class="page">Total:</td>
+              <td class="value time"></td>
+              <td class="value time"></td>
+              <td class="value time hideNoDiff"></td>
+              <td class="value count"></td>
+            </tr>
+          </tfoot>
+          <tbody></tbody>
+        </table>
       </div>
-      <table class="list" onclick="handleSelectRow(this, event);">
-        <thead>
-          <tr>
-            <th class="position">Pos.&nbsp;</th>
-            <th class="name">Name&nbsp;</th>
-            <th class="value time">Time&nbsp;</th>
-            <th class="value time">Percent&nbsp;</th>
-            <th class="value count">Count&nbsp;</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
     </div>
+
+    <div id="impactView" class="panel">
+      <input type="checkbox" checked id="impactViewCheckbox" class="panelCloserInput">
+      <label class="panelCloserLabel" for="impactViewCheckbox">▼</label>
+      <h2>Impact list for <span></span></h2>
+      <div class="panelBody">
+        <table class="pageDetailTable" onclick="handleSelectDetailRow(this, event);">
+          <thead>
+            <tr>
+              <th class="page">Name&nbsp;</th>
+              <th class="value time">Time&nbsp;</th>
+              <th class="value time">Percent▾&nbsp;</th>
+              <th class="">Top Pages</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="pageVersionGraph" class="panel">
+    <input type="checkbox" id="pageVersionGraphCheckbox" class="panelCloserInput">
+    <label class="panelCloserLabel" for="pageVersionGraphCheckbox">▼</label>
+    <h2><span></span></h2>
+    <div class="panelBody"></div>
+  </section>
+
+  <section id="pageGraph" class="panel">
+    <input type="checkbox" id="pageGraphCheckbox" class="panelCloserInput">
+    <label class="panelCloserLabel" for="pageGraphCheckbox">▼</label>
+    <h2><span></span></h2>
+    <div class="panelBody"></div>
+  </section>
+
+  <section id="versionGraph" class="panel">
+    <input type="checkbox" id="versionGraphCheckbox" class="panelCloserInput">
+    <label class="panelCloserLabel" for="versionGraphCheckbox">▼</label>
+    <h2><span></span></h2>
+    <div class="panelBody"></div>
+  </section>
+
+  <div id="column" class="column">
+    <div class="header">
+      <select class="version" onchange="handleSelectVersion(this, event);"></select>
+      <select class="pageVersion" onchange="handleSelectPage(this, event);"></select>
+    </div>
+    <table class="list" onclick="handleSelectRow(this, event);">
+      <thead>
+        <tr>
+          <th class="position">Pos.&nbsp;</th>
+          <th class="name">Name&nbsp;</th>
+          <th class="value time">Time&nbsp;</th>
+          <th class="value time">Percent&nbsp;</th>
+          <th class="value count">Count&nbsp;</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
   </div>
 
-  <div class="inline">
-    <h2>Usage</h2>
-    <ol>
-      <li>Build chrome.</li>
-    </ol>
-    <h3>Telemetry benchmark</h3>
-    <ol>
-      <li>Run <code>v8.browsing</code> benchmarks:
-        <pre>$CHROMIUM_DIR/tools/perf/run_benchmark run v8.browsing_desktop \
-          --browser=exact --browser-executable=$CHROMIUM_DIR/out/release/chrome \
-          --story-filter='.*2020 ' \
-          --also-run-disabled-tests
-        </pre>
-      </li>
-      <li>Install <a href="https://stedolan.github.io/jq/">jq</a>.</li>
-      <li>Convert the telemetry JSON files to callstats JSON file:
-        <pre>
-          $V8_DIR/tools/callstats-from-telemetry.sh $CHROMIUM_DIR/tools/perf/artifacts/run_XXXX
-        </pre>
-      </li>
-      <li>Load the generated <code>out.json</code></li>
-    </ol>
-    <h3>Merged CSV from results.html</h3>
-    <ol>
-      <li>Open a results.html page for RCS-enabled benchmarks</li>
-      <li>Select "Export merged CSV" in the toolbar</li>
-      <li>Load the downloading .csv file normally in callstats.html</li>
-    </ol>
-    <h3>Aggregated raw txt output</h3>
-    <ol>
-      <li>Install scipy, e.g. <code>sudo aptitude install python-scipy</code>
-      <li>Check out a known working version of webpagereply:
-        <pre>git -C $CHROME_DIR/third_party/webpagereplay checkout 7dbd94752d1cde5536ffc623a9e10a51721eff1d</pre>
-      </li>
-      <li>Run <code>callstats.py</code> with a web-page-replay archive:
-        <pre>$V8_DIR/tools/callstats.py run \
-        --replay-bin=$CHROME_SRC/third_party/webpagereplay/replay.py \
-        --replay-wpr=$INPUT_DIR/top25.wpr \
-        --js-flags="" \
-        --with-chrome=$CHROME_SRC/out/Release/chrome \
-        --sites-file=$INPUT_DIR/top25.json</pre>
-      </li>
-      <li>Move results file to a subdirectory: <code>mkdir $VERSION_DIR; mv *.txt $VERSION_DIR</code></li>
-      <li>Repeat from step 1 with a different configuration (e.g. <code>--js-flags="--nolazy"</code>).</li>
-      <li>Create the final results file: <code>./callstats.py json $VERSION_DIR1 $VERSION_DIR2 > result.json</code></li>
-      <li>Use <code>results.json</code> on this site.</code>
-    </ol>
-  </div>
+  <section class="panel alwaysVisible">
+    <h2>Instructions</h2>
+    <div class="panelBody">
+      <ol>
+        <li>Build chrome.</li>
+      </ol>
+      <h3>Telemetry benchmark</h3>
+      <ol>
+        <li>Run <code>v8.browsing</code> benchmarks:
+          <pre>$CHROMIUM_DIR/tools/perf/run_benchmark run v8.browsing_desktop \
+            --browser=exact --browser-executable=$CHROMIUM_DIR/out/release/chrome \
+            --story-filter='.*2020 ' \
+            --also-run-disabled-tests
+          </pre>
+        </li>
+        <li>Install <a href="https://stedolan.github.io/jq/">jq</a>.</li>
+        <li>Convert the telemetry JSON files to callstats JSON file:
+          <pre>
+            $V8_DIR/tools/callstats-from-telemetry.sh $CHROMIUM_DIR/tools/perf/artifacts/run_XXXX
+          </pre>
+        </li>
+        <li>Load the generated <code>out.json</code></li>
+      </ol>
+      <h3>Merged CSV from results.html</h3>
+      <ol>
+        <li>Open a results.html page for RCS-enabled benchmarks</li>
+        <li>Select "Export merged CSV" in the toolbar</li>
+        <li>Load the downloading .csv file normally in callstats.html</li>
+      </ol>
+      <h3>Aggregated raw txt output</h3>
+      <ol>
+        <li>Install scipy, e.g. <code>sudo aptitude install python-scipy</code>
+        <li>Check out a known working version of webpagereply:
+          <pre>git -C $CHROME_DIR/third_party/webpagereplay checkout 7dbd94752d1cde5536ffc623a9e10a51721eff1d</pre>
+        </li>
+        <li>Run <code>callstats.py</code> with a web-page-replay archive:
+          <pre>$V8_DIR/tools/callstats.py run \
+          --replay-bin=$CHROME_SRC/third_party/webpagereplay/replay.py \
+          --replay-wpr=$INPUT_DIR/top25.wpr \
+          --js-flags="" \
+          --with-chrome=$CHROME_SRC/out/Release/chrome \
+          --sites-file=$INPUT_DIR/top25.json</pre>
+        </li>
+        <li>Move results file to a subdirectory: <code>mkdir $VERSION_DIR; mv *.txt $VERSION_DIR</code></li>
+        <li>Repeat from step 1 with a different configuration (e.g. <code>--js-flags="--nolazy"</code>).</li>
+        <li>Create the final results file: <code>./callstats.py json $VERSION_DIR1 $VERSION_DIR2 > result.json</code>
+        </li>
+        <li>Use <code>results.json</code> on this site.</code>
+      </ol>
+    </div>
+  </section>
 
   <div id="popover">
     <div class="popoverArrow"></div>
@@ -2505,30 +2652,49 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       </tr>
       <tr>
         <td>Time:</td>
-        <td class="time"></td><td>±</td><td class="timeVariance"></td>
-        <td class="compare time"></td><td class="compare"> ± </td><td class="compare timeVariance"></td>
+        <td class="time"></td>
+        <td>±</td>
+        <td class="timeVariance"></td>
+        <td class="compare time"></td>
+        <td class="compare"> ± </td>
+        <td class="compare timeVariance"></td>
       </tr>
       <tr>
         <td>Percent:</td>
-        <td class="percent"></td><td>±</td><td class="percentVariance"></td>
-        <td class="compare percent"></td><td class="compare"> ± </td><td class="compare percentVariance"></td>
+        <td class="percent"></td>
+        <td>±</td>
+        <td class="percentVariance"></td>
+        <td class="compare percent"></td>
+        <td class="compare"> ± </td>
+        <td class="compare percentVariance"></td>
       </tr>
       <tr>
         <td>Percent per Entry:</td>
-        <td class="percentPerEntry"></td><td colspan=2></td>
-        <td class="compare percentPerEntry"></td><td colspan=2></td>
+        <td class="percentPerEntry"></td>
+        <td colspan=2></td>
+        <td class="compare percentPerEntry"></td>
+        <td colspan=2></td>
       </tr>
       <tr>
         <td>Count:</td>
-        <td class="count"></td><td>±</td><td class="countVariance"></td>
-        <td class="compare count"></td><td class="compare"> ± </td><td class="compare countVariance"></td>
+        <td class="count"></td>
+        <td>±</td>
+        <td class="countVariance"></td>
+        <td class="compare count"></td>
+        <td class="compare"> ± </td>
+        <td class="compare countVariance"></td>
       </tr>
       <tr>
         <td>Overall Impact:</td>
-        <td class="timeImpact"></td><td>±</td><td class="timePercentImpact"></td>
-        <td class="compare timeImpact"></td><td class="compare"> ± </td><td class="compare timePercentImpact"></td>
+        <td class="timeImpact"></td>
+        <td>±</td>
+        <td class="timePercentImpact"></td>
+        <td class="compare timeImpact"></td>
+        <td class="compare"> ± </td>
+        <td class="compare timePercentImpact"></td>
       </tr>
     </table>
   </div>
 </body>
+
 </html>

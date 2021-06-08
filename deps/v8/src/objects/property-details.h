@@ -32,6 +32,12 @@ enum PropertyAttributes {
   // a non-existent property.
 };
 
+// Number of distinct bits in PropertyAttributes.
+static const int kPropertyAttributesBitsCount = 3;
+
+static const int kPropertyAttributesCombinationsCount =
+    1 << kPropertyAttributesBitsCount;
+
 enum PropertyFilter {
   ALL_PROPERTIES = 0,
   ONLY_WRITABLE = 1,
@@ -62,6 +68,11 @@ STATIC_ASSERT(SKIP_STRINGS ==
               static_cast<PropertyFilter>(v8::PropertyFilter::SKIP_STRINGS));
 STATIC_ASSERT(SKIP_SYMBOLS ==
               static_cast<PropertyFilter>(v8::PropertyFilter::SKIP_SYMBOLS));
+
+// Assert that kPropertyAttributesBitsCount value matches the definition of
+// ALL_ATTRIBUTES_MASK.
+STATIC_ASSERT((ALL_ATTRIBUTES_MASK == (READ_ONLY | DONT_ENUM | DONT_DELETE)) ==
+              (kPropertyAttributesBitsCount == 3));
 
 class Smi;
 class TypeInfo;

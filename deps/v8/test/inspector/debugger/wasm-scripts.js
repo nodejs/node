@@ -22,7 +22,7 @@ function createModule(...customSections) {
   var builder = new WasmModuleBuilder();
   builder.addFunction('nopFunction', kSig_v_v).addBody([kExprNop]);
   builder.addFunction('main', kSig_v_v)
-      .addBody([kExprBlock, kWasmStmt, kExprI32Const, 2, kExprDrop, kExprEnd])
+      .addBody([kExprBlock, kWasmVoid, kExprI32Const, 2, kExprDrop, kExprEnd])
       .exportAs('main');
   for (var { name, value } of customSections) {
     builder.addCustomSection(name, value);

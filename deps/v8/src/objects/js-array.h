@@ -32,7 +32,7 @@ class JSArray : public JSObject {
   // acquire/release semantics ever become necessary, the default setter should
   // be reverted to non-atomic behavior, and setters with explicit tags
   // introduced and used when required.
-  Object length(IsolateRoot isolate, AcquireLoadTag tag) const = delete;
+  Object length(PtrComprCageBase cage_base, AcquireLoadTag tag) const = delete;
   void set_length(Object value, ReleaseStoreTag tag,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER) = delete;
 
@@ -126,8 +126,15 @@ class JSArray : public JSObject {
   // Max. number of elements being copied in Array builtins.
   static const int kMaxCopyElements = 100;
 
+  // Valid array indices range from +0 <= i < 2^32 - 1 (kMaxUInt32).
+  static constexpr uint32_t kMaxArrayLength = JSObject::kMaxElementCount;
+  static constexpr uint32_t kMaxArrayIndex = JSObject::kMaxElementIndex;
+  STATIC_ASSERT(kMaxArrayLength == kMaxUInt32);
+  STATIC_ASSERT(kMaxArrayIndex == kMaxUInt32 - 1);
+
   // This constant is somewhat arbitrary. Any large enough value would work.
-  static const uint32_t kMaxFastArrayLength = 32 * 1024 * 1024;
+  static constexpr uint32_t kMaxFastArrayLength = 32 * 1024 * 1024;
+  STATIC_ASSERT(kMaxFastArrayLength <= kMaxArrayLength);
 
   // Min. stack size for detecting an Array.prototype.join() call cycle.
   static const uint32_t kMinJoinStackSize = 2;
@@ -136,9 +143,6 @@ class JSArray : public JSObject {
       (kMaxRegularHeapObjectSize - FixedArray::kHeaderSize - kHeaderSize -
        AllocationMemento::kSize) >>
       kDoubleSizeLog2;
-
-  // Valid array indices range from +0 <= i < 2^32 - 1 (kMaxUInt32).
-  static const uint32_t kMaxArrayIndex = kMaxUInt32 - 1;
 
   OBJECT_CONSTRUCTORS(JSArray, JSObject);
 };

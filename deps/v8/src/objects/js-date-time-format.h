@@ -60,7 +60,7 @@ class JSDateTimeFormat
   // ecma402/#sec-Intl.DateTimeFormat.prototype.formatToParts
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> FormatToParts(
       Isolate* isolate, Handle<JSDateTimeFormat> date_time_format,
-      double date_value);
+      double date_value, bool output_source);
 
   // ecma402/#sec-intl.datetimeformat.prototype.formatRange
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> FormatRange(

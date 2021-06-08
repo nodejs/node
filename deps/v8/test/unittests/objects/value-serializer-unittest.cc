@@ -12,11 +12,15 @@
 #include "src/base/build_config.h"
 #include "src/objects/backing-store.h"
 #include "src/objects/objects-inl.h"
-#include "src/wasm/wasm-objects.h"
-#include "src/wasm/wasm-result.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-engine.h"
+#include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-result.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace {
@@ -2043,6 +2047,7 @@ class ValueSerializerTestWithSharedArrayBufferClone
 
   Local<SharedArrayBuffer> NewSharedArrayBuffer(void* data, size_t byte_length,
                                                 bool is_wasm_memory) {
+#if V8_ENABLE_WEBASSEMBLY
     if (is_wasm_memory) {
       // TODO(titzer): there is no way to create Wasm memory backing stores
       // through the API, or to create a shared array buffer whose backing
@@ -2057,17 +2062,19 @@ class ValueSerializerTestWithSharedArrayBufferClone
           i_isolate->factory()->NewJSSharedArrayBuffer(
               std::move(backing_store));
       return Utils::ToLocalShared(buffer);
-    } else {
-      std::unique_ptr<v8::BackingStore> backing_store =
-          SharedArrayBuffer::NewBackingStore(
-              data, byte_length,
-              [](void*, size_t, void*) {
-                // Leak the buffer as it has the
-                // lifetime of the test.
-              },
-              nullptr);
-      return SharedArrayBuffer::New(isolate(), std::move(backing_store));
     }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+    CHECK(!is_wasm_memory);
+    std::unique_ptr<v8::BackingStore> backing_store =
+        SharedArrayBuffer::NewBackingStore(
+            data, byte_length,
+            [](void*, size_t, void*) {
+              // Leak the buffer as it has the
+              // lifetime of the test.
+            },
+            nullptr);
+    return SharedArrayBuffer::New(isolate(), std::move(backing_store));
   }
 
   static void SetUpTestCase() {
@@ -2173,6 +2180,7 @@ TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
   ExpectScriptTrue("new Uint8Array(result.a).toString() === '0,1,128,255'");
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
        RoundTripWebAssemblyMemory) {
   bool flag_was_enabled = i::FLAG_experimental_wasm_threads;
@@ -2205,6 +2213,7 @@ TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
 
   i::FLAG_experimental_wasm_threads = flag_was_enabled;
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 TEST_F(ValueSerializerTest, UnsupportedHostObject) {
   InvalidEncodeTest("new ExampleHostObject()");

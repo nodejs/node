@@ -130,11 +130,10 @@ class WasmGCForegroundTask : public CancelableTask {
 class WeakScriptHandle {
  public:
   explicit WeakScriptHandle(Handle<Script> script) : script_id_(script->id()) {
-    DCHECK(script->source_url().IsString() ||
-           script->source_url().IsUndefined());
-    if (script->source_url().IsString()) {
+    DCHECK(script->name().IsString() || script->name().IsUndefined());
+    if (script->name().IsString()) {
       std::unique_ptr<char[]> source_url =
-          String::cast(script->source_url()).ToCString();
+          String::cast(script->name()).ToCString();
       // Convert from {unique_ptr} to {shared_ptr}.
       source_url_ = {source_url.release(), source_url.get_deleter()};
     }
@@ -802,7 +801,7 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
                     .ToHandleChecked();
     }
   }
-  script->set_source_url(*url_str);
+  script->set_name(*url_str);
 
   const WasmDebugSymbols& debug_symbols = module->debug_symbols;
   if (debug_symbols.type == WasmDebugSymbols::Type::SourceMap &&

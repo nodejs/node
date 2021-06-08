@@ -40,8 +40,7 @@ extern macro ConstructorBuiltinsAssembler::FastNewObject(
     Context, JSFunction, JSReceiver): JSObject;
 
 extern macro
-PromiseBuiltinsAssembler::IsIsolatePromiseHookEnabledOrHasAsyncEventDelegate(
-    uint32): bool;
+PromiseBuiltinsAssembler::IsPromiseHookEnabledOrHasAsyncEventDelegate(): bool;
 
 // https://tc39.es/ecma262/#sec-promise-executor
 transitioning javascript builtin
@@ -74,7 +73,9 @@ PromiseConstructor(
     result = UnsafeCast<JSPromise>(
         FastNewObject(context, promiseFun, UnsafeCast<JSReceiver>(newTarget)));
     PromiseInit(result);
-    RunAnyPromiseHookInit(result, Undefined);
+    if (IsPromiseHookEnabledOrHasAsyncEventDelegate()) {
+      runtime::PromiseHookInit(result, Undefined);
+    }
   }
 
   const isDebugActive = IsDebugActive();

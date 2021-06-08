@@ -20,7 +20,10 @@
 #include "src/profiler/profiler-stats.h"
 #include "src/profiler/symbolizer.h"
 #include "src/utils/locked-queue-inl.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-engine.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -72,7 +75,9 @@ ProfilingScope::ProfilingScope(Isolate* isolate, ProfilerListener* listener)
   profiler_count++;
   isolate_->set_num_cpu_profilers(profiler_count);
   isolate_->set_is_profiling(true);
+#if V8_ENABLE_WEBASSEMBLY
   isolate_->wasm_engine()->EnableCodeLogging(isolate_);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   Logger* logger = isolate_->logger();
   logger->AddCodeEventListener(listener_);
@@ -196,7 +201,7 @@ void ProfilerEventsProcessor::CodeEventHandler(
     case CodeEventRecord::CODE_CREATION:
     case CodeEventRecord::CODE_MOVE:
     case CodeEventRecord::CODE_DISABLE_OPT:
-    case CodeEventRecord::BYTECODE_FLUSH:
+    case CodeEventRecord::CODE_DELETE:
       Enqueue(evt_rec);
       break;
     case CodeEventRecord::CODE_DEOPT: {
@@ -323,12 +328,16 @@ void* SamplingEventsProcessor::operator new(size_t size) {
 void SamplingEventsProcessor::operator delete(void* ptr) { AlignedFree(ptr); }
 
 ProfilerCodeObserver::ProfilerCodeObserver(Isolate* isolate)
-    : isolate_(isolate), code_map_(strings_), processor_(nullptr) {
+    : isolate_(isolate),
+      code_map_(strings_),
+      weak_code_registry_(isolate),
+      processor_(nullptr) {
   CreateEntriesForRuntimeCallStats();
   LogBuiltins();
 }
 
 void ProfilerCodeObserver::ClearCodeMap() {
+  weak_code_registry_.Clear();
   code_map_.Clear();
   // We don't currently expect any references to refcounted strings to be
   // maintained with zero profiles after the code map is cleared.
@@ -508,9 +517,9 @@ void CpuProfiler::EnableLogging() {
   if (profiling_scope_) return;
 
   if (!profiler_listener_) {
-    profiler_listener_.reset(
-        new ProfilerListener(isolate_, code_observer_.get(),
-                             *code_observer_->strings(), naming_mode_));
+    profiler_listener_.reset(new ProfilerListener(
+        isolate_, code_observer_.get(), *code_observer_->strings(),
+        *code_observer_->weak_code_registry(), naming_mode_));
   }
   profiling_scope_.reset(
       new ProfilingScope(isolate_, profiler_listener_.get()));

@@ -187,8 +187,9 @@ MaybeObject FeedbackVector::Get(FeedbackSlot slot) const {
   return value;
 }
 
-MaybeObject FeedbackVector::Get(IsolateRoot isolate, FeedbackSlot slot) const {
-  MaybeObject value = raw_feedback_slots(isolate, GetIndex(slot));
+MaybeObject FeedbackVector::Get(PtrComprCageBase cage_base,
+                                FeedbackSlot slot) const {
+  MaybeObject value = raw_feedback_slots(cage_base, GetIndex(slot));
   DCHECK(!IsOfLegacyType(value));
   return value;
 }

@@ -182,6 +182,7 @@ class S128ImmediateParameter {
   explicit S128ImmediateParameter(const uint8_t immediate[16]) {
     std::copy(immediate, immediate + 16, immediate_.begin());
   }
+  S128ImmediateParameter() = default;
   const std::array<uint8_t, 16>& immediate() const { return immediate_; }
   const uint8_t* data() const { return immediate_.data(); }
   uint8_t operator[](int x) const { return immediate_[x]; }
@@ -251,6 +252,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
     kWord64Popcnt = 1u << 15,
     kWord32ReverseBits = 1u << 16,
     kWord64ReverseBits = 1u << 17,
+    kFloat32Select = 1u << 18,
+    kFloat64Select = 1u << 19,
     kInt32AbsWithOverflow = 1u << 20,
     kInt64AbsWithOverflow = 1u << 21,
     kWord32Rol = 1u << 22,
@@ -262,7 +265,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
         kFloat64RoundTiesAway | kFloat32RoundTiesEven | kFloat64RoundTiesEven |
         kWord32Ctz | kWord64Ctz | kWord32Popcnt | kWord64Popcnt |
         kWord32ReverseBits | kWord64ReverseBits | kInt32AbsWithOverflow |
-        kInt64AbsWithOverflow | kWord32Rol | kWord64Rol | kSatConversionIsSafe
+        kInt64AbsWithOverflow | kWord32Rol | kWord64Rol | kSatConversionIsSafe |
+        kFloat32Select | kFloat64Select
   };
   using Flags = base::Flags<Flag, unsigned>;
 
@@ -558,6 +562,10 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const OptionalOperator Float32RoundTiesEven();
   const OptionalOperator Float64RoundTiesEven();
 
+  // Floating point conditional selects.
+  const OptionalOperator Float32Select();
+  const OptionalOperator Float64Select();
+
   // Floating point neg.
   const Operator* Float32Neg();
   const Operator* Float64Neg();
@@ -641,7 +649,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* F32x4RecipApprox();
   const Operator* F32x4RecipSqrtApprox();
   const Operator* F32x4Add();
-  const Operator* F32x4AddHoriz();
   const Operator* F32x4Sub();
   const Operator* F32x4Mul();
   const Operator* F32x4Div();
@@ -687,7 +694,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I64x2ExtMulHighI32x4S();
   const Operator* I64x2ExtMulLowI32x4U();
   const Operator* I64x2ExtMulHighI32x4U();
-  const Operator* I64x2SignSelect();
 
   const Operator* I32x4Splat();
   const Operator* I32x4ExtractLane(int32_t);
@@ -699,7 +705,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I32x4Shl();
   const Operator* I32x4ShrS();
   const Operator* I32x4Add();
-  const Operator* I32x4AddHoriz();
   const Operator* I32x4Sub();
   const Operator* I32x4Mul();
   const Operator* I32x4MinS();
@@ -724,7 +729,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I32x4ExtMulHighI16x8S();
   const Operator* I32x4ExtMulLowI16x8U();
   const Operator* I32x4ExtMulHighI16x8U();
-  const Operator* I32x4SignSelect();
   const Operator* I32x4ExtAddPairwiseI16x8S();
   const Operator* I32x4ExtAddPairwiseI16x8U();
   const Operator* I32x4TruncSatF64x2SZero();
@@ -742,7 +746,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I16x8SConvertI32x4();
   const Operator* I16x8Add();
   const Operator* I16x8AddSatS();
-  const Operator* I16x8AddHoriz();
   const Operator* I16x8Sub();
   const Operator* I16x8SubSatS();
   const Operator* I16x8Mul();
@@ -771,7 +774,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I16x8ExtMulHighI8x16S();
   const Operator* I16x8ExtMulLowI8x16U();
   const Operator* I16x8ExtMulHighI8x16U();
-  const Operator* I16x8SignSelect();
   const Operator* I16x8ExtAddPairwiseI8x16S();
   const Operator* I16x8ExtAddPairwiseI8x16U();
 
@@ -787,7 +789,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I8x16AddSatS();
   const Operator* I8x16Sub();
   const Operator* I8x16SubSatS();
-  const Operator* I8x16Mul();
   const Operator* I8x16MinS();
   const Operator* I8x16MaxS();
   const Operator* I8x16Eq();
@@ -807,10 +808,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I8x16Popcnt();
   const Operator* I8x16Abs();
   const Operator* I8x16BitMask();
-  const Operator* I8x16SignSelect();
 
-  const Operator* S128Load();
-  const Operator* S128Store();
   const Operator* S128Const(const uint8_t value[16]);
 
   const Operator* S128Zero();
@@ -825,21 +823,19 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I8x16Shuffle(const uint8_t shuffle[16]);
 
   const Operator* V128AnyTrue();
-  const Operator* V64x2AllTrue();
-  const Operator* V32x4AllTrue();
-  const Operator* V16x8AllTrue();
-  const Operator* V8x16AllTrue();
+  const Operator* I64x2AllTrue();
+  const Operator* I32x4AllTrue();
+  const Operator* I16x8AllTrue();
+  const Operator* I8x16AllTrue();
 
   // load [base + index]
   const Operator* Load(LoadRepresentation rep);
+  const Operator* LoadImmutable(LoadRepresentation rep);
   const Operator* PoisonedLoad(LoadRepresentation rep);
   const Operator* ProtectedLoad(LoadRepresentation rep);
 
   const Operator* LoadTransform(MemoryAccessKind kind,
                                 LoadTransformation transform);
-
-  const Operator* PrefetchTemporal();
-  const Operator* PrefetchNonTemporal();
 
   // SIMD load: replace a specified lane with [base + index].
   const Operator* LoadLane(MemoryAccessKind kind, LoadRepresentation rep,

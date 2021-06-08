@@ -10,6 +10,7 @@
 #include "src/wasm/graph-builder-interface.h"
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/module-compiler.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-import-wrapper-cache.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-opcodes.h"
@@ -359,16 +360,18 @@ void TestBuildingGraphWithBuilder(compiler::WasmGraphBuilder* builder,
                                   const byte* start, const byte* end) {
   WasmFeatures unused_detected_features;
   FunctionBody body(sig, 0, start, end);
+  std::vector<compiler::WasmLoopInfo> loops;
   DecodeResult result =
       BuildTFGraph(zone->allocator(), WasmFeatures::All(), nullptr, builder,
-                   &unused_detected_features, body, nullptr);
+                   &unused_detected_features, body, &loops, nullptr);
   if (result.failed()) {
 #ifdef DEBUG
     if (!FLAG_trace_wasm_decoder) {
       // Retry the compilation with the tracing flag on, to help in debugging.
       FLAG_trace_wasm_decoder = true;
-      result = BuildTFGraph(zone->allocator(), WasmFeatures::All(), nullptr,
-                            builder, &unused_detected_features, body, nullptr);
+      result =
+          BuildTFGraph(zone->allocator(), WasmFeatures::All(), nullptr, builder,
+                       &unused_detected_features, body, &loops, nullptr);
     }
 #endif
 
@@ -376,9 +379,6 @@ void TestBuildingGraphWithBuilder(compiler::WasmGraphBuilder* builder,
           result.error().message().c_str());
   }
   builder->LowerInt64(compiler::WasmGraphBuilder::kCalledFromWasm);
-  if (!CpuFeatures::SupportsWasmSimd128()) {
-    builder->SimdScalarLoweringForTesting();
-  }
 }
 
 void TestBuildingGraph(Zone* zone, compiler::JSGraph* jsgraph,
@@ -481,8 +481,8 @@ Handle<Code> WasmFunctionWrapper::GetWrapperCode() {
       for (size_t i = 0; i < num_params + 1; i++) {
         rep_builder.AddParam(MachineRepresentation::kWord32);
       }
-      compiler::Int64Lowering r(graph(), machine(), common(), zone(),
-                                rep_builder.Build());
+      compiler::Int64Lowering r(graph(), machine(), common(), simplified(),
+                                zone(), rep_builder.Build());
       r.LowerGraph();
     }
 
@@ -561,8 +561,7 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   DCHECK_NOT_NULL(code);
   DisallowGarbageCollection no_gc;
   Script script = builder_->instance_object()->module_object().script();
-  std::unique_ptr<char[]> source_url =
-      String::cast(script.source_url()).ToCString();
+  std::unique_ptr<char[]> source_url = String::cast(script.name()).ToCString();
   if (WasmCode::ShouldBeLogged(isolate())) {
     code->LogCode(isolate(), source_url.get(), script.id());
   }

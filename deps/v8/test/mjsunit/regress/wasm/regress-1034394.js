@@ -10,7 +10,7 @@ const NUM_CASES = 3073;
 let body = [];
 // Add one block, so we can jump to this block or to the function end.
 body.push(kExprBlock);
-body.push(kWasmStmt);
+body.push(kWasmVoid);
 
 // Add the big BrTable.
 body.push(kExprLocalGet, 0);

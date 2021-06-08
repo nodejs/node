@@ -202,6 +202,11 @@ static_assert(kDeleted == -2,
 // Table implementations rely on this being 7.
 static constexpr int kH2Bits = 7;
 
+static constexpr int kNotFullMask = (1 << kH2Bits);
+static_assert(
+    kEmpty & kDeleted & kSentinel & kNotFullMask,
+    "Special markers need to have the MSB to make checking for them efficient");
+
 // Extracts H1 from the given overall hash, which means discarding the lowest 7
 // bits of the overall hash. H1 is used to determine the first group to probe.
 inline static uint32_t H1(uint32_t hash) { return (hash >> kH2Bits); }
@@ -293,6 +298,9 @@ struct GroupPortableImpl {
       : ctrl(base::ReadLittleEndianValue<uint64_t>(
             reinterpret_cast<uintptr_t>(const_cast<ctrl_t*>(pos)))) {}
 
+  static constexpr uint64_t kMsbs = 0x8080808080808080ULL;
+  static constexpr uint64_t kLsbs = 0x0101010101010101ULL;
+
   // Returns a bitmask representing the positions of slots that match |hash|.
   BitMask<uint64_t, kWidth, 3> Match(h2_t hash) const {
     // For the technique, see:
@@ -308,22 +316,18 @@ struct GroupPortableImpl {
     //   v = 0x1716151413121110
     //   hash = 0x12
     //   retval = (v - lsbs) & ~v & msbs = 0x0000000080800000
-    constexpr uint64_t msbs = 0x8080808080808080ULL;
-    constexpr uint64_t lsbs = 0x0101010101010101ULL;
-    auto x = ctrl ^ (lsbs * hash);
-    return BitMask<uint64_t, kWidth, 3>((x - lsbs) & ~x & msbs);
+    auto x = ctrl ^ (kLsbs * hash);
+    return BitMask<uint64_t, kWidth, 3>((x - kLsbs) & ~x & kMsbs);
   }
 
   // Returns a bitmask representing the positions of empty slots.
   BitMask<uint64_t, kWidth, 3> MatchEmpty() const {
-    constexpr uint64_t msbs = 0x8080808080808080ULL;
-    return BitMask<uint64_t, kWidth, 3>((ctrl & (~ctrl << 6)) & msbs);
+    return BitMask<uint64_t, kWidth, 3>((ctrl & (~ctrl << 6)) & kMsbs);
   }
 
   // Returns a bitmask representing the positions of empty or deleted slots.
   BitMask<uint64_t, kWidth, 3> MatchEmptyOrDeleted() const {
-    constexpr uint64_t msbs = 0x8080808080808080ULL;
-    return BitMask<uint64_t, kWidth, 3>((ctrl & (~ctrl << 7)) & msbs);
+    return BitMask<uint64_t, kWidth, 3>((ctrl & (~ctrl << 7)) & kMsbs);
   }
 
   // Returns the number of trailing empty or deleted elements in the group.
@@ -336,10 +340,8 @@ struct GroupPortableImpl {
   }
 
   void ConvertSpecialToEmptyAndFullToDeleted(ctrl_t* dst) const {
-    constexpr uint64_t msbs = 0x8080808080808080ULL;
-    constexpr uint64_t lsbs = 0x0101010101010101ULL;
-    auto x = ctrl & msbs;
-    auto res = (~x + (x >> 7)) & ~lsbs;
+    auto x = ctrl & kMsbs;
+    auto res = (~x + (x >> 7)) & ~kLsbs;
     base::WriteLittleEndianValue(reinterpret_cast<uint64_t*>(dst), res);
   }
 
@@ -347,10 +349,28 @@ struct GroupPortableImpl {
 };
 
 // Determine which Group implementation SwissNameDictionary uses.
+#if defined(V8_ENABLE_SWISS_NAME_DICTIONARY) && DEBUG
+// TODO(v8:11388) If v8_enable_swiss_name_dictionary is enabled, we are supposed
+// to use SwissNameDictionary as the dictionary backing store. If we want to use
+// the SIMD version of SwissNameDictionary, that would require us to compile SSE
+// instructions into the snapshot that exceed the minimum requirements for V8
+// SSE support. Therefore, this fails a DCHECK. However, given the experimental
+// nature of v8_enable_swiss_name_dictionary mode, we only except this to be run
+// by developers/bots, that always have the necessary instructions. This means
+// that if v8_enable_swiss_name_dictionary is enabled and debug mode isn't, we
+// ignore the DCHECK that would fail in debug mode. However, if both
+// v8_enable_swiss_name_dictionary and debug mode are enabled, we must fallback
+// to the non-SSE implementation. Given that V8 requires SSE2, there should be a
+// solution that doesn't require the workaround present here. Instead, the
+// backend should only use SSE2 when compiling the SIMD version of
+// SwissNameDictionary into the builtin.
+using Group = GroupPortableImpl;
+#else
 #if SWISS_TABLE_HAVE_SSE2
 using Group = GroupSse2Impl;
 #else
 using Group = GroupPortableImpl;
+#endif
 #endif
 
 #undef SWISS_TABLE_HAVE_SSE2

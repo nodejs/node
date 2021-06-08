@@ -225,8 +225,24 @@ bool CodeAssembler::IsIntPtrAbsWithOverflowSupported() const {
                 : IsInt32AbsWithOverflowSupported();
 }
 
+bool CodeAssembler::IsWord32PopcntSupported() const {
+  return raw_assembler()->machine()->Word32Popcnt().IsSupported();
+}
+
+bool CodeAssembler::IsWord64PopcntSupported() const {
+  return raw_assembler()->machine()->Word64Popcnt().IsSupported();
+}
+
+bool CodeAssembler::IsWord32CtzSupported() const {
+  return raw_assembler()->machine()->Word32Ctz().IsSupported();
+}
+
+bool CodeAssembler::IsWord64CtzSupported() const {
+  return raw_assembler()->machine()->Word64Ctz().IsSupported();
+}
+
 #ifdef DEBUG
-void CodeAssembler::GenerateCheckMaybeObjectIsObject(Node* node,
+void CodeAssembler::GenerateCheckMaybeObjectIsObject(TNode<MaybeObject> node,
                                                      const char* location) {
   Label ok(this);
   GotoIf(WordNotEqual(WordAnd(BitcastMaybeObjectToWord(node),
@@ -553,10 +569,9 @@ TNode<WordT> CodeAssembler::WordPoisonOnSpeculation(TNode<WordT> value) {
   return UncheckedCast<WordT>(raw_assembler()->WordPoisonOnSpeculation(value));
 }
 
-#define DEFINE_CODE_ASSEMBLER_BINARY_OP(name, ResType, Arg1Type, Arg2Type) \
-  TNode<ResType> CodeAssembler::name(SloppyTNode<Arg1Type> a,              \
-                                     SloppyTNode<Arg2Type> b) {            \
-    return UncheckedCast<ResType>(raw_assembler()->name(a, b));            \
+#define DEFINE_CODE_ASSEMBLER_BINARY_OP(name, ResType, Arg1Type, Arg2Type)   \
+  TNode<ResType> CodeAssembler::name(TNode<Arg1Type> a, TNode<Arg2Type> b) { \
+    return UncheckedCast<ResType>(raw_assembler()->name(a, b));              \
   }
 CODE_ASSEMBLER_BINARY_OP_LIST(DEFINE_CODE_ASSEMBLER_BINARY_OP)
 #undef DEFINE_CODE_ASSEMBLER_BINARY_OP
@@ -651,7 +666,7 @@ TNode<Int32T> CodeAssembler::TruncateFloat32ToInt32(TNode<Float32T> value) {
       value, TruncateKind::kSetOverflowToMin));
 }
 #define DEFINE_CODE_ASSEMBLER_UNARY_OP(name, ResType, ArgType) \
-  TNode<ResType> CodeAssembler::name(SloppyTNode<ArgType> a) { \
+  TNode<ResType> CodeAssembler::name(TNode<ArgType> a) {       \
     return UncheckedCast<ResType>(raw_assembler()->name(a));   \
   }
 CODE_ASSEMBLER_UNARY_OP_LIST(DEFINE_CODE_ASSEMBLER_UNARY_OP)
@@ -669,14 +684,12 @@ Node* CodeAssembler::Load(MachineType type, Node* base, Node* offset,
 
 TNode<Object> CodeAssembler::LoadFullTagged(Node* base,
                                             LoadSensitivity needs_poisoning) {
-  return BitcastWordToTagged(
-      Load(MachineType::Pointer(), base, needs_poisoning));
+  return BitcastWordToTagged(Load<RawPtrT>(base, needs_poisoning));
 }
 
-TNode<Object> CodeAssembler::LoadFullTagged(Node* base, Node* offset,
+TNode<Object> CodeAssembler::LoadFullTagged(Node* base, TNode<IntPtrT> offset,
                                             LoadSensitivity needs_poisoning) {
-  return BitcastWordToTagged(
-      Load(MachineType::Pointer(), base, offset, needs_poisoning));
+  return BitcastWordToTagged(Load<RawPtrT>(base, offset, needs_poisoning));
 }
 
 Node* CodeAssembler::AtomicLoad(MachineType type, TNode<RawPtrT> base,
@@ -718,6 +731,11 @@ TNode<Object> CodeAssembler::LoadRoot(RootIndex root_index) {
   int offset = IsolateData::root_slot_offset(root_index);
   return UncheckedCast<Object>(
       LoadFullTagged(isolate_root, IntPtrConstant(offset)));
+}
+
+Node* CodeAssembler::UnalignedLoad(MachineType type, TNode<RawPtrT> base,
+                                   TNode<WordT> offset) {
+  return raw_assembler()->UnalignedLoad(type, static_cast<Node*>(base), offset);
 }
 
 void CodeAssembler::Store(Node* base, Node* value) {
@@ -1091,7 +1109,7 @@ Node* CodeAssembler::CallStubRImpl(StubCallMode call_mode,
 Node* CodeAssembler::CallJSStubImpl(const CallInterfaceDescriptor& descriptor,
                                     TNode<Object> target, TNode<Object> context,
                                     TNode<Object> function,
-                                    TNode<Object> new_target,
+                                    base::Optional<TNode<Object>> new_target,
                                     TNode<Int32T> arity,
                                     std::initializer_list<Node*> args) {
   constexpr size_t kMaxNumArgs = 10;
@@ -1099,8 +1117,8 @@ Node* CodeAssembler::CallJSStubImpl(const CallInterfaceDescriptor& descriptor,
   NodeArray<kMaxNumArgs + 5> inputs;
   inputs.Add(target);
   inputs.Add(function);
-  if (!new_target.is_null()) {
-    inputs.Add(new_target);
+  if (new_target) {
+    inputs.Add(*new_target);
   }
   inputs.Add(arity);
   for (auto arg : args) inputs.Add(arg);

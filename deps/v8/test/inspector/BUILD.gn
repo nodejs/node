@@ -23,7 +23,6 @@ v8_source_set("inspector_test") {
     "../..:v8",
     "../..:v8_libbase",
     "../..:v8_libplatform",
-    "../..:v8_wrappers",
     "../../src/inspector:inspector_test_headers",
   ]
 }

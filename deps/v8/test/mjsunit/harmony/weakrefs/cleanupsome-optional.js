@@ -5,7 +5,7 @@
 // Flags: --harmony-weak-refs
 
 // FinalizationRegistry#cleanupSome is normative optional and has its own
-// flag. Test that it's not present.
+// flag. Test that it's not present with only --harmony-weak-refs.
 
 assertEquals(undefined, Object.getOwnPropertyDescriptor(
   FinalizationRegistry.prototype, "cleanupSome"));

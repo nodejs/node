@@ -35,9 +35,9 @@ kExprI32Const, 0x00,  // i32.const
 kExprI32Const, 0x01,  // i32.const
 kExprI32Sub,  // i32.sub
 kExprLocalSet, 0x07,  // local.set
-kExprBlock, kWasmStmt,  // block @45
+kExprBlock, kWasmVoid,  // block @45
   kExprI32Const, 0x00,  // i32.const
-  kExprIf, kWasmStmt,  // if @49
+  kExprIf, kWasmVoid,  // if @49
     kExprLocalGet, 0x0a,  // local.get
     kExprLocalSet, 0x08,  // local.set
   kExprElse,  // else @55

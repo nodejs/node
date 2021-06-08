@@ -121,8 +121,8 @@ class TestSignatures {
   FunctionSig* iii_v() { return &sig_iii_v; }
 
   FunctionSig* many(Zone* zone, ValueType ret, ValueType param, int count) {
-    FunctionSig::Builder builder(zone, ret == kWasmStmt ? 0 : 1, count);
-    if (ret != kWasmStmt) builder.AddReturn(ret);
+    FunctionSig::Builder builder(zone, ret == kWasmVoid ? 0 : 1, count);
+    if (ret != kWasmVoid) builder.AddReturn(ret);
     for (int i = 0; i < count; i++) {
       builder.AddParam(param);
     }

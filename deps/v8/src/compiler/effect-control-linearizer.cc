@@ -50,8 +50,7 @@ class EffectControlLinearizer {
         broker_(broker),
         graph_assembler_(js_graph, temp_zone, base::nullopt,
                          should_maintain_schedule() ? schedule : nullptr),
-        frame_state_zapper_(nullptr),
-        fast_api_call_stack_slot_(nullptr) {}
+        frame_state_zapper_(nullptr) {}
 
   void Run();
 
@@ -322,8 +321,6 @@ class EffectControlLinearizer {
   JSHeapBroker* broker_;
   JSGraphAssembler graph_assembler_;
   Node* frame_state_zapper_;  // For tracking down compiler::Node::New crashes.
-  Node* fast_api_call_stack_slot_;  // For caching the stack slot allocated for
-  // fast API calls.
 };
 
 namespace {
@@ -5011,28 +5008,24 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
   CHECK_EQ(FastApiCallNode::ArityForArgc(c_arg_count, js_arg_count),
            value_input_count);
 
-  if (fast_api_call_stack_slot_ == nullptr) {
+  Node* stack_slot = nullptr;
+  if (c_signature->HasOptions()) {
     int kAlign = alignof(v8::FastApiCallbackOptions);
     int kSize = sizeof(v8::FastApiCallbackOptions);
     // If this check fails, you've probably added new fields to
     // v8::FastApiCallbackOptions, which means you'll need to write code
-    // that initializes and reads from them too (see the Store and Load to
-    // fast_api_call_stack_slot_ below).
+    // that initializes and reads from them too.
     CHECK_EQ(kSize, sizeof(uintptr_t) * 2);
-    fast_api_call_stack_slot_ = __ StackSlot(kSize, kAlign);
-  }
+    stack_slot = __ StackSlot(kSize, kAlign);
 
-  // Leave the slot uninit if the callback doesn't use it.
-  if (c_signature->HasOptions()) {
-    // Generate the stores to `fast_api_call_stack_slot_`.
     __ Store(
         StoreRepresentation(MachineRepresentation::kWord32, kNoWriteBarrier),
-        fast_api_call_stack_slot_,
+        stack_slot,
         static_cast<int>(offsetof(v8::FastApiCallbackOptions, fallback)),
-        jsgraph()->ZeroConstant());
+        __ ZeroConstant());
     __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                  kNoWriteBarrier),
-             fast_api_call_stack_slot_,
+             stack_slot,
              static_cast<int>(offsetof(v8::FastApiCallbackOptions, data)),
              n.SlowCallArgument(FastApiCallNode::kSlowCallDataArgumentIndex));
   }
@@ -5047,7 +5040,7 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
     builder.AddParam(machine_type);
   }
   if (c_signature->HasOptions()) {
-    builder.AddParam(MachineType::Pointer());  // fast_api_call_stack_slot_
+    builder.AddParam(MachineType::Pointer());  // stack_slot
   }
 
   CallDescriptor* call_descriptor =
@@ -5076,7 +5069,7 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
     }
   }
   if (c_signature->HasOptions()) {
-    inputs[c_arg_count + 1] = fast_api_call_stack_slot_;
+    inputs[c_arg_count + 1] = stack_slot;
     inputs[c_arg_count + 2] = __ effect();
     inputs[c_arg_count + 3] = __ control();
   } else {
@@ -5125,9 +5118,9 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
 
   if (!c_signature->HasOptions()) return fast_call_result;
 
-  // Generate the load from `fast_api_call_stack_slot_`.
+  DCHECK_NOT_NULL(stack_slot);
   Node* load =
-      __ Load(MachineType::Int32(), fast_api_call_stack_slot_,
+      __ Load(MachineType::Int32(), stack_slot,
               static_cast<int>(offsetof(v8::FastApiCallbackOptions, fallback)));
 
   Node* is_zero = __ Word32Equal(load, __ Int32Constant(0));

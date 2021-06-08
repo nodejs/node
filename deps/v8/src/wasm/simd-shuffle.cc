@@ -4,6 +4,8 @@
 
 #include "src/wasm/simd-shuffle.h"
 
+#include <algorithm>
+
 #include "src/common/globals.h"
 
 namespace v8 {
@@ -159,6 +161,12 @@ void SimdShuffle::Pack16Lanes(uint32_t* dst, const uint8_t* shuffle) {
   for (int i = 0; i < 4; i++) {
     dst[i] = wasm::SimdShuffle::Pack4Lanes(shuffle + (i * 4));
   }
+}
+
+bool SimdSwizzle::AllInRangeOrTopBitSet(
+    std::array<uint8_t, kSimd128Size> shuffle) {
+  return std::all_of(shuffle.begin(), shuffle.end(),
+                     [](auto i) { return (i < kSimd128Size) || (i & 0x80); });
 }
 
 }  // namespace wasm

@@ -74,25 +74,20 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
   std::vector<std::string> requested_locales =
       maybe_requested_locales.FromJust();
 
-  // 2. If options is undefined, then
+  // 2. Set options to ? CoerceOptionsToObject(options).
   Handle<JSReceiver> options;
-  if (input_options->IsUndefined(isolate)) {
-    // 2. a. Let options be ObjectCreate(null).
-    options = isolate->factory()->NewJSObjectWithNullProto();
-    // 3. Else
-  } else {
-    // 3. a. Let options be ? ToObject(options).
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, options,
-                               Object::ToObject(isolate, input_options),
-                               JSRelativeTimeFormat);
-  }
+  const char* service = "Intl.RelativeTimeFormat";
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options,
+      Intl::CoerceOptionsToObject(isolate, input_options, service),
+      JSRelativeTimeFormat);
 
   // 4. Let opt be a new Record.
   // 5. Let matcher be ? GetOption(options, "localeMatcher", "string", «
   // "lookup", "best fit" », "best fit").
   // 6. Set opt.[[localeMatcher]] to matcher.
   Maybe<Intl::MatcherOption> maybe_locale_matcher =
-      Intl::GetLocaleMatcher(isolate, options, "Intl.RelativeTimeFormat");
+      Intl::GetLocaleMatcher(isolate, options, service);
   MAYBE_RETURN(maybe_locale_matcher, MaybeHandle<JSRelativeTimeFormat>());
   Intl::MatcherOption matcher = maybe_locale_matcher.FromJust();
 
@@ -100,7 +95,7 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
   //    `"string"`, *undefined*, *undefined*).
   std::unique_ptr<char[]> numbering_system_str = nullptr;
   Maybe<bool> maybe_numberingSystem = Intl::GetNumberingSystem(
-      isolate, options, "Intl.RelativeTimeFormat", &numbering_system_str);
+      isolate, options, service, &numbering_system_str);
   // 8. If _numberingSystem_ is not *undefined*, then
   // a. If _numberingSystem_ does not match the
   //    `(3*8alphanum) *("-" (3*8alphanum))` sequence, throw a *RangeError*
@@ -153,9 +148,8 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
   // 16. Let s be ? GetOption(options, "style", "string",
   //                          «"long", "short", "narrow"», "long").
   Maybe<Style> maybe_style = Intl::GetStringOption<Style>(
-      isolate, options, "style", "Intl.RelativeTimeFormat",
-      {"long", "short", "narrow"}, {Style::LONG, Style::SHORT, Style::NARROW},
-      Style::LONG);
+      isolate, options, "style", service, {"long", "short", "narrow"},
+      {Style::LONG, Style::SHORT, Style::NARROW}, Style::LONG);
   MAYBE_RETURN(maybe_style, MaybeHandle<JSRelativeTimeFormat>());
   Style style_enum = maybe_style.FromJust();
 
@@ -164,8 +158,8 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
   // 18. Let numeric be ? GetOption(options, "numeric", "string",
   //                                «"always", "auto"», "always").
   Maybe<Numeric> maybe_numeric = Intl::GetStringOption<Numeric>(
-      isolate, options, "numeric", "Intl.RelativeTimeFormat",
-      {"always", "auto"}, {Numeric::ALWAYS, Numeric::AUTO}, Numeric::ALWAYS);
+      isolate, options, "numeric", service, {"always", "auto"},
+      {Numeric::ALWAYS, Numeric::AUTO}, Numeric::ALWAYS);
   MAYBE_RETURN(maybe_numeric, MaybeHandle<JSRelativeTimeFormat>());
   Numeric numeric_enum = maybe_numeric.FromJust();
 

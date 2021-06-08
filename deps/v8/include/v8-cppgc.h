@@ -9,6 +9,7 @@
 #include <memory>
 #include <vector>
 
+#include "cppgc/common.h"
 #include "cppgc/custom-space.h"
 #include "cppgc/heap-statistics.h"
 #include "cppgc/internal/write-barrier.h"
@@ -117,6 +118,20 @@ class V8_EXPORT CppHeap {
    */
   cppgc::HeapStatistics CollectStatistics(
       cppgc::HeapStatistics::DetailLevel detail_level);
+
+  /**
+   * Enables a detached mode that allows testing garbage collection using
+   * `cppgc::testing` APIs. Once used, the heap cannot be attached to an
+   * `Isolate` anymore.
+   */
+  void EnableDetachedGarbageCollectionsForTesting();
+
+  /**
+   * Performs a stop-the-world garbage collection for testing purposes.
+   *
+   * \param stack_state The stack state to assume for the garbage collection.
+   */
+  void CollectGarbageForTesting(cppgc::EmbedderStackState stack_state);
 
  private:
   CppHeap() = default;

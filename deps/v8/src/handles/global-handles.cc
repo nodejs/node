@@ -382,11 +382,11 @@ namespace {
 
 void ExtractInternalFields(JSObject jsobject, void** embedder_fields, int len) {
   int field_count = jsobject.GetEmbedderFieldCount();
-  IsolateRoot isolate = GetIsolateForPtrCompr(jsobject);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(jsobject);
   for (int i = 0; i < len; ++i) {
     if (field_count == i) break;
     void* pointer;
-    if (EmbedderDataSlot(jsobject, i).ToAlignedPointer(isolate, &pointer)) {
+    if (EmbedderDataSlot(jsobject, i).ToAlignedPointer(cage_base, &pointer)) {
       embedder_fields[i] = pointer;
     }
   }

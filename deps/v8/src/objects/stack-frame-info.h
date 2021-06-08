@@ -24,11 +24,14 @@ class StackFrameInfo
  public:
   NEVER_READ_ONLY_SPACE
 
+#if V8_ENABLE_WEBASSEMBLY
   inline bool IsWasm() const;
   inline bool IsAsmJsWasm() const;
+  inline bool IsAsmJsAtNumberConversion() const;
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   inline bool IsStrict() const;
   inline bool IsConstructor() const;
-  inline bool IsAsmJsAtNumberConversion() const;
   inline bool IsAsync() const;
   bool IsEval() const;
   bool IsUserJavaScript() const;
@@ -56,16 +59,20 @@ class StackFrameInfo
   int GetScriptId() const;
   Object GetScriptName() const;
   Object GetScriptNameOrSourceURL() const;
+  Object GetScriptSource() const;
+  Object GetScriptSourceMappingURL() const;
 
   static Handle<PrimitiveHeapObject> GetEvalOrigin(Handle<StackFrameInfo> info);
   static Handle<Object> GetFunctionName(Handle<StackFrameInfo> info);
   static Handle<Object> GetMethodName(Handle<StackFrameInfo> info);
   static Handle<Object> GetTypeName(Handle<StackFrameInfo> info);
 
+#if V8_ENABLE_WEBASSEMBLY
   // These methods are only valid for Wasm and asm.js Wasm frames.
   uint32_t GetWasmFunctionIndex() const;
   WasmInstanceObject GetWasmInstance() const;
   static Handle<Object> GetWasmModuleName(Handle<StackFrameInfo> info);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Returns the 0-based source position, which is the offset into the
   // Script in case of JavaScript and Asm.js, and the bytecode offset

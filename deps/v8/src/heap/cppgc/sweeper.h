@@ -16,8 +16,7 @@ class Platform;
 
 namespace internal {
 
-class StatsCollector;
-class RawHeap;
+class HeapBase;
 class ConcurrentSweeperTest;
 class NormalPageSpace;
 
@@ -32,7 +31,7 @@ class V8_EXPORT_PRIVATE Sweeper final {
         CompactableSpaceHandling::kSweep;
   };
 
-  Sweeper(RawHeap*, cppgc::Platform*, StatsCollector*);
+  explicit Sweeper(HeapBase&);
   ~Sweeper();
 
   Sweeper(const Sweeper&) = delete;
@@ -54,6 +53,8 @@ class V8_EXPORT_PRIVATE Sweeper final {
   void WaitForConcurrentSweepingForTesting();
 
   class SweeperImpl;
+
+  HeapBase& heap_;
   std::unique_ptr<SweeperImpl> impl_;
 
   friend class ConcurrentSweeperTest;

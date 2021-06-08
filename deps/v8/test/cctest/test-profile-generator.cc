@@ -352,10 +352,6 @@ TEST(CodeMapMoveAndDeleteCode) {
   code_map.MoveCode(ToAddress(0x1500), ToAddress(0x1700));  // Deprecate bbb.
   CHECK(!code_map.FindEntry(ToAddress(0x1500)));
   CHECK_EQ(entry1, code_map.FindEntry(ToAddress(0x1700)));
-  CodeEntry* entry3 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "ccc");
-  code_map.AddCode(ToAddress(0x1750), entry3, 0x100);
-  CHECK(!code_map.FindEntry(ToAddress(0x1700)));
-  CHECK_EQ(entry3, code_map.FindEntry(ToAddress(0x1750)));
 }
 
 TEST(CodeMapClear) {
@@ -960,6 +956,63 @@ TEST(NodeSourceTypes) {
   auto* unresolved_node = PickChild(root, "(unresolved function)");
   CHECK(unresolved_node);
   CHECK_EQ(unresolved_node->source_type(), v8::CpuProfileNode::kUnresolved);
+}
+
+TEST(CodeMapRemoveCode) {
+  StringsStorage strings;
+  CodeMap code_map(strings);
+
+  CodeEntry* entry = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "aaa");
+  code_map.AddCode(ToAddress(0x1000), entry, 0x100);
+  CHECK(code_map.RemoveCode(entry));
+  CHECK(!code_map.FindEntry(ToAddress(0x1000)));
+
+  // Test that when two entries share the same address, we remove only the
+  // entry that we desired to.
+  CodeEntry* colliding_entry1 =
+      new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "aaa");
+  CodeEntry* colliding_entry2 =
+      new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "aaa");
+  code_map.AddCode(ToAddress(0x1000), colliding_entry1, 0x100);
+  code_map.AddCode(ToAddress(0x1000), colliding_entry2, 0x100);
+
+  CHECK(code_map.RemoveCode(colliding_entry1));
+  CHECK_EQ(code_map.FindEntry(ToAddress(0x1000)), colliding_entry2);
+
+  CHECK(code_map.RemoveCode(colliding_entry2));
+  CHECK(!code_map.FindEntry(ToAddress(0x1000)));
+}
+
+TEST(CodeMapMoveOverlappingCode) {
+  StringsStorage strings;
+  CodeMap code_map(strings);
+  CodeEntry* colliding_entry1 =
+      new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "aaa");
+  CodeEntry* colliding_entry2 =
+      new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "bbb");
+  CodeEntry* after_entry =
+      new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "ccc");
+
+  code_map.AddCode(ToAddress(0x1400), colliding_entry1, 0x200);
+  code_map.AddCode(ToAddress(0x1400), colliding_entry2, 0x200);
+  code_map.AddCode(ToAddress(0x1800), after_entry, 0x200);
+
+  CHECK_EQ(colliding_entry1->instruction_start(), ToAddress(0x1400));
+  CHECK_EQ(colliding_entry2->instruction_start(), ToAddress(0x1400));
+  CHECK_EQ(after_entry->instruction_start(), ToAddress(0x1800));
+
+  CHECK(code_map.FindEntry(ToAddress(0x1400)));
+  CHECK_EQ(code_map.FindEntry(ToAddress(0x1800)), after_entry);
+
+  code_map.MoveCode(ToAddress(0x1400), ToAddress(0x1600));
+
+  CHECK(!code_map.FindEntry(ToAddress(0x1400)));
+  CHECK(code_map.FindEntry(ToAddress(0x1600)));
+  CHECK_EQ(code_map.FindEntry(ToAddress(0x1800)), after_entry);
+
+  CHECK_EQ(colliding_entry1->instruction_start(), ToAddress(0x1600));
+  CHECK_EQ(colliding_entry2->instruction_start(), ToAddress(0x1600));
+  CHECK_EQ(after_entry->instruction_start(), ToAddress(0x1800));
 }
 
 }  // namespace test_profile_generator

@@ -188,7 +188,6 @@ namespace compiler {
   V(X64F32x4RecipApprox)                  \
   V(X64F32x4RecipSqrtApprox)              \
   V(X64F32x4Add)                          \
-  V(X64F32x4AddHoriz)                     \
   V(X64F32x4Sub)                          \
   V(X64F32x4Mul)                          \
   V(X64F32x4Div)                          \
@@ -219,7 +218,6 @@ namespace compiler {
   V(X64I64x2GeS)                          \
   V(X64I64x2Ne)                           \
   V(X64I64x2ShrU)                         \
-  V(X64I64x2SignSelect)                   \
   V(X64I64x2ExtMulLowI32x4S)              \
   V(X64I64x2ExtMulHighI32x4S)             \
   V(X64I64x2ExtMulLowI32x4U)              \
@@ -237,7 +235,6 @@ namespace compiler {
   V(X64I32x4Shl)                          \
   V(X64I32x4ShrS)                         \
   V(X64I32x4Add)                          \
-  V(X64I32x4AddHoriz)                     \
   V(X64I32x4Sub)                          \
   V(X64I32x4Mul)                          \
   V(X64I32x4MinS)                         \
@@ -257,7 +254,6 @@ namespace compiler {
   V(X64I32x4Abs)                          \
   V(X64I32x4BitMask)                      \
   V(X64I32x4DotI16x8S)                    \
-  V(X64I32x4SignSelect)                   \
   V(X64I32x4ExtMulLowI16x8S)              \
   V(X64I32x4ExtMulHighI16x8S)             \
   V(X64I32x4ExtMulLowI16x8U)              \
@@ -276,7 +272,6 @@ namespace compiler {
   V(X64I16x8SConvertI32x4)                \
   V(X64I16x8Add)                          \
   V(X64I16x8AddSatS)                      \
-  V(X64I16x8AddHoriz)                     \
   V(X64I16x8Sub)                          \
   V(X64I16x8SubSatS)                      \
   V(X64I16x8Mul)                          \
@@ -299,7 +294,6 @@ namespace compiler {
   V(X64I16x8RoundingAverageU)             \
   V(X64I16x8Abs)                          \
   V(X64I16x8BitMask)                      \
-  V(X64I16x8SignSelect)                   \
   V(X64I16x8ExtMulLowI8x16S)              \
   V(X64I16x8ExtMulHighI8x16S)             \
   V(X64I16x8ExtMulLowI8x16U)              \
@@ -323,7 +317,6 @@ namespace compiler {
   V(X64I8x16AddSatS)                      \
   V(X64I8x16Sub)                          \
   V(X64I8x16SubSatS)                      \
-  V(X64I8x16Mul)                          \
   V(X64I8x16MinS)                         \
   V(X64I8x16MaxS)                         \
   V(X64I8x16Eq)                           \
@@ -341,7 +334,6 @@ namespace compiler {
   V(X64I8x16RoundingAverageU)             \
   V(X64I8x16Abs)                          \
   V(X64I8x16BitMask)                      \
-  V(X64I8x16SignSelect)                   \
   V(X64S128Const)                         \
   V(X64S128Zero)                          \
   V(X64S128AllOnes)                       \
@@ -394,12 +386,10 @@ namespace compiler {
   V(X64S8x4Reverse)                       \
   V(X64S8x2Reverse)                       \
   V(X64V128AnyTrue)                       \
-  V(X64V64x2AllTrue)                      \
-  V(X64V32x4AllTrue)                      \
-  V(X64V16x8AllTrue)                      \
-  V(X64V8x16AllTrue)                      \
-  V(X64Prefetch)                          \
-  V(X64PrefetchNta)                       \
+  V(X64I64x2AllTrue)                      \
+  V(X64I32x4AllTrue)                      \
+  V(X64I16x8AllTrue)                      \
+  V(X64I8x16AllTrue)                      \
   V(X64Word64AtomicAddUint8)              \
   V(X64Word64AtomicAddUint16)             \
   V(X64Word64AtomicAddUint32)             \

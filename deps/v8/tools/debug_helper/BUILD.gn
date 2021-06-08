@@ -96,6 +96,7 @@ v8_component("v8_debug_helper") {
     "../..:generate_bytecode_builtins_list",
     "../..:run_torque",
     "../..:v8_headers",
+    "../..:v8_internal_headers",
     "../..:v8_libbase",
     "../..:v8_shared_internal_headers",
     "../..:v8_tracing",

@@ -29,8 +29,6 @@ LoadHandler::Kind LoadHandler::GetHandlerKind(Smi smi_handler) {
 }
 
 Handle<Smi> LoadHandler::LoadNormal(Isolate* isolate) {
-  // TODO(v8:11167) remove DCHECK once OrderedNameDictionary supported.
-  DCHECK(!V8_DICT_MODE_PROTOTYPES_BOOL);
   int config = KindBits::encode(kNormal);
   return handle(Smi::FromInt(config), isolate);
 }
@@ -130,8 +128,6 @@ Handle<Smi> StoreHandler::StoreGlobalProxy(Isolate* isolate) {
 }
 
 Handle<Smi> StoreHandler::StoreNormal(Isolate* isolate) {
-  // TODO(v8:11167) remove DCHECK once OrderedNameDictionary supported.
-  DCHECK(!V8_DICT_MODE_PROTOTYPES_BOOL);
   int config = KindBits::encode(kNormal);
   return handle(Smi::FromInt(config), isolate);
 }

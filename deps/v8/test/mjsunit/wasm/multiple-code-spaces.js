@@ -32,7 +32,7 @@ while (true) {
   // Each function f<n> with argument {i} then calls f<n/10> with argument
   // {i + 1} and returns whatever that function returns.
   const body_template = [
-    kExprLocalGet, 0, kExprI32Eqz, kExprIf, kWasmStmt,  // if (i == 0)
+    kExprLocalGet, 0, kExprI32Eqz, kExprIf, kWasmVoid,  // if (i == 0)
     kExprLocalGet, 0                                    // get i
   ];
   for (let i = 0; i < 1000; ++i) body_template.push(kExprI32LoadMem, 0, 0);

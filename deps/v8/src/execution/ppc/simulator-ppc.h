@@ -126,7 +126,42 @@ class Simulator : public SimulatorBase {
     d29,
     d30,
     d31,
-    kNumFPRs = 32
+    kNumFPRs = 32,
+    // PPC Simd registers are a serapre set from Floating Point registers. Refer
+    // to register-ppc.h for more details.
+    v0 = 0,
+    v1,
+    v2,
+    v3,
+    v4,
+    v5,
+    v6,
+    v7,
+    v8,
+    v9,
+    v10,
+    v11,
+    v12,
+    v13,
+    v14,
+    v15,
+    v16,
+    v17,
+    v18,
+    v19,
+    v20,
+    v21,
+    v22,
+    v23,
+    v24,
+    v25,
+    v26,
+    v27,
+    v28,
+    v29,
+    v30,
+    v31,
+    kNumSIMDRs = 32
   };
 
   explicit Simulator(Isolate* isolate);
@@ -204,7 +239,6 @@ class Simulator : public SimulatorBase {
   // below (bad_lr, end_sim_pc).
   bool has_bad_pc() const;
 
- private:
   enum special_values {
     // Known bad pc value to ensure that the simulator does not execute
     // without being properly setup.
@@ -287,10 +321,12 @@ class Simulator : public SimulatorBase {
     }
   }
 
-#define RW_VAR_LIST(V) \
-  V(DWU, uint64_t)     \
-  V(DW, int64_t)       \
-  V(WU, uint32_t)      \
+#define RW_VAR_LIST(V)      \
+  V(QWU, unsigned __int128) \
+  V(QW, __int128)           \
+  V(DWU, uint64_t)          \
+  V(DW, int64_t)            \
+  V(WU, uint32_t)           \
   V(W, int32_t) V(HU, uint16_t) V(H, int16_t) V(BU, uint8_t) V(B, int8_t)
 
 #define GENERATE_RW_FUNC(size, type)                   \
@@ -304,6 +340,7 @@ class Simulator : public SimulatorBase {
 
   void Trace(Instruction* instr);
   void SetCR0(intptr_t result, bool setSO = false);
+  void SetCR6(bool true_for_all, bool false_for_all);
   void ExecuteBranchConditional(Instruction* instr, BCType type);
   void ExecuteGeneric(Instruction* instr);
 
@@ -341,6 +378,64 @@ class Simulator : public SimulatorBase {
   int32_t special_reg_xer_;
 
   int64_t fp_registers_[kNumFPRs];
+
+  // Simd registers.
+  union simdr_t {
+    int8_t int8[16];
+    uint8_t uint8[16];
+    int16_t int16[8];
+    uint16_t uint16[8];
+    int32_t int32[4];
+    uint32_t uint32[4];
+    int64_t int64[2];
+    uint64_t uint64[2];
+    float f32[4];
+    double f64[2];
+  };
+  simdr_t simd_registers_[kNumSIMDRs];
+
+  // Vector register lane numbers on IBM machines are reversed compared to
+  // x64. For example, doing an I32x4 extract_lane with lane number 0 on x64
+  // will be equal to lane number 3 on IBM machines. Vector registers are only
+  // used for compiling Wasm code at the moment. To keep the Wasm
+  // simulation accurate, we need to make sure accessing a lane is correctly
+  // simulated and as such we reverse the lane number on the getters and setters
+  // below. We need to be careful when getting/setting values on the Low or High
+  // side of a simulated register. In the simulation, "Low" is equal to the MSB
+  // and "High" is equal to the LSB in memory. "force_ibm_lane_numbering" could
+  // be used to disabled automatic lane number reversal and help with accessing
+  // the Low or High side of a simulated register.
+  template <class T>
+  T get_simd_register_by_lane(int reg, int lane,
+                              bool force_ibm_lane_numbering = true) {
+    if (force_ibm_lane_numbering) {
+      lane = (kSimd128Size / sizeof(T)) - 1 - lane;
+    }
+    CHECK_LE(lane, kSimd128Size / sizeof(T));
+    CHECK_LT(reg, kNumSIMDRs);
+    CHECK_GE(lane, 0);
+    CHECK_GE(reg, 0);
+    return (reinterpret_cast<T*>(&simd_registers_[reg]))[lane];
+  }
+
+  template <class T>
+  void set_simd_register_by_lane(int reg, int lane, const T& value,
+                                 bool force_ibm_lane_numbering = true) {
+    if (force_ibm_lane_numbering) {
+      lane = (kSimd128Size / sizeof(T)) - 1 - lane;
+    }
+    CHECK_LE(lane, kSimd128Size / sizeof(T));
+    CHECK_LT(reg, kNumSIMDRs);
+    CHECK_GE(lane, 0);
+    CHECK_GE(reg, 0);
+    (reinterpret_cast<T*>(&simd_registers_[reg]))[lane] = value;
+  }
+
+  simdr_t get_simd_register(int reg) { return simd_registers_[reg]; }
+
+  void set_simd_register(int reg, const simdr_t& value) {
+    simd_registers_[reg] = value;
+  }
 
   // Simulator support.
   char* stack_;

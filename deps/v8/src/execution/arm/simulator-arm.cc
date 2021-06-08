@@ -4277,13 +4277,6 @@ void PairwiseAddLong(Simulator* simulator, int Vd, int Vm) {
   simulator->set_neon_register<WideType, SIZE>(Vd, dst);
 }
 
-template <typename T, int SIZE = kSimd128Size>
-void RoundingAverageUnsigned(Simulator* simulator, int Vd, int Vm, int Vn) {
-  static_assert(std::is_unsigned<T>::value,
-                "Implemented only for unsigned types.");
-  Binop<T>(simulator, Vd, Vm, Vn, base::RoundingAverageUnsigned<T>);
-}
-
 template <typename NarrowType, typename WideType>
 void MultiplyLong(Simulator* simulator, int Vd, int Vn, int Vm) {
   DCHECK_EQ(sizeof(WideType), 2 * sizeof(NarrowType));
@@ -5034,6 +5027,11 @@ void Simulator::DecodeAdvancedSIMDDataProcessing(Instruction* instr) {
         }
       }
       set_neon_register(Vd, src1);
+    } else if (!u && opc == 1 && sz == 3 && q && op1) {
+      // vorn, Qd, Qm, Qn.
+      // NeonSize does not matter.
+      Binop<uint32_t>(this, Vd, Vm, Vn,
+                      [](uint32_t x, uint32_t y) { return x | (~y); });
     } else if (!u && opc == 1 && sz == 0 && q && op1) {
       // vand Qd, Qm, Qn.
       uint32_t src1[4], src2[4];
@@ -5314,13 +5312,13 @@ void Simulator::DecodeAdvancedSIMDDataProcessing(Instruction* instr) {
       NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
       switch (size) {
         case Neon8:
-          RoundingAverageUnsigned<uint8_t>(this, Vd, Vm, Vn);
+          Binop<uint8_t>(this, Vd, Vm, Vn, RoundingAverageUnsigned<uint8_t>);
           break;
         case Neon16:
-          RoundingAverageUnsigned<uint16_t>(this, Vd, Vm, Vn);
+          Binop<uint16_t>(this, Vd, Vm, Vn, RoundingAverageUnsigned<uint16_t>);
           break;
         case Neon32:
-          RoundingAverageUnsigned<uint32_t>(this, Vd, Vm, Vn);
+          Binop<uint32_t>(this, Vd, Vm, Vn, RoundingAverageUnsigned<uint32_t>);
           break;
         default:
           UNREACHABLE();

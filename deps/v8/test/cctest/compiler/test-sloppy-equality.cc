@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "test/cctest/compiler/node-observer-tester.h"
+#include "test/common/flag-utils.h"
 
 namespace v8 {
 namespace internal {

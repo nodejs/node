@@ -145,7 +145,7 @@ bool CompilationCacheScript::HasOrigin(Handle<SharedFunctionInfo> function_info,
 MaybeHandle<SharedFunctionInfo> CompilationCacheScript::Lookup(
     Handle<String> source, MaybeHandle<Object> name, int line_offset,
     int column_offset, ScriptOriginOptions resource_options,
-    Handle<Context> native_context, LanguageMode language_mode) {
+    LanguageMode language_mode) {
   MaybeHandle<SharedFunctionInfo> result;
 
   // Probe the script generation tables. Make sure not to leak handles
@@ -156,7 +156,7 @@ MaybeHandle<SharedFunctionInfo> CompilationCacheScript::Lookup(
     DCHECK_EQ(generations(), 1);
     Handle<CompilationCacheTable> table = GetTable(generation);
     MaybeHandle<SharedFunctionInfo> probe = CompilationCacheTable::LookupScript(
-        table, source, native_context, language_mode);
+        table, source, language_mode, isolate());
     Handle<SharedFunctionInfo> function_info;
     if (probe.ToHandle(&function_info)) {
       // Break when we've found a suitable shared function info that
@@ -188,13 +188,12 @@ MaybeHandle<SharedFunctionInfo> CompilationCacheScript::Lookup(
 }
 
 void CompilationCacheScript::Put(Handle<String> source,
-                                 Handle<Context> native_context,
                                  LanguageMode language_mode,
                                  Handle<SharedFunctionInfo> function_info) {
   HandleScope scope(isolate());
   Handle<CompilationCacheTable> table = GetFirstTable();
-  SetFirstTable(CompilationCacheTable::PutScript(table, source, native_context,
-                                                 language_mode, function_info));
+  SetFirstTable(CompilationCacheTable::PutScript(table, source, language_mode,
+                                                 function_info, isolate()));
 }
 
 InfoCellPair CompilationCacheEval::Lookup(Handle<String> source,
@@ -331,11 +330,11 @@ void CompilationCache::Remove(Handle<SharedFunctionInfo> function_info) {
 MaybeHandle<SharedFunctionInfo> CompilationCache::LookupScript(
     Handle<String> source, MaybeHandle<Object> name, int line_offset,
     int column_offset, ScriptOriginOptions resource_options,
-    Handle<Context> native_context, LanguageMode language_mode) {
+    LanguageMode language_mode) {
   if (!IsEnabledScriptAndEval()) return MaybeHandle<SharedFunctionInfo>();
 
   return script_.Lookup(source, name, line_offset, column_offset,
-                        resource_options, native_context, language_mode);
+                        resource_options, language_mode);
 }
 
 InfoCellPair CompilationCache::LookupEval(Handle<String> source,
@@ -378,13 +377,12 @@ MaybeHandle<Code> CompilationCache::LookupCode(Handle<SharedFunctionInfo> sfi) {
 }
 
 void CompilationCache::PutScript(Handle<String> source,
-                                 Handle<Context> native_context,
                                  LanguageMode language_mode,
                                  Handle<SharedFunctionInfo> function_info) {
   if (!IsEnabledScriptAndEval()) return;
   LOG(isolate(), CompilationCacheEvent("put", "script", *function_info));
 
-  script_.Put(source, native_context, language_mode, function_info);
+  script_.Put(source, language_mode, function_info);
 }
 
 void CompilationCache::PutEval(Handle<String> source,

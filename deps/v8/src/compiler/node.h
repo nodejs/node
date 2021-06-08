@@ -69,14 +69,14 @@ class V8_EXPORT_PRIVATE Node final {
 #endif
 
   Node* InputAt(int index) const {
-    CHECK_LE(0, index);
-    CHECK_LT(index, InputCount());
+    DCHECK_LE(0, index);
+    DCHECK_LT(index, InputCount());
     return *GetInputPtrConst(index);
   }
 
   void ReplaceInput(int index, Node* new_to) {
-    CHECK_LE(0, index);
-    CHECK_LT(index, InputCount());
+    DCHECK_LE(0, index);
+    DCHECK_LT(index, InputCount());
     ZoneNodePtr* input_ptr = GetInputPtr(index);
     Node* old_to = *input_ptr;
     if (old_to != new_to) {

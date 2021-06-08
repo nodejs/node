@@ -124,9 +124,9 @@ print('=== grow_memory in direct calls ===');
   builder.addFunction('main', kSig_i_ii)
       .addBody([
         // clang-format off
-        kExprLoop, kWasmStmt,                   // while
+        kExprLoop, kWasmVoid,                   // while
           kExprLocalGet, 0,                     // -
-          kExprIf, kWasmStmt,                   // if <param0> != 0
+          kExprIf, kWasmVoid,                   // if <param0> != 0
             // Grow memory.
             kExprLocalGet, 1,                   // get number of new pages
             kExprCallFunction, kGrowFunction,   // call the grow function
@@ -174,9 +174,9 @@ print('=== grow_memory in direct calls ===');
   builder.addFunction('main', kSig_i_iii)
       .addBody([
         // clang-format off
-        kExprLoop, kWasmStmt,                   // while
+        kExprLoop, kWasmVoid,                   // while
           kExprLocalGet, 0,                     // -
-          kExprIf, kWasmStmt,                   // if <param0> != 0
+          kExprIf, kWasmVoid,                   // if <param0> != 0
             // Grow memory.
             kExprLocalGet, 1,                   // get number of new pages
             kExprCallFunction, kGrowFunction,   // call the grow function
@@ -338,9 +338,9 @@ print('\n=== grow_memory in indirect calls ===');
   builder.addFunction('main', kSig_i_iii)
       .addBody([
         // clang-format off
-        kExprLoop, kWasmStmt,                   // while
+        kExprLoop, kWasmVoid,                   // while
           kExprLocalGet, 1,                     // -
-          kExprIf, kWasmStmt,                   // if <param1> != 0
+          kExprIf, kWasmVoid,                   // if <param1> != 0
             // Grow memory.
             kExprLocalGet, 2,                   // get number of new pages
             kExprLocalGet, 0,                   // get index of the function
@@ -393,9 +393,9 @@ print('\n=== grow_memory in indirect calls ===');
           'main', makeSig([kWasmI32, kWasmI32, kWasmI32, kWasmI32], [kWasmI32]))
       .addBody([
         // clang-format off
-        kExprLoop, kWasmStmt,                   // while
+        kExprLoop, kWasmVoid,                   // while
           kExprLocalGet, 1,                     // -
-          kExprIf, kWasmStmt,                   // if <param1> != 0
+          kExprIf, kWasmVoid,                   // if <param1> != 0
             // Grow memory.
             kExprLocalGet, 2,                   // get number of new pages
             kExprLocalGet, 0,                   // get index of the function

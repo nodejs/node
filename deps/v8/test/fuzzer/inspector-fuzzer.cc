@@ -245,10 +245,6 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
                    v8::FunctionTemplate::New(
                        isolate, &InspectorExtension::SetMaxAsyncTaskStacks));
     inspector->Set(
-        ToV8String(isolate, "dumpAsyncTaskStacksStateForTest"),
-        v8::FunctionTemplate::New(
-            isolate, &InspectorExtension::DumpAsyncTaskStacksStateForTest));
-    inspector->Set(
         ToV8String(isolate, "breakProgram"),
         v8::FunctionTemplate::New(isolate, &InspectorExtension::BreakProgram));
     inspector->Set(

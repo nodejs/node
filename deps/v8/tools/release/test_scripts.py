@@ -540,7 +540,7 @@ CQ_INCLUDE_TRYBOTS=luci.chromium.try:mac_optional_gpu_tests_rel
 CQ_INCLUDE_TRYBOTS=luci.chromium.try:win_optional_gpu_tests_rel
 CQ_INCLUDE_TRYBOTS=luci.chromium.try:android_optional_gpu_tests_rel
 
-TBR=reviewer@chromium.org"""
+R=reviewer@chromium.org"""
 
   # Snippet from the original DEPS file.
   FAKE_DEPS = """
@@ -624,7 +624,7 @@ deps = {
            self.ROLL_COMMIT_MSG),
           "", cwd=chrome_dir),
       Cmd("git cl upload --send-mail -f "
-          "--cq-dry-run --bypass-hooks", "",
+          "--cq-dry-run --set-bot-commit --bypass-hooks", "",
           cwd=chrome_dir),
       Cmd("git checkout -f master", "", cwd=chrome_dir),
       Cmd("git branch -D work-branch", "", cwd=chrome_dir),

@@ -6,7 +6,7 @@
 @abstract
 @highestInstanceTypeWithinParentClassRange
 extern class JSReceiver extends HeapObject {
-  properties_or_hash: FixedArrayBase|PropertyArray|Smi;
+  properties_or_hash: SwissNameDictionary|FixedArrayBase|PropertyArray|Smi;
 }
 
 type Constructor extends JSReceiver;
@@ -73,12 +73,12 @@ macro GetDerivedMap(implicit context: Context)(
 
 macro AllocateFastOrSlowJSObjectFromMap(implicit context: Context)(map: Map):
     JSObject {
-  let properties: EmptyFixedArray|NameDictionary|OrderedNameDictionary =
+  let properties: EmptyFixedArray|NameDictionary|SwissNameDictionary =
       kEmptyFixedArray;
   if (IsDictionaryMap(map)) {
     if (kDictModePrototypes) {
       properties =
-          AllocateOrderedNameDictionary(kOrderedNameDictionaryInitialCapacity);
+          AllocateSwissNameDictionary(kSwissNameDictionaryInitialCapacity);
     } else {
       properties = AllocateNameDictionary(kNameDictionaryInitialCapacity);
     }
@@ -161,10 +161,9 @@ extern class JSStringIterator extends JSObject {
 extern macro AllocateJSObjectFromMap(Map): JSObject;
 extern macro AllocateJSObjectFromMap(
     Map,
-    NameDictionary | OrderedNameDictionary | EmptyFixedArray |
+    NameDictionary | SwissNameDictionary | EmptyFixedArray |
         PropertyArray): JSObject;
 extern macro AllocateJSObjectFromMap(
-    Map,
-    NameDictionary | OrderedNameDictionary | EmptyFixedArray | PropertyArray,
+    Map, NameDictionary | SwissNameDictionary | EmptyFixedArray | PropertyArray,
     FixedArray, constexpr AllocationFlag,
     constexpr SlackTrackingMode): JSObject;

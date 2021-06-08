@@ -75,7 +75,8 @@ class EmbedderDataSlot
   // When V8 heap sandbox is enabled, calling this method when the raw part of
   // the slot does not contain valid external pointer table index is undefined
   // behaviour and most likely result in crashes.
-  V8_INLINE bool ToAlignedPointer(IsolateRoot isolate, void** out_result) const;
+  V8_INLINE bool ToAlignedPointer(PtrComprCageBase isolate_root,
+                                  void** out_result) const;
 
   // Same as ToAlignedPointer() but with a workaround for V8 heap sandbox.
   // When V8 heap sandbox is enabled, this method doesn't crash when the raw
@@ -86,7 +87,7 @@ class EmbedderDataSlot
   //
   // Call this function if you are not sure whether the slot contains valid
   // external pointer or not.
-  V8_INLINE bool ToAlignedPointerSafe(IsolateRoot isolate,
+  V8_INLINE bool ToAlignedPointerSafe(PtrComprCageBase isolate_root,
                                       void** out_result) const;
 
   // Returns true if the pointer was successfully stored or false it the pointer

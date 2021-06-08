@@ -296,7 +296,9 @@ Scope::Scope(Zone* zone, const AstRawString* catch_variable_name,
 void DeclarationScope::SetDefaults() {
   is_declaration_scope_ = true;
   has_simple_parameters_ = true;
+#if V8_ENABLE_WEBASSEMBLY
   is_asm_module_ = false;
+#endif  // V8_ENABLE_WEBASSEMBLY
   force_eager_compilation_ = false;
   has_arguments_parameter_ = false;
   uses_super_property_ = false;
@@ -373,6 +375,7 @@ void DeclarationScope::set_should_eager_compile() {
   should_eager_compile_ = !was_lazily_parsed_;
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 void DeclarationScope::set_is_asm_module() { is_asm_module_ = true; }
 
 bool Scope::IsAsmModule() const {
@@ -393,6 +396,7 @@ bool Scope::ContainsAsmModule() const {
 
   return false;
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
                                     ScopeInfo scope_info,
@@ -430,9 +434,11 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
     } else if (scope_info.scope_type() == FUNCTION_SCOPE) {
       outer_scope = zone->New<DeclarationScope>(
           zone, FUNCTION_SCOPE, ast_value_factory, handle(scope_info, isolate));
+#if V8_ENABLE_WEBASSEMBLY
       if (scope_info.IsAsmModule()) {
         outer_scope->AsDeclarationScope()->set_is_asm_module();
       }
+#endif  // V8_ENABLE_WEBASSEMBLY
     } else if (scope_info.scope_type() == EVAL_SCOPE) {
       outer_scope = zone->New<DeclarationScope>(
           zone, EVAL_SCOPE, ast_value_factory, handle(scope_info, isolate));
@@ -1850,7 +1856,9 @@ void Scope::Print(int n) {
   if (is_strict(language_mode())) {
     Indent(n1, "// strict mode scope\n");
   }
+#if V8_ENABLE_WEBASSEMBLY
   if (IsAsmModule()) Indent(n1, "// scope is an asm module\n");
+#endif  // V8_ENABLE_WEBASSEMBLY
   if (is_declaration_scope() &&
       AsDeclarationScope()->sloppy_eval_can_extend_vars()) {
     Indent(n1, "// scope calls sloppy 'eval'\n");
@@ -2501,7 +2509,10 @@ void Scope::AllocateVariablesRecursively() {
     // scope.
     bool must_have_context =
         scope->is_with_scope() || scope->is_module_scope() ||
-        scope->IsAsmModule() || scope->ForceContextForLanguageMode() ||
+#if V8_ENABLE_WEBASSEMBLY
+        scope->IsAsmModule() ||
+#endif  // V8_ENABLE_WEBASSEMBLY
+        scope->ForceContextForLanguageMode() ||
         (scope->is_function_scope() &&
          scope->AsDeclarationScope()->sloppy_eval_can_extend_vars()) ||
         (scope->is_block_scope() && scope->is_declaration_scope() &&

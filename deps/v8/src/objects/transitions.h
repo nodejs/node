@@ -19,6 +19,9 @@
 namespace v8 {
 namespace internal {
 
+// Find all transitions with given name and calls the callback.
+using ForEachTransitionCallback = std::function<void(Map)>;
+
 // TransitionsAccessor is a helper class to encapsulate access to the various
 // ways a Map can store transitions to other maps in its respective field at
 // Map::kTransitionsOrPrototypeInfo.
@@ -67,6 +70,14 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   MaybeHandle<Map> FindTransitionToField(Handle<Name> name) {
     return FindTransitionToDataProperty(name, kFieldOnly);
   }
+
+  // Find all transitions with given name and calls the callback.
+  // Neither GCs nor operations requiring Isolate::full_transition_array_access
+  // lock are allowed inside the callback.
+  // If any of the GC- or lock-requiring processing is necessary, it has to be
+  // done outside of the callback.
+  void ForEachTransitionTo(Name name, const ForEachTransitionCallback& callback,
+                           DisallowGarbageCollection* no_gc);
 
   inline Handle<String> ExpectedTransitionKey();
   inline Handle<Map> ExpectedTransitionTarget();
@@ -319,6 +330,10 @@ class TransitionArray : public WeakFixedArray {
                     PropertyAttributes attributes, int* out_insertion_index);
   Map SearchDetailsAndGetTarget(int transition, PropertyKind kind,
                                 PropertyAttributes attributes);
+
+  // Find all transitions with given name and calls the callback.
+  void ForEachTransitionTo(Name name,
+                           const ForEachTransitionCallback& callback);
 
   inline int number_of_transitions() const;
 

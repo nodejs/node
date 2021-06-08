@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_WASM_FEATURE_FLAGS_H_
 #define V8_WASM_WASM_FEATURE_FLAGS_H_
 
@@ -28,7 +32,12 @@
   /* Memory64 proposal. */                                                     \
   /* https://github.com/WebAssembly/memory64 */                                \
   /* V8 side owner: clemensb */                                                \
-  V(memory64, "memory64", false)
+  V(memory64, "memory64", false)                                               \
+                                                                               \
+  /* Relaxed SIMD proposal. */                                                 \
+  /* https://github.com/WebAssembly/relaxed-simd */                            \
+  /* V8 side owner: zhin */                                                    \
+  V(relaxed_simd, "relaxed simd", false)
 
 // #############################################################################
 // Staged features (disabled by default, but enabled via --wasm-staging (also
@@ -57,20 +66,6 @@
   /* Staged in v8.7 * */                                                       \
   V(return_call, "return call opcodes", false)                                 \
                                                                                \
-  /* Fixed-width SIMD operations. */                                           \
-  /* https://github.com/webassembly/simd */                                    \
-  /* V8 side owner: gdeepti, zhin */                                           \
-  /* Staged in v8.7 * */                                                       \
-  V(simd, "SIMD opcodes", false)                                               \
-                                                                               \
-  /* Threads proposal. */                                                      \
-  /* https://github.com/webassembly/threads */                                 \
-  /* NOTE: This is enabled via chromium flag on desktop systems since v7.4  */ \
-  /* (see https://crrev.com/c/1487808). ITS: https://groups.google.com/a/   */ \
-  /* chromium.org/d/msg/blink-dev/tD6np-OG2PU/rcNGROOMFQAJ */                  \
-  /* V8 side owner: gdeepti */                                                 \
-  V(threads, "thread opcodes", false)                                          \
-                                                                               \
   /* Type reflection proposal. */                                              \
   /* https://github.com/webassembly/js-types */                                \
   /* V8 side owner: ahaas */                                                   \
@@ -86,8 +81,26 @@
   /* V8 side owner: thibaudm */                                                \
   /* Shipped in v8.6. */                                                       \
   /* ITS: https://groups.google.com/g/v8-users/c/pv2E4yFWeF0 */                \
-  V(mv, "multi-value support", true)
-
+  V(mv, "multi-value support", true)                                           \
+                                                                               \
+  /* Fixed-width SIMD operations. */                                           \
+  /* https://github.com/webassembly/simd */                                    \
+  /* V8 side owner: gdeepti, zhin */                                           \
+  /* Staged in v8.7 * */                                                       \
+  /* Shipped in v9.1 * */                                                      \
+  V(simd, "SIMD opcodes", true)                                                \
+                                                                               \
+  /* Threads proposal. */                                                      \
+  /* https://github.com/webassembly/threads */                                 \
+  /* NOTE: This is enabled via chromium flag on desktop systems since v7.4, */ \
+  /* and on android from 9.1. Threads are only available when */               \
+  /* SharedArrayBuffers are enabled as well, and are gated by COOP/COEP */     \
+  /* headers, more fine grained control is in the chromium codebase */         \
+  /* ITS: https://groups.google.com/a/chromium.org/d/msg/blink-dev/ */         \
+  /* tD6np-OG2PU/rcNGROOMFQAJ */                                               \
+  /* V8 side owner: gdeepti */                                                 \
+  V(threads, "thread opcodes", true)                                           \
+                                                                               \
 // Combination of all available wasm feature flags.
 #define FOREACH_WASM_FEATURE_FLAG(V)        \
   FOREACH_WASM_EXPERIMENTAL_FEATURE_FLAG(V) \

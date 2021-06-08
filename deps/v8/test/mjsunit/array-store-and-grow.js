@@ -205,7 +205,11 @@ assertEquals(0.5, array_store_1([], 0, 0.5));
   grow_store(a,10,1);
   assertOptimized(grow_store);
   grow_store(a,2048,1);
-  assertUnoptimized(grow_store);
+  // TODO(v8:11457) We don't currently support inlining element stores if there
+  // is a dictionary mode prototype on the prototype chain. Therefore, if
+  // v8_dict_property_const_tracking is enabled, the optimized code only
+  // contains a call to the IC handler and doesn't get deopted.
+  assertEquals(%IsDictPropertyConstTrackingEnabled(), isOptimized(grow_store));
   %ClearFunctionFeedback(grow_store);
 })();
 
@@ -254,6 +258,10 @@ assertEquals(0.5, array_store_1([], 0, 0.5));
   assertOptimized(f);
   // An attempt to grow should cause deopt
   f(new Array("hi"), 1, 3);
-  assertUnoptimized(f);
+  // TODO(v8:11457) We don't currently support inlining element stores if there
+  // is a dictionary mode prototype on the prototype chain. Therefore, if
+  // v8_dict_property_const_tracking is enabled, the optimized code only
+  // contains a call to the IC handler and doesn't get deopted.
+  assertEquals(%IsDictPropertyConstTrackingEnabled(), isOptimized(f));
   %ClearFunctionFeedback(f);
 })();

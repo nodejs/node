@@ -1116,6 +1116,13 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     return;
   }
 
+  // Patching a script means that the bytecode on the stack may no longer
+  // correspond to the bytecode of the JSFunction for that frame. As a result
+  // it is no longer safe to flush bytecode since we might flush the new
+  // bytecode for a JSFunction that is on the stack with an old bytecode, which
+  // breaks the invariant that any JSFunction active on the stack is compiled.
+  isolate->set_disable_bytecode_flushing(true);
+
   std::map<int, int> start_position_to_unchanged_id;
   for (const auto& mapping : unchanged) {
     FunctionData* data = nullptr;

@@ -61,10 +61,10 @@ T TaggedField<T, kFieldOffset>::load(HeapObject host, int offset) {
 
 // static
 template <typename T, int kFieldOffset>
-T TaggedField<T, kFieldOffset>::load(IsolateRoot isolate, HeapObject host,
-                                     int offset) {
+T TaggedField<T, kFieldOffset>::load(PtrComprCageBase cage_base,
+                                     HeapObject host, int offset) {
   Tagged_t value = *location(host, offset);
-  return T(tagged_to_full(isolate, value));
+  return T(tagged_to_full(cage_base, value));
 }
 
 // static
@@ -96,10 +96,10 @@ T TaggedField<T, kFieldOffset>::Relaxed_Load(HeapObject host, int offset) {
 
 // static
 template <typename T, int kFieldOffset>
-T TaggedField<T, kFieldOffset>::Relaxed_Load(IsolateRoot isolate,
+T TaggedField<T, kFieldOffset>::Relaxed_Load(PtrComprCageBase cage_base,
                                              HeapObject host, int offset) {
   AtomicTagged_t value = AsAtomicTagged::Relaxed_Load(location(host, offset));
-  return T(tagged_to_full(isolate, value));
+  return T(tagged_to_full(cage_base, value));
 }
 
 // static
@@ -125,10 +125,10 @@ T TaggedField<T, kFieldOffset>::Acquire_Load(HeapObject host, int offset) {
 
 // static
 template <typename T, int kFieldOffset>
-T TaggedField<T, kFieldOffset>::Acquire_Load(IsolateRoot isolate,
+T TaggedField<T, kFieldOffset>::Acquire_Load(PtrComprCageBase cage_base,
                                              HeapObject host, int offset) {
   AtomicTagged_t value = AsAtomicTagged::Acquire_Load(location(host, offset));
-  return T(tagged_to_full(isolate, value));
+  return T(tagged_to_full(cage_base, value));
 }
 
 // static

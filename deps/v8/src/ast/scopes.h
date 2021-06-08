@@ -389,10 +389,14 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   bool private_name_lookup_skips_outer_class() const {
     return private_name_lookup_skips_outer_class_;
   }
+
+#if V8_ENABLE_WEBASSEMBLY
   bool IsAsmModule() const;
   // Returns true if this scope or any inner scopes that might be eagerly
   // compiled are asm modules.
   bool ContainsAsmModule() const;
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   // Does this scope have the potential to execute declarations non-linearly?
   bool is_nonlinear() const { return scope_nonlinear_; }
   // Returns if we need to force a context because the current scope is stricter
@@ -972,8 +976,10 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
     scope_info_ = scope_info;
   }
 
+#if V8_ENABLE_WEBASSEMBLY
   bool is_asm_module() const { return is_asm_module_; }
   void set_is_asm_module();
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   bool should_ban_arguments() const {
     return IsClassMembersInitializerFunction(function_kind());
@@ -1242,8 +1248,10 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   void RecalcPrivateNameContextChain();
 
   bool has_simple_parameters_ : 1;
+#if V8_ENABLE_WEBASSEMBLY
   // This scope contains an "use asm" annotation.
   bool is_asm_module_ : 1;
+#endif  // V8_ENABLE_WEBASSEMBLY
   bool force_eager_compilation_ : 1;
   // This function scope has a rest parameter.
   bool has_rest_ : 1;

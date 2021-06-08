@@ -65,7 +65,8 @@ void AllocateSomeObjects(LocalHeap* local_heap) {
 
 class ConcurrentAllocationThread final : public v8::base::Thread {
  public:
-  explicit ConcurrentAllocationThread(Heap* heap, std::atomic<int>* pending)
+  explicit ConcurrentAllocationThread(Heap* heap,
+                                      std::atomic<int>* pending = nullptr)
       : v8::base::Thread(base::Thread::Options("ThreadWithLocalHeap")),
         heap_(heap),
         pending_(pending) {}
@@ -74,7 +75,7 @@ class ConcurrentAllocationThread final : public v8::base::Thread {
     LocalHeap local_heap(heap_, ThreadKind::kBackground);
     UnparkedScope unparked_scope(&local_heap);
     AllocateSomeObjects(&local_heap);
-    pending_->fetch_sub(1);
+    if (pending_) pending_->fetch_sub(1);
   }
 
   Heap* heap_;
@@ -128,6 +129,108 @@ UNINITIALIZED_TEST(ConcurrentAllocationInOldSpaceFromMainThread) {
   isolate->Dispose();
 }
 
+UNINITIALIZED_TEST(ConcurrentAllocationWhileMainThreadIsParked) {
+  FLAG_max_old_space_size = 4;
+  FLAG_stress_concurrent_allocation = false;
+
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+
+  std::vector<std::unique_ptr<ConcurrentAllocationThread>> threads;
+  const int kThreads = 4;
+
+  {
+    ParkedScope scope(i_isolate->main_thread_local_isolate());
+
+    for (int i = 0; i < kThreads; i++) {
+      auto thread =
+          std::make_unique<ConcurrentAllocationThread>(i_isolate->heap());
+      CHECK(thread->Start());
+      threads.push_back(std::move(thread));
+    }
+
+    for (auto& thread : threads) {
+      thread->Join();
+    }
+  }
+
+  isolate->Dispose();
+}
+
+UNINITIALIZED_TEST(ConcurrentAllocationWhileMainThreadParksAndUnparks) {
+  FLAG_max_old_space_size = 4;
+  FLAG_stress_concurrent_allocation = false;
+  FLAG_incremental_marking = false;
+
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+
+  std::vector<std::unique_ptr<ConcurrentAllocationThread>> threads;
+  const int kThreads = 4;
+
+  for (int i = 0; i < kThreads; i++) {
+    auto thread =
+        std::make_unique<ConcurrentAllocationThread>(i_isolate->heap());
+    CHECK(thread->Start());
+    threads.push_back(std::move(thread));
+  }
+
+  for (int i = 0; i < 300'000; i++) {
+    ParkedScope scope(i_isolate->main_thread_local_isolate());
+  }
+
+  {
+    ParkedScope scope(i_isolate->main_thread_local_isolate());
+
+    for (auto& thread : threads) {
+      thread->Join();
+    }
+  }
+
+  isolate->Dispose();
+}
+
+UNINITIALIZED_TEST(ConcurrentAllocationWhileMainThreadRunsWithSafepoints) {
+  FLAG_max_old_space_size = 4;
+  FLAG_stress_concurrent_allocation = false;
+  FLAG_incremental_marking = false;
+
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+
+  std::vector<std::unique_ptr<ConcurrentAllocationThread>> threads;
+  const int kThreads = 4;
+
+  for (int i = 0; i < kThreads; i++) {
+    auto thread =
+        std::make_unique<ConcurrentAllocationThread>(i_isolate->heap());
+    CHECK(thread->Start());
+    threads.push_back(std::move(thread));
+  }
+
+  // Some of the following Safepoint() invocations are supposed to perform a GC.
+  for (int i = 0; i < 1'000'000; i++) {
+    i_isolate->main_thread_local_heap()->Safepoint();
+  }
+
+  {
+    ParkedScope scope(i_isolate->main_thread_local_isolate());
+
+    for (auto& thread : threads) {
+      thread->Join();
+    }
+  }
+
+  i_isolate->main_thread_local_heap()->Safepoint();
+  isolate->Dispose();
+}
+
 class LargeObjectConcurrentAllocationThread final : public v8::base::Thread {
  public:
   explicit LargeObjectConcurrentAllocationThread(Heap* heap,
@@ -146,7 +249,7 @@ class LargeObjectConcurrentAllocationThread final : public v8::base::Thread {
           kLargeObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
           AllocationAlignment::kWordAligned);
       if (result.IsRetry()) {
-        local_heap.PerformCollection();
+        local_heap.TryPerformCollection();
       } else {
         Address address = result.ToAddress();
         CreateFixedArray(heap_, address, kLargeObjectSize);

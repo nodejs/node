@@ -60,14 +60,15 @@ int GetMaskForShift(Node* node) {
 }  // anonymous namespace
 
 SimdScalarLowering::SimdScalarLowering(
-    MachineGraph* mcgraph, Signature<MachineRepresentation>* signature)
+    MachineGraph* mcgraph, SimplifiedOperatorBuilder* simplified,
+    Signature<MachineRepresentation>* signature)
     : mcgraph_(mcgraph),
+      simplified_(simplified),
       state_(mcgraph->graph(), 3),
       stack_(mcgraph_->zone()),
       replacements_(nullptr),
       signature_(signature),
-      placeholder_(graph()->NewNode(common()->Parameter(-2, "placeholder"),
-                                    graph()->start())),
+      placeholder_(graph()->NewNode(common()->Dead())),
       parameter_count_after_lowering_(-1) {
   DCHECK_NOT_NULL(graph());
   DCHECK_NOT_NULL(graph()->end());
@@ -140,7 +141,6 @@ void SimdScalarLowering::LowerGraph() {
   V(I32x4Shl)                     \
   V(I32x4ShrS)                    \
   V(I32x4Add)                     \
-  V(I32x4AddHoriz)                \
   V(I32x4Sub)                     \
   V(I32x4Mul)                     \
   V(I32x4MinS)                    \
@@ -168,11 +168,11 @@ void SimdScalarLowering::LowerGraph() {
   V(S128Not)                      \
   V(S128AndNot)                   \
   V(S128Select)                   \
-  V(V64x2AllTrue)                 \
-  V(V32x4AllTrue)                 \
-  V(V16x8AllTrue)                 \
+  V(I64x2AllTrue)                 \
+  V(I32x4AllTrue)                 \
+  V(I16x8AllTrue)                 \
   V(V128AnyTrue)                  \
-  V(V8x16AllTrue)                 \
+  V(I8x16AllTrue)                 \
   V(I32x4BitMask)                 \
   V(I32x4ExtMulLowI16x8S)         \
   V(I32x4ExtMulLowI16x8U)         \
@@ -211,7 +211,6 @@ void SimdScalarLowering::LowerGraph() {
   V(F32x4RecipApprox)               \
   V(F32x4RecipSqrtApprox)           \
   V(F32x4Add)                       \
-  V(F32x4AddHoriz)                  \
   V(F32x4Sub)                       \
   V(F32x4Mul)                       \
   V(F32x4Div)                       \
@@ -251,7 +250,6 @@ void SimdScalarLowering::LowerGraph() {
   V(I16x8SConvertI32x4)           \
   V(I16x8Add)                     \
   V(I16x8AddSatS)                 \
-  V(I16x8AddHoriz)                \
   V(I16x8Sub)                     \
   V(I16x8SubSatS)                 \
   V(I16x8Mul)                     \
@@ -296,7 +294,6 @@ void SimdScalarLowering::LowerGraph() {
   V(I8x16AddSatS)                 \
   V(I8x16Sub)                     \
   V(I8x16SubSatS)                 \
-  V(I8x16Mul)                     \
   V(I8x16MinS)                    \
   V(I8x16MaxS)                    \
   V(I8x16ShrU)                    \
@@ -545,11 +542,21 @@ void SimdScalarLowering::GetIndexNodes(Node* index, Node** new_indices,
 }
 
 void SimdScalarLowering::LowerLoadOp(Node* node, SimdType type) {
-  MachineRepresentation rep = LoadRepresentationOf(node->op()).representation();
+  MachineRepresentation rep =
+      node->opcode() == IrOpcode::kLoadFromObject
+          ? ObjectAccessOf(node->op()).machine_type.representation()
+          : LoadRepresentationOf(node->op()).representation();
   const Operator* load_op;
   switch (node->opcode()) {
     case IrOpcode::kLoad:
       load_op = machine()->Load(MachineTypeFrom(type));
+      break;
+    case IrOpcode::kLoadImmutable:
+      load_op = machine()->LoadImmutable(MachineTypeFrom(type));
+      break;
+    case IrOpcode::kLoadFromObject:
+      load_op = simplified()->LoadFromObject(
+          ObjectAccess(MachineTypeFrom(type), kNoWriteBarrier));
       break;
     case IrOpcode::kUnalignedLoad:
       load_op = machine()->UnalignedLoad(MachineTypeFrom(type));
@@ -734,6 +741,14 @@ void SimdScalarLowering::LowerStoreOp(Node* node) {
           StoreRepresentationOf(node->op()).write_barrier_kind();
       store_op = machine()->Store(StoreRepresentation(
           MachineTypeFrom(rep_type).representation(), write_barrier_kind));
+      break;
+    }
+    case IrOpcode::kStoreToObject: {
+      rep = ObjectAccessOf(node->op()).machine_type.representation();
+      WriteBarrierKind write_barrier_kind =
+          ObjectAccessOf(node->op()).write_barrier_kind;
+      store_op = simplified()->StoreToObject(
+          ObjectAccess(MachineTypeFrom(rep_type), write_barrier_kind));
       break;
     }
     case IrOpcode::kUnalignedStore: {
@@ -1456,8 +1471,10 @@ void SimdScalarLowering::LowerNode(Node* node) {
       break;
     }
     case IrOpcode::kLoad:
+    case IrOpcode::kLoadFromObject:
     case IrOpcode::kUnalignedLoad:
-    case IrOpcode::kProtectedLoad: {
+    case IrOpcode::kProtectedLoad:
+    case IrOpcode::kLoadImmutable: {
       LowerLoadOp(node, rep_type);
       break;
     }
@@ -1466,6 +1483,7 @@ void SimdScalarLowering::LowerNode(Node* node) {
       break;
     }
     case IrOpcode::kStore:
+    case IrOpcode::kStoreToObject:
     case IrOpcode::kUnalignedStore:
     case IrOpcode::kProtectedStore: {
       LowerStoreOp(node);
@@ -1633,14 +1651,6 @@ void SimdScalarLowering::LowerNode(Node* node) {
       I32X4_BINOP_CASE(kS128Or, Word32Or)
       I32X4_BINOP_CASE(kS128Xor, Word32Xor)
 #undef I32X4_BINOP_CASE
-    case IrOpcode::kI32x4AddHoriz: {
-      LowerBinaryOp(node, rep_type, machine()->Int32Add(), false);
-      break;
-    }
-    case IrOpcode::kI16x8AddHoriz: {
-      LowerBinaryOpForSmallInt(node, rep_type, machine()->Int32Add(), false);
-      break;
-    }
     case IrOpcode::kI16x8Add:
     case IrOpcode::kI8x16Add: {
       LowerBinaryOpForSmallInt(node, rep_type, machine()->Int32Add());
@@ -1651,8 +1661,7 @@ void SimdScalarLowering::LowerNode(Node* node) {
       LowerBinaryOpForSmallInt(node, rep_type, machine()->Int32Sub());
       break;
     }
-    case IrOpcode::kI16x8Mul:
-    case IrOpcode::kI8x16Mul: {
+    case IrOpcode::kI16x8Mul: {
       LowerBinaryOpForSmallInt(node, rep_type, machine()->Int32Mul());
       break;
     }
@@ -1887,10 +1896,6 @@ void SimdScalarLowering::LowerNode(Node* node) {
     case IrOpcode::kI16x8ShrU:
     case IrOpcode::kI8x16ShrU: {
       LowerShiftOp(node, rep_type);
-      break;
-    }
-    case IrOpcode::kF32x4AddHoriz: {
-      LowerBinaryOp(node, rep_type, machine()->Float32Add(), false);
       break;
     }
 #define F32X4_BINOP_CASE(name)                                 \
@@ -2264,19 +2269,19 @@ void SimdScalarLowering::LowerNode(Node* node) {
       ReplaceNode(node, rep_node, 1);
       break;
     }
-    case IrOpcode::kV64x2AllTrue: {
+    case IrOpcode::kI64x2AllTrue: {
       LowerAllTrueOp(node, SimdType::kInt64x2);
       break;
     }
-    case IrOpcode::kV32x4AllTrue: {
+    case IrOpcode::kI32x4AllTrue: {
       LowerAllTrueOp(node, SimdType::kInt32x4);
       break;
     }
-    case IrOpcode::kV16x8AllTrue: {
+    case IrOpcode::kI16x8AllTrue: {
       LowerAllTrueOp(node, SimdType::kInt16x8);
       break;
     }
-    case IrOpcode::kV8x16AllTrue: {
+    case IrOpcode::kI8x16AllTrue: {
       LowerAllTrueOp(node, SimdType::kInt8x16);
       break;
     }

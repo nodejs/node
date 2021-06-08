@@ -5,6 +5,8 @@
 #ifndef V8_DEOPTIMIZER_TRANSLATION_OPCODE_H_
 #define V8_DEOPTIMIZER_TRANSLATION_OPCODE_H_
 
+#include "src/base/macros.h"
+
 namespace v8 {
 namespace internal {
 
@@ -31,7 +33,7 @@ namespace internal {
   V(INTERPRETED_FRAME, 5)                                 \
   V(JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME, 3)            \
   V(JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME, 3) \
-  V(JS_TO_WASM_BUILTIN_CONTINUATION_FRAME, 4)             \
+  IF_WASM(V, JS_TO_WASM_BUILTIN_CONTINUATION_FRAME, 4)    \
   V(LITERAL, 1)                                           \
   V(REGISTER, 1)                                          \
   V(STACK_SLOT, 1)                                        \

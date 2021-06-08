@@ -226,12 +226,26 @@ void RunTests() {
       "dx object.Value.map.instance_descriptors.descriptors[1].key",
       {"\"secondProp\"", "SeqOneByteString"}, &output, p_debug_control.Get());
 
-  RunAndCheckOutput(
-      "local variables",
-      "dx -r1 @$curthread.Stack.Frames.Where(f => "
-      "f.ToDisplayString().Contains(\"InterpreterEntryTrampoline\")).Skip(1)."
-      "First().LocalVariables.@\"memory interpreted as Objects\"",
-      {"\"hello\""}, &output, p_debug_control.Get());
+  // TODO(v8:11527): enable this when symbol information for the in-Isolate
+  // builtins is available.
+  // RunAndCheckOutput(
+  //     "local variables",
+  //     "dx -r1 @$curthread.Stack.Frames.Where(f => "
+  //     "f.ToDisplayString().Contains(\"InterpreterEntryTrampoline\")).Skip(1)."
+  //     "First().LocalVariables.@\"memory interpreted as Objects\"",
+  //     {"\"hello\""}, &output, p_debug_control.Get());
+
+  RunAndCheckOutput("js stack", "dx @$jsstack()[0].function_name",
+                    {"\"a\"", "SeqOneByteString"}, &output,
+                    p_debug_control.Get());
+
+  RunAndCheckOutput("js stack", "dx @$jsstack()[1].function_name",
+                    {"\"b\"", "SeqOneByteString"}, &output,
+                    p_debug_control.Get());
+
+  RunAndCheckOutput("js stack", "dx @$jsstack()[2].function_name",
+                    {"empty_string \"\"", "SeqOneByteString"}, &output,
+                    p_debug_control.Get());
 
   // Detach before exiting
   hr = p_client->DetachProcesses();

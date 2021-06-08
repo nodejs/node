@@ -4,10 +4,13 @@
 
 #include "src/codegen/external-reference.h"
 #include "src/objects/objects-inl.h"
-#include "src/wasm/wasm-external-refs.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
 #include "test/cctest/compiler/value-helper.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-external-refs.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -199,6 +202,7 @@ void TestExternalReference_BinOpWithReturn(
   }
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 TEST(RunCallF32Trunc) {
   BufferedRawMachineAssemblerTester<int32_t> m;
   ExternalReference ref = ExternalReference::wasm_f32_trunc();
@@ -373,6 +377,7 @@ TEST(RunCallFloat64Pow) {
   TestExternalReference_BinOp<double>(&m, ref, wasm::float64_pow_wrapper,
                                       ValueHelper::float64_vector());
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 #ifdef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
 

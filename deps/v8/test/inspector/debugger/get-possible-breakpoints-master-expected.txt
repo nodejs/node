@@ -236,7 +236,7 @@ async function testPromiseAsyncWithCode() {
   |R|}
   |C|main();
   |_|return testPromise;|R|
-|R|}
+}
 
 function returnFunction() {
   |_|return returnObject;|R|
@@ -249,7 +249,7 @@ async function testPromiseComplex() {
     async function foo() {
       |_|await Promise.|C|resolve();
       |_|return 42;|R|
-    |R|}
+    }
     var x = |_|1;
     var y = |_|2;
     |C|returnFunction(|C|emptyFunction(), x++, --y, x => 2 |_|* x|R|, |C|returnCall())|C|().a = |_|await |C|foo((a => 2 |_|*a|R|)|C|(5));
@@ -257,7 +257,7 @@ async function testPromiseComplex() {
   |R|}
   |C|main();
   |_|return testPromise;|R|
-|R|}
+}
 
 function twiceDefined() {
   |_|return a + b;|R|

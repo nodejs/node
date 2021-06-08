@@ -33,14 +33,14 @@ PersistentRegion& WeakPersistentPolicy::GetPersistentRegion(
   return heap->GetWeakPersistentRegion();
 }
 
-PersistentRegion& StrongCrossThreadPersistentPolicy::GetPersistentRegion(
-    const void* object) {
+CrossThreadPersistentRegion&
+StrongCrossThreadPersistentPolicy::GetPersistentRegion(const void* object) {
   auto* heap = BasePage::FromPayload(object)->heap();
   return heap->GetStrongCrossThreadPersistentRegion();
 }
 
-PersistentRegion& WeakCrossThreadPersistentPolicy::GetPersistentRegion(
-    const void* object) {
+CrossThreadPersistentRegion&
+WeakCrossThreadPersistentPolicy::GetPersistentRegion(const void* object) {
   auto* heap = BasePage::FromPayload(object)->heap();
   return heap->GetWeakCrossThreadPersistentRegion();
 }

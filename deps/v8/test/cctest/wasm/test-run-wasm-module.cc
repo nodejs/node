@@ -471,7 +471,7 @@ TEST(Run_WasmModule_MemSize_GrowMem) {
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
     ExportAsMain(f);
-    byte code[] = {WASM_GROW_MEMORY(WASM_I32V_1(10)), WASM_DROP,
+    byte code[] = {WASM_MEMORY_GROW(WASM_I32V_1(10)), WASM_DROP,
                    WASM_MEMORY_SIZE};
     EMIT_CODE_WITH_END(f, code);
     TestModule(&zone, builder, kExpectedValue);
@@ -490,7 +490,7 @@ TEST(MemoryGrowZero) {
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
     ExportAsMain(f);
-    byte code[] = {WASM_GROW_MEMORY(WASM_I32V(0))};
+    byte code[] = {WASM_MEMORY_GROW(WASM_I32V(0))};
     EMIT_CODE_WITH_END(f, code);
     TestModule(&zone, builder, kExpectedValue);
   }
@@ -597,7 +597,7 @@ TEST(Run_WasmModule_MemoryGrowInIf) {
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
     ExportAsMain(f);
-    byte code[] = {WASM_IF_ELSE_I(WASM_I32V(0), WASM_GROW_MEMORY(WASM_I32V(1)),
+    byte code[] = {WASM_IF_ELSE_I(WASM_I32V(0), WASM_MEMORY_GROW(WASM_I32V(1)),
                                   WASM_I32V(12))};
     EMIT_CODE_WITH_END(f, code);
     TestModule(&zone, builder, 12);
@@ -618,7 +618,7 @@ TEST(Run_WasmModule_GrowMemOobOffset) {
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
     ExportAsMain(f);
-    byte code[] = {WASM_GROW_MEMORY(WASM_I32V_1(1)),
+    byte code[] = {WASM_MEMORY_GROW(WASM_I32V_1(1)),
                    WASM_STORE_MEM(MachineType::Int32(), WASM_I32V(index),
                                   WASM_I32V(value))};
     EMIT_CODE_WITH_END(f, code);
@@ -640,7 +640,7 @@ TEST(Run_WasmModule_GrowMemOobFixedIndex) {
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_i());
     ExportAsMain(f);
-    byte code[] = {WASM_GROW_MEMORY(WASM_LOCAL_GET(0)), WASM_DROP,
+    byte code[] = {WASM_MEMORY_GROW(WASM_LOCAL_GET(0)), WASM_DROP,
                    WASM_STORE_MEM(MachineType::Int32(), WASM_I32V(index),
                                   WASM_I32V(value)),
                    WASM_LOAD_MEM(MachineType::Int32(), WASM_I32V(index))};
@@ -687,7 +687,7 @@ TEST(Run_WasmModule_GrowMemOobVariableIndex) {
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_i());
     ExportAsMain(f);
-    byte code[] = {WASM_GROW_MEMORY(WASM_I32V_1(1)), WASM_DROP,
+    byte code[] = {WASM_MEMORY_GROW(WASM_I32V_1(1)), WASM_DROP,
                    WASM_STORE_MEM(MachineType::Int32(), WASM_LOCAL_GET(0),
                                   WASM_I32V(value)),
                    WASM_LOAD_MEM(MachineType::Int32(), WASM_LOCAL_GET(0))};

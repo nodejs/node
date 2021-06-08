@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --super-ic --sparkplug
+// Flags: --allow-natives-syntax --super-ic --sparkplug --no-always-sparkplug
 
 export let exported = 17;
 import imported from 'test-baseline-module-helper.mjs';

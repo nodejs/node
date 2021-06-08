@@ -12,6 +12,7 @@
 #include "src/base/base-export.h"
 #include "src/base/build_config.h"
 #include "src/base/compiler-specific.h"
+#include "src/base/immediate-crash.h"
 #include "src/base/template-utils.h"
 
 V8_BASE_EXPORT V8_NOINLINE void V8_Dcheck(const char* file, int line,
@@ -24,34 +25,33 @@ V8_BASE_EXPORT V8_NOINLINE void V8_Dcheck(const char* file, int line,
     void V8_Fatal(const char* file, int line, const char* format, ...);
 #define FATAL(...) V8_Fatal(__FILE__, __LINE__, __VA_ARGS__)
 
-#elif !defined(OFFICIAL_BUILD)
+#else
+[[noreturn]] PRINTF_FORMAT(1, 2) V8_BASE_EXPORT V8_NOINLINE
+    void V8_Fatal(const char* format, ...);
+#if !defined(OFFICIAL_BUILD)
 // In non-official release, include full error message, but drop file & line
 // numbers. It saves binary size to drop the |file| & |line| as opposed to just
 // passing in "", 0 for them.
-[[noreturn]] PRINTF_FORMAT(1, 2) V8_BASE_EXPORT V8_NOINLINE
-    void V8_Fatal(const char* format, ...);
 #define FATAL(...) V8_Fatal(__VA_ARGS__)
 #else
-// In official builds, include only messages that contain parameters because
-// single-message errors can always be derived from stack traces.
-[[noreturn]] V8_BASE_EXPORT V8_NOINLINE void V8_FatalNoContext();
-[[noreturn]] PRINTF_FORMAT(1, 2) V8_BASE_EXPORT V8_NOINLINE
-    void V8_Fatal(const char* format, ...);
-// FATAL(msg) -> V8_FatalNoContext()
-// FATAL(msg, ...) -> V8_Fatal()
+// FATAL(msg) -> IMMEDIATE_CRASH()
+// FATAL(msg, ...) -> V8_Fatal(msg, ...)
 #define FATAL_HELPER(_7, _6, _5, _4, _3, _2, _1, _0, ...) _0
-#define FATAL_DISCARD_ARG(arg) V8_FatalNoContext()
+#define FATAL_DISCARD_ARG(arg) IMMEDIATE_CRASH()
 #define FATAL(...)                                                            \
   FATAL_HELPER(__VA_ARGS__, V8_Fatal, V8_Fatal, V8_Fatal, V8_Fatal, V8_Fatal, \
-               V8_Fatal, V8_Fatal, FATAL_DISCARD_ARG)                         \
+               V8_Fatal, FATAL_DISCARD_ARG)                                   \
   (__VA_ARGS__)
-#endif
+#endif  // !defined(OFFICIAL_BUILD)
+#endif  // DEBUG
 
 #define UNIMPLEMENTED() FATAL("unimplemented code")
 #define UNREACHABLE() FATAL("unreachable code")
 
 namespace v8 {
 namespace base {
+
+class CheckMessageStream : public std::ostringstream {};
 
 // Overwrite the default function that prints a stack trace.
 V8_BASE_EXPORT void SetPrintStackTrace(void (*print_stack_trace_)());
@@ -140,16 +140,37 @@ V8_BASE_EXPORT void SetDcheckFunction(void (*dcheck_Function)(const char*, int,
 #define CONSTEXPR_DCHECK(cond)
 #endif
 
+namespace detail {
+template <typename... Ts>
+std::string PrintToString(Ts&&... ts) {
+  CheckMessageStream oss;
+  int unused_results[]{((oss << std::forward<Ts>(ts)), 0)...};
+  (void)unused_results;  // Avoid "unused variable" warning.
+  return oss.str();
+}
+
+template <typename T>
+auto GetUnderlyingEnumTypeForPrinting(T val) {
+  using underlying_t = typename std::underlying_type<T>::type;
+  // For single-byte enums, return a 16-bit integer to avoid printing the value
+  // as a character.
+  using int_t = typename std::conditional_t<
+      sizeof(underlying_t) != 1, underlying_t,
+      std::conditional_t<std::is_signed<underlying_t>::value, int16_t,
+                         uint16_t> >;
+  return static_cast<int_t>(static_cast<underlying_t>(val));
+}
+}  // namespace detail
+
 // Define PrintCheckOperand<T> for each T which defines operator<< for ostream.
 template <typename T>
 typename std::enable_if<
     !std::is_function<typename std::remove_pointer<T>::type>::value &&
-        has_output_operator<T>::value,
+        !std::is_enum<T>::value &&
+        has_output_operator<T, CheckMessageStream>::value,
     std::string>::type
 PrintCheckOperand(T val) {
-  std::ostringstream oss;
-  oss << std::forward<T>(val);
-  return oss.str();
+  return detail::PrintToString(std::forward<T>(val));
 }
 
 // Provide an overload for functions and function pointers. Function pointers
@@ -165,23 +186,39 @@ PrintCheckOperand(T val) {
   return PrintCheckOperand(reinterpret_cast<const void*>(val));
 }
 
-// Define PrintCheckOperand<T> for enums which have no operator<<.
+// Define PrintCheckOperand<T> for enums with an output operator.
 template <typename T>
-typename std::enable_if<
-    std::is_enum<T>::value && !has_output_operator<T>::value, std::string>::type
+typename std::enable_if<std::is_enum<T>::value &&
+                            has_output_operator<T, CheckMessageStream>::value,
+                        std::string>::type
 PrintCheckOperand(T val) {
-  using underlying_t = typename std::underlying_type<T>::type;
-  // 8-bit types are not printed as number, so extend them to 16 bit.
-  using int_t = typename std::conditional<
-      std::is_same<underlying_t, uint8_t>::value, uint16_t,
-      typename std::conditional<std::is_same<underlying_t, int8_t>::value,
-                                int16_t, underlying_t>::type>::type;
-  return PrintCheckOperand(static_cast<int_t>(static_cast<underlying_t>(val)));
+  std::string val_str = detail::PrintToString(val);
+  std::string int_str =
+      detail::PrintToString(detail::GetUnderlyingEnumTypeForPrinting(val));
+  // Printing the original enum might have printed a single non-printable
+  // character. Ignore it in that case. Also ignore if it printed the same as
+  // the integral representation.
+  // TODO(clemensb): Can we somehow statically find out if the output operator
+  // is the default one, printing the integral value?
+  if ((val_str.length() == 1 && !std::isprint(val_str[0])) ||
+      val_str == int_str) {
+    return int_str;
+  }
+  return detail::PrintToString(val_str, " (", int_str, ")");
+}
+
+// Define PrintCheckOperand<T> for enums without an output operator.
+template <typename T>
+typename std::enable_if<std::is_enum<T>::value &&
+                            !has_output_operator<T, CheckMessageStream>::value,
+                        std::string>::type
+PrintCheckOperand(T val) {
+  return detail::PrintToString(detail::GetUnderlyingEnumTypeForPrinting(val));
 }
 
 // Define default PrintCheckOperand<T> for non-printable types.
 template <typename T>
-typename std::enable_if<!has_output_operator<T>::value &&
+typename std::enable_if<!has_output_operator<T, CheckMessageStream>::value &&
                             !std::is_enum<T>::value,
                         std::string>::type
 PrintCheckOperand(T val) {
@@ -210,7 +247,7 @@ template <typename Lhs, typename Rhs>
 V8_NOINLINE std::string* MakeCheckOpString(Lhs lhs, Rhs rhs, char const* msg) {
   std::string lhs_str = PrintCheckOperand<Lhs>(lhs);
   std::string rhs_str = PrintCheckOperand<Rhs>(rhs);
-  std::ostringstream ss;
+  CheckMessageStream ss;
   ss << msg;
   constexpr size_t kMaxInlineLength = 50;
   if (lhs_str.size() <= kMaxInlineLength &&

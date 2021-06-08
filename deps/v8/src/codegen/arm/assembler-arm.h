@@ -887,6 +887,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void veor(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void vbsl(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void vorr(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
+  void vorn(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void vadd(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void vadd(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
             QwNeonRegister src2);
@@ -1380,6 +1381,20 @@ class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
   // Check if we have registers available to acquire.
   bool CanAcquire() const { return *assembler_->GetScratchRegisterList() != 0; }
   bool CanAcquireD() const { return CanAcquireVfp<DwVfpRegister>(); }
+
+  void Include(const Register& reg1, const Register& reg2 = no_reg) {
+    RegList* available = assembler_->GetScratchRegisterList();
+    DCHECK_NOT_NULL(available);
+    DCHECK_EQ((*available) & (reg1.bit() | reg2.bit()), 0);
+    *available |= reg1.bit() | reg2.bit();
+  }
+  void Exclude(const Register& reg1, const Register& reg2 = no_reg) {
+    RegList* available = assembler_->GetScratchRegisterList();
+    DCHECK_NOT_NULL(available);
+    DCHECK_EQ((*available) & (reg1.bit() | reg2.bit()),
+              reg1.bit() | reg2.bit());
+    *available &= ~(reg1.bit() | reg2.bit());
+  }
 
  private:
   friend class Assembler;

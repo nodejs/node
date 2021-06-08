@@ -23,8 +23,15 @@ class InstructionStream final : public AllStatic {
   // Returns true, iff the given pc points into an off-heap instruction stream.
   static bool PcIsOffHeap(Isolate* isolate, Address pc);
 
-  // Returns the corresponding Code object if it exists, and nullptr otherwise.
-  static Code TryLookupCode(Isolate* isolate, Address address);
+  // If the address belongs to the embedded code blob, predictably converts it
+  // to uint32 by calculating offset from the embedded code blob start and
+  // returns true, and false otherwise.
+  static bool TryGetAddressForHashing(Isolate* isolate, Address address,
+                                      uint32_t* hashable_address);
+
+  // Returns the corresponding builtin ID if lookup succeeds, and kNoBuiltinId
+  // otherwise.
+  static Builtins::Name TryLookupCode(Isolate* isolate, Address address);
 
   // During snapshot creation, we first create an executable off-heap area
   // containing all off-heap code. The area is guaranteed to be contiguous.
@@ -60,6 +67,32 @@ class EmbeddedData final {
   const uint8_t* data() const { return data_; }
   uint32_t data_size() const { return data_size_; }
 
+  bool IsInCodeRange(Address pc) const {
+    Address start = reinterpret_cast<Address>(code_);
+    return (start <= pc) && (pc < start + code_size_);
+  }
+
+  // When short builtin calls optimization is enabled for the Isolate, there
+  // will be two builtins instruction streams executed: the embedded one and
+  // the one un-embedded into the per-Isolate code range. In most of the cases,
+  // the per-Isolate instructions will be used but in some cases (like builtin
+  // calls from Wasm) the embedded instruction stream could be used.
+  // If the requested PC belongs to the embedded code blob - it'll be returned,
+  // and the per-Isolate blob otherwise.
+  // See http://crbug.com/v8/11527 for details.
+  inline static EmbeddedData GetEmbeddedDataForPC(Isolate* isolate,
+                                                  Address maybe_builtin_pc) {
+    EmbeddedData d = EmbeddedData::FromBlob(isolate);
+    if (isolate->is_short_builtin_calls_enabled() &&
+        !d.IsInCodeRange(maybe_builtin_pc)) {
+      EmbeddedData global_d = EmbeddedData::FromBlob();
+      // If the pc does not belong to the embedded code blob we should be using
+      // the un-embedded one.
+      if (global_d.IsInCodeRange(maybe_builtin_pc)) return global_d;
+    }
+    return d;
+  }
+
   void Dispose() {
     delete[] code_;
     code_ = nullptr;
@@ -77,8 +110,8 @@ class EmbeddedData final {
   uint32_t MetadataSizeOfBuiltin(int i) const;
 
   uint32_t AddressForHashing(Address addr) {
+    DCHECK(IsInCodeRange(addr));
     Address start = reinterpret_cast<Address>(code_);
-    DCHECK(base::IsInRange(addr, start, start + code_size_));
     return static_cast<uint32_t>(addr - start);
   }
 

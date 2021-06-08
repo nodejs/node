@@ -14,48 +14,48 @@
 namespace v8 {
 namespace internal {
 
-#define TYPED_VISITOR_ID_LIST(V) \
-  V(AllocationSite)              \
-  V(BigInt)                      \
-  V(ByteArray)                   \
-  V(BytecodeArray)               \
-  V(Cell)                        \
-  V(Code)                        \
-  V(CodeDataContainer)           \
-  V(CoverageInfo)                \
-  V(DataHandler)                 \
-  V(EmbedderDataArray)           \
-  V(EphemeronHashTable)          \
-  V(FeedbackCell)                \
-  V(FeedbackMetadata)            \
-  V(FixedDoubleArray)            \
-  V(JSArrayBuffer)               \
-  V(JSDataView)                  \
-  V(JSFunction)                  \
-  V(JSObject)                    \
-  V(JSTypedArray)                \
-  V(WeakCell)                    \
-  V(JSWeakCollection)            \
-  V(JSWeakRef)                   \
-  V(Map)                         \
-  V(NativeContext)               \
-  V(PreparseData)                \
-  V(PropertyArray)               \
-  V(PropertyCell)                \
-  V(PrototypeInfo)               \
-  V(SmallOrderedHashMap)         \
-  V(SmallOrderedHashSet)         \
-  V(SmallOrderedNameDictionary)  \
-  V(SourceTextModule)            \
-  V(SwissNameDictionary)         \
-  V(Symbol)                      \
-  V(SyntheticModule)             \
-  V(TransitionArray)             \
-  V(WasmArray)                   \
-  V(WasmIndirectFunctionTable)   \
-  V(WasmInstanceObject)          \
-  V(WasmStruct)                  \
-  V(WasmTypeInfo)
+#define TYPED_VISITOR_ID_LIST(V)        \
+  V(AllocationSite)                     \
+  V(BigInt)                             \
+  V(ByteArray)                          \
+  V(BytecodeArray)                      \
+  V(Cell)                               \
+  V(Code)                               \
+  V(CodeDataContainer)                  \
+  V(CoverageInfo)                       \
+  V(DataHandler)                        \
+  V(EmbedderDataArray)                  \
+  V(EphemeronHashTable)                 \
+  V(FeedbackCell)                       \
+  V(FeedbackMetadata)                   \
+  V(FixedDoubleArray)                   \
+  V(JSArrayBuffer)                      \
+  V(JSDataView)                         \
+  V(JSFunction)                         \
+  V(JSObject)                           \
+  V(JSTypedArray)                       \
+  V(WeakCell)                           \
+  V(JSWeakCollection)                   \
+  V(JSWeakRef)                          \
+  V(Map)                                \
+  V(NativeContext)                      \
+  V(PreparseData)                       \
+  V(PropertyArray)                      \
+  V(PropertyCell)                       \
+  V(PrototypeInfo)                      \
+  V(SmallOrderedHashMap)                \
+  V(SmallOrderedHashSet)                \
+  V(SmallOrderedNameDictionary)         \
+  V(SourceTextModule)                   \
+  V(SwissNameDictionary)                \
+  V(Symbol)                             \
+  V(SyntheticModule)                    \
+  V(TransitionArray)                    \
+  IF_WASM(V, WasmArray)                 \
+  IF_WASM(V, WasmIndirectFunctionTable) \
+  IF_WASM(V, WasmInstanceObject)        \
+  IF_WASM(V, WasmStruct)                \
+  IF_WASM(V, WasmTypeInfo)
 
 #define FORWARD_DECLARE(TypeName) class TypeName;
 TYPED_VISITOR_ID_LIST(FORWARD_DECLARE)

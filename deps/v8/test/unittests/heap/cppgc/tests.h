@@ -100,7 +100,7 @@ class TestWithHeap : public TestWithPlatform {
 // Restrictive test fixture that supports allocation but will make sure no
 // garbage collection is triggered. This is useful for writing idiomatic
 // tests where object are allocated on the managed heap while still avoiding
-// far reaching test consquences of full garbage collection calls.
+// far reaching test consequences of full garbage collection calls.
 class TestSupportingAllocationOnly : public TestWithHeap {
  protected:
   TestSupportingAllocationOnly();

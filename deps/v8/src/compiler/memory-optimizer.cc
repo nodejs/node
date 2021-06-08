@@ -32,9 +32,13 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kEffectPhi:
     case IrOpcode::kIfException:
     case IrOpcode::kLoad:
+    case IrOpcode::kLoadImmutable:
     case IrOpcode::kLoadElement:
     case IrOpcode::kLoadField:
     case IrOpcode::kLoadFromObject:
+    case IrOpcode::kLoadLane:
+    case IrOpcode::kLoadTransform:
+    case IrOpcode::kMemoryBarrier:
     case IrOpcode::kPoisonedLoad:
     case IrOpcode::kProtectedLoad:
     case IrOpcode::kProtectedStore:
@@ -47,6 +51,7 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kStore:
     case IrOpcode::kStoreElement:
     case IrOpcode::kStoreField:
+    case IrOpcode::kStoreLane:
     case IrOpcode::kStoreToObject:
     case IrOpcode::kTaggedPoisonOnSpeculation:
     case IrOpcode::kUnalignedLoad:

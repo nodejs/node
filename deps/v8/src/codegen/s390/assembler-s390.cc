@@ -159,6 +159,10 @@ static bool supportsSTFLE() {
 #endif
 }
 
+bool CpuFeatures::SupportsWasmSimd128() {
+  return CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1);
+}
+
 void CpuFeatures::ProbeImpl(bool cross_compile) {
   supported_ |= CpuFeaturesImpliedByCompiler();
   icache_line_size_ = 256;

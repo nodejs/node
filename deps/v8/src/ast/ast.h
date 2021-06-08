@@ -629,6 +629,11 @@ class ReturnStatement final : public JumpStatement {
     return type() == kSyntheticAsyncReturn;
   }
 
+  // This constant is used to indicate that the return position
+  // from the FunctionLiteral should be used when emitting code.
+  static constexpr int kFunctionLiteralReturnPosition = -2;
+  STATIC_ASSERT(kFunctionLiteralReturnPosition == kNoSourcePosition - 1);
+
   int end_position() const { return end_position_; }
 
  private:
@@ -1618,11 +1623,44 @@ class Property final : public Expression {
   Expression* key_;
 };
 
-class Call final : public Expression {
+class CallBase : public Expression {
  public:
   Expression* expression() const { return expression_; }
   const ZonePtrList<Expression>* arguments() const { return &arguments_; }
 
+  enum SpreadPosition { kNoSpread, kHasFinalSpread, kHasNonFinalSpread };
+  SpreadPosition spread_position() const {
+    return SpreadPositionField::decode(bit_field_);
+  }
+
+ protected:
+  CallBase(Zone* zone, NodeType type, Expression* expression,
+           const ScopedPtrList<Expression>& arguments, int pos, bool has_spread)
+      : Expression(pos, type),
+        expression_(expression),
+        arguments_(arguments.ToConstVector(), zone) {
+    DCHECK(type == kCall || type == kCallNew);
+    if (has_spread) {
+      ComputeSpreadPosition();
+    } else {
+      bit_field_ |= SpreadPositionField::encode(kNoSpread);
+    }
+  }
+
+  // Only valid to be called if there is a spread in arguments_.
+  void ComputeSpreadPosition();
+
+  using SpreadPositionField = Expression::NextBitField<SpreadPosition, 2>;
+
+  template <class T, int size>
+  using NextBitField = SpreadPositionField::Next<T, size>;
+
+  Expression* expression_;
+  ZonePtrList<Expression> arguments_;
+};
+
+class Call final : public CallBase {
+ public:
   bool is_possibly_eval() const {
     return IsPossiblyEvalField::decode(bit_field_);
   }
@@ -1633,16 +1671,6 @@ class Call final : public Expression {
 
   bool is_optional_chain_link() const {
     return IsOptionalChainLinkField::decode(bit_field_);
-  }
-
-  enum SpreadPosition { kNoSpread, kHasFinalSpread, kHasNonFinalSpread };
-  SpreadPosition spread_position() const {
-    return SpreadPositionField::decode(bit_field_);
-  }
-
-  // TODO(syg): Remove this and its users.
-  bool only_last_arg_is_spread() {
-    return !arguments_.is_empty() && arguments_.last()->IsSpread();
   }
 
   enum CallType {
@@ -1677,63 +1705,35 @@ class Call final : public Expression {
   Call(Zone* zone, Expression* expression,
        const ScopedPtrList<Expression>& arguments, int pos, bool has_spread,
        PossiblyEval possibly_eval, bool optional_chain)
-      : Expression(pos, kCall),
-        expression_(expression),
-        arguments_(arguments.ToConstVector(), zone) {
+      : CallBase(zone, kCall, expression, arguments, pos, has_spread) {
     bit_field_ |=
         IsPossiblyEvalField::encode(possibly_eval == IS_POSSIBLY_EVAL) |
         IsTaggedTemplateField::encode(false) |
-        IsOptionalChainLinkField::encode(optional_chain) |
-        SpreadPositionField::encode(kNoSpread);
-    if (has_spread) ComputeSpreadPosition();
+        IsOptionalChainLinkField::encode(optional_chain);
   }
 
   Call(Zone* zone, Expression* expression,
        const ScopedPtrList<Expression>& arguments, int pos,
        TaggedTemplateTag tag)
-      : Expression(pos, kCall),
-        expression_(expression),
-        arguments_(arguments.ToConstVector(), zone) {
+      : CallBase(zone, kCall, expression, arguments, pos, false) {
     bit_field_ |= IsPossiblyEvalField::encode(false) |
                   IsTaggedTemplateField::encode(true) |
-                  IsOptionalChainLinkField::encode(false) |
-                  SpreadPositionField::encode(kNoSpread);
+                  IsOptionalChainLinkField::encode(false);
   }
 
-  // Only valid to be called if there is a spread in arguments_.
-  void ComputeSpreadPosition();
-
-  using IsPossiblyEvalField = Expression::NextBitField<bool, 1>;
+  using IsPossiblyEvalField = CallBase::NextBitField<bool, 1>;
   using IsTaggedTemplateField = IsPossiblyEvalField::Next<bool, 1>;
   using IsOptionalChainLinkField = IsTaggedTemplateField::Next<bool, 1>;
-  using SpreadPositionField = IsOptionalChainLinkField::Next<SpreadPosition, 2>;
-
-  Expression* expression_;
-  ZonePtrList<Expression> arguments_;
 };
 
-
-class CallNew final : public Expression {
- public:
-  Expression* expression() const { return expression_; }
-  const ZonePtrList<Expression>* arguments() const { return &arguments_; }
-
-  bool only_last_arg_is_spread() {
-    return !arguments_.is_empty() && arguments_.last()->IsSpread();
-  }
-
+class CallNew final : public CallBase {
  private:
   friend class AstNodeFactory;
   friend Zone;
 
   CallNew(Zone* zone, Expression* expression,
-          const ScopedPtrList<Expression>& arguments, int pos)
-      : Expression(pos, kCallNew),
-        expression_(expression),
-        arguments_(arguments.ToConstVector(), zone) {}
-
-  Expression* expression_;
-  ZonePtrList<Expression> arguments_;
+          const ScopedPtrList<Expression>& arguments, int pos, bool has_spread)
+      : CallBase(zone, kCallNew, expression, arguments, pos, has_spread) {}
 };
 
 // The CallRuntime class does not represent any official JavaScript
@@ -2864,20 +2864,22 @@ class AstNodeFactory final {
     return zone_->New<BreakStatement>(target, pos);
   }
 
-  ReturnStatement* NewReturnStatement(Expression* expression, int pos,
-                                      int end_position = kNoSourcePosition) {
+  ReturnStatement* NewReturnStatement(
+      Expression* expression, int pos,
+      int end_position = ReturnStatement::kFunctionLiteralReturnPosition) {
     return zone_->New<ReturnStatement>(expression, ReturnStatement::kNormal,
                                        pos, end_position);
   }
 
-  ReturnStatement* NewAsyncReturnStatement(
-      Expression* expression, int pos, int end_position = kNoSourcePosition) {
+  ReturnStatement* NewAsyncReturnStatement(Expression* expression, int pos,
+                                           int end_position) {
     return zone_->New<ReturnStatement>(
         expression, ReturnStatement::kAsyncReturn, pos, end_position);
   }
 
   ReturnStatement* NewSyntheticAsyncReturnStatement(
-      Expression* expression, int pos, int end_position = kNoSourcePosition) {
+      Expression* expression, int pos,
+      int end_position = ReturnStatement::kFunctionLiteralReturnPosition) {
     return zone_->New<ReturnStatement>(
         expression, ReturnStatement::kSyntheticAsyncReturn, pos, end_position);
   }
@@ -3092,8 +3094,9 @@ class AstNodeFactory final {
   }
 
   CallNew* NewCallNew(Expression* expression,
-                      const ScopedPtrList<Expression>& arguments, int pos) {
-    return zone_->New<CallNew>(zone_, expression, arguments, pos);
+                      const ScopedPtrList<Expression>& arguments, int pos,
+                      bool has_spread) {
+    return zone_->New<CallNew>(zone_, expression, arguments, pos, has_spread);
   }
 
   CallRuntime* NewCallRuntime(Runtime::FunctionId id,

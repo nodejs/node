@@ -60,11 +60,6 @@
   'regress-7770': [SKIP],
 }],  # 'system == android'
 
-['msan == True', {
-  # https://bugs.chromium.org/p/v8/issues/detail?id=11438
-  'regress-364374': [SKIP],
-}],  # msan == True
-
 ################################################################################
 ['variant == stress_snapshot', {
   '*': [SKIP],  # only relevant for mjsunit tests.

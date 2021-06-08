@@ -89,6 +89,10 @@ try {
 
     isInterpreted = function isInterpreted() {}
 
+    isBaseline = function isBaseline() {}
+
+    isUnoptimized = function isUnoptimized() {}
+
     isOptimized = function isOptimized() {}
 
     isTurboFanned = function isTurboFanned() {}

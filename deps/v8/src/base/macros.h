@@ -183,12 +183,6 @@ V8_INLINE Dest bit_cast(Source const& source) {
 #define DISABLE_CFI_ICALL V8_CLANG_NO_SANITIZE("cfi-icall")
 #endif
 
-#if V8_CC_GNU
-#define V8_IMMEDIATE_CRASH() __builtin_trap()
-#else
-#define V8_IMMEDIATE_CRASH() ((void(*)())0)()
-#endif
-
 // A convenience wrapper around static_assert without a string message argument.
 // Once C++17 becomes the default, this macro can be removed in favor of the
 // new static_assert(condition) overload.
@@ -416,5 +410,14 @@ bool is_inbounds(float_t v) {
 #endif
 
 #endif  // V8_OS_WIN
+
+// Defines IF_WASM, to be used in macro lists for elements that should only be
+// there if WebAssembly is enabled.
+#if V8_ENABLE_WEBASSEMBLY
+// EXPAND is needed to work around MSVC's broken __VA_ARGS__ expansion.
+#define IF_WASM(V, ...) EXPAND(V(__VA_ARGS__))
+#else
+#define IF_WASM(V, ...)
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 #endif  // V8_BASE_MACROS_H_

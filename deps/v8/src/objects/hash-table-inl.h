@@ -139,7 +139,7 @@ InternalIndex HashTable<Derived, Shape>::FindEntry(LocalIsolate* isolate,
 
 // Find entry for key otherwise return kNotFound.
 template <typename Derived, typename Shape>
-InternalIndex HashTable<Derived, Shape>::FindEntry(IsolateRoot isolate,
+InternalIndex HashTable<Derived, Shape>::FindEntry(PtrComprCageBase cage_base,
                                                    ReadOnlyRoots roots, Key key,
                                                    int32_t hash) {
   DisallowGarbageCollection no_gc;
@@ -151,7 +151,7 @@ InternalIndex HashTable<Derived, Shape>::FindEntry(IsolateRoot isolate,
   // EnsureCapacity will guarantee the hash table is never full.
   for (InternalIndex entry = FirstProbe(hash, capacity);;
        entry = NextProbe(entry, count++, capacity)) {
-    Object element = KeyAt(isolate, entry);
+    Object element = KeyAt(cage_base, entry);
     // Empty entry. Uses raw unchecked accessors because it is called by the
     // string table during bootstrapping.
     if (element == undefined) return InternalIndex::NotFound();
@@ -177,24 +177,24 @@ bool HashTable<Derived, Shape>::ToKey(ReadOnlyRoots roots, InternalIndex entry,
 }
 
 template <typename Derived, typename Shape>
-bool HashTable<Derived, Shape>::ToKey(IsolateRoot isolate, InternalIndex entry,
-                                      Object* out_k) {
-  Object k = KeyAt(isolate, entry);
-  if (!IsKey(GetReadOnlyRoots(isolate), k)) return false;
+bool HashTable<Derived, Shape>::ToKey(PtrComprCageBase cage_base,
+                                      InternalIndex entry, Object* out_k) {
+  Object k = KeyAt(cage_base, entry);
+  if (!IsKey(GetReadOnlyRoots(cage_base), k)) return false;
   *out_k = Shape::Unwrap(k);
   return true;
 }
 
 template <typename Derived, typename Shape>
 Object HashTable<Derived, Shape>::KeyAt(InternalIndex entry) {
-  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
-  return KeyAt(isolate, entry);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return KeyAt(cage_base, entry);
 }
 
 template <typename Derived, typename Shape>
-Object HashTable<Derived, Shape>::KeyAt(IsolateRoot isolate,
+Object HashTable<Derived, Shape>::KeyAt(PtrComprCageBase cage_base,
                                         InternalIndex entry) {
-  return get(isolate, EntryToIndex(entry) + kEntryKeyIndex);
+  return get(cage_base, EntryToIndex(entry) + kEntryKeyIndex);
 }
 
 template <typename Derived, typename Shape>

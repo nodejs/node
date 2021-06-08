@@ -19,6 +19,7 @@
 
 #include "src/objects/bigint.h"
 
+#include "src/bigint/bigint.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-write-barrier-inl.h"
@@ -135,10 +136,6 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
       Isolate* isolate, Handle<BigIntBase> x, Handle<BigIntBase> y,
       MutableBigInt result_storage = MutableBigInt());
 
-  static int AbsoluteCompare(Handle<BigIntBase> x, Handle<BigIntBase> y);
-
-  static int AbsoluteCompare(BigIntBase x, BigIntBase y);
-
   static void MultiplyAccumulate(Handle<BigIntBase> multiplicand,
                                  digit_t multiplier,
                                  Handle<MutableBigInt> accumulator,
@@ -232,6 +229,9 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
 
   bool IsMutableBigInt() const { return IsBigInt(); }
 
+  static_assert(std::is_same<bigint::digit_t, BigIntBase::digit_t>::value,
+                "We must be able to call BigInt library functions");
+
   NEVER_READ_ONLY_SPACE
 
   OBJECT_CONSTRUCTORS(MutableBigInt, FreshlyAllocatedBigInt);
@@ -242,6 +242,15 @@ NEVER_READ_ONLY_SPACE_IMPL(MutableBigInt)
 
 #include "src/base/platform/wrappers.h"
 #include "src/objects/object-macros-undef.h"
+
+struct GetDigits : bigint::Digits {
+  explicit GetDigits(Handle<BigIntBase> bigint) : GetDigits(*bigint) {}
+  explicit GetDigits(BigIntBase bigint)
+      : bigint::Digits(
+            reinterpret_cast<bigint::digit_t*>(
+                bigint.ptr() + BigIntBase::kDigitsOffset - kHeapObjectTag),
+            bigint.length()) {}
+};
 
 template <typename T, typename Isolate>
 MaybeHandle<T> ThrowBigIntTooBig(Isolate* isolate) {
@@ -560,7 +569,7 @@ MaybeHandle<BigInt> BigInt::Divide(Isolate* isolate, Handle<BigInt> x,
   // 2. Let quotient be the mathematical value of x divided by y.
   // 3. Return a BigInt representing quotient rounded towards 0 to the next
   //    integral value.
-  if (MutableBigInt::AbsoluteCompare(x, y) < 0) {
+  if (bigint::Compare(GetDigits(x), GetDigits(y)) < 0) {
     return Zero(isolate);
   }
   Handle<MutableBigInt> quotient;
@@ -590,7 +599,7 @@ MaybeHandle<BigInt> BigInt::Remainder(Isolate* isolate, Handle<BigInt> x,
   }
   // 2. Return the BigInt representing x modulo y.
   // See https://github.com/tc39/proposal-bigint/issues/84 though.
-  if (MutableBigInt::AbsoluteCompare(x, y) < 0) return x;
+  if (bigint::Compare(GetDigits(x), GetDigits(y)) < 0) return x;
   Handle<MutableBigInt> remainder;
   if (y->length() == 1) {
     digit_t divisor = y->digit(0);
@@ -622,7 +631,7 @@ MaybeHandle<BigInt> BigInt::Add(Isolate* isolate, Handle<BigInt> x,
   }
   // x + -y == x - y == -(y - x)
   // -x + y == y - x == -(x - y)
-  if (MutableBigInt::AbsoluteCompare(x, y) >= 0) {
+  if (bigint::Compare(GetDigits(x), GetDigits(y)) >= 0) {
     return MutableBigInt::AbsoluteSub(isolate, x, y, xsign);
   }
   return MutableBigInt::AbsoluteSub(isolate, y, x, !xsign);
@@ -638,7 +647,7 @@ MaybeHandle<BigInt> BigInt::Subtract(Isolate* isolate, Handle<BigInt> x,
   }
   // x - y == -(y - x)
   // (-x) - (-y) == y - x == -(x - y)
-  if (MutableBigInt::AbsoluteCompare(x, y) >= 0) {
+  if (bigint::Compare(GetDigits(x), GetDigits(y)) >= 0) {
     return MutableBigInt::AbsoluteSub(isolate, x, y, xsign);
   }
   return MutableBigInt::AbsoluteSub(isolate, y, x, !xsign);
@@ -691,7 +700,7 @@ ComparisonResult BigInt::CompareToBigInt(Handle<BigInt> x, Handle<BigInt> y) {
   bool x_sign = x->sign();
   if (x_sign != y->sign()) return UnequalSign(x_sign);
 
-  int result = MutableBigInt::AbsoluteCompare(x, y);
+  int result = bigint::Compare(GetDigits(x), GetDigits(y));
   if (result > 0) return AbsoluteGreater(x_sign);
   if (result < 0) return AbsoluteLess(x_sign);
   return ComparisonResult::kEqual;
@@ -1230,7 +1239,7 @@ MaybeHandle<BigInt> MutableBigInt::AbsoluteAdd(Isolate* isolate,
 Handle<BigInt> MutableBigInt::AbsoluteSub(Isolate* isolate, Handle<BigInt> x,
                                           Handle<BigInt> y, bool result_sign) {
   DCHECK(x->length() >= y->length());
-  SLOW_DCHECK(AbsoluteCompare(x, y) >= 0);
+  SLOW_DCHECK(bigint::Compare(GetDigits(x), GetDigits(y)) >= 0);
   if (x->is_zero()) {
     DCHECK(y->is_zero());
     return x;
@@ -1438,22 +1447,6 @@ Handle<MutableBigInt> MutableBigInt::AbsoluteXor(Isolate* isolate,
                                                  MutableBigInt result_storage) {
   return AbsoluteBitwiseOp(isolate, x, y, result_storage, kCopy, kSymmetric,
                            [](digit_t a, digit_t b) { return a ^ b; });
-}
-
-// Returns a positive value if abs(x) > abs(y), a negative value if
-// abs(x) < abs(y), or zero if abs(x) == abs(y).
-int MutableBigInt::AbsoluteCompare(Handle<BigIntBase> x, Handle<BigIntBase> y) {
-  return MutableBigInt::AbsoluteCompare(*x, *y);
-}
-
-int MutableBigInt::AbsoluteCompare(BigIntBase x, BigIntBase y) {
-  DisallowGarbageCollection no_gc;
-  int diff = x.length() - y.length();
-  if (diff != 0) return diff;
-  int i = x.length() - 1;
-  while (i >= 0 && x.digit(i) == y.digit(i)) i--;
-  if (i < 0) return 0;
-  return x.digit(i) > y.digit(i) ? 1 : -1;
 }
 
 // Multiplies {multiplicand} with {multiplier} and adds the result to
@@ -2766,7 +2759,7 @@ int32_t MutableBigInt_AbsoluteCompare(Address x_addr, Address y_addr) {
   BigInt x = BigInt::cast(Object(x_addr));
   BigInt y = BigInt::cast(Object(y_addr));
 
-  return MutableBigInt::AbsoluteCompare(x, y);
+  return bigint::Compare(GetDigits(x), GetDigits(y));
 }
 
 void MutableBigInt_AbsoluteSubAndCanonicalize(Address result_addr,

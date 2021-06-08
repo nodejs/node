@@ -64,6 +64,10 @@ class PropertyAccessBuilder {
                            Node* lookup_start_object, Node** effect,
                            Node** control);
 
+  // Loads a constant value from a prototype object in dictionary mode and
+  // constant-folds it.
+  Node* FoldLoadDictPrototypeConstant(PropertyAccessInfo const& access_info);
+
   // Builds the load for data-field access for minimorphic loads that use
   // dynamic map checks. These cannot depend on any information from the maps.
   Node* BuildMinimorphicLoadDataField(
@@ -82,9 +86,9 @@ class PropertyAccessBuilder {
   CommonOperatorBuilder* common() const;
   SimplifiedOperatorBuilder* simplified() const;
 
-  Node* TryBuildLoadConstantDataField(NameRef const& name,
-                                      PropertyAccessInfo const& access_info,
-                                      Node* lookup_start_object);
+  Node* TryFoldLoadConstantDataField(NameRef const& name,
+                                     PropertyAccessInfo const& access_info,
+                                     Node* lookup_start_object);
   // Returns a node with the holder for the property access described by
   // {access_info}.
   Node* ResolveHolder(PropertyAccessInfo const& access_info,

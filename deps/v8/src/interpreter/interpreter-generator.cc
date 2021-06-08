@@ -2203,11 +2203,7 @@ IGNITION_HANDLER(JumpLoop, InterpreterAssembler) {
   JumpBackward(relative_jump);
 
   BIND(&osr_armed);
-  {
-    Callable callable = CodeFactory::InterpreterOnStackReplacement(isolate());
-    CallStub(callable, context);
-    JumpBackward(relative_jump);
-  }
+  OnStackReplacement(context, relative_jump);
 }
 
 // SwitchOnSmiNoFeedback <table_start> <table_length> <case_value_base>

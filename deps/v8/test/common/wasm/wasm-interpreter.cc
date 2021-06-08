@@ -894,8 +894,14 @@ class SideTable : public ZoneObject {
           }
           TRACE("control @%u: Try, arity %d->%d\n", i.pc_offset(),
                 imm.in_arity(), imm.out_arity());
-          CLabel* end_label = CLabel::New(&control_transfer_zone, stack_height,
-                                          imm.out_arity());
+          int target_stack_height = stack_height - imm.in_arity();
+          if (target_stack_height < 0) {
+            // Allowed in unreachable code, but the stack height stays at 0.
+            DCHECK(unreachable);
+            target_stack_height = 0;
+          }
+          CLabel* end_label = CLabel::New(&control_transfer_zone,
+                                          target_stack_height, imm.out_arity());
           CLabel* catch_label =
               CLabel::New(&control_transfer_zone, stack_height, 0);
           control_stack.emplace_back(i.pc(), end_label, catch_label,
@@ -940,6 +946,7 @@ class SideTable : public ZoneObject {
           TRACE("control @%u: End\n", i.pc_offset());
           // Only loops have bound labels.
           DCHECK_IMPLIES(c->end_label->target, *c->pc == kExprLoop);
+          bool rethrow = false;
           if (!c->end_label->target) {
             if (c->else_label) {
               if (*c->pc == kExprIf) {
@@ -948,29 +955,33 @@ class SideTable : public ZoneObject {
               } else if (!exception_stack.empty()) {
                 // No catch_all block, prepare for implicit rethrow.
                 DCHECK_EQ(*c->pc, kExprTry);
-                Control* next_try_block =
-                    &control_stack[exception_stack.back()];
                 constexpr int kUnusedControlIndex = -1;
                 c->else_label->Bind(i.pc(), kRethrowOrDelegateExceptionIndex,
                                     kUnusedControlIndex);
-                if (!unreachable) {
-                  next_try_block->else_label->Ref(
-                      i.pc(), c->else_label->target_stack_height);
-                }
+                DCHECK_IMPLIES(
+                    !unreachable,
+                    stack_height >= c->else_label->target_stack_height);
+                stack_height = c->else_label->target_stack_height;
+                rethrow = !unreachable;
               }
             } else if (c->unwind) {
               DCHECK_EQ(*c->pc, kExprTry);
               rethrow_map_.emplace(i.pc() - i.start(),
                                    static_cast<int>(control_stack.size()) - 1);
               if (!exception_stack.empty()) {
-                Control* next_try_block =
-                    &control_stack[exception_stack.back()];
-                if (!unreachable) {
-                  next_try_block->else_label->Ref(i.pc(), stack_height);
-                }
+                rethrow = !unreachable;
               }
             }
             c->end_label->Bind(i.pc() + 1);
+          }
+          if (rethrow) {
+            Control* next_try_block = &control_stack[exception_stack.back()];
+            next_try_block->else_label->Ref(i.pc(), stack_height);
+            // We normally update the max stack height before the switch.
+            // However 'end' is not in the list of throwing opcodes so we don't
+            // take into account that it may unpack an exception.
+            max_stack_height_ =
+                std::max(max_stack_height_, stack_height + max_exception_arity);
           }
           c->Finish(&map_, code->start);
 
@@ -1345,25 +1356,23 @@ class WasmInterpreterInternals {
     StackValue(WasmValue v, WasmInterpreterInternals* impl, sp_t index)
         : value_(v) {
       if (IsReferenceValue()) {
-        value_ = WasmValue(Handle<Object>::null());
+        value_ = WasmValue(Handle<Object>::null(), value_.type());
         int ref_index = static_cast<int>(index);
-        impl->reference_stack_->set(ref_index, *v.to_externref());
+        impl->reference_stack_->set(ref_index, *v.to_ref());
       }
     }
 
     WasmValue ExtractValue(WasmInterpreterInternals* impl, sp_t index) {
       if (!IsReferenceValue()) return value_;
-      DCHECK(value_.to_externref().is_null());
+      DCHECK(value_.to_ref().is_null());
       int ref_index = static_cast<int>(index);
       Isolate* isolate = impl->isolate_;
       Handle<Object> ref(impl->reference_stack_->get(ref_index), isolate);
       DCHECK(!ref->IsTheHole(isolate));
-      return WasmValue(ref);
+      return WasmValue(ref, value_.type());
     }
 
-    bool IsReferenceValue() const {
-      return value_.type().is_reference_to(HeapType::kExtern);
-    }
+    bool IsReferenceValue() const { return value_.type().is_reference(); }
 
     void ClearValue(WasmInterpreterInternals* impl, sp_t index) {
       if (!IsReferenceValue()) return;
@@ -1433,13 +1442,13 @@ class WasmInterpreterInternals {
         FOREACH_WASMVALUE_CTYPES(CASE_TYPE)
 #undef CASE_TYPE
         case kOptRef: {
-          val = WasmValue(isolate_->factory()->null_value());
+          val = WasmValue(isolate_->factory()->null_value(), p);
           break;
         }
         case kRef:  // TODO(7748): Implement.
         case kRtt:
         case kRttWithDepth:
-        case kStmt:
+        case kVoid:
         case kBottom:
         case kI8:
         case kI16:
@@ -1823,7 +1832,7 @@ class WasmInterpreterInternals {
         return true;
       case kExprMemoryInit: {
         MemoryInitImmediate<Decoder::kNoValidation> imm(decoder,
-                                                        code->at(pc + 2));
+                                                        code->at(pc + *len));
         // The data segment index must be in bounds since it is required by
         // validation.
         DCHECK_LT(imm.data_segment_index, module()->num_declared_data_segments);
@@ -1848,7 +1857,7 @@ class WasmInterpreterInternals {
       }
       case kExprDataDrop: {
         DataDropImmediate<Decoder::kNoValidation> imm(decoder,
-                                                      code->at(pc + 2));
+                                                      code->at(pc + *len));
         // The data segment index must be in bounds since it is required by
         // validation.
         DCHECK_LT(imm.index, module()->num_declared_data_segments);
@@ -1858,7 +1867,7 @@ class WasmInterpreterInternals {
       }
       case kExprMemoryCopy: {
         MemoryCopyImmediate<Decoder::kNoValidation> imm(decoder,
-                                                        code->at(pc + 2));
+                                                        code->at(pc + *len));
         *len += imm.length;
         uint64_t size = ToMemType(Pop());
         uint64_t src = ToMemType(Pop());
@@ -1877,7 +1886,7 @@ class WasmInterpreterInternals {
       }
       case kExprMemoryFill: {
         MemoryIndexImmediate<Decoder::kNoValidation> imm(decoder,
-                                                         code->at(pc + 2));
+                                                         code->at(pc + *len));
         *len += imm.length;
         uint64_t size = ToMemType(Pop());
         uint32_t value = Pop().to<uint32_t>();
@@ -1892,7 +1901,7 @@ class WasmInterpreterInternals {
       }
       case kExprTableInit: {
         TableInitImmediate<Decoder::kNoValidation> imm(decoder,
-                                                       code->at(pc + 2));
+                                                       code->at(pc + *len));
         *len += imm.length;
         auto size = Pop().to<uint32_t>();
         auto src = Pop().to<uint32_t>();
@@ -1906,14 +1915,14 @@ class WasmInterpreterInternals {
       }
       case kExprElemDrop: {
         ElemDropImmediate<Decoder::kNoValidation> imm(decoder,
-                                                      code->at(pc + 2));
+                                                      code->at(pc + *len));
         *len += imm.length;
         instance_object_->dropped_elem_segments()[imm.index] = 1;
         return true;
       }
       case kExprTableCopy: {
         TableCopyImmediate<Decoder::kNoValidation> imm(decoder,
-                                                       code->at(pc + 2));
+                                                       code->at(pc + *len));
         auto size = Pop().to<uint32_t>();
         auto src = Pop().to<uint32_t>();
         auto dst = Pop().to<uint32_t>();
@@ -1927,13 +1936,13 @@ class WasmInterpreterInternals {
       }
       case kExprTableGrow: {
         TableIndexImmediate<Decoder::kNoValidation> imm(decoder,
-                                                        code->at(pc + 2));
+                                                        code->at(pc + *len));
         HandleScope handle_scope(isolate_);
         auto table = handle(
             WasmTableObject::cast(instance_object_->tables().get(imm.index)),
             isolate_);
         auto delta = Pop().to<uint32_t>();
-        auto value = Pop().to_externref();
+        auto value = Pop().to_ref();
         int32_t result = WasmTableObject::Grow(isolate_, table, delta, value);
         Push(WasmValue(result));
         *len += imm.length;
@@ -1941,7 +1950,7 @@ class WasmInterpreterInternals {
       }
       case kExprTableSize: {
         TableIndexImmediate<Decoder::kNoValidation> imm(decoder,
-                                                        code->at(pc + 2));
+                                                        code->at(pc + *len));
         HandleScope handle_scope(isolate_);
         auto table = handle(
             WasmTableObject::cast(instance_object_->tables().get(imm.index)),
@@ -1953,10 +1962,10 @@ class WasmInterpreterInternals {
       }
       case kExprTableFill: {
         TableIndexImmediate<Decoder::kNoValidation> imm(decoder,
-                                                        code->at(pc + 2));
+                                                        code->at(pc + *len));
         HandleScope handle_scope(isolate_);
         auto count = Pop().to<uint32_t>();
-        auto value = Pop().to_externref();
+        auto value = Pop().to_ref();
         auto start = Pop().to<uint32_t>();
 
         auto table = handle(
@@ -2391,12 +2400,11 @@ class WasmInterpreterInternals {
       BINOP_CASE(I16x8SubSatS, i16x8, int8, 8, SaturateSub<int16_t>(a, b))
       BINOP_CASE(I16x8SubSatU, i16x8, int8, 8, SaturateSub<uint16_t>(a, b))
       BINOP_CASE(I16x8RoundingAverageU, i16x8, int8, 8,
-                 base::RoundingAverageUnsigned<uint16_t>(a, b))
+                 RoundingAverageUnsigned<uint16_t>(a, b))
       BINOP_CASE(I16x8Q15MulRSatS, i16x8, int8, 8,
                  SaturateRoundingQMul<int16_t>(a, b))
       BINOP_CASE(I8x16Add, i8x16, int16, 16, base::AddWithWraparound(a, b))
       BINOP_CASE(I8x16Sub, i8x16, int16, 16, base::SubWithWraparound(a, b))
-      BINOP_CASE(I8x16Mul, i8x16, int16, 16, base::MulWithWraparound(a, b))
       BINOP_CASE(I8x16MinS, i8x16, int16, 16, a < b ? a : b)
       BINOP_CASE(I8x16MinU, i8x16, int16, 16,
                  static_cast<uint8_t>(a) < static_cast<uint8_t>(b) ? a : b)
@@ -2408,7 +2416,7 @@ class WasmInterpreterInternals {
       BINOP_CASE(I8x16SubSatS, i8x16, int16, 16, SaturateSub<int8_t>(a, b))
       BINOP_CASE(I8x16SubSatU, i8x16, int16, 16, SaturateSub<uint8_t>(a, b))
       BINOP_CASE(I8x16RoundingAverageU, i8x16, int16, 16,
-                 base::RoundingAverageUnsigned<uint8_t>(a, b))
+                 RoundingAverageUnsigned<uint8_t>(a, b))
 #undef BINOP_CASE
 #define UNOP_CASE(op, name, stype, count, expr)               \
   case kExpr##op: {                                           \
@@ -2753,28 +2761,6 @@ class WasmInterpreterInternals {
         Push(WasmValue(Simd128(res)));
         return true;
       }
-#define ADD_HORIZ_CASE(op, name, stype, count)                              \
-  case kExpr##op: {                                                         \
-    WasmValue v2 = Pop();                                                   \
-    WasmValue v1 = Pop();                                                   \
-    stype s1 = v1.to_s128().to_##name();                                    \
-    stype s2 = v2.to_s128().to_##name();                                    \
-    stype res;                                                              \
-    for (size_t i = 0; i < count / 2; ++i) {                                \
-      auto result1 = s1.val[LANE(i * 2, s1)] + s1.val[LANE(i * 2 + 1, s1)]; \
-      possible_nondeterminism_ |= has_nondeterminism(result1);              \
-      res.val[LANE(i, res)] = result1;                                      \
-      auto result2 = s2.val[LANE(i * 2, s2)] + s2.val[LANE(i * 2 + 1, s2)]; \
-      possible_nondeterminism_ |= has_nondeterminism(result2);              \
-      res.val[LANE(i + count / 2, res)] = result2;                          \
-    }                                                                       \
-    Push(WasmValue(Simd128(res)));                                          \
-    return true;                                                            \
-  }
-        ADD_HORIZ_CASE(I32x4AddHoriz, i32x4, int4, 4)
-        ADD_HORIZ_CASE(F32x4AddHoriz, f32x4, float4, 4)
-        ADD_HORIZ_CASE(I16x8AddHoriz, i16x8, int8, 8)
-#undef ADD_HORIZ_CASE
       case kExprI32x4DotI16x8S: {
         int8 v2 = Pop().to_s128().to_i16x8();
         int8 v1 = Pop().to_s128().to_i16x8();
@@ -2844,10 +2830,10 @@ class WasmInterpreterInternals {
     Push(WasmValue(res));                                 \
     return true;                                          \
   }
-        REDUCTION_CASE(V64x2AllTrue, i64x2, int2, 2, &)
-        REDUCTION_CASE(V32x4AllTrue, i32x4, int4, 4, &)
-        REDUCTION_CASE(V16x8AllTrue, i16x8, int8, 8, &)
-        REDUCTION_CASE(V8x16AllTrue, i8x16, int16, 16, &)
+        REDUCTION_CASE(I64x2AllTrue, i64x2, int2, 2, &)
+        REDUCTION_CASE(I32x4AllTrue, i32x4, int4, 4, &)
+        REDUCTION_CASE(I16x8AllTrue, i16x8, int8, 8, &)
+        REDUCTION_CASE(I8x16AllTrue, i8x16, int16, 16, &)
 #undef REDUCTION_CASE
 #define QFM_CASE(op, name, stype, count, operation)                           \
   case kExpr##op: {                                                           \
@@ -2947,18 +2933,6 @@ class WasmInterpreterInternals {
         return DoSimdStoreLane<int2, int64_t, int64_t>(
             decoder, code, pc, len, MachineRepresentation::kWord64);
       }
-      case kExprI8x16SignSelect: {
-        return DoSimdSignSelect<int16>();
-      }
-      case kExprI16x8SignSelect: {
-        return DoSimdSignSelect<int8>();
-      }
-      case kExprI32x4SignSelect: {
-        return DoSimdSignSelect<int4>();
-      }
-      case kExprI64x2SignSelect: {
-        return DoSimdSignSelect<int2>();
-      }
       case kExprI32x4ExtAddPairwiseI16x8S: {
         return DoSimdExtAddPairwise<int4, int8, int32_t, int16_t>();
       }
@@ -2970,16 +2944,6 @@ class WasmInterpreterInternals {
       }
       case kExprI16x8ExtAddPairwiseI8x16U: {
         return DoSimdExtAddPairwise<int8, int16, uint16_t, uint8_t>();
-      }
-      case kExprPrefetchT:
-      case kExprPrefetchNT: {
-        // Max alignment doesn't matter, use an arbitrary value.
-        MemoryAccessImmediate<Decoder::kNoValidation> imm(
-            decoder, code->at(pc + *len), 4, module()->is_memory64);
-        // Pop address and do nothing.
-        Pop().to<uint32_t>();
-        *len += imm.length;
-        return true;
       }
       default:
         return false;
@@ -3071,7 +3035,8 @@ class WasmInterpreterInternals {
     SimdLaneImmediate<Decoder::kNoValidation> lane_imm(
         decoder, code->at(pc + *len + imm.length));
 
-    Push(WasmValue(value.val[LANE(lane_imm.lane, value)]));
+    Push(WasmValue(
+        static_cast<result_type>(value.val[LANE(lane_imm.lane, value)])));
 
     // ExecuteStore will update the len, so pass it unchanged here.
     if (!ExecuteStore<result_type, load_type>(decoder, code, pc, len, rep,
@@ -3096,21 +3061,6 @@ class WasmInterpreterInternals {
       res.val[LANE(dst, res)] =
           MultiplyLong<wide>(static_cast<narrow>(s1.val[LANE(start, s1)]),
                              static_cast<narrow>(s2.val[LANE(start, s2)]));
-    }
-    Push(WasmValue(Simd128(res)));
-    return true;
-  }
-
-  template <typename s_type>
-  bool DoSimdSignSelect() {
-    constexpr int lanes = kSimd128Size / sizeof(s_type::val[0]);
-    auto c = Pop().to_s128().to<s_type>();
-    auto v2 = Pop().to_s128().to<s_type>();
-    auto v1 = Pop().to_s128().to<s_type>();
-    s_type res;
-    for (int i = 0; i < lanes; ++i) {
-      res.val[LANE(i, res)] =
-          c.val[LANE(i, c)] < 0 ? v1.val[LANE(i, v1)] : v2.val[LANE(i, v2)];
     }
     Push(WasmValue(Simd128(res)));
     return true;
@@ -3156,6 +3106,9 @@ class WasmInterpreterInternals {
     // it to 0 here such that we report the same position as in compiled code.
     frames_.back().pc = 0;
     isolate_->StackOverflow();
+    if (FLAG_experimental_wasm_eh) {
+      possible_nondeterminism_ = true;
+    }
     if (HandleException(isolate_) == WasmInterpreter::HANDLED) {
       ReloadFromFrameOnException(decoder, target, pc, limit);
       return true;
@@ -3234,8 +3187,8 @@ class WasmInterpreterInternals {
             case HeapType::kExtern:
             case HeapType::kFunc:
             case HeapType::kAny: {
-              Handle<Object> externref = value.to_externref();
-              encoded_values->set(encoded_index++, *externref);
+              Handle<Object> ref = value.to_ref();
+              encoded_values->set(encoded_index++, *ref);
               break;
             }
             case HeapType::kBottom:
@@ -3254,7 +3207,7 @@ class WasmInterpreterInternals {
         case kRttWithDepth:
         case kI8:
         case kI16:
-        case kStmt:
+        case kVoid:
         case kBottom:
           UNREACHABLE();
       }
@@ -3356,9 +3309,9 @@ class WasmInterpreterInternals {
             case HeapType::kExtern:
             case HeapType::kFunc:
             case HeapType::kAny: {
-              Handle<Object> externref(encoded_values->get(encoded_index++),
-                                       isolate_);
-              value = WasmValue(externref);
+              Handle<Object> ref(encoded_values->get(encoded_index++),
+                                 isolate_);
+              value = WasmValue(ref, sig->GetParam(i));
               break;
             }
             default:
@@ -3372,7 +3325,7 @@ class WasmInterpreterInternals {
         case kRttWithDepth:
         case kI8:
         case kI16:
-        case kStmt:
+        case kVoid:
         case kBottom:
           UNREACHABLE();
       }
@@ -3605,7 +3558,8 @@ class WasmInterpreterInternals {
           HeapTypeImmediate<Decoder::kNoValidation> imm(
               WasmFeatures::All(), &decoder, code->at(pc + 1), module());
           len = 1 + imm.length;
-          Push(WasmValue(isolate_->factory()->null_value()));
+          Push(WasmValue(isolate_->factory()->null_value(),
+                         ValueType::Ref(imm.type, kNullable)));
           break;
         }
         case kExprRefFunc: {
@@ -3616,7 +3570,7 @@ class WasmInterpreterInternals {
           Handle<WasmExternalFunction> function =
               WasmInstanceObject::GetOrCreateWasmExternalFunction(
                   isolate_, instance_object_, imm.index);
-          Push(WasmValue(function));
+          Push(WasmValue(function, kWasmFuncRef));
           len = 1 + imm.length;
           break;
         }
@@ -3762,7 +3716,7 @@ class WasmInterpreterInternals {
               std::tie(global_buffer, global_index) =
                   WasmInstanceObject::GetGlobalBufferAndIndex(instance_object_,
                                                               global);
-              Handle<Object> ref = Pop().to_externref();
+              Handle<Object> ref = Pop().to_ref();
               global_buffer->set(global_index, *ref);
               break;
             }
@@ -3770,7 +3724,7 @@ class WasmInterpreterInternals {
             case kRttWithDepth:
             case kI8:
             case kI16:
-            case kStmt:
+            case kVoid:
             case kBottom:
               UNREACHABLE();
           }
@@ -3791,7 +3745,7 @@ class WasmInterpreterInternals {
           }
           Handle<Object> value =
               WasmTableObject::Get(isolate_, table, entry_index);
-          Push(WasmValue(value));
+          Push(WasmValue(value, table->type()));
           len = 1 + imm.length;
           break;
         }
@@ -3803,7 +3757,7 @@ class WasmInterpreterInternals {
               WasmTableObject::cast(instance_object_->tables().get(imm.index)),
               isolate_);
           uint32_t table_size = table->current_length();
-          Handle<Object> value = Pop().to_externref();
+          Handle<Object> value = Pop().to_ref();
           uint32_t entry_index = Pop().to<uint32_t>();
           if (entry_index >= table_size) {
             return DoTrap(kTrapTableOutOfBounds, pc);
@@ -3953,7 +3907,7 @@ class WasmInterpreterInternals {
         case kExprRefIsNull: {
           len = 1;
           HandleScope handle_scope(isolate_);  // Avoid leaking handles.
-          uint32_t result = Pop().to_externref()->IsNull() ? 1 : 0;
+          uint32_t result = Pop().to_ref()->IsNull() ? 1 : 0;
           Push(WasmValue(result));
           break;
         }
@@ -4071,7 +4025,9 @@ class WasmInterpreterInternals {
   }
 
   void Push(WasmValue val) {
-    DCHECK_NE(kWasmStmt, val.type());
+    DCHECK_NE(kWasmVoid, val.type());
+    DCHECK_NE(kWasmI8, val.type());
+    DCHECK_NE(kWasmI16, val.type());
     DCHECK_LE(1, stack_limit_ - sp_);
     DCHECK(StackValue::IsClearedValue(this, StackHeight()));
     StackValue stack_value(val, this, StackHeight());
@@ -4083,7 +4039,7 @@ class WasmInterpreterInternals {
   void Push(WasmValue* vals, size_t arity) {
     DCHECK_LE(arity, stack_limit_ - sp_);
     for (WasmValue *val = vals, *end = vals + arity; val != end; ++val) {
-      DCHECK_NE(kWasmStmt, val->type());
+      DCHECK_NE(kWasmVoid, val->type());
       Push(*val);
     }
   }
@@ -4160,13 +4116,13 @@ class WasmInterpreterInternals {
           PrintF("i32x4:%d,%d,%d,%d", s.val[0], s.val[1], s.val[2], s.val[3]);
           break;
         }
-        case kStmt:
+        case kVoid:
           PrintF("void");
           break;
         case kRef:
         case kOptRef: {
           if (val.type().is_reference_to(HeapType::kExtern)) {
-            Handle<Object> ref = val.to_externref();
+            Handle<Object> ref = val.to_ref();
             if (ref->IsNull()) {
               PrintF("ref:null");
             } else {

@@ -2,9 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_WASM_LINKAGE_H_
 #define V8_WASM_WASM_LINKAGE_H_
 
+#include "src/codegen/aligned-slot-allocator.h"
 #include "src/codegen/assembler-arch.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/signature.h"
@@ -44,7 +49,7 @@ constexpr DoubleRegister kFpReturnRegisters[] = {xmm1, xmm2};
 // ===========================================================================
 constexpr Register kGpParamRegisters[] = {r3, r0, r2, r6};
 constexpr Register kGpReturnRegisters[] = {r0, r1};
-// ARM d-registers must be in ascending order for correct allocation.
+// ARM d-registers must be in even/odd D-register pairs for correct allocation.
 constexpr DoubleRegister kFpParamRegisters[] = {d0, d1, d2, d3, d4, d5, d6, d7};
 constexpr DoubleRegister kFpReturnRegisters[] = {d0, d1};
 
@@ -145,18 +150,27 @@ class LinkageAllocator {
   bool CanAllocateFP(MachineRepresentation rep) const {
 #if V8_TARGET_ARCH_ARM
     switch (rep) {
-      case MachineRepresentation::kFloat32:
-        return fp_offset_ < fp_count_ && fp_regs_[fp_offset_].code() < 16;
-      case MachineRepresentation::kFloat64:
-        return extra_double_reg_ >= 0 || fp_offset_ < fp_count_;
-      case MachineRepresentation::kSimd128:
-        return ((fp_offset_ + 1) & ~1) + 1 < fp_count_;
+      case MachineRepresentation::kFloat32: {
+        // Get the next D-register (Liftoff only uses the even S-registers).
+        int next = fp_allocator_.NextSlot(2) / 2;
+        // Only the lower 16 D-registers alias S-registers.
+        return next < fp_count_ && fp_regs_[next].code() < 16;
+      }
+      case MachineRepresentation::kFloat64: {
+        int next = fp_allocator_.NextSlot(2) / 2;
+        return next < fp_count_;
+      }
+      case MachineRepresentation::kSimd128: {
+        int next = fp_allocator_.NextSlot(4) / 2;
+        return next < fp_count_ - 1;  // 2 D-registers are required.
+      }
       default:
         UNREACHABLE();
         return false;
     }
-#endif
+#else
     return fp_offset_ < fp_count_;
+#endif
   }
 
   int NextGpReg() {
@@ -165,80 +179,58 @@ class LinkageAllocator {
   }
 
   int NextFpReg(MachineRepresentation rep) {
+    DCHECK(CanAllocateFP(rep));
 #if V8_TARGET_ARCH_ARM
     switch (rep) {
       case MachineRepresentation::kFloat32: {
-        // Liftoff uses only even-numbered f32 registers, and encodes them using
-        // the code of the corresponding f64 register. This limits the calling
-        // interface to only using the even-numbered f32 registers.
+        // Liftoff uses only even-numbered S-registers, and encodes them using
+        // the code of the corresponding D-register. This limits the calling
+        // interface to only using the even-numbered S-registers.
         int d_reg_code = NextFpReg(MachineRepresentation::kFloat64);
-        DCHECK_GT(16, d_reg_code);  // D-registers 16 - 31 can't split.
+        DCHECK_GT(16, d_reg_code);  // D16 - D31 don't alias S-registers.
         return d_reg_code * 2;
       }
       case MachineRepresentation::kFloat64: {
-        // Use the extra D-register if there is one.
-        if (extra_double_reg_ >= 0) {
-          int reg_code = extra_double_reg_;
-          extra_double_reg_ = -1;
-          return reg_code;
-        }
-        DCHECK_LT(fp_offset_, fp_count_);
-        return fp_regs_[fp_offset_++].code();
+        int next = fp_allocator_.Allocate(2) / 2;
+        return fp_regs_[next].code();
       }
       case MachineRepresentation::kSimd128: {
-        // Q-register must be an even-odd pair, so we must try to allocate at
-        // the end, not using extra_double_reg_. If we are at an odd D-register,
-        // skip past it (saving it to extra_double_reg_).
-        DCHECK_LT(((fp_offset_ + 1) & ~1) + 1, fp_count_);
-        int d_reg1_code = fp_regs_[fp_offset_++].code();
-        if (d_reg1_code % 2 != 0) {
-          // If we're misaligned then extra_double_reg_ must have been consumed.
-          DCHECK_EQ(-1, extra_double_reg_);
-          int odd_double_reg = d_reg1_code;
-          d_reg1_code = fp_regs_[fp_offset_++].code();
-          extra_double_reg_ = odd_double_reg;
-        }
-        // Combine the current D-register with the next to form a Q-register.
-        int d_reg2_code = fp_regs_[fp_offset_++].code();
-        DCHECK_EQ(0, d_reg1_code % 2);
-        DCHECK_EQ(d_reg1_code + 1, d_reg2_code);
-        USE(d_reg2_code);
-        return d_reg1_code / 2;
+        int next = fp_allocator_.Allocate(4) / 2;
+        int d_reg_code = fp_regs_[next].code();
+        // Check that result and the next D-register pair.
+        DCHECK_EQ(0, d_reg_code % 2);
+        DCHECK_EQ(d_reg_code + 1, fp_regs_[next + 1].code());
+        return d_reg_code / 2;
       }
       default:
         UNREACHABLE();
     }
 #else
-    DCHECK_LT(fp_offset_, fp_count_);
     return fp_regs_[fp_offset_++].code();
 #endif
   }
 
   // Stackslots are counted upwards starting from 0 (or the offset set by
-  // {SetStackOffset}.
-  int NumStackSlots(MachineRepresentation type) {
-    return std::max(1, ElementSizeInBytes(type) / kSystemPointerSize);
-  }
-
-  // Stackslots are counted upwards starting from 0 (or the offset set by
-  // {SetStackOffset}. If {type} needs more than
-  // one stack slot, the lowest used stack slot is returned.
+  // {SetStackOffset}. If {type} needs more than one stack slot, the lowest
+  // used stack slot is returned.
   int NextStackSlot(MachineRepresentation type) {
-    int num_stack_slots = NumStackSlots(type);
-    int offset = stack_offset_;
-    stack_offset_ += num_stack_slots;
-    return offset;
+    int num_slots =
+        AlignedSlotAllocator::NumSlotsForWidth(ElementSizeInBytes(type));
+    int slot = slot_allocator_.Allocate(num_slots);
+    return slot;
   }
 
   // Set an offset for the stack slots returned by {NextStackSlot} and
   // {NumStackSlots}. Can only be called before any call to {NextStackSlot}.
-  void SetStackOffset(int num) {
-    DCHECK_LE(0, num);
-    DCHECK_EQ(0, stack_offset_);
-    stack_offset_ = num;
+  void SetStackOffset(int offset) {
+    DCHECK_LE(0, offset);
+    DCHECK_EQ(0, slot_allocator_.Size());
+    slot_allocator_.AllocateUnaligned(offset);
   }
 
-  int NumStackSlots() const { return stack_offset_; }
+  int NumStackSlots() const { return slot_allocator_.Size(); }
+
+  void EndSlotArea() { slot_allocator_.AllocateUnaligned(0); }
 
  private:
   const int gp_count_;
@@ -246,16 +238,16 @@ class LinkageAllocator {
   const Register* const gp_regs_;
 
   const int fp_count_;
+#if V8_TARGET_ARCH_ARM
+  // Use an aligned slot allocator to model ARM FP register aliasing. The slots
+  // are 32 bits, so 2 slots are required for a D-register, 4 for a Q-register.
+  AlignedSlotAllocator fp_allocator_;
+#else
   int fp_offset_ = 0;
+#endif
   const DoubleRegister* const fp_regs_;
 
-#if V8_TARGET_ARCH_ARM
-  // Track fragments of registers below fp_offset_ here. There can only be one
-  // extra double register.
-  int extra_double_reg_ = -1;
-#endif
-
-  int stack_offset_ = 0;
+  AlignedSlotAllocator slot_allocator_;
 };
 
 }  // namespace wasm

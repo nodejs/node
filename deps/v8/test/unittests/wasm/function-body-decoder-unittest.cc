@@ -68,6 +68,9 @@ constexpr size_t kMaxByteSizedLeb128 = 127;
 
 using F = std::pair<ValueType, bool>;
 
+// Used to construct fixed-size signatures: MakeSig::Returns(...).Params(...);
+using MakeSig = FixedSizeSignature<ValueType>;
+
 enum MemoryType { kMemory32, kMemory64 };
 
 // A helper for tests that require a module environment for functions,
@@ -1303,7 +1306,7 @@ TEST_F(FunctionBodyDecoderTest, TypeConversions) {
   TestUnop(kExprF32ConvertF64, kWasmF32, kWasmF64);
 }
 
-TEST_F(FunctionBodyDecoderTest, MacrosStmt) {
+TEST_F(FunctionBodyDecoderTest, MacrosVoid) {
   builder.InitializeMemory();
   ExpectValidates(sigs.v_i(), {WASM_LOCAL_SET(0, WASM_I32V_3(87348))});
   ExpectValidates(
@@ -1743,7 +1746,7 @@ TEST_F(FunctionBodyDecoderTest, IndirectReturnCallsWithMismatchedSigs3) {
   WASM_FEATURE_SCOPE(return_call);
 
   const FunctionSig* sig = sigs.i_i();
-  builder.InitializeTable(wasm::kWasmStmt);
+  builder.InitializeTable(wasm::kWasmVoid);
 
   byte sig0 = builder.AddSignature(sigs.i_f());
 
@@ -1786,7 +1789,7 @@ TEST_F(FunctionBodyDecoderTest, IndirectReturnCallsWithoutTableCrash) {
 
 TEST_F(FunctionBodyDecoderTest, IncompleteIndirectReturnCall) {
   const FunctionSig* sig = sigs.i_i();
-  builder.InitializeTable(wasm::kWasmStmt);
+  builder.InitializeTable(wasm::kWasmVoid);
 
   static byte code[] = {kExprReturnCallIndirect};
   ExpectFailure(sig, ArrayVector(code), kOmitEnd);
@@ -1866,7 +1869,7 @@ TEST_F(FunctionBodyDecoderTest, IndirectCallsOutOfBounds) {
 
 TEST_F(FunctionBodyDecoderTest, IndirectCallsWithMismatchedSigs1) {
   const FunctionSig* sig = sigs.i_i();
-  builder.InitializeTable(wasm::kWasmStmt);
+  builder.InitializeTable(wasm::kWasmVoid);
 
   byte sig0 = builder.AddSignature(sigs.i_f());
 
@@ -1928,7 +1931,7 @@ TEST_F(FunctionBodyDecoderTest, IndirectCallsWithoutTableCrash) {
 
 TEST_F(FunctionBodyDecoderTest, IncompleteIndirectCall) {
   const FunctionSig* sig = sigs.i_i();
-  builder.InitializeTable(wasm::kWasmStmt);
+  builder.InitializeTable(wasm::kWasmVoid);
 
   static byte code[] = {kExprCallIndirect};
   ExpectFailure(sig, ArrayVector(code), kOmitEnd);
@@ -1937,7 +1940,7 @@ TEST_F(FunctionBodyDecoderTest, IncompleteIndirectCall) {
 TEST_F(FunctionBodyDecoderTest, IncompleteStore) {
   const FunctionSig* sig = sigs.i_i();
   builder.InitializeMemory();
-  builder.InitializeTable(wasm::kWasmStmt);
+  builder.InitializeTable(wasm::kWasmVoid);
 
   static byte code[] = {kExprI32StoreMem};
   ExpectFailure(sig, ArrayVector(code), kOmitEnd);
@@ -1947,7 +1950,7 @@ TEST_F(FunctionBodyDecoderTest, IncompleteI8x16Shuffle) {
   WASM_FEATURE_SCOPE(simd);
   const FunctionSig* sig = sigs.i_i();
   builder.InitializeMemory();
-  builder.InitializeTable(wasm::kWasmStmt);
+  builder.InitializeTable(wasm::kWasmVoid);
 
   static byte code[] = {kSimdPrefix,
                         static_cast<byte>(kExprI8x16Shuffle & 0xff)};
@@ -2237,14 +2240,6 @@ TEST_F(FunctionBodyDecoderTest, WasmMemoryGrow) {
   byte code[] = {WASM_LOCAL_GET(0), kExprMemoryGrow, 0};
   ExpectValidates(sigs.i_i(), code);
   ExpectFailure(sigs.i_d(), code);
-}
-
-TEST_F(FunctionBodyDecoderTest, AsmJsMemoryGrow) {
-  module->origin = kAsmJsSloppyOrigin;
-  builder.InitializeMemory();
-
-  byte code[] = {WASM_LOCAL_GET(0), kExprMemoryGrow, 0};
-  ExpectFailure(sigs.i_i(), code);
 }
 
 TEST_F(FunctionBodyDecoderTest, AsmJsBinOpsCheckOrigin) {
@@ -2939,6 +2934,11 @@ TEST_F(FunctionBodyDecoderTest, TryDelegate) {
                  WASM_TRY_DELEGATE(WASM_STMTS(kExprThrow, ex), 0), kExprEnd},
                 kAppendEnd,
                 "cannot delegate inside the catch handler of the target");
+  ExpectFailure(sigs.v_v(),
+                {WASM_TRY_OP, kExprUnwind,
+                 WASM_TRY_DELEGATE(WASM_STMTS(kExprThrow, ex), 0), kExprEnd},
+                kAppendEnd,
+                "cannot delegate inside the catch handler of the target");
   ExpectFailure(
       sigs.v_v(),
       {WASM_BLOCK(WASM_TRY_OP, WASM_TRY_DELEGATE(WASM_STMTS(kExprThrow, ex), 3),
@@ -3325,7 +3325,7 @@ TEST_F(FunctionBodyDecoderTest, DeclarativeElemDrop) {
 }
 
 TEST_F(FunctionBodyDecoderTest, RefFuncDeclared) {
-  builder.InitializeTable(wasm::kWasmStmt);
+  builder.InitializeTable(wasm::kWasmVoid);
   byte function_index = builder.AddFunction(sigs.v_i());
 
   ExpectFailure(sigs.a_v(), {WASM_REF_FUNC(function_index)});
@@ -3334,7 +3334,7 @@ TEST_F(FunctionBodyDecoderTest, RefFuncDeclared) {
 }
 
 TEST_F(FunctionBodyDecoderTest, RefFuncUndeclared) {
-  builder.InitializeTable(wasm::kWasmStmt);
+  builder.InitializeTable(wasm::kWasmVoid);
   byte function_index = builder.AddFunction(sigs.v_i(), false);
 
   WASM_FEATURE_SCOPE(reftypes);
@@ -3355,7 +3355,7 @@ TEST_F(FunctionBodyDecoderTest, ElemSegmentIndexUnsigned) {
 }
 
 TEST_F(FunctionBodyDecoderTest, TableCopy) {
-  builder.InitializeTable(wasm::kWasmStmt);
+  builder.InitializeTable(wasm::kWasmVoid);
 
   ExpectValidates(sigs.v_v(),
                   {WASM_TABLE_COPY(0, 0, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
@@ -4269,17 +4269,18 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
   HeapType::Representation func_heap_2 =
       static_cast<HeapType::Representation>(builder.AddSignature(sigs.i_v()));
 
-  // Passing/failing tests due to static subtyping.
   std::tuple<HeapType::Representation, HeapType::Representation, bool> tests[] =
       {std::make_tuple(HeapType::kData, array_heap, true),
        std::make_tuple(HeapType::kData, super_struct_heap, true),
        std::make_tuple(HeapType::kFunc, func_heap_1, true),
        std::make_tuple(func_heap_1, func_heap_1, true),
-       std::make_tuple(func_heap_1, func_heap_2, false),
+       std::make_tuple(func_heap_1, func_heap_2, true),
        std::make_tuple(super_struct_heap, sub_struct_heap, true),
-       std::make_tuple(sub_struct_heap, super_struct_heap, false),
-       std::make_tuple(sub_struct_heap, array_heap, false),
-       std::make_tuple(HeapType::kFunc, array_heap, false)};
+       std::make_tuple(array_heap, sub_struct_heap, true),
+       std::make_tuple(super_struct_heap, func_heap_1, true),
+       std::make_tuple(HeapType::kEq, super_struct_heap, false),
+       std::make_tuple(HeapType::kAny, func_heap_1, false),
+       std::make_tuple(HeapType::kI31, array_heap, false)};
 
   for (auto test : tests) {
     HeapType from_heap = HeapType(std::get<0>(test));
@@ -4308,10 +4309,10 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
       ExpectValidates(&cast_sig,
                       {WASM_REF_CAST(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))});
     } else {
-      std::string error_message = "[0] expected supertype of type " +
-                                  std::to_string(to_heap.ref_index()) +
-                                  ", found local.get of type " +
-                                  test_reps[1].name();
+      std::string error_message =
+          "[0] expected subtype of (ref null func) or (ref null data), found "
+          "local.get of type " +
+          test_reps[1].name();
       ExpectFailure(&test_sig,
                     {WASM_REF_TEST(WASM_LOCAL_GET(0),
                                    WASM_RTT_CANON(WASM_HEAP_TYPE(to_heap)))},
@@ -4339,20 +4340,27 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
       kAppendEnd,
       "ref.cast[0] expected subtype of (ref null func) or (ref null data), "
       "found i32.const of type i32");
+}
 
-  // Trivial type error.
+TEST_F(FunctionBodyDecoderTest, LocalTeeTyping) {
+  WASM_FEATURE_SCOPE(reftypes);
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(gc);
+
+  TestModuleBuilder builder;
+  module = builder.module();
+  byte array_type = builder.AddArray(kWasmI8, true);
+
+  ValueType types[] = {ValueType::Ref(array_type, kNonNullable)};
+  FunctionSig sig(1, 0, types);
+
+  AddLocals(ValueType::Ref(array_type, kNullable), 1);
+
   ExpectFailure(
-      sigs.v_v(),
-      {WASM_REF_TEST(WASM_I32V(1), WASM_RTT_CANON(array_heap)), kExprDrop},
-      kAppendEnd,
-      "ref.test[0] expected subtype of (ref null func) or (ref null data), "
-      "found i32.const of type i32");
-  ExpectFailure(
-      sigs.v_v(),
-      {WASM_REF_CAST(WASM_I32V(1), WASM_RTT_CANON(array_heap)), kExprDrop},
-      kAppendEnd,
-      "ref.cast[0] expected subtype of (ref null func) or (ref null data), "
-      "found i32.const of type i32");
+      &sig,
+      {WASM_LOCAL_TEE(0, WASM_ARRAY_NEW_DEFAULT(array_type, WASM_I32V(5),
+                                                WASM_RTT_CANON(array_type)))},
+      kAppendEnd, "expected (ref 0), got (ref null 0)");
 }
 
 // This tests that num_locals_ in decoder remains consistent, even if we fail
@@ -4363,6 +4371,16 @@ TEST_F(FunctionBodyDecoderTest, Regress_1154439) {
   AddLocals(kWasmI32, 1);
   AddLocals(kWasmI64, 1000000);
   ExpectFailure(sigs.v_v(), {}, kAppendEnd, "local count too large");
+}
+
+TEST_F(FunctionBodyDecoderTest, DropOnEmptyStack) {
+  // Valid code:
+  ExpectValidates(sigs.v_v(), {kExprI32Const, 1, kExprDrop}, kAppendEnd);
+  // Invalid code (dropping from empty stack):
+  ExpectFailure(sigs.v_v(), {kExprDrop}, kAppendEnd,
+                "not enough arguments on the stack for drop");
+  // Valid code (dropping from empty stack in unreachable code):
+  ExpectValidates(sigs.v_v(), {kExprUnreachable, kExprDrop}, kAppendEnd);
 }
 
 class BranchTableIteratorTest : public TestWithZone {
@@ -4998,6 +5016,19 @@ TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, MemorySize) {
   // memory.size returns i64 on memory64.
   Validate(is_memory64(), sigs.v_v(),
            {WASM_MEMORY_SIZE, kExprI64Eqz, kExprDrop});
+}
+
+TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, MemoryGrow) {
+  builder.InitializeMemory(GetParam());
+  // memory.grow is i32->i32 memory32.
+  Validate(!is_memory64(), sigs.i_i(), {WASM_MEMORY_GROW(WASM_LOCAL_GET(0))});
+  // memory.grow is i64->i64 memory32.
+  Validate(is_memory64(), sigs.l_l(), {WASM_MEMORY_GROW(WASM_LOCAL_GET(0))});
+  // any other combination always fails.
+  auto sig_l_i = MakeSig::Returns(kWasmI64).Params(kWasmI32);
+  ExpectFailure(&sig_l_i, {WASM_MEMORY_GROW(WASM_LOCAL_GET(0))});
+  auto sig_i_l = MakeSig::Returns(kWasmI32).Params(kWasmI64);
+  ExpectFailure(&sig_i_l, {WASM_MEMORY_GROW(WASM_LOCAL_GET(0))});
 }
 
 #undef B1

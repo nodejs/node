@@ -10,8 +10,6 @@
 namespace v8 {
 namespace internal {
 
-using compiler::Node;
-
 class GrowableFixedArray;
 
 class IteratorBuiltinsAssembler : public CodeStubAssembler {

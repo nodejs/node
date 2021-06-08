@@ -159,9 +159,6 @@ using float16 = uint16_t;
                         /* store second source.      */ \
   V_(Rs, 20, 16, Bits)  /* Store-exclusive status    */ \
   V_(PrefetchMode, 4, 0, Bits)                          \
-  V_(PrefetchHint, 4, 3, Bits)                          \
-  V_(PrefetchTarget, 2, 1, Bits)                        \
-  V_(PrefetchStream, 0, 0, Bits)                        \
                                                         \
   /* Common bits */                                     \
   V_(SixtyFourBits, 31, 31, Bits)                       \
@@ -219,7 +216,6 @@ using float16 = uint16_t;
   V_(LSOpc, 23, 22, Bits)                               \
   V_(LSVector, 26, 26, Bits)                            \
   V_(LSSize, 31, 30, Bits)                              \
-  V_(ImmPrefetchOperation, 4, 0, Bits)                  \
                                                         \
   /* NEON generic fields */                             \
   V_(NEONQ, 30, 30, Bits)                               \
@@ -445,27 +441,6 @@ enum SystemRegister {
   FPCR = ((0x1 << SysO0_offset) | (0x3 << SysOp1_offset) | (0x4 << CRn_offset) |
           (0x4 << CRm_offset) | (0x0 << SysOp2_offset)) >>
          ImmSystemRegister_offset
-};
-
-enum PrefetchOperation {
-  PLDL1KEEP = 0x00,
-  PLDL1STRM = 0x01,
-  PLDL2KEEP = 0x02,
-  PLDL2STRM = 0x03,
-  PLDL3KEEP = 0x04,
-  PLDL3STRM = 0x05,
-  PLIL1KEEP = 0x08,
-  PLIL1STRM = 0x09,
-  PLIL2KEEP = 0x0a,
-  PLIL2STRM = 0x0b,
-  PLIL3KEEP = 0x0c,
-  PLIL3STRM = 0x0d,
-  PSTL1KEEP = 0x10,
-  PSTL1STRM = 0x11,
-  PSTL2KEEP = 0x12,
-  PSTL2STRM = 0x13,
-  PSTL3KEEP = 0x14,
-  PSTL3STRM = 0x15,
 };
 
 // Instruction enumerations.

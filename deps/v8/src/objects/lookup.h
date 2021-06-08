@@ -172,9 +172,7 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   }
   PropertyLocation location() const { return property_details().location(); }
   PropertyConstness constness() const { return property_details().constness(); }
-  Handle<Map> GetFieldOwnerMap() const;
   FieldIndex GetFieldIndex() const;
-  Handle<FieldType> GetFieldType() const;
   int GetFieldDescriptorIndex() const;
   int GetAccessorIndex() const;
   Handle<PropertyCell> GetPropertyCell() const;
@@ -305,6 +303,13 @@ class V8_EXPORT_PRIVATE LookupIterator final {
 // functionality and constraints are better known.
 class ConcurrentLookupIterator final : public AllStatic {
  public:
+  // Tri-state to distinguish between 'not-present' and 'who-knows' failures.
+  enum Result {
+    kPresent,     // The value was found.
+    kNotPresent,  // No value exists.
+    kGaveUp,      // The operation can't be completed.
+  };
+
   // Implements the own data property lookup for the specialized case of
   // fixed_cow_array backing stores (these are only in use for array literal
   // boilerplates). The contract is that the elements, elements kind, and array
@@ -316,6 +321,13 @@ class ConcurrentLookupIterator final : public AllStatic {
   V8_EXPORT_PRIVATE static base::Optional<Object> TryGetOwnCowElement(
       Isolate* isolate, FixedArray array_elements, ElementsKind elements_kind,
       int array_length, size_t index);
+
+  // Unlike above, the contract is that holder, elements, and elements_kind are
+  // a consistent view of the world; and index must be a valid element index.
+  V8_EXPORT_PRIVATE static Result TryGetOwnConstantElement(
+      Object* result_out, Isolate* isolate, LocalIsolate* local_isolate,
+      JSObject holder, FixedArrayBase elements, ElementsKind elements_kind,
+      size_t index);
 };
 
 }  // namespace internal

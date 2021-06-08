@@ -17,12 +17,6 @@ namespace internal {
 
 bool CpuFeatures::SupportsOptimizer() { return true; }
 
-bool CpuFeatures::SupportsWasmSimd128() {
-  if (IsSupported(SSE4_1)) return true;
-  if (FLAG_wasm_simd_ssse3_codegen && IsSupported(SSSE3)) return true;
-  return false;
-}
-
 // -----------------------------------------------------------------------------
 // Implementation of Assembler
 
@@ -41,8 +35,10 @@ void Assembler::emitw(uint16_t x) {
   pc_ += sizeof(uint16_t);
 }
 
+// TODO(ishell): Rename accordingly once RUNTIME_ENTRY is renamed.
 void Assembler::emit_runtime_entry(Address entry, RelocInfo::Mode rmode) {
   DCHECK(RelocInfo::IsRuntimeEntry(rmode));
+  DCHECK_NE(options().code_range_start, 0);
   RecordRelocInfo(rmode);
   emitl(static_cast<uint32_t>(entry - options().code_range_start));
 }

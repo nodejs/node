@@ -87,6 +87,7 @@
       'V8 Mac64 GC Stress': 'debug_x64',
       'V8 Mac64 ASAN': 'release_x64_asan_no_lsan',
       'V8 Mac - arm64 - release builder': 'release_arm64',
+      'V8 Mac - arm64 - debug builder': 'debug_arm64',
       'V8 Mac - arm64 - sim - debug builder': 'debug_simulate_arm64',
       'V8 Mac - arm64 - sim - release builder': 'release_simulate_arm64',
       # Sanitizers.

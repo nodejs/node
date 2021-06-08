@@ -635,7 +635,7 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject object) {
   } else if (object.IsContext()) {
     return AddEntry(object, HeapEntry::kObject, "system / Context");
   } else if (object.IsFixedArray() || object.IsFixedDoubleArray() ||
-             object.IsByteArray() || object.IsScopeInfo()) {
+             object.IsByteArray()) {
     return AddEntry(object, HeapEntry::kArray, "");
   } else if (object.IsHeapNumber()) {
     return AddEntry(object, HeapEntry::kHeapNumber, "number");
@@ -1078,7 +1078,7 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Map map) {
                            Map::kTransitionsOrPrototypeInfoOffset);
     }
   }
-  DescriptorArray descriptors = map.instance_descriptors(kRelaxedLoad);
+  DescriptorArray descriptors = map.instance_descriptors();
   TagObject(descriptors, "(map descriptors)");
   SetInternalReference(entry, "descriptors", descriptors,
                        Map::kInstanceDescriptorsOffset);
@@ -1184,10 +1184,17 @@ void V8HeapExplorer::ExtractCodeReferences(HeapEntry* entry, Code code) {
   TagObject(code.deoptimization_data(), "(code deopt data)");
   SetInternalReference(entry, "deoptimization_data", code.deoptimization_data(),
                        Code::kDeoptimizationDataOffset);
-  TagObject(code.source_position_table(), "(source position table)");
-  SetInternalReference(entry, "source_position_table",
-                       code.source_position_table(),
-                       Code::kSourcePositionTableOffset);
+  if (code.kind() == CodeKind::BASELINE) {
+    TagObject(code.bytecode_offset_table(), "(bytecode offset table)");
+    SetInternalReference(entry, "bytecode_offset_table",
+                         code.bytecode_offset_table(),
+                         Code::kPositionTableOffset);
+  } else {
+    TagObject(code.source_position_table(), "(source position table)");
+    SetInternalReference(entry, "source_position_table",
+                         code.source_position_table(),
+                         Code::kPositionTableOffset);
+  }
 }
 
 void V8HeapExplorer::ExtractCellReferences(HeapEntry* entry, Cell cell) {
@@ -1333,7 +1340,7 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject js_obj,
                                                HeapEntry* entry) {
   Isolate* isolate = js_obj.GetIsolate();
   if (js_obj.HasFastProperties()) {
-    DescriptorArray descs = js_obj.map().instance_descriptors(kRelaxedLoad);
+    DescriptorArray descs = js_obj.map().instance_descriptors(isolate);
     for (InternalIndex i : js_obj.map().IterateOwnDescriptors()) {
       PropertyDetails details = descs.GetDetails(i);
       switch (details.location()) {
@@ -1370,8 +1377,12 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject js_obj,
       PropertyDetails details = cell.property_details();
       SetDataOrAccessorPropertyReference(details.kind(), entry, name, value);
     }
-  } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    OrderedNameDictionary dictionary = js_obj.property_dictionary_ordered();
+  } else if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+    // SwissNameDictionary::IterateEntries creates a Handle, which should not
+    // leak out of here.
+    HandleScope scope(isolate);
+
+    SwissNameDictionary dictionary = js_obj.property_dictionary_swiss();
     ReadOnlyRoots roots(isolate);
     for (InternalIndex i : dictionary.IterateEntries()) {
       Object k = dictionary.KeyAt(i);
@@ -1497,10 +1508,10 @@ class RootsReferencesExtractor : public RootVisitor {
                          OffHeapObjectSlot start,
                          OffHeapObjectSlot end) override {
     DCHECK_EQ(root, Root::kStringTable);
-    IsolateRoot isolate = Isolate::FromHeap(explorer_->heap_);
+    PtrComprCageBase cage_base = Isolate::FromHeap(explorer_->heap_);
     for (OffHeapObjectSlot p = start; p < end; ++p) {
       explorer_->SetGcSubrootReference(root, description, visiting_weak_roots_,
-                                       p.load(isolate));
+                                       p.load(cage_base));
     }
   }
 

@@ -10,7 +10,7 @@ builder.addFunction('test', kSig_i_i)
       // body:
       kExprLocalGet, 0,      // get_local 0
       kExprLocalGet, 0,      // get_local 0
-      kExprLoop, kWasmStmt,  // loop
+      kExprLoop, kWasmVoid,  // loop
       kExprBr, 0,            // br depth=0
       kExprEnd,              // end
       kExprUnreachable,      // unreachable

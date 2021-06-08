@@ -19,7 +19,6 @@ v8_executable("mkgrokdump") {
     "../..:v8",
     "../..:v8_libbase",
     "../..:v8_libplatform",
-    "../..:v8_wrappers",
     "//build/win:default_exe_manifest",
   ]
 

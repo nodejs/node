@@ -133,6 +133,9 @@ class RegExpStack {
   // you have to call EnsureCapacity before using it again.
   void Reset();
 
+  // Whether the ThreadLocal storage has been invalidated.
+  bool IsValid() const { return thread_local_.memory_ != nullptr; }
+
   ThreadLocal thread_local_;
   Isolate* isolate_;
 

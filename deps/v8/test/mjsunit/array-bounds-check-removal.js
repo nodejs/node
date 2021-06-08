@@ -218,7 +218,11 @@ short_test(short_a, 50);
 %OptimizeFunctionOnNextCall(short_test);
 short_a.length = 10;
 short_test(short_a, 0);
-assertUnoptimized(short_test);
+// TODO(v8:11457) Currently, we cannot inline stores if there is a dictionary
+// mode prototype on the prototype chain. Therefore, if
+// v8_dict_property_const_tracking is enabled, the optimized code only contains
+// a call to the IC handler and doesn't get deopted.
+assertEquals(%IsDictPropertyConstTrackingEnabled(), isOptimized(short_test));
 
 
 // A test for when we would modify a phi index.

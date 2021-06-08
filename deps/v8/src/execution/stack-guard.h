@@ -90,6 +90,11 @@ class V8_EXPORT_PRIVATE V8_NODISCARD StackGuard final {
   // stack overflow, then handle the interruption accordingly.
   Object HandleInterrupts();
 
+  // Special case of {HandleInterrupts}: checks for termination requests only.
+  // This is guaranteed to never cause GC, so can be used to interrupt
+  // long-running computations that are not GC-safe.
+  bool HasTerminationRequest();
+
   static constexpr int kSizeInBytes = 7 * kSystemPointerSize;
 
   static char* Iterate(RootVisitor* v, char* thread_storage) {

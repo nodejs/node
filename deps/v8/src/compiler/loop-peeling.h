@@ -50,6 +50,7 @@ class V8_EXPORT_PRIVATE LoopPeeler {
   void PeelInnerLoopsOfTree();
 
   static void EliminateLoopExits(Graph* graph, Zone* tmp_zone);
+  static void EliminateLoopExit(Node* loop);
   static const size_t kMaxPeeledNodes = 1000;
 
  private:

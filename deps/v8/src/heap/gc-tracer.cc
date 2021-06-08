@@ -208,7 +208,6 @@ void GCTracer::ResetForTesting() {
   recorded_new_generation_allocations_.Reset();
   recorded_old_generation_allocations_.Reset();
   recorded_embedder_generation_allocations_.Reset();
-  recorded_context_disposal_times_.Reset();
   recorded_survival_ratios_.Reset();
   start_counter_ = 0;
   average_mutator_duration_ = 0;
@@ -472,11 +471,6 @@ void GCTracer::AddAllocation(double current_ms) {
   embedder_allocation_in_bytes_since_gc_ = 0;
 }
 
-
-void GCTracer::AddContextDisposalTime(double time) {
-  recorded_context_disposal_times_.Push(time);
-}
-
 void GCTracer::AddCompactionEvent(double duration,
                                   size_t live_bytes_compacted) {
   recorded_compactions_.Push(
@@ -612,8 +606,7 @@ void GCTracer::PrintNVP() const {
           "promotion_rate=%.1f%% "
           "semi_space_copy_rate=%.1f%% "
           "new_space_allocation_throughput=%.1f "
-          "unmapper_chunks=%d "
-          "context_disposal_rate=%.1f\n",
+          "unmapper_chunks=%d\n",
           duration, spent_in_mutator, current_.TypeName(true),
           current_.reduce_memory, current_.scopes[Scope::TIME_TO_SAFEPOINT],
           current_.scopes[Scope::HEAP_PROLOGUE],
@@ -651,8 +644,7 @@ void GCTracer::PrintNVP() const {
           AverageSurvivalRatio(), heap_->promotion_rate_,
           heap_->semi_space_copied_rate_,
           NewSpaceAllocationThroughputInBytesPerMillisecond(),
-          heap_->memory_allocator()->unmapper()->NumberOfChunks(),
-          ContextDisposalRateInMilliseconds());
+          heap_->memory_allocator()->unmapper()->NumberOfChunks());
       break;
     case Event::MINOR_MARK_COMPACTOR:
       heap_->isolate()->PrintWithTimestamp(
@@ -804,7 +796,6 @@ void GCTracer::PrintNVP() const {
           "semi_space_copy_rate=%.1f%% "
           "new_space_allocation_throughput=%.1f "
           "unmapper_chunks=%d "
-          "context_disposal_rate=%.1f "
           "compaction_speed=%.f\n",
           duration, spent_in_mutator, current_.TypeName(true),
           current_.reduce_memory, current_.scopes[Scope::TIME_TO_SAFEPOINT],
@@ -896,7 +887,6 @@ void GCTracer::PrintNVP() const {
           heap_->semi_space_copied_rate_,
           NewSpaceAllocationThroughputInBytesPerMillisecond(),
           heap_->memory_allocator()->unmapper()->NumberOfChunks(),
-          ContextDisposalRateInMilliseconds(),
           CompactionSpeedInBytesPerMillisecond());
       break;
     case Event::START:
@@ -1116,16 +1106,6 @@ double GCTracer::CurrentEmbedderAllocationThroughputInBytesPerMillisecond()
     const {
   return EmbedderAllocationThroughputInBytesPerMillisecond(
       kThroughputTimeFrameMs);
-}
-
-double GCTracer::ContextDisposalRateInMilliseconds() const {
-  if (recorded_context_disposal_times_.Count() <
-      recorded_context_disposal_times_.kSize)
-    return 0.0;
-  double begin = heap_->MonotonicallyIncreasingTimeInMs();
-  double end = recorded_context_disposal_times_.Sum(
-      [](double a, double b) { return b; }, 0.0);
-  return (begin - end) / recorded_context_disposal_times_.Count();
 }
 
 double GCTracer::AverageSurvivalRatio() const {

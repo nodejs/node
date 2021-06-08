@@ -648,7 +648,7 @@ void RawMachineAssembler::PopAndReturn(Node* pop, Node* value) {
   //    be dropped in ADDITION to the 'pop' number of arguments).
   // Additionally, in order to simplify assembly code, PopAndReturn is also
   // not allowed in builtins with stub linkage and parameters on stack.
-  CHECK_EQ(call_descriptor()->StackParameterCount(), 0);
+  CHECK_EQ(call_descriptor()->ParameterSlotCount(), 0);
   Node* values[] = {pop, value};
   Node* ret = MakeNode(common()->Return(1), 2, values);
   schedule()->AddReturn(CurrentBlock(), ret);

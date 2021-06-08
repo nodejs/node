@@ -405,6 +405,13 @@ Callable CodeFactory::InterpreterOnStackReplacement(Isolate* isolate) {
 }
 
 // static
+Callable CodeFactory::InterpreterOnStackReplacement_ToBaseline(
+    Isolate* isolate) {
+  return Builtins::CallableFor(
+      isolate, Builtins::kInterpreterOnStackReplacement_ToBaseline);
+}
+
+// static
 Callable CodeFactory::ArrayNoArgumentConstructor(
     Isolate* isolate, ElementsKind kind,
     AllocationSiteOverrideMode override_mode) {

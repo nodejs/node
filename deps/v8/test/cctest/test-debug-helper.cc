@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/api/api-inl.h"
+#include "src/debug/debug.h"
 #include "src/execution/frames-inl.h"
 #include "src/flags/flags.h"
 #include "src/heap/read-only-spaces.h"
@@ -421,9 +422,29 @@ static void FrameIterationCheck(
     d::StackFrameResultPtr props = d::GetStackFrame(frame->fp(), &ReadMemory);
     if (frame->is_java_script()) {
       JavaScriptFrame* js_frame = JavaScriptFrame::cast(frame);
-      CHECK_EQ(props->num_properties, 1);
+      CHECK_EQ(props->num_properties, 5);
+      auto js_function = js_frame->function();
       CheckProp(*props->properties[0], "v8::internal::JSFunction",
-                "currently_executing_jsfunction", js_frame->function().ptr());
+                "currently_executing_jsfunction", js_function.ptr());
+      auto shared_function_info = js_function.shared();
+      auto script = i::Script::cast(shared_function_info.script());
+      CheckProp(*props->properties[1], "v8::internal::Object", "script_name",
+                static_cast<i::Tagged_t>(script.name().ptr()));
+      CheckProp(*props->properties[2], "v8::internal::Object", "script_source",
+                static_cast<i::Tagged_t>(script.source().ptr()));
+
+      auto scope_info = shared_function_info.scope_info();
+      CheckProp(*props->properties[3], "v8::internal::Object", "function_name",
+                static_cast<i::Tagged_t>(scope_info.FunctionName().ptr()));
+
+      CheckProp(*props->properties[4], "", "function_character_offset");
+      const d::ObjectProperty& function_character_offset =
+          *props->properties[4];
+      CHECK_EQ(function_character_offset.num_struct_fields, 2);
+      CheckStructProp(*function_character_offset.struct_fields[0],
+                      "v8::internal::Object", "start", 0);
+      CheckStructProp(*function_character_offset.struct_fields[1],
+                      "v8::internal::Object", "end", 4);
     } else {
       CHECK_EQ(props->num_properties, 0);
     }

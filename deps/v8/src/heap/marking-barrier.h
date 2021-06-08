@@ -53,6 +53,8 @@ class MarkingBarrier {
   void DeactivateSpace(PagedSpace*);
   void DeactivateSpace(NewSpace*);
 
+  bool IsCurrentMarkingBarrier();
+
   Heap* heap_;
   MarkCompactCollector* collector_;
   IncrementalMarking* incremental_marking_;

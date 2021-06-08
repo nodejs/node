@@ -519,14 +519,15 @@ void RelocInfo::Verify(Isolate* isolate) {
       Address target = target_internal_reference();
       Address pc = target_internal_reference_address();
       Code code = Code::cast(isolate->FindCodeObject(pc));
-      CHECK(target >= code.InstructionStart());
-      CHECK(target <= code.InstructionEnd());
+      CHECK(target >= code.InstructionStart(isolate, pc));
+      CHECK(target <= code.InstructionEnd(isolate, pc));
       break;
     }
     case OFF_HEAP_TARGET: {
       Address addr = target_off_heap_target();
       CHECK_NE(addr, kNullAddress);
-      CHECK(!InstructionStream::TryLookupCode(isolate, addr).is_null());
+      CHECK(Builtins::IsBuiltinId(
+          InstructionStream::TryLookupCode(isolate, addr)));
       break;
     }
     case RUNTIME_ENTRY:
