@@ -1,9 +1,8 @@
-'use strict';
+import '../common/index.mjs';
 
-require('../common');
-const assert = require('assert');
+import assert from 'assert';
 
-const { referenceToLocalMdFile } = require('../../tools/doc/markdown.js');
+import { referenceToLocalMdFile } from '../../tools/doc/markdown.mjs';
 
 {
   const shouldBeSpotted = [

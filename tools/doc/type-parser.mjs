@@ -1,5 +1,3 @@
-'use strict';
-
 const jsDocPrefix = 'https://developer.mozilla.org/en-US/docs/Web/JavaScript/';
 
 const jsDataStructuresUrl = `${jsDocPrefix}Data_structures`;
@@ -175,7 +173,7 @@ const customTypesMap = {
 
 const arrayPart = /(?:\[])+$/;
 
-function toLink(typeInput) {
+export function toLink(typeInput) {
   const typeLinks = [];
   typeInput = typeInput.replace('{', '').replace('}', '');
   const typeTexts = typeInput.split('|');
@@ -216,5 +214,3 @@ function toLink(typeInput) {
 
   return typeLinks.length ? typeLinks.join(' | ') : typeInput;
 }
-
-module.exports = { toLink };
