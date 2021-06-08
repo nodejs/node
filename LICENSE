@@ -1251,7 +1251,7 @@ The externally maintained libraries used by Node.js are:
     WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
   """
 
-- gtest, located at test/cctest/gtest, is licensed as follows:
+- gtest, located at src/gtest and test/cctest/gtest, is licensed as follows:
   """
     Copyright 2008, Google Inc.
     All rights reserved.
