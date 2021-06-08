@@ -358,9 +358,6 @@ class BaseTestRunner(object):
                       help="Path to a file for storing json results.")
     parser.add_option('--slow-tests-cutoff', type="int", default=100,
                       help='Collect N slowest tests')
-    parser.add_option("--junitout", help="File name of the JUnit output")
-    parser.add_option("--junittestsuite", default="v8tests",
-                      help="The testsuite name in the JUnit output file")
     parser.add_option("--exit-after-n-failures", type="int", default=100,
                       help="Exit after the first N failures instead of "
                            "running all tests. Pass 0 to disable this feature.")
@@ -650,9 +647,6 @@ class BaseTestRunner(object):
                                            '--no-enable-sse4_1'])
 
     # Set no_simd_sse on architectures without Simd enabled.
-    if self.build_config.arch == 'ppc64':
-       no_simd_sse = True
-
     if self.build_config.arch == 'mips64el' or \
        self.build_config.arch == 'mipsel':
        no_simd_sse = not simd_mips
@@ -786,9 +780,6 @@ class BaseTestRunner(object):
 
   def _create_progress_indicators(self, test_count, options):
     procs = [PROGRESS_INDICATORS[options.progress]()]
-    if options.junitout:
-      procs.append(progress.JUnitTestProgressIndicator(options.junitout,
-                                                       options.junittestsuite))
     if options.json_test_results:
       procs.append(progress.JsonTestProgressIndicator(self.framework_name))
 

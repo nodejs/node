@@ -116,9 +116,6 @@ Handle<Object> LoadHandler::LoadFromPrototype(
     Isolate* isolate, Handle<Map> lookup_start_object_map,
     Handle<JSReceiver> holder, Handle<Smi> smi_handler,
     MaybeObjectHandle maybe_data1, MaybeObjectHandle maybe_data2) {
-  // TODO(v8:11167) remove DCHECK once OrderedNameDictionary supported.
-  DCHECK_IMPLIES(V8_DICT_MODE_PROTOTYPES_BOOL,
-                 GetHandlerKind(*smi_handler) != Kind::kNormal);
   MaybeObjectHandle data1;
   if (maybe_data1.is_null()) {
     data1 = MaybeObjectHandle::Weak(holder);
@@ -229,7 +226,7 @@ MaybeObjectHandle StoreHandler::StoreTransition(Isolate* isolate,
   if (!is_dictionary_map) {
     InternalIndex descriptor = transition_map->LastAdded();
     Handle<DescriptorArray> descriptors(
-        transition_map->instance_descriptors(kRelaxedLoad), isolate);
+        transition_map->instance_descriptors(isolate), isolate);
     PropertyDetails details = descriptors->GetDetails(descriptor);
     if (descriptors->GetKey(descriptor).IsPrivate()) {
       DCHECK_EQ(DONT_ENUM, details.attributes());
@@ -274,10 +271,6 @@ Handle<Object> StoreHandler::StoreThroughPrototype(
     Isolate* isolate, Handle<Map> receiver_map, Handle<JSReceiver> holder,
     Handle<Smi> smi_handler, MaybeObjectHandle maybe_data1,
     MaybeObjectHandle maybe_data2) {
-  // TODO(v8:11167) remove DCHECK once OrderedNameDictionary supported.
-  DCHECK_IMPLIES(V8_DICT_MODE_PROTOTYPES_BOOL,
-                 KindBits::decode(smi_handler->value()) != Kind::kNormal);
-
   MaybeObjectHandle data1;
   if (maybe_data1.is_null()) {
     data1 = MaybeObjectHandle::Weak(holder);

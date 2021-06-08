@@ -2,6 +2,10 @@
 // this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_WASM_DEBUG_H_
 #define V8_WASM_WASM_DEBUG_H_
 
@@ -26,7 +30,7 @@ class WasmFrame;
 namespace wasm {
 
 class DebugInfoImpl;
-class LocalNames;
+class IndirectNameMap;
 class NativeModule;
 class WasmCode;
 class WireBytesRef;
@@ -43,7 +47,7 @@ class DebugSideTable {
     enum Storage : int8_t { kConstant, kRegister, kStack };
     struct Value {
       int index;
-      ValueKind kind;
+      ValueType type;
       Storage storage;
       union {
         int32_t i32_const;  // if kind == kConstant
@@ -53,7 +57,7 @@ class DebugSideTable {
 
       bool operator==(const Value& other) const {
         if (index != other.index) return false;
-        if (kind != other.kind) return false;
+        if (type != other.type) return false;
         if (storage != other.storage) return false;
         switch (storage) {
           case kConstant:
@@ -171,13 +175,13 @@ class V8_EXPORT_PRIVATE DebugInfo {
   // the {WasmDebugBreak} frame (if any).
   int GetNumLocals(Address pc);
   WasmValue GetLocalValue(int local, Address pc, Address fp,
-                          Address debug_break_fp);
+                          Address debug_break_fp, Isolate* isolate);
   int GetStackDepth(Address pc);
 
   const wasm::WasmFunction& GetFunctionAtAddress(Address pc);
 
   WasmValue GetStackValue(int index, Address pc, Address fp,
-                          Address debug_break_fp);
+                          Address debug_break_fp, Isolate* isolate);
 
   // Returns the name of the entity (with the given |index| and |kind|) derived
   // from the exports table. If the entity is not exported, an empty reference
@@ -190,7 +194,9 @@ class V8_EXPORT_PRIVATE DebugInfo {
   std::pair<WireBytesRef, WireBytesRef> GetImportName(ImportExportKindCode kind,
                                                       uint32_t index);
 
+  WireBytesRef GetTypeName(int type_index);
   WireBytesRef GetLocalName(int func_index, int local_index);
+  WireBytesRef GetFieldName(int struct_index, int field_index);
 
   void SetBreakpoint(int func_index, int offset, Isolate* current_isolate);
 
@@ -201,6 +207,11 @@ class V8_EXPORT_PRIVATE DebugInfo {
   void PrepareStepOutTo(WasmFrame*);
 
   void ClearStepping(Isolate*);
+
+  // Remove stepping code from a single frame; this is a performance
+  // optimization only, hitting debug breaks while not stepping and not at a set
+  // breakpoint would be unobservable otherwise.
+  void ClearStepping(WasmFrame*);
 
   bool IsStepping(WasmFrame*);
 

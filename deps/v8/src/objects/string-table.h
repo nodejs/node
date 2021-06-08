@@ -72,7 +72,7 @@ class V8_EXPORT_PRIVATE StringTable {
   static Address TryStringToIndexOrLookupExisting(Isolate* isolate,
                                                   Address raw_string);
 
-  void Print(IsolateRoot isolate) const;
+  void Print(PtrComprCageBase cage_base) const;
   size_t GetCurrentMemoryUsage() const;
 
   // The following methods must be called either while holding the write lock,
@@ -84,7 +84,7 @@ class V8_EXPORT_PRIVATE StringTable {
  private:
   class Data;
 
-  Data* EnsureCapacity(IsolateRoot isolate, int additional_elements);
+  Data* EnsureCapacity(PtrComprCageBase cage_base, int additional_elements);
 
   std::atomic<Data*> data_;
   // Write mutex is mutable so that readers of concurrently mutated values (e.g.

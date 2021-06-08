@@ -31,10 +31,6 @@ void DisposeCompilationJob(OptimizedCompilationJob* job,
     if (function->IsInOptimizationQueue()) {
       function->ClearOptimizationMarker();
     }
-    // TODO(mvstanton): We can't call EnsureFeedbackVector here due to
-    // allocation, but we probably shouldn't call set_code either, as this
-    // sometimes runs on the worker thread!
-    // JSFunction::EnsureFeedbackVector(function);
   }
   delete job;
 }
@@ -50,7 +46,6 @@ class OptimizingCompileDispatcher::CompileTask : public CancelableTask {
         worker_thread_runtime_call_stats_(
             isolate->counters()->worker_thread_runtime_call_stats()),
         dispatcher_(dispatcher) {
-    base::MutexGuard lock_guard(&dispatcher_->ref_count_mutex_);
     ++dispatcher_->ref_count_;
   }
 
@@ -62,12 +57,13 @@ class OptimizingCompileDispatcher::CompileTask : public CancelableTask {
  private:
   // v8::Task overrides.
   void RunInternal() override {
-    LocalIsolate local_isolate(isolate_, ThreadKind::kBackground);
+    WorkerThreadRuntimeCallStatsScope runtime_call_stats_scope(
+        worker_thread_runtime_call_stats_);
+    LocalIsolate local_isolate(isolate_, ThreadKind::kBackground,
+                               runtime_call_stats_scope.Get());
     DCHECK(local_isolate.heap()->IsParked());
 
     {
-      WorkerThreadRuntimeCallStatsScope runtime_call_stats_scope(
-          worker_thread_runtime_call_stats_);
       RuntimeCallTimerScope runtimeTimer(
           runtime_call_stats_scope.Get(),
           RuntimeCallCounterId::kOptimizeBackgroundDispatcherJob);
@@ -81,7 +77,7 @@ class OptimizingCompileDispatcher::CompileTask : public CancelableTask {
             dispatcher_->recompilation_delay_));
       }
 
-      dispatcher_->CompileNext(dispatcher_->NextInput(&local_isolate, true),
+      dispatcher_->CompileNext(dispatcher_->NextInput(&local_isolate),
                                runtime_call_stats_scope.Get(), &local_isolate);
     }
     {
@@ -98,34 +94,19 @@ class OptimizingCompileDispatcher::CompileTask : public CancelableTask {
 };
 
 OptimizingCompileDispatcher::~OptimizingCompileDispatcher() {
-#ifdef DEBUG
-  {
-    base::MutexGuard lock_guard(&ref_count_mutex_);
-    DCHECK_EQ(0, ref_count_);
-  }
-#endif
+  DCHECK_EQ(0, ref_count_);
   DCHECK_EQ(0, input_queue_length_);
   DeleteArray(input_queue_);
 }
 
 OptimizedCompilationJob* OptimizingCompileDispatcher::NextInput(
-    LocalIsolate* local_isolate, bool check_if_flushing) {
+    LocalIsolate* local_isolate) {
   base::MutexGuard access_input_queue_(&input_queue_mutex_);
   if (input_queue_length_ == 0) return nullptr;
   OptimizedCompilationJob* job = input_queue_[InputQueueIndex(0)];
   DCHECK_NOT_NULL(job);
   input_queue_shift_ = InputQueueIndex(1);
   input_queue_length_--;
-  if (check_if_flushing) {
-    if (mode_ == FLUSH) {
-      UnparkedScope scope(local_isolate->heap());
-      local_isolate->heap()->AttachPersistentHandles(
-          job->compilation_info()->DetachPersistentHandles());
-      DisposeCompilationJob(job, true);
-      local_isolate->heap()->DetachPersistentHandles();
-      return nullptr;
-    }
-  }
   return job;
 }
 
@@ -163,49 +144,42 @@ void OptimizingCompileDispatcher::FlushOutputQueue(bool restore_function_code) {
   }
 }
 
-void OptimizingCompileDispatcher::Flush(BlockingBehavior blocking_behavior) {
-  if (blocking_behavior == BlockingBehavior::kDontBlock) {
-    if (FLAG_block_concurrent_recompilation) Unblock();
-    base::MutexGuard access_input_queue_(&input_queue_mutex_);
-    while (input_queue_length_ > 0) {
-      OptimizedCompilationJob* job = input_queue_[InputQueueIndex(0)];
-      DCHECK_NOT_NULL(job);
-      input_queue_shift_ = InputQueueIndex(1);
-      input_queue_length_--;
-      DisposeCompilationJob(job, true);
-    }
-    FlushOutputQueue(true);
-    if (FLAG_trace_concurrent_recompilation) {
-      PrintF("  ** Flushed concurrent recompilation queues (not blocking).\n");
-    }
-    return;
+void OptimizingCompileDispatcher::FlushInputQueue() {
+  base::MutexGuard access_input_queue_(&input_queue_mutex_);
+  while (input_queue_length_ > 0) {
+    OptimizedCompilationJob* job = input_queue_[InputQueueIndex(0)];
+    DCHECK_NOT_NULL(job);
+    input_queue_shift_ = InputQueueIndex(1);
+    input_queue_length_--;
+    DisposeCompilationJob(job, true);
   }
-  mode_ = FLUSH;
+}
+
+void OptimizingCompileDispatcher::FlushQueues(
+    BlockingBehavior blocking_behavior, bool restore_function_code) {
   if (FLAG_block_concurrent_recompilation) Unblock();
-  {
+  FlushInputQueue();
+  if (blocking_behavior == BlockingBehavior::kBlock) {
     base::MutexGuard lock_guard(&ref_count_mutex_);
     while (ref_count_ > 0) ref_count_zero_.Wait(&ref_count_mutex_);
-    mode_ = COMPILE;
   }
-  FlushOutputQueue(true);
+  FlushOutputQueue(restore_function_code);
+}
+
+void OptimizingCompileDispatcher::Flush(BlockingBehavior blocking_behavior) {
+  FlushQueues(blocking_behavior, true);
   if (FLAG_trace_concurrent_recompilation) {
-    PrintF("  ** Flushed concurrent recompilation queues.\n");
+    PrintF("  ** Flushed concurrent recompilation queues. (mode: %s)\n",
+           (blocking_behavior == BlockingBehavior::kBlock) ? "blocking"
+                                                           : "non blocking");
   }
 }
 
 void OptimizingCompileDispatcher::Stop() {
-  mode_ = FLUSH;
-  if (FLAG_block_concurrent_recompilation) Unblock();
-  {
-    base::MutexGuard lock_guard(&ref_count_mutex_);
-    while (ref_count_ > 0) ref_count_zero_.Wait(&ref_count_mutex_);
-    mode_ = COMPILE;
-  }
-
+  FlushQueues(BlockingBehavior::kBlock, false);
   // At this point the optimizing compiler thread's event loop has stopped.
   // There is no need for a mutex when reading input_queue_length_.
   DCHECK_EQ(input_queue_length_, 0);
-  FlushOutputQueue(false);
 }
 
 void OptimizingCompileDispatcher::InstallOptimizedFunctions() {
@@ -232,6 +206,14 @@ void OptimizingCompileDispatcher::InstallOptimizedFunctions() {
       Compiler::FinalizeOptimizedCompilationJob(job, isolate_);
     }
   }
+}
+
+bool OptimizingCompileDispatcher::HasJobs() {
+  DCHECK_EQ(ThreadId::Current(), isolate_->thread_id());
+  // Note: This relies on {output_queue_} being mutated by a background thread
+  // only when {ref_count_} is not zero. Also, {ref_count_} is never incremented
+  // by a background thread.
+  return !(ref_count_ == 0 && output_queue_.empty());
 }
 
 void OptimizingCompileDispatcher::QueueForOptimization(

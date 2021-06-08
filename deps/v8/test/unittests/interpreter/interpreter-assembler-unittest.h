@@ -57,7 +57,8 @@ class InterpreterAssemblerTest : public TestWithIsolateAndZone {
         const Matcher<compiler::Node*>& index_matcher,
         const Matcher<compiler::Node*>& value_matcher);
 
-    Matcher<Node*> IsWordNot(const Matcher<Node*>& value_matcher);
+    Matcher<compiler::Node*> IsWordNot(
+        const Matcher<compiler::Node*>& value_matcher);
 
     Matcher<compiler::Node*> IsUnsignedByteOperand(
         int offset, LoadSensitivity needs_poisoning);

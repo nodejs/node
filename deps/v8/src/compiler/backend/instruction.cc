@@ -17,7 +17,10 @@
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames.h"
 #include "src/utils/ostreams.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/value-type.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -166,9 +169,13 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
     case InstructionOperand::IMMEDIATE: {
       ImmediateOperand imm = ImmediateOperand::cast(op);
       switch (imm.type()) {
-        case ImmediateOperand::INLINE:
-          return os << "#" << imm.inline_value();
-        case ImmediateOperand::INDEXED:
+        case ImmediateOperand::INLINE_INT32:
+          return os << "#" << imm.inline_int32_value();
+        case ImmediateOperand::INLINE_INT64:
+          return os << "#" << imm.inline_int64_value();
+        case ImmediateOperand::INDEXED_RPO:
+          return os << "[rpo_immediate:" << imm.indexed_value() << "]";
+        case ImmediateOperand::INDEXED_IMM:
           return os << "[immediate:" << imm.indexed_value() << "]";
       }
     }
@@ -413,6 +420,8 @@ std::ostream& operator<<(std::ostream& os, const FlagsMode& fm) {
       return os << "set";
     case kFlags_trap:
       return os << "trap";
+    case kFlags_select:
+      return os << "select";
   }
   UNREACHABLE();
 }
@@ -829,6 +838,7 @@ InstructionSequence::InstructionSequence(Isolate* isolate,
       constants_(ConstantMap::key_compare(),
                  ConstantMap::allocator_type(zone())),
       immediates_(zone()),
+      rpo_immediates_(instruction_blocks->size(), zone()),
       instructions_(zone()),
       next_virtual_register_(0),
       reference_maps_(zone()),
@@ -1012,14 +1022,19 @@ size_t GetConservativeFrameSizeInBytes(FrameStateType type,
       // The arguments adaptor frame state is only used in the deoptimizer and
       // does not occupy any extra space in the stack. Check out the design doc:
       // https://docs.google.com/document/d/150wGaUREaZI6YWqOQFD5l2mWQXaPbbZjcAIJLOFrzMs/edit
-      return 0;
+      // We just need to account for the additional parameters we might push
+      // here.
+      return UnoptimizedFrameInfo::GetStackSizeForAdditionalArguments(
+          static_cast<int>(parameters_count));
     case FrameStateType::kConstructStub: {
       auto info = ConstructStubFrameInfo::Conservative(
           static_cast<int>(parameters_count));
       return info.frame_size_in_bytes();
     }
     case FrameStateType::kBuiltinContinuation:
+#if V8_ENABLE_WEBASSEMBLY
     case FrameStateType::kJSToWasmBuiltinContinuation:
+#endif  // V8_ENABLE_WEBASSEMBLY
     case FrameStateType::kJavaScriptBuiltinContinuation:
     case FrameStateType::kJavaScriptBuiltinContinuationWithCatch: {
       const RegisterConfiguration* config = RegisterConfiguration::Default();
@@ -1074,7 +1089,9 @@ size_t FrameStateDescriptor::GetHeight() const {
     case FrameStateType::kUnoptimizedFunction:
       return locals_count();  // The accumulator is *not* included.
     case FrameStateType::kBuiltinContinuation:
+#if V8_ENABLE_WEBASSEMBLY
     case FrameStateType::kJSToWasmBuiltinContinuation:
+#endif
       // Custom, non-JS calling convention (that does not have a notion of
       // a receiver or context).
       return parameters_count();
@@ -1126,6 +1143,7 @@ size_t FrameStateDescriptor::GetJSFrameCount() const {
   return count;
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 JSToWasmFrameStateDescriptor::JSToWasmFrameStateDescriptor(
     Zone* zone, FrameStateType type, BytecodeOffset bailout_id,
     OutputFrameStateCombine state_combine, size_t parameters_count,
@@ -1135,7 +1153,8 @@ JSToWasmFrameStateDescriptor::JSToWasmFrameStateDescriptor(
     : FrameStateDescriptor(zone, type, bailout_id, state_combine,
                            parameters_count, locals_count, stack_count,
                            shared_info, outer_state),
-      return_type_(wasm::WasmReturnTypeFromSignature(wasm_signature)) {}
+      return_kind_(wasm::WasmReturnTypeFromSignature(wasm_signature)) {}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 std::ostream& operator<<(std::ostream& os, const RpoNumber& rpo) {
   return os << rpo.ToSize();

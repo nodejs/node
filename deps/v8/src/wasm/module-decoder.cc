@@ -647,7 +647,7 @@ class ModuleDecoderImpl : public Decoder {
           // ===== Imported global =============================================
           import->index = static_cast<uint32_t>(module_->globals.size());
           module_->globals.push_back(
-              {kWasmStmt, false, WasmInitExpr(), {0}, true, false});
+              {kWasmVoid, false, WasmInitExpr(), {0}, true, false});
           WasmGlobal* global = &module_->globals.back();
           global->type = consume_value_type();
           global->mutability = consume_mutability();
@@ -728,6 +728,9 @@ class ModuleDecoderImpl : public Decoder {
           "table elements", "elements", std::numeric_limits<uint32_t>::max(),
           &table->initial_size, &table->has_maximum_size,
           std::numeric_limits<uint32_t>::max(), &table->maximum_size, flags);
+      if (!table_type.is_defaultable()) {
+        table->initial_value = consume_init_expr(module_.get(), table_type, 0);
+      }
     }
   }
 
@@ -753,7 +756,7 @@ class ModuleDecoderImpl : public Decoder {
       TRACE("DecodeGlobal[%d] module+%d\n", i, static_cast<int>(pc_ - start_));
       // Add an uninitialized global and pass a pointer to it.
       module_->globals.push_back(
-          {kWasmStmt, false, WasmInitExpr(), {0}, false, false});
+          {kWasmVoid, false, WasmInitExpr(), {0}, false, false});
       WasmGlobal* global = &module_->globals.back();
       global->type = consume_value_type();
       global->mutability = consume_mutability();
@@ -1302,7 +1305,7 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   WasmInitExpr DecodeInitExprForTesting() {
-    return consume_init_expr(nullptr, kWasmStmt, 0);
+    return consume_init_expr(nullptr, kWasmVoid, 0);
   }
 
   const std::shared_ptr<WasmModule>& shared_module() const { return module_; }
@@ -1337,20 +1340,16 @@ class ModuleDecoderImpl : public Decoder {
                     kLastKnownModuleSection,
                 "not enough bits");
   WasmError intermediate_error_;
-  // Set of type offsets discovered in field types during type section decoding.
-  // Since struct types may be recursive, this is used for checking and error
-  // reporting once the whole type section is parsed.
-  std::unordered_map<uint32_t, int> deferred_check_type_index_;
   ModuleOrigin origin_;
 
   ValueType TypeOf(const WasmInitExpr& expr) {
     switch (expr.kind()) {
       case WasmInitExpr::kNone:
-        return kWasmStmt;
+        return kWasmVoid;
       case WasmInitExpr::kGlobalGet:
         return expr.immediate().index < module_->globals.size()
                    ? module_->globals[expr.immediate().index].type
-                   : kWasmStmt;
+                   : kWasmVoid;
       case WasmInitExpr::kI32Const:
         return kWasmI32;
       case WasmInitExpr::kI64Const:
@@ -1379,7 +1378,7 @@ class ModuleDecoderImpl : public Decoder {
           return ValueType::Rtt(expr.immediate().heap_type,
                                 operand_type.depth() + 1);
         } else {
-          return kWasmStmt;
+          return kWasmVoid;
         }
       }
     }
@@ -1436,7 +1435,7 @@ class ModuleDecoderImpl : public Decoder {
     for (WasmGlobal& global : module->globals) {
       if (global.mutability && global.imported) {
         global.index = num_imported_mutable_globals++;
-      } else if (global.type.is_reference_type()) {
+      } else if (global.type.is_reference()) {
         global.offset = tagged_offset;
         // All entries in the tagged_globals_buffer have size 1.
         tagged_offset++;
@@ -1713,7 +1712,7 @@ class ModuleDecoderImpl : public Decoder {
           if (V8_UNLIKELY(!enabled_features_.has_reftypes() &&
                           !enabled_features_.has_eh())) {
             errorf(pc(),
-                   "invalid opcode 0x%x in global initializer, enable with "
+                   "invalid opcode 0x%x in initializer expression, enable with "
                    "--experimental-wasm-reftypes or --experimental-wasm-eh",
                    kExprRefNull);
             return {};
@@ -1729,7 +1728,7 @@ class ModuleDecoderImpl : public Decoder {
         case kExprRefFunc: {
           if (V8_UNLIKELY(!enabled_features_.has_reftypes())) {
             errorf(pc(),
-                   "invalid opcode 0x%x in global initializer, enable with "
+                   "invalid opcode 0x%x in initializer expression, enable with "
                    "--experimental-wasm-reftypes",
                    kExprRefFunc);
             return {};
@@ -1752,7 +1751,7 @@ class ModuleDecoderImpl : public Decoder {
           // the type check or stack height check at the end.
           opcode = read_prefixed_opcode<validate>(pc(), &len);
           if (V8_UNLIKELY(opcode != kExprS128Const)) {
-            errorf(pc(), "invalid SIMD opcode 0x%x in global initializer",
+            errorf(pc(), "invalid SIMD opcode 0x%x in initializer expression",
                    opcode);
             return {};
           }
@@ -1804,7 +1803,8 @@ class ModuleDecoderImpl : public Decoder {
               break;
             }
             default: {
-              errorf(pc(), "invalid opcode 0x%x in global initializer", opcode);
+              errorf(pc(), "invalid opcode 0x%x in initializer expression",
+                     opcode);
               return {};
             }
           }
@@ -1813,7 +1813,7 @@ class ModuleDecoderImpl : public Decoder {
         case kExprEnd:
           break;
         default: {
-          errorf(pc(), "invalid opcode 0x%x in global initializer", opcode);
+          errorf(pc(), "invalid opcode 0x%x in initializer expression", opcode);
           return {};
         }
       }
@@ -1821,23 +1821,23 @@ class ModuleDecoderImpl : public Decoder {
     }
 
     if (V8_UNLIKELY(pc() > end())) {
-      error(end(), "Global initializer extending beyond code end");
+      error(end(), "Initializer expression extending beyond code end");
       return {};
     }
     if (V8_UNLIKELY(opcode != kExprEnd)) {
-      error(pc(), "Global initializer is missing 'end'");
+      error(pc(), "Initializer expression is missing 'end'");
       return {};
     }
     if (V8_UNLIKELY(stack.size() != 1)) {
       errorf(pc(),
-             "Found 'end' in global initalizer, but %s expressions were "
+             "Found 'end' in initializer expression, but %s expressions were "
              "found on the stack",
              stack.size() > 1 ? "more than one" : "no");
       return {};
     }
 
     WasmInitExpr expr = std::move(stack.back());
-    if (expected != kWasmStmt && !IsSubtypeOf(TypeOf(expr), expected, module)) {
+    if (expected != kWasmVoid && !IsSubtypeOf(TypeOf(expr), expected, module)) {
       errorf(pc(), "type error in init expression, expected %s, got %s",
              expected.name().c_str(), TypeOf(expr).name().c_str());
     }
@@ -1892,7 +1892,7 @@ class ModuleDecoderImpl : public Decoder {
     } else {
       const byte* position = pc();
       ValueType result = consume_value_type();
-      if (!result.is_reference_type()) {
+      if (!result.is_reference()) {
         error(position, "expected reference type");
       }
       return result;
@@ -2416,11 +2416,12 @@ void DecodeFunctionNames(const byte* module_start, const byte* module_end,
   }
 }
 
-LocalNames DecodeLocalNames(Vector<const uint8_t> module_bytes) {
+NameMap DecodeNameMap(Vector<const uint8_t> module_bytes,
+                      uint8_t name_section_kind) {
   Decoder decoder(module_bytes);
-  if (!FindNameSection(&decoder)) return LocalNames{{}};
+  if (!FindNameSection(&decoder)) return NameMap{{}};
 
-  std::vector<LocalNamesPerFunction> functions;
+  std::vector<NameAssoc> names;
   while (decoder.ok() && decoder.more()) {
     uint8_t name_type = decoder.consume_u8("name type");
     if (name_type & 0x80) break;  // no varuint7
@@ -2428,35 +2429,67 @@ LocalNames DecodeLocalNames(Vector<const uint8_t> module_bytes) {
     uint32_t name_payload_len = decoder.consume_u32v("name payload length");
     if (!decoder.checkAvailable(name_payload_len)) break;
 
-    if (name_type != NameSectionKindCode::kLocal) {
+    if (name_type != name_section_kind) {
       decoder.consume_bytes(name_payload_len, "name subsection payload");
       continue;
     }
 
-    uint32_t local_names_count = decoder.consume_u32v("local names count");
-    for (uint32_t i = 0; i < local_names_count; ++i) {
-      uint32_t func_index = decoder.consume_u32v("function index");
-      if (func_index > kMaxInt) continue;
-      std::vector<LocalName> names;
-      uint32_t num_names = decoder.consume_u32v("namings count");
-      for (uint32_t k = 0; k < num_names; ++k) {
-        uint32_t local_index = decoder.consume_u32v("local index");
-        WireBytesRef name = consume_string(&decoder, false, "local name");
+    uint32_t count = decoder.consume_u32v("names count");
+    for (uint32_t i = 0; i < count; i++) {
+      uint32_t index = decoder.consume_u32v("index");
+      WireBytesRef name = consume_string(&decoder, false, "name");
+      if (!decoder.ok()) break;
+      if (index > kMaxInt) continue;
+      if (!validate_utf8(&decoder, name)) continue;
+      names.emplace_back(static_cast<int>(index), name);
+    }
+  }
+  std::stable_sort(names.begin(), names.end(), NameAssoc::IndexLess{});
+  return NameMap{std::move(names)};
+}
+
+IndirectNameMap DecodeIndirectNameMap(Vector<const uint8_t> module_bytes,
+                                      uint8_t name_section_kind) {
+  Decoder decoder(module_bytes);
+  if (!FindNameSection(&decoder)) return IndirectNameMap{{}};
+
+  std::vector<IndirectNameMapEntry> entries;
+  while (decoder.ok() && decoder.more()) {
+    uint8_t name_type = decoder.consume_u8("name type");
+    if (name_type & 0x80) break;  // no varuint7
+
+    uint32_t name_payload_len = decoder.consume_u32v("name payload length");
+    if (!decoder.checkAvailable(name_payload_len)) break;
+
+    if (name_type != name_section_kind) {
+      decoder.consume_bytes(name_payload_len, "name subsection payload");
+      continue;
+    }
+
+    uint32_t outer_count = decoder.consume_u32v("outer count");
+    for (uint32_t i = 0; i < outer_count; ++i) {
+      uint32_t outer_index = decoder.consume_u32v("outer index");
+      if (outer_index > kMaxInt) continue;
+      std::vector<NameAssoc> names;
+      uint32_t inner_count = decoder.consume_u32v("inner count");
+      for (uint32_t k = 0; k < inner_count; ++k) {
+        uint32_t inner_index = decoder.consume_u32v("inner index");
+        WireBytesRef name = consume_string(&decoder, false, "name");
         if (!decoder.ok()) break;
-        if (local_index > kMaxInt) continue;
+        if (inner_index > kMaxInt) continue;
         // Ignore non-utf8 names.
         if (!validate_utf8(&decoder, name)) continue;
-        names.emplace_back(static_cast<int>(local_index), name);
+        names.emplace_back(static_cast<int>(inner_index), name);
       }
       // Use stable sort to get deterministic names (the first one declared)
       // even in the presence of duplicates.
-      std::stable_sort(names.begin(), names.end(), LocalName::IndexLess{});
-      functions.emplace_back(static_cast<int>(func_index), std::move(names));
+      std::stable_sort(names.begin(), names.end(), NameAssoc::IndexLess{});
+      entries.emplace_back(static_cast<int>(outer_index), std::move(names));
     }
   }
-  std::stable_sort(functions.begin(), functions.end(),
-                   LocalNamesPerFunction::FunctionIndexLess{});
-  return LocalNames{std::move(functions)};
+  std::stable_sort(entries.begin(), entries.end(),
+                   IndirectNameMapEntry::IndexLess{});
+  return IndirectNameMap{std::move(entries)};
 }
 
 #undef TRACE

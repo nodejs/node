@@ -5,7 +5,6 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/common/globals.h"
 #include "src/date/date.h"
-#include "src/debug/debug-wasm-objects-inl.h"
 #include "src/diagnostics/disasm.h"
 #include "src/diagnostics/disassembler.h"
 #include "src/heap/combined-heap.h"
@@ -30,6 +29,7 @@
 #include "src/objects/function-kind.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/instance-type.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
@@ -75,8 +75,12 @@
 #include "src/objects/transitions-inl.h"
 #include "src/regexp/regexp.h"
 #include "src/utils/ostreams.h"
-#include "src/wasm/wasm-objects-inl.h"
 #include "torque-generated/class-verifiers.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/debug/debug-wasm-objects-inl.h"
+#include "src/wasm/wasm-objects-inl.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -226,12 +230,14 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case JS_TYPED_ARRAY_PROTOTYPE_TYPE:
       JSObject::cast(*this).JSObjectVerify(isolate);
       break;
+#if V8_ENABLE_WEBASSEMBLY
     case WASM_INSTANCE_OBJECT_TYPE:
       WasmInstanceObject::cast(*this).WasmInstanceObjectVerify(isolate);
       break;
     case WASM_VALUE_OBJECT_TYPE:
       WasmValueObject::cast(*this).WasmValueObjectVerify(isolate);
       break;
+#endif  // V8_ENABLE_WEBASSEMBLY
     case JS_SET_KEY_VALUE_ITERATOR_TYPE:
     case JS_SET_VALUE_ITERATOR_TYPE:
       JSSetIterator::cast(*this).JSSetIteratorVerify(isolate);
@@ -319,11 +325,11 @@ void BytecodeArray::BytecodeArrayVerify(Isolate* isolate) {
 
 USE_TORQUE_VERIFIER(JSReceiver)
 
-bool JSObject::ElementsAreSafeToExamine(IsolateRoot isolate) const {
+bool JSObject::ElementsAreSafeToExamine(PtrComprCageBase cage_base) const {
   // If a GC was caused while constructing this object, the elements
   // pointer may point to a one pointer filler map.
-  return elements(isolate) !=
-         GetReadOnlyRoots(isolate).one_pointer_filler_map();
+  return elements(cage_base) !=
+         GetReadOnlyRoots(cage_base).one_pointer_filler_map();
 }
 
 namespace {
@@ -387,7 +393,7 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
       int delta = actual_unused_property_fields - map().UnusedPropertyFields();
       CHECK_EQ(0, delta % JSObject::kFieldsAdded);
     }
-    DescriptorArray descriptors = map().instance_descriptors(kRelaxedLoad);
+    DescriptorArray descriptors = map().instance_descriptors(isolate);
     bool is_transitionable_fast_elements_kind =
         IsTransitionableFastElementsKind(map().elements_kind());
 
@@ -457,13 +463,13 @@ void Map::MapVerify(Isolate* isolate) {
       // Root maps must not have descriptors in the descriptor array that do not
       // belong to the map.
       CHECK_EQ(NumberOfOwnDescriptors(),
-               instance_descriptors(kRelaxedLoad).number_of_descriptors());
+               instance_descriptors(isolate).number_of_descriptors());
     } else {
       // If there is a parent map it must be non-stable.
       Map parent = Map::cast(GetBackPointer());
       CHECK(!parent.is_stable());
-      DescriptorArray descriptors = instance_descriptors(kRelaxedLoad);
-      if (descriptors == parent.instance_descriptors(kRelaxedLoad)) {
+      DescriptorArray descriptors = instance_descriptors(isolate);
+      if (descriptors == parent.instance_descriptors(isolate)) {
         if (NumberOfOwnDescriptors() == parent.NumberOfOwnDescriptors() + 1) {
           // Descriptors sharing through property transitions takes over
           // ownership from the parent map.
@@ -481,7 +487,7 @@ void Map::MapVerify(Isolate* isolate) {
       }
     }
   }
-  SLOW_DCHECK(instance_descriptors(kRelaxedLoad).IsSortedNoDuplicates());
+  SLOW_DCHECK(instance_descriptors(isolate).IsSortedNoDuplicates());
   DisallowGarbageCollection no_gc;
   SLOW_DCHECK(
       TransitionsAccessor(isolate, *this, &no_gc).IsSortedNoDuplicates());
@@ -495,7 +501,7 @@ void Map::MapVerify(Isolate* isolate) {
     CHECK(!has_named_interceptor());
     CHECK(!is_dictionary_map());
     CHECK(!is_access_check_needed());
-    DescriptorArray const descriptors = instance_descriptors(kRelaxedLoad);
+    DescriptorArray const descriptors = instance_descriptors(isolate);
     for (InternalIndex i : IterateOwnDescriptors()) {
       CHECK(!descriptors.GetKey(i).IsInterestingSymbol());
     }
@@ -519,7 +525,7 @@ void Map::DictionaryMapVerify(Isolate* isolate) {
   CHECK(is_dictionary_map());
   CHECK_EQ(kInvalidEnumCacheSentinel, EnumLength());
   CHECK_EQ(ReadOnlyRoots(isolate).empty_descriptor_array(),
-           instance_descriptors(kRelaxedLoad));
+           instance_descriptors(isolate));
   CHECK_EQ(0, UnusedPropertyFields());
   CHECK_EQ(Map::GetVisitorId(*this), visitor_id());
 }
@@ -575,20 +581,6 @@ void Context::ContextVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::ContextVerify(*this, isolate);
   for (int i = 0; i < length(); i++) {
     VerifyObjectField(isolate, OffsetOfElementAt(i));
-  }
-}
-
-void ScopeInfo::ScopeInfoVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::ScopeInfoVerify(*this, isolate);
-
-  // Make sure that the FixedArray-style length matches the length that we would
-  // compute based on the Torque indexed fields.
-  CHECK_EQ(FixedArray::SizeFor(length()), AllocatedSize());
-
-  // Code that treats ScopeInfo like a FixedArray expects all values to be
-  // tagged.
-  for (int i = 0; i < length(); ++i) {
-    Object::VerifyPointer(isolate, get(isolate, i));
   }
 }
 
@@ -851,11 +843,15 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(ReadOnlyRoots roots) {
     CHECK_NE(value, roots.empty_scope_info());
   }
 
-  CHECK(HasWasmExportedFunctionData() || IsApiFunction() ||
-        HasBytecodeArray() || HasAsmWasmData() || HasBuiltinId() ||
+#if V8_ENABLE_WEBASSEMBLY
+  bool is_wasm = HasWasmExportedFunctionData() || HasAsmWasmData() ||
+                 HasWasmJSFunctionData() || HasWasmCapiFunctionData();
+#else
+  bool is_wasm = false;
+#endif  // V8_ENABLE_WEBASSEMBLY
+  CHECK(is_wasm || IsApiFunction() || HasBytecodeArray() || HasBuiltinId() ||
         HasUncompiledDataWithPreparseData() ||
-        HasUncompiledDataWithoutPreparseData() || HasWasmJSFunctionData() ||
-        HasWasmCapiFunctionData());
+        HasUncompiledDataWithoutPreparseData());
 
   {
     auto script = script_or_debug_info(kAcquireLoad);
@@ -1599,6 +1595,7 @@ void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionVerify(
   }
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 USE_TORQUE_VERIFIER(AsmWasmData)
 
 void WasmInstanceObject::WasmInstanceObjectVerify(Isolate* isolate) {
@@ -1638,6 +1635,11 @@ USE_TORQUE_VERIFIER(WasmGlobalObject)
 
 USE_TORQUE_VERIFIER(WasmExceptionObject)
 
+USE_TORQUE_VERIFIER(WasmJSFunctionData)
+
+USE_TORQUE_VERIFIER(WasmIndirectFunctionTable)
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 void DataHandler::DataHandlerVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::DataHandlerVerify(*this, isolate);
   CHECK_IMPLIES(!smi_handler().IsSmi(),
@@ -1672,10 +1674,6 @@ void CallHandlerInfo::CallHandlerInfoVerify(Isolate* isolate) {
         map() == ReadOnlyRoots(isolate)
                      .next_call_side_effect_free_call_handler_info_map());
 }
-
-USE_TORQUE_VERIFIER(WasmJSFunctionData)
-
-USE_TORQUE_VERIFIER(WasmIndirectFunctionTable)
 
 void AllocationSite::AllocationSiteVerify(Isolate* isolate) {
   CHECK(IsAllocationSite());
@@ -1728,12 +1726,14 @@ USE_TORQUE_VERIFIER(InterpreterData)
 
 void StackFrameInfo::StackFrameInfoVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::StackFrameInfoVerify(*this, isolate);
+#if V8_ENABLE_WEBASSEMBLY
   CHECK_IMPLIES(IsAsmJsWasm(), IsWasm());
   CHECK_IMPLIES(IsWasm(), receiver_or_instance().IsWasmInstanceObject());
   CHECK_IMPLIES(IsWasm(), function().IsSmi());
   CHECK_IMPLIES(!IsWasm(), function().IsJSFunction());
   CHECK_IMPLIES(IsAsync(), !IsWasm());
   CHECK_IMPLIES(IsConstructor(), !IsWasm());
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 #endif  // VERIFY_HEAP
@@ -1754,8 +1754,8 @@ void JSObject::IncrementSpillStatistics(Isolate* isolate,
     info->number_of_slow_used_properties_ += dict.NumberOfElements();
     info->number_of_slow_unused_properties_ +=
         dict.Capacity() - dict.NumberOfElements();
-  } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    OrderedNameDictionary dict = property_dictionary_ordered();
+  } else if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+    SwissNameDictionary dict = property_dictionary_swiss();
     info->number_of_slow_used_properties_ += dict.NumberOfElements();
     info->number_of_slow_unused_properties_ +=
         dict.Capacity() - dict.NumberOfElements();

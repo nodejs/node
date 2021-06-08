@@ -265,7 +265,7 @@ bytecodes: [
                 B(Ldar), R(3),
   /*   11 E> */ B(Throw),
                 B(Ldar), R(3),
-  /*   62 S> */ B(Return),
+                B(Return),
   /*   31 S> */ B(LdaZero),
                 B(Star1),
   /*   36 S> */ B(LdaSmi), I8(10),
@@ -311,7 +311,7 @@ bytecodes: [
                 B(Ldar), R(2),
   /*   11 E> */ B(Throw),
                 B(Ldar), R(2),
-  /*   56 S> */ B(Return),
+                B(Return),
   /*   31 S> */ B(LdaZero),
                 B(Star1),
   /*   36 S> */ B(LdaSmi), I8(10),
@@ -329,7 +329,7 @@ bytecodes: [
                 B(Ldar), R(2),
   /*   47 E> */ B(Throw),
                 B(Ldar), R(2),
-  /*   56 S> */ B(Return),
+                B(Return),
   /*   44 S> */ B(Ldar), R(1),
                 B(Inc), U8(1),
                 B(Star1),
@@ -394,7 +394,7 @@ bytecodes: [
                 B(Star7),
                 B(Mov), R(0), R(5),
                 B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(5), U8(3),
-  /*   67 S> */ B(Return),
+                B(Return),
 ]
 constant pool: [
   SCOPE_INFO_TYPE,
@@ -462,7 +462,7 @@ bytecodes: [
                 B(Star6),
                 B(Mov), R(0), R(4),
                 B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(4), U8(3),
-  /*   61 S> */ B(Return),
+                B(Return),
 ]
 constant pool: [
   Smi [42],

@@ -90,7 +90,9 @@ void V8Debugger::enable() {
   m_isolate->AddNearHeapLimitCallback(&V8Debugger::nearHeapLimitCallback, this);
   v8::debug::ChangeBreakOnException(m_isolate, v8::debug::NoBreakOnException);
   m_pauseOnExceptionsState = v8::debug::NoBreakOnException;
+#if V8_ENABLE_WEBASSEMBLY
   v8::debug::TierDownAllModulesPerIsolate(m_isolate);
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 void V8Debugger::disable() {
@@ -113,7 +115,9 @@ void V8Debugger::disable() {
   m_taskWithScheduledBreakPauseRequested = false;
   m_pauseOnNextCallRequested = false;
   m_pauseOnAsyncCall = false;
+#if V8_ENABLE_WEBASSEMBLY
   v8::debug::TierUpAllModulesPerIsolate(m_isolate);
+#endif  // V8_ENABLE_WEBASSEMBLY
   v8::debug::SetDebugDelegate(m_isolate, nullptr);
   m_isolate->RemoveNearHeapLimitCallback(&V8Debugger::nearHeapLimitCallback,
                                          m_originalHeapLimit);

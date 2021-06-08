@@ -31,6 +31,9 @@
 #ifndef POWER_9
 #define POWER_9 0x20000
 #endif
+#ifndef POWER_10
+#define POWER_10 0x40000
+#endif
 #endif
 #if V8_OS_POSIX
 #include <unistd.h>  // sysconf()
@@ -413,8 +416,8 @@ CPU::CPU()
       architecture_(0),
       variant_(-1),
       part_(0),
-      icache_line_size_(UNKNOWN_CACHE_LINE_SIZE),
-      dcache_line_size_(UNKNOWN_CACHE_LINE_SIZE),
+      icache_line_size_(kUnknownCacheLineSize),
+      dcache_line_size_(kUnknownCacheLineSize),
       has_fpu_(false),
       has_cmov_(false),
       has_sahf_(false),
@@ -443,6 +446,7 @@ CPU::CPU()
       has_jscvt_(false),
       is_fp64_mode_(false),
       has_non_stop_time_stamp_counter_(false),
+      is_running_in_vm_(false),
       has_msa_(false) {
   base::Memcpy(vendor_, "Unknown", 8);
 
@@ -497,6 +501,12 @@ CPU::CPU()
     has_avx_ = (cpu_info[2] & 0x10000000) != 0;
     has_avx2_ = (cpu_info7[1] & 0x00000020) != 0;
     has_fma3_ = (cpu_info[2] & 0x00001000) != 0;
+    // "Hypervisor Present Bit: Bit 31 of ECX of CPUID leaf 0x1."
+    // See https://lwn.net/Articles/301888/
+    // This is checking for any hypervisor. Hypervisors may choose not to
+    // announce themselves. Hypervisors trap CPUID and sometimes return
+    // different results to underlying hardware.
+    is_running_in_vm_ = (cpu_info[2] & 0x80000000) != 0;
 
     if (family_ == 0x6) {
       switch (model_) {
@@ -541,6 +551,23 @@ CPU::CPU()
     has_non_stop_time_stamp_counter_ = (cpu_info[3] & (1 << 8)) != 0;
   }
 
+  // This logic is replicated from cpu.cc present in chromium.src
+  if (!has_non_stop_time_stamp_counter_ && is_running_in_vm_) {
+    int cpu_info_hv[4] = {};
+    __cpuid(cpu_info_hv, 0x40000000);
+    if (cpu_info_hv[1] == 0x7263694D &&  // Micr
+        cpu_info_hv[2] == 0x666F736F &&  // osof
+        cpu_info_hv[3] == 0x76482074) {  // t Hv
+      // If CPUID says we have a variant TSC and a hypervisor has identified
+      // itself and the hypervisor says it is Microsoft Hyper-V, then treat
+      // TSC as invariant.
+      //
+      // Microsoft Hyper-V hypervisor reports variant TSC as there are some
+      // scenarios (eg. VM live migration) where the TSC is variant, but for
+      // our purposes we can treat it as invariant.
+      has_non_stop_time_stamp_counter_ = true;
+    }
+  }
 #elif V8_HOST_ARCH_ARM
 
 #if V8_OS_LINUX
@@ -780,41 +807,46 @@ CPU::CPU()
 
   part_ = -1;
   if (auxv_cpu_type) {
-    if (strcmp(auxv_cpu_type, "power9") == 0) {
-      part_ = PPC_POWER9;
+    if (strcmp(auxv_cpu_type, "power10") == 0) {
+      part_ = kPPCPower10;
+    } else if (strcmp(auxv_cpu_type, "power9") == 0) {
+      part_ = kPPCPower9;
     } else if (strcmp(auxv_cpu_type, "power8") == 0) {
-      part_ = PPC_POWER8;
+      part_ = kPPCPower8;
     } else if (strcmp(auxv_cpu_type, "power7") == 0) {
-      part_ = PPC_POWER7;
+      part_ = kPPCPower7;
     } else if (strcmp(auxv_cpu_type, "power6") == 0) {
-      part_ = PPC_POWER6;
+      part_ = kPPCPower6;
     } else if (strcmp(auxv_cpu_type, "power5") == 0) {
-      part_ = PPC_POWER5;
+      part_ = kPPCPower5;
     } else if (strcmp(auxv_cpu_type, "ppc970") == 0) {
-      part_ = PPC_G5;
+      part_ = kPPCG5;
     } else if (strcmp(auxv_cpu_type, "ppc7450") == 0) {
-      part_ = PPC_G4;
+      part_ = kPPCG4;
     } else if (strcmp(auxv_cpu_type, "pa6t") == 0) {
-      part_ = PPC_PA6T;
+      part_ = kPPCPA6T;
     }
   }
 
 #elif V8_OS_AIX
   switch (_system_configuration.implementation) {
+    case POWER_10:
+      part_ = kPPCPower10;
+      break;
     case POWER_9:
-      part_ = PPC_POWER9;
+      part_ = kPPCPower9;
       break;
     case POWER_8:
-      part_ = PPC_POWER8;
+      part_ = kPPCPower8;
       break;
     case POWER_7:
-      part_ = PPC_POWER7;
+      part_ = kPPCPower7;
       break;
     case POWER_6:
-      part_ = PPC_POWER6;
+      part_ = kPPCPower6;
       break;
     case POWER_5:
-      part_ = PPC_POWER5;
+      part_ = kPPCPower5;
       break;
   }
 #endif  // V8_OS_AIX

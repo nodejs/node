@@ -6,10 +6,12 @@
 
 #include "src/api/api-inl.h"
 #include "src/ast/ast-source-ranges.h"
+#include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/unoptimized-compilation-info.h"
+#include "src/common/globals.h"
 #include "src/interpreter/bytecode-flags.h"
 #include "src/interpreter/bytecode-jump-table.h"
 #include "src/interpreter/bytecode-label.h"
@@ -122,10 +124,10 @@ class V8_NODISCARD BytecodeGenerator::ControlScope {
   void Continue(Statement* stmt) {
     PerformCommand(CMD_CONTINUE, stmt, kNoSourcePosition);
   }
-  void ReturnAccumulator(int source_position = kNoSourcePosition) {
+  void ReturnAccumulator(int source_position) {
     PerformCommand(CMD_RETURN, nullptr, source_position);
   }
-  void AsyncReturnAccumulator(int source_position = kNoSourcePosition) {
+  void AsyncReturnAccumulator(int source_position) {
     PerformCommand(CMD_ASYNC_RETURN, nullptr, source_position);
   }
 
@@ -1458,7 +1460,7 @@ void BytecodeGenerator::GenerateBytecodeBody() {
   // end of the function without an explicit return being present on all paths.
   if (!builder()->RemainderOfBlockIsDead()) {
     builder()->LoadUndefined();
-    BuildReturn();
+    BuildReturn(literal->return_position());
   }
 }
 
@@ -1772,10 +1774,14 @@ void BytecodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
   AllocateBlockCoverageSlotIfEnabled(stmt, SourceRangeKind::kContinuation);
   builder()->SetStatementPosition(stmt);
   VisitForAccumulatorValue(stmt->expression());
+  int return_position = stmt->end_position();
+  if (return_position == ReturnStatement::kFunctionLiteralReturnPosition) {
+    return_position = info()->literal()->return_position();
+  }
   if (stmt->is_async_return()) {
-    execution_control()->AsyncReturnAccumulator(stmt->end_position());
+    execution_control()->AsyncReturnAccumulator(return_position);
   } else {
-    execution_control()->ReturnAccumulator(stmt->end_position());
+    execution_control()->ReturnAccumulator(return_position);
   }
 }
 
@@ -3309,7 +3315,7 @@ void BytecodeGenerator::BuildReturn(int source_position) {
   if (info()->flags().collect_type_profile()) {
     builder()->CollectTypeProfile(info()->literal()->return_position());
   }
-  builder()->SetReturnPosition(source_position, info()->literal());
+  builder()->SetStatementPosition(source_position);
   builder()->Return();
 }
 
@@ -4396,9 +4402,9 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
     builder()->Bind(jump_table, JSGeneratorObject::kReturn);
     builder()->LoadAccumulatorWithRegister(input);
     if (IsAsyncGeneratorFunction(function_kind())) {
-      execution_control()->AsyncReturnAccumulator();
+      execution_control()->AsyncReturnAccumulator(kNoSourcePosition);
     } else {
-      execution_control()->ReturnAccumulator();
+      execution_control()->ReturnAccumulator(kNoSourcePosition);
     }
   }
 
@@ -4548,9 +4554,9 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
           if (iterator_type == IteratorType::kAsync) {
             // Await input.
             BuildAwait(expr->position());
-            execution_control()->AsyncReturnAccumulator();
+            execution_control()->AsyncReturnAccumulator(kNoSourcePosition);
           } else {
-            execution_control()->ReturnAccumulator();
+            execution_control()->ReturnAccumulator(kNoSourcePosition);
           }
         }
 
@@ -4640,9 +4646,9 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
       .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &completion_is_output_value)
       .LoadAccumulatorWithRegister(output_value);
   if (iterator_type == IteratorType::kAsync) {
-    execution_control()->AsyncReturnAccumulator();
+    execution_control()->AsyncReturnAccumulator(kNoSourcePosition);
   } else {
-    execution_control()->ReturnAccumulator();
+    execution_control()->ReturnAccumulator(kNoSourcePosition);
   }
 
   builder()->Bind(&completion_is_output_value);
@@ -5342,8 +5348,37 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
 }
 
 void BytecodeGenerator::VisitCallNew(CallNew* expr) {
-  Register constructor = VisitForRegisterValue(expr->expression());
   RegisterList args = register_allocator()->NewGrowableRegisterList();
+
+  // Load the constructor. It's in the first register in args for ease of
+  // calling %reflect_construct if we have a non-final spread. For all other
+  // cases it is popped before emitting the construct below.
+  VisitAndPushIntoRegisterList(expr->expression(), &args);
+
+  // We compile the new differently depending on the presence of spreads and
+  // their positions.
+  //
+  // If there is only one spread and it is the final argument, there is a
+  // special ConstructWithSpread bytecode.
+  //
+  // If there is a non-final spread, we rewrite calls like
+  //     new ctor(1, ...x, 2)
+  // to
+  //     %reflect_construct(ctor, [1, ...x, 2])
+  const CallNew::SpreadPosition spread_position = expr->spread_position();
+
+  if (spread_position == CallNew::kHasNonFinalSpread) {
+    BuildCreateArrayLiteral(expr->arguments(), nullptr);
+    builder()->SetExpressionPosition(expr);
+    builder()
+        ->StoreAccumulatorInRegister(
+            register_allocator()->GrowRegisterList(&args))
+        .CallJSRuntime(Context::REFLECT_CONSTRUCT_INDEX, args);
+    return;
+  }
+
+  Register constructor = args.first_register();
+  args = args.PopLeft();
   VisitArguments(expr->arguments(), &args);
 
   // The accumulator holds new target which is the same as the
@@ -5352,9 +5387,10 @@ void BytecodeGenerator::VisitCallNew(CallNew* expr) {
   builder()->LoadAccumulatorWithRegister(constructor);
 
   int feedback_slot_index = feedback_index(feedback_spec()->AddCallICSlot());
-  if (expr->only_last_arg_is_spread()) {
+  if (spread_position == CallNew::kHasFinalSpread) {
     builder()->ConstructWithSpread(constructor, args, feedback_slot_index);
   } else {
+    DCHECK_EQ(spread_position, CallNew::kNoSpread);
     builder()->Construct(constructor, args, feedback_slot_index);
   }
 }

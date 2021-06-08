@@ -44,6 +44,18 @@ void VerifyAllocatedGaps(const Instruction* instr, const char* caller_info) {
   }
 }
 
+int GetValue(const ImmediateOperand* imm) {
+  switch (imm->type()) {
+    case ImmediateOperand::INLINE_INT32:
+      return imm->inline_int32_value();
+    case ImmediateOperand::INLINE_INT64:
+      return static_cast<int>(imm->inline_int64_value());
+    case ImmediateOperand::INDEXED_RPO:
+    case ImmediateOperand::INDEXED_IMM:
+      return imm->indexed_value();
+  }
+}
+
 }  // namespace
 
 RegisterAllocatorVerifier::RegisterAllocatorVerifier(
@@ -151,10 +163,8 @@ void RegisterAllocatorVerifier::BuildConstraint(const InstructionOperand* op,
     constraint->virtual_register_ = constraint->value_;
   } else if (op->IsImmediate()) {
     const ImmediateOperand* imm = ImmediateOperand::cast(op);
-    int value = imm->type() == ImmediateOperand::INLINE ? imm->inline_value()
-                                                        : imm->indexed_value();
     constraint->type_ = kImmediate;
-    constraint->value_ = value;
+    constraint->value_ = GetValue(imm);
   } else {
     CHECK(op->IsUnallocated());
     const UnallocatedOperand* unallocated = UnallocatedOperand::cast(op);
@@ -221,9 +231,7 @@ void RegisterAllocatorVerifier::CheckConstraint(
     case kImmediate: {
       CHECK_WITH_MSG(op->IsImmediate(), caller_info_);
       const ImmediateOperand* imm = ImmediateOperand::cast(op);
-      int value = imm->type() == ImmediateOperand::INLINE
-                      ? imm->inline_value()
-                      : imm->indexed_value();
+      int value = GetValue(imm);
       CHECK_EQ(value, constraint->value_);
       return;
     }

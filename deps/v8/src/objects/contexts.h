@@ -198,11 +198,6 @@ enum ContextLookupFlags {
   V(NUMBER_FUNCTION_INDEX, JSFunction, number_function)                        \
   V(OBJECT_FUNCTION_INDEX, JSFunction, object_function)                        \
   V(OBJECT_FUNCTION_PROTOTYPE_MAP_INDEX, Map, object_function_prototype_map)   \
-  V(PROMISE_HOOK_INIT_FUNCTION_INDEX, Object, promise_hook_init_function)      \
-  V(PROMISE_HOOK_BEFORE_FUNCTION_INDEX, Object, promise_hook_before_function)  \
-  V(PROMISE_HOOK_AFTER_FUNCTION_INDEX, Object, promise_hook_after_function)    \
-  V(PROMISE_HOOK_RESOLVE_FUNCTION_INDEX, Object,                               \
-    promise_hook_resolve_function)                                             \
   V(PROXY_CALLABLE_MAP_INDEX, Map, proxy_callable_map)                         \
   V(PROXY_CONSTRUCTOR_MAP_INDEX, Map, proxy_constructor_map)                   \
   V(PROXY_FUNCTION_INDEX, JSFunction, proxy_function)                          \
@@ -427,13 +422,14 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
 
   // Setter and getter for elements.
   V8_INLINE Object get(int index) const;
-  V8_INLINE Object get(IsolateRoot isolate, int index) const;
+  V8_INLINE Object get(PtrComprCageBase cage_base, int index) const;
   V8_INLINE void set(int index, Object value);
   // Setter with explicit barrier mode.
   V8_INLINE void set(int index, Object value, WriteBarrierMode mode);
   // Setter and getter with synchronization semantics.
   V8_INLINE Object synchronized_get(int index) const;
-  V8_INLINE Object synchronized_get(IsolateRoot isolate, int index) const;
+  V8_INLINE Object synchronized_get(PtrComprCageBase cage_base,
+                                    int index) const;
   V8_INLINE void synchronized_set(int index, Object value);
 
   static const int kScopeInfoOffset = kElementsOffset;
@@ -522,17 +518,20 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   static const int kInvalidContext = 1;
 
   // Direct slot access.
-  inline void set_scope_info(ScopeInfo scope_info);
+  inline void set_scope_info(ScopeInfo scope_info,
+                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Object unchecked_previous();
   inline Context previous();
-  inline void set_previous(Context context);
+  inline void set_previous(Context context,
+                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Object next_context_link();
 
   inline bool has_extension();
   inline HeapObject extension();
-  inline void set_extension(HeapObject object);
+  inline void set_extension(HeapObject object,
+                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   JSObject extension_object();
   JSReceiver extension_receiver();
   V8_EXPORT_PRIVATE ScopeInfo scope_info();
@@ -696,9 +695,6 @@ class NativeContext : public Context {
   void ResetErrorsThrown();
   void IncrementErrorsThrown();
   int GetErrorsThrown();
-
-  void RunPromiseHook(PromiseHookType type, Handle<JSPromise> promise,
-                      Handle<Object> parent);
 
  private:
   STATIC_ASSERT(OffsetOfElementAt(EMBEDDER_DATA_INDEX) ==

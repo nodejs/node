@@ -13,8 +13,8 @@ namespace v8 {
 namespace internal {
 
 // See v8:7703 for details about how pointer compression works.
-constexpr size_t kPtrComprHeapReservationSize = size_t{4} * GB;
-constexpr size_t kPtrComprIsolateRootAlignment = size_t{4} * GB;
+constexpr size_t kPtrComprCageReservationSize = size_t{4} * GB;
+constexpr size_t kPtrComprCageBaseAlignment = size_t{4} * GB;
 
 }  // namespace internal
 }  // namespace v8

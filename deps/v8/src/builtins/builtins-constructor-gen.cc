@@ -175,8 +175,6 @@ void CallOrConstructBuiltinsAssembler::BuildConstructWithSpread(
   CallOrConstructWithSpread(target, new_target, spread, argc, eager_context);
 }
 
-using Node = compiler::Node;
-
 TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
   auto shared_function_info =
       Parameter<SharedFunctionInfo>(Descriptor::kSharedFunctionInfo);
@@ -329,9 +327,9 @@ TNode<JSObject> ConstructorBuiltinsAssembler::FastNewObject(
   }
   BIND(&allocate_properties);
   {
-    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-      properties = AllocateOrderedNameDictionary(
-          OrderedNameDictionary::kInitialCapacity);
+    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+      properties =
+          AllocateSwissNameDictionary(SwissNameDictionary::kInitialCapacity);
     } else {
       properties = AllocateNameDictionary(NameDictionary::kInitialCapacity);
     }
@@ -539,7 +537,7 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
   TNode<Map> boilerplate_map = LoadMap(boilerplate);
   CSA_ASSERT(this, IsJSObjectMap(boilerplate_map));
 
-  TVARIABLE(FixedArray, var_properties);
+  TVARIABLE(HeapObject, var_properties);
   {
     TNode<Uint32T> bit_field_3 = LoadMapBitField3(boilerplate_map);
     GotoIf(IsSetWord32<Map::Bits3::IsDeprecatedBit>(bit_field_3), call_runtime);
@@ -549,14 +547,14 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
            &if_dictionary, &if_fast);
     BIND(&if_dictionary);
     {
-      if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-        // TODO(v8:11167) remove once OrderedNameDictionary supported.
-        GotoIf(Int32TrueConstant(), call_runtime);
-      }
-
       Comment("Copy dictionary properties");
-      var_properties = CopyNameDictionary(CAST(LoadSlowProperties(boilerplate)),
-                                          call_runtime);
+      if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+        var_properties =
+            CopySwissNameDictionary(CAST(LoadSlowProperties(boilerplate)));
+      } else {
+        var_properties = CopyNameDictionary(
+            CAST(LoadSlowProperties(boilerplate)), call_runtime);
+      }
       // Slow objects have no in-object properties.
       Goto(&done);
     }

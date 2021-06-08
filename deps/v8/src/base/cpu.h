@@ -44,42 +44,43 @@ class V8_BASE_EXPORT CPU final {
 
   // arm implementer/part information
   int implementer() const { return implementer_; }
-  static const int ARM = 0x41;
-  static const int NVIDIA = 0x4e;
-  static const int QUALCOMM = 0x51;
+  static const int kArm = 0x41;
+  static const int kNvidia = 0x4e;
+  static const int kQualcomm = 0x51;
   int architecture() const { return architecture_; }
   int variant() const { return variant_; }
-  static const int NVIDIA_DENVER = 0x0;
+  static const int kNvidiaDenver = 0x0;
   int part() const { return part_; }
 
   // ARM-specific part codes
-  static const int ARM_CORTEX_A5 = 0xc05;
-  static const int ARM_CORTEX_A7 = 0xc07;
-  static const int ARM_CORTEX_A8 = 0xc08;
-  static const int ARM_CORTEX_A9 = 0xc09;
-  static const int ARM_CORTEX_A12 = 0xc0c;
-  static const int ARM_CORTEX_A15 = 0xc0f;
+  static const int kArmCortexA5 = 0xc05;
+  static const int kArmCortexA7 = 0xc07;
+  static const int kArmCortexA8 = 0xc08;
+  static const int kArmCortexA9 = 0xc09;
+  static const int kArmCortexA12 = 0xc0c;
+  static const int kArmCortexA15 = 0xc0f;
 
   // Denver-specific part code
-  static const int NVIDIA_DENVER_V10 = 0x002;
+  static const int kNvidiaDenverV10 = 0x002;
 
   // PPC-specific part codes
   enum {
-    PPC_POWER5,
-    PPC_POWER6,
-    PPC_POWER7,
-    PPC_POWER8,
-    PPC_POWER9,
-    PPC_G4,
-    PPC_G5,
-    PPC_PA6T
+    kPPCPower5,
+    kPPCPower6,
+    kPPCPower7,
+    kPPCPower8,
+    kPPCPower9,
+    kPPCPower10,
+    kPPCG4,
+    kPPCG5,
+    kPPCPA6T
   };
 
   // General features
   bool has_fpu() const { return has_fpu_; }
   int icache_line_size() const { return icache_line_size_; }
   int dcache_line_size() const { return dcache_line_size_; }
-  static const int UNKNOWN_CACHE_LINE_SIZE = 0;
+  static const int kUnknownCacheLineSize = 0;
 
   // x86 features
   bool has_cmov() const { return has_cmov_; }
@@ -103,6 +104,7 @@ class V8_BASE_EXPORT CPU final {
   bool has_non_stop_time_stamp_counter() const {
     return has_non_stop_time_stamp_counter_;
   }
+  bool is_running_in_vm() const { return is_running_in_vm_; }
 
   // arm features
   bool has_idiva() const { return has_idiva_; }
@@ -159,6 +161,7 @@ class V8_BASE_EXPORT CPU final {
   bool has_jscvt_;
   bool is_fp64_mode_;
   bool has_non_stop_time_stamp_counter_;
+  bool is_running_in_vm_;
   bool has_msa_;
 };
 

@@ -531,6 +531,7 @@ MaybeHandle<JSFunction> InstantiateFunction(
     }
     return MaybeHandle<JSFunction>();
   }
+  data->set_published(true);
   return function;
 }
 
@@ -626,6 +627,8 @@ void ApiNatives::AddAccessorProperty(Isolate* isolate,
                                      Handle<FunctionTemplateInfo> getter,
                                      Handle<FunctionTemplateInfo> setter,
                                      PropertyAttributes attributes) {
+  if (!getter.is_null()) getter->set_published(true);
+  if (!setter.is_null()) setter->set_published(true);
   PropertyDetails details(kAccessor, attributes, PropertyConstness::kMutable);
   auto details_handle = handle(details.AsSmi(), isolate);
   Handle<Object> data[] = {name, details_handle, getter, setter};
@@ -701,7 +704,6 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
 
   Handle<Map> map = isolate->factory()->NewMap(type, instance_size,
                                                TERMINAL_FAST_ELEMENTS_KIND);
-  JSFunction::SetInitialMap(result, map, Handle<JSObject>::cast(prototype));
 
   // Mark as undetectable if needed.
   if (obj->undetectable()) {
@@ -737,6 +739,8 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
 
   if (immutable_proto) map->set_is_immutable_proto(true);
 
+  JSFunction::SetInitialMap(isolate, result, map,
+                            Handle<JSObject>::cast(prototype));
   return result;
 }
 

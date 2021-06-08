@@ -31,6 +31,7 @@
 #include "src/objects/field-type.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/prototype.h"
@@ -779,25 +780,28 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
   Handle<Object> receiver = lookup->GetReceiver();
   ReadOnlyRoots roots(isolate());
 
+  Handle<Object> lookup_start_object = lookup->lookup_start_object();
   // `in` cannot be called on strings, and will always return true for string
   // wrapper length and function prototypes. The latter two cases are given
   // LoadHandler::LoadNativeDataProperty below.
   if (!IsAnyHas() && !lookup->IsElement()) {
-    if (receiver->IsString() && *lookup->name() == roots.length_string()) {
+    if (lookup_start_object->IsString() &&
+        *lookup->name() == roots.length_string()) {
       TRACE_HANDLER_STATS(isolate(), LoadIC_StringLength);
       return BUILTIN_CODE(isolate(), LoadIC_StringLength);
     }
 
-    if (receiver->IsStringWrapper() &&
+    if (lookup_start_object->IsStringWrapper() &&
         *lookup->name() == roots.length_string()) {
       TRACE_HANDLER_STATS(isolate(), LoadIC_StringWrapperLength);
       return BUILTIN_CODE(isolate(), LoadIC_StringWrapperLength);
     }
 
     // Use specialized code for getting prototype of functions.
-    if (receiver->IsJSFunction() &&
+    if (lookup_start_object->IsJSFunction() &&
         *lookup->name() == roots.prototype_string() &&
-        !JSFunction::cast(*receiver).PrototypeRequiresRuntimeLookup()) {
+        !JSFunction::cast(*lookup_start_object)
+             .PrototypeRequiresRuntimeLookup()) {
       TRACE_HANDLER_STATS(isolate(), LoadIC_FunctionPrototypeStub);
       return BUILTIN_CODE(isolate(), LoadIC_FunctionPrototype);
     }
@@ -808,8 +812,7 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
   bool holder_is_lookup_start_object;
   if (lookup->state() != LookupIterator::JSPROXY) {
     holder = lookup->GetHolder<JSObject>();
-    holder_is_lookup_start_object =
-        lookup->lookup_start_object().is_identical_to(holder);
+    holder_is_lookup_start_object = lookup_start_object.is_identical_to(holder);
   }
 
   switch (lookup->state()) {
@@ -926,12 +929,7 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
               isolate(), map, holder, smi_handler,
               MaybeObjectHandle::Weak(lookup->GetPropertyCell()));
         } else {
-          if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-            // TODO(v8:11167) remove once OrderedNameDictionary supported.
-            smi_handler = LoadHandler::LoadSlow(isolate());
-          } else {
-            smi_handler = LoadHandler::LoadNormal(isolate());
-          }
+          smi_handler = LoadHandler::LoadNormal(isolate());
           TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNormalDH);
           if (holder_is_lookup_start_object) return smi_handler;
           TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNormalFromPrototypeDH);
@@ -942,6 +940,13 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
       }
 
       Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(accessors);
+
+      if (info->replace_on_access()) {
+        set_slow_stub_reason(
+            "getter needs to be reconfigured to data property");
+        TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
+        return LoadHandler::LoadSlow(isolate());
+      }
 
       if (v8::ToCData<Address>(info->getter()) == kNullAddress ||
           !AccessorInfo::IsCompatibleReceiverMap(info, map) ||
@@ -974,12 +979,7 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
               isolate(), map, holder, smi_handler,
               MaybeObjectHandle::Weak(lookup->GetPropertyCell()));
         }
-        if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-          // TODO(v8:11167) remove once OrderedNameDictionary supported.
-          smi_handler = LoadHandler::LoadSlow(isolate());
-        } else {
-          smi_handler = LoadHandler::LoadNormal(isolate());
-        }
+        smi_handler = LoadHandler::LoadNormal(isolate());
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNormalDH);
         if (holder_is_lookup_start_object) return smi_handler;
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNormalFromPrototypeDH);
@@ -1301,10 +1301,14 @@ bool IntPtrKeyToSize(intptr_t index, Handle<HeapObject> receiver, size_t* out) {
     return false;
   }
 #if V8_HOST_ARCH_64_BIT
-  // On 32-bit platforms, any intptr_t is less than kMaxArrayIndex.
-  if (index > JSArray::kMaxArrayIndex && !receiver->IsJSTypedArray()) {
+  if (index > JSObject::kMaxElementIndex && !receiver->IsJSTypedArray()) {
     return false;
   }
+#else
+  // On 32-bit platforms, any intptr_t is less than kMaxElementIndex.
+  STATIC_ASSERT(
+      static_cast<double>(std::numeric_limits<decltype(index)>::max()) <=
+      static_cast<double>(JSObject::kMaxElementIndex));
 #endif
   *out = static_cast<size_t>(index);
   return true;
@@ -1810,11 +1814,8 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
         DCHECK(holder.is_identical_to(receiver));
         DCHECK_IMPLIES(!V8_DICT_PROPERTY_CONST_TRACKING_BOOL,
                        lookup->constness() == PropertyConstness::kMutable);
-        // TODO(v8:11167) don't create slow hanlder once OrderedNameDictionary
-        // supported.
-        Handle<Smi> handler = V8_DICT_MODE_PROTOTYPES_BOOL
-                                  ? StoreHandler::StoreSlow(isolate())
-                                  : StoreHandler::StoreNormal(isolate());
+
+        Handle<Smi> handler = StoreHandler::StoreNormal(isolate());
         return MaybeObjectHandle(handler);
       }
 
@@ -2718,7 +2719,7 @@ static bool CanFastCloneObject(Handle<Map> map) {
     return false;
   }
 
-  DescriptorArray descriptors = map->instance_descriptors(kRelaxedLoad);
+  DescriptorArray descriptors = map->instance_descriptors();
   for (InternalIndex i : map->IterateOwnDescriptors()) {
     PropertyDetails details = descriptors.GetDetails(i);
     Name key = descriptors.GetKey(i);
@@ -2768,7 +2769,7 @@ static Handle<Map> FastCloneObjectMap(Isolate* isolate, Handle<Map> source_map,
   }
 
   Handle<DescriptorArray> source_descriptors(
-      source_map->instance_descriptors(kRelaxedLoad), isolate);
+      source_map->instance_descriptors(isolate), isolate);
   int size = source_map->NumberOfOwnDescriptors();
   int slack = 0;
   Handle<DescriptorArray> descriptors = DescriptorArray::CopyForFastObjectClone(

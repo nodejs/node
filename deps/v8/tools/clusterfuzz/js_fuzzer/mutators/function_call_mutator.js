@@ -49,7 +49,7 @@ class FunctionCallMutator extends mutator.Mutator {
         }
 
         const probability = random.random();
-        if (probability < 0.5) {
+        if (probability < 0.4) {
           const randFunc = common.randomFunction(path);
           if (randFunc) {
             thisMutator.annotate(
@@ -58,7 +58,7 @@ class FunctionCallMutator extends mutator.Mutator {
 
             path.node.callee = randFunc;
           }
-        } else if (probability < 0.7 && thisMutator.settings.engine == 'V8') {
+        } else if (probability < 0.6 && thisMutator.settings.engine == 'V8') {
           const prepareTemplate = babelTemplate(
               '__V8BuiltinPrepareFunctionForOptimization(ID)');
           const optimizeTemplate = babelTemplate(
@@ -78,6 +78,28 @@ class FunctionCallMutator extends mutator.Mutator {
           thisMutator.annotate(
               path.node,
               `Optimizing ${path.node.callee.name}`);
+          if (!babelTypes.isExpressionStatement(path.parent)) {
+            nodes.push(path.node);
+            thisMutator.replaceWithSkip(
+                path, babelTypes.sequenceExpression(nodes));
+          } else {
+            thisMutator.insertBeforeSkip(
+                path, _liftExpressionsToStatements(path, nodes));
+          }
+        } else if (probability < 0.75 && thisMutator.settings.engine == 'V8') {
+          const template = babelTemplate(
+              '__V8BuiltinCompileBaseline(ID)');
+
+          const nodes = [
+              template({
+                ID: babelTypes.cloneDeep(path.node.callee),
+              }).expression,
+          ];
+
+          thisMutator.annotate(
+              nodes[0],
+              `Compiling baseline ${path.node.callee.name}`);
+
           if (!babelTypes.isExpressionStatement(path.parent)) {
             nodes.push(path.node);
             thisMutator.replaceWithSkip(

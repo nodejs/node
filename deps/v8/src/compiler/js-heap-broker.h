@@ -19,7 +19,7 @@
 #include "src/handles/persistent-handles.h"
 #include "src/heap/local-heap.h"
 #include "src/heap/parked-scope.h"
-#include "src/interpreter/bytecode-array-accessor.h"
+#include "src/interpreter/bytecode-array-iterator.h"
 #include "src/objects/code-kind.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/function-kind.h"
@@ -251,6 +251,10 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   bool IsSerializedForCompilation(const SharedFunctionInfoRef& shared,
                                   const FeedbackVectorRef& feedback) const;
 
+  bool IsMainThread() const {
+    return local_isolate() == nullptr || local_isolate()->is_main_thread();
+  }
+
   LocalIsolate* local_isolate() const { return local_isolate_; }
 
   // Return the corresponding canonical persistent handle for {object}. Create
@@ -314,10 +318,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   friend class ObjectRef;
   friend class ObjectData;
   friend class PropertyCellData;
-
-  bool IsMainThread() const {
-    return local_isolate() == nullptr || local_isolate()->is_main_thread();
-  }
 
   // If this returns false, the object is guaranteed to be fully initialized and
   // thus safe to read from a memory safety perspective. The converse does not

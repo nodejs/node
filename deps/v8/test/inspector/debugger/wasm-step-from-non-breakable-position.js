@@ -12,7 +12,7 @@ session.setupScriptMap();
 var builder = new WasmModuleBuilder();
 
 var callee = builder.addFunction('callee', kSig_v_v)
-                 .addBody([kExprBlock, kWasmStmt, kExprEnd])
+                 .addBody([kExprBlock, kWasmVoid, kExprEnd])
                  .index;
 
 var main = builder.addFunction('main', kSig_v_i)

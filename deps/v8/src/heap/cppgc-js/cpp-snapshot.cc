@@ -35,11 +35,19 @@ using cppgc::internal::HeapObjectHeader;
 class EmbedderNode : public v8::EmbedderGraph::Node {
  public:
   explicit EmbedderNode(const char* name, size_t size)
-      : name_(name), size_(size) {}
+      : name_(name), size_(size) {
+    USE(size_);
+  }
   ~EmbedderNode() override = default;
 
   const char* Name() final { return name_; }
-  size_t SizeInBytes() final { return size_; }
+  size_t SizeInBytes() final {
+#if CPPGC_SUPPORTS_OBJECT_NAMES
+    return size_;
+#else   // !CPPGC_SUPPORTS_OBJECT_NAMES
+    return 0;
+#endif  // !CPPGC_SUPPORTS_OBJECT_NAMES
+  }
 
   void SetWrapperNode(v8::EmbedderGraph::Node* wrapper_node) {
     wrapper_node_ = wrapper_node;
@@ -696,6 +704,7 @@ void CppGraphBuilderImpl::Run() {
     ParentScope parent_scope(
         states_.CreateRootState(AddRootNode("C++ cross-thread roots")));
     GraphBuildingVisitor object_visitor(*this, parent_scope);
+    cppgc::internal::PersistentRegionLock guard;
     cpp_heap_.GetStrongCrossThreadPersistentRegion().Trace(&object_visitor);
   }
 }

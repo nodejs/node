@@ -87,7 +87,15 @@ class FunctionTemplateInfo
   DECL_RARE_ACCESSORS(c_signature, CSignature, Object)
 #undef DECL_RARE_ACCESSORS
 
+  // TODO(nicohartmann@, v8:11122): Let Torque generate the following accessor.
   DECL_RELEASE_ACQUIRE_ACCESSORS(call_code, HeapObject)
+
+  // TODO(nicohartmann@, v8:11122): Let Torque generate the following accessor.
+  inline HeapObject rare_data(AcquireLoadTag) const;
+  inline HeapObject rare_data(PtrComprCageBase cage_base, AcquireLoadTag) const;
+  inline void set_rare_data(
+      HeapObject value, ReleaseStoreTag,
+      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
 
   // Begin flag bits ---------------------
   DECL_BOOLEAN_ACCESSORS(undetectable)
@@ -109,6 +117,12 @@ class FunctionTemplateInfo
 
   // If not set an access may be performed on calling the associated JSFunction.
   DECL_BOOLEAN_ACCESSORS(accept_any_receiver)
+
+  // This flag is used to check that the FunctionTemplateInfo instance is not
+  // changed after it became visible to TurboFan (either set in a
+  // SharedFunctionInfo or an accessor), because TF relies on immutability to
+  // safely read concurrently.
+  DECL_BOOLEAN_ACCESSORS(published)
   // End flag bits ---------------------
 
   // Dispatched behavior.

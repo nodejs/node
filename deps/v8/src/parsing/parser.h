@@ -493,12 +493,12 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   ArrayLiteral* ArrayLiteralFromListWithSpread(
       const ScopedPtrList<Expression>& list);
-  Expression* SpreadCallNew(Expression* function,
-                            const ScopedPtrList<Expression>& args, int pos);
   Expression* RewriteSuperCall(Expression* call_expression);
 
   void SetLanguageMode(Scope* scope, LanguageMode mode);
+#if V8_ENABLE_WEBASSEMBLY
   void SetAsmModule();
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   Expression* RewriteSpreads(ArrayLiteral* lit);
 

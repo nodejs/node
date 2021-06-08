@@ -72,11 +72,14 @@ IsolateData* IsolateData::FromContext(v8::Local<v8::Context> context) {
 
 int IsolateData::CreateContextGroup() {
   int context_group_id = ++last_context_group_id_;
-  CreateContext(context_group_id, v8_inspector::StringView());
+  if (!CreateContext(context_group_id, v8_inspector::StringView())) {
+    DCHECK(isolate_->IsExecutionTerminating());
+    return -1;
+  }
   return context_group_id;
 }
 
-void IsolateData::CreateContext(int context_group_id,
+bool IsolateData::CreateContext(int context_group_id,
                                 v8_inspector::StringView name) {
   v8::HandleScope handle_scope(isolate_.get());
   v8::Local<v8::ObjectTemplate> global_template =
@@ -87,12 +90,14 @@ void IsolateData::CreateContext(int context_group_id,
   }
   v8::Local<v8::Context> context =
       v8::Context::New(isolate_.get(), nullptr, global_template);
+  if (context.IsEmpty()) return false;
   context->SetAlignedPointerInEmbedderData(kIsolateDataIndex, this);
   // Should be 2-byte aligned.
   context->SetAlignedPointerInEmbedderData(
       kContextGroupIdIndex, reinterpret_cast<void*>(context_group_id * 2));
   contexts_[context_group_id].emplace_back(isolate_.get(), context);
   if (inspector_) FireContextCreated(context, context_group_id, name);
+  return true;
 }
 
 v8::Local<v8::Context> IsolateData::GetDefaultContext(int context_group_id) {

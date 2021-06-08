@@ -13,6 +13,7 @@
 #include "src/codegen/external-reference.h"
 #include "src/common/globals.h"
 #include "src/compiler/common-operator.h"
+#include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
 #include "src/numbers/double.h"
@@ -169,6 +170,8 @@ using Int32Matcher = IntMatcher<int32_t, IrOpcode::kInt32Constant>;
 using Uint32Matcher = IntMatcher<uint32_t, IrOpcode::kInt32Constant>;
 using Int64Matcher = IntMatcher<int64_t, IrOpcode::kInt64Constant>;
 using Uint64Matcher = IntMatcher<uint64_t, IrOpcode::kInt64Constant>;
+using V128ConstMatcher =
+    ValueMatcher<S128ImmediateParameter, IrOpcode::kS128Const>;
 #if V8_HOST_ARCH_32_BIT
 using IntPtrMatcher = Int32Matcher;
 using UintPtrMatcher = Uint32Matcher;
@@ -732,6 +735,7 @@ struct BaseWithIndexAndDisplacementMatcher {
       Node* from = use.from();
       switch (from->opcode()) {
         case IrOpcode::kLoad:
+        case IrOpcode::kLoadImmutable:
         case IrOpcode::kPoisonedLoad:
         case IrOpcode::kProtectedLoad:
         case IrOpcode::kInt32Add:

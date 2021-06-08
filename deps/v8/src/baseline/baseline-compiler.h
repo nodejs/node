@@ -7,12 +7,12 @@
 
 // TODO(v8:11421): Remove #if once baseline compiler is ported to other
 // architectures.
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
-
-#include <unordered_map>
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || \
+    V8_TARGET_ARCH_ARM
 
 #include "src/base/logging.h"
 #include "src/base/threaded-list.h"
+#include "src/base/vlq.h"
 #include "src/baseline/baseline-assembler.h"
 #include "src/handles/handles.h"
 #include "src/interpreter/bytecode-array-iterator.h"
@@ -21,7 +21,6 @@
 #include "src/logging/counters.h"
 #include "src/objects/map.h"
 #include "src/objects/tagged-index.h"
-#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -32,30 +31,19 @@ namespace baseline {
 
 class BytecodeOffsetTableBuilder {
  public:
-  void AddPosition(size_t pc_offset, size_t bytecode_offset) {
-    WriteUint(pc_offset - previous_pc_);
-    WriteUint(bytecode_offset - previous_bytecode_);
+  void AddPosition(size_t pc_offset) {
+    size_t pc_diff = pc_offset - previous_pc_;
+    DCHECK_GE(pc_diff, 0);
+    DCHECK_LE(pc_diff, std::numeric_limits<uint32_t>::max());
+    base::VLQEncodeUnsigned(&bytes_, static_cast<uint32_t>(pc_diff));
     previous_pc_ = pc_offset;
-    previous_bytecode_ = bytecode_offset;
   }
 
   template <typename LocalIsolate>
   Handle<ByteArray> ToBytecodeOffsetTable(LocalIsolate* isolate);
 
  private:
-  void WriteUint(size_t value) {
-    bool has_next;
-    do {
-      uint8_t byte = value & ((1 << 7) - 1);
-      value >>= 7;
-      has_next = value != 0;
-      byte |= (has_next << 7);
-      bytes_.push_back(byte);
-    } while (has_next);
-  }
-
   size_t previous_pc_ = 0;
-  size_t previous_bytecode_ = 0;
   std::vector<byte> bytes_;
 };
 
@@ -66,7 +54,7 @@ class BaselineCompiler {
                             Handle<BytecodeArray> bytecode);
 
   void GenerateCode();
-  Handle<Code> Build(Isolate* isolate);
+  MaybeHandle<Code> Build(Isolate* isolate);
 
  private:
   void Prologue();
@@ -123,6 +111,10 @@ class BaselineCompiler {
 
   // Misc. helpers.
 
+  void UpdateMaxCallArgs(int max_call_args) {
+    max_call_args_ = std::max(max_call_args_, max_call_args);
+  }
+
   // Select the root boolean constant based on the jump in the given
   // `jump_func` -- the function should jump to the given label if we want to
   // select "true", otherwise it should fall through.
@@ -170,7 +162,7 @@ class BaselineCompiler {
   INTRINSICS_LIST(DECLARE_VISITOR)
 #undef DECLARE_VISITOR
 
-  const interpreter::BytecodeArrayAccessor& accessor() { return iterator_; }
+  const interpreter::BytecodeArrayIterator& iterator() { return iterator_; }
 
   Isolate* isolate_;
   RuntimeCallStats* stats_;
@@ -181,6 +173,8 @@ class BaselineCompiler {
   interpreter::BytecodeArrayIterator iterator_;
   BytecodeOffsetTableBuilder bytecode_offset_table_builder_;
   Zone zone_;
+
+  int max_call_args_ = 0;
 
   struct ThreadedLabel {
     Label label;
@@ -201,7 +195,6 @@ class BaselineCompiler {
   }
 
   BaselineLabels** labels_;
-  ZoneSet<int> handler_offsets_;
 };
 
 }  // namespace baseline

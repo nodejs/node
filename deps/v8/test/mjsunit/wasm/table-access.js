@@ -147,7 +147,6 @@ const dummy_func = exports.set_table_func1;
         kExprTableSet, table_index,                // --
         kExprI32Const, index,                      // entry index
         kExprCallIndirect, sig_index, table_index  // --
-
       ])
       .exportFunc();
 
