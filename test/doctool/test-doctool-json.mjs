@@ -1,21 +1,13 @@
-'use strict';
+import * as common from '../common/index.mjs';
+import * as fixtures from '../common/fixtures.mjs';
 
-const common = require('../common');
-// The doctool currently uses js-yaml from the tool/node_modules/eslint/ tree.
-try {
-  require('../../tools/node_modules/eslint/node_modules/js-yaml');
-} catch {
-  common.skip('missing js-yaml (eslint not present)');
-}
+import assert from 'assert';
+import fs from 'fs';
+import { createRequire } from 'module';
 
-const assert = require('assert');
-const fs = require('fs');
-const path = require('path');
-const fixtures = require('../common/fixtures');
-const json = require('../../tools/doc/json.js');
+import * as json from '../../tools/doc/json.mjs';
 
-module.paths.unshift(
-  path.join(__dirname, '..', '..', 'tools', 'doc', 'node_modules'));
+const require = createRequire(new URL('../../tools/doc/', import.meta.url));
 const unified = require('unified');
 const markdown = require('remark-parse');
 
