@@ -1,15 +1,16 @@
-'use strict';
+import '../common/index.mjs';
+import tmpdir from '../common/tmpdir.js';
 
-require('../common');
-const assert = require('assert');
-const { spawnSync } = require('child_process');
-const fs = require('fs');
-const path = require('path');
-const tmpdir = require('../common/tmpdir');
-const util = require('util');
+import assert from 'assert';
+import { spawnSync } from 'child_process';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import util from 'util';
 
 const debuglog = util.debuglog('test');
-const versionsTool = path.resolve(__dirname, '../../tools/doc/versions.js');
+const versionsTool = fileURLToPath(
+  new URL('../../tools/doc/versions.mjs', import.meta.url));
 
 // At the time of writing these are the minimum expected versions.
 // New versions of Node.js do not have to be explicitly added here.

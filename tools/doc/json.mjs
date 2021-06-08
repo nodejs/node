@@ -19,18 +19,15 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-'use strict';
+import html from 'remark-html';
+import unified from 'unified';
+import { selectAll } from 'unist-util-select';
 
-const unified = require('unified');
-const common = require('./common.js');
-const html = require('remark-html');
-const { selectAll } = require('unist-util-select');
-
-module.exports = { jsonAPI };
+import * as common from './common.mjs';
 
 // Unified processor: input is https://github.com/syntax-tree/mdast,
 // output is: https://gist.github.com/1777387.
-function jsonAPI({ filename }) {
+export function jsonAPI({ filename }) {
   return (tree, file) => {
 
     const exampleHeading = /^example/i;

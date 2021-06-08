@@ -1,18 +1,16 @@
-'use strict';
+import { readFileSync, writeFileSync } from 'fs';
+import https from 'https';
 
-const { readFileSync, writeFileSync } = require('fs');
-const path = require('path');
-const srcRoot = path.join(__dirname, '..', '..');
+const srcRoot = new URL('../../', import.meta.url);
 
 const isRelease = () => {
   const re = /#define NODE_VERSION_IS_RELEASE 0/;
-  const file = path.join(srcRoot, 'src', 'node_version.h');
+  const file = new URL('./src/node_version.h', srcRoot);
   return !re.test(readFileSync(file, { encoding: 'utf8' }));
 };
 
 const getUrl = (url) => {
   return new Promise((resolve, reject) => {
-    const https = require('https');
     const request = https.get(url, { timeout: 30000 }, (response) => {
       if (response.statusCode !== 200) {
         reject(new Error(
@@ -38,7 +36,7 @@ async function versions() {
   const url =
     'https://raw.githubusercontent.com/nodejs/node/HEAD/CHANGELOG.md';
   let changelog;
-  const file = path.join(srcRoot, 'CHANGELOG.md');
+  const file = new URL('./CHANGELOG.md', srcRoot);
   if (kNoInternet) {
     changelog = readFileSync(file, { encoding: 'utf8' });
   } else {
