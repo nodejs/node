@@ -243,6 +243,7 @@ int ReadFileSync(std::string* result, const char* path) {
     const int r =
         uv_fs_read(nullptr, &req, file, &buf, 1, result->length(), nullptr);
     if (req.result < 0) {
+      uv_fs_req_cleanup(&req);
       return req.result;
     }
     uv_fs_req_cleanup(&req);
