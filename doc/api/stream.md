@@ -987,6 +987,22 @@ added: v0.9.4
 The `'resume'` event is emitted when [`stream.resume()`][stream-resume] is
 called and `readableFlowing` is not `true`.
 
+#### `readable.collect([limit])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `limit` {Number} maximum number of bytes to collect. In object streams, this
+  is the maximum number of items to collect. **Default:** Infinity.
+* Returns: {Promise} Fulfills with all the data from the stream, in the form of:
+  * If `readable` is a `Buffer` stream with encoding set, then a string.
+  * If `readable` is a `Buffer` stream with encoding unset, then a `Buffer`.
+  * If `readable` is an object mode stream, then an `Array` of objects.
+
+Reads the stream to its `'end'`, collecting all the data in order.
+
+If the `limit` is reached, the promise is rejected with an error.
+
 ##### `readable.destroy([error])`
 <!-- YAML
 added: v8.0.0
