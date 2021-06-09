@@ -9,7 +9,7 @@ const hello = Buffer.from('hello, ');
 const world = Buffer.from('world');
 
 async function tests() {
-  { // buffer, no limit
+  { // Buffer, no limit
     const r = new Readable();
 
     r.push(hello);
@@ -21,17 +21,18 @@ async function tests() {
     assert.strictEqual(result.compare(Buffer.from('hello, world')), 0);
   }
 
-  { // buffer, under limit
+  { // Buffer, under limit
     const r = new Readable();
 
     r.push(hello);
     r.push(world);
     r.push(null);
 
-    await assert.doesNotReject(r.collect(50));
+    // Does not reject
+    await r.collect(50);
   }
 
-  { // buffer, over limit
+  { // Buffer, over limit
     const r = new Readable();
     r.push(hello);
     r.push(world);
@@ -42,7 +43,7 @@ async function tests() {
     });
   }
 
-  { // buffer, setEncoding, no limit
+  { // Buffer, setEncoding, no limit
     const r = new Readable();
 
     r.setEncoding('utf8');
@@ -56,7 +57,7 @@ async function tests() {
     assert.strictEqual(result, 'hello, world');
   }
 
-  { // buffer, setEncoding, under limit
+  { // Buffer, setEncoding, under limit
     const r = new Readable();
 
     r.setEncoding('utf8');
@@ -65,10 +66,11 @@ async function tests() {
     r.push(world);
     r.push(null);
 
-    await assert.doesNotReject(r.collect(50));
+    // Does not reject
+    await r.collect(50);
   }
 
-  { // buffer, setEncoding, over limit
+  { // Buffer, setEncoding, over limit
     const r = new Readable();
 
     r.setEncoding('utf8');
@@ -82,7 +84,7 @@ async function tests() {
     });
   }
 
-  { // object, no limit
+  { // Object, no limit
     const r = new Readable({ objectMode: true });
 
     const objs = [{ n: 0 }, { n: 1 }];
@@ -96,7 +98,7 @@ async function tests() {
     assert.deepStrictEqual(result, objs);
   }
 
-  { // object, under limit
+  { // Object, under limit
     const r = new Readable({ objectMode: true });
 
     const objs = [{ n: 0 }, { n: 1 }];
@@ -105,10 +107,11 @@ async function tests() {
     r.push(objs[1]);
     r.push(null);
 
-    assert.doesNotReject(r.collect(5));
+    // Does not reject
+    await r.collect(5);
   }
 
-  { // object, over limit
+  { // Object, over limit
     const r = new Readable({ objectMode: true });
 
     const objs = [{ n: 0 }, { n: 1 }, { n: 2 }];

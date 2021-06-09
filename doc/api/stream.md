@@ -992,7 +992,7 @@ called and `readableFlowing` is not `true`.
 added: REPLACEME
 -->
 
-* `limit` {Number} maximum number of bytes to collect. In object streams, this
+* `limit` {number} maximum number of bytes to collect. In object streams, this
   is the maximum number of items to collect. **Default:** Infinity.
 * Returns: {Promise} Fulfills with all the data from the stream, in the form of:
   * If `readable` is a `Buffer` stream with encoding set, then a string.

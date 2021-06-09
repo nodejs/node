@@ -2045,6 +2045,15 @@ finished.
 
 An attempt was made to call [`stream.pipe()`][] on a [`Writable`][] stream.
 
+<a id="ERR_STREAM_COLLECT_LIMIT_EXCEEDED"></a>
+### `ERR_STREAM_COLLECT_LIMIT_EXCEEDED`
+<!-- YAML
+added: REPLACEME
+-->
+
+The stream on which [`readable.collect()`][] was called emitted more data than
+the given limit.
+
 <a id="ERR_STREAM_DESTROYED"></a>
 ### `ERR_STREAM_DESTROYED`
 
@@ -2813,6 +2822,7 @@ The native call from `process.cpuUsage` could not be processed.
 [`process.send()`]: process.md#process_process_send_message_sendhandle_options_callback
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#process_process_setuncaughtexceptioncapturecallback_fn
 [`readable._read()`]: stream.md#stream_readable_read_size_1
+[`readable.collect()`]: stream.md#stream_readable_collect_limit
 [`require('crypto').setEngine()`]: crypto.md#crypto_crypto_setengine_engine_flags
 [`require()`]: modules.md#modules_require_id
 [`server.close()`]: net.md#net_server_close_callback
