@@ -352,7 +352,7 @@ test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS) tools/doc/node_modules
 	else \
 		$(RM) -r test/addons/??_*/; \
 		[ -x $(NODE) ] && $(NODE) $< || node $< ; \
-		touch $@; \
+		[ $$? -eq 0 ] && touch $@; \
 	fi
 
 ADDONS_BINDING_GYPS := \
