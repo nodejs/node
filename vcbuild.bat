@@ -334,8 +334,6 @@ if "%target%"=="Build" (
   if defined cctest set target="Build"
 )
 if "%target%"=="node" if exist "%config%\cctest.exe" del "%config%\cctest.exe"
-@rem TODO(targos): Remove next line after MSBuild 16.10.1 is released.
-if "%target%"=="node" set target="Build"
 if defined msbuild_args set "extra_msbuild_args=%extra_msbuild_args% %msbuild_args%"
 @rem Setup env variables to use multiprocessor build
 set UseMultiToolTask=True
