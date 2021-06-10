@@ -17,7 +17,7 @@ crypto.subtle.importKey(
   false,
   [ 'encrypt', 'decrypt' ])
   .then((k) => {
-    assert.rejects(async () => {
+    assert.rejects(() => {
       return crypto.subtle.decrypt({
         name: 'AES-GCM',
         iv: new Uint8Array(12),
