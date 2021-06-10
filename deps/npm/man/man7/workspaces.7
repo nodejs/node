@@ -17,7 +17,7 @@ We also refer to these packages being auto\-symlinked during \fBnpm install\fP a
 single \fBworkspace\fR, meaning it's a nested package within the current local
 file system that is explicitly defined in the npm help \fBpackage\.json\fP
 \fBworkspaces\fP configuration\.
-.SS Installing workspaces
+.SS Defining workspaces
 .P
 Workspaces are usually defined via the \fBworkspaces\fP property of the
 npm help \fBpackage\.json\fP file, e\.g:
@@ -64,6 +64,53 @@ structure of files and folders:
    `\-\- package\.json
 .fi
 .RE
+.SS Getting started with workspaces
+.P
+You may automate the required steps to define a new workspace using
+npm help init\. For example in a project that already has a
+\fBpackage\.json\fP defined you can run:
+.P
+.RS 2
+.nf
+npm init \-w \./packages/a
+.fi
+.RE
+.P
+This command will create the missing folders and a new \fBpackage\.json\fP
+file (if needed) while also making sure to properly configure the
+\fB"workspaces"\fP property of your root project \fBpackage\.json\fP\|\.
+.SS Adding dependencies to a workspace
+.P
+It's possible to directly add/remove/update dependencies of your workspaces
+using the npm help \fBworkspace\fP config\.
+.P
+For example, assuming the following structure:
+.P
+.RS 2
+.nf
+\|\.
++\-\- package\.json
+`\-\- packages
+   +\-\- a
+   |   `\-\- package\.json
+   `\-\- b
+       `\-\- package\.json
+.fi
+.RE
+.P
+If you want to add a dependency named \fBabbrev\fP from the registry as a
+dependency of your workspace \fBa\fR, you may use the workspace config to tell
+the npm installer that package should be added as a dependency of the provided
+workspace:
+.P
+.RS 2
+.nf
+npm install abbrev \-w a
+.fi
+.RE
+.P
+Note: other installing commands such as \fBuninstall\fP, \fBci\fP, etc will also
+respect the provided \fBworkspace\fP configuration\.
 .SS Using workspaces
 .P
 Given the specifities of how Node\.js handles module resolution \fIhttps://nodejs\.org/dist/latest\-v14\.x/docs/api/modules\.html#modules_all_together\fR it's possible to consume any defined workspace
@@ -150,5 +197,7 @@ npm help install
 npm help publish
 .IP \(bu 2
 npm help run\-script
+.IP \(bu 2
+npm help config
 
 .RE
