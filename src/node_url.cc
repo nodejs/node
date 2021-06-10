@@ -14,6 +14,14 @@ namespace node {
 
 using errors::TryCatchScope;
 
+using url::table_data::hex;
+using url::table_data::C0_CONTROL_ENCODE_SET;
+using url::table_data::FRAGMENT_ENCODE_SET;
+using url::table_data::PATH_ENCODE_SET;
+using url::table_data::USERINFO_ENCODE_SET;
+using url::table_data::QUERY_ENCODE_SET_NONSPECIAL;
+using url::table_data::QUERY_ENCODE_SET_SPECIAL;
+
 using v8::Array;
 using v8::Context;
 using v8::Function;
@@ -40,14 +48,6 @@ Local<String> Utf8String(Isolate* isolate, const std::string& str) {
 
 namespace url {
 namespace {
-
-using table_data::hex;
-using table_data::C0_CONTROL_ENCODE_SET;
-using table_data::FRAGMENT_ENCODE_SET;
-using table_data::PATH_ENCODE_SET;
-using table_data::USERINFO_ENCODE_SET;
-using table_data::QUERY_ENCODE_SET_NONSPECIAL;
-using table_data::QUERY_ENCODE_SET_SPECIAL;
 
 // https://url.spec.whatwg.org/#eof-code-point
 constexpr char kEOL = -1;
@@ -245,8 +245,8 @@ bool BitAt(const uint8_t a[], const uint8_t i) {
 // Appends ch to str. If ch position in encode_set is set, the ch will
 // be percent-encoded then appended.
 void AppendOrEscape(std::string* str,
-                           const unsigned char ch,
-                           const uint8_t encode_set[]) {
+                    const unsigned char ch,
+                    const uint8_t encode_set[]) {
   if (BitAt(encode_set, ch))
     *str += hex[ch];
   else
