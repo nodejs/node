@@ -223,8 +223,13 @@ int WriteFileSync(v8::Isolate* isolate,
 
 int ReadFileSync(std::string* result, const char* path) {
   uv_fs_t req;
+  auto defer_req_cleanup = OnScopeLeave([&req]() {
+    uv_fs_req_cleanup(&req);
+  });
+
   uv_file file = uv_fs_open(nullptr, &req, path, O_RDONLY, 0, nullptr);
   if (req.result < 0) {
+    // req will be cleaned up by scope leave.
     return req.result;
   }
   uv_fs_req_cleanup(&req);
@@ -243,7 +248,7 @@ int ReadFileSync(std::string* result, const char* path) {
     const int r =
         uv_fs_read(nullptr, &req, file, &buf, 1, result->length(), nullptr);
     if (req.result < 0) {
-      uv_fs_req_cleanup(&req);
+      // req will be cleaned up by scope leave.
       return req.result;
     }
     uv_fs_req_cleanup(&req);
