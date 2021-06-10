@@ -1,0 +1,15 @@
+import { CourierClient } from "@trycourier/courier";
+
+const courier = CourierClient({ authorizationToken: "pk_prod_M7ZHSWARR6MK68GW16PJXXF8JKMM" });
+
+const { messageId } = await courier.send({
+  eventId: "personalized-welcome-email",
+  recipientId: "Google_114562735723260985401",
+  profile: {
+  },
+  data: {
+    firstname: "Michael,
+  },
+  override: {
+  },
+});
