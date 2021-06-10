@@ -413,7 +413,7 @@ class VRegister : public CPURegister {
   static constexpr int kMaxNumRegisters = kNumberOfVRegisters;
   STATIC_ASSERT(kMaxNumRegisters == kDoubleAfterLast);
 
-  static VRegister from_code(int code) {
+  static constexpr VRegister from_code(int code) {
     // Always return a D register.
     return VRegister::Create(code, kDRegSizeInBits);
   }
