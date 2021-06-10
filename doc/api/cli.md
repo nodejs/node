@@ -1116,7 +1116,7 @@ Print stack traces for process warnings (including deprecations).
 added: REPLACEME
 -->
 
-Hide the Node.js version for fatal exceptions that cause Node.js to end.
+Hide version for fatal exceptions that causes exit.
 
 ### `--track-heap-objects`
 <!-- YAML

@@ -508,7 +508,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::trace_warnings,
             kAllowedInEnvironment);
   AddOption("--no-stacktrace-version",
-            "hide the Node.js version for fatal exceptions that cause Node.js to end",
+            "hide version for fatal exceptions that causes exit",
             &EnvironmentOptions::no_stacktrace_version,
             kAllowedInEnvironment);
   AddOption("--unhandled-rejections",
