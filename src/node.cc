@@ -477,6 +477,10 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
     return StartExecution(env, "internal/main/worker_thread");
   }
 
+  if (!per_process::cli_options->snapshot_main.empty()) {
+    return StartExecution(env, "internal/main/mksnapshot");
+  }
+
   std::string first_argv;
   if (env->argv().size() > 1) {
     first_argv = env->argv()[1];
@@ -1130,23 +1134,10 @@ int Start(int argc, char** argv) {
 
   if (!per_process::cli_options->snapshot_main.empty()) {
     SnapshotData data;
-    {
-      std::string entry;
-      int r =
-          ReadFileSync(&entry, per_process::cli_options->snapshot_main.c_str());
-      if (r != 0) {
-        const char* code = uv_err_name(r);
-        const char* message = uv_strerror(r);
-        FPrintF(stderr,
-                "Failed to open %s. %s: %s\n",
-                per_process::cli_options->snapshot_main.c_str(),
-                code,
-                message);
-        return 1;
-      }
-      node::SnapshotBuilder::Generate(
-          &data, entry, result.args, result.exec_args);
-    }
+    node::SnapshotBuilder::Generate(&data,
+                                    per_process::cli_options->snapshot_main,
+                                    result.args,
+                                    result.exec_args);
 
     std::string snapshot_blob_path;
     if (!per_process::cli_options->snapshot_blob.empty()) {

@@ -17,6 +17,7 @@ namespace node {
 
 using v8::Context;
 using v8::Function;
+using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
@@ -589,50 +590,20 @@ void SnapshotBuilder::Generate(SnapshotData* out,
       // Run the entry point file
       if (!entry_file.empty()) {
         TryCatch bootstrapCatch(isolate);
-        std::string filename_s = std::string("node:snapshot_main");
-        Local<String> filename =
-            OneByteString(isolate, filename_s.c_str(), filename_s.size());
-        ScriptOrigin origin(isolate, filename, 0, 0, true);
-        Local<String> source = ToV8Value(context, entry_file, isolate)
-                                   .ToLocalChecked()
-                                   .As<String>();
-        // TODO(joyee): do we need all of these? Maybe we would want a less
-        // internal version of them.
-        std::vector<Local<String>> parameters = {env->require_string(),
-                                                 env->process_string(),
-                                                 env->internal_binding_string(),
-                                                 env->primordials_string()};
-        ScriptCompiler::Source script_source(source, origin);
-        Local<Function> fn;
-        if (!ScriptCompiler::CompileFunctionInContext(
-                 context,
-                 &script_source,
-                 parameters.size(),
-                 parameters.data(),
-                 0,
-                 nullptr,
-                 ScriptCompiler::kEagerCompile)
-                 .ToLocal(&fn)) {
-          if (bootstrapCatch.HasCaught()) {
-            PrintCaughtException(isolate, context, bootstrapCatch);
-          }
-          abort();
-        }
-        std::vector<Local<Value>> args = {env->native_module_require(),
-                                          env->process_object(),
-                                          env->internal_binding_loader(),
-                                          env->primordials()};
-        Local<Value> result;
-        if (!fn->Call(context, Undefined(isolate), args.size(), args.data())
-                 .ToLocal(&result)) {
-          if (bootstrapCatch.HasCaught()) {
-            PrintCaughtException(isolate, context, bootstrapCatch);
-          }
-          abort();
-        }
         // TODO(joyee): we could use the result for something special, like
         // setting up initializers that should be invoked at snapshot
         // dehydration.
+        MaybeLocal<Value> result =
+            LoadEnvironment(env, StartExecutionCallback{});
+        if (bootstrapCatch.HasCaught()) {
+          PrintCaughtException(isolate, context, bootstrapCatch);
+        }
+        result.ToLocalChecked();
+        // FIXME(joyee): right now running the loop in the snapshot builder
+        // seems to intrudoces inconsistencies in JS land that need to be
+        // synchronized again after snapshot restoration.
+        // int exit_code = SpinEventLoop(env).FromMaybe(1);
+        // CHECK_EQ(exit_code, 0);
       }
 
       if (per_process::enabled_debug_list.enabled(DebugCategory::MKSNAPSHOT)) {
@@ -810,4 +781,50 @@ void SerializeBindingData(Environment* env,
   });
 }
 
+namespace mksnapshot {
+
+static void CompileSnapshotMain(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsString());
+  Local<String> source = args[0].As<String>();
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  std::string filename_s = std::string("node:snapshot_main");
+  Local<String> filename =
+      OneByteString(isolate, filename_s.c_str(), filename_s.size());
+  ScriptOrigin origin(isolate, filename, 0, 0, true);
+  // TODO(joyee): do we need all of these? Maybe we would want a less
+  // internal version of them.
+  std::vector<Local<String>> parameters = {
+      FIXED_ONE_BYTE_STRING(isolate, "require")};
+  ScriptCompiler::Source script_source(source, origin);
+  Local<Function> fn;
+  if (ScriptCompiler::CompileFunctionInContext(context,
+                                               &script_source,
+                                               parameters.size(),
+                                               parameters.data(),
+                                               0,
+                                               nullptr,
+                                               ScriptCompiler::kEagerCompile)
+          .ToLocal(&fn)) {
+    args.GetReturnValue().Set(fn);
+  }
+}
+
+static void Initialize(Local<Object> target,
+                       Local<Value> unused,
+                       Local<Context> context,
+                       void* priv) {
+  Environment* env = Environment::GetCurrent(context);
+  env->SetMethod(target, "compileSnapshotMain", CompileSnapshotMain);
+}
+
+static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(CompileSnapshotMain);
+  registry->Register(MarkBootstrapComplete);
+}
+}  // namespace mksnapshot
 }  // namespace node
+
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(mksnapshot, node::mksnapshot::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(mksnapshot,
+                               node::mksnapshot::RegisterExternalReferences)

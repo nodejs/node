@@ -322,6 +322,10 @@ void CheckedUvLoopClose(uv_loop_t* loop) {
   CHECK(0 && "uv_loop_close() while having open handles");
 }
 
+void PrintLibuvHandleInformation(Environment* env) {
+  PrintLibuvHandleInformation(env->event_loop(), stderr);
+}
+
 void PrintLibuvHandleInformation(uv_loop_t* loop, FILE* stream) {
   struct Info {
     std::unique_ptr<NativeSymbolDebuggingContext> ctx;
