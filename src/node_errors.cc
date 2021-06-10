@@ -408,7 +408,9 @@ static void ReportFatalException(Environment* env,
     }
   }
 
-  FPrintF(stderr, "    via Node.js %s\n", NODE_VERSION);
+  if (!env->options()->no_stacktrace_version) {
+    FPrintF(stderr, "    via Node.js %s\n", NODE_VERSION);
+  }
 
   fflush(stderr);
 }

@@ -507,6 +507,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "show stack traces on process warnings",
             &EnvironmentOptions::trace_warnings,
             kAllowedInEnvironment);
+  AddOption("--no-stacktrace-version",
+            "hide the Node.js version for fatal exceptions that cause Node.js to end",
+            &EnvironmentOptions::no_stacktrace_version,
+            kAllowedInEnvironment);
   AddOption("--unhandled-rejections",
             "define unhandled rejections behavior. Options are 'strict' "
             "(always raise an error), 'throw' (raise an error unless "
