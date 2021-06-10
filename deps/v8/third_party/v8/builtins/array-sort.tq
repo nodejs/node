@@ -1388,11 +1388,11 @@ ArrayPrototypeSort(
   // 3. Let len be ? ToLength(? Get(obj, "length")).
   const len: Number = GetLengthProperty(obj);
 
-  if (len < 2) return receiver;
+  if (len < 2) return obj;
 
   const sortState: SortState = NewSortState(obj, comparefn, len);
   ArrayTimSort(context, sortState);
 
-  return receiver;
+  return obj;
 }
 }

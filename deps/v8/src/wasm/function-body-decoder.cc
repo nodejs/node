@@ -209,27 +209,26 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
     os << RawOpcodeName(opcode) << ",";
 
     if (opcode == kExprLoop || opcode == kExprIf || opcode == kExprBlock ||
-        opcode == kExprTry) {
-      DCHECK_EQ(2, length);
-
-      // TODO(7748) Update this for gc and ref types if needed
-      switch (i.pc()[1]) {
-#define CASE_LOCAL_TYPE(local_name, type_name) \
-  case k##local_name##Code:                    \
-    os << " kWasm" #type_name ",";             \
-    break;
-
-        CASE_LOCAL_TYPE(I32, I32)
-        CASE_LOCAL_TYPE(I64, I64)
-        CASE_LOCAL_TYPE(F32, F32)
-        CASE_LOCAL_TYPE(F64, F64)
-        CASE_LOCAL_TYPE(S128, S128)
-        CASE_LOCAL_TYPE(Void, Stmt)
-        default:
-          os << " 0x" << AsHex(i.pc()[1], 2) << ",";
-          break;
+        opcode == kExprTry || opcode == kExprLet) {
+      if (i.pc()[1] & 0x80) {
+        uint32_t temp_length;
+        ValueType type =
+            value_type_reader::read_value_type<Decoder::kNoValidation>(
+                &decoder, i.pc() + 1, &temp_length, module,
+                WasmFeatures::All());
+        if (temp_length == 1) {
+          os << type.name() << ",";
+        } else {
+          // TODO(manoskouk): Improve this for rtts and (nullable) refs.
+          for (unsigned j = offset; j < length; ++j) {
+            os << " 0x" << AsHex(i.pc()[j], 2) << ",";
+          }
+        }
+      } else {
+        for (unsigned j = offset; j < length; ++j) {
+          os << " 0x" << AsHex(i.pc()[j], 2) << ",";
+        }
       }
-#undef CASE_LOCAL_TYPE
     } else {
       for (unsigned j = offset; j < length; ++j) {
         os << " 0x" << AsHex(i.pc()[j], 2) << ",";
@@ -249,7 +248,8 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
       case kExprLoop:
       case kExprIf:
       case kExprBlock:
-      case kExprTry: {
+      case kExprTry:
+      case kExprLet: {
         BlockTypeImmediate<Decoder::kNoValidation> imm(WasmFeatures::All(), &i,
                                                        i.pc() + 1, module);
         os << " @" << i.pc_offset();

@@ -19,7 +19,10 @@
 #include "src/compiler/schedule.h"
 #include "src/compiler/state-values-utils.h"
 #include "src/deoptimizer/deoptimizer.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/simd-shuffle.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -57,6 +60,7 @@ InstructionSelector::InstructionSelector(
       enable_scheduling_(enable_scheduling),
       enable_roots_relative_addressing_(enable_roots_relative_addressing),
       enable_switch_jump_table_(enable_switch_jump_table),
+      state_values_cache_(zone),
       poisoning_level_(poisoning_level),
       frame_(frame),
       instruction_selection_failed_(false),
@@ -578,6 +582,8 @@ class StateObjectDeduplicator {
     return id;
   }
 
+  size_t size() const { return objects_.size(); }
+
  private:
   static bool HasObjectId(Node* node) {
     return node->opcode() == IrOpcode::kTypedObjectState ||
@@ -649,24 +655,94 @@ size_t InstructionSelector::AddOperandToStateValueDescriptor(
   }
 }
 
+struct InstructionSelector::CachedStateValues : public ZoneObject {
+ public:
+  CachedStateValues(Zone* zone, StateValueList* values, size_t values_start,
+                    InstructionOperandVector* inputs, size_t inputs_start)
+      : inputs_(inputs->begin() + inputs_start, inputs->end(), zone),
+        values_(values->MakeSlice(values_start)) {}
+
+  size_t Emit(InstructionOperandVector* inputs, StateValueList* values) {
+    inputs->insert(inputs->end(), inputs_.begin(), inputs_.end());
+    values->PushCachedSlice(values_);
+    return inputs_.size();
+  }
+
+ private:
+  InstructionOperandVector inputs_;
+  StateValueList::Slice values_;
+};
+
+class InstructionSelector::CachedStateValuesBuilder {
+ public:
+  explicit CachedStateValuesBuilder(StateValueList* values,
+                                    InstructionOperandVector* inputs,
+                                    StateObjectDeduplicator* deduplicator)
+      : values_(values),
+        inputs_(inputs),
+        deduplicator_(deduplicator),
+        values_start_(values->size()),
+        nested_start_(values->nested_count()),
+        inputs_start_(inputs->size()),
+        deduplicator_start_(deduplicator->size()) {}
+
+  // We can only build a CachedStateValues for a StateValue if it didn't update
+  // any of the ids in the deduplicator.
+  bool CanCache() const { return deduplicator_->size() == deduplicator_start_; }
+
+  InstructionSelector::CachedStateValues* Build(Zone* zone) {
+    DCHECK(CanCache());
+    DCHECK(values_->nested_count() == nested_start_);
+    return zone->New<InstructionSelector::CachedStateValues>(
+        zone, values_, values_start_, inputs_, inputs_start_);
+  }
+
+ private:
+  StateValueList* values_;
+  InstructionOperandVector* inputs_;
+  StateObjectDeduplicator* deduplicator_;
+  size_t values_start_;
+  size_t nested_start_;
+  size_t inputs_start_;
+  size_t deduplicator_start_;
+};
+
 size_t InstructionSelector::AddInputsToFrameStateDescriptor(
     StateValueList* values, InstructionOperandVector* inputs,
     OperandGenerator* g, StateObjectDeduplicator* deduplicator, Node* node,
     FrameStateInputKind kind, Zone* zone) {
-  size_t entries = 0;
-  StateValuesAccess::iterator it = StateValuesAccess(node).begin();
-  // Take advantage of sparse nature of StateValuesAccess to skip over multiple
-  // empty nodes at once pushing repeated OptimizedOuts all in one go.
-  while (!it.done()) {
-    values->PushOptimizedOut(it.AdvanceTillNotEmpty());
-    if (it.done()) break;
-    StateValuesAccess::TypedNode input_node = *it;
-    entries += AddOperandToStateValueDescriptor(values, inputs, g, deduplicator,
-                                                input_node.node,
-                                                input_node.type, kind, zone);
-    ++it;
+  // StateValues are often shared across different nodes, and processing them is
+  // expensive, so cache the result of processing a StateValue so that we can
+  // quickly copy the result if we see it again.
+  FrameStateInput key(node, kind);
+  auto cache_entry = state_values_cache_.find(key);
+  if (cache_entry != state_values_cache_.end()) {
+    // Entry found in cache, emit cached version.
+    return cache_entry->second->Emit(inputs, values);
+  } else {
+    // Not found in cache, generate and then store in cache if possible.
+    size_t entries = 0;
+    CachedStateValuesBuilder cache_builder(values, inputs, deduplicator);
+    StateValuesAccess::iterator it = StateValuesAccess(node).begin();
+    // Take advantage of sparse nature of StateValuesAccess to skip over
+    // multiple empty nodes at once pushing repeated OptimizedOuts all in one
+    // go.
+    while (!it.done()) {
+      values->PushOptimizedOut(it.AdvanceTillNotEmpty());
+      if (it.done()) break;
+      StateValuesAccess::TypedNode input_node = *it;
+      entries += AddOperandToStateValueDescriptor(values, inputs, g,
+                                                  deduplicator, input_node.node,
+                                                  input_node.type, kind, zone);
+      ++it;
+    }
+    if (cache_builder.CanCache()) {
+      // Use this->zone() to build the cache entry in the instruction selector's
+      // zone rather than the more long-lived instruction zone.
+      state_values_cache_.emplace(key, cache_builder.Build(this->zone()));
+    }
+    return entries;
   }
-  return entries;
 }
 
 // Returns the number of instruction operands added to inputs.
@@ -804,7 +880,7 @@ Instruction* InstructionSelector::EmitWithContinuation(
     AppendDeoptimizeArguments(&continuation_inputs_, cont->kind(),
                               cont->reason(), cont->feedback(),
                               FrameState{cont->frame_state()});
-  } else if (cont->IsSet()) {
+  } else if (cont->IsSet() || cont->IsSelect()) {
     continuation_outputs_.push_back(g.DefineAsRegister(cont->result()));
   } else if (cont->IsTrap()) {
     int trap_id = static_cast<int>(cont->trap_id());
@@ -914,7 +990,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
       }
 
       frame_->EnsureReturnSlots(
-          static_cast<int>(buffer->descriptor->StackReturnCount()));
+          static_cast<int>(buffer->descriptor->ReturnSlotCount()));
     }
 
     // Filter out the outputs that aren't live because no projection uses them.
@@ -967,6 +1043,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
                     ? g.UseFixed(callee, kJavaScriptCallCodeStartRegister)
                     : g.UseRegister(callee));
       break;
+#if V8_ENABLE_WEBASSEMBLY
     case CallDescriptor::kCallWasmCapiFunction:
     case CallDescriptor::kCallWasmFunction:
     case CallDescriptor::kCallWasmImportWrapper:
@@ -979,6 +1056,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
                     ? g.UseFixed(callee, kJavaScriptCallCodeStartRegister)
                     : g.UseRegister(callee));
       break;
+#endif  // V8_ENABLE_WEBASSEMBLY
     case CallDescriptor::kCallBuiltinPointer:
       // The common case for builtin pointers is to have the target in a
       // register. If we have a constant, we use a register anyway to simplify
@@ -1417,7 +1495,8 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kRetain:
       VisitRetain(node);
       return;
-    case IrOpcode::kLoad: {
+    case IrOpcode::kLoad:
+    case IrOpcode::kLoadImmutable: {
       LoadRepresentation type = LoadRepresentationOf(node->op());
       MarkAsRepresentation(type.representation(), node);
       return VisitLoad(node);
@@ -1425,12 +1504,6 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kLoadTransform: {
       MarkAsRepresentation(MachineRepresentation::kSimd128, node);
       return VisitLoadTransform(node);
-    }
-    case IrOpcode::kPrefetchTemporal: {
-      return VisitPrefetchTemporal(node);
-    }
-    case IrOpcode::kPrefetchNonTemporal: {
-      return VisitPrefetchNonTemporal(node);
     }
     case IrOpcode::kLoadLane: {
       MarkAsRepresentation(MachineRepresentation::kSimd128, node);
@@ -1675,6 +1748,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsFloat32(node), VisitFloat32Max(node);
     case IrOpcode::kFloat32Min:
       return MarkAsFloat32(node), VisitFloat32Min(node);
+    case IrOpcode::kFloat32Select:
+      return MarkAsFloat32(node), VisitSelect(node);
     case IrOpcode::kFloat64Add:
       return MarkAsFloat64(node), VisitFloat64Add(node);
     case IrOpcode::kFloat64Sub:
@@ -1743,6 +1818,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitFloat64LessThan(node);
     case IrOpcode::kFloat64LessThanOrEqual:
       return VisitFloat64LessThanOrEqual(node);
+    case IrOpcode::kFloat64Select:
+      return MarkAsFloat64(node), VisitSelect(node);
     case IrOpcode::kFloat32RoundDown:
       return MarkAsFloat32(node), VisitFloat32RoundDown(node);
     case IrOpcode::kFloat64RoundDown:
@@ -1968,8 +2045,6 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitF32x4RecipSqrtApprox(node);
     case IrOpcode::kF32x4Add:
       return MarkAsSimd128(node), VisitF32x4Add(node);
-    case IrOpcode::kF32x4AddHoriz:
-      return MarkAsSimd128(node), VisitF32x4AddHoriz(node);
     case IrOpcode::kF32x4Sub:
       return MarkAsSimd128(node), VisitF32x4Sub(node);
     case IrOpcode::kF32x4Mul:
@@ -2058,8 +2133,6 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI64x2ExtMulLowI32x4U(node);
     case IrOpcode::kI64x2ExtMulHighI32x4U:
       return MarkAsSimd128(node), VisitI64x2ExtMulHighI32x4U(node);
-    case IrOpcode::kI64x2SignSelect:
-      return MarkAsSimd128(node), VisitI64x2SignSelect(node);
     case IrOpcode::kI32x4Splat:
       return MarkAsSimd128(node), VisitI32x4Splat(node);
     case IrOpcode::kI32x4ExtractLane:
@@ -2080,8 +2153,6 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI32x4ShrS(node);
     case IrOpcode::kI32x4Add:
       return MarkAsSimd128(node), VisitI32x4Add(node);
-    case IrOpcode::kI32x4AddHoriz:
-      return MarkAsSimd128(node), VisitI32x4AddHoriz(node);
     case IrOpcode::kI32x4Sub:
       return MarkAsSimd128(node), VisitI32x4Sub(node);
     case IrOpcode::kI32x4Mul:
@@ -2128,8 +2199,6 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI32x4ExtMulLowI16x8U(node);
     case IrOpcode::kI32x4ExtMulHighI16x8U:
       return MarkAsSimd128(node), VisitI32x4ExtMulHighI16x8U(node);
-    case IrOpcode::kI32x4SignSelect:
-      return MarkAsSimd128(node), VisitI32x4SignSelect(node);
     case IrOpcode::kI32x4ExtAddPairwiseI16x8S:
       return MarkAsSimd128(node), VisitI32x4ExtAddPairwiseI16x8S(node);
     case IrOpcode::kI32x4ExtAddPairwiseI16x8U:
@@ -2162,8 +2231,6 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI16x8Add(node);
     case IrOpcode::kI16x8AddSatS:
       return MarkAsSimd128(node), VisitI16x8AddSatS(node);
-    case IrOpcode::kI16x8AddHoriz:
-      return MarkAsSimd128(node), VisitI16x8AddHoriz(node);
     case IrOpcode::kI16x8Sub:
       return MarkAsSimd128(node), VisitI16x8Sub(node);
     case IrOpcode::kI16x8SubSatS:
@@ -2218,8 +2285,6 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI16x8ExtMulLowI8x16U(node);
     case IrOpcode::kI16x8ExtMulHighI8x16U:
       return MarkAsSimd128(node), VisitI16x8ExtMulHighI8x16U(node);
-    case IrOpcode::kI16x8SignSelect:
-      return MarkAsSimd128(node), VisitI16x8SignSelect(node);
     case IrOpcode::kI16x8ExtAddPairwiseI8x16S:
       return MarkAsSimd128(node), VisitI16x8ExtAddPairwiseI8x16S(node);
     case IrOpcode::kI16x8ExtAddPairwiseI8x16U:
@@ -2248,8 +2313,6 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI8x16Sub(node);
     case IrOpcode::kI8x16SubSatS:
       return MarkAsSimd128(node), VisitI8x16SubSatS(node);
-    case IrOpcode::kI8x16Mul:
-      return MarkAsSimd128(node), VisitI8x16Mul(node);
     case IrOpcode::kI8x16MinS:
       return MarkAsSimd128(node), VisitI8x16MinS(node);
     case IrOpcode::kI8x16MaxS:
@@ -2286,8 +2349,6 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI8x16Abs(node);
     case IrOpcode::kI8x16BitMask:
       return MarkAsWord32(node), VisitI8x16BitMask(node);
-    case IrOpcode::kI8x16SignSelect:
-      return MarkAsSimd128(node), VisitI8x16SignSelect(node);
     case IrOpcode::kS128Const:
       return MarkAsSimd128(node), VisitS128Const(node);
     case IrOpcode::kS128Zero:
@@ -2310,14 +2371,14 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI8x16Shuffle(node);
     case IrOpcode::kV128AnyTrue:
       return MarkAsWord32(node), VisitV128AnyTrue(node);
-    case IrOpcode::kV64x2AllTrue:
-      return MarkAsWord32(node), VisitV64x2AllTrue(node);
-    case IrOpcode::kV32x4AllTrue:
-      return MarkAsWord32(node), VisitV32x4AllTrue(node);
-    case IrOpcode::kV16x8AllTrue:
-      return MarkAsWord32(node), VisitV16x8AllTrue(node);
-    case IrOpcode::kV8x16AllTrue:
-      return MarkAsWord32(node), VisitV8x16AllTrue(node);
+    case IrOpcode::kI64x2AllTrue:
+      return MarkAsWord32(node), VisitI64x2AllTrue(node);
+    case IrOpcode::kI32x4AllTrue:
+      return MarkAsWord32(node), VisitI32x4AllTrue(node);
+    case IrOpcode::kI16x8AllTrue:
+      return MarkAsWord32(node), VisitI16x8AllTrue(node);
+    case IrOpcode::kI8x16AllTrue:
+      return MarkAsWord32(node), VisitI8x16AllTrue(node);
     default:
       FATAL("Unexpected operator #%d:%s @ node #%d", node->opcode(),
             node->op()->mnemonic(), node->id());
@@ -2740,7 +2801,7 @@ void InstructionSelector::VisitI64x2ReplaceLaneI32Pair(Node* node) {
 }
 #endif  // !V8_TARGET_ARCH_IA32
 
-#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_PPC64
 #if !V8_TARGET_ARCH_ARM64
 #if !V8_TARGET_ARCH_MIPS64
 void InstructionSelector::VisitI64x2Splat(Node* node) { UNIMPLEMENTED(); }
@@ -2752,25 +2813,7 @@ void InstructionSelector::VisitF64x2Qfms(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Qfma(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Qfms(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_ARM64
-#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X
-
-#if !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32
-// TODO(v8:11168): Prototyping prefetch.
-void InstructionSelector::VisitPrefetchTemporal(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitPrefetchNonTemporal(Node* node) {
-  UNIMPLEMENTED();
-}
-#endif  // !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64 || !V8_TARGET_ARCH_IA32
-
-#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM64 && \
-    !V8_TARGET_ARCH_ARM
-// TODO(v8:10983) Prototyping sign select.
-void InstructionSelector::VisitI8x16SignSelect(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitI16x8SignSelect(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitI32x4SignSelect(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitI64x2SignSelect(Node* node) { UNIMPLEMENTED(); }
-#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM64
-        // && !V8_TARGET_ARCH_ARM
+#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_PPC64
 
 void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }
 
@@ -2939,11 +2982,13 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
     case CallDescriptor::kCallJSFunction:
       opcode = EncodeCallDescriptorFlags(kArchCallJSFunction, flags);
       break;
+#if V8_ENABLE_WEBASSEMBLY
     case CallDescriptor::kCallWasmCapiFunction:
     case CallDescriptor::kCallWasmFunction:
     case CallDescriptor::kCallWasmImportWrapper:
       opcode = EncodeCallDescriptorFlags(kArchCallWasmFunction, flags);
       break;
+#endif  // V8_ENABLE_WEBASSEMBLY
     case CallDescriptor::kCallBuiltinPointer:
       opcode = EncodeCallDescriptorFlags(kArchCallBuiltinPointer, flags);
       break;
@@ -3002,10 +3047,12 @@ void InstructionSelector::VisitTailCall(Node* node) {
       DCHECK(!caller->IsJSFunctionCall());
       opcode = kArchTailCallAddress;
       break;
+#if V8_ENABLE_WEBASSEMBLY
     case CallDescriptor::kCallWasmFunction:
       DCHECK(!caller->IsJSFunctionCall());
       opcode = kArchTailCallWasm;
       break;
+#endif  // V8_ENABLE_WEBASSEMBLY
     default:
       UNREACHABLE();
   }
@@ -3013,17 +3060,17 @@ void InstructionSelector::VisitTailCall(Node* node) {
 
   Emit(kArchPrepareTailCall, g.NoOutput());
 
-  // Add an immediate operand that represents the first slot that is unused
-  // with respect to the stack pointer that has been updated for the tail call
-  // instruction. This is used by backends that need to pad arguments for stack
-  // alignment, in order to store an optional slot of padding above the
-  // arguments.
-  const int optional_padding_slot = callee->GetFirstUnusedStackSlot();
-  buffer.instruction_args.push_back(g.TempImmediate(optional_padding_slot));
+  // Add an immediate operand that represents the offset to the first slot that
+  // is unused with respect to the stack pointer that has been updated for the
+  // tail call instruction. Backends that pad arguments can write the padding
+  // value at this offset from the stack.
+  const int optional_padding_offset =
+      callee->GetOffsetToFirstUnusedStackSlot() - 1;
+  buffer.instruction_args.push_back(g.TempImmediate(optional_padding_offset));
 
-  const int first_unused_stack_slot =
+  const int first_unused_slot_offset =
       kReturnAddressStackSlotCount + stack_param_delta;
-  buffer.instruction_args.push_back(g.TempImmediate(first_unused_stack_slot));
+  buffer.instruction_args.push_back(g.TempImmediate(first_unused_slot_offset));
 
   // Emit the tailcall instruction.
   Emit(opcode, 0, nullptr, buffer.instruction_args.size(),
@@ -3093,6 +3140,13 @@ void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
         kEqual, p.kind(), p.reason(), p.feedback(), node->InputAt(1));
     VisitWordCompareZero(node, node->InputAt(0), &cont);
   }
+}
+
+void InstructionSelector::VisitSelect(Node* node) {
+  FlagsContinuation cont =
+      FlagsContinuation::ForSelect(kNotEqual, node,
+                                   node->InputAt(1), node->InputAt(2));
+  VisitWordCompareZero(node, node->InputAt(0), &cont);
 }
 
 void InstructionSelector::VisitDynamicCheckMapsWithDeoptUnless(Node* node) {
@@ -3275,6 +3329,7 @@ FrameStateDescriptor* GetFrameStateDescriptorInternal(Zone* zone,
         GetFrameStateDescriptorInternal(zone, state.outer_frame_state());
   }
 
+#if V8_ENABLE_WEBASSEMBLY
   if (state_info.type() == FrameStateType::kJSToWasmBuiltinContinuation) {
     auto function_info = static_cast<const JSToWasmFrameStateFunctionInfo*>(
         state_info.function_info());
@@ -3283,6 +3338,7 @@ FrameStateDescriptor* GetFrameStateDescriptorInternal(Zone* zone,
         state_info.state_combine(), parameters, locals, stack,
         state_info.shared_info(), outer_state, function_info->signature());
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   return zone->New<FrameStateDescriptor>(
       zone, state_info.type(), state_info.bailout_id(),
@@ -3301,6 +3357,7 @@ FrameStateDescriptor* InstructionSelector::GetFrameStateDescriptor(
   return desc;
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 void InstructionSelector::CanonicalizeShuffle(Node* node, uint8_t* shuffle,
                                               bool* is_swizzle) {
   // Get raw shuffle indices.
@@ -3328,6 +3385,7 @@ void InstructionSelector::SwapShuffleInputs(Node* node) {
   node->ReplaceInput(0, input1);
   node->ReplaceInput(1, input0);
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 // static
 bool InstructionSelector::NeedsPoisoning(IsSafetyCheck safety_check) const {

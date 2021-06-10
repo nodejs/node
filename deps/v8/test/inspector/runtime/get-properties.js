@@ -104,6 +104,10 @@ InspectorTest.runAsyncTestSuite([
       this.Uint8Array = this.uint8array_old;
       delete this.uint8array_old;
     })()`);
+  },
+
+  async function testObjectWithProtoProperty() {
+    await logExpressionProperties('Object.defineProperty({}, "__proto__", {enumerable: true, value: {b:"aaa"}})');
   }
 ]);
 

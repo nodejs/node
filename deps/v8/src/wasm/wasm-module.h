@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_WASM_MODULE_H_
 #define V8_WASM_WASM_MODULE_H_
 
@@ -354,19 +358,20 @@ struct WasmTable {
   // TODO(9495): Update this function as more table types are supported, or
   // remove it completely when all reference types are allowed.
   static bool IsValidTableType(ValueType type, const WasmModule* module) {
-    if (!type.is_nullable()) return false;
+    if (!type.is_object_reference()) return false;
     HeapType heap_type = type.heap_type();
     return heap_type == HeapType::kFunc || heap_type == HeapType::kExtern ||
            (module != nullptr && heap_type.is_index() &&
             module->has_signature(heap_type.ref_index()));
   }
 
-  ValueType type = kWasmStmt;     // table type.
+  ValueType type = kWasmVoid;     // table type.
   uint32_t initial_size = 0;      // initial table size.
   uint32_t maximum_size = 0;      // maximum table size.
   bool has_maximum_size = false;  // true if there is a maximum size.
   bool imported = false;          // true if imported.
   bool exported = false;          // true if exported.
+  WasmInitExpr initial_value;
 };
 
 inline bool is_asmjs_module(const WasmModule* module) {

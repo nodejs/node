@@ -561,10 +561,12 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const FrameStateFunctionInfo* CreateFrameStateFunctionInfo(
       FrameStateType type, int parameter_count, int local_count,
       Handle<SharedFunctionInfo> shared_info);
+#if V8_ENABLE_WEBASSEMBLY
   const FrameStateFunctionInfo* CreateJSToWasmFrameStateFunctionInfo(
       FrameStateType type, int parameter_count, int local_count,
       Handle<SharedFunctionInfo> shared_info,
       const wasm::FunctionSig* signature);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   const Operator* MarkAsSafetyCheck(const Operator* op,
                                     IsSafetyCheck safety_check);

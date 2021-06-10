@@ -67,7 +67,9 @@ Handle<Object> Factory::NewURIError() {
                   MessageTemplate::kURIMalformed);
 }
 
-ReadOnlyRoots Factory::read_only_roots() { return ReadOnlyRoots(isolate()); }
+ReadOnlyRoots Factory::read_only_roots() const {
+  return ReadOnlyRoots(isolate());
+}
 
 }  // namespace internal
 }  // namespace v8

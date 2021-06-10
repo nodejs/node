@@ -54,8 +54,15 @@ async function printPauseLocationAndStep(msg) {
   let scopes = {};
   for (let scope of frame.scopeChain) {
     if (scope.type == 'module') continue;
-    let scope_properties =
-        await Protocol.Runtime.getProperties({objectId: scope.object.objectId});
+    var { objectId } = scope.object;
+    if (scope.type == 'wasm-expression-stack') {
+      objectId = (await Protocol.Runtime.callFunctionOn({
+        functionDeclaration: 'function() { return this.stack }',
+        objectId
+      })).result.result.objectId;
+    }
+    var scope_properties =
+        await Protocol.Runtime.getProperties({objectId});
     scopes[scope.type] = await Promise.all(scope_properties.result.result.map(
         elem => WasmInspectorTest.getWasmValue(elem.value)));
   }

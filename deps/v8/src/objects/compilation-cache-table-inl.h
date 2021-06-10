@@ -43,10 +43,18 @@ uint32_t CompilationCacheShape::StringSharedHash(String source,
     // collection.
     Script script(Script::cast(shared.script()));
     hash ^= String::cast(script.source()).EnsureHash();
-    STATIC_ASSERT(LanguageModeSize == 2);
-    if (is_strict(language_mode)) hash ^= 0x8000;
-    hash += position;
   }
+  STATIC_ASSERT(LanguageModeSize == 2);
+  if (is_strict(language_mode)) hash ^= 0x8000;
+  hash += position;
+  return hash;
+}
+
+uint32_t CompilationCacheShape::StringSharedHash(String source,
+                                                 LanguageMode language_mode) {
+  uint32_t hash = source.EnsureHash();
+  STATIC_ASSERT(LanguageModeSize == 2);
+  if (is_strict(language_mode)) hash ^= 0x8000;
   return hash;
 }
 
@@ -64,13 +72,19 @@ uint32_t CompilationCacheShape::HashForObject(ReadOnlyRoots roots,
   FixedArray val = FixedArray::cast(object);
   if (val.map() == roots.fixed_cow_array_map()) {
     DCHECK_EQ(4, val.length());
-    SharedFunctionInfo shared = SharedFunctionInfo::cast(val.get(0));
     String source = String::cast(val.get(1));
     int language_unchecked = Smi::ToInt(val.get(2));
     DCHECK(is_valid_language_mode(language_unchecked));
     LanguageMode language_mode = static_cast<LanguageMode>(language_unchecked);
     int position = Smi::ToInt(val.get(3));
-    return StringSharedHash(source, shared, language_mode, position);
+    Object shared_or_smi = val.get(0);
+    if (shared_or_smi.IsSmi()) {
+      DCHECK_EQ(position, kNoSourcePosition);
+      return StringSharedHash(source, language_mode);
+    } else {
+      return StringSharedHash(source, SharedFunctionInfo::cast(shared_or_smi),
+                              language_mode, position);
+    }
   }
 
   // RegExp: The key field (and the value field) contains the

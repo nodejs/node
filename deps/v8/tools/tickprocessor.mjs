@@ -293,7 +293,7 @@ export class TickProcessor extends LogReader {
   }
 
   processCodeCreation(type, kind, timestamp, start, size, name, maybe_func) {
-    if (maybe_func.length) {
+    if (type != 'RegExp' && maybe_func.length) {
       const funcAddr = parseInt(maybe_func[0]);
       const state = Profile.parseState(maybe_func[1]);
       this.profile_.addFuncCode(type, name, timestamp, start, size, funcAddr, state);

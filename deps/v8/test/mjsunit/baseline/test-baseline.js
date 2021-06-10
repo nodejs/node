@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --super-ic --sparkplug
+// Flags: --allow-natives-syntax --super-ic --sparkplug --no-always-sparkplug
 
 function run(f, ...args) {
   try { f(...args); } catch (e) {}
@@ -81,11 +81,14 @@ assertEquals(run(()=>{ var x = 0; for(var i = 0; i < 10; ++i) x+=1; return x;}),
 function testTypeOf(o, t) {
   let types = ['number', 'string', 'symbol', 'boolean', 'bigint', 'undefined',
                'function', 'object'];
-  assertEquals(t, eval('run(()=>typeof ' + o + ')'));
-  assertTrue(eval('run(()=>typeof ' + o + ' == "' + t + '")'));
+  assertEquals(t, eval('run(()=>typeof ' + o + ')'),
+               `(()=>typeof ${o})() == ${t}`);
+  assertTrue(eval('run(()=>typeof ' + o + ' == "' + t + '")'),
+             `typeof ${o} == ${t}`);
   var other_types = types.filter((x) => x !== t);
   for (var other of other_types) {
-    assertFalse(eval('run(()=>typeof ' + o + ' == "' + other + '")'));
+    assertFalse(eval('run(()=>typeof ' + o + ' == "' + other + '")'),
+                `typeof ${o} != ${other}`);
   }
 }
 
@@ -100,15 +103,15 @@ testTypeOf('"42"', 'string');
 testTypeOf('Symbol(42)', 'symbol');
 testTypeOf('{}', 'object');
 testTypeOf('[]', 'object');
-//testTypeOf('new Proxy({}, {})', 'object');
-//testTypeOf('new Proxy([], {})', 'object');
+testTypeOf('new Proxy({}, {})', 'object');
+testTypeOf('new Proxy([], {})', 'object');
 testTypeOf('(_ => 42)', 'function');
 testTypeOf('function() {}', 'function');
 testTypeOf('function*() {}', 'function');
 testTypeOf('async function() {}', 'function');
 testTypeOf('async function*() {}', 'function');
-//testTypeOf('new Proxy(_ => 42, {})', 'function');
-//testTypeOf('class {}', 'function');
+testTypeOf('new Proxy(_ => 42, {})', 'function');
+testTypeOf('class {}', 'function');
 testTypeOf('Object', 'function');
 
 // Binop
@@ -261,6 +264,19 @@ let gen = run(function*() {
 });
 let i = 1;
 for (let val of gen) {
+  assertEquals(i++, val);
+}
+assertEquals(4, i);
+
+// Generator with a lot of locals
+let gen_func_with_a_lot_of_locals = eval(`(function*() {
+  ${ Array(32*1024).fill().map((x,i)=>`let local_${i};`).join("\n") }
+  yield 1;
+  yield 2;
+  yield 3;
+})`);
+i = 1;
+for (let val of run(gen_func_with_a_lot_of_locals)) {
   assertEquals(i++, val);
 }
 assertEquals(4, i);

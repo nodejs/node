@@ -124,6 +124,7 @@
 ['arch == riscv64', {
   # SIMD support is still in progress.
   'debugger/wasm-scope-info*': [SKIP],
+  'debugger/wasm-step-after-trap': [SKIP],
 }],  # 'arch == riscv64'
 
 ################################################################################
@@ -144,6 +145,9 @@
   # This test is just slow on TSan, and TSan coverage is not needed to test
   # that we do not run OOM. Thus skip it on TSan.
   'debugger/wasm-step-a-lot': [SKIP],
+
+  # Another slow test that does not need to run on TSan.
+  'debugger/wasm-inspect-many-registers': [SKIP],
 }],  # 'tsan == True'
 
 ##############################################################################

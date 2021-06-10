@@ -153,6 +153,12 @@
   'debug/wasm/*': [SKIP],
 }],
 
+##############################################################################
+# Tests requiring Sparkplug.
+['arch not in (x64, arm64, ia32, arm)', {
+  'regress/regress-crbug-1199681': [SKIP],
+}],
+
 ################################################################################
 ['variant == stress_snapshot', {
   '*': [SKIP],  # only relevant for mjsunit tests.

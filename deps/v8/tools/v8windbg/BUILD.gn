@@ -40,6 +40,8 @@ v8_shared_library("v8windbg") {
     "base/dbgext.def",
     "src/cur-isolate.cc",
     "src/cur-isolate.h",
+    "src/js-stack.cc",
+    "src/js-stack.h",
     "src/list-chunks.cc",
     "src/list-chunks.h",
     "src/local-variables.cc",

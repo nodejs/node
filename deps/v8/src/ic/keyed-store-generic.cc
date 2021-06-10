@@ -555,8 +555,8 @@ void KeyedStoreGenericAssembler::EmitGenericElementStore(
 
   // Out-of-capacity accesses (index >= capacity) jump here. Additionally,
   // an ElementsKind transition might be necessary.
-  // The index can also be negative or larger than kMaxArrayIndex at this point!
-  // Jump to the runtime in that case to convert it to a named property.
+  // The index can also be negative or larger than kMaxElementIndex at this
+  // point! Jump to the runtime in that case to convert it to a named property.
   BIND(&if_grow);
   {
     Comment("Grow backing store");
@@ -638,7 +638,7 @@ void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
 
       BIND(&found_dict);
       {
-        TNode<NameDictionary> dictionary = CAST(var_meta_storage.value());
+        TNode<PropertyDictionary> dictionary = CAST(var_meta_storage.value());
         TNode<IntPtrT> entry = var_entry.value();
         TNode<Uint32T> details = LoadDetailsByKeyIndex(dictionary, entry);
         JumpIfDataProperty(details, &ok_to_write, readonly);
@@ -827,19 +827,15 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
   BIND(&dictionary_properties);
   {
-    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-      // TODO(v8:11167, v8:11177) Only here due to SetDataProperties workaround.
-      GotoIf(Int32TrueConstant(), slow);
-    }
     Comment("dictionary property store");
     // We checked for LAST_CUSTOM_ELEMENTS_RECEIVER before, which rules out
     // seeing global objects here (which would need special handling).
 
     TVARIABLE(IntPtrT, var_name_index);
     Label dictionary_found(this, &var_name_index), not_found(this);
-    TNode<NameDictionary> properties = CAST(LoadSlowProperties(receiver));
-    NameDictionaryLookup<NameDictionary>(properties, name, &dictionary_found,
-                                         &var_name_index, &not_found);
+    TNode<PropertyDictionary> properties = CAST(LoadSlowProperties(receiver));
+    NameDictionaryLookup<PropertyDictionary>(
+        properties, name, &dictionary_found, &var_name_index, &not_found);
     BIND(&dictionary_found);
     {
       Label check_const(this), overwrite(this), done(this);
@@ -877,8 +873,8 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
       BIND(&overwrite);
       {
         CheckForAssociatedProtector(name, slow);
-        StoreValueByKeyIndex<NameDictionary>(properties, var_name_index.value(),
-                                             p->value());
+        StoreValueByKeyIndex<PropertyDictionary>(
+            properties, var_name_index.value(), p->value());
         Goto(&done);
       }
 
@@ -916,8 +912,8 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
       }
       Label add_dictionary_property_slow(this);
       InvalidateValidityCellIfPrototype(receiver_map, bitfield3);
-      Add<NameDictionary>(properties, name, p->value(),
-                          &add_dictionary_property_slow);
+      Add<PropertyDictionary>(properties, name, p->value(),
+                              &add_dictionary_property_slow);
       exit_point->Return(p->value());
 
       BIND(&add_dictionary_property_slow);

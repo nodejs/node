@@ -30,7 +30,7 @@ class PropertyArray : public HeapObject {
   inline int Hash() const;
 
   inline Object get(int index) const;
-  inline Object get(IsolateRoot isolate, int index) const;
+  inline Object get(PtrComprCageBase cage_base, int index) const;
 
   inline void set(int index, Object value);
   // Setter with explicit barrier mode.

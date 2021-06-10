@@ -947,9 +947,10 @@ static int AllocationSitesCount(Heap* heap) {
 TEST(DecideToPretenureDuringCompilation) {
   // The test makes use of optimization and relies on deterministic
   // compilation.
-  if (!i::FLAG_opt || i::FLAG_always_opt || i::FLAG_minor_mc ||
-      i::FLAG_stress_incremental_marking || i::FLAG_optimize_for_size ||
-      i::FLAG_turbo_nci || i::FLAG_stress_concurrent_allocation) {
+  if (!i::FLAG_opt || i::FLAG_always_opt || i::FLAG_always_sparkplug ||
+      i::FLAG_minor_mc || i::FLAG_stress_incremental_marking ||
+      i::FLAG_optimize_for_size || i::FLAG_turbo_nci ||
+      i::FLAG_stress_concurrent_allocation) {
     return;
   }
 

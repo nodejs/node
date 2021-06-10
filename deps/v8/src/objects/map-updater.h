@@ -19,15 +19,15 @@ namespace internal {
 // including changes of elements kind, property attributes, property kind,
 // property location and field representations/type changes. It ensures that
 // the reconfigured map and all the intermediate maps are properly integrated
-// into the exising transition tree.
+// into the existing transition tree.
 //
 // To avoid high degrees over polymorphism, and to stabilize quickly, on every
 // rewrite the new type is deduced by merging the current type with any
 // potential new (partial) version of the type in the transition tree.
 // To do this, on each rewrite:
 // - Search the root of the transition tree using FindRootMap, remember
-//   the integrity level (preventExtensions/seal/freeze) transitions.
-// - Find/create a |root_map| with requested |new_elements_kind|.
+//   the integrity level (preventExtensions/seal/freeze) of transitions.
+// - Find/create a |root_map| with the requested |new_elements_kind|.
 // - Find |target_map|, the newest matching version of this map using the
 //   "updated" |old_map|'s descriptor array (i.e. whose entry at |modify_index|
 //   is considered to be of |new_kind| and having |new_attributes|) to walk
@@ -40,31 +40,31 @@ namespace internal {
 // - Generalize the |modify_index| descriptor using |new_representation| and
 //   |new_field_type|.
 // - Walk the tree again starting from the root towards |target_map|. Stop at
-//   |split_map|, the first map who's descriptor array does not match the merged
+//   |split_map|, the first map whose descriptor array does not match the merged
 //   descriptor array.
 // - If |target_map| == |split_map|, and there are no integrity level
 //   transitions, |target_map| is in the expected state. Return it.
 // - Otherwise, invalidate the outdated transition target from |target_map|, and
 //   replace its transition tree with a new branch for the updated descriptors.
 // - If the |old_map| had integrity level transition, create the new map for it.
-class MapUpdater {
+class V8_EXPORT_PRIVATE MapUpdater {
  public:
   MapUpdater(Isolate* isolate, Handle<Map> old_map);
 
   // Prepares for reconfiguring of a property at |descriptor| to data field
   // with given |attributes| and |representation|/|field_type| and
-  // performs the steps 1-5.
+  // performs the steps 1-6.
   Handle<Map> ReconfigureToDataField(InternalIndex descriptor,
                                      PropertyAttributes attributes,
                                      PropertyConstness constness,
                                      Representation representation,
                                      Handle<FieldType> field_type);
 
-  // Prepares for reconfiguring elements kind and performs the steps 1-5.
+  // Prepares for reconfiguring elements kind and performs the steps 1-6.
   Handle<Map> ReconfigureElementsKind(ElementsKind elements_kind);
 
   // Prepares for updating deprecated map to most up-to-date non-deprecated
-  // version and performs the steps 1-5.
+  // version and performs the steps 1-6.
   Handle<Map> Update();
 
  private:
@@ -75,6 +75,16 @@ class MapUpdater {
     kAtIntegrityLevelSource,
     kEnd
   };
+
+  // Updates map to the most up-to-date non-deprecated version.
+  static inline Handle<Map> UpdateMapNoLock(Isolate* isolate,
+                                            Handle<Map> old_map);
+
+  // Prepares for updating deprecated map to most up-to-date non-deprecated
+  // version and performs the steps 1-6.
+  // Unlike the Update() entry point it doesn't lock the map_updater_access
+  // mutex.
+  Handle<Map> UpdateImpl();
 
   // Try to reconfigure property in-place without rebuilding transition tree
   // and creating new maps. See implementation for details.
@@ -105,7 +115,7 @@ class MapUpdater {
 
   // Step 4.
   // - Walk the tree again starting from the root towards |target_map|. Stop at
-  //   |split_map|, the first map who's descriptor array does not match the
+  //   |split_map|, the first map whose descriptor array does not match the
   //   merged descriptor array.
   Handle<Map> FindSplitMap(Handle<DescriptorArray> descriptors);
 
@@ -117,7 +127,7 @@ class MapUpdater {
   //   descriptors.
   State ConstructNewMap();
 
-  // Step 6 (if there was
+  // Step 6.
   // - If the |old_map| had integrity level transition, create the new map
   //   for it.
   State ConstructNewMapWithIntegrityLevelTransition();
@@ -129,20 +139,20 @@ class MapUpdater {
   // Returns name of a |descriptor| property.
   inline Name GetKey(InternalIndex descriptor) const;
 
-  // Returns property details of a |descriptor| in "updated" |old_descrtiptors_|
+  // Returns property details of a |descriptor| in "updated" |old_descriptors_|
   // array.
   inline PropertyDetails GetDetails(InternalIndex descriptor) const;
 
   // Returns value of a |descriptor| with kDescriptor location in "updated"
-  // |old_descrtiptors_| array.
+  // |old_descriptors_| array.
   inline Object GetValue(InternalIndex descriptor) const;
 
   // Returns field type for a |descriptor| with kField location in "updated"
-  // |old_descrtiptors_| array.
+  // |old_descriptors_| array.
   inline FieldType GetFieldType(InternalIndex descriptor) const;
 
   // If a |descriptor| property in "updated" |old_descriptors_| has kField
-  // location then returns it's field type otherwise computes optimal field
+  // location then returns its field type, otherwise computes the optimal field
   // type for the descriptor's value and |representation|. The |location|
   // value must be a pre-fetched location for |descriptor|.
   inline Handle<FieldType> GetOrComputeFieldType(
@@ -150,7 +160,7 @@ class MapUpdater {
       Representation representation) const;
 
   // If a |descriptor| property in given |descriptors| array has kField
-  // location then returns it's field type otherwise computes optimal field
+  // location then returns its field type, otherwise computes the optimal field
   // type for the descriptor's value and |representation|.
   // The |location| value must be a pre-fetched location for |descriptor|.
   inline Handle<FieldType> GetOrComputeFieldType(

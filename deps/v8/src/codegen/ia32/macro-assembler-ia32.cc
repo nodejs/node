@@ -628,28 +628,6 @@ void TurboAssembler::Cvttsd2ui(Register dst, Operand src, XMMRegister tmp) {
   add(dst, Immediate(0x80000000));
 }
 
-void TurboAssembler::Roundps(XMMRegister dst, XMMRegister src,
-                             RoundingMode mode) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vroundps(dst, src, mode);
-  } else {
-    CpuFeatureScope scope(this, SSE4_1);
-    roundps(dst, src, mode);
-  }
-}
-
-void TurboAssembler::Roundpd(XMMRegister dst, XMMRegister src,
-                             RoundingMode mode) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vroundpd(dst, src, mode);
-  } else {
-    CpuFeatureScope scope(this, SSE4_1);
-    roundpd(dst, src, mode);
-  }
-}
-
 void TurboAssembler::Pmulhrsw(XMMRegister dst, XMMRegister src1,
                               XMMRegister src2) {
   if (CpuFeatures::IsSupported(AVX)) {
@@ -657,214 +635,10 @@ void TurboAssembler::Pmulhrsw(XMMRegister dst, XMMRegister src1,
     vpmulhrsw(dst, src1, src2);
   } else {
     if (dst != src1) {
-      movdqu(dst, src1);
+      movaps(dst, src1);
     }
     CpuFeatureScope sse_scope(this, SSSE3);
     pmulhrsw(dst, src2);
-  }
-}
-
-// 1. Unpack src0, src1 into even-number elements of scratch.
-// 2. Unpack src1, src0 into even-number elements of dst.
-// 3. Multiply 1. with 2.
-// For non-AVX, use non-destructive pshufd instead of punpckldq/punpckhdq.
-void TurboAssembler::I64x2ExtMul(XMMRegister dst, XMMRegister src1,
-                                 XMMRegister src2, XMMRegister scratch,
-                                 bool low, bool is_signed) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    if (low) {
-      vpunpckldq(scratch, src1, src1);
-      vpunpckldq(dst, src2, src2);
-    } else {
-      vpunpckhdq(scratch, src1, src1);
-      vpunpckhdq(dst, src2, src2);
-    }
-    if (is_signed) {
-      vpmuldq(dst, scratch, dst);
-    } else {
-      vpmuludq(dst, scratch, dst);
-    }
-  } else {
-    uint8_t mask = low ? 0x50 : 0xFA;
-    pshufd(scratch, src1, mask);
-    pshufd(dst, src2, mask);
-    if (is_signed) {
-      CpuFeatureScope sse4_scope(this, SSE4_1);
-      pmuldq(dst, scratch);
-    } else {
-      pmuludq(dst, scratch);
-    }
-  }
-}
-
-// 1. Multiply low word into scratch.
-// 2. Multiply high word (can be signed or unsigned) into dst.
-// 3. Unpack and interleave scratch and dst into dst.
-void TurboAssembler::I32x4ExtMul(XMMRegister dst, XMMRegister src1,
-                                 XMMRegister src2, XMMRegister scratch,
-                                 bool low, bool is_signed) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    vpmullw(scratch, src1, src2);
-    is_signed ? vpmulhw(dst, src1, src2) : vpmulhuw(dst, src1, src2);
-    low ? vpunpcklwd(dst, scratch, dst) : vpunpckhwd(dst, scratch, dst);
-  } else {
-    DCHECK_EQ(dst, src1);
-    movdqu(scratch, src1);
-    pmullw(dst, src2);
-    is_signed ? pmulhw(scratch, src2) : pmulhuw(scratch, src2);
-    low ? punpcklwd(dst, scratch) : punpckhwd(dst, scratch);
-  }
-}
-
-void TurboAssembler::I16x8ExtMul(XMMRegister dst, XMMRegister src1,
-                                 XMMRegister src2, XMMRegister scratch,
-                                 bool low, bool is_signed) {
-  if (low) {
-    is_signed ? Pmovsxbw(scratch, src1) : Pmovzxbw(scratch, src1);
-    is_signed ? Pmovsxbw(dst, src2) : Pmovzxbw(dst, src2);
-    Pmullw(dst, scratch);
-  } else {
-    Palignr(scratch, src1, uint8_t{8});
-    is_signed ? Pmovsxbw(scratch, scratch) : Pmovzxbw(scratch, scratch);
-    Palignr(dst, src2, uint8_t{8});
-    is_signed ? Pmovsxbw(dst, dst) : Pmovzxbw(dst, dst);
-    Pmullw(dst, scratch);
-  }
-}
-
-void TurboAssembler::S128Select(XMMRegister dst, XMMRegister mask,
-                                XMMRegister src1, XMMRegister src2,
-                                XMMRegister scratch) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpandn(scratch, mask, src2);
-    vpand(dst, src1, mask);
-    vpor(dst, dst, scratch);
-  } else {
-    DCHECK_EQ(dst, mask);
-    // Use float ops as they are 1 byte shorter than int ops.
-    movaps(scratch, dst);
-    andnps(scratch, src2);
-    andps(dst, src1);
-    orps(dst, scratch);
-  }
-}
-
-void TurboAssembler::I64x2SConvertI32x4High(XMMRegister dst, XMMRegister src) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    vpunpckhqdq(dst, src, src);
-    vpmovsxdq(dst, dst);
-  } else {
-    CpuFeatureScope sse_scope(this, SSE4_1);
-    pshufd(dst, src, 0xEE);
-    pmovsxdq(dst, dst);
-  }
-}
-
-void TurboAssembler::I64x2UConvertI32x4High(XMMRegister dst, XMMRegister src,
-                                            XMMRegister scratch) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    vpxor(scratch, scratch, scratch);
-    vpunpckhdq(dst, src, scratch);
-  } else {
-    CpuFeatureScope sse_scope(this, SSE4_1);
-    pshufd(dst, src, 0xEE);
-    pmovzxdq(dst, dst);
-  }
-}
-
-void TurboAssembler::I32x4SConvertI16x8High(XMMRegister dst, XMMRegister src) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    // src = |a|b|c|d|e|f|g|h| (high)
-    // dst = |e|e|f|f|g|g|h|h|
-    vpunpckhwd(dst, src, src);
-    vpsrad(dst, dst, 16);
-  } else {
-    CpuFeatureScope sse_scope(this, SSE4_1);
-    if (dst == src) {
-      // 2 bytes shorter than pshufd, but has depdency on dst.
-      movhlps(dst, src);
-      pmovsxwd(dst, dst);
-    } else {
-      // No dependency on dst.
-      pshufd(dst, src, 0xEE);
-      pmovsxwd(dst, dst);
-    }
-  }
-}
-
-void TurboAssembler::I32x4UConvertI16x8High(XMMRegister dst, XMMRegister src,
-                                            XMMRegister scratch) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    // scratch = |0|0|0|0|0|0|0|0|
-    // src     = |a|b|c|d|e|f|g|h|
-    // dst     = |0|a|0|b|0|c|0|d|
-    XMMRegister tmp = dst == src ? scratch : dst;
-    vpxor(tmp, tmp, tmp);
-    vpunpckhwd(dst, src, tmp);
-  } else {
-    if (dst == src) {
-      // xorps can be executed on more ports than pshufd.
-      xorps(scratch, scratch);
-      punpckhwd(dst, scratch);
-    } else {
-      CpuFeatureScope sse_scope(this, SSE4_1);
-      // No dependency on dst.
-      pshufd(dst, src, 0xEE);
-      pmovzxwd(dst, dst);
-    }
-  }
-}
-
-void TurboAssembler::I16x8SConvertI8x16High(XMMRegister dst, XMMRegister src) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    // src = |a|b|c|d|e|f|g|h|i|j|k|l|m|n|o|p| (high)
-    // dst = |i|i|j|j|k|k|l|l|m|m|n|n|o|o|p|p|
-    vpunpckhbw(dst, src, src);
-    vpsraw(dst, dst, 8);
-  } else {
-    CpuFeatureScope sse_scope(this, SSE4_1);
-    if (dst == src) {
-      // 2 bytes shorter than pshufd, but has depdency on dst.
-      movhlps(dst, src);
-      pmovsxbw(dst, dst);
-    } else {
-      CpuFeatureScope sse_scope(this, SSE4_1);
-      // No dependency on dst.
-      pshufd(dst, src, 0xEE);
-      pmovsxbw(dst, dst);
-    }
-  }
-}
-
-void TurboAssembler::I16x8UConvertI8x16High(XMMRegister dst, XMMRegister src,
-                                            XMMRegister scratch) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    // tmp = |0|0|0|0|0|0|0|0 | 0|0|0|0|0|0|0|0|
-    // src = |a|b|c|d|e|f|g|h | i|j|k|l|m|n|o|p|
-    // dst = |0|a|0|b|0|c|0|d | 0|e|0|f|0|g|0|h|
-    XMMRegister tmp = dst == src ? scratch : dst;
-    vpxor(tmp, tmp, tmp);
-    vpunpckhbw(dst, src, tmp);
-  } else {
-    CpuFeatureScope sse_scope(this, SSE4_1);
-    if (dst == src) {
-      // xorps can be executed on more ports than pshufd.
-      xorps(scratch, scratch);
-      punpckhbw(dst, scratch);
-    } else {
-      // No dependency on dst.
-      pshufd(dst, src, 0xEE);
-      pmovzxbw(dst, dst);
-    }
   }
 }
 
@@ -877,16 +651,6 @@ void TurboAssembler::I16x8Q15MulRSatS(XMMRegister dst, XMMRegister src1,
   Pmulhrsw(dst, src1, src2);
   Pcmpeqw(scratch, dst);
   Pxor(dst, scratch);
-}
-
-void TurboAssembler::S128Store32Lane(Operand dst, XMMRegister src,
-                                     uint8_t laneidx) {
-  if (laneidx == 0) {
-    Movss(dst, src);
-  } else {
-    DCHECK_GE(3, laneidx);
-    Extractps(dst, src, laneidx);
-  }
 }
 
 void TurboAssembler::I8x16Popcnt(XMMRegister dst, XMMRegister src,
@@ -915,8 +679,8 @@ void TurboAssembler::I8x16Popcnt(XMMRegister dst, XMMRegister src,
     // PSHUFB instruction, thus use PSHUFB-free divide-and-conquer
     // algorithm on these processors. ATOM CPU feature captures exactly
     // the right set of processors.
-    xorps(tmp1, tmp1);
-    pavgb(tmp1, src);
+    movaps(tmp1, src);
+    psrlw(tmp1, 1);
     if (dst != src) {
       movaps(dst, src);
     }
@@ -963,6 +727,10 @@ void TurboAssembler::F64x2ConvertLowI32x4U(XMMRegister dst, XMMRegister src,
   // dst = [ src_low, 0x43300000, src_high, 0x4330000 ];
   // 0x43300000'00000000 is a special double where the significand bits
   // precisely represents all uint32 numbers.
+  if (!CpuFeatures::IsSupported(AVX) && dst != src) {
+    movaps(dst, src);
+    src = dst;
+  }
   Unpcklps(dst, src,
            ExternalReferenceAsOperand(
                ExternalReference::
@@ -1053,85 +821,6 @@ void TurboAssembler::I32x4TruncSatF64x2UZero(XMMRegister dst, XMMRegister src,
   }
 }
 
-void TurboAssembler::I64x2Abs(XMMRegister dst, XMMRegister src,
-                              XMMRegister scratch) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    XMMRegister tmp = dst == src ? scratch : dst;
-    vpxor(tmp, tmp, tmp);
-    vpsubq(tmp, tmp, src);
-    vblendvpd(dst, src, tmp, src);
-  } else {
-    CpuFeatureScope sse_scope(this, SSE3);
-    movshdup(scratch, src);
-    if (dst != src) {
-      movaps(dst, src);
-    }
-    psrad(scratch, 31);
-    xorps(dst, scratch);
-    psubq(dst, scratch);
-  }
-}
-
-void TurboAssembler::I64x2GtS(XMMRegister dst, XMMRegister src0,
-                              XMMRegister src1, XMMRegister scratch) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    vpcmpgtq(dst, src0, src1);
-  } else if (CpuFeatures::IsSupported(SSE4_2)) {
-    CpuFeatureScope sse_scope(this, SSE4_2);
-    DCHECK_EQ(dst, src0);
-    pcmpgtq(dst, src1);
-  } else {
-    CpuFeatureScope sse_scope(this, SSSE3);
-    DCHECK_NE(dst, src0);
-    DCHECK_NE(dst, src1);
-    movaps(dst, src1);
-    movaps(scratch, src0);
-    psubq(dst, src0);
-    pcmpeqd(scratch, src1);
-    andps(dst, scratch);
-    movaps(scratch, src0);
-    pcmpgtd(scratch, src1);
-    orps(dst, scratch);
-    movshdup(dst, dst);
-  }
-}
-
-void TurboAssembler::I64x2GeS(XMMRegister dst, XMMRegister src0,
-                              XMMRegister src1, XMMRegister scratch) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    vpcmpgtq(dst, src1, src0);
-    vpcmpeqd(scratch, scratch, scratch);
-    vpxor(dst, dst, scratch);
-  } else if (CpuFeatures::IsSupported(SSE4_2)) {
-    CpuFeatureScope sse_scope(this, SSE4_2);
-    DCHECK_NE(dst, src0);
-    if (dst != src1) {
-      movaps(dst, src1);
-    }
-    pcmpgtq(dst, src0);
-    pcmpeqd(scratch, scratch);
-    xorps(dst, scratch);
-  } else {
-    CpuFeatureScope sse_scope(this, SSSE3);
-    DCHECK_NE(dst, src0);
-    DCHECK_NE(dst, src1);
-    movaps(dst, src0);
-    movaps(scratch, src1);
-    psubq(dst, src1);
-    pcmpeqd(scratch, src0);
-    andps(dst, scratch);
-    movaps(scratch, src1);
-    pcmpgtd(scratch, src0);
-    orps(dst, scratch);
-    movshdup(dst, dst);
-    pcmpeqd(scratch, scratch);
-    xorps(dst, scratch);
-  }
-}
-
 void TurboAssembler::I16x8ExtAddPairwiseI8x16S(XMMRegister dst, XMMRegister src,
                                                XMMRegister tmp,
                                                Register scratch) {
@@ -1160,19 +849,20 @@ void TurboAssembler::I16x8ExtAddPairwiseI8x16U(XMMRegister dst, XMMRegister src,
                                                Register scratch) {
   Operand op = ExternalReferenceAsOperand(
       ExternalReference::address_of_wasm_i8x16_splat_0x01(), scratch);
-  if (!CpuFeatures::IsSupported(AVX) && dst != src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vpmaddubsw(dst, src, op);
+  } else {
+    CpuFeatureScope sse_scope(this, SSSE3);
     movaps(dst, src);
+    pmaddubsw(dst, op);
   }
-  Pmaddubsw(dst, src, op);
 }
 
 void TurboAssembler::I32x4ExtAddPairwiseI16x8S(XMMRegister dst, XMMRegister src,
                                                Register scratch) {
   Operand op = ExternalReferenceAsOperand(
       ExternalReference::address_of_wasm_i16x8_splat_0x0001(), scratch);
-  if (!CpuFeatures::IsSupported(AVX) && dst != src) {
-    movaps(dst, src);
-  }
   // pmaddwd multiplies signed words in src and op, producing
   // signed doublewords, then adds pairwise.
   // src = |a|b|c|d|e|f|g|h|
@@ -1182,16 +872,68 @@ void TurboAssembler::I32x4ExtAddPairwiseI16x8S(XMMRegister dst, XMMRegister src,
 
 void TurboAssembler::I32x4ExtAddPairwiseI16x8U(XMMRegister dst, XMMRegister src,
                                                XMMRegister tmp) {
-  // src = |a|b|c|d|e|f|g|h|
-  // tmp = i32x4.splat(0x0000FFFF)
-  Pcmpeqd(tmp, tmp);
-  Psrld(tmp, tmp, byte{16});
-  // tmp =|0|b|0|d|0|f|0|h|
-  Pand(tmp, src);
-  // dst = |0|a|0|c|0|e|0|g|
-  Psrld(dst, src, byte{16});
-  // dst = |a+b|c+d|e+f|g+h|
-  Paddd(dst, dst, tmp);
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    // src = |a|b|c|d|e|f|g|h| (low)
+    // scratch = |0|a|0|c|0|e|0|g|
+    vpsrld(tmp, src, 16);
+    // dst = |0|b|0|d|0|f|0|h|
+    vpblendw(dst, src, tmp, 0xAA);
+    // dst = |a+b|c+d|e+f|g+h|
+    vpaddd(dst, tmp, dst);
+  } else if (CpuFeatures::IsSupported(SSE4_1)) {
+    CpuFeatureScope sse_scope(this, SSE4_1);
+    // There is a potentially better lowering if we get rip-relative constants,
+    // see https://github.com/WebAssembly/simd/pull/380.
+    movaps(tmp, src);
+    psrld(tmp, 16);
+    if (dst != src) {
+      movaps(dst, src);
+    }
+    pblendw(dst, tmp, 0xAA);
+    paddd(dst, tmp);
+  } else {
+    // src = |a|b|c|d|e|f|g|h|
+    // tmp = i32x4.splat(0x0000FFFF)
+    pcmpeqd(tmp, tmp);
+    psrld(tmp, byte{16});
+    // tmp =|0|b|0|d|0|f|0|h|
+    andps(tmp, src);
+    // dst = |0|a|0|c|0|e|0|g|
+    if (dst != src) {
+      movaps(dst, src);
+    }
+    psrld(dst, byte{16});
+    // dst = |a+b|c+d|e+f|g+h|
+    paddd(dst, tmp);
+  }
+}
+
+void TurboAssembler::I8x16Swizzle(XMMRegister dst, XMMRegister src,
+                                  XMMRegister mask, XMMRegister scratch,
+                                  Register tmp, bool omit_add) {
+  if (omit_add) {
+    Pshufb(dst, src, mask);
+    return;
+  }
+
+  // Out-of-range indices should return 0, add 112 so that any value > 15
+  // saturates to 128 (top bit set), so pshufb will zero that lane.
+  Operand op = ExternalReferenceAsOperand(
+      ExternalReference::address_of_wasm_i8x16_swizzle_mask(), tmp);
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vpaddusb(scratch, mask, op);
+    vpshufb(dst, src, scratch);
+  } else {
+    CpuFeatureScope sse_scope(this, SSSE3);
+    movaps(scratch, op);
+    if (dst != src) {
+      movaps(dst, src);
+    }
+    paddusb(scratch, mask);
+    pshufb(dst, scratch);
+  }
 }
 
 void TurboAssembler::ShlPair(Register high, Register low, uint8_t shift) {
@@ -1399,11 +1141,13 @@ void TurboAssembler::Prologue() {
 void TurboAssembler::EnterFrame(StackFrame::Type type) {
   push(ebp);
   mov(ebp, esp);
-  push(Immediate(StackFrame::TypeToMarker(type)));
+  if (!StackFrame::IsJavaScript(type)) {
+    Push(Immediate(StackFrame::TypeToMarker(type)));
+  }
 }
 
 void TurboAssembler::LeaveFrame(StackFrame::Type type) {
-  if (emit_debug_code()) {
+  if (emit_debug_code() && !StackFrame::IsJavaScript(type)) {
     cmp(Operand(ebp, CommonFrameConstants::kContextOrFrameTypeOffset),
         Immediate(StackFrame::TypeToMarker(type)));
     Check(equal, AbortReason::kStackFrameTypesMustMatch);
@@ -2019,6 +1763,8 @@ void TurboAssembler::Move(Operand dst, const Immediate& src) {
   }
 }
 
+void TurboAssembler::Move(Register dst, Operand src) { mov(dst, src); }
+
 void TurboAssembler::Move(Register dst, Handle<HeapObject> src) {
   if (root_array_available() && options().isolate_independent_code) {
     IndirectLoadConstant(dst, src);
@@ -2090,152 +1836,6 @@ void TurboAssembler::Move(XMMRegister dst, uint64_t src) {
   }
 }
 
-void TurboAssembler::Cmpeqps(XMMRegister dst, XMMRegister src1,
-                             XMMRegister src2) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    vcmpeqps(dst, src1, src2);
-  } else {
-    movaps(dst, src1);
-    cmpeqps(dst, src2);
-  }
-}
-
-void TurboAssembler::Pshufhw(XMMRegister dst, Operand src, uint8_t shuffle) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpshufhw(dst, src, shuffle);
-  } else {
-    pshufhw(dst, src, shuffle);
-  }
-}
-
-void TurboAssembler::Pshuflw(XMMRegister dst, Operand src, uint8_t shuffle) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpshuflw(dst, src, shuffle);
-  } else {
-    pshuflw(dst, src, shuffle);
-  }
-}
-
-void TurboAssembler::Pshufd(XMMRegister dst, Operand src, uint8_t shuffle) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpshufd(dst, src, shuffle);
-  } else {
-    pshufd(dst, src, shuffle);
-  }
-}
-
-void TurboAssembler::Psraw(XMMRegister dst, uint8_t shift) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpsraw(dst, dst, shift);
-  } else {
-    psraw(dst, shift);
-  }
-}
-
-void TurboAssembler::Psrlw(XMMRegister dst, uint8_t shift) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpsrlw(dst, dst, shift);
-  } else {
-    psrlw(dst, shift);
-  }
-}
-
-void TurboAssembler::Psrlq(XMMRegister dst, uint8_t shift) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpsrlq(dst, dst, shift);
-  } else {
-    psrlq(dst, shift);
-  }
-}
-
-void TurboAssembler::Psignb(XMMRegister dst, Operand src) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpsignb(dst, dst, src);
-    return;
-  }
-  if (CpuFeatures::IsSupported(SSSE3)) {
-    CpuFeatureScope sse_scope(this, SSSE3);
-    psignb(dst, src);
-    return;
-  }
-  FATAL("no AVX or SSE3 support");
-}
-
-void TurboAssembler::Psignw(XMMRegister dst, Operand src) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpsignw(dst, dst, src);
-    return;
-  }
-  if (CpuFeatures::IsSupported(SSSE3)) {
-    CpuFeatureScope sse_scope(this, SSSE3);
-    psignw(dst, src);
-    return;
-  }
-  FATAL("no AVX or SSE3 support");
-}
-
-void TurboAssembler::Psignd(XMMRegister dst, Operand src) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpsignd(dst, dst, src);
-    return;
-  }
-  if (CpuFeatures::IsSupported(SSSE3)) {
-    CpuFeatureScope sse_scope(this, SSSE3);
-    psignd(dst, src);
-    return;
-  }
-  FATAL("no AVX or SSE3 support");
-}
-
-void TurboAssembler::Haddps(XMMRegister dst, XMMRegister src1, Operand src2) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vhaddps(dst, src1, src2);
-  } else {
-    CpuFeatureScope scope(this, SSE3);
-    DCHECK_EQ(dst, src1);
-    haddps(dst, src2);
-  }
-}
-
-void TurboAssembler::Pcmpeqq(XMMRegister dst, Operand src) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpcmpeqq(dst, dst, src);
-  } else {
-    CpuFeatureScope scope(this, SSE4_1);
-    pcmpeqq(dst, src);
-  }
-}
-
-void TurboAssembler::Pcmpeqq(XMMRegister dst, XMMRegister src1,
-                             XMMRegister src2) {
-  Pcmpeqq(dst, src1, Operand(src2));
-}
-
-void TurboAssembler::Pcmpeqq(XMMRegister dst, XMMRegister src1, Operand src2) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpcmpeqq(dst, src1, src2);
-  } else {
-    // pcmpeqq is only used by Wasm SIMD, which requires SSE4_1.
-    DCHECK(CpuFeatures::IsSupported(SSE4_1));
-    CpuFeatureScope scope(this, SSE4_1);
-    DCHECK_EQ(dst, src1);
-    pcmpeqq(dst, src2);
-  }
-}
-
 void TurboAssembler::Pshufb(XMMRegister dst, XMMRegister src, Operand mask) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
@@ -2280,58 +1880,6 @@ void TurboAssembler::Palignr(XMMRegister dst, Operand src, uint8_t imm8) {
   FATAL("no AVX or SSE3 support");
 }
 
-void TurboAssembler::Pextrb(Operand dst, XMMRegister src, uint8_t imm8) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpextrb(dst, src, imm8);
-    return;
-  }
-  DCHECK(CpuFeatures::IsSupported(SSE4_1));
-  CpuFeatureScope sse_scope(this, SSE4_1);
-  pextrb(dst, src, imm8);
-  return;
-}
-
-void TurboAssembler::Pextrb(Register dst, XMMRegister src, uint8_t imm8) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpextrb(dst, src, imm8);
-    return;
-  }
-  if (CpuFeatures::IsSupported(SSE4_1)) {
-    CpuFeatureScope sse_scope(this, SSE4_1);
-    pextrb(dst, src, imm8);
-    return;
-  }
-  FATAL("no AVX or SSE4.1 support");
-}
-
-void TurboAssembler::Pextrw(Operand dst, XMMRegister src, uint8_t imm8) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpextrw(dst, src, imm8);
-    return;
-  }
-  DCHECK(CpuFeatures::IsSupported(SSE4_1));
-  CpuFeatureScope sse_scope(this, SSE4_1);
-  pextrw(dst, src, imm8);
-  return;
-}
-
-void TurboAssembler::Pextrw(Register dst, XMMRegister src, uint8_t imm8) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpextrw(dst, src, imm8);
-    return;
-  }
-  if (CpuFeatures::IsSupported(SSE4_1)) {
-    CpuFeatureScope sse_scope(this, SSE4_1);
-    pextrw(dst, src, imm8);
-    return;
-  }
-  FATAL("no AVX or SSE4.1 support");
-}
-
 void TurboAssembler::Pextrd(Register dst, XMMRegister src, uint8_t imm8) {
   if (imm8 == 0) {
     Movd(dst, src);
@@ -2371,7 +1919,7 @@ void TurboAssembler::Pinsrb(XMMRegister dst, XMMRegister src1, Operand src2,
   if (CpuFeatures::IsSupported(SSE4_1)) {
     CpuFeatureScope sse_scope(this, SSE4_1);
     if (dst != src1) {
-      movdqu(dst, src1);
+      movaps(dst, src1);
     }
     pinsrb(dst, src2, imm8);
     return;
@@ -2387,7 +1935,7 @@ void TurboAssembler::Pinsrd(XMMRegister dst, XMMRegister src1, Operand src2,
     return;
   }
   if (dst != src1) {
-    movdqu(dst, src1);
+    movaps(dst, src1);
   }
   if (CpuFeatures::IsSupported(SSE4_1)) {
     CpuFeatureScope sse_scope(this, SSE4_1);
@@ -2429,7 +1977,7 @@ void TurboAssembler::Pinsrw(XMMRegister dst, XMMRegister src1, Operand src2,
     return;
   } else {
     if (dst != src1) {
-      movdqu(dst, src1);
+      movaps(dst, src1);
     }
     pinsrw(dst, src2, imm8);
     return;
@@ -2444,17 +1992,6 @@ void TurboAssembler::Vbroadcastss(XMMRegister dst, Operand src) {
   }
   movss(dst, src);
   shufps(dst, dst, static_cast<byte>(0));
-}
-
-void TurboAssembler::Extractps(Operand dst, XMMRegister src, uint8_t imm8) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    vextractps(dst, src, imm8);
-  }
-
-  DCHECK(CpuFeatures::IsSupported(SSE4_1));
-  CpuFeatureScope avx_scope(this, SSE4_1);
-  extractps(dst, src, imm8);
 }
 
 void TurboAssembler::Shufps(XMMRegister dst, XMMRegister src1, XMMRegister src2,
@@ -2730,6 +2267,12 @@ void TurboAssembler::CallBuiltin(int builtin_index) {
   EmbeddedData d = EmbeddedData::FromBlob();
   Address entry = d.InstructionStartOfBuiltin(builtin_index);
   call(entry, RelocInfo::OFF_HEAP_TARGET);
+}
+
+Operand TurboAssembler::EntryFromBuiltinIndexAsOperand(
+    Builtins::Name builtin_index) {
+  return Operand(kRootRegister,
+                 IsolateData::builtin_entry_slot_offset(builtin_index));
 }
 
 void TurboAssembler::LoadCodeObjectEntry(Register destination,

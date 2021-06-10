@@ -886,6 +886,50 @@ TEST_F(InstructionSelectorTest, SIMDSplatZero) {
   }
 }
 
+struct SwizzleConstants {
+  uint8_t shuffle[kSimd128Size];
+  bool omit_add;
+};
+
+static constexpr SwizzleConstants kSwizzleConstants[] = {
+    {
+        // all lanes < kSimd128Size
+        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+        true,
+    },
+    {
+        // lanes that are >= kSimd128Size have top bit set
+        {12, 13, 14, 15, 0x90, 0x91, 0x92, 0x93, 0xA0, 0xA1, 0xA2, 0xA3, 0xFC,
+         0xFD, 0xFE, 0xFF},
+        true,
+    },
+    {
+        {12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27},
+        false,
+    },
+};
+
+using InstructionSelectorSIMDSwizzleConstantTest =
+    InstructionSelectorTestWithParam<SwizzleConstants>;
+
+TEST_P(InstructionSelectorSIMDSwizzleConstantTest, SimdSwizzleConstant) {
+  // Test optimization of swizzle with constant indices.
+  auto param = GetParam();
+  StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128());
+  Node* const c = m.S128Const(param.shuffle);
+  Node* swizzle = m.AddNode(m.machine()->I8x16Swizzle(), m.Parameter(0), c);
+  m.Return(swizzle);
+  Stream s = m.Build();
+  ASSERT_EQ(2U, s.size());
+  ASSERT_EQ(kIA32I8x16Swizzle, s[1]->arch_opcode());
+  ASSERT_EQ(param.omit_add, s[1]->misc());
+  ASSERT_EQ(1U, s[0]->OutputCount());
+}
+
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorSIMDSwizzleConstantTest,
+                         ::testing::ValuesIn(kSwizzleConstants));
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

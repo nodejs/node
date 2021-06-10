@@ -125,3 +125,6 @@ Internal properties
   [[ArrayBufferData]] string 0x...
   [[Int8Array]] object undefined
   [[Uint8Array]] object undefined
+
+Running test: testObjectWithProtoProperty
+  __proto__ own object undefined

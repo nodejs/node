@@ -61,7 +61,7 @@ builtin CreateRegExpLiteral(implicit context: Context)(
 
 builtin CreateShallowArrayLiteral(implicit context: Context)(
     maybeFeedbackVector: Undefined|FeedbackVector, slot: TaggedIndex,
-    constantElements: ArrayBoilerplateDescription): HeapObject {
+    constantElements: ArrayBoilerplateDescription, flags: Smi): HeapObject {
   try {
     const vector = Cast<FeedbackVector>(maybeFeedbackVector)
         otherwise CallRuntime;
@@ -70,8 +70,7 @@ builtin CreateShallowArrayLiteral(implicit context: Context)(
         otherwise CallRuntime;
   } label CallRuntime deferred {
     tail runtime::CreateArrayLiteral(
-        context, maybeFeedbackVector, slot, constantElements,
-        SmiConstant(kIsShallow));
+        context, maybeFeedbackVector, slot, constantElements, flags);
   }
 }
 

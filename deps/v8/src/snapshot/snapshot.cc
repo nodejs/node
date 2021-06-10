@@ -260,9 +260,14 @@ void Snapshot::ClearReconstructableDataForSerialization(
     }
 #ifdef DEBUG
     if (clear_recompilable_data) {
+#if V8_ENABLE_WEBASSEMBLY
       DCHECK(fun.shared().HasWasmExportedFunctionData() ||
              fun.shared().HasBuiltinId() || fun.shared().IsApiFunction() ||
              fun.shared().HasUncompiledDataWithoutPreparseData());
+#else
+      DCHECK(fun.shared().HasBuiltinId() || fun.shared().IsApiFunction() ||
+             fun.shared().HasUncompiledDataWithoutPreparseData());
+#endif  // V8_ENABLE_WEBASSEMBLY
     }
 #endif  // DEBUG
   }

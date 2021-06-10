@@ -48,9 +48,9 @@ constexpr RegList kLiftoffAssemblerFpCacheRegs = DoubleRegister::ListOf(
 
 #elif V8_TARGET_ARCH_ARM
 
-// r7: cp, r10: root, r11: fp, r12: ip, r13: sp, r14: lr, r15: pc.
+// r10: root, r11: fp, r12: ip, r13: sp, r14: lr, r15: pc.
 constexpr RegList kLiftoffAssemblerGpCacheRegs =
-    Register::ListOf(r0, r1, r2, r3, r4, r5, r6, r8, r9);
+    Register::ListOf(r0, r1, r2, r3, r4, r5, r6, r7, r8, r9);
 
 // d13: zero, d14-d15: scratch
 constexpr RegList kLiftoffAssemblerFpCacheRegs = LowDwVfpRegister::ListOf(
@@ -58,11 +58,11 @@ constexpr RegList kLiftoffAssemblerFpCacheRegs = LowDwVfpRegister::ListOf(
 
 #elif V8_TARGET_ARCH_ARM64
 
-// x16: ip0, x17: ip1, x18: platform register, x26: root, x27: cp, x29: fp,
+// x16: ip0, x17: ip1, x18: platform register, x26: root, x28: base, x29: fp,
 // x30: lr, x31: xzr.
 constexpr RegList kLiftoffAssemblerGpCacheRegs =
     CPURegister::ListOf(x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12,
-                        x13, x14, x15, x19, x20, x21, x22, x23, x24, x25, x28);
+                        x13, x14, x15, x19, x20, x21, x22, x23, x24, x25, x27);
 
 // d15: fp_zero, d30-d31: macro-assembler scratch V Registers.
 constexpr RegList kLiftoffAssemblerFpCacheRegs = CPURegister::ListOf(
@@ -72,7 +72,7 @@ constexpr RegList kLiftoffAssemblerFpCacheRegs = CPURegister::ListOf(
 #elif V8_TARGET_ARCH_S390X
 
 constexpr RegList kLiftoffAssemblerGpCacheRegs =
-    Register::ListOf(r2, r3, r4, r5, r6, r7, r8);
+    Register::ListOf(r2, r3, r4, r5, r6, r7, r8, cp);
 
 constexpr RegList kLiftoffAssemblerFpCacheRegs = DoubleRegister::ListOf(
     d0, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12);

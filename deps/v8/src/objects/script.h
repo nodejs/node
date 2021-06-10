@@ -35,7 +35,9 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
     TYPE_NATIVE = 0,
     TYPE_EXTENSION = 1,
     TYPE_NORMAL = 2,
+#if V8_ENABLE_WEBASSEMBLY
     TYPE_WASM = 3,
+#endif  // V8_ENABLE_WEBASSEMBLY
     TYPE_INSPECTOR = 4
   };
 
@@ -76,6 +78,7 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   // function infos created from this script.
   DECL_ACCESSORS(shared_function_infos, WeakFixedArray)
 
+#if V8_ENABLE_WEBASSEMBLY
   // [wasm_breakpoint_infos]: the list of {BreakPointInfo} objects describing
   // all WebAssembly breakpoints for modules/instances managed via this script.
   // This must only be called if the type of this script is TYPE_WASM.
@@ -92,6 +95,17 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   // This must only be called if the type of this script is TYPE_WASM.
   DECL_ACCESSORS(wasm_weak_instance_list, WeakArrayList)
 
+  // [break_on_entry] (wasm only): whether an instrumentation breakpoint is set
+  // for this script; this information will be transferred to existing and
+  // future instances to make sure that we stop before executing any code in
+  // this wasm module.
+  inline bool break_on_entry() const;
+  inline void set_break_on_entry(bool value);
+
+  // Check if the script contains any Asm modules.
+  bool ContainsAsmModule();
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   // [compilation_type]: how the the script was compiled. Encoded in the
   // 'flags' field.
   inline CompilationType compilation_type();
@@ -107,13 +121,6 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   inline bool is_repl_mode() const;
   inline void set_is_repl_mode(bool value);
 
-  // [break_on_entry] (wasm only): whether an instrumentation breakpoint is set
-  // for this script; this information will be transferred to existing and
-  // future instances to make sure that we stop before executing any code in
-  // this wasm module.
-  inline bool break_on_entry() const;
-  inline void set_break_on_entry(bool value);
-
   // [origin_options]: optional attributes set by the embedder via ScriptOrigin,
   // and used by the embedder to make decisions about the script. V8 just passes
   // this through. Encoded in the 'flags' field.
@@ -128,9 +135,6 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
 
   // Retrieve source position from where eval was called.
   static int GetEvalPosition(Isolate* isolate, Handle<Script> script);
-
-  // Check if the script contains any Asm modules.
-  bool ContainsAsmModule();
 
   // Init line_ends array with source code positions of line ends.
   template <typename LocalIsolate>

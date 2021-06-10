@@ -29,7 +29,7 @@ bool Foreign::IsNormalized(Object value) {
 }
 
 DEF_GETTER(Foreign, foreign_address, Address) {
-  return ReadExternalPointerField(kForeignAddressOffset, isolate,
+  return ReadExternalPointerField(kForeignAddressOffset, cage_base,
                                   kForeignForeignAddressTag);
 }
 

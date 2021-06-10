@@ -23,8 +23,11 @@
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/strings/string-stream.h"
 #include "src/utils/vector.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -94,6 +97,7 @@ const char* V8NameConverter::NameOfAddress(byte* pc) const {
       return v8_buffer_.begin();
     }
 
+#if V8_ENABLE_WEBASSEMBLY
     wasm::WasmCodeRefScope wasm_code_ref_scope;
     wasm::WasmCode* wasm_code =
         isolate_ ? isolate_->wasm_engine()->code_manager()->LookupCode(
@@ -104,6 +108,7 @@ const char* V8NameConverter::NameOfAddress(byte* pc) const {
                wasm::GetWasmCodeKindAsString(wasm_code->kind()));
       return v8_buffer_.begin();
     }
+#endif  // V8_ENABLE_WEBASSEMBLY
   }
 
   return disasm::NameConverter::NameOfAddress(pc);
@@ -247,12 +252,14 @@ static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
     } else {
       out->AddFormatted(" %s", CodeKindToString(kind));
     }
+#if V8_ENABLE_WEBASSEMBLY
   } else if (RelocInfo::IsWasmStubCall(rmode) && host.is_wasm_code()) {
     // Host is isolate-independent, try wasm native module instead.
     const char* runtime_stub_name = GetRuntimeStubName(
         host.as_wasm_code()->native_module()->GetRuntimeStubId(
             relocinfo->wasm_stub_call_address()));
     out->AddFormatted("    ;; wasm stub: %s", runtime_stub_name);
+#endif  // V8_ENABLE_WEBASSEMBLY
   } else if (RelocInfo::IsRuntimeEntry(rmode) && isolate != nullptr) {
     // A runtime entry relocinfo might be a deoptimization bailout.
     Address addr = relocinfo->target_address();
@@ -294,7 +301,8 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
   while (pc < end) {
     // First decode instruction so that we know its length.
     byte* prev_pc = pc;
-    if (constants > 0) {
+    bool decoding_constant_pool = constants > 0;
+    if (decoding_constant_pool) {
       SNPrintF(
           decode_buffer, "%08x       constant",
           base::ReadUnalignedValue<int32_t>(reinterpret_cast<Address>(pc)));
@@ -384,7 +392,11 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
     // If this is a constant pool load and we haven't found any RelocInfo
     // already, check if we can find some RelocInfo for the target address in
     // the constant pool.
-    if (pcs.empty() && !code.is_null()) {
+    // Make sure we're also not currently in the middle of decoding a constant
+    // pool itself, rather than a contant pool load. Since it can store any
+    // bytes, a constant could accidentally match with the bit-pattern checked
+    // by IsInConstantPool() below.
+    if (pcs.empty() && !code.is_null() && !decoding_constant_pool) {
       RelocInfo dummy_rinfo(reinterpret_cast<Address>(prev_pc), RelocInfo::NONE,
                             0, Code());
       if (dummy_rinfo.IsInConstantPool()) {

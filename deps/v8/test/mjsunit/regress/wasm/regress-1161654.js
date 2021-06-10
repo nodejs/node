@@ -34,7 +34,7 @@ kExprLocalGet, 0x01,  // local.get
 kExprLocalGet, 0x01,  // local.get
 kExprGlobalGet, 0x00,  // global.get
 kExprDrop,  // drop
-kExprLoop, kWasmStmt,  // loop @8
+kExprLoop, kWasmVoid,  // loop @8
   kExprLoop, 0x00,  // loop @10
     kExprI32Const, 0x01,  // i32.const
     kExprMemoryGrow, 0x00,  // memory.grow
