@@ -425,13 +425,10 @@ void OnFatalError(const char* location, const char* message) {
   }
 
   Isolate* isolate = Isolate::GetCurrent();
-  // TODO(legendecas): investigate failures on triggering node-report with
-  // nullptr isolates.
-  if (isolate == nullptr) {
-    fflush(stderr);
-    ABORT();
+  Environment* env = nullptr;
+  if (isolate != nullptr) {
+    env = Environment::GetCurrent(isolate);
   }
-  Environment* env = Environment::GetCurrent(isolate);
   bool report_on_fatalerror;
   {
     Mutex::ScopedLock lock(node::per_process::cli_options_mutex);
