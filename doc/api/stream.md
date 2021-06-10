@@ -992,8 +992,11 @@ called and `readableFlowing` is not `true`.
 added: REPLACEME
 -->
 
-* `limit` {number} maximum number of bytes to collect. In object streams, this
-  is the maximum number of items to collect. **Default:** Infinity.
+* `options` {Object} Collect options
+  * `limit` {number} maximum number of bytes to collect. In object streams, this
+    is the maximum number of items to collect. **Default:** Infinity.
+  * `rejectAtLimit` {boolean} Whether to reject the promise if the limit is
+    reached.
 * Returns: {Promise} Fulfills with all the data from the stream, in the form of:
   * If `readable` is a `Buffer` stream with encoding set, then a string.
   * If `readable` is a `Buffer` stream with encoding unset, then a `Buffer`.
@@ -1001,7 +1004,16 @@ added: REPLACEME
 
 Reads the stream to its `'end'`, collecting all the data in order.
 
-If the `limit` is reached, the promise is rejected with an error.
+If `rejectAtLimit` is true and the limit is reached, then the promise is
+rejected and the stream is destroyed.
+
+If `rejectAtLimit` is true and the limit is reached, then the promise will
+resolve with all the data up to (but not including) the chunk that would put the
+result over the limit. In this case, stream will not be destroyed and the
+remaining data can still be read from it.
+
+The stream will always be destroyed if it emits an error, which will be
+propagated as a rejection.
 
 ##### `readable.destroy([error])`
 <!-- YAML
