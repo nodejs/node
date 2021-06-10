@@ -657,6 +657,7 @@
         'src/node_trace_events.cc',
         'src/node_types.cc',
         'src/node_url.cc',
+        'src/node_url_tables.cc',
         'src/node_util.cc',
         'src/node_v8.cc',
         'src/node_wasi.cc',
