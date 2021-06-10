@@ -28,5 +28,6 @@
   [0.25, "--no-lazy-feedback-allocation"],
   [0.1, "--no-lazy-feedback-allocation --interrupt-budget=100"],
   [0.05, "--budget-for-feedback-vector-allocation=0"],
+  [0.1, "--no-wasm-generic-wrapper"],
   [0.0001, "--simulate-errors"]
 ]

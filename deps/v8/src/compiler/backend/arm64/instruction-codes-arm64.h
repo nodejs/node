@@ -93,13 +93,13 @@ namespace compiler {
   V(Arm64Poke)                              \
   V(Arm64PokePair)                          \
   V(Arm64Peek)                              \
-  V(Arm64Prfm)                              \
   V(Arm64Float32Cmp)                        \
   V(Arm64Float32Add)                        \
   V(Arm64Float32Sub)                        \
   V(Arm64Float32Mul)                        \
   V(Arm64Float32Div)                        \
   V(Arm64Float32Abs)                        \
+  V(Arm64Float32Abd)                        \
   V(Arm64Float32Neg)                        \
   V(Arm64Float32Sqrt)                       \
   V(Arm64Float32Fnmul)                      \
@@ -115,6 +115,7 @@ namespace compiler {
   V(Arm64Float64Max)                        \
   V(Arm64Float64Min)                        \
   V(Arm64Float64Abs)                        \
+  V(Arm64Float64Abd)                        \
   V(Arm64Float64Neg)                        \
   V(Arm64Float64Sqrt)                       \
   V(Arm64Float64Fnmul)                      \
@@ -187,6 +188,7 @@ namespace compiler {
   V(Arm64F64x2Add)                          \
   V(Arm64F64x2Sub)                          \
   V(Arm64F64x2Mul)                          \
+  V(Arm64F64x2MulElement)                   \
   V(Arm64F64x2Div)                          \
   V(Arm64F64x2Min)                          \
   V(Arm64F64x2Max)                          \
@@ -212,9 +214,9 @@ namespace compiler {
   V(Arm64F32x4RecipApprox)                  \
   V(Arm64F32x4RecipSqrtApprox)              \
   V(Arm64F32x4Add)                          \
-  V(Arm64F32x4AddHoriz)                     \
   V(Arm64F32x4Sub)                          \
   V(Arm64F32x4Mul)                          \
+  V(Arm64F32x4MulElement)                   \
   V(Arm64F32x4Div)                          \
   V(Arm64F32x4Min)                          \
   V(Arm64F32x4Max)                          \
@@ -251,7 +253,6 @@ namespace compiler {
   V(Arm64I32x4Shl)                          \
   V(Arm64I32x4ShrS)                         \
   V(Arm64I32x4Add)                          \
-  V(Arm64I32x4AddHoriz)                     \
   V(Arm64I32x4Sub)                          \
   V(Arm64I32x4Mul)                          \
   V(Arm64I32x4Mla)                          \
@@ -283,7 +284,6 @@ namespace compiler {
   V(Arm64I16x8SConvertI32x4)                \
   V(Arm64I16x8Add)                          \
   V(Arm64I16x8AddSatS)                      \
-  V(Arm64I16x8AddHoriz)                     \
   V(Arm64I16x8Sub)                          \
   V(Arm64I16x8SubSatS)                      \
   V(Arm64I16x8Mul)                          \
@@ -319,7 +319,6 @@ namespace compiler {
   V(Arm64I8x16AddSatS)                      \
   V(Arm64I8x16Sub)                          \
   V(Arm64I8x16SubSatS)                      \
-  V(Arm64I8x16Mul)                          \
   V(Arm64I8x16Mla)                          \
   V(Arm64I8x16Mls)                          \
   V(Arm64I8x16MinS)                         \
@@ -339,7 +338,6 @@ namespace compiler {
   V(Arm64I8x16RoundingAverageU)             \
   V(Arm64I8x16Abs)                          \
   V(Arm64I8x16BitMask)                      \
-  V(Arm64SignSelect)                        \
   V(Arm64S128Const)                         \
   V(Arm64S128Zero)                          \
   V(Arm64S128Dup)                           \
@@ -378,10 +376,10 @@ namespace compiler {
   V(Arm64S8x4Reverse)                       \
   V(Arm64S8x2Reverse)                       \
   V(Arm64V128AnyTrue)                       \
-  V(Arm64V64x2AllTrue)                      \
-  V(Arm64V32x4AllTrue)                      \
-  V(Arm64V16x8AllTrue)                      \
-  V(Arm64V8x16AllTrue)                      \
+  V(Arm64I64x2AllTrue)                      \
+  V(Arm64I32x4AllTrue)                      \
+  V(Arm64I16x8AllTrue)                      \
+  V(Arm64I8x16AllTrue)                      \
   V(Arm64LoadSplat)                         \
   V(Arm64LoadLane)                          \
   V(Arm64StoreLane)                         \

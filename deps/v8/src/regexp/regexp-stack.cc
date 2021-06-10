@@ -12,8 +12,7 @@ namespace internal {
 
 RegExpStackScope::RegExpStackScope(Isolate* isolate)
     : regexp_stack_(isolate->regexp_stack()) {
-  // Initialize, if not already initialized.
-  regexp_stack_->EnsureCapacity(0);
+  DCHECK(regexp_stack_->IsValid());
   // Irregexp is not reentrant in several ways; in particular, the
   // RegExpStackScope is not reentrant since the destructor frees allocated
   // memory. Protect against reentrancy here.
@@ -80,8 +79,8 @@ void RegExpStack::ThreadLocal::FreeAndInvalidate() {
 
 Address RegExpStack::EnsureCapacity(size_t size) {
   if (size > kMaximumStackSize) return kNullAddress;
-  if (size < kMinimumDynamicStackSize) size = kMinimumDynamicStackSize;
   if (thread_local_.memory_size_ < size) {
+    if (size < kMinimumDynamicStackSize) size = kMinimumDynamicStackSize;
     byte* new_memory = NewArray<byte>(size);
     if (thread_local_.memory_size_ > 0) {
       // Copy original memory into top of new memory.

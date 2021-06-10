@@ -51,5 +51,13 @@ TEST_F(TestingTest, OverrideEmbeddertackStateScope) {
   }
 }
 
+TEST_F(TestingTest, StandaloneTestingHeap) {
+  // Perform garbage collection through the StandaloneTestingHeap API.
+  cppgc::testing::StandaloneTestingHeap heap(GetHeap()->GetHeapHandle());
+  heap.StartGarbageCollection();
+  heap.PerformMarkingStep(EmbedderStackState::kNoHeapPointers);
+  heap.FinalizeGarbageCollection(EmbedderStackState::kNoHeapPointers);
+}
+
 }  // namespace internal
 }  // namespace cppgc

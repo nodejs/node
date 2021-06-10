@@ -281,7 +281,7 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
     case kS128:
     case kI8:
     case kI16:
-    case kStmt:
+    case kVoid:
     case kBottom:
       return subtype == supertype;
     case kRtt:
@@ -303,14 +303,14 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
       break;
   }
 
-  DCHECK(subtype.is_object_reference_type());
+  DCHECK(subtype.is_object_reference());
 
   bool compatible_references = subtype.is_nullable()
                                    ? supertype.is_nullable()
-                                   : supertype.is_object_reference_type();
+                                   : supertype.is_object_reference();
   if (!compatible_references) return false;
 
-  DCHECK(supertype.is_object_reference_type());
+  DCHECK(supertype.is_object_reference());
 
   // Now check that sub_heap and super_heap are subtype-related.
 

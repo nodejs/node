@@ -155,13 +155,14 @@ class UploadCL(Step):
 
     message.append(ISSUE_MSG)
 
-    message.append("TBR=%s" % self._options.reviewer)
+    message.append("R=%s" % self._options.reviewer)
     self.GitCommit("\n\n".join(message),  author=self._options.author, cwd=cwd)
     if not self._options.dry_run:
       self.GitUpload(force=True,
                      bypass_hooks=True,
                      cq=self._options.use_commit_queue,
                      cq_dry_run=self._options.use_dry_run,
+                     set_bot_commit=True,
                      cwd=cwd)
       print("CL uploaded.")
     else:

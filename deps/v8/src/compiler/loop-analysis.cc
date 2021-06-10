@@ -39,7 +39,6 @@ struct TempLoopInfo {
   LoopTree::Loop* loop;
 };
 
-
 // Encapsulation of the loop finding algorithm.
 // -----------------------------------------------------------------------------
 // Conceptually, the contents of a loop are those nodes that are "between" the
@@ -54,6 +53,8 @@ struct TempLoopInfo {
 // 1 bit per loop per node per direction are required during the marking phase.
 // To handle nested loops correctly, the algorithm must filter some reachability
 // marks on edges into/out-of the loop header nodes.
+// Note: this algorithm assumes there are no unreachable loop header nodes
+// (including loop phis).
 class LoopFinderImpl {
  public:
   LoopFinderImpl(Graph* graph, LoopTree* loop_tree, TickCounter* tick_counter,
@@ -542,6 +543,55 @@ LoopTree* LoopFinder::BuildLoopTree(Graph* graph, TickCounter* tick_counter,
   return loop_tree;
 }
 
+// static
+ZoneUnorderedSet<Node*>* LoopFinder::FindUnnestedLoopFromHeader(
+    Node* loop_header, Zone* zone, size_t max_size) {
+  auto* visited = zone->New<ZoneUnorderedSet<Node*>>(zone);
+
+  std::vector<Node*> queue;
+
+  DCHECK(loop_header->opcode() == IrOpcode::kLoop);
+
+  queue.push_back(loop_header);
+
+  while (!queue.empty()) {
+    Node* node = queue.back();
+    queue.pop_back();
+    // Terminate is not part of the loop, and neither are its uses.
+    if (node->opcode() == IrOpcode::kTerminate) {
+      DCHECK_EQ(node->InputAt(1), loop_header);
+      continue;
+    }
+    visited->insert(node);
+    if (visited->size() > max_size) return nullptr;
+    switch (node->opcode()) {
+      case IrOpcode::kLoopExit:
+        DCHECK_EQ(node->InputAt(1), loop_header);
+        // LoopExitValue/Effect uses are inside the loop. The rest are not.
+        for (Node* use : node->uses()) {
+          if (use->opcode() == IrOpcode::kLoopExitEffect ||
+              use->opcode() == IrOpcode::kLoopExitValue) {
+            if (visited->count(use) == 0) queue.push_back(use);
+          }
+        }
+        break;
+      case IrOpcode::kLoopExitEffect:
+      case IrOpcode::kLoopExitValue:
+        DCHECK_EQ(NodeProperties::GetControlInput(node)->InputAt(1),
+                  loop_header);
+        // All uses are outside the loop, do nothing.
+        break;
+      default:
+        for (Node* use : node->uses()) {
+          if (visited->count(use) == 0) queue.push_back(use);
+        }
+        break;
+    }
+  }
+
+  return visited;
+}
+
 bool LoopFinder::HasMarkedExits(LoopTree* loop_tree,
                                 const LoopTree::Loop* loop) {
   // Look for returns and if projections that are outside the loop but whose
@@ -606,34 +656,6 @@ void NodeCopier::Insert(Node* original, Node* copy) {
   node_map_.Set(original, copies_->size() + 1);
   copies_->push_back(original);
   copies_->push_back(copy);
-}
-
-void NodeCopier::CopyNodes(Graph* graph, Zone* tmp_zone_, Node* dead,
-                           NodeRange nodes,
-                           SourcePositionTable* source_positions,
-                           NodeOriginTable* node_origins) {
-  // Copy all the nodes first.
-  for (Node* original : nodes) {
-    SourcePositionTable::Scope position(
-        source_positions, source_positions->GetSourcePosition(original));
-    NodeOriginTable::Scope origin_scope(node_origins, "copy nodes", original);
-    node_map_.Set(original, copies_->size() + 1);
-    copies_->push_back(original);
-    for (uint32_t copy_index = 0; copy_index < copy_count_; copy_index++) {
-      Node* copy = graph->CloneNode(original);
-      copies_->push_back(copy);
-    }
-  }
-
-  // Fix inputs of the copies.
-  for (Node* original : nodes) {
-    for (uint32_t copy_index = 0; copy_index < copy_count_; copy_index++) {
-      Node* copy = map(original, copy_index);
-      for (int i = 0; i < copy->InputCount(); i++) {
-        copy->ReplaceInput(i, map(original->InputAt(i), copy_index));
-      }
-    }
-  }
 }
 
 }  // namespace compiler

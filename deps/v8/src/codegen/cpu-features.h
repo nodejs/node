@@ -58,6 +58,7 @@ enum CpuFeature {
   ISELECT,
   VSX,
   MODULO,
+  SIMD,
 
 #elif V8_TARGET_ARCH_S390X
   FPU,
@@ -108,9 +109,9 @@ class V8_EXPORT_PRIVATE CpuFeatures : public AllStatic {
     return (supported_ & (1u << f)) != 0;
   }
 
-  static inline bool SupportsOptimizer();
+  static bool SupportsWasmSimd128();
 
-  static inline bool SupportsWasmSimd128();
+  static inline bool SupportsOptimizer();
 
   static inline unsigned icache_line_size() {
     DCHECK_NE(icache_line_size_, 0);

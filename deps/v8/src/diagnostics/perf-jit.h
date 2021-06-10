@@ -58,8 +58,10 @@ class PerfJitLogger : public CodeEventLogger {
   void LogRecordedBuffer(Handle<AbstractCode> code,
                          MaybeHandle<SharedFunctionInfo> maybe_shared,
                          const char* name, int length) override;
+#if V8_ENABLE_WEBASSEMBLY
   void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
                          int length) override;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Extension added to V8 log file name to get the low-level log name.
   static const char kFilenameFormatString[];
@@ -75,7 +77,9 @@ class PerfJitLogger : public CodeEventLogger {
   void LogWriteBytes(const char* bytes, int size);
   void LogWriteHeader();
   void LogWriteDebugInfo(Handle<Code> code, Handle<SharedFunctionInfo> shared);
+#if V8_ENABLE_WEBASSEMBLY
   void LogWriteDebugInfo(const wasm::WasmCode* code);
+#endif  // V8_ENABLE_WEBASSEMBLY
   void LogWriteUnwindingInfo(Code code);
 
   static const uint32_t kElfMachIA32 = 3;

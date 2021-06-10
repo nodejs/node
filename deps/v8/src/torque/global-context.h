@@ -54,6 +54,8 @@ class GlobalContext : public ContextualClass<GlobalContext> {
   static bool force_assert_statements() {
     return Get().force_assert_statements_;
   }
+  static void SetAnnotateIR() { Get().annotate_ir_ = true; }
+  static bool annotate_ir() { return Get().annotate_ir_; }
   static Ast* ast() { return &Get().ast_; }
   static std::string MakeUniqueName(const std::string& base) {
     return base + "_" + std::to_string(Get().fresh_ids_[base]++);
@@ -106,6 +108,7 @@ class GlobalContext : public ContextualClass<GlobalContext> {
  private:
   bool collect_language_server_data_;
   bool force_assert_statements_;
+  bool annotate_ir_;
   Namespace* default_namespace_;
   Ast ast_;
   std::vector<std::unique_ptr<Declarable>> declarables_;

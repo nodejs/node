@@ -13,19 +13,12 @@
 namespace v8 {
 namespace internal {
 
-// static
-bool InstructionStream::PcIsOffHeap(Isolate* isolate, Address pc) {
-  const Address start =
-      reinterpret_cast<Address>(isolate->embedded_blob_code());
-  return start <= pc && pc < start + isolate->embedded_blob_code_size();
-}
+namespace {
 
-// static
-Code InstructionStream::TryLookupCode(Isolate* isolate, Address address) {
-  if (!PcIsOffHeap(isolate, address)) return Code();
+Builtins::Name TryLookupCode(const EmbeddedData& d, Address address) {
+  if (!d.IsInCodeRange(address)) return Builtins::kNoBuiltinId;
 
-  EmbeddedData d = EmbeddedData::FromBlob();
-  if (address < d.InstructionStartOfBuiltin(0)) return Code();
+  if (address < d.InstructionStartOfBuiltin(0)) return Builtins::kNoBuiltinId;
 
   // Note: Addresses within the padding section between builtins (i.e. within
   // start + size <= address < start + padded_size) are interpreted as belonging
@@ -42,11 +35,65 @@ Code InstructionStream::TryLookupCode(Isolate* isolate, Address address) {
     } else if (address >= end) {
       l = mid + 1;
     } else {
-      return isolate->builtins()->builtin(mid);
+      return static_cast<Builtins::Name>(mid);
     }
   }
 
   UNREACHABLE();
+}
+
+}  // namespace
+
+// static
+bool InstructionStream::PcIsOffHeap(Isolate* isolate, Address pc) {
+  // Mksnapshot calls this while the embedded blob is not available yet.
+  if (isolate->embedded_blob_code() == nullptr) return false;
+  DCHECK_NOT_NULL(Isolate::CurrentEmbeddedBlobCode());
+
+  if (EmbeddedData::FromBlob(isolate).IsInCodeRange(pc)) return true;
+  return isolate->is_short_builtin_calls_enabled() &&
+         EmbeddedData::FromBlob().IsInCodeRange(pc);
+}
+
+// static
+bool InstructionStream::TryGetAddressForHashing(Isolate* isolate,
+                                                Address address,
+                                                uint32_t* hashable_address) {
+  // Mksnapshot calls this while the embedded blob is not available yet.
+  if (isolate->embedded_blob_code() == nullptr) return false;
+  DCHECK_NOT_NULL(Isolate::CurrentEmbeddedBlobCode());
+
+  EmbeddedData d = EmbeddedData::FromBlob(isolate);
+  if (d.IsInCodeRange(address)) {
+    *hashable_address = d.AddressForHashing(address);
+    return true;
+  }
+
+  if (isolate->is_short_builtin_calls_enabled()) {
+    d = EmbeddedData::FromBlob();
+    if (d.IsInCodeRange(address)) {
+      *hashable_address = d.AddressForHashing(address);
+      return true;
+    }
+  }
+  return false;
+}
+
+// static
+Builtins::Name InstructionStream::TryLookupCode(Isolate* isolate,
+                                                Address address) {
+  // Mksnapshot calls this while the embedded blob is not available yet.
+  if (isolate->embedded_blob_code() == nullptr) return Builtins::kNoBuiltinId;
+  DCHECK_NOT_NULL(Isolate::CurrentEmbeddedBlobCode());
+
+  Builtins::Name builtin =
+      i::TryLookupCode(EmbeddedData::FromBlob(isolate), address);
+
+  if (isolate->is_short_builtin_calls_enabled() &&
+      !Builtins::IsBuiltinId(builtin)) {
+    builtin = i::TryLookupCode(EmbeddedData::FromBlob(), address);
+  }
+  return builtin;
 }
 
 // static

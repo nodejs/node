@@ -201,6 +201,33 @@
         ],
         'shards': 3,
       },
+      # No SSSE3.
+      {
+        'name': 'mozilla',
+        'suffix': 'nossse3',
+        'test_args': [
+          '--extra-flags',
+          '--noenable-ssse3 --noenable-sse4-1 --noenable-avx',
+        ],
+      },
+      {
+        'name': 'test262',
+        'suffix': 'nossse3',
+        'variant': 'default',
+        'test_args': [
+          '--extra-flags',
+          '--noenable-ssse3 --noenable-sse4-1 --noenable-avx',
+        ],
+      },
+      {
+        'name': 'v8testing',
+        'suffix': 'nossse3',
+        'test_args': [
+          '--extra-flags',
+          '--noenable-ssse3 --noenable-sse4-1 --noenable-avx',
+        ],
+        'shards': 3,
+      },
       # No SSE4.
       {
         'name': 'mozilla',
@@ -372,6 +399,8 @@
       {'name': 'mjsunit', 'variant': 'stress_snapshot'},
       # Experimental regexp engine.
       {'name': 'mjsunit', 'variant': 'experimental_regexp'},
+      # Concurrent inlining.
+      {'name': 'mjsunit', 'variant': 'concurrent_inlining'},
     ],
   },
   'v8_linux64_msan_rel_ng_triggered': {
@@ -550,7 +579,7 @@
       'os': 'Ubuntu-16.04',
     },
     'tests': [
-      {'name': 'v8testing', 'shards': 12},
+      {'name': 'v8testing', 'variant': 'default', 'shards': 4},
     ],
   },
   ##############################################################################
@@ -696,7 +725,7 @@
   'v8_mac_arm64_rel_ng_triggered': {
     'swarming_dimensions' : {
       'cpu': 'arm64',
-      'os': 'Mac-11.0',
+      'os': 'Mac-11',
       'pool': 'chromium.tests.mac-arm64',
     },
     'tests': [
@@ -706,7 +735,7 @@
   'v8_mac_arm64_dbg_ng_triggered': {
     'swarming_dimensions' : {
       'cpu': 'arm64',
-      'os': 'Mac-11.0',
+      'os': 'Mac-11',
       'pool': 'chromium.tests.mac-arm64',
     },
     'tests': [
@@ -716,7 +745,7 @@
   'v8_mac_arm64_full_dbg_ng_triggered': {
     'swarming_dimensions' : {
       'cpu': 'arm64',
-      'os': 'Mac-11.0',
+      'os': 'Mac-11',
       'pool': 'chromium.tests.mac-arm64',
     },
     'tests': [
@@ -799,6 +828,17 @@
         'name': 'v8testing',
         'suffix': 'nosse3',
         'test_args': ['--extra-flags', '--noenable-sse3 --noenable-ssse3 --noenable-sse4-1 --noenable-avx']
+      },
+      # Nossse3.
+      {
+        'name': 'mozilla',
+        'suffix': 'nossse3',
+        'test_args': ['--extra-flags', '--noenable-ssse3 --noenable-sse4-1 --noenable-avx']
+      },
+      {
+        'name': 'v8testing',
+        'suffix': 'nossse3',
+        'test_args': ['--extra-flags', '--noenable-ssse3 --noenable-sse4-1 --noenable-avx']
       },
       # Nosse4.
       {
@@ -893,6 +933,24 @@
         'test_args': ['--extra-flags', '--noenable-sse3 --noenable-ssse3 --noenable-sse4-1 --noenable-avx'],
         'shards': 3
       },
+      # Nossse3.
+      {
+        'name': 'mozilla',
+        'suffix': 'nossse3',
+        'test_args': ['--extra-flags', '--noenable-ssse3 --noenable-sse4-1 --noenable-avx']
+      },
+      {
+        'name': 'test262',
+        'suffix': 'nossse3',
+        'variant': 'default',
+        'test_args': ['--extra-flags', '--noenable-ssse3 --noenable-sse4-1 --noenable-avx']
+      },
+      {
+        'name': 'v8testing',
+        'suffix': 'nossse3',
+        'test_args': ['--extra-flags', '--noenable-ssse3 --noenable-sse4-1 --noenable-avx'],
+        'shards': 3
+      },
       # Nosse4.
       {
         'name': 'mozilla',
@@ -934,11 +992,6 @@
   'V8 Linux - full debug': {
     'swarming_dimensions': {
       'os': 'Ubuntu-16.04',
-    },
-    'swarming_task_attrs': {
-      'expiration': 14400,
-      'hard_timeout': 3600,
-      'priority': 35,
     },
     'tests': [
       {'name': 'v8testing', 'variant': 'default', 'shards': 4},
@@ -1138,6 +1191,8 @@
       {'name': 'mjsunit', 'variant': 'stress_snapshot'},
       # Experimental regexp engine.
       {'name': 'mjsunit', 'variant': 'experimental_regexp'},
+      # Concurrent inlining.
+      {'name': 'mjsunit', 'variant': 'concurrent_inlining'},
     ],
   },
   'V8 Linux64 - debug - perfetto': {
@@ -1167,6 +1222,8 @@
       {'name': 'mjsunit', 'variant': 'stress_snapshot'},
       # Experimental regexp engine.
       {'name': 'mjsunit', 'variant': 'experimental_regexp'},
+      # Concurrent inlining.
+      {'name': 'mjsunit', 'variant': 'concurrent_inlining'},
     ],
   },
   'V8 Linux64 - gcov coverage': {
@@ -1360,7 +1417,7 @@
   },
   'V8 Mac - arm64 - release': {
     'swarming_dimensions' : {
-      'os': 'Mac-11.0',
+      'os': 'Mac-11',
       'cpu': 'arm64',
       'pool': 'chromium.tests.mac-arm64',
     },
@@ -1372,6 +1429,22 @@
     'tests': [
       {'name': 'd8testing'},
       {'name': 'd8testing', 'variant': 'extra'},
+    ],
+  },
+  'V8 Mac - arm64 - debug': {
+    'swarming_dimensions' : {
+      'os': 'Mac-11',
+      'cpu': 'arm64',
+      'pool': 'chromium.tests.mac-arm64',
+    },
+    'swarming_task_attrs': {
+      'expiration': 14400,
+      'hard_timeout': 3600,
+      'priority': 35,
+    },
+    'tests': [
+      {'name': 'd8testing', 'shards': 2},
+      {'name': 'd8testing', 'variant': 'extra', 'shards': 2},
     ],
   },
   'V8 Mac - arm64 - sim - debug': {

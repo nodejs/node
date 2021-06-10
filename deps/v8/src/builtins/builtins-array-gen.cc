@@ -19,9 +19,6 @@
 namespace v8 {
 namespace internal {
 
-using Node = compiler::Node;
-using IteratorRecord = TorqueStructIteratorRecord;
-
 ArrayBuiltinsAssembler::ArrayBuiltinsAssembler(
     compiler::CodeAssemblerState* state)
     : CodeStubAssembler(state),

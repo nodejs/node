@@ -43,7 +43,7 @@ void CheckAllObjectsOnPage(const std::vector<Handle<FixedArray>>& handles,
 }  // namespace
 
 HEAP_TEST(CompactionFullAbortedPage) {
-  if (FLAG_never_compact) return;
+  if (FLAG_never_compact || FLAG_crash_on_aborted_evacuation) return;
   // Test the scenario where we reach OOM during compaction and the whole page
   // is aborted.
 
@@ -106,7 +106,7 @@ int GetObjectSize(int objects_per_page) {
 }  // namespace
 
 HEAP_TEST(CompactionPartiallyAbortedPage) {
-  if (FLAG_never_compact) return;
+  if (FLAG_never_compact || FLAG_crash_on_aborted_evacuation) return;
   // Test the scenario where we reach OOM during compaction and parts of the
   // page have already been migrated to a new one.
 
@@ -186,7 +186,7 @@ HEAP_TEST(CompactionPartiallyAbortedPage) {
 }
 
 HEAP_TEST(CompactionPartiallyAbortedPageWithInvalidatedSlots) {
-  if (FLAG_never_compact) return;
+  if (FLAG_never_compact || FLAG_crash_on_aborted_evacuation) return;
   // Test evacuating a page partially when it contains recorded
   // slots and invalidated objects.
 
@@ -269,7 +269,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithInvalidatedSlots) {
 }
 
 HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
-  if (FLAG_never_compact) return;
+  if (FLAG_never_compact || FLAG_crash_on_aborted_evacuation) return;
   // Test the scenario where we reach OOM during compaction and parts of the
   // page have already been migrated to a new one. Objects on the aborted page
   // are linked together. This test makes sure that intra-aborted page pointers

@@ -18,7 +18,10 @@
 #include "src/objects/ordered-hash-table.h"
 #include "src/objects/synthetic-module-inl.h"
 #include "src/objects/torque-defined-classes.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-objects.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {

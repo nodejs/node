@@ -11,7 +11,10 @@
 #include "src/compiler/node.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/objects-inl.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/value-type.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -61,9 +64,11 @@ std::ostream& operator<<(std::ostream& os, FrameStateType type) {
     case FrameStateType::kBuiltinContinuation:
       os << "BUILTIN_CONTINUATION_FRAME";
       break;
+#if V8_ENABLE_WEBASSEMBLY
     case FrameStateType::kJSToWasmBuiltinContinuation:
       os << "JS_TO_WASM_BUILTIN_CONTINUATION_FRAME";
       break;
+#endif  // V8_ENABLE_WEBASSEMBLY
     case FrameStateType::kJavaScriptBuiltinContinuation:
       os << "JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME";
       break;
@@ -119,11 +124,18 @@ FrameState CreateBuiltinContinuationFrameStateCommon(
   Node* params_node = graph->NewNode(op_param, parameter_count, parameters);
 
   BytecodeOffset bailout_id = Builtins::GetContinuationBytecodeOffset(name);
+#if V8_ENABLE_WEBASSEMBLY
   const FrameStateFunctionInfo* state_info =
       signature ? common->CreateJSToWasmFrameStateFunctionInfo(
                       frame_type, parameter_count, 0, shared, signature)
                 : common->CreateFrameStateFunctionInfo(
                       frame_type, parameter_count, 0, shared);
+#else
+  DCHECK_NULL(signature);
+  const FrameStateFunctionInfo* state_info =
+      common->CreateFrameStateFunctionInfo(frame_type, parameter_count, 0,
+                                           shared);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   const Operator* op = common->FrameState(
       bailout_id, OutputFrameStateCombine::Ignore(), state_info);
@@ -167,29 +179,33 @@ FrameState CreateStubBuiltinContinuationFrameState(
   }
 
   FrameStateType frame_state_type = FrameStateType::kBuiltinContinuation;
+#if V8_ENABLE_WEBASSEMBLY
   if (name == Builtins::kJSToWasmLazyDeoptContinuation) {
     CHECK_NOT_NULL(signature);
     frame_state_type = FrameStateType::kJSToWasmBuiltinContinuation;
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
   return CreateBuiltinContinuationFrameStateCommon(
       jsgraph, frame_state_type, name, jsgraph->UndefinedConstant(), context,
       actual_parameters.data(), static_cast<int>(actual_parameters.size()),
       outer_frame_state, Handle<SharedFunctionInfo>(), signature);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 FrameState CreateJSWasmCallBuiltinContinuationFrameState(
     JSGraph* jsgraph, Node* context, Node* outer_frame_state,
     const wasm::FunctionSig* signature) {
-  base::Optional<wasm::ValueKind> wasm_return_type =
+  base::Optional<wasm::ValueKind> wasm_return_kind =
       wasm::WasmReturnTypeFromSignature(signature);
   Node* node_return_type =
-      jsgraph->SmiConstant(wasm_return_type ? wasm_return_type.value() : -1);
+      jsgraph->SmiConstant(wasm_return_kind ? wasm_return_kind.value() : -1);
   Node* lazy_deopt_parameters[] = {node_return_type};
   return CreateStubBuiltinContinuationFrameState(
       jsgraph, Builtins::kJSToWasmLazyDeoptContinuation, context,
       lazy_deopt_parameters, arraysize(lazy_deopt_parameters),
       outer_frame_state, ContinuationFrameStateMode::LAZY, signature);
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 FrameState CreateJavaScriptBuiltinContinuationFrameState(
     JSGraph* jsgraph, const SharedFunctionInfoRef& shared, Builtins::Name name,

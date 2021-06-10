@@ -20,6 +20,7 @@
 #include "src/torque/type-inference.h"
 #include "src/torque/type-visitor.h"
 #include "src/torque/types.h"
+#include "src/torque/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -154,6 +155,8 @@ void ImplementationVisitor::BeginDebugMacrosFile() {
   std::ostream& header = debug_macros_h_;
 
   source << "#include \"torque-generated/debug-macros.h\"\n\n";
+  source << "#include \"src/objects/swiss-name-dictionary.h\"\n";
+  source << "#include \"src/objects/ordered-hash-table.h\"\n";
   source << "#include \"tools/debug_helper/debug-macro-shims.h\"\n";
   source << "#include \"include/v8-internal.h\"\n";
   source << "\n";
@@ -166,13 +169,12 @@ void ImplementationVisitor::BeginDebugMacrosFile() {
   const char* kHeaderDefine = "V8_GEN_TORQUE_GENERATED_DEBUG_MACROS_H_";
   header << "#ifndef " << kHeaderDefine << "\n";
   header << "#define " << kHeaderDefine << "\n\n";
-  header << "#include \"src/builtins/torque-csa-header-includes.h\"\n";
   header << "#include \"tools/debug_helper/debug-helper-internal.h\"\n";
   header << "\n";
 
   header << "namespace v8 {\n"
          << "namespace internal {\n"
-         << "namespace debug_helper_internal{\n"
+         << "namespace debug_helper_internal {\n"
          << "\n";
 }
 
@@ -1381,10 +1383,19 @@ InitializerResults ImplementationVisitor::VisitInitializerResults(
 }
 
 LocationReference ImplementationVisitor::GenerateFieldReference(
-    VisitResult object, const Field& field, const ClassType* class_type) {
+    VisitResult object, const Field& field, const ClassType* class_type,
+    bool treat_optional_as_indexed) {
   if (field.index.has_value()) {
-    return LocationReference::HeapSlice(
+    LocationReference slice = LocationReference::HeapSlice(
         GenerateCall(class_type->GetSliceMacroName(field), {{object}, {}}));
+    if (field.index->optional && !treat_optional_as_indexed) {
+      // This field was declared using optional syntax, so any reference to it
+      // is implicitly a reference to the first item.
+      return GenerateReferenceToItemInHeapSlice(
+          slice, {TypeOracle::GetConstInt31Type(), "0"});
+    } else {
+      return slice;
+    }
   }
   DCHECK(field.offset.has_value());
   StackRange result_range = assembler().TopRange(0);
@@ -1481,18 +1492,25 @@ VisitResult ImplementationVisitor::GenerateArrayLength(VisitResult object,
     if (field.name_and_type.name == f.name_and_type.name) {
       before_current = false;
     }
+    // We can't generate field references eagerly here, because some preceding
+    // fields might be optional, and attempting to get a reference to an
+    // optional field can crash the program if the field isn't present.
+    // Instead, we use the lazy form of LocalValue to only generate field
+    // references if they are used in the length expression.
     bindings.insert(
         {f.name_and_type.name,
          f.const_qualified
              ? (before_current
-                    ? LocalValue{GenerateFieldReference(object, f, class_type)}
+                    ? LocalValue{[=]() {
+                        return GenerateFieldReference(object, f, class_type);
+                      }}
                     : LocalValue("Array lengths may only refer to fields "
                                  "defined earlier"))
              : LocalValue(
                    "Non-const fields cannot be used for array lengths.")});
   }
   return stack_scope.Yield(
-      GenerateArrayLength(*field.index, class_type->nspace(), bindings));
+      GenerateArrayLength(field.index->expr, class_type->nspace(), bindings));
 }
 
 VisitResult ImplementationVisitor::GenerateArrayLength(
@@ -1515,7 +1533,7 @@ VisitResult ImplementationVisitor::GenerateArrayLength(
                    "Non-const fields cannot be used for array lengths.")});
   }
   return stack_scope.Yield(
-      GenerateArrayLength(*field.index, class_type->nspace(), bindings));
+      GenerateArrayLength(field.index->expr, class_type->nspace(), bindings));
 }
 
 LayoutForInitialization ImplementationVisitor::GenerateLayoutForInitialization(
@@ -2284,20 +2302,25 @@ LocationReference ImplementationVisitor::GetLocationReference(
   LocationReference reference = GetLocationReference(expr->array);
   VisitResult index = Visit(expr->index);
   if (reference.IsHeapSlice()) {
-    Arguments arguments{{index}, {}};
-    const StructType* slice_type =
-        *reference.heap_slice().type()->StructSupertype();
-    Method* method = LookupMethod("AtIndex", slice_type, arguments, {});
-    // The reference has to be treated like a normal value when calling methods
-    // on the underlying slice implementation.
-    LocationReference slice_value = LocationReference::Temporary(
-        reference.GetVisitResult(), "slice as value");
-    return LocationReference::HeapReference(
-        GenerateCall(method, std::move(slice_value), arguments, {}, false));
+    return GenerateReferenceToItemInHeapSlice(reference, index);
   } else {
     return LocationReference::ArrayAccess(GenerateFetchFromLocation(reference),
                                           index);
   }
+}
+
+LocationReference ImplementationVisitor::GenerateReferenceToItemInHeapSlice(
+    LocationReference slice, VisitResult index) {
+  DCHECK(slice.IsHeapSlice());
+  Arguments arguments{{index}, {}};
+  const StructType* slice_type = *slice.heap_slice().type()->StructSupertype();
+  Method* method = LookupMethod("AtIndex", slice_type, arguments, {});
+  // The reference has to be treated like a normal value when calling methods
+  // on the underlying slice implementation.
+  LocationReference slice_value =
+      LocationReference::Temporary(slice.GetVisitResult(), "slice as value");
+  return LocationReference::HeapReference(
+      GenerateCall(method, std::move(slice_value), arguments, {}, false));
 }
 
 LocationReference ImplementationVisitor::GetLocationReference(
@@ -2665,7 +2688,7 @@ VisitResult ImplementationVisitor::GenerateCall(
       if (!this_value.type()->IsSubtypeOf(method->aggregate_type())) {
         ReportError("this parameter must be a subtype of ",
                     *method->aggregate_type(), " but it is of type ",
-                    this_value.type());
+                    *this_value.type());
       }
     } else {
       AddCallParameter(callable, this_value, method->aggregate_type(),
@@ -2997,6 +3020,21 @@ VisitResult ImplementationVisitor::GenerateCall(
       assembler().Emit(MakeLazyNodeInstruction{getter, return_type,
                                                constexpr_arguments_for_getter});
       return VisitResult(return_type, assembler().TopRange(1));
+    } else if (intrinsic->ExternalName() == "%FieldSlice") {
+      const Type* type = specialization_types[0];
+      const ClassType* class_type = ClassType::DynamicCast(type);
+      if (!class_type) {
+        ReportError("%FieldSlice must take a class type parameter");
+      }
+      const Field& field =
+          class_type->LookupField(StringLiteralUnquote(constexpr_arguments[0]));
+      LocationReference ref = GenerateFieldReference(
+          VisitResult(type, argument_range), field, class_type,
+          /*treat_optional_as_indexed=*/true);
+      if (!ref.IsHeapSlice()) {
+        ReportError("%FieldSlice expected an indexed or optional field");
+      }
+      return ref.heap_slice();
     } else {
       assembler().Emit(CallIntrinsicInstruction{intrinsic, specialization_types,
                                                 constexpr_arguments});
@@ -3885,7 +3923,7 @@ base::Optional<std::vector<Field>> GetOrderedUniqueIndexFields(
   std::set<std::string> index_names;
   for (const Field& field : type.ComputeAllFields()) {
     if (field.index) {
-      auto name_and_type = ExtractSimpleFieldArraySize(type, *field.index);
+      auto name_and_type = ExtractSimpleFieldArraySize(type, field.index->expr);
       if (!name_and_type) {
         return base::nullopt;
       }
@@ -4004,7 +4042,7 @@ void CppClassGenerator::GenerateClass() {
     for (const Field& field : type_->ComputeAllFields()) {
       if (field.index) {
         auto index_name_and_type =
-            *ExtractSimpleFieldArraySize(*type_, *field.index);
+            *ExtractSimpleFieldArraySize(*type_, field.index->expr);
         size_t field_size = 0;
         std::tie(field_size, std::ignore) = field.GetFieldSizeInformation();
         hdr_ << "    size += " << index_name_and_type.name << " * "
@@ -4123,7 +4161,7 @@ void GenerateBoundsDCheck(std::ostream& os, const std::string& index,
   os << "  DCHECK_GE(" << index << ", 0);\n";
   std::string length_expression;
   if (base::Optional<NameAndType> array_length =
-          ExtractSimpleFieldArraySize(*type, *f.index)) {
+          ExtractSimpleFieldArraySize(*type, f.index->expr)) {
     length_expression = "this ->" + array_length->name + "()";
   } else {
     // The length is element 2 in the flattened field slice.
@@ -4164,7 +4202,7 @@ void CppClassGenerator::GenerateFieldAccessors(
     return;
   }
 
-  bool indexed = class_field.index.has_value();
+  bool indexed = class_field.index && !class_field.index->optional;
   std::string type_name = GetTypeNameForAccessor(innermost_field);
   bool can_contain_heap_objects = CanContainHeapObjects(field_type);
 
@@ -4185,8 +4223,9 @@ void CppClassGenerator::GenerateFieldAccessors(
   hdr_ << "  inline " << type_name << " " << name << "("
        << (indexed ? "int i" : "") << ") const;\n";
   if (can_contain_heap_objects) {
-    hdr_ << "  inline " << type_name << " " << name << "(IsolateRoot isolate"
-         << (indexed ? ", int i" : "") << ") const;\n";
+    hdr_ << "  inline " << type_name << " " << name
+         << "(PtrComprCageBase cage_base" << (indexed ? ", int i" : "")
+         << ") const;\n";
   }
   hdr_ << "  inline void set_" << name << "(" << (indexed ? "int i, " : "")
        << type_name << " value"
@@ -4195,14 +4234,14 @@ void CppClassGenerator::GenerateFieldAccessors(
                : "")
        << ");\n\n";
 
-  // For tagged data, generate the extra getter that derives an IsolateRoot from
-  // the current object's pointer.
+  // For tagged data, generate the extra getter that derives an PtrComprCageBase
+  // from the current object's pointer.
   if (can_contain_heap_objects) {
     inl_ << "template <class D, class P>\n";
     inl_ << type_name << " " << gen_name_ << "<D, P>::" << name << "("
          << (indexed ? "int i" : "") << ") const {\n";
-    inl_ << "  IsolateRoot isolate = GetIsolateForPtrCompr(*this);\n";
-    inl_ << "  return " << gen_name_ << "::" << name << "(isolate"
+    inl_ << "  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);\n";
+    inl_ << "  return " << gen_name_ << "::" << name << "(cage_base"
          << (indexed ? ", i" : "") << ");\n";
     inl_ << "}\n";
   }
@@ -4210,7 +4249,7 @@ void CppClassGenerator::GenerateFieldAccessors(
   // Generate the getter implementation.
   inl_ << "template <class D, class P>\n";
   inl_ << type_name << " " << gen_name_ << "<D, P>::" << name << "(";
-  if (can_contain_heap_objects) inl_ << "IsolateRoot isolate";
+  if (can_contain_heap_objects) inl_ << "PtrComprCageBase cage_base";
   if (can_contain_heap_objects && indexed) inl_ << ", ";
   if (indexed) inl_ << "int i";
   inl_ << ") const {\n";
@@ -4288,9 +4327,10 @@ void CppClassGenerator::EmitLoadFieldStatement(
 
   std::string offset = field_offset;
   if (class_field.index) {
-    GenerateBoundsDCheck(inl_, "i", type_, class_field);
-    inl_ << "  int offset = " << field_offset << " + i * " << class_field_size
-         << ";\n";
+    const char* index = class_field.index->optional ? "0" : "i";
+    GenerateBoundsDCheck(inl_, index, type_, class_field);
+    inl_ << "  int offset = " << field_offset << " + " << index << " * "
+         << class_field_size << ";\n";
     offset = "offset";
   }
 
@@ -4322,10 +4362,11 @@ void CppClassGenerator::EmitLoadFieldStatement(
     bool is_smi = field_type->IsSubtypeOf(TypeOracle::GetSmiType());
     const std::string load_type = is_smi ? "Smi" : type_name;
     const char* postfix = is_smi ? ".value()" : "";
-    const char* optional_isolate = is_smi ? "" : "isolate, ";
+    const char* optional_cage_base = is_smi ? "" : "cage_base, ";
 
     inl_ << "TaggedField<" << load_type << ">::" << load << "("
-         << optional_isolate << "*this, " << offset << ")" << postfix << ";\n";
+         << optional_cage_base << "*this, " << offset << ")" << postfix
+         << ";\n";
   }
 
   if (CanContainHeapObjects(field_type)) {
@@ -4353,9 +4394,10 @@ void CppClassGenerator::EmitStoreFieldStatement(
 
   std::string offset = field_offset;
   if (class_field.index) {
-    GenerateBoundsDCheck(inl_, "i", type_, class_field);
-    inl_ << "  int offset = " << field_offset << " + i * " << class_field_size
-         << ";\n";
+    const char* index = class_field.index->optional ? "0" : "i";
+    GenerateBoundsDCheck(inl_, index, type_, class_field);
+    inl_ << "  int offset = " << field_offset << " + " << index << " * "
+         << class_field_size << ";\n";
     offset = "offset";
   }
 
@@ -4929,14 +4971,10 @@ void ImplementationVisitor::GenerateClassVerifiers(
     IfDefScope verify_heap_h(h_contents, "VERIFY_HEAP");
     IfDefScope verify_heap_cc(cc_contents, "VERIFY_HEAP");
 
-    cc_contents << "\n#include \"src/objects/objects.h\"\n";
+    h_contents << "#include \"src/base/macros.h\"\n\n";
 
-    for (const std::string& include_path : GlobalContext::CppIncludes()) {
-      cc_contents << "#include " << StringLiteralQuote(include_path) << "\n";
-    }
-    cc_contents << "#include \"torque-generated/" << file_name << ".h\"\n";
-    cc_contents << "#include "
-                   "\"src/objects/all-objects-inl.h\"\n";
+    cc_contents << "#include \"torque-generated/" << file_name << ".h\"\n\n";
+    cc_contents << "#include \"src/objects/all-objects-inl.h\"\n";
 
     IncludeObjectMacrosScope object_macros(cc_contents);
 
@@ -5123,6 +5161,24 @@ void ImplementationVisitor::GenerateExportedMacrosAssembler(
   WriteFile(output_directory + "/" + file_name + ".cc", cc_contents.str());
 }
 
+namespace {
+
+void CollectAllFields(const std::string& path, const Field& field,
+                      std::vector<std::string>& result) {
+  if (field.name_and_type.type->StructSupertype()) {
+    std::string next_path = path + field.name_and_type.name + ".";
+    const StructType* struct_type =
+        StructType::DynamicCast(field.name_and_type.type);
+    for (const auto& inner_field : struct_type->fields()) {
+      CollectAllFields(next_path, inner_field, result);
+    }
+  } else {
+    result.push_back(path + field.name_and_type.name);
+  }
+}
+
+}  // namespace
+
 void ImplementationVisitor::GenerateCSATypes(
     const std::string& output_directory) {
   std::string file_name = "csa-types";
@@ -5153,20 +5209,13 @@ void ImplementationVisitor::GenerateCSATypes(
         first = false;
         h_contents << type->GetGeneratedTypeName();
       }
-      h_contents << "> Flatten() const {\n"
-                 << "    return std::tuple_cat(";
-      first = true;
+      std::vector<std::string> all_fields;
       for (auto& field : struct_type->fields()) {
-        if (!first) {
-          h_contents << ", ";
-        }
-        first = false;
-        if (field.name_and_type.type->StructSupertype()) {
-          h_contents << field.name_and_type.name << ".Flatten()";
-        } else {
-          h_contents << "std::make_tuple(" << field.name_and_type.name << ")";
-        }
+        CollectAllFields("", field, all_fields);
       }
+      h_contents << "> Flatten() const {\n"
+                    "    return std::make_tuple(";
+      PrintCommaSeparatedList(h_contents, all_fields);
       h_contents << ");\n";
       h_contents << "  }\n";
       h_contents << "};\n";
@@ -5200,6 +5249,7 @@ void ReportAllUnusedMacros() {
                                                  "FromConstexpr<"};
     const std::string name = macro->ReadableName();
     const bool ignore =
+        StartsWithSingleUnderscore(name) ||
         std::any_of(ignored_prefixes.begin(), ignored_prefixes.end(),
                     [&name](const std::string& prefix) {
                       return StringStartsWith(name, prefix);

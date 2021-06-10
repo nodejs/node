@@ -19,11 +19,11 @@ kExprI32Const, 0x10,  // i32.const
 kExprI32Sub,  // i32.sub
 kExprLocalTee, 0x02,  // local.tee
 kExprGlobalSet, 0x00,  // global.set
-kExprBlock, kWasmStmt,  // block @12
+kExprBlock, kWasmVoid,  // block @12
   kExprLocalGet, 0x00,  // local.get
   kExprI32LoadMem, 0x02, 0x00,  // i32.load
   kExprI32Eqz,  // i32.eqz
-  kExprIf, kWasmStmt,  // if @20
+  kExprIf, kWasmVoid,  // if @20
     kExprLocalGet, 0x02,  // local.get
     kExprI32Const, 0x00,  // i32.const
     kExprI32StoreMem, 0x02, 0x0c,  // i32.store

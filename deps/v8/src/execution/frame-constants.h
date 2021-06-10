@@ -216,6 +216,7 @@ class ConstructFrameConstants : public TypedFrameConstants {
   DEFINE_TYPED_FRAME_SIZES(5);
 };
 
+#if V8_ENABLE_WEBASSEMBLY
 class CWasmEntryFrameConstants : public TypedFrameConstants {
  public:
   // FP-relative:
@@ -236,6 +237,7 @@ class WasmExitFrameConstants : public WasmFrameConstants {
   static const int kCallingPCOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
   DEFINE_TYPED_FRAME_SIZES(2);
 };
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 class BuiltinContinuationFrameConstants : public TypedFrameConstants {
  public:

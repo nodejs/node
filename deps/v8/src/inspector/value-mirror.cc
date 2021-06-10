@@ -305,6 +305,15 @@ String16 descriptionForCollection(v8::Isolate* isolate,
   return String16::concat(className, '(', String16::fromInteger(length), ')');
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+String16 descriptionForWasmValueObject(
+    v8::Local<v8::Context> context,
+    v8::Local<v8::debug::WasmValueObject> object) {
+  v8::Isolate* isolate = context->GetIsolate();
+  return toProtocolString(isolate, object->type());
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 String16 descriptionForEntry(v8::Local<v8::Context> context,
                              v8::Local<v8::Object> object) {
   v8::Isolate* isolate = context->GetIsolate();
@@ -793,8 +802,10 @@ bool getPropertiesForPreview(v8::Local<v8::Context> context,
   if (object->IsArray() || isArrayLike(context, object, &length) ||
       object->IsStringObject()) {
     blocklist.push_back("length");
+#if V8_ENABLE_WEBASSEMBLY
   } else if (v8::debug::WasmValueObject::IsWasmValueObject(object)) {
     blocklist.push_back("type");
+#endif  // V8_ENABLE_WEBASSEMBLY
   } else {
     auto clientSubtype = clientFor(context)->valueSubtype(object);
     if (clientSubtype && toString16(clientSubtype->string()) == "array") {
@@ -1310,6 +1321,7 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
       }
     }
     if (accessorPropertiesOnly && !isAccessorProperty) continue;
+    if (name == "__proto__") shouldSkipProto = true;
     auto mirror = PropertyMirror{name,
                                  writable,
                                  configurable,
@@ -1693,13 +1705,15 @@ std::unique_ptr<ValueMirror> ValueMirror::create(v8::Local<v8::Context> context,
         descriptionForCollection(
             isolate, memory, memory->Buffer()->ByteLength() / kWasmPageSize));
   }
+#if V8_ENABLE_WEBASSEMBLY
   if (v8::debug::WasmValueObject::IsWasmValueObject(value)) {
     v8::Local<v8::debug::WasmValueObject> object =
         value.As<v8::debug::WasmValueObject>();
     return std::make_unique<ObjectMirror>(
         value, RemoteObject::SubtypeEnum::Wasmvalue,
-        descriptionForObject(isolate, object));
+        descriptionForWasmValueObject(context, object));
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
   V8InternalValueType internalType =
       v8InternalValueTypeFrom(context, value.As<v8::Object>());
   if (value->IsArray() && internalType == V8InternalValueType::kScopeList) {

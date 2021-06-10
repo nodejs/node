@@ -215,7 +215,7 @@ struct Field {
 
   SourcePosition pos;
   const AggregateType* aggregate;
-  base::Optional<Expression*> index;
+  base::Optional<ClassFieldIndexInfo> index;
   NameAndType name_and_type;
 
   // The byte offset of this field from the beginning of the containing class or
@@ -783,6 +783,20 @@ class ClassType final : public AggregateType {
 inline std::ostream& operator<<(std::ostream& os, const Type& t) {
   os << t.ToString();
   return os;
+}
+
+template <bool success = false>
+std::ostream& operator<<(std::ostream& os, const Type* t) {
+  static_assert(success,
+                "Using Type* with an ostream is usually a mistake. Did you "
+                "mean to use Type& instead? If you actually intended to print "
+                "a pointer, use static_cast<const void*>.");
+  return os;
+}
+
+// Don't emit an error if a Type* is printed due to CHECK macros.
+inline std::ostream& operator<<(base::CheckMessageStream& os, const Type* t) {
+  return os << static_cast<const void*>(t);
 }
 
 class VisitResult {

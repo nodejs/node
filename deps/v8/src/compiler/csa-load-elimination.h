@@ -97,8 +97,11 @@ class V8_EXPORT_PRIVATE CsaLoadElimination final
 
   AbstractState const* ComputeLoopState(Node* node,
                                         AbstractState const* state) const;
+  Node* TruncateAndExtend(Node* node, MachineRepresentation from,
+                          MachineType to);
 
   CommonOperatorBuilder* common() const;
+  MachineOperatorBuilder* machine() const;
   Isolate* isolate() const;
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }

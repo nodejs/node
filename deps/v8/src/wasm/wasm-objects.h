@@ -2,6 +2,10 @@
 // this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_WASM_OBJECTS_H_
 #define V8_WASM_WASM_OBJECTS_H_
 
@@ -914,6 +918,8 @@ class WasmStruct : public TorqueGeneratedWasmStruct<WasmStruct, HeapObject> {
 
   inline ObjectSlot RawField(int raw_offset);
 
+  wasm::WasmValue GetFieldValue(uint32_t field_index);
+
   DECL_CAST(WasmStruct)
   DECL_PRINTER(WasmStruct)
 
@@ -927,6 +933,8 @@ class WasmArray : public TorqueGeneratedWasmArray<WasmArray, HeapObject> {
   static inline wasm::ArrayType* type(Map map);
   inline wasm::ArrayType* type() const;
   static inline wasm::ArrayType* GcSafeType(Map map);
+
+  wasm::WasmValue GetElement(uint32_t index);
 
   static inline int SizeFor(Map map, int length);
   static inline int GcSafeSizeFor(Map map, int length);

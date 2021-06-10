@@ -517,6 +517,8 @@
   F(BACKGROUND_FULL_ARRAY_BUFFER_SWEEP)           \
   F(BACKGROUND_COLLECTION)                        \
   F(BACKGROUND_UNMAPPER)                          \
+  F(BACKGROUND_UNPARK)                            \
+  F(BACKGROUND_SAFEPOINT)                         \
   F(MC_BACKGROUND_EVACUATE_COPY)                  \
   F(MC_BACKGROUND_EVACUATE_UPDATE_POINTERS)       \
   F(MC_BACKGROUND_MARKING)                        \

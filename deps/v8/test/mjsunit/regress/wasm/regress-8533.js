@@ -21,7 +21,7 @@ const sync_address = 12;
         // Calling the imported function sets the thread-in-wasm flag of the
         // main thread.
         kExprCallFunction, import_id,  // --
-        kExprLoop, kWasmStmt,          // --
+        kExprLoop, kWasmVoid,          // --
         kExprI32Const, sync_address,   // --
         kExprI32LoadMem, 0, 0,         // --
         kExprI32Eqz,

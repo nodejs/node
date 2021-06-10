@@ -359,13 +359,13 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   builder.addFunction('main', kSig_i_i)
-      .addBody([kExprBlock, kWasmStmt,
-                  kExprBlock, kWasmStmt,
-                    kExprBlock, kWasmStmt,
-                      kExprBlock, kWasmStmt,
-                        kExprBlock, kWasmStmt,
-                          kExprBlock, kWasmStmt,
-                            kExprBlock, kWasmStmt,
+      .addBody([kExprBlock, kWasmVoid,
+                  kExprBlock, kWasmVoid,
+                    kExprBlock, kWasmVoid,
+                      kExprBlock, kWasmVoid,
+                        kExprBlock, kWasmVoid,
+                          kExprBlock, kWasmVoid,
+                            kExprBlock, kWasmVoid,
                               kExprLocalGet, 0,
                               kExprBrTable, 6, 0, 1, 2, 3, 4, 5, 6,
                             kExprEnd,

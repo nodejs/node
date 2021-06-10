@@ -195,12 +195,12 @@ TEST_F(PageTest, NormalPageCreationDestruction) {
   EXPECT_NE(space->end(), std::find(space->begin(), space->end(), page));
 
   space->free_list().Add({page->PayloadStart(), page->PayloadSize()});
-  EXPECT_TRUE(
-      space->free_list().Contains({page->PayloadStart(), page->PayloadSize()}));
+  EXPECT_TRUE(space->free_list().ContainsForTesting(
+      {page->PayloadStart(), page->PayloadSize()}));
 
   space->free_list().Clear();
-  EXPECT_FALSE(
-      space->free_list().Contains({page->PayloadStart(), page->PayloadSize()}));
+  EXPECT_FALSE(space->free_list().ContainsForTesting(
+      {page->PayloadStart(), page->PayloadSize()}));
   space->RemovePage(page);
   EXPECT_EQ(space->end(), std::find(space->begin(), space->end(), page));
   NormalPage::Destroy(page);
