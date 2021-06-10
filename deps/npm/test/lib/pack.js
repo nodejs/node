@@ -34,6 +34,9 @@ t.test('should pack current directory with no arguments', (t) => {
       showProgress: () => {},
       clearProgress: () => {},
     },
+    fs: {
+      writeFile: (file, data, cb) => cb(),
+    },
   })
   const npm = mockNpm({
     config: {
@@ -68,6 +71,9 @@ t.test('should pack given directory', (t) => {
       notice: () => {},
       showProgress: () => {},
       clearProgress: () => {},
+    },
+    fs: {
+      writeFile: (file, data, cb) => cb(),
     },
   })
   const npm = mockNpm({
@@ -104,6 +110,9 @@ t.test('should pack given directory for scoped package', (t) => {
       showProgress: () => {},
       clearProgress: () => {},
     },
+    fs: {
+      writeFile: (file, data, cb) => cb(),
+    },
   })
   const npm = mockNpm({
     config: {
@@ -137,6 +146,9 @@ t.test('should log pack contents', (t) => {
       notice: () => {},
       showProgress: () => {},
       clearProgress: () => {},
+    },
+    fs: {
+      writeFile: (file, data, cb) => cb(),
     },
   })
   const npm = mockNpm({
@@ -209,6 +221,9 @@ t.test('should log output as valid json', (t) => {
       showProgress: () => {},
       clearProgress: () => {},
     },
+    fs: {
+      writeFile: (file, data, cb) => cb(),
+    },
   })
   const npm = mockNpm({
     config: {
@@ -259,6 +274,9 @@ t.test('invalid packument', (t) => {
       showProgress: () => {},
       clearProgress: () => {},
     },
+    fs: {
+      writeFile: (file, data, cb) => cb(),
+    },
   })
   const npm = mockNpm({
     config: {
@@ -304,6 +322,9 @@ t.test('workspaces', (t) => {
       notice: () => {},
       showProgress: () => {},
       clearProgress: () => {},
+    },
+    fs: {
+      writeFile: (file, data, cb) => cb(),
     },
   })
   const npm = mockNpm({

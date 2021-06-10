@@ -335,6 +335,33 @@ then it will install the specified tag.</p>
 command, if no explicit tag is given.</p>
 <p>When used by the <code>npm diff</code> command, this is the tag used to fetch the
 tarball that will be compared with the local files by default.</p>
+<h4 id="workspace"><code>workspace</code></h4>
+<ul>
+<li>Default:</li>
+<li>Type: String (can be set multiple times)</li>
+</ul>
+<p>Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option.</p>
+<p>Valid values for the <code>workspace</code> config are either:</p>
+<ul>
+<li>Workspace names</li>
+<li>Path to a workspace directory</li>
+<li>Path to a parent workspace directory (will result to selecting all of the
+nested workspaces)</li>
+</ul>
+<p>When set for the <code>npm init</code> command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project.</p>
+<p>This value is not exported to the environment for child processes.</p>
+<h4 id="workspaces"><code>workspaces</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Enable running a command in the context of <strong>all</strong> the configured
+workspaces.</p>
+<p>This value is not exported to the environment for child processes.</p>
 <!-- raw HTML omitted -->
 <h2 id="see-also">See Also</h2>
 <ul>

@@ -1,13 +1,14 @@
 const { resolve } = require('path')
 
 const semver = require('semver')
-const libdiff = require('libnpmdiff')
+const libnpmdiff = require('libnpmdiff')
 const npa = require('npm-package-arg')
 const Arborist = require('@npmcli/arborist')
 const npmlog = require('npmlog')
 const pacote = require('pacote')
 const pickManifest = require('npm-pick-manifest')
 
+const getWorkspaces = require('./workspaces/get-workspaces.js')
 const readPackageName = require('./utils/read-package-name.js')
 const BaseCommand = require('./base-command.js')
 
@@ -25,10 +26,6 @@ class Diff extends BaseCommand {
   static get usage () {
     return [
       '[...<paths>]',
-      '--diff=<pkg-name> [...<paths>]',
-      '--diff=<version-a> [--diff=<version-b>] [...<paths>]',
-      '--diff=<spec-a> [--diff=<spec-b>] [...<paths>]',
-      '[--diff-ignore-all-space] [--diff-name-only] [...<paths>] [...<paths>]',
     ]
   }
 
@@ -45,17 +42,17 @@ class Diff extends BaseCommand {
       'diff-text',
       'global',
       'tag',
+      'workspace',
+      'workspaces',
     ]
-  }
-
-  get where () {
-    const globalTop = resolve(this.npm.globalDir, '..')
-    const global = this.npm.config.get('global')
-    return global ? globalTop : this.npm.prefix
   }
 
   exec (args, cb) {
     this.diff(args).then(() => cb()).catch(cb)
+  }
+
+  execWorkspaces (args, filters, cb) {
+    this.diffWorkspaces(args, filters).then(() => cb()).catch(cb)
   }
 
   async diff (args) {
@@ -67,75 +64,86 @@ class Diff extends BaseCommand {
       )
     }
 
+    // diffWorkspaces may have set this already
+    if (!this.prefix)
+      this.prefix = this.npm.prefix
+
+    // this is the "top" directory, one up from node_modules
+    // in global mode we have to walk one up from globalDir because our
+    // node_modules is sometimes under ./lib, and in global mode we're only ever
+    // walking through node_modules (because we will have been given a package
+    // name already)
+    if (this.npm.config.get('global'))
+      this.top = resolve(this.npm.globalDir, '..')
+    else
+      this.top = this.prefix
+
     const [a, b] = await this.retrieveSpecs(specs)
     npmlog.info('diff', { src: a, dst: b })
 
-    const res = await libdiff([a, b], {
+    const res = await libnpmdiff([a, b], {
       ...this.npm.flatOptions,
       diffFiles: args,
-      where: this.where,
+      where: this.top,
     })
     return this.npm.output(res)
   }
 
+  async diffWorkspaces (args, filters) {
+    const workspaces =
+      await getWorkspaces(filters, { path: this.npm.localPrefix })
+    for (const workspacePath of workspaces.values()) {
+      this.top = workspacePath
+      this.prefix = workspacePath
+      await this.diff(args)
+    }
+  }
+
+  // get the package name from the packument at `path`
+  // throws if no packument is present OR if it does not have `name` attribute
+  async packageName (path) {
+    let name
+    try {
+      // TODO this won't work as expected in global mode
+      name = await readPackageName(this.prefix)
+    } catch (e) {
+      npmlog.verbose('diff', 'could not read project dir package.json')
+    }
+
+    if (!name)
+      throw this.usageError('Needs multiple arguments to compare or run from a project dir.\n')
+
+    return name
+  }
+
   async retrieveSpecs ([a, b]) {
+    if (a && b) {
+      const specs = await this.convertVersionsToSpecs([a, b])
+      return this.findVersionsByPackageName(specs)
+    }
+
     // no arguments, defaults to comparing cwd
     // to its latest published registry version
-    if (!a)
-      return this.defaultSpec()
+    if (!a) {
+      const pkgName = await this.packageName(this.prefix)
+      return [
+        `${pkgName}@${this.npm.config.get('tag')}`,
+        `file:${this.prefix}`,
+      ]
+    }
 
     // single argument, used to compare wanted versions of an
     // installed dependency or to compare the cwd to a published version
-    if (!b)
-      return this.transformSingleSpec(a)
-
-    const specs = await this.convertVersionsToSpecs([a, b])
-    return this.findVersionsByPackageName(specs)
-  }
-
-  async defaultSpec () {
     let noPackageJson
     let pkgName
     try {
-      pkgName = await readPackageName(this.npm.prefix)
+      pkgName = await readPackageName(this.prefix)
     } catch (e) {
       npmlog.verbose('diff', 'could not read project dir package.json')
       noPackageJson = true
     }
 
-    if (!pkgName || noPackageJson) {
-      throw new Error(
-        'Needs multiple arguments to compare or run from a project dir.\n\n' +
-        `Usage:\n${this.usage}`
-      )
-    }
-
-    return [
-      `${pkgName}@${this.npm.config.get('tag')}`,
-      `file:${this.npm.prefix}`,
-    ]
-  }
-
-  async transformSingleSpec (a) {
-    let noPackageJson
-    let pkgName
-    try {
-      pkgName = await readPackageName(this.npm.prefix)
-    } catch (e) {
-      npmlog.verbose('diff', 'could not read project dir package.json')
-      noPackageJson = true
-    }
-    const missingPackageJson = new Error(
-      'Needs multiple arguments to compare or run from a project dir.\n\n' +
-      `Usage:\n${this.usage}`
-    )
-
-    const specSelf = () => {
-      if (noPackageJson)
-        throw missingPackageJson
-
-      return `file:${this.npm.prefix}`
-    }
+    const missingPackageJson = this.usageError('Needs multiple arguments to compare or run from a project dir.\n')
 
     // using a valid semver range, that means it should just diff
     // the cwd against a published version to the registry using the
@@ -143,10 +151,9 @@ class Diff extends BaseCommand {
     if (semver.validRange(a)) {
       if (!pkgName)
         throw missingPackageJson
-
       return [
         `${pkgName}@${a}`,
-        specSelf(),
+        `file:${this.prefix}`,
       ]
     }
 
@@ -160,7 +167,7 @@ class Diff extends BaseCommand {
       try {
         const opts = {
           ...this.npm.flatOptions,
-          path: this.where,
+          path: this.top,
         }
         const arb = new Arborist(opts)
         actualTree = await arb.loadActual(opts)
@@ -172,9 +179,11 @@ class Diff extends BaseCommand {
       }
 
       if (!node || !node.name || !node.package || !node.package.version) {
+        if (noPackageJson)
+          throw missingPackageJson
         return [
           `${spec.name}@${spec.fetchSpec}`,
-          specSelf(),
+          `file:${this.prefix}`,
         ]
       }
 
@@ -220,14 +229,10 @@ class Diff extends BaseCommand {
     } else if (spec.type === 'directory') {
       return [
         `file:${spec.fetchSpec}`,
-        specSelf(),
+        `file:${this.prefix}`,
       ]
-    } else {
-      throw new Error(
-        'Spec type not supported.\n\n' +
-        `Usage:\n${this.usage}`
-      )
-    }
+    } else
+      throw this.usageError(`Spec type ${spec.type} not supported.\n`)
   }
 
   async convertVersionsToSpecs ([a, b]) {
@@ -238,17 +243,14 @@ class Diff extends BaseCommand {
     if (semverA && semverB) {
       let pkgName
       try {
-        pkgName = await readPackageName(this.npm.prefix)
+        pkgName = await readPackageName(this.prefix)
       } catch (e) {
         npmlog.verbose('diff', 'could not read project dir package.json')
       }
 
-      if (!pkgName) {
-        throw new Error(
-          'Needs to be run from a project dir in order to diff two versions.\n\n' +
-          `Usage:\n${this.usage}`
-        )
-      }
+      if (!pkgName)
+        throw this.usageError('Needs to be run from a project dir in order to diff two versions.\n')
+
       return [`${pkgName}@${a}`, `${pkgName}@${b}`]
     }
 
@@ -269,7 +271,7 @@ class Diff extends BaseCommand {
     try {
       const opts = {
         ...this.npm.flatOptions,
-        path: this.where,
+        path: this.top,
       }
       const arb = new Arborist(opts)
       actualTree = await arb.loadActual(opts)
