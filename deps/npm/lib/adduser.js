@@ -75,11 +75,9 @@ class AddUser extends BaseCommand {
 
   async updateConfig ({ newCreds, registry, scope }) {
     this.npm.config.delete('_token', 'user') // prevent legacy pollution
-
+    this.npm.config.setCredentialsByURI(registry, newCreds)
     if (scope)
       this.npm.config.set(scope + ':registry', registry, 'user')
-
-    this.npm.config.setCredentialsByURI(registry, newCreds)
     await this.npm.config.save('user')
   }
 }
