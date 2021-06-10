@@ -506,6 +506,7 @@ define('dev', {
 
 define('diff', {
   default: [],
+  hint: '<pkg-name|spec|version>',
   type: [String, Array],
   description: `
     Define arguments to compare in \`npm diff\`.
@@ -545,6 +546,7 @@ define('diff-no-prefix', {
 
 define('diff-dst-prefix', {
   default: 'b/',
+  hint: '<path>',
   type: String,
   description: `
     Destination prefix to be used in \`npm diff\` output.
@@ -554,6 +556,7 @@ define('diff-dst-prefix', {
 
 define('diff-src-prefix', {
   default: 'a/',
+  hint: '<path>',
   type: String,
   description: `
     Source prefix to be used in \`npm diff\` output.

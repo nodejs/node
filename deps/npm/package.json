@@ -1,9 +1,16 @@
 {
-  "version": "7.16.0",
+  "version": "7.17.0",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "workspaces": [
     "docs"
+  ],
+  "files": [
+    "bin",
+    "docs/content/**/*.md",
+    "docs/output/**/*.html",
+    "lib",
+    "man"
   ],
   "keywords": [
     "install",
@@ -204,7 +211,7 @@
     "sudotest:nocleanup": "sudo NO_TEST_CLEANUP=1 npm run test --",
     "posttest": "npm run lint",
     "eslint": "eslint",
-    "lint": "npm run eslint -- test/lib test/bin lib",
+    "lint": "npm run eslint -- test/lib test/bin lib scripts docs smoke-tests",
     "lintfix": "npm run lint -- --fix",
     "prelint": "rimraf test/npm_cache*",
     "resetdeps": "bash scripts/resetdeps.sh",

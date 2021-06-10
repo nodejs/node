@@ -199,16 +199,14 @@ The registry diff command
 
 Usage:
 npm diff [...<paths>]
-npm diff --diff=<pkg-name> [...<paths>]
-npm diff --diff=<version-a> [--diff=<version-b>] [...<paths>]
-npm diff --diff=<spec-a> [--diff=<spec-b>] [...<paths>]
-npm diff [--diff-ignore-all-space] [--diff-name-only] [...<paths>] [...<paths>]
 
 Options:
-[--diff <diff> [--diff <diff> ...]] [--diff-name-only]
-[--diff-unified <diff-unified>] [--diff-ignore-all-space] [--diff-no-prefix]
-[--diff-src-prefix <diff-src-prefix>] [--diff-dst-prefix <diff-dst-prefix>]
+[--diff <pkg-name|spec|version> [--diff <pkg-name|spec|version> ...]]
+[--diff-name-only] [--diff-unified <number>] [--diff-ignore-all-space]
+[--diff-no-prefix] [--diff-src-prefix <path>] [--diff-dst-prefix <path>]
 [--diff-text] [-g|--global] [--tag <tag>]
+[-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
+[-ws|--workspaces]
 
 Run "npm help diff" for more info
 `
