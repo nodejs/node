@@ -1208,6 +1208,7 @@ class Environment : public MemoryRetainer {
   inline void set_stopping(bool value);
   inline std::list<node_module>* extra_linked_bindings();
   inline node_module* extra_linked_bindings_head();
+  inline node_module* extra_linked_bindings_tail();
   inline const Mutex& extra_linked_bindings_mutex() const;
 
   inline bool filehandle_close_warning() const;
