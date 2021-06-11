@@ -2786,7 +2786,7 @@ These properties are now available within the standard `detail` property
 of the `PerformanceEntry` object. The existing accessors have been
 deprecated and should no longer be used.
 
-### DEP0153: Non boolean value for `verbatim` DNS lookup option
+### DEP0153: `dns.lookup` and `dnsPromises.lookup` options type coercion
 <!-- YAML
 changes:
   - version: REPLACEME
@@ -2796,8 +2796,10 @@ changes:
 
 Type: Documentation-only
 
-Using a non-boolean value for `verbatim` option in [`dns.lookup()`][] and
-[`dnsPromises.lookup()`][] is deprecated.
+Using a non-nullish non-integer value for `family` option, a non-nullish
+non-number value for `hints` option, a non-nullish non-boolean value for `all`
+option, or a non-nullish non-boolean value for `verbatim` option in
+[`dns.lookup()`][] and [`dnsPromises.lookup()`][] is deprecated.
 
 [Legacy URL API]: url.md#url_legacy_url_api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
