@@ -132,21 +132,24 @@ int NodeMainInstance::Run(const EnvSerializeInfo* env_info) {
   int exit_code = 0;
   DeleteFnPtr<Environment, FreeEnvironment> env =
       CreateMainEnvironment(&exit_code, env_info);
-
   CHECK_NOT_NULL(env);
-  {
-    Context::Scope context_scope(env->context());
 
-    if (exit_code == 0) {
-      LoadEnvironment(env.get(), StartExecutionCallback{});
+  Context::Scope context_scope(env->context());
+  Run(&exit_code, env.get());
+  return exit_code;
+}
 
-      exit_code = SpinEventLoop(env.get()).FromMaybe(1);
-    }
+void NodeMainInstance::Run(int* exit_code, Environment* env) {
+  if (*exit_code == 0) {
+    LoadEnvironment(env, StartExecutionCallback{});
 
-    ResetStdio();
+    *exit_code = SpinEventLoop(env).FromMaybe(1);
+  }
 
-    // TODO(addaleax): Neither NODE_SHARED_MODE nor HAVE_INSPECTOR really
-    // make sense here.
+  ResetStdio();
+
+  // TODO(addaleax): Neither NODE_SHARED_MODE nor HAVE_INSPECTOR really
+  // make sense here.
 #if HAVE_INSPECTOR && defined(__POSIX__) && !defined(NODE_SHARED_MODE)
   struct sigaction act;
   memset(&act, 0, sizeof(act));
@@ -161,9 +164,6 @@ int NodeMainInstance::Run(const EnvSerializeInfo* env_info) {
 #if defined(LEAK_SANITIZER)
   __lsan_do_leak_check();
 #endif
-  }
-
-  return exit_code;
 }
 
 DeleteFnPtr<Environment, FreeEnvironment>
