@@ -15,7 +15,7 @@
     "remark-html": "13.0.1",
     "remark-parse": "^9.0.0",
     "remark-rehype": "8.1.0",
-    "to-vfile": "7.0.0",
+    "to-vfile": "7.1.0",
     "unified": "9.2.1",
     "unist-util-select": "4.0.0",
     "unist-util-visit": "3.1.0"

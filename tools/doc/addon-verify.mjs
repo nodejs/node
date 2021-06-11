@@ -5,7 +5,6 @@
 // Triggered from the build-addons target in the Makefile and vcbuild.bat.
 
 import { mkdir, writeFile } from 'fs/promises';
-import { fileURLToPath } from 'url';
 
 import gfm from 'remark-gfm';
 import remarkParse from 'remark-parse';
@@ -16,7 +15,7 @@ const rootDir = new URL('../../', import.meta.url);
 const doc = new URL('./doc/api/addons.md', rootDir);
 const verifyDir = new URL('./test/addons/', rootDir);
 
-const file = toVFile.readSync(fileURLToPath(doc), 'utf8');
+const file = toVFile.readSync(doc, 'utf8');
 const tree = unified().use(remarkParse).use(gfm).parse(file);
 const addons = {};
 let id = 0;
