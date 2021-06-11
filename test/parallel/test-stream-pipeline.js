@@ -1387,3 +1387,23 @@ const net = require('net');
     assert.strictEqual(res, content);
   }));
 }
+
+{
+  const writableLike = new EE();
+  writableLike.writableNeedDrain = true;
+
+  pipeline(async function *() {}, writableLike,
+           common.expectsError({ code: 'ERR_STREAM_PREMATURE_CLOSE' }));
+
+  writableLike.emit('close');
+}
+
+{
+  const writableLike = new EE();
+  writableLike.write = () => false;
+
+  pipeline(async function *() { yield null }, writableLike,
+           common.expectsError({ code: 'ERR_STREAM_PREMATURE_CLOSE' }));
+
+  writableLike.emit('close');
+}
