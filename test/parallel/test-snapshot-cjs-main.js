@@ -1,5 +1,8 @@
 'use strict';
 
+// This tests that user land snapshots works when the instance restored from
+// the snapshot is launched as a CJS module.
+
 require('../common');
 const assert = require('assert');
 const { spawnSync } = require('child_process');
@@ -11,25 +14,11 @@ const fs = require('fs');
 tmpdir.refresh();
 const blobPath = path.join(tmpdir.path, 'my-snapshot.blob');
 const file = fixtures.path('snapshot', 'mutate-fs.js');
+const checkFile = fixtures.path('snapshot', 'check-mutate-fs.js');
 
 {
+  // Create the snapshot.
   const child = spawnSync(process.execPath, [
-    '--snapshot-main',
-    file,
-  ], {
-    cwd: tmpdir.path
-  });
-  if (child.status !== 0) {
-    console.log(child.stderr.toString());
-    console.log(child.stdout.toString());
-    assert.strictEqual(child.status, 0);
-  }
-  const stats = fs.statSync(path.join(tmpdir.path, 'snapshot.blob'));
-  assert(stats.isFile());
-}
-
-{
-  let child = spawnSync(process.execPath, [
     '--snapshot-main',
     file,
     '--snapshot-blob',
@@ -44,12 +33,14 @@ const file = fixtures.path('snapshot', 'mutate-fs.js');
   }
   const stats = fs.statSync(blobPath);
   assert(stats.isFile());
+}
 
-  child = spawnSync(process.execPath, [
+{
+  // Run the check file as a CJS module
+  const child = spawnSync(process.execPath, [
     '--snapshot-blob',
     blobPath,
-    '-p',
-    'require("fs").foo',
+    checkFile,
   ], {
     cwd: tmpdir.path
   });
@@ -59,5 +50,4 @@ const file = fixtures.path('snapshot', 'mutate-fs.js');
     console.log(child.stdout.toString());
     assert.strictEqual(child.status, 0);
   }
-  assert(/I am from the snapshot/.test(child.stdout.toString()));
 }
