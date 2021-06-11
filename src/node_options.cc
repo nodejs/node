@@ -507,6 +507,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "show stack traces on process warnings",
             &EnvironmentOptions::trace_warnings,
             kAllowedInEnvironment);
+  AddOption("--stacktrace-version",
+            "show version for fatal exceptions that causes exit",
+            &EnvironmentOptions::stacktrace_version,
+            kAllowedInEnvironment);
   AddOption("--no-stacktrace-version",
             "hide version for fatal exceptions that causes exit",
             &EnvironmentOptions::no_stacktrace_version,

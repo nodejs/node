@@ -26,6 +26,7 @@ expect('--no-deprecation', 'B\n');
 expect('--no-warnings', 'B\n');
 expect('--no_warnings', 'B\n');
 expect('--trace-warnings', 'B\n');
+expect('--stacktrace-version', 'B\n');
 expect('--no-stacktrace-version', 'B\n');
 expect('--redirect-warnings=_', 'B\n');
 expect('--trace-deprecation', 'B\n');
