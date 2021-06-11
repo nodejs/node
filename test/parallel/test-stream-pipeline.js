@@ -1402,8 +1402,14 @@ const net = require('net');
   const writableLike = new EE();
   writableLike.write = () => false;
 
-  pipeline(async function *() { yield null }, writableLike,
-           common.expectsError({ code: 'ERR_STREAM_PREMATURE_CLOSE' }));
+  pipeline(
+    async function *() {
+      yield null;
+      yield null;
+    },
+    writableLike,
+    common.expectsError({ code: 'ERR_STREAM_PREMATURE_CLOSE' })
+  );
 
   writableLike.emit('close');
 }
