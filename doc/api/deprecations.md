@@ -2790,7 +2790,7 @@ deprecated and should no longer be used.
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/38906
     description: Documentation-only deprecation.
 -->
 
