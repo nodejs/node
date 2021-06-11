@@ -613,16 +613,15 @@ CommonJS modules loaded.
 * `defaultResolve` {Function} The Node.js default resolver.
   **Default:** `undefined`
 * Returns: {Object}
-  * `format` {string} Any value is allowed, but ensure `load` hook's final
+  * `format` {string} One of `'builtin'|'commonjs'|'json'|'module'|'wasm'`
   * `url` {string} The fully qualified url to the import target (`file://…`,
   `http://…`, etc)
 
 The `resolve` hook returns the resolved file URL for a given module specifier
-and parent URL, and optionally its format (ex `'module'`); nullish format
-values are ignored. The module specifier is the string in an `import` statement
-or `import()` expression, and the parent URL is the URL of the module that
-imported this one, or `undefined` if this is the main entry point for the
-application.
+and parent URL, and optionally its format (ex `'module'`). The module specifier
+is the string in an `import` statement or `import()` expression, and the parent
+URL is the URL of the module that imported this one, or `undefined` if this is
+the main entry point for the application.
 
 The `conditions` property in `context` is an array of conditions for
 [package exports conditions][Conditional Exports] that apply to this resolution
@@ -686,9 +685,7 @@ export async function resolve(specifier, context, defaultResolve) {
 The `load` hook provides a way to define a custom method of determining how
 a URL should be interpreted, retrieved, and parsed.
 
-For chained loaders, intermediary values of `format` can be any string (perhaps
-to be used by another loader in the chain); however, the _final_ value of
-`format` must be one of the following:
+The final value of `format` must be one of the following:
 
 | `format`     | Description                    | Acceptable Types For `source` Returned by `getSource` or `transformSource` |
 | ------------ | ------------------------------ | -------------------------------------------------------------------------- |
@@ -697,6 +694,8 @@ to be used by another loader in the chain); however, the _final_ value of
 | `'json'`     | Load a JSON file               | { [`string`][], [`ArrayBuffer`][], [`TypedArray`][] }                      |
 | `'module'`   | Load an ES module              | { [`string`][], [`ArrayBuffer`][], [`TypedArray`][] }                      |
 | `'wasm'`     | Load a WebAssembly module      | { [`ArrayBuffer`][], [`TypedArray`][] }                                    |
+
+Note: When format is `'commonjs'`, the value of `source` is ignored.
 
 Note: These types all correspond to classes defined in ECMAScript.
 
