@@ -224,8 +224,6 @@ NodeMainInstance::CreateMainEnvironment(int* exit_code,
     }
   }
 
-  CHECK(env->req_wrap_queue()->IsEmpty());
-  CHECK(env->handle_wrap_queue()->IsEmpty());
   return env;
 }
 

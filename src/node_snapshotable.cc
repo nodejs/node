@@ -157,7 +157,22 @@ void SnapshotBuilder::Generate(SnapshotData* out,
     // Must be out of HandleScope
     out->blob =
         creator.CreateBlob(SnapshotCreator::FunctionCodeHandling::kClear);
+
+    // We must be able to rehash the blob when we restore it or otherwise
+    // the hash seed would be fixed by V8, introducing a vulnerability.
     CHECK(out->blob.CanBeRehashed());
+
+    // We cannot resurrect the handles from the snapshot, so make sure that
+    // no handles are left open in the environment after the blob is created
+    // (which should trigger a GC and close all handles that can be closed).
+    if (!env->req_wrap_queue()->IsEmpty()
+        || !env->handle_wrap_queue()->IsEmpty()
+        || per_process::enabled_debug_list.enabled(DebugCategory::MKSNAPSHOT)) {
+      PrintLibuvHandleInformation(env->event_loop(), stderr);
+    }
+    CHECK(env->req_wrap_queue()->IsEmpty());
+    CHECK(env->handle_wrap_queue()->IsEmpty());
+
     // Must be done while the snapshot creator isolate is entered i.e. the
     // creator is still alive.
     FreeEnvironment(env);
