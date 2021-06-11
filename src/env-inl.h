@@ -930,6 +930,11 @@ inline node_module* Environment::extra_linked_bindings_head() {
       &extra_linked_bindings_.front() : nullptr;
 }
 
+inline node_module* Environment::extra_linked_bindings_tail() {
+  return extra_linked_bindings_.size() > 0 ?
+      &extra_linked_bindings_.back() : nullptr;
+}
+
 inline const Mutex& Environment::extra_linked_bindings_mutex() const {
   return extra_linked_bindings_mutex_;
 }

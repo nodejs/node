@@ -190,3 +190,35 @@ TEST_F(LinkedBindingTest, LocallyDefinedLinkedBindingNapiInstanceDataTest) {
   CHECK_EQ(*instance_data, 1);
   delete instance_data;
 }
+
+TEST_F(LinkedBindingTest, ManyBindingsTest) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env test_env {handle_scope, argv};
+
+  int calls = 0;
+  AddLinkedBinding(*test_env, "local_linked1", InitializeLocalBinding, &calls);
+  AddLinkedBinding(*test_env, "local_linked2", InitializeLocalBinding, &calls);
+  AddLinkedBinding(*test_env, "local_linked3", InitializeLocalBinding, &calls);
+  AddLinkedBinding(*test_env, local_linked_napi);  // Add a N-API addon as well.
+  AddLinkedBinding(*test_env, "local_linked4", InitializeLocalBinding, &calls);
+  AddLinkedBinding(*test_env, "local_linked5", InitializeLocalBinding, &calls);
+
+  v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+
+  const char* run_script =
+      "for (let i = 1; i <= 5; i++)process._linkedBinding(`local_linked${i}`);"
+      "process._linkedBinding('local_linked_napi').hello";
+  v8::Local<v8::Script> script = v8::Script::Compile(
+      context,
+      v8::String::NewFromOneByte(isolate_,
+                                 reinterpret_cast<const uint8_t*>(run_script))
+                                 .ToLocalChecked())
+      .ToLocalChecked();
+  v8::Local<v8::Value> completion_value = script->Run(context).ToLocalChecked();
+  v8::String::Utf8Value utf8val(isolate_, completion_value);
+  CHECK_NOT_NULL(*utf8val);
+  CHECK_EQ(strcmp(*utf8val, "world"), 0);
+  CHECK_EQ(calls, 5);
+}
+
