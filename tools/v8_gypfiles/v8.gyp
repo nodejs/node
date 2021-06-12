@@ -580,100 +580,110 @@
       ],
       'direct_dependent_settings': {
         'sources': [
-          '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_internal_headers.*?sources = ")',
+          '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?sources = ")',
         ],
         'conditions': [
           ['v8_enable_webassembly==1', {
             'sources': [
-              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_internal_headers.*?v8_enable_webassembly.*?sources \\+= ")',
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_enable_webassembly.*?sources \\+= ")',
             ],
           }],
           ['v8_enable_i18n_support==1', {
             'sources': [
-              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_internal_headers.*?v8_enable_i18n_support.*?sources \\+= ")',
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_enable_i18n_support.*?sources \\+= ")',
             ],
           }],
-          ['v8_control_flow_integrity==1', {
+          ['v8_control_flow_integrity==0', {
             'sources': [
-              '<(V8_ROOT)/src/execution/arm64/pointer-authentication-arm64.h',
-            ],
-          }, {
-            'sources': [
-              '<(V8_ROOT)/src/execution/pointer-authentication-dummy.h',
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?!v8_control_flow_integrity.*?sources \\+= ")',
             ],
           }],
           ['v8_target_arch=="ia32"', {
             'sources': [
-              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_internal_headers.*?v8_current_cpu == \\"x86.*?sources \\+= ")',
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_current_cpu == \\"x86\\".*?sources \\+= ")',
             ],
           }],
           ['v8_target_arch=="x64"', {
             'sources': [
-              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_internal_headers.*?v8_current_cpu == \\"x64.*?sources \\+= ")',
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_current_cpu == \\"x64\\".*?sources \\+= ")',
             ],
             'conditions': [
-              ['OS=="linux" or OS=="mac" or OS=="ios" or OS=="freebsd"', {
-                'sources': [
-                  '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_internal_headers.*?is_linux.*?sources \\+= ")',
-                ],
-              }],
               ['OS=="win"', {
                 'sources': [
-                  '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_internal_headers.*?is_win.*?sources \\+= ")',
+                  '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_current_cpu == \\"x64\\".*?is_win.*?sources \\+= ")',
+                ],
+              }],
+              ['v8_enable_webassembly==1', {
+                'conditions': [
+                  ['OS=="linux" or OS=="mac" or OS=="ios" or OS=="freebsd"', {
+                    'sources': [
+                      '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_current_cpu == \\"x64\\".*?v8_enable_webassembly.*?is_linux.*?sources \\+= ")',
+                    ],
+                  }],
+                  ['OS=="win"', {
+                    'sources': [
+                      '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_current_cpu == \\"x64\\".*?v8_enable_webassembly.*?is_win.*?sources \\+= ")',
+                    ],
+                  }],
                 ],
               }],
             ],
           }],
           ['v8_target_arch=="arm"', {
             'sources': [
-              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_internal_headers.*?v8_current_cpu == \\"arm.*?sources \\+= ")',
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_current_cpu == \\"arm\\".*?sources \\+= ")',
             ],
           }],
           ['v8_target_arch=="arm64"', {
             'sources': [
-              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_internal_headers.*?v8_current_cpu == \\"arm64.*?sources \\+= ")',
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_current_cpu == \\"arm64\\".*?sources \\+= ")',
             ],
             'conditions': [
-              ['OS=="mac"', {
+              ['v8_control_flow_integrity==1', {
                 'sources': [
-                  "<(V8_ROOT)/src/trap-handler/handler-inside-posix.h",
+                  '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_current_cpu == \\"arm64\\".*?v8_control_flow_integrity.*?sources \\+= ")',
+                ],
+              }],
+              ['v8_enable_webassembly==1 and OS=="mac"', {
+                'sources': [
+                  '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_current_cpu == \\"arm64\\".*?v8_enable_webassembly.*?is_mac.*?sources \\+= ")',
                 ],
               }],
               ['OS=="win"', {
                 'sources': [
-                  "<(V8_ROOT)/src/diagnostics/unwinding-info-win64.h"
+                  '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_current_cpu == \\"arm64\\".*?is_win.*?sources \\+= ")',
                 ],
               }],
             ],
           }],
           ['v8_target_arch=="mips" or v8_target_arch=="mipsel"', {
             'sources': [
-              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_internal_headers.*?v8_current_cpu == \\"mips\\".*?sources \\+= ")',
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_current_cpu == \\"mips\\".*?sources \\+= ")',
             ],
           }],
           ['v8_target_arch=="mips64" or v8_target_arch=="mips64el"', {
             'sources': [
-              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_internal_headers.*?v8_current_cpu == \\"mips64\\".*?sources \\+= ")',
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_current_cpu == \\"mips64\\".*?sources \\+= ")',
             ],
           }],
           ['v8_target_arch=="ppc"', {
             'sources': [
-              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_internal_headers.*?v8_current_cpu == \\"ppc\\".*?sources \\+= ")',
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_current_cpu == \\"ppc\\".*?sources \\+= ")',
             ],
           }],
           ['v8_target_arch=="ppc64"', {
             'sources': [
-              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_internal_headers.*?v8_current_cpu == \\"ppc64\\".*?sources \\+= ")',
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_current_cpu == \\"ppc64\\".*?sources \\+= ")',
             ],
           }],
           ['v8_target_arch=="s390x"', {
             'sources': [
-              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_internal_headers.*?v8_current_cpu == \\"s390\\".*?sources \\+= ")',
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_current_cpu == \\"s390\\".*?sources \\+= ")',
             ],
           }],
           ['v8_target_arch=="riscv64"', {
             'sources': [
-              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_internal_headers.*?v8_current_cpu == \\"riscv64\\".*?sources \\+= ")',
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_current_cpu == \\"riscv64\\".*?sources \\+= ")',
             ],
           }],
         ],
@@ -818,17 +828,26 @@
         }],
         ['v8_target_arch=="x64"', {
           'sources': [
-            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"x64.*?sources \\+= ")',
+            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"x64\\".*?sources \\+= ")',
           ],
           'conditions': [
-            ['OS=="linux" or OS=="mac" or OS=="ios" or OS=="freebsd"', {
-              'sources': [
-                '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?is_linux.*?sources \\+= ")',
-              ],
-            }],
             ['OS=="win"', {
               'sources': [
-                '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?is_win.*?sources \\+= ")',
+                '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"x64\\".*?is_win.*?sources \\+= ")',
+              ],
+            }],
+            ['v8_enable_webassembly==1', {
+              'conditions': [
+                ['OS=="linux" or OS=="mac" or OS=="ios" or OS=="freebsd"', {
+                  'sources': [
+                    '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"x64\\".*?v8_enable_webassembly.*?is_linux.*?sources \\+= ")',
+                  ],
+                }],
+                ['OS=="win"', {
+                  'sources': [
+                    '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"x64\\".*?v8_enable_webassembly.*?is_win.*?sources \\+= ")',
+                  ],
+                }],
               ],
             }],
           ],
@@ -1582,6 +1601,16 @@
       'direct_dependent_settings': {
         'sources': [
           '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_source_set.\\"v8_bigint.*?sources = ")',
+        ],
+        'conditions': [
+          ['v8_advanced_bigint_algorithms==1', {
+            'sources': [
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_source_set.\\"v8_bigint.*?v8_advanced_bigint_algorithms.*?sources \\+= ")',
+            ],
+            'defines': [
+              'V8_ADVANCED_BIGINT_ALGORITHMS',
+            ],
+          }],
         ],
       },
     },  # v8_bigint

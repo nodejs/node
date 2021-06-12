@@ -996,6 +996,36 @@
           },
         },
       }],
+      ['OS=="android"', {
+        'defines': [
+          'V8_HAVE_TARGET_OS',
+          'V8_TARGET_OS_ANDROID',
+        ]
+      }],
+      ['OS=="ios"', {
+        'defines': [
+          'V8_HAVE_TARGET_OS',
+          'V8_TARGET_OS_IOS',
+        ]
+      }],
+      ['OS=="linux"', {
+        'defines': [
+          'V8_HAVE_TARGET_OS',
+          'V8_TARGET_OS_LINUX',
+        ]
+      }],
+      ['OS=="mac"', {
+        'defines': [
+          'V8_HAVE_TARGET_OS',
+          'V8_TARGET_OS_MACOSX',
+        ]
+      }],
+      ['OS=="win"', {
+        'defines': [
+          'V8_HAVE_TARGET_OS',
+          'V8_TARGET_OS_WIN',
+        ]
+      }],
       ['(OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
          or OS=="netbsd" or OS=="mac" or OS=="android" or OS=="qnx") and \
         v8_target_arch=="ia32"', {
