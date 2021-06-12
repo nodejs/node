@@ -15,7 +15,6 @@ const assert = require('assert');
 const http = require('http');
 const { promisify } = require('util');
 const net = require('net');
-const EE = require('events');
 
 {
   let finished = false;
@@ -1390,17 +1389,22 @@ const EE = require('events');
 }
 
 {
-  const writableLike = new EE();
+  const writableLike = new Stream();
   writableLike.writableNeedDrain = true;
 
-  pipeline(async function *() {}, writableLike,
-           common.expectsError({ code: 'ERR_STREAM_PREMATURE_CLOSE' }));
+  pipeline(
+    async function *() {},
+    writableLike,
+    common.mustCall((err) => {
+      assert.strictEqual(err.code, 'ERR_STREAM_PREMATURE_CLOSE');
+    })
+  );
 
   writableLike.emit('close');
 }
 
 {
-  const writableLike = new EE();
+  const writableLike = new Stream();
   writableLike.write = () => false;
 
   pipeline(
@@ -1409,7 +1413,9 @@ const EE = require('events');
       yield null;
     },
     writableLike,
-    common.expectsError({ code: 'ERR_STREAM_PREMATURE_CLOSE' })
+    common.mustCall((err) => {
+      assert.strictEqual(err.code, 'ERR_STREAM_PREMATURE_CLOSE');
+    })
   );
 
   writableLike.emit('close');
