@@ -33,6 +33,7 @@
         '<(V8_ROOT)/src/d8/d8-js.cc',
         '<(V8_ROOT)/src/d8/d8-platforms.cc',
         '<(V8_ROOT)/src/d8/d8-platforms.h',
+        '<(V8_ROOT)/src/d8/d8-test.cc',
         '<(V8_ROOT)/src/d8/d8.cc',
         '<(V8_ROOT)/src/d8/d8.h',
       ],
