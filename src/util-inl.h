@@ -26,6 +26,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <locale>
 #include "util.h"
 
 // These are defined by <sys/byteorder.h> or <netinet/in.h> on some systems.
