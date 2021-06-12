@@ -308,7 +308,7 @@ added: v0.0.1
 -->
 
 * `timeout` {Timeout|string|number} A `Timeout` object as returned by [`setInterval()`][]
-  or the ID of the `Timeout` object as a string or a number.
+  or the [primitive][] of the `Timeout` object as a string or a number.
 
 Cancels a `Timeout` object created by [`setInterval()`][].
 
@@ -318,7 +318,7 @@ added: v0.0.1
 -->
 
 * `timeout` {Timeout|string|number} A `Timeout` object as returned by [`setTimeout()`][]
-  or the ID of the `Timeout` object as a string or a number.
+  or the [primitive][] of the `Timeout` object as a string or a number.
 
 Cancels a `Timeout` object created by [`setTimeout()`][].
 
@@ -480,3 +480,4 @@ const interval = 100;
 [`setTimeout()`]: timers.md#timers_settimeout_callback_delay_args
 [`util.promisify()`]: util.md#util_util_promisify_original
 [`worker_threads`]: worker_threads.md
+[primitive]: timers.md#timers_timeout_symbol_toprimitive
