@@ -69,7 +69,7 @@ server.listen(port, hostname, () => {
 });
 ```
 
-Save the file, go back to the terminal window, and enter the following command:
+Save the file and go back to the terminal. Entering the following commands run the file named `hello-world.js`:
 
 ```console
 $ node hello-world.js
