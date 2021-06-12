@@ -15,6 +15,7 @@ const assert = require('assert');
 const http = require('http');
 const { promisify } = require('util');
 const net = require('net');
+const EE = require('events');
 
 {
   let finished = false;
