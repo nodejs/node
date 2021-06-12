@@ -274,7 +274,7 @@ void SwapBytes64(char* data, size_t nbytes) {
 }
 
 char ToLower(char c) {
-  return c >= 'A' && c <= 'Z' ? c + ('a' - 'A') : c;
+  return std::tolower(c, std::locale::classic());
 }
 
 std::string ToLower(const std::string& in) {
@@ -285,7 +285,7 @@ std::string ToLower(const std::string& in) {
 }
 
 char ToUpper(char c) {
-  return c >= 'a' && c <= 'z' ? (c - 'a') + 'A' : c;
+  return std::toupper(c, std::locale::classic());
 }
 
 std::string ToUpper(const std::string& in) {

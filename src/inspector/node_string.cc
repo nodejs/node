@@ -71,14 +71,14 @@ String StringViewToUtf8(v8_inspector::StringView view) {
 
 String fromDouble(double d) {
   std::ostringstream stream;
-  stream.imbue(std::locale("C"));  // Ignore locale
+  stream.imbue(std::locale::classic());  // Ignore current locale
   stream << d;
   return stream.str();
 }
 
 double toDouble(const char* buffer, size_t length, bool* ok) {
   std::istringstream stream(std::string(buffer, length));
-  stream.imbue(std::locale("C"));  // Ignore locale
+  stream.imbue(std::locale::classic());  // Ignore current locale
   double d;
   stream >> d;
   *ok = !stream.fail();
