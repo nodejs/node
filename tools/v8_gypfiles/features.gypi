@@ -103,6 +103,9 @@
     # Sets -dENABLE_GDB_JIT_INTERFACE.
     'v8_enable_gdbjit%': 0,
 
+    # Sets -dENABLE_HUGEPAGE
+    'v8_enable_hugepage%': 0,
+
     # Currently set for node by common.gypi, avoiding default because of gyp file bug.
     # Should be turned on only for debugging.
     #'v8_enable_handle_zapping%': 0,
@@ -217,6 +220,13 @@
     # Sets -DV8_DICT_PROPERTY_CONST_TRACKING
     'v8_dict_property_const_tracking%': 0,
 
+    # Enable allocation folding globally (sets -dV8_ALLOCATION_FOLDING).
+    # When it's disabled, the --turbo-allocation-folding runtime flag will be ignored.
+    'v8_enable_allocation_folding%': 1,
+
+    # Enable global allocation site tracking.
+    'v8_allocation_site_tracking%': 1,
+
     # Variables from v8.gni
 
     # Enable ECMAScript Internationalization API. Enabling this feature will
@@ -232,6 +242,10 @@
     # will not be available, and embedder APIs to generate WebAssembly modules
     # will fail.
     'v8_enable_webassembly%': 1,
+
+    # Enable advanced BigInt algorithms, costing about 10-30 KB binary size
+    # depending on platform.
+    'v8_advanced_bigint_algorithms%': 1
   },
 
   'target_defaults': {
@@ -256,6 +270,9 @@
       }],
       ['v8_enable_gdbjit==1', {
         'defines': ['ENABLE_GDB_JIT_INTERFACE',],
+      }],
+      ['v8_enable_hugepage==1', {
+        'defines': ['ENABLE_HUGEPAGE',],
       }],
       ['v8_enable_minor_mc==1', {
         'defines': ['ENABLE_MINOR_MC',],
@@ -370,6 +387,12 @@
       }],
       ['v8_dict_property_const_tracking==1', {
         'defines': ['V8_DICT_PROPERTY_CONST_TRACKING',],
+      }],
+      ['v8_enable_allocation_folding==1', {
+        'defines': ['V8_ALLOCATION_FOLDING',],
+      }],
+      ['v8_allocation_site_tracking==1', {
+        'defines': ['V8_ALLOCATION_SITE_TRACKING',],
       }],
     ],  # conditions
     'defines': [
