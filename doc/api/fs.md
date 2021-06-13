@@ -802,6 +802,10 @@ rejection only when `recursive` is false.
 ### `fsPromises.mkdtemp(prefix[, options])`
 <!-- YAML
 added: v10.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/39028
+    description: The `prefix` parameter now accepts an empty string.
 -->
 
 * `prefix` {string}
@@ -2574,6 +2578,9 @@ See the POSIX mkdir(2) documentation for more details.
 <!-- YAML
 added: v5.10.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/39028
+    description: The `prefix` parameter now accepts an empty string.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/12562
     description: The `callback` parameter is no longer optional. Not passing
@@ -4509,6 +4516,10 @@ See the POSIX mkdir(2) documentation for more details.
 ### `fs.mkdtempSync(prefix[, options])`
 <!-- YAML
 added: v5.10.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/39028
+    description: The `prefix` parameter now accepts an empty string.
 -->
 
 * `prefix` {string}
