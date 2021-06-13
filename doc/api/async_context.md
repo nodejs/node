@@ -24,7 +24,7 @@ added:
  - v13.10.0
  - v12.17.0
 changes:
- - version: REPLACEME
+ - version: v16.4.0
    pr-url: https://github.com/nodejs/node/pull/37675
    description: AsyncLocalStorage is now Stable. Previously, it had been Experimental.
 -->
@@ -286,7 +286,7 @@ responsible for the context loss.
 ## Class: `AsyncResource`
 <!-- YAML
 changes:
- - version: REPLACEME
+ - version: v16.4.0
    pr-url: https://github.com/nodejs/node/pull/37675
    description: AsyncResource is now Stable. Previously, it had been Experimental.
 -->
