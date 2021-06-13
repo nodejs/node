@@ -189,7 +189,7 @@ code from strings throw an exception instead. This does not affect the Node.js
 
 ### `--dns-result-order=order`
 <!-- YAML
-added: REPLACEME
+added: v16.4.0
 -->
 
 Set the default value of `verbatim` in [`dns.lookup()`][] and

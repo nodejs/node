@@ -632,7 +632,7 @@ one of the [DNS error codes][].
 
 ## `dns.setDefaultResultOrder(order)`
 <!-- YAML
-added: REPLACEME
+added: v16.4.0
 -->
 
 * `order` {string} must be `'ipv4first'` or `'verbatim'`.
@@ -1153,7 +1153,7 @@ is one of the [DNS error codes](#dns_error_codes).
 
 ### `dnsPromises.setDefaultResultOrder(order)`
 <!-- YAML
-added: REPLACEME
+added: v16.4.0
 -->
 
 * `order` {string} must be `'ipv4first'` or `'verbatim'`.
