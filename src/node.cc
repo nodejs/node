@@ -1132,9 +1132,9 @@ int Start(int argc, char** argv) {
     Isolate::CreateParams params;
     const std::vector<size_t>* indices = nullptr;
     const EnvSerializeInfo* env_info = nullptr;
-    bool force_no_snapshot =
-        per_process::cli_options->per_isolate->no_node_snapshot;
-    if (!force_no_snapshot) {
+    bool use_node_snapshot =
+        per_process::cli_options->per_isolate->node_snapshot;
+    if (use_node_snapshot) {
       v8::StartupData* blob = NodeMainInstance::GetEmbeddedSnapshotBlob();
       if (blob != nullptr) {
         params.snapshot_blob = blob;
