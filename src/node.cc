@@ -1082,9 +1082,9 @@ int Start(int argc, char** argv) {
     const std::vector<size_t>* indexes = nullptr;
     std::vector<intptr_t> external_references;
 
-    bool force_no_snapshot =
-        per_process::cli_options->per_isolate->no_node_snapshot;
-    if (!force_no_snapshot) {
+    bool use_no_snapshot =
+        per_process::cli_options->per_isolate->node_snapshot;
+    if (use_no_snapshot) {
       v8::StartupData* blob = NodeMainInstance::GetEmbeddedSnapshotBlob();
       if (blob != nullptr) {
         // TODO(joyeecheung): collect external references and set it in

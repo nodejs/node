@@ -425,7 +425,7 @@ Environment::Environment(IsolateData* isolate_data,
   // By default, always abort when --abort-on-uncaught-exception was passed.
   should_abort_on_uncaught_toggle_[0] = 1;
 
-  if (options_->no_force_async_hooks_checks) {
+  if (!options_->force_async_hooks_checks) {
     async_hooks_.no_force_checks();
   }
 
