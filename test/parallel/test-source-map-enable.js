@@ -307,6 +307,23 @@ function nextdir() {
   assert.ok(sourceMap);
 }
 
+// Does not throw TypeError when primitive value is thrown.
+{
+  const coverageDirectory = nextdir();
+  const output = spawnSync(process.execPath, [
+    '--enable-source-maps',
+    require.resolve('../fixtures/source-map/throw-string.js'),
+  ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
+  const sourceMap = getSourceMapFromCache(
+    'throw-string.js',
+    coverageDirectory
+  );
+  // Original stack trace.
+  assert.match(output.stderr.toString(), /goodbye/);
+  // Source map should have been serialized.
+  assert.ok(sourceMap);
+}
+
 function getSourceMapFromCache(fixtureFile, coverageDirectory) {
   const jsonFiles = fs.readdirSync(coverageDirectory);
   for (const jsonFile of jsonFiles) {
