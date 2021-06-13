@@ -447,7 +447,7 @@ void Environment::InitializeMainContext(Local<Context> context,
     CreateProperties();
   }
 
-  if (options_->no_force_async_hooks_checks) {
+  if (!options_->force_async_hooks_checks) {
     async_hooks_.no_force_checks();
   }
 
