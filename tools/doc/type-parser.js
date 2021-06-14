@@ -32,6 +32,8 @@ const customTypesMap = {
   'ArrayBufferView':
     'https://developer.mozilla.org/en-US/docs/Web/API/ArrayBufferView',
 
+  'AsyncGeneratorFunction': 'https://tc39.es/ecma262/#sec-async-generator-function-definitions',
+
   'AsyncIterator': 'https://tc39.github.io/ecma262/#sec-asynciterator-interface',
 
   'AsyncIterable': 'https://tc39.github.io/ecma262/#sec-asynciterable-interface',
