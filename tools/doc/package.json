@@ -7,7 +7,7 @@
     "node": ">=14.8.0"
   },
   "devDependencies": {
-    "highlight.js": "10.7.3",
+    "highlight.js": "11.0.1",
     "js-yaml": "4.1.0",
     "rehype-raw": "5.1.0",
     "rehype-stringify": "8.0.0",
