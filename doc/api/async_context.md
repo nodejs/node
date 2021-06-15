@@ -46,7 +46,7 @@ logged within each request.
 
 ```mjs
 import http from 'http';
-import { AsyncLocalStoraget } from 'async_hooks';
+import { AsyncLocalStorage } from 'async_hooks';
 
 const asyncLocalStorage = new AsyncLocalStorage();
 
