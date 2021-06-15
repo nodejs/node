@@ -240,6 +240,7 @@ for the verification to take place. The usual pattern would be to call it in a
 
 ```mjs
 import assert from 'assert';
+import process from 'process';
 
 const tracker = new assert.CallTracker();
 

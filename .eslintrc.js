@@ -98,6 +98,14 @@ module.exports = {
           name: 'require',
           message: 'Use import instead',
         },
+        {
+          name: 'Buffer',
+          message: 'Import Buffer instead of using the global'
+        },
+        {
+          name: 'process',
+          message: 'Import process instead of using the global'
+        },
       ] },
     },
   ],
