@@ -75,7 +75,7 @@ struct url_data {
 };
 
 namespace table_data {
-extern const char* hex[256];
+extern const char hex[1024];
 extern const uint8_t C0_CONTROL_ENCODE_SET[32];
 extern const uint8_t FRAGMENT_ENCODE_SET[32];
 extern const uint8_t PATH_ENCODE_SET[32];

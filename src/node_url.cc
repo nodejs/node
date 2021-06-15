@@ -248,7 +248,7 @@ void AppendOrEscape(std::string* str,
                     const unsigned char ch,
                     const uint8_t encode_set[]) {
   if (BitAt(encode_set, ch))
-    *str += hex[ch];
+    *str += hex + (ch << 2);
   else
     *str += ch;
 }
