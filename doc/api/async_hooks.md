@@ -309,7 +309,7 @@ this.
 ```mjs
 import { createServer } from 'net';
 
-net.createServer().listen(function() { this.close(); });
+createServer().listen(function() { this.close(); });
 // OR
 clearTimeout(setTimeout(() => {}, 10));
 ```
@@ -358,6 +358,7 @@ The following is a simple demonstration of `triggerAsyncId`:
 ```mjs
 import { createHook, executionASyncId } from 'async_hooks';
 import { stdout } from 'process';
+import net from 'net';
 
 createHook({
   init(asyncId, type, triggerAsyncId) {
@@ -374,6 +375,7 @@ net.createServer((conn) => {}).listen(8080);
 ```cjs
 const { createHook, executionAsyncId } = require('async_hooks');
 const { fd } = require('process').stdout;
+const net = require('net');
 
 createHook({
   init(asyncId, type, triggerAsyncId) {
@@ -613,7 +615,7 @@ import { open } from 'fs';
 import { executionAsyncId, executionAsyncResource } from 'async_hooks';
 
 console.log(executionAsyncId(), executionAsyncResource());  // 1 {}
-open(fileURLToPath(import.meta.url), 'r', (err, fd) => {
+open(new URL(import.meta.url), 'r', (err, fd) => {
   console.log(executionAsyncId(), executionAsyncResource());  // 7 FSReqWrap
 });
 ```
