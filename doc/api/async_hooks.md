@@ -638,7 +638,7 @@ import { createServer } from 'http';
 import {
   executionAsyncId,
   executionAsyncResource,
-  createHook
+  createHook,
 } from 'async_hooks';
 const sym = Symbol('state'); // Private symbol to avoid pollution
 
