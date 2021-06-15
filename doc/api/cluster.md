@@ -17,6 +17,7 @@ server ports.
 import cluster from 'cluster';
 import http from 'http';
 import { cpus } from 'os';
+import process from 'process';
 
 const numCPUs = cpus().length;
 
@@ -47,6 +48,7 @@ if (cluster.isPrimary) {
 const cluster = require('cluster');
 const http = require('http');
 const numCPUs = require('os').cpus().length;
+const process = require('process');
 
 if (cluster.isPrimary) {
   console.log(`Primary ${process.pid} is running`);
@@ -265,6 +267,7 @@ process of the number of HTTP requests received by the workers:
 import cluster from 'cluster';
 import http from 'http';
 import { cpus } from 'os';
+import process from 'process';
 
 if (cluster.isPrimary) {
 
@@ -307,6 +310,7 @@ if (cluster.isPrimary) {
 ```cjs
 const cluster = require('cluster');
 const http = require('http');
+const process = require('process');
 
 if (cluster.isPrimary) {
 
@@ -491,6 +495,7 @@ because of exiting or being signaled). Otherwise, it returns `false`.
 import cluster from 'cluster';
 import http from 'http';
 import { cpus } from 'os';
+import process from 'process';
 
 const numCPUs = cpus().length;
 
@@ -523,6 +528,7 @@ if (cluster.isPrimary) {
 const cluster = require('cluster');
 const http = require('http');
 const numCPUs = require('os').cpus().length;
+const process = require('process');
 
 if (cluster.isPrimary) {
   console.log(`Primary ${process.pid} is running`);

@@ -544,6 +544,7 @@ Example of sending a UDP packet to a port on `localhost`;
 
 ```mjs
 import dgram from 'dgram';
+import { Buffer } from 'buffer';
 
 const message = Buffer.from('Some bytes');
 const client = dgram.createSocket('udp4');
@@ -554,6 +555,8 @@ client.send(message, 41234, 'localhost', (err) => {
 
 ```cjs
 const dgram = require('dgram');
+const { Buffer } = require('buffer');
+
 const message = Buffer.from('Some bytes');
 const client = dgram.createSocket('udp4');
 client.send(message, 41234, 'localhost', (err) => {
@@ -566,6 +569,7 @@ Example of sending a UDP packet composed of multiple buffers to a port on
 
 ```mjs
 import dgram from 'dgram';
+import { Buffer } from 'buffer';
 
 const buf1 = Buffer.from('Some ');
 const buf2 = Buffer.from('bytes');
@@ -577,6 +581,8 @@ client.send([buf1, buf2], 41234, (err) => {
 
 ```cjs
 const dgram = require('dgram');
+const { Buffer } = require('buffer');
+
 const buf1 = Buffer.from('Some ');
 const buf2 = Buffer.from('bytes');
 const client = dgram.createSocket('udp4');
@@ -595,6 +601,7 @@ Example of sending a UDP packet using a socket connected to a port on
 
 ```mjs
 import dgram from 'dgram';
+import { Buffer } from 'buffer';
 
 const message = Buffer.from('Some bytes');
 const client = dgram.createSocket('udp4');
@@ -607,6 +614,8 @@ client.connect(41234, 'localhost', (err) => {
 
 ```cjs
 const dgram = require('dgram');
+const { Buffer } = require('buffer');
+
 const message = Buffer.from('Some bytes');
 const client = dgram.createSocket('udp4');
 client.connect(41234, 'localhost', (err) => {
