@@ -3843,7 +3843,7 @@ for instance).
 The compatibility API falls back to `host` if `:authority` is not
 present. See [`request.authority`][] for more information. However,
 if you don't use the compatibility API (or use `req.headers` directly),
-you need to implement any fall-back behaviour yourself.
+you need to implement any fall-back behavior yourself.
 
 [ALPN Protocol ID]: https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml#alpn-protocol-ids
 [ALPN negotiation]: #http2_alpn_negotiation

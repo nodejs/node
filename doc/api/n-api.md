@@ -5228,7 +5228,7 @@ avoid introducing causing memory leaks. However, if the `async_resource` is
 garbage collected by JavaScript engine before the `napi_async_context` was
 destroyed by `napi_async_destroy`, calling `napi_async_context` related APIs
 like [`napi_open_callback_scope`][] and [`napi_make_callback`][] can cause
-problems like loss of async context when using the `AsyncLocalStoage` API.
+problems like loss of async context when using the `AsyncLocalStorage` API.
 
 In order to retain ABI compatibility with previous versions, passing `NULL`
 for `async_resource` does not result in an error. However, this is not
@@ -5731,7 +5731,7 @@ after receiving a return value of `napi_closing` in response to a call to
 `napi_threadsafe_function` can be freed in its `napi_finalize` callback which
 was passed to `napi_create_threadsafe_function()`. The parameter
 `initial_thread_count` of `napi_create_threadsafe_function` marks the initial
-number of aquisitions of the thread-safe functions, instead of calling
+number of acquisitions of the thread-safe functions, instead of calling
 `napi_acquire_threadsafe_function` multiple times at creation.
 
 Once the number of threads making use of a `napi_threadsafe_function` reaches
