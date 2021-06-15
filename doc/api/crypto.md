@@ -99,7 +99,7 @@ changes:
   includes a public key and a challenge.
 
 ```mjs
-const { Certificate } = await import('crypto');
+import { Certificate } from 'crypto';
 const spkac = getSpkacSomehow();
 const challenge = Certificate.exportChallenge(spkac);
 console.log(challenge.toString('utf8'));
@@ -130,7 +130,7 @@ changes:
   which includes a public key and a challenge.
 
 ```mjs
-const { Certificate } = await import('crypto');
+import { Certificate } from 'crypto';
 const spkac = getSpkacSomehow();
 const publicKey = Certificate.exportPublicKey(spkac);
 console.log(publicKey);
@@ -162,7 +162,7 @@ changes:
   `false` otherwise.
 
 ```mjs
-const { Certificate } = await import('crypto');
+import { Certificate } from 'crypto';
 const spkac = getSpkacSomehow();
 console.log(Certificate.verifySpkac(Buffer.from(spkac)));
 // Prints: true or false
@@ -188,7 +188,7 @@ Instances of the `Certificate` class can be created using the `new` keyword
 or by calling `crypto.Certificate()` as a function:
 
 ```mjs
-const { Certificate } = await import('crypto');
+import { Certificate } from 'crypto';
 
 const cert1 = new Certificate();
 const cert2 = Certificate();
@@ -212,7 +212,7 @@ added: v0.11.8
   includes a public key and a challenge.
 
 ```mjs
-const { Certificate } = await import('crypto');
+import { Certificate } from 'crypto';
 const cert = Certificate();
 const spkac = getSpkacSomehow();
 const challenge = cert.exportChallenge(spkac);
@@ -240,7 +240,7 @@ added: v0.11.8
   which includes a public key and a challenge.
 
 ```mjs
-const { Certificate } = await import('crypto');
+import { Certificate } from 'crypto';
 const cert = Certificate();
 const spkac = getSpkacSomehow();
 const publicKey = cert.exportPublicKey(spkac);
@@ -268,7 +268,7 @@ added: v0.11.8
   `false` otherwise.
 
 ```mjs
-const { Certificate } = await import('crypto');
+import { Certificate } from 'crypto';
 const cert = Certificate();
 const spkac = getSpkacSomehow();
 console.log(cert.verifySpkac(Buffer.from(spkac)));
@@ -305,11 +305,11 @@ directly using the `new` keyword.
 Example: Using `Cipher` objects as streams:
 
 ```mjs
-const {
+import {
   scrypt,
   randomFill,
   createCipheriv
-} = await import('crypto');
+} from 'crypto';
 
 const algorithm = 'aes-192-cbc';
 const password = 'Password used to generate key';
@@ -382,11 +382,11 @@ import {
   pipeline
 } from 'stream';
 
-const {
+import {
   scrypt,
   randomFill,
-  createCipheriv,
-} = await import('crypto');
+  createCipheriv
+} from 'crypto';
 
 const algorithm = 'aes-192-cbc';
 const password = 'Password used to generate key';
@@ -453,11 +453,11 @@ scrypt(password, 'salt', 24, (err, key) => {
 Example: Using the [`cipher.update()`][] and [`cipher.final()`][] methods:
 
 ```mjs
-const {
+import {
   scrypt,
   randomFill,
-  createCipheriv,
-} = await import('crypto');
+  createCipheriv
+} from 'crypto';
 
 const algorithm = 'aes-192-cbc';
 const password = 'Password used to generate key';
@@ -626,10 +626,10 @@ directly using the `new` keyword.
 Example: Using `Decipher` objects as streams:
 
 ```mjs
-const {
+import {
   scryptSync,
-  createDecipheriv,
-} = await import('crypto');
+  createDecipheriv
+} from 'crypto';
 
 const algorithm = 'aes-192-cbc';
 const password = 'Password used to generate key';
@@ -703,10 +703,10 @@ import {
   createWriteStream,
 } from 'fs';
 
-const {
+import {
   scryptSync,
-  createDecipheriv,
-} = await import('crypto');
+  createDecipheriv
+} from 'crypto';
 
 const algorithm = 'aes-192-cbc';
 const password = 'Password used to generate key';
@@ -752,10 +752,10 @@ input.pipe(decipher).pipe(output);
 Example: Using the [`decipher.update()`][] and [`decipher.final()`][] methods:
 
 ```mjs
-const {
+import {
   scryptSync,
-  createDecipheriv,
-} = await import('crypto');
+  createDecipheriv
+} from 'crypto';
 
 const algorithm = 'aes-192-cbc';
 const password = 'Password used to generate key';
@@ -941,9 +941,9 @@ Instances of the `DiffieHellman` class can be created using the
 ```mjs
 import assert from 'assert';
 
-const {
-  createDiffieHellman,
-} = await import('crypto');
+import {
+  createDiffieHellman
+} from 'crypto';
 
 // Generate Alice's keys...
 const alice = createDiffieHellman(2048);
@@ -1120,7 +1120,7 @@ its keys after creation. In other words, it does not implement `setPublicKey()`
 or `setPrivateKey()` methods.
 
 ```mjs
-const { createDiffieHellmanGroup } = await import('crypto');
+import { createDiffieHellmanGroup } from 'crypto';
 const dh = createDiffieHellmanGroup('modp1');
 ```
 
@@ -1158,9 +1158,9 @@ Instances of the `ECDH` class can be created using the
 ```mjs
 import assert from 'assert';
 
-const {
-  createECDH,
-} = await import('crypto');
+import {
+  createECDH
+} from 'crypto';
 
 // Generate Alice's keys...
 const alice = createECDH('secp521r1');
@@ -1232,10 +1232,10 @@ If the `inputEncoding` is not provided, `key` is expected to be a [`Buffer`][],
 Example (uncompressing a key):
 
 ```mjs
-const {
+import {
   createECDH,
-  ECDH,
-} = await import('crypto');
+  ECDH
+} from 'crypto';
 
 const ecdh = createECDH('secp256k1');
 ecdh.generateKeys();
@@ -1398,10 +1398,10 @@ set.
 Example (obtaining a shared secret):
 
 ```mjs
-const {
+import {
   createECDH,
-  createHash,
-} = await import('crypto');
+  createHash
+} from 'crypto';
 
 const alice = createECDH('secp256k1');
 const bob = createECDH('secp256k1');
@@ -1472,9 +1472,9 @@ objects are not to be created directly using the `new` keyword.
 Example: Using `Hash` objects as streams:
 
 ```mjs
-const {
-  createHash,
-} = await import('crypto');
+import {
+  createHash
+} from 'crypto';
 
 const hash = createHash('sha256');
 
@@ -1520,9 +1520,9 @@ Example: Using `Hash` and piped streams:
 ```mjs
 import { createReadStream } from 'fs';
 
-const {
-  createHash,
-} = await import('crypto');
+import {
+  createHash
+} from 'crypto';
 const hash = createHash('sha256');
 
 const input = createReadStream('test.js');
@@ -1547,9 +1547,9 @@ input.pipe(hash).setEncoding('hex').pipe(process.stdout);
 Example: Using the [`hash.update()`][] and [`hash.digest()`][] methods:
 
 ```mjs
-const {
-  createHash,
-} = await import('crypto');
+import {
+  createHash
+} from 'crypto';
 
 const hash = createHash('sha256');
 
@@ -1592,9 +1592,9 @@ its [`hash.digest()`][] method has been called.
 
 ```mjs
 // Calculate a rolling hash.
-const {
-  createHash,
-} = await import('crypto');
+import {
+  createHash
+} from 'crypto';
 
 const hash = createHash('sha256');
 
@@ -1687,9 +1687,9 @@ objects are not to be created directly using the `new` keyword.
 Example: Using `Hmac` objects as streams:
 
 ```mjs
-const {
-  createHmac,
-} = await import('crypto');
+import {
+  createHmac
+} from 'crypto';
 
 const hmac = createHmac('sha256', 'a secret');
 
@@ -1735,9 +1735,9 @@ Example: Using `Hmac` and piped streams:
 ```mjs
 import { createReadStream } from 'fs';
 
-const {
-  createHmac,
-} = await import('crypto');
+import {
+  createHmac
+} from 'crypto';
 
 const hmac = createHmac('sha256', 'a secret');
 
@@ -1763,9 +1763,9 @@ input.pipe(hmac).pipe(process.stdout);
 Example: Using the [`hmac.update()`][] and [`hmac.digest()`][] methods:
 
 ```mjs
-const {
-  createHmac,
-} = await import('crypto');
+import {
+  createHmac
+} from 'crypto';
 
 const hmac = createHmac('sha256', 'a secret');
 
@@ -1863,12 +1863,8 @@ added: v15.0.0
 Example: Converting a `CryptoKey` instance to a `KeyObject`:
 
 ```mjs
-const {
-  webcrypto: {
-    subtle,
-  },
-  KeyObject,
-} = await import('crypto');
+import { webcrypto, KeyObject } from 'crypto';
+const { subtle } = webcrypto;
 
 const key = await subtle.generateKey({
   name: 'HMAC',
@@ -2055,11 +2051,11 @@ to be created directly using the `new` keyword.
 Example: Using `Sign` and [`Verify`][] objects as streams:
 
 ```mjs
-const {
+import {
   generateKeyPairSync,
   createSign,
-  createVerify,
-} = await import('crypto');
+  createVerify
+} from 'crypto';
 
 const { privateKey, publicKey } = generateKeyPairSync('ec', {
   namedCurve: 'sect239k1'
@@ -2103,11 +2099,11 @@ console.log(verify.verify(publicKey, signature, 'hex'));
 Example: Using the [`sign.update()`][] and [`verify.update()`][] methods:
 
 ```mjs
-const {
+import {
   generateKeyPairSync,
   createSign,
-  createVerify,
-} = await import('crypto');
+  createVerify
+} from 'crypto';
 
 const { privateKey, publicKey } = generateKeyPairSync('rsa', {
   modulusLength: 2048,
@@ -2351,7 +2347,7 @@ Encapsulates an X509 certificate and provides read-only access to
 its information.
 
 ```mjs
-const { X509Certificate } = await import('crypto');
+import { X509Certificate } from 'crypto';
 
 const x509 = new X509Certificate('{... pem encoded cert ...}');
 
@@ -3027,9 +3023,9 @@ import {
   createReadStream
 } from 'fs';
 
-const {
-  createHash,
-} = await import('crypto');
+import {
+  createHash
+} from 'crypto';
 
 const filename = process.argv[2];
 
@@ -3113,9 +3109,9 @@ import {
   createReadStream
 } from 'fs';
 
-const {
-  createHmac,
-} = await import('crypto');
+import {
+  createHmac
+} from 'crypto';
 
 const filename = process.argv[2];
 
@@ -3335,9 +3331,9 @@ Asynchronously generates a new random secret key of the given `length`. The
 `type` will determine which validations will be performed on the `length`.
 
 ```mjs
-const {
-  generateKey,
-} = await import('crypto');
+import {
+  generateKey
+} from 'crypto';
 
 generateKey('hmac', { length: 64 }, (err, key) => {
   if (err) throw err;
@@ -3407,9 +3403,9 @@ It is recommended to encode public keys as `'spki'` and private keys as
 `'pkcs8'` with encryption for long-term storage:
 
 ```mjs
-const {
-  generateKeyPair,
-} = await import('crypto');
+import {
+  generateKeyPair
+} from 'crypto';
 
 generateKeyPair('rsa', {
   modulusLength: 4096,
@@ -3504,9 +3500,9 @@ private keys, it is recommended to use `'pkcs8'` with a strong passphrase,
 and to keep the passphrase confidential.
 
 ```mjs
-const {
-  generateKeyPairSync,
-} = await import('crypto');
+import {
+  generateKeyPairSync
+} from 'crypto';
 
 const {
   publicKey,
@@ -3572,9 +3568,9 @@ Synchronously generates a new random secret key of the given `length`. The
 `type` will determine which validations will be performed on the `length`.
 
 ```mjs
-const {
-  generateKeySync,
-} = await import('crypto');
+import {
+  generateKeySync
+} from 'crypto';
 
 const key = generateKeySync('hmac', 64);
 console.log(key.export().toString('hex'));  // e89..........41e
@@ -3709,9 +3705,9 @@ added: v0.9.3
   algorithms.
 
 ```mjs
-const {
-  getCiphers,
-} = await import('crypto');
+import {
+  getCiphers
+} from 'crypto';
 
 console.log(getCiphers()); // ['aes-128-cbc', 'aes-128-ccm', ...]
 ```
@@ -3732,9 +3728,9 @@ added: v2.3.0
 * Returns: {string[]} An array with the names of the supported elliptic curves.
 
 ```mjs
-const {
-  getCurves,
-} = await import('crypto');
+import {
+  getCurves
+} from 'crypto';
 
 console.log(getCurves()); // ['Oakley-EC2N-3', 'Oakley-EC2N-4', ...]
 ```
@@ -3769,9 +3765,9 @@ and communication time.
 Example (obtaining a shared secret):
 
 ```mjs
-const {
-  getDiffieHellman,
-} = await import('crypto');
+import {
+  getDiffieHellman
+} from 'crypto';
 const alice = getDiffieHellman('modp14');
 const bob = getDiffieHellman('modp14');
 
@@ -3821,9 +3817,9 @@ added: v0.9.3
   such as `'RSA-SHA256'`. Hash algorithms are also called "digest" algorithms.
 
 ```mjs
-const {
-  getHashes,
-} = await import('crypto');
+import {
+  getHashes
+} from 'crypto';
 
 console.log(getHashes()); // ['DSA', 'DSA-SHA', 'DSA-SHA1', ...]
 ```
@@ -3866,9 +3862,9 @@ be passed to the callback as an {ArrayBuffer}. An error will be thrown if any
 of the input aguments specify invalid values or types.
 
 ```mjs
-const {
-  hkdf,
-} = await import('crypto');
+import {
+  hkdf
+} from 'crypto';
 
 hkdf('sha512', 'key', 'salt', 'info', 64, (err, derivedKey) => {
   if (err) throw err;
@@ -3915,9 +3911,9 @@ An error will be thrown if any of the input aguments specify invalid values or
 types, or if the derived key cannot be generated.
 
 ```mjs
-const {
-  hkdfSync,
-} = await import('crypto');
+import {
+  hkdfSync
+} from 'crypto';
 
 const derivedKey = hkdfSync('sha512', 'key', 'salt', 'info', 64);
 console.log(Buffer.from(derivedKey).toString('hex'));  // '24156e2...5391653'
@@ -3991,9 +3987,9 @@ When passing strings for `password` or `salt`, please consider
 [caveats when using strings as inputs to cryptographic APIs][].
 
 ```mjs
-const {
-  pbkdf2,
-} = await import('crypto');
+import {
+  pbkdf2
+} from 'crypto';
 
 pbkdf2('secret', 'salt', 100000, 64, 'sha512', (err, derivedKey) => {
   if (err) throw err;
@@ -4017,7 +4013,7 @@ The `crypto.DEFAULT_ENCODING` property can be used to change the way the
 deprecated and use should be avoided.
 
 ```mjs
-const crypto = await import('crypto');
+import crypto from 'crypto';
 crypto.DEFAULT_ENCODING = 'hex';
 crypto.pbkdf2('secret', 'salt', 100000, 512, 'sha512', (err, derivedKey) => {
   if (err) throw err;
@@ -4088,9 +4084,9 @@ When passing strings for `password` or `salt`, please consider
 [caveats when using strings as inputs to cryptographic APIs][].
 
 ```mjs
-const {
-  pbkdf2Sync,
-} = await import('crypto');
+import {
+  pbkdf2Sync
+} from 'crypto';
 
 const key = pbkdf2Sync('secret', 'salt', 100000, 64, 'sha512');
 console.log(key.toString('hex'));  // '3745e48...08d59ae'
@@ -4110,7 +4106,7 @@ The `crypto.DEFAULT_ENCODING` property may be used to change the way the
 should be avoided.
 
 ```mjs
-const crypto = await import('crypto');
+import crypto from 'crypto';
 crypto.DEFAULT_ENCODING = 'hex';
 const key = crypto.pbkdf2Sync('secret', 'salt', 100000, 512, 'sha512');
 console.log(key);  // '3745e48...aa39b34'
@@ -4326,9 +4322,9 @@ If an error occurs, `err` will be an `Error` object; otherwise it is `null`. The
 
 ```mjs
 // Asynchronous
-const {
-  randomBytes,
-} = await import('crypto');
+import {
+  randomBytes
+} from 'crypto';
 
 randomBytes(256, (err, buf) => {
   if (err) throw err;
@@ -4354,9 +4350,9 @@ there is a problem generating the bytes.
 
 ```mjs
 // Synchronous
-const {
-  randomBytes,
-} = await import('crypto');
+import {
+  randomBytes
+} from 'crypto';
 
 const buf = randomBytes(256);
 console.log(
@@ -4411,9 +4407,9 @@ changes:
 Synchronous version of [`crypto.randomFill()`][].
 
 ```mjs
-const {
-  randomFillSync,
-} = await import('crypto');
+import {
+  randomFillSync
+} from 'crypto';
 
 const buf = Buffer.alloc(10);
 console.log(randomFillSync(buf).toString('hex'));
@@ -4446,9 +4442,9 @@ Any `ArrayBuffer`, `TypedArray` or `DataView` instance may be passed as
 `buffer`.
 
 ```mjs
-const {
-  randomFillSync,
-} = await import('crypto');
+import {
+  randomFillSync
+} from 'crypto';
 
 const a = new Uint32Array(10);
 console.log(Buffer.from(randomFillSync(a).buffer,
@@ -4504,9 +4500,9 @@ requires that a callback is passed in.
 If the `callback` function is not provided, an error will be thrown.
 
 ```mjs
-const {
-  randomFill,
-} = await import('crypto');
+import {
+  randomFill
+} from 'crypto';
 
 const buf = Buffer.alloc(10);
 randomFill(buf, (err, buf) => {
@@ -4559,9 +4555,9 @@ contains finite numbers only, they are not drawn from a uniform random
 distribution and have no meaningful lower or upper bounds.
 
 ```mjs
-const {
-  randomFill,
-} = await import('crypto');
+import {
+  randomFill
+} from 'crypto';
 
 const a = new Uint32Array(10);
 randomFill(a, (err, buf) => {
@@ -4641,9 +4637,9 @@ generated synchronously.
 
 ```mjs
 // Asynchronous
-const {
-  randomInt,
-} = await import('crypto');
+import {
+  randomInt
+} from 'crypto';
 
 randomInt(3, (err, n) => {
   if (err) throw err;
@@ -4665,9 +4661,9 @@ randomInt(3, (err, n) => {
 
 ```mjs
 // Synchronous
-const {
-  randomInt,
-} = await import('crypto');
+import {
+  randomInt
+} from 'crypto';
 
 const n = randomInt(3);
 console.log(`Random number chosen from (0, 1, 2): ${n}`);
@@ -4685,9 +4681,9 @@ console.log(`Random number chosen from (0, 1, 2): ${n}`);
 
 ```mjs
 // With `min` argument
-const {
-  randomInt,
-} = await import('crypto');
+import {
+  randomInt
+} from 'crypto';
 
 const n = randomInt(1, 7);
 console.log(`The dice rolled: ${n}`);
@@ -4775,9 +4771,9 @@ An exception is thrown when any of the input arguments specify invalid values
 or types.
 
 ```mjs
-const {
-  scrypt,
-} = await import('crypto');
+import {
+  scrypt
+} from 'crypto';
 
 // Using the factory defaults.
 scrypt('password', 'salt', 64, (err, derivedKey) => {
@@ -4855,9 +4851,9 @@ An exception is thrown when any of the input arguments specify invalid values
 or types.
 
 ```mjs
-const {
-  scryptSync,
-} = await import('crypto');
+import {
+  scryptSync
+} from 'crypto';
 // Using the factory defaults.
 
 const key1 = scryptSync('password', 'salt', 64);
@@ -5212,11 +5208,11 @@ mode must adhere to certain restrictions when using the cipher API:
   authentication tag.
 
 ```mjs
-const {
+import {
   createCipheriv,
   createDecipheriv,
-  randomBytes,
-} = await import('crypto');
+  randomBytes
+} from 'crypto';
 
 const key = 'keykeykeykeykeykeykeykey';
 const nonce = randomBytes(12);
