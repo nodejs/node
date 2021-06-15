@@ -163,6 +163,8 @@ changes:
 
 ```mjs
 import { Certificate } from 'crypto';
+import { Buffer } from 'buffer';
+
 const spkac = getSpkacSomehow();
 console.log(Certificate.verifySpkac(Buffer.from(spkac)));
 // Prints: true or false
@@ -170,6 +172,8 @@ console.log(Certificate.verifySpkac(Buffer.from(spkac)));
 
 ```cjs
 const { Certificate } = require('crypto');
+const { Buffer } = require('buffer');
+
 const spkac = getSpkacSomehow();
 console.log(Certificate.verifySpkac(Buffer.from(spkac)));
 // Prints: true or false
@@ -269,6 +273,8 @@ added: v0.11.8
 
 ```mjs
 import { Certificate } from 'crypto';
+import { Buffer } from 'buffer';
+
 const cert = Certificate();
 const spkac = getSpkacSomehow();
 console.log(cert.verifySpkac(Buffer.from(spkac)));
@@ -277,6 +283,8 @@ console.log(cert.verifySpkac(Buffer.from(spkac)));
 
 ```cjs
 const { Certificate } = require('crypto');
+const { Buffer } = require('buffer');
+
 const cert = Certificate();
 const spkac = getSpkacSomehow();
 console.log(cert.verifySpkac(Buffer.from(spkac)));
@@ -630,6 +638,7 @@ import {
   scryptSync,
   createDecipheriv
 } from 'crypto';
+import { Buffer } from 'buffer';
 
 const algorithm = 'aes-192-cbc';
 const password = 'Password used to generate key';
@@ -665,6 +674,7 @@ const {
   scryptSync,
   createDecipheriv,
 } = require('crypto');
+const { Buffer } = require('buffer');
 
 const algorithm = 'aes-192-cbc';
 const password = 'Password used to generate key';
@@ -702,11 +712,11 @@ import {
   createReadStream,
   createWriteStream,
 } from 'fs';
-
 import {
   scryptSync,
   createDecipheriv
 } from 'crypto';
+import { Buffer } from 'buffer';
 
 const algorithm = 'aes-192-cbc';
 const password = 'Password used to generate key';
@@ -728,11 +738,11 @@ const {
   createReadStream,
   createWriteStream,
 } = require('fs');
-
 const {
   scryptSync,
   createDecipheriv,
 } = require('crypto');
+const { Buffer } = require('buffer');
 
 const algorithm = 'aes-192-cbc';
 const password = 'Password used to generate key';
@@ -756,6 +766,7 @@ import {
   scryptSync,
   createDecipheriv
 } from 'crypto';
+import { Buffer } from 'buffer';
 
 const algorithm = 'aes-192-cbc';
 const password = 'Password used to generate key';
@@ -780,6 +791,7 @@ const {
   scryptSync,
   createDecipheriv,
 } = require('crypto');
+const { Buffer } = require('buffer');
 
 const algorithm = 'aes-192-cbc';
 const password = 'Password used to generate key';
@@ -1519,29 +1531,24 @@ Example: Using `Hash` and piped streams:
 
 ```mjs
 import { createReadStream } from 'fs';
+import { createHash } from 'crypto';
+import { stdout } from 'process';
 
-import {
-  createHash
-} from 'crypto';
 const hash = createHash('sha256');
 
 const input = createReadStream('test.js');
-input.pipe(hash).setEncoding('hex').pipe(process.stdout);
+input.pipe(hash).setEncoding('hex').pipe(stdout);
 ```
 
 ```cjs
-const {
-  createReadStream,
-} = require('fs');
-
-const {
-  createHash,
-} = require('crypto');
+const { createReadStream } = require('fs');
+const { createHash } = require('crypto');
+const { stdout } = require('process');
 
 const hash = createHash('sha256');
 
 const input = createReadStream('test.js');
-input.pipe(hash).setEncoding('hex').pipe(process.stdout);
+input.pipe(hash).setEncoding('hex').pipe(stdout);
 ```
 
 Example: Using the [`hash.update()`][] and [`hash.digest()`][] methods:
@@ -1734,30 +1741,30 @@ Example: Using `Hmac` and piped streams:
 
 ```mjs
 import { createReadStream } from 'fs';
-
 import {
   createHmac
 } from 'crypto';
+import { stdout } from 'process';
 
 const hmac = createHmac('sha256', 'a secret');
 
 const input = createReadStream('test.js');
-input.pipe(hmac).pipe(process.stdout);
+input.pipe(hmac).pipe(stdout);
 ```
 
 ```cjs
 const {
   createReadStream,
 } = require('fs');
-
 const {
   createHmac,
 } = require('crypto');
+const { stdout } = require('process');
 
 const hmac = createHmac('sha256', 'a secret');
 
 const input = createReadStream('test.js');
-input.pipe(hmac).pipe(process.stdout);
+input.pipe(hmac).pipe(stdout);
 ```
 
 Example: Using the [`hmac.update()`][] and [`hmac.digest()`][] methods:
@@ -3022,12 +3029,12 @@ Example: generating the sha256 sum of a file
 import {
   createReadStream
 } from 'fs';
-
 import {
   createHash
 } from 'crypto';
+import { argv } from 'process';
 
-const filename = process.argv[2];
+const filename = argv[2];
 
 const hash = createHash('sha256');
 
@@ -3048,12 +3055,12 @@ input.on('readable', () => {
 const {
   createReadStream,
 } = require('fs');
-
 const {
   createHash,
 } = require('crypto');
+const { argv } = require('process');
 
-const filename = process.argv[2];
+const filename = argv[2];
 
 const hash = createHash('sha256');
 
@@ -3108,12 +3115,12 @@ Example: generating the sha256 HMAC of a file
 import {
   createReadStream
 } from 'fs';
-
 import {
   createHmac
 } from 'crypto';
+import { argv } from 'process';
 
-const filename = process.argv[2];
+const filename = argv[2];
 
 const hmac = createHmac('sha256', 'a secret');
 
@@ -3134,12 +3141,12 @@ input.on('readable', () => {
 const {
   createReadStream,
 } = require('fs');
-
 const {
   createHmac,
 } = require('crypto');
+const { argv } = require('process');
 
-const filename = process.argv[2];
+const filename = argv[2];
 
 const hmac = createHmac('sha256', 'a secret');
 
@@ -3865,6 +3872,7 @@ of the input aguments specify invalid values or types.
 import {
   hkdf
 } from 'crypto';
+import { Buffer } from 'buffer';
 
 hkdf('sha512', 'key', 'salt', 'info', 64, (err, derivedKey) => {
   if (err) throw err;
@@ -3876,6 +3884,7 @@ hkdf('sha512', 'key', 'salt', 'info', 64, (err, derivedKey) => {
 const {
   hkdf,
 } = require('crypto');
+const { Buffer } = require('buffer');
 
 hkdf('sha512', 'key', 'salt', 'info', 64, (err, derivedKey) => {
   if (err) throw err;
@@ -3914,6 +3923,7 @@ types, or if the derived key cannot be generated.
 import {
   hkdfSync
 } from 'crypto';
+import { Buffer } from 'buffer';
 
 const derivedKey = hkdfSync('sha512', 'key', 'salt', 'info', 64);
 console.log(Buffer.from(derivedKey).toString('hex'));  // '24156e2...5391653'
@@ -3923,6 +3933,7 @@ console.log(Buffer.from(derivedKey).toString('hex'));  // '24156e2...5391653'
 const {
   hkdfSync,
 } = require('crypto');
+const { Buffer } = require('buffer');
 
 const derivedKey = hkdfSync('sha512', 'key', 'salt', 'info', 64);
 console.log(Buffer.from(derivedKey).toString('hex'));  // '24156e2...5391653'
@@ -4407,9 +4418,8 @@ changes:
 Synchronous version of [`crypto.randomFill()`][].
 
 ```mjs
-import {
-  randomFillSync
-} from 'crypto';
+import { randomFillSync } from 'crypto';
+import { Buffer } from 'buffer';
 
 const buf = Buffer.alloc(10);
 console.log(randomFillSync(buf).toString('hex'));
@@ -4423,9 +4433,8 @@ console.log(buf.toString('hex'));
 ```
 
 ```cjs
-const {
-  randomFillSync,
-} = require('crypto');
+const { randomFillSync } = require('crypto');
+const { Buffer } = require('buffer');
 
 const buf = Buffer.alloc(10);
 console.log(randomFillSync(buf).toString('hex'));
@@ -4442,9 +4451,8 @@ Any `ArrayBuffer`, `TypedArray` or `DataView` instance may be passed as
 `buffer`.
 
 ```mjs
-import {
-  randomFillSync
-} from 'crypto';
+import { randomFillSync } from 'crypto';
+import { Buffer } from 'buffer';
 
 const a = new Uint32Array(10);
 console.log(Buffer.from(randomFillSync(a).buffer,
@@ -4459,9 +4467,8 @@ console.log(Buffer.from(randomFillSync(c)).toString('hex'));
 ```
 
 ```cjs
-const {
-  randomFillSync,
-} = require('crypto');
+const { randomFillSync } = require('crypto');
+const { Buffer } = require('buffer');
 
 const a = new Uint32Array(10);
 console.log(Buffer.from(randomFillSync(a).buffer,
@@ -4500,9 +4507,8 @@ requires that a callback is passed in.
 If the `callback` function is not provided, an error will be thrown.
 
 ```mjs
-import {
-  randomFill
-} from 'crypto';
+import { randomFill } from 'crypto';
+import { Buffer } from 'buffer';
 
 const buf = Buffer.alloc(10);
 randomFill(buf, (err, buf) => {
@@ -4523,9 +4529,8 @@ randomFill(buf, 5, 5, (err, buf) => {
 ```
 
 ```cjs
-const {
-  randomFill,
-} = require('crypto');
+const { randomFill } = require('crypto');
+const { Buffer } = require('buffer');
 
 const buf = Buffer.alloc(10);
 randomFill(buf, (err, buf) => {
@@ -4555,9 +4560,8 @@ contains finite numbers only, they are not drawn from a uniform random
 distribution and have no meaningful lower or upper bounds.
 
 ```mjs
-import {
-  randomFill
-} from 'crypto';
+import { randomFill } from 'crypto';
+import { Buffer } from 'buffer';
 
 const a = new Uint32Array(10);
 randomFill(a, (err, buf) => {
@@ -4581,9 +4585,8 @@ randomFill(c, (err, buf) => {
 ```
 
 ```cjs
-const {
-  randomFill,
-} = require('crypto');
+const { randomFill } = require('crypto');
+const { Buffer } = require('buffer');
 
 const a = new Uint32Array(10);
 randomFill(a, (err, buf) => {
@@ -5213,6 +5216,7 @@ import {
   createDecipheriv,
   randomBytes
 } from 'crypto';
+import { Buffer } from 'buffer';
 
 const key = 'keykeykeykeykeykeykeykey';
 const nonce = randomBytes(12);
@@ -5257,6 +5261,7 @@ const {
   createDecipheriv,
   randomBytes,
 } = require('crypto');
+const { Buffer } = require('buffer');
 
 const key = 'keykeykeykeykeykeykeykey';
 const nonce = randomBytes(12);

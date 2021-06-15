@@ -247,6 +247,7 @@ readFile('./foo.txt', (err, source) => {
 ```js
 import fs, { readFileSync } from 'fs';
 import { syncBuiltinESMExports } from 'module';
+import { Buffer } from 'buffer';
 
 fs.readFileSync = () => Buffer.from('Hello, ESM');
 syncBuiltinESMExports();
@@ -819,8 +820,9 @@ globalThis.someInjectedProperty = 42;
 console.log('I just set some globals!');
 
 const { createRequire } = getBuiltin('module');
+const { cwd } = getBuiltin('process');
 
-const require = createRequire(process.cwd() + '/<preload>');
+const require = createRequire(cwd() + '/<preload>');
 // [...]
 `;
 }
@@ -921,8 +923,9 @@ purposes.
 // coffeescript-loader.mjs
 import { URL, pathToFileURL } from 'url';
 import CoffeeScript from 'coffeescript';
+import { cwd } from 'process';
 
-const baseURL = pathToFileURL(`${process.cwd()}/`).href;
+const baseURL = pathToFileURL(`${cwd()}/`).href;
 
 // CoffeeScript files end in .coffee, .litcoffee or .coffee.md.
 const extensionsRegex = /\.coffee$|\.litcoffee$|\.coffee\.md$/;
