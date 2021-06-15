@@ -90,7 +90,7 @@ const { Headers, kHeadersList } = require('internal/fetch/headers');
 }
 
 {
-  // headers append
+  // append
   const headers = new Headers();
   headers.append('test-name-1', 'test-value-1');
   assert.deepStrictEqual(headers[kHeadersList], [
@@ -123,4 +123,62 @@ const { Headers, kHeadersList } = require('internal/fetch/headers');
   assert.throws(() => {
     headers.append('invalid @ header ? name', 'test-value');
   });
+}
+
+{
+  // delete
+  const headers = new Headers();
+  headers.append('test-name-1', 'test-value-1');
+  headers.append('test-name-2', 'test-value-2');
+  headers.append('test-name-3', 'test-value-3');
+  assert.deepStrictEqual(headers[kHeadersList], [
+    'test-name-1',
+    'test-value-1',
+    'test-name-2',
+    'test-value-2',
+    'test-name-3',
+    'test-value-3'
+  ]);
+  assert.doesNotThrow(() => headers.delete('test-name-2'))
+  assert.deepStrictEqual(headers[kHeadersList], [
+    'test-name-1',
+    'test-value-1',
+    'test-name-3',
+    'test-value-3'
+  ]);
+  assert.doesNotThrow(() => headers.delete('does-not-exist'))
+  assert.deepStrictEqual(headers[kHeadersList], [
+    'test-name-1',
+    'test-value-1',
+    'test-name-3',
+    'test-value-3'
+  ]);
+
+  assert.throws(() => {
+    headers.delete()
+  })
+  
+  assert.throws(() => {
+    headers.delete('invalid @ header ?')
+  })
+}
+
+{
+  // get
+  const headers = new Headers();
+  headers.append('test-name-1', 'test-value-1');
+  headers.append('test-name-2', 'test-value-2');
+  headers.append('test-name-3', 'test-value-3');
+  assert.deepStrictEqual(headers.get('test-name-1'), 'test-value-1');
+  assert.deepStrictEqual(headers.get('does-not-exist'), null);
+  headers.append('test-name-2', 'test-value-4')
+  assert.deepStrictEqual(headers.get('test-name-2'), 'test-value-2, test-value-4')
+
+  assert.throws(() => {
+    headers.get()
+  })
+  
+  assert.throws(() => {
+    headers.get('invalid @ header ?')
+  })
 }
