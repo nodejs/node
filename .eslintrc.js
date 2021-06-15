@@ -105,7 +105,7 @@ module.exports = {
         {
           name: 'process',
           message: 'Import process instead of using the global'
-        }
+        },
       ] },
     },
   ],
