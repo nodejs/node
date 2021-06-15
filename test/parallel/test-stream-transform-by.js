@@ -5,7 +5,7 @@ const { Readable, Transform } = require('stream');
 const { strictEqual } = require('assert');
 
 async function transformBy() {
-  const readable = Readable.from('test');
+  const readable = Readable.from('test'.split(''));
   async function * mapper(source) {
     for await (const { chunk } of source) {
       yield chunk.toUpperCase();
@@ -15,19 +15,19 @@ async function transformBy() {
   const stream = Transform.by(mapper);
   readable.pipe(stream);
   const expected = ['T', 'E', 'S', 'T'];
-  for await (const { chunk } of stream) {
+  for await (const chunk of stream) {
     strictEqual(chunk, expected.shift());
   }
 }
 
 async function transformByFuncReturnsObjectWithSymbolAsyncIterator() {
-  const readable = Readable.from('test');
+  const readable = Readable.from('test'.split(''));
   const mapper = (source) => ({
     [Symbol.asyncIterator]() {
       return {
         async next() {
           const { done, value } = await source.next();
-          return { done, value: value ? value.toUpperCase() : value };
+          return { done, value: value ? value.chunk.toUpperCase() : value };
         }
       };
     }
@@ -36,13 +36,13 @@ async function transformByFuncReturnsObjectWithSymbolAsyncIterator() {
   const stream = Transform.by(mapper);
   readable.pipe(stream);
   const expected = ['T', 'E', 'S', 'T'];
-  for await (const { chunk } of stream) {
+  for await (const chunk of stream) {
     strictEqual(chunk, expected.shift());
   }
 }
 
 async function transformByEncoding() {
-  const readable = Readable.from('test');
+  const readable = Readable.from('test'.split(''));
   async function * mapper(source) {
     for await (const { chunk, encoding } of source) {
       strictEqual(encoding, 'ascii');
@@ -54,13 +54,13 @@ async function transformByEncoding() {
   readable.pipe(stream);
 
   const expected = ['T', 'E', 'S', 'T'];
-  for await (const { chunk } of stream) {
+  for await (const chunk of stream) {
     strictEqual(chunk, expected.shift());
   }
 }
 
 async function transformBySourceIteratorCompletes() {
-  const readable = Readable.from('test');
+  const readable = Readable.from('test'.split(''));
   const mustReach = mustCall();
   async function * mapper(source) {
     for await (const { chunk } of source) {
@@ -72,13 +72,13 @@ async function transformBySourceIteratorCompletes() {
   const stream = Transform.by(mapper);
   readable.pipe(stream);
   const expected = ['T', 'E', 'S', 'T'];
-  for await (const { chunk } of stream) {
+  for await (const chunk of stream) {
     strictEqual(chunk, expected.shift());
   }
 }
 
 async function transformByYieldPlusReturn() {
-  const readable = Readable.from('test');
+  const readable = Readable.from('test'.split(''));
   async function * mapper(source) {
     for await (const { chunk } of source) {
       yield chunk.toUpperCase();
@@ -89,13 +89,13 @@ async function transformByYieldPlusReturn() {
   const stream = Transform.by(mapper);
   readable.pipe(stream);
   const expected = ['T', 'E', 'S', 'T', 'final chunk'];
-  for await (const { chunk } of stream) {
+  for await (const chunk of stream) {
     strictEqual(chunk, expected.shift());
   }
 }
 
 async function transformByReturnEndsStream() {
-  const readable = Readable.from('test');
+  const readable = Readable.from('test'.split(''));
   async function * mapper(source) {
     for await (const { chunk } of source) {
       yield chunk.toUpperCase();
@@ -107,14 +107,14 @@ async function transformByReturnEndsStream() {
   readable.pipe(stream);
   const expected = ['T', 'stop'];
   const mustReach = mustCall();
-  for await (const { chunk } of stream) {
+  for await (const chunk of stream) {
     strictEqual(chunk, expected.shift());
   }
   mustReach();
 }
 
 async function transformByOnData() {
-  const readable = Readable.from('test');
+  const readable = Readable.from('test'.split(''));
   async function * mapper(source) {
     for await (const { chunk } of source) {
       yield chunk.toUpperCase();
@@ -135,7 +135,7 @@ async function transformByOnData() {
 }
 
 async function transformByOnDataNonObject() {
-  const readable = Readable.from('test', { objectMode: false });
+  const readable = Readable.from('test'.split(''), { objectMode: false });
   async function * mapper(source) {
     for await (const { chunk } of source) {
       yield chunk.toString().toUpperCase();
@@ -156,7 +156,7 @@ async function transformByOnDataNonObject() {
 }
 
 async function transformByOnErrorAndDestroyed() {
-  const stream = Readable.from('test').pipe(Transform.by(
+  const stream = Readable.from('test'.split('')).pipe(Transform.by(
     async function * mapper(source) {
       for await (const { chunk } of source) {
         if (chunk === 'e') throw new Error('kaboom');
@@ -174,7 +174,7 @@ async function transformByOnErrorAndDestroyed() {
 }
 
 async function transformByErrorTryCatchAndDestroyed() {
-  const stream = Readable.from('test').pipe(Transform.by(
+  const stream = Readable.from('test'.split('')).pipe(Transform.by(
     async function * mapper(source) {
       for await (const { chunk } of source) {
         if (chunk === 'e') throw new Error('kaboom');
@@ -184,7 +184,7 @@ async function transformByErrorTryCatchAndDestroyed() {
   ));
   strictEqual(stream.destroyed, false);
   try {
-    for await (const { chunk } of stream) {
+    for await (const chunk of stream) {
       strictEqual(chunk.toString(), 'T');
     }
   } catch (err) {
@@ -194,7 +194,7 @@ async function transformByErrorTryCatchAndDestroyed() {
 }
 
 async function transformByOnErrorAndTryCatchAndDestroyed() {
-  const stream = Readable.from('test').pipe(Transform.by(
+  const stream = Readable.from('test'.split('')).pipe(Transform.by(
     async function * mapper(source) {
       for await (const { chunk } of source) {
         if (chunk === 'e') throw new Error('kaboom');
@@ -207,7 +207,7 @@ async function transformByOnErrorAndTryCatchAndDestroyed() {
     strictEqual(err.message, 'kaboom');
   }));
   try {
-    for await (const { chunk } of stream) {
+    for await (const chunk of stream) {
       strictEqual(chunk.toString(), 'T');
     }
   } catch (err) {
