@@ -1313,6 +1313,7 @@ to be written.
 
 ```mjs
 import { writeFile } from 'fs/promises';
+import { Buffer } from 'buffer';
 
 try {
   const controller = new AbortController();
@@ -3951,6 +3952,7 @@ If `data` is a normal object, it must have an own `toString` function property.
 
 ```mjs
 import { writeFile } from 'fs';
+import { Buffer } from 'buffer';
 
 const data = new Uint8Array(Buffer.from('Hello Node.js'));
 writeFile('message.txt', data, (err) => {
@@ -3981,6 +3983,7 @@ to be written.
 
 ```mjs
 import { writeFile } from 'fs';
+import { Buffer } from 'buffer';
 
 const controller = new AbortController();
 const { signal } = controller;
@@ -4002,6 +4005,7 @@ calling `fs.write()` like:
 
 ```mjs
 import { write } from 'fs';
+import { Buffer } from 'buffer';
 
 write(fd, Buffer.from(data, options.encoding), callback);
 ```
@@ -6522,6 +6526,7 @@ Example using an absolute path on POSIX:
 
 ```mjs
 import { open } from 'fs/promises';
+import { Buffer } from 'buffer';
 
 let fd;
 try {
