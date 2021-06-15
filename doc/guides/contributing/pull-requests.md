@@ -51,11 +51,8 @@ help, questions and discussions.
 [#nodejs-dev](https://openjs-foundation.slack.com/archives/C019Y2T6STH) for
 development of Node.js core specifically.
 
-Node.js also has two IRC channels:
-[#Node.js](https://webchat.freenode.net/?channels=node.js) for general help and
-questions, and
-[#node-dev](https://webchat.freenode.net/?channels=node-dev) for development of
-Node.js core specifically.
+Node.js also has an unofficial IRC channel:
+[#Node.js](https://web.libera.chat/?channels=node.js).
 
 ## Setting up your local environment
 
@@ -298,8 +295,7 @@ $ git push --force-with-lease origin my-branch
 
 **Important:** The `git push --force-with-lease` command is one of the few ways
 to delete history in `git`. Before you use it, make sure you understand the
-risks. If in doubt, you can always ask for guidance in the Pull Request or on
-[IRC in the #node-dev channel][].
+risks. If in doubt, you can always ask for guidance in the Pull Request.
 
 If you happen to make a mistake in any of your commits, do not worry. You can
 amend the last commit (for example if you want to change the commit log).
@@ -593,7 +589,6 @@ More than one subsystem may be valid for any particular issue or pull request.
 [CI (Continuous Integration) test run]: #ci-testing
 [Code of Conduct]: https://github.com/nodejs/admin/blob/HEAD/CODE_OF_CONDUCT.md
 [Collaborator Guide]: ../collaborator-guide.md
-[IRC in the #node-dev channel]: https://webchat.freenode.net?channels=node-dev&uio=d4
 [Onboarding guide]: ../../../onboarding.md
 [approved]: #getting-approvals-for-your-pull-request
 [benchmark results]: ../writing-and-running-benchmarks.md
