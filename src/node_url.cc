@@ -248,8 +248,7 @@ void AppendOrEscape(std::string* str,
                     const unsigned char ch,
                     const uint8_t encode_set[]) {
   if (BitAt(encode_set, ch))
-    *str += hex + (ch << 2);  // "%XX\0" has a length of 4, and `<< 2` equals to
-                              // `* 4`
+    *str += hex + ch * 4;  // "%XX\0" has a length of 4
   else
     *str += ch;
 }
