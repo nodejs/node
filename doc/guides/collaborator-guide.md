@@ -726,7 +726,6 @@ git push upstream master
 ### I made a mistake
 
 * Ping a TSC member.
-* `#node-dev` on freenode.
 * With `git`, there's a way to override remote trees by force pushing
   (`git push -f`). This is generally forbidden as it creates conflicts in other
   people's forks. It is permissible for simpler slip-ups such as typos in commit
@@ -735,7 +734,6 @@ git push upstream master
   10-minute period passes, consider the commit final.
   * Use `--force-with-lease` to reduce the chance of overwriting someone else's
     change.
-  * Post to `#node-dev` (IRC) if you force push.
 
 ### Long Term Support
 
