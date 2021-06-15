@@ -307,7 +307,7 @@ function nextdir() {
   assert.ok(sourceMap);
 }
 
-// Does not attempt to rekey source map on primitive type.
+// Does not throw TypeError when primitive value is thrown.
 {
   const coverageDirectory = nextdir();
   const output = spawnSync(process.execPath, [
