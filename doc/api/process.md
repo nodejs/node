@@ -803,9 +803,9 @@ passed through to V8 will contain underscores instead of non-leading
 dashes:
 
 ```mjs
-import process from 'process';
+import { allowedNodeEnvironmentFlags } from 'process';
 
-process.allowedNodeEnvironmentFlags.forEach((flag) => {
+allowedNodeEnvironmentFlags.forEach((flag) => {
   // -r
   // --inspect-brk
   // --abort_on_uncaught_exception
@@ -814,9 +814,9 @@ process.allowedNodeEnvironmentFlags.forEach((flag) => {
 ```
 
 ```cjs
-const process = require('process');
+const { allowedNodeEnvironmentFlags } = require('process');
 
-process.allowedNodeEnvironmentFlags.forEach((flag) => {
+allowedNodeEnvironmentFlags.forEach((flag) => {
   // -r
   // --inspect-brk
   // --abort_on_uncaught_exception
@@ -844,13 +844,13 @@ Possible values are: `'arm'`, `'arm64'`, `'ia32'`, `'mips'`,`'mipsel'`, `'ppc'`,
 `'ppc64'`, `'s390'`, `'s390x'`, `'x32'`, and `'x64'`.
 
 ```mjs
-import process from 'process';
+import { arch } from 'process';
 
-console.log(`This processor architecture is ${process.arch}`);
+console.log(`This processor architecture is ${arch}`);
 ```
 
 ```cjs
-const process = require('process');
+const { arch } = require('process');
 
 console.log(`This processor architecture is ${process.arch}`);
 ```
@@ -872,19 +872,19 @@ arguments.
 For example, assuming the following script for `process-args.js`:
 
 ```mjs
-import process from 'process';
+import { argv } from 'process';
 
 // print process.argv
-process.argv.forEach((val, index) => {
+argv.forEach((val, index) => {
   console.log(`${index}: ${val}`);
 });
 ```
 
 ```cjs
-const process = require('process');
+const { argv } = require('process');
 
 // print process.argv
-process.argv.forEach((val, index) => {
+argv.forEach((val, index) => {
   console.log(`${index}: ${val}`);
 });
 ```
@@ -975,24 +975,24 @@ Node.js process or throws an exception if doing so fails (for instance, if
 the specified `directory` does not exist).
 
 ```mjs
-import process from 'process';
+import { chdir, cwd } from 'process';
 
-console.log(`Starting directory: ${process.cwd()}`);
+console.log(`Starting directory: ${cwd()}`);
 try {
-  process.chdir('/tmp');
-  console.log(`New directory: ${process.cwd()}`);
+  chdir('/tmp');
+  console.log(`New directory: ${cwd()}`);
 } catch (err) {
   console.error(`chdir: ${err}`);
 }
 ```
 
 ```cjs
-const process = require('process');
+const { chdir, cwd } = require('process');
 
-console.log(`Starting directory: ${process.cwd()}`);
+console.log(`Starting directory: ${cwd()}`);
 try {
-  process.chdir('/tmp');
-  console.log(`New directory: ${process.cwd()}`);
+  chdir('/tmp');
+  console.log(`New directory: ${cwd()}`);
 } catch (err) {
   console.error(`chdir: ${err}`);
 }
@@ -1019,40 +1019,7 @@ running the `./configure` script.
 An example of the possible output looks like:
 
 <!-- eslint-skip -->
-```mjs
-import process from 'process';
-
-{
-  target_defaults:
-   { cflags: [],
-     default_configuration: 'Release',
-     defines: [],
-     include_dirs: [],
-     libraries: [] },
-  variables:
-   {
-     host_arch: 'x64',
-     napi_build_version: 5,
-     node_install_npm: 'true',
-     node_prefix: '',
-     node_shared_cares: 'false',
-     node_shared_http_parser: 'false',
-     node_shared_libuv: 'false',
-     node_shared_zlib: 'false',
-     node_use_dtrace: 'false',
-     node_use_openssl: 'true',
-     node_shared_openssl: 'false',
-     strict_aliasing: 'true',
-     target_arch: 'x64',
-     v8_use_snapshot: 1
-   }
-}
-```
-
-<!-- eslint-skip -->
-```cjs
-const process = require('process');
-
+```js
 {
   target_defaults:
    { cflags: [],
@@ -1124,30 +1091,30 @@ The result of a previous call to `process.cpuUsage()` can be passed as the
 argument to the function, to get a diff reading.
 
 ```mjs
-import process from 'process';
+import { cpuUsage } from 'process';
 
-const startUsage = process.cpuUsage();
+const startUsage = cpuUsage();
 // { user: 38579, system: 6986 }
 
 // spin the CPU for 500 milliseconds
 const now = Date.now();
 while (Date.now() - now < 500);
 
-console.log(process.cpuUsage(startUsage));
+console.log(cpuUsage(startUsage));
 // { user: 514883, system: 11226 }
 ```
 
 ```cjs
-const process = require('process');
+const { cpuUsage } = require('process');
 
-const startUsage = process.cpuUsage();
+const startUsage = cpuUsage();
 // { user: 38579, system: 6986 }
 
 // spin the CPU for 500 milliseconds
 const now = Date.now();
 while (Date.now() - now < 500);
 
-console.log(process.cpuUsage(startUsage));
+console.log(cpuUsage(startUsage));
 // { user: 514883, system: 11226 }
 ```
 
@@ -1162,15 +1129,15 @@ The `process.cwd()` method returns the current working directory of the Node.js
 process.
 
 ```mjs
-import process from 'process';
+import { cwd } from 'process';
 
-console.log(`Current directory: ${process.cwd()}`);
+console.log(`Current directory: ${cwd()}`);
 ```
 
 ```cjs
-const process = require('process');
+const { cwd } = require('process');
 
-console.log(`Current directory: ${process.cwd()}`);
+console.log(`Current directory: ${cwd()}`);
 ```
 
 ## `process.debugPort`
@@ -1242,25 +1209,23 @@ the call returns, by passing the `RTLD_NOW` constant. In this example
 the constant is assumed to be available.
 
 ```mjs
-import process from 'process';
-import os from 'os';
-import path from 'path';
+import { dlopen } from 'process';
+import { constants } from 'os';
 import { fileURLToPath } from 'url';
 
 const module = { exports: {} };
-process.dlopen(module, fileURLToPath(new URL('local.node', import.meta.url)),
-               os.constants.dlopen.RTLD_NOW);
+dlopen(module, fileURLToPath(new URL('local.node', import.meta.url)),
+       constants.dlopen.RTLD_NOW);
 module.exports.foo();
 ```
 
 ```cjs
-const process = require('process');
+const { dlopen } = require('process');
+const { constants } = require('os');
+const { join } = require('path');
 
-const os = require('os');
-const path = require('path');
 const module = { exports: {} };
-process.dlopen(module, path.join(__dirname, 'local.node'),
-               os.constants.dlopen.RTLD_NOW);
+dlopen(module, join(__dirname, 'local.node'), constants.dlopen.RTLD_NOW);
 module.exports.foo();
 ```
 
@@ -1284,10 +1249,10 @@ specific process warnings. These can be listened for by adding a handler to the
 [`'warning'`][process_warning] event.
 
 ```mjs
-import process from 'process';
+import { emitWarning } from 'process';
 
 // Emit a warning with a code and additional detail.
-process.emitWarning('Something happened!', {
+emitWarning('Something happened!', {
   code: 'MY_WARNING',
   detail: 'This is some additional information'
 });
@@ -1297,10 +1262,10 @@ process.emitWarning('Something happened!', {
 ```
 
 ```cjs
-const process = require('process');
+const { emitWarning } = require('process');
 
 // Emit a warning with a code and additional detail.
-process.emitWarning('Something happened!', {
+emitWarning('Something happened!', {
   code: 'MY_WARNING',
   detail: 'This is some additional information'
 });
@@ -1357,46 +1322,46 @@ specific process warnings. These can be listened for by adding a handler to the
 [`'warning'`][process_warning] event.
 
 ```mjs
-import process from 'process';
+import { emitWarning } from 'process';
 
 // Emit a warning using a string.
-process.emitWarning('Something happened!');
+emitWarning('Something happened!');
 // Emits: (node: 56338) Warning: Something happened!
 ```
 
 ```cjs
-const process = require('process');
+const { emitWarning } = require('process');
 
 // Emit a warning using a string.
-process.emitWarning('Something happened!');
+emitWarning('Something happened!');
 // Emits: (node: 56338) Warning: Something happened!
 ```
 
 ```mjs
-import process from 'process';
+import { emitWarning } from 'process';
 
 // Emit a warning using a string and a type.
-process.emitWarning('Something Happened!', 'CustomWarning');
+emitWarning('Something Happened!', 'CustomWarning');
 // Emits: (node:56338) CustomWarning: Something Happened!
 ```
 
 ```cjs
-const process = require('process');
+const { emitWarning } = require('process');
 
 // Emit a warning using a string and a type.
-process.emitWarning('Something Happened!', 'CustomWarning');
+emitWarning('Something Happened!', 'CustomWarning');
 // Emits: (node:56338) CustomWarning: Something Happened!
 ```
 
 ```mjs
-import process from 'process';
+import { emitWarning } from 'process';
 
-process.emitWarning('Something happened!', 'CustomWarning', 'WARN001');
+emitWarning('Something happened!', 'CustomWarning', 'WARN001');
 // Emits: (node:56338) [WARN001] CustomWarning: Something happened!
 ```
 
 ```cjs
-const process = require('process');
+const { emitWarning } = require('process');
 
 process.emitWarning('Something happened!', 'CustomWarning', 'WARN001');
 // Emits: (node:56338) [WARN001] CustomWarning: Something happened!
@@ -1433,7 +1398,7 @@ If `warning` is passed as an `Error` object, it will be passed through to the
 `code` and `ctor` arguments will be ignored):
 
 ```mjs
-import process from 'process';
+import { emitWarning } from 'process';
 
 // Emit a warning using an Error object.
 const myWarning = new Error('Something happened!');
@@ -1441,12 +1406,12 @@ const myWarning = new Error('Something happened!');
 myWarning.name = 'CustomWarning';
 myWarning.code = 'WARN001';
 
-process.emitWarning(myWarning);
+emitWarning(myWarning);
 // Emits: (node:56338) [WARN001] CustomWarning: Something happened!
 ```
 
 ```cjs
-const process = require('process');
+const { emitWarning } = require('process');
 
 // Emit a warning using an Error object.
 const myWarning = new Error('Something happened!');
@@ -1454,7 +1419,7 @@ const myWarning = new Error('Something happened!');
 myWarning.name = 'CustomWarning';
 myWarning.code = 'WARN001';
 
-process.emitWarning(myWarning);
+emitWarning(myWarning);
 // Emits: (node:56338) [WARN001] CustomWarning: Something happened!
 ```
 
@@ -1481,12 +1446,12 @@ so, it is recommended to place the `emitWarning()` behind a simple boolean
 flag as illustrated in the example below:
 
 ```mjs
-import process from 'process';
+import { emitWarning } from 'process';
 
 function emitMyWarning() {
   if (!emitMyWarning.warned) {
     emitMyWarning.warned = true;
-    process.emitWarning('Only warn once!');
+    emitWarning('Only warn once!');
   }
 }
 emitMyWarning();
@@ -1496,12 +1461,12 @@ emitMyWarning();
 ```
 
 ```cjs
-const process = require('process');
+const { emitWarning } = require('process');
 
 function emitMyWarning() {
   if (!emitMyWarning.warned) {
     emitMyWarning.warned = true;
-    process.emitWarning('Only warn once!');
+    emitWarning('Only warn once!');
   }
 }
 emitMyWarning();
@@ -1532,27 +1497,7 @@ See environ(7).
 An example of this object looks like:
 
 <!-- eslint-skip -->
-```mjs
-import process from 'process';
-
-{
-  TERM: 'xterm-256color',
-  SHELL: '/usr/local/bin/bash',
-  USER: 'maciej',
-  PATH: '~/.bin/:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin',
-  PWD: '/Users/maciej',
-  EDITOR: 'vim',
-  SHLVL: '1',
-  HOME: '/Users/maciej',
-  LOGNAME: 'maciej',
-  _: '/usr/local/bin/node'
-}
-```
-
-<!-- eslint-skip -->
-```cjs
-const process = require('process');
-
+```js
 {
   TERM: 'xterm-256color',
   SHELL: '/usr/local/bin/bash',
@@ -1579,17 +1524,17 @@ $ node -e 'process.env.foo = "bar"' && echo $foo
 While the following will:
 
 ```mjs
-import process from 'process';
+import { env } from 'process';
 
-process.env.foo = 'bar';
-console.log(process.env.foo);
+env.foo = 'bar';
+console.log(env.foo);
 ```
 
 ```cjs
-const process = require('process');
+const { env } = require('process');
 
-process.env.foo = 'bar';
-console.log(process.env.foo);
+env.foo = 'bar';
+console.log(env.foo);
 ```
 
 Assigning a property on `process.env` will implicitly convert the value
@@ -1597,62 +1542,62 @@ to a string. **This behavior is deprecated.** Future versions of Node.js may
 throw an error when the value is not a string, number, or boolean.
 
 ```mjs
-import process from 'process';
+import { env } from 'process';
 
-process.env.test = null;
-console.log(process.env.test);
+env.test = null;
+console.log(env.test);
 // => 'null'
-process.env.test = undefined;
-console.log(process.env.test);
+env.test = undefined;
+console.log(env.test);
 // => 'undefined'
 ```
 
 ```cjs
-const process = require('process');
+const { env } = require('process');
 
-process.env.test = null;
-console.log(process.env.test);
+env.test = null;
+console.log(env.test);
 // => 'null'
-process.env.test = undefined;
-console.log(process.env.test);
+env.test = undefined;
+console.log(env.test);
 // => 'undefined'
 ```
 
 Use `delete` to delete a property from `process.env`.
 
 ```mjs
-import process from 'process';
+import { env } from 'process';
 
-process.env.TEST = 1;
-delete process.env.TEST;
-console.log(process.env.TEST);
+env.TEST = 1;
+delete env.TEST;
+console.log(env.TEST);
 // => undefined
 ```
 
 ```cjs
-const process = require('process');
+const { env } = require('process');
 
-process.env.TEST = 1;
-delete process.env.TEST;
-console.log(process.env.TEST);
+env.TEST = 1;
+delete env.TEST;
+console.log(env.TEST);
 // => undefined
 ```
 
 On Windows operating systems, environment variables are case-insensitive.
 
 ```mjs
-import process from 'process';
+import { env } from 'process';
 
-process.env.TEST = 1;
-console.log(process.env.test);
+env.TEST = 1;
+console.log(env.test);
 // => 1
 ```
 
 ```cjs
-const process = require('process');
+const { env } = require('process');
 
-process.env.TEST = 1;
-console.log(process.env.test);
+env.TEST = 1;
+console.log(env.test);
 // => 1
 ```
 
@@ -1684,32 +1629,14 @@ $ node --harmony script.js --version
 Results in `process.execArgv`:
 
 <!-- eslint-disable semi -->
-```mjs
-import process from 'process';
-
-['--harmony']
-```
-
-<!-- eslint-disable semi -->
-```cjs
-const process = require('process');
-
+```js
 ['--harmony']
 ```
 
 And `process.argv`:
 
 <!-- eslint-disable semi -->
-```mjs
-import process from 'process';
-
-['/usr/local/bin/node', 'script.js', '--version']
-```
-
-<!-- eslint-disable semi -->
-```cjs
-const process = require('process');
-
+```js
 ['/usr/local/bin/node', 'script.js', '--version']
 ```
 
@@ -1727,16 +1654,7 @@ The `process.execPath` property returns the absolute pathname of the executable
 that started the Node.js process. Symbolic links, if any, are resolved.
 
 <!-- eslint-disable semi -->
-```mjs
-import process from 'process';
-
-'/usr/local/bin/node'
-```
-
-<!-- eslint-disable semi -->
-```cjs
-const process = require('process');
-
+```js
 '/usr/local/bin/node'
 ```
 
@@ -1756,15 +1674,15 @@ called.
 To exit with a 'failure' code:
 
 ```mjs
-import process from 'process';
+import { exit } from 'process';
 
-process.exit(1);
+exit(1);
 ```
 
 ```cjs
-const process = require('process');
+const { exit } = require('process');
 
-process.exit(1);
+exit(1);
 ```
 
 The shell that executed Node.js should see the exit code as `1`.
@@ -1784,22 +1702,22 @@ For instance, the following example illustrates a *misuse* of the
 truncated and lost:
 
 ```mjs
-import process from 'process';
+import { exit } from 'process';
 
 // This is an example of what *not* to do:
 if (someConditionNotMet()) {
   printUsageToStdout();
-  process.exit(1);
+  exit(1);
 }
 ```
 
 ```cjs
-const process = require('process');
+const { exit } = require('process');
 
 // This is an example of what *not* to do:
 if (someConditionNotMet()) {
   printUsageToStdout();
-  process.exit(1);
+  exit(1);
 }
 ```
 
@@ -2037,14 +1955,14 @@ past, and not related to the time of day and therefore not subject to clock
 drift. The primary use is for measuring performance between intervals:
 
 ```mjs
-import process from 'process';
+import { hrtime } from 'process';
 
 const NS_PER_SEC = 1e9;
-const time = process.hrtime();
+const time = hrtime();
 // [ 1800216, 25 ]
 
 setTimeout(() => {
-  const diff = process.hrtime(time);
+  const diff = hrtime(time);
   // [ 1, 552 ]
 
   console.log(`Benchmark took ${diff[0] * NS_PER_SEC + diff[1]} nanoseconds`);
@@ -2053,14 +1971,14 @@ setTimeout(() => {
 ```
 
 ```cjs
-const process = require('process');
+const { hrtime } = require('process');
 
 const NS_PER_SEC = 1e9;
-const time = process.hrtime();
+const time = hrtime();
 // [ 1800216, 25 ]
 
 setTimeout(() => {
-  const diff = process.hrtime(time);
+  const diff = hrtime(time);
   // [ 1, 552 ]
 
   console.log(`Benchmark took ${diff[0] * NS_PER_SEC + diff[1]} nanoseconds`);
@@ -2083,13 +2001,13 @@ argument since the difference can just be computed directly
 by subtraction of the two `bigint`s.
 
 ```mjs
-import process from 'process';
+import { hrtime } from 'process';
 
-const start = process.hrtime.bigint();
+const start = hrtime.bigint();
 // 191051479007711n
 
 setTimeout(() => {
-  const end = process.hrtime.bigint();
+  const end = hrtime.bigint();
   // 191052633396993n
 
   console.log(`Benchmark took ${end - start} nanoseconds`);
@@ -2098,13 +2016,13 @@ setTimeout(() => {
 ```
 
 ```cjs
-const process = require('process');
+const { hrtime } = require('process');
 
-const start = process.hrtime.bigint();
+const start = hrtime.bigint();
 // 191051479007711n
 
 setTimeout(() => {
-  const end = process.hrtime.bigint();
+  const end = hrtime.bigint();
   // 191052633396993n
 
   console.log(`Benchmark took ${end - start} nanoseconds`);
@@ -2128,23 +2046,23 @@ access or the `CAP_SETGID` capability.
 Use care when dropping privileges:
 
 ```mjs
-import process from 'process';
+import { getgroups, initgroups, setgid } from 'process';
 
-console.log(process.getgroups());         // [ 0 ]
-process.initgroups('nodeuser', 1000);     // switch user
-console.log(process.getgroups());         // [ 27, 30, 46, 1000, 0 ]
-process.setgid(1000);                     // drop root gid
-console.log(process.getgroups());         // [ 27, 30, 46, 1000 ]
+console.log(getgroups());         // [ 0 ]
+initgroups('nodeuser', 1000);     // switch user
+console.log(getgroups());         // [ 27, 30, 46, 1000, 0 ]
+setgid(1000);                     // drop root gid
+console.log(getgroups());         // [ 27, 30, 46, 1000 ]
 ```
 
 ```cjs
-const process = require('process');
+const { getgroups, initgroups, setgid } = require('process');
 
-console.log(process.getgroups());         // [ 0 ]
-process.initgroups('nodeuser', 1000);     // switch user
-console.log(process.getgroups());         // [ 27, 30, 46, 1000, 0 ]
-process.setgid(1000);                     // drop root gid
-console.log(process.getgroups());         // [ 27, 30, 46, 1000 ]
+console.log(getgroups());         // [ 0 ]
+initgroups('nodeuser', 1000);     // switch user
+console.log(getgroups());         // [ 27, 30, 46, 1000, 0 ]
+setgid(1000);                     // drop root gid
+console.log(getgroups());         // [ 27, 30, 46, 1000 ]
 ```
 
 This function is only available on POSIX platforms (i.e. not Windows or
@@ -2176,7 +2094,7 @@ signal sender, like the `kill` system call. The signal sent may do something
 other than kill the target process.
 
 ```mjs
-import process from 'process';
+import process, { kill } from 'process';
 
 process.on('SIGHUP', () => {
   console.log('Got SIGHUP signal.');
@@ -2187,7 +2105,7 @@ setTimeout(() => {
   process.exit(0);
 }, 100);
 
-process.kill(process.pid, 'SIGHUP');
+kill(process.pid, 'SIGHUP');
 ```
 
 ```cjs
@@ -2252,9 +2170,9 @@ Returns an object describing the memory usage of the Node.js process measured in
 bytes.
 
 ```mjs
-import process from 'process';
+import { memoryUsage } from 'process';
 
-console.log(process.memoryUsage());
+console.log(memoryUsage());
 // Prints:
 // {
 //  rss: 4935680,
@@ -2266,9 +2184,9 @@ console.log(process.memoryUsage());
 ```
 
 ```cjs
-const process = require('process');
+const { memoryUsage } = require('process');
 
-console.log(process.memoryUsage());
+console.log(memoryUsage());
 // Prints:
 // {
 //  rss: 4935680,
@@ -2316,16 +2234,16 @@ This is the same value as the `rss` property provided by `process.memoryUsage()`
 but `process.memoryUsage.rss()` is faster.
 
 ```mjs
-import process from 'process';
+import { memoryUsage } from 'process';
 
-console.log(process.memoryUsage.rss());
+console.log(memoryUsage.rss());
 // 35655680
 ```
 
 ```cjs
-const process = require('process');
+const { rss } = require('process');
 
-console.log(process.memoryUsage.rss());
+console.log(memoryUsage.rss());
 // 35655680
 ```
 
@@ -2348,10 +2266,10 @@ create an infinite loop if one were to recursively call `process.nextTick()`.
 See the [Event Loop][] guide for more background.
 
 ```mjs
-import process from 'process';
+import { nextTick } from 'process';
 
 console.log('start');
-process.nextTick(() => {
+nextTick(() => {
   console.log('nextTick callback');
 });
 console.log('scheduled');
@@ -2362,10 +2280,10 @@ console.log('scheduled');
 ```
 
 ```cjs
-const process = require('process');
+const { nextTick } = require('process');
 
 console.log('start');
-process.nextTick(() => {
+nextTick(() => {
   console.log('nextTick callback');
 });
 console.log('scheduled');
@@ -2380,12 +2298,12 @@ to assign event handlers *after* an object has been constructed but before any
 I/O has occurred:
 
 ```mjs
-import process from 'process';
+import { nextTick } from 'process';
 
 function MyThing(options) {
   this.setupOptions(options);
 
-  process.nextTick(() => {
+  nextTick(() => {
     this.startDoingStuff();
   });
 }
@@ -2397,12 +2315,12 @@ thing.getReadyForStuff();
 ```
 
 ```cjs
-const process = require('process');
+const { nextTick } = require('process');
 
 function MyThing(options) {
   this.setupOptions(options);
 
-  process.nextTick(() => {
+  nextTick(() => {
     this.startDoingStuff();
   });
 }
@@ -2416,23 +2334,7 @@ thing.getReadyForStuff();
 It is very important for APIs to be either 100% synchronous or 100%
 asynchronous. Consider this example:
 
-```mjs
-import process from 'process';
-
-// WARNING!  DO NOT USE!  BAD UNSAFE HAZARD!
-function maybeSync(arg, cb) {
-  if (arg) {
-    cb();
-    return;
-  }
-
-  fs.stat('file', cb);
-}
-```
-
-```cjs
-const process = require('process');
-
+```js
 // WARNING!  DO NOT USE!  BAD UNSAFE HAZARD!
 function maybeSync(arg, cb) {
   if (arg) {
@@ -2446,21 +2348,7 @@ function maybeSync(arg, cb) {
 
 This API is hazardous because in the following case:
 
-```mjs
-import process from 'process';
-
-const maybeTrue = Math.random() > 0.5;
-
-maybeSync(maybeTrue, () => {
-  foo();
-});
-
-bar();
-```
-
-```cjs
-const process = require('process');
-
+```js
 const maybeTrue = Math.random() > 0.5;
 
 maybeSync(maybeTrue, () => {
@@ -2475,11 +2363,11 @@ It is not clear whether `foo()` or `bar()` will be called first.
 The following approach is much better:
 
 ```mjs
-import process from 'process';
+import { nextTick } from 'process';
 
 function definitelyAsync(arg, cb) {
   if (arg) {
-    process.nextTick(cb);
+    nextTick(cb);
     return;
   }
 
@@ -2488,11 +2376,11 @@ function definitelyAsync(arg, cb) {
 ```
 
 ```cjs
-const process = require('process');
+const { nextTick } = require('process');
 
 function definitelyAsync(arg, cb) {
   if (arg) {
-    process.nextTick(cb);
+    nextTick(cb);
     return;
   }
 
@@ -2509,11 +2397,11 @@ Node.js, every time the "next tick queue" is drained, the microtask queue
 is drained immediately after.
 
 ```mjs
-import process from 'process';
+import { nextTick } from 'process';
 
 Promise.resolve().then(() => console.log(2));
 queueMicrotask(() => console.log(3));
-process.nextTick(() => console.log(1));
+nextTick(() => console.log(1));
 // Output:
 // 1
 // 2
@@ -2521,11 +2409,11 @@ process.nextTick(() => console.log(1));
 ```
 
 ```cjs
-const process = require('process');
+const { nextTick } = require('process');
 
 Promise.resolve().then(() => console.log(2));
 queueMicrotask(() => console.log(3));
-process.nextTick(() => console.log(1));
+nextTick(() => console.log(1));
 // Output:
 // 1
 // 2
@@ -2538,23 +2426,7 @@ JavaScript platform environments and should be favored over `process.nextTick()`
 In simple scenarios, `queueMicrotask()` can be a drop-in replacement for
 `process.nextTick()`.
 
-```mjs
-import process from 'process';
-
-console.log('start');
-queueMicrotask(() => {
-  console.log('microtask callback');
-});
-console.log('scheduled');
-// Output:
-// start
-// scheduled
-// microtask callback
-```
-
-```cjs
-const process = require('process');
-
+```js
 console.log('start');
 queueMicrotask(() => {
   console.log('microtask callback');
@@ -2571,25 +2443,7 @@ allows specifying additional values that will be passed as arguments to the
 deferred function when it is called. Achieving the same result with
 `queueMicrotask()` requires using either a closure or a bound function:
 
-```mjs
-import process from 'process';
-
-function deferred(a, b) {
-  console.log('microtask', a + b);
-}
-
-console.log('start');
-queueMicrotask(deferred.bind(undefined, 1, 2));
-console.log('scheduled');
-// Output:
-// start
-// scheduled
-// microtask 3
-```
-
-```cjs
-const process = require('process');
-
+```js
 function deferred(a, b) {
   console.log('microtask', a + b);
 }
@@ -2635,15 +2489,15 @@ added: v0.1.15
 The `process.pid` property returns the PID of the process.
 
 ```mjs
-import process from 'process';
+import { pid } from 'process';
 
-console.log(`This process is pid ${process.pid}`);
+console.log(`This process is pid ${pid}`);
 ```
 
 ```cjs
-const process = require('process');
+const { pid } = require('process');
 
-console.log(`This process is pid ${process.pid}`);
+console.log(`This process is pid ${pid}`);
 ```
 
 ## `process.platform`
@@ -2667,15 +2521,15 @@ Currently possible values are:
 * `'win32'`
 
 ```mjs
-import process from 'process';
+import { platform } from 'process';
 
-console.log(`This platform is ${process.platform}`);
+console.log(`This platform is ${platform}`);
 ```
 
 ```cjs
-const process = require('process');
+const { platform } = require('process');
 
-console.log(`This platform is ${process.platform}`);
+console.log(`This platform is ${platform}`);
 ```
 
 The value `'android'` may also be returned if the Node.js is built on the
@@ -2696,15 +2550,15 @@ The `process.ppid` property returns the PID of the parent of the
 current process.
 
 ```mjs
-import process from 'process';
+import { ppid } from 'process';
 
-console.log(`The parent process is pid ${process.ppid}`);
+console.log(`The parent process is pid ${ppid}`);
 ```
 
 ```cjs
-const process = require('process');
+const { ppid } = require('process');
 
-console.log(`The parent process is pid ${process.ppid}`);
+console.log(`The parent process is pid ${ppid}`);
 ```
 
 ## `process.release`
@@ -2745,22 +2599,7 @@ tarball.
   For other LTS Release code names, see [Node.js Changelog Archive](https://github.com/nodejs/node/blob/HEAD/doc/changelogs/CHANGELOG_ARCHIVE.md)
 
 <!-- eslint-skip -->
-```mjs
-import process from 'process';
-
-{
-  name: 'node',
-  lts: 'Erbium',
-  sourceUrl: 'https://nodejs.org/download/release/v12.18.1/node-v12.18.1.tar.gz',
-  headersUrl: 'https://nodejs.org/download/release/v12.18.1/node-v12.18.1-headers.tar.gz',
-  libUrl: 'https://nodejs.org/download/release/v12.18.1/win-x64/node.lib'
-}
-```
-
-<!-- eslint-skip -->
-```cjs
-const process = require('process');
-
+```js
 {
   name: 'node',
   lts: 'Erbium',
@@ -2805,15 +2644,15 @@ by log processing systems than the default multi-line format designed for
 human consumption.
 
 ```mjs
-import process from 'process';
+import { report } from 'process';
 
-console.log(`Reports are compact? ${process.report.compact}`);
+console.log(`Reports are compact? ${report.compact}`);
 ```
 
 ```cjs
-const process = require('process');
+const { report } = require('process');
 
-console.log(`Reports are compact? ${process.report.compact}`);
+console.log(`Reports are compact? ${report.compact}`);
 ```
 
 ### `process.report.directory`
@@ -2834,15 +2673,15 @@ indicating that reports are written to the current working directory of the
 Node.js process.
 
 ```mjs
-import process from 'process';
+import { report } from 'process';
 
-console.log(`Report directory is ${process.report.directory}`);
+console.log(`Report directory is ${report.directory}`);
 ```
 
 ```cjs
-const process = require('process');
+const { report } = require('process');
 
-console.log(`Report directory is ${process.report.directory}`);
+console.log(`Report directory is ${report.directory}`);
 ```
 
 ### `process.report.filename`
@@ -2863,15 +2702,15 @@ filename will be comprised of a timestamp, PID, and sequence number. The default
 value is the empty string.
 
 ```mjs
-import process from 'process';
+import { report } from 'process';
 
-console.log(`Report filename is ${process.report.filename}`);
+console.log(`Report filename is ${report.filename}`);
 ```
 
 ```cjs
-const process = require('process');
+const { report } = require('process');
 
-console.log(`Report filename is ${process.report.filename}`);
+console.log(`Report filename is ${report.filename}`);
 ```
 
 ### `process.report.getReport([err])`
@@ -2893,9 +2732,9 @@ running process. The report's JavaScript stack trace is taken from `err`, if
 present.
 
 ```mjs
-import process from 'process';
+import { report } from 'process';
 
-const data = process.report.getReport();
+const data = report.getReport();
 console.log(data.header.nodejsVersion);
 
 // Similar to process.report.writeReport()
@@ -2904,9 +2743,9 @@ fs.writeFileSync('my-report.log', util.inspect(data), 'utf8');
 ```
 
 ```cjs
-const process = require('process');
+const { report } = require('process');
 
-const data = process.report.getReport();
+const data = report.getReport();
 console.log(data.header.nodejsVersion);
 
 // Similar to process.report.writeReport()
@@ -2933,15 +2772,15 @@ If `true`, a diagnostic report is generated on fatal errors, such as out of
 memory errors or failed C++ assertions.
 
 ```mjs
-import process from 'process';
+import { report } from 'process';
 
-console.log(`Report on fatal error: ${process.report.reportOnFatalError}`);
+console.log(`Report on fatal error: ${report.reportOnFatalError}`);
 ```
 
 ```cjs
-const process = require('process');
+const { report } = require('process');
 
-console.log(`Report on fatal error: ${process.report.reportOnFatalError}`);
+console.log(`Report on fatal error: ${report.reportOnFatalError}`);
 ```
 
 ### `process.report.reportOnSignal`
@@ -2961,15 +2800,15 @@ If `true`, a diagnostic report is generated when the process receives the
 signal specified by `process.report.signal`.
 
 ```mjs
-import process from 'process';
+import { report } from 'process';
 
-console.log(`Report on signal: ${process.report.reportOnSignal}`);
+console.log(`Report on signal: ${report.reportOnSignal}`);
 ```
 
 ```cjs
-const process = require('process');
+const { report } = require('process');
 
-console.log(`Report on signal: ${process.report.reportOnSignal}`);
+console.log(`Report on signal: ${report.reportOnSignal}`);
 ```
 
 ### `process.report.reportOnUncaughtException`
@@ -2988,15 +2827,15 @@ changes:
 If `true`, a diagnostic report is generated on uncaught exception.
 
 ```mjs
-import process from 'process';
+import { report } from 'process';
 
-console.log(`Report on exception: ${process.report.reportOnUncaughtException}`);
+console.log(`Report on exception: ${report.reportOnUncaughtException}`);
 ```
 
 ```cjs
-const process = require('process');
+const { report } = require('process');
 
-console.log(`Report on exception: ${process.report.reportOnUncaughtException}`);
+console.log(`Report on exception: ${report.reportOnUncaughtException}`);
 ```
 
 ### `process.report.signal`
@@ -3016,15 +2855,15 @@ The signal used to trigger the creation of a diagnostic report. Defaults to
 `'SIGUSR2'`.
 
 ```mjs
-import process from 'process';
+import { report } from 'process';
 
-console.log(`Report signal: ${process.report.signal}`);
+console.log(`Report signal: ${report.signal}`);
 ```
 
 ```cjs
-const process = require('process');
+const { report } = require('process');
 
-console.log(`Report signal: ${process.report.signal}`);
+console.log(`Report signal: ${report.signal}`);
 ```
 
 ### `process.report.writeReport([filename][, err])`
@@ -3051,15 +2890,15 @@ filename includes the date, time, PID, and a sequence number. The report's
 JavaScript stack trace is taken from `err`, if present.
 
 ```mjs
-import process from 'process';
+import { report } from 'process';
 
-process.report.writeReport();
+report.writeReport();
 ```
 
 ```cjs
-const process = require('process');
+const { report } = require('process');
 
-process.report.writeReport();
+report.writeReport();
 ```
 
 Additional documentation is available in the [report documentation][].
@@ -3113,9 +2952,9 @@ added: v12.6.0
     time slice. This field is not supported on Windows.
 
 ```mjs
-import process from 'process';
+import { resourceUsage } from 'process';
 
-console.log(process.resourceUsage());
+console.log(resourceUsage());
 /*
   Will output:
   {
@@ -3140,9 +2979,9 @@ console.log(process.resourceUsage());
 ```
 
 ```cjs
-const process = require('process');
+const { resourceUsage } = require('process');
 
-console.log(process.resourceUsage());
+console.log(resourceUsage());
 /*
   Will output:
   {
@@ -3494,15 +3333,15 @@ a [Writable][] stream.
 For example, to copy `process.stdin` to `process.stdout`:
 
 ```mjs
-import process from 'process';
+import { stdin, stdout } from 'process';
 
-process.stdin.pipe(process.stdout);
+stdin.pipe(stdout);
 ```
 
 ```cjs
-const process = require('process');
+const { stdin, stdout } = require('process');
 
-process.stdin.pipe(process.stdout);
+stdin.pipe(stdout);
 ```
 
 `process.stdout` differs from other Node.js streams in important ways. See
@@ -3662,20 +3501,20 @@ added: v0.1.19
 processes inherit the mask from the parent process. Returns the previous mask.
 
 ```mjs
-import process from 'process';
+import { umask } from 'process';
 
 const newmask = 0o022;
-const oldmask = process.umask(newmask);
+const oldmask = umask(newmask);
 console.log(
   `Changed umask from ${oldmask.toString(8)} to ${newmask.toString(8)}`
 );
 ```
 
 ```cjs
-const process = require('process');
+const { umask } = require('process');
 
 const newmask = 0o022;
-const oldmask = process.umask(newmask);
+const oldmask = umask(newmask);
 console.log(
   `Changed umask from ${oldmask.toString(8)} to ${newmask.toString(8)}`
 );
@@ -3706,16 +3545,16 @@ added: v0.1.3
 The `process.version` property contains the Node.js version string.
 
 ```mjs
-import process from 'process';
+import { version } from 'process';
 
-console.log(`Version: ${process.version}`);
+console.log(`Version: ${version}`);
 // Version: v14.8.0
 ```
 
 ```cjs
-const process = require('process');
+const { version } = require('process');
 
-console.log(`Version: ${process.version}`);
+console.log(`Version: ${version}`);
 // Version: v14.8.0
 ```
 
@@ -3742,15 +3581,15 @@ ABI version, which is increased whenever a C++ API changes. Node.js will refuse
 to load modules that were compiled against a different module ABI version.
 
 ```mjs
-import process from 'process';
+import { versions } from 'process';
 
-console.log(process.versions);
+console.log(versions);
 ```
 
 ```cjs
-const process = require('process');
+const { versions } = require('process');
 
-console.log(process.versions);
+console.log(versions);
 ```
 
 Will generate an object similar to:
