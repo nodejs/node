@@ -49,7 +49,8 @@ my $makefile = $is_win ? "../config/Makefile_$arch": "Makefile";
 my $buildinf = "crypto/buildinf.h";
 my $progs = "apps/progs.h";
 my $prov_headers = "providers/common/include/prov/der_dsa.h providers/common/include/prov/der_wrap.h providers/common/include/prov/der_rsa.h providers/common/include/prov/der_ecx.h providers/common/include/prov/der_sm2.h providers/common/include/prov/der_ec.h providers/common/include/prov/der_digests.h";
-my $cmd1 = "cd ../openssl; make -f $makefile clean build_generated $buildinf $progs $prov_headers;";
+my $fips_ld = ($arch =~ m/linux/ ? "providers/fips.ld" : "");
+my $cmd1 = "cd ../openssl; make -f $makefile clean build_generated $buildinf $progs $prov_headers $fips_ld;";
 system($cmd1) == 0 or die "Error in system($cmd1)";
 
 # Copy and move all arch dependent header files into config/archs
@@ -96,6 +97,13 @@ copy("$src_dir/providers/common/include/prov/der_ec.h",
      "$base_dir/providers/common/include/prov/") or die "Copy failed: $!";
 copy("$src_dir/providers/common/include/prov/der_digests.h",
      "$base_dir/providers/common/include/prov/") or die "Copy failed: $!";
+
+my $fips_linker_script = "";
+if ($fips_ld ne "") {
+  $fips_linker_script = "$base_dir/providers/fips.ld";
+  copy("$src_dir/providers/fips.ld",
+       $fips_linker_script) or die "Copy failed: $!";
+}
 
 
 # read openssl source lists from configdata.pm
@@ -179,28 +187,59 @@ foreach my $obj (@{$unified_info{sources}->{'providers/liblegacy.a'}}) {
   }
 }
 
-#foreach my $obj (@{$unified_info{sources}->{'providers/libfips.a'}}) {
-#  my $src = ${$unified_info{sources}->{$obj}}[0];
-#  print("libfips src: $src \n");
-#  # .S files should be preprocessed into .s
-#  if ($unified_info{generate}->{$src}) {
-#    # .S or .s files should be preprocessed into .asm for WIN
-#    $src =~ s\.[sS]$\.asm\ if ($is_win);
-#    push(@generated_srcs, $src);
-#  } else {
-#    if ($src =~ m/\.c$/) { 
-#      push(@libcrypto_srcs, $src);
-#    }
-#  }
-#}
-#my @lib_defines = ();
-#foreach my $df (@{$unified_info{defines}->{'providers/libfips.a'}}) {
-#  print("libfips defines: $df\n");
-#  push(@lib_defines, $df);
-#}
-#print("lib_defines: @lib_defines\n");
+my @libfips_srcs = ();
+foreach my $obj (@{$unified_info{sources}->{'providers/libfips.a'}}) {
+  my $src = ${$unified_info{sources}->{$obj}}[0];
+  #print("providers/libfips.a obj: $obj src: $src \n");
+  # .S files should be preprocessed into .s
+  if ($unified_info{generate}->{$src}) {
+    # .S or .s files should be preprocessed into .asm for WIN
+    #$src =~ s\.[sS]$\.asm\ if ($is_win);
+    #push(@generated_srcs, $src);
+  } else {
+    if ($src =~ m/\.c$/) {
+      push(@libfips_srcs, $src);
+    }
+  }
+}
 
+foreach my $obj (@{$unified_info{sources}->{'providers/libcommon.a'}}) {
+  my $src = ${$unified_info{sources}->{$obj}}[0];
+  #print("providers/libfips.a obj: $obj src: $src \n");
+  # .S files should be preprocessed into .s
+  if ($unified_info{generate}->{$src}) {
+    # .S or .s files should be preprocessed into .asm for WIN
+    #$src =~ s\.[sS]$\.asm\ if ($is_win);
+    #push(@generated_srcs, $src);
+  } else {
+    if ($src =~ m/\.c$/) {
+      push(@libfips_srcs, $src);
+    }
+  }
+}
 
+foreach my $obj (@{$unified_info{sources}->{'providers/fips'}}) {
+  if ($obj eq 'providers/fips.ld') {
+    push(@generated_srcs, $obj);
+  } else {
+    my $src = ${$unified_info{sources}->{$obj}}[0];
+    #print("providers/fips obj: $obj, src: $src\n");
+    if ($src =~ m/\.c$/) {
+      push(@libfips_srcs, $src);
+    }
+  }
+}
+
+my @libfips_defines = ();
+foreach my $df (@{$unified_info{defines}->{'providers/libfips.a'}}) {
+  #print("libfips defines: $df\n");
+  push(@libfips_defines, $df);
+}
+
+foreach my $df (@{$unified_info{defines}->{'providers/fips'}}) {
+  #print("libfips defines: $df\n");
+  push(@libfips_defines, $df);
+}
 
 my @apps_openssl_srcs = ();
 foreach my $obj (@{$unified_info{sources}->{'apps/openssl'}}) {
@@ -252,6 +291,31 @@ my $gypi = $template->fill_in(
 open(GYPI, "> ./archs/$arch/$asm/openssl.gypi");
 print GYPI "$gypi";
 close(GYPI);
+#
+# Create openssl-fips.gypi
+my $fipstemplate =
+    Text::Template->new(TYPE => 'FILE',
+                        SOURCE => 'openssl-fips.gypi.tmpl',
+                        DELIMITERS => [ "%%-", "-%%" ]
+                        );
+my $fipsgypi = $fipstemplate->fill_in(
+    HASH => {
+        libfips_srcs => \@libfips_srcs,
+        libfips_defines => \@libfips_defines,
+        generated_srcs => \@generated_srcs,
+        config => \%config,
+        target => \%target,
+        cflags => \@cflags,
+        asm => \$asm,
+        arch => \$arch,
+        lib_cppflags => \@lib_cppflags,
+        is_win => \$is_win,
+	linker_script => \rel2abs($fips_linker_script),
+    });
+
+open(FIPSGYPI, "> ./archs/$arch/$asm/openssl-fips.gypi");
+print FIPSGYPI "$fipsgypi";
+close(FIPSGYPI);
 
 # Create openssl-cl.gypi
 my $cltemplate =

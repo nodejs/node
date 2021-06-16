@@ -25,7 +25,7 @@ CONFIGURE = ./Configure
 # no-shared: openssl-cli needs static link
 # no-afalgeng: old Linux kernel < 4.0 does not support it
 # enable-ssl-trace: cause the optional SSL_trace API to be built
-COPTS =  no-comp no-shared no-afalgeng enable-ssl-trace
+COPTS =  no-comp no-shared no-afalgeng enable-ssl-trace enable-fips
 
 # disable platform check in Configure
 NO_WARN_ENV = CONFIGURE_CHECKER_WARN=1

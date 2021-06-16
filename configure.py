@@ -1415,6 +1415,7 @@ def configure_openssl(o):
   variables['node_shared_nghttp3'] = b(options.shared_nghttp3)
   variables['openssl_is_fips'] = b(options.openssl_is_fips)
   variables['openssl_fips'] = ''
+  variables['node_fipsinstall'] = b(False)
   variables['openssl_quic'] = b(True)
 
   if options.openssl_no_asm:
@@ -1469,13 +1470,11 @@ def configure_openssl(o):
     error('--openssl-no-asm is incompatible with --shared-openssl')
 
   if options.openssl_fips or options.openssl_fips == '':
-     error('FIPS is not supported in this version of Node.js')
+    variables['node_fipsinstall'] = b(True)
 
   if options.openssl_is_fips and not options.shared_openssl:
-    error('--openssl-is-fips is only available with --shared-openssl')
-
-  if options.openssl_is_fips:
     o['defines'] += ['OPENSSL_FIPS']
+    variables['node_fipsinstall'] = b(True)
 
   if options.shared_openssl:
     variables['openssl_quic'] = b(getsharedopensslhasquic.get_has_quic(options.__dict__['shared_openssl_includes']))
