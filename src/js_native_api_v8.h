@@ -3,7 +3,6 @@
 
 // This file needs to be compatible with C compilers.
 #include <string.h>  // NOLINT(modernize-deprecated-headers)
-#include "gtest/gtest_prod.h"
 #include "js_native_api_types.h"
 #include "js_native_api_v8_internals.h"
 
