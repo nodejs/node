@@ -25,7 +25,7 @@ test(t => {
 
   const memory = new WebAssembly.Memory({ initial: 1 });
   const view = new Uint8Array(memory.buffer, 0, 1);
-  assert_throws_js(t, TypeError, controller.enqueue(view));
+  assert_throws_js(TypeError, () => controller.enqueue(view));
 }, 'ReadableStream with byte source: enqueue() with a non-transferable buffer');
 
 promise_test(async t => {
@@ -54,5 +54,5 @@ promise_test(async t => {
   );
   await pullCalledPromise;
 
-  assert_throws_js(t, TypeError, byobRequest.respondWithNewView(newView));
+  assert_throws_js(TypeError, () => byobRequest.respondWithNewView(newView));
 }, 'ReadableStream with byte source: respondWithNewView() with a non-transferable buffer');

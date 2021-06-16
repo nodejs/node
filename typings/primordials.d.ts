@@ -1,3 +1,5 @@
+import { AsyncIterator } from "internal/webstreams/util";
+
 type UncurryThis<T extends (this: unknown, ...args: unknown[]) => unknown> =
   (self: ThisParameterType<T>, ...args: Parameters<T>) => ReturnType<T>;
 type UncurryThisStaticApply<T extends (this: unknown, ...args: unknown[]) => unknown> =
@@ -9,15 +11,15 @@ type StaticApply<T extends (this: unknown, ...args: unknown[]) => unknown> =
  * Primordials are a way to safely use globals without fear of global mutation
  * Generally, this means removing `this` parameter usage and instead using
  * a regular parameter:
- * 
+ *
  * @example
- * 
+ *
  * ```js
  * 'thing'.startsWith('hello');
  * ```
- * 
+ *
  * becomes
- * 
+ *
  * ```js
  * primordials.StringPrototypeStartsWith('thing', 'hello')
  * ```
@@ -142,6 +144,7 @@ declare namespace primordials {
   export const ArrayBufferPrototype: typeof ArrayBuffer.prototype
   export const ArrayBufferIsView: typeof ArrayBuffer.isView
   export const ArrayBufferPrototypeSlice: UncurryThis<typeof ArrayBuffer.prototype.slice>
+  export const AsyncIteratorPrototype: UncurryThis<typeof AsyncIterator>
   export const BigInt: typeof globalThis.BigInt;
   export const BigIntLength: typeof BigInt.length
   export const BigIntName: typeof BigInt.name
@@ -522,5 +525,5 @@ declare namespace primordials {
   export const PromiseAny: typeof Promise.any
   export const PromisePrototypeThen: UncurryThis<typeof Promise.prototype.then>
   export const PromisePrototypeCatch: UncurryThis<typeof Promise.prototype.catch>
-  export const PromisePrototypeFinally: UncurryThis<typeof Promise.prototype.finally>  
+  export const PromisePrototypeFinally: UncurryThis<typeof Promise.prototype.finally>
 }
