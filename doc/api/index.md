@@ -64,6 +64,7 @@
 * [VM](vm.md)
 * [WASI](wasi.md)
 * [Web Crypto API](webcrypto.md)
+* [Web Streams API](webstreams.md)
 * [Worker threads](worker_threads.md)
 * [Zlib](zlib.md)
 
