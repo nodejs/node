@@ -117,7 +117,7 @@ if (getCurves().includes('secp256k1')) {
   // rather than Node's generic error message.
   const badKey = 'f'.repeat(128);
   assert.throws(
-    () => ECDH.convertKey(badKey, 'secp256k1', 'hex', 'hex', 'compressed'),
+    () => ECDH.convertKey(badKey, 'secp521r1', 'hex', 'hex', 'compressed'),
     /Failed to convert Buffer to EC_POINT/);
 
   // Next statement should not throw an exception.
