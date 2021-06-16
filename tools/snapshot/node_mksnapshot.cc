@@ -50,8 +50,10 @@ int main(int argc, char* argv[]) {
   CHECK_EQ(result.exit_code, 0);
 
   {
-    std::string snapshot =
-        node::SnapshotBuilder::Generate(result.args, result.exec_args);
+    std::string snapshot = node::SnapshotBuilder::Generate(
+        node::per_process::cli_options->snapshot_main,
+        result.args,
+        result.exec_args);
     out << snapshot;
     out.close();
   }

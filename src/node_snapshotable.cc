@@ -647,17 +647,12 @@ void SnapshotBuilder::Generate(SnapshotData* out,
   per_process::v8_platform.Platform()->UnregisterIsolate(isolate);
 }
 
-void SnapshotBuilder::Generate(SnapshotData* out,
-                               const std::vector<std::string> args,
-                               const std::vector<std::string> exec_args) {
-  Generate(out, "", args, exec_args);
-}
-
 std::string SnapshotBuilder::Generate(
+    const std::string& entry_file,
     const std::vector<std::string> args,
     const std::vector<std::string> exec_args) {
   SnapshotData data;
-  Generate(&data, args, exec_args);
+  Generate(&data, entry_file, args, exec_args);
   std::string result = FormatBlob(&data);
   delete[] data.blob.data;
   return result;
