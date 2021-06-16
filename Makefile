@@ -667,12 +667,12 @@ test-v8: v8  ## Runs the V8 test suite on deps/v8.
 test-v8-intl: v8
 	export PATH="$(NO_BIN_OVERRIDE_PATH)" && \
 		deps/v8/tools/run-tests.py --gn --arch=$(V8_ARCH) \
-				--mode=$(BUILDTYPE_LOWER) intl \
+				intl \
 				$(TAP_V8_INTL)
 
 test-v8-benchmarks: v8
 	export PATH="$(NO_BIN_OVERRIDE_PATH)" && \
-		deps/v8/tools/run-tests.py --gn --arch=$(V8_ARCH) --mode=$(BUILDTYPE_LOWER) \
+		deps/v8/tools/run-tests.py --gn --arch=$(V8_ARCH) \
 				benchmarks \
 				$(TAP_V8_BENCHMARKS)
 
