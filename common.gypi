@@ -565,7 +565,7 @@
       }],
       ['node_use_openssl=="true"', {
         'defines': [
-          'MODULESDIR="<(PRODUCT_DIR)/ossl-modules"',
+          'MODULESDIR="<(obj_dir)/deps/openssl/"',
         ],
       }],
     ],
