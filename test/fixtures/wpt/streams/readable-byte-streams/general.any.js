@@ -957,7 +957,8 @@ promise_test(() => {
     assert_equals(view.byteOffset, 0, 'byteOffset');
     assert_equals(view.byteLength, 2, 'byteLength');
 
-    assert_equals(view[0], 0x0201);
+    const dataView = new DataView(view.buffer, view.byteOffset, view.byteLength);
+    assert_equals(dataView.getUint16(0), 0x0102);
 
     return reader.read(new Uint8Array(1));
   }).then(result => {
@@ -1138,7 +1139,7 @@ promise_test(() => {
 
     assert_equals(pullCount, 1, '1 pull() should have been made in response to partial fill by enqueue()');
     assert_not_equals(byobRequest, null, 'byobRequest should not be null');
-    assert_equals(viewInfos[0].byteLength, 2, 'byteLength before enqueue() shouild be 2');
+    assert_equals(viewInfos[0].byteLength, 2, 'byteLength before enqueue() should be 2');
     assert_equals(viewInfos[1].byteLength, 1, 'byteLength after enqueue() should be 1');
 
     reader.cancel();
@@ -1326,7 +1327,9 @@ promise_test(() => {
     const view = result.value;
     assert_equals(view.byteOffset, 0);
     assert_equals(view.byteLength, 2);
-    assert_equals(view[0], 0xaaff);
+
+    const dataView = new DataView(view.buffer, view.byteOffset, view.byteLength);
+    assert_equals(dataView.getUint16(0), 0xffaa);
 
     assert_equals(viewInfo.constructor, Uint8Array, 'view.constructor should be Uint8Array');
     assert_equals(viewInfo.bufferByteLength, 2, 'view.buffer.byteLength should be 2');
@@ -1381,7 +1384,9 @@ promise_test(() => {
       assert_equals(view.buffer.byteLength, 4, 'buffer.byteLength');
       assert_equals(view.byteOffset, 0, 'byteOffset');
       assert_equals(view.byteLength, 2, 'byteLength');
-      assert_equals(view[0], 0x0001, 'Contents are set');
+
+      const dataView = new DataView(view.buffer, view.byteOffset, view.byteLength);
+      assert_equals(dataView.getUint16(0), 0x0100, 'contents are set');
 
       const p = reader.read(new Uint16Array(1));
 
@@ -1395,7 +1400,9 @@ promise_test(() => {
       assert_equals(view.buffer.byteLength, 2, 'buffer.byteLength');
       assert_equals(view.byteOffset, 0, 'byteOffset');
       assert_equals(view.byteLength, 2, 'byteLength');
-      assert_equals(view[0], 0x0302, 'Contents are set');
+
+      const dataView = new DataView(view.buffer, view.byteOffset, view.byteLength);
+      assert_equals(dataView.getUint16(0), 0x0203, 'contents are set');
 
       assert_not_equals(byobRequest, null, 'byobRequest must not be null');
       assert_equals(viewInfo.constructor, Uint8Array, 'view.constructor should be Uint8Array');

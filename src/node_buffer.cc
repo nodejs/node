@@ -67,6 +67,7 @@ using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Number;
 using v8::Object;
+using v8::SharedArrayBuffer;
 using v8::String;
 using v8::Uint32;
 using v8::Uint32Array;
@@ -1158,6 +1159,60 @@ void GetZeroFillToggle(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(Uint32Array::New(ab, 0, 1));
 }
 
+void DetachArrayBuffer(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (args[0]->IsArrayBuffer()) {
+    Local<ArrayBuffer> buf = args[0].As<ArrayBuffer>();
+    if (buf->IsDetachable()) {
+      std::shared_ptr<BackingStore> store = buf->GetBackingStore();
+      buf->Detach();
+      args.GetReturnValue().Set(ArrayBuffer::New(env->isolate(), store));
+    }
+  }
+}
+
+void CopyArrayBuffer(const FunctionCallbackInfo<Value>& args) {
+  // args[0] == Destination ArrayBuffer
+  // args[1] == Destination ArrayBuffer Offset
+  // args[2] == Source ArrayBuffer
+  // args[3] == Source ArrayBuffer Offset
+  // args[4] == bytesToCopy
+
+  CHECK(args[0]->IsArrayBuffer() || args[0]->IsSharedArrayBuffer());
+  CHECK(args[1]->IsUint32());
+  CHECK(args[2]->IsArrayBuffer() || args[2]->IsSharedArrayBuffer());
+  CHECK(args[3]->IsUint32());
+  CHECK(args[4]->IsUint32());
+
+  std::shared_ptr<BackingStore> destination;
+  std::shared_ptr<BackingStore> source;
+
+  if (args[0]->IsArrayBuffer()) {
+    destination = args[0].As<ArrayBuffer>()->GetBackingStore();
+  } else if (args[0]->IsSharedArrayBuffer()) {
+    destination = args[0].As<SharedArrayBuffer>()->GetBackingStore();
+  }
+
+  if (args[2]->IsArrayBuffer()) {
+    source = args[2].As<ArrayBuffer>()->GetBackingStore();
+  } else if (args[0]->IsSharedArrayBuffer()) {
+    source = args[2].As<SharedArrayBuffer>()->GetBackingStore();
+  }
+
+  uint32_t destination_offset = args[1].As<Uint32>()->Value();
+  uint32_t source_offset = args[3].As<Uint32>()->Value();
+  size_t bytes_to_copy = args[4].As<Uint32>()->Value();
+
+  CHECK_GE(destination->ByteLength() - destination_offset, bytes_to_copy);
+  CHECK_GE(source->ByteLength() - source_offset, bytes_to_copy);
+
+  uint8_t* dest =
+      static_cast<uint8_t*>(destination->Data()) + destination_offset;
+  uint8_t* src =
+      static_cast<uint8_t*>(source->Data()) + source_offset;
+  memcpy(dest, src, bytes_to_copy);
+}
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
@@ -1175,6 +1230,9 @@ void Initialize(Local<Object> target,
   env->SetMethodNoSideEffect(target, "indexOfBuffer", IndexOfBuffer);
   env->SetMethodNoSideEffect(target, "indexOfNumber", IndexOfNumber);
   env->SetMethodNoSideEffect(target, "indexOfString", IndexOfString);
+
+  env->SetMethod(target, "detachArrayBuffer", DetachArrayBuffer);
+  env->SetMethod(target, "copyArrayBuffer", CopyArrayBuffer);
 
   env->SetMethod(target, "swap16", Swap16);
   env->SetMethod(target, "swap32", Swap32);
@@ -1250,6 +1308,9 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(StringWrite<UCS2>);
   registry->Register(StringWrite<UTF8>);
   registry->Register(GetZeroFillToggle);
+
+  registry->Register(DetachArrayBuffer);
+  registry->Register(CopyArrayBuffer);
 
   Blob::RegisterExternalReferences(registry);
   FixedSizeBlobCopyJob::RegisterExternalReferences(registry);

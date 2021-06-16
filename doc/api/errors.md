@@ -1428,6 +1428,11 @@ is set for the `Http2Stream`.
 `http2.connect()` was passed a URL that uses any protocol other than `http:` or
 `https:`.
 
+<a id="ERR_ILLEGAL_CONSTRUCTOR"></a>
+### `ERR_ILLEGAL_CONSTRUCTOR`
+
+An attempt was made to construct an object using a non-public constructor.
+
 <a id="ERR_INCOMPATIBLE_OPTION_PAIR"></a>
 ### `ERR_INCOMPATIBLE_OPTION_PAIR`
 
