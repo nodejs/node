@@ -639,7 +639,7 @@ All commands:
                     Options:
                     [-a|--all] [--json] [-l|--long] [-p|--parseable] [-g|--global] [--depth <depth>]
                     [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--link]
-                    [--unicode]
+                    [--package-lock-only] [--unicode]
                     [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
                     [-ws|--workspaces]
                     
@@ -678,12 +678,12 @@ All commands:
                     List installed packages
                     
                     Usage:
-                    npm ls npm ls [[<@scope>/]<pkg> ...]
+                    npm ls [[<@scope>/]<pkg> ...]
                     
                     Options:
                     [-a|--all] [--json] [-l|--long] [-p|--parseable] [-g|--global] [--depth <depth>]
                     [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--link]
-                    [--unicode]
+                    [--package-lock-only] [--unicode]
                     [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
                     [-ws|--workspaces]
                     
@@ -744,7 +744,7 @@ All commands:
                     npm pack [[<@scope>/]<pkg>...]
                     
                     Options:
-                    [--dry-run] [--json]
+                    [--dry-run] [--json] [--pack-destination <pack-destination>]
                     [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
                     [-ws|--workspaces]
                     

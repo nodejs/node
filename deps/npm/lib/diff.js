@@ -8,7 +8,6 @@ const npmlog = require('npmlog')
 const pacote = require('pacote')
 const pickManifest = require('npm-pick-manifest')
 
-const getWorkspaces = require('./workspaces/get-workspaces.js')
 const readPackageName = require('./utils/read-package-name.js')
 const BaseCommand = require('./base-command.js')
 
@@ -90,9 +89,8 @@ class Diff extends BaseCommand {
   }
 
   async diffWorkspaces (args, filters) {
-    const workspaces =
-      await getWorkspaces(filters, { path: this.npm.localPrefix })
-    for (const workspacePath of workspaces.values()) {
+    await this.setWorkspaces(filters)
+    for (const workspacePath of this.workspacePaths) {
       this.top = workspacePath
       this.prefix = workspacePath
       await this.diff(args)
@@ -104,7 +102,6 @@ class Diff extends BaseCommand {
   async packageName (path) {
     let name
     try {
-      // TODO this won't work as expected in global mode
       name = await readPackageName(this.prefix)
     } catch (e) {
       npmlog.verbose('diff', 'could not read project dir package.json')

@@ -36,6 +36,13 @@ Whether or not to output JSON data, rather than the normal output.
 
 Not supported by all npm commands.
 
+#### `pack-destination`
+
+* Default: "."
+* Type: String
+
+Directory in which `npm pack` will save tarballs.
+
 #### `workspace`
 
 * Default:

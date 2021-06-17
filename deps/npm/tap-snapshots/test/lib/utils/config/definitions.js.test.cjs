@@ -98,6 +98,7 @@ Array [
   "package",
   "package-lock",
   "package-lock-only",
+  "pack-destination",
   "parseable",
   "prefer-offline",
   "prefer-online",
