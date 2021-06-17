@@ -365,7 +365,6 @@
               ],
               'outputs': [
                 '<(fipsconfig)',
-                'bajja.txt',
               ],
               'action': [
                 '<(openssl-cli)', 'fipsinstall',
@@ -401,8 +400,24 @@
               ],
             },
           ],
+         }, {
+           'variables': {
+              'opensslconfig_internal': '<(obj_dir)/deps/openssl/openssl.cnf',
+              'opensslconfig': './deps/openssl/openssl/apps/openssl.cnf',
+           },
+           'actions': [
+             {
+               'action_name': 'reset_openssl_cnf',
+               'inputs': [ '<(opensslconfig)', ],
+               'outputs': [ '<(opensslconfig_internal)', ],
+               'action': [
+                 'python', 'tools/copyfile.py',
+                 './deps/openssl/openssl/apps/openssl.cnf',
+                 '<(obj_dir)/deps/openssl/openssl.cnf',
+               ],
+             },
+           ],
          }],
-
       ],
     }, # node_core_target_name
     {
