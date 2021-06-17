@@ -22,6 +22,8 @@ changes:
                  sessions reuse.
 -->
 
+XXX: UNDICI
+
 An [`Agent`][] object for HTTPS similar to [`http.Agent`][]. See
 [`https.request()`][] for more information.
 
@@ -212,6 +214,8 @@ changes:
     description: The `options` parameter can be a WHATWG `URL` object.
 -->
 
+XXX: UNDICI
+
 * `url` {string | URL}
 * `options` {Object | string | URL} Accepts the same `options` as
   [`https.request()`][], with the `method` always set to `GET`.
@@ -267,6 +271,8 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/10638
     description: The `options` parameter can be a WHATWG `URL` object.
 -->
+
+XXX: UNDICI
 
 * `url` {string | URL}
 * `options` {Object | string | URL} Accepts all `options` from

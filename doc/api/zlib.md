@@ -141,40 +141,32 @@ tradeoffs involved in `zlib` usage.
 ```js
 // Client request example
 const zlib = require('zlib');
-const http = require('http');
+const undici = require('undici');
 const fs = require('fs');
-const { pipeline } = require('stream');
+const { pipeline } = require('stream/promises');
 
-const request = http.get({ host: 'example.com',
+const { body, headers } = await undici.request({ host: 'example.com',
                            path: '/',
                            port: 80,
                            headers: { 'Accept-Encoding': 'br,gzip,deflate' } });
-request.on('response', (response) => {
-  const output = fs.createWriteStream('example.com_index.html');
 
-  const onError = (err) => {
-    if (err) {
-      console.error('An error occurred:', err);
-      process.exitCode = 1;
-    }
-  };
+const output = fs.createWriteStream('example.com_index.html');
 
-  switch (response.headers['content-encoding']) {
-    case 'br':
-      pipeline(response, zlib.createBrotliDecompress(), output, onError);
-      break;
-    // Or, just use zlib.createUnzip() to handle both of the following cases:
-    case 'gzip':
-      pipeline(response, zlib.createGunzip(), output, onError);
-      break;
-    case 'deflate':
-      pipeline(response, zlib.createInflate(), output, onError);
-      break;
-    default:
-      pipeline(response, output, onError);
-      break;
-  }
-});
+switch (headers['content-encoding']) {
+  case 'br':
+    await pipeline(body, zlib.createBrotliDecompress(), output);
+    break;
+  // Or, just use zlib.createUnzip() to handle both of the following cases:
+  case 'gzip':
+    await pipeline(body, zlib.createGunzip(), output);
+    break;
+  case 'deflate':
+    await pipeline(body, zlib.createInflate(), output);
+    break;
+  default:
+    await pipeline(body, output);
+    break;
+}
 ```
 
 ```js

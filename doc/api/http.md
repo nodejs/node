@@ -54,6 +54,8 @@ list like the following:
 added: v0.3.4
 -->
 
+XXX: UNDICI
+
 An `Agent` is responsible for managing connection persistence
 and reuse for HTTP clients. It maintains a queue of pending requests
 for a given host and port, reusing a single socket connection for each
@@ -374,6 +376,8 @@ added: v0.1.17
 -->
 
 * Extends: {Stream}
+
+XXX: UNDICI
 
 This object is created internally and returned from [`http.request()`][]. It
 represents an _in-progress_ request whose header has already been queued. The
@@ -2705,6 +2709,8 @@ changes:
     description: The `options` parameter can be a WHATWG `URL` object.
 -->
 
+XXX: UNDICI
+
 * `url` {string | URL}
 * `options` {Object} Accepts the same `options` as
   [`http.request()`][], with the `method` always set to `GET`.
@@ -2823,6 +2829,8 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/10638
     description: The `options` parameter can be a WHATWG `URL` object.
 -->
+
+XXX: UNDICI
 
 * `url` {string | URL}
 * `options` {Object}
