@@ -3,7 +3,6 @@ const fs = require('fs')
 const parseJSON = require('json-parse-even-better-errors')
 const rpj = require('read-package-json-fast')
 const { resolve } = require('path')
-const getWorkspaces = require('./workspaces/get-workspaces.js')
 
 const BaseCommand = require('./base-command.js')
 class SetScript extends BaseCommand {
@@ -47,28 +46,27 @@ class SetScript extends BaseCommand {
   }
 
   exec (args, cb) {
-    this.set(args).then(() => cb()).catch(cb)
+    this.setScript(args).then(() => cb()).catch(cb)
   }
 
-  async set (args) {
+  async setScript (args) {
     this.validate(args)
-    const warn = this.setScript(this.npm.localPrefix, args[0], args[1])
+    const warn = this.doSetScript(this.npm.localPrefix, args[0], args[1])
     if (warn)
       log.warn('set-script', `Script "${args[0]}" was overwritten`)
   }
 
   execWorkspaces (args, filters, cb) {
-    this.setWorkspaces(args, filters).then(() => cb()).catch(cb)
+    this.setScriptWorkspaces(args, filters).then(() => cb()).catch(cb)
   }
 
-  async setWorkspaces (args, filters) {
+  async setScriptWorkspaces (args, filters) {
     this.validate(args)
-    const workspaces =
-      await getWorkspaces(filters, { path: this.npm.localPrefix })
+    await this.setWorkspaces(filters)
 
-    for (const [name, path] of workspaces) {
+    for (const [name, path] of this.workspaces) {
       try {
-        const warn = this.setScript(path, args[0], args[1])
+        const warn = this.doSetScript(path, args[0], args[1])
         if (warn) {
           log.warn('set-script', `Script "${args[0]}" was overwritten`)
           log.warn(`  in workspace: ${name}`)
@@ -86,7 +84,7 @@ class SetScript extends BaseCommand {
   // returns a Boolean that will be true if
   // the requested script was overwritten
   // and false if it was set as a new script
-  setScript (path, name, value) {
+  doSetScript (path, name, value) {
     // Set the script
     let manifest
     let warn = false

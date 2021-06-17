@@ -1,4 +1,5 @@
 const { resolve } = require('path')
+const fs = require('fs')
 
 const Arborist = require('@npmcli/arborist')
 const t = require('tap')
@@ -483,6 +484,55 @@ t.test('link pkg already in global space when prefix is a symlink', (t) => {
   link.exec(['@myscope/linked'], (err) => {
     t.error(err, 'should not error out')
   })
+})
+
+t.test('should not prune dependencies when linking packages', async t => {
+  const testdir = t.testdir({
+    'global-prefix': {
+      lib: {
+        node_modules: {
+          linked: t.fixture('symlink', '../../../linked'),
+        },
+      },
+    },
+    linked: {
+      'package.json': JSON.stringify({
+        name: 'linked',
+        version: '1.0.0',
+      }),
+    },
+    'my-project': {
+      node_modules: {
+        foo: {
+          'package.json': JSON.stringify({ name: 'foo', version: '1.0.0' }),
+        },
+      },
+      'package.json': JSON.stringify({
+        name: 'my-project',
+        version: '1.0.0',
+      }),
+    },
+  })
+  npm.globalDir = resolve(testdir, 'global-prefix', 'lib', 'node_modules')
+  npm.prefix = resolve(testdir, 'my-project')
+  reifyOutput = () => {}
+
+  const _cwd = process.cwd()
+  process.chdir(npm.prefix)
+
+  await new Promise((res, rej) => {
+    link.exec(['linked'], (err) => {
+      if (err)
+        rej(err)
+      res()
+    })
+  })
+
+  t.ok(
+    fs.statSync(resolve(testdir, 'my-project/node_modules/foo')),
+    'should not prune any extraneous dep when running npm link'
+  )
+  process.chdir(_cwd)
 })
 
 t.test('completion', async t => {

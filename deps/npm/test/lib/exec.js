@@ -24,11 +24,13 @@ let PROGRESS_ENABLED = true
 const LOG_WARN = []
 let PROGRESS_IGNORED = false
 const flatOptions = {
+  npxCache: 'npx-cache-dir',
+  cache: 'cache-dir',
   legacyPeerDeps: false,
   package: [],
 }
 const config = {
-  cache: 'cache-dir',
+  cache: 'bad-cache-dir', // this should never show up passed into libnpmexec
   yes: true,
   call: '',
   package: [],
@@ -134,6 +136,8 @@ t.test('npx foo, bin already exists locally', t => {
     t.match(RUN_SCRIPTS, [{
       pkg: { scripts: { npx: 'foo' }},
       args: ['one arg', 'two arg'],
+      cache: flatOptions.cache,
+      npxCache: flatOptions.npxCache,
       banner: false,
       path: process.cwd(),
       stdioString: true,
@@ -325,7 +329,7 @@ t.test('npm exec <noargs>, run interactive shell', t => {
 
 t.test('npm exec foo, not present locally or in central loc', t => {
   const path = t.testdir()
-  const installDir = resolve('cache-dir/_npx/f7fbba6e0636f890')
+  const installDir = resolve('npx-cache-dir/f7fbba6e0636f890')
   npm.localPrefix = path
   ARB_ACTUAL_TREE[path] = {
     children: new Map(),
@@ -365,7 +369,7 @@ t.test('npm exec foo, not present locally or in central loc', t => {
 
 t.test('npm exec foo, not present locally but in central loc', t => {
   const path = t.testdir()
-  const installDir = resolve('cache-dir/_npx/f7fbba6e0636f890')
+  const installDir = resolve('npx-cache-dir/f7fbba6e0636f890')
   npm.localPrefix = path
   ARB_ACTUAL_TREE[path] = {
     children: new Map(),
@@ -405,7 +409,7 @@ t.test('npm exec foo, not present locally but in central loc', t => {
 
 t.test('npm exec foo, present locally but wrong version', t => {
   const path = t.testdir()
-  const installDir = resolve('cache-dir/_npx/2badf4630f1cfaad')
+  const installDir = resolve('npx-cache-dir/2badf4630f1cfaad')
   npm.localPrefix = path
   ARB_ACTUAL_TREE[path] = {
     children: new Map(),
@@ -601,7 +605,7 @@ t.test('run command with 2 packages, need install, verify sort', t => {
       config.package = packages
       const add = packages.map(p => `${p}@`).sort((a, b) => a.localeCompare(b, 'en'))
       const path = t.testdir()
-      const installDir = resolve('cache-dir/_npx/07de77790e5f40f2')
+      const installDir = resolve('npx-cache-dir/07de77790e5f40f2')
       npm.localPrefix = path
       ARB_ACTUAL_TREE[path] = {
         children: new Map(),
@@ -756,7 +760,7 @@ t.test('prompt when installs are needed if not already present and shell is a TT
 
   const add = packages.map(p => `${p}@`).sort((a, b) => a.localeCompare(b, 'en'))
   const path = t.testdir()
-  const installDir = resolve('cache-dir/_npx/07de77790e5f40f2')
+  const installDir = resolve('npx-cache-dir/07de77790e5f40f2')
   npm.localPrefix = path
   ARB_ACTUAL_TREE[path] = {
     children: new Map(),
@@ -825,7 +829,7 @@ t.test('skip prompt when installs are needed if not already present and shell is
 
   const add = packages.map(p => `${p}@`).sort((a, b) => a.localeCompare(b, 'en'))
   const path = t.testdir()
-  const installDir = resolve('cache-dir/_npx/07de77790e5f40f2')
+  const installDir = resolve('npx-cache-dir/07de77790e5f40f2')
   npm.localPrefix = path
   ARB_ACTUAL_TREE[path] = {
     children: new Map(),
@@ -892,7 +896,7 @@ t.test('skip prompt when installs are needed if not already present and shell is
 
   const add = packages.map(p => `${p}@`).sort((a, b) => a.localeCompare(b, 'en'))
   const path = t.testdir()
-  const installDir = resolve('cache-dir/_npx/f7fbba6e0636f890')
+  const installDir = resolve('npx-cache-dir/f7fbba6e0636f890')
   npm.localPrefix = path
   ARB_ACTUAL_TREE[path] = {
     children: new Map(),
@@ -950,7 +954,7 @@ t.test('abort if prompt rejected', t => {
   config.yes = undefined
 
   const path = t.testdir()
-  const installDir = resolve('cache-dir/_npx/07de77790e5f40f2')
+  const installDir = resolve('npx-cache-dir/07de77790e5f40f2')
   npm.localPrefix = path
   ARB_ACTUAL_TREE[path] = {
     children: new Map(),
@@ -1008,7 +1012,7 @@ t.test('abort if prompt false', t => {
   config.yes = undefined
 
   const path = t.testdir()
-  const installDir = resolve('cache-dir/_npx/07de77790e5f40f2')
+  const installDir = resolve('npx-cache-dir/07de77790e5f40f2')
   npm.localPrefix = path
   ARB_ACTUAL_TREE[path] = {
     children: new Map(),
@@ -1065,7 +1069,7 @@ t.test('abort if -n provided', t => {
   config.yes = false
 
   const path = t.testdir()
-  const installDir = resolve('cache-dir/_npx/07de77790e5f40f2')
+  const installDir = resolve('npx-cache-dir/07de77790e5f40f2')
   npm.localPrefix = path
   ARB_ACTUAL_TREE[path] = {
     children: new Map(),
@@ -1103,7 +1107,7 @@ t.test('abort if -n provided', t => {
 
 t.test('forward legacyPeerDeps opt', t => {
   const path = t.testdir()
-  const installDir = resolve('cache-dir/_npx/f7fbba6e0636f890')
+  const installDir = resolve('npx-cache-dir/f7fbba6e0636f890')
   npm.localPrefix = path
   ARB_ACTUAL_TREE[path] = {
     children: new Map(),

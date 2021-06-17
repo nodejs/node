@@ -6,7 +6,7 @@ module.exports.Result = Result
 const url = require('url')
 const HostedGit = require('hosted-git-info')
 const semver = require('semver')
-const path = require('path')
+const path = global.FAKE_WINDOWS ? require('path').win32 : require('path')
 const validatePackageName = require('validate-npm-package-name')
 const { homedir } = require('os')
 
@@ -151,42 +151,86 @@ function setGitCommittish (res, committish) {
   return res
 }
 
-const isAbsolutePath = /^[/]|^[A-Za-z]:/
-
-function resolvePath (where, spec) {
-  if (isAbsolutePath.test(spec))
-    return spec
-  return path.resolve(where, spec)
-}
-
-function isAbsolute (dir) {
-  if (dir[0] === '/')
-    return true
-  if (/^[A-Za-z]:/.test(dir))
-    return true
-  return false
-}
-
 function fromFile (res, where) {
   if (!where)
     where = process.cwd()
   res.type = isFilename.test(res.rawSpec) ? 'file' : 'directory'
   res.where = where
 
-  const spec = res.rawSpec.replace(/\\/g, '/')
-    .replace(/^file:[/]*([A-Za-z]:)/, '$1') // drive name paths on windows
-    .replace(/^file:(?:[/]*(~\/|\.*\/|[/]))?/, '$1')
-  if (/^~[/]/.test(spec)) {
-    // this is needed for windows and for file:~/foo/bar
-    res.fetchSpec = resolvePath(homedir(), spec.slice(2))
-    res.saveSpec = 'file:' + spec
-  } else {
-    res.fetchSpec = resolvePath(where, spec)
-    if (isAbsolute(spec))
-      res.saveSpec = 'file:' + spec
-    else
-      res.saveSpec = 'file:' + path.relative(where, res.fetchSpec)
+  // always put the '/' on where when resolving urls, or else
+  // file:foo from /path/to/bar goes to /path/to/foo, when we want
+  // it to be /path/to/foo/bar
+
+  let specUrl
+  let resolvedUrl
+  const prefix = (!/^file:/.test(res.rawSpec) ? 'file:' : '')
+  const rawWithPrefix = prefix + res.rawSpec
+  let rawNoPrefix = rawWithPrefix.replace(/^file:/, '')
+  try {
+    resolvedUrl = new url.URL(rawWithPrefix, `file://${path.resolve(where)}/`)
+    specUrl = new url.URL(rawWithPrefix)
+  } catch (originalError) {
+    const er = new Error('Invalid file: URL, must comply with RFC 8909')
+    throw Object.assign(er, {
+      raw: res.rawSpec,
+      spec: res,
+      where,
+      originalError,
+    })
   }
+
+  // environment switch for testing
+  if (process.env.NPM_PACKAGE_ARG_8909_STRICT !== '1') {
+    // XXX backwards compatibility lack of compliance with 8909
+    // Remove when we want a breaking change to come into RFC compliance.
+    if (resolvedUrl.host && resolvedUrl.host !== 'localhost') {
+      const rawSpec = res.rawSpec.replace(/^file:\/\//, 'file:///')
+      resolvedUrl = new url.URL(rawSpec, `file://${path.resolve(where)}/`)
+      specUrl = new url.URL(rawSpec)
+      rawNoPrefix = rawSpec.replace(/^file:/, '')
+    }
+    // turn file:/../foo into file:../foo
+    if (/^\/\.\.?(\/|$)/.test(rawNoPrefix)) {
+      const rawSpec = res.rawSpec.replace(/^file:\//, 'file:')
+      resolvedUrl = new url.URL(rawSpec, `file://${path.resolve(where)}/`)
+      specUrl = new url.URL(rawSpec)
+      rawNoPrefix = rawSpec.replace(/^file:/, '')
+    }
+    // XXX end 8909 violation backwards compatibility section
+  }
+
+  // file:foo - relative url to ./foo
+  // file:/foo - absolute path /foo
+  // file:///foo - absolute path to /foo, no authority host
+  // file://localhost/foo - absolute path to /foo, on localhost
+  // file://foo - absolute path to / on foo host (error!)
+  if (resolvedUrl.host && resolvedUrl.host !== 'localhost') {
+    const msg = `Invalid file: URL, must be absolute if // present`
+    throw Object.assign(new Error(msg), {
+      raw: res.rawSpec,
+      parsed: resolvedUrl,
+    })
+  }
+
+  // turn /C:/blah into just C:/blah on windows
+  let specPath = decodeURIComponent(specUrl.pathname)
+  let resolvedPath = decodeURIComponent(resolvedUrl.pathname)
+  if (isWindows) {
+    specPath = specPath.replace(/^\/+([a-z]:\/)/i, '$1')
+    resolvedPath = resolvedPath.replace(/^\/+([a-z]:\/)/i, '$1')
+  }
+
+  // replace ~ with homedir, but keep the ~ in the saveSpec
+  // otherwise, make it relative to where param
+  if (/^\/~(\/|$)/.test(specPath)) {
+    res.saveSpec = `file:${specPath.substr(1)}`
+    resolvedPath = path.resolve(homedir(), specPath.substr(3))
+  } else if (!path.isAbsolute(rawNoPrefix))
+    res.saveSpec = `file:${path.relative(where, resolvedPath)}`
+  else
+    res.saveSpec = `file:${path.resolve(resolvedPath)}`
+
+  res.fetchSpec = path.resolve(where, resolvedPath)
   return res
 }
 

@@ -66,7 +66,7 @@ class Update extends ArboristWorkspaceCmd {
       ...this.npm.flatOptions,
       log: this.npm.log,
       path: where,
-      workspaces: this.workspaces,
+      workspaces: this.workspaceNames,
     })
 
     await arb.reify({ update })

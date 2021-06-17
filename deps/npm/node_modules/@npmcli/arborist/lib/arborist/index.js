@@ -28,7 +28,7 @@
 
 const {resolve} = require('path')
 const {homedir} = require('os')
-const procLog = require('../proc-log.js')
+const procLog = require('proc-log')
 const { saveTypeMap } = require('../add-rm-pkg-deps.js')
 
 const mixins = [
