@@ -146,7 +146,8 @@ import fs from 'fs';
 import { pipeline } from 'stream/promises';
 
 const { body, headers } = await undici.request('http://example.com:80', {
-                           headers: { 'Accept-Encoding': 'br,gzip,deflate' } });
+  headers: { 'Accept-Encoding': 'br,gzip,deflate' }
+});
 
 const output = fs.createWriteStream('example.com_index.html');
 
