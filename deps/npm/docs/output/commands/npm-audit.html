@@ -324,8 +324,12 @@ recommended that you do not use this option!</p>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>If set to true, it will update only the <code>package-lock.json</code>, instead of
-checking <code>node_modules</code> and downloading dependencies.</p>
+<p>If set to true, the current operation will only use the <code>package-lock.json</code>,
+ignoring <code>node_modules</code>.</p>
+<p>For <code>update</code> this means only the <code>package-lock.json</code> will be updated,
+instead of checking <code>node_modules</code> and downloading dependencies.</p>
+<p>For <code>list</code> this means the output will be based on the tree described by the
+<code>package-lock.json</code>, rather than the contents of <code>node_modules</code>.</p>
 <h4 id="omit"><code>omit</code></h4>
 <ul>
 <li>Default: ‘dev’ if the <code>NODE_ENV</code> environment variable is set to

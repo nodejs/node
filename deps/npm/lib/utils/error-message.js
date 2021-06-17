@@ -1,12 +1,11 @@
-const npm = require('../npm.js')
 const { format } = require('util')
 const { resolve } = require('path')
 const nameValidator = require('validate-npm-package-name')
 const npmlog = require('npmlog')
 const replaceInfo = require('./replace-info.js')
-const { report: explainEresolve } = require('./explain-eresolve.js')
+const { report } = require('./explain-eresolve.js')
 
-module.exports = (er) => {
+module.exports = (er, npm) => {
   const short = []
   const detail = []
 
@@ -19,7 +18,7 @@ module.exports = (er) => {
     case 'ERESOLVE':
       short.push(['ERESOLVE', er.message])
       detail.push(['', ''])
-      detail.push(['', explainEresolve(er)])
+      detail.push(['', report(er, npm.color, resolve(npm.cache, 'eresolve-report.txt'))])
       break
 
     case 'ENOLOCK': {

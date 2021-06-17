@@ -26,7 +26,7 @@ example, running \fBnpm ls promzard\fP in npm's source tree will show:
 .P
 .RS 2
 .nf
-npm@7\.17\.0 /path/to/npm
+npm@7\.18\.1 /path/to/npm
 └─┬ init\-package\-json@0\.0\.4
   └── promzard@0\.1\.5
 .fi
@@ -182,22 +182,24 @@ Type: Boolean
 
 .RE
 .P
-If true, then local installs will link if there is a suitable globally
-installed package\.
-.P
-Note that this means that local installs can cause things to be installed
-into the global space at the same time\. The link is only done if one of the
-two conditions are met:
+Used with \fBnpm ls\fP, limiting output to only those packages that are linked\.
+.SS \fBpackage\-lock\-only\fP
 .RS 0
 .IP \(bu 2
-The package is not already installed globally, or
+Default: false
 .IP \(bu 2
-the globally installed version is identical to the version that is being
-installed locally\.
+Type: Boolean
 
 .RE
 .P
-When used with \fBnpm ls\fP, only show packages that are linked\.
+If set to true, the current operation will only use the \fBpackage\-lock\.json\fP,
+ignoring \fBnode_modules\fP\|\.
+.P
+For \fBupdate\fP this means only the \fBpackage\-lock\.json\fP will be updated,
+instead of checking \fBnode_modules\fP and downloading dependencies\.
+.P
+For \fBlist\fP this means the output will be based on the tree described by the
+\fBpackage\-lock\.json\fP, rather than the contents of \fBnode_modules\fP\|\.
 .SS \fBunicode\fP
 .RS 0
 .IP \(bu 2

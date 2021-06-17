@@ -36,7 +36,7 @@ class LS extends ArboristWorkspaceCmd {
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get usage () {
-    return ['npm ls [[<@scope>/]<pkg> ...]']
+    return ['[[<@scope>/]<pkg> ...]']
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
@@ -50,6 +50,7 @@ class LS extends ArboristWorkspaceCmd {
       'depth',
       'omit',
       'link',
+      'package-lock-only',
       'unicode',
       ...super.params,
     ]
@@ -79,6 +80,7 @@ class LS extends ArboristWorkspaceCmd {
     const prod = this.npm.config.get('prod')
     const production = this.npm.config.get('production')
     const unicode = this.npm.config.get('unicode')
+    const packageLockOnly = this.npm.config.get('package-lock-only')
 
     const path = global ? resolve(this.npm.globalDir, '..') : this.npm.prefix
 
@@ -88,14 +90,14 @@ class LS extends ArboristWorkspaceCmd {
       legacyPeerDeps: false,
       path,
     })
-    const tree = await this.initTree({arb, args })
+    const tree = await this.initTree({arb, args, packageLockOnly })
 
     // filters by workspaces nodes when using -w <workspace-name>
     // We only have to filter the first layer of edges, so we don't
     // explore anything that isn't part of the selected workspace set.
     let wsNodes
-    if (this.workspaces && this.workspaces.length)
-      wsNodes = arb.workspaceNodes(tree, this.workspaces)
+    if (this.workspaceNames && this.workspaceNames.length)
+      wsNodes = arb.workspaceNodes(tree, this.workspaceNames)
     const filterBySelectedWorkspaces = edge => {
       if (!wsNodes || !wsNodes.length)
         return true
@@ -139,6 +141,7 @@ class LS extends ArboristWorkspaceCmd {
           : [...(node.target || node).edgesOut.values()]
             .filter(filterBySelectedWorkspaces)
             .filter(filterByEdgesTypes({
+              currentDepth,
               dev,
               development,
               link,
@@ -216,8 +219,13 @@ class LS extends ArboristWorkspaceCmd {
     }
   }
 
-  async initTree ({ arb, args }) {
-    const tree = await arb.loadActual()
+  async initTree ({ arb, args, packageLockOnly }) {
+    const tree = await (
+      packageLockOnly
+        ? arb.loadVirtual()
+        : arb.loadActual()
+    )
+
     tree[_include] = args.length === 0
     tree[_depth] = 0
 
@@ -380,6 +388,7 @@ const getJsonOutputItem = (node, { global, long }) => {
 }
 
 const filterByEdgesTypes = ({
+  currentDepth,
   dev,
   development,
   link,
@@ -391,11 +400,11 @@ const filterByEdgesTypes = ({
 }) => {
   // filter deps by type, allows for: `npm ls --dev`, `npm ls --prod`,
   // `npm ls --link`, `npm ls --only=dev`, etc
-  const filterDev = node === tree &&
+  const filterDev = currentDepth === 0 &&
     (dev || development || /^dev(elopment)?$/.test(only))
-  const filterProd = node === tree &&
+  const filterProd = currentDepth === 0 &&
     (prod || production || /^prod(uction)?$/.test(only))
-  const filterLink = node === tree && link
+  const filterLink = currentDepth === 0 && link
 
   return (edge) =>
     (filterDev ? edge.dev : true) &&

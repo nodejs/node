@@ -7,7 +7,7 @@ const semver = require('semver')
 const promiseCallLimit = require('promise-call-limit')
 const getPeerSet = require('../peer-set.js')
 const realpath = require('../../lib/realpath.js')
-const { resolve } = require('path')
+const { resolve, dirname } = require('path')
 const { promisify } = require('util')
 const treeCheck = require('../tree-check.js')
 const readdir = promisify(require('readdir-scoped-modules'))
@@ -661,7 +661,7 @@ module.exports = cls => class IdealTreeBuilder extends cls {
     const ancient = meta.ancientLockfile
     const old = meta.loadedFromDisk && !(meta.originalLockfileVersion >= 2)
 
-    if (inventory.size === 0 || !ancient && !(old && this[_complete]))
+    if (inventory.size === 0 || !ancient && !old)
       return
 
     // if the lockfile is from node v5 or earlier, then we'll have to reload
@@ -688,10 +688,12 @@ This is a one-time fix-up, please be patient...
         this.log.silly('inflate', node.location)
         const { resolved, version, path, name, location, integrity } = node
         // don't try to hit the registry for linked deps
-        const useResolved = !version ||
-          resolved && resolved.startsWith('file:')
-        const id = useResolved ? resolved : version
-        const spec = npa.resolve(name, id, path)
+        const useResolved = resolved && (
+          !version || resolved.startsWith('file:')
+        )
+        const id = useResolved ? resolved
+          : version || `file:${node.path}`
+        const spec = npa.resolve(name, id, dirname(path))
         const sloc = location.substr('node_modules/'.length)
         const t = `idealTree:inflate:${sloc}`
         this.addTracker(t)

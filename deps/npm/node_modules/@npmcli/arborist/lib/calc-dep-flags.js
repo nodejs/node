@@ -22,6 +22,11 @@ const calcDepFlagsStep = (node) => {
   // Since we're only walking through deps that are not already flagged
   // as non-dev/non-optional, it's typically a very shallow traversal
   node.extraneous = false
+  resetParents(node, 'extraneous')
+  resetParents(node, 'dev')
+  resetParents(node, 'peer')
+  resetParents(node, 'devOptional')
+  resetParents(node, 'optional')
 
   // for links, map their hierarchy appropriately
   if (node.target) {
@@ -29,8 +34,7 @@ const calcDepFlagsStep = (node) => {
     node.target.optional = node.optional
     node.target.devOptional = node.devOptional
     node.target.peer = node.peer
-    node.target.extraneous = false
-    node = node.target
+    return calcDepFlagsStep(node.target)
   }
 
   node.edgesOut.forEach(({peer, optional, dev, to}) => {
@@ -69,6 +73,14 @@ const calcDepFlagsStep = (node) => {
   })
 
   return node
+}
+
+const resetParents = (node, flag) => {
+  if (node[flag])
+    return
+
+  for (let p = node; p && (p === node || p[flag]); p = p.resolveParent)
+    p[flag] = false
 }
 
 // typically a short walk, since it only traverses deps that

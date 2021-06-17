@@ -322,6 +322,7 @@ define('cache', {
   `,
   flatten (key, obj, flatOptions) {
     flatOptions.cache = join(obj.cache, '_cacache')
+    flatOptions.npxCache = join(obj.cache, '_npx')
   },
 })
 
@@ -1086,18 +1087,8 @@ define('link', {
   default: false,
   type: Boolean,
   description: `
-    If true, then local installs will link if there is a suitable globally
-    installed package.
-
-    Note that this means that local installs can cause things to be installed
-    into the global space at the same time.  The link is only done if one of
-    the two conditions are met:
-
-    * The package is not already installed globally, or
-    * the globally installed version is identical to the version that is
-      being installed locally.
-
-    When used with \`npm ls\`, only show packages that are linked.
+    Used with \`npm ls\`, limiting output to only those packages that are
+    linked.
   `,
 })
 
@@ -1333,10 +1324,24 @@ define('package-lock-only', {
   default: false,
   type: Boolean,
   description: `
-    If set to true, it will update only the \`package-lock.json\`, instead of
-    checking \`node_modules\` and downloading dependencies.
+    If set to true, the current operation will only use the \`package-lock.json\`,
+    ignoring \`node_modules\`.
+
+    For \`update\` this means only the \`package-lock.json\` will be updated,
+    instead of checking \`node_modules\` and downloading dependencies.
+
+    For \`list\` this means the output will be based on the tree described by the
+    \`package-lock.json\`, rather than the contents of \`node_modules\`.
   `,
   flatten,
+})
+
+define('pack-destination', {
+  default: '.',
+  type: String,
+  description: `
+    Directory in which \`npm pack\` will save tarballs.
+  `,
 })
 
 define('parseable', {

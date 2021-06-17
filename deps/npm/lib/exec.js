@@ -1,7 +1,6 @@
 const libexec = require('libnpmexec')
 const BaseCommand = require('./base-command.js')
 const getLocationMsg = require('./exec/get-workspace-location-msg.js')
-const getWorkspaces = require('./workspaces/get-workspaces.js')
 
 // it's like this:
 //
@@ -68,7 +67,6 @@ class Exec extends BaseCommand {
   // can be named correctly
   async _exec (_args, { locationMsg, path, runPath }) {
     const args = [..._args]
-    const cache = this.npm.config.get('cache')
     const call = this.npm.config.get('call')
     const color = this.npm.config.get('color')
     const {
@@ -89,7 +87,6 @@ class Exec extends BaseCommand {
       ...flatOptions,
       args,
       call,
-      cache,
       color,
       localBin,
       locationMsg,
@@ -105,16 +102,15 @@ class Exec extends BaseCommand {
   }
 
   async _execWorkspaces (args, filters) {
-    const workspaces =
-      await getWorkspaces(filters, { path: this.npm.localPrefix })
+    await this.setWorkspaces(filters)
     const color = this.npm.config.get('color')
 
-    for (const workspacePath of workspaces.values()) {
-      const locationMsg = await getLocationMsg({ color, path: workspacePath })
+    for (const path of this.workspacePaths) {
+      const locationMsg = await getLocationMsg({ color, path })
       await this._exec(args, {
         locationMsg,
-        path: workspacePath,
-        runPath: workspacePath,
+        path,
+        runPath: path,
       })
     }
   }

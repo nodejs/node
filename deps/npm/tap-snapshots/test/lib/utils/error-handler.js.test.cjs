@@ -8,7 +8,7 @@
 exports[`test/lib/utils/error-handler.js TAP handles unknown error > should have expected log contents for unknown error 1`] = `
 0 verbose code 1
 1 error foo A complete log of this run can be found in:
-1 error foo     {CWD}/cachefolder/_logs/expecteddate-debug.log
+1 error foo     {CWD}/test/lib/utils/tap-testdir-error-handler/_logs/expecteddate-debug.log
 2 verbose stack Error: ERROR
 3 verbose cwd {CWD}
 4 verbose Foo 1.0.0

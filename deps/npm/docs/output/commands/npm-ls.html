@@ -141,7 +141,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#note-design-changes-pending">Note: Design Changes Pending</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#all"><code>all</code></a></li><li><a href="#json"><code>json</code></a></li><li><a href="#long"><code>long</code></a></li><li><a href="#parseable"><code>parseable</code></a></li><li><a href="#global"><code>global</code></a></li><li><a href="#depth"><code>depth</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#link"><code>link</code></a></li><li><a href="#unicode"><code>unicode</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#note-design-changes-pending">Note: Design Changes Pending</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#all"><code>all</code></a></li><li><a href="#json"><code>json</code></a></li><li><a href="#long"><code>long</code></a></li><li><a href="#parseable"><code>parseable</code></a></li><li><a href="#global"><code>global</code></a></li><li><a href="#depth"><code>depth</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#link"><code>link</code></a></li><li><a href="#package-lock-only"><code>package-lock-only</code></a></li><li><a href="#unicode"><code>unicode</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -159,7 +159,7 @@ tree at all, use <a href="../commands/npm-explain.html"><code>npm explain</code>
 the results to only the paths to the packages named.  Note that nested
 packages will <em>also</em> show the paths to the specified packages.  For
 example, running <code>npm ls promzard</code> in npm’s source tree will show:</p>
-<pre lang="bash"><code>npm@7.17.0 /path/to/npm
+<pre lang="bash"><code>npm@7.18.1 /path/to/npm
 └─┬ init-package-json@0.0.4
   └── promzard@0.1.5
 </code></pre>
@@ -263,17 +263,18 @@ variable will be set to <code>'production'</code> for all lifecycle scripts.</p>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>If true, then local installs will link if there is a suitable globally
-installed package.</p>
-<p>Note that this means that local installs can cause things to be installed
-into the global space at the same time. The link is only done if one of the
-two conditions are met:</p>
+<p>Used with <code>npm ls</code>, limiting output to only those packages that are linked.</p>
+<h4 id="package-lock-only"><code>package-lock-only</code></h4>
 <ul>
-<li>The package is not already installed globally, or</li>
-<li>the globally installed version is identical to the version that is being
-installed locally.</li>
+<li>Default: false</li>
+<li>Type: Boolean</li>
 </ul>
-<p>When used with <code>npm ls</code>, only show packages that are linked.</p>
+<p>If set to true, the current operation will only use the <code>package-lock.json</code>,
+ignoring <code>node_modules</code>.</p>
+<p>For <code>update</code> this means only the <code>package-lock.json</code> will be updated,
+instead of checking <code>node_modules</code> and downloading dependencies.</p>
+<p>For <code>list</code> this means the output will be based on the tree described by the
+<code>package-lock.json</code>, rather than the contents of <code>node_modules</code>.</p>
 <h4 id="unicode"><code>unicode</code></h4>
 <ul>
 <li>Default: false on windows, true on mac/unix systems with a unicode locale,

@@ -66,7 +66,7 @@ class Uninstall extends ArboristWorkspaceCmd {
       path,
       log: this.npm.log,
       rm: args,
-      workspaces: this.workspaces,
+      workspaces: this.workspaceNames,
     }
     const arb = new Arborist(opts)
     await arb.reify(opts)

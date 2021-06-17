@@ -1,6 +1,7 @@
 /* eslint-disable no-extend-native */
 /* eslint-disable no-global-assign */
 const EventEmitter = require('events')
+const writeFileAtomic = require('write-file-atomic')
 const t = require('tap')
 
 // NOTE: Although these unit tests may look like the rest on the surface,
@@ -23,13 +24,10 @@ const redactCwd = (path) => {
 t.cleanSnapshot = (str) => redactCwd(str)
 
 // internal modules mocks
-const cacheFile = {
-  append: () => null,
-  write: () => null,
-}
+const cacheFolder = t.testdir({})
 const config = {
   values: {
-    cache: 'cachefolder',
+    cache: cacheFolder,
     timing: true,
   },
   loaded: true,
@@ -111,20 +109,20 @@ process = Object.assign(
 // in order for tap to exit properly
 t.teardown(() => {
   process = _process
+  npmlog.record.length = 0
 })
 
 const mocks = {
   npmlog,
-  '../../../lib/npm.js': npm,
   '../../../lib/utils/error-message.js': (err) => ({
     ...err,
     summary: [['ERR', err.message]],
     detail: [['ERR', err.message]],
   }),
-  '../../../lib/utils/cache-file.js': cacheFile,
 }
 
 let errorHandler = t.mock('../../../lib/utils/error-handler.js', mocks)
+errorHandler.setNpm(npm)
 
 t.test('default exit code', (t) => {
   t.plan(1)
@@ -160,10 +158,14 @@ t.test('default exit code', (t) => {
 t.test('handles unknown error', (t) => {
   t.plan(2)
 
-  cacheFile.write = (filename, content) => {
+  const _toISOString = Date.prototype.toISOString
+  Date.prototype.toISOString = () => 'expecteddate'
+
+  const sync = writeFileAtomic.sync
+  writeFileAtomic.sync = (filename, content) => {
     t.equal(
       redactCwd(filename),
-      '{CWD}/cachefolder/_logs/expecteddate-debug.log',
+      '{CWD}/test/lib/utils/tap-testdir-error-handler/_logs/expecteddate-debug.log',
       'should use expected log filename'
     )
     t.matchSnapshot(
@@ -175,7 +177,8 @@ t.test('handles unknown error', (t) => {
   errorHandler(err)
 
   t.teardown(() => {
-    cacheFile.write = () => null
+    writeFileAtomic.sync = sync
+    Date.prototype.toISOString = _toISOString
   })
   t.end()
 })
@@ -205,11 +208,14 @@ t.test('npm.config not ready', (t) => {
 t.test('fail to write logfile', (t) => {
   t.plan(1)
 
-  cacheFile.write = () => {
-    throw err
-  }
+  const badDir = t.testdir({
+    _logs: 'is a file',
+  })
+
+  config.values.cache = badDir
+
   t.teardown(() => {
-    cacheFile.write = () => null
+    config.values.cache = cacheFolder
   })
 
   t.doesNotThrow(
@@ -372,6 +378,7 @@ t.test('uses code from errno', (t) => {
   t.plan(1)
 
   errorHandler = t.mock('../../../lib/utils/error-handler.js', mocks)
+  errorHandler.setNpm(npm)
 
   npmlog.level = 'silent'
   const _exit = process.exit
@@ -396,6 +403,7 @@ t.test('uses exitCode as code if using a number', (t) => {
   t.plan(1)
 
   errorHandler = t.mock('../../../lib/utils/error-handler.js', mocks)
+  errorHandler.setNpm(npm)
 
   npmlog.level = 'silent'
   const _exit = process.exit
@@ -420,6 +428,7 @@ t.test('call errorHandler with no error', (t) => {
   t.plan(1)
 
   errorHandler = t.mock('../../../lib/utils/error-handler.js', mocks)
+  errorHandler.setNpm(npm)
 
   const _exit = process.exit
   process.exit = (code) => {
@@ -478,6 +487,7 @@ t.test('set it worked', (t) => {
   t.plan(1)
 
   errorHandler = t.mock('../../../lib/utils/error-handler.js', mocks)
+  errorHandler.setNpm(npm)
 
   const _exit = process.exit
   process.exit = () => {

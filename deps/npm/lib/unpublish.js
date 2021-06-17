@@ -6,7 +6,6 @@ const npmFetch = require('npm-registry-fetch')
 const libunpub = require('libnpmpublish').unpublish
 const readJson = util.promisify(require('read-package-json'))
 
-const getWorkspaces = require('./workspaces/get-workspaces.js')
 const otplease = require('./utils/otplease.js')
 const getIdentity = require('./utils/get-identity.js')
 
@@ -129,8 +128,7 @@ class Unpublish extends BaseCommand {
   }
 
   async unpublishWorkspaces (args, filters) {
-    const workspaces =
-      await getWorkspaces(filters, { path: this.npm.localPrefix })
+    await this.setWorkspaces(filters)
 
     const force = this.npm.config.get('force')
     if (!force) {
@@ -140,7 +138,7 @@ class Unpublish extends BaseCommand {
       )
     }
 
-    for (const [name] of workspaces.entries())
+    for (const name of this.workspaceNames)
       await this.unpublish([name])
   }
 }

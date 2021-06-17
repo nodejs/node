@@ -355,7 +355,7 @@ t.test('npm.load', t => {
     await new Promise((res) => setTimeout(res))
   })
 
-  t.test('workpaces-aware configs and commands', async t => {
+  t.test('workspace-aware configs and commands', async t => {
     const dir = t.testdir({
       packages: {
         a: {
@@ -433,6 +433,60 @@ t.test('npm.load', t => {
           'should exec workspaces version of commands'
         )
 
+        res()
+      })
+    })
+  })
+
+  t.test('workspaces in global mode', async t => {
+    const dir = t.testdir({
+      packages: {
+        a: {
+          'package.json': JSON.stringify({
+            name: 'a',
+            version: '1.0.0',
+            scripts: { test: 'echo test a' },
+          }),
+        },
+        b: {
+          'package.json': JSON.stringify({
+            name: 'b',
+            version: '1.0.0',
+            scripts: { test: 'echo test b' },
+          }),
+        },
+      },
+      'package.json': JSON.stringify({
+        name: 'root',
+        version: '1.0.0',
+        workspaces: ['./packages/*'],
+      }),
+    })
+    const { execPath } = process
+    freshConfig({
+      argv: [
+        execPath,
+        process.argv[1],
+        '--userconfig',
+        resolve(dir, '.npmrc'),
+        '--color',
+        'false',
+        '--workspaces',
+        '--global',
+        'true',
+      ],
+    })
+    await npm.load(er => {
+      if (er)
+        throw er
+    })
+    npm.localPrefix = dir
+    await new Promise((res, rej) => {
+      // verify that calling the command with a short name still sets
+      // the npm.command property to the full canonical name of the cmd.
+      npm.command = null
+      npm.commands.run([], er => {
+        t.match(er, /Workspaces not supported for global packages/)
         res()
       })
     })

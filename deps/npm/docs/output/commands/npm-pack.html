@@ -141,7 +141,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#json"><code>json</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li></ul><li><a href="#description">Description</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#json"><code>json</code></a></li><li><a href="#pack-destination"><code>pack-destination</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li></ul><li><a href="#description">Description</a></li><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -168,6 +168,12 @@ commands that modify your local installation, eg, <code>install</code>, <code>up
 </ul>
 <p>Whether or not to output JSON data, rather than the normal output.</p>
 <p>Not supported by all npm commands.</p>
+<h4 id="pack-destination"><code>pack-destination</code></h4>
+<ul>
+<li>Default: “.”</li>
+<li>Type: String</li>
+</ul>
+<p>Directory in which <code>npm pack</code> will save tarballs.</p>
 <h4 id="workspace"><code>workspace</code></h4>
 <ul>
 <li>Default:</li>

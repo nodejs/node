@@ -14,10 +14,22 @@ module.exports = (config) => {
 
   const { warn } = log
 
+  const stdoutTTY = process.stdout.isTTY
+  const stderrTTY = process.stderr.isTTY
+  const dumbTerm = process.env.TERM === 'dumb'
+  const stderrNotDumb = stderrTTY && !dumbTerm
+  const enableColorStderr = color === 'always' ? true
+    : color === false ? false
+    : stderrTTY
+
+  const enableColorStdout = color === 'always' ? true
+    : color === false ? false
+    : stdoutTTY
+
   log.warn = (heading, ...args) => {
     if (heading === 'ERESOLVE' && args[1] && typeof args[1] === 'object') {
       warn(heading, args[0])
-      return warn('', explain(args[1]))
+      return warn('', explain(args[1], enableColorStdout, 2))
     }
     return warn(heading, ...args)
   }
@@ -28,19 +40,6 @@ module.exports = (config) => {
     log.level = config.get('loglevel')
 
   log.heading = config.get('heading') || 'npm'
-
-  const stdoutTTY = process.stdout.isTTY
-  const stderrTTY = process.stderr.isTTY
-  const dumbTerm = process.env.TERM === 'dumb'
-  const stderrNotDumb = stderrTTY && !dumbTerm
-
-  const enableColorStderr = color === 'always' ? true
-    : color === false ? false
-    : stderrTTY
-
-  const enableColorStdout = color === 'always' ? true
-    : color === false ? false
-    : stdoutTTY
 
   if (enableColorStderr)
     log.enableColor()

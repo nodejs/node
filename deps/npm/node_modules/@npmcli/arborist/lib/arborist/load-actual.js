@@ -22,6 +22,7 @@ const _loadFSTree = Symbol('loadFSTree')
 const _loadFSChildren = Symbol('loadFSChildren')
 const _findMissingEdges = Symbol('findMissingEdges')
 const _findFSParents = Symbol('findFSParents')
+const _resetDepFlags = Symbol('resetDepFlags')
 
 const _actualTreeLoaded = Symbol('actualTreeLoaded')
 const _rpcache = Symbol.for('realpathCache')
@@ -74,6 +75,19 @@ module.exports = cls => class ActualLoader extends cls {
     this[_topNodes] = new Set()
   }
 
+  [_resetDepFlags] (tree, root) {
+    // reset all deps to extraneous prior to recalc
+    if (!root) {
+      for (const node of tree.inventory.values())
+        node.extraneous = true
+    }
+
+    // only reset root flags if we're not re-rooting,
+    // otherwise leave as-is
+    calcDepFlags(tree, !root)
+    return tree
+  }
+
   // public method
   async loadActual (options = {}) {
     // allow the user to set options on the ctor as well.
@@ -88,6 +102,7 @@ module.exports = cls => class ActualLoader extends cls {
     return this.actualTree ? this.actualTree
       : this[_actualTreePromise] ? this[_actualTreePromise]
       : this[_actualTreePromise] = this[_loadActual](options)
+        .then(tree => this[_resetDepFlags](tree, options.root))
         .then(tree => this.actualTree = treeCheck(tree))
   }
 
@@ -152,8 +167,7 @@ module.exports = cls => class ActualLoader extends cls {
       root: this[_actualTree],
     })
     await this[_loadWorkspaces](this[_actualTree])
-    if (this[_actualTree].workspaces && this[_actualTree].workspaces.size)
-      calcDepFlags(this[_actualTree], !root)
+
     this[_transplant](root)
     return this[_actualTree]
   }
@@ -178,8 +192,6 @@ module.exports = cls => class ActualLoader extends cls {
         dependencies[name] = dependencies[name] || '*'
       actualRoot.package = { ...actualRoot.package, dependencies }
     }
-    // only reset root flags if we're not re-rooting, otherwise leave as-is
-    calcDepFlags(this[_actualTree], !root)
     return this[_actualTree]
   }
 

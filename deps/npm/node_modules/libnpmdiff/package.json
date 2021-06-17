@@ -46,12 +46,12 @@
     ]
   },
   "devDependencies": {
-    "eslint": "^7.18.0",
-    "eslint-plugin-import": "^2.22.1",
+    "eslint": "^7.28.0",
+    "eslint-plugin-import": "^2.23.4",
     "eslint-plugin-node": "^11.1.0",
-    "eslint-plugin-promise": "^4.2.1",
+    "eslint-plugin-promise": "^5.1.0",
     "eslint-plugin-standard": "^5.0.0",
-    "tap": "^14.11.0"
+    "tap": "^15.0.9"
   },
   "dependencies": {
     "@npmcli/disparity-colors": "^1.0.1",
@@ -59,8 +59,8 @@
     "binary-extensions": "^2.2.0",
     "diff": "^5.0.0",
     "minimatch": "^3.0.4",
-    "npm-package-arg": "^8.1.1",
-    "pacote": "^11.3.0",
+    "npm-package-arg": "^8.1.4",
+    "pacote": "^11.3.4",
     "tar": "^6.1.0"
   }
 }

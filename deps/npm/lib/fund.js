@@ -95,7 +95,7 @@ class Fund extends ArboristWorkspaceCmd {
     const fundingInfo = getFundingInfo(tree, {
       ...this.flatOptions,
       log: this.npm.log,
-      workspaces: this.workspaces,
+      workspaces: this.workspaceNames,
     })
 
     if (this.npm.config.get('json'))

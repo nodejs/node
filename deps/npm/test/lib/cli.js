@@ -25,6 +25,7 @@ const unsupportedMock = {
 }
 
 let errorHandlerCalled = null
+let errorHandlerNpm = null
 let errorHandlerCb
 const errorHandlerMock = (...args) => {
   errorHandlerCalled = args
@@ -34,6 +35,9 @@ const errorHandlerMock = (...args) => {
 let errorHandlerExitCalled = null
 errorHandlerMock.exit = code => {
   errorHandlerExitCalled = code
+}
+errorHandlerMock.setNpm = npm => {
+  errorHandlerNpm = npm
 }
 
 const logs = []
@@ -181,6 +185,7 @@ t.test('gracefully handles error printing usage', t => {
   npmock.argv = []
   errorHandlerCb = () => {
     t.match(errorHandlerCalled, [], 'should call errorHandler with no args')
+    t.match(errorHandlerNpm, npmock, 'errorHandler npm is set')
     t.end()
   }
   cli(proc)

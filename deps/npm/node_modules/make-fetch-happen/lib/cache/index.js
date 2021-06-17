@@ -7,7 +7,7 @@ const cacheFetch = async (request, options) => {
   // try to find a cached entry that satisfies this request
   const entry = await CacheEntry.find(request, options)
   if (!entry) {
-    // no cached result, if the cache mode is only-if-cached that's a failure
+    // no cached result, if the cache mode is 'only-if-cached' that's a failure
     if (options.cache === 'only-if-cached')
       throw new NotCachedError(request.url)
 
@@ -17,22 +17,21 @@ const cacheFetch = async (request, options) => {
     return entry.store('miss')
   }
 
-  // we have a cached response that satisfies this request, however
-  // if the cache mode is reload the user explicitly wants us to revalidate
-  if (options.cache === 'reload')
+  // we have a cached response that satisfies this request, however if the cache
+  // mode is 'no-cache' then we send the revalidation request no matter what
+  if (options.cache === 'no-cache')
     return entry.revalidate(request, options)
 
-  // if the cache mode is either force-cache or only-if-cached we will only
-  // respond with a cached entry, even if it's stale. set the status to the
-  // appropriate value based on whether revalidation is needed and respond
-  // from the cache
+  // if the cached entry is not stale, or if the cache mode is 'force-cache' or
+  // 'only-if-cached' we can respond with the cached entry. set the status
+  // based on the result of needsRevalidation and respond
   const _needsRevalidation = entry.policy.needsRevalidation(request)
   if (options.cache === 'force-cache' ||
       options.cache === 'only-if-cached' ||
       !_needsRevalidation)
     return entry.respond(request.method, options, _needsRevalidation ? 'stale' : 'hit')
 
-  // cache entry might be stale, revalidate it and return a response
+  // if we got here, the cache entry is stale so revalidate it
   return entry.revalidate(request, options)
 }
 

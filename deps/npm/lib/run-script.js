@@ -6,7 +6,6 @@ const rpj = require('read-package-json-fast')
 const log = require('npmlog')
 const didYouMean = require('./utils/did-you-mean.js')
 const isWindowsShell = require('./utils/is-windows-shell.js')
-const getWorkspaces = require('./workspaces/get-workspaces.js')
 
 const cmdList = [
   'publish',
@@ -195,10 +194,9 @@ class RunScript extends BaseCommand {
 
   async runWorkspaces (args, filters) {
     const res = []
-    const workspaces =
-      await getWorkspaces(filters, { path: this.npm.localPrefix })
+    await this.setWorkspaces(filters)
 
-    for (const workspacePath of workspaces.values()) {
+    for (const workspacePath of this.workspacePaths) {
       const pkg = await rpj(`${workspacePath}/package.json`)
       const runResult = await this.run(args, {
         path: workspacePath,
@@ -227,15 +225,14 @@ class RunScript extends BaseCommand {
   }
 
   async listWorkspaces (args, filters) {
-    const workspaces =
-      await getWorkspaces(filters, { path: this.npm.localPrefix })
+    await this.setWorkspaces(filters)
 
     if (log.level === 'silent')
       return
 
     if (this.npm.config.get('json')) {
       const res = {}
-      for (const workspacePath of workspaces.values()) {
+      for (const workspacePath of this.workspacePaths) {
         const { scripts, name } = await rpj(`${workspacePath}/package.json`)
         res[name] = { ...scripts }
       }
@@ -244,7 +241,7 @@ class RunScript extends BaseCommand {
     }
 
     if (this.npm.config.get('parseable')) {
-      for (const workspacePath of workspaces.values()) {
+      for (const workspacePath of this.workspacePaths) {
         const { scripts, name } = await rpj(`${workspacePath}/package.json`)
         for (const [script, cmd] of Object.entries(scripts || {}))
           this.npm.output(`${name}:${script}:${cmd}`)
@@ -252,7 +249,7 @@ class RunScript extends BaseCommand {
       return
     }
 
-    for (const workspacePath of workspaces.values())
+    for (const workspacePath of this.workspacePaths)
       await this.list(args, workspacePath)
   }
 }

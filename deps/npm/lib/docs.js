@@ -2,7 +2,6 @@ const log = require('npmlog')
 const pacote = require('pacote')
 const openUrl = require('./utils/open-url.js')
 const hostedFromMani = require('./utils/hosted-git-info-from-manifest.js')
-const getWorkspaces = require('./workspaces/get-workspaces.js')
 
 const BaseCommand = require('./base-command.js')
 class Docs extends BaseCommand {
@@ -42,9 +41,8 @@ class Docs extends BaseCommand {
   }
 
   async docsWorkspaces (args, filters) {
-    const workspaces =
-      await getWorkspaces(filters, { path: this.npm.localPrefix })
-    return this.docs([...workspaces.values()])
+    await this.setWorkspaces(filters)
+    return this.docs(this.workspacePaths)
   }
 
   async getDocs (pkg) {

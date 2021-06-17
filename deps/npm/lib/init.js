@@ -106,7 +106,6 @@ class Init extends BaseCommand {
     }
 
     const newArgs = [packageName, ...otherArgs]
-    const cache = this.npm.config.get('cache')
     const { color } = this.npm.flatOptions
     const {
       flatOptions,
@@ -128,7 +127,6 @@ class Init extends BaseCommand {
     await libexec({
       ...flatOptions,
       args: newArgs,
-      cache,
       color,
       localBin,
       locationMsg,

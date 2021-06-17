@@ -1,8 +1,6 @@
 const t = require('tap')
 const npm = {}
-const { explain, report } = t.mock('../../../lib/utils/explain-eresolve.js', {
-  '../../../lib/npm.js': npm,
-})
+const { explain, report } = require('../../../lib/utils/explain-eresolve.js')
 const { statSync, readFileSync, unlinkSync } = require('fs')
 // strip out timestamps from reports
 const read = f => readFileSync(f, 'utf8')
@@ -25,23 +23,18 @@ for (const [name, expl] of Object.entries(cases)) {
     t.cleanSnapshot = str => str.split(reportFile).join('${REPORT}')
 
     npm.color = true
-    t.matchSnapshot(report(expl), 'report with color')
+    t.matchSnapshot(report(expl, true, reportFile), 'report with color')
     const reportData = read(reportFile)
     t.matchSnapshot(reportData, 'report')
     unlinkSync(reportFile)
-    t.matchSnapshot(report(expl, 2), 'report with color, depth only 2')
-    t.equal(read(reportFile), reportData, 'same report written for object')
-    unlinkSync(reportFile)
-    npm.color = false
-    t.matchSnapshot(report(expl, 6), 'report with no color, depth of 6')
-    t.equal(read(reportFile), reportData, 'same report written for object')
 
+    t.matchSnapshot(report(expl, false, reportFile), 'report with no color')
+    t.equal(read(reportFile), reportData, 'same report written for object')
     unlinkSync(reportFile)
-    npm.color = true
-    t.matchSnapshot(explain(expl), 'explain with color')
+
+    t.matchSnapshot(explain(expl, true, 2), 'explain with color, depth of 2')
     t.throws(() => statSync(reportFile), { code: 'ENOENT' }, 'no report')
-    npm.color = false
-    t.matchSnapshot(explain(expl, 6), 'explain with no color, depth of 6')
+    t.matchSnapshot(explain(expl, false, 6), 'explain with no color, depth of 6')
     t.throws(() => statSync(reportFile), { code: 'ENOENT' }, 'no report')
 
     t.end()

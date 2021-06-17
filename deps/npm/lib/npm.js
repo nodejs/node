@@ -108,6 +108,9 @@ const npm = module.exports = new class extends EventEmitter {
       this.output(impl.usage)
       cb()
     } else if (filterByWorkspaces) {
+      if (this.config.get('global'))
+        return cb(new Error('Workspaces not supported for global packages'))
+
       impl.execWorkspaces(args, this.config.get('workspace'), er => {
         process.emit('timeEnd', `command:${cmd}`)
         cb(er)
