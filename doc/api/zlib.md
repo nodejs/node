@@ -140,10 +140,10 @@ tradeoffs involved in `zlib` usage.
 
 ```js
 // Client request example
-const zlib = require('zlib');
-const undici = require('undici');
-const fs = require('fs');
-const { pipeline } = require('stream/promises');
+import zlib from 'zlib';
+import undici from 'undici';
+import fs from 'fs';
+import { pipeline } from 'stream/promises';
 
 const { body, headers } = await undici.request('http://example.com:80', {
                            headers: { 'Accept-Encoding': 'br,gzip,deflate' } });
