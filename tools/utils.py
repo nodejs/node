@@ -26,8 +26,10 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+import glob
 import platform
 import re
+import sys
 
 
 # Reads a .list file into an array of strings
@@ -106,3 +108,10 @@ def GuessArchitecture():
 
 def IsWindows():
   return GuessOS() == 'win32'
+
+
+def SearchFiles(dir, ext):
+  list = glob.glob(dir+ '/**/*.' + ext, recursive=True)
+  if sys.platform == 'win32':
+    list = [ x.replace('\\', '/')for x in list]
+  return list
