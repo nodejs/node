@@ -1992,7 +1992,7 @@ write('config.mk', do_not_edit + config_str)
 
 
 
-gyp_args = ['--no-parallel', '-Dconfiguring_node=1']
+gyp_args = ['--no-parallel', '-Dconfiguring_node=1'];
 
 if options.use_ninja:
   gyp_args += ['-f', 'ninja']
