@@ -124,8 +124,8 @@ const exec = async (opts) => {
     manis.some(manifest => manifestMissing({ tree, manifest }))
 
   if (needInstall) {
-    const { cache } = flatOptions
-    const installDir = cacheInstallDir({ cache, packages })
+    const { npxCache } = flatOptions
+    const installDir = cacheInstallDir({ npxCache, packages })
     await mkdirp(installDir)
     const arb = new Arborist({
       ...flatOptions,

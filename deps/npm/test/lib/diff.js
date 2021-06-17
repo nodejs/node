@@ -549,12 +549,13 @@ t.test('single arg', t => {
   t.test('dir spec type', t => {
     t.plan(2)
 
+    const otherPath = resolve('/path/to/other-dir')
     libnpmdiff = async ([a, b], opts) => {
-      t.equal(a, 'file:/path/to/other-dir', 'should target dir')
+      t.equal(a, `file:${otherPath}`, 'should target dir')
       t.equal(b, `file:${fooPath}`, 'should compare to cwd')
     }
 
-    config.diff = ['/path/to/other-dir']
+    config.diff = [otherPath]
     diff.exec([], err => {
       if (err)
         throw err

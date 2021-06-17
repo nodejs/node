@@ -59,8 +59,10 @@ class Outdated extends ArboristWorkspaceCmd {
     this.list = []
     this.tree = await arb.loadActual()
 
-    if (this.workspaces && this.workspaces.length)
-      this.filterSet = arb.workspaceDependencySet(this.tree, this.workspaces)
+    if (this.workspaceNames && this.workspaceNames.length) {
+      this.filterSet =
+        arb.workspaceDependencySet(this.tree, this.workspaceNames)
+    }
 
     if (args.length !== 0) {
       // specific deps

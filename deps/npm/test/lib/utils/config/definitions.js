@@ -181,6 +181,7 @@ t.test('cache', t => {
   defsNix.cache.flatten('cache', { cache: '/some/cache/value' }, flat)
   const {join} = require('path')
   t.equal(flat.cache, join('/some/cache/value', '_cacache'))
+  t.equal(flat.npxCache, join('/some/cache/value', '_npx'))
 
   t.end()
 })

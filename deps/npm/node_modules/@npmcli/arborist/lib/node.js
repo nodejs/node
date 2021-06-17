@@ -547,6 +547,8 @@ class Node {
 
       // try to find our parent/fsParent in the new root inventory
       for (const p of walkUp(dirname(this.path))) {
+        if (p === this.path)
+          continue
         const ploc = relpath(root.realpath, p)
         const parent = root.inventory.get(ploc)
         if (parent) {
@@ -783,7 +785,13 @@ class Node {
   }
 
   get fsParent () {
-    return this[_fsParent]
+    const parent = this[_fsParent]
+    /* istanbul ignore next - should be impossible */
+    debug(() => {
+      if (parent === this)
+        throw new Error('node set to its own fsParent')
+    })
+    return parent
   }
 
   set fsParent (fsParent) {
@@ -1009,7 +1017,13 @@ class Node {
   }
 
   get parent () {
-    return this[_parent]
+    const parent = this[_parent]
+    /* istanbul ignore next - should be impossible */
+    debug(() => {
+      if (parent === this)
+        throw new Error('node set to its own parent')
+    })
+    return parent
   }
 
   // This setter keeps everything in order when we move a node from

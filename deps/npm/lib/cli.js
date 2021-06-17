@@ -20,6 +20,7 @@ module.exports = (process) => {
 
   const npm = require('../lib/npm.js')
   const errorHandler = require('../lib/utils/error-handler.js')
+  errorHandler.setNpm(npm)
 
   // if npm is called as "npmg" or "npm_g", then
   // run in global mode.

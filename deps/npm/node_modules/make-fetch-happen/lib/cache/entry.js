@@ -145,6 +145,12 @@ class CacheEntry {
       return
     }
 
+    // a cache mode of 'reload' means to behave as though we have no cache
+    // on the way to the network. return undefined to allow cacheFetch to
+    // create a brand new request no matter what.
+    if (options.cache === 'reload')
+      return
+
     // find the specific entry that satisfies the request
     let match
     for (const entry of matches) {

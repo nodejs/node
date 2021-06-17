@@ -1,6 +1,7 @@
 const t = require('tap')
 const mockNpm = require('../fixtures/mock-npm')
 const pacote = require('pacote')
+const path = require('path')
 
 const OUTPUT = []
 const output = (...msg) => OUTPUT.push(msg)
@@ -27,6 +28,7 @@ const mockPacote = {
 t.afterEach(() => OUTPUT.length = 0)
 
 t.test('should pack current directory with no arguments', (t) => {
+  let tarballFileName
   const Pack = t.mock('../../lib/pack.js', {
     libnpmpack,
     npmlog: {
@@ -35,14 +37,46 @@ t.test('should pack current directory with no arguments', (t) => {
       clearProgress: () => {},
     },
     fs: {
-      writeFile: (file, data, cb) => cb(),
+      writeFile: (file, data, cb) => {
+        tarballFileName = file
+        cb()
+      },
+    },
+  })
+  const npm = mockNpm({
+    output,
+  })
+  const pack = new Pack(npm)
+
+  pack.exec([], err => {
+    t.error(err, { bail: true })
+
+    const filename = `npm-${require('../../package.json').version}.tgz`
+    t.strictSame(OUTPUT, [[filename]])
+    t.strictSame(tarballFileName, path.resolve(filename))
+    t.end()
+  })
+})
+
+t.test('follows pack-destination config', (t) => {
+  let tarballFileName
+  const Pack = t.mock('../../lib/pack.js', {
+    libnpmpack,
+    npmlog: {
+      notice: () => {},
+      showProgress: () => {},
+      clearProgress: () => {},
+    },
+    fs: {
+      writeFile: (file, data, cb) => {
+        tarballFileName = file
+        cb()
+      },
     },
   })
   const npm = mockNpm({
     config: {
-      unicode: false,
-      json: false,
-      'dry-run': false,
+      'pack-destination': '/tmp/test',
     },
     output,
   })
@@ -53,10 +87,10 @@ t.test('should pack current directory with no arguments', (t) => {
 
     const filename = `npm-${require('../../package.json').version}.tgz`
     t.strictSame(OUTPUT, [[filename]])
+    t.strictSame(tarballFileName, path.resolve('/tmp/test', filename))
     t.end()
   })
 })
-
 t.test('should pack given directory', (t) => {
   const testDir = t.testdir({
     'package.json': JSON.stringify({

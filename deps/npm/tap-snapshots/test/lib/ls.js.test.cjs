@@ -496,6 +496,7 @@ workspaces-tree@1.0.0 {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspac
 exports[`test/lib/ls.js TAP ls loading a tree containing workspaces > should filter using workspace config 1`] = `
 workspaces-tree@1.0.0 {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspaces
 \`-- a@1.0.0 -> ./a
+  +-- baz@1.0.0
   +-- c@1.0.0
   \`-- d@1.0.0 -> ./d
     \`-- foo@1.1.1
@@ -504,6 +505,21 @@ workspaces-tree@1.0.0 {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspac
 `
 
 exports[`test/lib/ls.js TAP ls loading a tree containing workspaces > should list --all workspaces properly 1`] = `
+workspaces-tree@1.0.0 {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspaces
++-- a@1.0.0 -> ./a
+| +-- baz@1.0.0
+| +-- c@1.0.0
+| \`-- d@1.0.0 deduped -> ./d
++-- b@1.0.0 -> ./b
++-- d@1.0.0 -> ./d
+| \`-- foo@1.1.1
+|   \`-- bar@1.0.0
++-- e@1.0.0 -> ./group/e
+\`-- f@1.0.0 -> ./group/f
+
+`
+
+exports[`test/lib/ls.js TAP ls loading a tree containing workspaces > should list only prod deps of workspaces 1`] = `
 workspaces-tree@1.0.0 {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspaces
 +-- a@1.0.0 -> ./a
 | +-- c@1.0.0
@@ -520,6 +536,7 @@ workspaces-tree@1.0.0 {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspac
 exports[`test/lib/ls.js TAP ls loading a tree containing workspaces > should list workspaces properly with default configs 1`] = `
 [0mworkspaces-tree@1.0.0 {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspaces[0m
 [0m+-- [32ma@1.0.0[39m -> ./a[0m
+[0m| +-- baz@1.0.0[0m
 [0m| +-- c@1.0.0[0m
 [0m| \`-- d@1.0.0 [90mdeduped[39m -> ./d[0m
 [0m+-- [32mb@1.0.0[39m -> ./b[0m

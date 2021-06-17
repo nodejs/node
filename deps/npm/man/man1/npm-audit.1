@@ -289,8 +289,14 @@ Type: Boolean
 
 .RE
 .P
-If set to true, it will update only the \fBpackage\-lock\.json\fP, instead of
-checking \fBnode_modules\fP and downloading dependencies\.
+If set to true, the current operation will only use the \fBpackage\-lock\.json\fP,
+ignoring \fBnode_modules\fP\|\.
+.P
+For \fBupdate\fP this means only the \fBpackage\-lock\.json\fP will be updated,
+instead of checking \fBnode_modules\fP and downloading dependencies\.
+.P
+For \fBlist\fP this means the output will be based on the tree described by the
+\fBpackage\-lock\.json\fP, rather than the contents of \fBnode_modules\fP\|\.
 .SS \fBomit\fP
 .RS 0
 .IP \(bu 2
