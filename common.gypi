@@ -563,11 +563,6 @@
           'OPENSSL_NO_ASM',
         ],
       }],
-      ['node_use_openssl=="true"', {
-        'defines': [
-          'MODULESDIR="<(obj_dir)/deps/openssl/"',
-        ],
-      }],
     ],
   }
 }

@@ -4,6 +4,19 @@
     'llvm_version%': '0.0',
     'nasm_version%': '0.0',
     'openssl-cli': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)openssl-cli<(EXECUTABLE_SUFFIX)',
+    'conditions': [
+      ['OS == "win"', {
+        'obj_dir_abs': '<(PRODUCT_DIR_ABS)/obj',
+      }],
+      ['GENERATOR == "ninja"', {
+        'obj_dir_abs': '<(PRODUCT_DIR_ABS)/obj',
+      }, {
+        'obj_dir_abs%': '<(PRODUCT_DIR_ABS)/obj.target',
+      }],
+      ['OS=="mac"', {
+        'obj_dir_abs%': '<(PRODUCT_DIR_ABS)/obj.target',
+      }],
+    ],
   },
   'targets': [
     {
@@ -32,6 +45,12 @@
           'includes': ['./openssl_asm.gypi'],
         }, {
           'includes': ['./openssl_asm_avx2.gypi'],
+        }],
+        ['node_shared_openssl=="false"', {
+          'defines': [
+	    'MODULESDIR="<(obj_dir_abs)/deps/openssl/lib/openssl-modules"',
+            'OPENSSLDIR="<(obj_dir_abs)/deps/openssl"',
+          ]
         }],
       ],
       'direct_dependent_settings': {
