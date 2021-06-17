@@ -11,10 +11,12 @@ const {
   Duplex,
   addAbortSignal,
 } = require('stream');
+const pipelinep = require('stream/promises').pipeline;
 const assert = require('assert');
 const http = require('http');
 const { promisify } = require('util');
 const net = require('net');
+const tsp = require('timers/promises');
 
 {
   let finished = false;
@@ -1386,4 +1388,21 @@ const net = require('net');
   }, common.mustSucceed(() => {
     assert.strictEqual(res, content);
   }));
+}
+
+{
+  const ac = new AbortController();
+  const signal = ac.signal;
+  pipelinep(
+    async function * ({ signal }) {
+      await tsp.setTimeout(1e6, signal);
+    },
+    async function(source) {
+
+    },
+    { signal }
+  ).catch(common.mustCall((err) => {
+    assert.strictEqual(err.name, 'AbortError');
+  }));
+  ac.abort();
 }
