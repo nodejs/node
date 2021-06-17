@@ -22,6 +22,9 @@ test-tick-processor-arguments: SKIP
 # Skip tests failing in V8 bots when updating Node
 test-child-process-stdio-overlapped: SKIP
 
+# Temporarily skip for https://crrev.com/c/2960211
+test-fs-read: SKIP
+
 [$system==win32]
 # https://github.com/nodejs/node/issues/24497
 test-timers-immediate-queue: PASS,FLAKY
