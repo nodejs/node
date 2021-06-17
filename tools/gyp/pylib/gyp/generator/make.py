@@ -104,7 +104,6 @@ def CalculateVariables(default_variables, params):
         default_variables.setdefault("SHARED_LIB_DIR", "$(builddir)/lib.$(TOOLSET)")
         default_variables.setdefault("LIB_DIR", "$(obj).$(TOOLSET)")
 
-
 def CalculateGeneratorInputInfo(params):
     """Calculate the generator specific info that gets fed to input (called by
     gyp)."""
