@@ -145,9 +145,7 @@ const undici = require('undici');
 const fs = require('fs');
 const { pipeline } = require('stream/promises');
 
-const { body, headers } = await undici.request({ host: 'example.com',
-                           path: '/',
-                           port: 80,
+const { body, headers } = await undici.request('http://example.com:80', {
                            headers: { 'Accept-Encoding': 'br,gzip,deflate' } });
 
 const output = fs.createWriteStream('example.com_index.html');
