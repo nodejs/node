@@ -375,9 +375,9 @@ agent. Do not modify.
 added: v0.1.17
 -->
 
-* Extends: {Stream}
-
 XXX: UNDICI
+
+* Extends: {Stream}
 
 This object is created internally and returned from [`http.request()`][]. It
 represents an _in-progress_ request whose header has already been queued. The
