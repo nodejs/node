@@ -62,6 +62,7 @@
       # linux and others
       'cflags': ['-Wno-missing-field-initializers',],
       'defines': [
+        'OPENSSLDIR="<(obj_dir_abs)/deps/openssl"',
         'ENGINESDIR="/dev/null"',
         'TERMIOS',
       ],
