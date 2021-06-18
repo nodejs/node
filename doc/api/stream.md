@@ -1856,6 +1856,48 @@ run().catch(console.error);
 after the `callback` has been invoked. In the case of reuse of streams after
 failure, this can cause event listener leaks and swallowed errors.
 
+### `stream.compose(...streams)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `streams` {Stream[]}
+* Returns: {stream.Duplex}
+
+Combines two or more streams into a `Duplex` stream that writes to the
+first stream and reads from the last. Each provided stream is piped into
+the next, using `stream.pipeline`. If any of the streams error then all
+are destroyed, including the outer `Duplex` stream.
+
+Because `stream.compose` returns a new stream that in turn can (and
+should) be piped into other streams, it enables composition. In contrast,
+when passing streams to `stream.pipeline`, typically the first stream is
+a readable stream and the last a writable stream, forming a closed
+circuit.
+
+```mjs
+import { compose, Transform } from 'stream';
+
+const removeSpaces = new Transform({
+  transform(chunk, encoding, callback) {
+    callback(null, String(chunk).replace(' ', ''));
+  }
+});
+
+const toUpper = new Transform({
+  transform(chunk, encoding, callback) {
+    callback(null, String(chunk).toUpperCase());
+  }
+});
+
+let res = '';
+for await (const buf of compose(removeSpaces, toUpper).end('hello world')) {
+  res += buf;
+}
+
+console.log(res); // prints 'HELLOWORLD'
+```
+
 ### `stream.Readable.from(iterable, [options])`
 <!-- YAML
 added:
