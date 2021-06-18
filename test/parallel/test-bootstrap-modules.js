@@ -101,6 +101,7 @@ const expectedModules = new Set([
   'NativeModule internal/stream_base_commons',
   'NativeModule internal/streams/add-abort-signal',
   'NativeModule internal/streams/buffer_list',
+  'NativeModule internal/streams/compose',
   'NativeModule internal/streams/destroy',
   'NativeModule internal/streams/duplex',
   'NativeModule internal/streams/end-of-stream',
