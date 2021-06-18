@@ -55,14 +55,14 @@ bool HasHttp2Observer(Environment* env) {
 }  // anonymous namespace
 
 class NgHttp2CallbackScope {
-public:
+ public:
   explicit NgHttp2CallbackScope(Http2Session* session) : session_(session) {
     ++session_->nghttp2_callback_scope_;
   }
   ~NgHttp2CallbackScope() {
     --session_->nghttp2_callback_scope_;
   }
-private:
+ private:
   BaseObjectPtr<Http2Session> session_;
 };
 
