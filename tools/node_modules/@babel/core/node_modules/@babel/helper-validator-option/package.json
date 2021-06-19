@@ -1,0 +1,20 @@
+{
+  "name": "@babel/helper-validator-option",
+  "version": "7.14.5",
+  "description": "Validate plugin/preset options",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/babel/babel.git",
+    "directory": "packages/babel-helper-validator-option"
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "./lib/index.js",
+  "exports": "./lib/index.js",
+  "engines": {
+    "node": ">=6.9.0"
+  },
+  "author": "The Babel Team (https://babel.dev/team)"
+}

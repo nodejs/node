@@ -2,7 +2,7 @@
 
 > General utilities for plugins to use
 
-See our website [@babel/helper-plugin-utils](https://babeljs.io/docs/en/next/babel-helper-plugin-utils.html) for more information.
+See our website [@babel/helper-plugin-utils](https://babeljs.io/docs/en/babel-helper-plugin-utils) for more information.
 
 ## Install
 

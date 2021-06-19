@@ -1,5 +1,4 @@
-"use strict";
-const definitions = require("../../lib/definitions");
+import definitions from "../../lib/definitions/index.js";
 
 function addAssertHelper(type) {
   const result =
@@ -14,7 +13,7 @@ function addAssertHelper(type) {
   `;
 }
 
-module.exports = function generateAsserts() {
+export default function generateAsserts() {
   let output = `/*
  * This file is auto-generated! Do not modify it directly.
  * To re-generate run 'make build'
@@ -48,4 +47,4 @@ function assert(type: string, node: any, opts?: any): void {
   });
 
   return output;
-};
+}

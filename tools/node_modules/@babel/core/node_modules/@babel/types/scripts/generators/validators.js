@@ -1,5 +1,4 @@
-"use strict";
-const definitions = require("../../lib/definitions");
+import definitions from "../../lib/definitions/index.js";
 
 const has = Function.call.bind(Object.prototype.hasOwnProperty);
 
@@ -62,7 +61,7 @@ function addIsHelper(type, aliasKeys, deprecated) {
   `;
 }
 
-module.exports = function generateValidators() {
+export default function generateValidators() {
   let output = `/*
  * This file is auto-generated! Do not modify it directly.
  * To re-generate run 'make build'
@@ -85,4 +84,4 @@ import type * as t from "../..";\n\n`;
   });
 
   return output;
-};
+}

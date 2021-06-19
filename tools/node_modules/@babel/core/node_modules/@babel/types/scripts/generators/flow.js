@@ -1,8 +1,6 @@
-"use strict";
-
-const t = require("../../");
-const stringifyValidator = require("../utils/stringifyValidator");
-const toFunctionName = require("../utils/toFunctionName");
+import t from "../../lib/index.js";
+import stringifyValidator from "../utils/stringifyValidator.js";
+import toFunctionName from "../utils/toFunctionName.js";
 
 const NODE_PREFIX = "BabelNode";
 

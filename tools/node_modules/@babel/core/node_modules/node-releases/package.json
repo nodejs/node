@@ -1,0 +1,24 @@
+{
+  "name": "node-releases",
+  "version": "1.1.73",
+  "description": "Node.js releases data",
+  "scripts": {
+    "build": "npm run fetch && npm run process",
+    "fetch": "node scripts/fetch.js",
+    "process": "node scripts/process.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chicoxyzzy/node-releases.git"
+  },
+  "keywords": [
+    "nodejs",
+    "releases"
+  ],
+  "author": "Sergey Rubanov <chi187@gmail.com>",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "semver": "^6.3.0"
+  }
+}

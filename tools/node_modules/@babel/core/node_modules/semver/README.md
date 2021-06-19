@@ -4,7 +4,7 @@ semver(1) -- The semantic versioner for npm
 ## Install
 
 ```bash
-npm install --save semver
+npm install semver
 ````
 
 ## Usage
@@ -59,6 +59,12 @@ Options:
 -c --coerce
         Coerce a string into SemVer if possible
         (does not imply --loose)
+
+--rtl
+        Coerce version strings right to left
+
+--ltr
+        Coerce version strings left to right (default)
 
 Program exits successfully if any valid version satisfies
 all supplied ranges, and prints all satisfying versions.
@@ -231,7 +237,7 @@ comparator.  Allows minor-level changes if not.
 
 #### Caret Ranges `^1.2.3` `^0.2.5` `^0.0.4`
 
-Allows changes that do not modify the left-most non-zero digit in the
+Allows changes that do not modify the left-most non-zero element in the
 `[major, minor, patch]` tuple.  In other words, this allows patch and
 minor updates for versions `1.0.0` and above, patch updates for
 versions `0.X >=0.1.0`, and *no* updates for versions `0.0.X`.
@@ -354,6 +360,9 @@ strings that they parse.
   `v2` is greater.  Sorts in ascending order if passed to `Array.sort()`.
 * `rcompare(v1, v2)`: The reverse of compare.  Sorts an array of versions
   in descending order when passed to `Array.sort()`.
+* `compareBuild(v1, v2)`: The same as `compare` but considers `build` when two versions
+  are equal.  Sorts in ascending order if passed to `Array.sort()`.
+  `v2` is greater.  Sorts in ascending order if passed to `Array.sort()`.
 * `diff(v1, v2)`: Returns difference between two versions by the release type
   (`major`, `premajor`, `minor`, `preminor`, `patch`, `prepatch`, or `prerelease`),
   or null if the versions are the same.
@@ -396,7 +405,7 @@ range, use the `satisfies(version, range)` function.
 
 ### Coercion
 
-* `coerce(version)`: Coerces a string to semver if possible
+* `coerce(version, options)`: Coerces a string to semver if possible
 
 This aims to provide a very forgiving translation of a non-semver string to
 semver. It looks for the first digit in a string, and consumes all
@@ -408,5 +417,27 @@ surrounding text is simply ignored (`v3.4 replaces v3.3.1` becomes
 is not valid).  The maximum  length for any semver component considered for
 coercion is 16 characters; longer components will be ignored
 (`10000000000000000.4.7.4` becomes `4.7.4`).  The maximum value for any
-semver component is `Number.MAX_SAFE_INTEGER || (2**53 - 1)`; higher value
+semver component is `Integer.MAX_SAFE_INTEGER || (2**53 - 1)`; higher value
 components are invalid (`9999999999999999.4.7.4` is likely invalid).
+
+If the `options.rtl` flag is set, then `coerce` will return the right-most
+coercible tuple that does not share an ending index with a longer coercible
+tuple.  For example, `1.2.3.4` will return `2.3.4` in rtl mode, not
+`4.0.0`.  `1.2.3/4` will return `4.0.0`, because the `4` is not a part of
+any other overlapping SemVer tuple.
+
+### Clean
+
+* `clean(version)`: Clean a string to be a valid semver if possible
+
+This will return a cleaned and trimmed semver version. If the provided version is not valid a null will be returned. This does not work for ranges. 
+
+ex.
+* `s.clean(' = v 2.1.5foo')`: `null`
+* `s.clean(' = v 2.1.5foo', { loose: true })`: `'2.1.5-foo'`
+* `s.clean(' = v 2.1.5-foo')`: `null`
+* `s.clean(' = v 2.1.5-foo', { loose: true })`: `'2.1.5-foo'`
+* `s.clean('=v2.1.5')`: `'2.1.5'`
+* `s.clean('  =v2.1.5')`: `2.1.5`
+* `s.clean('      2.1.5   ')`: `'2.1.5'`
+* `s.clean('~1.0.0')`: `null`
