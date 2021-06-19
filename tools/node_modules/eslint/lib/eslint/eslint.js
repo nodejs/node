@@ -515,6 +515,39 @@ class ESLint {
     }
 
     /**
+     * Returns meta objects for each rule represented in the lint results.
+     * @param {LintResult[]} results The results to fetch rules meta for.
+     * @returns {Object} A mapping of ruleIds to rule meta objects.
+     */
+    getRulesMetaForResults(results) {
+
+        const resultRuleIds = new Set();
+
+        // first gather all ruleIds from all results
+
+        for (const result of results) {
+            for (const { ruleId } of result.messages) {
+                resultRuleIds.add(ruleId);
+            }
+        }
+
+        // create a map of all rules in the results
+
+        const { cliEngine } = privateMembersMap.get(this);
+        const rules = cliEngine.getRules();
+        const resultRules = new Map();
+
+        for (const [ruleId, rule] of rules) {
+            if (resultRuleIds.has(ruleId)) {
+                resultRules.set(ruleId, rule);
+            }
+        }
+
+        return createRulesMeta(resultRules);
+
+    }
+
+    /**
      * Executes the current configuration on an array of file and directory names.
      * @param {string[]} patterns An array of file and directory names.
      * @returns {Promise<LintResult[]>} The results of linting the file patterns given.
@@ -552,9 +585,12 @@ class ESLint {
             ...unknownOptions
         } = options || {};
 
-        for (const key of Object.keys(unknownOptions)) {
-            throw new Error(`'options' must not include the unknown option '${key}'`);
+        const unknownOptionKeys = Object.keys(unknownOptions);
+
+        if (unknownOptionKeys.length > 0) {
+            throw new Error(`'options' must not include the unknown option(s): ${unknownOptionKeys.join(", ")}`);
         }
+
         if (filePath !== void 0 && !isNonEmptyString(filePath)) {
             throw new Error("'options.filePath' must be a non-empty string or undefined");
         }
