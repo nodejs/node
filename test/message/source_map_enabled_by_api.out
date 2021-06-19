@@ -1,0 +1,30 @@
+*enclosing-call-site.js:16
+      throw new Error('an error!')
+                ^
+
+Error: an error!
+    at functionD (*enclosing-call-site.js:16:17)
+    at functionC (*enclosing-call-site.js:10:3)
+    at functionB (*enclosing-call-site.js:6:3)
+    at functionA (*enclosing-call-site.js:2:3)
+    at Object.<anonymous> (*enclosing-call-site.js:24:3)
+    at Module._compile (internal/modules/cjs/loader.js:*)
+    at Object.Module._extensions..js (internal/modules/cjs/loader.js:*)
+    at Module.load (internal/modules/cjs/loader.js:*)
+    at Function.Module._load (internal/modules/cjs/loader.js:*)
+    at Module.require (internal/modules/cjs/loader.js:*)
+*enclosing-call-site-min.js:1
+var functionA=function(){functionB()};function functionB(){functionC()}var functionC=function(){functionD()},functionD=function(){if(0<Math.random())throw Error("an error!");},thrower=functionA;try{functionA()}catch(a){throw a;};
+                                                                                                                                                                                                                           ^
+
+Error: an error!
+    at functionD (*enclosing-call-site-min.js:1:156)
+    at functionC (*enclosing-call-site-min.js:1:97)
+    at functionB (*enclosing-call-site-min.js:1:60)
+    at functionA (*enclosing-call-site-min.js:1:26)
+    at Object.<anonymous> (*enclosing-call-site-min.js:1:199)
+    at Module._compile (internal/modules/cjs/loader.js:*)
+    at Object.Module._extensions..js (internal/modules/cjs/loader.js:*)
+    at Module.load (internal/modules/cjs/loader.js:*)
+    at Function.Module._load (internal/modules/cjs/loader.js:*)
+    at Module.require (internal/modules/cjs/loader.js:*)

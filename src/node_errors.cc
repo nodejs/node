@@ -819,9 +819,10 @@ void SetPrepareStackTraceCallback(const FunctionCallbackInfo<Value>& args) {
   env->set_prepare_stack_trace_callback(args[0].As<Function>());
 }
 
-static void EnableSourceMaps(const FunctionCallbackInfo<Value>& args) {
+static void SetSourceMapsEnabled(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  env->set_source_maps_enabled(true);
+  CHECK(args[0]->IsBoolean());
+  env->set_source_maps_enabled(args[0].As<Boolean>()->Value());
 }
 
 static void SetEnhanceStackForFatalException(
@@ -862,7 +863,7 @@ void Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
   env->SetMethod(
       target, "setPrepareStackTraceCallback", SetPrepareStackTraceCallback);
-  env->SetMethod(target, "enableSourceMaps", EnableSourceMaps);
+  env->SetMethod(target, "setSourceMapsEnabled", SetSourceMapsEnabled);
   env->SetMethod(target,
                  "setEnhanceStackForFatalException",
                  SetEnhanceStackForFatalException);
