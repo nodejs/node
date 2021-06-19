@@ -1,5 +1,6 @@
 #include "node_native_module.h"
 #include "util-inl.h"
+#include "debug_utils-inl.h"
 
 namespace node {
 namespace native_module {
