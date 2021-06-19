@@ -256,8 +256,13 @@ inline void AsyncHooks::RemoveContext(v8::Local<v8::Context> ctx) {
   v8::Isolate* isolate = env()->isolate();
   v8::HandleScope handle_scope(isolate);
   for (auto it = contexts_.begin(); it != contexts_.end(); it++) {
+    if (it->IsEmpty()) {
+      contexts_.erase(it);
+      it--;
+      continue;
+    }
     v8::Local<v8::Context> saved_context =
-      PersistentToLocal::Weak(env()->isolate(), *it);
+      PersistentToLocal::Weak(isolate, *it);
     if (saved_context == ctx) {
       it->Reset();
       contexts_.erase(it);
