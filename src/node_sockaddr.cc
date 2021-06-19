@@ -159,10 +159,12 @@ SocketAddress::CompareResult compare_ipv4(
       reinterpret_cast<const sockaddr_in*>(one.data());
   const sockaddr_in* two_in =
       reinterpret_cast<const sockaddr_in*>(two.data());
+  const uint32_t s_addr_one = ntohl(one_in->sin_addr.s_addr);
+  const uint32_t s_addr_two = ntohl(two_in->sin_addr.s_addr);
 
-  if (one_in->sin_addr.s_addr < two_in->sin_addr.s_addr)
+  if (s_addr_one < s_addr_two)
     return SocketAddress::CompareResult::LESS_THAN;
-  else if (one_in->sin_addr.s_addr == two_in->sin_addr.s_addr)
+  else if (s_addr_one == s_addr_two)
     return SocketAddress::CompareResult::SAME;
   else
     return SocketAddress::CompareResult::GREATER_THAN;
