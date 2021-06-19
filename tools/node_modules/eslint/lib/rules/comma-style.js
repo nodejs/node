@@ -207,8 +207,7 @@ module.exports = {
                      * they are always valid regardless of an undefined item.
                      */
                     if (astUtils.isCommaToken(commaToken)) {
-                        validateCommaItemSpacing(previousItemToken, commaToken,
-                            currentItemToken, reportItem);
+                        validateCommaItemSpacing(previousItemToken, commaToken, currentItemToken, reportItem);
                     }
 
                     if (item) {
