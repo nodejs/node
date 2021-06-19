@@ -1,10 +1,8 @@
-"use strict";
-const definitions = require("../../lib/definitions");
-const formatBuilderName = require("../utils/formatBuilderName");
-const lowerFirst = require("../utils/lowerFirst");
-
-const t = require("../../");
-const stringifyValidator = require("../utils/stringifyValidator");
+import t from "../../lib/index.js";
+import definitions from "../../lib/definitions/index.js";
+import formatBuilderName from "../utils/formatBuilderName.js";
+import lowerFirst from "../utils/lowerFirst.js";
+import stringifyValidator from "../utils/stringifyValidator.js";
 
 function areAllRemainingFieldsNullable(fieldName, fieldNames, fields) {
   const index = fieldNames.indexOf(fieldName);
@@ -73,11 +71,11 @@ function generateBuilderArgs(type) {
   return args;
 }
 
-module.exports = function generateBuilders(kind) {
+export default function generateBuilders(kind) {
   return kind === "uppercase.js"
     ? generateUppercaseBuilders()
     : generateLowercaseBuilders();
-};
+}
 
 function generateLowercaseBuilders() {
   let output = `/*
