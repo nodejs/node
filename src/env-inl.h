@@ -127,6 +127,11 @@ inline void AsyncHooks::SetJSPromiseHooks(v8::Local<v8::Function> init,
   js_promise_hooks_[2].Reset(env()->isolate(), after);
   js_promise_hooks_[3].Reset(env()->isolate(), resolve);
   for (auto it = contexts_.begin(); it != contexts_.end(); it++) {
+    if (it->IsEmpty()) {
+      it = contexts_.erase(it);
+      it--;
+      continue;
+    }
     PersistentToLocal::Weak(env()->isolate(), *it)
         ->SetPromiseHooks(init, before, after, resolve);
   }
@@ -279,8 +284,13 @@ inline void AsyncHooks::RemoveContext(v8::Local<v8::Context> ctx) {
   v8::Isolate* isolate = env()->isolate();
   v8::HandleScope handle_scope(isolate);
   for (auto it = contexts_.begin(); it != contexts_.end(); it++) {
+    if (it->IsEmpty()) {
+      it = contexts_.erase(it);
+      it--;
+      continue;
+    }
     v8::Local<v8::Context> saved_context =
-      PersistentToLocal::Weak(env()->isolate(), *it);
+      PersistentToLocal::Weak(isolate, *it);
     if (saved_context == ctx) {
       it->Reset();
       contexts_.erase(it);
