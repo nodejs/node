@@ -11,15 +11,26 @@
 const DEFAULT_FALLTHROUGH_COMMENT = /falls?\s?through/iu;
 
 /**
- * Checks whether or not a given node has a fallthrough comment.
- * @param {ASTNode} node A SwitchCase node to get comments.
+ * Checks whether or not a given case has a fallthrough comment.
+ * @param {ASTNode} caseWhichFallsThrough SwitchCase node which falls through.
+ * @param {ASTNode} subsequentCase The case after caseWhichFallsThrough.
  * @param {RuleContext} context A rule context which stores comments.
  * @param {RegExp} fallthroughCommentPattern A pattern to match comment to.
- * @returns {boolean} `true` if the node has a valid fallthrough comment.
+ * @returns {boolean} `true` if the case has a valid fallthrough comment.
  */
-function hasFallthroughComment(node, context, fallthroughCommentPattern) {
+function hasFallthroughComment(caseWhichFallsThrough, subsequentCase, context, fallthroughCommentPattern) {
     const sourceCode = context.getSourceCode();
-    const comment = sourceCode.getCommentsBefore(node).pop();
+
+    if (caseWhichFallsThrough.consequent.length === 1 && caseWhichFallsThrough.consequent[0].type === "BlockStatement") {
+        const trailingCloseBrace = sourceCode.getLastToken(caseWhichFallsThrough.consequent[0]);
+        const commentInBlock = sourceCode.getCommentsBefore(trailingCloseBrace).pop();
+
+        if (commentInBlock && fallthroughCommentPattern.test(commentInBlock.value)) {
+            return true;
+        }
+    }
+
+    const comment = sourceCode.getCommentsBefore(subsequentCase).pop();
 
     return Boolean(comment && fallthroughCommentPattern.test(comment.value));
 }
@@ -108,7 +119,7 @@ module.exports = {
                  * Checks whether or not there is a fallthrough comment.
                  * And reports the previous fallthrough node if that does not exist.
                  */
-                if (fallthroughCase && !hasFallthroughComment(node, context, fallthroughCommentPattern)) {
+                if (fallthroughCase && !hasFallthroughComment(fallthroughCase, node, context, fallthroughCommentPattern)) {
                     context.report({
                         messageId: node.test ? "case" : "default",
                         node
