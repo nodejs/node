@@ -3249,6 +3249,24 @@ This function is only available on POSIX platforms (i.e. not Windows or
 Android).
 This feature is not available in [`Worker`][] threads.
 
+## `process.setSourceMapsEnabled(val)`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `val` {boolean}
+
+This function enables or disables the [Source Map v3][Source Map] support for
+stack traces.
+
+It provides same features as launching Node.js process with commandline options
+`--enable-source-maps`.
+
+Only source maps in JavaScript files that are loaded after source maps has been
+enabled will be parsed and loaded.
+
 ## `process.setUncaughtExceptionCaptureCallback(fn)`
 <!-- YAML
 added: v9.3.0
@@ -3670,6 +3688,7 @@ cases:
 [LTS]: https://github.com/nodejs/Release
 [Readable]: stream.md#stream_readable_streams
 [Signal Events]: #process_signal_events
+[Source Map]: https://sourcemaps.info/spec.html
 [Stream compatibility]: stream.md#stream_compatibility_with_older_node_js_versions
 [TTY]: tty.md#tty_tty
 [Writable]: stream.md#stream_writable_streams
