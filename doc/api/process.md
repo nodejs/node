@@ -2384,6 +2384,8 @@ This feature is not available in [`Worker`][] threads.
 added: REPLACEME
 -->
 
+> Stability: 1 - Experimental
+
 * `val` {boolean}
 
 This function enables or disables the [Source Map v3][Source Map] support for
