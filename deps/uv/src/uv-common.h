@@ -261,6 +261,7 @@ void uv__threadpool_cleanup(void);
 
 #define uv__handle_start(h)                                                   \
   do {                                                                        \
+    printf("uv__handle_start %p\n", h);                                       \
     if (((h)->flags & UV_HANDLE_ACTIVE) != 0) break;                          \
     (h)->flags |= UV_HANDLE_ACTIVE;                                           \
     if (((h)->flags & UV_HANDLE_REF) != 0) uv__active_handle_add(h);          \
@@ -269,6 +270,7 @@ void uv__threadpool_cleanup(void);
 
 #define uv__handle_stop(h)                                                    \
   do {                                                                        \
+    printf("uv__handle_stop %p\n", h);                                        \
     if (((h)->flags & UV_HANDLE_ACTIVE) == 0) break;                          \
     (h)->flags &= ~UV_HANDLE_ACTIVE;                                          \
     if (((h)->flags & UV_HANDLE_REF) != 0) uv__active_handle_rm(h);           \
@@ -304,6 +306,7 @@ void uv__threadpool_cleanup(void);
 
 #define uv__handle_init(loop_, h, type_)                                      \
   do {                                                                        \
+    printf("uv__handle_init %p %p %d\n", h, loop_, type_);                    \
     (h)->loop = (loop_);                                                      \
     (h)->type = (type_);                                                      \
     (h)->flags = UV_HANDLE_REF;  /* Ref the loop when active. */              \

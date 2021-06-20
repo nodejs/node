@@ -363,25 +363,37 @@ int uv_loop_alive(const uv_loop_t* loop) {
 
 
 int uv_run(uv_loop_t* loop, uv_run_mode mode) {
+  printf("uv_run %p, mode %d\n", loop, mode);
   int timeout;
   int r;
   int ran_pending;
 
   r = uv__loop_alive(loop);
-  if (!r)
+  printf("\t\tr = %d\n", r);
+  if (!r) {
+    printf("\tuv__update_time %p\n", loop);
     uv__update_time(loop);
+  }
 
   while (r != 0 && loop->stop_flag == 0) {
+    printf("\tuv__update_time %p\n", loop);
     uv__update_time(loop);
+    printf("\tuv__run_timers %p\n", loop);
     uv__run_timers(loop);
+    printf("\tuv__run_pending %p\n", loop);
     ran_pending = uv__run_pending(loop);
+    printf("\tuv__run_idle %p\n", loop);
     uv__run_idle(loop);
+    printf("\tuv__run_prepare %p\n", loop);
     uv__run_prepare(loop);
 
     timeout = 0;
-    if ((mode == UV_RUN_ONCE && !ran_pending) || mode == UV_RUN_DEFAULT)
+    if ((mode == UV_RUN_ONCE && !ran_pending) || mode == UV_RUN_DEFAULT) {
+      printf("\tuv_backend_timeout %p\n", loop);
       timeout = uv_backend_timeout(loop);
+    }
 
+    printf("\tuv__io_poll %p timeout: %d\n", loop, timeout);
     uv__io_poll(loop, timeout);
 
     /* Run one final update on the provider_idle_time in case uv__io_poll
@@ -389,9 +401,12 @@ int uv_run(uv_loop_t* loop, uv_run_mode mode) {
      * call will be ignored if the provider_entry_time was either never set (if
      * the timeout == 0) or was already updated b/c an event was received.
      */
+    printf("\tuv__metrics_update_idle_time %p\n", loop);
     uv__metrics_update_idle_time(loop);
 
+    printf("\tuv__run_check %p\n", loop);
     uv__run_check(loop);
+    printf("\tuv__run_closing_handles %p\n", loop);
     uv__run_closing_handles(loop);
 
     if (mode == UV_RUN_ONCE) {
@@ -403,11 +418,15 @@ int uv_run(uv_loop_t* loop, uv_run_mode mode) {
        * UV_RUN_NOWAIT makes no guarantees about progress so it's omitted from
        * the check.
        */
+      printf("\tuv__update_time %p\n", loop);
       uv__update_time(loop);
+      printf("\tuv__run_timers %p\n", loop);
       uv__run_timers(loop);
     }
 
+    printf("\tuv__loop_alive %p\n", loop);
     r = uv__loop_alive(loop);
+    printf("\t\tr = %d\n", r);
     if (mode == UV_RUN_ONCE || mode == UV_RUN_NOWAIT)
       break;
   }
