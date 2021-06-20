@@ -1284,16 +1284,7 @@ class JSCallOrConstructNode : public JSNodeWrapperBase {
  public:
   explicit constexpr JSCallOrConstructNode(Node* node)
       : JSNodeWrapperBase(node) {
-    DCHECK(node->opcode() == IrOpcode::kJSCall ||
-           node->opcode() == IrOpcode::kJSCallWithArrayLike ||
-           node->opcode() == IrOpcode::kJSCallWithSpread ||
-           node->opcode() == IrOpcode::kJSConstruct ||
-           node->opcode() == IrOpcode::kJSConstructWithArrayLike ||
-           node->opcode() == IrOpcode::kJSConstructWithSpread
-#if V8_ENABLE_WEBASSEMBLY
-           || node->opcode() == IrOpcode::kJSWasmCall
-#endif  // V8_ENABLE_WEBASSEMBLY
-    );  // NOLINT(whitespace/parens)
+    DCHECK(IsValidNode(node));
   }
 
 #define INPUTS(V)              \
@@ -1366,6 +1357,20 @@ class JSCallOrConstructNode : public JSNodeWrapperBase {
   TNode<HeapObject> feedback_vector() const {
     return TNode<HeapObject>::UncheckedCast(
         NodeProperties::GetValueInput(node(), FeedbackVectorIndex()));
+  }
+
+ private:
+  static constexpr bool IsValidNode(Node* node) {
+    return node->opcode() == IrOpcode::kJSCall ||
+           node->opcode() == IrOpcode::kJSCallWithArrayLike ||
+           node->opcode() == IrOpcode::kJSCallWithSpread ||
+           node->opcode() == IrOpcode::kJSConstruct ||
+           node->opcode() == IrOpcode::kJSConstructWithArrayLike ||
+           node->opcode() == IrOpcode::kJSConstructWithSpread
+#if V8_ENABLE_WEBASSEMBLY
+           || node->opcode() == IrOpcode::kJSWasmCall
+#endif     // V8_ENABLE_WEBASSEMBLY
+        ;  // NOLINT(whitespace/semicolon)
   }
 };
 
