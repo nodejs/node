@@ -28,6 +28,10 @@
 #include "handle_wrap.h"
 #include "v8.h"
 
+#define STREAM_WRAP_RECVQ_INITIAL   16*1024
+#define STREAM_WRAP_RECVQ_MIN       16*1024
+#define STREAM_WRAP_RECVQ_MAX       256*1024
+
 namespace node {
 
 class Environment;
@@ -111,6 +115,7 @@ class LibuvStreamWrap : public HandleWrap, public StreamBase {
   static void AfterUvShutdown(uv_shutdown_t* req, int status);
 
   uv_stream_t* const stream_;
+  ssize_t recvQSize;
 
 #ifdef _WIN32
   // We don't always have an FD that we could look up on the stream_
