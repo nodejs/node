@@ -610,18 +610,17 @@ CommonJS modules loaded.
 * `context` {Object}
   * `conditions` {string[]}
   * `parentURL` {string}
-* `defaultResolve` {Function} The Node.js default resolver.
   **Default:** `undefined`
+* `defaultResolve` {Function} The Node.js default resolver.
 * Returns: {Object}
-  * `format` {string} One of `'builtin'|'commonjs'|'json'|'module'|'wasm'`
-  * `url` {string} The fully qualified url to the import target (`file://…`,
-  `http://…`, etc)
+  * `format` {string?} One of `'builtin'|'commonjs'|'json'|'module'|'wasm'`
+  * `url` {string} The absolute url to the import target (`file://…`, etc)
 
 The `resolve` hook returns the resolved file URL for a given module specifier
-and parent URL, and optionally its format (ex `'module'`). The module specifier
-is the string in an `import` statement or `import()` expression, and the parent
-URL is the URL of the module that imported this one, or `undefined` if this is
-the main entry point for the application.
+and parent URL, and optionally its format (such as `'module'`) as a hint to the
+`load` hook. The module specifier is the string in an `import` statement or
+`import()` expression, and the parent URL is the URL of the module that imported
+this one, or `undefined` if this is the main entry point for the application.
 
 The `conditions` property in `context` is an array of conditions for
 [package exports conditions][Conditional Exports] that apply to this resolution
@@ -670,8 +669,8 @@ export async function resolve(specifier, context, defaultResolve) {
 
 #### `load(url, context, defaultLoad)`
 
-> Note: Previously the experimental version had 3 separate hooks, which have
-> been consolidated into this one.
+> Note: The loaders API is being redesigned. This hook may disappear or its
+> signature may change. Do not rely on the API described below.
 
 * `url` {string}
 * `context` {Object}
@@ -705,14 +704,17 @@ Note: These types all correspond to classes defined in ECMAScript.
 If the source value of a text-based format (i.e., `'json'`, `'module'`)
 is not a string, it is converted to a string using [`util.TextDecoder`][].
 
-This hook can be used to simply map an unrecognised format to a supported
-format (ex `json6` to `module`) to allow Node.js to process it in a way that it
-already supports:
+The `load` hook provides a way to define a custom method for retrieving the
+source code of an ES module specifier. This would allow a loader to potentially
+avoid reading files from disk. It could also be used to map an unrecognized
+format to a supported one, for example `yaml` to `module`.
 
 ```js
 /**
  * @param {string} url
- * @param {} context Currently not used
+ * @param {{
+    format: string,
+  }} context If resolve settled with a `format`, that value is included here.
  * @param {Function} defaultLoad
  * @returns {Promise<{
     format: !string,
@@ -735,8 +737,8 @@ source to a supported one (see [Examples](#esm_examples) below).
 
 #### `globalPreload()`
 
-> Note: In the experimental version, this hook was named
-> `getGlobalPreloadCode()` and has been renamed to `globalPreload()`
+> Note: The loaders API is being redesigned. This hook may disappear or its
+> signature may change. Do not rely on the API described below.
 
 * Returns: {string}
 
