@@ -25,6 +25,9 @@ test-child-process-stdio-overlapped: SKIP
 # Temporarily skip for https://crrev.com/c/2960211
 test-fs-read: SKIP
 
+# Temporarily skip for https://crrev.com/c/2974772
+test-util-inspect: SKIP
+
 [$system==win32]
 # https://github.com/nodejs/node/issues/24497
 test-timers-immediate-queue: PASS,FLAKY
