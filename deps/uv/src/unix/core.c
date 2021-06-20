@@ -363,11 +363,12 @@ int uv_loop_alive(const uv_loop_t* loop) {
 
 
 int uv_run(uv_loop_t* loop, uv_run_mode mode) {
-  printf("uv_run %p, mode %d\n", loop, mode);
+  printf("uv_run %p mode %d\n", loop, mode);
   int timeout;
   int r;
   int ran_pending;
 
+  printf("\tuv__loop_alive %p\n", loop);
   r = uv__loop_alive(loop);
   printf("\t\tr = %d\n", r);
   if (!r) {
@@ -1589,7 +1590,7 @@ int uv__search_path(const char* prog, char* buf, size_t* buflen) {
     buf[*buflen] = '\0';
 
     return 0;
-  } 
+  }
 
   /* Case iii). Search PATH environment variable */
   cloned_path = NULL;

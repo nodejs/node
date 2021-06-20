@@ -1,0 +1,15 @@
+{
+  "name": "m4l",
+  "version": "1.0.0",
+  "main": "src/index.ts",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "14.17.0"
+  },
+  "engines": {
+    "node": ">=14.17.0"
+  },
+  "dependencies": {
+    "rxjs": "^7.1.0"
+  }
+}
