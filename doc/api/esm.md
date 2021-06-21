@@ -612,7 +612,8 @@ CommonJS modules loaded.
   * `parentURL` {string|undefined}
 * `defaultResolve` {Function} The Node.js default resolver.
 * Returns: {Object}
-  * `format` {string|undefined} `'builtin'|'commonjs'|'json'|'module'|'wasm'`
+  * `format` {string|null|undefined}
+  `'builtin' | 'commonjs' | 'json' | 'module' | 'wasm'`
   * `url` {string} The absolute url to the import target (such as `file://…`)
 
 The `resolve` hook returns the resolved file URL for a given module specifier
