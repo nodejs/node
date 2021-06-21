@@ -823,8 +823,7 @@ void SetPrepareStackTraceCallback(const FunctionCallbackInfo<Value>& args) {
 static void SetSourceMapsEnabled(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(args[0]->IsBoolean());
-  env->set_source_maps_enabled(
-      args[0].As<Boolean>()->BooleanValue(env->isolate()));
+  env->set_source_maps_enabled(args[0].As<Boolean>()->Value());
 }
 
 static void SetEnhanceStackForFatalException(
