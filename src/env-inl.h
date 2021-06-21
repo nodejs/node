@@ -257,7 +257,7 @@ inline void AsyncHooks::RemoveContext(v8::Local<v8::Context> ctx) {
   v8::HandleScope handle_scope(isolate);
   for (auto it = contexts_.begin(); it != contexts_.end(); it++) {
     if (it->IsEmpty()) {
-      contexts_.erase(it);
+      it = contexts_.erase(it);
       it--;
       continue;
     }
