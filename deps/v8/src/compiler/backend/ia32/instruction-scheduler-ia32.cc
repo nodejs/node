@@ -138,7 +138,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I64x2Ne:
     case kIA32I64x2GtS:
     case kIA32I64x2GeS:
-    case kIA32I64x2SignSelect:
     case kIA32I64x2ExtMulLowI32x4S:
     case kIA32I64x2ExtMulHighI32x4S:
     case kIA32I64x2ExtMulLowI32x4U:
@@ -158,7 +157,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32F32x4RecipApprox:
     case kIA32F32x4RecipSqrtApprox:
     case kIA32F32x4Add:
-    case kIA32F32x4AddHoriz:
     case kIA32F32x4Sub:
     case kIA32F32x4Mul:
     case kIA32F32x4Div:
@@ -188,8 +186,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I32x4ShrS:
     case kSSEI32x4Add:
     case kAVXI32x4Add:
-    case kSSEI32x4AddHoriz:
-    case kAVXI32x4AddHoriz:
     case kSSEI32x4Sub:
     case kAVXI32x4Sub:
     case kSSEI32x4Mul:
@@ -222,7 +218,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I32x4Abs:
     case kIA32I32x4BitMask:
     case kIA32I32x4DotI16x8S:
-    case kIA32I32x4SignSelect:
     case kIA32I32x4ExtMulLowI16x8S:
     case kIA32I32x4ExtMulHighI16x8S:
     case kIA32I32x4ExtMulLowI16x8U:
@@ -244,8 +239,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kAVXI16x8Add:
     case kSSEI16x8AddSatS:
     case kAVXI16x8AddSatS:
-    case kSSEI16x8AddHoriz:
-    case kAVXI16x8AddHoriz:
     case kSSEI16x8Sub:
     case kAVXI16x8Sub:
     case kSSEI16x8SubSatS:
@@ -284,7 +277,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I16x8RoundingAverageU:
     case kIA32I16x8Abs:
     case kIA32I16x8BitMask:
-    case kIA32I16x8SignSelect:
     case kIA32I16x8ExtMulLowI8x16S:
     case kIA32I16x8ExtMulHighI8x16S:
     case kIA32I16x8ExtMulLowI8x16U:
@@ -309,8 +301,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I8x16AddSatS:
     case kIA32I8x16Sub:
     case kIA32I8x16SubSatS:
-    case kSSEI8x16Mul:
-    case kAVXI8x16Mul:
     case kIA32I8x16MinS:
     case kIA32I8x16MaxS:
     case kIA32I8x16Eq:
@@ -333,7 +323,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I8x16RoundingAverageU:
     case kIA32I8x16Abs:
     case kIA32I8x16BitMask:
-    case kIA32I8x16SignSelect:
     case kIA32I8x16Popcnt:
     case kIA32S128Const:
     case kIA32S128Zero:
@@ -385,10 +374,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kSSES8x2Reverse:
     case kAVXS8x2Reverse:
     case kIA32S128AnyTrue:
-    case kIA32V64x2AllTrue:
-    case kIA32V32x4AllTrue:
-    case kIA32V16x8AllTrue:
-    case kIA32V8x16AllTrue:
+    case kIA32I64x2AllTrue:
+    case kIA32I32x4AllTrue:
+    case kIA32I16x8AllTrue:
+    case kIA32I8x16AllTrue:
       return (instr->addressing_mode() == kMode_None)
                  ? kNoOpcodeFlags
                  : kIsLoadOperation | kHasSideEffect;
@@ -431,8 +420,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32Poke:
     case kIA32MFence:
     case kIA32LFence:
-    case kIA32Prefetch:
-    case kIA32PrefetchNta:
       return kHasSideEffect;
 
     case kIA32Word32AtomicPairLoad:

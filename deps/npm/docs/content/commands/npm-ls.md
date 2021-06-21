@@ -155,18 +155,21 @@ variable will be set to `'production'` for all lifecycle scripts.
 * Default: false
 * Type: Boolean
 
-If true, then local installs will link if there is a suitable globally
-installed package.
+Used with `npm ls`, limiting output to only those packages that are linked.
 
-Note that this means that local installs can cause things to be installed
-into the global space at the same time. The link is only done if one of the
-two conditions are met:
+#### `package-lock-only`
 
-* The package is not already installed globally, or
-* the globally installed version is identical to the version that is being
-  installed locally.
+* Default: false
+* Type: Boolean
 
-When used with `npm ls`, only show packages that are linked.
+If set to true, the current operation will only use the `package-lock.json`,
+ignoring `node_modules`.
+
+For `update` this means only the `package-lock.json` will be updated,
+instead of checking `node_modules` and downloading dependencies.
+
+For `list` this means the output will be based on the tree described by the
+`package-lock.json`, rather than the contents of `node_modules`.
 
 #### `unicode`
 

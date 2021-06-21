@@ -336,16 +336,14 @@ All commands:
                     
                     Usage:
                     npm diff [...<paths>]
-                    npm diff --diff=<pkg-name> [...<paths>]
-                    npm diff --diff=<version-a> [--diff=<version-b>] [...<paths>]
-                    npm diff --diff=<spec-a> [--diff=<spec-b>] [...<paths>]
-                    npm diff [--diff-ignore-all-space] [--diff-name-only] [...<paths>] [...<paths>]
                     
                     Options:
-                    [--diff <diff> [--diff <diff> ...]] [--diff-name-only]
-                    [--diff-unified <diff-unified>] [--diff-ignore-all-space] [--diff-no-prefix]
-                    [--diff-src-prefix <diff-src-prefix>] [--diff-dst-prefix <diff-dst-prefix>]
+                    [--diff <pkg-name|spec|version> [--diff <pkg-name|spec|version> ...]]
+                    [--diff-name-only] [--diff-unified <number>] [--diff-ignore-all-space]
+                    [--diff-no-prefix] [--diff-src-prefix <path>] [--diff-dst-prefix <path>]
                     [--diff-text] [-g|--global] [--tag <tag>]
+                    [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
+                    [-ws|--workspaces]
                     
                     Run "npm help diff" for more info
 
@@ -641,7 +639,7 @@ All commands:
                     Options:
                     [-a|--all] [--json] [-l|--long] [-p|--parseable] [-g|--global] [--depth <depth>]
                     [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--link]
-                    [--unicode]
+                    [--package-lock-only] [--unicode]
                     [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
                     [-ws|--workspaces]
                     
@@ -680,12 +678,12 @@ All commands:
                     List installed packages
                     
                     Usage:
-                    npm ls npm ls [[<@scope>/]<pkg> ...]
+                    npm ls [[<@scope>/]<pkg> ...]
                     
                     Options:
                     [-a|--all] [--json] [-l|--long] [-p|--parseable] [-g|--global] [--depth <depth>]
                     [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--link]
-                    [--unicode]
+                    [--package-lock-only] [--unicode]
                     [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
                     [-ws|--workspaces]
                     
@@ -746,7 +744,7 @@ All commands:
                     npm pack [[<@scope>/]<pkg>...]
                     
                     Options:
-                    [--dry-run] [--json]
+                    [--dry-run] [--json] [--pack-destination <pack-destination>]
                     [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
                     [-ws|--workspaces]
                     

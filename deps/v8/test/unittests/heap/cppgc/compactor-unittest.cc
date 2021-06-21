@@ -76,13 +76,6 @@ class CompactorTest : public testing::TestWithPlatform {
     EXPECT_TRUE(compactor().IsEnabledForTesting());
   }
 
-  void CancelCompaction() {
-    bool cancelled = compactor().CancelIfShouldNotCompact(
-        GarbageCollector::Config::MarkingType::kAtomic,
-        GarbageCollector::Config::StackState::kMayContainHeapPointers);
-    EXPECT_TRUE(cancelled);
-  }
-
   void FinishCompaction() { compactor().CompactSpacesIfEnabled(); }
 
   void StartGC() {
@@ -132,11 +125,6 @@ TEST_F(CompactorTest, NothingToCompact) {
   heap()->stats_collector()->NotifyMarkingCompleted(0);
   FinishCompaction();
   heap()->stats_collector()->NotifySweepingCompleted();
-}
-
-TEST_F(CompactorTest, CancelledNothingToCompact) {
-  StartCompaction();
-  CancelCompaction();
 }
 
 TEST_F(CompactorTest, NonEmptySpaceAllLive) {

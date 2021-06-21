@@ -5,7 +5,6 @@ const semver = require('semver')
 
 const otplease = require('./utils/otplease.js')
 const readPackageName = require('./utils/read-package-name.js')
-const getWorkspaces = require('./workspaces/get-workspaces.js')
 const BaseCommand = require('./base-command.js')
 
 class DistTag extends BaseCommand {
@@ -180,10 +179,9 @@ class DistTag extends BaseCommand {
   }
 
   async listWorkspaces (filters) {
-    const workspaces =
-      await getWorkspaces(filters, { path: this.npm.localPrefix })
+    await this.setWorkspaces(filters)
 
-    for (const [name] of workspaces) {
+    for (const name of this.workspaceNames) {
       try {
         this.npm.output(`${name}:`)
         await this.list(npa(name), this.npm.flatOptions)

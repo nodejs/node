@@ -12,10 +12,16 @@ const npmLog = {
   silly: () => null,
 }
 const config = {
+  cache: 'bad-cache-dir',
   'init-module': '~/.npm-init.js',
   yes: true,
 }
+const flatOptions = {
+  cache: 'test-config-dir/_cacache',
+  npxCache: 'test-config-dir/_npx',
+}
 const npm = mockNpm({
+  flatOptions,
   config,
   log: npmLog,
 })
@@ -82,16 +88,18 @@ t.test('classic interactive npm init', t => {
 })
 
 t.test('npm init <arg>', t => {
-  t.plan(1)
+  t.plan(3)
   npm.localPrefix = t.testdir({})
 
   const Init = t.mock('../../lib/init.js', {
-    libnpmexec: ({ args }) => {
+    libnpmexec: ({ args, cache, npxCache }) => {
       t.same(
         args,
         ['create-react-app'],
         'should npx with listed packages'
       )
+      t.same(cache, flatOptions.cache)
+      t.same(npxCache, flatOptions.npxCache)
     },
   })
   const init = new Init(npm)

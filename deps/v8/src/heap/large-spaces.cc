@@ -162,7 +162,7 @@ AllocationResult OldLargeObjectSpace::AllocateRawBackground(
     LocalHeap* local_heap, int object_size) {
   // Check if we want to force a GC before growing the old space further.
   // If so, fail the allocation.
-  if (!heap()->CanExpandOldGenerationBackground(object_size) ||
+  if (!heap()->CanExpandOldGenerationBackground(local_heap, object_size) ||
       !heap()->ShouldExpandOldGenerationOnSlowAllocation(local_heap)) {
     return AllocationResult::Retry(identity());
   }

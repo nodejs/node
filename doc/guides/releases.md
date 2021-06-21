@@ -128,7 +128,7 @@ Build is essential to make sure that the CI works, release files are published,
 and the release blog post is available on the project website.
 
 Build can be contacted best by opening up an issue on the [Build issue
-tracker][], and by posting in `#node-build` on [webchat.freenode.net][].
+tracker][].
 
 When preparing a security release, contact Build at least two weekdays in
 advance of the expected release. To ensure that the security patch(es) can be
@@ -912,4 +912,3 @@ take place once a new LTS line has been released.
 [Snap]: https://snapcraft.io/node
 [nodejs.org release-post.js script]: https://github.com/nodejs/nodejs.org/blob/HEAD/scripts/release-post.js
 [nodejs.org repository]: https://github.com/nodejs/nodejs.org
-[webchat.freenode.net]: https://webchat.freenode.net/

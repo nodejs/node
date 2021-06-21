@@ -211,6 +211,7 @@ constexpr size_t kFsStatsBufferLength =
   V(crypto_rsa_pss_string, "rsa-pss")                                          \
   V(cwd_string, "cwd")                                                         \
   V(data_string, "data")                                                       \
+  V(default_is_true_string, "defaultIsTrue")                                   \
   V(deserialize_info_string, "deserializeInfo")                                \
   V(dest_string, "dest")                                                       \
   V(destroyed_string, "destroyed")                                             \
@@ -955,6 +956,13 @@ struct EnvSerializeInfo {
   friend std::ostream& operator<<(std::ostream& o, const EnvSerializeInfo& i);
 };
 
+struct SnapshotData {
+  SnapshotData() { blob.data = nullptr; }
+  v8::StartupData blob;
+  std::vector<size_t> isolate_data_indices;
+  EnvSerializeInfo env_info;
+};
+
 class Environment : public MemoryRetainer {
  public:
   Environment(const Environment&) = delete;
@@ -1201,6 +1209,7 @@ class Environment : public MemoryRetainer {
   inline void set_stopping(bool value);
   inline std::list<node_module>* extra_linked_bindings();
   inline node_module* extra_linked_bindings_head();
+  inline node_module* extra_linked_bindings_tail();
   inline const Mutex& extra_linked_bindings_mutex() const;
 
   inline bool filehandle_close_warning() const;

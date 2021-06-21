@@ -331,8 +331,8 @@ static void at_exit_js(void* arg) {
   v8::Isolate* isolate = static_cast<v8::Isolate*>(arg);
   v8::HandleScope handle_scope(isolate);
   v8::Local<v8::Object> obj = v8::Object::New(isolate);
-  assert(!obj.IsEmpty());  // Assert VM is still alive.
-  assert(obj->IsObject());
+  EXPECT_FALSE(obj.IsEmpty());  // Assert VM is still alive.
+  EXPECT_TRUE(obj->IsObject());
   called_at_exit_js = true;
 }
 

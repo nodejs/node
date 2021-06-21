@@ -1,0 +1,31 @@
+Tests GC object inspection.
+
+Running test: test
+Instantiating.
+Waiting for wasm script (ignoring first non-wasm script).
+Setting breakpoint at offset 107 on script wasm://wasm/22e4830a
+Calling main()
+Paused:
+Script wasm://wasm/22e4830a byte offset 107: Wasm opcode 0x21 (kExprLocalSet)
+Scope:
+at main (0:107):
+ - scope (wasm-expression-stack):
+   0: Array ((ref $ArrC))
+     object details:
+   0: Struct ((ref null $StrA))
+   length: 1 (number)
+ - scope (local):
+   $varA: Struct ((ref null $StrA))
+   $varB: null ((ref null $ArrC))
+     object details:
+   $byte: 127 (i8)
+   $word: 32767 (i16)
+   $pointer: Struct ((ref $StrB))
+ - scope (module):
+   instance: exports: "main" (Function)
+   module: Module
+   functions: "$main": (Function)
+   globals: "$global0": function 0() { [native code] } ((ref null $type3))
+at (anonymous) (0:17):
+   -- skipped
+exports.main returned!

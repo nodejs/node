@@ -14,6 +14,7 @@
 #include "src/base/compiler-specific.h"
 #include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
+#include "src/common/assert-scope.h"
 #include "src/flags/flags.h"
 #include "src/utils/allocation.h"
 #include "src/utils/ostreams.h"
@@ -93,7 +94,7 @@ class Log {
     void AppendRawCharacter(const char character);
 
     Log* log_;
-    base::MutexGuard lock_guard_;
+    NoGarbageCollectionMutexGuard lock_guard_;
 
     friend class Log;
   };

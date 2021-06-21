@@ -20,6 +20,7 @@ module.exports = (process) => {
 
   const npm = require('../lib/npm.js')
   const errorHandler = require('../lib/utils/error-handler.js')
+  errorHandler.setNpm(npm)
 
   // if npm is called as "npmg" or "npm_g", then
   // run in global mode.
@@ -53,7 +54,7 @@ module.exports = (process) => {
       npm.config.set('usage', false, 'cli')
     }
 
-    npm.updateNotification = await updateNotifier(npm)
+    updateNotifier(npm)
 
     const cmd = npm.argv.shift()
     const impl = npm.commands[cmd]

@@ -27,12 +27,12 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addMemory(12, 12, false);
   builder.addFunction("foo", kSig_v_iii)
     .addBody([].concat([
-      kExprBlock, kWasmStmt,
+      kExprBlock, kWasmVoid,
         kExprLocalGet, 0x2,
         kExprI32Const, 0x01,
         kExprI32And,
         // Generate a test branch (which has 32k limited reach).
-        kExprIf, kWasmStmt,
+        kExprIf, kWasmVoid,
           kExprLocalGet, 0x0,
           kExprI32Const, 0x01,
           kExprI32And,

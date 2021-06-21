@@ -5,6 +5,7 @@
 #ifndef V8_BASELINE_X64_BASELINE_ASSEMBLER_X64_INL_H_
 #define V8_BASELINE_X64_BASELINE_ASSEMBLER_X64_INL_H_
 
+#include "src/base/macros.h"
 #include "src/baseline/baseline-assembler.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/x64/register-x64.h"
@@ -17,12 +18,11 @@ namespace detail {
 
 // Avoid using kScratchRegister(==r10) since the macro-assembler doesn't use
 // this scope and will conflict.
-static constexpr Register kScratchRegisters[] = {r8, r9, r11, r12, r14, r15};
+static constexpr Register kScratchRegisters[] = {r8, r9, r11, r12, r15};
 static constexpr int kNumScratchRegisters = arraysize(kScratchRegisters);
 
 }  // namespace detail
 
-// TODO(v8:11429): Move BaselineAssembler to baseline-assembler-<arch>-inl.h
 class BaselineAssembler::ScratchRegisterScope {
  public:
   explicit ScratchRegisterScope(BaselineAssembler* assembler)
@@ -46,7 +46,7 @@ class BaselineAssembler::ScratchRegisterScope {
 };
 
 // TODO(v8:11461): Unify condition names in the MacroAssembler.
-enum class Condition : uint8_t {
+enum class Condition : uint32_t {
   kEqual = equal,
   kNotEqual = not_equal,
 
@@ -92,6 +92,11 @@ MemOperand BaselineAssembler::FeedbackVectorOperand() {
 }
 
 void BaselineAssembler::Bind(Label* label) { __ bind(label); }
+void BaselineAssembler::BindWithoutJumpTarget(Label* label) { __ bind(label); }
+
+void BaselineAssembler::JumpTarget() {
+  // NOP on x64.
+}
 
 void BaselineAssembler::Jump(Label* target, Label::Distance distance) {
   __ jmp(target, distance);
@@ -118,15 +123,25 @@ void BaselineAssembler::JumpIfNotSmi(Register value, Label* target,
 }
 
 void BaselineAssembler::CallBuiltin(Builtins::Name builtin) {
-  __ RecordCommentForOffHeapTrampoline(builtin);
-  __ Call(__ EntryFromBuiltinIndexAsOperand(builtin));
-  if (FLAG_code_comments) __ RecordComment("]");
+  if (masm()->options().short_builtin_calls) {
+    // Generate pc-relative call.
+    __ CallBuiltin(builtin);
+  } else {
+    __ RecordCommentForOffHeapTrampoline(builtin);
+    __ Call(__ EntryFromBuiltinIndexAsOperand(builtin));
+    if (FLAG_code_comments) __ RecordComment("]");
+  }
 }
 
 void BaselineAssembler::TailCallBuiltin(Builtins::Name builtin) {
-  __ RecordCommentForOffHeapTrampoline(builtin);
-  __ Jump(__ EntryFromBuiltinIndexAsOperand(builtin));
-  if (FLAG_code_comments) __ RecordComment("]");
+  if (masm()->options().short_builtin_calls) {
+    // Generate pc-relative jump.
+    __ TailCallBuiltin(builtin);
+  } else {
+    __ RecordCommentForOffHeapTrampoline(builtin);
+    __ Jump(__ EntryFromBuiltinIndexAsOperand(builtin));
+    if (FLAG_code_comments) __ RecordComment("]");
+  }
 }
 
 void BaselineAssembler::Test(Register value, int mask) {

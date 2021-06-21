@@ -30,6 +30,7 @@ a:link, a:visited {
   text-align: center;
   text-decoration: none;
   display: inline-block;
+  border-radius: 2px;
 }
 a:hover, a:active {
   background-color: white;
@@ -42,12 +43,16 @@ a:hover, a:active {
   background-color: #000000;
   grid-gap: 15px;
 }
+.grid-2{
+  grid-template-columns: auto auto;
+}
 .card {
   text-align: center;
   padding: 10px 50px 10px 50px ;
   box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
   background-color: #121212;
   width: auto;
+  border-radius: 10px;
 }
 .card:hover {
   box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2);
@@ -95,13 +100,15 @@ dd, dt {
             <dt><a href="./zone-stats/index.html">Zone Stats</a></dt>
             <dd>Analyse zone memory usage.</dd>
           </div>
+        </dl>
+        <dl class="grid-container grid-2">
           <div class="card">
-            <dt><a href="https://v8.dev/tools">Other V8 Versions</a></dt>
-            <dd>Check out the V8 website for available tool versions.</dd>
+            <dt><a href="https://v8.dev/tools/versions">Other V8 Versions</a></dt>
+            <dd>Archived versions of V8 tools</dd>
           </div>
           <div class="card">
             <dt><a href="https://v8.dev">V8.Dev</a></dt>
-            <dd>Check out the V8 website for more information.</dd>
+            <dd>The main V8 website.</dd>
           </div>
         </dl>
       </div>

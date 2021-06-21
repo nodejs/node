@@ -30,15 +30,15 @@ Dictionary<Derived, Shape>::Dictionary(Address ptr)
 
 template <typename Derived, typename Shape>
 Object Dictionary<Derived, Shape>::ValueAt(InternalIndex entry) {
-  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
-  return ValueAt(isolate, entry);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return ValueAt(cage_base, entry);
 }
 
 template <typename Derived, typename Shape>
-Object Dictionary<Derived, Shape>::ValueAt(IsolateRoot isolate,
+Object Dictionary<Derived, Shape>::ValueAt(PtrComprCageBase cage_base,
                                            InternalIndex entry) {
-  return this->get(isolate, DerivedHashTable::EntryToIndex(entry) +
-                                Derived::kEntryValueIndex);
+  return this->get(cage_base, DerivedHashTable::EntryToIndex(entry) +
+                                  Derived::kEntryValueIndex);
 }
 
 template <typename Derived, typename Shape>
@@ -181,12 +181,12 @@ Handle<Map> GlobalDictionary::GetMap(ReadOnlyRoots roots) {
 }
 
 Name NameDictionary::NameAt(InternalIndex entry) {
-  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
-  return NameAt(isolate, entry);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return NameAt(cage_base, entry);
 }
 
-Name NameDictionary::NameAt(IsolateRoot isolate, InternalIndex entry) {
-  return Name::cast(KeyAt(isolate, entry));
+Name NameDictionary::NameAt(PtrComprCageBase cage_base, InternalIndex entry) {
+  return Name::cast(KeyAt(cage_base, entry));
 }
 
 Handle<Map> NameDictionary::GetMap(ReadOnlyRoots roots) {
@@ -194,32 +194,33 @@ Handle<Map> NameDictionary::GetMap(ReadOnlyRoots roots) {
 }
 
 PropertyCell GlobalDictionary::CellAt(InternalIndex entry) {
-  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
-  return CellAt(isolate, entry);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return CellAt(cage_base, entry);
 }
 
-PropertyCell GlobalDictionary::CellAt(IsolateRoot isolate,
+PropertyCell GlobalDictionary::CellAt(PtrComprCageBase cage_base,
                                       InternalIndex entry) {
-  DCHECK(KeyAt(isolate, entry).IsPropertyCell(isolate));
-  return PropertyCell::cast(KeyAt(isolate, entry));
+  DCHECK(KeyAt(cage_base, entry).IsPropertyCell(cage_base));
+  return PropertyCell::cast(KeyAt(cage_base, entry));
 }
 
 Name GlobalDictionary::NameAt(InternalIndex entry) {
-  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
-  return NameAt(isolate, entry);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return NameAt(cage_base, entry);
 }
 
-Name GlobalDictionary::NameAt(IsolateRoot isolate, InternalIndex entry) {
-  return CellAt(isolate, entry).name(isolate);
+Name GlobalDictionary::NameAt(PtrComprCageBase cage_base, InternalIndex entry) {
+  return CellAt(cage_base, entry).name(cage_base);
 }
 
 Object GlobalDictionary::ValueAt(InternalIndex entry) {
-  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
-  return ValueAt(isolate, entry);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return ValueAt(cage_base, entry);
 }
 
-Object GlobalDictionary::ValueAt(IsolateRoot isolate, InternalIndex entry) {
-  return CellAt(isolate, entry).value(isolate);
+Object GlobalDictionary::ValueAt(PtrComprCageBase cage_base,
+                                 InternalIndex entry) {
+  return CellAt(cage_base, entry).value(cage_base);
 }
 
 void GlobalDictionary::SetEntry(InternalIndex entry, Object key, Object value,

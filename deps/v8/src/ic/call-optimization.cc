@@ -88,16 +88,14 @@ bool CallOptimization::IsCompatibleReceiverMap(
 
 void CallOptimization::Initialize(
     Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info) {
-  if (function_template_info->call_code(kAcquireLoad).IsUndefined(isolate))
-    return;
-  api_call_info_ = handle(
-      CallHandlerInfo::cast(function_template_info->call_code(kAcquireLoad)),
-      isolate);
+  HeapObject call_code = function_template_info->call_code(kAcquireLoad);
+  if (call_code.IsUndefined(isolate)) return;
+  api_call_info_ = handle(CallHandlerInfo::cast(call_code), isolate);
 
-  if (!function_template_info->signature().IsUndefined(isolate)) {
+  HeapObject signature = function_template_info->signature();
+  if (!signature.IsUndefined(isolate)) {
     expected_receiver_type_ =
-        handle(FunctionTemplateInfo::cast(function_template_info->signature()),
-               isolate);
+        handle(FunctionTemplateInfo::cast(signature), isolate);
   }
   is_simple_api_call_ = true;
 }

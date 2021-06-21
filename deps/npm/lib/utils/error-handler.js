@@ -1,28 +1,27 @@
+let npm // set by the cli
 let cbCalled = false
 const log = require('npmlog')
-const npm = require('../npm.js')
 let itWorked = false
 const path = require('path')
+const writeFileAtomic = require('write-file-atomic')
+const mkdirp = require('mkdirp-infer-owner')
+const fs = require('graceful-fs')
 let wroteLogFile = false
 let exitCode = 0
 const errorMessage = require('./error-message.js')
 const replaceInfo = require('./replace-info.js')
 
-const cacheFile = require('./cache-file.js')
-
 let logFileName
 const getLogFile = () => {
+  // we call this multiple times, so we need to treat it as a singleton because
+  // the date is part of the name
   if (!logFileName)
     logFileName = path.resolve(npm.config.get('cache'), '_logs', (new Date()).toISOString().replace(/[.:]/g, '_') + '-debug.log')
 
   return logFileName
 }
 
-const timings = {
-  version: npm.version,
-  command: process.argv.slice(2),
-  logfile: null,
-}
+const timings = {}
 process.on('timing', (name, value) => {
   if (timings[name])
     timings[name] += value
@@ -35,9 +34,21 @@ process.on('exit', code => {
   log.disableProgress()
   if (npm.config && npm.config.loaded && npm.config.get('timing')) {
     try {
-      timings.logfile = getLogFile()
-      cacheFile.append('_timing.json', JSON.stringify(timings) + '\n')
-    } catch (_) {
+      const file = path.resolve(npm.config.get('cache'), '_timing.json')
+      const dir = path.dirname(npm.config.get('cache'))
+      mkdirp.sync(dir)
+
+      fs.appendFileSync(file, JSON.stringify({
+        command: process.argv.slice(2),
+        logfile: getLogFile(),
+        version: npm.version,
+        ...timings,
+      }) + '\n')
+
+      const st = fs.lstatSync(path.dirname(npm.config.get('cache')))
+      fs.chownSync(dir, st.uid, st.gid)
+      fs.chownSync(file, st.uid, st.gid)
+    } catch (ex) {
       // ignore
     }
   }
@@ -119,7 +130,9 @@ const errorHandler = (er) => {
   if (cbCalled)
     er = er || new Error('Callback called more than once.')
 
-  if (npm.updateNotification) {
+  // only show the notification if it finished before the other stuff we
+  // were doing.  no need to hang on `npm -v` or something.
+  if (typeof npm.updateNotification === 'string') {
     const { level } = log
     log.level = log.levels.notice
     log.notice('', npm.updateNotification)
@@ -172,7 +185,7 @@ const errorHandler = (er) => {
       log.error(k, v)
   }
 
-  const msg = errorMessage(er)
+  const msg = errorMessage(er, npm)
   for (const errline of [...msg.summary, ...msg.detail])
     log.error(...errline)
 
@@ -212,7 +225,15 @@ const writeLogFile = () => {
           logOutput += line + os.EOL
         })
     })
-    cacheFile.write(getLogFile(), logOutput)
+
+    const file = getLogFile()
+    const dir = path.dirname(file)
+    mkdirp.sync(dir)
+    writeFileAtomic.sync(file, logOutput)
+
+    const st = fs.lstatSync(path.dirname(npm.config.get('cache')))
+    fs.chownSync(dir, st.uid, st.gid)
+    fs.chownSync(file, st.uid, st.gid)
 
     // truncate once it's been written.
     log.record.length = 0
@@ -224,3 +245,6 @@ const writeLogFile = () => {
 
 module.exports = errorHandler
 module.exports.exit = exit
+module.exports.setNpm = (n) => {
+  npm = n
+}

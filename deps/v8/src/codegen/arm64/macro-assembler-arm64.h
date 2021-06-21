@@ -698,6 +698,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                    const Operand& operand);
   void Csel(const Register& rd, const Register& rn, const Operand& operand,
             Condition cond);
+  inline void Fcsel(const VRegister& fd, const VRegister& fn,
+                    const VRegister& fm, Condition cond);
 
   // Emits a runtime assert that the stack pointer is aligned.
   void AssertSpAligned();
@@ -975,7 +977,16 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                                  Register destination);
   MemOperand EntryFromBuiltinIndexAsOperand(Builtins::Name builtin_index);
   void CallBuiltinByIndex(Register builtin_index) override;
+  void CallBuiltin(Builtins::Name builtin) {
+    // TODO(11527): drop the int overload in favour of the Builtins::Name one.
+    return CallBuiltin(static_cast<int>(builtin));
+  }
   void CallBuiltin(int builtin_index);
+  void TailCallBuiltin(Builtins::Name builtin) {
+    // TODO(11527): drop the int overload in favour of the Builtins::Name one.
+    return TailCallBuiltin(static_cast<int>(builtin));
+  }
+  void TailCallBuiltin(int builtin_index);
 
   void LoadCodeObjectEntry(Register destination, Register code_object) override;
   void CallCodeObject(Register code_object) override;
@@ -1374,13 +1385,15 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // authenticate the LR when pointer authentication is enabled.
   void RestoreFPAndLR();
 
+#if V8_ENABLE_WEBASSEMBLY
   void StoreReturnAddressInWasmExitFrame(Label* return_location);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Wasm SIMD helpers. These instructions don't have direct lowering to native
   // instructions. These helpers allow us to define the optimal code sequence,
   // and be used in both TurboFan and Liftoff.
   void I64x2BitMask(Register dst, VRegister src);
-  void V64x2AllTrue(Register dst, VRegister src);
+  void I64x2AllTrue(Register dst, VRegister src);
 
  protected:
   // The actual Push and Pop implementations. These don't generate any code
@@ -1447,6 +1460,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadStorePairMacro(const CPURegister& rt, const CPURegister& rt2,
                           const MemOperand& addr, LoadStorePairOp op);
 
+  int64_t CalculateTargetOffset(Address target, RelocInfo::Mode rmode,
+                                byte* pc);
+
   void JumpHelper(int64_t offset, RelocInfo::Mode rmode, Condition cond = al);
 
   void CallRecordWriteStub(Register object, Operand offset,
@@ -1497,8 +1513,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                     Condition cond);
   inline void Extr(const Register& rd, const Register& rn, const Register& rm,
                    unsigned lsb);
-  inline void Fcsel(const VRegister& fd, const VRegister& fn,
-                    const VRegister& fm, Condition cond);
   void Fcvtl(const VRegister& vd, const VRegister& vn) {
     DCHECK(allow_macro_instructions());
     fcvtl(vd, vn);
@@ -2032,7 +2046,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // ---------------------------------------------------------------------------
   // Debugging.
 
-  void LoadNativeContextSlot(int index, Register dst);
+  void LoadNativeContextSlot(Register dst, int index);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MacroAssembler);
 };

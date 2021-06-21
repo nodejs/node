@@ -18,6 +18,11 @@ namespace {
 thread_local MarkingBarrier* current_marking_barrier = nullptr;
 }  // namespace
 
+MarkingBarrier* WriteBarrier::CurrentMarkingBarrier(Heap* heap) {
+  return current_marking_barrier ? current_marking_barrier
+                                 : heap->marking_barrier();
+}
+
 void WriteBarrier::SetForThread(MarkingBarrier* marking_barrier) {
   DCHECK_NULL(current_marking_barrier);
   current_marking_barrier = marking_barrier;

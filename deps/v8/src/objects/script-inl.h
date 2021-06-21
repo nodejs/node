@@ -23,12 +23,7 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(Script)
 
 NEVER_READ_ONLY_SPACE_IMPL(Script)
 
-SMI_ACCESSORS(Script, type, kScriptTypeOffset)
-ACCESSORS_CHECKED(Script, eval_from_shared_or_wrapped_arguments, Object,
-                  kEvalFromSharedOrWrappedArgumentsOffset,
-                  this->type() != TYPE_WASM)
-SMI_ACCESSORS_CHECKED(Script, eval_from_position, kEvalFromPositionOffset,
-                      this->type() != TYPE_WASM)
+#if V8_ENABLE_WEBASSEMBLY
 ACCESSORS_CHECKED(Script, wasm_breakpoint_infos, FixedArray,
                   kEvalFromSharedOrWrappedArgumentsOffset,
                   this->type() == TYPE_WASM)
@@ -36,6 +31,18 @@ ACCESSORS_CHECKED(Script, wasm_managed_native_module, Object,
                   kEvalFromPositionOffset, this->type() == TYPE_WASM)
 ACCESSORS_CHECKED(Script, wasm_weak_instance_list, WeakArrayList,
                   kSharedFunctionInfosOffset, this->type() == TYPE_WASM)
+#define CHECK_SCRIPT_NOT_WASM this->type() != TYPE_WASM
+#else
+#define CHECK_SCRIPT_NOT_WASM true
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+SMI_ACCESSORS(Script, type, kScriptTypeOffset)
+ACCESSORS_CHECKED(Script, eval_from_shared_or_wrapped_arguments, Object,
+                  kEvalFromSharedOrWrappedArgumentsOffset,
+                  CHECK_SCRIPT_NOT_WASM)
+SMI_ACCESSORS_CHECKED(Script, eval_from_position, kEvalFromPositionOffset,
+                      CHECK_SCRIPT_NOT_WASM)
+#undef CHECK_SCRIPT_NOT_WASM
 
 bool Script::is_wrapped() const {
   return eval_from_shared_or_wrapped_arguments().IsFixedArray();
@@ -67,19 +74,24 @@ FixedArray Script::wrapped_arguments() const {
 }
 
 DEF_GETTER(Script, shared_function_infos, WeakFixedArray) {
-  return type() == TYPE_WASM
-             ? ReadOnlyRoots(GetHeap()).empty_weak_fixed_array()
-             : TaggedField<WeakFixedArray, kSharedFunctionInfosOffset>::load(
-                   *this);
+#if V8_ENABLE_WEBASSEMBLY
+  if (type() == TYPE_WASM) {
+    return ReadOnlyRoots(GetHeap()).empty_weak_fixed_array();
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+  return TaggedField<WeakFixedArray, kSharedFunctionInfosOffset>::load(*this);
 }
 
 void Script::set_shared_function_infos(WeakFixedArray value,
                                        WriteBarrierMode mode) {
+#if V8_ENABLE_WEBASSEMBLY
   DCHECK_NE(TYPE_WASM, type());
+#endif  // V8_ENABLE_WEBASSEMBLY
   TaggedField<WeakFixedArray, kSharedFunctionInfosOffset>::store(*this, value);
   CONDITIONAL_WRITE_BARRIER(*this, kSharedFunctionInfosOffset, value, mode);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 bool Script::has_wasm_breakpoint_infos() const {
   return type() == TYPE_WASM && wasm_breakpoint_infos().length() > 0;
 }
@@ -87,6 +99,13 @@ bool Script::has_wasm_breakpoint_infos() const {
 wasm::NativeModule* Script::wasm_native_module() const {
   return Managed<wasm::NativeModule>::cast(wasm_managed_native_module()).raw();
 }
+
+bool Script::break_on_entry() const { return BreakOnEntryBit::decode(flags()); }
+
+void Script::set_break_on_entry(bool value) {
+  set_flags(BreakOnEntryBit::update(flags(), value));
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 Script::CompilationType Script::compilation_type() {
   return CompilationTypeBit::decode(flags());
@@ -105,12 +124,6 @@ bool Script::is_repl_mode() const { return IsReplModeBit::decode(flags()); }
 
 void Script::set_is_repl_mode(bool value) {
   set_flags(IsReplModeBit::update(flags(), value));
-}
-
-bool Script::break_on_entry() const { return BreakOnEntryBit::decode(flags()); }
-
-void Script::set_break_on_entry(bool value) {
-  set_flags(BreakOnEntryBit::update(flags(), value));
 }
 
 ScriptOriginOptions Script::origin_options() {

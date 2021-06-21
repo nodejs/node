@@ -38,20 +38,21 @@ class TaggedField : public AllStatic {
   static inline Address address(HeapObject host, int offset = 0);
 
   static inline T load(HeapObject host, int offset = 0);
-  static inline T load(IsolateRoot isolate, HeapObject host, int offset = 0);
+  static inline T load(PtrComprCageBase cage_base, HeapObject host,
+                       int offset = 0);
 
   static inline void store(HeapObject host, T value);
   static inline void store(HeapObject host, int offset, T value);
 
   static inline T Relaxed_Load(HeapObject host, int offset = 0);
-  static inline T Relaxed_Load(IsolateRoot isolate, HeapObject host,
+  static inline T Relaxed_Load(PtrComprCageBase cage_base, HeapObject host,
                                int offset = 0);
 
   static inline void Relaxed_Store(HeapObject host, T value);
   static void Relaxed_Store(HeapObject host, int offset, T value);
 
   static inline T Acquire_Load(HeapObject host, int offset = 0);
-  static inline T Acquire_Load(IsolateRoot isolate, HeapObject host,
+  static inline T Acquire_Load(PtrComprCageBase cage_base, HeapObject host,
                                int offset = 0);
 
   static inline void Release_Store(HeapObject host, T value);

@@ -288,7 +288,6 @@ ScriptOriginOptions OriginOptionsForEval(Object script) {
 // Implementation of UnoptimizedCompilationJob
 
 CompilationJob::Status UnoptimizedCompilationJob::ExecuteJob() {
-  DisallowHeapAccess no_heap_access;
   // Delegate to the underlying implementation.
   DCHECK_EQ(state(), State::kReadyToExecute);
   ScopedTimer t(&time_taken_to_execute_);
@@ -319,12 +318,15 @@ namespace {
 
 void RecordUnoptimizedCompilationStats(Isolate* isolate,
                                        Handle<SharedFunctionInfo> shared_info) {
-  int code_size;
-  if (shared_info->HasBytecodeArray()) {
-    code_size = shared_info->GetBytecodeArray(isolate).SizeIncludingMetadata();
-  } else {
-    code_size = shared_info->asm_wasm_data().Size();
-  }
+#if V8_ENABLE_WEBASSEMBLY
+  int code_size =
+      shared_info->HasBytecodeArray()
+          ? shared_info->GetBytecodeArray(isolate).SizeIncludingMetadata()
+          : shared_info->asm_wasm_data().Size();
+#else
+  int code_size =
+      shared_info->GetBytecodeArray(isolate).SizeIncludingMetadata();
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   Counters* counters = isolate->counters();
   // TODO(4280): Rename counters from "baseline" to "unoptimized" eventually.
@@ -344,9 +346,13 @@ void RecordUnoptimizedFunctionCompilation(
     abstract_code =
         handle(AbstractCode::cast(shared->GetBytecodeArray(isolate)), isolate);
   } else {
+#if V8_ENABLE_WEBASSEMBLY
     DCHECK(shared->HasAsmWasmData());
     abstract_code =
         Handle<AbstractCode>::cast(BUILTIN_CODE(isolate, InstantiateAsmJs));
+#else
+    UNREACHABLE();
+#endif  // V8_ENABLE_WEBASSEMBLY
   }
 
   double time_taken_ms = time_taken_to_execute.InMillisecondsF() +
@@ -516,8 +522,9 @@ bool UseAsmWasm(FunctionLiteral* literal, bool asm_wasm_broken) {
 }
 #endif
 
-void InstallInterpreterTrampolineCopy(Isolate* isolate,
-                                      Handle<SharedFunctionInfo> shared_info) {
+void InstallInterpreterTrampolineCopy(
+    Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
+    CodeEventListener::LogEventsAndTags log_tag) {
   DCHECK(FLAG_interpreted_frames_native_stack);
   if (!shared_info->function_data(kAcquireLoad).IsBytecodeArray()) {
     DCHECK(!shared_info->HasBytecodeArray());
@@ -548,8 +555,6 @@ void InstallInterpreterTrampolineCopy(Isolate* isolate,
       handle(script->name().IsString() ? String::cast(script->name())
                                        : ReadOnlyRoots(isolate).empty_string(),
              isolate);
-  CodeEventListener::LogEventsAndTags log_tag = Logger::ToNativeByScript(
-      CodeEventListener::INTERPRETED_FUNCTION_TAG, *script);
   PROFILE(isolate, CodeCreateEvent(log_tag, abstract_code, shared_info,
                                    script_name, line_num, column_num));
 }
@@ -563,11 +568,13 @@ void InstallUnoptimizedCode(UnoptimizedCompilationInfo* compilation_info,
     DCHECK(!compilation_info->has_asm_wasm_data());
     DCHECK(!shared_info->HasFeedbackMetadata());
 
+#if V8_ENABLE_WEBASSEMBLY
     // If the function failed asm-wasm compilation, mark asm_wasm as broken
     // to ensure we don't try to compile as asm-wasm.
     if (compilation_info->literal()->scope()->IsAsmModule()) {
       shared_info->set_is_asm_wasm_broken(true);
     }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
     shared_info->set_bytecode_array(*compilation_info->bytecode_array());
 
@@ -575,29 +582,24 @@ void InstallUnoptimizedCode(UnoptimizedCompilationInfo* compilation_info,
         isolate, compilation_info->feedback_vector_spec());
     shared_info->set_feedback_metadata(*feedback_metadata);
   } else {
+#if V8_ENABLE_WEBASSEMBLY
     DCHECK(compilation_info->has_asm_wasm_data());
     // We should only have asm/wasm data when finalizing on the main thread.
     DCHECK((std::is_same<LocalIsolate, Isolate>::value));
     shared_info->set_asm_wasm_data(*compilation_info->asm_wasm_data());
     shared_info->set_feedback_metadata(
         ReadOnlyRoots(isolate).empty_feedback_metadata());
+#else
+    UNREACHABLE();
+#endif  // V8_ENABLE_WEBASSEMBLY
   }
 }
 
 void LogUnoptimizedCompilation(Isolate* isolate,
                                Handle<SharedFunctionInfo> shared_info,
-                               UnoptimizedCompileFlags flags,
+                               CodeEventListener::LogEventsAndTags log_tag,
                                base::TimeDelta time_taken_to_execute,
                                base::TimeDelta time_taken_to_finalize) {
-  CodeEventListener::LogEventsAndTags log_tag;
-  if (flags.is_toplevel()) {
-    log_tag = flags.is_eval() ? CodeEventListener::EVAL_TAG
-                              : CodeEventListener::SCRIPT_TAG;
-  } else {
-    log_tag = flags.is_lazy_compile() ? CodeEventListener::LAZY_COMPILE_TAG
-                                      : CodeEventListener::FUNCTION_TAG;
-  }
-
   RecordUnoptimizedFunctionCompilation(isolate, log_tag, shared_info,
                                        time_taken_to_execute,
                                        time_taken_to_finalize);
@@ -684,7 +686,11 @@ bool CompileSharedWithBaseline(Isolate* isolate,
   base::TimeDelta time_taken;
   {
     ScopedTimer timer(&time_taken);
-    code = GenerateBaselineCode(isolate, shared);
+    if (!GenerateBaselineCode(isolate, shared).ToHandle(&code)) {
+      // TODO(leszeks): This can only fail because of an OOM. Do we want to
+      // report these somehow, or silently ignore them?
+      return false;
+    }
 
     Handle<HeapObject> function_data =
         handle(HeapObject::cast(shared->function_data(kAcquireLoad)), isolate);
@@ -1341,19 +1347,24 @@ void FinalizeUnoptimizedCompilation(
     if (need_source_positions) {
       SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared_info);
     }
-    if (FLAG_interpreted_frames_native_stack) {
-      InstallInterpreterTrampolineCopy(isolate, shared_info);
+    CodeEventListener::LogEventsAndTags log_tag;
+    if (shared_info->is_toplevel()) {
+      log_tag = flags.is_eval() ? CodeEventListener::EVAL_TAG
+                                : CodeEventListener::SCRIPT_TAG;
+    } else {
+      log_tag = flags.is_lazy_compile() ? CodeEventListener::LAZY_COMPILE_TAG
+                                        : CodeEventListener::FUNCTION_TAG;
     }
-    if (FLAG_always_sparkplug) {
-      CompileSharedWithBaseline(isolate, shared_info, Compiler::KEEP_EXCEPTION,
-                                &is_compiled_scope);
+    log_tag = Logger::ToNativeByScript(log_tag, *script);
+    if (FLAG_interpreted_frames_native_stack) {
+      InstallInterpreterTrampolineCopy(isolate, shared_info, log_tag);
     }
     Handle<CoverageInfo> coverage_info;
     if (finalize_data.coverage_info().ToHandle(&coverage_info)) {
       isolate->debug()->InstallCoverageInfo(shared_info, coverage_info);
     }
 
-    LogUnoptimizedCompilation(isolate, shared_info, flags,
+    LogUnoptimizedCompilation(isolate, shared_info, log_tag,
                               finalize_data.time_taken_to_execute(),
                               finalize_data.time_taken_to_finalize());
   }
@@ -1391,6 +1402,19 @@ void FinalizeUnoptimizedScriptCompilation(
 
   if (isolate->NeedsSourcePositionsForProfiling()) {
     Script::InitLineEnds(isolate, script);
+  }
+}
+
+void CompileAllWithBaseline(Isolate* isolate,
+                            const FinalizeUnoptimizedCompilationDataList&
+                                finalize_unoptimized_compilation_data_list) {
+  for (const auto& finalize_data : finalize_unoptimized_compilation_data_list) {
+    Handle<SharedFunctionInfo> shared_info = finalize_data.function_handle();
+    IsCompiledScope is_compiled_scope(*shared_info, isolate);
+    if (!is_compiled_scope.is_compiled()) continue;
+    if (!CanCompileWithBaseline(isolate, shared_info)) continue;
+    CompileSharedWithBaseline(isolate, shared_info, Compiler::CLEAR_EXCEPTION,
+                              &is_compiled_scope);
   }
 }
 
@@ -1462,6 +1486,11 @@ MaybeHandle<SharedFunctionInfo> CompileToplevel(
   FinalizeUnoptimizedScriptCompilation(
       isolate, script, parse_info->flags(), parse_info->state(),
       finalize_unoptimized_compilation_data_list);
+
+  if (FLAG_always_sparkplug) {
+    CompileAllWithBaseline(isolate, finalize_unoptimized_compilation_data_list);
+  }
+
   return shared_info;
 }
 
@@ -1919,6 +1948,10 @@ bool Compiler::Compile(Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
   FinalizeUnoptimizedCompilation(isolate, script, flags, &compile_state,
                                  finalize_unoptimized_compilation_data_list);
 
+  if (FLAG_always_sparkplug) {
+    CompileAllWithBaseline(isolate, finalize_unoptimized_compilation_data_list);
+  }
+
   DCHECK(!isolate->has_pending_exception());
   DCHECK(is_compiled_scope->is_compiled());
   return true;
@@ -1958,13 +1991,12 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
   // immediately after a flush would be better.
   JSFunction::InitializeFeedbackCell(function, is_compiled_scope, true);
 
-  // If --always-sparkplug is enabled, make sure we have baseline code.
-  if (FLAG_always_sparkplug && CanCompileWithBaseline(isolate, shared_info)) {
-    DCHECK(shared_info->HasBaselineData());
-  }
-
   // Optimize now if --always-opt is enabled.
+#if V8_ENABLE_WEBASSEMBLY
   if (FLAG_always_opt && !function->shared().HasAsmWasmData()) {
+#else
+  if (FLAG_always_opt) {
+#endif  // V8_ENABLE_WEBASSEMBLY
     CompilerTracer::TraceOptimizeForAlwaysOpt(isolate, function,
                                               CodeKindForTopTier());
 
@@ -2769,7 +2801,11 @@ MaybeHandle<SharedFunctionInfo> CompileScriptOnBothBackgroundAndMainThread(
   }
 
   // Join with background thread and finalize compilation.
-  background_compile_thread.Join();
+  {
+    ParkedScope scope(isolate->main_thread_local_isolate());
+    background_compile_thread.Join();
+  }
+
   MaybeHandle<SharedFunctionInfo> maybe_result =
       Compiler::GetSharedFunctionInfoForStreamedScript(
           isolate, source, script_details, origin_options,
@@ -2838,8 +2874,7 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     // First check per-isolate compilation cache.
     maybe_result = compilation_cache->LookupScript(
         source, script_details.name_obj, script_details.line_offset,
-        script_details.column_offset, origin_options, isolate->native_context(),
-        language_mode);
+        script_details.column_offset, origin_options, language_mode);
     if (!maybe_result.is_null()) {
       compile_timer.set_hit_isolate_cache();
     } else if (can_consume_code_cache) {
@@ -2858,8 +2893,7 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
         // Promote to per-isolate compilation cache.
         is_compiled_scope = inner_result->is_compiled_scope(isolate);
         DCHECK(is_compiled_scope.is_compiled());
-        compilation_cache->PutScript(source, isolate->native_context(),
-                                     language_mode, inner_result);
+        compilation_cache->PutScript(source, language_mode, inner_result);
         Handle<Script> script(Script::cast(inner_result->script()), isolate);
         maybe_result = inner_result;
       } else {
@@ -2897,8 +2931,7 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     Handle<SharedFunctionInfo> result;
     if (use_compilation_cache && maybe_result.ToHandle(&result)) {
       DCHECK(is_compiled_scope.is_compiled());
-      compilation_cache->PutScript(source, isolate->native_context(),
-                                   language_mode, result);
+      compilation_cache->PutScript(source, language_mode, result);
     } else if (maybe_result.is_null() && natives != EXTENSION_CODE) {
       isolate->ReportPendingMessages();
     }
@@ -3028,8 +3061,7 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
                  "V8.StreamingFinalization.CheckCache");
     maybe_result = compilation_cache->LookupScript(
         source, script_details.name_obj, script_details.line_offset,
-        script_details.column_offset, origin_options, isolate->native_context(),
-        task->language_mode());
+        script_details.column_offset, origin_options, task->language_mode());
     if (!maybe_result.is_null()) {
       compile_timer.set_hit_isolate_cache();
     }
@@ -3038,6 +3070,7 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
   if (maybe_result.is_null()) {
     // No cache entry found, finalize compilation of the script and add it to
     // the isolate cache.
+    DCHECK_EQ(task->flags().is_module(), origin_options.IsModule());
 
     Handle<Script> script;
     if (FLAG_finalize_streaming_on_background && !origin_options.IsModule()) {
@@ -3068,8 +3101,8 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
       isolate->heap()->SetRootScriptList(*scripts);
     } else {
       ParseInfo* parse_info = task->info();
-      DCHECK(parse_info->flags().is_toplevel());
       DCHECK_EQ(parse_info->flags().is_module(), origin_options.IsModule());
+      DCHECK(parse_info->flags().is_toplevel());
 
       script = parse_info->CreateScript(isolate, source, kNullMaybeHandle,
                                         origin_options);
@@ -3119,8 +3152,7 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
       // Add compiled code to the isolate cache.
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                    "V8.StreamingFinalization.AddToCache");
-      compilation_cache->PutScript(source, isolate->native_context(),
-                                   task->language_mode(), result);
+      compilation_cache->PutScript(source, task->language_mode(), result);
     }
   }
 

@@ -74,6 +74,16 @@ struct url_data {
   std::string href;
 };
 
+namespace table_data {
+extern const char hex[1024];
+extern const uint8_t C0_CONTROL_ENCODE_SET[32];
+extern const uint8_t FRAGMENT_ENCODE_SET[32];
+extern const uint8_t PATH_ENCODE_SET[32];
+extern const uint8_t USERINFO_ENCODE_SET[32];
+extern const uint8_t QUERY_ENCODE_SET_NONSPECIAL[32];
+extern const uint8_t QUERY_ENCODE_SET_SPECIAL[32];
+}
+
 class URL {
  public:
   static void Parse(const char* input,

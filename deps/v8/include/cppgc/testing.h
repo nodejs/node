@@ -44,6 +44,55 @@ class V8_EXPORT V8_NODISCARD OverrideEmbedderStackStateScope final {
   HeapHandle& heap_handle_;
 };
 
+/**
+ * Testing interface for managed heaps that allows for controlling garbage
+ * collection timings. Embedders should use this class when testing the
+ * interaction of their code with incremental/concurrent garbage collection.
+ */
+class V8_EXPORT StandaloneTestingHeap final {
+ public:
+  explicit StandaloneTestingHeap(HeapHandle&);
+
+  /**
+   * Start an incremental garbage collection.
+   */
+  void StartGarbageCollection();
+
+  /**
+   * Perform an incremental step. This will also schedule concurrent steps if
+   * needed.
+   *
+   * \param stack_state The state of the stack during the step.
+   */
+  bool PerformMarkingStep(EmbedderStackState stack_state);
+
+  /**
+   * Finalize the current garbage collection cycle atomically.
+   * Assumes that garbage collection is in progress.
+   *
+   * \param stack_state The state of the stack for finalizing the garbage
+   * collection cycle.
+   */
+  void FinalizeGarbageCollection(EmbedderStackState stack_state);
+
+  /**
+   * Toggle main thread marking on/off. Allows to stress concurrent marking
+   * (e.g. to better detect data races).
+   *
+   * \param should_mark Denotes whether the main thread should contribute to
+   * marking. Defaults to true.
+   */
+  void ToggleMainThreadMarking(bool should_mark);
+
+  /**
+   * Force enable compaction for the next garbage collection cycle.
+   */
+  void ForceCompactionForNextGarbageCollection();
+
+ private:
+  HeapHandle& heap_handle_;
+};
+
 }  // namespace testing
 }  // namespace cppgc
 

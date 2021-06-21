@@ -195,6 +195,12 @@ class Assembler : public AssemblerBase {
 
   void MaybeEmitOutOfLineConstantPool() { EmitConstantPool(); }
 
+  inline void CheckTrampolinePoolQuick(int extra_space = 0) {
+    if (pc_offset() >= next_trampoline_check_ - extra_space) {
+      CheckTrampolinePool();
+    }
+  }
+
   // Label operations & relative jumps (PPUM Appendix D)
   //
   // Takes a branch opcode (cc) and a label (L) and generates
@@ -922,7 +928,7 @@ class Assembler : public AssemblerBase {
   void mtxer(Register src);
   void mcrfs(CRegister cr, FPSCRBit bit);
   void mfcr(Register dst);
-  void mtcrf(unsigned char FXM, Register src);
+  void mtcrf(Register src, uint8_t FXM);
 #if V8_TARGET_ARCH_PPC64
   void mffprd(Register dst, DoubleRegister src);
   void mffprwz(Register dst, DoubleRegister src);
@@ -1032,6 +1038,7 @@ class Assembler : public AssemblerBase {
   void stxsiwx(const Simd128Register rs, const MemOperand& src);
   void stxvd(const Simd128Register rt, const MemOperand& src);
   void xxspltib(const Simd128Register rt, const Operand& imm);
+  void xxbrq(const Simd128Register rt, const Simd128Register rb);
 
   // Pseudo instructions
 
@@ -1331,12 +1338,6 @@ class Assembler : public AssemblerBase {
   }
 
   inline void UntrackBranch();
-  void CheckTrampolinePoolQuick() {
-    if (pc_offset() >= next_trampoline_check_) {
-      CheckTrampolinePool();
-    }
-  }
-
   // Instruction generation
   void a_form(Instr instr, DoubleRegister frt, DoubleRegister fra,
               DoubleRegister frb, RCBit r);

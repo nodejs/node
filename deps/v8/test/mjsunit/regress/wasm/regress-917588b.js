@@ -16,8 +16,8 @@ builder.addFunction(undefined, sig1)
     // signature: f_lilfl
     kExprBlock, kWasmF32,   // @1 f32
     kExprI32Const, 0x00,
-    kExprIf, kWasmStmt,   // @5
-      kExprLoop, kWasmStmt,   // @7
+    kExprIf, kWasmVoid,   // @5
+      kExprLoop, kWasmVoid,   // @7
         kExprBlock, kWasmI32,   // @9 i32
           kExprF32Const, 0x00, 0x00, 0x80, 0xc1,
           kExprF32Const, 0x00, 0x00, 0x80, 0x45,

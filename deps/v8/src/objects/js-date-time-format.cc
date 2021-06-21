@@ -1955,7 +1955,7 @@ Handle<String> IcuDateFieldIdToDateType(int32_t field_id, Isolate* isolate) {
 
 MaybeHandle<JSArray> JSDateTimeFormat::FormatToParts(
     Isolate* isolate, Handle<JSDateTimeFormat> date_time_format,
-    double date_value) {
+    double date_value, bool output_source) {
   Factory* factory = isolate->factory();
   icu::SimpleDateFormat* format =
       date_time_format->icu_simple_date_format().raw();
@@ -1986,16 +1986,30 @@ MaybeHandle<JSArray> JSDateTimeFormat::FormatToParts(
           isolate, substring,
           Intl::ToString(isolate, formatted, previous_end_pos, begin_pos),
           JSArray);
-      Intl::AddElement(isolate, result, index,
-                       IcuDateFieldIdToDateType(-1, isolate), substring);
+      if (output_source) {
+        Intl::AddElement(isolate, result, index,
+                         IcuDateFieldIdToDateType(-1, isolate), substring,
+                         isolate->factory()->source_string(),
+                         isolate->factory()->shared_string());
+      } else {
+        Intl::AddElement(isolate, result, index,
+                         IcuDateFieldIdToDateType(-1, isolate), substring);
+      }
       ++index;
     }
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, substring,
         Intl::ToString(isolate, formatted, begin_pos, end_pos), JSArray);
-    Intl::AddElement(isolate, result, index,
-                     IcuDateFieldIdToDateType(fp.getField(), isolate),
-                     substring);
+    if (output_source) {
+      Intl::AddElement(isolate, result, index,
+                       IcuDateFieldIdToDateType(fp.getField(), isolate),
+                       substring, isolate->factory()->source_string(),
+                       isolate->factory()->shared_string());
+    } else {
+      Intl::AddElement(isolate, result, index,
+                       IcuDateFieldIdToDateType(fp.getField(), isolate),
+                       substring);
+    }
     previous_end_pos = end_pos;
     ++index;
   }
@@ -2003,8 +2017,15 @@ MaybeHandle<JSArray> JSDateTimeFormat::FormatToParts(
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, substring,
         Intl::ToString(isolate, formatted, previous_end_pos, length), JSArray);
-    Intl::AddElement(isolate, result, index,
-                     IcuDateFieldIdToDateType(-1, isolate), substring);
+    if (output_source) {
+      Intl::AddElement(isolate, result, index,
+                       IcuDateFieldIdToDateType(-1, isolate), substring,
+                       isolate->factory()->source_string(),
+                       isolate->factory()->shared_string());
+    } else {
+      Intl::AddElement(isolate, result, index,
+                       IcuDateFieldIdToDateType(-1, isolate), substring);
+    }
   }
   JSObject::ValidateElements(*result);
   return result;
@@ -2092,10 +2113,29 @@ Maybe<bool> AddPartForFormatRange(Isolate* isolate, Handle<JSArray> array,
   return Just(true);
 }
 
+MaybeHandle<String> FormattedToString(Isolate* isolate,
+                                      const icu::FormattedValue& formatted,
+                                      bool* outputRange) {
+  UErrorCode status = U_ZERO_ERROR;
+  icu::UnicodeString result = formatted.toString(status);
+  if (U_FAILURE(status)) {
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), String);
+  }
+  *outputRange = false;
+  icu::ConstrainedFieldPosition cfpos;
+  while (formatted.nextPosition(cfpos, status)) {
+    if (cfpos.getCategory() == UFIELD_CATEGORY_DATE_INTERVAL_SPAN) {
+      *outputRange = true;
+      break;
+    }
+  }
+  return Intl::ToString(isolate, result);
+}
+
 // A helper function to convert the FormattedDateInterval to a
 // MaybeHandle<JSArray> for the implementation of formatRangeToParts.
 MaybeHandle<JSArray> FormattedDateIntervalToJSArray(
-    Isolate* isolate, const icu::FormattedValue& formatted) {
+    Isolate* isolate, const icu::FormattedValue& formatted, bool* outputRange) {
   UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString result = formatted.toString(status);
 
@@ -2105,6 +2145,7 @@ MaybeHandle<JSArray> FormattedDateIntervalToJSArray(
   int index = 0;
   int32_t previous_end_pos = 0;
   SourceTracker tracker;
+  *outputRange = false;
   while (formatted.nextPosition(cfpos, status)) {
     int32_t category = cfpos.getCategory();
     int32_t field = cfpos.getField();
@@ -2113,6 +2154,7 @@ MaybeHandle<JSArray> FormattedDateIntervalToJSArray(
 
     if (category == UFIELD_CATEGORY_DATE_INTERVAL_SPAN) {
       DCHECK_LE(field, 2);
+      *outputRange = true;
       tracker.Add(field, start, limit);
     } else {
       DCHECK(category == UFIELD_CATEGORY_DATE);
@@ -2154,7 +2196,9 @@ template <typename T>
 MaybeHandle<T> FormatRangeCommon(
     Isolate* isolate, Handle<JSDateTimeFormat> date_time_format, double x,
     double y,
-    MaybeHandle<T> (*formatToResult)(Isolate*, const icu::FormattedValue&)) {
+    MaybeHandle<T> (*formatToResult)(Isolate*, const icu::FormattedValue&,
+                                     bool*),
+    bool* outputRange) {
   // Track newer feature formateRange and formatRangeToParts
   isolate->CountUsage(v8::Isolate::UseCounterFeature::kDateTimeFormatRange);
 
@@ -2197,7 +2241,7 @@ MaybeHandle<T> FormatRangeCommon(
   if (U_FAILURE(status)) {
     THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), T);
   }
-  return formatToResult(isolate, formatted);
+  return formatToResult(isolate, formatted, outputRange);
 }
 
 }  // namespace
@@ -2205,15 +2249,27 @@ MaybeHandle<T> FormatRangeCommon(
 MaybeHandle<String> JSDateTimeFormat::FormatRange(
     Isolate* isolate, Handle<JSDateTimeFormat> date_time_format, double x,
     double y) {
-  return FormatRangeCommon<String>(isolate, date_time_format, x, y,
-                                   Intl::FormattedToString);
+  bool outputRange = true;
+  MaybeHandle<String> ret = FormatRangeCommon<String>(
+      isolate, date_time_format, x, y, FormattedToString, &outputRange);
+  if (outputRange) {
+    return ret;
+  }
+  return FormatDateTime(isolate,
+                        *(date_time_format->icu_simple_date_format().raw()), x);
 }
 
 MaybeHandle<JSArray> JSDateTimeFormat::FormatRangeToParts(
     Isolate* isolate, Handle<JSDateTimeFormat> date_time_format, double x,
     double y) {
-  return FormatRangeCommon<JSArray>(isolate, date_time_format, x, y,
-                                    FormattedDateIntervalToJSArray);
+  bool outputRange = true;
+  MaybeHandle<JSArray> ret =
+      FormatRangeCommon<JSArray>(isolate, date_time_format, x, y,
+                                 FormattedDateIntervalToJSArray, &outputRange);
+  if (outputRange) {
+    return ret;
+  }
+  return JSDateTimeFormat::FormatToParts(isolate, date_time_format, x, true);
 }
 
 }  // namespace internal

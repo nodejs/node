@@ -69,22 +69,22 @@ class DescriptorArray
 
   // Accessors for fetching instance descriptor at descriptor number.
   inline Name GetKey(InternalIndex descriptor_number) const;
-  inline Name GetKey(IsolateRoot isolate,
+  inline Name GetKey(PtrComprCageBase cage_base,
                      InternalIndex descriptor_number) const;
   inline Object GetStrongValue(InternalIndex descriptor_number);
-  inline Object GetStrongValue(IsolateRoot isolate,
+  inline Object GetStrongValue(PtrComprCageBase cage_base,
                                InternalIndex descriptor_number);
   inline MaybeObject GetValue(InternalIndex descriptor_number);
-  inline MaybeObject GetValue(IsolateRoot isolate,
+  inline MaybeObject GetValue(PtrComprCageBase cage_base,
                               InternalIndex descriptor_number);
   inline PropertyDetails GetDetails(InternalIndex descriptor_number);
   inline int GetFieldIndex(InternalIndex descriptor_number);
   inline FieldType GetFieldType(InternalIndex descriptor_number);
-  inline FieldType GetFieldType(IsolateRoot isolate,
+  inline FieldType GetFieldType(PtrComprCageBase cage_base,
                                 InternalIndex descriptor_number);
 
   inline Name GetSortedKey(int descriptor_number);
-  inline Name GetSortedKey(IsolateRoot isolate, int descriptor_number);
+  inline Name GetSortedKey(PtrComprCageBase cage_base, int descriptor_number);
   inline int GetSortedKeyIndex(int descriptor_number);
 
   // Accessor for complete descriptor.
@@ -217,6 +217,7 @@ class DescriptorArray
   using EntryValueField = TaggedField<MaybeObject, kEntryValueOffset>;
 
  private:
+  friend class WebSnapshotDeserializer;
   DECL_INT16_ACCESSORS(filler16bits)
 
   inline void SetKey(InternalIndex descriptor_number, Name key);

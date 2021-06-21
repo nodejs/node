@@ -4,10 +4,152 @@
 
 #include "src/objects/swiss-name-dictionary-inl.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/test-swiss-name-dictionary-infra.h"
+#include "test/cctest/test-swiss-name-dictionary-shared-tests.h"
 
 namespace v8 {
 namespace internal {
 namespace test_swiss_hash_table {
+
+// Executes tests by executing C++ versions of dictionary operations.
+class RuntimeTestRunner {
+ public:
+  RuntimeTestRunner(Isolate* isolate, int initial_capacity, KeyCache& keys)
+      : isolate_{isolate}, keys_{keys} {
+    table = isolate->factory()->NewSwissNameDictionaryWithCapacity(
+        initial_capacity, AllocationType::kYoung);
+  }
+
+  // The runtime implementations does not depend on the CPU features and
+  // therefore always work.
+  static bool IsEnabled() { return true; }
+
+  void Add(Handle<Name> key, Handle<Object> value, PropertyDetails details);
+  InternalIndex FindEntry(Handle<Name> key);
+  // Updates the value and property details of the given entry.
+  void Put(InternalIndex entry, Handle<Object> new_value,
+           PropertyDetails new_details);
+  void Delete(InternalIndex entry);
+  void RehashInplace();
+  void Shrink();
+
+  // Retrieves data associated with |entry|, which must be an index pointing to
+  // an existing entry. The returned array contains key, value, property details
+  // in that order.
+  Handle<FixedArray> GetData(InternalIndex entry);
+
+  // Tests that the current table has the given capacity, and number of
+  // (deleted) elements, based on which optional values are present.
+  void CheckCounts(base::Optional<int> capacity, base::Optional<int> elements,
+                   base::Optional<int> deleted);
+  // Checks that |expected_keys| contains exactly the keys in the current table,
+  // in the given order.
+  void CheckEnumerationOrder(const std::vector<std::string>& expected_keys);
+  void CheckCopy();
+  void VerifyHeap();
+
+  // Just for debugging.
+  void PrintTable();
+
+  Handle<SwissNameDictionary> table;
+
+ private:
+  Isolate* isolate_;
+  KeyCache& keys_;
+};
+
+void RuntimeTestRunner::Add(Handle<Name> key, Handle<Object> value,
+                            PropertyDetails details) {
+  Handle<SwissNameDictionary> updated_table =
+      SwissNameDictionary::Add(isolate_, this->table, key, value, details);
+  this->table = updated_table;
+}
+
+InternalIndex RuntimeTestRunner::FindEntry(Handle<Name> key) {
+  return table->FindEntry(isolate_, key);
+}
+
+Handle<FixedArray> RuntimeTestRunner::GetData(InternalIndex entry) {
+  if (entry.is_found()) {
+    Handle<FixedArray> data = isolate_->factory()->NewFixedArray(3);
+    data->set(0, table->KeyAt(entry));
+    data->set(1, table->ValueAt(entry));
+    data->set(2, table->DetailsAt(entry).AsSmi());
+    return data;
+  } else {
+    return handle(ReadOnlyRoots(isolate_).empty_fixed_array(), isolate_);
+  }
+}
+
+void RuntimeTestRunner::Put(InternalIndex entry, Handle<Object> new_value,
+                            PropertyDetails new_details) {
+  CHECK(entry.is_found());
+
+  table->ValueAtPut(entry, *new_value);
+  table->DetailsAtPut(entry, new_details);
+}
+
+void RuntimeTestRunner::Delete(InternalIndex entry) {
+  CHECK(entry.is_found());
+  table = table->DeleteEntry(isolate_, table, entry);
+}
+
+void RuntimeTestRunner::CheckCounts(base::Optional<int> capacity,
+                                    base::Optional<int> elements,
+                                    base::Optional<int> deleted) {
+  if (capacity.has_value()) {
+    CHECK_EQ(capacity.value(), table->Capacity());
+  }
+  if (elements.has_value()) {
+    CHECK_EQ(elements.value(), table->NumberOfElements());
+  }
+  if (deleted.has_value()) {
+    CHECK_EQ(deleted.value(), table->NumberOfDeletedElements());
+  }
+}
+
+void RuntimeTestRunner::CheckEnumerationOrder(
+    const std::vector<std::string>& expected_keys) {
+  ReadOnlyRoots roots(isolate_);
+  int i = 0;
+  for (InternalIndex index : table->IterateEntriesOrdered()) {
+    Object key;
+    if (table->ToKey(roots, index, &key)) {
+      CHECK_LT(i, expected_keys.size());
+      Handle<Name> expected_key =
+          CreateKeyWithHash(isolate_, this->keys_, Key{expected_keys[i]});
+
+      CHECK_EQ(key, *expected_key);
+      ++i;
+    }
+  }
+  CHECK_EQ(i, expected_keys.size());
+}
+
+void RuntimeTestRunner::RehashInplace() { table->Rehash(isolate_); }
+
+void RuntimeTestRunner::Shrink() {
+  table = SwissNameDictionary::Shrink(isolate_, table);
+}
+
+void RuntimeTestRunner::CheckCopy() {
+  Handle<SwissNameDictionary> copy =
+      SwissNameDictionary::ShallowCopy(isolate_, table);
+
+  CHECK(table->EqualsForTesting(*copy));
+}
+
+void RuntimeTestRunner::VerifyHeap() {
+#if VERIFY_HEAP
+  table->SwissNameDictionaryVerify(isolate_, true);
+#endif
+}
+
+void RuntimeTestRunner::PrintTable() {
+#ifdef OBJECT_PRINT
+  table->SwissNameDictionaryPrint(std::cout);
+#endif
+}
 
 TEST(CapacityFor) {
   for (int elements = 0; elements <= 32; elements++) {
@@ -75,6 +217,14 @@ TEST(SizeFor) {
   CHECK_EQ(SwissNameDictionary::SizeFor(4), size_4);
   CHECK_EQ(SwissNameDictionary::SizeFor(8), size_8);
 }
+
+// Executes the tests defined in test-swiss-name-dictionary-shared-tests.h as if
+// they were defined in this file, using the RuntimeTestRunner. See comments in
+// test-swiss-name-dictionary-shared-tests.h and in
+// swiss-name-dictionary-infra.h for details.
+const char kRuntimeTestFileName[] = __FILE__;
+SharedSwissTableTests<RuntimeTestRunner, kRuntimeTestFileName>
+    execute_shared_tests_runtime;
 
 }  // namespace test_swiss_hash_table
 }  // namespace internal

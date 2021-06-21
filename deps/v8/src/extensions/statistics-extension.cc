@@ -4,9 +4,11 @@
 
 #include "src/extensions/statistics-extension.h"
 
+#include "src/common/assert-scope.h"
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"  // crbug.com/v8/8499
 #include "src/logging/counters.h"
+#include "src/roots/roots.h"
 
 namespace v8 {
 namespace internal {
@@ -124,23 +126,28 @@ void StatisticsExtension::GetCounters(
               "amount_of_external_allocated_memory");
   args.GetReturnValue().Set(result);
 
+  DisallowGarbageCollection no_gc;
   HeapObjectIterator iterator(
       reinterpret_cast<Isolate*>(args.GetIsolate())->heap());
   int reloc_info_total = 0;
   int source_position_table_total = 0;
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
+    Object maybe_source_positions;
     if (obj.IsCode()) {
       Code code = Code::cast(obj);
       reloc_info_total += code.relocation_info().Size();
-      ByteArray source_position_table = code.SourcePositionTable();
-      if (source_position_table.length() > 0) {
-        source_position_table_total += code.SourcePositionTable().Size();
-      }
+      maybe_source_positions = code.source_position_table();
     } else if (obj.IsBytecodeArray()) {
-      source_position_table_total +=
-          BytecodeArray::cast(obj).SourcePositionTable().Size();
+      maybe_source_positions =
+          BytecodeArray::cast(obj).source_position_table(kAcquireLoad);
+    } else {
+      continue;
     }
+    if (!maybe_source_positions.IsByteArray()) continue;
+    ByteArray source_positions = ByteArray::cast(maybe_source_positions);
+    if (source_positions.length() == 0) continue;
+    source_position_table_total += source_positions.Size();
   }
 
   AddNumber(args.GetIsolate(), result, reloc_info_total,

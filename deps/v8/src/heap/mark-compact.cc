@@ -23,7 +23,6 @@
 #include "src/heap/incremental-marking-inl.h"
 #include "src/heap/index-generator.h"
 #include "src/heap/invalidated-slots-inl.h"
-#include "src/heap/item-parallel-job.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/local-allocator-inl.h"
 #include "src/heap/mark-compact-inl.h"
@@ -46,6 +45,7 @@
 #include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/foreign.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/slots-inl.h"
@@ -1875,7 +1875,7 @@ void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor) {
     if (it.frame()->is_unoptimized()) return;
     if (it.frame()->type() == StackFrame::OPTIMIZED) {
       Code code = it.frame()->LookupCode();
-      if (!code.CanDeoptAt(it.frame()->pc())) {
+      if (!code.CanDeoptAt(isolate(), it.frame()->pc())) {
         Code::BodyDescriptor::IterateBody(code.map(), code, visitor);
       }
       return;
@@ -2019,6 +2019,9 @@ void MarkCompactCollector::MarkLiveObjects() {
       DCHECK(local_marking_worklists()->IsEmpty());
     }
 
+    // We depend on IterateWeakRootsForPhantomHandles being called before
+    // ClearOldBytecodeCandidates in order to identify flushed bytecode in the
+    // CPU profiler.
     {
       heap()->isolate()->global_handles()->IterateWeakRootsForPhantomHandles(
           &IsUnmarkedHeapObject);
@@ -2082,6 +2085,8 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     ClearJSWeakRefs();
   }
 
+  PROFILE(heap()->isolate(), WeakCodeClearEvent());
+
   MarkDependentCodeForDeoptimization();
 
   DCHECK(weak_objects_.transition_arrays.IsEmpty());
@@ -2132,8 +2137,8 @@ void MarkCompactCollector::ClearPotentialSimpleMapTransition(Map map,
   DCHECK_EQ(map.raw_transitions(), HeapObjectReference::Weak(dead_target));
   // Take ownership of the descriptor array.
   int number_of_own_descriptors = map.NumberOfOwnDescriptors();
-  DescriptorArray descriptors = map.instance_descriptors(kRelaxedLoad);
-  if (descriptors == dead_target.instance_descriptors(kRelaxedLoad) &&
+  DescriptorArray descriptors = map.instance_descriptors(isolate());
+  if (descriptors == dead_target.instance_descriptors(isolate()) &&
       number_of_own_descriptors > 0) {
     TrimDescriptorArray(map, descriptors);
     DCHECK(descriptors.number_of_descriptors() == number_of_own_descriptors);
@@ -2205,8 +2210,6 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
   // performing the unusual task of decompiling.
   shared_info.set_function_data(uncompiled_data, kReleaseStore);
   DCHECK(!shared_info.is_compiled());
-
-  PROFILE(heap()->isolate(), BytecodeFlushEvent(compiled_data_start));
 }
 
 void MarkCompactCollector::ClearOldBytecodeCandidates() {
@@ -2264,7 +2267,7 @@ void MarkCompactCollector::ClearFullMapTransitions() {
         bool parent_is_alive =
             non_atomic_marking_state()->IsBlackOrGrey(parent);
         DescriptorArray descriptors =
-            parent_is_alive ? parent.instance_descriptors(kRelaxedLoad)
+            parent_is_alive ? parent.instance_descriptors(isolate())
                             : DescriptorArray();
         bool descriptors_owner_died =
             CompactTransitionArray(parent, array, descriptors);
@@ -2325,7 +2328,7 @@ bool MarkCompactCollector::CompactTransitionArray(Map map,
     DCHECK_EQ(target.constructor_or_back_pointer(), map);
     if (non_atomic_marking_state()->IsWhite(target)) {
       if (!descriptors.is_null() &&
-          target.instance_descriptors(kRelaxedLoad) == descriptors) {
+          target.instance_descriptors(isolate()) == descriptors) {
         DCHECK(!target.is_prototype_map());
         descriptors_owner_died = true;
       }
@@ -2697,8 +2700,9 @@ static inline SlotCallbackResult UpdateSlot(TSlot slot,
 }
 
 template <AccessMode access_mode, typename TSlot>
-static inline SlotCallbackResult UpdateSlot(IsolateRoot isolate, TSlot slot) {
-  typename TSlot::TObject obj = slot.Relaxed_Load(isolate);
+static inline SlotCallbackResult UpdateSlot(PtrComprCageBase cage_base,
+                                            TSlot slot) {
+  typename TSlot::TObject obj = slot.Relaxed_Load(cage_base);
   HeapObject heap_obj;
   if (TSlot::kCanBeWeak && obj->GetHeapObjectIfWeak(&heap_obj)) {
     UpdateSlot<access_mode, HeapObjectReferenceType::WEAK>(slot, obj, heap_obj);
@@ -2710,9 +2714,9 @@ static inline SlotCallbackResult UpdateSlot(IsolateRoot isolate, TSlot slot) {
 }
 
 template <AccessMode access_mode, typename TSlot>
-static inline SlotCallbackResult UpdateStrongSlot(IsolateRoot isolate,
+static inline SlotCallbackResult UpdateStrongSlot(PtrComprCageBase cage_base,
                                                   TSlot slot) {
-  typename TSlot::TObject obj = slot.Relaxed_Load(isolate);
+  typename TSlot::TObject obj = slot.Relaxed_Load(cage_base);
   DCHECK(!HAS_WEAK_HEAP_OBJECT_TAG(obj.ptr()));
   HeapObject heap_obj;
   if (obj.GetHeapObject(&heap_obj)) {
@@ -2728,39 +2732,40 @@ static inline SlotCallbackResult UpdateStrongSlot(IsolateRoot isolate,
 // It does not expect to encounter pointers to dead objects.
 class PointersUpdatingVisitor : public ObjectVisitor, public RootVisitor {
  public:
-  explicit PointersUpdatingVisitor(IsolateRoot isolate) : isolate_(isolate) {}
+  explicit PointersUpdatingVisitor(PtrComprCageBase cage_base)
+      : cage_base_(cage_base) {}
 
   void VisitPointer(HeapObject host, ObjectSlot p) override {
-    UpdateStrongSlotInternal(isolate_, p);
+    UpdateStrongSlotInternal(cage_base_, p);
   }
 
   void VisitPointer(HeapObject host, MaybeObjectSlot p) override {
-    UpdateSlotInternal(isolate_, p);
+    UpdateSlotInternal(cage_base_, p);
   }
 
   void VisitPointers(HeapObject host, ObjectSlot start,
                      ObjectSlot end) override {
     for (ObjectSlot p = start; p < end; ++p) {
-      UpdateStrongSlotInternal(isolate_, p);
+      UpdateStrongSlotInternal(cage_base_, p);
     }
   }
 
   void VisitPointers(HeapObject host, MaybeObjectSlot start,
                      MaybeObjectSlot end) final {
     for (MaybeObjectSlot p = start; p < end; ++p) {
-      UpdateSlotInternal(isolate_, p);
+      UpdateSlotInternal(cage_base_, p);
     }
   }
 
   void VisitRootPointer(Root root, const char* description,
                         FullObjectSlot p) override {
-    UpdateRootSlotInternal(isolate_, p);
+    UpdateRootSlotInternal(cage_base_, p);
   }
 
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) override {
     for (FullObjectSlot p = start; p < end; ++p) {
-      UpdateRootSlotInternal(isolate_, p);
+      UpdateRootSlotInternal(cage_base_, p);
     }
   }
 
@@ -2768,7 +2773,7 @@ class PointersUpdatingVisitor : public ObjectVisitor, public RootVisitor {
                          OffHeapObjectSlot start,
                          OffHeapObjectSlot end) override {
     for (OffHeapObjectSlot p = start; p < end; ++p) {
-      UpdateRootSlotInternal(isolate_, p);
+      UpdateRootSlotInternal(cage_base_, p);
     }
   }
 
@@ -2783,32 +2788,32 @@ class PointersUpdatingVisitor : public ObjectVisitor, public RootVisitor {
   }
 
  private:
-  static inline SlotCallbackResult UpdateRootSlotInternal(IsolateRoot isolate,
-                                                          FullObjectSlot slot) {
-    return UpdateStrongSlot<AccessMode::NON_ATOMIC>(isolate, slot);
+  static inline SlotCallbackResult UpdateRootSlotInternal(
+      PtrComprCageBase cage_base, FullObjectSlot slot) {
+    return UpdateStrongSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
   }
 
   static inline SlotCallbackResult UpdateRootSlotInternal(
-      IsolateRoot isolate, OffHeapObjectSlot slot) {
-    return UpdateStrongSlot<AccessMode::NON_ATOMIC>(isolate, slot);
+      PtrComprCageBase cage_base, OffHeapObjectSlot slot) {
+    return UpdateStrongSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
   }
 
   static inline SlotCallbackResult UpdateStrongMaybeObjectSlotInternal(
-      IsolateRoot isolate, MaybeObjectSlot slot) {
-    return UpdateStrongSlot<AccessMode::NON_ATOMIC>(isolate, slot);
+      PtrComprCageBase cage_base, MaybeObjectSlot slot) {
+    return UpdateStrongSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
   }
 
-  static inline SlotCallbackResult UpdateStrongSlotInternal(IsolateRoot isolate,
-                                                            ObjectSlot slot) {
-    return UpdateStrongSlot<AccessMode::NON_ATOMIC>(isolate, slot);
+  static inline SlotCallbackResult UpdateStrongSlotInternal(
+      PtrComprCageBase cage_base, ObjectSlot slot) {
+    return UpdateStrongSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
   }
 
-  static inline SlotCallbackResult UpdateSlotInternal(IsolateRoot isolate,
-                                                      MaybeObjectSlot slot) {
-    return UpdateSlot<AccessMode::NON_ATOMIC>(isolate, slot);
+  static inline SlotCallbackResult UpdateSlotInternal(
+      PtrComprCageBase cage_base, MaybeObjectSlot slot) {
+    return UpdateSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
   }
 
-  IsolateRoot isolate_;
+  PtrComprCageBase cage_base_;
 };
 
 static String UpdateReferenceInExternalStringTableEntry(Heap* heap,
@@ -3105,9 +3110,13 @@ void FullEvacuator::RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) {
           chunk, marking_state, &old_space_visitor_,
           LiveObjectVisitor::kClearMarkbits, &failed_object);
       if (!success) {
-        // Aborted compaction page. Actual processing happens on the main
-        // thread for simplicity reasons.
-        collector_->ReportAbortedEvacuationCandidate(failed_object, chunk);
+        if (FLAG_crash_on_aborted_evacuation) {
+          heap_->FatalProcessOutOfMemory("FullEvacuator::RawEvacuatePage");
+        } else {
+          // Aborted compaction page. Actual processing happens on the main
+          // thread for simplicity reasons.
+          collector_->ReportAbortedEvacuationCandidate(failed_object, chunk);
+        }
       }
       break;
     }
@@ -3570,7 +3579,7 @@ class ToSpaceUpdatingItem : public UpdatingItem {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                  "ToSpaceUpdatingItem::ProcessVisitAll");
     PointersUpdatingVisitor visitor(
-        GetIsolateForPtrComprFromOnHeapAddress(start_));
+        GetPtrComprCageBaseFromOnHeapAddress(start_));
     for (Address cur = start_; cur < end_;) {
       HeapObject object = HeapObject::FromAddress(cur);
       Map map = object.map();
@@ -3586,7 +3595,7 @@ class ToSpaceUpdatingItem : public UpdatingItem {
     // For young generation evacuations we want to visit grey objects, for
     // full MC, we need to visit black objects.
     PointersUpdatingVisitor visitor(
-        GetIsolateForPtrComprFromOnHeapAddress(start_));
+        GetPtrComprCageBaseFromOnHeapAddress(start_));
     for (auto object_and_size : LiveObjectRange<kAllLiveObjects>(
              chunk_, marking_state_->bitmap(chunk_))) {
       object_and_size.first.IterateBodyFast(&visitor);
@@ -3732,12 +3741,12 @@ class RememberedSetUpdatingItem : public UpdatingItem {
     if ((updating_mode_ == RememberedSetUpdatingMode::ALL) &&
         (chunk_->slot_set<OLD_TO_OLD, AccessMode::NON_ATOMIC>() != nullptr)) {
       InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToOld(chunk_);
-      IsolateRoot isolate = heap_->isolate();
+      PtrComprCageBase cage_base = heap_->isolate();
       RememberedSet<OLD_TO_OLD>::Iterate(
           chunk_,
-          [&filter, isolate](MaybeObjectSlot slot) {
+          [&filter, cage_base](MaybeObjectSlot slot) {
             if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
-            return UpdateSlot<AccessMode::NON_ATOMIC>(isolate, slot);
+            return UpdateSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
           },
           SlotSet::FREE_EMPTY_BUCKETS);
       chunk_->ReleaseSlotSet<OLD_TO_OLD>();
@@ -3772,10 +3781,10 @@ class RememberedSetUpdatingItem : public UpdatingItem {
                                                           Address slot) {
         // Using UpdateStrongSlot is OK here, because there are no weak
         // typed slots.
-        IsolateRoot isolate = heap_->isolate();
+        PtrComprCageBase cage_base = heap_->isolate();
         return UpdateTypedSlotHelper::UpdateTypedSlot(
-            heap_, slot_type, slot, [isolate](FullMaybeObjectSlot slot) {
-              return UpdateStrongSlot<AccessMode::NON_ATOMIC>(isolate, slot);
+            heap_, slot_type, slot, [cage_base](FullMaybeObjectSlot slot) {
+              return UpdateStrongSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
             });
       });
     }
@@ -3964,6 +3973,9 @@ void MarkCompactCollector::ReportAbortedEvacuationCandidate(
 }
 
 void MarkCompactCollector::PostProcessEvacuationCandidates() {
+  CHECK_IMPLIES(FLAG_crash_on_aborted_evacuation,
+                aborted_evacuation_candidates_.empty());
+
   for (auto object_and_page : aborted_evacuation_candidates_) {
     HeapObject failed_object = object_and_page.first;
     Page* page = object_and_page.second;

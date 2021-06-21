@@ -170,7 +170,7 @@ bool FreeList::IsEmpty() const {
                      [](const auto* entry) { return !entry; });
 }
 
-bool FreeList::Contains(Block block) const {
+bool FreeList::ContainsForTesting(Block block) const {
   for (Entry* list : free_list_heads_) {
     for (Entry* entry = list; entry; entry = entry->Next()) {
       if (entry <= block.address &&

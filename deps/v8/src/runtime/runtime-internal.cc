@@ -337,14 +337,30 @@ RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterruptFromBytecode) {
         function->shared().is_compiled_scope(isolate));
     JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
     DCHECK(is_compiled_scope.is_compiled());
-    if (FLAG_sparkplug) {
-      Compiler::CompileBaseline(isolate, function, Compiler::CLEAR_EXCEPTION,
-                                &is_compiled_scope);
-    }
     // Also initialize the invocation count here. This is only really needed for
     // OSR. When we OSR functions with lazy feedback allocation we want to have
     // a non zero invocation count so we can inline functions.
     function->feedback_vector().set_invocation_count(1);
+    if (FLAG_sparkplug) {
+      if (Compiler::CompileBaseline(isolate, function,
+                                    Compiler::CLEAR_EXCEPTION,
+                                    &is_compiled_scope)) {
+        if (FLAG_use_osr) {
+          JavaScriptFrameIterator it(isolate);
+          DCHECK(it.frame()->is_unoptimized());
+          UnoptimizedFrame* frame = UnoptimizedFrame::cast(it.frame());
+          if (FLAG_trace_osr) {
+            CodeTracer::Scope scope(isolate->GetCodeTracer());
+            PrintF(
+                scope.file(),
+                "[OSR - Entry at OSR bytecode offset %d into baseline code]\n",
+                frame->GetBytecodeOffset());
+          }
+          frame->GetBytecodeArray().set_osr_loop_nesting_level(
+              AbstractCode::kMaxLoopNestingMarker);
+        }
+      }
+    }
     return ReadOnlyRoots(isolate).undefined_value();
   }
   {

@@ -135,7 +135,7 @@ class RegisteredExtension {
   V(ScriptOrModule, Script)                    \
   V(FixedArray, FixedArray)                    \
   V(ModuleRequest, ModuleRequest)              \
-  V(WasmMemoryObject, WasmMemoryObject)
+  IF_WASM(V, WasmMemoryObject, WasmMemoryObject)
 
 class Utils {
  public:

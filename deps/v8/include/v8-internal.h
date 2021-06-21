@@ -358,8 +358,9 @@ class Internals {
       internal::Address heap_object_ptr, int offset) {
 #ifdef V8_COMPRESS_POINTERS
     uint32_t value = ReadRawField<uint32_t>(heap_object_ptr, offset);
-    internal::Address root = GetRootFromOnHeapAddress(heap_object_ptr);
-    return root + static_cast<internal::Address>(static_cast<uintptr_t>(value));
+    internal::Address base =
+        GetPtrComprCageBaseFromOnHeapAddress(heap_object_ptr);
+    return base + static_cast<internal::Address>(static_cast<uintptr_t>(value));
 #else
     return ReadRawField<internal::Address>(heap_object_ptr, offset);
 #endif
@@ -411,18 +412,19 @@ class Internals {
 
 #ifdef V8_COMPRESS_POINTERS
   // See v8:7703 or src/ptr-compr.* for details about pointer compression.
-  static constexpr size_t kPtrComprHeapReservationSize = size_t{1} << 32;
-  static constexpr size_t kPtrComprIsolateRootAlignment = size_t{1} << 32;
+  static constexpr size_t kPtrComprCageReservationSize = size_t{1} << 32;
+  static constexpr size_t kPtrComprCageBaseAlignment = size_t{1} << 32;
 
-  V8_INLINE static internal::Address GetRootFromOnHeapAddress(
+  V8_INLINE static internal::Address GetPtrComprCageBaseFromOnHeapAddress(
       internal::Address addr) {
-    return addr & -static_cast<intptr_t>(kPtrComprIsolateRootAlignment);
+    return addr & -static_cast<intptr_t>(kPtrComprCageBaseAlignment);
   }
 
   V8_INLINE static internal::Address DecompressTaggedAnyField(
       internal::Address heap_object_ptr, uint32_t value) {
-    internal::Address root = GetRootFromOnHeapAddress(heap_object_ptr);
-    return root + static_cast<internal::Address>(static_cast<uintptr_t>(value));
+    internal::Address base =
+        GetPtrComprCageBaseFromOnHeapAddress(heap_object_ptr);
+    return base + static_cast<internal::Address>(static_cast<uintptr_t>(value));
   }
 
 #endif  // V8_COMPRESS_POINTERS

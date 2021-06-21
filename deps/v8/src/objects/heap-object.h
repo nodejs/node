@@ -70,12 +70,12 @@ class HeapObject : public Object {
   // places where it might not be safe to access it.
   inline ReadOnlyRoots GetReadOnlyRoots() const;
   // This version is intended to be used for the isolate values produced by
-  // i::GetIsolateForPtrCompr(HeapObject) function which may return nullptr.
-  inline ReadOnlyRoots GetReadOnlyRoots(IsolateRoot isolate) const;
+  // i::GetPtrComprCageBase(HeapObject) function which may return nullptr.
+  inline ReadOnlyRoots GetReadOnlyRoots(PtrComprCageBase cage_base) const;
 
 #define IS_TYPE_FUNCTION_DECL(Type) \
   V8_INLINE bool Is##Type() const;  \
-  V8_INLINE bool Is##Type(IsolateRoot isolate) const;
+  V8_INLINE bool Is##Type(PtrComprCageBase cage_base) const;
   HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
   IS_TYPE_FUNCTION_DECL(HashTableBase)
   IS_TYPE_FUNCTION_DECL(SmallOrderedHashTable)
@@ -96,7 +96,7 @@ class HeapObject : public Object {
 
 #define DECL_STRUCT_PREDICATE(NAME, Name, name) \
   V8_INLINE bool Is##Name() const;              \
-  V8_INLINE bool Is##Name(IsolateRoot isolate) const;
+  V8_INLINE bool Is##Name(PtrComprCageBase cage_base) const;
   STRUCT_LIST(DECL_STRUCT_PREDICATE)
 #undef DECL_STRUCT_PREDICATE
 

@@ -112,7 +112,9 @@ class FrameDescription {
 
   unsigned GetLastArgumentSlotOffset(bool pad_arguments = true) {
     int parameter_slots = parameter_count();
-    if (pad_arguments && ShouldPadArguments(parameter_slots)) parameter_slots++;
+    if (pad_arguments) {
+      parameter_slots = AddArgumentPaddingSlots(parameter_slots);
+    }
     return GetFrameSize() - parameter_slots * kSystemPointerSize;
   }
 
