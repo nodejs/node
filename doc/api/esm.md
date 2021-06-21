@@ -677,8 +677,8 @@ export async function resolve(specifier, context, defaultResolve) {
 
 * `url` {string}
 * `context` {Object}
-  * `format` {string|undefined} The format optionally supplied by the `resolve`
-  hook.
+  * `format` {string|null|undefined} The format optionally supplied by the
+  `resolve` hook.
 * `defaultLoad` {Function}
 * Returns: {Object}
   * `format` {string}
