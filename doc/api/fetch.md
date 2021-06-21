@@ -3,25 +3,26 @@
 <!--introduced_in=REPLACEME-->
 
 > Stability: 1 - Experimental
+
 ## Class: `fetch.Headers`
 
-Represents a WHATWG Fetch Spec [Headers Class](https://fetch.spec.whatwg.org/#headers-class)
+Represents a WHATWG Fetch Spec
+[Headers Class](https://fetch.spec.whatwg.org/#headers-class)
 
 ### `new Headers([init])`
 
-* `init` {Headers | Iterable<[string, string]> | string[] | Record<string, string>} Initial header list to be cloned into the new instance
+* `init` {Headers | Iterable<[string, string]> | string[] | Record<string,
+  string>} Initial header list to be cloned into the new instance
 
 ```js
 new Headers();
 
-new Headers([
-  ['name', 'value'],
-]);
+new Headers([['name', 'value']]);
 
-new Headers([ 'name', 'value' ]);
+new Headers(['name', 'value']);
 
 const headers = new Headers({
-  'name': 'value'
+  name: 'value',
 });
 
 new Headers(headers);
@@ -33,7 +34,9 @@ new Headers(headers);
 * `value` {string}
 * Returns: {void}
 
-Non-destructive operation for adding header entries. When called multiple times with the same _name_, the values will be collected in a list and returned together when retrieved using [Headers.get](#headersgetname).
+Non-destructive operation for adding header entries. When called multiple times
+with the same _name_, the values will be collected in a list and returned
+together when retrieved using [Headers.get](#headersgetname).
 
 ```js
 const headers = new Headers();
@@ -50,7 +53,9 @@ headers.get('foobar'); // -> 'fuzz, buzz'
 
 * `name` {string}
 
-Removes a header entry. This operation is destructive and cannot be restored. Does **not** throw an error if the given _name_ does not exist. Reminder that [Headers.get](#headersgetname) will return `null` if the _name_ does not exist.
+Removes a header entry. This operation is destructive and cannot be restored.
+Does **not** throw an error if the given _name_ does not exist. Reminder that
+[Headers.get](#headersgetname) will return `null` if the _name_ does not exist.
 
 ```js
 const headers = new Headers();
@@ -69,7 +74,9 @@ headers.get('undici'); // -> null
 * `name` {string}
 * Returns: {string | null}
 
-Retrieves a header entry. If the entry _name_ has multiple values, they are returned as a string joined by `','` characters. If the _name_ does not exist, this method returns null.
+Retrieves a header entry. If the entry _name_ has multiple values, they are
+returned as a string joined by `','` characters. If the _name_ does not exist,
+this method returns null.
 
 ```js
 const headers = new Headers();
@@ -103,7 +110,9 @@ headers.has('undici'); // -> true
 * `name` {string}
 * `value` {string}
 
-Destructive operation that will override any existing values for the given entry _name_. For a non-destructive alternative see [Headers.append](#headersappendname-value).
+Destructive operation that will override any existing values for the given entry
+_name_. For a non-destructive alternative see
+[Headers.append](#headersappendname-value).
 
 ```js
 const headers = new Headers();
@@ -168,9 +177,11 @@ for (const name of headers.keys()) {
 
 A Headers class can be iterated using `.forEach(callback, [thisArg])`.
 
-Optionally a `thisArg` can be passed which will be assigned to the `this` context of callback.
+Optionally a `thisArg` can be passed which will be assigned to the `this`
+context of callback.
 
-The headers are returned in a sorted order, and values are combined on similar keys.
+The headers are returned in a sorted order, and values are combined on similar
+keys.
 
 ```js
 const headers = new Headers([['abc', '123']]);
@@ -185,7 +196,9 @@ headers.forEach(function(value, key, headers) {
 
 * Returns: {Iterator<[string, string]>}
 
-A Headers class instance is iterable. It yields each of its entries as a pair where the first value is the entry _name_ and the second value is the header _value_. They are sorted by _name_ or otherwise referred to as the header key.
+A Headers class instance is iterable. It yields each of its entries as a pair
+where the first value is the entry _name_ and the second value is the header
+_value_. They are sorted by _name_ or otherwise referred to as the header key.
 
 ```js
 const headers = new Headers();
