@@ -104,6 +104,11 @@ inline void AsyncHooks::SetJSPromiseHooks(v8::Local<v8::Function> init,
   js_promise_hooks_[2].Reset(env()->isolate(), after);
   js_promise_hooks_[3].Reset(env()->isolate(), resolve);
   for (auto it = contexts_.begin(); it != contexts_.end(); it++) {
+    if (it->IsEmpty()) {
+      it = contexts_.erase(it);
+      it--;
+      continue;
+    }
     PersistentToLocal::Weak(env()->isolate(), *it)
         ->SetPromiseHooks(init, before, after, resolve);
   }
