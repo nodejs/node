@@ -12,7 +12,7 @@ Represents a WHATWG Fetch Spec
 ### `new Headers([init])`
 
 * `init` {Headers | Iterable<\[string, string]> | string\[] | Record<string,
-  string>} Initial header list to be cloned into the new instance
+  string>} Initial header list to be cloned into the new instance.
 
 ```js
 new Headers();
