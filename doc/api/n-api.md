@@ -3798,7 +3798,7 @@ typedef enum {
   napi_default_method = napi_writable | napi_configurable,
 
   // Default for object properties, like in JS obj[prop].
-  napi_default_property = napi_writable |
+  napi_default_jsproperty = napi_writable |
                           napi_enumerable |
                           napi_configurable,
 } napi_property_attributes;
@@ -3821,8 +3821,8 @@ They can be one or more of the following bitflags:
   [`napi_define_class`][]. It is ignored by `napi_define_properties`.
 * `napi_default_method`: Like a method in a JS class, the property is
   configurable and writeable, but not enumerable.
-* `napi_default_property`: Like a property set via assignment in JavaScript, the
-  property is writable, enumerable, and configurable.
+* `napi_default_jsproperty`: Like a property set via assignment in JavaScript,
+  the property is writable, enumerable, and configurable.
 
 #### napi_property_descriptor
 
