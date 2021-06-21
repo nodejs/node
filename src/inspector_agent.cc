@@ -40,7 +40,6 @@ using node::FatalError;
 
 using v8::Context;
 using v8::Function;
-using v8::Global;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
@@ -802,8 +801,8 @@ void Agent::PauseOnNextJavascriptStatement(const std::string& reason) {
 void Agent::RegisterAsyncHook(Isolate* isolate,
                               Local<Function> enable_function,
                               Local<Function> disable_function) {
-  enable_async_hook_function_.Reset(isolate, enable_function);
-  disable_async_hook_function_.Reset(isolate, disable_function);
+  parent_env_->set_inspector_enable_async_hooks(enable_function);
+  parent_env_->set_inspector_disable_async_hooks(disable_function);
   if (pending_enable_async_hook_) {
     CHECK(!pending_disable_async_hook_);
     pending_enable_async_hook_ = false;
@@ -816,8 +815,10 @@ void Agent::RegisterAsyncHook(Isolate* isolate,
 }
 
 void Agent::EnableAsyncHook() {
-  if (!enable_async_hook_function_.IsEmpty()) {
-    ToggleAsyncHook(parent_env_->isolate(), enable_async_hook_function_);
+  HandleScope scope(parent_env_->isolate());
+  Local<Function> enable = parent_env_->inspector_enable_async_hooks();
+  if (!enable.IsEmpty()) {
+    ToggleAsyncHook(parent_env_->isolate(), enable);
   } else if (pending_disable_async_hook_) {
     CHECK(!pending_enable_async_hook_);
     pending_disable_async_hook_ = false;
@@ -827,8 +828,10 @@ void Agent::EnableAsyncHook() {
 }
 
 void Agent::DisableAsyncHook() {
-  if (!disable_async_hook_function_.IsEmpty()) {
-    ToggleAsyncHook(parent_env_->isolate(), disable_async_hook_function_);
+  HandleScope scope(parent_env_->isolate());
+  Local<Function> disable = parent_env_->inspector_enable_async_hooks();
+  if (!disable.IsEmpty()) {
+    ToggleAsyncHook(parent_env_->isolate(), disable);
   } else if (pending_enable_async_hook_) {
     CHECK(!pending_disable_async_hook_);
     pending_enable_async_hook_ = false;
@@ -837,8 +840,7 @@ void Agent::DisableAsyncHook() {
   }
 }
 
-void Agent::ToggleAsyncHook(Isolate* isolate,
-                            const Global<Function>& fn) {
+void Agent::ToggleAsyncHook(Isolate* isolate, Local<Function> fn) {
   // Guard against running this during cleanup -- no async events will be
   // emitted anyway at that point anymore, and calling into JS is not possible.
   // This should probably not be something we're attempting in the first place,
@@ -849,7 +851,7 @@ void Agent::ToggleAsyncHook(Isolate* isolate,
   CHECK(!fn.IsEmpty());
   auto context = parent_env_->context();
   v8::TryCatch try_catch(isolate);
-  USE(fn.Get(isolate)->Call(context, Undefined(isolate), 0, nullptr));
+  USE(fn->Call(context, Undefined(isolate), 0, nullptr));
   if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
     PrintCaughtException(isolate, context, try_catch);
     FatalError("\nnode::inspector::Agent::ToggleAsyncHook",
