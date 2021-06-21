@@ -1111,13 +1111,6 @@ added: v6.0.0
 
 Print stack traces for process warnings (including deprecations).
 
-### `--stacktrace-version`
-<!-- YAML
-added: REPLACEME
--->
-
-Show version for fatal exceptions that causes exit.
-
 ### `--no-stacktrace-version`
 <!-- YAML
 added: REPLACEME
@@ -1458,7 +1451,6 @@ Node.js options that are allowed are:
 * `--require`, `-r`
 * `--secure-heap-min`
 * `--secure-heap`
-* `--stacktrace-version`
 * `--throw-deprecation`
 * `--title`
 * `--tls-cipher-list`

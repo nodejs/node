@@ -511,13 +511,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::trace_warnings,
             kAllowedInEnvironment);
   AddOption("--stacktrace-version",
-            "show version for fatal exceptions that causes exit",
-            &EnvironmentOptions::stacktrace_version,
-            kAllowedInEnvironment);
-  AddOption("--no-stacktrace-version",
             "hide version for fatal exceptions that causes exit",
-            &EnvironmentOptions::no_stacktrace_version,
-            kAllowedInEnvironment);
+            &EnvironmentOptions::stacktrace_version,
+            kAllowedInEnvironment,
+            true);
   AddOption("--unhandled-rejections",
             "define unhandled rejections behavior. Options are 'strict' "
             "(always raise an error), 'throw' (raise an error unless "

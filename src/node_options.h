@@ -151,7 +151,6 @@ class EnvironmentOptions : public Options {
   bool trace_uncaught = false;
   bool trace_warnings = false;
   bool stacktrace_version = true;
-  bool no_stacktrace_version = false;
   std::string unhandled_rejections;
   std::string userland_loader;
   bool verify_base_objects =
