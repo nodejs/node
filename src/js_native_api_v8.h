@@ -57,15 +57,7 @@ struct napi_env__ {
         context_persistent(isolate, context) {
     CHECK_EQ(isolate, context->GetIsolate());
   }
-  virtual ~napi_env__() {
-    // First we must finalize those references that have `napi_finalizer`
-    // callbacks. The reason is that addons might store other references which
-    // they delete during their `napi_finalizer` callbacks. If we deleted such
-    // references here first, they would be doubly deleted when the
-    // `napi_finalizer` deleted them subsequently.
-    v8impl::RefTracker::FinalizeAll(&finalizing_reflist);
-    v8impl::RefTracker::FinalizeAll(&reflist);
-  }
+  virtual ~napi_env__() { FinalizeAll(); }
   v8::Isolate* const isolate;  // Shortcut for context()->GetIsolate()
   v8impl::Persistent<v8::Context> context_persistent;
 
@@ -102,10 +94,17 @@ struct napi_env__ {
   }
 
   virtual void CallFinalizer(napi_finalize cb, void* data, void* hint) {
-    v8::HandleScope handle_scope(isolate);
-    CallIntoModule([&](napi_env env) {
-      cb(env, data, hint);
-    });
+    // Forward declaration virtual member. Implemented in node_napi_env__.
+  }
+
+  void FinalizeAll() {
+    // First we must finalize those references that have `napi_finalizer`
+    // callbacks. The reason is that addons might store other references which
+    // they delete during their `napi_finalizer` callbacks. If we deleted such
+    // references here first, they would be doubly deleted when the
+    // `napi_finalizer` deleted them subsequently.
+    v8impl::RefTracker::FinalizeAll(&finalizing_reflist);
+    v8impl::RefTracker::FinalizeAll(&reflist);
   }
 
   v8impl::Persistent<v8::Value> last_exception;

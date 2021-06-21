@@ -108,6 +108,14 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
     }
   }
 
+  if (!force_node_api_uncaught_exceptions_policy.empty()) {
+    if (force_node_api_uncaught_exceptions_policy != "false" &&
+        force_node_api_uncaught_exceptions_policy != "true") {
+      errors->push_back("--force-node-api-uncaught-exceptions-policy must be "
+                        "\"false\" or \"true\"");
+    }
+  }
+
   if (!experimental_specifier_resolution.empty()) {
     if (experimental_specifier_resolution != "node" &&
         experimental_specifier_resolution != "explicit") {
@@ -399,6 +407,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "disable checks for async_hooks",
             &EnvironmentOptions::no_force_async_hooks_checks,
             kAllowedInEnvironment);
+  AddOption(
+      "--force-node-api-uncaught-exceptions-policy",
+      "enforces 'uncaughtException' event on Node API asynchronous callbacks",
+      &EnvironmentOptions::force_node_api_uncaught_exceptions_policy,
+      kAllowedInEnvironment);
   AddOption("--no-warnings",
             "silence all process warnings",
             &EnvironmentOptions::no_warnings,
