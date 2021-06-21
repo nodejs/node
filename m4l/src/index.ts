@@ -1,116 +1,51 @@
 import { ChildProcessWithoutNullStreams, spawn } from 'child_process';
 import { Subject } from 'rxjs';
 import path from 'path';
+import fs from 'fs';
+import { Address, Handle, Loop, MIDINote, State, UVHandleTypeNames, UVRunModeName } from './types';
 
-// @ts-ignore
+// max-api is not imported from node_modules, but from Node4Max runtime
+// @ts-ignore - no typescript typings yet
 import { post, outlet } from 'max-api';
-
-// const post = console.log;
-// const outlet = console.log;
-
-type State = 'handle_init'
-  | 'handle_start'
-  | 'handle_stop'
-  | 'loop_run'
-  | 'loop_alive';
-
-const uv_handle_type_names = [
-  'UV_UNKNOWN_HANDLE',
-  'UV_ASYNC',
-  'UV_CHECK',
-  'UV_FS_EVENT',
-  'UV_FS_POLL',
-  'UV_HANDLE',
-  'UV_IDLE',
-  'UV_NAMED_PIPE',
-  'UV_POLL',
-  'UV_PREPARE',
-  'UV_PROCESS',
-  'UV_STREAM',
-  'UV_TCP',
-  'UV_TIMER',
-  'UV_TTY',
-  'UV_UDP',
-  'UV_SIGNAL',
-  'UV_FILE',
-  'UV_HANDLE_TYPE_MAX'
-]
-
-enum uv_handle_type {
-  UV_UNKNOWN_HANDLE,
-  UV_ASYNC,
-  UV_CHECK,
-  UV_FS_EVENT,
-  UV_FS_POLL,
-  UV_HANDLE,
-  UV_IDLE,
-  UV_NAMED_PIPE,
-  UV_POLL,
-  UV_PREPARE,
-  UV_PROCESS,
-  UV_STREAM,
-  UV_TCP,
-  UV_TIMER,
-  UV_TTY,
-  UV_UDP,
-  UV_SIGNAL,
-  UV_FILE,
-  UV_HANDLE_TYPE_MAX
-}
-
-enum uv_run_mode {
-  UV_RUN_DEFAULT,
-  UV_RUN_ONCE,
-  UV_RUN_NOWAIT
-}
-
-type Address = string;
-
-interface Handle {
-  type: uv_handle_type;
-  typeName: string;
-  address: Address;
-  loop: Address;
-}
-
-interface Loop {
-  address: Address
-}
 
 const handles = new Map<Address, Handle>();
 const loops = new Map<Address, Loop>();
 
 const spawnNode = (...args: string[]): ChildProcessWithoutNullStreams => {
+  // must compile node before running
   const nodePath = path.join(__dirname, '../../out/Release/node');
   return spawn(nodePath, args);
 };
 
-const parseData = (logLn: string): [State, Handle | Loop | undefined] | undefined => {
+const parseLogData = (logLn: string): [State, Handle | Loop | undefined] | undefined => {
   const [name, ...data] = logLn.split(' ');
   switch (name.trim()) {
     case 'uv__handle_init':
-      const [handle_address, loop_address, typeStr] = data;
+      const [handleAddress, loopAddress, typeStr] = data;
       const type = Number.parseInt(typeStr)
       const handle: Handle = {
         type,
-        typeName: uv_handle_type_names[type],
-        address: handle_address,
-        loop: loop_address
+        typeName: UVHandleTypeNames[type],
+        address: handleAddress,
+        loop: loopAddress
       };
-      handles.set(handle_address, handle);
+      handles.set(handleAddress, handle);
       return ['handle_init', handle];
     case 'uv__handle_start':
-      const [start_address] = data;
-      return ['handle_start', handles.get(start_address)];
+      const [startAddress] = data;
+      return ['handle_start', handles.get(startAddress)];
     case 'uv__handle_stop':
-      const [stop_address] = data;
-      return ['handle_stop', handles.get(stop_address)];
+      const [stopAddress] = data;
+      return ['handle_stop', handles.get(stopAddress)];
     case 'uv_run':
-      const [loop_run_address] = data;
+      const [loopRunAddress,,modeStr] = data;
+      const mode = Number.parseInt(modeStr)
       const loop: Loop = {
-        address: loop_run_address
+        type: mode + UVHandleTypeNames.length, // will continue the enumeration of handles, for note assignment
+        typeName: UVRunModeName[mode],
+        address: loopRunAddress
       };
-      loops.set(loop_run_address, loop);
+      loops.set(loopRunAddress, loop);
       return ['loop_run', loop];
     case 'uv__loop_alive':
       const [loop_alive_address] = data;
@@ -118,32 +53,30 @@ const parseData = (logLn: string): [State, Handle | Loop | undefined] | undefine
   }
 }
 
-export const createLogger = (proc: ChildProcessWithoutNullStreams): Subject<string> => {
-  const logger$ = new Subject<string>();
-  const splitChunks = (chunk: Buffer) => chunk.toString().split('\n').forEach((str: string) => logger$.next(str))
+export const createLogSubject = (proc: ChildProcessWithoutNullStreams): Subject<string> => {
+  const log$ = new Subject<string>();
 
-  proc.on('data', splitChunks);
-  proc.stdout.on('data', splitChunks);
-  proc.stdout.on('error', (err: Error) => logger$.error(err));
-  proc.on('error', (err: Error) => logger$.error(err));
-  proc.on('close', () => logger$.complete());
-  proc.on('exit', () => logger$.complete());
+  proc.on('data', (chunk: Buffer) => chunk.toString().split('\n').forEach((str: string) => log$.next(str)));
+  proc.stdout.on('data', (chunk: Buffer) => chunk.toString().split('\n').forEach((str: string) => log$.next(str)));
+  proc.stdout.on('error', (err: Error) => log$.error(err));
+  proc.on('error', (err: Error) => log$.error(err));
+  proc.on('close', () => log$.complete());
+  proc.on('exit', () => log$.complete());
 
-  return logger$;
+  return log$;
 };
 
 try {
+  // retrieve the third argument through destructuring
+  // arguments are passed from a Max message
   const [,,scriptFile] = process.argv;
 
-  const proc: ChildProcessWithoutNullStreams = spawnNode(scriptFile);
-  const logger$ = createLogger(proc);
-  logger$.subscribe((log: string) => {
-    const [state, data] = parseData(log) ?? [];
+  const nodeProcess: ChildProcessWithoutNullStreams = spawnNode(scriptFile);
+  createLogSubject(nodeProcess).subscribe((log: string) => {
+    const [state, data] = parseLogData(log) ?? [];
     if (!data) return;
 
-    // @ts-ignore
-    const note = data.type + 100;
-    // @ts-ignore
+    const note: MIDINote = data.type + 100; // adds 100 for higher MIDI note range
     post(state, data.typeName, note);
 
     switch (state) {
@@ -156,8 +89,12 @@ try {
       case 'handle_stop':
         outlet([note, 0]);
         break;
-      // case 'loop_run':
-      // case 'loop_alive':
+      case 'loop_run':
+        outlet([note, 100]);
+        break;
+      case 'loop_alive':
+        outlet([note, 50]);
+        break;
     }
   });
 } catch (err) {
