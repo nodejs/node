@@ -9,19 +9,19 @@ Represents a WHATWG Fetch Spec [Headers Class](https://fetch.spec.whatwg.org/#he
 * `init` {Headers | Iterable<[string, string]> | string[] | Record<string, string>} Initial header list to be cloned into the new instance
 
 ```js
-new Headers()
+new Headers();
 
 new Headers([
-  ['name', 'value']
-])
+  ['name', 'value'],
+]);
 
-new Headers([ 'name', 'value' ])
+new Headers([ 'name', 'value' ]);
 
 const headers = new Headers({
   'name': 'value'
-})
+});
 
-new Headers(headers)
+new Headers(headers);
 ```
 
 ### `headers.append(name, value)`
@@ -33,14 +33,14 @@ new Headers(headers)
 Non-destructive operation for adding header entries. When called multiple times with the same _name_, the values will be collected in a list and returned together when retrieved using [Headers.get](#headersgetname).
 
 ```js
-const headers = new Headers()
+const headers = new Headers();
 
-headers.append('undici', 'fetch')
-headers.get('undici') // -> 'fetch'
+headers.append('undici', 'fetch');
+headers.get('undici'); // -> 'fetch'
 
-headers.append('foobar', 'fuzz')
-headers.append('foobar', 'buzz')
-headers.get('foobar') // -> 'fuzz, buzz'
+headers.append('foobar', 'fuzz');
+headers.append('foobar', 'buzz');
+headers.get('foobar'); // -> 'fuzz, buzz'
 ```
 
 ### `headers.delete(name)`
@@ -50,15 +50,15 @@ headers.get('foobar') // -> 'fuzz, buzz'
 Removes a header entry. This operation is destructive and cannot be restored. Does **not** throw an error if the given _name_ does not exist. Reminder that [Headers.get](#headersgetname) will return `null` if the _name_ does not exist.
 
 ```js
-const headers = new Headers()
+const headers = new Headers();
 
-headers.append('undici', 'fetch')
+headers.append('undici', 'fetch');
 
-headers.get('undici') // -> 'fetch'
+headers.get('undici'); // -> 'fetch'
 
-headers.delete('undici')
+headers.delete('undici');
 
-headers.get('undici') // -> null
+headers.get('undici'); // -> null
 ```
 
 ### `headers.get(name)`
@@ -69,16 +69,16 @@ headers.get('undici') // -> null
 Retrieves a header entry. If the entry _name_ has multiple values, they are returned as a string joined by `','` characters. If the _name_ does not exist, this method returns null.
 
 ```js
-const headers = new Headers()
+const headers = new Headers();
 
-headers.append('undici', 'fetch')
-headers.get('undici') // -> 'fetch'
+headers.append('undici', 'fetch');
+headers.get('undici'); // -> 'fetch'
 
-headers.append('foobar', 'fuzz')
-headers.append('foobar', 'buzz')
-headers.get('foobar') // -> 'fuzz, buzz'
+headers.append('foobar', 'fuzz');
+headers.append('foobar', 'buzz');
+headers.get('foobar'); // -> 'fuzz, buzz'
 
-headers.get('nodejs') // -> null
+headers.get('nodejs'); // -> null
 ```
 
 ### `headers.has(name)`
@@ -89,10 +89,10 @@ headers.get('nodejs') // -> null
 Checks for the existence of a given entry _name_.
 
 ```js
-const headers = new Headers()
+const headers = new Headers();
 
-headers.append('undici', 'fetch')
-headers.has('undici') // -> true
+headers.append('undici', 'fetch');
+headers.has('undici'); // -> true
 ```
 
 ### `headers.set(name, value)`
@@ -103,13 +103,13 @@ headers.has('undici') // -> true
 Destructive operation that will override any existing values for the given entry _name_. For a non-destructive alternative see [Headers.append](#headersappendname-value).
 
 ```js
-const headers = new Headers()
+const headers = new Headers();
 
-headers.set('foobar', 'fuzz')
-headers.get('foobar') // -> 'fuzz'
+headers.set('foobar', 'fuzz');
+headers.get('foobar'); // -> 'fuzz'
 
-headers.set('foobar', 'buzz')
-headers.get('foobar') // -> 'buzz'
+headers.set('foobar', 'buzz');
+headers.get('foobar'); // -> 'buzz'
 ```
 
 ### `headers.values()`
@@ -119,15 +119,15 @@ headers.get('foobar') // -> 'buzz'
 Yields a list of header values combined and sorted by their respective keys.
 
 ```js
-const headers = new Headers()
+const headers = new Headers();
 
-headers.set('abc', '123')
-headers.set('def', '456')
-headers.set('ghi', '789')
-headers.append('ghi', '012')
+headers.set('abc', '123');
+headers.set('def', '456');
+headers.set('ghi', '789');
+headers.append('ghi', '012');
 
 for (const value of headers.values()) {
-  console.log(value)
+  console.log(value);
 }
 
 // -> '123'
@@ -142,15 +142,15 @@ Returns: {IteratableIterator<string>}
 Yields a sorted list of header keys.
 
 ```js
-const headers = new Headers()
+const headers = new Headers();
 
-headers.set('abc', '123')
-headers.set('def', '456')
-headers.set('ghi', '789')
-headers.append('ghi', '012')
+headers.set('abc', '123');
+headers.set('def', '456');
+headers.set('ghi', '789');
+headers.append('ghi', '012');
 
 for (const name of headers.keys()) {
-	console.log(name)
+  console.log(name);
 }
 
 // -> 'abc'
@@ -170,11 +170,11 @@ Optionally a `thisArg` can be passed which will be assigned to the `this` contex
 The headers are returned in a sorted order, and values are combined on similar keys.
 
 ```js
-const headers = new Headers([['abc', '123']])
+const headers = new Headers([['abc', '123']]);
 
-headers.forEach(function (value, key, headers) {
-	console.log(key, value)
-})
+headers.forEach(function(value, key, headers) {
+  console.log(key, value);
+});
 // -> 'abc', '123'
 ```
 
@@ -185,15 +185,15 @@ headers.forEach(function (value, key, headers) {
 A Headers class instance is iterable. It yields each of its entries as a pair where the first value is the entry _name_ and the second value is the header _value_. They are sorted by _name_ or otherwise referred to as the header key.
 
 ```js
-const headers = new Headers()
+const headers = new Headers();
 
-headers.set('abc', '123')
-headers.set('def', '456')
-headers.set('ghi', '789')
-headers.append('ghi', '012')
+headers.set('abc', '123');
+headers.set('def', '456');
+headers.set('ghi', '789');
+headers.append('ghi', '012');
 
 for (const [name, value] of headers) {
-	console.log(name, value)
+  console.log(name, value);
 }
 
 // -> 'abc', '123'
@@ -208,15 +208,15 @@ for (const [name, value] of headers) {
 Yields a list of headers sorted and combined by key.
 
 ```js
-const headers = new Headers()
+const headers = new Headers();
 
-headers.set('abc', '123')
-headers.set('def', '456')
-headers.set('ghi', '789')
-headers.append('ghi', '012')
+headers.set('abc', '123');
+headers.set('def', '456');
+headers.set('ghi', '789');
+headers.append('ghi', '012');
 
 for (const entry of headers.entries()) {
-	console.log(entry)
+  console.log(entry);
 }
 
 // -> 'abc', '123'
