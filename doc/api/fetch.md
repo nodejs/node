@@ -11,7 +11,7 @@ Represents a WHATWG Fetch Spec
 
 ### `new Headers([init])`
 
-* `init` {Headers | Iterable<[string, string]> | string[] | Record<string,
+* `init` {Headers | Iterable<\[string, string]> | string\[] | Record<string,
   string>} Initial header list to be cloned into the new instance
 
 ```js
@@ -194,7 +194,7 @@ headers.forEach(function(value, key, headers) {
 
 ### `headers[Symbol.iterator]`
 
-* Returns: {Iterator<[string, string]>}
+* Returns: {Iterator<\[string, string]>}
 
 A Headers class instance is iterable. It yields each of its entries as a pair
 where the first value is the entry _name_ and the second value is the header
@@ -219,7 +219,7 @@ for (const [name, value] of headers) {
 
 ### `headers.entries()`
 
-* Returns: {IteratableIterator<[string, string]>}
+* Returns: {IteratableIterator<\[string, string]>}
 
 Yields a list of headers sorted and combined by key.
 
