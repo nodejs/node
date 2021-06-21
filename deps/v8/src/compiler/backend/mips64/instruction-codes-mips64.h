@@ -171,7 +171,6 @@ namespace compiler {
   V(Mips64I32x4ExtractLane)                  \
   V(Mips64I32x4ReplaceLane)                  \
   V(Mips64I32x4Add)                          \
-  V(Mips64I32x4AddHoriz)                     \
   V(Mips64I32x4Sub)                          \
   V(Mips64F64x2Abs)                          \
   V(Mips64F64x2Neg)                          \
@@ -242,7 +241,6 @@ namespace compiler {
   V(Mips64F32x4RecipApprox)                  \
   V(Mips64F32x4RecipSqrtApprox)              \
   V(Mips64F32x4Add)                          \
-  V(Mips64F32x4AddHoriz)                     \
   V(Mips64F32x4Sub)                          \
   V(Mips64F32x4Mul)                          \
   V(Mips64F32x4Div)                          \
@@ -281,7 +279,6 @@ namespace compiler {
   V(Mips64I16x8ShrU)                         \
   V(Mips64I16x8Add)                          \
   V(Mips64I16x8AddSatS)                      \
-  V(Mips64I16x8AddHoriz)                     \
   V(Mips64I16x8Sub)                          \
   V(Mips64I16x8SubSatS)                      \
   V(Mips64I16x8Mul)                          \
@@ -312,7 +309,6 @@ namespace compiler {
   V(Mips64I8x16AddSatS)                      \
   V(Mips64I8x16Sub)                          \
   V(Mips64I8x16SubSatS)                      \
-  V(Mips64I8x16Mul)                          \
   V(Mips64I8x16MaxS)                         \
   V(Mips64I8x16MinS)                         \
   V(Mips64I8x16Eq)                           \
@@ -336,10 +332,10 @@ namespace compiler {
   V(Mips64S128Not)                           \
   V(Mips64S128Select)                        \
   V(Mips64S128AndNot)                        \
-  V(Mips64V64x2AllTrue)                      \
-  V(Mips64V32x4AllTrue)                      \
-  V(Mips64V16x8AllTrue)                      \
-  V(Mips64V8x16AllTrue)                      \
+  V(Mips64I64x2AllTrue)                      \
+  V(Mips64I32x4AllTrue)                      \
+  V(Mips64I16x8AllTrue)                      \
+  V(Mips64I8x16AllTrue)                      \
   V(Mips64V128AnyTrue)                       \
   V(Mips64S32x4InterleaveRight)              \
   V(Mips64S32x4InterleaveLeft)               \

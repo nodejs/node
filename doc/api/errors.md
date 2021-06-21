@@ -717,12 +717,16 @@ STDERR/STDOUT, and the data's length is longer than the `maxBuffer` option.
 <a id="ERR_CLOSED_MESSAGE_PORT"></a>
 ### `ERR_CLOSED_MESSAGE_PORT`
 <!--
-added: v16.2.0
+added:
+  - v16.2.0
+  - v14.17.1
 changes:
   - version: 11.12.0
     pr-url: https://github.com/nodejs/node/pull/26487
     description: The error message was removed.
-  - version: v16.2.0
+  - version:
+      - v16.2.0
+      - v14.17.1
     pr-url: https://github.com/nodejs/node/pull/38510
     description: The error message was reintroduced.
 -->
@@ -1002,6 +1006,22 @@ added: v15.0.0
 -->
 
 An attempt to invoke an unsupported crypto operation was made.
+
+<a id="ERR_DEBUGGER_ERROR"></a>
+### `ERR_DEBUGGER_ERROR`
+<!-- YAML
+added: REPLACEME
+-->
+
+An error occurred with the [debugger][].
+
+<a id="ERR_DEBUGGER_STARTUP_ERROR"></a>
+### `ERR_DEBUGGER_STARTUP_ERROR`
+<!-- YAML
+added: REPLACEME
+-->
+
+The [debugger][] timed out waiting for the required host/port to be free.
 
 <a id="ERR_DLOPEN_FAILED"></a>
 ### `ERR_DLOPEN_FAILED`
@@ -2828,6 +2848,7 @@ The native call from `process.cpuUsage` could not be processed.
 [`util.getSystemErrorName(error.errno)`]: util.md#util_util_getsystemerrorname_err
 [`zlib`]: zlib.md
 [crypto digest algorithm]: crypto.md#crypto_crypto_gethashes
+[debugger]: debugger.md
 [define a custom subpath]: packages.md#packages_subpath_exports
 [domains]: domain.md
 [event emitter-based]: events.md#events_class_eventemitter

@@ -122,6 +122,14 @@ bool OSHasAVXSupport() {
 
 }  // namespace
 
+bool CpuFeatures::SupportsWasmSimd128() {
+#if V8_ENABLE_WEBASSEMBLY
+  if (IsSupported(SSE4_1)) return true;
+  if (FLAG_wasm_simd_ssse3_codegen && IsSupported(SSSE3)) return true;
+#endif  // V8_ENABLE_WEBASSEMBLY
+  return false;
+}
+
 void CpuFeatures::ProbeImpl(bool cross_compile) {
   base::CPU cpu;
   CHECK(cpu.has_sse2());  // SSE2 support is mandatory.
@@ -130,14 +138,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) return;
 
-  if (cpu.has_sse42() && FLAG_enable_sse4_2) supported_ |= 1u << SSE4_2;
-  if (cpu.has_sse41() && FLAG_enable_sse4_1) supported_ |= 1u << SSE4_1;
-  if (cpu.has_ssse3() && FLAG_enable_ssse3) supported_ |= 1u << SSSE3;
-  if (cpu.has_sse3() && FLAG_enable_sse3) supported_ |= 1u << SSE3;
-  if (cpu.has_avx() && FLAG_enable_avx && cpu.has_osxsave() &&
-      OSHasAVXSupport()) {
-    supported_ |= 1u << AVX;
-  }
+  // To deal with any combination of flags (e.g. --no-enable-sse4-1
+  // --enable-sse-4-2), we start checking from the "highest" supported
+  // extension, for each extension, enable if newer extension is supported.
   if (cpu.has_avx2() && FLAG_enable_avx2 && IsSupported(AVX)) {
     supported_ |= 1u << AVX2;
   }
@@ -145,6 +148,19 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
       OSHasAVXSupport()) {
     supported_ |= 1u << FMA3;
   }
+  if ((cpu.has_avx() && FLAG_enable_avx && cpu.has_osxsave() &&
+       OSHasAVXSupport()) ||
+      IsSupported(AVX2) || IsSupported(FMA3)) {
+    supported_ |= 1u << AVX;
+  }
+  if ((cpu.has_sse42() && FLAG_enable_sse4_2) || IsSupported(AVX))
+    supported_ |= 1u << SSE4_2;
+  if ((cpu.has_sse41() && FLAG_enable_sse4_1) || IsSupported(SSE4_2))
+    supported_ |= 1u << SSE4_1;
+  if ((cpu.has_ssse3() && FLAG_enable_ssse3) || IsSupported(SSE4_1))
+    supported_ |= 1u << SSSE3;
+  if ((cpu.has_sse3() && FLAG_enable_sse3) || IsSupported(SSSE3))
+    supported_ |= 1u << SSE3;
   if (cpu.has_bmi1() && FLAG_enable_bmi1) supported_ |= 1u << BMI1;
   if (cpu.has_bmi2() && FLAG_enable_bmi2) supported_ |= 1u << BMI2;
   if (cpu.has_lzcnt() && FLAG_enable_lzcnt) supported_ |= 1u << LZCNT;

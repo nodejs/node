@@ -227,5 +227,13 @@ TEST_F(StatsCollectorTest, ObserverTriggersGC) {
   stats.UnregisterObserver(&mock_observer);
 }
 
+TEST_F(StatsCollectorTest, AllocatedMemorySize) {
+  EXPECT_EQ(0u, stats.allocated_memory_size());
+  stats.NotifyAllocatedMemory(1024);
+  EXPECT_EQ(1024u, stats.allocated_memory_size());
+  stats.NotifyFreedMemory(1024);
+  EXPECT_EQ(0u, stats.allocated_memory_size());
+}
+
 }  // namespace internal
 }  // namespace cppgc

@@ -113,7 +113,7 @@ PropertyDetails TransitionsAccessor::GetSimpleTargetDetails(Map transition) {
 // static
 Name TransitionsAccessor::GetSimpleTransitionKey(Map transition) {
   InternalIndex descriptor = transition.LastAdded();
-  return transition.instance_descriptors(kRelaxedLoad).GetKey(descriptor);
+  return transition.instance_descriptors().GetKey(descriptor);
 }
 
 // static

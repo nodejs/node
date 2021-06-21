@@ -1095,6 +1095,9 @@ TEST(TestBytecodeFlushing) {
   FLAG_always_opt = false;
   i::FLAG_optimize_for_size = false;
 #endif  // V8_LITE_MODE
+#if ENABLE_SPARKPLUG
+  FLAG_always_sparkplug = false;
+#endif  // ENABLE_SPARKPLUG
   i::FLAG_flush_bytecode = true;
   i::FLAG_allow_natives_syntax = true;
 
@@ -1156,6 +1159,9 @@ HEAP_TEST(Regress10560) {
   // Disable flags that allocate a feedback vector eagerly.
   i::FLAG_opt = false;
   i::FLAG_always_opt = false;
+#if ENABLE_SPARKPLUG
+  FLAG_always_sparkplug = false;
+#endif  // ENABLE_SPARKPLUG
   i::FLAG_lazy_feedback_allocation = true;
 
   ManualGCScope manual_gc_scope;
@@ -1320,6 +1326,9 @@ TEST(Regress10774) {
 TEST(TestOptimizeAfterBytecodeFlushingCandidate) {
   FLAG_opt = true;
   FLAG_always_opt = false;
+#if ENABLE_SPARKPLUG
+  FLAG_always_sparkplug = false;
+#endif  // ENABLE_SPARKPLUG
   i::FLAG_optimize_for_size = false;
   i::FLAG_incremental_marking = true;
   i::FLAG_flush_bytecode = true;
@@ -1464,7 +1473,6 @@ TEST(CompilationCacheCachingBehavior) {
       "};"
       "foo();";
   Handle<String> source = factory->InternalizeUtf8String(raw_source);
-  Handle<Context> native_context = isolate->native_context();
 
   {
     v8::HandleScope scope(CcTest::isolate());
@@ -1477,7 +1485,7 @@ TEST(CompilationCacheCachingBehavior) {
     MaybeHandle<SharedFunctionInfo> cached_script =
         compilation_cache->LookupScript(source, Handle<Object>(), 0, 0,
                                         v8::ScriptOriginOptions(true, false),
-                                        native_context, language_mode);
+                                        language_mode);
     CHECK(!cached_script.is_null());
   }
 
@@ -1488,7 +1496,7 @@ TEST(CompilationCacheCachingBehavior) {
     MaybeHandle<SharedFunctionInfo> cached_script =
         compilation_cache->LookupScript(source, Handle<Object>(), 0, 0,
                                         v8::ScriptOriginOptions(true, false),
-                                        native_context, language_mode);
+                                        language_mode);
     CHECK(!cached_script.is_null());
 
     // Progress code age until it's old and ready for GC.
@@ -1508,7 +1516,7 @@ TEST(CompilationCacheCachingBehavior) {
     MaybeHandle<SharedFunctionInfo> cached_script =
         compilation_cache->LookupScript(source, Handle<Object>(), 0, 0,
                                         v8::ScriptOriginOptions(true, false),
-                                        native_context, language_mode);
+                                        language_mode);
     CHECK(cached_script.is_null());
   }
 }

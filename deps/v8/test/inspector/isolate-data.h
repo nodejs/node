@@ -50,7 +50,8 @@ class IsolateData : public v8_inspector::V8InspectorClient {
 
   // Setting things up.
   int CreateContextGroup();
-  void CreateContext(int context_group_id, v8_inspector::StringView name);
+  V8_NODISCARD bool CreateContext(int context_group_id,
+                                  v8_inspector::StringView name);
   void ResetContextGroup(int context_group_id);
   v8::Local<v8::Context> GetDefaultContext(int context_group_id);
   int GetContextGroupId(v8::Local<v8::Context> context);

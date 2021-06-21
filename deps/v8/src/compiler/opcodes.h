@@ -197,7 +197,7 @@
   V(JSCallForwardVarargs)  \
   V(JSCallWithArrayLike)   \
   V(JSCallWithSpread)      \
-  V(JSWasmCall)
+  IF_WASM(V, JSWasmCall)
 
 #define JS_CONSTRUCT_OP_LIST(V) \
   V(JSConstructForwardVarargs)  \
@@ -681,6 +681,7 @@
   V(Comment)                             \
   V(Load)                                \
   V(PoisonedLoad)                        \
+  V(LoadImmutable)                       \
   V(Store)                               \
   V(StackSlot)                           \
   V(Word32Popcnt)                        \
@@ -733,6 +734,8 @@
   V(Float64ExtractHighWord32)            \
   V(Float64InsertLowWord32)              \
   V(Float64InsertHighWord32)             \
+  V(Float32Select)                       \
+  V(Float64Select)                       \
   V(TaggedPoisonOnSpeculation)           \
   V(Word32PoisonOnSpeculation)           \
   V(Word64PoisonOnSpeculation)           \
@@ -797,7 +800,6 @@
   V(F32x4RecipApprox)           \
   V(F32x4RecipSqrtApprox)       \
   V(F32x4Add)                   \
-  V(F32x4AddHoriz)              \
   V(F32x4Sub)                   \
   V(F32x4Mul)                   \
   V(F32x4Div)                   \
@@ -844,7 +846,6 @@
   V(I64x2ExtMulHighI32x4S)      \
   V(I64x2ExtMulLowI32x4U)       \
   V(I64x2ExtMulHighI32x4U)      \
-  V(I64x2SignSelect)            \
   V(I32x4Splat)                 \
   V(I32x4ExtractLane)           \
   V(I32x4ReplaceLane)           \
@@ -855,7 +856,6 @@
   V(I32x4Shl)                   \
   V(I32x4ShrS)                  \
   V(I32x4Add)                   \
-  V(I32x4AddHoriz)              \
   V(I32x4Sub)                   \
   V(I32x4Mul)                   \
   V(I32x4MinS)                  \
@@ -883,7 +883,6 @@
   V(I32x4ExtMulHighI16x8S)      \
   V(I32x4ExtMulLowI16x8U)       \
   V(I32x4ExtMulHighI16x8U)      \
-  V(I32x4SignSelect)            \
   V(I32x4ExtAddPairwiseI16x8S)  \
   V(I32x4ExtAddPairwiseI16x8U)  \
   V(I32x4TruncSatF64x2SZero)    \
@@ -900,7 +899,6 @@
   V(I16x8SConvertI32x4)         \
   V(I16x8Add)                   \
   V(I16x8AddSatS)               \
-  V(I16x8AddHoriz)              \
   V(I16x8Sub)                   \
   V(I16x8SubSatS)               \
   V(I16x8Mul)                   \
@@ -932,7 +930,6 @@
   V(I16x8ExtMulHighI8x16S)      \
   V(I16x8ExtMulLowI8x16U)       \
   V(I16x8ExtMulHighI8x16U)      \
-  V(I16x8SignSelect)            \
   V(I16x8ExtAddPairwiseI8x16S)  \
   V(I16x8ExtAddPairwiseI8x16U)  \
   V(I8x16Splat)                 \
@@ -947,7 +944,6 @@
   V(I8x16AddSatS)               \
   V(I8x16Sub)                   \
   V(I8x16SubSatS)               \
-  V(I8x16Mul)                   \
   V(I8x16MinS)                  \
   V(I8x16MaxS)                  \
   V(I8x16Eq)                    \
@@ -970,9 +966,6 @@
   V(I8x16Popcnt)                \
   V(I8x16Abs)                   \
   V(I8x16BitMask)               \
-  V(I8x16SignSelect)            \
-  V(S128Load)                   \
-  V(S128Store)                  \
   V(S128Zero)                   \
   V(S128Const)                  \
   V(S128Not)                    \
@@ -984,13 +977,11 @@
   V(I8x16Swizzle)               \
   V(I8x16Shuffle)               \
   V(V128AnyTrue)                \
-  V(V64x2AllTrue)               \
-  V(V32x4AllTrue)               \
-  V(V16x8AllTrue)               \
-  V(V8x16AllTrue)               \
+  V(I64x2AllTrue)               \
+  V(I32x4AllTrue)               \
+  V(I16x8AllTrue)               \
+  V(I8x16AllTrue)               \
   V(LoadTransform)              \
-  V(PrefetchTemporal)           \
-  V(PrefetchNonTemporal)        \
   V(LoadLane)                   \
   V(StoreLane)
 

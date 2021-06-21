@@ -3863,7 +3863,7 @@ The supplied `callback` function is called with two arguments: `err` and
 `derivedKey`. If an errors occurs while deriving the key, `err` will be set;
 otherwise `err` will be `null`. The successfully generated `derivedKey` will
 be passed to the callback as an {ArrayBuffer}. An error will be thrown if any
-of the input aguments specify invalid values or types.
+of the input arguments specify invalid values or types.
 
 ```mjs
 const {
@@ -3911,7 +3911,7 @@ given `key`, `salt` and `info` are used with the `digest` to derive a key of
 
 The successfully generated `derivedKey` will be returned as an {ArrayBuffer}.
 
-An error will be thrown if any of the input aguments specify invalid values or
+An error will be thrown if any of the input arguments specify invalid values or
 types, or if the derived key cannot be generated.
 
 ```mjs

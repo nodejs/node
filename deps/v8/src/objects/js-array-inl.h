@@ -22,7 +22,7 @@ CAST_ACCESSOR(JSArray)
 CAST_ACCESSOR(JSArrayIterator)
 
 DEF_GETTER(JSArray, length, Object) {
-  return TaggedField<Object, kLengthOffset>::load(isolate, *this);
+  return TaggedField<Object, kLengthOffset>::load(cage_base, *this);
 }
 
 void JSArray::set_length(Object value, WriteBarrierMode mode) {
@@ -31,8 +31,8 @@ void JSArray::set_length(Object value, WriteBarrierMode mode) {
   CONDITIONAL_WRITE_BARRIER(*this, kLengthOffset, value, mode);
 }
 
-Object JSArray::length(IsolateRoot isolate, RelaxedLoadTag tag) const {
-  return TaggedField<Object, kLengthOffset>::Relaxed_Load(isolate, *this);
+Object JSArray::length(PtrComprCageBase cage_base, RelaxedLoadTag tag) const {
+  return TaggedField<Object, kLengthOffset>::Relaxed_Load(cage_base, *this);
 }
 
 void JSArray::set_length(Smi length) {

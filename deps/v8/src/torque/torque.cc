@@ -34,6 +34,8 @@ int WrappedMain(int argc, const char** argv) {
       options.v8_root = std::string(argv[++i]);
     } else if (argument == "-m32") {
       options.force_32bit_output = true;
+    } else if (argument == "-annotate-ir") {
+      options.annotate_ir = true;
     } else {
       // Otherwise it's a .tq file. Remember it for compilation.
       files.emplace_back(std::move(argument));

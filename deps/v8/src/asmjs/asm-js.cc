@@ -223,6 +223,8 @@ class AsmJsCompilationJob final : public UnoptimizedCompilationJob {
 };
 
 UnoptimizedCompilationJob::Status AsmJsCompilationJob::ExecuteJobImpl() {
+  DisallowHeapAccess no_heap_access;
+
   // Step 1: Translate asm.js module to WebAssembly module.
   Zone* compile_zone = &zone_;
   Zone translate_zone(allocator_, ZONE_NAME);

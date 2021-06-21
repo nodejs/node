@@ -34,7 +34,7 @@ class Prune extends ArboristWorkspaceCmd {
       ...this.npm.flatOptions,
       path: where,
       log: this.npm.log,
-      workspaces: this.workspaces,
+      workspaces: this.workspaceNames,
     }
     const arb = new Arborist(opts)
     await arb.prune(opts)

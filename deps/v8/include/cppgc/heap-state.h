@@ -49,6 +49,17 @@ class V8_EXPORT HeapState final {
    */
   static bool IsInAtomicPause(const HeapHandle& heap_handle);
 
+  /**
+   * Returns whether the last garbage collection was finalized conservatively
+   * (i.e., with a non-empty stack). This API is experimental and is expected to
+   * be removed in future.
+   *
+   * \param heap_handle The corresponding heap.
+   * \returns true if the last garbage collection was finalized conservatively,
+   * and false otherwise.
+   */
+  static bool PreviousGCWasConservative(const HeapHandle& heap_handle);
+
  private:
   HeapState() = delete;
 };

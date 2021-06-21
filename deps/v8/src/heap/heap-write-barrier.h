@@ -58,6 +58,8 @@ class V8_EXPORT_PRIVATE WriteBarrier {
   static void SetForThread(MarkingBarrier*);
   static void ClearForThread(MarkingBarrier*);
 
+  static MarkingBarrier* CurrentMarkingBarrier(Heap* heap);
+
  private:
   static void MarkingSlow(Heap* heap, HeapObject host, HeapObjectSlot,
                           HeapObject value);

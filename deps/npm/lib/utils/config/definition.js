@@ -49,8 +49,12 @@ class Definition {
     if (!this.typeDescription)
       this.typeDescription = describeType(this.type)
     // hint is only used for non-boolean values
-    if (!this.hint)
-      this.hint = `<${this.key}>`
+    if (!this.hint) {
+      if (this.type === Number)
+        this.hint = '<number>'
+      else
+        this.hint = `<${this.key}>`
+    }
     if (!this.usage)
       this.usage = describeUsage(this)
   }

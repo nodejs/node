@@ -70,7 +70,7 @@ TEST_PAIR(TestWrongStrongTypeInIndexedStructField) {
   v8::Local<v8::Value> v = CompileRun("({a: 3, b: 4})");
   Handle<Object> o = v8::Utils::OpenHandle(*v);
   Handle<Map> map(Handle<HeapObject>::cast(o)->map(), i_isolate);
-  Handle<DescriptorArray> descriptors(map->instance_descriptors(kRelaxedLoad),
+  Handle<DescriptorArray> descriptors(map->instance_descriptors(i_isolate),
                                       i_isolate);
   int offset = DescriptorArray::OffsetOfDescriptorAt(1) +
                DescriptorArray::kEntryKeyOffset;
@@ -102,7 +102,7 @@ TEST_PAIR(TestWrongWeakTypeInIndexedStructField) {
   v8::Local<v8::Value> v = CompileRun("({a: 3, b: 4})");
   Handle<Object> o = v8::Utils::OpenHandle(*v);
   Handle<Map> map(Handle<HeapObject>::cast(o)->map(), i_isolate);
-  Handle<DescriptorArray> descriptors(map->instance_descriptors(kRelaxedLoad),
+  Handle<DescriptorArray> descriptors(map->instance_descriptors(i_isolate),
                                       i_isolate);
   int offset = DescriptorArray::OffsetOfDescriptorAt(0) +
                DescriptorArray::kEntryValueOffset;

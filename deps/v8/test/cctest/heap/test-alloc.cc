@@ -151,7 +151,7 @@ TEST(StressJS) {
   // Patch the map to have an accessor for "get".
   Handle<Map> map(function->initial_map(), isolate);
   Handle<DescriptorArray> instance_descriptors(
-      map->instance_descriptors(kRelaxedLoad), isolate);
+      map->instance_descriptors(isolate), isolate);
   CHECK_EQ(0, instance_descriptors->number_of_descriptors());
 
   PropertyAttributes attrs = NONE;

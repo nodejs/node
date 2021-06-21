@@ -451,9 +451,7 @@ void DynamicallyTraceMarkedObject(Visitor& visitor,
                                   const HeapObjectHeader& header) {
   DCHECK(!header.IsInConstruction<mode>());
   DCHECK(header.IsMarked<mode>());
-  const GCInfo& gcinfo =
-      GlobalGCInfoTable::GCInfoFromIndex(header.GetGCInfoIndex<mode>());
-  gcinfo.trace(&visitor, header.Payload());
+  header.Trace<mode>(&visitor);
 }
 
 }  // namespace internal

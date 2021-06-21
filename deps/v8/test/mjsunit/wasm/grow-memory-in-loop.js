@@ -30,9 +30,9 @@ function generateBuilder() {
   builder.addFunction('main', kSig_i_i)
       .addBody([
         // clang-format off
-        kExprLoop, kWasmStmt,                   // while
+        kExprLoop, kWasmVoid,                   // while
           kExprLocalGet, 0,                     // -
-          kExprIf, kWasmStmt,                   // if <param0> != 0
+          kExprIf, kWasmVoid,                   // if <param0> != 0
             // Grow memory.
             kExprI32Const, deltaPages,          // -
             kExprMemoryGrow, kMemoryZero,       // grow memory
@@ -82,9 +82,9 @@ function generateBuilder() {
         kExprI32Const, deltaPagesOut,           // -
         kExprMemoryGrow, kMemoryZero,           // grow memory
         kExprDrop,                              // drop the result of grow
-        kExprLoop, kWasmStmt,                   // while
+        kExprLoop, kWasmVoid,                   // while
           kExprLocalGet, 0,                     // -
-          kExprIf, kWasmStmt,                   // if <param0> != 0
+          kExprIf, kWasmVoid,                   // if <param0> != 0
             // Grow memory.
             kExprI32Const, deltaPagesIn,        // -
             kExprMemoryGrow, kMemoryZero,       // grow memory
@@ -131,9 +131,9 @@ function generateBuilder() {
   builder.addFunction('main', kSig_i_ii)
       .addBody([
         // clang-format off
-        kExprLoop, kWasmStmt,                   // while
+        kExprLoop, kWasmVoid,                   // while
           kExprLocalGet, 0,                     // -
-          kExprIf, kWasmStmt,                   // if <param0> != 0
+          kExprIf, kWasmVoid,                   // if <param0> != 0
             // Grow memory.
             kExprI32Const, deltaPages,          // -
             kExprMemoryGrow, kMemoryZero,       // grow memory
@@ -202,9 +202,9 @@ function generateBuilder() {
           kExprI32Add,                          // increase value on stack
         kExprI32StoreMem, 0, 0,                 // store new value
         // Start loop.
-        kExprLoop, kWasmStmt,                   // while
+        kExprLoop, kWasmVoid,                   // while
           kExprLocalGet, 0,                     // -
-          kExprIf, kWasmStmt,                   // if <param0> != 0
+          kExprIf, kWasmVoid,                   // if <param0> != 0
             // Grow memory.
             kExprI32Const, deltaPagesIn,        // -
             kExprMemoryGrow, kMemoryZero,       // grow memory

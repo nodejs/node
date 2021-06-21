@@ -12,7 +12,8 @@
 namespace v8 {
 namespace internal {
 
-LocalIsolate::LocalIsolate(Isolate* isolate, ThreadKind kind)
+LocalIsolate::LocalIsolate(Isolate* isolate, ThreadKind kind,
+                           RuntimeCallStats* runtime_call_stats)
     : HiddenLocalFactory(isolate),
       heap_(isolate->heap(), kind),
       isolate_(isolate),
@@ -20,7 +21,8 @@ LocalIsolate::LocalIsolate(Isolate* isolate, ThreadKind kind)
       thread_id_(ThreadId::Current()),
       stack_limit_(kind == ThreadKind::kMain
                        ? isolate->stack_guard()->real_climit()
-                       : GetCurrentStackPosition() - FLAG_stack_size * KB) {}
+                       : GetCurrentStackPosition() - FLAG_stack_size * KB),
+      runtime_call_stats_(runtime_call_stats) {}
 
 LocalIsolate::~LocalIsolate() = default;
 

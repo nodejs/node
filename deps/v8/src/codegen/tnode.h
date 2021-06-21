@@ -110,6 +110,16 @@ struct BoolT : Word32T {};
 template <class T1, class T2>
 struct PairT {};
 
+struct Simd128T : UntaggedT {
+  static const MachineRepresentation kMachineRepresentation =
+      MachineRepresentation::kSimd128;
+  static constexpr MachineType kMachineType = MachineType::Simd128();
+};
+
+struct I8x16T : Simd128T {};
+struct I16x8T : Simd128T {};
+struct I32x2T : Simd128T {};
+
 inline constexpr MachineType CommonMachineType(MachineType type1,
                                                MachineType type2) {
   return (type1 == type2) ? type1
@@ -347,37 +357,18 @@ class TNode {
     return *this;
   }
 
-  bool is_null() const { return node_ == nullptr; }
-
   operator compiler::Node*() const { return node_; }
 
   static TNode UncheckedCast(compiler::Node* node) { return TNode(node); }
 
- protected:
-  explicit TNode(compiler::Node* node) : node_(node) { LazyTemplateChecks(); }
-
  private:
+  explicit TNode(compiler::Node* node) : node_(node) { LazyTemplateChecks(); }
   // These checks shouldn't be checked before TNode is actually used.
   void LazyTemplateChecks() {
     static_assert(is_valid_type_tag<T>::value, "invalid type tag");
   }
 
   compiler::Node* node_;
-};
-
-// SloppyTNode<T> is a variant of TNode<T> and allows implicit casts from
-// Node*. It is intended for function arguments as long as some call sites
-// still use untyped Node* arguments.
-// TODO(turbofan): Delete this class once transition is finished.
-template <class T>
-class SloppyTNode : public TNode<T> {
- public:
-  SloppyTNode(compiler::Node* node)  // NOLINT(runtime/explicit)
-      : TNode<T>(node) {}
-  template <class U, typename std::enable_if<is_subtype<U, T>::value,
-                                             int>::type = 0>
-  SloppyTNode(const TNode<U>& other)  // NOLINT(runtime/explicit)
-      : TNode<T>(other) {}
 };
 
 }  // namespace internal

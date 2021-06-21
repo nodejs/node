@@ -188,7 +188,6 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
                                 PropertyAccessInfo const& access_info);
   Node* InlineApiCall(Node* receiver, Node* holder, Node* frame_state,
                       Node* value, Node** effect, Node** control,
-                      SharedFunctionInfoRef const& shared_info,
                       FunctionTemplateInfoRef const& function_template_info);
 
   // Construct the appropriate subgraph for element access.

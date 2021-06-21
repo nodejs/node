@@ -1625,6 +1625,7 @@ CommonOperatorBuilder::CreateFrameStateFunctionInfo(
                                              shared_info);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 const FrameStateFunctionInfo*
 CommonOperatorBuilder::CreateJSToWasmFrameStateFunctionInfo(
     FrameStateType type, int parameter_count, int local_count,
@@ -1635,6 +1636,7 @@ CommonOperatorBuilder::CreateJSToWasmFrameStateFunctionInfo(
   return zone()->New<JSToWasmFrameStateFunctionInfo>(
       type, parameter_count, local_count, shared_info, signature);
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 const Operator* CommonOperatorBuilder::DeadValue(MachineRepresentation rep) {
   return zone()->New<Operator1<MachineRepresentation>>(  // --

@@ -95,11 +95,7 @@ TEST(Object, StructListOrder) {
       << " vs. current = " << current_type;            \
   prev = current;
 
-  // Only test the _BASE portion (the hand-coded part). Note that the values are
-  // not necessarily consecutive because some Structs that need special
-  // handling, such as those that have multiple Map instances associated, are
-  // omitted from this list.
-  STRUCT_LIST_GENERATOR_BASE(STRUCT_LIST_ADAPTER, TEST_STRUCT)
+  STRUCT_LIST_GENERATOR(STRUCT_LIST_ADAPTER, TEST_STRUCT)
 #undef TEST_STRUCT
 }
 

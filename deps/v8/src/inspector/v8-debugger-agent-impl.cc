@@ -66,6 +66,7 @@ static const intptr_t kBreakpointHintMaxSearchOffset = 80 * 10;
 // the maximum length of a message in mojo (see https://crbug.com/1105172).
 static const size_t kMaxNumBreakpoints = 1000;
 
+#if V8_ENABLE_WEBASSEMBLY
 // TODO(1099680): getScriptSource and getWasmBytecode return Wasm wire bytes
 // as protocol::Binary, which is encoded as JSON string in the communication
 // to the DevTools front-end and hence leads to either crashing the renderer
@@ -73,9 +74,11 @@ static const size_t kMaxNumBreakpoints = 1000;
 // allow arbitrarily big Wasm byte sequences here. Ideally we would find a
 // different way to transfer the wire bytes (middle- to long-term), but as a
 // short-term solution, we should at least not crash.
-static const size_t kWasmBytecodeMaxLength = (v8::String::kMaxLength / 4) * 3;
-static const char kWasmBytecodeExceedsTransferLimit[] =
+static constexpr size_t kWasmBytecodeMaxLength =
+    (v8::String::kMaxLength / 4) * 3;
+static constexpr const char kWasmBytecodeExceedsTransferLimit[] =
     "WebAssembly bytecode exceeds the transfer limit";
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace {
 
@@ -191,6 +194,14 @@ void adjustBreakpointLocation(const V8DebuggerScript& script,
                               int* columnNumber) {
   if (*lineNumber < script.startLine() || *lineNumber > script.endLine())
     return;
+  if (*lineNumber == script.startLine() &&
+      *columnNumber < script.startColumn()) {
+    return;
+  }
+  if (*lineNumber == script.endLine() && script.endColumn() < *columnNumber) {
+    return;
+  }
+
   if (hint.isEmpty()) return;
   intptr_t sourceOffset = script.offset(*lineNumber, *columnNumber);
   if (sourceOffset == V8DebuggerScript::kNoOffset) return;
@@ -499,6 +510,8 @@ Response V8DebuggerAgentImpl::setBreakpointByUrl(
     Maybe<int> optionalColumnNumber, Maybe<String16> optionalCondition,
     String16* outBreakpointId,
     std::unique_ptr<protocol::Array<protocol::Debugger::Location>>* locations) {
+  if (!enabled()) return Response::ServerError(kDebuggerNotEnabled);
+
   *locations = std::make_unique<Array<protocol::Debugger::Location>>();
 
   int specified = (optionalURL.isJust() ? 1 : 0) +
@@ -587,6 +600,8 @@ Response V8DebuggerAgentImpl::setBreakpoint(
   String16 breakpointId = generateBreakpointId(
       BreakpointType::kByScriptId, location->getScriptId(),
       location->getLineNumber(), location->getColumnNumber(0));
+  if (!enabled()) return Response::ServerError(kDebuggerNotEnabled);
+
   if (m_breakpointIdToDebuggerBreakpointIds.find(breakpointId) !=
       m_breakpointIdToDebuggerBreakpointIds.end()) {
     return Response::ServerError(
@@ -605,6 +620,8 @@ Response V8DebuggerAgentImpl::setBreakpoint(
 Response V8DebuggerAgentImpl::setBreakpointOnFunctionCall(
     const String16& functionObjectId, Maybe<String16> optionalCondition,
     String16* outBreakpointId) {
+  if (!enabled()) return Response::ServerError(kDebuggerNotEnabled);
+
   InjectedScript::ObjectScope scope(m_session, functionObjectId);
   Response response = scope.initialize();
   if (!response.IsSuccess()) return response;
@@ -706,9 +723,11 @@ void V8DebuggerAgentImpl::removeBreakpointImpl(
     return;
   }
   for (const auto& id : debuggerBreakpointIdsIterator->second) {
+#if V8_ENABLE_WEBASSEMBLY
     for (auto& script : scripts) {
       script->removeWasmBreakpoint(id);
     }
+#endif  // V8_ENABLE_WEBASSEMBLY
     v8::debug::RemoveBreakpoint(m_isolate, id);
     m_debuggerBreakpointIdToBreakpointId.erase(id);
   }
@@ -910,6 +929,13 @@ V8DebuggerAgentImpl::setBreakpointImpl(const String16& breakpointId,
   if (lineNumber < script->startLine() || script->endLine() < lineNumber) {
     return nullptr;
   }
+  if (lineNumber == script->startLine() &&
+      columnNumber < script->startColumn()) {
+    return nullptr;
+  }
+  if (lineNumber == script->endLine() && script->endColumn() < columnNumber) {
+    return nullptr;
+  }
 
   v8::debug::BreakpointId debuggerBreakpointId;
   v8::debug::Location location(lineNumber, columnNumber);
@@ -1043,6 +1069,7 @@ Response V8DebuggerAgentImpl::getScriptSource(
   if (it == m_scripts.end())
     return Response::ServerError("No script for id: " + scriptId.utf8());
   *scriptSource = it->second->source(0);
+#if V8_ENABLE_WEBASSEMBLY
   v8::MemorySpan<const uint8_t> span;
   if (it->second->wasmBytecode().To(&span)) {
     if (span.size() > kWasmBytecodeMaxLength) {
@@ -1050,11 +1077,13 @@ Response V8DebuggerAgentImpl::getScriptSource(
     }
     *bytecode = protocol::Binary::fromSpan(span.data(), span.size());
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
   return Response::Success();
 }
 
 Response V8DebuggerAgentImpl::getWasmBytecode(const String16& scriptId,
                                               protocol::Binary* bytecode) {
+#if V8_ENABLE_WEBASSEMBLY
   if (!enabled()) return Response::ServerError(kDebuggerNotEnabled);
   ScriptsMap::iterator it = m_scripts.find(scriptId);
   if (it == m_scripts.end())
@@ -1068,6 +1097,9 @@ Response V8DebuggerAgentImpl::getWasmBytecode(const String16& scriptId,
   }
   *bytecode = protocol::Binary::fromSpan(span.data(), span.size());
   return Response::Success();
+#else
+  return Response::ServerError("WebAssembly is disabled");
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 void V8DebuggerAgentImpl::pushBreakDetails(
@@ -1505,6 +1537,7 @@ static String16 getScriptLanguage(const V8DebuggerScript& script) {
   }
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 static const char* getDebugSymbolTypeName(
     v8::debug::WasmScript::DebugSymbolsType type) {
   switch (type) {
@@ -1537,6 +1570,7 @@ static std::unique_ptr<protocol::Debugger::DebugSymbols> getDebugSymbols(
   }
   return debugSymbols;
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void V8DebuggerAgentImpl::didParseSource(
     std::unique_ptr<V8DebuggerScript> script, bool success) {
@@ -1571,10 +1605,12 @@ void V8DebuggerAgentImpl::didParseSource(
   String16 embedderName = script->embedderName();
   String16 scriptLanguage = getScriptLanguage(*script);
   Maybe<int> codeOffset;
+  std::unique_ptr<protocol::Debugger::DebugSymbols> debugSymbols;
+#if V8_ENABLE_WEBASSEMBLY
   if (script->getLanguage() == V8DebuggerScript::Language::WebAssembly)
     codeOffset = script->codeOffset();
-  std::unique_ptr<protocol::Debugger::DebugSymbols> debugSymbols =
-      getDebugSymbols(*script);
+  debugSymbols = getDebugSymbols(*script);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   m_scripts[scriptId] = std::move(script);
   // Release the strong reference to get notified when debugger is the only

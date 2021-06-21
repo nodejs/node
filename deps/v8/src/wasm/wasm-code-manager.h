@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_WASM_CODE_MANAGER_H_
 #define V8_WASM_WASM_CODE_MANAGER_H_
 
@@ -16,7 +20,7 @@
 #include "src/base/bit-field.h"
 #include "src/base/macros.h"
 #include "src/base/optional.h"
-#include "src/builtins/builtins-definitions.h"
+#include "src/builtins/builtins.h"
 #include "src/handles/handles.h"
 #include "src/tasks/operations-barrier.h"
 #include "src/trap-handler/trap-handler.h"
@@ -63,10 +67,13 @@ struct WasmModule;
   V(WasmI32AtomicWait64)                 \
   V(WasmI64AtomicWait32)                 \
   V(WasmI64AtomicWait64)                 \
+  V(WasmGetOwnProperty)                  \
   V(WasmRefFunc)                         \
   V(WasmMemoryGrow)                      \
   V(WasmTableInit)                       \
   V(WasmTableCopy)                       \
+  V(WasmTableFill)                       \
+  V(WasmTableGrow)                       \
   V(WasmTableGet)                        \
   V(WasmTableSet)                        \
   V(WasmStackGuard)                      \
@@ -509,6 +516,13 @@ class V8_EXPORT_PRIVATE NativeModule final {
   WasmCode* PublishCode(std::unique_ptr<WasmCode>);
   std::vector<WasmCode*> PublishCode(Vector<std::unique_ptr<WasmCode>>);
 
+  // ReinstallDebugCode does a subset of PublishCode: It installs the code in
+  // the code table and patches the jump table. The given code must be debug
+  // code (with breakpoints) and must be owned by this {NativeModule} already.
+  // This method is used to re-instantiate code that was removed from the code
+  // table and jump table via another {PublishCode}.
+  void ReinstallDebugCode(WasmCode*);
+
   Vector<uint8_t> AllocateForDeserializedCode(size_t total_code_size);
 
   std::unique_ptr<WasmCode> AddDeserializedCode(
@@ -735,6 +749,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Transfer owned code from {new_owned_code_} to {owned_code_}.
   void TransferNewOwnedCodeLocked() const;
 
+  // Add code to the code cache, if it meets criteria for being cached and we do
+  // not have code in the cache yet.
+  void InsertToCodeCache(WasmCode* code);
+
   // -- Fields of {NativeModule} start here.
 
   WasmEngine* const engine_;
@@ -819,6 +837,12 @@ class V8_EXPORT_PRIVATE NativeModule final {
   std::unique_ptr<DebugInfo> debug_info_;
 
   TieringState tiering_state_ = kTieredUp;
+
+  // Cache both baseline and top-tier code if we are debugging, to speed up
+  // repeated enabling/disabling of the debugger or profiler.
+  // Maps <tier, function_index> to WasmCode.
+  std::unique_ptr<std::map<std::pair<ExecutionTier, int>, WasmCode*>>
+      cached_code_;
 
   // End of fields protected by {allocation_mutex_}.
   //////////////////////////////////////////////////////////////////////////////
@@ -972,6 +996,7 @@ class GlobalWasmCodeRef {
   const std::shared_ptr<NativeModule> native_module_;
 };
 
+Builtins::Name RuntimeStubIdToBuiltinName(WasmCode::RuntimeStubId);
 const char* GetRuntimeStubName(WasmCode::RuntimeStubId);
 
 }  // namespace wasm

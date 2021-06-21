@@ -12,7 +12,7 @@ builder.addFunction(undefined, kSig_i_i)
     kExprLocalGet, 0,
     // Stack now contains two copies of the first param register.
     // Start a loop to create a merge point (values still in registers).
-    kExprLoop, kWasmStmt,
+    kExprLoop, kWasmVoid,
       // The call spills all values.
       kExprCallFunction, 0,
       // Break to the loop. Now the spilled values need to be loaded back *into

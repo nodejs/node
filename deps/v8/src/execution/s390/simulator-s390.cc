@@ -3591,7 +3591,7 @@ EVALUATE(VCDLG) {
     break;                                                            \
   }
 EVALUATE(VCGD) {
-  DCHECK_OPCODE(VCDG);
+  DCHECK_OPCODE(VCGD);
   DECODE_VRR_A_INSTRUCTION(r1, r2, m5, m4, m3);
   USE(m4);
   switch (m3) {

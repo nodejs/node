@@ -50,7 +50,7 @@ class Dedupe extends ArboristWorkspaceCmd {
       log: this.npm.log,
       path: where,
       dryRun,
-      workspaces: this.workspaces,
+      workspaces: this.workspaceNames,
     }
     const arb = new Arborist(opts)
     await arb.dedupe(opts)

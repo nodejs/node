@@ -47,7 +47,7 @@ class Rebuild extends ArboristWorkspaceCmd {
       ...this.npm.flatOptions,
       path: where,
       // TODO when extending ReifyCmd
-      // workspaces: this.workspaces,
+      // workspaces: this.workspaceNames,
     })
 
     if (args.length) {

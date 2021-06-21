@@ -5,6 +5,7 @@
 #include "src/builtins/accessors.h"
 
 #include "src/api/api-inl.h"
+#include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/execution.h"
 #include "src/execution/frames-inl.h"
@@ -66,6 +67,11 @@ static V8_INLINE bool CheckForName(Isolate* isolate, Handle<Name> name,
 // If true, *object_offset contains offset of object field.
 bool Accessors::IsJSObjectFieldAccessor(Isolate* isolate, Handle<Map> map,
                                         Handle<Name> name, FieldIndex* index) {
+  if (map->is_dictionary_map()) {
+    // There are not descriptors in a dictionary mode map.
+    return false;
+  }
+
   switch (map->instance_type()) {
     case JS_ARRAY_TYPE:
       return CheckForName(isolate, name, isolate->factory()->length_string(),
@@ -695,7 +701,8 @@ void Accessors::FunctionCallerGetter(
   MaybeHandle<JSFunction> maybe_caller;
   maybe_caller = FindCaller(isolate, function);
   Handle<JSFunction> caller;
-  if (maybe_caller.ToHandle(&caller)) {
+  // We don't support caller access with correctness fuzzing.
+  if (!FLAG_correctness_fuzzer_suppressions && maybe_caller.ToHandle(&caller)) {
     result = caller;
   } else {
     result = isolate->factory()->null_value();

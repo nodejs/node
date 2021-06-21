@@ -144,7 +144,7 @@ class Install extends ArboristWorkspaceCmd {
       auditLevel: null,
       path: where,
       add: args,
-      workspaces: this.workspaces,
+      workspaces: this.workspaceNames,
     }
     const arb = new Arborist(opts)
     await arb.reify(opts)

@@ -41,6 +41,12 @@ namespace internal {
   V(ft4)  V(ft5) V(ft6) V(ft7) V(fa0) V(fa1) V(fa2) V(fa3) V(fa4) V(fa5)  \
   V(fa6) V(fa7)
 
+// Returns the number of padding slots needed for stack pointer alignment.
+constexpr int ArgumentPaddingSlots(int argument_count) {
+  // No argument padding required.
+  return 0;
+}
+
 // clang-format on
 
 // Note that the bit values must match those used in actual instruction

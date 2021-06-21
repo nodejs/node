@@ -116,7 +116,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64ExtAddPairwise:
     case kMips64F32x4Abs:
     case kMips64F32x4Add:
-    case kMips64F32x4AddHoriz:
     case kMips64F32x4Eq:
     case kMips64F32x4ExtractLane:
     case kMips64F32x4Lt:
@@ -165,7 +164,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64FloorWD:
     case kMips64FloorWS:
     case kMips64I16x8Add:
-    case kMips64I16x8AddHoriz:
     case kMips64I16x8AddSatS:
     case kMips64I16x8AddSatU:
     case kMips64I16x8Eq:
@@ -203,7 +201,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64I16x8BitMask:
     case kMips64I16x8Q15MulRSatS:
     case kMips64I32x4Add:
-    case kMips64I32x4AddHoriz:
     case kMips64I32x4Eq:
     case kMips64I32x4ExtractLane:
     case kMips64I32x4GeS:
@@ -248,7 +245,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64I8x16MaxU:
     case kMips64I8x16MinS:
     case kMips64I8x16MinU:
-    case kMips64I8x16Mul:
     case kMips64I8x16Ne:
     case kMips64I8x16Neg:
     case kMips64I8x16ReplaceLane:
@@ -304,10 +300,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64S16x8PackOdd:
     case kMips64S16x2Reverse:
     case kMips64S16x4Reverse:
-    case kMips64V64x2AllTrue:
-    case kMips64V32x4AllTrue:
-    case kMips64V16x8AllTrue:
-    case kMips64V8x16AllTrue:
+    case kMips64I64x2AllTrue:
+    case kMips64I32x4AllTrue:
+    case kMips64I16x8AllTrue:
+    case kMips64I8x16AllTrue:
     case kMips64V128AnyTrue:
     case kMips64S32x4InterleaveEven:
     case kMips64S32x4InterleaveOdd:
@@ -1294,10 +1290,14 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
   // in empirical way.
   switch (instr->arch_opcode()) {
     case kArchCallCodeObject:
+#if V8_ENABLE_WEBASSEMBLY
     case kArchCallWasmFunction:
+#endif  // V8_ENABLE_WEBASSEMBLY
       return CallLatency();
     case kArchTailCallCodeObject:
+#if V8_ENABLE_WEBASSEMBLY
     case kArchTailCallWasm:
+#endif  // V8_ENABLE_WEBASSEMBLY
     case kArchTailCallAddress:
       return JumpLatency();
     case kArchCallJSFunction: {

@@ -7,6 +7,8 @@
 #include "include/cppgc/internal/api-constants.h"
 #include "src/base/macros.h"
 #include "src/heap/cppgc/gc-info-table.h"
+#include "src/heap/cppgc/heap-page.h"
+#include "src/heap/cppgc/sanitizers.h"
 
 namespace cppgc {
 namespace internal {
@@ -21,6 +23,13 @@ void HeapObjectHeader::CheckApiConstants() {
 }
 
 void HeapObjectHeader::Finalize() {
+#ifdef V8_USE_ADDRESS_SANITIZER
+  const size_t size =
+      IsLargeObject()
+          ? LargePage::From(BasePage::FromPayload(this))->ObjectSize()
+          : ObjectSize();
+  ASAN_UNPOISON_MEMORY_REGION(Payload(), size);
+#endif  // V8_USE_ADDRESS_SANITIZER
   const GCInfo& gc_info = GlobalGCInfoTable::GCInfoFromIndex(GetGCInfoIndex());
   if (gc_info.finalize) {
     gc_info.finalize(Payload());
@@ -30,11 +39,6 @@ void HeapObjectHeader::Finalize() {
 HeapObjectName HeapObjectHeader::GetName() const {
   const GCInfo& gc_info = GlobalGCInfoTable::GCInfoFromIndex(GetGCInfoIndex());
   return gc_info.name(Payload());
-}
-
-void HeapObjectHeader::Trace(Visitor* visitor) const {
-  const GCInfo& gc_info = GlobalGCInfoTable::GCInfoFromIndex(GetGCInfoIndex());
-  return gc_info.trace(visitor, Payload());
 }
 
 }  // namespace internal

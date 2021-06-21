@@ -34,6 +34,9 @@ class CompilationCacheShape : public BaseShape<HashTableKey*> {
                                           LanguageMode language_mode,
                                           int position);
 
+  static inline uint32_t StringSharedHash(String source,
+                                          LanguageMode language_mode);
+
   static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
 
   static const int kPrefixSize = 0;
@@ -86,11 +89,11 @@ class CompilationCacheTable
   // The 'script' cache contains SharedFunctionInfos.
   static MaybeHandle<SharedFunctionInfo> LookupScript(
       Handle<CompilationCacheTable> table, Handle<String> src,
-      Handle<Context> native_context, LanguageMode language_mode);
+      LanguageMode language_mode, Isolate* isolate);
   static Handle<CompilationCacheTable> PutScript(
       Handle<CompilationCacheTable> cache, Handle<String> src,
-      Handle<Context> native_context, LanguageMode language_mode,
-      Handle<SharedFunctionInfo> value);
+      LanguageMode language_mode, Handle<SharedFunctionInfo> value,
+      Isolate* isolate);
 
   // Eval code only gets cached after a second probe for the
   // code object. To do so, on first "put" only a hash identifying the

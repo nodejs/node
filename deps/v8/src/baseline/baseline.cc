@@ -4,9 +4,12 @@
 
 #include "src/baseline/baseline.h"
 
+#include "src/handles/maybe-handles.h"
+
 // TODO(v8:11421): Remove #if once baseline compiler is ported to other
 // architectures.
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || \
+    V8_TARGET_ARCH_ARM
 
 #include "src/baseline/baseline-assembler-inl.h"
 #include "src/baseline/baseline-compiler.h"
@@ -18,17 +21,17 @@
 namespace v8 {
 namespace internal {
 
-Handle<Code> GenerateBaselineCode(Isolate* isolate,
-                                  Handle<SharedFunctionInfo> shared) {
+MaybeHandle<Code> GenerateBaselineCode(Isolate* isolate,
+                                       Handle<SharedFunctionInfo> shared) {
   RuntimeCallTimerScope runtimeTimer(isolate,
                                      RuntimeCallCounterId::kCompileBaseline);
   baseline::BaselineCompiler compiler(
       isolate, shared, handle(shared->GetBytecodeArray(isolate), isolate));
 
   compiler.GenerateCode();
-  Handle<Code> code = compiler.Build(isolate);
-  if (FLAG_print_code) {
-    code->Print();
+  MaybeHandle<Code> code = compiler.Build(isolate);
+  if (FLAG_print_code && !code.is_null()) {
+    code.ToHandleChecked()->Print();
   }
   return code;
 }
@@ -45,8 +48,8 @@ void EmitReturnBaseline(MacroAssembler* masm) {
 namespace v8 {
 namespace internal {
 
-Handle<Code> GenerateBaselineCode(Isolate* isolate,
-                                  Handle<SharedFunctionInfo> shared) {
+MaybeHandle<Code> GenerateBaselineCode(Isolate* isolate,
+                                       Handle<SharedFunctionInfo> shared) {
   UNREACHABLE();
 }
 

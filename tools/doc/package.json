@@ -4,21 +4,21 @@
   "description": "Internal tool for generating Node.js API docs",
   "version": "0.0.0",
   "engines": {
-    "node": ">=12.10.0"
+    "node": ">=14.8.0"
   },
   "devDependencies": {
-    "highlight.js": "10.5.0",
-    "js-yaml": "4.0.0",
-    "rehype-raw": "5.0.0",
+    "highlight.js": "10.7.3",
+    "js-yaml": "4.1.0",
+    "rehype-raw": "5.1.0",
     "rehype-stringify": "8.0.0",
     "remark-gfm": "^1.0.0",
     "remark-html": "13.0.1",
     "remark-parse": "^9.0.0",
-    "remark-rehype": "8.0.0",
-    "to-vfile": "6.1.0",
-    "unified": "9.2.0",
-    "unist-util-select": "3.0.4",
-    "unist-util-visit": "2.0.3"
+    "remark-rehype": "8.1.0",
+    "to-vfile": "7.1.0",
+    "unified": "9.2.1",
+    "unist-util-select": "4.0.0",
+    "unist-util-visit": "3.1.0"
   },
   "bin": {
     "node-doc-generator": "generate.js"

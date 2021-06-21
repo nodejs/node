@@ -58,7 +58,7 @@ class Audit extends ArboristWorkspaceCmd {
       audit: true,
       path: this.npm.prefix,
       reporter,
-      workspaces: this.workspaces,
+      workspaces: this.workspaceNames,
     }
 
     const arb = new Arborist(opts)

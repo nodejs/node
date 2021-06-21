@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_STRUCT_TYPES_H_
 #define V8_WASM_STRUCT_TYPES_H_
 
@@ -70,6 +74,7 @@ class StructType : public ZoneObject {
     uint32_t offset = field(0).element_size_bytes();
     for (uint32_t i = 1; i < field_count(); i++) {
       uint32_t field_size = field(i).element_size_bytes();
+      // TODO(jkummerow): Don't round up to more than kTaggedSize-alignment.
       offset = RoundUp(offset, field_size);
       field_offsets_[i - 1] = offset;
       offset += field_size;

@@ -5,6 +5,9 @@ include_rules = [
   "+src/asmjs/asm-js.h",
   "-src/baseline",
   "+src/baseline/baseline.h",
+  "+src/baseline/bytecode-offset-iterator.h",
+  "-src/bigint",
+  "+src/bigint/bigint.h",
   "-src/compiler",
   "+src/compiler/pipeline.h",
   "+src/compiler/code-assembler.h",
@@ -36,7 +39,6 @@ include_rules = [
   "+src/heap/conservative-stack-visitor.h",
   "-src/inspector",
   "-src/interpreter",
-  "+src/interpreter/bytecode-array-accessor.h",
   "+src/interpreter/bytecode-array-iterator.h",
   "+src/interpreter/bytecode-array-random-iterator.h",
   "+src/interpreter/bytecode-decoder.h",
@@ -70,5 +72,8 @@ specific_include_rules = {
   ],
   "builtins-trace\.cc": [
     "+protos/perfetto",
+  ],
+  "system-jit-win\.cc": [
+    "+src/libplatform/tracing/recorder.h",
   ],
 }

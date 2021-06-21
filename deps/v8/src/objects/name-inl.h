@@ -56,7 +56,7 @@ void Symbol::set_is_private_name() {
 }
 
 DEF_GETTER(Name, IsUniqueName, bool) {
-  uint32_t type = map(isolate).instance_type();
+  uint32_t type = map(cage_base).instance_type();
   bool result = (type & (kIsNotStringMask | kIsNotInternalizedMask)) !=
                 (kStringTag | kNotInternalizedTag);
   SLOW_DCHECK(result == HeapObject::IsUniqueName());
@@ -104,23 +104,23 @@ uint32_t Name::hash() const {
 }
 
 DEF_GETTER(Name, IsInterestingSymbol, bool) {
-  return IsSymbol(isolate) && Symbol::cast(*this).is_interesting_symbol();
+  return IsSymbol(cage_base) && Symbol::cast(*this).is_interesting_symbol();
 }
 
 DEF_GETTER(Name, IsPrivate, bool) {
-  return this->IsSymbol(isolate) && Symbol::cast(*this).is_private();
+  return this->IsSymbol(cage_base) && Symbol::cast(*this).is_private();
 }
 
 DEF_GETTER(Name, IsPrivateName, bool) {
   bool is_private_name =
-      this->IsSymbol(isolate) && Symbol::cast(*this).is_private_name();
+      this->IsSymbol(cage_base) && Symbol::cast(*this).is_private_name();
   DCHECK_IMPLIES(is_private_name, IsPrivate());
   return is_private_name;
 }
 
 DEF_GETTER(Name, IsPrivateBrand, bool) {
   bool is_private_brand =
-      this->IsSymbol(isolate) && Symbol::cast(*this).is_private_brand();
+      this->IsSymbol(cage_base) && Symbol::cast(*this).is_private_brand();
   DCHECK_IMPLIES(is_private_brand, IsPrivateName());
   return is_private_brand;
 }

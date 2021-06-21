@@ -9,8 +9,8 @@ const sig = builder.addType(makeSig([kWasmI32, kWasmI32, kWasmI32], [kWasmI32]))
 builder.addFunction(undefined, sig)
   .addBody([
     kExprLocalGet, 2,
-    kExprIf, kWasmStmt,
-      kExprBlock, kWasmStmt
+    kExprIf, kWasmVoid,
+      kExprBlock, kWasmVoid
   ]);
 builder.addExport('main', 0);
 assertThrows(() => builder.instantiate(), WebAssembly.CompileError);

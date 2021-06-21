@@ -989,6 +989,7 @@ Type Typer::Visitor::TypeCall(Node* node) { return Type::Any(); }
 
 Type Typer::Visitor::TypeFastApiCall(Node* node) { return Type::Any(); }
 
+#if V8_ENABLE_WEBASSEMBLY
 Type Typer::Visitor::TypeJSWasmCall(Node* node) {
   const JSWasmCallParameters& op_params = JSWasmCallParametersOf(node->op());
   const wasm::FunctionSig* wasm_signature = op_params.signature();
@@ -997,6 +998,7 @@ Type Typer::Visitor::TypeJSWasmCall(Node* node) {
   }
   return Type::Any();
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 Type Typer::Visitor::TypeProjection(Node* node) {
   Type const type = Operand(node, 0);

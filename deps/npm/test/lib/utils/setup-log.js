@@ -92,7 +92,7 @@ t.test('setup with color=always and unicode', t => {
   })), true)
 
   npmlog.warn('ERESOLVE', 'hello', { some: { other: 'object' } })
-  t.strictSame(EXPLAIN_CALLED, [[{ some: { other: 'object' } }]],
+  t.strictSame(EXPLAIN_CALLED, [[{ some: { other: 'object' } }, true, 2]],
     'log.warn(ERESOLVE) patched to call explainEresolve()')
   t.strictSame(WARN_CALLED, [
     ['ERESOLVE', 'hello'],

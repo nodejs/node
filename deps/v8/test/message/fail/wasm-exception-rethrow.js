@@ -10,7 +10,7 @@ let builder = new WasmModuleBuilder();
 let except = builder.addException(kSig_v_i);
 builder.addFunction("rethrow0", kSig_v_v)
     .addBody([
-      kExprTry, kWasmStmt,
+      kExprTry, kWasmVoid,
         kExprI32Const, 23,
         kExprThrow, except,
       kExprCatch, except,

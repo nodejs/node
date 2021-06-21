@@ -86,14 +86,8 @@ const Register ApiGetterDescriptor::CallbackRegister() { return r3; }
 const Register GrowArrayElementsDescriptor::ObjectRegister() { return r0; }
 const Register GrowArrayElementsDescriptor::KeyRegister() { return r3; }
 
-const Register BaselineLeaveFrameDescriptor::ParamsSizeRegister() {
-  // TODO(v8:11421): Implement on this platform.
-  UNREACHABLE();
-}
-const Register BaselineLeaveFrameDescriptor::WeightRegister() {
-  // TODO(v8:11421): Implement on this platform.
-  UNREACHABLE();
-}
+const Register BaselineLeaveFrameDescriptor::ParamsSizeRegister() { return r3; }
+const Register BaselineLeaveFrameDescriptor::WeightRegister() { return r4; }
 
 // static
 const Register TypeConversionDescriptor::ArgumentRegister() { return r0; }
@@ -220,8 +214,11 @@ void CompareDescriptor::InitializePlatformSpecific(
 
 void Compare_BaselineDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  // TODO(v8:11421): Implement on this platform.
-  InitializePlatformUnimplemented(data, kParameterCount);
+  // r1: left operand
+  // r0: right operand
+  // r2: feedback slot
+  Register registers[] = {r1, r0, r2};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
 void BinaryOpDescriptor::InitializePlatformSpecific(
@@ -232,8 +229,11 @@ void BinaryOpDescriptor::InitializePlatformSpecific(
 
 void BinaryOp_BaselineDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  // TODO(v8:11421): Implement on this platform.
-  InitializePlatformUnimplemented(data, kParameterCount);
+  // r1: left operand
+  // r0: right operand
+  // r2: feedback slot
+  Register registers[] = {r1, r0, r2};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
 void ApiCallbackDescriptor::InitializePlatformSpecific(

@@ -66,14 +66,15 @@ OwnedVector<WasmValue> MakeDefaultInterpreterArguments(Isolate* isolate,
         break;
       case kOptRef:
         arguments[i] =
-            WasmValue(Handle<Object>::cast(isolate->factory()->null_value()));
+            WasmValue(Handle<Object>::cast(isolate->factory()->null_value()),
+                      sig->GetParam(i));
         break;
       case kRef:
       case kRtt:
       case kRttWithDepth:
       case kI8:
       case kI16:
-      case kStmt:
+      case kVoid:
       case kBottom:
         UNREACHABLE();
     }
@@ -108,7 +109,7 @@ OwnedVector<Handle<Object>> MakeDefaultArguments(Isolate* isolate,
       case kRttWithDepth:
       case kI8:
       case kI16:
-      case kStmt:
+      case kVoid:
       case kBottom:
         UNREACHABLE();
     }

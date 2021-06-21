@@ -12,7 +12,7 @@
 #include "src/codegen/arm/assembler-arm.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/common/globals.h"
-#include "src/objects/contexts.h"
+#include "src/objects/tagged-index.h"
 
 namespace v8 {
 namespace internal {
@@ -64,7 +64,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void AllocateStackSpace(int bytes);
 #else
   void AllocateStackSpace(Register bytes) { sub(sp, sp, bytes); }
-  void AllocateStackSpace(int bytes) { sub(sp, sp, Operand(bytes)); }
+  void AllocateStackSpace(int bytes) {
+    DCHECK_GE(bytes, 0);
+    if (bytes == 0) return;
+    sub(sp, sp, Operand(bytes));
+  }
 #endif
 
   // Push a fixed frame, consisting of lr, fp
@@ -309,6 +313,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
             bool check_constant_pool = true);
   void Call(Label* target);
 
+  MemOperand EntryFromBuiltinIndexAsOperand(Builtins::Name builtin_index);
+  void LoadEntryFromBuiltinIndex(Builtins::Name builtin_index,
+                                 Register destination);
   // Load the builtin given by the Smi in |builtin_index| into the same
   // register.
   void LoadEntryFromBuiltinIndex(Register builtin_index);
@@ -474,6 +481,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Move(Register dst, Handle<HeapObject> value);
   void Move(Register dst, ExternalReference reference);
   void Move(Register dst, Register src, Condition cond = al);
+  void Move(Register dst, const MemOperand& src) { ldr(dst, src); }
   void Move(Register dst, const Operand& src, SBit sbit = LeaveCC,
             Condition cond = al) {
     if (!src.IsRegister() || src.rm() != dst || sbit != LeaveCC) {
@@ -571,9 +579,14 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // and be used in both TurboFan and Liftoff.
   void I64x2BitMask(Register dst, QwNeonRegister src);
   void I64x2Eq(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
+  void I64x2Ne(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void I64x2GtS(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void I64x2GeS(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
-  void V64x2AllTrue(Register dst, QwNeonRegister src);
+  void I64x2AllTrue(Register dst, QwNeonRegister src);
+  void I64x2Abs(QwNeonRegister dst, QwNeonRegister src);
+  void F64x2ConvertLowI32x4S(QwNeonRegister dst, QwNeonRegister src);
+  void F64x2ConvertLowI32x4U(QwNeonRegister dst, QwNeonRegister src);
+  void F64x2PromoteLowF32x4(QwNeonRegister dst, QwNeonRegister src);
 
  private:
   // Compare single values and then load the fpscr flags to a register.
@@ -668,7 +681,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // Load the global proxy from the current context.
   void LoadGlobalProxy(Register dst);
 
-  void LoadNativeContextSlot(int index, Register dst);
+  void LoadNativeContextSlot(Register dst, int index);
 
   // ---------------------------------------------------------------------------
   // JavaScript invokes

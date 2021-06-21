@@ -13,6 +13,7 @@
 #include "src/objects/fixed-array.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/objects.h"
+#include "src/objects/shared-function-info.h"
 #include "src/objects/struct.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -149,6 +150,28 @@ class Code : public HeapObject {
   inline Address InstructionEnd() const;
   V8_EXPORT_PRIVATE Address OffHeapInstructionEnd() const;
 
+  // When builtins un-embedding is enabled for the Isolate
+  // (see Isolate::is_short_builtin_calls_enabled()) then both embedded and
+  // un-embedded builtins might be exeuted and thus two kinds of |pc|s might
+  // appear on the stack.
+  // Unlike the paremeterless versions of the functions above the below variants
+  // ensure that the instruction start correspond to the given |pc| value.
+  // Thus for off-heap trampoline Code objects the result might be the
+  // instruction start/end of the embedded code stream or of un-embedded one.
+  // For normal Code objects these functions just return the
+  // raw_instruction_start/end() values.
+  // TODO(11527): remove these versions once the full solution is ready.
+  inline Address InstructionStart(Isolate* isolate, Address pc) const;
+  V8_EXPORT_PRIVATE Address OffHeapInstructionStart(Isolate* isolate,
+                                                    Address pc) const;
+  inline Address InstructionEnd(Isolate* isolate, Address pc) const;
+  V8_EXPORT_PRIVATE Address OffHeapInstructionEnd(Isolate* isolate,
+                                                  Address pc) const;
+
+  // Computes offset of the |pc| from the instruction start. The |pc| must
+  // belong to this code.
+  inline int GetOffsetFromInstructionStart(Isolate* isolate, Address pc) const;
+
   inline int raw_instruction_size() const;
   inline void set_raw_instruction_size(int value);
   inline int InstructionSize() const;
@@ -220,12 +243,16 @@ class Code : public HeapObject {
   // [deoptimization_data]: Array containing data for deopt.
   DECL_ACCESSORS(deoptimization_data, FixedArray)
 
-  // [source_position_table]: ByteArray for the source positions table.
-  DECL_ACCESSORS(source_position_table, Object)
+  // [source_position_table]: ByteArray for the source positions table for
+  // non-baseline code.
+  DECL_ACCESSORS(source_position_table, ByteArray)
+  // [bytecode_offset_table]: ByteArray for the bytecode offset for baseline
+  // code.
+  DECL_ACCESSORS(bytecode_offset_table, ByteArray)
 
   // If source positions have not been collected or an exception has been thrown
   // this will return empty_byte_array.
-  inline ByteArray SourcePositionTable() const;
+  inline ByteArray SourcePositionTable(SharedFunctionInfo sfi) const;
 
   // [code_data_container]: A container indirection for all mutable fields.
   DECL_RELEASE_ACQUIRE_ACCESSORS(code_data_container, CodeDataContainer)
@@ -250,7 +277,7 @@ class Code : public HeapObject {
   inline bool is_interpreter_trampoline_builtin() const;
 
   // Testers for baseline builtins.
-  inline bool is_baseline_prologue_builtin() const;
+  inline bool is_baseline_trampoline_builtin() const;
   inline bool is_baseline_leave_frame_builtin() const;
 
   // Tells whether the code checks the optimization marker in the function's
@@ -326,7 +353,7 @@ class Code : public HeapObject {
   inline bool is_off_heap_trampoline() const;
 
   // Get the safepoint entry for the given pc.
-  SafepointEntry GetSafepointEntry(Address pc);
+  SafepointEntry GetSafepointEntry(Isolate* isolate, Address pc);
 
   // The entire code object including its header is copied verbatim to the
   // snapshot so that it can be written in one, fast, memcpy during
@@ -365,7 +392,7 @@ class Code : public HeapObject {
   inline Address entry() const;
 
   // Returns true if pc is inside this object's instructions.
-  inline bool contains(Address pc);
+  inline bool contains(Isolate* isolate, Address pc);
 
   // Relocate the code by delta bytes. Called to signal that this code
   // object has been moved by delta bytes.
@@ -379,9 +406,22 @@ class Code : public HeapObject {
   static inline void CopyRelocInfoToByteArray(ByteArray dest,
                                               const CodeDesc& desc);
 
-  inline uintptr_t GetBaselinePCForBytecodeOffset(int bytecode_offset,
-                                                  bool precise = true);
-  inline int GetBytecodeOffsetForBaselinePC(Address baseline_pc);
+  inline uintptr_t GetBaselineStartPCForBytecodeOffset(int bytecode_offset,
+                                                       BytecodeArray bytecodes);
+
+  inline uintptr_t GetBaselineEndPCForBytecodeOffset(int bytecode_offset,
+                                                     BytecodeArray bytecodes);
+
+  // Returns the PC of the next bytecode in execution order.
+  // If the bytecode at the given offset is JumpLoop, the PC of the jump target
+  // is returned. Other jumps are not allowed.
+  // For other bytecodes this is equivalent to
+  // GetBaselineEndPCForBytecodeOffset.
+  inline uintptr_t GetBaselinePCForNextExecutedBytecode(
+      int bytecode_offset, BytecodeArray bytecodes);
+
+  inline int GetBytecodeOffsetForBaselinePC(Address baseline_pc,
+                                            BytecodeArray bytecodes);
 
   // Flushes the instruction cache for the executable instructions of this code
   // object. Make sure to call this while the code is still writable.
@@ -400,7 +440,7 @@ class Code : public HeapObject {
   DECL_PRINTER(Code)
   DECL_VERIFIER(Code)
 
-  bool CanDeoptAt(Address pc);
+  bool CanDeoptAt(Isolate* isolate, Address pc);
 
   void SetMarkedForDeoptimization(const char* reason);
 
@@ -428,7 +468,7 @@ class Code : public HeapObject {
 #define CODE_FIELDS(V)                                                        \
   V(kRelocationInfoOffset, kTaggedSize)                                       \
   V(kDeoptimizationDataOffset, kTaggedSize)                                   \
-  V(kSourcePositionTableOffset, kTaggedSize)                                  \
+  V(kPositionTableOffset, kTaggedSize)                                        \
   V(kCodeDataContainerOffset, kTaggedSize)                                    \
   /* Data or code not directly visited by GC directly starts here. */         \
   /* The serializer needs to copy bytes starting from here verbatim. */       \
@@ -526,6 +566,17 @@ class Code : public HeapObject {
   bool is_promise_rejection() const;
   bool is_exception_caught() const;
 
+  enum BytecodeToPCPosition {
+    kPcAtStartOfBytecode,
+    // End of bytecode equals the start of the next bytecode.
+    // We need it when we deoptimize to the next bytecode (lazy deopt or deopt
+    // of non-topmost frame).
+    kPcAtEndOfBytecode
+  };
+  inline uintptr_t GetBaselinePCForBytecodeOffset(int bytecode_offset,
+                                                  BytecodeToPCPosition position,
+                                                  BytecodeArray bytecodes);
+
   OBJECT_CONSTRUCTORS(Code, HeapObject);
 };
 
@@ -577,8 +628,8 @@ class AbstractCode : public HeapObject {
   // at instruction_start.
   inline int InstructionSize();
 
-  // Return the source position table.
-  inline ByteArray source_position_table();
+  // Return the source position table for interpreter code.
+  inline ByteArray SourcePositionTable(SharedFunctionInfo sfi);
 
   void DropStackFrameCache();
 
@@ -600,6 +651,9 @@ class AbstractCode : public HeapObject {
   static const int kMaxLoopNestingMarker = 6;
 
   OBJECT_CONSTRUCTORS(AbstractCode, HeapObject);
+
+ private:
+  inline ByteArray SourcePositionTableInternal();
 };
 
 // Dependent code is a singly linked list of weak fixed arrays. Each array
@@ -630,9 +684,14 @@ class DependentCode : public WeakFixedArray {
     // deoptimized when the transition is replaced by a new version.
     kTransitionGroup,
     // Group of code that omit run-time prototype checks for prototypes
-    // described by this map. The group is deoptimized whenever an object
-    // described by this map changes shape (and transitions to a new map),
-    // possibly invalidating the assumptions embedded in the code.
+    // described by this map. The group is deoptimized whenever the following
+    // conditions hold, possibly invalidating the assumptions embedded in the
+    // code:
+    // a) A fast-mode object described by this map changes shape (and
+    // transitions to a new map), or
+    // b) A dictionary-mode prototype described by this map changes shape, the
+    // const-ness of one of its properties changes, or its [[Prototype]]
+    // changes (only the latter causes a transition).
     kPrototypeCheckGroup,
     // Group of code that depends on global property values in property cells
     // not being changed.

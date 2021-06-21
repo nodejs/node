@@ -39,18 +39,32 @@ class RegExpMacroAssembler {
 
   static constexpr int kUseCharactersValue = -1;
 
+#define IMPLEMENTATIONS_LIST(V) \
+  V(IA32)                       \
+  V(ARM)                        \
+  V(ARM64)                      \
+  V(MIPS)                       \
+  V(RISCV)                      \
+  V(S390)                       \
+  V(PPC)                        \
+  V(X64)                        \
+  V(Bytecode)
+
   enum IrregexpImplementation {
-    kIA32Implementation,
-    kARMImplementation,
-    kARM64Implementation,
-    kMIPSImplementation,
-    kRISCVImplementation,
-    kS390Implementation,
-    kPPCImplementation,
-    kX64Implementation,
-    kX87Implementation,
-    kBytecodeImplementation
+#define V(Name) k##Name##Implementation,
+    IMPLEMENTATIONS_LIST(V)
+#undef V
   };
+
+  inline const char* ImplementationToString(IrregexpImplementation impl) {
+    static const char* const kNames[] = {
+#define V(Name) #Name,
+        IMPLEMENTATIONS_LIST(V)
+#undef V
+    };
+    return kNames[impl];
+  }
+#undef IMPLEMENTATIONS_LIST
 
   enum StackCheckFlag {
     kNoStackLimitCheck = false,

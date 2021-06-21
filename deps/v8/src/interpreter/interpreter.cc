@@ -186,7 +186,10 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
 
   // Print AST if flag is enabled. Note, if compiling on a background thread
   // then ASTs from different functions may be intersperse when printed.
-  MaybePrintAst(parse_info(), compilation_info());
+  {
+    DisallowGarbageCollection no_heap_access;
+    MaybePrintAst(parse_info(), compilation_info());
+  }
 
   base::Optional<ParkedScope> parked_scope;
   if (local_isolate_) parked_scope.emplace(local_isolate_);

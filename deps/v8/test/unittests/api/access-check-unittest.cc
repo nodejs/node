@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "include/v8.h"
+#include "src/debug/debug.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

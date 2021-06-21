@@ -862,9 +862,11 @@ THREADED_TEST(InterceptorHasOwnPropertyCausingGC) {
   CHECK(!value->BooleanValue(isolate));
 }
 
-static void CheckInterceptorIC(v8::GenericNamedPropertyGetterCallback getter,
-                               v8::GenericNamedPropertyQueryCallback query,
-                               const char* source, int expected) {
+namespace {
+
+void CheckInterceptorIC(v8::GenericNamedPropertyGetterCallback getter,
+                        v8::GenericNamedPropertyQueryCallback query,
+                        const char* source, int expected) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
@@ -879,14 +881,13 @@ static void CheckInterceptorIC(v8::GenericNamedPropertyGetterCallback getter,
   CHECK_EQ(expected, value->Int32Value(context.local()).FromJust());
 }
 
-static void CheckInterceptorLoadIC(
-    v8::GenericNamedPropertyGetterCallback getter, const char* source,
-    int expected) {
+void CheckInterceptorLoadIC(v8::GenericNamedPropertyGetterCallback getter,
+                            const char* source, int expected) {
   CheckInterceptorIC(getter, nullptr, source, expected);
 }
 
-static void InterceptorLoadICGetter(
-    Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+void InterceptorLoadICGetter(Local<Name> name,
+                             const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
   v8::Isolate* isolate = CcTest::isolate();
   CHECK_EQ(isolate, info.GetIsolate());
@@ -896,6 +897,7 @@ static void InterceptorLoadICGetter(
   info.GetReturnValue().Set(v8::Integer::New(isolate, 42));
 }
 
+}  // namespace
 
 // This test should hit the load IC for the interceptor case.
 THREADED_TEST(InterceptorLoadIC) {
@@ -912,8 +914,10 @@ THREADED_TEST(InterceptorLoadIC) {
 // configurations of interceptor and explicit fields works fine
 // (those cases are special cased to get better performance).
 
-static void InterceptorLoadXICGetter(
-    Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+namespace {
+
+void InterceptorLoadXICGetter(Local<Name> name,
+                              const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
   info.GetReturnValue().Set(
       v8_str("x")
@@ -923,6 +927,19 @@ static void InterceptorLoadXICGetter(
           : v8::Local<v8::Value>());
 }
 
+void InterceptorLoadXICGetterWithSideEffects(
+    Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  ApiTestFuzzer::Fuzz();
+  CompileRun("interceptor_getter_side_effect()");
+  info.GetReturnValue().Set(
+      v8_str("x")
+              ->Equals(info.GetIsolate()->GetCurrentContext(), name)
+              .FromJust()
+          ? v8::Local<v8::Value>(v8::Integer::New(info.GetIsolate(), 42))
+          : v8::Local<v8::Value>());
+}
+
+}  // namespace
 
 THREADED_TEST(InterceptorLoadICWithFieldOnHolder) {
   CheckInterceptorLoadIC(InterceptorLoadXICGetter,
@@ -1447,6 +1464,18 @@ void HasICQueryToggle(TKey name,
       isolate, toggle ? v8::internal::ABSENT : v8::internal::NONE));
 }
 
+template <typename TKey, v8::internal::PropertyAttributes attribute>
+void HasICQuerySideEffect(TKey name,
+                          const v8::PropertyCallbackInfo<v8::Integer>& info) {
+  ApiTestFuzzer::Fuzz();
+  v8::Isolate* isolate = CcTest::isolate();
+  CHECK_EQ(isolate, info.GetIsolate());
+  CompileRun("interceptor_query_side_effect()");
+  if (attribute != v8::internal::ABSENT) {
+    info.GetReturnValue().Set(v8::Integer::New(isolate, attribute));
+  }
+}
+
 int named_query_counter = 0;
 void NamedQueryCallback(Local<Name> name,
                         const v8::PropertyCallbackInfo<v8::Integer>& info) {
@@ -1512,6 +1541,42 @@ THREADED_TEST(InterceptorHasICQueryToggle) {
                      500);
 }
 
+THREADED_TEST(InterceptorStoreICWithSideEffectfulCallbacks) {
+  CheckInterceptorIC(EmptyInterceptorGetter,
+                     HasICQuerySideEffect<Local<Name>, v8::internal::ABSENT>,
+                     "let r;"
+                     "let inside_side_effect = false;"
+                     "let interceptor_query_side_effect = function() {"
+                     "  if (!inside_side_effect) {"
+                     "    inside_side_effect = true;"
+                     "    r.x = 153;"
+                     "    inside_side_effect = false;"
+                     "  }"
+                     "};"
+                     "for (var i = 0; i < 20; i++) {"
+                     "  r = { __proto__: o };"
+                     "  r.x = i;"
+                     "}",
+                     19);
+
+  CheckInterceptorIC(InterceptorLoadXICGetterWithSideEffects,
+                     nullptr,  // query callback is not provided
+                     "let r;"
+                     "let inside_side_effect = false;"
+                     "let interceptor_getter_side_effect = function() {"
+                     "  if (!inside_side_effect) {"
+                     "    inside_side_effect = true;"
+                     "    r.y = 153;"
+                     "    inside_side_effect = false;"
+                     "  }"
+                     "};"
+                     "for (var i = 0; i < 20; i++) {"
+                     "  r = { __proto__: o };"
+                     "  r.y = i;"
+                     "}",
+                     19);
+}
+
 static void InterceptorStoreICSetter(
     Local<Name> key, Local<Value> value,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
@@ -1561,6 +1626,52 @@ THREADED_TEST(InterceptorStoreICWithNoSetter) {
   CHECK_EQ(239 + 42, value->Int32Value(context.local()).FromJust());
 }
 
+THREADED_TEST(EmptyInterceptorDoesNotShadowReadOnlyProperty) {
+  // Interceptor should not shadow readonly property 'x' on the prototype, and
+  // attempt to store to 'x' must throw.
+  CheckInterceptorIC(EmptyInterceptorGetter,
+                     HasICQuery<Local<Name>, v8::internal::ABSENT>,
+                     "'use strict';"
+                     "let p = {};"
+                     "Object.defineProperty(p, 'x', "
+                     "                      {value: 153, writable: false});"
+                     "o.__proto__ = p;"
+                     "let result = 0;"
+                     "let r;"
+                     "for (var i = 0; i < 20; i++) {"
+                     "  r = { __proto__: o };"
+                     "  try {"
+                     "    r.x = i;"
+                     "  } catch (e) {"
+                     "    result++;"
+                     "  }"
+                     "}"
+                     "result",
+                     20);
+}
+
+THREADED_TEST(InterceptorShadowsReadOnlyProperty) {
+  // Interceptor claims that it has a writable property 'x', so the existence
+  // of the readonly property 'x' on the prototype should not cause exceptions.
+  CheckInterceptorIC(InterceptorLoadXICGetter,
+                     nullptr,  // query callback
+                     "'use strict';"
+                     "let p = {};"
+                     "Object.defineProperty(p, 'x', "
+                     "                      {value: 153, writable: false});"
+                     "o.__proto__ = p;"
+                     "let result = 0;"
+                     "let r;"
+                     "for (var i = 0; i < 20; i++) {"
+                     "  r = { __proto__: o };"
+                     "  try {"
+                     "    r.x = i;"
+                     "    result++;"
+                     "  } catch (e) {}"
+                     "}"
+                     "result",
+                     20);
+}
 
 THREADED_TEST(EmptyInterceptorDoesNotShadowAccessors) {
   v8::HandleScope scope(CcTest::isolate());

@@ -6832,63 +6832,6 @@ TEST(ldr_literal_range_max_dist_no_emission_2) {
 
 #endif
 
-static const PrefetchOperation kPrfmOperations[] = {
-    PLDL1KEEP, PLDL1STRM, PLDL2KEEP, PLDL2STRM, PLDL3KEEP, PLDL3STRM,
-
-    PLIL1KEEP, PLIL1STRM, PLIL2KEEP, PLIL2STRM, PLIL3KEEP, PLIL3STRM,
-
-    PSTL1KEEP, PSTL1STRM, PSTL2KEEP, PSTL2STRM, PSTL3KEEP, PSTL3STRM};
-
-TEST(prfm_regoffset_assem) {
-  INIT_V8();
-  SETUP();
-
-  START();
-  // The address used in prfm doesn't have to be valid.
-  __ Mov(x0, 0x0123456789abcdef);
-
-  CPURegList inputs(CPURegister::kRegister, kXRegSizeInBits, 10, 18);
-  __ Mov(x10, 0);
-  __ Mov(x11, 1);
-  __ Mov(x12, 8);
-  __ Mov(x13, 255);
-  __ Mov(x14, -0);
-  __ Mov(x15, -1);
-  __ Mov(x16, -8);
-  __ Mov(x17, -255);
-  __ Mov(x18, 0xfedcba9876543210);
-
-  for (int op = 0; op < (1 << ImmPrefetchOperation_width); op++) {
-    // Unallocated prefetch operations are ignored, so test all of them.
-    // We have to use the Assembler directly for this.
-    CPURegList loop = inputs;
-    while (!loop.IsEmpty()) {
-      __ prfm(op, MemOperand(x0, Register::Create(loop.PopLowestIndex().code(),
-                                                  kXRegSizeInBits)));
-    }
-  }
-
-  for (PrefetchOperation op : kPrfmOperations) {
-    // Also test named operations.
-    CPURegList loop = inputs;
-    while (!loop.IsEmpty()) {
-      Register input =
-          Register::Create(loop.PopLowestIndex().code(), kXRegSizeInBits);
-      __ prfm(op, MemOperand(x0, input, UXTW));
-      __ prfm(op, MemOperand(x0, input, UXTW, 3));
-      __ prfm(op, MemOperand(x0, input, LSL));
-      __ prfm(op, MemOperand(x0, input, LSL, 3));
-      __ prfm(op, MemOperand(x0, input, SXTW));
-      __ prfm(op, MemOperand(x0, input, SXTW, 3));
-      __ prfm(op, MemOperand(x0, input, SXTX));
-      __ prfm(op, MemOperand(x0, input, SXTX, 3));
-    }
-  }
-
-  END();
-  RUN();
-}
-
 TEST(add_sub_imm) {
   INIT_V8();
   SETUP();

@@ -68,9 +68,21 @@ namespace internal {
 //       contains the number of the bucket representing the i-th entry of the
 //       table in enumeration order. Entries may contain unitialized data if the
 //       corresponding bucket  hasn't been used before.
-class SwissNameDictionary : public HeapObject {
+class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
  public:
   using Group = swiss_table::Group;
+
+  template <typename LocalIsolate>
+  inline static Handle<SwissNameDictionary> Add(
+      LocalIsolate* isolate, Handle<SwissNameDictionary> table,
+      Handle<Name> key, Handle<Object> value, PropertyDetails details,
+      InternalIndex* entry_out = nullptr);
+
+  static Handle<SwissNameDictionary> Shrink(Isolate* isolate,
+                                            Handle<SwissNameDictionary> table);
+
+  static Handle<SwissNameDictionary> DeleteEntry(
+      Isolate* isolate, Handle<SwissNameDictionary> table, InternalIndex entry);
 
   template <typename LocalIsolate>
   inline InternalIndex FindEntry(LocalIsolate* isolate, Object key);
@@ -100,11 +112,30 @@ class SwissNameDictionary : public HeapObject {
   inline int Capacity();
   inline int UsedCapacity();
 
+  int NumberOfEnumerableProperties();
+
+  static Handle<SwissNameDictionary> ShallowCopy(
+      Isolate* isolate, Handle<SwissNameDictionary> table);
+
+  // Strict in the sense that it checks that all used/initialized memory in
+  // |this| and |other| is the same. The only exceptions are the meta table
+  // pointer (which must differ  between the two tables) and PropertyDetails of
+  // deleted entries (which reside in initialized memory, but are not compared).
+  bool EqualsForTesting(SwissNameDictionary other);
+
   template <typename LocalIsolate>
   void Initialize(LocalIsolate* isolate, ByteArray meta_table, int capacity);
 
+  template <typename LocalIsolate>
+  static Handle<SwissNameDictionary> Rehash(LocalIsolate* isolate,
+                                            Handle<SwissNameDictionary> table,
+                                            int new_capacity);
+  void Rehash(Isolate* isolate);
+
   inline void SetHash(int hash);
   inline int Hash();
+
+  Object SlowReverseLookup(Isolate* isolate, Object value);
 
   class IndexIterator {
    public:
@@ -168,7 +199,12 @@ class SwissNameDictionary : public HeapObject {
   // Indicates that IterateEntries() returns entries ordered.
   static constexpr bool kIsOrderedDictionaryType = true;
 
+  // Only used in CSA/Torque, where indices are actual integers. In C++,
+  // InternalIndex::NotFound() is always used instead.
+  static constexpr int kNotFoundSentinel = -1;
+
   static const int kGroupWidth = Group::kWidth;
+  static const bool kUseSIMD = kGroupWidth == 16;
 
   class BodyDescriptor;
 
@@ -182,9 +218,17 @@ class SwissNameDictionary : public HeapObject {
   static constexpr int kDataTableKeyEntryIndex = 0;
   static constexpr int kDataTableValueEntryIndex = kDataTableKeyEntryIndex + 1;
 
-  static constexpr int kMetaTableElementCountOffset = 0;
-  static constexpr int kMetaTableDeletedElementCountOffset = 1;
-  static constexpr int kMetaTableEnumerationTableStartOffset = 2;
+  // Field indices describing the layout of the meta table: A field index of i
+  // means that the corresponding meta table entry resides at an offset of {i *
+  // sizeof(uintX_t)} bytes from the beginning of the meta table. Here, the X in
+  // uintX_t can be 8, 16, or 32, and depends on the capacity of the overall
+  // SwissNameDictionary. See the section "Meta table" in the comment at the
+  // beginning of the SwissNameDictionary class in this file.
+  static constexpr int kMetaTableElementCountFieldIndex = 0;
+  static constexpr int kMetaTableDeletedElementCountFieldIndex = 1;
+  // Field index of the first entry of the enumeration table (which is part of
+  // the meta table).
+  static constexpr int kMetaTableEnumerationDataStartIndex = 2;
 
   // The maximum capacity of any SwissNameDictionary whose meta table can use 1
   // byte per entry.
@@ -218,6 +262,10 @@ class SwissNameDictionary : public HeapObject {
   using ctrl_t = swiss_table::ctrl_t;
   using Ctrl = swiss_table::Ctrl;
 
+  template <typename LocalIsolate>
+  inline static Handle<SwissNameDictionary> EnsureGrowable(
+      LocalIsolate* isolate, Handle<SwissNameDictionary> table);
+
   // Returns table of byte-encoded PropertyDetails (without enumeration index
   // stored in PropertyDetails).
   inline uint8_t* PropertyDetailsTable();
@@ -235,6 +283,13 @@ class SwissNameDictionary : public HeapObject {
 
   inline bool ToKey(ReadOnlyRoots roots, int entry, Object* out_key);
 
+  inline int FindFirstEmpty(uint32_t hash);
+  // Adds |key| ->  (|value|, |details|) as a new mapping to the table, which
+  // must have sufficient room. Returns the entry (= bucket) used by the new
+  // mapping. Does not update the number of present entries or the
+  // enumeration table.
+  inline int AddInternal(Name key, Object value, PropertyDetails details);
+
   // Use |set_ctrl| for modifications whenever possible, since that function
   // correctly maintains the copy of the first group at the end of the ctrl
   // table.
@@ -251,7 +306,8 @@ class SwissNameDictionary : public HeapObject {
   inline ctrl_t GetCtrl(int entry);
 
   inline Object LoadFromDataTable(int entry, int data_offset);
-  inline Object LoadFromDataTable(IsolateRoot root, int entry, int data_offset);
+  inline Object LoadFromDataTable(PtrComprCageBase cage_base, int entry,
+                                  int data_offset);
   inline void StoreToDataTable(int entry, int data_offset, Object data);
   inline void StoreToDataTableNoBarrier(int entry, int data_offset,
                                         Object data);

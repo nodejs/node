@@ -43,6 +43,8 @@ functions that can be called from within `dx` commands:
   current thread has a JavaScript Isolate associated.
 - `@$listchunks()` returns a list of the memory chunks in the Heap for the
   current Isolate.
+- `@$jsstack()` returns a list of the JS stack frames, including information 
+about script and function.
 
 *Tip:*: to see what objects are present in a chunk of heap memory, you can cast
 it to an array of `TaggedValue`, like this:
@@ -67,6 +69,8 @@ functions declared in `dbgext.h` to create and destroy the extension instance.
 - `cur-isolate.{cc,h}` implements the `IModelMethod` for `@$curisolate()`.
 - `list-chunks.{cc,h}` implements the `IModelMethod` for `@$listchunks()`. Its
   result is a custom object that supports iteration and indexing.
+- `js-stack.{cc,h}` implements the `IModelMethod` for `@$jsstack()`. Its
+  result is a custom object that supports iteration and indexing. 
 - `local-variables.{cc,h}` implements the `IModelPropertyAccessor` that provides
   content to show in the Locals pane for stack frames corresponding to builtins
   or runtime-generated code.

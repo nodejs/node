@@ -429,7 +429,7 @@ bytecodes: [
                 B(Ldar), R(5),
   /*   11 E> */ B(Throw),
                 B(Ldar), R(5),
-  /*   55 S> */ B(Return),
+                B(Return),
   /*   35 S> */ B(GetIterator), R(arg0), U8(0), U8(2),
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
@@ -531,7 +531,7 @@ bytecodes: [
                 B(Ldar), R(4),
   /*   11 E> */ B(Throw),
                 B(Ldar), R(4),
-  /*   49 S> */ B(Return),
+                B(Return),
   /*   35 S> */ B(GetIterator), R(arg0), U8(0), U8(2),
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
@@ -607,7 +607,7 @@ bytecodes: [
                 B(Ldar), R(8),
                 B(ReThrow),
                 B(Ldar), R(8),
-  /*   49 S> */ B(Return),
+                B(Return),
                 B(LdaUndefined),
   /*   49 S> */ B(Return),
 ]
@@ -726,7 +726,7 @@ bytecodes: [
                 B(Star9),
                 B(Mov), R(0), R(7),
                 B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(7), U8(3),
-  /*   60 S> */ B(Return),
+                B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["next"],
@@ -850,7 +850,7 @@ bytecodes: [
                 B(Star8),
                 B(Mov), R(0), R(6),
                 B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(6), U8(3),
-  /*   54 S> */ B(Return),
+                B(Return),
 ]
 constant pool: [
   Smi [88],

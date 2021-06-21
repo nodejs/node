@@ -235,6 +235,12 @@ class V8_EXPORT_PRIVATE Operand {
   explicit Operand(Register base, int32_t disp,
                    RelocInfo::Mode rmode = RelocInfo::NONE);
 
+  // [rip + disp/r]
+  explicit Operand(Label* label) {
+    set_modrm(0, ebp);
+    set_dispr(reinterpret_cast<intptr_t>(label), RelocInfo::INTERNAL_REFERENCE);
+  }
+
   // [base + index*scale + disp/r]
   explicit Operand(Register base, Register index, ScaleFactor scale,
                    int32_t disp, RelocInfo::Mode rmode = RelocInfo::NONE);

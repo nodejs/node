@@ -11,6 +11,10 @@ extern runtime WasmTableInit(
     Context, WasmInstanceObject, Object, Object, Smi, Smi, Smi): JSAny;
 extern runtime WasmTableCopy(
     Context, WasmInstanceObject, Object, Object, Smi, Smi, Smi): JSAny;
+extern runtime WasmTableFill(
+    Context, WasmInstanceObject, Smi, Smi, Object, Smi): JSAny;
+extern runtime WasmTableGrow(
+    Context, WasmInstanceObject, Smi, Object, Smi): Smi;
 extern runtime WasmFunctionTableGet(
     Context, WasmInstanceObject, Smi, Smi): JSAny;
 extern runtime WasmFunctionTableSet(
@@ -39,7 +43,10 @@ extern macro Allocate(intptr, constexpr AllocationFlag): HeapObject;
 }
 
 namespace wasm {
-const kFuncTableType: constexpr int31 generates 'wasm::HeapType::kFunc';
+const kExternTableType: constexpr int31
+    generates 'wasm::kWasmExternRef.raw_bit_field()';
+const kExternNonNullTableType: constexpr int31
+    generates 'wasm::kWasmExternNonNullableRef.raw_bit_field()';
 
 extern macro WasmBuiltinsAssembler::LoadInstanceFromFrame(): WasmInstanceObject;
 
@@ -113,6 +120,34 @@ builtin WasmTableCopy(
   }
 }
 
+builtin WasmTableFill(
+    table: Smi, startRaw: uint32, countRaw: uint32, value: Object): JSAny {
+  try {
+    const instance: WasmInstanceObject = LoadInstanceFromFrame();
+    const start: Smi =
+        Convert<PositiveSmi>(startRaw) otherwise TableOutOfBounds;
+    const count: Smi =
+        Convert<PositiveSmi>(countRaw) otherwise TableOutOfBounds;
+    tail runtime::WasmTableFill(
+        LoadContextFromInstance(instance), instance, table, start, value,
+        count);
+  } label TableOutOfBounds deferred {
+    tail ThrowWasmTrapTableOutOfBounds();
+  }
+}
+
+builtin WasmTableGrow(table: Smi, deltaRaw: uint32, value: Object): Smi {
+  try {
+    const instance: WasmInstanceObject = LoadInstanceFromFrame();
+    const delta: Smi =
+        Convert<PositiveSmi>(deltaRaw) otherwise TableOutOfBounds;
+    tail runtime::WasmTableGrow(
+        LoadContextFromInstance(instance), instance, table, value, delta);
+  } label TableOutOfBounds deferred {
+    return -1;
+  }
+}
+
 builtin WasmTableGet(tableIndex: intptr, index: int32): Object {
   const instance: WasmInstanceObject = LoadInstanceFromFrame();
   const entryIndex: intptr = ChangeInt32ToIntPtr(index);
@@ -159,8 +194,12 @@ builtin WasmTableSet(tableIndex: intptr, index: int32, value: Object): Object {
 
     // Fall back to the runtime to set funcrefs, since we have to update
     // function dispatch tables.
+    // TODO(7748): Update this if further table types are supported.
     const tableType: Smi = table.raw_type;
-    if (tableType == SmiConstant(kFuncTableType)) goto CallRuntime;
+    if (tableType != SmiConstant(kExternTableType) &&
+        tableType != SmiConstant(kExternNonNullTableType)) {
+      goto CallRuntime;
+    }
 
     const entriesCount: intptr = Convert<intptr, Smi>(table.current_length);
     if (entryIndex >= entriesCount) goto IndexOutOfRange;
@@ -373,15 +412,13 @@ transitioning builtin WasmGetOwnProperty(implicit context: Context)(
     try {
       TryHasOwnProperty(
           receiver, receiver.map, receiver.instanceType, uniqueName)
-          otherwise Found, NotFound, Bailout;
+          otherwise Found, NotFound, NotFound;
     } label Found {
       tail GetPropertyWithReceiver(
           receiver, uniqueName, receiver, SmiConstant(kReturnUndefined));
     }
   } label NotFound deferred {
     return Undefined;
-  } label Bailout deferred {
-    unreachable;
   }
 }
 

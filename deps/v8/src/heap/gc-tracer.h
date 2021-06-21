@@ -221,8 +221,6 @@ class V8_EXPORT_PRIVATE GCTracer {
   // Log the accumulated new space allocation bytes.
   void AddAllocation(double current_ms);
 
-  void AddContextDisposalTime(double time);
-
   void AddCompactionEvent(double duration, size_t live_bytes_compacted);
 
   void AddSurvivalRatio(double survival_ratio);
@@ -296,12 +294,6 @@ class V8_EXPORT_PRIVATE GCTracer {
   // kThroughputTimeFrameMs seconds. Reported through v8::EmbedderHeapTracer.
   // Returns 0 if no allocation events have been recorded.
   double CurrentEmbedderAllocationThroughputInBytesPerMillisecond() const;
-
-  // Computes the context disposal rate in milliseconds. It takes the time
-  // frame of the first recorded context disposal to the current time and
-  // divides it by the number of recorded events.
-  // Returns 0 if no events have been recorded.
-  double ContextDisposalRateInMilliseconds() const;
 
   // Computes the average survival ratio based on the last recorded survival
   // events.
@@ -479,7 +471,6 @@ class V8_EXPORT_PRIVATE GCTracer {
   base::RingBuffer<BytesAndDuration> recorded_new_generation_allocations_;
   base::RingBuffer<BytesAndDuration> recorded_old_generation_allocations_;
   base::RingBuffer<BytesAndDuration> recorded_embedder_generation_allocations_;
-  base::RingBuffer<double> recorded_context_disposal_times_;
   base::RingBuffer<double> recorded_survival_ratios_;
 
   base::Mutex background_counter_mutex_;

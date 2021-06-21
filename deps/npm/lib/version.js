@@ -3,7 +3,6 @@ const { resolve } = require('path')
 const { promisify } = require('util')
 const readFile = promisify(require('fs').readFile)
 
-const getWorkspaces = require('./workspaces/get-workspaces.js')
 const BaseCommand = require('./base-command.js')
 
 class Version extends BaseCommand {
@@ -93,9 +92,8 @@ class Version extends BaseCommand {
 
   async changeWorkspaces (args, filters) {
     const prefix = this.npm.config.get('tag-version-prefix')
-    const workspaces =
-      await getWorkspaces(filters, { path: this.npm.localPrefix })
-    for (const [name, path] of workspaces) {
+    await this.setWorkspaces(filters)
+    for (const [name, path] of this.workspaces) {
       this.npm.output(name)
       const version = await libnpmversion(args[0], {
         ...this.npm.flatOptions,
@@ -128,11 +126,10 @@ class Version extends BaseCommand {
 
   async listWorkspaces (filters) {
     const results = {}
-    const workspaces =
-      await getWorkspaces(filters, { path: this.npm.localPrefix })
-    for (const [, path] of workspaces) {
+    await this.setWorkspaces(filters)
+    for (const path of this.workspacePaths) {
       const pj = resolve(path, 'package.json')
-      // getWorkspaces has already parsed this so we know it won't error
+      // setWorkspaces has already parsed package.json so we know it won't error
       const pkg = await readFile(pj, 'utf8')
         .then(data => JSON.parse(data))
 

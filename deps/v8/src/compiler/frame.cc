@@ -12,27 +12,30 @@ namespace compiler {
 
 Frame::Frame(int fixed_frame_size_in_slots)
     : fixed_slot_count_(fixed_frame_size_in_slots),
-      frame_slot_count_(fixed_frame_size_in_slots),
-      spill_slot_count_(0),
-      return_slot_count_(0),
       allocated_registers_(nullptr),
-      allocated_double_registers_(nullptr) {}
+      allocated_double_registers_(nullptr) {
+  slot_allocator_.AllocateUnaligned(fixed_frame_size_in_slots);
+}
 
 void Frame::AlignFrame(int alignment) {
-  int alignment_slots = alignment / kSystemPointerSize;
-  // In the calculations below we assume that alignment_slots is a power of 2.
-  DCHECK(base::bits::IsPowerOfTwo(alignment_slots));
+#if DEBUG
+  spill_slots_finished_ = true;
+  frame_aligned_ = true;
+#endif
+  // In the calculations below we assume that alignment is a power of 2.
+  DCHECK(base::bits::IsPowerOfTwo(alignment));
+  int alignment_in_slots = AlignedSlotAllocator::NumSlotsForWidth(alignment);
 
   // We have to align return slots separately, because they are claimed
   // separately on the stack.
-  int return_delta =
-      alignment_slots - (return_slot_count_ & (alignment_slots - 1));
-  if (return_delta != alignment_slots) {
-    frame_slot_count_ += return_delta;
+  const int mask = alignment_in_slots - 1;
+  int return_delta = alignment_in_slots - (return_slot_count_ & mask);
+  if (return_delta != alignment_in_slots) {
+    return_slot_count_ += return_delta;
   }
-  int delta = alignment_slots - (frame_slot_count_ & (alignment_slots - 1));
-  if (delta != alignment_slots) {
-    frame_slot_count_ += delta;
+  int delta = alignment_in_slots - (slot_allocator_.Size() & mask);
+  if (delta != alignment_in_slots) {
+    slot_allocator_.Align(alignment_in_slots);
     if (spill_slot_count_ != 0) {
       spill_slot_count_ += delta;
     }

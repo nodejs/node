@@ -100,6 +100,8 @@ void* AllocateLargeObject(PageBackend* page_backend, LargePageSpace* space,
 
 }  // namespace
 
+constexpr size_t ObjectAllocator::kSmallestSpaceSize;
+
 ObjectAllocator::ObjectAllocator(RawHeap* heap, PageBackend* page_backend,
                                  StatsCollector* stats_collector)
     : raw_heap_(heap),

@@ -17,6 +17,7 @@ namespace internal {
 enum class MachineRepresentation : uint8_t {
   kNone,
   kBit,
+  // Integral representations must be consecutive, in order of increasing order.
   kWord8,
   kWord16,
   kWord32,
@@ -26,7 +27,7 @@ enum class MachineRepresentation : uint8_t {
   kTagged,             // (uncompressed) Object (Smi or HeapObject)
   kCompressedPointer,  // (compressed) HeapObject
   kCompressed,         // (compressed) Object (Smi or HeapObject)
-  // FP representations must be last, and in order of increasing size.
+  // FP and SIMD representations must be last, and in order of increasing size.
   kFloat32,
   kFloat64,
   kSimd128,
@@ -35,6 +36,22 @@ enum class MachineRepresentation : uint8_t {
 };
 
 bool IsSubtype(MachineRepresentation rep1, MachineRepresentation rep2);
+
+#define ASSERT_CONSECUTIVE(rep1, rep2)                                      \
+  static_assert(static_cast<uint8_t>(MachineRepresentation::k##rep1) + 1 == \
+                    static_cast<uint8_t>(MachineRepresentation::k##rep2),   \
+                #rep1 " and " #rep2 " must be consecutive.");
+
+ASSERT_CONSECUTIVE(Word8, Word16)
+ASSERT_CONSECUTIVE(Word16, Word32)
+ASSERT_CONSECUTIVE(Word32, Word64)
+ASSERT_CONSECUTIVE(Float32, Float64)
+ASSERT_CONSECUTIVE(Float64, Simd128)
+#undef ASSERT_CONSECUTIVE
+
+static_assert(MachineRepresentation::kLastRepresentation ==
+                  MachineRepresentation::kSimd128,
+              "FP and SIMD representations must be last.");
 
 static_assert(static_cast<int>(MachineRepresentation::kLastRepresentation) <
                   kIntSize * kBitsPerByte,
@@ -254,6 +271,11 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            MachineRepresentation rep);
 std::ostream& operator<<(std::ostream& os, MachineSemantic type);
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, MachineType type);
+
+inline bool IsIntegral(MachineRepresentation rep) {
+  return rep >= MachineRepresentation::kWord8 &&
+         rep <= MachineRepresentation::kWord64;
+}
 
 inline bool IsFloatingPoint(MachineRepresentation rep) {
   return rep >= MachineRepresentation::kFirstFPRepresentation;

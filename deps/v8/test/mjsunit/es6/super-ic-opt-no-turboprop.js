@@ -48,7 +48,12 @@
 
   // Assert that the function was deoptimized (dependency to the constant
   // value).
-  assertUnoptimized(C.prototype.foo);
+  // TODO(v8:11457) We don't support inlining JSLoadNamedFromSuper for
+  // dictionary mode prototypes, yet. Therefore, if
+  // v8_dict_property_const_tracking is enabled, the optimized code only
+  // contains a call to the IC handler and doesn't get deopted.
+  assertEquals(%IsDictPropertyConstTrackingEnabled(),
+               isOptimized(C.prototype.foo));
 })();
 
 (function TestSuperpropertyAccessInlined() {

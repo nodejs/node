@@ -44,9 +44,9 @@ class V8_EXPORT_PRIVATE FreeList {
   size_t Size() const;
   bool IsEmpty() const;
 
-  bool Contains(Block) const;
-
   void CollectStatistics(HeapStatistics::FreeListStatistics&);
+
+  bool ContainsForTesting(Block) const;
 
  private:
   class Entry;

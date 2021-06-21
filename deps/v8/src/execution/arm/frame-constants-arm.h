@@ -76,16 +76,18 @@ class WasmCompileLazyFrameConstants : public TypedFrameConstants {
 // registers (see liftoff-assembler-defs.h).
 class WasmDebugBreakFrameConstants : public TypedFrameConstants {
  public:
-  // {r0, r1, r2, r3, r4, r5, r6, r8, r9}
-  static constexpr uint32_t kPushedGpRegs = 0b1101111111;
-  // {d0 .. d12}
-  static constexpr int kFirstPushedFpReg = 0;
-  static constexpr int kLastPushedFpReg = 12;
+  // r10: root, r11: fp, r12: ip, r13: sp, r14: lr, r15: pc.
+  static constexpr RegList kPushedGpRegs =
+      Register::ListOf(r0, r1, r2, r3, r4, r5, r6, r7, r8, r9);
+
+  // d13: zero, d14-d15: scratch
+  static constexpr RegList kPushedFpRegs = LowDwVfpRegister::ListOf(
+      d0, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12);
 
   static constexpr int kNumPushedGpRegisters =
       base::bits::CountPopulation(kPushedGpRegs);
   static constexpr int kNumPushedFpRegisters =
-      kLastPushedFpReg - kFirstPushedFpReg + 1;
+      base::bits::CountPopulation(kPushedFpRegs);
 
   static constexpr int kLastPushedGpRegisterOffset =
       -TypedFrameConstants::kFixedFrameSizeFromFp -
@@ -102,10 +104,10 @@ class WasmDebugBreakFrameConstants : public TypedFrameConstants {
   }
 
   static int GetPushedFpRegisterOffset(int reg_code) {
-    DCHECK_LE(kFirstPushedFpReg, reg_code);
-    DCHECK_GE(kLastPushedFpReg, reg_code);
+    DCHECK_NE(0, kPushedFpRegs & (1 << reg_code));
+    uint32_t lower_regs = kPushedFpRegs & ((uint32_t{1} << reg_code) - 1);
     return kLastPushedFpRegisterOffset +
-           (reg_code - kFirstPushedFpReg) * kDoubleSize;
+           base::bits::CountPopulation(lower_regs) * kDoubleSize;
   }
 };
 

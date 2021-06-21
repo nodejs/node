@@ -119,3 +119,12 @@ assertEquals(unoptimized, callPow(6996));
 let then_called = false;
 Atomics.waitAsync().value.then(() => {then_called = true;});
 assertEquals(true, then_called);
+
+// Test .caller access is neutered.
+function callee() {
+  assertEquals(null, callee.caller);
+}
+function caller() {
+  callee();
+}
+caller();

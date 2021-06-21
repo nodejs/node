@@ -43,7 +43,10 @@
 #include "src/objects/template-objects-inl.h"
 #include "src/objects/torque-defined-classes-inl.h"
 #include "src/regexp/regexp.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-objects.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -125,8 +128,11 @@ AllocationResult Heap::AllocateMap(InstanceType instance_type,
                                    int inobject_properties) {
   STATIC_ASSERT(LAST_JS_OBJECT_TYPE == LAST_TYPE);
   bool is_js_object = InstanceTypeChecker::IsJSObject(instance_type);
-  bool is_wasm_object =
-      (instance_type == WASM_STRUCT_TYPE || instance_type == WASM_ARRAY_TYPE);
+  bool is_wasm_object = false;
+#if V8_ENABLE_WEBASSEMBLY
+  is_wasm_object =
+      instance_type == WASM_STRUCT_TYPE || instance_type == WASM_ARRAY_TYPE;
+#endif  // V8_ENABLE_WEBASSEMBLY
   DCHECK_IMPLIES(is_js_object &&
                      !Map::CanHaveFastTransitionableElementsKind(instance_type),
                  IsDictionaryElementsKind(elements_kind) ||
@@ -494,7 +500,8 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_MAP(CODE_DATA_CONTAINER_TYPE, CodeDataContainer::kSize,
                  code_data_container)
 
-    ALLOCATE_MAP(WASM_TYPE_INFO_TYPE, WasmTypeInfo::kSize, wasm_type_info)
+    IF_WASM(ALLOCATE_MAP, WASM_TYPE_INFO_TYPE, WasmTypeInfo::kSize,
+            wasm_type_info)
 
     ALLOCATE_MAP(WEAK_CELL_TYPE, WeakCell::kSize, weak_cell)
 
@@ -510,11 +517,10 @@ bool Heap::CreateInitialMaps() {
 
   {
     AllocationResult alloc =
-        AllocateRaw(FixedArray::SizeFor(ScopeInfo::kVariablePartIndex),
+        AllocateRaw(ScopeInfo::SizeFor(ScopeInfo::kVariablePartIndex),
                     AllocationType::kReadOnly);
     if (!alloc.To(&obj)) return false;
     obj.set_map_after_allocation(roots.scope_info_map(), SKIP_WRITE_BARRIER);
-    ScopeInfo::cast(obj).set_length(ScopeInfo::kVariablePartIndex);
     int flags = ScopeInfo::IsEmptyBit::encode(true);
     DCHECK_EQ(ScopeInfo::LanguageModeBit::decode(flags), LanguageMode::kSloppy);
     DCHECK_EQ(ScopeInfo::ReceiverVariableBits::decode(flags),

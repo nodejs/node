@@ -170,8 +170,11 @@ TEST_F(LocalHeapTest, GCEpilogue) {
   CHECK(thread2->Start());
   epilogue[1].WaitUntilStarted();
   epilogue[2].WaitUntilStarted();
-  heap->PreciseCollectAllGarbage(Heap::kNoGCFlags,
-                                 GarbageCollectionReason::kTesting);
+  {
+    UnparkedScope scope(&lh);
+    heap->PreciseCollectAllGarbage(Heap::kNoGCFlags,
+                                   GarbageCollectionReason::kTesting);
+  }
   epilogue[1].RequestStop();
   epilogue[2].RequestStop();
   thread1->Join();

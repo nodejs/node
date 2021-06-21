@@ -2,7 +2,6 @@
 
 const onExit = require('../signal-handling.js')
 const pacote = require('pacote')
-const rpj = require('read-package-json-fast')
 const AuditReport = require('../audit-report.js')
 const {subset, intersects} = require('semver')
 const npa = require('npm-package-arg')
@@ -57,7 +56,6 @@ const _extractOrLink = Symbol('extractOrLink')
 const _checkBins = Symbol.for('checkBins')
 const _symlink = Symbol('symlink')
 const _warnDeprecated = Symbol('warnDeprecated')
-const _loadAncientPackageDetails = Symbol('loadAncientPackageDetails')
 const _loadBundlesAndUpdateTrees = Symbol.for('loadBundlesAndUpdateTrees')
 const _submitQuickAudit = Symbol('submitQuickAudit')
 const _awaitQuickAudit = Symbol('awaitQuickAudit')
@@ -522,7 +520,6 @@ module.exports = cls => class Reifier extends cls {
         await this[_checkBins](node)
         await this[_extractOrLink](node)
         await this[_warnDeprecated](node)
-        await this[_loadAncientPackageDetails](node)
       })
 
     return this[_handleOptionalFailure](node, p)
@@ -581,32 +578,6 @@ module.exports = cls => class Reifier extends cls {
     const {_id, deprecated} = node.package
     if (deprecated)
       this.log.warn('deprecated', `${_id}: ${deprecated}`)
-  }
-
-  async [_loadAncientPackageDetails] (node, forceReload = false) {
-    // If we're loading from a v1 lockfile, load details from the package.json
-    // that weren't recorded in the old format.
-    const {meta} = this.idealTree
-    const ancient = meta.ancientLockfile
-    const old = meta.loadedFromDisk && !(meta.originalLockfileVersion >= 2)
-
-    // already replaced with the manifest if it's truly ancient
-    if (node.path && (forceReload || (old && !ancient))) {
-      // XXX should have a shared location where package.json is read,
-      // so we don't ever read the same pj more than necessary.
-      let pkg
-      try {
-        pkg = await rpj(node.path + '/package.json')
-      } catch (err) {}
-
-      if (pkg) {
-        node.package.bin = pkg.bin
-        node.package.os = pkg.os
-        node.package.cpu = pkg.cpu
-        node.package.engines = pkg.engines
-        meta.add(node)
-      }
-    }
   }
 
   // if the node is optional, then the failure of the promise is nonfatal
@@ -1078,12 +1049,6 @@ module.exports = cls => class Reifier extends cls {
       return
 
     const { meta } = this.idealTree
-
-    // might have to update metadata for bins and stuff that gets lost
-    if (meta.loadedFromDisk && !(meta.originalLockfileVersion >= 2)) {
-      for (const node of this.idealTree.inventory.values())
-        await this[_loadAncientPackageDetails](node, true)
-    }
 
     return meta.save(saveOpt)
   }

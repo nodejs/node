@@ -30,49 +30,7 @@ int ScopeInfo::Flags() const { return flags(); }
 int ScopeInfo::ParameterCount() const { return parameter_count(); }
 int ScopeInfo::ContextLocalCount() const { return context_local_count(); }
 
-Object ScopeInfo::get(int index) const {
-  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
-  return get(isolate, index);
-}
-
-Object ScopeInfo::get(IsolateRoot isolate, int index) const {
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  return TaggedField<Object>::Relaxed_Load(
-      isolate, *this, FixedArray::OffsetOfElementAt(index));
-}
-
-void ScopeInfo::set(int index, Smi value) {
-  DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  DCHECK(Object(value).IsSmi());
-  int offset = FixedArray::OffsetOfElementAt(index);
-  RELAXED_WRITE_FIELD(*this, offset, value);
-}
-
-void ScopeInfo::set(int index, Object value, WriteBarrierMode mode) {
-  DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
-  DCHECK(IsScopeInfo());
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  int offset = FixedArray::OffsetOfElementAt(index);
-  RELAXED_WRITE_FIELD(*this, offset, value);
-  CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
-}
-
-void ScopeInfo::CopyElements(Isolate* isolate, int dst_index, ScopeInfo src,
-                             int src_index, int len, WriteBarrierMode mode) {
-  if (len == 0) return;
-  DCHECK_LE(dst_index + len, length());
-  DCHECK_LE(src_index + len, src.length());
-  DisallowGarbageCollection no_gc;
-
-  ObjectSlot dst_slot(RawFieldOfElementAt(dst_index));
-  ObjectSlot src_slot(src.RawFieldOfElementAt(src_index));
-  isolate->heap()->CopyRange(*this, dst_slot, src_slot, len, mode);
-}
-
-ObjectSlot ScopeInfo::RawFieldOfElementAt(int index) {
-  return RawField(FixedArray::OffsetOfElementAt(index));
-}
+ObjectSlot ScopeInfo::data_start() { return RawField(OffsetOfElementAt(0)); }
 
 }  // namespace internal
 }  // namespace v8

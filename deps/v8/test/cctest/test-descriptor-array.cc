@@ -56,7 +56,7 @@ void CheckDescriptorArrayLookups(Isolate* isolate, Handle<Map> map,
   // Test C++ implementation.
   {
     DisallowGarbageCollection no_gc;
-    DescriptorArray descriptors = map->instance_descriptors(kRelaxedLoad);
+    DescriptorArray descriptors = map->instance_descriptors(isolate);
     DCHECK(descriptors.IsSortedNoDuplicates());
     int nof_descriptors = descriptors.number_of_descriptors();
 
@@ -91,8 +91,8 @@ void CheckTransitionArrayLookups(Isolate* isolate,
 
     for (size_t i = 0; i < maps.size(); ++i) {
       Map expected_map = *maps[i];
-      Name name = expected_map.instance_descriptors(kRelaxedLoad)
-                      .GetKey(expected_map.LastAdded());
+      Name name = expected_map.instance_descriptors(isolate).GetKey(
+          expected_map.LastAdded());
 
       Map map = transitions->SearchAndGetTargetForTesting(PropertyKind::kData,
                                                           name, NONE);
@@ -105,8 +105,8 @@ void CheckTransitionArrayLookups(Isolate* isolate,
   if (!FLAG_jitless) {
     for (size_t i = 0; i < maps.size(); ++i) {
       Handle<Map> expected_map = maps[i];
-      Handle<Name> name(expected_map->instance_descriptors(kRelaxedLoad)
-                            .GetKey(expected_map->LastAdded()),
+      Handle<Name> name(expected_map->instance_descriptors(isolate).GetKey(
+                            expected_map->LastAdded()),
                         isolate);
 
       Handle<Object> transition_map =
@@ -260,7 +260,7 @@ TEST(DescriptorArrayHashCollisionMassive) {
   CheckDescriptorArrayLookups(isolate, map, names, csa_lookup);
 
   // Sort descriptor array and check it again.
-  map->instance_descriptors(kRelaxedLoad).Sort();
+  map->instance_descriptors(isolate).Sort();
   CheckDescriptorArrayLookups(isolate, map, names, csa_lookup);
 }
 
@@ -309,7 +309,7 @@ TEST(DescriptorArrayHashCollision) {
   CheckDescriptorArrayLookups(isolate, map, names, csa_lookup);
 
   // Sort descriptor array and check it again.
-  map->instance_descriptors(kRelaxedLoad).Sort();
+  map->instance_descriptors(isolate).Sort();
   CheckDescriptorArrayLookups(isolate, map, names, csa_lookup);
 }
 

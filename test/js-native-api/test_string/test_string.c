@@ -2,6 +2,7 @@
 #include <string.h>
 #include <js_native_api.h>
 #include "../common.h"
+#include "test_null.h"
 
 static napi_value TestLatin1(napi_env env, napi_callback_info info) {
   size_t argc = 1;
@@ -282,6 +283,8 @@ napi_value Init(napi_env env, napi_value exports) {
     DECLARE_NODE_API_PROPERTY("TestLargeUtf16", TestLargeUtf16),
     DECLARE_NODE_API_PROPERTY("TestMemoryCorruption", TestMemoryCorruption),
   };
+
+  init_test_null(env, exports);
 
   NODE_API_CALL(env, napi_define_properties(
       env, exports, sizeof(properties) / sizeof(*properties), properties));

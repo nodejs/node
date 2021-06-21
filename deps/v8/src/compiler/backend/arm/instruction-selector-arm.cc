@@ -112,6 +112,7 @@ void VisitSimdShiftRRR(InstructionSelector* selector, ArchOpcode opcode,
   }
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 void VisitRRRShuffle(InstructionSelector* selector, ArchOpcode opcode,
                      Node* node) {
   ArmOperandGenerator g(selector);
@@ -132,6 +133,7 @@ void VisitRRRShuffle(InstructionSelector* selector, ArchOpcode opcode,
                  g.UseRegister(node->InputAt(0)),
                  g.UseRegister(node->InputAt(1)));
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void VisitRRI(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
   ArmOperandGenerator g(selector);
@@ -146,14 +148,6 @@ void VisitRRIR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
   selector->Emit(opcode, g.DefineAsRegister(node),
                  g.UseRegister(node->InputAt(0)), g.UseImmediate(imm),
                  g.UseUniqueRegister(node->InputAt(1)));
-}
-
-void VisitRRRR(InstructionSelector* selector, InstructionCode opcode,
-               Node* node) {
-  ArmOperandGenerator g(selector);
-  selector->Emit(
-      opcode, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
-      g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(2)));
 }
 
 template <IrOpcode::Value kOpcode, int kImmMin, int kImmMax,
@@ -496,7 +490,7 @@ void VisitPairAtomicBinOp(InstructionSelector* selector, Node* node,
 
 void InstructionSelector::VisitStackSlot(Node* node) {
   StackSlotRepresentation rep = StackSlotRepresentationOf(node->op());
-  int slot = frame_->AllocateSpillSlot(rep.size());
+  int slot = frame_->AllocateSpillSlot(rep.size(), rep.alignment());
   OperandGenerator g(this);
 
   Emit(kArchStackSlot, g.DefineAsRegister(node),
@@ -2594,11 +2588,11 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I8x16Abs, kArmI8x16Abs)                             \
   V(I8x16Popcnt, kArmVcnt)                              \
   V(S128Not, kArmS128Not)                               \
-  V(V64x2AllTrue, kArmV64x2AllTrue)                     \
-  V(V32x4AllTrue, kArmV32x4AllTrue)                     \
-  V(V16x8AllTrue, kArmV16x8AllTrue)                     \
+  V(I64x2AllTrue, kArmI64x2AllTrue)                     \
+  V(I32x4AllTrue, kArmI32x4AllTrue)                     \
+  V(I16x8AllTrue, kArmI16x8AllTrue)                     \
   V(V128AnyTrue, kArmV128AnyTrue)                       \
-  V(V8x16AllTrue, kArmV8x16AllTrue)
+  V(I8x16AllTrue, kArmI8x16AllTrue)
 
 #define SIMD_SHIFT_OP_LIST(V) \
   V(I64x2Shl, 64)             \
@@ -2626,7 +2620,6 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(F64x2Lt, kArmF64x2Lt)                             \
   V(F64x2Le, kArmF64x2Le)                             \
   V(F32x4Add, kArmF32x4Add)                           \
-  V(F32x4AddHoriz, kArmF32x4AddHoriz)                 \
   V(F32x4Sub, kArmF32x4Sub)                           \
   V(F32x4Mul, kArmF32x4Mul)                           \
   V(F32x4Min, kArmF32x4Min)                           \
@@ -2638,7 +2631,6 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I64x2Add, kArmI64x2Add)                           \
   V(I64x2Sub, kArmI64x2Sub)                           \
   V(I32x4Add, kArmI32x4Add)                           \
-  V(I32x4AddHoriz, kArmI32x4AddHoriz)                 \
   V(I32x4Sub, kArmI32x4Sub)                           \
   V(I32x4Mul, kArmI32x4Mul)                           \
   V(I32x4MinS, kArmI32x4MinS)                         \
@@ -2658,7 +2650,6 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I16x8SConvertI32x4, kArmI16x8SConvertI32x4)       \
   V(I16x8Add, kArmI16x8Add)                           \
   V(I16x8AddSatS, kArmI16x8AddSatS)                   \
-  V(I16x8AddHoriz, kArmI16x8AddHoriz)                 \
   V(I16x8Sub, kArmI16x8Sub)                           \
   V(I16x8SubSatS, kArmI16x8SubSatS)                   \
   V(I16x8Mul, kArmI16x8Mul)                           \
@@ -2682,7 +2673,6 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I8x16AddSatS, kArmI8x16AddSatS)                   \
   V(I8x16Sub, kArmI8x16Sub)                           \
   V(I8x16SubSatS, kArmI8x16SubSatS)                   \
-  V(I8x16Mul, kArmI8x16Mul)                           \
   V(I8x16MinS, kArmI8x16MinS)                         \
   V(I8x16MaxS, kArmI8x16MaxS)                         \
   V(I8x16Eq, kArmI8x16Eq)                             \
@@ -2842,6 +2832,7 @@ void InstructionSelector::VisitS128Select(Node* node) {
        g.UseRegister(node->InputAt(2)));
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 namespace {
 
 struct ShuffleEntry {
@@ -2988,6 +2979,9 @@ void InstructionSelector::VisitI8x16Shuffle(Node* node) {
        g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle + 8)),
        g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle + 12)));
 }
+#else
+void InstructionSelector::VisitI8x16Shuffle(Node* node) { UNREACHABLE(); }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void InstructionSelector::VisitI8x16Swizzle(Node* node) {
   ArmOperandGenerator g(this);
@@ -3112,18 +3106,6 @@ VISIT_EXTADD_PAIRWISE(I16x8ExtAddPairwiseI8x16U, NeonU8)
 VISIT_EXTADD_PAIRWISE(I32x4ExtAddPairwiseI16x8S, NeonS16)
 VISIT_EXTADD_PAIRWISE(I32x4ExtAddPairwiseI16x8U, NeonU16)
 #undef VISIT_EXTADD_PAIRWISE
-
-#define VISIT_SIGN_SELECT(OPCODE, SIZE)                 \
-  void InstructionSelector::Visit##OPCODE(Node* node) { \
-    InstructionCode opcode = kArmSignSelect;            \
-    opcode |= MiscField::encode(SIZE);                  \
-    VisitRRRR(this, opcode, node);                      \
-  }
-
-VISIT_SIGN_SELECT(I8x16SignSelect, Neon8)
-VISIT_SIGN_SELECT(I16x8SignSelect, Neon16)
-VISIT_SIGN_SELECT(I32x4SignSelect, Neon32)
-VISIT_SIGN_SELECT(I64x2SignSelect, Neon64)
 
 void InstructionSelector::VisitTruncateFloat32ToInt32(Node* node) {
   ArmOperandGenerator g(this);

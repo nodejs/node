@@ -37,11 +37,13 @@ class V8_EXPORT_PRIVATE RegExpMatchInfo : NON_EXPORTED_BASE(public FixedArray) {
 
   // Returns the subject string of the last match.
   inline String LastSubject();
-  inline void SetLastSubject(String value);
+  inline void SetLastSubject(String value,
+                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Like LastSubject, but modifiable by the user.
   inline Object LastInput();
-  inline void SetLastInput(Object value);
+  inline void SetLastInput(Object value,
+                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Returns the i'th capture index, 0 <= i < NumberOfCaptures(). Capture(0) and
   // Capture(1) determine the start- and endpoint of the match itself.

@@ -690,7 +690,7 @@ void Deserializer::RelocInfoVisitor::VisitOffHeapTarget(Code host,
   DCHECK(Builtins::IsBuiltinId(builtin_index));
 
   CHECK_NOT_NULL(isolate()->embedded_blob_code());
-  EmbeddedData d = EmbeddedData::FromBlob();
+  EmbeddedData d = EmbeddedData::FromBlob(isolate());
   Address address = d.InstructionStartOfBuiltin(builtin_index);
   CHECK_NE(kNullAddress, address);
 

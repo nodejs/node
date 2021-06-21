@@ -41,8 +41,8 @@ void AdvanceToOffsetForTracing(
 }
 
 void PrintRegisters(UnoptimizedFrame* frame, std::ostream& os, bool is_input,
-                    interpreter::BytecodeArrayAccessor&
-                        bytecode_accessor,  // NOLINT(runtime/references)
+                    interpreter::BytecodeArrayIterator&
+                        bytecode_iterator,  // NOLINT(runtime/references)
                     Handle<Object> accumulator) {
   static const char kAccumulator[] = "accumulator";
   static const int kRegFieldWidth = static_cast<int>(sizeof(kAccumulator) - 1);
@@ -54,7 +54,7 @@ void PrintRegisters(UnoptimizedFrame* frame, std::ostream& os, bool is_input,
     os << (is_input ? kInputColourCode : kOutputColourCode);
   }
 
-  interpreter::Bytecode bytecode = bytecode_accessor.current_bytecode();
+  interpreter::Bytecode bytecode = bytecode_iterator.current_bytecode();
 
   // Print accumulator.
   if ((is_input && interpreter::Bytecodes::ReadsAccumulator(bytecode)) ||
@@ -75,14 +75,14 @@ void PrintRegisters(UnoptimizedFrame* frame, std::ostream& os, bool is_input,
             : interpreter::Bytecodes::IsRegisterOutputOperandType(operand_type);
     if (should_print) {
       interpreter::Register first_reg =
-          bytecode_accessor.GetRegisterOperand(operand_index);
-      int range = bytecode_accessor.GetRegisterOperandRange(operand_index);
+          bytecode_iterator.GetRegisterOperand(operand_index);
+      int range = bytecode_iterator.GetRegisterOperandRange(operand_index);
       for (int reg_index = first_reg.index();
            reg_index < first_reg.index() + range; reg_index++) {
         Object reg_object = frame->ReadInterpreterRegister(reg_index);
         os << "      [ " << std::setw(kRegFieldWidth)
            << interpreter::Register(reg_index).ToString(
-                  bytecode_accessor.bytecode_array()->parameter_count())
+                  bytecode_iterator.bytecode_array()->parameter_count())
            << kArrowDirection;
         reg_object.ShortPrint(os);
         os << " ]" << std::endl;

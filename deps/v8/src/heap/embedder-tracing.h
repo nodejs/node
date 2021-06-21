@@ -128,6 +128,8 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
     wrapper_descriptor_ = wrapper_descriptor;
   }
 
+  void UpdateRemoteStats(size_t, double);
+
  private:
   static constexpr size_t kEmbedderAllocatedThreshold = 128 * KB;
 

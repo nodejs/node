@@ -2502,7 +2502,7 @@ is flushed.
 Use [`response.writableFinished`][] or [`response.writableEnded`][]
 accordingly instead to avoid the ambiguity.
 
-To maintain existing behaviour `response.finished` should be replaced with
+To maintain existing behavior `response.finished` should be replaced with
 `response.writableEnded`.
 
 ### DEP0137: Closing fs.FileHandle on garbage collection

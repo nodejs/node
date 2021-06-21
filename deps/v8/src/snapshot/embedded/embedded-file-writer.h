@@ -12,6 +12,7 @@
 
 #include "src/common/globals.h"
 #include "src/snapshot/embedded/embedded-data.h"
+#include "src/snapshot/embedded/embedded-file-writer-interface.h"
 #include "src/snapshot/embedded/platform-embedded-file-writer-base.h"
 
 #if defined(V8_OS_WIN64)
@@ -21,37 +22,6 @@
 
 namespace v8 {
 namespace internal {
-
-static constexpr char kDefaultEmbeddedVariant[] = "Default";
-
-struct LabelInfo {
-  int offset;
-  std::string name;
-};
-
-// Detailed source-code information about builtins can only be obtained by
-// registration on the isolate during compilation.
-class EmbeddedFileWriterInterface {
- public:
-  // We maintain a database of filenames to synthetic IDs.
-  virtual int LookupOrAddExternallyCompiledFilename(const char* filename) = 0;
-  virtual const char* GetExternallyCompiledFilename(int index) const = 0;
-  virtual int GetExternallyCompiledFilenameCount() const = 0;
-
-  // The isolate will call the method below just prior to replacing the
-  // compiled builtin Code objects with trampolines.
-  virtual void PrepareBuiltinSourcePositionMap(Builtins* builtins) = 0;
-
-  virtual void PrepareBuiltinLabelInfoMap(int create_offset,
-                                          int invoke_offset) = 0;
-
-#if defined(V8_OS_WIN64)
-  virtual void SetBuiltinUnwindData(
-      int builtin_index,
-      const win64_unwindinfo::BuiltinUnwindInfo& unwinding_info) = 0;
-#endif  // V8_OS_WIN64
-};
-
 // Generates the embedded.S file which is later compiled into the final v8
 // binary. Its contents are exported through two symbols:
 //

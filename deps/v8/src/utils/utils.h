@@ -213,6 +213,13 @@ Wide AddLong(Narrow a, Narrow b) {
   return static_cast<Wide>(a) + static_cast<Wide>(b);
 }
 
+template <typename T>
+inline T RoundingAverageUnsigned(T a, T b) {
+  static_assert(std::is_unsigned<T>::value, "Only for unsiged types");
+  static_assert(sizeof(T) < sizeof(uint64_t), "Must be smaller than uint64_t");
+  return (static_cast<uint64_t>(a) + static_cast<uint64_t>(b) + 1) >> 1;
+}
+
 // Helper macros for defining a contiguous sequence of field offset constants.
 // Example: (backslashes at the ends of respective lines of this multi-line
 // macro definition are omitted here to please the compiler)

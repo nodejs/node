@@ -41,12 +41,12 @@ class CompressedObjectSlot : public SlotBase<CompressedObjectSlot, Tagged_t> {
   // TODO(leszeks): Consider deprecating the operator* load, and always pass the
   // Isolate.
   inline Object operator*() const;
-  inline Object load(IsolateRoot isolate) const;
+  inline Object load(PtrComprCageBase cage_base) const;
   inline void store(Object value) const;
 
   inline Object Acquire_Load() const;
   inline Object Relaxed_Load() const;
-  inline Object Relaxed_Load(IsolateRoot isolate) const;
+  inline Object Relaxed_Load(PtrComprCageBase cage_base) const;
   inline void Relaxed_Store(Object value) const;
   inline void Release_Store(Object value) const;
   inline Object Release_CompareAndSwap(Object old, Object target) const;
@@ -77,11 +77,11 @@ class CompressedMaybeObjectSlot
       : SlotBase(slot.address()) {}
 
   inline MaybeObject operator*() const;
-  inline MaybeObject load(IsolateRoot isolate) const;
+  inline MaybeObject load(PtrComprCageBase cage_base) const;
   inline void store(MaybeObject value) const;
 
   inline MaybeObject Relaxed_Load() const;
-  inline MaybeObject Relaxed_Load(IsolateRoot isolate) const;
+  inline MaybeObject Relaxed_Load(PtrComprCageBase cage_base) const;
   inline void Relaxed_Store(MaybeObject value) const;
   inline void Release_CompareAndSwap(MaybeObject old, MaybeObject target) const;
 };
@@ -105,7 +105,7 @@ class CompressedHeapObjectSlot
       : SlotBase(slot.address()) {}
 
   inline HeapObjectReference operator*() const;
-  inline HeapObjectReference load(IsolateRoot isolate) const;
+  inline HeapObjectReference load(PtrComprCageBase cage_base) const;
   inline void store(HeapObjectReference value) const;
 
   inline HeapObject ToHeapObject() const;
@@ -131,11 +131,11 @@ class OffHeapCompressedObjectSlot
   explicit OffHeapCompressedObjectSlot(const uint32_t* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
 
-  inline Object load(IsolateRoot isolate) const;
+  inline Object load(PtrComprCageBase cage_base) const;
   inline void store(Object value) const;
 
-  inline Object Relaxed_Load(IsolateRoot isolate) const;
-  inline Object Acquire_Load(IsolateRoot isolate) const;
+  inline Object Relaxed_Load(PtrComprCageBase cage_base) const;
+  inline Object Acquire_Load(PtrComprCageBase cage_base) const;
   inline void Relaxed_Store(Object value) const;
   inline void Release_Store(Object value) const;
   inline void Release_CompareAndSwap(Object old, Object target) const;

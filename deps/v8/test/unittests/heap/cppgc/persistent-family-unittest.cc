@@ -52,20 +52,20 @@ struct PersistentRegionTrait<WeakPersistent> {
 
 template <>
 struct PersistentRegionTrait<subtle::CrossThreadPersistent> {
-  static PersistentRegion& Get(cppgc::Heap* heap) {
+  static CrossThreadPersistentRegion& Get(cppgc::Heap* heap) {
     return internal::Heap::From(heap)->GetStrongCrossThreadPersistentRegion();
   }
 };
 
 template <>
 struct PersistentRegionTrait<subtle::WeakCrossThreadPersistent> {
-  static PersistentRegion& Get(cppgc::Heap* heap) {
+  static CrossThreadPersistentRegion& Get(cppgc::Heap* heap) {
     return internal::Heap::From(heap)->GetWeakCrossThreadPersistentRegion();
   }
 };
 
 template <template <typename> class PersistentType>
-PersistentRegion& GetRegion(cppgc::Heap* heap) {
+auto& GetRegion(cppgc::Heap* heap) {
   return PersistentRegionTrait<PersistentType>::Get(heap);
 }
 
@@ -114,31 +114,31 @@ class PersistentTest : public testing::TestSupportingAllocationOnly {};
 
 template <template <typename> class PersistentType>
 void NullStateCtor(cppgc::Heap* heap) {
-  EXPECT_EQ(0u, GetRegion<Persistent>(heap).NodesInUse());
+  EXPECT_EQ(0u, GetRegion<PersistentType>(heap).NodesInUse());
   {
     PersistentType<GCed> empty;
     EXPECT_EQ(nullptr, empty.Get());
     EXPECT_EQ(nullptr, empty.Release());
-    EXPECT_EQ(0u, GetRegion<Persistent>(heap).NodesInUse());
+    EXPECT_EQ(0u, GetRegion<PersistentType>(heap).NodesInUse());
   }
   {
     PersistentType<GCed> empty = nullptr;
     EXPECT_EQ(nullptr, empty.Get());
     EXPECT_EQ(nullptr, empty.Release());
-    EXPECT_EQ(0u, GetRegion<Persistent>(heap).NodesInUse());
+    EXPECT_EQ(0u, GetRegion<PersistentType>(heap).NodesInUse());
   }
   {
     PersistentType<GCed> empty = kSentinelPointer;
     EXPECT_EQ(kSentinelPointer, empty);
     EXPECT_EQ(kSentinelPointer, empty.Release());
-    EXPECT_EQ(0u, GetRegion<Persistent>(heap).NodesInUse());
+    EXPECT_EQ(0u, GetRegion<PersistentType>(heap).NodesInUse());
   }
   {
     // Runtime null must not allocated associated node.
     PersistentType<GCed> empty = static_cast<GCed*>(nullptr);
     EXPECT_EQ(nullptr, empty.Get());
     EXPECT_EQ(nullptr, empty.Release());
-    EXPECT_EQ(0u, GetRegion<Persistent>(heap).NodesInUse());
+    EXPECT_EQ(0u, GetRegion<PersistentType>(heap).NodesInUse());
   }
   EXPECT_EQ(0u, GetRegion<PersistentType>(heap).NodesInUse());
 }

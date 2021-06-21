@@ -205,8 +205,8 @@ TEST(DeserializeWithSourceUrl) {
     const std::string url = "http://example.com/example.wasm";
     Handle<WasmModuleObject> module_object;
     CHECK(test.Deserialize(VectorOf(url)).ToHandle(&module_object));
-    String source_url = String::cast(module_object->script().source_url());
-    CHECK_EQ(url, source_url.ToCString().get());
+    String url_str = String::cast(module_object->script().name());
+    CHECK_EQ(url, url_str.ToCString().get());
   }
   test.CollectGarbage();
 }

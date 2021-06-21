@@ -37,7 +37,7 @@ Handle<Object> Oddball::ToNumber(Isolate* isolate, Handle<Oddball> input) {
 }
 
 DEF_GETTER(HeapObject, IsBoolean, bool) {
-  return IsOddball(isolate) &&
+  return IsOddball(cage_base) &&
          ((Oddball::cast(*this).kind() & Oddball::kNotBooleanMask) == 0);
 }
 

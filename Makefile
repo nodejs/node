@@ -36,6 +36,11 @@ V8_TEST_OPTIONS = $(V8_EXTRA_TEST_OPTIONS)
 ifdef DISABLE_V8_I18N
 	V8_BUILD_OPTIONS += i18nsupport=off
 endif
+# V8 build and test toolchains are not currently compatible with Python 3.
+# config.mk may have prepended a symlink for `python` to PATH which we need
+# to undo before calling V8's tools.
+OVERRIDE_BIN_DIR=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))out/tools/bin
+NO_BIN_OVERRIDE_PATH=$(subst $() $(),:,$(filter-out $(OVERRIDE_BIN_DIR),$(subst :, ,$(PATH))))
 
 ifeq ($(OSTYPE), darwin)
 	GCOV = xcrun llvm-cov gcov
@@ -274,7 +279,8 @@ endif
 # Rebuilds deps/v8 as a git tree, pulls its third-party dependencies, and
 # builds it.
 v8:
-	tools/make-v8.sh $(V8_ARCH).$(BUILDTYPE_LOWER) $(V8_BUILD_OPTIONS)
+	export PATH="$(NO_BIN_OVERRIDE_PATH)" && \
+		tools/make-v8.sh $(V8_ARCH).$(BUILDTYPE_LOWER) $(V8_BUILD_OPTIONS)
 
 .PHONY: jstest
 jstest: build-addons build-js-native-api-tests build-node-api-tests ## Runs addon tests and JS tests
@@ -332,7 +338,7 @@ test-valgrind: all
 test-check-deopts: all
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) --check-deopts parallel sequential
 
-DOCBUILDSTAMP_PREREQS = tools/doc/addon-verify.js doc/api/addons.md
+DOCBUILDSTAMP_PREREQS = tools/doc/addon-verify.mjs doc/api/addons.md
 
 ifeq ($(OSTYPE),aix)
 DOCBUILDSTAMP_PREREQS := $(DOCBUILDSTAMP_PREREQS) out/$(BUILDTYPE)/node.exp
@@ -346,7 +352,7 @@ test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS) tools/doc/node_modules
 	else \
 		$(RM) -r test/addons/??_*/; \
 		[ -x $(NODE) ] && $(NODE) $< || node $< ; \
-		touch $@; \
+		[ $$? -eq 0 ] && touch $@; \
 	fi
 
 ADDONS_BINDING_GYPS := \
@@ -583,12 +589,12 @@ test-doc: doc-only lint-md ## Builds, lints, and verifies the docs.
 	else \
 		$(PYTHON) tools/test.py $(PARALLEL_ARGS) doctool; \
 	fi
-	$(NODE) tools/doc/checkLinks.js .
+	$(NODE) tools/doc/checkLinks.mjs .
 
 .PHONY: test-doc-ci
 test-doc-ci: doc-only
 	$(PYTHON) tools/test.py --shell $(NODE) $(TEST_CI_ARGS) $(PARALLEL_ARGS) doctool
-	$(NODE) tools/doc/checkLinks.js .
+	$(NODE) tools/doc/checkLinks.mjs .
 
 test-known-issues: all
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) known_issues
@@ -651,19 +657,22 @@ test-with-async-hooks:
 ifneq ("","$(wildcard deps/v8/tools/run-tests.py)")
 # Related CI job: node-test-commit-v8-linux
 test-v8: v8  ## Runs the V8 test suite on deps/v8.
-	deps/v8/tools/run-tests.py --gn --arch=$(V8_ARCH) $(V8_TEST_OPTIONS) \
+	export PATH="$(NO_BIN_OVERRIDE_PATH)" && \
+		deps/v8/tools/run-tests.py --gn --arch=$(V8_ARCH) $(V8_TEST_OPTIONS) \
 				mjsunit cctest debugger inspector message preparser \
 				$(TAP_V8)
 	$(info Testing hash seed)
 	$(MAKE) test-hash-seed
 
 test-v8-intl: v8
-	deps/v8/tools/run-tests.py --gn --arch=$(V8_ARCH) \
+	export PATH="$(NO_BIN_OVERRIDE_PATH)" && \
+		deps/v8/tools/run-tests.py --gn --arch=$(V8_ARCH) \
 				--mode=$(BUILDTYPE_LOWER) intl \
 				$(TAP_V8_INTL)
 
 test-v8-benchmarks: v8
-	deps/v8/tools/run-tests.py --gn --arch=$(V8_ARCH) --mode=$(BUILDTYPE_LOWER) \
+	export PATH="$(NO_BIN_OVERRIDE_PATH)" && \
+		deps/v8/tools/run-tests.py --gn --arch=$(V8_ARCH) --mode=$(BUILDTYPE_LOWER) \
 				benchmarks \
 				$(TAP_V8_BENCHMARKS)
 
@@ -727,33 +736,33 @@ run-npm-ci = $(PWD)/$(NPM) ci
 
 LINK_DATA = out/doc/apilinks.json
 VERSIONS_DATA = out/previous-doc-versions.json
-gen-api = tools/doc/generate.js --node-version=$(FULLVERSION) \
+gen-api = tools/doc/generate.mjs --node-version=$(FULLVERSION) \
 		--apilinks=$(LINK_DATA) $< --output-directory=out/doc/api \
 		--versions-file=$(VERSIONS_DATA)
-gen-apilink = tools/doc/apilinks.js $(LINK_DATA) $(wildcard lib/*.js)
+gen-apilink = tools/doc/apilinks.mjs $(LINK_DATA) $(wildcard lib/*.js)
 
-$(LINK_DATA): $(wildcard lib/*.js) tools/doc/apilinks.js | out/doc
+$(LINK_DATA): $(wildcard lib/*.js) tools/doc/apilinks.mjs | out/doc
 	$(call available-node, $(gen-apilink))
 
 # Regenerate previous versions data if the current version changes
-$(VERSIONS_DATA): CHANGELOG.md src/node_version.h tools/doc/versions.js
-	$(call available-node, tools/doc/versions.js $@)
+$(VERSIONS_DATA): CHANGELOG.md src/node_version.h tools/doc/versions.mjs
+	$(call available-node, tools/doc/versions.mjs $@)
 
-out/doc/api/%.json out/doc/api/%.html: doc/api/%.md tools/doc/generate.js \
-	tools/doc/markdown.js tools/doc/html.js tools/doc/json.js \
-	tools/doc/apilinks.js $(VERSIONS_DATA) | $(LINK_DATA) out/doc/api
+out/doc/api/%.json out/doc/api/%.html: doc/api/%.md tools/doc/generate.mjs \
+	tools/doc/markdown.mjs tools/doc/html.mjs tools/doc/json.mjs \
+	tools/doc/apilinks.mjs $(VERSIONS_DATA) | $(LINK_DATA) out/doc/api
 	$(call available-node, $(gen-api))
 
-out/doc/api/all.html: $(apidocs_html) tools/doc/allhtml.js \
-	tools/doc/apilinks.js | out/doc/api
-	$(call available-node, tools/doc/allhtml.js)
+out/doc/api/all.html: $(apidocs_html) tools/doc/allhtml.mjs \
+	tools/doc/apilinks.mjs | out/doc/api
+	$(call available-node, tools/doc/allhtml.mjs)
 
-out/doc/api/all.json: $(apidocs_json) tools/doc/alljson.js | out/doc/api
-	$(call available-node, tools/doc/alljson.js)
+out/doc/api/all.json: $(apidocs_json) tools/doc/alljson.mjs | out/doc/api
+	$(call available-node, tools/doc/alljson.mjs)
 
 .PHONY: out/doc/api/stability
-out/doc/api/stability: out/doc/api/all.json tools/doc/stability.js | out/doc/api
-	$(call available-node, tools/doc/stability.js)
+out/doc/api/stability: out/doc/api/all.json tools/doc/stability.mjs | out/doc/api
+	$(call available-node, tools/doc/stability.mjs)
 
 .PHONY: docopen
 docopen: out/doc/api/all.html

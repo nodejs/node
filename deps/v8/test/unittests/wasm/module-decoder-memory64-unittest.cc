@@ -4,6 +4,7 @@
 
 #include "src/objects/objects-inl.h"
 #include "src/wasm/module-decoder.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-limits.h"
 #include "test/common/wasm/wasm-macro-gen.h"

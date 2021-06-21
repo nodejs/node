@@ -19,11 +19,11 @@ var func_a_idx =
 builder.addFunction('wasm_B', kSig_v_i)
     .addBody([
       kExprLoop,
-      kWasmStmt,  // while
+      kWasmVoid,  // while
       kExprLocalGet,
       0,  // -
       kExprIf,
-      kWasmStmt,  // if <param0> != 0
+      kWasmVoid,  // if <param0> != 0
       kExprLocalGet,
       0,  // -
       kExprI32Const,

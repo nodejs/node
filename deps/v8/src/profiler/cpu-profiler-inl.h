@@ -47,13 +47,17 @@ void ReportBuiltinEventRecord::UpdateCodeMap(CodeMap* code_map) {
   CodeEntry* entry = code_map->FindEntry(instruction_start);
   if (entry) {
     entry->SetBuiltinId(builtin_id);
-  } else if (builtin_id == Builtins::kGenericJSToWasmWrapper) {
+    return;
+  }
+#if V8_ENABLE_WEBASSEMBLY
+  if (builtin_id == Builtins::kGenericJSToWasmWrapper) {
     // Make sure to add the generic js-to-wasm wrapper builtin, because that
     // one is supposed to show up in profiles.
     entry = new CodeEntry(CodeEventListener::BUILTIN_TAG,
                           Builtins::name(builtin_id));
     code_map->AddCode(instruction_start, entry, instruction_size);
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 TickSample* SamplingEventsProcessor::StartTickSample() {
@@ -64,8 +68,9 @@ TickSample* SamplingEventsProcessor::StartTickSample() {
   return &evt->sample;
 }
 
-void BytecodeFlushEventRecord::UpdateCodeMap(CodeMap* code_map) {
-  code_map->ClearCodesInRange(instruction_start, instruction_start + 1);
+void CodeDeleteEventRecord::UpdateCodeMap(CodeMap* code_map) {
+  bool removed = code_map->RemoveCode(entry);
+  CHECK(removed);
 }
 
 void SamplingEventsProcessor::FinishTickSample() {

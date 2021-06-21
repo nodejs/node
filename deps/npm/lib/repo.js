@@ -1,6 +1,5 @@
 const log = require('npmlog')
 const pacote = require('pacote')
-const getWorkspaces = require('./workspaces/get-workspaces.js')
 const { URL } = require('url')
 
 const hostedFromMani = require('./utils/hosted-git-info-from-manifest.js')
@@ -44,9 +43,8 @@ class Repo extends BaseCommand {
   }
 
   async repoWorkspaces (args, filters) {
-    const workspaces =
-      await getWorkspaces(filters, { path: this.npm.localPrefix })
-    return this.repo([...workspaces.values()])
+    await this.setWorkspaces(filters)
+    return this.repo(this.workspacePaths)
   }
 
   async get (pkg) {

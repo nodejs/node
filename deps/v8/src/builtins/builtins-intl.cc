@@ -149,8 +149,8 @@ BUILTIN(DateTimeFormatPrototypeFormatToParts) {
         isolate, NewRangeError(MessageTemplate::kInvalidTimeValue));
   }
 
-  RETURN_RESULT_OR_FAILURE(
-      isolate, JSDateTimeFormat::FormatToParts(isolate, dtf, date_value));
+  RETURN_RESULT_OR_FAILURE(isolate, JSDateTimeFormat::FormatToParts(
+                                        isolate, dtf, date_value, false));
 }
 
 // Common code for DateTimeFormatPrototypeFormtRange(|ToParts)
@@ -608,11 +608,12 @@ BUILTIN(LocaleConstructor) {
 
   isolate->CountUsage(v8::Isolate::UseCounterFeature::kLocale);
 
+  const char* method = "Intl.Locale";
   if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
-                              isolate->factory()->NewStringFromAsciiChecked(
-                                  "Intl.Locale")));
+        isolate,
+        NewTypeError(MessageTemplate::kConstructorNotFunction,
+                     isolate->factory()->NewStringFromAsciiChecked(method)));
   }
   // [[Construct]]
   Handle<JSFunction> target = args.target();
@@ -645,16 +646,11 @@ BUILTIN(LocaleConstructor) {
                                        Object::ToString(isolate, tag));
   }
 
+  // 10. Set options to ? CoerceOptionsToObject(options).
   Handle<JSReceiver> options_object;
-  // 10. If options is undefined, then
-  if (options->IsUndefined(isolate)) {
-    // a. Let options be ! ObjectCreate(null).
-    options_object = isolate->factory()->NewJSObjectWithNullProto();
-  } else {  // 11. Else
-    // a. Let options be ? ToObject(options).
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, options_object,
-                                       Object::ToObject(isolate, options));
-  }
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, options_object,
+      Intl::CoerceOptionsToObject(isolate, options, method));
 
   RETURN_RESULT_OR_FAILURE(
       isolate, JSLocale::New(isolate, map, locale_string, options_object));

@@ -298,7 +298,7 @@ void StringStream::PrintName(Object name) {
 
 void StringStream::PrintUsingMap(JSObject js_object) {
   Map map = js_object.map();
-  DescriptorArray descs = map.instance_descriptors(kRelaxedLoad);
+  DescriptorArray descs = map.instance_descriptors(js_object.GetIsolate());
   for (InternalIndex i : map.IterateOwnDescriptors()) {
     PropertyDetails details = descs.GetDetails(i);
     if (details.location() == kField) {

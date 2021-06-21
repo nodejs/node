@@ -7,7 +7,9 @@
 #include <algorithm>
 #include <cmath>
 
+#include "src/base/atomicops.h"
 #include "src/base/logging.h"
+#include "src/base/platform/time.h"
 #include "src/heap/cppgc/metric-recorder.h"
 
 namespace cppgc {
@@ -53,6 +55,10 @@ void StatsCollector::NotifySafePointForConservativeCollection() {
       static_cast<int64_t>(kAllocationThresholdBytes)) {
     AllocatedObjectSizeSafepointImpl();
   }
+}
+
+void StatsCollector::NotifySafePointForTesting() {
+  AllocatedObjectSizeSafepointImpl();
 }
 
 void StatsCollector::AllocatedObjectSizeSafepointImpl() {
@@ -218,7 +224,7 @@ void StatsCollector::NotifySweepingCompleted() {
 }
 
 size_t StatsCollector::allocated_memory_size() const {
-  return memory_allocated_bytes_;
+  return memory_allocated_bytes_ - memory_freed_bytes_since_end_of_marking_;
 }
 
 size_t StatsCollector::allocated_object_size() const {
@@ -232,6 +238,28 @@ size_t StatsCollector::allocated_object_size() const {
             0);
   return static_cast<size_t>(static_cast<int64_t>(event.marked_bytes) +
                              allocated_bytes_since_end_of_marking_);
+}
+
+size_t StatsCollector::marked_bytes() const {
+  DCHECK_NE(GarbageCollectionState::kMarking, gc_state_);
+  // During sweeping we refer to the current Event as that already holds the
+  // correct marking information. In all other phases, the previous event holds
+  // the most up-to-date marking information.
+  const Event& event =
+      gc_state_ == GarbageCollectionState::kSweeping ? current_ : previous_;
+  return event.marked_bytes;
+}
+
+v8::base::TimeDelta StatsCollector::marking_time() const {
+  DCHECK_NE(GarbageCollectionState::kMarking, gc_state_);
+  // During sweeping we refer to the current Event as that already holds the
+  // correct marking information. In all other phases, the previous event holds
+  // the most up-to-date marking information.
+  const Event& event =
+      gc_state_ == GarbageCollectionState::kSweeping ? current_ : previous_;
+  return event.scope_data[kAtomicMark] + event.scope_data[kIncrementalMark] +
+         v8::base::TimeDelta::FromMicroseconds(v8::base::Relaxed_Load(
+             &event.concurrent_scope_data[kConcurrentMark]));
 }
 
 void StatsCollector::NotifyAllocatedMemory(int64_t size) {

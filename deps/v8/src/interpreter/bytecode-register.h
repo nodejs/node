@@ -157,7 +157,7 @@ class RegisterList {
   friend class BytecodeDecoder;
   friend class InterpreterTester;
   friend class BytecodeUtils;
-  friend class BytecodeArrayAccessor;
+  friend class BytecodeArrayIterator;
 
   RegisterList(int first_reg_index, int register_count)
       : first_reg_index_(first_reg_index), register_count_(register_count) {}

@@ -11,11 +11,10 @@
 #include "src/execution/protectors.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
 
 namespace v8 {
 namespace internal {
-
-using compiler::Node;
 
 // -----------------------------------------------------------------------------
 // ES6 section 22.2 TypedArray Objects
@@ -371,14 +370,14 @@ void TypedArrayBuiltinsAssembler::SetJSTypedArrayOnHeapDataPtr(
     TNode<IntPtrT> full_base = Signed(BitcastTaggedToWord(base));
     TNode<Int32T> compressed_base = TruncateIntPtrToInt32(full_base);
     // TODO(v8:9706): Add a way to directly use kRootRegister value.
-    TNode<IntPtrT> isolate_root =
+    TNode<IntPtrT> ptr_compr_cage_base =
         IntPtrSub(full_base, Signed(ChangeUint32ToWord(compressed_base)));
     // Add JSTypedArray::ExternalPointerCompensationForOnHeapArray() to offset.
     DCHECK_EQ(
         isolate()->isolate_root(),
         JSTypedArray::ExternalPointerCompensationForOnHeapArray(isolate()));
     // See JSTypedArray::SetOnHeapDataPtr() for details.
-    offset = Unsigned(IntPtrAdd(offset, isolate_root));
+    offset = Unsigned(IntPtrAdd(offset, ptr_compr_cage_base));
   }
 
   StoreJSTypedArrayBasePointer(holder, base);
@@ -434,9 +433,12 @@ void TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromPreparedValue(
     TNode<Context> context, TNode<JSTypedArray> typed_array,
     TNode<UintPtrT> index, TNode<TValue> prepared_value,
     ElementsKind elements_kind, Label* if_detached) {
-  static_assert(std::is_same<TValue, UntaggedT>::value ||
-                    std::is_same<TValue, BigInt>::value,
-                "Only UntaggedT or BigInt values are allowed");
+  static_assert(
+      std::is_same<TValue, Word32T>::value ||
+          std::is_same<TValue, Float32T>::value ||
+          std::is_same<TValue, Float64T>::value ||
+          std::is_same<TValue, BigInt>::value,
+      "Only Word32T, Float32T, Float64T or BigInt values are allowed");
   // ToNumber/ToBigInt may execute JavaScript code, which could detach
   // the array's buffer.
   TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(typed_array);
@@ -450,20 +452,48 @@ void TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromTagged(
     TNode<Context> context, TNode<JSTypedArray> typed_array,
     TNode<UintPtrT> index, TNode<Object> value, ElementsKind elements_kind,
     Label* if_detached) {
-  if (elements_kind == BIGINT64_ELEMENTS ||
-      elements_kind == BIGUINT64_ELEMENTS) {
-    TNode<BigInt> prepared_value =
-        PrepareValueForWriteToTypedArray<BigInt>(value, elements_kind, context);
-    StoreJSTypedArrayElementFromPreparedValue(context, typed_array, index,
-                                              prepared_value, elements_kind,
-                                              if_detached);
-  } else {
-    TNode<UntaggedT> prepared_value =
-        PrepareValueForWriteToTypedArray<UntaggedT>(value, elements_kind,
-                                                    context);
-    StoreJSTypedArrayElementFromPreparedValue(context, typed_array, index,
-                                              prepared_value, elements_kind,
-                                              if_detached);
+  switch (elements_kind) {
+    case UINT8_ELEMENTS:
+    case INT8_ELEMENTS:
+    case UINT16_ELEMENTS:
+    case INT16_ELEMENTS:
+    case UINT32_ELEMENTS:
+    case INT32_ELEMENTS:
+    case UINT8_CLAMPED_ELEMENTS: {
+      auto prepared_value = PrepareValueForWriteToTypedArray<Word32T>(
+          value, elements_kind, context);
+      StoreJSTypedArrayElementFromPreparedValue(context, typed_array, index,
+                                                prepared_value, elements_kind,
+                                                if_detached);
+      break;
+    }
+    case FLOAT32_ELEMENTS: {
+      auto prepared_value = PrepareValueForWriteToTypedArray<Float32T>(
+          value, elements_kind, context);
+      StoreJSTypedArrayElementFromPreparedValue(context, typed_array, index,
+                                                prepared_value, elements_kind,
+                                                if_detached);
+      break;
+    }
+    case FLOAT64_ELEMENTS: {
+      auto prepared_value = PrepareValueForWriteToTypedArray<Float64T>(
+          value, elements_kind, context);
+      StoreJSTypedArrayElementFromPreparedValue(context, typed_array, index,
+                                                prepared_value, elements_kind,
+                                                if_detached);
+      break;
+    }
+    case BIGINT64_ELEMENTS:
+    case BIGUINT64_ELEMENTS: {
+      auto prepared_value = PrepareValueForWriteToTypedArray<BigInt>(
+          value, elements_kind, context);
+      StoreJSTypedArrayElementFromPreparedValue(context, typed_array, index,
+                                                prepared_value, elements_kind,
+                                                if_detached);
+      break;
+    }
+    default:
+      UNREACHABLE();
   }
 }
 

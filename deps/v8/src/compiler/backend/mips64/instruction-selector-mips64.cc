@@ -1487,7 +1487,8 @@ bool InstructionSelector::ZeroExtendsWord32ToWord64NoPhis(Node* node) {
     case IrOpcode::kUint32Mod:
     case IrOpcode::kUint32MulHigh:
       return true;
-    case IrOpcode::kLoad: {
+    case IrOpcode::kLoad:
+    case IrOpcode::kLoadImmutable: {
       LoadRepresentation load_rep = LoadRepresentationOf(node->op());
       if (load_rep.IsUnsigned()) {
         switch (load_rep.representation()) {
@@ -1595,7 +1596,7 @@ void InstructionSelector::VisitBitcastFloat64ToInt64(Node* node) {
 void InstructionSelector::VisitBitcastInt32ToFloat32(Node* node) {
   Mips64OperandGenerator g(this);
   Emit(kMips64Float64InsertLowWord32, g.DefineAsRegister(node),
-       ImmediateOperand(ImmediateOperand::INLINE, 0),
+       ImmediateOperand(ImmediateOperand::INLINE_INT32, 0),
        g.UseRegister(node->InputAt(0)));
 }
 
@@ -1768,7 +1769,7 @@ void InstructionSelector::EmitPrepareArguments(
       ++slot;
     }
   } else {
-    int push_count = static_cast<int>(call_descriptor->StackParameterCount());
+    int push_count = static_cast<int>(call_descriptor->ParameterSlotCount());
     if (push_count > 0) {
       // Calculate needed space
       int stack_size = 0;
@@ -2903,10 +2904,10 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I8x16Popcnt, kMips64I8x16Popcnt)                         \
   V(I8x16BitMask, kMips64I8x16BitMask)                       \
   V(S128Not, kMips64S128Not)                                 \
-  V(V64x2AllTrue, kMips64V64x2AllTrue)                       \
-  V(V32x4AllTrue, kMips64V32x4AllTrue)                       \
-  V(V16x8AllTrue, kMips64V16x8AllTrue)                       \
-  V(V8x16AllTrue, kMips64V8x16AllTrue)                       \
+  V(I64x2AllTrue, kMips64I64x2AllTrue)                       \
+  V(I32x4AllTrue, kMips64I32x4AllTrue)                       \
+  V(I16x8AllTrue, kMips64I16x8AllTrue)                       \
+  V(I8x16AllTrue, kMips64I8x16AllTrue)                       \
   V(V128AnyTrue, kMips64V128AnyTrue)
 
 #define SIMD_SHIFT_OP_LIST(V) \
@@ -2942,7 +2943,6 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I64x2GtS, kMips64I64x2GtS)                           \
   V(I64x2GeS, kMips64I64x2GeS)                           \
   V(F32x4Add, kMips64F32x4Add)                           \
-  V(F32x4AddHoriz, kMips64F32x4AddHoriz)                 \
   V(F32x4Sub, kMips64F32x4Sub)                           \
   V(F32x4Mul, kMips64F32x4Mul)                           \
   V(F32x4Div, kMips64F32x4Div)                           \
@@ -2953,7 +2953,6 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F32x4Lt, kMips64F32x4Lt)                             \
   V(F32x4Le, kMips64F32x4Le)                             \
   V(I32x4Add, kMips64I32x4Add)                           \
-  V(I32x4AddHoriz, kMips64I32x4AddHoriz)                 \
   V(I32x4Sub, kMips64I32x4Sub)                           \
   V(I32x4Mul, kMips64I32x4Mul)                           \
   V(I32x4MaxS, kMips64I32x4MaxS)                         \
@@ -2970,7 +2969,6 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I16x8Add, kMips64I16x8Add)                           \
   V(I16x8AddSatS, kMips64I16x8AddSatS)                   \
   V(I16x8AddSatU, kMips64I16x8AddSatU)                   \
-  V(I16x8AddHoriz, kMips64I16x8AddHoriz)                 \
   V(I16x8Sub, kMips64I16x8Sub)                           \
   V(I16x8SubSatS, kMips64I16x8SubSatS)                   \
   V(I16x8SubSatU, kMips64I16x8SubSatU)                   \
@@ -2995,7 +2993,6 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I8x16Sub, kMips64I8x16Sub)                           \
   V(I8x16SubSatS, kMips64I8x16SubSatS)                   \
   V(I8x16SubSatU, kMips64I8x16SubSatU)                   \
-  V(I8x16Mul, kMips64I8x16Mul)                           \
   V(I8x16MaxS, kMips64I8x16MaxS)                         \
   V(I8x16MinS, kMips64I8x16MinS)                         \
   V(I8x16MaxU, kMips64I8x16MaxU)                         \
@@ -3092,6 +3089,7 @@ void InstructionSelector::VisitS128Select(Node* node) {
   VisitRRRR(this, kMips64S128Select, node);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 namespace {
 
 struct ShuffleEntry {
@@ -3204,6 +3202,9 @@ void InstructionSelector::VisitI8x16Shuffle(Node* node) {
        g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle + 8)),
        g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle + 12)));
 }
+#else
+void InstructionSelector::VisitI8x16Shuffle(Node* node) { UNREACHABLE(); }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void InstructionSelector::VisitI8x16Swizzle(Node* node) {
   Mips64OperandGenerator g(this);

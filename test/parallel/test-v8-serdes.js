@@ -50,7 +50,7 @@ const hostObject = new (internalBinding('js_stream').JSStream)();
 {
   const ser = new v8.DefaultSerializer();
   ser._getDataCloneError = common.mustCall((message) => {
-    assert.strictEqual(message, '[object Object] could not be cloned.');
+    assert.strictEqual(message, '#<Object> could not be cloned.');
     return new Error('foobar');
   });
 

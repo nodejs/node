@@ -12,7 +12,7 @@ const _fixAvailable = Symbol('fixAvailable')
 const _checkTopNode = Symbol('checkTopNode')
 const _init = Symbol('init')
 const _omit = Symbol('omit')
-const procLog = require('./proc-log.js')
+const procLog = require('proc-log')
 
 const fetch = require('npm-registry-fetch')
 

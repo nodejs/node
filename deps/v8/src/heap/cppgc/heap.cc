@@ -115,10 +115,10 @@ void Heap::CollectGarbage(Config config) {
 
   config_ = config;
 
-  if (!IsMarking()) StartGarbageCollection(config);
-
+  if (!IsMarking()) {
+    StartGarbageCollection(config);
+  }
   DCHECK(IsMarking());
-
   FinalizeGarbageCollection(config.stack_state);
 }
 
@@ -207,6 +207,23 @@ void Heap::FinalizeIncrementalGarbageCollectionIfNeeded(
   StatsCollector::EnabledScope stats_scope(
       stats_collector(), StatsCollector::kMarkIncrementalFinalize);
   FinalizeGarbageCollection(stack_state);
+}
+
+void Heap::StartIncrementalGarbageCollectionForTesting() {
+  DCHECK(!IsMarking());
+  DCHECK(!in_no_gc_scope());
+  StartGarbageCollection({Config::CollectionType::kMajor,
+                          Config::StackState::kNoHeapPointers,
+                          Config::MarkingType::kIncrementalAndConcurrent,
+                          Config::SweepingType::kIncrementalAndConcurrent});
+}
+
+void Heap::FinalizeIncrementalGarbageCollectionForTesting(
+    EmbedderStackState stack_state) {
+  DCHECK(!in_no_gc_scope());
+  DCHECK(IsMarking());
+  FinalizeGarbageCollection(stack_state);
+  sweeper_.FinishIfRunning();
 }
 
 }  // namespace internal

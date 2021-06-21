@@ -90,13 +90,9 @@ const Register GrowArrayElementsDescriptor::ObjectRegister() { return eax; }
 const Register GrowArrayElementsDescriptor::KeyRegister() { return ecx; }
 
 const Register BaselineLeaveFrameDescriptor::ParamsSizeRegister() {
-  // TODO(v8:11421): Implement on this platform.
-  UNREACHABLE();
+  return esi;
 }
-const Register BaselineLeaveFrameDescriptor::WeightRegister() {
-  // TODO(v8:11421): Implement on this platform.
-  UNREACHABLE();
-}
+const Register BaselineLeaveFrameDescriptor::WeightRegister() { return edi; }
 
 // static
 const Register TypeConversionDescriptor::ArgumentRegister() { return eax; }
@@ -224,8 +220,8 @@ void CompareDescriptor::InitializePlatformSpecific(
 
 void Compare_BaselineDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  // TODO(v8:11421): Implement on this platform.
-  InitializePlatformUnimplemented(data, kParameterCount);
+  Register registers[] = {edx, eax, ecx};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
 void BinaryOpDescriptor::InitializePlatformSpecific(
@@ -236,8 +232,8 @@ void BinaryOpDescriptor::InitializePlatformSpecific(
 
 void BinaryOp_BaselineDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  // TODO(v8:11421): Implement on this platform.
-  InitializePlatformUnimplemented(data, kParameterCount);
+  Register registers[] = {edx, eax, ecx};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
 void ApiCallbackDescriptor::InitializePlatformSpecific(

@@ -11,7 +11,10 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/objects/code-inl.h"
 #include "src/objects/objects-inl.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-code-manager.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -20,9 +23,11 @@ HandlerTable::HandlerTable(Code code)
     : HandlerTable(code.HandlerTableAddress(), code.handler_table_size(),
                    kReturnAddressBasedEncoding) {}
 
+#if V8_ENABLE_WEBASSEMBLY
 HandlerTable::HandlerTable(const wasm::WasmCode* code)
     : HandlerTable(code->handler_table(), code->handler_table_size(),
                    kReturnAddressBasedEncoding) {}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 HandlerTable::HandlerTable(BytecodeArray bytecode_array)
     : HandlerTable(bytecode_array.handler_table()) {}

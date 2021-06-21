@@ -34,7 +34,7 @@ function f() {
   class Derived extends GetBase() {} // 0.
 }
 
-var bp = Debug.setBreakPoint(f, 0);
+var bp = Debug.setBreakPoint(f, 1, 20);
 f();
 assertEquals(4, stepCount);
 

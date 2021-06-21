@@ -264,8 +264,10 @@ bool BASE_EXPORT ConvertThreadId(const ::base::PlatformThreadId& thread,
 }  // namespace legacy
 
 template <>
-BASE_EXPORT TraceTimestamp
-ConvertTimestampToTraceTimeNs(const ::base::TimeTicks& ticks);
+struct BASE_EXPORT TraceTimestampTraits<::base::TimeTicks> {
+  static TraceTimestamp ConvertTimestampToTraceTimeNs(
+      const ::base::TimeTicks& ticks);
+};
 
 }  // namespace perfetto
 

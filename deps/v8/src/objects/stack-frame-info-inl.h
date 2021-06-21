@@ -22,12 +22,14 @@ namespace internal {
 TQ_OBJECT_CONSTRUCTORS_IMPL(StackFrameInfo)
 NEVER_READ_ONLY_SPACE_IMPL(StackFrameInfo)
 
+#if V8_ENABLE_WEBASSEMBLY
 BOOL_GETTER(StackFrameInfo, flags, IsWasm, IsWasmBit::kShift)
 BOOL_GETTER(StackFrameInfo, flags, IsAsmJsWasm, IsAsmJsWasmBit::kShift)
-BOOL_GETTER(StackFrameInfo, flags, IsStrict, IsStrictBit::kShift)
-BOOL_GETTER(StackFrameInfo, flags, IsConstructor, IsConstructorBit::kShift)
 BOOL_GETTER(StackFrameInfo, flags, IsAsmJsAtNumberConversion,
             IsAsmJsAtNumberConversionBit::kShift)
+#endif  // V8_ENABLE_WEBASSEMBLY
+BOOL_GETTER(StackFrameInfo, flags, IsStrict, IsStrictBit::kShift)
+BOOL_GETTER(StackFrameInfo, flags, IsConstructor, IsConstructorBit::kShift)
 BOOL_GETTER(StackFrameInfo, flags, IsAsync, IsAsyncBit::kShift)
 
 }  // namespace internal

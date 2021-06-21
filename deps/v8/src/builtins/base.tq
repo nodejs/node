@@ -104,6 +104,7 @@ type uint8 extends uint16
 type char8 extends uint8 constexpr 'char';
 type char16 extends uint16 constexpr 'char16_t';
 type int64 generates 'TNode<Int64T>' constexpr 'int64_t';
+type uint64 generates 'TNode<Uint64T>' constexpr 'uint64_t';
 type intptr generates 'TNode<IntPtrT>' constexpr 'intptr_t';
 type uintptr generates 'TNode<UintPtrT>' constexpr 'uintptr_t';
 type float32 generates 'TNode<Float32T>' constexpr 'float';
@@ -111,6 +112,9 @@ type float64 generates 'TNode<Float64T>' constexpr 'double';
 type bool generates 'TNode<BoolT>' constexpr 'bool';
 type bint generates 'TNode<BInt>' constexpr 'BInt';
 type string constexpr 'const char*';
+
+type Simd128 generates 'TNode<Simd128T>';
+type I8X16 extends Simd128 generates 'TNode<I8x16T>';
 
 // Represents a std::function which produces the generated TNode type of T.
 // Useful for passing values to and from CSA code that uses LazyNode<T>, which
@@ -415,8 +419,6 @@ extern enum PropertyAttributes extends int31 {
   ...
 }
 
-const kMaxArrayIndex:
-    constexpr uint32 generates 'JSArray::kMaxArrayIndex';
 const kArrayBufferMaxByteLength:
     constexpr uintptr generates 'JSArrayBuffer::kMaxByteLength';
 const kTypedArrayMaxLength:
@@ -456,16 +458,17 @@ extern enum PrimitiveType { kString, kBoolean, kSymbol, kNumber }
 
 const kNameDictionaryInitialCapacity:
     constexpr int32 generates 'NameDictionary::kInitialCapacity';
-const kOrderedNameDictionaryInitialCapacity:
-    constexpr int32 generates 'OrderedNameDictionary::kInitialCapacity';
-const kSwissNameDictionaryGroupWidth:
-    constexpr int32 generates 'SwissNameDictionary::kGroupWidth';
+const kSwissNameDictionaryInitialCapacity:
+    constexpr int32 generates 'SwissNameDictionary::kInitialCapacity';
 
 const kWasmArrayHeaderSize:
     constexpr int32 generates 'WasmArray::kHeaderSize';
 
+const kHeapObjectHeaderSize:
+    constexpr int32 generates 'HeapObject::kHeaderSize';
+
 const kDictModePrototypes:
-    constexpr bool generates 'V8_DICT_MODE_PROTOTYPES_BOOL';
+    constexpr bool generates 'V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL';
 
 type TheHole extends Oddball;
 type Null extends Oddball;
@@ -688,6 +691,8 @@ extern macro CodeStubAssembler::AllocateNameDictionary(constexpr int32):
     NameDictionary;
 extern macro CodeStubAssembler::AllocateOrderedNameDictionary(constexpr int32):
     OrderedNameDictionary;
+extern macro CodeStubAssembler::AllocateSwissNameDictionary(constexpr int32):
+    SwissNameDictionary;
 
 extern builtin ToObject(Context, JSAny): JSReceiver;
 extern macro ToObject_Inline(Context, JSAny): JSReceiver;
@@ -804,6 +809,8 @@ extern operator '>=' macro IntPtrGreaterThanOrEqual(intptr, intptr): bool;
 extern operator '>=' macro UintPtrGreaterThanOrEqual(uintptr, uintptr): bool;
 extern operator '~' macro WordNot(intptr): intptr;
 extern operator '~' macro WordNot(uintptr): uintptr;
+extern operator '~' macro Word64Not(uint64): uint64;
+extern operator '~' macro Word64Not(int64): int64;
 extern operator '~' macro ConstexprWordNot(constexpr intptr): constexpr intptr;
 extern operator '~' macro ConstexprWordNot(constexpr uintptr):
     constexpr uintptr;
@@ -878,32 +885,44 @@ extern operator '+' macro ConstexprIntPtrAdd(
     constexpr intptr, constexpr intptr): constexpr intptr;
 extern operator '+' macro ConstexprUintPtrAdd(
     constexpr uintptr, constexpr uintptr): constexpr intptr;
+extern operator '+' macro Int64Add(int64, int64): int64;
 extern operator '-' macro IntPtrSub(intptr, intptr): intptr;
+extern operator '-' macro Int64Sub(int64, int64): int64;
 extern operator '*' macro IntPtrMul(intptr, intptr): intptr;
+extern operator '*' macro Int64Mul(int64, int64): int64;
 extern operator '/' macro IntPtrDiv(intptr, intptr): intptr;
+extern operator '/' macro Int64Div(int64, int64): int64;
 extern operator '<<' macro WordShl(intptr, intptr): intptr;
 extern operator '>>' macro WordSar(intptr, intptr): intptr;
 extern operator '&' macro WordAnd(intptr, intptr): intptr;
 extern operator '|' macro WordOr(intptr, intptr): intptr;
 
 extern operator '+' macro UintPtrAdd(uintptr, uintptr): uintptr;
+extern operator '+' macro Uint64Add(uint64, uint64): uint64;
 extern operator '-' macro UintPtrSub(uintptr, uintptr): uintptr;
+extern operator '-' macro Uint64Sub(uint64, uint64): uint64;
+extern operator '*' macro Uint64Mul(uint64, uint64): uint64;
 extern operator '<<' macro WordShl(uintptr, uintptr): uintptr;
 extern operator '>>>' macro WordShr(uintptr, uintptr): uintptr;
 extern operator '&' macro WordAnd(uintptr, uintptr): uintptr;
 extern operator '|' macro WordOr(uintptr, uintptr): uintptr;
 
 extern operator '+' macro Int32Add(int32, int32): int32;
+extern operator '+' macro Uint32Add(uint32, uint32): uint32;
 extern operator '+' macro ConstexprUint32Add(
     constexpr uint32, constexpr int32): constexpr uint32;
 extern operator '+' macro ConstexprInt31Add(
     constexpr int31, constexpr int31): constexpr int31;
+extern operator '+' macro ConstexprInt32Add(
+    constexpr int32, constexpr int32): constexpr int32;
 extern operator '*' macro ConstexprInt31Mul(
     constexpr int31, constexpr int31): constexpr int31;
 extern operator '-' macro Int32Sub(int16, int16): int32;
 extern operator '-' macro Int32Sub(uint16, uint16): int32;
 extern operator '-' macro Int32Sub(int32, int32): int32;
+extern operator '-' macro Uint32Sub(uint32, uint32): uint32;
 extern operator '*' macro Int32Mul(int32, int32): int32;
+extern operator '*' macro Uint32Mul(uint32, uint32): uint32;
 extern operator '/' macro Int32Div(int32, int32): int32;
 extern operator '%' macro Int32Mod(int32, int32): int32;
 extern operator '&' macro Word32And(int32, int32): int32;
@@ -940,6 +959,22 @@ extern operator '==' macro Word32Equal(bool, bool): bool;
 extern operator '!=' macro Word32NotEqual(bool, bool): bool;
 extern operator '|' macro ConstexprWord32Or(
     constexpr int32, constexpr int32): constexpr int32;
+extern operator '^' macro Word32Xor(int32, int32): int32;
+extern operator '^' macro Word32Xor(uint32, uint32): uint32;
+
+extern operator '==' macro Word64Equal(int64, int64): bool;
+extern operator '==' macro Word64Equal(uint64, uint64): bool;
+extern operator '!=' macro Word64NotEqual(int64, int64): bool;
+extern operator '!=' macro Word64NotEqual(uint64, uint64): bool;
+extern operator '>>>' macro Word64Shr(uint64, uint64): uint64;
+extern operator '>>' macro Word64Sar(int64, int64): int64;
+extern operator '<<' macro Word64Shl(int64, int64): int64;
+extern operator '<<' macro Word64Shl(uint64, uint64): uint64;
+extern operator '|' macro Word64Or(int64, int64): int64;
+extern operator '|' macro Word64Or(uint64, uint64): uint64;
+extern operator '&' macro Word64And(uint64, uint64): uint64;
+extern operator '^' macro Word64Xor(int64, int64): int64;
+extern operator '^' macro Word64Xor(uint64, uint64): uint64;
 
 extern operator '+' macro Float64Add(float64, float64): float64;
 extern operator '-' macro Float64Sub(float64, float64): float64;
@@ -987,6 +1022,8 @@ ConstexprInt31Equal(
     constexpr InstanceType, constexpr InstanceType): constexpr bool;
 extern operator '-' macro ConstexprUint32Sub(
     constexpr InstanceType, constexpr InstanceType): constexpr int32;
+extern operator '-' macro ConstexprInt32Sub(
+    constexpr int32, constexpr int32): constexpr int32;
 
 extern operator '.instanceType' macro LoadInstanceType(HeapObject):
     InstanceType;
@@ -1015,6 +1052,10 @@ operator '==' macro PromiseStateEquals(
   return Word32Equal(s1, s2);
 }
 
+extern macro CountLeadingZeros64(uint64): int64;
+extern macro CountTrailingZeros32(uint32): int32;
+extern macro CountTrailingZeros64(uint64): int64;
+
 extern macro TaggedIsSmi(Object): bool;
 extern macro TaggedIsNotSmi(Object): bool;
 extern macro TaggedIsPositiveSmi(Object): bool;
@@ -1028,17 +1069,20 @@ extern macro ChangeInt32ToTagged(int32): Number;
 extern macro ChangeUint32ToTagged(uint32): Number;
 extern macro ChangeUintPtrToFloat64(uintptr): float64;
 extern macro ChangeUintPtrToTagged(uintptr): Number;
+extern macro Unsigned(int64): uint64;
 extern macro Unsigned(int32): uint32;
 extern macro Unsigned(int16): uint16;
 extern macro Unsigned(int8): uint8;
 extern macro Unsigned(intptr): uintptr;
 extern macro Unsigned(RawPtr): uintptr;
+extern macro Signed(uint64): int64;
 extern macro Signed(uint32): int32;
 extern macro Signed(uint16): int16;
 extern macro Signed(uint8): int8;
 extern macro Signed(uintptr): intptr;
 extern macro Signed(RawPtr): intptr;
 extern macro TruncateIntPtrToInt32(intptr): int32;
+extern macro TruncateInt64ToInt32(int64): int32;
 extern macro SmiTag(intptr): Smi;
 extern macro SmiFromInt32(int32): Smi;
 extern macro SmiFromUint32(uint32): Smi;
@@ -1057,6 +1101,7 @@ extern macro IntPtrToTaggedIndex(intptr): TaggedIndex;
 extern macro TaggedIndexToSmi(TaggedIndex): Smi;
 extern macro SmiToTaggedIndex(Smi): TaggedIndex;
 extern macro RoundIntPtrToFloat64(intptr): float64;
+extern macro IntPtrRoundUpToPowerOfTwo32(intptr): intptr;
 extern macro ChangeFloat32ToFloat64(float32): float64;
 extern macro ChangeNumberToFloat64(Number): float64;
 extern macro ChangeNumberToUint32(Number): uint32;
@@ -1066,9 +1111,12 @@ extern macro ChangeTaggedToFloat64(implicit context: Context)(JSAny): float64;
 extern macro ChangeFloat64ToTagged(float64): Number;
 extern macro ChangeFloat64ToUintPtr(float64): uintptr;
 extern macro ChangeFloat64ToIntPtr(float64): intptr;
+extern macro ChangeBoolToInt32(bool): int32;
 extern macro ChangeInt32ToFloat64(int32): float64;
-extern macro ChangeInt32ToIntPtr(int32): intptr;   // Sign-extends.
-extern macro ChangeUint32ToWord(uint32): uintptr;  // Doesn't sign-extend.
+extern macro ChangeInt32ToIntPtr(int32): intptr;    // Sign-extends.
+extern macro ChangeUint32ToWord(uint32): uintptr;   // Doesn't sign-extend.
+extern macro ChangeInt32ToInt64(int32): intptr;     // Sign-extends.
+extern macro ChangeUint32ToUint64(uint32): uint64;  // Doesn't sign-extend.
 extern macro LoadNativeContext(Context): NativeContext;
 extern macro TruncateFloat64ToFloat32(float64): float32;
 extern macro TruncateHeapNumberValueToWord32(HeapNumber): int32;
@@ -1082,6 +1130,8 @@ extern macro IntPtrConstant(constexpr int32): intptr;
 extern macro Uint16Constant(constexpr uint16): uint16;
 extern macro Int32Constant(constexpr int31): int31;
 extern macro Int32Constant(constexpr int32): int32;
+extern macro Int64Constant(constexpr int64): int64;
+extern macro Uint64Constant(constexpr uint64): uint64;
 extern macro Float64Constant(constexpr int31): float64;
 extern macro Float64Constant(constexpr float64): float64;
 extern macro SmiConstant(constexpr int31): Smi;
@@ -1101,7 +1151,7 @@ extern macro BitcastWordToTaggedSigned(intptr): Smi;
 extern macro BitcastWordToTaggedSigned(uintptr): Smi;
 extern macro BitcastWordToTagged(intptr): Object;
 extern macro BitcastWordToTagged(uintptr): Object;
-extern macro BitcastTaggedToWord(Tagged): intptr;
+extern macro BitcastTaggedToWord(Object): intptr;
 extern macro BitcastTaggedToWordForTagAndSmiBits(Tagged): intptr;
 
 extern macro FixedArrayMapConstant(): Map;
@@ -1795,3 +1845,12 @@ extern macro FeedbackIteratorEntrySize(): intptr;
 extern macro FeedbackIteratorHandlerOffset(): intptr;
 extern operator '[]' macro LoadWeakFixedArrayElement(
     WeakFixedArray, intptr): MaybeObject;
+
+const kNoHashSentinel:
+    constexpr int32 generates 'PropertyArray::kNoHashSentinel';
+extern macro LoadNameHash(Name): uint32;
+
+extern macro LoadSimd128(intptr): Simd128;
+extern macro I8x16BitMask(I8X16): int32;
+extern macro I8x16Eq(I8X16, I8X16): I8X16;
+extern macro I8x16Splat(int32): I8X16;

@@ -22,8 +22,6 @@
 namespace v8 {
 namespace internal {
 
-using compiler::Node;
-
 // Tail calls the regular expression interpreter.
 // static
 void Builtins::Generate_RegExpInterpreterTrampoline(MacroAssembler* masm) {
@@ -325,9 +323,8 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
     TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<Map> map = LoadSlowObjectWithNullPrototypeMap(native_context);
     TNode<HeapObject> properties;
-    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-      // AllocateOrderedNameDictionary always uses kAllowLargeObjectAllocation.
-      properties = AllocateOrderedNameDictionary(num_properties);
+    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+      properties = AllocateSwissNameDictionary(num_properties);
     } else {
       properties =
           AllocateNameDictionary(num_properties, kAllowLargeObjectAllocation);
@@ -366,28 +363,18 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
       // - Receiver is extensible
       // - Receiver has no interceptors
       Label add_dictionary_property_slow(this, Label::kDeferred);
-      if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-        // TODO(v8:11167) remove once OrderedNameDictionary supported.
-        CallRuntime(Runtime::kAddDictionaryProperty, context, group_object,
-                    name, capture);
-      } else {
-        Add<NameDictionary>(CAST(properties), name, capture,
-                            &add_dictionary_property_slow);
-      }
+      Add<PropertyDictionary>(CAST(properties), name, capture,
+                              &add_dictionary_property_slow);
 
       var_i = i_plus_2;
       Branch(IntPtrGreaterThanOrEqual(var_i.value(), names_length),
              &maybe_build_indices, &loop);
 
-      if (!V8_DICT_MODE_PROTOTYPES_BOOL) {
-        // TODO(v8:11167) make unconditional  once OrderedNameDictionary
-        // supported.
-        BIND(&add_dictionary_property_slow);
-        // If the dictionary needs resizing, the above Add call will jump here
-        // before making any changes. This shouldn't happen because we allocated
-        // the dictionary with enough space above.
-        Unreachable();
-      }
+      BIND(&add_dictionary_property_slow);
+      // If the dictionary needs resizing, the above Add call will jump here
+      // before making any changes. This shouldn't happen because we allocated
+      // the dictionary with enough space above.
+      Unreachable();
     }
   }
 

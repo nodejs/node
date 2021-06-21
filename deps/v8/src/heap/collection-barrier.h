@@ -8,8 +8,10 @@
 #include <atomic>
 
 #include "src/base/optional.h"
+#include "src/base/platform/condition-variable.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/mutex.h"
+#include "src/heap/local-heap.h"
 #include "src/logging/counters.h"
 
 namespace v8 {
@@ -21,70 +23,34 @@ class Heap;
 class CollectionBarrier {
   Heap* heap_;
   base::Mutex mutex_;
-  base::ConditionVariable cond_;
+  base::ConditionVariable cv_wakeup_;
   base::ElapsedTimer timer_;
+  bool shutdown_requested_;
 
-  enum class RequestState {
-    // Default state, no collection requested and tear down wasn't initated
-    // yet.
-    kDefault,
-
-    // Collection was already requested
-    kCollectionRequested,
-
-    // Collection was already started
-    kCollectionStarted,
-
-    // This state is reached after isolate starts to shut down. The main
-    // thread can't perform any GCs anymore, so all allocations need to be
-    // allowed from here on until background thread finishes.
-    kShutdown,
-  };
-
-  // The current state.
-  std::atomic<RequestState> state_;
-
-  // Request GC by activating stack guards and posting a task to perform the
-  // GC.
-  void ActivateStackGuardAndPostTask();
-
-  // Returns true when state was successfully updated from kDefault to
-  // kCollection.
-  bool FirstCollectionRequest() {
-    RequestState expected = RequestState::kDefault;
-    return state_.compare_exchange_strong(expected,
-                                          RequestState::kCollectionRequested);
-  }
-
-  // Sets state back to kDefault - invoked at end of GC.
-  void ClearCollectionRequested() {
-    RequestState old_state =
-        state_.exchange(RequestState::kDefault, std::memory_order_relaxed);
-    USE(old_state);
-    DCHECK_EQ(old_state, RequestState::kCollectionStarted);
-  }
+  LocalHeap::ThreadState main_thread_state_relaxed();
 
  public:
   explicit CollectionBarrier(Heap* heap)
-      : heap_(heap), state_(RequestState::kDefault) {}
+      : heap_(heap), shutdown_requested_(false) {}
 
-  // Checks whether any background thread requested GC.
-  bool CollectionRequested() {
-    return state_.load(std::memory_order_relaxed) ==
-           RequestState::kCollectionRequested;
-  }
+  // Returns true when collection was requested.
+  bool CollectionRequested();
 
+  // Resumes all threads waiting for GC when tear down starts.
+  void NotifyShutdownRequested();
+
+  // Stops the TimeToCollection timer when starting the GC.
   void StopTimeToCollectionTimer();
-  void BlockUntilCollected();
 
   // Resumes threads waiting for collection.
   void ResumeThreadsAwaitingCollection();
 
-  // Sets current state to kShutdown.
-  void ShutdownRequested();
-
   // This is the method use by background threads to request and wait for GC.
-  void AwaitCollectionBackground();
+  bool AwaitCollectionBackground(LocalHeap* local_heap);
+
+  // Request GC by activating stack guards and posting a task to perform the
+  // GC.
+  void ActivateStackGuardAndPostTask();
 };
 
 }  // namespace internal

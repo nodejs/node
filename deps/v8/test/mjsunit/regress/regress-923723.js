@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --stack-size=50
+// Flags: --stack-size=100
 
 function __f_3() {
   try {

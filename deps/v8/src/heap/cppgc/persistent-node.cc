@@ -95,5 +95,26 @@ void PersistentRegionLock::AssertLocked() {
   return g_process_mutex.Pointer()->AssertHeld();
 }
 
+CrossThreadPersistentRegion::~CrossThreadPersistentRegion() {
+  PersistentRegionLock guard;
+  persistent_region_.ClearAllUsedNodes();
+  persistent_region_.nodes_.clear();
+}
+
+void CrossThreadPersistentRegion::Trace(Visitor* visitor) {
+  PersistentRegionLock::AssertLocked();
+  return persistent_region_.Trace(visitor);
+}
+
+size_t CrossThreadPersistentRegion::NodesInUse() const {
+  // This method does not require a lock.
+  return persistent_region_.NodesInUse();
+}
+
+void CrossThreadPersistentRegion::ClearAllUsedNodes() {
+  PersistentRegionLock::AssertLocked();
+  return persistent_region_.ClearAllUsedNodes();
+}
+
 }  // namespace internal
 }  // namespace cppgc

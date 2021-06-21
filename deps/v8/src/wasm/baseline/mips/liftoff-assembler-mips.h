@@ -375,7 +375,7 @@ int LiftoffAssembler::SlotSizeForType(ValueKind kind) {
 }
 
 bool LiftoffAssembler::NeedsAlignment(ValueKind kind) {
-  return kind == kS128 || is_reference_type(kind);
+  return kind == kS128 || is_reference(kind);
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
@@ -444,6 +444,12 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
   STATIC_ASSERT(kTaggedSize == kInt32Size);
   Load(LiftoffRegister(dst), src_addr, offset_reg,
        static_cast<uint32_t>(offset_imm), LoadType::kI32Load, pinned);
+}
+
+void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
+                                       int32_t offset_imm) {
+  MemOperand src_op = MemOperand(src_addr, offset_imm);
+  lw(dst, src_op);
 }
 
 void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
@@ -1517,9 +1523,8 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
     DCHECK_EQ(kind, kI32);
     TurboAssembler::Branch(label, cond, lhs, Operand(zero_reg));
   } else {
-    DCHECK(kind == kI32 ||
-           (is_reference_type(kind) &&
-            (liftoff_cond == kEqual || liftoff_cond == kUnequal)));
+    DCHECK(kind == kI32 || (is_reference(kind) && (liftoff_cond == kEqual ||
+                                                   liftoff_cond == kUnequal)));
     TurboAssembler::Branch(label, cond, lhs, Operand(rhs));
   }
 }
@@ -2019,9 +2024,9 @@ void LiftoffAssembler::emit_v128_anytrue(LiftoffRegister dst,
   bailout(kSimd, "emit_v128_anytrue");
 }
 
-void LiftoffAssembler::emit_v8x16_alltrue(LiftoffRegister dst,
+void LiftoffAssembler::emit_i8x16_alltrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  bailout(kSimd, "emit_v8x16_alltrue");
+  bailout(kSimd, "emit_i8x16_alltrue");
 }
 
 void LiftoffAssembler::emit_i8x16_bitmask(LiftoffRegister dst,
@@ -2095,11 +2100,6 @@ void LiftoffAssembler::emit_i8x16_sub_sat_u(LiftoffRegister dst,
   bailout(kSimd, "emit_i8x16_sub_sat_u");
 }
 
-void LiftoffAssembler::emit_i8x16_mul(LiftoffRegister dst, LiftoffRegister lhs,
-                                      LiftoffRegister rhs) {
-  bailout(kSimd, "emit_i8x16_mul");
-}
-
 void LiftoffAssembler::emit_i8x16_min_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
@@ -2134,9 +2134,9 @@ void LiftoffAssembler::emit_i16x8_neg(LiftoffRegister dst,
   bailout(kSimd, "emit_i16x8_neg");
 }
 
-void LiftoffAssembler::emit_v16x8_alltrue(LiftoffRegister dst,
+void LiftoffAssembler::emit_i16x8_alltrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  bailout(kSimd, "emit_v16x8_alltrue");
+  bailout(kSimd, "emit_i16x8_alltrue");
 }
 
 void LiftoffAssembler::emit_i16x8_bitmask(LiftoffRegister dst,
@@ -2254,9 +2254,9 @@ void LiftoffAssembler::emit_i32x4_neg(LiftoffRegister dst,
   bailout(kSimd, "emit_i32x4_neg");
 }
 
-void LiftoffAssembler::emit_v32x4_alltrue(LiftoffRegister dst,
+void LiftoffAssembler::emit_i32x4_alltrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  bailout(kSimd, "emit_v32x4_alltrue");
+  bailout(kSimd, "emit_i32x4_alltrue");
 }
 
 void LiftoffAssembler::emit_i32x4_bitmask(LiftoffRegister dst,
@@ -2356,9 +2356,9 @@ void LiftoffAssembler::emit_i64x2_neg(LiftoffRegister dst,
   bailout(kSimd, "emit_i64x2_neg");
 }
 
-void LiftoffAssembler::emit_v64x2_alltrue(LiftoffRegister dst,
+void LiftoffAssembler::emit_i64x2_alltrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  bailout(kSimd, "emit_v64x2_alltrue");
+  bailout(kSimd, "emit_i64x2_alltrue");
 }
 
 void LiftoffAssembler::emit_i64x2_bitmask(LiftoffRegister dst,
@@ -2948,7 +2948,7 @@ void LiftoffAssembler::CallC(const ValueKindSig* sig,
   }
 
   // Load potential output value from the buffer on the stack.
-  if (out_argument_kind != kStmt) {
+  if (out_argument_kind != kVoid) {
     liftoff::Load(this, *next_result_reg, sp, 0, out_argument_kind);
   }
 
@@ -2998,23 +2998,35 @@ void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
   addiu(sp, sp, size);
 }
 
-void LiftoffStackSlots::Construct() {
+void LiftoffStackSlots::Construct(int param_slots) {
+  DCHECK_LT(0, slots_.size());
+  SortInPushOrder();
+  int last_stack_slot = param_slots;
   for (auto& slot : slots_) {
+    const int stack_slot = slot.dst_slot_;
+    int stack_decrement = (last_stack_slot - stack_slot) * kSystemPointerSize;
+    DCHECK_LT(0, stack_decrement);
+    last_stack_slot = stack_slot;
     const LiftoffAssembler::VarState& src = slot.src_;
     switch (src.loc()) {
       case LiftoffAssembler::VarState::kStack: {
         if (src.kind() == kF64) {
+          asm_->AllocateStackSpace(stack_decrement - kDoubleSize);
           DCHECK_EQ(kLowWord, slot.half_);
           asm_->lw(kScratchReg,
                    liftoff::GetHalfStackSlot(slot.src_offset_, kHighWord));
           asm_->push(kScratchReg);
+        } else {
+          asm_->AllocateStackSpace(stack_decrement - kSystemPointerSize);
         }
         asm_->lw(kScratchReg,
                  liftoff::GetHalfStackSlot(slot.src_offset_, slot.half_));
         asm_->push(kScratchReg);
         break;
       }
-      case LiftoffAssembler::VarState::kRegister:
+      case LiftoffAssembler::VarState::kRegister: {
+        int pushed_bytes = SlotSizeInBytes(slot);
+        asm_->AllocateStackSpace(stack_decrement - pushed_bytes);
         if (src.kind() == kI64) {
           liftoff::push(
               asm_, slot.half_ == kLowWord ? src.reg().low() : src.reg().high(),
@@ -3023,8 +3035,10 @@ void LiftoffStackSlots::Construct() {
           liftoff::push(asm_, src.reg(), src.kind());
         }
         break;
+      }
       case LiftoffAssembler::VarState::kIntConst: {
         // The high word is the sign extension of the low word.
+        asm_->AllocateStackSpace(stack_decrement - kSystemPointerSize);
         asm_->li(kScratchReg,
                  Operand(slot.half_ == kLowWord ? src.i32_const()
                                                 : src.i32_const() >> 31));

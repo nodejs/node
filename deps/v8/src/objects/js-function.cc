@@ -283,7 +283,9 @@ void JSFunction::EnsureClosureFeedbackCellArray(
   Isolate* const isolate = function->GetIsolate();
   DCHECK(function->shared().is_compiled());
   DCHECK(function->shared().HasFeedbackMetadata());
+#if V8_ENABLE_WEBASSEMBLY
   if (function->shared().HasAsmWasmData()) return;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
   DCHECK(function->shared().HasBytecodeArray());
@@ -333,7 +335,9 @@ void JSFunction::EnsureFeedbackVector(Handle<JSFunction> function,
   DCHECK(is_compiled_scope->is_compiled());
   DCHECK(function->shared().HasFeedbackMetadata());
   if (function->has_feedback_vector()) return;
+#if V8_ENABLE_WEBASSEMBLY
   if (function->shared().HasAsmWasmData()) return;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
   DCHECK(function->shared().HasBytecodeArray());
@@ -410,7 +414,7 @@ void SetInstancePrototype(Isolate* isolate, Handle<JSFunction> function,
     } else {
       Handle<Map> new_map =
           Map::Copy(isolate, initial_map, "SetInstancePrototype");
-      JSFunction::SetInitialMap(function, new_map, value);
+      JSFunction::SetInitialMap(isolate, function, new_map, value);
 
       // If the function is used as the global Array function, cache the
       // updated initial maps (and transitioned versions) in the native context.
@@ -459,9 +463,9 @@ void JSFunction::SetPrototype(Handle<JSFunction> function,
     Handle<Map> new_map =
         Map::Copy(isolate, handle(function->map(), isolate), "SetPrototype");
 
-    JSObject::MigrateToMap(isolate, function, new_map);
     new_map->SetConstructor(*value);
     new_map->set_has_non_instance_prototype(true);
+    JSObject::MigrateToMap(isolate, function, new_map);
 
     FunctionKind kind = function->shared().kind();
     Handle<Context> native_context(function->context().native_context(),
@@ -482,14 +486,19 @@ void JSFunction::SetPrototype(Handle<JSFunction> function,
   SetInstancePrototype(isolate, function, construct_prototype);
 }
 
-void JSFunction::SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
-                               Handle<HeapObject> prototype) {
-  Isolate* isolate = function->GetIsolate();
+void JSFunction::SetInitialMap(Isolate* isolate, Handle<JSFunction> function,
+                               Handle<Map> map, Handle<HeapObject> prototype) {
+  SetInitialMap(isolate, function, map, prototype, function);
+}
+
+void JSFunction::SetInitialMap(Isolate* isolate, Handle<JSFunction> function,
+                               Handle<Map> map, Handle<HeapObject> prototype,
+                               Handle<JSFunction> constructor) {
   if (map->prototype() != *prototype) {
     Map::SetPrototype(isolate, map, prototype);
   }
+  map->SetConstructor(*constructor);
   function->set_prototype_or_initial_map(*map);
-  map->SetConstructor(*function);
   if (FLAG_log_maps) {
     LOG(isolate, MapEvent("InitialMap", Handle<Map>(), map, "",
                           SharedFunctionInfo::DebugName(
@@ -543,7 +552,7 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
 
   // Finally link initial map and constructor function.
   DCHECK(prototype->IsJSReceiver());
-  JSFunction::SetInitialMap(function, map, prototype);
+  JSFunction::SetInitialMap(isolate, function, map, prototype);
   map->StartInobjectSlackTracking();
 }
 
@@ -609,12 +618,14 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_REF_TYPE:
     case JS_WEAK_SET_TYPE:
+#if V8_ENABLE_WEBASSEMBLY
     case WASM_GLOBAL_OBJECT_TYPE:
     case WASM_INSTANCE_OBJECT_TYPE:
     case WASM_MEMORY_OBJECT_TYPE:
     case WASM_MODULE_OBJECT_TYPE:
     case WASM_TABLE_OBJECT_TYPE:
     case WASM_VALUE_OBJECT_TYPE:
+#endif  // V8_ENABLE_WEBASSEMBLY
       return true;
 
     case BIGINT_TYPE:
@@ -713,9 +724,8 @@ bool FastInitializeDerivedMap(Isolate* isolate, Handle<JSFunction> new_target,
                           in_object_properties, unused_property_fields);
   map->set_new_target_is_base(false);
   Handle<HeapObject> prototype(new_target->instance_prototype(), isolate);
-  JSFunction::SetInitialMap(new_target, map, prototype);
+  JSFunction::SetInitialMap(isolate, new_target, map, prototype, constructor);
   DCHECK(new_target->instance_prototype().IsJSReceiver());
-  map->SetConstructor(*constructor);
   map->set_construction_counter(Map::kNoSlackTracking);
   map->StartInobjectSlackTracking();
   return true;
@@ -819,7 +829,7 @@ bool UseFastFunctionNameLookup(Isolate* isolate, Map map) {
   DCHECK(!map.is_dictionary_map());
   HeapObject value;
   ReadOnlyRoots roots(isolate);
-  auto descriptors = map.instance_descriptors(kRelaxedLoad);
+  auto descriptors = map.instance_descriptors(isolate);
   InternalIndex kNameIndex{JSFunction::kNameDescriptorIndex};
   if (descriptors.GetKey(kNameIndex) != roots.name_string() ||
       !descriptors.GetValue(kNameIndex)
@@ -922,6 +932,7 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
 
   // If this function was compiled from asm.js, use the recorded offset
   // information.
+#if V8_ENABLE_WEBASSEMBLY
   if (shared_info->HasWasmExportedFunctionData()) {
     Handle<WasmExportedFunctionData> function_data(
         shared_info->wasm_exported_function_data(), isolate);
@@ -936,6 +947,7 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
                                               offsets.second);
     }
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   if (shared_info->function_token_position() == kNoSourcePosition) {
     // If the function token position isn't valid, return [native code] to

@@ -903,6 +903,7 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, AssignSpillSlots)                \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BuildLiveRangeBundles)           \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BuildLiveRanges)                 \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BytecodeGraphBuilder)            \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, CommitAssignment)                \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, ConnectRanges)                   \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, ControlFlowOptimization)         \
@@ -914,17 +915,15 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EarlyTrimming)                   \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EffectLinearization)             \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EscapeAnalysis)                  \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MidTierRegisterOutputDefinition) \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MidTierPopulateReferenceMaps)    \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MidTierRegisterAllocator)        \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MidTierSpillSlotAllocator)       \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, FinalizeCode)                    \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, FrameElision)                    \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, GenericLowering)                 \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BytecodeGraphBuilder)            \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, Inlining)                        \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmInlining)                    \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, JumpThreading)                   \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MidTierPopulateReferenceMaps)    \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MidTierRegisterAllocator)        \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MidTierRegisterOutputDefinition) \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MidTierSpillSlotAllocator)       \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LateGraphTrimming)               \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LateOptimization)                \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LoadElimination)                 \
@@ -952,7 +951,8 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, Untyper)                         \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, VerifyGraph)                     \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmBaseOptimization)            \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmFullOptimization)            \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmInlining)                    \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmLoopUnrolling)               \
                                                                             \
   ADD_THREAD_SPECIFIC_COUNTER(V, Parse, ArrowFunctionLiteral)               \
   ADD_THREAD_SPECIFIC_COUNTER(V, Parse, FunctionLiteral)                    \
@@ -971,7 +971,6 @@ class RuntimeCallTimer final {
   V(CompileBackgroundCompileTask)              \
   V(CompileBaseline)                           \
   V(CompileBaselineVisit)                      \
-  V(CompileBaselinePrepareHandlerOffsets)      \
   V(CompileBaselinePreVisit)                   \
   V(CompileCollectSourcePositions)             \
   V(CompileDeserialize)                        \

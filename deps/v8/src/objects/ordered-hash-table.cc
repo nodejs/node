@@ -438,38 +438,6 @@ InternalIndex OrderedNameDictionary::FindEntry(LocalIsolate* isolate,
   return InternalIndex::NotFound();
 }
 
-// TODO(emrich): This is almost an identical copy of
-// Dictionary<..>::SlowReverseLookup.
-// Consolidate both versions elsewhere (e.g., hash-table-utils)?
-Object OrderedNameDictionary::SlowReverseLookup(Isolate* isolate,
-                                                Object value) {
-  ReadOnlyRoots roots(isolate);
-  for (InternalIndex i : IterateEntries()) {
-    Object k;
-    if (!ToKey(roots, i, &k)) continue;
-    Object e = this->ValueAt(i);
-    if (e == value) return k;
-  }
-  return roots.undefined_value();
-}
-
-// TODO(emrich): This is almost an identical copy of
-// HashTable<..>::NumberOfEnumerableProperties.
-// Consolidate both versions elsewhere (e.g., hash-table-utils)?
-int OrderedNameDictionary::NumberOfEnumerableProperties() {
-  ReadOnlyRoots roots = this->GetReadOnlyRoots();
-  int result = 0;
-  for (InternalIndex i : this->IterateEntries()) {
-    Object k;
-    if (!this->ToKey(roots, i, &k)) continue;
-    if (k.FilterKey(ENUMERABLE_STRINGS)) continue;
-    PropertyDetails details = this->DetailsAt(i);
-    PropertyAttributes attr = details.attributes();
-    if ((attr & ONLY_ENUMERABLE) == 0) result++;
-  }
-  return result;
-}
-
 template <typename LocalIsolate>
 MaybeHandle<OrderedNameDictionary> OrderedNameDictionary::Add(
     LocalIsolate* isolate, Handle<OrderedNameDictionary> table,
@@ -712,17 +680,9 @@ void SmallOrderedHashTable<Derived>::Initialize(Isolate* isolate,
   memset(reinterpret_cast<byte*>(hashtable_start), kNotFound,
          num_buckets + num_chains);
 
-  if (Heap::InYoungGeneration(*this)) {
-    MemsetTagged(RawField(DataTableStartOffset()),
-                 ReadOnlyRoots(isolate).the_hole_value(),
-                 capacity * Derived::kEntrySize);
-  } else {
-    for (int i = 0; i < capacity; i++) {
-      for (int j = 0; j < Derived::kEntrySize; j++) {
-        SetDataEntry(i, j, ReadOnlyRoots(isolate).the_hole_value());
-      }
-    }
-  }
+  MemsetTagged(RawField(DataTableStartOffset()),
+               ReadOnlyRoots(isolate).the_hole_value(),
+               capacity * Derived::kEntrySize);
 
 #ifdef DEBUG
   for (int i = 0; i < num_buckets; ++i) {

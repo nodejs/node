@@ -37,24 +37,22 @@ using WasmName = Vector<const char>;
   V(CODE_MOVING_GC, code-moving-gc)                    \
   V(SHARED_FUNC_MOVE_EVENT, sfi-move)                  \
   V(SNAPSHOT_CODE_NAME_EVENT, snapshot-code-name)      \
-  V(TICK_EVENT, tick)                                  \
-  V(BYTECODE_FLUSH_EVENT, bytecode-flush)
+  V(TICK_EVENT, tick)
 // clang-format on
 
-#define TAGS_LIST(V)                               \
-  V(BUILTIN_TAG, Builtin)                          \
-  V(CALLBACK_TAG, Callback)                        \
-  V(EVAL_TAG, Eval)                                \
-  V(FUNCTION_TAG, Function)                        \
-  V(INTERPRETED_FUNCTION_TAG, InterpretedFunction) \
-  V(HANDLER_TAG, Handler)                          \
-  V(BYTECODE_HANDLER_TAG, BytecodeHandler)         \
-  V(LAZY_COMPILE_TAG, LazyCompile)                 \
-  V(REG_EXP_TAG, RegExp)                           \
-  V(SCRIPT_TAG, Script)                            \
-  V(STUB_TAG, Stub)                                \
-  V(NATIVE_FUNCTION_TAG, Function)                 \
-  V(NATIVE_LAZY_COMPILE_TAG, LazyCompile)          \
+#define TAGS_LIST(V)                       \
+  V(BUILTIN_TAG, Builtin)                  \
+  V(CALLBACK_TAG, Callback)                \
+  V(EVAL_TAG, Eval)                        \
+  V(FUNCTION_TAG, Function)                \
+  V(HANDLER_TAG, Handler)                  \
+  V(BYTECODE_HANDLER_TAG, BytecodeHandler) \
+  V(LAZY_COMPILE_TAG, LazyCompile)         \
+  V(REG_EXP_TAG, RegExp)                   \
+  V(SCRIPT_TAG, Script)                    \
+  V(STUB_TAG, Stub)                        \
+  V(NATIVE_FUNCTION_TAG, Function)         \
+  V(NATIVE_LAZY_COMPILE_TAG, LazyCompile)  \
   V(NATIVE_SCRIPT_TAG, Script)
 // Note that 'NATIVE_' cases for functions and scripts are mapped onto
 // original tags when writing to the log.
@@ -86,9 +84,11 @@ class CodeEventListener {
                                Handle<SharedFunctionInfo> shared,
                                Handle<Name> script_name, int line,
                                int column) = 0;
+#if V8_ENABLE_WEBASSEMBLY
   virtual void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
                                wasm::WasmName name, const char* source_url,
                                int code_offset, int script_id) = 0;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   virtual void CallbackEvent(Handle<Name> name, Address entry_point) = 0;
   virtual void GetterCallbackEvent(Handle<Name> name, Address entry_point) = 0;
@@ -109,8 +109,9 @@ class CodeEventListener {
   virtual void CodeDependencyChangeEvent(Handle<Code> code,
                                          Handle<SharedFunctionInfo> shared,
                                          const char* reason) = 0;
-  // Invoked during GC. No allocation allowed.
-  virtual void BytecodeFlushEvent(Address compiled_data_start) = 0;
+  // Called during GC shortly after any weak references to code objects are
+  // cleared.
+  virtual void WeakCodeClearEvent() = 0;
 
   virtual bool is_listening_to_code_events() { return false; }
 };
@@ -175,6 +176,7 @@ class CodeEventDispatcher : public CodeEventListener {
       listener->CodeCreateEvent(tag, code, shared, source, line, column);
     });
   }
+#if V8_ENABLE_WEBASSEMBLY
   void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
                        wasm::WasmName name, const char* source_url,
                        int code_offset, int script_id) override {
@@ -183,6 +185,7 @@ class CodeEventDispatcher : public CodeEventListener {
                                 script_id);
     });
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
   void CallbackEvent(Handle<Name> name, Address entry_point) override {
     DispatchEventToListeners([=](CodeEventListener* listener) {
       listener->CallbackEvent(name, entry_point);
@@ -237,10 +240,9 @@ class CodeEventDispatcher : public CodeEventListener {
       listener->CodeDependencyChangeEvent(code, sfi, reason);
     });
   }
-  void BytecodeFlushEvent(Address compiled_data_start) override {
-    DispatchEventToListeners([=](CodeEventListener* listener) {
-      listener->BytecodeFlushEvent(compiled_data_start);
-    });
+  void WeakCodeClearEvent() override {
+    DispatchEventToListeners(
+        [=](CodeEventListener* listener) { listener->WeakCodeClearEvent(); });
   }
 
  private:

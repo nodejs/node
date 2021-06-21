@@ -6,7 +6,7 @@ function testFunction() {
   async function f1() {
     for (let x = |_|0; x |_|< 1; ++|_|x) |_|await x;
     |_|return |_|await Promise.|C|resolve(2);|R|
-  |R|}
+  }
 
   async function f2() {
     let r = |_|await |C|f1() + |_|await |C|f1();
@@ -17,7 +17,7 @@ function testFunction() {
     let p = |_|Promise.|C|resolve(42);
     |_|await p;
     |_|return r;|R|
-  |R|}
+  }
 
   return |C|f2();|R|
 }

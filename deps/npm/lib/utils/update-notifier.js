@@ -14,30 +14,32 @@ const { resolve } = require('path')
 const isGlobalNpmUpdate = npm => {
   return npm.flatOptions.global &&
     ['install', 'update'].includes(npm.command) &&
-    npm.argv.includes('npm')
+    npm.argv.some(arg => /^npm(@|$)/.test(arg))
 }
 
 // update check frequency
 const DAILY = 1000 * 60 * 60 * 24
 const WEEKLY = DAILY * 7
 
-const updateTimeout = async (npm, duration) => {
+// don't put it in the _cacache folder, just in npm's cache
+const lastCheckedFile = npm =>
+  resolve(npm.flatOptions.cache, '../_update-notifier-last-checked')
+
+const checkTimeout = async (npm, duration) => {
   const t = new Date(Date.now() - duration)
-  // don't put it in the _cacache folder, just in npm's cache
-  const f = resolve(npm.flatOptions.cache, '../_update-notifier-last-checked')
+  const f = lastCheckedFile(npm)
   // if we don't have a file, then definitely check it.
   const st = await stat(f).catch(() => ({ mtime: t - 1 }))
-
-  if (t > st.mtime) {
-    // best effort, if this fails, it's ok.
-    // might be using /dev/null as the cache or something weird like that.
-    await writeFile(f, '').catch(() => {})
-    return true
-  } else
-    return false
+  return t > st.mtime
 }
 
-const updateNotifier = module.exports = async (npm, spec = 'latest') => {
+const updateTimeout = async npm => {
+  // best effort, if this fails, it's ok.
+  // might be using /dev/null as the cache or something weird like that.
+  await writeFile(lastCheckedFile(npm), '').catch(() => {})
+}
+
+const updateNotifier = async (npm, spec = 'latest') => {
   // never check for updates in CI, when updating npm already, or opted out
   if (!npm.config.get('update-notifier') ||
       isGlobalNpmUpdate(npm) ||
@@ -57,7 +59,7 @@ const updateNotifier = module.exports = async (npm, spec = 'latest') => {
   const duration = spec !== 'latest' ? DAILY : WEEKLY
 
   // if we've already checked within the specified duration, don't check again
-  if (!(await updateTimeout(npm, duration)))
+  if (!(await checkTimeout(npm, duration)))
     return null
 
   // if they're currently using a prerelease, nudge to the next prerelease
@@ -112,4 +114,12 @@ const updateNotifier = module.exports = async (npm, spec = 'latest') => {
   const messagec = !useColor ? message : chalk.bgBlack.white(message)
 
   return messagec
+}
+
+// only update the notification timeout if we actually finished checking
+module.exports = async npm => {
+  const notification = await updateNotifier(npm)
+  // intentional.  do not await this.  it's a best-effort update.
+  updateTimeout(npm)
+  npm.updateNotification = notification
 }

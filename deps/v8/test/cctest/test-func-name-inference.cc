@@ -80,7 +80,8 @@ static void CheckFunctionName(v8::Local<v8::Script> script,
   // Obtain SharedFunctionInfo for the function.
   Handle<SharedFunctionInfo> shared_func_info =
       Handle<SharedFunctionInfo>::cast(
-          isolate->debug()->FindSharedFunctionInfoInScript(i_script, func_pos));
+          isolate->debug()->FindInnermostContainingFunctionInfo(i_script,
+                                                                func_pos));
 
   // Verify inferred function name.
   std::unique_ptr<char[]> inferred_name =

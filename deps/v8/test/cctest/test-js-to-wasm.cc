@@ -68,6 +68,9 @@ struct ExportedFunction {
 
 DECLARE_EXPORTED_FUNCTION(nop, sigs.v_v(), WASM_CODE({WASM_NOP}))
 
+DECLARE_EXPORTED_FUNCTION(unreachable, sigs.v_v(),
+                          WASM_CODE({WASM_UNREACHABLE}))
+
 DECLARE_EXPORTED_FUNCTION(i32_square, sigs.i_i(),
                           WASM_CODE({WASM_LOCAL_GET(0), WASM_LOCAL_GET(0),
                                      kExprI32Mul}))
@@ -457,9 +460,9 @@ class FastJSWasmCallTester {
         ";"
         "function test() {"
         "  try {"
-        "    return " +
+        "    return %ObserveNode(" +
         exported_function_name +
-        "(arg);"
+        "(arg));"
         "  } catch (e) {"
         "    return 0;"
         "  }"
@@ -485,13 +488,19 @@ class FastJSWasmCallTester {
 
   // Executes a test function with a try/catch calling a Wasm function returning
   // void.
-  void CallAndCheckWithTryCatch_void(const std::string& exported_function_name,
-                                     const v8::Local<v8::Value> arg0,
-                                     const v8::Local<v8::Value> arg1) {
+  void CallAndCheckWithTryCatch_void(
+      const std::string& exported_function_name,
+      const std::vector<v8::Local<v8::Value>>& args) {
     LocalContext env;
-    CHECK((*env)->Global()->Set(env.local(), v8_str("arg0"), arg0).FromJust());
-    CHECK((*env)->Global()->Set(env.local(), v8_str("arg1"), arg1).FromJust());
+    for (size_t i = 0; i < args.size(); i++) {
+      CHECK((*env)
+                ->Global()
+                ->Set(env.local(), v8_str(("arg" + std::to_string(i)).c_str()),
+                      args[i])
+                .FromJust());
+    }
 
+    std::string js_args = ArgsToString(args.size());
     std::string js_code =
         "const importObj = {"
         "  env: {"
@@ -509,9 +518,9 @@ class FastJSWasmCallTester {
         ";"
         "function test() {"
         "  try {"
-        "    " +
-        exported_function_name +
-        "(arg0, arg1);"
+        "    %ObserveNode(" +
+        exported_function_name + "(" + js_args +
+        "));"
         "    return 1;"
         "  } catch (e) {"
         "    return 0;"
@@ -928,6 +937,13 @@ TEST(TestFastJSWasmCall_EagerDeopt) {
 
 // Exception handling tests
 
+TEST(TestFastJSWasmCall_Unreachable) {
+  v8::HandleScope scope(CcTest::isolate());
+  FastJSWasmCallTester tester;
+  tester.AddExportedFunction(k_unreachable);
+  tester.CallAndCheckWithTryCatch_void("unreachable", {});
+}
+
 TEST(TestFastJSWasmCall_Trap_i32) {
   v8::HandleScope scope(CcTest::isolate());
   FastJSWasmCallTester tester;
@@ -960,8 +976,8 @@ TEST(TestFastJSWasmCall_Trap_void) {
   v8::HandleScope scope(CcTest::isolate());
   FastJSWasmCallTester tester;
   tester.AddExportedFunction(k_store_i32);
-  tester.CallAndCheckWithTryCatch_void("store_i32", v8_int(0x7fffffff),
-                                       v8_int(42));
+  tester.CallAndCheckWithTryCatch_void("store_i32",
+                                       {v8_int(0x7fffffff), v8_int(42)});
 }
 
 // BigInt

@@ -508,8 +508,12 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   void InitializeReturnPosition(FunctionLiteral* literal);
 
   void SetStatementPosition(Statement* stmt) {
-    if (stmt->position() == kNoSourcePosition) return;
-    latest_source_info_.MakeStatementPosition(stmt->position());
+    SetStatementPosition(stmt->position());
+  }
+
+  void SetStatementPosition(int position) {
+    if (position == kNoSourcePosition) return;
+    latest_source_info_.MakeStatementPosition(position);
   }
 
   void SetExpressionPosition(Expression* expr) {
@@ -526,16 +530,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   }
 
   void SetExpressionAsStatementPosition(Expression* expr) {
-    if (expr->position() == kNoSourcePosition) return;
-    latest_source_info_.MakeStatementPosition(expr->position());
-  }
-
-  void SetReturnPosition(int source_position, FunctionLiteral* literal) {
-    if (source_position != kNoSourcePosition) {
-      latest_source_info_.MakeStatementPosition(source_position);
-    } else if (literal->return_position() != kNoSourcePosition) {
-      latest_source_info_.MakeStatementPosition(literal->return_position());
-    }
+    SetStatementPosition(expr->position());
   }
 
   bool RemainderOfBlockIsDead() const {

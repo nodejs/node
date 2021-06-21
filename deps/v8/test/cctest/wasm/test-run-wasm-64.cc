@@ -1491,7 +1491,7 @@ static void CompileCallIndirectMany(TestExecutionTier tier, ValueType param) {
   TestSignatures sigs;
   for (byte num_params = 0; num_params < 40; num_params++) {
     WasmRunner<void> r(tier);
-    FunctionSig* sig = sigs.many(r.zone(), kWasmStmt, param, num_params);
+    FunctionSig* sig = sigs.many(r.zone(), kWasmVoid, param, num_params);
 
     r.builder().AddSignature(sig);
     r.builder().AddSignature(sig);

@@ -1,6 +1,6 @@
 const _progress = Symbol('_progress')
 const _onError = Symbol('_onError')
-const procLog = require('./proc-log.js')
+const procLog = require('proc-log')
 
 module.exports = cls => class Tracker extends cls {
   constructor (options = {}) {

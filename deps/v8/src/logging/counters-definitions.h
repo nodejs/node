@@ -100,8 +100,6 @@ namespace internal {
 #define HISTOGRAM_TIMER_LIST(HT)                                               \
   /* Timer histograms, not thread safe: HT(name, caption, max, unit) */        \
   /* Garbage collection timers. */                                             \
-  HT(gc_context, V8.GCContext, 10000,                                          \
-     MILLISECOND) /* GC context cleanup time */                                \
   HT(gc_idle_notification, V8.GCIdleNotification, 10000, MILLISECOND)          \
   HT(gc_incremental_marking, V8.GCIncrementalMarking, 10000, MILLISECOND)      \
   HT(gc_incremental_marking_start, V8.GCIncrementalMarkingStart, 10000,        \

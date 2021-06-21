@@ -291,7 +291,7 @@ Handle<WasmTableObject> WasmTableObject::New(
   table_obj->set_entries(*backing_store);
   table_obj->set_current_length(initial);
   table_obj->set_maximum_length(*max);
-  table_obj->set_raw_type(static_cast<int>(type.heap_representation()));
+  table_obj->set_raw_type(static_cast<int>(type.raw_bit_field()));
 
   table_obj->set_dispatch_tables(ReadOnlyRoots(isolate).empty_fixed_array());
   if (entries != nullptr) {
@@ -612,7 +612,7 @@ void WasmTableObject::UpdateDispatchTables(
   int total_count = serialized_sig.length() - 1;
   std::unique_ptr<wasm::ValueType[]> reps(new wasm::ValueType[total_count]);
   int result_count;
-  static const wasm::ValueType kMarker = wasm::kWasmStmt;
+  static const wasm::ValueType kMarker = wasm::kWasmVoid;
   for (int i = 0, j = 0; i <= total_count; i++) {
     if (serialized_sig.get(i) == kMarker) {
       result_count = i;
@@ -1030,7 +1030,7 @@ MaybeHandle<WasmGlobalObject> WasmGlobalObject::New(
     global_obj->set_is_mutable(is_mutable);
   }
 
-  if (type.is_reference_type()) {
+  if (type.is_reference()) {
     DCHECK(maybe_untagged_buffer.is_null());
     Handle<FixedArray> tagged_buffer;
     if (!maybe_tagged_buffer.ToHandle(&tagged_buffer)) {
@@ -1566,7 +1566,7 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
 // static
 uint8_t* WasmInstanceObject::GetGlobalStorage(
     Handle<WasmInstanceObject> instance, const wasm::WasmGlobal& global) {
-  DCHECK(!global.type.is_reference_type());
+  DCHECK(!global.type.is_reference());
   if (global.mutability && global.imported) {
     return reinterpret_cast<byte*>(
         instance->imported_mutable_globals()[global.index]);
@@ -1579,7 +1579,7 @@ uint8_t* WasmInstanceObject::GetGlobalStorage(
 std::pair<Handle<FixedArray>, uint32_t>
 WasmInstanceObject::GetGlobalBufferAndIndex(Handle<WasmInstanceObject> instance,
                                             const wasm::WasmGlobal& global) {
-  DCHECK(global.type.is_reference_type());
+  DCHECK(global.type.is_reference());
   Isolate* isolate = instance->GetIsolate();
   if (global.mutability && global.imported) {
     Handle<FixedArray> buffer(
@@ -1597,12 +1597,13 @@ WasmInstanceObject::GetGlobalBufferAndIndex(Handle<WasmInstanceObject> instance,
 wasm::WasmValue WasmInstanceObject::GetGlobalValue(
     Handle<WasmInstanceObject> instance, const wasm::WasmGlobal& global) {
   Isolate* isolate = instance->GetIsolate();
-  if (global.type.is_reference_type()) {
+  if (global.type.is_reference()) {
     Handle<FixedArray> global_buffer;  // The buffer of the global.
     uint32_t global_index = 0;         // The index into the buffer.
     std::tie(global_buffer, global_index) =
         GetGlobalBufferAndIndex(instance, global);
-    return wasm::WasmValue(handle(global_buffer->get(global_index), isolate));
+    return wasm::WasmValue(handle(global_buffer->get(global_index), isolate),
+                           global.type);
   }
   Address ptr = reinterpret_cast<Address>(GetGlobalStorage(instance, global));
   using wasm::Simd128;
@@ -1613,6 +1614,65 @@ wasm::WasmValue WasmInstanceObject::GetGlobalValue(
     FOREACH_WASMVALUE_CTYPES(CASE_TYPE)
 #undef CASE_TYPE
     default:
+      UNREACHABLE();
+  }
+}
+
+wasm::WasmValue WasmStruct::GetFieldValue(uint32_t index) {
+  wasm::ValueType field_type = type()->field(index);
+  int field_offset = WasmStruct::kHeaderSize + type()->field_offset(index);
+  Address field_address = GetFieldAddress(field_offset);
+  using wasm::Simd128;
+  switch (field_type.kind()) {
+#define CASE_TYPE(valuetype, ctype) \
+  case wasm::valuetype:             \
+    return wasm::WasmValue(base::ReadLittleEndianValue<ctype>(field_address));
+    CASE_TYPE(kI8, int8_t)
+    CASE_TYPE(kI16, int16_t)
+    FOREACH_WASMVALUE_CTYPES(CASE_TYPE)
+#undef CASE_TYPE
+    case wasm::kRef:
+    case wasm::kOptRef: {
+      Handle<Object> ref(TaggedField<Object>::load(*this, field_offset),
+                         GetIsolateFromWritableObject(*this));
+      return wasm::WasmValue(ref, field_type);
+    }
+    case wasm::kRtt:
+    case wasm::kRttWithDepth:
+      // TODO(7748): Expose RTTs to DevTools.
+      UNIMPLEMENTED();
+    case wasm::kVoid:
+    case wasm::kBottom:
+      UNREACHABLE();
+  }
+}
+
+wasm::WasmValue WasmArray::GetElement(uint32_t index) {
+  wasm::ValueType element_type = type()->element_type();
+  int element_offset =
+      WasmArray::kHeaderSize + index * element_type.element_size_bytes();
+  Address element_address = GetFieldAddress(element_offset);
+  using wasm::Simd128;
+  switch (element_type.kind()) {
+#define CASE_TYPE(value_type, ctype) \
+  case wasm::value_type:             \
+    return wasm::WasmValue(base::ReadLittleEndianValue<ctype>(element_address));
+    CASE_TYPE(kI8, int8_t)
+    CASE_TYPE(kI16, int16_t)
+    FOREACH_WASMVALUE_CTYPES(CASE_TYPE)
+#undef CASE_TYPE
+    case wasm::kRef:
+    case wasm::kOptRef: {
+      Handle<Object> ref(TaggedField<Object>::load(*this, element_offset),
+                         GetIsolateFromWritableObject(*this));
+      return wasm::WasmValue(ref, element_type);
+    }
+    case wasm::kRtt:
+    case wasm::kRttWithDepth:
+      // TODO(7748): Expose RTTs to DevTools.
+      UNIMPLEMENTED();
+    case wasm::kVoid:
+    case wasm::kBottom:
       UNREACHABLE();
   }
 }
@@ -1673,7 +1733,7 @@ bool WasmCapiFunction::MatchesSignature(const wasm::FunctionSig* sig) const {
       return false;
     }
   }
-  if (serialized_sig.get(serialized_index) != wasm::kWasmStmt) return false;
+  if (serialized_sig.get(serialized_index) != wasm::kWasmVoid) return false;
   serialized_index++;
   for (int i = 0; i < param_count; i++, serialized_index++) {
     if (sig->GetParam(i) != serialized_sig.get(serialized_index)) return false;
@@ -1770,7 +1830,7 @@ uint32_t WasmExceptionPackage::GetEncodedSize(
         break;
       case wasm::kRtt:
       case wasm::kRttWithDepth:
-      case wasm::kStmt:
+      case wasm::kVoid:
       case wasm::kBottom:
       case wasm::kI8:
       case wasm::kI16:
@@ -2115,7 +2175,7 @@ namespace wasm {
 bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
                        Handle<Object> value, ValueType expected,
                        const char** error_message) {
-  DCHECK(expected.is_reference_type());
+  DCHECK(expected.is_reference());
   switch (expected.kind()) {
     case kOptRef:
       if (value->IsNull(isolate)) return true;
@@ -2135,27 +2195,46 @@ bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
         case HeapType::kExtern:
         case HeapType::kAny:
           return true;
-        case HeapType::kData: {
+        case HeapType::kData:
+        case HeapType::kEq:
+        case HeapType::kI31: {
           // TODO(7748): Change this when we have a decision on the JS API for
           // structs/arrays.
           Handle<Name> key = isolate->factory()->wasm_wrapped_object_symbol();
           LookupIterator it(isolate, value, key,
                             LookupIterator::OWN_SKIP_INTERCEPTOR);
-          if (it.state() == LookupIterator::DATA) return true;
-          *error_message =
-              "dataref object must be null (if nullable) or wrapped with the "
-              "wasm object wrapper";
-          return false;
+          if (it.state() != LookupIterator::DATA) {
+            *error_message =
+                "eqref/dataref/i31ref object must be null (if nullable) or "
+                "wrapped with the wasm object wrapper";
+            return false;
+          }
+
+          if (expected.is_reference_to(HeapType::kEq)) return true;
+          Handle<Object> value = it.GetDataValue();
+
+          if (expected.is_reference_to(HeapType::kData)) {
+            if (value->IsSmi()) {
+              *error_message = "dataref-typed object must be a heap object";
+              return false;
+            }
+            return true;
+          } else {
+            DCHECK(expected.is_reference_to(HeapType::kI31));
+            if (!value->IsSmi()) {
+              *error_message = "i31ref-typed object cannot be a heap object";
+              return false;
+            }
+            return true;
+          }
         }
-        case HeapType::kEq:
-        case HeapType::kI31:
-          // TODO(7748): Implement when the JS API for i31ref is decided on.
-          *error_message =
-              "Assigning JS objects to eqref/i31ref not supported yet.";
-          return false;
         default:
-          // Tables defined outside a module can't refer to user-defined types.
-          if (module == nullptr) return false;
+          if (module == nullptr) {
+            *error_message =
+                "an object defined in JavaScript cannot be compatible with a "
+                "type defined in a Webassembly module";
+            return false;
+          }
           DCHECK(module->has_type(expected.ref_index()));
           if (module->has_signature(expected.ref_index())) {
             if (WasmExportedFunction::IsWasmExportedFunction(*value)) {
@@ -2211,14 +2290,26 @@ bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
           // TODO(7748): Implement when the JS API for structs/arrays is decided
           // on.
           *error_message =
-              "Assigning to struct/array globals not supported yet.";
+              "passing struct/array-typed objects between Webassembly and "
+              "Javascript is not supported yet.";
           return false;
       }
     case kRtt:
+    case kRttWithDepth:
       // TODO(7748): Implement when the JS API for rtts is decided on.
-      *error_message = "Assigning to rtt globals not supported yet.";
+      *error_message =
+          "passing rtts between Webassembly and Javascript is not supported "
+          "yet.";
       return false;
-    default:
+    case kI8:
+    case kI16:
+    case kI32:
+    case kI64:
+    case kF32:
+    case kF64:
+    case kS128:
+    case kVoid:
+    case kBottom:
       UNREACHABLE();
   }
 }

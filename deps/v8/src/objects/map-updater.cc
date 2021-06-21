@@ -28,7 +28,7 @@ inline bool EqualImmutableValues(Object obj1, Object obj2) {
 MapUpdater::MapUpdater(Isolate* isolate, Handle<Map> old_map)
     : isolate_(isolate),
       old_map_(old_map),
-      old_descriptors_(old_map->instance_descriptors(kRelaxedLoad), isolate_),
+      old_descriptors_(old_map->instance_descriptors(isolate), isolate_),
       old_nof_(old_map_->NumberOfOwnDescriptors()),
       new_elements_kind_(old_map_->elements_kind()),
       is_transitionable_fast_elements_kind_(
@@ -117,6 +117,10 @@ Handle<Map> MapUpdater::ReconfigureToDataField(InternalIndex descriptor,
   DCHECK_EQ(kInitialized, state_);
   DCHECK(descriptor.is_found());
   DCHECK(!old_map_->is_dictionary_map());
+
+  base::SharedMutexGuard<base::kExclusive> mutex_guard(
+      isolate_->map_updater_access());
+
   modified_descriptor_ = descriptor;
   new_kind_ = kData;
   new_attributes_ = attributes;
@@ -124,50 +128,6 @@ Handle<Map> MapUpdater::ReconfigureToDataField(InternalIndex descriptor,
 
   PropertyDetails old_details =
       old_descriptors_->GetDetails(modified_descriptor_);
-
-  // If the {descriptor} was "const" data field so far, we need to update the
-  // {old_map_} here, otherwise we could get the constants wrong, i.e.
-  //
-  //   o.x = 1;
-  //   change o.x's attributes to something else
-  //   delete o.x;
-  //   o.x = 2;
-  //
-  // could trick V8 into thinking that `o.x` is still 1 even after the second
-  // assignment.
-  // This situation is similar to what might happen with property deletion.
-  if (old_details.constness() == PropertyConstness::kConst &&
-      old_details.location() == kField &&
-      old_details.attributes() != new_attributes_) {
-    // Ensure we'll be updating constness of the up-to-date version of old_map_.
-    Handle<Map> old_map = Map::Update(isolate_, old_map_);
-    PropertyDetails details =
-        old_map->instance_descriptors(kRelaxedLoad).GetDetails(descriptor);
-    Handle<FieldType> field_type(
-        old_map->instance_descriptors(kRelaxedLoad).GetFieldType(descriptor),
-        isolate_);
-    Map::GeneralizeField(isolate_, old_map, descriptor,
-                         PropertyConstness::kMutable, details.representation(),
-                         field_type);
-    DCHECK_EQ(PropertyConstness::kMutable,
-              old_map->instance_descriptors(kRelaxedLoad)
-                  .GetDetails(descriptor)
-                  .constness());
-    // The old_map_'s property must become mutable.
-    // Note, that the {old_map_} and {old_descriptors_} are not expected to be
-    // updated by the generalization if the map is already deprecated.
-    DCHECK_IMPLIES(
-        !old_map_->is_deprecated(),
-        PropertyConstness::kMutable ==
-            old_descriptors_->GetDetails(modified_descriptor_).constness());
-    // Although the property in the old map is marked as mutable we still
-    // treat it as constant when merging with the new path in transition tree.
-    // This is fine because up until this reconfiguration the field was
-    // known to be constant, so it's fair to proceed treating it as such
-    // during this reconfiguration session. The issue is that after the
-    // reconfiguration the original field might become mutable (see the delete
-    // example above).
-  }
 
   // If property kind is not reconfigured merge the result with
   // representation/field type from the old descriptor.
@@ -209,6 +169,10 @@ Handle<Map> MapUpdater::ReconfigureToDataField(InternalIndex descriptor,
 
 Handle<Map> MapUpdater::ReconfigureElementsKind(ElementsKind elements_kind) {
   DCHECK_EQ(kInitialized, state_);
+
+  base::SharedMutexGuard<base::kExclusive> mutex_guard(
+      isolate_->map_updater_access());
+
   new_elements_kind_ = elements_kind;
   is_transitionable_fast_elements_kind_ =
       IsTransitionableFastElementsKind(new_elements_kind_);
@@ -222,7 +186,23 @@ Handle<Map> MapUpdater::ReconfigureElementsKind(ElementsKind elements_kind) {
   return result_map_;
 }
 
+// static
+Handle<Map> MapUpdater::UpdateMapNoLock(Isolate* isolate, Handle<Map> map) {
+  if (!map->is_deprecated()) return map;
+  // TODO(ishell): support fast map updating if we enable it.
+  CHECK(!FLAG_fast_map_update);
+  MapUpdater mu(isolate, map);
+  // Update map without locking the Isolate::map_updater_access mutex.
+  return mu.UpdateImpl();
+}
+
 Handle<Map> MapUpdater::Update() {
+  base::SharedMutexGuard<base::kExclusive> mutex_guard(
+      isolate_->map_updater_access());
+  return UpdateImpl();
+}
+
+Handle<Map> MapUpdater::UpdateImpl() {
   DCHECK_EQ(kInitialized, state_);
   DCHECK(old_map_->is_deprecated());
 
@@ -245,9 +225,9 @@ void MapUpdater::GeneralizeField(Handle<Map> map, InternalIndex modify_index,
   Map::GeneralizeField(isolate_, map, modify_index, new_constness,
                        new_representation, new_field_type);
 
-  DCHECK(*old_descriptors_ == old_map_->instance_descriptors(kRelaxedLoad) ||
+  DCHECK(*old_descriptors_ == old_map_->instance_descriptors(isolate_) ||
          *old_descriptors_ ==
-             integrity_source_map_->instance_descriptors(kRelaxedLoad));
+             integrity_source_map_->instance_descriptors(isolate_));
 }
 
 MapUpdater::State MapUpdater::Normalize(const char* reason) {
@@ -341,8 +321,8 @@ bool MapUpdater::TrySaveIntegrityLevelTransitions() {
            integrity_source_map_->NumberOfOwnDescriptors());
 
   has_integrity_level_transition_ = true;
-  old_descriptors_ = handle(
-      integrity_source_map_->instance_descriptors(kRelaxedLoad), isolate_);
+  old_descriptors_ =
+      handle(integrity_source_map_->instance_descriptors(isolate_), isolate_);
   return true;
 }
 
@@ -438,7 +418,7 @@ MapUpdater::State MapUpdater::FindTargetMap() {
     Handle<Map> tmp_map(transition, isolate_);
 
     Handle<DescriptorArray> tmp_descriptors(
-        tmp_map->instance_descriptors(kRelaxedLoad), isolate_);
+        tmp_map->instance_descriptors(isolate_), isolate_);
 
     // Check if target map is incompatible.
     PropertyDetails tmp_details = tmp_descriptors->GetDetails(i);
@@ -486,7 +466,7 @@ MapUpdater::State MapUpdater::FindTargetMap() {
 #ifdef DEBUG
     if (modified_descriptor_.is_found()) {
       DescriptorArray target_descriptors =
-          target_map_->instance_descriptors(kRelaxedLoad);
+          target_map_->instance_descriptors(isolate_);
       PropertyDetails details =
           target_descriptors.GetDetails(modified_descriptor_);
       DCHECK_EQ(new_kind_, details.kind());
@@ -535,7 +515,7 @@ MapUpdater::State MapUpdater::FindTargetMap() {
     if (transition.is_null()) break;
     Handle<Map> tmp_map(transition, isolate_);
     Handle<DescriptorArray> tmp_descriptors(
-        tmp_map->instance_descriptors(kRelaxedLoad), isolate_);
+        tmp_map->instance_descriptors(isolate_), isolate_);
 #ifdef DEBUG
     // Check that target map is compatible.
     PropertyDetails tmp_details = tmp_descriptors->GetDetails(i);
@@ -559,7 +539,7 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
   InstanceType instance_type = old_map_->instance_type();
   int target_nof = target_map_->NumberOfOwnDescriptors();
   Handle<DescriptorArray> target_descriptors(
-      target_map_->instance_descriptors(kRelaxedLoad), isolate_);
+      target_map_->instance_descriptors(isolate_), isolate_);
 
   // Allocate a new descriptor array large enough to hold the required
   // descriptors, with minimally the exact same size as the old descriptor
@@ -734,7 +714,7 @@ Handle<Map> MapUpdater::FindSplitMap(Handle<DescriptorArray> descriptors) {
         TransitionsAccessor(isolate_, current, &no_gc)
             .SearchTransition(name, details.kind(), details.attributes());
     if (next.is_null()) break;
-    DescriptorArray next_descriptors = next.instance_descriptors(kRelaxedLoad);
+    DescriptorArray next_descriptors = next.instance_descriptors(isolate_);
 
     PropertyDetails next_details = next_descriptors.GetDetails(i);
     DCHECK_EQ(details.kind(), next_details.kind());

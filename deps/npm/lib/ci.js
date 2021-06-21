@@ -55,7 +55,7 @@ class CI extends ArboristWorkspaceCmd {
       path: where,
       log: this.npm.log,
       save: false, // npm ci should never modify the lockfile or package.json
-      workspaces: this.workspaces,
+      workspaces: this.workspaceNames,
     }
 
     const arb = new Arborist(opts)

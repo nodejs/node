@@ -141,7 +141,7 @@ void DeclarationVisitor::Visit(ExternalRuntimeDeclaration* decl) {
     ReportError(
         "runtime functions can only return strong tagged values, but "
         "found type ",
-        signature.return_type);
+        *signature.return_type);
   }
   for (const Type* parameter_type : signature.parameter_types.types) {
     if (!parameter_type->IsSubtypeOf(TypeOracle::GetStrongTaggedType())) {

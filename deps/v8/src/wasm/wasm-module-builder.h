@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_WASM_MODULE_BUILDER_H_
 #define V8_WASM_WASM_MODULE_BUILDER_H_
 
@@ -261,6 +265,8 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   void SetMaxTableSize(uint32_t max);
   uint32_t AddTable(ValueType type, uint32_t min_size);
   uint32_t AddTable(ValueType type, uint32_t min_size, uint32_t max_size);
+  uint32_t AddTable(ValueType type, uint32_t min_size, uint32_t max_size,
+                    WasmInitExpr init);
   void MarkStartFunction(WasmFunctionBuilder* builder);
   void AddExport(Vector<const char> name, ImportExportKindCode kind,
                  uint32_t index);
@@ -340,6 +346,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
     uint32_t min_size;
     uint32_t max_size;
     bool has_maximum;
+    WasmInitExpr init;
   };
 
   struct WasmDataSegment {

@@ -6,9 +6,9 @@
 #include <memory>
 
 #include "src/common/globals.h"
-#include "src/debug/debug-wasm-objects-inl.h"
 #include "src/diagnostics/disasm.h"
 #include "src/diagnostics/disassembler.h"
+#include "src/execution/isolate-utils-inl.h"
 #include "src/heap/heap-inl.h"                // For InOldSpace.
 #include "src/heap/heap-write-barrier-inl.h"  // For GetIsolateFromWritableObj.
 #include "src/init/bootstrapper.h"
@@ -18,9 +18,13 @@
 #include "src/regexp/regexp.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/utils/ostreams.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/debug/debug-wasm-objects-inl.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -70,6 +74,13 @@ void PrintDictionaryContents(std::ostream& os, T dict) {
   DisallowGarbageCollection no_gc;
   ReadOnlyRoots roots = dict.GetReadOnlyRoots();
 
+  if (dict.Capacity() == 0) {
+    return;
+  }
+
+  Isolate* isolate = GetIsolateFromWritableObject(dict);
+  // IterateEntries for SwissNameDictionary needs to create a handle.
+  HandleScope scope(isolate);
   for (InternalIndex i : dict.IterateEntries()) {
     Object k;
     if (!dict.ToKey(roots, i, &k)) continue;
@@ -172,12 +183,14 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case JS_TYPED_ARRAY_PROTOTYPE_TYPE:
       JSObject::cast(*this).JSObjectPrint(os);
       break;
+#if V8_ENABLE_WEBASSEMBLY
     case WASM_INSTANCE_OBJECT_TYPE:
       WasmInstanceObject::cast(*this).WasmInstanceObjectPrint(os);
       break;
     case WASM_VALUE_OBJECT_TYPE:
       WasmValueObject::cast(*this).WasmValueObjectPrint(os);
       break;
+#endif  // V8_ENABLE_WEBASSEMBLY
     case CODE_TYPE:
       Code::cast(*this).CodePrint(os);
       break;
@@ -267,7 +280,7 @@ void FreeSpace::FreeSpacePrint(std::ostream& os) {  // NOLINT
 
 bool JSObject::PrintProperties(std::ostream& os) {  // NOLINT
   if (HasFastProperties()) {
-    DescriptorArray descs = map().instance_descriptors(kRelaxedLoad);
+    DescriptorArray descs = map().instance_descriptors(GetIsolate());
     int nof_inobject_properties = map().GetInObjectProperties();
     for (InternalIndex i : map().IterateOwnDescriptors()) {
       os << "\n    ";
@@ -302,8 +315,8 @@ bool JSObject::PrintProperties(std::ostream& os) {  // NOLINT
   } else if (IsJSGlobalObject()) {
     PrintDictionaryContents(
         os, JSGlobalObject::cast(*this).global_dictionary(kAcquireLoad));
-  } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    PrintDictionaryContents(os, property_dictionary_ordered());
+  } else if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+    PrintDictionaryContents(os, property_dictionary_swiss());
   } else {
     PrintDictionaryContents(os, property_dictionary());
   }
@@ -455,13 +468,13 @@ void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
   }
 }
 
-void PrintEmbedderData(IsolateRoot isolate, std::ostream& os,
+void PrintEmbedderData(PtrComprCageBase cage_base, std::ostream& os,
                        EmbedderDataSlot slot) {
   DisallowGarbageCollection no_gc;
   Object value = slot.load_tagged();
   os << Brief(value);
   void* raw_pointer;
-  if (slot.ToAlignedPointer(isolate, &raw_pointer)) {
+  if (slot.ToAlignedPointer(cage_base, &raw_pointer)) {
     os << ", aligned pointer: " << raw_pointer;
   }
 }
@@ -566,11 +579,11 @@ static void JSObjectPrintBody(std::ostream& os,
   }
   int embedder_fields = obj.GetEmbedderFieldCount();
   if (embedder_fields > 0) {
-    IsolateRoot isolate = GetIsolateForPtrCompr(obj);
+    PtrComprCageBase cage_base = GetPtrComprCageBase(obj);
     os << " - embedder fields = {";
     for (int i = 0; i < embedder_fields; i++) {
       os << "\n    ";
-      PrintEmbedderData(isolate, os, EmbedderDataSlot(obj, i));
+      PrintEmbedderData(cage_base, os, EmbedderDataSlot(obj, i));
     }
     os << "\n }\n";
   }
@@ -749,14 +762,14 @@ void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionPrint(
 }
 
 void EmbedderDataArray::EmbedderDataArrayPrint(std::ostream& os) {
-  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   PrintHeader(os, "EmbedderDataArray");
   os << "\n - length: " << length();
   EmbedderDataSlot start(*this, 0);
   EmbedderDataSlot end(*this, length());
   for (EmbedderDataSlot slot = start; slot < end; ++slot) {
     os << "\n    ";
-    PrintEmbedderData(isolate, os, slot);
+    PrintEmbedderData(cage_base, os, slot);
   }
   os << "\n";
 }
@@ -1474,6 +1487,7 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
       os << "\n - bytecode: " << shared().GetBytecodeArray(isolate);
     }
   }
+#if V8_ENABLE_WEBASSEMBLY
   if (WasmExportedFunction::IsWasmExportedFunction(*this)) {
     WasmExportedFunction function = WasmExportedFunction::cast(*this);
     os << "\n - Wasm instance: " << Brief(function.instance());
@@ -1483,6 +1497,7 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
     WasmJSFunction function = WasmJSFunction::cast(*this);
     os << "\n - Wasm wrapper around: " << Brief(function.GetCallable());
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
   shared().PrintSourceCode(os);
   JSObjectPrintBody(os, *this);
   os << " - feedback vector: ";
@@ -1783,6 +1798,7 @@ void RegExpBoilerplateDescription::RegExpBoilerplateDescriptionPrint(
   os << "\n";
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 void AsmWasmData::AsmWasmDataPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "AsmWasmData");
   os << "\n - native module: " << Brief(managed_native_module());
@@ -1827,7 +1843,7 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {  // NOLINT
       case wasm::kRtt:
       case wasm::kRttWithDepth:
       case wasm::kBottom:
-      case wasm::kStmt:
+      case wasm::kVoid:
         os << "UNIMPLEMENTED";  // TODO(7748): Implement.
         break;
     }
@@ -1867,7 +1883,7 @@ void WasmArray::WasmArrayPrint(std::ostream& os) {  // NOLINT
     case wasm::kRtt:
     case wasm::kRttWithDepth:
     case wasm::kBottom:
-    case wasm::kStmt:
+    case wasm::kVoid:
       os << "\n   Printing elements of this type is unimplemented, sorry";
       // TODO(7748): Implement.
       break;
@@ -1963,15 +1979,9 @@ void WasmTableObject::WasmTableObjectPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
-void WasmValueObject::WasmValueObjectPrint(std::ostream& os) {  // NOLINT
-  PrintHeader(os, "WasmValueObject");
-  os << "\n - value: " << Brief(value());
-  os << "\n";
-}
-
 void WasmGlobalObject::WasmGlobalObjectPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "WasmGlobalObject");
-  if (type().is_reference_type()) {
+  if (type().is_reference()) {
     os << "\n - tagged_buffer: " << Brief(tagged_buffer());
   } else {
     os << "\n - untagged_buffer: " << Brief(untagged_buffer());
@@ -1979,7 +1989,7 @@ void WasmGlobalObject::WasmGlobalObjectPrint(std::ostream& os) {  // NOLINT
   os << "\n - offset: " << offset();
   os << "\n - raw_type: " << raw_type();
   os << "\n - is_mutable: " << is_mutable();
-  os << "\n - type: " << type().kind();
+  os << "\n - type: " << type();
   os << "\n - is_mutable: " << is_mutable();
   os << "\n";
 }
@@ -1999,6 +2009,27 @@ void WasmExceptionObject::WasmExceptionObjectPrint(
   os << "\n - exception_tag: " << Brief(exception_tag());
   os << "\n";
 }
+
+void WasmIndirectFunctionTable::WasmIndirectFunctionTablePrint(
+    std::ostream& os) {
+  PrintHeader(os, "WasmIndirectFunctionTable");
+  os << "\n - size: " << size();
+  os << "\n - sig_ids: " << static_cast<void*>(sig_ids());
+  os << "\n - targets: " << static_cast<void*>(targets());
+  if (has_managed_native_allocations()) {
+    os << "\n - managed_native_allocations: "
+       << Brief(managed_native_allocations());
+  }
+  os << "\n - refs: " << Brief(refs());
+  os << "\n";
+}
+
+void WasmValueObject::WasmValueObjectPrint(std::ostream& os) {  // NOLINT
+  PrintHeader(os, "WasmValueObject");
+  os << "\n - value: " << Brief(value());
+  os << "\n";
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void LoadHandler::LoadHandlerPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "LoadHandler");
@@ -2067,21 +2098,7 @@ void FunctionTemplateInfo::FunctionTemplateInfoPrint(
   os << "\n - undetectable: " << (undetectable() ? "true" : "false");
   os << "\n - need_access_check: " << (needs_access_check() ? "true" : "false");
   os << "\n - instantiated: " << (instantiated() ? "true" : "false");
-  os << "\n - rare_data: " << Brief(rare_data());
-  os << "\n";
-}
-
-void WasmIndirectFunctionTable::WasmIndirectFunctionTablePrint(
-    std::ostream& os) {
-  PrintHeader(os, "WasmIndirectFunctionTable");
-  os << "\n - size: " << size();
-  os << "\n - sig_ids: " << static_cast<void*>(sig_ids());
-  os << "\n - targets: " << static_cast<void*>(targets());
-  if (has_managed_native_allocations()) {
-    os << "\n - managed_native_allocations: "
-       << Brief(managed_native_allocations());
-  }
-  os << "\n - refs: " << Brief(refs());
+  os << "\n - rare_data: " << Brief(rare_data(kAcquireLoad));
   os << "\n";
 }
 
@@ -2142,11 +2159,15 @@ void Script::ScriptPrint(std::ostream& os) {  // NOLINT
   os << "\n - context data: " << Brief(context_data());
   os << "\n - compilation type: " << compilation_type();
   os << "\n - line ends: " << Brief(line_ends());
-  if (type() == TYPE_WASM) {
+  bool is_wasm = false;
+#if V8_ENABLE_WEBASSEMBLY
+  if ((is_wasm = (type() == TYPE_WASM))) {
     if (has_wasm_breakpoint_infos()) {
       os << "\n - wasm_breakpoint_infos: " << Brief(wasm_breakpoint_infos());
     }
-  } else {
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+  if (!is_wasm) {
     if (has_eval_from_shared()) {
       os << "\n - eval from shared: " << Brief(eval_from_shared());
     }
@@ -2267,18 +2288,13 @@ void JSSegments::JSSegmentsPrint(std::ostream& os) {  // NOLINT
 
 namespace {
 void PrintScopeInfoList(ScopeInfo scope_info, std::ostream& os,
-                        const char* list_name, int nof_internal_slots,
-                        int start, int length) {
+                        const char* list_name, int length) {
   if (length <= 0) return;
-  int end = start + length;
   os << "\n - " << list_name;
-  if (nof_internal_slots > 0) {
-    os << " " << start << "-" << end << " [internal slots]";
-  }
   os << " {\n";
-  for (int i = nof_internal_slots; start < end; ++i, ++start) {
+  for (int i = 0; i < length; ++i) {
     os << "    - " << i << ": ";
-    String::cast(scope_info.get(start)).ShortPrint(os);
+    scope_info.context_local_names(i).ShortPrint(os);
     os << "\n";
   }
   os << "  }";
@@ -2287,8 +2303,8 @@ void PrintScopeInfoList(ScopeInfo scope_info, std::ostream& os,
 
 void ScopeInfo::ScopeInfoPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "ScopeInfo");
-  if (length() == 0) {
-    os << "\n - length = 0\n";
+  if (IsEmpty()) {
+    os << "\n - empty\n";
     return;
   }
   int flags = Flags();
@@ -2335,8 +2351,7 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {  // NOLINT
   }
   os << "\n - length: " << length();
   if (length() > 0) {
-    PrintScopeInfoList(*this, os, "context slots", Context::MIN_CONTEXT_SLOTS,
-                       ContextLocalNamesIndex(), ContextLocalCount());
+    PrintScopeInfoList(*this, os, "context slots", ContextLocalCount());
     // TODO(neis): Print module stuff if present.
   }
   os << "\n";
@@ -2462,7 +2477,7 @@ int Name::NameShortPrint(Vector<char> str) {
 void Map::PrintMapDetails(std::ostream& os) {
   DisallowGarbageCollection no_gc;
   this->MapPrint(os);
-  instance_descriptors(kRelaxedLoad).PrintDescriptors(os);
+  instance_descriptors().PrintDescriptors(os);
 }
 
 void Map::MapPrint(std::ostream& os) {  // NOLINT
@@ -2516,7 +2531,7 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   os << "\n - prototype_validity cell: " << Brief(prototype_validity_cell());
   os << "\n - instance descriptors " << (owns_descriptors() ? "(own) " : "")
      << "#" << NumberOfOwnDescriptors() << ": "
-     << Brief(instance_descriptors(kRelaxedLoad));
+     << Brief(instance_descriptors());
 
   // Read-only maps can't have transitions, which is fortunate because we need
   // the isolate to iterate over the transitions.
@@ -2628,7 +2643,7 @@ void TransitionsAccessor::PrintOneTransition(std::ostream& os, Name key,
     DCHECK(!IsSpecialTransition(roots, key));
     os << "(transition to ";
     InternalIndex descriptor = target.LastAdded();
-    DescriptorArray descriptors = target.instance_descriptors(kRelaxedLoad);
+    DescriptorArray descriptors = target.instance_descriptors();
     descriptors.PrintDescriptorDetails(os, descriptor,
                                        PropertyDetails::kForTransitions);
     os << ")";
@@ -2706,7 +2721,7 @@ void TransitionsAccessor::PrintTransitionTree(
       DCHECK(!IsSpecialTransition(ReadOnlyRoots(isolate_), key));
       os << "to ";
       InternalIndex descriptor = target.LastAdded();
-      DescriptorArray descriptors = target.instance_descriptors(kRelaxedLoad);
+      DescriptorArray descriptors = target.instance_descriptors(isolate_);
       descriptors.PrintDescriptorDetails(os, descriptor,
                                          PropertyDetails::kForTransitions);
     }
@@ -2732,12 +2747,11 @@ namespace {
 inline i::Object GetObjectFromRaw(void* object) {
   i::Address object_ptr = reinterpret_cast<i::Address>(object);
 #ifdef V8_COMPRESS_POINTERS
-  if (RoundDown<i::kPtrComprIsolateRootAlignment>(object_ptr) ==
-      i::kNullAddress) {
+  if (RoundDown<i::kPtrComprCageBaseAlignment>(object_ptr) == i::kNullAddress) {
     // Try to decompress pointer.
     i::Isolate* isolate = i::Isolate::Current();
-    object_ptr = i::DecompressTaggedAny(isolate->isolate_root(),
-                                        static_cast<i::Tagged_t>(object_ptr));
+    object_ptr =
+        i::DecompressTaggedAny(isolate, static_cast<i::Tagged_t>(object_ptr));
   }
 #endif
   return i::Object(object_ptr);
@@ -2760,6 +2774,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
   i::Address address = reinterpret_cast<i::Address>(object);
   i::Isolate* isolate = i::Isolate::Current();
 
+#if V8_ENABLE_WEBASSEMBLY
   {
     i::wasm::WasmCodeRefScope scope;
     i::wasm::WasmCode* wasm_code =
@@ -2770,6 +2785,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
       return;
     }
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   if (!isolate->heap()->InSpaceSlow(address, i::CODE_SPACE) &&
       !isolate->heap()->InSpaceSlow(address, i::CODE_LO_SPACE) &&

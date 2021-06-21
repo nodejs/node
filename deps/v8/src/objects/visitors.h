@@ -23,7 +23,7 @@ class CodeDataContainer;
   V(kStrongRootList, "(Strong roots)")                \
   V(kSmiRootList, "(Smi roots)")                      \
   V(kBootstrapper, "(Bootstrapper)")                  \
-  V(kTop, "(Isolate)")                                \
+  V(kStackRoots, "(Stack roots)")                     \
   V(kRelocatable, "(Relocatable)")                    \
   V(kDebug, "(Debugger)")                             \
   V(kCompilationCache, "(Compilation cache)")         \

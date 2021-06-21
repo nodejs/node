@@ -132,7 +132,7 @@ dd {
   font-weight: 400;
 }
 
-.panel > select{
+.panel > select {
   width: calc(100% + 20px);
   margin: 0 -10px 10px -10px;
 }

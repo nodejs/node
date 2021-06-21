@@ -24,6 +24,7 @@ else {
 
   t.test('call the error handle so we dont freak out', t => {
     const errorHandler = require('../../lib/utils/error-handler.js')
+    errorHandler.setNpm(npm)
     errorHandler()
     t.end()
   })

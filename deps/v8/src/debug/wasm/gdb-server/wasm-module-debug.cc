@@ -400,7 +400,7 @@ bool WasmModuleDebug::GetWasmValue(const wasm::WasmValue& wasm_value,
     case wasm::kWasmS128.kind():
       return StoreValue(wasm_value.to_s128(), buffer, buffer_size, size);
 
-    case wasm::kWasmStmt.kind():
+    case wasm::kWasmVoid.kind():
     case wasm::kWasmExternRef.kind():
     case wasm::kWasmBottom.kind():
     default:

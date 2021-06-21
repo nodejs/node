@@ -259,7 +259,7 @@ class FeedbackVector
                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline MaybeObject Get(FeedbackSlot slot) const;
-  inline MaybeObject Get(IsolateRoot isolate, FeedbackSlot slot) const;
+  inline MaybeObject Get(PtrComprCageBase cage_base, FeedbackSlot slot) const;
 
   // Returns the feedback cell at |index| that is used to create the
   // closure.

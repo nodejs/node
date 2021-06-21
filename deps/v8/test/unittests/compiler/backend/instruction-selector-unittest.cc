@@ -90,7 +90,7 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
       EXPECT_NE(InstructionOperand::CONSTANT, input->kind());
       if (input->IsImmediate()) {
         auto imm = ImmediateOperand::cast(input);
-        if (imm->type() == ImmediateOperand::INDEXED) {
+        if (imm->type() == ImmediateOperand::INDEXED_IMM) {
           int index = imm->indexed_value();
           s.immediates_.insert(
               std::make_pair(index, sequence.GetImmediate(imm)));

@@ -1518,24 +1518,6 @@ TEST_(load_literal) {
   CLEANUP();
 }
 
-TEST(prfm_regoffset) {
-  SET_UP_ASM();
-
-  COMPARE(prfm(PLIL1KEEP, MemOperand(x1, x2)), "prfm plil1keep, [x1, x2]");
-  COMPARE(prfm(PLIL1STRM, MemOperand(x3, w4, SXTW)),
-          "prfm plil1strm, [x3, w4, sxtw]");
-  COMPARE(prfm(PLIL2KEEP, MemOperand(x5, x6, LSL, 3)),
-          "prfm plil2keep, [x5, x6, lsl #3]");
-
-  COMPARE(prfm(PLIL2STRM, MemOperand(sp, xzr)), "prfm plil2strm, [sp, xzr]");
-  COMPARE(prfm(PLIL3KEEP, MemOperand(sp, wzr, SXTW)),
-          "prfm plil3keep, [sp, wzr, sxtw]");
-  COMPARE(prfm(PLIL3STRM, MemOperand(sp, xzr, LSL, 3)),
-          "prfm plil3strm, [sp, xzr, lsl #3]");
-
-  CLEANUP();
-}
-
 TEST_(cond_select) {
   SET_UP_ASM();
 

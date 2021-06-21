@@ -41,6 +41,7 @@ class MachineGraph;
 class NodeOriginTable;
 class Schedule;
 class SourcePositionTable;
+struct WasmLoopInfo;
 
 class Pipeline : public AllStatic {
  public:
@@ -57,7 +58,7 @@ class Pipeline : public AllStatic {
       MachineGraph* mcgraph, CallDescriptor* call_descriptor,
       SourcePositionTable* source_positions, NodeOriginTable* node_origins,
       wasm::FunctionBody function_body, const wasm::WasmModule* module,
-      int function_index);
+      int function_index, std::vector<compiler::WasmLoopInfo>* loop_infos);
 
   // Run the pipeline on a machine graph and generate code.
   static wasm::WasmCompilationResult GenerateCodeForWasmNativeStub(

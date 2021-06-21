@@ -134,17 +134,19 @@ class Link extends ArboristWorkspaceCmd {
     // reify all the pending names as symlinks there
     const localArb = new Arborist({
       ...this.npm.flatOptions,
+      prune: false,
       log: this.npm.log,
       path: this.npm.prefix,
       save,
     })
     await localArb.reify({
       ...this.npm.flatOptions,
+      prune: false,
       path: this.npm.prefix,
       log: this.npm.log,
       add: names.map(l => `file:${resolve(globalTop, 'node_modules', l)}`),
       save,
-      workspaces: this.workspaces,
+      workspaces: this.workspaceNames,
     })
 
     await reifyFinish(this.npm, localArb)
