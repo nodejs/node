@@ -28,9 +28,9 @@
 #include "handle_wrap.h"
 #include "v8.h"
 
-#define STREAM_WRAP_RECVQ_INITIAL   16*1024
-#define STREAM_WRAP_RECVQ_MIN       16*1024
-#define STREAM_WRAP_RECVQ_MAX       256*1024
+constexpr ssize_t STREAM_WRAP_RECVQ_INITIAL = 16 * 1024;
+constexpr ssize_t STREAM_WRAP_RECVQ_MIN = 16 * 1024;
+constexpr ssize_t STREAM_WRAP_RECVQ_MAX = 256 * 1024;
 
 namespace node {
 
