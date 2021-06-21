@@ -1,5 +1,8 @@
 # Fetch
 
+<!--introduced_in=REPLACEME-->
+
+> Stability: 1 - Experimental
 ## Class: `fetch.Headers`
 
 Represents a WHATWG Fetch Spec [Headers Class](https://fetch.spec.whatwg.org/#headers-class)
