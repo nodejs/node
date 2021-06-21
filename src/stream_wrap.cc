@@ -118,7 +118,7 @@ LibuvStreamWrap::LibuvStreamWrap(Environment* env,
                  provider),
       StreamBase(env),
       stream_(stream),
-      recvq_size(STREAM_WRAP_RECVQ_INITIAL) {
+      recvq_size_(STREAM_WRAP_RECVQ_INITIAL) {
   StreamBase::AttachToObject(object);
 }
 
@@ -210,7 +210,7 @@ void LibuvStreamWrap::OnUvAlloc(size_t suggested_size, uv_buf_t* buf) {
   HandleScope scope(env()->isolate());
   Context::Scope context_scope(env()->context());
 
-  *buf = EmitAlloc(recvq_size);
+  *buf = EmitAlloc(recvq_size_);
 }
 
 template <class WrapType>
@@ -254,10 +254,10 @@ void LibuvStreamWrap::OnUvRead(ssize_t nread, const uv_buf_t* buf) {
 
   if (nread > 0) {
     // Adjust the dynamic receive buffer
-    if (nread == recvq_size && recvq_size < STREAM_WRAP_RECVQ_MAX) {
-      recvq_size *= 2;
-    } else if (nread < recvq_size / 4 && recvq_size > STREAM_WRAP_RECVQ_MIN) {
-      recvq_size /= 2;
+    if (nread == recvq_size_ && recvq_size_ < STREAM_WRAP_RECVQ_MAX) {
+      recvq_size_ *= 2;
+    } else if (nread < recvq_size_ / 4 && recvq_size_ > STREAM_WRAP_RECVQ_MIN) {
+      recvq_size_ /= 2;
     }
 
     MaybeLocal<Object> pending_obj;
