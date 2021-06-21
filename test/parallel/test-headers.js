@@ -84,13 +84,7 @@ const {
 
 {
   // Init fails silently when initialized with BoxedPrimitives
-  try {
-    new Headers(new Number());
-    new Headers(new Boolean());
-    new Headers(new String());
-  } catch (error) {
-    common.mustNotCall(error);
-  }
+  [new Number(), new Boolean(), new String()].forEach((arg) => new Headers(arg));
 }
 
 {
