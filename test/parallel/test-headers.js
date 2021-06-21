@@ -95,14 +95,12 @@ const {
 
 {
   // Init fails silently if function or primitive is passed
-  try {
-    new Headers(Function);
-    new Headers(function() {});
-    new Headers(1);
-    new Headers('test');
-  } catch (error) {
-    common.mustNotCall(error);
-  }
+  [
+    Function,
+    function() {},
+    1,
+    'test',
+  ].forEach((arg) => new Headers(arg));
 }
 
 {
