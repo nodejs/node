@@ -76,7 +76,7 @@ headers.get('undici'); // -> null
 
 Retrieves a header entry. If the entry _name_ has multiple values, they are
 returned as a string joined by `','` characters. If the _name_ does not exist,
-this method returns null.
+this method returns `null`.
 
 ```js
 const headers = new Headers();
