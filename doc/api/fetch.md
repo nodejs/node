@@ -7,7 +7,7 @@
 ## Class: `fetch.Headers`
 
 Represents a WHATWG Fetch Spec
-[Headers Class](https://fetch.spec.whatwg.org/#headers-class)
+[Headers Class](https://fetch.spec.whatwg.org/#headers-class).
 
 ### `new Headers([init])`
 
