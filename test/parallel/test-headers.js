@@ -1,6 +1,6 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 
 // Flags: --expose-internals
@@ -84,13 +84,17 @@ const {
 
 {
   // Init fails silently when initialized with BoxedPrimitives
-  [new Number(), new Boolean(), new String()].forEach((arg) => new Headers(arg));
+  [
+    new Number(),
+    new Boolean(),
+    new String(),
+  ].forEach((arg) => new Headers(arg));
 }
 
 {
   // Init fails silently if function or primitive is passed
   [
-    Function,
+    new Function(),
     function() {},
     1,
     'test',
@@ -124,14 +128,14 @@ const {
     headers.append();
   }, {
     name: 'TypeError',
-    message: 'String.prototype.toLocaleLowerCase called on null or undefined'
+    message: 'Header name must be a valid HTTP token ["undefined"]'
   });
 
   assert.throws(() => {
     headers.append('test-name');
   }, {
     name: 'TypeError',
-    message: 'String.prototype.replace called on null or undefined'
+    message: 'Invalid value "undefined" for header "test-name"'
   });
 
   assert.throws(() => {
@@ -176,7 +180,7 @@ const {
     headers.delete();
   }, {
     name: 'TypeError',
-    message: 'String.prototype.toLocaleLowerCase called on null or undefined'
+    message: 'Header name must be a valid HTTP token ["undefined"]'
   });
 
   assert.throws(() => {
@@ -203,7 +207,7 @@ const {
     headers.get();
   }, {
     name: 'TypeError',
-    message: 'String.prototype.toLocaleLowerCase called on null or undefined'
+    message: 'Header name must be a valid HTTP token ["undefined"]'
   });
 
   assert.throws(() => {
@@ -227,7 +231,7 @@ const {
     headers.has();
   }, {
     name: 'TypeError',
-    message: 'String.prototype.toLocaleLowerCase called on null or undefined'
+    message: 'Header name must be a valid HTTP token ["undefined"]'
   });
 
   assert.throws(() => {
@@ -265,14 +269,14 @@ const {
     headers.set();
   }, {
     name: 'TypeError',
-    message: 'String.prototype.toLocaleLowerCase called on null or undefined'
+    message: 'Header name must be a valid HTTP token ["undefined"]'
   });
 
   assert.throws(() => {
     headers.set('test-name');
   }, {
     name: 'TypeError',
-    message: 'String.prototype.replace called on null or undefined'
+    message: 'Invalid value "undefined" for header "test-name"'
   });
 
   assert.throws(() => {
