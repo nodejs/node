@@ -818,7 +818,13 @@ static void Initialize(Local<Object> target,
                        Local<Context> context,
                        void* priv) {
   Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = context->GetIsolate();
   env->SetMethod(target, "compileSnapshotMain", CompileSnapshotMain);
+  target
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(isolate, "cleanups"),
+            v8::Array::New(isolate))
+      .Check();
 }
 
 static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
