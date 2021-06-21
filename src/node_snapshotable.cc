@@ -13,6 +13,10 @@
 #include "node_v8.h"
 #include "node_v8_platform-inl.h"
 
+#if HAVE_INSPECTOR
+#include "inspector/worker_inspector.h"  // ParentInspectorHandle
+#endif
+
 namespace node {
 
 using v8::Context;
@@ -577,6 +581,10 @@ void SnapshotBuilder::Generate(SnapshotData* out,
                             nullptr,
                             node::EnvironmentFlags::kDefaultFlags,
                             {});
+
+#if HAVE_INSPECTOR
+     env->InitializeInspector({});
+#endif
       // Run scripts in lib/internal/bootstrap/
       {
         TryCatch bootstrapCatch(isolate);
@@ -602,8 +610,8 @@ void SnapshotBuilder::Generate(SnapshotData* out,
         // FIXME(joyee): right now running the loop in the snapshot builder
         // seems to intrudoces inconsistencies in JS land that need to be
         // synchronized again after snapshot restoration.
-        // int exit_code = SpinEventLoop(env).FromMaybe(1);
-        // CHECK_EQ(exit_code, 0);
+        int exit_code = SpinEventLoop(env).FromMaybe(1);
+        CHECK_EQ(exit_code, 0);
       }
 
       if (per_process::enabled_debug_list.enabled(DebugCategory::MKSNAPSHOT)) {
