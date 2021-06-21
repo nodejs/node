@@ -609,12 +609,11 @@ CommonJS modules loaded.
 * `specifier` {string}
 * `context` {Object}
   * `conditions` {string[]}
-  * `parentURL` {string}
-  **Default:** `undefined`
+  * `parentURL` {string|undefined}
 * `defaultResolve` {Function} The Node.js default resolver.
 * Returns: {Object}
-  * `format` {string?} One of `'builtin'|'commonjs'|'json'|'module'|'wasm'`
-  * `url` {string} The absolute url to the import target (`file://…`, etc)
+  * `format` {string|undefined} `'builtin'|'commonjs'|'json'|'module'|'wasm'`
+  * `url` {string} The absolute url to the import target (such as `file://…`)
 
 The `resolve` hook returns the resolved file URL for a given module specifier
 and parent URL, and optionally its format (such as `'module'`) as a hint to the
@@ -672,10 +671,13 @@ export async function resolve(specifier, context, defaultResolve) {
 > Note: The loaders API is being redesigned. This hook may disappear or its
 > signature may change. Do not rely on the API described below.
 
+> Note: In a previous version of this API, this was split across 3 separate, now
+> deprecated, hooks (`getFormat`, `getSource`, and `transformSource`).
+
 * `url` {string}
 * `context` {Object}
-  * `format` {string} The format optionally supplied by the `resolve` hook.
-  **Default:** `undefined`
+  * `format` {string|undefined} The format optionally supplied by the `resolve`
+  hook.
 * `defaultLoad` {Function}
 * Returns: {Object}
   * `format` {string}
@@ -694,9 +696,11 @@ The final value of `format` must be one of the following:
 | `'module'`   | Load an ES module              | { [`string`][], [`ArrayBuffer`][], [`TypedArray`][] }                      |
 | `'wasm'`     | Load a WebAssembly module      | { [`ArrayBuffer`][], [`TypedArray`][] }                                    |
 
-Note: When format is `'commonjs'`, the value of `source` is ignored.
+> Note: When format is `'commonjs'`, the value of `source` is ignored (due to
+> incompatibilities between internal commonjs and ES modules APIs). This may
+> change in future.
 
-Note: These types all correspond to classes defined in ECMAScript.
+> Note: These types all correspond to classes defined in ECMAScript.
 
 * The specific [`ArrayBuffer`][] object is a [`SharedArrayBuffer`][].
 * The specific [`TypedArray`][] object is a [`Uint8Array`][].
@@ -722,10 +726,19 @@ format to a supported one, for example `yaml` to `module`.
   }>}
  */
 export async function load(url, context, defaultLoad) {
-  if (path.extname(url) === 'json6') {
-    // If specifying a format, ensure its value is one of the strings in the
-    // preceding table.
-    context.format = 'module';
+  const { format } = context;
+  if (Math.random() > 0.5) { // Some condition.
+    /*
+      For some or all URLs, do some custom logic for retrieving the source.
+      Always return an object of the form {
+        format: <string>,
+        source: <string|buffer>,
+      }.
+    */
+    return {
+      format,
+      source: '...',
+    };
   }
   // Defer to Node.js for all other URLs.
   return defaultLoad(url, context, defaultLoad);
@@ -739,6 +752,9 @@ source to a supported one (see [Examples](#esm_examples) below).
 
 > Note: The loaders API is being redesigned. This hook may disappear or its
 > signature may change. Do not rely on the API described below.
+
+> Note: In a previous version of this API, this hook was named
+> `getGlobalPreloadCode`.
 
 * Returns: {string}
 
