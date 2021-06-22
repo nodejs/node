@@ -610,7 +610,7 @@ Any number of custom conditions can be set with repeat flags.
 
 The `"import"`, `"require"`, `"node"` and `"default"` conditions are defined
 and implemented in Node.js core,
-[as specified above](#esm_conditional_exports).
+[as specified above](#packages_conditional_exports).
 
 Other condition strings are unknown to Node.js and thus ignored by default.
 Runtimes or tools other than Node.js can use them at their discretion.
@@ -805,7 +805,7 @@ The preceding example uses explicit extensions `.mjs` and `.cjs`.
 If your files use the `.js` extension, `"type": "module"` will cause such files
 to be treated as ES modules, just as `"type": "commonjs"` would cause them
 to be treated as CommonJS.
-See [Enabling](#esm_enabling).
+See [Enabling](esm.md#esm_enabling).
 
 ```cjs
 // ./node_modules/pkg/index.cjs
