@@ -8,7 +8,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
           # Last 100 commits should be enough for a PR
           fetch-depth: 100
       - name: Use Node.js 12
