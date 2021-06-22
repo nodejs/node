@@ -2,7 +2,7 @@
 
 > Allow parsing of class properties
 
-See our website [@babel/plugin-syntax-class-properties](https://babeljs.io/docs/en/next/babel-plugin-syntax-class-properties.html) for more information.
+See our website [@babel/plugin-syntax-class-properties](https://babeljs.io/docs/en/babel-plugin-syntax-class-properties) for more information.
 
 ## Install
 

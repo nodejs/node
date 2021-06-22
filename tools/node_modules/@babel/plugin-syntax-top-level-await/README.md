@@ -2,7 +2,7 @@
 
 > Allow parsing of top-level await in modules
 
-See our website [@babel/plugin-syntax-top-level-await](https://babeljs.io/docs/en/next/babel-plugin-syntax-top-level-await.html) for more information.
+See our website [@babel/plugin-syntax-top-level-await](https://babeljs.io/docs/en/babel-plugin-syntax-top-level-await) for more information.
 
 ## Install
 

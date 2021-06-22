@@ -1,4 +1,4 @@
-module.exports = function stringifyValidator(validator, nodePrefix) {
+export default function stringifyValidator(validator, nodePrefix) {
   if (validator === undefined) {
     return "any";
   }
@@ -55,7 +55,7 @@ module.exports = function stringifyValidator(validator, nodePrefix) {
   }
 
   return ["any"];
-};
+}
 
 /**
  * Heuristic to decide whether or not the given type is a value type (eg. "null")

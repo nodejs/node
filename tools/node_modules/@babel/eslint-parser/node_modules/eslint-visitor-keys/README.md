@@ -17,7 +17,7 @@ $ npm install eslint-visitor-keys
 
 ### Requirements
 
-- [Node.js] 4.0.0 or later.
+- [Node.js] 10.0.0 or later.
 
 ## 📖 Usage
 

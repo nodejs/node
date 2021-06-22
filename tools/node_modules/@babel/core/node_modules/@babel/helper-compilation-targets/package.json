@@ -1,0 +1,40 @@
+{
+  "name": "@babel/helper-compilation-targets",
+  "version": "7.14.5",
+  "author": "The Babel Team (https://babel.dev/team)",
+  "license": "MIT",
+  "description": "Helper functions on Babel compilation targets",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/babel/babel.git",
+    "directory": "packages/babel-helper-compilation-targets"
+  },
+  "main": "./lib/index.js",
+  "exports": {
+    ".": "./lib/index.js"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "babel",
+    "babel-plugin"
+  ],
+  "dependencies": {
+    "@babel/compat-data": "^7.14.5",
+    "@babel/helper-validator-option": "^7.14.5",
+    "browserslist": "^4.16.6",
+    "semver": "^6.3.0"
+  },
+  "peerDependencies": {
+    "@babel/core": "^7.0.0"
+  },
+  "devDependencies": {
+    "@babel/core": "7.14.5",
+    "@babel/helper-plugin-test-runner": "7.14.5",
+    "@types/semver": "^5.5.0"
+  },
+  "engines": {
+    "node": ">=6.9.0"
+  }
+}

@@ -2,7 +2,7 @@
 
 > Babel helper functions for implementing ES6 module transformations
 
-See our website [@babel/helper-module-transforms](https://babeljs.io/docs/en/next/babel-helper-module-transforms.html) for more information.
+See our website [@babel/helper-module-transforms](https://babeljs.io/docs/en/babel-helper-module-transforms) for more information.
 
 ## Install
 
