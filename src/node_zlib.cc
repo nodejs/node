@@ -71,6 +71,9 @@ namespace {
 #define Z_MIN_LEVEL -1
 #define Z_MAX_LEVEL 9
 #define Z_DEFAULT_LEVEL Z_DEFAULT_COMPRESSION
+#define Z_MIN_WINDOWBITS 8
+#define Z_MAX_WINDOWBITS 15
+#define Z_DEFAULT_WINDOWBITS 15
 
 #define ZLIB_ERROR_CODES(V)      \
   V(Z_OK)                        \
