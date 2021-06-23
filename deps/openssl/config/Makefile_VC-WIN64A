@@ -100,26 +100,26 @@ include/openssl/x509v3.h: include/openssl/x509v3.h.in configdata.pm
 	$(PERL) -I$(BLDDIR) -Mconfigdata util/dofile.pl \
 	    "-omakefile" "include/openssl/x509v3.h.in" > $@
 
-providers/common/include/prov/der_dsa.h: providers/common/der/der_dsa.h.in providers/common/der/oids_to_c.pm configdata.pm providers/common/der/oids_to_c.pm
-	$(PERL) "-I." "-Iproviders/common/der" -Mconfigdata -Moids_to_c "util/dofile.pl" "-oMakefile" providers/common/der/der_dsa.h.in > $@
+providers/common/include/prov/der_dsa.h: providers/common/include/prov/der_dsa.h.in providers/common/der/oids_to_c.pm configdata.pm providers/common/der/oids_to_c.pm
+	$(PERL) "-I." "-Iproviders/common/der" -Mconfigdata -Moids_to_c "util/dofile.pl" "-oMakefile" providers/common/include/prov/der_dsa.h.in > $@
 
-providers/common/include/prov/der_wrap.h: providers/common/der/der_wrap.h.in providers/common/der/oids_to_c.pm configdata.pm providers/common/der/oids_to_c.pm
-	$(PERL) "-I." "-Iproviders/common/der" -Mconfigdata -Moids_to_c "util/dofile.pl" "-oMakefile" providers/common/der/der_wrap.h.in > $@
+providers/common/include/prov/der_wrap.h: providers/common/include/prov/der_wrap.h.in providers/common/der/oids_to_c.pm configdata.pm providers/common/der/oids_to_c.pm
+	$(PERL) "-I." "-Iproviders/common/der" -Mconfigdata -Moids_to_c "util/dofile.pl" "-oMakefile" providers/common/include/prov/der_wrap.h.in > $@
 
-providers/common/include/prov/der_rsa.h: providers/common/der/der_wrap.h.in providers/common/der/oids_to_c.pm configdata.pm providers/common/der/oids_to_c.pm
-	$(PERL) "-I." "-Iproviders/common/der" -Mconfigdata -Moids_to_c "util/dofile.pl" "-oMakefile" providers/common/der/der_rsa.h.in > $@
+providers/common/include/prov/der_rsa.h: providers/common/include/prov/der_wrap.h.in providers/common/der/oids_to_c.pm configdata.pm providers/common/der/oids_to_c.pm
+	$(PERL) "-I." "-Iproviders/common/der" -Mconfigdata -Moids_to_c "util/dofile.pl" "-oMakefile" providers/common/include/prov/der_rsa.h.in > $@
 
-providers/common/include/prov/der_ecx.h: providers/common/der/der_wrap.h.in providers/common/der/oids_to_c.pm configdata.pm providers/common/der/oids_to_c.pm
-	$(PERL) "-I." "-Iproviders/common/der" -Mconfigdata -Moids_to_c "util/dofile.pl" "-oMakefile" providers/common/der/der_ecx.h.in > $@
+providers/common/include/prov/der_ecx.h: providers/common/include/prov/der_wrap.h.in providers/common/der/oids_to_c.pm configdata.pm providers/common/der/oids_to_c.pm
+	$(PERL) "-I." "-Iproviders/common/der" -Mconfigdata -Moids_to_c "util/dofile.pl" "-oMakefile" providers/common/include/prov/der_ecx.h.in > $@
 
-providers/common/include/prov/der_sm2.h: providers/common/der/der_wrap.h.in providers/common/der/oids_to_c.pm configdata.pm providers/common/der/oids_to_c.pm
-	$(PERL) "-I." "-Iproviders/common/der" -Mconfigdata -Moids_to_c "util/dofile.pl" "-oMakefile" providers/common/der/der_sm2.h.in > $@
+providers/common/include/prov/der_sm2.h: providers/common/include/prov/der_wrap.h.in providers/common/der/oids_to_c.pm configdata.pm providers/common/der/oids_to_c.pm
+	$(PERL) "-I." "-Iproviders/common/der" -Mconfigdata -Moids_to_c "util/dofile.pl" "-oMakefile" providers/common/include/prov/der_sm2.h.in > $@
 
-providers/common/include/prov/der_ec.h: providers/common/der/der_wrap.h.in providers/common/der/oids_to_c.pm configdata.pm providers/common/der/oids_to_c.pm
-	$(PERL) "-I." "-Iproviders/common/der" -Mconfigdata -Moids_to_c "util/dofile.pl" "-oMakefile" providers/common/der/der_ec.h.in > $@
+providers/common/include/prov/der_ec.h: providers/common/include/prov/der_wrap.h.in providers/common/der/oids_to_c.pm configdata.pm providers/common/der/oids_to_c.pm
+	$(PERL) "-I." "-Iproviders/common/der" -Mconfigdata -Moids_to_c "util/dofile.pl" "-oMakefile" providers/common/include/prov/der_ec.h.in > $@
 
-providers/common/include/prov/der_digests.h: providers/common/der/der_wrap.h.in providers/common/der/oids_to_c.pm configdata.pm providers/common/der/oids_to_c.pm
-	$(PERL) "-I." "-Iproviders/common/der" -Mconfigdata -Moids_to_c "util/dofile.pl" "-oMakefile" providers/common/der/der_digests.h.in > $@
+providers/common/include/prov/der_digests.h: providers/common/include/prov/der_wrap.h.in providers/common/der/oids_to_c.pm configdata.pm providers/common/der/oids_to_c.pm
+	$(PERL) "-I." "-Iproviders/common/der" -Mconfigdata -Moids_to_c "util/dofile.pl" "-oMakefile" providers/common/include/prov/der_digests.h.in > $@
 
 
 
