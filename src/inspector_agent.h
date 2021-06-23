@@ -117,7 +117,7 @@ class Agent {
   inline Environment* env() const { return parent_env_; }
 
  private:
-  void ToggleAsyncHook(v8::Isolate* isolate, const v8::Local<v8::Function>& fn);
+  void ToggleAsyncHook(v8::Isolate* isolate, v8::Local<v8::Function> fn);
 
   node::Environment* parent_env_;
   // Encapsulates majority of the Inspector functionality

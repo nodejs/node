@@ -840,7 +840,7 @@ void Agent::DisableAsyncHook() {
   }
 }
 
-void Agent::ToggleAsyncHook(Isolate* isolate, const Local<Function>& fn) {
+void Agent::ToggleAsyncHook(Isolate* isolate, Local<Function> fn) {
   // Guard against running this during cleanup -- no async events will be
   // emitted anyway at that point anymore, and calling into JS is not possible.
   // This should probably not be something we're attempting in the first place,
