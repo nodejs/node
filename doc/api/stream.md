@@ -1651,6 +1651,21 @@ Examples of `Duplex` streams include:
 * [zlib streams][zlib]
 * [crypto streams][crypto]
 
+##### `duplex.allowHalfOpen`
+<!-- YAML
+added: v0.9.4
+-->
+
+* {boolean}
+
+If `false` then the stream will automatically end the writable side when the
+readable side ends. Set initially by the `allowHalfOpen` constructor option,
+which defaults to `false`.
+
+This can be changed manually to change the half-open behavior of an existing
+`Duplex` stream instance, but must be changed before the `'end'` event is
+emitted.
+
 #### Class: `stream.Transform`
 <!-- YAML
 added: v0.9.4
