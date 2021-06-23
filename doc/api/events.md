@@ -1485,11 +1485,11 @@ target.removeEventListener('foo', handler, { capture: true });
 added: v14.5.0
 -->
 
-* `event` {Object|Event}
+* `event` {Event}
+* Returns: {boolean} `true` if either event’s `cancelable` attribute value is
+  false or its `preventDefault()` method was not invoked, otherwise `false`.
 
-Dispatches the `event` to the list of handlers for `event.type`. The `event`
-may be an `Event` object or any object with a `type` property whose value is
-a `string`.
+Dispatches the `event` to the list of handlers for `event.type`.
 
 The registered event listeners is synchronously invoked in the order they
 were registered.
