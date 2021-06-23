@@ -1025,7 +1025,7 @@ clear the exception. On success, result will contain the handle to
 the last JavaScript `Object` thrown. If it is determined, after
 retrieving the exception, the exception cannot be handled after all
 it can be re-thrown it with [`napi_throw`][] where error is the
-JavaScript `Error` object to be thrown.
+JavaScript value to be thrown.
 
 The following utility functions are also available in case native code
 needs to throw an exception or determine if a `napi_value` is an instance
@@ -1178,7 +1178,7 @@ NAPI_EXTERN napi_status napi_create_error(napi_env env,
 * `[in] env`: The environment that the API is invoked under.
 * `[in] code`: Optional `napi_value` with the string for the error code to be
   associated with the error.
-* `[in] msg`: `napi_value` that references a JavaScript `String` to be used as
+* `[in] msg`: `napi_value` that references a JavaScript `string` to be used as
   the message for the `Error`.
 * `[out] result`: `napi_value` representing the error created.
 
@@ -1202,7 +1202,7 @@ NAPI_EXTERN napi_status napi_create_type_error(napi_env env,
 * `[in] env`: The environment that the API is invoked under.
 * `[in] code`: Optional `napi_value` with the string for the error code to be
   associated with the error.
-* `[in] msg`: `napi_value` that references a JavaScript `String` to be used as
+* `[in] msg`: `napi_value` that references a JavaScript `string` to be used as
   the message for the `Error`.
 * `[out] result`: `napi_value` representing the error created.
 
@@ -1226,7 +1226,7 @@ NAPI_EXTERN napi_status napi_create_range_error(napi_env env,
 * `[in] env`: The environment that the API is invoked under.
 * `[in] code`: Optional `napi_value` with the string for the error code to be
   associated with the error.
-* `[in] msg`: `napi_value` that references a JavaScript `String` to be used as
+* `[in] msg`: `napi_value` that references a JavaScript `string` to be used as
   the message for the `Error`.
 * `[out] result`: `napi_value` representing the error created.
 
@@ -2357,14 +2357,14 @@ napi_status napi_create_symbol(napi_env env,
 
 * `[in] env`: The environment that the API is invoked under.
 * `[in] description`: Optional `napi_value` which refers to a JavaScript
-  `String` to be set as the description for the symbol.
-* `[out] result`: A `napi_value` representing a JavaScript `Symbol`.
+  `string` to be set as the description for the symbol.
+* `[out] result`: A `napi_value` representing a JavaScript `symbol`.
 
 Returns `napi_ok` if the API succeeded.
 
-This API creates a JavaScript `Symbol` object from a UTF8-encoded C string.
+This API creates a JavaScript `symbol` value from a UTF8-encoded C string.
 
-The JavaScript `Symbol` type is described in [Section 19.4][]
+The JavaScript `symbol` type is described in [Section 19.4][]
 of the ECMAScript Language Specification.
 
 #### napi_create_typedarray
@@ -2451,14 +2451,14 @@ napi_status napi_create_int32(napi_env env, int32_t value, napi_value* result)
 
 * `[in] env`: The environment that the API is invoked under.
 * `[in] value`: Integer value to be represented in JavaScript.
-* `[out] result`: A `napi_value` representing a JavaScript `Number`.
+* `[out] result`: A `napi_value` representing a JavaScript `number`.
 
 Returns `napi_ok` if the API succeeded.
 
 This API is used to convert from the C `int32_t` type to the JavaScript
-`Number` type.
+`number` type.
 
-The JavaScript `Number` type is described in
+The JavaScript `number` type is described in
 [Section 6.1.6][] of the ECMAScript Language Specification.
 
 #### napi_create_uint32
@@ -2473,14 +2473,14 @@ napi_status napi_create_uint32(napi_env env, uint32_t value, napi_value* result)
 
 * `[in] env`: The environment that the API is invoked under.
 * `[in] value`: Unsigned integer value to be represented in JavaScript.
-* `[out] result`: A `napi_value` representing a JavaScript `Number`.
+* `[out] result`: A `napi_value` representing a JavaScript `number`.
 
 Returns `napi_ok` if the API succeeded.
 
 This API is used to convert from the C `uint32_t` type to the JavaScript
-`Number` type.
+`number` type.
 
-The JavaScript `Number` type is described in
+The JavaScript `number` type is described in
 [Section 6.1.6][] of the ECMAScript Language Specification.
 
 #### napi_create_int64
@@ -2495,14 +2495,14 @@ napi_status napi_create_int64(napi_env env, int64_t value, napi_value* result)
 
 * `[in] env`: The environment that the API is invoked under.
 * `[in] value`: Integer value to be represented in JavaScript.
-* `[out] result`: A `napi_value` representing a JavaScript `Number`.
+* `[out] result`: A `napi_value` representing a JavaScript `number`.
 
 Returns `napi_ok` if the API succeeded.
 
 This API is used to convert from the C `int64_t` type to the JavaScript
-`Number` type.
+`number` type.
 
-The JavaScript `Number` type is described in [Section 6.1.6][]
+The JavaScript `number` type is described in [Section 6.1.6][]
 of the ECMAScript Language Specification. Note the complete range of `int64_t`
 cannot be represented with full precision in JavaScript. Integer values
 outside the range of [`Number.MIN_SAFE_INTEGER`][] `-(2**53 - 1)` -
@@ -2520,14 +2520,14 @@ napi_status napi_create_double(napi_env env, double value, napi_value* result)
 
 * `[in] env`: The environment that the API is invoked under.
 * `[in] value`: Double-precision value to be represented in JavaScript.
-* `[out] result`: A `napi_value` representing a JavaScript `Number`.
+* `[out] result`: A `napi_value` representing a JavaScript `number`.
 
 Returns `napi_ok` if the API succeeded.
 
 This API is used to convert from the C `double` type to the JavaScript
-`Number` type.
+`number` type.
 
-The JavaScript `Number` type is described in
+The JavaScript `number` type is described in
 [Section 6.1.6][] of the ECMAScript Language Specification.
 
 #### napi_create_bigint_int64
@@ -2616,14 +2616,14 @@ napi_status napi_create_string_latin1(napi_env env,
 * `[in] str`: Character buffer representing an ISO-8859-1-encoded string.
 * `[in] length`: The length of the string in bytes, or `NAPI_AUTO_LENGTH` if it
   is null-terminated.
-* `[out] result`: A `napi_value` representing a JavaScript `String`.
+* `[out] result`: A `napi_value` representing a JavaScript `string`.
 
 Returns `napi_ok` if the API succeeded.
 
-This API creates a JavaScript `String` object from an ISO-8859-1-encoded C
+This API creates a JavaScript `string` value from an ISO-8859-1-encoded C
 string. The native string is copied.
 
-The JavaScript `String` type is described in
+The JavaScript `string` type is described in
 [Section 6.1.4][] of the ECMAScript Language Specification.
 
 #### napi_create_string_utf16
@@ -2643,14 +2643,14 @@ napi_status napi_create_string_utf16(napi_env env,
 * `[in] str`: Character buffer representing a UTF16-LE-encoded string.
 * `[in] length`: The length of the string in two-byte code units, or
   `NAPI_AUTO_LENGTH` if it is null-terminated.
-* `[out] result`: A `napi_value` representing a JavaScript `String`.
+* `[out] result`: A `napi_value` representing a JavaScript `string`.
 
 Returns `napi_ok` if the API succeeded.
 
-This API creates a JavaScript `String` object from a UTF16-LE-encoded C string.
+This API creates a JavaScript `string` value from a UTF16-LE-encoded C string.
 The native string is copied.
 
-The JavaScript `String` type is described in
+The JavaScript `string` type is described in
 [Section 6.1.4][] of the ECMAScript Language Specification.
 
 #### napi_create_string_utf8
@@ -2670,14 +2670,14 @@ napi_status napi_create_string_utf8(napi_env env,
 * `[in] str`: Character buffer representing a UTF8-encoded string.
 * `[in] length`: The length of the string in bytes, or `NAPI_AUTO_LENGTH` if it
   is null-terminated.
-* `[out] result`: A `napi_value` representing a JavaScript `String`.
+* `[out] result`: A `napi_value` representing a JavaScript `string`.
 
 Returns `napi_ok` if the API succeeded.
 
-This API creates a JavaScript `String` object from a UTF8-encoded C string.
+This API creates a JavaScript `string` value from a UTF8-encoded C string.
 The native string is copied.
 
-The JavaScript `String` type is described in
+The JavaScript `string` type is described in
 [Section 6.1.4][] of the ECMAScript Language Specification.
 
 ### Functions to convert from Node-API to C types
@@ -2841,7 +2841,7 @@ napi_status napi_get_dataview_info(napi_env env,
 * `[in] env`: The environment that the API is invoked under.
 * `[in] dataview`: `napi_value` representing the `DataView` whose
   properties to query.
-* `[out] byte_length`: `Number` of bytes in the `DataView`.
+* `[out] byte_length`: Number of bytes in the `DataView`.
 * `[out] data`: The data buffer underlying the `DataView`.
   If byte_length is `0`, this may be `NULL` or any other pointer value.
 * `[out] arraybuffer`: `ArrayBuffer` underlying the `DataView`.
@@ -2914,15 +2914,15 @@ napi_status napi_get_value_double(napi_env env,
 ```
 
 * `[in] env`: The environment that the API is invoked under.
-* `[in] value`: `napi_value` representing JavaScript `Number`.
+* `[in] value`: `napi_value` representing JavaScript `number`.
 * `[out] result`: C double primitive equivalent of the given JavaScript
-  `Number`.
+  `number`.
 
 Returns `napi_ok` if the API succeeded. If a non-number `napi_value` is passed
 in it returns `napi_number_expected`.
 
 This API returns the C double primitive equivalent of the given JavaScript
-`Number`.
+`number`.
 
 #### napi_get_value_bigint_int64
 <!-- YAML
@@ -3040,15 +3040,15 @@ napi_status napi_get_value_int32(napi_env env,
 ```
 
 * `[in] env`: The environment that the API is invoked under.
-* `[in] value`: `napi_value` representing JavaScript `Number`.
+* `[in] value`: `napi_value` representing JavaScript `number`.
 * `[out] result`: C `int32` primitive equivalent of the given JavaScript
-  `Number`.
+  `number`.
 
 Returns `napi_ok` if the API succeeded. If a non-number `napi_value`
 is passed in `napi_number_expected`.
 
 This API returns the C `int32` primitive equivalent
-of the given JavaScript `Number`.
+of the given JavaScript `number`.
 
 If the number exceeds the range of the 32 bit integer, then the result is
 truncated to the equivalent of the bottom 32 bits. This can result in a large
@@ -3070,17 +3070,17 @@ napi_status napi_get_value_int64(napi_env env,
 ```
 
 * `[in] env`: The environment that the API is invoked under.
-* `[in] value`: `napi_value` representing JavaScript `Number`.
+* `[in] value`: `napi_value` representing JavaScript `number`.
 * `[out] result`: C `int64` primitive equivalent of the given JavaScript
-  `Number`.
+  `number`.
 
 Returns `napi_ok` if the API succeeded. If a non-number `napi_value`
 is passed in it returns `napi_number_expected`.
 
 This API returns the C `int64` primitive equivalent of the given JavaScript
-`Number`.
+`number`.
 
-`Number` values outside the range of [`Number.MIN_SAFE_INTEGER`][]
+`number` values outside the range of [`Number.MIN_SAFE_INTEGER`][]
 `-(2**53 - 1)` - [`Number.MAX_SAFE_INTEGER`][] `(2**53 - 1)` will lose
 precision.
 
@@ -3111,7 +3111,7 @@ napi_status napi_get_value_string_latin1(napi_env env,
 * `[out] result`: Number of bytes copied into the buffer, excluding the null
   terminator.
 
-Returns `napi_ok` if the API succeeded. If a non-`String` `napi_value`
+Returns `napi_ok` if the API succeeded. If a non-`string` `napi_value`
 is passed in it returns `napi_string_expected`.
 
 This API returns the ISO-8859-1-encoded string corresponding the value passed
@@ -3141,7 +3141,7 @@ napi_status napi_get_value_string_utf8(napi_env env,
 * `[out] result`: Number of bytes copied into the buffer, excluding the null
   terminator.
 
-Returns `napi_ok` if the API succeeded. If a non-`String` `napi_value`
+Returns `napi_ok` if the API succeeded. If a non-`string` `napi_value`
 is passed in it returns `napi_string_expected`.
 
 This API returns the UTF8-encoded string corresponding the value passed in.
@@ -3170,7 +3170,7 @@ napi_status napi_get_value_string_utf16(napi_env env,
 * `[out] result`: Number of 2-byte code units copied into the buffer, excluding
   the null terminator.
 
-Returns `napi_ok` if the API succeeded. If a non-`String` `napi_value`
+Returns `napi_ok` if the API succeeded. If a non-`string` `napi_value`
 is passed in it returns `napi_string_expected`.
 
 This API returns the UTF16-encoded string corresponding the value passed in.
@@ -3188,7 +3188,7 @@ napi_status napi_get_value_uint32(napi_env env,
 ```
 
 * `[in] env`: The environment that the API is invoked under.
-* `[in] value`: `napi_value` representing JavaScript `Number`.
+* `[in] value`: `napi_value` representing JavaScript `number`.
 * `[out] result`: C primitive equivalent of the given `napi_value` as a
   `uint32_t`.
 
@@ -3278,8 +3278,8 @@ of the [ECMAScript Language Specification][].
 
 These APIs support doing one of the following:
 
-1. Coerce JavaScript values to specific JavaScript types (such as `Number` or
-   `String`).
+1. Coerce JavaScript values to specific JavaScript types (such as `number` or
+   `string`).
 2. Check the type of a JavaScript value.
 3. Check for equality between two JavaScript values.
 
@@ -3319,7 +3319,7 @@ napi_status napi_coerce_to_number(napi_env env,
 
 * `[in] env`: The environment that the API is invoked under.
 * `[in] value`: The JavaScript value to coerce.
-* `[out] result`: `napi_value` representing the coerced JavaScript `Number`.
+* `[out] result`: `napi_value` representing the coerced JavaScript `number`.
 
 Returns `napi_ok` if the API succeeded.
 
@@ -3363,7 +3363,7 @@ napi_status napi_coerce_to_string(napi_env env,
 
 * `[in] env`: The environment that the API is invoked under.
 * `[in] value`: The JavaScript value to coerce.
-* `[out] result`: `napi_value` representing the coerced JavaScript `String`.
+* `[out] result`: `napi_value` representing the coerced JavaScript `string`.
 
 Returns `napi_ok` if the API succeeded.
 
@@ -3647,7 +3647,7 @@ following forms:
 * Named: a simple UTF8-encoded string
 * Integer-Indexed: an index value represented by `uint32_t`
 * JavaScript value: these are represented in Node-API by `napi_value`. This can
-  be a `napi_value` representing a `String`, `Number`, or `Symbol`.
+  be a `napi_value` representing a `string`, `number`, or `symbol`.
 
 Node-API values are represented by the type `napi_value`.
 Any Node-API call that requires a JavaScript value takes in a `napi_value`.
@@ -3842,7 +3842,7 @@ typedef struct {
 } napi_property_descriptor;
 ```
 
-* `utf8name`: Optional `String` describing the key for the property,
+* `utf8name`: Optional string describing the key for the property,
   encoded as UTF8. One of `utf8name` or `name` must be provided for the
   property.
 * `name`: Optional `napi_value` that points to a JavaScript string or symbol
@@ -4039,8 +4039,8 @@ napi_status napi_has_own_property(napi_env env,
 Returns `napi_ok` if the API succeeded.
 
 This API checks if the `Object` passed in has the named own property. `key` must
-be a string or a `Symbol`, or an error will be thrown. Node-API will not perform
-any conversion between data types.
+be a `string` or a `symbol`, or an error will be thrown. Node-API will not
+perform any conversion between data types.
 
 #### napi_set_named_property
 <!-- YAML
@@ -4317,7 +4317,7 @@ NAPI_EXTERN napi_status napi_call_function(napi_env env,
 ```
 
 * `[in] env`: The environment that the API is invoked under.
-* `[in] recv`: The `this` object passed to the called function.
+* `[in] recv`: The `this` value passed to the called function.
 * `[in] func`: `napi_value` representing the JavaScript function to be invoked.
 * `[in] argc`: The count of elements in the `argv` array.
 * `[in] argv`: Array of `napi_values` representing JavaScript values passed in
@@ -5283,7 +5283,7 @@ NAPI_EXTERN napi_status napi_make_callback(napi_env env,
    for `async_context` does not result in an error. However, this results
    in incorrect operation of async hooks. Potential issues include loss of
    async context when using the `AsyncLocalStorage` API.
-* `[in] recv`: The `this` object passed to the called function.
+* `[in] recv`: The `this` value passed to the called function.
 * `[in] func`: `napi_value` representing the JavaScript function to be invoked.
 * `[in] argc`: The count of elements in the `argv` array.
 * `[in] argv`: Array of JavaScript values as `napi_value` representing the
