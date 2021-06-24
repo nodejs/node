@@ -8,10 +8,9 @@ import('test:Array').then(
     assert.strictEqual(e.code, 'ERR_INVALID_RETURN_PROPERTY_VALUE');
   })
 );
-import('test:ArrayBuffer').then(
-  mustCall(),
-  mustNotCall('Should accept ArrayBuffers'),
-);
+await assert.rejects(import('test:ArrayBuffer'), {
+  code: 'ERR_INVALID_RETURN_PROPERTY_VALUE',
+});
 import('test:null').then(
   mustNotCall('Should not accept null'),
   mustCall((e) => {
