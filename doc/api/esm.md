@@ -266,6 +266,44 @@ modules it can be used to load ES modules.
 The `import.meta` meta property is an `Object` that contains the following
 properties.
 
+### `import.meta.__dirname`
+
+> Stability: 3 - Legacy: Use `import.meta.url` instead.
+
+* {string} A convenience shortcut that provides the equivalent of the CommonJS
+  `__dirname` pseudo-global. Specifically, it returns the result of converting
+  the `import.meta.url` into a file path then returning the directory portion.
+
+The property is only available when `import.meta.url` specifies a `file://`
+URL.
+
+```mjs
+const { __dirname } = import.meta;
+```
+
+The `import.meta.__dirname` is provided as a convenience to help ease the
+transition from existing CommonJS code to ESM. New ESM code should use the
+`import.meta.url` property directly.
+
+### `import.meta.__filename`
+
+> Stability: 3 - Legacy: Use `import.meta.url` instead.
+
+* {string} A convenience shortcut that provides the equivalent of the CommonJS
+  `__filename` pseudo-global. Specifically, it returns the result of converting
+  the `import.meta.url` into a file path.
+
+The property is only available when `import.meta.url` specifies a `file://`
+URL.
+
+```mjs
+const { __filename } = import.meta;
+```
+
+The `import.meta.__filename` is provided as a convenience to help ease the
+transition from existing CommonJS code to ESM. New ESM code should use the
+`import.meta.url` property directly.
+
 ### `import.meta.url`
 
 * {string} The absolute `file:` URL of the module.
