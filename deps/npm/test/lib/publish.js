@@ -1,5 +1,5 @@
 const t = require('tap')
-const mockNpm = require('../fixtures/mock-npm')
+const { fake: mockNpm } = require('../fixtures/mock-npm')
 const fs = require('fs')
 
 // The way we set loglevel is kind of convoluted, and there is no way to affect

@@ -145,11 +145,9 @@ class LS extends ArboristWorkspaceCmd {
               dev,
               development,
               link,
-              node,
               prod,
               production,
               only,
-              tree,
             }))
             .map(mapEdgesToNodes({ seenPaths }))
             .concat(appendExtraneousChildren({ node, seenPaths }))
@@ -310,6 +308,9 @@ const getHumanOutputItem = (node, { args, color, global, long }) => {
   const targetLocation = node.root
     ? relative(node.root.realpath, node.realpath)
     : node.targetLocation
+  const invalid = node[_invalid]
+    ? `invalid: ${node[_invalid]}`
+    : ''
   const label =
     (
       node[_missing]
@@ -323,8 +324,8 @@ const getHumanOutputItem = (node, { args, color, global, long }) => {
         : ''
     ) +
     (
-      node[_invalid]
-        ? ' ' + (color ? chalk.red.bgBlack('invalid') : 'invalid')
+      invalid
+        ? ' ' + (color ? chalk.red.bgBlack(invalid) : invalid)
         : ''
     ) +
     (
@@ -375,7 +376,7 @@ const getJsonOutputItem = (node, { global, long }) => {
     item.extraneous = true
 
   if (node[_invalid])
-    item.invalid = true
+    item.invalid = node[_invalid]
 
   if (node[_missing] && !isOptional(node)) {
     item.required = node[_required]
@@ -392,11 +393,9 @@ const filterByEdgesTypes = ({
   dev,
   development,
   link,
-  node,
   prod,
   production,
   only,
-  tree,
 }) => {
   // filter deps by type, allows for: `npm ls --dev`, `npm ls --prod`,
   // `npm ls --link`, `npm ls --only=dev`, etc
@@ -436,9 +435,15 @@ const mapEdgesToNodes = ({ seenPaths }) => (edge) => {
   if (node.path)
     seenPaths.add(node.path)
 
-  node[_required] = edge.spec
+  node[_required] = edge.spec || '*'
   node[_type] = edge.type
-  node[_invalid] = edge.invalid
+
+  if (edge.invalid) {
+    const spec = JSON.stringify(node[_required])
+    const from = edge.from.location || 'the root project'
+    node[_invalid] = (node[_invalid] ? node[_invalid] + ', ' : '') +
+      (`${spec} from ${from}`)
+  }
 
   return node
 }

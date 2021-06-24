@@ -1,6 +1,6 @@
 const t = require('tap')
 const fs = require('fs')
-const mockNpm = require('../fixtures/mock-npm')
+const { fake: mockNpm } = require('../fixtures/mock-npm')
 
 const config = {
   global: false,
