@@ -1892,6 +1892,87 @@ Calling `Readable.from(string)` or `Readable.from(buffer)` will not have
 the strings or buffers be iterated to match the other streams semantics
 for performance reasons.
 
+### `stream.Readable.fromWeb(readableStream[, options])`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `readableStream` {ReadableStream}
+* `options` {Object}
+  * `encoding` {string}
+  * `highWaterMark` {number}
+  * `objectModel` {boolean}
+  * `signal` {AbortSignal}
+* Returns: {stream.Readable}
+
+### `stream.Readable.toWeb(streamReadable)`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `streamReadable` {stream.Readable}
+* Returns: {ReadableStream}
+
+### `stream.Writable.fromWeb(writableStream[, options])`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `writableStream` {WritableStream}
+* `options` {Object}
+  * `decodeStrings` {boolean}
+  * `highWaterMark` {number}
+  * `objectMode` {boolean}
+  * `signal` {AbortSignal}
+* Returns: {stream.Writable}
+
+### `stream.Writable.toWeb(streamWritable)`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `streamWritable` {stream.Writable}
+* Returns: {WritableStream}
+
+### `stream.Duplex.fromWeb(pair[, options])`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `pair` {Object}
+  * `readable` {ReadableStream}
+  * `writable` {WritableStream}
+* `options` {Object}
+  * `allowHalfOpen` {boolean}
+  * `decodeStrings` {boolean}
+  * `encoding` {string}
+  * `highWaterMark` {number}
+  * `objectMode` {boolean}
+  * `signal` {AbortSignal}
+* Returns: {stream.Duplex}
+
+### `stream.Duplex.toWeb(streamDuplex)`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `streamDuplex` {stream.Duplex}
+* Returns: {Object}
+  * `readable` {ReadableStream}
+  * `writable` {WritableStream}
+
 ### `stream.addAbortSignal(signal, stream)`
 <!-- YAML
 added: v15.4.0
