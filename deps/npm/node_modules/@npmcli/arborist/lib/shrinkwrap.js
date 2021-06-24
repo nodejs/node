@@ -349,6 +349,7 @@ class Shrinkwrap {
   reset () {
     this.tree = null
     this[_awaitingUpdate] = new Map()
+    this.originalLockfileVersion = lockfileVersion
     this.data = {
       lockfileVersion,
       requires: true,

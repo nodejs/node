@@ -1,5 +1,5 @@
-const mockNpm = require('../fixtures/mock-npm')
 const t = require('tap')
+const { fake: mockNpm } = require('../fixtures/mock-npm')
 
 let result = ''
 

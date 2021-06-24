@@ -1,5 +1,5 @@
 {
-  "version": "7.18.1",
+  "version": "7.19.0",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "workspaces": [
@@ -53,9 +53,10 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@npmcli/arborist": "^2.6.3",
+    "@npmcli/arborist": "^2.6.4",
     "@npmcli/ci-detect": "^1.2.0",
     "@npmcli/config": "^2.2.0",
+    "@npmcli/package-json": "^1.0.1",
     "@npmcli/run-script": "^1.8.5",
     "abbrev": "~1.1.1",
     "ansicolors": "~0.3.2",
@@ -125,6 +126,7 @@
     "@npmcli/arborist",
     "@npmcli/ci-detect",
     "@npmcli/config",
+    "@npmcli/package-json",
     "@npmcli/run-script",
     "abbrev",
     "ansicolors",
@@ -212,7 +214,7 @@
     "sudotest:nocleanup": "sudo NO_TEST_CLEANUP=1 npm run test --",
     "posttest": "npm run lint",
     "eslint": "eslint",
-    "lint": "npm run eslint -- test/lib test/bin lib scripts docs smoke-tests",
+    "lint": "npm run eslint -- test/lib test/bin bin lib scripts docs smoke-tests",
     "lintfix": "npm run lint -- --fix",
     "prelint": "rimraf test/npm_cache*",
     "resetdeps": "bash scripts/resetdeps.sh",
