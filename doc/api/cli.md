@@ -279,13 +279,6 @@ added: v11.8.0
 
 Use the specified file as a security policy.
 
-### `--experimental-repl-await`
-<!-- YAML
-added: v10.0.0
--->
-
-Enable experimental top-level `await` keyword support in REPL.
-
 ### `--experimental-specifier-resolution=mode`
 <!-- YAML
 added:
@@ -1401,7 +1394,6 @@ Node.js options that are allowed are:
 * `--experimental-loader`
 * `--experimental-modules`
 * `--experimental-policy`
-* `--experimental-repl-await`
 * `--experimental-specifier-resolution`
 * `--experimental-top-level-await`
 * `--experimental-vm-modules`
