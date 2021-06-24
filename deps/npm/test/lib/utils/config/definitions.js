@@ -17,6 +17,11 @@ const defpath = '../../../../lib/utils/config/definitions.js'
 delete process.env.NODE_ENV
 const definitions = require(defpath)
 
+// Tie the definitions to a snapshot so that if they change we are forced to
+// update snapshots, which rebuilds the docs
+for (const key of Object.keys(definitions))
+  t.matchSnapshot(definitions[key].describe(), `config description for ${key}`)
+
 const isWin = '../../../../lib/utils/is-windows.js'
 
 // snapshot these just so we note when they change

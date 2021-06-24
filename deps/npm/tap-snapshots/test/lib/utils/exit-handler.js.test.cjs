@@ -5,14 +5,14 @@
  * Make sure to inspect the output below.  Do not ignore changes!
  */
 'use strict'
-exports[`test/lib/utils/error-handler.js TAP handles unknown error > should have expected log contents for unknown error 1`] = `
+exports[`test/lib/utils/exit-handler.js TAP handles unknown error > should have expected log contents for unknown error 1`] = `
 0 verbose code 1
 1 error foo A complete log of this run can be found in:
-1 error foo     {CWD}/test/lib/utils/tap-testdir-error-handler/_logs/expecteddate-debug.log
+1 error foo     {CWD}/test/lib/utils/tap-testdir-exit-handler/_logs/expecteddate-debug.log
 2 verbose stack Error: ERROR
 3 verbose cwd {CWD}
 4 verbose Foo 1.0.0
-5 verbose argv "/node" "{CWD}/test/lib/utils/error-handler.js"
+5 verbose argv "/node" "{CWD}/test/lib/utils/exit-handler.js"
 6 verbose node v1.0.0
 7 verbose npm  v1.0.0
 8 error foo code ERROR

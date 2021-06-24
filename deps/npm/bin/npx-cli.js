@@ -10,18 +10,18 @@ process.argv.splice(2, 0, 'exec')
 const removedSwitches = new Set([
   'always-spawn',
   'ignore-existing',
-  'shell-auto-fallback'
+  'shell-auto-fallback',
 ])
 
 const removedOpts = new Set([
   'npm',
   'node-arg',
-  'n'
+  'n',
 ])
 
 const removed = new Set([
   ...removedSwitches,
-  ...removedOpts
+  ...removedOpts,
 ])
 
 const { definitions, shorthands } = require('../lib/utils/config/index.js')
@@ -40,7 +40,7 @@ const switches = new Set([
   'version',
   'v',
   'help',
-  'h'
+  'h',
 ])
 
 // things that do take a value
@@ -55,7 +55,7 @@ const opts = new Set([
   'shell',
   'npm',
   'node-arg',
-  'n'
+  'n',
 ])
 
 // break out of loop when we find a positional argument or --
@@ -65,9 +65,9 @@ let i
 let sawRemovedFlags = false
 for (i = 3; i < process.argv.length; i++) {
   const arg = process.argv[i]
-  if (arg === '--') {
+  if (arg === '--')
     break
-  } else if (/^-/.test(arg)) {
+  else if (/^-/.test(arg)) {
     const [key, ...v] = arg.replace(/^-+/, '').split('=')
 
     switch (key) {
@@ -87,9 +87,8 @@ for (i = 3; i < process.argv.length; i++) {
         // resolve shorthands and run again
         if (shorthands[key] && !removed.has(key)) {
           const a = [...shorthands[key]]
-          if (v.length) {
+          if (v.length)
             a.push(v.join('='))
-          }
           process.argv.splice(i, 1, ...a)
           i--
           continue
@@ -110,9 +109,8 @@ for (i = 3; i < process.argv.length; i++) {
       if (removed.has(key)) {
         // also remove the value for the cut key.
         process.argv.splice(i + 1, 1)
-      } else {
+      } else
         i++
-      }
     }
   } else {
     // found a positional arg, put -- in front of it, and we're done
@@ -121,8 +119,7 @@ for (i = 3; i < process.argv.length; i++) {
   }
 }
 
-if (sawRemovedFlags) {
+if (sawRemovedFlags)
   console.error('See `npm help exec` for more information')
-}
 
 cli(process)

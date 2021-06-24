@@ -1,7 +1,7 @@
 const t = require('tap')
 
 const Install = require('../../lib/install.js')
-const mockNpm = require('../fixtures/mock-npm')
+const { fake: mockNpm } = require('../fixtures/mock-npm')
 
 t.test('should install using Arborist', (t) => {
   const SCRIPTS = []

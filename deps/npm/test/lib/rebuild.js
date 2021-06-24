@@ -1,7 +1,7 @@
+const t = require('tap')
 const fs = require('fs')
 const { resolve } = require('path')
-const mockNpm = require('../fixtures/mock-npm')
-const t = require('tap')
+const { fake: mockNpm } = require('../fixtures/mock-npm')
 
 let result = ''
 

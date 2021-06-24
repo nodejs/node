@@ -4,7 +4,7 @@ const readdir = util.promisify(fs.readdir)
 
 const t = require('tap')
 
-const mockNpm = require('../fixtures/mock-npm')
+const { fake: mockNpm } = require('../fixtures/mock-npm')
 
 t.test('should ignore scripts with --ignore-scripts', (t) => {
   const SCRIPTS = []

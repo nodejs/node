@@ -14,3 +14,10 @@ process.on('timeEnd', (name) => {
   } else
     log.silly('timing', "Tried to end timer that doesn't exist:", name)
 })
+
+// for tests
+/* istanbul ignore next */
+exports.reset = () => {
+  process.removeAllListeners('time')
+  process.removeAllListeners('timeEnd')
+}

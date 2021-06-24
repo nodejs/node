@@ -1,6 +1,6 @@
-const { resolve } = require('path')
 const t = require('tap')
-const mockNpm = require('../fixtures/mock-npm')
+const { resolve } = require('path')
+const { fake: mockNpm } = require('../fixtures/mock-npm')
 
 const normalizePath = p => p
   .replace(/\\+/g, '/')

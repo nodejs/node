@@ -1,5 +1,5 @@
 const t = require('tap')
-const mockNpm = require('../fixtures/mock-npm.js')
+const { fake: mockNpm } = require('../fixtures/mock-npm.js')
 const { join, sep } = require('path')
 
 const pkgDirs = t.testdir({

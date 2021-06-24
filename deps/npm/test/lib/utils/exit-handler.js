@@ -121,8 +121,8 @@ const mocks = {
   }),
 }
 
-let errorHandler = t.mock('../../../lib/utils/error-handler.js', mocks)
-errorHandler.setNpm(npm)
+let exitHandler = t.mock('../../../lib/utils/exit-handler.js', mocks)
+exitHandler.setNpm(npm)
 
 t.test('default exit code', (t) => {
   t.plan(1)
@@ -165,7 +165,7 @@ t.test('handles unknown error', (t) => {
   writeFileAtomic.sync = (filename, content) => {
     t.equal(
       redactCwd(filename),
-      '{CWD}/test/lib/utils/tap-testdir-error-handler/_logs/expecteddate-debug.log',
+      '{CWD}/test/lib/utils/tap-testdir-exit-handler/_logs/expecteddate-debug.log',
       'should use expected log filename'
     )
     t.matchSnapshot(
@@ -174,7 +174,7 @@ t.test('handles unknown error', (t) => {
     )
   }
 
-  errorHandler(err)
+  exitHandler(err)
 
   t.teardown(() => {
     writeFileAtomic.sync = sync
@@ -197,7 +197,7 @@ t.test('npm.config not ready', (t) => {
     )
   }
 
-  errorHandler()
+  exitHandler()
 
   t.teardown(() => {
     console.error = _error
@@ -219,7 +219,7 @@ t.test('fail to write logfile', (t) => {
   })
 
   t.doesNotThrow(
-    () => errorHandler(err),
+    () => exitHandler(err),
     'should not throw on cache write failure'
   )
 })
@@ -244,7 +244,7 @@ t.test('console.log output using --json', (t) => {
     )
   }
 
-  errorHandler(new Error('Error: EBADTHING Something happened'))
+  exitHandler(new Error('Error: EBADTHING Something happened'))
 
   t.teardown(() => {
     console.error = _error
@@ -271,7 +271,7 @@ t.test('throw a non-error obj', (t) => {
     t.equal(code, 1, 'should exit with code 1')
   }
 
-  errorHandler(weirdError)
+  exitHandler(weirdError)
 
   t.teardown(() => {
     process.exit = _exit
@@ -295,7 +295,7 @@ t.test('throw a string error', (t) => {
     t.equal(code, 1, 'should exit with code 1')
   }
 
-  errorHandler(error)
+  exitHandler(error)
 
   t.teardown(() => {
     process.exit = _exit
@@ -315,7 +315,7 @@ t.test('update notification', (t) => {
     t.equal(msg, updateMsg, 'should show update message')
   }
 
-  errorHandler(err)
+  exitHandler(err)
 
   t.teardown(() => {
     npmlog.notice = _notice
@@ -355,7 +355,7 @@ t.test('it worked', (t) => {
   const _exit = process.exit
   process.exit = (code) => {
     process.exit = _exit
-    t.equal(code, 0, 'should exit with code 0')
+    t.notOk(code, 'should exit with no code')
 
     const _info = npmlog.info
     npmlog.info = (msg) => {
@@ -371,14 +371,14 @@ t.test('it worked', (t) => {
     config.values.timing = true
   })
 
-  errorHandler.exit(0)
+  exitHandler()
 })
 
 t.test('uses code from errno', (t) => {
   t.plan(1)
 
-  errorHandler = t.mock('../../../lib/utils/error-handler.js', mocks)
-  errorHandler.setNpm(npm)
+  exitHandler = t.mock('../../../lib/utils/exit-handler.js', mocks)
+  exitHandler.setNpm(npm)
 
   npmlog.level = 'silent'
   const _exit = process.exit
@@ -386,7 +386,7 @@ t.test('uses code from errno', (t) => {
     t.equal(code, 127, 'should use set errno')
   }
 
-  errorHandler(Object.assign(
+  exitHandler(Object.assign(
     new Error('Error with errno'),
     {
       errno: 127,
@@ -402,8 +402,8 @@ t.test('uses code from errno', (t) => {
 t.test('uses exitCode as code if using a number', (t) => {
   t.plan(1)
 
-  errorHandler = t.mock('../../../lib/utils/error-handler.js', mocks)
-  errorHandler.setNpm(npm)
+  exitHandler = t.mock('../../../lib/utils/exit-handler.js', mocks)
+  exitHandler.setNpm(npm)
 
   npmlog.level = 'silent'
   const _exit = process.exit
@@ -411,7 +411,7 @@ t.test('uses exitCode as code if using a number', (t) => {
     t.equal(code, 404, 'should use code if a number')
   }
 
-  errorHandler(Object.assign(
+  exitHandler(Object.assign(
     new Error('Error with code type number'),
     {
       code: 404,
@@ -424,25 +424,25 @@ t.test('uses exitCode as code if using a number', (t) => {
   })
 })
 
-t.test('call errorHandler with no error', (t) => {
+t.test('call exitHandler with no error', (t) => {
   t.plan(1)
 
-  errorHandler = t.mock('../../../lib/utils/error-handler.js', mocks)
-  errorHandler.setNpm(npm)
+  exitHandler = t.mock('../../../lib/utils/exit-handler.js', mocks)
+  exitHandler.setNpm(npm)
 
   const _exit = process.exit
   process.exit = (code) => {
-    t.equal(code, 0, 'should exit with code 0')
+    t.equal(code, undefined, 'should exit with code undefined')
   }
 
   t.teardown(() => {
     process.exit = _exit
   })
 
-  errorHandler()
+  exitHandler()
 })
 
-t.test('callback called twice', (t) => {
+t.test('exit handler called twice', (t) => {
   t.plan(2)
 
   const _verbose = npmlog.verbose
@@ -450,13 +450,13 @@ t.test('callback called twice', (t) => {
     t.equal(key, 'stack', 'should log stack in verbose level')
     t.match(
       value,
-      /Error: Callback called more than once./,
+      /Error: Exit handler called more than once./,
       'should have expected error msg'
     )
     npmlog.verbose = _verbose
   }
 
-  errorHandler()
+  exitHandler()
 })
 
 t.test('defaults to log error msg if stack is missing', (t) => {
@@ -480,35 +480,17 @@ t.test('defaults to log error msg if stack is missing', (t) => {
     t.equal(msg, 'Error with no stack', 'should use error msg')
   }
 
-  errorHandler(noStackErr)
+  exitHandler(noStackErr)
 })
 
-t.test('set it worked', (t) => {
-  t.plan(1)
-
-  errorHandler = t.mock('../../../lib/utils/error-handler.js', mocks)
-  errorHandler.setNpm(npm)
-
-  const _exit = process.exit
-  process.exit = () => {
-    t.ok('ok')
-  }
-
-  t.teardown(() => {
-    process.exit = _exit
-  })
-
-  errorHandler.exit(0, true)
-})
-
-t.test('use exitCode when emitting exit event', (t) => {
+t.test('exits cleanly when emitting exit event', (t) => {
   t.plan(1)
 
   npmlog.level = 'silent'
   const _exit = process.exit
   process.exit = (code) => {
     process.exit = _exit
-    t.equal(code, 1, 'should exit with code 1')
+    t.same(code, null, 'should exit with code null')
   }
 
   t.teardown(() => {
@@ -549,7 +531,7 @@ t.test('do no fancy handling for shellouts', t => {
 
   t.test('shellout with a numeric error code', t => {
     EXPECT_EXIT = 5
-    errorHandler(Object.assign(new Error(), { code: 5 }))
+    exitHandler(Object.assign(new Error(), { code: 5 }))
     t.equal(EXPECT_EXIT, 0, 'called process.exit')
     // should log no warnings or errors, verbose/silly is fine.
     t.strictSame(loudNoises(), [], 'no noisy warnings')
@@ -558,7 +540,7 @@ t.test('do no fancy handling for shellouts', t => {
 
   t.test('shellout without a numeric error code (something in npm)', t => {
     EXPECT_EXIT = 1
-    errorHandler(Object.assign(new Error(), { code: 'banana stand' }))
+    exitHandler(Object.assign(new Error(), { code: 'banana stand' }))
     t.equal(EXPECT_EXIT, 0, 'called process.exit')
     // should log some warnings and errors, because something weird happened
     t.strictNotSame(loudNoises(), [], 'bring the noise')
@@ -567,7 +549,7 @@ t.test('do no fancy handling for shellouts', t => {
 
   t.test('shellout with code=0 (extra weird?)', t => {
     EXPECT_EXIT = 1
-    errorHandler(Object.assign(new Error(), { code: 0 }))
+    exitHandler(Object.assign(new Error(), { code: 0 }))
     t.equal(EXPECT_EXIT, 0, 'called process.exit')
     // should log some warnings and errors, because something weird happened
     t.strictNotSame(loudNoises(), [], 'bring the noise')

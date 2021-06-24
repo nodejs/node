@@ -32,16 +32,16 @@ exports[`test/lib/ls.js TAP ignore missing optional deps human output > ls resul
 test-npm-ls-ignore-missing-optional@1.2.3 {project}
 +-- unmet optional dependency optional-missing@1
 +-- optional-ok@1.2.3
-+-- optional-wrong@3.2.1 invalid
++-- optional-wrong@3.2.1 invalid: "1" from the root project
 +-- unmet dependency peer-missing@1
 +-- peer-ok@1.2.3
 +-- unmet optional dependency peer-optional-missing@1
 +-- peer-optional-ok@1.2.3
-+-- peer-optional-wrong@3.2.1 invalid
-+-- peer-wrong@3.2.1 invalid
++-- peer-optional-wrong@3.2.1 invalid: "1" from the root project
++-- peer-wrong@3.2.1 invalid: "1" from the root project
 +-- unmet dependency prod-missing@1
 +-- prod-ok@1.2.3
-\`-- prod-wrong@3.2.1 invalid
+\`-- prod-wrong@3.2.1 invalid: "1" from the root project
 
 `
 
@@ -356,7 +356,7 @@ npm-broken-resolved-field-test@1.0.0 {CWD}/tap-testdir-ls-ls-broken-resolved-fie
 exports[`test/lib/ls.js TAP ls colored output > should output tree containing color info 1`] = `
 [0mtest-npm-ls@1.0.0 {CWD}/tap-testdir-ls-ls-colored-output[0m
 [0m+-- chai@1.0.0 [32m[40mextraneous[49m[39m[0m
-[0m+-- foo@1.0.0 [31m[40minvalid[49m[39m[0m
+[0m+-- foo@1.0.0 [31m[40minvalid: "^2.0.0" from the root project[49m[39m[0m
 [0m| \`-- dog@1.0.0[0m
 [0m\`-- [31m[40mUNMET DEPENDENCY[49m[39m ipsum@^1.0.0[0m
 [0m[0m
@@ -454,8 +454,8 @@ exports[`test/lib/ls.js TAP ls global > should print tree and not mark top-level
 exports[`test/lib/ls.js TAP ls invalid deduped dep > should output tree signaling mismatching peer dep in problems 1`] = `
 [0minvalid-deduped-dep@1.0.0 {CWD}/tap-testdir-ls-ls-invalid-deduped-dep[0m
 [0m+-- a@1.0.0[0m
-[0m| \`-- b@1.0.0 [90mdeduped[39m [31m[40minvalid[49m[39m[0m
-[0m\`-- b@1.0.0 [31m[40minvalid[49m[39m[0m
+[0m| \`-- b@1.0.0 [90mdeduped[39m [31m[40minvalid: "^2.0.0" from the root project, "^2.0.0" from node_modules/a[49m[39m[0m
+[0m\`-- b@1.0.0 [31m[40minvalid: "^2.0.0" from the root project, "^2.0.0" from node_modules/a[49m[39m[0m
 [0m[0m
 `
 
@@ -466,7 +466,7 @@ test-npm-ls@1.0.0 {CWD}/tap-testdir-ls-ls-invalid-peer-dep
 | \`-- foo@1.0.0
 |   \`-- dog@1.0.0
 +-- optional-dep@1.0.0
-+-- peer-dep@1.0.0 invalid
++-- peer-dep@1.0.0 invalid: "^2.0.0" from the root project
 \`-- prod-dep@1.0.0
   \`-- dog@2.0.0
 
@@ -567,7 +567,7 @@ exports[`test/lib/ls.js TAP ls missing package.json > should output tree missing
 exports[`test/lib/ls.js TAP ls missing/invalid/extraneous > should output tree containing missing, invalid, extraneous labels 1`] = `
 test-npm-ls@1.0.0 {CWD}/tap-testdir-ls-ls-missing-invalid-extraneous
 +-- chai@1.0.0 extraneous
-+-- foo@1.0.0 invalid
++-- foo@1.0.0 invalid: "^2.0.0" from the root project
 | \`-- dog@1.0.0
 \`-- UNMET DEPENDENCY ipsum@^1.0.0
 
@@ -602,7 +602,7 @@ exports[`test/lib/ls.js TAP ls unmet optional dep > should output tree with empt
 [0m| \`-- foo@1.0.0[0m
 [0m|   \`-- dog@1.0.0[0m
 [0m+-- [33m[40mUNMET OPTIONAL DEPENDENCY[49m[39m missing-optional-dep@^1.0.0[0m
-[0m+-- optional-dep@1.0.0 [31m[40minvalid[49m[39m[0m
+[0m+-- optional-dep@1.0.0 [31m[40minvalid: "^2.0.0" from the root project[49m[39m[0m
 [0m+-- peer-dep@1.0.0[0m
 [0m\`-- prod-dep@1.0.0[0m
 [0m  \`-- dog@2.0.0[0m
@@ -689,5 +689,16 @@ dedupe-entries@1.0.0 {CWD}/tap-testdir-ls-ls-with-no-args-dedupe-entries-and-not
 +-- @npmcli/a@1.0.0
 +-- @npmcli/b@1.1.2
 \`-- @npmcli/c@1.0.0
+
+`
+
+exports[`test/lib/ls.js TAP show multiple invalid reasons > ls result 1`] = `
+test-npm-ls@1.0.0 {cwd}/tap-testdir-ls-show-multiple-invalid-reasons
++-- cat@1.0.0 invalid: "^2.0.0" from the root project
+| \`-- dog@1.0.0 deduped invalid: "^1.2.3" from the root project, "^2.0.0" from node_modules/cat
++-- chai@1.0.0 extraneous
+| \`-- dog@1.0.0 deduped invalid: "^1.2.3" from the root project, "^2.0.0" from node_modules/cat, "2.x" from node_modules/chai
+\`-- dog@1.0.0 invalid: "^1.2.3" from the root project, "^2.0.0" from node_modules/cat, "2.x" from node_modules/chai
+  \`-- cat@1.0.0 deduped invalid: "^2.0.0" from the root project
 
 `

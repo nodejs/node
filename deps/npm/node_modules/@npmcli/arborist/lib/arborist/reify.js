@@ -15,6 +15,7 @@ const mkdirp = require('mkdirp-infer-owner')
 const justMkdirp = require('mkdirp')
 const moveFile = require('@npmcli/move-file')
 const rimraf = promisify(require('rimraf'))
+const PackageJson = require('@npmcli/package-json')
 const packageContents = require('@npmcli/installed-package-contents')
 const { checkEngine, checkPlatform } = require('npm-install-checks')
 
@@ -24,7 +25,6 @@ const Diff = require('../diff.js')
 const retirePath = require('../retire-path.js')
 const promiseAllRejectLate = require('promise-all-reject-late')
 const optionalSet = require('../optional-set.js')
-const updateRootPackageJson = require('../update-root-package-json.js')
 const calcDepFlags = require('../calc-dep-flags.js')
 const { saveTypeMap, hasSubKey } = require('../add-rm-pkg-deps.js')
 
@@ -1029,6 +1029,25 @@ module.exports = cls => class Reifier extends cls {
 
     const promises = [this[_saveLockFile](saveOpt)]
 
+    const updatePackageJson = async (tree) => {
+      const pkgJson = await PackageJson.load(tree.path)
+        .catch(() => new PackageJson(tree.path))
+      const {
+        dependencies = {},
+        devDependencies = {},
+        optionalDependencies = {},
+        peerDependencies = {},
+      } = tree.package
+
+      pkgJson.update({
+        dependencies,
+        devDependencies,
+        optionalDependencies,
+        peerDependencies,
+      })
+      await pkgJson.save()
+    }
+
     // grab any from explicitRequests that had deps removed
     for (const { from: tree } of this.explicitRequests)
       updatedTrees.add(tree)
@@ -1036,7 +1055,7 @@ module.exports = cls => class Reifier extends cls {
     for (const tree of updatedTrees) {
       // refresh the edges so they have the correct specs
       tree.package = tree.package
-      promises.push(updateRootPackageJson(tree))
+      promises.push(updatePackageJson(tree))
     }
 
     await Promise.all(promises)

@@ -1,8 +1,7 @@
-const log = require('npmlog')
-const fs = require('fs')
-const parseJSON = require('json-parse-even-better-errors')
-const rpj = require('read-package-json-fast')
 const { resolve } = require('path')
+const log = require('npmlog')
+const rpj = require('read-package-json-fast')
+const PackageJson = require('@npmcli/package-json')
 
 const BaseCommand = require('./base-command.js')
 class SetScript extends BaseCommand {
@@ -51,7 +50,7 @@ class SetScript extends BaseCommand {
 
   async setScript (args) {
     this.validate(args)
-    const warn = this.doSetScript(this.npm.localPrefix, args[0], args[1])
+    const warn = await this.doSetScript(this.npm.localPrefix, args[0], args[1])
     if (warn)
       log.warn('set-script', `Script "${args[0]}" was overwritten`)
   }
@@ -66,7 +65,7 @@ class SetScript extends BaseCommand {
 
     for (const [name, path] of this.workspaces) {
       try {
-        const warn = this.doSetScript(path, args[0], args[1])
+        const warn = await this.doSetScript(path, args[0], args[1])
         if (warn) {
           log.warn('set-script', `Script "${args[0]}" was overwritten`)
           log.warn(`  in workspace: ${name}`)
@@ -84,39 +83,28 @@ class SetScript extends BaseCommand {
   // returns a Boolean that will be true if
   // the requested script was overwritten
   // and false if it was set as a new script
-  doSetScript (path, name, value) {
-    // Set the script
-    let manifest
+  async doSetScript (path, name, value) {
     let warn = false
 
-    try {
-      manifest = fs.readFileSync(resolve(path, 'package.json'), 'utf-8')
-    } catch (error) {
-      throw new Error('package.json not found')
-    }
+    const pkgJson = await PackageJson.load(path)
+    const { scripts } = pkgJson.content
 
-    try {
-      manifest = parseJSON(manifest)
-    } catch (error) {
-      throw new Error(`Invalid package.json: ${error}`)
-    }
+    const overwriting =
+      scripts
+        && scripts[name]
+        && scripts[name] !== value
 
-    if (!manifest.scripts)
-      manifest.scripts = {}
-
-    if (manifest.scripts[name] && manifest.scripts[name] !== value)
+    if (overwriting)
       warn = true
-    manifest.scripts[name] = value
 
-    // format content
-    const {
-      [Symbol.for('indent')]: indent,
-      [Symbol.for('newline')]: newline,
-    } = manifest
+    pkgJson.update({
+      scripts: {
+        ...scripts,
+        [name]: value,
+      },
+    })
 
-    const content = (JSON.stringify(manifest, null, indent) + '\n')
-      .replace(/\n/g, newline)
-    fs.writeFileSync(resolve(path, 'package.json'), content)
+    await pkgJson.save()
 
     return warn
   }

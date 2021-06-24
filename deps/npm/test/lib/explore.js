@@ -43,15 +43,11 @@ const mockRunScript = ({ pkg, banner, path, event, stdio }) => {
 }
 
 const output = []
-let ERROR_HANDLER_CALLED = null
 const logs = []
 const getExplore = (windows) => {
   const Explore = t.mock('../../lib/explore.js', {
     '../../lib/utils/is-windows.js': windows,
     path: require('path')[windows ? 'win32' : 'posix'],
-    '../../lib/utils/error-handler.js': er => {
-      ERROR_HANDLER_CALLED = er
-    },
     'read-package-json-fast': mockRPJ,
     '@npmcli/run-script': mockRunScript,
   })
@@ -83,11 +79,9 @@ t.test('basic interactive', t => {
       throw er
 
     t.strictSame({
-      ERROR_HANDLER_CALLED,
       RPJ_CALLED,
       RUN_SCRIPT_EXEC,
     }, {
-      ERROR_HANDLER_CALLED: null,
       RPJ_CALLED: 'c:\\npm\\dir\\pkg\\package.json',
       RUN_SCRIPT_EXEC: 'shell-command',
     })
@@ -102,11 +96,9 @@ t.test('basic interactive', t => {
       throw er
 
     t.strictSame({
-      ERROR_HANDLER_CALLED,
       RPJ_CALLED,
       RUN_SCRIPT_EXEC,
     }, {
-      ERROR_HANDLER_CALLED: null,
       RPJ_CALLED: '/npm/dir/pkg/package.json',
       RUN_SCRIPT_EXEC: 'shell-command',
     })
@@ -136,11 +128,9 @@ t.test('interactive tracks exit code', t => {
       throw er
 
     t.strictSame({
-      ERROR_HANDLER_CALLED,
       RPJ_CALLED,
       RUN_SCRIPT_EXEC,
     }, {
-      ERROR_HANDLER_CALLED: null,
       RPJ_CALLED: 'c:\\npm\\dir\\pkg\\package.json',
       RUN_SCRIPT_EXEC: 'shell-command',
     })
@@ -156,11 +146,9 @@ t.test('interactive tracks exit code', t => {
       throw er
 
     t.strictSame({
-      ERROR_HANDLER_CALLED,
       RPJ_CALLED,
       RUN_SCRIPT_EXEC,
     }, {
-      ERROR_HANDLER_CALLED: null,
       RPJ_CALLED: '/npm/dir/pkg/package.json',
       RUN_SCRIPT_EXEC: 'shell-command',
     })
@@ -224,11 +212,9 @@ t.test('basic non-interactive', t => {
       throw er
 
     t.strictSame({
-      ERROR_HANDLER_CALLED,
       RPJ_CALLED,
       RUN_SCRIPT_EXEC,
     }, {
-      ERROR_HANDLER_CALLED: null,
       RPJ_CALLED: 'c:\\npm\\dir\\pkg\\package.json',
       RUN_SCRIPT_EXEC: 'ls',
     })
@@ -241,11 +227,9 @@ t.test('basic non-interactive', t => {
       throw er
 
     t.strictSame({
-      ERROR_HANDLER_CALLED,
       RPJ_CALLED,
       RUN_SCRIPT_EXEC,
     }, {
-      ERROR_HANDLER_CALLED: null,
       RPJ_CALLED: '/npm/dir/pkg/package.json',
       RUN_SCRIPT_EXEC: 'ls',
     })
@@ -310,7 +294,6 @@ t.test('signal fails non-interactive', t => {
 t.test('usage if no pkg provided', t => {
   t.teardown(() => {
     output.length = 0
-    ERROR_HANDLER_CALLED = null
   })
   const noPkg = [
     [],
@@ -326,11 +309,9 @@ t.test('usage if no pkg provided', t => {
       posixExplore.exec(args, er => {
         t.match(er, 'Usage:')
         t.strictSame({
-          ERROR_HANDLER_CALLED: null,
           RPJ_CALLED,
           RUN_SCRIPT_EXEC,
         }, {
-          ERROR_HANDLER_CALLED: null,
           RPJ_CALLED: '/npm/dir/pkg/package.json',
           RUN_SCRIPT_EXEC: 'ls',
         })
@@ -345,11 +326,9 @@ t.test('pkg not installed', t => {
 
   posixExplore.exec(['pkg', 'ls'], er => {
     t.strictSame({
-      ERROR_HANDLER_CALLED,
       RPJ_CALLED,
       RUN_SCRIPT_EXEC,
     }, {
-      ERROR_HANDLER_CALLED: null,
       RPJ_CALLED: '/npm/dir/pkg/package.json',
       RUN_SCRIPT_EXEC: 'ls',
     })
