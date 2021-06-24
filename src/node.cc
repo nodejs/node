@@ -1030,7 +1030,7 @@ InitializationResult InitializeOncePerProcess(
   }
 
   if (init_flags & kInitOpenSSL) {
-#if HAVE_OPENSSL
+#if HAVE_OPENSSL && !defined(OPENSSL_IS_BORINGSSL)
     {
       std::string extra_ca_certs;
       if (credentials::SafeGetenv("NODE_EXTRA_CA_CERTS", &extra_ca_certs))
@@ -1091,7 +1091,7 @@ InitializationResult InitializeOncePerProcess(
   // V8 on Windows doesn't have a good source of entropy. Seed it from
   // OpenSSL's pool.
   V8::SetEntropySource(crypto::EntropySource);
-#endif  // HAVE_OPENSSL
+#endif  // HAVE_OPENSSL && !defined(OPENSSL_IS_BORINGSSL)
 }
   per_process::v8_platform.Initialize(
       static_cast<int>(per_process::cli_options->v8_thread_pool_size));
