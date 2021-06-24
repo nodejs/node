@@ -42,7 +42,8 @@ assert.throws(() => mark(Symbol('a')), {
   const m = mark('a', { detail });
   assert.strictEqual(m.name, 'a');
   assert.strictEqual(m.entryType, 'mark');
-  assert.strictEqual(m.detail, detail);
+  // Value of detail is structured cloned.
+  assert.deepStrictEqual(m.detail, detail);
 });
 
 clearMarks();
