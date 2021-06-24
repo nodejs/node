@@ -67,9 +67,11 @@ if (@$make_path_err) {
 }
 copy("$src_dir/configdata.pm", "$base_dir/") or die "Copy failed: $!";
 
-my @headers = @ARGV;
+my @openssl_dir_headers = shift @ARGV;
+copy_headers(@openssl_dir_headers, 'openssl');
 
-copy_headers(\@headers, 'openssl');
+my @crypto_dir_headers = shift @ARGV;
+copy_headers(@crypto_dir_headers, 'crypto');
 
 move("$src_dir/include/crypto/bn_conf.h",
      "$base_dir/include/crypto/bn_conf.h") or die "Move failed: $!";
@@ -349,7 +351,7 @@ system($cmd2) == 0 or die "Error in system($cmd2)";
 
 
 sub copy_headers {
-  my @headers = @{$_[0]};
+  my @headers = split / /, $_[0];
   my $inc_dir = $_[1];
   foreach my $header_name (@headers) {
     # Copy the header from OpenSSL source directory to the arch specific dir.
