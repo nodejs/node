@@ -139,7 +139,6 @@ void InitCryptoOnce() {
   OPENSSL_init_ssl(0, settings);
   OPENSSL_INIT_free(settings);
   settings = nullptr;
-#endif
 
 #ifndef _WIN32
   if (per_process::cli_options->secure_heap != 0) {
@@ -159,6 +158,8 @@ void InitCryptoOnce() {
     }
   }
 #endif
+
+#endif  // OPENSSL_IS_BORINGSSL
 
   // Turn off compression. Saves memory and protects against CRIME attacks.
   // No-op with OPENSSL_NO_COMP builds of OpenSSL.
