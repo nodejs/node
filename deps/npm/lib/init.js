@@ -5,8 +5,8 @@ const initJson = require('init-package-json')
 const npa = require('npm-package-arg')
 const rpj = require('read-package-json-fast')
 const libexec = require('libnpmexec')
-const parseJSON = require('json-parse-even-better-errors')
 const mapWorkspaces = require('@npmcli/map-workspaces')
+const PackageJson = require('@npmcli/package-json')
 
 const getLocationMsg = require('./exec/get-workspace-location-msg.js')
 const BaseCommand = require('./base-command.js')
@@ -199,35 +199,16 @@ class Init extends BaseCommand {
       return
     }
 
-    let manifest
-    try {
-      manifest =
-        fs.readFileSync(resolve(this.npm.localPrefix, 'package.json'), 'utf-8')
-    } catch (error) {
-      throw new Error('package.json not found')
-    }
+    const pkgJson = await PackageJson.load(this.npm.localPrefix)
 
-    try {
-      manifest = parseJSON(manifest)
-    } catch (error) {
-      throw new Error(`Invalid package.json: ${error}`)
-    }
+    pkgJson.update({
+      workspaces: [
+        ...(pkgJson.content.workspaces || []),
+        relative(this.npm.localPrefix, workspacePath),
+      ],
+    })
 
-    if (!manifest.workspaces)
-      manifest.workspaces = []
-
-    manifest.workspaces.push(relative(this.npm.localPrefix, workspacePath))
-
-    // format content
-    const {
-      [Symbol.for('indent')]: indent,
-      [Symbol.for('newline')]: newline,
-    } = manifest
-
-    const content = (JSON.stringify(manifest, null, indent) + '\n')
-      .replace(/\n/g, newline)
-
-    fs.writeFileSync(resolve(this.npm.localPrefix, 'package.json'), content)
+    await pkgJson.save()
   }
 }
 

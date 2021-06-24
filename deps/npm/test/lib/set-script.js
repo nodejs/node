@@ -1,7 +1,7 @@
 const t = require('tap')
 const fs = require('fs')
 const parseJSON = require('json-parse-even-better-errors')
-const mockNpm = require('../fixtures/mock-npm.js')
+const { fake: mockNpm } = require('../fixtures/mock-npm')
 const { resolve } = require('path')
 
 const flatOptions = {}
@@ -121,25 +121,6 @@ t.test('warns when overwriting', (t) => {
   })
 })
 
-t.test('provided indentation and eol is used', (t) => {
-  npm.localPrefix = t.testdir({
-    'package.json': JSON.stringify({
-      name: 'foo',
-    }, null, ' '.repeat(6)).replace(/\n/g, '\r\n'),
-  })
-
-  t.plan(3)
-  setScript.exec(['arg1', 'arg2'], (error) => {
-    t.equal(error, undefined)
-    // rather than checking every line's content
-    // we parse the result and verify the symbols match
-    const contents = fs.readFileSync(resolve(npm.localPrefix, 'package.json'))
-    const data = parseJSON(contents)
-    t.equal(data[Symbol.for('indent')], ' '.repeat(6), 'keeps indenting')
-    t.equal(data[Symbol.for('newline')], '\r\n', 'keeps newlines')
-  })
-})
-
 t.test('workspaces', (t) => {
   ERROR_OUTPUT.length = 0
   WARN_OUTPUT.length = 0
@@ -153,7 +134,7 @@ t.test('workspaces', (t) => {
       'package.json': '{}',
     },
     'workspace-b': {
-      'package.json': '"notjson"',
+      'package.json': '"notajsonobject"',
     },
     'workspace-c': {
       'package.json': JSON.stringify({
@@ -176,8 +157,8 @@ t.test('workspaces', (t) => {
     t.hasStrict(dataA, { scripts: { arg1: 'arg2' } }, 'defined the script')
 
     // workspace-b logged an error
-    t.match(ERROR_OUTPUT, [
-      ['set-script', `Cannot create property 'scripts' on string 'notjson'`],
+    t.strictSame(ERROR_OUTPUT, [
+      ['set-script', `Can't update invalid package.json data`],
       ['  in workspace: workspace-b'],
       [`  at location: ${resolve(npm.localPrefix, 'workspace-b')}`],
     ], 'logged workspace-b error')

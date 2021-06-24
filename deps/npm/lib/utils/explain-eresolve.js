@@ -1,4 +1,4 @@
-// this is called when an ERESOLVE error is caught in the error-handler,
+// this is called when an ERESOLVE error is caught in the exit-handler,
 // or when there's a log.warn('eresolve', msg, explanation), to turn it
 // into a human-intelligible explanation of what's wrong and how to fix.
 const { writeFileSync } = require('fs')

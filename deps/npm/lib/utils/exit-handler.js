@@ -1,17 +1,20 @@
-let npm // set by the cli
-let cbCalled = false
 const log = require('npmlog')
-let itWorked = false
+const os = require('os')
 const path = require('path')
 const writeFileAtomic = require('write-file-atomic')
 const mkdirp = require('mkdirp-infer-owner')
 const fs = require('graceful-fs')
-let wroteLogFile = false
-let exitCode = 0
+
 const errorMessage = require('./error-message.js')
 const replaceInfo = require('./replace-info.js')
 
+let exitHandlerCalled = false
 let logFileName
+let npm // set by the cli
+let wroteLogFile = false
+
+const timings = {}
+
 const getLogFile = () => {
   // we call this multiple times, so we need to treat it as a singleton because
   // the date is part of the name
@@ -21,7 +24,6 @@ const getLogFile = () => {
   return logFileName
 }
 
-const timings = {}
 process.on('timing', (name, value) => {
   if (timings[name])
     timings[name] += value
@@ -53,22 +55,20 @@ process.on('exit', code => {
     }
   }
 
-  if (code)
-    itWorked = false
-  if (itWorked)
+  if (!code)
     log.info('ok')
   else {
-    if (!cbCalled) {
-      log.error('', 'cb() never called!')
+    if (!exitHandlerCalled) {
+      log.error('', 'Exit handler never called!')
       console.error('')
       log.error('', 'This is an error with npm itself. Please report this error at:')
       log.error('', '    <https://github.com/npm/cli/issues>')
+      // TODO this doesn't have an npm.config.loaded guard
       writeLogFile()
     }
-
-    if (code)
-      log.verbose('code', code)
+    log.verbose('code', code)
   }
+  // In timing mode we always write the log file
   if (npm.config && npm.config.loaded && npm.config.get('timing') && !wroteLogFile)
     writeLogFile()
   if (wroteLogFile) {
@@ -83,52 +83,46 @@ process.on('exit', code => {
         '    ' + getLogFile(),
       ].join('\n')
     )
-    wroteLogFile = false
   }
 
-  // actually exit.
-  if (exitCode === 0 && !itWorked)
-    exitCode = 1
+  // these are needed for the tests to have a clean slate in each test case
+  exitHandlerCalled = false
+  wroteLogFile = false
 
-  if (exitCode !== 0)
-    process.exit(exitCode)
+  // actually exit.
+  process.exit(code)
 })
 
 const exit = (code, noLog) => {
-  exitCode = exitCode || process.exitCode || code
-
-  log.verbose('exit', code)
+  log.verbose('exit', code || 0)
   if (log.level === 'silent')
     noLog = true
 
-  const reallyExit = () => {
-    itWorked = !code
-
-    // Exit directly -- nothing in the CLI should still be running in the
-    // background at this point, and this makes sure anything left dangling
-    // for whatever reason gets thrown away, instead of leaving the CLI open
-    //
-    // Commands that expect long-running actions should just delay `cb()`
-    process.stdout.write('', () => {
-      process.exit(code)
-    })
-  }
-
+  // noLog is true if there was an error, including if config wasn't loaded, so
+  // this doesn't need a config.loaded guard
   if (code && !noLog)
     writeLogFile()
-  reallyExit()
+
+  // Exit directly -- nothing in the CLI should still be running in the
+  // background at this point, and this makes sure anything left dangling
+  // for whatever reason gets thrown away, instead of leaving the CLI open
+  process.stdout.write('', () => {
+    // `|| process.exitCode` supports a single use case, where we set the exit
+    // code to 1 if npm is called with no arguments
+    process.exit(code)
+  })
 }
 
-const errorHandler = (er) => {
+const exitHandler = (err) => {
   log.disableProgress()
   if (!npm.config || !npm.config.loaded) {
     // logging won't work unless we pretend that it's ready
-    er = er || new Error('Exit prior to config file resolving.')
-    console.error(er.stack || er.message)
+    err = err || new Error('Exit prior to config file resolving.')
+    console.error(err.stack || err.message)
   }
 
-  if (cbCalled)
-    er = er || new Error('Callback called more than once.')
+  if (exitHandlerCalled)
+    err = err || new Error('Exit handler called more than once.')
 
   // only show the notification if it finished before the other stuff we
   // were doing.  no need to hang on `npm -v` or something.
@@ -139,40 +133,39 @@ const errorHandler = (er) => {
     log.level = level
   }
 
-  cbCalled = true
-  if (!er)
-    return exit(0)
+  exitHandlerCalled = true
+  if (!err)
+    return exit()
 
   // if we got a command that just shells out to something else, then it
   // will presumably print its own errors and exit with a proper status
   // code if there's a problem.  If we got an error with a code=0, then...
   // something else went wrong along the way, so maybe an npm problem?
   const isShellout = npm.shelloutCommands.includes(npm.command)
-  const quietShellout = isShellout && typeof er.code === 'number' && er.code
+  const quietShellout = isShellout && typeof err.code === 'number' && err.code
   if (quietShellout)
-    return exit(er.code, true)
-  else if (typeof er === 'string') {
-    log.error('', er)
+    return exit(err.code, true)
+  else if (typeof err === 'string') {
+    log.error('', err)
     return exit(1, true)
-  } else if (!(er instanceof Error)) {
-    log.error('weird error', er)
+  } else if (!(err instanceof Error)) {
+    log.error('weird error', err)
     return exit(1, true)
   }
 
-  if (!er.code) {
-    const matchErrorCode = er.message.match(/^(?:Error: )?(E[A-Z]+)/)
-    er.code = matchErrorCode && matchErrorCode[1]
+  if (!err.code) {
+    const matchErrorCode = err.message.match(/^(?:Error: )?(E[A-Z]+)/)
+    err.code = matchErrorCode && matchErrorCode[1]
   }
 
   for (const k of ['type', 'stack', 'statusCode', 'pkgid']) {
-    const v = er[k]
+    const v = err[k]
     if (v)
       log.verbose(k, replaceInfo(v))
   }
 
   log.verbose('cwd', process.cwd())
 
-  const os = require('os')
   const args = replaceInfo(process.argv)
   log.verbose('', os.type() + ' ' + os.release())
   log.verbose('argv', args.map(JSON.stringify).join(' '))
@@ -180,19 +173,19 @@ const errorHandler = (er) => {
   log.verbose('npm ', 'v' + npm.version)
 
   for (const k of ['code', 'syscall', 'file', 'path', 'dest', 'errno']) {
-    const v = er[k]
+    const v = err[k]
     if (v)
       log.error(k, v)
   }
 
-  const msg = errorMessage(er, npm)
+  const msg = errorMessage(err, npm)
   for (const errline of [...msg.summary, ...msg.detail])
     log.error(...errline)
 
   if (npm.config && npm.config.get('json')) {
     const error = {
       error: {
-        code: er.code,
+        code: err.code,
         summary: messageText(msg.summary),
         detail: messageText(msg.detail),
       },
@@ -200,7 +193,7 @@ const errorHandler = (er) => {
     console.error(JSON.stringify(error, null, 2))
   }
 
-  exit(typeof er.errno === 'number' ? er.errno : typeof er.code === 'number' ? er.code : 1)
+  exit(typeof err.errno === 'number' ? err.errno : typeof err.code === 'number' ? err.code : 1)
 }
 
 const messageText = msg => msg.map(line => line.slice(1).join(' ')).join('\n')
@@ -208,8 +201,6 @@ const messageText = msg => msg.map(line => line.slice(1).join(' ')).join('\n')
 const writeLogFile = () => {
   if (wroteLogFile)
     return
-
-  const os = require('os')
 
   try {
     let logOutput = ''
@@ -243,8 +234,7 @@ const writeLogFile = () => {
   }
 }
 
-module.exports = errorHandler
-module.exports.exit = exit
+module.exports = exitHandler
 module.exports.setNpm = (n) => {
   npm = n
 }

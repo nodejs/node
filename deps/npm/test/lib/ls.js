@@ -3,7 +3,7 @@
 // of them contain the tap testdir folders, which are auto-generated and
 // may change when node-tap is updated.
 const t = require('tap')
-const mockNpm = require('../fixtures/mock-npm')
+const { fake: mockNpm } = require('../fixtures/mock-npm.js')
 
 const { resolve } = require('path')
 const { utimesSync } = require('fs')
@@ -123,7 +123,23 @@ const ls = new LS(npm)
 const redactCwd = res =>
   res && res.replace(/\\+/g, '/').replace(new RegExp(__dirname.replace(/\\+/g, '/'), 'gi'), '{CWD}')
 
-const jsonParse = res => JSON.parse(redactCwd(res))
+const redactCwdObj = obj => {
+  if (Array.isArray(obj))
+    return obj.map(o => redactCwdObj(o))
+  else if (typeof obj === 'string')
+    return redactCwd(obj)
+  else if (!obj)
+    return obj
+  else if (typeof obj === 'object') {
+    return Object.keys(obj).reduce((o, k) => {
+      o[k] = redactCwdObj(obj[k])
+      return o
+    }, {})
+  } else
+    return obj
+}
+
+const jsonParse = res => redactCwdObj(JSON.parse(res))
 
 const cleanUpResult = () => result = ''
 
@@ -3060,7 +3076,7 @@ t.test('ls --json', (t) => {
           dependencies: {
             foo: {
               version: '1.0.0',
-              invalid: true,
+              invalid: '"^2.0.0" from the root project',
               problems: [
                 'invalid: foo@1.0.0 {CWD}/tap-testdir-ls-ls---json-missing-invalid-extraneous/node_modules/foo',
               ],
@@ -3756,7 +3772,7 @@ t.test('ls --json', (t) => {
           dependencies: {
             'peer-dep': {
               version: '1.0.0',
-              invalid: true,
+              invalid: '"^2.0.0" from the root project',
               problems: [
                 'invalid: peer-dep@1.0.0 {CWD}/tap-testdir-ls-ls---json-unmet-peer-dep/node_modules/peer-dep',
               ],
@@ -3817,7 +3833,7 @@ t.test('ls --json', (t) => {
           dependencies: {
             'optional-dep': {
               version: '1.0.0',
-              invalid: true,
+              invalid: '"^2.0.0" from the root project',
               problems: [
                 'invalid: optional-dep@1.0.0 {CWD}/tap-testdir-ls-ls---json-unmet-optional-dep/node_modules/optional-dep',
               ],
@@ -4173,6 +4189,59 @@ t.test('ls --json', (t) => {
   })
 
   t.end()
+})
+
+t.test('show multiple invalid reasons', (t) => {
+  config.json = false
+  config.all = true
+  config.depth = Infinity
+  npm.prefix = t.testdir({
+    'package.json': JSON.stringify({
+      name: 'test-npm-ls',
+      version: '1.0.0',
+      dependencies: {
+        cat: '^2.0.0',
+        dog: '^1.2.3',
+      },
+    }),
+    node_modules: {
+      cat: {
+        'package.json': JSON.stringify({
+          name: 'cat',
+          version: '1.0.0',
+          dependencies: {
+            dog: '^2.0.0',
+          },
+        }),
+      },
+      dog: {
+        'package.json': JSON.stringify({
+          name: 'dog',
+          version: '1.0.0',
+          dependencies: {
+            cat: '',
+          },
+        }),
+      },
+      chai: {
+        'package.json': JSON.stringify({
+          name: 'chai',
+          version: '1.0.0',
+          dependencies: {
+            dog: '2.x',
+          },
+        }),
+      },
+    },
+  })
+
+  const cleanupPaths = str =>
+    redactCwd(str).toLowerCase().replace(/\\/g, '/')
+  ls.exec([], (err) => {
+    t.match(err, { code: 'ELSPROBLEMS' }, 'should list dep problems')
+    t.matchSnapshot(cleanupPaths(result), 'ls result')
+    t.end()
+  })
 })
 
 t.test('ls --package-lock-only', (t) => {
@@ -4751,7 +4820,7 @@ t.test('ls --package-lock-only', (t) => {
             dependencies: {
               foo: {
                 version: '1.0.0',
-                invalid: true,
+                invalid: '"^2.0.0" from the root project',
                 problems: [
                   'invalid: foo@1.0.0 {CWD}/tap-testdir-ls-ls---package-lock-only-ls---package-lock-only---json-missing-invalid-extraneous/node_modules/foo',
                 ],
