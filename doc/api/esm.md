@@ -618,7 +618,13 @@ CommonJS modules loaded.
 
 The `resolve` hook returns the resolved file URL for a given module specifier
 and parent URL, and optionally its format (such as `'module'`) as a hint to the
-`load` hook. The module specifier is the string in an `import` statement or
+`load` hook. If a format is specified, the `load` hook is ultimately responsible
+for providing the final `format` value (and it is free to ignore the hint
+provided by `resolve`); if `resolve` provides a `format`, a custom `load`
+hook is required even if only to pass the value to the Node.js default `load`
+hook.
+
+The module specifier is the string in an `import` statement or
 `import()` expression, and the parent URL is the URL of the module that imported
 this one, or `undefined` if this is the main entry point for the application.
 
