@@ -10,9 +10,11 @@ const http = require('http');
 const server = http.createServer(common.mustCall((req, res) => {
   res.writeHead(200, {
     'Content-Type': 'text/plain',
-    'Content-Length': 2
+    'Content-Length': 120
   });
-  res.end('done');
+  res.write('Lorem ipsum dolor sit amet,');
+  res.write(' consectetur elit. ')
+  res.end('Quisque blandit orci ligula, ullamcorper elementum sem egestas.');
 }));
 server.listen(0, () => {
   http.get({
