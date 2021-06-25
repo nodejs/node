@@ -142,6 +142,16 @@ async function ordinaryTests() {
        'undefined',
      ],
     ],
+    ['await Promise..resolve()',
+     [
+       'await Promise..resolve()\r',
+       'Uncaught SyntaxError: ',
+       'await Promise..resolve()',
+       '              ^',
+       '',
+       'Unexpected token \'.\'',
+     ],
+    ],
   ];
 
   for (const [input, expected = [`${input}\r`], options = {}] of testCases) {
