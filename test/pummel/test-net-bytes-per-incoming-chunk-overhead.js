@@ -7,9 +7,8 @@ if (process.config.variables.asan) {
   common.skip('ASAN messes with memory measurements');
 }
 
-if ((process.config.variables.arm_version === '6') ||
-  (process.config.variables.arm_version === '7')) {
-  common.skip('Too slow for armv6 and armv7 bots');
+if (process.config.variables.arm_version === '7') {
+  common.skip('Too slow for armv7 bots');
 }
 
 const assert = require('assert');

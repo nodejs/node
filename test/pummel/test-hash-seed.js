@@ -3,9 +3,9 @@
 // Check that spawn child doesn't create duplicated entries
 const common = require('../common');
 
-if ((process.config.variables.arm_version === '6') ||
-    (process.config.variables.arm_version === '7'))
-  common.skip('Too slow for armv6 and armv7 bots');
+if (process.config.variables.arm_version === '7') {
+  common.skip('Too slow for armv7 bots');
+}
 
 const kRepetitions = 2;
 const assert = require('assert');
