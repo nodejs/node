@@ -9,9 +9,6 @@ const common = require('../common');
 if (common.isAIX)
   common.skip('AIX address range too big for scripts.');
 
-if (!common.enoughTestCpu)
-  common.skip('test is CPU-intensive');
-
 const base = require('./tick-processor-base.js');
 
 // Unknown checked for to prevent flakiness, if pattern is not found,

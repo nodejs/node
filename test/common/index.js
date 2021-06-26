@@ -788,11 +788,6 @@ const common = {
   skipIfInspectorDisabled,
   skipIfWorker,
 
-  get enoughTestCpu() {
-    const cpus = require('os').cpus();
-    return Array.isArray(cpus) && (cpus.length > 1 || cpus[0].speed > 999);
-  },
-
   get enoughTestMem() {
     return require('os').totalmem() > 0x70000000; /* 1.75 Gb */
   },
