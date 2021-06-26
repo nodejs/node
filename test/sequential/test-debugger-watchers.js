@@ -10,7 +10,7 @@ const assert = require('assert');
 
 // Stepping through breakpoints.
 {
-  const cli = startCLI([fixtures.path('inspector-cli/break.js')]);
+  const cli = startCLI([fixtures.path('debugger/break.js')]);
 
   function onFatal(error) {
     cli.quit();

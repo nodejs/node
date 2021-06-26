@@ -14,7 +14,7 @@ addLibraryPath(process.env);
 
 // Auto-resume on start if the environment variable is defined.
 {
-  const scriptFullPath = fixtures.path('inspector-cli', 'break.js');
+  const scriptFullPath = fixtures.path('debugger', 'break.js');
   const script = path.relative(process.cwd(), scriptFullPath);
 
   const env = { ...process.env };

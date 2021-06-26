@@ -14,7 +14,7 @@ function delay(ms) {
 
 // Profiles.
 {
-  const cli = startCLI([fixtures.path('inspector-cli/empty.js')]);
+  const cli = startCLI([fixtures.path('debugger/empty.js')]);
 
   function onFatal(error) {
     cli.quit();

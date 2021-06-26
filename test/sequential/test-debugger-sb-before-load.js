@@ -11,10 +11,10 @@ const path = require('path');
 
 // Using sb before loading file.
 {
-  const scriptFullPath = fixtures.path('inspector-cli', 'cjs', 'index.js');
+  const scriptFullPath = fixtures.path('debugger', 'cjs', 'index.js');
   const script = path.relative(process.cwd(), scriptFullPath);
 
-  const otherScriptFullPath = fixtures.path('inspector-cli', 'cjs', 'other.js');
+  const otherScriptFullPath = fixtures.path('debugger', 'cjs', 'other.js');
   const otherScript = path.relative(process.cwd(), otherScriptFullPath);
 
   const cli = startCLI([script]);

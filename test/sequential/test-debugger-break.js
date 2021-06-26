@@ -11,7 +11,7 @@ const path = require('path');
 
 // Stepping through breakpoints.
 {
-  const scriptFullPath = fixtures.path('inspector-cli', 'break.js');
+  const scriptFullPath = fixtures.path('debugger', 'break.js');
   const script = path.relative(process.cwd(), scriptFullPath);
   const cli = startCLI([script]);
 

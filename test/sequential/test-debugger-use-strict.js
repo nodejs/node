@@ -10,7 +10,7 @@ const assert = require('assert');
 
 // Test for files that start with strict directive.
 {
-  const script = fixtures.path('inspector-cli', 'use-strict.js');
+  const script = fixtures.path('debugger', 'use-strict.js');
   const cli = startCLI([script]);
 
   function onFatal(error) {
