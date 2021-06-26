@@ -95,7 +95,7 @@ issues. If a user opens a security issue in the public repository:
 
 * Ask the user to submit a report through HackerOne as outlined in
   [SECURITY.md][].
-* Move the issue to the private repo called
+* Move the issue to the private repository called
   [premature-disclosures](https://github.com/nodejs/premature-disclosures).
 * For any related pull requests, create an associated issue in the
   `premature-disclosures` repository.  Add a copy of the patch for the
@@ -552,7 +552,7 @@ Checkout proper target branch:
 $ git checkout master
 ```
 
-Update the tree (assumes your repo is set up as detailed in
+Update the tree (assumes your repository is set up as detailed in
 [CONTRIBUTING.md](./contributing/pull-requests.md#step-1-fork)):
 
 ```text
