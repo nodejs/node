@@ -252,9 +252,6 @@ function platformTimeout(ms) {
 
   const armv = process.config.variables.arm_version;
 
-  if (armv === '6')
-    return multipliers.seven * ms;  // ARMv6
-
   if (armv === '7')
     return multipliers.two * ms;  // ARMv7
 
