@@ -10,7 +10,7 @@ const assert = require('assert');
 
 // Custom port.
 {
-  const script = fixtures.path('inspector-cli', 'three-lines.js');
+  const script = fixtures.path('debugger', 'three-lines.js');
 
   const cli = startCLI([`--port=${common.PORT}`, script]);
 

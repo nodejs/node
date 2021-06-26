@@ -11,7 +11,7 @@ const path = require('path');
 
 // Display and navigate backtrace.
 {
-  const scriptFullPath = fixtures.path('inspector-cli', 'backtrace.js');
+  const scriptFullPath = fixtures.path('debugger', 'backtrace.js');
   const script = path.relative(process.cwd(), scriptFullPath);
   const cli = startCLI([script]);
 
