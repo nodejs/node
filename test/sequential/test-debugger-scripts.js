@@ -10,7 +10,7 @@ const assert = require('assert');
 
 // List scripts.
 {
-  const script = fixtures.path('inspector-cli', 'three-lines.js');
+  const script = fixtures.path('debugger', 'three-lines.js');
   const cli = startCLI([script]);
 
   function onFatal(error) {
@@ -24,7 +24,7 @@ const assert = require('assert');
     .then(() => {
       assert.match(
         cli.output,
-        /^\* \d+: \S+inspector-cli(?:\/|\\)three-lines\.js/m,
+        /^\* \d+: \S+debugger(?:\/|\\)three-lines\.js/m,
         'lists the user script');
       assert.doesNotMatch(
         cli.output,
@@ -35,7 +35,7 @@ const assert = require('assert');
     .then(() => {
       assert.match(
         cli.output,
-        /\* \d+: \S+inspector-cli(?:\/|\\)three-lines\.js/,
+        /\* \d+: \S+debugger(?:\/|\\)three-lines\.js/,
         'lists the user script');
       assert.match(
         cli.output,

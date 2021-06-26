@@ -41,7 +41,7 @@ const { createServer } = require('net');
   });
 
   try {
-    const script = fixtures.path('inspector-cli', 'three-lines.js');
+    const script = fixtures.path('debugger', 'three-lines.js');
     const cli = startCLI([`--port=${port}`, script]);
     const code = await cli.quit();
 

@@ -11,7 +11,7 @@ const path = require('path');
 
 // Run after quit.
 {
-  const scriptFullPath = fixtures.path('inspector-cli', 'three-lines.js');
+  const scriptFullPath = fixtures.path('debugger', 'three-lines.js');
   const script = path.relative(process.cwd(), scriptFullPath);
   const cli = startCLI([script]);
 

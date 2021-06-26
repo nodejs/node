@@ -9,7 +9,7 @@ const startCLI = require('../common/debugger');
 const assert = require('assert');
 
 {
-  const script = fixtures.path('inspector-cli', 'three-lines.js');
+  const script = fixtures.path('debugger', 'three-lines.js');
   const cli = startCLI([script]);
 
   cli.waitForInitialBreak()
