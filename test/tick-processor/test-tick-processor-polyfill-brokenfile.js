@@ -4,9 +4,6 @@ const { isCPPSymbolsNotMapped } = require('./util');
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-if (!common.enoughTestCpu)
-  common.skip('test is CPU-intensive');
-
 if (isCPPSymbolsNotMapped) {
   common.skip('C++ symbols are not mapped for this OS.');
 }
