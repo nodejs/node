@@ -584,7 +584,7 @@ class IsolateData : public MemoryRetainer {
   inline v8::Local<v8::String> async_wrap_provider(int index) const;
 
   size_t max_young_gen_size = 1;
-  std::unordered_map<const char*, v8::Eternal<v8::String>> static_str_map;
+  std::unordered_map<const void*, v8::Eternal<v8::String>> static_str_map;
 
   inline v8::Isolate* isolate() const;
   IsolateData(const IsolateData&) = delete;
@@ -1431,7 +1431,7 @@ class Environment : public MemoryRetainer {
   void RunAndClearNativeImmediates(bool only_refed = false);
   void RunAndClearInterrupts();
 
-  inline std::unordered_map<char*, std::unique_ptr<v8::BackingStore>>*
+  inline std::unordered_map<void*, std::unique_ptr<v8::BackingStore>>*
       released_allocated_buffers();
 
   void AddUnmanagedFd(int fd);
@@ -1608,7 +1608,7 @@ class Environment : public MemoryRetainer {
 
   // Used by AllocatedBuffer::release() to keep track of the BackingStore for
   // a given pointer.
-  std::unordered_map<char*, std::unique_ptr<v8::BackingStore>>
+  std::unordered_map<void*, std::unique_ptr<v8::BackingStore>>
       released_allocated_buffers_;
 };
 
