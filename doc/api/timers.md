@@ -170,25 +170,7 @@ next event loop iteration.
 If `callback` is not a function, a [`TypeError`][] will be thrown.
 
 This method has a custom variant for promises that is available using
-[`util.promisify()`][]:
-
-```js
-const util = require('util');
-const setImmediatePromise = util.promisify(setImmediate);
-
-setImmediatePromise('foobar').then((value) => {
-  // value === 'foobar' (passing values is optional)
-  // This is executed after all I/O callbacks.
-});
-
-// Or with async function
-async function timerExample() {
-  console.log('Before I/O callbacks');
-  await setImmediatePromise();
-  console.log('After I/O callbacks');
-}
-timerExample();
-```
+[`timersPromises.setImmediate()`][].
 
 ### `setInterval(callback[, delay[, ...args]])`
 <!-- YAML
@@ -207,6 +189,9 @@ When `delay` is larger than `2147483647` or less than `1`, the `delay` will be
 set to `1`. Non-integer delays are truncated to an integer.
 
 If `callback` is not a function, a [`TypeError`][] will be thrown.
+
+This method has a custom variant for promises that is available using
+[`timersPromises.setInterval()`][].
 
 ### `setTimeout(callback[, delay[, ...args]])`
 <!-- YAML
@@ -232,17 +217,7 @@ will be set to `1`. Non-integer delays are truncated to an integer.
 If `callback` is not a function, a [`TypeError`][] will be thrown.
 
 This method has a custom variant for promises that is available using
-[`util.promisify()`][]:
-
-```js
-const util = require('util');
-const setTimeoutPromise = util.promisify(setTimeout);
-
-setTimeoutPromise(40, 'foobar').then((value) => {
-  // value === 'foobar' (passing values is optional)
-  // This is executed after about 40 milliseconds.
-});
-```
+[`timersPromises.setTimeout()`][].
 
 ## Cancelling timers
 
@@ -257,8 +232,7 @@ returned Promises will be rejected with an `'AbortError'`.
 For `setImmediate()`:
 
 ```js
-const util = require('util');
-const setImmediatePromise = util.promisify(setImmediate);
+const { setImmediate: setImmediatePromise } = require('timers/promises');
 
 const ac = new AbortController();
 const signal = ac.signal;
@@ -276,8 +250,7 @@ ac.abort();
 For `setTimeout()`:
 
 ```js
-const util = require('util');
-const setTimeoutPromise = util.promisify(setTimeout);
+const { setTimeout: setTimeoutPromise } = require('timers/promises');
 
 const ac = new AbortController();
 const signal = ac.signal;
@@ -478,6 +451,8 @@ const interval = 100;
 [`setImmediate()`]: #timers_setimmediate_callback_args
 [`setInterval()`]: #timers_setinterval_callback_delay_args
 [`setTimeout()`]: #timers_settimeout_callback_delay_args
-[`util.promisify()`]: util.md#util_util_promisify_original
+[`timersPromises.setImmediate()`]: #timers_timerspromises_setimmediate_value_options
+[`timersPromises.setInterval()`]: #timers_timerspromises_setinterval_delay_value_options
+[`timersPromises.setTimeout()`]: #timers_timerspromises_settimeout_delay_value_options
 [`worker_threads`]: worker_threads.md
 [primitive]: #timers_timeout_symbol_toprimitive
