@@ -451,9 +451,8 @@ const interval = 100;
 [`setImmediate()`]: #timers_setimmediate_callback_args
 [`setInterval()`]: #timers_setinterval_callback_delay_args
 [`setTimeout()`]: #timers_settimeout_callback_delay_args
-[`timersPromises.setImmediate()`]: timers.md#timerspromisessetimmediatevalue-options
-[`timersPromises.setInterval()`]: timers.md#timerspromisessetintervaldelay-value-options
-[`timersPromises.setTimeout()`]: timers.md#timerspromisessettimeoutdelay-value-options
-[`util.promisify()`]: util.md#util_util_promisify_original
+[`timersPromises.setImmediate()`]: #timers_timerspromises_setimmediate_value_options
+[`timersPromises.setInterval()`]: #timers_timerspromises_setinterval_delay_value_options
+[`timersPromises.setTimeout()`]: #timers_timerspromises_settimeout_delay_value_options
 [`worker_threads`]: worker_threads.md
 [primitive]: #timers_timeout_symbol_toprimitive
