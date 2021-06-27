@@ -32,7 +32,7 @@ const pjson = path.resolve(
         requiringCjsAsEsm} not supported.\n`));
     assert.ok(stderr.includes(
       `Instead rename ${basename} to end in .cjs, change the requiring ` +
-      'code to use dynamic import() which is available in all CommonJS' +
+      'code to use dynamic import() which is available in all CommonJS ' +
       `modules, or remove "type": "module" from ${pjson} to ` +
       'treat all .js files as CommonJS (using .mjs for all ES modules ' +
       'instead).\n'));
