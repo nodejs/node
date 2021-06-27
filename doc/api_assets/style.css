@@ -32,6 +32,7 @@
   --color-fill-app: var(--white);
   --color-fill-side-nav: var(--gray6);
   --color-links: var(--green1);
+  --color-text-mark: var(--gray1);
   --color-text-nav: var(--gray3);
   --color-text-primary: var(--gray6);
   --color-text-secondary: var(--green2);
@@ -42,6 +43,7 @@
   --color-fill-app: var(--black1);
   --color-fill-side-nav: var(--black3);
   --color-links: var(--green5);
+  --color-text-mark: var(--gray5);
   --color-text-primary: var(--white);
 }
 
@@ -632,7 +634,7 @@ a code {
 
 span > .mark,
 span > .mark:visited {
-  color: #707070;
+  color: var(--color-text-mark);
   position: absolute;
   top: 0;
   right: 0;
