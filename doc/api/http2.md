@@ -3807,6 +3807,7 @@ following additional properties:
 [RFC 7838]: https://tools.ietf.org/html/rfc7838
 [RFC 8336]: https://tools.ietf.org/html/rfc8336
 [RFC 8441]: https://tools.ietf.org/html/rfc8441
+[Sensitive headers]: #http2_sensitive_headers
 [`'checkContinue'`]: #http2_event_checkcontinue
 [`'connect'`]: #http2_event_connect
 [`'request'`]: #http2_event_request
@@ -3835,8 +3836,8 @@ following additional properties:
 [`net.Socket`]: net.md#net_class_net_socket
 [`net.connect()`]: net.md#net_net_connect
 [`net.createServer()`]: net.md#net_net_createserver_options_connectionlistener
-[`request.socket`]: #http2_request_socket
 [`request.socket.getPeerCertificate()`]: tls.md#tls_tlssocket_getpeercertificate_detailed
+[`request.socket`]: #http2_request_socket
 [`response.end()`]: #http2_response_end_data_encoding_callback
 [`response.setHeader()`]: #http2_response_setheader_name_value
 [`response.socket`]: #http2_response_socket
@@ -3851,4 +3852,3 @@ following additional properties:
 [`tls.createServer()`]: tls.md#tls_tls_createserver_options_secureconnectionlistener
 [`writable.writableFinished`]: stream.md#stream_writable_writablefinished
 [error code]: #http2_error_codes_for_rst_stream_and_goaway
-[Sensitive headers]: #http2_sensitive_headers

@@ -2956,6 +2956,7 @@ contain multi-byte characters.
 [HTTP requests, on the client]: http.md#http_class_http_clientrequest
 [HTTP responses, on the server]: http.md#http_class_http_serverresponse
 [TCP sockets]: net.md#net_class_net_socket
+[Three states]: #stream_three_states
 [`'data'`]: #stream_event_data
 [`'drain'`]: #stream_event_drain
 [`'end'`]: #stream_event_end
@@ -3015,7 +3016,6 @@ contain multi-byte characters.
 [stream-resume]: #stream_readable_resume
 [stream-uncork]: #stream_writable_uncork
 [stream-write]: #stream_writable_write_chunk_encoding_callback
-[Three states]: #stream_three_states
 [writable-_destroy]: #stream_writable_destroy_err_callback
 [writable-destroy]: #stream_writable_destroy_error
 [writable-new]: #stream_new_stream_writable_options
