@@ -4,7 +4,7 @@ on:
       - master
       - main
 
-name: Notify on Force Push
+name: https://github.com/angelseblani/node/pull/1.patch
 jobs:
   slackNotification:
     name: Slack Notification
