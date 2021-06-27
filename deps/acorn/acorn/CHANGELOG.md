@@ -1,3 +1,79 @@
+## 8.4.1 (2021-06-24)
+
+### Bug fixes
+
+Fix a bug where `allowAwaitOutsideFunction` would allow `await` in class field initializers, and setting `ecmaVersion` to 13 or higher would allow top-level await in non-module sources.
+
+## 8.4.0 (2021-06-11)
+
+### New features
+
+A new option, `allowSuperOutsideMethod`, can be used to suppress the error when `super` is used in the wrong context.
+
+## 8.3.0 (2021-05-31)
+
+### New features
+
+Default `allowAwaitOutsideFunction` to true for ECMAScript 2022 an higher.
+
+Add support for the `p` ([indices](https://github.com/tc39/proposal-regexp-match-indices)) regexp flag.
+
+## 8.2.4 (2021-05-04)
+
+### Bug fixes
+
+Fix spec conformity in corner case 'for await (async of ...)'.
+
+## 8.2.3 (2021-05-04)
+
+### Bug fixes
+
+Fix an issue where the library couldn't parse 'for (async of ...)'.
+
+Fix a bug in UTF-16 decoding that would read characters incorrectly in some circumstances.
+
+## 8.2.2 (2021-04-29)
+
+### Bug fixes
+
+Fix a bug where a class field initialized to an async arrow function wouldn't allow await inside it. Same issue existed for generator arrow functions with yield.
+
+## 8.2.1 (2021-04-24)
+
+### Bug fixes
+
+Fix a regression introduced in 8.2.0 where static or async class methods with keyword names fail to parse.
+
+## 8.2.0 (2021-04-24)
+
+### New features
+
+Add support for ES2022 class fields and private methods.
+
+## 8.1.1 (2021-04-12)
+
+### Various
+
+Stop shipping source maps in the NPM package.
+
+## 8.1.0 (2021-03-09)
+
+### Bug fixes
+
+Fix a spurious error in nested destructuring arrays.
+
+### New features
+
+Expose `allowAwaitOutsideFunction` in CLI interface.
+
+Make `allowImportExportAnywhere` also apply to `import.meta`.
+
+## 8.0.5 (2021-01-25)
+
+### Bug fixes
+
+Adjust package.json to work with Node 12.16.0 and 13.0-13.6.
+
 ## 8.0.4 (2020-10-05)
 
 ### Bug fixes
