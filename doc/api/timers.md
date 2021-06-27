@@ -472,12 +472,12 @@ const interval = 100;
 [Event Loop]: https://nodejs.org/en/docs/guides/event-loop-timers-and-nexttick/#setimmediate-vs-settimeout
 [`AbortController`]: globals.md#globals_class_abortcontroller
 [`TypeError`]: errors.md#errors_class_typeerror
-[`clearImmediate()`]: timers.md#timers_clearimmediate_immediate
-[`clearInterval()`]: timers.md#timers_clearinterval_timeout
-[`clearTimeout()`]: timers.md#timers_cleartimeout_timeout
-[`setImmediate()`]: timers.md#timers_setimmediate_callback_args
-[`setInterval()`]: timers.md#timers_setinterval_callback_delay_args
-[`setTimeout()`]: timers.md#timers_settimeout_callback_delay_args
+[`clearImmediate()`]: #timers_clearimmediate_immediate
+[`clearInterval()`]: #timers_clearinterval_timeout
+[`clearTimeout()`]: #timers_cleartimeout_timeout
+[`setImmediate()`]: #timers_setimmediate_callback_args
+[`setInterval()`]: #timers_setinterval_callback_delay_args
+[`setTimeout()`]: #timers_settimeout_callback_delay_args
 [`util.promisify()`]: util.md#util_util_promisify_original
 [`worker_threads`]: worker_threads.md
-[primitive]: timers.md#timers_timeout_symbol_toprimitive
+[primitive]: #timers_timeout_symbol_toprimitive
