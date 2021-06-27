@@ -440,6 +440,9 @@ changes:
 
 Write `buffer` to the file.
 
+If `buffer` is a plain object, it must have an own (not inherited) `toString`
+function property.
+
 The promise is resolved with an object containing two properties:
 
 * `bytesWritten` {integer} the number of bytes written
@@ -1284,8 +1287,8 @@ changes:
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
 Asynchronously writes data to a file, replacing the file if it already exists.
-`data` can be a string, a {Buffer}, or an object with an own `toString` function
-property.
+`data` can be a string, a {Buffer}, or, an object with an own (not inherited)
+`toString` function property.
 
 The `encoding` option is ignored if `data` is a buffer.
 
@@ -3945,7 +3948,9 @@ When `file` is a file descriptor, the behavior is similar to calling
 a file descriptor.
 
 The `encoding` option is ignored if `data` is a buffer.
-If `data` is a normal object, it must have an own `toString` function property.
+
+If `data` is a plain object, it must have an own (not inherited) `toString`
+function property.
 
 ```mjs
 import { writeFile } from 'fs';
@@ -5039,6 +5044,9 @@ changes:
 
 Returns `undefined`.
 
+If `data` is a plain object, it must have an own (not inherited) `toString`
+function property.
+
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.writeFile()`][].
 
@@ -5073,6 +5081,9 @@ changes:
 * `position` {integer}
 * Returns: {number} The number of bytes written.
 
+If `buffer` is a plain object, it must have an own (not inherited) `toString`
+function property.
+
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.write(fd, buffer...)`][].
 
@@ -5098,6 +5109,9 @@ changes:
 * `position` {integer}
 * `encoding` {string}
 * Returns: {number} The number of bytes written.
+
+If `string` is a plain object, it must have an own (not inherited) `toString`
+function property.
 
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.write(fd, string...)`][].
