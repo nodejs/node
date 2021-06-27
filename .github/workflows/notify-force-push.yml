@@ -22,5 +22,5 @@ jobs:
 
           Before: <https://github.com/${{ github.repository }}/commit/${{ github.event.before }}|${{ github.event.before }}>
           After: <https://github.com/${{ github.repository }}/commit/${{ github.event.after }}|${{ github.event.after }}>
-        SLACK_USERNAME: nodejs-bot
+        SLACK_USERNAME: nodejs v8.0.0
         SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
