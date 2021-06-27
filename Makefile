@@ -1101,7 +1101,7 @@ $(TARBALL): release-only doc-only
 	find $(TARNAME)/deps/v8/test -type f ! -regex '.*/test/torque/.*' | xargs $(RM)
 	find $(TARNAME)/deps/zlib/contrib/* -type d ! -regex '.*/contrib/optimizations$$' | xargs $(RM) -r
 	find $(TARNAME)/ -name ".eslint*" -maxdepth 2 | xargs $(RM)
-	find $(TARNAME)/ -type l | xargs $(RM) # annoying on windows
+	find $(TARNAME)/ -type l | xargs $(RM)
 	tar -cf $(TARNAME).tar $(TARNAME)
 	$(RM) -r $(TARNAME)
 	gzip -c -f -9 $(TARNAME).tar > $(TARNAME).tar.gz
