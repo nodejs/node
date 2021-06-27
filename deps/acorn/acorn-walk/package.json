@@ -6,10 +6,17 @@
   "types": "dist/walk.d.ts",
   "module": "dist/walk.mjs",
   "exports": {
-    "import": "./dist/walk.mjs",
-    "require": "./dist/walk.js"
+    ".": [
+      {
+        "import": "./dist/walk.mjs",
+        "require": "./dist/walk.js",
+        "default": "./dist/walk.js"
+      },
+      "./dist/walk.js"
+    ],
+    "./package.json": "./package.json"
   },
-  "version": "8.0.0",
+  "version": "8.1.0",
   "engines": {"node": ">=0.4.0"},
   "maintainers": [
     {

@@ -66,11 +66,15 @@ var Found = function Found(node, state) { this.node = node; this.state = state; 
 
 // A full walk triggers the callback on each node
 function full(node, callback, baseVisitor, state, override) {
-  if (!baseVisitor) { baseVisitor = base
-  ; }(function c(node, st, override) {
+  if (!baseVisitor) { baseVisitor = base; }
+  var last
+  ;(function c(node, st, override) {
     var type = override || node.type;
     baseVisitor[type](node, st, c);
-    if (!override) { callback(node, st, type); }
+    if (last !== node) {
+      callback(node, st, type);
+      last = node;
+    }
   })(node, state, override);
 }
 
@@ -78,13 +82,16 @@ function full(node, callback, baseVisitor, state, override) {
 // the callback on each node
 function fullAncestor(node, callback, baseVisitor, state) {
   if (!baseVisitor) { baseVisitor = base; }
-  var ancestors = []
+  var ancestors = [], last
   ;(function c(node, st, override) {
     var type = override || node.type;
     var isNew = node !== ancestors[ancestors.length - 1];
     if (isNew) { ancestors.push(node); }
     baseVisitor[type](node, st, c);
-    if (!override) { callback(node, st || ancestors, ancestors, type); }
+    if (last !== node) {
+      callback(node, st || ancestors, ancestors, type);
+      last = node;
+    }
     if (isNew) { ancestors.pop(); }
   })(node, state);
 }
@@ -162,17 +169,10 @@ function findNodeBefore(node, pos, test, baseVisitor, state) {
   return max
 }
 
-// Fallback to an Object.create polyfill for older environments.
-var create = Object.create || function(proto) {
-  function Ctor() {}
-  Ctor.prototype = proto;
-  return new Ctor
-};
-
 // Used to create a custom walker. Will fill in all missing node
 // type properties with the defaults.
 function make(funcs, baseVisitor) {
-  var visitor = create(baseVisitor || base);
+  var visitor = Object.create(baseVisitor || base);
   for (var type in funcs) { visitor[type] = funcs[type]; }
   return visitor
 }
@@ -415,7 +415,7 @@ base.ImportDeclaration = function (node, st, c) {
 base.ImportExpression = function (node, st, c) {
   c(node.source, st, "Expression");
 };
-base.ImportSpecifier = base.ImportDefaultSpecifier = base.ImportNamespaceSpecifier = base.Identifier = base.Literal = ignore;
+base.ImportSpecifier = base.ImportDefaultSpecifier = base.ImportNamespaceSpecifier = base.Identifier = base.PrivateIdentifier = base.Literal = ignore;
 
 base.TaggedTemplateExpression = function (node, st, c) {
   c(node.tag, st, "Expression");
@@ -435,9 +435,9 @@ base.ClassBody = function (node, st, c) {
     c(elt, st);
   }
 };
-base.MethodDefinition = base.Property = function (node, st, c) {
+base.MethodDefinition = base.PropertyDefinition = base.Property = function (node, st, c) {
   if (node.computed) { c(node.key, st, "Expression"); }
-  c(node.value, st, "Expression");
+  if (node.value) { c(node.value, st, "Expression"); }
 };
 
 export { ancestor, base, findNodeAfter, findNodeAround, findNodeAt, findNodeBefore, full, fullAncestor, make, recursive, simple };
