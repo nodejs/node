@@ -190,7 +190,7 @@ set to `1`. Non-integer delays are truncated to an integer.
 
 If `callback` is not a function, a [`TypeError`][] will be thrown.
 
-This method has an async iterator variant that is available using
+This method has a custom variant for promises that is available using
 [`timersPromises.setInterval()`][].
 
 ### `setTimeout(callback[, delay[, ...args]])`
