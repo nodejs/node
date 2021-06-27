@@ -215,6 +215,12 @@ void AppendExceptionLine(Environment* env,
   Local<Object> err_obj;
   if (!er.IsEmpty() && er->IsObject()) {
     err_obj = er.As<Object>();
+    // If arrow_message is already set, skip.
+    auto maybe_value = err_obj->GetPrivate(env->context(),
+                                          env->arrow_message_private_symbol());
+    Local<Value> lvalue;
+    if (!maybe_value.ToLocal(&lvalue) || lvalue->IsString())
+      return;
   }
 
   bool added_exception_line = false;
