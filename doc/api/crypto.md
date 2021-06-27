@@ -5642,7 +5642,6 @@ See the [list of SSL OP Flags][] for details.
 [AEAD algorithms]: https://en.wikipedia.org/wiki/Authenticated_encryption
 [CCM mode]: #crypto_ccm_mode
 [Caveats]: #crypto_support_for_weak_or_compromised_algorithms
-[caveats when using strings as inputs to cryptographic APIs]: #crypto_using_strings_as_inputs_to_cryptographic_apis
 [Crypto constants]: #crypto_crypto_constants_1
 [HTML 5.2]: https://www.w3.org/TR/html52/changes.html#features-removed
 [HTML5's `keygen` element]: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/keygen
@@ -5712,6 +5711,7 @@ See the [list of SSL OP Flags][] for details.
 [`util.promisify()`]: util.md#util_util_promisify_original
 [`verify.update()`]: #crypto_verify_update_data_inputencoding
 [`verify.verify()`]: #crypto_verify_verify_object_signature_signatureencoding
+[caveats when using strings as inputs to cryptographic APIs]: #crypto_using_strings_as_inputs_to_cryptographic_apis
 [certificate object]: tls.md#tls_certificate_object
 [encoding]: buffer.md#buffer_buffers_and_character_encodings
 [initialization vector]: https://en.wikipedia.org/wiki/Initialization_vector

@@ -1082,9 +1082,9 @@ socket.on('data', (id) => {
 [`child_process.fork()`]: child_process.md#child_process_child_process_fork_modulepath_args_options
 [`child_process` event: `'exit'`]: child_process.md#child_process_event_exit
 [`child_process` event: `'message'`]: child_process.md#child_process_event_message
+[`cluster.isPrimary`]: #cluster_cluster_isprimary
 [`cluster.settings`]: #cluster_cluster_settings
 [`disconnect()`]: child_process.md#child_process_subprocess_disconnect
-[`cluster.isPrimary`]: #cluster_cluster_isprimary
 [`kill()`]: process.md#process_process_kill_pid_signal
 [`process` event: `'message'`]: process.md#process_event_message
 [`server.close()`]: net.md#net_event_close

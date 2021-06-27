@@ -1036,7 +1036,7 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 [exception handling]: #exception-handling
 [internal field]: #internal-fields
 [introduction for V8 embedders]: https://v8.dev/docs/embed
+[libuv]: https://libuv.org/
 [libuv handles]: #libuv-handles-and-requests
 [libuv requests]: #libuv-handles-and-requests
-[libuv]: https://libuv.org/
 [reference documentation for the libuv API]: http://docs.libuv.org/en/v1.x/
