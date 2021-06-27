@@ -845,10 +845,10 @@ The documentation for this class has moved [`AsyncLocalStorage`][].
 [PromiseHooks]: https://docs.google.com/document/d/1rda3yKGHimKIhg5YeoAmCOtyURgsbTH_qaYR79FELlk/edit
 [`AsyncLocalStorage`]: async_context.md#async_context_class_asynclocalstorage
 [`AsyncResource`]: async_context.md#async_context_class_asyncresource
+[`Worker`]: worker_threads.md#worker_threads_class_worker
 [`after` callback]: #async_hooks_after_asyncid
 [`before` callback]: #async_hooks_before_asyncid
 [`destroy` callback]: #async_hooks_destroy_asyncid
 [`init` callback]: #async_hooks_init_asyncid_type_triggerasyncid_resource
 [`promiseResolve` callback]: #async_hooks_promiseresolve_asyncid
-[`Worker`]: worker_threads.md#worker_threads_class_worker
 [promise execution tracking]: #async_hooks_promise_execution_tracking

@@ -1637,8 +1637,8 @@ to the `EventTarget`.
 [`fs.ReadStream`]: fs.md#fs_class_fs_readstream
 [`net.Server`]: net.md#net_class_net_server
 [`process.on('warning')`]: process.md#process_event_warning
-[stream]: stream.md
 [capturerejections]: #events_capture_rejections_of_promises
+[error]: #events_error_events
 [rejection]: #events_emitter_symbol_for_nodejs_rejection_err_eventname_args
 [rejectionsymbol]: #events_events_capturerejectionsymbol
-[error]: #events_error_events
+[stream]: stream.md
