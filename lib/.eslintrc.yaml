@@ -37,6 +37,8 @@ rules:
       message: "Use `const { Atomics } = globalThis;` instead of the global."
     - name: Buffer
       message: "Use `const { Buffer } = require('buffer');` instead of the global."
+    - name: DOMException
+      message: "Use lazy function `const { lazyDOMException } = require('internal/util');` instead of the global."
     - name: Event
       message: "Use `const { Event } = require('internal/event_target');` instead of the global."
     - name: EventTarget

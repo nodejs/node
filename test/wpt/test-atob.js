@@ -12,8 +12,6 @@ runner.setFlags(['--expose-internals']);
 runner.setInitScript(`
   const { internalBinding } = require('internal/test/binding');
   const { atob, btoa } = require('buffer');
-  const { DOMException } = internalBinding('messaging');
-  global.DOMException = DOMException;
 `);
 
 runner.runJsTests();
