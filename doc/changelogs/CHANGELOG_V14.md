@@ -11,6 +11,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#14.17.2">14.17.2</a><br/>
 <a href="#14.17.1">14.17.1</a><br/>
 <a href="#14.17.0">14.17.0</a><br/>
 <a href="#14.16.1">14.16.1</a><br/>
@@ -61,6 +62,25 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="14.17.2"></a>
+## 2021-07-01, Version 14.17.2 'Fermium' (LTS), @richardlau
+
+This is a security release.
+
+### Notable Changes
+
+Vulnerabilities fixed:
+
+* **CVE-2021-22918**: libuv upgrade - Out of bounds read (Medium)
+  * Node.js is vulnerable to out-of-bounds read in libuv's uv__idna_toascii() function which is used to convert strings to ASCII. This is called by Node's dns module's lookup() function and can lead to information disclosures or crashes. You can read more about it in https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-22918
+* **CVE-2021-22921**: Windows installer - Node Installer Local Privilege Escalation (Medium)
+  * Node.js is vulnerable to local privilege escalation attacks under certain conditions on Windows platforms. More specifically, improper configuration of permissions in the installation directory allows an attacker to perform two different escalation attacks: PATH and DLL hijacking. You can read more about it in https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-22921
+
+### Commits
+
+* [[`a7496aba0a`](https://github.com/nodejs/node/commit/a7496aba0a)] - **deps**: uv: cherry-pick 99c29c9c2c9b (Ben Noordhuis) [nodejs-private/node-private#267](https://github.com/nodejs-private/node-private/pull/267)
+* [[`d0b449da1d`](https://github.com/nodejs/node/commit/d0b449da1d)] - **win,msi**: set install directory permission (AkshayK) [nodejs-private/node-private#269](https://github.com/nodejs-private/node-private/pull/269)
 
 <a id="14.17.1"></a>
 ## 2021-06-15, Version 14.17.1 'Fermium' (LTS), @targos
