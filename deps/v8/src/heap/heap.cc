@@ -3347,6 +3347,10 @@ void Heap::MakeHeapIterable() {
   mark_compact_collector()->EnsureSweepingCompleted();
 }
 
+void Heap::EnsureSweepingCompleted() {
+  mark_compact_collector()->EnsureSweepingCompleted();
+}
+
 namespace {
 
 double ComputeMutatorUtilizationImpl(double mutator_speed, double gc_speed) {
