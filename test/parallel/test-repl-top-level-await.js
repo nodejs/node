@@ -175,15 +175,17 @@ async function ordinaryTests() {
 
 async function ctrlCTest() {
   console.log('Testing Ctrl+C');
-  assert.deepStrictEqual(await runAndWait([
+  const output = await runAndWait([
     'await new Promise(() => {})',
     { ctrl: true, name: 'c' },
-  ]), [
+  ]);
+  assert.deepStrictEqual(output.slice(0, 3), [
     'await new Promise(() => {})\r',
     'Uncaught:',
-    '[Error [ERR_SCRIPT_EXECUTION_INTERRUPTED]: ' +
-      'Script execution was interrupted by `SIGINT`] {',
-    "  code: 'ERR_SCRIPT_EXECUTION_INTERRUPTED'",
+    'Error [ERR_SCRIPT_EXECUTION_INTERRUPTED]: ' +
+      'Script execution was interrupted by `SIGINT`',
+  ]);
+  assert.deepStrictEqual(output.slice(-2), [
     '}',
     PROMPT,
   ]);
