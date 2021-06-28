@@ -179,7 +179,7 @@ fixed upstream first.
 ### Backporting to active branches
 
 If the bug exists in any of the active V8 branches, we may need to get the fix
-backported. At any given time there are [two active branches][V8ActiveBranches]
+backported. At any given time, there are [two active branches][V8ActiveBranches]
 (beta and stable) in addition to master. The following steps are needed to
 backport the fix:
 
@@ -191,9 +191,7 @@ backport the fix:
   * If a bug already exists
     * Add a reference to the GitHub issue.
     * Attach *merge-request-x.x* labels to the bug for any active branches
-      that still contain the bug. (e.g. merge-request-5.3,
-      merge-request-5.4)
-    * Add ofrobots-at-google.com to the cc list.
+      that still contain the bug.
 * Once the merge has been approved, it should be merged using the
   [merge script documented in the V8 wiki][V8MergingPatching]. Merging requires
   commit access to the V8 repository. If you don't have commit access you can
@@ -246,8 +244,7 @@ fix needed to be cherry-picked. To cherry-pick, here's an example workflow:
   not apply cleanly. It may help to try to cherry-pick the merge to the oldest
   branch that was done upstream in V8. In this example, this would be the patch
   from the merge to 5.2. The hope is that this would be closer to the V8 5.1,
-  and has a better chance of applying cleanly. If you're stuck, feel free to
-  ping @ofrobots for help.
+  and has a better chance of applying cleanly.
 * Modify the commit message to match the format we use for V8 backports and
   replace yourself as the author. `git commit --amend --reset-author`. You may
   want to add extra description if necessary to indicate the impact of the fix
