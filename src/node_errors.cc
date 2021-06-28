@@ -219,7 +219,7 @@ void AppendExceptionLine(Environment* env,
     auto maybe_value = err_obj->GetPrivate(env->context(),
                                           env->arrow_message_private_symbol());
     Local<Value> lvalue;
-    if (maybe_value.ToLocal(&lvalue) && lvalue->IsString())
+    if (!maybe_value.ToLocal(&lvalue) || lvalue->IsString())
       return;
   }
 
