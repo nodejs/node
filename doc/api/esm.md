@@ -1339,15 +1339,15 @@ success!
 [`data:` URLs]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
 [`export`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export
 [`import()`]: #esm_import_expressions
-[`import.meta.url`]: #esm_import_meta_url
 [`import.meta.resolve`]: #esm_import_meta_resolve_specifier_parent
+[`import.meta.url`]: #esm_import_meta_url
 [`import`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import
 [`module.createRequire()`]: module.md#module_module_createrequire_filename
 [`module.syncBuiltinESMExports()`]: module.md#module_module_syncbuiltinesmexports
 [`package.json`]: packages.md#packages_node_js_package_json_field_definitions
 [`process.dlopen`]: process.md#process_process_dlopen_module_filename_flags
-[`transformSource` hook]: #esm_transformsource_source_context_defaulttransformsource
 [`string`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String
+[`transformSource` hook]: #esm_transformsource_source_context_defaulttransformsource
 [`util.TextDecoder`]: util.md#util_class_util_textdecoder
 [cjs-module-lexer]: https://github.com/guybedford/cjs-module-lexer/tree/1.2.1
 [custom https loader]: #esm_https_loader

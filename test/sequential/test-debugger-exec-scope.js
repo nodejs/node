@@ -10,7 +10,7 @@ const assert = require('assert');
 
 // exec .scope
 {
-  const cli = startCLI([fixtures.path('inspector-cli/backtrace.js')]);
+  const cli = startCLI([fixtures.path('debugger/backtrace.js')]);
 
   function onFatal(error) {
     cli.quit();
