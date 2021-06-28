@@ -100,3 +100,39 @@ common.skipIfDumbTerminal();
   });
   rli.close();
 }
+
+{
+  let output = '';
+  class FakeInput extends EventEmitter {
+    columns = 80
+
+    write = common.mustCall((data) => {
+      output += data;
+    }, 9)
+
+    resume() {}
+    pause() {}
+    end() {}
+  }
+
+  const fi = new FakeInput();
+  const rli = new readline.Interface({
+    input: fi,
+    output: fi,
+    terminal: true,
+    completer: common.mustCall((input, cb) => {
+      cb(null, [[input[0].toUpperCase() + input.slice(1)], input]);
+    }),
+  });
+
+  rli.on('line', common.mustNotCall());
+  fi.emit('data', 'input');
+  queueMicrotask(() => {
+    fi.emit('data', '\t');
+    queueMicrotask(() => {
+      assert.match(output, /> Input/);
+      output = '';
+      rli.close();
+    });
+  });
+}
