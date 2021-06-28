@@ -274,9 +274,9 @@ Refs: https://github.com/v8/v8/commit/a51f429772d1e796744244128c9feeab4c26a854
 PR-URL: https://github.com/nodejs/node/pull/7833
 ```
 
-* Open a PR against the `v6.x-staging` branch in the Node.js repo. Launch the
-  normal and [V8 CI][] using the Node.js CI system. We only needed to backport
-  to `v6.x` as the other LTS branches weren't affected by this bug.
+* Open a PR against the `v6.x-staging` branch in the Node.js repository. Launch
+  the normal and [V8 CI][] using the Node.js CI system. We only needed to
+  backport to `v6.x` as the other LTS branches weren't affected by this bug.
 
 ### Backports identified by the V8 team
 
@@ -382,7 +382,7 @@ git node v8 major --branch=5.1-lkgr
 
 This should be followed up with manual refloating of all relevant patches.
 
-## Proposal: using a fork repo to track upstream V8
+## Proposal: Using a fork repository to track upstream V8
 
 The fact that Node.js keeps a vendored, potentially edited copy of V8 in deps/
 makes the above processes a bit complicated. An alternative proposal would be to
