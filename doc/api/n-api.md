@@ -326,7 +326,7 @@ listed as supporting a later version.
     <td>v14.0.0</td>
     <td>v14.0.0</td>
     <td>v14.12.0</td>
-    <td></td>
+    <td>v14.17.0</td>
   </tr>
   <tr>
     <th scope="row">v15.x</th>
