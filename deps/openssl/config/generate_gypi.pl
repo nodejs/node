@@ -137,6 +137,10 @@ foreach my $obj (@{$unified_info{sources}->{'libcrypto'}}) {
   }
 }
 
+if ($arch eq 'linux32-s390x' || $arch eq  'linux64-s390x') {
+  push(@libcrypto_srcs, 'crypto/bn/asm/s390x.S');
+}
+
 my @lib_defines = ();
 foreach my $df (@{$unified_info{defines}->{libcrypto}}) {
   #print("libcrypto defines: $df\n");
