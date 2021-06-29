@@ -2318,28 +2318,49 @@ void WasmJs::InstallConditionalFeatures(Isolate* isolate,
     Handle<JSGlobalObject> global = handle(context->global_object(), isolate);
     MaybeHandle<Object> maybe_webassembly =
         JSObject::GetProperty(isolate, global, "WebAssembly");
-    Handle<JSObject> webassembly =
-        Handle<JSObject>::cast(maybe_webassembly.ToHandleChecked());
+    Handle<Object> webassembly_obj;
+    if (!maybe_webassembly.ToHandle(&webassembly_obj)) {
+      // There is not {WebAssembly} object. We just return without adding the
+      // {Exception} constructor.
+      return;
+    }
+    if (!webassembly_obj->IsJSObject()) {
+      // The {WebAssembly} object is invalid. As we cannot add the {Exception}
+      // constructor, we just return.
+      return;
+    }
+    Handle<JSObject> webassembly = Handle<JSObject>::cast(webassembly_obj);
     // Setup Exception
     Handle<String> exception_name = v8_str(isolate, "Exception");
-    if (!JSObject::HasProperty(webassembly, exception_name).FromMaybe(true)) {
-      Handle<JSFunction> exception_constructor =
-          CreateFunc(isolate, exception_name, WebAssemblyException, true,
-                     SideEffectType::kHasSideEffect);
-      exception_constructor->shared().set_length(1);
-      JSObject::AddProperty(isolate, webassembly, exception_name,
-                            exception_constructor, DONT_ENUM);
-      // Install the constructor on the context.
-      context->set_wasm_exception_constructor(*exception_constructor);
-      SetDummyInstanceTemplate(isolate, exception_constructor);
-      JSFunction::EnsureHasInitialMap(exception_constructor);
-      Handle<JSObject> exception_proto(
-          JSObject::cast(exception_constructor->instance_prototype()), isolate);
-      Handle<Map> exception_map = isolate->factory()->NewMap(
-          i::WASM_EXCEPTION_OBJECT_TYPE, WasmExceptionObject::kHeaderSize);
-      JSFunction::SetInitialMap(isolate, exception_constructor, exception_map,
-                                exception_proto);
+
+    if (JSObject::HasOwnProperty(webassembly, exception_name).FromMaybe(true)) {
+      // The {Exception} constructor already exists, there is nothing more to
+      // do.
+      return;
     }
+
+    bool has_prototype = true;
+    Handle<JSFunction> exception_constructor =
+        CreateFunc(isolate, exception_name, WebAssemblyException, has_prototype,
+                   SideEffectType::kHasNoSideEffect);
+    exception_constructor->shared().set_length(1);
+    auto result = Object::SetProperty(
+        isolate, webassembly, exception_name, exception_constructor,
+        StoreOrigin::kNamed, Just(ShouldThrow::kDontThrow));
+    if (result.is_null()) {
+      // Setting the {Exception} constructor failed. We just bail out.
+      return;
+    }
+    // Install the constructor on the context.
+    context->set_wasm_exception_constructor(*exception_constructor);
+    SetDummyInstanceTemplate(isolate, exception_constructor);
+    JSFunction::EnsureHasInitialMap(exception_constructor);
+    Handle<JSObject> exception_proto(
+        JSObject::cast(exception_constructor->instance_prototype()), isolate);
+    Handle<Map> exception_map = isolate->factory()->NewMap(
+        i::WASM_EXCEPTION_OBJECT_TYPE, WasmExceptionObject::kHeaderSize);
+    JSFunction::SetInitialMap(isolate, exception_constructor, exception_map,
+                              exception_proto);
   }
 }
 #undef ASSIGN
