@@ -583,9 +583,9 @@ $ git push upstream master
 
 ### 14. Push the release tag
 
-Push the tag to the repo before you promote the builds. If you haven't pushed
-your tag first, then build promotion won't work properly. Push the tag using the
-following command:
+Push the tag to the repository before you promote the builds. If you
+haven't pushed your tag first, then build promotion won't work properly.
+Push the tag using the following command:
 
 ```console
 $ git push <remote> <vx.y.z>
