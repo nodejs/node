@@ -39,7 +39,7 @@ information described.
 
 * [ ] Pre-release announcement [email][]: ***LINK TO EMAIL***
    * CC: `oss-security@lists.openwall.com`
-   * Subject: `Security updates for all active release lines, Month Year`
+   * Subject: `Node.js security updates for all active release lines, Month Year`
    * Body:
   ```text
   The Node.js project will release new versions of all supported release lines on or shortly after Day of week, Month Day of Month, Year
@@ -72,7 +72,7 @@ information described.
 
 * [ ] Post-release announcement in reply [email][]: ***LINK TO EMAIL***
    * CC: `oss-security@lists.openwall.com`
-   * Subject: `Security updates for all active release lines, Month Year`
+   * Subject: `Node.js security updates for all active release lines, Month Year`
    * Body:
   ```text
   The Node.js project has now released new versions of all supported release lines.
