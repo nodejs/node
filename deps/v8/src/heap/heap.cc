@@ -2129,6 +2129,10 @@ void Heap::CompleteSweepingYoung(GarbageCollector collector) {
   array_buffer_sweeper()->EnsureFinished();
 }
 
+void Heap::EnsureSweepingCompleted() {
+  mark_compact_collector()->EnsureSweepingCompleted();
+}
+
 void Heap::UpdateCurrentEpoch(GarbageCollector collector) {
   if (IsYoungGenerationCollector(collector)) {
     epoch_young_ = next_epoch();
