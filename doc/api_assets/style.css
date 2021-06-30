@@ -25,7 +25,8 @@
   --gray7: #c1c1c1;
   --grey8: #ddd;
 
-  --api-stability-links-bg: rgba(255, 255, 255, .4);
+  --background-color-api-stability-link: rgba(255, 255, 255, .4);
+  --background-color-highlight: var(--white-smoke);
   --color-brand-primary: var(--gray6);
   --color-brand-secondary: var(--green1);
   --color-fill-app: var(--white);
@@ -34,21 +35,20 @@
   --color-text-nav: var(--gray3);
   --color-text-primary: var(--gray6);
   --color-text-secondary: var(--green2);
-  --highlight-background-color: var(--white-smoke);
 }
 
 .dark-mode {
-    --color-fill-app: var(--black1);
-    --color-fill-side-nav: var(--black3);
-    --color-links: var(--green5);
-    --color-text-primary: var(--white);
-    --highlight-background-color: var(--black2);
+  --background-color-highlight: var(--black2);
+  --color-fill-app: var(--black1);
+  --color-fill-side-nav: var(--black3);
+  --color-links: var(--green5);
+  --color-text-primary: var(--white);
 }
 
 .dark-mode code,
 .dark-mode tt {
   color: var(--grey-smoke);
-  background-color: var(--highlight-background-color);
+  background-color: var(--background-color-highlight);
 }
 .dark-mode a code {
   color: var(--green3);
@@ -248,7 +248,7 @@ ol.version-picker li:last-child a {
 .api_stability a:hover,
 .api_stability a:active,
 .api_stability a:focus {
-  background-color: var(--api-stability-links-bg);
+  background-color: var(--background-color-api-stability-link);
 }
 
 .api_stability a code {
@@ -455,7 +455,7 @@ code {
 pre {
   padding: 1rem;
   vertical-align: top;
-  background-color: var(--highlight-background-color);
+  background-color: var(--background-color-highlight);
   margin: 1rem;
   overflow-x: auto;
 }
