@@ -11,7 +11,7 @@ Node-API.
   * **Must** return `napi_status`.
   * **Should** consume `napi_env`.
   * **Must** operate only on primitive data types, pointers to primitive
-    datatypes or opaque handles.
+    data types or opaque handles.
   * **Must** be a necessary API and not a nice to have. Convenience APIs
     belong in node-addon-api.
   * **Must** not change the signature of an existing Node-API API or break
