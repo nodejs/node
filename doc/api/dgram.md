@@ -468,6 +468,10 @@ if the socket is not connected.
 <!-- YAML
 added: v0.1.99
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/39190
+    description: The `address` parameter now only accepts a `string`, `null`
+                 or `undefined`.
   - version:
     - v14.5.0
     - v12.19.0
