@@ -12,6 +12,7 @@ var tty = require('tty');
 var fs$1 = require('fs');
 var events = require('events');
 var assert = require('assert');
+var require$$0$4 = require('url');
 
 function _interopDefaultLegacy (e) { return e && typeof e === 'object' && 'default' in e ? e : { 'default': e }; }
 
@@ -24,6 +25,7 @@ var tty__default = /*#__PURE__*/_interopDefaultLegacy(tty);
 var fs__default = /*#__PURE__*/_interopDefaultLegacy(fs$1);
 var events__default = /*#__PURE__*/_interopDefaultLegacy(events);
 var assert__default = /*#__PURE__*/_interopDefaultLegacy(assert);
+var require$$0__default$1 = /*#__PURE__*/_interopDefaultLegacy(require$$0$4);
 
 var vfileStatistics = statistics;
 
@@ -45048,6 +45050,51 @@ function noTrailingSpaces(ast, file) {
   }
 }
 
+const { pathToFileURL } = require$$0__default$1['default'];
+
+
+
+function* getLinksRecursively(node) {
+  if (node.url) {
+    yield node;
+  }
+  for (const child of node.children || []) {
+    yield* getLinksRecursively(child);
+  }
+}
+
+function validateLinks(tree, vfile) {
+  const currentFileURL = pathToFileURL(path__default['default'].join(vfile.cwd, vfile.path));
+  let previousDefinitionLabel;
+  for (const node of getLinksRecursively(tree)) {
+    if (node.url[0] !== "#") {
+      const targetURL = new URL(node.url, currentFileURL);
+      if (targetURL.protocol === "file:" && !fs__default['default'].existsSync(targetURL)) {
+        vfile.message("Broken link", node);
+      } else if (targetURL.pathname === currentFileURL.pathname) {
+        const expected = node.url.includes("#")
+          ? node.url.slice(node.url.indexOf("#"))
+          : "#";
+        vfile.message(
+          `Self-reference must start with hash (expected "${expected}", got "${node.url}")`,
+          node
+        );
+      }
+    }
+    if (node.type === "definition") {
+      if (previousDefinitionLabel && previousDefinitionLabel > node.label) {
+        vfile.message(
+          `Unordered reference ("${node.label}" should be before "${previousDefinitionLabel}")`,
+          node
+        );
+      }
+      previousDefinitionLabel = node.label;
+    }
+  }
+}
+
+var remarkLintNodejsLinks = unifiedLintRule("remark-lint:nodejs-links", validateLinks);
+
 function isNothing$1(subject) {
   return (typeof subject === 'undefined') || (subject === null);
 }
@@ -49632,7 +49679,7 @@ function validateMeta(node, file, meta) {
 
     case kWrongKeyOrder:
       file.message(
-        "YAML dictionary keys should be respect this order: " +
+        "YAML dictionary keys should be in this order: " +
           allowedKeys.join(", "),
         node
       );
@@ -50532,6 +50579,7 @@ var plugins$2 = [
   remarkLintNoTableIndentation,
   remarkLintNoTabs,
   remarkLintNoTrailingSpaces,
+  remarkLintNodejsLinks,
   remarkLintNodejsYamlComments,
   [
     remarkLintProhibitedStrings,
