@@ -19,6 +19,9 @@ my $include_conf_tmpl = Text::Template->new(TYPE => 'FILE',
 my $include_asm_tmpl = Text::Template->new(TYPE => 'FILE',
                                        SOURCE => 'include_asm.h.tmpl',
                                        DELIMITERS => [ "%%-", "-%%" ]);
+my $include_no_asm_tmpl = Text::Template->new(TYPE => 'FILE',
+                                       SOURCE => 'include_no-asm.h.tmpl',
+                                       DELIMITERS => [ "%%-", "-%%" ]);
 
 gen_headers(@openssl_headers, 'openssl');
 gen_headers(@crypto_headers, 'crypto');
@@ -53,7 +56,7 @@ sub gen_headers {
     close(INCLUDE_ASM);
 
     # Poplulate and write the no-asm header.
-    my $include_no_asm = $include_asm_tmpl->fill_in(
+    my $include_no_asm = $include_no_asm_tmpl->fill_in(
       HASH => { asmdir => 'no-asm',
                 incdir => $inc_dir,
 		name => $header_name });
