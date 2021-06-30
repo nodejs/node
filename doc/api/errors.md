@@ -2834,7 +2834,7 @@ The native call from `process.cpuUsage` could not be processed.
 [`new URLSearchParams(iterable)`]: url.md#url_new_urlsearchparams_iterable
 [`package.json`]: packages.md#packages_node_js_package_json_field_definitions
 [`postMessage()`]: worker_threads.md#worker_threads_port_postmessage_value_transferlist
-[`process.on('exit')`]: process.md#Event:-`'exit'`
+[`process.on('exit')`]: process.md#process_event_exit
 [`process.send()`]: process.md#process_process_send_message_sendhandle_options_callback
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#process_process_setuncaughtexceptioncapturecallback_fn
 [`readable._read()`]: stream.md#stream_readable_read_size_1
