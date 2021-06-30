@@ -249,16 +249,17 @@ class CipherJob final : public CryptoJob<CipherTraits> {
       v8::Local<v8::Value>* result) override {
     Environment* env = AsyncWrap::env();
     CryptoErrorStore* errors = CryptoJob<CipherTraits>::errors();
-    if (out_.size() > 0) {
+
+    if (errors->Empty())
+      errors->Capture();
+
+    if (out_.size() > 0 || errors->Empty()) {
       CHECK(errors->Empty());
       *err = v8::Undefined(env->isolate());
       *result = out_.ToArrayBuffer(env);
       return v8::Just(!result->IsEmpty());
     }
 
-    if (errors->Empty())
-      errors->Capture();
-    CHECK(!errors->Empty());
     *result = v8::Undefined(env->isolate());
     return v8::Just(errors->ToException(env).ToLocal(err));
   }

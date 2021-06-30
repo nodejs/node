@@ -1261,6 +1261,7 @@ thread spawned will spawn another until the application crashes.
 [`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
 [`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
 [`WebAssembly.Module`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Module
+[`Worker constructor options`]: #worker_threads_new_worker_filename_options
 [`Worker`]: #worker_threads_class_worker
 [`cluster` module]: cluster.md
 [`data:` URL]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
@@ -1283,17 +1284,16 @@ thread spawned will spawn another until the application crashes.
 [`process.title`]: process.md#process_process_title
 [`require('worker_threads').isMainThread`]: #worker_threads_worker_ismainthread
 [`require('worker_threads').parentPort.on('message')`]: #worker_threads_event_message
-[`require('worker_threads').parentPort`]: #worker_threads_worker_parentport
 [`require('worker_threads').parentPort.postMessage()`]: #worker_threads_worker_postmessage_value_transferlist
+[`require('worker_threads').parentPort`]: #worker_threads_worker_parentport
 [`require('worker_threads').threadId`]: #worker_threads_worker_threadid
 [`require('worker_threads').workerData`]: #worker_threads_worker_workerdata
 [`trace_events`]: tracing.md
 [`v8.getHeapSnapshot()`]: v8.md#v8_v8_getheapsnapshot
 [`vm`]: vm.md
-[`Worker constructor options`]: #worker_threads_new_worker_filename_options
+[`worker.SHARE_ENV`]: #worker_threads_worker_share_env
 [`worker.on('message')`]: #worker_threads_event_message_1
 [`worker.postMessage()`]: #worker_threads_worker_postmessage_value_transferlist
-[`worker.SHARE_ENV`]: #worker_threads_worker_share_env
 [`worker.terminate()`]: #worker_threads_worker_terminate
 [`worker.threadId`]: #worker_threads_worker_threadid_1
 [async-resource-worker-pool]: async_hooks.md#async-resource-worker-pool

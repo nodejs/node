@@ -11,7 +11,11 @@ to report arbitrary message data for diagnostics purposes.
 
 It can be accessed using:
 
-```js
+```mjs
+import diagnostics_channel from 'diagnostics_channel';
+```
+
+```cjs
 const diagnostics_channel = require('diagnostics_channel');
 ```
 
@@ -33,7 +37,27 @@ other modules.
 
 Following is a simple overview of the public API.
 
-```js
+```mjs
+import diagnostics_channel from 'diagnostics_channel';
+
+// Get a reusable channel object
+const channel = diagnostics_channel.channel('my-channel');
+
+// Subscribe to the channel
+channel.subscribe((message, name) => {
+  // Received data
+});
+
+// Check if the channel has an active subscriber
+if (channel.hasSubscribers) {
+  // Publish data to the channel
+  channel.publish({
+    some: 'data'
+  });
+}
+```
+
+```cjs
 const diagnostics_channel = require('diagnostics_channel');
 
 // Get a reusable channel object
@@ -64,7 +88,15 @@ the message you want to send might be expensive to prepare.
 This API is optional but helpful when trying to publish messages from very
 performance-sensitive code.
 
-```js
+```mjs
+import diagnostics_channel from 'diagnostics_channel';
+
+if (diagnostics_channel.hasSubscribers('my-channel')) {
+  // There are subscribers, prepare and publish message
+}
+```
+
+```cjs
 const diagnostics_channel = require('diagnostics_channel');
 
 if (diagnostics_channel.hasSubscribers('my-channel')) {
@@ -81,7 +113,13 @@ This is the primary entry-point for anyone wanting to interact with a named
 channel. It produces a channel object which is optimized to reduce overhead at
 publish time as much as possible.
 
-```js
+```mjs
+import diagnostics_channel from 'diagnostics_channel';
+
+const channel = diagnostics_channel.channel('my-channel');
+```
+
+```cjs
 const diagnostics_channel = require('diagnostics_channel');
 
 const channel = diagnostics_channel.channel('my-channel');
@@ -107,7 +145,17 @@ the message you want to send might be expensive to prepare.
 This API is optional but helpful when trying to publish messages from very
 performance-sensitive code.
 
-```js
+```mjs
+import diagnostics_channel from 'diagnostics_channel';
+
+const channel = diagnostics_channel.channel('my-channel');
+
+if (channel.hasSubscribers) {
+  // There are subscribers, prepare and publish message
+}
+```
+
+```cjs
 const diagnostics_channel = require('diagnostics_channel');
 
 const channel = diagnostics_channel.channel('my-channel');
@@ -124,7 +172,17 @@ if (channel.hasSubscribers) {
 Publish a message to any subscribers to the channel. This will trigger
 message handlers synchronously so they will execute within the same context.
 
-```js
+```mjs
+import diagnostics_channel from 'diagnostics_channel';
+
+const channel = diagnostics_channel.channel('my-channel');
+
+channel.publish({
+  some: 'message'
+});
+```
+
+```cjs
 const diagnostics_channel = require('diagnostics_channel');
 
 const channel = diagnostics_channel.channel('my-channel');
@@ -144,7 +202,17 @@ Register a message handler to subscribe to this channel. This message handler
 will be run synchronously whenever a message is published to the channel. Any
 errors thrown in the message handler will trigger an [`'uncaughtException'`][].
 
-```js
+```mjs
+import diagnostics_channel from 'diagnostics_channel';
+
+const channel = diagnostics_channel.channel('my-channel');
+
+channel.subscribe((message, name) => {
+  // Received data
+});
+```
+
+```cjs
 const diagnostics_channel = require('diagnostics_channel');
 
 const channel = diagnostics_channel.channel('my-channel');
@@ -161,7 +229,21 @@ channel.subscribe((message, name) => {
 Remove a message handler previously registered to this channel with
 [`channel.subscribe(onMessage)`][].
 
-```js
+```mjs
+import diagnostics_channel from 'diagnostics_channel';
+
+const channel = diagnostics_channel.channel('my-channel');
+
+function onMessage(message, name) {
+  // Received data
+}
+
+channel.subscribe(onMessage);
+
+channel.unsubscribe(onMessage);
+```
+
+```cjs
 const diagnostics_channel = require('diagnostics_channel');
 
 const channel = diagnostics_channel.channel('my-channel');
@@ -175,6 +257,6 @@ channel.subscribe(onMessage);
 channel.unsubscribe(onMessage);
 ```
 
-[`diagnostics_channel.channel(name)`]: #diagnostics_channel_diagnostics_channel_channel_name
-[`channel.subscribe(onMessage)`]: #diagnostics_channel_channel_subscribe_onmessage
 [`'uncaughtException'`]: process.md#process_event_uncaughtexception
+[`channel.subscribe(onMessage)`]: #diagnostics_channel_channel_subscribe_onmessage
+[`diagnostics_channel.channel(name)`]: #diagnostics_channel_diagnostics_channel_channel_name

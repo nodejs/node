@@ -1,6 +1,6 @@
-const Minipass = require('minipass')
 const t = require('tap')
-const mockNpm = require('../fixtures/mock-npm')
+const Minipass = require('minipass')
+const { fake: mockNpm } = require('../fixtures/mock-npm')
 const libnpmsearchResultFixture =
   require('../fixtures/libnpmsearch-stream-result.js')
 

@@ -802,6 +802,10 @@ rejection only when `recursive` is false.
 ### `fsPromises.mkdtemp(prefix[, options])`
 <!-- YAML
 added: v10.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/39028
+    description: The `prefix` parameter now accepts an empty string.
 -->
 
 * `prefix` {string}
@@ -1313,6 +1317,7 @@ to be written.
 
 ```mjs
 import { writeFile } from 'fs/promises';
+import { Buffer } from 'buffer';
 
 try {
   const controller = new AbortController();
@@ -2573,6 +2578,9 @@ See the POSIX mkdir(2) documentation for more details.
 <!-- YAML
 added: v5.10.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/39028
+    description: The `prefix` parameter now accepts an empty string.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/12562
     description: The `callback` parameter is no longer optional. Not passing
@@ -3951,6 +3959,7 @@ If `data` is a normal object, it must have an own `toString` function property.
 
 ```mjs
 import { writeFile } from 'fs';
+import { Buffer } from 'buffer';
 
 const data = new Uint8Array(Buffer.from('Hello Node.js'));
 writeFile('message.txt', data, (err) => {
@@ -3981,6 +3990,7 @@ to be written.
 
 ```mjs
 import { writeFile } from 'fs';
+import { Buffer } from 'buffer';
 
 const controller = new AbortController();
 const { signal } = controller;
@@ -4002,6 +4012,7 @@ calling `fs.write()` like:
 
 ```mjs
 import { write } from 'fs';
+import { Buffer } from 'buffer';
 
 write(fd, Buffer.from(data, options.encoding), callback);
 ```
@@ -4505,6 +4516,10 @@ See the POSIX mkdir(2) documentation for more details.
 ### `fs.mkdtempSync(prefix[, options])`
 <!-- YAML
 added: v5.10.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/39028
+    description: The `prefix` parameter now accepts an empty string.
 -->
 
 * `prefix` {string}
@@ -6522,6 +6537,7 @@ Example using an absolute path on POSIX:
 
 ```mjs
 import { open } from 'fs/promises';
+import { Buffer } from 'buffer';
 
 let fd;
 try {
@@ -6713,7 +6729,6 @@ the file contents.
 [Naming Files, Paths, and Namespaces]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file
 [Readable Stream]: stream.md#stream_class_stream_readable
 [Writable Stream]: stream.md#stream_class_stream_writable
-[caveats]: #fs_caveats
 [`AHAFS`]: https://developer.ibm.com/articles/au-aix_event_infrastructure/
 [`Buffer.byteLength`]: buffer.md#buffer_static_method_buffer_bytelength_string_encoding
 [`FSEvents`]: https://developer.apple.com/documentation/coreservices/file_system_events
@@ -6728,7 +6743,7 @@ the file contents.
 [`fs.copyFile()`]: #fs_fs_copyfile_src_dest_mode_callback
 [`fs.createReadStream()`]: #fs_fs_createreadstream_path_options
 [`fs.createWriteStream()`]: #fs_fs_createwritestream_path_options
-[`fs.exists()`]: fs.md#fs_fs_exists_path_callback
+[`fs.exists()`]: #fs_fs_exists_path_callback
 [`fs.fstat()`]: #fs_fs_fstat_fd_options_callback
 [`fs.ftruncate()`]: #fs_fs_ftruncate_fd_len_callback
 [`fs.futimes()`]: #fs_fs_futimes_fd_atime_mtime_callback
@@ -6766,6 +6781,7 @@ the file contents.
 [`kqueue(2)`]: https://www.freebsd.org/cgi/man.cgi?query=kqueue&sektion=2
 [`util.promisify()`]: util.md#util_util_promisify_original
 [bigints]: https://tc39.github.io/proposal-bigint
+[caveats]: #fs_caveats
 [chcp]: https://ss64.com/nt/chcp.html
 [inode]: https://en.wikipedia.org/wiki/Inode
 [support of file system `flags`]: #fs_file_system_flags

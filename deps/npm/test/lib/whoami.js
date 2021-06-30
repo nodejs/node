@@ -1,5 +1,5 @@
 const t = require('tap')
-const mockNpm = require('../fixtures/mock-npm')
+const { fake: mockNpm } = require('../fixtures/mock-npm')
 
 t.test('whoami', (t) => {
   t.plan(3)

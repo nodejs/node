@@ -14,3 +14,9 @@ module.exports = () => {
     }
   })
 }
+
+// for tests
+/* istanbul ignore next */
+module.exports.reset = () => {
+  process.removeAllListeners('log')
+}

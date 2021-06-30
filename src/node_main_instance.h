@@ -59,6 +59,7 @@ class NodeMainInstance {
 
   // Start running the Node.js instances, return the exit code when finished.
   int Run(const EnvSerializeInfo* env_info);
+  void Run(int* exit_code, Environment* env);
 
   IsolateData* isolate_data() { return isolate_data_.get(); }
 
