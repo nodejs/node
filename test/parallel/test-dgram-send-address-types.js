@@ -13,7 +13,7 @@ const client = dgram.createSocket('udp4').bind(0, () => {
   const port = client.address().port;
 
   // Check valid addresses
-  [false, '', null, 0, undefined].forEach((address) => {
+  ['', null, undefined].forEach((address) => {
     client.send(buf, port, address, onMessage);
   });
 
