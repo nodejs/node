@@ -27,7 +27,7 @@ class Ping extends BaseCommand {
     const start = Date.now()
     const details = await pingUtil(this.npm.flatOptions)
     const time = Date.now() - start
-    log.notice('PONG', `${time / 1000}ms`)
+    log.notice('PONG', `${time}ms`)
     if (this.npm.config.get('json')) {
       this.npm.output(JSON.stringify({
         registry: this.npm.config.get('registry'),
