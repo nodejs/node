@@ -109,6 +109,10 @@ process = Object.assign(
 // in order for tap to exit properly
 t.teardown(() => {
   process = _process
+})
+
+t.afterEach(() => {
+  // clear out the 'A complete log' message
   npmlog.record.length = 0
 })
 

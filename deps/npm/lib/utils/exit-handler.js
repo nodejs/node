@@ -58,6 +58,7 @@ process.on('exit', code => {
   if (!code)
     log.info('ok')
   else {
+    log.verbose('code', code)
     if (!exitHandlerCalled) {
       log.error('', 'Exit handler never called!')
       console.error('')
@@ -66,7 +67,6 @@ process.on('exit', code => {
       // TODO this doesn't have an npm.config.loaded guard
       writeLogFile()
     }
-    log.verbose('code', code)
   }
   // In timing mode we always write the log file
   if (npm.config && npm.config.loaded && npm.config.get('timing') && !wroteLogFile)
@@ -107,8 +107,6 @@ const exit = (code, noLog) => {
   // background at this point, and this makes sure anything left dangling
   // for whatever reason gets thrown away, instead of leaving the CLI open
   process.stdout.write('', () => {
-    // `|| process.exitCode` supports a single use case, where we set the exit
-    // code to 1 if npm is called with no arguments
     process.exit(code)
   })
 }

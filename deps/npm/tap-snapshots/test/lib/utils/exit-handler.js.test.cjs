@@ -6,18 +6,15 @@
  */
 'use strict'
 exports[`test/lib/utils/exit-handler.js TAP handles unknown error > should have expected log contents for unknown error 1`] = `
-0 verbose code 1
-1 error foo A complete log of this run can be found in:
-1 error foo     {CWD}/test/lib/utils/tap-testdir-exit-handler/_logs/expecteddate-debug.log
-2 verbose stack Error: ERROR
-3 verbose cwd {CWD}
-4 verbose Foo 1.0.0
-5 verbose argv "/node" "{CWD}/test/lib/utils/exit-handler.js"
-6 verbose node v1.0.0
-7 verbose npm  v1.0.0
-8 error foo code ERROR
-9 error foo ERR ERROR
-10 error foo ERR ERROR
-11 verbose exit 1
+0 verbose stack Error: ERROR
+1 verbose cwd {CWD}
+2 verbose Foo 1.0.0
+3 verbose argv "/node" "{CWD}/test/lib/utils/exit-handler.js"
+4 verbose node v1.0.0
+5 verbose npm  v1.0.0
+6 error foo code ERROR
+7 error foo ERR ERROR
+8 error foo ERR ERROR
+9 verbose exit 1
 
 `
