@@ -59,7 +59,7 @@ information described.
 
 * [ ] Notify [docker-node][] of upcoming security release date: ***LINK***
   ```text
-  Heads up of Node.js security releases Month Day Year
+  Heads up of Node.js security releases Day Month Year
 
   As per the Node.js security release process this is the FYI that there is going to be a security release Day Month Year
   ```
@@ -67,9 +67,9 @@ information described.
 * [ ] Notify build-wg of upcoming security release date by opening an issue
   in [nodejs/build][] to request WG members are available to fix any CI issues.
   ```text
-  Heads up of Node.js security releases Month Day Year
+  Heads up of Node.js security releases Day Month Year
 
-  As per security release process this is a heads up that there will be security releases Month Day Year and we'll need people from build to lock/unlock ci and to support and build issues we see.
+  As per security release process this is a heads up that there will be security releases Day Month Year and we'll need people from build to lock/unlock ci and to support and build issues we see.
   ```
 
 ## Release day
