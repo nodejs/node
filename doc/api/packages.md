@@ -635,9 +635,9 @@ Platform specific conditions such as `"deno"`, `"electron"`, or `"react-native"`
 may be used, but while there remain no implementation or integration intent
 from these platforms, the above are not explicitly endorsed by Node.js.
 
-New conditions definitions may be added to this list by creating a PR to the
-[Node.js documentation for this section][]. The requirements for listing a
-new condition definition here are that:
+New conditions definitions may be added to this list by creating a pull request
+to the [Node.js documentation for this section][]. The requirements for listing
+a new condition definition here are that:
 
 * The definition should be clear and unambiguous for all implementers.
 * The use case for why the condition is needed should be clearly justified.
