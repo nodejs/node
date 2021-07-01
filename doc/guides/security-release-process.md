@@ -100,6 +100,10 @@ information described.
 * [ ] PR machine-readable JSON descriptions of the vulnerabilities to the
   [core](https://github.com/nodejs/security-wg/tree/HEAD/vuln/core)
   vulnerability DB. ***LINK TO PR***
+  * For each vulnerability add a `#.json` file, one can copy an existing
+    [json](https://github.com/nodejs/security-wg/blob/0d82062d917cb9ddab88f910559469b2b13812bf/vuln/core/78.json)
+    file, and increment the latest created file number and use that as the name
+    of the new file to be added. For example, `79.json`.
 
 * [ ] Close this issue
 
