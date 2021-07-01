@@ -78,6 +78,21 @@ t.test('invalid semver range', t => {
   })
 })
 
+t.test('undeprecate', t => {
+  deprecate.exec(['foo', ''], (err) => {
+    if (err)
+      throw err
+    t.match(npmFetchBody, {
+      versions: {
+        '1.0.0': { deprecated: '' },
+        '1.0.1': { deprecated: '' },
+        '1.0.1-pre': { deprecated: '' },
+      },
+    }, 'undeprecates everything')
+    t.end()
+  })
+})
+
 t.test('deprecates given range', t => {
   t.teardown(() => {
     npmFetchBody = null

@@ -1,4 +1,4 @@
-.TH "PACKAGE\.JSON" "5" "June 2021" "" ""
+.TH "PACKAGE\.JSON" "5" "July 2021" "" ""
 .SH "NAME"
 \fBpackage.json\fR \- Specifics of npm's package\.json handling
 .SS Description
@@ -608,12 +608,8 @@ had the following:
 .fi
 .RE
 .P
-and then had a "start" command that then referenced the
-\fBnpm_package_config_port\fP environment variable, then the user could
-override that by doing \fBnpm config set foo:port 8001\fP\|\.
-.P
-See npm help \fBconfig\fP and npm help \fBscripts\fP for
-more on package configs\.
+It could also have a "start" command that referenced the
+\fBnpm_package_config_port\fP environment variable\.
 .SS dependencies
 .P
 Dependencies are specified in a simple object that maps a package name to a

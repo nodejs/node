@@ -49,7 +49,8 @@ class Deprecate extends BaseCommand {
   }
 
   async deprecate ([pkg, msg]) {
-    if (!pkg || !msg)
+    // msg == null becase '' is a valid value, it indicates undeprecate
+    if (!pkg || msg == null)
       throw this.usageError()
 
     // fetch the data and make sure it exists.

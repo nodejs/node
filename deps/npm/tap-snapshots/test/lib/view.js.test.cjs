@@ -82,7 +82,7 @@ dist
 dist-tags:
 [1m[32mlatest[39m[22m: 1.0.0
 
-published [33ma year ago[39m
+published {TIME} ago[39m
 `
 
 exports[`test/lib/view.js TAP should log info of package in current working dir specific version > must match snapshot 1`] = `
@@ -99,7 +99,7 @@ dist
 dist-tags:
 [1m[32mlatest[39m[22m: 1.0.0
 
-published [33ma year ago[39m
+published {TIME} ago[39m
 `
 
 exports[`test/lib/view.js TAP should log package info package from git > must match snapshot 1`] = `
@@ -302,7 +302,7 @@ dist
 dist-tags:
 [1m[32mlatest[39m[22m: 1.0.0
 
-published [33ma year ago[39m
+published {TIME} ago[39m
 `
 
 exports[`test/lib/view.js TAP workspaces all workspaces --json > must match snapshot 1`] = `

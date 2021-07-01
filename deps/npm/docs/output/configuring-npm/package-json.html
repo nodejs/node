@@ -555,11 +555,8 @@ had the following:</p>
   }
 }
 </code></pre>
-<p>and then had a “start” command that then referenced the
-<code>npm_package_config_port</code> environment variable, then the user could
-override that by doing <code>npm config set foo:port 8001</code>.</p>
-<p>See <a href="../using-npm/config.html"><code>config</code></a> and <a href="../using-npm/scripts.html"><code>scripts</code></a> for
-more on package configs.</p>
+<p>It could also have a “start” command that referenced the
+<code>npm_package_config_port</code> environment variable.</p>
 <h3 id="dependencies">dependencies</h3>
 <p>Dependencies are specified in a simple object that maps a package name to a
 version range. The version range is a string which has one or more
