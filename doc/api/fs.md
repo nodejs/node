@@ -14,24 +14,20 @@ way modeled on standard POSIX functions.
 To use the promise-based APIs:
 
 ```mjs
-// Using ESM Module syntax:
 import * as fs from 'fs/promises';
 ```
 
 ```cjs
-// Using CommonJS syntax:
 const fs = require('fs/promises');
 ```
 
 To use the callback and sync APIs:
 
 ```mjs
-// Using ESM Module syntax:
 import * as fs from 'fs';
 ```
 
 ```cjs
-// Using CommonJS syntax:
 const fs = require('fs');
 ```
 
@@ -44,7 +40,6 @@ Promise-based operations return a promise that is fulfilled when the
 asynchronous operation is complete.
 
 ```mjs
-// Using ESM Module syntax:
 import { unlink } from 'fs/promises';
 
 try {
@@ -56,7 +51,6 @@ try {
 ```
 
 ```cjs
-// Using CommonJS syntax
 const { unlink } = require('fs/promises');
 
 (async function(path) {
@@ -78,7 +72,6 @@ reserved for an exception. If the operation is completed successfully, then
 the first argument is `null` or `undefined`.
 
 ```mjs
-// Using ESM syntax
 import { unlink } from 'fs';
 
 unlink('/tmp/hello', (err) => {
@@ -88,7 +81,6 @@ unlink('/tmp/hello', (err) => {
 ```
 
 ```cjs
-// Using CommonJS syntax
 const { unlink } = require('fs');
 
 unlink('/tmp/hello', (err) => {
@@ -108,7 +100,6 @@ execution until the operation is complete. Exceptions are thrown immediately
 and can be handled using `try…catch`, or can be allowed to bubble up.
 
 ```mjs
-// Using ESM syntax
 import { unlinkSync } from 'fs';
 
 try {
@@ -120,7 +111,6 @@ try {
 ```
 
 ```cjs
-// Using CommonJS syntax
 const { unlinkSync } = require('fs');
 
 try {
@@ -6339,7 +6329,6 @@ It is important to correctly order the operations by awaiting the results
 of one before invoking the other:
 
 ```mjs
-// Using ESM syntax
 import { rename, stat } from 'fs/promises';
 
 const from = '/tmp/hello';
@@ -6355,7 +6344,6 @@ try {
 ```
 
 ```cjs
-// Using CommonJS syntax
 const { rename, stat } = require('fs/promises');
 
 (async function(from, to) {
