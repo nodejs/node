@@ -1774,7 +1774,7 @@ Assigning properties to the top-level `this` as an alternative
 to `module.exports` is deprecated. Developers should use `exports`
 or `module.exports` instead.
 
-### DEP0093: `crypto.fips` is deprecated and replaced.
+### DEP0093: `crypto.fips` is deprecated and replaced
 <!-- YAML
 changes:
   - version: v10.0.0
@@ -1787,7 +1787,7 @@ Type: Documentation-only
 The [`crypto.fips`][] property is deprecated. Please use `crypto.setFips()`
 and `crypto.getFips()` instead.
 
-### DEP0094: Using `assert.fail()` with more than one argument.
+### DEP0094: Using `assert.fail()` with more than one argument
 <!-- YAML
 changes:
   - version: v10.0.0
@@ -1907,7 +1907,7 @@ Type: End-of-Life
 
 The `--with-lttng` compile-time option has been removed.
 
-### DEP0102: Using `noAssert` in `Buffer#(read|write)` operations.
+### DEP0102: Using `noAssert` in `Buffer#(read|write)` operations
 <!-- YAML
 changes:
   - version: v10.0.0
