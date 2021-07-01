@@ -288,7 +288,7 @@ export function toLink(typeInput) {
       } else {
         throw new Error(
           `Unrecognized type: '${typeTextFull}'.\n` +
-          "Please, edit the type or update the 'tools/doc/type-parser.js'."
+          `Please, edit the type or update '${import.meta.url}'.`
         );
       }
     } else {
