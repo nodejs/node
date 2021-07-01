@@ -7,7 +7,7 @@ V8_BUILD_OPTIONS=$2
 
 cd deps/v8 || exit
 find . -type d -name .git -print0 | xargs -0 rm -rf
-tools/node/fetch_deps.py .
+../../tools/v8/fetch_deps.py .
 
 ARCH="`arch`"
 if [ "$ARCH" = "s390x" ] || [ "$ARCH" = "ppc64le" ]; then
