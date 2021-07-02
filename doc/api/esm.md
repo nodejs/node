@@ -806,6 +806,30 @@ const require = createRequire(cwd() + '/<preload>');
 }
 ```
 
+In order to allow communication between the application and the loader another
+argument is provided to the preload code `port`. This is available as a
+parameter to the loader hook and inside of the source text returned by the hook.
+Some care must be taken in order to properly `ref()` and `unref()` the
+`MessagePort` to prevent a process from being in a state where it won't close
+normally.
+
+```js
+/**
+ * This example causes
+ * @param {object} utilities
+ * @param {MessagePort} utilities.port
+ */
+export function getGlobalPreloadCode({ port }) {
+  port.onmessage = (evt) => {
+    // ...
+  };
+  return `\
+port.postMessage('I went to the Loader and back');
+port.onmessage = eval;
+`;
+}
+```
+
 ### Examples
 
 The various loader hooks can be used together to accomplish wide-ranging
