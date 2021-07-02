@@ -77,6 +77,7 @@ const expectedModules = new Set([
   'NativeModule internal/modules/esm/module_job',
   'NativeModule internal/modules/esm/module_map',
   'NativeModule internal/modules/esm/resolve',
+  'NativeModule internal/modules/esm/initialize_import_meta',
   'NativeModule internal/modules/esm/translators',
   'NativeModule internal/process/esm_loader',
   'NativeModule internal/options',
