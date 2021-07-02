@@ -608,3 +608,26 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
     assert.strictEqual(closed, true);
   }));
 }
+
+{
+  const w = new Writable();
+  const _err = new Error();
+  w.destroy(_err);
+  finished(w, common.mustCall((err) => {
+    assert.strictEqual(_err, err);
+    finished(w, common.mustCall((err) => {
+      assert.strictEqual(_err, err);
+    }));
+  }));
+}
+
+{
+  const w = new Writable();
+  w.destroy();
+  finished(w, common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_STREAM_PREMATURE_CLOSE');
+    finished(w, common.mustCall((err) => {
+      assert.strictEqual(err.code, 'ERR_STREAM_PREMATURE_CLOSE');
+    }));
+  }));
+}
