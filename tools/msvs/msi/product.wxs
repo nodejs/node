@@ -47,8 +47,6 @@
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR"/>
 
     <!-- PropertyRef of the account users for setting InstallDir permission explicitly -->
-    <Property Id="AUTHENTICATED_USERS" Value="Authenticated Users"/>
-
     <PropertyRef Id="WIX_ACCOUNT_LOCALSYSTEM" />
     <PropertyRef Id="WIX_ACCOUNT_USERS" />
     <PropertyRef Id="WIX_ACCOUNT_ADMINISTRATORS" />
@@ -329,6 +327,12 @@
                   Execute="immediate"
                   Return="check" />
 
+    <CustomAction Id="GetLocalizedUserNames"
+                  BinaryKey="CustomActionsDLL"
+                  DllEntry="GetLocalizedUserNames"
+                  Execute="immediate"
+                  Return="check" />
+
     <Property Id="WixShellExecTarget" Value="[#InstallToolsBat]" />
     <CustomAction Id="LaunchApplication" BinaryKey="WixCA" DllEntry="WixShellExec" />
 
@@ -338,6 +342,7 @@
 
     <InstallExecuteSequence>
       <Custom Action='SetInstallScope' Before='FindRelatedProducts'/>
+      <Custom Action='GetLocalizedUserNames' After='SetInstallScope'/>
       <Custom Action='BroadcastEnvironmentUpdate' After='InstallFinalize'/>
     </InstallExecuteSequence>
 
