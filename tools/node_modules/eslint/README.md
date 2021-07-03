@@ -268,6 +268,11 @@ Anix
 <img src="https://github.com/yeonjuan.png?s=75" width="75" height="75"><br />
 YeonJuan
 </a>
+</td><td align="center" valign="top" width="11%">
+<a href="https://github.com/snitin315">
+<img src="https://github.com/snitin315.png?s=75" width="75" height="75"><br />
+Nitin Kumar
+</a>
 </td></tr></tbody></table>
 
 
