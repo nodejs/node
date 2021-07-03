@@ -681,11 +681,6 @@ kbd {
   visibility: hidden;
 }
 
-.github_icon {
-  vertical-align: middle;
-  margin: -2px 3px 0 0;
-}
-
 /* API reference sidebar */
 @media only screen and (min-width: 1025px) {
   .apidoc #column2 > .line {
