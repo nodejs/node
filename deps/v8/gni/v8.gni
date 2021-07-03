@@ -4,7 +4,7 @@
 
 import("//build/config/sanitizers/sanitizers.gni")
 import("//build/config/v8_target_cpu.gni")
-import("//build/split_static_library.gni")
+import("split_static_library.gni")
 
 declare_args() {
   # Set flags for tracking code coverage. Uses gcov with gcc and sanitizer
