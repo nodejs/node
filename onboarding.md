@@ -81,7 +81,7 @@ The project has two venues for real-time discussion:
   * Be nice about closing issues! Let people know why, and that issues and PRs
     can be reopened if necessary
 
-* [**See "Labels"**](./doc/guides/onboarding-extras.md#labels)
+* See [Labels][].
   * There is [a bot](https://github.com/nodejs-github-bot/github-bot) that
     applies subsystem labels (for example, `doc`, `test`, `assert`, or `buffer`)
     so that we know what parts of the code base the pull request modifies. It is
@@ -239,6 +239,7 @@ needs to be pointed out separately during the onboarding.
   the [summit](https://github.com/nodejs/summit) repository for details.
 
 [Code of Conduct]: https://github.com/nodejs/admin/blob/HEAD/CODE_OF_CONDUCT.md
+[Labels]: doc/guides/collaborator-guide.md#labels
 [Landing Pull Requests]: doc/guides/collaborator-guide.md#landing-pull-requests
 [Publicizing or hiding organization membership]: https://help.github.com/articles/publicizing-or-hiding-organization-membership/
 [`author-ready`]: doc/guides/collaborator-guide.md#author-ready-pull-requests
