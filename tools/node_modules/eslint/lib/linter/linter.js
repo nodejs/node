@@ -37,8 +37,10 @@ const
 const debug = require("debug")("eslint:linter");
 const MAX_AUTOFIX_PASSES = 10;
 const DEFAULT_PARSER_NAME = "espree";
+const DEFAULT_ECMA_VERSION = 5;
 const commentParser = new ConfigCommentParser();
 const DEFAULT_ERROR_LOC = { start: { line: 1, column: 0 }, end: { line: 1, column: 1 } };
+const parserSymbol = Symbol.for("eslint.RuleTester.parser");
 
 //------------------------------------------------------------------------------
 // Typedefs
@@ -432,10 +434,16 @@ function getDirectiveComments(filename, ast, ruleMapper, warnInlineConfig) {
 
 /**
  * Normalize ECMAScript version from the initial config
- * @param  {number} ecmaVersion ECMAScript version from the initial config
+ * @param {Parser} parser The parser which uses this options.
+ * @param {number} ecmaVersion ECMAScript version from the initial config
  * @returns {number} normalized ECMAScript version
  */
-function normalizeEcmaVersion(ecmaVersion) {
+function normalizeEcmaVersion(parser, ecmaVersion) {
+    if ((parser[parserSymbol] || parser) === espree) {
+        if (ecmaVersion === "latest") {
+            return espree.latestEcmaVersion;
+        }
+    }
 
     /*
      * Calculate ECMAScript edition number from official year version starting with
@@ -521,12 +529,13 @@ function normalizeVerifyOptions(providedOptions, config) {
 
 /**
  * Combines the provided parserOptions with the options from environments
- * @param {string} parserName The parser name which uses this options.
+ * @param {Parser} parser The parser which uses this options.
  * @param {ParserOptions} providedOptions The provided 'parserOptions' key in a config
  * @param {Environment[]} enabledEnvironments The environments enabled in configuration and with inline comments
  * @returns {ParserOptions} Resulting parser options after merge
  */
-function resolveParserOptions(parserName, providedOptions, enabledEnvironments) {
+function resolveParserOptions(parser, providedOptions, enabledEnvironments) {
+
     const parserOptionsFromEnv = enabledEnvironments
         .filter(env => env.parserOptions)
         .reduce((parserOptions, env) => merge(parserOptions, env.parserOptions), {});
@@ -542,12 +551,7 @@ function resolveParserOptions(parserName, providedOptions, enabledEnvironments) 
         mergedParserOptions.ecmaFeatures = Object.assign({}, mergedParserOptions.ecmaFeatures, { globalReturn: false });
     }
 
-    /*
-     * TODO: @aladdin-add
-     * 1. for a 3rd-party parser, do not normalize parserOptions
-     * 2. for espree, no need to do this (espree will do it)
-     */
-    mergedParserOptions.ecmaVersion = normalizeEcmaVersion(mergedParserOptions.ecmaVersion);
+    mergedParserOptions.ecmaVersion = normalizeEcmaVersion(parser, mergedParserOptions.ecmaVersion);
 
     return mergedParserOptions;
 }
@@ -606,7 +610,7 @@ function getRuleOptions(ruleConfig) {
  */
 function analyzeScope(ast, parserOptions, visitorKeys) {
     const ecmaFeatures = parserOptions.ecmaFeatures || {};
-    const ecmaVersion = parserOptions.ecmaVersion || 5;
+    const ecmaVersion = parserOptions.ecmaVersion || DEFAULT_ECMA_VERSION;
 
     return eslintScope.analyze(ast, {
         ignoreEval: true,
@@ -1123,7 +1127,7 @@ class Linter {
             .map(envName => getEnv(slots, envName))
             .filter(env => env);
 
-        const parserOptions = resolveParserOptions(parserName, config.parserOptions || {}, enabledEnvs);
+        const parserOptions = resolveParserOptions(parser, config.parserOptions || {}, enabledEnvs);
         const configuredGlobals = resolveGlobals(config.globals || {}, enabledEnvs);
         const settings = config.settings || {};
 

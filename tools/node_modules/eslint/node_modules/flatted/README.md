@@ -18,10 +18,10 @@ Usable via [CDN](https://unpkg.com/flatted) or as regular module.
 
 ```js
 // ESM
-import {parse, stringify} from 'flatted';
+import {parse, stringify, toJSON, fromJSON} from 'flatted';
 
 // CJS
-const {parse, stringify} = require('flatted');
+const {parse, stringify, toJSON, fromJSON} = require('flatted');
 
 const a = [{}];
 a[0].a = a;
@@ -29,6 +29,34 @@ a.push(a);
 
 stringify(a); // [["1","0"],{"a":"0"}]
 ```
+
+## toJSON and from JSON
+
+If you'd like to implicitly survive JSON serialization, these two helpers helps:
+
+```js
+import {toJSON, fromJSON} from 'flatted';
+
+class RecursiveMap extends Map {
+  static fromJSON(any) {
+    return new this(fromJSON(any));
+  }
+  toJSON() {
+    return toJSON([...this.entries()]);
+  }
+}
+
+const recursive = new RecursiveMap;
+const same = {};
+same.same = same;
+recursive.set('same', same);
+
+const asString = JSON.stringify(recursive);
+const asMap = RecursiveMap.fromJSON(JSON.parse(asString));
+asMap.get('same') === asMap.get('same').same;
+// true
+```
+
 
 ## Flatted VS JSON
 

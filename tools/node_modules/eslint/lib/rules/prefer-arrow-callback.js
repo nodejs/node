@@ -295,7 +295,7 @@ module.exports = {
                                  * If the callback function has duplicates in its list of parameters (possible in sloppy mode),
                                  * don't replace it with an arrow function, because this is a SyntaxError with arrow functions.
                                  */
-                                return; // eslint-disable-line eslint-plugin/fixer-return -- false positive
+                                return;
                             }
 
                             // Remove `.bind(this)` if exists.
@@ -307,7 +307,7 @@ module.exports = {
                                  * E.g. `(foo || function(){}).bind(this)`
                                  */
                                 if (memberNode.type !== "MemberExpression") {
-                                    return; // eslint-disable-line eslint-plugin/fixer-return -- false positive
+                                    return;
                                 }
 
                                 const callNode = memberNode.parent;
@@ -320,12 +320,12 @@ module.exports = {
                                  *                    ^^^^^^^^^^^^
                                  */
                                 if (astUtils.isParenthesised(sourceCode, memberNode)) {
-                                    return; // eslint-disable-line eslint-plugin/fixer-return -- false positive
+                                    return;
                                 }
 
                                 // If comments exist in the `.bind(this)`, don't remove those.
                                 if (sourceCode.commentsExistBetween(firstTokenToRemove, lastTokenToRemove)) {
-                                    return; // eslint-disable-line eslint-plugin/fixer-return -- false positive
+                                    return;
                                 }
 
                                 yield fixer.removeRange([firstTokenToRemove.range[0], lastTokenToRemove.range[1]]);
