@@ -891,10 +891,11 @@ TEST(JsonIntegrationTest) {
   std::vector<std::string> all_args;
   GetJSONStrings(&all_args, json, "\"args\"", "{", "}");
 
-  CHECK_EQ("\"1\":1e+100", all_args[0]);
-  CHECK_EQ("\"2\":\"NaN\"", all_args[1]);
-  CHECK_EQ("\"3\":\"Infinity\"", all_args[2]);
-  CHECK_EQ("\"4\":\"-Infinity\"", all_args[3]);
+  // Ignore the first metadata event.
+  CHECK_EQ("\"1\":1e+100", all_args[1]);
+  CHECK_EQ("\"2\":\"NaN\"", all_args[2]);
+  CHECK_EQ("\"3\":\"Infinity\"", all_args[3]);
+  CHECK_EQ("\"4\":\"-Infinity\"", all_args[4]);
 }
 
 TEST(TracingPerfetto) {
