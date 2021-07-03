@@ -2855,8 +2855,8 @@ assert.strictEqual(
     '<ref *1> Foo [Map] {\n' +
     '    [constructor]: [class Bar extends Foo] {\n' +
     '      [length]: 0,\n' +
-    '      [prototype]: [Circular *1],\n' +
     "      [name]: 'Bar',\n" +
+    '      [prototype]: [Circular *1],\n' +
     '      [Symbol(Symbol.species)]: [Getter: <Inspection threw ' +
       "(Symbol.prototype.toString requires that 'this' be a Symbol)>]\n" +
     '    },\n' +
