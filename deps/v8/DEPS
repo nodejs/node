@@ -2,7 +2,15 @@
 # directory and assume that the root of the checkout is in ./v8/, so
 # all paths in here must match this assumption.
 
+gclient_gn_args_file = 'v8/build/config/gclient_args.gni'
+gclient_gn_args = [
+  'checkout_aemu'
+]
+
 vars = {
+  # By Default, do not checkout AEMU, as it is too big, as is done in Chromium.
+  'checkout_aemu': False,
+
   # Fetches only the SDK boot images which match at least one of the whitelist
   # entries in a comma-separated list.
   #
