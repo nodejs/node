@@ -94,7 +94,7 @@ module.exports = {
 
                         // Don't perform any fixes if there are comments inside the brackets.
                         if (sourceCode.commentsExistBetween(leftBracket, rightBracket)) {
-                            return; // eslint-disable-line eslint-plugin/fixer-return -- false positive
+                            return;
                         }
 
                         // Replace the brackets by an identifier.
@@ -154,12 +154,12 @@ module.exports = {
 
                             // A statement that starts with `let[` is parsed as a destructuring variable declaration, not a MemberExpression.
                             if (node.object.type === "Identifier" && node.object.name === "let" && !node.optional) {
-                                return; // eslint-disable-line eslint-plugin/fixer-return -- false positive
+                                return;
                             }
 
                             // Don't perform any fixes if there are comments between the dot and the property name.
                             if (sourceCode.commentsExistBetween(dotToken, node.property)) {
-                                return; // eslint-disable-line eslint-plugin/fixer-return -- false positive
+                                return;
                             }
 
                             // Replace the identifier to brackets.

@@ -53,6 +53,7 @@ const
 const ajv = require("../shared/ajv")({ strictDefaults: true });
 
 const espreePath = require.resolve("espree");
+const parserSymbol = Symbol.for("eslint.RuleTester.parser");
 
 //------------------------------------------------------------------------------
 // Typedefs
@@ -239,6 +240,7 @@ function defineStartEndAsError(objName, node) {
     });
 }
 
+
 /**
  * Define `start`/`end` properties of all nodes of the given AST as throwing error.
  * @param {ASTNode} ast The root node to errorize `start`/`end` properties.
@@ -258,8 +260,10 @@ function defineStartEndAsErrorInTree(ast, visitorKeys) {
  * @returns {Parser} Wrapped parser object.
  */
 function wrapParser(parser) {
+
     if (typeof parser.parseForESLint === "function") {
         return {
+            [parserSymbol]: parser,
             parseForESLint(...args) {
                 const ret = parser.parseForESLint(...args);
 
@@ -268,7 +272,9 @@ function wrapParser(parser) {
             }
         };
     }
+
     return {
+        [parserSymbol]: parser,
         parse(...args) {
             const ast = parser.parse(...args);
 

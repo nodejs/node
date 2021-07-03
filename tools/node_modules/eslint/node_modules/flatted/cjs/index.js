@@ -92,3 +92,8 @@ const stringify = (value, replacer, space) => {
   }
 };
 exports.stringify = stringify;
+
+const toJSON = any => $parse(stringify(any));
+exports.toJSON = toJSON;
+const fromJSON = any => parse($stringify(any));
+exports.fromJSON = fromJSON;

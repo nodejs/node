@@ -110,9 +110,17 @@ self.Flatted = (function (exports) {
       return after;
     }
   };
+  var toJSON = function toJSON(any) {
+    return $parse(stringify(any));
+  };
+  var fromJSON = function fromJSON(any) {
+    return parse($stringify(any));
+  };
 
+  exports.fromJSON = fromJSON;
   exports.parse = parse;
   exports.stringify = stringify;
+  exports.toJSON = toJSON;
 
   return exports;
 
