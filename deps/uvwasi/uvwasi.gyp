@@ -18,9 +18,6 @@
         'src/wasi_rights.c',
         'src/wasi_serdes.c',
       ],
-      'dependencies': [
-        '../uv/uv.gyp:libuv',
-      ],
       'direct_dependent_settings': {
         'include_dirs': ['include']
       },
@@ -29,6 +26,11 @@
           'defines': [
             '_GNU_SOURCE',
             '_POSIX_C_SOURCE=200112',
+          ],
+        }],
+        [ 'node_shared_libuv=="false"', {
+          'dependencies': [
+            '../uv/uv.gyp:libuv',
           ],
         }],
       ],
