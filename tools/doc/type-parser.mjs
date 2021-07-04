@@ -193,7 +193,12 @@ const customTypesMap = {
   'PerformanceObserverEntryList':
     'perf_hooks.html#perf_hooks_class_performanceobserverentrylist',
 
-  'readline.Interface': 'readline.html#readline_class_interface',
+  'readline.Interface':
+    'readline.html#readline_class_readline_interface',
+  'readline.InterfaceConstructor':
+    'readline.html#readline_class_interfaceconstructor',
+  'readlinePromises.Interface':
+    'readline.html#readline_class_readlinepromises_interface',
 
   'repl.REPLServer': 'repl.html#repl_class_replserver',
 
