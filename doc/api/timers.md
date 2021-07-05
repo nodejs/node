@@ -321,14 +321,14 @@ added: v0.0.1
 Cancels a `Timeout` object created by [`setTimeout()`][].
 
 [Event Loop]: https://nodejs.org/en/docs/guides/event-loop-timers-and-nexttick/#setimmediate-vs-settimeout
-[`AbortController`]: globals.md#globals_class_abortcontroller
-[`TypeError`]: errors.md#errors_class_typeerror
-[`clearImmediate()`]: #timers_clearimmediate_immediate
-[`clearInterval()`]: #timers_clearinterval_timeout
-[`clearTimeout()`]: #timers_cleartimeout_timeout
-[`setImmediate()`]: #timers_setimmediate_callback_args
-[`setInterval()`]: #timers_setinterval_callback_delay_args
-[`setTimeout()`]: #timers_settimeout_callback_delay_args
-[`util.promisify()`]: util.md#util_util_promisify_original
+[`AbortController`]: globals.md#class-abortcontroller
+[`TypeError`]: errors.md#class-typeerror
+[`clearImmediate()`]: #clearimmediateimmediate
+[`clearInterval()`]: #clearintervaltimeout
+[`clearTimeout()`]: #cleartimeouttimeout
+[`setImmediate()`]: #setimmediatecallback-args
+[`setInterval()`]: #setintervalcallback-delay-args
+[`setTimeout()`]: #settimeoutcallback-delay-args
+[`util.promisify()`]: util.md#utilpromisifyoriginal
 [`worker_threads`]: worker_threads.md
-[primitive]: #timers_timeout_symbol_toprimitive
+[primitive]: #timeoutsymboltoprimitive

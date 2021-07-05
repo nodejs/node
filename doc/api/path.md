@@ -576,9 +576,9 @@ The `path.win32` property provides access to Windows-specific implementations
 of the `path` methods.
 
 [MSDN-Rel-Path]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file#fully-qualified-vs-relative-paths
-[`TypeError`]: errors.md#errors_class_typeerror
-[`path.parse()`]: #path_path_parse_path
-[`path.posix`]: #path_path_posix
-[`path.sep`]: #path_path_sep
-[`path.win32`]: #path_path_win32
+[`TypeError`]: errors.md#class-typeerror
+[`path.parse()`]: #pathparsepath
+[`path.posix`]: #pathposix
+[`path.sep`]: #pathsep
+[`path.win32`]: #pathwin32
 [namespace-prefixed path]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file#namespaces

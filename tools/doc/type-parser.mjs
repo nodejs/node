@@ -24,8 +24,8 @@ const customTypesMap = {
 
   'this': `${jsDocPrefix}Reference/Operators/this`,
 
-  'AbortController': 'globals.html#globals_class_abortcontroller',
-  'AbortSignal': 'globals.html#globals_class_abortsignal',
+  'AbortController': 'globals.html#class-abortcontroller',
+  'AbortSignal': 'globals.html#class-abortsignal',
 
   'ArrayBufferView':
     'https://developer.mozilla.org/en-US/docs/Web/API/ArrayBufferView',
@@ -38,7 +38,7 @@ const customTypesMap = {
   'WebAssembly.Instance':
     `${jsDocPrefix}Reference/Global_Objects/WebAssembly/Instance`,
 
-  'Blob': 'buffer.html#buffer_class_blob',
+  'Blob': 'buffer.html#class-blob',
 
   'Iterable':
     `${jsDocPrefix}Reference/Iteration_protocols#The_iterable_protocol`,
@@ -48,136 +48,136 @@ const customTypesMap = {
   'Module Namespace Object':
     'https://tc39.github.io/ecma262/#sec-module-namespace-exotic-objects',
 
-  'AsyncHook': 'async_hooks.html#async_hooks_async_hooks_createhook_callbacks',
-  'AsyncResource': 'async_hooks.html#async_hooks_class_asyncresource',
+  'AsyncHook': 'async_hooks.html#async_hookscreatehookcallbacks',
+  'AsyncResource': 'async_hooks.html#class-asyncresource',
 
-  'brotli options': 'zlib.html#zlib_class_brotlioptions',
+  'brotli options': 'zlib.html#class-brotlioptions',
 
-  'Buffer': 'buffer.html#buffer_class_buffer',
+  'Buffer': 'buffer.html#class-buffer',
 
-  'ChildProcess': 'child_process.html#child_process_class_childprocess',
+  'ChildProcess': 'child_process.html#class-childprocess',
 
-  'cluster.Worker': 'cluster.html#cluster_class_worker',
+  'cluster.Worker': 'cluster.html#class-worker',
 
-  'Cipher': 'crypto.html#crypto_class_cipher',
-  'Decipher': 'crypto.html#crypto_class_decipher',
-  'DiffieHellman': 'crypto.html#crypto_class_diffiehellman',
-  'DiffieHellmanGroup': 'crypto.html#crypto_class_diffiehellmangroup',
-  'ECDH': 'crypto.html#crypto_class_ecdh',
-  'Hash': 'crypto.html#crypto_class_hash',
-  'Hmac': 'crypto.html#crypto_class_hmac',
-  'KeyObject': 'crypto.html#crypto_class_keyobject',
-  'Sign': 'crypto.html#crypto_class_sign',
-  'Verify': 'crypto.html#crypto_class_verify',
-  'crypto.constants': 'crypto.html#crypto_crypto_constants_1',
+  'Cipher': 'crypto.html#class-cipher',
+  'Decipher': 'crypto.html#class-decipher',
+  'DiffieHellman': 'crypto.html#class-diffiehellman',
+  'DiffieHellmanGroup': 'crypto.html#class-diffiehellmangroup',
+  'ECDH': 'crypto.html#class-ecdh',
+  'Hash': 'crypto.html#class-hash',
+  'Hmac': 'crypto.html#class-hmac',
+  'KeyObject': 'crypto.html#class-keyobject',
+  'Sign': 'crypto.html#class-sign',
+  'Verify': 'crypto.html#class-verify',
+  'crypto.constants': 'crypto.html#cryptoconstants',
 
-  'dgram.Socket': 'dgram.html#dgram_class_dgram_socket',
+  'dgram.Socket': 'dgram.html#class-dgramsocket',
 
-  'Channel': 'diagnostics_channel.html#diagnostics_channel_class_channel',
+  'Channel': 'diagnostics_channel.html#class-channel',
 
-  'Domain': 'domain.html#domain_class_domain',
+  'Domain': 'domain.html#class-domain',
 
-  'errors.Error': 'errors.html#errors_class_error',
+  'errors.Error': 'errors.html#class-error',
 
-  'import.meta': 'esm.html#esm_import_meta',
+  'import.meta': 'esm.html#importmeta',
 
-  'EventEmitter': 'events.html#events_class_eventemitter',
-  'EventTarget': 'events.html#events_class_eventtarget',
-  'Event': 'events.html#events_class_event',
-  'EventListener': 'events.html#events_event_listener',
+  'EventEmitter': 'events.html#class-eventemitter',
+  'EventTarget': 'events.html#class-eventtarget',
+  'Event': 'events.html#class-event',
+  'EventListener': 'events.html#event-listener',
 
-  'FileHandle': 'fs.html#fs_class_filehandle',
-  'fs.Dir': 'fs.html#fs_class_fs_dir',
-  'fs.Dirent': 'fs.html#fs_class_fs_dirent',
-  'fs.FSWatcher': 'fs.html#fs_class_fs_fswatcher',
-  'fs.ReadStream': 'fs.html#fs_class_fs_readstream',
-  'fs.Stats': 'fs.html#fs_class_fs_stats',
-  'fs.StatWatcher': 'fs.html#fs_class_fs_statwatcher',
-  'fs.WriteStream': 'fs.html#fs_class_fs_writestream',
+  'FileHandle': 'fs.html#class-filehandle',
+  'fs.Dir': 'fs.html#class-fsdir',
+  'fs.Dirent': 'fs.html#class-fsdirent',
+  'fs.FSWatcher': 'fs.html#class-fsfswatcher',
+  'fs.ReadStream': 'fs.html#class-fsreadstream',
+  'fs.Stats': 'fs.html#class-fsstats',
+  'fs.StatWatcher': 'fs.html#class-fsstatwatcher',
+  'fs.WriteStream': 'fs.html#class-fswritestream',
 
-  'http.Agent': 'http.html#http_class_http_agent',
-  'http.ClientRequest': 'http.html#http_class_http_clientrequest',
-  'http.IncomingMessage': 'http.html#http_class_http_incomingmessage',
-  'http.Server': 'http.html#http_class_http_server',
-  'http.ServerResponse': 'http.html#http_class_http_serverresponse',
+  'http.Agent': 'http.html#class-httpagent',
+  'http.ClientRequest': 'http.html#class-httpclientrequest',
+  'http.IncomingMessage': 'http.html#class-httpincomingmessage',
+  'http.Server': 'http.html#class-httpserver',
+  'http.ServerResponse': 'http.html#class-httpserverresponse',
 
-  'ClientHttp2Session': 'http2.html#http2_class_clienthttp2session',
-  'ClientHttp2Stream': 'http2.html#http2_class_clienthttp2stream',
-  'HTTP/2 Headers Object': 'http2.html#http2_headers_object',
-  'HTTP/2 Settings Object': 'http2.html#http2_settings_object',
-  'http2.Http2ServerRequest': 'http2.html#http2_class_http2_http2serverrequest',
+  'ClientHttp2Session': 'http2.html#class-clienthttp2session',
+  'ClientHttp2Stream': 'http2.html#class-clienthttp2stream',
+  'HTTP/2 Headers Object': 'http2.html#headers-object',
+  'HTTP/2 Settings Object': 'http2.html#settings-object',
+  'http2.Http2ServerRequest': 'http2.html#class-http2http2serverrequest',
   'http2.Http2ServerResponse':
-    'http2.html#http2_class_http2_http2serverresponse',
-  'Http2SecureServer': 'http2.html#http2_class_http2secureserver',
-  'Http2Server': 'http2.html#http2_class_http2server',
-  'Http2Session': 'http2.html#http2_class_http2session',
-  'Http2Stream': 'http2.html#http2_class_http2stream',
-  'ServerHttp2Stream': 'http2.html#http2_class_serverhttp2stream',
+    'http2.html#class-http2http2serverresponse',
+  'Http2SecureServer': 'http2.html#class-http2secureserver',
+  'Http2Server': 'http2.html#class-http2server',
+  'Http2Session': 'http2.html#class-http2session',
+  'Http2Stream': 'http2.html#class-http2stream',
+  'ServerHttp2Stream': 'http2.html#class-serverhttp2stream',
 
-  'https.Server': 'https.html#https_class_https_server',
+  'https.Server': 'https.html#class-httpsserver',
 
-  'module': 'modules.html#modules_the_module_object',
+  'module': 'modules.html#the-module-object',
 
   'module.SourceMap':
-    'module.html#module_class_module_sourcemap',
+    'module.html#class-modulesourcemap',
 
-  'require': 'modules.html#modules_require_id',
+  'require': 'modules.html#requireid',
 
-  'Handle': 'net.html#net_server_listen_handle_backlog_callback',
-  'net.BlockList': 'net.html#net_class_net_blocklist',
-  'net.Server': 'net.html#net_class_net_server',
-  'net.Socket': 'net.html#net_class_net_socket',
-  'net.SocketAddress': 'net.html#net_class_net_socketaddress',
+  'Handle': 'net.html#serverlistenhandle-backlog-callback',
+  'net.BlockList': 'net.html#class-netblocklist',
+  'net.Server': 'net.html#class-netserver',
+  'net.Socket': 'net.html#class-netsocket',
+  'net.SocketAddress': 'net.html#class-netsocketaddress',
 
   'NodeEventTarget':
-    'events.html#events_class_nodeeventtarget',
+    'events.html#class-nodeeventtarget',
 
-  'os.constants.dlopen': 'os.html#os_dlopen_constants',
+  'os.constants.dlopen': 'os.html#dlopen-constants',
 
-  'Histogram': 'perf_hooks.html#perf_hooks_class_histogram',
+  'Histogram': 'perf_hooks.html#class-histogram',
   'IntervalHistogram':
-     'perf_hooks.html#perf_hooks_class_intervalhistogram_extends_histogram',
+     'perf_hooks.html#class-intervalhistogram-extends-histogram',
   'RecordableHistogram':
-     'perf_hooks.html#perf_hooks_class_recordablehistogram_extends_histogram',
-  'PerformanceEntry': 'perf_hooks.html#perf_hooks_class_performanceentry',
+     'perf_hooks.html#class-recordablehistogram-extends-histogram',
+  'PerformanceEntry': 'perf_hooks.html#class-performanceentry',
   'PerformanceNodeTiming':
-    'perf_hooks.html#perf_hooks_class_performancenodetiming',
+    'perf_hooks.html#class-performancenodetiming',
   'PerformanceObserver':
-    'perf_hooks.html#perf_hooks_class_perf_hooks_performanceobserver',
+    'perf_hooks.html#class-perf_hooksperformanceobserver',
   'PerformanceObserverEntryList':
-    'perf_hooks.html#perf_hooks_class_performanceobserverentrylist',
+    'perf_hooks.html#class-performanceobserverentrylist',
 
-  'readline.Interface': 'readline.html#readline_class_interface',
+  'readline.Interface': 'readline.html#class-interface',
 
-  'repl.REPLServer': 'repl.html#repl_class_replserver',
+  'repl.REPLServer': 'repl.html#class-replserver',
 
-  'Stream': 'stream.html#stream_stream',
-  'stream.Duplex': 'stream.html#stream_class_stream_duplex',
-  'stream.Readable': 'stream.html#stream_class_stream_readable',
-  'stream.Transform': 'stream.html#stream_class_stream_transform',
-  'stream.Writable': 'stream.html#stream_class_stream_writable',
+  'Stream': 'stream.html#stream',
+  'stream.Duplex': 'stream.html#class-streamduplex',
+  'stream.Readable': 'stream.html#class-streamreadable',
+  'stream.Transform': 'stream.html#class-streamtransform',
+  'stream.Writable': 'stream.html#class-streamwritable',
 
-  'Immediate': 'timers.html#timers_class_immediate',
-  'Timeout': 'timers.html#timers_class_timeout',
-  'Timer': 'timers.html#timers_timers',
+  'Immediate': 'timers.html#class-immediate',
+  'Timeout': 'timers.html#class-timeout',
+  'Timer': 'timers.html#timers',
 
-  'tls.SecureContext': 'tls.html#tls_tls_createsecurecontext_options',
-  'tls.Server': 'tls.html#tls_class_tls_server',
-  'tls.TLSSocket': 'tls.html#tls_class_tls_tlssocket',
+  'tls.SecureContext': 'tls.html#tlscreatesecurecontextoptions',
+  'tls.Server': 'tls.html#class-tlsserver',
+  'tls.TLSSocket': 'tls.html#class-tlstlssocket',
 
-  'Tracing': 'tracing.html#tracing_tracing_object',
+  'Tracing': 'tracing.html#tracing-object',
 
-  'URL': 'url.html#url_the_whatwg_url_api',
-  'URLSearchParams': 'url.html#url_class_urlsearchparams',
+  'URL': 'url.html#the-whatwg-url-api',
+  'URLSearchParams': 'url.html#class-urlsearchparams',
 
-  'vm.Module': 'vm.html#vm_class_vm_module',
-  'vm.Script': 'vm.html#vm_class_vm_script',
-  'vm.SourceTextModule': 'vm.html#vm_class_vm_sourcetextmodule',
+  'vm.Module': 'vm.html#class-vmmodule',
+  'vm.Script': 'vm.html#class-vmscript',
+  'vm.SourceTextModule': 'vm.html#class-vmsourcetextmodule',
 
-  'MessagePort': 'worker_threads.html#worker_threads_class_messageport',
-  'Worker': 'worker_threads.html#worker_threads_class_worker',
+  'MessagePort': 'worker_threads.html#class-messageport',
+  'Worker': 'worker_threads.html#class-worker',
 
-  'zlib options': 'zlib.html#zlib_class_options',
+  'zlib options': 'zlib.html#class-options',
 };
 
 const arrayPart = /(?:\[])+$/;

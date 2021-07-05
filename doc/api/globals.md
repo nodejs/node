@@ -337,24 +337,24 @@ The object that acts as the namespace for all W3C
 [Mozilla Developer Network][webassembly-mdn] for usage and compatibility.
 
 [`AbortController`]: https://developer.mozilla.org/en-US/docs/Web/API/AbortController
-[`TextDecoder`]: util.md#util_class_util_textdecoder
-[`TextEncoder`]: util.md#util_class_util_textencoder
-[`URLSearchParams`]: url.md#url_class_urlsearchparams
-[`URL`]: url.md#url_class_url
-[`__dirname`]: modules.md#modules_dirname
-[`__filename`]: modules.md#modules_filename
-[`clearImmediate`]: timers.md#timers_clearimmediate_immediate
-[`clearInterval`]: timers.md#timers_clearinterval_timeout
-[`clearTimeout`]: timers.md#timers_cleartimeout_timeout
+[`TextDecoder`]: util.md#class-utiltextdecoder
+[`TextEncoder`]: util.md#class-utiltextencoder
+[`URLSearchParams`]: url.md#class-urlsearchparams
+[`URL`]: url.md#class-url
+[`__dirname`]: modules.md#__dirname
+[`__filename`]: modules.md#__filename
+[`clearImmediate`]: timers.md#clearimmediateimmediate
+[`clearInterval`]: timers.md#clearintervaltimeout
+[`clearTimeout`]: timers.md#cleartimeouttimeout
 [`console`]: console.md
-[`exports`]: modules.md#modules_exports
-[`module`]: modules.md#modules_module
-[`process.nextTick()`]: process.md#process_process_nexttick_callback_args
-[`process` object]: process.md#process_process
-[`require()`]: modules.md#modules_require_id
-[`setImmediate`]: timers.md#timers_setimmediate_callback_args
-[`setInterval`]: timers.md#timers_setinterval_callback_delay_args
-[`setTimeout`]: timers.md#timers_settimeout_callback_delay_args
+[`exports`]: modules.md#exports
+[`module`]: modules.md#module
+[`process.nextTick()`]: process.md#processnexttickcallback-args
+[`process` object]: process.md#process
+[`require()`]: modules.md#requireid
+[`setImmediate`]: timers.md#setimmediatecallback-args
+[`setInterval`]: timers.md#setintervalcallback-delay-args
+[`setTimeout`]: timers.md#settimeoutcallback-delay-args
 [buffer section]: buffer.md
 [built-in objects]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 [module system documentation]: modules.md
