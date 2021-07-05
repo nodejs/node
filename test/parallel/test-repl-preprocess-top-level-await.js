@@ -58,7 +58,7 @@ const testCases = [
   [ 'await 0; class Foo {}',
     'let Foo; (async () => { await 0; Foo=class Foo {} })()' ],
   [ 'if (await true) { function foo() {} }',
-    '(async () => { if (await true) { function foo() {} } })()' ],
+    'let foo; (async () => { if (await true) { foo=function foo() {} } })()' ],
   [ 'if (await true) { class Foo{} }',
     '(async () => { if (await true) { class Foo{} } })()' ],
   [ 'if (await true) { var a = 1; }',
