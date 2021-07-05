@@ -1830,25 +1830,41 @@ run().catch(console.error); // AbortError
 
 The `pipeline` API also supports async generators:
 
-```js
-const { pipeline } = require('stream/promises');
-const fs = require('fs');
+```mjs
+import { pipeline } from 'stream/promises';
+import fs from 'fs/promises';
 
-async function run() {
-  await pipeline(
-    fs.createReadStream('lowercase.txt'),
-    async function* (source) {
-      source.setEncoding('utf8');  // Work with strings rather than `Buffer`s.
-      for await (const chunk of source) {
-        yield chunk.toUpperCase();
+await pipeline(
+  async function*() {
+    const fd = await fs.open('lowercase.txt');
+    try {
+      while (true) {
+        const { buffer, bytesRead } = await fd.read();
+        if (bytesRead === 0) {
+          return;
+        }
+        yield buffer;
       }
-    },
-    fs.createWriteStream('uppercase.txt')
-  );
-  console.log('Pipeline succeeded.');
-}
-
-run().catch(console.error);
+    } finally {
+      await fd.close();
+    }
+  },
+  async function*() {
+    while (this.sent != null) {
+      yield String(this.sent).toUpperCase();
+    }
+  },
+  async function*() {
+    const fd = await fs.open('uppercase.txt', 'w');
+    try {
+      while (this.sent != null) {
+        await fd.write(this.sent);
+      }
+    } finally {
+      await fd.close();
+    }
+  }
+);
 ```
 
 `stream.pipeline()` will call `stream.destroy(err)` on all streams except:
