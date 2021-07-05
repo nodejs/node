@@ -561,19 +561,19 @@ This method does not display anything unless used in the inspector. The
 `console.timeStamp()` method adds an event with the label `'label'` to the
 **Timeline** panel of the inspector.
 
-[`console.error()`]: #console_console_error_data_args
-[`console.group()`]: #console_console_group_label
-[`console.log()`]: #console_console_log_data_args
-[`console.profile()`]: #console_console_profile_label
-[`console.profileEnd()`]: #console_console_profileend_label
-[`console.time()`]: #console_console_time_label
-[`console.timeEnd()`]: #console_console_timeend_label
-[`process.stderr`]: process.md#process_process_stderr
-[`process.stdout`]: process.md#process_process_stdout
-[`util.format()`]: util.md#util_util_format_format_args
-[`util.inspect()`]: util.md#util_util_inspect_object_options
-[customizing `util.inspect()` colors]: util.md#util_customizing_util_inspect_colors
+[`console.error()`]: #consoleerrordata-args
+[`console.group()`]: #consolegrouplabel
+[`console.log()`]: #consolelogdata-args
+[`console.profile()`]: #consoleprofilelabel
+[`console.profileEnd()`]: #consoleprofileendlabel
+[`console.time()`]: #consoletimelabel
+[`console.timeEnd()`]: #consoletimeendlabel
+[`process.stderr`]: process.md#processstderr
+[`process.stdout`]: process.md#processstdout
+[`util.format()`]: util.md#utilformatformat-args
+[`util.inspect()`]: util.md#utilinspectobject-options
+[customizing `util.inspect()` colors]: util.md#customizing-utilinspect-colors
 [falsy]: https://developer.mozilla.org/en-US/docs/Glossary/Falsy
 [inspector]: debugger.md
-[note on process I/O]: process.md#process_a_note_on_process_i_o
+[note on process I/O]: process.md#a-note-on-process-io
 [truthy]: https://developer.mozilla.org/en-US/docs/Glossary/Truthy
