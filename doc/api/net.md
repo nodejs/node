@@ -309,7 +309,7 @@ Possible signatures:
 * [`server.listen(options[, callback])`][`server.listen(options)`]
 * [`server.listen(path[, backlog][, callback])`][`server.listen(path)`]
   for [IPC][] servers
-* <a href="#net_server_listen_port_host_backlog_callback">
+* <a href="#serverlistenport-host-backlog-callback">
   <code>server.listen([port[, host[, backlog]]][, callback])</code></a>
   for TCP servers
 <!--lint enable no-undefined-references-->
@@ -400,7 +400,7 @@ changes:
 
 <!--lint disable no-undefined-references-->
 If `port` is specified, it behaves the same as
-<a href="#net_server_listen_port_host_backlog_callback">
+<a href="#serverlistenport-host-backlog-callback">
 <code>server.listen([port[, host[, backlog]]][, callback])</code></a>.
 Otherwise, if `path` is specified, it behaves the same as
 [`server.listen(path[, backlog][, callback])`][`server.listen(path)`].
@@ -1410,58 +1410,58 @@ added: v0.3.0
 
 Returns `true` if input is a version 6 IP address, otherwise returns `false`.
 
-[IPC]: #net_ipc_support
-[Identifying paths for IPC connections]: #net_identifying_paths_for_ipc_connections
-[Readable Stream]: stream.md#stream_class_stream_readable
-[`'close'`]: #net_event_close
-[`'connect'`]: #net_event_connect
-[`'connection'`]: #net_event_connection
-[`'data'`]: #net_event_data
-[`'drain'`]: #net_event_drain
-[`'end'`]: #net_event_end
-[`'error'`]: #net_event_error_1
-[`'listening'`]: #net_event_listening
-[`'timeout'`]: #net_event_timeout
-[`EventEmitter`]: events.md#events_class_eventemitter
-[`child_process.fork()`]: child_process.md#child_process_child_process_fork_modulepath_args_options
-[`dns.lookup()`]: dns.md#dns_dns_lookup_hostname_options_callback
-[`dns.lookup()` hints]: dns.md#dns_supported_getaddrinfo_flags
-[`net.Server`]: #net_class_net_server
-[`net.Socket`]: #net_class_net_socket
-[`net.connect()`]: #net_net_connect
-[`net.connect(options)`]: #net_net_connect_options_connectlistener
-[`net.connect(path)`]: #net_net_connect_path_connectlistener
-[`net.connect(port, host)`]: #net_net_connect_port_host_connectlistener
-[`net.createConnection()`]: #net_net_createconnection
-[`net.createConnection(options)`]: #net_net_createconnection_options_connectlistener
-[`net.createConnection(path)`]: #net_net_createconnection_path_connectlistener
-[`net.createConnection(port, host)`]: #net_net_createconnection_port_host_connectlistener
-[`net.createServer()`]: #net_net_createserver_options_connectionlistener
-[`new net.Socket(options)`]: #net_new_net_socket_options
-[`readable.setEncoding()`]: stream.md#stream_readable_setencoding_encoding
-[`server.close()`]: #net_server_close_callback
-[`server.listen()`]: #net_server_listen
-[`server.listen(handle)`]: #net_server_listen_handle_backlog_callback
-[`server.listen(options)`]: #net_server_listen_options_callback
-[`server.listen(path)`]: #net_server_listen_path_backlog_callback
+[IPC]: #ipc-support
+[Identifying paths for IPC connections]: #identifying-paths-for-ipc-connections
+[Readable Stream]: stream.md#class-streamreadable
+[`'close'`]: #event-close
+[`'connect'`]: #event-connect
+[`'connection'`]: #event-connection
+[`'data'`]: #event-data
+[`'drain'`]: #event-drain
+[`'end'`]: #event-end
+[`'error'`]: #event-error_1
+[`'listening'`]: #event-listening
+[`'timeout'`]: #event-timeout
+[`EventEmitter`]: events.md#class-eventemitter
+[`child_process.fork()`]: child_process.md#child_processforkmodulepath-args-options
+[`dns.lookup()`]: dns.md#dnslookuphostname-options-callback
+[`dns.lookup()` hints]: dns.md#supported-getaddrinfo-flags
+[`net.Server`]: #class-netserver
+[`net.Socket`]: #class-netsocket
+[`net.connect()`]: #netconnect
+[`net.connect(options)`]: #netconnectoptions-connectlistener
+[`net.connect(path)`]: #netconnectpath-connectlistener
+[`net.connect(port, host)`]: #netconnectport-host-connectlistener
+[`net.createConnection()`]: #netcreateconnection
+[`net.createConnection(options)`]: #netcreateconnectionoptions-connectlistener
+[`net.createConnection(path)`]: #netcreateconnectionpath-connectlistener
+[`net.createConnection(port, host)`]: #netcreateconnectionport-host-connectlistener
+[`net.createServer()`]: #netcreateserveroptions-connectionlistener
+[`new net.Socket(options)`]: #new-netsocketoptions
+[`readable.setEncoding()`]: stream.md#readablesetencodingencoding
+[`server.close()`]: #serverclosecallback
+[`server.listen()`]: #serverlisten
+[`server.listen(handle)`]: #serverlistenhandle-backlog-callback
+[`server.listen(options)`]: #serverlistenoptions-callback
+[`server.listen(path)`]: #serverlistenpath-backlog-callback
 [`socket(7)`]: https://man7.org/linux/man-pages/man7/socket.7.html
-[`socket.connect()`]: #net_socket_connect
-[`socket.connect(options)`]: #net_socket_connect_options_connectlistener
-[`socket.connect(path)`]: #net_socket_connect_path_connectlistener
-[`socket.connect(port)`]: #net_socket_connect_port_host_connectlistener
-[`socket.connecting`]: #net_socket_connecting
-[`socket.destroy()`]: #net_socket_destroy_error
-[`socket.end()`]: #net_socket_end_data_encoding_callback
-[`socket.pause()`]: #net_socket_pause
-[`socket.resume()`]: #net_socket_resume
-[`socket.setEncoding()`]: #net_socket_setencoding_encoding
-[`socket.setTimeout()`]: #net_socket_settimeout_timeout_callback
-[`socket.setTimeout(timeout)`]: #net_socket_settimeout_timeout_callback
-[`writable.destroy()`]: stream.md#stream_writable_destroy_error
-[`writable.destroyed`]: stream.md#stream_writable_destroyed
-[`writable.end()`]: stream.md#stream_writable_end_chunk_encoding_callback
-[`writable.writableLength`]: stream.md#stream_writable_writablelength
+[`socket.connect()`]: #socketconnect
+[`socket.connect(options)`]: #socketconnectoptions-connectlistener
+[`socket.connect(path)`]: #socketconnectpath-connectlistener
+[`socket.connect(port)`]: #socketconnectport-host-connectlistener
+[`socket.connecting`]: #socketconnecting
+[`socket.destroy()`]: #socketdestroyerror
+[`socket.end()`]: #socketenddata-encoding-callback
+[`socket.pause()`]: #socketpause
+[`socket.resume()`]: #socketresume
+[`socket.setEncoding()`]: #socketsetencodingencoding
+[`socket.setTimeout()`]: #socketsettimeouttimeout-callback
+[`socket.setTimeout(timeout)`]: #socketsettimeouttimeout-callback
+[`writable.destroy()`]: stream.md#writabledestroyerror
+[`writable.destroyed`]: stream.md#writabledestroyed
+[`writable.end()`]: stream.md#writableendchunk-encoding-callback
+[`writable.writableLength`]: stream.md#writablewritablelength
 [half-closed]: https://tools.ietf.org/html/rfc1122
-[stream_writable_write]: stream.md#stream_writable_write_chunk_encoding_callback
+[stream_writable_write]: stream.md#writablewritechunk-encoding-callback
 [unspecified IPv4 address]: https://en.wikipedia.org/wiki/0.0.0.0
 [unspecified IPv6 address]: https://en.wikipedia.org/wiki/IPv6_address#Unspecified_address

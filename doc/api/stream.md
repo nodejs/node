@@ -3594,76 +3594,76 @@ This is not a problem in common cases with `latin1` or `ascii`. But it is
 advised to be mindful about this behavior when working with strings that could
 contain multi-byte characters.
 
-[API for stream consumers]: #stream_api_for_stream_consumers
-[API for stream implementers]: #stream_api_for_stream_implementers
-[Compatibility]: #stream_compatibility_with_older_node_js_versions
-[HTTP requests, on the client]: http.md#http_class_http_clientrequest
-[HTTP responses, on the server]: http.md#http_class_http_serverresponse
-[TCP sockets]: net.md#net_class_net_socket
-[Three states]: #stream_three_states
-[`'data'`]: #stream_event_data
-[`'drain'`]: #stream_event_drain
-[`'end'`]: #stream_event_end
-[`'finish'`]: #stream_event_finish
-[`'readable'`]: #stream_event_readable
-[`Duplex`]: #stream_class_stream_duplex
-[`EventEmitter`]: events.md#events_class_eventemitter
-[`Readable`]: #stream_class_stream_readable
+[API for stream consumers]: #api-for-stream-consumers
+[API for stream implementers]: #api-for-stream-implementers
+[Compatibility]: #compatibility-with-older-nodejs-versions
+[HTTP requests, on the client]: http.md#class-httpclientrequest
+[HTTP responses, on the server]: http.md#class-httpserverresponse
+[TCP sockets]: net.md#class-netsocket
+[Three states]: #three-states
+[`'data'`]: #event-data
+[`'drain'`]: #event-drain
+[`'end'`]: #event-end
+[`'finish'`]: #event-finish
+[`'readable'`]: #event-readable
+[`Duplex`]: #class-streamduplex
+[`EventEmitter`]: events.md#class-eventemitter
+[`Readable`]: #class-streamreadable
 [`Symbol.hasInstance`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/hasInstance
-[`Transform`]: #stream_class_stream_transform
-[`Writable`]: #stream_class_stream_writable
-[`fs.createReadStream()`]: fs.md#fs_fs_createreadstream_path_options
-[`fs.createWriteStream()`]: fs.md#fs_fs_createwritestream_path_options
-[`net.Socket`]: net.md#net_class_net_socket
-[`process.stderr`]: process.md#process_process_stderr
-[`process.stdin`]: process.md#process_process_stdin
-[`process.stdout`]: process.md#process_process_stdout
-[`readable._read()`]: #stream_readable_read_size_1
-[`readable.push('')`]: #stream_readable_push
-[`readable.setEncoding()`]: #stream_readable_setencoding_encoding
-[`stream.Readable.from()`]: #stream_stream_readable_from_iterable_options
-[`stream.addAbortSignal()`]: #stream_stream_addabortsignal_signal_stream
-[`stream.cork()`]: #stream_writable_cork
-[`stream.finished()`]: #stream_stream_finished_stream_options_callback
-[`stream.pipe()`]: #stream_readable_pipe_destination_options
-[`stream.pipeline()`]: #stream_stream_pipeline_source_transforms_destination_callback
-[`stream.uncork()`]: #stream_writable_uncork
-[`stream.unpipe()`]: #stream_readable_unpipe_destination
-[`stream.wrap()`]: #stream_readable_wrap_stream
-[`writable._final()`]: #stream_writable_final_callback
-[`writable._write()`]: #stream_writable_write_chunk_encoding_callback_1
-[`writable._writev()`]: #stream_writable_writev_chunks_callback
-[`writable.cork()`]: #stream_writable_cork
-[`writable.end()`]: #stream_writable_end_chunk_encoding_callback
-[`writable.uncork()`]: #stream_writable_uncork
-[`writable.writableFinished`]: #stream_writable_writablefinished
-[`zlib.createDeflate()`]: zlib.md#zlib_zlib_createdeflate_options
-[child process stdin]: child_process.md#child_process_subprocess_stdin
-[child process stdout and stderr]: child_process.md#child_process_subprocess_stdout
+[`Transform`]: #class-streamtransform
+[`Writable`]: #class-streamwritable
+[`fs.createReadStream()`]: fs.md#fscreatereadstreampath-options
+[`fs.createWriteStream()`]: fs.md#fscreatewritestreampath-options
+[`net.Socket`]: net.md#class-netsocket
+[`process.stderr`]: process.md#processstderr
+[`process.stdin`]: process.md#processstdin
+[`process.stdout`]: process.md#processstdout
+[`readable._read()`]: #readable_readsize
+[`readable.push('')`]: #readablepush
+[`readable.setEncoding()`]: #readablesetencodingencoding
+[`stream.Readable.from()`]: #streamreadablefromiterable-options
+[`stream.addAbortSignal()`]: #streamaddabortsignalsignal-stream
+[`stream.cork()`]: #writablecork
+[`stream.finished()`]: #streamfinishedstream-options-callback
+[`stream.pipe()`]: #readablepipedestination-options
+[`stream.pipeline()`]: #streampipelinesource-transforms-destination-callback
+[`stream.uncork()`]: #writableuncork
+[`stream.unpipe()`]: #readableunpipedestination
+[`stream.wrap()`]: #readablewrapstream
+[`writable._final()`]: #writable_finalcallback
+[`writable._write()`]: #writable_writechunk-encoding-callback
+[`writable._writev()`]: #writable_writevchunks-callback
+[`writable.cork()`]: #writablecork
+[`writable.end()`]: #writableendchunk-encoding-callback
+[`writable.uncork()`]: #writableuncork
+[`writable.writableFinished`]: #writablewritablefinished
+[`zlib.createDeflate()`]: zlib.md#zlibcreatedeflateoptions
+[child process stdin]: child_process.md#subprocessstdin
+[child process stdout and stderr]: child_process.md#subprocessstdout
 [crypto]: crypto.md
-[fs read streams]: fs.md#fs_class_fs_readstream
-[fs write streams]: fs.md#fs_class_fs_writestream
-[http-incoming-message]: http.md#http_class_http_incomingmessage
-[hwm-gotcha]: #stream_highwatermark_discrepancy_after_calling_readable_setencoding
-[object-mode]: #stream_object_mode
-[readable-_construct]: #stream_readable_construct_callback
-[readable-_destroy]: #stream_readable_destroy_err_callback
-[readable-destroy]: #stream_readable_destroy_error
-[stream-_final]: #stream_writable_final_callback
-[stream-_flush]: #stream_transform_flush_callback
-[stream-_read]: #stream_readable_read_size_1
-[stream-_transform]: #stream_transform_transform_chunk_encoding_callback
-[stream-_write]: #stream_writable_write_chunk_encoding_callback_1
-[stream-_writev]: #stream_writable_writev_chunks_callback
-[stream-end]: #stream_writable_end_chunk_encoding_callback
-[stream-pause]: #stream_readable_pause
-[stream-push]: #stream_readable_push_chunk_encoding
-[stream-read]: #stream_readable_read_size
-[stream-resume]: #stream_readable_resume
-[stream-uncork]: #stream_writable_uncork
-[stream-write]: #stream_writable_write_chunk_encoding_callback
-[writable-_construct]: #stream_writable_construct_callback
-[writable-_destroy]: #stream_writable_destroy_err_callback
-[writable-destroy]: #stream_writable_destroy_error
-[writable-new]: #stream_new_stream_writable_options
+[fs read streams]: fs.md#class-fsreadstream
+[fs write streams]: fs.md#class-fswritestream
+[http-incoming-message]: http.md#class-httpincomingmessage
+[hwm-gotcha]: #highwatermark-discrepancy-after-calling-readablesetencoding
+[object-mode]: #object-mode
+[readable-_construct]: #readable_constructcallback
+[readable-_destroy]: #readable_destroyerr-callback
+[readable-destroy]: #readabledestroyerror
+[stream-_final]: #writable_finalcallback
+[stream-_flush]: #transform_flushcallback
+[stream-_read]: #readable_readsize
+[stream-_transform]: #transform_transformchunk-encoding-callback
+[stream-_write]: #writable_writechunk-encoding-callback
+[stream-_writev]: #writable_writevchunks-callback
+[stream-end]: #writableendchunk-encoding-callback
+[stream-pause]: #readablepause
+[stream-push]: #readablepushchunk-encoding
+[stream-read]: #readablereadsize
+[stream-resume]: #readableresume
+[stream-uncork]: #writableuncork
+[stream-write]: #writablewritechunk-encoding-callback
+[writable-_construct]: #writable_constructcallback
+[writable-_destroy]: #writable_destroyerr-callback
+[writable-destroy]: #writabledestroyerror
+[writable-new]: #new-streamwritableoptions
 [zlib]: zlib.md

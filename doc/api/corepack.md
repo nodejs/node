@@ -108,12 +108,12 @@ that happen, run [`corepack enable`][] again to add them back).
 [Corepack documentation]: https://github.com/nodejs/corepack#readme
 [Corepack repository]: https://github.com/nodejs/corepack
 [Yarn]: https://yarnpkg.com
-[`"packageManager"`]: packages.md#packages_packagemanager
+[`"packageManager"`]: packages.md#packagemanager
 [`corepack disable`]: https://github.com/nodejs/corepack#corepack-disable--name
 [`corepack enable`]: https://github.com/nodejs/corepack#corepack-enable--name
 [`corepack prepare`]: https://github.com/nodejs/corepack#corepack-prepare--nameversion
-[`package.json`]: packages.md#packages_node_js_package_json_field_definitions
+[`package.json`]: packages.md#nodejs-packagejson-field-definitions
 [pnpm]: https://pnpm.js.org
-[supported binaries]: #corepack_supported_package_managers
-[supported package manager]: #corepack_supported_package_managers
+[supported binaries]: #supported-package-managers
+[supported package manager]: #supported-package-managers
 [various flags]: https://github.com/nodejs/corepack#utility-commands

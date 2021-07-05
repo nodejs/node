@@ -60,7 +60,7 @@ for a given host and port, reusing a single socket connection for each
 until the queue is empty, at which time the socket is either destroyed
 or put into a pool where it is kept to be used again for requests to the
 same host and port. Whether it is destroyed or pooled depends on the
-`keepAlive` [option](#http_new_agent_options).
+`keepAlive` [option](#new-agentoptions).
 
 Pooled connections have TCP Keep-Alive enabled for them, but servers may
 still close idle connections, in which case they will be removed from the
@@ -142,7 +142,7 @@ changes:
     options are respectively set to `false` and `Infinity`, in which case
     `Connection: close` will be used. **Default:** `false`.
   * `keepAliveMsecs` {number} When using the `keepAlive` option, specifies
-    the [initial delay](net.md#net_socket_setkeepalive_enable_initialdelay)
+    the [initial delay][]
     for TCP Keep-Alive packets. Ignored when the
     `keepAlive` option is `false` or `undefined`. **Default:** `1000`.
   * `maxSockets` {number} Maximum number of sockets to allow per host.
@@ -3184,73 +3184,74 @@ try {
 }
 ```
 
-[`'checkContinue'`]: #http_event_checkcontinue
-[`'finish'`]: #http_event_finish
-[`'request'`]: #http_event_request
-[`'response'`]: #http_event_response
-[`'upgrade'`]: #http_event_upgrade
-[`--insecure-http-parser`]: cli.md#cli_insecure_http_parser
-[`--max-http-header-size`]: cli.md#cli_max_http_header_size_size
-[`Agent`]: #http_class_http_agent
-[`Buffer.byteLength()`]: buffer.md#buffer_static_method_buffer_bytelength_string_encoding
-[`Duplex`]: stream.md#stream_class_stream_duplex
-[`HPE_HEADER_OVERFLOW`]: errors.md#errors_hpe_header_overflow
-[`TypeError`]: errors.md#errors_class_typeerror
-[`URL`]: url.md#url_the_whatwg_url_api
-[`agent.createConnection()`]: #http_agent_createconnection_options_callback
-[`agent.getName()`]: #http_agent_getname_options
-[`destroy()`]: #http_agent_destroy
-[`dns.lookup()`]: dns.md#dns_dns_lookup_hostname_options_callback
-[`dns.lookup()` hints]: dns.md#dns_supported_getaddrinfo_flags
-[`getHeader(name)`]: #http_request_getheader_name
-[`http.Agent`]: #http_class_http_agent
-[`http.ClientRequest`]: #http_class_http_clientrequest
-[`http.IncomingMessage`]: #http_class_http_incomingmessage
-[`http.ServerResponse`]: #http_class_http_serverresponse
-[`http.Server`]: #http_class_http_server
-[`http.get()`]: #http_http_get_options_callback
-[`http.globalAgent`]: #http_http_globalagent
-[`http.request()`]: #http_http_request_options_callback
-[`message.headers`]: #http_message_headers
-[`message.socket`]: #http_message_socket
-[`net.Server.close()`]: net.md#net_server_close_callback
-[`net.Server`]: net.md#net_class_net_server
-[`net.Socket`]: net.md#net_class_net_socket
-[`net.createConnection()`]: net.md#net_net_createconnection_options_connectlistener
-[`new URL()`]: url.md#url_new_url_input_base
-[`outgoingMessage.socket`]: #http_outgoingmessage_socket
-[`removeHeader(name)`]: #http_request_removeheader_name
-[`request.destroy()`]: #http_request_destroy_error
-[`request.end()`]: #http_request_end_data_encoding_callback
-[`request.flushHeaders()`]: #http_request_flushheaders
-[`request.getHeader()`]: #http_request_getheader_name
-[`request.setHeader()`]: #http_request_setheader_name_value
-[`request.setTimeout()`]: #http_request_settimeout_timeout_callback
-[`request.socket.getPeerCertificate()`]: tls.md#tls_tlssocket_getpeercertificate_detailed
-[`request.socket`]: #http_request_socket
-[`request.writableEnded`]: #http_request_writableended
-[`request.writableFinished`]: #http_request_writablefinished
-[`request.write(data, encoding)`]: #http_request_write_chunk_encoding_callback
-[`response.end()`]: #http_response_end_data_encoding_callback
-[`response.getHeader()`]: #http_response_getheader_name
-[`response.setHeader()`]: #http_response_setheader_name_value
-[`response.socket`]: #http_response_socket
-[`response.writableEnded`]: #http_response_writableended
-[`response.writableFinished`]: #http_response_writablefinished
-[`response.write()`]: #http_response_write_chunk_encoding_callback
-[`response.write(data, encoding)`]: #http_response_write_chunk_encoding_callback
-[`response.writeContinue()`]: #http_response_writecontinue
-[`response.writeHead()`]: #http_response_writehead_statuscode_statusmessage_headers
-[`server.listen()`]: net.md#net_server_listen
-[`server.timeout`]: #http_server_timeout
-[`setHeader(name, value)`]: #http_request_setheader_name_value
-[`socket.connect()`]: net.md#net_socket_connect_options_connectlistener
-[`socket.setKeepAlive()`]: net.md#net_socket_setkeepalive_enable_initialdelay
-[`socket.setNoDelay()`]: net.md#net_socket_setnodelay_nodelay
-[`socket.setTimeout()`]: net.md#net_socket_settimeout_timeout_callback
-[`socket.unref()`]: net.md#net_socket_unref
-[`url.parse()`]: url.md#url_url_parse_urlstring_parsequerystring_slashesdenotehost
-[`writable.cork()`]: stream.md#stream_writable_cork
-[`writable.destroy()`]: stream.md#stream_writable_destroy_error
-[`writable.destroyed`]: stream.md#stream_writable_destroyed
-[`writable.uncork()`]: stream.md#stream_writable_uncork
+[`'checkContinue'`]: #event-checkcontinue
+[`'finish'`]: #event-finish
+[`'request'`]: #event-request
+[`'response'`]: #event-response
+[`'upgrade'`]: #event-upgrade
+[`--insecure-http-parser`]: cli.md#--insecure-http-parser
+[`--max-http-header-size`]: cli.md#--max-http-header-sizesize
+[`Agent`]: #class-httpagent
+[`Buffer.byteLength()`]: buffer.md#static-method-bufferbytelengthstring-encoding
+[`Duplex`]: stream.md#class-streamduplex
+[`HPE_HEADER_OVERFLOW`]: errors.md#hpe_header_overflow
+[`TypeError`]: errors.md#class-typeerror
+[`URL`]: url.md#the-whatwg-url-api
+[`agent.createConnection()`]: #agentcreateconnectionoptions-callback
+[`agent.getName()`]: #agentgetnameoptions
+[`destroy()`]: #agentdestroy
+[`dns.lookup()`]: dns.md#dnslookuphostname-options-callback
+[`dns.lookup()` hints]: dns.md#supported-getaddrinfo-flags
+[`getHeader(name)`]: #requestgetheadername
+[`http.Agent`]: #class-httpagent
+[`http.ClientRequest`]: #class-httpclientrequest
+[`http.IncomingMessage`]: #class-httpincomingmessage
+[`http.ServerResponse`]: #class-httpserverresponse
+[`http.Server`]: #class-httpserver
+[`http.get()`]: #httpgetoptions-callback
+[`http.globalAgent`]: #httpglobalagent
+[`http.request()`]: #httprequestoptions-callback
+[`message.headers`]: #messageheaders
+[`message.socket`]: #messagesocket
+[`net.Server.close()`]: net.md#serverclosecallback
+[`net.Server`]: net.md#class-netserver
+[`net.Socket`]: net.md#class-netsocket
+[`net.createConnection()`]: net.md#netcreateconnectionoptions-connectlistener
+[`new URL()`]: url.md#new-urlinput-base
+[`outgoingMessage.socket`]: #outgoingmessagesocket
+[`removeHeader(name)`]: #requestremoveheadername
+[`request.destroy()`]: #requestdestroyerror
+[`request.end()`]: #requestenddata-encoding-callback
+[`request.flushHeaders()`]: #requestflushheaders
+[`request.getHeader()`]: #requestgetheadername
+[`request.setHeader()`]: #requestsetheadername-value
+[`request.setTimeout()`]: #requestsettimeouttimeout-callback
+[`request.socket.getPeerCertificate()`]: tls.md#tlssocketgetpeercertificatedetailed
+[`request.socket`]: #requestsocket
+[`request.writableEnded`]: #requestwritableended
+[`request.writableFinished`]: #requestwritablefinished
+[`request.write(data, encoding)`]: #requestwritechunk-encoding-callback
+[`response.end()`]: #responseenddata-encoding-callback
+[`response.getHeader()`]: #responsegetheadername
+[`response.setHeader()`]: #responsesetheadername-value
+[`response.socket`]: #responsesocket
+[`response.writableEnded`]: #responsewritableended
+[`response.writableFinished`]: #responsewritablefinished
+[`response.write()`]: #responsewritechunk-encoding-callback
+[`response.write(data, encoding)`]: #responsewritechunk-encoding-callback
+[`response.writeContinue()`]: #responsewritecontinue
+[`response.writeHead()`]: #responsewriteheadstatuscode-statusmessage-headers
+[`server.listen()`]: net.md#serverlisten
+[`server.timeout`]: #servertimeout
+[`setHeader(name, value)`]: #requestsetheadername-value
+[`socket.connect()`]: net.md#socketconnectoptions-connectlistener
+[`socket.setKeepAlive()`]: net.md#socketsetkeepaliveenable-initialdelay
+[`socket.setNoDelay()`]: net.md#socketsetnodelaynodelay
+[`socket.setTimeout()`]: net.md#socketsettimeouttimeout-callback
+[`socket.unref()`]: net.md#socketunref
+[`url.parse()`]: url.md#urlparseurlstring-parsequerystring-slashesdenotehost
+[`writable.cork()`]: stream.md#writablecork
+[`writable.destroy()`]: stream.md#writabledestroyerror
+[`writable.destroyed`]: stream.md#writabledestroyed
+[`writable.uncork()`]: stream.md#writableuncork
+[initial delay]: net.md#socketsetkeepaliveenable-initialdelay

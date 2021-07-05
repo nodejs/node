@@ -191,9 +191,9 @@ consists of the following keys:
 [CommonJS]: modules.md
 [ES Modules]: esm.md
 [Source map v3 format]: https://sourcemaps.info/spec.html#h.mofvlxcwqzej
-[`--enable-source-maps`]: cli.md#cli_enable_source_maps
-[`NODE_V8_COVERAGE=dir`]: cli.md#cli_node_v8_coverage_dir
-[`SourceMap`]: #module_class_module_sourcemap
-[`module`]: modules.md#modules_the_module_object
-[module wrapper]: modules.md#modules_the_module_wrapper
+[`--enable-source-maps`]: cli.md#--enable-source-maps
+[`NODE_V8_COVERAGE=dir`]: cli.md#node_v8_coveragedir
+[`SourceMap`]: #class-modulesourcemap
+[`module`]: modules.md#the-module-object
+[module wrapper]: modules.md#the-module-wrapper
 [source map include directives]: https://sourcemaps.info/spec.html#h.lmz475t4mvbx

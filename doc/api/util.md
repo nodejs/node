@@ -2503,22 +2503,22 @@ const util = require('util');
 util.log('Timestamped message.');
 ```
 
-[Common System Errors]: errors.md#errors_common_system_errors
-[Custom inspection functions on objects]: #util_custom_inspection_functions_on_objects
-[Custom promisified functions]: #util_custom_promisified_functions
-[Customizing `util.inspect` colors]: #util_customizing_util_inspect_colors
+[Common System Errors]: errors.md#common-system-errors
+[Custom inspection functions on objects]: #custom-inspection-functions-on-objects
+[Custom promisified functions]: #custom-promisified-functions
+[Customizing `util.inspect` colors]: #customizing-utilinspect-colors
 [Internationalization]: intl.md
 [Module Namespace Object]: https://tc39.github.io/ecma262/#sec-module-namespace-exotic-objects
 [WHATWG Encoding Standard]: https://encoding.spec.whatwg.org/
-[`'uncaughtException'`]: process.md#process_event_uncaughtexception
-[`'warning'`]: process.md#process_event_warning
+[`'uncaughtException'`]: process.md#event-uncaughtexception
+[`'warning'`]: process.md#event-warning
 [`Array.isArray()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/isArray
 [`ArrayBuffer.isView()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer/isView
 [`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
-[`Buffer.isBuffer()`]: buffer.md#buffer_static_method_buffer_isbuffer_obj
+[`Buffer.isBuffer()`]: buffer.md#static-method-bufferisbufferobj
 [`DataView`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView
 [`Date`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date
-[`Error`]: errors.md#errors_class_error
+[`Error`]: errors.md#class-error
 [`Float32Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float32Array
 [`Float64Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float64Array
 [`Int16Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int16Array
@@ -2539,24 +2539,24 @@ util.log('Timestamped message.');
 [`WeakMap`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakMap
 [`WeakSet`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakSet
 [`WebAssembly.Module`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Module
-[`assert.deepStrictEqual()`]: assert.md#assert_assert_deepstrictequal_actual_expected_message
-[`console.error()`]: console.md#console_console_error_data_args
-[`napi_create_external()`]: n-api.md#n_api_napi_create_external
+[`assert.deepStrictEqual()`]: assert.md#assertdeepstrictequalactual-expected-message
+[`console.error()`]: console.md#consoleerrordata-args
+[`napi_create_external()`]: n-api.md#napi_create_external
 [`target` and `handler`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy#Terminology
-[`tty.hasColors()`]: tty.md#tty_writestream_hascolors_count_env
-[`util.format()`]: #util_util_format_format_args
-[`util.inspect()`]: #util_util_inspect_object_options
-[`util.promisify()`]: #util_util_promisify_original
-[`util.types.isAnyArrayBuffer()`]: #util_util_types_isanyarraybuffer_value
-[`util.types.isArrayBuffer()`]: #util_util_types_isarraybuffer_value
-[`util.types.isDate()`]: #util_util_types_isdate_value
-[`util.types.isNativeError()`]: #util_util_types_isnativeerror_value
-[`util.types.isSharedArrayBuffer()`]: #util_util_types_issharedarraybuffer_value
+[`tty.hasColors()`]: tty.md#writestreamhascolorscount-env
+[`util.format()`]: #utilformatformat-args
+[`util.inspect()`]: #utilinspectobject-options
+[`util.promisify()`]: #utilpromisifyoriginal
+[`util.types.isAnyArrayBuffer()`]: #utiltypesisanyarraybuffervalue
+[`util.types.isArrayBuffer()`]: #utiltypesisarraybuffervalue
+[`util.types.isDate()`]: #utiltypesisdatevalue
+[`util.types.isNativeError()`]: #utiltypesisnativeerrorvalue
+[`util.types.isSharedArrayBuffer()`]: #utiltypesissharedarraybuffervalue
 [async function]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function
 [compare function]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort#Parameters
 [constructor]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/constructor
 [default sort]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort
 [global symbol registry]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/for
-[list of deprecated APIS]: deprecations.md#deprecations_list_of_deprecated_apis
+[list of deprecated APIS]: deprecations.md#list-of-deprecated-apis
 [semantically incompatible]: https://github.com/nodejs/node/issues/4179
-[util.inspect.custom]: #util_util_inspect_custom
+[util.inspect.custom]: #utilinspectcustom

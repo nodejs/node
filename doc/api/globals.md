@@ -440,31 +440,31 @@ The object that acts as the namespace for all W3C
 
 [`AbortController`]: https://developer.mozilla.org/en-US/docs/Web/API/AbortController
 [`DOMException`]: https://developer.mozilla.org/en-US/docs/Web/API/DOMException
-[`EventTarget` and `Event` API]: events.md#event-target-and-event-api
-[`MessageChannel`]: worker_threads.md#worker_threads_class_messagechannel
+[`EventTarget` and `Event` API]: events.md#eventtarget-and-event-api
+[`MessageChannel`]: worker_threads.md#class-messagechannel
 [`MessageEvent`]: https://developer.mozilla.org/en-US/docs/Web/API/MessageEvent/MessageEvent
-[`MessagePort`]: worker_threads.md#worker_threads_class_messageport
-[`TextDecoder`]: util.md#util_class_util_textdecoder
-[`TextEncoder`]: util.md#util_class_util_textencoder
-[`URLSearchParams`]: url.md#url_class_urlsearchparams
-[`URL`]: url.md#url_class_url
-[`__dirname`]: modules.md#modules_dirname
-[`__filename`]: modules.md#modules_filename
-[`buffer.atob()`]: buffer.md#buffer_buffer_atob_data
-[`buffer.btoa()`]: buffer.md#buffer_buffer_btoa_data
-[`clearImmediate`]: timers.md#timers_clearimmediate_immediate
-[`clearInterval`]: timers.md#timers_clearinterval_timeout
-[`clearTimeout`]: timers.md#timers_cleartimeout_timeout
+[`MessagePort`]: worker_threads.md#class-messageport
+[`TextDecoder`]: util.md#class-utiltextdecoder
+[`TextEncoder`]: util.md#class-utiltextencoder
+[`URLSearchParams`]: url.md#class-urlsearchparams
+[`URL`]: url.md#class-url
+[`__dirname`]: modules.md#__dirname
+[`__filename`]: modules.md#__filename
+[`buffer.atob()`]: buffer.md#bufferatobdata
+[`buffer.btoa()`]: buffer.md#bufferbtoadata
+[`clearImmediate`]: timers.md#clearimmediateimmediate
+[`clearInterval`]: timers.md#clearintervaltimeout
+[`clearTimeout`]: timers.md#cleartimeouttimeout
 [`console`]: console.md
-[`exports`]: modules.md#modules_exports
-[`module`]: modules.md#modules_module
-[`perf_hooks.performance`]: perf_hooks.md#perf_hooks_perf_hooks_performance
-[`process.nextTick()`]: process.md#process_process_nexttick_callback_args
-[`process` object]: process.md#process_process
-[`require()`]: modules.md#modules_require_id
-[`setImmediate`]: timers.md#timers_setimmediate_callback_args
-[`setInterval`]: timers.md#timers_setinterval_callback_delay_args
-[`setTimeout`]: timers.md#timers_settimeout_callback_delay_args
+[`exports`]: modules.md#exports
+[`module`]: modules.md#module
+[`perf_hooks.performance`]: perf_hooks.md#perf_hooksperformance
+[`process.nextTick()`]: process.md#processnexttickcallback-args
+[`process` object]: process.md#process
+[`require()`]: modules.md#requireid
+[`setImmediate`]: timers.md#setimmediatecallback-args
+[`setInterval`]: timers.md#setintervalcallback-delay-args
+[`setTimeout`]: timers.md#settimeoutcallback-delay-args
 [buffer section]: buffer.md
 [built-in objects]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 [module system documentation]: modules.md

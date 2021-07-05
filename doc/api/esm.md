@@ -85,7 +85,7 @@ Node.js treats JavaScript code as CommonJS modules by default.
 Authors can tell Node.js to treat JavaScript code as ECMAScript modules
 via the `.mjs` file extension, the `package.json` [`"type"`][] field, or the
 `--input-type` flag. See
-[Modules: Packages](packages.md#packages_determining_module_system) for more
+[Modules: Packages](packages.md#determining-module-system) for more
 details.
 
 <!-- Anchors to make sure old links find a target -->
@@ -329,7 +329,7 @@ An `import` statement can reference an ES module or a CommonJS module.
 `import` statements are permitted only in ES modules, but dynamic [`import()`][]
 expressions are supported in CommonJS for loading ES modules.
 
-When importing [CommonJS modules](#esm_commonjs_namespaces), the
+When importing [CommonJS modules](#commonjs-namespaces), the
 `module.exports` object is provided as the default export. Named exports may be
 available, provided by static analysis as a convenience for better ecosystem
 compatibility.
@@ -1348,37 +1348,37 @@ success!
 <!-- Note: The cjs-module-lexer link should be kept in-sync with the deps version -->
 [6.1.7 Array Index]: https://tc39.es/ecma262/#integer-index
 [CommonJS]: modules.md
-[Conditional exports]: packages.md#packages_conditional_exports
-[Core modules]: modules.md#modules_core_modules
+[Conditional exports]: packages.md#conditional-exports
+[Core modules]: modules.md#core-modules
 [Dynamic `import()`]: https://wiki.developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Dynamic_Imports
 [ECMAScript Top-Level `await` proposal]: https://github.com/tc39/proposal-top-level-await/
 [ES Module Integration Proposal for Web Assembly]: https://github.com/webassembly/esm-integration
-[Node.js Module Resolution Algorithm]: #esm_resolver_algorithm_specification
-[Terminology]: #esm_terminology
+[Node.js Module Resolution Algorithm]: #resolver-algorithm-specification
+[Terminology]: #terminology
 [URL]: https://url.spec.whatwg.org/
 [WHATWG JSON modules specification]: https://html.spec.whatwg.org/#creating-a-json-module-script
-[`"exports"`]: packages.md#packages_exports
-[`"type"`]: packages.md#packages_type
+[`"exports"`]: packages.md#exports
+[`"type"`]: packages.md#type
 [`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
 [`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
 [`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
 [`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
 [`data:` URLs]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
 [`export`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export
-[`import()`]: #esm_import_expressions
-[`import.meta.resolve`]: #esm_import_meta_resolve_specifier_parent
-[`import.meta.url`]: #esm_import_meta_url
+[`import()`]: #import-expressions
+[`import.meta.resolve`]: #importmetaresolvespecifier-parent
+[`import.meta.url`]: #importmetaurl
 [`import`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import
-[`module.createRequire()`]: module.md#module_module_createrequire_filename
-[`module.syncBuiltinESMExports()`]: module.md#module_module_syncbuiltinesmexports
-[`package.json`]: packages.md#packages_node_js_package_json_field_definitions
-[`process.dlopen`]: process.md#process_process_dlopen_module_filename_flags
+[`module.createRequire()`]: module.md#modulecreaterequirefilename
+[`module.syncBuiltinESMExports()`]: module.md#modulesyncbuiltinesmexports
+[`package.json`]: packages.md#nodejs-packagejson-field-definitions
+[`process.dlopen`]: process.md#processdlopenmodule-filename-flags
 [`string`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String
-[`transformSource` hook]: #esm_transformsource_source_context_defaulttransformsource
-[`util.TextDecoder`]: util.md#util_class_util_textdecoder
+[`transformSource` hook]: #transformsourcesource-context-defaulttransformsource
+[`util.TextDecoder`]: util.md#class-utiltextdecoder
 [cjs-module-lexer]: https://github.com/guybedford/cjs-module-lexer/tree/1.2.2
-[custom https loader]: #esm_https_loader
+[custom https loader]: #https-loader
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
 [the official standard format]: https://tc39.github.io/ecma262/#sec-modules
-[transpiler loader example]: #esm_transpiler_loader
-[url.pathToFileURL]: url.md#url_url_pathtofileurl_path
+[transpiler loader example]: #transpiler-loader
+[url.pathToFileURL]: url.md#urlpathtofileurlpath
