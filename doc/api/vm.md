@@ -10,7 +10,7 @@
 
 The `vm` module enables compiling and running code within V8 Virtual
 Machine contexts. **The `vm` module is not a security mechanism. Do
-not use it to run untrusted code**.
+not use it to run untrusted code.**
 
 JavaScript code can be compiled and run immediately or
 compiled, saved, and run later.
