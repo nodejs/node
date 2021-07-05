@@ -11,6 +11,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#14.17.3">14.17.3</a><br/>
 <a href="#14.17.2">14.17.2</a><br/>
 <a href="#14.17.1">14.17.1</a><br/>
 <a href="#14.17.0">14.17.0</a><br/>
@@ -62,6 +63,20 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="14.17.3"></a>
+## 2021-07-05, Version 14.17.3 'Fermium' (LTS), @richardlau
+
+### Notable Changes
+
+Node.js 14.17.2 introduced a regression in the Windows installer on
+non-English locales that is being fixed in this release. There is no
+need to download this release if you are not using the Windows
+installer.
+
+### Commits
+
+* [[`0f00104a2c`](https://github.com/nodejs/node/commit/0f00104a2c)] - **win,msi**: use localized "Authenticated Users" name (Richard Lau) [#39241](https://github.com/nodejs/node/pull/39241)
 
 <a id="14.17.2"></a>
 ## 2021-07-01, Version 14.17.2 'Fermium' (LTS), @richardlau
