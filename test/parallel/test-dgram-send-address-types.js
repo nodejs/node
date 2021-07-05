@@ -30,7 +30,6 @@ const client = dgram.createSocket('udp4').bind(0, () => {
     false,
     1n,
     {},
-    () => {},
     Symbol(),
   ].forEach((invalidInput) => {
     const expectedError = {
