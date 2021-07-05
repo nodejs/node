@@ -11,6 +11,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#12.22.3">12.22.3</a><br/>
 <a href="#12.22.2">12.22.2</a><br/>
 <a href="#12.22.1">12.22.1</a><br/>
 <a href="#12.22.0">12.22.0</a><br/>
@@ -75,6 +76,20 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="12.22.3"></a>
+## 2021-07-05, Version 12.22.3 'Erbium' (LTS), @richardlau
+
+### Notable Changes
+
+Node.js 12.22.2 introduced a regression in the Windows installer on
+non-English locales that is being fixed in this release. There is no
+need to download this release if you are not using the Windows
+installer.
+
+### Commits
+
+* [[`182f86a4d4`](https://github.com/nodejs/node/commit/182f86a4d4)] - **win,msi**: use localized "Authenticated Users" name (Richard Lau) [#39241](https://github.com/nodejs/node/pull/39241)
 
 <a id="12.22.2"></a>
 ## 2021-07-01, Version 12.22.2 'Erbium' (LTS), @richardlau
