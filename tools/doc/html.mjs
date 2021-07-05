@@ -282,7 +282,7 @@ export function preprocessElements({ filename }) {
             type: 'html',
             value: `<div class="api_stability api_stability_${number}">` +
               (noLinking ? '' :
-                '<a href="documentation.html#documentation_stability_index">') +
+                '<a href="documentation.html#stability-index">') +
               `${prefix} ${number}${noLinking ? '' : '</a>'}`
                 .replace(/\n/g, ' ')
           });
@@ -398,7 +398,7 @@ export function buildToc({ filename, apilinks }) {
       const headingText = file.contents.slice(
         node.children[0].position.start.offset,
         node.position.end.offset).trim();
-      const id = getId(`${realFilename}_${headingText}`, idCounters);
+      const id = getId(headingText, idCounters);
 
       const isDeprecationHeading =
         DEPRECATION_HEADING_PATTERN.test(headingText);
@@ -446,14 +446,11 @@ export function buildToc({ filename, apilinks }) {
   };
 }
 
-const notAlphaNumerics = /[^a-z0-9]+/g;
-const edgeUnderscores = /^_+|_+$/g;
-const notAlphaStart = /^[^a-z]/;
+const punctuation = /[^\w\- ]/g;
 function getId(text, idCounters) {
   text = text.toLowerCase()
-             .replace(notAlphaNumerics, '_')
-             .replace(edgeUnderscores, '')
-             .replace(notAlphaStart, '_$&');
+             .replace(punctuation, '')
+             .replaceAll(' ', '-');
   if (idCounters[text] !== undefined) {
     return `${text}_${++idCounters[text]}`;
   }
