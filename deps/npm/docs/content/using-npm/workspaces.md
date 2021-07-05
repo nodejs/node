@@ -36,8 +36,8 @@ Workspaces are usually defined via the `workspaces` property of the
 ```
 
 Given the above `package.json` example living at a current working
-directory `.` that contains a folder named `workspace-a` that disposes
-of a `package.json` inside it, defining a nodejs package, e.g:
+directory `.` that contains a folder named `workspace-a` that itself contains
+a `package.json` inside it, defining a nodejs package, e.g:
 
 ```
 .

@@ -16,6 +16,7 @@
 #include "node_version.h"
 #include "env.h"
 #include "node_internals.h"
+#include "gtest/gtest_prod.h"
 
 #define NAPI_ARRAYSIZE(array) \
   node::arraysize((array))

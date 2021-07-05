@@ -226,6 +226,33 @@ const customTypesMap = {
   'X509Certificate': 'crypto.html#crypto_class_x509certificate',
 
   'zlib options': 'zlib.html#zlib_class_options',
+
+  'ReadableStream':
+    'webstreams.md#webstreamsapi_class_readablestream',
+  'ReadableStreamDefaultReader':
+    'webstreams.md#webstreamsapi_class_readablestreamdefaultreader',
+  'ReadableStreamBYOBReader':
+    'webstreams.md#webstreamsapi_class_readablestreambyobreader',
+  'ReadableStreamDefaultController':
+    'webstreams.md#webstreamsapi_class_readablestreamdefaultcontroller',
+  'ReadableByteStreamController':
+    'webstreams.md#webstreamsapi_class_readablebytestreamcontroller',
+  'ReadableStreamBYOBRequest':
+    'webstreams.md#webstreamsapi_class_readablestreambyobrequest',
+  'WritableStream':
+    'webstreams.md#webstreamsapi_class_writablestream',
+  'WritableStreamDefaultWriter':
+    'webstreams.md#webstreamsapi_class_writablestreamdefaultwriter',
+  'WritableStreamDefaultController':
+    'webstreams.md#webstreamsapi_class_writablestreamdefaultcontroller',
+  'TransformStream':
+    'webstreams.md#webstreamsapi_class_transformstream',
+  'TransformStreamDefaultController':
+    'webstreams.md#webstreamsapi_class_transformstreamdefaultcontroller',
+  'ByteLengthQueuingStrategy':
+    'webstreams.md#webstreamsapi_class_bytelengthqueuingstrategy',
+  'CountQueuingStrategy':
+    'webstreams.md#webstreamsapi_class_countqueuingstrategy',
 };
 
 const arrayPart = /(?:\[])+$/;

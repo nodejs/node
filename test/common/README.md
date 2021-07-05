@@ -62,13 +62,6 @@ On non-Windows platforms, this always returns `true`.
 
 Creates a 10 MB file of all null characters.
 
-### `enoughTestCpu`
-
-* [&lt;boolean>][]
-
-Indicates if there is more than 1 CPU or that the single CPU has a speed of at
-least 1 GHz.
-
 ### `enoughTestMem`
 
 * [&lt;boolean>][]

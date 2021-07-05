@@ -252,9 +252,6 @@ function platformTimeout(ms) {
 
   const armv = process.config.variables.arm_version;
 
-  if (armv === '6')
-    return multipliers.seven * ms;  // ARMv6
-
   if (armv === '7')
     return multipliers.two * ms;  // ARMv7
 
@@ -787,11 +784,6 @@ const common = {
   skipIfEslintMissing,
   skipIfInspectorDisabled,
   skipIfWorker,
-
-  get enoughTestCpu() {
-    const cpus = require('os').cpus();
-    return Array.isArray(cpus) && (cpus.length > 1 || cpus[0].speed > 999);
-  },
 
   get enoughTestMem() {
     return require('os').totalmem() > 0x70000000; /* 1.75 Gb */

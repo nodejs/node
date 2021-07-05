@@ -9,9 +9,9 @@ const common = require('../common');
 // This test is basically `test-cluster-net-send` but creating lots of workers
 // so the issue reproduces on OS X consistently.
 
-if ((process.config.variables.arm_version === '6') ||
-    (process.config.variables.arm_version === '7'))
-  common.skip('Too slow for armv6 and armv7 bots');
+if (process.config.variables.arm_version === '7') {
+  common.skip('Too slow for armv7 bots');
+}
 
 const assert = require('assert');
 const { fork } = require('child_process');

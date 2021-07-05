@@ -9,13 +9,8 @@ if (!common.isLinux) {
   common.skip('The fs watch limit is OS-dependent');
 }
 
-if (!common.enoughTestCpu) {
-  common.skip('This test is resource-intensive');
-}
-
-if ((process.config.variables.arm_version === '6') ||
-  (process.config.variables.arm_version === '7')) {
-  common.skip('Too slow for armv6 and armv7 bots');
+if (process.config.variables.arm_version === '7') {
+  common.skip('Too slow for armv7 bots');
 }
 
 try {

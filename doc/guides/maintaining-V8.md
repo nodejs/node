@@ -179,7 +179,7 @@ fixed upstream first.
 ### Backporting to active branches
 
 If the bug exists in any of the active V8 branches, we may need to get the fix
-backported. At any given time there are [two active branches][V8ActiveBranches]
+backported. At any given time, there are [two active branches][V8ActiveBranches]
 (beta and stable) in addition to master. The following steps are needed to
 backport the fix:
 
@@ -191,9 +191,7 @@ backport the fix:
   * If a bug already exists
     * Add a reference to the GitHub issue.
     * Attach *merge-request-x.x* labels to the bug for any active branches
-      that still contain the bug. (e.g. merge-request-5.3,
-      merge-request-5.4)
-    * Add ofrobots-at-google.com to the cc list.
+      that still contain the bug.
 * Once the merge has been approved, it should be merged using the
   [merge script documented in the V8 wiki][V8MergingPatching]. Merging requires
   commit access to the V8 repository. If you don't have commit access you can
@@ -215,17 +213,12 @@ to be cherry-picked in the Node.js repository and V8-CI must test the change.
   * Checkout a branch off the appropriate *vY.x-staging* branch (e.g.
     *v6.x-staging* to fix an issue in V8 5.1).
   * Cherry-pick the commit(s) from the V8 repository.
-  * On Node.js < 9.0.0: Increase the patch level version in `v8-version.h`.
-    This will not cause any problems with versioning because V8 will not
-    publish other patches for this branch, so Node.js can effectively bump the
-    patch version.
-  * On Node.js >= 9.0.0: Increase the `v8_embedder_string` number in
-    `common.gypi`.
+  * Increase the `v8_embedder_string` number in `common.gypi`.
   * In some cases the patch may require extra effort to merge in case V8 has
-    changed substantially. For important issues we may be able to lean on the
+    changed substantially. For important issues, we may be able to lean on the
     V8 team to get help with reimplementing the patch.
-  * Open a cherry-pick PR on `nodejs/node` targeting the *vY.x-staging* branch
-    and notify the `@nodejs/v8` team.
+  * Open a cherry-pick pull request on `nodejs/node` targeting the
+    *vY.x-staging* branch and notify the `@nodejs/v8` team.
   * Run the Node.js [V8 CI][] in addition to the [Node.js CI][].
     The CI uses the `test-v8` target in the `Makefile`, which uses
     `tools/make-v8.sh` to reconstruct a git tree in the `deps/v8` directory to
@@ -246,8 +239,7 @@ fix needed to be cherry-picked. To cherry-pick, here's an example workflow:
   not apply cleanly. It may help to try to cherry-pick the merge to the oldest
   branch that was done upstream in V8. In this example, this would be the patch
   from the merge to 5.2. The hope is that this would be closer to the V8 5.1,
-  and has a better chance of applying cleanly. If you're stuck, feel free to
-  ping @ofrobots for help.
+  and has a better chance of applying cleanly.
 * Modify the commit message to match the format we use for V8 backports and
   replace yourself as the author. `git commit --amend --reset-author`. You may
   want to add extra description if necessary to indicate the impact of the fix
@@ -274,9 +266,9 @@ Refs: https://github.com/v8/v8/commit/a51f429772d1e796744244128c9feeab4c26a854
 PR-URL: https://github.com/nodejs/node/pull/7833
 ```
 
-* Open a PR against the `v6.x-staging` branch in the Node.js repo. Launch the
-  normal and [V8 CI][] using the Node.js CI system. We only needed to backport
-  to `v6.x` as the other LTS branches weren't affected by this bug.
+* Open a PR against the `v6.x-staging` branch in the Node.js repository. Launch
+  the normal and [V8 CI][] using the Node.js CI system. We only needed to
+  backport to `v6.x` as the other LTS branches weren't affected by this bug.
 
 ### Backports identified by the V8 team
 
@@ -382,7 +374,7 @@ git node v8 major --branch=5.1-lkgr
 
 This should be followed up with manual refloating of all relevant patches.
 
-## Proposal: using a fork repo to track upstream V8
+## Proposal: Using a fork repository to track upstream V8
 
 The fact that Node.js keeps a vendored, potentially edited copy of V8 in deps/
 makes the above processes a bit complicated. An alternative proposal would be to

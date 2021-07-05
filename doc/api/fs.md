@@ -14,24 +14,20 @@ way modeled on standard POSIX functions.
 To use the promise-based APIs:
 
 ```mjs
-// Using ESM Module syntax:
 import * as fs from 'fs/promises';
 ```
 
 ```cjs
-// Using CommonJS syntax:
 const fs = require('fs/promises');
 ```
 
 To use the callback and sync APIs:
 
 ```mjs
-// Using ESM Module syntax:
 import * as fs from 'fs';
 ```
 
 ```cjs
-// Using CommonJS syntax:
 const fs = require('fs');
 ```
 
@@ -44,7 +40,6 @@ Promise-based operations return a promise that is fulfilled when the
 asynchronous operation is complete.
 
 ```mjs
-// Using ESM Module syntax:
 import { unlink } from 'fs/promises';
 
 try {
@@ -56,7 +51,6 @@ try {
 ```
 
 ```cjs
-// Using CommonJS syntax
 const { unlink } = require('fs/promises');
 
 (async function(path) {
@@ -78,7 +72,6 @@ reserved for an exception. If the operation is completed successfully, then
 the first argument is `null` or `undefined`.
 
 ```mjs
-// Using ESM syntax
 import { unlink } from 'fs';
 
 unlink('/tmp/hello', (err) => {
@@ -88,7 +81,6 @@ unlink('/tmp/hello', (err) => {
 ```
 
 ```cjs
-// Using CommonJS syntax
 const { unlink } = require('fs');
 
 unlink('/tmp/hello', (err) => {
@@ -108,7 +100,6 @@ execution until the operation is complete. Exceptions are thrown immediately
 and can be handled using `try…catch`, or can be allowed to bubble up.
 
 ```mjs
-// Using ESM syntax
 import { unlinkSync } from 'fs';
 
 try {
@@ -120,7 +111,6 @@ try {
 ```
 
 ```cjs
-// Using CommonJS syntax
 const { unlinkSync } = require('fs');
 
 try {
@@ -802,6 +792,10 @@ rejection only when `recursive` is false.
 ### `fsPromises.mkdtemp(prefix[, options])`
 <!-- YAML
 added: v10.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/39028
+    description: The `prefix` parameter now accepts an empty string.
 -->
 
 * `prefix` {string}
@@ -2574,6 +2568,9 @@ See the POSIX mkdir(2) documentation for more details.
 <!-- YAML
 added: v5.10.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/39028
+    description: The `prefix` parameter now accepts an empty string.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/12562
     description: The `callback` parameter is no longer optional. Not passing
@@ -4509,6 +4506,10 @@ See the POSIX mkdir(2) documentation for more details.
 ### `fs.mkdtempSync(prefix[, options])`
 <!-- YAML
 added: v5.10.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/39028
+    description: The `prefix` parameter now accepts an empty string.
 -->
 
 * `prefix` {string}
@@ -6328,7 +6329,6 @@ It is important to correctly order the operations by awaiting the results
 of one before invoking the other:
 
 ```mjs
-// Using ESM syntax
 import { rename, stat } from 'fs/promises';
 
 const from = '/tmp/hello';
@@ -6344,7 +6344,6 @@ try {
 ```
 
 ```cjs
-// Using CommonJS syntax
 const { rename, stat } = require('fs/promises');
 
 (async function(from, to) {
@@ -6718,7 +6717,6 @@ the file contents.
 [Naming Files, Paths, and Namespaces]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file
 [Readable Stream]: stream.md#stream_class_stream_readable
 [Writable Stream]: stream.md#stream_class_stream_writable
-[caveats]: #fs_caveats
 [`AHAFS`]: https://developer.ibm.com/articles/au-aix_event_infrastructure/
 [`Buffer.byteLength`]: buffer.md#buffer_static_method_buffer_bytelength_string_encoding
 [`FSEvents`]: https://developer.apple.com/documentation/coreservices/file_system_events
@@ -6733,7 +6731,7 @@ the file contents.
 [`fs.copyFile()`]: #fs_fs_copyfile_src_dest_mode_callback
 [`fs.createReadStream()`]: #fs_fs_createreadstream_path_options
 [`fs.createWriteStream()`]: #fs_fs_createwritestream_path_options
-[`fs.exists()`]: fs.md#fs_fs_exists_path_callback
+[`fs.exists()`]: #fs_fs_exists_path_callback
 [`fs.fstat()`]: #fs_fs_fstat_fd_options_callback
 [`fs.ftruncate()`]: #fs_fs_ftruncate_fd_len_callback
 [`fs.futimes()`]: #fs_fs_futimes_fd_atime_mtime_callback
@@ -6771,6 +6769,7 @@ the file contents.
 [`kqueue(2)`]: https://www.freebsd.org/cgi/man.cgi?query=kqueue&sektion=2
 [`util.promisify()`]: util.md#util_util_promisify_original
 [bigints]: https://tc39.github.io/proposal-bigint
+[caveats]: #fs_caveats
 [chcp]: https://ss64.com/nt/chcp.html
 [inode]: https://en.wikipedia.org/wiki/Inode
 [support of file system `flags`]: #fs_file_system_flags

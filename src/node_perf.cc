@@ -1,10 +1,11 @@
+#include "node_perf.h"
 #include "aliased_buffer.h"
 #include "env-inl.h"
 #include "histogram-inl.h"
 #include "memory_tracker-inl.h"
-#include "node_internals.h"
-#include "node_perf.h"
 #include "node_buffer.h"
+#include "node_external_reference.h"
+#include "node_internals.h"
 #include "node_process-inl.h"
 #include "util-inl.h"
 
@@ -250,6 +251,12 @@ void ELDHistogram::Initialize(Environment* env, Local<Object> target) {
   env->SetConstructorFunction(target, "ELDHistogram", tmpl);
 }
 
+void ELDHistogram::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+  IntervalHistogram::RegisterExternalReferences(registry);
+}
+
 ELDHistogram::ELDHistogram(
     Environment* env,
     Local<Object> wrap,
@@ -272,6 +279,15 @@ void ELDHistogram::OnInterval() {
                  "mean", histogram()->Mean());
   TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
                  "stddev", histogram()->Stddev());
+}
+
+void GetTimeOrigin(const FunctionCallbackInfo<Value>& args) {
+  args.GetReturnValue().Set(Number::New(args.GetIsolate(), timeOrigin / 1e6));
+}
+
+void GetTimeOriginTimeStamp(const FunctionCallbackInfo<Value>& args) {
+  args.GetReturnValue().Set(
+      Number::New(args.GetIsolate(), timeOriginTimestamp / MICROS_PER_MILLIS));
 }
 
 void Initialize(Local<Object> target,
@@ -308,6 +324,8 @@ void Initialize(Local<Object> target,
                  RemoveGarbageCollectionTracking);
   env->SetMethod(target, "notify", Notify);
   env->SetMethod(target, "loopIdleTime", LoopIdleTime);
+  env->SetMethod(target, "getTimeOrigin", GetTimeOrigin);
+  env->SetMethod(target, "getTimeOriginTimestamp", GetTimeOriginTimeStamp);
 
   Local<Object> constants = Object::New(isolate);
 
@@ -345,17 +363,6 @@ void Initialize(Local<Object> target,
       static_cast<PropertyAttribute>(ReadOnly | DontDelete);
 
   target->DefineOwnProperty(context,
-                            FIXED_ONE_BYTE_STRING(isolate, "timeOrigin"),
-                            Number::New(isolate, timeOrigin / 1e6),
-                            attr).ToChecked();
-
-  target->DefineOwnProperty(
-      context,
-      FIXED_ONE_BYTE_STRING(isolate, "timeOriginTimestamp"),
-      Number::New(isolate, timeOriginTimestamp / MICROS_PER_MILLIS),
-      attr).ToChecked();
-
-  target->DefineOwnProperty(context,
                             env->constants_string(),
                             constants,
                             attr).ToChecked();
@@ -364,7 +371,21 @@ void Initialize(Local<Object> target,
   ELDHistogram::Initialize(env, target);
 }
 
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(MarkMilestone);
+  registry->Register(SetupPerformanceObservers);
+  registry->Register(InstallGarbageCollectionTracking);
+  registry->Register(RemoveGarbageCollectionTracking);
+  registry->Register(Notify);
+  registry->Register(LoopIdleTime);
+  registry->Register(GetTimeOrigin);
+  registry->Register(GetTimeOriginTimeStamp);
+  HistogramBase::RegisterExternalReferences(registry);
+  ELDHistogram::RegisterExternalReferences(registry);
+}
 }  // namespace performance
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(performance, node::performance::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(performance,
+                               node::performance::RegisterExternalReferences)

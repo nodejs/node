@@ -1,6 +1,6 @@
 const t = require('tap')
 const { join } = require('path')
-const mockNpm = require('../fixtures/mock-npm')
+const { fake: mockNpm } = require('../fixtures/mock-npm')
 const ansicolors = require('ansicolors')
 
 const OUTPUT = []

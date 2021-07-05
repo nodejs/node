@@ -9,8 +9,8 @@ const assert = require('assert');
 
 // Debugger agent direct access.
 {
-  const cli = startCLI([fixtures.path('inspector-cli/three-lines.js')]);
-  const scriptPattern = /^\* (\d+): \S+inspector-cli(?:\/|\\)three-lines\.js/m;
+  const cli = startCLI([fixtures.path('debugger/three-lines.js')]);
+  const scriptPattern = /^\* (\d+): \S+debugger(?:\/|\\)three-lines\.js/m;
 
   function onFatal(error) {
     cli.quit();
