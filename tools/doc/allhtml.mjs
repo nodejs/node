@@ -31,13 +31,35 @@ for (const link of toc.match(/<a.*?>/g)) {
   // Split the doc.
   const match = /(<\/ul>\s*)?<\/\w+>\s*<\w+ id="apicontent">/.exec(data);
 
+  // Get module name
+  const moduleName = href.split('.')[0];
+
   contents += data.slice(0, match.index)
-    .replace(/[\s\S]*?id="toc"[^>]*>\s*<\w+>.*?<\/\w+>\s*(<ul>\s*)?/, '');
+    .replace(/[\s\S]*?id="toc"[^>]*>\s*<\w+>.*?<\/\w+>\s*(<ul>\s*)?/, '')
+    // Prefix TOC links with current module name
+    .replace(/<a href="#([^"]+)"/g, (match, anchor) => {
+      return `<a href="#${moduleName}_${anchor}"`;
+    });
 
   apicontent += '<section>' + data.slice(match.index + match[0].length)
     .replace(/<!-- API END -->[\s\S]*/, '</section>')
+    // Prefix all in-page id's with module name (mostly special cases)
+    .replace(/id="([^"]+)"/g, (match, anchor) => {
+      return `id="${moduleName}_${anchor}"`;
+    })
+    // Prefix all in-page anchor marks with module name
+    .replace(/<a class="mark" href="#([^"]+)" id="([^"]+)"/g, (match, anchor) => {
+      return `<a class="mark" href="#${moduleName}_${anchor}" id="${moduleName}_${anchor}"`;
+    })
+    // Prefix all in-page links with current module name
+    .replace(/<a href="#([^"]+)"/g, (match, anchor) => {
+      return `<a href="#${moduleName}_${anchor}"`;
+    })
+    // Prefix all links to other docs modules with those module names
     .replace(/<a href="(\w[^#"]*)#/g, (match, href) => {
-      return htmlFiles.includes(href) ? '<a href="#' : match;
+      if (!htmlFiles.includes(href)) return match;
+      const linkModule = href.split('.')[0];
+      return `<a href="#${linkModule}_`;
     })
     .trim() + '\n';
 

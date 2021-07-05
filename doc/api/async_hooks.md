@@ -841,14 +841,14 @@ The documentation for this class has moved [`AsyncResource`][].
 
 The documentation for this class has moved [`AsyncLocalStorage`][].
 
-[Hook Callbacks]: #async_hooks_hook_callbacks
+[Hook Callbacks]: #hook-callbacks
 [PromiseHooks]: https://docs.google.com/document/d/1rda3yKGHimKIhg5YeoAmCOtyURgsbTH_qaYR79FELlk/edit
-[`AsyncLocalStorage`]: async_context.md#async_context_class_asynclocalstorage
-[`AsyncResource`]: async_context.md#async_context_class_asyncresource
-[`Worker`]: worker_threads.md#worker_threads_class_worker
-[`after` callback]: #async_hooks_after_asyncid
-[`before` callback]: #async_hooks_before_asyncid
-[`destroy` callback]: #async_hooks_destroy_asyncid
-[`init` callback]: #async_hooks_init_asyncid_type_triggerasyncid_resource
-[`promiseResolve` callback]: #async_hooks_promiseresolve_asyncid
-[promise execution tracking]: #async_hooks_promise_execution_tracking
+[`AsyncLocalStorage`]: async_context.md#class-asynclocalstorage
+[`AsyncResource`]: async_context.md#class-asyncresource
+[`Worker`]: worker_threads.md#class-worker
+[`after` callback]: #afterasyncid
+[`before` callback]: #beforeasyncid
+[`destroy` callback]: #destroyasyncid
+[`init` callback]: #initasyncid-type-triggerasyncid-resource
+[`promiseResolve` callback]: #promiseresolveasyncid
+[promise execution tracking]: #promise-execution-tracking

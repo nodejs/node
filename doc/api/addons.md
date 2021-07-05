@@ -456,7 +456,7 @@ in the Node-API are used.
 
 Creating and maintaining an addon that benefits from the ABI stability
 provided by Node-API carries with it certain
-[implementation considerations](n-api.md#n_api_implications_of_abi_stability).
+[implementation considerations][].
 
 To use Node-API in the above "Hello world" example, replace the content of
 `hello.cc` with the following. All other instructions remain the same.
@@ -1362,15 +1362,16 @@ console.log(result);
 
 [Electron]: https://electronjs.org/
 [Embedder's Guide]: https://github.com/v8/v8/wiki/Embedder's%20Guide
-[Linking to libraries included with Node.js]: #addons_linking_to_libraries_included_with_node_js
+[Linking to libraries included with Node.js]: #linking-to-libraries-included-with-nodejs
 [Native Abstractions for Node.js]: https://github.com/nodejs/nan
 [V8]: https://v8.dev/
-[`Worker`]: worker_threads.md#worker_threads_class_worker
+[`Worker`]: worker_threads.md#class-worker
 [bindings]: https://github.com/TooTallNate/node-bindings
 [download]: https://github.com/nodejs/node-addon-examples
 [examples]: https://github.com/nodejs/nan/tree/HEAD/examples/
+[implementation considerations]: n-api.md#implications-of-abi-stability
 [installation instructions]: https://github.com/nodejs/node-gyp#installation
 [libuv]: https://github.com/libuv/libuv
 [node-gyp]: https://github.com/nodejs/node-gyp
-[require]: modules.md#modules_require_id
+[require]: modules.md#requireid
 [v8-docs]: https://v8docs.nodesource.com/

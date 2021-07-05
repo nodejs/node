@@ -3846,61 +3846,61 @@ if you don't use the compatibility API (or use `req.headers` directly),
 you need to implement any fall-back behavior yourself.
 
 [ALPN Protocol ID]: https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml#alpn-protocol-ids
-[ALPN negotiation]: #http2_alpn_negotiation
-[Compatibility API]: #http2_compatibility_api
+[ALPN negotiation]: #alpn-negotiation
+[Compatibility API]: #compatibility-api
 [HTTP/1]: http.md
 [HTTP/2]: https://tools.ietf.org/html/rfc7540
-[HTTP/2 Headers Object]: #http2_headers_object
-[HTTP/2 Settings Object]: #http2_settings_object
+[HTTP/2 Headers Object]: #headers-object
+[HTTP/2 Settings Object]: #settings-object
 [HTTP/2 Unencrypted]: https://http2.github.io/faq/#does-http2-require-encryption
 [HTTPS]: https.md
 [Performance Observer]: perf_hooks.md
 [RFC 7838]: https://tools.ietf.org/html/rfc7838
 [RFC 8336]: https://tools.ietf.org/html/rfc8336
 [RFC 8441]: https://tools.ietf.org/html/rfc8441
-[Sensitive headers]: #http2_sensitive_headers
-[`'checkContinue'`]: #http2_event_checkcontinue
-[`'connect'`]: #http2_event_connect
-[`'request'`]: #http2_event_request
-[`'unknownProtocol'`]: #http2_event_unknownprotocol
-[`ClientHttp2Stream`]: #http2_class_clienthttp2stream
-[`Duplex`]: stream.md#stream_class_stream_duplex
-[`Http2ServerRequest`]: #http2_class_http2_http2serverrequest
-[`Http2ServerResponse`]: #http2_class_http2_http2serverresponse
-[`Http2Session` and Sockets]: #http2_http2session_and_sockets
-[`Http2Session`'s `'stream'` event]: #http2_event_stream
-[`Http2Stream`]: #http2_class_http2stream
-[`ServerHttp2Stream`]: #http2_class_serverhttp2stream
-[`TypeError`]: errors.md#errors_class_typeerror
-[`http.ClientRequest#maxHeadersCount`]: http.md#http_request_maxheaderscount
-[`http.Server#maxHeadersCount`]: http.md#http_server_maxheaderscount
-[`http2.SecureServer`]: #http2_class_http2secureserver
-[`http2.Server`]: #http2_class_http2server
-[`http2.createSecureServer()`]: #http2_http2_createsecureserver_options_onrequesthandler
-[`http2.createServer()`]: #http2_http2_createserver_options_onrequesthandler
-[`http2session.close()`]: #http2_http2session_close_callback
-[`http2stream.pushStream()`]: #http2_http2stream_pushstream_headers_options_callback
-[`net.Server.close()`]: net.md#net_server_close_callback
-[`net.Socket.bufferSize`]: net.md#net_socket_buffersize
-[`net.Socket.prototype.ref()`]: net.md#net_socket_ref
-[`net.Socket.prototype.unref()`]: net.md#net_socket_unref
-[`net.Socket`]: net.md#net_class_net_socket
-[`net.connect()`]: net.md#net_net_connect
-[`net.createServer()`]: net.md#net_net_createserver_options_connectionlistener
-[`request.authority`]: #http2_request_authority
-[`request.socket.getPeerCertificate()`]: tls.md#tls_tlssocket_getpeercertificate_detailed
-[`request.socket`]: #http2_request_socket
-[`response.end()`]: #http2_response_end_data_encoding_callback
-[`response.setHeader()`]: #http2_response_setheader_name_value
-[`response.socket`]: #http2_response_socket
-[`response.writableEnded`]: #http2_response_writableended
-[`response.write()`]: #http2_response_write_chunk_encoding_callback
-[`response.write(data, encoding)`]: http.md#http_response_write_chunk_encoding_callback
-[`response.writeContinue()`]: #http2_response_writecontinue
-[`response.writeHead()`]: #http2_response_writehead_statuscode_statusmessage_headers
-[`tls.Server.close()`]: tls.md#tls_server_close_callback
-[`tls.TLSSocket`]: tls.md#tls_class_tls_tlssocket
-[`tls.connect()`]: tls.md#tls_tls_connect_options_callback
-[`tls.createServer()`]: tls.md#tls_tls_createserver_options_secureconnectionlistener
-[`writable.writableFinished`]: stream.md#stream_writable_writablefinished
-[error code]: #http2_error_codes_for_rst_stream_and_goaway
+[Sensitive headers]: #sensitive-headers
+[`'checkContinue'`]: #event-checkcontinue
+[`'connect'`]: #event-connect
+[`'request'`]: #event-request
+[`'unknownProtocol'`]: #event-unknownprotocol
+[`ClientHttp2Stream`]: #class-clienthttp2stream
+[`Duplex`]: stream.md#class-streamduplex
+[`Http2ServerRequest`]: #class-http2http2serverrequest
+[`Http2ServerResponse`]: #class-http2http2serverresponse
+[`Http2Session` and Sockets]: #http2session-and-sockets
+[`Http2Session`'s `'stream'` event]: #event-stream
+[`Http2Stream`]: #class-http2stream
+[`ServerHttp2Stream`]: #class-serverhttp2stream
+[`TypeError`]: errors.md#class-typeerror
+[`http.ClientRequest#maxHeadersCount`]: http.md#requestmaxheaderscount
+[`http.Server#maxHeadersCount`]: http.md#servermaxheaderscount
+[`http2.SecureServer`]: #class-http2secureserver
+[`http2.Server`]: #class-http2server
+[`http2.createSecureServer()`]: #http2createsecureserveroptions-onrequesthandler
+[`http2.createServer()`]: #http2createserveroptions-onrequesthandler
+[`http2session.close()`]: #http2sessionclosecallback
+[`http2stream.pushStream()`]: #http2streampushstreamheaders-options-callback
+[`net.Server.close()`]: net.md#serverclosecallback
+[`net.Socket.bufferSize`]: net.md#socketbuffersize
+[`net.Socket.prototype.ref()`]: net.md#socketref
+[`net.Socket.prototype.unref()`]: net.md#socketunref
+[`net.Socket`]: net.md#class-netsocket
+[`net.connect()`]: net.md#netconnect
+[`net.createServer()`]: net.md#netcreateserveroptions-connectionlistener
+[`request.authority`]: #requestauthority
+[`request.socket.getPeerCertificate()`]: tls.md#tlssocketgetpeercertificatedetailed
+[`request.socket`]: #requestsocket
+[`response.end()`]: #responseenddata-encoding-callback
+[`response.setHeader()`]: #responsesetheadername-value
+[`response.socket`]: #responsesocket
+[`response.writableEnded`]: #responsewritableended
+[`response.write()`]: #responsewritechunk-encoding-callback
+[`response.write(data, encoding)`]: http.md#responsewritechunk-encoding-callback
+[`response.writeContinue()`]: #responsewritecontinue
+[`response.writeHead()`]: #responsewriteheadstatuscode-statusmessage-headers
+[`tls.Server.close()`]: tls.md#serverclosecallback
+[`tls.TLSSocket`]: tls.md#class-tlstlssocket
+[`tls.connect()`]: tls.md#tlsconnectoptions-callback
+[`tls.createServer()`]: tls.md#tlscreateserveroptions-secureconnectionlistener
+[`writable.writableFinished`]: stream.md#writablewritablefinished
+[error code]: #error-codes-for-rst_stream-and-goaway
