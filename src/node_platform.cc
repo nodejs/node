@@ -359,10 +359,10 @@ void NodePlatform::AddIsolateFinishedCallback(Isolate* isolate,
   Mutex::ScopedLock lock(per_isolate_mutex_);
   auto it = per_isolate_.find(isolate);
   if (it == per_isolate_.end()) {
-    CHECK(it->second);
     cb(data);
     return;
   }
+  CHECK(it->second);
   it->second->AddShutdownCallback(cb, data);
 }
 
