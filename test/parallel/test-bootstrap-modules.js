@@ -96,6 +96,7 @@ const expectedModules = new Set([
   'NativeModule internal/process/signal',
   'NativeModule internal/process/task_queues',
   'NativeModule internal/process/warning',
+  'NativeModule internal/promise_hooks',
   'NativeModule internal/querystring',
   'NativeModule internal/source_map/source_map_cache',
   'NativeModule internal/stream_base_commons',
