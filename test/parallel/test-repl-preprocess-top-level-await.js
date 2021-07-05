@@ -54,11 +54,11 @@ const testCases = [
     '(async () => { return (console.log(`${(await { a: 1 }).a}`)) })()' ],
   /* eslint-enable no-template-curly-in-string */
   [ 'await 0; function foo() {}',
-    'let foo; (async () => { await 0; foo=function foo() {} })()' ],
+    'var foo; (async () => { await 0; foo=function foo() {} })()' ],
   [ 'await 0; class Foo {}',
     'let Foo; (async () => { await 0; Foo=class Foo {} })()' ],
   [ 'if (await true) { function foo() {} }',
-    'let foo; (async () => { if (await true) { foo=function foo() {} } })()' ],
+    'var foo; (async () => { if (await true) { foo=function foo() {} } })()' ],
   [ 'if (await true) { class Foo{} }',
     '(async () => { if (await true) { class Foo{} } })()' ],
   [ 'if (await true) { var a = 1; }',
