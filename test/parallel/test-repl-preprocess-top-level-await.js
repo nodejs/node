@@ -29,17 +29,17 @@ const testCases = [
   [ 'await 0; return 0;',
     null ],
   [ 'var a = await 1',
-    'let a; (async () => { void (a = await 1) })()' ],
+    'var a; (async () => { void (a = await 1) })()' ],
   [ 'let a = await 1',
     'let a; (async () => { void (a = await 1) })()' ],
   [ 'const a = await 1',
     'let a; (async () => { void (a = await 1) })()' ],
   [ 'for (var i = 0; i < 1; ++i) { await i }',
-    'let i; (async () => { for (void (i = 0); i < 1; ++i) { await i } })()' ],
+    'var i; (async () => { for (void (i = 0); i < 1; ++i) { await i } })()' ],
   [ 'for (let i = 0; i < 1; ++i) { await i }',
-    'let i; (async () => { for (void (i = 0); i < 1; ++i) { await i } })()' ],
+    '(async () => { for (let i = 0; i < 1; ++i) { await i } })()' ],
   [ 'var {a} = {a:1}, [b] = [1], {c:{d}} = {c:{d: await 1}}',
-    'let a, b, d; (async () => { void ( ({a} = {a:1}), ([b] = [1]), ' +
+    'var a, b, d; (async () => { void ( ({a} = {a:1}), ([b] = [1]), ' +
         '({c:{d}} = {c:{d: await 1}})) })()' ],
   [ 'let [a, b, c] = await ([1, 2, 3])',
     'let a, b, c; (async () => { void ([a, b, c] = await ([1, 2, 3])) })()'],
@@ -58,18 +58,30 @@ const testCases = [
   [ 'await 0; class Foo {}',
     'let Foo; (async () => { await 0; Foo=class Foo {} })()' ],
   [ 'if (await true) { function foo() {} }',
-    'let foo; (async () => { if (await true) { foo=function foo() {} } })()' ],
+    '(async () => { if (await true) { function foo() {} } })()' ],
   [ 'if (await true) { class Foo{} }',
-    'let Foo; (async () => { if (await true) { Foo=class Foo{} } })()' ],
+    '(async () => { if (await true) { class Foo{} } })()' ],
   [ 'if (await true) { var a = 1; }',
-    'let a; (async () => { if (await true) { void (a = 1); } })()' ],
+    'var a; (async () => { if (await true) { void (a = 1); } })()' ],
   [ 'if (await true) { let a = 1; }',
-    'let a; (async () => { if (await true) { void (a = 1); } })()' ],
+    '(async () => { if (await true) { let a = 1; } })()' ],
   [ 'var a = await 1; let b = 2; const c = 3;',
-    'let c; let b; let a; (async () => { void (a = await 1); void (b = 2);' +
+    'let c; let b; var a; (async () => { void (a = await 1); void (b = 2);' +
         ' void (c = 3); })()' ],
   [ 'let o = await 1, p',
     'let o, p; (async () => { void ( (o = await 1), (p=undefined)) })()' ],
+  [ 'await (async () => { let p = await 1; return p; })()',
+    '(async () => { return (await (async () => ' +
+      '{ let p = await 1; return p; })()) })()' ],
+  [ '{ let p = await 1; }',
+    '(async () => { { let p = await 1; } })()' ],
+  [ 'var p = await 1',
+    'var p; (async () => { void (p = await 1) })()' ],
+  [ 'await (async () => { var p = await 1; return p; })()',
+    '(async () => { return (await (async () => ' +
+      '{ var p = await 1; return p; })()) })()' ],
+  [ '{ var p = await 1; }',
+    'var p; (async () => { { void (p = await 1); } })()' ],
 ];
 
 for (const [input, expected] of testCases) {
