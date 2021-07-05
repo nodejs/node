@@ -453,7 +453,7 @@ The `'secure'` event is emitted by the `SecurePair` object once a secure
 connection has been established.
 
 As with checking for the server
-[`'secureConnection'`](#tls_event_secureconnection)
+[`'secureConnection'`]()
 event, `pair.cleartext.authorized` should be inspected to confirm whether the
 certificate used is properly authorized.
 
@@ -2063,55 +2063,55 @@ added: v11.4.0
 [ECDHE]: https://en.wikipedia.org/wiki/Elliptic_curve_Diffie%E2%80%93Hellman
 [Mozilla's publicly trusted list of CAs]: https://hg.mozilla.org/mozilla-central/raw-file/tip/security/nss/lib/ckfw/builtins/certdata.txt
 [OCSP request]: https://en.wikipedia.org/wiki/OCSP_stapling
-[OpenSSL Options]: crypto.md#crypto_openssl_options
+[OpenSSL Options]: crypto.md#openssl-options
 [RFC 2246]: https://www.ietf.org/rfc/rfc2246.txt
 [RFC 4086]: https://tools.ietf.org/html/rfc4086
 [RFC 4279]: https://tools.ietf.org/html/rfc4279
 [RFC 5077]: https://tools.ietf.org/html/rfc5077
 [RFC 5929]: https://tools.ietf.org/html/rfc5929
 [SSL_METHODS]: https://www.openssl.org/docs/man1.1.1/man7/ssl.html#Dealing-with-Protocol-Methods
-[Session Resumption]: #tls_session_resumption
-[Stream]: stream.md#stream_stream
+[Session Resumption]: #session-resumption
+[Stream]: stream.md#stream
 [TLS recommendations]: https://wiki.mozilla.org/Security/Server_Side_TLS
-[`'newSession'`]: #tls_event_newsession
-[`'resumeSession'`]: #tls_event_resumesession
-[`'secureConnect'`]: #tls_event_secureconnect
-[`'secureConnection'`]: #tls_event_secureconnection
-[`'session'`]: #tls_event_session
-[`--tls-cipher-list`]: cli.md#cli_tls_cipher_list_list
-[`Duplex`]: stream.md#stream_class_stream_duplex
-[`NODE_OPTIONS`]: cli.md#cli_node_options_options
+[`'newSession'`]: #event-newsession
+[`'resumeSession'`]: #event-resumesession
+[`'secureConnect'`]: #event-secureconnect
+[`'secureConnection'`]: #event-secureconnection
+[`'session'`]: #event-session
+[`--tls-cipher-list`]: cli.md#--tls-cipher-listlist
+[`Duplex`]: stream.md#class-streamduplex
+[`NODE_OPTIONS`]: cli.md#node_optionsoptions
 [`SSL_export_keying_material`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_export_keying_material.html
 [`SSL_get_version`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_get_version.html
-[`crypto.getCurves()`]: crypto.md#crypto_crypto_getcurves
-[`net.Server.address()`]: net.md#net_server_address
-[`net.Server`]: net.md#net_class_net_server
-[`net.Socket`]: net.md#net_class_net_socket
-[`net.createServer()`]: net.md#net_net_createserver_options_connectionlistener
-[`server.addContext()`]: #tls_server_addcontext_hostname_context
-[`server.getTicketKeys()`]: #tls_server_getticketkeys
-[`server.listen()`]: net.md#net_server_listen
-[`server.setTicketKeys()`]: #tls_server_setticketkeys_keys
-[`socket.connect()`]: net.md#net_socket_connect_options_connectlistener
-[`tls.DEFAULT_ECDH_CURVE`]: #tls_tls_default_ecdh_curve
-[`tls.DEFAULT_MAX_VERSION`]: #tls_tls_default_max_version
-[`tls.DEFAULT_MIN_VERSION`]: #tls_tls_default_min_version
-[`tls.Server`]: #tls_class_tls_server
-[`tls.TLSSocket.enableTrace()`]: #tls_tlssocket_enabletrace
-[`tls.TLSSocket.getPeerCertificate()`]: #tls_tlssocket_getpeercertificate_detailed
-[`tls.TLSSocket.getSession()`]: #tls_tlssocket_getsession
-[`tls.TLSSocket.getTLSTicket()`]: #tls_tlssocket_gettlsticket
-[`tls.TLSSocket`]: #tls_class_tls_tlssocket
-[`tls.connect()`]: #tls_tls_connect_options_callback
-[`tls.createSecureContext()`]: #tls_tls_createsecurecontext_options
-[`tls.createSecurePair()`]: #tls_tls_createsecurepair_context_isserver_requestcert_rejectunauthorized_options
-[`tls.createServer()`]: #tls_tls_createserver_options_secureconnectionlistener
-[`tls.getCiphers()`]: #tls_tls_getciphers
-[`tls.rootCertificates`]: #tls_tls_rootcertificates
+[`crypto.getCurves()`]: crypto.md#cryptogetcurves
+[`net.Server.address()`]: net.md#serveraddress
+[`net.Server`]: net.md#class-netserver
+[`net.Socket`]: net.md#class-netsocket
+[`net.createServer()`]: net.md#netcreateserveroptions-connectionlistener
+[`server.addContext()`]: #serveraddcontexthostname-context
+[`server.getTicketKeys()`]: #servergetticketkeys
+[`server.listen()`]: net.md#serverlisten
+[`server.setTicketKeys()`]: #serversetticketkeyskeys
+[`socket.connect()`]: net.md#socketconnectoptions-connectlistener
+[`tls.DEFAULT_ECDH_CURVE`]: #tlsdefault_ecdh_curve
+[`tls.DEFAULT_MAX_VERSION`]: #tlsdefault_max_version
+[`tls.DEFAULT_MIN_VERSION`]: #tlsdefault_min_version
+[`tls.Server`]: #class-tlsserver
+[`tls.TLSSocket.enableTrace()`]: #tlssocketenabletrace
+[`tls.TLSSocket.getPeerCertificate()`]: #tlssocketgetpeercertificatedetailed
+[`tls.TLSSocket.getSession()`]: #tlssocketgetsession
+[`tls.TLSSocket.getTLSTicket()`]: #tlssocketgettlsticket
+[`tls.TLSSocket`]: #class-tlstlssocket
+[`tls.connect()`]: #tlsconnectoptions-callback
+[`tls.createSecureContext()`]: #tlscreatesecurecontextoptions
+[`tls.createSecurePair()`]: #tlscreatesecurepaircontext-isserver-requestcert-rejectunauthorized-options
+[`tls.createServer()`]: #tlscreateserveroptions-secureconnectionlistener
+[`tls.getCiphers()`]: #tlsgetciphers
+[`tls.rootCertificates`]: #tlsrootcertificates
 [asn1.js]: https://www.npmjs.com/package/asn1.js
-[certificate object]: #tls_certificate_object
+[certificate object]: #certificate-object
 [cipher list format]: https://www.openssl.org/docs/man1.1.1/man1/ciphers.html#CIPHER-LIST-FORMAT
 [forward secrecy]: https://en.wikipedia.org/wiki/Perfect_forward_secrecy
-[modifying the default cipher suite]: #tls_modifying_the_default_tls_cipher_suite
-[perfect forward secrecy]: #tls_perfect_forward_secrecy
+[modifying the default cipher suite]: #modifying-the-default-tls-cipher-suite
+[perfect forward secrecy]: #perfect-forward-secrecy
 [specific attacks affecting larger AES key sizes]: https://www.schneier.com/blog/archives/2009/07/another_new_aes.html

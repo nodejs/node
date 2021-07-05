@@ -330,7 +330,7 @@ records. The type and structure of individual results varies based on `rrtype`:
 | `'TXT'`   | text records                   | {string[]}  | [`dns.resolveTxt()`][]   |
 
 On error, `err` is an [`Error`][] object, where `err.code` is one of the
-[DNS error codes](#dns_error_codes).
+[DNS error codes]().
 
 ## `dns.resolve4(hostname[, options], callback)`
 <!-- YAML
@@ -909,7 +909,7 @@ based on `rrtype`:
 | `'TXT'`   | text records                   | {string[]}  | [`dnsPromises.resolveTxt()`][]   |
 
 On error, the `Promise` is rejected with an [`Error`][] object, where `err.code`
-is one of the [DNS error codes](#dns_error_codes).
+is one of the [DNS error codes]().
 
 ### `dnsPromises.resolve4(hostname[, options])`
 <!-- YAML
@@ -1162,7 +1162,7 @@ Performs a reverse DNS query that resolves an IPv4 or IPv6 address to an
 array of host names.
 
 On error, the `Promise` is rejected with an [`Error`][] object, where `err.code`
-is one of the [DNS error codes](#dns_error_codes).
+is one of the [DNS error codes]().
 
 ### `dnsPromises.setDefaultResultOrder(order)`
 <!-- YAML
@@ -1285,52 +1285,52 @@ processing that happens on libuv's threadpool that [`dns.lookup()`][] can have.
 They do not use the same set of configuration files than what [`dns.lookup()`][]
 uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 
-[DNS error codes]: #dns_error_codes
+[DNS error codes]: #error-codes
 [Domain Name System (DNS)]: https://en.wikipedia.org/wiki/Domain_Name_System
-[Implementation considerations section]: #dns_implementation_considerations
+[Implementation considerations section]: #implementation-considerations
 [RFC 5952]: https://tools.ietf.org/html/rfc5952#section-6
 [RFC 8482]: https://tools.ietf.org/html/rfc8482
-[`--dns-result-order`]: cli.md#cli_dns_result_order_order
-[`Error`]: errors.md#errors_class_error
-[`UV_THREADPOOL_SIZE`]: cli.md#cli_uv_threadpool_size_size
-[`dgram.createSocket()`]: dgram.md#dgram_dgram_createsocket_options_callback
-[`dns.getServers()`]: #dns_dns_getservers
-[`dns.lookup()`]: #dns_dns_lookup_hostname_options_callback
-[`dns.resolve()`]: #dns_dns_resolve_hostname_rrtype_callback
-[`dns.resolve4()`]: #dns_dns_resolve4_hostname_options_callback
-[`dns.resolve6()`]: #dns_dns_resolve6_hostname_options_callback
-[`dns.resolveAny()`]: #dns_dns_resolveany_hostname_callback
-[`dns.resolveCaa()`]: #dns_dns_resolvecaa_hostname_callback
-[`dns.resolveCname()`]: #dns_dns_resolvecname_hostname_callback
-[`dns.resolveMx()`]: #dns_dns_resolvemx_hostname_callback
-[`dns.resolveNaptr()`]: #dns_dns_resolvenaptr_hostname_callback
-[`dns.resolveNs()`]: #dns_dns_resolvens_hostname_callback
-[`dns.resolvePtr()`]: #dns_dns_resolveptr_hostname_callback
-[`dns.resolveSoa()`]: #dns_dns_resolvesoa_hostname_callback
-[`dns.resolveSrv()`]: #dns_dns_resolvesrv_hostname_callback
-[`dns.resolveTxt()`]: #dns_dns_resolvetxt_hostname_callback
-[`dns.reverse()`]: #dns_dns_reverse_ip_callback
-[`dns.setDefaultResultOrder()`]: #dns_dns_setdefaultresultorder_order
-[`dns.setServers()`]: #dns_dns_setservers_servers
-[`dnsPromises.getServers()`]: #dns_dnspromises_getservers
-[`dnsPromises.lookup()`]: #dns_dnspromises_lookup_hostname_options
-[`dnsPromises.resolve()`]: #dns_dnspromises_resolve_hostname_rrtype
-[`dnsPromises.resolve4()`]: #dns_dnspromises_resolve4_hostname_options
-[`dnsPromises.resolve6()`]: #dns_dnspromises_resolve6_hostname_options
-[`dnsPromises.resolveAny()`]: #dns_dnspromises_resolveany_hostname
-[`dnsPromises.resolveCaa()`]: #dns_dnspromises_resolvecaa_hostname
-[`dnsPromises.resolveCname()`]: #dns_dnspromises_resolvecname_hostname
-[`dnsPromises.resolveMx()`]: #dns_dnspromises_resolvemx_hostname
-[`dnsPromises.resolveNaptr()`]: #dns_dnspromises_resolvenaptr_hostname
-[`dnsPromises.resolveNs()`]: #dns_dnspromises_resolvens_hostname
-[`dnsPromises.resolvePtr()`]: #dns_dnspromises_resolveptr_hostname
-[`dnsPromises.resolveSoa()`]: #dns_dnspromises_resolvesoa_hostname
-[`dnsPromises.resolveSrv()`]: #dns_dnspromises_resolvesrv_hostname
-[`dnsPromises.resolveTxt()`]: #dns_dnspromises_resolvetxt_hostname
-[`dnsPromises.reverse()`]: #dns_dnspromises_reverse_ip
-[`dnsPromises.setDefaultResultOrder()`]: #dns_dnspromises_setdefaultresultorder_order
-[`dnsPromises.setServers()`]: #dns_dnspromises_setservers_servers
-[`socket.connect()`]: net.md#net_socket_connect_options_connectlistener
-[`util.promisify()`]: util.md#util_util_promisify_original
-[supported `getaddrinfo` flags]: #dns_supported_getaddrinfo_flags
+[`--dns-result-order`]: cli.md#--dns-result-orderorder
+[`Error`]: errors.md#class-error
+[`UV_THREADPOOL_SIZE`]: cli.md#uv_threadpool_sizesize
+[`dgram.createSocket()`]: dgram.md#dgramcreatesocketoptions-callback
+[`dns.getServers()`]: #dnsgetservers
+[`dns.lookup()`]: #dnslookuphostname-options-callback
+[`dns.resolve()`]: #dnsresolvehostname-rrtype-callback
+[`dns.resolve4()`]: #dnsresolve4hostname-options-callback
+[`dns.resolve6()`]: #dnsresolve6hostname-options-callback
+[`dns.resolveAny()`]: #dnsresolveanyhostname-callback
+[`dns.resolveCaa()`]: #dnsresolvecaahostname-callback
+[`dns.resolveCname()`]: #dnsresolvecnamehostname-callback
+[`dns.resolveMx()`]: #dnsresolvemxhostname-callback
+[`dns.resolveNaptr()`]: #dnsresolvenaptrhostname-callback
+[`dns.resolveNs()`]: #dnsresolvenshostname-callback
+[`dns.resolvePtr()`]: #dnsresolveptrhostname-callback
+[`dns.resolveSoa()`]: #dnsresolvesoahostname-callback
+[`dns.resolveSrv()`]: #dnsresolvesrvhostname-callback
+[`dns.resolveTxt()`]: #dnsresolvetxthostname-callback
+[`dns.reverse()`]: #dnsreverseip-callback
+[`dns.setDefaultResultOrder()`]: #dnssetdefaultresultorderorder
+[`dns.setServers()`]: #dnssetserversservers
+[`dnsPromises.getServers()`]: #dnspromisesgetservers
+[`dnsPromises.lookup()`]: #dnspromiseslookuphostname-options
+[`dnsPromises.resolve()`]: #dnspromisesresolvehostname-rrtype
+[`dnsPromises.resolve4()`]: #dnspromisesresolve4hostname-options
+[`dnsPromises.resolve6()`]: #dnspromisesresolve6hostname-options
+[`dnsPromises.resolveAny()`]: #dnspromisesresolveanyhostname
+[`dnsPromises.resolveCaa()`]: #dnspromisesresolvecaahostname
+[`dnsPromises.resolveCname()`]: #dnspromisesresolvecnamehostname
+[`dnsPromises.resolveMx()`]: #dnspromisesresolvemxhostname
+[`dnsPromises.resolveNaptr()`]: #dnspromisesresolvenaptrhostname
+[`dnsPromises.resolveNs()`]: #dnspromisesresolvenshostname
+[`dnsPromises.resolvePtr()`]: #dnspromisesresolveptrhostname
+[`dnsPromises.resolveSoa()`]: #dnspromisesresolvesoahostname
+[`dnsPromises.resolveSrv()`]: #dnspromisesresolvesrvhostname
+[`dnsPromises.resolveTxt()`]: #dnspromisesresolvetxthostname
+[`dnsPromises.reverse()`]: #dnspromisesreverseip
+[`dnsPromises.setDefaultResultOrder()`]: #dnspromisessetdefaultresultorderorder
+[`dnsPromises.setServers()`]: #dnspromisessetserversservers
+[`socket.connect()`]: net.md#socketconnectoptions-connectlistener
+[`util.promisify()`]: util.md#utilpromisifyoriginal
+[supported `getaddrinfo` flags]: #supported-getaddrinfo-flags
 [worker threads]: worker_threads.md

@@ -1074,18 +1074,18 @@ socket.on('data', (id) => {
 });
 ```
 
-[Advanced serialization for `child_process`]: child_process.md#child_process_advanced_serialization
-[Child Process module]: child_process.md#child_process_child_process_fork_modulepath_args_options
-[`.fork()`]: #cluster_cluster_fork_env
-[`.setupPrimary()`]: #cluster_cluster_setupprimary_settings
-[`ChildProcess.send()`]: child_process.md#child_process_subprocess_send_message_sendhandle_options_callback
-[`child_process.fork()`]: child_process.md#child_process_child_process_fork_modulepath_args_options
-[`child_process` event: `'exit'`]: child_process.md#child_process_event_exit
-[`child_process` event: `'message'`]: child_process.md#child_process_event_message
-[`cluster.isPrimary`]: #cluster_cluster_isprimary
-[`cluster.settings`]: #cluster_cluster_settings
-[`disconnect()`]: child_process.md#child_process_subprocess_disconnect
-[`kill()`]: process.md#process_process_kill_pid_signal
-[`process` event: `'message'`]: process.md#process_event_message
-[`server.close()`]: net.md#net_event_close
-[`worker.exitedAfterDisconnect`]: #cluster_worker_exitedafterdisconnect
+[Advanced serialization for `child_process`]: child_process.md#advanced-serialization
+[Child Process module]: child_process.md#child_processforkmodulepath-args-options
+[`.fork()`]: #clusterforkenv
+[`.setupPrimary()`]: #clustersetupprimarysettings
+[`ChildProcess.send()`]: child_process.md#subprocesssendmessage-sendhandle-options-callback
+[`child_process.fork()`]: child_process.md#child_processforkmodulepath-args-options
+[`child_process` event: `'exit'`]: child_process.md#event-exit
+[`child_process` event: `'message'`]: child_process.md#event-message
+[`cluster.isPrimary`]: #clusterisprimary
+[`cluster.settings`]: #clustersettings
+[`disconnect()`]: child_process.md#subprocessdisconnect
+[`kill()`]: process.md#processkillpid-signal
+[`process` event: `'message'`]: process.md#event-message
+[`server.close()`]: net.md#event-close
+[`worker.exitedAfterDisconnect`]: #workerexitedafterdisconnect

@@ -32,7 +32,7 @@ The module `circle.js` has exported the functions `area()` and
 by specifying additional properties on the special `exports` object.
 
 Variables local to the module will be private, because the module is wrapped
-in a function by Node.js (see [module wrapper](#modules_the_module_wrapper)).
+in a function by Node.js (see [module wrapper](#the-module-wrapper)).
 In this example, the variable `PI` is private to `circle.js`.
 
 The `module.exports` property can be assigned a new value (such as a function
@@ -99,7 +99,7 @@ package may itself have dependencies, and in some cases, these may even collide
 or form cyclic dependencies.
 
 Because Node.js looks up the `realpath` of any modules it loads (that is, it
-resolves symlinks) and then [looks for their dependencies in `node_modules` folders](#modules_loading_from_node_modules_folders),
+resolves symlinks) and then [looks for their dependencies in `node_modules` folders](#loading-from-node_modules-folders),
 this situation can be resolved with the following architecture:
 
 * `/usr/lib/node/foo/1.2.3/`: Contents of the `foo` package, version 1.2.3.
@@ -437,7 +437,7 @@ Error: Cannot find module 'some-library'
 <!--type=misc-->
 
 If the module identifier passed to `require()` is not a
-[core](#modules_core_modules) module, and does not begin with `'/'`, `'../'`, or
+[core](#core-modules) module, and does not begin with `'/'`, `'../'`, or
 `'./'`, then Node.js starts at the parent directory of the current module, and
 adds `/node_modules`, and attempts to load the module from that location.
 Node.js will not append `node_modules` to a path already ending in
@@ -703,7 +703,7 @@ added: v0.1.17
 
 The `Module` object representing the entry script loaded when the Node.js
 process launched.
-See ["Accessing the main module"](#modules_accessing_the_main_module).
+See ["Accessing the main module"](#accessing-the-main-module).
 
 In `entry.js` script:
 
@@ -986,38 +986,38 @@ in order to be used.
 ## The `Module` object
 
 This section was moved to
-[Modules: `module` core module](module.md#module_the_module_object).
+[Modules: `module` core module](module.md#the-module-object).
 
 <!-- Anchors to make sure old links find a target -->
-* <a id="modules_module_builtinmodules" href="module.html#module_module_builtinmodules">`module.builtinModules`</a>
-* <a id="modules_module_createrequire_filename" href="module.html#module_module_createrequire_filename">`module.createRequire(filename)`</a>
-* <a id="modules_module_syncbuiltinesmexports" href="module.html#module_module_syncbuiltinesmexports">`module.syncBuiltinESMExports()`</a>
+* <a id="modules_module_builtinmodules" href="module.html#modulebuiltinmodules">`module.builtinModules`</a>
+* <a id="modules_module_createrequire_filename" href="module.html#modulecreaterequirefilename">`module.createRequire(filename)`</a>
+* <a id="modules_module_syncbuiltinesmexports" href="module.html#modulesyncbuiltinesmexports">`module.syncBuiltinESMExports()`</a>
 
 ## Source map v3 support
 
 This section was moved to
-[Modules: `module` core module](module.md#module_source_map_v3_support).
+[Modules: `module` core module](module.md#source-map-v3-support).
 
 <!-- Anchors to make sure old links find a target -->
-* <a id="modules_module_findsourcemap_path_error" href="module.html#module_module_findsourcemap_path">`module.findSourceMap(path)`</a>
-* <a id="modules_class_module_sourcemap" href="module.html#module_class_module_sourcemap">Class: `module.SourceMap`</a>
-  * <a id="modules_new_sourcemap_payload" href="module.html#module_new_sourcemap_payload">`new SourceMap(payload)`</a>
-  * <a id="modules_sourcemap_payload" href="module.html#module_sourcemap_payload">`sourceMap.payload`</a>
-  * <a id="modules_sourcemap_findentry_linenumber_columnnumber" href="module.html#module_sourcemap_findentry_linenumber_columnnumber">`sourceMap.findEntry(lineNumber, columnNumber)`</a>
+* <a id="modules_module_findsourcemap_path_error" href="module.html#modulefindsourcemappath">`module.findSourceMap(path)`</a>
+* <a id="modules_class_module_sourcemap" href="module.html#class-modulesourcemap">Class: `module.SourceMap`</a>
+  * <a id="modules_new_sourcemap_payload" href="module.html#new-sourcemappayload">`new SourceMap(payload)`</a>
+  * <a id="modules_sourcemap_payload" href="module.html#sourcemappayload">`sourceMap.payload`</a>
+  * <a id="modules_sourcemap_findentry_linenumber_columnnumber" href="module.html#sourcemapfindentrylinenumber-columnnumber">`sourceMap.findEntry(lineNumber, columnNumber)`</a>
 
 [ECMAScript Modules]: esm.md
-[GLOBAL_FOLDERS]: #modules_loading_from_the_global_folders
-[`"main"`]: packages.md#packages_main
-[`Error`]: errors.md#errors_class_error
-[`__dirname`]: #modules_dirname
-[`__filename`]: #modules_filename
-[`module.children`]: #modules_module_children
-[`module.id`]: #modules_module_id
-[`module` object]: #modules_the_module_object
-[`package.json`]: packages.md#packages_node_js_package_json_field_definitions
-[`path.dirname()`]: path.md#path_path_dirname_path
-[`require.main`]: #modules_require_main
-[an error]: errors.md#errors_err_require_esm
-[exports shortcut]: #modules_exports_shortcut
-[module resolution]: #modules_all_together
+[GLOBAL_FOLDERS]: #loading-from-the-global-folders
+[`"main"`]: packages.md#main
+[`Error`]: errors.md#class-error
+[`__dirname`]: #__dirname
+[`__filename`]: #__filename
+[`module.children`]: #modulechildren
+[`module.id`]: #moduleid
+[`module` object]: #the-module-object
+[`package.json`]: packages.md#nodejs-packagejson-field-definitions
+[`path.dirname()`]: path.md#pathdirnamepath
+[`require.main`]: #requiremain
+[an error]: errors.md#err_require_esm
+[exports shortcut]: #exports-shortcut
+[module resolution]: #all-together
 [native addons]: addons.md

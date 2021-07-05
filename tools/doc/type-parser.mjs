@@ -24,8 +24,8 @@ const customTypesMap = {
 
   'this': `${jsDocPrefix}Reference/Operators/this`,
 
-  'AbortController': 'globals.html#globals_class_abortcontroller',
-  'AbortSignal': 'globals.html#globals_class_abortsignal',
+  'AbortController': 'globals.html#class-abortcontroller',
+  'AbortSignal': 'globals.html#class-abortsignal',
 
   'ArrayBufferView':
     'https://developer.mozilla.org/en-US/docs/Web/API/ArrayBufferView',
@@ -42,11 +42,11 @@ const customTypesMap = {
   'WebAssembly.Instance':
     `${jsDocPrefix}Reference/Global_Objects/WebAssembly/Instance`,
 
-  'Blob': 'buffer.html#buffer_class_blob',
+  'Blob': 'buffer.html#class-blob',
 
   'BroadcastChannel':
-    'worker_threads.html#worker_threads_class_broadcastchannel_' +
-    'extends_eventtarget',
+    'worker_threads.html#class-broadcastchannel-' +
+    'extends-eventtarget',
 
   'Iterable':
     `${jsDocPrefix}Reference/Iteration_protocols#The_iterable_protocol`,
@@ -56,211 +56,211 @@ const customTypesMap = {
   'Module Namespace Object':
     'https://tc39.github.io/ecma262/#sec-module-namespace-exotic-objects',
 
-  'AsyncHook': 'async_hooks.html#async_hooks_async_hooks_createhook_callbacks',
-  'AsyncResource': 'async_hooks.html#async_hooks_class_asyncresource',
+  'AsyncHook': 'async_hooks.html#async_hookscreatehookcallbacks',
+  'AsyncResource': 'async_hooks.html#class-asyncresource',
 
-  'brotli options': 'zlib.html#zlib_class_brotlioptions',
+  'brotli options': 'zlib.html#class-brotlioptions',
 
-  'Buffer': 'buffer.html#buffer_class_buffer',
+  'Buffer': 'buffer.html#class-buffer',
 
-  'ChildProcess': 'child_process.html#child_process_class_childprocess',
+  'ChildProcess': 'child_process.html#class-childprocess',
 
-  'cluster.Worker': 'cluster.html#cluster_class_worker',
+  'cluster.Worker': 'cluster.html#class-worker',
 
-  'Cipher': 'crypto.html#crypto_class_cipher',
-  'Decipher': 'crypto.html#crypto_class_decipher',
-  'DiffieHellman': 'crypto.html#crypto_class_diffiehellman',
-  'DiffieHellmanGroup': 'crypto.html#crypto_class_diffiehellmangroup',
-  'ECDH': 'crypto.html#crypto_class_ecdh',
-  'Hash': 'crypto.html#crypto_class_hash',
-  'Hmac': 'crypto.html#crypto_class_hmac',
-  'KeyObject': 'crypto.html#crypto_class_keyobject',
-  'Sign': 'crypto.html#crypto_class_sign',
-  'Verify': 'crypto.html#crypto_class_verify',
-  'crypto.constants': 'crypto.html#crypto_crypto_constants_1',
+  'Cipher': 'crypto.html#class-cipher',
+  'Decipher': 'crypto.html#class-decipher',
+  'DiffieHellman': 'crypto.html#class-diffiehellman',
+  'DiffieHellmanGroup': 'crypto.html#class-diffiehellmangroup',
+  'ECDH': 'crypto.html#class-ecdh',
+  'Hash': 'crypto.html#class-hash',
+  'Hmac': 'crypto.html#class-hmac',
+  'KeyObject': 'crypto.html#class-keyobject',
+  'Sign': 'crypto.html#class-sign',
+  'Verify': 'crypto.html#class-verify',
+  'crypto.constants': 'crypto.html#cryptoconstants',
 
-  'CryptoKey': 'webcrypto.html#webcrypto_class_cryptokey',
-  'CryptoKeyPair': 'webcrypto.html#webcrypto_class_cryptokeypair',
-  'Crypto': 'webcrypto.html#webcrypto_class_crypto',
-  'SubtleCrypto': 'webcrypto.html#webcrypto_class_subtlecrypto',
-  'RsaOaepParams': 'webcrypto.html#webcrypto_class_rsaoaepparams',
-  'AesCtrParams': 'webcrypto.html#webcrypto_class_aesctrparams',
-  'AesCbcParams': 'webcrypto.html#webcrypto_class_aescbcparams',
-  'AesGcmParams': 'webcrypto.html#webcrypto_class_aesgcmparams',
-  'AesKwParams': 'webcrypto.html#webcrypto_class_aeskwparams',
-  'EcdhKeyDeriveParams': 'webcrypto.html#webcrypto_class_ecdhkeyderiveparams',
-  'HkdfParams': 'webcrypto.html#webcrypto_class_hkdfparams',
-  'Pbkdf2Params': 'webcrypto.html#webcrypto_class_pbkdf2params',
-  'HmacKeyGenParams': 'webcrypto.html#webcrypto_class_hmackeygenparams',
-  'AesKeyGenParams': 'webcrypto.html#webcrypto_class_aeskeygenparams',
+  'CryptoKey': 'webcrypto.html#class-cryptokey',
+  'CryptoKeyPair': 'webcrypto.html#class-cryptokeypair',
+  'Crypto': 'webcrypto.html#class-crypto',
+  'SubtleCrypto': 'webcrypto.html#class-subtlecrypto',
+  'RsaOaepParams': 'webcrypto.html#class-rsaoaepparams',
+  'AesCtrParams': 'webcrypto.html#class-aesctrparams',
+  'AesCbcParams': 'webcrypto.html#class-aescbcparams',
+  'AesGcmParams': 'webcrypto.html#class-aesgcmparams',
+  'AesKwParams': 'webcrypto.html#class-aeskwparams',
+  'EcdhKeyDeriveParams': 'webcrypto.html#class-ecdhkeyderiveparams',
+  'HkdfParams': 'webcrypto.html#class-hkdfparams',
+  'Pbkdf2Params': 'webcrypto.html#class-pbkdf2params',
+  'HmacKeyGenParams': 'webcrypto.html#class-hmackeygenparams',
+  'AesKeyGenParams': 'webcrypto.html#class-aeskeygenparams',
   'RsaHashedKeyGenParams':
-    'webcrypto.html#webcrypto_class_rsahashedkeygenparams',
-  'EcKeyGenParams': 'webcrypto.html#webcrypto_class_eckeygenparams',
+    'webcrypto.html#class-rsahashedkeygenparams',
+  'EcKeyGenParams': 'webcrypto.html#class-eckeygenparams',
   'RsaHashedImportParams':
-    'webcrypto.html#webcrypto_class_rsahashedimportparams',
-  'EcKeyImportParams': 'webcrypto.html#webcrypto_class_eckeyimportparams',
-  'HmacImportParams': 'webcrypto.html#webcrypto_class_hmacimportparams',
-  'AesImportParams': 'webcrypto.html#webcrypto_class_aesimportparams',
-  'Pbkdf2ImportParams': 'webcrypto.html#webcrypto_class_pbkdf2importparams',
-  'HmacParams': 'webcrypto.html#webcrypto_class_hmacparams',
-  'EcdsaParams': 'webcrypto.html#webcrypto_class_ecdsaparams',
-  'RsaPssParams': 'webcrypto.html#webcrypto_class_rsapssparams',
-  'RsaSignParams': 'webcrypto.html#webcrypto_class_rsasignparams',
-  'NodeDhImportParams': 'webcrypto.html#webcrypto_class_nodedhimportparams',
-  'NodeDhKeyGenParams': 'webcrypto.html#webcrypto_class_nodedhkeygenparams',
+    'webcrypto.html#class-rsahashedimportparams',
+  'EcKeyImportParams': 'webcrypto.html#class-eckeyimportparams',
+  'HmacImportParams': 'webcrypto.html#class-hmacimportparams',
+  'AesImportParams': 'webcrypto.html#class-aesimportparams',
+  'Pbkdf2ImportParams': 'webcrypto.html#class-pbkdf2importparams',
+  'HmacParams': 'webcrypto.html#class-hmacparams',
+  'EcdsaParams': 'webcrypto.html#class-ecdsaparams',
+  'RsaPssParams': 'webcrypto.html#class-rsapssparams',
+  'RsaSignParams': 'webcrypto.html#class-rsasignparams',
+  'NodeDhImportParams': 'webcrypto.html#class-nodedhimportparams',
+  'NodeDhKeyGenParams': 'webcrypto.html#class-nodedhkeygenparams',
   'NodeDhDeriveBitsParams':
-    'webcrypto.html#webcrypto_class_nodedhderivebitsparams',
-  'NodeDsaImportParams': 'webcrypto.html#webcrypto_class_nodedsaimportparams',
-  'NodeDsaKeyGenParams': 'webcrypto.html#webcrypto_class_nodedsakeygenparams',
-  'NodeDsaSignParams': 'webcrypto.html#webcrypto_class_nodedsasignparams',
+    'webcrypto.html#class-nodedhderivebitsparams',
+  'NodeDsaImportParams': 'webcrypto.html#class-nodedsaimportparams',
+  'NodeDsaKeyGenParams': 'webcrypto.html#class-nodedsakeygenparams',
+  'NodeDsaSignParams': 'webcrypto.html#class-nodedsasignparams',
   'NodeScryptImportParams':
-    'webcrypto.html#webcrypto_class_nodescryptimportparams',
-  'NodeScryptParams': 'webcrypto.html#webcrypto_class_nodescryptparams',
+    'webcrypto.html#class-nodescryptimportparams',
+  'NodeScryptParams': 'webcrypto.html#class-nodescryptparams',
   'NodeEdKeyImportParams':
-    'webcrypto.html#webcrypto_class_nodeedkeyimportparams',
+    'webcrypto.html#class-nodeedkeyimportparams',
   'NodeEdKeyGenParams':
-    'webcrypto.html#webcrypto_class_nodeedkeygenparams',
+    'webcrypto.html#class-nodeedkeygenparams',
 
-  'dgram.Socket': 'dgram.html#dgram_class_dgram_socket',
+  'dgram.Socket': 'dgram.html#class-dgramsocket',
 
-  'Channel': 'diagnostics_channel.html#diagnostics_channel_class_channel',
+  'Channel': 'diagnostics_channel.html#class-channel',
 
-  'Domain': 'domain.html#domain_class_domain',
+  'Domain': 'domain.html#class-domain',
 
-  'errors.Error': 'errors.html#errors_class_error',
+  'errors.Error': 'errors.html#class-error',
 
-  'import.meta': 'esm.html#esm_import_meta',
+  'import.meta': 'esm.html#importmeta',
 
-  'EventEmitter': 'events.html#events_class_eventemitter',
-  'EventTarget': 'events.html#events_class_eventtarget',
-  'Event': 'events.html#events_class_event',
-  'EventListener': 'events.html#events_event_listener',
+  'EventEmitter': 'events.html#class-eventemitter',
+  'EventTarget': 'events.html#class-eventtarget',
+  'Event': 'events.html#class-event',
+  'EventListener': 'events.html#event-listener',
 
-  'FileHandle': 'fs.html#fs_class_filehandle',
-  'fs.Dir': 'fs.html#fs_class_fs_dir',
-  'fs.Dirent': 'fs.html#fs_class_fs_dirent',
-  'fs.FSWatcher': 'fs.html#fs_class_fs_fswatcher',
-  'fs.ReadStream': 'fs.html#fs_class_fs_readstream',
-  'fs.Stats': 'fs.html#fs_class_fs_stats',
-  'fs.StatWatcher': 'fs.html#fs_class_fs_statwatcher',
-  'fs.WriteStream': 'fs.html#fs_class_fs_writestream',
+  'FileHandle': 'fs.html#class-filehandle',
+  'fs.Dir': 'fs.html#class-fsdir',
+  'fs.Dirent': 'fs.html#class-fsdirent',
+  'fs.FSWatcher': 'fs.html#class-fsfswatcher',
+  'fs.ReadStream': 'fs.html#class-fsreadstream',
+  'fs.Stats': 'fs.html#class-fsstats',
+  'fs.StatWatcher': 'fs.html#class-fsstatwatcher',
+  'fs.WriteStream': 'fs.html#class-fswritestream',
 
-  'http.Agent': 'http.html#http_class_http_agent',
-  'http.ClientRequest': 'http.html#http_class_http_clientrequest',
-  'http.IncomingMessage': 'http.html#http_class_http_incomingmessage',
-  'http.Server': 'http.html#http_class_http_server',
-  'http.ServerResponse': 'http.html#http_class_http_serverresponse',
+  'http.Agent': 'http.html#class-httpagent',
+  'http.ClientRequest': 'http.html#class-httpclientrequest',
+  'http.IncomingMessage': 'http.html#class-httpincomingmessage',
+  'http.Server': 'http.html#class-httpserver',
+  'http.ServerResponse': 'http.html#class-httpserverresponse',
 
-  'ClientHttp2Session': 'http2.html#http2_class_clienthttp2session',
-  'ClientHttp2Stream': 'http2.html#http2_class_clienthttp2stream',
-  'HTTP/2 Headers Object': 'http2.html#http2_headers_object',
-  'HTTP/2 Settings Object': 'http2.html#http2_settings_object',
-  'http2.Http2ServerRequest': 'http2.html#http2_class_http2_http2serverrequest',
+  'ClientHttp2Session': 'http2.html#class-clienthttp2session',
+  'ClientHttp2Stream': 'http2.html#class-clienthttp2stream',
+  'HTTP/2 Headers Object': 'http2.html#headers-object',
+  'HTTP/2 Settings Object': 'http2.html#settings-object',
+  'http2.Http2ServerRequest': 'http2.html#class-http2http2serverrequest',
   'http2.Http2ServerResponse':
-    'http2.html#http2_class_http2_http2serverresponse',
-  'Http2SecureServer': 'http2.html#http2_class_http2secureserver',
-  'Http2Server': 'http2.html#http2_class_http2server',
-  'Http2Session': 'http2.html#http2_class_http2session',
-  'Http2Stream': 'http2.html#http2_class_http2stream',
-  'ServerHttp2Stream': 'http2.html#http2_class_serverhttp2stream',
+    'http2.html#class-http2http2serverresponse',
+  'Http2SecureServer': 'http2.html#class-http2secureserver',
+  'Http2Server': 'http2.html#class-http2server',
+  'Http2Session': 'http2.html#class-http2session',
+  'Http2Stream': 'http2.html#class-http2stream',
+  'ServerHttp2Stream': 'http2.html#class-serverhttp2stream',
 
-  'https.Server': 'https.html#https_class_https_server',
+  'https.Server': 'https.html#class-httpsserver',
 
-  'module': 'modules.html#modules_the_module_object',
+  'module': 'modules.html#the-module-object',
 
   'module.SourceMap':
-    'module.html#module_class_module_sourcemap',
+    'module.html#class-modulesourcemap',
 
-  'require': 'modules.html#modules_require_id',
+  'require': 'modules.html#requireid',
 
-  'Handle': 'net.html#net_server_listen_handle_backlog_callback',
-  'net.BlockList': 'net.html#net_class_net_blocklist',
-  'net.Server': 'net.html#net_class_net_server',
-  'net.Socket': 'net.html#net_class_net_socket',
-  'net.SocketAddress': 'net.html#net_class_net_socketaddress',
+  'Handle': 'net.html#serverlistenhandle-backlog-callback',
+  'net.BlockList': 'net.html#class-netblocklist',
+  'net.Server': 'net.html#class-netserver',
+  'net.Socket': 'net.html#class-netsocket',
+  'net.SocketAddress': 'net.html#class-netsocketaddress',
 
   'NodeEventTarget':
-    'events.html#events_class_nodeeventtarget',
+    'events.html#class-nodeeventtarget',
 
-  'os.constants.dlopen': 'os.html#os_dlopen_constants',
+  'os.constants.dlopen': 'os.html#dlopen-constants',
 
-  'Histogram': 'perf_hooks.html#perf_hooks_class_histogram',
+  'Histogram': 'perf_hooks.html#class-histogram',
   'IntervalHistogram':
-     'perf_hooks.html#perf_hooks_class_intervalhistogram_extends_histogram',
+     'perf_hooks.html#class-intervalhistogram-extends-histogram',
   'RecordableHistogram':
-     'perf_hooks.html#perf_hooks_class_recordablehistogram_extends_histogram',
-  'PerformanceEntry': 'perf_hooks.html#perf_hooks_class_performanceentry',
+     'perf_hooks.html#class-recordablehistogram-extends-histogram',
+  'PerformanceEntry': 'perf_hooks.html#class-performanceentry',
   'PerformanceNodeTiming':
-    'perf_hooks.html#perf_hooks_class_performancenodetiming',
+    'perf_hooks.html#class-performancenodetiming',
   'PerformanceObserver':
-    'perf_hooks.html#perf_hooks_class_perf_hooks_performanceobserver',
+    'perf_hooks.html#class-perf_hooksperformanceobserver',
   'PerformanceObserverEntryList':
-    'perf_hooks.html#perf_hooks_class_performanceobserverentrylist',
+    'perf_hooks.html#class-performanceobserverentrylist',
 
-  'readline.Interface': 'readline.html#readline_class_interface',
+  'readline.Interface': 'readline.html#class-interface',
 
-  'repl.REPLServer': 'repl.html#repl_class_replserver',
+  'repl.REPLServer': 'repl.html#class-replserver',
 
-  'Stream': 'stream.html#stream_stream',
-  'stream.Duplex': 'stream.html#stream_class_stream_duplex',
-  'stream.Readable': 'stream.html#stream_class_stream_readable',
-  'stream.Transform': 'stream.html#stream_class_stream_transform',
-  'stream.Writable': 'stream.html#stream_class_stream_writable',
+  'Stream': 'stream.html#stream',
+  'stream.Duplex': 'stream.html#class-streamduplex',
+  'stream.Readable': 'stream.html#class-streamreadable',
+  'stream.Transform': 'stream.html#class-streamtransform',
+  'stream.Writable': 'stream.html#class-streamwritable',
 
-  'Immediate': 'timers.html#timers_class_immediate',
-  'Timeout': 'timers.html#timers_class_timeout',
-  'Timer': 'timers.html#timers_timers',
+  'Immediate': 'timers.html#class-immediate',
+  'Timeout': 'timers.html#class-timeout',
+  'Timer': 'timers.html#timers',
 
-  'tls.SecureContext': 'tls.html#tls_tls_createsecurecontext_options',
-  'tls.Server': 'tls.html#tls_class_tls_server',
-  'tls.TLSSocket': 'tls.html#tls_class_tls_tlssocket',
+  'tls.SecureContext': 'tls.html#tlscreatesecurecontextoptions',
+  'tls.Server': 'tls.html#class-tlsserver',
+  'tls.TLSSocket': 'tls.html#class-tlstlssocket',
 
-  'Tracing': 'tracing.html#tracing_tracing_object',
+  'Tracing': 'tracing.html#tracing-object',
 
-  'URL': 'url.html#url_the_whatwg_url_api',
-  'URLSearchParams': 'url.html#url_class_urlsearchparams',
+  'URL': 'url.html#the-whatwg-url-api',
+  'URLSearchParams': 'url.html#class-urlsearchparams',
 
-  'vm.Module': 'vm.html#vm_class_vm_module',
-  'vm.Script': 'vm.html#vm_class_vm_script',
-  'vm.SourceTextModule': 'vm.html#vm_class_vm_sourcetextmodule',
+  'vm.Module': 'vm.html#class-vmmodule',
+  'vm.Script': 'vm.html#class-vmscript',
+  'vm.SourceTextModule': 'vm.html#class-vmsourcetextmodule',
 
-  'MessagePort': 'worker_threads.html#worker_threads_class_messageport',
-  'Worker': 'worker_threads.html#worker_threads_class_worker',
+  'MessagePort': 'worker_threads.html#class-messageport',
+  'Worker': 'worker_threads.html#class-worker',
 
-  'X509Certificate': 'crypto.html#crypto_class_x509certificate',
+  'X509Certificate': 'crypto.html#class-x509certificate',
 
-  'zlib options': 'zlib.html#zlib_class_options',
+  'zlib options': 'zlib.html#class-options',
 
   'ReadableStream':
-    'webstreams.md#webstreamsapi_class_readablestream',
+    'webstreams.md#class-readablestream',
   'ReadableStreamDefaultReader':
-    'webstreams.md#webstreamsapi_class_readablestreamdefaultreader',
+    'webstreams.md#class-readablestreamdefaultreader',
   'ReadableStreamBYOBReader':
-    'webstreams.md#webstreamsapi_class_readablestreambyobreader',
+    'webstreams.md#class-readablestreambyobreader',
   'ReadableStreamDefaultController':
-    'webstreams.md#webstreamsapi_class_readablestreamdefaultcontroller',
+    'webstreams.md#class-readablestreamdefaultcontroller',
   'ReadableByteStreamController':
-    'webstreams.md#webstreamsapi_class_readablebytestreamcontroller',
+    'webstreams.md#class-readablebytestreamcontroller',
   'ReadableStreamBYOBRequest':
-    'webstreams.md#webstreamsapi_class_readablestreambyobrequest',
+    'webstreams.md#class-readablestreambyobrequest',
   'WritableStream':
-    'webstreams.md#webstreamsapi_class_writablestream',
+    'webstreams.md#class-writablestream',
   'WritableStreamDefaultWriter':
-    'webstreams.md#webstreamsapi_class_writablestreamdefaultwriter',
+    'webstreams.md#class-writablestreamdefaultwriter',
   'WritableStreamDefaultController':
-    'webstreams.md#webstreamsapi_class_writablestreamdefaultcontroller',
+    'webstreams.md#class-writablestreamdefaultcontroller',
   'TransformStream':
-    'webstreams.md#webstreamsapi_class_transformstream',
+    'webstreams.md#class-transformstream',
   'TransformStreamDefaultController':
-    'webstreams.md#webstreamsapi_class_transformstreamdefaultcontroller',
+    'webstreams.md#class-transformstreamdefaultcontroller',
   'ByteLengthQueuingStrategy':
-    'webstreams.md#webstreamsapi_class_bytelengthqueuingstrategy',
+    'webstreams.md#class-bytelengthqueuingstrategy',
   'CountQueuingStrategy':
-    'webstreams.md#webstreamsapi_class_countqueuingstrategy',
+    'webstreams.md#class-countqueuingstrategy',
   'TextEncoderStream':
-    'webstreams.md#webstreamsapi_class_textencoderstream',
+    'webstreams.md#class-textencoderstream',
   'TextDecoderStream':
-    'webstreams.md#webstreamsapi_class_textdecoderstream',
+    'webstreams.md#class-textdecoderstream',
 };
 
 const arrayPart = /(?:\[])+$/;

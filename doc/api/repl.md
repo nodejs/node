@@ -762,18 +762,18 @@ a `net.Server` and `net.Socket` instance, see:
 For an example of running a REPL instance over [`curl(1)`][], see:
 <https://gist.github.com/TooTallNate/2053342>.
 
-[TTY keybindings]: readline.md#readline_tty_keybindings
+[TTY keybindings]: readline.md#tty-keybindings
 [ZSH]: https://en.wikipedia.org/wiki/Z_shell
-[`'uncaughtException'`]: process.md#process_event_uncaughtexception
-[`--no-experimental-repl-await`]: cli.md#cli_no_experimental_repl_await
-[`ERR_DOMAIN_CANNOT_SET_UNCAUGHT_EXCEPTION_CAPTURE`]: errors.md#errors_err_domain_cannot_set_uncaught_exception_capture
-[`ERR_INVALID_REPL_INPUT`]: errors.md#errors_err_invalid_repl_input
+[`'uncaughtException'`]: process.md#event-uncaughtexception
+[`--no-experimental-repl-await`]: cli.md#--no-experimental-repl-await
+[`ERR_DOMAIN_CANNOT_SET_UNCAUGHT_EXCEPTION_CAPTURE`]: errors.md#err_domain_cannot_set_uncaught_exception_capture
+[`ERR_INVALID_REPL_INPUT`]: errors.md#err_invalid_repl_input
 [`curl(1)`]: https://curl.haxx.se/docs/manpage.html
 [`domain`]: domain.md
-[`process.setUncaughtExceptionCaptureCallback()`]: process.md#process_process_setuncaughtexceptioncapturecallback_fn
-[`readline.InterfaceCompleter`]: readline.md#readline_use_of_the_completer_function
-[`repl.ReplServer`]: #repl_class_replserver
-[`repl.start()`]: #repl_repl_start_options
-[`reverse-i-search`]: #repl_reverse_i_search
-[`util.inspect()`]: util.md#util_util_inspect_object_options
+[`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
+[`readline.InterfaceCompleter`]: readline.md#use-of-the-completer-function
+[`repl.ReplServer`]: #class-replserver
+[`repl.start()`]: #replstartoptions
+[`reverse-i-search`]: #reverse-i-search
+[`util.inspect()`]: util.md#utilinspectobject-options
 [stream]: stream.md

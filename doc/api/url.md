@@ -1653,32 +1653,32 @@ console.log(myURL.origin);
 // Prints https://xn--1xa.example.com
 ```
 
-[ICU]: intl.md#intl_options_for_building_node_js
+[ICU]: intl.md#options-for-building-nodejs
 [Punycode]: https://tools.ietf.org/html/rfc5891#section-4.4
-[WHATWG URL]: #url_the_whatwg_url_api
+[WHATWG URL]: #the-whatwg-url-api
 [WHATWG URL Standard]: https://url.spec.whatwg.org/
-[`Error`]: errors.md#errors_class_error
+[`Error`]: errors.md#class-error
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [`Map`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
-[`TypeError`]: errors.md#errors_class_typeerror
-[`URLSearchParams`]: #url_class_urlsearchparams
+[`TypeError`]: errors.md#class-typeerror
+[`URLSearchParams`]: #class-urlsearchparams
 [`array.toString()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/toString
-[`http.request()`]: http.md#http_http_request_options_callback
-[`https.request()`]: https.md#https_https_request_options_callback
-[`new URL()`]: #url_new_url_input_base
+[`http.request()`]: http.md#httprequestoptions-callback
+[`https.request()`]: https.md#httpsrequestoptions-callback
+[`new URL()`]: #new-urlinput-base
 [`querystring`]: querystring.md
-[`url.domainToASCII()`]: #url_url_domaintoascii_domain
-[`url.domainToUnicode()`]: #url_url_domaintounicode_domain
-[`url.format()`]: #url_url_format_urlobject
-[`url.href`]: #url_url_href
-[`url.parse()`]: #url_url_parse_urlstring_parsequerystring_slashesdenotehost
-[`url.search`]: #url_url_search
-[`url.toJSON()`]: #url_url_tojson
-[`url.toString()`]: #url_url_tostring
-[`urlSearchParams.entries()`]: #url_urlsearchparams_entries
-[`urlSearchParams@@iterator()`]: #url_urlsearchparams_symbol_iterator
+[`url.domainToASCII()`]: #urldomaintoasciidomain
+[`url.domainToUnicode()`]: #urldomaintounicodedomain
+[`url.format()`]: #urlformaturlobject
+[`url.href`]: #urlhref
+[`url.parse()`]: #urlparseurlstring-parsequerystring-slashesdenotehost
+[`url.search`]: #urlsearch
+[`url.toJSON()`]: #urltojson
+[`url.toString()`]: #urltostring
+[`urlSearchParams.entries()`]: #urlsearchparamsentries
+[`urlSearchParams@@iterator()`]: #urlsearchparamssymboliterator
 [examples of parsed URLs]: https://url.spec.whatwg.org/#example-url-parsing
 [host name spoofing]: https://hackerone.com/reports/678487
-[legacy `urlObject`]: #url_legacy_urlobject
-[percent-encoded]: #whatwg-percent-encoding
+[legacy `urlObject`]: #legacy-urlobject
+[percent-encoded]: #percent-encoding-in-urls
 [stable sorting algorithm]: https://en.wikipedia.org/wiki/Sorting_algorithm#Stability

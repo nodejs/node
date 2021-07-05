@@ -969,16 +969,16 @@ const { createInterface } = require('readline');
   </tr>
 </table>
 
-[Readable]: stream.md#stream_readable_streams
+[Readable]: stream.md#readable-streams
 [TTY]: tty.md
-[TTY keybindings]: #readline_tty_keybindings
-[Writable]: stream.md#stream_writable_streams
-[`'SIGCONT'`]: #readline_event_sigcont
-[`'SIGTSTP'`]: #readline_event_sigtstp
-[`'line'`]: #readline_event_line
-[`fs.ReadStream`]: fs.md#fs_class_fs_readstream
-[`process.stdin`]: process.md#process_process_stdin
-[`process.stdout`]: process.md#process_process_stdout
-[`rl.close()`]: #readline_rl_close
-[`unref()`]: net.md#net_socket_unref
-[reading files]: #readline_example_read_file_stream_line_by_line
+[TTY keybindings]: #tty-keybindings
+[Writable]: stream.md#writable-streams
+[`'SIGCONT'`]: #event-sigcont
+[`'SIGTSTP'`]: #event-sigtstp
+[`'line'`]: #event-line
+[`fs.ReadStream`]: fs.md#class-fsreadstream
+[`process.stdin`]: process.md#processstdin
+[`process.stdout`]: process.md#processstdout
+[`rl.close()`]: #rlclose
+[`unref()`]: net.md#socketunref
+[reading files]: #example-read-file-stream-line-by-line

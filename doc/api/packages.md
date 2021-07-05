@@ -624,13 +624,12 @@ Any number of custom conditions can be set with repeat flags.
 
 The `"import"`, `"require"`, `"node"` and `"default"` conditions are defined
 and implemented in Node.js core,
-[as specified above](#packages_conditional_exports).
+[as specified above](#conditional-exports).
 
 Other condition strings are unknown to Node.js and thus ignored by default.
 Runtimes or tools other than Node.js can use them at their discretion.
 
-These user conditions can be enabled in Node.js via the [`--conditions`
-flag](#packages_resolving_user_conditions).
+These user conditions can be enabled in Node.js via the [`--conditions` flag][].
 
 The following condition definitions are currently endorsed by Node.js:
 
@@ -642,8 +641,8 @@ The following condition definitions are currently endorsed by Node.js:
 * `"production"` - can be used to define a production environment entry
    point. _Must always be mutually exclusive with `"development"`._
 
-The above user conditions can be enabled in Node.js via the [`--conditions`
-flag](#packages_resolving_user_conditions).
+The above user conditions can be enabled in Node.js via the
+[`--conditions` flag][].
 
 Platform specific conditions such as `"deno"`, `"electron"`, or `"react-native"`
 may be used, but while there remain no implementation or integration intent
@@ -845,7 +844,7 @@ The preceding example uses explicit extensions `.mjs` and `.cjs`.
 If your files use the `.js` extension, `"type": "module"` will cause such files
 to be treated as ES modules, just as `"type": "commonjs"` would cause them
 to be treated as CommonJS.
-See [Enabling](esm.md#esm_enabling).
+See [Enabling](esm.md#enabling).
 
 ```cjs
 // ./node_modules/pkg/index.cjs
@@ -1073,7 +1072,7 @@ added: v0.4.0
 ```
 
 The `"main"` field defines the script that is used when the [package directory
-is loaded via `require()`](modules.md#modules_folders_as_modules). Its value
+is loaded via `require()`](modules.md#folders-as-modules). Its value
 is a path.
 
 ```cjs
@@ -1238,25 +1237,26 @@ This field defines [subpath imports][] for the current package.
 
 [Babel]: https://babeljs.io/
 [CommonJS]: modules.md
-[Conditional exports]: #packages_conditional_exports
+[Conditional exports]: #conditional-exports
 [Corepack]: corepack.md
 [ES module]: esm.md
 [ES modules]: esm.md
 [Node.js documentation for this section]: https://github.com/nodejs/node/blob/HEAD/doc/api/packages.md#conditions-definitions
-[`"exports"`]: #packages_exports
-[`"imports"`]: #packages_imports
-[`"main"`]: #packages_main
-[`"name"`]: #packages_name
-[`"packageManager"`]: #packages_packagemanager
-[`"type"`]: #packages_type
-[`ERR_PACKAGE_PATH_NOT_EXPORTED`]: errors.md#errors_err_package_path_not_exported
+[`"exports"`]: #exports
+[`"imports"`]: #imports
+[`"main"`]: #main
+[`"name"`]: #name
+[`"packageManager"`]: #packagemanager
+[`"type"`]: #type
+[`--conditions` flag]: #resolving-user-conditions
+[`ERR_PACKAGE_PATH_NOT_EXPORTED`]: errors.md#err_package_path_not_exported
 [`esm`]: https://github.com/standard-things/esm#readme
-[`package.json`]: #packages_node_js_package_json_field_definitions
-[entry points]: #packages_package_entry_points
-[self-reference]: #packages_self_referencing_a_package_using_its_name
-[subpath exports]: #packages_subpath_exports
-[subpath imports]: #packages_subpath_imports
-[subpath patterns]: #packages_subpath_patterns
-[supported package managers]: corepack.md#corepack_supported_package_managers
-[the dual CommonJS/ES module packages section]: #packages_dual_commonjs_es_module_packages
-[the full specifier path]: esm.md#esm_mandatory_file_extensions
+[`package.json`]: #nodejs-packagejson-field-definitions
+[entry points]: #package-entry-points
+[self-reference]: #self-referencing-a-package-using-its-name
+[subpath exports]: #subpath-exports
+[subpath imports]: #subpath-imports
+[subpath patterns]: #subpath-patterns
+[supported package managers]: corepack.md#supported-package-managers
+[the dual CommonJS/ES module packages section]: #dual-commonjses-module-packages
+[the full specifier path]: esm.md#mandatory-file-extensions

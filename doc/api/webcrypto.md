@@ -1780,6 +1780,6 @@ added: v15.0.0
 * Type: {string|ArrayBuffer|Buffer|TypedArray|DataView}
 
 [JSON Web Key]: https://tools.ietf.org/html/rfc7517
-[Key usages]: #webcrypto_cryptokey_usages
+[Key usages]: #cryptokeyusages
 [RFC 4122]: https://www.rfc-editor.org/rfc/rfc4122.txt
 [Web Crypto API]: https://www.w3.org/TR/WebCryptoAPI/

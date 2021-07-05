@@ -462,29 +462,29 @@ statusCode: 200
 headers: max-age=0; pin-sha256="WoiWRyIOVNa9ihaBciRSC7XHjliYS9VwUGOIud4PB18="; pin-sha256="RRM1dGqnDFsCJXBTHky16vi1obOlCgFFn/yOhI/y+ho="; pin-sha256="k2v657xBsOVe1PQRwOsHsw3bsGT2VzIqz5K+59sNQws="; pin-sha256="K87oWBWM9UZfyddvDfoxL+8lpNyoUB2ptGtn0fv6G2Q="; pin-sha256="IQBnNBEiFuhj+8x6X8XLgh01V9Ic5/V3IRQLNFFc7v4="; pin-sha256="iie1VXtL7HzAMF+/PVPR9xzT80kQxdZeJ+zduCB3uj0="; pin-sha256="LvRiGEjRqfzurezaWuj8Wie2gyHMrW5Q06LspMnox7A="; includeSubDomains
 ```
 
-[`Agent`]: #https_class_https_agent
-[`Session Resumption`]: tls.md#tls_session_resumption
-[`URL`]: url.md#url_the_whatwg_url_api
-[`http.Agent(options)`]: http.md#http_new_agent_options
-[`http.Agent`]: http.md#http_class_http_agent
-[`http.ClientRequest`]: http.md#http_class_http_clientrequest
-[`http.Server#headersTimeout`]: http.md#http_server_headerstimeout
-[`http.Server#keepAliveTimeout`]: http.md#http_server_keepalivetimeout
-[`http.Server#maxHeadersCount`]: http.md#http_server_maxheaderscount
-[`http.Server#requestTimeout`]: http.md#http_server_requesttimeout
-[`http.Server#setTimeout()`]: http.md#http_server_settimeout_msecs_callback
-[`http.Server#timeout`]: http.md#http_server_timeout
-[`http.Server`]: http.md#http_class_http_server
-[`http.close()`]: http.md#http_server_close_callback
-[`http.createServer()`]: http.md#http_http_createserver_options_requestlistener
-[`http.get()`]: http.md#http_http_get_options_callback
-[`http.request()`]: http.md#http_http_request_options_callback
-[`https.Agent`]: #https_class_https_agent
-[`https.request()`]: #https_https_request_options_callback
-[`net.Server`]: net.md#net_class_net_server
-[`new URL()`]: url.md#url_new_url_input_base
-[`server.listen()`]: net.md#net_server_listen
-[`tls.connect()`]: tls.md#tls_tls_connect_options_callback
-[`tls.createSecureContext()`]: tls.md#tls_tls_createsecurecontext_options
-[`tls.createServer()`]: tls.md#tls_tls_createserver_options_secureconnectionlistener
+[`Agent`]: #class-httpsagent
+[`Session Resumption`]: tls.md#session-resumption
+[`URL`]: url.md#the-whatwg-url-api
+[`http.Agent(options)`]: http.md#new-agentoptions
+[`http.Agent`]: http.md#class-httpagent
+[`http.ClientRequest`]: http.md#class-httpclientrequest
+[`http.Server#headersTimeout`]: http.md#serverheaderstimeout
+[`http.Server#keepAliveTimeout`]: http.md#serverkeepalivetimeout
+[`http.Server#maxHeadersCount`]: http.md#servermaxheaderscount
+[`http.Server#requestTimeout`]: http.md#serverrequesttimeout
+[`http.Server#setTimeout()`]: http.md#serversettimeoutmsecs-callback
+[`http.Server#timeout`]: http.md#servertimeout
+[`http.Server`]: http.md#class-httpserver
+[`http.close()`]: http.md#serverclosecallback
+[`http.createServer()`]: http.md#httpcreateserveroptions-requestlistener
+[`http.get()`]: http.md#httpgetoptions-callback
+[`http.request()`]: http.md#httprequestoptions-callback
+[`https.Agent`]: #class-httpsagent
+[`https.request()`]: #httpsrequestoptions-callback
+[`net.Server`]: net.md#class-netserver
+[`new URL()`]: url.md#new-urlinput-base
+[`server.listen()`]: net.md#serverlisten
+[`tls.connect()`]: tls.md#tlsconnectoptions-callback
+[`tls.createSecureContext()`]: tls.md#tlscreatesecurecontextoptions
+[`tls.createServer()`]: tls.md#tlscreateserveroptions-secureconnectionlistener
 [sni wiki]: https://en.wikipedia.org/wiki/Server_Name_Indication

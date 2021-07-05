@@ -479,10 +479,10 @@ Domains will not interfere with the error handling mechanisms for
 promises. In other words, no `'error'` event will be emitted for unhandled
 `Promise` rejections.
 
-[`Error`]: errors.md#errors_class_error
-[`domain.add(emitter)`]: #domain_domain_add_emitter
-[`domain.bind(callback)`]: #domain_domain_bind_callback
-[`domain.exit()`]: #domain_domain_exit
-[`setInterval()`]: timers.md#timers_setinterval_callback_delay_args
-[`setTimeout()`]: timers.md#timers_settimeout_callback_delay_args
+[`Error`]: errors.md#class-error
+[`domain.add(emitter)`]: #domainaddemitter
+[`domain.bind(callback)`]: #domainbindcallback
+[`domain.exit()`]: #domainexit
+[`setInterval()`]: timers.md#setintervalcallback-delay-args
+[`setTimeout()`]: timers.md#settimeoutcallback-delay-args
 [`throw`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/throw

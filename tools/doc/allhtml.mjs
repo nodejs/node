@@ -31,13 +31,31 @@ for (const link of toc.match(/<a.*?>/g)) {
   // Split the doc.
   const match = /(<\/ul>\s*)?<\/\w+>\s*<\w+ id="apicontent">/.exec(data);
 
+  // Get module name
+  const moduleName = href.replace(/\.html$/, '');
+
   contents += data.slice(0, match.index)
-    .replace(/[\s\S]*?id="toc"[^>]*>\s*<\w+>.*?<\/\w+>\s*(<ul>\s*)?/, '');
+    .replace(/[\s\S]*?id="toc"[^>]*>\s*<\w+>.*?<\/\w+>\s*(<ul>\s*)?/, '')
+    // Prefix TOC links with current module name
+    .replace(/<a href="#(?!DEP[0-9]{4})([^"]+)"/g, (match, anchor) => {
+      return `<a href="#${moduleName}_${anchor}"`;
+    });
 
   apicontent += '<section>' + data.slice(match.index + match[0].length)
     .replace(/<!-- API END -->[\s\S]*/, '</section>')
-    .replace(/<a href="(\w[^#"]*)#/g, (match, href) => {
-      return htmlFiles.includes(href) ? '<a href="#' : match;
+    // Prefix all in-page anchor marks with module name
+    .replace(/<a class="mark" href="#([^"]+)" id="([^"]+)"/g, (match, anchor, id) => {
+      if (anchor !== id) throw new Error(`Mark does not match: ${anchor} should match ${id}`);
+      return `<a class="mark" href="#${moduleName}_${anchor}" id="${moduleName}_${anchor}"`;
+    })
+    // Prefix all in-page links with current module name
+    .replace(/<a href="#(?!DEP[0-9]{4})([^"]+)"/g, (match, anchor) => {
+      return `<a href="#${moduleName}_${anchor}"`;
+    })
+    // Prefix all links to other docs modules with those module names
+    .replace(/<a href="((\w[^#"]*)\.html)#/g, (match, href, linkModule) => {
+      if (!htmlFiles.includes(href)) return match;
+      return `<a href="#${linkModule}_`;
     })
     .trim() + '\n';
 
