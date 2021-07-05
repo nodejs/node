@@ -316,7 +316,7 @@ For information about the governance of the Node.js project, see
 * [gabrielschulhof](https://github.com/gabrielschulhof) -
 **Gabriel Schulhof** &lt;gabrielschulhof@gmail.com&gt;
 * [gdams](https://github.com/gdams) -
-**George Adams** &lt;george.adams@uk.ibm.com&gt; (he/him)
+**George Adams** &lt;george.adams@microsoft.com&gt; (he/him)
 * [geek](https://github.com/geek) -
 **Wyatt Preul** &lt;wpreul@gmail.com&gt;
 * [gengjiawen](https://github.com/gengjiawen) -
