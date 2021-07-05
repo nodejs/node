@@ -283,7 +283,7 @@ export function preprocessElements({ filename }) {
             type: 'html',
             value: `<div class="api_stability api_stability_${number}">` +
               (noLinking ? '' :
-                '<a href="documentation.html#documentation_stability_index">') +
+                '<a href="documentation.html#stability-index">') +
               `${prefix} ${number}${noLinking ? '' : '</a>'}`
                 .replace(/\n/g, ' ')
           });
@@ -382,6 +382,7 @@ const DEPRECATION_HEADING_PATTERN = /^DEP\d+:/;
 export function buildToc({ filename, apilinks }) {
   return (tree, file) => {
     const idCounters = Object.create(null);
+    const legacyIdCounters = Object.create(null);
     let toc = '';
     let depth = 0;
 
@@ -399,7 +400,9 @@ export function buildToc({ filename, apilinks }) {
       const headingText = file.value.slice(
         node.children[0].position.start.offset,
         node.position.end.offset).trim();
-      const id = getId(`${realFilename}_${headingText}`, idCounters);
+      const id = getId(headingText, idCounters);
+      // Use previous ID generator to create alias
+      const legacyId = getLegacyId(`${realFilename}_${headingText}`, legacyIdCounters);
 
       const isDeprecationHeading =
         DEPRECATION_HEADING_PATTERN.test(headingText);
@@ -417,6 +420,9 @@ export function buildToc({ filename, apilinks }) {
 
       let anchor =
          `<span><a class="mark" href="#${id}" id="${id}">#</a></span>`;
+
+      // Add alias anchor to preserve old links
+      anchor += `<a aria-hidden="true" class="legacy" id="${legacyId}"></a>`;
 
       if (realFilename === 'errors' && headingText.startsWith('ERR_')) {
         anchor +=
@@ -447,10 +453,25 @@ export function buildToc({ filename, apilinks }) {
   };
 }
 
+// ID generator that mirrors Github's heading anchor parser
+const punctuation = /[^\w\- ]/g;
+function getId(text, idCounters) {
+  text = text.toLowerCase()
+             .replace(punctuation, '')
+             .replace(/ /g, '-');
+  if (idCounters[text] !== undefined) {
+    return `${text}_${++idCounters[text]}`;
+  }
+  idCounters[text] = 0;
+  return text;
+}
+
+// This ID generator is purely to generate aliases
+// so we can preserve old doc links
 const notAlphaNumerics = /[^a-z0-9]+/g;
 const edgeUnderscores = /^_+|_+$/g;
 const notAlphaStart = /^[^a-z]/;
-function getId(text, idCounters) {
+function getLegacyId(text, idCounters) {
   text = text.toLowerCase()
              .replace(notAlphaNumerics, '_')
              .replace(edgeUnderscores, '')

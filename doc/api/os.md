@@ -47,7 +47,7 @@ added: v6.3.0
 
 Contains commonly used operating system-specific constants for error codes,
 process signals, and so on. The specific constants defined are described in
-[OS constants](#os_os_constants_1).
+[OS constants](#os-constants).
 
 ## `os.cpus()`
 <!-- YAML
@@ -1283,7 +1283,7 @@ The following process scheduling constants are exported by
 
 [Android building]: https://github.com/nodejs/node/blob/HEAD/BUILDING.md#androidandroid-based-devices-eg-firefox-os
 [EUID]: https://en.wikipedia.org/wiki/User_identifier#Effective_user_ID
-[`SystemError`]: errors.md#errors_class_systemerror
-[`process.arch`]: process.md#process_process_arch
-[`process.platform`]: process.md#process_process_platform
+[`SystemError`]: errors.md#class-systemerror
+[`process.arch`]: process.md#processarch
+[`process.platform`]: process.md#processplatform
 [`uname(3)`]: https://linux.die.net/man/3/uname

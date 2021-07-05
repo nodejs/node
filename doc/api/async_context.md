@@ -786,8 +786,8 @@ const server = createServer((req, res) => {
 }).listen(3000);
 ```
 
-[`AsyncResource`]: #async_context_class_asyncresource
-[`EventEmitter`]: events.md#events_class_eventemitter
-[`Stream`]: stream.md#stream_stream
-[`Worker`]: worker_threads.md#worker_threads_class_worker
-[`util.promisify()`]: util.md#util_util_promisify_original
+[`AsyncResource`]: #class-asyncresource
+[`EventEmitter`]: events.md#class-eventemitter
+[`Stream`]: stream.md#stream
+[`Worker`]: worker_threads.md#class-worker
+[`util.promisify()`]: util.md#utilpromisifyoriginal

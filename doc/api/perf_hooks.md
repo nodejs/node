@@ -1036,10 +1036,10 @@ require('some-module');
 [Performance Timeline]: https://w3c.github.io/performance-timeline/
 [User Timing]: https://www.w3.org/TR/user-timing/
 [Web Performance APIs]: https://w3c.github.io/perf-timing-primer/
-[Worker threads]: worker_threads.md#worker_threads_worker_threads
-[`'exit'`]: process.md#process_event_exit
-[`child_process.spawnSync()`]: child_process.md#child_process_child_process_spawnsync_command_args_options
-[`process.hrtime()`]: process.md#process_process_hrtime_time
+[Worker threads]: worker_threads.md#worker-threads
+[`'exit'`]: process.md#event-exit
+[`child_process.spawnSync()`]: child_process.md#child_processspawnsynccommand-args-options
+[`process.hrtime()`]: process.md#processhrtimetime
 [`timeOrigin`]: https://w3c.github.io/hr-time/#dom-performance-timeorigin
 [`window.performance.toJSON`]: https://developer.mozilla.org/en-US/docs/Web/API/Performance/toJSON
 [`window.performance`]: https://developer.mozilla.org/en-US/docs/Web/API/Window/performance

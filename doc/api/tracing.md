@@ -209,5 +209,5 @@ console.log(trace_events.getEnabledCategories());
 
 [Performance API]: perf_hooks.md
 [V8]: v8.md
-[`Worker`]: worker_threads.md#worker_threads_class_worker
+[`Worker`]: worker_threads.md#class-worker
 [`async_hooks`]: async_hooks.md
