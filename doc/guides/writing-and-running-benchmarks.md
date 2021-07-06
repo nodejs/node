@@ -445,7 +445,7 @@ The arguments of `createBenchmark` are:
   Each configuration is a property with an array of possible values.
   The configuration values can only be strings or numbers.
 * `options` {Object} The benchmark options:
-  * `flags` option for specifying command line flags is supported
+  * `flags` option for specifying command line flags
   * `byGroup` option for processing `configs` by groups:
 
 ```js
