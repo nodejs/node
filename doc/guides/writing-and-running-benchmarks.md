@@ -444,8 +444,24 @@ The arguments of `createBenchmark` are:
   possible combinations of these parameters, unless specified otherwise.
   Each configuration is a property with an array of possible values.
   The configuration values can only be strings or numbers.
-* `options` {Object} The benchmark options. At the moment only the `flags`
-  option for specifying command line flags is supported.
+* `options` {Object} The benchmark options:
+  * `flags` option for specifying command line flags is supported
+  * `byGroup` option for processing `configs` by groups:
+
+```js
+const bench = common.createBenchmark(main, {
+  groupA: {
+    source: ['array'],
+    len: [10, 2048],
+    n: [50],
+  },
+  groupB: {
+    source: ['buffer', 'string'],
+    len: [2048],
+    n: [50, 2048],
+  }
+}, { byGroup: true });
+```
 
 `createBenchmark` returns a `bench` object, which is used for timing
 the runtime of the benchmark. Run `bench.start()` after the initialization
