@@ -160,6 +160,9 @@ def headers(action):
   def wanted_v8_headers(files_arg, dest):
     v8_headers = [
       'deps/v8/include/cppgc/common.h',
+      'deps/v8/include/libplatform/libplatform.h',
+      'deps/v8/include/libplatform/libplatform-export.h',
+      'deps/v8/include/libplatform/v8-tracing.h',
       'deps/v8/include/v8.h',
       'deps/v8/include/v8-internal.h',
       'deps/v8/include/v8-platform.h',
