@@ -66,7 +66,7 @@ const testCases = [
   [ 'if (await true) { let a = 1; }',
     '(async () => { if (await true) { let a = 1; } })()' ],
   [ 'var a = await 1; let b = 2; const c = 3;',
-    'let c; let b; var a; (async () => { void (a = await 1); void (b = 2);' +
+    'var a; let b; let c; (async () => { void (a = await 1); void (b = 2);' +
         ' void (c = 3); })()' ],
   [ 'let o = await 1, p',
     'let o, p; (async () => { void ( (o = await 1), (p=undefined)) })()' ],
