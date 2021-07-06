@@ -152,6 +152,36 @@ async function ordinaryTests() {
        'Unexpected token \'.\'',
      ],
     ],
+    ['for (const x of [1,2,3]) {\nawait x\n}', [
+      'for (const x of [1,2,3]) {\r',
+      '... await x\r',
+      '... }\r',
+      'undefined',
+    ]],
+    ['for (const x of [1,2,3]) {\nawait x;\n}', [
+      'for (const x of [1,2,3]) {\r',
+      '... await x;\r',
+      '... }\r',
+      'undefined',
+    ]],
+    ['for await (const x of [1,2,3]) {\nconsole.log(x)\n}', [
+      'for await (const x of [1,2,3]) {\r',
+      '... console.log(x)\r',
+      '... }\r',
+      '1',
+      '2',
+      '3',
+      'undefined',
+    ]],
+    ['for await (const x of [1,2,3]) {\nconsole.log(x);\n}', [
+      'for await (const x of [1,2,3]) {\r',
+      '... console.log(x);\r',
+      '... }\r',
+      '1',
+      '2',
+      '3',
+      'undefined',
+    ]],
   ];
 
   for (const [input, expected = [`${input}\r`], options = {}] of testCases) {
