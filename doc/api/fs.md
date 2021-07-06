@@ -1393,7 +1393,7 @@ access(file, constants.W_OK, (err) => {
 });
 
 // Check if the file exists in the current directory, and if it is writable.
-access(file, constants.F_OK | fs.constants.W_OK, (err) => {
+access(file, constants.F_OK | constants.W_OK, (err) => {
   if (err) {
     console.error(
       `${file} ${err.code === 'ENOENT' ? 'does not exist' : 'is read-only'}`);
