@@ -205,7 +205,7 @@ async function tests() {
     const iterator = readable[Symbol.asyncIterator]();
 
     const err = new Error('kaboom');
-    readable.destroy(new Error('kaboom'));
+    readable.destroy(err);
     await assert.rejects(iterator.next.bind(iterator), err);
   }
 
