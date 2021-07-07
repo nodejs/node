@@ -44,6 +44,7 @@ sys.path.insert(0, 'tools')
 import getmoduleversion
 import getnapibuildversion
 from gyp_node import run_gyp
+from utils import SearchFiles
 
 # imports in deps/v8/tools/node
 sys.path.insert(0, os.path.join('deps', 'v8', 'tools', 'node'))
@@ -1062,6 +1063,8 @@ def gcc_version_ge(version_checked):
       return False
   return True
 
+def configure_node_lib_files(o):
+  o['variables']['node_library_files'] = SearchFiles('lib', 'js')
 
 def configure_node(o):
   if options.dest_os == 'android':
@@ -1805,6 +1808,7 @@ if (options.dest_os):
 flavor = GetFlavor(flavor_params)
 
 configure_node(output)
+configure_node_lib_files(output)
 configure_napi(output)
 configure_library('zlib', output)
 configure_library('http_parser', output)
