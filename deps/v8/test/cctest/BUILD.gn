@@ -63,6 +63,12 @@ v8_header_set("cctest_headers") {
   ]
 }
 
+config("cctest_sources_config") {
+  if (is_clang) {
+    cflags = [ "-Wno-string-concatenation" ]
+  }
+}
+
 v8_source_set("cctest_sources") {
   testonly = true
 
@@ -376,6 +382,7 @@ v8_source_set("cctest_sources") {
   configs = [
     "../..:external_config",
     "../..:internal_config_base",
+    ":cctest_sources_config",
   ]
 
   public_deps = [
