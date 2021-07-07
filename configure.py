@@ -45,6 +45,7 @@ import getmoduleversion
 import getnapibuildversion
 import getsharedopensslhasquic
 from gyp_node import run_gyp
+from utils import SearchFiles
 
 # parse our options
 parser = argparse.ArgumentParser()
@@ -1155,6 +1156,8 @@ def gcc_version_ge(version_checked):
       return False
   return True
 
+def configure_node_lib_files(o):
+  o['variables']['node_library_files'] = SearchFiles('lib', 'js')
 
 def configure_node(o):
   if options.dest_os == 'android':
@@ -1903,6 +1906,7 @@ if (options.dest_os):
 flavor = GetFlavor(flavor_params)
 
 configure_node(output)
+configure_node_lib_files(output)
 configure_napi(output)
 configure_library('zlib', output)
 configure_library('http_parser', output)

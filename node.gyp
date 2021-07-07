@@ -33,7 +33,7 @@
     # Windows command length limit or there would be an error.
     # See https://docs.microsoft.com/en-us/troubleshoot/windows-client/shell-experience/command-line-string-limitation
     'library_files': [
-      '<!@(python tools/search_files.py --ext js lib)',
+      '<@(node_library_files)',
     ],
     'deps_files': [
       'deps/v8/tools/splaytree.mjs',
