@@ -55,7 +55,7 @@ def _SuffixName(name, suffix):
     Target name with suffix added (foo_suffix#target)
   """
     parts = name.rsplit("#", 1)
-    parts[0] = "{}_{}".format(parts[0], suffix)
+    parts[0] = f"{parts[0]}_{suffix}"
     return "#".join(parts)
 
 
