@@ -21,7 +21,7 @@ const { createServer } = require('net');
 
 // Launch w/ invalid host:port.
 {
-  const cli = startCLI(['localhost:914']);
+  const cli = startCLI([`localhost:${common.PORT}`]);
   cli.quit()
     .then((code) => {
       assert.match(
