@@ -1,5 +1,19 @@
 # Changelog
 
+### [0.9.3](https://www.github.com/nodejs/gyp-next/compare/v0.9.2...v0.9.3) (2021-07-07)
+
+
+### Bug Fixes
+
+* build failure with ninja and Python 3 on Windows ([#113](https://www.github.com/nodejs/gyp-next/issues/113)) ([c172d10](https://www.github.com/nodejs/gyp-next/commit/c172d105deff5db4244e583942215918fa80dd3c))
+
+### [0.9.2](https://www.github.com/nodejs/gyp-next/compare/v0.9.1...v0.9.2) (2021-05-21)
+
+
+### Bug Fixes
+
+* add support of utf8 encoding ([#105](https://www.github.com/nodejs/gyp-next/issues/105)) ([4d0f93c](https://www.github.com/nodejs/gyp-next/commit/4d0f93c249286d1f0c0f665f5fe7346119f98cf1))
+
 ### [0.9.1](https://www.github.com/nodejs/gyp-next/compare/v0.9.0...v0.9.1) (2021-05-14)
 
 

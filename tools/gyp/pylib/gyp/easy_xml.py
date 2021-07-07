@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import sys
 import re
 import os
 import locale
@@ -84,7 +85,7 @@ def _ConstructContentList(xml_parts, specification, pretty, level=0):
     rest = specification[1:]
     if rest and isinstance(rest[0], dict):
         for at, val in sorted(rest[0].items()):
-            xml_parts.append(' {}="{}"'.format(at, _XmlEscape(val, attr=True)))
+            xml_parts.append(f' {at}="{_XmlEscape(val, attr=True)}"')
         rest = rest[1:]
     if rest:
         xml_parts.append(">")
@@ -106,7 +107,8 @@ def _ConstructContentList(xml_parts, specification, pretty, level=0):
         xml_parts.append("/>%s" % new_line)
 
 
-def WriteXmlIfChanged(content, path, encoding="utf-8", pretty=False, win32=False):
+def WriteXmlIfChanged(content, path, encoding="utf-8", pretty=False,
+                      win32=(sys.platform == "win32")):
     """ Writes the XML content to disk, touching the file only if it has changed.
 
   Args:
@@ -121,7 +123,10 @@ def WriteXmlIfChanged(content, path, encoding="utf-8", pretty=False, win32=False
 
     default_encoding = locale.getdefaultlocale()[1]
     if default_encoding and default_encoding.upper() != encoding.upper():
-        xml_string = xml_string.encode(encoding)
+        if win32 and sys.version_info < (3, 7):
+            xml_string = xml_string.decode("cp1251").encode(encoding)
+        else:
+            xml_string = xml_string.encode(encoding)
 
     # Get the old content
     try:
