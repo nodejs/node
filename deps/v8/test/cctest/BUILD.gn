@@ -60,6 +60,12 @@ v8_header_set("cctest_headers") {
   sources = [ "cctest.h" ]
 }
 
+config("cctest_sources_config") {
+  if (is_clang) {
+    cflags = [ "-Wno-string-concatenation" ]
+  }
+}
+
 v8_source_set("cctest_sources") {
   testonly = true
 
@@ -398,6 +404,7 @@ v8_source_set("cctest_sources") {
     "../..:external_config",
     "../..:internal_config_base",
     "../..:v8_tracing_config",
+    ":cctest_sources_config",
   ]
 
   public_deps = [
