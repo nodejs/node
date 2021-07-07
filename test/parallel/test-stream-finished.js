@@ -415,7 +415,7 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
   d._writableState = {};
   d._writableState.finished = true;
   finished(d, { readable: false, writable: true }, common.mustCall((err) => {
-    assert.strictEqual(err, undefined);
+    assert.strictEqual(err.code, 'ERR_STREAM_PREMATURE_CLOSE');
   }));
   d._writableState.errored = true;
   d.emit('close');
@@ -585,7 +585,6 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
     }).end().on('error', common.mustCall());
   });
 }
-
 
 {
   const w = new Writable({
