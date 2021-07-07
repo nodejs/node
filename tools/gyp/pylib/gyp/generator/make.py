@@ -2133,7 +2133,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
             #  export foo := a\ b
             # it does not -- the backslash is written to the env as literal character.
             # So don't escape spaces in |env[k]|.
-            self.WriteLn("{}: export {} := {}".format(QuoteSpaces(target), k, v))
+            self.WriteLn(f"{QuoteSpaces(target)}: export {k} := {v}")
 
     def Objectify(self, path):
         """Convert a path to its output directory form."""

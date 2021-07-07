@@ -314,7 +314,7 @@ def _ConfigBaseName(config_name, platform_name):
 
 def _ConfigFullName(config_name, config_data):
     platform_name = _ConfigPlatform(config_data)
-    return "{}|{}".format(_ConfigBaseName(config_name, platform_name), platform_name)
+    return f"{_ConfigBaseName(config_name, platform_name)}|{platform_name}"
 
 
 def _ConfigWindowsTargetPlatformVersion(config_data, version):
@@ -335,7 +335,7 @@ def _ConfigWindowsTargetPlatformVersion(config_data, version):
             # Find a matching entry in sdk_dir\include.
             expected_sdk_dir = r"%s\include" % sdk_dir
             names = sorted(
-                [
+                (
                     x
                     for x in (
                         os.listdir(expected_sdk_dir)
@@ -343,7 +343,7 @@ def _ConfigWindowsTargetPlatformVersion(config_data, version):
                         else []
                     )
                     if x.startswith(version)
-                ],
+                ),
                 reverse=True,
             )
             if names:

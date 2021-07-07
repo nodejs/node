@@ -221,8 +221,9 @@ class WinTool:
             # and sometimes doesn't unfortunately.
             with open(our_manifest) as our_f:
                 with open(assert_manifest) as assert_f:
-                    our_data = our_f.read().translate(None, string.whitespace)
-                    assert_data = assert_f.read().translate(None, string.whitespace)
+                    translator = str.maketrans('', '', string.whitespace)
+                    our_data = our_f.read().translate(translator)
+                    assert_data = assert_f.read().translate(translator)
             if our_data != assert_data:
                 os.unlink(out)
 
