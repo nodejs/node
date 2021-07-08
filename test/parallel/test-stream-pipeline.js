@@ -1400,7 +1400,7 @@ const net = require('net');
     assert.strictEqual(err.message,
                        'Cannot call pipe after a stream was destroyed');
     assert.strictEqual(r.destroyed, true);
-    }));
+  }));
 }
 
 {
