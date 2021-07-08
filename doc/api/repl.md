@@ -217,8 +217,7 @@ Error: foo
 
 #### `await` keyword
 
-With the [`--experimental-repl-await`][] command-line option specified,
-experimental support for the `await` keyword is enabled.
+Support for the `await` keyword is enabled at the top level.
 
 ```console
 > await Promise.resolve(123)
@@ -249,6 +248,8 @@ undefined
 > m
 234
 ```
+
+[`--no-experimental-repl-await`][] shall disable top-level await in REPL.
 
 ### Reverse-i-search
 <!-- YAML
@@ -764,7 +765,7 @@ For an example of running a REPL instance over [`curl(1)`][], see:
 [TTY keybindings]: readline.md#readline_tty_keybindings
 [ZSH]: https://en.wikipedia.org/wiki/Z_shell
 [`'uncaughtException'`]: process.md#process_event_uncaughtexception
-[`--experimental-repl-await`]: cli.md#cli_experimental_repl_await
+[`--no-experimental-repl-await`]: cli.md#cli_no_experimental_repl_await
 [`ERR_DOMAIN_CANNOT_SET_UNCAUGHT_EXCEPTION_CAPTURE`]: errors.md#errors_err_domain_cannot_set_uncaught_exception_capture
 [`ERR_INVALID_REPL_INPUT`]: errors.md#errors_err_invalid_repl_input
 [`curl(1)`]: https://curl.haxx.se/docs/manpage.html

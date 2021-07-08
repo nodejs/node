@@ -279,12 +279,11 @@ added: v11.8.0
 
 Use the specified file as a security policy.
 
-### `--experimental-repl-await`
+### `--no-experimental-repl-await`
 <!-- YAML
-added: v10.0.0
--->
-
-Enable experimental top-level `await` keyword support in REPL.
+added: REPLACEME
+ -->
+ Use this flag to disable top-level await in REPL.
 
 ### `--experimental-specifier-resolution=mode`
 <!-- YAML
@@ -1401,7 +1400,6 @@ Node.js options that are allowed are:
 * `--experimental-loader`
 * `--experimental-modules`
 * `--experimental-policy`
-* `--experimental-repl-await`
 * `--experimental-specifier-resolution`
 * `--experimental-top-level-await`
 * `--experimental-vm-modules`
@@ -1423,6 +1421,7 @@ Node.js options that are allowed are:
 * `--max-http-header-size`
 * `--napi-modules`
 * `--no-deprecation`
+* `--no-experimental-repl-await`
 * `--no-force-async-hooks-checks`
 * `--no-warnings`
 * `--node-memory-debug`
