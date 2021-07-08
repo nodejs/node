@@ -2829,7 +2829,13 @@ This can be overridden for servers and client requests by passing the
 <!-- YAML
 added: v0.3.6
 changes:
-  - version: v15.3.0
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/39310
+    description: When using a `URL` object parsed username and
+                 password will now be properly URI decoded.
+  - version:
+      - v15.3.0
+      - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/36048
     description: It is possible to abort a request with an AbortSignal.
   - version:
