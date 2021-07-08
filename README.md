@@ -251,8 +251,6 @@ For information about the governance of the Node.js project, see
 **Antoine du Hamel** &lt;duhamelantoine1995@gmail.com&gt; (he/him)
 * [ak239](https://github.com/ak239) -
 **Aleksei Koziatinskii** &lt;ak239spb@gmail.com&gt;
-* [AndreasMadsen](https://github.com/AndreasMadsen) -
-**Andreas Madsen** &lt;amwebdk@gmail.com&gt; (he/him)
 * [antsmartian](https://github.com/antsmartian) -
 **Anto Aravinth** &lt;anto.aravinth.cse@gmail.com&gt; (he/him)
 * [apapirovski](https://github.com/apapirovski) -
@@ -466,6 +464,8 @@ For information about the governance of the Node.js project, see
 **Andras** &lt;andras@kinvey.com&gt;
 * [AnnaMag](https://github.com/AnnaMag) -
 **Anna M. Kedzierska** &lt;anna.m.kedzierska@gmail.com&gt;
+* [AndreasMadsen](https://github.com/AndreasMadsen) -
+**Andreas Madsen** &lt;amwebdk@gmail.com&gt; (he/him)
 * [aqrln](https://github.com/aqrln) -
 **Alexey Orlenko** &lt;eaglexrlnk@gmail.com&gt; (he/him)
 * [bnoordhuis](https://github.com/bnoordhuis) -
