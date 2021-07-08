@@ -8,7 +8,7 @@ const repl = require('repl');
 
 common.skipIfInspectorDisabled();
 
-// Flags: --expose-internals --experimental-repl-await
+// Flags: --expose-internals
 
 const PROMPT = 'await repl > ';
 
