@@ -11,6 +11,7 @@
 #include "node_file.h"
 #include "node_internals.h"
 #include "node_main_instance.h"
+#include "node_process.h"
 #include "node_v8.h"
 #include "node_v8_platform-inl.h"
 
