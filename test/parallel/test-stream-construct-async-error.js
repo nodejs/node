@@ -98,6 +98,9 @@ const assert = require('assert');
 
   const foo = new Foo();
   foo.write('test', common.mustCall());
+  foo.on('error', common.expectsError({
+    code: 'ERR_MULTIPLE_CALLBACK'
+  }));
 }
 
 {
