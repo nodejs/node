@@ -5,6 +5,11 @@
 #include "node_native_module_env.h"
 #include "node_platform.h"
 #include "node_v8_platform-inl.h"
+
+#ifdef NODE_ENABLE_VTUNE_PROFILING
+#include "../deps/v8/src/third_party/vtune/v8-vtune.h"
+#endif
+
 #include "uv.h"
 
 #if HAVE_INSPECTOR
@@ -216,6 +221,10 @@ void SetIsolateCreateParamsForNode(Isolate::CreateParams* params) {
   }
   params->embedder_wrapper_object_index = BaseObject::InternalFields::kSlot;
   params->embedder_wrapper_type_index = std::numeric_limits<int>::max();
+
+#ifdef NODE_ENABLE_VTUNE_PROFILING
+  params->code_event_handler = vTune::GetVtuneCodeEventHandler();
+#endif
 }
 
 void SetIsolateErrorHandlers(v8::Isolate* isolate, const IsolateSettings& s) {
