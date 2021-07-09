@@ -11,7 +11,7 @@ const {
 } = require('../common/hijackstdio');
 const assert = require('assert');
 // Flags: --expose-internals
-const internalTLS = require('internal/tls');
+const internalTLS = require('internal/tls/legacy');
 const tls = require('tls');
 
 const noOutput = common.mustNotCall();
