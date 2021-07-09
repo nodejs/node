@@ -61,7 +61,11 @@ void GetKeyFormatAndTypeFromJs(
       config->type_ = Just<PKEncodingType>(static_cast<PKEncodingType>(
           args[*offset + 1].As<Int32>()->Value()));
     } else {
-      CHECK(context == kKeyContextInput && config->format_ == kKeyFormatPEM);
+      CHECK(
+          (context == kKeyContextInput &&
+           config->format_ == kKeyFormatPEM) ||
+          (context == kKeyContextGenerate &&
+           config->format_ == kKeyFormatJWK));
       CHECK(args[*offset + 1]->IsNullOrUndefined());
       config->type_ = Nothing<PKEncodingType>();
     }
@@ -487,9 +491,7 @@ Maybe<bool> ExportJWKAsymmetricKey(
     std::shared_ptr<KeyObjectData> key,
     Local<Object> target) {
   switch (EVP_PKEY_id(key->GetAsymmetricKey().get())) {
-    case EVP_PKEY_RSA:
-      // Fall through
-    case EVP_PKEY_RSA_PSS: return ExportJWKRsaKey(env, key, target);
+    case EVP_PKEY_RSA: return ExportJWKRsaKey(env, key, target);
     case EVP_PKEY_EC: return ExportJWKEcKey(env, key, target);
     case EVP_PKEY_ED25519:
       // Fall through
@@ -499,7 +501,7 @@ Maybe<bool> ExportJWKAsymmetricKey(
       // Fall through
     case EVP_PKEY_X448: return ExportJWKEdKey(env, key, target);
   }
-  THROW_ERR_CRYPTO_INVALID_KEYTYPE(env);
+  THROW_ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE(env);
   return Just(false);
 }
 
@@ -605,6 +607,21 @@ static inline Maybe<bool> Tristate(bool b) {
   return b ? Just(true) : Nothing<bool>();
 }
 
+Maybe<bool> ExportJWKInner(Environment* env,
+                           std::shared_ptr<KeyObjectData> key,
+                           Local<Value> result) {
+  switch (key->GetKeyType()) {
+    case kKeyTypeSecret:
+      return ExportJWKSecretKey(env, key, result.As<Object>());
+    case kKeyTypePublic:
+      // Fall through
+    case kKeyTypePrivate:
+      return ExportJWKAsymmetricKey(env, key, result.As<Object>());
+    default:
+      UNREACHABLE();
+  }
+}
+
 Maybe<bool> ManagedEVPPKey::ToEncodedPublicKey(
     Environment* env,
     ManagedEVPPKey key,
@@ -617,6 +634,11 @@ Maybe<bool> ManagedEVPPKey::ToEncodedPublicKey(
     std::shared_ptr<KeyObjectData> data =
           KeyObjectData::CreateAsymmetric(kKeyTypePublic, std::move(key));
     return Tristate(KeyObjectHandle::Create(env, data).ToLocal(out));
+  } else if (config.format_ == kKeyFormatJWK) {
+    std::shared_ptr<KeyObjectData> data =
+        KeyObjectData::CreateAsymmetric(kKeyTypePublic, std::move(key));
+    *out = Object::New(env->isolate());
+    return ExportJWKInner(env, data, *out);
   }
 
   return Tristate(WritePublicKey(env, key.get(), config).ToLocal(out));
@@ -632,6 +654,11 @@ Maybe<bool> ManagedEVPPKey::ToEncodedPrivateKey(
     std::shared_ptr<KeyObjectData> data =
         KeyObjectData::CreateAsymmetric(kKeyTypePrivate, std::move(key));
     return Tristate(KeyObjectHandle::Create(env, data).ToLocal(out));
+  } else if (config.format_ == kKeyFormatJWK) {
+    std::shared_ptr<KeyObjectData> data =
+        KeyObjectData::CreateAsymmetric(kKeyTypePrivate, std::move(key));
+    *out = Object::New(env->isolate());
+    return ExportJWKInner(env, data, *out);
   }
 
   return Tristate(WritePrivateKey(env, key.get(), config).ToLocal(out));
@@ -1211,24 +1238,7 @@ void KeyObjectHandle::ExportJWK(
 
   CHECK(args[0]->IsObject());
 
-  switch (key->Data()->GetKeyType()) {
-    case kKeyTypeSecret:
-      if (ExportJWKSecretKey(env, key->Data(), args[0].As<Object>())
-              .IsNothing()) {
-        return;
-      }
-      break;
-    case kKeyTypePublic:
-      // Fall through
-    case kKeyTypePrivate:
-      if (ExportJWKAsymmetricKey(env, key->Data(), args[0].As<Object>())
-              .IsNothing()) {
-        return;
-      }
-      break;
-    default:
-      UNREACHABLE();
-  }
+  ExportJWKInner(env, key->Data(), args[0]);
 
   args.GetReturnValue().Set(args[0]);
 }
@@ -1380,6 +1390,7 @@ void Initialize(Environment* env, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, kKeyEncodingSEC1);
   NODE_DEFINE_CONSTANT(target, kKeyFormatDER);
   NODE_DEFINE_CONSTANT(target, kKeyFormatPEM);
+  NODE_DEFINE_CONSTANT(target, kKeyFormatJWK);
   NODE_DEFINE_CONSTANT(target, kKeyTypeSecret);
   NODE_DEFINE_CONSTANT(target, kKeyTypePublic);
   NODE_DEFINE_CONSTANT(target, kKeyTypePrivate);
