@@ -8,6 +8,7 @@ const assert = require('assert');
 function request(socket) {
   socket.write('GET / HTTP/1.1\r\n');
   socket.write('Connection: keep-alive\r\n');
+  socket.write('Host: localhost\r\n');
   socket.write('\r\n\r\n');
 }
 

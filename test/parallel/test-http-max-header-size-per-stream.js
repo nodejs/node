@@ -62,6 +62,7 @@ const MakeDuplexPair = require('../common/duplexpair');
   server.emit('connection', serverSide);
 
   clientSide.write('GET / HTTP/1.1\r\n' +
+                   'Host: example.com\r\n' +
                    'Hello: ' + 'A'.repeat(http.maxHeaderSize * 3) + '\r\n' +
                    '\r\n\r\n');
 }
