@@ -97,6 +97,9 @@
     # Sets -dENABLE_GDB_JIT_INTERFACE.
     'v8_enable_gdbjit%': 0,
 
+    # Sets -dENABLE_VTUNE_JIT_INTERFACE.
+    'v8_enable_vtunejit%': 0,
+
     # Currently set for node by common.gypi, avoiding default because of gyp file bug.
     # Should be turned on only for debugging.
     #'v8_enable_handle_zapping%': 0,
@@ -254,6 +257,9 @@
       }],
       ['v8_enable_gdbjit==1', {
         'defines': ['ENABLE_GDB_JIT_INTERFACE',],
+      }],
+      ['v8_enable_vtunejit==1', {
+        'defines': ['ENABLE_VTUNE_JIT_INTERFACE',],
       }],
       ['v8_enable_minor_mc==1', {
         'defines': ['ENABLE_MINOR_MC',],
