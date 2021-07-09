@@ -24,12 +24,14 @@ function writeRequest(socket, withBody) {
     socket.write('POST / HTTP/1.1\r\n');
     socket.write('Connection: keep-alive\r\n');
     socket.write('Content-Type: text/plain\r\n');
+    socket.write('Host: localhost\r\n');
     socket.write(`Content-Length: ${bodySent.length}\r\n\r\n`);
     socket.write(`${bodySent}\r\n`);
     socket.write('\r\n\r\n');
   } else {
     socket.write('GET / HTTP/1.1\r\n');
     socket.write('Connection: keep-alive\r\n');
+    socket.write('Host: localhost\r\n');
     socket.write('\r\n\r\n');
   }
 }

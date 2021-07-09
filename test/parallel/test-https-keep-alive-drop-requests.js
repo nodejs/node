@@ -13,7 +13,7 @@ const tls = require('tls');
 const { readKey } = require('../common/fixtures');
 
 function request(socket) {
-  socket.write('GET / HTTP/1.1\r\nConnection: keep-alive\r\n\r\n\r\n');
+  socket.write('GET / HTTP/1.1\r\nHost: localhost\r\nConnection: keep-alive\r\n\r\n\r\n');
 }
 
 // https options

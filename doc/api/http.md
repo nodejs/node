@@ -3185,6 +3185,10 @@ changes:
   * `uniqueHeaders` {Array} A list of response headers that should be sent only
     once. If the header's value is an array, the items will be joined
     using `; `.
+  * `requireHostHeader` {boolean} It forces the server to respond with
+    a 400 (Bad Request) status code to any HTTP/1.1 request message
+    that lacks a Host header (as mandated by the specification).
+    **Default:** `true`.
 
 * `requestListener` {Function}
 

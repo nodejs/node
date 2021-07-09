@@ -7,7 +7,7 @@ const { connect } = require('net');
 
 // This test validates that request are correct checked for both requests and headers timeout in various situations.
 
-const requestBodyPart1 = 'POST / HTTP/1.1\r\nContent-Length: 20\r\n';
+const requestBodyPart1 = 'POST / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 20\r\n';
 const requestBodyPart2 = 'Connection: close\r\n\r\n1234567890';
 const requestBodyPart3 = '1234567890';
 

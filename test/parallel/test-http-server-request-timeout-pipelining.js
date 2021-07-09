@@ -60,7 +60,8 @@ server.listen(0, common.mustCall(() => {
 
   // Send two requests using pipelining. Delay before finishing the second one
   client.resume();
-  client.write('GET / HTTP/1.1\r\nConnection: keep-alive\r\n\r\nGET / HTTP/1.1\r\nConnection: ');
+  client.write('GET / HTTP/1.1\r\nHost: localhost\r\nConnection: keep-alive\r\n\r\n' +
+   'GET / HTTP/1.1\r\nHost: localhost\r\nConnection: ');
 
   // Complete the request
   setTimeout(() => {

@@ -26,7 +26,7 @@ const server = http
     });
   })
   .listen(0, function() {
-    const req = 'GET / HTTP/1.1\r\n\r\n'.repeat(COUNT);
+    const req = 'GET / HTTP/1.1\r\nHost: example.com\r\n\r\n'.repeat(COUNT);
     client = net.connect(this.address().port, function() {
       client.write(req);
     });
