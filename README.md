@@ -200,6 +200,10 @@ For information about the governance of the Node.js project, see
 * [Trott](https://github.com/Trott) -
 **Rich Trott** &lt;rtrott@gmail.com&gt; (he/him)
 
+<details>
+
+<summary>Emeriti</summary>
+
 ### TSC emeriti
 
 * [addaleax](https://github.com/addaleax) -
@@ -242,6 +246,8 @@ For information about the governance of the Node.js project, see
 **Tiancheng "Timothy" Gu** &lt;timothygu99@gmail.com&gt; (he/him)
 * [trevnorris](https://github.com/trevnorris) -
 **Trevor Norris** &lt;trev.norris@gmail.com&gt;
+
+</details>
 
 ### Collaborators
 
@@ -458,6 +464,10 @@ For information about the governance of the Node.js project, see
 * [ZYSzys](https://github.com/ZYSzys) -
 **Yongsheng Zhang** &lt;zyszys98@gmail.com&gt; (he/him)
 
+<details>
+
+<summary>Emeriti</summary>
+
 ### Collaborator emeriti
 
 * [andrasq](https://github.com/andrasq) -
@@ -592,6 +602,8 @@ For information about the governance of the Node.js project, see
 **Vse Mozhet Byt** &lt;vsemozhetbyt@gmail.com&gt; (he/him)
 * [whitlockjc](https://github.com/whitlockjc) -
 **Jeremy Whitlock** &lt;jwhitlock@apache.org&gt;
+
+</details>
 <!--lint enable prohibited-strings-->
 
 Collaborators follow the [Collaborator Guide](./doc/guides/collaborator-guide.md) in
@@ -655,7 +667,9 @@ gpg --keyserver pool.sks-keyservers.net --recv-keys B9E2F5981AA6E0CD28160D9FF139
 See the section above on [Verifying Binaries](#verifying-binaries) for how to
 use these keys to verify a downloaded file.
 
-Other keys used to sign some previous releases:
+<details>
+
+<summary>Other keys used to sign some previous releases</summary>
 
 * **Chris Dickinson** &lt;christopher.s.dickinson@gmail.com&gt;
 `9554F04D7259F04124DE6B476D5A82AC7E37093B`
@@ -675,6 +689,8 @@ Other keys used to sign some previous releases:
 `114F43EE0176B71C7BC219DD50A3051F888C628D`
 * **Timothy J Fontaine** &lt;tjfontaine@gmail.com&gt;
 `7937DFD2AB06298B2293C3187D33FF9D0246406D`
+
+</details>
 
 ## License
 
