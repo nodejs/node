@@ -36,14 +36,10 @@ namespace node {
 
 using v8::Array;
 using v8::ArrayBuffer;
-using v8::BackingStore;
 using v8::CFunction;
-using v8::ConstructorBehavior;
 using v8::Context;
 using v8::Float64Array;
 using v8::FunctionCallbackInfo;
-using v8::FunctionTemplate;
-using v8::Global;
 using v8::HeapStatistics;
 using v8::Integer;
 using v8::Isolate;
@@ -51,9 +47,6 @@ using v8::Local;
 using v8::NewStringType;
 using v8::Number;
 using v8::Object;
-using v8::ObjectTemplate;
-using v8::SideEffectType;
-using v8::Signature;
 using v8::String;
 using v8::Uint32;
 using v8::Value;
@@ -423,124 +416,119 @@ static void ReallyExit(const FunctionCallbackInfo<Value>& args) {
   env->Exit(code);
 }
 
-class FastHrtime : public BaseObject {
- public:
-  static Local<Object> New(Environment* env) {
-    Local<FunctionTemplate> ctor = FunctionTemplate::New(env->isolate());
-    ctor->Inherit(BaseObject::GetConstructorTemplate(env));
-    Local<ObjectTemplate> otmpl = ctor->InstanceTemplate();
-    otmpl->SetInternalFieldCount(FastHrtime::kInternalFieldCount);
+namespace process {
 
-    auto create_func = [env](auto fast_func, auto slow_func) {
-      auto cfunc = CFunction::Make(fast_func);
-      return FunctionTemplate::New(env->isolate(),
-                                   slow_func,
-                                   Local<Value>(),
-                                   Local<Signature>(),
-                                   0,
-                                   ConstructorBehavior::kThrow,
-                                   SideEffectType::kHasNoSideEffect,
-                                   &cfunc);
-    };
+constexpr FastStringKey BindingData::type_name;
 
-    otmpl->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "hrtime"),
-               create_func(FastNumber, SlowNumber));
-    otmpl->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "hrtimeBigInt"),
-               create_func(FastBigInt, SlowBigInt));
-
-    Local<Object> obj = otmpl->NewInstance(env->context()).ToLocalChecked();
-
-    Local<ArrayBuffer> ab =
-        ArrayBuffer::New(env->isolate(),
-            std::max(sizeof(uint64_t), sizeof(uint32_t) * 3));
-    new FastHrtime(env, obj, ab);
-    obj->Set(
-           env->context(), FIXED_ONE_BYTE_STRING(env->isolate(), "buffer"), ab)
-        .ToChecked();
-
-    return obj;
-  }
-
- private:
-  FastHrtime(Environment* env,
-             Local<Object> object,
-             Local<ArrayBuffer> ab)
-      : BaseObject(env, object),
-        array_buffer_(env->isolate(), ab),
-        backing_store_(ab->GetBackingStore()) {
-    MakeWeak();
-  }
-
-  void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackField("array_buffer", array_buffer_);
-  }
-  SET_MEMORY_INFO_NAME(FastHrtime)
-  SET_SELF_SIZE(FastHrtime)
-
-  static FastHrtime* FromV8Value(Local<Value> value) {
-    Local<Object> v8_object = value.As<Object>();
-    return static_cast<FastHrtime*>(
-        v8_object->GetAlignedPointerFromInternalField(BaseObject::kSlot));
-  }
-
-  // This is the legacy version of hrtime before BigInt was introduced in
-  // JavaScript.
-  // The value returned by uv_hrtime() is a 64-bit int representing nanoseconds,
-  // so this function instead fills in an Uint32Array with 3 entries,
-  // to avoid any integer overflow possibility.
-  // The first two entries contain the second part of the value
-  // broken into the upper/lower 32 bits to be converted back in JS,
-  // because there is no Uint64Array in JS.
-  // The third entry contains the remaining nanosecond part of the value.
-  static void NumberImpl(FastHrtime* receiver) {
-    uint64_t t = uv_hrtime();
-    uint32_t* fields = static_cast<uint32_t*>(receiver->backing_store_->Data());
-    fields[0] = (t / NANOS_PER_SEC) >> 32;
-    fields[1] = (t / NANOS_PER_SEC) & 0xffffffff;
-    fields[2] = t % NANOS_PER_SEC;
-  }
-
-  static void FastNumber(Local<Value> receiver) {
-    NumberImpl(FromV8Value(receiver));
-  }
-
-  static void SlowNumber(const FunctionCallbackInfo<Value>& args) {
-    NumberImpl(FromJSObject<FastHrtime>(args.Holder()));
-  }
-
-  static void BigIntImpl(FastHrtime* receiver) {
-    uint64_t t = uv_hrtime();
-    uint64_t* fields = static_cast<uint64_t*>(receiver->backing_store_->Data());
-    fields[0] = t;
-  }
-
-  static void FastBigInt(Local<Value> receiver) {
-    BigIntImpl(FromV8Value(receiver));
-  }
-
-  static void SlowBigInt(const FunctionCallbackInfo<Value>& args) {
-    BigIntImpl(FromJSObject<FastHrtime>(args.Holder()));
-  }
-
-  Global<ArrayBuffer> array_buffer_;
-  std::shared_ptr<BackingStore> backing_store_;
-};
-
-static void GetFastAPIs(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Local<Object> ret = Object::New(env->isolate());
-  ret->Set(env->context(),
-           FIXED_ONE_BYTE_STRING(env->isolate(), "hrtime"),
-           FastHrtime::New(env))
+BindingData::BindingData(Environment* env, v8::Local<v8::Object> object)
+    : SnapshotableObject(env, object, type_int) {
+  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), kBufferSize);
+  array_buffer_.Reset(env->isolate(), ab);
+  object
+      ->Set(env->context(),
+            FIXED_ONE_BYTE_STRING(env->isolate(), "hrtimeBuffer"),
+            ab)
       .ToChecked();
-  args.GetReturnValue().Set(ret);
+  backing_store_ = ab->GetBackingStore();
 }
 
-static void InitializeProcessMethods(Local<Object> target,
-                                     Local<Value> unused,
-                                     Local<Context> context,
-                                     void* priv) {
+v8::CFunction BindingData::fast_number_(v8::CFunction::Make(FastNumber));
+v8::CFunction BindingData::fast_bigint_(v8::CFunction::Make(FastBigInt));
+
+void BindingData::AddMethods() {
+  env()->SetFastMethod(object(), "hrtime", SlowNumber, &fast_number_);
+  env()->SetFastMethod(object(), "hrtimeBigInt", SlowBigInt, &fast_bigint_);
+}
+
+void BindingData::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(SlowNumber);
+  registry->Register(SlowBigInt);
+  registry->Register(FastNumber);
+  registry->Register(FastBigInt);
+  registry->Register(fast_number_.GetTypeInfo());
+  registry->Register(fast_bigint_.GetTypeInfo());
+}
+
+BindingData* BindingData::FromV8Value(Local<Value> value) {
+  Local<Object> v8_object = value.As<Object>();
+  return static_cast<BindingData*>(
+      v8_object->GetAlignedPointerFromInternalField(BaseObject::kSlot));
+}
+
+void BindingData::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("array_buffer", array_buffer_);
+}
+
+// This is the legacy version of hrtime before BigInt was introduced in
+// JavaScript.
+// The value returned by uv_hrtime() is a 64-bit int representing nanoseconds,
+// so this function instead fills in an Uint32Array with 3 entries,
+// to avoid any integer overflow possibility.
+// The first two entries contain the second part of the value
+// broken into the upper/lower 32 bits to be converted back in JS,
+// because there is no Uint64Array in JS.
+// The third entry contains the remaining nanosecond part of the value.
+void BindingData::NumberImpl(BindingData* receiver) {
+  // Make sure we don't accidentally access buffers wiped for snapshot.
+  CHECK(!receiver->array_buffer_.IsEmpty());
+  uint64_t t = uv_hrtime();
+  uint32_t* fields = static_cast<uint32_t*>(receiver->backing_store_->Data());
+  fields[0] = (t / NANOS_PER_SEC) >> 32;
+  fields[1] = (t / NANOS_PER_SEC) & 0xffffffff;
+  fields[2] = t % NANOS_PER_SEC;
+}
+
+void BindingData::BigIntImpl(BindingData* receiver) {
+  // Make sure we don't accidentally access buffers wiped for snapshot.
+  CHECK(!receiver->array_buffer_.IsEmpty());
+  uint64_t t = uv_hrtime();
+  uint64_t* fields = static_cast<uint64_t*>(receiver->backing_store_->Data());
+  fields[0] = t;
+}
+
+void BindingData::SlowBigInt(const FunctionCallbackInfo<Value>& args) {
+  BigIntImpl(FromJSObject<BindingData>(args.Holder()));
+}
+
+void BindingData::SlowNumber(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  NumberImpl(FromJSObject<BindingData>(args.Holder()));
+}
+
+void BindingData::PrepareForSerialization(Local<Context> context,
+                                          v8::SnapshotCreator* creator) {
+  // It's not worth keeping.
+  // Release it, we will recreate it when the instance is dehydrated.
+  array_buffer_.Reset();
+}
+
+InternalFieldInfo* BindingData::Serialize(int index) {
+  DCHECK_EQ(index, BaseObject::kSlot);
+  InternalFieldInfo* info = InternalFieldInfo::New(type());
+  return info;
+}
+
+void BindingData::Deserialize(Local<Context> context,
+                              Local<Object> holder,
+                              int index,
+                              InternalFieldInfo* info) {
+  DCHECK_EQ(index, BaseObject::kSlot);
+  v8::HandleScope scope(context->GetIsolate());
   Environment* env = Environment::GetCurrent(context);
+  // Recreate the buffer in the constructor.
+  BindingData* binding = env->AddBindingData<BindingData>(context, holder);
+  CHECK_NOT_NULL(binding);
+}
+
+static void Initialize(Local<Object> target,
+                       Local<Value> unused,
+                       Local<Context> context,
+                       void* priv) {
+  Environment* env = Environment::GetCurrent(context);
+  BindingData* const binding_data =
+      env->AddBindingData<BindingData>(context, target);
+  if (binding_data == nullptr) return;
+  binding_data->AddMethods();
 
   // define various internal methods
   if (env->owns_process_state()) {
@@ -567,11 +555,11 @@ static void InitializeProcessMethods(Local<Object> target,
   env->SetMethod(target, "reallyExit", ReallyExit);
   env->SetMethodNoSideEffect(target, "uptime", Uptime);
   env->SetMethod(target, "patchProcessObject", PatchProcessObject);
-  env->SetMethod(target, "getFastAPIs", GetFastAPIs);
 }
 
-void RegisterProcessMethodsExternalReferences(
-    ExternalReferenceRegistry* registry) {
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  BindingData::RegisterExternalReferences(registry);
+
   registry->Register(DebugProcess);
   registry->Register(DebugEnd);
   registry->Register(Abort);
@@ -594,12 +582,11 @@ void RegisterProcessMethodsExternalReferences(
   registry->Register(ReallyExit);
   registry->Register(Uptime);
   registry->Register(PatchProcessObject);
-  registry->Register(GetFastAPIs);
 }
 
+}  // namespace process
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(process_methods,
-                                   node::InitializeProcessMethods)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(process_methods, node::process::Initialize)
 NODE_MODULE_EXTERNAL_REFERENCE(process_methods,
-                               node::RegisterProcessMethodsExternalReferences)
+                               node::process::RegisterExternalReferences)

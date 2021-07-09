@@ -16,7 +16,8 @@ struct SnapshotData;
 #define SERIALIZABLE_OBJECT_TYPES(V)                                           \
   V(fs_binding_data, fs::BindingData)                                          \
   V(v8_binding_data, v8_utils::BindingData)                                    \
-  V(blob_binding_data, BlobBindingData)
+  V(blob_binding_data, BlobBindingData)                                        \
+  V(process_binding_data, process::BindingData)
 
 enum class EmbedderObjectType : uint8_t {
   k_default = 0,
