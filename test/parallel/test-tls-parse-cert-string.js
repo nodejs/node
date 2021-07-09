@@ -11,7 +11,7 @@ const {
 } = require('../common/hijackstdio');
 const assert = require('assert');
 // Flags: --expose-internals
-const internalTLS = require('internal/tls');
+const { parseCertString } = require('internal/tls/parse-cert-string');
 const tls = require('tls');
 
 const noOutput = common.mustNotCall();
@@ -20,7 +20,7 @@ hijackStderr(noOutput);
 {
   const singles = 'C=US\nST=CA\nL=SF\nO=Node.js Foundation\nOU=Node.js\n' +
                   'CN=ca1\nemailAddress=ry@clouds.org';
-  const singlesOut = internalTLS.parseCertString(singles);
+  const singlesOut = parseCertString(singles);
   assert.deepStrictEqual(singlesOut, {
     __proto__: null,
     C: 'US',
@@ -36,7 +36,7 @@ hijackStderr(noOutput);
 {
   const doubles = 'OU=Domain Control Validated\nOU=PositiveSSL Wildcard\n' +
                   'CN=*.nodejs.org';
-  const doublesOut = internalTLS.parseCertString(doubles);
+  const doublesOut = parseCertString(doubles);
   assert.deepStrictEqual(doublesOut, {
     __proto__: null,
     OU: [ 'Domain Control Validated', 'PositiveSSL Wildcard' ],
@@ -46,7 +46,7 @@ hijackStderr(noOutput);
 
 {
   const invalid = 'fhqwhgads';
-  const invalidOut = internalTLS.parseCertString(invalid);
+  const invalidOut = parseCertString(invalid);
   assert.deepStrictEqual(invalidOut, { __proto__: null });
 }
 
@@ -55,7 +55,7 @@ hijackStderr(noOutput);
   const expected = Object.create(null);
   expected.__proto__ = 'mostly harmless';
   expected.hasOwnProperty = 'not a function';
-  assert.deepStrictEqual(internalTLS.parseCertString(input), expected);
+  assert.deepStrictEqual(parseCertString(input), expected);
 }
 
 restoreStderr();
