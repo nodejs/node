@@ -603,6 +603,25 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
       passphrase: 'top secret'
     });
   }));
+
+  // Test async elliptic curve key generation with 'jwk' encoding
+  generateKeyPair('ec', {
+    namedCurve: 'P-384',
+    publicKeyEncoding: {
+      type: 'spki',
+      format: 'jwk'
+    },
+    privateKeyEncoding: {
+      type: 'pkcs8',
+      format: 'jwk'
+    }
+  }, common.mustSucceed((publicKey, privateKey) => {
+    assert.strictEqual(typeof publicKey, 'object');
+    assert.strictEqual(typeof privateKey, 'object');
+    assert.strictEqual(publicKey.x, privateKey.x);
+    assert.strictEqual(publicKey.y, privateKey.y);
+    assert.strictEqual(publicKey.kty, privateKey.kty);
+  }));
 }
 
 // Test invalid parameter encoding.

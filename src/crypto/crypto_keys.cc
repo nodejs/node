@@ -605,6 +605,21 @@ static inline Maybe<bool> Tristate(bool b) {
   return b ? Just(true) : Nothing<bool>();
 }
 
+Maybe<bool> ExportJWKInner(Environment* env,
+                           std::shared_ptr<KeyObjectData> key,
+                           Local<Value> result) {
+  switch (key->GetKeyType()) {
+    case kKeyTypeSecret:
+      return ExportJWKSecretKey(env, key, result.As<Object>());
+    case kKeyTypePublic:
+      // Fall through
+    case kKeyTypePrivate:
+      return ExportJWKAsymmetricKey(env, key, result.As<Object>());
+    default:
+      UNREACHABLE();
+  }
+}
+
 Maybe<bool> ManagedEVPPKey::ToEncodedPublicKey(
     Environment* env,
     ManagedEVPPKey key,
@@ -617,6 +632,11 @@ Maybe<bool> ManagedEVPPKey::ToEncodedPublicKey(
     std::shared_ptr<KeyObjectData> data =
           KeyObjectData::CreateAsymmetric(kKeyTypePublic, std::move(key));
     return Tristate(KeyObjectHandle::Create(env, data).ToLocal(out));
+  } else if (config.format_ == kKeyFormatJWK) {
+    std::shared_ptr<KeyObjectData> data =
+        KeyObjectData::CreateAsymmetric(kKeyTypePublic, std::move(key));
+    *out = Object::New(env->isolate());
+    return ExportJWKInner(env, data, *out);
   }
 
   return Tristate(WritePublicKey(env, key.get(), config).ToLocal(out));
@@ -632,6 +652,11 @@ Maybe<bool> ManagedEVPPKey::ToEncodedPrivateKey(
     std::shared_ptr<KeyObjectData> data =
         KeyObjectData::CreateAsymmetric(kKeyTypePrivate, std::move(key));
     return Tristate(KeyObjectHandle::Create(env, data).ToLocal(out));
+  } else if (config.format_ == kKeyFormatJWK) {
+    std::shared_ptr<KeyObjectData> data =
+        KeyObjectData::CreateAsymmetric(kKeyTypePrivate, std::move(key));
+    *out = Object::New(env->isolate());
+    return ExportJWKInner(env, data, *out);
   }
 
   return Tristate(WritePrivateKey(env, key.get(), config).ToLocal(out));
@@ -1211,24 +1236,7 @@ void KeyObjectHandle::ExportJWK(
 
   CHECK(args[0]->IsObject());
 
-  switch (key->Data()->GetKeyType()) {
-    case kKeyTypeSecret:
-      if (ExportJWKSecretKey(env, key->Data(), args[0].As<Object>())
-              .IsNothing()) {
-        return;
-      }
-      break;
-    case kKeyTypePublic:
-      // Fall through
-    case kKeyTypePrivate:
-      if (ExportJWKAsymmetricKey(env, key->Data(), args[0].As<Object>())
-              .IsNothing()) {
-        return;
-      }
-      break;
-    default:
-      UNREACHABLE();
-  }
+  ExportJWKInner(env, key->Data(), args[0]);
 
   args.GetReturnValue().Set(args[0]);
 }
@@ -1380,6 +1388,7 @@ void Initialize(Environment* env, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, kKeyEncodingSEC1);
   NODE_DEFINE_CONSTANT(target, kKeyFormatDER);
   NODE_DEFINE_CONSTANT(target, kKeyFormatPEM);
+  NODE_DEFINE_CONSTANT(target, kKeyFormatJWK);
   NODE_DEFINE_CONSTANT(target, kKeyTypeSecret);
   NODE_DEFINE_CONSTANT(target, kKeyTypePublic);
   NODE_DEFINE_CONSTANT(target, kKeyTypePrivate);
