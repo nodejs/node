@@ -204,7 +204,7 @@ check: test
 # in place
 coverage-clean:
 	$(RM) -r node_modules
-	$(RM) -r gcovr build
+	$(RM) -r gcovr
 	$(RM) -r coverage/tmp
 	$(FIND) out/$(BUILDTYPE)/obj.target \( -name "*.gcda" -o -name "*.gcno" \) \
 		-type f -exec $(RM) {} \;
@@ -220,13 +220,7 @@ coverage: coverage-test ## Run the tests and generate a coverage report.
 .PHONY: coverage-build
 coverage-build: all
 	-$(MAKE) coverage-build-js
-	if [ ! -d gcovr ]; then git clone -b 3.4 --depth=1 \
-		--single-branch https://github.com/gcovr/gcovr.git; fi
-	if [ ! -d build ]; then git clone --depth=1 \
-		--single-branch https://github.com/nodejs/build.git; fi
-	if [ ! -f gcovr/scripts/gcovr.orig ]; then \
-		(cd gcovr && patch -N -p1 < \
-		"$(CURDIR)/build/jenkins/scripts/coverage/gcovr-patches-3.4.diff"); fi
+	if [ ! -d gcovr ]; then $(PYTHON) -m pip install -t gcovr gcovr==4.2; fi
 	$(MAKE)
 
 .PHONY: coverage-build-js
@@ -238,16 +232,14 @@ coverage-build-js:
 
 .PHONY: coverage-test
 coverage-test: coverage-build
-	$(RM) out/$(BUILDTYPE)/obj.target/node/src/*.gcda
-	$(RM) out/$(BUILDTYPE)/obj.target/node/src/*/*.gcda
-	$(RM) out/$(BUILDTYPE)/obj.target/node_lib/src/*.gcda
-	$(RM) out/$(BUILDTYPE)/obj.target/node_lib/src/*/*.gcda
+	$(FIND) out/$(BUILDTYPE)/obj.target -name "*.gcda" -type f -exec $(RM) {} \;
 	-NODE_V8_COVERAGE=coverage/tmp \
 		TEST_CI_ARGS="$(TEST_CI_ARGS) --type=coverage" $(MAKE) $(COVTESTS)
 	$(MAKE) coverage-report-js
-	-(cd out && "../gcovr/scripts/gcovr" \
+	-(cd out && PYTHONPATH=../gcovr $(PYTHON) -m gcovr \
 		--gcov-exclude='.*\b(deps|usr|out|cctest|embedding)\b' -v \
-		-r Release/obj.target --html --html-detail -o ../coverage/cxxcoverage.html \
+		-r ../src/ --object-directory Release/obj.target \
+		--html --html-details -o ../coverage/cxxcoverage.html \
 		--gcov-executable="$(GCOV)")
 	@printf "Javascript coverage %%: "
 	@grep -B1 Lines coverage/index.html | head -n1 \
