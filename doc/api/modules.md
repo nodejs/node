@@ -989,9 +989,12 @@ This section was moved to
 [Modules: `module` core module](module.md#the-module-object).
 
 <!-- Anchors to make sure old links find a target -->
-* <a id="modules_module_builtinmodules" href="module.html#module_module_builtinmodules">`module.builtinModules`</a>
-* <a id="modules_module_createrequire_filename" href="module.html#module_module_createrequire_filename">`module.createRequire(filename)`</a>
-* <a id="modules_module_syncbuiltinesmexports" href="module.html#module_module_syncbuiltinesmexports">`module.syncBuiltinESMExports()`</a>
+<a id="modules_module_builtinmodules"></a>
+<a id="modules_module_createrequire_filename"></a>
+<a id="modules_module_syncbuiltinesmexports"></a>
+* [`module.builtinModules`][]
+* [`module.createRequire(filename)`][]
+* [`module.syncBuiltinESMExports()`][]
 
 ## Source map v3 support
 
@@ -999,24 +1002,37 @@ This section was moved to
 [Modules: `module` core module](module.md#source-map-v3-support).
 
 <!-- Anchors to make sure old links find a target -->
-* <a id="modules_module_findsourcemap_path_error" href="module.html#module_module_findsourcemap_path">`module.findSourceMap(path)`</a>
-* <a id="modules_class_module_sourcemap" href="module.html#module_class_module_sourcemap">Class: `module.SourceMap`</a>
-  * <a id="modules_new_sourcemap_payload" href="module.html#module_new_sourcemap_payload">`new SourceMap(payload)`</a>
-  * <a id="modules_sourcemap_payload" href="module.html#module_sourcemap_payload">`sourceMap.payload`</a>
-  * <a id="modules_sourcemap_findentry_linenumber_columnnumber" href="module.html#module_sourcemap_findentry_linenumber_columnnumber">`sourceMap.findEntry(lineNumber, columnNumber)`</a>
+<a id="modules_module_findsourcemap_path_error"></a>
+<a id="modules_class_module_sourcemap"></a>
+<a id="modules_new_sourcemap_payload"></a>
+<a id="modules_sourcemap_payload"></a>
+<a id="modules_sourcemap_findentry_linenumber_columnnumber"></a>
+* [`module.findSourceMap(path)`][]
+* [Class: `module.SourceMap`][]
+  * [`new SourceMap(payload)`][]
+  * [`sourceMap.payload`][]
+  * [`sourceMap.findEntry(lineNumber, columnNumber)`][]
 
+[Class: `module.SourceMap`]: module.md#class-modulesourcemap
 [ECMAScript Modules]: esm.md
 [GLOBAL_FOLDERS]: #loading-from-the-global-folders
 [`"main"`]: packages.md#main
 [`Error`]: errors.md#class-error
 [`__dirname`]: #__dirname
 [`__filename`]: #__filename
+[`module.builtinModules`]: module.md#modulebuiltinmodules
 [`module.children`]: #modulechildren
+[`module.createRequire(filename)`]: module.md#modulecreaterequirefilename
+[`module.findSourceMap(path)`]: module.md#modulefindsourcemappath
 [`module.id`]: #moduleid
+[`module.syncBuiltinESMExports()`]:module.md#modulesyncbuiltinesmexports
 [`module` object]: #the-module-object
+[`new SourceMap(payload)`]: module.md#new-sourcemappayload
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
 [`path.dirname()`]: path.md#pathdirnamepath
 [`require.main`]: #requiremain
+[`sourceMap.findEntry(lineNumber, columnNumber)`]: module.md#sourcemapfindentrylinenumber-columnnumber
+[`sourceMap.payload`]: module.md#sourcemappayload
 [an error]: errors.md#err-require-esm
 [exports shortcut]: #exports-shortcut
 [module resolution]: #all-together
