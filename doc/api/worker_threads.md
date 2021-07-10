@@ -1254,7 +1254,7 @@ thread spawned will spawn another until the application crashes.
 [`Buffer.allocUnsafe()`]: buffer.md#static-method-bufferallocunsafesize
 [`Buffer`]: buffer.md
 [`ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`]: errors.md#err_missing_message_port_in_transfer_list
-[`ERR_WORKER_NOT_RUNNING`]: errors.md#ERR_WORKER_NOT_RUNNING
+[`ERR_WORKER_NOT_RUNNING`]: errors.md#err_worker_not_running
 [`EventTarget`]: https://developer.mozilla.org/en-US/docs/Web/API/EventTarget
 [`FileHandle`]: fs.md#class-filehandle
 [`MessagePort`]: #class-messageport

@@ -514,7 +514,7 @@ Useful when activating the inspector by sending the `SIGUSR1` signal.
 
 Default host is `127.0.0.1`.
 
-See the [security warning](#inspector_security) below regarding the `host`
+See the [security warning](#warning-binding-inspector-to-a-public-ipport-combination-is-insecure) below regarding the `host`
 parameter usage.
 
 ### `--inspect[=[host:]port]`
@@ -528,6 +528,7 @@ V8 inspector integration allows tools such as Chrome DevTools and IDEs to debug
 and profile Node.js instances. The tools attach to Node.js instances via a
 tcp port and communicate using the [Chrome DevTools Protocol][].
 
+<!-- Anchor to make sure old links find a target -->
 <a id="inspector_security"></a>
 #### Warning: binding inspector to a public IP:port combination is insecure
 
