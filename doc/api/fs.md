@@ -2966,8 +2966,8 @@ to read a complete file into memory.
 The additional read overhead can vary broadly on different systems and depends
 on the type of file being read. If the file type is not a regular file (a pipe
 for instance) and Node.js is unable to determine an actual file size, each read
-operation will load on 64kb of data. For regular files, each read will process
-512kb of data.
+operation will load on 64 KB of data. For regular files, each read will process
+512 KB of data.
 
 For applications that require as-fast-as-possible reading of file contents, it
 is better to use `fs.read()` directly and for application code to manage

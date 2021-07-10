@@ -785,7 +785,7 @@ initialized*. The contents of the newly created `Buffer` are unknown and
 such `Buffer` instances with zeroes.
 
 When using [`Buffer.allocUnsafe()`][] to allocate new `Buffer` instances,
-allocations under 4KB are sliced from a single pre-allocated `Buffer`. This
+allocations under 4 KB are sliced from a single pre-allocated `Buffer`. This
 allows applications to avoid the garbage collection overhead of creating many
 individually allocated `Buffer` instances. This approach improves both
 performance and memory usage by eliminating the need to track and clean up as
@@ -5031,9 +5031,9 @@ changes:
 
 * {integer} The largest size allowed for a single `Buffer` instance.
 
-On 32-bit architectures, this value currently is 2<sup>30</sup> - 1 (~1GB).
+On 32-bit architectures, this value currently is 2<sup>30</sup> - 1 (~1 GB).
 
-On 64-bit architectures, this value currently is 2<sup>32</sup> (~4GB).
+On 64-bit architectures, this value currently is 2<sup>32</sup> (~4 GB).
 
 It reflects [`v8::TypedArray::kMaxLength`][] under the hood.
 
