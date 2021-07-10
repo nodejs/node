@@ -22,7 +22,7 @@ Last update:
 - interfaces: https://github.com/web-platform-tests/wpt/tree/fcb671ed8b/interfaces
 - resources: https://github.com/web-platform-tests/wpt/tree/972ca5b669/resources
 - streams: https://github.com/web-platform-tests/wpt/tree/8f60d94439/streams
-- url: https://github.com/web-platform-tests/wpt/tree/1fcb39223d/url
+- url: https://github.com/web-platform-tests/wpt/tree/77d54aa9e0/url
 
 [Web Platform Tests]: https://github.com/web-platform-tests/wpt
 [`git node wpt`]: https://github.com/nodejs/node-core-utils/blob/main/docs/git-node.md#git-node-wpt
