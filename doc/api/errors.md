@@ -2876,9 +2876,9 @@ The native call from `process.cpuUsage` could not be processed.
 [`--disable-proto=throw`]: cli.md#--disable-protomode
 [`--force-fips`]: cli.md#--force-fips
 [`Class: assert.AssertionError`]: assert.md#class-assertassertionerror
-[`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE
-[`ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`]: #ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST
-[`ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST`]: #ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST
+[`ERR_INVALID_ARG_TYPE`]: #err_invalid_arg_type
+[`ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`]: #err_missing_message_port_in_transfer_list
+[`ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST`]: #err_missing_transferable_in_transfer_list
 [`EventEmitter`]: events.md#class-eventemitter
 [`MessagePort`]: worker_threads.md#class-messageport
 [`Object.getPrototypeOf`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/getPrototypeOf

@@ -1447,8 +1447,8 @@ are not controllable through the timeout either.
 [Source Text Module Record]: https://tc39.es/ecma262/#sec-source-text-module-records
 [Synthetic Module Record]: https://heycam.github.io/webidl/#synthetic-module-records
 [V8 Embedder's Guide]: https://v8.dev/docs/embed#contexts
-[`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`]: errors.md#ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING
-[`ERR_VM_MODULE_STATUS`]: errors.md#ERR_VM_MODULE_STATUS
+[`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`]: errors.md#err_vm_dynamic_import_callback_missing
+[`ERR_VM_MODULE_STATUS`]: errors.md#err_vm_module_status
 [`Error`]: errors.md#class-error
 [`URL`]: url.md#class-url
 [`eval()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval
