@@ -421,7 +421,7 @@ export function buildToc({ filename, apilinks }) {
          `<span><a class="mark" href="#${id}" id="${id}">#</a></span>`;
 
       // Add alias anchor to preserve old links
-      anchor += `<a class="legacy" id="${legacyId}"></a>`;
+      anchor += `<a aria-hidden="true" class="legacy" id="${legacyId}"></a>`;
 
       if (realFilename === 'errors' && headingText.startsWith('ERR_')) {
         anchor +=
