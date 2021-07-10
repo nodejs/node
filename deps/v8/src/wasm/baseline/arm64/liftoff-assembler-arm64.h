@@ -128,7 +128,7 @@ inline MemOperand GetMemOp(LiftoffAssembler* assm,
                            UseScratchRegisterScope* temps, Register addr,
                            Register offset, T offset_imm) {
   if (offset.is_valid()) {
-    if (offset_imm == 0) return MemOperand(addr.X(), offset.W(), UXTW);
+    if (offset_imm == 0) return MemOperand(addr.X(), offset.X());
     Register tmp = temps->AcquireX();
     DCHECK_GE(kMaxUInt32, offset_imm);
     assm->Add(tmp, offset.X(), offset_imm);
@@ -1333,7 +1333,7 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
                                             LiftoffRegister src, Label* trap) {
   switch (opcode) {
     case kExprI32ConvertI64:
-      if (src != dst) Mov(dst.gp().W(), src.gp().W());
+      Mov(dst.gp().W(), src.gp().W());
       return true;
     case kExprI32SConvertF32:
       Fcvtzs(dst.gp().W(), src.fp().S());  // f32 -> i32 round to zero.
