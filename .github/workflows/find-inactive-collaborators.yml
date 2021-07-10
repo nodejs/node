@@ -1,0 +1,17 @@
+name: Find inactive collaborators
+
+on:
+  schedule:
+    # Run on the 15th day of the month at 4:05 AM UTC.
+    - cron: '5 4 15 * *'
+
+  workflow_dispatch:
+
+jobs:
+  find:
+  
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - run: tools/find-inactive-collaborators.mjs '1 year ago'
