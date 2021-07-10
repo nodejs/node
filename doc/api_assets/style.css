@@ -25,7 +25,7 @@
   --gray7: #c1c1c1;
   --grey8: #ddd;
 
-  --background-color-api-stability-link: rgba(255, 255, 255, 0.4);
+  --background-color-api-stability-link: rgba(255, 255, 255, .4);
   --background-color-highlight: var(--white-smoke);
   --color-brand-primary: var(--gray6);
   --color-brand-secondary: var(--green1);
@@ -71,7 +71,7 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-font-variant-ligatures: none;
-  font-variant-ligatures: none;
+          font-variant-ligatures: none;
 }
 
 * {
@@ -79,38 +79,19 @@ html {
 }
 
 body {
-  font-family: Lato, 'Lucida Grande', 'Lucida Sans Unicode', 'Lucida Sans',
-    Verdana, Tahoma, sans-serif;
+  font-family: Lato, "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Verdana, Tahoma, sans-serif;
   margin: 0;
   padding: 0;
   color: var(--color-text-primary);
   background-color: var(--color-fill-app);
 }
 
-h1,
-h1 code {
-  font-size: 2.5rem;
-}
-h2,
-h2 code {
-  font-size: 2rem;
-}
-h3,
-h3 code {
-  font-size: 1.75rem;
-}
-h4,
-h4 code {
-  font-size: 1.5rem;
-}
-h5,
-h5 code {
-  font-size: 1.25rem;
-}
-h6,
-h6 code {
-  font-size: 1rem;
-}
+h1, h1 code { font-size: 2.5rem; }
+h2, h2 code { font-size: 2rem; }
+h3, h3 code { font-size: 1.75rem; }
+h4, h4 code { font-size: 1.5rem; }
+h5, h5 code { font-size: 1.25rem; }
+h6, h6 code { font-size: 1rem; }
 
 h1,
 h2,
@@ -141,9 +122,8 @@ code,
 .pre,
 span.type,
 a.type {
-  font-family: SFMono-Regular, Menlo, Consolas, 'Liberation Mono', 'Courier New',
-    monospace;
-  font-size: 0.9em;
+  font-family: SFMono-Regular, Menlo, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: .9em;
 }
 
 #content {
@@ -162,7 +142,7 @@ a:visited {
 a:hover,
 a:focus {
   color: var(--white);
-  background-color: var(--green1);
+  background-color:var(--green1);
   outline: none;
 }
 
@@ -183,7 +163,7 @@ em code {
 }
 
 #gtoc {
-  margin-top: 0.5rem;
+  margin-top: .5rem;
   margin-bottom: 1rem;
 }
 
@@ -196,8 +176,8 @@ em code {
 #gtoc > ul > li {
   display: inline;
   border-right: 1px currentColor solid;
-  margin-right: 0.4rem;
-  padding-right: 0.4rem;
+  margin-right: .4rem;
+  padding-right: .4rem;
 }
 
 #gtoc > ul > li:last-child {
@@ -220,7 +200,7 @@ li.version-picker:hover > ol {
 }
 
 li.version-picker a span {
-  font-size: 0.7rem;
+  font-size: .7rem;
 }
 
 ol.version-picker {
@@ -245,7 +225,7 @@ ol.version-picker li a {
   border-radius: 0;
   display: block;
   margin: 0;
-  padding: 0.1rem;
+  padding: .1rem;
   padding-left: 1rem;
 }
 
@@ -306,7 +286,7 @@ ol.version-picker li:last-child a {
 }
 
 .api_metadata {
-  font-size: 0.85rem;
+  font-size: .85rem;
   margin-bottom: 1rem;
 }
 
@@ -345,7 +325,7 @@ table {
 th,
 td {
   border: 1px solid #aaa;
-  padding: 0.5rem;
+  padding: .5rem;
   vertical-align: top;
 }
 
@@ -361,7 +341,7 @@ td {
 @media only screen and (min-width: 600px) {
   th,
   td {
-    padding: 0.75rem 1rem;
+    padding: .75rem 1rem;
   }
 
   td:first-child {
@@ -372,7 +352,7 @@ td {
 ol,
 ul,
 dl {
-  margin: 0 0 0.6rem;
+  margin: 0 0 .6rem;
   padding: 0;
 }
 
@@ -418,16 +398,16 @@ dd + dt.pre {
 
 #apicontent .line {
   width: calc(50% - 1rem);
-  margin: 1rem 1rem 0.95rem;
+  margin: 1rem 1rem .95rem;
   background-color: #ccc;
 }
 
 h2 + h2 {
-  margin: 0 0 0.5rem;
+  margin: 0 0 .5rem;
 }
 
 h3 + h3 {
-  margin: 0 0 0.5rem;
+  margin: 0 0 .5rem;
 }
 
 h2,
@@ -532,33 +512,33 @@ hr {
 }
 
 #toc ul li {
-  margin-bottom: 0.666rem;
+  margin-bottom: .666rem;
   list-style: square outside;
 }
 
 #toc li > ul {
-  margin-top: 0.666rem;
+  margin-top: .666rem;
 }
 
 #toc .stability_0::after {
   background-color: var(--red2);
   color: var(--white);
-  content: 'deprecated';
-  margin-left: 0.25rem;
+  content: "deprecated";
+  margin-left: .25rem;
   padding: 1px 3px;
   border-radius: 3px;
 }
 #toc .stability_3::after {
   background-color: var(--blue1);
   color: var(--white);
-  content: 'legacy';
-  margin-left: 0.25rem;
+  content: "legacy";
+  margin-left: .25rem;
   padding: 1px 3px;
   border-radius: 3px;
 }
 
 #apicontent li {
-  margin-bottom: 0.5rem;
+  margin-bottom: .5rem;
 }
 
 #apicontent li:last-child {
@@ -574,7 +554,7 @@ code {
 }
 
 .api_stability code {
-  background-color: rgba(0, 0, 0, 0.1);
+  background-color: rgba(0, 0, 0, .1);
 }
 
 a code {
@@ -606,7 +586,7 @@ a code {
 
 #column2 ul {
   list-style: none;
-  margin: 0.9rem 0 0.5rem;
+  margin: .9rem 0 .5rem;
   background-color: var(--color-fill-side-nav);
 }
 
@@ -616,21 +596,21 @@ a code {
 }
 
 #column2 > ul:nth-child(2) {
-  margin: 1.25rem 0 0.5rem;
+  margin: 1.25rem 0 .5rem;
 }
 
 #column2 > ul:last-child {
-  margin: 0.9rem 0 1.25rem;
+  margin: .9rem 0 1.25rem;
 }
 
 #column2 ul li {
   padding-left: 1.25rem;
-  margin-bottom: 0.5rem;
-  padding-bottom: 0.5rem;
+  margin-bottom: .5rem;
+  padding-bottom: .5rem;
 }
 
 #column2 .line {
-  margin: 0 0.5rem;
+  margin: 0 .5rem;
   border-color: #707070;
 }
 
@@ -684,25 +664,25 @@ kbd {
   background-color: #eee;
   border-radius: 3px;
   border: 1px solid #b4b4b4;
-  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, .2);
   color: #333;
   display: inline-block;
-  font-size: 0.85em;
+  font-size: .85em;
   font-weight: 700;
   padding: 2px 4px;
   white-space: nowrap;
   vertical-align: middle;
-}
+ }
 
 .changelog > summary {
-  margin: 0.5rem 0;
-  padding: 0.5rem 0;
+  margin: .5rem 0;
+  padding: .5rem 0;
   cursor: pointer;
 }
 
 /* simpler clearfix */
 .clearfix::after {
-  content: '.';
+  content: ".";
   display: block;
   height: 0;
   clear: both;
@@ -722,27 +702,27 @@ kbd {
   }
   .apidoc #column2 > :first-child > a[href] {
     border-radius: 0;
-    padding: 1.25rem 1.4375rem 0.625rem;
+    padding: 1.25rem 1.4375rem .625rem;
     display: block;
   }
   .apidoc #column2 > ul > li > a[href] {
-    padding: 0.5rem 1.4375rem;
+    padding: .5rem 1.4375rem;
     display: block;
   }
   .apidoc #column2 > ul > :first-child > a[href] {
-    padding-top: 0.625rem;
+    padding-top: .625rem;
   }
   .apidoc #column2 > ul > :last-child > a[href] {
-    padding-bottom: 0.625rem;
+    padding-bottom: .625rem;
   }
-  .apidoc #column2 > ul:first-of-type > :last-child > a[href] {
+  .apidoc #column2 > ul:first-of-type > :last-child  > a[href] {
     padding-bottom: 1rem;
   }
   .apidoc #column2 > ul:nth-of-type(2) > :first-child > a[href] {
-    padding-top: 0.875rem;
+    padding-top: .875rem;
   }
   .apidoc #column2 > ul:nth-of-type(2) > :last-child > a[href] {
-    padding-bottom: 0.9375rem;
+    padding-bottom: .9375rem;
   }
   .apidoc #column2 > ul:last-of-type > :first-child > a[href] {
     padding-top: 1rem;
@@ -775,8 +755,8 @@ kbd {
   }
   #column1.interior {
     margin-left: 0;
-    padding-left: 0.5rem;
-    padding-right: 0.5rem;
+    padding-left: .5rem;
+    padding-right: .5rem;
     width: auto;
     overflow-y: visible;
   }
@@ -837,7 +817,7 @@ kbd {
 @media print {
   html {
     height: auto;
-    font-size: 0.75em;
+    font-size: .75em;
   }
   #column2.interior {
     display: none;
