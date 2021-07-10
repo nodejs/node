@@ -1477,6 +1477,9 @@ void URL::Parse(const char* input,
           if (ch != '/') {
             continue;
           }
+        } else if (has_state_override && !(url->flags & URL_FLAGS_HAS_HOST)) {
+          url->flags |= URL_FLAGS_HAS_PATH;
+          url->path.emplace_back("");
         }
         break;
       case kPath:
