@@ -389,7 +389,11 @@ void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uintptr_t offset_imm,
                             LoadType type, LiftoffRegList pinned,
-                            uint32_t* protected_load_pc, bool is_load_mem) {
+                            uint32_t* protected_load_pc, bool is_load_mem,
+                            bool i64_offset) {
+  if (offset_reg != no_reg && !i64_offset) {
+    AssertZeroExtended(offset_reg);
+  }
   Operand src_op = liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm);
   if (protected_load_pc) *protected_load_pc = pc_offset();
   switch (type.value()) {
