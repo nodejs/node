@@ -37,22 +37,18 @@ for (const link of toc.match(/<a.*?>/g)) {
   contents += data.slice(0, match.index)
     .replace(/[\s\S]*?id="toc"[^>]*>\s*<\w+>.*?<\/\w+>\s*(<ul>\s*)?/, '')
     // Prefix TOC links with current module name
-    .replace(/<a href="#([^"]+)"/g, (match, anchor) => {
+    .replace(/<a href="#(?!DEP[0-9]{4})([^"]+)"/g, (match, anchor) => {
       return `<a href="#${moduleName}_${anchor}"`;
     });
 
   apicontent += '<section>' + data.slice(match.index + match[0].length)
     .replace(/<!-- API END -->[\s\S]*/, '</section>')
-    // Prefix all in-page id's with module name (mostly special cases)
-    .replace(/id="([^"]+)"/g, (match, anchor) => {
-      return `id="${moduleName}_${anchor}"`;
-    })
     // Prefix all in-page anchor marks with module name
     .replace(/<a class="mark" href="#([^"]+)" id="([^"]+)"/g, (match, anchor) => {
       return `<a class="mark" href="#${moduleName}_${anchor}" id="${moduleName}_${anchor}"`;
     })
     // Prefix all in-page links with current module name
-    .replace(/<a href="#([^"]+)"/g, (match, anchor) => {
+    .replace(/<a href="#(?!DEP[0-9]{4})([^"]+)"/g, (match, anchor) => {
       return `<a href="#${moduleName}_${anchor}"`;
     })
     // Prefix all links to other docs modules with those module names
