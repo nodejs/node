@@ -2767,33 +2767,73 @@ class LiftoffCompiler {
     return index;
   }
 
+  bool IndexStaticallyInBounds(const LiftoffAssembler::VarState& index_slot,
+                               int access_size, uintptr_t* offset) {
+    if (!index_slot.is_const()) return false;
+
+    // Potentially zero extend index (which is a 32-bit constant).
+    const uintptr_t index = static_cast<uint32_t>(index_slot.i32_const());
+    const uintptr_t effective_offset = index + *offset;
+
+    if (effective_offset < index  // overflow
+        || !base::IsInBounds<uintptr_t>(effective_offset, access_size,
+                                        env_->min_memory_size)) {
+      return false;
+    }
+
+    *offset = effective_offset;
+    return true;
+  }
+
   void LoadMem(FullDecoder* decoder, LoadType type,
                const MemoryAccessImmediate<validate>& imm,
                const Value& index_val, Value* result) {
     ValueKind kind = type.value_type().kind();
+    RegClass rc = reg_class_for(kind);
     if (!CheckSupportedType(decoder, kind, "load")) return;
-    LiftoffRegister full_index = __ PopToRegister();
-    Register index = BoundsCheckMem(decoder, type.size(), imm.offset,
-                                    full_index, {}, kDontForceCheck);
-    if (index == no_reg) return;
 
     uintptr_t offset = imm.offset;
-    LiftoffRegList pinned = LiftoffRegList::ForRegs(index);
-    index = AddMemoryMasking(index, &offset, &pinned);
-    DEBUG_CODE_COMMENT("load from memory");
-    Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    LOAD_INSTANCE_FIELD(addr, MemoryStart, kSystemPointerSize, pinned);
-    RegClass rc = reg_class_for(kind);
-    LiftoffRegister value = pinned.set(__ GetUnusedRegister(rc, pinned));
-    uint32_t protected_load_pc = 0;
-    __ Load(value, addr, index, offset, type, pinned, &protected_load_pc, true);
-    if (env_->use_trap_handler) {
-      AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapMemOutOfBounds,
-                       protected_load_pc);
-    }
-    __ PushRegister(kind, value);
+    Register index = no_reg;
 
-    if (FLAG_trace_wasm_memory) {
+    // Only look at the slot, do not pop it yet (will happen in PopToRegister
+    // below, if this is not a statically-in-bounds index).
+    auto& index_slot = __ cache_state()->stack_state.back();
+    if (IndexStaticallyInBounds(index_slot, type.size(), &offset)) {
+      __ cache_state()->stack_state.pop_back();
+      DEBUG_CODE_COMMENT("load from memory (constant offset)");
+      LiftoffRegList pinned;
+      Register mem = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+      LOAD_INSTANCE_FIELD(mem, MemoryStart, kSystemPointerSize, pinned);
+      LiftoffRegister value = pinned.set(__ GetUnusedRegister(rc, pinned));
+      __ Load(value, mem, no_reg, offset, type, pinned, nullptr, true);
+      __ PushRegister(kind, value);
+    } else {
+      LiftoffRegister full_index = __ PopToRegister();
+      index = BoundsCheckMem(decoder, type.size(), offset, full_index, {},
+                             kDontForceCheck);
+      if (index == no_reg) return;
+
+      DEBUG_CODE_COMMENT("load from memory");
+      LiftoffRegList pinned = LiftoffRegList::ForRegs(index);
+      index = AddMemoryMasking(index, &offset, &pinned);
+
+      // Load the memory start address only now to reduce register pressure
+      // (important on ia32).
+      Register mem = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+      LOAD_INSTANCE_FIELD(mem, MemoryStart, kSystemPointerSize, pinned);
+      LiftoffRegister value = pinned.set(__ GetUnusedRegister(rc, pinned));
+
+      uint32_t protected_load_pc = 0;
+      __ Load(value, mem, index, offset, type, pinned, &protected_load_pc,
+              true);
+      if (env_->use_trap_handler) {
+        AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapMemOutOfBounds,
+                         protected_load_pc);
+      }
+      __ PushRegister(kind, value);
+    }
+
+    if (V8_UNLIKELY(FLAG_trace_wasm_memory)) {
       TraceMemoryOperation(false, type.mem_type().representation(), index,
                            offset, decoder->position());
     }
@@ -2836,7 +2876,7 @@ class LiftoffCompiler {
     }
     __ PushRegister(kS128, value);
 
-    if (FLAG_trace_wasm_memory) {
+    if (V8_UNLIKELY(FLAG_trace_wasm_memory)) {
       // Again load extend is different.
       MachineRepresentation mem_rep =
           transform == LoadTransformationKind::kExtend
@@ -2878,7 +2918,7 @@ class LiftoffCompiler {
 
     __ PushRegister(kS128, result);
 
-    if (FLAG_trace_wasm_memory) {
+    if (V8_UNLIKELY(FLAG_trace_wasm_memory)) {
       TraceMemoryOperation(false, type.mem_type().representation(), index,
                            offset, decoder->position());
     }
@@ -2889,29 +2929,45 @@ class LiftoffCompiler {
                 const Value& index_val, const Value& value_val) {
     ValueKind kind = type.value_type().kind();
     if (!CheckSupportedType(decoder, kind, "store")) return;
+
     LiftoffRegList pinned;
     LiftoffRegister value = pinned.set(__ PopToRegister());
-    LiftoffRegister full_index = __ PopToRegister(pinned);
-    Register index = BoundsCheckMem(decoder, type.size(), imm.offset,
-                                    full_index, pinned, kDontForceCheck);
-    if (index == no_reg) return;
 
     uintptr_t offset = imm.offset;
-    pinned.set(index);
-    index = AddMemoryMasking(index, &offset, &pinned);
-    DEBUG_CODE_COMMENT("store to memory");
-    Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    LOAD_INSTANCE_FIELD(addr, MemoryStart, kSystemPointerSize, pinned);
-    uint32_t protected_store_pc = 0;
-    LiftoffRegList outer_pinned;
-    if (FLAG_trace_wasm_memory) outer_pinned.set(index);
-    __ Store(addr, index, offset, value, type, outer_pinned,
-             &protected_store_pc, true);
-    if (env_->use_trap_handler) {
-      AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapMemOutOfBounds,
-                       protected_store_pc);
+    Register index = no_reg;
+
+    auto& index_slot = __ cache_state()->stack_state.back();
+    if (IndexStaticallyInBounds(index_slot, type.size(), &offset)) {
+      __ cache_state()->stack_state.pop_back();
+      DEBUG_CODE_COMMENT("store to memory (constant offset)");
+      Register mem = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+      LOAD_INSTANCE_FIELD(mem, MemoryStart, kSystemPointerSize, pinned);
+      __ Store(mem, no_reg, offset, value, type, pinned, nullptr, true);
+    } else {
+      LiftoffRegister full_index = __ PopToRegister(pinned);
+      index = BoundsCheckMem(decoder, type.size(), imm.offset, full_index,
+                             pinned, kDontForceCheck);
+      if (index == no_reg) return;
+
+      pinned.set(index);
+      index = AddMemoryMasking(index, &offset, &pinned);
+      DEBUG_CODE_COMMENT("store to memory");
+      uint32_t protected_store_pc = 0;
+      // Load the memory start address only now to reduce register pressure
+      // (important on ia32).
+      Register mem = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+      LOAD_INSTANCE_FIELD(mem, MemoryStart, kSystemPointerSize, pinned);
+      LiftoffRegList outer_pinned;
+      if (V8_UNLIKELY(FLAG_trace_wasm_memory)) outer_pinned.set(index);
+      __ Store(mem, index, offset, value, type, outer_pinned,
+               &protected_store_pc, true);
+      if (env_->use_trap_handler) {
+        AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapMemOutOfBounds,
+                         protected_store_pc);
+      }
     }
-    if (FLAG_trace_wasm_memory) {
+
+    if (V8_UNLIKELY(FLAG_trace_wasm_memory)) {
       TraceMemoryOperation(true, type.mem_rep(), index, offset,
                            decoder->position());
     }
@@ -2940,7 +2996,7 @@ class LiftoffCompiler {
       AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapMemOutOfBounds,
                        protected_store_pc);
     }
-    if (FLAG_trace_wasm_memory) {
+    if (V8_UNLIKELY(FLAG_trace_wasm_memory)) {
       TraceMemoryOperation(true, type.mem_rep(), index, offset,
                            decoder->position());
     }
@@ -4156,9 +4212,9 @@ class LiftoffCompiler {
     Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     LOAD_INSTANCE_FIELD(addr, MemoryStart, kSystemPointerSize, pinned);
     LiftoffRegList outer_pinned;
-    if (FLAG_trace_wasm_memory) outer_pinned.set(index);
+    if (V8_UNLIKELY(FLAG_trace_wasm_memory)) outer_pinned.set(index);
     __ AtomicStore(addr, index, offset, value, type, outer_pinned);
-    if (FLAG_trace_wasm_memory) {
+    if (V8_UNLIKELY(FLAG_trace_wasm_memory)) {
       TraceMemoryOperation(true, type.mem_rep(), index, offset,
                            decoder->position());
     }
@@ -4184,7 +4240,7 @@ class LiftoffCompiler {
     __ AtomicLoad(value, addr, index, offset, type, pinned);
     __ PushRegister(kind, value);
 
-    if (FLAG_trace_wasm_memory) {
+    if (V8_UNLIKELY(FLAG_trace_wasm_memory)) {
       TraceMemoryOperation(false, type.mem_type().representation(), index,
                            offset, decoder->position());
     }
