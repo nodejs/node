@@ -26,7 +26,7 @@ onboarding session.
 
 * This session will cover:
   * [local setup](#local-setup)
-  * [project goals & values](#project-goals--values)
+  * [project goals and values](#project-goals-and-values)
   * [managing the issue tracker](#managing-the-issue-tracker)
   * [reviewing PRs](#reviewing-prs)
   * [landing PRs](#landing-prs)
@@ -60,7 +60,7 @@ The project has two venues for real-time discussion:
 * [`#nodejs-dev`](https://openjs-foundation.slack.com/archives/C019Y2T6STH) on
   the [OpenJS Foundation](https://slack-invite.openjsf.org/)
 
-## Project goals & values
+## Project goals and values
 
 * Collaborators are the collective owners of the project
   * The project has the goals of its contributors
