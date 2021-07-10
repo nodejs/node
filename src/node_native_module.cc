@@ -99,7 +99,7 @@ void NativeModuleLoader::InitializeModuleCategories() {
       "tls",
       "_tls_common",
       "_tls_wrap",
-      "internal/tls/index",
+      "internal/tls/legacy",
       "internal/tls/secure-context",
       "internal/http2/core",
       "internal/http2/compat",
