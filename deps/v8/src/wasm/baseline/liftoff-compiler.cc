@@ -2792,6 +2792,7 @@ class LiftoffCompiler {
     // Only look at the slot, do not pop it yet (will happen in PopToRegister
     // below, if this is not a statically-in-bounds index).
     auto& index_slot = __ cache_state()->stack_state.back();
+    bool i64_offset = index_val.type == kWasmI64;
     if (IndexStaticallyInBounds(index_slot, type.size(), &offset)) {
       __ cache_state()->stack_state.pop_back();
       DEBUG_CODE_COMMENT("load from memory (constant offset)");
@@ -2799,7 +2800,8 @@ class LiftoffCompiler {
       Register mem = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
       LOAD_INSTANCE_FIELD(mem, MemoryStart, kSystemPointerSize, pinned);
       LiftoffRegister value = pinned.set(__ GetUnusedRegister(rc, pinned));
-      __ Load(value, mem, no_reg, offset, type, pinned, nullptr, true);
+      __ Load(value, mem, no_reg, offset, type, pinned, nullptr, true,
+              i64_offset);
       __ PushRegister(kind, value);
     } else {
       LiftoffRegister full_index = __ PopToRegister();
@@ -2818,8 +2820,8 @@ class LiftoffCompiler {
       LiftoffRegister value = pinned.set(__ GetUnusedRegister(rc, pinned));
 
       uint32_t protected_load_pc = 0;
-      __ Load(value, mem, index, offset, type, pinned, &protected_load_pc,
-              true);
+      __ Load(value, mem, index, offset, type, pinned, &protected_load_pc, true,
+              i64_offset);
       if (env_->use_trap_handler) {
         AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapMemOutOfBounds,
                          protected_load_pc);
