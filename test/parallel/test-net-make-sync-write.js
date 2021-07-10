@@ -13,7 +13,8 @@ const { makeSyncWrite } = require('internal/net');
   _this.write(
     'chunk\n',
     null,
-    common.mustCall(() => {})
+    common.mustCall(() => {
+      assert.strictEqual(_this._handle.bytesWritten, 6);
+    })
   );
-  assert.strictEqual(_this._handle.bytesWritten, 6);
 }
