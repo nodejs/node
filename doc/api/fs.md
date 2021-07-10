@@ -3892,6 +3892,9 @@ details.
 <!-- YAML
 added: v0.1.29
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/38525
+    description: add support for async iterators to `fs.writeFile`.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37460
     description: The error returned may be an `AggregateError` if more than one
@@ -3931,7 +3934,8 @@ changes:
 -->
 
 * `file` {string|Buffer|URL|integer} filename or file descriptor
-* `data` {string|Buffer|TypedArray|DataView|Object}
+* `data` {string|Buffer|TypedArray|DataView|Object
+  |AsyncIterable|Iterable|Stream}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
