@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --enable-testing-opcode-in-wasm --nowasm-tier-up --wasm-tier-mask-for-testing=2
+// Flags: --enable-testing-opcode-in-wasm --nowasm-tier-up
+// Flags: --wasm-tier-mask-for-testing=2
 
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
-var instance = (function () {
+function InstanceMaker(offset) {
   var builder = new WasmModuleBuilder();
   builder.addMemory(1, 1, false /* exported */);
 
@@ -24,7 +25,7 @@ var instance = (function () {
   var two = builder.addFunction("two", kSig_v_i);
   var three = builder.addFunction("three", sig_three).addBody([]);
 
-  zero.addBody([kExprLocalGet, 0, kExprI32LoadMem, 0, 0]);
+  zero.addBody([kExprLocalGet, 0, kExprI32LoadMem, 0, offset]);
 
   one.addBody([
     kExprLocalGet, 7,
@@ -53,6 +54,11 @@ var instance = (function () {
     ]).exportFunc();
 
   return builder.instantiate({});
-})();
+}
 
-instance.exports.two()
+var instance = InstanceMaker(0);
+instance.exports.two();
+
+// Regression test for crbug.com/1224882.
+var instance_with_offset = InstanceMaker(4);
+instance_with_offset.exports.two();
