@@ -491,7 +491,8 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uint32_t offset_imm,
                             LoadType type, LiftoffRegList pinned,
-                            uint32_t* protected_load_pc, bool is_load_mem) {
+                            uint32_t* protected_load_pc, bool is_load_mem,
+                            bool i64_offset) {
   Register src = no_reg;
   if (offset_reg != no_reg) {
     src = GetUnusedRegister(kGpReg, pinned).gp();
