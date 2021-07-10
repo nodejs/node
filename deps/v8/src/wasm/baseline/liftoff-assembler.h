@@ -669,7 +669,7 @@ class LiftoffAssembler : public TurboAssembler {
   inline void Load(LiftoffRegister dst, Register src_addr, Register offset_reg,
                    uintptr_t offset_imm, LoadType type, LiftoffRegList pinned,
                    uint32_t* protected_load_pc = nullptr,
-                   bool is_load_mem = false);
+                   bool is_load_mem = false, bool i64_offset = false);
   inline void Store(Register dst_addr, Register offset_reg,
                     uintptr_t offset_imm, LiftoffRegister src, StoreType type,
                     LiftoffRegList pinned,
