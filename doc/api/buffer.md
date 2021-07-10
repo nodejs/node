@@ -5031,9 +5031,10 @@ changes:
 
 * {integer} The largest size allowed for a single `Buffer` instance.
 
-On 32-bit architectures, this value currently is 2<sup>30</sup> - 1 (~1 GB).
+On 32-bit architectures, this value currently is 2<sup>30</sup> - 1 (about 1
+GB).
 
-On 64-bit architectures, this value currently is 2<sup>32</sup> (~4 GB).
+On 64-bit architectures, this value currently is 2<sup>32</sup> (about 4 GB).
 
 It reflects [`v8::TypedArray::kMaxLength`][] under the hood.
 
