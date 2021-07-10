@@ -750,22 +750,6 @@ async function tests() {
     })());
   }
 
-  function createErrorReadable() {
-    const opts = { read() { throw new Error('inner'); } };
-    return new Readable(opts);
-  }
-
-  // Check default destroys on return
-  (async function() {
-    const readable = createReadable();
-    for await (const chunk of readable.iterator()) {
-      assert.strictEqual(chunk, 5);
-      break;
-    }
-
-    assert.ok(readable.destroyed);
-  })().then(common.mustCall());
-
   // Check explicit destroying on return
   (async function() {
     const readable = createReadable();
@@ -775,50 +759,6 @@ async function tests() {
     }
 
     assert.ok(readable.destroyed);
-  })().then(common.mustCall());
-
-  // Check default destroys on error
-  (async function() {
-    const readable = createErrorReadable();
-    try {
-      // eslint-disable-next-line no-unused-vars
-      for await (const chunk of readable) { }
-      assert.fail('should have thrown');
-    } catch (err) {
-      assert.strictEqual(err.message, 'inner');
-    }
-
-    assert.ok(readable.destroyed);
-  })().then(common.mustCall());
-
-  // Check explicit destroys on error
-  (async function() {
-    const readable = createErrorReadable();
-    const opts = { destroyOnError: true, destroyOnReturn: false };
-    try {
-      // eslint-disable-next-line no-unused-vars
-      for await (const chunk of readable.iterator(opts)) { }
-      assert.fail('should have thrown');
-    } catch (err) {
-      assert.strictEqual(err.message, 'inner');
-    }
-
-    assert.ok(readable.destroyed);
-  })().then(common.mustCall());
-
-  // Check explicit non-destroy with return true
-  (async function() {
-    const readable = createErrorReadable();
-    const opts = { destroyOnError: false, destroyOnReturn: true };
-    try {
-      // eslint-disable-next-line no-unused-vars
-      for await (const chunk of readable.iterator(opts)) { }
-      assert.fail('should have thrown');
-    } catch (err) {
-      assert.strictEqual(err.message, 'inner');
-    }
-
-    assert.ok(!readable.destroyed);
   })().then(common.mustCall());
 
   // Check explicit non-destroy with return true
