@@ -1139,9 +1139,6 @@
              'HAVE_INSPECTOR=0',
            ]
         }],
-        [ 'node_builtin_modules_path!=""', {
-          'defines': [ 'NODE_BUILTIN_MODULES_PATH="<(node_builtin_modules_path)"' ]
-        }],
         ['OS=="solaris"', {
           'ldflags': [ '-I<(SHARED_INTERMEDIATE_DIR)' ]
         }],
@@ -1209,9 +1206,6 @@
           'xcode_settings': {
             'OTHER_LDFLAGS': [ '-Wl,-rpath,@loader_path', ],
           },
-        }],
-        [ 'node_builtin_modules_path!=""', {
-          'defines': [ 'NODE_BUILTIN_MODULES_PATH="<(node_builtin_modules_path)"' ]
         }],
         ['OS=="win"', {
           'libraries': [

@@ -21,10 +21,6 @@ static int RunNodeInstance(MultiIsolatePlatform* platform,
                            const std::vector<std::string>& exec_args);
 
 int main(int argc, char** argv) {
-#ifdef NODE_BUILTIN_MODULES_PATH
-  return 0;
-#endif
-
   argv = uv_setup_args(argc, argv);
   std::vector<std::string> args(argv, argv + argc);
   std::vector<std::string> exec_args;

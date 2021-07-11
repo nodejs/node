@@ -181,7 +181,6 @@ TEST_F(EnvironmentTest, LoadEnvironmentWithCallback) {
   CHECK(called_cb);
 }
 
-#ifndef NODE_BUILTIN_MODULES_PATH
 TEST_F(EnvironmentTest, LoadEnvironmentWithSource) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
@@ -208,7 +207,6 @@ TEST_F(EnvironmentTest, LoadEnvironmentWithSource) {
           .ToLocalChecked())
           .ToLocalChecked()->IsFunction());
 }
-#endif  // NODE_BUILTIN_MODULES_PATH
 
 TEST_F(EnvironmentTest, AtExitWithEnvironment) {
   const v8::HandleScope handle_scope(isolate_);
@@ -398,7 +396,6 @@ TEST_F(EnvironmentTest, BufferWithFreeCallbackIsDetached) {
   CHECK_EQ(ab->ByteLength(), 0);
 }
 
-#ifndef NODE_BUILTIN_MODULES_PATH
 #if HAVE_INSPECTOR
 TEST_F(EnvironmentTest, InspectorMultipleEmbeddedEnvironments) {
   // Tests that child Environments can be created through the public API
@@ -540,9 +537,7 @@ TEST_F(EnvironmentTest, InspectorMultipleEmbeddedEnvironments) {
   CHECK_EQ(from_inspector->IntegerValue(context).FromJust(), 42);
 }
 #endif  // HAVE_INSPECTOR
-#endif  // NODE_BUILTIN_MODULES_PATH
 
-#ifndef NODE_BUILTIN_MODULES_PATH
 TEST_F(EnvironmentTest, ExitHandlerTest) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
@@ -559,7 +554,6 @@ TEST_F(EnvironmentTest, ExitHandlerTest) {
   node::LoadEnvironment(*env, "process.exit(42)").ToLocalChecked();
   EXPECT_EQ(callback_calls, 1);
 }
-#endif  // NODE_BUILTIN_MODULES_PATH
 
 TEST_F(EnvironmentTest, SetImmediateMicrotasks) {
   int called = 0;
@@ -587,7 +581,6 @@ TEST_F(EnvironmentTest, SetImmediateMicrotasks) {
   EXPECT_EQ(called, 1);
 }
 
-#ifndef NODE_BUILTIN_MODULES_PATH
 #ifndef _WIN32  // No SIGINT on Windows.
 TEST_F(NodeZeroIsolateTestFixture, CtrlCWithOnlySafeTerminationTest) {
   // We need to go through the whole setup dance here because we want to
@@ -649,9 +642,7 @@ TEST_F(NodeZeroIsolateTestFixture, CtrlCWithOnlySafeTerminationTest) {
   isolate->Dispose();
 }
 #endif  // _WIN32
-#endif  // NODE_BUILTIN_MODULES_PATH
 
-#ifndef NODE_BUILTIN_MODULES_PATH
 TEST_F(EnvironmentTest, NestedMicrotaskQueue) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
@@ -724,4 +715,3 @@ TEST_F(EnvironmentTest, NestedMicrotaskQueue) {
   node::FreeEnvironment(env);
   node::FreeIsolateData(isolate_data);
 }
-#endif  // NODE_BUILTIN_MODULES_PATH
