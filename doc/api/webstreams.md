@@ -1118,5 +1118,104 @@ added: v16.5.0
   * `chunk` {any}
   * Returns: {number}
 
+### Class: `TextEncoderStream`
+<!-- YAML
+added: REPLACEME
+-->
+
+#### `new TextEncoderStream()`
+<!-- YAML
+added: REPLACEME
+-->
+
+Creates a new `TextEncoderStream` instance.
+
+#### `textEncoderStream.encoding`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string}
+
+The encoding supported by the `TextEncoderStream` instance.
+
+#### `textEncoderStream.readable`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {ReadableStream}
+
+#### `textEncoderStream.writable`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {WritableStream}
+
+### Class: `TextDecoderStream`
+<!-- YAML
+added: REPLACEME
+-->
+
+#### `new TextDecoderStream([encoding[, options]])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `encoding` {string} Identifies the `encoding` that this `TextDecoder` instance
+  supports. **Default:** `'utf-8'`.
+* `options` {Object}
+  * `fatal` {boolean} `true` if decoding failures are fatal.
+  * `ignoreBOM` {boolean} When `true`, the `TextDecoderStream` will include the
+    byte order mark in the decoded result. When `false`, the byte order mark
+    will be removed from the output. This option is only used when `encoding` is
+    `'utf-8'`, `'utf-16be'` or `'utf-16le'`. **Default:** `false`.
+
+Creates a new `TextDecoderStream` instance.
+
+#### `textDecoderStream.encoding`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string}
+
+The encoding supported by the `TextDecoderStream` instance.
+
+#### `textDecoderStream.fatal`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean}
+
+The value will be `true` if decoding errors result in a `TypeError` being
+thrown.
+
+#### `textDecoderStream.ignoreBOM`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean}
+
+The value will be `true` if the decoding result will include the byte order
+mark.
+
+#### `textDecoderStream.readable`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {ReadableStream}
+
+#### `textDecoderStream.writable`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {WritableStream}
+
 [Streams]: stream.md
 [WHATWG Streams Standard]: https://streams.spec.whatwg.org/
