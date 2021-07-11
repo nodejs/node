@@ -1,4 +1,3 @@
-/* eslint-disable node-core/require-common-first, node-core/required-modules */
 'use strict';
 
 // An HTTP/2 testing tool used to create mock frames for direct testing
