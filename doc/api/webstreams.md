@@ -352,7 +352,7 @@ method to acquire the async iterator and set the `preventCancel` option to
 The {ReadableStream} must not be locked (that is, it must not have an existing
 active reader). During the async iteration, the {ReadableStream} will be locked.
 
-#### Transfering with `postMessage()`
+#### Transferring with `postMessage()`
 
 A {ReadableStream} instance can be transferred using a {MessagePort}.
 
@@ -554,7 +554,7 @@ the pooled `Buffer` instances. When a `Buffer`, {TypedArray},
 or {DataView} is passed in to `readableStreamBYOBReader.read()`,
 the view's underlying `ArrayBuffer` is *detached*, invalidating
 all existing views that may exist on that `ArrayBuffer`. This
-can have disasterous consequences for your application.
+can have disastrous consequences for your application.
 
 #### `readableStreamBYOBReader.releaseLock()`
 <!-- YAML
@@ -795,7 +795,7 @@ The `writableStream.locked` property is `false` by default, and is
 switched to `true` while there is an active writer attached to this
 `WritableStream`.
 
-#### Transfering with postMessage()
+#### Transferring with postMessage()
 
 A {WritableStream} instance can be transferred using a {MessagePort}.
 
@@ -998,7 +998,7 @@ added: REPLACEME
 
 * Type: {WritableStream}
 
-#### Transfering with postMessage()
+#### Transferring with postMessage()
 
 A {TransformStream} instance can be transferred using a {MessagePort}.
 
@@ -1048,7 +1048,7 @@ added: REPLACEME
 
 * `reason` {any}
 
-Signals to both the readable and writable side that an error has occured
+Signals to both the readable and writable side that an error has occurred
 while processing the transform data, causing both sides to be abruptly
 closed.
 
