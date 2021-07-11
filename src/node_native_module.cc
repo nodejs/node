@@ -209,11 +209,6 @@ MaybeLocal<String> NativeModuleLoader::LoadBuiltinModuleSource(Isolate* isolate,
   std::string contents;
   int r = ReadFileSync(&contents, filename.c_str());
   if (r != 0) {
-    const auto source_it = source_.find(id);
-    if (source_it != source_.end()) {
-      return source_it->second.ToStringChecked(isolate);
-    }
-
     const std::string buf = SPrintF("Cannot read local builtin. %s: %s \"%s\"",
                                     uv_err_name(r),
                                     uv_strerror(r),
