@@ -1217,5 +1217,56 @@ added: REPLACEME
 
 * Type: {WritableStream}
 
+### Class: `CompressionStream`
+<!-- YAML
+added: REPLACEME
+-->
+#### `new CompressionStream(format)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `format` {string} One of either `'deflate'` or `'gzip'`.
+
+#### `compressionStream.readable`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {ReadableStream}
+
+#### `compressionStream.writable`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {WritableStream}
+
+### Class: `DecompressionStream`
+<!-- YAML
+added: REPLACEME
+-->
+
+#### `new DecompressionStream(format)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `format` {string} One of either `'deflate'` or `'gzip'`.
+
+#### `decompressionStream.readable`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {ReadableStream}
+
+#### `deccompressionStream.writable`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {WritableStream}
+
 [Streams]: stream.md
 [WHATWG Streams Standard]: https://streams.spec.whatwg.org/
