@@ -354,8 +354,7 @@ your name on it. Congratulations and thanks for your contribution!
 All Node.js contributors who choose to review and provide feedback on Pull
 Requests have a responsibility to both the project and the individual making the
 contribution. Reviews and feedback must be helpful, insightful, and geared
-towards improving the contribution as opposed to simply blocking it. If there
-are reasons why you feel the PR should not land, explain what those are. Do not
+towards improving the contribution as opposed to simply blocking it. Do not
 expect to be able to block a Pull Request from advancing simply because you say
 "No" without giving an explanation. Be open to having your mind changed. Be open
 to working with the contributor to make the Pull Request better.
@@ -417,10 +416,8 @@ changes, so that people who may have important input in such a distributed
 project are able to respond.
 
 For non-trivial changes, Pull Requests must be left open for at least 48 hours.
-In most cases, when the PR is relatively small and focused on a narrow set of
-changes, that will provide more than enough time to adequately review. Sometimes
-changes take far longer to review, or need more specialized review from subject
-matter experts. When in doubt, do not rush.
+Sometimes changes take far longer to review, or need more specialized review
+from subject-matter experts. When in doubt, do not rush.
 
 Trivial changes, typically limited to small formatting changes or fixes to
 documentation, may be landed within the minimum 48 hour window.
@@ -460,11 +457,9 @@ Change requests that are vague, dismissive, or unconstructive may also be
 dismissed if requests for greater clarification go unanswered within a
 reasonable period of time.
 
-If you do not believe that the Pull Request should land at all, use
-`Changes requested` to indicate that you are considering some of your comments
-to block the PR from landing. When doing so, explain *why* you believe the
-Pull Request should not land along with an explanation of what may be an
-acceptable alternative course, if any.
+Use `Changes requested` to block a Pull Request from landing. When doing so,
+explain why you believe the Pull Request should not land along with an
+explanation of what may be an acceptable alternative course, if any.
 
 ### Accept that there are different opinions about what belongs in Node.js
 
