@@ -1,4 +1,3 @@
-/* eslint-disable node-core/require-common-first, node-core/required-modules */
 import fixtures from './fixtures.js';
 
 const {

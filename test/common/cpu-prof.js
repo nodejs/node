@@ -1,5 +1,3 @@
-/* eslint-disable node-core/require-common-first, node-core/required-modules */
-
 'use strict';
 
 require('./');
