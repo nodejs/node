@@ -54,7 +54,7 @@
 # tls/crypto
 
 /lib/internal/crypto/* @nodejs/crypto
-/lib/internal/tls.js @nodejs/crypto @nodejs/net
+/lib/internal/tls/* @nodejs/crypto @nodejs/net
 /lib/crypto.js @nodejs/crypto
 /lib/tls.js @nodejs/crypto @nodejs/net
 /src/node_crypto* @nodejs/crypto
