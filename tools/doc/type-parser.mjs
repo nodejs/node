@@ -253,6 +253,10 @@ const customTypesMap = {
     'webstreams.md#webstreamsapi_class_bytelengthqueuingstrategy',
   'CountQueuingStrategy':
     'webstreams.md#webstreamsapi_class_countqueuingstrategy',
+  'TextEncoderStream':
+    'webstreams.md#webstreamsapi_class_textencoderstream',
+  'TextDecoderStream':
+    'webstreams.md#webstreamsapi_class_textdecoderstream',
 };
 
 const arrayPart = /(?:\[])+$/;
