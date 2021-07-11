@@ -1,4 +1,3 @@
-/* eslint-disable node-core/require-common-first, node-core/required-modules */
 'use strict';
 const { internalBinding } = require('internal/test/binding');
 const { JSUDPWrap } = internalBinding('js_udp_wrap');
