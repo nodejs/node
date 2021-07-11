@@ -50,6 +50,7 @@
 #endif
 
 #if defined(__OpenBSD__)
+# define AI_ALL 0
 # define AI_V4MAPPED 0
 #endif
 
