@@ -8,14 +8,21 @@ licensehead="$(sed '/^- /,$d' "${licensefile}")"
 tmplicense="${rootdir}/~LICENSE.$$"
 echo "$licensehead" > "$tmplicense"
 
-
 # addlicense <library> <location> <license text>
 addlicense() {
+  library="$1"
+  locations="$2"
+  shift 2
+  while [ $# -gt 1 ]; do
+    locations="$locations, $1"
+    shift
+  done
+  license="$1"
 
   echo "
-- ${1}, located at ${2}, is licensed as follows:
+- ${library}, located at ${locations}, is licensed as follows:
   \"\"\"
-$(echo "$3" | sed -e 's/^/    /' -e 's/^    $//' -e 's/ *$//' | sed -e '/./,$!d' | sed -e '/^$/N;/^\n$/D')
+$(echo "$license" | sed -e 's/^/    /' -e 's/^    $//' -e 's/ *$//' | sed -e '/./,$!d' | sed -e '/^$/N;/^\n$/D')
   \"\"\"\
 " >> "$tmplicense"
 
@@ -83,7 +90,7 @@ addlicense "cpplint.py" "tools/cpplint.py" \
            "$(sed -e '/^$/,$d' -e 's/^#$//' -e 's/^# //' "${rootdir}"/tools/cpplint.py | tail -n +3)"
 addlicense "ESLint" "tools/node_modules/eslint" "$(cat "${rootdir}"/tools/node_modules/eslint/LICENSE)"
 addlicense "Babel" "tools/node_modules/@babel" "$(cat "${rootdir}"/tools/node_modules/@babel/core/LICENSE)"
-addlicense "gtest" "test/cctest/gtest" "$(cat "${rootdir}"/test/cctest/gtest/LICENSE)"
+addlicense "gtest" "src/gtest" "test/cctest/gtest" "$(cat "${rootdir}"/test/cctest/gtest/LICENSE)"
 
 # nghttp2
 addlicense "nghttp2" "deps/nghttp2" "$(cat "${rootdir}"/deps/nghttp2/COPYING)"
