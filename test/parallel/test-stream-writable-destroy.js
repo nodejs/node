@@ -351,33 +351,35 @@ const assert = require('assert');
   const write = new Writable({
     write(chunk, enc, cb) { process.nextTick(cb); }
   });
+  const _err = new Error('asd');
   write.once('error', common.mustCall((err) => {
     assert.strictEqual(err.message, 'asd');
   }));
   write.end('asd', common.mustCall((err) => {
-    assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
+    assert.strictEqual(err, _err);
   }));
-  write.destroy(new Error('asd'));
+  write.destroy(_err);
 }
 
 {
   // Call buffered write callback with error
 
+  const _err = new Error('asd');
   const write = new Writable({
     write(chunk, enc, cb) {
-      process.nextTick(cb, new Error('asd'));
+      process.nextTick(cb, _err);
     },
     autoDestroy: false
   });
   write.cork();
   write.write('asd', common.mustCall((err) => {
-    assert.strictEqual(err.message, 'asd');
+    assert.strictEqual(err, _err);
   }));
   write.write('asd', common.mustCall((err) => {
-    assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
+    assert.strictEqual(err, _err);
   }));
   write.on('error', common.mustCall((err) => {
-    assert.strictEqual(err.message, 'asd');
+    assert.strictEqual(err, _err);
   }));
   write.uncork();
 }
@@ -482,5 +484,8 @@ const assert = require('assert');
   s.end(common.mustCall((err) => {
     assert.strictEqual(err, _err);
   }));
+  s.on('error', (err) => {
+    assert.strictEqual(err, _err);
+  });
   s.destroy(_err);
 }
