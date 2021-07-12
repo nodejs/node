@@ -8,7 +8,7 @@ import cp from 'node:child_process';
 import fs from 'node:fs';
 import readline from 'node:readline';
 
-const SINCE = process.argv[2] || '6 months ago';
+const SINCE = +process.argv[2] || 5000;
 
 async function runGitCommand(cmd, mapFn) {
   const childProcess = cp.spawn('/bin/sh', ['-c', cmd], {
@@ -36,19 +36,19 @@ async function runGitCommand(cmd, mapFn) {
 
 // Get all commit authors during the time period.
 const authors = await runGitCommand(
-  `git shortlog -n -s --since="${SINCE}"`,
+  `git shortlog -n -s --max-count="${SINCE}" HEAD`,
   (line) => line.trim().split('\t', 2)[1]
 );
 
 // Get all commit landers during the time period.
 const landers = await runGitCommand(
-  `git shortlog -n -s -c --since="${SINCE}"`,
+  `git shortlog -n -s -c --max-count="${SINCE}" HEAD`,
   (line) => line.trim().split('\t', 2)[1]
 );
 
 // Get all approving reviewers of landed commits during the time period.
 const approvingReviewers = await runGitCommand(
-  `git log --since="${SINCE}" | egrep "^    Reviewed-By: "`,
+  `git log --max-count="${SINCE}" | egrep "^    Reviewed-By: "`,
   (line) => /^    Reviewed-By: ([^<]+)/.exec(line)[1].trim()
 );
 
@@ -78,10 +78,11 @@ async function retrieveCollaboratorsFromReadme() {
 // Get list of current collaborators from README.md.
 const collaborators = await retrieveCollaboratorsFromReadme();
 
-console.log(`${authors.size.toLocaleString()} authors have made commits since ${SINCE}.`);
-console.log(`${landers.size.toLocaleString()} landers have landed commits since ${SINCE}.`);
-console.log(`${approvingReviewers.size.toLocaleString()} reviewers have approved landed commits since ${SINCE}.`);
-console.log(`${collaborators.length.toLocaleString()} collaborators currently in the project.`);
+console.log(`In the last ${SINCE} commits:\n`);
+console.log(`* ${authors.size.toLocaleString()} authors have made commits.`);
+console.log(`* ${landers.size.toLocaleString()} landers have landed commits.`);
+console.log(`* ${approvingReviewers.size.toLocaleString()} reviewers have approved landed commits.`);
+console.log(`* ${collaborators.length.toLocaleString()} collaborators currently in the project.`);
 
 const inactive = collaborators.filter((collaborator) =>
   !authors.has(collaborator) &&
@@ -90,6 +91,6 @@ const inactive = collaborators.filter((collaborator) =>
 );
 
 if (inactive.length) {
-  console.log('\nInactive collaborators:');
-  console.log(inactive.join('\n'));
+  console.log('\nInactive collaborators:\n');
+  console.log(inactive.map((name) => `* ${name}`).join('\n'));
 }
