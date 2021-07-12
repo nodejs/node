@@ -7,6 +7,10 @@ on:
 
   workflow_dispatch:
 
+env:
+  NODE_VERSION: 16.x
+  NUM_COMMITS: 5000
+
 jobs:
   find:
   
@@ -14,11 +18,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-    
-      - name: Install Node.js
+        with:
+          fetch-depth: ${{ env.NUM_COMMITS }}
+
+      - name: Use Node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v2
         with:
-          node-version: 16.x
+          node-version: ${{ env.NODE_VERSION }}
 
       - name: Find inactive collaborators
-        run: tools/find-inactive-collaborators.mjs '1 year ago'
+        run: tools/find-inactive-collaborators.mjs ${{ env.NUM_COMMITS }}
