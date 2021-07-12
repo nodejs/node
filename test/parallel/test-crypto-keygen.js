@@ -608,11 +608,9 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   generateKeyPair('ec', {
     namedCurve: 'P-384',
     publicKeyEncoding: {
-      type: 'spki',
       format: 'jwk'
     },
     privateKeyEncoding: {
-      type: 'pkcs8',
       format: 'jwk'
     }
   }, common.mustSucceed((publicKey, privateKey) => {
