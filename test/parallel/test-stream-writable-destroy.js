@@ -471,3 +471,16 @@ const assert = require('assert');
   write.destroy();
   write.destroy();
 }
+
+{
+  // https://github.com/nodejs/node/issues/39356
+  const s = new Writable({
+    final() {}
+  });
+  const _err = new Error('oh no');
+  // Remove `callback` and it works
+  s.end(common.mustCall((err) => {
+    assert.strictEqual(err, _err);
+  }));
+  s.destroy(_err);
+}
