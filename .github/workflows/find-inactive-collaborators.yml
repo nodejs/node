@@ -13,5 +13,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - run: tools/find-inactive-collaborators.mjs '1 year ago'
+      - uses: actions/checkout@v2
+    
+      - name: Install Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16.x
+
+      - name: Find inactive collaborators
+        run: tools/find-inactive-collaborators.mjs '1 year ago'
