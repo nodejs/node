@@ -620,7 +620,12 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     assert.strictEqual(typeof privateKey, 'object');
     assert.strictEqual(publicKey.x, privateKey.x);
     assert.strictEqual(publicKey.y, privateKey.y);
+    assert(!publicKey.d);
+    assert(privateKey.d);
+    assert.strictEqual(publicKey.kty, 'EC');
     assert.strictEqual(publicKey.kty, privateKey.kty);
+    assert.strictEqual(publicKey.crv, 'P-384');
+    assert.strictEqual(publicKey.crv, privateKey.crv);
   }));
 }
 
