@@ -274,6 +274,9 @@ const assert = require('assert');
     }
   });
 
+  assert.strictEqual(s1.writable, false);
+  assert.strictEqual(s1.readable, false);
+
   finished(s1.resume(), common.mustCall((err) => {
     assert(!err);
     assert.strictEqual(buf, 'HELLOWORLD');
