@@ -11,7 +11,7 @@ jobs:
           # Last 100 commits should be enough for a PR
           fetch-depth: 100
       - name: Use Node.js 12
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v2
         with:
           node-version: 12.x
       - name: Validate commit messages
