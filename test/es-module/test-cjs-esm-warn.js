@@ -27,7 +27,7 @@ const pjson = path.resolve(
     assert.strictEqual(code, 1);
     assert.strictEqual(signal, null);
 
-    assert.ok(stderr.replace(/\r/g, '').includes(
+    assert.ok(stderr.replaceAll('\r', '').includes(
       `Error [ERR_REQUIRE_ESM]: require() of ES Module ${required} from ${
         requiringCjsAsEsm} not supported.\n`));
     assert.ok(stderr.includes(
