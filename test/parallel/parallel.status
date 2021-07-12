@@ -13,6 +13,8 @@ test-timers-immediate-queue: PASS,FLAKY
 test-worker-memory: PASS,FLAKY
 
 [$system==linux]
+# https://github.com/nodejs/node/issues/39368
+test-domain-error-types: PASS,FLAKY
 
 [$system==macos]
 
