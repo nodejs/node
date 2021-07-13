@@ -23,16 +23,6 @@ expect('', packageWithoutTypeMain, 'package-without-type');
 expect('--input-type=module', packageTypeModuleMain,
        'ERR_INPUT_TYPE_NOT_ALLOWED', true);
 
-try {
-  require('../fixtures/es-modules/package-type-module/index.js');
-  assert.fail('Expected CJS to fail loading from type: module package.');
-} catch (e) {
-  assert.strictEqual(e.name, 'Error');
-  assert.strictEqual(e.code, 'ERR_REQUIRE_ESM');
-  assert(e.toString().match(/Must use import to load ES Module/g));
-  assert(e.message.match(/Must use import to load ES Module/g));
-}
-
 function expect(opt = '', inputFile, want, wantsError = false) {
   const argv = [inputFile];
   const opts = {
