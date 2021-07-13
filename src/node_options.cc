@@ -350,7 +350,6 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental await keyword support in REPL",
             NoOp{},
             kAllowedInEnvironment);
-  ImpliesNot("--experimental-repl-await", "--no-experimental-repl-await");
   AddOption("--experimental-vm-modules",
             "experimental ES Module support in vm module",
             &EnvironmentOptions::experimental_vm_modules,
