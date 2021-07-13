@@ -33,7 +33,7 @@ const pjson = path.resolve(
     assert.ok(stderr.includes(
       `Instead rename ${basename} to end in .cjs, change the requiring ` +
       'code to use dynamic import() which is available in all CommonJS ' +
-      `modules, or change "type": "module" to "type": "commonjs" from ${pjson} to ` +
+      `modules, or change "type": "module" to "type": "commonjs" in ${pjson} to ` +
       'treat all .js files as CommonJS (using .mjs for all ES modules ' +
       'instead).\n'));
   }));
