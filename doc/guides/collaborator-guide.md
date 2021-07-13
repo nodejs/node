@@ -1,4 +1,4 @@
-# Node.js Collaborator Guide
+# Node.js collaborator guide
 
 ## Contents
 
@@ -36,14 +36,14 @@
     * [How can I help?](#how-can-i-help)
 * [Who to CC in the issue tracker](#who-to-cc-in-the-issue-tracker)
 
-This document explains how Collaborators manage the Node.js project.
+This document explains how collaborators manage the Node.js project.
 Collaborators should understand the
 [guidelines for new contributors](../../CONTRIBUTING.md) and the
 [project governance model](../../GOVERNANCE.md).
 
 ## Issues and pull requests
 
-Mind these guidelines, the opinions of other Collaborators, and guidance of the
+Mind these guidelines, the opinions of other collaborators, and guidance of the
 [TSC][]. Notify other qualified parties for more input on an issue or a pull
 request. See [Who to CC in the issue tracker](#who-to-cc-in-the-issue-tracker).
 
@@ -71,7 +71,7 @@ issues and pull requests can always be re-opened if necessary.
 A pull request is _author ready_ when:
 
 * There is a CI run in progress or completed.
-* There is at least one Collaborator approval.
+* There is at least one collaborator approval.
 * There are no outstanding review comments.
 
 Please always add the `author ready` label to the pull request in that case.
@@ -83,7 +83,7 @@ When you open a pull request, [start a CI](#testing-and-ci) right away. Later,
 after new code changes or rebasing, start a new CI.
 
 As soon as the pull request is ready to land, please do so. This allows other
-Collaborators to focus on other pull requests. If your pull request is not ready
+collaborators to focus on other pull requests. If your pull request is not ready
 to land but is [author ready](#author-ready-pull-requests), add the
 `author ready` label. If you wish to land the pull request yourself, use the
 "assign yourself" link to self-assign it.
@@ -113,25 +113,25 @@ issues. If a user opens a security issue in the public repository:
 ## Accepting modifications
 
 Contributors propose modifications to Node.js using GitHub pull requests. This
-includes modifications proposed by TSC members and other Collaborators. A pull
+includes modifications proposed by TSC members and other collaborators. A pull
 request must pass code review and CI before landing into the codebase.
 
 ### Code reviews
 
-At least two Collaborators must approve a pull request before the pull request
-lands. One Collaborator approval is enough if the pull request has been open
+At least two collaborators must approve a pull request before the pull request
+lands. One collaborator approval is enough if the pull request has been open
 for more than seven days.
 
-Approving a pull request indicates that the Collaborator accepts responsibility
+Approving a pull request indicates that the collaborator accepts responsibility
 for the change.
 
-Approval must be from Collaborators who are not authors of the change.
+Approval must be from collaborators who are not authors of the change.
 
 In some cases, it might be necessary to summon a GitHub team to a pull request
 for review by @-mention.
 See [Who to CC in the issue tracker](#who-to-cc-in-the-issue-tracker).
 
-If you are the first Collaborator to approve a pull request that has no CI yet,
+If you are the first collaborator to approve a pull request that has no CI yet,
 please [start one](#testing-and-ci). Please also start a new CI if the
 pull request creator pushed new code since the last CI run.
 
@@ -173,7 +173,7 @@ adding the `tsc-agenda` label to the issue.
 
 ### Waiting for approvals
 
-Before landing pull requests, allow 48 hours for input from other Collaborators.
+Before landing pull requests, allow 48 hours for input from other collaborators.
 Certain types of pull requests can be fast-tracked and can land after a shorter
 delay. For example:
 
@@ -185,14 +185,14 @@ delay. For example:
   * Regressions that happen right before a release, or reported soon after.
 
 To propose fast-tracking a pull request, apply the `fast-track` label. Then add
-a comment that Collaborators can upvote.
+a comment that collaborators can upvote.
 
 If someone disagrees with the fast-tracking request, remove the label. Do not
 fast-track the pull request in that case.
 
-The pull request can be fast-tracked if two Collaborators approve the
+The pull request can be fast-tracked if two collaborators approve the
 fast-tracking request. To land, the pull request itself still needs two
-Collaborator approvals and a passing CI.
+collaborator approvals and a passing CI.
 
 Collaborators can request fast-tracking of pull requests they did not author.
 In that case only, the request itself is also one fast-track approval. Upvote
@@ -372,7 +372,7 @@ providing a Public API in such cases.
 #### Unintended breaking changes
 
 Sometimes, a change intended to be non-breaking turns out to be a breaking
-change. If such a change lands on the master branch, a Collaborator can revert
+change. If such a change lands on the master branch, a collaborator can revert
 it. As an alternative to reverting, the TSC can apply the semver-major label
 after-the-fact.
 
@@ -474,7 +474,7 @@ Do this if a pull request or issue:
 * Is labeled `semver-major`, or
 * Has a significant impact on the codebase, or
 * Is controversial, or
-* Is at an impasse among Collaborators who are participating in the discussion.
+* Is at an impasse among collaborators who are participating in the discussion.
 
 @-mention the `@nodejs/tsc` GitHub team if you want to elevate an issue to the
 [TSC][]. Do not use the GitHub UI on the right-hand side to assign to
@@ -659,7 +659,7 @@ for that commit. This is an opportunity to fix commit messages.
     issue. A commit message can include more than one `Fixes:` lines.
   * Optional: One or more `Refs:` lines referencing a URL for any relevant
     background.
-  * Required: A `Reviewed-By: Name <email>` line for each Collaborator who
+  * Required: A `Reviewed-By: Name <email>` line for each collaborator who
     reviewed the change.
     * Useful for @mentions / contact list if something goes wrong in the
       pull request.
@@ -775,7 +775,7 @@ There are several LTS-related labels:
   release. For example, `land-on-v10.x` would be for a change to land in Node.js
   10.x.
 
-Any Collaborator can attach these labels to any pull request/issue. As commits
+Any collaborator can attach these labels to any pull request/issue. As commits
 land on the staging branches, the backporter removes the `lts-watch-` label.
 Likewise, as commits land in an LTS release, the releaser removes the `land-on-`
 label.
@@ -847,7 +847,7 @@ If you cannot find who to cc for a file, `git shortlog -n -s <file>` can help.
 
 * `author-ready` - A pull request is _author ready_ when:
   * There is a CI run in progress or completed.
-  * There is at least one Collaborator approval (or two TSC approvals for
+  * There is at least one collaborator approval (or two TSC approvals for
     semver-major pull requests).
   * There are no outstanding review comments.
 
