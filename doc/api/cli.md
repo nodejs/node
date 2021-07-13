@@ -279,7 +279,7 @@ added: v11.8.0
 
 Use the specified file as a security policy.
 
-### `--no-experimetal-repl-await`
+### `--no-experimental-repl-await`
 <!-- YAML
 added: v16.4.3
  -->
