@@ -446,7 +446,18 @@ NAPI_EXTERN napi_status napi_reject_deferred(napi_env env,
 NAPI_EXTERN napi_status napi_is_promise(napi_env env,
                                         napi_value value,
                                         bool* is_promise);
-
+#if NAPI_VERSION >= 8
+NAPI_EXTERN napi_status napi_promise_then(napi_env env,
+                                          napi_value promise,
+                                          napi_callback on_resolve,
+                                          napi_callback on_rejected);
+NAPI_EXTERN napi_status napi_promise_then_resolve(napi_env env,
+                                        napi_value promise,
+                                        napi_callback handler);
+NAPI_EXTERN napi_status napi_promise_catch(napi_env env,
+                                          napi_value promise,
+                                          napi_callback handler);
+#endif
 // Running a script
 NAPI_EXTERN napi_status napi_run_script(napi_env env,
                                         napi_value script,
