@@ -5,7 +5,7 @@
 *tl;dr: You can land Pull Requests by adding the `commit-queue` label to it.*
 
 Commit Queue is an experimental feature for the project which simplifies the
-landing process by automating it via GitHub Actions. With it, Collaborators can
+landing process by automating it via GitHub Actions. With it, collaborators can
 land Pull Requests by adding the `commit-queue` label to a PR. All
 checks will run via node-core-utils, and if the Pull Request is ready to land,
 the Action will rebase it and push to master.
@@ -48,7 +48,7 @@ of the commit queue:
    commit that will be correctly handled by the [`--autosquash`](https://git-scm.com/docs/git-rebase#Documentation/git-rebase.txt---autosquash)
    option
 2. A CI must've ran and succeeded since the last change on the PR
-3. A Collaborator must have approved the PR since the last change
+3. A collaborator must have approved the PR since the last change
 4. Only Jenkins CI is checked (Actions, V8 CI and CITGM are ignored)
 
 ## Implementation
@@ -108,7 +108,7 @@ until all PRs have done the steps above.
 
 ## Reverting broken commits
 
-Reverting broken commits is done manually by Collaborators, just like when
+Reverting broken commits is done manually by collaborators, just like when
 commits are landed manually via `git node land`. An easy way to revert is a
 good feature for the project, but is not explicitly required for the Commit
 Queue to work because the Action lands PRs just like collaborators do today. If

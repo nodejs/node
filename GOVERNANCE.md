@@ -28,32 +28,32 @@ See:
 
 ## Collaborators
 
-Node.js Core Collaborators maintain the [nodejs/node][] GitHub repository.
-The GitHub team for Node.js Core Collaborators is @nodejs/collaborators.
+Node.js core collaborators maintain the [nodejs/node][] GitHub repository.
+The GitHub team for Node.js core collaborators is @nodejs/collaborators.
 Collaborators have:
 
 * Commit access to the [nodejs/node][] repository
 * Access to the Node.js continuous integration (CI) jobs
 
-Both Collaborators and non-Collaborators may propose changes to the Node.js
+Both collaborators and non-collaborators may propose changes to the Node.js
 source code. The mechanism to propose such a change is a GitHub pull request.
 Collaborators review and merge (_land_) pull requests.
 
-Two Collaborators must approve a pull request before the pull request can land.
-(One Collaborator approval is enough if the pull request has been open for more
-than 7 days.) Approving a pull request indicates that the Collaborator accepts
-responsibility for the change. Approval must be from Collaborators who are not
+Two collaborators must approve a pull request before the pull request can land.
+(One collaborator approval is enough if the pull request has been open for more
+than 7 days.) Approving a pull request indicates that the collaborator accepts
+responsibility for the change. Approval must be from collaborators who are not
 authors of the change.
 
-If a Collaborator opposes a proposed change, then the change cannot land. The
+If a collaborator opposes a proposed change, then the change cannot land. The
 exception is if the TSC votes to approve the change despite the opposition.
 Usually, involving the TSC is unnecessary. Often, discussions or further changes
-result in Collaborators removing their opposition.
+result in collaborators removing their opposition.
 
 See:
 
-* [List of Collaborators](./README.md#current-project-team-members)
-* [A guide for Collaborators](./doc/guides/collaborator-guide.md)
+* [List of collaborators](./README.md#current-project-team-members)
+* [A guide for collaborators](./doc/guides/collaborator-guide.md)
 
 ### Collaborator activities
 
@@ -63,12 +63,12 @@ See:
 * Participation in working groups
 * Merging pull requests
 
-The TSC can remove inactive Collaborators or provide them with _Emeritus_
+The TSC can remove inactive collaborators or provide them with _Emeritus_
 status. Emeriti may request that the TSC restore them to active status.
 
 ## Technical Steering Committee
 
-A subset of the Collaborators forms the Technical Steering Committee (TSC).
+A subset of the collaborators forms the Technical Steering Committee (TSC).
 The TSC has final authority over this project, including:
 
 * Technical direction
@@ -76,7 +76,7 @@ The TSC has final authority over this project, including:
 * Contribution policy
 * GitHub repository hosting
 * Conduct guidelines
-* Maintaining the list of Collaborators
+* Maintaining the list of collaborators
 
 The current list of TSC members is in
 [the project README](./README.md#current-project-team-members).
@@ -95,7 +95,7 @@ agenda is not to review or approve all patches. Collaborators review and approve
 patches on GitHub.
 
 Any community member can create a GitHub issue asking that the TSC review
-something. If consensus-seeking fails for an issue, a Collaborator may apply the
+something. If consensus-seeking fails for an issue, a collaborator may apply the
 `tsc-agenda` label. That will add it to the TSC meeting agenda.
 
 Before each TSC meeting, the meeting chair will share the agenda with members of
@@ -120,11 +120,11 @@ the issue tracker is:
 
 ## Collaborator nominations
 
-Existing Collaborators can nominate someone to become a Collaborator. Nominees
+Existing collaborators can nominate someone to become a collaborator. Nominees
 should have significant and valuable contributions across the Node.js
 organization.
 
-To nominate a new Collaborator, open an issue in the [nodejs/node][] repository.
+To nominate a new collaborator, open an issue in the [nodejs/node][] repository.
 Provide a summary of the nominee's contributions. For example:
 
 * Commits in the [nodejs/node][] repository.
@@ -144,25 +144,25 @@ Provide a summary of the nominee's contributions. For example:
   organization
 * Other participation in the wider Node.js community
 
-Mention @nodejs/collaborators in the issue to notify other Collaborators about
+Mention @nodejs/collaborators in the issue to notify other collaborators about
 the nomination.
 
-The nomination passes if no Collaborators oppose it after one week. Otherwise,
+The nomination passes if no collaborators oppose it after one week. Otherwise,
 the nomination fails.
 
 There are steps a nominator can take in advance to make a nomination as
-frictionless as possible. To request feedback from other Collaborators in
- private, use the [Collaborators discussion page][]
- (which only Collaborators may view). A nominator may also work with the
+frictionless as possible. To request feedback from other collaborators in
+ private, use the [collaborators discussion page][]
+ (which only collaborators may view). A nominator may also work with the
 nominee to improve their contribution profile.
 
 Collaborators might overlook someone with valuable contributions. In that case,
-the contributor may open an issue or contact a Collaborator to request a
+the contributor may open an issue or contact a collaborator to request a
 nomination.
 
 ### Onboarding
 
-After the nomination passes, a TSC member onboards the new Collaborator. See
+After the nomination passes, a TSC member onboards the new collaborator. See
 [the onboarding guide](./onboarding.md) for details of the onboarding
 process.
 
@@ -171,7 +171,7 @@ process.
 The TSC follows a [Consensus Seeking][] decision-making model per the
 [TSC Charter][].
 
-[Collaborators discussion page]: https://github.com/orgs/nodejs/teams/collaborators/discussions
 [Consensus Seeking]: https://en.wikipedia.org/wiki/Consensus-seeking_decision-making
 [TSC Charter]: https://github.com/nodejs/TSC/blob/HEAD/TSC-Charter.md
+[collaborators discussion page]: https://github.com/orgs/nodejs/teams/collaborators/discussions
 [nodejs/node]: https://github.com/nodejs/node
