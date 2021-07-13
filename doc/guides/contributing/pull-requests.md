@@ -41,7 +41,7 @@ Node.js. We cannot accept such patches.
 
 In case of doubt, open an issue in the
 [issue tracker](https://github.com/nodejs/node/issues/) or contact one of the
-[project Collaborators](https://github.com/nodejs/node/#current-project-team-members).
+[project collaborators](https://github.com/nodejs/node/#current-project-team-members).
 
 Node.js has many channels on the
 [OpenJS Foundation Slack](https://slack-invite.openjsf.org/). Interesting
@@ -335,7 +335,7 @@ unhelpful is likely safe to ignore.
 ### Step 10: Landing
 
 In order to land, a Pull Request needs to be reviewed and [approved][] by
-at least two Node.js Collaborators (one Collaborator approval is enough if the
+at least two Node.js collaborators (one collaborator approval is enough if the
 pull request has been open for more than 7 days) and pass a
 [CI (Continuous Integration) test run][]. After that, as long as there are no
 objections from other contributors, the Pull Request can be merged. If you find
@@ -391,7 +391,7 @@ change over time. The first impression you give to a new contributor never does.
 
 Nits (requests for small changes that are not essential) are fine, but try to
 avoid stalling the Pull Request. Most nits can typically be fixed by the
-Node.js Collaborator landing the Pull Request but they can also be an
+Node.js collaborator landing the Pull Request but they can also be an
 opportunity for the contributor to learn a bit more about the project.
 
 It is always good to clearly indicate nits when you comment: e.g.
@@ -434,7 +434,7 @@ commit.
 
 ### Approving a change
 
-Any Node.js core Collaborator (any GitHub user with commit rights in the
+Any Node.js core collaborator (any GitHub user with commit rights in the
 `nodejs/node` repository) is authorized to approve any other contributor's
 work. Collaborators are not permitted to approve their own Pull Requests.
 
@@ -503,9 +503,9 @@ feedback.
 All Pull Requests that contain changes to code must be run through
 continuous integration (CI) testing at [https://ci.nodejs.org/][].
 
-Only Node.js core Collaborators with commit rights to the `nodejs/node`
+Only Node.js core collaborators with commit rights to the `nodejs/node`
 repository may start a CI testing run. The specific details of how to do
-this are included in the new Collaborator [Onboarding guide][].
+this are included in the new collaborator [Onboarding guide][].
 
 Ideally, the code change will pass ("be green") on all platform configurations
 supported by Node.js (there are over 30 platform configurations currently).
@@ -551,9 +551,9 @@ Every Pull Request needs to be tested
 to make sure that it works on the platforms that Node.js
 supports. This is done by running the code through the CI system.
 
-Only a Collaborator can start a CI run. Usually one of them will do it
+Only a collaborator can start a CI run. Usually one of them will do it
 for you as approvals for the Pull Request come in.
-If not, you can ask a Collaborator to start a CI run.
+If not, you can ask a collaborator to start a CI run.
 
 ### Waiting until the pull request gets landed
 
@@ -567,7 +567,7 @@ widely used, so don't be discouraged!
 ### Check out the collaborator guide
 
 If you want to know more about the code review and the landing process, see the
-[Collaborator Guide][].
+[collaborator guide][].
 
 ### Appendix: subsystems
 
@@ -583,10 +583,10 @@ More than one subsystem may be valid for any particular issue or pull request.
 [Building guide]: ../../../BUILDING.md
 [CI (Continuous Integration) test run]: #ci-testing
 [Code of Conduct]: https://github.com/nodejs/admin/blob/HEAD/CODE_OF_CONDUCT.md
-[Collaborator Guide]: ../collaborator-guide.md
 [Onboarding guide]: ../../../onboarding.md
 [approved]: #getting-approvals-for-your-pull-request
 [benchmark results]: ../writing-and-running-benchmarks.md
+[collaborator guide]: ../collaborator-guide.md
 [guide for writing tests in Node.js]: ../writing-tests.md
 [hiding-a-comment]: https://help.github.com/articles/managing-disruptive-comments/#hiding-a-comment
 [https://ci.nodejs.org/]: https://ci.nodejs.org/
