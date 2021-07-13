@@ -281,7 +281,7 @@ Use the specified file as a security policy.
 
 ### `--no-experimental-repl-await`
 <!-- YAML
-added: v16.4.3
+added: REPLACEME
  -->
  Use this flag to disable top-level await in REPL.
 
