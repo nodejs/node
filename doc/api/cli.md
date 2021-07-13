@@ -279,6 +279,12 @@ added: v11.8.0
 
 Use the specified file as a security policy.
 
+### `--no-experimetal-repl-await`
+<!-- YAML
+addded: v16.4.3
+ -->
+ Use this flag to disable top-level await in REPL.
+
 ### `--experimental-specifier-resolution=mode`
 <!-- YAML
 added:
@@ -1396,6 +1402,7 @@ Node.js options that are allowed are:
 * `--experimental-policy`
 * `--experimental-specifier-resolution`
 * `--experimental-top-level-await`
+* `--no-experimental-repl-await`
 * `--experimental-vm-modules`
 * `--experimental-wasi-unstable-preview1`
 * `--experimental-wasm-modules`

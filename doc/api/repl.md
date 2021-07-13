@@ -249,6 +249,8 @@ undefined
 234
 ```
 
+P.S: Use [`--no-experimental-repl-await`][] if you ever wish to disable top-level await in your REPL.
+
 ### Reverse-i-search
 <!-- YAML
 added:
@@ -774,3 +776,4 @@ For an example of running a REPL instance over [`curl(1)`][], see:
 [`reverse-i-search`]: #repl_reverse_i_search
 [`util.inspect()`]: util.md#util_util_inspect_object_options
 [stream]: stream.md
+[`--no-experimental-repl-await`]: cli.md#cli_no_experimental_repl_await
