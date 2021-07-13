@@ -514,7 +514,7 @@ Useful when activating the inspector by sending the `SIGUSR1` signal.
 
 Default host is `127.0.0.1`.
 
-See the [security warning](#warning-binding-inspector-to-a-public-ipport-combination-is-insecure) below regarding the `host`
+See the [security warning][] below regarding the `host`
 parameter usage.
 
 ### `--inspect[=[host:]port]`
@@ -1802,5 +1802,6 @@ $ node --max-old-space-size=1536 index.js
 [jitless]: https://v8.dev/blog/jitless
 [libuv threadpool documentation]: https://docs.libuv.org/en/latest/threadpool.html
 [remote code execution]: https://www.owasp.org/index.php/Code_Injection
+[security warning]: #warning-binding-inspector-to-a-public-ipport-combination-is-insecure
 [timezone IDs]: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 [ways that `TZ` is handled in other environments]: https://www.gnu.org/software/libc/manual/html_node/TZ-Variable.html
