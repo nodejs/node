@@ -249,7 +249,7 @@ undefined
 234
 ```
 
-P.S: Use [`--no-experimental-repl-await`][] if you ever wish to disable top-level await in your REPL.
+[`--no-experimental-repl-await`][] shall disable top-level await in REPL.
 
 ### Reverse-i-search
 <!-- YAML
@@ -765,6 +765,7 @@ For an example of running a REPL instance over [`curl(1)`][], see:
 [TTY keybindings]: readline.md#readline_tty_keybindings
 [ZSH]: https://en.wikipedia.org/wiki/Z_shell
 [`'uncaughtException'`]: process.md#process_event_uncaughtexception
+[`--no-experimental-repl-await`]: cli.md#cli_no_experimental_repl_await
 [`ERR_DOMAIN_CANNOT_SET_UNCAUGHT_EXCEPTION_CAPTURE`]: errors.md#errors_err_domain_cannot_set_uncaught_exception_capture
 [`ERR_INVALID_REPL_INPUT`]: errors.md#errors_err_invalid_repl_input
 [`curl(1)`]: https://curl.haxx.se/docs/manpage.html
@@ -776,4 +777,3 @@ For an example of running a REPL instance over [`curl(1)`][], see:
 [`reverse-i-search`]: #repl_reverse_i_search
 [`util.inspect()`]: util.md#util_util_inspect_object_options
 [stream]: stream.md
-[`--no-experimental-repl-await`]: cli.md#cli_no_experimental_repl_await
