@@ -281,7 +281,7 @@ Use the specified file as a security policy.
 
 ### `--no-experimetal-repl-await`
 <!-- YAML
-addded: v16.4.3
+added: v16.4.3
  -->
  Use this flag to disable top-level await in REPL.
 
