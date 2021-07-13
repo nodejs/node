@@ -484,8 +484,8 @@ const assert = require('assert');
   s.end(common.mustCall((err) => {
     assert.strictEqual(err, _err);
   }));
-  s.on('error', (err) => {
+  s.on('error', common.mustCall((err) => {
     assert.strictEqual(err, _err);
-  });
+  }));
   s.destroy(_err);
 }
