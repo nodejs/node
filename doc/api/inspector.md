@@ -45,7 +45,7 @@ started.
 If wait is `true`, will block until a client has connected to the inspect port
 and flow control has been passed to the debugger client.
 
-See the [security warning](cli.md#warning-binding-inspector-to-a-public-ipport-combination-is-insecure) regarding the `host`
+See the [security warning][] regarding the `host`
 parameter usage.
 
 ## `inspector.url()`
@@ -244,3 +244,4 @@ session.post('HeapProfiler.takeHeapSnapshot', null, (err, r) => {
 [Heap Profiler]: https://chromedevtools.github.io/devtools-protocol/v8/HeapProfiler
 [`'Debugger.paused'`]: https://chromedevtools.github.io/devtools-protocol/v8/Debugger#event-paused
 [`session.connect()`]: #sessionconnect
+[security warning]: cli.md#warning-binding-inspector-to-a-public-ipport-combination-is-insecure
