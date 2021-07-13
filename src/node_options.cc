@@ -348,8 +348,9 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   Implies("--policy-integrity", "[has_policy_integrity_string]");
   AddOption("--experimental-repl-await",
             "experimental await keyword support in REPL",
-            NoOp{},
-            kAllowedInEnvironment);
+            &EnvironmentOptions::experimental_repl_await,
+            kAllowedInEnvironment,
+            true);
   AddOption("--experimental-vm-modules",
             "experimental ES Module support in vm module",
             &EnvironmentOptions::experimental_vm_modules,
