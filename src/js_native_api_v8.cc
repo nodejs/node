@@ -3073,6 +3073,72 @@ napi_status napi_is_promise(napi_env env,
   return napi_clear_last_error(env);
 }
 
+napi_status napi_promise_then(napi_env env,
+                            napi_value promise,
+                            napi_callback on_resolve,
+                            napi_callback on_rejected) {
+  NAPI_PREAMBLE(env);
+  CHECK_ENV(env);
+  CHECK_ARG(env, promise);
+  CHECK_ARG(env, on_resolve);
+  CHECK_ARG(env, on_rejected);
+  v8::Local<v8::Context> v8Context = env->context();
+  v8::Local<v8::Promise> v8Promise =
+      v8impl::V8LocalValueFromJsValue(promise).As<v8::Promise>();
+
+  v8::Local<v8::Function> v8ResolveFn;
+  STATUS_CALL(v8impl::FunctionCallbackWrapper::NewFunction(
+      env, on_resolve, nullptr, &v8ResolveFn));
+
+  v8::Local<v8::Function> v8RejectFn;
+  STATUS_CALL(v8impl::FunctionCallbackWrapper::NewFunction(
+      env, on_rejected, nullptr, &v8RejectFn));
+
+  v8Promise->Then(v8Context, v8ResolveFn, v8RejectFn);
+  return GET_RETURN_STATUS(env);
+}
+
+napi_status napi_promise_then_resolve(napi_env env,
+                                      napi_value promise,
+                                      napi_callback handler) {
+  NAPI_PREAMBLE(env);
+  CHECK_ENV(env);
+  CHECK_ARG(env, promise);
+  CHECK_ARG(env, handler);
+  v8::Local<v8::Context> v8Context = env->context();
+  v8::Local<v8::Promise> v8Promise =
+      v8impl::V8LocalValueFromJsValue(promise).As<v8::Promise>();
+
+  v8::Local<v8::Function> fn;
+  STATUS_CALL(v8impl::FunctionCallbackWrapper::NewFunction(
+        env, handler, nullptr, &fn));
+
+  v8Promise->Then(v8Context, fn).ToLocalChecked();
+
+  return GET_RETURN_STATUS(env);
+}
+
+napi_status napi_promise_catch(napi_env env,
+                              napi_value promise,
+                              napi_callback handler) {
+  NAPI_PREAMBLE(env);
+  CHECK_ENV(env);
+  CHECK_ARG(env, promise);
+  CHECK_ARG(env, handler);
+  v8::Local<v8::Context> v8Context = env->context();
+  v8::Local<v8::Promise> v8Promise =
+      v8impl::V8LocalValueFromJsValue(promise).As<v8::Promise>();
+
+  v8::Local<v8::Function> fn;
+  STATUS_CALL(
+      v8impl::FunctionCallbackWrapper::NewFunction(env, handler, nullptr, &fn));
+
+  v8Promise->Catch(v8Context, fn);
+
+  return GET_RETURN_STATUS(env);
+}
+
+
 napi_status napi_create_date(napi_env env,
                              double time,
                              napi_value* result) {
