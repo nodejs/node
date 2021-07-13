@@ -457,7 +457,7 @@ const punctuation = /[^\w\- ]/g;
 function getId(text, idCounters) {
   text = text.toLowerCase()
              .replace(punctuation, '')
-             .replaceAll(' ', '-');
+             .replace(/ /g, '-');
   if (idCounters[text] !== undefined) {
     return `${text}_${++idCounters[text]}`;
   }
