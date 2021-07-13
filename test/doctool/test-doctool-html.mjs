@@ -53,8 +53,10 @@ const testData = [
   {
     file: fixtures.path('order_of_end_tags_5873.md'),
     html: '<h4>Static method: Buffer.from(array) <span> ' +
-      '<a class="mark" href="#foo_static_method_buffer_from_array" ' +
-      'id="foo_static_method_buffer_from_array">#</a> </span> </h4>' +
+      '<a class="mark" href="#static-method-bufferfromarray" ' +
+      'id="static-method-bufferfromarray">#</a> </span> ' +
+      '<a aria-hidden="true" class="legacy" ' +
+      'id="foo_static_method_buffer_from_array"></a></h4>' +
       '<ul><li><code>array</code><a ' +
       'href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/' +
       'Reference/Global_Objects/Array" class="type">&#x3C;Array></a></li></ul>'
@@ -62,15 +64,20 @@ const testData = [
   {
     file: fixtures.path('doc_with_yaml.md'),
     html: '<h2>Sample Markdown with YAML info' +
-      '<span><a class="mark" href="#foo_sample_markdown_with_yaml_info" ' +
-      ' id="foo_sample_markdown_with_yaml_info">#</a></span></h2>' +
-      '<section><h3>Foobar<span><a class="mark" href="#foo_foobar" ' +
-      'id="foo_foobar">#</a></span></h3>' +
+      '<span><a class="mark" href="#sample-markdown-with-yaml-info" ' +
+      ' id="sample-markdown-with-yaml-info">#</a></span>' +
+      '<a aria-hidden="true" class="legacy" ' +
+      'id="foo_sample_markdown_with_yaml_info"></a></h2>' +
+      '<section><h3>Foobar<span><a class="mark" href="#foobar" ' +
+      'id="foobar">#</a></span>' +
+      '<a aria-hidden="true" class="legacy" id="foo_foobar"></a></h3>' +
       '<div class="api_metadata"><span>Added in: v1.0.0</span></div> ' +
       '<p>Describe <code>Foobar</code> in more detail here.</p>' +
       '</section><section>' +
-      '<h3>Foobar II<span><a class="mark" href="#foo_foobar_ii" ' +
-      'id="foo_foobar_ii">#</a></span></h3><div class="api_metadata">' +
+      '<h3>Foobar II<span><a class="mark" href="#foobar-ii" ' +
+      'id="foobar-ii">#</a></span>' +
+      '<a aria-hidden="true" class="legacy" id="foo_foobar_ii"></a></h3>' +
+      '<div class="api_metadata">' +
       '<details class="changelog"><summary>History</summary>' +
       '<table><tbody><tr><th>Version</th><th>Changes</th></tr>' +
       '<tr><td>v5.3.0, v4.2.0</td>' +
@@ -81,14 +88,17 @@ const testData = [
       '<a href="http://man7.org/linux/man-pages/man1/fg.1.html"><code>fg(1)' +
       '</code></a></p></section><section>' +
       '<h3>Deprecated thingy<span><a class="mark" ' +
-      'href="#foo_deprecated_thingy" id="foo_deprecated_thingy">#</a>' +
-      '</span></h3><div class="api_metadata"><span>Added in: v1.0.0</span>' +
+      'href="#deprecated-thingy" id="deprecated-thingy">#</a>' +
+      '</span><a aria-hidden="true" class="legacy"' +
+      'id="foo_deprecated_thingy"></a>' +
+      '</h3><div class="api_metadata"><span>Added in: v1.0.0</span>' +
       '<span>Deprecated since: v2.0.0</span></div><p>Describe ' +
       '<code>Deprecated thingy</code> in more detail here.' +
       '<a href="http://man7.org/linux/man-pages/man1/fg.1p.html"><code>fg(1p)' +
       '</code></a></p></section><section>' +
-      '<h3>Something<span><a class="mark" href="#foo_something' +
-      '" id="foo_something">#</a></span></h3> ' +
+      '<h3>Something<span><a class="mark" href="#something' +
+      '" id="something">#</a></span>' +
+      '<a aria-hidden="true" class="legacy" id="foo_something"></a></h3>' +
       '<!-- This is not a metadata comment --> ' +
       '<p>Describe <code>Something</code> in more detail here. </p></section>'
   },
@@ -104,18 +114,22 @@ const testData = [
   {
     file: fixtures.path('document_with_links.md'),
     html: '<h2>Usage and Example<span><a class="mark"' +
-    'href="#foo_usage_and_example" id="foo_usage_and_example">#</a>' +
-    '</span></h2><section><h3>Usage<span><a class="mark" href="#foo_usage"' +
-    'id="foo_usage">#</a></span></h3><p><code>node \\[options\\] index.js' +
+    'href="#usage-and-example" id="usage-and-example">#</a>' +
+    '</span><a aria-hidden="true" class="legacy" id="foo_usage_and_example">' +
+    '</a></h2><section><h3>Usage<span><a class="mark" href="#usage"' +
+    'id="usage">#</a></span><a aria-hidden="true" class="legacy"' +
+    'id="foo_usage"></a></h3><p><code>node \\[options\\] index.js' +
     '</code></p><p>Please see the<a href="cli.html#cli-options">' +
     'Command Line Options</a>document for more information.</p>' +
     '</section><section><h3>' +
-    'Example<span><a class="mark" href="#foo_example" id="foo_example">' +
-    '#</a></span></h3><p>An example of a<a href="example.html">' +
+    'Example<span><a class="mark" href="#example" id="example">' +
+    '#</a></span><a aria-hidden="true" class="legacy" id="foo_example">' +
+    '</a></h3><p>An example of a<a href="example.html">' +
     'webserver</a>written with Node.js which responds with<code>' +
     '\'Hello, World!\'</code>:</p></section><section>' +
     '<h3>See also<span><a class="mark"' +
-    'href="#foo_see_also" id="foo_see_also">#</a></span></h3><p>Check' +
+    'href="#see-also" id="see-also">#</a></span><a aria-hidden="true"' +
+    'class="legacy" id="foo_see_also"></a></h3><p>Check' +
     'out also<a href="https://nodejs.org/">this guide</a></p></section>'
   },
   {
