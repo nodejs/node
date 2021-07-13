@@ -97,12 +97,12 @@ const stream = new ReadableStream({
 
 ### Class: `ReadableStream`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 #### `new ReadableStream([underlyingSource [, strategy]])`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 <!--lint disable maximum-line-length remark-lint-->
@@ -135,7 +135,7 @@ added: REPLACEME
 
 #### `readableStream.locked`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * Type: {boolean} Set to `true` if there is an active reader for this
@@ -147,7 +147,7 @@ stream's data.
 
 #### `readableStream.cancel([reason])`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * `reason` {any}
@@ -156,7 +156,7 @@ added: REPLACEME
 
 #### `readableStream.getReader([options])`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * `options` {Object}
@@ -187,7 +187,7 @@ Causes the `readableStream.locked` to be `true`.
 
 #### `readableStream.pipeThrough(transform[, options])`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * `transform` {Object}
@@ -269,7 +269,7 @@ const transformedStream = stream.pipeThrough(transform);
 
 #### `readableStream.pipeTo(destination, options)`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * `destination` {WritableStream} A {WritableStream} to which this
@@ -291,7 +291,7 @@ is active.
 
 #### `readableStream.tee()`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * Returns: {ReadableStream[]}
@@ -304,7 +304,7 @@ Causes the `readableStream.locked` to be `true`.
 
 #### `readableStream.values([options])`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * `options` {Object}
@@ -372,7 +372,7 @@ port2.postMessage(stream, [stream]);
 
 ### Class: `ReadableStreamDefaultReader`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 By default, calling `readableStream.getReader()` with no arguments
@@ -383,7 +383,7 @@ JavaScript value.
 
 #### `new ReadableStreamDefaultReader(stream)`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * `stream` {ReadableStream}
@@ -393,7 +393,7 @@ given {ReadableStream}.
 
 #### `readableStreamDefaultReader.cancel([reason])`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * `reason` {any}
@@ -404,7 +404,7 @@ when the underlying stream has been canceled.
 
 #### `readableStreamDefaultReader.closed`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * Type: {Promise} Fulfilled with `undefined` when the associated
@@ -412,7 +412,7 @@ added: REPLACEME
 
 #### `readableStreamDefaultReader.read()`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * Returns: A promise fulfilled with an object:
@@ -425,14 +425,14 @@ available.
 
 #### `readableStreamDefaultReader.releaseLock()`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 Releases this reader's lock on the underlying {ReadableStream}.
 
 ### Class: `ReadableStreamBYOBReader`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 The `ReadableStreamBYOBReader` is an alternative consumer for
@@ -504,7 +504,7 @@ console.log(Buffer.from(data).toString());
 
 #### `new ReadableStreamBYOBReader(stream)`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * `stream` {ReadableStream}
@@ -514,7 +514,7 @@ given {ReadableStream}.
 
 #### `readableStreamBYOBReader.cancel([reason])`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * `reason` {any}
@@ -525,7 +525,7 @@ when the underlying stream has been canceled.
 
 #### `readableStreamBYOBReader.closed`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * Type: {Promise} Fulfilled with `undefined` when the associated
@@ -533,7 +533,7 @@ added: REPLACEME
 
 #### `readableStreamBYOBReader.read(view)`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * `view` {Buffer|TypedArray|DataView}
@@ -558,14 +558,14 @@ can have disastrous consequences for your application.
 
 #### `readableStreamBYOBReader.releaseLock()`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 Releases this reader's lock on the underlying {ReadableStream}.
 
 ### Class: `ReadableStreamDefaultController`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 Every {ReadableStream} has a controller that is responsible for
@@ -575,14 +575,14 @@ implementation for `ReadableStream`s that are not byte-oriented.
 
 #### `readableStreamDefaultController.close()`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 Closes the {ReadableStream} to which this controller is associated.
 
 #### `readableStreamDefaultController.desiredSize`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * Type: {number}
@@ -592,7 +592,7 @@ queue.
 
 #### `readableStreamDefaultController.enqueue(chunk)`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * `chunk` {any}
@@ -601,7 +601,7 @@ Appends a new chunk of data to the {ReadableStream}'s queue.
 
 #### `readableStreamDefaultController.error(error)`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * `error` {any}
@@ -610,7 +610,7 @@ Signals an error that causes the {ReadableStream} to error and close.
 
 ### Class: `ReadableByteStreamController`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 Every {ReadableStream} has a controller that is responsible for
@@ -619,21 +619,21 @@ the internal state and management of the stream's queue. The
 
 #### `readableByteStreamController.byobRequest`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * Type: {ReadableStreamBYOBRequest}
 
 #### `readableByteStreamController.close()`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 Closes the {ReadableStream} to which this controller is associated.
 
 #### `readableByteStreamController.desiredSize`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * Type: {number}
@@ -643,7 +643,7 @@ queue.
 
 #### `readableByteStreamController.enqueue(chunk)`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * `chunk`: {Buffer|TypedArray|DataView}
@@ -652,7 +652,7 @@ Appends a new chunk of data to the {ReadableStream}'s queue.
 
 #### `readableByteStreamController.error(error)`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * `error` {any}
@@ -661,7 +661,7 @@ Signals an error that causes the {ReadableStream} to error and close.
 
 ### Class: `ReadableStreamBYOBRequest`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 When using `ReadableByteStreamController` in byte-oriented
@@ -676,7 +676,7 @@ been provided.
 
 #### `readableStreamBYOBRequest.respond(bytesWritten)`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * `bytesWritten` {number}
@@ -686,7 +686,7 @@ to `readableStreamBYOBRequest.view`.
 
 #### `readableStreamBYOBRequest.respondWithNewView(view)`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * `view` {Buffer|TypedArray|DataView}
@@ -696,14 +696,14 @@ to a new `Buffer`, `TypedArray`, or `DataView`.
 
 #### `readableStreamBYOBRequest.view`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * Type: {Buffer|TypedArray|DataView}
 
 ### Class: `WritableStream`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 The `WritableStream` is a destination to which stream data is sent.
@@ -724,7 +724,7 @@ await stream.getWriter().write('Hello World');
 
 #### `new WritableStream([underlyingSink[, strategy]])`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * `underlyingSink` {Object}
@@ -756,7 +756,7 @@ added: REPLACEME
 
 #### `writableStream.abort([reason])`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * `reason` {any}
@@ -767,7 +767,7 @@ canceled with their associated promises rejected.
 
 #### `writableStream.close()`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * Returns: A promise fulfilled with `undefined`.
@@ -776,7 +776,7 @@ Closes the `WritableStream` when no additional writes are expected.
 
 #### `writableStream.getWriter()`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * Returns: {WritableStreamDefaultWriter}
@@ -786,7 +786,7 @@ data into the `WritableStream`.
 
 #### `writableStream.locked`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * Type: {boolean}
@@ -813,12 +813,12 @@ port2.postMessage(stream, [stream]);
 
 ### Class: `WritableStreamDefaultWriter`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 #### `new WritableStreamDefaultWriter(stream)`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * `stream` {WritableStream}
@@ -828,7 +828,7 @@ Creates a new `WritableStreamDefaultWriter` that is locked to the given
 
 #### `writableStreamDefaultWriter.abort([reason])`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * `reason` {any}
@@ -839,7 +839,7 @@ canceled with their associated promises rejected.
 
 #### `writableStreamDefaultWriter.close()`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * Returns: A promise fulfilled with `undefined`.
@@ -848,7 +848,7 @@ Closes the `WritableStream` when no additional writes are expected.
 
 #### `writableStreamDefaultWriter.closed`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * Type: A promise that is fulfilled with `undefined` when the
@@ -857,7 +857,7 @@ added: REPLACEME
 
 #### `writableStreamDefaultWriter.desiredSize`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * Type: {number}
@@ -866,7 +866,7 @@ The amount of data required to fill the {WritableStream}'s queue.
 
 #### `writableStreamDefaultWriter.ready`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * type: A promise that is fulfilled with `undefined` when the
@@ -874,14 +874,14 @@ added: REPLACEME
 
 #### `writableStreamDefaultWriter.releaseLock()`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 Releases this writer's lock on the underlying {ReadableStream}.
 
 #### `writableStreamDefaultWriter.write([chunk])`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * `chunk`: {any}
@@ -891,7 +891,7 @@ Appends a new chunk of data to the {WritableStream}'s queue.
 
 ### Class: `WritableStreamDefaultController`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 The `WritableStreamDefaultController` manage's the {WritableStream}'s
@@ -903,7 +903,7 @@ internal state.
 
 #### `writableStreamDefaultController.error(error)`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * `error` {any}
@@ -919,7 +919,7 @@ with currently pending writes canceled.
 
 ### Class: `TransformStream`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 A `TransformStream` consists of a {ReadableStream} and a {WritableStream} that
@@ -946,7 +946,7 @@ await Promise.all([
 
 #### `new TransformStream([transformer[, writableStrategy[, readableStrategy]]])`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * `transformer` {Object}
@@ -986,14 +986,14 @@ added: REPLACEME
 
 #### `transformStream.readable`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * Type: {ReadableStream}
 
 #### `transformStream.writable`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * Type: {WritableStream}
@@ -1017,7 +1017,7 @@ port2.postMessage(stream, [stream]);
 
 ### Class: `TransformStreamDefaultController`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 The `TransformStreamDefaultController` manages the internal state
@@ -1025,7 +1025,7 @@ of the `TransformStream`.
 
 #### `transformStreamDefaultController.desiredSize`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * Type: {number}
@@ -1034,7 +1034,7 @@ The amount of data required to fill the readable side's queue.
 
 #### `transformStreamDefaultController.enqueue([chunk])`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * `chunk` {any}
@@ -1043,7 +1043,7 @@ Appends a chunk of data to the readable side's queue.
 
 #### `transformStreamDefaultController.error([reason])`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * `reason` {any}
@@ -1054,7 +1054,7 @@ closed.
 
 #### `transformStreamDefaultController.terminate()`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 Closes the readable side of the transport and causes the writable side
@@ -1062,12 +1062,12 @@ to be abruptly closed with an error.
 
 ### Class: `ByteLengthQueuingStrategy`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 #### `new ByteLengthQueuingStrategy(options)`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * `options` {Object}
@@ -1075,14 +1075,14 @@ added: REPLACEME
 
 #### `byteLengthQueuingStrategy.highWaterMark`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * Type: {number}
 
 #### `byteLengthQueuingStrategy.size`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * Type: {Function}
@@ -1091,12 +1091,12 @@ added: REPLACEME
 
 ### Class: `CountQueuingStrategy`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 #### `new CountQueuingStrategy(options)`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * `options` {Object}
@@ -1104,14 +1104,14 @@ added: REPLACEME
 
 #### `countQueuingStrategy.highWaterMark`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * Type: {number}
 
 #### `countQueuingStrategy.size`
 <!-- YAML
-added: REPLACEME
+added: v16.5.0
 -->
 
 * Type: {Function}
