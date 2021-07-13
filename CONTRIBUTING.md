@@ -1,5 +1,21 @@
 # Contributing to Node.js
 
+Contributions to Node.js include code, documentation, answering user questions,
+running the project's infrastructure, and advocating for all types of Node.js
+users.
+
+The Node.js project welcomes all contributions from anyone willing to work in
+good faith with other contributors and the community. No contribution is too
+small and all contributions are valued.
+
+The Node.js project has an open governance model.
+Individuals making significant and valuable contributions are made
+Collaborators and given commit-access to the project. See the
+[GOVERNANCE.md](./GOVERNANCE.md) document for more information about how this
+works.
+
+## Contents
+
 * [Code of Conduct](#code-of-conduct)
 * [Issues](#issues)
 * [Pull Requests](#pull-requests)
@@ -15,12 +31,18 @@ See [details on our policy on Code of Conduct](./doc/guides/contributing/code-of
 
 ## [Issues](./doc/guides/contributing/issues.md)
 
+Issues in `nodejs/node` are the primary means by which bug reports and
+general discussions are made.
+
 * [Asking for General Help](./doc/guides/contributing/issues.md#asking-for-general-help)
 * [Discussing non-technical topics](./doc/guides/contributing/issues.md#discussing-non-technical-topics)
 * [Submitting a Bug Report](./doc/guides/contributing/issues.md#submitting-a-bug-report)
 * [Triaging a Bug Report](./doc/guides/contributing/issues.md#triaging-a-bug-report)
 
 ## [Pull Requests](./doc/guides/contributing/pull-requests.md)
+
+Pull Requests are the way concrete changes are made to the code, documentation,
+dependencies, and tools contained in the `nodejs/node` repository.
 
 * [Dependencies](./doc/guides/contributing/pull-requests.md#dependencies)
 * [Setting up your local environment](./doc/guides/contributing/pull-requests.md#setting-up-your-local-environment)
