@@ -8,7 +8,7 @@
 // TODO(v8:11421): Remove #if once baseline compiler is ported to other
 // architectures.
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || \
-    V8_TARGET_ARCH_ARM
+    V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64
 
 #include "src/base/logging.h"
 #include "src/base/threaded-list.h"
@@ -39,8 +39,10 @@ class BytecodeOffsetTableBuilder {
     previous_pc_ = pc_offset;
   }
 
-  template <typename LocalIsolate>
-  Handle<ByteArray> ToBytecodeOffsetTable(LocalIsolate* isolate);
+  template <typename IsolateT>
+  Handle<ByteArray> ToBytecodeOffsetTable(IsolateT* isolate);
+
+  void Reserve(size_t size) { bytes_.reserve(size); }
 
  private:
   size_t previous_pc_ = 0;
@@ -121,31 +123,21 @@ class BaselineCompiler {
   void SelectBooleanConstant(
       Register output, std::function<void(Label*, Label::Distance)> jump_func);
 
-  // Returns ToBoolean result into kInterpreterAccumulatorRegister.
-  void JumpIfToBoolean(bool do_jump_if_true, Register reg, Label* label,
+  // Jumps based on calling ToBoolean on kInterpreterAccumulatorRegister.
+  void JumpIfToBoolean(bool do_jump_if_true, Label* label,
                        Label::Distance distance = Label::kFar);
 
   // Call helpers.
-  template <typename... Args>
-  void CallBuiltin(Builtins::Name builtin, Args... args);
+  template <Builtins::Name kBuiltin, typename... Args>
+  void CallBuiltin(Args... args);
   template <typename... Args>
   void CallRuntime(Runtime::FunctionId function, Args... args);
 
-  template <typename... Args>
-  void TailCallBuiltin(Builtins::Name builtin, Args... args);
+  template <Builtins::Name kBuiltin, typename... Args>
+  void TailCallBuiltin(Args... args);
 
-  void BuildBinop(
-      Builtins::Name builtin_name, bool fast_path = false,
-      bool check_overflow = false,
-      std::function<void(Register, Register)> instruction = [](Register,
-                                                               Register) {});
-  void BuildUnop(Builtins::Name builtin_name);
-  void BuildCompare(Builtins::Name builtin_name);
-  void BuildBinopWithConstant(Builtins::Name builtin_name);
-
-  template <typename... Args>
-  void BuildCall(ConvertReceiverMode mode, uint32_t slot, uint32_t arg_count,
-                 Args... args);
+  template <ConvertReceiverMode kMode, typename... Args>
+  void BuildCall(uint32_t slot, uint32_t arg_count, Args... args);
 
 #ifdef V8_TRACE_UNOPTIMIZED
   void TraceBytecode(Runtime::FunctionId function_id);

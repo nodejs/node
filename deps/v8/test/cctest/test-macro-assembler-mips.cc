@@ -26,7 +26,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdlib.h>
-#include <iostream>  // NOLINT(readability/streams)
+
+#include <iostream>
 
 #include "src/api/api-inl.h"
 #include "src/base/utils/random-number-generator.h"

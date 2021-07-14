@@ -77,11 +77,12 @@ class ErrorUtils : public AllStatic {
   static MaybeHandle<JSObject> Construct(Isolate* isolate,
                                          Handle<JSFunction> target,
                                          Handle<Object> new_target,
-                                         Handle<Object> message);
+                                         Handle<Object> message,
+                                         Handle<Object> options);
   static MaybeHandle<JSObject> Construct(
       Isolate* isolate, Handle<JSFunction> target, Handle<Object> new_target,
-      Handle<Object> message, FrameSkipMode mode, Handle<Object> caller,
-      StackTraceCollection stack_trace_collection);
+      Handle<Object> message, Handle<Object> options, FrameSkipMode mode,
+      Handle<Object> caller, StackTraceCollection stack_trace_collection);
 
   static MaybeHandle<String> ToString(Isolate* isolate, Handle<Object> recv);
 

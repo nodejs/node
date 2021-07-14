@@ -316,7 +316,10 @@ class ReadStringVisitor : public TqObjectVisitor {
   bool IsExternalStringCached(const TqExternalString* object) {
     // The safest way to get the instance type is to use known map pointers, in
     // case the map data is not available.
-    uintptr_t map = GetOrFinish(object->GetMapValue(accessor_));
+    Value<uintptr_t> map_ptr = object->GetMapValue(accessor_);
+    DCHECK_IMPLIES(map_ptr.validity == d::MemoryAccessResult::kOk,
+                   !v8::internal::MapWord::IsPacked(map_ptr.value));
+    uintptr_t map = GetOrFinish(map_ptr);
     if (done_) return false;
     auto instance_types = FindKnownMapInstanceTypes(map, heap_addresses_);
     // Exactly one of the matched instance types should be a string type,
@@ -347,10 +350,10 @@ class ReadStringVisitor : public TqObjectVisitor {
       ExternalPointer_t resource_data =
           GetOrFinish(object->GetResourceDataValue(accessor_));
 #ifdef V8_COMPRESS_POINTERS
-      uintptr_t data_address = static_cast<uintptr_t>(
-          DecodeExternalPointer(GetPtrComprCageBaseFromOnHeapAddress(
-                                    heap_addresses_.any_heap_pointer),
-                                resource_data, kExternalStringResourceDataTag));
+      Isolate* isolate = GetIsolateForHeapSandbox(
+          HeapObject::unchecked_cast(Object(heap_addresses_.any_heap_pointer)));
+      uintptr_t data_address = static_cast<uintptr_t>(DecodeExternalPointer(
+          isolate, resource_data, kExternalStringResourceDataTag));
 #else
       uintptr_t data_address = static_cast<uintptr_t>(resource_data);
 #endif  // V8_COMPRESS_POINTERS
@@ -500,6 +503,7 @@ class AddInfoVisitor : public TqObjectVisitor {
     if (map_ptr.validity != d::MemoryAccessResult::kOk) {
       return;  // Can't read the JSObject. Nothing useful to do.
     }
+    DCHECK(!v8::internal::MapWord::IsPacked(map_ptr.value));
     TqMap map(map_ptr.value);
 
     // On JSObject instances, this value is the start of in-object properties.

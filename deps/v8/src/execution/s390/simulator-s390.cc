@@ -34,7 +34,7 @@ namespace internal {
 // SScanF not being implemented in a platform independent way through
 // ::v8::internal::OS in the same way as SNPrintF is that the
 // Windows C Run-Time Library does not provide vsscanf.
-#define SScanF sscanf  // NOLINT
+#define SScanF sscanf
 
 const Simulator::fpr_t Simulator::fp_zero;
 
@@ -772,6 +772,8 @@ void Simulator::EvalTableInit() {
   V(vsum, VSUM, 0xE764)   /* type = VRR_C VECTOR SUM ACROSS WORD  */           \
   V(vsumg, VSUMG, 0xE765) /* type = VRR_C VECTOR SUM ACROSS DOUBLEWORD  */     \
   V(vpk, VPK, 0xE794)     /* type = VRR_C VECTOR PACK  */                      \
+  V(vmrl, VMRL, 0xE760)   /* type = VRR_C VECTOR MERGE LOW */                  \
+  V(vmrh, VMRH, 0xE761)   /* type = VRR_C VECTOR MERGE HIGH */                 \
   V(vpks, VPKS, 0xE797)   /* type = VRR_B VECTOR PACK SATURATE  */             \
   V(vpkls, VPKLS, 0xE795) /* type = VRR_B VECTOR PACK LOGICAL SATURATE  */     \
   V(vupll, VUPLL, 0xE7D4) /* type = VRR_A VECTOR UNPACK LOGICAL LOW  */        \
@@ -1558,7 +1560,7 @@ void Simulator::EvalTableInit() {
   EvalTable[CZXT] = &Simulator::Evaluate_CZXT;
   EvalTable[CDZT] = &Simulator::Evaluate_CDZT;
   EvalTable[CXZT] = &Simulator::Evaluate_CXZT;
-}  // NOLINT
+}
 
 Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   static base::OnceType once = V8_ONCE_INIT;
@@ -2000,8 +2002,8 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           (redirection->type() == ExternalReference::BUILTIN_FP_INT_CALL);
 
       // Place the return address on the stack, making the call GC safe.
-      *reinterpret_cast<intptr_t*>(get_register(sp) +
-                                   kStackFrameRASlot * kSystemPointerSize) =
+      *bit_cast<intptr_t*>(get_register(sp) +
+                           kStackFrameRASlot * kSystemPointerSize) =
           get_register(r14);
 
       intptr_t external =
@@ -2141,7 +2143,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         SimulatorRuntimeDirectGetterCall target =
             reinterpret_cast<SimulatorRuntimeDirectGetterCall>(external);
         if (!ABI_PASSES_HANDLES_IN_REGS) {
-          arg[0] = *(reinterpret_cast<intptr_t*>(arg[0]));
+          arg[0] = bit_cast<intptr_t>(arg[0]);
         }
         target(arg[0], arg[1]);
       } else if (redirection->type() ==
@@ -2160,7 +2162,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         SimulatorRuntimeProfilingGetterCall target =
             reinterpret_cast<SimulatorRuntimeProfilingGetterCall>(external);
         if (!ABI_PASSES_HANDLES_IN_REGS) {
-          arg[0] = *(reinterpret_cast<intptr_t*>(arg[0]));
+          arg[0] = bit_cast<intptr_t>(arg[0]);
         }
         target(arg[0], arg[1], Redirection::ReverseRedirection(arg[2]));
       } else {
@@ -2268,7 +2270,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         //         }
         // #endif
       }
-      int64_t saved_lr = *reinterpret_cast<intptr_t*>(
+      int64_t saved_lr = *bit_cast<intptr_t*>(
           get_register(sp) + kStackFrameRASlot * kSystemPointerSize);
 #if (!V8_TARGET_ARCH_S390X && V8_HOST_ARCH_S390)
       // On zLinux-31, the saved_lr might be tagged with a high bit of 1.
@@ -2485,7 +2487,7 @@ void Simulator::CallInternal(Address entry, int reg_arg_count) {
   // Prepare to execute the code at entry
   if (ABI_USES_FUNCTION_DESCRIPTORS) {
     // entry is the function descriptor
-    set_pc(*(reinterpret_cast<intptr_t*>(entry)));
+    set_pc(*(bit_cast<intptr_t*>(entry)));
   } else {
     // entry is the instruction address
     set_pc(static_cast<intptr_t>(entry));
@@ -2607,7 +2609,7 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
 // Prepare to execute the code at entry
 #if ABI_USES_FUNCTION_DESCRIPTORS
   // entry is the function descriptor
-  set_pc(*(reinterpret_cast<intptr_t*>(entry)));
+  set_pc(*(bit_cast<intptr_t*>(entry)));
 #else
   // entry is the instruction address
   set_pc(static_cast<intptr_t>(entry));
@@ -3134,12 +3136,12 @@ EVALUATE(VLREP) {
   DCHECK_OPCODE(VLREP);
   DECODE_VRX_INSTRUCTION(r1, x2, b2, d2, m3);
   intptr_t addr = GET_ADDRESS(x2, b2, d2);
-#define CASE(i, type)                                                         \
-  case i: {                                                                   \
-    FOR_EACH_LANE(j, type) {                                                  \
-      set_simd_register_by_lane<type>(r1, j, *reinterpret_cast<type*>(addr)); \
-    }                                                                         \
-    break;                                                                    \
+#define CASE(i, type)                                                 \
+  case i: {                                                           \
+    FOR_EACH_LANE(j, type) {                                          \
+      set_simd_register_by_lane<type>(r1, j, *bit_cast<type*>(addr)); \
+    }                                                                 \
+    break;                                                            \
   }
   switch (m3) {
     CASE(0, uint8_t);
@@ -3273,8 +3275,10 @@ EVALUATE(VML) {
     j = lane_size;                                                         \
   }                                                                        \
   for (; j < kSimd128Size; i += 2, j += lane_size * 2, k++) {              \
-    input_type src0 = get_simd_register_by_lane<input_type>(r2, i);        \
-    input_type src1 = get_simd_register_by_lane<input_type>(r3, i);        \
+    result_type src0 = static_cast<result_type>(                           \
+        get_simd_register_by_lane<input_type>(r2, i));                     \
+    result_type src1 = static_cast<result_type>(                           \
+        get_simd_register_by_lane<input_type>(r3, i));                     \
     set_simd_register_by_lane<result_type>(r1, k, src0 * src1);            \
   }
 #define VECTOR_MULTIPLY_EVEN_ODD(r1, r2, r3, is_odd, sign)                    \
@@ -3394,6 +3398,53 @@ EVALUATE(VSUMG) {
   return length;
 }
 #undef CASE
+
+#define VECTOR_MERGE(type, is_low_side)                                      \
+  constexpr size_t index_limit = (kSimd128Size / sizeof(type)) / 2;          \
+  for (size_t i = 0, source_index = is_low_side ? i + index_limit : i;       \
+       i < index_limit; i++, source_index++) {                               \
+    set_simd_register_by_lane<type>(                                         \
+        r1, 2 * i, get_simd_register_by_lane<type>(r2, source_index));       \
+    set_simd_register_by_lane<type>(                                         \
+        r1, (2 * i) + 1, get_simd_register_by_lane<type>(r3, source_index)); \
+  }
+#define CASE(i, type, is_low_side)  \
+  case i: {                         \
+    VECTOR_MERGE(type, is_low_side) \
+  } break;
+EVALUATE(VMRL) {
+  DCHECK_OPCODE(VMRL);
+  DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
+  USE(m6);
+  USE(m5);
+  switch (m4) {
+    CASE(0, int8_t, true);
+    CASE(1, int16_t, true);
+    CASE(2, int32_t, true);
+    CASE(3, int64_t, true);
+    default:
+      UNREACHABLE();
+  }
+  return length;
+}
+
+EVALUATE(VMRH) {
+  DCHECK_OPCODE(VMRH);
+  DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
+  USE(m6);
+  USE(m5);
+  switch (m4) {
+    CASE(0, int8_t, false);
+    CASE(1, int16_t, false);
+    CASE(2, int32_t, false);
+    CASE(3, int64_t, false);
+    default:
+      UNREACHABLE();
+  }
+  return length;
+}
+#undef CASE
+#undef VECTOR_MERGE
 
 template <class S, class D>
 void VectorPack(Simulator* sim, int dst, int src1, int src2, bool saturate,
@@ -3901,8 +3952,7 @@ EVALUATE(VBPERM) {
   USE(m5);
   USE(m6);
   uint16_t result_bits = 0;
-  unsigned __int128 src_bits =
-      *(reinterpret_cast<__int128*>(get_simd_register(r2).int8));
+  unsigned __int128 src_bits = bit_cast<__int128>(get_simd_register(r2).int8);
   for (int i = 0; i < kSimd128Size; i++) {
     result_bits <<= 1;
     uint8_t selected_bit_index = get_simd_register_by_lane<uint8_t>(r3, i);
@@ -5443,7 +5493,7 @@ EVALUATE(LD) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t addr = b2_val + x2_val + d2_val;
-  int64_t dbl_val = *reinterpret_cast<int64_t*>(addr);
+  int64_t dbl_val = *bit_cast<int64_t*>(addr);
   set_fpr(r1, dbl_val);
   return length;
 }
@@ -5482,7 +5532,7 @@ EVALUATE(LE) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t addr = b2_val + x2_val + d2_val;
-  float float_val = *reinterpret_cast<float*>(addr);
+  float float_val = *bit_cast<float*>(addr);
   set_fpr(r1, float_val);
   return length;
 }
@@ -11157,7 +11207,7 @@ EVALUATE(LEY) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   intptr_t addr = x2_val + b2_val + d2;
-  float float_val = *reinterpret_cast<float*>(addr);
+  float float_val = *bit_cast<float*>(addr);
   set_fpr(r1, float_val);
   return length;
 }
@@ -11169,7 +11219,7 @@ EVALUATE(LDY) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   intptr_t addr = x2_val + b2_val + d2;
-  uint64_t dbl_val = *reinterpret_cast<uint64_t*>(addr);
+  uint64_t dbl_val = *bit_cast<uint64_t*>(addr);
   set_fpr(r1, dbl_val);
   return length;
 }

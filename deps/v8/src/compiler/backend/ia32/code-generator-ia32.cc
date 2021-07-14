@@ -320,18 +320,16 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   }
 
   void Generate() final {
-    if (mode_ > RecordWriteMode::kValueIsPointer) {
-      __ JumpIfSmi(value_, exit());
-    }
     __ CheckPageFlag(value_, scratch0_,
                      MemoryChunk::kPointersToHereAreInterestingMask, zero,
                      exit());
     __ lea(scratch1_, operand_);
     RememberedSetAction const remembered_set_action =
-        mode_ > RecordWriteMode::kValueIsMap ? EMIT_REMEMBERED_SET
-                                             : OMIT_REMEMBERED_SET;
-    SaveFPRegsMode const save_fp_mode =
-        frame()->DidAllocateDoubleRegisters() ? kSaveFPRegs : kDontSaveFPRegs;
+        mode_ > RecordWriteMode::kValueIsMap ? RememberedSetAction::kEmit
+                                             : RememberedSetAction::kOmit;
+    SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
+                                            ? SaveFPRegsMode::kSave
+                                            : SaveFPRegsMode::kIgnore;
     if (mode_ == RecordWriteMode::kValueIsEphemeronKey) {
       __ CallEphemeronKeyBarrier(object_, scratch1_, save_fp_mode);
 #if V8_ENABLE_WEBASSEMBLY
@@ -832,7 +830,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchSaveCallerRegisters: {
       fp_mode_ =
           static_cast<SaveFPRegsMode>(MiscField::decode(instr->opcode()));
-      DCHECK(fp_mode_ == kDontSaveFPRegs || fp_mode_ == kSaveFPRegs);
+      DCHECK(fp_mode_ == SaveFPRegsMode::kIgnore ||
+             fp_mode_ == SaveFPRegsMode::kSave);
       // kReturnRegister0 should have been saved before entering the stub.
       int bytes = __ PushCallerSaved(fp_mode_, kReturnRegister0);
       DCHECK(IsAligned(bytes, kSystemPointerSize));
@@ -845,7 +844,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchRestoreCallerRegisters: {
       DCHECK(fp_mode_ ==
              static_cast<SaveFPRegsMode>(MiscField::decode(instr->opcode())));
-      DCHECK(fp_mode_ == kDontSaveFPRegs || fp_mode_ == kSaveFPRegs);
+      DCHECK(fp_mode_ == SaveFPRegsMode::kIgnore ||
+             fp_mode_ == SaveFPRegsMode::kSave);
       // Don't overwrite the returned value.
       int bytes = __ PopCallerSaved(fp_mode_, kReturnRegister0);
       frame_access_state()->IncreaseSPDelta(-(bytes / kSystemPointerSize));
@@ -1004,6 +1004,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                                                    scratch0, scratch1, mode,
                                                    DetermineStubCallMode());
       __ mov(operand, value);
+      if (mode > RecordWriteMode::kValueIsPointer) {
+        __ JumpIfSmi(value, ool->exit());
+      }
       __ CheckPageFlag(object, scratch0,
                        MemoryChunk::kPointersFromHereAreInterestingMask,
                        not_zero, ool->entry());
@@ -1866,77 +1869,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kIA32F64x2Splat: {
-      XMMRegister dst = i.OutputDoubleRegister();
-      XMMRegister src = i.InputDoubleRegister(0);
-      if (CpuFeatures::IsSupported(AVX)) {
-        CpuFeatureScope avx_scope(tasm(), AVX);
-        __ vshufpd(i.OutputSimd128Register(), src, src, 0x0);
-      } else {
-        DCHECK_EQ(dst, src);
-        __ shufpd(dst, src, 0x0);
-      }
+      __ Movddup(i.OutputSimd128Register(), i.InputDoubleRegister(0));
       break;
     }
-    case kSSEF64x2ExtractLane: {
-      DCHECK_EQ(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
-      XMMRegister dst = i.OutputDoubleRegister();
-      int8_t lane = i.InputInt8(1);
-      if (lane != 0) {
-        DCHECK_EQ(lane, 1);
-        __ shufpd(dst, dst, lane);
-      }
+    case kF64x2ExtractLane: {
+      __ F64x2ExtractLane(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                          i.InputUint8(1));
       break;
     }
-    case kAVXF64x2ExtractLane: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      XMMRegister dst = i.OutputDoubleRegister();
-      XMMRegister src = i.InputSimd128Register(0);
-      int8_t lane = i.InputInt8(1);
-      if (lane == 0) {
-        if (dst != src) __ vmovapd(dst, src);
-      } else {
-        DCHECK_EQ(lane, 1);
-        __ vshufpd(dst, src, src, lane);
-      }
-      break;
-    }
-    case kSSEF64x2ReplaceLane: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      CpuFeatureScope sse_scope(tasm(), SSE4_1);
-      XMMRegister dst = i.OutputSimd128Register();
-      int8_t lane = i.InputInt8(1);
-      DoubleRegister rep = i.InputDoubleRegister(2);
-
-      // insertps takes a mask which contains (high to low):
-      // - 2 bit specifying source float element to copy
-      // - 2 bit specifying destination float element to write to
-      // - 4 bits specifying which elements of the destination to zero
-      DCHECK_LT(lane, 2);
-      if (lane == 0) {
-        __ insertps(dst, rep, 0b00000000);
-        __ insertps(dst, rep, 0b01010000);
-      } else {
-        __ insertps(dst, rep, 0b00100000);
-        __ insertps(dst, rep, 0b01110000);
-      }
-      break;
-    }
-    case kAVXF64x2ReplaceLane: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(0);
-      int8_t lane = i.InputInt8(1);
-      DoubleRegister rep = i.InputDoubleRegister(2);
-      DCHECK_NE(dst, rep);
-
-      DCHECK_LT(lane, 2);
-      if (lane == 0) {
-        __ vinsertps(dst, src, rep, 0b00000000);
-        __ vinsertps(dst, dst, rep, 0b01010000);
-      } else {
-        __ vinsertps(dst, src, rep, 0b00100000);
-        __ vinsertps(dst, dst, rep, 0b01110000);
-      }
+    case kF64x2ReplaceLane: {
+      __ F64x2ReplaceLane(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                          i.InputDoubleRegister(2), i.InputInt8(1));
       break;
     }
     case kIA32F64x2Sqrt: {
@@ -1964,44 +1907,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kIA32F64x2Min: {
-      Operand src1 = i.InputOperand(1);
-      XMMRegister dst = i.OutputSimd128Register(),
-                  src = i.InputSimd128Register(0),
-                  tmp = i.TempSimd128Register(0);
-      // The minpd instruction doesn't propagate NaNs and +0's in its first
-      // operand. Perform minpd in both orders, merge the resuls, and adjust.
-      __ Movupd(tmp, src1);
-      __ Minpd(tmp, tmp, src);
-      __ Minpd(dst, src, src1);
-      // propagate -0's and NaNs, which may be non-canonical.
-      __ Orpd(tmp, dst);
-      // Canonicalize NaNs by quieting and clearing the payload.
-      __ Cmpunordpd(dst, dst, tmp);
-      __ Orpd(tmp, dst);
-      __ Psrlq(dst, 13);
-      __ Andnpd(dst, tmp);
+      __ F64x2Min(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1), kScratchDoubleReg);
       break;
     }
     case kIA32F64x2Max: {
-      Operand src1 = i.InputOperand(1);
-      XMMRegister dst = i.OutputSimd128Register(),
-                  src = i.InputSimd128Register(0),
-                  tmp = i.TempSimd128Register(0);
-      // The maxpd instruction doesn't propagate NaNs and +0's in its first
-      // operand. Perform maxpd in both orders, merge the resuls, and adjust.
-      __ Movupd(tmp, src1);
-      __ Maxpd(tmp, tmp, src);
-      __ Maxpd(dst, src, src1);
-      // Find discrepancies.
-      __ Xorpd(dst, tmp);
-      // Propagate NaNs, which may be non-canonical.
-      __ Orpd(tmp, dst);
-      // Propagate sign discrepancy and (subtle) quiet NaNs.
-      __ Subpd(tmp, tmp, dst);
-      // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
-      __ Cmpunordpd(dst, dst, tmp);
-      __ Psrlq(dst, 13);
-      __ Andnpd(dst, tmp);
+      __ F64x2Max(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1), kScratchDoubleReg);
       break;
     }
     case kIA32F64x2Eq: {
@@ -2158,10 +2070,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kIA32I64x2Neg: {
-      XMMRegister dst = i.OutputSimd128Register();
-      Operand src = i.InputOperand(0);
-      __ Pxor(dst, dst);
-      __ Psubq(dst, src);
+      __ I64x2Neg(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  kScratchDoubleReg);
       break;
     }
     case kIA32I64x2Shl: {
@@ -2181,7 +2091,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
       // Set up a mask [0x80000000,0,0x80000000,0].
       __ Pcmpeqb(tmp2, tmp2);
-      __ Psllq(tmp2, tmp2, 63);
+      __ Psllq(tmp2, tmp2, byte{63});
 
       __ Psrlq(tmp2, tmp2, tmp);
       __ Psrlq(dst, src, tmp);
@@ -2210,15 +2120,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Movaps(tmp2, right);
 
       // Multiply high dword of each qword of left with right.
-      __ Psrlq(tmp1, 32);
+      __ Psrlq(tmp1, byte{32});
       __ Pmuludq(tmp1, tmp1, right);
 
       // Multiply high dword of each qword of right with left.
-      __ Psrlq(tmp2, 32);
+      __ Psrlq(tmp2, byte{32});
       __ Pmuludq(tmp2, tmp2, left);
 
       __ Paddq(tmp2, tmp2, tmp1);
-      __ Psllq(tmp2, tmp2, 32);
+      __ Psllq(tmp2, tmp2, byte{32});
 
       __ Pmuludq(dst, left, right);
       __ Paddq(dst, dst, tmp2);
@@ -2302,38 +2212,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kIA32F32x4Splat: {
-      XMMRegister dst = i.OutputDoubleRegister();
-      XMMRegister src = i.InputDoubleRegister(0);
-      if (CpuFeatures::IsSupported(AVX)) {
-        CpuFeatureScope avx_scope(tasm(), AVX);
-        __ vshufps(i.OutputSimd128Register(), src, src, 0x0);
-      } else {
-        DCHECK_EQ(dst, src);
-        __ shufps(dst, src, 0x0);
-      }
+      __ F32x4Splat(i.OutputSimd128Register(), i.InputDoubleRegister(0));
       break;
     }
     case kIA32F32x4ExtractLane: {
-      XMMRegister dst = i.OutputFloatRegister();
-      XMMRegister src = i.InputSimd128Register(0);
-      uint8_t lane = i.InputUint8(1);
-      DCHECK_LT(lane, 4);
-      // These instructions are shorter than insertps, but will leave junk in
-      // the top lanes of dst.
-      if (lane == 0) {
-        if (dst != src) {
-          __ Movaps(dst, src);
-        }
-      } else if (lane == 1) {
-        __ Movshdup(dst, src);
-      } else if (lane == 2 && dst == src) {
-        // Check dst == src to avoid false dependency on dst.
-        __ Movhlps(dst, src);
-      } else if (dst == src) {
-        __ Shufps(dst, src, src, lane);
-      } else {
-        __ Pshufd(dst, src, lane);
-      }
+      __ F32x4ExtractLane(i.OutputFloatRegister(), i.InputSimd128Register(0),
+                          i.InputUint8(1));
       break;
     }
     case kIA32Insertps: {
@@ -2357,10 +2241,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(0);
       __ Pxor(kScratchDoubleReg, kScratchDoubleReg);      // zeros
-      __ Pblendw(kScratchDoubleReg, src, 0x55);           // get lo 16 bits
+      __ Pblendw(kScratchDoubleReg, src, uint8_t{0x55});  // get lo 16 bits
       __ Psubd(dst, src, kScratchDoubleReg);              // get hi 16 bits
       __ Cvtdq2ps(kScratchDoubleReg, kScratchDoubleReg);  // convert lo exactly
-      __ Psrld(dst, dst, 1);    // divide by 2 to get in unsigned range
+      __ Psrld(dst, dst, byte{1});  // divide by 2 to get in unsigned range
       __ Cvtdq2ps(dst, dst);    // convert hi exactly
       __ Addps(dst, dst, dst);  // double hi, exactly
       __ Addps(dst, dst, kScratchDoubleReg);  // add hi and lo, may round.
@@ -2371,11 +2255,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister src = i.InputSimd128Register(0);
       if (dst == src) {
         __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-        __ Psrld(kScratchDoubleReg, kScratchDoubleReg, 1);
+        __ Psrld(kScratchDoubleReg, kScratchDoubleReg, byte{1});
         __ Andps(dst, kScratchDoubleReg);
       } else {
         __ Pcmpeqd(dst, dst);
-        __ Psrld(dst, dst, 1);
+        __ Psrld(dst, dst, byte{1});
         __ Andps(dst, src);
       }
       break;
@@ -2385,11 +2269,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister src = i.InputSimd128Register(0);
       if (dst == src) {
         __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-        __ Pslld(kScratchDoubleReg, kScratchDoubleReg, 31);
+        __ Pslld(kScratchDoubleReg, kScratchDoubleReg, byte{31});
         __ Xorps(dst, kScratchDoubleReg);
       } else {
         __ Pcmpeqd(dst, dst);
-        __ Pslld(dst, dst, 31);
+        __ Pslld(dst, dst, byte{31});
         __ Xorps(dst, src);
       }
       break;
@@ -2580,7 +2464,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Cvttps2dq(dst, dst);
       // Set top bit if >=0 is now < 0
       __ Pand(kScratchDoubleReg, dst);
-      __ Psrad(kScratchDoubleReg, kScratchDoubleReg, 31);
+      __ Psrad(kScratchDoubleReg, kScratchDoubleReg, byte{31});
       // Set positive overflow lanes to 0x7FFFFFFF
       __ Pxor(dst, kScratchDoubleReg);
       break;
@@ -3564,15 +3448,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kIA32S128Not: {
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(0);
-      if (dst == src) {
-        __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-        __ Pxor(dst, kScratchDoubleReg);
-      } else {
-        __ Pcmpeqd(dst, dst);
-        __ Pxor(dst, src);
-      }
+      __ S128Not(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 kScratchDoubleReg);
       break;
     }
     case kSSES128And: {
@@ -3739,7 +3616,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_NE(0xe4, shuffle);  // A simple blend should be handled below.
       __ Pshufd(kScratchDoubleReg, i.InputOperand(1), shuffle);
       __ Pshufd(i.OutputSimd128Register(), i.InputOperand(0), shuffle);
-      __ Pblendw(i.OutputSimd128Register(), kScratchDoubleReg, i.InputInt8(3));
+      __ Pblendw(i.OutputSimd128Register(), kScratchDoubleReg, i.InputUint8(3));
       break;
     }
     case kIA32S16x8Blend:
@@ -3757,7 +3634,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Pshufhw(kScratchDoubleReg, kScratchDoubleReg, i.InputUint8(3));
       __ Pshuflw(dst, i.InputOperand(0), i.InputUint8(2));
       __ Pshufhw(dst, dst, i.InputUint8(3));
-      __ Pblendw(dst, kScratchDoubleReg, i.InputInt8(4));
+      __ Pblendw(dst, kScratchDoubleReg, i.InputUint8(4));
       break;
     }
     case kIA32S8x16Alignr:
@@ -4250,7 +4127,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
   }
   return kSuccess;
-}  // NOLINT(readability/fn_size)
+}
 
 static Condition FlagsConditionToCondition(FlagsCondition condition) {
   switch (condition) {
@@ -4649,7 +4526,7 @@ void CodeGenerator::AssembleConstructFrame() {
     // frame is still on the stack. Optimized code uses OSR values directly from
     // the unoptimized frame. Thus, all that needs to be done is to allocate the
     // remaining stack slots.
-    if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
+    __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
     required_slots -= osr_helper()->UnoptimizedFrameSlots();
   }
@@ -4738,7 +4615,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   if (parameter_slots != 0) {
     if (additional_pop_count->IsImmediate()) {
       DCHECK_EQ(g.ToConstant(additional_pop_count).ToInt32(), 0);
-    } else if (__ emit_debug_code()) {
+    } else if (FLAG_debug_code) {
       __ cmp(g.ToRegister(additional_pop_count), Immediate(0));
       __ Assert(equal, AbortReason::kUnexpectedAdditionalPopValue);
     }

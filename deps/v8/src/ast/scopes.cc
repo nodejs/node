@@ -623,9 +623,9 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
 }
 
 bool DeclarationScope::Analyze(ParseInfo* info) {
-  RuntimeCallTimerScope runtimeTimer(
-      info->runtime_call_stats(), RuntimeCallCounterId::kCompileScopeAnalysis,
-      RuntimeCallStats::kThreadSpecific);
+  RCS_SCOPE(info->runtime_call_stats(),
+            RuntimeCallCounterId::kCompileScopeAnalysis,
+            RuntimeCallStats::kThreadSpecific);
   DCHECK_NOT_NULL(info->literal());
   DeclarationScope* scope = info->literal()->scope();
 
@@ -2532,8 +2532,8 @@ void Scope::AllocateVariablesRecursively() {
   });
 }
 
-template <typename LocalIsolate>
-void Scope::AllocateScopeInfosRecursively(LocalIsolate* isolate,
+template <typename IsolateT>
+void Scope::AllocateScopeInfosRecursively(IsolateT* isolate,
                                           MaybeHandle<ScopeInfo> outer_scope) {
   DCHECK(scope_info_.is_null());
   MaybeHandle<ScopeInfo> next_outer_scope = outer_scope;
@@ -2603,9 +2603,8 @@ void DeclarationScope::RecordNeedsPrivateNameContextChainRecalc() {
 }
 
 // static
-template <typename LocalIsolate>
-void DeclarationScope::AllocateScopeInfos(ParseInfo* info,
-                                          LocalIsolate* isolate) {
+template <typename IsolateT>
+void DeclarationScope::AllocateScopeInfos(ParseInfo* info, IsolateT* isolate) {
   DeclarationScope* scope = info->literal()->scope();
 
   // No one else should have allocated a scope info for this scope yet.

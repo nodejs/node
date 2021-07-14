@@ -114,6 +114,18 @@ TEST_F(TestWithHeapWithCustomSpaces, AllocateOnCustomSpaces) {
             NormalPage::FromPayload(regular)->space()->index());
 }
 
+TEST_F(TestWithHeapWithCustomSpaces, DifferentSpacesUsesDifferentPages) {
+  auto* regular =
+      MakeGarbageCollected<RegularGCed>(GetHeap()->GetAllocationHandle());
+  auto* custom1 =
+      MakeGarbageCollected<CustomGCed1>(GetHeap()->GetAllocationHandle());
+  auto* custom2 =
+      MakeGarbageCollected<CustomGCed2>(GetHeap()->GetAllocationHandle());
+  EXPECT_NE(NormalPage::FromPayload(regular), NormalPage::FromPayload(custom1));
+  EXPECT_NE(NormalPage::FromPayload(regular), NormalPage::FromPayload(custom2));
+  EXPECT_NE(NormalPage::FromPayload(custom1), NormalPage::FromPayload(custom2));
+}
+
 TEST_F(TestWithHeapWithCustomSpaces,
        AllocateOnCustomSpacesSpecifiedThroughBase) {
   auto* regular =

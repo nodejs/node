@@ -54,6 +54,7 @@ static bool IsPropertyNameFeedback(MaybeObject feedback) {
   Symbol symbol = Symbol::cast(heap_object);
   ReadOnlyRoots roots = symbol.GetReadOnlyRoots();
   return symbol != roots.uninitialized_symbol() &&
+         symbol != roots.mega_dom_symbol() &&
          symbol != roots.megamorphic_symbol();
 }
 
@@ -75,8 +76,8 @@ void FeedbackMetadata::SetKind(FeedbackSlot slot, FeedbackSlotKind kind) {
 }
 
 // static
-template <typename LocalIsolate>
-Handle<FeedbackMetadata> FeedbackMetadata::New(LocalIsolate* isolate,
+template <typename IsolateT>
+Handle<FeedbackMetadata> FeedbackMetadata::New(IsolateT* isolate,
                                                const FeedbackVectorSpec* spec) {
   auto* factory = isolate->factory();
 
@@ -253,8 +254,6 @@ Handle<FeedbackVector> FeedbackVector::New(
   DCHECK_EQ(vector->optimization_marker(),
             FLAG_log_function_events ? OptimizationMarker::kLogFirstExecution
                                      : OptimizationMarker::kNone);
-  // TODO(mythria): This might change if NCI code is installed on feedback
-  // vector. Update this accordingly.
   DCHECK_EQ(vector->optimization_tier(), OptimizationTier::kNone);
   DCHECK_EQ(vector->invocation_count(), 0);
   DCHECK_EQ(vector->profiler_ticks(), 0);
@@ -676,6 +675,13 @@ bool FeedbackNexus::ConfigureMegamorphic() {
   return false;
 }
 
+void FeedbackNexus::ConfigureMegaDOM(const MaybeObjectHandle& handler) {
+  DisallowGarbageCollection no_gc;
+  MaybeObject sentinel = MegaDOMSentinel();
+
+  SetFeedback(sentinel, SKIP_WRITE_BARRIER, *handler, UPDATE_WRITE_BARRIER);
+}
+
 bool FeedbackNexus::ConfigureMegamorphic(IcCheckType property_type) {
   DisallowGarbageCollection no_gc;
   MaybeObject sentinel = MegamorphicSentinel();
@@ -736,6 +742,10 @@ InlineCacheState FeedbackNexus::ic_state() const {
       }
       if (feedback == MegamorphicSentinel()) {
         return MEGAMORPHIC;
+      }
+      if (feedback == MegaDOMSentinel()) {
+        DCHECK(IsLoadICKind(kind()));
+        return MEGADOM;
       }
       if (feedback->IsWeakOrCleared()) {
         // Don't check if the map is cleared.
@@ -997,6 +1007,15 @@ SpeculationMode FeedbackNexus::GetSpeculationMode() {
   CHECK(call_count.IsSmi());
   uint32_t value = static_cast<uint32_t>(Smi::ToInt(call_count));
   return SpeculationModeField::decode(value);
+}
+
+CallFeedbackContent FeedbackNexus::GetCallFeedbackContent() {
+  DCHECK(IsCallICKind(kind()));
+
+  Object call_count = GetFeedbackExtra()->cast<Object>();
+  CHECK(call_count.IsSmi());
+  uint32_t value = static_cast<uint32_t>(Smi::ToInt(call_count));
+  return CallFeedbackContentField::decode(value);
 }
 
 float FeedbackNexus::ComputeCallFrequency() {
@@ -1405,52 +1424,6 @@ std::vector<Handle<String>> FeedbackNexus::GetTypesForSourcePositions(
   }
 
   return types_for_position;
-}
-
-namespace {
-
-Handle<JSObject> ConvertToJSObject(Isolate* isolate,
-                                   Handle<SimpleNumberDictionary> feedback) {
-  Handle<JSObject> type_profile =
-      isolate->factory()->NewJSObject(isolate->object_function());
-
-  for (int index = SimpleNumberDictionary::kElementsStartIndex;
-       index < feedback->length();
-       index += SimpleNumberDictionary::kEntrySize) {
-    int key_index = index + SimpleNumberDictionary::kEntryKeyIndex;
-    Object key = feedback->get(key_index);
-    if (key.IsSmi()) {
-      int value_index = index + SimpleNumberDictionary::kEntryValueIndex;
-
-      Handle<ArrayList> position_specific_types(
-          ArrayList::cast(feedback->get(value_index)), isolate);
-
-      int position = Smi::ToInt(key);
-      JSObject::AddDataElement(
-          type_profile, position,
-          isolate->factory()->NewJSArrayWithElements(
-              ArrayList::Elements(isolate, position_specific_types)),
-          PropertyAttributes::NONE);
-    }
-  }
-  return type_profile;
-}
-}  // namespace
-
-JSObject FeedbackNexus::GetTypeProfile() const {
-  DCHECK(IsTypeProfileKind(kind()));
-  Isolate* isolate = GetIsolate();
-
-  MaybeObject const feedback = GetFeedback();
-
-  if (feedback == UninitializedSentinel()) {
-    return *isolate->factory()->NewJSObject(isolate->object_function());
-  }
-
-  return *ConvertToJSObject(isolate,
-                            handle(SimpleNumberDictionary::cast(
-                                       feedback->GetHeapObjectAssumeStrong()),
-                                   isolate));
 }
 
 void FeedbackNexus::ResetTypeProfile() {

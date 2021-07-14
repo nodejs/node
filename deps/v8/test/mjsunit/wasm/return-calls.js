@@ -140,7 +140,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   // Arbitrary location in the table.
   const tableIndex = 3;
 
-  builder.addElementSegment(0, tableIndex,false,[pick]);
+  builder.addActiveElementSegment(0, WasmInitExpr.I32Const(tableIndex),[pick]);
 
   let main = builder.addFunction("main", kSig_i_iii)
         .addBody([

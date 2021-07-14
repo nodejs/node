@@ -151,6 +151,27 @@ JSRegExp::Flags JSRegExp::FlagsFromString(Isolate* isolate,
 }
 
 // static
+Handle<String> JSRegExp::StringFromFlags(Isolate* isolate,
+                                         JSRegExp::Flags flags) {
+  // Ensure that this function is up-to-date with the supported flag options.
+  constexpr size_t kFlagCount = JSRegExp::kFlagCount;
+  STATIC_ASSERT(kFlagCount == 8);
+
+  // Translate to the lexicographically smaller string.
+  int cursor = 0;
+  char buffer[kFlagCount] = {'\0'};
+  if (flags & JSRegExp::kHasIndices) buffer[cursor++] = 'd';
+  if (flags & JSRegExp::kGlobal) buffer[cursor++] = 'g';
+  if (flags & JSRegExp::kIgnoreCase) buffer[cursor++] = 'i';
+  if (flags & JSRegExp::kLinear) buffer[cursor++] = 'l';
+  if (flags & JSRegExp::kMultiline) buffer[cursor++] = 'm';
+  if (flags & JSRegExp::kDotAll) buffer[cursor++] = 's';
+  if (flags & JSRegExp::kUnicode) buffer[cursor++] = 'u';
+  if (flags & JSRegExp::kSticky) buffer[cursor++] = 'y';
+  return isolate->factory()->NewStringFromAsciiChecked(buffer);
+}
+
+// static
 MaybeHandle<JSRegExp> JSRegExp::New(Isolate* isolate, Handle<String> pattern,
                                     Flags flags, uint32_t backtrack_limit) {
   Handle<JSFunction> constructor = isolate->regexp_function();

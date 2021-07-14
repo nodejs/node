@@ -36,7 +36,7 @@ class EvacuationAllocator {
     // Give back remaining LAB space if this EvacuationAllocator's new space LAB
     // sits right next to new space allocation top.
     const LinearAllocationArea info = new_space_lab_.CloseAndMakeIterable();
-    new_space_->MaybeFreeUnusedLab(info);
+    if (new_space_) new_space_->MaybeFreeUnusedLab(info);
   }
 
   inline AllocationResult Allocate(AllocationSpace space, int object_size,

@@ -195,9 +195,10 @@ void Heap::FinalizePartialMap(Map map) {
   map.set_constructor_or_back_pointer(roots.null_value());
 }
 
-AllocationResult Heap::Allocate(Map map, AllocationType allocation_type) {
-  DCHECK(map.instance_type() != MAP_TYPE);
-  int size = map.instance_size();
+AllocationResult Heap::Allocate(Handle<Map> map,
+                                AllocationType allocation_type) {
+  DCHECK(map->instance_type() != MAP_TYPE);
+  int size = map->instance_size();
   HeapObject result;
   AllocationResult allocation = AllocateRaw(size, allocation_type);
   if (!allocation.To(&result)) return allocation;
@@ -205,7 +206,7 @@ AllocationResult Heap::Allocate(Map map, AllocationType allocation_type) {
   WriteBarrierMode write_barrier_mode =
       allocation_type == AllocationType::kYoung ? SKIP_WRITE_BARRIER
                                                 : UPDATE_WRITE_BARRIER;
-  result.set_map_after_allocation(map, write_barrier_mode);
+  result.set_map_after_allocation(*map, write_barrier_mode);
   return result;
 }
 
@@ -281,7 +282,7 @@ bool Heap::CreateInitialMaps() {
 
   {
     AllocationResult allocation =
-        Allocate(roots.null_map(), AllocationType::kReadOnly);
+        Allocate(roots.null_map_handle(), AllocationType::kReadOnly);
     if (!allocation.To(&obj)) return false;
   }
   set_null_value(Oddball::cast(obj));
@@ -289,7 +290,7 @@ bool Heap::CreateInitialMaps() {
 
   {
     AllocationResult allocation =
-        Allocate(roots.undefined_map(), AllocationType::kReadOnly);
+        Allocate(roots.undefined_map_handle(), AllocationType::kReadOnly);
     if (!allocation.To(&obj)) return false;
   }
   set_undefined_value(Oddball::cast(obj));
@@ -297,7 +298,7 @@ bool Heap::CreateInitialMaps() {
   DCHECK(!InYoungGeneration(roots.undefined_value()));
   {
     AllocationResult allocation =
-        Allocate(roots.the_hole_map(), AllocationType::kReadOnly);
+        Allocate(roots.the_hole_map_handle(), AllocationType::kReadOnly);
     if (!allocation.To(&obj)) return false;
   }
   set_the_hole_value(Oddball::cast(obj));
@@ -317,7 +318,7 @@ bool Heap::CreateInitialMaps() {
   // Allocate the empty enum cache.
   {
     AllocationResult allocation =
-        Allocate(roots.enum_cache_map(), AllocationType::kReadOnly);
+        Allocate(roots.enum_cache_map_handle(), AllocationType::kReadOnly);
     if (!allocation.To(&obj)) return false;
   }
   set_empty_enum_cache(EnumCache::cast(obj));
@@ -381,6 +382,7 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_PRIMITIVE_MAP(SYMBOL_TYPE, Symbol::kSize, symbol,
                            Context::SYMBOL_FUNCTION_INDEX)
     ALLOCATE_MAP(FOREIGN_TYPE, Foreign::kSize, foreign)
+    ALLOCATE_MAP(MEGA_DOM_HANDLER_TYPE, MegaDomHandler::kSize, mega_dom_handler)
 
     ALLOCATE_PRIMITIVE_MAP(ODDBALL_TYPE, Oddball::kSize, boolean,
                            Context::BOOLEAN_FUNCTION_INDEX);
@@ -500,6 +502,10 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_MAP(CODE_DATA_CONTAINER_TYPE, CodeDataContainer::kSize,
                  code_data_container)
 
+    IF_WASM(ALLOCATE_MAP, WASM_EXPORTED_FUNCTION_DATA_TYPE,
+            WasmExportedFunctionData::kSize, wasm_exported_function_data)
+    IF_WASM(ALLOCATE_MAP, WASM_JS_FUNCTION_DATA_TYPE, WasmJSFunctionData::kSize,
+            wasm_js_function_data)
     IF_WASM(ALLOCATE_MAP, WASM_TYPE_INFO_TYPE, WasmTypeInfo::kSize,
             wasm_type_info)
 
@@ -550,8 +556,9 @@ bool Heap::CreateInitialMaps() {
 
   {
     // Empty array boilerplate description
-    AllocationResult alloc = Allocate(roots.array_boilerplate_description_map(),
-                                      AllocationType::kReadOnly);
+    AllocationResult alloc =
+        Allocate(roots.array_boilerplate_description_map_handle(),
+                 AllocationType::kReadOnly);
     if (!alloc.To(&obj)) return false;
 
     ArrayBoilerplateDescription::cast(obj).set_constant_elements(
@@ -564,7 +571,7 @@ bool Heap::CreateInitialMaps() {
 
   {
     AllocationResult allocation =
-        Allocate(roots.boolean_map(), AllocationType::kReadOnly);
+        Allocate(roots.boolean_map_handle(), AllocationType::kReadOnly);
     if (!allocation.To(&obj)) return false;
   }
   set_true_value(Oddball::cast(obj));
@@ -572,7 +579,7 @@ bool Heap::CreateInitialMaps() {
 
   {
     AllocationResult allocation =
-        Allocate(roots.boolean_map(), AllocationType::kReadOnly);
+        Allocate(roots.boolean_map_handle(), AllocationType::kReadOnly);
     if (!allocation.To(&obj)) return false;
   }
   set_false_value(Oddball::cast(obj));
@@ -864,6 +871,7 @@ void Heap::CreateInitialObjects() {
   set_is_concat_spreadable_protector(*factory->NewProtector());
   set_map_iterator_protector(*factory->NewProtector());
   set_no_elements_protector(*factory->NewProtector());
+  set_mega_dom_protector(*factory->NewProtector());
   set_promise_hook_protector(*factory->NewProtector());
   set_promise_resolve_protector(*factory->NewProtector());
   set_promise_species_protector(*factory->NewProtector());

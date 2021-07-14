@@ -65,8 +65,8 @@ class AstRawString final : public ZoneObject {
   V8_EXPORT_PRIVATE bool IsOneByteEqualTo(const char* data) const;
   uint16_t FirstCharacter() const;
 
-  template <typename LocalIsolate>
-  void Internalize(LocalIsolate* isolate);
+  template <typename IsolateT>
+  void Internalize(IsolateT* isolate);
 
   // Access the physical representation:
   bool is_one_byte() const { return is_one_byte_; }
@@ -161,17 +161,17 @@ class AstConsString final : public ZoneObject {
     return segment_.string == nullptr;
   }
 
-  template <typename LocalIsolate>
-  Handle<String> GetString(LocalIsolate* isolate) {
+  template <typename IsolateT>
+  Handle<String> GetString(IsolateT* isolate) {
     if (string_.is_null()) {
       string_ = Allocate(isolate);
     }
     return string_;
   }
 
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  Handle<String> AllocateFlat(LocalIsolate* isolate) const;
+  Handle<String> AllocateFlat(IsolateT* isolate) const;
 
   std::forward_list<const AstRawString*> ToRawStrings() const;
 
@@ -181,9 +181,9 @@ class AstConsString final : public ZoneObject {
 
   AstConsString() : string_(), segment_({nullptr, nullptr}) {}
 
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  Handle<String> Allocate(LocalIsolate* isolate) const;
+  Handle<String> Allocate(IsolateT* isolate) const;
 
   Handle<String> string_;
 
@@ -354,8 +354,8 @@ class AstValueFactory {
   // Internalize all the strings in the factory, and prevent any more from being
   // allocated. Multiple calls to Internalize are allowed, for simplicity, where
   // subsequent calls are a no-op.
-  template <typename LocalIsolate>
-  void Internalize(LocalIsolate* isolate);
+  template <typename IsolateT>
+  void Internalize(IsolateT* isolate);
 
 #define F(name, str)                           \
   const AstRawString* name##_string() const {  \

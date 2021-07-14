@@ -209,6 +209,7 @@ bool Runtime::IsAllowListedForFuzzing(FunctionId id) {
     case Runtime::kOptimizeFunctionOnNextCall:
     case Runtime::kOptimizeOsr:
     case Runtime::kPrepareFunctionForOptimization:
+    case Runtime::kPretenureAllocationSite:
     case Runtime::kSetAllocationTimeout:
     case Runtime::kSimulateNewspaceFull:
       return true;
@@ -218,8 +219,10 @@ bool Runtime::IsAllowListedForFuzzing(FunctionId id) {
     case Runtime::kGetOptimizationStatus:
     case Runtime::kHeapObjectVerify:
     case Runtime::kIsBeingInterpreted:
+    case Runtime::kVerifyType:
       return !FLAG_allow_natives_for_differential_fuzzing;
     case Runtime::kCompileBaseline:
+    case Runtime::kBaselineOsr:
       return FLAG_sparkplug;
     default:
       return false;

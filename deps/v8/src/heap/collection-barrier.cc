@@ -22,8 +22,7 @@ bool CollectionBarrier::CollectionRequested() {
 }
 
 LocalHeap::ThreadState CollectionBarrier::main_thread_state_relaxed() {
-  LocalHeap* main_thread_local_heap =
-      heap_->isolate()->main_thread_local_heap();
+  LocalHeap* main_thread_local_heap = heap_->main_thread_local_heap();
   return main_thread_local_heap->state_relaxed();
 }
 

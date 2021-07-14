@@ -26,12 +26,19 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Resources: test/mjsunit/tools/tickprocessor-test-func-info.log
+// Resources: test/mjsunit/tools/tickprocessor-test-func-info.log.symbols.json
+// Resources: test/mjsunit/tools/tickprocessor-test-large.default
+// Resources: test/mjsunit/tools/tickprocessor-test-large.log
+// Resources: test/mjsunit/tools/tickprocessor-test-large.log.symbols.json
 // Resources: test/mjsunit/tools/tickprocessor-test.default
 // Resources: test/mjsunit/tools/tickprocessor-test.func-info
 // Resources: test/mjsunit/tools/tickprocessor-test.gc-state
 // Resources: test/mjsunit/tools/tickprocessor-test.ignore-unknown
 // Resources: test/mjsunit/tools/tickprocessor-test.log
+// Resources: test/mjsunit/tools/tickprocessor-test.log.symbols.json
 // Resources: test/mjsunit/tools/tickprocessor-test.only-summary
+// Resources: test/mjsunit/tools/tickprocessor-test.separate-baseline-handlers
+// Resources: test/mjsunit/tools/tickprocessor-test.separate-bytecodes
 // Resources: test/mjsunit/tools/tickprocessor-test.separate-ic
 // Env: TEST_FILE_NAME
 
@@ -353,87 +360,83 @@ import {
 })();
 
 
-function CppEntriesProviderMock() {
-};
-
-
-CppEntriesProviderMock.prototype.parseVmSymbols = function(
-    name, startAddr, endAddr, slideAddr, symbolAdder) {
-  var symbols = {
-    'shell':
-        [['v8::internal::JSObject::LookupOwnRealNamedProperty(v8::internal::String*, v8::internal::LookupResult*)', 0x080f8800, 0x080f8d90],
-         ['v8::internal::HashTable<v8::internal::StringDictionaryShape, v8::internal::String*>::FindEntry(v8::internal::String*)', 0x080f8210, 0x080f8800],
-         ['v8::internal::Runtime_Math_exp(v8::internal::Arguments)', 0x08123b20, 0x08123b80]],
-    '/lib32/libm-2.7.so':
-        [['exp', startAddr + 0x00009e80, startAddr + 0x00009e80 + 0xa3],
-         ['fegetexcept', startAddr + 0x000061e0, startAddr + 0x000061e0 + 0x15]],
-    'ffffe000-fffff000': []};
-  assertTrue(name in symbols);
-  var syms = symbols[name];
-  for (var i = 0; i < syms.length; ++i) {
-    symbolAdder.apply(null, syms[i]);
+class CppEntriesProviderMock {
+  constructor(filename) {
+    this.isLoaded = false;
+    this.symbols = JSON.parse(readFile(filename));
   }
-};
-
-
-function PrintMonitor(outputOrFileName) {
-  this.expectedOut = outputOrFileName;
-  this.outputFile = undefined;
-  if (typeof outputOrFileName == 'string') {
-    this.expectedOut = this.loadExpectedOutput(outputOrFileName)
-    this.outputFile = outputOrFileName;
+  parseVmSymbols(name, startAddr, endAddr, slideAddr, symbolAdder) {
+    if (this.isLoaded) return;
+    this.isLoaded = true;
+    for (let symbol of this.symbols) {
+      symbolAdder.apply(null, symbol);
+    }
   }
-  var expectedOut = this.expectedOut;
-  var outputPos = 0;
-  var diffs = this.diffs = [];
-  var realOut = this.realOut = [];
-  var unexpectedOut = this.unexpectedOut = null;
+}
 
-  this.oldPrint = print;
-  print = function(str) {
-    var strSplit = str.split('\n');
-    for (var i = 0; i < strSplit.length; ++i) {
-      var s = strSplit[i];
-      realOut.push(s);
-      if (outputPos < expectedOut.length) {
-        if (expectedOut[outputPos] != s) {
-          diffs.push('line ' + outputPos + ': expected <' +
-                     expectedOut[outputPos] + '> found <' + s + '>\n');
+
+class PrintMonitor {
+  constructor(outputOrFileName) {
+    this.expectedOut = outputOrFileName;
+    this.outputFile = undefined;
+    if (typeof outputOrFileName == 'string') {
+      this.expectedOut = this.loadExpectedOutput(outputOrFileName)
+      this.outputFile = outputOrFileName;
+    }
+    var expectedOut = this.expectedOut;
+    var outputPos = 0;
+    var diffs = this.diffs = [];
+    var realOut = this.realOut = [];
+    var unexpectedOut = this.unexpectedOut = null;
+
+    this.oldPrint = print;
+    print = function(str) {
+      var strSplit = str.split('\n');
+      for (var i = 0; i < strSplit.length; ++i) {
+        var s = strSplit[i];
+        realOut.push(s);
+        if (outputPos < expectedOut.length) {
+          if (expectedOut[outputPos] != s) {
+            diffs.push('line ' + outputPos + ': expected <' +
+                      expectedOut[outputPos] + '> found <' + s + '>\n');
+          }
+          outputPos++;
+        } else {
+          unexpectedOut = true;
         }
-        outputPos++;
-      } else {
-        unexpectedOut = true;
       }
-    }
-  };
-};
-
-
-PrintMonitor.prototype.loadExpectedOutput = function(fileName) {
-  var output = readFile(fileName);
-  return output.split('\n');
-};
-
-
-PrintMonitor.prototype.finish = function() {
-  print = this.oldPrint;
-  if (this.diffs.length > 0 || this.unexpectedOut != null) {
-    print("===== actual output: =====");
-    print(this.realOut.join('\n'));
-    print("===== expected output: =====");
-    if (this.outputFile) {
-      print("===== File: " + this.outputFile + " =====");
-    }
-    print(this.expectedOut.join('\n'));
-    assertEquals([], this.diffs);
-    assertNull(this.unexpectedOut);
+    };
   }
-};
+
+  loadExpectedOutput(fileName) {
+    var output = readFile(fileName);
+    return output.split('\n');
+  }
+
+ finish() {
+    print = this.oldPrint;
+    if (this.diffs.length > 0 || this.unexpectedOut != null) {
+      console.log("===== actual output: =====");
+      console.log(this.realOut.join('\n'));
+      console.log("===== expected output: =====");
+      if (this.outputFile) {
+        console.log("===== File: " + this.outputFile + " =====");
+      }
+      console.log(this.expectedOut.join('\n'));
+      if (this.diffs.length > 0) {
+        this.diffs.forEach(line => console.log(line))
+        assertEquals([], this.diffs);
+      }
+      assertNull(this.unexpectedOut);
+    }
+  }
+}
 
 
 function driveTickProcessorTest(
     separateIc, separateBytecodes, separateBuiltins, separateStubs,
-    ignoreUnknown, stateFilter, logInput, refOutput, onlySummary) {
+    separateBaselineHandlers, ignoreUnknown, stateFilter, logInput,
+    refOutput, onlySummary) {
   // TEST_FILE_NAME must be provided by test runner.
   assertEquals('string', typeof TEST_FILE_NAME);
   var pathLen = TEST_FILE_NAME.lastIndexOf('/');
@@ -441,22 +444,24 @@ function driveTickProcessorTest(
     pathLen = TEST_FILE_NAME.lastIndexOf('\\');
   }
   assertTrue(pathLen != -1);
-  var testsPath = TEST_FILE_NAME.substr(0, pathLen + 1);
-  var tp = new TickProcessor(new CppEntriesProviderMock(),
+  const testsPath = TEST_FILE_NAME.substr(0, pathLen + 1);
+  const symbolsFile = testsPath + logInput + '.symbols.json';
+  const tp = new TickProcessor(new CppEntriesProviderMock(symbolsFile),
                              separateIc,
                              separateBytecodes,
                              separateBuiltins,
                              separateStubs,
+                             separateBaselineHandlers,
                              TickProcessor.CALL_GRAPH_SIZE,
                              ignoreUnknown,
                              stateFilter,
                              "0",
                              "auto,auto",
-                             false,
+                             null,
                              false,
                              false,
                              onlySummary);
-  var pm = new PrintMonitor(testsPath + refOutput);
+  const pm = new PrintMonitor(testsPath + refOutput);
   tp.processLogFileInTest(testsPath + logInput);
   tp.printStatistics();
   pm.finish();
@@ -466,27 +471,36 @@ function driveTickProcessorTest(
 (function testProcessing() {
   var testData = {
     'Default': [
-      false, false, true, true, false, null,
+      false, false, true, true, false, false, null,
       'tickprocessor-test.log', 'tickprocessor-test.default', false],
+    'SeparateBytecodes': [
+      false, true, true, true, false, false, null,
+      'tickprocessor-test.log', 'tickprocessor-test.separate-bytecodes', false],
+    'SeparateBaselineHandlers': [
+      false, false, true, true, true, false, null,
+      'tickprocessor-test.log', 'tickprocessor-test.separate-baseline-handlers', false],
     'SeparateIc': [
-      true, false, true, true, false, null,
+      true, false, true, true, false, false, null,
       'tickprocessor-test.log', 'tickprocessor-test.separate-ic', false],
     'IgnoreUnknown': [
-      false, false, true, true, true, null,
+      false, false, true, true, false, true, null,
       'tickprocessor-test.log', 'tickprocessor-test.ignore-unknown', false],
     'GcState': [
-      false, false, true, true, false, TickProcessor.VmStates.GC,
+      false, false, true, true, false, false, TickProcessor.VmStates.GC,
       'tickprocessor-test.log', 'tickprocessor-test.gc-state', false],
+    'OnlySummary': [
+      false, false, true, true, false, false, null,
+      'tickprocessor-test.log', 'tickprocessor-test.only-summary', true],
     'FunctionInfo': [
-      false, false, true, true, false, null,
+      false, false, true, true, false, false, null,
       'tickprocessor-test-func-info.log', 'tickprocessor-test.func-info',
       false],
-    'OnlySummary': [
-      false, false, true, true, false, null,
-      'tickprocessor-test.log', 'tickprocessor-test.only-summary', true]
+    'DefaultLarge': [
+      false, false, true, true, false, false, null,
+      'tickprocessor-test-large.log', 'tickprocessor-test-large.default', false],
   };
   for (var testName in testData) {
-    print('=== testProcessing-' + testName + ' ===');
-    driveTickProcessorTest.apply(null, testData[testName]);
+    console.log('=== testProcessing-' + testName + ' ===');
+    driveTickProcessorTest(...testData[testName]);
   }
 })();

@@ -30,6 +30,7 @@ builder.addFunction('main', kSig_v_i)
 // clang-format on
 
 var module_bytes = builder.toArray();
+Protocol.Runtime.enable();
 Protocol.Debugger.enable();
 
 InspectorTest.runAsyncTestSuite([

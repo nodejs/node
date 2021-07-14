@@ -23,8 +23,7 @@ namespace {
 // TODO(dcarney): CallOptimization duplicates this logic, merge.
 JSReceiver GetCompatibleReceiver(Isolate* isolate, FunctionTemplateInfo info,
                                  JSReceiver receiver) {
-  RuntimeCallTimerScope timer(isolate,
-                              RuntimeCallCounterId::kGetCompatibleReceiver);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kGetCompatibleReceiver);
   Object recv_type = info.signature();
   // No signature, return holder.
   if (!recv_type.IsFunctionTemplateInfo()) return receiver;
@@ -171,8 +170,7 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(Isolate* isolate,
                                                 Handle<Object> receiver,
                                                 int argc, Handle<Object> args[],
                                                 Handle<HeapObject> new_target) {
-  RuntimeCallTimerScope timer(isolate,
-                              RuntimeCallCounterId::kInvokeApiFunction);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kInvokeApiFunction);
   DCHECK(function->IsFunctionTemplateInfo() ||
          (function->IsJSFunction() &&
           JSFunction::cast(*function).shared().IsApiFunction()));

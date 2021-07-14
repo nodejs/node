@@ -40,11 +40,15 @@ found in the LICENSE file. -->
 
   .marked {
     background-color: var(--secondary-color);
+    box-shadow: 0px 0px 2px 3px var(--secondary-color);
+    animation-name: pulse;
+    animation-duration: 3s;
+    animation-delay: 500ms;
   }
 
   @keyframes pulse {
     0% {
-      box-shadow: 0px 0px 0px 0px var(--secondary-color);
+      box-shadow: 0px 0px 0px 3px var(--secondary-color);
     }
     5% {
       box-shadow: 0px 0px 0px 10px var(--secondary-color);
@@ -56,11 +60,13 @@ found in the LICENSE file. -->
       box-shadow: 0px 0px 0px 10px var(--secondary-color);
     }
     20% {
-      box-shadow: 0px 0px 0px 0px var(--secondary-color);
+      box-shadow: 0px 0px 2px 3px var(--secondary-color);
     }
   }
 </style>
 <div class="panel">
+  <input type="checkbox" id="closer" class="panelCloserInput" checked>
+  <label class="panelCloserLabel" for="closer">▼</label>
   <h2>Source Panel</h2>
   <div class="selection">
     <select id="script-dropdown"></select>

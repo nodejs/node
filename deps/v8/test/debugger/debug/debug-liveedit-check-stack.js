@@ -136,13 +136,6 @@ test = new TestBase("Test without function on stack");
 test.ScriptChanger();
 assertEquals("Capybara", test.ChooseAnimal(Noop));
 
-test = new TestBase("Test with function on stack");
-assertEquals("Capybara", test.ChooseAnimal(WrapInDebuggerCall(WrapInRestartProof(test.ScriptChanger))));
-
-
-test = new TestBase("Test with function on stack and with constructor frame");
-assertEquals("Capybara", test.ChooseAnimal(WrapInConstructor(WrapInDebuggerCall(WrapInRestartProof(test.ScriptChanger)))));
-
 test = new TestBase("Test with C++ frame above ChooseAnimal frame");
 exception_holder = {};
 assertEquals("Cat", test.ChooseAnimal(WrapInNativeCall(WrapInDebuggerCall(WrapInCatcher(test.ScriptChanger, exception_holder)))));

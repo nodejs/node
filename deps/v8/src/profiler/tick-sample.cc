@@ -7,14 +7,14 @@
 #include <cinttypes>
 
 #include "include/v8-profiler.h"
+#include "src/base/sanitizer/asan.h"
+#include "src/base/sanitizer/msan.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/simulator.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/heap/heap-inl.h"  // For Heap::code_range.
 #include "src/logging/counters.h"
 #include "src/profiler/profiler-stats.h"
-#include "src/sanitizer/asan.h"
-#include "src/sanitizer/msan.h"
 
 namespace v8 {
 namespace internal {
@@ -177,6 +177,7 @@ DISABLE_ASAN void TickSample::Init(Isolate* v8_isolate,
   pc = regs.pc;
   frames_count = static_cast<unsigned>(info.frames_count);
   has_external_callback = info.external_callback_entry != nullptr;
+  context = info.context;
   if (has_external_callback) {
     external_callback_entry = info.external_callback_entry;
   } else if (frames_count) {
@@ -209,6 +210,7 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
   sample_info->frames_count = 0;
   sample_info->vm_state = isolate->current_vm_state();
   sample_info->external_callback_entry = nullptr;
+  sample_info->context = nullptr;
   if (sample_info->vm_state == GC) return true;
 
   i::Address js_entry_sp = isolate->js_entry_sp();
@@ -232,7 +234,7 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
   // TODO(petermarshall): Code range is always null on ia32 so this check for
   // IsNoFrameRegion will never actually run there.
   if (regs->pc &&
-      isolate->heap()->memory_allocator()->code_range().contains(
+      isolate->heap()->code_region().contains(
           reinterpret_cast<i::Address>(regs->pc)) &&
       IsNoFrameRegion(reinterpret_cast<i::Address>(regs->pc))) {
     // The frame is not setup, so it'd be hard to iterate the stack. Bailout.
@@ -278,6 +280,13 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
                                reinterpret_cast<i::Address>(regs->lr),
                                js_entry_sp);
 
+  Context top_context = isolate->context();
+  if (top_context.ptr() != i::Context::kNoContext &&
+      top_context.ptr() != i::Context::kInvalidContext) {
+    NativeContext top_native_context = top_context.native_context();
+    sample_info->context = reinterpret_cast<void*>(top_native_context.ptr());
+  }
+
   if (it.done()) return true;
 
   size_t i = 0;
@@ -287,15 +296,18 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
     frames[i] = reinterpret_cast<void*>(isolate->c_function());
     i++;
   }
-
+#ifdef V8_RUNTIME_CALL_STATS
   i::RuntimeCallTimer* timer =
       isolate->counters()->runtime_call_stats()->current_timer();
+#endif  // V8_RUNTIME_CALL_STATS
   for (; !it.done() && i < frames_limit; it.Advance()) {
+#ifdef V8_RUNTIME_CALL_STATS
     while (timer && reinterpret_cast<i::Address>(timer) < it.frame()->fp() &&
            i < frames_limit) {
       frames[i++] = reinterpret_cast<void*>(timer->counter());
       timer = timer->parent();
     }
+#endif  // V8_RUNTIME_CALL_STATS
     if (i == frames_limit) break;
 
     if (it.frame()->is_interpreted()) {

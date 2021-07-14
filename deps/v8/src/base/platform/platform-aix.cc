@@ -82,7 +82,7 @@ double AIXTimezoneCache::LocalTimeOffset(double time_ms, bool is_utc) {
 TimezoneCache* OS::CreateTimezoneCache() { return new AIXTimezoneCache(); }
 
 static unsigned StringToLong(char* buffer) {
-  return static_cast<unsigned>(strtol(buffer, nullptr, 16));  // NOLINT
+  return static_cast<unsigned>(strtol(buffer, nullptr, 16));
 }
 
 std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {

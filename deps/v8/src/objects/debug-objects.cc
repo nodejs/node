@@ -14,18 +14,23 @@ namespace v8 {
 namespace internal {
 
 bool DebugInfo::IsEmpty() const {
-  return flags() == kNone && debugger_hints() == 0;
+  return flags(kRelaxedLoad) == kNone && debugger_hints() == 0;
 }
 
-bool DebugInfo::HasBreakInfo() const { return (flags() & kHasBreakInfo) != 0; }
+bool DebugInfo::HasBreakInfo() const {
+  return (flags(kRelaxedLoad) & kHasBreakInfo) != 0;
+}
 
 DebugInfo::ExecutionMode DebugInfo::DebugExecutionMode() const {
-  return (flags() & kDebugExecutionMode) != 0 ? kSideEffects : kBreakpoints;
+  return (flags(kRelaxedLoad) & kDebugExecutionMode) != 0 ? kSideEffects
+                                                          : kBreakpoints;
 }
 
 void DebugInfo::SetDebugExecutionMode(ExecutionMode value) {
-  set_flags(value == kSideEffects ? (flags() | kDebugExecutionMode)
-                                  : (flags() & ~kDebugExecutionMode));
+  set_flags(value == kSideEffects
+                ? (flags(kRelaxedLoad) | kDebugExecutionMode)
+                : (flags(kRelaxedLoad) & ~kDebugExecutionMode),
+            kRelaxedStore);
 }
 
 void DebugInfo::ClearBreakInfo(Isolate* isolate) {
@@ -45,27 +50,29 @@ void DebugInfo::ClearBreakInfo(Isolate* isolate) {
   }
   set_break_points(ReadOnlyRoots(isolate).empty_fixed_array());
 
-  int new_flags = flags();
+  int new_flags = flags(kRelaxedLoad);
   new_flags &= ~kHasBreakInfo & ~kPreparedForDebugExecution;
   new_flags &= ~kBreakAtEntry & ~kCanBreakAtEntry;
   new_flags &= ~kDebugExecutionMode;
-  set_flags(new_flags);
+  set_flags(new_flags, kRelaxedStore);
 }
 
 void DebugInfo::SetBreakAtEntry() {
   DCHECK(CanBreakAtEntry());
-  set_flags(flags() | kBreakAtEntry);
+  set_flags(flags(kRelaxedLoad) | kBreakAtEntry, kRelaxedStore);
 }
 
 void DebugInfo::ClearBreakAtEntry() {
   DCHECK(CanBreakAtEntry());
-  set_flags(flags() & ~kBreakAtEntry);
+  set_flags(flags(kRelaxedLoad) & ~kBreakAtEntry, kRelaxedStore);
 }
 
-bool DebugInfo::BreakAtEntry() const { return (flags() & kBreakAtEntry) != 0; }
+bool DebugInfo::BreakAtEntry() const {
+  return (flags(kRelaxedLoad) & kBreakAtEntry) != 0;
+}
 
 bool DebugInfo::CanBreakAtEntry() const {
-  return (flags() & kCanBreakAtEntry) != 0;
+  return (flags(kRelaxedLoad) & kCanBreakAtEntry) != 0;
 }
 
 // Check if there is a break point at this source position.
@@ -199,15 +206,15 @@ Handle<Object> DebugInfo::FindBreakPointInfo(Isolate* isolate,
 }
 
 bool DebugInfo::HasCoverageInfo() const {
-  return (flags() & kHasCoverageInfo) != 0;
+  return (flags(kRelaxedLoad) & kHasCoverageInfo) != 0;
 }
 
 void DebugInfo::ClearCoverageInfo(Isolate* isolate) {
   if (HasCoverageInfo()) {
     set_coverage_info(ReadOnlyRoots(isolate).undefined_value());
 
-    int new_flags = flags() & ~kHasCoverageInfo;
-    set_flags(new_flags);
+    int new_flags = flags(kRelaxedLoad) & ~kHasCoverageInfo;
+    set_flags(new_flags, kRelaxedStore);
   }
 }
 

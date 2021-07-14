@@ -13,7 +13,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include "include/v8-inspector.h"
 #include "include/v8-internal.h"
 #include "include/v8-metrics.h"
 #include "include/v8.h"
@@ -48,11 +47,19 @@ class UMemory;
 }  // namespace U_ICU_NAMESPACE
 #endif  // V8_INTL_SUPPORT
 
+namespace v8_inspector {
+class V8Inspector;
+}  // namespace v8_inspector
+
 namespace v8 {
 
 namespace base {
 class RandomNumberGenerator;
 }  // namespace base
+
+namespace bigint {
+class Processor;
+}
 
 namespace debug {
 class ConsoleDelegate;
@@ -430,6 +437,8 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(AllowWasmCodeGenerationCallback, allow_wasm_code_gen_callback, nullptr)   \
   V(ExtensionCallback, wasm_module_callback, &NoExtension)                    \
   V(ExtensionCallback, wasm_instance_callback, &NoExtension)                  \
+  V(SharedArrayBufferConstructorEnabledCallback,                              \
+    sharedarraybuffer_constructor_enabled_callback, nullptr)                  \
   V(WasmStreamingCallback, wasm_streaming_callback, nullptr)                  \
   V(WasmLoadSourceMapCallback, wasm_load_source_map_callback, nullptr)        \
   V(WasmSimdEnabledCallback, wasm_simd_enabled_callback, nullptr)             \
@@ -548,6 +557,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // new operator.
   static Isolate* New();
 
+  // Creates a new shared Isolate object.
+  static Isolate* NewShared(const v8::Isolate::CreateParams& params);
+
   // Deletes Isolate object. Must be used instead of delete operator.
   // Destroys the non-default isolates.
   // Sets default isolate into "has_been_disposed" state rather then destroying,
@@ -559,7 +571,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void set_read_only_heap(ReadOnlyHeap* ro_heap) { read_only_heap_ = ro_heap; }
 
   // Page allocator that must be used for allocating V8 heap pages.
-  v8::PageAllocator* page_allocator();
+  v8::PageAllocator* page_allocator() const;
 
   // Returns the PerIsolateThreadData for the current thread (or nullptr if one
   // is not currently set).
@@ -659,12 +671,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   base::SharedMutex* map_updater_access() { return &map_updater_access_; }
 
   // The isolate's string table.
-  StringTable* string_table() { return string_table_.get(); }
+  StringTable* string_table() const { return string_table_.get(); }
 
   Address get_address_from_id(IsolateAddressId id);
 
   // Access to top context (where the current function object was created).
-  Context context() { return thread_local_top()->context_; }
+  Context context() const { return thread_local_top()->context_; }
   inline void set_context(Context context);
   Context* context_address() { return &thread_local_top()->context_; }
 
@@ -680,6 +692,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   inline Object pending_exception();
   inline void set_pending_exception(Object exception_obj);
   inline void clear_pending_exception();
+
+  void InstallConditionalFeatures(Handle<Context> context);
+
+  bool IsSharedArrayBufferConstructorEnabled(Handle<Context> context);
 
   bool IsWasmSimdEnabled(Handle<Context> context);
   bool AreWasmExceptionsEnabled(Handle<Context> context);
@@ -1021,6 +1037,25 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   const IsolateData* isolate_data() const { return &isolate_data_; }
   IsolateData* isolate_data() { return &isolate_data_; }
 
+  // When pointer compression is on, this is the base address of the pointer
+  // compression cage, and the kPtrComprCageBaseRegister is set to this
+  // value. When pointer compression is off, this is always kNullAddress.
+  Address cage_base() const {
+    DCHECK_IMPLIES(!COMPRESS_POINTERS_IN_ISOLATE_CAGE_BOOL &&
+                       !COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL,
+                   isolate_data()->cage_base() == kNullAddress);
+    return isolate_data()->cage_base();
+  }
+
+  // When pointer compression is on, the PtrComprCage used by this
+  // Isolate. Otherwise nullptr.
+  VirtualMemoryCage* GetPtrComprCage() {
+    return isolate_allocator_->GetPtrComprCage();
+  }
+  const VirtualMemoryCage* GetPtrComprCage() const {
+    return isolate_allocator_->GetPtrComprCage();
+  }
+
   // Generated code can embed this address to get access to the isolate-specific
   // data (for example, roots, external references, builtins, etc.).
   // The kRootRegister is set to this value.
@@ -1047,7 +1082,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
                                sizeof(IsolateData));
   }
 
-  Object root(RootIndex index) { return Object(roots_table()[index]); }
+  Object root(RootIndex index) const { return Object(roots_table()[index]); }
 
   Handle<Object> root_handle(RootIndex index) {
     return Handle<Object>(&roots_table()[index]);
@@ -1063,8 +1098,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   bool IsBuiltinsTableHandleLocation(Address* handle_location);
 
-  StubCache* load_stub_cache() { return load_stub_cache_; }
-  StubCache* store_stub_cache() { return store_stub_cache_; }
+  StubCache* load_stub_cache() const { return load_stub_cache_; }
+  StubCache* store_stub_cache() const { return store_stub_cache_; }
   Deoptimizer* GetAndClearCurrentDeoptimizer() {
     Deoptimizer* result = current_deoptimizer_;
     CHECK_NOT_NULL(result);
@@ -1101,32 +1136,34 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   THREAD_LOCAL_TOP_ADDRESS(Address, thread_in_wasm_flag_address)
 
-  MaterializedObjectStore* materialized_object_store() {
+  MaterializedObjectStore* materialized_object_store() const {
     return materialized_object_store_;
   }
 
-  DescriptorLookupCache* descriptor_lookup_cache() {
+  DescriptorLookupCache* descriptor_lookup_cache() const {
     return descriptor_lookup_cache_;
   }
 
   HandleScopeData* handle_scope_data() { return &handle_scope_data_; }
 
-  HandleScopeImplementer* handle_scope_implementer() {
+  HandleScopeImplementer* handle_scope_implementer() const {
     DCHECK(handle_scope_implementer_);
     return handle_scope_implementer_;
   }
 
-  UnicodeCache* unicode_cache() { return unicode_cache_; }
+  UnicodeCache* unicode_cache() const { return unicode_cache_; }
 
   InnerPointerToCodeCache* inner_pointer_to_code_cache() {
     return inner_pointer_to_code_cache_;
   }
 
-  GlobalHandles* global_handles() { return global_handles_; }
+  GlobalHandles* global_handles() const { return global_handles_; }
 
-  EternalHandles* eternal_handles() { return eternal_handles_; }
+  EternalHandles* eternal_handles() const { return eternal_handles_; }
 
-  ThreadManager* thread_manager() { return thread_manager_; }
+  ThreadManager* thread_manager() const { return thread_manager_; }
+
+  bigint::Processor* bigint_processor() { return bigint_processor_; }
 
 #ifndef V8_INTL_SUPPORT
   unibrow::Mapping<unibrow::Ecma262UnCanonicalize>* jsregexp_uncanonicalize() {
@@ -1147,14 +1184,16 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   Builtins* builtins() { return &builtins_; }
 
-  RegExpStack* regexp_stack() { return regexp_stack_; }
+  RegExpStack* regexp_stack() const { return regexp_stack_; }
 
-  size_t total_regexp_code_generated() { return total_regexp_code_generated_; }
+  size_t total_regexp_code_generated() const {
+    return total_regexp_code_generated_;
+  }
   void IncreaseTotalRegexpCodeGenerated(Handle<HeapObject> code);
 
   std::vector<int>* regexp_indices() { return &regexp_indices_; }
 
-  Debug* debug() { return debug_; }
+  Debug* debug() const { return debug_; }
 
   void* is_profiling_address() { return &is_profiling_; }
 
@@ -1178,8 +1217,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   v8::internal::Factory* factory() {
     // Upcast to the privately inherited base-class using c-style casts to avoid
     // undefined behavior (as static_cast cannot cast across private bases).
-    // NOLINTNEXTLINE (google-readability-casting)
-    return (v8::internal::Factory*)this;  // NOLINT(readability/casting)
+    return (v8::internal::Factory*)this;
   }
 
   static const int kJSRegexpStaticOffsetsVectorSize = 128;
@@ -1192,7 +1230,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     DCHECK_LT(slot, Internals::kNumIsolateDataSlots);
     isolate_data_.embedder_data_[slot] = data;
   }
-  void* GetData(uint32_t slot) {
+  void* GetData(uint32_t slot) const {
     DCHECK_LT(slot, Internals::kNumIsolateDataSlots);
     return isolate_data_.embedder_data_[slot];
   }
@@ -1205,7 +1243,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return snapshot_blob_ != nullptr && snapshot_blob_->raw_size != 0;
   }
 
-  bool IsDead() { return has_fatal_error_; }
+  bool IsDead() const { return has_fatal_error_; }
   void SignalFatalError() { has_fatal_error_ = true; }
 
   bool use_optimizer();
@@ -1261,11 +1299,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void MaybeInitializeVectorListFromHeap();
 
-  double time_millis_since_init() {
+  double time_millis_since_init() const {
     return heap_.MonotonicallyIncreasingTimeInMs() - time_millis_at_init_;
   }
 
-  DateCache* date_cache() { return date_cache_; }
+  DateCache* date_cache() const { return date_cache_; }
 
   void set_date_cache(DateCache* date_cache);
 
@@ -1319,7 +1357,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   std::unique_ptr<PersistentHandles> NewPersistentHandles();
 
-  PersistentHandlesList* persistent_handles_list() {
+  PersistentHandlesList* persistent_handles_list() const {
     return persistent_handles_list_.get();
   }
 
@@ -1666,8 +1704,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  wasm::WasmEngine* wasm_engine() const { return wasm_engine_.get(); }
-  void SetWasmEngine(std::shared_ptr<wasm::WasmEngine> engine);
+  // TODO(wasm): Replace all uses by {WasmEngine::GetWasmEngine}?
+  wasm::WasmEngine* wasm_engine() const { return wasm_engine_; }
+  void SetWasmEngine(wasm::WasmEngine* engine);
 
   void AddSharedWasmMemory(Handle<WasmMemoryObject> memory_object);
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -1701,6 +1740,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   MaybeLocal<v8::Context> GetContextFromRecorderContextId(
       v8::metrics::Recorder::ContextId id);
 
+  void UpdateLongTaskStats();
+  v8::metrics::LongTaskStats* GetCurrentLongTaskStats();
+
   LocalIsolate* main_thread_local_isolate() {
     return main_thread_local_isolate_.get();
   }
@@ -1731,8 +1773,17 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     using IsDebugActive = HasAsyncEventDelegate::Next<bool, 1>;
   };
 
+  bool is_shared() { return is_shared_; }
+  Isolate* shared_isolate() { return shared_isolate_; }
+
+  void AttachToSharedIsolate(Isolate* shared);
+  void DetachFromSharedIsolate();
+
+  bool HasClientIsolates() const { return client_isolate_head_; }
+
  private:
-  explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator);
+  explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator,
+                   bool is_shared);
   ~Isolate();
 
   bool Init(SnapshotData* startup_snapshot_data,
@@ -1742,6 +1793,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void InitializeCodeRanges();
   void AddCodeMemoryRange(MemoryRange range);
+
+  // Common method to create an Isolate used by Isolate::New() and
+  // Isolate::NewShared().
+  static Isolate* Allocate(bool is_shared);
 
   static void RemoveContextIdCallback(const v8::WeakCallbackInfo<void>& data);
 
@@ -1843,6 +1898,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Returns the Exception sentinel.
   Object ThrowInternal(Object exception, MessageLocation* location);
 
+  // Methods for appending and removing to/from client isolates list.
+  void AppendAsClientIsolate(Isolate* client);
+  void RemoveAsClientIsolate(Isolate* client);
+
   // This class contains a collection of data accessible from both C++ runtime
   // and compiled code (including assembly stubs, builtins, interpreter bytecode
   // handlers and optimized code).
@@ -1888,6 +1947,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   GlobalHandles* global_handles_ = nullptr;
   EternalHandles* eternal_handles_ = nullptr;
   ThreadManager* thread_manager_ = nullptr;
+  bigint::Processor* bigint_processor_ = nullptr;
   RuntimeState runtime_state_;
   Builtins builtins_;
   SetupIsolateDelegate* setup_delegate_ = nullptr;
@@ -2047,6 +2107,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
       Persistent<v8::Context, v8::CopyablePersistentTraits<v8::Context>>>
       recorder_context_id_map_;
 
+  size_t last_long_task_stats_counter_ = 0;
+  v8::metrics::LongTaskStats long_task_stats_;
+
   std::vector<Object> startup_object_cache_;
 
   // Used during builtins compilation to build the builtins constants table,
@@ -2094,7 +2157,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   size_t elements_deletion_counter_ = 0;
 
 #if V8_ENABLE_WEBASSEMBLY
-  std::shared_ptr<wasm::WasmEngine> wasm_engine_;
+  wasm::WasmEngine* wasm_engine_ = nullptr;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   std::unique_ptr<TracingCpuProfilerImpl> tracing_cpu_profiler_;
@@ -2112,6 +2175,23 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // know if this is the case, so I'm preserving it for now.
   base::Mutex thread_data_table_mutex_;
   ThreadDataTable thread_data_table_;
+
+  // Set to true if this isolate is used as shared heap.
+  const bool is_shared_;
+
+  // Stores the shared isolate for this client isolate. nullptr for shared
+  // isolates or when no shared isolate is used.
+  Isolate* shared_isolate_ = nullptr;
+
+  // A shared isolate will use these two fields to track all its client
+  // isolates.
+  base::Mutex client_isolate_mutex_;
+  Isolate* client_isolate_head_ = nullptr;
+
+  // Used to form a linked list of all client isolates. Protected by
+  // client_isolate_mutex_.
+  Isolate* prev_client_isolate_ = nullptr;
+  Isolate* next_client_isolate_ = nullptr;
 
   // A signal-safe vector of heap pages containing code. Used with the
   // v8::Unwinder API.

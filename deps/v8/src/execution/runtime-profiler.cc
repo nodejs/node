@@ -107,20 +107,8 @@ void TraceHeuristicOptimizationDisallowed(JSFunction function) {
   }
 }
 
-// TODO(jgruber): Remove this once we include this tracing with --trace-opt.
-void TraceNCIRecompile(JSFunction function, OptimizationReason reason) {
-  if (FLAG_trace_turbo_nci) {
-    StdoutStream os;
-    os << "NCI tierup mark: " << Brief(function) << ", "
-       << OptimizationReasonToString(reason) << std::endl;
-  }
-}
-
 void TraceRecompile(JSFunction function, OptimizationReason reason,
                     CodeKind code_kind, Isolate* isolate) {
-  if (code_kind == CodeKind::NATIVE_CONTEXT_INDEPENDENT) {
-    TraceNCIRecompile(function, reason);
-  }
   if (FLAG_trace_opt) {
     CodeTracer::Scope scope(isolate->GetCodeTracer());
     PrintF(scope.file(), "[marking ");
@@ -187,8 +175,7 @@ void RuntimeProfiler::MaybeOptimizeFrame(JSFunction function,
 
   if (function.shared().optimization_disabled()) return;
 
-  // Note: We currently do not trigger OSR compilation from NCI or TP code.
-  // TODO(jgruber,v8:8888): But we should.
+  // Note: We currently do not trigger OSR compilation from TP code.
   if (frame->is_unoptimized()) {
     if (FLAG_always_osr) {
       AttemptOnStackReplacement(UnoptimizedFrame::cast(frame),

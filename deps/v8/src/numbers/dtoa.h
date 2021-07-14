@@ -23,9 +23,14 @@ enum DtoaMode {
   DTOA_PRECISION
 };
 
-// The maximal length of digits a double can have in base 10.
-// Note that DoubleToAscii null-terminates its input. So the given buffer should
-// be at least kBase10MaximalLength + 1 characters long.
+// The maximal length of digits a double can have in base 10 as returned by
+// 'DoubleToAscii'. This does neither include sign, decimal point nor exponent.
+// For example DoubleToAscii(-3.5844466002796428e+298, ..., buffer, ...) will
+// fill buffer with the string "35844466002796428", while sign and decimal point
+// position will be provided through additional output arguments.
+// kBase10MaximalLength refers to the maximal length of this string. Note that
+// DoubleToAscii null-terminates its input. So the given buffer should be at
+// least kBase10MaximalLength + 1 characters long.
 const int kBase10MaximalLength = 17;
 
 // Converts the given double 'v' to ASCII.

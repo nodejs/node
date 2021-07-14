@@ -138,6 +138,14 @@ bool InstructionSelectorTest::Stream::IsSameAsFirst(
   return unallocated->HasSameAsInputPolicy();
 }
 
+bool InstructionSelectorTest::Stream::IsSameAsInput(
+    const InstructionOperand* operand, int input_index) const {
+  if (!operand->IsUnallocated()) return false;
+  const UnallocatedOperand* unallocated = UnallocatedOperand::cast(operand);
+  return unallocated->HasSameAsInputPolicy() &&
+         unallocated->input_index() == input_index;
+}
+
 bool InstructionSelectorTest::Stream::IsUsedAtStart(
     const InstructionOperand* operand) const {
   if (!operand->IsUnallocated()) return false;

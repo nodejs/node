@@ -170,9 +170,9 @@ void SourcePositionTableBuilder::AddEntry(const PositionTableEntry& entry) {
 #endif
 }
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<ByteArray> SourcePositionTableBuilder::ToSourcePositionTable(
-    LocalIsolate* isolate) {
+    IsolateT* isolate) {
   if (bytes_.empty()) return isolate->factory()->empty_byte_array();
   DCHECK(!Omit());
 

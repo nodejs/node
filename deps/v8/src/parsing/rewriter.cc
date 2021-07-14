@@ -382,10 +382,9 @@ DECLARATION_NODE_LIST(DEF_VISIT)
 // Assumes code has been parsed.  Mutates the AST, so the AST should not
 // continue to be used in the case of failure.
 bool Rewriter::Rewrite(ParseInfo* info) {
-  RuntimeCallTimerScope runtimeTimer(
-      info->runtime_call_stats(),
-      RuntimeCallCounterId::kCompileRewriteReturnResult,
-      RuntimeCallStats::kThreadSpecific);
+  RCS_SCOPE(info->runtime_call_stats(),
+            RuntimeCallCounterId::kCompileRewriteReturnResult,
+            RuntimeCallStats::kThreadSpecific);
 
   FunctionLiteral* function = info->literal();
   DCHECK_NOT_NULL(function);

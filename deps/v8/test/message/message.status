@@ -70,11 +70,6 @@
 }],
 
 ################################################################################
-['arch == ppc64', {
-  # Tests that require Simd enabled.
-  'wasm-trace-memory': [SKIP],
-}],
-
 ['arch == mips64el or arch == mipsel', {
   # Tests that require Simd enabled.
   'wasm-trace-memory': [SKIP],
@@ -84,4 +79,17 @@
   # Tests that require Simd enabled.
   'wasm-trace-memory': [SKIP],
 }],
+
+##############################################################################
+['no_simd_hardware == True', {
+  'wasm-trace-memory': [SKIP],
+  'wasm-trace-memory-liftoff': [SKIP],
+}],  # no_simd_hardware == True
+
+################################################################################
+['third_party_heap', {
+  # Performs GC
+  'weakref-finalizationregistry-error': [SKIP],
+}], # third_party_heap
+
 ]

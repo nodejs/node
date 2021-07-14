@@ -50,7 +50,8 @@ enum ContextLookupFlags {
   V(MATH_POW_INDEX, JSFunction, math_pow)                         \
   V(PROMISE_INTERNAL_CONSTRUCTOR_INDEX, JSFunction,               \
     promise_internal_constructor)                                 \
-  V(PROMISE_THEN_INDEX, JSFunction, promise_then)
+  V(PROMISE_THEN_INDEX, JSFunction, promise_then)                 \
+  V(FUNCTION_PROTOTYPE_APPLY_INDEX, JSFunction, function_prototype_apply)
 
 #define NATIVE_CONTEXT_FIELDS(V)                                               \
   V(GLOBAL_PROXY_INDEX, JSGlobalProxy, global_proxy_object)                    \
@@ -111,6 +112,8 @@ enum ContextLookupFlags {
   V(GENERATOR_OBJECT_PROTOTYPE_MAP_INDEX, Map, generator_object_prototype_map) \
   V(ASYNC_GENERATOR_OBJECT_PROTOTYPE_MAP_INDEX, Map,                           \
     async_generator_object_prototype_map)                                      \
+  V(GROWABLE_SHARED_ARRAY_BUFFER_FUN_INDEX, JSFunction,                        \
+    growable_shared_array_buffer_fun)                                          \
   V(INITIAL_ARRAY_ITERATOR_MAP_INDEX, Map, initial_array_iterator_map)         \
   V(INITIAL_ARRAY_ITERATOR_PROTOTYPE_INDEX, JSObject,                          \
     initial_array_iterator_prototype)                                          \
@@ -209,6 +212,18 @@ enum ContextLookupFlags {
   V(PROXY_MAP_INDEX, Map, proxy_map)                                           \
   V(PROXY_REVOCABLE_RESULT_MAP_INDEX, Map, proxy_revocable_result_map)         \
   V(PROMISE_PROTOTYPE_INDEX, JSObject, promise_prototype)                      \
+  V(RAB_GSAB_UINT8_ARRAY_MAP_INDEX, Map, rab_gsab_uint8_array_map)             \
+  V(RAB_GSAB_INT8_ARRAY_MAP_INDEX, Map, rab_gsab_int8_array_map)               \
+  V(RAB_GSAB_UINT16_ARRAY_MAP_INDEX, Map, rab_gsab_uint16_array_map)           \
+  V(RAB_GSAB_INT16_ARRAY_MAP_INDEX, Map, rab_gsab_int16_array_map)             \
+  V(RAB_GSAB_UINT32_ARRAY_MAP_INDEX, Map, rab_gsab_uint32_array_map)           \
+  V(RAB_GSAB_INT32_ARRAY_MAP_INDEX, Map, rab_gsab_int32_array_map)             \
+  V(RAB_GSAB_FLOAT32_ARRAY_MAP_INDEX, Map, rab_gsab_float32_array_map)         \
+  V(RAB_GSAB_FLOAT64_ARRAY_MAP_INDEX, Map, rab_gsab_float64_array_map)         \
+  V(RAB_GSAB_UINT8_CLAMPED_ARRAY_MAP_INDEX, Map,                               \
+    rab_gsab_uint8_clamped_array_map)                                          \
+  V(RAB_GSAB_BIGUINT64_ARRAY_MAP_INDEX, Map, rab_gsab_biguint64_array_map)     \
+  V(RAB_GSAB_BIGINT64_ARRAY_MAP_INDEX, Map, rab_gsab_bigint64_array_map)       \
   V(RECORDER_CONTEXT_ID, Object, recorder_context_id)                          \
   V(REGEXP_EXEC_FUNCTION_INDEX, JSFunction, regexp_exec_function)              \
   V(REGEXP_FUNCTION_INDEX, JSFunction, regexp_function)                        \
@@ -225,6 +240,7 @@ enum ContextLookupFlags {
   V(REGEXP_SPLIT_FUNCTION_INDEX, JSFunction, regexp_split_function)            \
   V(INITIAL_REGEXP_STRING_ITERATOR_PROTOTYPE_MAP_INDEX, Map,                   \
     initial_regexp_string_iterator_prototype_map)                              \
+  V(RESIZABLE_ARRAY_BUFFER_FUN_INDEX, JSFunction, resizable_array_buffer_fun)  \
   V(SCRIPT_CONTEXT_TABLE_INDEX, ScriptContextTable, script_context_table)      \
   V(SCRIPT_EXECUTION_CALLBACK_INDEX, Object, script_execution_callback)        \
   V(SECURITY_TOKEN_INDEX, Object, security_token)                              \
@@ -342,6 +358,9 @@ class ScriptContextTable : public FixedArray {
   struct LookupResult {
     int context_index;
     int slot_index;
+    // repl_mode flag is needed to disable inlining of 'const' variables in REPL
+    // mode.
+    bool is_repl_mode;
     VariableMode mode;
     InitializationFlag init_flag;
     MaybeAssignedFlag maybe_assigned_flag;
@@ -426,16 +445,18 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   NEVER_READ_ONLY_SPACE
 
   // Setter and getter for elements.
+  // Note the plain accessors use relaxed semantics.
+  // TODO(jgruber): Make that explicit through tags.
   V8_INLINE Object get(int index) const;
   V8_INLINE Object get(PtrComprCageBase cage_base, int index) const;
-  V8_INLINE void set(int index, Object value);
-  // Setter with explicit barrier mode.
-  V8_INLINE void set(int index, Object value, WriteBarrierMode mode);
-  // Setter and getter with synchronization semantics.
-  V8_INLINE Object synchronized_get(int index) const;
-  V8_INLINE Object synchronized_get(PtrComprCageBase cage_base,
-                                    int index) const;
-  V8_INLINE void synchronized_set(int index, Object value);
+  V8_INLINE void set(int index, Object value,
+                     WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  // Accessors with acquire-release semantics.
+  V8_INLINE Object get(int index, AcquireLoadTag) const;
+  V8_INLINE Object get(PtrComprCageBase cage_base, int index,
+                       AcquireLoadTag) const;
+  V8_INLINE void set(int index, Object value, WriteBarrierMode mode,
+                     ReleaseStoreTag);
 
   static const int kScopeInfoOffset = kElementsOffset;
   static const int kPreviousOffset = kScopeInfoOffset + kTaggedSize;
@@ -452,7 +473,7 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   V8_INLINE static constexpr int SizeFor(int length) {
     // TODO(v8:9287): This is a workaround for GCMole build failures.
     int result = kElementsOffset + length * kTaggedSize;
-    CONSTEXPR_DCHECK(TorqueGeneratedContext::SizeFor(length) == result);
+    DCHECK_EQ(TorqueGeneratedContext::SizeFor(length), result);
     return result;
   }
 
@@ -528,8 +549,6 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
 
   inline Object unchecked_previous();
   inline Context previous();
-  inline void set_previous(Context context,
-                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Object next_context_link();
 
@@ -587,7 +606,8 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
 #define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name) \
   inline void set_##name(type value);                     \
   inline bool is_##name(type value) const;                \
-  inline type name() const;
+  inline type name() const;                               \
+  inline type name(AcquireLoadTag) const;
   NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSORS)
 #undef NATIVE_CONTEXT_FIELD_ACCESSORS
 
@@ -643,6 +663,10 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   static bool IsBootstrappingOrValidParentContext(Object object, Context kid);
 #endif
 
+  friend class Factory;
+  inline void set_previous(Context context,
+                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   TQ_OBJECT_CONSTRUCTORS(Context)
 };
 
@@ -652,6 +676,15 @@ class NativeContext : public Context {
   // TODO(neis): Move some stuff from Context here.
 
   inline void AllocateExternalPointerEntries(Isolate* isolate);
+
+  // NativeContext fields are read concurrently from background threads; any
+  // concurrent writes of affected fields must have acquire-release semantics,
+  // thus we hide the non-atomic setter. Note this doesn't protect fully since
+  // one could still use Context::set and/or write directly using offsets (e.g.
+  // from CSA/Torque).
+  void set(int index, Object value, WriteBarrierMode mode) = delete;
+  V8_INLINE void set(int index, Object value, WriteBarrierMode mode,
+                     ReleaseStoreTag);
 
   // [microtask_queue]: pointer to the MicrotaskQueue object.
   DECL_GETTER(microtask_queue, MicrotaskQueue*)

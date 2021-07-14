@@ -27,7 +27,7 @@
 
 // Flags: --track-fields --track-double-fields --allow-natives-syntax
 // Flags: --concurrent-recompilation --block-concurrent-recompilation
-// Flags: --no-always-opt
+// Flags: --no-always-opt --no-turbo-concurrent-get-property-access-info
 
 if (!%IsConcurrentRecompilationSupported()) {
   print("Concurrent recompilation is disabled. Skipping this test.");

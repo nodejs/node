@@ -54,9 +54,9 @@ class V8_EXPORT_PRIVATE SourcePositionTableBuilder {
   void AddPosition(size_t code_offset, SourcePosition source_position,
                    bool is_statement);
 
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  Handle<ByteArray> ToSourcePositionTable(LocalIsolate* isolate);
+  Handle<ByteArray> ToSourcePositionTable(IsolateT* isolate);
   OwnedVector<byte> ToSourcePositionTableVector();
 
   inline bool Omit() const { return mode_ != RECORD_SOURCE_POSITIONS; }

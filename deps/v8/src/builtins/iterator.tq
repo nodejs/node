@@ -78,8 +78,8 @@ extern macro LoadContextFromBaseline(): Context;
 extern macro LoadFeedbackVectorFromBaseline(): FeedbackVector;
 
 transitioning builtin GetIteratorBaseline(
-    context: Context, receiver: JSAny, loadSlot: TaggedIndex,
-    callSlot: TaggedIndex): JSAny {
+    receiver: JSAny, loadSlot: TaggedIndex, callSlot: TaggedIndex): JSAny {
+  const context: Context = LoadContextFromBaseline();
   const feedback: FeedbackVector = LoadFeedbackVectorFromBaseline();
   const iteratorMethod: JSAny =
       LoadIC(context, receiver, IteratorSymbolConstant(), loadSlot, feedback);
@@ -97,12 +97,18 @@ transitioning builtin CreateAsyncFromSyncIteratorBaseline(syncIterator: JSAny):
   return CreateAsyncFromSyncIterator(context, syncIterator);
 }
 
+macro GetLazyReceiver(receiver: JSAny): JSAny {
+  return receiver;
+}
+
 transitioning builtin CallIteratorWithFeedback(
     context: Context, receiver: JSAny, iteratorMethod: JSAny, callSlot: Smi,
     feedback: Undefined|FeedbackVector): JSAny {
   // TODO(v8:10047): Use TaggedIndex here once TurboFan supports it.
   const callSlotUnTagged: uintptr = Unsigned(SmiUntag(callSlot));
-  ic::CollectCallFeedback(iteratorMethod, context, feedback, callSlotUnTagged);
+  ic::CollectCallFeedback(
+      iteratorMethod, %MakeLazy<JSAny, JSAny>('GetLazyReceiver', receiver),
+      context, feedback, callSlotUnTagged);
   const iteratorCallable: Callable = Cast<Callable>(iteratorMethod)
       otherwise ThrowCalledNonCallable(iteratorMethod);
   return Call(context, iteratorCallable, receiver);

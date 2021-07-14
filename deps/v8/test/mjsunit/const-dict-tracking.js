@@ -5,6 +5,7 @@
 // Flags: --allow-natives-syntax --opt --no-always-opt
 // Flags: --no-stress-flush-bytecode
 // Flags: --block-concurrent-recompilation
+// Flags: --no-turbo-concurrent-get-property-access-info
 //
 // Tests tracking of constness of properties stored in dictionary
 // mode prototypes.

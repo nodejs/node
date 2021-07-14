@@ -397,6 +397,16 @@ Running test: testBigInt
 }
 
 Running test: testRegExp
+'/w+/d', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : RegExp
+        description : /w+/d
+        objectId : <objectId>
+        subtype : regexp
+        type : object
+    }
+}
 '/w+/g', returnByValue: false, generatePreview: false
 {
     result : {
@@ -457,11 +467,11 @@ Running test: testRegExp
         type : object
     }
 }
-'/w+/gimsuy', returnByValue: false, generatePreview: false
+'/w+/dgimsuy', returnByValue: false, generatePreview: false
 {
     result : {
         className : RegExp
-        description : /w+/gimsuy
+        description : /w+/dgimsuy
         objectId : <objectId>
         subtype : regexp
         type : object
@@ -472,6 +482,16 @@ Running test: testRegExp
     result : {
         className : RegExp
         description : /w+/g
+        objectId : <objectId>
+        subtype : regexp
+        type : object
+    }
+}
+'new RegExp('foo/bar')', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : RegExp
+        description : /foo\/bar/
         objectId : <objectId>
         subtype : regexp
         type : object

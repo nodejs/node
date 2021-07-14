@@ -95,7 +95,7 @@ class BasicPersistent final : public PersistentBase,
   template <typename U, typename OtherWeaknessPolicy,
             typename OtherLocationPolicy, typename OtherCheckingPolicy,
             typename = std::enable_if_t<std::is_base_of<T, U>::value>>
-  BasicPersistent(  // NOLINT
+  BasicPersistent(
       const BasicPersistent<U, OtherWeaknessPolicy, OtherLocationPolicy,
                             OtherCheckingPolicy>& other,
       const SourceLocation& loc = SourceLocation::Current())
@@ -118,7 +118,7 @@ class BasicPersistent final : public PersistentBase,
   template <typename U, typename MemberBarrierPolicy,
             typename MemberWeaknessTag, typename MemberCheckingPolicy,
             typename = std::enable_if_t<std::is_base_of<T, U>::value>>
-  BasicPersistent(internal::BasicMember<U, MemberBarrierPolicy,  // NOLINT
+  BasicPersistent(internal::BasicMember<U, MemberBarrierPolicy,
                                         MemberWeaknessTag, MemberCheckingPolicy>
                       member,
                   const SourceLocation& loc = SourceLocation::Current())
@@ -181,7 +181,7 @@ class BasicPersistent final : public PersistentBase,
   }
 
   explicit operator bool() const { return Get(); }
-  operator T*() const { return Get(); }  // NOLINT
+  operator T*() const { return Get(); }
   T* operator->() const { return Get(); }
   T& operator*() const { return *Get(); }
 

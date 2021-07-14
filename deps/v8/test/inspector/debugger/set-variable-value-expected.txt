@@ -54,6 +54,17 @@ Running test: testSetVariableValueMain
 {
     id : <messageId>
     result : {
+        internalProperties : [
+            [0] : {
+                name : [[Prototype]]
+                value : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+            }
+        ]
         result : [
             [0] : {
                 configurable : true
@@ -64,19 +75,6 @@ Running test: testSetVariableValueMain
                     description : 3
                     type : number
                     value : 3
-                }
-                writable : true
-            }
-            [1] : {
-                configurable : true
-                enumerable : false
-                isOwn : true
-                name : __proto__
-                value : {
-                    className : Object
-                    description : Object
-                    objectId : <objectId>
-                    type : object
                 }
                 writable : true
             }
@@ -98,6 +96,18 @@ Running test: testSetVariableValueMain
 {
     id : <messageId>
     result : {
+        internalProperties : [
+            [0] : {
+                name : [[Prototype]]
+                value : {
+                    className : Array
+                    description : Array(0)
+                    objectId : <objectId>
+                    subtype : array
+                    type : object
+                }
+            }
+        ]
         result : [
             [0] : {
                 configurable : true
@@ -144,20 +154,6 @@ Running test: testSetVariableValueMain
                 }
                 writable : true
             }
-            [4] : {
-                configurable : true
-                enumerable : false
-                isOwn : true
-                name : __proto__
-                value : {
-                    className : Array
-                    description : Array(0)
-                    objectId : <objectId>
-                    subtype : array
-                    type : object
-                }
-                writable : true
-            }
         ]
     }
 }
@@ -175,6 +171,17 @@ Running test: testSetVariableValueMain
 {
     id : <messageId>
     result : {
+        internalProperties : [
+            [0] : {
+                name : [[Prototype]]
+                value : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+            }
+        ]
         result : [
             [0] : {
                 configurable : true
@@ -185,19 +192,6 @@ Running test: testSetVariableValueMain
                     description : 4
                     type : number
                     value : 4
-                }
-                writable : true
-            }
-            [1] : {
-                configurable : true
-                enumerable : false
-                isOwn : true
-                name : __proto__
-                value : {
-                    className : Object
-                    description : Object
-                    objectId : <objectId>
-                    type : object
                 }
                 writable : true
             }

@@ -26,6 +26,7 @@ InspectorTest.runAsyncTestSuite([
     InspectorTest.logProtocolCommandCalls('Debugger.stepInto');
     InspectorTest.logProtocolCommandCalls('Debugger.resume');
 
+    await Protocol.Runtime.enable();
     await Protocol.Debugger.enable();
     InspectorTest.log('Setting up global instance variable.');
     WasmInspectorTest.instantiate(module_bytes);

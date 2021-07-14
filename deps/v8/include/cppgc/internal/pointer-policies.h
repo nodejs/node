@@ -9,12 +9,15 @@
 #include <type_traits>
 
 #include "cppgc/internal/write-barrier.h"
+#include "cppgc/sentinel-pointer.h"
 #include "cppgc/source-location.h"
+#include "cppgc/type-traits.h"
 #include "v8config.h"  // NOLINT(build/include_directory)
 
 namespace cppgc {
 namespace internal {
 
+class HeapBase;
 class PersistentRegion;
 class CrossThreadPersistentRegion;
 
@@ -50,11 +53,31 @@ struct NoWriteBarrierPolicy {
 
 class V8_EXPORT EnabledCheckingPolicy {
  protected:
-  EnabledCheckingPolicy();
-  void CheckPointer(const void* ptr);
+  template <typename T>
+  void CheckPointer(const T* ptr) {
+    if (!ptr || (kSentinelPointer == ptr)) return;
+
+    CheckPointersImplTrampoline<T>::Call(this, ptr);
+  }
 
  private:
-  void* impl_;
+  void CheckPointerImpl(const void* ptr, bool points_to_payload);
+
+  template <typename T, bool = IsCompleteV<T>>
+  struct CheckPointersImplTrampoline {
+    static void Call(EnabledCheckingPolicy* policy, const T* ptr) {
+      policy->CheckPointerImpl(ptr, false);
+    }
+  };
+
+  template <typename T>
+  struct CheckPointersImplTrampoline<T, true> {
+    static void Call(EnabledCheckingPolicy* policy, const T* ptr) {
+      policy->CheckPointerImpl(ptr, IsGarbageCollectedTypeV<T>);
+    }
+  };
+
+  const HeapBase* heap_ = nullptr;
 };
 
 class DisabledCheckingPolicy {
@@ -63,9 +86,11 @@ class DisabledCheckingPolicy {
 };
 
 #if V8_ENABLE_CHECKS
-using DefaultCheckingPolicy = EnabledCheckingPolicy;
+using DefaultMemberCheckingPolicy = EnabledCheckingPolicy;
+using DefaultPersistentCheckingPolicy = EnabledCheckingPolicy;
 #else
-using DefaultCheckingPolicy = DisabledCheckingPolicy;
+using DefaultMemberCheckingPolicy = DisabledCheckingPolicy;
+using DefaultPersistentCheckingPolicy = DisabledCheckingPolicy;
 #endif
 
 class KeepLocationPolicy {
@@ -133,10 +158,10 @@ template <typename T, typename WeaknessPolicy,
 class BasicCrossThreadPersistent;
 template <typename T, typename WeaknessPolicy,
           typename LocationPolicy = DefaultLocationPolicy,
-          typename CheckingPolicy = DefaultCheckingPolicy>
+          typename CheckingPolicy = DefaultPersistentCheckingPolicy>
 class BasicPersistent;
 template <typename T, typename WeaknessTag, typename WriteBarrierPolicy,
-          typename CheckingPolicy = DefaultCheckingPolicy>
+          typename CheckingPolicy = DefaultMemberCheckingPolicy>
 class BasicMember;
 
 }  // namespace internal

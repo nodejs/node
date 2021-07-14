@@ -9,6 +9,16 @@
 
 #include "include/libplatform/v8-tracing.h"
 
+#if !defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
+#error "only include this file if V8_ENABLE_SYSTEM_INSTRUMENTATION"
+#endif
+
+#if V8_OS_MACOSX
+#include <os/signpost.h>
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunguarded-availability"
+#endif
+
 #if V8_OS_WIN
 #ifndef V8_ETW_GUID
 #define V8_ETW_GUID \
@@ -31,14 +41,23 @@ class V8_PLATFORM_EXPORT Recorder {
   Recorder();
   ~Recorder();
 
-  static bool IsEnabled();
-  static bool IsEnabled(const uint8_t level);
+  bool IsEnabled();
+  bool IsEnabled(const uint8_t level);
 
   void AddEvent(TraceObject* trace_event);
+
+ private:
+#if V8_OS_MACOSX
+  os_log_t v8Provider;
+#endif
 };
 
 }  // namespace tracing
 }  // namespace platform
 }  // namespace v8
+
+#if V8_OS_MACOSX
+#pragma clang diagnostic pop
+#endif
 
 #endif  // V8_LIBPLATFORM_TRACING_RECORDER_H_

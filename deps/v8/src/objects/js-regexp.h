@@ -90,6 +90,9 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   static Flags FlagsFromString(Isolate* isolate, Handle<String> flags,
                                bool* success);
 
+  V8_EXPORT_PRIVATE static Handle<String> StringFromFlags(Isolate* isolate,
+                                                          Flags flags);
+
   bool CanTierUp();
   bool MarkedForTierUp();
   void ResetLastTierUpTick();

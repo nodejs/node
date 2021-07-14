@@ -5,7 +5,7 @@
 #ifndef V8_COMPILER_OPERATOR_H_
 #define V8_COMPILER_OPERATOR_H_
 
-#include <ostream>  // NOLINT(readability/streams)
+#include <ostream>
 
 #include "src/base/compiler-specific.h"
 #include "src/base/flags.h"

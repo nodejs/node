@@ -22,6 +22,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-regexp-inl.h"
+#include "src/objects/map-updater.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 #include "src/objects/oddball-inl.h"
@@ -226,6 +227,8 @@ enum class ErrorTag : uint8_t {
   kUriErrorPrototype = 'U',
   // Followed by message: string.
   kMessage = 'm',
+  // Followed by a JS object: cause.
+  kCause = 'c',
   // Followed by stack: string.
   kStack = 's',
   // The end of this error information.
@@ -298,6 +301,9 @@ void ValueSerializer::WriteZigZag(T value) {
   WriteVarint((static_cast<UnsignedT>(value) << 1) ^
               (value >> (8 * sizeof(T) - 1)));
 }
+
+template EXPORT_TEMPLATE_DEFINE(
+    V8_EXPORT_PRIVATE) void ValueSerializer::WriteZigZag(int32_t value);
 
 void ValueSerializer::WriteDouble(double value) {
   // Warning: this uses host endianness.
@@ -934,6 +940,9 @@ Maybe<bool> ValueSerializer::WriteJSError(Handle<JSObject> error) {
   Maybe<bool> message_found = JSReceiver::GetOwnPropertyDescriptor(
       isolate_, error, isolate_->factory()->message_string(), &message_desc);
   MAYBE_RETURN(message_found, Nothing<bool>());
+  PropertyDescriptor cause_desc;
+  Maybe<bool> cause_found = JSReceiver::GetOwnPropertyDescriptor(
+      isolate_, error, isolate_->factory()->cause_string(), &cause_desc);
 
   WriteTag(SerializationTag::kError);
 
@@ -971,6 +980,15 @@ Maybe<bool> ValueSerializer::WriteJSError(Handle<JSObject> error) {
     }
     WriteVarint(static_cast<uint8_t>(ErrorTag::kMessage));
     WriteString(message);
+  }
+
+  if (cause_found.FromJust() &&
+      PropertyDescriptor::IsDataDescriptor(&cause_desc)) {
+    Handle<Object> cause = cause_desc.value();
+    WriteVarint(static_cast<uint8_t>(ErrorTag::kCause));
+    if (!WriteObject(cause).FromMaybe(false)) {
+      return Nothing<bool>();
+    }
   }
 
   if (!Object::GetProperty(isolate_, error, isolate_->factory()->stack_string())
@@ -1199,6 +1217,9 @@ Maybe<T> ValueDeserializer::ReadZigZag() {
   return Just(static_cast<T>((unsigned_value >> 1) ^
                              -static_cast<T>(unsigned_value & 1)));
 }
+
+template EXPORT_TEMPLATE_DEFINE(
+    V8_EXPORT_PRIVATE) Maybe<int32_t> ValueDeserializer::ReadZigZag();
 
 Maybe<double> ValueDeserializer::ReadDouble() {
   // Warning: this uses host endianness.
@@ -1527,7 +1548,7 @@ MaybeHandle<JSArray> ValueDeserializer::ReadSparseJSArray() {
   HandleScope scope(isolate_);
   Handle<JSArray> array =
       isolate_->factory()->NewJSArray(0, TERMINAL_FAST_ELEMENTS_KIND);
-  JSArray::SetLength(array, length);
+  MAYBE_RETURN(JSArray::SetLength(array, length), MaybeHandle<JSArray>());
   AddObjectWithID(id, array);
 
   uint32_t num_properties;
@@ -1874,6 +1895,7 @@ MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
 
 MaybeHandle<Object> ValueDeserializer::ReadJSError() {
   Handle<Object> message = isolate_->factory()->undefined_value();
+  Handle<Object> options = isolate_->factory()->undefined_value();
   Handle<Object> stack = isolate_->factory()->undefined_value();
   Handle<Object> no_caller;
   auto constructor = isolate_->error_function();
@@ -1911,6 +1933,20 @@ MaybeHandle<Object> ValueDeserializer::ReadJSError() {
         message = message_string;
         break;
       }
+      case ErrorTag::kCause: {
+        Handle<Object> cause;
+        if (!ReadObject().ToHandle(&cause)) {
+          return MaybeHandle<JSObject>();
+        }
+        options = isolate_->factory()->NewJSObject(isolate_->object_function());
+        if (JSObject::DefinePropertyOrElementIgnoreAttributes(
+                Handle<JSObject>::cast(options),
+                isolate_->factory()->cause_string(), cause, DONT_ENUM)
+                .is_null()) {
+          return MaybeHandle<JSObject>();
+        }
+        break;
+      }
       case ErrorTag::kStack: {
         Handle<String> stack_string;
         if (!ReadString().ToHandle(&stack_string)) {
@@ -1929,7 +1965,7 @@ MaybeHandle<Object> ValueDeserializer::ReadJSError() {
 
   Handle<Object> error;
   if (!ErrorUtils::Construct(isolate_, constructor, constructor, message,
-                             SKIP_NONE, no_caller,
+                             options, SKIP_NONE, no_caller,
                              ErrorUtils::StackTraceCollection::kNone)
            .ToHandle(&error)) {
     return MaybeHandle<Object>();
@@ -2101,9 +2137,9 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
                    .NowContains(value)) {
             Handle<FieldType> value_type =
                 value->OptimalType(isolate_, expected_representation);
-            Map::GeneralizeField(isolate_, target, descriptor,
-                                 details.constness(), expected_representation,
-                                 value_type);
+            MapUpdater::GeneralizeField(isolate_, target, descriptor,
+                                        details.constness(),
+                                        expected_representation, value_type);
           }
           DCHECK(target->instance_descriptors(isolate_)
                      .GetFieldType(descriptor)
@@ -2285,7 +2321,7 @@ ValueDeserializer::ReadObjectUsingEntireBufferForLegacyFormat() {
 
         Handle<JSArray> js_array =
             isolate_->factory()->NewJSArray(0, TERMINAL_FAST_ELEMENTS_KIND);
-        JSArray::SetLength(js_array, length);
+        MAYBE_RETURN_NULL(JSArray::SetLength(js_array, length));
         size_t begin_properties =
             stack.size() - 2 * static_cast<size_t>(num_properties);
         if (num_properties &&

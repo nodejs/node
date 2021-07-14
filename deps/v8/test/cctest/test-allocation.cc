@@ -7,7 +7,7 @@
 #if V8_OS_POSIX
 #include <setjmp.h>
 #include <signal.h>
-#include <unistd.h>  // NOLINT
+#include <unistd.h>
 #endif
 
 #include "src/init/v8.h"

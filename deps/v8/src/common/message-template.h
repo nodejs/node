@@ -330,6 +330,8 @@ namespace internal {
     "Expected letters optionally connected with underscores or hyphens for "   \
     "a location, got %")                                                       \
   T(InvalidArrayBufferLength, "Invalid array buffer length")                   \
+  T(InvalidArrayBufferMaxLength, "Invalid array buffer max length")            \
+  T(InvalidArrayBufferResizeLength, "%: Invalid length parameter")             \
   T(ArrayBufferAllocationFailed, "Array buffer allocation failed")             \
   T(Invalid, "Invalid % : %")                                                  \
   T(InvalidArrayLength, "Invalid array length")                                \
@@ -354,6 +356,7 @@ namespace internal {
   T(LetInLexicalBinding, "let is disallowed as a lexically bound name")        \
   T(LocaleMatcher, "Illegal value for localeMatcher:%")                        \
   T(NormalizationForm, "The normalization form should be one of %.")           \
+  T(OutOfMemory, "%: Out of memory")                                           \
   T(ParameterOfFunctionOutOfRange,                                             \
     "Paramenter % of function %() is % and out of range")                      \
   T(ZeroDigitNumericSeparator,                                                 \
@@ -564,7 +567,7 @@ namespace internal {
   T(WasmTrapRemByZero, "remainder by zero")                                    \
   T(WasmTrapFloatUnrepresentable, "float unrepresentable in integer range")    \
   T(WasmTrapTableOutOfBounds, "table index is out of bounds")                  \
-  T(WasmTrapFuncSigMismatch, "function signature mismatch")                    \
+  T(WasmTrapFuncSigMismatch, "null function or function signature mismatch")   \
   T(WasmTrapMultiReturnLengthMismatch, "multi-return length mismatch")         \
   T(WasmTrapJSTypeError, "type incompatibility when transforming from/to JS")  \
   T(WasmTrapDataSegmentDropped, "data segment has been dropped")               \

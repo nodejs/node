@@ -37,7 +37,7 @@ DOM.defineCustomElement(
 
       set selectedLogEntries(list) {
         this._selectedLogEntries = list;
-        this.update();
+        this.requestUpdate();
       }
 
       _update() {

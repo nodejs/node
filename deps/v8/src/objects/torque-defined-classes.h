@@ -7,6 +7,7 @@
 #include "src/objects/descriptor-array.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/heap-object.h"
+#include "src/objects/megadom-handler.h"
 #include "src/objects/objects.h"
 
 // Has to be the last include (doesn't have include guards):

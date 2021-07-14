@@ -101,9 +101,9 @@ MaybeHandle<BigInt> StringToBigInt(Isolate* isolate, Handle<String> string);
 //   0x -> hex
 //   0o -> octal
 //   0b -> binary
-template <typename LocalIsolate>
+template <typename IsolateT>
 EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-MaybeHandle<BigInt> BigIntLiteral(LocalIsolate* isolate, const char* string);
+MaybeHandle<BigInt> BigIntLiteral(IsolateT* isolate, const char* string);
 
 const int kDoubleToCStringMinBufferSize = 100;
 

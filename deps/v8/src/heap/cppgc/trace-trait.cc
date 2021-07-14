@@ -18,9 +18,10 @@ TraceDescriptor TraceTraitFromInnerAddressImpl::GetTraceDescriptor(
   page->SynchronizedLoad();
   const HeapObjectHeader& header =
       page->ObjectHeaderFromInnerAddress<AccessMode::kAtomic>(address);
-  return {header.Payload(), GlobalGCInfoTable::GCInfoFromIndex(
-                                header.GetGCInfoIndex<AccessMode::kAtomic>())
-                                .trace};
+  return {header.ObjectStart(),
+          GlobalGCInfoTable::GCInfoFromIndex(
+              header.GetGCInfoIndex<AccessMode::kAtomic>())
+              .trace};
 }
 
 }  // namespace internal

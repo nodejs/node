@@ -57,16 +57,19 @@ class OptimizingCompileDispatcher::CompileTask : public CancelableTask {
  private:
   // v8::Task overrides.
   void RunInternal() override {
+#ifdef V8_RUNTIME_CALL_STATS
     WorkerThreadRuntimeCallStatsScope runtime_call_stats_scope(
         worker_thread_runtime_call_stats_);
     LocalIsolate local_isolate(isolate_, ThreadKind::kBackground,
                                runtime_call_stats_scope.Get());
+#else   // V8_RUNTIME_CALL_STATS
+    LocalIsolate local_isolate(isolate_, ThreadKind::kBackground);
+#endif  // V8_RUNTIME_CALL_STATS
     DCHECK(local_isolate.heap()->IsParked());
 
     {
-      RuntimeCallTimerScope runtimeTimer(
-          runtime_call_stats_scope.Get(),
-          RuntimeCallCounterId::kOptimizeBackgroundDispatcherJob);
+      RCS_SCOPE(runtime_call_stats_scope.Get(),
+                RuntimeCallCounterId::kOptimizeBackgroundDispatcherJob);
 
       TimerEventScope<TimerEventRecompileConcurrent> timer(isolate_);
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
@@ -78,7 +81,7 @@ class OptimizingCompileDispatcher::CompileTask : public CancelableTask {
       }
 
       dispatcher_->CompileNext(dispatcher_->NextInput(&local_isolate),
-                               runtime_call_stats_scope.Get(), &local_isolate);
+                               &local_isolate);
     }
     {
       base::MutexGuard lock_guard(&dispatcher_->ref_count_mutex_);
@@ -111,12 +114,12 @@ OptimizedCompilationJob* OptimizingCompileDispatcher::NextInput(
 }
 
 void OptimizingCompileDispatcher::CompileNext(OptimizedCompilationJob* job,
-                                              RuntimeCallStats* stats,
                                               LocalIsolate* local_isolate) {
   if (!job) return;
 
   // The function may have already been optimized by OSR.  Simply continue.
-  CompilationJob::Status status = job->ExecuteJob(stats, local_isolate);
+  CompilationJob::Status status =
+      job->ExecuteJob(local_isolate->runtime_call_stats(), local_isolate);
   USE(status);  // Prevent an unused-variable error.
 
   {
@@ -167,6 +170,7 @@ void OptimizingCompileDispatcher::FlushQueues(
 }
 
 void OptimizingCompileDispatcher::Flush(BlockingBehavior blocking_behavior) {
+  HandleScope handle_scope(isolate_);
   FlushQueues(blocking_behavior, true);
   if (FLAG_trace_concurrent_recompilation) {
     PrintF("  ** Flushed concurrent recompilation queues. (mode: %s)\n",
@@ -176,6 +180,7 @@ void OptimizingCompileDispatcher::Flush(BlockingBehavior blocking_behavior) {
 }
 
 void OptimizingCompileDispatcher::Stop() {
+  HandleScope handle_scope(isolate_);
   FlushQueues(BlockingBehavior::kBlock, false);
   // At this point the optimizing compiler thread's event loop has stopped.
   // There is no need for a mutex when reading input_queue_length_.

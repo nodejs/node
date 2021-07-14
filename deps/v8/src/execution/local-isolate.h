@@ -50,7 +50,7 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
 
   LocalHeap* heap() { return &heap_; }
 
-  inline Address isolate_root() const;
+  inline Address cage_base() const;
   inline ReadOnlyHeap* read_only_heap() const;
   inline Object root(RootIndex index) const;
 
@@ -62,8 +62,7 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   v8::internal::LocalFactory* factory() {
     // Upcast to the privately inherited base-class using c-style casts to avoid
     // undefined behavior (as static_cast cannot cast across private bases).
-    // NOLINTNEXTLINE (google-readability-casting)
-    return (v8::internal::LocalFactory*)this;  // NOLINT(readability/casting)
+    return (v8::internal::LocalFactory*)this;
   }
 
   bool has_pending_exception() const { return false; }

@@ -298,6 +298,10 @@ class Serializer : public SerializerDeserializer {
     return (flags_ & Snapshot::kAllowActiveIsolateForTesting) != 0;
   }
 
+  bool reconstruct_read_only_object_cache_for_testing() const {
+    return (flags_ & Snapshot::kReconstructReadOnlyObjectCacheForTesting) != 0;
+  }
+
  private:
   // A circular queue of hot objects. This is added to in the same order as in
   // Deserializer::HotObjectsList, but this stores the objects as an array of

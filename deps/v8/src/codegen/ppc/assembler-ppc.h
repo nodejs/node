@@ -448,6 +448,7 @@ class Assembler : public AssemblerBase {
   }
 
   PPC_XX2_OPCODE_A_FORM_LIST(DECLARE_PPC_XX2_INSTRUCTIONS)
+  PPC_XX2_OPCODE_B_FORM_LIST(DECLARE_PPC_XX2_INSTRUCTIONS)
 #undef DECLARE_PPC_XX2_INSTRUCTIONS
 
 #define DECLARE_PPC_XX3_INSTRUCTIONS(name, instr_name, instr_value)    \
@@ -500,6 +501,9 @@ class Assembler : public AssemblerBase {
   PPC_VX_OPCODE_A_FORM_LIST(DECLARE_PPC_VX_INSTRUCTIONS_A_FORM)
   PPC_VX_OPCODE_B_FORM_LIST(DECLARE_PPC_VX_INSTRUCTIONS_B_FORM)
   PPC_VX_OPCODE_C_FORM_LIST(DECLARE_PPC_VX_INSTRUCTIONS_C_FORM)
+  PPC_VX_OPCODE_D_FORM_LIST(
+      DECLARE_PPC_VX_INSTRUCTIONS_C_FORM) /* OPCODE_D_FORM can use
+                                             INSTRUCTIONS_C_FORM */
 #undef DECLARE_PPC_VX_INSTRUCTIONS_A_FORM
 #undef DECLARE_PPC_VX_INSTRUCTIONS_B_FORM
 #undef DECLARE_PPC_VX_INSTRUCTIONS_C_FORM
@@ -1028,6 +1032,7 @@ class Assembler : public AssemblerBase {
   void mtvsrd(const Simd128Register rt, const Register ra);
   void mtvsrdd(const Simd128Register rt, const Register ra, const Register rb);
   void lxvd(const Simd128Register rt, const MemOperand& src);
+  void lxvx(const Simd128Register rt, const MemOperand& src);
   void lxsdx(const Simd128Register rt, const MemOperand& src);
   void lxsibzx(const Simd128Register rt, const MemOperand& src);
   void lxsihzx(const Simd128Register rt, const MemOperand& src);
@@ -1037,8 +1042,8 @@ class Assembler : public AssemblerBase {
   void stxsihx(const Simd128Register rs, const MemOperand& src);
   void stxsiwx(const Simd128Register rs, const MemOperand& src);
   void stxvd(const Simd128Register rt, const MemOperand& src);
+  void stxvx(const Simd128Register rt, const MemOperand& src);
   void xxspltib(const Simd128Register rt, const Operand& imm);
-  void xxbrq(const Simd128Register rt, const Simd128Register rb);
 
   // Pseudo instructions
 

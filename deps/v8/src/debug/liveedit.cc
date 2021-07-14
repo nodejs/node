@@ -66,31 +66,35 @@ class Differencer {
  public:
   explicit Differencer(Comparator::Input* input)
       : input_(input), len1_(input->GetLength1()), len2_(input->GetLength2()) {
-    buffer_ = NewArray<int>(len1_ * len2_);
-  }
-  ~Differencer() {
-    DeleteArray(buffer_);
   }
 
   void Initialize() {
-    int array_size = len1_ * len2_;
-    for (int i = 0; i < array_size; i++) {
-      buffer_[i] = kEmptyCellValue;
-    }
   }
 
   // Makes sure that result for the full problem is calculated and stored
   // in the table together with flags showing a path through subproblems.
   void FillTable() {
-    CompareUpToTail(0, 0);
+    // Determine common prefix to skip.
+    int minLen = std::min(len1_, len2_);
+    while (prefixLen_ < minLen && input_->Equals(prefixLen_, prefixLen_)) {
+      ++prefixLen_;
+    }
+
+    // Pre-fill common suffix in the table.
+    for (int pos1 = len1_, pos2 = len2_; pos1 > prefixLen_ &&
+                                         pos2 > prefixLen_ &&
+                                         input_->Equals(--pos1, --pos2);) {
+      set_value4_and_dir(pos1, pos2, 0, EQ);
+    }
+
+    CompareUpToTail(prefixLen_, prefixLen_);
   }
 
   void SaveResult(Comparator::Output* chunk_writer) {
     ResultWriter writer(chunk_writer);
 
-    int pos1 = 0;
-    int pos2 = 0;
-    while (true) {
+    if (prefixLen_) writer.eq(prefixLen_);
+    for (int pos1 = prefixLen_, pos2 = prefixLen_; true;) {
       if (pos1 < len1_) {
         if (pos2 < len2_) {
           Direction dir = get_direction(pos1, pos2);
@@ -128,9 +132,10 @@ class Differencer {
 
  private:
   Comparator::Input* input_;
-  int* buffer_;
+  std::map<std::pair<int, int>, int> buffer_;
   int len1_;
   int len2_;
+  int prefixLen_ = 0;
 
   enum Direction {
     EQ = 0,
@@ -144,51 +149,51 @@ class Differencer {
   // Computes result for a subtask and optionally caches it in the buffer table.
   // All results values are shifted to make space for flags in the lower bits.
   int CompareUpToTail(int pos1, int pos2) {
-    if (pos1 < len1_) {
-      if (pos2 < len2_) {
-        int cached_res = get_value4(pos1, pos2);
-        if (cached_res == kEmptyCellValue) {
-          Direction dir;
-          int res;
-          if (input_->Equals(pos1, pos2)) {
-            res = CompareUpToTail(pos1 + 1, pos2 + 1);
-            dir = EQ;
-          } else {
-            int res1 = CompareUpToTail(pos1 + 1, pos2) +
-                (1 << kDirectionSizeBits);
-            int res2 = CompareUpToTail(pos1, pos2 + 1) +
-                (1 << kDirectionSizeBits);
-            if (res1 == res2) {
-              res = res1;
-              dir = SKIP_ANY;
-            } else if (res1 < res2) {
-              res = res1;
-              dir = SKIP1;
-            } else {
-              res = res2;
-              dir = SKIP2;
-            }
-          }
-          set_value4_and_dir(pos1, pos2, res, dir);
-          cached_res = res;
-        }
-        return cached_res;
-      } else {
-        return (len1_ - pos1) << kDirectionSizeBits;
-      }
-    } else {
+    if (pos1 == len1_) {
       return (len2_ - pos2) << kDirectionSizeBits;
     }
+    if (pos2 == len2_) {
+      return (len1_ - pos1) << kDirectionSizeBits;
+    }
+    int res = get_value4(pos1, pos2);
+    if (res != kEmptyCellValue) {
+      return res;
+    }
+    Direction dir;
+    if (input_->Equals(pos1, pos2)) {
+      res = CompareUpToTail(pos1 + 1, pos2 + 1);
+      dir = EQ;
+    } else {
+      int res1 = CompareUpToTail(pos1 + 1, pos2) + (1 << kDirectionSizeBits);
+      int res2 = CompareUpToTail(pos1, pos2 + 1) + (1 << kDirectionSizeBits);
+      if (res1 == res2) {
+        res = res1;
+        dir = SKIP_ANY;
+      } else if (res1 < res2) {
+        res = res1;
+        dir = SKIP1;
+      } else {
+        res = res2;
+        dir = SKIP2;
+      }
+    }
+    set_value4_and_dir(pos1, pos2, res, dir);
+    return res;
   }
 
-  inline int& get_cell(int i1, int i2) {
-    return buffer_[i1 + i2 * len1_];
+  inline int get_cell(int i1, int i2) {
+    auto it = buffer_.find(std::make_pair(i1, i2));
+    return it == buffer_.end() ? kEmptyCellValue : it->second;
+  }
+
+  inline void set_cell(int i1, int i2, int value) {
+    buffer_.insert(std::make_pair(std::make_pair(i1, i2), value));
   }
 
   // Each cell keeps a value plus direction. Value is multiplied by 4.
   void set_value4_and_dir(int i1, int i2, int value4, Direction dir) {
     DCHECK_EQ(0, value4 & kDirectionMask);
-    get_cell(i1, i2) = value4 | dir;
+    set_cell(i1, i2, value4 | dir);
   }
 
   int get_value4(int i1, int i2) {
@@ -214,10 +219,10 @@ class Differencer {
         : chunk_writer_(chunk_writer), pos1_(0), pos2_(0),
           pos1_begin_(-1), pos2_begin_(-1), has_open_chunk_(false) {
     }
-    void eq() {
+    void eq(int len = 1) {
       FlushChunk();
-      pos1_++;
-      pos2_++;
+      pos1_ += len;
+      pos2_ += len;
     }
     void skip1(int len1) {
       StartChunk();
@@ -782,10 +787,8 @@ bool ParseScript(Isolate* isolate, Handle<Script> script, ParseInfo* parse_info,
 }
 
 struct FunctionData {
-  FunctionData(FunctionLiteral* literal, bool should_restart)
-      : literal(literal),
-        stack_position(NOT_ON_STACK),
-        should_restart(should_restart) {}
+  explicit FunctionData(FunctionLiteral* literal)
+      : literal(literal), stack_position(NOT_ON_STACK) {}
 
   FunctionLiteral* literal;
   MaybeHandle<SharedFunctionInfo> shared;
@@ -794,23 +797,14 @@ struct FunctionData {
   // In case of multiple functions with different stack position, the latest
   // one (in the order below) is used, since it is the most restrictive.
   // This is important only for functions to be restarted.
-  enum StackPosition {
-    NOT_ON_STACK,
-    ABOVE_BREAK_FRAME,
-    PATCHABLE,
-    BELOW_NON_DROPPABLE_FRAME,
-    ARCHIVED_THREAD,
-  };
+  enum StackPosition { NOT_ON_STACK, ON_STACK };
   StackPosition stack_position;
-  bool should_restart;
 };
 
 class FunctionDataMap : public ThreadVisitor {
  public:
-  void AddInterestingLiteral(int script_id, FunctionLiteral* literal,
-                             bool should_restart) {
-    map_.emplace(GetFuncId(script_id, literal),
-                 FunctionData{literal, should_restart});
+  void AddInterestingLiteral(int script_id, FunctionLiteral* literal) {
+    map_.emplace(GetFuncId(script_id, literal), FunctionData{literal});
   }
 
   bool Lookup(SharedFunctionInfo sfi, FunctionData** data) {
@@ -827,7 +821,7 @@ class FunctionDataMap : public ThreadVisitor {
     return Lookup(GetFuncId(script->id(), literal), data);
   }
 
-  void Fill(Isolate* isolate, Address* restart_frame_fp) {
+  void Fill(Isolate* isolate) {
     {
       HeapObjectIterator iterator(isolate->heap(),
                                   HeapObjectIterator::kFilterUnreachable);
@@ -854,38 +848,11 @@ class FunctionDataMap : public ThreadVisitor {
         }
       }
     }
-    FunctionData::StackPosition stack_position =
-        isolate->debug()->break_frame_id() == StackFrameId::NO_ID
-            ? FunctionData::PATCHABLE
-            : FunctionData::ABOVE_BREAK_FRAME;
-    for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
-      StackFrame* frame = it.frame();
-      if (stack_position == FunctionData::ABOVE_BREAK_FRAME) {
-        if (frame->id() == isolate->debug()->break_frame_id()) {
-          stack_position = FunctionData::PATCHABLE;
-        }
-      }
-      if (stack_position == FunctionData::PATCHABLE &&
-          (frame->is_exit() || frame->is_builtin_exit())) {
-        stack_position = FunctionData::BELOW_NON_DROPPABLE_FRAME;
-        continue;
-      }
-      if (!frame->is_java_script()) continue;
-      std::vector<Handle<SharedFunctionInfo>> sfis;
-      JavaScriptFrame::cast(frame)->GetFunctions(&sfis);
-      for (auto& sfi : sfis) {
-        if (stack_position == FunctionData::PATCHABLE &&
-            IsResumableFunction(sfi->kind())) {
-          stack_position = FunctionData::BELOW_NON_DROPPABLE_FRAME;
-        }
-        FunctionData* data = nullptr;
-        if (!Lookup(*sfi, &data)) continue;
-        if (!data->should_restart) continue;
-        data->stack_position = stack_position;
-        *restart_frame_fp = frame->fp();
-      }
-    }
 
+    // Visit the current thread stack.
+    VisitThread(isolate, isolate->thread_local_top());
+
+    // Visit the stacks of all archived threads.
     isolate->thread_manager()->IterateArchivedThreads(this);
   }
 
@@ -932,7 +899,7 @@ class FunctionDataMap : public ThreadVisitor {
       for (auto& sfi : sfis) {
         FunctionData* data = nullptr;
         if (!Lookup(*sfi, &data)) continue;
-        data->stack_position = FunctionData::ARCHIVED_THREAD;
+        data->stack_position = FunctionData::ON_STACK;
       }
     }
   }
@@ -940,11 +907,10 @@ class FunctionDataMap : public ThreadVisitor {
   std::map<FuncId, FunctionData> map_;
 };
 
-bool CanPatchScript(
-    const LiteralMap& changed, Handle<Script> script, Handle<Script> new_script,
-    FunctionDataMap& function_data_map,  // NOLINT(runtime/references)
-    debug::LiveEditResult* result) {
-  debug::LiveEditResult::Status status = debug::LiveEditResult::OK;
+bool CanPatchScript(const LiteralMap& changed, Handle<Script> script,
+                    Handle<Script> new_script,
+                    FunctionDataMap& function_data_map,
+                    debug::LiveEditResult* result) {
   for (const auto& mapping : changed) {
     FunctionData* data = nullptr;
     function_data_map.Lookup(script, mapping.first, &data);
@@ -953,55 +919,11 @@ bool CanPatchScript(
     Handle<SharedFunctionInfo> sfi;
     if (!data->shared.ToHandle(&sfi)) {
       continue;
-    } else if (!data->should_restart) {
-      UNREACHABLE();
-    } else if (data->stack_position == FunctionData::ABOVE_BREAK_FRAME) {
-      status = debug::LiveEditResult::BLOCKED_BY_FUNCTION_ABOVE_BREAK_FRAME;
-    } else if (data->stack_position ==
-               FunctionData::BELOW_NON_DROPPABLE_FRAME) {
-      status =
-          debug::LiveEditResult::BLOCKED_BY_FUNCTION_BELOW_NON_DROPPABLE_FRAME;
-    } else if (!data->running_generators.empty()) {
-      status = debug::LiveEditResult::BLOCKED_BY_RUNNING_GENERATOR;
-    } else if (data->stack_position == FunctionData::ARCHIVED_THREAD) {
-      status = debug::LiveEditResult::BLOCKED_BY_ACTIVE_FUNCTION;
-    }
-    if (status != debug::LiveEditResult::OK) {
-      result->status = status;
+    } else if (data->stack_position == FunctionData::ON_STACK) {
+      result->status = debug::LiveEditResult::BLOCKED_BY_ACTIVE_FUNCTION;
       return false;
-    }
-  }
-  return true;
-}
-
-bool CanRestartFrame(
-    Isolate* isolate, Address fp,
-    FunctionDataMap& function_data_map,  // NOLINT(runtime/references)
-    const LiteralMap& changed, debug::LiveEditResult* result) {
-  DCHECK_GT(fp, 0);
-  StackFrame* restart_frame = nullptr;
-  StackFrameIterator it(isolate);
-  for (; !it.done(); it.Advance()) {
-    if (it.frame()->fp() == fp) {
-      restart_frame = it.frame();
-      break;
-    }
-  }
-  DCHECK(restart_frame && restart_frame->is_java_script());
-  if (!LiveEdit::kFrameDropperSupported) {
-    result->status = debug::LiveEditResult::FRAME_RESTART_IS_NOT_SUPPORTED;
-    return false;
-  }
-  std::vector<Handle<SharedFunctionInfo>> sfis;
-  JavaScriptFrame::cast(restart_frame)->GetFunctions(&sfis);
-  for (auto& sfi : sfis) {
-    FunctionData* data = nullptr;
-    if (!function_data_map.Lookup(*sfi, &data)) continue;
-    auto new_literal_it = changed.find(data->literal);
-    if (new_literal_it == changed.end()) continue;
-    if (new_literal_it->second->scope()->new_target_var()) {
-      result->status =
-          debug::LiveEditResult::BLOCKED_BY_NEW_TARGET_IN_RESTART_FRAME;
+    } else if (!data->running_generators.empty()) {
+      result->status = debug::LiveEditResult::BLOCKED_BY_RUNNING_GENERATOR;
       return false;
     }
   }
@@ -1092,22 +1014,15 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
 
   FunctionDataMap function_data_map;
   for (const auto& mapping : changed) {
-    function_data_map.AddInterestingLiteral(script->id(), mapping.first, true);
-    function_data_map.AddInterestingLiteral(new_script->id(), mapping.second,
-                                            false);
+    function_data_map.AddInterestingLiteral(script->id(), mapping.first);
+    function_data_map.AddInterestingLiteral(new_script->id(), mapping.second);
   }
   for (const auto& mapping : unchanged) {
-    function_data_map.AddInterestingLiteral(script->id(), mapping.first, false);
+    function_data_map.AddInterestingLiteral(script->id(), mapping.first);
   }
-  Address restart_frame_fp = 0;
-  function_data_map.Fill(isolate, &restart_frame_fp);
+  function_data_map.Fill(isolate);
 
   if (!CanPatchScript(changed, script, new_script, function_data_map, result)) {
-    return;
-  }
-  if (restart_frame_fp &&
-      !CanRestartFrame(isolate, restart_frame_fp, function_data_map, changed,
-                       result)) {
     return;
   }
 
@@ -1273,57 +1188,11 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
   }
 #endif
 
-  if (restart_frame_fp) {
-    for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
-      if (it.frame()->fp() == restart_frame_fp) {
-        isolate->debug()->ScheduleFrameRestart(it.frame());
-        result->stack_changed = true;
-        break;
-      }
-    }
-  }
-
   int script_id = script->id();
   script->set_id(new_script->id());
   new_script->set_id(script_id);
   result->status = debug::LiveEditResult::OK;
   result->script = ToApiHandle<v8::debug::Script>(new_script);
-}
-
-void LiveEdit::InitializeThreadLocal(Debug* debug) {
-  debug->thread_local_.restart_fp_ = 0;
-}
-
-bool LiveEdit::RestartFrame(JavaScriptFrame* frame) {
-  if (!LiveEdit::kFrameDropperSupported) return false;
-  Isolate* isolate = frame->isolate();
-  StackFrameId break_frame_id = isolate->debug()->break_frame_id();
-  bool break_frame_found = break_frame_id == StackFrameId::NO_ID;
-  for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
-    StackFrame* current = it.frame();
-    break_frame_found = break_frame_found || break_frame_id == current->id();
-    if (current->fp() == frame->fp()) {
-      if (break_frame_found) {
-        isolate->debug()->ScheduleFrameRestart(current);
-        return true;
-      } else {
-        return false;
-      }
-    }
-    if (!break_frame_found) continue;
-    if (current->is_exit() || current->is_builtin_exit()) {
-      return false;
-    }
-    if (!current->is_java_script()) continue;
-    std::vector<Handle<SharedFunctionInfo>> shareds;
-    JavaScriptFrame::cast(current)->GetFunctions(&shareds);
-    for (auto& shared : shareds) {
-      if (IsResumableFunction(shared->kind())) {
-        return false;
-      }
-    }
-  }
-  return false;
 }
 
 void LiveEdit::CompareStrings(Isolate* isolate, Handle<String> s1,

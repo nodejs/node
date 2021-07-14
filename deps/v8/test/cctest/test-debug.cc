@@ -108,12 +108,13 @@ static void ClearBreakPoint(i::Handle<i::BreakPoint> break_point) {
 
 
 // Change break on exception.
-static void ChangeBreakOnException(bool caught, bool uncaught) {
-  v8::internal::Debug* debug = CcTest::i_isolate()->debug();
+static void ChangeBreakOnException(v8::Isolate* isolate, bool caught,
+                                   bool uncaught) {
+  v8::internal::Debug* debug =
+      reinterpret_cast<v8::internal::Isolate*>(isolate)->debug();
   debug->ChangeBreakOnException(v8::internal::BreakException, caught);
   debug->ChangeBreakOnException(v8::internal::BreakUncaughtException, uncaught);
 }
-
 
 // Prepare to step to next break location.
 static void PrepareStep(i::StepAction step_action) {
@@ -3028,7 +3029,7 @@ TEST(DebugBreakInWrappedScript) {
   static const char* expect = "TypeError: o[0] is not a function";
 
   // For this test, we want to break on uncaught exceptions:
-  ChangeBreakOnException(true, true);
+  ChangeBreakOnException(isolate, true, true);
 
   {
     v8::ScriptCompiler::Source script_source(v8_str(source));
@@ -3492,7 +3493,7 @@ TEST(SyntaxErrorEventOnSyntaxException) {
   v8::HandleScope scope(env->GetIsolate());
 
   // For this test, we want to break on uncaught exceptions:
-  ChangeBreakOnException(false, true);
+  ChangeBreakOnException(env->GetIsolate(), false, true);
 
   ScriptCompiledDelegate delegate;
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
@@ -3539,22 +3540,31 @@ class ExceptionEventCounter : public v8::debug::DebugDelegate {
   int exception_event_count = 0;
 };
 
-TEST(NoBreakOnStackOverflow) {
+UNINITIALIZED_TEST(NoBreakOnStackOverflow) {
+  // We must set FLAG_stack_size before initializing the isolate.
   i::FLAG_stack_size = 100;
-  LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  isolate->Enter();
+  {
+    LocalContext env(isolate);
+    v8::HandleScope scope(isolate);
 
-  ChangeBreakOnException(true, true);
+    ChangeBreakOnException(isolate, true, true);
 
-  ExceptionEventCounter delegate;
-  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
-  CHECK_EQ(0, delegate.exception_event_count);
+    ExceptionEventCounter delegate;
+    v8::debug::SetDebugDelegate(isolate, &delegate);
+    CHECK_EQ(0, delegate.exception_event_count);
 
-  CompileRun(
-      "function f() { return f(); }"
-      "try { f() } catch {}");
+    CompileRun(
+        "function f() { return f(); }"
+        "try { f() } catch {}");
 
-  CHECK_EQ(0, delegate.exception_event_count);
+    CHECK_EQ(0, delegate.exception_event_count);
+  }
+  isolate->Exit();
+  isolate->Dispose();
 }
 
 // Tests that break event is sent when event listener is reset.
@@ -4165,7 +4175,7 @@ TEST(DebugPromiseInterceptedByTryCatch) {
   DebugEventExpectNoException delegate;
   v8::debug::SetDebugDelegate(isolate, &delegate);
   v8::Local<v8::Context> context = env.local();
-  ChangeBreakOnException(false, true);
+  ChangeBreakOnException(isolate, false, true);
 
   v8::Local<v8::FunctionTemplate> fun =
       v8::FunctionTemplate::New(isolate, TryCatchWrappedThrowCallback);
@@ -5347,7 +5357,7 @@ TEST(TerminateOnResumeRunJavaScriptAtBreakpoint) {
 TEST(TerminateOnResumeAtException) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  ChangeBreakOnException(true, true);
+  ChangeBreakOnException(env->GetIsolate(), true, true);
   SetTerminateOnResumeDelegate delegate;
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
   v8::Local<v8::Context> context = env.local();
@@ -5429,7 +5439,7 @@ TEST(TerminateOnResumeAtBreakOnEntryUserDefinedFunction) {
 TEST(TerminateOnResumeAtUnhandledRejection) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  ChangeBreakOnException(true, true);
+  ChangeBreakOnException(env->GetIsolate(), true, true);
   SetTerminateOnResumeDelegate delegate;
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
   v8::Local<v8::Context> context = env.local();
@@ -5477,7 +5487,7 @@ TEST(TerminateOnResumeAtUnhandledRejectionCppImpl) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(env->GetIsolate());
-  ChangeBreakOnException(true, true);
+  ChangeBreakOnException(isolate, true, true);
   SetTerminateOnResumeDelegate delegate;
   auto data = std::make_pair(isolate, &env);
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
@@ -5513,7 +5523,7 @@ TEST(TerminateOnResumeFromMicrotask) {
   v8::HandleScope scope(env->GetIsolate());
   SetTerminateOnResumeDelegate delegate(
       SetTerminateOnResumeDelegate::kPerformMicrotaskCheckpointAtBreakpoint);
-  ChangeBreakOnException(true, true);
+  ChangeBreakOnException(env->GetIsolate(), true, true);
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
   {
     v8::TryCatch try_catch(env->GetIsolate());
@@ -5588,7 +5598,7 @@ class SemaphoreTriggerOnBreak : public v8::debug::DebugDelegate {
 TEST(TerminateOnResumeFromOtherThread) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  ChangeBreakOnException(true, true);
+  ChangeBreakOnException(env->GetIsolate(), true, true);
 
   SemaphoreTriggerOnBreak delegate;
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
@@ -5645,7 +5655,7 @@ class InterruptionBreakRightNow : public v8::base::Thread {
 TEST(TerminateOnResumeAtInterruptFromOtherThread) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  ChangeBreakOnException(true, true);
+  ChangeBreakOnException(env->GetIsolate(), true, true);
 
   SetTerminateOnResumeDelegate delegate;
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);

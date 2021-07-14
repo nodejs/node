@@ -6,8 +6,8 @@
 #include "src/deoptimizer/deoptimizer.h"
 
 extern "C" {
-void Builtins_InterpreterEnterBytecodeAdvance();
-void Builtins_InterpreterEnterBytecodeDispatch();
+void Builtins_InterpreterEnterAtBytecode();
+void Builtins_InterpreterEnterAtNextBytecode();
 void Builtins_ContinueToCodeStubBuiltinWithResult();
 void Builtins_ContinueToCodeStubBuiltin();
 void Builtins_ContinueToJavaScriptBuiltinWithResult();
@@ -24,8 +24,8 @@ namespace internal {
 
 // List of allowed builtin addresses that we can return to in the deoptimizer.
 constexpr function_ptr builtins[] = {
-    &Builtins_InterpreterEnterBytecodeAdvance,
-    &Builtins_InterpreterEnterBytecodeDispatch,
+    &Builtins_InterpreterEnterAtBytecode,
+    &Builtins_InterpreterEnterAtNextBytecode,
     &Builtins_ContinueToCodeStubBuiltinWithResult,
     &Builtins_ContinueToCodeStubBuiltin,
     &Builtins_ContinueToJavaScriptBuiltinWithResult,

@@ -50,11 +50,16 @@ function BasicMemory64Tests(num_pages) {
   store(kStoreOffset, 11);
   assertEquals(11, load(kStoreOffset));
 
-  // Now check 100 random positions. All except for kStoreOffset should be zero.
+  // Now check 100 random positions.
   for (let i = 0; i < 100; ++i) {
     let position = Math.floor(Math.random() * num_bytes);
-    if (position == kStoreOffset) continue;
-    assertEquals(0, array[position]);
+    let expected = 0;
+    if (position == kStoreOffset) {
+      expected = 11;
+    } else if (num_bytes - position <= 4) {
+      expected = [0x12, 0x34, 0x56, 0x78][num_bytes - position - 1];
+    }
+    assertEquals(expected, array[position]);
   }
 }
 

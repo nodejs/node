@@ -986,8 +986,8 @@ class Literal final : public Expression {
 
   // Returns an appropriate Object representing this Literal, allocating
   // a heap object if needed.
-  template <typename LocalIsolate>
-  Handle<Object> BuildValue(LocalIsolate* isolate) const;
+  template <typename IsolateT>
+  Handle<Object> BuildValue(IsolateT* isolate) const;
 
   // Support for using Literal as a HashMap key. NOTE: Currently, this works
   // only for string and number literals!
@@ -1058,17 +1058,16 @@ class MaterializedLiteral : public Expression {
   bool NeedsInitialAllocationSite();
 
   // Populate the constant properties/elements fixed array.
-  template <typename LocalIsolate>
-  void BuildConstants(LocalIsolate* isolate);
+  template <typename IsolateT>
+  void BuildConstants(IsolateT* isolate);
 
   // If the expression is a literal, return the literal value;
   // if the expression is a materialized literal and is_simple
   // then return an Array or Object Boilerplate Description
   // Otherwise, return undefined literal as the placeholder
   // in the object literal boilerplate.
-  template <typename LocalIsolate>
-  Handle<Object> GetBoilerplateValue(Expression* expression,
-                                     LocalIsolate* isolate);
+  template <typename IsolateT>
+  Handle<Object> GetBoilerplateValue(Expression* expression, IsolateT* isolate);
 };
 
 // Node for capturing a regexp literal.
@@ -1265,9 +1264,9 @@ class ObjectLiteral final : public AggregateLiteral {
   int InitDepthAndFlags();
 
   // Get the boilerplate description, populating it if necessary.
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   Handle<ObjectBoilerplateDescription> GetOrBuildBoilerplateDescription(
-      LocalIsolate* isolate) {
+      IsolateT* isolate) {
     if (boilerplate_description_.is_null()) {
       BuildBoilerplateDescription(isolate);
     }
@@ -1275,8 +1274,8 @@ class ObjectLiteral final : public AggregateLiteral {
   }
 
   // Populate the boilerplate description.
-  template <typename LocalIsolate>
-  void BuildBoilerplateDescription(LocalIsolate* isolate);
+  template <typename IsolateT>
+  void BuildBoilerplateDescription(IsolateT* isolate);
 
   // Mark all computed expressions that are bound to a key that
   // is shadowed by a later occurrence of the same key. For the
@@ -1366,9 +1365,9 @@ class ArrayLiteral final : public AggregateLiteral {
   int InitDepthAndFlags();
 
   // Get the boilerplate description, populating it if necessary.
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   Handle<ArrayBoilerplateDescription> GetOrBuildBoilerplateDescription(
-      LocalIsolate* isolate) {
+      IsolateT* isolate) {
     if (boilerplate_description_.is_null()) {
       BuildBoilerplateDescription(isolate);
     }
@@ -1376,8 +1375,8 @@ class ArrayLiteral final : public AggregateLiteral {
   }
 
   // Populate the boilerplate description.
-  template <typename LocalIsolate>
-  void BuildBoilerplateDescription(LocalIsolate* isolate);
+  template <typename IsolateT>
+  void BuildBoilerplateDescription(IsolateT* isolate);
 
   // Determines whether the {CreateShallowArrayLiteral} builtin can be used.
   bool IsFastCloningSupported() const;
@@ -2121,8 +2120,8 @@ class FunctionLiteral final : public Expression {
 
   // Empty handle means that the function does not have a shared name (i.e.
   // the name will be set dynamically after creation of the function closure).
-  template <typename LocalIsolate>
-  MaybeHandle<String> GetName(LocalIsolate* isolate) const {
+  template <typename IsolateT>
+  MaybeHandle<String> GetName(IsolateT* isolate) const {
     return raw_name_ ? raw_name_->AllocateFlat(isolate) : MaybeHandle<String>();
   }
   bool has_shared_name() const { return raw_name_ != nullptr; }
@@ -2644,9 +2643,8 @@ class GetTemplateObject final : public Expression {
     return raw_strings_;
   }
 
-  template <typename LocalIsolate>
-  Handle<TemplateObjectDescription> GetOrBuildDescription(
-      LocalIsolate* isolate);
+  template <typename IsolateT>
+  Handle<TemplateObjectDescription> GetOrBuildDescription(IsolateT* isolate);
 
  private:
   friend class AstNodeFactory;

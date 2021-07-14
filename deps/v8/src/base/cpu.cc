@@ -50,7 +50,7 @@
 #include "src/base/logging.h"
 #include "src/base/platform/wrappers.h"
 #if V8_OS_WIN
-#include "src/base/win32-headers.h"  // NOLINT
+#include "src/base/win32-headers.h"
 #endif
 
 namespace v8 {

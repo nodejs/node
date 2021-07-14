@@ -447,7 +447,6 @@ class Code : public HeapObject {
   inline HandlerTable::CatchPrediction GetBuiltinCatchPrediction();
 
   bool IsIsolateIndependent(Isolate* isolate);
-  bool IsNativeContextIndependent(Isolate* isolate);
 
   inline bool CanContainWeakObjects();
 
@@ -982,7 +981,7 @@ class DeoptimizationData : public FixedArray {
   DECL_CAST(DeoptimizationData)
 
 #ifdef ENABLE_DISASSEMBLER
-  void DeoptimizationDataPrint(std::ostream& os);  // NOLINT
+  void DeoptimizationDataPrint(std::ostream& os);
 #endif
 
  private:

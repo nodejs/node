@@ -32,6 +32,7 @@ class LargePage : public MemoryChunk {
   static const int kMaxCodePageSize = 512 * MB;
 
   static LargePage* FromHeapObject(HeapObject o) {
+    DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
     return static_cast<LargePage*>(MemoryChunk::FromHeapObject(o));
   }
 

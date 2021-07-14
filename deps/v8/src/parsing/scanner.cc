@@ -586,8 +586,8 @@ Token::Value Scanner::ScanTemplateSpan() {
   return result;
 }
 
-template <typename LocalIsolate>
-Handle<String> Scanner::SourceUrl(LocalIsolate* isolate) const {
+template <typename IsolateT>
+Handle<String> Scanner::SourceUrl(IsolateT* isolate) const {
   Handle<String> tmp;
   if (source_url_.length() > 0) {
     tmp = source_url_.Internalize(isolate);
@@ -598,8 +598,8 @@ Handle<String> Scanner::SourceUrl(LocalIsolate* isolate) const {
 template Handle<String> Scanner::SourceUrl(Isolate* isolate) const;
 template Handle<String> Scanner::SourceUrl(LocalIsolate* isolate) const;
 
-template <typename LocalIsolate>
-Handle<String> Scanner::SourceMappingUrl(LocalIsolate* isolate) const {
+template <typename IsolateT>
+Handle<String> Scanner::SourceMappingUrl(IsolateT* isolate) const {
   Handle<String> tmp;
   if (source_mapping_url_.length() > 0) {
     tmp = source_mapping_url_.Internalize(isolate);

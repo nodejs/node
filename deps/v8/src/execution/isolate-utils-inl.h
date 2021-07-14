@@ -51,7 +51,7 @@ V8_INLINE Heap* GetHeapFromWritableObject(HeapObject object) {
   heap_internals::MemoryChunk* chunk =
       heap_internals::MemoryChunk::FromHeapObject(object);
   return chunk->GetHeap();
-#endif  // V8_COMPRESS_POINTERS || V8_ENABLE_THIRD_PARTY_HEAP
+#endif  // V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE, V8_ENABLE_THIRD_PARTY_HEAP
 }
 
 V8_INLINE Isolate* GetIsolateFromWritableObject(HeapObject object) {
@@ -64,14 +64,14 @@ V8_INLINE Isolate* GetIsolateFromWritableObject(HeapObject object) {
   return isolate;
 #else
   return Isolate::FromHeap(GetHeapFromWritableObject(object));
-#endif  // V8_COMPRESS_POINTERS, V8_ENABLE_THIRD_PARTY_HEAP
+#endif  // V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE, V8_ENABLE_THIRD_PARTY_HEAP
 }
 
 V8_INLINE bool GetIsolateFromHeapObject(HeapObject object, Isolate** isolate) {
 #ifdef V8_ENABLE_THIRD_PARTY_HEAP
   *isolate = Heap::GetIsolateFromWritableObject(object);
   return true;
-#elif defined V8_COMPRESS_POINTERS
+#elif defined V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
   *isolate = GetIsolateFromWritableObject(object);
   return true;
 #else
@@ -83,7 +83,18 @@ V8_INLINE bool GetIsolateFromHeapObject(HeapObject object, Isolate** isolate) {
   }
   *isolate = Isolate::FromHeap(chunk->GetHeap());
   return true;
-#endif  // V8_COMPRESS_POINTERS, V8_ENABLE_THIRD_PARTY_HEAP
+#endif  // V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE, V8_ENABLE_THIRD_PARTY_HEAP
+}
+
+// Use this function instead of Internals::GetIsolateForHeapSandbox for internal
+// code, as this function is fully inlinable.
+V8_INLINE static Isolate* GetIsolateForHeapSandbox(HeapObject object) {
+#ifdef V8_HEAP_SANDBOX
+  return GetIsolateFromWritableObject(object);
+#else
+  // Not used in non-sandbox mode.
+  return nullptr;
+#endif
 }
 
 }  // namespace internal

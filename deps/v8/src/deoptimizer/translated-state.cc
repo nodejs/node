@@ -1883,7 +1883,7 @@ void TranslatedState::InitializeJSObjectAt(
       WRITE_BARRIER(*object_storage, offset, *field_value);
     }
   }
-  object_storage->synchronized_set_map(*map);
+  object_storage->set_map(*map, kReleaseStore);
 }
 
 void TranslatedState::InitializeObjectWithTaggedFieldsAt(
@@ -1920,7 +1920,7 @@ void TranslatedState::InitializeObjectWithTaggedFieldsAt(
     WRITE_BARRIER(*object_storage, offset, *field_value);
   }
 
-  object_storage->synchronized_set_map(*map);
+  object_storage->set_map(*map, kReleaseStore);
 }
 
 TranslatedValue* TranslatedState::ResolveCapturedObject(TranslatedValue* slot) {

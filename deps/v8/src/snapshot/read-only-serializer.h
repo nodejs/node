@@ -37,6 +37,8 @@ class V8_EXPORT_PRIVATE ReadOnlySerializer : public RootsSerializer {
                                          Handle<HeapObject> obj);
 
  private:
+  void ReconstructReadOnlyObjectCacheForTesting();
+
   void SerializeObjectImpl(Handle<HeapObject> o) override;
   bool MustBeDeferred(HeapObject object) override;
 

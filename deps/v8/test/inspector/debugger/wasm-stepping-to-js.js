@@ -58,11 +58,11 @@ function test() {
   instance.exports.main();
   var x = 1;
   x++;
-}
-//# sourceURL=test.js`);
+}`, 0, 0, 'test.js');
 
 InspectorTest.runAsyncTestSuite([
   async function test() {
+    await Protocol.Runtime.enable();
     await Protocol.Debugger.enable();
     InspectorTest.log('Calling instantiate function.');
     WasmInspectorTest.instantiate(module_bytes);

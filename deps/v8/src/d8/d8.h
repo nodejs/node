@@ -271,6 +271,9 @@ class PerIsolateData {
   void AddDynamicImportData(DynamicImportData*);
   void DeleteDynamicImportData(DynamicImportData*);
 
+  Local<FunctionTemplate> GetTestApiObjectCtor() const;
+  void SetTestApiObjectCtor(Local<FunctionTemplate> ctor);
+
  private:
   friend class Shell;
   friend class RealmScope;
@@ -289,6 +292,7 @@ class PerIsolateData {
 #if defined(LEAK_SANITIZER)
   std::unordered_set<DynamicImportData*> import_data_;
 #endif
+  Global<FunctionTemplate> test_api_object_ctor_;
 
   int RealmIndexOrThrow(const v8::FunctionCallbackInfo<v8::Value>& args,
                         int arg_offset);
@@ -358,7 +362,6 @@ class ShellOptions {
   DisallowReassignment<bool> simulate_errors = {"simulate-errors", false};
   DisallowReassignment<bool> stress_opt = {"stress-opt", false};
   DisallowReassignment<int> stress_runs = {"stress-runs", 1};
-  DisallowReassignment<bool> stress_snapshot = {"stress-snapshot", false};
   DisallowReassignment<bool> interactive_shell = {"shell", false};
   bool test_shell = false;
   DisallowReassignment<bool> expected_to_throw = {"throws", false};
@@ -403,6 +406,8 @@ class ShellOptions {
       "enable-system-instrumentation", false};
   DisallowReassignment<const char*> web_snapshot_config = {
       "web-snapshot-config", nullptr};
+  DisallowReassignment<bool> compile_only = {"compile-only", false};
+  DisallowReassignment<int> repeat_compile = {"repeat-compile", 1};
 };
 
 class Shell : public i::AllStatic {
@@ -626,6 +631,9 @@ class Shell : public i::AllStatic {
   static void RunShell(Isolate* isolate);
   static bool SetOptions(int argc, char* argv[]);
 
+  static void NodeTypeCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  static Local<FunctionTemplate> CreateNodeTemplates(Isolate* isolate);
   static Local<ObjectTemplate> CreateGlobalTemplate(Isolate* isolate);
   static Local<ObjectTemplate> CreateOSTemplate(Isolate* isolate);
   static Local<FunctionTemplate> CreateWorkerTemplate(Isolate* isolate);
@@ -635,6 +643,8 @@ class Shell : public i::AllStatic {
   static Local<ObjectTemplate> CreateRealmTemplate(Isolate* isolate);
   static Local<ObjectTemplate> CreateD8Template(Isolate* isolate);
   static Local<FunctionTemplate> CreateTestFastCApiTemplate(Isolate* isolate);
+  static Local<FunctionTemplate> CreateLeafInterfaceTypeTemplate(
+      Isolate* isolate);
 
   static MaybeLocal<Context> CreateRealm(
       const v8::FunctionCallbackInfo<v8::Value>& args, int index,

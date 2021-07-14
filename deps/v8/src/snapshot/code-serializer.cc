@@ -44,8 +44,7 @@ ScriptCompiler::CachedData* CodeSerializer::Serialize(
   Isolate* isolate = info->GetIsolate();
   TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.Execute");
   HistogramTimerScope histogram_timer(isolate->counters()->compile_serialize());
-  RuntimeCallTimerScope runtimeTimer(isolate,
-                                     RuntimeCallCounterId::kCompileSerialize);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileSerialize);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileSerialize");
 
   base::ElapsedTimer timer;

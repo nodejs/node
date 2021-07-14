@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-reftypes --experimental-wasm-bulk-memory
+// Flags: --experimental-wasm-reftypes
 
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -50,7 +50,8 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
 
   const builder = new WasmModuleBuilder();
-  builder.addDeclarativeElementSegment([null]);
+  builder.addDeclarativeElementSegment([WasmInitExpr.RefNull(kWasmFuncRef)],
+                                        kWasmFuncRef);
   builder.addFunction('drop', kSig_v_v)
       .addBody([kNumericPrefix, kExprElemDrop, 0])
       .exportFunc();
@@ -66,7 +67,8 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   const builder = new WasmModuleBuilder();
   const table = builder.addTable(kWasmAnyFunc, 10);
-  builder.addDeclarativeElementSegment([null]);
+  builder.addDeclarativeElementSegment([WasmInitExpr.RefNull(kWasmFuncRef)],
+                                       kWasmFuncRef);
   builder.addFunction('init', kSig_v_v)
       .addBody([
         kExprI32Const, 0, kExprI32Const, 0, kExprI32Const, 1, kNumericPrefix,

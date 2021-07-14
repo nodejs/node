@@ -7,8 +7,8 @@
 #if V8_OS_POSIX
 #include <setjmp.h>
 #include <signal.h>
-#include <unistd.h>  // NOLINT
-#endif               // V8_OS_POSIX
+#include <unistd.h>
+#endif  // V8_OS_POSIX
 
 #include "testing/gtest/include/gtest/gtest.h"
 

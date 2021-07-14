@@ -64,8 +64,7 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
                    bool restore_function_code);
   void FlushInputQueue();
   void FlushOutputQueue(bool restore_function_code);
-  void CompileNext(OptimizedCompilationJob* job, RuntimeCallStats* stats,
-                   LocalIsolate* local_isolate);
+  void CompileNext(OptimizedCompilationJob* job, LocalIsolate* local_isolate);
   OptimizedCompilationJob* NextInput(LocalIsolate* local_isolate);
 
   inline int InputQueueIndex(int i) {

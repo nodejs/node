@@ -45,9 +45,9 @@ class ConcurrentSearchThread final : public v8::base::Thread {
 
     for (Handle<JSObject> js_obj : handles_) {
       // Walk up the prototype chain all the way to the top.
-      Handle<Map> map(js_obj->synchronized_map(), &local_heap);
+      Handle<Map> map(js_obj->map(kAcquireLoad), &local_heap);
       while (!map->prototype().IsNull()) {
-        Handle<Map> map_prototype_map(map->prototype().synchronized_map(),
+        Handle<Map> map_prototype_map(map->prototype().map(kAcquireLoad),
                                       &local_heap);
         if (!map_prototype_map->IsJSObjectMap()) {
           break;

@@ -252,10 +252,17 @@ export class CodeMap {
   }
 
   /**
-   * Returns an array of all libraries entries.
+   * Returns an array of all library entries.
    */
-  getAllLibrariesEntries() {
+  getAllLibraryEntries() {
     return this.libraries_.exportValues();
+  }
+
+  /**
+   * Returns an array of pairs of all library entries and their addresses.
+   */
+  getAllLibraryEntriesWithAddresses() {
+    return this.libraries_.exportKeysAndValues();
   }
 }
 

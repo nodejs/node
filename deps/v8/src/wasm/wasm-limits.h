@@ -43,8 +43,7 @@ constexpr size_t kV8MaxWasmModuleSize = 1024 * 1024 * 1024;  // = 1 GiB
 constexpr size_t kV8MaxWasmFunctionSize = 7654321;
 constexpr size_t kV8MaxWasmFunctionLocals = 50000;
 constexpr size_t kV8MaxWasmFunctionParams = 1000;
-constexpr size_t kV8MaxWasmFunctionMultiReturns = 1000;
-constexpr size_t kV8MaxWasmFunctionReturns = 1;
+constexpr size_t kV8MaxWasmFunctionReturns = 1000;
 constexpr size_t kV8MaxWasmFunctionBrTableSize = 65520;
 // Don't use this limit directly, but use the value of FLAG_wasm_max_table_size.
 constexpr size_t kV8MaxWasmTableSize = 10000000;
@@ -57,7 +56,7 @@ constexpr size_t kV8MaxWasmStructFields = 999;
 constexpr uint32_t kV8MaxRttSubtypingDepth = 31;
 // Maximum supported by implementation: ((1<<27)-3).
 // Reason: total object size in bytes must fit into a Smi, for filler objects.
-constexpr size_t kV8MaxWasmArrayLength = 1u << 24;
+constexpr size_t kV8MaxWasmArrayLength = 1u << 26;
 
 static_assert(kV8MaxWasmTableSize <= 4294967295,  // 2^32 - 1
               "v8 should not exceed WebAssembly's non-web embedding limits");

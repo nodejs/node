@@ -69,8 +69,8 @@ int ComputeStringTableCapacityWithShrink(int current_capacity,
   return new_capacity;
 }
 
-template <typename LocalIsolate, typename StringTableKey>
-bool KeyIsMatch(LocalIsolate* isolate, StringTableKey* key, String string) {
+template <typename IsolateT, typename StringTableKey>
+bool KeyIsMatch(IsolateT* isolate, StringTableKey* key, String string) {
   if (string.hash() != key->hash()) return false;
   if (string.length() != key->length()) return false;
   return key->IsMatch(isolate, string);
@@ -135,15 +135,15 @@ class StringTable::Data {
   int number_of_elements() const { return number_of_elements_; }
   int number_of_deleted_elements() const { return number_of_deleted_elements_; }
 
-  template <typename LocalIsolate, typename StringTableKey>
-  InternalIndex FindEntry(LocalIsolate* isolate, StringTableKey* key,
+  template <typename IsolateT, typename StringTableKey>
+  InternalIndex FindEntry(IsolateT* isolate, StringTableKey* key,
                           uint32_t hash) const;
 
   InternalIndex FindInsertionEntry(PtrComprCageBase cage_base,
                                    uint32_t hash) const;
 
-  template <typename LocalIsolate, typename StringTableKey>
-  InternalIndex FindEntryOrInsertionEntry(LocalIsolate* isolate,
+  template <typename IsolateT, typename StringTableKey>
+  InternalIndex FindEntryOrInsertionEntry(IsolateT* isolate,
                                           StringTableKey* key,
                                           uint32_t hash) const;
 
@@ -249,8 +249,8 @@ std::unique_ptr<StringTable::Data> StringTable::Data::Resize(
   return new_data;
 }
 
-template <typename LocalIsolate, typename StringTableKey>
-InternalIndex StringTable::Data::FindEntry(LocalIsolate* isolate,
+template <typename IsolateT, typename StringTableKey>
+InternalIndex StringTable::Data::FindEntry(IsolateT* isolate,
                                            StringTableKey* key,
                                            uint32_t hash) const {
   uint32_t count = 1;
@@ -281,9 +281,9 @@ InternalIndex StringTable::Data::FindInsertionEntry(PtrComprCageBase cage_base,
   }
 }
 
-template <typename LocalIsolate, typename StringTableKey>
+template <typename IsolateT, typename StringTableKey>
 InternalIndex StringTable::Data::FindEntryOrInsertionEntry(
-    LocalIsolate* isolate, StringTableKey* key, uint32_t hash) const {
+    IsolateT* isolate, StringTableKey* key, uint32_t hash) const {
   InternalIndex insertion_entry = InternalIndex::NotFound();
   uint32_t count = 1;
   // EnsureCapacity will guarantee the hash table is never full.
@@ -428,9 +428,8 @@ Handle<String> StringTable::LookupString(Isolate* isolate,
   return result;
 }
 
-template <typename StringTableKey, typename LocalIsolate>
-Handle<String> StringTable::LookupKey(LocalIsolate* isolate,
-                                      StringTableKey* key) {
+template <typename StringTableKey, typename IsolateT>
+Handle<String> StringTable::LookupKey(IsolateT* isolate, StringTableKey* key) {
   // String table lookups are allowed to be concurrent, assuming that:
   //
   //   - The Heap access is allowed to be concurrent (using LocalHeap or

@@ -40,7 +40,8 @@ class V8_EXPORT_PRIVATE DeadCodeElimination final
     : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
   DeadCodeElimination(Editor* editor, Graph* graph,
-                      CommonOperatorBuilder* common, Zone* temp_zone);
+                      CommonOperatorBuilder* common, Zone* temp_zone,
+                      bool is_concurrent_inlining);
   ~DeadCodeElimination() final = default;
   DeadCodeElimination(const DeadCodeElimination&) = delete;
   DeadCodeElimination& operator=(const DeadCodeElimination&) = delete;
@@ -78,6 +79,8 @@ class V8_EXPORT_PRIVATE DeadCodeElimination final
   CommonOperatorBuilder* const common_;
   Node* const dead_;
   Zone* zone_;
+
+  const bool is_concurrent_inlining_;
 };
 
 }  // namespace compiler

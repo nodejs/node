@@ -7,6 +7,7 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/execution/frame-constants.h"
 #include "src/heap/memory-chunk.h"
@@ -172,11 +173,11 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
   }
 
   TNode<BoolT> ShouldSkipFPRegs(TNode<Smi> mode) {
-    return TaggedEqual(mode, SmiConstant(kDontSaveFPRegs));
+    return TaggedEqual(mode, SmiConstant(SaveFPRegsMode::kIgnore));
   }
 
   TNode<BoolT> ShouldEmitRememberSet(TNode<Smi> remembered_set) {
-    return TaggedEqual(remembered_set, SmiConstant(EMIT_REMEMBERED_SET));
+    return TaggedEqual(remembered_set, SmiConstant(RememberedSetAction::kEmit));
   }
 
   template <typename Ret, typename Arg0, typename Arg1>
@@ -188,7 +189,7 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
     BIND(&dont_save_fp);
     {
       CallCFunctionWithCallerSavedRegisters(
-          function, MachineTypeOf<Ret>::value, kDontSaveFPRegs,
+          function, MachineTypeOf<Ret>::value, SaveFPRegsMode::kIgnore,
           std::make_pair(MachineTypeOf<Arg0>::value, arg0),
           std::make_pair(MachineTypeOf<Arg1>::value, arg1));
       Goto(next);
@@ -197,7 +198,7 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
     BIND(&save_fp);
     {
       CallCFunctionWithCallerSavedRegisters(
-          function, MachineTypeOf<Ret>::value, kSaveFPRegs,
+          function, MachineTypeOf<Ret>::value, SaveFPRegsMode::kSave,
           std::make_pair(MachineTypeOf<Arg0>::value, arg0),
           std::make_pair(MachineTypeOf<Arg1>::value, arg1));
       Goto(next);
@@ -213,7 +214,7 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
     BIND(&dont_save_fp);
     {
       CallCFunctionWithCallerSavedRegisters(
-          function, MachineTypeOf<Ret>::value, kDontSaveFPRegs,
+          function, MachineTypeOf<Ret>::value, SaveFPRegsMode::kIgnore,
           std::make_pair(MachineTypeOf<Arg0>::value, arg0),
           std::make_pair(MachineTypeOf<Arg1>::value, arg1),
           std::make_pair(MachineTypeOf<Arg2>::value, arg2));
@@ -223,7 +224,7 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
     BIND(&save_fp);
     {
       CallCFunctionWithCallerSavedRegisters(
-          function, MachineTypeOf<Ret>::value, kSaveFPRegs,
+          function, MachineTypeOf<Ret>::value, SaveFPRegsMode::kSave,
           std::make_pair(MachineTypeOf<Arg0>::value, arg0),
           std::make_pair(MachineTypeOf<Arg1>::value, arg1),
           std::make_pair(MachineTypeOf<Arg2>::value, arg2));
@@ -821,8 +822,9 @@ TF_BUILTIN(AdaptorWithBuiltinExitFrame, CodeStubAssembler) {
       Int32Constant(BuiltinExitFrameConstants::kNumExtraArgsWithReceiver));
 
   const bool builtin_exit_frame = true;
-  TNode<Code> code = HeapConstant(CodeFactory::CEntry(
-      isolate(), 1, kDontSaveFPRegs, kArgvOnStack, builtin_exit_frame));
+  TNode<Code> code =
+      HeapConstant(CodeFactory::CEntry(isolate(), 1, SaveFPRegsMode::kIgnore,
+                                       ArgvMode::kStack, builtin_exit_frame));
 
   // Unconditionally push argc, target and new target as extra stack arguments.
   // They will be used by stack frame iterators when constructing stack trace.
@@ -891,54 +893,54 @@ TF_BUILTIN(AbortCSAAssert, CodeStubAssembler) {
 
 void Builtins::Generate_CEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit(
     MacroAssembler* masm) {
-  Generate_CEntry(masm, 1, kDontSaveFPRegs, kArgvOnStack, false);
+  Generate_CEntry(masm, 1, SaveFPRegsMode::kIgnore, ArgvMode::kStack, false);
 }
 
 void Builtins::Generate_CEntry_Return1_DontSaveFPRegs_ArgvOnStack_BuiltinExit(
     MacroAssembler* masm) {
-  Generate_CEntry(masm, 1, kDontSaveFPRegs, kArgvOnStack, true);
+  Generate_CEntry(masm, 1, SaveFPRegsMode::kIgnore, ArgvMode::kStack, true);
 }
 
 void Builtins::
     Generate_CEntry_Return1_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit(
         MacroAssembler* masm) {
-  Generate_CEntry(masm, 1, kDontSaveFPRegs, kArgvInRegister, false);
+  Generate_CEntry(masm, 1, SaveFPRegsMode::kIgnore, ArgvMode::kRegister, false);
 }
 
 void Builtins::Generate_CEntry_Return1_SaveFPRegs_ArgvOnStack_NoBuiltinExit(
     MacroAssembler* masm) {
-  Generate_CEntry(masm, 1, kSaveFPRegs, kArgvOnStack, false);
+  Generate_CEntry(masm, 1, SaveFPRegsMode::kSave, ArgvMode::kStack, false);
 }
 
 void Builtins::Generate_CEntry_Return1_SaveFPRegs_ArgvOnStack_BuiltinExit(
     MacroAssembler* masm) {
-  Generate_CEntry(masm, 1, kSaveFPRegs, kArgvOnStack, true);
+  Generate_CEntry(masm, 1, SaveFPRegsMode::kSave, ArgvMode::kStack, true);
 }
 
 void Builtins::Generate_CEntry_Return2_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit(
     MacroAssembler* masm) {
-  Generate_CEntry(masm, 2, kDontSaveFPRegs, kArgvOnStack, false);
+  Generate_CEntry(masm, 2, SaveFPRegsMode::kIgnore, ArgvMode::kStack, false);
 }
 
 void Builtins::Generate_CEntry_Return2_DontSaveFPRegs_ArgvOnStack_BuiltinExit(
     MacroAssembler* masm) {
-  Generate_CEntry(masm, 2, kDontSaveFPRegs, kArgvOnStack, true);
+  Generate_CEntry(masm, 2, SaveFPRegsMode::kIgnore, ArgvMode::kStack, true);
 }
 
 void Builtins::
     Generate_CEntry_Return2_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit(
         MacroAssembler* masm) {
-  Generate_CEntry(masm, 2, kDontSaveFPRegs, kArgvInRegister, false);
+  Generate_CEntry(masm, 2, SaveFPRegsMode::kIgnore, ArgvMode::kRegister, false);
 }
 
 void Builtins::Generate_CEntry_Return2_SaveFPRegs_ArgvOnStack_NoBuiltinExit(
     MacroAssembler* masm) {
-  Generate_CEntry(masm, 2, kSaveFPRegs, kArgvOnStack, false);
+  Generate_CEntry(masm, 2, SaveFPRegsMode::kSave, ArgvMode::kStack, false);
 }
 
 void Builtins::Generate_CEntry_Return2_SaveFPRegs_ArgvOnStack_BuiltinExit(
     MacroAssembler* masm) {
-  Generate_CEntry(masm, 2, kSaveFPRegs, kArgvOnStack, true);
+  Generate_CEntry(masm, 2, SaveFPRegsMode::kSave, ArgvMode::kStack, true);
 }
 
 #if !defined(V8_TARGET_ARCH_ARM) && !defined(V8_TARGET_ARCH_MIPS)
@@ -956,7 +958,7 @@ void Builtins::Generate_MemMove(MacroAssembler* masm) {
 // TODO(v8:11421): Remove #if once baseline compiler is ported to other
 // architectures.
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || \
-    V8_TARGET_ARCH_ARM
+    V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64
 void Builtins::Generate_BaselineLeaveFrame(MacroAssembler* masm) {
   EmitReturnBaseline(masm);
 }

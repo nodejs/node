@@ -61,14 +61,14 @@ static void EntryCode(MacroAssembler* masm) {
   // Smi constant register is callee save.
   __ pushq(kRootRegister);
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-  __ pushq(kPointerCageBaseRegister);
+  __ pushq(kPtrComprCageBaseRegister);
 #endif
   __ InitializeRootRegister();
 }
 
 static void ExitCode(MacroAssembler* masm) {
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-  __ popq(kPointerCageBaseRegister);
+  __ popq(kPtrComprCageBaseRegister);
 #endif
   __ popq(kRootRegister);
 }
@@ -101,7 +101,7 @@ TEST(Smi) {
 static void TestMoveSmi(MacroAssembler* masm, Label* exit, int id, Smi value) {
   __ movl(rax, Immediate(id));
   __ Move(rcx, value);
-  __ Set(rdx, static_cast<intptr_t>(value.ptr()));
+  __ Move(rdx, static_cast<intptr_t>(value.ptr()));
   __ cmpq(rcx, rdx);
   __ j(not_equal, exit);
 }
@@ -258,35 +258,35 @@ TEST(SmiTag) {
   __ movq(rax, Immediate(1));  // Test number.
   __ movq(rcx, Immediate(0));
   __ SmiTag(rcx);
-  __ Set(rdx, Smi::zero().ptr());
+  __ Move(rdx, Smi::zero().ptr());
   __ cmp_tagged(rcx, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(2));  // Test number.
   __ movq(rcx, Immediate(1024));
   __ SmiTag(rcx);
-  __ Set(rdx, Smi::FromInt(1024).ptr());
+  __ Move(rdx, Smi::FromInt(1024).ptr());
   __ cmp_tagged(rcx, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(3));  // Test number.
   __ movq(rcx, Immediate(-1));
   __ SmiTag(rcx);
-  __ Set(rdx, Smi::FromInt(-1).ptr());
+  __ Move(rdx, Smi::FromInt(-1).ptr());
   __ cmp_tagged(rcx, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(4));  // Test number.
   __ movq(rcx, Immediate(Smi::kMaxValue));
   __ SmiTag(rcx);
-  __ Set(rdx, Smi::FromInt(Smi::kMaxValue).ptr());
+  __ Move(rdx, Smi::FromInt(Smi::kMaxValue).ptr());
   __ cmp_tagged(rcx, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(5));  // Test number.
   __ movq(rcx, Immediate(Smi::kMinValue));
   __ SmiTag(rcx);
-  __ Set(rdx, Smi::FromInt(Smi::kMinValue).ptr());
+  __ Move(rdx, Smi::FromInt(Smi::kMinValue).ptr());
   __ cmp_tagged(rcx, rdx);
   __ j(not_equal, &exit);
 
@@ -295,35 +295,35 @@ TEST(SmiTag) {
   __ movq(rax, Immediate(6));  // Test number.
   __ movq(rcx, Immediate(0));
   __ SmiTag(r8, rcx);
-  __ Set(rdx, Smi::zero().ptr());
+  __ Move(rdx, Smi::zero().ptr());
   __ cmp_tagged(r8, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(7));  // Test number.
   __ movq(rcx, Immediate(1024));
   __ SmiTag(r8, rcx);
-  __ Set(rdx, Smi::FromInt(1024).ptr());
+  __ Move(rdx, Smi::FromInt(1024).ptr());
   __ cmp_tagged(r8, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(8));  // Test number.
   __ movq(rcx, Immediate(-1));
   __ SmiTag(r8, rcx);
-  __ Set(rdx, Smi::FromInt(-1).ptr());
+  __ Move(rdx, Smi::FromInt(-1).ptr());
   __ cmp_tagged(r8, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(9));  // Test number.
   __ movq(rcx, Immediate(Smi::kMaxValue));
   __ SmiTag(r8, rcx);
-  __ Set(rdx, Smi::FromInt(Smi::kMaxValue).ptr());
+  __ Move(rdx, Smi::FromInt(Smi::kMaxValue).ptr());
   __ cmp_tagged(r8, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(10));  // Test number.
   __ movq(rcx, Immediate(Smi::kMinValue));
   __ SmiTag(r8, rcx);
-  __ Set(rdx, Smi::FromInt(Smi::kMinValue).ptr());
+  __ Move(rdx, Smi::FromInt(Smi::kMinValue).ptr());
   __ cmp_tagged(r8, rdx);
   __ j(not_equal, &exit);
 
@@ -425,7 +425,7 @@ void TestSmiIndex(MacroAssembler* masm, Label* exit, int id, int x) {
     SmiIndex index = masm->SmiToIndex(rdx, rcx, i);
     CHECK(index.reg == rcx || index.reg == rdx);
     __ shlq(index.reg, Immediate(index.scale));
-    __ Set(r8, static_cast<intptr_t>(x) << i);
+    __ Move(r8, static_cast<intptr_t>(x) << i);
     __ cmpq(index.reg, r8);
     __ j(not_equal, exit);
     __ incq(rax);
@@ -433,7 +433,7 @@ void TestSmiIndex(MacroAssembler* masm, Label* exit, int id, int x) {
     index = masm->SmiToIndex(rcx, rcx, i);
     CHECK(index.reg == rcx);
     __ shlq(rcx, Immediate(index.scale));
-    __ Set(r8, static_cast<intptr_t>(x) << i);
+    __ Move(r8, static_cast<intptr_t>(x) << i);
     __ cmpq(rcx, r8);
     __ j(not_equal, exit);
     __ incq(rax);

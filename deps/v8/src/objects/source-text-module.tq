@@ -29,7 +29,7 @@ extern class SourceTextModule extends Module {
   // The value of import.meta inside of this module.
   // Lazily initialized on first access. It's the hole before first access and
   // a JSObject afterwards.
-  import_meta: TheHole|JSObject;
+  @cppAcquireLoad @cppReleaseStore import_meta: TheHole|JSObject;
 
   // The first visited module of a cycle. For modules not in a cycle, this is
   // the module itself. It's the hole before the module state transitions to

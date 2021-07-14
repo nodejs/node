@@ -263,7 +263,7 @@ class SystemTest(unittest.TestCase):
 
   Overview of fakes:
     baseline: Example foozzie output including a syntax error.
-    build1: Difference to baseline is a stack trace differece expected to
+    build1: Difference to baseline is a stack trace difference expected to
             be suppressed.
     build2: Difference to baseline is a non-suppressed output difference
             causing the script to fail.
@@ -311,6 +311,36 @@ class SystemTest(unittest.TestCase):
     # particular lines.
     self.assertIn('v8_mock_archs.js', lines[1])
     self.assertIn('v8_mock_archs.js', lines[3])
+
+  def testDifferentArchFailFirst(self):
+    """Test that we re-test against x64. This tests the path that also fails
+    on x64 and then reports the error as x64.
+    """
+    with open(os.path.join(TEST_DATA, 'failure_output_arch.txt')) as f:
+      expected_output = f.read()
+    # Build 3 simulates x86 and produces a difference on --bad-flag, but
+    # the baseline build shows the same difference when --bad-flag is passed.
+    with self.assertRaises(subprocess.CalledProcessError) as ctx:
+      run_foozzie('build3', '--skip-smoke-tests',
+                  '--second-config-extra-flags=--bad-flag')
+    e = ctx.exception
+    self.assertEqual(v8_foozzie.RETURN_FAIL, e.returncode)
+    self.assertEqual(expected_output, cut_verbose_output(e.output, 3))
+
+  def testDifferentArchFailSecond(self):
+    """As above, but we test the path that only fails in the second (ia32)
+    run and not with x64 and then reports the error as ia32.
+    """
+    with open(os.path.join(TEST_DATA, 'failure_output_second.txt')) as f:
+      expected_output = f.read()
+    # Build 3 simulates x86 and produces a difference on --very-bad-flag,
+    # which the baseline build doesn't.
+    with self.assertRaises(subprocess.CalledProcessError) as ctx:
+      run_foozzie('build3', '--skip-smoke-tests',
+                  '--second-config-extra-flags=--very-bad-flag')
+    e = ctx.exception
+    self.assertEqual(v8_foozzie.RETURN_FAIL, e.returncode)
+    self.assertEqual(expected_output, cut_verbose_output(e.output, 3))
 
   def testJitless(self):
     """Test that webassembly is mocked out when comparing with jitless."""

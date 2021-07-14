@@ -79,6 +79,8 @@ class GlobalContext : public ContextualClass<GlobalContext> {
     std::stringstream class_definition_inline_headerfile;
 
     std::stringstream class_definition_ccfile;
+
+    std::set<SourceId> required_builtin_includes;
   };
   static PerFileStreams& GeneratedPerFile(SourceId file) {
     PerFileStreams& result = Get().generated_per_file_[file];

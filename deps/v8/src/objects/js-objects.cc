@@ -2054,8 +2054,7 @@ MaybeHandle<FixedArray> GetOwnValuesOrEntries(Isolate* isolate,
         MaybeHandle<FixedArray>());
 
     if (get_entries) {
-      Handle<FixedArray> entry_storage =
-          isolate->factory()->NewUninitializedFixedArray(2);
+      Handle<FixedArray> entry_storage = isolate->factory()->NewFixedArray(2);
       entry_storage->set(0, *key);
       entry_storage->set(1, *value);
       value = isolate->factory()->NewJSArrayWithElements(entry_storage,
@@ -2767,14 +2766,14 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
     // If the map does not add named properties, simply set the map.
     if (old_map->NumberOfOwnDescriptors() ==
         new_map->NumberOfOwnDescriptors()) {
-      object->synchronized_set_map(*new_map);
+      object->set_map(*new_map, kReleaseStore);
       return;
     }
 
     // If the map adds a new kDescriptor property, simply set the map.
     PropertyDetails details = new_map->GetLastDescriptorDetails(isolate);
     if (details.location() == kDescriptor) {
-      object->synchronized_set_map(*new_map);
+      object->set_map(*new_map, kReleaseStore);
       return;
     }
 
@@ -2790,7 +2789,7 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
         auto value = isolate->factory()->NewHeapNumberWithHoleNaN();
         object->FastPropertyAtPut(index, *value);
       }
-      object->synchronized_set_map(*new_map);
+      object->set_map(*new_map, kReleaseStore);
       return;
     }
 
@@ -2818,7 +2817,7 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
 
     // Set the new property value and do the map transition.
     object->SetProperties(*new_storage);
-    object->synchronized_set_map(*new_map);
+    object->set_map(*new_map, kReleaseStore);
     return;
   }
 
@@ -2831,7 +2830,7 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
   // converted to doubles.
   if (!old_map->InstancesNeedRewriting(*new_map, number_of_fields, inobject,
                                        unused, &old_number_of_fields)) {
-    object->synchronized_set_map(*new_map);
+    object->set_map(*new_map, kReleaseStore);
     return;
   }
 
@@ -2946,7 +2945,7 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
 
   // We are storing the new map using release store after creating a filler for
   // the left-over space to avoid races with the sweeper thread.
-  object->synchronized_set_map(*new_map);
+  object->set_map(*new_map, kReleaseStore);
 }
 
 void MigrateFastToSlow(Isolate* isolate, Handle<JSObject> object,
@@ -3044,7 +3043,7 @@ void MigrateFastToSlow(Isolate* isolate, Handle<JSObject> object,
 
   // We are storing the new map using release store after creating a filler for
   // the left-over space to avoid races with the sweeper thread.
-  object->synchronized_set_map(*new_map);
+  object->set_map(*new_map, kReleaseStore);
 
   if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     object->SetProperties(*ord_dictionary);
@@ -3088,7 +3087,7 @@ void JSObject::MigrateToMap(Isolate* isolate, Handle<JSObject> object,
     CHECK(new_map->is_dictionary_map());
 
     // Slow-to-slow migration is trivial.
-    object->synchronized_set_map(*new_map);
+    object->set_map(*new_map, kReleaseStore);
   } else if (!new_map->is_dictionary_map()) {
     MigrateFastToFast(isolate, object, new_map);
     if (old_map->is_prototype_map()) {
@@ -3118,10 +3117,9 @@ void JSObject::MigrateToMap(Isolate* isolate, Handle<JSObject> object,
   // When adding code here, add a DisallowGarbageCollection too.
 }
 
-void JSObject::ForceSetPrototype(Handle<JSObject> object,
+void JSObject::ForceSetPrototype(Isolate* isolate, Handle<JSObject> object,
                                  Handle<HeapObject> proto) {
   // object.__proto__ = proto;
-  Isolate* isolate = object->GetIsolate();
   Handle<Map> old_map = Handle<Map>(object->map(), isolate);
   Handle<Map> new_map = Map::Copy(isolate, old_map, "ForceSetPrototype");
   Map::SetPrototype(isolate, new_map, proto);
@@ -3199,7 +3197,7 @@ void JSObject::AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map) {
     Object value = storage->get(i);
     object->FastPropertyAtPut(index, value);
   }
-  object->synchronized_set_map(*map);
+  object->set_map(*map, kReleaseStore);
 }
 
 void JSObject::MigrateInstance(Isolate* isolate, Handle<JSObject> object) {
@@ -3489,7 +3487,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
     DCHECK_LE(unused_property_fields, inobject_props);
     // Transform the object.
     new_map->SetInObjectUnusedPropertyFields(inobject_props);
-    object->synchronized_set_map(*new_map);
+    object->set_map(*new_map, kReleaseStore);
     object->SetProperties(ReadOnlyRoots(isolate).empty_fixed_array());
     // Check that it really works.
     DCHECK(object->HasFastProperties());
@@ -3608,7 +3606,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
     LOG(isolate, MapEvent("SlowToFast", old_map, new_map, reason));
   }
   // Transform the object.
-  object->synchronized_set_map(*new_map);
+  object->set_map(*new_map, kReleaseStore);
 
   object->SetProperties(*fields);
   DCHECK(object->IsJSObject());
@@ -4222,10 +4220,15 @@ bool JSObject::HasEnumerableElements() {
     }
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) case TYPE##_ELEMENTS:
 
-      TYPED_ARRAYS(TYPED_ARRAY_CASE)
+      TYPED_ARRAYS(TYPED_ARRAY_CASE) {
+        size_t length = JSTypedArray::cast(object).length();
+        return length > 0;
+      }
+
+      RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
       {
-        size_t length = JSTypedArray::cast(object).length();
+        size_t length = JSTypedArray::cast(object).GetLength();
         return length > 0;
       }
     case DICTIONARY_ELEMENTS: {
@@ -4769,7 +4772,7 @@ void JSObject::SetImmutableProto(Handle<JSObject> object) {
 
   Handle<Map> new_map =
       Map::TransitionToImmutableProto(object->GetIsolate(), map);
-  object->synchronized_set_map(*new_map);
+  object->set_map(*new_map, kReleaseStore);
 }
 
 void JSObject::EnsureCanContainElements(Handle<JSObject> object,
@@ -4851,9 +4854,9 @@ static ElementsKind BestFittingFastElementsKind(JSObject object) {
 }
 
 // static
-void JSObject::AddDataElement(Handle<JSObject> object, uint32_t index,
-                              Handle<Object> value,
-                              PropertyAttributes attributes) {
+Maybe<bool> JSObject::AddDataElement(Handle<JSObject> object, uint32_t index,
+                                     Handle<Object> value,
+                                     PropertyAttributes attributes) {
   Isolate* isolate = object->GetIsolate();
 
   DCHECK(object->map(isolate).is_extensible());
@@ -4896,13 +4899,15 @@ void JSObject::AddDataElement(Handle<JSObject> object, uint32_t index,
   }
   to = GetMoreGeneralElementsKind(kind, to);
   ElementsAccessor* accessor = ElementsAccessor::ForKind(to);
-  accessor->Add(object, index, value, attributes, new_capacity);
+  MAYBE_RETURN(accessor->Add(object, index, value, attributes, new_capacity),
+               Nothing<bool>());
 
   if (object->IsJSArray(isolate) && index >= old_length) {
     Handle<Object> new_length =
         isolate->factory()->NewNumberFromUint(index + 1);
     JSArray::cast(*object).set_length(*new_length);
   }
+  return Just(true);
 }
 
 template <AllocationSiteUpdateMode update_or_check>
@@ -4969,7 +4974,15 @@ void JSObject::TransitionElementsKind(Handle<JSObject> object,
     DCHECK((IsSmiElementsKind(from_kind) && IsDoubleElementsKind(to_kind)) ||
            (IsDoubleElementsKind(from_kind) && IsObjectElementsKind(to_kind)));
     uint32_t c = static_cast<uint32_t>(object->elements().length());
-    ElementsAccessor::ForKind(to_kind)->GrowCapacityAndConvert(object, c);
+    if (ElementsAccessor::ForKind(to_kind)
+            ->GrowCapacityAndConvert(object, c)
+            .IsNothing()) {
+      // TODO(victorgomes): Temporarily forcing a fatal error here in case of
+      // overflow, until all users of TransitionElementsKind can handle
+      // exceptions.
+      FATAL("Fatal JavaScript invalid array size transitioning elements kind.");
+      UNREACHABLE();
+    }
   }
 }
 
@@ -5017,6 +5030,7 @@ int JSObject::GetFastElementsUsage() {
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) case TYPE##_ELEMENTS:
 
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
+      RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
       UNREACHABLE();
   }

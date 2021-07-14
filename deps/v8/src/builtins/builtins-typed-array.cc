@@ -154,7 +154,8 @@ BUILTIN(TypedArrayPrototypeFill) {
   DCHECK_LE(end, len);
   DCHECK_LE(count, len);
 
-  return ElementsAccessor::ForKind(kind)->Fill(array, obj_value, start, end);
+  RETURN_RESULT_OR_FAILURE(isolate, ElementsAccessor::ForKind(kind)->Fill(
+                                        array, obj_value, start, end));
 }
 
 BUILTIN(TypedArrayPrototypeIncludes) {

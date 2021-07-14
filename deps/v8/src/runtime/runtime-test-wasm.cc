@@ -158,8 +158,7 @@ RUNTIME_FUNCTION(Runtime_WasmTraceEnter) {
   wasm::ModuleWireBytes wire_bytes =
       wasm::ModuleWireBytes(frame->native_module()->wire_bytes());
   wasm::WireBytesRef name_ref =
-      module->lazily_generated_names.LookupFunctionName(
-          wire_bytes, func_index, VectorOf(module->export_table));
+      module->lazily_generated_names.LookupFunctionName(wire_bytes, func_index);
   wasm::WasmName name = wire_bytes.GetNameOrNull(name_ref);
 
   wasm::WasmCode* code = frame->wasm_code();
@@ -423,14 +422,10 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
       frame->wasm_instance().memory_object().array_buffer().backing_store());
   int func_index = frame->function_index();
   int pos = frame->position();
-  // TODO(titzer): eliminate dependency on WasmModule definition here.
-  int func_start =
-      frame->wasm_instance().module()->functions[func_index].code.offset();
   wasm::ExecutionTier tier = frame->wasm_code()->is_liftoff()
                                  ? wasm::ExecutionTier::kLiftoff
                                  : wasm::ExecutionTier::kTurbofan;
-  wasm::TraceMemoryOperation(tier, info, func_index, pos - func_start,
-                             mem_start);
+  wasm::TraceMemoryOperation(tier, info, func_index, pos, mem_start);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

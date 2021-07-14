@@ -89,6 +89,7 @@ TEST(StackTest, GetCurrentStackPosition) {
   EXPECT_NE(nullptr, Stack::GetCurrentStackPosition());
 }
 
+#if !V8_OS_FUCHSIA
 TEST(StackTest, StackVariableInBounds) {
   void* dummy;
   ASSERT_GT(static_cast<void*>(Stack::GetStackStart()),
@@ -98,6 +99,7 @@ TEST(StackTest, StackVariableInBounds) {
   EXPECT_LT(static_cast<void*>(Stack::GetCurrentStackPosition()),
             Stack::GetRealStackAddressForSlot(&dummy));
 }
+#endif  // !V8_OS_FUCHSIA
 
 }  // namespace base
 }  // namespace v8

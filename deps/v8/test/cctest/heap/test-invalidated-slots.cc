@@ -199,6 +199,7 @@ Handle<FixedArray> AllocateArrayOnEvacuationCandidate(Isolate* isolate,
 }
 
 HEAP_TEST(InvalidatedSlotsRightTrimFixedArray) {
+  if (!FLAG_incremental_marking) return;
   FLAG_manual_evacuation_candidates_selection = true;
   FLAG_parallel_compaction = false;
   ManualGCScope manual_gc_scope;
@@ -230,6 +231,7 @@ HEAP_TEST(InvalidatedSlotsRightTrimFixedArray) {
 }
 
 HEAP_TEST(InvalidatedSlotsRightTrimLargeFixedArray) {
+  if (!FLAG_incremental_marking) return;
   FLAG_manual_evacuation_candidates_selection = true;
   FLAG_parallel_compaction = false;
   ManualGCScope manual_gc_scope;
@@ -267,6 +269,7 @@ HEAP_TEST(InvalidatedSlotsRightTrimLargeFixedArray) {
 }
 
 HEAP_TEST(InvalidatedSlotsLeftTrimFixedArray) {
+  if (!FLAG_incremental_marking) return;
   FLAG_manual_evacuation_candidates_selection = true;
   FLAG_parallel_compaction = false;
   ManualGCScope manual_gc_scope;
@@ -298,6 +301,7 @@ HEAP_TEST(InvalidatedSlotsLeftTrimFixedArray) {
 }
 
 HEAP_TEST(InvalidatedSlotsFastToSlow) {
+  if (!FLAG_incremental_marking) return;
   FLAG_manual_evacuation_candidates_selection = true;
   FLAG_parallel_compaction = false;
   ManualGCScope manual_gc_scope;

@@ -150,32 +150,6 @@ class CompilationCacheRegExp : public CompilationSubCache {
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheRegExp);
 };
 
-// Sub-cache for Code objects. All code inserted into this cache must
-// be usable across different native contexts.
-class CompilationCacheCode : public CompilationSubCache {
- public:
-  explicit CompilationCacheCode(Isolate* isolate)
-      : CompilationSubCache(isolate, kGenerations) {}
-
-  MaybeHandle<Code> Lookup(Handle<SharedFunctionInfo> key);
-  void Put(Handle<SharedFunctionInfo> key, Handle<Code> value);
-
-  void Age() override;
-
-  // TODO(jgruber,v8:8888): For simplicity we use the generational
-  // approach here, but could consider something else (or more
-  // generations) in the future.
-  static constexpr int kGenerations = 2;
-
-  static void TraceAgeing();
-  static void TraceInsertion(Handle<SharedFunctionInfo> key,
-                             Handle<Code> value);
-  static void TraceHit(Handle<SharedFunctionInfo> key, Handle<Code> value);
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheCode);
-};
-
 // The compilation cache keeps shared function infos for compiled
 // scripts and evals. The shared function infos are looked up using
 // the source string as the key. For regular expressions the
@@ -206,8 +180,6 @@ class V8_EXPORT_PRIVATE CompilationCache {
   MaybeHandle<FixedArray> LookupRegExp(Handle<String> source,
                                        JSRegExp::Flags flags);
 
-  MaybeHandle<Code> LookupCode(Handle<SharedFunctionInfo> sfi);
-
   // Associate the (source, kind) pair to the shared function
   // info. This may overwrite an existing mapping.
   void PutScript(Handle<String> source, LanguageMode language_mode,
@@ -224,8 +196,6 @@ class V8_EXPORT_PRIVATE CompilationCache {
   // This may overwrite an existing mapping.
   void PutRegExp(Handle<String> source, JSRegExp::Flags flags,
                  Handle<FixedArray> data);
-
-  void PutCode(Handle<SharedFunctionInfo> shared, Handle<Code> code);
 
   // Clear the cache - also used to initialize the cache at startup.
   void Clear();
@@ -269,9 +239,8 @@ class V8_EXPORT_PRIVATE CompilationCache {
   CompilationCacheEval eval_global_;
   CompilationCacheEval eval_contextual_;
   CompilationCacheRegExp reg_exp_;
-  CompilationCacheCode code_;
 
-  static constexpr int kSubCacheCount = 5;
+  static constexpr int kSubCacheCount = 4;
   CompilationSubCache* subcaches_[kSubCacheCount];
 
   // Current enable state of the compilation cache for scripts and eval.

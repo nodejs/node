@@ -269,6 +269,10 @@ TEST(ArrayBuffer_LivePromotion) {
       Handle<JSArrayBuffer> buf = v8::Utils::OpenHandle(*ab);
       root->set(0, *buf);  // Buffer that should be promoted as live.
     }
+    // Store array in Global such that it is part of the root set when
+    // starting incremental marking.
+    v8::Global<Value> global_root(CcTest::isolate(),
+                                  Utils::ToLocal(Handle<Object>::cast(root)));
     heap::SimulateIncrementalMarking(heap, true);
     CHECK(IsTracked(heap, JSArrayBuffer::cast(root->get(0))));
     heap::GcAndSweep(heap, NEW_SPACE);
@@ -388,26 +392,29 @@ UNINITIALIZED_TEST(ArrayBuffer_SemiSpaceCopyMultipleTasks) {
 }
 
 TEST(ArrayBuffer_ExternalBackingStoreSizeIncreases) {
+  if (FLAG_single_generation) return;
   CcTest::InitializeVM();
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
   ExternalBackingStoreType type = ExternalBackingStoreType::kArrayBuffer;
 
-  const size_t backing_store_before =
-      heap->new_space()->ExternalBackingStoreBytes(type);
+  const Space* space = FLAG_incremental_marking
+                           ? static_cast<Space*>(heap->new_space())
+                           : static_cast<Space*>(heap->old_space());
+  const size_t backing_store_before = space->ExternalBackingStoreBytes(type);
   {
     const size_t kArraybufferSize = 117;
     v8::HandleScope handle_scope(isolate);
     Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, kArraybufferSize);
     USE(ab);
-    const size_t backing_store_after =
-        heap->new_space()->ExternalBackingStoreBytes(type);
+    const size_t backing_store_after = space->ExternalBackingStoreBytes(type);
     CHECK_EQ(kArraybufferSize, backing_store_after - backing_store_before);
   }
 }
 
 TEST(ArrayBuffer_ExternalBackingStoreSizeDecreases) {
+  if (FLAG_single_generation) return;
   FLAG_concurrent_array_buffer_sweeping = false;
   CcTest::InitializeVM();
   LocalContext env;

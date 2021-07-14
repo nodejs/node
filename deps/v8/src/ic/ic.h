@@ -67,6 +67,8 @@ class IC {
 
  protected:
   void set_slow_stub_reason(const char* reason) { slow_stub_reason_ = reason; }
+  void set_accessor(Handle<Object> accessor) { accessor_ = accessor; }
+  MaybeHandle<Object> accessor() const { return accessor_; }
 
   Isolate* isolate() const { return isolate_; }
 
@@ -96,6 +98,7 @@ class IC {
   MaybeHandle<Object> ReferenceError(Handle<Name> name);
 
   void UpdateMonomorphicIC(const MaybeObjectHandle& handler, Handle<Name> name);
+  bool UpdateMegaDOMIC(const MaybeObjectHandle& handler, Handle<Name> name);
   bool UpdatePolymorphicIC(Handle<Name> name, const MaybeObjectHandle& handler);
   void UpdateMegamorphicCache(Handle<Map> map, Handle<Name> name,
                               const MaybeObjectHandle& handler);
@@ -154,7 +157,7 @@ class IC {
   State state_;
   FeedbackSlotKind kind_;
   Handle<Map> lookup_start_object_map_;
-
+  MaybeHandle<Object> accessor_;
   MapHandles target_maps_;
   bool target_maps_set_;
 

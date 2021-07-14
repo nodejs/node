@@ -237,6 +237,31 @@ struct CodeEntryAndLineNumber {
 
 using ProfileStackTrace = std::vector<CodeEntryAndLineNumber>;
 
+// Filters stack frames from sources other than a target native context.
+class ContextFilter {
+ public:
+  explicit ContextFilter(Address native_context_address = kNullAddress)
+      : native_context_address_(native_context_address) {}
+
+  // Invoked when a native context has changed address.
+  void OnMoveEvent(Address from_address, Address to_address);
+
+  bool Accept(Address native_context_address) const {
+    if (native_context_address_ == kNullAddress) return true;
+    return (native_context_address & ~kHeapObjectTag) ==
+           native_context_address_;
+  }
+
+  // Update the context's tracked address based on VM-thread events.
+  void set_native_context_address(Address address) {
+    native_context_address_ = address;
+  }
+  Address native_context_address() const { return native_context_address_; }
+
+ private:
+  Address native_context_address_;
+};
+
 class ProfileTree;
 
 class V8_EXPORT_PRIVATE ProfileNode {
@@ -386,6 +411,7 @@ class CpuProfile {
   base::TimeTicks start_time() const { return start_time_; }
   base::TimeTicks end_time() const { return end_time_; }
   CpuProfiler* cpu_profiler() const { return profiler_; }
+  ContextFilter& context_filter() { return context_filter_; }
 
   void UpdateTicksScale();
 
@@ -397,6 +423,7 @@ class CpuProfile {
   const char* title_;
   const CpuProfilingOptions options_;
   std::unique_ptr<DiscardedSamplesDelegate> delegate_;
+  ContextFilter context_filter_;
   base::TimeTicks start_time_;
   base::TimeTicks end_time_;
   std::deque<SampleInfo> samples_;
@@ -486,7 +513,11 @@ class V8_EXPORT_PRIVATE CpuProfilesCollection {
   void AddPathToCurrentProfiles(base::TimeTicks timestamp,
                                 const ProfileStackTrace& path, int src_line,
                                 bool update_stats,
-                                base::TimeDelta sampling_interval);
+                                base::TimeDelta sampling_interval,
+                                Address native_context_address = kNullAddress);
+
+  // Called from profile generator thread.
+  void UpdateNativeContextAddressForCurrentProfiles(Address from, Address to);
 
   // Limits the number of profiles that can be simultaneously collected.
   static const int kMaxSimultaneousProfiles = 100;

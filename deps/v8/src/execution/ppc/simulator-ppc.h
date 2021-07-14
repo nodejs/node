@@ -321,6 +321,18 @@ class Simulator : public SimulatorBase {
     }
   }
 
+  // Byte Reverse.
+  static inline __uint128_t __builtin_bswap128(__uint128_t v) {
+    union {
+      uint64_t u64[2];
+      __uint128_t u128;
+    } res, val;
+    val.u128 = v;
+    res.u64[0] = __builtin_bswap64(val.u64[1]);
+    res.u64[1] = __builtin_bswap64(val.u64[0]);
+    return res.u128;
+  }
+
 #define RW_VAR_LIST(V)      \
   V(QWU, unsigned __int128) \
   V(QW, __int128)           \

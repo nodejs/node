@@ -68,7 +68,9 @@ namespace interpreter {
     OperandType::kRuntimeId, OperandType::kReg, OperandType::kReg,             \
     OperandType::kReg)                                                         \
                                                                                \
-  /* Loading the accumulator */                                                \
+  /* Side-effect-free bytecodes -- carefully ordered for efficient checks */   \
+  /* - [Loading the accumulator] */                                            \
+  V(Ldar, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg)           \
   V(LdaZero, ImplicitRegisterUse::kWriteAccumulator)                           \
   V(LdaSmi, ImplicitRegisterUse::kWriteAccumulator, OperandType::kImm)         \
   V(LdaUndefined, ImplicitRegisterUse::kWriteAccumulator)                      \
@@ -77,6 +79,27 @@ namespace interpreter {
   V(LdaTrue, ImplicitRegisterUse::kWriteAccumulator)                           \
   V(LdaFalse, ImplicitRegisterUse::kWriteAccumulator)                          \
   V(LdaConstant, ImplicitRegisterUse::kWriteAccumulator, OperandType::kIdx)    \
+  V(LdaContextSlot, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg, \
+    OperandType::kIdx, OperandType::kUImm)                                     \
+  V(LdaImmutableContextSlot, ImplicitRegisterUse::kWriteAccumulator,           \
+    OperandType::kReg, OperandType::kIdx, OperandType::kUImm)                  \
+  V(LdaCurrentContextSlot, ImplicitRegisterUse::kWriteAccumulator,             \
+    OperandType::kIdx)                                                         \
+  V(LdaImmutableCurrentContextSlot, ImplicitRegisterUse::kWriteAccumulator,    \
+    OperandType::kIdx)                                                         \
+  /* - [Register Loads ] */                                                    \
+  V(Star, ImplicitRegisterUse::kReadAccumulator, OperandType::kRegOut)         \
+  V(Mov, ImplicitRegisterUse::kNone, OperandType::kReg, OperandType::kRegOut)  \
+  V(PushContext, ImplicitRegisterUse::kReadAccumulator, OperandType::kRegOut)  \
+  V(PopContext, ImplicitRegisterUse::kNone, OperandType::kReg)                 \
+  /* - [Test Operations ] */                                                   \
+  V(TestReferenceEqual, ImplicitRegisterUse::kReadWriteAccumulator,            \
+    OperandType::kReg)                                                         \
+  V(TestUndetectable, ImplicitRegisterUse::kReadWriteAccumulator)              \
+  V(TestNull, ImplicitRegisterUse::kReadWriteAccumulator)                      \
+  V(TestUndefined, ImplicitRegisterUse::kReadWriteAccumulator)                 \
+  V(TestTypeOf, ImplicitRegisterUse::kReadWriteAccumulator,                    \
+    OperandType::kFlag8)                                                       \
                                                                                \
   /* Globals */                                                                \
   V(LdaGlobal, ImplicitRegisterUse::kWriteAccumulator, OperandType::kIdx,      \
@@ -87,16 +110,6 @@ namespace interpreter {
     OperandType::kIdx)                                                         \
                                                                                \
   /* Context operations */                                                     \
-  V(PushContext, ImplicitRegisterUse::kReadAccumulator, OperandType::kRegOut)  \
-  V(PopContext, ImplicitRegisterUse::kNone, OperandType::kReg)                 \
-  V(LdaContextSlot, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg, \
-    OperandType::kIdx, OperandType::kUImm)                                     \
-  V(LdaImmutableContextSlot, ImplicitRegisterUse::kWriteAccumulator,           \
-    OperandType::kReg, OperandType::kIdx, OperandType::kUImm)                  \
-  V(LdaCurrentContextSlot, ImplicitRegisterUse::kWriteAccumulator,             \
-    OperandType::kIdx)                                                         \
-  V(LdaImmutableCurrentContextSlot, ImplicitRegisterUse::kWriteAccumulator,    \
-    OperandType::kIdx)                                                         \
   V(StaContextSlot, ImplicitRegisterUse::kReadAccumulator, OperandType::kReg,  \
     OperandType::kIdx, OperandType::kUImm)                                     \
   V(StaCurrentContextSlot, ImplicitRegisterUse::kReadAccumulator,              \
@@ -116,13 +129,6 @@ namespace interpreter {
     OperandType::kIdx, OperandType::kIdx, OperandType::kUImm)                  \
   V(StaLookupSlot, ImplicitRegisterUse::kReadWriteAccumulator,                 \
     OperandType::kIdx, OperandType::kFlag8)                                    \
-                                                                               \
-  /* Register-accumulator transfers */                                         \
-  V(Ldar, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg)           \
-  V(Star, ImplicitRegisterUse::kReadAccumulator, OperandType::kRegOut)         \
-                                                                               \
-  /* Register-register transfers */                                            \
-  V(Mov, ImplicitRegisterUse::kNone, OperandType::kReg, OperandType::kRegOut)  \
                                                                                \
   /* Property loads (LoadIC) operations */                                     \
   V(LdaNamedProperty, ImplicitRegisterUse::kWriteAccumulator,                  \
@@ -272,7 +278,7 @@ namespace interpreter {
     OperandType::kReg, OperandType::kRegList, OperandType::kRegCount,          \
     OperandType::kIdx)                                                         \
                                                                                \
-  /* Test Operators */                                                         \
+  /* Effectful Test Operators */                                               \
   V(TestEqual, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg,  \
     OperandType::kIdx)                                                         \
   V(TestEqualStrict, ImplicitRegisterUse::kReadWriteAccumulator,               \
@@ -285,17 +291,10 @@ namespace interpreter {
     OperandType::kReg, OperandType::kIdx)                                      \
   V(TestGreaterThanOrEqual, ImplicitRegisterUse::kReadWriteAccumulator,        \
     OperandType::kReg, OperandType::kIdx)                                      \
-  V(TestReferenceEqual, ImplicitRegisterUse::kReadWriteAccumulator,            \
-    OperandType::kReg)                                                         \
   V(TestInstanceOf, ImplicitRegisterUse::kReadWriteAccumulator,                \
     OperandType::kReg, OperandType::kIdx)                                      \
   V(TestIn, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg,     \
     OperandType::kIdx)                                                         \
-  V(TestUndetectable, ImplicitRegisterUse::kReadWriteAccumulator)              \
-  V(TestNull, ImplicitRegisterUse::kReadWriteAccumulator)                      \
-  V(TestUndefined, ImplicitRegisterUse::kReadWriteAccumulator)                 \
-  V(TestTypeOf, ImplicitRegisterUse::kReadWriteAccumulator,                    \
-    OperandType::kFlag8)                                                       \
                                                                                \
   /* Cast operators */                                                         \
   V(ToName, ImplicitRegisterUse::kReadAccumulator, OperandType::kRegOut)       \
@@ -650,25 +649,17 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
   // Return true if |bytecode| is an accumulator load without effects,
   // e.g. LdaConstant, LdaTrue, Ldar.
   static constexpr bool IsAccumulatorLoadWithoutEffects(Bytecode bytecode) {
-    return bytecode == Bytecode::kLdar || bytecode == Bytecode::kLdaZero ||
-           bytecode == Bytecode::kLdaSmi || bytecode == Bytecode::kLdaNull ||
-           bytecode == Bytecode::kLdaTrue || bytecode == Bytecode::kLdaFalse ||
-           bytecode == Bytecode::kLdaUndefined ||
-           bytecode == Bytecode::kLdaTheHole ||
-           bytecode == Bytecode::kLdaConstant ||
-           bytecode == Bytecode::kLdaContextSlot ||
-           bytecode == Bytecode::kLdaCurrentContextSlot ||
-           bytecode == Bytecode::kLdaImmutableContextSlot ||
-           bytecode == Bytecode::kLdaImmutableCurrentContextSlot;
+    STATIC_ASSERT(Bytecode::kLdar < Bytecode::kLdaImmutableCurrentContextSlot);
+    return bytecode >= Bytecode::kLdar &&
+           bytecode <= Bytecode::kLdaImmutableCurrentContextSlot;
   }
 
   // Returns true if |bytecode| is a compare operation without external effects
   // (e.g., Type cooersion).
   static constexpr bool IsCompareWithoutEffects(Bytecode bytecode) {
-    return bytecode == Bytecode::kTestUndetectable ||
-           bytecode == Bytecode::kTestNull ||
-           bytecode == Bytecode::kTestUndefined ||
-           bytecode == Bytecode::kTestTypeOf;
+    STATIC_ASSERT(Bytecode::kTestReferenceEqual < Bytecode::kTestTypeOf);
+    return bytecode >= Bytecode::kTestReferenceEqual &&
+           bytecode <= Bytecode::kTestTypeOf;
   }
 
   static constexpr bool IsShortStar(Bytecode bytecode) {
@@ -683,8 +674,8 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
   // Return true if |bytecode| is a register load without effects,
   // e.g. Mov, Star.
   static constexpr bool IsRegisterLoadWithoutEffects(Bytecode bytecode) {
-    return bytecode == Bytecode::kMov || bytecode == Bytecode::kPopContext ||
-           bytecode == Bytecode::kPushContext || IsAnyStar(bytecode);
+    return IsShortStar(bytecode) ||
+           (bytecode >= Bytecode::kStar && bytecode <= Bytecode::kPopContext);
   }
 
   // Returns true if the bytecode is a conditional jump taking

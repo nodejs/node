@@ -450,8 +450,8 @@ inline bool Code::is_interpreter_trampoline_builtin() const {
   const int index = builtin_index();
   return index != Builtins::kNoBuiltinId &&
          (index == Builtins::kInterpreterEntryTrampoline ||
-          index == Builtins::kInterpreterEnterBytecodeAdvance ||
-          index == Builtins::kInterpreterEnterBytecodeDispatch);
+          index == Builtins::kInterpreterEnterAtBytecode ||
+          index == Builtins::kInterpreterEnterAtNextBytecode);
 }
 
 inline bool Code::is_baseline_trampoline_builtin() const {
@@ -715,7 +715,7 @@ bool Code::IsWeakObject(HeapObject object) {
 }
 
 bool Code::IsWeakObjectInOptimizedCode(HeapObject object) {
-  Map map = object.synchronized_map();
+  Map map = object.map(kAcquireLoad);
   InstanceType instance_type = map.instance_type();
   if (InstanceTypeChecker::IsMap(instance_type)) {
     return Map::cast(object).CanTransition();

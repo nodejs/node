@@ -5,7 +5,8 @@
 #ifndef V8_METRICS_H_
 #define V8_METRICS_H_
 
-#include "v8.h"  // NOLINT(build/include_directory)
+#include "v8-internal.h"  // NOLINT(build/include_directory)
+#include "v8.h"           // NOLINT(build/include_directory)
 
 namespace v8 {
 namespace metrics {
@@ -181,6 +182,32 @@ class V8_EXPORT Recorder {
   static MaybeLocal<Context> GetContext(Isolate* isolate, ContextId id);
   // Return the unique id corresponding to the given context.
   static ContextId GetContextId(Local<Context> context);
+};
+
+/**
+ * Experimental API intended for the LongTasks UKM (crbug.com/1173527).
+ * The Reset() method should be called at the start of a potential
+ * long task. The Get() method returns durations of V8 work that
+ * happened during the task.
+ *
+ * This API is experimental and may be removed/changed in the future.
+ */
+struct V8_EXPORT LongTaskStats {
+  /**
+   * Resets durations of V8 work for the new task.
+   */
+  V8_INLINE static void Reset(Isolate* isolate) {
+    v8::internal::Internals::IncrementLongTasksStatsCounter(isolate);
+  }
+
+  /**
+   * Returns durations of V8 work that happened since the last Reset().
+   */
+  static LongTaskStats Get(Isolate* isolate);
+
+  int64_t gc_full_atomic_wall_clock_duration_us = 0;
+  int64_t gc_full_incremental_wall_clock_duration_us = 0;
+  int64_t gc_young_wall_clock_duration_us = 0;
 };
 
 }  // namespace metrics

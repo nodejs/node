@@ -9,7 +9,6 @@
 #include "src/codegen/interface-descriptors.h"
 #include "src/objects/objects-inl.h"
 #include "src/wasm/wasm-objects.h"
-#include "src/wasm/wasm-opcodes.h"
 
 namespace v8 {
 namespace internal {

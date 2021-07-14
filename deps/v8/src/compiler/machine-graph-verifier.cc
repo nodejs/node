@@ -999,6 +999,7 @@ class MachineRepresentationChecker {
         return IsAnyTagged(actual);
       case MachineRepresentation::kCompressed:
         return IsAnyCompressed(actual);
+      case MachineRepresentation::kMapWord:
       case MachineRepresentation::kTaggedSigned:
       case MachineRepresentation::kTaggedPointer:
         // TODO(turbofan): At the moment, the machine graph doesn't contain

@@ -56,16 +56,9 @@
   DECL_PRIMITIVE_GETTER(name, type)          \
   DECL_PRIMITIVE_SETTER(name, type)
 
-#define DECL_SYNCHRONIZED_PRIMITIVE_ACCESSORS(name, type) \
-  inline type synchronized_##name() const;                \
-  inline void synchronized_set_##name(type value);
-
 #define DECL_BOOLEAN_ACCESSORS(name) DECL_PRIMITIVE_ACCESSORS(name, bool)
 
 #define DECL_INT_ACCESSORS(name) DECL_PRIMITIVE_ACCESSORS(name, int)
-
-#define DECL_SYNCHRONIZED_INT_ACCESSORS(name) \
-  DECL_SYNCHRONIZED_PRIMITIVE_ACCESSORS(name, int)
 
 #define DECL_INT32_ACCESSORS(name) DECL_PRIMITIVE_ACCESSORS(name, int32_t)
 
@@ -324,21 +317,29 @@
 #define SMI_ACCESSORS(holder, name, offset) \
   SMI_ACCESSORS_CHECKED(holder, name, offset, true)
 
-#define SYNCHRONIZED_SMI_ACCESSORS(holder, name, offset)                 \
-  int holder::synchronized_##name() const {                              \
+#define DECL_RELEASE_ACQUIRE_INT_ACCESSORS(name) \
+  inline int name(AcquireLoadTag) const;         \
+  inline void set_##name(int value, ReleaseStoreTag);
+
+#define RELEASE_ACQUIRE_SMI_ACCESSORS(holder, name, offset)              \
+  int holder::name(AcquireLoadTag) const {                               \
     Smi value = TaggedField<Smi, offset>::Acquire_Load(*this);           \
     return value.value();                                                \
   }                                                                      \
-  void holder::synchronized_set_##name(int value) {                      \
+  void holder::set_##name(int value, ReleaseStoreTag) {                  \
     TaggedField<Smi, offset>::Release_Store(*this, Smi::FromInt(value)); \
   }
 
+#define DECL_RELAXED_SMI_ACCESSORS(name) \
+  inline int name(RelaxedLoadTag) const; \
+  inline void set_##name(int value, RelaxedStoreTag);
+
 #define RELAXED_SMI_ACCESSORS(holder, name, offset)                      \
-  int holder::relaxed_read_##name() const {                              \
+  int holder::name(RelaxedLoadTag) const {                               \
     Smi value = TaggedField<Smi, offset>::Relaxed_Load(*this);           \
     return value.value();                                                \
   }                                                                      \
-  void holder::relaxed_write_##name(int value) {                         \
+  void holder::set_##name(int value, RelaxedStoreTag) {                  \
     TaggedField<Smi, offset>::Relaxed_Store(*this, Smi::FromInt(value)); \
   }
 
@@ -604,7 +605,7 @@ static_assert(sizeof(unsigned) == sizeof(uint32_t),
                       static_cast<base::Atomic8>(value));
 
 #ifdef OBJECT_PRINT
-#define DECL_PRINTER(Name) void Name##Print(std::ostream& os);  // NOLINT
+#define DECL_PRINTER(Name) void Name##Print(std::ostream& os);
 #else
 #define DECL_PRINTER(Name)
 #endif

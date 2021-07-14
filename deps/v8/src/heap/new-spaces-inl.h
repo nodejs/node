@@ -5,12 +5,12 @@
 #ifndef V8_HEAP_NEW_SPACES_INL_H_
 #define V8_HEAP_NEW_SPACES_INL_H_
 
+#include "src/base/sanitizer/msan.h"
 #include "src/common/globals.h"
 #include "src/heap/heap.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/spaces-inl.h"
 #include "src/objects/tagged-impl.h"
-#include "src/sanitizer/msan.h"
 
 namespace v8 {
 namespace internal {
@@ -87,6 +87,8 @@ HeapObject SemiSpaceObjectIterator::Next() {
 AllocationResult NewSpace::AllocateRaw(int size_in_bytes,
                                        AllocationAlignment alignment,
                                        AllocationOrigin origin) {
+  DCHECK(!FLAG_single_generation);
+  DCHECK(!FLAG_enable_third_party_heap);
 #if DEBUG
   VerifyTop();
 #endif
@@ -110,7 +112,7 @@ AllocationResult NewSpace::AllocateFastUnaligned(int size_in_bytes,
                                                  AllocationOrigin origin) {
   Address top = allocation_info_.top();
   if (allocation_info_.limit() < top + size_in_bytes) {
-    return AllocationResult::Retry();
+    return AllocationResult::Retry(NEW_SPACE);
   }
 
   HeapObject obj = HeapObject::FromAddress(top);
@@ -135,7 +137,7 @@ AllocationResult NewSpace::AllocateFastAligned(
 
   if (allocation_info_.limit() - top <
       static_cast<uintptr_t>(aligned_size_in_bytes)) {
-    return AllocationResult::Retry();
+    return AllocationResult::Retry(NEW_SPACE);
   }
 
   HeapObject obj = HeapObject::FromAddress(top);

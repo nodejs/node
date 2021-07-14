@@ -61,6 +61,7 @@
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/maybe-object.h"
+#include "src/objects/megadom-handler-inl.h"
 #include "src/objects/microtask-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/oddball-inl.h"
@@ -115,7 +116,7 @@ namespace internal {
   }
 
 void Object::ObjectVerify(Isolate* isolate) {
-  RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kObjectVerify);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kObjectVerify);
   if (IsSmi()) {
     Smi::cast(*this).SmiVerify(isolate);
   } else {
@@ -137,7 +138,7 @@ void MaybeObject::VerifyMaybeObjectPointer(Isolate* isolate, MaybeObject p) {
   if (p->GetHeapObject(&heap_object)) {
     HeapObject::VerifyHeapPointer(isolate, heap_object);
   } else {
-    CHECK(p->IsSmi() || p->IsCleared());
+    CHECK(p->IsSmi() || p->IsCleared() || MapWord::IsPacked(p->ptr()));
   }
 }
 
@@ -457,7 +458,11 @@ void Map::MapVerify(Isolate* isolate) {
         (kTaggedSize <= instance_size() &&
          static_cast<size_t>(instance_size()) < heap->Capacity()));
   if (IsContextMap()) {
-    CHECK(native_context().IsNativeContext());
+    // The map for the NativeContext is allocated before the NativeContext
+    // itself, so it may happen that during a GC the native_context() is still
+    // null.
+    CHECK(native_context_or_null().IsNull() ||
+          native_context().IsNativeContext());
   } else {
     if (GetBackPointer().IsUndefined(isolate)) {
       // Root maps must not have descriptors in the descriptor array that do not
@@ -675,7 +680,7 @@ void SloppyArgumentsElementsVerify(Isolate* isolate,
   for (int i = 0; i < nofMappedParameters; i++) {
     // Verify that each context-mapped argument is either the hole or a valid
     // Smi within context length range.
-    Object mapped = elements.mapped_entries(i);
+    Object mapped = elements.mapped_entries(i, kRelaxedLoad);
     if (mapped.IsTheHole(isolate)) {
       // Slow sloppy arguments can be holey.
       if (!is_fast) continue;
@@ -828,7 +833,6 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
 
 void SharedFunctionInfo::SharedFunctionInfoVerify(Isolate* isolate) {
   // TODO(leszeks): Add a TorqueGeneratedClassVerifier for LocalIsolate.
-  TorqueGeneratedClassVerifiers::SharedFunctionInfoVerify(*this, isolate);
   this->SharedFunctionInfoVerify(ReadOnlyRoots(isolate));
 }
 
@@ -1433,7 +1437,7 @@ void JSArrayBufferView::JSArrayBufferViewVerify(Isolate* isolate) {
 
 void JSTypedArray::JSTypedArrayVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSTypedArrayVerify(*this, isolate);
-  CHECK_LE(length(), JSTypedArray::kMaxLength);
+  CHECK_LE(GetLength(), JSTypedArray::kMaxLength);
 }
 
 void JSDataView::JSDataViewVerify(Isolate* isolate) {
@@ -1685,7 +1689,13 @@ void AllocationSite::AllocationSiteVerify(Isolate* isolate) {
 
 void Script::ScriptVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::ScriptVerify(*this, isolate);
-  for (int i = 0; i < shared_function_infos().length(); ++i) {
+  if V8_UNLIKELY (type() == Script::TYPE_WEB_SNAPSHOT) {
+    CHECK_LE(shared_function_info_count(), shared_function_infos().length());
+  } else {
+    // No overallocating shared_function_infos.
+    CHECK_EQ(shared_function_info_count(), shared_function_infos().length());
+  }
+  for (int i = 0; i < shared_function_info_count(); ++i) {
     MaybeObject maybe_object = shared_function_infos().Get(i);
     HeapObject heap_object;
     CHECK(maybe_object->IsWeak() || maybe_object->IsCleared() ||
@@ -1734,6 +1744,12 @@ void StackFrameInfo::StackFrameInfoVerify(Isolate* isolate) {
   CHECK_IMPLIES(IsAsync(), !IsWasm());
   CHECK_IMPLIES(IsConstructor(), !IsWasm());
 #endif  // V8_ENABLE_WEBASSEMBLY
+}
+
+void FunctionTemplateRareData::FunctionTemplateRareDataVerify(
+    Isolate* isolate) {
+  CHECK(c_function_overloads().IsFixedArray() ||
+        c_function_overloads().IsUndefined(isolate));
 }
 
 #endif  // VERIFY_HEAP
@@ -1795,6 +1811,7 @@ void JSObject::IncrementSpillStatistics(Isolate* isolate,
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) case TYPE##_ELEMENTS:
 
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
+      RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
       {
         info->number_of_objects_with_fast_elements_++;

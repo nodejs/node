@@ -297,6 +297,8 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
     return types_[exceptions_[index]].sig;
   }
 
+  static const uint32_t kNullIndex;
+
  private:
   struct Type {
     enum Kind { kFunctionSig, kStructType, kArrayType };

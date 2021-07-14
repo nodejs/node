@@ -182,23 +182,23 @@ enum class Sign { kNegative, kPositive, kNone };
 // ES6 18.2.5 parseInt(string, radix) (with NumberParseIntHelper subclass);
 // and BigInt parsing cases from https://tc39.github.io/proposal-bigint/
 // (with StringToBigIntHelper subclass).
-template <typename LocalIsolate>
+template <typename IsolateT>
 class StringToIntHelper {
  public:
-  StringToIntHelper(LocalIsolate* isolate, Handle<String> subject, int radix)
+  StringToIntHelper(IsolateT* isolate, Handle<String> subject, int radix)
       : isolate_(isolate), subject_(subject), radix_(radix) {
     DCHECK(subject->IsFlat());
   }
 
   // Used for the StringToBigInt operation.
-  StringToIntHelper(LocalIsolate* isolate, Handle<String> subject)
+  StringToIntHelper(IsolateT* isolate, Handle<String> subject)
       : isolate_(isolate), subject_(subject) {
     DCHECK(subject->IsFlat());
   }
 
   // Used for parsing BigInt literals, where the input is a Zone-allocated
   // buffer of one-byte digits, along with an optional radix prefix.
-  StringToIntHelper(LocalIsolate* isolate, const uint8_t* subject, int length)
+  StringToIntHelper(IsolateT* isolate, const uint8_t* subject, int length)
       : isolate_(isolate), raw_one_byte_subject_(subject), length_(length) {}
   virtual ~StringToIntHelper() = default;
 
@@ -239,7 +239,7 @@ class StringToIntHelper {
     return subject_->GetFlatContent(no_gc).ToUC16Vector();
   }
 
-  LocalIsolate* isolate() { return isolate_; }
+  IsolateT* isolate() { return isolate_; }
   int radix() { return radix_; }
   int cursor() { return cursor_; }
   int length() { return length_; }
@@ -254,7 +254,7 @@ class StringToIntHelper {
   template <class Char>
   bool ParseChunkInternal(Char start);
 
-  LocalIsolate* isolate_;
+  IsolateT* isolate_;
   Handle<String> subject_;
   const uint8_t* raw_one_byte_subject_ = nullptr;
   int radix_ = 0;
@@ -267,8 +267,8 @@ class StringToIntHelper {
   State state_ = State::kRunning;
 };
 
-template <typename LocalIsolate>
-void StringToIntHelper<LocalIsolate>::ParseInt() {
+template <typename IsolateT>
+void StringToIntHelper<IsolateT>::ParseInt() {
   {
     DisallowGarbageCollection no_gc;
     if (IsOneByte()) {
@@ -311,10 +311,10 @@ void StringToIntHelper<LocalIsolate>::ParseInt() {
   DCHECK_NE(state_, State::kRunning);
 }
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 template <class Char>
-void StringToIntHelper<LocalIsolate>::DetectRadixInternal(Char current,
-                                                          int length) {
+void StringToIntHelper<IsolateT>::DetectRadixInternal(Char current,
+                                                      int length) {
   Char start = current;
   length_ = length;
   Char end = start + length;
@@ -391,9 +391,9 @@ void StringToIntHelper<LocalIsolate>::DetectRadixInternal(Char current,
   cursor_ = static_cast<int>(current - start);
 }
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 template <class Char>
-bool StringToIntHelper<LocalIsolate>::ParseChunkInternal(Char start) {
+bool StringToIntHelper<IsolateT>::ParseChunkInternal(Char start) {
   const int kChunkSize = 10240;
   Char current = start + cursor_;
   Char end = start + length_;
@@ -860,14 +860,14 @@ double StringToInt(Isolate* isolate, Handle<String> string, int radix) {
   return helper.GetResult();
 }
 
-template <typename LocalIsolate>
-class StringToBigIntHelper : public StringToIntHelper<LocalIsolate> {
+template <typename IsolateT>
+class StringToBigIntHelper : public StringToIntHelper<IsolateT> {
  public:
   enum class Behavior { kStringToBigInt, kLiteral };
 
   // Used for StringToBigInt operation (BigInt constructor and == operator).
-  StringToBigIntHelper(LocalIsolate* isolate, Handle<String> string)
-      : StringToIntHelper<LocalIsolate>(isolate, string),
+  StringToBigIntHelper(IsolateT* isolate, Handle<String> string)
+      : StringToIntHelper<IsolateT>(isolate, string),
         behavior_(Behavior::kStringToBigInt) {
     this->set_allow_binary_and_octal_prefixes();
     this->set_disallow_trailing_junk();
@@ -875,8 +875,8 @@ class StringToBigIntHelper : public StringToIntHelper<LocalIsolate> {
 
   // Used for parsing BigInt literals, where the input is a buffer of
   // one-byte ASCII digits, along with an optional radix prefix.
-  StringToBigIntHelper(LocalIsolate* isolate, const uint8_t* string, int length)
-      : StringToIntHelper<LocalIsolate>(isolate, string, length),
+  StringToBigIntHelper(IsolateT* isolate, const uint8_t* string, int length)
+      : StringToIntHelper<IsolateT>(isolate, string, length),
         behavior_(Behavior::kLiteral) {
     this->set_allow_binary_and_octal_prefixes();
   }
@@ -943,8 +943,8 @@ class StringToBigIntHelper : public StringToIntHelper<LocalIsolate> {
   Behavior behavior_;
 };
 
-template <typename LocalIsolate>
-bool StringToBigIntHelper<LocalIsolate>::CheckTermination() {
+template <typename IsolateT>
+bool StringToBigIntHelper<IsolateT>::CheckTermination() {
   return false;
 }
 
@@ -961,9 +961,9 @@ MaybeHandle<BigInt> StringToBigInt(Isolate* isolate, Handle<String> string) {
   return helper.GetResult();
 }
 
-template <typename LocalIsolate>
-MaybeHandle<BigInt> BigIntLiteral(LocalIsolate* isolate, const char* string) {
-  StringToBigIntHelper<LocalIsolate> helper(
+template <typename IsolateT>
+MaybeHandle<BigInt> BigIntLiteral(IsolateT* isolate, const char* string) {
+  StringToBigIntHelper<IsolateT> helper(
       isolate, reinterpret_cast<const uint8_t*>(string),
       static_cast<int>(strlen(string)));
   return helper.GetResult();

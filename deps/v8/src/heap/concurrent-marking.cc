@@ -8,6 +8,7 @@
 #include <unordered_map>
 
 #include "include/v8config.h"
+#include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
@@ -136,13 +137,13 @@ class ConcurrentMarkingVisitor final
   int VisitSeqOneByteString(Map map, SeqOneByteString object) {
     if (!ShouldVisit(object)) return 0;
     VisitMapPointer(object);
-    return SeqOneByteString::SizeFor(object.synchronized_length());
+    return SeqOneByteString::SizeFor(object.length(kAcquireLoad));
   }
 
   int VisitSeqTwoByteString(Map map, SeqTwoByteString object) {
     if (!ShouldVisit(object)) return 0;
     VisitMapPointer(object);
-    return SeqTwoByteString::SizeFor(object.synchronized_length());
+    return SeqTwoByteString::SizeFor(object.length(kAcquireLoad));
   }
 
   // Implements ephemeron semantics: Marks value if key is already reachable.
@@ -232,9 +233,9 @@ class ConcurrentMarkingVisitor final
 
   template <typename T>
   int VisitLeftTrimmableArray(Map map, T object) {
-    // The synchronized_length() function checks that the length is a Smi.
+    // The length() function checks that the length is a Smi.
     // This is not necessarily the case if the array is being left-trimmed.
-    Object length = object.unchecked_synchronized_length();
+    Object length = object.unchecked_length(kAcquireLoad);
     if (!ShouldVisit(object)) return 0;
     // The cached length must be the actual length as the array is not black.
     // Left trimming marks the array black before over-writing the length.
@@ -460,16 +461,28 @@ void ConcurrentMarking::Run(JobDelegate* delegate,
           break;
         }
         objects_processed++;
-        // The order of the two loads is important.
-        Address new_space_top = heap_->new_space()->original_top_acquire();
-        Address new_space_limit = heap_->new_space()->original_limit_relaxed();
-        Address new_large_object = heap_->new_lo_space()->pending_object();
+
+        Address new_space_top = kNullAddress;
+        Address new_space_limit = kNullAddress;
+        Address new_large_object = kNullAddress;
+
+        if (heap_->new_space()) {
+          // The order of the two loads is important.
+          new_space_top = heap_->new_space()->original_top_acquire();
+          new_space_limit = heap_->new_space()->original_limit_relaxed();
+        }
+
+        if (heap_->new_lo_space()) {
+          new_large_object = heap_->new_lo_space()->pending_object();
+        }
+
         Address addr = object.address();
+
         if ((new_space_top <= addr && addr < new_space_limit) ||
             addr == new_large_object) {
           local_marking_worklists.PushOnHold(object);
         } else {
-          Map map = object.synchronized_map(isolate);
+          Map map = object.map(isolate, kAcquireLoad);
           if (is_per_context_mode) {
             Address context;
             if (native_context_inferrer.Infer(isolate, map, object, &context)) {

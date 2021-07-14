@@ -819,6 +819,9 @@ ExternalReference ExternalReference::search_string_raw() {
 FUNCTION_REFERENCE(jsarray_array_join_concat_to_sequential_string,
                    JSArray::ArrayJoinConcatToSequentialString)
 
+FUNCTION_REFERENCE(length_tracking_gsab_backed_typed_array_length,
+                   JSTypedArray::LengthTrackingGsabBackedTypedArrayLength)
+
 ExternalReference ExternalReference::search_string_raw_one_one() {
   return search_string_raw<const uint8_t, const uint8_t>();
 }
@@ -1015,11 +1018,6 @@ FUNCTION_REFERENCE_WITH_TYPE(mod_two_doubles_operation, modulo_double_double,
 ExternalReference ExternalReference::debug_suspended_generator_address(
     Isolate* isolate) {
   return ExternalReference(isolate->debug()->suspended_generator_address());
-}
-
-ExternalReference ExternalReference::debug_restart_fp_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->debug()->restart_fp_address());
 }
 
 ExternalReference ExternalReference::fast_c_call_caller_fp_address(

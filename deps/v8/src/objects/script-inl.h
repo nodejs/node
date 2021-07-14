@@ -25,7 +25,7 @@ NEVER_READ_ONLY_SPACE_IMPL(Script)
 
 #if V8_ENABLE_WEBASSEMBLY
 ACCESSORS_CHECKED(Script, wasm_breakpoint_infos, FixedArray,
-                  kEvalFromSharedOrWrappedArgumentsOffset,
+                  kEvalFromSharedOrWrappedArgumentsOrSfiTableOffset,
                   this->type() == TYPE_WASM)
 ACCESSORS_CHECKED(Script, wasm_managed_native_module, Object,
                   kEvalFromPositionOffset, this->type() == TYPE_WASM)
@@ -37,40 +37,59 @@ ACCESSORS_CHECKED(Script, wasm_weak_instance_list, WeakArrayList,
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 SMI_ACCESSORS(Script, type, kScriptTypeOffset)
-ACCESSORS_CHECKED(Script, eval_from_shared_or_wrapped_arguments, Object,
-                  kEvalFromSharedOrWrappedArgumentsOffset,
+ACCESSORS_CHECKED(Script, eval_from_shared_or_wrapped_arguments_or_sfi_table,
+                  Object, kEvalFromSharedOrWrappedArgumentsOrSfiTableOffset,
                   CHECK_SCRIPT_NOT_WASM)
 SMI_ACCESSORS_CHECKED(Script, eval_from_position, kEvalFromPositionOffset,
                       CHECK_SCRIPT_NOT_WASM)
 #undef CHECK_SCRIPT_NOT_WASM
 
 bool Script::is_wrapped() const {
-  return eval_from_shared_or_wrapped_arguments().IsFixedArray();
+  return eval_from_shared_or_wrapped_arguments_or_sfi_table().IsFixedArray() &&
+         type() != TYPE_WEB_SNAPSHOT;
 }
 
 bool Script::has_eval_from_shared() const {
-  return eval_from_shared_or_wrapped_arguments().IsSharedFunctionInfo();
+  return eval_from_shared_or_wrapped_arguments_or_sfi_table()
+      .IsSharedFunctionInfo();
 }
 
 void Script::set_eval_from_shared(SharedFunctionInfo shared,
                                   WriteBarrierMode mode) {
   DCHECK(!is_wrapped());
-  set_eval_from_shared_or_wrapped_arguments(shared, mode);
+  DCHECK_NE(type(), TYPE_WEB_SNAPSHOT);
+  set_eval_from_shared_or_wrapped_arguments_or_sfi_table(shared, mode);
 }
 
 SharedFunctionInfo Script::eval_from_shared() const {
   DCHECK(has_eval_from_shared());
-  return SharedFunctionInfo::cast(eval_from_shared_or_wrapped_arguments());
+  return SharedFunctionInfo::cast(
+      eval_from_shared_or_wrapped_arguments_or_sfi_table());
 }
 
 void Script::set_wrapped_arguments(FixedArray value, WriteBarrierMode mode) {
   DCHECK(!has_eval_from_shared());
-  set_eval_from_shared_or_wrapped_arguments(value, mode);
+  DCHECK_NE(type(), TYPE_WEB_SNAPSHOT);
+  set_eval_from_shared_or_wrapped_arguments_or_sfi_table(value, mode);
 }
 
 FixedArray Script::wrapped_arguments() const {
   DCHECK(is_wrapped());
-  return FixedArray::cast(eval_from_shared_or_wrapped_arguments());
+  return FixedArray::cast(eval_from_shared_or_wrapped_arguments_or_sfi_table());
+}
+
+void Script::set_shared_function_info_table(ObjectHashTable value,
+                                            WriteBarrierMode mode) {
+  DCHECK(!has_eval_from_shared());
+  DCHECK(!is_wrapped());
+  DCHECK_EQ(type(), TYPE_WEB_SNAPSHOT);
+  set_eval_from_shared_or_wrapped_arguments_or_sfi_table(value, mode);
+}
+
+ObjectHashTable Script::shared_function_info_table() const {
+  DCHECK_EQ(type(), TYPE_WEB_SNAPSHOT);
+  return ObjectHashTable::cast(
+      eval_from_shared_or_wrapped_arguments_or_sfi_table());
 }
 
 DEF_GETTER(Script, shared_function_infos, WeakFixedArray) {
@@ -89,6 +108,15 @@ void Script::set_shared_function_infos(WeakFixedArray value,
 #endif  // V8_ENABLE_WEBASSEMBLY
   TaggedField<WeakFixedArray, kSharedFunctionInfosOffset>::store(*this, value);
   CONDITIONAL_WRITE_BARRIER(*this, kSharedFunctionInfosOffset, value, mode);
+}
+
+int Script::shared_function_info_count() const {
+  if V8_UNLIKELY (type() == TYPE_WEB_SNAPSHOT) {
+    // +1 because the 0th element in shared_function_infos is reserved for the
+    // top-level SharedFunctionInfo which doesn't exist.
+    return shared_function_info_table().NumberOfElements() + 1;
+  }
+  return shared_function_infos().length();
 }
 
 #if V8_ENABLE_WEBASSEMBLY

@@ -60,8 +60,7 @@ void DotPrinterImpl::PrintOnFailure(RegExpNode* from, RegExpNode* on_failure) {
 
 class AttributePrinter {
  public:
-  explicit AttributePrinter(std::ostream& os)  // NOLINT
-      : os_(os), first_(true) {}
+  explicit AttributePrinter(std::ostream& os) : os_(os), first_(true) {}
   void PrintSeparator() {
     if (first_) {
       first_ = false;

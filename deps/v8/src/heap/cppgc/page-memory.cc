@@ -5,7 +5,7 @@
 #include "src/heap/cppgc/page-memory.h"
 
 #include "src/base/macros.h"
-#include "src/heap/cppgc/sanitizers.h"
+#include "src/base/sanitizer/asan.h"
 
 namespace cppgc {
 namespace internal {

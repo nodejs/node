@@ -36,11 +36,9 @@ class MockTaskRunner : public cppgc::TaskRunner {
   MOCK_METHOD(void, PostIdleTask, (std::unique_ptr<cppgc::IdleTask>),
               (override));
 
-  virtual bool IdleTasksEnabled() override { return true; }       // NOLINT
-  bool NonNestableTasksEnabled() const override { return true; }  // NOLINT
-  virtual bool NonNestableDelayedTasksEnabled() const override {  // NOLINT
-    return true;
-  }
+  bool IdleTasksEnabled() override { return true; }
+  bool NonNestableTasksEnabled() const override { return true; }
+  bool NonNestableDelayedTasksEnabled() const override { return true; }
 };
 
 class MockPlatform : public cppgc::Platform {

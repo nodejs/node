@@ -154,6 +154,13 @@ class SmallVector {
         base::bits::RoundUpToPowerOfTwo(std::max(min_capacity, 2 * capacity()));
     T* new_storage =
         reinterpret_cast<T*>(base::Malloc(sizeof(T) * new_capacity));
+    if (new_storage == nullptr) {
+      // Should be: V8::FatalProcessOutOfMemory, but we don't include V8 from
+      // base. The message is intentionally the same as FatalProcessOutOfMemory
+      // since that will help fuzzers and chromecrash to categorize such
+      // crashes appropriately.
+      FATAL("Fatal process out of memory: base::SmallVector::Grow");
+    }
     base::Memcpy(new_storage, begin_, sizeof(T) * in_use);
     if (is_big()) base::Free(begin_);
     begin_ = new_storage;

@@ -44,7 +44,7 @@ TimezoneCache* OS::CreateTimezoneCache() {
 }
 
 static unsigned StringToLong(char* buffer) {
-  return static_cast<unsigned>(strtol(buffer, nullptr, 16));  // NOLINT
+  return static_cast<unsigned>(strtol(buffer, nullptr, 16));
 }
 
 std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {

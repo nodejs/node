@@ -47,7 +47,7 @@ uint32_t get_fcsr_condition_bit(uint32_t cc) {
 // SScanF not being implemented in a platform independent was through
 // ::v8::internal::OS in the same way as SNPrintF is that the Windows C Run-Time
 // Library does not provide vsscanf.
-#define SScanF sscanf  // NOLINT
+#define SScanF sscanf
 
 // The MipsDebugger class is used by the simulator while debugging simulated
 // code.

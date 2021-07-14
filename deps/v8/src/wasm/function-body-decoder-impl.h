@@ -539,13 +539,6 @@ struct BlockTypeImmediate {
       type = value_type_reader::read_value_type<validate>(decoder, pc, &length,
                                                           module, enabled);
     } else {
-      if (!VALIDATE(enabled.has_mv())) {
-        DecodeError<validate>(decoder, pc,
-                              "invalid block type %" PRId64
-                              ", enable with --experimental-wasm-mv",
-                              block_type);
-        return;
-      }
       type = kWasmBottom;
       sig_index = static_cast<uint32_t>(block_type);
     }
@@ -578,18 +571,6 @@ struct BranchDepthImmediate {
   uint32_t length;
   inline BranchDepthImmediate(Decoder* decoder, const byte* pc) {
     depth = decoder->read_u32v<validate>(pc, &length, "branch depth");
-  }
-};
-
-template <Decoder::ValidateFlag validate>
-struct BranchOnExceptionImmediate {
-  BranchDepthImmediate<validate> depth;
-  ExceptionIndexImmediate<validate> index;
-  uint32_t length = 0;
-  inline BranchOnExceptionImmediate(Decoder* decoder, const byte* pc)
-      : depth(BranchDepthImmediate<validate>(decoder, pc)),
-        index(ExceptionIndexImmediate<validate>(decoder, pc + depth.length)) {
-    length = depth.length + index.length;
   }
 };
 
@@ -965,8 +946,10 @@ enum Reachability : uint8_t {
 template <typename Value, Decoder::ValidateFlag validate>
 struct ControlBase : public PcForErrors<validate> {
   ControlKind kind = kControlBlock;
-  uint32_t locals_count = 0;
-  uint32_t stack_depth = 0;  // stack height at the beginning of the construct.
+  uint32_t locals_count = 0;  // Additional locals introduced in this 'let'.
+  uint32_t stack_depth = 0;   // Stack height at the beginning of the construct.
+  int32_t previous_catch = -1;  // Depth of the innermost catch containing this
+                                // 'try'.
   Reachability reachability = kReachable;
 
   // Values merged into the start or end of this control construct.
@@ -1037,7 +1020,6 @@ struct ControlBase : public PcForErrors<validate> {
   F(If, const Value& cond, Control* if_block)                                  \
   F(FallThruTo, Control* c)                                                    \
   F(PopControl, Control* block)                                                \
-  F(EndControl, Control* block)                                                \
   /* Instructions: */                                                          \
   F(UnOp, WasmOpcode opcode, const Value& value, Value* result)                \
   F(BinOp, WasmOpcode opcode, const Value& lhs, const Value& rhs,              \
@@ -1099,6 +1081,7 @@ struct ControlBase : public PcForErrors<validate> {
   F(ReturnCallIndirect, const Value& index,                                    \
     const CallIndirectImmediate<validate>& imm, const Value args[])            \
   F(BrOnNull, const Value& ref_object, uint32_t depth)                         \
+  F(BrOnNonNull, const Value& ref_object, uint32_t depth)                      \
   F(SimdOp, WasmOpcode opcode, Vector<Value> args, Value* result)              \
   F(SimdLaneOp, WasmOpcode opcode, const SimdLaneImmediate<validate>& imm,     \
     const Vector<Value> inputs, Value* result)                                 \
@@ -1160,6 +1143,8 @@ struct ControlBase : public PcForErrors<validate> {
   F(AssertNull, const Value& obj, Value* result)                               \
   F(BrOnCast, const Value& obj, const Value& rtt, Value* result_on_branch,     \
     uint32_t depth)                                                            \
+  F(BrOnCastFail, const Value& obj, const Value& rtt,                          \
+    Value* result_on_fallthrough, uint32_t depth)                              \
   F(RefIsData, const Value& object, Value* result)                             \
   F(RefAsData, const Value& object, Value* result)                             \
   F(BrOnData, const Value& object, Value* value_on_branch, uint32_t br_depth)  \
@@ -1184,9 +1169,7 @@ class WasmDecoder : public Decoder {
         module_(module),
         enabled_(enabled),
         detected_(detected),
-        sig_(sig) {
-    if (sig_ && sig_->return_count() > 1) detected_->Add(kFeature_mv);
-  }
+        sig_(sig) {}
 
   Zone* zone() const { return local_types_.get_allocator().zone(); }
 
@@ -1433,9 +1416,6 @@ class WasmDecoder : public Decoder {
   inline bool Complete(CallFunctionImmediate<validate>& imm) {
     if (!VALIDATE(imm.index < module_->functions.size())) return false;
     imm.sig = module_->functions[imm.index].sig;
-    if (imm.sig->return_count() > 1) {
-      this->detected_->Add(kFeature_mv);
-    }
     return true;
   }
 
@@ -1450,13 +1430,11 @@ class WasmDecoder : public Decoder {
   inline bool Complete(CallIndirectImmediate<validate>& imm) {
     if (!VALIDATE(module_->has_signature(imm.sig_index))) return false;
     imm.sig = module_->signature(imm.sig_index);
-    if (imm.sig->return_count() > 1) {
-      this->detected_->Add(kFeature_mv);
-    }
     return true;
   }
 
   inline bool Validate(const byte* pc, CallIndirectImmediate<validate>& imm) {
+    // Validate immediate table index.
     if (!VALIDATE(imm.table_index < module_->tables.size())) {
       DecodeError(pc, "call_indirect: table index immediate out of bounds");
       return false;
@@ -1468,10 +1446,13 @@ class WasmDecoder : public Decoder {
           imm.table_index);
       return false;
     }
+
+    // Validate immediate signature index.
     if (!Complete(imm)) {
       DecodeError(pc, "invalid signature index: #%u", imm.sig_index);
       return false;
     }
+
     // Check that the dynamic signature for this call is a subtype of the static
     // type of the table the function is defined in.
     ValueType immediate_type = ValueType::Ref(imm.sig_index, kNonNullable);
@@ -1480,6 +1461,7 @@ class WasmDecoder : public Decoder {
                   "call_indirect: Immediate signature #%u is not a subtype of "
                   "immediate table #%u",
                   imm.sig_index, imm.table_index);
+      return false;
     }
     return true;
   }
@@ -1501,13 +1483,6 @@ class WasmDecoder : public Decoder {
       return false;
     }
     return checkAvailable(imm.table_count);
-  }
-
-  inline bool Validate(const byte* pc,
-                       BranchOnExceptionImmediate<validate>& imm,
-                       size_t control_size) {
-    return Validate(pc, imm.depth, control_size) &&
-           Validate(pc + imm.depth.length, imm.index);
   }
 
   inline bool Validate(const byte* pc, WasmOpcode opcode,
@@ -1573,9 +1548,6 @@ class WasmDecoder : public Decoder {
     if (imm.type != kWasmBottom) return true;
     if (!VALIDATE(module_->has_signature(imm.sig_index))) return false;
     imm.sig = module_->signature(imm.sig_index);
-    if (imm.sig->return_count() > 1) {
-      this->detected_->Add(kFeature_mv);
-    }
     return true;
   }
 
@@ -1709,6 +1681,7 @@ class WasmDecoder : public Decoder {
       case kExprBr:
       case kExprBrIf:
       case kExprBrOnNull:
+      case kExprBrOnNonNull:
       case kExprDelegate: {
         BranchDepthImmediate<validate> imm(decoder, pc + 1);
         return 1 + imm.length;
@@ -1957,6 +1930,7 @@ class WasmDecoder : public Decoder {
             return length + imm.length;
           }
           case kExprBrOnCast:
+          case kExprBrOnCastFail:
           case kExprBrOnData:
           case kExprBrOnFunc:
           case kExprBrOnI31: {
@@ -2043,6 +2017,7 @@ class WasmDecoder : public Decoder {
       case kExprBrIf:
       case kExprBrTable:
       case kExprIf:
+      case kExprBrOnNonNull:
         return {1, 0};
       case kExprLocalGet:
       case kExprGlobalGet:
@@ -2137,6 +2112,7 @@ class WasmDecoder : public Decoder {
           case kExprRefTest:
           case kExprRefCast:
           case kExprBrOnCast:
+          case kExprBrOnCastFail:
             return {2, 1};
           case kExprArraySet:
             return {3, 0};
@@ -2183,12 +2159,22 @@ MemoryAccessImmediate<validate>::MemoryAccessImmediate(
     : MemoryAccessImmediate(decoder, pc, max_alignment,
                             decoder->module_->is_memory64) {}
 
+// Only call this in contexts where {current_code_reachable_and_ok_} is known to
+// hold.
+#define CALL_INTERFACE(name, ...)                         \
+  do {                                                    \
+    DCHECK(!control_.empty());                            \
+    DCHECK(current_code_reachable_and_ok_);               \
+    DCHECK_EQ(current_code_reachable_and_ok_,             \
+              this->ok() && control_.back().reachable()); \
+    interface_.name(this, ##__VA_ARGS__);                 \
+  } while (false)
 #define CALL_INTERFACE_IF_OK_AND_REACHABLE(name, ...)     \
   do {                                                    \
     DCHECK(!control_.empty());                            \
     DCHECK_EQ(current_code_reachable_and_ok_,             \
               this->ok() && control_.back().reachable()); \
-    if (current_code_reachable_and_ok_) {                 \
+    if (V8_LIKELY(current_code_reachable_and_ok_)) {      \
       interface_.name(this, ##__VA_ARGS__);               \
     }                                                     \
   } while (false)
@@ -2289,31 +2275,37 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return WasmOpcodes::OpcodeName(opcode);
   }
 
-  inline WasmCodePosition position() {
+  WasmCodePosition position() const {
     int offset = static_cast<int>(this->pc_ - this->start_);
     DCHECK_EQ(this->pc_ - this->start_, offset);  // overflows cannot happen
     return offset;
   }
 
-  inline uint32_t control_depth() const {
+  uint32_t control_depth() const {
     return static_cast<uint32_t>(control_.size());
   }
 
-  inline Control* control_at(uint32_t depth) {
+  Control* control_at(uint32_t depth) {
     DCHECK_GT(control_.size(), depth);
     return &control_.back() - depth;
   }
 
-  inline uint32_t stack_size() const {
+  uint32_t stack_size() const {
     DCHECK_GE(stack_end_, stack_);
     DCHECK_GE(kMaxUInt32, stack_end_ - stack_);
     return static_cast<uint32_t>(stack_end_ - stack_);
   }
 
-  inline Value* stack_value(uint32_t depth) {
+  Value* stack_value(uint32_t depth) const {
     DCHECK_LT(0, depth);
     DCHECK_GE(stack_size(), depth);
     return stack_end_ - depth;
+  }
+
+  int32_t current_catch() const { return current_catch_; }
+
+  uint32_t control_depth_of_current_catch() const {
+    return control_depth() - 1 - current_catch();
   }
 
   void SetSucceedingCodeDynamicallyUnreachable() {
@@ -2324,7 +2316,12 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     }
   }
 
+  inline uint32_t pc_relative_offset() const {
+    return this->pc_offset() - first_instruction_offset;
+  }
+
  private:
+  uint32_t first_instruction_offset = 0;
   Interface interface_;
 
   // The value stack, stored as individual pointers for maximum performance.
@@ -2339,6 +2336,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   // Controls whether code should be generated for the current block (basically
   // a cache for {ok() && control_.back().reachable()}).
   bool current_code_reachable_and_ok_ = true;
+
+  // Depth of the current try block.
+  int32_t current_catch_ = -1;
 
   static Value UnreachableValue(const uint8_t* pc) {
     return Value{pc, kWasmBottom};
@@ -2519,6 +2519,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     ArgVector args = PeekArgs(imm.sig);
     Control* try_block = PushControl(kControlTry, 0, args.length());
     SetBlockType(try_block, imm, args.begin());
+    try_block->previous_catch = current_catch_;
+    current_catch_ = static_cast<int>(control_depth() - 1);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(Try, try_block);
     DropArgs(imm.sig);
     PushMergeValues(try_block, &try_block->start_merge);
@@ -2543,7 +2545,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       this->DecodeError("catch after unwind for try");
       return 0;
     }
-    FallThruTo(c);
+    FallThrough();
     c->kind = kControlTryCatch;
     // TODO(jkummerow): Consider moving the stack manipulation after the
     // INTERFACE call for consistency.
@@ -2556,6 +2558,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       Push(CreateValue(sig->GetParam(i)));
     }
     Vector<Value> values(stack_ + c->stack_depth, sig->parameter_count());
+    current_catch_ = c->previous_catch;  // Pop try scope.
     CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(CatchException, imm, c, values);
     current_code_reachable_and_ok_ = this->ok() && c->reachable();
     return 1 + imm.length;
@@ -2584,11 +2587,11 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           "cannot delegate inside the catch handler of the target");
       return 0;
     }
-    FallThruTo(c);
+    FallThrough();
     CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(Delegate, imm.depth + 1, c);
-    current_code_reachable_and_ok_ = this->ok() && control_.back().reachable();
+    current_catch_ = c->previous_catch;
     EndControl();
-    PopControl(c);
+    PopControl();
     return 1 + imm.length;
   }
 
@@ -2608,9 +2611,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       this->error("cannot have catch-all after unwind");
       return 0;
     }
-    FallThruTo(c);
+    FallThrough();
     c->kind = kControlTryCatchAll;
     c->reachability = control_at(1)->innerReachability();
+    current_catch_ = c->previous_catch;  // Pop try scope.
     CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(CatchAll, c);
     stack_end_ = stack_ + c->stack_depth;
     current_code_reachable_and_ok_ = this->ok() && c->reachable();
@@ -2630,9 +2634,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       this->error("catch, catch-all or unwind already present for try");
       return 0;
     }
-    FallThruTo(c);
+    FallThrough();
     c->kind = kControlTryUnwind;
     c->reachability = control_at(1)->innerReachability();
+    current_catch_ = c->previous_catch;  // Pop try scope.
     CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(CatchAll, c);
     stack_end_ = stack_ + c->stack_depth;
     current_code_reachable_and_ok_ = this->ok() && c->reachable();
@@ -2645,33 +2650,69 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     if (!this->Validate(this->pc_ + 1, imm, control_.size())) return 0;
     Value ref_object = Peek(0, 0);
     Control* c = control_at(imm.depth);
-    TypeCheckBranchResult check_result = TypeCheckBranch(c, true, 1);
+    if (!VALIDATE(TypeCheckBranch<true>(c, 1))) return 0;
     switch (ref_object.type.kind()) {
       case kBottom:
         // We are in a polymorphic stack. Leave the stack as it is.
-        DCHECK(check_result != kReachableBranch);
+        DCHECK(!current_code_reachable_and_ok_);
         break;
       case kRef:
         // For a non-nullable value, we won't take the branch, and can leave
         // the stack as it is.
         break;
       case kOptRef: {
-        if (V8_LIKELY(check_result == kReachableBranch)) {
-          CALL_INTERFACE_IF_OK_AND_REACHABLE(BrOnNull, ref_object, imm.depth);
           Value result = CreateValue(
               ValueType::Ref(ref_object.type.heap_type(), kNonNullable));
           // The result of br_on_null has the same value as the argument (but a
           // non-nullable type).
-          CALL_INTERFACE_IF_OK_AND_REACHABLE(Forward, ref_object, &result);
-          c->br_merge()->reached = true;
+          if (V8_LIKELY(current_code_reachable_and_ok_)) {
+            CALL_INTERFACE(BrOnNull, ref_object, imm.depth);
+            CALL_INTERFACE(Forward, ref_object, &result);
+            c->br_merge()->reached = true;
+          }
+          // In unreachable code, we still have to push a value of the correct
+          // type onto the stack.
           Drop(ref_object);
           Push(result);
-        } else {
-          // Even in non-reachable code, we need to push a value of the correct
-          // type to the stack.
-          Drop(ref_object);
-          Push(CreateValue(
-              ValueType::Ref(ref_object.type.heap_type(), kNonNullable)));
+        break;
+      }
+      default:
+        PopTypeError(0, ref_object, "object reference");
+        return 0;
+    }
+    return 1 + imm.length;
+  }
+
+  DECODE(BrOnNonNull) {
+    CHECK_PROTOTYPE_OPCODE(gc);
+    BranchDepthImmediate<validate> imm(this, this->pc_ + 1);
+    if (!this->Validate(this->pc_ + 1, imm, control_.size())) return 0;
+    Value ref_object = Peek(0, 0, kWasmAnyRef);
+    Drop(ref_object);
+    // Typechecking the branch and creating the branch merges requires the
+    // non-null value on the stack, so we push it temporarily.
+    Value result = CreateValue(ref_object.type.AsNonNull());
+    Push(result);
+    Control* c = control_at(imm.depth);
+    if (!VALIDATE(TypeCheckBranch<true>(c, 0))) return 0;
+    switch (ref_object.type.kind()) {
+      case kBottom:
+        // We are in unreachable code. Do nothing.
+        DCHECK(!current_code_reachable_and_ok_);
+        break;
+      case kRef:
+        // For a non-nullable value, we always take the branch.
+        if (V8_LIKELY(current_code_reachable_and_ok_)) {
+          CALL_INTERFACE(Forward, ref_object, stack_value(1));
+          CALL_INTERFACE(BrOrRet, imm.depth, 0);
+          c->br_merge()->reached = true;
+        }
+        break;
+      case kOptRef: {
+        if (V8_LIKELY(current_code_reachable_and_ok_)) {
+          CALL_INTERFACE(Forward, ref_object, stack_value(1));
+          CALL_INTERFACE(BrOnNonNull, ref_object, imm.depth);
+          c->br_merge()->reached = true;
         }
         break;
       }
@@ -2679,6 +2720,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         PopTypeError(0, ref_object, "object reference");
         return 0;
     }
+    // If we stay in the branch, {ref_object} is null. Drop it from the stack.
+    Drop(result);
     return 1 + imm.length;
   }
 
@@ -2751,7 +2794,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       this->DecodeError("else already present for if");
       return 0;
     }
-    if (!TypeCheckFallThru()) return 0;
+    if (!VALIDATE(TypeCheckFallThru())) return 0;
     c->kind = kControlIfElse;
     CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(Else, c);
     if (c->reachable()) c->end_merge.reached = true;
@@ -2764,27 +2807,24 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   DECODE(End) {
     DCHECK(!control_.empty());
     Control* c = &control_.back();
-    if (!VALIDATE(!c->is_incomplete_try())) {
-      this->DecodeError("missing catch or catch-all in try");
-      return 0;
-    }
-    if (c->is_onearmed_if()) {
-      if (!VALIDATE(c->end_merge.arity == c->start_merge.arity)) {
-        this->DecodeError(
-            c->pc(), "start-arity and end-arity of one-armed if must match");
-        return 0;
-      }
-      if (!TypeCheckOneArmedIf(c)) return 0;
-    }
     if (c->is_try_catch()) {
       // Emulate catch-all + re-throw.
-      FallThruTo(c);
+      FallThrough();
       c->reachability = control_at(1)->innerReachability();
       CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(CatchAll, c);
       current_code_reachable_and_ok_ =
           this->ok() && control_.back().reachable();
       CALL_INTERFACE_IF_OK_AND_REACHABLE(Rethrow, c);
       EndControl();
+      PopControl();
+      return 1;
+    }
+    if (!VALIDATE(!c->is_incomplete_try())) {
+      this->DecodeError("missing catch or catch-all in try");
+      return 0;
+    }
+    if (c->is_onearmed_if()) {
+      if (!VALIDATE(TypeCheckOneArmedIf(c))) return 0;
     }
     if (c->is_try_unwind()) {
       // Unwind implicitly rethrows at the end.
@@ -2798,7 +2838,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
                                this->local_types_.begin() + c->locals_count);
       this->num_locals_ -= c->locals_count;
     }
-    if (!TypeCheckFallThru()) return 0;
 
     if (control_.size() == 1) {
       // If at the last (implicit) control, check we are at end.
@@ -2809,11 +2848,13 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       // The result of the block is the return value.
       trace_msg->Append("\n" TRACE_INST_FORMAT, startrel(this->pc_),
                         "(implicit) return");
-      DoReturn();
+      DoReturn<kStrictCounting, kFallthroughMerge>();
       control_.clear();
       return 1;
     }
-    PopControl(c);
+
+    if (!VALIDATE(TypeCheckFallThru())) return 0;
+    PopControl();
     return 1;
   }
 
@@ -2853,9 +2894,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     BranchDepthImmediate<validate> imm(this, this->pc_ + 1);
     if (!this->Validate(this->pc_ + 1, imm, control_.size())) return 0;
     Control* c = control_at(imm.depth);
-    TypeCheckBranchResult check_result = TypeCheckBranch(c, false, 0);
-    if (V8_LIKELY(check_result == kReachableBranch)) {
-      CALL_INTERFACE_IF_OK_AND_REACHABLE(BrOrRet, imm.depth, 0);
+    if (!VALIDATE(TypeCheckBranch<false>(c, 0))) return 0;
+    if (V8_LIKELY(current_code_reachable_and_ok_)) {
+      CALL_INTERFACE(BrOrRet, imm.depth, 0);
       c->br_merge()->reached = true;
     }
     EndControl();
@@ -2867,9 +2908,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     if (!this->Validate(this->pc_ + 1, imm, control_.size())) return 0;
     Value cond = Peek(0, 0, kWasmI32);
     Control* c = control_at(imm.depth);
-    TypeCheckBranchResult check_result = TypeCheckBranch(c, true, 1);
-    if (V8_LIKELY(check_result == kReachableBranch)) {
-      CALL_INTERFACE_IF_OK_AND_REACHABLE(BrIf, cond, imm.depth);
+    if (!VALIDATE(TypeCheckBranch<true>(c, 1))) return 0;
+    if (V8_LIKELY(current_code_reachable_and_ok_)) {
+      CALL_INTERFACE(BrIf, cond, imm.depth);
       c->br_merge()->reached = true;
     }
     Drop(cond);
@@ -2887,40 +2928,38 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     // all branch targets as reachable after the {CALL_INTERFACE} call.
     std::vector<bool> br_targets(control_.size());
 
-    // The result types of the br_table instruction. We have to check the
-    // stack against these types. Only needed during validation.
-    std::vector<ValueType> result_types;
+    uint32_t arity = 0;
 
     while (iterator.has_next()) {
       const uint32_t index = iterator.cur_index();
       const byte* pos = iterator.pc();
-      uint32_t target = iterator.next();
-      if (!VALIDATE(ValidateBrTableTarget(target, pos, index))) return 0;
+      const uint32_t target = iterator.next();
+      if (!VALIDATE(target < control_depth())) {
+        this->DecodeError(pos, "invalid branch depth: %u", target);
+        return 0;
+      }
       // Avoid redundant branch target checks.
       if (br_targets[target]) continue;
       br_targets[target] = true;
 
       if (validate) {
         if (index == 0) {
-          // With the first branch target, initialize the result types.
-          result_types = InitializeBrTableResultTypes(target);
-        } else if (!UpdateBrTableResultTypes(&result_types, target, pos,
-                                             index)) {
+          arity = control_at(target)->br_merge()->arity;
+        } else if (!VALIDATE(control_at(target)->br_merge()->arity == arity)) {
+          this->DecodeError(
+              pos, "br_table: label arity inconsistent with previous arity %d",
+              arity);
           return 0;
         }
+        if (!VALIDATE(TypeCheckBranch<false>(control_at(target), 1))) return 0;
       }
     }
 
-    if (!VALIDATE(TypeCheckBrTable(result_types, 1))) return 0;
+    if (V8_LIKELY(current_code_reachable_and_ok_)) {
+      CALL_INTERFACE(BrTable, imm, key);
 
-    DCHECK(this->ok());
-
-    if (current_code_reachable_and_ok_) {
-      CALL_INTERFACE_IF_OK_AND_REACHABLE(BrTable, imm, key);
-
-      for (int i = 0, e = control_depth(); i < e; ++i) {
-        if (!br_targets[i]) continue;
-        control_at(i)->br_merge()->reached = true;
+      for (uint32_t i = 0; i < control_depth(); ++i) {
+        control_at(i)->br_merge()->reached |= br_targets[i];
       }
     }
     Drop(key);
@@ -2929,22 +2968,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
   DECODE(Return) {
-    if (V8_LIKELY(current_code_reachable_and_ok_)) {
-      if (!VALIDATE(TypeCheckReturn())) return 0;
-      DoReturn();
-    } else {
-      // We inspect all return values from the stack to check their type.
-      // Since we deal with unreachable code, we do not have to keep the
-      // values.
-      int num_returns = static_cast<int>(this->sig_->return_count());
-      for (int i = num_returns - 1, depth = 0; i >= 0; --i, ++depth) {
-        Peek(depth, i, this->sig_->GetReturn(i));
-      }
-      Drop(num_returns);
-    }
-
-    EndControl();
-    return 1;
+    return DoReturn<kNonStrictCounting, kReturnMerge>() ? 1 : 0;
   }
 
   DECODE(Unreachable) {
@@ -3409,6 +3433,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     DECODE_IMPL(CatchAll);
     DECODE_IMPL(Unwind);
     DECODE_IMPL(BrOnNull);
+    DECODE_IMPL(BrOnNonNull);
     DECODE_IMPL(Let);
     DECODE_IMPL(Loop);
     DECODE_IMPL(If);
@@ -3490,6 +3515,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       CALL_INTERFACE_IF_OK_AND_REACHABLE(StartFunctionBody, c);
     }
 
+    first_instruction_offset = this->pc_offset();
     // Decode the function body.
     while (this->pc_ < this->end_) {
       // Most operations only grow the stack by at least one element (unary and
@@ -3526,7 +3552,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     Control* current = &control_.back();
     DCHECK_LE(stack_ + current->stack_depth, stack_end_);
     stack_end_ = stack_ + current->stack_depth;
-    CALL_INTERFACE_IF_OK_AND_REACHABLE(EndControl, current);
     current->reachability = kUnreachable;
     current_code_reachable_and_ok_ = false;
   }
@@ -3642,11 +3667,12 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return &control_.back();
   }
 
-  void PopControl(Control* c) {
+  void PopControl() {
     // This cannot be the outermost control block.
     DCHECK_LT(1, control_.size());
+    Control* c = &control_.back();
+    DCHECK_LE(stack_ + c->stack_depth, stack_end_);
 
-    DCHECK_EQ(c, &control_.back());
     CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(PopControl, c);
 
     // A loop just leaves the values on the stack.
@@ -3658,7 +3684,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     // If the parent block was reachable before, but the popped control does not
     // return to here, this block becomes "spec only reachable".
     if (!parent_reached) SetSucceedingCodeDynamicallyUnreachable();
-    current_code_reachable_and_ok_ = control_.back().reachable();
+    current_code_reachable_and_ok_ = this->ok() && control_.back().reachable();
   }
 
   int DecodeLoadMem(LoadType type, int prefix_len = 1) {
@@ -3737,92 +3763,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     CALL_INTERFACE_IF_OK_AND_REACHABLE(StoreMem, store, imm, index, value);
     Drop(2);
     return prefix_len + imm.length;
-  }
-
-  bool ValidateBrTableTarget(uint32_t target, const byte* pos, int index) {
-    if (!VALIDATE(target < this->control_.size())) {
-      this->DecodeError(pos, "improper branch in br_table target %u (depth %u)",
-                        index, target);
-      return false;
-    }
-    return true;
-  }
-
-  std::vector<ValueType> InitializeBrTableResultTypes(uint32_t target) {
-    Merge<Value>* merge = control_at(target)->br_merge();
-    int br_arity = merge->arity;
-    std::vector<ValueType> result(br_arity);
-    for (int i = 0; i < br_arity; ++i) {
-      result[i] = (*merge)[i].type;
-    }
-    return result;
-  }
-
-  bool UpdateBrTableResultTypes(std::vector<ValueType>* result_types,
-                                uint32_t target, const byte* pos, int index) {
-    Merge<Value>* merge = control_at(target)->br_merge();
-    int br_arity = merge->arity;
-    // First we check if the arities match.
-    if (!VALIDATE(br_arity == static_cast<int>(result_types->size()))) {
-      this->DecodeError(pos,
-                        "inconsistent arity in br_table target %u (previous "
-                        "was %zu, this one is %u)",
-                        index, result_types->size(), br_arity);
-      return false;
-    }
-
-    for (int i = 0; i < br_arity; ++i) {
-      if (this->enabled_.has_reftypes()) {
-        // The expected type is the biggest common sub type of all targets.
-        (*result_types)[i] =
-            CommonSubtype((*result_types)[i], (*merge)[i].type, this->module_);
-      } else {
-        // All target must have the same signature.
-        if (!VALIDATE((*result_types)[i] == (*merge)[i].type)) {
-          this->DecodeError(pos,
-                            "inconsistent type in br_table target %u (previous "
-                            "was %s, this one is %s)",
-                            index, (*result_types)[i].name().c_str(),
-                            (*merge)[i].type.name().c_str());
-          return false;
-        }
-      }
-    }
-    return true;
-  }
-
-  bool TypeCheckBrTable(const std::vector<ValueType>& result_types,
-                        uint32_t drop_values) {
-    int br_arity = static_cast<int>(result_types.size());
-    if (V8_LIKELY(!control_.back().unreachable())) {
-      int available =
-          static_cast<int>(stack_size()) - control_.back().stack_depth;
-      available -= std::min(available, static_cast<int>(drop_values));
-      // There have to be enough values on the stack.
-      if (!VALIDATE(available >= br_arity)) {
-        this->DecodeError(
-            "expected %u elements on the stack for branch to @%d, found %u",
-            br_arity, startrel(control_.back().pc()), available);
-        return false;
-      }
-      Value* stack_values = stack_end_ - br_arity - drop_values;
-      // Type-check the topmost br_arity values on the stack.
-      for (int i = 0; i < br_arity; ++i) {
-        Value& val = stack_values[i];
-        if (!VALIDATE(IsSubtypeOf(val.type, result_types[i], this->module_))) {
-          this->DecodeError("type error in merge[%u] (expected %s, got %s)", i,
-                            result_types[i].name().c_str(),
-                            val.type.name().c_str());
-          return false;
-        }
-      }
-    } else {  // !control_.back().reachable()
-      // Type-check the values on the stack.
-      for (int i = 0; i < br_arity; ++i) {
-        Peek(i + drop_values, i + 1, result_types[i]);
-      }
-    }
-    return this->ok();
   }
 
   uint32_t SimdConstOp(uint32_t opcode_length) {
@@ -4377,7 +4317,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
               CALL_INTERFACE_IF_OK_AND_REACHABLE(Drop);
               CALL_INTERFACE_IF_OK_AND_REACHABLE(AssertNull, obj, &value);
             } else {
-              // TODO(manoskouk): Change the trap label.
               CALL_INTERFACE_IF_OK_AND_REACHABLE(Trap,
                                                  TrapReason::kTrapIllegalCast);
               EndControl();
@@ -4420,31 +4359,90 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         // significantly more convenient to pass around the values that
         // will be on the stack when the branch is taken.
         // TODO(jkummerow): Reconsider this choice.
-        Drop(2);  // {obj} and {ret}.
+        Drop(2);  // {obj} and {rtt}.
         Value result_on_branch = CreateValue(
             rtt.type.is_bottom()
                 ? kWasmBottom
                 : ValueType::Ref(rtt.type.ref_index(), kNonNullable));
         Push(result_on_branch);
-        TypeCheckBranchResult check_result = TypeCheckBranch(c, true, 0);
-        if (V8_LIKELY(check_result == kReachableBranch)) {
-          // This logic ensures that code generation can assume that functions
-          // can only be cast to function types, and data objects to data types.
-          if (V8_LIKELY(ObjectRelatedWithRtt(obj, rtt))) {
-            // The {value_on_branch} parameter we pass to the interface must
-            // be pointer-identical to the object on the stack, so we can't
-            // reuse {result_on_branch} which was passed-by-value to {Push}.
-            Value* value_on_branch = stack_value(1);
-            CALL_INTERFACE_IF_OK_AND_REACHABLE(
-                BrOnCast, obj, rtt, value_on_branch, branch_depth.depth);
+        if (!VALIDATE(TypeCheckBranch<true>(c, 0))) return 0;
+        // This logic ensures that code generation can assume that functions
+        // can only be cast to function types, and data objects to data types.
+        if (V8_LIKELY(ObjectRelatedWithRtt(obj, rtt))) {
+          // The {value_on_branch} parameter we pass to the interface must
+          // be pointer-identical to the object on the stack, so we can't
+          // reuse {result_on_branch} which was passed-by-value to {Push}.
+          Value* value_on_branch = stack_value(1);
+          if (V8_LIKELY(current_code_reachable_and_ok_)) {
+            CALL_INTERFACE(BrOnCast, obj, rtt, value_on_branch,
+                           branch_depth.depth);
             c->br_merge()->reached = true;
           }
-          // Otherwise the types are unrelated. Do not branch.
-        } else if (check_result == kInvalidStack) {
-          return 0;
         }
+        // Otherwise the types are unrelated. Do not branch.
         Drop(result_on_branch);
         Push(obj);  // Restore stack state on fallthrough.
+        return opcode_length + branch_depth.length;
+      }
+      case kExprBrOnCastFail: {
+        BranchDepthImmediate<validate> branch_depth(this,
+                                                    this->pc_ + opcode_length);
+        if (!this->Validate(this->pc_ + opcode_length, branch_depth,
+                            control_.size())) {
+          return 0;
+        }
+        Value rtt = Peek(0, 1);
+        if (!VALIDATE(rtt.type.is_rtt() || rtt.type.is_bottom())) {
+          PopTypeError(1, rtt, "rtt");
+          return 0;
+        }
+        Value obj = Peek(1, 0);
+        if (!VALIDATE(IsSubtypeOf(obj.type, kWasmFuncRef, this->module_) ||
+                      IsSubtypeOf(obj.type,
+                                  ValueType::Ref(HeapType::kData, kNullable),
+                                  this->module_) ||
+                      obj.type.is_bottom())) {
+          PopTypeError(0, obj, "subtype of (ref null func) or (ref null data)");
+          return 0;
+        }
+        Control* c = control_at(branch_depth.depth);
+        if (c->br_merge()->arity == 0) {
+          this->DecodeError(
+              "br_on_cast_fail must target a branch of arity at least 1");
+          return 0;
+        }
+        // Attention: contrary to most other instructions, we modify the stack
+        // before calling the interface function. This makes it significantly
+        // more convenient to pass around the values that will be on the stack
+        // when the branch is taken. In this case, we leave {obj} on the stack
+        // to type check the branch.
+        // TODO(jkummerow): Reconsider this choice.
+        Drop(rtt);
+        if (!VALIDATE(TypeCheckBranch<true>(c, 0))) return 0;
+        Value result_on_fallthrough = CreateValue(
+            rtt.type.is_bottom()
+                ? kWasmBottom
+                : ValueType::Ref(rtt.type.ref_index(), kNonNullable));
+        // This logic ensures that code generation can assume that functions
+        // can only be cast to function types, and data objects to data types.
+        if (V8_LIKELY(current_code_reachable_and_ok_)) {
+          if (V8_LIKELY(ObjectRelatedWithRtt(obj, rtt))) {
+            CALL_INTERFACE(BrOnCastFail, obj, rtt, &result_on_fallthrough,
+                           branch_depth.depth);
+          } else {
+            // Drop {rtt} in the interface.
+            CALL_INTERFACE(Drop);
+            // Otherwise the types are unrelated. Always branch.
+            CALL_INTERFACE(BrOrRet, branch_depth.depth, 0);
+            // We know that the following code is not reachable, but according
+            // to the spec it technically is. Set it to spec-only reachable.
+            SetSucceedingCodeDynamicallyUnreachable();
+          }
+          c->br_merge()->reached = true;
+        }
+        // Make sure the correct value is on the stack state on fallthrough.
+        Drop(obj);
+        Push(result_on_fallthrough);
         return opcode_length + branch_depth.length;
       }
 #define ABSTRACT_TYPE_CHECK(heap_type)                                  \
@@ -4510,25 +4508,20 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         Value result_on_branch =
             CreateValue(ValueType::Ref(heap_type, kNonNullable));
         Push(result_on_branch);
-        TypeCheckBranchResult check_result = TypeCheckBranch(c, true, 0);
-        if (V8_LIKELY(check_result == kReachableBranch)) {
-          // The {value_on_branch} parameter we pass to the interface must be
-          // pointer-identical to the object on the stack, so we can't reuse
-          // {result_on_branch} which was passed-by-value to {Push}.
-          Value* value_on_branch = stack_value(1);
+        if (!VALIDATE(TypeCheckBranch<true>(c, 0))) return 0;
+        // The {value_on_branch} parameter we pass to the interface must be
+        // pointer-identical to the object on the stack, so we can't reuse
+        // {result_on_branch} which was passed-by-value to {Push}.
+        Value* value_on_branch = stack_value(1);
+        if (V8_LIKELY(current_code_reachable_and_ok_)) {
           if (opcode == kExprBrOnFunc) {
-            CALL_INTERFACE_IF_OK_AND_REACHABLE(BrOnFunc, obj, value_on_branch,
-                                               branch_depth.depth);
+            CALL_INTERFACE(BrOnFunc, obj, value_on_branch, branch_depth.depth);
           } else if (opcode == kExprBrOnData) {
-            CALL_INTERFACE_IF_OK_AND_REACHABLE(BrOnData, obj, value_on_branch,
-                                               branch_depth.depth);
+            CALL_INTERFACE(BrOnData, obj, value_on_branch, branch_depth.depth);
           } else {
-            CALL_INTERFACE_IF_OK_AND_REACHABLE(BrOnI31, obj, value_on_branch,
-                                               branch_depth.depth);
+            CALL_INTERFACE(BrOnI31, obj, value_on_branch, branch_depth.depth);
           }
           c->br_merge()->reached = true;
-        } else if (check_result == kInvalidStack) {
-          return 0;
         }
         Drop(result_on_branch);
         Push(obj);  // Restore stack state on fallthrough.
@@ -4714,11 +4707,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     }
   }
 
-  void DoReturn() {
-    DCHECK_GE(stack_size(), this->sig_->return_count());
-    CALL_INTERFACE_IF_OK_AND_REACHABLE(DoReturn, 0);
-  }
-
   V8_INLINE void EnsureStackSpace(int slots_needed) {
     if (V8_LIKELY(stack_capacity_end_ - stack_end_ >= slots_needed)) return;
     GrowStackSpace(slots_needed);
@@ -4842,7 +4830,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     // TODO(wasm): This check is often redundant.
     if (V8_UNLIKELY(stack_size() < limit + count)) {
       // Popping past the current control start in reachable code.
-      if (!VALIDATE(!control_.back().reachable())) {
+      if (!VALIDATE(!current_code_reachable_and_ok_)) {
         NotEnoughArgumentsError(0);
       }
       // Pop what we can.
@@ -4854,188 +4842,152 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   // For more descriptive call sites:
   V8_INLINE void Drop(const Value& /* unused */) { Drop(1); }
 
-  // Pops values from the stack, as defined by {merge}. Thereby we type-check
-  // unreachable merges. Afterwards the values are pushed again on the stack
-  // according to the signature in {merge}. This is done so follow-up validation
-  // is possible.
-  bool TypeCheckUnreachableMerge(Merge<Value>& merge, bool conditional_branch,
-                                 uint32_t drop_values = 0) {
-    int arity = merge.arity;
-    // For conditional branches, stack value '0' is the condition of the branch,
-    // and the result values start at index '1'.
-    int index_offset = conditional_branch ? 1 : 0;
-    for (int i = arity - 1, depth = drop_values; i >= 0; --i, ++depth) {
-      Peek(depth, index_offset + i, merge[i].type);
+  enum StackElementsCountMode : bool {
+    kNonStrictCounting = false,
+    kStrictCounting = true
+  };
+
+  enum MergeType { kBranchMerge, kReturnMerge, kFallthroughMerge };
+
+  // - If the current code is reachable, check if the current stack values are
+  //   compatible with {merge} based on their number and types. Disregard the
+  //   first {drop_values} on the stack. If {strict_count}, check that
+  //   #(stack elements) == {merge->arity}, otherwise
+  //   #(stack elements) >= {merge->arity}.
+  // - If the current code is unreachable, check if any values that may exist on
+  //   top of the stack are compatible with {merge}. If {push_branch_values},
+  //   push back to the stack values based on the type of {merge} (this is
+  //   needed for conditional branches due to their typing rules, and
+  //   fallthroughs so that the outer control finds the expected values on the
+  //   stack). TODO(manoskouk): We expect the unreachable-code behavior to
+  //   change, either due to relaxation of dead code verification, or the
+  //   introduction of subtyping.
+  template <StackElementsCountMode strict_count, bool push_branch_values,
+            MergeType merge_type>
+  bool TypeCheckStackAgainstMerge(uint32_t drop_values, Merge<Value>* merge) {
+    static_assert(validate, "Call this function only within VALIDATE");
+    constexpr const char* merge_description =
+        merge_type == kBranchMerge
+            ? "branch"
+            : merge_type == kReturnMerge ? "return" : "fallthru";
+    uint32_t arity = merge->arity;
+    uint32_t actual = stack_size() - control_.back().stack_depth;
+    if (V8_LIKELY(current_code_reachable_and_ok_)) {
+      if (V8_UNLIKELY(strict_count ? actual != drop_values + arity
+                                   : actual < drop_values + arity)) {
+        this->DecodeError("expected %u elements on the stack for %s, found %u",
+                          arity, merge_description,
+                          actual >= drop_values ? actual - drop_values : 0);
+        return false;
+      }
+      // Typecheck the topmost {merge->arity} values on the stack.
+      Value* stack_values = stack_end_ - (arity + drop_values);
+      for (uint32_t i = 0; i < arity; ++i) {
+        Value& val = stack_values[i];
+        Value& old = (*merge)[i];
+        if (!IsSubtypeOf(val.type, old.type, this->module_)) {
+          this->DecodeError("type error in %s[%u] (expected %s, got %s)",
+                            merge_description, i, old.type.name().c_str(),
+                            val.type.name().c_str());
+          return false;
+        }
+      }
+      return true;
     }
-    // Push values of the correct type onto the stack.
-    Drop(drop_values);
-    Drop(arity);
-    // {Drop} is adaptive for polymorphic stacks: it might drop fewer values
-    // than requested. So ensuring stack space here is not redundant.
-    EnsureStackSpace(arity + drop_values);
-    for (int i = 0; i < arity; i++) Push(CreateValue(merge[i].type));
-    // {drop_values} are about to be dropped anyway, so we can forget their
-    // previous types, but we do have to maintain the correct stack height.
-    for (uint32_t i = 0; i < drop_values; i++) {
-      Push(UnreachableValue(this->pc_));
+    // Unreachable code validation starts here.
+    if (V8_UNLIKELY(strict_count && actual > drop_values + arity)) {
+      this->DecodeError("expected %u elements on the stack for %s, found %u",
+                        arity, merge_description,
+                        actual >= drop_values ? actual - drop_values : 0);
+      return false;
+    }
+    // TODO(manoskouk): Use similar code as above if we keep unreachable checks.
+    for (int i = arity - 1, depth = drop_values; i >= 0; --i, ++depth) {
+      Peek(depth, i, (*merge)[i].type);
+    }
+    if (push_branch_values) {
+      Drop(drop_values);
+      Drop(arity);
+      // {Drop} is adaptive for polymorphic stacks: it might drop fewer values
+      // than requested. So ensuring stack space here is not redundant.
+      EnsureStackSpace(drop_values + arity);
+      // Push values of the correct type onto the stack.
+      for (int i = 0; i < static_cast<int>(arity); i++) {
+        Push(CreateValue((*merge)[i].type));
+      }
+      // {drop_values} are about to be dropped anyway, so we can forget their
+      // previous types, but we do have to maintain the correct stack height.
+      for (uint32_t i = 0; i < drop_values; i++) {
+        Push(UnreachableValue(this->pc_));
+      }
     }
     return this->ok();
   }
 
-  int startrel(const byte* ptr) { return static_cast<int>(ptr - this->start_); }
-
-  void FallThruTo(Control* c) {
-    DCHECK_EQ(c, &control_.back());
-    DCHECK_NE(c->kind, kControlLoop);
-    if (!TypeCheckFallThru()) return;
-    CALL_INTERFACE_IF_OK_AND_REACHABLE(FallThruTo, c);
-    if (c->reachable()) c->end_merge.reached = true;
+  template <StackElementsCountMode strict_count, MergeType merge_type>
+  bool DoReturn() {
+    if (!VALIDATE((TypeCheckStackAgainstMerge<strict_count, false, merge_type>(
+            0, &control_.front().end_merge)))) {
+      return false;
+    }
+    DCHECK_IMPLIES(current_code_reachable_and_ok_,
+                   stack_size() >= this->sig_->return_count());
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(DoReturn, 0);
+    EndControl();
+    return true;
   }
 
-  bool TypeCheckMergeValues(Control* c, uint32_t drop_values,
-                            Merge<Value>* merge) {
-    static_assert(validate, "Call this function only within VALIDATE");
-    DCHECK(merge == &c->start_merge || merge == &c->end_merge);
-    DCHECK_GE(stack_size() - drop_values, c->stack_depth + merge->arity);
-    Value* stack_values = stack_value(merge->arity + drop_values);
-    // Typecheck the topmost {merge->arity} values on the stack.
-    for (uint32_t i = 0; i < merge->arity; ++i) {
-      Value& val = stack_values[i];
-      Value& old = (*merge)[i];
-      if (!VALIDATE(IsSubtypeOf(val.type, old.type, this->module_))) {
-        this->DecodeError("type error in merge[%u] (expected %s, got %s)", i,
-                          old.type.name().c_str(), val.type.name().c_str());
-        return false;
-      }
-    }
+  int startrel(const byte* ptr) { return static_cast<int>(ptr - this->start_); }
 
-    return true;
+  void FallThrough() {
+    Control* c = &control_.back();
+    DCHECK_NE(c->kind, kControlLoop);
+    if (!VALIDATE(TypeCheckFallThru())) return;
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(FallThruTo, c);
+    if (c->reachable()) c->end_merge.reached = true;
   }
 
   bool TypeCheckOneArmedIf(Control* c) {
     static_assert(validate, "Call this function only within VALIDATE");
     DCHECK(c->is_onearmed_if());
-    DCHECK_EQ(c->start_merge.arity, c->end_merge.arity);
+    if (c->end_merge.arity != c->start_merge.arity) {
+      this->DecodeError(c->pc(),
+                        "start-arity and end-arity of one-armed if must match");
+      return false;
+    }
     for (uint32_t i = 0; i < c->start_merge.arity; ++i) {
       Value& start = c->start_merge[i];
       Value& end = c->end_merge[i];
-      if (!VALIDATE(IsSubtypeOf(start.type, end.type, this->module_))) {
+      if (!IsSubtypeOf(start.type, end.type, this->module_)) {
         this->DecodeError("type error in merge[%u] (expected %s, got %s)", i,
                           end.type.name().c_str(), start.type.name().c_str());
         return false;
       }
     }
-
     return true;
   }
 
   bool TypeCheckFallThru() {
     static_assert(validate, "Call this function only within VALIDATE");
-    Control& c = control_.back();
-    if (V8_LIKELY(c.reachable())) {
-      uint32_t expected = c.end_merge.arity;
-      DCHECK_GE(stack_size(), c.stack_depth);
-      uint32_t actual = stack_size() - c.stack_depth;
-      // Fallthrus must match the arity of the control exactly.
-      if (!VALIDATE(actual == expected)) {
-        this->DecodeError(
-            "expected %u elements on the stack for fallthru to @%d, found %u",
-            expected, startrel(c.pc()), actual);
-        return false;
-      }
-      if (expected == 0) return true;  // Fast path.
-
-      return TypeCheckMergeValues(&c, 0, &c.end_merge);
-    }
-
-    // Type-check an unreachable fallthru. First we do an arity check, then a
-    // type check. Note that type-checking may require an adjustment of the
-    // stack, if some stack values are missing to match the block signature.
-    Merge<Value>& merge = c.end_merge;
-    int arity = static_cast<int>(merge.arity);
-    int available = static_cast<int>(stack_size()) - c.stack_depth;
-    // For fallthrus, not more than the needed values should be available.
-    if (!VALIDATE(available <= arity)) {
-      this->DecodeError(
-          "expected %u elements on the stack for fallthru to @%d, found %u",
-          arity, startrel(c.pc()), available);
-      return false;
-    }
-    // Pop all values from the stack for type checking of existing stack
-    // values.
-    return TypeCheckUnreachableMerge(merge, false);
+    return TypeCheckStackAgainstMerge<kStrictCounting, true, kFallthroughMerge>(
+        0, &control_.back().end_merge);
   }
 
-  enum TypeCheckBranchResult {
-    kReachableBranch,
-    kUnreachableBranch,
-    kInvalidStack,
-  };
-
-  // If the type code is reachable, check if the current stack values are
+  // If the current code is reachable, check if the current stack values are
   // compatible with a jump to {c}, based on their number and types.
   // Otherwise, we have a polymorphic stack: check if any values that may exist
-  // on top of the stack are compatible with {c}, and push back to the stack
-  // values based on the type of {c}.
-  TypeCheckBranchResult TypeCheckBranch(Control* c, bool conditional_branch,
-                                        uint32_t drop_values) {
-    if (V8_LIKELY(control_.back().reachable())) {
-      // We only do type-checking here. This is only needed during validation.
-      if (!validate) return kReachableBranch;
-
-      // Branches must have at least the number of values expected; can have
-      // more.
-      uint32_t expected = c->br_merge()->arity;
-      if (expected == 0) return kReachableBranch;  // Fast path.
-      uint32_t limit = control_.back().stack_depth;
-      if (!VALIDATE(stack_size() >= limit + drop_values + expected)) {
-        uint32_t actual = stack_size() - limit;
-        actual -= std::min(actual, drop_values);
-        this->DecodeError(
-            "expected %u elements on the stack for br to @%d, found %u",
-            expected, startrel(c->pc()), actual);
-        return kInvalidStack;
-      }
-      return TypeCheckMergeValues(c, drop_values, c->br_merge())
-                 ? kReachableBranch
-                 : kInvalidStack;
-    }
-
-    return TypeCheckUnreachableMerge(*c->br_merge(), conditional_branch,
-                                     drop_values)
-               ? kUnreachableBranch
-               : kInvalidStack;
-  }
-
-  bool TypeCheckReturn() {
-    int num_returns = static_cast<int>(this->sig_->return_count());
-    // No type checking is needed if there are no returns.
-    if (num_returns == 0) return true;
-
-    // Returns must have at least the number of values expected; can have more.
-    int num_available =
-        static_cast<int>(stack_size()) - control_.back().stack_depth;
-    if (!VALIDATE(num_available >= num_returns)) {
-      this->DecodeError(
-          "expected %u elements on the stack for return, found %u", num_returns,
-          num_available);
-      return false;
-    }
-
-    // Typecheck the topmost {num_returns} values on the stack.
-    // This line requires num_returns > 0.
-    Value* stack_values = stack_end_ - num_returns;
-    for (int i = 0; i < num_returns; ++i) {
-      Value& val = stack_values[i];
-      ValueType expected_type = this->sig_->GetReturn(i);
-      if (!VALIDATE(IsSubtypeOf(val.type, expected_type, this->module_))) {
-        this->DecodeError("type error in return[%u] (expected %s, got %s)", i,
-                          expected_type.name().c_str(),
-                          val.type.name().c_str());
-        return false;
-      }
-    }
-    return true;
+  // on top of the stack are compatible with {c}. If {push_branch_values},
+  // push back to the stack values based on the type of {c} (this is needed for
+  // conditional branches due to their typing rules, and fallthroughs so that
+  // the outer control finds enough values on the stack).
+  // {drop_values} is the number of stack values that will be dropped before the
+  // branch is taken. This is currently 1 for for br (condition), br_table
+  // (index) and br_on_null (reference), and 0 for all other branches.
+  template <bool push_branch_values>
+  bool TypeCheckBranch(Control* c, uint32_t drop_values) {
+    static_assert(validate, "Call this function only within VALIDATE");
+    return TypeCheckStackAgainstMerge<kNonStrictCounting, push_branch_values,
+                                      kBranchMerge>(drop_values, c->br_merge());
   }
 
   void onFirstError() override {

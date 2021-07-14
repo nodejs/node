@@ -9,9 +9,11 @@ import re
 from . import base
 
 
-class OutProc(base.OutProc):
-  def __init__(self, expected_outcomes, basepath, expected_fail):
-    super(OutProc, self).__init__(expected_outcomes)
+class OutProc(base.ExpectedOutProc):
+  def __init__(self, expected_outcomes, basepath, expected_fail,
+               expected_filename, regenerate_expected_files):
+    super(OutProc, self).__init__(expected_outcomes, expected_filename,
+                                  regenerate_expected_files)
     self._basepath = basepath
     self._expected_fail = expected_fail
 

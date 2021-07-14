@@ -145,11 +145,16 @@ TEST_F(HeapTest, HeapLayout) {
       "}"
       "ar.push(Array(32 * 1024 * 1024));");
 
+  Address cage_base = i_isolate()->cage_base();
+  EXPECT_TRUE(IsAligned(cage_base, size_t{4} * GB));
+
+#ifdef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
   Address isolate_root = i_isolate()->isolate_root();
-  EXPECT_TRUE(IsAligned(isolate_root, size_t{4} * GB));
+  EXPECT_EQ(cage_base, isolate_root);
+#endif
 
   // Check that all memory chunks belong this region.
-  base::AddressRegion heap_reservation(isolate_root, size_t{4} * GB);
+  base::AddressRegion heap_reservation(cage_base, size_t{4} * GB);
 
   SafepointScope scope(i_isolate()->heap());
   OldGenerationMemoryChunkIterator iter(i_isolate()->heap());

@@ -5,6 +5,7 @@
 #include "src/compiler/type-narrowing-reducer.h"
 
 #include "src/compiler/js-graph.h"
+#include "src/compiler/js-heap-broker.h"
 
 namespace v8 {
 namespace internal {
@@ -12,12 +13,15 @@ namespace compiler {
 
 TypeNarrowingReducer::TypeNarrowingReducer(Editor* editor, JSGraph* jsgraph,
                                            JSHeapBroker* broker)
-    : AdvancedReducer(editor), jsgraph_(jsgraph), op_typer_(broker, zone()) {}
+    : AdvancedReducer(editor),
+      jsgraph_(jsgraph),
+      broker_(broker),
+      op_typer_(broker, zone()) {}
 
 TypeNarrowingReducer::~TypeNarrowingReducer() = default;
 
 Reduction TypeNarrowingReducer::Reduce(Node* node) {
-  DisallowHeapAccessIf no_heap_access(!FLAG_turbo_direct_heap_access);
+  DisallowHeapAccessIf no_heap_access(!broker_->is_concurrent_inlining());
 
   Type new_type = Type::Any();
 

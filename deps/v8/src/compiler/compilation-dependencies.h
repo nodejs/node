@@ -34,6 +34,10 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
 
   V8_WARN_UNUSED_RESULT bool Commit(Handle<Code> code);
 
+  // TODO(jgruber): Remove this method once GetPropertyAccessInfo no longer
+  // uses the two-phase approach between serialization and compilation.
+  void ClearForConcurrentGetPropertyAccessInfo() { dependencies_.clear(); }
+
   // Return the initial map of {function} and record the assumption that it
   // stays the initial map.
   MapRef DependOnInitialMap(const JSFunctionRef& function);

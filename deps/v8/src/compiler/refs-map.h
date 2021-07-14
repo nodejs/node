@@ -42,6 +42,7 @@ class RefsMap
   // Wrappers around methods from UnderlyingMap
   Entry* Lookup(const Address& key) const;
   Entry* LookupOrInsert(const Address& key);
+  ObjectData* Remove(const Address& key);
 
  private:
   static uint32_t Hash(Address addr);

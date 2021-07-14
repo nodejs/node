@@ -49,17 +49,24 @@ inline size_t hash_value(StackCheckKind kind) {
   return static_cast<size_t>(kind);
 }
 
-// The CallFeedbackRelation states whether the target feedback stored with a
-// JSCall is related to the call. If, during lowering, a JSCall (e.g. of a
-// higher order function) is replaced by a JSCall with another target, the
-// feedback has to be kept but is now unrelated.
-enum class CallFeedbackRelation { kRelated, kUnrelated };
+// The CallFeedbackRelation provides the meaning of the call feedback for a
+// TurboFan JSCall operator
+// - kReceiver: The call target was Function.prototype.apply and its receiver
+//   was recorded as the feedback value.
+// - kTarget: The call target was recorded as the feedback value.
+// - kUnrelated: The feedback is no longer related to the call. If, during
+//   lowering, a JSCall (e.g. of a higher order function) is replaced by a
+//   JSCall with another target, the feedback has to be kept but is now
+//   unrelated.
+enum class CallFeedbackRelation { kReceiver, kTarget, kUnrelated };
 
 inline std::ostream& operator<<(std::ostream& os,
                                 CallFeedbackRelation call_feedback_relation) {
   switch (call_feedback_relation) {
-    case CallFeedbackRelation::kRelated:
-      return os << "CallFeedbackRelation::kRelated";
+    case CallFeedbackRelation::kReceiver:
+      return os << "CallFeedbackRelation::kReceiver";
+    case CallFeedbackRelation::kTarget:
+      return os << "CallFeedbackRelation::kTarget";
     case CallFeedbackRelation::kUnrelated:
       return os << "CallFeedbackRelation::kUnrelated";
   }

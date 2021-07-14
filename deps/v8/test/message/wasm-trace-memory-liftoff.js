@@ -4,7 +4,6 @@
 
 // Flags: --no-stress-opt --trace-wasm-memory --liftoff
 // Flags: --no-wasm-tier-up --experimental-wasm-simd
-// Flags: --enable-sse3 --enable-sse4-1
 
 // Force enable sse3 and sse4-1, since that will determine which execution tier
 // we use, and thus the expected output message will differ.

@@ -5,7 +5,10 @@
 import("../../gni/v8.gni")
 
 config("crdtp_config") {
-  visibility = [ "../../src/inspector:*", ":*" ]
+  visibility = [
+    ":*",
+    "../../src/inspector:*",
+  ]
   configs = [ "../../:internal_config" ]
   include_dirs = [ "../../include" ]
 }
@@ -46,6 +49,7 @@ v8_source_set("crdtp_platform") {
     "crdtp/json_platform_v8.cc",
   ]
   public_deps = [ "../..:v8_libbase" ]
+  deps = [ "../../:v8_internal_headers" ]
   configs = [ ":crdtp_config" ]
 }
 

@@ -672,13 +672,13 @@ Handle<JSModuleNamespace> SourceTextModule::GetModuleNamespace(
 
 MaybeHandle<JSObject> SourceTextModule::GetImportMeta(
     Isolate* isolate, Handle<SourceTextModule> module) {
-  Handle<HeapObject> import_meta(module->import_meta(), isolate);
+  Handle<HeapObject> import_meta(module->import_meta(kAcquireLoad), isolate);
   if (import_meta->IsTheHole(isolate)) {
     if (!isolate->RunHostInitializeImportMetaObjectCallback(module).ToHandle(
             &import_meta)) {
       return {};
     }
-    module->set_import_meta(*import_meta);
+    module->set_import_meta(*import_meta, kReleaseStore);
   }
   return Handle<JSObject>::cast(import_meta);
 }
@@ -1181,7 +1181,7 @@ void SourceTextModule::Reset(Isolate* isolate,
                              Handle<SourceTextModule> module) {
   Factory* factory = isolate->factory();
 
-  DCHECK(module->import_meta().IsTheHole(isolate));
+  DCHECK(module->import_meta(kAcquireLoad).IsTheHole(isolate));
 
   Handle<FixedArray> regular_exports =
       factory->NewFixedArray(module->regular_exports().length());

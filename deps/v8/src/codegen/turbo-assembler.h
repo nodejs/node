@@ -118,13 +118,18 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
   static bool IsAddressableThroughRootRegister(
       Isolate* isolate, const ExternalReference& reference);
 
-#ifdef V8_TARGET_OS_WIN
+#if defined(V8_TARGET_OS_WIN) || defined(V8_TARGET_OS_MACOSX)
   // Minimum page size. We must touch memory once per page when expanding the
   // stack, to avoid access violations.
   static constexpr int kStackPageSize = 4 * KB;
 #endif
 
-  void RecordCommentForOffHeapTrampoline(int builtin_index);
+  V8_INLINE void RecordCommentForOffHeapTrampoline(int builtin_index) {
+    if (!FLAG_code_comments) return;
+    std::ostringstream str;
+    str << "[ Inlined Trampoline to " << Builtins::name(builtin_index);
+    RecordComment(str.str().c_str());
+  }
 
  protected:
   Isolate* const isolate_ = nullptr;
@@ -150,8 +155,7 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
 };
 
 // Avoids emitting calls to the {Builtins::kAbort} builtin when emitting debug
-// code during the lifetime of this scope object. For disabling debug code
-// entirely use the {DontEmitDebugCodeScope} instead.
+// code during the lifetime of this scope object.
 class V8_NODISCARD HardAbortScope {
  public:
   explicit HardAbortScope(TurboAssemblerBase* assembler)
@@ -164,27 +168,6 @@ class V8_NODISCARD HardAbortScope {
   TurboAssemblerBase* assembler_;
   bool old_value_;
 };
-
-#ifdef DEBUG
-struct CountIfValidRegisterFunctor {
-  template <typename RegType>
-  constexpr int operator()(int count, RegType reg) const {
-    return count + (reg.is_valid() ? 1 : 0);
-  }
-};
-
-template <typename RegType, typename... RegTypes,
-          // All arguments must be either Register or DoubleRegister.
-          typename = typename std::enable_if<
-              base::is_same<Register, RegType, RegTypes...>::value ||
-              base::is_same<DoubleRegister, RegType, RegTypes...>::value>::type>
-inline bool AreAliased(RegType first_reg, RegTypes... regs) {
-  int num_different_regs = NumRegs(RegType::ListOf(first_reg, regs...));
-  int num_given_regs =
-      base::fold(CountIfValidRegisterFunctor{}, 0, first_reg, regs...);
-  return num_different_regs < num_given_regs;
-}
-#endif
 
 }  // namespace internal
 }  // namespace v8

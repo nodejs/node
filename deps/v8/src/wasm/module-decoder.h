@@ -187,13 +187,11 @@ V8_EXPORT_PRIVATE std::vector<CustomSectionOffset> DecodeCustomSections(
 // function.
 AsmJsOffsetsResult DecodeAsmJsOffsets(Vector<const uint8_t> encoded_offsets);
 
-// Decode the function names from the name section and also look at export
-// table. Returns the result as an unordered map. Only names with valid utf8
-// encoding are stored and conflicts are resolved by choosing the last name
-// read.
+// Decode the function names from the name section. Returns the result as an
+// unordered map. Only names with valid utf8 encoding are stored and conflicts
+// are resolved by choosing the last name read.
 void DecodeFunctionNames(const byte* module_start, const byte* module_end,
-                         std::unordered_map<uint32_t, WireBytesRef>* names,
-                         const Vector<const WasmExport> export_table);
+                         std::unordered_map<uint32_t, WireBytesRef>* names);
 
 // Decode the requested subsection of the name section.
 // The result will be empty if no name section is present. On encountering an

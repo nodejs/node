@@ -55,7 +55,7 @@ class JSBoundFunction
 class JSFunction : public JSFunctionOrBoundFunction {
  public:
   // [prototype_or_initial_map]:
-  DECL_ACCESSORS(prototype_or_initial_map, HeapObject)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(prototype_or_initial_map, HeapObject)
 
   // [shared]: The information about the function that
   // can be shared by instances.
@@ -93,8 +93,8 @@ class JSFunction : public JSFunctionOrBoundFunction {
 
   // Get the abstract code associated with the function, which will either be
   // a Code object or a BytecodeArray.
-  template <typename LocalIsolate>
-  inline AbstractCode abstract_code(LocalIsolate* isolate);
+  template <typename IsolateT>
+  inline AbstractCode abstract_code(IsolateT* isolate);
 
   // The predicates for querying code kinds related to this function have
   // specific terminology:
@@ -122,7 +122,6 @@ class JSFunction : public JSFunctionOrBoundFunction {
   CodeKind GetActiveTier() const;
   V8_EXPORT_PRIVATE bool ActiveTierIsIgnition() const;
   bool ActiveTierIsTurbofan() const;
-  bool ActiveTierIsNCI() const;
   bool ActiveTierIsBaseline() const;
   bool ActiveTierIsIgnitionOrBaseline() const;
   bool ActiveTierIsMidtierTurboprop() const;
@@ -235,6 +234,11 @@ class JSFunction : public JSFunctionOrBoundFunction {
   // [[prototype]] being new.target.prototype. Because new.target can be a
   // JSProxy, this can call back into JavaScript.
   static V8_WARN_UNUSED_RESULT MaybeHandle<Map> GetDerivedMap(
+      Isolate* isolate, Handle<JSFunction> constructor,
+      Handle<JSReceiver> new_target);
+
+  // Like GetDerivedMap, but returns a map with a RAB / GSAB ElementsKind.
+  static V8_WARN_UNUSED_RESULT Handle<Map> GetDerivedRabGsabMap(
       Isolate* isolate, Handle<JSFunction> constructor,
       Handle<JSReceiver> new_target);
 

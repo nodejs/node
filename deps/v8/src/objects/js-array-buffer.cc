@@ -35,11 +35,12 @@ bool CanonicalNumericIndexString(Isolate* isolate, Handle<Object> s,
 }
 }  // anonymous namespace
 
-void JSArrayBuffer::Setup(SharedFlag shared,
+void JSArrayBuffer::Setup(SharedFlag shared, ResizableFlag resizable,
                           std::shared_ptr<BackingStore> backing_store) {
   clear_padding();
   set_bit_field(0);
   set_is_shared(shared == SharedFlag::kShared);
+  set_is_resizable(resizable == ResizableFlag::kResizable);
   set_is_detachable(shared != SharedFlag::kShared);
   for (int i = 0; i < v8::ArrayBuffer::kEmbedderFieldCount; i++) {
     SetEmbedderField(i, Smi::zero());
@@ -61,10 +62,17 @@ void JSArrayBuffer::Setup(SharedFlag shared,
 void JSArrayBuffer::Attach(std::shared_ptr<BackingStore> backing_store) {
   DCHECK_NOT_NULL(backing_store);
   DCHECK_EQ(is_shared(), backing_store->is_shared());
+  DCHECK_EQ(is_resizable(), backing_store->is_resizable());
   DCHECK(!was_detached());
   Isolate* isolate = GetIsolate();
   set_backing_store(isolate, backing_store->buffer_start());
-  set_byte_length(backing_store->byte_length());
+  if (is_shared() && is_resizable()) {
+    // GSABs need to read their byte_length from the BackingStore. Maintain the
+    // invariant that their byte_length field is always 0.
+    set_byte_length(0);
+  } else {
+    set_byte_length(backing_store->byte_length());
+  }
   if (backing_store->is_wasm_memory()) set_is_detachable(false);
   if (!backing_store->free_on_destruct()) set_is_external(true);
   Heap* heap = isolate->heap();
@@ -86,9 +94,12 @@ void JSArrayBuffer::Detach(bool force_for_wasm_memory) {
   }
 
   Isolate* const isolate = GetIsolate();
-  if (backing_store()) {
-    std::shared_ptr<BackingStore> backing_store;
-      backing_store = RemoveExtension();
+  ArrayBufferExtension* extension = this->extension();
+
+  if (extension) {
+    DisallowGarbageCollection disallow_gc;
+    isolate->heap()->DetachArrayBufferExtension(*this, extension);
+    std::shared_ptr<BackingStore> backing_store = RemoveExtension();
     CHECK_IMPLIES(force_for_wasm_memory, backing_store->is_wasm_memory());
   }
 
@@ -151,14 +162,14 @@ void JSArrayBuffer::YoungMarkExtensionPromoted() {
 Handle<JSArrayBuffer> JSTypedArray::GetBuffer() {
   Isolate* isolate = GetIsolate();
   Handle<JSTypedArray> self(*this, isolate);
-  DCHECK(IsTypedArrayElementsKind(self->GetElementsKind()));
-
+  DCHECK(IsTypedArrayOrRabGsabTypedArrayElementsKind(self->GetElementsKind()));
   Handle<JSArrayBuffer> array_buffer(JSArrayBuffer::cast(self->buffer()),
                                      isolate);
   if (!is_on_heap()) {
     // Already is off heap, so return the existing buffer.
     return array_buffer;
   }
+  DCHECK(!array_buffer->is_resizable());
 
   // The existing array buffer should be empty.
   DCHECK_NULL(array_buffer->backing_store());
@@ -179,7 +190,8 @@ Handle<JSArrayBuffer> JSTypedArray::GetBuffer() {
   }
 
   // Attach the backing store to the array buffer.
-  array_buffer->Setup(SharedFlag::kNotShared, std::move(backing_store));
+  array_buffer->Setup(SharedFlag::kNotShared, ResizableFlag::kNotResizable,
+                      std::move(backing_store));
 
   // Clear the elements of the typed array.
   self->set_elements(ReadOnlyRoots(isolate).empty_byte_array());
@@ -267,6 +279,7 @@ ExternalArrayType JSTypedArray::type() {
     return kExternal##Type##Array;
 
     TYPED_ARRAYS(ELEMENTS_KIND_TO_ARRAY_TYPE)
+    RAB_GSAB_TYPED_ARRAYS_WITH_TYPED_ARRAY_TYPE(ELEMENTS_KIND_TO_ARRAY_TYPE)
 #undef ELEMENTS_KIND_TO_ARRAY_TYPE
 
     default:
@@ -274,18 +287,38 @@ ExternalArrayType JSTypedArray::type() {
   }
 }
 
-size_t JSTypedArray::element_size() {
+size_t JSTypedArray::element_size() const {
   switch (map().elements_kind()) {
 #define ELEMENTS_KIND_TO_ELEMENT_SIZE(Type, type, TYPE, ctype) \
   case TYPE##_ELEMENTS:                                        \
     return sizeof(ctype);
 
     TYPED_ARRAYS(ELEMENTS_KIND_TO_ELEMENT_SIZE)
+    RAB_GSAB_TYPED_ARRAYS(ELEMENTS_KIND_TO_ELEMENT_SIZE)
 #undef ELEMENTS_KIND_TO_ELEMENT_SIZE
 
     default:
       UNREACHABLE();
   }
+}
+
+size_t JSTypedArray::LengthTrackingGsabBackedTypedArrayLength(
+    Isolate* isolate, Address raw_array) {
+  // TODO(v8:11111): Cache the last seen length in JSArrayBuffer and use it
+  // in bounds checks to minimize the need for calling this function.
+  DCHECK(FLAG_harmony_rab_gsab);
+  DisallowGarbageCollection no_gc;
+  DisallowJavascriptExecution no_js(isolate);
+  JSTypedArray array = JSTypedArray::cast(Object(raw_array));
+  CHECK(array.is_length_tracking());
+  JSArrayBuffer buffer = array.buffer();
+  CHECK(buffer.is_resizable());
+  CHECK(buffer.is_shared());
+  size_t backing_byte_length =
+      buffer.GetBackingStore()->byte_length(std::memory_order_seq_cst);
+  CHECK_GE(backing_byte_length, array.byte_offset());
+  auto element_byte_size = ElementsKindToByteSize(array.GetElementsKind());
+  return (backing_byte_length - array.byte_offset()) / element_byte_size;
 }
 
 }  // namespace internal

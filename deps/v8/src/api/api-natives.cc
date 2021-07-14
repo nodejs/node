@@ -74,9 +74,9 @@ MaybeHandle<Object> DefineAccessorProperty(Isolate* isolate,
                                            Handle<Object> setter,
                                            PropertyAttributes attributes) {
   DCHECK(!getter->IsFunctionTemplateInfo() ||
-         !FunctionTemplateInfo::cast(*getter).do_not_cache());
+         FunctionTemplateInfo::cast(*getter).should_cache());
   DCHECK(!setter->IsFunctionTemplateInfo() ||
-         !FunctionTemplateInfo::cast(*setter).do_not_cache());
+         FunctionTemplateInfo::cast(*setter).should_cache());
   if (getter->IsFunctionTemplateInfo() &&
       FunctionTemplateInfo::cast(*getter).BreakAtEntry()) {
     ASSIGN_RETURN_ON_EXCEPTION(
@@ -184,8 +184,7 @@ Object GetIntrinsic(Isolate* isolate, v8::Intrinsic intrinsic) {
 template <typename TemplateInfoT>
 MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
                                         Handle<TemplateInfoT> data) {
-  RuntimeCallTimerScope timer(isolate,
-                              RuntimeCallCounterId::kConfigureInstance);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kConfigureInstance);
   HandleScope scope(isolate);
   // Disable access checks while instantiating the object.
   AccessCheckDisableScope access_check_scope(isolate, obj);
@@ -288,16 +287,20 @@ enum class CachingMode { kLimited, kUnlimited };
 MaybeHandle<JSObject> ProbeInstantiationsCache(
     Isolate* isolate, Handle<NativeContext> native_context, int serial_number,
     CachingMode caching_mode) {
-  DCHECK_LE(1, serial_number);
-  if (serial_number <= TemplateInfo::kFastTemplateInstantiationsCacheSize) {
+  DCHECK_NE(serial_number, TemplateInfo::kDoNotCache);
+  if (serial_number == TemplateInfo::kUncached) {
+    return {};
+  }
+
+  if (serial_number < TemplateInfo::kFastTemplateInstantiationsCacheSize) {
     FixedArray fast_cache =
         native_context->fast_template_instantiations_cache();
-    Handle<Object> object{fast_cache.get(serial_number - 1), isolate};
+    Handle<Object> object{fast_cache.get(serial_number), isolate};
     if (object->IsTheHole(isolate)) return {};
     return Handle<JSObject>::cast(object);
   }
   if (caching_mode == CachingMode::kUnlimited ||
-      (serial_number <= TemplateInfo::kSlowTemplateInstantiationsCacheSize)) {
+      (serial_number < TemplateInfo::kSlowTemplateInstantiationsCacheSize)) {
     SimpleNumberDictionary slow_cache =
         native_context->slow_template_instantiations_cache();
     InternalIndex entry = slow_cache.FindEntry(isolate, serial_number);
@@ -310,19 +313,27 @@ MaybeHandle<JSObject> ProbeInstantiationsCache(
 
 void CacheTemplateInstantiation(Isolate* isolate,
                                 Handle<NativeContext> native_context,
-                                int serial_number, CachingMode caching_mode,
+                                Handle<TemplateInfo> data,
+                                CachingMode caching_mode,
                                 Handle<JSObject> object) {
-  DCHECK_LE(1, serial_number);
-  if (serial_number <= TemplateInfo::kFastTemplateInstantiationsCacheSize) {
+  DCHECK_NE(TemplateInfo::kDoNotCache, data->serial_number());
+
+  int serial_number = data->serial_number();
+  if (serial_number == TemplateInfo::kUncached) {
+    serial_number = isolate->heap()->GetNextTemplateSerialNumber();
+  }
+
+  if (serial_number < TemplateInfo::kFastTemplateInstantiationsCacheSize) {
     Handle<FixedArray> fast_cache =
         handle(native_context->fast_template_instantiations_cache(), isolate);
     Handle<FixedArray> new_cache =
-        FixedArray::SetAndGrow(isolate, fast_cache, serial_number - 1, object);
+        FixedArray::SetAndGrow(isolate, fast_cache, serial_number, object);
     if (*new_cache != *fast_cache) {
       native_context->set_fast_template_instantiations_cache(*new_cache);
     }
+    data->set_serial_number(serial_number);
   } else if (caching_mode == CachingMode::kUnlimited ||
-             (serial_number <=
+             (serial_number <
               TemplateInfo::kSlowTemplateInstantiationsCacheSize)) {
     Handle<SimpleNumberDictionary> cache =
         handle(native_context->slow_template_instantiations_cache(), isolate);
@@ -331,20 +342,28 @@ void CacheTemplateInstantiation(Isolate* isolate,
     if (*new_cache != *cache) {
       native_context->set_slow_template_instantiations_cache(*new_cache);
     }
+    data->set_serial_number(serial_number);
+  } else {
+    // we've overflowed the cache limit, no more caching
+    data->set_serial_number(TemplateInfo::kDoNotCache);
   }
 }
 
 void UncacheTemplateInstantiation(Isolate* isolate,
                                   Handle<NativeContext> native_context,
-                                  int serial_number, CachingMode caching_mode) {
-  DCHECK_LE(1, serial_number);
-  if (serial_number <= TemplateInfo::kFastTemplateInstantiationsCacheSize) {
+                                  Handle<TemplateInfo> data,
+                                  CachingMode caching_mode) {
+  int serial_number = data->serial_number();
+  if (serial_number < 0) return;
+
+  if (serial_number < TemplateInfo::kFastTemplateInstantiationsCacheSize) {
     FixedArray fast_cache =
         native_context->fast_template_instantiations_cache();
-    DCHECK(!fast_cache.get(serial_number - 1).IsUndefined(isolate));
-    fast_cache.set_undefined(serial_number - 1);
+    DCHECK(!fast_cache.get(serial_number).IsUndefined(isolate));
+    fast_cache.set_undefined(serial_number);
+    data->set_serial_number(TemplateInfo::kUncached);
   } else if (caching_mode == CachingMode::kUnlimited ||
-             (serial_number <=
+             (serial_number <
               TemplateInfo::kSlowTemplateInstantiationsCacheSize)) {
     Handle<SimpleNumberDictionary> cache =
         handle(native_context->slow_template_instantiations_cache(), isolate);
@@ -352,6 +371,7 @@ void UncacheTemplateInstantiation(Isolate* isolate,
     DCHECK(entry.is_found());
     cache = SimpleNumberDictionary::DeleteEntry(isolate, cache, entry);
     native_context->set_slow_template_instantiations_cache(*cache);
+    data->set_serial_number(TemplateInfo::kUncached);
   }
 }
 
@@ -371,23 +391,22 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
                                         Handle<ObjectTemplateInfo> info,
                                         Handle<JSReceiver> new_target,
                                         bool is_prototype) {
-  RuntimeCallTimerScope timer(isolate,
-                              RuntimeCallCounterId::kInstantiateObject);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kInstantiateObject);
   Handle<JSFunction> constructor;
-  int serial_number = info->serial_number();
+  bool should_cache = info->should_cache();
   if (!new_target.is_null()) {
     if (IsSimpleInstantiation(isolate, *info, *new_target)) {
       constructor = Handle<JSFunction>::cast(new_target);
     } else {
       // Disable caching for subclass instantiation.
-      serial_number = 0;
+      should_cache = false;
     }
   }
   // Fast path.
   Handle<JSObject> result;
-  if (serial_number) {
+  if (should_cache && info->is_cached()) {
     if (ProbeInstantiationsCache(isolate, isolate->native_context(),
-                                 serial_number, CachingMode::kLimited)
+                                 info->serial_number(), CachingMode::kLimited)
             .ToHandle(&result)) {
       return isolate->factory()->CopyJSObject(result);
     }
@@ -430,9 +449,9 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
     // TODO(dcarney): is this necessary?
     JSObject::MigrateSlowToFast(result, 0, "ApiNatives::InstantiateObject");
     // Don't cache prototypes.
-    if (serial_number) {
-      CacheTemplateInstantiation(isolate, isolate->native_context(),
-                                 serial_number, CachingMode::kLimited, result);
+    if (should_cache) {
+      CacheTemplateInstantiation(isolate, isolate->native_context(), info,
+                                 CachingMode::kLimited, result);
       result = isolate->factory()->CopyJSObject(result);
     }
   }
@@ -465,12 +484,11 @@ MaybeHandle<Object> GetInstancePrototype(Isolate* isolate,
 MaybeHandle<JSFunction> InstantiateFunction(
     Isolate* isolate, Handle<NativeContext> native_context,
     Handle<FunctionTemplateInfo> data, MaybeHandle<Name> maybe_name) {
-  RuntimeCallTimerScope timer(isolate,
-                              RuntimeCallCounterId::kInstantiateFunction);
-  int serial_number = data->serial_number();
-  if (serial_number) {
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kInstantiateFunction);
+  bool should_cache = data->should_cache();
+  if (should_cache && data->is_cached()) {
     Handle<JSObject> result;
-    if (ProbeInstantiationsCache(isolate, native_context, serial_number,
+    if (ProbeInstantiationsCache(isolate, native_context, data->serial_number(),
                                  CachingMode::kUnlimited)
             .ToHandle(&result)) {
       return Handle<JSFunction>::cast(result);
@@ -504,7 +522,7 @@ MaybeHandle<JSFunction> InstantiateFunction(
                                  GetInstancePrototype(isolate, parent),
                                  JSFunction);
       CHECK(parent_prototype->IsHeapObject());
-      JSObject::ForceSetPrototype(Handle<JSObject>::cast(prototype),
+      JSObject::ForceSetPrototype(isolate, Handle<JSObject>::cast(prototype),
                                   Handle<HeapObject>::cast(parent_prototype));
     }
   }
@@ -517,18 +535,16 @@ MaybeHandle<JSFunction> InstantiateFunction(
 
   Handle<JSFunction> function = ApiNatives::CreateApiFunction(
       isolate, native_context, data, prototype, function_type, maybe_name);
-  if (serial_number) {
+  if (should_cache) {
     // Cache the function.
-    CacheTemplateInstantiation(isolate, native_context, serial_number,
+    CacheTemplateInstantiation(isolate, native_context, data,
                                CachingMode::kUnlimited, function);
   }
   MaybeHandle<JSObject> result = ConfigureInstance(isolate, function, data);
   if (result.is_null()) {
     // Uncache on error.
-    if (serial_number) {
-      UncacheTemplateInstantiation(isolate, native_context, serial_number,
-                                   CachingMode::kUnlimited);
-    }
+    UncacheTemplateInstantiation(isolate, native_context, data,
+                                 CachingMode::kUnlimited);
     return MaybeHandle<JSFunction>();
   }
   data->set_published(true);
@@ -596,7 +612,8 @@ MaybeHandle<JSObject> ApiNatives::InstantiateRemoteObject(
   object_map->set_may_have_interesting_symbols(true);
 
   Handle<JSObject> object = isolate->factory()->NewJSObjectFromMap(object_map);
-  JSObject::ForceSetPrototype(object, isolate->factory()->null_value());
+  JSObject::ForceSetPrototype(isolate, object,
+                              isolate->factory()->null_value());
 
   return object;
 }
@@ -653,8 +670,7 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
     Isolate* isolate, Handle<NativeContext> native_context,
     Handle<FunctionTemplateInfo> obj, Handle<Object> prototype,
     InstanceType type, MaybeHandle<Name> maybe_name) {
-  RuntimeCallTimerScope timer(isolate,
-                              RuntimeCallCounterId::kCreateApiFunction);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kCreateApiFunction);
   Handle<SharedFunctionInfo> shared =
       FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(isolate, obj,
                                                           maybe_name);

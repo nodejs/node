@@ -547,7 +547,6 @@ LoopTree* LoopFinder::BuildLoopTree(Graph* graph, TickCounter* tick_counter,
 ZoneUnorderedSet<Node*>* LoopFinder::FindUnnestedLoopFromHeader(
     Node* loop_header, Zone* zone, size_t max_size) {
   auto* visited = zone->New<ZoneUnorderedSet<Node*>>(zone);
-
   std::vector<Node*> queue;
 
   DCHECK(loop_header->opcode() == IrOpcode::kLoop);
@@ -586,6 +585,30 @@ ZoneUnorderedSet<Node*>* LoopFinder::FindUnnestedLoopFromHeader(
           if (visited->count(use) == 0) queue.push_back(use);
         }
         break;
+    }
+  }
+
+  // Check that there is no floating control other than direct nodes to start().
+  // We do this by checking that all non-start control inputs of loop nodes are
+  // also in the loop.
+  // TODO(manoskouk): This is a safety check. Consider making it DEBUG-only when
+  // we are confident there is no incompatible floating control generated in
+  // wasm.
+  for (Node* node : *visited) {
+    // The loop header is allowed to point outside the loop.
+    if (node == loop_header) continue;
+
+    for (Edge edge : node->input_edges()) {
+      Node* input = edge.to();
+      if (NodeProperties::IsControlEdge(edge) && visited->count(input) == 0 &&
+          input->opcode() != IrOpcode::kStart) {
+        FATAL(
+            "Floating control detected in wasm turbofan graph: Node #%d:%s is "
+            "inside loop headed by #%d, but its control dependency #%d:%s is "
+            "outside",
+            node->id(), node->op()->mnemonic(), loop_header->id(), input->id(),
+            input->op()->mnemonic());
+      }
     }
   }
 

@@ -285,6 +285,11 @@ void GenerateFieldValueAccessor(const Field& field,
   cc_contents << "  d::MemoryAccessResult validity = accessor("
               << address_getter << "()" << index_offset
               << ", reinterpret_cast<uint8_t*>(&value), sizeof(value));\n";
+#ifdef V8_MAP_PACKING
+  if (field_getter == "GetMapValue") {
+    cc_contents << "  value = i::MapWord::Unpack(value);\n";
+  }
+#endif
   cc_contents << "  return {validity, "
               << (debug_field_type.IsTagged()
                       ? "EnsureDecompressed(value, address_)"

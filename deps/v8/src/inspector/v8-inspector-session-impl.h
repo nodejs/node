@@ -50,6 +50,9 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   int contextGroupId() const { return m_contextGroupId; }
   int sessionId() const { return m_sessionId; }
 
+  std::unique_ptr<V8InspectorSession::CommandLineAPIScope>
+  initializeCommandLineAPIScope(int executionContextId) override;
+
   Response findInjectedScript(int contextId, InjectedScript*&);
   Response findInjectedScript(RemoteObjectIdBase*, InjectedScript*&);
   void reset();

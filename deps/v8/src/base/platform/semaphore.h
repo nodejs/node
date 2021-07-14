@@ -12,9 +12,9 @@
 #endif
 
 #if V8_OS_MACOSX
-#include <dispatch/dispatch.h>  // NOLINT
+#include <dispatch/dispatch.h>
 #elif V8_OS_POSIX
-#include <semaphore.h>  // NOLINT
+#include <semaphore.h>
 #endif
 
 #if V8_OS_STARBOARD

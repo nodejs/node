@@ -162,6 +162,7 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_OP(CallRef, "call_ref")
     CASE_OP(ReturnCallRef, "return_call_ref")
     CASE_OP(BrOnNull, "br_on_null")
+    CASE_OP(BrOnNonNull, "br_on_non_null")
     CASE_OP(Drop, "drop")
     CASE_OP(Select, "select")
     CASE_OP(SelectWithType, "select")
@@ -400,6 +401,7 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_OP(RefTest, "ref.test")
     CASE_OP(RefCast, "ref.cast")
     CASE_OP(BrOnCast, "br_on_cast")
+    CASE_OP(BrOnCastFail, "br_on_cast_fail")
     CASE_OP(RefIsFunc, "ref.is_func")
     CASE_OP(RefIsData, "ref.is_data")
     CASE_OP(RefIsI31, "ref.is_i31")
@@ -629,16 +631,12 @@ constexpr const FunctionSig* WasmOpcodes::Signature(WasmOpcode opcode) {
     case kNumericPrefix:
       return impl::kCachedSigs[impl::kNumericExprSigTable[opcode & 0xFF]];
     default:
-#if V8_HAS_CXX14_CONSTEXPR
       UNREACHABLE();  // invalid prefix.
-#else
-      return nullptr;
-#endif
   }
 }
 
 constexpr const FunctionSig* WasmOpcodes::AsmjsSignature(WasmOpcode opcode) {
-  CONSTEXPR_DCHECK(opcode < impl::kSimpleAsmjsExprSigTable.size());
+  DCHECK_GT(impl::kSimpleAsmjsExprSigTable.size(), opcode);
   return impl::kCachedSigs[impl::kSimpleAsmjsExprSigTable[opcode]];
 }
 

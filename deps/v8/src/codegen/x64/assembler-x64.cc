@@ -86,44 +86,39 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) return;
+  if (cpu.has_sse42()) SetSupported(SSE4_2);
+  if (cpu.has_sse41()) SetSupported(SSE4_1);
+  if (cpu.has_ssse3()) SetSupported(SSSE3);
+  if (cpu.has_sse3()) SetSupported(SSE3);
+  if (cpu.has_avx() && cpu.has_osxsave() && OSHasAVXSupport()) {
+    SetSupported(AVX);
+    if (cpu.has_avx2()) SetSupported(AVX2);
+    if (cpu.has_fma3()) SetSupported(FMA3);
+  }
 
-  // To deal with any combination of flags (e.g. --no-enable-sse4-1
-  // --enable-sse-4-2), we start checking from the "highest" supported
-  // extension, for each extension, enable if newer extension is supported.
-  if (cpu.has_avx2() && FLAG_enable_avx2 && IsSupported(AVX)) {
-    supported_ |= 1u << AVX2;
-  }
-  if (cpu.has_fma3() && FLAG_enable_fma3 && cpu.has_osxsave() &&
-      OSHasAVXSupport()) {
-    supported_ |= 1u << FMA3;
-  }
-  if ((cpu.has_avx() && FLAG_enable_avx && cpu.has_osxsave() &&
-       OSHasAVXSupport()) ||
-      IsSupported(AVX2) || IsSupported(FMA3)) {
-    supported_ |= 1u << AVX;
-  }
-  if ((cpu.has_sse42() && FLAG_enable_sse4_2) || IsSupported(AVX)) {
-    supported_ |= 1u << SSE4_2;
-  }
-  if ((cpu.has_sse41() && FLAG_enable_sse4_1) || IsSupported(SSE4_2)) {
-    supported_ |= 1u << SSE4_1;
-  }
-  if ((cpu.has_ssse3() && FLAG_enable_ssse3) || IsSupported(SSE4_1)) {
-    supported_ |= 1u << SSSE3;
-  }
-  if ((cpu.has_sse3() && FLAG_enable_sse3) || IsSupported(SSSE3))
-    supported_ |= 1u << SSE3;
   // SAHF is not generally available in long mode.
-  if (cpu.has_sahf() && FLAG_enable_sahf) supported_ |= 1u << SAHF;
-  if (cpu.has_bmi1() && FLAG_enable_bmi1) supported_ |= 1u << BMI1;
-  if (cpu.has_bmi2() && FLAG_enable_bmi2) supported_ |= 1u << BMI2;
-  if (cpu.has_lzcnt() && FLAG_enable_lzcnt) supported_ |= 1u << LZCNT;
-  if (cpu.has_popcnt() && FLAG_enable_popcnt) supported_ |= 1u << POPCNT;
+  if (cpu.has_sahf() && FLAG_enable_sahf) SetSupported(SAHF);
+  if (cpu.has_bmi1() && FLAG_enable_bmi1) SetSupported(BMI1);
+  if (cpu.has_bmi2() && FLAG_enable_bmi2) SetSupported(BMI2);
+  if (cpu.has_lzcnt() && FLAG_enable_lzcnt) SetSupported(LZCNT);
+  if (cpu.has_popcnt() && FLAG_enable_popcnt) SetSupported(POPCNT);
   if (strcmp(FLAG_mcpu, "auto") == 0) {
-    if (cpu.is_atom()) supported_ |= 1u << ATOM;
+    if (cpu.is_atom()) SetSupported(ATOM);
   } else if (strcmp(FLAG_mcpu, "atom") == 0) {
-    supported_ |= 1u << ATOM;
+    SetSupported(ATOM);
   }
+
+  // Ensure that supported cpu features make sense. E.g. it is wrong to support
+  // AVX but not SSE4_2, if we have --enable-avx and --no-enable-sse4-2, the
+  // code above would set AVX to supported, and SSE4_2 to unsupported, then the
+  // checks below will set AVX to unsupported.
+  if (!FLAG_enable_sse3) SetUnsupported(SSE3);
+  if (!FLAG_enable_ssse3 || !IsSupported(SSE3)) SetUnsupported(SSSE3);
+  if (!FLAG_enable_sse4_1 || !IsSupported(SSSE3)) SetUnsupported(SSE4_1);
+  if (!FLAG_enable_sse4_2 || !IsSupported(SSE4_1)) SetUnsupported(SSE4_2);
+  if (!FLAG_enable_avx || !IsSupported(SSE4_2)) SetUnsupported(AVX);
+  if (!FLAG_enable_avx2 || !IsSupported(AVX)) SetUnsupported(AVX2);
+  if (!FLAG_enable_fma3 || !IsSupported(AVX)) SetUnsupported(FMA3);
 
   // Set a static value on whether Simd is supported.
   // This variable is only used for certain archs to query SupportWasmSimd128()
@@ -1419,12 +1414,13 @@ void Assembler::j(Condition cc, Label* L, Label::Distance distance) {
 }
 
 void Assembler::j(Condition cc, Address entry, RelocInfo::Mode rmode) {
-  DCHECK(RelocInfo::IsRuntimeEntry(rmode));
+  DCHECK(RelocInfo::IsWasmStubCall(rmode));
   EnsureSpace ensure_space(this);
   DCHECK(is_uint4(cc));
   emit(0x0F);
   emit(0x80 | cc);
-  emit_runtime_entry(entry, rmode);
+  RecordRelocInfo(rmode);
+  emitl(static_cast<int32_t>(entry));
 }
 
 void Assembler::j(Condition cc, Handle<Code> target, RelocInfo::Mode rmode) {

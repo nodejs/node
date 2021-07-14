@@ -114,7 +114,8 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
         mark_compact_epoch_(mark_compact_epoch),
         bytecode_flush_mode_(bytecode_flush_mode),
         is_embedder_tracing_enabled_(is_embedder_tracing_enabled),
-        is_forced_gc_(is_forced_gc) {}
+        is_forced_gc_(is_forced_gc),
+        is_shared_heap_(heap->IsShared()) {}
 
   V8_INLINE int VisitBytecodeArray(Map map, BytecodeArray object);
   V8_INLINE int VisitDescriptorArray(Map map, DescriptorArray object);
@@ -133,6 +134,11 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
   V8_INLINE int VisitWeakCell(Map map, WeakCell object);
 
   // ObjectVisitor overrides.
+  void VisitMapPointer(HeapObject host) final {
+    // Note that we are skipping the recording the slot because map objects
+    // can't move, so this is safe (see ProcessStrongHeapObject for comparison)
+    MarkObject(host, HeapObject::cast(host.map()));
+  }
   V8_INLINE void VisitPointer(HeapObject host, ObjectSlot p) final {
     VisitPointersImpl(host, p, p + 1);
   }
@@ -196,6 +202,7 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
   const BytecodeFlushMode bytecode_flush_mode_;
   const bool is_embedder_tracing_enabled_;
   const bool is_forced_gc_;
+  const bool is_shared_heap_;
 };
 
 }  // namespace internal

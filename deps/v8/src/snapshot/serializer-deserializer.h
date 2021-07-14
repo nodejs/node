@@ -187,14 +187,13 @@ class SerializerDeserializer : public RootVisitor {
     }
 
     static constexpr byte Encode(TValue value) {
-      CONSTEXPR_DCHECK(IsEncodable(value));
+      DCHECK(IsEncodable(value));
       return static_cast<byte>(kBytecode + static_cast<int>(value) - kMinValue);
     }
 
     static constexpr TValue Decode(byte bytecode) {
-      CONSTEXPR_DCHECK(base::IsInRange(bytecode,
-                                       Encode(static_cast<TValue>(kMinValue)),
-                                       Encode(static_cast<TValue>(kMaxValue))));
+      DCHECK(base::IsInRange(bytecode, Encode(static_cast<TValue>(kMinValue)),
+                             Encode(static_cast<TValue>(kMaxValue))));
       return static_cast<TValue>(bytecode - kBytecode + kMinValue);
     }
   };
@@ -241,7 +240,7 @@ class SerializerDeserializer : public RootVisitor {
     }
 
     static constexpr int Encode(int repeat_count) {
-      CONSTEXPR_DCHECK(IsEncodable(repeat_count));
+      DCHECK(IsEncodable(repeat_count));
       return repeat_count - kFirstEncodableVariableRepeatCount;
     }
 

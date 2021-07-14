@@ -5,8 +5,8 @@
 #include "src/heap/cppgc/heap-base.h"
 
 #include "include/cppgc/heap-consistency.h"
-#include "src/base/bounded-page-allocator.h"
 #include "src/base/platform/platform.h"
+#include "src/base/sanitizer/lsan-page-allocator.h"
 #include "src/heap/base/stack.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-object-header.h"
@@ -15,6 +15,7 @@
 #include "src/heap/cppgc/heap-visitor.h"
 #include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/marking-verifier.h"
+#include "src/heap/cppgc/object-view.h"
 #include "src/heap/cppgc/page-memory.h"
 #include "src/heap/cppgc/prefinalizer-handler.h"
 #include "src/heap/cppgc/stats-collector.h"
@@ -35,13 +36,7 @@ class ObjectSizeCounter : private HeapVisitor<ObjectSizeCounter> {
 
  private:
   static size_t ObjectSize(const HeapObjectHeader* header) {
-    const size_t size =
-        header->IsLargeObject()
-            ? static_cast<const LargePage*>(BasePage::FromPayload(header))
-                  ->PayloadSize()
-            : header->GetSize();
-    DCHECK_GE(size, sizeof(HeapObjectHeader));
-    return size - sizeof(HeapObjectHeader);
+    return ObjectView(*header).Size();
   }
 
   bool VisitHeapObjectHeader(HeapObjectHeader* header) {
@@ -62,13 +57,16 @@ HeapBase::HeapBase(
     std::unique_ptr<MetricRecorder> histogram_recorder)
     : raw_heap_(this, custom_spaces),
       platform_(std::move(platform)),
+#if defined(LEAK_SANITIZER)
+      lsan_page_allocator_(std::make_unique<v8::base::LsanPageAllocator>(
+          platform_->GetPageAllocator())),
+#endif  // LEAK_SANITIZER
 #if defined(CPPGC_CAGED_HEAP)
-      caged_heap_(this, platform_->GetPageAllocator()),
+      caged_heap_(this, page_allocator()),
       page_backend_(std::make_unique<PageBackend>(&caged_heap_.allocator())),
-#else
-      page_backend_(
-          std::make_unique<PageBackend>(platform_->GetPageAllocator())),
-#endif
+#else   // !CPPGC_CAGED_HEAP
+      page_backend_(std::make_unique<PageBackend>(page_allocator())),
+#endif  // !CPPGC_CAGED_HEAP
       stats_collector_(std::make_unique<StatsCollector>(
           std::move(histogram_recorder), platform_.get())),
       stack_(std::make_unique<heap::base::Stack>(
@@ -84,6 +82,14 @@ HeapBase::HeapBase(
 }
 
 HeapBase::~HeapBase() = default;
+
+PageAllocator* HeapBase::page_allocator() const {
+#if defined(LEAK_SANITIZER)
+  return lsan_page_allocator_.get();
+#else   // !LEAK_SANITIZER
+  return platform_->GetPageAllocator();
+#endif  // !LEAK_SANITIZER
+}
 
 size_t HeapBase::ObjectPayloadSize() const {
   return ObjectSizeCounter().GetSize(const_cast<RawHeap*>(&raw_heap()));

@@ -95,7 +95,7 @@ void* AllocateLargeObject(PageBackend* page_backend, LargePageSpace* space,
   stats_collector->NotifyAllocation(size);
   MarkRangeAsYoung(page, page->PayloadStart(), page->PayloadEnd());
 
-  return header->Payload();
+  return header->ObjectStart();
 }
 
 }  // namespace

@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 const {session, Protocol} =
-    InspectorTest.start('Checks that Debugger.restartFrame works');
+    InspectorTest.start('Checks that Debugger.restartFrame returns an error');
 
 session.setupScriptMap();
 
@@ -16,18 +16,9 @@ session.setupScriptMap();
   const { params: { callFrames: before } } =
       await Protocol.Debugger.oncePaused();
   await session.logSourceLocation(before[0].location);
-  InspectorTest.log('Call restart and dump location of restart:');
-  const { result: { callFrames: restart }} =
-      await Protocol.Debugger.restartFrame({
-          callFrameId: before[0].callFrameId
-      });
-  await session.logSourceLocation(restart[0].location);
-  InspectorTest.log('Location after restart:');
-  Protocol.Debugger.resume();
-  const { params: { callFrames: after } } =
-      await Protocol.Debugger.oncePaused();
-  await session.logSourceLocation(after[0].location);
-  Protocol.Debugger.resume();
-  await evalPromise;
+  const result = await Protocol.Debugger.restartFrame({ callFrameId: before[0].callFrameId });
+  InspectorTest.log('restartFrame result:');
+  InspectorTest.logMessage(result);
+  await Promise.all([Protocol.Debugger.resume(), evalPromise]);
   InspectorTest.completeTest();
 })()

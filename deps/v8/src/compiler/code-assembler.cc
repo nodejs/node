@@ -8,7 +8,7 @@
 
 #include "src/base/bits.h"
 #include "src/codegen/code-factory.h"
-#include "src/codegen/interface-descriptors.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/compiler/backend/instruction-selector.h"
@@ -329,6 +329,10 @@ TNode<Float32T> CodeAssembler::Float32Constant(double value) {
 
 TNode<Float64T> CodeAssembler::Float64Constant(double value) {
   return UncheckedCast<Float64T>(jsgraph()->Float64Constant(value));
+}
+
+bool CodeAssembler::IsMapOffsetConstant(Node* node) {
+  return raw_assembler()->IsMapOffsetConstant(node);
 }
 
 bool CodeAssembler::TryToInt32Constant(TNode<IntegralT> node,
@@ -689,11 +693,15 @@ TNode<Object> CodeAssembler::LoadFullTagged(Node* base,
 
 TNode<Object> CodeAssembler::LoadFullTagged(Node* base, TNode<IntPtrT> offset,
                                             LoadSensitivity needs_poisoning) {
+  // Please use LoadFromObject(MachineType::MapInHeader(), object,
+  // IntPtrConstant(-kHeapObjectTag)) instead.
+  DCHECK(!raw_assembler()->IsMapOffsetConstantMinusTag(offset));
   return BitcastWordToTagged(Load<RawPtrT>(base, offset, needs_poisoning));
 }
 
 Node* CodeAssembler::AtomicLoad(MachineType type, TNode<RawPtrT> base,
                                 TNode<WordT> offset) {
+  DCHECK(!raw_assembler()->IsMapOffsetConstantMinusTag(offset));
   return raw_assembler()->AtomicLoad(type, base, offset);
 }
 
@@ -711,6 +719,27 @@ template TNode<AtomicUint64> CodeAssembler::AtomicLoad64<AtomicUint64>(
 Node* CodeAssembler::LoadFromObject(MachineType type, TNode<Object> object,
                                     TNode<IntPtrT> offset) {
   return raw_assembler()->LoadFromObject(type, object, offset);
+}
+
+#ifdef V8_MAP_PACKING
+Node* CodeAssembler::PackMapWord(Node* value) {
+  TNode<IntPtrT> map_word =
+      BitcastTaggedToWordForTagAndSmiBits(UncheckedCast<AnyTaggedT>(value));
+  TNode<WordT> packed = WordXor(UncheckedCast<WordT>(map_word),
+                                IntPtrConstant(Internals::kMapWordXorMask));
+  return BitcastWordToTaggedSigned(packed);
+}
+#endif
+
+TNode<AnyTaggedT> CodeAssembler::LoadRootMapWord(RootIndex root_index) {
+#ifdef V8_MAP_PACKING
+  Handle<Object> root = isolate()->root_handle(root_index);
+  Node* map = HeapConstant(Handle<Map>::cast(root));
+  map = PackMapWord(map);
+  return ReinterpretCast<AnyTaggedT>(map);
+#else
+  return LoadRoot(root_index);
+#endif
 }
 
 TNode<Object> CodeAssembler::LoadRoot(RootIndex root_index) {
@@ -794,11 +823,14 @@ void CodeAssembler::OptimizedStoreMap(TNode<HeapObject> object,
 }
 
 void CodeAssembler::Store(Node* base, Node* offset, Node* value) {
+  // Please use OptimizedStoreMap(base, value) instead.
+  DCHECK(!raw_assembler()->IsMapOffsetConstantMinusTag(offset));
   raw_assembler()->Store(MachineRepresentation::kTagged, base, offset, value,
                          kFullWriteBarrier);
 }
 
 void CodeAssembler::StoreEphemeronKey(Node* base, Node* offset, Node* value) {
+  DCHECK(!raw_assembler()->IsMapOffsetConstantMinusTag(offset));
   raw_assembler()->Store(MachineRepresentation::kTagged, base, offset, value,
                          kEphemeronKeyWriteBarrier);
 }
@@ -812,6 +844,8 @@ void CodeAssembler::StoreNoWriteBarrier(MachineRepresentation rep, Node* base,
 
 void CodeAssembler::StoreNoWriteBarrier(MachineRepresentation rep, Node* base,
                                         Node* offset, Node* value) {
+  // Please use OptimizedStoreMap(base, value) instead.
+  DCHECK(!raw_assembler()->IsMapOffsetConstantMinusTag(offset));
   raw_assembler()->Store(
       rep, base, offset, value,
       CanBeTaggedPointer(rep) ? kAssertNoWriteBarrier : kNoWriteBarrier);
@@ -825,6 +859,8 @@ void CodeAssembler::UnsafeStoreNoWriteBarrier(MachineRepresentation rep,
 void CodeAssembler::UnsafeStoreNoWriteBarrier(MachineRepresentation rep,
                                               Node* base, Node* offset,
                                               Node* value) {
+  // Please use OptimizedStoreMap(base, value) instead.
+  DCHECK(!raw_assembler()->IsMapOffsetConstantMinusTag(offset));
   raw_assembler()->Store(rep, base, offset, value, kNoWriteBarrier);
 }
 
@@ -837,12 +873,15 @@ void CodeAssembler::StoreFullTaggedNoWriteBarrier(TNode<RawPtrT> base,
 void CodeAssembler::StoreFullTaggedNoWriteBarrier(TNode<RawPtrT> base,
                                                   TNode<IntPtrT> offset,
                                                   TNode<Object> tagged_value) {
+  // Please use OptimizedStoreMap(base, tagged_value) instead.
+  DCHECK(!raw_assembler()->IsMapOffsetConstantMinusTag(offset));
   StoreNoWriteBarrier(MachineType::PointerRepresentation(), base, offset,
                       BitcastTaggedToWord(tagged_value));
 }
 
 void CodeAssembler::AtomicStore(MachineRepresentation rep, TNode<RawPtrT> base,
                                 TNode<WordT> offset, TNode<Word32T> value) {
+  DCHECK(!raw_assembler()->IsMapOffsetConstantMinusTag(offset));
   raw_assembler()->AtomicStore(rep, base, offset, value);
 }
 

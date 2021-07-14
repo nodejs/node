@@ -197,20 +197,24 @@ class MinimorphicLoadPropertyAccessFeedback : public ProcessedFeedback {
 class CallFeedback : public ProcessedFeedback {
  public:
   CallFeedback(base::Optional<HeapObjectRef> target, float frequency,
-               SpeculationMode mode, FeedbackSlotKind slot_kind)
+               SpeculationMode mode, CallFeedbackContent call_feedback_content,
+               FeedbackSlotKind slot_kind)
       : ProcessedFeedback(kCall, slot_kind),
         target_(target),
         frequency_(frequency),
-        mode_(mode) {}
+        mode_(mode),
+        content_(call_feedback_content) {}
 
   base::Optional<HeapObjectRef> target() const { return target_; }
   float frequency() const { return frequency_; }
   SpeculationMode speculation_mode() const { return mode_; }
+  CallFeedbackContent call_feedback_content() const { return content_; }
 
  private:
   base::Optional<HeapObjectRef> const target_;
   float const frequency_;
   SpeculationMode const mode_;
+  CallFeedbackContent const content_;
 };
 
 template <class T, ProcessedFeedback::Kind K>

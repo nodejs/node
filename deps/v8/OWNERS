@@ -21,7 +21,7 @@ per-file PRESUBMIT.py=file:INFRA_OWNERS
 per-file codereview.settings=file:INFRA_OWNERS
 
 per-file AUTHORS=file:COMMON_OWNERS
-per-file WATCHLIST=file:COMMON_OWNERS
+per-file WATCHLISTS=file:COMMON_OWNERS
 
 per-file *-mips*=file:MIPS_OWNERS
 per-file *-mips64*=file:MIPS_OWNERS

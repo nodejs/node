@@ -131,6 +131,7 @@ AllocationResult PagedSpace::AllocateFastAligned(
 
 AllocationResult PagedSpace::AllocateRawUnaligned(int size_in_bytes,
                                                   AllocationOrigin origin) {
+  DCHECK(!FLAG_enable_third_party_heap);
   if (!EnsureLabMain(size_in_bytes, origin)) {
     return AllocationResult::Retry(identity());
   }
@@ -153,6 +154,7 @@ AllocationResult PagedSpace::AllocateRawUnaligned(int size_in_bytes,
 AllocationResult PagedSpace::AllocateRawAligned(int size_in_bytes,
                                                 AllocationAlignment alignment,
                                                 AllocationOrigin origin) {
+  DCHECK(!FLAG_enable_third_party_heap);
   DCHECK_EQ(identity(), OLD_SPACE);
   int allocation_size = size_in_bytes;
   // We don't know exactly how much filler we need to align until space is
@@ -182,6 +184,7 @@ AllocationResult PagedSpace::AllocateRawAligned(int size_in_bytes,
 AllocationResult PagedSpace::AllocateRaw(int size_in_bytes,
                                          AllocationAlignment alignment,
                                          AllocationOrigin origin) {
+  DCHECK(!FLAG_enable_third_party_heap);
   AllocationResult result;
 
   if (alignment != kWordAligned) {

@@ -104,6 +104,14 @@ class Signature : public ZoneObject {
     T* buffer_;
   };
 
+  static Signature<T>* Build(Zone* zone, std::initializer_list<T> returns,
+                             std::initializer_list<T> params) {
+    Builder builder(zone, returns.size(), params.size());
+    for (T ret : returns) builder.AddReturn(ret);
+    for (T param : params) builder.AddParam(param);
+    return builder.Build();
+  }
+
   static constexpr size_t kReturnCountOffset = 0;
   static constexpr size_t kParameterCountOffset =
       kReturnCountOffset + kSizetSize;

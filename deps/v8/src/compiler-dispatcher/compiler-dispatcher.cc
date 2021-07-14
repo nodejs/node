@@ -59,8 +59,7 @@ base::Optional<CompilerDispatcher::JobId> CompilerDispatcher::Enqueue(
     const FunctionLiteral* function_literal) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompilerDispatcherEnqueue");
-  RuntimeCallTimerScope runtimeTimer(
-      isolate_, RuntimeCallCounterId::kCompileEnqueueOnDispatcher);
+  RCS_SCOPE(isolate_, RuntimeCallCounterId::kCompileEnqueueOnDispatcher);
 
   if (!IsEnabled()) return base::nullopt;
 
@@ -129,8 +128,7 @@ void CompilerDispatcher::RegisterSharedFunctionInfo(
 void CompilerDispatcher::WaitForJobIfRunningOnBackground(Job* job) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompilerDispatcherWaitForBackgroundJob");
-  RuntimeCallTimerScope runtimeTimer(
-      isolate_, RuntimeCallCounterId::kCompileWaitForDispatcher);
+  RCS_SCOPE(isolate_, RuntimeCallCounterId::kCompileWaitForDispatcher);
 
   base::MutexGuard lock(&mutex_);
   if (running_background_jobs_.find(job) == running_background_jobs_.end()) {
@@ -149,8 +147,7 @@ void CompilerDispatcher::WaitForJobIfRunningOnBackground(Job* job) {
 bool CompilerDispatcher::FinishNow(Handle<SharedFunctionInfo> function) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompilerDispatcherFinishNow");
-  RuntimeCallTimerScope runtimeTimer(
-      isolate_, RuntimeCallCounterId::kCompileFinishNowOnDispatcher);
+  RCS_SCOPE(isolate_, RuntimeCallCounterId::kCompileFinishNowOnDispatcher);
   if (trace_compiler_dispatcher_) {
     PrintF("CompilerDispatcher: finishing ");
     function->ShortPrint();

@@ -262,10 +262,10 @@ class Config(object):
       cpu = "arm"
     elif self.arch == "android_arm64":
       cpu = "arm64"
-    elif self.arch == "arm64" and _GetMachine() == "aarch64":
+    elif self.arch == "arm64" and _GetMachine() in ("aarch64", "arm64"):
       # arm64 build host:
       cpu = "arm64"
-    elif self.arch == "arm" and _GetMachine() == "aarch64":
+    elif self.arch == "arm" and _GetMachine() in ("aarch64", "arm64"):
       cpu = "arm"
     elif "64" in self.arch or self.arch == "s390x":
       # Native x64 or simulator build.
@@ -291,7 +291,8 @@ class Config(object):
 
   def GetSpecialCompiler(self):
     if _GetMachine() == "aarch64":
-      # We have no prebuilt Clang for arm64. Use the system Clang instead.
+      # We have no prebuilt Clang for arm64 on Linux, so use the system Clang
+      # instead.
       return ["clang_base_path = \"/usr\"", "clang_use_chrome_plugins = false"]
     return []
 

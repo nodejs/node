@@ -38,43 +38,41 @@ using DoubleUnOp = double (*)(double);
 using DoubleBinOp = double (*)(double, double);
 using DoubleCompareOp = int64_t (*)(double, double);
 
-void RunI8x16UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
-                      WasmOpcode opcode, Int8UnOp expected_op);
+void RunI8x16UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                      Int8UnOp expected_op);
 
 template <typename T = int8_t, typename OpType = T (*)(T, T)>
-void RunI8x16BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
-                       WasmOpcode opcode, OpType expected_op);
+void RunI8x16BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                       OpType expected_op);
 
-void RunI8x16ShiftOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
-                         WasmOpcode opcode, Int8ShiftOp expected_op);
+void RunI8x16ShiftOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                         Int8ShiftOp expected_op);
 void RunI8x16MixedRelationalOpTest(TestExecutionTier execution_tier,
-                                   LowerSimd lower_simd, WasmOpcode opcode,
-                                   Int8BinOp expected_op);
+                                   WasmOpcode opcode, Int8BinOp expected_op);
 
-void RunI16x8UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
-                      WasmOpcode opcode, Int16UnOp expected_op);
+void RunI16x8UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                      Int16UnOp expected_op);
 template <typename T = int16_t, typename OpType = T (*)(T, T)>
-void RunI16x8BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
-                       WasmOpcode opcode, OpType expected_op);
-void RunI16x8ShiftOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
-                         WasmOpcode opcode, Int16ShiftOp expected_op);
+void RunI16x8BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                       OpType expected_op);
+void RunI16x8ShiftOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                         Int16ShiftOp expected_op);
 void RunI16x8MixedRelationalOpTest(TestExecutionTier execution_tier,
-                                   LowerSimd lower_simd, WasmOpcode opcode,
-                                   Int16BinOp expected_op);
+                                   WasmOpcode opcode, Int16BinOp expected_op);
 
-void RunI32x4UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
-                      WasmOpcode opcode, Int32UnOp expected_op);
-void RunI32x4BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
-                       WasmOpcode opcode, Int32BinOp expected_op);
-void RunI32x4ShiftOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
-                         WasmOpcode opcode, Int32ShiftOp expected_op);
+void RunI32x4UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                      Int32UnOp expected_op);
+void RunI32x4BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                       Int32BinOp expected_op);
+void RunI32x4ShiftOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                         Int32ShiftOp expected_op);
 
-void RunI64x2UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
-                      WasmOpcode opcode, Int64UnOp expected_op);
-void RunI64x2BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
-                       WasmOpcode opcode, Int64BinOp expected_op);
-void RunI64x2ShiftOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
-                         WasmOpcode opcode, Int64ShiftOp expected_op);
+void RunI64x2UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                      Int64UnOp expected_op);
+void RunI64x2BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                       Int64BinOp expected_op);
+void RunI64x2ShiftOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                         Int64ShiftOp expected_op);
 
 // Generic expected value functions.
 template <typename T, typename = typename std::enable_if<
@@ -152,24 +150,20 @@ bool IsCanonical(double actual);
 void CheckDoubleResult(double x, double y, double expected, double actual,
                        bool exact = true);
 
-void RunF32x4UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
-                      WasmOpcode opcode, FloatUnOp expected_op,
-                      bool exact = true);
+void RunF32x4UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                      FloatUnOp expected_op, bool exact = true);
 
-void RunF32x4BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
-                       WasmOpcode opcode, FloatBinOp expected_op);
+void RunF32x4BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                       FloatBinOp expected_op);
 
-void RunF32x4CompareOpTest(TestExecutionTier execution_tier,
-                           LowerSimd lower_simd, WasmOpcode opcode,
+void RunF32x4CompareOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
                            FloatCompareOp expected_op);
 
-void RunF64x2UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
-                      WasmOpcode opcode, DoubleUnOp expected_op,
-                      bool exact = true);
-void RunF64x2BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
-                       WasmOpcode opcode, DoubleBinOp expected_op);
-void RunF64x2CompareOpTest(TestExecutionTier execution_tier,
-                           LowerSimd lower_simd, WasmOpcode opcode,
+void RunF64x2UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                      DoubleUnOp expected_op, bool exact = true);
+void RunF64x2BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                       DoubleBinOp expected_op);
+void RunF64x2CompareOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
                            DoubleCompareOp expected_op);
 
 }  // namespace wasm

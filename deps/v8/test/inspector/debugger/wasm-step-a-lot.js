@@ -33,6 +33,7 @@ Protocol.Debugger.onPaused(msg => {
 
 InspectorTest.runAsyncTestSuite([
   async function test() {
+    await Protocol.Runtime.enable();
     await Protocol.Debugger.enable();
     InspectorTest.log('Setting up global instance variable.');
     WasmInspectorTest.instantiate(module_bytes);

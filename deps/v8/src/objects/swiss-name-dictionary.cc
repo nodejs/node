@@ -37,10 +37,9 @@ Handle<SwissNameDictionary> SwissNameDictionary::DeleteEntry(
 }
 
 // static
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<SwissNameDictionary> SwissNameDictionary::Rehash(
-    LocalIsolate* isolate, Handle<SwissNameDictionary> table,
-    int new_capacity) {
+    IsolateT* isolate, Handle<SwissNameDictionary> table, int new_capacity) {
   DCHECK(IsValidCapacity(new_capacity));
   DCHECK_LE(table->NumberOfElements(), MaxUsableCapacity(new_capacity));
   ReadOnlyRoots roots(isolate);

@@ -18,6 +18,7 @@ namespace internal {
 AllocationResult LocalHeap::AllocateRaw(int size_in_bytes, AllocationType type,
                                         AllocationOrigin origin,
                                         AllocationAlignment alignment) {
+  DCHECK(!FLAG_enable_third_party_heap);
 #if DEBUG
   VerifyCurrent();
   DCHECK(AllowHandleAllocation::IsAllowed());
@@ -45,6 +46,7 @@ AllocationResult LocalHeap::AllocateRaw(int size_in_bytes, AllocationType type,
 Address LocalHeap::AllocateRawOrFail(int object_size, AllocationType type,
                                      AllocationOrigin origin,
                                      AllocationAlignment alignment) {
+  DCHECK(!FLAG_enable_third_party_heap);
   AllocationResult result = AllocateRaw(object_size, type, origin, alignment);
   if (!result.IsRetry()) return result.ToObject().address();
   return PerformCollectionAndAllocateAgain(object_size, type, origin,

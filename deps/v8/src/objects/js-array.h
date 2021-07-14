@@ -58,8 +58,8 @@ class JSArray : public JSObject {
   // Initializes the array to a certain length.
   inline bool AllowsSetLength();
 
-  V8_EXPORT_PRIVATE static void SetLength(Handle<JSArray> array,
-                                          uint32_t length);
+  V8_EXPORT_PRIVATE static Maybe<bool> SetLength(Handle<JSArray> array,
+                                                 uint32_t length);
 
   // Set the content of the array to the content of storage.
   static inline void SetContent(Handle<JSArray> array,

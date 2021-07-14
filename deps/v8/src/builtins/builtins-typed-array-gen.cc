@@ -123,13 +123,26 @@ TF_BUILTIN(TypedArrayPrototypeByteLength, TypedArrayBuiltinsAssembler) {
   // Check if the {receiver} is actually a JSTypedArray.
   ThrowIfNotInstanceType(context, receiver, JS_TYPED_ARRAY_TYPE, kMethodName);
 
-  // Default to zero if the {receiver}s buffer was detached.
+  TNode<JSTypedArray> receiver_array = CAST(receiver);
   TNode<JSArrayBuffer> receiver_buffer =
-      LoadJSArrayBufferViewBuffer(CAST(receiver));
-  TNode<UintPtrT> byte_length = Select<UintPtrT>(
-      IsDetachedBuffer(receiver_buffer), [=] { return UintPtrConstant(0); },
-      [=] { return LoadJSArrayBufferViewByteLength(CAST(receiver)); });
-  Return(ChangeUintPtrToTagged(byte_length));
+      LoadJSArrayBufferViewBuffer(receiver_array);
+
+  Label variable_length(this), normal(this);
+  Branch(IsVariableLengthTypedArray(receiver_array), &variable_length, &normal);
+  BIND(&variable_length);
+  {
+    Return(ChangeUintPtrToTagged(LoadVariableLengthJSTypedArrayByteLength(
+        context, receiver_array, receiver_buffer)));
+  }
+
+  BIND(&normal);
+  {
+    // Default to zero if the {receiver}s buffer was detached.
+    TNode<UintPtrT> byte_length = Select<UintPtrT>(
+        IsDetachedBuffer(receiver_buffer), [=] { return UintPtrConstant(0); },
+        [=] { return LoadJSArrayBufferViewByteLength(receiver_array); });
+    Return(ChangeUintPtrToTagged(byte_length));
+  }
 }
 
 // ES6 #sec-get-%typedarray%.prototype.byteoffset
@@ -159,13 +172,29 @@ TF_BUILTIN(TypedArrayPrototypeLength, TypedArrayBuiltinsAssembler) {
   // Check if the {receiver} is actually a JSTypedArray.
   ThrowIfNotInstanceType(context, receiver, JS_TYPED_ARRAY_TYPE, kMethodName);
 
-  // Default to zero if the {receiver}s buffer was detached.
+  TNode<JSTypedArray> receiver_array = CAST(receiver);
   TNode<JSArrayBuffer> receiver_buffer =
-      LoadJSArrayBufferViewBuffer(CAST(receiver));
-  TNode<UintPtrT> length = Select<UintPtrT>(
-      IsDetachedBuffer(receiver_buffer), [=] { return UintPtrConstant(0); },
-      [=] { return LoadJSTypedArrayLength(CAST(receiver)); });
-  Return(ChangeUintPtrToTagged(length));
+      LoadJSArrayBufferViewBuffer(receiver_array);
+
+  Label variable_length(this), normal(this);
+  Branch(IsVariableLengthTypedArray(receiver_array), &variable_length, &normal);
+  BIND(&variable_length);
+  {
+    Label miss(this);
+    Return(ChangeUintPtrToTagged(LoadVariableLengthJSTypedArrayLength(
+        receiver_array, receiver_buffer, &miss)));
+    BIND(&miss);
+    Return(ChangeUintPtrToTagged(UintPtrConstant(0)));
+  }
+
+  BIND(&normal);
+  {
+    // Default to zero if the {receiver}s buffer was detached.
+    TNode<UintPtrT> length = Select<UintPtrT>(
+        IsDetachedBuffer(receiver_buffer), [=] { return UintPtrConstant(0); },
+        [=] { return LoadJSTypedArrayLength(receiver_array); });
+    Return(ChangeUintPtrToTagged(length));
+  }
 }
 
 TNode<BoolT> TypedArrayBuiltinsAssembler::IsUint8ElementsKind(
@@ -322,17 +351,18 @@ void TypedArrayBuiltinsAssembler::DispatchTypedArrayByElementsKind(
 
   int32_t elements_kinds[] = {
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) TYPE##_ELEMENTS,
-      TYPED_ARRAYS(TYPED_ARRAY_CASE)
+      TYPED_ARRAYS(TYPED_ARRAY_CASE) RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
   };
 
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) Label if_##type##array(this);
   TYPED_ARRAYS(TYPED_ARRAY_CASE)
+  RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
 
   Label* elements_kind_labels[] = {
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) &if_##type##array,
-      TYPED_ARRAYS(TYPED_ARRAY_CASE)
+      TYPED_ARRAYS(TYPED_ARRAY_CASE) RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
   };
   STATIC_ASSERT(arraysize(elements_kinds) == arraysize(elements_kind_labels));
@@ -348,6 +378,15 @@ void TypedArrayBuiltinsAssembler::DispatchTypedArrayByElementsKind(
     Goto(&next);                                    \
   }
   TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)     \
+  BIND(&if_##type##array);                            \
+  {                                                   \
+    case_function(TYPE##_ELEMENTS, sizeof(ctype), 0); \
+    Goto(&next);                                      \
+  }
+  RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
 
   BIND(&if_unknown_type);
@@ -374,7 +413,7 @@ void TypedArrayBuiltinsAssembler::SetJSTypedArrayOnHeapDataPtr(
         IntPtrSub(full_base, Signed(ChangeUint32ToWord(compressed_base)));
     // Add JSTypedArray::ExternalPointerCompensationForOnHeapArray() to offset.
     DCHECK_EQ(
-        isolate()->isolate_root(),
+        isolate()->cage_base(),
         JSTypedArray::ExternalPointerCompensationForOnHeapArray(isolate()));
     // See JSTypedArray::SetOnHeapDataPtr() for details.
     offset = Unsigned(IntPtrAdd(offset, ptr_compr_cage_base));

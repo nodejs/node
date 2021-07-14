@@ -5,11 +5,11 @@ import {IcLogEntry} from '../log/ic.mjs';
 import {MapLogEntry} from '../log/map.mjs';
 
 import {FocusEvent, SelectionEvent, ToolTipEvent} from './events.mjs';
-import {delay, DOM, formatBytes, formatMicroSeconds, V8CustomElement} from './helper.mjs';
+import {CollapsableElement, delay, DOM, formatBytes, formatMicroSeconds} from './helper.mjs';
 
 DOM.defineCustomElement('view/code-panel',
                         (templateText) =>
-                            class CodePanel extends V8CustomElement {
+                            class CodePanel extends CollapsableElement {
   _timeline;
   _selectedEntries;
   _entry;
@@ -24,19 +24,17 @@ DOM.defineCustomElement('view/code-panel',
   set timeline(timeline) {
     this._timeline = timeline;
     this.$('.panel').style.display = timeline.isEmpty() ? 'none' : 'inherit';
-    this.update();
+    this.requestUpdate();
   }
 
   set selectedEntries(entries) {
     this._selectedEntries = entries;
-    // TODO: add code selection dropdown
-    this._updateSelect();
     this.entry = entries.first();
   }
 
   set entry(entry) {
     this._entry = entry;
-    this.update();
+    this.requestUpdate();
   }
 
   get _disassemblyNode() {
@@ -52,12 +50,15 @@ DOM.defineCustomElement('view/code-panel',
   }
 
   _update() {
+    this._updateSelect();
     this._disassemblyNode.innerText = this._entry?.disassemble ?? '';
     this._sourceNode.innerText = this._entry?.source ?? '';
   }
 
   _updateSelect() {
     const select = this._codeSelectNode;
+    if (select.data === this._selectedEntries) return;
+    select.data = this._selectedEntries;
     select.options.length = 0;
     const sorted =
         this._selectedEntries.slice().sort((a, b) => a.time - b.time);

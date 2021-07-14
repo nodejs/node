@@ -63,13 +63,11 @@ TEST(LoggingTest, Message) {
 TEST(LoggingTest, SourceLocation) {
   using ::testing::AllOf;
   using ::testing::HasSubstr;
+  // clang-format off
   constexpr auto loc = SourceLocation::Current();
-  EXPECT_DEATH_IF_SUPPORTED(CPPGC_DCHECK(false),
-                            AllOf(HasSubstr(loc.FileName()),
-                                  HasSubstr(std::to_string(loc.Line() + 3))));
-  EXPECT_DEATH_IF_SUPPORTED(CPPGC_CHECK(false),
-                            AllOf(HasSubstr(loc.FileName()),
-                                  HasSubstr(std::to_string(loc.Line() + 6))));
+  EXPECT_DEATH_IF_SUPPORTED(CPPGC_DCHECK(false), AllOf(HasSubstr(loc.FileName()), HasSubstr(std::to_string(loc.Line() + 1)))); // NOLINT(whitespace/line_length)
+  EXPECT_DEATH_IF_SUPPORTED(CPPGC_CHECK(false), AllOf(HasSubstr(loc.FileName()), HasSubstr(std::to_string(loc.Line() + 2)))); // NOLINT(whitespace/line_length)
+  // clang-format on
 }
 #endif  // CPPGC_SUPPORTS_SOURCE_LOCATION
 

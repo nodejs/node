@@ -9,9 +9,12 @@
 // --always-opt is disabled because we rely on particular feedback for
 // optimizing to the fastest path.
 // Flags: --no-always-opt
+// The test relies on optimizing/deoptimizing at predictable moments, so
+// it's not suitable for deoptimization fuzzing.
+// Flags: --deopt-every-n-times=0
 
-assertThrows(() => d8.test.fast_c_api());
-const fast_c_api = new d8.test.fast_c_api();
+assertThrows(() => d8.test.FastCAPI());
+const fast_c_api = new d8.test.FastCAPI();
 
 // ----------- add_all -----------
 // `add_all` has the following signature:
@@ -36,24 +39,28 @@ if (fast_c_api.supports_fp_params) {
   // Test that regular call hits the fast path.
   fast_c_api.reset_counts();
   assertEquals(add_all_result, add_all());
+  assertOptimized(add_all);
   assertEquals(1, fast_c_api.fast_call_count());
   assertEquals(0, fast_c_api.slow_call_count());
 
   // Test fallback to slow path.
   fast_c_api.reset_counts();
   assertEquals(add_all_result, add_all(true));
+  assertOptimized(add_all);
   assertEquals(1, fast_c_api.fast_call_count());
   assertEquals(1, fast_c_api.slow_call_count());
 
   // Test that no fallback hits the fast path again.
   fast_c_api.reset_counts();
   assertEquals(add_all_result, add_all());
+  assertOptimized(add_all);
   assertEquals(1, fast_c_api.fast_call_count());
   assertEquals(0, fast_c_api.slow_call_count());
 } else {
   // Test that calling with unsupported types hits the slow path.
   fast_c_api.reset_counts();
   assertEquals(add_all_result, add_all());
+  assertOptimized(add_all);
   assertEquals(0, fast_c_api.fast_call_count());
   assertEquals(1, fast_c_api.slow_call_count());
 }
@@ -71,15 +78,17 @@ const add_all_mismatch_result = add_all_mismatch();
 
 fast_c_api.reset_counts();
 assertEquals(add_all_mismatch_result, add_all_mismatch());
-assertEquals(1, fast_c_api.slow_call_count());
-assertEquals(0, fast_c_api.fast_call_count());
 // If the function was ever optimized to the fast path, it should
 // have been deoptimized due to the argument types mismatch. If it
 // wasn't optimized due to lack of support for FP params, it will
 // stay optimized.
 if (fast_c_api.supports_fp_params) {
   assertUnoptimized(add_all_mismatch);
+} else {
+  assertOptimized(add_all_mismatch);
 }
+assertEquals(0, fast_c_api.fast_call_count());
+assertEquals(1, fast_c_api.slow_call_count());
 
 // ----------- add_32bit_int -----------
 // `add_32bit_int` has the following signature:
@@ -98,18 +107,21 @@ assertEquals(add_32bit_int_result, add_32bit_int());
 // Test that regular call hits the fast path.
 fast_c_api.reset_counts();
 assertEquals(add_32bit_int_result, add_32bit_int());
+assertOptimized(add_32bit_int);
 assertEquals(1, fast_c_api.fast_call_count());
 assertEquals(0, fast_c_api.slow_call_count());
 
 // Test fallback to slow path.
 fast_c_api.reset_counts();
 assertEquals(add_32bit_int_result, add_32bit_int(true));
+assertOptimized(add_32bit_int);
 assertEquals(1, fast_c_api.fast_call_count());
 assertEquals(1, fast_c_api.slow_call_count());
 
 // Test that no fallback hits the fast path again.
 fast_c_api.reset_counts();
 assertEquals(add_32bit_int_result, add_32bit_int());
+assertOptimized(add_32bit_int);
 assertEquals(1, fast_c_api.fast_call_count());
 assertEquals(0, fast_c_api.slow_call_count());
 
@@ -125,24 +137,56 @@ assertEquals(add_32bit_int_result, add_32bit_int_mismatch(false, -42, 45));
 // Test that passing extra argument stays on the fast path.
 fast_c_api.reset_counts();
 assertEquals(add_32bit_int_result, add_32bit_int_mismatch(false, -42, 45, -42));
+assertOptimized(add_32bit_int_mismatch);
 assertEquals(1, fast_c_api.fast_call_count());
+assertEquals(0, fast_c_api.slow_call_count());
+%PrepareFunctionForOptimization(add_32bit_int_mismatch);
 
 // Test that passing wrong argument types stays on the fast path.
 fast_c_api.reset_counts();
-assertEquals(Math.round(-42 + 3.14), add_32bit_int_mismatch(false, -42, 3.14));
+let mismatch_result = add_32bit_int_mismatch(false, -42, 3.14);
+assertOptimized(add_32bit_int_mismatch);
+assertEquals(Math.round(-42 + 3.14), mismatch_result);
 assertEquals(1, fast_c_api.fast_call_count());
+assertEquals(0, fast_c_api.slow_call_count());
+
+// Test that passing arguments non-convertible to number falls down the slow path.
+fast_c_api.reset_counts();
+assertEquals(0, add_32bit_int_mismatch(false, -4294967296, Symbol()));
+assertUnoptimized(add_32bit_int_mismatch);
+assertEquals(0, fast_c_api.fast_call_count());
+assertEquals(1, fast_c_api.slow_call_count());
+
+// Optimize again.
+%OptimizeFunctionOnNextCall(add_32bit_int_mismatch);
+assertEquals(add_32bit_int_result, add_32bit_int_mismatch(false, -42, 45));
+assertOptimized(add_32bit_int_mismatch);
 
 // Test that passing too few argument falls down the slow path,
 // because it's an argument type mismatch (undefined vs. int).
 fast_c_api.reset_counts();
 assertEquals(-42, add_32bit_int_mismatch(false, -42));
-assertEquals(1, fast_c_api.slow_call_count());
-assertEquals(0, fast_c_api.fast_call_count());
 assertUnoptimized(add_32bit_int_mismatch);
+assertEquals(0, fast_c_api.fast_call_count());
+assertEquals(1, fast_c_api.slow_call_count());
 
 // Test that the function can be optimized again.
 %PrepareFunctionForOptimization(add_32bit_int_mismatch);
 %OptimizeFunctionOnNextCall(add_32bit_int_mismatch);
 fast_c_api.reset_counts();
 assertEquals(add_32bit_int_result, add_32bit_int_mismatch(false, -42, 45));
+assertOptimized(add_32bit_int_mismatch);
 assertEquals(1, fast_c_api.fast_call_count());
+assertEquals(0, fast_c_api.slow_call_count());
+
+// Test function overloads
+function overloaded_add_all(should_fallback = false) {
+  return fast_c_api.overloaded_add_all(should_fallback,
+    -42, 45, Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER,
+    max_safe_float * 0.5, Math.PI);
+}
+
+%PrepareFunctionForOptimization(overloaded_add_all);
+assertEquals(add_all_result, overloaded_add_all());
+%OptimizeFunctionOnNextCall(overloaded_add_all);
+assertEquals(add_all_result, overloaded_add_all());

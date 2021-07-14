@@ -8,10 +8,10 @@ namespace ic {
 
 @export
 macro CollectCallFeedback(
-    maybeTarget: JSAny, context: Context,
+    maybeTarget: JSAny, maybeReceiver: Lazy<JSAny>, context: Context,
     maybeFeedbackVector: Undefined|FeedbackVector, slotId: uintptr): void {
   callable::CollectCallFeedback(
-      maybeTarget, context, maybeFeedbackVector, slotId);
+      maybeTarget, maybeReceiver, context, maybeFeedbackVector, slotId);
 }
 
 @export
@@ -51,10 +51,15 @@ macro IsUninitialized(feedback: MaybeObject): bool {
 }
 
 extern macro LoadFeedbackVectorSlot(FeedbackVector, uintptr): MaybeObject;
+extern macro LoadFeedbackVectorSlot(
+    FeedbackVector, uintptr, constexpr int32): MaybeObject;
 extern operator '[]' macro LoadFeedbackVectorSlot(
     FeedbackVector, intptr): MaybeObject;
 extern macro StoreFeedbackVectorSlot(
     FeedbackVector, uintptr, MaybeObject): void;
+extern macro StoreFeedbackVectorSlot(
+    FeedbackVector, uintptr, MaybeObject, constexpr WriteBarrierMode,
+    constexpr int32): void;
 extern macro StoreWeakReferenceInFeedbackVector(
     FeedbackVector, uintptr, HeapObject): MaybeObject;
 extern macro ReportFeedbackUpdate(FeedbackVector, uintptr, constexpr string);

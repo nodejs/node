@@ -315,7 +315,7 @@ RUNTIME_FUNCTION(Runtime_StringToArray) {
   int position = 0;
   if (s->IsFlat() && s->IsOneByteRepresentation()) {
     // Try using cached chars where possible.
-    elements = isolate->factory()->NewUninitializedFixedArray(length);
+    elements = isolate->factory()->NewFixedArray(length);
 
     DisallowGarbageCollection no_gc;
     String::FlatContent content = s->GetFlatContent(no_gc);

@@ -473,8 +473,7 @@ void MicrotaskQueueBuiltinsAssembler::RunAllPromiseHooks(
     TNode<HeapObject> promise_or_capability) {
   Label hook(this, Label::kDeferred), done_hook(this);
   TNode<Uint32T> promiseHookFlags = PromiseHookFlags();
-  Branch(IsAnyPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(
-      promiseHookFlags), &hook, &done_hook);
+  Branch(NeedsAnyPromiseHooks(promiseHookFlags), &hook, &done_hook);
   BIND(&hook);
   {
     switch (type) {

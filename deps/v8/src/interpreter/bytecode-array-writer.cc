@@ -37,9 +37,9 @@ BytecodeArrayWriter::BytecodeArrayWriter(
   bytecodes_.reserve(512);  // Derived via experimentation.
 }
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
-    LocalIsolate* isolate, int register_count, int parameter_count,
+    IsolateT* isolate, int register_count, int parameter_count,
     Handle<ByteArray> handler_table) {
   DCHECK_EQ(0, unbound_jumps_);
 
@@ -63,9 +63,9 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
         LocalIsolate* isolate, int register_count, int parameter_count,
         Handle<ByteArray> handler_table);
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<ByteArray> BytecodeArrayWriter::ToSourcePositionTable(
-    LocalIsolate* isolate) {
+    IsolateT* isolate) {
   DCHECK(!source_position_table_builder_.Lazy());
   Handle<ByteArray> source_position_table =
       source_position_table_builder_.Omit()

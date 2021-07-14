@@ -530,8 +530,8 @@ class TemplateHashMap
                                    AllocationPolicy>;
 
  public:
-  STATIC_ASSERT(sizeof(Key*) == sizeof(void*));    // NOLINT
-  STATIC_ASSERT(sizeof(Value*) == sizeof(void*));  // NOLINT
+  STATIC_ASSERT(sizeof(Key*) == sizeof(void*));
+  STATIC_ASSERT(sizeof(Value*) == sizeof(void*));
   struct value_type {
     Key* first;
     Value* second;

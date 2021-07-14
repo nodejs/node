@@ -115,12 +115,5 @@ bool TurboAssemblerBase::IsAddressableThroughRootRegister(
   return isolate->root_register_addressable_region().contains(address);
 }
 
-void TurboAssemblerBase::RecordCommentForOffHeapTrampoline(int builtin_index) {
-  if (!FLAG_code_comments) return;
-  std::ostringstream str;
-  str << "[ Inlined Trampoline to " << Builtins::name(builtin_index);
-  RecordComment(str.str().c_str());
-}
-
 }  // namespace internal
 }  // namespace v8

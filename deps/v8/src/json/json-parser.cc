@@ -10,6 +10,7 @@
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/field-type.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/map-updater.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property-descriptor.h"
 #include "src/strings/char-predicates-inl.h"
@@ -509,17 +510,18 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
       }
       Handle<FieldType> value_type =
           value->OptimalType(isolate(), representation);
-      Map::GeneralizeField(isolate(), target, descriptor_index,
-                           details.constness(), representation, value_type);
+      MapUpdater::GeneralizeField(isolate(), target, descriptor_index,
+                                  details.constness(), representation,
+                                  value_type);
     } else if (expected_representation.IsHeapObject() &&
                !target->instance_descriptors(isolate())
                     .GetFieldType(descriptor_index)
                     .NowContains(value)) {
       Handle<FieldType> value_type =
           value->OptimalType(isolate(), expected_representation);
-      Map::GeneralizeField(isolate(), target, descriptor_index,
-                           details.constness(), expected_representation,
-                           value_type);
+      MapUpdater::GeneralizeField(isolate(), target, descriptor_index,
+                                  details.constness(), expected_representation,
+                                  value_type);
     } else if (expected_representation.IsDouble() && value->IsSmi()) {
       new_mutable_double++;
     }
@@ -601,8 +603,8 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
           mutable_double_address += kMutableDoubleSize;
         } else {
           DCHECK(value.IsHeapNumber());
-          HeapObject::cast(value).synchronized_set_map(
-              *factory()->heap_number_map());
+          HeapObject::cast(value).set_map(*factory()->heap_number_map(),
+                                          kReleaseStore);
         }
       }
       object->RawFastInobjectPropertyAtPut(index, value, mode);

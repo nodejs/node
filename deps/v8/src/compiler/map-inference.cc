@@ -68,7 +68,7 @@ bool MapInference::AllOfInstanceTypesUnsafe(
   CHECK(HaveMaps());
 
   auto instance_type = [this, f](Handle<Map> map) {
-    MapRef map_ref(broker_, map);
+    MapRef map_ref = MakeRef(broker_, map);
     return f(map_ref.instance_type());
   };
   return std::all_of(maps_.begin(), maps_.end(), instance_type);
@@ -79,7 +79,7 @@ bool MapInference::AnyOfInstanceTypesUnsafe(
   CHECK(HaveMaps());
 
   auto instance_type = [this, f](Handle<Map> map) {
-    MapRef map_ref(broker_, map);
+    MapRef map_ref = MakeRef(broker_, map);
     return f(map_ref.instance_type());
   };
 
@@ -134,13 +134,13 @@ bool MapInference::RelyOnMapsHelper(CompilationDependencies* dependencies,
   if (Safe()) return true;
 
   auto is_stable = [this](Handle<Map> map) {
-    MapRef map_ref(broker_, map);
+    MapRef map_ref = MakeRef(broker_, map);
     return map_ref.is_stable();
   };
   if (dependencies != nullptr &&
       std::all_of(maps_.cbegin(), maps_.cend(), is_stable)) {
     for (Handle<Map> map : maps_) {
-      dependencies->DependOnStableMap(MapRef(broker_, map));
+      dependencies->DependOnStableMap(MakeRef(broker_, map));
     }
     SetGuarded();
     return true;

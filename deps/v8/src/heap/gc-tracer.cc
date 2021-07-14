@@ -13,7 +13,9 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/spaces.h"
-#include "src/logging/counters-inl.h"
+#include "src/logging/counters.h"
+#include "src/logging/tracing-flags.h"
+#include "src/tracing/tracing-category-observer.h"
 
 namespace v8 {
 namespace internal {
@@ -28,6 +30,8 @@ static size_t CountTotalHolesSize(Heap* heap) {
   }
   return holes_size;
 }
+
+#ifdef V8_RUNTIME_CALL_STATS
 WorkerThreadRuntimeCallStats* GCTracer::worker_thread_runtime_call_stats() {
   return heap_->isolate()->counters()->worker_thread_runtime_call_stats();
 }
@@ -38,6 +42,7 @@ RuntimeCallCounterId GCTracer::RCSCounterFromScope(Scope::ScopeId id) {
       static_cast<int>(RuntimeCallCounterId::kGC_MC_INCREMENTAL) +
       static_cast<int>(id));
 }
+#endif  // defined(V8_RUNTIME_CALL_STATS)
 
 double GCTracer::MonotonicallyIncreasingTimeInMs() {
   if (V8_UNLIKELY(FLAG_predictable)) {
@@ -61,6 +66,7 @@ GCTracer::Scope::Scope(GCTracer* tracer, ScopeId scope, ThreadKind thread_kind)
   start_time_ = tracer_->MonotonicallyIncreasingTimeInMs();
   if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled())) return;
 
+#ifdef V8_RUNTIME_CALL_STATS
   if (thread_kind_ == ThreadKind::kMain) {
     DCHECK_EQ(tracer_->heap_->isolate()->thread_id(), ThreadId::Current());
     runtime_stats_ =
@@ -72,6 +78,7 @@ GCTracer::Scope::Scope(GCTracer* tracer, ScopeId scope, ThreadKind thread_kind)
     runtime_stats_ = runtime_call_stats_scope_->Get();
     runtime_stats_->Enter(&timer_, GCTracer::RCSCounterFromScope(scope));
   }
+#endif  // defined(V8_RUNTIME_CALL_STATS)
 }
 
 GCTracer::Scope::~Scope() {
@@ -80,12 +87,23 @@ GCTracer::Scope::~Scope() {
   if (thread_kind_ == ThreadKind::kMain) {
     DCHECK_EQ(tracer_->heap_->isolate()->thread_id(), ThreadId::Current());
     tracer_->AddScopeSample(scope_, duration_ms);
+    if (scope_ == ScopeId::MC_INCREMENTAL ||
+        scope_ == ScopeId::MC_INCREMENTAL_START ||
+        scope_ == MC_INCREMENTAL_FINALIZE) {
+      auto* long_task_stats =
+          tracer_->heap_->isolate()->GetCurrentLongTaskStats();
+      long_task_stats->gc_full_incremental_wall_clock_duration_us +=
+          static_cast<int64_t>(duration_ms *
+                               base::Time::kMicrosecondsPerMillisecond);
+    }
   } else {
     tracer_->AddScopeSampleBackground(scope_, duration_ms);
   }
 
+#ifdef V8_RUNTIME_CALL_STATS
   if (V8_LIKELY(runtime_stats_ == nullptr)) return;
   runtime_stats_->Leave(&timer_);
+#endif  // defined(V8_RUNTIME_CALL_STATS)
 }
 
 const char* GCTracer::Scope::Name(ScopeId id) {
@@ -290,8 +308,10 @@ void GCTracer::StartInSafepoint() {
   current_.start_object_size = heap_->SizeOfObjects();
   current_.start_memory_size = heap_->memory_allocator()->Size();
   current_.start_holes_size = CountTotalHolesSize(heap_);
-  current_.young_object_size =
-      heap_->new_space()->Size() + heap_->new_lo_space()->SizeOfObjects();
+  size_t new_space_size = (heap_->new_space() ? heap_->new_space()->Size() : 0);
+  size_t new_lo_space_size =
+      (heap_->new_lo_space() ? heap_->new_lo_space()->SizeOfObjects() : 0);
+  current_.young_object_size = new_space_size + new_lo_space_size;
 }
 
 void GCTracer::ResetIncrementalMarkingCounters() {
@@ -333,6 +353,9 @@ void GCTracer::Stop(GarbageCollector collector) {
   AddAllocation(current_.end_time);
 
   double duration = current_.end_time - current_.start_time;
+  int64_t duration_us =
+      static_cast<int64_t>(duration * base::Time::kMicrosecondsPerMillisecond);
+  auto* long_task_stats = heap_->isolate()->GetCurrentLongTaskStats();
 
   switch (current_.type) {
     case Event::SCAVENGER:
@@ -342,6 +365,7 @@ void GCTracer::Stop(GarbageCollector collector) {
       recorded_minor_gcs_survived_.Push(
           MakeBytesAndDuration(current_.survived_young_object_size, duration));
       FetchBackgroundMinorGCCounters();
+      long_task_stats->gc_young_wall_clock_duration_us += duration_us;
       break;
     case Event::INCREMENTAL_MARK_COMPACTOR:
       current_.incremental_marking_bytes = incremental_marking_bytes_;
@@ -361,6 +385,7 @@ void GCTracer::Stop(GarbageCollector collector) {
       ResetIncrementalMarkingCounters();
       combined_mark_compact_speed_cache_ = 0.0;
       FetchBackgroundMarkCompactCounters();
+      long_task_stats->gc_full_atomic_wall_clock_duration_us += duration_us;
       break;
     case Event::MARK_COMPACTOR:
       DCHECK_EQ(0u, current_.incremental_marking_bytes);
@@ -373,6 +398,7 @@ void GCTracer::Stop(GarbageCollector collector) {
       ResetIncrementalMarkingCounters();
       combined_mark_compact_speed_cache_ = 0.0;
       FetchBackgroundMarkCompactCounters();
+      long_task_stats->gc_full_atomic_wall_clock_duration_us += duration_us;
       break;
     case Event::START:
       UNREACHABLE();

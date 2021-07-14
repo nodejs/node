@@ -7,6 +7,7 @@
 
 // This file should stay with minimal dependencies to allow embedder to check
 // against Oilpan types without including any other parts.
+#include <cstddef>
 #include <type_traits>
 
 namespace cppgc {
@@ -164,6 +165,18 @@ struct IsUntracedMemberType : std::false_type {};
 template <typename T>
 struct IsUntracedMemberType<T, true> : std::true_type {};
 
+template <typename T>
+struct IsComplete {
+ private:
+  template <typename U, size_t = sizeof(U)>
+  static std::true_type IsSizeOfKnown(U*);
+  static std::false_type IsSizeOfKnown(...);
+
+ public:
+  static constexpr bool value =
+      decltype(IsSizeOfKnown(std::declval<T*>()))::value;
+};
+
 }  // namespace internal
 
 /**
@@ -222,6 +235,12 @@ constexpr bool IsWeakMemberTypeV = internal::IsWeakMemberType<T>::value;
  */
 template <typename T>
 constexpr bool IsWeakV = internal::IsWeak<T>::value;
+
+/**
+ * Value is true for types that are complete, and false otherwise.
+ */
+template <typename T>
+constexpr bool IsCompleteV = internal::IsComplete<T>::value;
 
 }  // namespace cppgc
 

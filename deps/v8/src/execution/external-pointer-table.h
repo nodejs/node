@@ -27,7 +27,7 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
     buffer_[kNullExternalPointer] = kNullAddress;
   }
 
-  ~ExternalPointerTable() { ::free(buffer_); }
+  ~ExternalPointerTable() { base::Free(buffer_); }
 
   Address get(uint32_t index) const {
     CHECK_LT(index, length_);
@@ -47,13 +47,6 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
     }
     DCHECK_NE(kNullExternalPointer, index);
     return index;
-  }
-
-  void free(uint32_t index) {
-    // TODO(v8:10391, saelo): implement simple free list here, i.e. set
-    // buffer_[index] to freelist_head_ and set freelist_head
-    // to index
-    DCHECK_NE(kNullExternalPointer, index);
   }
 
   // Returns true if the entry exists in the table and therefore it can be read.

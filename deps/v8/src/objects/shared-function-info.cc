@@ -431,12 +431,6 @@ std::ostream& operator<<(std::ostream& os, const SourceCodeOf& v) {
   }
 }
 
-MaybeHandle<Code> SharedFunctionInfo::TryGetCachedCode(Isolate* isolate) {
-  if (!may_have_cached_code()) return {};
-  Handle<SharedFunctionInfo> zis(*this, isolate);
-  return isolate->compilation_cache()->LookupCode(zis);
-}
-
 void SharedFunctionInfo::DisableOptimization(BailoutReason reason) {
   DCHECK_NE(reason, BailoutReason::kNoReason);
 
@@ -456,9 +450,9 @@ void SharedFunctionInfo::DisableOptimization(BailoutReason reason) {
 }
 
 // static
-template <typename LocalIsolate>
+template <typename IsolateT>
 void SharedFunctionInfo::InitFromFunctionLiteral(
-    LocalIsolate* isolate, Handle<SharedFunctionInfo> shared_info,
+    IsolateT* isolate, Handle<SharedFunctionInfo> shared_info,
     FunctionLiteral* lit, bool is_toplevel) {
   DCHECK(!shared_info->name_or_scope_info(kAcquireLoad).IsScopeInfo());
 

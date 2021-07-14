@@ -6,7 +6,8 @@
   "resources": ["run.js"],
   "main": "run.js",
   "path": ["."],
-  "flags": ["--allow-natives-syntax", "--profile-deserialization"],
+  "flags": ["--allow-natives-syntax", "--profile-deserialization",
+            "--serialization-statistics"],
   "tests": [
     {
       "name": "ReservedMemoryIsolate",

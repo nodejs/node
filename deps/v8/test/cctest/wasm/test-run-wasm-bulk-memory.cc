@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/wasm/wasm-module-builder.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
 #include "test/common/wasm/test-signatures.h"
@@ -413,7 +414,7 @@ void TestTableInitElems(TestExecutionTier execution_tier, int table_index) {
   }
 
   // Passive element segment has [f0, f1, f2, f3, f4, null].
-  function_indexes.push_back(WasmElemSegment::kNullIndex);
+  function_indexes.push_back(WasmModuleBuilder::kNullIndex);
 
   // Add 10 function tables, even though we only test one table.
   for (int i = 0; i < 10; ++i) {

@@ -60,7 +60,6 @@ class CWasmEntryArgTester {
     WriteToBuffer(&packer, args...);
     Address wasm_call_target = wasm_code_->instruction_start();
     Handle<Object> object_ref = runner_.builder().instance_object();
-    wasm_code_->native_module()->SetExecutable(true);
     Execution::CallWasm(isolate_, c_wasm_entry_, wasm_call_target, object_ref,
                         packer.argv());
     CHECK(!isolate_->has_pending_exception());
