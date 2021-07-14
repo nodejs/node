@@ -13,7 +13,6 @@
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-module.h"
-#include "src/wasm/wasm-opcodes.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -301,6 +300,11 @@ uint32_t WasmModuleBuilder::AddArrayType(ArrayType* type) {
   return index;
 }
 
+// static
+const uint32_t WasmModuleBuilder::kNullIndex =
+    std::numeric_limits<uint32_t>::max();
+
+// TODO(9495): Add support for typed function tables and more init. expressions.
 uint32_t WasmModuleBuilder::AllocateIndirectFunctions(uint32_t count) {
   DCHECK(allocating_indirect_functions_allowed_);
   uint32_t index = static_cast<uint32_t>(indirect_functions_.size());
@@ -310,7 +314,7 @@ uint32_t WasmModuleBuilder::AllocateIndirectFunctions(uint32_t count) {
   }
   uint32_t new_size = static_cast<uint32_t>(indirect_functions_.size()) + count;
   DCHECK(max_table_size_ == 0 || new_size <= max_table_size_);
-  indirect_functions_.resize(new_size, WasmElemSegment::kNullIndex);
+  indirect_functions_.resize(new_size, kNullIndex);
   uint32_t max = max_table_size_ > 0 ? max_table_size_ : new_size;
   if (tables_.empty()) {
     // This cannot use {AddTable} because that would flip the
@@ -710,13 +714,13 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     buffer->write_u8(0);              // table index
     uint32_t first_element = 0;
     while (first_element < indirect_functions_.size() &&
-           indirect_functions_[first_element] == WasmElemSegment::kNullIndex) {
+           indirect_functions_[first_element] == kNullIndex) {
       first_element++;
     }
     uint32_t last_element =
         static_cast<uint32_t>(indirect_functions_.size() - 1);
     while (last_element >= first_element &&
-           indirect_functions_[last_element] == WasmElemSegment::kNullIndex) {
+           indirect_functions_[last_element] == kNullIndex) {
       last_element--;
     }
     buffer->write_u8(kExprI32Const);  // offset

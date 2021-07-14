@@ -1302,7 +1302,7 @@ int MultiPushFPULatency() {
 
 int PushCallerSavedLatency(SaveFPRegsMode fp_mode) {
   int latency = MultiPushLatency();
-  if (fp_mode == kSaveFPRegs) {
+  if (fp_mode == SaveFPRegsMode::kSave) {
     latency += MultiPushFPULatency();
   }
   return latency;
@@ -1326,7 +1326,7 @@ int MultiPopLatency() {
 
 int PopCallerSavedLatency(SaveFPRegsMode fp_mode) {
   int latency = 0;
-  if (fp_mode == kSaveFPRegs) {
+  if (fp_mode == SaveFPRegsMode::kSave) {
     latency += MultiPopFPULatency();
   }
   return latency + MultiPopLatency();

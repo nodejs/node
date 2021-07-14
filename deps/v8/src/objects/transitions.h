@@ -100,13 +100,13 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
       PropertyAttributes* out_integrity_level = nullptr);
 
   // ===== ITERATION =====
-  using TraverseCallback = void (*)(Map map, void* data);
+  using TraverseCallback = std::function<void(Map)>;
 
   // Traverse the transition tree in postorder.
-  void TraverseTransitionTree(TraverseCallback callback, void* data) {
+  void TraverseTransitionTree(TraverseCallback callback) {
     // Make sure that we do not allocate in the callback.
     DisallowGarbageCollection no_gc;
-    TraverseTransitionTreeInternal(callback, data, &no_gc);
+    TraverseTransitionTreeInternal(callback, &no_gc);
   }
 
   // ===== PROTOTYPE TRANSITIONS =====
@@ -192,7 +192,7 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   void SetPrototypeTransitions(Handle<WeakFixedArray> proto_transitions);
   WeakFixedArray GetPrototypeTransitions();
 
-  void TraverseTransitionTreeInternal(TraverseCallback callback, void* data,
+  void TraverseTransitionTreeInternal(TraverseCallback callback,
                                       DisallowGarbageCollection* no_gc);
 
   Isolate* isolate_;

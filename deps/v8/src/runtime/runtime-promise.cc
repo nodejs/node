@@ -260,17 +260,18 @@ RUNTIME_FUNCTION(Runtime_ResolvePromise) {
 // takes care of the Error-related construction, e.g., stack traces.
 RUNTIME_FUNCTION(Runtime_ConstructAggregateErrorHelper) {
   HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
+  DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, target, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, new_target, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, message, 2);
+  CONVERT_ARG_HANDLE_CHECKED(Object, options, 3);
 
   DCHECK_EQ(*target, *isolate->aggregate_error_function());
 
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      ErrorUtils::Construct(isolate, target, new_target, message));
+      ErrorUtils::Construct(isolate, target, new_target, message, options));
   return *result;
 }
 
@@ -299,6 +300,14 @@ RUNTIME_FUNCTION(Runtime_ConstructInternalAggregateErrorHelper) {
     arg2 = args.at<Object>(3);
   }
 
+  Handle<Object> options;
+  if (args.length() >= 5) {
+    CHECK(args[4].IsObject());
+    options = args.at<Object>(4);
+  } else {
+    options = isolate->factory()->undefined_value();
+  }
+
   Handle<Object> message_string = MessageFormatter::Format(
       isolate, MessageTemplate(message->value()), arg0, arg1, arg2);
 
@@ -306,8 +315,8 @@ RUNTIME_FUNCTION(Runtime_ConstructInternalAggregateErrorHelper) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
       ErrorUtils::Construct(isolate, isolate->aggregate_error_function(),
-                            isolate->aggregate_error_function(),
-                            message_string));
+                            isolate->aggregate_error_function(), message_string,
+                            options));
   return *result;
 }
 

@@ -115,8 +115,8 @@ class SourceTextModuleDescriptor : public ZoneObject {
           module_request(-1),
           cell_index(0) {}
 
-    template <typename LocalIsolate>
-    Handle<SourceTextModuleInfoEntry> Serialize(LocalIsolate* isolate) const;
+    template <typename IsolateT>
+    Handle<SourceTextModuleInfoEntry> Serialize(IsolateT* isolate) const;
   };
 
   enum CellIndexKind { kInvalid, kExport, kImport };
@@ -132,8 +132,8 @@ class SourceTextModuleDescriptor : public ZoneObject {
           position_(position),
           index_(index) {}
 
-    template <typename LocalIsolate>
-    Handle<v8::internal::ModuleRequest> Serialize(LocalIsolate* isolate) const;
+    template <typename IsolateT>
+    Handle<v8::internal::ModuleRequest> Serialize(IsolateT* isolate) const;
 
     const AstRawString* specifier() const { return specifier_; }
     const ImportAssertions* import_assertions() const {
@@ -225,8 +225,8 @@ class SourceTextModuleDescriptor : public ZoneObject {
     namespace_imports_.push_back(entry);
   }
 
-  template <typename LocalIsolate>
-  Handle<FixedArray> SerializeRegularExports(LocalIsolate* isolate,
+  template <typename IsolateT>
+  Handle<FixedArray> SerializeRegularExports(IsolateT* isolate,
                                              Zone* zone) const;
 
  private:

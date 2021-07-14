@@ -2,15 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-type-reflection --experimental-wasm-simd
-// SIMD in Liftoff only works with these cpu features, force them on.
-// Flags: --enable-sse3 --enable-ssse3 --enable-sse4-1
+// Flags: --experimental-wasm-type-reflection
 
 utils.load('test/inspector/wasm-inspector-test.js');
 
 let {session, contextGroup, Protocol} = InspectorTest.start(
     'Test retrieving scope information from compiled Liftoff frames');
 session.setupScriptMap();
+Protocol.Runtime.enable();
 Protocol.Debugger.enable();
 Protocol.Debugger.onPaused(printPauseLocationsAndContinue);
 

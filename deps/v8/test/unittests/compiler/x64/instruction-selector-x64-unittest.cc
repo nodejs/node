@@ -77,6 +77,34 @@ TEST_F(InstructionSelectorTest, TruncateInt64ToInt32WithParameter) {
   EXPECT_EQ(kX64Movl, s[0]->arch_opcode());
 }
 
+TEST_F(InstructionSelectorTest, SelectWord32) {
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                  MachineType::Int32());
+  Node* cond = m.Int32Constant(1);
+  m.Return(m.Word32Select(cond, m.Parameter(0), m.Parameter(1)));
+  Stream s = m.Build();
+  EXPECT_EQ(kX64Cmp32, s[0]->arch_opcode());
+  EXPECT_EQ(4U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(kFlags_select, s[0]->flags_mode());
+  EXPECT_EQ(kNotEqual, s[0]->flags_condition());
+  EXPECT_TRUE(s.IsSameAsInput(s[0]->Output(), 2));
+}
+
+TEST_F(InstructionSelectorTest, SelectWord64) {
+  StreamBuilder m(this, MachineType::Int64(), MachineType::Int64(),
+                  MachineType::Int64());
+  Node* cond = m.Int32Constant(1);
+  m.Return(m.Word64Select(cond, m.Parameter(0), m.Parameter(1)));
+  Stream s = m.Build();
+  EXPECT_EQ(kX64Cmp32, s[0]->arch_opcode());
+  EXPECT_EQ(4U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(kFlags_select, s[0]->flags_mode());
+  EXPECT_EQ(kNotEqual, s[0]->flags_condition());
+  EXPECT_TRUE(s.IsSameAsInput(s[0]->Output(), 2));
+}
+
 namespace {
 struct LoadWithToInt64Extension {
   MachineType type;
@@ -1278,6 +1306,24 @@ TEST_F(InstructionSelectorTest, LoadCmp32) {
     Node* const p1 = m.Parameter(1);
     m.Return(
         m.Word32Equal(m.Load(MachineType::Int8(), p0, p1), m.Int32Constant(0)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kX64Cmp8, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_MR1, s[0]->addressing_mode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_TRUE(s[0]->InputAt(2)->IsImmediate());
+  }
+  {
+    // Word32Equal(LoadImmutable[Int8](p0, p1), Int32Constant(0)) ->
+    //  cmpb [p0,p1], 0
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int64(),
+                    MachineType::Int64());
+    Node* const p0 = m.Parameter(0);
+    Node* const p1 = m.Parameter(1);
+    m.Return(m.Word32Equal(m.LoadImmutable(MachineType::Int8(), p0, p1),
+                           m.Int32Constant(0)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(kX64Cmp8, s[0]->arch_opcode());

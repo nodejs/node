@@ -17,19 +17,30 @@ int ElementsKindToShiftSize(ElementsKind elements_kind) {
     case UINT8_ELEMENTS:
     case INT8_ELEMENTS:
     case UINT8_CLAMPED_ELEMENTS:
+    case RAB_GSAB_UINT8_ELEMENTS:
+    case RAB_GSAB_INT8_ELEMENTS:
+    case RAB_GSAB_UINT8_CLAMPED_ELEMENTS:
       return 0;
     case UINT16_ELEMENTS:
     case INT16_ELEMENTS:
+    case RAB_GSAB_UINT16_ELEMENTS:
+    case RAB_GSAB_INT16_ELEMENTS:
       return 1;
     case UINT32_ELEMENTS:
     case INT32_ELEMENTS:
     case FLOAT32_ELEMENTS:
+    case RAB_GSAB_UINT32_ELEMENTS:
+    case RAB_GSAB_INT32_ELEMENTS:
+    case RAB_GSAB_FLOAT32_ELEMENTS:
       return 2;
     case PACKED_DOUBLE_ELEMENTS:
     case HOLEY_DOUBLE_ELEMENTS:
     case FLOAT64_ELEMENTS:
     case BIGINT64_ELEMENTS:
     case BIGUINT64_ELEMENTS:
+    case RAB_GSAB_FLOAT64_ELEMENTS:
+    case RAB_GSAB_BIGINT64_ELEMENTS:
+    case RAB_GSAB_BIGUINT64_ELEMENTS:
       return 3;
     case PACKED_SMI_ELEMENTS:
     case PACKED_ELEMENTS:
@@ -109,6 +120,7 @@ const char* ElementsKindToString(ElementsKind kind) {
     return #TYPE "ELEMENTS";
 
       TYPED_ARRAYS(PRINT_NAME);
+      RAB_GSAB_TYPED_ARRAYS(PRINT_NAME);
 #undef PRINT_NAME
     case NO_ELEMENTS:
       return "NO_ELEMENTS";

@@ -173,7 +173,8 @@ class InjectedScript final {
     int m_sessionId;
   };
 
-  class ContextScope : public Scope {
+  class ContextScope : public Scope,
+                       public V8InspectorSession::CommandLineAPIScope {
    public:
     ContextScope(V8InspectorSessionImpl*, int executionContextId);
     ~ContextScope() override;

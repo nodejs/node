@@ -4,7 +4,6 @@
 
 // Flags: --no-stress-opt --trace-wasm-memory --no-liftoff
 // Flags: --experimental-wasm-simd
-// Flags: --enable-sse3 --enable-sse4-1
 
 load("test/mjsunit/wasm/wasm-module-builder.js");
 

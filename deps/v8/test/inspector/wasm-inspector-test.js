@@ -7,9 +7,12 @@ utils.load('test/mjsunit/wasm/wasm-module-builder.js');
 WasmInspectorTest = {}
 InspectorTest.getWasmOpcodeName = getOpcodeName;
 
-WasmInspectorTest.evalWithUrl = async function(code, url) {
+WasmInspectorTest.evalWithUrl = async function(expression, url) {
+  const sourceURL = `v8://test/${url}`;
+  const {result: {scriptId}} = await Protocol.Runtime.compileScript({
+    expression, sourceURL, persistScript: true}).then(printIfFailure);
   return await Protocol.Runtime
-      .evaluate({'expression': code + '\n//# sourceURL=v8://test/' + url})
+      .runScript({scriptId})
       .then(printIfFailure);
 };
 

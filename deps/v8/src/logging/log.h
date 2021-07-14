@@ -208,6 +208,7 @@ class Logger : public CodeEventListener {
                              Handle<String> source) override;
   void CodeMoveEvent(AbstractCode from, AbstractCode to) override;
   void SharedFunctionInfoMoveEvent(Address from, Address to) override;
+  void NativeContextMoveEvent(Address from, Address to) override {}
   void CodeMovingGCEvent() override;
   void CodeDisableOptEvent(Handle<AbstractCode> code,
                            Handle<SharedFunctionInfo> shared) override;
@@ -410,6 +411,7 @@ class V8_EXPORT_PRIVATE CodeEventLogger : public CodeEventListener {
   void GetterCallbackEvent(Handle<Name> name, Address entry_point) override {}
   void SetterCallbackEvent(Handle<Name> name, Address entry_point) override {}
   void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
+  void NativeContextMoveEvent(Address from, Address to) override {}
   void CodeMovingGCEvent() override {}
   void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
                       int fp_to_sp_delta, bool reuse_code) override {}
@@ -475,6 +477,7 @@ class ExternalCodeEventListener : public CodeEventListener {
   void GetterCallbackEvent(Handle<Name> name, Address entry_point) override {}
   void SetterCallbackEvent(Handle<Name> name, Address entry_point) override {}
   void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
+  void NativeContextMoveEvent(Address from, Address to) override {}
   void CodeMoveEvent(AbstractCode from, AbstractCode to) override;
   void CodeDisableOptEvent(Handle<AbstractCode> code,
                            Handle<SharedFunctionInfo> shared) override {}

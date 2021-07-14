@@ -11,7 +11,6 @@
 #include "src/compiler/code-assembler.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
-#include "src/heap/heap-inl.h"  // For Heap::code_range.
 #include "src/init/setup-isolate.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter-generator.h"
@@ -42,10 +41,10 @@ AssemblerOptions BuiltinAssemblerOptions(Isolate* isolate,
     return options;
   }
 
-  const base::AddressRegion& code_range = isolate->heap()->code_range();
+  const base::AddressRegion& code_region = isolate->heap()->code_region();
   bool pc_relative_calls_fit_in_code_range =
-      !code_range.is_empty() &&
-      std::ceil(static_cast<float>(code_range.size() / MB)) <=
+      !code_region.is_empty() &&
+      std::ceil(static_cast<float>(code_region.size() / MB)) <=
           kMaxPCRelativeCodeRangeInMB;
 
   options.isolate_independent_code = true;
@@ -219,7 +218,7 @@ void SetupIsolateDelegate::PopulateWithPlaceholders(Isolate* isolate) {
 
 // static
 void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
-  // Replace references from all code objects to placeholders.
+  // Replace references from all builtin code objects to placeholders.
   Builtins* builtins = isolate->builtins();
   DisallowGarbageCollection no_gc;
   CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
@@ -228,11 +227,8 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
       RelocInfo::ModeMask(RelocInfo::FULL_EMBEDDED_OBJECT) |
       RelocInfo::ModeMask(RelocInfo::COMPRESSED_EMBEDDED_OBJECT) |
       RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET);
-  HeapObjectIterator iterator(isolate->heap());
-  for (HeapObject obj = iterator.Next(); !obj.is_null();
-       obj = iterator.Next()) {
-    if (!obj.IsCode()) continue;
-    Code code = Code::cast(obj);
+  for (int i = 0; i < Builtins::builtin_count; i++) {
+    Code code = builtins->builtin(i);
     bool flush_icache = false;
     for (RelocIterator it(code, kRelocMask); !it.done(); it.next()) {
       RelocInfo* rinfo = it.rinfo();

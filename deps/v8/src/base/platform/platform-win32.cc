@@ -30,7 +30,7 @@
 #include <VersionHelpers.h>
 
 #if defined(_MSC_VER)
-#include <crtdbg.h>  // NOLINT
+#include <crtdbg.h>
 #endif               // defined(_MSC_VER)
 
 // Extra functions for MinGW. Most of these are the _s functions which are in

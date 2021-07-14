@@ -85,6 +85,11 @@ namespace internal {
   HR(wasm_modules_per_engine, V8.WasmModulesPerEngine, 1, 1024, 30)            \
   /* bailout reason if Liftoff failed, or {kSuccess} (per function) */         \
   HR(liftoff_bailout_reasons, V8.LiftoffBailoutReasons, 0, 20, 21)             \
+  /* support for PKEYs/PKU by testing result of pkey_alloc() */                \
+  /* TODO(chromium:1207318): Only values 0 and 1 are actually used, but 3 */   \
+  /* buckets needed until {BooleanHistogram} is supported in Chromium UMA. */  \
+  HR(wasm_memory_protection_keys_support, V8.WasmMemoryProtectionKeysSupport,  \
+     0, 2, 3)                                                                  \
   /* number of thrown exceptions per isolate */                                \
   HR(wasm_throw_count, V8.WasmThrowCount, 0, 100000, 30)                       \
   /* number of rethrown exceptions per isolate */                              \

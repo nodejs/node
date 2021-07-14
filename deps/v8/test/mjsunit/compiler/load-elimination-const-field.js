@@ -134,7 +134,8 @@
         }
     }
 
-    %EnsureFeedbackVectorForFunction(B);
+    %PrepareFunctionForOptimization(B);
+
     %PrepareFunctionForOptimization(inst_param);
     inst_param(1); inst_param(2);
     %OptimizeFunctionOnNextCall(inst_param); inst_param(3);
@@ -165,7 +166,6 @@
         }
     }
 
-    %EnsureFeedbackVectorForFunction(B);
     %PrepareFunctionForOptimization(inst_computed);
     inst_computed(1); inst_computed(2);
     %OptimizeFunctionOnNextCall(inst_computed); inst_computed(3);

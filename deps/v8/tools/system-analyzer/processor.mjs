@@ -230,17 +230,21 @@ export class Processor extends LogReader {
     this.addSourcePosition(codeEntry, logEntry);
     logEntry.functionSourcePosition = logEntry.sourcePosition;
     // custom parse deopt location
-    if (deoptLocation !== '<unknown>') {
-      const colSeparator = deoptLocation.lastIndexOf(':');
-      const rowSeparator = deoptLocation.lastIndexOf(':', colSeparator - 1);
-      const script = this.getScript(deoptLocation.substring(1, rowSeparator));
-      const line =
-          parseInt(deoptLocation.substring(rowSeparator + 1, colSeparator));
-      const column = parseInt(
-          deoptLocation.substring(colSeparator + 1, deoptLocation.length - 1));
-      logEntry.sourcePosition =
-          script.addSourcePosition(line, column, logEntry);
+    if (deoptLocation === '<unknown>') return;
+    // Handle deopt location for inlined code: <location> inlined at <location>
+    const inlinedPos = deoptLocation.indexOf(' inlined at ');
+    if (inlinedPos > 0) {
+      deoptLocation = deoptLocation.substring(0, inlinedPos)
     }
+    const colSeparator = deoptLocation.lastIndexOf(':');
+    const rowSeparator = deoptLocation.lastIndexOf(':', colSeparator - 1);
+    const script = this.getScript(deoptLocation.substring(1, rowSeparator));
+    if (!script) return;
+    const line =
+        parseInt(deoptLocation.substring(rowSeparator + 1, colSeparator));
+    const column = parseInt(
+        deoptLocation.substring(colSeparator + 1, deoptLocation.length - 1));
+    logEntry.sourcePosition = script.addSourcePosition(line, column, logEntry);
   }
 
   processScriptSource(scriptId, url, source) {

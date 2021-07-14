@@ -125,7 +125,7 @@ void ConcurrentMarkingTask::ProcessWorklists(
               BasePage::FromPayload(item.base_object_payload)
                   ->SynchronizedLoad();
               const HeapObjectHeader& header =
-                  HeapObjectHeader::FromPayload(item.base_object_payload);
+                  HeapObjectHeader::FromObject(item.base_object_payload);
               DCHECK(!header.IsInConstruction<AccessMode::kAtomic>());
               DCHECK(header.IsMarked<AccessMode::kAtomic>());
               concurrent_marking_state.AccountMarkedBytes(header);

@@ -15,30 +15,10 @@ namespace internal {
 
 #ifdef V8_COMPRESS_POINTERS
 
-#if defined V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
-
 PtrComprCageBase::PtrComprCageBase(const Isolate* isolate)
-    : address_(isolate->isolate_root()) {}
+    : address_(isolate->cage_base()) {}
 PtrComprCageBase::PtrComprCageBase(const LocalIsolate* isolate)
-    : address_(isolate->isolate_root()) {}
-
-#elif defined V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-
-PtrComprCageBase::PtrComprCageBase(const Isolate* isolate)
-    : address_(isolate->isolate_root()) {
-  UNIMPLEMENTED();
-}
-PtrComprCageBase::PtrComprCageBase(const LocalIsolate* isolate)
-    : address_(isolate->isolate_root()) {
-  UNIMPLEMENTED();
-}
-
-#else
-
-#error "Pointer compression build configuration error"
-
-#endif  // V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE,
-        // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+    : address_(isolate->cage_base()) {}
 
 Address PtrComprCageBase::address() const {
   Address ret = address_;

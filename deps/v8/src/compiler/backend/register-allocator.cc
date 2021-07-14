@@ -1373,21 +1373,6 @@ TopLevelLiveRange* TopTierRegisterAllocationData::NewLiveRange(
   return allocation_zone()->New<TopLevelLiveRange>(index, rep);
 }
 
-int TopTierRegisterAllocationData::GetNextLiveRangeId() {
-  int vreg = virtual_register_count_++;
-  if (vreg >= static_cast<int>(live_ranges().size())) {
-    live_ranges().resize(vreg + 1, nullptr);
-  }
-  return vreg;
-}
-
-TopLevelLiveRange* TopTierRegisterAllocationData::NextLiveRange(
-    MachineRepresentation rep) {
-  int vreg = GetNextLiveRangeId();
-  TopLevelLiveRange* ret = NewLiveRange(vreg, rep);
-  return ret;
-}
-
 TopTierRegisterAllocationData::PhiMapValue*
 TopTierRegisterAllocationData::InitializePhiMap(const InstructionBlock* block,
                                                 PhiInstruction* phi) {
@@ -1747,6 +1732,7 @@ void ConstraintBuilder::MeetConstraintsAfter(int instr_index) {
 void ConstraintBuilder::MeetConstraintsBefore(int instr_index) {
   Instruction* second = code()->InstructionAt(instr_index);
   // Handle fixed input operands of second instruction.
+  ZoneVector<TopLevelLiveRange*>* spilled_consts = nullptr;
   for (size_t i = 0; i < second->InputCount(); i++) {
     InstructionOperand* input = second->InputAt(i);
     if (input->IsImmediate()) {
@@ -1757,8 +1743,19 @@ void ConstraintBuilder::MeetConstraintsBefore(int instr_index) {
       TopLevelLiveRange* range =
           data()->GetOrCreateLiveRangeFor(cur_input->virtual_register());
       if (range->HasSpillOperand() && range->GetSpillOperand()->IsConstant()) {
+        bool already_spilled = false;
+        if (spilled_consts == nullptr) {
+          spilled_consts =
+              allocation_zone()->New<ZoneVector<TopLevelLiveRange*>>(
+                  allocation_zone());
+        } else {
+          auto it =
+              std::find(spilled_consts->begin(), spilled_consts->end(), range);
+          already_spilled = it != spilled_consts->end();
+        }
         auto it = data()->slot_for_const_range().find(range);
         if (it == data()->slot_for_const_range().end()) {
+          DCHECK(!already_spilled);
           int width = ByteWidthForStackSlot(range->representation());
           int index = data()->frame()->AllocateSpillSlot(width);
           auto* slot = AllocatedOperand::New(allocation_zone(),
@@ -1766,13 +1763,15 @@ void ConstraintBuilder::MeetConstraintsBefore(int instr_index) {
                                              range->representation(), index);
           it = data()->slot_for_const_range().emplace(range, slot).first;
         }
-        auto* slot = it->second;
-        int input_vreg = cur_input->virtual_register();
-        UnallocatedOperand input_copy(UnallocatedOperand::REGISTER_OR_SLOT,
-                                      input_vreg);
-        // Spill at every use position for simplicity. This case is very rare -
-        // the only known instance is crbug.com/1146880.
-        data()->AddGapMove(instr_index, Instruction::END, input_copy, *slot);
+        if (!already_spilled) {
+          auto* slot = it->second;
+          int input_vreg = cur_input->virtual_register();
+          UnallocatedOperand input_copy(UnallocatedOperand::REGISTER_OR_SLOT,
+                                        input_vreg);
+          // Spill at every use position for simplicity, this case is very rare.
+          data()->AddGapMove(instr_index, Instruction::END, input_copy, *slot);
+          spilled_consts->push_back(range);
+        }
       }
     }
     if (cur_input->HasFixedPolicy()) {
@@ -1792,7 +1791,7 @@ void ConstraintBuilder::MeetConstraintsBefore(int instr_index) {
     if (!second_output->HasSameAsInputPolicy()) continue;
     DCHECK_EQ(0, i);  // Only valid for first output.
     UnallocatedOperand* cur_input =
-        UnallocatedOperand::cast(second->InputAt(0));
+        UnallocatedOperand::cast(second->InputAt(second_output->input_index()));
     int output_vreg = second_output->virtual_register();
     int input_vreg = cur_input->virtual_register();
     UnallocatedOperand input_copy(UnallocatedOperand::REGISTER_OR_SLOT,
@@ -3958,7 +3957,8 @@ void LinearScanAllocator::FindFreeRegistersForRange(
       // interesting to this range anyway.
       // TODO(mtrofin): extend to aliased ranges, too.
       if ((kSimpleFPAliasing || !check_fp_aliasing()) &&
-          positions[cur_reg] <= cur_inactive->NextStart()) {
+          (positions[cur_reg] <= cur_inactive->NextStart() ||
+           range->End() <= cur_inactive->NextStart())) {
         break;
       }
       LifetimePosition next_intersection =

@@ -63,6 +63,8 @@ from testrunner.local import utils
 # runtime/references: As of May 2020 the C++ style guide suggests using
 #   references for out parameters, see
 #   https://google.github.io/styleguide/cppguide.html#Inputs_and_Outputs.
+# whitespace/braces: Doesn't handle {}-initialization for custom types
+#   well; also should be subsumed by clang-format.
 
 LINT_RULES = """
 -build/header_guard
@@ -70,6 +72,7 @@ LINT_RULES = """
 -readability/fn_size
 -readability/multiline_comment
 -runtime/references
+-whitespace/braces
 -whitespace/comments
 """.split()
 

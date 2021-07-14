@@ -28,10 +28,10 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   // is exported here.
   static Handle<Code> RuntimeCEntry(Isolate* isolate, int result_size = 1);
 
-  static Handle<Code> CEntry(Isolate* isolate, int result_size = 1,
-                             SaveFPRegsMode save_doubles = kDontSaveFPRegs,
-                             ArgvMode argv_mode = kArgvOnStack,
-                             bool builtin_exit_frame = false);
+  static Handle<Code> CEntry(
+      Isolate* isolate, int result_size = 1,
+      SaveFPRegsMode save_doubles = SaveFPRegsMode::kIgnore,
+      ArgvMode argv_mode = ArgvMode::kStack, bool builtin_exit_frame = false);
 
   // Initial states for ICs.
   static Callable LoadGlobalIC(Isolate* isolate, TypeofMode typeof_mode);
@@ -48,9 +48,6 @@ class V8_EXPORT_PRIVATE CodeFactory final {
                                      KeyedAccessStoreMode mode);
 
   static Callable ResumeGenerator(Isolate* isolate);
-
-  static Callable FrameDropperTrampoline(Isolate* isolate);
-  static Callable HandleDebuggerStatement(Isolate* isolate);
 
   static Callable BinaryOperation(Isolate* isolate, Operation op);
 

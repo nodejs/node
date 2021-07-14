@@ -127,7 +127,7 @@ void String::MakeThin(Isolate* isolate, String internalized) {
   ThinString thin = ThinString::unchecked_cast(*this);
   thin.set_actual(internalized);
   DCHECK_GE(old_size, ThinString::kSize);
-  this->synchronized_set_map(*map);
+  this->set_map(*map, kReleaseStore);
   Address thin_end = thin.address() + ThinString::kSize;
   int size_delta = old_size - ThinString::kSize;
   if (size_delta != 0) {
@@ -200,7 +200,7 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
 
   // We are storing the new map using release store after creating a filler for
   // the left-over space to avoid races with the sweeper thread.
-  this->synchronized_set_map(new_map);
+  this->set_map(new_map, kReleaseStore);
 
   ExternalTwoByteString self = ExternalTwoByteString::cast(*this);
   self.AllocateExternalPointerEntries(isolate);
@@ -277,7 +277,7 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
 
   // We are storing the new map using release store after creating a filler for
   // the left-over space to avoid races with the sweeper thread.
-  this->synchronized_set_map(new_map);
+  this->set_map(new_map, kReleaseStore);
 
   ExternalOneByteString self = ExternalOneByteString::cast(*this);
   self.AllocateExternalPointerEntries(isolate);
@@ -374,7 +374,7 @@ void String::StringShortPrint(StringStream* accumulator) {
   accumulator->Put('>');
 }
 
-void String::PrintUC16(std::ostream& os, int start, int end) {  // NOLINT
+void String::PrintUC16(std::ostream& os, int start, int end) {
   if (end < 0) end = length();
   StringCharacterStream stream(*this, start);
   for (int i = start; i < end && stream.HasMore(); i++) {
@@ -735,8 +735,8 @@ static void CalculateLineEndsImpl(std::vector<int>* line_ends,
   }
 }
 
-template <typename LocalIsolate>
-Handle<FixedArray> String::CalculateLineEnds(LocalIsolate* isolate,
+template <typename IsolateT>
+Handle<FixedArray> String::CalculateLineEnds(IsolateT* isolate,
                                              Handle<String> src,
                                              bool include_ending_line) {
   src = Flatten(isolate, src);
@@ -1425,7 +1425,7 @@ Handle<String> SeqString::Truncate(Handle<SeqString> string, int new_length) {
                              ClearRecordedSlots::kNo);
   // We are storing the new length using release store after creating a filler
   // for the left-over space to avoid races with the sweeper thread.
-  string->synchronized_set_length(new_length);
+  string->set_length(new_length, kReleaseStore);
 
   return string;
 }

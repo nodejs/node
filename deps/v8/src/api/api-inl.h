@@ -139,6 +139,7 @@ class V8_NODISCARD CallDepthScope {
   CallDepthScope(i::Isolate* isolate, Local<Context> context)
       : isolate_(isolate),
         context_(context),
+        did_enter_context_(false),
         escaped_(false),
         safe_for_termination_(isolate->next_v8_call_is_safe_for_termination()),
         interrupts_scope_(isolate_, i::StackGuard::TERMINATE_EXECUTION,
@@ -152,12 +153,11 @@ class V8_NODISCARD CallDepthScope {
     if (!context.IsEmpty()) {
       i::Handle<i::Context> env = Utils::OpenHandle(*context);
       i::HandleScopeImplementer* impl = isolate->handle_scope_implementer();
-      if (!isolate->context().is_null() &&
-          isolate->context().native_context() == env->native_context()) {
-        context_ = Local<Context>();
-      } else {
+      if (isolate->context().is_null() ||
+          isolate->context().native_context() != env->native_context()) {
         impl->SaveContext(isolate->context());
         isolate->set_context(*env);
+        did_enter_context_ = true;
       }
     }
     if (do_callback) isolate_->FireBeforeCallEnteredCallback();
@@ -165,16 +165,17 @@ class V8_NODISCARD CallDepthScope {
   ~CallDepthScope() {
     i::MicrotaskQueue* microtask_queue = isolate_->default_microtask_queue();
     if (!context_.IsEmpty()) {
-      i::HandleScopeImplementer* impl = isolate_->handle_scope_implementer();
-      isolate_->set_context(impl->RestoreContext());
+      if (did_enter_context_) {
+        i::HandleScopeImplementer* impl = isolate_->handle_scope_implementer();
+        isolate_->set_context(impl->RestoreContext());
+      }
 
       i::Handle<i::Context> env = Utils::OpenHandle(*context_);
       microtask_queue = env->native_context().microtask_queue();
     }
     if (!escaped_) isolate_->thread_local_top()->DecrementCallDepth(this);
     if (do_callback) isolate_->FireCallCompletedCallback(microtask_queue);
-// TODO(jochen): This should be #ifdef DEBUG
-#ifdef V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY
+#ifdef DEBUG
     if (do_callback) {
       if (microtask_queue && microtask_queue->microtasks_policy() ==
                                  v8::MicrotasksPolicy::kScoped) {
@@ -213,9 +214,9 @@ class V8_NODISCARD CallDepthScope {
 
   i::Isolate* const isolate_;
   Local<Context> context_;
-  bool escaped_;
-  bool do_callback_;
-  bool safe_for_termination_;
+  bool did_enter_context_ : 1;
+  bool escaped_ : 1;
+  bool safe_for_termination_ : 1;
   i::InterruptsScope interrupts_scope_;
   i::Address previous_stack_height_;
 

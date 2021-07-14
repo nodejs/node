@@ -279,7 +279,7 @@ def _CheckHeadersHaveIncludeGuards(input_api, output_api):
     for line in f.NewContents():
       for i in range(len(guard_patterns)):
         if guard_patterns[i].match(line):
-            found_patterns[i] = True
+          found_patterns[i] = True
       if skip_check_pattern.match(line):
         file_omitted = True
         break
@@ -485,7 +485,9 @@ def _CheckNoexceptAnnotations(input_api, output_api):
         files_to_check=(r'src[\\\/].*', r'test[\\\/].*'),
         # Skip api.cc since we cannot easily add the 'noexcept' annotation to
         # public methods.
-        files_to_skip=(r'src[\\\/]api[\\\/]api\.cc',))
+        # Skip src/bigint/ because it's meant to be V8-independent.
+        files_to_skip=(r'src[\\\/]api[\\\/]api\.cc',
+                       r'src[\\\/]bigint[\\\/].*'))
 
   # matches any class name.
   class_name = r'\b([A-Z][A-Za-z0-9_:]*)(?:::\1)?'

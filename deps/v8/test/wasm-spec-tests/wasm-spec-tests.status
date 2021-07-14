@@ -27,7 +27,6 @@
   'proposals/tail-call/exports': [FAIL],
   'proposals/tail-call/func': [FAIL],
   'proposals/tail-call/globals': [FAIL],
-  'proposals/tail-call/imports': [FAIL],
   'proposals/tail-call/linking': [FAIL],
   'proposals/tail-call/type': [FAIL],
   'proposals/tail-call/unreached-invalid': [FAIL],
@@ -37,13 +36,9 @@
 
   # TODO(v8:11401): Fix memory64 spec tests / the v8 implementation (whatever
   # is broken).
-  'proposals/memory64/address64': [FAIL],
   'proposals/memory64/data': [FAIL],
   'proposals/memory64/elem': [FAIL],
-  'proposals/memory64/float_memory64': [FAIL],
   'proposals/memory64/imports': [FAIL],
-  'proposals/memory64/memory64': [FAIL],
-  'proposals/memory64/memory_trap64': [FAIL],
 }],  # ALWAYS
 
 ['arch == arm and not simulator_run', {
@@ -108,19 +103,6 @@
   'proposals/js-types/conversions': [SKIP],
   'proposals/multi-value/conversions': [SKIP],
   'proposals/reference-types/conversions': [SKIP],
-
-  'f32': [SKIP],
-  'f64': [SKIP],
-  'proposals/multi-value/f64': [SKIP],
-  'proposals/JS-BigInt-integration/f64': [SKIP],
-  'proposals/JS-BigInt-integration/f32': [SKIP],
-  'proposals/bulk-memory-operations/f32': [SKIP],
-  'proposals/bulk-memory-operations/f64': [SKIP],
-  'proposals/js-types/f32': [SKIP],
-  'proposals/js-types/f64': [SKIP],
-  'proposals/multi-value/f32': [SKIP],
-  'proposals/reference-types/f32': [SKIP],
-  'proposals/reference-types/f64': [SKIP],
 
    # the following all fail w/ symptons captured in issue #166
    'float_exprs': [SKIP],
@@ -198,8 +180,8 @@
 }],
 
 ##############################################################################
-['no_simd_sse == True', {
+['no_simd_hardware == True', {
   'proposals/simd/*': [SKIP],
-}],  # no_simd_sse == True
+}],  # no_simd_hardware == True
 
 ]

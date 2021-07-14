@@ -612,7 +612,7 @@ deps = {
       Cmd("git describe --tags roll_hsh", "3.22.4"),
       Cmd("git describe --tags last_roll_hsh", "3.22.2.1"),
       Cmd("git status -s -uno", "", cwd=chrome_dir),
-      Cmd("git checkout -f master", "", cwd=chrome_dir),
+      Cmd("git checkout -f main", "", cwd=chrome_dir),
       Cmd("git branch", "", cwd=chrome_dir),
       Cmd("git pull", "", cwd=chrome_dir),
       Cmd("git fetch origin", ""),
@@ -626,7 +626,7 @@ deps = {
       Cmd("git cl upload --send-mail -f "
           "--cq-dry-run --set-bot-commit --bypass-hooks", "",
           cwd=chrome_dir),
-      Cmd("git checkout -f master", "", cwd=chrome_dir),
+      Cmd("git checkout -f main", "", cwd=chrome_dir),
       Cmd("git branch -D work-branch", "", cwd=chrome_dir),
     ]
     self.Expect(expectations)

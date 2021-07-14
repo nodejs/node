@@ -79,7 +79,7 @@ class EnumSet {
   explicit constexpr EnumSet(T bits) : bits_(bits) {}
 
   static constexpr T Mask(E element) {
-    CONSTEXPR_DCHECK(sizeof(T) * 8 > static_cast<size_t>(element));
+    DCHECK_GT(sizeof(T) * 8, static_cast<size_t>(element));
     return T{1} << static_cast<typename std::underlying_type<E>::type>(element);
   }
 

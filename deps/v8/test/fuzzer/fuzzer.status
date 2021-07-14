@@ -19,4 +19,13 @@
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],
 
+################################################################################
+['third_party_heap', {
+  # Requires a second isolate
+  'inspector/empty': [SKIP],
+  'inspector/endless-loop': [SKIP],
+  'inspector/invalid': [SKIP],
+  'inspector/regress-1166549': [SKIP],
+}], # third_party_heap
+
 ]

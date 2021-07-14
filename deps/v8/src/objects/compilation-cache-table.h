@@ -123,13 +123,6 @@ class CompilationCacheTable
       Isolate* isolate, Handle<CompilationCacheTable> cache, Handle<String> src,
       JSRegExp::Flags flags, Handle<FixedArray> value);
 
-  // The Code cache shares native-context-independent (NCI) code between
-  // contexts.
-  MaybeHandle<Code> LookupCode(Handle<SharedFunctionInfo> key);
-  static Handle<CompilationCacheTable> PutCode(
-      Isolate* isolate, Handle<CompilationCacheTable> cache,
-      Handle<SharedFunctionInfo> key, Handle<Code> value);
-
   void Remove(Object value);
   void Age(Isolate* isolate);
 

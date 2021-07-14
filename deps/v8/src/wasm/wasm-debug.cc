@@ -697,13 +697,19 @@ class DebugInfoImpl {
     DCHECK_EQ(frame->function_index(), new_code->index());
     DCHECK_EQ(frame->native_module(), new_code->native_module());
     DCHECK(frame->wasm_code()->is_liftoff());
+    Address new_pc =
+        FindNewPC(frame, new_code, frame->byte_offset(), return_location);
 #ifdef DEBUG
     int old_position = frame->position();
 #endif
-    Address new_pc =
-        FindNewPC(frame, new_code, frame->byte_offset(), return_location);
+#if V8_TARGET_ARCH_X64
+    if (frame->wasm_code()->for_debugging()) {
+      base::Memory<Address>(frame->fp() - kOSRTargetOffset) = new_pc;
+    }
+#else
     PointerAuthentication::ReplacePC(frame->pc_address(), new_pc,
                                      kSystemPointerSize);
+#endif
     // The frame position should still be the same after OSR.
     DCHECK_EQ(old_position, frame->position());
   }

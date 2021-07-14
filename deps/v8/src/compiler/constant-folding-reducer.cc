@@ -5,6 +5,7 @@
 #include "src/compiler/constant-folding-reducer.h"
 
 #include "src/compiler/js-graph.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {
@@ -63,7 +64,7 @@ ConstantFoldingReducer::ConstantFoldingReducer(Editor* editor, JSGraph* jsgraph,
 ConstantFoldingReducer::~ConstantFoldingReducer() = default;
 
 Reduction ConstantFoldingReducer::Reduce(Node* node) {
-  DisallowHeapAccessIf no_heap_access(!FLAG_turbo_direct_heap_access);
+  DisallowHeapAccessIf no_heap_access(!broker()->is_concurrent_inlining());
   if (!NodeProperties::IsConstant(node) && NodeProperties::IsTyped(node) &&
       node->op()->HasProperty(Operator::kEliminatable) &&
       node->opcode() != IrOpcode::kFinishRegion) {

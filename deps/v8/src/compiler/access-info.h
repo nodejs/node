@@ -305,6 +305,10 @@ class AccessInfoFactory final {
       MaybeHandle<JSObject> holder, InternalIndex descriptor,
       AccessMode access_mode) const;
 
+  PropertyAccessInfo Invalid() const {
+    return PropertyAccessInfo::Invalid(zone());
+  }
+
   void MergePropertyAccessInfos(ZoneVector<PropertyAccessInfo> infos,
                                 AccessMode access_mode,
                                 ZoneVector<PropertyAccessInfo>* result) const;
@@ -312,28 +316,6 @@ class AccessInfoFactory final {
   bool TryLoadPropertyDetails(Handle<Map> map, MaybeHandle<JSObject> holder,
                               Handle<Name> name, InternalIndex* index_out,
                               PropertyDetails* details_out) const;
-
-  bool should_lock_mutex() const { return map_updater_mutex_depth_ == 0; }
-
-  class MapUpdaterMutexDepthScope final {
-   public:
-    explicit MapUpdaterMutexDepthScope(const AccessInfoFactory* ptr)
-        : ptr_(ptr),
-          initial_map_updater_mutex_depth_(ptr->map_updater_mutex_depth_) {
-      ptr_->map_updater_mutex_depth_++;
-    }
-
-    ~MapUpdaterMutexDepthScope() {
-      ptr_->map_updater_mutex_depth_--;
-      DCHECK_EQ(initial_map_updater_mutex_depth_,
-                ptr_->map_updater_mutex_depth_);
-      USE(initial_map_updater_mutex_depth_);
-    }
-
-   private:
-    const AccessInfoFactory* const ptr_;
-    const int initial_map_updater_mutex_depth_;
-  };
 
   CompilationDependencies* dependencies() const { return dependencies_; }
   JSHeapBroker* broker() const { return broker_; }
@@ -344,12 +326,6 @@ class AccessInfoFactory final {
   CompilationDependencies* const dependencies_;
   TypeCache const* const type_cache_;
   Zone* const zone_;
-
-  // ComputePropertyAccessInfo can be called recursively, thus we need to
-  // emulate a recursive mutex. This field holds the locking depth, i.e. how
-  // many times the mutex has been recursively locked. Only the outermost
-  // locker actually locks underneath.
-  mutable int map_updater_mutex_depth_ = 0;
 
   // TODO(nicohartmann@): Move to public
   AccessInfoFactory(const AccessInfoFactory&) = delete;

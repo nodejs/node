@@ -533,6 +533,12 @@ void ProfileTree::TraverseDepthFirst(Callback* callback) {
   }
 }
 
+void ContextFilter::OnMoveEvent(Address from_address, Address to_address) {
+  if (native_context_address() != from_address) return;
+
+  set_native_context_address(to_address);
+}
+
 using v8::tracing::TracedValue;
 
 std::atomic<uint32_t> CpuProfile::last_id_;
@@ -557,6 +563,13 @@ CpuProfile::CpuProfile(CpuProfiler* profiler, const char* title,
   value->SetDouble("startTime", start_time_.since_origin().InMicroseconds());
   TRACE_EVENT_SAMPLE_WITH_ID1(TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler"),
                               "Profile", id_, "data", std::move(value));
+
+  DisallowHeapAllocation no_gc;
+  if (options_.has_filter_context()) {
+    i::Address raw_filter_context =
+        reinterpret_cast<i::Address>(options_.raw_filter_context());
+    context_filter_.set_native_context_address(raw_filter_context);
+  }
 }
 
 bool CpuProfile::CheckSubsample(base::TimeDelta source_sampling_interval) {
@@ -706,6 +719,8 @@ void CpuProfile::StreamPendingTraceEvents() {
 
 void CpuProfile::FinishProfile() {
   end_time_ = base::TimeTicks::HighResolutionNow();
+  // Stop tracking context movements after profiling stops.
+  context_filter_.set_native_context_address(kNullAddress);
   StreamPendingTraceEvents();
   auto value = TracedValue::Create();
   // The endTime timestamp is not converted to Perfetto's clock domain and will
@@ -942,14 +957,26 @@ base::TimeDelta CpuProfilesCollection::GetCommonSamplingInterval() const {
 
 void CpuProfilesCollection::AddPathToCurrentProfiles(
     base::TimeTicks timestamp, const ProfileStackTrace& path, int src_line,
-    bool update_stats, base::TimeDelta sampling_interval) {
+    bool update_stats, base::TimeDelta sampling_interval,
+    Address native_context_address) {
   // As starting / stopping profiles is rare relatively to this
   // method, we don't bother minimizing the duration of lock holding,
   // e.g. copying contents of the list to a local vector.
   current_profiles_semaphore_.Wait();
   for (const std::unique_ptr<CpuProfile>& profile : current_profiles_) {
-    profile->AddPath(timestamp, path, src_line, update_stats,
-                     sampling_interval);
+    if (profile->context_filter().Accept(native_context_address)) {
+      profile->AddPath(timestamp, path, src_line, update_stats,
+                       sampling_interval);
+    }
+  }
+  current_profiles_semaphore_.Signal();
+}
+
+void CpuProfilesCollection::UpdateNativeContextAddressForCurrentProfiles(
+    Address from, Address to) {
+  current_profiles_semaphore_.Wait();
+  for (const std::unique_ptr<CpuProfile>& profile : current_profiles_) {
+    profile->context_filter().OnMoveEvent(from, to);
   }
   current_profiles_semaphore_.Signal();
 }

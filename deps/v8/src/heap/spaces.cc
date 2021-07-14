@@ -11,6 +11,7 @@
 #include "src/base/bits.h"
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/macros.h"
+#include "src/base/sanitizer/msan.h"
 #include "src/common/globals.h"
 #include "src/heap/combined-heap.h"
 #include "src/heap/concurrent-marking.h"
@@ -31,7 +32,6 @@
 #include "src/objects/heap-object.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/objects-inl.h"
-#include "src/sanitizer/msan.h"
 #include "src/snapshot/snapshot.h"
 #include "src/utils/ostreams.h"
 

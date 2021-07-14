@@ -160,7 +160,11 @@ static bool supportsSTFLE() {
 }
 
 bool CpuFeatures::SupportsWasmSimd128() {
+#if V8_ENABLE_WEBASSEMBLY
   return CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1);
+#else
+  return false;
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 void CpuFeatures::ProbeImpl(bool cross_compile) {

@@ -14,7 +14,7 @@
 #include "src/base/logging.h"
 
 #if V8_OS_POSIX
-#include <pthread.h>  // NOLINT
+#include <pthread.h>
 #endif
 
 #if V8_OS_STARBOARD
@@ -163,6 +163,8 @@ class V8_BASE_EXPORT RecursiveMutex final {
   // Tries to lock the given mutex. Returns whether the mutex was
   // successfully locked.
   bool TryLock() V8_WARN_UNUSED_RESULT;
+
+  V8_INLINE void AssertHeld() const { DCHECK_LT(0, level_); }
 
  private:
   // The implementation-defined native handle type.

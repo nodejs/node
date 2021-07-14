@@ -67,6 +67,22 @@ class V8_EXPORT_PRIVATE MapUpdater {
   // version and performs the steps 1-6.
   Handle<Map> Update();
 
+  static Handle<Map> ReconfigureExistingProperty(Isolate* isolate,
+                                                 Handle<Map> map,
+                                                 InternalIndex descriptor,
+                                                 PropertyKind kind,
+                                                 PropertyAttributes attributes,
+                                                 PropertyConstness constness);
+
+  static void GeneralizeField(Isolate* isolate, Handle<Map> map,
+                              InternalIndex modify_index,
+                              PropertyConstness new_constness,
+                              Representation new_representation,
+                              Handle<FieldType> new_field_type);
+
+  static void ShrinkInstanceSize(base::SharedMutex* map_updater_access, Map map,
+                                 int slack);
+
  private:
   enum State {
     kInitialized,
@@ -166,6 +182,16 @@ class V8_EXPORT_PRIVATE MapUpdater {
   inline Handle<FieldType> GetOrComputeFieldType(
       Handle<DescriptorArray> descriptors, InternalIndex descriptor,
       PropertyLocation location, Representation representation);
+
+  // Update field type of the given descriptor to new representation and new
+  // type. The type must be prepared for storing in descriptor array:
+  // it must be either a simple type or a map wrapped in a weak cell.
+  static void UpdateFieldType(Isolate* isolate, Handle<Map> map,
+                              InternalIndex descriptor_number,
+                              Handle<Name> name,
+                              PropertyConstness new_constness,
+                              Representation new_representation,
+                              const MaybeObjectHandle& new_wrapped_type);
 
   void GeneralizeField(Handle<Map> map, InternalIndex modify_index,
                        PropertyConstness new_constness,

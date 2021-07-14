@@ -4,7 +4,7 @@
 
 #include "src/snapshot/snapshot-utils.h"
 
-#include "src/sanitizer/msan.h"
+#include "src/base/sanitizer/msan.h"
 #include "third_party/zlib/zlib.h"
 
 namespace v8 {

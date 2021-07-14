@@ -2634,7 +2634,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   void GrowBuffer();
-  void CheckBufferSpace();
+  V8_INLINE void CheckBufferSpace();
   void CheckBuffer();
 
   // Emission of the veneer pools may be blocked in some code sequences.
@@ -2786,9 +2786,7 @@ class PatchingAssembler : public Assembler {
 
 class EnsureSpace {
  public:
-  explicit EnsureSpace(Assembler* assembler) : block_pools_scope_(assembler) {
-    assembler->CheckBufferSpace();
-  }
+  explicit V8_INLINE EnsureSpace(Assembler* assembler);
 
  private:
   Assembler::BlockPoolsScope block_pools_scope_;

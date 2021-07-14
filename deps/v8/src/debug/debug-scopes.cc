@@ -192,7 +192,13 @@ class ScopeChainRetriever {
     // functions that have the same end position.
     const bool position_fits_end =
         closure_scope_ ? position_ < end : position_ <= end;
-    return start < position_ && position_fits_end;
+    // While we're evaluating a class, the calling function will have a class
+    // context on the stack with a range that starts at Token::CLASS, and the
+    // source position will also point to Token::CLASS.  To identify the
+    // matching scope we include start in the accepted range for class scopes.
+    const bool position_fits_start =
+        scope->is_class_scope() ? start <= position_ : start < position_;
+    return position_fits_start && position_fits_end;
   }
 };
 

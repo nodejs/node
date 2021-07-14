@@ -24,8 +24,7 @@ extern class FunctionTemplateRareData extends Struct {
   instance_template: ObjectTemplateInfo|Undefined;
   instance_call_handler: CallHandlerInfo|Undefined;
   access_check_info: AccessCheckInfo|Undefined;
-  c_function: Foreign|Zero;
-  c_signature: Foreign|Zero;
+  c_function_overloads: FixedArray;
 }
 
 bitfield struct FunctionTemplateInfoFlags extends uint31 {
@@ -33,7 +32,6 @@ bitfield struct FunctionTemplateInfoFlags extends uint31 {
   needs_access_check: bool: 1 bit;
   read_only_prototype: bool: 1 bit;
   remove_prototype: bool: 1 bit;
-  do_not_cache: bool: 1 bit;
   accept_any_receiver: bool: 1 bit;
   published: bool: 1 bit;
 }
@@ -42,7 +40,7 @@ bitfield struct FunctionTemplateInfoFlags extends uint31 {
 extern class FunctionTemplateInfo extends TemplateInfo {
   // Handler invoked when calling an instance of this FunctionTemplateInfo.
   // Either CallHandlerInfo or Undefined.
-  call_code: CallHandlerInfo|Undefined;
+  @cppAcquireLoad @cppReleaseStore call_code: CallHandlerInfo|Undefined;
   class_name: String|Undefined;
   // If the signature is a FunctionTemplateInfo it is used to check whether the
   // receiver calling the associated JSFunction is a compatible receiver, i.e.
@@ -52,6 +50,8 @@ extern class FunctionTemplateInfo extends TemplateInfo {
   // If any of the setters declared by DECL_RARE_ACCESSORS are used then a
   // FunctionTemplateRareData will be stored here. Until then this contains
   // undefined.
+  @cppAcquireLoad
+  @cppReleaseStore
   rare_data: FunctionTemplateRareData|Undefined;
   shared_function_info: SharedFunctionInfo|Undefined;
   // Internal field to store a flag bitfield.

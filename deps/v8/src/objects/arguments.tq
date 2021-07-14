@@ -80,7 +80,7 @@ extern shape JSStrictArgumentsObject extends JSArgumentsObject {
 class SloppyArgumentsElements extends FixedArrayBase {
   context: Context;
   arguments: FixedArray|NumberDictionary;
-  @relaxedRead mapped_entries[length]: Smi|TheHole;
+  @cppRelaxedLoad mapped_entries[length]: Smi|TheHole;
 }
 
 macro NewSloppyArgumentsElements<Iterator: type>(
