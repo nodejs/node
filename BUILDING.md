@@ -796,9 +796,9 @@ make install_fips
 
 After the OpenSSL (including FIPS) modules have been compiled and installed
 (into the `/path/to/install/dir`) by the above instructions we also need to
-update the OpenSSL configuration file located under 
+update the OpenSSL configuration file located under
 `/path/to/install/dir/ssl/openssl.cnf`. Right next to this file, you should
-find the `fipsmodule.cnf` file - let's add the following to the end of the 
+find the `fipsmodule.cnf` file - let's add the following to the end of the
 `openssl.cnf` file.
 
 **alter openssl.cnf**
@@ -839,7 +839,7 @@ EOT
 ```
 
 As you might have picked a non-custom path for your OpenSSL install dir, we
-have to export the following two environment variables in order for Node.JS to
+have to export the following two environment variables in order for Node.js to
 find our OpenSSL modules we built beforehand:
 ```console
 export OPENSSL_CONF=/path/to/install/dir/ssl/openssl.cnf
