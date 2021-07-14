@@ -311,7 +311,7 @@ $ make test-only
 
 At this point, you are ready to make code changes and re-run the tests.
 
-If you are running tests before submitting a Pull Request, the recommended
+If you are running tests before submitting a pull request, the recommended
 command is:
 
 ```console
