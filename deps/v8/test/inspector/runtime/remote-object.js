@@ -201,6 +201,9 @@ InspectorTest.runAsyncTestSuite([
   },
   async function testRegExp() {
     InspectorTest.logMessage((await evaluate({
+      expression: '/\w+/d'
+    })).result);
+    InspectorTest.logMessage((await evaluate({
       expression: '/\w+/g'
     })).result);
     InspectorTest.logMessage((await evaluate({
@@ -219,10 +222,13 @@ InspectorTest.runAsyncTestSuite([
       expression: '/\w+/y'
     })).result);
     InspectorTest.logMessage((await evaluate({
-      expression: '/\w+/gimsuy'
+      expression: '/\w+/dgimsuy'
     })).result);
     InspectorTest.logMessage((await evaluate({
       expression: `new RegExp('\\w+', 'g')`,
+    })).result);
+    InspectorTest.logMessage((await evaluate({
+      expression: `new RegExp('foo/bar')`
     })).result);
     InspectorTest.logMessage((await evaluate({
       expression: `var re = new RegExp('\\w+', 'g');

@@ -75,13 +75,16 @@ declare_args() {
   # executed as standard JavaScript instead.
   v8_enable_webassembly = ""
 
+  # Enable runtime call stats.
+  v8_enable_runtime_call_stats = true
+
   # Add fuzzilli fuzzer support.
   v8_fuzzilli = false
 
   # Scan the call stack conservatively during garbage collection.
   v8_enable_conservative_stack_scanning = false
 
-  v8_enable_google_benchmark = checkout_google_benchmark
+  v8_enable_google_benchmark = false
 
   cppgc_is_standalone = false
 }

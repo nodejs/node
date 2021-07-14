@@ -32,6 +32,7 @@ builder.addFunction('main', kSig_v_i)
 
 var module_bytes = builder.toArray();
 
+Protocol.Runtime.enable();
 Protocol.Debugger.enable();
 Protocol.Debugger.onScriptParsed(handleScriptParsed);
 

@@ -234,6 +234,8 @@ class InstructionSelectorTest : public TestWithNativeContextAndZone {
 
     bool IsFixed(const InstructionOperand* operand, Register reg) const;
     bool IsSameAsFirst(const InstructionOperand* operand) const;
+    bool IsSameAsInput(const InstructionOperand* operand,
+                       int input_index) const;
     bool IsUsedAtStart(const InstructionOperand* operand) const;
 
     FrameStateDescriptor* GetFrameStateDescriptor(int deoptimization_id) {

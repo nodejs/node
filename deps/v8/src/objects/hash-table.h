@@ -125,9 +125,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   using Key = typename Shape::Key;
 
   // Returns a new HashTable object.
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   V8_WARN_UNUSED_RESULT static Handle<Derived> New(
-      LocalIsolate* isolate, int at_least_space_for,
+      IsolateT* isolate, int at_least_space_for,
       AllocationType allocation = AllocationType::kYoung,
       MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY);
 
@@ -140,8 +140,8 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   // Find entry for key otherwise return kNotFound.
   inline InternalIndex FindEntry(PtrComprCageBase cage_base,
                                  ReadOnlyRoots roots, Key key, int32_t hash);
-  template <typename LocalIsolate>
-  inline InternalIndex FindEntry(LocalIsolate* isolate, Key key);
+  template <typename IsolateT>
+  inline InternalIndex FindEntry(IsolateT* isolate, Key key);
 
   // Rehashes the table in-place.
   void Rehash(PtrComprCageBase cage_base);
@@ -194,9 +194,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   }
 
   // Ensure enough space for n additional elements.
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   V8_WARN_UNUSED_RESULT static Handle<Derived> EnsureCapacity(
-      LocalIsolate* isolate, Handle<Derived> table, int n = 1,
+      IsolateT* isolate, Handle<Derived> table, int n = 1,
       AllocationType allocation = AllocationType::kYoung);
 
   // Returns true if this table has sufficient capacity for adding n elements.
@@ -212,9 +212,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
  protected:
   friend class ObjectHashTable;
 
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   V8_WARN_UNUSED_RESULT static Handle<Derived> NewInternal(
-      LocalIsolate* isolate, int capacity, AllocationType allocation);
+      IsolateT* isolate, int capacity, AllocationType allocation);
 
   // Find the entry at which to insert element with the given key that
   // has the given hash value.

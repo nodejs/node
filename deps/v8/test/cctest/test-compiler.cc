@@ -693,7 +693,7 @@ void TestCompileFunctionInContextToStringImpl() {
     }                                                                      \
   } while (false)
 
-  {  // NOLINT
+  {
     CcTest::InitializeVM();
     v8::Isolate* isolate = CcTest::isolate();
     v8::HandleScope scope(isolate);
@@ -927,120 +927,6 @@ TEST(DeepEagerCompilationPeakMemory) {
   // Check that eager compilation does not cause significantly higher (+100%)
   // peak memory than lazy compilation.
   CHECK_LE(peak_mem_4 - peak_mem_3, peak_mem_3);
-}
-
-// TODO(mslekova): Remove the duplication with test-heap.cc
-static int AllocationSitesCount(Heap* heap) {
-  int count = 0;
-  for (Object site = heap->allocation_sites_list(); site.IsAllocationSite();) {
-    AllocationSite cur = AllocationSite::cast(site);
-    CHECK(cur.HasWeakNext());
-    site = cur.weak_next();
-    count++;
-  }
-  return count;
-}
-
-// This test simulates a specific race-condition if GC is triggered just
-// before CompilationDependencies::Commit is finished, and this changes
-// the pretenuring decision, thus causing a deoptimization.
-TEST(DecideToPretenureDuringCompilation) {
-  // The test makes use of optimization and relies on deterministic
-  // compilation.
-  if (!i::FLAG_opt || i::FLAG_always_opt || i::FLAG_always_sparkplug ||
-      i::FLAG_minor_mc || i::FLAG_stress_incremental_marking ||
-      i::FLAG_optimize_for_size || i::FLAG_turbo_nci ||
-      i::FLAG_stress_concurrent_allocation) {
-    return;
-  }
-
-  FLAG_stress_gc_during_compilation = true;
-  FLAG_allow_natives_syntax = true;
-  FLAG_allocation_site_pretenuring = true;
-  FLAG_flush_bytecode = false;
-  // Turn on lazy feedback allocation, so we create exactly one allocation site.
-  // Without lazy feedback allocation, we create two allocation sites.
-  FLAG_lazy_feedback_allocation = true;
-
-  // We want to trigger exactly 1 optimization.
-  FLAG_use_osr = false;
-
-  // We'll do manual initialization.
-  ManualGCScope manual_gc_scope;
-  v8::Isolate::CreateParams create_params;
-
-  // This setting ensures Heap::MaximumSizeScavenge will return `true`.
-  // We need to initialize the heap with at least 1 page, while keeping the
-  // limit low, to ensure the new space fills even on 32-bit architectures.
-  create_params.constraints.set_max_young_generation_size_in_bytes(
-      3 * Page::kPageSize);
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate = v8::Isolate::New(create_params);
-
-  isolate->Enter();
-  {
-    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-    Heap* heap = i_isolate->heap();
-    GlobalHandles* global_handles = i_isolate->global_handles();
-    HandleScope handle_scope(i_isolate);
-
-    // The allocation site at the head of the list is ours.
-    Handle<AllocationSite> site;
-    {
-      LocalContext context(isolate);
-      v8::HandleScope scope(context->GetIsolate());
-
-      int count = AllocationSitesCount(heap);
-      CompileRun(
-          "let arr = [];"
-          "function foo(shouldKeep) {"
-          "  let local_array = new Array();"
-          "  if (shouldKeep) arr.push(local_array);"
-          "}"
-          "function bar(shouldKeep) {"
-          "  for (let i = 0; i < 10000; i++) {"
-          "    foo(shouldKeep);"
-          "  }"
-          "}"
-          "%PrepareFunctionForOptimization(bar);"
-          "bar();");
-
-      // This number should be >= kPretenureRatio * 10000,
-      // where 10000 is the number of iterations in `bar`,
-      // in order to make the ratio in DigestPretenuringFeedback close to 1.
-      const int memento_found_bump = 8500;
-
-      // One allocation site should have been created.
-      int new_count = AllocationSitesCount(heap);
-      CHECK_EQ(new_count, (count + 1));
-      site = Handle<AllocationSite>::cast(global_handles->Create(
-          AllocationSite::cast(heap->allocation_sites_list())));
-      site->set_memento_found_count(memento_found_bump);
-
-      CompileRun("%OptimizeFunctionOnNextCall(bar);");
-      CompileRun("bar(true);");
-
-      // The last call should have caused `foo` to bail out of compilation
-      // due to dependency change (the pretenuring decision in this case).
-      // This will cause recompilation.
-
-      // Check `bar` can get optimized again, meaning the compiler state is
-      // recoverable from this point.
-      CompileRun(
-          "%PrepareFunctionForOptimization(bar);"
-          "%OptimizeFunctionOnNextCall(bar);");
-      CompileRun("bar();");
-
-      Handle<Object> foo_obj =
-          JSReceiver::GetProperty(i_isolate, i_isolate->global_object(), "bar")
-              .ToHandleChecked();
-      Handle<JSFunction> bar = Handle<JSFunction>::cast(foo_obj);
-
-      CHECK(bar->HasAttachedOptimizedCode());
-    }
-  }
-  isolate->Exit();
-  isolate->Dispose();
 }
 
 namespace {

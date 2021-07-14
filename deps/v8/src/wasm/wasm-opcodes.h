@@ -52,6 +52,7 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(Delegate, 0x18, _ /* eh_prototype */)       \
   V(CatchAll, 0x19, _ /* eh_prototype */)       \
   V(BrOnNull, 0xd4, _ /* gc prototype */)       \
+  V(BrOnNonNull, 0xd6, _ /* gc prototype */)    \
   V(NopForTestingUnsupportedInLiftoff, 0x16, _)
 
 // Constants, locals, globals, and calls.
@@ -252,37 +253,37 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
 // These opcodes are not spec'ed (or visible) externally; the idea is
 // to use unused ranges for internal purposes.
 #define FOREACH_ASMJS_COMPAT_OPCODE(V) \
-  V(F64Acos, 0xc5, d_d)                \
-  V(F64Asin, 0xc6, d_d)                \
-  V(F64Atan, 0xc7, d_d)                \
-  V(F64Cos, 0xc8, d_d)                 \
-  V(F64Sin, 0xc9, d_d)                 \
-  V(F64Tan, 0xca, d_d)                 \
-  V(F64Exp, 0xcb, d_d)                 \
-  V(F64Log, 0xcc, d_d)                 \
-  V(F64Atan2, 0xcd, d_dd)              \
-  V(F64Pow, 0xce, d_dd)                \
-  V(F64Mod, 0xcf, d_dd)                \
+  V(F64Acos, 0xdc, d_d)                \
+  V(F64Asin, 0xdd, d_d)                \
+  V(F64Atan, 0xde, d_d)                \
+  V(F64Cos, 0xdf, d_d)                 \
+  V(F64Sin, 0xe0, d_d)                 \
+  V(F64Tan, 0xe1, d_d)                 \
+  V(F64Exp, 0xe2, d_d)                 \
+  V(F64Log, 0xe3, d_d)                 \
+  V(F64Atan2, 0xe4, d_dd)              \
+  V(F64Pow, 0xe5, d_dd)                \
+  V(F64Mod, 0xe6, d_dd)                \
   V(I32AsmjsDivS, 0xe7, i_ii)          \
   V(I32AsmjsDivU, 0xe8, i_ii)          \
   V(I32AsmjsRemS, 0xe9, i_ii)          \
-  V(I32AsmjsRemU, 0xd6, i_ii)          \
-  V(I32AsmjsLoadMem8S, 0xd7, i_i)      \
-  V(I32AsmjsLoadMem8U, 0xd8, i_i)      \
-  V(I32AsmjsLoadMem16S, 0xd9, i_i)     \
-  V(I32AsmjsLoadMem16U, 0xda, i_i)     \
-  V(I32AsmjsLoadMem, 0xdb, i_i)        \
-  V(F32AsmjsLoadMem, 0xdc, f_i)        \
-  V(F64AsmjsLoadMem, 0xdd, d_i)        \
-  V(I32AsmjsStoreMem8, 0xde, i_ii)     \
-  V(I32AsmjsStoreMem16, 0xdf, i_ii)    \
-  V(I32AsmjsStoreMem, 0xe0, i_ii)      \
-  V(F32AsmjsStoreMem, 0xe1, f_if)      \
-  V(F64AsmjsStoreMem, 0xe2, d_id)      \
-  V(I32AsmjsSConvertF32, 0xe3, i_f)    \
-  V(I32AsmjsUConvertF32, 0xe4, i_f)    \
-  V(I32AsmjsSConvertF64, 0xe5, i_d)    \
-  V(I32AsmjsUConvertF64, 0xe6, i_d)
+  V(I32AsmjsRemU, 0xea, i_ii)          \
+  V(I32AsmjsLoadMem8S, 0xeb, i_i)      \
+  V(I32AsmjsLoadMem8U, 0xec, i_i)      \
+  V(I32AsmjsLoadMem16S, 0xed, i_i)     \
+  V(I32AsmjsLoadMem16U, 0xee, i_i)     \
+  V(I32AsmjsLoadMem, 0xef, i_i)        \
+  V(F32AsmjsLoadMem, 0xf0, f_i)        \
+  V(F64AsmjsLoadMem, 0xf1, d_i)        \
+  V(I32AsmjsStoreMem8, 0xf2, i_ii)     \
+  V(I32AsmjsStoreMem16, 0xf3, i_ii)    \
+  V(I32AsmjsStoreMem, 0xf4, i_ii)      \
+  V(F32AsmjsStoreMem, 0xf5, f_if)      \
+  V(F64AsmjsStoreMem, 0xf6, d_id)      \
+  V(I32AsmjsSConvertF32, 0xf7, i_f)    \
+  V(I32AsmjsUConvertF32, 0xf8, i_f)    \
+  V(I32AsmjsSConvertF64, 0xf9, i_d)    \
+  V(I32AsmjsUConvertF64, 0xfa, i_d)
 
 #define FOREACH_SIMD_MEM_OPCODE(V) \
   V(S128LoadMem, 0xfd00, s_i)      \
@@ -670,6 +671,7 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(RefTest, 0xfb40, _)          \
   V(RefCast, 0xfb41, _)          \
   V(BrOnCast, 0xfb42, _)         \
+  V(BrOnCastFail, 0xfb43, _)     \
   V(RefIsFunc, 0xfb50, _)        \
   V(RefIsData, 0xfb51, _)        \
   V(RefIsI31, 0xfb52, _)         \
@@ -759,10 +761,10 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(s_is, kWasmS128, kWasmI32, kWasmS128)
 
 #define FOREACH_PREFIX(V) \
+  V(GC, 0xfb)             \
   V(Numeric, 0xfc)        \
   V(Simd, 0xfd)           \
-  V(Atomic, 0xfe)         \
-  V(GC, 0xfb)
+  V(Atomic, 0xfe)
 
 enum WasmOpcode {
 // Declare expression opcodes.
@@ -799,129 +801,6 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
 
   static constexpr MessageTemplate TrapReasonToMessageId(TrapReason);
   static inline const char* TrapReasonMessage(TrapReason);
-};
-
-// Representation of an initializer expression.
-class WasmInitExpr {
- public:
-  enum Operator {
-    kNone,
-    kGlobalGet,
-    kI32Const,
-    kI64Const,
-    kF32Const,
-    kF64Const,
-    kS128Const,
-    kRefNullConst,
-    kRefFuncConst,
-    kRttCanon,
-    kRttSub
-  };
-
-  union Immediate {
-    int32_t i32_const;
-    int64_t i64_const;
-    float f32_const;
-    double f64_const;
-    std::array<uint8_t, kSimd128Size> s128_const;
-    uint32_t index;
-    HeapType::Representation heap_type;
-  };
-
-  WasmInitExpr() : kind_(kNone) { immediate_.i32_const = 0; }
-  explicit WasmInitExpr(int32_t v) : kind_(kI32Const) {
-    immediate_.i32_const = v;
-  }
-  explicit WasmInitExpr(int64_t v) : kind_(kI64Const) {
-    immediate_.i64_const = v;
-  }
-  explicit WasmInitExpr(float v) : kind_(kF32Const) {
-    immediate_.f32_const = v;
-  }
-  explicit WasmInitExpr(double v) : kind_(kF64Const) {
-    immediate_.f64_const = v;
-  }
-  explicit WasmInitExpr(uint8_t v[kSimd128Size]) : kind_(kS128Const) {
-    base::Memcpy(immediate_.s128_const.data(), v, kSimd128Size);
-  }
-
-  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(WasmInitExpr);
-
-  static WasmInitExpr GlobalGet(uint32_t index) {
-    WasmInitExpr expr;
-    expr.kind_ = kGlobalGet;
-    expr.immediate_.index = index;
-    return expr;
-  }
-
-  static WasmInitExpr RefFuncConst(uint32_t index) {
-    WasmInitExpr expr;
-    expr.kind_ = kRefFuncConst;
-    expr.immediate_.index = index;
-    return expr;
-  }
-
-  static WasmInitExpr RefNullConst(HeapType::Representation heap_type) {
-    WasmInitExpr expr;
-    expr.kind_ = kRefNullConst;
-    expr.immediate_.heap_type = heap_type;
-    return expr;
-  }
-
-  static WasmInitExpr RttCanon(uint32_t index) {
-    WasmInitExpr expr;
-    expr.kind_ = kRttCanon;
-    expr.immediate_.index = index;
-    return expr;
-  }
-
-  static WasmInitExpr RttSub(uint32_t index, WasmInitExpr supertype) {
-    WasmInitExpr expr;
-    expr.kind_ = kRttSub;
-    expr.immediate_.index = index;
-    expr.operand_ = std::make_unique<WasmInitExpr>(std::move(supertype));
-    return expr;
-  }
-
-  Immediate immediate() const { return immediate_; }
-  Operator kind() const { return kind_; }
-  WasmInitExpr* operand() const { return operand_.get(); }
-
-  bool operator==(const WasmInitExpr& other) const {
-    if (kind() != other.kind()) return false;
-    switch (kind()) {
-      case kNone:
-        return true;
-      case kGlobalGet:
-      case kRefFuncConst:
-      case kRttCanon:
-        return immediate().index == other.immediate().index;
-      case kI32Const:
-        return immediate().i32_const == other.immediate().i32_const;
-      case kI64Const:
-        return immediate().i64_const == other.immediate().i64_const;
-      case kF32Const:
-        return immediate().f32_const == other.immediate().f32_const;
-      case kF64Const:
-        return immediate().f64_const == other.immediate().f64_const;
-      case kS128Const:
-        return immediate().s128_const == other.immediate().s128_const;
-      case kRefNullConst:
-        return immediate().heap_type == other.immediate().heap_type;
-      case kRttSub:
-        return immediate().index == other.immediate().index &&
-               *operand() == *other.operand();
-    }
-  }
-
-  V8_INLINE bool operator!=(const WasmInitExpr& other) {
-    return !(*this == other);
-  }
-
- private:
-  Immediate immediate_;
-  Operator kind_;
-  std::unique_ptr<WasmInitExpr> operand_ = nullptr;
 };
 
 }  // namespace wasm

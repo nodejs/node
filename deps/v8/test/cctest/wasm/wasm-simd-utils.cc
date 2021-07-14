@@ -20,9 +20,9 @@
 namespace v8 {
 namespace internal {
 namespace wasm {
-void RunI8x16UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
-                      WasmOpcode opcode, Int8UnOp expected_op) {
-  WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
+void RunI8x16UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                      Int8UnOp expected_op) {
+  WasmRunner<int32_t, int32_t> r(execution_tier);
   // Global to hold output.
   int8_t* g = r.builder().AddGlobal<int8_t>(kWasmS128);
   // Build fn to splat test value, perform unop, and write the result.
@@ -42,9 +42,9 @@ void RunI8x16UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
 }
 
 template <typename T, typename OpType>
-void RunI8x16BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
-                       WasmOpcode opcode, OpType expected_op) {
-  WasmRunner<int32_t, T, T> r(execution_tier, lower_simd);
+void RunI8x16BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                       OpType expected_op) {
+  WasmRunner<int32_t, T, T> r(execution_tier);
   // Global to hold output.
   T* g = r.builder().template AddGlobal<T>(kWasmS128);
   // Build fn to splat test values, perform binop, and write the result.
@@ -69,17 +69,17 @@ void RunI8x16BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
 }
 
 // Explicit instantiations of uses.
-template void RunI8x16BinOpTest<int8_t>(TestExecutionTier, LowerSimd,
-                                        WasmOpcode, Int8BinOp);
+template void RunI8x16BinOpTest<int8_t>(TestExecutionTier, WasmOpcode,
+                                        Int8BinOp);
 
-template void RunI8x16BinOpTest<uint8_t>(TestExecutionTier, LowerSimd,
-                                         WasmOpcode, Uint8BinOp);
+template void RunI8x16BinOpTest<uint8_t>(TestExecutionTier, WasmOpcode,
+                                         Uint8BinOp);
 
-void RunI8x16ShiftOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
-                         WasmOpcode opcode, Int8ShiftOp expected_op) {
+void RunI8x16ShiftOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                         Int8ShiftOp expected_op) {
   // Intentionally shift by 8, should be no-op.
   for (int shift = 1; shift <= 8; shift++) {
-    WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
+    WasmRunner<int32_t, int32_t> r(execution_tier);
     int32_t* memory = r.builder().AddMemoryElems<int32_t>(1);
     int8_t* g_imm = r.builder().AddGlobal<int8_t>(kWasmS128);
     int8_t* g_mem = r.builder().AddGlobal<int8_t>(kWasmS128);
@@ -108,9 +108,8 @@ void RunI8x16ShiftOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
 }
 
 void RunI8x16MixedRelationalOpTest(TestExecutionTier execution_tier,
-                                   LowerSimd lower_simd, WasmOpcode opcode,
-                                   Int8BinOp expected_op) {
-  WasmRunner<int32_t, int32_t, int32_t> r(execution_tier, lower_simd);
+                                   WasmOpcode opcode, Int8BinOp expected_op) {
+  WasmRunner<int32_t, int32_t, int32_t> r(execution_tier);
   byte value1 = 0, value2 = 1;
   byte temp1 = r.AllocateLocal(kWasmS128);
   byte temp2 = r.AllocateLocal(kWasmS128);
@@ -129,9 +128,9 @@ void RunI8x16MixedRelationalOpTest(TestExecutionTier execution_tier,
            r.Call(0xff, 0x7ffe));
 }
 
-void RunI16x8UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
-                      WasmOpcode opcode, Int16UnOp expected_op) {
-  WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
+void RunI16x8UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                      Int16UnOp expected_op) {
+  WasmRunner<int32_t, int32_t> r(execution_tier);
   // Global to hold output.
   int16_t* g = r.builder().AddGlobal<int16_t>(kWasmS128);
   // Build fn to splat test value, perform unop, and write the result.
@@ -151,9 +150,9 @@ void RunI16x8UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
 }
 
 template <typename T, typename OpType>
-void RunI16x8BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
-                       WasmOpcode opcode, OpType expected_op) {
-  WasmRunner<int32_t, T, T> r(execution_tier, lower_simd);
+void RunI16x8BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                       OpType expected_op) {
+  WasmRunner<int32_t, T, T> r(execution_tier);
   // Global to hold output.
   T* g = r.builder().template AddGlobal<T>(kWasmS128);
   // Build fn to splat test values, perform binop, and write the result.
@@ -178,16 +177,16 @@ void RunI16x8BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
 }
 
 // Explicit instantiations of uses.
-template void RunI16x8BinOpTest<int16_t>(TestExecutionTier, LowerSimd,
-                                         WasmOpcode, Int16BinOp);
-template void RunI16x8BinOpTest<uint16_t>(TestExecutionTier, LowerSimd,
-                                          WasmOpcode, Uint16BinOp);
+template void RunI16x8BinOpTest<int16_t>(TestExecutionTier, WasmOpcode,
+                                         Int16BinOp);
+template void RunI16x8BinOpTest<uint16_t>(TestExecutionTier, WasmOpcode,
+                                          Uint16BinOp);
 
-void RunI16x8ShiftOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
-                         WasmOpcode opcode, Int16ShiftOp expected_op) {
+void RunI16x8ShiftOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                         Int16ShiftOp expected_op) {
   // Intentionally shift by 16, should be no-op.
   for (int shift = 1; shift <= 16; shift++) {
-    WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
+    WasmRunner<int32_t, int32_t> r(execution_tier);
     int32_t* memory = r.builder().AddMemoryElems<int32_t>(1);
     int16_t* g_imm = r.builder().AddGlobal<int16_t>(kWasmS128);
     int16_t* g_mem = r.builder().AddGlobal<int16_t>(kWasmS128);
@@ -216,9 +215,8 @@ void RunI16x8ShiftOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
 }
 
 void RunI16x8MixedRelationalOpTest(TestExecutionTier execution_tier,
-                                   LowerSimd lower_simd, WasmOpcode opcode,
-                                   Int16BinOp expected_op) {
-  WasmRunner<int32_t, int32_t, int32_t> r(execution_tier, lower_simd);
+                                   WasmOpcode opcode, Int16BinOp expected_op) {
+  WasmRunner<int32_t, int32_t, int32_t> r(execution_tier);
   byte value1 = 0, value2 = 1;
   byte temp1 = r.AllocateLocal(kWasmS128);
   byte temp2 = r.AllocateLocal(kWasmS128);
@@ -237,9 +235,9 @@ void RunI16x8MixedRelationalOpTest(TestExecutionTier execution_tier,
            r.Call(0xffff, 0x7ffffeff));
 }
 
-void RunI32x4UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
-                      WasmOpcode opcode, Int32UnOp expected_op) {
-  WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
+void RunI32x4UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                      Int32UnOp expected_op) {
+  WasmRunner<int32_t, int32_t> r(execution_tier);
   // Global to hold output.
   int32_t* g = r.builder().AddGlobal<int32_t>(kWasmS128);
   // Build fn to splat test value, perform unop, and write the result.
@@ -258,9 +256,9 @@ void RunI32x4UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
   }
 }
 
-void RunI32x4BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
-                       WasmOpcode opcode, Int32BinOp expected_op) {
-  WasmRunner<int32_t, int32_t, int32_t> r(execution_tier, lower_simd);
+void RunI32x4BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                       Int32BinOp expected_op) {
+  WasmRunner<int32_t, int32_t, int32_t> r(execution_tier);
   // Global to hold output.
   int32_t* g = r.builder().AddGlobal<int32_t>(kWasmS128);
   // Build fn to splat test values, perform binop, and write the result.
@@ -284,11 +282,11 @@ void RunI32x4BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
   }
 }
 
-void RunI32x4ShiftOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
-                         WasmOpcode opcode, Int32ShiftOp expected_op) {
+void RunI32x4ShiftOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                         Int32ShiftOp expected_op) {
   // Intentionally shift by 32, should be no-op.
   for (int shift = 1; shift <= 32; shift++) {
-    WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
+    WasmRunner<int32_t, int32_t> r(execution_tier);
     int32_t* memory = r.builder().AddMemoryElems<int32_t>(1);
     int32_t* g_imm = r.builder().AddGlobal<int32_t>(kWasmS128);
     int32_t* g_mem = r.builder().AddGlobal<int32_t>(kWasmS128);
@@ -316,9 +314,9 @@ void RunI32x4ShiftOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
   }
 }
 
-void RunI64x2UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
-                      WasmOpcode opcode, Int64UnOp expected_op) {
-  WasmRunner<int32_t, int64_t> r(execution_tier, lower_simd);
+void RunI64x2UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                      Int64UnOp expected_op) {
+  WasmRunner<int32_t, int64_t> r(execution_tier);
   // Global to hold output.
   int64_t* g = r.builder().AddGlobal<int64_t>(kWasmS128);
   // Build fn to splat test value, perform unop, and write the result.
@@ -337,9 +335,9 @@ void RunI64x2UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
   }
 }
 
-void RunI64x2BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
-                       WasmOpcode opcode, Int64BinOp expected_op) {
-  WasmRunner<int32_t, int64_t, int64_t> r(execution_tier, lower_simd);
+void RunI64x2BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                       Int64BinOp expected_op) {
+  WasmRunner<int32_t, int64_t, int64_t> r(execution_tier);
   // Global to hold output.
   int64_t* g = r.builder().AddGlobal<int64_t>(kWasmS128);
   // Build fn to splat test values, perform binop, and write the result.
@@ -363,11 +361,11 @@ void RunI64x2BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
   }
 }
 
-void RunI64x2ShiftOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
-                         WasmOpcode opcode, Int64ShiftOp expected_op) {
+void RunI64x2ShiftOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                         Int64ShiftOp expected_op) {
   // Intentionally shift by 64, should be no-op.
   for (int shift = 1; shift <= 64; shift++) {
-    WasmRunner<int32_t, int64_t> r(execution_tier, lower_simd);
+    WasmRunner<int32_t, int64_t> r(execution_tier);
     int32_t* memory = r.builder().AddMemoryElems<int32_t>(1);
     int64_t* g_imm = r.builder().AddGlobal<int64_t>(kWasmS128);
     int64_t* g_mem = r.builder().AddGlobal<int64_t>(kWasmS128);
@@ -448,9 +446,9 @@ void CheckFloatResult(float x, float y, float expected, float actual,
   }
 }
 
-void RunF32x4UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
-                      WasmOpcode opcode, FloatUnOp expected_op, bool exact) {
-  WasmRunner<int32_t, float> r(execution_tier, lower_simd);
+void RunF32x4UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                      FloatUnOp expected_op, bool exact) {
+  WasmRunner<int32_t, float> r(execution_tier);
   // Global to hold output.
   float* g = r.builder().AddGlobal<float>(kWasmS128);
   // Build fn to splat test value, perform unop, and write the result.
@@ -492,9 +490,9 @@ void RunF32x4UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
   }
 }
 
-void RunF32x4BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
-                       WasmOpcode opcode, FloatBinOp expected_op) {
-  WasmRunner<int32_t, float, float> r(execution_tier, lower_simd);
+void RunF32x4BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                       FloatBinOp expected_op) {
+  WasmRunner<int32_t, float, float> r(execution_tier);
   // Global to hold output.
   float* g = r.builder().AddGlobal<float>(kWasmS128);
   // Build fn to splat test values, perform binop, and write the result.
@@ -538,10 +536,9 @@ void RunF32x4BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
   }
 }
 
-void RunF32x4CompareOpTest(TestExecutionTier execution_tier,
-                           LowerSimd lower_simd, WasmOpcode opcode,
+void RunF32x4CompareOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
                            FloatCompareOp expected_op) {
-  WasmRunner<int32_t, float, float> r(execution_tier, lower_simd);
+  WasmRunner<int32_t, float, float> r(execution_tier);
   // Set up global to hold mask output.
   int32_t* g = r.builder().AddGlobal<int32_t>(kWasmS128);
   // Build fn to splat test values, perform compare op, and write the result.
@@ -622,9 +619,9 @@ void CheckDoubleResult(double x, double y, double expected, double actual,
   }
 }
 
-void RunF64x2UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
-                      WasmOpcode opcode, DoubleUnOp expected_op, bool exact) {
-  WasmRunner<int32_t, double> r(execution_tier, lower_simd);
+void RunF64x2UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                      DoubleUnOp expected_op, bool exact) {
+  WasmRunner<int32_t, double> r(execution_tier);
   // Global to hold output.
   double* g = r.builder().AddGlobal<double>(kWasmS128);
   // Build fn to splat test value, perform unop, and write the result.
@@ -666,9 +663,9 @@ void RunF64x2UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
   }
 }
 
-void RunF64x2BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
-                       WasmOpcode opcode, DoubleBinOp expected_op) {
-  WasmRunner<int32_t, double, double> r(execution_tier, lower_simd);
+void RunF64x2BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                       DoubleBinOp expected_op) {
+  WasmRunner<int32_t, double, double> r(execution_tier);
   // Global to hold output.
   double* g = r.builder().AddGlobal<double>(kWasmS128);
   // Build fn to splat test value, perform binop, and write the result.
@@ -711,10 +708,9 @@ void RunF64x2BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
   }
 }
 
-void RunF64x2CompareOpTest(TestExecutionTier execution_tier,
-                           LowerSimd lower_simd, WasmOpcode opcode,
+void RunF64x2CompareOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
                            DoubleCompareOp expected_op) {
-  WasmRunner<int32_t, double, double> r(execution_tier, lower_simd);
+  WasmRunner<int32_t, double, double> r(execution_tier);
   // Set up global to hold mask output.
   int64_t* g = r.builder().AddGlobal<int64_t>(kWasmS128);
   // Build fn to splat test values, perform compare op, and write the result.

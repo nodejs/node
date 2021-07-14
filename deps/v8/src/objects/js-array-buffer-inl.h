@@ -43,7 +43,8 @@ void JSArrayBuffer::set_byte_length(size_t value) {
 }
 
 DEF_GETTER(JSArrayBuffer, backing_store, void*) {
-  Address value = ReadExternalPointerField(kBackingStoreOffset, cage_base,
+  Isolate* isolate = GetIsolateForHeapSandbox(*this);
+  Address value = ReadExternalPointerField(kBackingStoreOffset, isolate,
                                            kArrayBufferBackingStoreTag);
   return reinterpret_cast<void*>(value);
 }
@@ -167,6 +168,8 @@ BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_asmjs_memory,
                     JSArrayBuffer::IsAsmJsMemoryBit)
 BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_shared,
                     JSArrayBuffer::IsSharedBit)
+BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_resizable,
+                    JSArrayBuffer::IsResizableBit)
 
 size_t JSArrayBufferView::byte_offset() const {
   return ReadField<size_t>(kByteOffsetOffset);
@@ -188,18 +191,57 @@ bool JSArrayBufferView::WasDetached() const {
   return JSArrayBuffer::cast(buffer()).was_detached();
 }
 
+BIT_FIELD_ACCESSORS(JSTypedArray, bit_field, is_length_tracking,
+                    JSTypedArray::IsLengthTrackingBit)
+BIT_FIELD_ACCESSORS(JSTypedArray, bit_field, is_backed_by_rab,
+                    JSTypedArray::IsBackedByRabBit)
+
+bool JSTypedArray::IsVariableLength() const {
+  return is_length_tracking() || is_backed_by_rab();
+}
+
+size_t JSTypedArray::GetLength() const {
+  if (WasDetached()) return 0;
+  if (is_length_tracking()) {
+    if (is_backed_by_rab()) {
+      return buffer().byte_length() / element_size();
+    }
+    return buffer().GetBackingStore()->byte_length(std::memory_order_seq_cst) /
+           element_size();
+  }
+  size_t array_length = LengthUnchecked();
+  if (is_backed_by_rab()) {
+    // The sum can't overflow, since we have managed to allocate the
+    // JSTypedArray.
+    if (byte_offset() + array_length * element_size() >
+        buffer().byte_length()) {
+      return 0;
+    }
+  }
+  return array_length;
+}
+
 void JSTypedArray::AllocateExternalPointerEntries(Isolate* isolate) {
   InitExternalPointerField(kExternalPointerOffset, isolate);
 }
 
-size_t JSTypedArray::length() const { return ReadField<size_t>(kLengthOffset); }
+size_t JSTypedArray::length() const {
+  DCHECK(!is_length_tracking());
+  DCHECK(!is_backed_by_rab());
+  return ReadField<size_t>(kLengthOffset);
+}
+
+size_t JSTypedArray::LengthUnchecked() const {
+  return ReadField<size_t>(kLengthOffset);
+}
 
 void JSTypedArray::set_length(size_t value) {
   WriteField<size_t>(kLengthOffset, value);
 }
 
 DEF_GETTER(JSTypedArray, external_pointer, Address) {
-  return ReadExternalPointerField(kExternalPointerOffset, cage_base,
+  Isolate* isolate = GetIsolateForHeapSandbox(*this);
+  return ReadExternalPointerField(kExternalPointerOffset, isolate,
                                   kTypedArrayExternalPointerTag);
 }
 
@@ -320,8 +362,9 @@ MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
 }
 
 DEF_GETTER(JSDataView, data_pointer, void*) {
+  Isolate* isolate = GetIsolateForHeapSandbox(*this);
   return reinterpret_cast<void*>(ReadExternalPointerField(
-      kDataPointerOffset, cage_base, kDataViewDataPointerTag));
+      kDataPointerOffset, isolate, kDataViewDataPointerTag));
 }
 
 void JSDataView::AllocateExternalPointerEntries(Isolate* isolate) {

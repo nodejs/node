@@ -568,7 +568,8 @@ void KeyedStoreGenericAssembler::EmitGenericElementStore(
   // dispatch.
   BIND(&if_nonfast);
   {
-    STATIC_ASSERT(LAST_ELEMENTS_KIND == LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND);
+    STATIC_ASSERT(LAST_ELEMENTS_KIND ==
+                  LAST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND);
     GotoIf(Int32GreaterThanOrEqual(
                elements_kind,
                Int32Constant(FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND)),
@@ -588,7 +589,8 @@ void KeyedStoreGenericAssembler::EmitGenericElementStore(
   BIND(&if_typed_array);
   {
     Comment("Typed array");
-    // TODO(jkummerow): Support typed arrays.
+    // TODO(jkummerow): Support typed arrays. Note: RAB / GSAB backed typed
+    // arrays end up here too.
     Goto(slow);
   }
 }

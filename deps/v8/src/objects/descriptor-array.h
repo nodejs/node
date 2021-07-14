@@ -133,9 +133,9 @@ class DescriptorArray
 
   // Allocates a DescriptorArray, but returns the singleton
   // empty descriptor array object if number_of_descriptors is 0.
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   V8_EXPORT_PRIVATE static Handle<DescriptorArray> Allocate(
-      LocalIsolate* isolate, int nof_descriptors, int slack,
+      IsolateT* isolate, int nof_descriptors, int slack,
       AllocationType allocation = AllocationType::kYoung);
 
   void Initialize(EnumCache enum_cache, HeapObject undefined_value,

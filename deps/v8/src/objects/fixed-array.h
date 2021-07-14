@@ -71,10 +71,12 @@ enum FixedArraySubInstanceType {
 class FixedArrayBase
     : public TorqueGeneratedFixedArrayBase<FixedArrayBase, HeapObject> {
  public:
-  // Get and set the length using acquire loads and release stores.
-  DECL_SYNCHRONIZED_INT_ACCESSORS(length)
+  // Forward declare the non-atomic (set_)length defined in torque.
+  using TorqueGeneratedFixedArrayBase::length;
+  using TorqueGeneratedFixedArrayBase::set_length;
+  DECL_RELEASE_ACQUIRE_INT_ACCESSORS(length)
 
-  inline Object unchecked_synchronized_length() const;
+  inline Object unchecked_length(AcquireLoadTag) const;
 
   static int GetMaxLengthForNewSpaceAllocation(ElementsKind kind);
 
@@ -132,18 +134,7 @@ class FixedArray
   inline bool is_the_hole(Isolate* isolate, int index);
 
   // Setter that doesn't need write barrier.
-#if defined(_WIN32) && !defined(_WIN64)
-  inline void set(int index, Smi value) {
-    DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
-    DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-    DCHECK(Object(value).IsSmi());
-    int offset = OffsetOfElementAt(index);
-    RELAXED_WRITE_FIELD(*this, offset, value);
-  }
-#else
   inline void set(int index, Smi value);
-#endif
-
   // Setter with explicit barrier mode.
   inline void set(int index, Object value, WriteBarrierMode mode);
 
@@ -294,8 +285,10 @@ class WeakFixedArray
       int index, MaybeObject value,
       WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
 
-  // Get and set the length using acquire loads and release stores.
-  DECL_SYNCHRONIZED_INT_ACCESSORS(length)
+  // Forward declare the non-atomic (set_)length defined in torque.
+  using TorqueGeneratedWeakFixedArray::length;
+  using TorqueGeneratedWeakFixedArray::set_length;
+  DECL_RELEASE_ACQUIRE_INT_ACCESSORS(length)
 
   // Gives access to raw memory which stores the array's data.
   inline MaybeObjectSlot data_start();
@@ -386,9 +379,6 @@ class WeakArrayList
                            int src_index, int len, WriteBarrierMode mode);
 
   V8_EXPORT_PRIVATE bool IsFull();
-
-  // Get and set the capacity using acquire loads and release stores.
-  DECL_SYNCHRONIZED_INT_ACCESSORS(capacity)
 
   int AllocatedSize();
 

@@ -112,7 +112,7 @@ Reduction GraphReducer::Reduce(Node* const node) {
         if (FLAG_trace_turbo_reduction) {
           UnparkedScopeIfNeeded unparked(broker_);
           // TODO(neis): Disallow racy handle dereference once we stop
-          // supporting --no-local-heaps --no-turbo-direct-heap-access.
+          // supporting --no-local-heaps --no-concurrent-inlining.
           AllowHandleDereference allow_deref;
           StdoutStream{} << "- In-place update of #" << *node << " by reducer "
                          << (*i)->reducer_name() << std::endl;
@@ -125,7 +125,7 @@ Reduction GraphReducer::Reduce(Node* const node) {
         if (FLAG_trace_turbo_reduction) {
           UnparkedScopeIfNeeded unparked(broker_);
           // TODO(neis): Disallow racy handle dereference once we stop
-          // supporting --no-local-heaps --no-turbo-direct-heap-access.
+          // supporting --no-local-heaps --no-concurrent-inlining.
           AllowHandleDereference allow_deref;
           StdoutStream{} << "- Replacement of #" << *node << " with #"
                          << *(reduction.replacement()) << " by reducer "

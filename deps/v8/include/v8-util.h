@@ -43,7 +43,7 @@ class StdMapTraits {
 
   static bool Empty(Impl* impl) { return impl->empty(); }
   static size_t Size(Impl* impl) { return impl->size(); }
-  static void Swap(Impl& a, Impl& b) { std::swap(a, b); }  // NOLINT
+  static void Swap(Impl& a, Impl& b) { std::swap(a, b); }
   static Iterator Begin(Impl* impl) { return impl->begin(); }
   static Iterator End(Impl* impl) { return impl->end(); }
   static K Key(Iterator it) { return it->first; }

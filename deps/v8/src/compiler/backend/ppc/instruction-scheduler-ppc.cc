@@ -177,15 +177,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_I64x2Add:
     case kPPC_I64x2Sub:
     case kPPC_I64x2Mul:
-    case kPPC_I64x2MinS:
-    case kPPC_I64x2MinU:
-    case kPPC_I64x2MaxS:
-    case kPPC_I64x2MaxU:
     case kPPC_I64x2Eq:
     case kPPC_I64x2Ne:
     case kPPC_I64x2GtS:
-    case kPPC_I64x2GtU:
-    case kPPC_I64x2GeU:
     case kPPC_I64x2GeS:
     case kPPC_I64x2Shl:
     case kPPC_I64x2ShrS:

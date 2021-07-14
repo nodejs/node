@@ -46,12 +46,12 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BytecodeArrayBuilder(const BytecodeArrayBuilder&) = delete;
   BytecodeArrayBuilder& operator=(const BytecodeArrayBuilder&) = delete;
 
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  Handle<BytecodeArray> ToBytecodeArray(LocalIsolate* isolate);
-  template <typename LocalIsolate>
+  Handle<BytecodeArray> ToBytecodeArray(IsolateT* isolate);
+  template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  Handle<ByteArray> ToSourcePositionTable(LocalIsolate* isolate);
+  Handle<ByteArray> ToSourcePositionTable(IsolateT* isolate);
 
 #ifdef DEBUG
   int CheckBytecodeMatches(BytecodeArray bytecode);

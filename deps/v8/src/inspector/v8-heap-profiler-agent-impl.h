@@ -34,14 +34,15 @@ class V8HeapProfilerAgentImpl : public protocol::HeapProfiler::Backend {
 
   Response enable() override;
   Response startTrackingHeapObjects(Maybe<bool> trackAllocations) override;
-  Response stopTrackingHeapObjects(
-      Maybe<bool> reportProgress,
-      Maybe<bool> treatGlobalObjectsAsRoots) override;
+  Response stopTrackingHeapObjects(Maybe<bool> reportProgress,
+                                   Maybe<bool> treatGlobalObjectsAsRoots,
+                                   Maybe<bool> captureNumericValue) override;
 
   Response disable() override;
 
   Response takeHeapSnapshot(Maybe<bool> reportProgress,
-                            Maybe<bool> treatGlobalObjectsAsRoots) override;
+                            Maybe<bool> treatGlobalObjectsAsRoots,
+                            Maybe<bool> captureNumericValue) override;
 
   Response getObjectByHeapObjectId(
       const String16& heapSnapshotObjectId, Maybe<String16> objectGroup,

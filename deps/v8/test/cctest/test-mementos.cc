@@ -61,7 +61,7 @@ static void SetUpNewSpaceWithPoisonedMementoAtTop() {
 
 TEST(Regress340063) {
   CcTest::InitializeVM();
-  if (!i::FLAG_allocation_site_pretenuring) return;
+  if (!i::FLAG_allocation_site_pretenuring || FLAG_single_generation) return;
   v8::HandleScope scope(CcTest::isolate());
 
   SetUpNewSpaceWithPoisonedMementoAtTop();
@@ -74,7 +74,7 @@ TEST(Regress340063) {
 
 TEST(Regress470390) {
   CcTest::InitializeVM();
-  if (!i::FLAG_allocation_site_pretenuring) return;
+  if (!i::FLAG_allocation_site_pretenuring || FLAG_single_generation) return;
   v8::HandleScope scope(CcTest::isolate());
 
   SetUpNewSpaceWithPoisonedMementoAtTop();
@@ -91,7 +91,7 @@ TEST(Regress470390) {
 
 TEST(BadMementoAfterTopForceScavenge) {
   CcTest::InitializeVM();
-  if (!i::FLAG_allocation_site_pretenuring) return;
+  if (!i::FLAG_allocation_site_pretenuring || FLAG_single_generation) return;
   v8::HandleScope scope(CcTest::isolate());
 
   SetUpNewSpaceWithPoisonedMementoAtTop();

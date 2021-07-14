@@ -1042,23 +1042,7 @@ Response V8DebuggerAgentImpl::restartFrame(
     std::unique_ptr<Array<CallFrame>>* newCallFrames,
     Maybe<protocol::Runtime::StackTrace>* asyncStackTrace,
     Maybe<protocol::Runtime::StackTraceId>* asyncStackTraceId) {
-  if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
-  InjectedScript::CallFrameScope scope(m_session, callFrameId);
-  Response response = scope.initialize();
-  if (!response.IsSuccess()) return response;
-  int frameOrdinal = static_cast<int>(scope.frameOrdinal());
-  auto it = v8::debug::StackTraceIterator::Create(m_isolate, frameOrdinal);
-  if (it->Done()) {
-    return Response::ServerError("Could not find call frame with given id");
-  }
-  if (!it->Restart()) {
-    return Response::InternalError();
-  }
-  response = currentCallFrames(newCallFrames);
-  if (!response.IsSuccess()) return response;
-  *asyncStackTrace = currentAsyncStackTrace();
-  *asyncStackTraceId = currentExternalStackTrace();
-  return Response::Success();
+  return Response::ServerError("Frame restarting not supported");
 }
 
 Response V8DebuggerAgentImpl::getScriptSource(

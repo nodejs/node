@@ -867,14 +867,22 @@ TEST(DynamicWithSourceURLInStackTraceString) {
   CHECK_NOT_NULL(strstr(*stack, "at foo (source_url:3:5)"));
 }
 
-TEST(CaptureStackTraceForStackOverflow) {
+UNINITIALIZED_TEST(CaptureStackTraceForStackOverflow) {
+  // We must set FLAG_stack_size before initializing the isolate.
   v8::internal::FLAG_stack_size = 150;
-  LocalContext current;
-  v8::Isolate* isolate = current->GetIsolate();
-  v8::HandleScope scope(isolate);
-  isolate->SetCaptureStackTraceForUncaughtExceptions(true, 10,
-                                                     v8::StackTrace::kDetailed);
-  v8::TryCatch try_catch(isolate);
-  CompileRun("(function f(x) { f(x+1); })(0)");
-  CHECK(try_catch.HasCaught());
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  isolate->Enter();
+  {
+    LocalContext current(isolate);
+    v8::HandleScope scope(isolate);
+    isolate->SetCaptureStackTraceForUncaughtExceptions(
+        true, 10, v8::StackTrace::kDetailed);
+    v8::TryCatch try_catch(isolate);
+    CompileRun("(function f(x) { f(x+1); })(0)");
+    CHECK(try_catch.HasCaught());
+  }
+  isolate->Exit();
+  isolate->Dispose();
 }

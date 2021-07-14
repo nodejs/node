@@ -138,9 +138,7 @@ class StackFrame {
     INNER_JSENTRY_FRAME = (0 << kSmiTagSize) | kSmiTag,
     OUTERMOST_JSENTRY_FRAME = (1 << kSmiTagSize) | kSmiTag
   };
-  // NOLINTNEXTLINE(runtime/references) (false positive)
   STATIC_ASSERT((INNER_JSENTRY_FRAME & kHeapObjectTagMask) != kHeapObjectTag);
-  // NOLINTNEXTLINE(runtime/references) (false positive)
   STATIC_ASSERT((OUTERMOST_JSENTRY_FRAME & kHeapObjectTagMask) !=
                 kHeapObjectTag);
 
@@ -389,7 +387,6 @@ class V8_EXPORT_PRIVATE FrameSummary {
     int SourcePosition() const;
     int SourceStatementPosition() const;
     Handle<Object> script() const;
-    Handle<String> FunctionName() const;
     Handle<Context> native_context() const;
 
    private:
@@ -418,7 +415,6 @@ class V8_EXPORT_PRIVATE FrameSummary {
     int SourceStatementPosition() const { return SourcePosition(); }
     Handle<Script> script() const;
     Handle<WasmInstanceObject> wasm_instance() const { return wasm_instance_; }
-    Handle<String> FunctionName() const;
     Handle<Context> native_context() const;
     bool at_to_number_conversion() const { return at_to_number_conversion_; }
 
@@ -453,7 +449,6 @@ class V8_EXPORT_PRIVATE FrameSummary {
   Handle<Object> script() const;
   int SourcePosition() const;
   int SourceStatementPosition() const;
-  Handle<String> FunctionName() const;
   Handle<Context> native_context() const;
 
 #define FRAME_SUMMARY_CAST(kind_, type, field, desc)      \
@@ -964,7 +959,7 @@ class WasmFrame : public TypedFrame {
   V8_EXPORT_PRIVATE WasmInstanceObject wasm_instance() const;
   V8_EXPORT_PRIVATE wasm::NativeModule* native_module() const;
   wasm::WasmCode* wasm_code() const;
-  uint32_t function_index() const;
+  int function_index() const;
   Script script() const;
   // Byte position in the module, or asm.js source position.
   int position() const override;

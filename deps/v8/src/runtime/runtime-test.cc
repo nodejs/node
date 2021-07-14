@@ -4,6 +4,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/base/platform/mutex.h"
+#include "src/baseline/baseline-osr-inl.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/pending-optimization-table.h"
@@ -39,6 +40,11 @@ namespace {
 V8_WARN_UNUSED_RESULT Object CrashUnlessFuzzing(Isolate* isolate) {
   CHECK(FLAG_fuzzing);
   return ReadOnlyRoots(isolate).undefined_value();
+}
+
+// Returns |value| unless fuzzing is enabled, otherwise returns undefined_value.
+V8_WARN_UNUSED_RESULT Object ReturnFuzzSafe(Object value, Isolate* isolate) {
+  return FLAG_fuzzing ? ReadOnlyRoots(isolate).undefined_value() : value;
 }
 
 // Assert that the given argument is a number within the Int32 range
@@ -470,6 +476,37 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_BaselineOsr) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0 || args.length() == 1);
+
+  Handle<JSFunction> function;
+
+  // The optional parameter determines the frame being targeted.
+  int stack_depth = 0;
+  if (args.length() == 1) {
+    if (!args[0].IsSmi()) return CrashUnlessFuzzing(isolate);
+    stack_depth = args.smi_at(0);
+  }
+
+  // Find the JavaScript function on the top of the stack.
+  JavaScriptFrameIterator it(isolate);
+  while (!it.done() && stack_depth--) it.Advance();
+  if (!it.done()) function = handle(it.frame()->function(), isolate);
+  if (function.is_null()) return CrashUnlessFuzzing(isolate);
+  if (!FLAG_sparkplug || !FLAG_use_osr) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+  if (!it.frame()->is_unoptimized()) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+
+  UnoptimizedFrame* frame = UnoptimizedFrame::cast(it.frame());
+  OSRInterpreterFrameToBaseline(isolate, function, frame);
+
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_NeverOptimizeFunction) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -576,6 +613,11 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
     if (frame->is_optimized()) {
       status |=
           static_cast<int>(OptimizationStatus::kTopmostFrameIsTurboFanned);
+    } else if (frame->is_interpreted()) {
+      status |=
+          static_cast<int>(OptimizationStatus::kTopmostFrameIsInterpreted);
+    } else if (frame->is_baseline()) {
+      status |= static_cast<int>(OptimizationStatus::kTopmostFrameIsBaseline);
     }
   }
 
@@ -678,6 +720,7 @@ int FixedArrayLenFromSize(int size) {
 }
 
 void FillUpOneNewSpacePage(Isolate* isolate, Heap* heap) {
+  DCHECK(!FLAG_single_generation);
   PauseAllocationObserversScope pause_observers(heap);
   NewSpace* space = heap->new_space();
   // We cannot rely on `space->limit()` to point to the end of the current page
@@ -990,6 +1033,25 @@ RUNTIME_FUNCTION(Runtime_InYoungGeneration) {
   return isolate->heap()->ToBoolean(ObjectInYoungGeneration(obj));
 }
 
+// Force pretenuring for the allocation site the passed object belongs to.
+RUNTIME_FUNCTION(Runtime_PretenureAllocationSite) {
+  DisallowGarbageCollection no_gc;
+
+  if (args.length() != 1) return CrashUnlessFuzzing(isolate);
+  CONVERT_ARG_CHECKED(Object, arg, 0);
+  if (!arg.IsJSObject()) return CrashUnlessFuzzing(isolate);
+  JSObject object = JSObject::cast(arg);
+
+  Heap* heap = object.GetHeap();
+  AllocationMemento memento =
+      heap->FindAllocationMemento<Heap::kForRuntime>(object.map(), object);
+  if (memento.is_null())
+    return ReturnFuzzSafe(ReadOnlyRoots(isolate).false_value(), isolate);
+  AllocationSite site = memento.GetAllocationSite();
+  heap->PretenureAllocationSiteOnNextCollection(site);
+  return ReturnFuzzSafe(ReadOnlyRoots(isolate).true_value(), isolate);
+}
+
 namespace {
 
 v8::ModifyCodeGenerationFromStringsResult DisallowCodegenFromStringsCallback(
@@ -1257,6 +1319,7 @@ RUNTIME_FUNCTION(Runtime_EnableCodeLoggingForTesting) {
                                Handle<String> source) final {}
     void CodeMoveEvent(AbstractCode from, AbstractCode to) final {}
     void SharedFunctionInfoMoveEvent(Address from, Address to) final {}
+    void NativeContextMoveEvent(Address from, Address to) final {}
     void CodeMovingGCEvent() final {}
     void CodeDisableOptEvent(Handle<AbstractCode> code,
                              Handle<SharedFunctionInfo> shared) final {}
@@ -1292,6 +1355,12 @@ RUNTIME_FUNCTION(Runtime_NewRegExpWithBacktrackLimit) {
 
   RETURN_RESULT_OR_FAILURE(
       isolate, JSRegExp::New(isolate, pattern, flags, backtrack_limit));
+}
+
+RUNTIME_FUNCTION(Runtime_Is64Bit) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(0, args.length());
+  return isolate->heap()->ToBoolean(kSystemPointerSize == 8);
 }
 
 }  // namespace internal

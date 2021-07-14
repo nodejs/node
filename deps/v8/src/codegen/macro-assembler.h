@@ -10,7 +10,7 @@
 #include "src/heap/heap.h"
 
 // Helper types to make boolean flag easier to read at call-site.
-enum InvokeFlag { CALL_FUNCTION, JUMP_FUNCTION };
+enum class InvokeType { kCall, kJump };
 
 // Flags used for the AllocateInNewSpace functions.
 enum AllocationFlags {
@@ -27,6 +27,10 @@ enum AllocationFlags {
   // Directly allocate in old space
   PRETENURE = 1 << 3,
 };
+
+enum class RememberedSetAction { kOmit, kEmit };
+
+enum class SmiCheck { kOmit, kInline };
 
 // This is the only place allowed to include the platform-specific headers.
 #define INCLUDED_FROM_MACRO_ASSEMBLER_H

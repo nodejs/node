@@ -341,6 +341,11 @@ class LiftoffAssembler : public TurboAssembler {
     }
 
     void clear_used(LiftoffRegister reg) {
+      if (reg.is_pair()) {
+        clear_used(reg.low());
+        clear_used(reg.high());
+        return;
+      }
       register_use_count[reg.liftoff_code()] = 0;
       used_registers.clear(reg);
     }
@@ -633,6 +638,7 @@ class LiftoffAssembler : public TurboAssembler {
   inline void LoadTaggedPointerFromInstance(Register dst, Register instance,
                                             int offset);
   inline void SpillInstance(Register instance);
+  inline void ResetOSRTarget();
   inline void FillInstanceInto(Register dst);
   inline void LoadTaggedPointer(Register dst, Register src_addr,
                                 Register offset_reg, int32_t offset_imm,
@@ -669,7 +675,7 @@ class LiftoffAssembler : public TurboAssembler {
   inline void Load(LiftoffRegister dst, Register src_addr, Register offset_reg,
                    uintptr_t offset_imm, LoadType type, LiftoffRegList pinned,
                    uint32_t* protected_load_pc = nullptr,
-                   bool is_load_mem = false, bool i64_offset = false);
+                   bool is_load_mem = false);
   inline void Store(Register dst_addr, Register offset_reg,
                     uintptr_t offset_imm, LiftoffRegister src, StoreType type,
                     LiftoffRegList pinned,
@@ -1415,6 +1421,9 @@ class LiftoffAssembler : public TurboAssembler {
   // Reserve space in the current frame, store address to space in {addr}.
   inline void AllocateStackSlot(Register addr, uint32_t size);
   inline void DeallocateStackSlot(uint32_t size);
+
+  // Instrumentation for shadow-stack-compatible OSR on x64.
+  inline void MaybeOSR();
 
   ////////////////////////////////////
   // End of platform-specific part. //

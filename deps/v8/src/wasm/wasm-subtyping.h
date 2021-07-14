@@ -60,8 +60,10 @@ V8_NOINLINE bool EquivalentTypes(ValueType type1, ValueType type2,
 // - Struct subtyping: Subtype must have at least as many fields as supertype,
 //   covariance for immutable fields, equivalence for mutable fields.
 // - Array subtyping (mutable only) is the equivalence relation.
-// - Function subtyping is the equivalence relation (note: this rule might
-//   change in the future to include type variance).
+// - Function subtyping depends on the enabled wasm features: if
+//   --experimental-wasm-gc is enabled, then subtyping is computed
+//   contravariantly for parameter types and covariantly for return types.
+//   Otherwise, the subtyping relation is the equivalence relation.
 V8_INLINE bool IsSubtypeOf(ValueType subtype, ValueType supertype,
                            const WasmModule* sub_module,
                            const WasmModule* super_module) {
@@ -91,11 +93,9 @@ V8_INLINE bool IsHeapSubtypeOf(uint32_t subtype_index, uint32_t supertype_index,
                      ValueType::Ref(supertype_index, kNonNullable), module);
 }
 
-// Returns the weakest type that is a subtype of both a and b
-// (which is currently always one of a, b, or kWasmBottom).
-// TODO(manoskouk): Update this once we have settled on a type system for
-// reference types.
-ValueType CommonSubtype(ValueType a, ValueType b, const WasmModule* module);
+// Call this function in {module}'s destructor to avoid spurious cache hits in
+// case another WasmModule gets allocated in the same address later.
+void DeleteCachedTypeJudgementsForModule(const WasmModule* module);
 
 }  // namespace wasm
 }  // namespace internal

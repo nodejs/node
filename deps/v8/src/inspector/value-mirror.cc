@@ -165,10 +165,11 @@ String16 abbreviateString(const String16& value, AbbreviateMode mode) {
 
 String16 descriptionForSymbol(v8::Local<v8::Context> context,
                               v8::Local<v8::Symbol> symbol) {
-  return String16::concat("Symbol(",
-                          toProtocolStringWithTypeCheck(context->GetIsolate(),
-                                                        symbol->Description()),
-                          ")");
+  v8::Isolate* isolate = context->GetIsolate();
+  return String16::concat(
+      "Symbol(",
+      toProtocolStringWithTypeCheck(isolate, symbol->Description(isolate)),
+      ")");
 }
 
 String16 descriptionForBigInt(v8::Local<v8::Context> context,
@@ -194,21 +195,19 @@ String16 descriptionForPrimitiveType(v8::Local<v8::Context> context,
   return String16();
 }
 
-String16 descriptionForRegExp(v8::Isolate* isolate,
+String16 descriptionForObject(v8::Isolate* isolate,
+                              v8::Local<v8::Object> object) {
+  return toProtocolString(isolate, object->GetConstructorName());
+}
+
+String16 descriptionForRegExp(v8::Local<v8::Context> context,
                               v8::Local<v8::RegExp> value) {
-  String16Builder description;
-  description.append('/');
-  description.append(toProtocolString(isolate, value->GetSource()));
-  description.append('/');
-  v8::RegExp::Flags flags = value->GetFlags();
-  if (flags & v8::RegExp::Flags::kGlobal) description.append('g');
-  if (flags & v8::RegExp::Flags::kIgnoreCase) description.append('i');
-  if (flags & v8::RegExp::Flags::kLinear) description.append('l');
-  if (flags & v8::RegExp::Flags::kMultiline) description.append('m');
-  if (flags & v8::RegExp::Flags::kDotAll) description.append('s');
-  if (flags & v8::RegExp::Flags::kUnicode) description.append('u');
-  if (flags & v8::RegExp::Flags::kSticky) description.append('y');
-  return description.toString();
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::Local<v8::String> description;
+  if (!value->ToString(context).ToLocal(&description)) {
+    return descriptionForObject(isolate, value);
+  }
+  return toProtocolString(isolate, description);
 }
 
 enum class ErrorType { kNative, kClient };
@@ -264,11 +263,6 @@ String16 descriptionForError(v8::Local<v8::Context> context,
       index != String16::kNotFound ? stack->substring(index + message->length())
                                    : String16();
   return description + stackWithoutMessage;
-}
-
-String16 descriptionForObject(v8::Isolate* isolate,
-                              v8::Local<v8::Object> object) {
-  return toProtocolString(isolate, object->GetConstructorName());
 }
 
 String16 descriptionForDate(v8::Local<v8::Context> context,
@@ -355,14 +349,9 @@ String16 descriptionForEntry(v8::Local<v8::Context> context,
   return key.length() ? ("{" + key + " => " + value + "}") : value;
 }
 
-String16 descriptionForFunction(v8::Local<v8::Context> context,
-                                v8::Local<v8::Function> value) {
-  v8::Isolate* isolate = context->GetIsolate();
-  v8::TryCatch tryCatch(isolate);
-  v8::Local<v8::String> description;
-  if (!value->ToString(context).ToLocal(&description)) {
-    return descriptionForObject(isolate, value);
-  }
+String16 descriptionForFunction(v8::Local<v8::Function> value) {
+  v8::Isolate* isolate = value->GetIsolate();
+  v8::Local<v8::String> description = v8::debug::GetFunctionDescription(value);
   return toProtocolString(isolate, description);
 }
 
@@ -652,7 +641,7 @@ class FunctionMirror final : public ValueMirror {
                     .setType(RemoteObject::TypeEnum::Function)
                     .setClassName(toProtocolStringWithTypeCheck(
                         context->GetIsolate(), m_value->GetConstructorName()))
-                    .setDescription(descriptionForFunction(context, m_value))
+                    .setDescription(descriptionForFunction(m_value))
                     .build();
     }
     return Response::Success();
@@ -673,7 +662,7 @@ class FunctionMirror final : public ValueMirror {
     *preview =
         ObjectPreview::create()
             .setType(RemoteObject::TypeEnum::Function)
-            .setDescription(descriptionForFunction(context, m_value))
+            .setDescription(descriptionForFunction(m_value))
             .setOverflow(false)
             .setProperties(std::make_unique<protocol::Array<PropertyPreview>>())
             .build();
@@ -1216,7 +1205,6 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
       return false;
     }
   }
-  bool shouldSkipProto = internalType == V8InternalValueType::kScopeList;
 
   bool formatAccessorsAsProperties =
       clientFor(context)->formatAccessorsAsProperties(object);
@@ -1321,7 +1309,6 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
       }
     }
     if (accessorPropertiesOnly && !isAccessorProperty) continue;
-    if (name == "__proto__") shouldSkipProto = true;
     auto mirror = PropertyMirror{name,
                                  writable,
                                  configurable,
@@ -1338,16 +1325,6 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
     if (!iterator->Advance().FromMaybe(false)) {
       CHECK(tryCatch.HasCaught());
       return false;
-    }
-  }
-  if (!shouldSkipProto && ownProperties && !object->IsProxy() &&
-      !accessorPropertiesOnly) {
-    v8::Local<v8::Value> prototype = object->GetPrototype();
-    if (prototype->IsObject()) {
-      accumulator->Add(PropertyMirror{String16("__proto__"), true, true, false,
-                                      true, false,
-                                      ValueMirror::create(context, prototype),
-                                      nullptr, nullptr, nullptr, nullptr});
     }
   }
   return true;
@@ -1615,7 +1592,7 @@ std::unique_ptr<ValueMirror> ValueMirror::create(v8::Local<v8::Context> context,
   if (value->IsRegExp()) {
     return std::make_unique<ObjectMirror>(
         value, RemoteObject::SubtypeEnum::Regexp,
-        descriptionForRegExp(isolate, value.As<v8::RegExp>()));
+        descriptionForRegExp(context, value.As<v8::RegExp>()));
   }
   if (value->IsProxy()) {
     return std::make_unique<ObjectMirror>(

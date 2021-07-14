@@ -85,8 +85,7 @@ class BuiltinArguments : public JavaScriptArguments {
   V8_NOINLINE static Address Builtin_Impl_Stats_##name(                     \
       int args_length, Address* args_object, Isolate* isolate) {            \
     BuiltinArguments args(args_length, args_object);                        \
-    RuntimeCallTimerScope timer(isolate,                                    \
-                                RuntimeCallCounterId::kBuiltin_##name);     \
+    RCS_SCOPE(isolate, RuntimeCallCounterId::kBuiltin_##name);              \
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),                   \
                  "V8.Builtin_" #name);                                      \
     return CONVERT_OBJECT(Builtin_Impl_##name(args, isolate));              \

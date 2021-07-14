@@ -1435,9 +1435,11 @@ EatsAtLeastInfo LoopChoiceNode::EatsAtLeastFromLoopEntry() {
   DCHECK_EQ(alternatives_->length(), 2);  // There's just loop and continue.
 
   if (read_backward()) {
-    // Can't do anything special for a backward loop, so return the basic values
-    // that we got during analysis.
-    return *eats_at_least_info();
+    // The eats_at_least value is not used if reading backward. The
+    // EatsAtLeastPropagator should've zeroed it as well.
+    DCHECK_EQ(eats_at_least_info()->eats_at_least_from_possibly_start, 0);
+    DCHECK_EQ(eats_at_least_info()->eats_at_least_from_not_start, 0);
+    return {};
   }
 
   // Figure out how much the loop body itself eats, not including anything in
@@ -3531,14 +3533,23 @@ class EatsAtLeastPropagator : public AllStatic {
   }
 
   static void VisitAction(ActionNode* that) {
-    // POSITIVE_SUBMATCH_SUCCESS rewinds input, so we must not consider
-    // successor nodes for eats_at_least. SET_REGISTER_FOR_LOOP indicates a loop
-    // entry point, which means the loop body will run at least the minimum
-    // number of times before the continuation case can run. Otherwise the
-    // current node eats at least as much as its successor.
+    // - BEGIN_SUBMATCH and POSITIVE_SUBMATCH_SUCCESS wrap lookarounds.
+    // Lookarounds rewind input, so their eats_at_least value must not
+    // propagate to surroundings.
+    // TODO(jgruber): Instead of resetting EAL to 0 at lookaround boundaries,
+    // analysis should instead skip over the lookaround and look at whatever
+    // follows the lookaround. A simple solution would be to store a pointer to
+    // the associated POSITIVE_SUBMATCH_SUCCESS node in the BEGIN_SUBMATCH
+    // node, and use that during analysis.
+    // - SET_REGISTER_FOR_LOOP indicates a loop entry point, which means the
+    // loop body will run at least the minimum number of times before the
+    // continuation case can run. Otherwise the current node eats at least as
+    // much as its successor.
     switch (that->action_type()) {
+      case ActionNode::BEGIN_SUBMATCH:
       case ActionNode::POSITIVE_SUBMATCH_SUCCESS:
-        break;  // Was already initialized to zero.
+        DCHECK(that->eats_at_least_info()->IsZero());
+        break;
       case ActionNode::SET_REGISTER_FOR_LOOP:
         that->set_eats_at_least_info(
             that->on_success()->EatsAtLeastFromLoopEntry());
@@ -3560,7 +3571,10 @@ class EatsAtLeastPropagator : public AllStatic {
   }
 
   static void VisitLoopChoiceContinueNode(LoopChoiceNode* that) {
-    that->set_eats_at_least_info(*that->continue_node()->eats_at_least_info());
+    if (!that->read_backward()) {
+      that->set_eats_at_least_info(
+          *that->continue_node()->eats_at_least_info());
+    }
   }
 
   static void VisitLoopChoiceLoopNode(LoopChoiceNode* that) {}

@@ -43,6 +43,22 @@ MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
                                           Handle<String> source,
                                           debug::EvaluateGlobalMode mode,
                                           REPLMode repl_mode) {
+  Handle<SharedFunctionInfo> shared_info;
+  if (!GetFunctionInfo(isolate, source, repl_mode).ToHandle(&shared_info)) {
+    return MaybeHandle<Object>();
+  }
+
+  Handle<NativeContext> context = isolate->native_context();
+  Handle<JSFunction> fun =
+      Factory::JSFunctionBuilder{isolate, shared_info, context}.Build();
+
+  return Global(isolate, fun, mode, repl_mode);
+}
+
+MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
+                                          Handle<JSFunction> function,
+                                          debug::EvaluateGlobalMode mode,
+                                          REPLMode repl_mode) {
   // Disable breaks in side-effect free mode.
   DisableBreak disable_break_scope(
       isolate->debug(),
@@ -50,19 +66,14 @@ MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
           mode ==
               debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect);
 
-  Handle<SharedFunctionInfo> shared_info;
-  if (!GetFunctionInfo(isolate, source, repl_mode).ToHandle(&shared_info)) {
-    return MaybeHandle<Object>();
-  }
+  Handle<NativeContext> context = isolate->native_context();
+  CHECK_EQ(function->native_context(), *context);
 
-  Handle<Context> context = isolate->native_context();
-  Handle<JSFunction> fun =
-      Factory::JSFunctionBuilder{isolate, shared_info, context}.Build();
   if (mode == debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect) {
     isolate->debug()->StartSideEffectCheckMode();
   }
   MaybeHandle<Object> result = Execution::Call(
-      isolate, fun, Handle<JSObject>(context->global_proxy(), isolate), 0,
+      isolate, function, Handle<JSObject>(context->global_proxy(), isolate), 0,
       nullptr);
   if (mode == debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect) {
     isolate->debug()->StopSideEffectCheckMode();
@@ -1108,7 +1119,7 @@ void DebugEvaluate::VerifyTransitiveBuiltins(Isolate* isolate) {
   }
   CHECK(!failed);
 #if defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_PPC64) || \
-    defined(V8_TARGET_ARCH_MIPS64) || defined(V8_TARGET_ARCH_RISCV64)
+    defined(V8_TARGET_ARCH_MIPS64)
   // Isolate-independent builtin calls and jumps do not emit reloc infos
   // on PPC. We try to avoid using PC relative code due to performance
   // issue with especially older hardwares.

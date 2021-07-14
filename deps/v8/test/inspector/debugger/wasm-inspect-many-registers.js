@@ -98,6 +98,7 @@ async function testConfig(config) {
 
 InspectorTest.runAsyncTestSuite([
   async function test() {
+    await Protocol.Runtime.enable();
     await Protocol.Debugger.enable();
     for (let config in configs) {
       await testConfig(config);

@@ -14,7 +14,7 @@ class StatsCollector;
 
 /**
  * Base class used for reporting GC statistics histograms. Embedders interested
- * in collecting histgorams should implement the virtual AddMainThreadEvent
+ * in collecting histograms should implement the virtual AddMainThreadEvent
  * methods below and pass an instance of the implementation during Heap
  * creation.
  */

@@ -567,6 +567,8 @@ class CopyAndRelocTask : public JobTask {
 
   void Run(JobDelegate* delegate) override {
     CODE_SPACE_WRITE_SCOPE
+    NativeModuleModificationScope native_module_modification_scope(
+        deserializer_->native_module_);
     do {
       auto batch = from_queue_->Pop();
       if (batch.empty()) break;
@@ -712,11 +714,9 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
     constexpr size_t kMaxReservation =
         RoundUp<kCodeAlignment>(WasmCodeAllocator::kMaxCodeSpaceSize * 9 / 10);
     size_t code_space_size = std::min(kMaxReservation, remaining_code_size_);
-    current_code_space_ =
+    std::tie(current_code_space_, current_jump_tables_) =
         native_module_->AllocateForDeserializedCode(code_space_size);
     DCHECK_EQ(current_code_space_.size(), code_space_size);
-    current_jump_tables_ = native_module_->FindJumpTablesForRegion(
-        base::AddressRegionOf(current_code_space_));
     DCHECK(current_jump_tables_.is_valid());
   }
 

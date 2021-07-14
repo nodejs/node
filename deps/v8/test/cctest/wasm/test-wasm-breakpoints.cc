@@ -546,7 +546,6 @@ WASM_COMPILED_EXEC_TEST(WasmBreakInPostMVP) {
   // being used. There was a bug where we were trying to update the "detected"
   // features set, but we were passing a nullptr when compiling with
   // breakpoints.
-  EXPERIMENTAL_FLAG_SCOPE(mv);
   WasmRunner<int> runner(execution_tier);
   Isolate* isolate = runner.main_isolate();
 

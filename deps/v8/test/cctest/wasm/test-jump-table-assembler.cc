@@ -122,14 +122,14 @@ void CompileJumpTableThunk(Address thunk, Address jump_target) {
   __ Br(scratch);
 #elif V8_TARGET_ARCH_PPC64
   __ mov(scratch, Operand(stop_bit_address, RelocInfo::NONE));
-  __ LoadP(scratch, MemOperand(scratch));
+  __ LoadU64(scratch, MemOperand(scratch));
   __ cmpi(scratch, Operand::Zero());
   __ bne(&exit);
   __ mov(scratch, Operand(jump_target, RelocInfo::NONE));
   __ Jump(scratch);
 #elif V8_TARGET_ARCH_S390X
   __ mov(scratch, Operand(stop_bit_address, RelocInfo::NONE));
-  __ LoadP(scratch, MemOperand(scratch));
+  __ LoadU64(scratch, MemOperand(scratch));
   __ CmpP(scratch, Operand(0));
   __ bne(&exit);
   __ mov(scratch, Operand(jump_target, RelocInfo::NONE));
@@ -156,8 +156,14 @@ void CompileJumpTableThunk(Address thunk, Address jump_target) {
   __ Ret();
 
   FlushInstructionCache(thunk, kThunkBufferSize);
+#if defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
+  // MacOS on arm64 refuses {mprotect} calls to toggle permissions of RWX
+  // memory. Simply do nothing here, and rely on
+  // {SwitchMemoryPermissionsToExecutable} in the JumpTableRunner.
+#else
   CHECK(SetPermissions(GetPlatformPageAllocator(), thunk, kThunkBufferSize,
                        v8::PageAllocator::kReadExecute));
+#endif
 }
 
 class JumpTableRunner : public v8::base::Thread {

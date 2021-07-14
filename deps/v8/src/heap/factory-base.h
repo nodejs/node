@@ -228,14 +228,19 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
   Handle<SwissNameDictionary> NewSwissNameDictionaryWithCapacity(
       int capacity, AllocationType allocation);
 
+  Handle<FunctionTemplateRareData> NewFunctionTemplateRareData();
+
  protected:
   // Allocate memory for an uninitialized array (e.g., a FixedArray or similar).
   HeapObject AllocateRawArray(int size, AllocationType allocation);
   HeapObject AllocateRawFixedArray(int length, AllocationType allocation);
   HeapObject AllocateRawWeakArrayList(int length, AllocationType allocation);
 
-  Struct NewStructInternal(InstanceType type,
-                           AllocationType allocation = AllocationType::kYoung);
+  template <typename StructType>
+  inline StructType NewStructInternal(InstanceType type,
+                                      AllocationType allocation);
+  Struct NewStructInternal(ReadOnlyRoots roots, Map map, int size,
+                           AllocationType allocation);
 
   HeapObject AllocateRawWithImmortalMap(
       int size, AllocationType allocation, Map map,

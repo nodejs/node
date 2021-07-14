@@ -25,7 +25,7 @@ DOM.defineCustomElement(
       set map(map) {
         if (this._map === map) return;
         this._map = map;
-        this.update();
+        this.requestUpdate();
       }
 
       _update() {

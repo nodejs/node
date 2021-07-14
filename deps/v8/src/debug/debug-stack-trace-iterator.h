@@ -31,7 +31,6 @@ class DebugStackTraceIterator final : public debug::StackTraceIterator {
   v8::Local<v8::Function> GetFunction() const override;
   std::unique_ptr<v8::debug::ScopeIterator> GetScopeIterator() const override;
 
-  bool Restart() override;
   v8::MaybeLocal<v8::Value> Evaluate(v8::Local<v8::String> source,
                                      bool throw_on_side_effect) override;
 

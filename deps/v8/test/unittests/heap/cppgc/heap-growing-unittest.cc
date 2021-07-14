@@ -69,7 +69,10 @@ TEST(HeapGrowingTest, ConservativeGCInvoked) {
   HeapGrowing growing(&gc, &stats_collector, constraints,
                       cppgc::Heap::MarkingType::kIncrementalAndConcurrent,
                       cppgc::Heap::SweepingType::kIncrementalAndConcurrent);
-  EXPECT_CALL(gc, CollectGarbage(::testing::_));
+  EXPECT_CALL(
+      gc, CollectGarbage(::testing::Field(
+              &GarbageCollector::Config::stack_state,
+              GarbageCollector::Config::StackState::kMayContainHeapPointers)));
   FakeAllocate(&stats_collector, 100 * kMB);
 }
 
@@ -85,7 +88,10 @@ TEST(HeapGrowingTest, InitialHeapSize) {
                       cppgc::Heap::MarkingType::kIncrementalAndConcurrent,
                       cppgc::Heap::SweepingType::kIncrementalAndConcurrent);
   FakeAllocate(&stats_collector, kObjectSize - 1);
-  EXPECT_CALL(gc, CollectGarbage(::testing::_));
+  EXPECT_CALL(
+      gc, CollectGarbage(::testing::Field(
+              &GarbageCollector::Config::stack_state,
+              GarbageCollector::Config::StackState::kMayContainHeapPointers)));
   FakeAllocate(&stats_collector, kObjectSize);
 }
 
@@ -135,7 +141,11 @@ TEST(HeapGrowingTest, IncrementalGCStarted) {
   HeapGrowing growing(&gc, &stats_collector, constraints,
                       cppgc::Heap::MarkingType::kIncrementalAndConcurrent,
                       cppgc::Heap::SweepingType::kIncrementalAndConcurrent);
-  EXPECT_CALL(gc, CollectGarbage(::testing::_)).Times(0);
+  EXPECT_CALL(
+      gc, CollectGarbage(::testing::Field(
+              &GarbageCollector::Config::stack_state,
+              GarbageCollector::Config::StackState::kMayContainHeapPointers)))
+      .Times(0);
   EXPECT_CALL(gc, StartIncrementalGarbageCollection(::testing::_));
   // Allocate 1 byte less the limit for atomic gc to trigger incremental gc.
   FakeAllocate(&stats_collector, growing.limit_for_atomic_gc() - 1);
@@ -149,13 +159,20 @@ TEST(HeapGrowingTest, IncrementalGCFinalized) {
   HeapGrowing growing(&gc, &stats_collector, constraints,
                       cppgc::Heap::MarkingType::kIncrementalAndConcurrent,
                       cppgc::Heap::SweepingType::kIncrementalAndConcurrent);
-  EXPECT_CALL(gc, CollectGarbage(::testing::_)).Times(0);
+  EXPECT_CALL(
+      gc, CollectGarbage(::testing::Field(
+              &GarbageCollector::Config::stack_state,
+              GarbageCollector::Config::StackState::kMayContainHeapPointers)))
+      .Times(0);
   EXPECT_CALL(gc, StartIncrementalGarbageCollection(::testing::_));
   // Allocate 1 byte less the limit for atomic gc to trigger incremental gc.
   size_t bytes_for_incremental_gc = growing.limit_for_atomic_gc() - 1;
   FakeAllocate(&stats_collector, bytes_for_incremental_gc);
   ::testing::Mock::VerifyAndClearExpectations(&gc);
-  EXPECT_CALL(gc, CollectGarbage(::testing::_));
+  EXPECT_CALL(
+      gc, CollectGarbage(::testing::Field(
+              &GarbageCollector::Config::stack_state,
+              GarbageCollector::Config::StackState::kMayContainHeapPointers)));
   EXPECT_CALL(gc, StartIncrementalGarbageCollection(::testing::_)).Times(0);
   // Allocate the rest needed to trigger atomic gc ().
   FakeAllocate(&stats_collector, StatsCollector::kAllocationThresholdBytes);

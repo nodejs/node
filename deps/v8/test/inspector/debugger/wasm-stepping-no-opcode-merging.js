@@ -23,6 +23,7 @@ Protocol.Debugger.onPaused(printPauseLocationAndStep);
 
 InspectorTest.runAsyncTestSuite([
   async function test() {
+    await Protocol.Runtime.enable();
     await Protocol.Debugger.enable();
     WasmInspectorTest.instantiate(module_bytes);
     [, {params: {scriptId: wasm_script_id}}] = await Protocol.Debugger.onceScriptParsed(2);

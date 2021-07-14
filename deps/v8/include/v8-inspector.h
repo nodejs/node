@@ -105,8 +105,9 @@ class V8_EXPORT V8StackTrace {
   virtual StringView topSourceURL() const = 0;
   virtual int topLineNumber() const = 0;
   virtual int topColumnNumber() const = 0;
-  virtual StringView topScriptId() const = 0;
-  virtual int topScriptIdAsInteger() const = 0;
+  virtual int topScriptId() const = 0;
+  V8_DEPRECATE_SOON("Use V8::StackTrace::topScriptId() instead.")
+  int topScriptIdAsInteger() const { return topScriptId(); }
   virtual StringView topFunctionName() const = 0;
 
   virtual ~V8StackTrace() = default;
@@ -130,6 +131,10 @@ class V8_EXPORT V8InspectorSession {
     virtual v8::Local<v8::Value> get(v8::Local<v8::Context>) = 0;
     virtual ~Inspectable() = default;
   };
+  class V8_EXPORT CommandLineAPIScope {
+   public:
+    virtual ~CommandLineAPIScope() = default;
+  };
   virtual void addInspectedObject(std::unique_ptr<Inspectable>) = 0;
 
   // Dispatching protocol messages.
@@ -138,6 +143,9 @@ class V8_EXPORT V8InspectorSession {
   virtual std::vector<uint8_t> state() = 0;
   virtual std::vector<std::unique_ptr<protocol::Schema::API::Domain>>
   supportedDomains() = 0;
+
+  virtual std::unique_ptr<V8InspectorSession::CommandLineAPIScope>
+  initializeCommandLineAPIScope(int executionContextId) = 0;
 
   // Debugger actions.
   virtual void schedulePauseOnNextStatement(StringView breakReason,

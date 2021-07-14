@@ -161,8 +161,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   // Move statistics to Isolate
   void UpdateStatistics(Isolate* isolate, Handle<Script> script);
-  template <typename LocalIsolate>
-  void HandleSourceURLComments(LocalIsolate* isolate, Handle<Script> script);
+  template <typename IsolateT>
+  void HandleSourceURLComments(IsolateT* isolate, Handle<Script> script);
 
  private:
   friend class ParserBase<Parser>;
@@ -652,15 +652,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     if (left->IsProperty() && right->IsFunctionLiteral()) {
       right->AsFunctionLiteral()->set_pretenure();
     }
-  }
-
-  // A shortcut for performing a ToString operation
-  V8_INLINE Expression* ToString(Expression* expr) {
-    if (expr->IsStringLiteral()) return expr;
-    ScopedPtrList<Expression> args(pointer_buffer());
-    args.Add(expr);
-    return factory()->NewCallRuntime(Runtime::kInlineToString, args,
-                                     expr->position());
   }
 
   // Returns true if we have a binary expression between two numeric

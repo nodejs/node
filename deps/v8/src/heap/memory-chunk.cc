@@ -161,6 +161,9 @@ MemoryChunk* MemoryChunk::Initialize(BasicMemoryChunk* basic_chunk, Heap* heap,
 
   chunk->possibly_empty_buckets_.Initialize();
 
+  // All pages of a shared heap need to be marked with this flag.
+  if (heap->IsShared()) chunk->SetFlag(IN_SHARED_HEAP);
+
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
   chunk->object_start_bitmap_ = ObjectStartBitmap(chunk->area_start());
 #endif

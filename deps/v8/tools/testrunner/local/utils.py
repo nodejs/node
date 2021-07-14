@@ -97,6 +97,58 @@ def GuessOS():
     return None
 
 
+# Returns power processor version, taking compatibility mode into account.
+# (Power9 running in Power8 compatibility mode returns 8)
+# Only useful if arch is ppc64
+def GuessPowerProcessorVersion():
+  import ctypes, ctypes.util
+  os = GuessOS()
+  if os == 'linux':
+    AT_PLATFORM = 15 # from linux/auxvec.h
+    _LIBC = ctypes.CDLL(ctypes.util.find_library('c'))
+    _LIBC.getauxval.argtypes = [ctypes.c_ulong]
+    _LIBC.getauxval.restype = ctypes.c_char_p
+    at_platform = _LIBC.getauxval(AT_PLATFORM).decode('utf-8').lower()
+    if at_platform.startswith('power6'):
+      return 6
+    elif at_platform.startswith('power7'):
+      return 7
+    elif at_platform.startswith('power8'):
+      return 8
+    elif at_platform.startswith('power9'):
+      return 9
+    elif at_platform.startswith('power10'):
+      return 10
+    else:
+      raise Exception('Unable to guess power processor version')
+  elif os == 'aix':
+    # covers aix and os400
+    RTLD_MEMBER = 0x00040000
+    _LIBC = ctypes.CDLL(ctypes.util.find_library('c'),
+                        ctypes.DEFAULT_MODE | RTLD_MEMBER)
+    class _system_configuration(ctypes.Structure):
+      _fields_ = [
+        ('architecture', ctypes.c_int),
+        ('implementation', ctypes.c_int),
+      ]
+    cfg = _system_configuration.in_dll(_LIBC, '_system_configuration')
+    # Values found in sys/systemcfg.h
+    if cfg.implementation == 0x4000:
+      return 6
+    elif cfg.implementation == 0x8000:
+      return 7
+    elif cfg.implementation == 0x10000:
+      return 8
+    elif cfg.implementation == 0x20000:
+      return 9
+    elif cfg.implementation == 0x40000:
+      return 10
+    else:
+      raise Exception('Unable to guess power processor version')
+  else:
+    raise Exception('Unable to guess power processor version')
+
+
 def UseSimulator(arch):
   machine = platform.machine()
   return (machine and

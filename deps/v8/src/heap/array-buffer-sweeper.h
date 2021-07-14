@@ -59,7 +59,11 @@ class ArrayBufferSweeper {
   void RequestSweepYoung();
   void RequestSweepFull();
 
+  // Track the given ArrayBufferExtension for the given JSArrayBuffer.
   void Append(JSArrayBuffer object, ArrayBufferExtension* extension);
+
+  // Detaches an ArrayBufferExtension from a JSArrayBuffer.
+  void Detach(JSArrayBuffer object, ArrayBufferExtension* extension);
 
   ArrayBufferList young() { return young_; }
   ArrayBufferList old() { return old_; }
@@ -98,10 +102,11 @@ class ArrayBufferSweeper {
   base::Optional<SweepingJob> job_;
 
   void Merge();
-  void AdjustCountersAndMergeIfPossible();
+  void MergeBackExtensionsWhenSwept();
 
-  void DecrementExternalMemoryCounters();
+  void UpdateCountersForConcurrentlySweptExtensions();
   void IncrementExternalMemoryCounters(size_t bytes);
+  void DecrementExternalMemoryCounters(size_t bytes);
   void IncrementFreedBytes(size_t bytes);
 
   void RequestSweep(SweepingScope sweeping_task);

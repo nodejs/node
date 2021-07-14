@@ -130,8 +130,8 @@ inline bool IsCloneObjectKind(FeedbackSlotKind kind) {
 inline TypeofMode GetTypeofModeFromSlotKind(FeedbackSlotKind kind) {
   DCHECK(IsLoadGlobalICKind(kind));
   return (kind == FeedbackSlotKind::kLoadGlobalInsideTypeof)
-             ? INSIDE_TYPEOF
-             : NOT_INSIDE_TYPEOF;
+             ? TypeofMode::kInside
+             : TypeofMode::kNotInside;
 }
 
 inline LanguageMode GetLanguageModeFromSlotKind(FeedbackSlotKind kind) {
@@ -311,7 +311,7 @@ class FeedbackVector
 
   DECL_PRINTER(FeedbackVector)
 
-  void FeedbackSlotPrint(std::ostream& os, FeedbackSlot slot);  // NOLINT
+  void FeedbackSlotPrint(std::ostream& os, FeedbackSlot slot);
 
   // Clears the vector slots. Return true if feedback has changed.
   bool ClearSlots(Isolate* isolate);
@@ -321,6 +321,9 @@ class FeedbackVector
 
   // The object that indicates a megamorphic state.
   static inline Handle<Symbol> MegamorphicSentinel(Isolate* isolate);
+
+  // The object that indicates a MegaDOM state.
+  static inline Handle<Symbol> MegaDOMSentinel(Isolate* isolate);
 
   // A raw version of the uninitialized sentinel that's safe to read during
   // garbage collection (e.g., for patching the cache).
@@ -389,7 +392,7 @@ class V8_EXPORT_PRIVATE FeedbackVectorSpec {
   }
 
   FeedbackSlot AddLoadGlobalICSlot(TypeofMode typeof_mode) {
-    return AddSlot(typeof_mode == INSIDE_TYPEOF
+    return AddSlot(typeof_mode == TypeofMode::kInside
                        ? FeedbackSlotKind::kLoadGlobalInsideTypeof
                        : FeedbackSlotKind::kLoadGlobalNotInsideTypeof);
   }
@@ -532,9 +535,9 @@ class FeedbackMetadata : public HeapObject {
   V8_EXPORT_PRIVATE FeedbackSlotKind GetKind(FeedbackSlot slot) const;
 
   // If {spec} is null, then it is considered empty.
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   V8_EXPORT_PRIVATE static Handle<FeedbackMetadata> New(
-      LocalIsolate* isolate, const FeedbackVectorSpec* spec = nullptr);
+      IsolateT* isolate, const FeedbackVectorSpec* spec = nullptr);
 
   DECL_PRINTER(FeedbackMetadata)
   DECL_VERIFIER(FeedbackMetadata)
@@ -588,7 +591,6 @@ class FeedbackMetadata : public HeapObject {
 
 // Verify that an empty hash field looks like a tagged object, but can't
 // possibly be confused with a pointer.
-// NOLINTNEXTLINE(runtime/references) (false positive)
 STATIC_ASSERT((Name::kEmptyHashField & kHeapObjectTag) == kHeapObjectTag);
 STATIC_ASSERT(Name::kEmptyHashField == 0x3);
 // Verify that a set hash field will not look like a tagged object.
@@ -728,7 +730,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   bool IsMegamorphic() const { return ic_state() == MEGAMORPHIC; }
   bool IsGeneric() const { return ic_state() == GENERIC; }
 
-  void Print(std::ostream& os);  // NOLINT
+  void Print(std::ostream& os);
 
   // For map-based ICs (load, keyed-load, store, keyed-store).
   Map GetFirstMap() const;
@@ -773,6 +775,8 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   void ConfigurePolymorphic(
       Handle<Name> name, std::vector<MapAndHandler> const& maps_and_handlers);
 
+  void ConfigureMegaDOM(const MaybeObjectHandle& handler);
+
   BinaryOperationHint GetBinaryOperationFeedback() const;
   CompareOperationHint GetCompareOperationFeedback() const;
   ForInHint GetForInFeedback() const;
@@ -791,13 +795,15 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   int GetCallCount();
   void SetSpeculationMode(SpeculationMode mode);
   SpeculationMode GetSpeculationMode();
+  CallFeedbackContent GetCallFeedbackContent();
 
   // Compute the call frequency based on the call count and the invocation
   // count (taken from the type feedback vector).
   float ComputeCallFrequency();
 
   using SpeculationModeField = base::BitField<SpeculationMode, 0, 1>;
-  using CallCountField = base::BitField<uint32_t, 1, 31>;
+  using CallFeedbackContentField = base::BitField<CallFeedbackContent, 1, 1>;
+  using CallCountField = base::BitField<uint32_t, 2, 30>;
 
   // For InstanceOf ICs.
   MaybeHandle<JSObject> GetConstructorFeedback() const;
@@ -831,7 +837,6 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
 
   // Add a type to the list of types for source position <position>.
   void Collect(Handle<String> type, int position);
-  JSObject GetTypeProfile() const;
 
   std::vector<int> GetSourcePositions() const;
   std::vector<Handle<String>> GetTypesForSourcePositions(uint32_t pos) const;
@@ -847,6 +852,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
 
   inline MaybeObject UninitializedSentinel() const;
   inline MaybeObject MegamorphicSentinel() const;
+  inline MaybeObject MegaDOMSentinel() const;
 
   // Create an array. The caller must install it in a feedback vector slot.
   Handle<WeakFixedArray> CreateArrayOfSize(int length);

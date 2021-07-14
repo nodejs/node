@@ -282,7 +282,7 @@ def ReadStatusFile(content, variables):
 
 def _ReadSection(section, variables, rules, prefix_rules):
   assert type(section) == dict
-  for rule, outcome_list in section.iteritems():
+  for rule, outcome_list in section.items():
     assert type(rule) == str
 
     if rule[-1] == '*':

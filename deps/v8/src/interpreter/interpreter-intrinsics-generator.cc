@@ -213,12 +213,6 @@ TNode<Object> IntrinsicsGenerator::HasProperty(
                                 arg_count);
 }
 
-TNode<Object> IntrinsicsGenerator::ToString(
-    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
-    int arg_count) {
-  return IntrinsicAsBuiltinCall(args, context, Builtins::kToString, arg_count);
-}
-
 TNode<Object> IntrinsicsGenerator::ToLength(
     const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
     int arg_count) {

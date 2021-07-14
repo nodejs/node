@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <ostream>  // NOLINT(readability/streams)
+#include "src/diagnostics/compilation-statistics.h"
+
+#include <ostream>
 #include <vector>
 
 #include "src/base/platform/platform.h"
-#include "src/diagnostics/compilation-statistics.h"
 
 namespace v8 {
 namespace internal {

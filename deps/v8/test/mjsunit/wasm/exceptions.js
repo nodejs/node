@@ -263,6 +263,27 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   assertInstanceof(caught.__proto__, WebAssembly.RuntimeError);
 })();
 
+(function TestStackOverflowNotCaught() {
+  print(arguments.callee.name);
+  function stack_overflow() {
+    %ThrowStackOverflow();
+  }
+  let builder = new WasmModuleBuilder();
+  let sig_v_v = builder.addType(kSig_v_v);
+  let kStackOverflow = builder.addImport('', 'stack_overflow', sig_v_v);
+  builder.addFunction('try_stack_overflow', kSig_v_v)
+      .addBody([
+        kExprTry, kWasmVoid,
+          kExprCallFunction, 0,
+        kExprCatchAll,
+        kExprEnd
+      ]).exportFunc();
+  let instance = builder.instantiate({'': {'stack_overflow': stack_overflow}});
+
+  assertThrows(() => instance.exports.try_stack_overflow(),
+      RangeError, 'Maximum call stack size exceeded');
+})();
+
 // Test that we can distinguish which exception was thrown by using a cascaded
 // sequence of nested try blocks with a single catch block each.
 (function TestCatchComplex1() {

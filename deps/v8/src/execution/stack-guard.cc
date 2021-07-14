@@ -12,6 +12,7 @@
 #include "src/logging/counters.h"
 #include "src/objects/backing-store.h"
 #include "src/roots/roots-inl.h"
+#include "src/tracing/trace-event.h"
 #include "src/utils/memcopy.h"
 
 #if V8_ENABLE_WEBASSEMBLY

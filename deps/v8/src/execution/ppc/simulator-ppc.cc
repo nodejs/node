@@ -39,7 +39,7 @@ DEFINE_LAZY_LEAKY_OBJECT_GETTER(Simulator::GlobalMonitor,
 // SScanF not being implemented in a platform independent way through
 // ::v8::internal::OS in the same way as SNPrintF is that the
 // Windows C Run-Time Library does not provide vsscanf.
-#define SScanF sscanf  // NOLINT
+#define SScanF sscanf
 
 // The PPCDebugger class is used by the simulator while debugging simulated
 // PowerPC code.
@@ -1138,7 +1138,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         SimulatorRuntimeDirectGetterCall target =
             reinterpret_cast<SimulatorRuntimeDirectGetterCall>(external);
         if (!ABI_PASSES_HANDLES_IN_REGS) {
-          arg[0] = *(reinterpret_cast<intptr_t*>(arg[0]));
+          arg[0] = bit_cast<intptr_t>(arg[0]);
         }
         target(arg[0], arg[1]);
       } else if (redirection->type() ==
@@ -1157,7 +1157,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         SimulatorRuntimeProfilingGetterCall target =
             reinterpret_cast<SimulatorRuntimeProfilingGetterCall>(external);
         if (!ABI_PASSES_HANDLES_IN_REGS) {
-          arg[0] = *(reinterpret_cast<intptr_t*>(arg[0]));
+          arg[0] = bit_cast<intptr_t>(arg[0]);
         }
         target(arg[0], arg[1], Redirection::ReverseRedirection(arg[2]));
       } else {
@@ -2464,6 +2464,10 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
         DCHECK_EQ(instr->Bit(0), 1);
         set_simd_register_by_lane<int64_t>(frt, 0,
                                            static_cast<int64_t>(ra_val));
+        // Low 64 bits of the result is undefined,
+        // Which is simulated here by adding random bits.
+        set_simd_register_by_lane<int64_t>(
+            frt, 1, static_cast<int64_t>(0x123456789ABCD));
       }
       break;
     }
@@ -3913,8 +3917,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
     case STVX: {
       DECODE_VX_INSTRUCTION(vrs, ra, rb, S)
       GET_ADDRESS(ra, rb, ra_val, rb_val)
-      __int128 vrs_val =
-          *(reinterpret_cast<__int128*>(get_simd_register(vrs).int8));
+      __int128 vrs_val = bit_cast<__int128>(get_simd_register(vrs).int8);
       WriteQW((ra_val + rb_val) & 0xFFFFFFFFFFFFFFF0, vrs_val);
       break;
     }
@@ -3926,12 +3929,28 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
           xt, 1, ReadDW(ra_val + rb_val + kSystemPointerSize));
       break;
     }
+    case LXVX: {
+      DECODE_VX_INSTRUCTION(vrt, ra, rb, T)
+      GET_ADDRESS(ra, rb, ra_val, rb_val)
+      intptr_t addr = ra_val + rb_val;
+      simdr_t* ptr = reinterpret_cast<simdr_t*>(addr);
+      set_simd_register(vrt, *ptr);
+      break;
+    }
     case STXVD: {
       DECODE_VX_INSTRUCTION(xs, ra, rb, S)
       GET_ADDRESS(ra, rb, ra_val, rb_val)
       WriteDW(ra_val + rb_val, get_simd_register_by_lane<int64_t>(xs, 0));
       WriteDW(ra_val + rb_val + kSystemPointerSize,
               get_simd_register_by_lane<int64_t>(xs, 1));
+      break;
+    }
+    case STXVX: {
+      DECODE_VX_INSTRUCTION(vrs, ra, rb, S)
+      GET_ADDRESS(ra, rb, ra_val, rb_val)
+      intptr_t addr = ra_val + rb_val;
+      __int128 vrs_val = bit_cast<__int128>(get_simd_register(vrs).int8);
+      WriteQW(addr, vrs_val);
       break;
     }
     case LXSIBZX: {
@@ -3980,6 +3999,15 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       DECODE_VX_INSTRUCTION(xs, ra, rb, S)
       GET_ADDRESS(ra, rb, ra_val, rb_val)
       WriteDW(ra_val + rb_val, get_simd_register_by_lane<int64_t>(xs, 0));
+      break;
+    }
+    case XXBRQ: {
+      int t = instr->RTValue();
+      int b = instr->RBValue();
+      __int128 xb_val = bit_cast<__int128>(get_simd_register(b).int8);
+      __int128 xb_val_reversed = __builtin_bswap128(xb_val);
+      simdr_t simdr_xb = bit_cast<simdr_t>(xb_val_reversed);
+      set_simd_register(t, simdr_xb);
       break;
     }
 #define VSPLT(type)                                       \
@@ -4749,7 +4777,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       DECODE_VX_INSTRUCTION(t, a, b, T)
       uint16_t result_bits = 0;
       unsigned __int128 src_bits =
-          *(reinterpret_cast<__int128*>(get_simd_register(a).int8));
+          bit_cast<__int128>(get_simd_register(a).int8);
       for (int i = 0; i < kSimd128Size; i++) {
         result_bits <<= 1;
         uint8_t selected_bit_index = get_simd_register_by_lane<uint8_t>(b, i);
@@ -4871,6 +4899,14 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       VECTOR_UNARY_OP(float, base::RecipSqrt)
       break;
     }
+    case VNEGW: {
+      VECTOR_UNARY_OP(int32_t, -)
+      break;
+    }
+    case VNEGD: {
+      VECTOR_UNARY_OP(int64_t, -)
+      break;
+    }
 #undef VECTOR_UNARY_OP
 #define VECTOR_ROUNDING_AVERAGE(intermediate_type, result_type)              \
   DECODE_VX_INSTRUCTION(t, a, b, T)                                          \
@@ -4911,7 +4947,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       break;
     }
   }
-}  // NOLINT
+}
 
 void Simulator::Trace(Instruction* instr) {
   disasm::NameConverter converter;
@@ -4981,7 +5017,7 @@ void Simulator::CallInternal(Address entry) {
   // Prepare to execute the code at entry
   if (ABI_USES_FUNCTION_DESCRIPTORS) {
     // entry is the function descriptor
-    set_pc(*(reinterpret_cast<intptr_t*>(entry)));
+    set_pc(*(bit_cast<intptr_t*>(entry)));
   } else {
     // entry is the instruction address
     set_pc(static_cast<intptr_t>(entry));

@@ -27,6 +27,8 @@ CAST_ACCESSOR(AllocationSite)
 
 ACCESSORS(AllocationSite, transition_info_or_boilerplate, Object,
           kTransitionInfoOrBoilerplateOffset)
+RELEASE_ACQUIRE_ACCESSORS(AllocationSite, transition_info_or_boilerplate,
+                          Object, kTransitionInfoOrBoilerplateOffset)
 ACCESSORS(AllocationSite, nested_site, Object, kNestedSiteOffset)
 INT32_ACCESSORS(AllocationSite, pretenure_data, kPretenureDataOffset)
 INT32_ACCESSORS(AllocationSite, pretenure_create_count,
@@ -41,8 +43,14 @@ JSObject AllocationSite::boilerplate() const {
   return JSObject::cast(transition_info_or_boilerplate());
 }
 
-void AllocationSite::set_boilerplate(JSObject object, WriteBarrierMode mode) {
-  set_transition_info_or_boilerplate(object, mode);
+JSObject AllocationSite::boilerplate(AcquireLoadTag tag) const {
+  DCHECK(PointsToLiteral());
+  return JSObject::cast(transition_info_or_boilerplate(tag));
+}
+
+void AllocationSite::set_boilerplate(JSObject value, ReleaseStoreTag tag,
+                                     WriteBarrierMode mode) {
+  set_transition_info_or_boilerplate(value, tag, mode);
 }
 
 int AllocationSite::transition_info() const {

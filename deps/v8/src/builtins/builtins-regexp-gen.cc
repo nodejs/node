@@ -1014,6 +1014,12 @@ TF_BUILTIN(RegExpExecInternal, RegExpBuiltinsAssembler) {
 TNode<String> RegExpBuiltinsAssembler::FlagsGetter(TNode<Context> context,
                                                    TNode<Object> regexp,
                                                    bool is_fastpath) {
+  TVARIABLE(String, result);
+  Label runtime(this, Label::kDeferred), done(this, &result);
+  if (is_fastpath) {
+    GotoIfForceSlowPath(&runtime);
+  }
+
   Isolate* isolate = this->isolate();
 
   const TNode<IntPtrT> int_one = IntPtrConstant(1);
@@ -1110,7 +1116,7 @@ TNode<String> RegExpBuiltinsAssembler::FlagsGetter(TNode<Context> context,
   // corresponding char for each set flag.
 
   {
-    const TNode<String> result = AllocateSeqOneByteString(var_length.value());
+    const TNode<String> string = AllocateSeqOneByteString(var_length.value());
 
     TVARIABLE(IntPtrT, var_offset,
               IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag));
@@ -1120,7 +1126,7 @@ TNode<String> RegExpBuiltinsAssembler::FlagsGetter(TNode<Context> context,
     Label next(this);                                          \
     GotoIfNot(IsSetWord(var_flags.value(), FLAG), &next);      \
     const TNode<Int32T> value = Int32Constant(CHAR);           \
-    StoreNoWriteBarrier(MachineRepresentation::kWord8, result, \
+    StoreNoWriteBarrier(MachineRepresentation::kWord8, string, \
                         var_offset.value(), value);            \
     var_offset = IntPtrAdd(var_offset.value(), int_one);       \
     Goto(&next);                                               \
@@ -1137,7 +1143,26 @@ TNode<String> RegExpBuiltinsAssembler::FlagsGetter(TNode<Context> context,
     CASE_FOR_FLAG(JSRegExp::kSticky, 'y');
 #undef CASE_FOR_FLAG
 
-    return result;
+    if (is_fastpath) {
+#ifdef V8_ENABLE_FORCE_SLOW_PATH
+      result = string;
+      Goto(&done);
+
+      BIND(&runtime);
+      {
+        result =
+            CAST(CallRuntime(Runtime::kRegExpStringFromFlags, context, regexp));
+        Goto(&done);
+      }
+
+      BIND(&done);
+      return result.value();
+#else
+      return string;
+#endif
+    } else {
+      return string;
+    }
   }
 }
 

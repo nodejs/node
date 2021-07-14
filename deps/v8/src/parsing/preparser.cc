@@ -272,10 +272,9 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   DCHECK_NE(FunctionSyntaxKind::kWrapped, function_syntax_kind);
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
-  RuntimeCallTimerScope runtime_timer(
-      runtime_call_stats_,
-      RuntimeCallCounterId::kPreParseWithVariableResolution,
-      RuntimeCallStats::kThreadSpecific);
+  RCS_SCOPE(runtime_call_stats_,
+            RuntimeCallCounterId::kPreParseWithVariableResolution,
+            RuntimeCallStats::kThreadSpecific);
 
   base::ElapsedTimer timer;
   if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();

@@ -17,6 +17,7 @@ void LocalEmbedderHeapTracer::SetRemoteTracer(EmbedderHeapTracer* tracer) {
   if (remote_tracer_) remote_tracer_->isolate_ = nullptr;
 
   remote_tracer_ = tracer;
+  default_embedder_roots_handler_.SetTracer(tracer);
   if (remote_tracer_)
     remote_tracer_->isolate_ = reinterpret_cast<v8::Isolate*>(isolate_);
 }
@@ -75,9 +76,8 @@ void LocalEmbedderHeapTracer::SetEmbedderStackStateForNextFinalization(
   if (!InUse()) return;
 
   embedder_stack_state_ = stack_state;
-  if (EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers == stack_state) {
-    remote_tracer()->NotifyEmptyEmbedderStack();
-  }
+  if (EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers == stack_state)
+    NotifyEmptyEmbedderStack();
 }
 
 namespace {
@@ -162,6 +162,34 @@ void LocalEmbedderHeapTracer::StartIncrementalMarkingIfNeeded() {
     heap->FinalizeIncrementalMarkingAtomically(
         i::GarbageCollectionReason::kExternalFinalize);
   }
+}
+
+void LocalEmbedderHeapTracer::NotifyEmptyEmbedderStack() {
+  auto* overriden_stack_state = isolate_->heap()->overriden_stack_state();
+  if (overriden_stack_state &&
+      (*overriden_stack_state ==
+       cppgc::EmbedderStackState::kMayContainHeapPointers))
+    return;
+
+  isolate_->global_handles()->NotifyEmptyEmbedderStack();
+}
+
+bool DefaultEmbedderRootsHandler::IsRoot(
+    const v8::TracedReference<v8::Value>& handle) {
+  return !tracer_ || tracer_->IsRootForNonTracingGC(handle);
+}
+
+bool DefaultEmbedderRootsHandler::IsRoot(
+    const v8::TracedGlobal<v8::Value>& handle) {
+  return !tracer_ || tracer_->IsRootForNonTracingGC(handle);
+}
+
+void DefaultEmbedderRootsHandler::ResetRoot(
+    const v8::TracedReference<v8::Value>& handle) {
+  // Resetting is only called when IsRoot() returns false which
+  // can only happen the EmbedderHeapTracer is set on API level.
+  DCHECK(tracer_);
+  tracer_->ResetHandleInNonTracingGC(handle);
 }
 
 }  // namespace internal
