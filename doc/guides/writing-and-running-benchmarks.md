@@ -422,7 +422,7 @@ chunkLen     encoding      rate confidence.interval
 
 ### Running benchmarks on the CI
 
-To see the performance impact of a Pull Request by running benchmarks on
+To see the performance impact of a pull request by running benchmarks on
 the CI, check out [How to: Running core benchmarks on Node.js CI][benchmark-ci].
 
 ## Creating a benchmark
