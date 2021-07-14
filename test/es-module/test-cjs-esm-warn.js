@@ -35,7 +35,7 @@ const pjson = path.resolve(
       'code to use dynamic import() which is available in all CommonJS ' +
       `modules, or change "type": "module" to "type": "commonjs" in ${pjson} to ` +
       'treat all .js files as CommonJS (using .mjs for all ES modules ' +
-      'instead).\n'));
+      'instead).'));
   }));
 }
 
