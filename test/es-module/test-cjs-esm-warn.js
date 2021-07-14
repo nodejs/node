@@ -30,12 +30,12 @@ const pjson = path.resolve(
     assert.ok(stderr.replaceAll('\r', '').includes(
       `Error [ERR_REQUIRE_ESM]: require() of ES Module ${required} from ${
         requiringCjsAsEsm} not supported.\n`));
-    assert.ok(stderr.includes(
+    assert.ok(stderr.replaceAll('\r', '').includes(
       `Instead rename ${basename} to end in .cjs, change the requiring ` +
       'code to use dynamic import() which is available in all CommonJS ' +
       `modules, or change "type": "module" to "type": "commonjs" in ${pjson} to ` +
       'treat all .js files as CommonJS (using .mjs for all ES modules ' +
-      'instead).'));
+      'instead).\n'));
   }));
 }
 
@@ -57,7 +57,7 @@ const pjson = path.resolve(
     assert.ok(stderr.replace(/\r/g, '').includes(
       `Error [ERR_REQUIRE_ESM]: require() of ES Module ${required} from ${
         requiringEsm} not supported.\n`));
-    assert.ok(stderr.includes(
+    assert.ok(stderr.replace(/\r/g, '').includes(
       `Instead change the require of ${basename} in ${requiringEsm} to` +
       ' a dynamic import() which is available in all CommonJS modules.\n'));
   }));
