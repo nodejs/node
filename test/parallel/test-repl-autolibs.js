@@ -42,7 +42,7 @@ function test1() {
                          `${util.inspect(require('fs'), null, 2, false)}\n`);
       // Globally added lib matches required lib
       assert.strictEqual(global.fs, require('fs'));
-      test2();
+      process.nextTick(test2);
     }
   };
   assert(!gotWrite);
