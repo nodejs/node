@@ -1402,7 +1402,6 @@ Node.js options that are allowed are:
 * `--experimental-policy`
 * `--experimental-specifier-resolution`
 * `--experimental-top-level-await`
-* `--no-experimental-repl-await`
 * `--experimental-vm-modules`
 * `--experimental-wasi-unstable-preview1`
 * `--experimental-wasm-modules`
@@ -1422,6 +1421,7 @@ Node.js options that are allowed are:
 * `--max-http-header-size`
 * `--napi-modules`
 * `--no-deprecation`
+* `--no-experimental-repl-await`
 * `--no-force-async-hooks-checks`
 * `--no-warnings`
 * `--node-memory-debug`
