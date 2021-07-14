@@ -184,7 +184,7 @@ The project has two venues for real-time discussion:
 
 ## Landing PRs
 
-See the Collaborator Guide: [Landing Pull Requests][].
+See the Collaborator Guide: [Landing pull requests][].
 
 Commits in one PR that belong to one logical change should
 be squashed. It is rarely the case in onboarding exercises, so this
@@ -240,7 +240,7 @@ needs to be pointed out separately during the onboarding.
 
 [Code of Conduct]: https://github.com/nodejs/admin/blob/HEAD/CODE_OF_CONDUCT.md
 [Labels]: doc/guides/collaborator-guide.md#labels
-[Landing Pull Requests]: doc/guides/collaborator-guide.md#landing-pull-requests
+[Landing pull requests]: doc/guides/collaborator-guide.md#landing-pull-requests
 [Publicizing or hiding organization membership]: https://help.github.com/articles/publicizing-or-hiding-organization-membership/
 [`author-ready`]: doc/guides/collaborator-guide.md#author-ready-pull-requests
 [`core-validate-commit`]: https://github.com/nodejs/core-validate-commit
