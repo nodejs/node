@@ -1129,6 +1129,7 @@ added: REPLACEME
 -->
 
 Creates a new `TextEncoderStream` instance.
+
 #### `textEncoderStream.encoding`
 <!-- YAML
 added: REPLACEME
