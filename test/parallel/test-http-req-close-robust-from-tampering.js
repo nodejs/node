@@ -17,6 +17,7 @@ server.listen(0, common.mustCall(() => {
 
   const req = [
     'POST / HTTP/1.1',
+    'Host: example.com',
     'Content-Length: 11',
     '',
     'hello world',

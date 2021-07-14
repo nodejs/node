@@ -27,15 +27,18 @@ const server = http.createServer(function(req, res) {
 
   switch (req.url.substr(1)) {
     case 'multiple-writes':
+      delete req.headers.host;
       assert.deepStrictEqual(req.headers, expectedHeadersMultipleWrites);
       res.write('hello');
       res.end('world');
       break;
     case 'end-with-data':
+      delete req.headers.host;
       assert.deepStrictEqual(req.headers, expectedHeadersEndWithData);
       res.end('hello world');
       break;
     case 'empty':
+      delete req.headers.host;
       assert.deepStrictEqual(req.headers, expectedHeadersEndNoData);
       res.end();
       break;
@@ -55,7 +58,6 @@ server.listen(0, function() {
     path: '/multiple-writes'
   });
   req.removeHeader('Date');
-  req.removeHeader('Host');
   req.write('hello ');
   req.end('world');
   req.on('response', function(res) {
@@ -68,7 +70,6 @@ server.listen(0, function() {
     path: '/end-with-data'
   });
   req.removeHeader('Date');
-  req.removeHeader('Host');
   req.end('hello world');
   req.on('response', function(res) {
     assert.deepStrictEqual(res.headers, expectedHeadersEndWithData);
@@ -80,7 +81,6 @@ server.listen(0, function() {
     path: '/empty'
   });
   req.removeHeader('Date');
-  req.removeHeader('Host');
   req.end();
   req.on('response', function(res) {
     assert.deepStrictEqual(res.headers, expectedHeadersEndNoData);

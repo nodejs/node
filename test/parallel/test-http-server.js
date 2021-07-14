@@ -89,7 +89,9 @@ server.on('listening', function() {
   c.setEncoding('utf8');
 
   c.on('connect', function() {
-    c.write('GET /hello?hello=world&foo=b==ar HTTP/1.1\r\n\r\n');
+    c.write(
+      'GET /hello?hello=world&foo=b==ar HTTP/1.1\r\n' +
+      'Host: example.com\r\n\r\n');
     requests_sent += 1;
   });
 
@@ -97,13 +99,16 @@ server.on('listening', function() {
     server_response += chunk;
 
     if (requests_sent === 1) {
-      c.write('POST /quit HTTP/1.1\r\n\r\n');
+      c.write(
+        'POST /quit HTTP/1.1\r\n' +
+        'Host: example.com\r\n\r\n'
+      );
       requests_sent += 1;
     }
 
     if (requests_sent === 2) {
-      c.write('GET / HTTP/1.1\r\nX-X: foo\r\n\r\n' +
-              'GET / HTTP/1.1\r\nX-X: bar\r\n\r\n');
+      c.write('GET / HTTP/1.1\r\nX-X: foo\r\nHost: example.com\r\n\r\n' +
+              'GET / HTTP/1.1\r\nX-X: bar\r\nHost: example.com\r\n\r\n');
       // Note: we are making the connection half-closed here
       // before we've gotten the response from the server. This
       // is a pretty bad thing to do and not really supported
