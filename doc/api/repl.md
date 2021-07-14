@@ -604,7 +604,9 @@ changes:
   * `eval` {Function} The function to be used when evaluating each given line
     of input. **Default:** an async wrapper for the JavaScript `eval()`
     function. An `eval` function can error with `repl.Recoverable` to indicate
-    the input was incomplete and prompt for additional lines.
+    the input was incomplete and prompt for additional lines. If a custom
+    `eval` function is provided, `callback` must be invoked to allow processing
+    next command.
   * `useColors` {boolean} If `true`, specifies that the default `writer`
     function should include ANSI color styling to REPL output. If a custom
     `writer` function is provided then this has no effect. **Default:** checking
