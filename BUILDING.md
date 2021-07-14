@@ -765,7 +765,9 @@ to enable FIPS using the configuration flag `--openssl-is-fips`.
 
 ### Configuring and building quictls/openssl for FIPS
 
-For quictls/openssl 3.0 it is possible to enable FIPS when dynamically linking. If you want to build Node.js using openssl-3.0.0+quic, you can follow these steps:
+For quictls/openssl 3.0 it is possible to enable FIPS when dynamically linking.
+If you want to build Node.js using openssl-3.0.0+quic, you can follow these
+steps:
 
 **clone OpenSSL source and prepare build**
 ```console
@@ -781,8 +783,8 @@ cd openssl
 ```
 
 The `/path/to/install/dir` is the path in which the `make install` instructions
-will publish the OpenSSL libraries and such. We will also use this path (and sub-paths)
-later when compiling Node.js.
+will publish the OpenSSL libraries and such. We will also use this path
+(and sub-paths) later when compiling Node.js.
 
 **compile and install OpenSSL**
 ```console
@@ -792,11 +794,12 @@ make install_ssldirs
 make install_fips
 ```
 
-After the OpenSSL (including FIPS) modules have been compiled and installed (into
-the `/path/to/install/dir`) by the above instructions we also need to update the
-OpenSSL configuration file located under `/path/to/install/dir/ssl/openssl.cnf`.
-Right next to this file, you should find the `fipsmodule.cnf` file - let's add the
-following to the end of the `openssl.cnf` file.
+After the OpenSSL (including FIPS) modules have been compiled and installed
+(into the `/path/to/install/dir`) by the above instructions we also need to
+update the OpenSSL configuration file located under 
+`/path/to/install/dir/ssl/openssl.cnf`. Right next to this file, you should
+find the `fipsmodule.cnf` file - let's add the following to the end of the 
+`openssl.cnf` file.
 
 **alter openssl.cnf**
 ```text
@@ -813,10 +816,10 @@ fips = fips_sect
 activate = 1
 ```
 
-You can e.g. accomplish this by running the following command - be sure to replace
-`/path/to/install/dir/` with the path you have selected. Please make sure that you specify
-an absolute path for the `.include fipsmodule.cnf` line - using relative paths did not work
-on my system!
+You can e.g. accomplish this by running the following command - be sure to
+replace `/path/to/install/dir/` with the path you have selected. Please make
+sure that you specify an absolute path for the `.include fipsmodule.cnf` line -
+using relative paths did not work on my system!
 
 **alter openssl.cnf using a script**
 ```console
@@ -835,9 +838,9 @@ activate = 1
 EOT
 ```
 
-As you might have picked a non-custom path for your OpenSSL install dir, we have to
-export the following two environment variables in order for Node.JS to find our OpenSSL
-modules we built beforehand:
+As you might have picked a non-custom path for your OpenSSL install dir, we
+have to export the following two environment variables in order for Node.JS to
+find our OpenSSL modules we built beforehand:
 ```console
 export OPENSSL_CONF=/path/to/install/dir/ssl/openssl.cnf
 export OPENSSL_MODULES=/path/to/install/dir/lib/ossl-modules
