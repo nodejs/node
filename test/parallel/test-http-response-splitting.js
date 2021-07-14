@@ -53,7 +53,7 @@ const server = http.createServer((req, res) => {
   res.end('ok');
 });
 server.listen(0, () => {
-  const end = 'HTTP/1.1\r\n\r\n';
+  const end = 'HTTP/1.1\r\nHost: example.com\r\n\r\n';
   const client = net.connect({ port: server.address().port }, () => {
     client.write(`GET ${str} ${end}`);
     client.write(`GET / ${end}`);

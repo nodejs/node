@@ -50,7 +50,7 @@ const server = http
   .listen(0, () => {
     const s = net.connect(server.address().port);
     more = () => {
-      s.write('GET / HTTP/1.1\r\n\r\n');
+      s.write('GET / HTTP/1.1\r\nHost: example.com\r\n\r\n');
     };
     done = () => {
       s.write(
