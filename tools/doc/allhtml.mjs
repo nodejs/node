@@ -44,7 +44,8 @@ for (const link of toc.match(/<a.*?>/g)) {
   apicontent += '<section>' + data.slice(match.index + match[0].length)
     .replace(/<!-- API END -->[\s\S]*/, '</section>')
     // Prefix all in-page anchor marks with module name
-    .replace(/<a class="mark" href="#([^"]+)" id="([^"]+)"/g, (match, anchor) => {
+    .replace(/<a class="mark" href="#([^"]+)" id="([^"]+)"/g, (match, anchor, id) => {
+      if (anchor !== id) throw new Error(`Mark does not match: ${anchor} should match ${id}`);
       return `<a class="mark" href="#${moduleName}_${anchor}" id="${moduleName}_${anchor}"`;
     })
     // Prefix all in-page links with current module name
