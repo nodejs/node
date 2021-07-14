@@ -488,7 +488,7 @@ The TSC serves as the final arbiter where required.
    who wish to land their own pull requests will self-assign them. Sometimes, an
    author will delegate to someone else. If in doubt, ask the assignee whether
    it is okay to land.
-1. Never use GitHub's green ["Merge Pull Request"][] button. Reasons for not
+1. Never use GitHub's green ["Merge pull request"][] button. Reasons for not
    using the web interface button:
    * The "Create a merge commit" method will add an unnecessary merge commit.
    * The "Squash and merge" method will add metadata (the pull request #) to the
@@ -911,7 +911,7 @@ need to be attached anymore, as only important bugfixes will be included.
   * `arm`, `mips`, `s390`, `ppc`
   * No `x86{_64}` label because it is the implied default
 
-["Merge Pull Request"]: https://help.github.com/articles/merging-a-pull-request/#merging-a-pull-request-on-github
+["Merge pull request"]: https://help.github.com/articles/merging-a-pull-request/#merging-a-pull-request-on-github
 [Deprecation]: https://en.wikipedia.org/wiki/Deprecation
 [SECURITY.md]: https://github.com/nodejs/node/blob/HEAD/SECURITY.md
 [Stability Index]: ../api/documentation.md#stability-index
