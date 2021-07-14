@@ -116,8 +116,9 @@ repository includes changes to one or more of the following:
 * the documentation in `doc/api`
 * tests within the `test` directory.
 
-If you are modifying code, please be sure to run `make lint` from time to
-time to ensure that the changes follow the Node.js code style guide.
+If you are modifying code, please be sure to run `make lint` (or
+`vcbuild.bat lint` on Windows) to ensure that the changes follow the Node.js
+code style guide.
 
 Any documentation you write (including code comments and API documentation)
 should follow the [Style Guide](../doc-style-guide.md). Code samples
@@ -137,7 +138,7 @@ added: REPLACEME
 
 For contributing C++ code, you may want to look at the
 [C++ Style Guide](../cpp-style-guide.md), as well as the
-[README of `src/`](../../../src/README.md) for an overview over Node.js
+[README of `src/`](../../../src/README.md) for an overview of Node.js
 C++ internals.
 
 ### Step 4: Commit
