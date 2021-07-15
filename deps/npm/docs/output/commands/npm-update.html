@@ -141,7 +141,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#example">Example</a></li><ul><li><a href="#caret-dependencies">Caret Dependencies</a></li><li><a href="#tilde-dependencies">Tilde Dependencies</a></li><li><a href="#caret-dependencies-below-100">Caret Dependencies below 1.0.0</a></li><li><a href="#updating-globally-installed-packages">Updating Globally-Installed Packages</a></li></ul><li><a href="#configuration">Configuration</a></li><ul><li><a href="#global"><code>global</code></a></li><li><a href="#global-style"><code>global-style</code></a></li><li><a href="#legacy-bundling"><code>legacy-bundling</code></a></li><li><a href="#strict-peer-deps"><code>strict-peer-deps</code></a></li><li><a href="#package-lock"><code>package-lock</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#audit"><code>audit</code></a></li><li><a href="#bin-links"><code>bin-links</code></a></li><li><a href="#fund"><code>fund</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#example">Example</a></li><ul><li><a href="#caret-dependencies">Caret Dependencies</a></li><li><a href="#tilde-dependencies">Tilde Dependencies</a></li><li><a href="#caret-dependencies-below-100">Caret Dependencies below 1.0.0</a></li><li><a href="#subdependencies">Subdependencies</a></li><li><a href="#updating-globally-installed-packages">Updating Globally-Installed Packages</a></li></ul><li><a href="#configuration">Configuration</a></li><ul><li><a href="#global"><code>global</code></a></li><li><a href="#global-style"><code>global-style</code></a></li><li><a href="#legacy-bundling"><code>legacy-bundling</code></a></li><li><a href="#strict-peer-deps"><code>strict-peer-deps</code></a></li><li><a href="#package-lock"><code>package-lock</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#audit"><code>audit</code></a></li><li><a href="#bin-links"><code>bin-links</code></a></li><li><a href="#fund"><code>fund</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -151,7 +151,9 @@ aliases: up, upgrade
 </code></pre>
 <h3 id="description">Description</h3>
 <p>This command will update all the packages listed to the latest version
-(specified by the <code>tag</code> config), respecting semver.</p>
+(specified by the <code>tag</code> config), respecting the semver constraints of
+both your package and its dependencies (if they also require the same
+package).</p>
 <p>It will also install missing packages.</p>
 <p>If the <code>-g</code> flag is specified, this command will update globally installed
 packages.</p>
@@ -209,6 +211,30 @@ versions which satisfy <code>^0.2.0</code>.</p>
 </code></pre>
 <p>Then <code>npm update</code> will install <code>dep1@0.4.1</code>, because that is the highest-sorting
 version that satisfies <code>^0.4.0</code> (<code>&gt;= 0.4.0 &lt;0.5.0</code>)</p>
+<h4 id="subdependencies">Subdependencies</h4>
+<p>Suppose your app now also has a dependency on <code>dep2</code></p>
+<pre lang="json"><code>{
+  "name": "my-app",
+  "dependencies": {
+      "dep1": "^1.0.0",
+      "dep2": "1.0.0"
+  }
+}
+</code></pre>
+<p>and <code>dep2</code> itself depends on this limited range of <code>dep1</code></p>
+<pre lang="json"><code>{
+"name": "dep2",
+  "dependencies": {
+    "dep1": "~1.1.1"
+  }
+}
+</code></pre>
+<p>Then <code>npm update</code> will install <code>dep1@1.1.2</code> because that is the highest
+version that <code>dep2</code> allows.  npm will prioritize having a single version
+of <code>dep1</code> in your tree rather than two when that single version can
+satisfy the semver requirements of multiple dependencies in your tree.
+In this case if you really did need your package to use a newer version
+you would need to use <code>npm install</code>.</p>
 <h4 id="updating-globally-installed-packages">Updating Globally-Installed Packages</h4>
 <p><code>npm update -g</code> will apply the <code>update</code> action to each globally installed
 package that is <code>outdated</code> – that is, has a version that is different from
@@ -310,9 +336,10 @@ will <em>not</em> run any pre- or post-scripts.</p>
 <li>Default: true</li>
 <li>Type: Boolean</li>
 </ul>
-<p>When “true” submit audit reports alongside <code>npm install</code> runs to the default
-registry and all registries configured for scopes. See the documentation for
-<a href="../commands/npm-audit.html"><code>npm audit</code></a> for details on what is submitted.</p>
+<p>When “true” submit audit reports alongside the current npm command to the
+default registry and all registries configured for scopes. See the
+documentation for <a href="../commands/npm-audit.html"><code>npm audit</code></a> for details on what is
+submitted.</p>
 <h4 id="bin-links"><code>bin-links</code></h4>
 <ul>
 <li>Default: true</li>

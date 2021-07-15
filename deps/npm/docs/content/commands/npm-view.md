@@ -49,7 +49,7 @@ npm view opts@$(npm view ronn dependencies.opts)
 
 For fields that are arrays, requesting a non-numeric field will return
 all of the values from the objects in the list. For example, to get all
-the contributor names for the `express` package, you would run:
+the contributor email addresses for the `express` package, you would run:
 
 ```bash
 npm view express contributors.email
@@ -104,6 +104,9 @@ npm view connect versions
 * Type: Boolean
 
 Whether or not to output JSON data, rather than the normal output.
+
+* In `npm pkg set` it enables parsing set values with JSON.parse() before
+  saving them to your `package.json`.
 
 Not supported by all npm commands.
 

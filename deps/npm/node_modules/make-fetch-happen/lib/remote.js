@@ -14,6 +14,7 @@ const RETRY_ERRORS = [
   'ECONNREFUSED', // remote host refused to open connection
   'EADDRINUSE', // failed to bind to a local port (proxy?)
   'ETIMEDOUT', // someone in the transaction is WAY TOO SLOW
+  'ERR_SOCKET_TIMEOUT', // same as above, but this one comes from agentkeepalive
   // Known codes we do NOT retry on:
   // ENOTFOUND (getaddrinfo failure. Either bad hostname, or offline)
 ]

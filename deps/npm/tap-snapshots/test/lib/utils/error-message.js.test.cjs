@@ -1289,6 +1289,29 @@ Object {
 }
 `
 
+exports[`test/lib/utils/error-message.js TAP just simple messages > must match snapshot 23`] = `
+Object {
+  "detail": Array [
+    Array [
+      "network",
+      String(
+        This is a problem related to network connectivity.
+        In most cases you are behind a proxy or have bad network settings.
+
+        If you are behind a proxy, please make sure that the
+        'proxy' config is set properly.  See: 'npm help config'
+      ),
+    ],
+  ],
+  "summary": Array [
+    Array [
+      "network",
+      "foo",
+    ],
+  ],
+}
+`
+
 exports[`test/lib/utils/error-message.js TAP just simple messages > must match snapshot 3`] = `
 Object {
   "detail": Array [

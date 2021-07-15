@@ -198,7 +198,8 @@ the prepare script will be run, before the package is packaged and
 installed.</p>
 </li>
 <li>
-<p>As of <code>npm@7</code> these scripts run in the background</p>
+<p>As of <code>npm@7</code> these scripts run in the background.
+To see the output, run with: <code>--foreground-scripts</code>.</p>
 </li>
 </ul>
 <p><strong>prepublish</strong> (DEPRECATED)</p>
@@ -408,8 +409,8 @@ fine:</p>
 <p>Scripts are run by passing the line as a script argument to <code>sh</code>.</p>
 <p>If the script exits with a code other than 0, then this will abort the
 process.</p>
-<p>Note that these script files don’t have to be nodejs or even
-javascript programs. They just have to be some kind of executable
+<p>Note that these script files don’t have to be Node.js or even
+JavaScript programs. They just have to be some kind of executable
 file.</p>
 <h3 id="best-practices">Best Practices</h3>
 <ul>
