@@ -770,7 +770,7 @@ If you want to build Node.js using openssl-3.0.0+quic, you can follow these
 steps:
 
 **clone OpenSSL source and prepare build**
-```console
+```bash
 git clone git@github.com:quictls/openssl.git
 
 cd openssl
