@@ -802,7 +802,7 @@ class Shrinkwrap {
     if (this.tree) {
       if (this.yarnLock)
         this.yarnLock.fromTree(this.tree)
-      const root = Shrinkwrap.metaFromNode(this.tree.target || this.tree, this.path)
+      const root = Shrinkwrap.metaFromNode(this.tree.target, this.path)
       this.data.packages = {}
       if (Object.keys(root).length)
         this.data.packages[''] = root
@@ -864,7 +864,7 @@ class Shrinkwrap {
     const spec = !edge ? rSpec
       : npa.resolve(node.name, edge.spec, edge.from.realpath)
 
-    if (node.target)
+    if (node.isLink)
       lock.version = `file:${relpath(this.path, node.realpath)}`
     else if (spec && (spec.type === 'file' || spec.type === 'remote'))
       lock.version = spec.saveSpec
@@ -888,7 +888,7 @@ class Shrinkwrap {
     // when we didn't resolve to git, file, or dir, and didn't request
     // git, file, dir, or remote, then the resolved value is necessary.
     if (node.resolved &&
-        !node.target &&
+        !node.isLink &&
         rSpec.type !== 'git' &&
         rSpec.type !== 'file' &&
         rSpec.type !== 'directory' &&
@@ -917,7 +917,7 @@ class Shrinkwrap {
         lock.optional = true
     }
 
-    const depender = node.target || node
+    const depender = node.target
     if (depender.edgesOut.size > 0) {
       if (node !== this.tree) {
         lock.requires = [...depender.edgesOut.entries()].reduce((set, [k, v]) => {
@@ -942,7 +942,7 @@ class Shrinkwrap {
     }
 
     // now we walk the children, putting them in the 'dependencies' object
-    const {children} = node.target || node
+    const {children} = node.target
     if (!children.size)
       delete lock.dependencies
     else {

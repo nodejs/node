@@ -95,6 +95,13 @@ t.test('basic definition', async t => {
     description: 'test description',
   })
   t.equal(hasShort.usage, '-t|--key <key>')
+  const multiHasShort = new Definition('key', {
+    default: 'test default',
+    short: 't',
+    type: [null, String],
+    description: 'test description',
+  })
+  t.equal(multiHasShort.usage, '-t|--key <key>')
   const hardCodedTypes = new Definition('key', {
     default: 'test default',
     type: ['string1', 'string2'],

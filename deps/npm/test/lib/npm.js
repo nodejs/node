@@ -476,3 +476,28 @@ t.test('set process.title', t => {
 
   t.end()
 })
+
+t.test('timings', t => {
+  const { npm, logs } = mockNpm(t)
+  process.emit('time', 'foo')
+  process.emit('time', 'bar')
+  t.match(npm.timers.get('foo'), Number, 'foo timer is a number')
+  t.match(npm.timers.get('bar'), Number, 'foo timer is a number')
+  process.emit('timeEnd', 'foo')
+  process.emit('timeEnd', 'bar')
+  process.emit('timeEnd', 'baz')
+  t.match(logs, [
+    ['timing', 'foo', /Completed in [0-9]+ms/],
+    ['timing', 'bar', /Completed in [0-9]+ms/],
+    [
+      'silly',
+      'timing',
+      "Tried to end timer that doesn't exist:",
+      'baz',
+    ],
+  ])
+  t.notOk(npm.timers.has('foo'), 'foo timer is gone')
+  t.notOk(npm.timers.has('bar'), 'bar timer is gone')
+  t.match(npm.timings, { foo: Number, bar: Number })
+  t.end()
+})

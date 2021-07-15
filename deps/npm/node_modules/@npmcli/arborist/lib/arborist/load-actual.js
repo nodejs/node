@@ -315,7 +315,7 @@ module.exports = cls => class ActualLoader extends cls {
 
   [_loadFSTree] (node) {
     const did = this[_actualTreeLoaded]
-    node = node.target || node
+    node = node.target
 
     // if a Link target has started, but not completed, then
     // a Promise will be in the cache to indicate this.

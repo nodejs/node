@@ -64,6 +64,9 @@ Object {
   "l": Array [
     "--long",
   ],
+  "L": Array [
+    "--location",
+  ],
   "local": Array [
     "--no-global",
   ],

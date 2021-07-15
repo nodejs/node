@@ -269,6 +269,7 @@ module.exports = (er, npm) => {
     case 'ECONNRESET':
     case 'ENOTFOUND':
     case 'ETIMEDOUT':
+    case 'ERR_SOCKET_TIMEOUT':
     case 'EAI_FAIL':
       short.push(['network', er.message])
       detail.push([

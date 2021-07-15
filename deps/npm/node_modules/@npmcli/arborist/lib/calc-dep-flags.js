@@ -29,7 +29,7 @@ const calcDepFlagsStep = (node) => {
   resetParents(node, 'optional')
 
   // for links, map their hierarchy appropriately
-  if (node.target) {
+  if (node.isLink) {
     node.target.dev = node.dev
     node.target.optional = node.optional
     node.target.devOptional = node.devOptional
@@ -92,10 +92,10 @@ const unsetFlag = (node, flag) => {
       tree: node,
       visit: node => {
         node.extraneous = node[flag] = false
-        if (node.target)
+        if (node.isLink)
           node.target.extraneous = node.target[flag] = false
       },
-      getChildren: node => [...(node.target || node).edgesOut.values()]
+      getChildren: node => [...node.target.edgesOut.values()]
         .filter(edge => edge.to && edge.to[flag] &&
           (flag !== 'peer' && edge.type === 'peer' || edge.type === 'prod'))
         .map(edge => edge.to),

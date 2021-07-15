@@ -33,12 +33,6 @@ const checkTimeout = async (npm, duration) => {
   return t > st.mtime
 }
 
-const updateTimeout = async npm => {
-  // best effort, if this fails, it's ok.
-  // might be using /dev/null as the cache or something weird like that.
-  await writeFile(lastCheckedFile(npm), '').catch(() => {})
-}
-
 const updateNotifier = async (npm, spec = 'latest') => {
   // never check for updates in CI, when updating npm already, or opted out
   if (!npm.config.get('update-notifier') ||
@@ -111,15 +105,16 @@ const updateNotifier = async (npm, spec = 'latest') => {
     `${oldc} -> ${latestc}\n` +
     `Changelog: ${changelogc}\n` +
     `Run ${cmdc} to update!\n`
-  const messagec = !useColor ? message : chalk.bgBlack.white(message)
 
-  return messagec
+  return message
 }
 
 // only update the notification timeout if we actually finished checking
 module.exports = async npm => {
   const notification = await updateNotifier(npm)
-  // intentional.  do not await this.  it's a best-effort update.
-  updateTimeout(npm)
+  // intentional.  do not await this.  it's a best-effort update.  if this
+  // fails, it's ok.  might be using /dev/null as the cache or something weird
+  // like that.
+  writeFile(lastCheckedFile(npm), '').catch(() => {})
   npm.updateNotification = notification
 }

@@ -91,13 +91,27 @@ ${noEnvExport}`)
 }
 
 const describeUsage = (def) => {
-  let key = `--${def.key}`
-  if (def.short && typeof def.short === 'string')
-    key = `-${def.short}|${key}`
+  let key = ''
 
   // Single type
-  if (!Array.isArray(def.type))
-    return `${key}${def.type === Boolean ? '' : ' ' + def.hint}`
+  if (!Array.isArray(def.type)) {
+    if (def.short)
+      key = `-${def.short}|`
+
+    if (def.type === Boolean && def.default !== false)
+      key = `${key}--no-${def.key}`
+    else
+      key = `${key}--${def.key}`
+
+    if (def.type !== Boolean)
+      key = `${key} ${def.hint}`
+
+    return key
+  }
+
+  key = `--${def.key}`
+  if (def.short)
+    key = `-${def.short}|--${def.key}`
 
   // Multiple types
   let types = def.type
@@ -120,8 +134,12 @@ const describeUsage = (def) => {
     description = def.hint
   }
 
-  if (bool)
-    key = `${key}|${key}`
+  if (bool) {
+    // Currently none of our multi-type configs with boolean values default to
+    // false so all their hints should show `--no-`, if we ever add ones that
+    // default to false we can branch the logic here
+    key = `--no-${def.key}|${key}`
+  }
 
   const usage = `${key} ${description}`
   if (multiple)

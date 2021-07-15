@@ -403,9 +403,12 @@ rely on primitives that aren’t available in Node.js modules. (e.g.
 install into the PATH. npm makes this pretty easy (in fact, it uses this
 feature to install the “npm” executable.)</p>
 <p>To use this, supply a <code>bin</code> field in your package.json which is a map of
-command name to local file name. On install, npm will symlink that file
-into <code>prefix/bin</code> for global installs, or <code>./node_modules/.bin/</code> for local
-installs.</p>
+command name to local file name. When this package is installed
+globally, that file will be linked where global bins go so it is
+available to run by name.  When this package is installed as a
+dependency in another package, the file will be linked where it will be
+available to that package either directly by <code>npm exec</code> or by name in other
+scripts when invoking them via <code>npm run-script</code>.</p>
 <p>For example, myapp could have this:</p>
 <pre lang="json"><code>{
   "bin": {
@@ -436,6 +439,8 @@ package, then you can just supply it as a string.  For example:</p>
 <code>#!/usr/bin/env node</code>, otherwise the scripts are started without the node
 executable!</p>
 <p>Note that you can also set the executable files using <a href="#directoriesbin">directories.bin</a>.</p>
+<p>See <a href="../configuring-npm/folders#executables.html">folders</a> for more info on
+executables.</p>
 <h3 id="man">man</h3>
 <p>Specify either a single file or an array of filenames to put in place for
 the <code>man</code> program to find.</p>

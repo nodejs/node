@@ -1,6 +1,6 @@
 const spawn = require('@npmcli/promise-spawn')
 const promiseRetry = require('promise-retry')
-const shouldRetry = require('./should-retry.js')
+const makeError = require('./make-error.js')
 const whichGit = require('./which.js')
 const makeOpts = require('./opts.js')
 const procLog = require('./proc-log.js')
@@ -33,10 +33,11 @@ module.exports = (gitArgs, opts = {}) => {
 
     return spawn(gitPath, args, makeOpts(opts))
       .catch(er => {
-        if (!shouldRetry(er.stderr, number)) {
-          throw er
+        const gitError = makeError(er)
+        if (!gitError.shouldRetry(number)) {
+          throw gitError
         }
-        retry(er)
+        retry(gitError)
       })
   }, retry)
 }

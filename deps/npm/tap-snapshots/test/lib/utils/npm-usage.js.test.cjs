@@ -26,10 +26,10 @@ All commands:
     edit, exec, explain, explore, find-dupes, fund, get, help,
     hook, init, install, install-ci-test, install-test, link,
     ll, login, logout, ls, org, outdated, owner, pack, ping,
-    prefix, profile, prune, publish, rebuild, repo, restart,
-    root, run-script, search, set, set-script, shrinkwrap, star,
-    stars, start, stop, team, test, token, uninstall, unpublish,
-    unstar, update, version, view, whoami
+    pkg, prefix, profile, prune, publish, rebuild, repo,
+    restart, root, run-script, search, set, set-script,
+    shrinkwrap, star, stars, start, stop, team, test, token,
+    uninstall, unpublish, unstar, update, version, view, whoami
 
 Specify configs in the ini-formatted file:
     /some/config/file/.npmrc
@@ -62,10 +62,10 @@ All commands:
     edit, exec, explain, explore, find-dupes, fund, get, help,
     hook, init, install, install-ci-test, install-test, link,
     ll, login, logout, ls, org, outdated, owner, pack, ping,
-    prefix, profile, prune, publish, rebuild, repo, restart,
-    root, run-script, search, set, set-script, shrinkwrap, star,
-    stars, start, stop, team, test, token, uninstall, unpublish,
-    unstar, update, version, view, whoami
+    pkg, prefix, profile, prune, publish, rebuild, repo,
+    restart, root, run-script, search, set, set-script,
+    shrinkwrap, star, stars, start, stop, team, test, token,
+    uninstall, unpublish, unstar, update, version, view, whoami
 
 Specify configs in the ini-formatted file:
     /some/config/file/.npmrc
@@ -98,10 +98,10 @@ All commands:
     edit, exec, explain, explore, find-dupes, fund, get, help,
     hook, init, install, install-ci-test, install-test, link,
     ll, login, logout, ls, org, outdated, owner, pack, ping,
-    prefix, profile, prune, publish, rebuild, repo, restart,
-    root, run-script, search, set, set-script, shrinkwrap, star,
-    stars, start, stop, team, test, token, uninstall, unpublish,
-    unstar, update, version, view, whoami
+    pkg, prefix, profile, prune, publish, rebuild, repo,
+    restart, root, run-script, search, set, set-script,
+    shrinkwrap, star, stars, start, stop, team, test, token,
+    uninstall, unpublish, unstar, update, version, view, whoami
 
 Specify configs in the ini-formatted file:
     /some/config/file/.npmrc
@@ -134,10 +134,10 @@ All commands:
     edit, exec, explain, explore, find-dupes, fund, get, help,
     hook, init, install, install-ci-test, install-test, link,
     ll, login, logout, ls, org, outdated, owner, pack, ping,
-    prefix, profile, prune, publish, rebuild, repo, restart,
-    root, run-script, search, set, set-script, shrinkwrap, star,
-    stars, start, stop, team, test, token, uninstall, unpublish,
-    unstar, update, version, view, whoami
+    pkg, prefix, profile, prune, publish, rebuild, repo,
+    restart, root, run-script, search, set, set-script,
+    shrinkwrap, star, stars, start, stop, team, test, token,
+    uninstall, unpublish, unstar, update, version, view, whoami
 
 Specify configs in the ini-formatted file:
     /some/config/file/.npmrc
@@ -235,7 +235,7 @@ All commands:
                     npm bugs [<pkgname>]
                     
                     Options:
-                    [--browser|--browser <browser>] [--registry <registry>]
+                    [--no-browser|--browser <browser>] [--registry <registry>]
                     
                     alias: issues
                     
@@ -267,7 +267,7 @@ All commands:
                     npm ci
                     
                     Options:
-                    [--ignore-scripts] [--script-shell <script-shell>]
+                    [--no-audit] [--ignore-scripts] [--script-shell <script-shell>]
                     
                     aliases: clean-install, ic, install-clean, isntall-clean
                     
@@ -294,7 +294,8 @@ All commands:
                     npm config edit
                     
                     Options:
-                    [--json] [-g|--global] [--editor <editor>] [-l|--long]
+                    [--json] [-g|--global] [--editor <editor>] [-L|--location <global|user|project>]
+                    [-l|--long]
                     
                     alias: c
                     
@@ -308,9 +309,9 @@ All commands:
                     npm dedupe
                     
                     Options:
-                    [--global-style] [--legacy-bundling] [--strict-peer-deps] [--package-lock]
+                    [--global-style] [--legacy-bundling] [--strict-peer-deps] [--no-package-lock]
                     [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--ignore-scripts]
-                    [--audit] [--bin-links] [--fund] [--dry-run]
+                    [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
                     [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
                     [-ws|--workspaces]
                     
@@ -372,7 +373,7 @@ All commands:
                     npm docs [<pkgname> [<pkgname> ...]]
                     
                     Options:
-                    [--browser|--browser <browser>] [--registry <registry>]
+                    [--no-browser|--browser <browser>] [--registry <registry>]
                     [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
                     [-ws|--workspaces]
                     
@@ -458,9 +459,9 @@ All commands:
                     npm find-dupes
                     
                     Options:
-                    [--global-style] [--legacy-bundling] [--strict-peer-deps] [--package-lock]
+                    [--global-style] [--legacy-bundling] [--strict-peer-deps] [--no-package-lock]
                     [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--ignore-scripts]
-                    [--audit] [--bin-links] [--fund]
+                    [--no-audit] [--no-bin-links] [--no-fund]
                     [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
                     [-ws|--workspaces]
                     
@@ -474,7 +475,7 @@ All commands:
                     npm fund [[<@scope>/]<pkg>]
                     
                     Options:
-                    [--json] [--browser|--browser <browser>] [--unicode]
+                    [--json] [--no-browser|--browser <browser>] [--unicode]
                     [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
                     [--which <fundingSourceNumber>]
                     
@@ -555,9 +556,9 @@ All commands:
                     Options:
                     [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer]
                     [-E|--save-exact] [-g|--global] [--global-style] [--legacy-bundling]
-                    [--strict-peer-deps] [--package-lock]
+                    [--strict-peer-deps] [--no-package-lock]
                     [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--ignore-scripts]
-                    [--audit] [--bin-links] [--fund] [--dry-run]
+                    [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
                     [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
                     [-ws|--workspaces]
                     
@@ -573,7 +574,7 @@ All commands:
                     npm install-ci-test
                     
                     Options:
-                    [--ignore-scripts] [--script-shell <script-shell>]
+                    [--no-audit] [--ignore-scripts] [--script-shell <script-shell>]
                     
                     alias: cit
                     
@@ -598,9 +599,9 @@ All commands:
                     Options:
                     [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer]
                     [-E|--save-exact] [-g|--global] [--global-style] [--legacy-bundling]
-                    [--strict-peer-deps] [--package-lock]
+                    [--strict-peer-deps] [--no-package-lock]
                     [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--ignore-scripts]
-                    [--audit] [--bin-links] [--fund] [--dry-run]
+                    [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
                     [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
                     [-ws|--workspaces]
                     
@@ -619,9 +620,9 @@ All commands:
                     Options:
                     [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer]
                     [-E|--save-exact] [-g|--global] [--global-style] [--legacy-bundling]
-                    [--strict-peer-deps] [--package-lock]
+                    [--strict-peer-deps] [--no-package-lock]
                     [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--ignore-scripts]
-                    [--audit] [--bin-links] [--fund] [--dry-run]
+                    [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
                     [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
                     [-ws|--workspaces]
                     
@@ -762,6 +763,22 @@ All commands:
                     
                     Run "npm help ping" for more info
 
+    pkg             npm pkg
+
+                    Manages your package.json
+
+                    Usage:
+                    npm pkg set <key>=<value> [<key>=<value> ...]
+                    npm pkg get [<key> [<key> ...]]
+                    npm pkg delete <key> [<key> ...]
+
+                    Options:
+                    [-f|--force] [--json]
+                    [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
+                    [-ws|--workspaces]
+
+                    Run "npm help pkg" for more info
+
     prefix          npm prefix
                     
                     Display prefix
@@ -825,7 +842,7 @@ All commands:
                     npm rebuild [[<@scope>/]<name>[@<version>] ...]
                     
                     Options:
-                    [-g|--global] [--bin-links] [--ignore-scripts]
+                    [-g|--global] [--no-bin-links] [--ignore-scripts]
                     [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
                     [-ws|--workspaces]
                     
@@ -841,7 +858,7 @@ All commands:
                     npm repo [<pkgname> [<pkgname> ...]]
                     
                     Options:
-                    [--browser|--browser <browser>]
+                    [--no-browser|--browser <browser>]
                     [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
                     [-ws|--workspaces]
                     
@@ -895,7 +912,7 @@ All commands:
                     npm search [search terms ...]
                     
                     Options:
-                    [-l|--long] [--json] [--color|--color <always>] [-p|--parseable]
+                    [-l|--long] [--json] [--color|--no-color|--color always] [-p|--parseable]
                     [--no-description] [--searchopts <searchopts>] [--searchexclude <searchexclude>]
                     [--registry <registry>] [--prefer-online] [--prefer-offline] [--offline]
                     
@@ -1078,8 +1095,8 @@ All commands:
                     
                     Options:
                     [-g|--global] [--global-style] [--legacy-bundling] [--strict-peer-deps]
-                    [--package-lock] [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
-                    [--ignore-scripts] [--audit] [--bin-links] [--fund] [--dry-run]
+                    [--no-package-lock] [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
+                    [--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
                     [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
                     [-ws|--workspaces]
                     
@@ -1095,7 +1112,7 @@ All commands:
                     npm version [<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease | from-git]
                     
                     Options:
-                    [--allow-same-version] [--commit-hooks] [--git-tag-version] [--json]
+                    [--allow-same-version] [--no-commit-hooks] [--no-git-tag-version] [--json]
                     [--preid prerelease-id] [--sign-git-tag]
                     [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
                     [-ws|--workspaces]

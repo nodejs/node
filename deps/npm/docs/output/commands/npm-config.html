@@ -141,7 +141,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#sub-commands">Sub-commands</a></li><ul><li><a href="#set">set</a></li><li><a href="#get">get</a></li><li><a href="#list">list</a></li><li><a href="#delete">delete</a></li><li><a href="#edit2">edit</a></li></ul><li><a href="#configuration">Configuration</a></li><ul><li><a href="#json"><code>json</code></a></li><li><a href="#global"><code>global</code></a></li><li><a href="#editor"><code>editor</code></a></li><li><a href="#long"><code>long</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#sub-commands">Sub-commands</a></li><ul><li><a href="#set">set</a></li><li><a href="#get">get</a></li><li><a href="#list">list</a></li><li><a href="#delete">delete</a></li><li><a href="#edit2">edit</a></li></ul><li><a href="#configuration">Configuration</a></li><ul><li><a href="#json"><code>json</code></a></li><li><a href="#global"><code>global</code></a></li><li><a href="#editor"><code>editor</code></a></li><li><a href="#location"><code>location</code></a></li><li><a href="#long"><code>long</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -206,6 +206,10 @@ global config.</p>
 <li>Type: Boolean</li>
 </ul>
 <p>Whether or not to output JSON data, rather than the normal output.</p>
+<ul>
+<li>In <code>npm pkg set</code> it enables parsing set values with JSON.parse() before
+saving them to your <code>package.json</code>.</li>
+</ul>
 <p>Not supported by all npm commands.</p>
 <h4 id="global"><code>global</code></h4>
 <ul>
@@ -228,6 +232,13 @@ Windows, or ‘vim’ on Unix systems</li>
 <li>Type: String</li>
 </ul>
 <p>The command to run for <code>npm edit</code> and <code>npm config edit</code>.</p>
+<h4 id="location"><code>location</code></h4>
+<ul>
+<li>Default: “user” unless <code>--global</code> is passed, which will also set this value
+to “global”</li>
+<li>Type: “global”, “user”, or “project”</li>
+</ul>
+<p>When passed to <code>npm config</code> this refers to which config file to use.</p>
 <h4 id="long"><code>long</code></h4>
 <ul>
 <li>Default: false</li>

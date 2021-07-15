@@ -91,6 +91,9 @@ The base URL of the npm registry.
 
 Whether or not to output JSON data, rather than the normal output.
 
+* In `npm pkg set` it enables parsing set values with JSON.parse() before
+  saving them to your `package.json`.
+
 Not supported by all npm commands.
 
 #### `parseable`

@@ -388,9 +388,12 @@ install into the PATH\. npm makes this pretty easy (in fact, it uses this
 feature to install the "npm" executable\.)
 .P
 To use this, supply a \fBbin\fP field in your package\.json which is a map of
-command name to local file name\. On install, npm will symlink that file
-into \fBprefix/bin\fP for global installs, or \fB\|\./node_modules/\.bin/\fP for local
-installs\.
+command name to local file name\. When this package is installed
+globally, that file will be linked where global bins go so it is
+available to run by name\.  When this package is installed as a
+dependency in another package, the file will be linked where it will be
+available to that package either directly by \fBnpm exec\fP or by name in other
+scripts when invoking them via \fBnpm run\-script\fP\|\.
 .P
 For example, myapp could have this:
 .P
@@ -439,6 +442,9 @@ Please make sure that your file(s) referenced in \fBbin\fP starts with
 executable!
 .P
 Note that you can also set the executable files using directories\.bin \fI#directoriesbin\fR\|\.
+.P
+See npm help folders for more info on
+executables\.
 .SS man
 .P
 Specify either a single file or an array of filenames to put in place for

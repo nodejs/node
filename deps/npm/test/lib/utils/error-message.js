@@ -97,6 +97,7 @@ t.test('just simple messages', t => {
     'ETOOMANYARGS',
     'ETARGET',
     'E403',
+    'ERR_SOCKET_TIMEOUT',
   ]
   t.plan(codes.length)
   codes.forEach(code => {

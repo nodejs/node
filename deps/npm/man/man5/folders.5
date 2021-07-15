@@ -46,13 +46,15 @@ Global installs on Windows go to \fB{prefix}/node_modules\fP (that is, no
 Scoped packages are installed the same way, except they are grouped together
 in a sub\-folder of the relevant \fBnode_modules\fP folder with the name of that
 scope prefix by the @ symbol, e\.g\. \fBnpm install @myorg/package\fP would place
-the package in \fB{prefix}/node_modules/@myorg/package\fP\|\. See npm help \fBscope\fP for more details\.
+the package in \fB{prefix}/node_modules/@myorg/package\fP\|\. See
+npm help \fBscope\fP for more details\.
 .P
 If you wish to \fBrequire()\fP a package, then install it locally\.
 .SS Executables
 .P
 When in global mode, executables are linked into \fB{prefix}/bin\fP on Unix,
-or directly into \fB{prefix}\fP on Windows\.
+or directly into \fB{prefix}\fP on Windows\.  Ensure that path is in your
+terminal's \fBPATH\fP environment to run them\.
 .P
 When in local mode, executables are linked into
 \fB\|\./node_modules/\.bin\fP so that they can be made available to scripts run

@@ -81,7 +81,7 @@ class Arborist extends Base {
         const dep = edge.to
         if (dep) {
           set.add(dep)
-          if (dep.target)
+          if (dep.isLink)
             set.add(dep.target)
         }
       }

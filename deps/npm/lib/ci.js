@@ -33,6 +33,7 @@ class CI extends ArboristWorkspaceCmd {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get params () {
     return [
+      'audit',
       'ignore-scripts',
       'script-shell',
     ]

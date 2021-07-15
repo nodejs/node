@@ -309,6 +309,7 @@ range (including SemVer-major changes).</li>
 <li>Allow unpublishing all versions of a published package.</li>
 <li>Allow conflicting peerDependencies to be installed in the root project.</li>
 <li>Implicitly set <code>--yes</code> during <code>npm init</code>.</li>
+<li>Allow clobbering existing values in <code>npm pkg</code></li>
 </ul>
 <p>If you don’t have a clear idea of what you want to do, it is strongly
 recommended that you do not use this option!</p>
@@ -318,6 +319,10 @@ recommended that you do not use this option!</p>
 <li>Type: Boolean</li>
 </ul>
 <p>Whether or not to output JSON data, rather than the normal output.</p>
+<ul>
+<li>In <code>npm pkg set</code> it enables parsing set values with JSON.parse() before
+saving them to your <code>package.json</code>.</li>
+</ul>
 <p>Not supported by all npm commands.</p>
 <h4 id="package-lock-only"><code>package-lock-only</code></h4>
 <ul>

@@ -72,6 +72,8 @@ The following shorthands are parsed on the command\-line:
 .IP \(bu 2
 \fB\-g\fP: \fB\-\-global\fP
 .IP \(bu 2
+\fB\-L\fP: \fB\-\-location\fP
+.IP \(bu 2
 \fB\-d\fP: \fB\-\-loglevel info\fP
 .IP \(bu 2
 \fB\-s\fP: \fB\-\-loglevel silent\fP
@@ -226,9 +228,10 @@ Type: Boolean
 
 .RE
 .P
-When "true" submit audit reports alongside \fBnpm install\fP runs to the default
-registry and all registries configured for scopes\. See the documentation for
-npm help \fBaudit\fP for details on what is submitted\.
+When "true" submit audit reports alongside the current npm command to the
+default registry and all registries configured for scopes\. See the
+documentation for npm help \fBaudit\fP for details on what is
+submitted\.
 .SS \fBaudit\-level\fP
 .RS 0
 .IP \(bu 2
@@ -663,6 +666,8 @@ Allow unpublishing all versions of a published package\.
 Allow conflicting peerDependencies to be installed in the root project\.
 .IP \(bu 2
 Implicitly set \fB\-\-yes\fP during \fBnpm init\fP\|\.
+.IP \(bu 2
+Allow clobbering existing values in \fBnpm pkg\fP
 
 .RE
 .P
@@ -931,6 +936,12 @@ Type: Boolean
 .RE
 .P
 Whether or not to output JSON data, rather than the normal output\.
+.RS 0
+.IP \(bu 2
+In \fBnpm pkg set\fP it enables parsing set values with JSON\.parse() before
+saving them to your \fBpackage\.json\fP\|\.
+
+.RE
 .P
 Not supported by all npm commands\.
 .SS \fBkey\fP
@@ -1007,6 +1018,17 @@ Type: IP Address
 .P
 The IP address of the local interface to use when making connections to the
 npm registry\. Must be IPv4 in versions of Node prior to 0\.12\.
+.SS \fBlocation\fP
+.RS 0
+.IP \(bu 2
+Default: "user" unless \fB\-\-global\fP is passed, which will also set this value
+to "global"
+.IP \(bu 2
+Type: "global", "user", or "project"
+
+.RE
+.P
+When passed to \fBnpm config\fP this refers to which config file to use\.
 .SS \fBloglevel\fP
 .RS 0
 .IP \(bu 2

@@ -30,7 +30,7 @@ const printLinks = async (opts) => {
   const linkedItems = [...tree.inventory.values()]
     .sort((a, b) => a.pkgid.localeCompare(b.pkgid, 'en'))
   for (const item of linkedItems) {
-    if (item.target)
+    if (item.isLink)
       res += `${item.path} -> ${item.target.path}\n`
   }
   return res

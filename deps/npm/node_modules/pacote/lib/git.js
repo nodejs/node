@@ -85,6 +85,9 @@ class GitFetcher extends Fetcher {
   [_resolvedFromHosted] (hosted) {
     return this[_resolvedFromRepo](hosted.https && hosted.https())
       .catch(er => {
+        // Throw early since we know pathspec errors will fail again if retried
+        if (er instanceof git.errors.GitPathspecError)
+          throw er
         const ssh = hosted.sshurl && hosted.sshurl()
         // no fallthrough if we can't fall through or have https auth
         if (!ssh || hosted.auth)
@@ -260,9 +263,11 @@ class GitFetcher extends Fetcher {
   // is present, otherwise ssh if the hosted type provides it
   [_cloneHosted] (ref, tmp) {
     const hosted = this.spec.hosted
-    const https = hosted.https()
     return this[_cloneRepo](hosted.https({ noCommittish: true }), ref, tmp)
       .catch(er => {
+        // Throw early since we know pathspec errors will fail again if retried
+        if (er instanceof git.errors.GitPathspecError)
+          throw er
         const ssh = hosted.sshurl && hosted.sshurl({ noCommittish: true })
         // no fallthrough if we can't fall through or have https auth
         if (!ssh || hosted.auth)

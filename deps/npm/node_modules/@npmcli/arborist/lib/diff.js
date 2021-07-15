@@ -45,8 +45,7 @@ class Diff {
       const { root } = filterNode
       if (root !== ideal && root !== actual)
         throw new Error('invalid filterNode: outside idealTree/actualTree')
-      const { target } = root
-      const rootTarget = target || root
+      const rootTarget = root.target
       const edge = [...rootTarget.edgesOut.values()].filter(e => {
         return e.to && (e.to === filterNode || e.to.target === filterNode)
       })[0]
@@ -56,8 +55,7 @@ class Diff {
       filterSet.add(actual)
       if (edge && edge.to) {
         filterSet.add(edge.to)
-        if (edge.to.target)
-          filterSet.add(edge.to.target)
+        filterSet.add(edge.to.target)
       }
       filterSet.add(filterNode)
 
@@ -65,7 +63,7 @@ class Diff {
         tree: filterNode,
         visit: node => filterSet.add(node),
         getChildren: node => {
-          node = node.target || node
+          node = node.target
           const loc = node.location
           const idealNode = ideal.inventory.get(loc)
           const ideals = !idealNode ? []

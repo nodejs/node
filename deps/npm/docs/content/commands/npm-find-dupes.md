@@ -107,9 +107,10 @@ will *not* run any pre- or post-scripts.
 * Default: true
 * Type: Boolean
 
-When "true" submit audit reports alongside `npm install` runs to the default
-registry and all registries configured for scopes. See the documentation for
-[`npm audit`](/commands/npm-audit) for details on what is submitted.
+When "true" submit audit reports alongside the current npm command to the
+default registry and all registries configured for scopes. See the
+documentation for [`npm audit`](/commands/npm-audit) for details on what is
+submitted.
 
 #### `bin-links`
 

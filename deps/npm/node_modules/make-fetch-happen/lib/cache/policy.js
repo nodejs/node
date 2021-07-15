@@ -67,7 +67,7 @@ class CachePolicy {
       // this is necessary because the CacheSemantics constructor forces
       // the value to Date.now() which means a policy created from a
       // cache entry is likely to always identify itself as stale
-      this.policy._responseTime = this.entry.time
+      this.policy._responseTime = this.entry.metadata.time
     }
   }
 

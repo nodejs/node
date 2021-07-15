@@ -1,12 +1,7 @@
-// The order of the code in this file is relevant, because a lot of things
-// require('npm.js'), but also we need to use some of those modules.  So,
-// we define and instantiate the singleton ahead of loading any modules
-// required for its methods.
-
-// these are all dependencies used in the ctor
 const EventEmitter = require('events')
 const { resolve, dirname } = require('path')
 const Config = require('@npmcli/config')
+const log = require('npmlog')
 
 // Patch the global fs module here at the app level
 require('graceful-fs').gracefulify(require('fs'))
@@ -37,23 +32,51 @@ const proxyCmds = new Proxy({}, {
   },
 })
 
+// Timers in progress
+const timers = new Map()
+// Finished timers
+const timings = {}
+
+const processOnTimeHandler = (name) => {
+  timers.set(name, Date.now())
+}
+
+const processOnTimeEndHandler = (name) => {
+  if (timers.has(name)) {
+    const ms = Date.now() - timers.get(name)
+    log.timing(name, `Completed in ${ms}ms`)
+    timings[name] = ms
+    timers.delete(name)
+  } else
+    log.silly('timing', "Tried to end timer that doesn't exist:", name)
+}
+
 const { definitions, flatten, shorthands } = require('./utils/config/index.js')
 const { shellouts } = require('./utils/cmd-list.js')
 const usage = require('./utils/npm-usage.js')
+
+const which = require('which')
+
+const deref = require('./utils/deref-command.js')
+const setupLog = require('./utils/setup-log.js')
+const cleanUpLogFiles = require('./utils/cleanup-log-files.js')
+const getProjectScope = require('./utils/get-project-scope.js')
 
 let warnedNonDashArg = false
 const _runCmd = Symbol('_runCmd')
 const _load = Symbol('_load')
 const _tmpFolder = Symbol('_tmpFolder')
 const _title = Symbol('_title')
+
 const npm = module.exports = new class extends EventEmitter {
   constructor () {
     super()
-    // TODO make this only ever load once (or unload) in tests
-    require('./utils/perf.js')
     this.started = Date.now()
     this.command = null
     this.commands = proxyCmds
+    this.timings = timings
+    this.timers = timers
+    this.perfStart()
     procLogListener()
     process.emit('time', 'npm')
     this.version = require('../package.json').version
@@ -65,6 +88,16 @@ const npm = module.exports = new class extends EventEmitter {
     })
     this[_title] = process.title
     this.updateNotification = null
+  }
+
+  perfStart () {
+    process.on('time', processOnTimeHandler)
+    process.on('timeEnd', processOnTimeEndHandler)
+  }
+
+  perfStop () {
+    process.off('time', processOnTimeHandler)
+    process.off('timeEnd', processOnTimeEndHandler)
   }
 
   get shelloutCommands () {
@@ -316,17 +349,6 @@ const npm = module.exports = new class extends EventEmitter {
     this.log.showProgress()
   }
 }()
-
-// now load everything required by the class methods
-
-const log = require('npmlog')
-
-const which = require('which')
-
-const deref = require('./utils/deref-command.js')
-const setupLog = require('./utils/setup-log.js')
-const cleanUpLogFiles = require('./utils/cleanup-log-files.js')
-const getProjectScope = require('./utils/get-project-scope.js')
 
 if (require.main === module)
   require('./cli.js')(process)

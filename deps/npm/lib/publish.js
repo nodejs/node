@@ -66,6 +66,7 @@ class Publish extends BaseCommand {
     const dryRun = this.npm.config.get('dry-run')
     const json = this.npm.config.get('json')
     const defaultTag = this.npm.config.get('tag')
+    const ignoreScripts = this.npm.config.get('ignore-scripts')
     const silent = log.level === 'silent'
 
     if (semver.validRange(defaultTag))
@@ -82,7 +83,7 @@ class Publish extends BaseCommand {
       flatten(manifest.publishConfig, opts)
 
     // only run scripts for directory type publishes
-    if (spec.type === 'directory') {
+    if (spec.type === 'directory' && !ignoreScripts) {
       await runScript({
         event: 'prepublishOnly',
         path: spec.fetchSpec,
@@ -119,7 +120,7 @@ class Publish extends BaseCommand {
       await otplease(opts, opts => libpub(manifest, tarballData, opts))
     }
 
-    if (spec.type === 'directory') {
+    if (spec.type === 'directory' && !ignoreScripts) {
       await runScript({
         event: 'publish',
         path: spec.fetchSpec,
