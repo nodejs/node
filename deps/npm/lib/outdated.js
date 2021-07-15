@@ -158,7 +158,7 @@ class Outdated extends ArboristWorkspaceCmd {
       edge.from
         && this.filterSet
         && this.filterSet.size > 0
-        && !this.filterSet.has(edge.from.target || edge.from)
+        && !this.filterSet.has(edge.from.target)
 
     if (filteredOut)
       return

@@ -81,6 +81,7 @@ Array [
   "legacy-peer-deps",
   "link",
   "local-address",
+  "location",
   "loglevel",
   "logs-max",
   "long",
@@ -218,9 +219,10 @@ exports[`test/lib/utils/config/definitions.js TAP > config description for audit
 * Default: true
 * Type: Boolean
 
-When "true" submit audit reports alongside \`npm install\` runs to the default
-registry and all registries configured for scopes. See the documentation for
-[\`npm audit\`](/commands/npm-audit) for details on what is submitted.
+When "true" submit audit reports alongside the current npm command to the
+default registry and all registries configured for scopes. See the
+documentation for [\`npm audit\`](/commands/npm-audit) for details on what is
+submitted.
 `
 
 exports[`test/lib/utils/config/definitions.js TAP > config description for audit-level 1`] = `
@@ -648,6 +650,7 @@ mistakes, unnecessary performance degradation, and malicious input.
 * Allow unpublishing all versions of a published package.
 * Allow conflicting peerDependencies to be installed in the root project.
 * Implicitly set \`--yes\` during \`npm init\`.
+* Allow clobbering existing values in \`npm pkg\`
 
 If you don't have a clear idea of what you want to do, it is strongly
 recommended that you do not use this option!
@@ -949,6 +952,9 @@ exports[`test/lib/utils/config/definitions.js TAP > config description for json 
 
 Whether or not to output JSON data, rather than the normal output.
 
+* In \`npm pkg set\` it enables parsing set values with JSON.parse() before
+  saving them to your \`package.json\`.
+
 Not supported by all npm commands.
 `
 
@@ -1017,6 +1023,16 @@ exports[`test/lib/utils/config/definitions.js TAP > config description for local
 
 The IP address of the local interface to use when making connections to the
 npm registry. Must be IPv4 in versions of Node prior to 0.12.
+`
+
+exports[`test/lib/utils/config/definitions.js TAP > config description for location 1`] = `
+#### \`location\`
+
+* Default: "user" unless \`--global\` is passed, which will also set this value
+  to "global"
+* Type: "global", "user", or "project"
+
+When passed to \`npm config\` this refers to which config file to use.
 `
 
 exports[`test/lib/utils/config/definitions.js TAP > config description for loglevel 1`] = `

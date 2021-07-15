@@ -1,5 +1,5 @@
 {
-  "version": "7.19.1",
+  "version": "7.20.0",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "workspaces": [
@@ -53,7 +53,7 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@npmcli/arborist": "^2.6.4",
+    "@npmcli/arborist": "^2.7.1",
     "@npmcli/ci-detect": "^1.2.0",
     "@npmcli/config": "^2.2.0",
     "@npmcli/package-json": "^1.0.1",
@@ -88,7 +88,7 @@
     "libnpmsearch": "^3.1.1",
     "libnpmteam": "^2.0.3",
     "libnpmversion": "^1.2.1",
-    "make-fetch-happen": "^9.0.3",
+    "make-fetch-happen": "^9.0.4",
     "minipass": "^3.1.3",
     "minipass-pipeline": "^1.2.4",
     "mkdirp": "^1.0.4",
@@ -104,7 +104,7 @@
     "npm-user-validate": "^1.0.1",
     "npmlog": "~4.1.2",
     "opener": "^1.5.2",
-    "pacote": "^11.3.3",
+    "pacote": "^11.3.5",
     "parse-conflict-json": "^1.1.1",
     "qrcode-terminal": "^0.12.0",
     "read": "~1.0.7",
@@ -193,7 +193,7 @@
     "write-file-atomic"
   ],
   "devDependencies": {
-    "eslint": "^7.26.0",
+    "eslint": "^7.30.0",
     "eslint-plugin-import": "^2.23.4",
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-promise": "^5.1.0",

@@ -1,6 +1,6 @@
 {
   "name": "@npmcli/git",
-  "version": "2.0.9",
+  "version": "2.1.0",
   "main": "lib/index.js",
   "files": [
     "lib/*.js"

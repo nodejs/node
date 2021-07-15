@@ -171,7 +171,7 @@ shell scripting. For example, to view all the data about the version of
 </code></pre>
 <p>For fields that are arrays, requesting a non-numeric field will return
 all of the values from the objects in the list. For example, to get all
-the contributor names for the <code>express</code> package, you would run:</p>
+the contributor email addresses for the <code>express</code> package, you would run:</p>
 <pre lang="bash"><code>npm view express contributors.email
 </code></pre>
 <p>You may also use numeric indices in square braces to specifically select
@@ -207,6 +207,10 @@ this:</p>
 <li>Type: Boolean</li>
 </ul>
 <p>Whether or not to output JSON data, rather than the normal output.</p>
+<ul>
+<li>In <code>npm pkg set</code> it enables parsing set values with JSON.parse() before
+saving them to your <code>package.json</code>.</li>
+</ul>
 <p>Not supported by all npm commands.</p>
 <h4 id="workspace"><code>workspace</code></h4>
 <ul>

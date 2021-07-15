@@ -122,6 +122,7 @@ const cmdList = [
   'diff',
   'dist-tag',
   'ping',
+  'pkg',
 
   'test',
   'stop',
