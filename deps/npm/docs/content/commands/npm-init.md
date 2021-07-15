@@ -175,6 +175,7 @@ mistakes, unnecessary performance degradation, and malicious input.
 * Allow unpublishing all versions of a published package.
 * Allow conflicting peerDependencies to be installed in the root project.
 * Implicitly set `--yes` during `npm init`.
+* Allow clobbering existing values in `npm pkg`
 
 If you don't have a clear idea of what you want to do, it is strongly
 recommended that you do not use this option!

@@ -203,10 +203,10 @@ define('audit', {
   default: true,
   type: Boolean,
   description: `
-    When "true" submit audit reports alongside \`npm install\` runs to the
+    When "true" submit audit reports alongside the current npm command to the
     default registry and all registries configured for scopes.  See the
-    documentation for [\`npm audit\`](/commands/npm-audit) for details on
-    what is submitted.
+    documentation for [\`npm audit\`](/commands/npm-audit) for details on what
+    is submitted.
   `,
   flatten,
 })
@@ -440,6 +440,7 @@ define('cidr', {
 
 define('color', {
   default: !process.env.NO_COLOR || process.env.NO_COLOR === '0',
+  usage: '--color|--no-color|--color always',
   defaultDescription: `
     true unless the NO_COLOR environ is set to something other than '0'
   `,
@@ -715,6 +716,7 @@ define('force', {
     * Allow unpublishing all versions of a published package.
     * Allow conflicting peerDependencies to be installed in the root project.
     * Implicitly set \`--yes\` during \`npm init\`.
+    * Allow clobbering existing values in \`npm pkg\`
 
     If you don't have a clear idea of what you want to do, it is strongly
     recommended that you do not use this option!
@@ -1029,6 +1031,9 @@ define('json', {
   description: `
     Whether or not to output JSON data, rather than the normal output.
 
+    * In \`npm pkg set\` it enables parsing set values with JSON.parse()
+    before saving them to your \`package.json\`.
+
     Not supported by all npm commands.
   `,
   flatten,
@@ -1101,6 +1106,31 @@ define('local-address', {
     the npm registry.  Must be IPv4 in versions of Node prior to 0.12.
   `,
   flatten,
+})
+
+define('location', {
+  default: 'user',
+  short: 'L',
+  type: [
+    'global',
+    'user',
+    'project',
+  ],
+  defaultDescription: `
+    "user" unless \`--global\` is passed, which will also set this value to "global"
+  `,
+  description: `
+    When passed to \`npm config\` this refers to which config file to use.
+  `,
+  // NOTE: the flattener here deliberately does not alter the value of global
+  // for now, this is to avoid inadvertently causing any breakage. the value of
+  // global, however, does modify this flag.
+  flatten (key, obj, flatOptions) {
+    // if global is set, we override ourselves
+    if (obj.global)
+      obj.location = 'global'
+    flatOptions.location = obj.location
+  },
 })
 
 define('loglevel', {
@@ -1200,7 +1230,10 @@ define('noproxy', {
     Also accepts a comma-delimited string.
   `,
   flatten (key, obj, flatOptions) {
-    flatOptions.noProxy = obj[key].join(',')
+    if (Array.isArray(obj[key]))
+      flatOptions.noProxy = obj[key].join(',')
+    else
+      flatOptions.noProxy = obj[key]
   },
 })
 

@@ -26,7 +26,7 @@ example, running \fBnpm ls promzard\fP in npm's source tree will show:
 .P
 .RS 2
 .nf
-npm@7\.19\.1 /path/to/npm
+npm@7\.20\.0 /path/to/npm
 └─┬ init\-package\-json@0\.0\.4
   └── promzard@0\.1\.5
 .fi
@@ -94,6 +94,12 @@ Type: Boolean
 .RE
 .P
 Whether or not to output JSON data, rather than the normal output\.
+.RS 0
+.IP \(bu 2
+In \fBnpm pkg set\fP it enables parsing set values with JSON\.parse() before
+saving them to your \fBpackage\.json\fP\|\.
+
+.RE
 .P
 Not supported by all npm commands\.
 .SS \fBlong\fP

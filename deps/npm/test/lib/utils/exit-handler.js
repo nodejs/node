@@ -1,13 +1,12 @@
 /* eslint-disable no-extend-native */
 /* eslint-disable no-global-assign */
-const EventEmitter = require('events')
-const writeFileAtomic = require('write-file-atomic')
 const t = require('tap')
+const EventEmitter = require('events')
+const os = require('os')
+const fs = require('fs')
+const path = require('path')
 
-// NOTE: Although these unit tests may look like the rest on the surface,
-// they are in fact very special due to the amount of things hooking directly
-// to global process and variables defined in the module scope. That makes
-// for tests that are very interdependent and their order are important.
+const { real: mockNpm } = require('../../fixtures/mock-npm')
 
 // generic error to be used in tests
 const err = Object.assign(new Error('ERROR'), { code: 'ERROR' })
@@ -23,69 +22,23 @@ const redactCwd = (path) => {
 
 t.cleanSnapshot = (str) => redactCwd(str)
 
-// internal modules mocks
 const cacheFolder = t.testdir({})
-const config = {
-  values: {
-    cache: cacheFolder,
-    timing: true,
-  },
-  loaded: true,
-  updateNotification: null,
-  get (key) {
-    return this.values[key]
-  },
-}
+const logFile = path.resolve(cacheFolder, '_logs', 'expecteddate-debug.log')
+const timingFile = path.resolve(cacheFolder, '_timing.json')
 
-const npm = {
-  version: '1.0.0',
-  config,
-  shelloutCommands: ['exec', 'run-script'],
-}
+const { npm } = mockNpm(t)
 
-const npmlog = {
-  disableProgress: () => null,
-  log (level, ...args) {
-    this.record.push({
-      id: this.record.length,
-      level,
-      message: args.reduce((res, i) => `${res} ${i.message ? i.message : i}`, ''),
-      prefix: level !== 'verbose' ? 'foo' : '',
-    })
-  },
-  error (...args) {
-    this.log('error', ...args)
-  },
-  info (...args) {
-    this.log('info', ...args)
-  },
-  level: 'silly',
-  levels: {
-    silly: 0,
-    verbose: 1,
-    info: 2,
-    error: 3,
-    silent: 4,
-  },
-  notice (...args) {
-    this.log('notice', ...args)
-  },
-  record: [],
-  verbose (...args) {
-    this.log('verbose', ...args)
-  },
-}
+t.before(async () => {
+  npm.version = '1.0.0'
+  await npm.load()
+  npm.config.set('cache', cacheFolder)
+})
 
-// overrides OS type/release for cross platform snapshots
-const os = require('os')
-os.type = () => 'Foo'
-os.release = () => '1.0.0'
-
-// bootstrap tap before cutting off process ref
-t.test('ok', (t) => {
+t.test('bootstrap tap before cutting off process ref', (t) => {
   t.ok('ok')
   t.end()
 })
+
 // cut off process from script so that it won't quit the test runner
 // while trying to run through the myriad of cases
 const _process = process
@@ -95,9 +48,11 @@ process = Object.assign(
     argv: ['/node', ..._process.argv.slice(1)],
     cwd: _process.cwd,
     env: _process.env,
-    exit () {},
-    exitCode: 0,
     version: 'v1.0.0',
+    exit: (code) => {
+      process.exitCode = code || process.exitCode || 0
+      process.emit('exit', process.exitCode)
+    },
     stdout: { write (_, cb) {
       cb()
     } },
@@ -105,19 +60,40 @@ process = Object.assign(
     hrtime: _process.hrtime,
   }
 )
-// needs to put process back in its place
-// in order for tap to exit properly
+
+const osType = os.type
+const osRelease = os.release
+// overrides OS type/release for cross platform snapshots
+os.type = () => 'Foo'
+os.release = () => '1.0.0'
+
+// generates logfile name with mocked date
+const _toISOString = Date.prototype.toISOString
+Date.prototype.toISOString = () => 'expecteddate'
+
+const consoleError = console.error
+const errors = []
+console.error = (err) => {
+  errors.push(err)
+}
 t.teardown(() => {
+  os.type = osType
+  os.release = osRelease
+  // needs to put process back in its place in order for tap to exit properly
   process = _process
+  Date.prototype.toISOString = _toISOString
+  console.error = consoleError
 })
 
 t.afterEach(() => {
+  errors.length = 0
+  npm.log.level = 'silent'
   // clear out the 'A complete log' message
-  npmlog.record.length = 0
+  npm.log.record.length = 0
+  delete process.exitCode
 })
 
 const mocks = {
-  npmlog,
   '../../../lib/utils/error-message.js': (err) => ({
     ...err,
     summary: [['ERR', err.message]],
@@ -125,102 +101,57 @@ const mocks = {
   }),
 }
 
-let exitHandler = t.mock('../../../lib/utils/exit-handler.js', mocks)
+const exitHandler = t.mock('../../../lib/utils/exit-handler.js', mocks)
 exitHandler.setNpm(npm)
 
-t.test('default exit code', (t) => {
-  t.plan(1)
-
-  // manually simulate timing handlers
-  process.emit('timing', 'foo', 1)
-  process.emit('timing', 'foo', 2)
-
-  // generates logfile name with mocked date
-  const _toISOString = Date.prototype.toISOString
-  Date.prototype.toISOString = () => 'expecteddate'
-
-  npmlog.level = 'silent'
-  const _exit = process.exit
-  process.exit = (code) => {
-    t.equal(code, 1, 'should default to error code 1')
-  }
-
-  // skip console.error logs
-  const _error = console.error
-  console.error = () => null
-
+t.test('exit handler never called - loglevel silent', (t) => {
+  npm.log.level = 'silent'
   process.emit('exit', 1)
+  const logData = fs.readFileSync(logFile, 'utf8')
+  t.match(logData, 'Exit handler never called!')
+  t.match(errors, [''], 'logs one empty string to console.error')
+  t.end()
+})
 
-  t.teardown(() => {
-    npmlog.level = 'silly'
-    process.exit = _exit
-    console.error = _error
-    Date.prototype.toISOString = _toISOString
-  })
+t.test('exit handler never called - loglevel notice', (t) => {
+  npm.log.level = 'notice'
+  process.emit('exit', 1)
+  const logData = fs.readFileSync(logFile, 'utf8')
+  t.match(logData, 'Exit handler never called!')
+  t.match(errors, ['', ''], 'logs two empty strings to console.error')
+  t.end()
 })
 
 t.test('handles unknown error', (t) => {
   t.plan(2)
 
-  const _toISOString = Date.prototype.toISOString
-  Date.prototype.toISOString = () => 'expecteddate'
+  npm.log.level = 'notice'
 
-  const sync = writeFileAtomic.sync
-  writeFileAtomic.sync = (filename, content) => {
-    t.equal(
-      redactCwd(filename),
-      '{CWD}/test/lib/utils/tap-testdir-exit-handler/_logs/expecteddate-debug.log',
-      'should use expected log filename'
-    )
-    t.matchSnapshot(
-      content,
-      'should have expected log contents for unknown error'
-    )
-  }
+  process.once('timeEnd', (msg) => {
+    t.equal(msg, 'npm', 'should trigger timeEnd for npm')
+  })
 
   exitHandler(err)
-
-  t.teardown(() => {
-    writeFileAtomic.sync = sync
-    Date.prototype.toISOString = _toISOString
-  })
+  const logData = fs.readFileSync(logFile, 'utf8')
+  t.matchSnapshot(
+    logData,
+    'should have expected log contents for unknown error'
+  )
   t.end()
-})
-
-t.test('npm.config not ready', (t) => {
-  t.plan(1)
-
-  config.loaded = false
-
-  const _error = console.error
-  console.error = (msg) => {
-    t.match(
-      msg,
-      /Error: Exit prior to config file resolving./,
-      'should exit with config error msg'
-    )
-  }
-
-  exitHandler()
-
-  t.teardown(() => {
-    console.error = _error
-    config.loaded = true
-  })
 })
 
 t.test('fail to write logfile', (t) => {
   t.plan(1)
 
+  t.teardown(() => {
+    npm.config.set('cache', cacheFolder)
+  })
+
   const badDir = t.testdir({
     _logs: 'is a file',
   })
 
-  config.values.cache = badDir
-
-  t.teardown(() => {
-    config.values.cache = cacheFolder
-  })
+  npm.config.set('cache', badDir)
 
   t.doesNotThrow(
     () => exitHandler(err),
@@ -231,241 +162,166 @@ t.test('fail to write logfile', (t) => {
 t.test('console.log output using --json', (t) => {
   t.plan(1)
 
-  config.values.json = true
-
-  const _error = console.error
-  console.error = (jsonOutput) => {
-    t.same(
-      JSON.parse(jsonOutput),
-      {
-        error: {
-          code: 'EBADTHING', // should default error code to E[A-Z]+
-          summary: 'Error: EBADTHING Something happened',
-          detail: 'Error: EBADTHING Something happened',
-        },
-      },
-      'should output expected json output'
-    )
-  }
+  npm.config.set('json', true)
+  t.teardown(() => {
+    npm.config.set('json', false)
+  })
 
   exitHandler(new Error('Error: EBADTHING Something happened'))
-
-  t.teardown(() => {
-    console.error = _error
-    delete config.values.json
-  })
+  t.same(
+    JSON.parse(errors[0]),
+    {
+      error: {
+        code: 'EBADTHING', // should default error code to E[A-Z]+
+        summary: 'Error: EBADTHING Something happened',
+        detail: 'Error: EBADTHING Something happened',
+      },
+    },
+    'should output expected json output'
+  )
 })
 
 t.test('throw a non-error obj', (t) => {
-  t.plan(3)
+  t.plan(2)
 
   const weirdError = {
     code: 'ESOMETHING',
     message: 'foo bar',
   }
 
-  const _logError = npmlog.error
-  npmlog.error = (title, err) => {
-    t.equal(title, 'weird error', 'should name it a weird error')
-    t.same(err, weirdError, 'should log given weird error')
-  }
-
-  const _exit = process.exit
-  process.exit = (code) => {
-    t.equal(code, 1, 'should exit with code 1')
-  }
-
-  exitHandler(weirdError)
-
-  t.teardown(() => {
-    process.exit = _exit
-    npmlog.error = _logError
+  process.once('exit', code => {
+    t.equal(code, 1, 'exits with exitCode 1')
   })
+  exitHandler(weirdError)
+  t.match(
+    npm.log.record.find(r => r.level === 'error'),
+    { message: 'foo bar' }
+  )
 })
 
 t.test('throw a string error', (t) => {
-  t.plan(3)
-
+  t.plan(2)
   const error = 'foo bar'
 
-  const _logError = npmlog.error
-  npmlog.error = (title, err) => {
-    t.equal(title, '', 'should have an empty name ref')
-    t.same(err, 'foo bar', 'should log string error')
-  }
-
-  const _exit = process.exit
-  process.exit = (code) => {
-    t.equal(code, 1, 'should exit with code 1')
-  }
-
-  exitHandler(error)
-
-  t.teardown(() => {
-    process.exit = _exit
-    npmlog.error = _logError
+  process.once('exit', code => {
+    t.equal(code, 1, 'exits with exitCode 1')
   })
+  exitHandler(error)
+  t.match(
+    npm.log.record.find(r => r.level === 'error'),
+    { message: 'foo bar' }
+  )
 })
 
 t.test('update notification', (t) => {
-  t.plan(2)
-
   const updateMsg = 'you should update npm!'
   npm.updateNotification = updateMsg
-
-  const _notice = npmlog.notice
-  npmlog.notice = (prefix, msg) => {
-    t.equal(prefix, '', 'should have no prefix')
-    t.equal(msg, updateMsg, 'should show update message')
-  }
-
-  exitHandler(err)
+  npm.log.level = 'silent'
 
   t.teardown(() => {
-    npmlog.notice = _notice
     delete npm.updateNotification
-  })
-})
-
-t.test('on exit handler', (t) => {
-  t.plan(2)
-
-  const _exit = process.exit
-  process.exit = (code) => {
-    t.equal(code, 1, 'should default to error code 1')
-  }
-
-  process.once('timeEnd', (msg) => {
-    t.equal(msg, 'npm', 'should trigger timeEnd for npm')
-  })
-
-  // skip console.error logs
-  const _error = console.error
-  console.error = () => null
-
-  process.emit('exit', 1)
-
-  t.teardown(() => {
-    console.error = _error
-    process.exit = _exit
-  })
-})
-
-t.test('it worked', (t) => {
-  t.plan(2)
-
-  config.values.timing = false
-
-  const _exit = process.exit
-  process.exit = (code) => {
-    process.exit = _exit
-    t.notOk(code, 'should exit with no code')
-
-    const _info = npmlog.info
-    npmlog.info = (msg) => {
-      npmlog.info = _info
-      t.equal(msg, 'ok', 'should log ok if "it worked"')
-    }
-
-    process.emit('exit', 0)
-  }
-
-  t.teardown(() => {
-    process.exit = _exit
-    config.values.timing = true
   })
 
   exitHandler()
+  t.match(
+    npm.log.record.find(r => r.level === 'notice'),
+    { message: 'you should update npm!' }
+  )
+  t.end()
+})
+
+t.test('npm.config not ready', (t) => {
+  t.plan(1)
+
+  const { npm: unloaded } = mockNpm(t)
+
+  t.teardown(() => {
+    exitHandler.setNpm(npm)
+  })
+
+  exitHandler.setNpm(unloaded)
+
+  exitHandler()
+  t.match(
+    errors[0],
+    /Error: Exit prior to config file resolving./,
+    'should exit with config error msg'
+  )
+  t.end()
+})
+
+t.test('timing', (t) => {
+  npm.config.set('timing', true)
+
+  t.teardown(() => {
+    fs.unlinkSync(timingFile)
+    npm.config.set('timing', false)
+  })
+
+  exitHandler()
+  const timingData = JSON.parse(fs.readFileSync(timingFile, 'utf8'))
+  t.match(timingData, { version: '1.0.0', 'config:load:defaults': Number })
+  t.end()
+})
+
+t.test('timing - with error', (t) => {
+  npm.config.set('timing', true)
+
+  t.teardown(() => {
+    fs.unlinkSync(timingFile)
+    npm.config.set('timing', false)
+  })
+
+  exitHandler(err)
+  const timingData = JSON.parse(fs.readFileSync(timingFile, 'utf8'))
+  t.match(timingData, { version: '1.0.0', 'config:load:defaults': Number })
+  t.end()
 })
 
 t.test('uses code from errno', (t) => {
   t.plan(1)
 
-  exitHandler = t.mock('../../../lib/utils/exit-handler.js', mocks)
-  exitHandler.setNpm(npm)
-
-  npmlog.level = 'silent'
-  const _exit = process.exit
-  process.exit = (code) => {
-    t.equal(code, 127, 'should use set errno')
-  }
-
+  process.once('exit', code => {
+    t.equal(code, 127, 'should set exitCode from errno')
+  })
   exitHandler(Object.assign(
     new Error('Error with errno'),
     {
       errno: 127,
     }
   ))
-
-  t.teardown(() => {
-    npmlog.level = 'silly'
-    process.exit = _exit
-  })
 })
 
-t.test('uses exitCode as code if using a number', (t) => {
+t.test('uses code from number', (t) => {
   t.plan(1)
 
-  exitHandler = t.mock('../../../lib/utils/exit-handler.js', mocks)
-  exitHandler.setNpm(npm)
-
-  npmlog.level = 'silent'
-  const _exit = process.exit
-  process.exit = (code) => {
-    t.equal(code, 404, 'should use code if a number')
-  }
-
+  process.once('exit', code => {
+    t.equal(code, 404, 'should set exitCode from a number')
+  })
   exitHandler(Object.assign(
     new Error('Error with code type number'),
     {
       code: 404,
     }
   ))
-
-  t.teardown(() => {
-    npmlog.level = 'silly'
-    process.exit = _exit
-  })
 })
 
 t.test('call exitHandler with no error', (t) => {
   t.plan(1)
-
-  exitHandler = t.mock('../../../lib/utils/exit-handler.js', mocks)
-  exitHandler.setNpm(npm)
-
-  const _exit = process.exit
-  process.exit = (code) => {
-    t.equal(code, undefined, 'should exit with code undefined')
-  }
-
-  t.teardown(() => {
-    process.exit = _exit
+  process.once('exit', code => {
+    t.equal(code, 0, 'should end up with exitCode 0 (default)')
   })
-
-  exitHandler()
-})
-
-t.test('exit handler called twice', (t) => {
-  t.plan(2)
-
-  const _verbose = npmlog.verbose
-  npmlog.verbose = (key, value) => {
-    t.equal(key, 'stack', 'should log stack in verbose level')
-    t.match(
-      value,
-      /Error: Exit handler called more than once./,
-      'should have expected error msg'
-    )
-    npmlog.verbose = _verbose
-  }
-
   exitHandler()
 })
 
 t.test('defaults to log error msg if stack is missing', (t) => {
-  t.plan(1)
+  const { npm: unloaded } = mockNpm(t)
 
+  t.teardown(() => {
+    exitHandler.setNpm(npm)
+  })
+
+  exitHandler.setNpm(unloaded)
   const noStackErr = Object.assign(
     new Error('Error with no stack'),
     {
@@ -475,89 +331,63 @@ t.test('defaults to log error msg if stack is missing', (t) => {
   )
   delete noStackErr.stack
 
-  npm.config.loaded = false
-
-  const _error = console.error
-  console.error = (msg) => {
-    console.error = _error
-    npm.config.loaded = true
-    t.equal(msg, 'Error with no stack', 'should use error msg')
-  }
-
   exitHandler(noStackErr)
+  t.equal(errors[0], 'Error with no stack', 'should use error msg')
+  t.end()
 })
 
 t.test('exits cleanly when emitting exit event', (t) => {
   t.plan(1)
 
-  npmlog.level = 'silent'
-  const _exit = process.exit
-  process.exit = (code) => {
-    process.exit = _exit
-    t.same(code, null, 'should exit with code null')
-  }
-
-  t.teardown(() => {
-    process.exit = _exit
-    npmlog.level = 'silly'
-  })
-
+  npm.log.level = 'silent'
   process.emit('exit')
+  t.match(
+    npm.log.record.find(r => r.level === 'info'),
+    { prefix: 'ok', message: '' }
+  )
+  t.end()
 })
 
 t.test('do no fancy handling for shellouts', t => {
-  const { exit } = process
   const { command } = npm
-  const { log } = npmlog
   const LOG_RECORD = []
-  t.teardown(() => {
-    npmlog.log = log
-    process.exit = exit
-    npm.command = command
-  })
-
-  npmlog.log = function (level, ...args) {
-    log.call(this, level, ...args)
-    LOG_RECORD.push(npmlog.record[npmlog.record.length - 1])
-  }
-
   npm.command = 'exec'
 
-  let EXPECT_EXIT = 0
-  process.exit = code => {
-    t.equal(code, EXPECT_EXIT, 'got expected exit code')
-    EXPECT_EXIT = 0
-  }
+  t.teardown(() => {
+    npm.command = command
+  })
   t.beforeEach(() => LOG_RECORD.length = 0)
 
-  const loudNoises = () => LOG_RECORD
+  const loudNoises = () => npm.log.record
     .filter(({ level }) => ['warn', 'error'].includes(level))
 
   t.test('shellout with a numeric error code', t => {
-    EXPECT_EXIT = 5
+    t.plan(2)
+    process.once('exit', code => {
+      t.equal(code, 5, 'got expected exit code')
+    })
     exitHandler(Object.assign(new Error(), { code: 5 }))
-    t.equal(EXPECT_EXIT, 0, 'called process.exit')
-    // should log no warnings or errors, verbose/silly is fine.
     t.strictSame(loudNoises(), [], 'no noisy warnings')
-    t.end()
   })
 
   t.test('shellout without a numeric error code (something in npm)', t => {
-    EXPECT_EXIT = 1
+    t.plan(2)
+    process.once('exit', code => {
+      t.equal(code, 1, 'got expected exit code')
+    })
     exitHandler(Object.assign(new Error(), { code: 'banana stand' }))
-    t.equal(EXPECT_EXIT, 0, 'called process.exit')
     // should log some warnings and errors, because something weird happened
     t.strictNotSame(loudNoises(), [], 'bring the noise')
     t.end()
   })
 
   t.test('shellout with code=0 (extra weird?)', t => {
-    EXPECT_EXIT = 1
+    t.plan(2)
+    process.once('exit', code => {
+      t.equal(code, 1, 'got expected exit code')
+    })
     exitHandler(Object.assign(new Error(), { code: 0 }))
-    t.equal(EXPECT_EXIT, 0, 'called process.exit')
-    // should log some warnings and errors, because something weird happened
     t.strictNotSame(loudNoises(), [], 'bring the noise')
-    t.end()
   })
 
   t.end()

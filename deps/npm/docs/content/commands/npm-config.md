@@ -104,6 +104,9 @@ global config.
 
 Whether or not to output JSON data, rather than the normal output.
 
+* In `npm pkg set` it enables parsing set values with JSON.parse() before
+  saving them to your `package.json`.
+
 Not supported by all npm commands.
 
 #### `global`
@@ -127,6 +130,14 @@ folder instead of the current working directory. See
 * Type: String
 
 The command to run for `npm edit` and `npm config edit`.
+
+#### `location`
+
+* Default: "user" unless `--global` is passed, which will also set this value
+  to "global"
+* Type: "global", "user", or "project"
+
+When passed to `npm config` this refers to which config file to use.
 
 #### `long`
 

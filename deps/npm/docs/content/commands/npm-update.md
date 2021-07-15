@@ -15,7 +15,9 @@ aliases: up, upgrade
 ### Description
 
 This command will update all the packages listed to the latest version
-(specified by the `tag` config), respecting semver.
+(specified by the `tag` config), respecting the semver constraints of
+both your package and its dependencies (if they also require the same
+package).
 
 It will also install missing packages.
 
@@ -99,6 +101,39 @@ If the dependence were on `^0.4.0`:
 
 Then `npm update` will install `dep1@0.4.1`, because that is the highest-sorting
 version that satisfies `^0.4.0` (`>= 0.4.0 <0.5.0`)
+
+
+#### Subdependencies
+
+Suppose your app now also has a dependency on `dep2`
+
+```json
+{
+  "name": "my-app",
+  "dependencies": {
+      "dep1": "^1.0.0",
+      "dep2": "1.0.0"
+  }
+}
+```
+
+and `dep2` itself depends on this limited range of `dep1`
+
+```json
+{
+"name": "dep2",
+  "dependencies": {
+    "dep1": "~1.1.1"
+  }
+}
+```
+
+Then `npm update` will install `dep1@1.1.2` because that is the highest
+version that `dep2` allows.  npm will prioritize having a single version
+of `dep1` in your tree rather than two when that single version can
+satisfy the semver requirements of multiple dependencies in your tree.
+In this case if you really did need your package to use a newer version
+you would need to use `npm install`.
 
 
 #### Updating Globally-Installed Packages
@@ -220,9 +255,10 @@ will *not* run any pre- or post-scripts.
 * Default: true
 * Type: Boolean
 
-When "true" submit audit reports alongside `npm install` runs to the default
-registry and all registries configured for scopes. See the documentation for
-[`npm audit`](/commands/npm-audit) for details on what is submitted.
+When "true" submit audit reports alongside the current npm command to the
+default registry and all registries configured for scopes. See the
+documentation for [`npm audit`](/commands/npm-audit) for details on what is
+submitted.
 
 #### `bin-links`
 
