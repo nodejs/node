@@ -1,3 +1,6 @@
+1.2.2
+- Fix RollupJS reexports bug (https://github.com/guybedford/cjs-module-lexer/pull/59)
+
 1.2.1
 - Support Unicode escapes in strings (https://github.com/guybedford/cjs-module-lexer/pull/55)
 - Filter export strings to valid surrogate pairs (https://github.com/guybedford/cjs-module-lexer/pull/56)
