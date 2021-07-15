@@ -144,7 +144,7 @@ For information on reporting security vulnerabilities in Node.js, see
 
 * [Contributing to the project][]
 * [Working Groups][]
-* [Strategic Initiatives][]
+* [Strategic initiatives][]
 * [Technical values and prioritization][]
 
 ## Current project team members
@@ -704,6 +704,6 @@ license text.
 [Contributing to the project]: CONTRIBUTING.md
 [Node.js Website]: https://nodejs.org/
 [OpenJS Foundation]: https://openjsf.org/
-[Strategic Initiatives]: https://github.com/nodejs/TSC/blob/HEAD/Strategic-Initiatives.md
+[Strategic initiatives]: doc/guides/strategic-initiatives.md
 [Technical values and prioritization]: doc/guides/technical-values.md
 [Working Groups]: https://github.com/nodejs/TSC/blob/HEAD/WORKING_GROUPS.md
