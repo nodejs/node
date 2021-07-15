@@ -5,7 +5,7 @@
  * Make sure to inspect the output below.  Do not ignore changes!
  */
 'use strict'
-exports[`test/lib/config.js TAP config edit --global > should write global config file 1`] = `
+exports[`test/lib/config.js TAP config edit --location=global > should write global config file 1`] = `
 ;;;;
 ; npm globalconfig file: /etc/npmrc
 ; this is a simple ini-formatted file
@@ -92,8 +92,8 @@ cat = true
 chai = true 
 dog = true 
 editor = "vi" 
-global = false 
 json = false 
+location = "user"
 long = false 
 
 ; node bin location = /path/to/node
@@ -116,8 +116,8 @@ cat = true
 chai = true 
 dog = true 
 editor = "vi" 
-global = false 
 json = false 
+location = "user"
 long = true
 `
 
@@ -128,8 +128,8 @@ cat = true
 chai = true 
 dog = true 
 editor = "vi" 
-global = false 
 json = false 
+location = "user"
 long = false 
 
 ; node bin location = /path/to/node
@@ -145,9 +145,9 @@ cat = true
 chai = true 
 dog = true 
 editor = "vi" 
-global = false 
 init.author.name = "Bar" 
 json = false 
+location = "user"
 long = false 
 
 ; "user" config from ~/.npmrc

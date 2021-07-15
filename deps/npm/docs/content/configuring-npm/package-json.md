@@ -341,9 +341,12 @@ install into the PATH. npm makes this pretty easy (in fact, it uses this
 feature to install the "npm" executable.)
 
 To use this, supply a `bin` field in your package.json which is a map of
-command name to local file name. On install, npm will symlink that file
-into `prefix/bin` for global installs, or `./node_modules/.bin/` for local
-installs.
+command name to local file name. When this package is installed
+globally, that file will be linked where global bins go so it is
+available to run by name.  When this package is installed as a
+dependency in another package, the file will be linked where it will be
+available to that package either directly by `npm exec` or by name in other
+scripts when invoking them via `npm run-script`.
 
 
 For example, myapp could have this:
@@ -387,6 +390,9 @@ Please make sure that your file(s) referenced in `bin` starts with
 executable!
 
 Note that you can also set the executable files using [directories.bin](#directoriesbin).
+
+See [folders](/configuring-npm/folders#executables) for more info on
+executables.
 
 ### man
 

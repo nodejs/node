@@ -75,7 +75,6 @@ class BaseCommand {
   }
 
   async setWorkspaces (filters) {
-    // TODO npm guards workspaces/global mode so we should use this.npm.prefix?
     const ws = await getWorkspaces(filters, { path: this.npm.localPrefix })
     this.workspaces = ws
     this.workspaceNames = [...ws.keys()]

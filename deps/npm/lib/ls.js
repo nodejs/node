@@ -138,7 +138,7 @@ class LS extends ArboristWorkspaceCmd {
           !(node instanceof Arborist.Node) || (currentDepth > depthToPrint)
         return (shouldSkipChildren)
           ? []
-          : [...(node.target || node).edgesOut.values()]
+          : [...(node.target).edgesOut.values()]
             .filter(filterBySelectedWorkspaces)
             .filter(filterByEdgesTypes({
               currentDepth,

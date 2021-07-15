@@ -47,8 +47,8 @@ const defaults = {
 const cliConfig = {
   editor: 'vi',
   json: false,
+  location: 'user',
   long: false,
-  global: false,
   cat: true,
   chai: true,
   dog: true,
@@ -198,8 +198,8 @@ t.test('config list --json', t => {
       {
         editor: 'vi',
         json: true,
+        location: 'user',
         long: false,
-        global: false,
         cat: true,
         chai: true,
         dog: true,
@@ -265,7 +265,7 @@ t.test('config delete multiple key', t => {
   })
 })
 
-t.test('config delete key --global', t => {
+t.test('config delete key --location=global', t => {
   t.plan(4)
 
   npm.config.delete = (key, where) => {
@@ -277,13 +277,13 @@ t.test('config delete key --global', t => {
     t.equal(where, 'global', 'should save global config post-delete')
   }
 
-  cliConfig.global = true
+  cliConfig.location = 'global'
   config.exec(['delete', 'foo'], (err) => {
-    t.error(err, 'npm config delete key --global')
+    t.error(err, 'npm config delete key --location=global')
   })
 
   t.teardown(() => {
-    cliConfig.global = false
+    cliConfig.location = 'user'
     delete npm.config.delete
     delete npm.config.save
   })
@@ -419,7 +419,7 @@ t.test('config set invalid key', t => {
   })
 })
 
-t.test('config set key --global', t => {
+t.test('config set key --location=global', t => {
   t.plan(5)
 
   npm.config.set = (key, val, where) => {
@@ -432,13 +432,13 @@ t.test('config set key --global', t => {
     t.equal(where, 'global', 'should save global config')
   }
 
-  cliConfig.global = true
+  cliConfig.location = 'global'
   config.exec(['set', 'foo', 'bar'], (err) => {
-    t.error(err, 'npm config set key --global')
+    t.error(err, 'npm config set key --location=global')
   })
 
   t.teardown(() => {
-    cliConfig.global = false
+    cliConfig.location = 'user'
     delete npm.config.set
     delete npm.config.save
   })
@@ -583,10 +583,10 @@ sign-git-commit=true`
   })
 })
 
-t.test('config edit --global', t => {
+t.test('config edit --location=global', t => {
   t.plan(6)
 
-  cliConfig.global = true
+  cliConfig.location = 'global'
   const npmrc = 'init.author.name=Foo'
   npm.config.data.set('global', {
     source: '/etc/npmrc',
@@ -626,7 +626,7 @@ t.test('config edit --global', t => {
   })
 
   t.teardown(() => {
-    cliConfig.global = false
+    cliConfig.location = 'user'
     npm.config.data.delete('user')
     delete npm.config.save
   })

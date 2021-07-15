@@ -1,20 +1,19 @@
 const npmlog = require('npmlog')
-const perf = require('../../lib/utils/perf.js')
-perf.reset()
 const procLog = require('../../lib/utils/proc-log-listener.js')
 procLog.reset()
 
 const realLog = {}
-for (const level of ['silly', 'verbose', 'timing', 'notice', 'warn', 'error'])
+for (const level in npmlog.levels)
   realLog[level] = npmlog[level]
 
 const { title, execPath } = process
 
 const RealMockNpm = (t, otherMocks = {}) => {
   t.teardown(() => {
-    for (const level of ['silly', 'verbose', 'timing', 'notice', 'warn', 'error'])
+    npm.perfStop()
+    npmlog.record.length = 0
+    for (const level in npmlog.levels)
       npmlog[level] = realLog[level]
-    perf.reset()
     procLog.reset()
     process.title = title
     process.execPath = execPath
@@ -33,9 +32,14 @@ const RealMockNpm = (t, otherMocks = {}) => {
       })
     })
   }
-  for (const level of ['silly', 'verbose', 'timing', 'notice', 'warn', 'error']) {
+  for (const level in npmlog.levels) {
     npmlog[level] = (...msg) => {
       logs.push([level, ...msg])
+
+      const l = npmlog.level
+      npmlog.level = 'silent'
+      realLog[level](...msg)
+      npmlog.level = l
     }
   }
   npm.output = (...msg) => outputs.push(msg)
