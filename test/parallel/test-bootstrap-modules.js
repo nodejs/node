@@ -50,7 +50,6 @@ const expectedModules = new Set([
   'NativeModule internal/console/constructor',
   'NativeModule internal/console/global',
   'NativeModule internal/constants',
-  'NativeModule internal/deps/acorn/acorn/dist/acorn',
   'NativeModule internal/encoding',
   'NativeModule internal/errors',
   'NativeModule internal/event_target',
