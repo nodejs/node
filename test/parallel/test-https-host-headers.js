@@ -25,7 +25,7 @@ const httpsServer = https.createServer({
   }
   res.writeHead(200, {});
   res.end('ok');
-}, 9)).listen(0, common.mustCall(function(err) {
+}, 6)).listen(0, common.mustCall(function(err) {
   debug(`test https server listening on port ${this.address().port}`);
   assert.ifError(err);
   https.get({

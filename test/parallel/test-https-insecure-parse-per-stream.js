@@ -56,7 +56,7 @@ const certFixture = {
 
   serverSide.resume();  // Dump the request
   serverSide.end('HTTP/1.1 200 OK\r\n' +
-                 'Host: example.com\r\n' + 
+                 'Host: example.com\r\n' +
                  'Hello: foo\x08foo\r\n' +
                  'Content-Length: 0\r\n' +
                  '\r\n\r\n');

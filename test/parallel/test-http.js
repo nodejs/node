@@ -115,7 +115,7 @@ server.on('listening', () => {
                  ['Cookie', 'def=456'],
                  ['Cookie', 'ghi=789'],
                  ['Host', 'example.com'],
-               ],
+      ],
       agent: agent
     }, common.mustCall((res) => {
       const cookieHeaders = req._header.match(/^Cookie: .+$/img);
