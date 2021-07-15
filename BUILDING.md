@@ -770,7 +770,7 @@ If you want to build Node.js using openssl-3.0.0+quic, you can follow these
 steps:
 
 **clone OpenSSL source and prepare build**
-```console
+```bash
 git clone git@github.com:quictls/openssl.git
 
 cd openssl
@@ -787,7 +787,7 @@ will publish the OpenSSL libraries and such. We will also use this path
 (and sub-paths) later when compiling Node.js.
 
 **compile and install OpenSSL**
-```console
+```bash
 make -j8
 make install
 make install_ssldirs
@@ -822,7 +822,7 @@ sure that you specify an absolute path for the `.include fipsmodule.cnf` line -
 using relative paths did not work on my system!
 
 **alter openssl.cnf using a script**
-```console
+```bash
 cat <<EOT >> /path/to/install/dir/ssl/openssl.cnf
 .include /path/to/install/dir/ssl/fipsmodule.cnf
 
@@ -841,13 +841,13 @@ EOT
 As you might have picked a non-custom path for your OpenSSL install dir, we
 have to export the following two environment variables in order for Node.js to
 find our OpenSSL modules we built beforehand:
-```console
+```bash
 export OPENSSL_CONF=/path/to/install/dir/ssl/openssl.cnf
 export OPENSSL_MODULES=/path/to/install/dir/lib/ossl-modules
 ```
 
 **build Node.js**
-```console
+```bash
 ./configure \
   --shared-openssl \
   --shared-openssl-libpath=/path/to/install/dir/lib \
@@ -862,7 +862,7 @@ make -j8
 
 **verify the produced executable**
 ```console
-ldd ./node
+$ ldd ./node
     linux-vdso.so.1 (0x00007ffd7917b000)
     libcrypto.so.81.3 => /path/to/install/dir/lib/libcrypto.so.81.3 (0x00007fd911321000)
     libssl.so.81.3 => /path/to/install/dir/lib/libssl.so.81.3 (0x00007fd91125e000)
@@ -881,16 +881,16 @@ If the `ldd` command says that `libcrypto` cannot be found one needs to set
 
 **verify the OpenSSL version**
 ```console
-./node -p process.versions.openssl
+$ ./node -p process.versions.openssl
 3.0.0-alpha16+quic
 ```
 
 **verify that FIPS is available**
 ```console
-./node -p 'process.config.variables.openssl_is_fips'
+$ ./node -p 'process.config.variables.openssl_is_fips'
 true
 
-./node --enable-fips -p 'crypto.getFips()'
+$ ./node --enable-fips -p 'crypto.getFips()'
 1
 ```
 
