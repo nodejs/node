@@ -1,11 +1,18 @@
 'use strict';
+// Flags: --expose-internals --experimental-repl-await
+
 require('../common');
 const ArrayStream = require('../common/arraystream');
 
 const assert = require('assert');
 const repl = require('repl');
 
-// Flags: --expose-internals --experimental-repl-await
+function* expectedLines(lines) {
+  for (const line of lines) {
+    yield line;
+  }
+  throw new Error('Requested more lines than expected');
+}
 
 const putIn = new ArrayStream();
 repl.start({
@@ -14,11 +21,9 @@ repl.start({
   useGlobal: false
 });
 
-let expectedIndex = -1;
-const expected = ['undefined', '> ', '1', '> '];
-
+const expectedOutput = expectedLines(['undefined\n', '> ', '1\n', '> ']);
 putIn.write = function(data) {
-  assert.strict(data, expected[expectedIndex += 1]);
+  assert.strictEqual(data, expectedOutput.next().value);
 };
 
 putIn.run([
