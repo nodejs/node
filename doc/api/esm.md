@@ -1349,7 +1349,7 @@ success!
 [`string`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String
 [`transformSource` hook]: #esm_transformsource_source_context_defaulttransformsource
 [`util.TextDecoder`]: util.md#util_class_util_textdecoder
-[cjs-module-lexer]: https://github.com/guybedford/cjs-module-lexer/tree/1.2.1
+[cjs-module-lexer]: https://github.com/guybedford/cjs-module-lexer/tree/1.2.2
 [custom https loader]: #esm_https_loader
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
 [the official standard format]: https://tc39.github.io/ecma262/#sec-modules
