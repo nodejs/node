@@ -204,12 +204,12 @@ needs to be pointed out separately during the onboarding.
   so that when the commit lands, the nomination issue url will be
   automatically closed.
 * Label your pull request with the `doc`, `notable-change`, and `fast-track`
-  labels.
+  labels. The `fast-track` label should cause the Node.js GitHub bot to post a
+  comment in the pull request asking collaborators to approve the pull request
+  by leaving a 👍 reaction on the comment.
 * Run CI on the pull request. Use the `node-test-pull-request` CI task.
 * After two Collaborator approvals for the change and two Collaborator approvals
-  for fast-tracking, land the pull request.
-* Leave a comment in the pull request:
-  `Please 👍 this comment to approve fast-tracking`.
+  for fast-tracking, land the PR.
 * If there are not enough approvals within a reasonable time, consider the
   single approval of the onboarding TSC member sufficient, and land the pull
   request.
