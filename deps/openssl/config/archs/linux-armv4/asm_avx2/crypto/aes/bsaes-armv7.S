@@ -1,4 +1,4 @@
-@ Copyright 2012-2020 The OpenSSL Project Authors. All Rights Reserved.
+@ Copyright 2012-2021 The OpenSSL Project Authors. All Rights Reserved.
 @
 @ Licensed under the Apache License 2.0 (the "License").  You may not use
 @ this file except in compliance with the License.  You can obtain a copy
@@ -1073,10 +1073,10 @@ _bsaes_key_convert:
 
 
 
-.globl	bsaes_cbc_encrypt
-.type	bsaes_cbc_encrypt,%function
+.globl	ossl_bsaes_cbc_encrypt
+.type	ossl_bsaes_cbc_encrypt,%function
 .align	5
-bsaes_cbc_encrypt:
+ossl_bsaes_cbc_encrypt:
 #ifndef	__KERNEL__
 	cmp	r2, #128
 #ifndef	__thumb__
@@ -1338,12 +1338,12 @@ bsaes_cbc_encrypt:
 	vst1.8	{q15}, [r8]		@ return IV
 	VFP_ABI_POP
 	ldmia	sp!, {r4,r5,r6,r7,r8,r9,r10, pc}
-.size	bsaes_cbc_encrypt,.-bsaes_cbc_encrypt
+.size	ossl_bsaes_cbc_encrypt,.-ossl_bsaes_cbc_encrypt
 
-.globl	bsaes_ctr32_encrypt_blocks
-.type	bsaes_ctr32_encrypt_blocks,%function
+.globl	ossl_bsaes_ctr32_encrypt_blocks
+.type	ossl_bsaes_ctr32_encrypt_blocks,%function
 .align	5
-bsaes_ctr32_encrypt_blocks:
+ossl_bsaes_ctr32_encrypt_blocks:
 	cmp	r2, #8			@ use plain AES for
 	blo	.Lctr_enc_short			@ small sizes
 
@@ -1566,11 +1566,11 @@ bsaes_ctr32_encrypt_blocks:
 	vstmia	sp!, {q0,q1}
 
 	ldmia	sp!, {r4,r5,r6,r7,r8, pc}
-.size	bsaes_ctr32_encrypt_blocks,.-bsaes_ctr32_encrypt_blocks
-.globl	bsaes_xts_encrypt
-.type	bsaes_xts_encrypt,%function
+.size	ossl_bsaes_ctr32_encrypt_blocks,.-ossl_bsaes_ctr32_encrypt_blocks
+.globl	ossl_bsaes_xts_encrypt
+.type	ossl_bsaes_xts_encrypt,%function
 .align	4
-bsaes_xts_encrypt:
+ossl_bsaes_xts_encrypt:
 	mov	ip, sp
 	stmdb	sp!, {r4,r5,r6,r7,r8,r9,r10, lr}		@ 0x20
 	VFP_ABI_PUSH
@@ -2045,12 +2045,12 @@ bsaes_xts_encrypt:
 	VFP_ABI_POP
 	ldmia	sp!, {r4,r5,r6,r7,r8,r9,r10, pc}	@ return
 
-.size	bsaes_xts_encrypt,.-bsaes_xts_encrypt
+.size	ossl_bsaes_xts_encrypt,.-ossl_bsaes_xts_encrypt
 
-.globl	bsaes_xts_decrypt
-.type	bsaes_xts_decrypt,%function
+.globl	ossl_bsaes_xts_decrypt
+.type	ossl_bsaes_xts_decrypt,%function
 .align	4
-bsaes_xts_decrypt:
+ossl_bsaes_xts_decrypt:
 	mov	ip, sp
 	stmdb	sp!, {r4,r5,r6,r7,r8,r9,r10, lr}		@ 0x20
 	VFP_ABI_PUSH
@@ -2556,5 +2556,5 @@ bsaes_xts_decrypt:
 	VFP_ABI_POP
 	ldmia	sp!, {r4,r5,r6,r7,r8,r9,r10, pc}	@ return
 
-.size	bsaes_xts_decrypt,.-bsaes_xts_decrypt
+.size	ossl_bsaes_xts_decrypt,.-ossl_bsaes_xts_decrypt
 #endif

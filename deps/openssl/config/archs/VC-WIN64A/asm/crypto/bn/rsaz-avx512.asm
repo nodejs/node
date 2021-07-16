@@ -3,10 +3,10 @@ default	rel
 %define YMMWORD
 %define ZMMWORD
 EXTERN	OPENSSL_ia32cap_P
-global	rsaz_avx512ifma_eligible
+global	ossl_rsaz_avx512ifma_eligible
 
 ALIGN	32
-rsaz_avx512ifma_eligible:
+ossl_rsaz_avx512ifma_eligible:
 	mov	ecx,DWORD[((OPENSSL_ia32cap_P+8))]
 	xor	eax,eax
 	and	ecx,2149777408
@@ -17,14 +17,14 @@ rsaz_avx512ifma_eligible:
 section	.text code align=64
 
 
-global	RSAZ_amm52x20_x1_256
+global	ossl_rsaz_amm52x20_x1_256
 
 ALIGN	32
-RSAZ_amm52x20_x1_256:
+ossl_rsaz_amm52x20_x1_256:
 	mov	QWORD[8+rsp],rdi	;WIN64 prologue
 	mov	QWORD[16+rsp],rsi
 	mov	rax,rsp
-$L$SEH_begin_RSAZ_amm52x20_x1_256:
+$L$SEH_begin_ossl_rsaz_amm52x20_x1_256:
 	mov	rdi,rcx
 	mov	rsi,rdx
 	mov	rdx,r8
@@ -424,7 +424,7 @@ $L$rsaz_amm52x20_x1_256_epilogue:
 	mov	rsi,QWORD[16+rsp]
 	DB	0F3h,0C3h		;repret
 
-$L$SEH_end_RSAZ_amm52x20_x1_256:
+$L$SEH_end_ossl_rsaz_amm52x20_x1_256:
 section	.data data align=8
 
 ALIGN	32
@@ -436,14 +436,14 @@ $L$mask52x4:
 section	.text code align=64
 
 
-global	RSAZ_amm52x20_x2_256
+global	ossl_rsaz_amm52x20_x2_256
 
 ALIGN	32
-RSAZ_amm52x20_x2_256:
+ossl_rsaz_amm52x20_x2_256:
 	mov	QWORD[8+rsp],rdi	;WIN64 prologue
 	mov	QWORD[16+rsp],rsi
 	mov	rax,rsp
-$L$SEH_begin_RSAZ_amm52x20_x2_256:
+$L$SEH_begin_ossl_rsaz_amm52x20_x2_256:
 	mov	rdi,rcx
 	mov	rsi,rdx
 	mov	rdx,r8
@@ -844,18 +844,18 @@ $L$rsaz_amm52x20_x2_256_epilogue:
 	mov	rsi,QWORD[16+rsp]
 	DB	0F3h,0C3h		;repret
 
-$L$SEH_end_RSAZ_amm52x20_x2_256:
+$L$SEH_end_ossl_rsaz_amm52x20_x2_256:
 section	.text code align=64
 
 
 ALIGN	32
-global	extract_multiplier_2x20_win5
+global	ossl_extract_multiplier_2x20_win5
 
-extract_multiplier_2x20_win5:
+ossl_extract_multiplier_2x20_win5:
 	mov	QWORD[8+rsp],rdi	;WIN64 prologue
 	mov	QWORD[16+rsp],rsi
 	mov	rax,rsp
-$L$SEH_begin_extract_multiplier_2x20_win5:
+$L$SEH_begin_ossl_extract_multiplier_2x20_win5:
 	mov	rdi,rcx
 	mov	rsi,rdx
 	mov	rdx,r8
@@ -907,7 +907,7 @@ $L$loop:
 	mov	rsi,QWORD[16+rsp]
 	DB	0F3h,0C3h		;repret
 
-$L$SEH_end_extract_multiplier_2x20_win5:
+$L$SEH_end_ossl_extract_multiplier_2x20_win5:
 section	.data data align=8
 
 ALIGN	32
@@ -1003,29 +1003,29 @@ $L$common_seh_tail:
 
 section	.pdata rdata align=4
 ALIGN	4
-	DD	$L$SEH_begin_RSAZ_amm52x20_x1_256 wrt ..imagebase
-	DD	$L$SEH_end_RSAZ_amm52x20_x1_256 wrt ..imagebase
-	DD	$L$SEH_info_RSAZ_amm52x20_x1_256 wrt ..imagebase
+	DD	$L$SEH_begin_ossl_rsaz_amm52x20_x1_256 wrt ..imagebase
+	DD	$L$SEH_end_ossl_rsaz_amm52x20_x1_256 wrt ..imagebase
+	DD	$L$SEH_info_ossl_rsaz_amm52x20_x1_256 wrt ..imagebase
 
-	DD	$L$SEH_begin_RSAZ_amm52x20_x2_256 wrt ..imagebase
-	DD	$L$SEH_end_RSAZ_amm52x20_x2_256 wrt ..imagebase
-	DD	$L$SEH_info_RSAZ_amm52x20_x2_256 wrt ..imagebase
+	DD	$L$SEH_begin_ossl_rsaz_amm52x20_x2_256 wrt ..imagebase
+	DD	$L$SEH_end_ossl_rsaz_amm52x20_x2_256 wrt ..imagebase
+	DD	$L$SEH_info_ossl_rsaz_amm52x20_x2_256 wrt ..imagebase
 
-	DD	$L$SEH_begin_extract_multiplier_2x20_win5 wrt ..imagebase
-	DD	$L$SEH_end_extract_multiplier_2x20_win5 wrt ..imagebase
-	DD	$L$SEH_info_extract_multiplier_2x20_win5 wrt ..imagebase
+	DD	$L$SEH_begin_ossl_extract_multiplier_2x20_win5 wrt ..imagebase
+	DD	$L$SEH_end_ossl_extract_multiplier_2x20_win5 wrt ..imagebase
+	DD	$L$SEH_info_ossl_extract_multiplier_2x20_win5 wrt ..imagebase
 
 section	.xdata rdata align=8
 ALIGN	8
-$L$SEH_info_RSAZ_amm52x20_x1_256:
+$L$SEH_info_ossl_rsaz_amm52x20_x1_256:
 DB	9,0,0,0
 	DD	rsaz_def_handler wrt ..imagebase
 	DD	$L$rsaz_amm52x20_x1_256_body wrt ..imagebase,$L$rsaz_amm52x20_x1_256_epilogue wrt ..imagebase
-$L$SEH_info_RSAZ_amm52x20_x2_256:
+$L$SEH_info_ossl_rsaz_amm52x20_x2_256:
 DB	9,0,0,0
 	DD	rsaz_def_handler wrt ..imagebase
 	DD	$L$rsaz_amm52x20_x2_256_body wrt ..imagebase,$L$rsaz_amm52x20_x2_256_epilogue wrt ..imagebase
-$L$SEH_info_extract_multiplier_2x20_win5:
+$L$SEH_info_ossl_extract_multiplier_2x20_win5:
 DB	9,0,0,0
 	DD	rsaz_def_handler wrt ..imagebase
-	DD	$L$SEH_begin_extract_multiplier_2x20_win5 wrt ..imagebase,$L$SEH_begin_extract_multiplier_2x20_win5 wrt ..imagebase
+	DD	$L$SEH_begin_ossl_extract_multiplier_2x20_win5 wrt ..imagebase,$L$SEH_begin_ossl_extract_multiplier_2x20_win5 wrt ..imagebase

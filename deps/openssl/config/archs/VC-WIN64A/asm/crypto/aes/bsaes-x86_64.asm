@@ -1074,10 +1074,10 @@ DB	102,15,56,0,244
 
 
 EXTERN	asm_AES_cbc_encrypt
-global	bsaes_cbc_encrypt
+global	ossl_bsaes_cbc_encrypt
 
 ALIGN	16
-bsaes_cbc_encrypt:
+ossl_bsaes_cbc_encrypt:
 
 DB	243,15,30,250
 	mov	r11d,DWORD[48+rsp]
@@ -1368,10 +1368,10 @@ $L$cbc_dec_epilogue:
 
 
 
-global	bsaes_ctr32_encrypt_blocks
+global	ossl_bsaes_ctr32_encrypt_blocks
 
 ALIGN	16
-bsaes_ctr32_encrypt_blocks:
+ossl_bsaes_ctr32_encrypt_blocks:
 
 DB	243,15,30,250
 	mov	rax,rsp
@@ -1610,10 +1610,10 @@ $L$ctr_enc_epilogue:
 	DB	0F3h,0C3h		;repret
 
 
-global	bsaes_xts_encrypt
+global	ossl_bsaes_xts_encrypt
 
 ALIGN	16
-bsaes_xts_encrypt:
+ossl_bsaes_xts_encrypt:
 
 	mov	rax,rsp
 $L$xts_enc_prologue:
@@ -2105,10 +2105,10 @@ $L$xts_enc_epilogue:
 
 
 
-global	bsaes_xts_decrypt
+global	ossl_bsaes_xts_decrypt
 
 ALIGN	16
-bsaes_xts_decrypt:
+ossl_bsaes_xts_decrypt:
 
 	mov	rax,rsp
 $L$xts_dec_prologue:

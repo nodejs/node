@@ -1,21 +1,21 @@
 
-.globl	rsaz_avx512ifma_eligible
-.type	rsaz_avx512ifma_eligible,@function
+.globl	ossl_rsaz_avx512ifma_eligible
+.type	ossl_rsaz_avx512ifma_eligible,@function
 .align	32
-rsaz_avx512ifma_eligible:
+ossl_rsaz_avx512ifma_eligible:
 	movl	OPENSSL_ia32cap_P+8(%rip),%ecx
 	xorl	%eax,%eax
 	andl	$2149777408,%ecx
 	cmpl	$2149777408,%ecx
 	cmovel	%ecx,%eax
 	.byte	0xf3,0xc3
-.size	rsaz_avx512ifma_eligible, .-rsaz_avx512ifma_eligible
+.size	ossl_rsaz_avx512ifma_eligible, .-ossl_rsaz_avx512ifma_eligible
 .text	
 
-.globl	RSAZ_amm52x20_x1_256
-.type	RSAZ_amm52x20_x1_256,@function
+.globl	ossl_rsaz_amm52x20_x1_256
+.type	ossl_rsaz_amm52x20_x1_256,@function
 .align	32
-RSAZ_amm52x20_x1_256:
+ossl_rsaz_amm52x20_x1_256:
 .cfi_startproc	
 .byte	243,15,30,250
 	pushq	%rbx
@@ -412,7 +412,7 @@ RSAZ_amm52x20_x1_256:
 .Lrsaz_amm52x20_x1_256_epilogue:
 	.byte	0xf3,0xc3
 .cfi_endproc	
-.size	RSAZ_amm52x20_x1_256, .-RSAZ_amm52x20_x1_256
+.size	ossl_rsaz_amm52x20_x1_256, .-ossl_rsaz_amm52x20_x1_256
 .data	
 .align	32
 .Lmask52x4:
@@ -422,10 +422,10 @@ RSAZ_amm52x20_x1_256:
 .quad	0xfffffffffffff
 .text	
 
-.globl	RSAZ_amm52x20_x2_256
-.type	RSAZ_amm52x20_x2_256,@function
+.globl	ossl_rsaz_amm52x20_x2_256
+.type	ossl_rsaz_amm52x20_x2_256,@function
 .align	32
-RSAZ_amm52x20_x2_256:
+ossl_rsaz_amm52x20_x2_256:
 .cfi_startproc	
 .byte	243,15,30,250
 	pushq	%rbx
@@ -823,13 +823,13 @@ RSAZ_amm52x20_x2_256:
 .Lrsaz_amm52x20_x2_256_epilogue:
 	.byte	0xf3,0xc3
 .cfi_endproc	
-.size	RSAZ_amm52x20_x2_256, .-RSAZ_amm52x20_x2_256
+.size	ossl_rsaz_amm52x20_x2_256, .-ossl_rsaz_amm52x20_x2_256
 .text	
 
 .align	32
-.globl	extract_multiplier_2x20_win5
-.type	extract_multiplier_2x20_win5,@function
-extract_multiplier_2x20_win5:
+.globl	ossl_extract_multiplier_2x20_win5
+.type	ossl_extract_multiplier_2x20_win5,@function
+ossl_extract_multiplier_2x20_win5:
 .cfi_startproc	
 .byte	243,15,30,250
 	leaq	(%rcx,%rcx,4),%rax
@@ -873,7 +873,7 @@ extract_multiplier_2x20_win5:
 
 	.byte	0xf3,0xc3
 .cfi_endproc	
-.size	extract_multiplier_2x20_win5, .-extract_multiplier_2x20_win5
+.size	ossl_extract_multiplier_2x20_win5, .-ossl_extract_multiplier_2x20_win5
 .data	
 .align	32
 .Lones:

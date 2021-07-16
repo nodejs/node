@@ -1069,10 +1069,10 @@ _bsaes_key_convert:
 .cfi_endproc	
 .size	_bsaes_key_convert,.-_bsaes_key_convert
 
-.globl	bsaes_cbc_encrypt
-.type	bsaes_cbc_encrypt,@function
+.globl	ossl_bsaes_cbc_encrypt
+.type	ossl_bsaes_cbc_encrypt,@function
 .align	16
-bsaes_cbc_encrypt:
+ossl_bsaes_cbc_encrypt:
 .cfi_startproc	
 .byte	243,15,30,250
 	cmpl	$0,%r9d
@@ -1341,12 +1341,12 @@ bsaes_cbc_encrypt:
 .Lcbc_dec_epilogue:
 	.byte	0xf3,0xc3
 .cfi_endproc	
-.size	bsaes_cbc_encrypt,.-bsaes_cbc_encrypt
+.size	ossl_bsaes_cbc_encrypt,.-ossl_bsaes_cbc_encrypt
 
-.globl	bsaes_ctr32_encrypt_blocks
-.type	bsaes_ctr32_encrypt_blocks,@function
+.globl	ossl_bsaes_ctr32_encrypt_blocks
+.type	ossl_bsaes_ctr32_encrypt_blocks,@function
 .align	16
-bsaes_ctr32_encrypt_blocks:
+ossl_bsaes_ctr32_encrypt_blocks:
 .cfi_startproc	
 .byte	243,15,30,250
 	movq	%rsp,%rax
@@ -1565,11 +1565,11 @@ bsaes_ctr32_encrypt_blocks:
 .Lctr_enc_epilogue:
 	.byte	0xf3,0xc3
 .cfi_endproc	
-.size	bsaes_ctr32_encrypt_blocks,.-bsaes_ctr32_encrypt_blocks
-.globl	bsaes_xts_encrypt
-.type	bsaes_xts_encrypt,@function
+.size	ossl_bsaes_ctr32_encrypt_blocks,.-ossl_bsaes_ctr32_encrypt_blocks
+.globl	ossl_bsaes_xts_encrypt
+.type	ossl_bsaes_xts_encrypt,@function
 .align	16
-bsaes_xts_encrypt:
+ossl_bsaes_xts_encrypt:
 .cfi_startproc	
 	movq	%rsp,%rax
 .Lxts_enc_prologue:
@@ -2039,12 +2039,12 @@ bsaes_xts_encrypt:
 .Lxts_enc_epilogue:
 	.byte	0xf3,0xc3
 .cfi_endproc	
-.size	bsaes_xts_encrypt,.-bsaes_xts_encrypt
+.size	ossl_bsaes_xts_encrypt,.-ossl_bsaes_xts_encrypt
 
-.globl	bsaes_xts_decrypt
-.type	bsaes_xts_decrypt,@function
+.globl	ossl_bsaes_xts_decrypt
+.type	ossl_bsaes_xts_decrypt,@function
 .align	16
-bsaes_xts_decrypt:
+ossl_bsaes_xts_decrypt:
 .cfi_startproc	
 	movq	%rsp,%rax
 .Lxts_dec_prologue:
@@ -2539,7 +2539,7 @@ bsaes_xts_decrypt:
 .Lxts_dec_epilogue:
 	.byte	0xf3,0xc3
 .cfi_endproc	
-.size	bsaes_xts_decrypt,.-bsaes_xts_decrypt
+.size	ossl_bsaes_xts_decrypt,.-ossl_bsaes_xts_decrypt
 .type	_bsaes_const,@object
 .align	64
 _bsaes_const:

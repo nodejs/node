@@ -1069,10 +1069,10 @@ L$key_loop:
 
 
 
-.globl	_bsaes_cbc_encrypt
+.globl	_ossl_bsaes_cbc_encrypt
 
 .p2align	4
-_bsaes_cbc_encrypt:
+_ossl_bsaes_cbc_encrypt:
 
 .byte	243,15,30,250
 	cmpl	$0,%r9d
@@ -1337,10 +1337,10 @@ L$cbc_dec_epilogue:
 
 
 
-.globl	_bsaes_ctr32_encrypt_blocks
+.globl	_ossl_bsaes_ctr32_encrypt_blocks
 
 .p2align	4
-_bsaes_ctr32_encrypt_blocks:
+_ossl_bsaes_ctr32_encrypt_blocks:
 
 .byte	243,15,30,250
 	movq	%rsp,%rax
@@ -1554,10 +1554,10 @@ L$ctr_enc_epilogue:
 	.byte	0xf3,0xc3
 
 
-.globl	_bsaes_xts_encrypt
+.globl	_ossl_bsaes_xts_encrypt
 
 .p2align	4
-_bsaes_xts_encrypt:
+_ossl_bsaes_xts_encrypt:
 
 	movq	%rsp,%rax
 L$xts_enc_prologue:
@@ -2023,10 +2023,10 @@ L$xts_enc_epilogue:
 
 
 
-.globl	_bsaes_xts_decrypt
+.globl	_ossl_bsaes_xts_decrypt
 
 .p2align	4
-_bsaes_xts_decrypt:
+_ossl_bsaes_xts_decrypt:
 
 	movq	%rsp,%rax
 L$xts_dec_prologue:

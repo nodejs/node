@@ -1,7 +1,7 @@
 .machine	"any"
 .text
 .align	5
-.p2align	5,,31
+.p2align 5,,31
 
 .globl	bn_mul_mont_fixed_n6
 .type	bn_mul_mont_fixed_n6,@function

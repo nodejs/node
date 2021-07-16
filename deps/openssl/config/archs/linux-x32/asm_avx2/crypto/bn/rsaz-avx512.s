@@ -1,22 +1,22 @@
 .text	
 
-.globl	rsaz_avx512ifma_eligible
-.type	rsaz_avx512ifma_eligible,@function
-rsaz_avx512ifma_eligible:
+.globl	ossl_rsaz_avx512ifma_eligible
+.type	ossl_rsaz_avx512ifma_eligible,@function
+ossl_rsaz_avx512ifma_eligible:
 	xorl	%eax,%eax
 	.byte	0xf3,0xc3
-.size	rsaz_avx512ifma_eligible, .-rsaz_avx512ifma_eligible
+.size	ossl_rsaz_avx512ifma_eligible, .-ossl_rsaz_avx512ifma_eligible
 
-.globl	RSAZ_amm52x20_x1_256
-.globl	RSAZ_amm52x20_x2_256
-.globl	extract_multiplier_2x20_win5
-.type	RSAZ_amm52x20_x1_256,@function
-RSAZ_amm52x20_x1_256:
-RSAZ_amm52x20_x2_256:
-extract_multiplier_2x20_win5:
+.globl	ossl_rsaz_amm52x20_x1_256
+.globl	ossl_rsaz_amm52x20_x2_256
+.globl	ossl_extract_multiplier_2x20_win5
+.type	ossl_rsaz_amm52x20_x1_256,@function
+ossl_rsaz_amm52x20_x1_256:
+ossl_rsaz_amm52x20_x2_256:
+ossl_extract_multiplier_2x20_win5:
 .byte	0x0f,0x0b
 	.byte	0xf3,0xc3
-.size	RSAZ_amm52x20_x1_256, .-RSAZ_amm52x20_x1_256
+.size	ossl_rsaz_amm52x20_x1_256, .-ossl_rsaz_amm52x20_x1_256
 	.section ".note.gnu.property", "a"
 	.p2align 2
 	.long 1f - 0f

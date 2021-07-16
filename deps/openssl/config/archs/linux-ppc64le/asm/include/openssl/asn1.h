@@ -438,6 +438,11 @@ typedef const ASN1_ITEM *ASN1_ITEM_EXP (void);
 # define ASN1_STRFLGS_ESC_CTRL           2
 # define ASN1_STRFLGS_ESC_MSB            4
 
+/* Lower 8 bits are reserved as an output type specifier */
+# define ASN1_DTFLGS_TYPE_MASK    0x0FUL
+# define ASN1_DTFLGS_RFC822       0x00UL
+# define ASN1_DTFLGS_ISO8601      0x01UL
+
 /*
  * This flag determines how we do escaping: normally RC2253 backslash only,
  * set this to use backslash and quote.
@@ -929,6 +934,8 @@ void *ASN1_d2i_fp(void *(*xnew) (void), d2i_of_void *d2i, FILE *in, void **x);
                         in, \
                         CHECKED_PPTR_OF(type, x)))
 
+void *ASN1_item_d2i_fp_ex(const ASN1_ITEM *it, FILE *in, void *x,
+                          OSSL_LIB_CTX *libctx, const char *propq);
 void *ASN1_item_d2i_fp(const ASN1_ITEM *it, FILE *in, void *x);
 int ASN1_i2d_fp(i2d_of_void *i2d, FILE *out, const void *x);
 
@@ -951,6 +958,8 @@ void *ASN1_d2i_bio(void *(*xnew) (void), d2i_of_void *d2i, BIO *in, void **x);
                           in, \
                           CHECKED_PPTR_OF(type, x)))
 
+void *ASN1_item_d2i_bio_ex(const ASN1_ITEM *it, BIO *in, void *pval,
+                           OSSL_LIB_CTX *libctx, const char *propq);
 void *ASN1_item_d2i_bio(const ASN1_ITEM *it, BIO *in, void *pval);
 int ASN1_i2d_bio(i2d_of_void *i2d, BIO *out, const void *x);
 
@@ -963,7 +972,8 @@ int ASN1_item_i2d_bio(const ASN1_ITEM *it, BIO *out, const void *x);
 BIO *ASN1_item_i2d_mem_bio(const ASN1_ITEM *it, const ASN1_VALUE *val);
 int ASN1_UTCTIME_print(BIO *fp, const ASN1_UTCTIME *a);
 int ASN1_GENERALIZEDTIME_print(BIO *fp, const ASN1_GENERALIZEDTIME *a);
-int ASN1_TIME_print(BIO *fp, const ASN1_TIME *a);
+int ASN1_TIME_print(BIO *bp, const ASN1_TIME *tm);
+int ASN1_TIME_print_ex(BIO *bp, const ASN1_TIME *tm, unsigned long flags);
 int ASN1_STRING_print(BIO *bp, const ASN1_STRING *v);
 int ASN1_STRING_print_ex(BIO *out, const ASN1_STRING *str, unsigned long flags);
 int ASN1_buf_print(BIO *bp, const unsigned char *buf, size_t buflen, int off);
@@ -1010,7 +1020,12 @@ void ASN1_STRING_TABLE_cleanup(void);
 
 /* Old API compatible functions */
 ASN1_VALUE *ASN1_item_new(const ASN1_ITEM *it);
+ASN1_VALUE *ASN1_item_new_ex(const ASN1_ITEM *it, OSSL_LIB_CTX *libctx,
+                             const char *propq);
 void ASN1_item_free(ASN1_VALUE *val, const ASN1_ITEM *it);
+ASN1_VALUE *ASN1_item_d2i_ex(ASN1_VALUE **val, const unsigned char **in,
+                             long len, const ASN1_ITEM *it,
+                             OSSL_LIB_CTX *libctx, const char *propq);
 ASN1_VALUE *ASN1_item_d2i(ASN1_VALUE **val, const unsigned char **in,
                           long len, const ASN1_ITEM *it);
 int ASN1_item_i2d(const ASN1_VALUE *val, unsigned char **out, const ASN1_ITEM *it);
@@ -1086,8 +1101,9 @@ int SMIME_write_ASN1_ex(BIO *bio, ASN1_VALUE *val, BIO *data, int flags,
                         STACK_OF(X509_ALGOR) *mdalgs, const ASN1_ITEM *it,
                         OSSL_LIB_CTX *libctx, const char *propq);
 ASN1_VALUE *SMIME_read_ASN1(BIO *bio, BIO **bcont, const ASN1_ITEM *it);
-ASN1_VALUE *SMIME_read_ASN1_ex(BIO *bio, int flags, BIO **bcont, const ASN1_ITEM *it,
-                               ASN1_VALUE **x);
+ASN1_VALUE *SMIME_read_ASN1_ex(BIO *bio, int flags, BIO **bcont,
+                               const ASN1_ITEM *it, ASN1_VALUE **x,
+                               OSSL_LIB_CTX *libctx, const char *propq);
 int SMIME_crlf_copy(BIO *in, BIO *out, int flags);
 int SMIME_text(BIO *in, BIO *out);
 

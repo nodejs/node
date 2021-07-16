@@ -63,9 +63,6 @@ extern "C" {
 # ifndef OPENSSL_NO_EXTERNAL_TESTS
 #  define OPENSSL_NO_EXTERNAL_TESTS
 # endif
-# ifndef OPENSSL_NO_FIPS_SECURITYCHECKS
-#  define OPENSSL_NO_FIPS_SECURITYCHECKS
-# endif
 # ifndef OPENSSL_NO_FUZZ_AFL
 #  define OPENSSL_NO_FUZZ_AFL
 # endif

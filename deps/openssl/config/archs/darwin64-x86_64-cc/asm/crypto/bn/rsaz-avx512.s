@@ -1,8 +1,8 @@
 
-.globl	_rsaz_avx512ifma_eligible
+.globl	_ossl_rsaz_avx512ifma_eligible
 
 .p2align	5
-_rsaz_avx512ifma_eligible:
+_ossl_rsaz_avx512ifma_eligible:
 	movl	_OPENSSL_ia32cap_P+8(%rip),%ecx
 	xorl	%eax,%eax
 	andl	$2149777408,%ecx
@@ -12,10 +12,10 @@ _rsaz_avx512ifma_eligible:
 
 .text	
 
-.globl	_RSAZ_amm52x20_x1_256
+.globl	_ossl_rsaz_amm52x20_x1_256
 
 .p2align	5
-_RSAZ_amm52x20_x1_256:
+_ossl_rsaz_amm52x20_x1_256:
 
 .byte	243,15,30,250
 	pushq	%rbx
@@ -416,10 +416,10 @@ L$mask52x4:
 .quad	0xfffffffffffff
 .text	
 
-.globl	_RSAZ_amm52x20_x2_256
+.globl	_ossl_rsaz_amm52x20_x2_256
 
 .p2align	5
-_RSAZ_amm52x20_x2_256:
+_ossl_rsaz_amm52x20_x2_256:
 
 .byte	243,15,30,250
 	pushq	%rbx
@@ -815,9 +815,9 @@ L$rsaz_amm52x20_x2_256_epilogue:
 .text	
 
 .p2align	5
-.globl	_extract_multiplier_2x20_win5
+.globl	_ossl_extract_multiplier_2x20_win5
 
-_extract_multiplier_2x20_win5:
+_ossl_extract_multiplier_2x20_win5:
 
 .byte	243,15,30,250
 	leaq	(%rcx,%rcx,4),%rax

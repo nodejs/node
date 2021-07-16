@@ -281,78 +281,6 @@ typedef struct X509_req_st X509_REQ;
 typedef struct x509_cert_aux_st X509_CERT_AUX;
 typedef struct x509_cinf_st X509_CINF;
 
-/* This is used for a table of trust checking functions */
-
-typedef struct x509_trust_st {
-    int trust;
-    int flags;
-    int (*check_trust) (struct x509_trust_st *, X509 *, int);
-    char *name;
-    int arg1;
-    void *arg2;
-} X509_TRUST;
-SKM_DEFINE_STACK_OF_INTERNAL(X509_TRUST, X509_TRUST, X509_TRUST)
-#define sk_X509_TRUST_num(sk) OPENSSL_sk_num(ossl_check_const_X509_TRUST_sk_type(sk))
-#define sk_X509_TRUST_value(sk, idx) ((X509_TRUST *)OPENSSL_sk_value(ossl_check_const_X509_TRUST_sk_type(sk), (idx)))
-#define sk_X509_TRUST_new(cmp) ((STACK_OF(X509_TRUST) *)OPENSSL_sk_new(ossl_check_X509_TRUST_compfunc_type(cmp)))
-#define sk_X509_TRUST_new_null() ((STACK_OF(X509_TRUST) *)OPENSSL_sk_new_null())
-#define sk_X509_TRUST_new_reserve(cmp, n) ((STACK_OF(X509_TRUST) *)OPENSSL_sk_new_reserve(ossl_check_X509_TRUST_compfunc_type(cmp), (n)))
-#define sk_X509_TRUST_reserve(sk, n) OPENSSL_sk_reserve(ossl_check_X509_TRUST_sk_type(sk), (n))
-#define sk_X509_TRUST_free(sk) OPENSSL_sk_free(ossl_check_X509_TRUST_sk_type(sk))
-#define sk_X509_TRUST_zero(sk) OPENSSL_sk_zero(ossl_check_X509_TRUST_sk_type(sk))
-#define sk_X509_TRUST_delete(sk, i) ((X509_TRUST *)OPENSSL_sk_delete(ossl_check_X509_TRUST_sk_type(sk), (i)))
-#define sk_X509_TRUST_delete_ptr(sk, ptr) ((X509_TRUST *)OPENSSL_sk_delete_ptr(ossl_check_X509_TRUST_sk_type(sk), ossl_check_X509_TRUST_type(ptr)))
-#define sk_X509_TRUST_push(sk, ptr) OPENSSL_sk_push(ossl_check_X509_TRUST_sk_type(sk), ossl_check_X509_TRUST_type(ptr))
-#define sk_X509_TRUST_unshift(sk, ptr) OPENSSL_sk_unshift(ossl_check_X509_TRUST_sk_type(sk), ossl_check_X509_TRUST_type(ptr))
-#define sk_X509_TRUST_pop(sk) ((X509_TRUST *)OPENSSL_sk_pop(ossl_check_X509_TRUST_sk_type(sk)))
-#define sk_X509_TRUST_shift(sk) ((X509_TRUST *)OPENSSL_sk_shift(ossl_check_X509_TRUST_sk_type(sk)))
-#define sk_X509_TRUST_pop_free(sk, freefunc) OPENSSL_sk_pop_free(ossl_check_X509_TRUST_sk_type(sk),ossl_check_X509_TRUST_freefunc_type(freefunc))
-#define sk_X509_TRUST_insert(sk, ptr, idx) OPENSSL_sk_insert(ossl_check_X509_TRUST_sk_type(sk), ossl_check_X509_TRUST_type(ptr), (idx))
-#define sk_X509_TRUST_set(sk, idx, ptr) ((X509_TRUST *)OPENSSL_sk_set(ossl_check_X509_TRUST_sk_type(sk), (idx), ossl_check_X509_TRUST_type(ptr)))
-#define sk_X509_TRUST_find(sk, ptr) OPENSSL_sk_find(ossl_check_X509_TRUST_sk_type(sk), ossl_check_X509_TRUST_type(ptr))
-#define sk_X509_TRUST_find_ex(sk, ptr) OPENSSL_sk_find_ex(ossl_check_X509_TRUST_sk_type(sk), ossl_check_X509_TRUST_type(ptr))
-#define sk_X509_TRUST_find_all(sk, ptr, pnum) OPENSSL_sk_find_all(ossl_check_X509_TRUST_sk_type(sk), ossl_check_X509_TRUST_type(ptr), pnum)
-#define sk_X509_TRUST_sort(sk) OPENSSL_sk_sort(ossl_check_X509_TRUST_sk_type(sk))
-#define sk_X509_TRUST_is_sorted(sk) OPENSSL_sk_is_sorted(ossl_check_const_X509_TRUST_sk_type(sk))
-#define sk_X509_TRUST_dup(sk) ((STACK_OF(X509_TRUST) *)OPENSSL_sk_dup(ossl_check_const_X509_TRUST_sk_type(sk)))
-#define sk_X509_TRUST_deep_copy(sk, copyfunc, freefunc) ((STACK_OF(X509_TRUST) *)OPENSSL_sk_deep_copy(ossl_check_const_X509_TRUST_sk_type(sk), ossl_check_X509_TRUST_copyfunc_type(copyfunc), ossl_check_X509_TRUST_freefunc_type(freefunc)))
-#define sk_X509_TRUST_set_cmp_func(sk, cmp) ((sk_X509_TRUST_compfunc)OPENSSL_sk_set_cmp_func(ossl_check_X509_TRUST_sk_type(sk), ossl_check_X509_TRUST_compfunc_type(cmp)))
-
-
-
-/* standard trust ids */
-
-# define X509_TRUST_DEFAULT      0 /* Only valid in purpose settings */
-
-# define X509_TRUST_COMPAT       1
-# define X509_TRUST_SSL_CLIENT   2
-# define X509_TRUST_SSL_SERVER   3
-# define X509_TRUST_EMAIL        4
-# define X509_TRUST_OBJECT_SIGN  5
-# define X509_TRUST_OCSP_SIGN    6
-# define X509_TRUST_OCSP_REQUEST 7
-# define X509_TRUST_TSA          8
-
-/* Keep these up to date! */
-# define X509_TRUST_MIN          1
-# define X509_TRUST_MAX          8
-
-/* trust_flags values */
-# define X509_TRUST_DYNAMIC      (1U << 0)
-# define X509_TRUST_DYNAMIC_NAME (1U << 1)
-/* No compat trust if self-signed, preempts "DO_SS" */
-# define X509_TRUST_NO_SS_COMPAT (1U << 2)
-/* Compat trust if no explicit accepted trust EKUs */
-# define X509_TRUST_DO_SS_COMPAT (1U << 3)
-/* Accept "anyEKU" as a wildcard trust OID */
-# define X509_TRUST_OK_ANY_EKU   (1U << 4)
-
-/* check_trust return codes */
-
-# define X509_TRUST_TRUSTED      1
-# define X509_TRUST_REJECTED     2
-# define X509_TRUST_UNTRUSTED    3
-
 /* Flags for X509_print_ex() */
 
 # define X509_FLAG_COMPAT                0
@@ -612,7 +540,8 @@ int X509_pubkey_digest(const X509 *data, const EVP_MD *type,
                        unsigned char *md, unsigned int *len);
 int X509_digest(const X509 *data, const EVP_MD *type,
                 unsigned char *md, unsigned int *len);
-ASN1_OCTET_STRING *X509_digest_sig(const X509 *cert);
+ASN1_OCTET_STRING *X509_digest_sig(const X509 *cert,
+                                   EVP_MD **md_used, int *md_is_fallback);
 int X509_CRL_digest(const X509_CRL *data, const EVP_MD *type,
                     unsigned char *md, unsigned int *len);
 int X509_REQ_digest(const X509_REQ *data, const EVP_MD *type,
@@ -768,6 +697,7 @@ DECLARE_ASN1_FUNCTIONS(X509_VAL)
 
 DECLARE_ASN1_FUNCTIONS(X509_PUBKEY)
 
+X509_PUBKEY *X509_PUBKEY_new_ex(OSSL_LIB_CTX *libctx, const char *propq);
 int X509_PUBKEY_set(X509_PUBKEY **x, EVP_PKEY *pkey);
 EVP_PKEY *X509_PUBKEY_get0(const X509_PUBKEY *key);
 EVP_PKEY *X509_PUBKEY_get(const X509_PUBKEY *key);
@@ -842,21 +772,10 @@ ASN1_OCTET_STRING *X509_get0_distinguishing_id(X509 *x);
 void X509_REQ_set0_distinguishing_id(X509_REQ *x, ASN1_OCTET_STRING *d_id);
 ASN1_OCTET_STRING *X509_REQ_get0_distinguishing_id(X509_REQ *x);
 
-int X509_trusted(const X509 *x);
 int X509_alias_set1(X509 *x, const unsigned char *name, int len);
 int X509_keyid_set1(X509 *x, const unsigned char *id, int len);
 unsigned char *X509_alias_get0(X509 *x, int *len);
 unsigned char *X509_keyid_get0(X509 *x, int *len);
-int (*X509_TRUST_set_default(int (*trust) (int, X509 *, int))) (int, X509 *,
-                                                                int);
-int X509_TRUST_set(int *t, int trust);
-int X509_add1_trust_object(X509 *x, const ASN1_OBJECT *obj);
-int X509_add1_reject_object(X509 *x, const ASN1_OBJECT *obj);
-void X509_trust_clear(X509 *x);
-void X509_reject_clear(X509 *x);
-
-STACK_OF(ASN1_OBJECT) *X509_get0_trust_objects(X509 *x);
-STACK_OF(ASN1_OBJECT) *X509_get0_reject_objects(X509 *x);
 
 DECLARE_ASN1_FUNCTIONS(X509_REVOKED)
 DECLARE_ASN1_FUNCTIONS(X509_CRL_INFO)
@@ -879,7 +798,6 @@ X509_INFO *X509_INFO_new(void);
 void X509_INFO_free(X509_INFO *a);
 char *X509_NAME_oneline(const X509_NAME *a, char *buf, int size);
 
-/* TODO move this block of decls to asn1.h when 'breaking change' is possible */
 #ifndef OPENSSL_NO_DEPRECATED_3_0
 OSSL_DEPRECATEDIN_3_0
 int ASN1_verify(i2d_of_void *i2d, X509_ALGOR *algor1,
@@ -917,9 +835,9 @@ int X509_set_serialNumber(X509 *x, ASN1_INTEGER *serial);
 ASN1_INTEGER *X509_get_serialNumber(X509 *x);
 const ASN1_INTEGER *X509_get0_serialNumber(const X509 *x);
 int X509_set_issuer_name(X509 *x, const X509_NAME *name);
-X509_NAME *X509_get_issuer_name(const X509 *a); /* TODO change to get0_ */
+X509_NAME *X509_get_issuer_name(const X509 *a);
 int X509_set_subject_name(X509 *x, const X509_NAME *name);
-X509_NAME *X509_get_subject_name(const X509 *a); /* TODO change to get0_ */
+X509_NAME *X509_get_subject_name(const X509 *a);
 const ASN1_TIME * X509_get0_notBefore(const X509 *x);
 ASN1_TIME *X509_getm_notBefore(const X509 *x);
 int X509_set1_notBefore(X509 *x, const ASN1_TIME *tm);
@@ -956,7 +874,7 @@ ASN1_BIT_STRING *X509_get0_pubkey_bitstr(const X509 *x);
 
 long X509_REQ_get_version(const X509_REQ *req);
 int X509_REQ_set_version(X509_REQ *x, long version);
-X509_NAME *X509_REQ_get_subject_name(const X509_REQ *req); /* TODO change to get0_ */
+X509_NAME *X509_REQ_get_subject_name(const X509_REQ *req);
 int X509_REQ_set_subject_name(X509_REQ *req, const X509_NAME *name);
 void X509_REQ_get0_signature(const X509_REQ *req, const ASN1_BIT_STRING **psig,
                              const X509_ALGOR **palg);
@@ -1014,7 +932,7 @@ const ASN1_TIME *X509_CRL_get0_nextUpdate(const X509_CRL *crl);
 OSSL_DEPRECATEDIN_1_1_0 ASN1_TIME *X509_CRL_get_lastUpdate(X509_CRL *crl);
 OSSL_DEPRECATEDIN_1_1_0 ASN1_TIME *X509_CRL_get_nextUpdate(X509_CRL *crl);
 #endif
-X509_NAME *X509_CRL_get_issuer(const X509_CRL *crl); /* TODO change to get0_ */
+X509_NAME *X509_CRL_get_issuer(const X509_CRL *crl);
 const STACK_OF(X509_EXTENSION) *X509_CRL_get0_extensions(const X509_CRL *crl);
 STACK_OF(X509_REVOKED) *X509_CRL_get_REVOKED(X509_CRL *crl);
 void X509_CRL_get0_signature(const X509_CRL *crl, const ASN1_BIT_STRING **psig,
@@ -1351,17 +1269,6 @@ int X509_PUBKEY_get0_param(ASN1_OBJECT **ppkalg,
                            const unsigned char **pk, int *ppklen,
                            X509_ALGOR **pa, const X509_PUBKEY *pub);
 int X509_PUBKEY_eq(const X509_PUBKEY *a, const X509_PUBKEY *b);
-
-int X509_check_trust(X509 *x, int id, int flags);
-int X509_TRUST_get_count(void);
-X509_TRUST *X509_TRUST_get0(int idx);
-int X509_TRUST_get_by_id(int id);
-int X509_TRUST_add(int id, int flags, int (*ck) (X509_TRUST *, X509 *, int),
-                   const char *name, int arg1, void *arg2);
-void X509_TRUST_cleanup(void);
-int X509_TRUST_get_flags(const X509_TRUST *xp);
-char *X509_TRUST_get0_name(const X509_TRUST *xp);
-int X509_TRUST_get_trust(const X509_TRUST *xp);
 
 # ifdef  __cplusplus
 }
