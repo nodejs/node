@@ -7,12 +7,12 @@
 #include "node_binding.h"
 #include "node_test_fixture.h"
 
-
 class NodeApiTestEnv : public NodeTestFixture {
  public:
   napi_env env;
   node::Environment* environment_;
   v8::Global<v8::Context>* context_;
+
  private:
   void SetUp() override {
     NodeTestFixture::SetUp();
@@ -28,7 +28,8 @@ class NodeApiTestEnv : public NodeTestFixture {
     CHECK_NE(nullptr, isolate_data_);
     std::vector<std::string> args(*argv, *argv + 1);
     std::vector<std::string> exec_args(*argv, *argv + 1);
-    environment_ = node::CreateEnvironment(isolate_data_,
+    environment_ =
+        node::CreateEnvironment(isolate_data_,
                                 context,
                                 args,
                                 exec_args,
@@ -68,7 +69,8 @@ TEST_F(NodeApiTestEnv, CreateNodeApiEnv) {
   };
   v8::Local<v8::Object> module_obj = v8::Object::New(isolate_);
   v8::Local<v8::Object> exports_obj = v8::Object::New(isolate_);
-  napi_module_register_by_symbol(exports_obj, module_obj,context_->Get(isolate_), init);
+  napi_module_register_by_symbol(
+      exports_obj, module_obj, context_->Get(isolate_), init);
   ASSERT_NE(addon_env, nullptr);
   node_napi_env internal_env = reinterpret_cast<node_napi_env>(addon_env);
   EXPECT_EQ(internal_env->node_env(), environment_);
@@ -79,18 +81,18 @@ TEST_F(NodeApiTestEnv, number) {
 
   // uint32
   napi_value node_uint32_result;
-  CHECK_EQ(napi_create_uint32(env, 1, &node_uint32_result) ,napi_ok);
+  CHECK_EQ(napi_create_uint32(env, 1, &node_uint32_result), napi_ok);
   uint32_t uint32_result;
   CHECK_EQ(napi_get_value_uint32(env, node_uint32_result, &uint32_result),
-              napi_ok);
+           napi_ok);
   EXPECT_EQ(uint32_result, 1);
 
   // int32
   napi_value node_int32_result;
-  CHECK_EQ(napi_create_int32(env, -1, &node_int32_result) ,napi_ok);
+  CHECK_EQ(napi_create_int32(env, -1, &node_int32_result), napi_ok);
   int32_t int32_result;
   CHECK_EQ(napi_get_value_int32(env, node_int32_result, &int32_result),
-              napi_ok);
+           napi_ok);
   EXPECT_EQ(int32_result, -1);
 
   // int64
@@ -98,7 +100,7 @@ TEST_F(NodeApiTestEnv, number) {
   CHECK_EQ(napi_create_int64(env, -1, &node_int64_result), napi_ok);
   int64_t int64_result;
   CHECK_EQ(napi_get_value_int64(env, node_int64_result, &int64_result),
-              napi_ok);
+           napi_ok);
   EXPECT_EQ(int64_result, -1);
 
   // double
@@ -114,8 +116,7 @@ static int globalPromiseValue = 0;
 TEST_F(NodeApiTestEnv, promise) {
   v8::HandleScope handleScope(isolate_);
 
-  ASSERT_TRUE(isolate_->GetMicrotasksPolicy() ==
-              v8::MicrotasksPolicy::kExplicit);
+  ASSERT_EQ(isolate_->GetMicrotasksPolicy(), v8::MicrotasksPolicy::kExplicit);
 
   napi_value node_promise;
   napi_deferred node_deferred;
@@ -126,36 +127,12 @@ TEST_F(NodeApiTestEnv, promise) {
   EXPECT_TRUE(is_promise);
 
   napi_value node_resolution;
-  CHECK_EQ(napi_create_int32(env, 1, &node_resolution) ,napi_ok);
+  CHECK_EQ(napi_create_int32(env, 1, &node_resolution), napi_ok);
   CHECK_EQ(napi_resolve_deferred(env, node_deferred, node_resolution), napi_ok);
-
-  CHECK_EQ(napi_promise_then_resolve(env,
-                    node_promise,
-                    [](napi_env env, napi_callback_info info) -> napi_value {
-
-                    globalPromiseValue++;
-
-                    size_t argc = 1;
-                    napi_value argv[1];
-                    CHECK_EQ(napi_get_cb_info(
-                                 env, info, &argc, argv, nullptr, nullptr),
-                             napi_ok);
-
-                    int result;
-                    CHECK_EQ(napi_get_value_int32(env, argv[0], &result),
-                             napi_ok);
-                    EXPECT_TRUE(result == 1);
-                    return argv[0];
-                    }),napi_ok);
-
-  EXPECT_EQ(globalPromiseValue, 0);
-  // perform Microtask 
-  isolate_->PerformMicrotaskCheckpoint();
-  EXPECT_EQ(globalPromiseValue, 1);
 
   CHECK_EQ(napi_promise_then(
                env,
-               node_promise,
+               &node_promise,
                [](napi_env env, napi_callback_info info) -> napi_value {
                  globalPromiseValue++;
 
@@ -167,8 +144,42 @@ TEST_F(NodeApiTestEnv, promise) {
 
                  int result;
                  CHECK_EQ(napi_get_value_int32(env, argv[0], &result), napi_ok);
-                 EXPECT_TRUE(result == 1);
+                 EXPECT_EQ(result, 1);
+                 return argv[0];
+               },
+               nullptr),
+           napi_ok);
 
+  EXPECT_EQ(globalPromiseValue, 0);
+  // perform Microtask
+  isolate_->PerformMicrotaskCheckpoint();
+  EXPECT_EQ(globalPromiseValue, 1);
+
+  CHECK_EQ(napi_promise_then(
+               env,
+               &node_promise,
+               [](napi_env env, napi_callback_info info) -> napi_value {
+                 globalPromiseValue++;
+
+                 size_t argc = 1;
+                 napi_value argv[1];
+                 CHECK_EQ(
+                     napi_get_cb_info(env, info, &argc, argv, nullptr, nullptr),
+                     napi_ok);
+
+                 int result;
+                 CHECK_EQ(napi_get_value_int32(env, argv[0], &result), napi_ok);
+                 EXPECT_EQ(result, 1);
+
+                 napi_value node_error;
+                 napi_value node_error_code;
+                 napi_value node_error_msg;
+                 napi_create_string_utf8(env, "0", 1, &node_error_code);
+                 napi_create_string_utf8(env, "error", 5, &node_error_msg);
+                 napi_create_error(
+                     env, node_error_code, node_error_msg, &node_error);
+
+                 napi_throw(env, node_error);
                  return nullptr;
                },
                [](napi_env env, napi_callback_info info) -> napi_value {
@@ -182,68 +193,113 @@ TEST_F(NodeApiTestEnv, promise) {
   isolate_->PerformMicrotaskCheckpoint();
   EXPECT_EQ(globalPromiseValue, 2);
 
-  napi_value node_promise2;
-  napi_deferred node_deferred2;
-  CHECK_EQ(napi_create_promise(env, &node_deferred2, &node_promise2), napi_ok);
+  napi_promise_then(
+      env,
+      &node_promise,
+      [](napi_env env, napi_callback_info info) -> napi_value {
+        globalPromiseValue++;
+        return nullptr;
+      },
+      [](napi_env env, napi_callback_info info) -> napi_value {
+        globalPromiseValue += 2;
 
-  bool is_promise2;
-  CHECK_EQ(napi_is_promise(env, node_promise2, &is_promise2), napi_ok);
-  EXPECT_TRUE(is_promise2);
+        size_t argc = 1;
+        napi_value argv[1];
+        CHECK_EQ(napi_get_cb_info(env, info, &argc, argv, nullptr, nullptr),
+                 napi_ok);
+        bool is_error;
+        CHECK_EQ(napi_is_error(env, argv[0], &is_error), napi_ok);
+        EXPECT_TRUE(is_error);
 
-  napi_value node_resolution2;
-  CHECK_EQ(napi_create_int32(env, -1, &node_resolution2), napi_ok);
-  CHECK_EQ(napi_reject_deferred(env, node_deferred2, node_resolution2), napi_ok);
+        napi_value node_promise;
+        napi_deferred node_deferred;
+        CHECK_EQ(napi_create_promise(env, &node_deferred, &node_promise),
+                 napi_ok);
 
-   
-  CHECK_EQ(napi_promise_then(
-               env,
-               node_promise2,
-               [](napi_env env, napi_callback_info info) -> napi_value {
-                 globalPromiseValue++;
-                 return nullptr;
-               },
-               [](napi_env env, napi_callback_info info) -> napi_value {
-                 globalPromiseValue += 2;
-                 size_t argc = 1;
-                 napi_value argv[1];
-                 CHECK_EQ(
-                     napi_get_cb_info(env, info, &argc, argv, nullptr, nullptr),
-                     napi_ok);
+        bool is_promise;
+        CHECK_EQ(napi_is_promise(env, node_promise, &is_promise), napi_ok);
+        EXPECT_TRUE(is_promise);
 
-                 int result;
-                 CHECK_EQ(napi_get_value_int32(env, argv[0], &result), napi_ok);
-                 EXPECT_TRUE(result == -1);
-                 return argv[0];
-               }),
-           napi_ok);
+        CHECK_EQ(napi_reject_deferred(env, node_deferred, argv[0]), napi_ok);
+
+        return node_promise;
+      });
 
   EXPECT_EQ(globalPromiseValue, 2);
   // perform Microtask
   isolate_->PerformMicrotaskCheckpoint();
   EXPECT_EQ(globalPromiseValue, 4);
 
-  CHECK_EQ(napi_promise_catch(
-               env,
-               node_promise2,
-               [](napi_env env, napi_callback_info info) -> napi_value {
-                 globalPromiseValue += 2;
+  napi_promise_then(
+      env,
+      &node_promise,
+      [](napi_env env, napi_callback_info info) -> napi_value {
+        globalPromiseValue++;
+        return nullptr;
+      },
+      [](napi_env env, napi_callback_info info) -> napi_value {
+        globalPromiseValue += 2;
 
-                 size_t argc = 1;
-                 napi_value argv[1];
-                 CHECK_EQ(
-                     napi_get_cb_info(env, info, &argc, argv, nullptr, nullptr),
-                     napi_ok);
-
-                 int result;
-                 CHECK_EQ(napi_get_value_int32(env, argv[0], &result), napi_ok);
-                 EXPECT_TRUE(result == -1);
-
-                 return nullptr;
-               }),
-           napi_ok);
+        napi_value int32_result;
+        napi_create_int32(env, 1, &int32_result);
+        return int32_result;
+      });
 
   EXPECT_EQ(globalPromiseValue, 4);
   // perform Microtask
   isolate_->PerformMicrotaskCheckpoint();
   EXPECT_EQ(globalPromiseValue, 6);
+
+  v8::Local<v8::Promise> promise =
+      v8impl::V8LocalValueFromJsValue(node_promise).As<v8::Promise>();
+
+  v8::Local<v8::Context> context = context_->Get(isolate_);
+
+  const char* source = "nativePromise.then((result) => {\n"
+                       "  return result + 1;\n"
+                       " });\n";
+  // set global object
+  context->Global()
+      .As<v8::Object>()
+      ->Set(context,
+            v8::String::NewFromUtf8Literal(isolate_, "nativePromise"),
+            promise)
+      .FromJust();
+
+  // compile and run javaScript
+  v8::Local<v8::Value> value =
+      v8::Script::Compile(
+          context, v8::String::NewFromUtf8(isolate_, source).ToLocalChecked())
+          .ToLocalChecked()
+          ->Run(context)
+          .ToLocalChecked();
+
+  v8::Local<v8::Promise> nativePromise = value.As<v8::Promise>();
+
+  node_promise = v8impl::JsValueFromV8LocalValue(nativePromise);
+
+  isolate_->PerformMicrotaskCheckpoint();
+
+  napi_promise_then(
+      env,
+      &node_promise,
+      [](napi_env env, napi_callback_info info) -> napi_value {
+        globalPromiseValue++;
+
+        size_t argc = 1;
+        napi_value argv[1];
+        CHECK_EQ(napi_get_cb_info(env, info, &argc, argv, nullptr, nullptr),
+                 napi_ok);
+
+        int result;
+        CHECK_EQ(napi_get_value_int32(env, argv[0], &result), napi_ok);
+        EXPECT_EQ(result, 2);
+        return argv[0];
+      },
+      nullptr);
+
+  EXPECT_EQ(globalPromiseValue, 6);
+  // perform Microtask
+  isolate_->PerformMicrotaskCheckpoint();
+  EXPECT_EQ(globalPromiseValue, 7);
 }

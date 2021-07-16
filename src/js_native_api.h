@@ -2,8 +2,8 @@
 #define SRC_JS_NATIVE_API_H_
 
 // This file needs to be compatible with C compilers.
-#include <stddef.h>   // NOLINT(modernize-deprecated-headers)
 #include <stdbool.h>  // NOLINT(modernize-deprecated-headers)
+#include <stddef.h>   // NOLINT(modernize-deprecated-headers)
 
 // Use INT_MAX, this should only be consumed by the pre-processor anyway.
 #define NAPI_VERSION_EXPERIMENTAL 2147483647
@@ -26,14 +26,15 @@
 // If you need __declspec(dllimport), either include <node_api.h> instead, or
 // define NAPI_EXTERN as __declspec(dllimport) on the compiler's command line.
 #ifndef NAPI_EXTERN
-  #ifdef _WIN32
-    #define NAPI_EXTERN __declspec(dllexport)
-  #elif defined(__wasm32__)
-    #define NAPI_EXTERN __attribute__((visibility("default")))                \
-                        __attribute__((__import_module__("napi")))
-  #else
-    #define NAPI_EXTERN __attribute__((visibility("default")))
-  #endif
+#ifdef _WIN32
+#define NAPI_EXTERN __declspec(dllexport)
+#elif defined(__wasm32__)
+#define NAPI_EXTERN                                                            \
+  __attribute__((visibility("default")))                                       \
+      __attribute__((__import_module__("napi")))
+#else
+#define NAPI_EXTERN __attribute__((visibility("default")))
+#endif
 #endif
 
 #define NAPI_AUTO_LENGTH SIZE_MAX
@@ -49,8 +50,7 @@
 EXTERN_C_START
 
 NAPI_EXTERN napi_status
-napi_get_last_error_info(napi_env env,
-                         const napi_extended_error_info** result);
+napi_get_last_error_info(napi_env env, const napi_extended_error_info** result);
 
 // Getters for defined singletons
 NAPI_EXTERN napi_status napi_get_undefined(napi_env env, napi_value* result);
@@ -133,18 +133,12 @@ NAPI_EXTERN napi_status napi_get_value_bool(napi_env env,
                                             bool* result);
 
 // Copies LATIN-1 encoded bytes from a string into a buffer.
-NAPI_EXTERN napi_status napi_get_value_string_latin1(napi_env env,
-                                                     napi_value value,
-                                                     char* buf,
-                                                     size_t bufsize,
-                                                     size_t* result);
+NAPI_EXTERN napi_status napi_get_value_string_latin1(
+    napi_env env, napi_value value, char* buf, size_t bufsize, size_t* result);
 
 // Copies UTF-8 encoded bytes from a string into a buffer.
-NAPI_EXTERN napi_status napi_get_value_string_utf8(napi_env env,
-                                                   napi_value value,
-                                                   char* buf,
-                                                   size_t bufsize,
-                                                   size_t* result);
+NAPI_EXTERN napi_status napi_get_value_string_utf8(
+    napi_env env, napi_value value, char* buf, size_t bufsize, size_t* result);
 
 // Copies UTF-16 encoded bytes from a string into a buffer.
 NAPI_EXTERN napi_status napi_get_value_string_utf16(napi_env env,
@@ -196,17 +190,17 @@ NAPI_EXTERN napi_status napi_has_own_property(napi_env env,
                                               napi_value key,
                                               bool* result);
 NAPI_EXTERN napi_status napi_set_named_property(napi_env env,
-                                          napi_value object,
-                                          const char* utf8name,
-                                          napi_value value);
+                                                napi_value object,
+                                                const char* utf8name,
+                                                napi_value value);
 NAPI_EXTERN napi_status napi_has_named_property(napi_env env,
-                                          napi_value object,
-                                          const char* utf8name,
-                                          bool* result);
+                                                napi_value object,
+                                                const char* utf8name,
+                                                bool* result);
 NAPI_EXTERN napi_status napi_get_named_property(napi_env env,
-                                          napi_value object,
-                                          const char* utf8name,
-                                          napi_value* result);
+                                                napi_value object,
+                                                const char* utf8name,
+                                                napi_value* result);
 NAPI_EXTERN napi_status napi_set_element(napi_env env,
                                          napi_value object,
                                          uint32_t index,
@@ -347,12 +341,10 @@ NAPI_EXTERN napi_status napi_open_handle_scope(napi_env env,
                                                napi_handle_scope* result);
 NAPI_EXTERN napi_status napi_close_handle_scope(napi_env env,
                                                 napi_handle_scope scope);
-NAPI_EXTERN napi_status
-napi_open_escapable_handle_scope(napi_env env,
-                                 napi_escapable_handle_scope* result);
-NAPI_EXTERN napi_status
-napi_close_escapable_handle_scope(napi_env env,
-                                  napi_escapable_handle_scope scope);
+NAPI_EXTERN napi_status napi_open_escapable_handle_scope(
+    napi_env env, napi_escapable_handle_scope* result);
+NAPI_EXTERN napi_status napi_close_escapable_handle_scope(
+    napi_env env, napi_escapable_handle_scope scope);
 
 NAPI_EXTERN napi_status napi_escape_handle(napi_env env,
                                            napi_escapable_handle_scope scope,
@@ -365,11 +357,11 @@ NAPI_EXTERN napi_status napi_throw_error(napi_env env,
                                          const char* code,
                                          const char* msg);
 NAPI_EXTERN napi_status napi_throw_type_error(napi_env env,
-                                         const char* code,
-                                         const char* msg);
+                                              const char* code,
+                                              const char* msg);
 NAPI_EXTERN napi_status napi_throw_range_error(napi_env env,
-                                         const char* code,
-                                         const char* msg);
+                                               const char* code,
+                                               const char* msg);
 NAPI_EXTERN napi_status napi_is_error(napi_env env,
                                       napi_value value,
                                       bool* result);
@@ -446,18 +438,13 @@ NAPI_EXTERN napi_status napi_reject_deferred(napi_env env,
 NAPI_EXTERN napi_status napi_is_promise(napi_env env,
                                         napi_value value,
                                         bool* is_promise);
-#if NAPI_VERSION >= 8
+#ifdef NAPI_EXPERIMENTAL
 NAPI_EXTERN napi_status napi_promise_then(napi_env env,
-                                          napi_value promise,
-                                          napi_callback on_resolve,
+                                          napi_value* promise,
+                                          napi_callback on_fulfilled,
                                           napi_callback on_rejected);
-NAPI_EXTERN napi_status napi_promise_then_resolve(napi_env env,
-                                        napi_value promise,
-                                        napi_callback handler);
-NAPI_EXTERN napi_status napi_promise_catch(napi_env env,
-                                          napi_value promise,
-                                          napi_callback handler);
-#endif
+#endif  // #ifdef NAPI_EXPERIMENTAL
+
 // Running a script
 NAPI_EXTERN napi_status napi_run_script(napi_env env,
                                         napi_value script,
@@ -536,8 +523,7 @@ NAPI_EXTERN napi_status napi_set_instance_data(napi_env env,
                                                napi_finalize finalize_cb,
                                                void* finalize_hint);
 
-NAPI_EXTERN napi_status napi_get_instance_data(napi_env env,
-                                               void** data);
+NAPI_EXTERN napi_status napi_get_instance_data(napi_env env, void** data);
 #endif  // NAPI_VERSION >= 6
 
 #if NAPI_VERSION >= 7
@@ -561,10 +547,8 @@ napi_check_object_type_tag(napi_env env,
                            napi_value value,
                            const napi_type_tag* type_tag,
                            bool* result);
-NAPI_EXTERN napi_status napi_object_freeze(napi_env env,
-                                           napi_value object);
-NAPI_EXTERN napi_status napi_object_seal(napi_env env,
-                                         napi_value object);
+NAPI_EXTERN napi_status napi_object_freeze(napi_env env, napi_value object);
+NAPI_EXTERN napi_status napi_object_seal(napi_env env, napi_value object);
 #endif  // NAPI_VERSION >= 8
 
 EXTERN_C_END

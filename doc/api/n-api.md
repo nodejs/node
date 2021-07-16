@@ -5602,33 +5602,19 @@ napi_status napi_promise_then_resolve(napi_env env,
 
 ### napi_promise_then
 <!-- YAML
-added: v17.0.0
+added: REPLACEME
 napiVersion: 8
 -->
 ```c
 napi_status napi_promise_then(napi_env env,
                             napi_value promise,
-                            napi_callback on_resolve,
-                            napi_callback on_rejected)
+                            napi_callback on_fulfilled,
+                            napi_callback on_rejected);
 ```
 * `[in] env`: The environment that the API is invoked under.
 * `[in] promise`: The JavaScript Promise Object
-* `[in] on_resolve`: when promise state is fulfilled will  callback.
+* `[in] on_fulfilled`: when promise state is fulfilled will  callback.
 * `[in] on_rejected`: when promise state is rejected will  callback.
-
-### napi_promise_catch
-<!-- YAML
-added: v17.0.0
-napiVersion: 8
--->
-```c
-napi_status napi_promise_catch(napi_env env,
-                              napi_value promise,
-                              napi_callback handler)
-```
-* `[in] env`: The environment that the API is invoked under.
-* `[in] promise`: The JavaScript Promise Object
-* `[in] handler`: when promise state  is rejected will  callback.
 
 ## Script execution
 
