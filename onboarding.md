@@ -28,15 +28,15 @@ onboarding session.
   * [local setup](#local-setup)
   * [project goals and values](#project-goals-and-values)
   * [managing the issue tracker](#managing-the-issue-tracker)
-  * [reviewing PRs](#reviewing-prs)
-  * [landing PRs](#landing-prs)
+  * [reviewing pull requests](#reviewing-pull-requests)
+  * [landing pull requests](#landing-pull-requests)
 
 ## Local setup
 
 * git:
   * Make sure you have whitespace=fix: `git config --global --add
     apply.whitespace fix`
-  * Always continue to PR from your own GitHub fork
+  * Always create a branch in your own GitHub fork for pull requests
     * Branches in the `nodejs/node` repository are only for release lines
   * Add the canonical nodejs repository as `upstream` remote:
     * `git remote add upstream git://github.com/nodejs/node.git`
@@ -44,7 +44,7 @@ onboarding session.
     * `git checkout master`
     * `git remote update -p` OR `git fetch --all`
     * `git merge --ff-only upstream/master` (or `REMOTENAME/BRANCH`)
-  * Make a new branch for each PR you submit.
+  * Make a new branch for each pull request you submit.
   * Membership: Consider making your membership in the Node.js GitHub
     organization public. This makes it easier to identify collaborators.
     Instructions on how to do that are available at
@@ -77,9 +77,9 @@ The project has two venues for real-time discussion:
 ## Managing the issue tracker
 
 * You have (mostly) free rein; don't hesitate to close an issue if you are
-  confident that it should be closed
-  * Be nice about closing issues! Let people know why, and that issues and PRs
-    can be reopened if necessary
+  confident that it should be closed.
+  * Be nice about closing issues! Let people know why, and that issues and pull
+    requests can be reopened if necessary.
 
 * See [Labels][].
   * There is [a bot](https://github.com/nodejs-github-bot/github-bot) that
@@ -92,7 +92,7 @@ The project has two venues for real-time discussion:
       `semver-major` label
     * When adding a `semver-*` label, add a comment explaining why you're adding
       it. Do it right away so you don't forget!
-  * Please add the [`author-ready`][] label for PRs, if applicable.
+  * Please add the [`author-ready`][] label for pull requests, if applicable.
 
 * See [Who to CC in the issue tracker][who-to-cc].
   * This will come more naturally over time
@@ -110,7 +110,7 @@ The project has two venues for real-time discussion:
   * You can find the full moderation policy
     [here](https://github.com/nodejs/admin/blob/HEAD/Moderation-Policy.md).
 
-## Reviewing PRs
+## Reviewing pull requests
 
 * The primary goal is for the codebase to improve.
 * Secondary (but not far off) is for the person submitting code to succeed. A
@@ -147,7 +147,7 @@ The project has two venues for real-time discussion:
     * If you see that the requested changes have been made, you can clear
       another collaborator's `Changes requested` review.
     * Use `Changes requested` to indicate that you are considering some of your
-      comments to block the PR from landing.
+      comments to block the pull request from landing.
 
 * What belongs in Node.js:
   * Opinions vary – it’s good to have a broad collaborator base for that reason!
@@ -182,17 +182,17 @@ The project has two venues for real-time discussion:
     * Use the [Build WG repository](https://github.com/nodejs/build) to file
       issues for the Build WG members who maintain the CI infrastructure.
 
-## Landing PRs
+## Landing pull requests
 
 See the Collaborator Guide: [Landing pull requests][].
 
-Commits in one PR that belong to one logical change should
+Commits in one pull request that belong to one logical change should
 be squashed. It is rarely the case in onboarding exercises, so this
 needs to be pointed out separately during the onboarding.
 
 <!-- TODO(joyeechueng): provide examples about "one logical change" -->
 
-## Exercise: Make a PR adding yourself to the README
+## Exercise: Make a pull request adding yourself to the README
 
 * Example:
   <https://github.com/nodejs/node/commit/b58fe52692659c0bc25ddbe6afa7f4ae2c7f14a8>
@@ -205,12 +205,14 @@ needs to be pointed out separately during the onboarding.
   automatically closed.
 * Label your pull request with the `doc`, `notable-change`, and `fast-track`
   labels.
-* Run CI on the PR. Use the `node-test-pull-request` CI task.
+* Run CI on the pull request. Use the `node-test-pull-request` CI task.
 * After two Collaborator approvals for the change and two Collaborator approvals
-  for fast-tracking, land the PR.
-* Leave a comment in the PR: `Please 👍 this comment to approve fast-tracking`.
+  for fast-tracking, land the pull request.
+* Leave a comment in the pull request:
+  `Please 👍 this comment to approve fast-tracking`.
 * If there are not enough approvals within a reasonable time, consider the
-  single approval of the onboarding TSC member sufficient, and land the PR.
+  single approval of the onboarding TSC member sufficient, and land the pull
+  request.
   * Be sure to add the `PR-URL: <full-pr-url>` and appropriate `Reviewed-By:`
     metadata.
   * [`node-core-utils`][] automates the generation of metadata and the landing
