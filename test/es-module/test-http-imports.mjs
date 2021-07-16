@@ -1,5 +1,5 @@
 // Flags: --experimental-https-modules
-import { mustCall } from '../common/index.mjs';
+import '../common/index.mjs';
 import { path, readKey } from '../common/fixtures.mjs';
 import { pathToFileURL } from 'url';
 import assert from 'assert';
