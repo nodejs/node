@@ -577,8 +577,6 @@ console.log(five); // Logs `5`
 node b.mjs # works
 ```
 
-<i id="esm_experimental_loaders"></i>
-
 ## HTTPS and HTTP imports
 
 > Stability: 1 - Experimental
@@ -640,8 +638,7 @@ different mechanism will be used to enforce this. By requiring opt-in to network
 based loading, it prevents transitive dependencies from accidentally using
 potentially mutable state that could affect reliability of Node.js applications.
 
-<i id="esm_experimental_https_and_http_imports"></i>
-
+<i id="esm_experimental_loaders"></i>
 ## Loaders
 
 > Stability: 1 - Experimental
