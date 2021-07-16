@@ -80,7 +80,7 @@ void X509_ALGOR_set_md(X509_ALGOR *alg, const EVP_MD *md)
     else
         param_type = V_ASN1_NULL;
 
-    X509_ALGOR_set0(alg, OBJ_nid2obj(EVP_MD_type(md)), param_type, NULL);
+    X509_ALGOR_set0(alg, OBJ_nid2obj(EVP_MD_get_type(md)), param_type, NULL);
 
 }
 

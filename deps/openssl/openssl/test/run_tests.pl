@@ -33,11 +33,11 @@ my $recipesdir = catdir($srctop, "test", "recipes");
 my $libdir = rel2abs(catdir($srctop, "util", "perl"));
 my $jobs = $ENV{HARNESS_JOBS} // 1;
 
-$ENV{OPENSSL_CONF} = rel2abs(catdir($srctop, "apps", "openssl.cnf"));
-$ENV{OPENSSL_CONF_INCLUDE} = rel2abs(catdir($bldtop, "providers"));
+$ENV{OPENSSL_CONF} = rel2abs(catfile($srctop, "apps", "openssl.cnf"));
+$ENV{OPENSSL_CONF_INCLUDE} = rel2abs(catdir($bldtop, "test"));
 $ENV{OPENSSL_MODULES} = rel2abs(catdir($bldtop, "providers"));
 $ENV{OPENSSL_ENGINES} = rel2abs(catdir($bldtop, "engines"));
-$ENV{CTLOG_FILE} = rel2abs(catdir($srctop, "test", "ct", "log_list.cnf"));
+$ENV{CTLOG_FILE} = rel2abs(catfile($srctop, "test", "ct", "log_list.cnf"));
 
 my %tapargs =
     ( verbosity         => $ENV{HARNESS_VERBOSE} ? 1 : 0,
@@ -83,7 +83,7 @@ sub reorder {
 
     # for parallel test runs, do slow tests first
     if ($jobs > 1 && $key =~ m/test_ssl_new|test_fuzz/) {
-        $key =~ s/(\d+)-/00-/;
+        $key =~ s/(\d+)-/01-/;
     }
     return $key;
 }
@@ -131,12 +131,19 @@ foreach my $arg (@ARGV ? @ARGV : ('alltests')) {
     $initial_arg = 0;
 }
 
+# prep recipes are mandatory and need to be always run first
+my @preps = glob(catfile($recipesdir,"00-prep_*.t"));
+foreach my $test (@preps) {
+    delete $tests{$test};
+}
+
 sub find_matching_tests {
     my ($glob) = @_;
 
     if ($glob =~ m|^[\d\[\]\?\-]+$|) {
         return glob(catfile($recipesdir,"$glob-*.t"));
     }
+
     return glob(catfile($recipesdir,"*-$glob.t"));
 }
 
@@ -301,14 +308,29 @@ unless (defined $eres) {
 my $harness = $package->new(\%tapargs);
 my $ret =
     $harness->runtests(map { [ abs2rel($_, rel2abs(curdir())), basename($_) ] }
+                       @preps);
+die if $ret->has_errors;
+$ret =
+    $harness->runtests(map { [ abs2rel($_, rel2abs(curdir())), basename($_) ] }
                        sort { reorder($a) cmp reorder($b) } keys %tests);
 
-# $ret->has_errors may be any number, not just 0 or 1.  On VMS, numbers
-# from 2 and on are used as is as VMS statuses, which has severity encoded
-# in the lower 3 bits.  0 and 1, on the other hand, generate SUCCESS and
-# FAILURE, so for currect reporting on all platforms, we make sure the only
-# exit codes are 0 and 1.  Double-bang is the trick to do so.
-exit !!$ret->has_errors if (ref($ret) eq "TAP::Parser::Aggregator");
+# If this is a TAP::Parser::Aggregator, $ret->has_errors is the count of
+# tests that failed.  We don't bother with that exact number, just exit
+# with an appropriate exit code when it isn't zero.
+if (ref($ret) eq "TAP::Parser::Aggregator") {
+    exit 0 unless $ret->has_errors;
+    exit 1 unless $^O eq 'VMS';
+    # On VMS, perl converts an exit 1 to SS$_ABORT (%SYSTEM-F-ABORT), which
+    # is a bit harsh.  As per perl recommendations, we explicitly use the
+    # same VMS status code as typical C programs would for exit(1), except
+    # we set the error severity rather than success.
+    # Ref: https://perldoc.perl.org/perlport#exit
+    #      https://perldoc.perl.org/perlvms#$?
+    exit  0x35a000              # C facility code
+        + 8                     # 1 << 3 (to make space for the 3 severity bits)
+        + 2                     # severity: E(rror)
+        + 0x10000000;           # bit 28 set => the shell stays silent
+}
 
 # If this isn't a TAP::Parser::Aggregator, it's the pre-TAP test harness,
 # which simply dies at the end if any test failed, so we don't need to bother

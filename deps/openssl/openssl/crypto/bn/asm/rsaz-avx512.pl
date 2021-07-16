@@ -61,17 +61,17 @@ if ($avx512ifma>0) {{{
 
 $code.=<<___;
 .extern OPENSSL_ia32cap_P
-.globl  rsaz_avx512ifma_eligible
-.type   rsaz_avx512ifma_eligible,\@abi-omnipotent
+.globl  ossl_rsaz_avx512ifma_eligible
+.type   ossl_rsaz_avx512ifma_eligible,\@abi-omnipotent
 .align  32
-rsaz_avx512ifma_eligible:
+ossl_rsaz_avx512ifma_eligible:
     mov OPENSSL_ia32cap_P+8(%rip), %ecx
     xor %eax,%eax
     and \$`1<<31|1<<21|1<<17|1<<16`, %ecx     # avx512vl + avx512ifma + avx512dq + avx512f
     cmp \$`1<<31|1<<21|1<<17|1<<16`, %ecx
     cmove %ecx,%eax
     ret
-.size   rsaz_avx512ifma_eligible, .-rsaz_avx512ifma_eligible
+.size   ossl_rsaz_avx512ifma_eligible, .-ossl_rsaz_avx512ifma_eligible
 ___
 
 ###############################################################################
@@ -92,7 +92,7 @@ ___
 # This post-condition is true, provided the correct parameter |s| is choosen, i.e.
 # s >= n + 2 * k, which matches our case: 1040 > 1024 + 2 * 1.
 #
-# void RSAZ_amm52x20_x1_256(BN_ULONG *res,
+# void ossl_rsaz_amm52x20_x1_256(BN_ULONG *res,
 #                           const BN_ULONG *a,
 #                           const BN_ULONG *b,
 #                           const BN_ULONG *m,
@@ -128,7 +128,8 @@ sub amm52x20_x1() {
 #                of data for corresponding AMM operation;
 # _b_offset    - offset in the |b| array pointing to the next qword digit;
 my ($_data_offset,$_b_offset,$_acc,$_R0,$_R0h,$_R1,$_R1h,$_R2,$_k0) = @_;
-my $_R0_xmm = $_R0 =~ s/%y/%x/r;
+my $_R0_xmm = $_R0;
+$_R0_xmm =~ s/%y/%x/;
 $code.=<<___;
     movq    $_b_offset($b_ptr), %r13             # b[i]
 
@@ -304,10 +305,10 @@ ___
 $code.=<<___;
 .text
 
-.globl  RSAZ_amm52x20_x1_256
-.type   RSAZ_amm52x20_x1_256,\@function,5
+.globl  ossl_rsaz_amm52x20_x1_256
+.type   ossl_rsaz_amm52x20_x1_256,\@function,5
 .align 32
-RSAZ_amm52x20_x1_256:
+ossl_rsaz_amm52x20_x1_256:
 .cfi_startproc
     endbranch
     push    %rbx
@@ -380,7 +381,7 @@ $code.=<<___;
 .Lrsaz_amm52x20_x1_256_epilogue:
     ret
 .cfi_endproc
-.size   RSAZ_amm52x20_x1_256, .-RSAZ_amm52x20_x1_256
+.size   ossl_rsaz_amm52x20_x1_256, .-ossl_rsaz_amm52x20_x1_256
 ___
 
 $code.=<<___;
@@ -396,12 +397,12 @@ ___
 ###############################################################################
 # Dual Almost Montgomery Multiplication for 20-digit number in radix 2^52
 #
-# See description of RSAZ_amm52x20_x1_256() above for details about Almost
+# See description of ossl_rsaz_amm52x20_x1_256() above for details about Almost
 # Montgomery Multiplication algorithm and function input parameters description.
 #
 # This function does two AMMs for two independent inputs, hence dual.
 #
-# void RSAZ_amm52x20_x2_256(BN_ULONG out[2][20],
+# void ossl_rsaz_amm52x20_x2_256(BN_ULONG out[2][20],
 #                           const BN_ULONG a[2][20],
 #                           const BN_ULONG b[2][20],
 #                           const BN_ULONG m[2][20],
@@ -411,10 +412,10 @@ ___
 $code.=<<___;
 .text
 
-.globl  RSAZ_amm52x20_x2_256
-.type   RSAZ_amm52x20_x2_256,\@function,5
+.globl  ossl_rsaz_amm52x20_x2_256
+.type   ossl_rsaz_amm52x20_x2_256,\@function,5
 .align 32
-RSAZ_amm52x20_x2_256:
+ossl_rsaz_amm52x20_x2_256:
 .cfi_startproc
     endbranch
     push    %rbx
@@ -499,7 +500,7 @@ $code.=<<___;
 .Lrsaz_amm52x20_x2_256_epilogue:
     ret
 .cfi_endproc
-.size   RSAZ_amm52x20_x2_256, .-RSAZ_amm52x20_x2_256
+.size   ossl_rsaz_amm52x20_x2_256, .-ossl_rsaz_amm52x20_x2_256
 ___
 }
 
@@ -513,10 +514,10 @@ ___
 #
 # Extracted value (output) is 20 digit number in 2^52 radix.
 #
-# void extract_multiplier_2x20_win5(BN_ULONG *red_Y,
-#                                   const BN_ULONG red_table[1 << EXP_WIN_SIZE][2][20],
-#                                   int red_table_idx,
-#                                   int tbl_idx);           # 0 or 1
+# void ossl_extract_multiplier_2x20_win5(BN_ULONG *red_Y,
+#                                        const BN_ULONG red_table[1 << EXP_WIN_SIZE][2][20],
+#                                        int red_table_idx,
+#                                        int tbl_idx);           # 0 or 1
 #
 # EXP_WIN_SIZE = 5
 ###############################################################################
@@ -525,7 +526,8 @@ ___
 my ($out,$red_tbl,$red_tbl_idx,$tbl_idx) = @_6_args_universal_ABI;
 
 my ($t0,$t1,$t2,$t3,$t4) = map("%ymm$_", (0..4));
-my $t4xmm = $t4 =~ s/%y/%x/r;
+my $t4xmm = $t4;
+$t4xmm =~ s/%y/%x/;
 my ($tmp0,$tmp1,$tmp2,$tmp3,$tmp4) = map("%ymm$_", (16..20));
 my ($cur_idx,$idx,$ones) = map("%ymm$_", (21..23));
 
@@ -533,9 +535,9 @@ $code.=<<___;
 .text
 
 .align 32
-.globl  extract_multiplier_2x20_win5
-.type   extract_multiplier_2x20_win5,\@function,4
-extract_multiplier_2x20_win5:
+.globl  ossl_extract_multiplier_2x20_win5
+.type   ossl_extract_multiplier_2x20_win5,\@function,4
+ossl_extract_multiplier_2x20_win5:
 .cfi_startproc
     endbranch
     leaq    ($tbl_idx,$tbl_idx,4), %rax
@@ -579,7 +581,7 @@ extract_multiplier_2x20_win5:
 
     ret
 .cfi_endproc
-.size   extract_multiplier_2x20_win5, .-extract_multiplier_2x20_win5
+.size   ossl_extract_multiplier_2x20_win5, .-ossl_extract_multiplier_2x20_win5
 ___
 $code.=<<___;
 .data
@@ -686,55 +688,55 @@ rsaz_def_handler:
 
 .section    .pdata
 .align  4
-    .rva    .LSEH_begin_RSAZ_amm52x20_x1_256
-    .rva    .LSEH_end_RSAZ_amm52x20_x1_256
-    .rva    .LSEH_info_RSAZ_amm52x20_x1_256
+    .rva    .LSEH_begin_ossl_rsaz_amm52x20_x1_256
+    .rva    .LSEH_end_ossl_rsaz_amm52x20_x1_256
+    .rva    .LSEH_info_ossl_rsaz_amm52x20_x1_256
 
-    .rva    .LSEH_begin_RSAZ_amm52x20_x2_256
-    .rva    .LSEH_end_RSAZ_amm52x20_x2_256
-    .rva    .LSEH_info_RSAZ_amm52x20_x2_256
+    .rva    .LSEH_begin_ossl_rsaz_amm52x20_x2_256
+    .rva    .LSEH_end_ossl_rsaz_amm52x20_x2_256
+    .rva    .LSEH_info_ossl_rsaz_amm52x20_x2_256
 
-    .rva    .LSEH_begin_extract_multiplier_2x20_win5
-    .rva    .LSEH_end_extract_multiplier_2x20_win5
-    .rva    .LSEH_info_extract_multiplier_2x20_win5
+    .rva    .LSEH_begin_ossl_extract_multiplier_2x20_win5
+    .rva    .LSEH_end_ossl_extract_multiplier_2x20_win5
+    .rva    .LSEH_info_ossl_extract_multiplier_2x20_win5
 
 .section    .xdata
 .align  8
-.LSEH_info_RSAZ_amm52x20_x1_256:
+.LSEH_info_ossl_rsaz_amm52x20_x1_256:
     .byte   9,0,0,0
     .rva    rsaz_def_handler
     .rva    .Lrsaz_amm52x20_x1_256_body,.Lrsaz_amm52x20_x1_256_epilogue
-.LSEH_info_RSAZ_amm52x20_x2_256:
+.LSEH_info_ossl_rsaz_amm52x20_x2_256:
     .byte   9,0,0,0
     .rva    rsaz_def_handler
     .rva    .Lrsaz_amm52x20_x2_256_body,.Lrsaz_amm52x20_x2_256_epilogue
-.LSEH_info_extract_multiplier_2x20_win5:
+.LSEH_info_ossl_extract_multiplier_2x20_win5:
     .byte   9,0,0,0
     .rva    rsaz_def_handler
-    .rva    .LSEH_begin_extract_multiplier_2x20_win5,.LSEH_begin_extract_multiplier_2x20_win5
+    .rva    .LSEH_begin_ossl_extract_multiplier_2x20_win5,.LSEH_begin_ossl_extract_multiplier_2x20_win5
 ___
 }
 }}} else {{{                # fallback for old assembler
 $code.=<<___;
 .text
 
-.globl  rsaz_avx512ifma_eligible
-.type   rsaz_avx512ifma_eligible,\@abi-omnipotent
-rsaz_avx512ifma_eligible:
+.globl  ossl_rsaz_avx512ifma_eligible
+.type   ossl_rsaz_avx512ifma_eligible,\@abi-omnipotent
+ossl_rsaz_avx512ifma_eligible:
     xor     %eax,%eax
     ret
-.size   rsaz_avx512ifma_eligible, .-rsaz_avx512ifma_eligible
+.size   ossl_rsaz_avx512ifma_eligible, .-ossl_rsaz_avx512ifma_eligible
 
-.globl  RSAZ_amm52x20_x1_256
-.globl  RSAZ_amm52x20_x2_256
-.globl  extract_multiplier_2x20_win5
-.type   RSAZ_amm52x20_x1_256,\@abi-omnipotent
-RSAZ_amm52x20_x1_256:
-RSAZ_amm52x20_x2_256:
-extract_multiplier_2x20_win5:
+.globl  ossl_rsaz_amm52x20_x1_256
+.globl  ossl_rsaz_amm52x20_x2_256
+.globl  ossl_extract_multiplier_2x20_win5
+.type   ossl_rsaz_amm52x20_x1_256,\@abi-omnipotent
+ossl_rsaz_amm52x20_x1_256:
+ossl_rsaz_amm52x20_x2_256:
+ossl_extract_multiplier_2x20_win5:
     .byte   0x0f,0x0b    # ud2
     ret
-.size   RSAZ_amm52x20_x1_256, .-RSAZ_amm52x20_x1_256
+.size   ossl_rsaz_amm52x20_x1_256, .-ossl_rsaz_amm52x20_x1_256
 ___
 }}}
 

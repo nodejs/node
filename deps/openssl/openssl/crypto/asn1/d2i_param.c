@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -26,7 +26,7 @@ EVP_PKEY *d2i_KeyParams(int type, EVP_PKEY **a, const unsigned char **pp,
     } else
         ret = *a;
 
-    if (type != EVP_PKEY_id(ret) && !EVP_PKEY_set_type(ret, type))
+    if (type != EVP_PKEY_get_id(ret) && !EVP_PKEY_set_type(ret, type))
         goto err;
 
     if (ret->ameth == NULL || ret->ameth->param_decode == NULL) {

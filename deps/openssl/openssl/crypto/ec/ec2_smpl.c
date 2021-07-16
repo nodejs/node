@@ -730,7 +730,7 @@ int ec_GF2m_simple_ladder_pre(const EC_GROUP *group,
     /* s blinding: make sure lambda (s->Z here) is not zero */
     do {
         if (!BN_priv_rand_ex(s->Z, BN_num_bits(group->field) - 1,
-                             BN_RAND_TOP_ANY, BN_RAND_BOTTOM_ANY, ctx)) {
+                             BN_RAND_TOP_ANY, BN_RAND_BOTTOM_ANY, 0, ctx)) {
             ERR_raise(ERR_LIB_EC, ERR_R_BN_LIB);
             return 0;
         }
@@ -745,7 +745,7 @@ int ec_GF2m_simple_ladder_pre(const EC_GROUP *group,
     /* r blinding: make sure lambda (r->Y here for storage) is not zero */
     do {
         if (!BN_priv_rand_ex(r->Y, BN_num_bits(group->field) - 1,
-                             BN_RAND_TOP_ANY, BN_RAND_BOTTOM_ANY, ctx)) {
+                             BN_RAND_TOP_ANY, BN_RAND_BOTTOM_ANY, 0, ctx)) {
             ERR_raise(ERR_LIB_EC, ERR_R_BN_LIB);
             return 0;
         }

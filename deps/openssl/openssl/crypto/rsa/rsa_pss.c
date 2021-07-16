@@ -53,7 +53,7 @@ int RSA_verify_PKCS1_PSS_mgf1(RSA *rsa, const unsigned char *mHash,
     if (mgf1Hash == NULL)
         mgf1Hash = Hash;
 
-    hLen = EVP_MD_size(Hash);
+    hLen = EVP_MD_get_size(Hash);
     if (hLen < 0)
         goto err;
     /*-
@@ -164,7 +164,7 @@ int RSA_padding_add_PKCS1_PSS_mgf1(RSA *rsa, unsigned char *EM,
     if (mgf1Hash == NULL)
         mgf1Hash = Hash;
 
-    hLen = EVP_MD_size(Hash);
+    hLen = EVP_MD_get_size(Hash);
     if (hLen < 0)
         goto err;
     /*-
@@ -205,7 +205,7 @@ int RSA_padding_add_PKCS1_PSS_mgf1(RSA *rsa, unsigned char *EM,
             ERR_raise(ERR_LIB_RSA, ERR_R_MALLOC_FAILURE);
             goto err;
         }
-        if (RAND_bytes_ex(rsa->libctx, salt, sLen) <= 0)
+        if (RAND_bytes_ex(rsa->libctx, salt, sLen, 0) <= 0)
             goto err;
     }
     maskedDBLen = emLen - hLen - 1;

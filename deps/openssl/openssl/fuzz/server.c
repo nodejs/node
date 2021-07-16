@@ -538,10 +538,6 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
     if (len < 2)
         return 0;
 
-    /*
-     * TODO: use the ossltest engine (optionally?) to disable crypto checks.
-     */
-
     /* This only fuzzes the initial flow from the client so far. */
     ctx = SSL_CTX_new(SSLv23_method());
 
@@ -617,8 +613,6 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
     OPENSSL_assert(ret == 1);
     X509_free(cert);
 #endif
-
-    /* TODO: Set up support for SRP and PSK */
 
     server = SSL_new(ctx);
     in = BIO_new(BIO_s_mem());

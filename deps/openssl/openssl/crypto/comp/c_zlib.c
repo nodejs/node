@@ -293,10 +293,8 @@ static long bio_zlib_callback_ctrl(BIO *b, int cmd, BIO_info_cb *fp);
 static const BIO_METHOD bio_meth_zlib = {
     BIO_TYPE_COMP,
     "zlib",
-    /* TODO: Convert to new style write function */
     bwrite_conv,
     bio_zlib_write,
-    /* TODO: Convert to new style read function */
     bread_conv,
     bio_zlib_read,
     NULL,                      /* bio_zlib_puts, */

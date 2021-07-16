@@ -16,7 +16,6 @@ OSSL_ENCODER_CTX_get_num_encoders,
 OSSL_ENCODER_INSTANCE,
 OSSL_ENCODER_INSTANCE_get_encoder,
 OSSL_ENCODER_INSTANCE_get_encoder_ctx,
-OSSL_ENCODER_INSTANCE_get_input_type,
 OSSL_ENCODER_INSTANCE_get_output_type,
 OSSL_ENCODER_INSTANCE_get_output_structure,
 OSSL_ENCODER_CONSTRUCT,
@@ -54,8 +53,6 @@ OSSL_ENCODER_CTX_set_cleanup
  OSSL_ENCODER_INSTANCE_get_encoder(OSSL_ENCODER_INSTANCE *encoder_inst);
  void *
  OSSL_ENCODER_INSTANCE_get_encoder_ctx(OSSL_ENCODER_INSTANCE *encoder_inst);
- const char *
- OSSL_ENCODER_INSTANCE_get_input_type(OSSL_ENCODER_INSTANCE *encoder_inst);
  const char *
  OSSL_ENCODER_INSTANCE_get_output_type(OSSL_ENCODER_INSTANCE *encoder_inst);
  const char *
@@ -161,14 +158,6 @@ implementation of the encoder instance I<encoder_inst>.
 OSSL_ENCODER_INSTANCE_get_encoder_ctx() can be used to get the encoder
 implementation's provider context of the encoder instance I<encoder_inst>.
 
-OSSL_ENCODER_INSTANCE_get_input_type() can be used to get the input type for
-the encoder implementation of the encoder instance I<encoder_inst>.
-This may be NULL.
-
-OSSL_ENCODER_INSTANCE_get_output_type() can be used to get the output type
-for the encoder implementation of the encoder instance I<encoder_inst>.
-This will never be NULL.
-
 OSSL_ENCODER_INSTANCE_get_output_type() can be used to get the output type
 for the encoder implementation of the encoder instance I<encoder_inst>.
 This will never be NULL.
@@ -222,7 +211,7 @@ The functions described here were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

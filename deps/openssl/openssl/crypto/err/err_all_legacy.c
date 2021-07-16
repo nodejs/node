@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -44,16 +44,16 @@
 # include "crypto/x509v3err.h"
 
 # ifdef OPENSSL_NO_ERR
-#  define IMPLEMENT_LEGACY_ERR_LOAD(lib)         \
+#  define IMPLEMENT_LEGACY_ERR_LOAD(lib)        \
     int ERR_load_##lib##_strings(void)          \
     {                                           \
         return 1;                               \
     }
 # else
-#  define IMPLEMENT_LEGACY_ERR_LOAD(lib)         \
+#  define IMPLEMENT_LEGACY_ERR_LOAD(lib)        \
     int ERR_load_##lib##_strings(void)          \
     {                                           \
-        return err_load_##lib##_strings_int();  \
+        return ossl_err_load_##lib##_strings(); \
     }
 # endif
 

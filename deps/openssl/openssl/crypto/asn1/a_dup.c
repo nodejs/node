@@ -56,6 +56,8 @@ void *ASN1_item_dup(const ASN1_ITEM *it, const void *x)
     const unsigned char *p;
     long i;
     ASN1_VALUE *ret;
+    OSSL_LIB_CTX *libctx = NULL;
+    const char *propq = NULL;
 
     if (x == NULL)
         return NULL;
@@ -67,9 +69,12 @@ void *ASN1_item_dup(const ASN1_ITEM *it, const void *x)
         asn1_cb = aux != NULL ? aux->asn1_cb : NULL;
     }
 
-    if (asn1_cb != NULL
-        && !asn1_cb(ASN1_OP_DUP_PRE, (ASN1_VALUE **)&x, it, NULL))
-        goto auxerr;
+    if (asn1_cb != NULL) {
+        if (!asn1_cb(ASN1_OP_DUP_PRE, (ASN1_VALUE **)&x, it, NULL)
+                || !asn1_cb(ASN1_OP_GET0_LIBCTX, (ASN1_VALUE **)&x, it, &libctx)
+                || !asn1_cb(ASN1_OP_GET0_PROPQ, (ASN1_VALUE **)&x, it, &propq))
+            goto auxerr;
+    }
 
     i = ASN1_item_i2d(x, &b, it);
     if (b == NULL) {
@@ -77,7 +82,7 @@ void *ASN1_item_dup(const ASN1_ITEM *it, const void *x)
         return NULL;
     }
     p = b;
-    ret = ASN1_item_d2i(NULL, &p, i, it);
+    ret = ASN1_item_d2i_ex(NULL, &p, i, it, libctx, propq);
     OPENSSL_free(b);
 
     if (asn1_cb != NULL

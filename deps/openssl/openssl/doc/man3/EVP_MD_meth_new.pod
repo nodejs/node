@@ -144,7 +144,7 @@ computations after the method's private data structure has been copied
 from one B<EVP_MD_CTX> to another.  If all that's needed is to copy
 the data, there is no need for this copy function.
 Note that the copy function is passed two B<EVP_MD_CTX *>, the private
-data structure is then available with EVP_MD_CTX_md_data().
+data structure is then available with EVP_MD_CTX_get0_md_data().
 This copy function is called by EVP_MD_CTX_copy() and
 EVP_MD_CTX_copy_ex().
 
@@ -152,7 +152,7 @@ EVP_MD_meth_set_cleanup() sets the function for B<md> to do extra
 cleanup before the method's private data structure is cleaned out and
 freed.
 Note that the cleanup function is passed a B<EVP_MD_CTX *>, the
-private data structure is then available with EVP_MD_CTX_md_data().
+private data structure is then available with EVP_MD_CTX_get0_md_data().
 This cleanup function is called by EVP_MD_CTX_reset() and
 EVP_MD_CTX_free().
 
@@ -194,7 +194,7 @@ counted in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

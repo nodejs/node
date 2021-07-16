@@ -332,6 +332,10 @@ int ossl_x509_PUBKEY_get0_libctx(OSSL_LIB_CTX **plibctx, const char **ppropq,
 /* Calculate default key identifier according to RFC 5280 section 4.2.1.2 (1) */
 ASN1_OCTET_STRING *ossl_x509_pubkey_hash(X509_PUBKEY *pubkey);
 
+X509_PUBKEY *ossl_d2i_X509_PUBKEY_INTERNAL(const unsigned char **pp,
+                                           long len, OSSL_LIB_CTX *libctx);
+void ossl_X509_PUBKEY_INTERNAL_free(X509_PUBKEY *xpub);
+
 RSA *ossl_d2i_RSA_PSS_PUBKEY(RSA **a, const unsigned char **pp, long length);
 int ossl_i2d_RSA_PSS_PUBKEY(const RSA *a, unsigned char **pp);
 # ifndef OPENSSL_NO_DH
@@ -354,4 +358,6 @@ ECX_KEY *ossl_d2i_X448_PUBKEY(ECX_KEY **a,
                               const unsigned char **pp, long length);
 int ossl_i2d_X448_PUBKEY(const ECX_KEY *a, unsigned char **pp);
 # endif
+EVP_PKEY *ossl_d2i_PUBKEY_legacy(EVP_PKEY **a, const unsigned char **pp,
+                                 long length);
 #endif

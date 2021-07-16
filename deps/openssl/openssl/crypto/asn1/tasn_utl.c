@@ -97,9 +97,7 @@ int ossl_asn1_do_lock(ASN1_VALUE **pval, int op, const ASN1_ITEM *it)
     case -1:
         if (!CRYPTO_DOWN_REF(lck, &ret, *lock))
             return -1;  /* failed */
-#ifdef REF_PRINT
-        fprintf(stderr, "%p:%4d:%s\n", (void*)it, ret, it->sname);
-#endif
+        REF_PRINT_EX(it->sname, ret, (void *)it);
         REF_ASSERT_ISNT(ret < 0);
         if (ret == 0) {
             CRYPTO_THREAD_lock_free(*lock);

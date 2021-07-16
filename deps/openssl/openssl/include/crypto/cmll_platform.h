@@ -29,16 +29,16 @@ void cmll_t4_decrypt(const unsigned char *in, unsigned char *out,
 
 void cmll128_t4_cbc_encrypt(const unsigned char *in, unsigned char *out,
                             size_t len, const CAMELLIA_KEY *key,
-                            unsigned char *ivec);
+                            unsigned char *ivec, int /*unused*/);
 void cmll128_t4_cbc_decrypt(const unsigned char *in, unsigned char *out,
                             size_t len, const CAMELLIA_KEY *key,
-                            unsigned char *ivec);
+                            unsigned char *ivec, int /*unused*/);
 void cmll256_t4_cbc_encrypt(const unsigned char *in, unsigned char *out,
                             size_t len, const CAMELLIA_KEY *key,
-                            unsigned char *ivec);
+                            unsigned char *ivec, int /*unused*/);
 void cmll256_t4_cbc_decrypt(const unsigned char *in, unsigned char *out,
                             size_t len, const CAMELLIA_KEY *key,
-                            unsigned char *ivec);
+                            unsigned char *ivec, int /*unused*/);
 void cmll128_t4_ctr32_encrypt(const unsigned char *in, unsigned char *out,
                               size_t blocks, const CAMELLIA_KEY *key,
                               unsigned char *ivec);

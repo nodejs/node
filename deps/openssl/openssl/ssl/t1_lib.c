@@ -357,7 +357,7 @@ static int add_provider_groups(const OSSL_PARAM params[], void *data)
          * assumption to make (in which case perhaps we should document this
          * behaviour)?
          */
-        if (EVP_KEYMGMT_provider(keymgmt) == provider) {
+        if (EVP_KEYMGMT_get0_provider(keymgmt) == provider) {
             /* We have a match - so we will use this group */
             ctx->group_list_len++;
             ginf = NULL;
@@ -1235,7 +1235,7 @@ int tls1_lookup_md(SSL_CTX *ctx, const SIGALG_LOOKUP *lu, const EVP_MD **pmd)
  * SHA512 has a hash length of 64 bytes, which is incompatible
  * with a 128 byte (1024 bit) key.
  */
-#define RSA_PSS_MINIMUM_KEY_SIZE(md) (2 * EVP_MD_size(md) + 2)
+#define RSA_PSS_MINIMUM_KEY_SIZE(md) (2 * EVP_MD_get_size(md) + 2)
 static int rsa_pss_check_min_key_size(SSL_CTX *ctx, const EVP_PKEY *pkey,
                                       const SIGALG_LOOKUP *lu)
 {
@@ -1245,7 +1245,7 @@ static int rsa_pss_check_min_key_size(SSL_CTX *ctx, const EVP_PKEY *pkey,
         return 0;
     if (!tls1_lookup_md(ctx, lu, &md) || md == NULL)
         return 0;
-    if (EVP_PKEY_size(pkey) < RSA_PSS_MINIMUM_KEY_SIZE(md))
+    if (EVP_PKEY_get_size(pkey) < RSA_PSS_MINIMUM_KEY_SIZE(md))
         return 0;
     return 1;
 }
@@ -1418,10 +1418,10 @@ static int sigalg_security_bits(SSL_CTX *ctx, const SIGALG_LOOKUP *lu)
         return 0;
     if (md != NULL)
     {
-        int md_type = EVP_MD_type(md);
+        int md_type = EVP_MD_get_type(md);
 
         /* Security bits: half digest bits */
-        secbits = EVP_MD_size(md) * 4;
+        secbits = EVP_MD_get_size(md) * 4;
         /*
          * SHA1 and MD5 are known to be broken. Reduce security bits so that
          * they're no longer accepted at security level 1. The real values don't
@@ -1463,7 +1463,7 @@ int tls12_check_peer_sigalg(SSL *s, uint16_t sig, EVP_PKEY *pkey)
     const SIGALG_LOOKUP *lu;
     int secbits = 0;
 
-    pkeyid = EVP_PKEY_id(pkey);
+    pkeyid = EVP_PKEY_get_id(pkey);
     /* Should never happen */
     if (pkeyid == -1)
         return -1;
@@ -1490,7 +1490,7 @@ int tls12_check_peer_sigalg(SSL *s, uint16_t sig, EVP_PKEY *pkey)
         return 0;
     }
     /* Check the sigalg is consistent with the key OID */
-    if (!ssl_cert_lookup_by_nid(EVP_PKEY_id(pkey), &cidx)
+    if (!ssl_cert_lookup_by_nid(EVP_PKEY_get_id(pkey), &cidx)
             || lu->sig_idx != (int)cidx) {
         SSLfatal(s, SSL_AD_ILLEGAL_PARAMETER, SSL_R_WRONG_SIGNATURE_TYPE);
         return 0;
@@ -1560,7 +1560,7 @@ int tls12_check_peer_sigalg(SSL *s, uint16_t sig, EVP_PKEY *pkey)
     secbits = sigalg_security_bits(s->ctx, lu);
     if (secbits == 0 ||
         !ssl_security(s, SSL_SECOP_SIGALG_CHECK, secbits,
-                      md != NULL ? EVP_MD_type(md) : NID_undef,
+                      md != NULL ? EVP_MD_get_type(md) : NID_undef,
                       (void *)sigalgstr)) {
         SSLfatal(s, SSL_AD_HANDSHAKE_FAILURE, SSL_R_WRONG_SIGNATURE_TYPE);
         return 0;
@@ -1893,7 +1893,7 @@ SSL_TICKET_STATUS tls_decrypt_ticket(SSL *s, const unsigned char *etick,
 
     /* Sanity check ticket length: must exceed keyname + IV + HMAC */
     if (eticklen <=
-        TLSEXT_KEYNAME_LENGTH + EVP_CIPHER_CTX_iv_length(ctx) + mlen) {
+        TLSEXT_KEYNAME_LENGTH + EVP_CIPHER_CTX_get_iv_length(ctx) + mlen) {
         ret = SSL_TICKET_NO_DECRYPT;
         goto end;
     }
@@ -1911,8 +1911,8 @@ SSL_TICKET_STATUS tls_decrypt_ticket(SSL *s, const unsigned char *etick,
     }
     /* Attempt to decrypt session data */
     /* Move p after IV to start of encrypted ticket, update length */
-    p = etick + TLSEXT_KEYNAME_LENGTH + EVP_CIPHER_CTX_iv_length(ctx);
-    eticklen -= TLSEXT_KEYNAME_LENGTH + EVP_CIPHER_CTX_iv_length(ctx);
+    p = etick + TLSEXT_KEYNAME_LENGTH + EVP_CIPHER_CTX_get_iv_length(ctx);
+    eticklen -= TLSEXT_KEYNAME_LENGTH + EVP_CIPHER_CTX_get_iv_length(ctx);
     sdec = OPENSSL_malloc(eticklen);
     if (sdec == NULL || EVP_DecryptUpdate(ctx, sdec, &slen, p,
                                           (int)eticklen) <= 0) {
@@ -2898,7 +2898,7 @@ EVP_PKEY *ssl_get_auto_dh(SSL *s)
         } else {
             if (s->s3.tmp.cert == NULL)
                 return NULL;
-            dh_secbits = EVP_PKEY_security_bits(s->s3.tmp.cert->privatekey);
+            dh_secbits = EVP_PKEY_get_security_bits(s->s3.tmp.cert->privatekey);
         }
     }
 
@@ -2950,7 +2950,7 @@ static int ssl_security_cert_key(SSL *s, SSL_CTX *ctx, X509 *x, int op)
          * reject keys which omit parameters but this only affects DSA and
          * omission of parameters is never (?) done in practice.
          */
-        secbits = EVP_PKEY_security_bits(pkey);
+        secbits = EVP_PKEY_get_security_bits(pkey);
     }
     if (s)
         return ssl_security(s, op, secbits, 0, x);
@@ -3079,7 +3079,7 @@ static int check_cert_usable(SSL *s, const SIGALG_LOOKUP *sig, X509 *x,
                 continue;
 
             /*
-             * TODO this does not differentiate between the
+             * This does not differentiate between the
              * rsa_pss_pss_* and rsa_pss_rsae_* schemes since we do not
              * have a chain here that lets us look at the key OID in the
              * signing certificate.

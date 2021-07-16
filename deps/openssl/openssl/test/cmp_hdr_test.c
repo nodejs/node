@@ -480,10 +480,5 @@ int setup_tests(void)
     /* also tests internal function ossl_cmp_hdr_get_pvno(): */
     ADD_TEST(test_HDR_init_with_ref);
     ADD_TEST(test_HDR_init_with_subject);
-    /*
-     *  TODO make sure that total number of tests (here currently 24) is shown,
-     *  also for other cmp_*text.c. Currently the test drivers always show 1.
-     */
-
     return 1;
 }

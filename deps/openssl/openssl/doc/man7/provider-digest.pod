@@ -262,7 +262,13 @@ produces larger digests is unusable with those API calls.
 =head1 SEE ALSO
 
 L<provider(7)>, L<OSSL_PROVIDER-FIPS(7)>, L<OSSL_PROVIDER-default(7)>,
-L<OSSL_PROVIDER-legacy(7)>
+L<OSSL_PROVIDER-legacy(7)>,
+L<EVP_MD-common(7)>, L<EVP_MD-BLAKE2(7)>, L<EVP_MD-MD2(7)>,
+L<EVP_MD-MD4(7)>, L<EVP_MD-MD5(7)>, L<EVP_MD-MD5-SHA1(7)>,
+L<EVP_MD-MDC2(7)>, L<EVP_MD-RIPEMD160(7)>, L<EVP_MD-SHA1(7)>,
+L<EVP_MD-SHA2(7)>, L<EVP_MD-SHA3(7)>, L<EVP_MD-SHAKE(7)>,
+L<EVP_MD-SM3(7)>, L<EVP_MD-WHIRLPOOL(7)>,
+L<life_cycle-digest(7)>, L<EVP_DigestInit(3)>
 
 =head1 HISTORY
 

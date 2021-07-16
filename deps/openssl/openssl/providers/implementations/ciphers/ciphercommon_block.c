@@ -9,7 +9,7 @@
 
 #include <assert.h>
 /* For SSL3_VERSION, TLS1_VERSION etc */
-#include <openssl/ssl.h>
+#include <openssl/prov_ssl.h>
 #include <openssl/rand.h>
 #include <openssl/proverr.h>
 #include "internal/constant_time.h"

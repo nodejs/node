@@ -22,8 +22,8 @@ L<openssl_user_macros(7)>:
 =head1 DESCRIPTION
 
 The functions described on this page are deprecated.
-Applications should instead use L<EVP_PKEY_bits(3)>,
-L<EVP_PKEY_security_bits(3)> and L<EVP_PKEY_size(3)>.
+Applications should instead use L<EVP_PKEY_get_bits(3)>,
+L<EVP_PKEY_get_security_bits(3)> and L<EVP_PKEY_get_size(3)>.
 
 DH_bits() returns the number of significant bits.
 
@@ -49,7 +49,7 @@ B<dh> doesn't hold any key parameters.
 
 =head1 SEE ALSO
 
-L<EVP_PKEY_bits(3)>,
+L<EVP_PKEY_get_bits(3)>,
 L<DH_new(3)>, L<DH_generate_key(3)>,
 L<BN_num_bits(3)>
 

@@ -81,7 +81,7 @@ i2d_PublicKey() does the same for public keys.
 i2d_KeyParams() does the same for key parameters.
 These functions are similar to the d2i_X509() functions; see L<d2i_X509(3)>.
 i2d_PrivateKey_bio() and i2d_PrivateKey_fp() do the same thing except that they
-encode to a B<BIO> or B<FILE> respectrively. Again, these work similarly to the
+encode to a B<BIO> or B<FILE> respectively. Again, these work similarly to the
 functions described in L<d2i_X509(3)>.
 
 =head1 NOTES

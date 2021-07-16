@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -153,7 +153,7 @@ int CTLOG_new_from_base64_ex(CTLOG **ct_log, const char *pkey_base64,
     }
 
     p = pkey_der;
-    pkey = d2i_PUBKEY(NULL, &p, pkey_der_len);
+    pkey = d2i_PUBKEY_ex(NULL, &p, pkey_der_len, libctx, propq);
     OPENSSL_free(pkey_der);
     if (pkey == NULL) {
         ERR_raise(ERR_LIB_CT, CT_R_LOG_CONF_INVALID_KEY);

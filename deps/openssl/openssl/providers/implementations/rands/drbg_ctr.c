@@ -540,7 +540,7 @@ static int drbg_ctr_init(PROV_DRBG *drbg)
         ERR_raise(ERR_LIB_PROV, PROV_R_MISSING_CIPHER);
         return 0;
     }
-    ctr->keylen = keylen = EVP_CIPHER_key_length(ctr->cipher_ctr);
+    ctr->keylen = keylen = EVP_CIPHER_get_key_length(ctr->cipher_ctr);
     if (ctr->ctx_ecb == NULL)
         ctr->ctx_ecb = EVP_CIPHER_CTX_new();
     if (ctr->ctx_ctr == NULL)
@@ -645,7 +645,8 @@ static int drbg_ctr_get_ctx_params(void *vdrbg, OSSL_PARAM params[])
     p = OSSL_PARAM_locate(params, OSSL_DRBG_PARAM_CIPHER);
     if (p != NULL) {
         if (ctr->cipher_ctr == NULL
-            || !OSSL_PARAM_set_utf8_string(p, EVP_CIPHER_name(ctr->cipher_ctr)))
+            || !OSSL_PARAM_set_utf8_string(p,
+                                           EVP_CIPHER_get0_name(ctr->cipher_ctr)))
             return 0;
     }
 

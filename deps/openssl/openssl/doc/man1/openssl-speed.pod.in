@@ -81,6 +81,14 @@ C<openssl speed -cmac aes128>.
 
 Time the decryption instead of encryption. Affects only the EVP testing.
 
+=item B<-mb>
+
+Enable multi-block mode on EVP-named cipher.
+
+=item B<-aead>
+
+Benchmark EVP-named AEAD cipher in TLS-like sequence.
+
 =item B<-primes> I<num>
 
 Generate a I<num>-prime RSA key and use it to run the benchmarks. This option

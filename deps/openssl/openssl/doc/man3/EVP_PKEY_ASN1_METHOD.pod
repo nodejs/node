@@ -197,10 +197,10 @@ It's called by L<EVP_PKEY_print_private(3)>.
  int (*pkey_security_bits) (const EVP_PKEY *pk);
 
 The pkey_size() method returns the key size in bytes.
-It's called by L<EVP_PKEY_size(3)>.
+It's called by L<EVP_PKEY_get_size(3)>.
 
 The pkey_bits() method returns the key size in bits.
-It's called by L<EVP_PKEY_bits(3)>.
+It's called by L<EVP_PKEY_get_bits(3)>.
 
  int (*param_decode) (EVP_PKEY *pkey,
                       const unsigned char **pder, int derlen);

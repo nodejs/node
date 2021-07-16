@@ -28,10 +28,8 @@ static long md_callback_ctrl(BIO *h, int cmd, BIO_info_cb *fp);
 static const BIO_METHOD methods_md = {
     BIO_TYPE_MD,
     "message digest",
-    /* TODO: Convert to new style write function */
     bwrite_conv,
     md_write,
-    /* TODO: Convert to new style read function */
     bread_conv,
     md_read,
     NULL,                       /* md_puts, */
@@ -214,7 +212,7 @@ static int md_gets(BIO *bp, char *buf, int size)
 
     ctx = BIO_get_data(bp);
 
-    if (size < EVP_MD_CTX_size(ctx))
+    if (size < EVP_MD_CTX_get_size(ctx))
         return 0;
 
     if (EVP_DigestFinal_ex(ctx, (unsigned char *)buf, &ret) <= 0)

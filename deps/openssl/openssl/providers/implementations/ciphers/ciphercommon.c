@@ -12,7 +12,7 @@
  */
 
 /* For SSL3_VERSION */
-#include <openssl/ssl.h>
+#include <openssl/prov_ssl.h>
 #include <openssl/proverr.h>
 #include "ciphercommon_local.h"
 #include "prov/provider_ctx.h"
@@ -30,7 +30,7 @@ static const OSSL_PARAM cipher_known_gettable_params[] = {
     OSSL_PARAM_int(OSSL_CIPHER_PARAM_CUSTOM_IV, NULL),
     OSSL_PARAM_int(OSSL_CIPHER_PARAM_CTS, NULL),
     OSSL_PARAM_int(OSSL_CIPHER_PARAM_TLS1_MULTIBLOCK, NULL),
-    { OSSL_CIPHER_PARAM_TLS_MAC, OSSL_PARAM_OCTET_PTR, NULL, 0, OSSL_PARAM_UNMODIFIED },
+    OSSL_PARAM_int(OSSL_CIPHER_PARAM_HAS_RAND_KEY, NULL),
     OSSL_PARAM_END
 };
 const OSSL_PARAM *ossl_cipher_generic_gettable_params(ossl_unused void *provctx)
@@ -73,6 +73,12 @@ int ossl_cipher_generic_get_params(OSSL_PARAM params[], unsigned int md,
         ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_SET_PARAMETER);
         return 0;
     }
+    p = OSSL_PARAM_locate(params, OSSL_CIPHER_PARAM_HAS_RAND_KEY);
+    if (p != NULL
+        && !OSSL_PARAM_set_int(p, (flags & PROV_CIPHER_FLAG_RAND_KEY) != 0)) {
+        ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_SET_PARAMETER);
+        return 0;
+    }
     p = OSSL_PARAM_locate(params, OSSL_CIPHER_PARAM_KEYLEN);
     if (p != NULL && !OSSL_PARAM_set_size_t(p, kbits / 8)) {
         ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_SET_PARAMETER);
@@ -92,9 +98,11 @@ int ossl_cipher_generic_get_params(OSSL_PARAM params[], unsigned int md,
 }
 
 CIPHER_DEFAULT_GETTABLE_CTX_PARAMS_START(ossl_cipher_generic)
+{ OSSL_CIPHER_PARAM_TLS_MAC, OSSL_PARAM_OCTET_PTR, NULL, 0, OSSL_PARAM_UNMODIFIED },
 CIPHER_DEFAULT_GETTABLE_CTX_PARAMS_END(ossl_cipher_generic)
 
 CIPHER_DEFAULT_SETTABLE_CTX_PARAMS_START(ossl_cipher_generic)
+OSSL_PARAM_uint(OSSL_CIPHER_PARAM_USE_BITS, NULL),
 OSSL_PARAM_uint(OSSL_CIPHER_PARAM_TLS_VERSION, NULL),
 OSSL_PARAM_size_t(OSSL_CIPHER_PARAM_TLS_MAC_SIZE, NULL),
 CIPHER_DEFAULT_SETTABLE_CTX_PARAMS_END(ossl_cipher_generic)
@@ -597,6 +605,16 @@ int ossl_cipher_generic_set_ctx_params(void *vctx, const OSSL_PARAM params[])
             return 0;
         }
         ctx->pad = pad ? 1 : 0;
+    }
+    p = OSSL_PARAM_locate_const(params, OSSL_CIPHER_PARAM_USE_BITS);
+    if (p != NULL) {
+        unsigned int bits;
+
+        if (!OSSL_PARAM_get_uint(p, &bits)) {
+            ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_GET_PARAMETER);
+            return 0;
+        }
+        ctx->use_bits = bits ? 1 : 0;
     }
     p = OSSL_PARAM_locate_const(params, OSSL_CIPHER_PARAM_TLS_VERSION);
     if (p != NULL) {

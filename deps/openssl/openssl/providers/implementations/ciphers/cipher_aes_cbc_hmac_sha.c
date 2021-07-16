@@ -16,8 +16,8 @@
 
 /* Dispatch functions for AES_CBC_HMAC_SHA ciphers */
 
-/* Only for SSL3_VERSION and TLS1_VERSION */
-#include <openssl/ssl.h>
+/* For SSL3_VERSION and TLS1_VERSION */
+#include <openssl/prov_ssl.h>
 #include <openssl/proverr.h>
 #include "cipher_aes_cbc_hmac_sha.h"
 #include "prov/implementations.h"

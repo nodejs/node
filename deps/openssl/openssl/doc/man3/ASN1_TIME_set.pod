@@ -9,7 +9,7 @@ ASN1_TIME_set_string, ASN1_UTCTIME_set_string, ASN1_GENERALIZEDTIME_set_string,
 ASN1_TIME_set_string_X509,
 ASN1_TIME_normalize,
 ASN1_TIME_to_tm,
-ASN1_TIME_print, ASN1_UTCTIME_print, ASN1_GENERALIZEDTIME_print,
+ASN1_TIME_print, ASN1_TIME_print_ex, ASN1_UTCTIME_print, ASN1_GENERALIZEDTIME_print,
 ASN1_TIME_diff,
 ASN1_TIME_cmp_time_t, ASN1_UTCTIME_cmp_time_t,
 ASN1_TIME_compare,
@@ -44,6 +44,7 @@ ASN1_TIME_dup, ASN1_UTCTIME_dup, ASN1_GENERALIZEDTIME_dup - ASN.1 Time functions
  int ASN1_GENERALIZEDTIME_check(const ASN1_GENERALIZEDTIME *t);
 
  int ASN1_TIME_print(BIO *b, const ASN1_TIME *s);
+ int ASN1_TIME_print_ex(BIO *bp, const ASN1_TIME *tm, unsigned long flags);
  int ASN1_UTCTIME_print(BIO *b, const ASN1_UTCTIME *s);
  int ASN1_GENERALIZEDTIME_print(BIO *b, const ASN1_GENERALIZEDTIME *s);
 
@@ -106,6 +107,9 @@ format. It will be of the format MMM DD HH:MM:SS YYYY [GMT], for example
 If the time structure has invalid format it prints out "Bad time value" and
 returns an error. The output for generalized time may include a fractional part
 following the second.
+
+ASN1_TIME_print_ex() provides I<flags> to specify the output format of the
+datetime. This can be either B<ASN1_DTFLGS_RFC822> or B<ASN1_DTFLGS_ISO8601>.
 
 ASN1_TIME_to_tm() converts the time I<s> to the standard I<tm> structure.
 If I<s> is NULL, then the current time is converted. The output time is GMT.
@@ -177,12 +181,13 @@ either format.
 
 =head1 BUGS
 
-ASN1_TIME_print(), ASN1_UTCTIME_print() and ASN1_GENERALIZEDTIME_print()
-do not print out the timezone: it either prints out "GMT" or nothing. But all
+ASN1_TIME_print(), ASN1_UTCTIME_print() and ASN1_GENERALIZEDTIME_print() do
+not print out the timezone: it either prints out "GMT" or nothing. But all
 certificates complying with RFC5280 et al use GMT anyway.
 
-ASN1_TIME_print(), ASN1_UTCTIME_print() and ASN1_GENERALIZEDTIME_print()
-do not distinguish if they fail because of an I/O error or invalid time format.
+ASN1_TIME_print(), ASN1_TIME_print_ex(), ASN1_UTCTIME_print() and
+ASN1_GENERALIZEDTIME_print() do not distinguish if they fail because
+of an I/O error or invalid time format.
 
 Use the ASN1_TIME_normalize() function to normalize the time value before
 printing to get GMT results.

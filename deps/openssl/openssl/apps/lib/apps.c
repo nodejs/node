@@ -35,6 +35,7 @@
 #include <openssl/ui.h>
 #include <openssl/safestack.h>
 #include <openssl/rsa.h>
+#include <openssl/rand.h>
 #include <openssl/bn.h>
 #include <openssl/ssl.h>
 #include <openssl/store.h>
@@ -68,12 +69,18 @@ typedef struct {
     unsigned long mask;
 } NAME_EX_TBL;
 
-static OSSL_LIB_CTX *app_libctx = NULL;
-
 static int set_table_opts(unsigned long *flags, const char *arg,
                           const NAME_EX_TBL * in_tbl);
 static int set_multi_opts(unsigned long *flags, const char *arg,
                           const NAME_EX_TBL * in_tbl);
+static
+int load_key_certs_crls_suppress(const char *uri, int format, int maybe_stdin,
+                                 const char *pass, const char *desc,
+                                 EVP_PKEY **ppkey, EVP_PKEY **ppubkey,
+                                 EVP_PKEY **pparams,
+                                 X509 **pcert, STACK_OF(X509) **pcerts,
+                                 X509_CRL **pcrl, STACK_OF(X509_CRL) **pcrls,
+                                 int suppress_decode_errors);
 
 int app_init(long mesgwin);
 
@@ -327,50 +334,13 @@ static char *app_get_pass(const char *arg, int keepbio)
     return OPENSSL_strdup(tpass);
 }
 
-OSSL_LIB_CTX *app_get0_libctx(void)
-{
-    return app_libctx;
-}
-
-static const char *app_propq = NULL;
-
-int app_set_propq(const char *arg)
-{
-    app_propq = arg;
-    return 1;
-}
-
-const char *app_get0_propq(void)
-{
-    return app_propq;
-}
-
-OSSL_LIB_CTX *app_create_libctx(void)
-{
-    /*
-     * Load the NULL provider into the default library context and create a
-     * library context which will then be used for any OPT_PROV options.
-     */
-    if (app_libctx == NULL) {
-
-        if (!app_provider_load(NULL, "null")) {
-            BIO_puts(bio_err, "Failed to create null provider\n");
-            return NULL;
-        }
-        app_libctx = OSSL_LIB_CTX_new();
-    }
-    if (app_libctx == NULL)
-        BIO_puts(bio_err, "Failed to create library context\n");
-    return app_libctx;
-}
-
 CONF *app_load_config_bio(BIO *in, const char *filename)
 {
     long errorline = -1;
     CONF *conf;
     int i;
 
-    conf = NCONF_new_ex(app_libctx, NULL);
+    conf = NCONF_new_ex(app_get0_libctx(), NULL);
     i = NCONF_load_bio(conf, in, &errorline);
     if (i > 0)
         return conf;
@@ -403,14 +373,18 @@ CONF *app_load_config_verbose(const char *filename, int verbose)
 
 CONF *app_load_config_internal(const char *filename, int quiet)
 {
-    BIO *in = NULL; /* leads to empty config in case filename == "" */
+    BIO *in;
     CONF *conf;
 
-    if (*filename != '\0'
-        && (in = bio_open_default_(filename, 'r', FORMAT_TEXT, quiet)) == NULL)
-        return NULL;
-    conf = app_load_config_bio(in, filename);
-    BIO_free(in);
+    if (filename == NULL || *filename != '\0') {
+        if ((in = bio_open_default_(filename, 'r', FORMAT_TEXT, quiet)) == NULL)
+            return NULL;
+        conf = app_load_config_bio(in, filename);
+        BIO_free(in);
+    } else {
+        /* Return empty config if filename is empty string. */
+        conf = NCONF_new_ex(app_get0_libctx(), NULL);
+    }
     return conf;
 }
 
@@ -600,25 +574,35 @@ EVP_PKEY *load_pubkey(const char *uri, int format, int maybe_stdin,
     return pkey;
 }
 
-EVP_PKEY *load_keyparams(const char *uri, int format, int maybe_stdin,
-                         const char *keytype, const char *desc)
+EVP_PKEY *load_keyparams_suppress(const char *uri, int format, int maybe_stdin,
+                                 const char *keytype, const char *desc,
+                                 int suppress_decode_errors)
 {
     EVP_PKEY *params = NULL;
 
     if (desc == NULL)
         desc = "key parameters";
 
-    (void)load_key_certs_crls(uri, format, maybe_stdin, NULL, desc,
-                              NULL, NULL, &params, NULL, NULL, NULL, NULL);
+    (void)load_key_certs_crls_suppress(uri, format, maybe_stdin, NULL, desc,
+                                       NULL, NULL, &params, NULL, NULL, NULL,
+                                       NULL, suppress_decode_errors);
     if (params != NULL && keytype != NULL && !EVP_PKEY_is_a(params, keytype)) {
-        BIO_printf(bio_err,
-                   "Unable to load %s from %s (unexpected parameters type)\n",
-                   desc, uri);
-        ERR_print_errors(bio_err);
+        if (!suppress_decode_errors) {
+            BIO_printf(bio_err,
+                       "Unable to load %s from %s (unexpected parameters type)\n",
+                       desc, uri);
+            ERR_print_errors(bio_err);
+        }
         EVP_PKEY_free(params);
         params = NULL;
     }
     return params;
+}
+
+EVP_PKEY *load_keyparams(const char *uri, int format, int maybe_stdin,
+                         const char *keytype, const char *desc)
+{
+    return load_keyparams_suppress(uri, format, maybe_stdin, keytype, desc, 0);
 }
 
 void app_bail_out(char *fmt, ...)
@@ -629,7 +613,7 @@ void app_bail_out(char *fmt, ...)
     BIO_vprintf(bio_err, fmt, args);
     va_end(args);
     ERR_print_errors(bio_err);
-    exit(1);
+    exit(EXIT_FAILURE);
 }
 
 void *app_malloc(size_t sz, const char *what)
@@ -861,12 +845,14 @@ static const char *format2string(int format)
  * In any case (also on error) the caller is responsible for freeing all members
  * of *pcerts and *pcrls (as far as they are not NULL).
  */
-int load_key_certs_crls(const char *uri, int format, int maybe_stdin,
-                        const char *pass, const char *desc,
-                        EVP_PKEY **ppkey, EVP_PKEY **ppubkey,
-                        EVP_PKEY **pparams,
-                        X509 **pcert, STACK_OF(X509) **pcerts,
-                        X509_CRL **pcrl, STACK_OF(X509_CRL) **pcrls)
+static
+int load_key_certs_crls_suppress(const char *uri, int format, int maybe_stdin,
+                                 const char *pass, const char *desc,
+                                 EVP_PKEY **ppkey, EVP_PKEY **ppubkey,
+                                 EVP_PKEY **pparams,
+                                 X509 **pcert, STACK_OF(X509) **pcerts,
+                                 X509_CRL **pcrl, STACK_OF(X509_CRL) **pcrls,
+                                 int suppress_decode_errors)
 {
     PW_CB_DATA uidata;
     OSSL_STORE_CTX *ctx = NULL;
@@ -884,7 +870,9 @@ int load_key_certs_crls(const char *uri, int format, int maybe_stdin,
     const char *input_type;
     OSSL_PARAM itp[2];
     const OSSL_PARAM *params = NULL;
-    /* TODO make use of the engine reference 'eng' when loading pkeys */
+
+    if (suppress_decode_errors)
+        ERR_set_mark();
 
     if (ppkey != NULL) {
         *ppkey = NULL;
@@ -1070,12 +1058,14 @@ int load_key_certs_crls(const char *uri, int format, int maybe_stdin,
                 any = 1;
             failed = "CRL";
         }
-        if (failed != NULL)
-            BIO_printf(bio_err, "Could not read");
-        if (any)
-            BIO_printf(bio_err, " any");
+        if (!suppress_decode_errors) {
+            if (failed != NULL)
+                BIO_printf(bio_err, "Could not read");
+            if (any)
+                BIO_printf(bio_err, " any");
+        }
     }
-    if (failed != NULL) {
+    if (!suppress_decode_errors && failed != NULL) {
         if (desc != NULL && strstr(desc, failed) != NULL) {
             BIO_printf(bio_err, " %s", desc);
         } else {
@@ -1088,9 +1078,22 @@ int load_key_certs_crls(const char *uri, int format, int maybe_stdin,
         BIO_printf(bio_err, "\n");
         ERR_print_errors(bio_err);
     }
+    if (suppress_decode_errors)
+        ERR_pop_to_mark();
     return failed == NULL;
 }
 
+int load_key_certs_crls(const char *uri, int format, int maybe_stdin,
+                        const char *pass, const char *desc,
+                        EVP_PKEY **ppkey, EVP_PKEY **ppubkey,
+                        EVP_PKEY **pparams,
+                        X509 **pcert, STACK_OF(X509) **pcerts,
+                        X509_CRL **pcrl, STACK_OF(X509_CRL) **pcrls)
+{
+    return load_key_certs_crls_suppress(uri, format, maybe_stdin, pass, desc,
+                                        ppkey, ppubkey, pparams, pcert, pcerts,
+                                        pcrl, pcrls, 0);
+}
 
 #define X509V3_EXT_UNKNOWN_MASK         (0xfL << 16)
 /* Return error for unknown extensions */
@@ -1170,6 +1173,15 @@ int set_name_ex(unsigned long *flags, const char *arg)
         && (*flags & XN_FLAG_SEP_MASK) == 0)
         *flags |= XN_FLAG_SEP_CPLUS_SPC;
     return 1;
+}
+
+int set_dateopt(unsigned long *dateopt, const char *arg)
+{
+    if (strcasecmp(arg, "rfc_822") == 0)
+        *dateopt = ASN1_DTFLGS_RFC822;
+    else if (strcasecmp(arg, "iso_8601") == 0)
+        *dateopt = ASN1_DTFLGS_ISO8601;
+    return 0;
 }
 
 int set_ext_copy(int *copy_type, const char *arg)
@@ -2257,8 +2269,6 @@ int do_X509_sign(X509 *cert, EVP_PKEY *pkey, const char *md,
         if (!adapt_keyid_ext(cert, ext_ctx, "authorityKeyIdentifier",
                              "keyid, issuer", !self_sign))
             goto end;
-
-        /* TODO any further measures for ensuring default RFC 5280 compliance */
     }
 
     if (mctx != NULL && do_sign_init(mctx, pkey, md, sigopts) > 0)
@@ -3257,4 +3267,37 @@ void app_params_free(OSSL_PARAM *params)
             OPENSSL_free(params[i].data);
         OPENSSL_free(params);
     }
+}
+
+EVP_PKEY *app_keygen(EVP_PKEY_CTX *ctx, const char *alg, int bits, int verbose)
+{
+    EVP_PKEY *res = NULL;
+
+    if (verbose && alg != NULL) {
+        BIO_printf(bio_err, "Generating %s key", alg);
+        if (bits > 0)
+            BIO_printf(bio_err, " with %d bits\n", bits);
+        else
+            BIO_printf(bio_err, "\n");
+    }
+    if (!RAND_status())
+        BIO_printf(bio_err, "Warning: generating random key material may take a long time\n"
+                   "if the system has a poor entropy source\n");
+    if (EVP_PKEY_keygen(ctx, &res) <= 0)
+        app_bail_out("%s: Error generating %s key\n", opt_getprog(),
+                     alg != NULL ? alg : "asymmetric");
+    return res;
+}
+
+EVP_PKEY *app_paramgen(EVP_PKEY_CTX *ctx, const char *alg)
+{
+    EVP_PKEY *res = NULL;
+
+    if (!RAND_status())
+        BIO_printf(bio_err, "Warning: generating random key parameters may take a long time\n"
+                   "if the system has a poor entropy source\n");
+    if (EVP_PKEY_paramgen(ctx, &res) <= 0)
+        app_bail_out("%s: Generating %s key parameters failed\n",
+                     opt_getprog(), alg != NULL ? alg : "asymmetric");
+    return res;
 }

@@ -600,8 +600,10 @@ struct ssl_session_st {
      */
     long verify_result;         /* only for servers */
     CRYPTO_REF_COUNT references;
-    long timeout;
-    long time;
+    time_t timeout;
+    time_t time;
+    time_t calc_timeout;
+    int timeout_ovf;
     unsigned int compress_meth; /* Need to lookup the method */
     const SSL_CIPHER *cipher;
     unsigned long cipher_id;    /* when ASN.1 loaded, this needs to be used to
@@ -641,6 +643,7 @@ struct ssl_session_st {
     unsigned char *ticket_appdata;
     size_t ticket_appdata_len;
     uint32_t flags;
+    SSL_CTX *owner;
     CRYPTO_RWLOCK *lock;
 };
 
@@ -1403,7 +1406,7 @@ struct ssl_st {
         size_t previous_client_finished_len;
         unsigned char previous_server_finished[EVP_MAX_MD_SIZE];
         size_t previous_server_finished_len;
-        int send_connection_binding; /* TODOEKR */
+        int send_connection_binding;
 
 # ifndef OPENSSL_NO_NEXTPROTONEG
         /*
@@ -2623,7 +2626,6 @@ __owur int dtls1_handle_timeout(SSL *s);
 void dtls1_start_timer(SSL *s);
 void dtls1_stop_timer(SSL *s);
 __owur int dtls1_is_timer_expired(SSL *s);
-void dtls1_double_timeout(SSL *s);
 __owur int dtls_raw_hello_verify_request(WPACKET *pkt, unsigned char *cookie,
                                          size_t cookie_len);
 __owur size_t dtls1_min_mtu(SSL *s);
@@ -2826,7 +2828,7 @@ __owur char ssl3_cbc_record_digest_supported(const EVP_MD_CTX *ctx);
 __owur int ssl3_cbc_digest_record(const EVP_MD *md,
                                   unsigned char *md_out,
                                   size_t *md_out_size,
-                                  const unsigned char header[13],
+                                  const unsigned char *header,
                                   const unsigned char *data,
                                   size_t data_size,
                                   size_t data_plus_mac_plus_padding_size,
@@ -2899,6 +2901,8 @@ int ssl_srp_ctx_init_intern(SSL *s);
 
 int ssl_srp_calc_a_param_intern(SSL *s);
 int ssl_srp_server_param_with_username_intern(SSL *s, int *ad);
+
+void ssl_session_calculate_timeout(SSL_SESSION* ss);
 
 # else /* OPENSSL_UNIT_TEST */
 

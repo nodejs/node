@@ -14,6 +14,7 @@ B<openssl> B<ocsp>
 [B<-out> I<file>]
 [B<-issuer> I<file>]
 [B<-cert> I<file>]
+[B<-no_certs>]
 [B<-serial> I<n>]
 [B<-signer> I<file>]
 [B<-signkey> I<file>]
@@ -23,7 +24,6 @@ B<openssl> B<ocsp>
 [B<-req_text>]
 [B<-resp_text>]
 [B<-text>]
-[B<-no_certs>]
 [B<-reqout> I<file>]
 [B<-respout> I<file>]
 [B<-reqin> I<file>]
@@ -111,6 +111,10 @@ This option B<MUST> come before any B<-cert> options.
 Add the certificate I<filename> to the request. The issuer certificate
 is taken from the previous B<-issuer> option, or an error occurs if no
 issuer certificate is specified.
+
+=item B<-no_certs>
+
+Don't include any certificates in signed request.
 
 =item B<-serial> I<num>
 
@@ -367,6 +371,7 @@ subject name.
 
 Port to listen for OCSP requests on. The port may also be specified
 using the B<url> option.
+A `0` argument indicates that any available port shall be chosen automatically.
 
 =item B<-ignore_err>
 
@@ -388,7 +393,6 @@ When running as a responder B<-timeout> option is recommended to limit the time
 each child is willing to wait for the client's OCSP response.
 This option is available on POSIX systems (that support the fork() and other
 required unix system-calls).
-
 
 =item B<-nmin> I<minutes>, B<-ndays> I<days>
 

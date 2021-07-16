@@ -15,6 +15,7 @@ B<openssl> B<spkac>
 [B<-help>]
 [B<-in> I<filename>]
 [B<-out> I<filename>]
+[B<-digest> I<digest>]
 [B<-key> I<filename>|I<uri>]
 [B<-keyform> B<DER>|B<PEM>|B<P12>|B<ENGINE>]
 [B<-passin> I<arg>]
@@ -49,6 +50,11 @@ option is not specified. Ignored if the B<-key> option is used.
 
 Specifies the output filename to write to or standard output by
 default.
+
+=item B<-digest> I<digest>
+
+Use the specified I<digest> to sign a created SPKAC file.
+The default digest algorithm is MD5.
 
 =item B<-key> I<filename>|I<uri>
 
@@ -148,6 +154,8 @@ L<openssl-ca(1)>
 =head1 HISTORY
 
 The B<-engine> option was deprecated in OpenSSL 3.0.
+
+The B<-digest> option was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 

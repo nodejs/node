@@ -143,6 +143,11 @@ static const OSSL_ALGORITHM legacy_ciphers[] = {
     { NULL, NULL, NULL }
 };
 
+static const OSSL_ALGORITHM legacy_kdfs[] = {
+    ALG("PBKDF1", ossl_kdf_pbkdf1_functions),
+    { NULL, NULL, NULL }
+};
+
 static const OSSL_ALGORITHM *legacy_query(void *provctx, int operation_id,
                                           int *no_cache)
 {
@@ -152,6 +157,8 @@ static const OSSL_ALGORITHM *legacy_query(void *provctx, int operation_id,
         return legacy_digests;
     case OSSL_OP_CIPHER:
         return legacy_ciphers;
+    case OSSL_OP_KDF:
+        return legacy_kdfs;
     }
     return NULL;
 }

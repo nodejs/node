@@ -52,7 +52,7 @@ IF[{- !$disabled{'cms'} -}]
   $OPENSSLSRC=$OPENSSLSRC cms.c
 ENDIF
 IF[{- !$disabled{'cmp'} -}]
-  $OPENSSLSRC=$OPENSSLSRC cmp.c cmp_mock_srv.c
+  $OPENSSLSRC=$OPENSSLSRC cmp.c lib/cmp_mock_srv.c
 ENDIF
 
 IF[{- !$disabled{apps} -}]

@@ -1,4 +1,6 @@
 digraph cipher {
+    bgcolor="transparent";
+
     begin [label=start, color="#deeaee", style="filled"];
     newed [fontcolor="#c94c4c", style="solid"];
 
@@ -22,30 +24,28 @@ digraph cipher {
     finaled -> finaled [label="EVP_CIPHER_CTX_get_params\n(AEAD encryption)",
                         style=dashed];
     finaled -> end [label="EVP_CIPHER_CTX_free"];
-    finaled -> newed [label="EVP_CIPHER_CTX_reset", style=dashed,
-                      color="#034f84", fontcolor="#034f84"];
-    updated -> newed [label="EVP_CIPHER_CTX_reset", style=dashed,
-                      color="#034f84", fontcolor="#034f84"];
     newed -> d_initialised [label="EVP_DecryptInit"];
     d_initialised -> d_initialised [label="EVP_DecryptInit\n(not required but allowed)",
                                 style=dashed];
     d_initialised -> d_updated [label="EVP_DecryptUpdate", weight=2];
     d_updated -> d_updated [label="EVP_DecryptUpdate"];
     d_updated -> finaled [label="EVP_DecryptFinal"];
-    d_updated -> newed [label="EVP_CIPHER_CTX_reset", style=dashed,
-                      color="#034f84", fontcolor="#034f84"];
     newed -> e_initialised [label="EVP_EncryptInit"];
     e_initialised -> e_initialised [label="EVP_EncryptInit\n(not required but allowed)",
                                 style=dashed];
     e_initialised -> e_updated [label="EVP_EncryptUpdate", weight=2];
     e_updated -> e_updated [label="EVP_EncryptUpdate"];
     e_updated -> finaled [label="EVP_EncryptFinal"];
-    e_updated -> newed [label="EVP_CIPHER_CTX_reset", style=dashed,
+    most -> newed [label="EVP_CIPHER_CTX_reset", style=dashed,
+                      color="#034f84", fontcolor="#034f84"];
+    most [label="any of the initialised\nupdated or finaled states", style=dashed,
                       color="#034f84", fontcolor="#034f84"];
 }
 
 /* This is a version with a single flavour which is easier to comprehend
 digraph cipher {
+    bgcolor="transparent";
+
     begin [label=start, color="#deeaee", style="filled"];
     newed [fontcolor="#c94c4c", style="solid"];
     initialised [fontcolor="#c94c4c"];

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -46,10 +46,8 @@ typedef struct b64_struct {
 static const BIO_METHOD methods_b64 = {
     BIO_TYPE_BASE64,
     "base64 encoding",
-    /* TODO: Convert to new style write function */
     bwrite_conv,
     b64_write,
-    /* TODO: Convert to new style read function */
     bread_conv,
     b64_read,
     b64_puts,

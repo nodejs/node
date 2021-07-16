@@ -401,7 +401,7 @@ static void felem_diff128(largefelem out, const largefelem in)
  * On exit:
  *   out[i] < 17 * max(in[i]) * max(in[i])
  */
-static void felem_square(largefelem out, const felem in)
+static void felem_square_ref(largefelem out, const felem in)
 {
     felem inx2, inx4;
     felem_scalar(inx2, in, 2);
@@ -485,7 +485,7 @@ static void felem_square(largefelem out, const felem in)
  * On exit:
  *   out[i] < 17 * max(in1[i]) * max(in2[i])
  */
-static void felem_mul(largefelem out, const felem in1, const felem in2)
+static void felem_mul_ref(largefelem out, const felem in1, const felem in2)
 {
     felem in2x2;
     felem_scalar(in2x2, in2, 2);
@@ -674,6 +674,57 @@ static void felem_reduce(felem out, const largefelem in)
      *        < 2^59 + 2^14
      */
 }
+
+#if defined(ECP_NISTP521_ASM)
+void felem_square_wrapper(largefelem out, const felem in);
+void felem_mul_wrapper(largefelem out, const felem in1, const felem in2);
+
+static void (*felem_square_p)(largefelem out, const felem in) =
+    felem_square_wrapper;
+static void (*felem_mul_p)(largefelem out, const felem in1, const felem in2) =
+    felem_mul_wrapper;
+
+void p521_felem_square(largefelem out, const felem in);
+void p521_felem_mul(largefelem out, const felem in1, const felem in2);
+
+# if defined(_ARCH_PPC64)
+#  include "ppc_arch.h"
+# endif
+
+void felem_select(void)
+{
+# if defined(_ARCH_PPC64)
+    if ((OPENSSL_ppccap_P & PPC_MADD300) && (OPENSSL_ppccap_P & PPC_ALTIVEC)) {
+        felem_square_p = p521_felem_square;
+        felem_mul_p = p521_felem_mul;
+
+        return;
+    }
+# endif
+
+    /* Default */
+    felem_square_p = felem_square_ref;
+    felem_mul_p = felem_mul_ref;
+}
+
+void felem_square_wrapper(largefelem out, const felem in)
+{
+    felem_select();
+    felem_square_p(out, in);
+}
+
+void felem_mul_wrapper(largefelem out, const felem in1, const felem in2)
+{
+    felem_select();
+    felem_mul_p(out, in1, in2);
+}
+
+# define felem_square felem_square_p
+# define felem_mul felem_mul_p
+#else
+# define felem_square felem_square_ref
+# define felem_mul felem_mul_ref
+#endif
 
 static void felem_square_reduce(felem out, const felem in)
 {
@@ -1723,7 +1774,7 @@ void EC_nistp521_pre_comp_free(NISTP521_PRE_COMP *p)
         return;
 
     CRYPTO_DOWN_REF(&p->references, &i, p->lock);
-    REF_PRINT_COUNT("EC_nistp521", x);
+    REF_PRINT_COUNT("EC_nistp521", p);
     if (i > 0)
         return;
     REF_ASSERT_ISNT(i < 0);

@@ -46,12 +46,14 @@ static int alg_module_init(CONF_IMODULE *md, const CONF *cnf)
              * fips_mode is deprecated and should not be used in new
              * configurations.
              */
-            if (!EVP_default_properties_enable_fips(cnf->libctx, m > 0)) {
+            if (!EVP_default_properties_enable_fips(NCONF_get0_libctx((CONF *)cnf),
+                        m > 0)) {
                 ERR_raise(ERR_LIB_EVP, EVP_R_SET_DEFAULT_PROPERTY_FAILURE);
                 return 0;
             }
         } else if (strcmp(oval->name, "default_properties") == 0) {
-            if (!evp_set_default_properties_int(cnf->libctx, oval->value, 0, 0)) {
+            if (!evp_set_default_properties_int(NCONF_get0_libctx((CONF *)cnf),
+                        oval->value, 0, 0)) {
                 ERR_raise(ERR_LIB_EVP, EVP_R_SET_DEFAULT_PROPERTY_FAILURE);
                 return 0;
             }

@@ -9,7 +9,6 @@
 
 #include "e_os.h"
 #include "internal/sockets.h"
-#include "internal/refcount.h"
 
 /* BEGIN BIO_ADDRINFO/BIO_ADDR stuff. */
 
@@ -88,6 +87,7 @@ union bio_addr_st {
 
 #include "internal/cryptlib.h"
 #include "internal/bio.h"
+#include "internal/refcount.h"
 
 typedef struct bio_f_buffer_ctx_struct {
     /*-
@@ -116,7 +116,9 @@ struct bio_st {
     OSSL_LIB_CTX *libctx;
     const BIO_METHOD *method;
     /* bio, mode, argp, argi, argl, ret */
+#ifndef OPENSSL_NO_DEPRECATED_3_0
     BIO_callback_fn callback;
+#endif
     BIO_callback_fn_ex callback_ex;
     char *cb_arg;               /* first argument for the callback */
     int init;

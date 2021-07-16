@@ -14,17 +14,29 @@ This guide details different ways that OpenSSL can be used in conjunction
 with the FIPS module. Which is the correct approach to use will depend on your
 own specific circumstances and what you are attempting to achieve.
 
-Note that the old functions 'FIPS_mode()` and `FIPS_mode_set()` are no longer
+Note that the old functions FIPS_mode() and FIPS_mode_set() are no longer
 present so you must remove them from your application if you use them.
 
 Applications written to use the OpenSSL 3.0 FIPS module should not use any
 legacy APIs or features that avoid the FIPS module. Specifically this includes:
 
-- Low level cryptographic APIs (use the high level APIs, such as EVP, instead)
-- Engines
-- Any functions that create or modify custom "METHODS" (for example
-`EVP_MD_meth_new`, `EVP_CIPHER_meth_new`, `EVP_PKEY_meth_new`, `RSA_meth_new`,
-`EC_KEY_METHOD_new`, etc.)
+=over 4
+
+=item -
+
+Low level cryptographic APIs (use the high level APIs, such as EVP, instead)
+
+=item -
+
+Engines
+
+=item -
+
+Any functions that create or modify custom "METHODS" (for example
+EVP_MD_meth_new(), EVP_CIPHER_meth_new(), EVP_PKEY_meth_new(), RSA_meth_new(),
+EC_KEY_METHOD_new(), etc.)
+
+=back
 
 All of the above APIs are deprecated in OpenSSL 3.0 - so a simple rule is to
 avoid using all deprecated functions. See L<migration_guide(7)> for a list of
@@ -55,9 +67,9 @@ running an OpenSSL 3.0 version like this:
     $ openssl version -v
     OpenSSL 3.0.0-dev xx XXX xxxx (Library: OpenSSL 3.0.0-dev xx XXX xxxx)
 
-The OPENSSLDIR value above gives the directory name for where the default config
-file is stored. So in this case the default config file will be called
-`/usr/local/ssl/openssl.cnf`
+The B<OPENSSLDIR> value above gives the directory name for where the default
+config file is stored. So in this case the default config file will be called
+F</usr/local/ssl/openssl.cnf>.
 
 Edit the config file to add the following lines near the beginning:
 
@@ -93,23 +105,31 @@ some disadvantages to this approach:
 
 =over 4
 
-=item You may not want all applications to use the FIPS module.
+=item -
+
+You may not want all applications to use the FIPS module.
 
 It may be the case that some applications should and some should not use the
 FIPS module.
 
-=item If applications take explicit steps to not load the default config file or
+=item -
+
+If applications take explicit steps to not load the default config file or
 set different settings.
 
 This method will not work for these cases.
 
-=item The algorithms available in the FIPS module are a subset of the algorithms
+=item -
+
+The algorithms available in the FIPS module are a subset of the algorithms
 that are available in the default OpenSSL Provider.
 
 If any applications attempt to use any algorithms that are not present,
 then they will fail.
 
--=item Usage of certain deprecated APIs avoids the use of the FIPS module.
+=item -
+
+Usage of certain deprecated APIs avoids the use of the FIPS module.
 
 If any applications use those APIs then the FIPS module will not be used.
 
@@ -119,8 +139,8 @@ If any applications use those APIs then the FIPS module will not be used.
 
 A variation on the above approach is to do the same thing on an individual
 application basis. The default OpenSSL config file depends on the compiled in
-value for OPENSSLDIR as described in the section above. However it is also
-possible to override the config file to be used via the `OPENSSL_CONF`
+value for B<OPENSSLDIR> as described in the section above. However it is also
+possible to override the config file to be used via the B<OPENSSL_CONF>
 environment variable. For example the following, on Unix, will cause the
 application to be executed with a non-standard config file location:
 
@@ -143,8 +163,8 @@ file.
 
 To do things this way configure as per
 L</Making all applications use the FIPS module by default> above, but edit the
-`fipsmodule.cnf` file to remove or comment out the line which says
-`activate = 1` (note that setting this value to 0 is I<not> sufficient).
+F<fipsmodule.cnf> file to remove or comment out the line which says
+C<activate = 1> (note that setting this value to 0 is I<not> sufficient).
 This means all the required config information will be available to load the
 FIPS module, but it is not automatically loaded when the application starts. The
 FIPS provider can then be loaded programmatically like this:
@@ -205,7 +225,7 @@ can use a property query string during algorithm fetches to specify which
 implementation you would like to use.
 
 For example to fetch an implementation of SHA256 which conforms to FIPS
-standards you can specify the property query `fips=yes` like this:
+standards you can specify the property query C<fips=yes> like this:
 
     EVP_MD *sha256;
 
@@ -223,8 +243,8 @@ default provider:
     sha256 = EVP_MD_fetch(NULL, "SHA2-256", "provider=default");
 
 It is also possible to set a default property query string. The following
-example sets the default property query of "fips=yes" for all fetches within the
-default library context:
+example sets the default property query of C<fips=yes> for all fetches within
+the default library context:
 
     EVP_set_default_properties(NULL, "fips=yes");
 
@@ -236,12 +256,12 @@ same property name is specified in both.
 There are two important built-in properties that you should be aware of:
 
 The "provider" property enables you to specify which provider you want an
-implementation to be fetched from, e.g. `provider=default` or `provider=fips`.
+implementation to be fetched from, e.g. C<provider=default> or C<provider=fips>.
 All algorithms implemented in a provider have this property set on them.
 
-There is also the `fips` property. All FIPS algorithms match against the
-property query `fips=yes`. There are also some non-cryptographic algorithms
-available in the default and base providers that also have the `fips=yes`
+There is also the C<fips> property. All FIPS algorithms match against the
+property query C<fips=yes>. There are also some non-cryptographic algorithms
+available in the default and base providers that also have the C<fips=yes>
 property defined for them. These are the encoder and decoder algorithms that
 can (for example) be used to write out a key generated in the FIPS provider to a
 file. The encoder and decoder algorithms are not in the FIPS module itself but
@@ -249,7 +269,7 @@ are allowed to be used in conjunction with the FIPS algorithms.
 
 It is possible to specify default properties within a config file. For example
 the following config file automatically loads the default and fips providers and
-sets the default property value to be `fips=yes`. Note that this config file
+sets the default property value to be C<fips=yes>. Note that this config file
 does not load the "base" provider. All supporting algorithms that are in "base"
 are also in "default", so it is unnecessary in this case:
 
@@ -276,7 +296,7 @@ are also in "default", so it is unnecessary in this case:
 In addition to using properties to separate usage of the FIPS module from other
 usages this can also be achieved using library contexts. In this example we
 create two library contexts. In one we assume the existence of a config file
-called "openssl-fips.cnf" that automatically loads and configures the FIPS and
+called F<openssl-fips.cnf> that automatically loads and configures the FIPS and
 base providers. The other library context will just use the default provider.
 
     OSSL_LIB_CTX *fips_libctx, *nonfips_libctx;
@@ -285,8 +305,8 @@ base providers. The other library context will just use the default provider.
     int ret = 1;
 
     /*
-     * Create two nondefault library contexts. One for fips usage and one for
-     * non-fips usage
+     * Create two nondefault library contexts. One for fips usage and
+     * one for non-fips usage
      */
     fips_libctx = OSSL_LIB_CTX_new();
     nonfips_libctx = OSSL_LIB_CTX_new();
@@ -297,17 +317,18 @@ base providers. The other library context will just use the default provider.
     defctxnull = OSSL_PROVIDER_load(NULL, "null");
 
     /*
-     * Load config file for the FIPS library context. We assume that this
-     * config file will automatically activate the FIPS and base providers so we
-     * don't need to explicitly load them here.
+     * Load config file for the FIPS library context. We assume that
+     * this config file will automatically activate the FIPS and base
+     * providers so we don't need to explicitly load them here.
      */
     if (!OSSL_LIB_CTX_load_config(fips_libctx, "openssl-fips.cnf"))
         goto err;
 
     /*
-     * We don't need to do anything special to load the default provider into
-     * nonfips_libctx. This happens automatically if no other providers are
-     * loaded. Because we don't call OSSL_LIB_CTX_load_config() explicitly for
+     * We don't need to do anything special to load the default
+     * provider into nonfips_libctx. This happens automatically if no
+     * other providers are loaded.
+     * Because we don't call OSSL_LIB_CTX_load_config() explicitly for
      * nonfips_libctx it will just use the default config file.
      */
 
@@ -368,7 +389,7 @@ the key or parameter object. The built-in OpenSSL encoders and decoders are
 implemented in both the default and base providers and are not in the FIPS
 module boundary. However since they are not cryptographic algorithms themselves
 it is still possible to use them in conjunction with the FIPS module, and
-therefore these encoders/decoders have the "fips=yes" property against them.
+therefore these encoders/decoders have the C<fips=yes> property against them.
 You should ensure that either the default or base provider is loaded into the
 library context in this case.
 
@@ -389,13 +410,13 @@ In this first example we create two SSL_CTX objects using two different library
 contexts.
 
     /*
-     * We assume that a nondefault library context with the FIPS provider
-     * loaded has been created called fips_libctx.
-     /
+     * We assume that a nondefault library context with the FIPS
+     * provider loaded has been created called fips_libctx.
+     */
     SSL_CTX *fips_ssl_ctx = SSL_CTX_new_ex(fips_libctx, NULL, TLS_method());
     /*
-     * We assume that a nondefault library context with the default provider
-     * loaded has been created called non_fips_libctx.
+     * We assume that a nondefault library context with the default
+     * provider loaded has been created called non_fips_libctx.
      */
     SSL_CTX *non_fips_ssl_ctx = SSL_CTX_new_ex(non_fips_libctx, NULL,
                                                TLS_method());
@@ -404,14 +425,15 @@ In this second example we create two SSL_CTX objects using different properties
 to specify FIPS usage:
 
     /*
-     * The "fips=yes" property includes all FIPS approved algorithms as well as
-     * encoders from the default provider that are allowed to be used. The NULL
-     * below indicates that we are using the default library context.
+     * The "fips=yes" property includes all FIPS approved algorithms
+     * as well as encoders from the default provider that are allowed
+     * to be used. The NULL below indicates that we are using the
+     * default library context.
      */
     SSL_CTX *fips_ssl_ctx = SSL_CTX_new_ex(NULL, "fips=yes", TLS_method());
     /*
-     * The "provider!=fips" property allows algorithms from any provider except
-     * the FIPS provider
+     * The "provider!=fips" property allows algorithms from any
+     * provider except the FIPS provider
      */
     SSL_CTX *non_fips_ssl_ctx = SSL_CTX_new_ex(NULL, "provider!=fips",
                                                TLS_method());
@@ -423,8 +445,10 @@ provider that implements it. The process is similar for all algorithms. Here the
 example of a digest is used.
 
 To go from an B<EVP_MD_CTX> to an B<EVP_MD>, use L<EVP_MD_CTX_md(3)> .
-To go from the B<EVP_MD> to its B<OSSL_PROVIDER>, use L<EVP_MD_provider(3)>.
-To extract the name from the B<OSSL_PROVIDER>, use L<OSSL_PROVIDER_name(3)>.
+To go from the B<EVP_MD> to its B<OSSL_PROVIDER>,
+use L<EVP_MD_get0_provider(3)>.
+To extract the name from the B<OSSL_PROVIDER>, use
+L<OSSL_PROVIDER_get0_name(3)>.
 
 =head1 SEE ALSO
 

@@ -15,7 +15,7 @@
 
 # include <openssl/opensslconf.h>
 
-# ifndef OPENSSL_NO_SM2
+# if !defined(OPENSSL_NO_SM2) && !defined(FIPS_MODULE)
 
 #  include <openssl/ec.h>
 #  include "crypto/types.h"

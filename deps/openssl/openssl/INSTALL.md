@@ -854,11 +854,14 @@ disengage SSE2 code paths upon application start-up, but if you aim for wider
 "audience" running such kernel, consider `no-sse2`.  Both the `386` and `no-asm`
 options imply `no-sse2`.
 
-### enable-ssl-trace
+### no-ssl-trace
 
-Build with the SSL Trace capabilities.
+Don't build with SSL Trace capabilities.
 
-This adds the `-trace` option to `s_client` and `s_server`.
+This removes the `-trace` option from `s_client` and `s_server`, and omits the
+`SSL_trace()` function from libssl.
+
+Disabling `ssl-trace` may provide a small reduction in libssl binary size.
 
 ### no-static-engine
 

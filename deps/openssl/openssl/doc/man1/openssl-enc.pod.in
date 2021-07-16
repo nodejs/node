@@ -54,6 +54,10 @@ either by itself or in addition to the encryption or decryption.
 
 =over 4
 
+=item B<-I<cipher>>
+
+The cipher to use.
+
 =item B<-help>
 
 Print out a usage message.

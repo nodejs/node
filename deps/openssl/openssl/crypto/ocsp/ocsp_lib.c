@@ -55,7 +55,7 @@ OCSP_CERTID *OCSP_cert_id_new(const EVP_MD *dgst,
 
     alg = &cid->hashAlgorithm;
     ASN1_OBJECT_free(alg->algorithm);
-    if ((nid = EVP_MD_type(dgst)) == NID_undef) {
+    if ((nid = EVP_MD_get_type(dgst)) == NID_undef) {
         ERR_raise(ERR_LIB_OCSP, OCSP_R_UNKNOWN_NID);
         goto err;
     }

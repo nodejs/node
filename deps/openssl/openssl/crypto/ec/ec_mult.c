@@ -387,7 +387,7 @@ int ossl_ec_scalar_mul_ladder(const EC_GROUP *group, EC_POINT *r,
 #undef EC_POINT_BN_set_flags
 
 /*
- * TODO: table should be optimised for the wNAF-based implementation,
+ * Table could be optimised for the wNAF-based implementation,
  * sometimes smaller windows will give better performance (thus the
  * boundaries should be increased)
  */

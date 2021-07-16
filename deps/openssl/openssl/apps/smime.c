@@ -367,7 +367,7 @@ int smime_main(int argc, char **argv)
             goto opthelp;
     }
     if (ciphername != NULL) {
-        if (!opt_cipher(ciphername, &cipher))
+        if (!opt_cipher_any(ciphername, &cipher))
             goto opthelp;
     }
     if (!(operation & SMIME_SIGNERS) && (skkeys != NULL || sksigners != NULL)) {

@@ -8,7 +8,6 @@ Notes for Windows platforms
  - [Linking native applications](#linking-native-applications)
  - [Hosted builds using Cygwin](#hosted-builds-using-cygwin)
 
-
 There are various options to build and run OpenSSL on the Windows platforms.
 
 "Native" OpenSSL uses the Windows APIs directly at run time.

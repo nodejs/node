@@ -44,7 +44,7 @@ int EVP_SignFinal_ex(EVP_MD_CTX *ctx, unsigned char *sigret,
             return 0;
     }
 
-    sltmp = (size_t)EVP_PKEY_size(pkey);
+    sltmp = (size_t)EVP_PKEY_get_size(pkey);
     i = 0;
     pkctx = EVP_PKEY_CTX_new_from_pkey(libctx, pkey, propq);
     if (pkctx == NULL)

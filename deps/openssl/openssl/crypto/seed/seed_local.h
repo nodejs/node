@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2007-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -35,7 +35,7 @@
 #ifndef OSSL_CRYPTO_SEED_LOCAL_H
 # define OSSL_CRYPTO_SEED_LOCAL_H
 
-# include "openssl/e_os2.h"
+# include <openssl/e_os2.h>
 # include <openssl/seed.h>
 
 # ifdef SEED_LONG               /* need 32-bit type */

@@ -296,7 +296,7 @@ static DH *ffc_params_generate(OSSL_LIB_CTX *libctx, DH_PKEY_CTX *dctx,
     }
 
     if (dctx->md != NULL)
-        ossl_ffc_set_digest(&ret->params, EVP_MD_name(dctx->md), NULL);
+        ossl_ffc_set_digest(&ret->params, EVP_MD_get0_name(dctx->md), NULL);
 
 # ifndef FIPS_MODULE
     if (dctx->paramgen_type == DH_PARAMGEN_TYPE_FIPS_186_2)

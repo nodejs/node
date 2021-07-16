@@ -37,7 +37,7 @@ static const ERR_STRING_DATA SM2_str_reasons[] = {
 
 # endif
 
-int err_load_SM2_strings_int(void)
+int ossl_err_load_SM2_strings(void)
 {
 # ifndef OPENSSL_NO_ERR
     if (ERR_reason_error_string(SM2_str_reasons[0].error) == NULL)

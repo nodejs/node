@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2011-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -143,7 +143,7 @@ static size_t tls1_multi_block_encrypt(void *vctx,
 #  endif
 
     /* ask for IVs in bulk */
-    if (RAND_bytes_ex(ctx->base.libctx, (IVs = blocks[0].c), 16 * x4) <= 0)
+    if (RAND_bytes_ex(ctx->base.libctx, (IVs = blocks[0].c), 16 * x4, 0) <= 0)
         return 0;
 
     mctx = (SHA1_MB_CTX *) (storage + 32 - ((size_t)storage % 32)); /* align */

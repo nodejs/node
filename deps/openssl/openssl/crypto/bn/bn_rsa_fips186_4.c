@@ -178,14 +178,14 @@ int ossl_bn_rsa_fips186_4_gen_prob_primes(BIGNUM *p, BIGNUM *Xpout,
     if (Xp1 == NULL) {
         /* Set the top and bottom bits to make it odd and the correct size */
         if (!BN_priv_rand_ex(Xp1i, bitlen, BN_RAND_TOP_ONE, BN_RAND_BOTTOM_ODD,
-                             ctx))
+                             0, ctx))
             goto err;
     }
     /* (Steps 4.1/5.1): Randomly generate Xp2 if it is not passed in */
     if (Xp2 == NULL) {
         /* Set the top and bottom bits to make it odd and the correct size */
         if (!BN_priv_rand_ex(Xp2i, bitlen, BN_RAND_TOP_ONE, BN_RAND_BOTTOM_ODD,
-                             ctx))
+                             0, ctx))
             goto err;
     }
 
@@ -306,7 +306,7 @@ int ossl_bn_rsa_fips186_4_derive_prime(BIGNUM *Y, BIGNUM *X, const BIGNUM *Xin,
              * (Step 3) Choose Random X such that
              *    sqrt(2) * 2^(nlen/2-1) <= Random X <= (2^(nlen/2)) - 1.
              */
-            if (!BN_priv_rand_range_ex(X, range, ctx) || !BN_add(X, X, base))
+            if (!BN_priv_rand_range_ex(X, range, 0, ctx) || !BN_add(X, X, base))
                 goto end;
         }
         /* (Step 4) Y = X + ((R - X) mod 2r1r2) */

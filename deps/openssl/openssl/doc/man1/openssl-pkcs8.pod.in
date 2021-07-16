@@ -101,6 +101,10 @@ When creating new PKCS#8 containers, use a given number of iterations on
 the password in deriving the encryption key for the PKCS#8 output.
 High values increase the time required to brute-force a PKCS#8 container.
 
+=item B<-noiter>
+
+When creating new PKCS#8 containers, use 1 as iteration count.
+
 =item B<-nocrypt>
 
 PKCS#8 keys generated or input are normally PKCS#8 EncryptedPrivateKeyInfo

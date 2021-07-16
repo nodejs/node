@@ -460,7 +460,7 @@ static TS_REQ *create_query(BIO *data_bio, const char *digest, const EVP_MD *md,
         goto err;
     if ((algo = X509_ALGOR_new()) == NULL)
         goto err;
-    if ((algo->algorithm = OBJ_nid2obj(EVP_MD_type(md))) == NULL)
+    if ((algo->algorithm = OBJ_nid2obj(EVP_MD_get_type(md))) == NULL)
         goto err;
     if ((algo->parameter = ASN1_TYPE_new()) == NULL)
         goto err;
@@ -509,7 +509,7 @@ static int create_digest(BIO *input, const char *digest, const EVP_MD *md,
     int rv = 0;
     EVP_MD_CTX *md_ctx = NULL;
 
-    md_value_len = EVP_MD_size(md);
+    md_value_len = EVP_MD_get_size(md);
     if (md_value_len < 0)
         return 0;
 
@@ -529,7 +529,7 @@ static int create_digest(BIO *input, const char *digest, const EVP_MD *md,
         }
         if (!EVP_DigestFinal(md_ctx, *md_value, NULL))
             goto err;
-        md_value_len = EVP_MD_size(md);
+        md_value_len = EVP_MD_get_size(md);
     } else {
         long digest_len;
 

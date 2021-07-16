@@ -3,9 +3,9 @@ LIBS=../../libcrypto
 # Base library
 SOURCE[../../libcrypto]=\
         bio_lib.c bio_cb.c bio_err.c \
-        b_print.c b_dump.c b_addr.c \
-        b_sock.c b_sock2.c \
-        bio_meth.c core_bio.c
+        bio_print.c bio_dump.c bio_addr.c \
+        bio_sock.c bio_sock2.c \
+        bio_meth.c ossl_core_bio.c
 
 # Source / sink implementations
 SOURCE[../../libcrypto]=\

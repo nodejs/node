@@ -46,12 +46,12 @@ my @genpkeycmd = ("openssl", "genpkey");
 my $dummycnf = srctop_file("apps", "openssl.cnf");
 
 my $cnf = srctop_file("test", "ca-and-certs.cnf");
-my $CAkey = "keyCA.ss";
+my $CAkey = srctop_file("test", "certs", "ca-key.pem"); # "keyCA.ss"
 my $CAcert="certCA.ss";
 my $CAserial="certCA.srl";
 my $CAreq="reqCA.ss";
 my $CAreq2="req2CA.ss";	# temp
-my $Ukey="keyU.ss";
+my $Ukey = srctop_file("test", "certs", "ee-key.pem"); # "keyU.ss";
 my $Ureq="reqU.ss";
 my $Ucert="certU.ss";
 my $Dkey="keyD.ss";
@@ -62,11 +62,11 @@ my $Ereq="reqE.ss";
 my $Ecert="certE.ss";
 
 my $proxycnf=srctop_file("test", "proxy.cnf");
-my $P1key="keyP1.ss";
+my $P1key= srctop_file("test", "certs", "alt1-key.pem"); # "keyP1.ss";
 my $P1req="reqP1.ss";
 my $P1cert="certP1.ss";
 my $P1intermediate="tmp_intP1.ss";
-my $P2key="keyP2.ss";
+my $P2key= srctop_file("test", "certs", "alt2-key.pem"); # "keyP2.ss";
 my $P2req="reqP2.ss";
 my $P2cert="certP2.ss";
 my $P2intermediate="tmp_intP2.ss";
@@ -125,7 +125,7 @@ sub testss {
   SKIP: {
       skip 'failure', 16 unless
 	  ok(run(app([@reqcmd, "-config", $cnf,
-		      "-out", $CAreq, "-keyout", $CAkey,
+		      "-out", $CAreq, "-key", $CAkey,
 		      @req_new])),
 	     'make cert request');
 
@@ -159,7 +159,7 @@ sub testss {
 
       skip 'failure', 10 unless
 	  ok(run(app([@reqcmd, "-config", $cnf, "-section", "userreq",
-		      "-out", $Ureq, "-keyout", $Ukey, @req_new],
+		      "-out", $Ureq, "-key", $Ukey, @req_new],
 		     stdout => "err.ss")),
 	     'make a user cert request');
 
@@ -271,7 +271,7 @@ sub testss {
 
       skip 'failure', 5 unless
 	  ok(run(app([@reqcmd, "-config", $proxycnf,
-		      "-out", $P1req, "-keyout", $P1key, @req_new],
+		      "-out", $P1req, "-key", $P1key, @req_new],
 		     stdout => "err.ss")),
 	     'make a proxy cert request');
 
@@ -294,7 +294,7 @@ sub testss {
 
       skip 'failure', 2 unless
 	  ok(run(app([@reqcmd, "-config", $proxycnf, "-section", "proxy2_req",
-		      "-out", $P2req, "-keyout", $P2key,
+		      "-out", $P2req, "-key", $P2key,
 		      @req_new],
 		     stdout => "err.ss")),
 	     'make another proxy cert request');
@@ -427,11 +427,11 @@ sub testssl {
         my $ciphers = '-PSK:-SRP:@SECLEVEL=0';
 
         if (!$no_dsa) {
-            push @exkeys, "-s_cert", "certD.ss", "-s_key", "keyD.ss";
+            push @exkeys, "-s_cert", "certD.ss", "-s_key", $Dkey;
         }
 
         if (!$no_ec) {
-            push @exkeys, "-s_cert", "certE.ss", "-s_key", "keyE.ss";
+            push @exkeys, "-s_cert", "certE.ss", "-s_key", $Ekey;
         }
 
         my @protocols = ();

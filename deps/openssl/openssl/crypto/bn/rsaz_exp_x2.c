@@ -73,18 +73,18 @@ typedef void (*EXP52_x2)(BN_ULONG *res, const BN_ULONG *base,
  */
 
 /*AMM = Almost Montgomery Multiplication. */
-void RSAZ_amm52x20_x1_256(BN_ULONG *res, const BN_ULONG *base,
-                          const BN_ULONG *exp, const BN_ULONG *m,
-                          BN_ULONG k0);
-void RSAZ_exp52x20_x2_256(BN_ULONG *res, const BN_ULONG *base,
-                      const BN_ULONG *exp[2], const BN_ULONG *m,
-                      const BN_ULONG *rr, const BN_ULONG k0[2]);
-void RSAZ_amm52x20_x2_256(BN_ULONG *out, const BN_ULONG *a,
-                          const BN_ULONG *b, const BN_ULONG *m,
-                          const BN_ULONG k0[2]);
-void extract_multiplier_2x20_win5(BN_ULONG *red_Y,
-                                  const BN_ULONG *red_table,
-                                  int red_table_idx, int tbl_idx);
+void ossl_rsaz_amm52x20_x1_256(BN_ULONG *res, const BN_ULONG *base,
+                               const BN_ULONG *exp, const BN_ULONG *m,
+                               BN_ULONG k0);
+static void RSAZ_exp52x20_x2_256(BN_ULONG *res, const BN_ULONG *base,
+                                 const BN_ULONG *exp[2], const BN_ULONG *m,
+                                 const BN_ULONG *rr, const BN_ULONG k0[2]);
+void ossl_rsaz_amm52x20_x2_256(BN_ULONG *out, const BN_ULONG *a,
+                               const BN_ULONG *b, const BN_ULONG *m,
+                               const BN_ULONG k0[2]);
+void ossl_extract_multiplier_2x20_win5(BN_ULONG *red_Y,
+                                       const BN_ULONG *red_table,
+                                       int red_table_idx, int tbl_idx);
 
 /*
  * Dual Montgomery modular exponentiation using prime moduli of the
@@ -112,19 +112,19 @@ void extract_multiplier_2x20_win5(BN_ULONG *red_Y,
  * \return 0 in case of failure,
  *         1 in case of success.
  */
-int RSAZ_mod_exp_avx512_x2(BN_ULONG *res1,
-                           const BN_ULONG *base1,
-                           const BN_ULONG *exp1,
-                           const BN_ULONG *m1,
-                           const BN_ULONG *rr1,
-                           BN_ULONG k0_1,
-                           BN_ULONG *res2,
-                           const BN_ULONG *base2,
-                           const BN_ULONG *exp2,
-                           const BN_ULONG *m2,
-                           const BN_ULONG *rr2,
-                           BN_ULONG k0_2,
-                           int factor_size)
+int ossl_rsaz_mod_exp_avx512_x2(BN_ULONG *res1,
+                                const BN_ULONG *base1,
+                                const BN_ULONG *exp1,
+                                const BN_ULONG *m1,
+                                const BN_ULONG *rr1,
+                                BN_ULONG k0_1,
+                                BN_ULONG *res2,
+                                const BN_ULONG *base2,
+                                const BN_ULONG *exp2,
+                                const BN_ULONG *m2,
+                                const BN_ULONG *rr2,
+                                BN_ULONG k0_2,
+                                int factor_size)
 {
     int ret = 0;
 
@@ -152,7 +152,7 @@ int RSAZ_mod_exp_avx512_x2(BN_ULONG *res1,
     /* Only 1024-bit factor size is supported now */
     switch (factor_size) {
     case 1024:
-        amm = RSAZ_amm52x20_x1_256;
+        amm = ossl_rsaz_amm52x20_x1_256;
         exp_x2 = RSAZ_exp52x20_x2_256;
         break;
     default:
@@ -247,12 +247,12 @@ err:
  *
  * \return (void).
  */
-void RSAZ_exp52x20_x2_256(BN_ULONG *out,          /* [2][20] */
-                          const BN_ULONG *base,   /* [2][20] */
-                          const BN_ULONG *exp[2], /* 2x16    */
-                          const BN_ULONG *m,      /* [2][20] */
-                          const BN_ULONG *rr,     /* [2][20] */
-                          const BN_ULONG k0[2])
+static void RSAZ_exp52x20_x2_256(BN_ULONG *out,          /* [2][20] */
+                                 const BN_ULONG *base,   /* [2][20] */
+                                 const BN_ULONG *exp[2], /* 2x16    */
+                                 const BN_ULONG *m,      /* [2][20] */
+                                 const BN_ULONG *rr,     /* [2][20] */
+                                 const BN_ULONG k0[2])
 {
 # define BITSIZE_MODULUS (1024)
 # define EXP_WIN_SIZE (5)
@@ -263,13 +263,13 @@ void RSAZ_exp52x20_x2_256(BN_ULONG *out,          /* [2][20] */
  */
 # define RED_DIGITS (20)
 # define EXP_DIGITS (16)
-# define DAMM RSAZ_amm52x20_x2_256
+# define DAMM ossl_rsaz_amm52x20_x2_256
 /*
  * Squaring is done using multiplication now. That can be a subject of
  * optimization in future.
  */
 # define DAMS(r,a,m,k0) \
-              RSAZ_amm52x20_x2_256((r),(a),(a),(m),(k0))
+              ossl_rsaz_amm52x20_x2_256((r),(a),(a),(m),(k0))
 
     /* Allocate stack for red(undant) result Y and multiplier X */
     ALIGN64 BN_ULONG red_Y[2][RED_DIGITS];
@@ -328,8 +328,10 @@ void RSAZ_exp52x20_x2_256(BN_ULONG *out,          /* [2][20] */
         red_table_idx_0 >>= exp_chunk_shift;
         red_table_idx_1 >>= exp_chunk_shift;
 
-        extract_multiplier_2x20_win5(red_Y[0], (const BN_ULONG*)red_table, (int)red_table_idx_0, 0);
-        extract_multiplier_2x20_win5(red_Y[1], (const BN_ULONG*)red_table, (int)red_table_idx_1, 1);
+        ossl_extract_multiplier_2x20_win5(red_Y[0], (const BN_ULONG*)red_table,
+                                          (int)red_table_idx_0, 0);
+        ossl_extract_multiplier_2x20_win5(red_Y[1], (const BN_ULONG*)red_table,
+                                          (int)red_table_idx_1, 1);
 
         /* Process other exp windows */
         for (exp_bit_no -= EXP_WIN_SIZE; exp_bit_no >= 0; exp_bit_no -= EXP_WIN_SIZE) {
@@ -354,7 +356,9 @@ void RSAZ_exp52x20_x2_256(BN_ULONG *out,          /* [2][20] */
                     }
                     red_table_idx_0 &= table_idx_mask;
 
-                    extract_multiplier_2x20_win5(red_X[0], (const BN_ULONG*)red_table, (int)red_table_idx_0, 0);
+                    ossl_extract_multiplier_2x20_win5(red_X[0],
+                                                      (const BN_ULONG*)red_table,
+                                                      (int)red_table_idx_0, 0);
                 }
                 {
                     red_table_idx_1 = expz[1][exp_chunk_no];
@@ -371,7 +375,9 @@ void RSAZ_exp52x20_x2_256(BN_ULONG *out,          /* [2][20] */
                     }
                     red_table_idx_1 &= table_idx_mask;
 
-                    extract_multiplier_2x20_win5(red_X[1], (const BN_ULONG*)red_table, (int)red_table_idx_1, 1);
+                    ossl_extract_multiplier_2x20_win5(red_X[1],
+                                                      (const BN_ULONG*)red_table,
+                                                      (int)red_table_idx_1, 1);
                 }
             }
 

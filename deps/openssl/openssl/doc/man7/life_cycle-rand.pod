@@ -76,7 +76,7 @@ The usual life-cycle of a RAND is illustrated:
 
 =end man
 
-=for html <img src="rand.png">
+=for html <img src="img/rand.png">
 
 =head2 Formal State Transitions
 

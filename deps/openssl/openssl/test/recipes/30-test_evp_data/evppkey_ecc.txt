@@ -1,5 +1,5 @@
 #
-# Copyright 2001-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -24,6 +24,7 @@ MEMwEwYHKoZIzj0CAQYIKoZIzj0DAAEDLAAEBXgoOgVlWTLQnrQZXgQuSBcIS3bQAlXQ+yJhS03B
 4G8rKQXbrc0mvWsF
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_c2pnb163v1:ALICE_cf_c2pnb163v1_PUB
 
 PrivateKey=BOB_cf_c2pnb163v1
@@ -37,6 +38,7 @@ MEMwEwYHKoZIzj0CAQYIKoZIzj0DAAEDLAAEBn9J0jo39aFVZqhBsAKZ6bViAu6zBC8WaFGExnpZ
 KuBh8tP8VSTHPCHF
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_c2pnb163v1:BOB_cf_c2pnb163v1_PUB
 
 # ECDH Alice with Bob peer
@@ -100,6 +102,7 @@ MEMwEwYHKoZIzj0CAQYIKoZIzj0DAAIDLAAEAVnlL7lMBaASwCIJaf9x2LgNPVmEAb43huHQlo3Q
 4PzawHXQoYm/qgDd
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_c2pnb163v2:ALICE_cf_c2pnb163v2_PUB
 
 PrivateKey=BOB_cf_c2pnb163v2
@@ -113,6 +116,7 @@ MEMwEwYHKoZIzj0CAQYIKoZIzj0DAAIDLAAEAVWNIKn7/WMfzuNnd5ws9J0DI2CfBkEJizZHAFqy
 kBF3juAQuARgxuT6
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_c2pnb163v2:BOB_cf_c2pnb163v2_PUB
 
 # ECDH Alice with Bob peer
@@ -176,6 +180,7 @@ MEMwEwYHKoZIzj0CAQYIKoZIzj0DAAMDLAAEBx1HRyjuBMjt+vlbWaQbKOpNvWKFAslzEbPv6MpK
 YnObLnq34LRuWznb
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_c2pnb163v3:ALICE_cf_c2pnb163v3_PUB
 
 PrivateKey=BOB_cf_c2pnb163v3
@@ -189,6 +194,7 @@ MEMwEwYHKoZIzj0CAQYIKoZIzj0DAAMDLAAEAqXF7rsAZ40Z1PT4TeeC45RKTxP4AJBAdfuknJ/J
 DZnBLhxBwtqnfUpA
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_c2pnb163v3:BOB_cf_c2pnb163v3_PUB
 
 # ECDH Alice with Bob peer
@@ -252,6 +258,7 @@ MEUwEwYHKoZIzj0CAQYIKoZIzj0DAAQDLgAEPjME7IV6Tuz2P++wIT60hRxTkk0M0PNgvqYcUoCI
 iw3girDLhNzOu3IQ8Ac=
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_c2pnb176v1:ALICE_cf_c2pnb176v1_PUB
 
 PrivateKey=BOB_cf_c2pnb176v1
@@ -265,6 +272,7 @@ MEUwEwYHKoZIzj0CAQYIKoZIzj0DAAQDLgAEpJn1IDmFj5LceLGfY2wlhI1VHq5vJ+qNIAOXVZhX
 uMtp6pzy63rCEK53bgs=
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_c2pnb176v1:BOB_cf_c2pnb176v1_PUB
 
 # ECDH Alice with Bob peer
@@ -329,6 +337,7 @@ ME0wEwYHKoZIzj0CAQYIKoZIzj0DAAoDNgAEL+IHOL2IfeLRiE6Wqsc0Frqjq7t/JnBmhN1lMB9Y
 Yj3+Btcne4CPWf8KvfGjAdMs6JKP4A==
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_c2pnb208w1:ALICE_cf_c2pnb208w1_PUB
 
 PrivateKey=BOB_cf_c2pnb208w1
@@ -343,6 +352,7 @@ ME0wEwYHKoZIzj0CAQYIKoZIzj0DAAoDNgAENBvdzCDOIvu9zo7reJq1ummhR+0jaDc+EoSlW984
 cl9FTi/JJznwC+RNgwVfJ1WKJun1YA==
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_c2pnb208w1:BOB_cf_c2pnb208w1_PUB
 
 # ECDH Alice with Bob peer
@@ -407,6 +417,7 @@ MF0wEwYHKoZIzj0CAQYIKoZIzj0DABADRgAE0IH60bGi46FDzEprGZ8EBK5uMMcVke/txeBRNGHQ
 DzG68r3EMLZkOfE1+g04MN7HgY7zt3jMYb8ImyLRmvqR2abjs6c=
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_c2pnb272w1:ALICE_cf_c2pnb272w1_PUB
 
 PrivateKey=BOB_cf_c2pnb272w1
@@ -421,6 +432,7 @@ MF0wEwYHKoZIzj0CAQYIKoZIzj0DABADRgAEIeIkcMHAuOgvHt2Wp52vVe0DYPNnUX79t/mLSx03
 cUlDmcxL7vIXdx9hB4OmQBYbm+YLDNfTFGAIlDfr2tELpVVPWPo=
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_c2pnb272w1:BOB_cf_c2pnb272w1_PUB
 
 # ECDH Alice with Bob peer
@@ -485,6 +497,7 @@ MGUwEwYHKoZIzj0CAQYIKoZIzj0DABEDTgAEvoaqRX6qiNQiFH1BhgLCPTpYszoRhmlLirkvlw/Q
 iXBlfQ7U4g+iRR/kmu2RlwwOHgNNL+mWcvLkFfS8Kr4jzv1EY1Ecx96n21l0YQ==
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_c2pnb304w1:ALICE_cf_c2pnb304w1_PUB
 
 PrivateKey=BOB_cf_c2pnb304w1
@@ -499,6 +512,7 @@ MGUwEwYHKoZIzj0CAQYIKoZIzj0DABEDTgAEYuAq/6Yw5HxMeMohlWmwl+ZK4ZQucfr1tWDKwhDb
 kAOUO2P/Q/H+uelM3VVwxeu6A1kaX7K0UZpNa96NRBwI4aevc+vOxCgYkGt9BA==
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_c2pnb304w1:BOB_cf_c2pnb304w1_PUB
 
 # ECDH Alice with Bob peer
@@ -564,6 +578,7 @@ euvf3cpPXBvxUawJXfO9FwFRQabDRagGP99Walidd2JW8nWDWZgZMKj15Wh+4bp2dZHc2tPIIHHd
 3makbwQ=
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_c2pnb368w1:ALICE_cf_c2pnb368w1_PUB
 
 PrivateKey=BOB_cf_c2pnb368w1
@@ -579,6 +594,7 @@ At+zYlpzGax1oJ1CW8fGA0Gu0RnvAfDeW9vgrtzshH1Vy/Ni6a7LPho99PtUP2nzUBnv+hfhFSra
 gqfRaOs=
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_c2pnb368w1:BOB_cf_c2pnb368w1_PUB
 
 # ECDH Alice with Bob peer
@@ -644,6 +660,7 @@ MEkwEwYHKoZIzj0CAQYIKoZIzj0DAAUDMgAEG9iuZmnhz2H/YQKmVUaO//fm7hvV+CP5c2iszpR3
 7lRimqLWHPyvKgcP+PRCIUom
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_c2tnb191v1:ALICE_cf_c2tnb191v1_PUB
 
 PrivateKey=BOB_cf_c2tnb191v1
@@ -658,6 +675,7 @@ MEkwEwYHKoZIzj0CAQYIKoZIzj0DAAUDMgAEdO/4ii8gi8eQfBrv3XmsOETwIfT8OIpBW/kUoHD+
 adqalcB6SIWOfoJReDLcpxAD
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_c2tnb191v1:BOB_cf_c2tnb191v1_PUB
 
 # ECDH Alice with Bob peer
@@ -722,6 +740,7 @@ MEkwEwYHKoZIzj0CAQYIKoZIzj0DAAYDMgAEAyQdwZYRIiv7O4/WRLDKJ249TM8dr2Y+Oz8rSxCI
 UVvJT/Jv9m462J6Iz1XOohhP
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_c2tnb191v2:ALICE_cf_c2tnb191v2_PUB
 
 PrivateKey=BOB_cf_c2tnb191v2
@@ -736,6 +755,7 @@ MEkwEwYHKoZIzj0CAQYIKoZIzj0DAAYDMgAEBVkB4O6fFvGzMHv4BF51muFA0npOGKoOdKbIIMQY
 JBIoz1RNNXTcgdpguLcrvcPJ
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_c2tnb191v2:BOB_cf_c2tnb191v2_PUB
 
 # ECDH Alice with Bob peer
@@ -800,6 +820,7 @@ MEkwEwYHKoZIzj0CAQYIKoZIzj0DAAcDMgAEL4NGEUX2CXY18MyoH1inKq5kde9RGr25ODm/0BEX
 HWsGvDE2HC+6pL2BMl3MRCty
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_c2tnb191v3:ALICE_cf_c2tnb191v3_PUB
 
 PrivateKey=BOB_cf_c2tnb191v3
@@ -814,6 +835,7 @@ MEkwEwYHKoZIzj0CAQYIKoZIzj0DAAcDMgAEPKekNkT9mQ8KRCTR2RwCFkhNvsjL+/mLHYzbMrYe
 QFIb5QwXAdbg2tEOl7yj9qkk
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_c2tnb191v3:BOB_cf_c2tnb191v3_PUB
 
 # ECDH Alice with Bob peer
@@ -878,6 +900,7 @@ MFUwEwYHKoZIzj0CAQYIKoZIzj0DAAsDPgAEUgG/uMWy4k0R/kbVJEapF6r5ik4Q9WPsDXAd0856
 dVL8PvBXgixk2tKfyY1xUVebcEVlgdZP1pN1Xyvi
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_c2tnb239v1:ALICE_cf_c2tnb239v1_PUB
 
 PrivateKey=BOB_cf_c2tnb239v1
@@ -892,6 +915,7 @@ MFUwEwYHKoZIzj0CAQYIKoZIzj0DAAsDPgAEcwKt31cWaoFUd7QxYSdwgMDOqEhjPbD3Z9AfR3tc
 G77/MY5z1oQegqImBog645vtPWI8lZd1zcl6QYRS
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_c2tnb239v1:BOB_cf_c2tnb239v1_PUB
 
 # ECDH Alice with Bob peer
@@ -956,6 +980,7 @@ MFUwEwYHKoZIzj0CAQYIKoZIzj0DAAwDPgAEKzpycflUrsyqVV/+fzvC2+AuX3r0b0Syn8acvn78
 VnKA9mZKwPLWhnMJcLyzarIzc/6/UcfYGNmTyUlG
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_c2tnb239v2:ALICE_cf_c2tnb239v2_PUB
 
 PrivateKey=BOB_cf_c2tnb239v2
@@ -970,6 +995,7 @@ MFUwEwYHKoZIzj0CAQYIKoZIzj0DAAwDPgAETPSkhMs3JW3BG66FSfCov76JKdcRiBhMCW453Wku
 N7yBxBmWjeclHhnXIzfc4qM4qf9n3KzMSXejPVYg
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_c2tnb239v2:BOB_cf_c2tnb239v2_PUB
 
 # ECDH Alice with Bob peer
@@ -1034,6 +1060,7 @@ MFUwEwYHKoZIzj0CAQYIKoZIzj0DAA0DPgAEOu2HIAUX+r6IbRlrPUJUBDL814dR++maVAAkUIjD
 H33ewqcI9ZLtpvuR8P8hgRNUTXlh1GWgrB6F21Eo
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_c2tnb239v3:ALICE_cf_c2tnb239v3_PUB
 
 PrivateKey=BOB_cf_c2tnb239v3
@@ -1048,6 +1075,7 @@ MFUwEwYHKoZIzj0CAQYIKoZIzj0DAA0DPgAEVaEi76wyzlpzkkSElf4SmGZ7kf1ghHMP82HkGk7K
 BC10zUyppoSOAr0eX4pHAkDUF1m/KGoJa7QcJJww
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_c2tnb239v3:BOB_cf_c2tnb239v3_PUB
 
 # ECDH Alice with Bob peer
@@ -1113,6 +1141,7 @@ RLMN7C4rRmqiJakD11QtOforOgbPW5r/v7t4TUWIlq8jV7kapJNtxQtg/S87L0NQGgHBq/lnJL8x
 fN3Y
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_c2tnb359v1:ALICE_cf_c2tnb359v1_PUB
 
 PrivateKey=BOB_cf_c2tnb359v1
@@ -1128,6 +1157,7 @@ ZNX8SSS79Zf2HsQl+LWIZyzeYzoHobKXufChw9/H4ThS58VwV5/0hoE929PIgJ1MSEqr5LvJXi+b
 R8fe
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_c2tnb359v1:BOB_cf_c2tnb359v1_PUB
 
 # ECDH Alice with Bob peer
@@ -1194,6 +1224,7 @@ pGEMTh8B+YfkWuq+IDY5zSqNKtg7cRlAFX2dlHhRSvNxrN3DJCrhe/TQq8SIYawcqEQnM39F8hHM
 7VQJLEsBpJ/WUonwMJXknjgfONP7GA==
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_c2tnb431r1:ALICE_cf_c2tnb431r1_PUB
 
 PrivateKey=BOB_cf_c2tnb431r1
@@ -1209,6 +1240,7 @@ fb9kEbBLU+QixSbYZOrqPasesDV9dApDXF+w6EfIeNyJEK5Lk+aXamrn7fRMUAQ2m7+Odp87GgA+
 8Cg6YpgbK314SK5STziqoZwzEISJ9w==
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_c2tnb431r1:BOB_cf_c2tnb431r1_PUB
 
 # ECDH Alice with Bob peer
@@ -1274,6 +1306,7 @@ MEkwEwYHKoZIzj0CAQYIKoZIzj0DAQIDMgAET6wOPoDU3BeU7VKozsGEvDeJs//9Z/aNEcbbLQ0d
 g5IzsS/XMJzifjCJZgNsb7mi
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_prime192v2:ALICE_cf_prime192v2_PUB
 
 PrivateKey=BOB_cf_prime192v2
@@ -1288,6 +1321,7 @@ MEkwEwYHKoZIzj0CAQYIKoZIzj0DAQIDMgAEcgWNAOL4pZCmouZl+be+rC0yLAJkm2YuPWs+FX2u
 Y6OU1aHkkspZTC1uUVWjchy5
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_prime192v2:BOB_cf_prime192v2_PUB
 
 # ECDH Alice with Bob peer
@@ -1316,6 +1350,7 @@ MEkwEwYHKoZIzj0CAQYIKoZIzj0DAQMDMgAE1+mLeiT/jjHO71IL/C/ZcnF6+yj9FV6eqfuPdHAi
 MsDRFCB6/h8TcCUFuospu5l0
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_prime192v3:ALICE_cf_prime192v3_PUB
 
 PrivateKey=BOB_cf_prime192v3
@@ -1330,6 +1365,7 @@ MEkwEwYHKoZIzj0CAQYIKoZIzj0DAQMDMgAEv35bOz0xqLeJqpZdZ8LyiUgsJMBEtN2UMJm8blX2
 vMWAgEeLhzar86BUlS7dZwS7
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_prime192v3:BOB_cf_prime192v3_PUB
 
 # ECDH Alice with Bob peer
@@ -1358,6 +1394,7 @@ MFUwEwYHKoZIzj0CAQYIKoZIzj0DAQQDPgAEMqQLCgDR9njkq9QELuOu+J/9YGcxJHULdvxHImLW
 RXqBUM5Xea+Qk2SKIpWcogxr2zFeQyeLj2bQysuo
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_prime239v1:ALICE_cf_prime239v1_PUB
 
 PrivateKey=BOB_cf_prime239v1
@@ -1372,6 +1409,7 @@ MFUwEwYHKoZIzj0CAQYIKoZIzj0DAQQDPgAEBR5m/kllh025oO4GvqALkjRliVv7q4x8ro/tkYnT
 L2U4hkT6xUeRu9QC4KOz7KUVH+nBbQASL4XQg/3C
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_prime239v1:BOB_cf_prime239v1_PUB
 
 # ECDH Alice with Bob peer
@@ -1400,6 +1438,7 @@ MFUwEwYHKoZIzj0CAQYIKoZIzj0DAQUDPgAETH77jXHBItV673gTNK/HTFldo4VxPiscbideUgKd
 CWjdVsXebgAZbqQwf0h9QWcIgM7K7ODdW5kCuZ1G
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_prime239v2:ALICE_cf_prime239v2_PUB
 
 PrivateKey=BOB_cf_prime239v2
@@ -1414,6 +1453,7 @@ MFUwEwYHKoZIzj0CAQYIKoZIzj0DAQUDPgAELUQYo0UH8HbK/RMD2jVphBU+iB4OTOfvaaTlHq06
 dcJ8a9a+mAQKhb1OZVEq1n4nQsgRiI1rPxugVERM
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_prime239v2:BOB_cf_prime239v2_PUB
 
 # ECDH Alice with Bob peer
@@ -1442,6 +1482,7 @@ MFUwEwYHKoZIzj0CAQYIKoZIzj0DAQYDPgAEZEN48pqgLF08Yjj/8BLM2Nr5ZhpYxyBurbzKRuBb
 GLpzZLteJN9vZjN7ouNpMxLVUFQxTOwpsvUw86Lk
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_prime239v3:ALICE_cf_prime239v3_PUB
 
 PrivateKey=BOB_cf_prime239v3
@@ -1456,6 +1497,7 @@ MFUwEwYHKoZIzj0CAQYIKoZIzj0DAQYDPgAEQUWKqohAPAoIYEZOvc1QwSlcB+gW0febaNxGOy47
 LaIWdsNM7GJVP9xpdSwm/L+Dip/oH4E59f3SiOAd
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_prime239v3:BOB_cf_prime239v3_PUB
 
 # ECDH Alice with Bob peer
@@ -1482,6 +1524,7 @@ PublicKey=ALICE_cf_secp112r1_PUB
 MDIwEAYHKoZIzj0CAQYFK4EEAAYDHgAEYIawfjH3qRrJJWwuG3Ys5ZhDJsmdWi34aHgKAA==
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_secp112r1:ALICE_cf_secp112r1_PUB
 
 PrivateKey=BOB_cf_secp112r1
@@ -1494,6 +1537,7 @@ PublicKey=BOB_cf_secp112r1_PUB
 MDIwEAYHKoZIzj0CAQYFK4EEAAYDHgAEchh3iQdPN1rrzrpdZRQ95G6tvdwEBQ+gfu1tvA==
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_secp112r1:BOB_cf_secp112r1_PUB
 
 # ECDH Alice with Bob peer
@@ -1520,6 +1564,7 @@ PublicKey=ALICE_cf_secp112r2_PUB
 MDIwEAYHKoZIzj0CAQYFK4EEAAcDHgAEHK9uNAILHBmPZdKKh79/nzYE0HbvC//rA7i0Xw==
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_secp112r2:ALICE_cf_secp112r2_PUB
 
 PrivateKey=BOB_cf_secp112r2
@@ -1532,6 +1577,7 @@ PublicKey=BOB_cf_secp112r2_PUB
 MDIwEAYHKoZIzj0CAQYFK4EEAAcDHgAEUzBLNQupqUpGgmZl9JVjKBpwusl52rFg5OVFJA==
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_secp112r2:BOB_cf_secp112r2_PUB
 
 # ECDH Alice with Bob peer
@@ -1593,6 +1639,7 @@ PublicKey=ALICE_cf_secp128r1_PUB
 MDYwEAYHKoZIzj0CAQYFK4EEABwDIgAEG0XMAdrAZOPUW6L9ADU8XK8sZr7dtIcDinSWU1zSV9s=
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_secp128r1:ALICE_cf_secp128r1_PUB
 
 PrivateKey=BOB_cf_secp128r1
@@ -1605,6 +1652,7 @@ PublicKey=BOB_cf_secp128r1_PUB
 MDYwEAYHKoZIzj0CAQYFK4EEABwDIgAE82nknsOS+u8mybP0KJqQhvm83gbPNTZOcvm0ZDVR5sU=
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_secp128r1:BOB_cf_secp128r1_PUB
 
 # ECDH Alice with Bob peer
@@ -1631,6 +1679,7 @@ PublicKey=ALICE_cf_secp128r2_PUB
 MDYwEAYHKoZIzj0CAQYFK4EEAB0DIgAEOKiPRGtZXwxmvTr35NmUkNsAGGk9RKNA4D5BE9ZrjZQ=
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_secp128r2:ALICE_cf_secp128r2_PUB
 
 PrivateKey=BOB_cf_secp128r2
@@ -1643,6 +1692,7 @@ PublicKey=BOB_cf_secp128r2_PUB
 MDYwEAYHKoZIzj0CAQYFK4EEAB0DIgAELph7h27BYjIINC2EddcpIOxKbdz8Xe7h3Az1ZuR9bAI=
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_secp128r2:BOB_cf_secp128r2_PUB
 
 # ECDH Alice with Bob peer
@@ -1705,6 +1755,7 @@ MD4wEAYHKoZIzj0CAQYFK4EEAAkDKgAEcVWIjtPZn1cHckclpn5jKDCphQUVHxFN5tSeFG9wsJZT
 EvqPyLS64w==
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_secp160k1:ALICE_cf_secp160k1_PUB
 
 PrivateKey=BOB_cf_secp160k1
@@ -1718,6 +1769,7 @@ MD4wEAYHKoZIzj0CAQYFK4EEAAkDKgAESGN41cAj8Fg4pAJM7FUKHiawbCR0b9unMpZWxqOKeW1/
 bxT/CqEkyw==
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_secp160k1:BOB_cf_secp160k1_PUB
 
 # ECDH Alice with Bob peer
@@ -1745,6 +1797,7 @@ MD4wEAYHKoZIzj0CAQYFK4EEAAgDKgAEO78GZuBaCfJjHK97c9N21z+4mm37b5x7/Hr3Xc4pUbtb
 OoNj/A+W9w==
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_secp160r1:ALICE_cf_secp160r1_PUB
 
 PrivateKey=BOB_cf_secp160r1
@@ -1758,6 +1811,7 @@ MD4wEAYHKoZIzj0CAQYFK4EEAAgDKgAEBKDbBSPTwmb00MFvMtJMxQ2YDmcPOZHE8YbVr5hp8s5J
 Jwy17FaNNg==
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_secp160r1:BOB_cf_secp160r1_PUB
 
 # ECDH Alice with Bob peer
@@ -1785,6 +1839,7 @@ MD4wEAYHKoZIzj0CAQYFK4EEAB4DKgAE4V+25YCpVkKF6NF/UPc1SYxohYWcf3qT3JDoPRhnm/rj
 mSqCCA6gUw==
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_secp160r2:ALICE_cf_secp160r2_PUB
 
 PrivateKey=BOB_cf_secp160r2
@@ -1798,6 +1853,7 @@ MD4wEAYHKoZIzj0CAQYFK4EEAB4DKgAEB7YVzBmzhnIdouvN/nb8VMXCqO8dkhmebyVzoD0oAzuH
 nN+SfWr6aQ==
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_secp160r2:BOB_cf_secp160r2_PUB
 
 # ECDH Alice with Bob peer
@@ -1825,6 +1881,7 @@ MEYwEAYHKoZIzj0CAQYFK4EEAB8DMgAEyV4EzMZglBXtYdn38hNTrCGflAsJprMkxkOlw58chZ25
 6EAu7gVvYDTpnRkymKyH
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_secp192k1:ALICE_cf_secp192k1_PUB
 
 PrivateKey=BOB_cf_secp192k1
@@ -1838,6 +1895,7 @@ MEYwEAYHKoZIzj0CAQYFK4EEAB8DMgAE990Tnmh9QQQHVHuLpfrAsgjvB9R2MJXzhBZN1WvtxLqF
 OZ2oFMP0Kfcr7HbI7a5j
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_secp192k1:BOB_cf_secp192k1_PUB
 
 # ECDH Alice with Bob peer
@@ -1866,6 +1924,7 @@ ME4wEAYHKoZIzj0CAQYFK4EEACADOgAE4o7LGdJDixqJZ5imnqaX4IeE55NG4W0HEe72LVC7pmn2
 e3m7uC92ZQhduF9lJli4dXD5en/1wkE=
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_secp224k1:ALICE_cf_secp224k1_PUB
 
 PrivateKey=BOB_cf_secp224k1
@@ -1880,6 +1939,7 @@ ME4wEAYHKoZIzj0CAQYFK4EEACADOgAEzp00m0DaADn1mGiDCT7K1LZnoj/vCxHPowUDC9yQd17K
 KpJM5sGILrTkkgxqtt5pBeYE1NC1QUQ=
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_secp224k1:BOB_cf_secp224k1_PUB
 
 # ECDH Alice with Bob peer
@@ -1908,6 +1968,7 @@ MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAElytZZZHc9CelGzZkNGpzY2CHQ+3z6tUnfsQxUmtiZnUg
 7oKfQC5BV8pZ5WYNPWnbT0RRg5kyBtzry9oQIhO5Lw==
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_secp256k1:ALICE_cf_secp256k1_PUB
 
 PrivateKey=BOB_cf_secp256k1
@@ -1922,6 +1983,7 @@ MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAE2BQeSJOa7kJAQsAPUbLseHjHhMe3tUOAl3bqoDqtrfO+
 2m2MP/IC/R9Kof2nmaiQ6DostdbS8kB+CnnprK375w==
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_secp256k1:BOB_cf_secp256k1_PUB
 
 # ECDH Alice with Bob peer
@@ -1948,6 +2010,7 @@ PublicKey=ALICE_cf_sect113r1_PUB
 MDQwEAYHKoZIzj0CAQYFK4EEAAQDIAAEASO9jcamlg1pRE7JffrTAe9kyRZO2xrymHXoGdnA
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_sect113r1:ALICE_cf_sect113r1_PUB
 
 PrivateKey=BOB_cf_sect113r1
@@ -1960,6 +2023,7 @@ PublicKey=BOB_cf_sect113r1_PUB
 MDQwEAYHKoZIzj0CAQYFK4EEAAQDIAAEATykaf/cvJzLOUto1EbbAEz/3++nut6q0dcJOQeV
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_sect113r1:BOB_cf_sect113r1_PUB
 
 # ECDH Alice with Bob peer
@@ -2021,6 +2085,7 @@ PublicKey=ALICE_cf_sect113r2_PUB
 MDQwEAYHKoZIzj0CAQYFK4EEAAUDIAAEAFvQ4JgQTS8kjGeVfuITAS81qNcOQvt3PYa1HuCk
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_sect113r2:ALICE_cf_sect113r2_PUB
 
 PrivateKey=BOB_cf_sect113r2
@@ -2033,6 +2098,7 @@ PublicKey=BOB_cf_sect113r2_PUB
 MDQwEAYHKoZIzj0CAQYFK4EEAAUDIAAEAUoS3of8y28meYu/NoI5AVdhJZCuDjMqFHTriWY4
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_sect113r2:BOB_cf_sect113r2_PUB
 
 # ECDH Alice with Bob peer
@@ -2095,6 +2161,7 @@ MDgwEAYHKoZIzj0CAQYFK4EEABYDJAAEBXCuXD6wOOif91GUlJNKXf8FBNw8crgqi5aEJEZbCdBJ
 Ag==
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_sect131r1:ALICE_cf_sect131r1_PUB
 
 PrivateKey=BOB_cf_sect131r1
@@ -2108,6 +2175,7 @@ MDgwEAYHKoZIzj0CAQYFK4EEABYDJAAEB8vGy3OQXwWKcJUSSJbCtpMBjFgJeZxzAaI420+B1B+1
 5A==
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_sect131r1:BOB_cf_sect131r1_PUB
 
 # ECDH Alice with Bob peer
@@ -2171,6 +2239,7 @@ MDgwEAYHKoZIzj0CAQYFK4EEABcDJAAEA5+Y20L8q989I4jnKknZ7hcGlQ6RUIGni9RahT88kB/d
 dw==
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_sect131r2:ALICE_cf_sect131r2_PUB
 
 PrivateKey=BOB_cf_sect131r2
@@ -2184,6 +2253,7 @@ MDgwEAYHKoZIzj0CAQYFK4EEABcDJAAEB2G2uNkhQNjjl0/Ov6UYpxoFaWNXO+qy7poV6cdrFN7z
 pA==
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_sect131r2:BOB_cf_sect131r2_PUB
 
 # ECDH Alice with Bob peer
@@ -2247,6 +2317,7 @@ MEAwEAYHKoZIzj0CAQYFK4EEAAIDLAAEA0f195HCcD4D+7wWyl3QuPkRovG/ATy5l7fpMl4BNIg/
 sbtEXluCzANF
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_sect163r1:ALICE_cf_sect163r1_PUB
 
 PrivateKey=BOB_cf_sect163r1
@@ -2260,6 +2331,7 @@ MEAwEAYHKoZIzj0CAQYFK4EEAAIDLAAEAul/oBKr9B5MsPHWGF+q07j0JC+WAxj1JzfcIXR98n+r
 9FHWU5LC5pDM
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_sect163r1:BOB_cf_sect163r1_PUB
 
 # ECDH Alice with Bob peer
@@ -2323,6 +2395,7 @@ MEgwEAYHKoZIzj0CAQYFK4EEABgDNAAEAeqP0VQobenduwtf4MPmlYQVDjUmxKq50QFHnaBfzwXY
 1TYShZZgBr0R6a5dUGCbiF0=
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_sect193r1:ALICE_cf_sect193r1_PUB
 
 PrivateKey=BOB_cf_sect193r1
@@ -2336,6 +2409,7 @@ MEgwEAYHKoZIzj0CAQYFK4EEABgDNAAEAaFZVIeqfV9wbPydaBSJKSWJjVyFVSB/QQB5rHonYQmK
 f40zok8PJS6ratIcZwk/n20=
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_sect193r1:BOB_cf_sect193r1_PUB
 
 # ECDH Alice with Bob peer
@@ -2399,6 +2473,7 @@ MEgwEAYHKoZIzj0CAQYFK4EEABkDNAAEAIn7oSu3adu4ChNXniHKkMIv9gT24rpzzwAeCTDPIkUT
 kJ+Tit6e4RpgkB/dph4V+uI=
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_sect193r2:ALICE_cf_sect193r2_PUB
 
 PrivateKey=BOB_cf_sect193r2
@@ -2412,6 +2487,7 @@ MEgwEAYHKoZIzj0CAQYFK4EEABkDNAAEAFdSLKI0tlwZDpkndutOLsnHii1aJO8snwEJ0m/AZgMp
 xiDevOQ/xE9SpMX25W7YqkU=
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_sect193r2:BOB_cf_sect193r2_PUB
 
 # ECDH Alice with Bob peer
@@ -2476,6 +2552,7 @@ MFIwEAYHKoZIzj0CAQYFK4EEAAMDPgAEf5paOMjzcnpVAPMQnIkikE4K2jne3ubX2TD1P3aedknF
 lUr6tOU4BsiUQJACF90rQ9/KdeR5mYvYHzvI
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_sect239k1:ALICE_cf_sect239k1_PUB
 
 PrivateKey=BOB_cf_sect239k1
@@ -2490,6 +2567,7 @@ MFIwEAYHKoZIzj0CAQYFK4EEAAMDPgAEKnjJ4RHe+EiElXMrF4ou7VGy1pn0ZiO17FouF31Zbvjc
 TcbhfE6ziXM8sekQJBwcwRKQ9+G/Qzq/2A9x
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_sect239k1:BOB_cf_sect239k1_PUB
 
 # ECDH Alice with Bob peer
@@ -2554,6 +2632,7 @@ MFIwEAYHKoZIzj0CAQYFZysBBAoDPgAEAZkrhWBz/Q4GB8DY4Ia114ew6H7Eg7ri2uxwxd3rAZs5
 /ShvunNyndjCt3Qaq8sulBM0nUyERSDakyD+
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_wap-wsg-idm-ecid-wtls10:ALICE_cf_wap-wsg-idm-ecid-wtls10_PUB
 
 PrivateKey=BOB_cf_wap-wsg-idm-ecid-wtls10
@@ -2568,6 +2647,7 @@ MFIwEAYHKoZIzj0CAQYFZysBBAoDPgAEAGavw4ChHCoWplAumMEBwJgJ2aYtw+utu4vhWnscAPIT
 IJ4IiIGj18rCFBap1sgVbpXjhEBLYg6Itwv2
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_wap-wsg-idm-ecid-wtls10:BOB_cf_wap-wsg-idm-ecid-wtls10_PUB
 
 # ECDH Alice with Bob peer
@@ -2632,6 +2712,7 @@ MFIwEAYHKoZIzj0CAQYFZysBBAsDPgAEABttgKKYeGZRmcH/5UZR56lOSgbU4TH2AuIhvj88AL6H
 zTCX9elzXpck+u22bnmkuvL2A8XKB5+fabMR
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_wap-wsg-idm-ecid-wtls11:ALICE_cf_wap-wsg-idm-ecid-wtls11_PUB
 
 PrivateKey=BOB_cf_wap-wsg-idm-ecid-wtls11
@@ -2646,6 +2727,7 @@ MFIwEAYHKoZIzj0CAQYFZysBBAsDPgAEAL6Xj/KCmXAQAAo847t0bl0wqBrteWRg93OvIJsPAAOE
 ehdIgJyruc3KsH0RFlipu5QD8pnGSIXvif19
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_wap-wsg-idm-ecid-wtls11:BOB_cf_wap-wsg-idm-ecid-wtls11_PUB
 
 # ECDH Alice with Bob peer
@@ -2710,6 +2792,7 @@ ME4wEAYHKoZIzj0CAQYFZysBBAwDOgAE0t0WqG/pFsiCt6agmebw3FCEWAzf9BpNLuzoCkPEe0Li
 bqn5udrckL6s3stwCTVFaZUfY2qS9QE=
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_wap-wsg-idm-ecid-wtls12:ALICE_cf_wap-wsg-idm-ecid-wtls12_PUB
 
 PrivateKey=BOB_cf_wap-wsg-idm-ecid-wtls12
@@ -2724,6 +2807,7 @@ ME4wEAYHKoZIzj0CAQYFZysBBAwDOgAEvyxedqaWkoAOMjaV5W3/tJpheiHAR0zV6BlIeUuGP2mx
 +xsOK9/QB7hzipq9cXx1K/dXu58EoSY=
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_wap-wsg-idm-ecid-wtls12:BOB_cf_wap-wsg-idm-ecid-wtls12_PUB
 
 # ECDH Alice with Bob peer
@@ -2750,6 +2834,7 @@ PublicKey=ALICE_cf_wap-wsg-idm-ecid-wtls1_PUB
 MDQwEAYHKoZIzj0CAQYFZysBBAEDIAAEACBNPI48xxsPVQBy07jRAAcWzbIkMo8BQotxpfGJ
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_wap-wsg-idm-ecid-wtls1:ALICE_cf_wap-wsg-idm-ecid-wtls1_PUB
 
 PrivateKey=BOB_cf_wap-wsg-idm-ecid-wtls1
@@ -2762,6 +2847,7 @@ PublicKey=BOB_cf_wap-wsg-idm-ecid-wtls1_PUB
 MDQwEAYHKoZIzj0CAQYFZysBBAEDIAAEAEeHMSBTx/EtOu+bjBinALHSkQuJyiP3mg1tu+I2
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_wap-wsg-idm-ecid-wtls1:BOB_cf_wap-wsg-idm-ecid-wtls1_PUB
 
 # ECDH Alice with Bob peer
@@ -2824,6 +2910,7 @@ MEAwEAYHKoZIzj0CAQYFZysBBAMDLAAEBRIzvK9o7eO2NGmtPFV/zo9/1mlvBwjG7+e6hbPG1KdI
 01f8oGBuXMQH
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_wap-wsg-idm-ecid-wtls3:ALICE_cf_wap-wsg-idm-ecid-wtls3_PUB
 
 PrivateKey=BOB_cf_wap-wsg-idm-ecid-wtls3
@@ -2837,6 +2924,7 @@ MEAwEAYHKoZIzj0CAQYFZysBBAMDLAAEAYOspjEbzyZw61jCtUrxARr+w66nBH+73QIvlaRVSG/4
 hlBUf5kmG4Yn
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_wap-wsg-idm-ecid-wtls3:BOB_cf_wap-wsg-idm-ecid-wtls3_PUB
 
 # ECDH Alice with Bob peer
@@ -2899,6 +2987,7 @@ PublicKey=ALICE_cf_wap-wsg-idm-ecid-wtls4_PUB
 MDQwEAYHKoZIzj0CAQYFZysBBAQDIAAEAW3K4Mus5+KAJVGLzEYrAYuCJSEYXFTo17aW0TwN
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_wap-wsg-idm-ecid-wtls4:ALICE_cf_wap-wsg-idm-ecid-wtls4_PUB
 
 PrivateKey=BOB_cf_wap-wsg-idm-ecid-wtls4
@@ -2911,6 +3000,7 @@ PublicKey=BOB_cf_wap-wsg-idm-ecid-wtls4_PUB
 MDQwEAYHKoZIzj0CAQYFZysBBAQDIAAEAI0F7ixGqOhnYpsuR80nAdTdSXM+YbcUbLe/U/xG
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_wap-wsg-idm-ecid-wtls4:BOB_cf_wap-wsg-idm-ecid-wtls4_PUB
 
 # ECDH Alice with Bob peer
@@ -2973,6 +3063,7 @@ MEAwEAYHKoZIzj0CAQYFZysBBAUDLAAEAH5xyUrvbuN+tWmRhwqrQfFHPHNUBKtAGvJuvSFVwTKk
 uFzn9fPvIDe6
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_wap-wsg-idm-ecid-wtls5:ALICE_cf_wap-wsg-idm-ecid-wtls5_PUB
 
 PrivateKey=BOB_cf_wap-wsg-idm-ecid-wtls5
@@ -2986,6 +3077,7 @@ MEAwEAYHKoZIzj0CAQYFZysBBAUDLAAEBdXxEk0L2XAVzRNLPcnMxGXXyDfZAoA1Qw2XpOfVWIVR
 jdoMGRgUuJmO
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_wap-wsg-idm-ecid-wtls5:BOB_cf_wap-wsg-idm-ecid-wtls5_PUB
 
 # ECDH Alice with Bob peer
@@ -3048,6 +3140,7 @@ PublicKey=ALICE_cf_wap-wsg-idm-ecid-wtls6_PUB
 MDIwEAYHKoZIzj0CAQYFZysBBAYDHgAERPw/8Ip/RrXr0gMgLGRQeiQ4Qd6W+Li0ylGKzg==
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_wap-wsg-idm-ecid-wtls6:ALICE_cf_wap-wsg-idm-ecid-wtls6_PUB
 
 PrivateKey=BOB_cf_wap-wsg-idm-ecid-wtls6
@@ -3060,6 +3153,7 @@ PublicKey=BOB_cf_wap-wsg-idm-ecid-wtls6_PUB
 MDIwEAYHKoZIzj0CAQYFZysBBAYDHgAEhJXqpYGxE/l1X/LiBeyRbIcyzqPxUP5Tkv3U3w==
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_wap-wsg-idm-ecid-wtls6:BOB_cf_wap-wsg-idm-ecid-wtls6_PUB
 
 # ECDH Alice with Bob peer
@@ -3087,6 +3181,7 @@ MD4wEAYHKoZIzj0CAQYFZysBBAcDKgAEwQLnZ70n45RLqRtAGNzEa3Rl/9nwyjqYUtw2eeHhnNLT
 feGY4CNH0w==
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_wap-wsg-idm-ecid-wtls7:ALICE_cf_wap-wsg-idm-ecid-wtls7_PUB
 
 PrivateKey=BOB_cf_wap-wsg-idm-ecid-wtls7
@@ -3100,6 +3195,7 @@ MD4wEAYHKoZIzj0CAQYFZysBBAcDKgAEZGN44YbN5r3zcNtOHrvbQLt8/lE7BHp4D/9eKLmwFDn1
 QneRu3xwPA==
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_wap-wsg-idm-ecid-wtls7:BOB_cf_wap-wsg-idm-ecid-wtls7_PUB
 
 # ECDH Alice with Bob peer
@@ -3126,6 +3222,7 @@ PublicKey=ALICE_cf_wap-wsg-idm-ecid-wtls8_PUB
 MDIwEAYHKoZIzj0CAQYFZysBBAgDHgAEJD0h4HEfchwxqhp9eMHh9gczQKHX4MtWVoAxKQ==
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_wap-wsg-idm-ecid-wtls8:ALICE_cf_wap-wsg-idm-ecid-wtls8_PUB
 
 PrivateKey=BOB_cf_wap-wsg-idm-ecid-wtls8
@@ -3138,6 +3235,7 @@ PublicKey=BOB_cf_wap-wsg-idm-ecid-wtls8_PUB
 MDIwEAYHKoZIzj0CAQYFZysBBAgDHgAEZawmRmzr9P+jihImUi6ykOzaSH484JhMKNdrgw==
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_wap-wsg-idm-ecid-wtls8:BOB_cf_wap-wsg-idm-ecid-wtls8_PUB
 
 # ECDH Alice with Bob peer
@@ -3165,6 +3263,7 @@ MD4wEAYHKoZIzj0CAQYFZysBBAkDKgAET0ppOvd9DU4v+tkKDQ5wRBrN1FwD9+F9t5l3Im+mz3rw
 DB/RYdZuUg==
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=ALICE_cf_wap-wsg-idm-ecid-wtls9:ALICE_cf_wap-wsg-idm-ecid-wtls9_PUB
 
 PrivateKey=BOB_cf_wap-wsg-idm-ecid-wtls9
@@ -3178,6 +3277,7 @@ MD4wEAYHKoZIzj0CAQYFZysBBAkDKgAEWc37LGt6lt90iF4lhtDYNFdjAqoczebuNgzGff/Uq8ov
 a3EVJ9yK1A==
 -----END PUBLIC KEY-----
 
+Availablein = default
 PrivPubKeyPair=BOB_cf_wap-wsg-idm-ecid-wtls9:BOB_cf_wap-wsg-idm-ecid-wtls9_PUB
 
 # ECDH Alice with Bob peer

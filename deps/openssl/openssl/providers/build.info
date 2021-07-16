@@ -114,17 +114,10 @@ IF[{- !$disabled{fips} -}]
     GENERATE[fips.ld]=../util/providers.num
   ENDIF
 
-  # For tests that try to use the FIPS module, we need to make a local fips
-  # module installation.  We have the output go to standard output, because
-  # the generated commands in build templates are expected to catch that,
-  # and thereby keep control over the exact output file location.
-  IF[{- !$disabled{tests} -}]
-    DEPEND[|run_tests|]=fipsmodule.cnf
-    GENERATE[fipsmodule.cnf]=../apps/openssl fipsinstall \
-          -module providers/$(FIPSMODULENAME) -provider_name fips \
-          -mac_name HMAC -section_name fips_sect
-    DEPEND[fipsmodule.cnf]=$FIPSGOAL
-  ENDIF
+  DEPEND[|build_modules_nodep|]=fipsmodule.cnf
+  GENERATE[fipsmodule.cnf]=../util/mk-fipsmodule-cnf.pl \
+          -module $(FIPSMODULE) -section_name fips_sect -key $(FIPSKEY)
+  DEPEND[fipsmodule.cnf]=$FIPSGOAL
 ENDIF
 
 #
@@ -169,5 +162,3 @@ ENDIF
 # include all the object files that are needed.
 $NULLGOAL=../libcrypto
 SOURCE[$NULLGOAL]=nullprov.c prov_running.c
-
-SOURCE[$LIBDEFAULT]=prov_running.c

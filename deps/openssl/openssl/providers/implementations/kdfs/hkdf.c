@@ -116,7 +116,7 @@ static size_t kdf_hkdf_size(KDF_HKDF *ctx)
         ERR_raise(ERR_LIB_PROV, PROV_R_MISSING_MESSAGE_DIGEST);
         return 0;
     }
-    sz = EVP_MD_size(md);
+    sz = EVP_MD_get_size(md);
     if (sz < 0)
         return 0;
 
@@ -326,7 +326,7 @@ static int HKDF(OSSL_LIB_CTX *libctx, const EVP_MD *evp_md,
     int ret, sz;
     size_t prk_len;
 
-    sz = EVP_MD_size(evp_md);
+    sz = EVP_MD_get_size(evp_md);
     if (sz < 0)
         return 0;
     prk_len = (size_t)sz;
@@ -372,7 +372,7 @@ static int HKDF_Extract(OSSL_LIB_CTX *libctx, const EVP_MD *evp_md,
                         const unsigned char *ikm, size_t ikm_len,
                         unsigned char *prk, size_t prk_len)
 {
-    int sz = EVP_MD_size(evp_md);
+    int sz = EVP_MD_get_size(evp_md);
 
     if (sz < 0)
         return 0;
@@ -382,8 +382,8 @@ static int HKDF_Extract(OSSL_LIB_CTX *libctx, const EVP_MD *evp_md,
     }
     /* calc: PRK = HMAC-Hash(salt, IKM) */
     return
-        EVP_Q_mac(libctx, "HMAC", NULL, EVP_MD_name(evp_md), NULL, salt,
-                  salt_len, ikm, ikm_len, prk, EVP_MD_size(evp_md), NULL)
+        EVP_Q_mac(libctx, "HMAC", NULL, EVP_MD_get0_name(evp_md), NULL, salt,
+                  salt_len, ikm, ikm_len, prk, EVP_MD_get_size(evp_md), NULL)
         != NULL;
 }
 
@@ -437,7 +437,7 @@ static int HKDF_Expand(const EVP_MD *evp_md,
     unsigned char prev[EVP_MAX_MD_SIZE];
     size_t done_len = 0, dig_len, n;
 
-    sz = EVP_MD_size(evp_md);
+    sz = EVP_MD_get_size(evp_md);
     if (sz <= 0)
         return 0;
     dig_len = (size_t)sz;

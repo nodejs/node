@@ -24,8 +24,8 @@ SSL_CONF_cmd_value_type() returns the type of value that B<option> refers to.
 =head1 SUPPORTED COMMAND LINE COMMANDS
 
 Currently supported B<option> names for command lines (i.e. when the
-flag B<SSL_CONF_CMDLINE> is set) are listed below. Note: all B<option> names
-are case sensitive. Unless otherwise stated commands can be used by
+flag B<SSL_CONF_FLAG_CMDLINE> is set) are listed below. Note: all B<option>
+names are case sensitive. Unless otherwise stated commands can be used by
 both clients and servers and the B<value> parameter is not used. The default
 prefix for command line commands is B<-> and that is reflected below.
 
@@ -82,12 +82,6 @@ Sets B<SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION>. Only used by servers.
 
 Permits or prohibits the use of unsafe legacy renegotiation for OpenSSL
 clients only. Equivalent to setting or clearing B<SSL_OP_LEGACY_SERVER_CONNECT>.
-
-=item B<-immediate_renegotiation>
-
-Try to do a renegotiation immediately after the handshake.
-This is for debugging and has no option equivalent.
-Ignored by the B<openssl s_client> command.
 
 =item B<-prioritize_chacha>
 

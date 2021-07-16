@@ -470,14 +470,22 @@ static const char _asn1_mon[12][4] = {
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
 };
 
-/* returns 1 on success, 0 on BIO write error or parse failure */
+/* prints the time with the default date format (RFC 822) */
 int ASN1_TIME_print(BIO *bp, const ASN1_TIME *tm)
 {
-    return ossl_asn1_time_print_ex(bp, tm) > 0;
+    return ASN1_TIME_print_ex(bp, tm, ASN1_DTFLGS_RFC822);
 }
 
+/* returns 1 on success, 0 on BIO write error or parse failure */
+int ASN1_TIME_print_ex(BIO *bp, const ASN1_TIME *tm, unsigned long flags)
+{
+    return ossl_asn1_time_print_ex(bp, tm, flags) > 0;
+}
+
+
+/* prints the time with the date format of ISO 8601 */
 /* returns 0 on BIO write error, else -1 in case of parse failure, else 1 */
-int ossl_asn1_time_print_ex(BIO *bp, const ASN1_TIME *tm)
+int ossl_asn1_time_print_ex(BIO *bp, const ASN1_TIME *tm, unsigned long flags)
 {
     char *v;
     int gmt = 0, l;
@@ -508,15 +516,33 @@ int ossl_asn1_time_print_ex(BIO *bp, const ASN1_TIME *tm)
                 ++f_len;
         }
 
-        return BIO_printf(bp, "%s %2d %02d:%02d:%02d%.*s %d%s",
+        if ((flags & ASN1_DTFLGS_TYPE_MASK) == ASN1_DTFLGS_ISO8601) {
+            return BIO_printf(bp, "%4d-%02d-%02d %02d:%02d:%02d%.*s%s",
+                          stm.tm_year + 1900, stm.tm_mon + 1,
+                          stm.tm_mday, stm.tm_hour,
+                          stm.tm_min, stm.tm_sec, f_len, f,
+                          (gmt ? "Z" : "")) > 0;
+        }
+        else {
+            return BIO_printf(bp, "%s %2d %02d:%02d:%02d%.*s %d%s",
                           _asn1_mon[stm.tm_mon], stm.tm_mday, stm.tm_hour,
                           stm.tm_min, stm.tm_sec, f_len, f, stm.tm_year + 1900,
                           (gmt ? " GMT" : "")) > 0;
+        }
     } else {
-        return BIO_printf(bp, "%s %2d %02d:%02d:%02d %d%s",
+        if ((flags & ASN1_DTFLGS_TYPE_MASK) == ASN1_DTFLGS_ISO8601) {
+            return BIO_printf(bp, "%4d-%02d-%02d %02d:%02d:%02d%s",
+                          stm.tm_year + 1900, stm.tm_mon + 1,
+                          stm.tm_mday, stm.tm_hour,
+                          stm.tm_min, stm.tm_sec,
+                          (gmt ? "Z" : "")) > 0;
+        }
+        else {
+            return BIO_printf(bp, "%s %2d %02d:%02d:%02d %d%s",
                           _asn1_mon[stm.tm_mon], stm.tm_mday, stm.tm_hour,
                           stm.tm_min, stm.tm_sec, stm.tm_year + 1900,
                           (gmt ? " GMT" : "")) > 0;
+        }
     }
 }
 

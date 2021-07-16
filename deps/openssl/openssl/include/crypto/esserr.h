@@ -19,7 +19,7 @@
 extern "C" {
 # endif
 
-int err_load_ESS_strings_int(void);
+int ossl_err_load_ESS_strings(void);
 
 # ifdef  __cplusplus
 }

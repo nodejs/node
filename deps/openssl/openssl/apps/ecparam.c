@@ -100,7 +100,7 @@ int ecparam_main(int argc, char **argv)
     OSSL_ENCODER_CTX *ectx_key = NULL, *ectx_params = NULL;
     OSSL_DECODER_CTX *dctx_params = NULL;
     ENGINE *e = NULL;
-    BIO *in = NULL, *out = NULL;
+    BIO *out = NULL;
     char *curve_name = NULL;
     char *asn1_encoding = NULL;
     char *point_format = NULL;
@@ -195,9 +195,6 @@ int ecparam_main(int argc, char **argv)
 
     private = genkey ? 1 : 0;
 
-    in = bio_open_default(infile, 'r', informat);
-    if (in == NULL)
-        goto end;
     out = bio_open_owner(outfile, outformat, private);
     if (out == NULL)
         goto end;
@@ -231,7 +228,11 @@ int ecparam_main(int argc, char **argv)
                        OSSL_PKEY_PARAM_EC_POINT_CONVERSION_FORMAT,
                        point_format, 0);
         *p = OSSL_PARAM_construct_end();
-        gctx_params = EVP_PKEY_CTX_new_from_name(NULL, "ec", NULL);
+
+        if (strcasecmp(curve_name, "SM2") == 0)
+            gctx_params = EVP_PKEY_CTX_new_from_name(NULL, "sm2", NULL);
+        else
+            gctx_params = EVP_PKEY_CTX_new_from_name(NULL, "ec", NULL);
         if (gctx_params == NULL
             || EVP_PKEY_keygen_init(gctx_params) <= 0
             || EVP_PKEY_CTX_set_params(gctx_params, params) <= 0
@@ -342,7 +343,6 @@ end:
     OSSL_DECODER_CTX_free(dctx_params);
     OSSL_ENCODER_CTX_free(ectx_params);
     OSSL_ENCODER_CTX_free(ectx_key);
-    BIO_free(in);
     BIO_free_all(out);
     return ret;
 }

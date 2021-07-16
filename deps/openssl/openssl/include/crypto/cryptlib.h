@@ -21,7 +21,7 @@ int ossl_init_thread_start(const void *index, void *arg,
 int ossl_init_thread_deregister(void *index);
 int ossl_init_thread(void);
 void ossl_cleanup_thread(void);
-void ossl_ctx_thread_stop(void *arg);
+void ossl_ctx_thread_stop(OSSL_LIB_CTX *ctx);
 
 /*
  * OPENSSL_INIT flags. The primary list of these is in crypto.h. Flags below

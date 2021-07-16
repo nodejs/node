@@ -28,9 +28,9 @@
 #include <openssl/rand.h>
 #include <openssl/bn.h>
 #include <openssl/opensslconf.h>
-#include "openssl/core_names.h"
-#include "openssl/param_build.h"
-#include "openssl/evp.h"
+#include <openssl/core_names.h>
+#include <openssl/param_build.h>
+#include <openssl/evp.h>
 
 static size_t crv_len = 0;
 static EC_builtin_curve *curves = NULL;

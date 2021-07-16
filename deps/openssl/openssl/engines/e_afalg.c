@@ -544,7 +544,7 @@ static int afalg_cipher_init(EVP_CIPHER_CTX *ctx, const unsigned char *key,
                              const unsigned char *iv, int enc)
 {
     int ciphertype;
-    int ret;
+    int ret, len;
     afalg_ctx *actx;
     const char *ciphername;
 
@@ -564,7 +564,7 @@ static int afalg_cipher_init(EVP_CIPHER_CTX *ctx, const unsigned char *key,
         return 0;
     }
 
-    ciphertype = EVP_CIPHER_CTX_nid(ctx);
+    ciphertype = EVP_CIPHER_CTX_get_nid(ctx);
     switch (ciphertype) {
     case NID_aes_128_cbc:
     case NID_aes_192_cbc:
@@ -577,9 +577,9 @@ static int afalg_cipher_init(EVP_CIPHER_CTX *ctx, const unsigned char *key,
         return 0;
     }
 
-    if (ALG_AES_IV_LEN != EVP_CIPHER_CTX_iv_length(ctx)) {
+    if (ALG_AES_IV_LEN != EVP_CIPHER_CTX_get_iv_length(ctx)) {
         ALG_WARN("%s(%d): Unsupported IV length :%d\n", __FILE__, __LINE__,
-                 EVP_CIPHER_CTX_iv_length(ctx));
+                 EVP_CIPHER_CTX_get_iv_length(ctx));
         return 0;
     }
 
@@ -588,8 +588,9 @@ static int afalg_cipher_init(EVP_CIPHER_CTX *ctx, const unsigned char *key,
     if (ret < 1)
         return 0;
 
-
-    ret = afalg_set_key(actx, key, EVP_CIPHER_CTX_key_length(ctx));
+    if ((len = EVP_CIPHER_CTX_get_key_length(ctx)) <= 0)
+        goto err;
+    ret = afalg_set_key(actx, key, len);
     if (ret < 1)
         goto err;
 
@@ -635,14 +636,14 @@ static int afalg_do_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
      * set iv now for decrypt operation as the input buffer can be
      * overwritten for inplace operation where in = out.
      */
-    if (EVP_CIPHER_CTX_encrypting(ctx) == 0) {
+    if (EVP_CIPHER_CTX_is_encrypting(ctx) == 0) {
         memcpy(nxtiv, in + (inl - ALG_AES_IV_LEN), ALG_AES_IV_LEN);
     }
 
     /* Send input data to kernel space */
     ret = afalg_start_cipher_sk(actx, (unsigned char *)in, inl,
                                 EVP_CIPHER_CTX_iv(ctx),
-                                EVP_CIPHER_CTX_encrypting(ctx));
+                                EVP_CIPHER_CTX_is_encrypting(ctx));
     if (ret < 1) {
         return 0;
     }
@@ -652,7 +653,7 @@ static int afalg_do_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
     if (ret < 1)
         return 0;
 
-    if (EVP_CIPHER_CTX_encrypting(ctx)) {
+    if (EVP_CIPHER_CTX_is_encrypting(ctx)) {
         memcpy(EVP_CIPHER_CTX_iv_noconst(ctx), out + (inl - ALG_AES_IV_LEN),
                ALG_AES_IV_LEN);
     } else {

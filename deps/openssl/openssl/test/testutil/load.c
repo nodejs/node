@@ -81,14 +81,17 @@ EVP_PKEY *load_pkey_pem(const char *file, OSSL_LIB_CTX *libctx)
     return key;
 }
 
-X509_REQ *load_csr_der(const char *file)
+X509_REQ *load_csr_der(const char *file, OSSL_LIB_CTX *libctx)
 {
     X509_REQ *csr = NULL;
     BIO *bio = NULL;
 
     if (!TEST_ptr(file) || !TEST_ptr(bio = BIO_new_file(file, "rb")))
         return NULL;
-    (void)TEST_ptr(csr = d2i_X509_REQ_bio(bio, NULL));
+
+    csr = X509_REQ_new_ex(libctx, NULL);
+    if (TEST_ptr(csr))
+        (void)TEST_ptr(d2i_X509_REQ_bio(bio, &csr));
     BIO_free(bio);
     return csr;
 }

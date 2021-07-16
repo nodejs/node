@@ -36,9 +36,10 @@ typedef int (PROV_CIPHER_HW_FN)(PROV_CIPHER_CTX *dat, unsigned char *out,
 #define PROV_CIPHER_FLAG_CUSTOM_IV        0x0002
 #define PROV_CIPHER_FLAG_CTS              0x0004
 #define PROV_CIPHER_FLAG_TLS1_MULTIBLOCK  0x0008
+#define PROV_CIPHER_FLAG_RAND_KEY         0x0010
 /* Internal flags that are only used within the provider */
-#define PROV_CIPHER_FLAG_VARIABLE_LENGTH  0x0010
-#define PROV_CIPHER_FLAG_INVERSE_CIPHER   0x0020
+#define PROV_CIPHER_FLAG_VARIABLE_LENGTH  0x0100
+#define PROV_CIPHER_FLAG_INVERSE_CIPHER   0x0200
 
 struct prov_cipher_ctx_st {
     block128_f block;

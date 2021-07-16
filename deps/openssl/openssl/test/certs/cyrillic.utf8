@@ -10,7 +10,7 @@ Certificate:
         Subject: C=RU, ST=Москва, L=Москва, O=Дмитрий Белявский, OU=Я, CN=Dmitry Belyavskiy, emailAddress=beldmit@example.com
         Subject Public Key Info:
             Public Key Algorithm: rsaEncryption
-                RSA Public-Key: (2048 bit)
+                Public-Key: (2048 bit)
                 Modulus:
                     00:a4:57:96:36:55:6d:95:21:25:17:f8:85:87:53:
                     ba:bc:d5:9a:d6:dc:21:66:72:30:36:ca:94:43:3c:

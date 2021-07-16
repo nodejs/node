@@ -447,7 +447,7 @@ static int ts_compute_imprint(BIO *data, TS_TST_INFO *tst_info,
     }
     (void)ERR_pop_to_mark();
 
-    length = EVP_MD_size(md);
+    length = EVP_MD_get_size(md);
     if (length < 0)
         goto err;
     *imprint_len = length;

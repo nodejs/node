@@ -49,9 +49,16 @@ int SMIME_write_PKCS7(BIO *bio, PKCS7 *p7, BIO *data, int flags)
 PKCS7 *SMIME_read_PKCS7_ex(BIO *bio, BIO **bcont, PKCS7 **p7)
 {
     PKCS7 *ret;
+    OSSL_LIB_CTX *libctx = NULL;
+    const char *propq = NULL;
+
+    if (p7 != NULL && *p7 != NULL) {
+        libctx = (*p7)->ctx.libctx;
+        propq = (*p7)->ctx.propq;
+    }
 
     ret = (PKCS7 *)SMIME_read_ASN1_ex(bio, 0, bcont, ASN1_ITEM_rptr(PKCS7),
-                                      (ASN1_VALUE **)p7);
+                                      (ASN1_VALUE **)p7, libctx, propq);
     if (ret != NULL)
         ossl_pkcs7_resolve_libctx(ret);
     return ret;

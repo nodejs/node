@@ -3,9 +3,9 @@
 =head1 NAME
 
 EVP_ASYM_CIPHER_fetch, EVP_ASYM_CIPHER_free, EVP_ASYM_CIPHER_up_ref,
-EVP_ASYM_CIPHER_number, EVP_ASYM_CIPHER_is_a, EVP_ASYM_CIPHER_provider,
+EVP_ASYM_CIPHER_is_a, EVP_ASYM_CIPHER_get0_provider,
 EVP_ASYM_CIPHER_do_all_provided, EVP_ASYM_CIPHER_names_do_all,
-EVP_ASYM_CIPHER_name, EVP_ASYM_CIPHER_description,
+EVP_ASYM_CIPHER_get0_name, EVP_ASYM_CIPHER_get0_description,
 EVP_ASYM_CIPHER_gettable_ctx_params, EVP_ASYM_CIPHER_settable_ctx_params
 - Functions to manage EVP_ASYM_CIPHER algorithm objects
 
@@ -17,10 +17,9 @@ EVP_ASYM_CIPHER_gettable_ctx_params, EVP_ASYM_CIPHER_settable_ctx_params
                                         const char *properties);
  void EVP_ASYM_CIPHER_free(EVP_ASYM_CIPHER *cipher);
  int EVP_ASYM_CIPHER_up_ref(EVP_ASYM_CIPHER *cipher);
- int EVP_ASYM_CIPHER_number(const EVP_ASYM_CIPHER *cipher);
- const char *EVP_ASYM_CIPHER_name(const EVP_ASYM_CIPHER *cipher);
+ const char *EVP_ASYM_CIPHER_get0_name(const EVP_ASYM_CIPHER *cipher);
  int EVP_ASYM_CIPHER_is_a(const EVP_ASYM_CIPHER *cipher, const char *name);
- OSSL_PROVIDER *EVP_ASYM_CIPHER_provider(const EVP_ASYM_CIPHER *cipher);
+ OSSL_PROVIDER *EVP_ASYM_CIPHER_get0_provider(const EVP_ASYM_CIPHER *cipher);
  void EVP_ASYM_CIPHER_do_all_provided(OSSL_LIB_CTX *libctx,
                                       void (*fn)(EVP_ASYM_CIPHER *cipher,
                                                  void *arg),
@@ -28,7 +27,7 @@ EVP_ASYM_CIPHER_gettable_ctx_params, EVP_ASYM_CIPHER_settable_ctx_params
  int EVP_ASYM_CIPHER_names_do_all(const EVP_ASYM_CIPHER *cipher,
                                   void (*fn)(const char *name, void *data),
                                   void *data);
- const char *EVP_ASYM_CIPHER_description(const EVP_ASYM_CIPHER *cipher);
+ const char *EVP_ASYM_CIPHER_get0_description(const EVP_ASYM_CIPHER *cipher);
  const OSSL_PARAM *EVP_ASYM_CIPHER_gettable_ctx_params(const EVP_ASYM_CIPHER *cip);
  const OSSL_PARAM *EVP_ASYM_CIPHER_settable_ctx_params(const EVP_ASYM_CIPHER *cip);
 
@@ -54,17 +53,15 @@ B<EVP_ASYM_CIPHER> structure.
 EVP_ASYM_CIPHER_is_a() returns 1 if I<cipher> is an implementation of an
 algorithm that's identifiable with I<name>, otherwise 0.
 
-EVP_ASYM_CIPHER_provider() returns the provider that I<cipher> was fetched from.
+EVP_ASYM_CIPHER_get0_provider() returns the provider that I<cipher> was
+fetched from.
 
 EVP_ASYM_CIPHER_do_all_provided() traverses all EVP_ASYM_CIPHERs implemented by
 all activated providers in the given library context I<libctx>, and for each of
 the implementations, calls the given function I<fn> with the implementation
 method and the given I<arg> as argument.
 
-EVP_ASYM_CIPHER_number() returns the internal dynamic number assigned to
-I<cipher>.
-
-EVP_ASYM_CIPHER_name() returns the algorithm name from the provided
+EVP_ASYM_CIPHER_get0_name() returns the algorithm name from the provided
 implementation for the given I<cipher>. Note that the I<cipher> may have
 multiple synonyms associated with it. In this case the first name from the
 algorithm definition is returned. Ownership of the returned string is retained
@@ -73,9 +70,9 @@ by the I<cipher> object and should not be freed by the caller.
 EVP_ASYM_CIPHER_names_do_all() traverses all names for I<cipher>, and calls
 I<fn> with each name and I<data>.
 
-EVP_ASYM_CIPHER_description() returns a description of the I<cipher>, meant
-for display and human consumption.  The description is at the discretion of
-the I<cipher> implementation.
+EVP_ASYM_CIPHER_get0_description() returns a description of the I<cipher>,
+meant for display and human consumption.  The description is at the
+discretion of the I<cipher> implementation.
 
 EVP_ASYM_CIPHER_gettable_ctx_params() and EVP_ASYM_CIPHER_settable_ctx_params()
 return a constant B<OSSL_PARAM> array that describes the names and types of key

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -347,7 +347,7 @@ static int test_tls13_encryption(void)
 
     for (ctr = 0; ctr < OSSL_NELEM(refdata); ctr++) {
         /* Load the record */
-        ivlen = EVP_CIPHER_iv_length(ciph);
+        ivlen = EVP_CIPHER_get_iv_length(ciph);
         if (!load_record(&rec, &refdata[ctr], &key, s->read_iv, ivlen,
                          RECORD_LAYER_get_read_sequence(&s->rlayer))) {
             TEST_error("Failed loading key into EVP_CIPHER_CTX");

@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -437,7 +437,6 @@ static int dlfcn_pathbyaddr(void *addr, char *path, int sz)
         return len;
     }
 
-    /* TODO: what error report does this attach to? */
     ERR_add_error_data(2, "dlfcn_pathbyaddr(): ", dlerror());
 # endif
     return -1;

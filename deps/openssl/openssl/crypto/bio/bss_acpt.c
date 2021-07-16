@@ -1,11 +1,13 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+#define OPENSSL_SUPPRESS_DEPRECATED
 
 #include <stdio.h>
 #include <errno.h>
@@ -54,10 +56,8 @@ static void BIO_ACCEPT_free(BIO_ACCEPT *a);
 static const BIO_METHOD methods_acceptp = {
     BIO_TYPE_ACCEPT,
     "socket accept",
-    /* TODO: Convert to new style write function */
     bwrite_conv,
     acpt_write,
-    /* TODO: Convert to new style read function */
     bread_conv,
     acpt_read,
     acpt_puts,
@@ -214,18 +214,24 @@ static int acpt_state(BIO *b, BIO_ACCEPT *c)
                 ERR_raise(ERR_LIB_BIO, BIO_R_LOOKUP_RETURNED_NOTHING);
                 goto exit_loop;
             }
-            /* We're currently not iterating, but set this as preparation
-             * for possible future development in that regard
-             */
             c->addr_iter = c->addr_first;
             c->state = ACPT_S_CREATE_SOCKET;
             break;
 
         case ACPT_S_CREATE_SOCKET:
+            ERR_set_mark();
             s = BIO_socket(BIO_ADDRINFO_family(c->addr_iter),
                            BIO_ADDRINFO_socktype(c->addr_iter),
                            BIO_ADDRINFO_protocol(c->addr_iter), 0);
             if (s == (int)INVALID_SOCKET) {
+                if ((c->addr_iter = BIO_ADDRINFO_next(c->addr_iter)) != NULL) {
+                    /*
+                     * if there are more addresses to try, do that first
+                     */
+                    ERR_pop_to_mark();
+                    break;
+                }
+                ERR_clear_last_mark();
                 ERR_raise_data(ERR_LIB_SYS, get_last_socket_error(),
                                "calling socket(%s, %s)",
                                 c->param_addr, c->param_serv);
@@ -305,9 +311,11 @@ static int acpt_state(BIO *b, BIO_ACCEPT *c)
             if (bio == NULL)
                 goto exit_loop;
 
+            BIO_set_callback_ex(bio, BIO_get_callback_ex(b));
+#ifndef OPENSSL_NO_DEPRECATED_3_0
             BIO_set_callback(bio, BIO_get_callback(b));
+#endif
             BIO_set_callback_arg(bio, BIO_get_callback_arg(b));
-
             /*
              * If the accept BIO has an bio_chain, we dup it and put the new
              * socket at the end.

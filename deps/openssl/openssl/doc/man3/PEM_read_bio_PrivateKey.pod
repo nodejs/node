@@ -420,8 +420,8 @@ The pseudo code to derive the key would look similar to:
  EVP_CIPHER* cipher = EVP_des_ede3_cbc();
  EVP_MD* md = EVP_md5();
 
- unsigned int nkey = EVP_CIPHER_key_length(cipher);
- unsigned int niv = EVP_CIPHER_iv_length(cipher);
+ unsigned int nkey = EVP_CIPHER_get_key_length(cipher);
+ unsigned int niv = EVP_CIPHER_get_iv_length(cipher);
  unsigned char key[nkey];
  unsigned char iv[niv];
 

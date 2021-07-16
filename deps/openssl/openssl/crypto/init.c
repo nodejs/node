@@ -174,8 +174,8 @@ DEFINE_RUN_ONCE_STATIC(ossl_init_load_crypto_strings)
      * pulling in all the error strings during static linking
      */
 #if !defined(OPENSSL_NO_ERR) && !defined(OPENSSL_NO_AUTOERRINIT)
-    OSSL_TRACE(INIT, "err_load_crypto_strings_int()\n");
-    ret = err_load_crypto_strings_int();
+    OSSL_TRACE(INIT, "ossl_err_load_crypto_strings()\n");
+    ret = ossl_err_load_crypto_strings();
     load_crypto_strings_inited = 1;
 #endif
     return ret;
@@ -454,6 +454,13 @@ int OPENSSL_init_crypto(uint64_t opts, const OPENSSL_INIT_SETTINGS *settings)
     uint64_t tmp;
     int aloaddone = 0;
 
+   /* Applications depend on 0 being returned when cleanup was already done */
+    if (stopped) {
+        if (!(opts & OPENSSL_INIT_BASE_ONLY))
+            ERR_raise(ERR_LIB_CRYPTO, ERR_R_INIT_FAIL);
+        return 0;
+    }
+
     /*
      * We ignore failures from this function. It is probably because we are
      * on a platform that doesn't support lockless atomic loads (we may not
@@ -476,15 +483,7 @@ int OPENSSL_init_crypto(uint64_t opts, const OPENSSL_INIT_SETTINGS *settings)
     /*
      * At some point we should look at this function with a view to moving
      * most/all of this into OSSL_LIB_CTX.
-     */
-
-    if (stopped) {
-        if (!(opts & OPENSSL_INIT_BASE_ONLY))
-            ERR_raise(ERR_LIB_CRYPTO, ERR_R_INIT_FAIL);
-        return 0;
-    }
-
-    /*
+     *
      * When the caller specifies OPENSSL_INIT_BASE_ONLY, that should be the
      * *only* option specified.  With that option we return immediately after
      * doing the requested limited initialization.  Note that

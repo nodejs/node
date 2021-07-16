@@ -16,7 +16,7 @@
 #define PROTOCOL        "tcp"
 
 typedef int (*do_server_cb)(int s, int stype, int prot, unsigned char *context);
-int report_server_accept(BIO *out, int asock, int with_address);
+int report_server_accept(BIO *out, int asock, int with_address, int with_pid);
 int do_server(int *accept_sock, const char *host, const char *port,
               int family, int type, int protocol, do_server_cb cb,
               unsigned char *context, int naccept, BIO *bio_s_out);
@@ -36,8 +36,8 @@ int init_client(int *sock, const char *host, const char *port,
 int should_retry(int i);
 void do_ssl_shutdown(SSL *ssl);
 
-long bio_dump_callback(BIO *bio, int cmd, const char *argp,
-                       int argi, long argl, long ret);
+long bio_dump_callback(BIO *bio, int cmd, const char *argp, size_t len,
+                       int argi, long argl, int ret, size_t *processed);
 
 void apps_ssl_info_callback(const SSL *s, int where, int ret);
 void msg_cb(int write_p, int version, int content_type, const void *buf,

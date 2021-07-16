@@ -40,8 +40,12 @@ EVP_PKEY *ossl_b2i_bio(BIO *in, int *ispub);
 # ifndef OPENSSL_NO_DEPRECATED_3_0
 #  ifndef OPENSSL_NO_DSA
 DSA *b2i_DSA_PVK_bio(BIO *in, pem_password_cb *cb, void *u);
+DSA *b2i_DSA_PVK_bio_ex(BIO *in, pem_password_cb *cb, void *u,
+                        OSSL_LIB_CTX *libctx, const char *propq);
 #  endif
 RSA *b2i_RSA_PVK_bio(BIO *in, pem_password_cb *cb, void *u);
+RSA *b2i_RSA_PVK_bio_ex(BIO *in, pem_password_cb *cb, void *u,
+                        OSSL_LIB_CTX *libctx, const char *propq);
 # endif
 
 #endif

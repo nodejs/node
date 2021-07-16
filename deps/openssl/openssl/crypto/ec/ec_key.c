@@ -298,7 +298,7 @@ static int ec_generate_key(EC_KEY *eckey, int pairwise_test)
     }
 
     do
-        if (!BN_priv_rand_range_ex(priv_key, order, ctx))
+        if (!BN_priv_rand_range_ex(priv_key, order, 0, ctx))
             goto err;
     while (BN_is_zero(priv_key)) ;
 

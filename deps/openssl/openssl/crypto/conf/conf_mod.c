@@ -15,12 +15,13 @@
 #include <ctype.h>
 #include <openssl/crypto.h>
 #include "internal/conf.h"
-#include "openssl/conf_api.h"
+#include <openssl/conf_api.h>
 #include "internal/dso.h"
 #include "internal/thread_once.h"
 #include <openssl/x509.h>
 #include <openssl/trace.h>
 #include <openssl/engine.h>
+#include "conf_local.h"
 
 DEFINE_STACK_OF(CONF_MODULE)
 DEFINE_STACK_OF(CONF_IMODULE)

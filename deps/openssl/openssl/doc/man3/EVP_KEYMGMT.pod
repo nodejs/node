@@ -6,11 +6,10 @@ EVP_KEYMGMT,
 EVP_KEYMGMT_fetch,
 EVP_KEYMGMT_up_ref,
 EVP_KEYMGMT_free,
-EVP_KEYMGMT_provider,
+EVP_KEYMGMT_get0_provider,
 EVP_KEYMGMT_is_a,
-EVP_KEYMGMT_number,
-EVP_KEYMGMT_description,
-EVP_KEYMGMT_name,
+EVP_KEYMGMT_get0_description,
+EVP_KEYMGMT_get0_name,
 EVP_KEYMGMT_do_all_provided,
 EVP_KEYMGMT_names_do_all,
 EVP_KEYMGMT_gettable_params,
@@ -28,11 +27,10 @@ EVP_KEYMGMT_gen_settable_params
                                 const char *properties);
  int EVP_KEYMGMT_up_ref(EVP_KEYMGMT *keymgmt);
  void EVP_KEYMGMT_free(EVP_KEYMGMT *keymgmt);
- const OSSL_PROVIDER *EVP_KEYMGMT_provider(const EVP_KEYMGMT *keymgmt);
+ const OSSL_PROVIDER *EVP_KEYMGMT_get0_provider(const EVP_KEYMGMT *keymgmt);
  int EVP_KEYMGMT_is_a(const EVP_KEYMGMT *keymgmt, const char *name);
- int EVP_KEYMGMT_number(const EVP_KEYMGMT *keymgmt);
- const char *EVP_KEYMGMT_name(const EVP_KEYMGMT *keymgmt);
- const char *EVP_KEYMGMT_description(const EVP_KEYMGMT *keymgmt);
+ const char *EVP_KEYMGMT_get0_name(const EVP_KEYMGMT *keymgmt);
+ const char *EVP_KEYMGMT_get0_description(const EVP_KEYMGMT *keymgmt);
 
  void EVP_KEYMGMT_do_all_provided(OSSL_LIB_CTX *libctx,
                                   void (*fn)(EVP_KEYMGMT *keymgmt, void *arg),
@@ -65,27 +63,24 @@ B<EVP_KEYMGMT> I<keymgmt>.
 EVP_KEYMGMT_free() decrements the reference count for the given
 B<EVP_KEYMGMT> I<keymgmt>, and when the count reaches zero, frees it.
 
-EVP_KEYMGMT_provider() returns the provider that has this particular
+EVP_KEYMGMT_get0_provider() returns the provider that has this particular
 implementation.
 
 EVP_KEYMGMT_is_a() checks if I<keymgmt> is an implementation of an
 algorithm that's identifiable with I<name>.
 
-EVP_KEYMGMT_number() returns the internal dynamic number assigned to
-the I<keymgmt>.
-
-EVP_KEYMGMT_name() returns the algorithm name from the provided implementation
-for the given I<keymgmt>. Note that the I<keymgmt> may have multiple synonyms
-associated with it. In this case the first name from the algorithm
-definition is returned. Ownership of the returned string is retained by the
-I<keymgmt> object and should not be freed by the caller.
+EVP_KEYMGMT_get0_name() returns the algorithm name from the provided
+implementation for the given I<keymgmt>. Note that the I<keymgmt> may have
+multiple synonyms associated with it. In this case the first name from the
+algorithm definition is returned. Ownership of the returned string is
+retained by the I<keymgmt> object and should not be freed by the caller.
 
 EVP_KEYMGMT_names_do_all() traverses all names for the I<keymgmt>, and
 calls I<fn> with each name and I<data>.
 
-EVP_KEYMGMT_description() returns a description of the I<keymgmt>, meant for
-display and human consumption.  The description is at the discretion of the
-I<keymgmt> implementation.
+EVP_KEYMGMT_get0_description() returns a description of the I<keymgmt>, meant
+for display and human consumption.  The description is at the discretion
+of the I<keymgmt> implementation.
 
 EVP_KEYMGMT_do_all_provided() traverses all key keymgmt implementations by
 all activated providers in the library context I<libctx>, and for each
@@ -121,17 +116,15 @@ names. A return value of 0 means that the callback was not called for any names.
 
 EVP_KEYMGMT_free() doesn't return any value.
 
-EVP_KEYMGMT_provider() returns a pointer to a provider object, or NULL
+EVP_KEYMGMT_get0_provider() returns a pointer to a provider object, or NULL
 on error.
 
 EVP_KEYMGMT_is_a() returns 1 of I<keymgmt> was identifiable,
 otherwise 0.
 
-EVP_KEYMGMT_number() returns an integer.
+EVP_KEYMGMT_get0_name() returns the algorithm name, or NULL on error.
 
-EVP_KEYMGMT_name() returns the algorithm name, or NULL on error.
-
-EVP_KEYMGMT_description() returns a pointer to a decription, or NULL if
+EVP_KEYMGMT_get0_description() returns a pointer to a decription, or NULL if
 there isn't one.
 
 EVP_KEYMGMT_gettable_params(), EVP_KEYMGMT_settable_params() and

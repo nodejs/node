@@ -61,7 +61,7 @@ To encode a pkey as PKCS#8 with PEM format into a bio:
 
  OSSL_ENCODER_CTX *ectx;
  const char *format = "PEM";
- const char *structure = "pkcs8"; /* PKCS#8 structure */
+ const char *structure = "PrivateKeyInfo"; /* PKCS#8 structure */
  const unsigned char *pass = "my password";
 
  ectx = OSSL_ENCODER_CTX_new_for_pkey(pkey,
@@ -86,7 +86,7 @@ AES-256-CBC into a buffer:
 
  OSSL_ENCODER_CTX *ectx;
  const char *format = "DER";
- const char *structure = "pkcs8"; /* PKCS#8 structure */
+ const char *structure = "PrivateKeyInfo"; /* PKCS#8 structure */
  const unsigned char *pass = "my password";
  unsigned char *data = NULL;
  size_t datalen;

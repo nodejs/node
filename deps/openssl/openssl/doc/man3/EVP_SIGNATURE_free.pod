@@ -3,9 +3,9 @@
 =head1 NAME
 
 EVP_SIGNATURE_fetch, EVP_SIGNATURE_free, EVP_SIGNATURE_up_ref,
-EVP_SIGNATURE_number, EVP_SIGNATURE_is_a, EVP_SIGNATURE_provider,
+EVP_SIGNATURE_is_a, EVP_SIGNATURE_get0_provider,
 EVP_SIGNATURE_do_all_provided, EVP_SIGNATURE_names_do_all,
-EVP_SIGNATURE_name, EVP_SIGNATURE_description,
+EVP_SIGNATURE_get0_name, EVP_SIGNATURE_get0_description,
 EVP_SIGNATURE_gettable_ctx_params, EVP_SIGNATURE_settable_ctx_params
 - Functions to manage EVP_SIGNATURE algorithm objects
 
@@ -17,10 +17,9 @@ EVP_SIGNATURE_gettable_ctx_params, EVP_SIGNATURE_settable_ctx_params
                                     const char *properties);
  void EVP_SIGNATURE_free(EVP_SIGNATURE *signature);
  int EVP_SIGNATURE_up_ref(EVP_SIGNATURE *signature);
- int EVP_SIGNATURE_number(const EVP_SIGNATURE *signature);
- const char *EVP_SIGNATURE_name(const EVP_SIGNATURE *signature);
+ const char *EVP_SIGNATURE_get0_name(const EVP_SIGNATURE *signature);
  int EVP_SIGNATURE_is_a(const EVP_SIGNATURE *signature, const char *name);
- OSSL_PROVIDER *EVP_SIGNATURE_provider(const EVP_SIGNATURE *signature);
+ OSSL_PROVIDER *EVP_SIGNATURE_get0_provider(const EVP_SIGNATURE *signature);
  void EVP_SIGNATURE_do_all_provided(OSSL_LIB_CTX *libctx,
                                     void (*fn)(EVP_SIGNATURE *signature,
                                                void *arg),
@@ -28,8 +27,8 @@ EVP_SIGNATURE_gettable_ctx_params, EVP_SIGNATURE_settable_ctx_params
  int EVP_SIGNATURE_names_do_all(const EVP_SIGNATURE *signature,
                                 void (*fn)(const char *name, void *data),
                                 void *data);
- const char *EVP_SIGNATURE_name(const EVP_SIGNATURE *signature);
- const char *EVP_SIGNATURE_description(const EVP_SIGNATURE *signature);
+ const char *EVP_SIGNATURE_get0_name(const EVP_SIGNATURE *signature);
+ const char *EVP_SIGNATURE_get0_description(const EVP_SIGNATURE *signature);
  const OSSL_PARAM *EVP_SIGNATURE_gettable_ctx_params(const EVP_SIGNATURE *sig);
  const OSSL_PARAM *EVP_SIGNATURE_settable_ctx_params(const EVP_SIGNATURE *sig);
 
@@ -55,17 +54,15 @@ structure.
 EVP_SIGNATURE_is_a() returns 1 if I<signature> is an implementation of an
 algorithm that's identifiable with I<name>, otherwise 0.
 
-EVP_SIGNATURE_provider() returns the provider that I<signature> was fetched from.
+EVP_SIGNATURE_get0_provider() returns the provider that I<signature> was
+fetched from.
 
 EVP_SIGNATURE_do_all_provided() traverses all SIGNATURE implemented by all
 activated roviders in the given library context I<libctx>, and for each of the
 implementations, calls the given function I<fn> with the implementation method
 and the given I<arg> as argument.
 
-EVP_SIGNATURE_number() returns the internal dynamic number assigned to
-I<signature>.
-
-EVP_SIGNATURE_name() returns the algorithm name from the provided
+EVP_SIGNATURE_get0_name() returns the algorithm name from the provided
 implementation for the given I<signature>. Note that the I<signature> may have
 multiple synonyms associated with it. In this case the first name from the
 algorithm definition is returned. Ownership of the returned string is retained
@@ -74,9 +71,9 @@ by the I<signature> object and should not be freed by the caller.
 EVP_SIGNATURE_names_do_all() traverses all names for I<signature>, and calls
 I<fn> with each name and I<data>.
 
-EVP_SIGNATURE_description() returns a description of the I<signature>, meant
-for display and human consumption.  The description is at the discretion of
-the I<signature> implementation.
+EVP_SIGNATURE_get0_description() returns a description of the I<signature>,
+meant for display and human consumption.  The description is at the
+discretion of the I<signature> implementation.
 
 EVP_SIGNATURE_gettable_ctx_params() and EVP_SIGNATURE_settable_ctx_params()
 return a constant B<OSSL_PARAM> array that describes the names and types of key

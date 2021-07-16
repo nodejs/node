@@ -176,14 +176,14 @@ static int test_print_key_type_using_encoder(const char *alg, int type,
 
     case PRIV_PEM:
         output_type = "PEM";
-        output_structure = "pkcs8";
+        output_structure = "PrivateKeyInfo";
         selection = OSSL_KEYMGMT_SELECT_KEYPAIR
             | OSSL_KEYMGMT_SELECT_DOMAIN_PARAMETERS;
         break;
 
     case PRIV_DER:
         output_type = "DER";
-        output_structure = "pkcs8";
+        output_structure = "PrivateKeyInfo";
         selection = OSSL_KEYMGMT_SELECT_KEYPAIR
             | OSSL_KEYMGMT_SELECT_DOMAIN_PARAMETERS;
         break;
@@ -346,9 +346,9 @@ static int test_fromdata_rsa(void)
 
     while (dup_pk == NULL) {
         ret = 0;
-        if (!TEST_int_eq(EVP_PKEY_bits(pk), 32)
-            || !TEST_int_eq(EVP_PKEY_security_bits(pk), 8)
-            || !TEST_int_eq(EVP_PKEY_size(pk), 4)
+        if (!TEST_int_eq(EVP_PKEY_get_bits(pk), 32)
+            || !TEST_int_eq(EVP_PKEY_get_security_bits(pk), 8)
+            || !TEST_int_eq(EVP_PKEY_get_size(pk), 4)
             || !TEST_false(EVP_PKEY_missing_parameters(pk)))
             goto err;
 
@@ -528,9 +528,9 @@ static int test_fromdata_dh_named_group(void)
 
     while (dup_pk == NULL) {
         ret = 0;
-        if (!TEST_int_eq(EVP_PKEY_bits(pk), 2048)
-            || !TEST_int_eq(EVP_PKEY_security_bits(pk), 112)
-            || !TEST_int_eq(EVP_PKEY_size(pk), 256)
+        if (!TEST_int_eq(EVP_PKEY_get_bits(pk), 2048)
+            || !TEST_int_eq(EVP_PKEY_get_security_bits(pk), 112)
+            || !TEST_int_eq(EVP_PKEY_get_size(pk), 256)
             || !TEST_false(EVP_PKEY_missing_parameters(pk)))
             goto err;
 
@@ -709,9 +709,9 @@ static int test_fromdata_dh_fips186_4(void)
 
     while (dup_pk == NULL) {
         ret = 0;
-        if (!TEST_int_eq(EVP_PKEY_bits(pk), 2048)
-            || !TEST_int_eq(EVP_PKEY_security_bits(pk), 112)
-            || !TEST_int_eq(EVP_PKEY_size(pk), 256)
+        if (!TEST_int_eq(EVP_PKEY_get_bits(pk), 2048)
+            || !TEST_int_eq(EVP_PKEY_get_security_bits(pk), 112)
+            || !TEST_int_eq(EVP_PKEY_get_size(pk), 256)
             || !TEST_false(EVP_PKEY_missing_parameters(pk)))
             goto err;
 
@@ -979,7 +979,7 @@ static int test_fromdata_ecx(int tst)
         fromdata_params = ed25519_fromdata_params;
         bits = ED25519_BITS;
         security_bits = ED25519_SECURITY_BITS;
-        size = ED25519_KEYLEN;
+        size = ED25519_SIGSIZE;
         alg = "ED25519";
         break;
 
@@ -987,7 +987,7 @@ static int test_fromdata_ecx(int tst)
         fromdata_params = ed448_fromdata_params;
         bits = ED448_BITS;
         security_bits = ED448_SECURITY_BITS;
-        size = ED448_KEYLEN;
+        size = ED448_SIGSIZE;
         alg = "ED448";
         break;
     default:
@@ -1016,9 +1016,9 @@ static int test_fromdata_ecx(int tst)
 
     while (dup_pk == NULL) {
         ret = 0;
-        if (!TEST_int_eq(EVP_PKEY_bits(pk), bits)
-            || !TEST_int_eq(EVP_PKEY_security_bits(pk), security_bits)
-            || !TEST_int_eq(EVP_PKEY_size(pk), size)
+        if (!TEST_int_eq(EVP_PKEY_get_bits(pk), bits)
+            || !TEST_int_eq(EVP_PKEY_get_security_bits(pk), security_bits)
+            || !TEST_int_eq(EVP_PKEY_get_size(pk), size)
             || !TEST_false(EVP_PKEY_missing_parameters(pk)))
             goto err;
 
@@ -1154,9 +1154,9 @@ static int test_fromdata_ec(void)
 
     while (dup_pk == NULL) {
         ret = 0;
-        if (!TEST_int_eq(EVP_PKEY_bits(pk), 256)
-            || !TEST_int_eq(EVP_PKEY_security_bits(pk), 128)
-            || !TEST_int_eq(EVP_PKEY_size(pk), 2 + 35 * 2)
+        if (!TEST_int_eq(EVP_PKEY_get_bits(pk), 256)
+            || !TEST_int_eq(EVP_PKEY_get_security_bits(pk), 128)
+            || !TEST_int_eq(EVP_PKEY_get_size(pk), 2 + 35 * 2)
             || !TEST_false(EVP_PKEY_missing_parameters(pk)))
             goto err;
 
@@ -1459,9 +1459,9 @@ static int test_fromdata_dsa_fips186_4(void)
 
     while (dup_pk == NULL) {
         ret = 0;
-        if (!TEST_int_eq(EVP_PKEY_bits(pk), 2048)
-            || !TEST_int_eq(EVP_PKEY_security_bits(pk), 112)
-            || !TEST_int_eq(EVP_PKEY_size(pk), 2 + 2 * (3 + sizeof(q_data)))
+        if (!TEST_int_eq(EVP_PKEY_get_bits(pk), 2048)
+            || !TEST_int_eq(EVP_PKEY_get_security_bits(pk), 112)
+            || !TEST_int_eq(EVP_PKEY_get_size(pk), 2 + 2 * (3 + sizeof(q_data)))
             || !TEST_false(EVP_PKEY_missing_parameters(pk)))
             goto err;
 

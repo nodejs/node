@@ -524,8 +524,13 @@ EVP_PKEY *b2i_PublicKey_bio(BIO *in);
 int i2b_PrivateKey_bio(BIO *out, const EVP_PKEY *pk);
 int i2b_PublicKey_bio(BIO *out, const EVP_PKEY *pk);
 EVP_PKEY *b2i_PVK_bio(BIO *in, pem_password_cb *cb, void *u);
+EVP_PKEY *b2i_PVK_bio_ex(BIO *in, pem_password_cb *cb, void *u,
+                         OSSL_LIB_CTX *libctx, const char *propq);
 int i2b_PVK_bio(BIO *out, const EVP_PKEY *pk, int enclevel,
                 pem_password_cb *cb, void *u);
+int i2b_PVK_bio_ex(BIO *out, const EVP_PKEY *pk, int enclevel,
+                   pem_password_cb *cb, void *u,
+                   OSSL_LIB_CTX *libctx, const char *propq);
 
 # ifdef  __cplusplus
 }

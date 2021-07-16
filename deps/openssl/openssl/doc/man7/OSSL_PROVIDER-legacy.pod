@@ -58,24 +58,34 @@ Not all of these symmetric cipher algorithms are enabled by default.
 
 =over 4
 
-=item Blowfish
+=item Blowfish, see L<EVP_CIPHER-BLOWFISH(7)>
 
-=item CAST
+=item CAST, see L<EVP_CIPHER-CAST(7)>
 
-=item DES
+=item DES, see L<EVP_CIPHER-DES(7)>
 
 The algorithm names are: DES_ECB, DES_CBC, DES_OFB, DES_CFB, DES_CFB1, DES_CFB8
 and DESX_CBC.
 
-=item RC2
+=item IDEA, see L<EVP_CIPHER-IDEA(7)>
 
-=item RC4
+=item RC2, see L<EVP_CIPHER-RC2(7)>
 
-=item RC5
+=item RC4, see L<EVP_CIPHER-RC4(7)>
+
+=item RC5, see L<EVP_CIPHER-RC5(7)>
 
 Disabled by default. Use I<enable-rc5> config option to enable.
 
-=item SEED
+=item SEED, see L<EVP_CIPHER-SEED(7)>
+
+=back
+
+=head2 Key Derivation Function (KDF)
+
+=over 4
+
+=item PBKDF1
 
 =back
 

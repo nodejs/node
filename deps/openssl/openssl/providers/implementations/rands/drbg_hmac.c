@@ -326,7 +326,7 @@ static int drbg_hmac_get_ctx_params(void *vdrbg, OSSL_PARAM params[])
     if (p != NULL) {
         if (hmac->ctx == NULL)
             return 0;
-        name = EVP_MAC_name(EVP_MAC_CTX_mac(hmac->ctx));
+        name = EVP_MAC_get0_name(EVP_MAC_CTX_get0_mac(hmac->ctx));
         if (!OSSL_PARAM_set_utf8_string(p, name))
             return 0;
     }
@@ -334,7 +334,7 @@ static int drbg_hmac_get_ctx_params(void *vdrbg, OSSL_PARAM params[])
     p = OSSL_PARAM_locate(params, OSSL_DRBG_PARAM_DIGEST);
     if (p != NULL) {
         md = ossl_prov_digest_md(&hmac->digest);
-        if (md == NULL || !OSSL_PARAM_set_utf8_string(p, EVP_MD_name(md)))
+        if (md == NULL || !OSSL_PARAM_set_utf8_string(p, EVP_MD_get0_name(md)))
             return 0;
     }
 
@@ -369,7 +369,7 @@ static int drbg_hmac_set_ctx_params(void *vctx, const OSSL_PARAM params[])
      * digests.
      */
     md = ossl_prov_digest_md(&hmac->digest);
-    if (md != NULL && (EVP_MD_flags(md) & EVP_MD_FLAG_XOF) != 0) {
+    if (md != NULL && (EVP_MD_get_flags(md) & EVP_MD_FLAG_XOF) != 0) {
         ERR_raise(ERR_LIB_PROV, PROV_R_XOF_DIGESTS_NOT_ALLOWED);
         return 0;
     }
@@ -380,7 +380,7 @@ static int drbg_hmac_set_ctx_params(void *vctx, const OSSL_PARAM params[])
 
     if (hmac->ctx != NULL) {
         /* These are taken from SP 800-90 10.1 Table 2 */
-        hmac->blocklen = EVP_MD_size(md);
+        hmac->blocklen = EVP_MD_get_size(md);
         /* See SP800-57 Part1 Rev4 5.6.1 Table 3 */
         ctx->strength = 64 * (int)(hmac->blocklen >> 3);
         if (ctx->strength > 256)

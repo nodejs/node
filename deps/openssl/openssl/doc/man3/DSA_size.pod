@@ -21,8 +21,8 @@ L<openssl_user_macros(7)>:
 =head1 DESCRIPTION
 
 All of the functions described on this page are deprecated.
-Applications should instead use L<EVP_PKEY_bits(3)>,
-L<EVP_PKEY_security_bits(3)> and L<EVP_PKEY_size(3)>.
+Applications should instead use L<EVP_PKEY_get_bits(3)>,
+L<EVP_PKEY_get_security_bits(3)> and L<EVP_PKEY_get_size(3)>.
 
 DSA_bits() returns the number of bits in key I<dsa>: this is the number
 of bits in the I<p> parameter.
@@ -47,9 +47,9 @@ hold any key parameters.
 
 =head1 SEE ALSO
 
-L<EVP_PKEY_bits(3)>,
-L<EVP_PKEY_security_bits(3)>,
-L<EVP_PKEY_size(3)>,
+L<EVP_PKEY_get_bits(3)>,
+L<EVP_PKEY_get_security_bits(3)>,
+L<EVP_PKEY_get_size(3)>,
 L<DSA_new(3)>, L<DSA_sign(3)>
 
 =head1 HISTORY
@@ -58,7 +58,7 @@ All of these functions were deprecated in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

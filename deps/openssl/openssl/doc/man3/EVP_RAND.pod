@@ -5,10 +5,11 @@
 EVP_RAND, EVP_RAND_fetch, EVP_RAND_free, EVP_RAND_up_ref, EVP_RAND_CTX,
 EVP_RAND_CTX_new, EVP_RAND_CTX_free, EVP_RAND_instantiate,
 EVP_RAND_uninstantiate, EVP_RAND_generate, EVP_RAND_reseed, EVP_RAND_nonce,
-EVP_RAND_enable_locking, EVP_RAND_verify_zeroization, EVP_RAND_strength,
-EVP_RAND_state,
-EVP_RAND_provider, EVP_RAND_CTX_rand, EVP_RAND_is_a, EVP_RAND_number,
-EVP_RAND_name, EVP_RAND_names_do_all, EVP_RAND_description,
+EVP_RAND_enable_locking, EVP_RAND_verify_zeroization, EVP_RAND_get_strength,
+EVP_RAND_get_state,
+EVP_RAND_get0_provider, EVP_RAND_CTX_get0_rand, EVP_RAND_is_a,
+EVP_RAND_get0_name, EVP_RAND_names_do_all,
+EVP_RAND_get0_description,
 EVP_RAND_CTX_get_params,
 EVP_RAND_CTX_set_params, EVP_RAND_do_all_provided, EVP_RAND_get_params,
 EVP_RAND_gettable_ctx_params, EVP_RAND_settable_ctx_params,
@@ -29,7 +30,7 @@ EVP_RAND_STATE_ERROR - EVP RAND routines
  void EVP_RAND_free(EVP_RAND *rand);
  EVP_RAND_CTX *EVP_RAND_CTX_new(EVP_RAND *rand, EVP_RAND_CTX *parent);
  void EVP_RAND_CTX_free(EVP_RAND_CTX *ctx);
- EVP_RAND *EVP_RAND_CTX_rand(EVP_RAND_CTX *ctx);
+ EVP_RAND *EVP_RAND_CTX_get0_rand(EVP_RAND_CTX *ctx);
  int EVP_RAND_get_params(EVP_RAND *rand, OSSL_PARAM params[]);
  int EVP_RAND_CTX_get_params(EVP_RAND_CTX *ctx, OSSL_PARAM params[]);
  int EVP_RAND_CTX_set_params(EVP_RAND_CTX *ctx, const OSSL_PARAM params[]);
@@ -38,11 +39,10 @@ EVP_RAND_STATE_ERROR - EVP RAND routines
  const OSSL_PARAM *EVP_RAND_settable_ctx_params(const EVP_RAND *rand);
  const OSSL_PARAM *EVP_RAND_CTX_gettable_params(EVP_RAND_CTX *ctx);
  const OSSL_PARAM *EVP_RAND_CTX_settable_params(EVP_RAND_CTX *ctx);
- int EVP_RAND_number(const EVP_RAND *rand);
- const char *EVP_RAND_name(const EVP_RAND *rand);
- const char *EVP_RAND_description(const EVP_RAND *rand);
+ const char *EVP_RAND_get0_name(const EVP_RAND *rand);
+ const char *EVP_RAND_get0_description(const EVP_RAND *rand);
  int EVP_RAND_is_a(const EVP_RAND *rand, const char *name);
- const OSSL_PROVIDER *EVP_RAND_provider(const EVP_RAND *rand);
+ const OSSL_PROVIDER *EVP_RAND_get0_provider(const EVP_RAND *rand);
  void EVP_RAND_do_all_provided(OSSL_LIB_CTX *libctx,
                                void (*fn)(EVP_RAND *rand, void *arg),
                                void *arg);
@@ -64,8 +64,8 @@ EVP_RAND_STATE_ERROR - EVP RAND routines
  int EVP_RAND_nonce(EVP_RAND_CTX *ctx, unsigned char *out, size_t outlen);
  int EVP_RAND_enable_locking(EVP_RAND_CTX *ctx);
  int EVP_RAND_verify_zeroization(EVP_RAND_CTX *ctx);
- unsigned int EVP_RAND_strength(EVP_RAND_CTX *ctx);
- int EVP_RAND_state(EVP_RAND_CTX *ctx);
+ unsigned int EVP_RAND_get_strength(EVP_RAND_CTX *ctx);
+ int EVP_RAND_get_state(EVP_RAND_CTX *ctx);
 
  #define EVP_RAND_STATE_UNINITIALISED    0
  #define EVP_RAND_STATE_READY            1
@@ -121,7 +121,7 @@ rely on the operating system for their randomness because this is often scarce.
 EVP_RAND_CTX_free() frees up the context I<ctx>.  If I<ctx> is NULL, nothing
 is done.
 
-EVP_RAND_CTX_rand() returns the B<EVP_RAND> associated with the context
+EVP_RAND_CTX_get0_rand() returns the B<EVP_RAND> associated with the context
 I<ctx>.
 
 =head2 Random Number Generator Functions
@@ -209,9 +209,9 @@ B<OSSL_PARAM> as a parameter descriptor.
 
 =head2 Information functions
 
-EVP_RAND_strength() returns the security strength of the RAND I<ctx>.
+EVP_RAND_get_strength() returns the security strength of the RAND I<ctx>.
 
-EVP_RAND_state() returns the current state of the RAND I<ctx>.
+EVP_RAND_get_state() returns the current state of the RAND I<ctx>.
 States defined by the OpenSSL RNGs are:
 
 =over 4
@@ -234,7 +234,7 @@ EVP_RAND_STATE_ERROR: this RNG is in an error state.
 EVP_RAND_is_a() returns 1 if I<rand> is an implementation of an
 algorithm that's identifiable with I<name>, otherwise 0.
 
-EVP_RAND_provider() returns the provider that holds the implementation
+EVP_RAND_get0_provider() returns the provider that holds the implementation
 of the given I<rand>.
 
 EVP_RAND_do_all_provided() traverses all RAND implemented by all activated
@@ -242,17 +242,14 @@ providers in the given library context I<libctx>, and for each of the
 implementations, calls the given function I<fn> with the implementation method
 and the given I<arg> as argument.
 
-EVP_RAND_number() returns the internal dynamic number assigned to
-I<rand>.
-
-EVP_RAND_name() returns the canonical name of I<rand>.
+EVP_RAND_get0_name() returns the canonical name of I<rand>.
 
 EVP_RAND_names_do_all() traverses all names for I<rand>, and calls
 I<fn> with each name and I<data>.
 
-EVP_RAND_description() returns a description of the rand, meant for display
-and human consumption.  The description is at the discretion of the rand
-implementation.
+EVP_RAND_get0_description() returns a description of the rand, meant for
+display and human consumption.  The description is at the discretion of
+the rand implementation.
 
 EVP_RAND_verify_zeroization() confirms if the internal DRBG state is
 currently zeroed.  This is used by the FIPS provider to support the mandatory
@@ -351,16 +348,14 @@ not be considered a breaking change to the API.
 EVP_RAND_fetch() returns a pointer to a newly fetched B<EVP_RAND>, or
 NULL if allocation failed.
 
-EVP_RAND_provider() returns a pointer to the provider for the RAND, or
+EVP_RAND_get0_provider() returns a pointer to the provider for the RAND, or
 NULL on error.
 
-EVP_RAND_CTX_rand() returns a pointer to the B<EVP_RAND> associated with the
-context.
+EVP_RAND_CTX_get0_rand() returns a pointer to the B<EVP_RAND> associated
+with the context.
 
-EVP_RAND_name() returns the name of the random number generation algorithm.
-
-EVP_RAND_number() returns the provider specific identification number
-for the specified algorithm.
+EVP_RAND_get0_name() returns the name of the random number generation
+algorithm.
 
 EVP_RAND_up_ref() returns 1 on success, 0 on error.
 
@@ -374,7 +369,8 @@ EVP_RAND_CTX_free() does not return a value.
 
 EVP_RAND_nonce() returns the length of the nonce.
 
-EVP_RAND_strength() returns the strength of the random number generator in bits.
+EVP_RAND_get_strength() returns the strength of the random number generator
+in bits.
 
 EVP_RAND_gettable_params(), EVP_RAND_gettable_ctx_params() and
 EVP_RAND_settable_ctx_params() return an array of OSSL_PARAMs.

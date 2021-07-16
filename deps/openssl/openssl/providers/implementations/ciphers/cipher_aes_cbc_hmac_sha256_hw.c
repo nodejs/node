@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2011-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -147,7 +147,7 @@ static size_t tls1_multi_block_encrypt(void *vctx,
 #  endif
 
     /* ask for IVs in bulk */
-    if (RAND_bytes_ex(ctx->base.libctx, (IVs = blocks[0].c), 16 * x4) <= 0)
+    if (RAND_bytes_ex(ctx->base.libctx, (IVs = blocks[0].c), 16 * x4, 0) <= 0)
         return 0;
 
     mctx = (SHA256_MB_CTX *) (storage + 32 - ((size_t)storage % 32)); /* align */
@@ -733,7 +733,7 @@ static int aesni_cbc_hmac_sha256_set_tls1_aad(void *vctx,
             if (len < AES_BLOCK_SIZE)
                 return 0;
             len -= AES_BLOCK_SIZE;
-            p[aad_len] = len >> 8;
+            p[aad_len - 2] = len >> 8;
             p[aad_len - 1] = len;
         }
         sctx->md = sctx->head;

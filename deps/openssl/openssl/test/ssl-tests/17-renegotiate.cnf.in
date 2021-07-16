@@ -1,5 +1,5 @@
 # -*- mode: perl; -*-
-# Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -260,6 +260,38 @@ our @tests_tls1_2 = (
             "HandshakeMode" => "RenegotiateClient",
             "ResumptionExpected" => "No",
             "ExpectedResult" => "ServerFail"
+        }
+    },
+    {
+        name => "allow-client-renegotiation",
+        server => {
+            "MaxProtocol" => "TLSv1.2",
+        },
+        client => {
+            "MaxProtocol" => "TLSv1.2"
+        },
+        test => {
+            "Method" => "TLS",
+            "HandshakeMode" => "RenegotiateClient",
+            "ResumptionExpected" => "Yes",
+            "ExpectedResult" => "Success"
+        }
+    },
+    {
+        name => "no-client-renegotiation",
+        server => {
+            "MaxProtocol" => "TLSv1.2",
+            "Options" => "-ClientRenegotiation"
+        },
+        client => {
+            "MaxProtocol" => "TLSv1.2",
+        },
+        test => {
+            "Method" => "TLS",
+            "HandshakeMode" => "RenegotiateClient",
+            "ResumptionExpected" => "No",
+            "ExpectedResult" => "ClientFail",
+            "ExpectedServerAlert" => "NoRenegotiation"
         }
     }
 );

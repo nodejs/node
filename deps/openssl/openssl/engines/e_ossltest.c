@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -226,15 +226,15 @@ static int ossltest_digest_nids(const int **nids)
     if (!init) {
         const EVP_MD *md;
         if ((md = digest_md5()) != NULL)
-            digest_nids[pos++] = EVP_MD_type(md);
+            digest_nids[pos++] = EVP_MD_get_type(md);
         if ((md = digest_sha1()) != NULL)
-            digest_nids[pos++] = EVP_MD_type(md);
+            digest_nids[pos++] = EVP_MD_get_type(md);
         if ((md = digest_sha256()) != NULL)
-            digest_nids[pos++] = EVP_MD_type(md);
+            digest_nids[pos++] = EVP_MD_get_type(md);
         if ((md = digest_sha384()) != NULL)
-            digest_nids[pos++] = EVP_MD_type(md);
+            digest_nids[pos++] = EVP_MD_get_type(md);
         if ((md = digest_sha512()) != NULL)
-            digest_nids[pos++] = EVP_MD_type(md);
+            digest_nids[pos++] = EVP_MD_get_type(md);
         digest_nids[pos] = 0;
         init = 1;
     }
@@ -279,7 +279,7 @@ static const EVP_CIPHER *ossltest_aes_128_cbc(void)
             || !EVP_CIPHER_meth_set_do_cipher(_hidden_aes_128_cbc,
                                               ossltest_aes128_cbc_cipher)
             || !EVP_CIPHER_meth_set_impl_ctx_size(_hidden_aes_128_cbc,
-                                                  EVP_CIPHER_impl_ctx_size(EVP_aes_128_cbc())))) {
+                    EVP_CIPHER_impl_ctx_size(EVP_aes_128_cbc())))) {
         EVP_CIPHER_meth_free(_hidden_aes_128_cbc);
         _hidden_aes_128_cbc = NULL;
     }
@@ -308,7 +308,7 @@ static const EVP_CIPHER *ossltest_aes_128_gcm(void)
             || !EVP_CIPHER_meth_set_ctrl(_hidden_aes_128_gcm,
                                               ossltest_aes128_gcm_ctrl)
             || !EVP_CIPHER_meth_set_impl_ctx_size(_hidden_aes_128_gcm,
-                              EVP_CIPHER_impl_ctx_size(EVP_aes_128_gcm())))) {
+                    EVP_CIPHER_impl_ctx_size(EVP_aes_128_gcm())))) {
         EVP_CIPHER_meth_free(_hidden_aes_128_gcm);
         _hidden_aes_128_gcm = NULL;
     }

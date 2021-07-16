@@ -58,7 +58,7 @@ static const ERR_STRING_DATA CRYPTO_str_reasons[] = {
 
 #endif
 
-int err_load_CRYPTO_strings_int(void)
+int ossl_err_load_CRYPTO_strings(void)
 {
 #ifndef OPENSSL_NO_ERR
     if (ERR_reason_error_string(CRYPTO_str_reasons[0].error) == NULL)

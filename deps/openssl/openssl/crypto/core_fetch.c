@@ -83,18 +83,22 @@ static void ossl_method_construct_this(OSSL_PROVIDER *provider,
      */
 
     if (data->force_store || !no_store) {
+        /* If we haven't been told not to store, add to the global store */
+        data->mcm->put(NULL, method, provider, algo->algorithm_names,
+                       algo->property_definition, data->mcm_data);
+    } else {
         /*
-         * If we haven't been told not to store,
-         * add to the global store
+         * If we have been told not to store the method "permanently", we
+         * ask for a temporary store, and store the method there.
+         * The owner of |data->mcm| is completely responsible for managing
+         * that temporary store.
          */
-        data->mcm->put(data->libctx, NULL, method, provider,
-                       data->operation_id, algo->algorithm_names,
+        if ((data->store = data->mcm->get_tmp_store(data->mcm_data)) == NULL)
+            return;
+
+        data->mcm->put(data->store, method, provider, algo->algorithm_names,
                        algo->property_definition, data->mcm_data);
     }
-
-    data->mcm->put(data->libctx, data->store, method, provider,
-                   data->operation_id, algo->algorithm_names,
-                   algo->property_definition, data->mcm_data);
 
     /* refcnt-- because we're dropping the reference */
     data->mcm->destruct(method, data->mcm_data);
@@ -106,18 +110,10 @@ void *ossl_method_construct(OSSL_LIB_CTX *libctx, int operation_id,
 {
     void *method = NULL;
 
-    if ((method = mcm->get(libctx, NULL, mcm_data)) == NULL) {
+    if ((method = mcm->get(NULL, mcm_data)) == NULL) {
         struct construct_data_st cbdata;
 
-        /*
-         * We have a temporary store to be able to easily search among new
-         * items, or items that should find themselves in the global store.
-         */
-        if ((cbdata.store = mcm->alloc_tmp_store(libctx)) == NULL)
-            goto fin;
-
-        cbdata.libctx = libctx;
-        cbdata.operation_id = operation_id;
+        cbdata.store = NULL;
         cbdata.force_store = force_store;
         cbdata.mcm = mcm;
         cbdata.mcm_data = mcm_data;
@@ -127,20 +123,14 @@ void *ossl_method_construct(OSSL_LIB_CTX *libctx, int operation_id,
                               ossl_method_construct_postcondition,
                               &cbdata);
 
-        method = mcm->get(libctx, cbdata.store, mcm_data);
-        if (method == NULL) {
-            /*
-             * If we get here then we did not construct the method that we
-             * attempted to construct. It's possible that another thread got
-             * there first and so we skipped construction (pre-condition
-             * failed). We check the global store again to see if it has
-             * appeared by now.
-             */
-            method = mcm->get(libctx, NULL, mcm_data);
-        }
-        mcm->dealloc_tmp_store(cbdata.store);
+        /* If there is a temporary store, try there first */
+        if (cbdata.store != NULL)
+            method = mcm->get(cbdata.store, mcm_data);
+
+        /* If no method was found yet, try the global store */
+        if (method == NULL)
+            method = mcm->get(NULL, mcm_data);
     }
 
- fin:
     return method;
 }

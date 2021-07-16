@@ -118,8 +118,9 @@ EVP_DigestSignUpdate() hashes I<cnt> bytes of data at I<d> into the
 signature context I<ctx>. This function can be called several times on the
 same I<ctx> to include additional data.
 
-EVP_DigestSignFinal() signs the data in I<ctx> and places the signature in I<sig>.
-If I<sig> is NULL then the maximum size of the output buffer is written to
+Unless I<sig> is NULL EVP_DigestSignFinal() signs the data in I<ctx>
+and places the signature in I<sig>.
+Otherwise the maximum necessary size of the output buffer is written to
 the I<siglen> parameter. If I<sig> is not NULL then before the call the
 I<siglen> parameter should contain the length of the I<sig> buffer. If the
 call is successful the signature is written to I<sig> and the amount of data
@@ -164,9 +165,9 @@ Since only a copy of the digest context is ever finalized, the context must
 be cleaned up after use by calling EVP_MD_CTX_free() or a memory leak
 will occur.
 
-The use of EVP_PKEY_size() with these functions is discouraged because some
+The use of EVP_PKEY_get_size() with these functions is discouraged because some
 signature operations may have a signature length which depends on the
-parameters set. As a result EVP_PKEY_size() would have to return a value
+parameters set. As a result EVP_PKEY_get_size() would have to return a value
 which indicates the maximum possible signature for any set of parameters.
 
 =head1 SEE ALSO
@@ -189,7 +190,7 @@ EVP_DigestSignUpdate() was converted from a macro to a function in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2006-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

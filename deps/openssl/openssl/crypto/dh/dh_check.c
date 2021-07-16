@@ -262,7 +262,7 @@ int ossl_dh_check_priv_key(const DH *dh, const BIGNUM *priv_key, int *ret)
     upper = dh->params.q;
 
     /* Is it from an approved Safe prime group ?*/
-    if (DH_get_nid((DH *)dh) != NID_undef) {
+    if (DH_get_nid((DH *)dh) != NID_undef && dh->length != 0) {
         if (!BN_lshift(two_powN, BN_value_one(), dh->length))
             goto err;
         if (BN_cmp(two_powN, dh->params.q) < 0)

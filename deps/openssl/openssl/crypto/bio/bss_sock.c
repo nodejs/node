@@ -38,10 +38,8 @@ int BIO_sock_should_retry(int s);
 static const BIO_METHOD methods_sockp = {
     BIO_TYPE_SOCKET,
     "socket",
-    /* TODO: Convert to new style write function */
     bwrite_conv,
     sock_write,
-    /* TODO: Convert to new style read function */
     bread_conv,
     sock_read,
     sock_puts,

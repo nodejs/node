@@ -323,14 +323,14 @@ int PEM_ASN1_write_bio(i2d_of_void *i2d, const char *name, BIO *bp,
     unsigned char iv[EVP_MAX_IV_LENGTH];
 
     if (enc != NULL) {
-        objstr = EVP_CIPHER_name(enc);
-        if (objstr == NULL || EVP_CIPHER_iv_length(enc) == 0
-                || EVP_CIPHER_iv_length(enc) > (int)sizeof(iv)
+        objstr = EVP_CIPHER_get0_name(enc);
+        if (objstr == NULL || EVP_CIPHER_get_iv_length(enc) == 0
+                || EVP_CIPHER_get_iv_length(enc) > (int)sizeof(iv)
                    /*
                     * Check "Proc-Type: 4,Encrypted\nDEK-Info: objstr,hex-iv\n"
                     * fits into buf
                     */
-                || (strlen(objstr) + 23 + 2 * EVP_CIPHER_iv_length(enc) + 13)
+                || strlen(objstr) + 23 + 2 * EVP_CIPHER_get_iv_length(enc) + 13
                    > sizeof(buf)) {
             ERR_raise(ERR_LIB_PEM, PEM_R_UNSUPPORTED_CIPHER);
             goto err;
@@ -368,7 +368,8 @@ int PEM_ASN1_write_bio(i2d_of_void *i2d, const char *name, BIO *bp,
 #endif
             kstr = (unsigned char *)buf;
         }
-        if (RAND_bytes(iv, EVP_CIPHER_iv_length(enc)) <= 0) /* Generate a salt */
+        /* Generate a salt */
+        if (RAND_bytes(iv, EVP_CIPHER_get_iv_length(enc)) <= 0)
             goto err;
         /*
          * The 'iv' is used as the iv and as a salt.  It is NOT taken from
@@ -382,7 +383,7 @@ int PEM_ASN1_write_bio(i2d_of_void *i2d, const char *name, BIO *bp,
 
         buf[0] = '\0';
         PEM_proc_type(buf, PEM_TYPE_ENCRYPTED);
-        PEM_dek_info(buf, objstr, EVP_CIPHER_iv_length(enc), (char *)iv);
+        PEM_dek_info(buf, objstr, EVP_CIPHER_get_iv_length(enc), (char *)iv);
         /* k=strlen(buf); */
 
         ret = 1;
@@ -548,7 +549,7 @@ int PEM_get_EVP_CIPHER_INFO(char *header, EVP_CIPHER_INFO *cipher)
         ERR_raise(ERR_LIB_PEM, PEM_R_UNSUPPORTED_ENCRYPTION);
         return 0;
     }
-    ivlen = EVP_CIPHER_iv_length(enc);
+    ivlen = EVP_CIPHER_get_iv_length(enc);
     if (ivlen > 0 && *header++ != ',') {
         ERR_raise(ERR_LIB_PEM, PEM_R_MISSING_DEK_IV);
         return 0;
@@ -557,7 +558,7 @@ int PEM_get_EVP_CIPHER_INFO(char *header, EVP_CIPHER_INFO *cipher)
         return 0;
     }
 
-    if (!load_iv(&header, cipher->iv, EVP_CIPHER_iv_length(enc)))
+    if (!load_iv(&header, cipher->iv, EVP_CIPHER_get_iv_length(enc)))
         return 0;
 
     return 1;

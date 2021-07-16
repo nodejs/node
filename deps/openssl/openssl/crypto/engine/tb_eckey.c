@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -58,7 +58,8 @@ int ENGINE_set_default_EC(ENGINE *e)
  */
 ENGINE *ENGINE_get_default_EC(void)
 {
-    return engine_table_select(&dh_table, dummy_nid);
+    return ossl_engine_table_select(&dh_table, dummy_nid,
+                                    OPENSSL_FILE, OPENSSL_LINE);
 }
 
 /* Obtains an EC_KEY implementation from an ENGINE functional reference */

@@ -63,10 +63,6 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
     if (len == 0)
         return 0;
 
-    /*
-     * TODO: use the ossltest engine (optionally?) to disable crypto checks.
-     */
-
     /* This only fuzzes the initial flow from the client so far. */
     ctx = SSL_CTX_new(SSLv23_method());
 

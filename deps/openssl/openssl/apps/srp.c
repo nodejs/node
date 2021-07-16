@@ -209,8 +209,8 @@ const OPTIONS srp_options[] = {
 #endif
 
     OPT_SECTION("Action"),
-    {"add", OPT_ADD, '-', "Add a user and srp verifier"},
-    {"modify", OPT_MODIFY, '-', "Modify the srp verifier of an existing user"},
+    {"add", OPT_ADD, '-', "Add a user and SRP verifier"},
+    {"modify", OPT_MODIFY, '-', "Modify the SRP verifier of an existing user"},
     {"delete", OPT_DELETE, '-', "Delete user from verifier file"},
     {"list", OPT_LIST, '-', "List users"},
 
@@ -379,8 +379,10 @@ int srp_main(int argc, char **argv)
                    srpvfile);
 
     db = load_index(srpvfile, NULL);
-    if (db == NULL)
+    if (db == NULL) {
+        BIO_printf(bio_err, "Problem with index file: %s (could not load/parse file)\n", srpvfile);
         goto end;
+    }
 
     /* Lets check some fields */
     for (i = 0; i < sk_OPENSSL_PSTRING_num(db->db->data); i++) {

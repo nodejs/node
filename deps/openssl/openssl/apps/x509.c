@@ -44,7 +44,7 @@ typedef enum OPTION_choice {
     OPT_CAKEYFORM, OPT_VFYOPT, OPT_SIGOPT, OPT_DAYS, OPT_PASSIN, OPT_EXTFILE,
     OPT_EXTENSIONS, OPT_IN, OPT_OUT, OPT_KEY, OPT_SIGNKEY, OPT_CA, OPT_CAKEY,
     OPT_CASERIAL, OPT_SET_SERIAL, OPT_NEW, OPT_FORCE_PUBKEY, OPT_SUBJ,
-    OPT_ADDTRUST, OPT_ADDREJECT, OPT_SETALIAS, OPT_CERTOPT, OPT_NAMEOPT,
+    OPT_ADDTRUST, OPT_ADDREJECT, OPT_SETALIAS, OPT_CERTOPT, OPT_DATEOPT, OPT_NAMEOPT,
     OPT_EMAIL, OPT_OCSP_URI, OPT_SERIAL, OPT_NEXT_SERIAL,
     OPT_MODULUS, OPT_PUBKEY, OPT_X509TOREQ, OPT_TEXT, OPT_HASH,
     OPT_ISSUER_HASH, OPT_SUBJECT, OPT_ISSUER, OPT_FINGERPRINT, OPT_DATES,
@@ -87,6 +87,7 @@ const OPTIONS x509_options[] = {
 
     OPT_SECTION("Certificate printing"),
     {"text", OPT_TEXT, '-', "Print the certificate in text form"},
+    {"dateopt", OPT_DATEOPT, 's', "Datetime format used for printing. (rfc_822/iso_8601). Default is rfc_822."},
     {"certopt", OPT_CERTOPT, 's', "Various certificate text printing options"},
     {"fingerprint", OPT_FINGERPRINT, '-', "Print the certificate fingerprint"},
     {"alias", OPT_ALIAS, '-', "Print certificate alias"},
@@ -267,6 +268,7 @@ int x509_main(int argc, char **argv)
     int days = UNSET_DAYS; /* not explicitly set */
     int x509toreq = 0, modulus = 0, print_pubkey = 0, pprint = 0;
     int CAformat = FORMAT_UNDEF, CAkeyformat = FORMAT_UNDEF;
+    unsigned long dateopt = ASN1_DTFLGS_RFC822;
     int fingerprint = 0, reqfile = 0, checkend = 0;
     int informat = FORMAT_UNDEF, outformat = FORMAT_PEM, keyformat = FORMAT_UNDEF;
     int next_serial = 0, subject_hash = 0, issuer_hash = 0, ocspid = 0;
@@ -329,6 +331,14 @@ int x509_main(int argc, char **argv)
             break;
         case OPT_REQ:
             reqfile = 1;
+            break;
+
+        case OPT_DATEOPT:
+            if (!set_dateopt(&dateopt, opt_arg())) {
+                BIO_printf(bio_err,
+                           "Invalid date format: %s\n", opt_arg());
+                goto end;
+            }
             break;
         case OPT_COPY_EXTENSIONS:
             if (!set_ext_copy(&ext_copy, opt_arg())) {
@@ -745,7 +755,6 @@ int x509_main(int argc, char **argv)
 
     if (!noout || text || next_serial)
         OBJ_create("2.99999.3", "SET.ex3", "SET x509v3 extension 3");
-    /* TODO: why is this strange object created (and no error checked)? */
 
     if (alias)
         X509_alias_set1(x, (unsigned char *)alias, -1);
@@ -957,11 +966,11 @@ int x509_main(int argc, char **argv)
             X509_print_ex(out, x, get_nameopt(), certflag);
         } else if (i == startdate) {
             BIO_puts(out, "notBefore=");
-            ASN1_TIME_print(out, X509_get0_notBefore(x));
+            ASN1_TIME_print_ex(out, X509_get0_notBefore(x), dateopt);
             BIO_puts(out, "\n");
         } else if (i == enddate) {
             BIO_puts(out, "notAfter=");
-            ASN1_TIME_print(out, X509_get0_notAfter(x));
+            ASN1_TIME_print_ex(out, X509_get0_notAfter(x), dateopt);
             BIO_puts(out, "\n");
         } else if (i == fingerprint) {
             unsigned int n;

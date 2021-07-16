@@ -183,6 +183,14 @@ should have as well, see the documentation of the implementation.
 
 =back
 
+=over 4
+
+=item "size" (B<OSSL_MAC_PARAM_BLOCK_SIZE>) <integer>
+
+Can be used to get the MAC block size (if supported by the algorithm).
+
+=back
+
 =back
 
 =head1 NOTES

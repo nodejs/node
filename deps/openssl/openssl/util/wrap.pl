@@ -46,4 +46,18 @@ die "wrap.pl: Failed to execute '", join(' ', @cmd), "': $!\n"
 exit(($? & 255) | 128) if ($? & 255) != 0;
 
 # When not a signal, just shift down the subprocess exit code and use that.
-exit($? >> 8);
+my $exitcode = $? >> 8;
+
+# For VMS, perl recommendations is to emulate what the C library exit() does
+# for all non-zero exit codes, except we set the error severity rather than
+# success.
+# Ref: https://perldoc.perl.org/perlport#exit
+#      https://perldoc.perl.org/perlvms#$?
+if ($^O eq 'VMS' && $exitcode != 0) {
+    $exitcode =
+        0x35a000                # C facility code
+        + ($exitcode * 8)       # shift up to make space for the 3 severity bits
+        + 2                     # Severity: E(rror)
+        + 0x10000000;           # bit 28 set => the shell stays silent
+}
+exit($exitcode);

@@ -149,8 +149,8 @@ static int test_md(const EVP_MD *md)
     return TEST_ptr(md)
         && TEST_true(EVP_MD_is_a(md, "SHA256"))
         && TEST_true(calculate_digest(md, testmsg, sizeof(testmsg), exptd))
-        && TEST_int_eq(EVP_MD_size(md), SHA256_DIGEST_LENGTH)
-        && TEST_int_eq(EVP_MD_block_size(md), SHA256_CBLOCK);
+        && TEST_int_eq(EVP_MD_get_size(md), SHA256_DIGEST_LENGTH)
+        && TEST_int_eq(EVP_MD_get_block_size(md), SHA256_CBLOCK);
 }
 
 static int test_implicit_EVP_MD_fetch(void)

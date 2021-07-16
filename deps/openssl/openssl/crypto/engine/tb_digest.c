@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -65,7 +65,8 @@ int ENGINE_set_default_digests(ENGINE *e)
  */
 ENGINE *ENGINE_get_digest_engine(int nid)
 {
-    return engine_table_select(&digest_table, nid);
+    return ossl_engine_table_select(&digest_table, nid,
+                                    OPENSSL_FILE, OPENSSL_LINE);
 }
 
 /* Obtains a digest implementation from an ENGINE functional reference */

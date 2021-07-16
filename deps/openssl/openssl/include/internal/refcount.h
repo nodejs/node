@@ -11,13 +11,7 @@
 # pragma once
 
 # include <openssl/e_os2.h>
-
-/* Used to checking reference counts, most while doing perl5 stuff :-) */
-# if defined(OPENSSL_NO_STDIO)
-#  if defined(REF_PRINT)
-#   error "REF_PRINT requires stdio"
-#  endif
-# endif
+# include <openssl/trace.h>
 
 # ifndef OPENSSL_DEV_NO_ATOMICS
 #  if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L \
@@ -176,11 +170,9 @@ typedef int CRYPTO_REF_COUNT;
 #  define REF_ASSERT_ISNT(i)
 # endif
 
-# ifdef REF_PRINT
-#  define REF_PRINT_COUNT(a, b) \
-        fprintf(stderr, "%p:%4d:%s\n", (void*)b, b->references, a)
-# else
-#  define REF_PRINT_COUNT(a, b)
-# endif
+# define REF_PRINT_EX(text, count, object) \
+    OSSL_TRACE3(REF_COUNT, "%p:%4d:%s\n", (object), (count), (text));
+# define REF_PRINT_COUNT(text, object) \
+    REF_PRINT_EX(text, object->references, (void *)object)
 
 #endif

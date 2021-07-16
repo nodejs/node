@@ -212,9 +212,11 @@ PKCS12_SAFEBAG *PKCS12_SAFEBAG_create_pkcs8_encrypt_ex(int pbe_nid,
     EVP_CIPHER *pbe_ciph_fetch = NULL;
     X509_SIG *p8;
 
+    ERR_set_mark();
     pbe_ciph = pbe_ciph_fetch = EVP_CIPHER_fetch(ctx, OBJ_nid2sn(pbe_nid), propq);
     if (pbe_ciph == NULL)
         pbe_ciph = EVP_get_cipherbynid(pbe_nid);
+    ERR_pop_to_mark();
 
     if (pbe_ciph != NULL)
         pbe_nid = -1;

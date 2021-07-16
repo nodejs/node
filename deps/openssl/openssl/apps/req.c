@@ -14,6 +14,7 @@
 #include <ctype.h>
 #include "apps.h"
 #include "progs.h"
+#include <openssl/core_names.h>
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 #include <openssl/conf.h>
@@ -70,8 +71,8 @@ static int check_end(const char *str, const char *end);
 static int join(char buf[], size_t buf_size, const char *name,
                 const char *tail, const char *desc);
 static EVP_PKEY_CTX *set_keygen_ctx(const char *gstr,
-                                    int *pkey_type, long *pkeylen,
-                                    char **palgnam, ENGINE *keygen_engine);
+                                    char **pkeytype, long *pkeylen,
+                                    ENGINE *keygen_engine);
 
 static const char *section = "req";
 static CONF *req_conf = NULL;
@@ -141,10 +142,11 @@ const OPTIONS req_options[] = {
     {"key", OPT_KEY, 's', "Private key to use"},
     {"keyform", OPT_KEYFORM, 'f', "Key file format (ENGINE, other values ignored)"},
     {"pubkey", OPT_PUBKEY, '-', "Output public key"},
-    {"keyout", OPT_KEYOUT, '>', "File to save newly created private key"},
+    {"keyout", OPT_KEYOUT, '>', "File to write private key to"},
     {"passin", OPT_PASSIN, 's', "Private key and certificate password source"},
     {"passout", OPT_PASSOUT, 's', "Output file pass phrase source"},
-    {"newkey", OPT_NEWKEY, 's', "Specify as type:bits"},
+    {"newkey", OPT_NEWKEY, 's',
+     "Generate new key with [<alg>:]<nbits> or <alg>[:<file>] or param:<file>"},
     {"pkeyopt", OPT_PKEYOPT, 's', "Public key options as opt:value"},
     {"sigopt", OPT_SIGOPT, 's', "Signature parameter in n:v form"},
     {"vfyopt", OPT_VFYOPT, 's', "Verification parameter in n:v form"},
@@ -240,6 +242,7 @@ int req_main(int argc, char **argv)
     X509 *new_x509 = NULL, *CAcert = NULL;
     X509_REQ *req = NULL;
     EVP_CIPHER *cipher = NULL;
+    EVP_MD *md = NULL;
     int ext_copy = EXT_COPY_UNSET;
     BIO *addext_bio = NULL;
     char *extensions = NULL;
@@ -255,7 +258,6 @@ int req_main(int argc, char **argv)
     OPTION_CHOICE o;
     int days = UNSET_DAYS;
     int ret = 1, gen_x509 = 0, i = 0, newreq = 0, verbose = 0;
-    int pkey_type = -1;
     int informat = FORMAT_UNDEF, outformat = FORMAT_PEM, keyform = FORMAT_UNDEF;
     int modulus = 0, multirdn = 1, verify = 0, noout = 0, text = 0;
     int noenc = 0, newhdr = 0, subject = 0, pubkey = 0, precert = 0;
@@ -511,15 +513,12 @@ int req_main(int argc, char **argv)
         if (p == NULL)
             ERR_clear_error();
         if (p != NULL) {
-            BIO *oid_bio;
+            BIO *oid_bio = BIO_new_file(p, "r");
 
-            oid_bio = BIO_new_file(p, "r");
             if (oid_bio == NULL) {
-                if (verbose) {
+                if (verbose)
                     BIO_printf(bio_err,
                                "Problems opening '%s' for extra OIDs\n", p);
-                    ERR_print_errors(bio_err);
-                }
             } else {
                 OBJ_create_objects(oid_bio);
                 BIO_free(oid_bio);
@@ -529,7 +528,15 @@ int req_main(int argc, char **argv)
     if (!add_oid_section(req_conf))
         goto end;
 
-    if (digest == NULL) {
+    /* Check that any specified digest is fetchable */
+    if (digest != NULL) {
+        if (!opt_md(digest, &md)) {
+            ERR_clear_error();
+            goto opthelp;
+        }
+        EVP_MD_free(md);
+    } else {
+        /* No digest specified, default to configuration */
         p = NCONF_get_string(req_conf, section, "default_md");
         if (p == NULL)
             ERR_clear_error();
@@ -627,47 +634,38 @@ int req_main(int argc, char **argv)
     if (newreq && pkey == NULL) {
         app_RAND_load_conf(req_conf, section);
 
-        if (!NCONF_get_number(req_conf, section, BITS, &newkey_len)) {
+        if (!NCONF_get_number(req_conf, section, BITS, &newkey_len))
             newkey_len = DEFAULT_KEY_LENGTH;
-        }
 
-        if (keyalg != NULL) {
-            genctx = set_keygen_ctx(keyalg, &pkey_type, &newkey_len,
-                                    &keyalgstr, gen_eng);
-            if (genctx == NULL)
-                goto end;
-        }
+        genctx = set_keygen_ctx(keyalg, &keyalgstr, &newkey_len, gen_eng);
+        if (genctx == NULL)
+            goto end;
 
         if (newkey_len < MIN_KEY_LENGTH
-            && (pkey_type == EVP_PKEY_RSA || pkey_type == EVP_PKEY_DSA)) {
-            BIO_printf(bio_err, "Private key length is too short,\n");
-            BIO_printf(bio_err, "it needs to be at least %d bits, not %ld.\n",
+            && (EVP_PKEY_CTX_is_a(genctx, "RSA")
+                || EVP_PKEY_CTX_is_a(genctx, "RSA-PSS")
+                || EVP_PKEY_CTX_is_a(genctx, "DSA"))) {
+            BIO_printf(bio_err, "Private key length too short, needs to be at least %d bits, not %ld.\n",
                        MIN_KEY_LENGTH, newkey_len);
             goto end;
         }
 
-        if (pkey_type == EVP_PKEY_RSA
-                && newkey_len > OPENSSL_RSA_MAX_MODULUS_BITS)
+        if (newkey_len > OPENSSL_RSA_MAX_MODULUS_BITS
+            && (EVP_PKEY_CTX_is_a(genctx, "RSA")
+                || EVP_PKEY_CTX_is_a(genctx, "RSA-PSS")))
             BIO_printf(bio_err,
                        "Warning: It is not recommended to use more than %d bit for RSA keys.\n"
                        "         Your key size is %ld! Larger key size may behave not as expected.\n",
                        OPENSSL_RSA_MAX_MODULUS_BITS, newkey_len);
 
 #ifndef OPENSSL_NO_DSA
-        if (pkey_type == EVP_PKEY_DSA
+        if (EVP_PKEY_CTX_is_a(genctx, "DSA")
                 && newkey_len > OPENSSL_DSA_MAX_MODULUS_BITS)
             BIO_printf(bio_err,
                        "Warning: It is not recommended to use more than %d bit for DSA keys.\n"
                        "         Your key size is %ld! Larger key size may behave not as expected.\n",
                        OPENSSL_DSA_MAX_MODULUS_BITS, newkey_len);
 #endif
-
-        if (genctx == NULL) {
-            genctx = set_keygen_ctx(NULL, &pkey_type, &newkey_len,
-                                    &keyalgstr, gen_eng);
-            if (genctx == NULL)
-                goto end;
-        }
 
         if (pkeyopts != NULL) {
             char *genopt;
@@ -680,33 +678,28 @@ int req_main(int argc, char **argv)
             }
         }
 
-        if (pkey_type == EVP_PKEY_EC) {
-            BIO_printf(bio_err, "Generating an EC private key\n");
-        } else {
-            BIO_printf(bio_err, "Generating a %s private key\n", keyalgstr);
-        }
-
         EVP_PKEY_CTX_set_cb(genctx, genpkey_cb);
         EVP_PKEY_CTX_set_app_data(genctx, bio_err);
 
-        if (EVP_PKEY_keygen(genctx, &pkey) <= 0) {
-            BIO_puts(bio_err, "Error generating key\n");
-            goto end;
-        }
+        pkey = app_keygen(genctx, keyalgstr, newkey_len, verbose);
 
         EVP_PKEY_CTX_free(genctx);
         genctx = NULL;
-
-        if (keyout == NULL) {
-            keyout = NCONF_get_string(req_conf, section, KEYFILE);
-            if (keyout == NULL)
-                ERR_clear_error();
-        }
-
+    }
+    if (keyout == NULL) {
+        keyout = NCONF_get_string(req_conf, section, KEYFILE);
         if (keyout == NULL)
-            BIO_printf(bio_err, "Writing new private key to stdout\n");
-        else
-            BIO_printf(bio_err, "Writing new private key to '%s'\n", keyout);
+            ERR_clear_error();
+    }
+
+    if (pkey != NULL && (keyfile == NULL || keyout != NULL)) {
+        if (verbose) {
+            BIO_printf(bio_err, "Writing private key to ");
+            if (keyout == NULL)
+                BIO_printf(bio_err, "stdout\n");
+            else
+                BIO_printf(bio_err, "'%s'\n", keyout);
+        }
         out = bio_open_owner(keyout, outformat, newreq);
         if (out == NULL)
             goto end;
@@ -725,7 +718,6 @@ int req_main(int argc, char **argv)
 
         i = 0;
  loop:
-        assert(newreq);
         if (!PEM_write_bio_PrivateKey(out, pkey, cipher,
                                       NULL, 0, NULL, passout)) {
             if ((ERR_GET_REASON(ERR_peek_error()) ==
@@ -938,14 +930,12 @@ int req_main(int argc, char **argv)
 
         i = do_X509_REQ_verify(req, tpubkey, vfyopts);
 
-        if (i < 0) {
+        if (i < 0)
             goto end;
-        } else if (i == 0) {
+        if (i == 0)
             BIO_printf(bio_err, "Certificate request self-signature verify failure\n");
-            ERR_print_errors(bio_err);
-        } else { /* i > 0 */
+        else /* i > 0 */
             BIO_printf(bio_err, "Certificate request self-signature verify OK\n");
-        }
     }
 
     if (noout && !text && !modulus && !subject && !pubkey) {
@@ -1400,7 +1390,6 @@ static int add_attribute_object(X509_REQ *req, char *text, const char *def,
     if (!X509_REQ_add1_attr_by_NID(req, nid, chtype,
                                    (unsigned char *)buf, -1)) {
         BIO_printf(bio_err, "Error adding attribute\n");
-        ERR_print_errors(bio_err);
         ret = 0;
     }
 
@@ -1507,60 +1496,65 @@ static int join(char buf[], size_t buf_size, const char *name,
 }
 
 static EVP_PKEY_CTX *set_keygen_ctx(const char *gstr,
-                                    int *pkey_type, long *pkeylen,
-                                    char **palgnam, ENGINE *keygen_engine)
+                                    char **pkeytype, long *pkeylen,
+                                    ENGINE *keygen_engine)
 {
     EVP_PKEY_CTX *gctx = NULL;
     EVP_PKEY *param = NULL;
     long keylen = -1;
     BIO *pbio = NULL;
+    const char *keytype = NULL;
+    size_t keytypelen = 0;
+    int expect_paramfile = 0;
     const char *paramfile = NULL;
 
+    /* Treat the first part of gstr, and only that */
     if (gstr == NULL) {
-        *pkey_type = EVP_PKEY_RSA;
+        /*
+         * Special case: when no string given, default to RSA and the
+         * key length given by |*pkeylen|.
+         */
+        keytype = "RSA";
         keylen = *pkeylen;
     } else if (gstr[0] >= '0' && gstr[0] <= '9') {
-        *pkey_type = EVP_PKEY_RSA;
-        keylen = atol(gstr);
-        *pkeylen = keylen;
-    } else if (strncmp(gstr, "param:", 6) == 0) {
-        paramfile = gstr + 6;
+        /* Special case: only keylength given from string, so default to RSA */
+        keytype = "RSA";
+        /* The second part treatment will do the rest */
     } else {
         const char *p = strchr(gstr, ':');
         int len;
-        ENGINE *tmpeng;
-        const EVP_PKEY_ASN1_METHOD *ameth;
 
         if (p != NULL)
             len = p - gstr;
         else
             len = strlen(gstr);
-        /*
-         * The lookup of a the string will cover all engines so keep a note
-         * of the implementation.
-         */
 
-        ameth = EVP_PKEY_asn1_find_str(&tmpeng, gstr, len);
-
-        if (ameth == NULL) {
-            BIO_printf(bio_err, "Unknown algorithm %.*s\n", len, gstr);
-            return NULL;
-        }
-
-        EVP_PKEY_asn1_get0_info(NULL, pkey_type, NULL, NULL, NULL, ameth);
-#ifndef OPENSSL_NO_ENGINE
-        finish_engine(tmpeng);
-#endif
-        if (*pkey_type == EVP_PKEY_RSA) {
-            if (p != NULL) {
-                keylen = atol(p + 1);
-                *pkeylen = keylen;
-            } else {
-                keylen = *pkeylen;
+        if (strncmp(gstr, "param", len) == 0) {
+            expect_paramfile = 1;
+            if (p == NULL) {
+                BIO_printf(bio_err,
+                           "Parameter file requested but no path given: %s\n",
+                           gstr);
+                return NULL;
             }
-        } else if (p != NULL) {
-            paramfile = p + 1;
+        } else {
+            keytype = gstr;
+            keytypelen = len;
         }
+
+        if (p != NULL)
+            gstr = gstr + len + 1;
+        else
+            gstr = NULL;
+    }
+
+    /* Treat the second part of gstr, if there is one */
+    if (gstr != NULL) {
+        /* If the second part starts with a digit, we assume it's a size */
+        if (!expect_paramfile && gstr[0] >= '0' && gstr[0] <= '9')
+            keylen = atol(gstr);
+        else
+            paramfile = gstr;
     }
 
     if (paramfile != NULL) {
@@ -1588,38 +1582,48 @@ static EVP_PKEY_CTX *set_keygen_ctx(const char *gstr,
             BIO_printf(bio_err, "Error reading parameter file %s\n", paramfile);
             return NULL;
         }
-        if (*pkey_type == -1) {
-            *pkey_type = EVP_PKEY_id(param);
-        } else if (*pkey_type != EVP_PKEY_base_id(param)) {
+        if (keytype == NULL) {
+            keytype = EVP_PKEY_get0_type_name(param);
+            if (keytype == NULL) {
+                EVP_PKEY_free(param);
+                BIO_puts(bio_err, "Unable to determine key type\n");
+                return NULL;
+            }
+        }
+    }
+
+    if (keytypelen > 0)
+        *pkeytype = OPENSSL_strndup(keytype, keytypelen);
+    else
+        *pkeytype = OPENSSL_strdup(keytype);
+    if (keylen >= 0)
+        *pkeylen = keylen;
+
+    if (param != NULL) {
+        if (!EVP_PKEY_is_a(param, *pkeytype)) {
             BIO_printf(bio_err, "Key type does not match parameters\n");
             EVP_PKEY_free(param);
             return NULL;
         }
-    }
 
-    if (palgnam != NULL) {
-        const EVP_PKEY_ASN1_METHOD *ameth;
-        ENGINE *tmpeng;
-        const char *anam;
-
-        ameth = EVP_PKEY_asn1_find(&tmpeng, *pkey_type);
-        if (ameth == NULL) {
-            BIO_puts(bio_err, "Internal error: can't find key algorithm\n");
-            return NULL;
-        }
-        EVP_PKEY_asn1_get0_info(NULL, NULL, NULL, NULL, &anam, ameth);
-        *palgnam = OPENSSL_strdup(anam);
-#ifndef OPENSSL_NO_ENGINE
-        finish_engine(tmpeng);
-#endif
-    }
-
-    if (param != NULL) {
-        gctx = EVP_PKEY_CTX_new(param, keygen_engine);
-        *pkeylen = EVP_PKEY_bits(param);
+        if (keygen_engine != NULL)
+            gctx = EVP_PKEY_CTX_new(param, keygen_engine);
+        else
+            gctx = EVP_PKEY_CTX_new_from_pkey(app_get0_libctx(),
+                                              param, app_get0_propq());
+        *pkeylen = EVP_PKEY_get_bits(param);
         EVP_PKEY_free(param);
     } else {
-        gctx = EVP_PKEY_CTX_new_id(*pkey_type, keygen_engine);
+        if (keygen_engine != NULL) {
+            int pkey_id = get_legacy_pkey_id(app_get0_libctx(), keytype,
+                                             keygen_engine);
+
+            if (pkey_id != NID_undef)
+                gctx = EVP_PKEY_CTX_new_id(pkey_id, keygen_engine);
+        } else {
+            gctx = EVP_PKEY_CTX_new_from_name(app_get0_libctx(),
+                                              keytype, app_get0_propq());
+        }
     }
 
     if (gctx == NULL) {
@@ -1632,9 +1636,18 @@ static EVP_PKEY_CTX *set_keygen_ctx(const char *gstr,
         EVP_PKEY_CTX_free(gctx);
         return NULL;
     }
-    if ((*pkey_type == EVP_PKEY_RSA) && (keylen != -1)) {
-        if (EVP_PKEY_CTX_set_rsa_keygen_bits(gctx, keylen) <= 0) {
-            BIO_puts(bio_err, "Error setting RSA keysize\n");
+    if (keylen == -1 && (EVP_PKEY_CTX_is_a(gctx, "RSA")
+        || EVP_PKEY_CTX_is_a(gctx, "RSA-PSS")))
+        keylen = *pkeylen;
+
+    if (keylen != -1) {
+        OSSL_PARAM params[] = { OSSL_PARAM_END, OSSL_PARAM_END };
+        size_t bits = keylen;
+
+        params[0] =
+            OSSL_PARAM_construct_size_t(OSSL_PKEY_PARAM_BITS, &bits);
+        if (EVP_PKEY_CTX_set_params(gctx, params) <= 0) {
+            BIO_puts(bio_err, "Error setting keysize\n");
             EVP_PKEY_CTX_free(gctx);
             return NULL;
         }

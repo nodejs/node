@@ -1,5 +1,5 @@
 /*-
- * Copyright 2007-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2007-2021 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright Nokia 2007-2019
  * Copyright Siemens AG 2015-2019
  *
@@ -188,11 +188,6 @@ typedef struct ossl_crmf_popoprivkey_st {
         ASN1_INTEGER *subsequentMessage; /* 1 */
         ASN1_BIT_STRING *dhMAC; /* 2 */ /* Deprecated */
         OSSL_CRMF_PKMACVALUE *agreeMAC; /* 3 */
-        /*
-         * TODO: This is not ASN1_NULL but CMS_ENVELOPEDDATA which should be
-         * somehow taken from crypto/cms which exists now
-         * - this is not used anywhere so far
-         */
         ASN1_NULL *encryptedKey; /* 4 */
     } value;
 } OSSL_CRMF_POPOPRIVKEY;
@@ -335,13 +330,11 @@ struct ossl_crmf_certtemplate_st {
 struct ossl_crmf_certrequest_st {
     ASN1_INTEGER *certReqId;
     OSSL_CRMF_CERTTEMPLATE *certTemplate;
-    /* TODO: make OSSL_CRMF_CONTROLS out of that - but only cosmetical */
     STACK_OF(OSSL_CRMF_ATTRIBUTETYPEANDVALUE) *controls;
 } /* OSSL_CRMF_CERTREQUEST */;
 DECLARE_ASN1_FUNCTIONS(OSSL_CRMF_CERTREQUEST)
 DECLARE_ASN1_DUP_FUNCTION(OSSL_CRMF_CERTREQUEST)
 
-/* TODO: isn't there a better way to have this for ANY type? */
 struct ossl_crmf_attributetypeandvalue_st {
     ASN1_OBJECT *type;
     union {

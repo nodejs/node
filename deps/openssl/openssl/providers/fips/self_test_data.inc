@@ -1309,14 +1309,14 @@ static const unsigned char rsa_asym_expected_encrypt[256] = {
 
 #ifndef OPENSSL_NO_EC
 /* ECDSA key data */
-static const char ecd_curve_name[] = "secp224r1";
-static const unsigned char ecd_priv[] = {
+static const char ecd_prime_curve_name[] = "secp224r1";
+static const unsigned char ecd_prime_priv[] = {
     0x98, 0x1f, 0xb5, 0xf1, 0xfc, 0x87, 0x1d, 0x7d,
     0xde, 0x1e, 0x01, 0x64, 0x09, 0x9b, 0xe7, 0x1b,
     0x9f, 0xad, 0x63, 0xdd, 0x33, 0x01, 0xd1, 0x50,
     0x80, 0x93, 0x50, 0x30
 };
-static const unsigned char ecd_pub[] = {
+static const unsigned char ecd_prime_pub[] = {
     0x04, 0x95, 0x47, 0x99, 0x44, 0x29, 0x8f, 0x51,
     0x39, 0xe2, 0x53, 0xec, 0x79, 0xb0, 0x4d, 0xde,
     0x87, 0x1a, 0x76, 0x54, 0xd5, 0x96, 0xb8, 0x7a,
@@ -1326,13 +1326,38 @@ static const unsigned char ecd_pub[] = {
     0xc4, 0xb7, 0x33, 0x68, 0xe4, 0x24, 0xa9, 0x12,
     0x82
 };
-
-static const ST_KAT_PARAM ecdsa_key[] = {
-    ST_KAT_PARAM_UTF8STRING(OSSL_PKEY_PARAM_GROUP_NAME, ecd_curve_name),
-    ST_KAT_PARAM_OCTET(OSSL_PKEY_PARAM_PUB_KEY, ecd_pub),
-    ST_KAT_PARAM_BIGNUM(OSSL_PKEY_PARAM_PRIV_KEY, ecd_priv),
+static const ST_KAT_PARAM ecdsa_prime_key[] = {
+    ST_KAT_PARAM_UTF8STRING(OSSL_PKEY_PARAM_GROUP_NAME, ecd_prime_curve_name),
+    ST_KAT_PARAM_OCTET(OSSL_PKEY_PARAM_PUB_KEY, ecd_prime_pub),
+    ST_KAT_PARAM_BIGNUM(OSSL_PKEY_PARAM_PRIV_KEY, ecd_prime_priv),
     ST_KAT_PARAM_END()
 };
+
+# ifndef OPENSSL_NO_EC2M
+static const char ecd_bin_curve_name[] = "sect233r1";
+static const unsigned char ecd_bin_priv[] = {
+    0x00, 0x6d, 0xd6, 0x39, 0x9d, 0x2a, 0xa2, 0xc8,
+    0x8c, 0xfc, 0x7b, 0x80, 0x66, 0xaa, 0xe1, 0xaa,
+    0xba, 0xee, 0xcb, 0xfd, 0xc9, 0xe5, 0x36, 0x38,
+    0x2e, 0xf7, 0x37, 0x6d, 0xd3, 0x20
+};
+static const unsigned char ecd_bin_pub[] = {
+    0x04, 0x00, 0x06, 0xe2, 0x56, 0xf7, 0x37, 0xf9,
+    0xea, 0xb6, 0xd1, 0x0f, 0x59, 0xfa, 0x23, 0xc3,
+    0x93, 0xa8, 0xb2, 0x26, 0xe2, 0x5c, 0x08, 0xbe,
+    0x63, 0x49, 0x26, 0xdc, 0xc7, 0x1e, 0x6f, 0x01,
+    0x32, 0x3b, 0xe6, 0x54, 0x8d, 0xc1, 0x13, 0x3e,
+    0x54, 0xb2, 0x66, 0x89, 0xb2, 0x82, 0x0a, 0x72,
+    0x02, 0xa8, 0xe9, 0x6f, 0x54, 0xfd, 0x3a, 0x6b,
+    0x99, 0xb6, 0x8f, 0x80, 0x46
+};
+static const ST_KAT_PARAM ecdsa_bin_key[] = {
+    ST_KAT_PARAM_UTF8STRING(OSSL_PKEY_PARAM_GROUP_NAME, ecd_bin_curve_name),
+    ST_KAT_PARAM_OCTET(OSSL_PKEY_PARAM_PUB_KEY, ecd_bin_pub),
+    ST_KAT_PARAM_BIGNUM(OSSL_PKEY_PARAM_PRIV_KEY, ecd_bin_priv),
+    ST_KAT_PARAM_END()
+};
+# endif /* OPENSSL_NO_EC2M */
 #endif /* OPENSSL_NO_EC */
 
 #ifndef OPENSSL_NO_DSA
@@ -1475,12 +1500,24 @@ static const ST_KAT_SIGN st_kat_sign_tests[] = {
         OSSL_SELF_TEST_DESC_SIGN_ECDSA,
         "EC",
         "SHA-256",
-        ecdsa_key,
+        ecdsa_prime_key,
         /*
          * The ECDSA signature changes each time due to it using a random k.
          * So there is no expected KAT for this case.
          */
     },
+# ifndef OPENSSL_NO_EC2M
+    {
+        OSSL_SELF_TEST_DESC_SIGN_ECDSA,
+        "EC",
+        "SHA-256",
+        ecdsa_bin_key,
+        /*
+         * The ECDSA signature changes each time due to it using a random k.
+         * So there is no expected KAT for this case.
+         */
+    },
+# endif
 #endif /* OPENSSL_NO_EC */
 #ifndef OPENSSL_NO_DSA
     {

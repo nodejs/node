@@ -4,7 +4,7 @@ ${-
   my $bldtop = rel2abs($config{builddir});
   our %names = ( map { platform->sharedname($_) =>
                            $bldtop.platform->sharedlib($_) }
-                 grep { !$unified_info{attributes}->{$_}->{noinst} }
+                 grep { !$unified_info{attributes}->{libraries}->{$_}->{noinst} }
                  @{$unified_info{libraries}} );
   "" -}
 $       ! Create a local environment with the shared library logical names

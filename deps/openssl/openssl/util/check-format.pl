@@ -13,8 +13,9 @@
 #
 # usage:
 #   check-format.pl [-l|--sloppy-len] [-l|--sloppy-bodylen]
-#                   [-s|--sloppy-spc] [-c|--sloppy-cmt] [-m|--sloppy-macro]
-#                   [-h|--sloppy-hang] [-1|--1-stmt]
+#                   [-s|--sloppy-space] [-c|--sloppy-comment]
+#                   [-m|--sloppy-macro] [-h|--sloppy-hang]
+#                   [-e|--eol-comment] [-1|--1-stmt]
 #                   <files>
 #
 # run self-tests:
@@ -27,23 +28,24 @@
 # Still it should be useful for detecting most typical glitches.
 #
 # options:
-#  -l | --sloppy-len   increase accepted max line length from 80 to 84
+#  -l | --sloppy-len     increase accepted max line length from 80 to 84
 #  -l | --sloppy-bodylen do not report function body length > 200
-#  -s | --sloppy-spc   do not report whitespace nits
-#  -c | --sloppy-cmt   do not report indentation of comments
-#                      Otherwise for each multi-line comment the indentation of
-#                      its lines is checked for consistency. For each comment
-#                      that does not begin to the right of normal code its
-#                      indentation must be as for normal code, while in case it
-#                      also has no normal code to its right it is considered to
-#                      refer to the following line and may be indented equally.
-#  -m | --sloppy-macro allow missing extra indentation of macro bodies
-#  -h | --sloppy-hang  when checking hanging indentation, do not report
-#                      * same indentation as on line before
-#                      * same indentation as non-hanging indent level
-#                      * indentation moved left (not beyond non-hanging indent)
-#                        just to fit contents within the line length limit
-#  -1 | --1-stmt       do more aggressive checks for { 1 stmt } - see below
+#  -s | --sloppy-space   do not report whitespace nits
+#  -c | --sloppy-comment do not report indentation of comments
+#                        Otherwise for each multi-line comment the indentation of
+#                        its lines is checked for consistency. For each comment
+#                        that does not begin to the right of normal code its
+#                        indentation must be as for normal code, while in case it
+#                        also has no normal code to its right it is considered to
+#                        refer to the following line and may be indented equally.
+#  -m | --sloppy-macro   allow missing extra indentation of macro bodies
+#  -h | --sloppy-hang    when checking hanging indentation, do not report
+#                        * same indentation as on line before
+#                        * same indentation as non-hanging indent level
+#                        * indentation moved left (not beyond non-hanging indent)
+#                          just to fit contents within the line length limit
+#  -e | --eol-comment    report needless intermediate multiple consecutive spaces also before end-of-line comments
+#  -1 | --1-stmt         do more aggressive checks for { 1 stmt } - see below
 #
 # There are non-trivial false positives and negatives such as the following.
 #
@@ -64,12 +66,13 @@
 #   Yet with the --1-stmt option false positives are preferred over negatives.
 #   False negatives occur if the braces are more than two non-empty lines apart.
 #
-# * Use of multiple consecutive spaces is regarded a coding style nit except
-#   when done in order to align certain columns over multiple lines, e.g.:
+# * The presence of multiple consecutive spaces is regarded a coding style nit
+#   except when this is before end-of-line comments (unless the --eol-comment is given) and
+#   except when done in order to align certain columns over multiple lines, e.g.:
 #   # define AB  1
 #   # define CDE 22
 #   # define F   3333
-#   This pattern is recognized - and consequently double space not reported -
+#   This pattern is recognized - and consequently extra space not reported -
 #   for a given line if in the nonempty line before or after (if existing)
 #   for each occurrence of "  \S" (where \S means non-space) in the given line
 #   there is " \S" in the other line in the respective column position.
@@ -102,6 +105,7 @@ my $sloppy_SPC = 0;
 my $sloppy_hang = 0;
 my $sloppy_cmt = 0;
 my $sloppy_macro = 0;
+my $eol_cmt = 0;
 my $extended_1_stmt = 0;
 
 while ($ARGV[0] =~ m/^-(\w|-[\w\-]+)$/) {
@@ -110,14 +114,16 @@ while ($ARGV[0] =~ m/^-(\w|-[\w\-]+)$/) {
         $max_length += INDENT_LEVEL;
     } elsif ($arg =~ m/^(b|-sloppy-bodylen)$/) {
         $sloppy_bodylen = 1;
-    } elsif ($arg =~ m/^(s|-sloppy-spc)$/) {
-        $sloppy_SPC = 1;
-    } elsif ($arg =~ m/^(c|-sloppy-cmt)$/) {
+    } elsif ($arg =~ m/^(s|-sloppy-space)$/) {
+        $sloppy_SPC= 1;
+    } elsif ($arg =~ m/^(c|-sloppy-comment)$/) {
         $sloppy_cmt = 1;
     } elsif ($arg =~ m/^(m|-sloppy-macro)$/) {
         $sloppy_macro = 1;
     } elsif ($arg =~ m/^(h|-sloppy-hang)$/) {
         $sloppy_hang = 1;
+    } elsif ($arg =~ m/^(e|-eol-comment)$/) {
+        $eol_cmt = 1;
     } elsif ($arg =~ m/^(1|-1-stmt)$/) {
         $extended_1_stmt = 1;
     } else {
@@ -130,10 +136,11 @@ my $self_test;             # whether the current input file is regarded to conta
 my $line;                  # current line number
 my $line_before;           # number of previous not essentially empty line (containing at most whitespace and '\')
 my $line_before2;          # number of not essentially empty line before previous not essentially empty line
-my $contents;              # contents of current line
-my $contents_before;       # contents of $line_before, if $line_before > 0
+my $contents;              # contents of current line (without blinding)
+#  $_                      # current line, where comments etc. get blinded
+my $contents_before;       # contents of $line_before (without blinding), if $line_before > 0
 my $contents_before_;      # contents of $line_before after blinding comments etc., if $line_before > 0
-my $contents_before2;      # contents of $line_before2, if $line_before2 > 0
+my $contents_before2;      # contents of $line_before2  (without blinding), if $line_before2 > 0
 my $contents_before_2;     # contents of $line_before2 after blinding comments etc., if $line_before2 > 0
 my $in_multiline_string;   # line starts within multi-line string literal
 my $count;                 # -1 or number of leading whitespace characters (except newline) in current line,
@@ -214,7 +221,7 @@ sub report_flexibly {
     my $line = shift;
     my $msg = shift;
     my $contents = shift;
-    my $report_SPC = $msg =~ /SPC/;
+    my $report_SPC = $msg =~ /space/;
     return if $report_SPC && $sloppy_SPC;
 
     print "$ARGV:$line:$msg:$contents" unless $self_test;
@@ -239,9 +246,9 @@ sub parens_balance { # count balance of opening parentheses - closing parenthese
 
 sub blind_nonspace { # blind non-space text of comment as @, preserving length and spaces
     # the @ character is used because it cannot occur in normal program code so there is no confusion
-    # comment text is not blinded to whitespace in order to be able to check double SPC also in comments
+    # comment text is not blinded to whitespace in order to be able to check extra SPC also in comments
     my $comment_text = shift;
-    $comment_text =~ s/([\.\?\!])\s\s/$1. /g; # in double SPC checks allow one extra space after period '.', '?', or '!' in comments
+    $comment_text =~ s/([\.\?\!])\s\s/$1. /g; # in extra SPC checks allow one extra SPC after period '.', '?', or '!' in comments
     return $comment_text =~ tr/ /@/cr;
 }
 
@@ -507,7 +514,7 @@ while (<>) { # loop over all lines of all input files
     if ($in_comment > 0) { # this still includes the last line of multi-line commment
         my ($head, $any_symbol, $cmt_text) = m/^(\s*)(.?)(.*)$/;
         if ($any_symbol eq "*") {
-            report("no SPC after leading '*' in multi-line comment") if $cmt_text =~ m|^[^/\s$self_test_exception]|;
+            report("no space after leading '*' in multi-line comment") if $cmt_text =~ m|^[^/\s$self_test_exception]|;
         } else {
             report("no leading '*' in multi-line comment");
         }
@@ -516,8 +523,8 @@ while (<>) { # loop over all lines of all input files
 
     # detect end of comment, must be within multi-line comment, check if it is preceded by non-whitespace text
     if ((my ($head, $tail) = m|^(.*?)\*/(.*)$|) && $1 ne '/') { # ending comment: '*/'
-        report("neither SPC nor '*' before '*/'") if $head =~ m/[^*\s]$/;
-        report("no SPC after '*/'") if $tail =~ m/^[^\s,;)}\]]/; # no space or ,;)}] after '*/'
+        report("neither space nor '*' before '*/'") if $head =~ m/[^*\s]$/;
+        report("no space after '*/'") if $tail =~ m/^[^\s,;)}\]]/; # no space or ,;)}] after '*/'
         if (!($head =~ m|/\*|)) { # not begin of comment '/*', which is is handled below
             if ($in_comment == 0) {
                 report("unexpected '*/' outside comment");
@@ -540,9 +547,9 @@ while (<>) { # loop over all lines of all input files
     # detect begin of comment, check if it is followed by non-space text
   MATCH_COMMENT:
     if (my ($head, $opt_minus, $tail) = m|^(.*?)/\*(-?)(.*)$|) { # begin of comment: '/*'
-        report("no SPC before '/*'")
+        report("no space before '/*'")
             if $head =~ m/[^\s(\*]$/; # not space, '(', or or '*' (needed to allow '*/') before comment delimiter
-        report("neither SPC nor '*' after '/*' or '/*-'") if $tail =~ m/^[^\s*$self_test_exception]/;
+        report("neither space nor '*' after '/*' or '/*-'") if $tail =~ m/^[^\s*$self_test_exception]/;
         my $cmt_text = $opt_minus.$tail; # preliminary
         if ($in_comment > 0) {
             report("unexpected '/*' inside multi-line comment");
@@ -604,17 +611,17 @@ while (<>) { # loop over all lines of all input files
 
     my $in_multiline_comment = ($in_comment > 1 || $in_comment < 0); # $in_multiline_comment refers to line before
     if (!$sloppy_SPC && !($in_multiline_comment && $formatted_comment)) {
-        sub dbl_SPC {
+        sub extra_SPC {
             my $intra_line = shift;
-            return "double SPC".($intra_line =~ m/@\s\s/ ?
-                                 $in_comment != 0 ? " in multi-line comment"
-                                                  : " in intra-line comment" : "");
+            return "extra space".($intra_line =~ m/@\s\s/ ?
+                                  $in_comment != 0 ? " in multi-line comment"
+                                                   : " in intra-line comment" : "");
         }
-        sub split_line_head {
+        sub split_line_head { # split line contents into header containing leading spaces and the first non-space char, and the rest of the line
             my $comment_symbol =
                 $in_comment != 0 ? "@" : ""; # '@' will match the blinded leading '*' in multi-line comment
                                              # $in_comment may pertain to the following line due to delayed check
-            # do not check for double SPC in leading spaces including any '#' (or '*' within multi-line comment)
+            # do not check for extra SPC in leading spaces including any '#' (or '*' within multi-line comment)
             shift =~ m/^(\s*([#$comment_symbol]\s*)?)(.*?)\s*$/;
             return ($1, $3);
         }
@@ -622,26 +629,29 @@ while (<>) { # loop over all lines of all input files
         my ($head1, $intra_line1) = split_line_head($contents_before_ ) if $line_before > 0;
         my ($head2, $intra_line2) = split_line_head($contents_before_2) if $line_before2 > 0;
         if ($line_before > 0) { # check with one line delay, such that at least $contents_before is available
-            sub column_alignments_only {
-                my $head = shift;
-                my $intra = shift;
-                my $contents = shift;
-                # check if all double SPC in $intra is used only for multi-line column alignment with $contents
+            sub column_alignments_only { # return 1 if the given line has multiple consecutive spaces only at columns that match the reference line
+                # all parameter strings are assumed to contain contents after blinding comments etc.
+                my $head = shift;     # leading spaces and the first non-space char
+                my $intra = shift;    # the rest of the line contents
+                my $contents = shift; # reference line
+                # check if all extra SPC in $intra is used only for multi-line column alignment with $contents
                 my $offset = length($head);
                 for (my $col = 0; $col < length($intra) - 2; $col++) {
-                   return 0 if substr($intra   , $col, 3) =~ m/\s\s\S/ # double space (after leading space)
-                          && !(substr($contents, $col + $offset + 1, 2) =~ m/\s\S/)
+                    my $substr = substr($intra, $col);
+                    next unless $substr =~ m/^\s\s\S/; # extra SPC (but not in leading spaces of the line)
+                    next if !$eol_cmt && $substr =~ m/^[@\s]+$/; # end-of-line comment
+                    return 0 unless substr($contents, $col + $offset + 1, 2) =~ m/\s\S/; # reference line contents do not match
                 }
                 return 1;
             }
-            report_flexibly($line_before, dbl_SPC($intra_line1), $contents_before) if $intra_line1 =~ m/\s\s\S/ &&
+            report_flexibly($line_before, extra_SPC($intra_line1), $contents_before) if $intra_line1 =~ m/\s\s\S/ &&
                !(    column_alignments_only($head1, $intra_line1, $_                )    # compare with $line
                  || ($line_before2 > 0 &&
                      column_alignments_only($head1, $intra_line1, $contents_before_2))); # compare w/ $line_before2
-            report(dbl_SPC($intra_line)) if $intra_line  =~ m/\s\s\S/ && eof
+            report(extra_SPC($intra_line)) if $intra_line  =~ m/\s\s\S/ && eof
                 && ! column_alignments_only($head , $intra_line , $contents_before_ )  ; # compare w/ $line_before
         } elsif (eof) { # special case: just one line exists
-            report(dbl_SPC($intra_line)) if $intra_line  =~ m/\s\s\S/;
+            report(extra_SPC($intra_line)) if $intra_line  =~ m/\s\s\S/;
         }
         # ignore paths in #include
         $intra_line =~ s/^(include\s*)(".*?"|<.*?>)/$1/e if $head =~ m/#/;
@@ -656,47 +666,47 @@ while (<>) { # loop over all lines of all input files
         # remove blinded comments etc. directly before ,;)}]
         while ($intra_line =~ s/\s?@+([,;\)\}\]])/$1/e) {} # /g does not work here
         # treat remaining blinded comments and string literal contents as (single) space during matching below
-        $intra_line =~ s/@+/ /g;                     # note that double SPC has already been handled above
+        $intra_line =~ s/@+/ /g;                     # note that extra SPC has already been handled above
         $intra_line =~ s/\s+$//;                     # strip any (resulting) space at EOL
         $intra_line =~ s/(for\s*\([^;]*);;(\))/"$1$2"/eg; # strip trailing ';;' in for (;;)
         $intra_line =~ s/(for\s*\([^;]+;[^;]+);(\))/"$1$2"/eg; # strip trailing ';' in for (;;)
         $intra_line =~ s/(=\s*)\{ /"$1@ "/eg;        # do not report {SPC in initializers such as ' = { 0, };'
         $intra_line =~ s/, \};/, @;/g;               # do not report SPC} in initializers such as ' = { 0, };'
-        report("SPC before '$1'") if $intra_line =~ m/[\w)\]]\s+(\+\+|--)/;  # postfix ++/-- with preceding space
-        report("SPC after '$1'")  if $intra_line =~ m/(\+\+|--)\s+[a-zA-Z_(]/; # prefix ++/-- with following space
+        report("space before '$1'") if $intra_line =~ m/[\w)\]]\s+(\+\+|--)/;  # postfix ++/-- with preceding space
+        report("space after '$1'")  if $intra_line =~ m/(\+\+|--)\s+[a-zA-Z_(]/; # prefix ++/-- with following space
         $intra_line =~ s/\.\.\./@/g;                 # blind '...'
-        report("SPC before '$1'") if $intra_line =~ m/\s(\.|->)/;            # '.' or '->' with preceding space
-        report("SPC after '$1'")  if $intra_line =~ m/(\.|->)\s/;            # '.' or '->' with following space
+        report("space before '$1'") if $intra_line =~ m/\s(\.|->)/;            # '.' or '->' with preceding space
+        report("space after '$1'")  if $intra_line =~ m/(\.|->)\s/;            # '.' or '->' with following space
         $intra_line =~ s/\-\>|\+\+|\-\-/@/g;         # blind '->,', '++', and '--'
-        report("SPC before '$2'")     if $intra_line =~ m/[^:]\s+(;)/;       # space before ';' but not after ':'
-        report("SPC before '$1'")     if $intra_line =~ m/\s([,)\]])/;       # space before ,)]
-        report("SPC after '$1'")      if $intra_line =~ m/([(\[~!])\s/;      # space after ([~!
-        report("SPC after '$1'")      if $intra_line =~ m/(defined)\s/;      # space after 'defined'
-        report("no SPC before '=' or '<op>='") if $intra_line =~ m/\S(=)/;   # '=' etc. without preceding space
-        report("no SPC before '$1'")  if $intra_line =~ m/\S([|\/%<>^\?])/;  # |/%<>^? without preceding space
+        report("space before '$2'")     if $intra_line =~ m/[^:]\s+(;)/;       # space before ';' but not after ':'
+        report("space before '$1'")     if $intra_line =~ m/\s([,)\]])/;       # space before ,)]
+        report("space after '$1'")      if $intra_line =~ m/([(\[~!])\s/;      # space after ([~!
+        report("space after '$1'")      if $intra_line =~ m/(defined)\s/;      # space after 'defined'
+        report("no space before '=' or '<op>='") if $intra_line =~ m/\S(=)/;   # '=' etc. without preceding space
+        report("no space before '$1'")  if $intra_line =~ m/\S([|\/%<>^\?])/;  # |/%<>^? without preceding space
         # TODO ternary ':' without preceding SPC, while allowing no SPC before ':' after 'case'
-        report("no SPC before binary '$1'")  if $intra_line =~ m/[^\s{()\[]([+\-])/;# +/- without preceding space or {()[
+        report("no space before binary '$1'")  if $intra_line =~ m/[^\s{()\[]([+\-])/;# +/- without preceding space or {()[
                                                                              # or ')' (which is used f type casts)
-        report("no SPC before binary '$1'")  if $intra_line =~ m/[^\s{()\[*]([*])/; # '*' without preceding space or {()[*
-        report("no SPC before binary '$1'")  if $intra_line =~ m/[^\s{()\[]([&])/;  # '&' without preceding space or {()[
-        report("no SPC after ternary '$1'") if $intra_line =~ m/(:)[^\s\d]/; # ':' without following space or digit
-        report("no SPC after '$1'")   if $intra_line =~ m/([,;=|\/%<>^\?])\S/; # ,;=|/%<>^? without following space
-        report("no SPC after binary '$1'") if $intra_line=~m/[^{(\[]([*])[^\sa-zA-Z_(),*]/;# '*' w/o space or \w(),* after
+        report("no space before binary '$1'")  if $intra_line =~ m/[^\s{()\[*!]([*])/; # '*' without preceding space or {()[*!
+        report("no space before binary '$1'")  if $intra_line =~ m/[^\s{()\[]([&])/;  # '&' without preceding space or {()[
+        report("no space after ternary '$1'") if $intra_line =~ m/(:)[^\s\d]/; # ':' without following space or digit
+        report("no space after '$1'")   if $intra_line =~ m/([,;=|\/%<>^\?])\S/; # ,;=|/%<>^? without following space
+        report("no space after binary '$1'") if $intra_line=~m/[^{(\[]([*])[^\sa-zA-Z_(),*]/;# '*' w/o space or \w(),* after
         # TODO unary '*' must not be followed by SPC
-        report("no SPC after binary '$1'") if $intra_line=~m/([&])[^\sa-zA-Z_(]/;  # '&' w/o following space or \w(
+        report("no space after binary '$1'") if $intra_line=~m/([&])[^\sa-zA-Z_(]/;  # '&' w/o following space or \w(
         # TODO unary '&' must not be followed by SPC
-        report("no SPC after binary '$1'") if $intra_line=~m/[^{(\[]([+\-])[^\s\d(]/;  # +/- w/o following space or \d(
+        report("no space after binary '$1'") if $intra_line=~m/[^{(\[]([+\-])[^\s\d(]/;  # +/- w/o following space or \d(
         # TODO unary '+' and '-' must not be followed by SPC
-        report("no SPC after '$2'")   if $intra_line =~ m/(^|\W)(if|while|for|switch|case)[^\w\s]/; # kw w/o SPC
-        report("no SPC after '$2'")   if $intra_line =~ m/(^|\W)(return)[^\w\s;]/;  # return w/o SPC or ';'
-        report("SPC after function/macro name")
+        report("no space after '$2'")   if $intra_line =~ m/(^|\W)(if|while|for|switch|case)[^\w\s]/; # kw w/o SPC
+        report("no space after '$2'")   if $intra_line =~ m/(^|\W)(return)[^\w\s;]/;  # return w/o SPC or ';'
+        report("space after function/macro name")
                                       if $intra_line =~ m/(\w+)\s+\(/        # fn/macro name with space before '('
        && !($1 =~ m/^(if|while|for|switch|return|typedef|void|char|unsigned|int|long|float|double)$/) # not keyword
                                     && !(m/^\s*#\s*define\s/); # we skip macro definitions here because macros
                                     # without parameters but with body beginning with '(', e.g., '#define X (1)',
                                     # would lead to false positives - TODO also check for macros with parameters
-        report("no SPC before '{'")   if $intra_line =~ m/[^\s{(\[]\{/;      # '{' without preceding space or {([
-        report("no SPC after '}'")    if $intra_line =~ m/\}[^\s,;\])}]/;    # '}' without following space or ,;])}
+        report("no space before '{'")   if $intra_line =~ m/[^\s{(\[]\{/;      # '{' without preceding space or {([
+        report("no space after '}'")    if $intra_line =~ m/\}[^\s,;\])}]/;    # '}' without following space or ,;])}
     }
 
     # preprocessor directives @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -846,7 +856,12 @@ while (<>) { # loop over all lines of all input files
         }
     }
 
-    report("one-letter name '$2'") if (m/(^|.*\W)([lIO])(\W.*|$)/); # single-letter name 'l', 'I', or 'O'
+    report("single-letter name '$2'") if (m/(^|.*\W)([IO])(\W.*|$)/); # single-letter name 'I' or 'O' # maybe re-add 'l'?
+    # constant on LHS of comparison or assignment, e.g., NULL != x or 'a' < c, but not a + 1 == b
+    report("constant on LHS of '$2'")
+        if (m/(['"]|([\+\-\*\/\/%\&\|\^<>]\s*)?\W[0-9]+L?|NULL)\s*([\!<>=]=|[<=>][^<>])/ && $2 eq "");
+
+    # TODO report #if 0 and #if 1
 
     # TODO report empty line within local variable definitions
 
@@ -918,10 +933,12 @@ while (<>) { # loop over all lines of all input files
     }
 
     # set $in_typedecl and potentially $hanging_offset for type declaration
-    if (!$in_expr && @nested_indents == 0 && # not in expression
-        m/(^|^.*\W)(typedef|struct|union|enum)(\W.*|$)$/ &&
-        parens_balance($1) == 0) { # not in newly started expression
-        # not needed: $keyword_opening_brace = $2 if $3 =~ m/\{/;
+    if (!$in_expr && @nested_indents == 0 # not in expression
+        && m/(^|^.*\W)(typedef|struct|union|enum)(\W.*|$)$/
+        && parens_balance($1) == 0 # not in newly started expression or function arg list
+        && ($2 eq "typedef" || !($3 =~ m/\s*\w++\s*(.)/ && $1 ne "{")) # 'struct'/'union'/'enum' <name> not followed by '{'
+        # not needed: && $keyword_opening_brace = $2 if $3 =~ m/\{/;
+        ) {
         $in_typedecl++;
         $hanging_offset += INDENT_LEVEL if m/\*.*\(/; # '*' followed by '(' - seems consistent with Emacs C mode
     }
@@ -1079,8 +1096,8 @@ while (<>) { # loop over all lines of all input files
         $hanging_offset = 0; # compensate for this in case macro ends, e.g., as 'while (0)'
     }
 
-    if (m/^\s*$/) { # essentially empty line: just whitespace (and maybe a '\')
-            report("empty line at beginnig of file") if $line == 1 && !$sloppy_SPC;
+    if (m/^\s*$/) { # at begin of file essentially empty line: just whitespace (and maybe a '\')
+            report("leading ".($1 eq "" ? "empty" :"whitespace")." line") if $line == 1 && !$sloppy_SPC;
     } else {
         if ($line_before > 0) {
             my $linediff = $line - $line_before - 1;

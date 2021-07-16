@@ -48,21 +48,11 @@ struct conf_st;
 struct conf_method_st;
 typedef struct conf_method_st CONF_METHOD;
 
-struct conf_method_st {
-    const char *name;
-    CONF *(*create) (CONF_METHOD *meth);
-    int (*init) (CONF *conf);
-    int (*destroy) (CONF *conf);
-    int (*destroy_data) (CONF *conf);
-    int (*load_bio) (CONF *conf, BIO *bp, long *eline);
-    int (*dump) (const CONF *conf, BIO *bp);
-    int (*is_number) (const CONF *conf, char c);
-    int (*to_int) (const CONF *conf, char c);
-    int (*load) (CONF *conf, const char *name, long *eline);
-};
+# ifndef OPENSSL_NO_DEPRECATED_3_0
+#  include <openssl/conftypes.h>
+# endif
 
 /* Module definitions */
-
 typedef struct conf_imodule_st CONF_IMODULE;
 typedef struct conf_module_st CONF_MODULE;
 
@@ -115,17 +105,8 @@ OSSL_DEPRECATEDIN_1_1_0 void OPENSSL_config(const char *config_name);
  * that wasn't the case, the above functions would have been replaced
  */
 
-struct conf_st {
-    CONF_METHOD *meth;
-    void *meth_data;
-    LHASH_OF(CONF_VALUE) *data;
-    int flag_dollarid;
-    int flag_abspath;
-    char *includedir;
-    OSSL_LIB_CTX *libctx;
-};
-
 CONF *NCONF_new_ex(OSSL_LIB_CTX *libctx, CONF_METHOD *meth);
+OSSL_LIB_CTX *NCONF_get0_libctx(const CONF *conf);
 CONF *NCONF_new(CONF_METHOD *meth);
 CONF_METHOD *NCONF_default(void);
 #ifndef OPENSSL_NO_DEPRECATED_3_0
@@ -139,6 +120,7 @@ int NCONF_load(CONF *conf, const char *file, long *eline);
 int NCONF_load_fp(CONF *conf, FILE *fp, long *eline);
 # endif
 int NCONF_load_bio(CONF *conf, BIO *bp, long *eline);
+STACK_OF(OPENSSL_CSTRING) *NCONF_get_section_names(const CONF *conf);
 STACK_OF(CONF_VALUE) *NCONF_get_section(const CONF *conf,
                                         const char *section);
 char *NCONF_get_string(const CONF *conf, const char *group, const char *name);

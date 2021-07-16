@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -42,10 +42,10 @@ int name (const type *obj, OSSL_PARAM params[])                                \
 }
 
 #define PARAM_CTX_FUNC(name, func, type, err)                                  \
-int name (const type *obj, void *provctx, OSSL_PARAM params[])                 \
+int name (const type *obj, void *algctx, OSSL_PARAM params[])                  \
 {                                                                              \
     PARAM_CHECK(obj, func, err)                                                \
-    return obj->func(provctx, params);                                         \
+    return obj->func(algctx, params);                                          \
 }
 
 #define PARAM_FUNCTIONS(type,                                                  \

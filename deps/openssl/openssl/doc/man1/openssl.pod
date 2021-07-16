@@ -651,7 +651,12 @@ the PKCS#11 URI as defined in RFC 7512 should be possible to use directly:
 
 =item B<-provider> I<name>
 
-Load and initialize the provider identified by I<name>.
+Load and initialize the provider identified by I<name>. The I<name>
+can be also a path to the provider module. In that case the provider name
+will be the specified path and not just the provider module name.
+Interpretation of relative paths is platform specific. The configured
+"MODULESDIR" path, B<OPENSSL_MODULES> environment variable, or the path
+specified by B<-provider-path> is prepended to relative paths.
 See L<provider(7)> for a more detailed description.
 
 =item B<-provider-path> I<path>

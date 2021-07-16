@@ -145,8 +145,7 @@ L<SSL_get_verify_result(3)>,
 L<X509_VERIFY_PARAM_set1_host(3)>,
 L<X509_VERIFY_PARAM_add1_host(3)>,
 L<X509_VERIFY_PARAM_set1_email(3)>,
-L<X509_VERIFY_PARAM_set1_ip(3)>,
-L<X509_VERIFY_PARAM_set1_ipasc(3)>
+L<X509_VERIFY_PARAM_set1_ip(3)>
 
 =head1 HISTORY
 
@@ -154,7 +153,7 @@ These functions were added in OpenSSL 1.0.2.
 
 =head1 COPYRIGHT
 
-Copyright 2012-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2012-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

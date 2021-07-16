@@ -22,7 +22,7 @@
 #include <openssl/err.h>
 #include <openssl/proverr.h>
 /* Just for SSL_MAX_MASTER_KEY_LENGTH */
-#include <openssl/ssl.h>
+#include <openssl/prov_ssl.h>
 #include "internal/constant_time.h"
 #include "internal/sizes.h"
 #include "crypto/rsa.h"
@@ -371,7 +371,7 @@ static int rsa_get_ctx_params(void *vprsactx, OSSL_PARAM *params)
     p = OSSL_PARAM_locate(params, OSSL_ASYM_CIPHER_PARAM_OAEP_DIGEST);
     if (p != NULL && !OSSL_PARAM_set_utf8_string(p, prsactx->oaep_md == NULL
                                                     ? ""
-                                                    : EVP_MD_name(prsactx->oaep_md)))
+                                                    : EVP_MD_get0_name(prsactx->oaep_md)))
         return 0;
 
     p = OSSL_PARAM_locate(params, OSSL_ASYM_CIPHER_PARAM_MGF1_DIGEST);
@@ -381,7 +381,7 @@ static int rsa_get_ctx_params(void *vprsactx, OSSL_PARAM *params)
 
         if (!OSSL_PARAM_set_utf8_string(p, mgf1_md == NULL
                                            ? ""
-                                           : EVP_MD_name(mgf1_md)))
+                                           : EVP_MD_get0_name(mgf1_md)))
         return 0;
     }
 

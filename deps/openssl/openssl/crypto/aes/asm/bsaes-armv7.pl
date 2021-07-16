@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2012-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2012-2021 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -1119,10 +1119,10 @@ $code.=<<___;
 .extern AES_cbc_encrypt
 .extern AES_decrypt
 
-.global	bsaes_cbc_encrypt
-.type	bsaes_cbc_encrypt,%function
+.global	ossl_bsaes_cbc_encrypt
+.type	ossl_bsaes_cbc_encrypt,%function
 .align	5
-bsaes_cbc_encrypt:
+ossl_bsaes_cbc_encrypt:
 #ifndef	__KERNEL__
 	cmp	$len, #128
 #ifndef	__thumb__
@@ -1384,7 +1384,7 @@ bsaes_cbc_encrypt:
 	vst1.8	{@XMM[15]}, [$ivp]		@ return IV
 	VFP_ABI_POP
 	ldmia	sp!, {r4-r10, pc}
-.size	bsaes_cbc_encrypt,.-bsaes_cbc_encrypt
+.size	ossl_bsaes_cbc_encrypt,.-ossl_bsaes_cbc_encrypt
 ___
 }
 {
@@ -1394,10 +1394,10 @@ my $keysched = "sp";
 
 $code.=<<___;
 .extern	AES_encrypt
-.global	bsaes_ctr32_encrypt_blocks
-.type	bsaes_ctr32_encrypt_blocks,%function
+.global	ossl_bsaes_ctr32_encrypt_blocks
+.type	ossl_bsaes_ctr32_encrypt_blocks,%function
 .align	5
-bsaes_ctr32_encrypt_blocks:
+ossl_bsaes_ctr32_encrypt_blocks:
 	cmp	$len, #8			@ use plain AES for
 	blo	.Lctr_enc_short			@ small sizes
 
@@ -1620,7 +1620,7 @@ bsaes_ctr32_encrypt_blocks:
 	vstmia		sp!, {q0-q1}
 
 	ldmia	sp!, {r4-r8, pc}
-.size	bsaes_ctr32_encrypt_blocks,.-bsaes_ctr32_encrypt_blocks
+.size	ossl_bsaes_ctr32_encrypt_blocks,.-ossl_bsaes_ctr32_encrypt_blocks
 ___
 }
 {
@@ -1635,10 +1635,10 @@ my $twmask=@XMM[5];
 my @T=@XMM[6..7];
 
 $code.=<<___;
-.globl	bsaes_xts_encrypt
-.type	bsaes_xts_encrypt,%function
+.globl	ossl_bsaes_xts_encrypt
+.type	ossl_bsaes_xts_encrypt,%function
 .align	4
-bsaes_xts_encrypt:
+ossl_bsaes_xts_encrypt:
 	mov	ip, sp
 	stmdb	sp!, {r4-r10, lr}		@ 0x20
 	VFP_ABI_PUSH
@@ -2037,12 +2037,12 @@ $code.=<<___;
 	VFP_ABI_POP
 	ldmia		sp!, {r4-r10, pc}	@ return
 
-.size	bsaes_xts_encrypt,.-bsaes_xts_encrypt
+.size	ossl_bsaes_xts_encrypt,.-ossl_bsaes_xts_encrypt
 
-.globl	bsaes_xts_decrypt
-.type	bsaes_xts_decrypt,%function
+.globl	ossl_bsaes_xts_decrypt
+.type	ossl_bsaes_xts_decrypt,%function
 .align	4
-bsaes_xts_decrypt:
+ossl_bsaes_xts_decrypt:
 	mov	ip, sp
 	stmdb	sp!, {r4-r10, lr}		@ 0x20
 	VFP_ABI_PUSH
@@ -2472,7 +2472,7 @@ $code.=<<___;
 	VFP_ABI_POP
 	ldmia		sp!, {r4-r10, pc}	@ return
 
-.size	bsaes_xts_decrypt,.-bsaes_xts_decrypt
+.size	ossl_bsaes_xts_decrypt,.-ossl_bsaes_xts_decrypt
 ___
 }
 $code.=<<___;

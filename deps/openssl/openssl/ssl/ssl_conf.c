@@ -676,7 +676,8 @@ typedef struct {
 #define SSL_CONF_CMD_SWITCH(name, flags) \
         {0, NULL, name, flags, SSL_CONF_TYPE_NONE}
 
-/* See apps/apps.h if you change this table. */
+/* See apps/include/opt.h if you change this table. */
+/* The SSL_CONF_CMD_SWITCH should be the same order as ssl_cmd_switches */
 static const ssl_conf_cmd_tbl ssl_conf_cmds[] = {
     SSL_CONF_CMD_SWITCH("no_ssl3", 0),
     SSL_CONF_CMD_SWITCH("no_tls1", 0),
@@ -701,6 +702,7 @@ static const ssl_conf_cmd_tbl ssl_conf_cmds[] = {
     SSL_CONF_CMD_SWITCH("no_middlebox", 0),
     SSL_CONF_CMD_SWITCH("anti_replay", SSL_CONF_FLAG_SERVER),
     SSL_CONF_CMD_SWITCH("no_anti_replay", SSL_CONF_FLAG_SERVER),
+    SSL_CONF_CMD_SWITCH("no_etm", 0),
     SSL_CONF_CMD_STRING(SignatureAlgorithms, "sigalgs", 0),
     SSL_CONF_CMD_STRING(ClientSignatureAlgorithms, "client_sigalgs", 0),
     SSL_CONF_CMD_STRING(Curves, "curves", 0),
@@ -790,6 +792,8 @@ static const ssl_switch_tbl ssl_cmd_switches[] = {
     {SSL_OP_NO_ANTI_REPLAY, SSL_TFLAG_INV},
     /* no_anti_replay */
     {SSL_OP_NO_ANTI_REPLAY, 0},
+    /* no Encrypt-then-Mac */
+    {SSL_OP_NO_ENCRYPT_THEN_MAC, 0},
 };
 
 static int ssl_conf_cmd_skip_prefix(SSL_CONF_CTX *cctx, const char **pcmd)

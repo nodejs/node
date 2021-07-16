@@ -14,7 +14,7 @@
 #include <openssl/params.h>
 /* For TLS1_3_VERSION */
 #include <openssl/ssl.h>
-#include <internal/nelem.h>
+#include "internal/nelem.h"
 
 static OSSL_FUNC_keymgmt_import_fn xor_import;
 static OSSL_FUNC_keymgmt_import_types_fn xor_import_types;
@@ -640,7 +640,7 @@ static void *xor_gen(void *genctx, OSSL_CALLBACK *osslcb, void *cbarg)
         return NULL;
 
     if ((gctx->selection & OSSL_KEYMGMT_SELECT_KEYPAIR) != 0) {
-        if (RAND_bytes_ex(gctx->libctx, key->privkey, XOR_KEY_SIZE) <= 0) {
+        if (RAND_bytes_ex(gctx->libctx, key->privkey, XOR_KEY_SIZE, 0) <= 0) {
             OPENSSL_free(key);
             return NULL;
         }
@@ -813,7 +813,7 @@ unsigned int randomize_tls_group_id(OSSL_LIB_CTX *libctx)
     int i;
 
  retry:
-    if (!RAND_bytes_ex(libctx, (unsigned char *)&group_id, sizeof(group_id)))
+    if (!RAND_bytes_ex(libctx, (unsigned char *)&group_id, sizeof(group_id), 0))
         return 0;
     /*
      * Ensure group_id is within the IANA Reserved for private use range

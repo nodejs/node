@@ -88,7 +88,7 @@ int ossl_store_handle_load_result(const OSSL_PARAM params[], void *arg)
     OSSL_STORE_INFO **v = &cbdata->v;
     OSSL_STORE_CTX *ctx = cbdata->ctx;
     const OSSL_PROVIDER *provider =
-        OSSL_STORE_LOADER_provider(ctx->fetched_loader);
+        OSSL_STORE_LOADER_get0_provider(ctx->fetched_loader);
     OSSL_LIB_CTX *libctx = ossl_provider_libctx(provider);
     const char *propq = ctx->properties;
     const OSSL_PARAM *p;
@@ -206,7 +206,7 @@ static EVP_PKEY *try_key_ref(struct extracted_param_data_st *data,
          * 2.  The keymgmt is from another provider, then we must
          *     do the export/import dance.
          */
-        if (EVP_KEYMGMT_provider(keymgmt) == provider) {
+        if (EVP_KEYMGMT_get0_provider(keymgmt) == provider) {
             keydata = evp_keymgmt_load(keymgmt, data->ref, data->ref_size);
         } else {
             struct evp_keymgmt_util_try_import_data_st import_data;
@@ -399,8 +399,6 @@ static int try_key(struct extracted_param_data_st *data, OSSL_STORE_INFO **v,
              * engine provided legacy key.
              * This is the same as der2key_decode() does, but in a limited
              * way and within the walls of libcrypto.
-             *
-             * TODO Remove this when #legacy keys are gone
              */
             if (pk == NULL)
                 pk = try_key_value_legacy(data, &store_info_new, ctx,
@@ -442,8 +440,6 @@ static int try_cert(struct extracted_param_data_st *data, OSSL_STORE_INFO **v,
 {
     if (data->object_type == OSSL_OBJECT_UNKNOWN
         || data->object_type == OSSL_OBJECT_CERT) {
-        X509 *cert;
-
         /*
          * In most cases, we can try to interpret the serialized
          * data as a trusted cert (X509 + X509_AUX) and fall back
@@ -454,31 +450,32 @@ static int try_cert(struct extracted_param_data_st *data, OSSL_STORE_INFO **v,
          * or not (0).
          */
         int ignore_trusted = 1;
+        X509 *cert = X509_new_ex(libctx, propq);
+
+        if (cert == NULL)
+            return 0;
 
         /* If we have a data type, it should be a PEM name */
         if (data->data_type != NULL
             && (strcasecmp(data->data_type, PEM_STRING_X509_TRUSTED) == 0))
             ignore_trusted = 0;
 
-        cert = d2i_X509_AUX(NULL, (const unsigned char **)&data->octet_data,
-                            data->octet_data_size);
-        if (cert == NULL && ignore_trusted)
-            cert = d2i_X509(NULL, (const unsigned char **)&data->octet_data,
-                            data->octet_data_size);
-
-        if (cert != NULL)
-            /* We determined the object type */
-            data->object_type = OSSL_OBJECT_CERT;
-
-        if (cert != NULL && !ossl_x509_set0_libctx(cert, libctx, propq)) {
+        if (d2i_X509_AUX(&cert, (const unsigned char **)&data->octet_data,
+                         data->octet_data_size) == NULL
+            && (!ignore_trusted
+                || d2i_X509(&cert, (const unsigned char **)&data->octet_data,
+                            data->octet_data_size) == NULL)) {
             X509_free(cert);
             cert = NULL;
         }
 
-        if (cert != NULL)
+        if (cert != NULL) {
+            /* We determined the object type */
+            data->object_type = OSSL_OBJECT_CERT;
             *v = OSSL_STORE_INFO_new_CERT(cert);
-        if (*v == NULL)
-            X509_free(cert);
+            if (*v == NULL)
+                X509_free(cert);
+        }
     }
 
     return 1;

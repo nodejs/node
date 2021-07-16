@@ -56,6 +56,7 @@ B<openssl> B<s_client>
 [B<-msg>]
 [B<-timeout>]
 [B<-mtu> I<size>]
+[B<-no_etm>]
 [B<-keymatexport> I<label>]
 [B<-keymatexportlen> I<len>]
 [B<-msgfile> I<filename>]
@@ -448,6 +449,10 @@ Enable send/receive timeout on DTLS connections.
 
 Set MTU of the link layer to the specified size.
 
+=item B<-no_etm>
+
+Disable Encrypt-then-MAC negotiation.
+
 =item B<-keymatexport> I<label>
 
 Export keying material using the specified label.
@@ -460,8 +465,7 @@ Show all protocol messages with hex dump.
 
 =item B<-trace>
 
-Show verbose trace output of protocol messages. OpenSSL needs to be compiled
-with B<enable-ssl-trace> for this option to work.
+Show verbose trace output of protocol messages.
 
 =item B<-msgfile> I<filename>
 

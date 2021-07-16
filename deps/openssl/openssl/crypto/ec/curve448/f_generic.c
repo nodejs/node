@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2015-2016 Cryptography Research, Inc.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -18,7 +18,7 @@ static const gf MODULUS = {
 };
 
 /* Serialize to wire format. */
-void gf_serialize(uint8_t serial[SER_BYTES], const gf x, int with_hibit)
+void gf_serialize(uint8_t *serial, const gf x, int with_hibit)
 {
     unsigned int j = 0, fill = 0;
     dword_t buffer = 0;

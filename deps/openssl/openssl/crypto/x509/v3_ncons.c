@@ -35,7 +35,7 @@ static int nc_match_single(GENERAL_NAME *sub, GENERAL_NAME *gen);
 static int nc_dn(const X509_NAME *sub, const X509_NAME *nm);
 static int nc_dns(ASN1_IA5STRING *sub, ASN1_IA5STRING *dns);
 static int nc_email(ASN1_IA5STRING *sub, ASN1_IA5STRING *eml);
-static int nc_email_eai(ASN1_UTF8STRING *sub, ASN1_IA5STRING *eml);
+static int nc_email_eai(ASN1_TYPE *emltype, ASN1_IA5STRING *base);
 static int nc_uri(ASN1_IA5STRING *uri, ASN1_IA5STRING *base);
 static int nc_ip(ASN1_OCTET_STRING *ip, ASN1_OCTET_STRING *base);
 
@@ -521,8 +521,8 @@ static int nc_match_single(GENERAL_NAME *gen, GENERAL_NAME *base)
          * We are here only when we have SmtpUTF8 name,
          * so we match the value of othername with base->d.rfc822Name
          */
-        return nc_email_eai(gen->d.otherName->value->value.utf8string,
-                            base->d.rfc822Name);
+        return nc_email_eai(gen->d.otherName->value, base->d.rfc822Name);
+
     case GEN_DIRNAME:
         return nc_dn(gen->d.directoryName, base->d.directoryName);
 
@@ -591,20 +591,27 @@ static int nc_dns(ASN1_IA5STRING *dns, ASN1_IA5STRING *base)
 }
 
 /*
- * This function implements comparison between ASCII/U-label in eml
+ * This function implements comparison between ASCII/U-label in emltype
  * and A-label in base according to RFC 8398, section 6.
  * Convert base to U-label and ASCII-parts of domain names, for base
- * Octet-to-octet comparison of `eml` and `base` hostname parts
+ * Octet-to-octet comparison of `emltype` and `base` hostname parts
  * (ASCII-parts should be compared in case-insensitive manner)
  */
-static int nc_email_eai(ASN1_UTF8STRING *eml, ASN1_IA5STRING *base)
+static int nc_email_eai(ASN1_TYPE *emltype, ASN1_IA5STRING *base)
 {
+    ASN1_UTF8STRING *eml;
     const char *baseptr = (char *)base->data;
-    const char *emlptr = (char *)eml->data;
-    const char *emlat = strrchr(emlptr, '@');
-
+    const char *emlptr;
+    const char *emlat;
     char ulabel[256];
     size_t size = sizeof(ulabel) - 1;
+
+    if (emltype->type != V_ASN1_UTF8STRING)
+        return X509_V_ERR_UNSUPPORTED_NAME_SYNTAX;
+
+    eml = emltype->value.utf8string;
+    emlptr = (char *)eml->data;
+    emlat = strrchr(emlptr, '@');
 
     if (emlat == NULL)
         return X509_V_ERR_UNSUPPORTED_NAME_SYNTAX;

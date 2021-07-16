@@ -6,8 +6,9 @@ $DECODER_GOAL=../../libdefault.a
 
 SOURCE[$ENCODER_GOAL]=endecoder_common.c
 
-SOURCE[$DECODER_GOAL]=decode_der2key.c decode_pem2der.c \
-                      decode_msblob2key.c decode_pvk2key.c
+SOURCE[$DECODER_GOAL]=decode_der2key.c decode_epki2pki.c decode_pem2der.c \
+                      decode_msblob2key.c decode_pvk2key.c \
+                      decode_spki2typespki.c
 
 SOURCE[$ENCODER_GOAL]=encode_key2any.c encode_key2text.c encode_key2ms.c
 # encode_key2blob.c is only being included when EC is enabled, because we

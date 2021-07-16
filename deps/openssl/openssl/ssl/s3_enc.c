@@ -186,15 +186,15 @@ int ssl3_change_cipher_state(SSL *s, int which)
         EVP_CIPHER_CTX_reset(dd);
 
     p = s->s3.tmp.key_block;
-    mdi = EVP_MD_size(m);
+    mdi = EVP_MD_get_size(m);
     if (mdi < 0) {
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
         goto err;
     }
     i = mdi;
-    cl = EVP_CIPHER_key_length(c);
+    cl = EVP_CIPHER_get_key_length(c);
     j = cl;
-    k = EVP_CIPHER_iv_length(c);
+    k = EVP_CIPHER_get_iv_length(c);
     if ((which == SSL3_CHANGE_CIPHER_CLIENT_WRITE) ||
         (which == SSL3_CHANGE_CIPHER_SERVER_READ)) {
         ms = &(p[0]);
@@ -225,7 +225,7 @@ int ssl3_change_cipher_state(SSL *s, int which)
         goto err;
     }
 
-    if (EVP_CIPHER_provider(c) != NULL
+    if (EVP_CIPHER_get0_provider(c) != NULL
             && !tls_provider_set_tls_params(s, dd, c, m)) {
         /* SSLfatal already called */
         goto err;
@@ -266,11 +266,11 @@ int ssl3_setup_key_block(SSL *s)
     s->s3.tmp.new_compression = comp;
 #endif
 
-    num = EVP_MD_size(hash);
+    num = EVP_MD_get_size(hash);
     if (num < 0)
         return 0;
 
-    num = EVP_CIPHER_key_length(c) + num + EVP_CIPHER_iv_length(c);
+    num = EVP_CIPHER_get_key_length(c) + num + EVP_CIPHER_get_iv_length(c);
     num *= 2;
 
     ssl3_cleanup_key_block(s);
@@ -424,7 +424,7 @@ size_t ssl3_final_finish_mac(SSL *s, const char *sender, size_t len,
         return 0;
     }
 
-    if (EVP_MD_CTX_type(s->s3.handshake_dgst) != NID_md5_sha1) {
+    if (EVP_MD_CTX_get_type(s->s3.handshake_dgst) != NID_md5_sha1) {
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_R_NO_REQUIRED_DIGEST);
         return 0;
     }
@@ -440,7 +440,7 @@ size_t ssl3_final_finish_mac(SSL *s, const char *sender, size_t len,
         goto err;
     }
 
-    ret = EVP_MD_CTX_size(ctx);
+    ret = EVP_MD_CTX_get_size(ctx);
     if (ret < 0) {
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
         ret = 0;
@@ -499,7 +499,6 @@ int ssl3_generate_master_secret(SSL *s, unsigned char *out, unsigned char *p,
                                 SSL3_RANDOM_SIZE) <= 0
             || EVP_DigestUpdate(ctx, &(s->s3.server_random[0]),
                                 SSL3_RANDOM_SIZE) <= 0
-               /* TODO(size_t) : convert me */
             || EVP_DigestFinal_ex(ctx, buf, &n) <= 0
             || EVP_DigestInit_ex(ctx, s->ctx->md5, NULL) <= 0
             || EVP_DigestUpdate(ctx, p, len) <= 0
@@ -588,6 +587,8 @@ int ssl3_alert_code(int code)
     case SSL_AD_NO_APPLICATION_PROTOCOL:
         return TLS1_AD_NO_APPLICATION_PROTOCOL;
     case SSL_AD_CERTIFICATE_REQUIRED:
+        return SSL_AD_HANDSHAKE_FAILURE;
+    case TLS13_AD_MISSING_EXTENSION:
         return SSL_AD_HANDSHAKE_FAILURE;
     default:
         return -1;

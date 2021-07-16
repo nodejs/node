@@ -55,7 +55,8 @@ void *ASN1_d2i_bio(void *(*xnew) (void), d2i_of_void *d2i, BIO *in, void **x)
 
 #endif
 
-void *ASN1_item_d2i_bio(const ASN1_ITEM *it, BIO *in, void *x)
+void *ASN1_item_d2i_bio_ex(const ASN1_ITEM *it, BIO *in, void *x,
+                           OSSL_LIB_CTX *libctx, const char *propq)
 {
     BUF_MEM *b = NULL;
     const unsigned char *p;
@@ -69,14 +70,20 @@ void *ASN1_item_d2i_bio(const ASN1_ITEM *it, BIO *in, void *x)
         goto err;
 
     p = (const unsigned char *)b->data;
-    ret = ASN1_item_d2i(x, &p, len, it);
+    ret = ASN1_item_d2i_ex(x, &p, len, it, libctx, propq);
  err:
     BUF_MEM_free(b);
     return ret;
 }
 
+void *ASN1_item_d2i_bio(const ASN1_ITEM *it, BIO *in, void *x)
+{
+    return ASN1_item_d2i_bio_ex(it, in, x, NULL, NULL);
+}
+
 #ifndef OPENSSL_NO_STDIO
-void *ASN1_item_d2i_fp(const ASN1_ITEM *it, FILE *in, void *x)
+void *ASN1_item_d2i_fp_ex(const ASN1_ITEM *it, FILE *in, void *x,
+                          OSSL_LIB_CTX *libctx, const char *propq)
 {
     BIO *b;
     char *ret;
@@ -86,9 +93,14 @@ void *ASN1_item_d2i_fp(const ASN1_ITEM *it, FILE *in, void *x)
         return NULL;
     }
     BIO_set_fp(b, in, BIO_NOCLOSE);
-    ret = ASN1_item_d2i_bio(it, b, x);
+    ret = ASN1_item_d2i_bio_ex(it, b, x, libctx, propq);
     BIO_free(b);
     return ret;
+}
+
+void *ASN1_item_d2i_fp(const ASN1_ITEM *it, FILE *in, void *x)
+{
+    return ASN1_item_d2i_fp_ex(it, in, x, NULL, NULL);
 }
 #endif
 

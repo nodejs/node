@@ -92,7 +92,7 @@ static int sig_gen(EVP_PKEY *pkey, OSSL_PARAM *params, const char *digest_name,
     EVP_MD_CTX *md_ctx = NULL;
     unsigned char *sig = NULL;
     size_t sig_len;
-    size_t sz = EVP_PKEY_size(pkey);
+    size_t sz = EVP_PKEY_get_size(pkey);
 
     if (!TEST_ptr(sig = OPENSSL_malloc(sz))
         || !TEST_ptr(md_ctx = EVP_MD_CTX_new())
@@ -1387,6 +1387,54 @@ err:
     return res;
 }
 
+static int aes_cfb1_bits_test(void)
+{
+    int ret = 0;
+    EVP_CIPHER *cipher = NULL;
+    EVP_CIPHER_CTX *ctx = NULL;
+    unsigned char out[16] = { 0 };
+    int outlen;
+    const OSSL_PARAM *params, *p;
+
+    static const unsigned char key[] = {
+        0x12, 0x22, 0x58, 0x2F, 0x1C, 0x1A, 0x8A, 0x88,
+        0x30, 0xFC, 0x18, 0xB7, 0x24, 0x89, 0x7F, 0xC0
+    };
+    static const unsigned char iv[] = {
+        0x05, 0x28, 0xB5, 0x2B, 0x58, 0x27, 0x63, 0x5C,
+        0x81, 0x86, 0xD3, 0x63, 0x60, 0xB0, 0xAA, 0x2B
+    };
+    static const unsigned char pt[] = {
+        0xB4
+    };
+    static const unsigned char expected[] = {
+        0x6C
+    };
+
+    if (!TEST_ptr(cipher = EVP_CIPHER_fetch(libctx, "AES-128-CFB1", "fips=yes")))
+        goto err;
+    if (!TEST_ptr(ctx = EVP_CIPHER_CTX_new()))
+        goto err;
+    if (!TEST_int_gt(EVP_CipherInit_ex(ctx, cipher, NULL, key, iv, 1), 0))
+        goto err;
+    if (!TEST_ptr(params = EVP_CIPHER_CTX_settable_params(ctx))
+        || !TEST_ptr(p = OSSL_PARAM_locate_const(params,
+                                                 OSSL_CIPHER_PARAM_USE_BITS)))
+        goto err;
+    EVP_CIPHER_CTX_set_flags(ctx, EVP_CIPH_FLAG_LENGTH_BITS);
+    if (!TEST_int_gt(EVP_CipherUpdate(ctx, out, &outlen, pt, 7), 0))
+        goto err;
+    if (!TEST_int_eq(outlen, 7))
+        goto err;
+    if (!TEST_mem_eq(out, (outlen + 7) / 8, expected, sizeof(expected)))
+        goto err;
+    ret = 1;
+err:
+    EVP_CIPHER_free(cipher);
+    EVP_CIPHER_CTX_free(ctx);
+    return ret;
+}
+
 int setup_tests(void)
 {
     char *config_file = NULL;
@@ -1411,6 +1459,7 @@ int setup_tests(void)
 
     OSSL_SELF_TEST_set_callback(libctx, self_test_events, &self_test_args);
 
+    ADD_TEST(aes_cfb1_bits_test);
     ADD_ALL_TESTS(cipher_enc_dec_test, OSSL_NELEM(cipher_enc_data));
     ADD_ALL_TESTS(aes_ccm_enc_dec_test, OSSL_NELEM(aes_ccm_enc_data));
     ADD_ALL_TESTS(aes_gcm_enc_dec_test, OSSL_NELEM(aes_gcm_enc_data));

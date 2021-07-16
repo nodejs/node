@@ -29,20 +29,20 @@
 #define IMPLEMENT_LEGACY_EVP_MD_METH_SHA3(nm, fn, tag)                         \
 static int nm##_init(EVP_MD_CTX *ctx)                                          \
 {                                                                              \
-    return fn##_init(EVP_MD_CTX_md_data(ctx), tag, ctx->digest->md_size * 8);  \
+    return fn##_init(EVP_MD_CTX_get0_md_data(ctx), tag, ctx->digest->md_size * 8); \
 }                                                                              \
 static int nm##_update(EVP_MD_CTX *ctx, const void *data, size_t count)        \
 {                                                                              \
-    return fn##_update(EVP_MD_CTX_md_data(ctx), data, count);                  \
+    return fn##_update(EVP_MD_CTX_get0_md_data(ctx), data, count);             \
 }                                                                              \
 static int nm##_final(EVP_MD_CTX *ctx, unsigned char *md)                      \
 {                                                                              \
-    return fn##_final(md, EVP_MD_CTX_md_data(ctx));                            \
+    return fn##_final(md, EVP_MD_CTX_get0_md_data(ctx));                       \
 }
 #define IMPLEMENT_LEGACY_EVP_MD_METH_SHAKE(nm, fn, tag)                        \
 static int nm##_init(EVP_MD_CTX *ctx)                                          \
 {                                                                              \
-    return fn##_init(EVP_MD_CTX_md_data(ctx), tag, ctx->digest->md_size * 8);  \
+    return fn##_init(EVP_MD_CTX_get0_md_data(ctx), tag, ctx->digest->md_size * 8); \
 }                                                                              \
 
 #define sha512_224_Init    sha512_224_init
@@ -65,7 +65,7 @@ IMPLEMENT_LEGACY_EVP_MD_METH_SHAKE(shake, ossl_sha3, '\x1f')
 
 static int sha1_int_ctrl(EVP_MD_CTX *ctx, int cmd, int p1, void *p2)
 {
-    return ossl_sha1_ctrl(ctx != NULL ? EVP_MD_CTX_md_data(ctx) : NULL,
+    return ossl_sha1_ctrl(ctx != NULL ? EVP_MD_CTX_get0_md_data(ctx) : NULL,
                           cmd, p1, p2);
 }
 

@@ -22,7 +22,8 @@ sub staticname {
     # Non-installed libraries are *always* static, and their names remain
     # the same, except for the mandatory extension
     my $in_libname = platform::BASE->staticname($_[1]);
-    return $in_libname if $unified_info{attributes}->{$_[1]}->{noinst};
+    return $in_libname
+        if $unified_info{attributes}->{libraries}->{$_[1]}->{noinst};
 
     return platform::BASE->staticname($_[1]) . '_a';
 }

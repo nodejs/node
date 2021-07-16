@@ -11,16 +11,20 @@ BN_pseudo_rand_range
 
  #include <openssl/bn.h>
 
- int BN_rand_ex(BIGNUM *rnd, int bits, int top, int bottom, BN_CTX *ctx);
+ int BN_rand_ex(BIGNUM *rnd, int bits, int top, int bottom,
+                unsigned int strength, BN_CTX *ctx);
  int BN_rand(BIGNUM *rnd, int bits, int top, int bottom);
 
- int BN_priv_rand_ex(BIGNUM *rnd, int bits, int top, int bottom, BN_CTX *ctx);
+ int BN_priv_rand_ex(BIGNUM *rnd, int bits, int top, int bottom,
+                     unsigned int strength, BN_CTX *ctx);
  int BN_priv_rand(BIGNUM *rnd, int bits, int top, int bottom);
 
- int BN_rand_range_ex(BIGNUM *rnd, BIGNUM *range, BN_CTX *ctx);
+ int BN_rand_range_ex(BIGNUM *rnd, BIGNUM *range, unsigned int strength,
+                      BN_CTX *ctx);
  int BN_rand_range(BIGNUM *rnd, BIGNUM *range);
 
- int BN_priv_rand_range_ex(BIGNUM *rnd, BIGNUM *range, BN_CTX *ctx);
+ int BN_priv_rand_range_ex(BIGNUM *rnd, BIGNUM *range, unsigned int strength,
+                           BN_CTX *ctx);
  int BN_priv_rand_range(BIGNUM *rnd, BIGNUM *range);
 
 Deprecated since OpenSSL 3.0, can be hidden entirely by defining
@@ -32,30 +36,32 @@ openssl_user_macros(7):
 
 =head1 DESCRIPTION
 
-BN_rand_ex() generate a cryptographically strong pseudo-random
-number of B<bits> in length and stores it in B<rnd> using the random number
-generator for the library context associated with B<ctx>. The parameter B<ctx>
+BN_rand_ex() generates a cryptographically strong pseudo-random
+number of I<bits> in length and security strength at least I<strength> bits
+using the random number generator for the library context associated with
+I<ctx>. The function stores the generated data in I<rnd>. The parameter I<ctx>
 may be NULL in which case the default library context is used.
-If B<bits> is less than zero, or too small to
-accommodate the requirements specified by the B<top> and B<bottom>
+If I<bits> is less than zero, or too small to
+accommodate the requirements specified by the I<top> and I<bottom>
 parameters, an error is returned.
-The B<top> parameters specifies
+The I<top> parameters specifies
 requirements on the most significant bit of the generated number.
 If it is B<BN_RAND_TOP_ANY>, there is no constraint.
 If it is B<BN_RAND_TOP_ONE>, the top bit must be one.
 If it is B<BN_RAND_TOP_TWO>, the two most significant bits of
 the number will be set to 1, so that the product of two such random
-numbers will always have 2*B<bits> length.
-If B<bottom> is B<BN_RAND_BOTTOM_ODD>, the number will be odd; if it
+numbers will always have 2*I<bits> length.
+If I<bottom> is B<BN_RAND_BOTTOM_ODD>, the number will be odd; if it
 is B<BN_RAND_BOTTOM_ANY> it can be odd or even.
-If B<bits> is 1 then B<top> cannot also be B<BN_RAND_FLG_TOPTWO>.
+If I<bits> is 1 then I<top> cannot also be B<BN_RAND_FLG_TOPTWO>.
 
 BN_rand() is the same as BN_rand_ex() except that the default library context
 is always used.
 
 BN_rand_range_ex() generates a cryptographically strong pseudo-random
-number B<rnd> in the range 0 E<lt>= B<rnd> E<lt> B<range> using the random number
-generator for the library context associated with B<ctx>. The parameter B<ctx>
+number I<rnd>, of security stength at least I<strength> bits,
+in the range 0 E<lt>= I<rnd> E<lt> I<range> using the random number
+generator for the library context associated with I<ctx>. The parameter I<ctx>
 may be NULL in which case the default library context is used.
 
 BN_rand_range() is the same as BN_rand_range_ex() except that the default

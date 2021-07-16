@@ -55,7 +55,7 @@ OSSL_CRMF_PBMPARAMETER *OSSL_CRMF_pbmp_new(OSSL_LIB_CTX *libctx, size_t slen,
      */
     if ((salt = OPENSSL_malloc(slen)) == NULL)
         goto err;
-    if (RAND_bytes_ex(libctx, salt, (int)slen) <= 0) {
+    if (RAND_bytes_ex(libctx, salt, slen, 0) <= 0) {
         ERR_raise(ERR_LIB_CRMF, CRMF_R_FAILURE_OBTAINING_RANDOM);
         goto err;
     }
@@ -125,7 +125,6 @@ OSSL_CRMF_PBMPARAMETER *OSSL_CRMF_pbmp_new(OSSL_LIB_CTX *libctx, size_t slen,
  * |outlen| if not NULL, will set variable to the length of the mac on success
  * returns 1 on success, 0 on error
  */
-/* TODO try to combine with other MAC calculations in the libray */
 int OSSL_CRMF_pbm_new(OSSL_LIB_CTX *libctx, const char *propq,
                       const OSSL_CRMF_PBMPARAMETER *pbmp,
                       const unsigned char *msg, size_t msglen,
@@ -207,7 +206,6 @@ int OSSL_CRMF_pbm_new(OSSL_LIB_CTX *libctx, const char *propq,
         ERR_raise(ERR_LIB_CRMF, CRMF_R_UNSUPPORTED_ALGORITHM);
         goto err;
     }
-    /* TODO generalize to non-HMAC: */
     if (EVP_Q_mac(libctx, "HMAC", propq, hmac_mdname, NULL, basekey, bklen,
                   msg, msglen, mac_res, EVP_MAX_MD_SIZE, &maclen) == NULL)
         goto err;

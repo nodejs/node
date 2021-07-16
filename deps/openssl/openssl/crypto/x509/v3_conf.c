@@ -480,18 +480,29 @@ int X509V3_set_issuer_pkey(X509V3_CTX *ctx, EVP_PKEY *pkey)
 X509_EXTENSION *X509V3_EXT_conf(LHASH_OF(CONF_VALUE) *conf, X509V3_CTX *ctx,
                                 const char *name, const char *value)
 {
-    CONF ctmp;
+    CONF *ctmp;
+    X509_EXTENSION *ret;
 
-    CONF_set_nconf(&ctmp, conf);
-    return X509V3_EXT_nconf(&ctmp, ctx, name, value);
+    if ((ctmp = NCONF_new(NULL)) == NULL)
+        return NULL;
+    CONF_set_nconf(ctmp, conf);
+    ret = X509V3_EXT_nconf(ctmp, ctx, name, value);
+    NCONF_free(ctmp);
+    return ret;
 }
 
 X509_EXTENSION *X509V3_EXT_conf_nid(LHASH_OF(CONF_VALUE) *conf,
                                     X509V3_CTX *ctx, int ext_nid, const char *value)
 {
-    CONF ctmp;
-    CONF_set_nconf(&ctmp, conf);
-    return X509V3_EXT_nconf_nid(&ctmp, ctx, ext_nid, value);
+    CONF *ctmp;
+    X509_EXTENSION *ret;
+
+    if ((ctmp = NCONF_new(NULL)) == NULL)
+        return NULL;
+    CONF_set_nconf(ctmp, conf);
+    ret = X509V3_EXT_nconf_nid(ctmp, ctx, ext_nid, value);
+    NCONF_free(ctmp);
+    return ret;
 }
 
 static char *conf_lhash_get_string(void *db, const char *section, const char *value)
@@ -524,10 +535,15 @@ void X509V3_set_conf_lhash(X509V3_CTX *ctx, LHASH_OF(CONF_VALUE) *lhash)
 int X509V3_EXT_add_conf(LHASH_OF(CONF_VALUE) *conf, X509V3_CTX *ctx,
                         const char *section, X509 *cert)
 {
-    CONF ctmp;
+    CONF *ctmp;
+    int ret;
 
-    CONF_set_nconf(&ctmp, conf);
-    return X509V3_EXT_add_nconf(&ctmp, ctx, section, cert);
+    if ((ctmp = NCONF_new(NULL)) == NULL)
+        return 0;
+    CONF_set_nconf(ctmp, conf);
+    ret = X509V3_EXT_add_nconf(ctmp, ctx, section, cert);
+    NCONF_free(ctmp);
+    return ret;
 }
 
 /* Same as above but for a CRL */
@@ -535,10 +551,15 @@ int X509V3_EXT_add_conf(LHASH_OF(CONF_VALUE) *conf, X509V3_CTX *ctx,
 int X509V3_EXT_CRL_add_conf(LHASH_OF(CONF_VALUE) *conf, X509V3_CTX *ctx,
                             const char *section, X509_CRL *crl)
 {
-    CONF ctmp;
+    CONF *ctmp;
+    int ret;
 
-    CONF_set_nconf(&ctmp, conf);
-    return X509V3_EXT_CRL_add_nconf(&ctmp, ctx, section, crl);
+    if ((ctmp = NCONF_new(NULL)) == NULL)
+        return 0;
+    CONF_set_nconf(ctmp, conf);
+    ret = X509V3_EXT_CRL_add_nconf(ctmp, ctx, section, crl);
+    NCONF_free(ctmp);
+    return ret;
 }
 
 /* Add extensions to certificate request */
@@ -546,8 +567,13 @@ int X509V3_EXT_CRL_add_conf(LHASH_OF(CONF_VALUE) *conf, X509V3_CTX *ctx,
 int X509V3_EXT_REQ_add_conf(LHASH_OF(CONF_VALUE) *conf, X509V3_CTX *ctx,
                             const char *section, X509_REQ *req)
 {
-    CONF ctmp;
+    CONF *ctmp;
+    int ret;
 
-    CONF_set_nconf(&ctmp, conf);
-    return X509V3_EXT_REQ_add_nconf(&ctmp, ctx, section, req);
+    if ((ctmp = NCONF_new(NULL)) == NULL)
+        return 0;
+    CONF_set_nconf(ctmp, conf);
+    ret = X509V3_EXT_REQ_add_nconf(ctmp, ctx, section, req);
+    NCONF_free(ctmp);
+    return ret;
 }

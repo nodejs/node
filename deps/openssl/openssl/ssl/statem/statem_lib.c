@@ -329,7 +329,8 @@ int tls_construct_cert_verify(SSL *s, WPACKET *pkt)
         goto err;
     }
 
-    if (EVP_DigestSignInit_ex(mctx, &pctx, md == NULL ? NULL : EVP_MD_name(md),
+    if (EVP_DigestSignInit_ex(mctx, &pctx,
+                              md == NULL ? NULL : EVP_MD_get0_name(md),
                               s->ctx->libctx, s->ctx->propq, pkey,
                               NULL) <= 0) {
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_EVP_LIB);
@@ -471,7 +472,7 @@ MSG_PROCESS_RETURN tls_process_cert_verify(SSL *s, PACKET *pkt)
 
     if (SSL_USE_SIGALGS(s))
         OSSL_TRACE1(TLS, "USING TLSv1.2 HASH %s\n",
-                    md == NULL ? "n/a" : EVP_MD_name(md));
+                    md == NULL ? "n/a" : EVP_MD_get0_name(md));
 
     /* Check for broken implementations of GOST ciphersuites */
     /*
@@ -481,10 +482,10 @@ MSG_PROCESS_RETURN tls_process_cert_verify(SSL *s, PACKET *pkt)
 #ifndef OPENSSL_NO_GOST
     if (!SSL_USE_SIGALGS(s)
         && ((PACKET_remaining(pkt) == 64
-             && (EVP_PKEY_id(pkey) == NID_id_GostR3410_2001
-                 || EVP_PKEY_id(pkey) == NID_id_GostR3410_2012_256))
+             && (EVP_PKEY_get_id(pkey) == NID_id_GostR3410_2001
+                 || EVP_PKEY_get_id(pkey) == NID_id_GostR3410_2012_256))
             || (PACKET_remaining(pkt) == 128
-                && EVP_PKEY_id(pkey) == NID_id_GostR3410_2012_512))) {
+                && EVP_PKEY_get_id(pkey) == NID_id_GostR3410_2012_512))) {
         len = PACKET_remaining(pkt);
     } else
 #endif
@@ -504,10 +505,10 @@ MSG_PROCESS_RETURN tls_process_cert_verify(SSL *s, PACKET *pkt)
     }
 
     OSSL_TRACE1(TLS, "Using client verify alg %s\n",
-                md == NULL ? "n/a" : EVP_MD_name(md));
+                md == NULL ? "n/a" : EVP_MD_get0_name(md));
 
     if (EVP_DigestVerifyInit_ex(mctx, &pctx,
-                                md == NULL ? NULL : EVP_MD_name(md),
+                                md == NULL ? NULL : EVP_MD_get0_name(md),
                                 s->ctx->libctx, s->ctx->propq, pkey,
                                 NULL) <= 0) {
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_EVP_LIB);
@@ -515,7 +516,7 @@ MSG_PROCESS_RETURN tls_process_cert_verify(SSL *s, PACKET *pkt)
     }
 #ifndef OPENSSL_NO_GOST
     {
-        int pktype = EVP_PKEY_id(pkey);
+        int pktype = EVP_PKEY_get_id(pkey);
         if (pktype == NID_id_GostR3410_2001
             || pktype == NID_id_GostR3410_2012_256
             || pktype == NID_id_GostR3410_2012_512) {

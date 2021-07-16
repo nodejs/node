@@ -189,7 +189,7 @@ typedef OSSL_HTTP_REQ_CTX OCSP_REQ_CTX;
         OCSP_REQ_CTX_i2d(r, ASN1_ITEM_rptr(OCSP_REQUEST), (ASN1_VALUE *)(req))
 #   define OCSP_REQ_CTX_nbio OSSL_HTTP_REQ_CTX_nbio
 #   define OCSP_REQ_CTX_nbio_d2i OSSL_HTTP_REQ_CTX_nbio_d2i
-#   define OCSP_sendreq_nbio(r, p) \
+#   define OCSP_sendreq_nbio(p, r) \
         OSSL_HTTP_REQ_CTX_nbio_d2i(r, (ASN1_VALUE **)(p), \
                                    ASN1_ITEM_rptr(OCSP_RESPONSE))
 #   define OCSP_REQ_CTX_get0_mem_bio OSSL_HTTP_REQ_CTX_get0_mem_bio

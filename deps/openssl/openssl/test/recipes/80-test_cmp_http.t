@@ -12,7 +12,7 @@ use strict;
 use warnings;
 
 use POSIX;
-use OpenSSL::Test qw/:DEFAULT with data_file data_dir srctop_dir bldtop_dir result_dir/;
+use OpenSSL::Test qw/:DEFAULT cmdstr data_file data_dir srctop_dir bldtop_dir result_dir/;
 use OpenSSL::Test::Utils;
 
 BEGIN {
@@ -31,8 +31,8 @@ plan skip_all => "These tests are not supported in a no-ec build"
 plan skip_all => "These tests are not supported in a no-sock build"
     if disabled("sock");
 
-plan skip_all => "Tests involving local HTTP server not available on Windows, AIX or VMS"
-    if $^O =~ /^(VMS|MSWin32|AIX)$/;
+plan skip_all => "Tests involving local HTTP server not available on Windows or VMS"
+    if $^O =~ /^(VMS|MSWin32)$/;
 plan skip_all => "Tests involving local HTTP server not available in cross-compile builds"
     if defined $ENV{EXE_SHELL};
 
@@ -128,24 +128,22 @@ sub test_cmp_http {
     my $i = shift;
     my $title = shift;
     my $params = shift;
-    my $expected_exit = shift;
+    my $expected_result = shift;
     my $path_app = bldtop_dir($app);
     $params = [ '-server', "127.0.0.1:$server_port", @$params ]
         unless grep { $_ eq '-server' } @$params;
 
-    with({ exit_checker => sub {
-        my $actual_exit = shift;
-        my $OK = $actual_exit == $expected_exit;
-        if ($faillog && !$OK) {
+    unless (is(my $actual_result = run(cmd([$path_app, @$params,])),
+               $expected_result,
+               $title)) {
+        if ($faillog) {
             my $quote_spc_empty = sub { $_ eq "" ? '""' : $_ =~ m/ / ? '"'.$_.'"' : $_ };
             my $invocation = "$path_app ".join(' ', map $quote_spc_empty->($_), @$params);
             print $faillog "$server_name $aspect \"$title\" ($i/$n)".
-                " expected=$expected_exit actual=$actual_exit\n";
+                " expected=$expected_result actual=$actual_result\n";
             print $faillog "$invocation\n\n";
         }
-        return $OK; } },
-         sub { ok(run(cmd([$path_app, @$params,])),
-                  $title); });
+    }
 }
 
 sub test_cmp_http_aspect {
@@ -187,8 +185,7 @@ indir data_dir() => sub {
             if ($server_name eq "Mock") {
                 indir "Mock" => sub {
                     $pid = start_mock_server("");
-                    skip "Cannot start or find the started CMP mock server",
-                        scalar @all_aspects unless $pid;
+                    die "Cannot start or find the started CMP mock server" unless $pid;
                 }
             }
             foreach my $aspect (@all_aspects) {
@@ -255,13 +252,13 @@ sub load_tests {
         s/^\s+// for (@fields); # remove leading whitespace from elements
         s/\s+$// for (@fields); # remove trailing whitespace from elements
         s/^\"(\".*?\")\"$/$1/ for (@fields); # remove escaping from quotation marks from elements
-        my $expected_exit = $fields[$column];
+        my $expected_result = $fields[$column];
         my $description = 1;
         my $title = $fields[$description];
-        next LOOP if (!defined($expected_exit)
-                      || ($expected_exit ne 0 && $expected_exit ne 1));
+        next LOOP if (!defined($expected_result)
+                      || ($expected_result ne 0 && $expected_result ne 1));
         @fields = grep {$_ ne 'BLANK'} @fields[$description + 1 .. @fields - 1];
-        push @result, [$title, \@fields, $expected_exit];
+        push @result, [$title, \@fields, $expected_result];
     }
     close($data);
     return \@result;
@@ -269,30 +266,33 @@ sub load_tests {
 
 sub start_mock_server {
     my $args = $_[0]; # optional further CLI arguments
-    my $dir = bldtop_dir("");
-    local $ENV{LD_LIBRARY_PATH} = $dir;
-    local $ENV{DYLD_LIBRARY_PATH} = $dir;
-    my $cmd = bldtop_dir($app) . " -config server.cnf $args";
+    my $cmd = cmdstr(app(['openssl', 'cmp', '-config', 'server.cnf',
+                          $args ? $args : ()]), display => 1);
     print "Current directory is ".getcwd()."\n";
     print "Launching mock server: $cmd\n";
+    die "Invalid port: $server_port" unless $server_port =~ m/^\d+$/;
     my $pid = open($server_fh, "$cmd|") or die "Trying to $cmd";
     print "Pid is: $pid\n";
-    # Find out the actual server port
-    while (<$server_fh>) {
-        print;
-        s/\R$//;                # Better chomp
-        next unless (/^ACCEPT\s.*:(\d+)$/);
-        $server_port = $1;
-        $server_tls = $1;
-        $kur_port = $1;
-        $pbm_port = $1;
-        last;
+    if ($server_port == 0) {
+        # Find out the actual server port
+        while (<$server_fh>) {
+            print "Server output: $_";
+            next if m/using section/;
+            s/\R$//;                # Better chomp
+            ($server_port, $pid) = ($1, $2) if /^ACCEPT\s.*:(\d+) PID=(\d+)$/;
+            last; # Do not loop further to prevent hangs on server misbehavior
+        }
     }
+    unless ($server_port > 0) {
+        stop_mock_server($pid);
+        return 0;
+    }
+    $server_tls = $kur_port = $pbm_port = $server_port;
     return $pid;
 }
 
 sub stop_mock_server {
     my $pid = $_[0];
     print "Killing mock server with pid=$pid\n";
-    kill('QUIT', $pid) if $pid;
+    kill('KILL', $pid);
 }

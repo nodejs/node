@@ -76,7 +76,7 @@ static int desx_cbc_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
         DES_xcbc_encrypt(in, out, (long)EVP_MAXCHUNK, &data(ctx)->ks,
                          (DES_cblock *)ctx->iv,
                          &data(ctx)->inw, &data(ctx)->outw,
-                         EVP_CIPHER_CTX_encrypting(ctx));
+                         EVP_CIPHER_CTX_is_encrypting(ctx));
         inl -= EVP_MAXCHUNK;
         in += EVP_MAXCHUNK;
         out += EVP_MAXCHUNK;
@@ -85,7 +85,7 @@ static int desx_cbc_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
         DES_xcbc_encrypt(in, out, (long)inl, &data(ctx)->ks,
                          (DES_cblock *)ctx->iv,
                          &data(ctx)->inw, &data(ctx)->outw,
-                         EVP_CIPHER_CTX_encrypting(ctx));
+                         EVP_CIPHER_CTX_is_encrypting(ctx));
     return 1;
 }
 #endif

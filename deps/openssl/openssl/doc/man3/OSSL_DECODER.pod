@@ -6,12 +6,11 @@ OSSL_DECODER,
 OSSL_DECODER_fetch,
 OSSL_DECODER_up_ref,
 OSSL_DECODER_free,
-OSSL_DECODER_provider,
-OSSL_DECODER_properties,
+OSSL_DECODER_get0_provider,
+OSSL_DECODER_get0_properties,
 OSSL_DECODER_is_a,
-OSSL_DECODER_number,
-OSSL_DECODER_name,
-OSSL_DECODER_description,
+OSSL_DECODER_get0_name,
+OSSL_DECODER_get0_description,
 OSSL_DECODER_do_all_provided,
 OSSL_DECODER_names_do_all,
 OSSL_DECODER_gettable_params,
@@ -28,12 +27,11 @@ OSSL_DECODER_get_params
                                   const char *properties);
  int OSSL_DECODER_up_ref(OSSL_DECODER *decoder);
  void OSSL_DECODER_free(OSSL_DECODER *decoder);
- const OSSL_PROVIDER *OSSL_DECODER_provider(const OSSL_DECODER *decoder);
- const char *OSSL_DECODER_properties(const OSSL_DECODER *decoder);
+ const OSSL_PROVIDER *OSSL_DECODER_get0_provider(const OSSL_DECODER *decoder);
+ const char *OSSL_DECODER_get0_properties(const OSSL_DECODER *decoder);
  int OSSL_DECODER_is_a(const OSSL_DECODER *decoder, const char *name);
- int OSSL_DECODER_number(const OSSL_DECODER *decoder);
- const char *OSSL_DECODER_name(const OSSL_DECODER *decoder);
- const char *OSSL_DECODER_description(const OSSL_DECODER *decoder);
+ const char *OSSL_DECODER_get0_name(const OSSL_DECODER *decoder);
+ const char *OSSL_DECODER_get0_description(const OSSL_DECODER *decoder);
  void OSSL_DECODER_do_all_provided(OSSL_LIB_CTX *libctx,
                                    void (*fn)(OSSL_DECODER *decoder, void *arg),
                                    void *arg);
@@ -64,21 +62,18 @@ I<decoder>.
 OSSL_DECODER_free() decrements the reference count for the given
 I<decoder>, and when the count reaches zero, frees it.
 
-OSSL_DECODER_provider() returns the provider of the given
+OSSL_DECODER_get0_provider() returns the provider of the given
 I<decoder>.
 
-OSSL_DECODER_properties() returns the property definition associated
+OSSL_DECODER_get0_properties() returns the property definition associated
 with the given I<decoder>.
 
 OSSL_DECODER_is_a() checks if I<decoder> is an implementation
 of an algorithm that's identifiable with I<name>.
 
-OSSL_DECODER_number() returns the internal dynamic number assigned
-to the given I<decoder>.
+OSSL_DECODER_get0_name() returns the name used to fetch the given I<decoder>.
 
-OSSL_DECODER_number() returns the name used to fetch the given I<decoder>.
-
-OSSL_DECODER_description() returns a description of the I<decoder>, meant
+OSSL_DECODER_get0_description() returns a description of the I<decoder>, meant
 for display and human consumption.  The description is at the discretion
 of the I<decoder> implementation.
 
@@ -106,24 +101,22 @@ OSSL_DECODER_up_ref() returns 1 on success, or 0 on error.
 
 OSSL_DECODER_free() doesn't return any value.
 
-OSSL_DECODER_provider() returns a pointer to a provider object, or
+OSSL_DECODER_get0_provider() returns a pointer to a provider object, or
 NULL on error.
 
-OSSL_DECODER_properties() returns a pointer to a property
+OSSL_DECODER_get0_properties() returns a pointer to a property
 definition string, or NULL on error.
 
 OSSL_DECODER_is_a() returns 1 if I<decoder> was identifiable,
 otherwise 0.
 
-OSSL_DECODER_number() returns an integer.
-
-OSSL_DECODER_name() returns the algorithm name from the provided
+OSSL_DECODER_get0_name() returns the algorithm name from the provided
 implementation for the given I<decoder>. Note that the I<decoder> may have
 multiple synonyms associated with it. In this case the first name from the
 algorithm definition is returned. Ownership of the returned string is retained
 by the I<decoder> object and should not be freed by the caller.
 
-OSSL_DECODER_description() returns a pointer to a decription, or NULL if
+OSSL_DECODER_get0_description() returns a pointer to a decription, or NULL if
 there isn't one.
 
 OSSL_DECODER_names_do_all() returns 1 if the callback was called for all
@@ -167,7 +160,7 @@ To list all decoders in a provider to a bio_out:
  for (i = 0; i < sk_OSSL_DECODER_num(decoders); i++) {
      OSSL_DECODER *decoder = sk_OSSL_DECODER_value(decoders, i);
 
-     if (strcmp(OSSL_PROVIDER_name(OSSL_DECODER_provider(decoder)),
+     if (strcmp(OSSL_PROVIDER_get0_name(OSSL_DECODER_get0_provider(decoder)),
                 provider) != 0)
          continue;
 

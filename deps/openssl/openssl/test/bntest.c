@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -28,7 +28,7 @@
 #endif
 
 /*
- * Things in boring, not in openssl.  TODO we should add them.
+ * Things in boring, not in openssl.
  */
 #define HAVE_BN_PADDED 0
 #define HAVE_BN_SQRT 0
@@ -1100,7 +1100,7 @@ static int file_sum(STANZA *s)
     /*
      * Test that the functions work when |r| and |a| point to the same BIGNUM,
      * or when |r| and |b| point to the same BIGNUM.
-     * TODO: Test where all of |r|, |a|, and |b| point to the same BIGNUM.
+     * There is no test for all of |r|, |a|, and |b| pointint to the same BIGNUM.
      */
     if (!TEST_true(BN_copy(ret, a))
             || !TEST_true(BN_add(ret, ret, b))
@@ -1127,7 +1127,6 @@ static int file_sum(STANZA *s)
      * documented as having. Note that these functions are frequently used
      * when the prerequisites don't hold. In those cases, they are supposed
      * to work as if the prerequisite hold, but we don't test that yet.
-     * TODO: test that.
      */
     if (!BN_is_negative(a) && !BN_is_negative(b) && BN_cmp(a, b) >= 0) {
         if (!TEST_true(BN_uadd(ret, a, b))
@@ -1140,7 +1139,8 @@ static int file_sum(STANZA *s)
         /*
          * Test that the functions work when |r| and |a| point to the same
          * BIGNUM, or when |r| and |b| point to the same BIGNUM.
-         * TODO: Test where all of |r|, |a|, and |b| point to the same BIGNUM.
+         * There is no test for all of |r|, |a|, and |b| pointint to the same
+         * BIGNUM.
          */
         if (!TEST_true(BN_copy(ret, a))
                 || !TEST_true(BN_uadd(ret, ret, b))

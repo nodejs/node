@@ -21,7 +21,8 @@ provider-base
 
  typedef void (*OSSL_thread_stop_handler_fn)(void *arg);
  int core_thread_start(const OSSL_CORE_HANDLE *handle,
-                       OSSL_thread_stop_handler_fn handfn);
+                       OSSL_thread_stop_handler_fn handfn,
+                       void *arg);
 
  OPENSSL_CORE_CTX *core_get_libctx(const OSSL_CORE_HANDLE *handle);
  void core_new_error(const OSSL_CORE_HANDLE *handle);
@@ -29,6 +30,11 @@ provider-base
                            const char *file, int line, const char *func);
  void core_vset_error(const OSSL_CORE_HANDLE *handle,
                       uint32_t reason, const char *fmt, va_list args);
+
+ int core_obj_add_sigid(const OSSL_CORE_HANDLE *prov, const char  *sign_name,
+                        const char *digest_name, const char *pkey_name);
+ int core_obj_create(const OSSL_CORE_HANDLE *handle, const char *oid,
+                     const char *sn, const char *ln);
 
  /*
   * Some OpenSSL functionality is directly offered to providers via
@@ -98,7 +104,6 @@ provider-base
  int provider_up_ref(const OSSL_CORE_HANDLE *prov, int activate);
  int provider_free(const OSSL_CORE_HANDLE *prov, int deactivate);
 
-
  /* Functions offered by the provider to libcrypto */
  void provider_teardown(void *provctx);
  const OSSL_ITEM *provider_gettable_params(void *provctx);
@@ -144,6 +149,8 @@ provider):
  core_new_error                 OSSL_FUNC_CORE_NEW_ERROR
  core_set_error_debug           OSSL_FUNC_CORE_SET_ERROR_DEBUG
  core_vset_error                OSSL_FUNC_CORE_VSET_ERROR
+ core_obj_add_sigid             OSSL_FUNC_CORE_OBJ_ADD_SIGID
+ core_obj_create                OSSL_FUNC_CORE_OBJ_CREATE
  CRYPTO_malloc                  OSSL_FUNC_CRYPTO_MALLOC
  CRYPTO_zalloc                  OSSL_FUNC_CRYPTO_ZALLOC
  CRYPTO_memdup                  OSSL_FUNC_CRYPTO_MEMDUP
@@ -170,6 +177,13 @@ provider):
  ossl_rand_cleanup_entropy      OSSL_FUNC_CLEANUP_ENTROPY
  ossl_rand_get_nonce            OSSL_FUNC_GET_NONCE
  ossl_rand_cleanup_nonce        OSSL_FUNC_CLEANUP_NONCE
+ provider_register_child_cb     OSSL_FUNC_PROVIDER_REGISTER_CHILD_CB
+ provider_deregister_child_cb   OSSL_FUNC_PROVIDER_DEREGISTER_CHILD_CB
+ provider_name                  OSSL_FUNC_PROVIDER_NAME
+ provider_get0_provider_ctx     OSSL_FUNC_PROVIDER_GET0_PROVIDER_CTX
+ provider_get0_dispatch         OSSL_FUNC_PROVIDER_GET0_DISPATCH
+ provider_up_ref                OSSL_FUNC_PROVIDER_UP_REF
+ provider_free                  OSSL_FUNC_PROVIDER_FREE
 
 For I<*out> (the B<OSSL_DISPATCH> array passed from the provider to
 F<libcrypto>):
@@ -192,13 +206,14 @@ core_get_params() retrieves parameters from the core for the given I<handle>.
 See L</Core parameters> below for a description of currently known
 parameters.
 
-The core_thread_start() function informs the core that the provider has started
+The core_thread_start() function informs the core that the provider has stated
 an interest in the current thread. The core will inform the provider when the
 thread eventually stops. It must be passed the I<handle> for this provider, as
 well as a callback I<handfn> which will be called when the thread stops. The
-callback will subsequently be called from the thread that is stopping and gets
-passed the provider context as an argument. This may be useful to perform thread
-specific clean up such as freeing thread local variables.
+callback will subsequently be called, with the supplied argument I<arg>, from
+the thread that is stopping and gets passed the provider context as an
+argument. This may be useful to perform thread specific clean up such as
+freeing thread local variables.
 
 core_get_libctx() retrieves the library context in which the library
 object for the current provider is stored, accessible through the I<handle>.
@@ -242,16 +257,37 @@ This corresponds to the OpenSSL function L<ERR_vset_error(3)>.
 
 =back
 
+The core_obj_create() function registers a new OID and associated short name
+I<sn> and long name I<ln> for the given I<handle>. It is similar to the OpenSSL
+function L<OBJ_create(3)> except that it returns 1 on success or 0 on failure.
+It will treat as success the case where the OID already exists (even if the
+short name I<sn> or long name I<ln> provided as arguments differ from those
+associated with the existing OID, in which case the new names are not
+associated).
+
+The core_obj_add_sigid() function registers a new composite signature algorithm
+(I<sign_name>) consisting of an underlying signature algorithm (I<pkey_name>)
+and digest algorithm (I<digest_name>) for the given I<handle>. It assumes that
+the OIDs for the composite signature algorithm as well as for the underlying
+signature and digest algorithms are either already known to OpenSSL or have been
+registered via a call to core_obj_create(). It corresponds to the OpenSSL
+function L<OBJ_add_sigid(3)>, except that the objects are identified by name
+rather than a numeric NID. Any name (OID, short name or long name) can be used
+to identify the object. It will treat as success the case where the composite
+signature algorithm already exists (even if registered against a different
+underlying signature or digest algorithm). It returns 1 on success or 0 on
+failure.
+
 CRYPTO_malloc(), CRYPTO_zalloc(), CRYPTO_memdup(), CRYPTO_strdup(),
 CRYPTO_strndup(), CRYPTO_free(), CRYPTO_clear_free(),
 CRYPTO_realloc(), CRYPTO_clear_realloc(), CRYPTO_secure_malloc(),
 CRYPTO_secure_zalloc(), CRYPTO_secure_free(),
 CRYPTO_secure_clear_free(), CRYPTO_secure_allocated(),
 BIO_new_file(), BIO_new_mem_buf(), BIO_read_ex(), BIO_write_ex(), BIO_up_ref(),
-BIO_free(), BIO_vprintf(), BIO_vsnprintf(), OPENSSL_cleanse()
-and OPENSSL_hexstr2buf() correspond exactly to the public functions with
+BIO_free(), BIO_vprintf(), BIO_vsnprintf(), OPENSSL_cleanse() and
+OPENSSL_hexstr2buf() correspond exactly to the public functions with
 the same name.  As a matter of fact, the pointers in the B<OSSL_DISPATCH>
-array are direct pointers to those public functions. Note that the BIO
+array are typically direct pointers to those public functions. Note that the BIO
 functions take an B<OSSL_CORE_BIO> type rather than the standard B<BIO>
 type. This is to ensure that a provider does not mix BIOs from the core
 with BIOs used on the provider side (the two are not compatible).

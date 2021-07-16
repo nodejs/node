@@ -36,8 +36,11 @@ int CMS_stream(unsigned char ***boundary, CMS_ContentInfo *cms)
 CMS_ContentInfo *d2i_CMS_bio(BIO *bp, CMS_ContentInfo **cms)
 {
     CMS_ContentInfo *ci;
+    const CMS_CTX *ctx = ossl_cms_get0_cmsctx(cms == NULL ? NULL : *cms);
 
-    ci = ASN1_item_d2i_bio(ASN1_ITEM_rptr(CMS_ContentInfo), bp, cms);
+    ci = ASN1_item_d2i_bio_ex(ASN1_ITEM_rptr(CMS_ContentInfo), bp, cms,
+                              ossl_cms_ctx_get0_libctx(ctx),
+                              ossl_cms_ctx_get0_propq(ctx));
     if (ci != NULL)
         ossl_cms_resolve_libctx(ci);
     return ci;
@@ -90,13 +93,17 @@ int SMIME_write_CMS(BIO *bio, CMS_ContentInfo *cms, BIO *data, int flags)
                                ossl_cms_ctx_get0_propq(ctx));
 }
 
-CMS_ContentInfo *SMIME_read_CMS_ex(BIO *bio, int flags, BIO **bcont, CMS_ContentInfo **cms)
+CMS_ContentInfo *SMIME_read_CMS_ex(BIO *bio, int flags, BIO **bcont,
+                                   CMS_ContentInfo **cms)
 {
     CMS_ContentInfo *ci;
+    const CMS_CTX *ctx = ossl_cms_get0_cmsctx(cms == NULL ? NULL : *cms);
 
     ci = (CMS_ContentInfo *)SMIME_read_ASN1_ex(bio, flags, bcont,
                                                ASN1_ITEM_rptr(CMS_ContentInfo),
-                                               (ASN1_VALUE **)cms);
+                                               (ASN1_VALUE **)cms,
+                                               ossl_cms_ctx_get0_libctx(ctx),
+                                               ossl_cms_ctx_get0_propq(ctx));
     if (ci != NULL)
         ossl_cms_resolve_libctx(ci);
     return ci;

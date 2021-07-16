@@ -12,7 +12,7 @@
 #include <openssl/core_dispatch.h>
 #include <openssl/core_names.h>
 /* For TLS1_VERSION etc */
-#include <openssl/ssl.h>
+#include <openssl/prov_ssl.h>
 #include <openssl/params.h>
 #include "internal/nelem.h"
 #include "internal/tlsgroups.h"

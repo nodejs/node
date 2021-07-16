@@ -592,7 +592,7 @@ static EVP_PKEY_CTX *init_ctx(const char *kdfalg, int *pkeysize,
         if (pkey == NULL)
             goto end;
 
-        *pkeysize = EVP_PKEY_size(pkey);
+        *pkeysize = EVP_PKEY_get_size(pkey);
         if (impl != NULL)
             ctx = EVP_PKEY_CTX_new(pkey, impl);
         else
@@ -726,8 +726,8 @@ static int do_raw_keyop(int pkey_op, EVP_MD_CTX *mctx,
     int buf_len = 0;
 
     /* Some algorithms only support oneshot digests */
-    if (EVP_PKEY_id(pkey) == EVP_PKEY_ED25519
-            || EVP_PKEY_id(pkey) == EVP_PKEY_ED448) {
+    if (EVP_PKEY_get_id(pkey) == EVP_PKEY_ED25519
+            || EVP_PKEY_get_id(pkey) == EVP_PKEY_ED448) {
         if (filesize < 0) {
             BIO_printf(bio_err,
                        "Error: unable to determine file size for oneshot operation\n");

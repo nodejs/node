@@ -518,7 +518,7 @@ static int test_key(int idx)
     if (!TEST_ptr(pkey = key->key)
         || !TEST_true(evp_pkey_copy_downgraded(&downgraded_pkey, pkey))
         || !TEST_ptr(downgraded_pkey)
-        || !TEST_int_eq(EVP_PKEY_id(downgraded_pkey), key->evp_type)
+        || !TEST_int_eq(EVP_PKEY_get_id(downgraded_pkey), key->evp_type)
         || !TEST_ptr(legacy_obj = EVP_PKEY_get0(downgraded_pkey)))
         goto end;
 
@@ -674,19 +674,48 @@ static int test_key(int idx)
     return ok;
 }
 
+#define USAGE "rsa-key.pem dh-key.pem\n"
+OPT_TEST_DECLARE_USAGE(USAGE)
+
 int setup_tests(void)
 {
     size_t i;
 
+    if (!test_skip_common_options()) {
+        TEST_error("Error parsing test options\n");
+        return 0;
+    }
+    if (test_get_argument_count() != 2) {
+        TEST_error("usage: endecoder_legacy_test %s", USAGE);
+        return 0;
+    }
+
     TEST_info("Generating keys...");
 
     for (i = 0; i < OSSL_NELEM(keys); i++) {
+#ifndef OPENSSL_NO_DH
+        if (strcmp(keys[i].keytype, "DH") == 0) {
+            if (!TEST_ptr(keys[i].key =
+                          load_pkey_pem(test_get_argument(1), NULL)))
+                return  0;
+            continue;
+        }
+#endif
+#ifndef OPENSSL_NO_DEPRECATED_3_0
+        if (strcmp(keys[i].keytype, "RSA") == 0) {
+            if (!TEST_ptr(keys[i].key =
+                          load_pkey_pem(test_get_argument(0), NULL)))
+                return  0;
+            continue;
+        }
+#endif
+        TEST_info("Generating %s key...", keys[i].keytype);
         if (!TEST_ptr(keys[i].key =
                       make_key(keys[i].keytype, keys[i].template_params)))
             return 0;
     }
 
-    TEST_info("Generating key... done");
+    TEST_info("Generating keys done");
 
     ADD_ALL_TESTS(test_key, OSSL_NELEM(test_stanzas));
     return 1;

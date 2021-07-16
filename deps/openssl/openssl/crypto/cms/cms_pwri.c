@@ -91,10 +91,10 @@ CMS_RecipientInfo *CMS_add0_recipient_password(CMS_ContentInfo *cms,
         goto err;
     }
 
-    ivlen = EVP_CIPHER_CTX_iv_length(ctx);
+    ivlen = EVP_CIPHER_CTX_get_iv_length(ctx);
 
     if (ivlen > 0) {
-        if (RAND_bytes_ex(ossl_cms_ctx_get0_libctx(cms_ctx), iv, ivlen) <= 0)
+        if (RAND_bytes_ex(ossl_cms_ctx_get0_libctx(cms_ctx), iv, ivlen, 0) <= 0)
             goto err;
         if (EVP_EncryptInit_ex(ctx, NULL, NULL, NULL, iv) <= 0) {
             ERR_raise(ERR_LIB_CMS, ERR_R_EVP_LIB);
@@ -111,7 +111,7 @@ CMS_RecipientInfo *CMS_add0_recipient_password(CMS_ContentInfo *cms,
         }
     }
 
-    encalg->algorithm = OBJ_nid2obj(EVP_CIPHER_CTX_type(ctx));
+    encalg->algorithm = OBJ_nid2obj(EVP_CIPHER_CTX_get_type(ctx));
 
     EVP_CIPHER_CTX_free(ctx);
     ctx = NULL;
@@ -182,7 +182,7 @@ static int kek_unwrap_key(unsigned char *out, size_t *outlen,
                           const unsigned char *in, size_t inlen,
                           EVP_CIPHER_CTX *ctx)
 {
-    size_t blocklen = EVP_CIPHER_CTX_block_size(ctx);
+    size_t blocklen = EVP_CIPHER_CTX_get_block_size(ctx);
     unsigned char *tmp;
     int outl, rv = 0;
     if (inlen < 2 * blocklen) {
@@ -237,7 +237,7 @@ static int kek_wrap_key(unsigned char *out, size_t *outlen,
                         const unsigned char *in, size_t inlen,
                         EVP_CIPHER_CTX *ctx, const CMS_CTX *cms_ctx)
 {
-    size_t blocklen = EVP_CIPHER_CTX_block_size(ctx);
+    size_t blocklen = EVP_CIPHER_CTX_get_block_size(ctx);
     size_t olen;
     int dummy;
     /*
@@ -264,7 +264,7 @@ static int kek_wrap_key(unsigned char *out, size_t *outlen,
         /* Add random padding to end */
         if (olen > inlen + 4
             && RAND_bytes_ex(ossl_cms_ctx_get0_libctx(cms_ctx), out + 4 + inlen,
-                             olen - 4 - inlen) <= 0)
+                             olen - 4 - inlen, 0) <= 0)
             return 0;
         /* Encrypt twice */
         if (!EVP_EncryptUpdate(ctx, out, &dummy, out, olen)

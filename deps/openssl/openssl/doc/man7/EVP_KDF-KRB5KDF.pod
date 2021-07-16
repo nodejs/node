@@ -94,7 +94,6 @@ RFC 3961
 
 L<EVP_KDF(3)>,
 L<EVP_KDF_CTX_free(3)>,
-L<EVP_KDF_ctrl(3)>,
 L<EVP_KDF_CTX_get_kdf_size(3)>,
 L<EVP_KDF_derive(3)>,
 L<EVP_KDF(3)/PARAMETERS>

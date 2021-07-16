@@ -41,7 +41,7 @@ my %podinfo = extract_pod_info($podfile);
 for my $name (@{$podinfo{names}}) {
     next if $name eq $mainf;
     if ($action eq "install") {
-        symlink "$targetdir/$manname", "$targetdir/$name.$section";
+        symlink "$manname", "$targetdir/$name.$section";
     } else {
         unlink "$targetdir/$name.$section";
     }

@@ -64,7 +64,7 @@ The usual life-cycle of a KDF/PRF is illustrated:
 
 =end man
 
-=for html <img src="kdf.png">
+=for html <img src="img/kdf.png">
 
 =head2 Formal State Transitions
 

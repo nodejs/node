@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -20,8 +20,8 @@ static int test_provider(OSSL_LIB_CTX *ctx)
 
     ok = TEST_true(OSSL_PROVIDER_available(ctx, "default"))
         && TEST_ptr(rsameth = EVP_KEYMGMT_fetch(ctx, "RSA", NULL))
-        && TEST_ptr(prov = EVP_KEYMGMT_provider(rsameth))
-        && TEST_str_eq(OSSL_PROVIDER_name(prov), "default");
+        && TEST_ptr(prov = EVP_KEYMGMT_get0_provider(rsameth))
+        && TEST_str_eq(OSSL_PROVIDER_get0_name(prov), "default");
 
     EVP_KEYMGMT_free(rsameth);
     return ok;

@@ -35,11 +35,11 @@ same I<ctx> to include additional data.
 EVP_SignFinal_ex() signs the data in I<ctx> using the private key
 I<pkey> and places the signature in I<sig>. The library context I<libctx> and
 property query I<propq> are used when creating a context to use with the key
-I<pkey>. I<sig> must be at least C<EVP_PKEY_size(pkey)> bytes in size. I<s> is
-an OUT parameter, and not used as an IN parameter.
+I<pkey>. I<sig> must be at least C<EVP_PKEY_get_size(pkey)> bytes in size.
+I<s> is an OUT parameter, and not used as an IN parameter.
 The number of bytes of data written (i.e. the length of the signature)
-will be written to the integer at I<s>, at most C<EVP_PKEY_size(pkey)> bytes
-will be written.
+will be written to the integer at I<s>, at most C<EVP_PKEY_get_size(pkey)>
+bytes will be written.
 
 EVP_SignFinal() is similar to EVP_SignFinal_ex() but uses default
 values of NULL for the library context I<libctx> and the property query I<propq>.
@@ -89,7 +89,8 @@ The previous two bugs are fixed in the newer EVP_SignDigest*() function.
 
 =head1 SEE ALSO
 
-L<EVP_PKEY_size(3)>, L<EVP_PKEY_bits(3)>, L<EVP_PKEY_security_bits(3)>,
+L<EVP_PKEY_get_size(3)>, L<EVP_PKEY_get_bits(3)>,
+L<EVP_PKEY_get_security_bits(3)>,
 L<EVP_VerifyInit(3)>,
 L<EVP_DigestInit(3)>,
 L<evp(7)>, L<HMAC(3)>, L<MD2(3)>,
@@ -102,7 +103,7 @@ The function EVP_SignFinal_ex() was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -136,7 +136,6 @@ EOF
 # get past these.  Note that we only use these with C compilers, not with
 # C++ compilers.
 
-# DEBUG_UNUSED enables __owur (warn unused result) checks.
 # -DPEDANTIC complements -pedantic and is meant to mask code that
 # is not strictly standard-compliant and/or implementation-specific,
 # e.g. inline assembly, disregards to alignment requirements, such
@@ -150,9 +149,9 @@ EOF
 # but 'long long' type.
 
 my @gcc_devteam_warn = qw(
-    -DDEBUG_UNUSED
-    -DPEDANTIC -pedantic -Wno-long-long
+    -DPEDANTIC -pedantic -Wno-long-long -DUNUSEDRESULT_DEBUG
     -Wall
+    -Wmissing-declarations
     -Wextra
     -Wno-unused-parameter
     -Wno-missing-field-initializers
@@ -449,6 +448,7 @@ my @disablables = (
     "idea",
     "ktls",
     "legacy",
+    "loadereng",
     "makedepend",
     "md2",
     "md4",
@@ -549,7 +549,6 @@ our %disabled = ( # "what"         => "comment"
                   "msan"                => "default",
                   "rc5"                 => "default",
                   "sctp"                => "default",
-                  "ssl-trace"           => "default",
                   "ssl3"                => "default",
                   "ssl3-method"         => "default",
                   "trace"               => "default",
@@ -576,7 +575,7 @@ my @disable_cascades = (
                              "rc2", "rc4", "rmd160",
                              "seed", "siphash", "siv",
                              "sm3", "sm4", "srp",
-                             "srtp", "ssl3-method",
+                             "srtp", "ssl3-method", "ssl-trace",
                              "ts", "ui-console", "whirlpool",
                              "quic",
                              "fips-securitychecks" ],
@@ -802,6 +801,7 @@ while (@argvcopy)
         s /^threads$/enable-threads/;
         s /^zlib$/enable-zlib/;
         s /^zlib-dynamic$/enable-zlib-dynamic/;
+        s /^fips$/enable-fips/;
 
         if (/^(no|disable|enable)-(.+)$/)
                 {
@@ -926,19 +926,11 @@ while (@argvcopy)
                 }
         elsif (/^386$/)
                 { $config{processor}=386; }
-        elsif (/^fips$/)
-                {
-                die "FIPS mode not supported\n";
-                }
         elsif (/^rsaref$/)
                 {
                 # No RSAref support any more since it's not needed.
                 # The check for the option is there so scripts aren't
                 # broken
-                }
-        elsif (/^nofipscanistercheck$/)
-                {
-                die "FIPS mode not supported\n";
                 }
         elsif (m|^[-+/]|)
                 {
@@ -1389,6 +1381,10 @@ foreach (keys %useradd) {
 # At this point, we can forget everything about %user and %useradd,
 # because it's now all been merged into the corresponding $config entry
 
+if (grep { $_ =~ /(?:^|\s)-static(?:\s|$)/ } @{$config{LDFLAGS}}) {
+    disable('static', 'pic', 'threads');
+}
+
 # Allow overriding the build file name
 $config{build_file} = env('BUILDFILE') || $target{build_file} || "Makefile";
 
@@ -1677,10 +1673,6 @@ if ($strict_warnings)
                 }
         }
 
-if (grep { $_ =~ /(?:^|\s)-static(?:\s|$)/ } @{$config{LDFLAGS}}) {
-    disable('static', 'pic', 'threads');
-}
-
 $config{CFLAGS} = [ map { $_ eq '--ossl-strict-warnings'
                               ? @strict_warnings_collection
                               : ( $_ ) }
@@ -1966,6 +1958,7 @@ if ($builder eq "unified") {
         my %defines = ();
         my %depends = ();
         my %generate = ();
+        my %imagedocs = ();
         my %htmldocs = ();
         my %mandocs = ();
 
@@ -2118,7 +2111,7 @@ if ($builder eq "unified") {
         my $index_re = qr/\[\s*(?P<INDEX>(?:\\.|.)*?)\s*\]/;
         my $cond_re = qr/\[\s*(?P<COND>(?:\\.|.)*?)\s*\]/;
         my $attribs_re = qr/(?:\{\s*(?P<ATTRIBS>(?:\\.|.)*?)\s*\})?/;
-        my $value_re = qr/\s*(?P<VALUE>.*?)\s*/;
+        my $value_re = qr/(?P<VALUE>.*?)/;
         collect_information(
             collect_from_array([ @text ],
                                qr/\\$/ => sub { my $l1 = shift; my $l2 = shift;
@@ -2145,13 +2138,13 @@ if ($builder eq "unified") {
             qr/^\s* ENDIF \s*$/x
             => sub { die "ENDIF out of scope" if ! @skip;
                      pop @skip; },
-            qr/^\s* ${variable_re} \s* = ${value_re} $/x
+            qr/^\s* ${variable_re} \s* = \s* ${value_re} \s* $/x
             => sub {
                 if (!@skip || $skip[$#skip] > 0) {
                     $variables{$+{VARIABLE}} = $expand_variables->($+{VALUE});
                 }
             },
-            qr/^\s* SUBDIRS \s* = ${value_re} $/x
+            qr/^\s* SUBDIRS \s* = \s* ${value_re} \s* $/x
             => sub {
                 if (!@skip || $skip[$#skip] > 0) {
                     foreach (tokenize($expand_variables->($+{VALUE}))) {
@@ -2159,64 +2152,69 @@ if ($builder eq "unified") {
                     }
                 }
             },
-            qr/^\s* PROGRAMS ${attribs_re} \s* =  ${value_re} $/x
+            qr/^\s* PROGRAMS ${attribs_re} \s* =  \s* ${value_re} \s* $/x
             => sub { $push_to->(\@programs, undef,
                                 \$attributes{programs}, $+{ATTRIBS},
                                 tokenize($expand_variables->($+{VALUE})))
                          if !@skip || $skip[$#skip] > 0; },
-            qr/^\s* LIBS ${attribs_re} \s* =  ${value_re} $/x
+            qr/^\s* LIBS ${attribs_re} \s* =  \s* ${value_re} \s* $/x
             => sub { $push_to->(\@libraries, undef,
                                 \$attributes{libraries}, $+{ATTRIBS},
                                 tokenize($expand_variables->($+{VALUE})))
                          if !@skip || $skip[$#skip] > 0; },
-            qr/^\s* MODULES ${attribs_re} \s* =  ${value_re} $/x
+            qr/^\s* MODULES ${attribs_re} \s* =  \s* ${value_re} \s* $/x
             => sub { $push_to->(\@modules, undef,
                                 \$attributes{modules}, $+{ATTRIBS},
                                 tokenize($expand_variables->($+{VALUE})))
                          if !@skip || $skip[$#skip] > 0; },
-            qr/^\s* SCRIPTS ${attribs_re} \s* =  ${value_re} $/x
+            qr/^\s* SCRIPTS ${attribs_re} \s* = \s* ${value_re} \s* $/x
             => sub { $push_to->(\@scripts, undef,
                                 \$attributes{scripts}, $+{ATTRIBS},
                                 tokenize($expand_variables->($+{VALUE})))
                          if !@skip || $skip[$#skip] > 0; },
-            qr/^\s* HTMLDOCS ${index_re} = ${value_re} $/x
+            qr/^\s* IMAGEDOCS ${index_re} \s* = \s* ${value_re} \s* $/x
+            => sub { $push_to->(\%imagedocs, $expand_variables->($+{INDEX}),
+                                undef, undef,
+                                tokenize($expand_variables->($+{VALUE})))
+                         if !@skip || $skip[$#skip] > 0; },
+            qr/^\s* HTMLDOCS ${index_re} \s* = \s* ${value_re} \s* $/x
             => sub { $push_to->(\%htmldocs, $expand_variables->($+{INDEX}),
                                 undef, undef,
                                 tokenize($expand_variables->($+{VALUE})))
                          if !@skip || $skip[$#skip] > 0; },
-            qr/^\s* MANDOCS ${index_re} = ${value_re} $/x
+            qr/^\s* MANDOCS ${index_re} \s* = \s* ${value_re} \s* $/x
             => sub { $push_to->(\%mandocs, $expand_variables->($+{INDEX}),
                                 undef, undef,
                                 tokenize($expand_variables->($+{VALUE})))
                          if !@skip || $skip[$#skip] > 0; },
-            qr/^\s* SOURCE ${index_re} ${attribs_re} = ${value_re} $/x
+            qr/^\s* SOURCE ${index_re} ${attribs_re} \s* = \s* ${value_re} \s* $/x
             => sub { $push_to->(\%sources, $expand_variables->($+{INDEX}),
                                 \$attributes{sources}, $+{ATTRIBS},
                                 tokenize($expand_variables->($+{VALUE})))
                          if !@skip || $skip[$#skip] > 0; },
-            qr/^\s* SHARED_SOURCE ${index_re} ${attribs_re} = ${value_re} $/x
+            qr/^\s* SHARED_SOURCE ${index_re} ${attribs_re} \s* = \s* ${value_re} \s* $/x
             => sub { $push_to->(\%shared_sources, $expand_variables->($+{INDEX}),
                                 \$attributes{sources}, $+{ATTRIBS},
                                 tokenize($expand_variables->($+{VALUE})))
                          if !@skip || $skip[$#skip] > 0; },
-            qr/^\s* INCLUDE ${index_re} = ${value_re} $/x
+            qr/^\s* INCLUDE ${index_re} \s* = \s* ${value_re} \s* $/x
             => sub { $push_to->(\%includes, $expand_variables->($+{INDEX}),
                                 undef, undef,
                                 tokenize($expand_variables->($+{VALUE})))
                          if !@skip || $skip[$#skip] > 0; },
-            qr/^\s* DEFINE ${index_re} = ${value_re} $/x
+            qr/^\s* DEFINE ${index_re} \s* = \s* ${value_re} \s* $/x
             => sub { $push_to->(\%defines, $expand_variables->($+{INDEX}),
                                 undef, undef,
                                 tokenize($expand_variables->($+{VALUE})))
                          if !@skip || $skip[$#skip] > 0; },
-            qr/^\s* DEPEND ${index_re} ${attribs_re} = ${value_re} $/x
+            qr/^\s* DEPEND ${index_re} ${attribs_re} \s* = \s* ${value_re} \s* $/x
             => sub { $push_to->(\%depends, $expand_variables->($+{INDEX}),
                                 \$attributes{depends}, $+{ATTRIBS},
                                 tokenize($expand_variables->($+{VALUE})))
                          if !@skip || $skip[$#skip] > 0; },
-            qr/^\s* GENERATE ${index_re} = ${value_re} $/x
+            qr/^\s* GENERATE ${index_re} \s* = \s* ${value_re} \s* $/x
             => sub { $push_to->(\%generate, $expand_variables->($+{INDEX}),
-                                undef, undef, $+{VALUE})
+                                undef, undef, $expand_variables->($+{VALUE}))
                          if !@skip || $skip[$#skip] > 0; },
             qr/^\s* (?:\#.*)? $/x => sub { },
             "OTHERWISE" => sub { die "Something wrong with this line:\n$_\nat $sourced/$f" },
@@ -2473,6 +2471,13 @@ EOF
             }
         }
 
+        foreach my $section (keys %imagedocs) {
+            foreach (@{$imagedocs{$section}}) {
+                my $imagedocs = cleanfile($buildd, $_, $blddir);
+                $unified_info{imagedocs}->{$section}->{$imagedocs} = 1;
+            }
+        }
+
         foreach my $section (keys %htmldocs) {
             foreach (@{$htmldocs{$section}}) {
                 my $htmldocs = cleanfile($buildd, $_, $blddir);
@@ -2714,7 +2719,7 @@ EOF
     }
     # Two level structures
     foreach my $l1 (("sources", "shared_sources", "ldadd", "depends",
-                     "htmldocs", "mandocs")) {
+                     "imagedocs", "htmldocs", "mandocs")) {
         foreach my $l2 (sort keys %{$unified_info{$l1}}) {
             my @items =
                 sort
@@ -2761,7 +2766,9 @@ EOF
                      "dso" => [ @{$unified_info{modules}} ],
                      "bin" => [ @{$unified_info{programs}} ],
                      "script" => [ @{$unified_info{scripts}} ],
-                     "docs" => [ (map { @{$unified_info{htmldocs}->{$_} // []} }
+                     "docs" => [ (map { @{$unified_info{imagedocs}->{$_} // []} }
+                                  keys %{$unified_info{imagedocs} // {}}),
+                                 (map { @{$unified_info{htmldocs}->{$_} // []} }
                                   keys %{$unified_info{htmldocs} // {}}),
                                  (map { @{$unified_info{mandocs}->{$_} // []} }
                                   keys %{$unified_info{mandocs} // {}}) ] );

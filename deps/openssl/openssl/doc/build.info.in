@@ -7,8 +7,11 @@ SUBDIRS = man1
  my $sourcedir = catdir($config{sourcedir}, 'doc');
 
  foreach my $section ((1, 3, 5, 7)) {
+     my @imagefiles = ();
      my @htmlfiles = ();
      my @manfiles = ();
+     my %pngfiles =
+         map { $_ => 1 } glob catfile($sourcedir, "man$section", "img", "*.png");
      my %podfiles =
          map { $_ => 1 } glob catfile($sourcedir, "man$section", "*.pod");
      my %podinfiles = 
@@ -62,6 +65,15 @@ DEPEND[$podfile]{pod}=$podinfile
 GENERATE[$podfile]=$podinfile
 _____
      }
+
+     foreach my $p (sort keys %pngfiles) {
+         my $relpath = abs2rel($p, $sourcedir);
+         my $imagefile = abs2rel(catfile($buildtop, "doc", "$relpath"),
+                                 catdir($buildtop, "doc"));
+         push @imagefiles, $imagefile;
+     }
+
+     $OUT .= "IMAGEDOCS[man$section]=" . join(" \\\n", @imagefiles) . "\n";
      $OUT .= "HTMLDOCS[man$section]=" . join(" \\\n", @htmlfiles) . "\n";
      $OUT .= "MANDOCS[man$section]=" . join(" \\\n", @manfiles) . "\n";
  }

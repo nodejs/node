@@ -1,6 +1,6 @@
 # Generated with generate_ssl_tests.pl
 
-num_tests = 15
+num_tests = 17
 
 test-0 = 0-renegotiate-client-no-resume
 test-1 = 1-renegotiate-client-resume
@@ -17,6 +17,8 @@ test-11 = 11-no-renegotiation-server-by-server
 test-12 = 12-no-renegotiation-client-by-server
 test-13 = 13-no-renegotiation-client-by-client
 test-14 = 14-no-extms-on-renegotiation
+test-15 = 15-allow-client-renegotiation
+test-16 = 16-no-client-renegotiation
 # ===========================================================
 
 [0-renegotiate-client-no-resume]
@@ -461,5 +463,63 @@ client = 14-no-extms-on-renegotiation-client-extra
 
 [14-no-extms-on-renegotiation-client-extra]
 RenegotiateNoExtms = Yes
+
+
+# ===========================================================
+
+[15-allow-client-renegotiation]
+ssl_conf = 15-allow-client-renegotiation-ssl
+
+[15-allow-client-renegotiation-ssl]
+server = 15-allow-client-renegotiation-server
+client = 15-allow-client-renegotiation-client
+
+[15-allow-client-renegotiation-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+MaxProtocol = TLSv1.2
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[15-allow-client-renegotiation-client]
+CipherString = DEFAULT
+MaxProtocol = TLSv1.2
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-15]
+ExpectedResult = Success
+HandshakeMode = RenegotiateClient
+Method = TLS
+ResumptionExpected = Yes
+
+
+# ===========================================================
+
+[16-no-client-renegotiation]
+ssl_conf = 16-no-client-renegotiation-ssl
+
+[16-no-client-renegotiation-ssl]
+server = 16-no-client-renegotiation-server
+client = 16-no-client-renegotiation-client
+
+[16-no-client-renegotiation-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+MaxProtocol = TLSv1.2
+Options = -ClientRenegotiation
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[16-no-client-renegotiation-client]
+CipherString = DEFAULT
+MaxProtocol = TLSv1.2
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-16]
+ExpectedResult = ClientFail
+ExpectedServerAlert = NoRenegotiation
+HandshakeMode = RenegotiateClient
+Method = TLS
+ResumptionExpected = No
 
 

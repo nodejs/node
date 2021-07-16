@@ -127,12 +127,12 @@ int gendsa_main(int argc, char **argv)
     if (out == NULL)
         goto end2;
 
-    nbits = EVP_PKEY_bits(pkey);
+    nbits = EVP_PKEY_get_bits(pkey);
     if (nbits > OPENSSL_DSA_MAX_MODULUS_BITS)
         BIO_printf(bio_err,
                    "Warning: It is not recommended to use more than %d bit for DSA keys.\n"
                    "         Your key size is %d! Larger key size may behave not as expected.\n",
-                   OPENSSL_DSA_MAX_MODULUS_BITS, EVP_PKEY_bits(pkey));
+                   OPENSSL_DSA_MAX_MODULUS_BITS, EVP_PKEY_get_bits(pkey));
 
     ctx = EVP_PKEY_CTX_new(pkey, NULL);
     if (ctx == NULL) {
@@ -145,12 +145,7 @@ int gendsa_main(int argc, char **argv)
         BIO_printf(bio_err, "unable to set up for key generation\n");
         goto end;
     }
-    if (verbose)
-        BIO_printf(bio_err, "Generating DSA key, %d bits\n", nbits);
-    if (EVP_PKEY_keygen(ctx, &pkey) <= 0) {
-        BIO_printf(bio_err, "unable to generate key\n");
-        goto end;
-    }
+    pkey = app_keygen(ctx, "DSA", nbits, verbose);
 
     assert(private);
     if (!PEM_write_bio_PrivateKey(out, pkey, enc, NULL, 0, NULL, passout)) {

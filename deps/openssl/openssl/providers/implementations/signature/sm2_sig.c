@@ -198,7 +198,7 @@ static int sm2sig_digest_signverify_init(void *vpsm2ctx, const char *mdname,
     if (ctx->mdctx == NULL)
         goto error;
 
-    md_nid = EVP_MD_type(ctx->md);
+    md_nid = EVP_MD_get_type(ctx->md);
 
     /*
      * We do not care about DER writing errors.
@@ -295,7 +295,7 @@ int sm2sig_digest_verify_final(void *vpsm2ctx, const unsigned char *sig,
 
     if (psm2ctx == NULL
         || psm2ctx->mdctx == NULL
-        || EVP_MD_size(psm2ctx->md) > (int)sizeof(digest))
+        || EVP_MD_get_size(psm2ctx->md) > (int)sizeof(digest))
         return 0;
 
     if (!(sm2sig_compute_z_digest(psm2ctx)
@@ -378,7 +378,7 @@ static int sm2sig_get_ctx_params(void *vpsm2ctx, OSSL_PARAM *params)
     p = OSSL_PARAM_locate(params, OSSL_SIGNATURE_PARAM_DIGEST);
     if (p != NULL && !OSSL_PARAM_set_utf8_string(p, psm2ctx->md == NULL
                                                     ? psm2ctx->mdname
-                                                    : EVP_MD_name(psm2ctx->md)))
+                                                    : EVP_MD_get0_name(psm2ctx->md)))
         return 0;
 
     return 1;

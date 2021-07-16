@@ -25,7 +25,9 @@
 # define PRIMARY_RESEED_TIME_INTERVAL            (60 * 60) /* 1 hour */
 # define SECONDARY_RESEED_TIME_INTERVAL          (7 * 60)  /* 7 minutes */
 
+# ifndef FIPS_MODULE
 /* The global RAND method, and the global buffer and DRBG instance. */
 extern RAND_METHOD ossl_rand_meth;
+# endif
 
 #endif

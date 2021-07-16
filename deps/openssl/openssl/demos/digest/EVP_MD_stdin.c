@@ -63,9 +63,9 @@ int demonstrate_digest(BIO *input)
         return 0;
     }
     /* Determine the length of the fetched digest type */
-    digest_length = EVP_MD_size(message_digest);
+    digest_length = EVP_MD_get_size(message_digest);
     if (digest_length <= 0) {
-        fprintf(stderr, "EVP_MD_size returned invalid size.\n");
+        fprintf(stderr, "EVP_MD_get_size returned invalid size.\n");
         goto cleanup;
     }
 

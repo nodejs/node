@@ -149,29 +149,33 @@ the user for the relevant field values. The actual fields
 prompted for and their maximum and minimum sizes are specified
 in the configuration file and any requested extensions.
 
-If the B<-key> option is not given it will generate a new RSA private key
+If the B<-key> option is not given it will generate a new private key
 using information specified in the configuration file or given with
-the B<-newkey> and B<-pkeyopt> options, else by default with 2048 bits length.
+the B<-newkey> and B<-pkeyopt> options,
+else by default an RSA key with 2048 bits length.
 
 =item B<-newkey> I<arg>
 
 This option creates a new certificate request and a new private
 key. The argument takes one of several forms.
 
-B<rsa:>I<nbits>, where
-I<nbits> is the number of bits, generates an RSA key I<nbits>
-in size. If I<nbits> is omitted, i.e. B<-newkey> I<rsa> specified,
-the default key size, specified in the configuration file is used.
+[B<rsa:>]I<nbits> generates an RSA key I<nbits> in size.
+If I<nbits> is omitted, i.e., B<-newkey> B<rsa> is specified,
+the default key size specified in the configuration file
+with the B<default_bits> option is used if present, else 2048.
 
-All other algorithms support the B<-newkey> I<alg>:I<file> form, where file
-may be an algorithm parameter file, created with C<openssl genpkey -genparam>
+All other algorithms support the B<-newkey> I<algname>:I<file> form, where
+I<file> is an algorithm parameter file, created with C<openssl genpkey -genparam>
 or an X.509 certificate for a key with appropriate algorithm.
 
 B<param:>I<file> generates a key using the parameter file or certificate
-I<file>, the algorithm is determined by the parameters. I<algname>:I<file>
-use algorithm I<algname> and parameter file I<file>: the two algorithms must
-match or an error occurs. I<algname> just uses algorithm I<algname>, and
-parameters, if necessary should be specified via B<-pkeyopt> parameter.
+I<file>, the algorithm is determined by the parameters.
+
+I<algname>[:I<file>] generates a key using the given algorithm I<algname>.
+If a parameter file I<file> is given then the parameters specified there
+are used, where the algorithm parameters must match I<algname>.
+If algorithm parameters are not given,
+any necessary parameters should be specified via the B<-pkeyopt> option.
 
 B<dsa:>I<filename> generates a DSA key using the parameters
 in the file I<filename>. B<ec:>I<filename> generates EC key (usable both with
@@ -200,9 +204,12 @@ See L<openssl-format-options(1)> for details.
 
 =item B<-keyout> I<filename>
 
-This gives the filename to write the newly created private key to.
-If this option is not specified then the filename present in the
-configuration file is used.
+This gives the filename to write any private key to that has been newly created
+or read from B<-key>.
+If the B<-keyout> option is not given the filename specified in the
+configuration file with the B<default_keyfile> option is used, if present.
+If a new key is generated and no filename is specified
+the key is written to standard output.
 
 =item B<-noenc>
 

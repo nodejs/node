@@ -25,6 +25,7 @@ plan skip_all => "TS is not supported by this OpenSSL build"
 # here, however, to be available in all subroutines.
 my $openssl_conf;
 my $testtsa;
+my $tsacakey;
 my $CAtsa;
 my @QUERY = ("openssl", "ts", "-query");
 my @REPLY;
@@ -38,12 +39,13 @@ sub create_tsa_cert {
 
     ok(run(app(["openssl", "req", "-config", $openssl_conf, "-new",
                 "-out", "tsa_req${INDEX}.pem",
+                "-key", srctop_file("test", "certs", "alt${INDEX}-key.pem"),
                 "-keyout", "tsa_key${INDEX}.pem"])));
     note "using extension $EXT";
     ok(run(app(["openssl", "x509", "-req",
                 "-in", "tsa_req${INDEX}.pem",
                 "-out", "tsa_cert${INDEX}.pem",
-                "-CA", "tsaca.pem", "-CAkey", "tsacakey.pem",
+                "-CA", "tsaca.pem", "-CAkey", $tsacakey,
                 "-CAcreateserial",
                 "-extfile", $openssl_conf, "-extensions", $EXT])));
 }
@@ -90,6 +92,7 @@ indir "tsa" => sub
 {
     $openssl_conf = srctop_file("test", "CAtsa.cnf");
     $testtsa = srctop_file("test", "recipes", "80-test_tsa.t");
+    $tsacakey = srctop_file("test", "certs", "ca-key.pem");
     $CAtsa = srctop_file("test", "CAtsa.cnf");
     @REPLY = ("openssl", "ts", "-config", $openssl_conf, "-reply");
 
@@ -102,7 +105,7 @@ indir "tsa" => sub
      skip "failed", 19
          unless ok(run(app(["openssl", "req", "-config", $openssl_conf,
                             "-new", "-x509", "-noenc",
-                            "-out", "tsaca.pem", "-keyout", "tsacakey.pem"])),
+                            "-out", "tsaca.pem", "-key", $tsacakey])),
                    'creating a new CA for the TSA tests');
 
      skip "failed", 18

@@ -275,7 +275,7 @@ static int test_d2i_AutoPrivateKey_ex(int i)
     if (!TEST_ptr(pkey = d2i_AutoPrivateKey_ex(NULL, &p, input_len, mainctx,
                                                NULL))
             || !TEST_ptr_eq(p, input + input_len)
-            || !TEST_int_eq(EVP_PKEY_id(pkey), expected_id))
+            || !TEST_int_eq(EVP_PKEY_get_id(pkey), expected_id))
         goto done;
 
     if (ak->evptype == EVP_PKEY_RSA) {
@@ -407,6 +407,41 @@ static int test_d2i_PrivateKey_ex(int testid)
     test_openssl_errors();
 
  err:
+    EVP_PKEY_free(pkey);
+    BIO_free(key_bio);
+    OSSL_PROVIDER_unload(provider);
+
+    return ok;
+}
+
+static int test_PEM_read_bio_negative(int testid)
+{
+    int ok = 0;
+    OSSL_PROVIDER *provider = NULL;
+    BIO *key_bio = NULL;
+    EVP_PKEY *pkey = NULL;
+
+    if (!TEST_ptr(key_bio = BIO_new_mem_buf(keydata[testid].kder, keydata[testid].size)))
+        goto err;
+    ERR_clear_error();
+    if (!TEST_ptr_null(pkey = PEM_read_bio_PrivateKey(key_bio, NULL, NULL, NULL)))
+        goto err;
+    if (!TEST_int_ne(ERR_peek_error(), 0))
+        goto err;
+    if (!TEST_ptr(provider = OSSL_PROVIDER_load(NULL, "default")))
+        goto err;
+    if (!TEST_int_ge(BIO_seek(key_bio, 0), 0))
+        goto err;
+    ERR_clear_error();
+    if (!TEST_ptr_null(pkey = PEM_read_bio_PrivateKey(key_bio, NULL, NULL, NULL)))
+        goto err;
+    if (!TEST_int_ne(ERR_peek_error(), 0))
+        goto err;
+
+    ok = 1;
+
+ err:
+    test_openssl_errors();
     EVP_PKEY_free(pkey);
     BIO_free(key_bio);
     OSSL_PROVIDER_unload(provider);
@@ -807,6 +842,7 @@ int setup_tests(void)
 #ifndef OPENSSL_NO_DES
     ADD_TEST(test_pkcs8key_nid_bio);
 #endif
+    ADD_ALL_TESTS(test_PEM_read_bio_negative, OSSL_NELEM(keydata));
     return 1;
 }
 

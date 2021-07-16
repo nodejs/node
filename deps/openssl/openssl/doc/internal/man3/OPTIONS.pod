@@ -4,7 +4,8 @@
 
 OPTIONS, OPT_PAIR, OPT_COMMON, OPT_ERR, OPT_EOF, OPT_HELP,
 opt_init, opt_progname, opt_appname, opt_getprog, opt_help,
-opt_begin, opt_next, opt_flag, opt_arg, opt_unknown, opt_cipher, opt_md,
+opt_begin, opt_next, opt_flag, opt_arg, opt_unknown, opt_cipher,
+opt_cipher_any, opt_cipher_silent, opt_md,
 opt_int, opt_int_arg, opt_long, opt_ulong, opt_intmax, opt_uintmax,
 opt_format, opt_isdir, opt_string, opt_pair,
 opt_num_rest, opt_rest
@@ -33,6 +34,8 @@ opt_num_rest, opt_rest
  char *opt_arg(void);
  char *opt_unknown(void);
  int opt_cipher(const char *name, EVP_CIPHER **cipherp);
+ int opt_cipher_any(const char *name, EVP_CIPHER **cipherp);
+ int opt_cipher_silent(const char *name, EVP_CIPHER **cipherp);
  int opt_md(const char *name, EVP_MD **mdp);
 
  int opt_int(const char *value, int *result);
@@ -242,10 +245,14 @@ The opt_arg() function returns the option's argument value, if there is one.
 The opt_unknown() function returns the unknown option.
 In an option list, there can be at most one option with the empty string.
 This is a "wildcard" or "unknown" option. For example, it allows an
-option to be be taken as digest algorithm, like C<-sha1>. The
-function opt_cipher() takes the specified I<name> and fills in
-the cipher into I<cipherp>.  The function opt_md() does the same
-thing for message digest.
+option to be be taken as digest algorithm, like C<-sha1>. The function
+opt_md() takes the specified I<name> and fills in the digest into I<mdp>.
+The functions opt_cipher(), opt_cipher_any() and opt_cipher_silent()
+each takes the specified I<name> and fills in the cipher into I<cipherp>.
+The function opt_cipher() only accepts ciphers which are not
+AEAD and are not using XTS mode.  The functions opt_cipher_any() and
+opt_cipher_silent() accept any cipher, the latter not emitting an error
+if the cipher is not located.
 
 There are a several useful functions for parsing numbers.  These are
 opt_int(), opt_long(), opt_ulong(), opt_intmax(), and opt_uintmax().  They all

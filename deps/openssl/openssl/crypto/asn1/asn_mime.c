@@ -130,7 +130,8 @@ int PEM_write_bio_ASN1_stream(BIO *out, ASN1_VALUE *val, BIO *in, int flags,
     return r;
 }
 
-static ASN1_VALUE *b64_read_asn1(BIO *bio, const ASN1_ITEM *it, ASN1_VALUE **x)
+static ASN1_VALUE *b64_read_asn1(BIO *bio, const ASN1_ITEM *it, ASN1_VALUE **x,
+                                 OSSL_LIB_CTX *libctx, const char *propq)
 {
     BIO *b64;
     ASN1_VALUE *val;
@@ -140,7 +141,7 @@ static ASN1_VALUE *b64_read_asn1(BIO *bio, const ASN1_ITEM *it, ASN1_VALUE **x)
         return 0;
     }
     bio = BIO_push(b64, bio);
-    val = ASN1_item_d2i_bio(it, bio, x);
+    val = ASN1_item_d2i_bio_ex(it, bio, x, libctx, propq);
     if (!val)
         ERR_raise(ERR_LIB_ASN1, ASN1_R_DECODE_ERROR);
     (void)BIO_flush(bio);
@@ -251,7 +252,7 @@ int SMIME_write_ASN1_ex(BIO *bio, ASN1_VALUE *val, BIO *data, int flags,
     if ((flags & SMIME_DETACHED) && data) {
         /* We want multipart/signed */
         /* Generate a random boundary */
-        if (RAND_bytes_ex(libctx, (unsigned char *)bound, 32) <= 0)
+        if (RAND_bytes_ex(libctx, (unsigned char *)bound, 32, 0) <= 0)
             return 0;
         for (i = 0; i < 32; i++) {
             c = bound[i] & 0xf;
@@ -388,8 +389,9 @@ static int asn1_output_data(BIO *out, BIO *data, ASN1_VALUE *val, int flags,
  * opaque this is set to NULL
  */
 
-ASN1_VALUE *SMIME_read_ASN1_ex(BIO *bio, int flags, BIO **bcont, const ASN1_ITEM *it,
-                               ASN1_VALUE **x)
+ASN1_VALUE *SMIME_read_ASN1_ex(BIO *bio, int flags, BIO **bcont,
+                               const ASN1_ITEM *it, ASN1_VALUE **x,
+                               OSSL_LIB_CTX *libctx, const char *propq)
 {
     BIO *asnin;
     STACK_OF(MIME_HEADER) *headers = NULL;
@@ -461,7 +463,7 @@ ASN1_VALUE *SMIME_read_ASN1_ex(BIO *bio, int flags, BIO **bcont, const ASN1_ITEM
         }
         sk_MIME_HEADER_pop_free(headers, mime_hdr_free);
         /* Read in ASN1 */
-        if ((val = b64_read_asn1(asnin, it, x)) == NULL) {
+        if ((val = b64_read_asn1(asnin, it, x, libctx, propq)) == NULL) {
             ERR_raise(ERR_LIB_ASN1, ASN1_R_ASN1_SIG_PARSE_ERROR);
             sk_BIO_pop_free(parts, BIO_vfree);
             return NULL;
@@ -489,7 +491,7 @@ ASN1_VALUE *SMIME_read_ASN1_ex(BIO *bio, int flags, BIO **bcont, const ASN1_ITEM
 
     sk_MIME_HEADER_pop_free(headers, mime_hdr_free);
 
-    if ((val = b64_read_asn1(bio, it, x)) == NULL) {
+    if ((val = b64_read_asn1(bio, it, x, libctx, propq)) == NULL) {
         ERR_raise(ERR_LIB_ASN1, ASN1_R_ASN1_PARSE_ERROR);
         return NULL;
     }
@@ -498,7 +500,7 @@ ASN1_VALUE *SMIME_read_ASN1_ex(BIO *bio, int flags, BIO **bcont, const ASN1_ITEM
 
 ASN1_VALUE *SMIME_read_ASN1(BIO *bio, BIO **bcont, const ASN1_ITEM *it)
 {
-    return SMIME_read_ASN1_ex(bio, 0, bcont, it, NULL);
+    return SMIME_read_ASN1_ex(bio, 0, bcont, it, NULL, NULL, NULL);
 }
 
 /* Copy text from one BIO to another making the output CRLF at EOL */

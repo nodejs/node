@@ -11,19 +11,6 @@
 #include "internal/cryptlib.h"
 #include "bn_local.h"
 
-/*-
- * TODO list
- *
- * 1. Check a bunch of "(words+1)" type hacks in various bignum functions and
- * check they can be safely removed.
- *  - Check +1 and other ugliness in BN_from_montgomery()
- *
- * 2. Consider allowing a BN_new_ex() that, at least, lets you specify an
- * appropriate 'block' size that will be honoured by bn_expand_internal() to
- * prevent piddly little reallocations. OTOH, profiling bignum expansions in
- * BN_CTX doesn't show this to be a big issue.
- */
-
 /* How many bignums are in each "pool item"; */
 #define BN_CTX_POOL_SIZE        16
 /* The stack frame info is resizing, set a first-time expansion size; */

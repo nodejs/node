@@ -780,16 +780,6 @@ static int rsa_ossl_mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx)
     }
 
 #ifndef FIPS_MODULE
-    /*
-     * calculate m_i in multi-prime case
-     *
-     * TODO:
-     * 1. squash the following two loops and calculate |m_i| there.
-     * 2. remove cc and reuse |c|.
-     * 3. remove |dmq1| and |dmp1| in previous block and use |di|.
-     *
-     * If these things are done, the code will be more readable.
-     */
     if (ex_primes > 0) {
         BIGNUM *di = BN_new(), *cc = BN_new();
 

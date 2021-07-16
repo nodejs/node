@@ -10,7 +10,7 @@ Certificate:
         Subject: C=RU, ST=\U041C\U043E\U0441\U043A\U0432\U0430, L=\U041C\U043E\U0441\U043A\U0432\U0430, O=\U0414\U043C\U0438\U0442\U0440\U0438\U0439 \U0411\U0435\U043B\U044F\U0432\U0441\U043A\U0438\U0439, OU=\U042F, CN=Dmitry Belyavskiy, emailAddress=beldmit@example.com
         Subject Public Key Info:
             Public Key Algorithm: rsaEncryption
-                RSA Public-Key: (2048 bit)
+                Public-Key: (2048 bit)
                 Modulus:
                     00:a4:57:96:36:55:6d:95:21:25:17:f8:85:87:53:
                     ba:bc:d5:9a:d6:dc:21:66:72:30:36:ca:94:43:3c:

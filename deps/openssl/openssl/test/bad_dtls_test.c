@@ -382,7 +382,7 @@ static int send_finished(SSL *s, BIO *rbio)
         return 0;
 
     do_PRF(TLS_MD_SERVER_FINISH_CONST, TLS_MD_SERVER_FINISH_CONST_SIZE,
-           handshake_hash, EVP_MD_CTX_size(handshake_md),
+           handshake_hash, EVP_MD_CTX_get_size(handshake_md),
            NULL, 0,
            finished_msg + DTLS1_HM_HEADER_LENGTH, TLS1_FINISH_MAC_LENGTH);
 

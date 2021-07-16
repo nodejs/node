@@ -52,7 +52,7 @@ static int tls1_PRF(SSL *s,
     EVP_KDF_free(kdf);
     if (kctx == NULL)
         goto err;
-    mdname = EVP_MD_name(md);
+    mdname = EVP_MD_get0_name(md);
     *p++ = OSSL_PARAM_construct_utf8_string(OSSL_KDF_PARAM_DIGEST,
                                             (char *)mdname, 0);
     *p++ = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_SECRET,
@@ -146,14 +146,14 @@ int tls_provider_set_tls_params(SSL *s, EVP_CIPHER_CTX *ctx,
     size_t macsize = 0;
     int imacsize = -1;
 
-    if ((EVP_CIPHER_flags(ciph) & EVP_CIPH_FLAG_AEAD_CIPHER) == 0
+    if ((EVP_CIPHER_get_flags(ciph) & EVP_CIPH_FLAG_AEAD_CIPHER) == 0
                /*
                 * We look at s->ext.use_etm instead of SSL_READ_ETM() or
                 * SSL_WRITE_ETM() because this test applies to both reading
                 * and writing.
                 */
             && !s->ext.use_etm)
-        imacsize = EVP_MD_size(md);
+        imacsize = EVP_MD_get_size(md);
     if (imacsize >= 0)
         macsize = (size_t)imacsize;
 
@@ -175,12 +175,12 @@ int tls_provider_set_tls_params(SSL *s, EVP_CIPHER_CTX *ctx,
 static int tls_iv_length_within_key_block(const EVP_CIPHER *c)
 {
     /* If GCM/CCM mode only part of IV comes from PRF */
-    if (EVP_CIPHER_mode(c) == EVP_CIPH_GCM_MODE)
+    if (EVP_CIPHER_get_mode(c) == EVP_CIPH_GCM_MODE)
         return EVP_GCM_TLS_FIXED_IV_LEN;
-    else if (EVP_CIPHER_mode(c) == EVP_CIPH_CCM_MODE)
+    else if (EVP_CIPHER_get_mode(c) == EVP_CIPH_CCM_MODE)
         return EVP_CCM_TLS_FIXED_IV_LEN;
     else
-        return EVP_CIPHER_iv_length(c);
+        return EVP_CIPHER_get_iv_length(c);
 }
 
 int tls1_change_cipher_state(SSL *s, int which)
@@ -333,8 +333,7 @@ int tls1_change_cipher_state(SSL *s, int which)
     p = s->s3.tmp.key_block;
     i = *mac_secret_size = s->s3.tmp.new_mac_secret_size;
 
-    /* TODO(size_t): convert me */
-    cl = EVP_CIPHER_key_length(c);
+    cl = EVP_CIPHER_get_key_length(c);
     j = cl;
     k = tls_iv_length_within_key_block(c);
     if ((which == SSL3_CHANGE_CIPHER_CLIENT_WRITE) ||
@@ -362,7 +361,7 @@ int tls1_change_cipher_state(SSL *s, int which)
 
     memcpy(mac_secret, ms, i);
 
-    if (!(EVP_CIPHER_flags(c) & EVP_CIPH_FLAG_AEAD_CIPHER)) {
+    if (!(EVP_CIPHER_get_flags(c) & EVP_CIPH_FLAG_AEAD_CIPHER)) {
         if (mac_type == EVP_PKEY_HMAC) {
             mac_key = EVP_PKEY_new_raw_private_key_ex(s->ctx->libctx, "HMAC",
                                                       s->ctx->propq, mac_secret,
@@ -377,7 +376,7 @@ int tls1_change_cipher_state(SSL *s, int which)
                                            (int)*mac_secret_size);
         }
         if (mac_key == NULL
-            || EVP_DigestSignInit_ex(mac_ctx, NULL, EVP_MD_name(m),
+            || EVP_DigestSignInit_ex(mac_ctx, NULL, EVP_MD_get0_name(m),
                                      s->ctx->libctx, s->ctx->propq, mac_key,
                                      NULL) <= 0) {
             EVP_PKEY_free(mac_key);
@@ -392,14 +391,14 @@ int tls1_change_cipher_state(SSL *s, int which)
         BIO_dump_indent(trc_out, ms, i, 4);
     } OSSL_TRACE_END(TLS);
 
-    if (EVP_CIPHER_mode(c) == EVP_CIPH_GCM_MODE) {
+    if (EVP_CIPHER_get_mode(c) == EVP_CIPH_GCM_MODE) {
         if (!EVP_CipherInit_ex(dd, c, NULL, key, NULL, (which & SSL3_CC_WRITE))
             || !EVP_CIPHER_CTX_ctrl(dd, EVP_CTRL_GCM_SET_IV_FIXED, (int)k,
                                     iv)) {
             SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
             goto err;
         }
-    } else if (EVP_CIPHER_mode(c) == EVP_CIPH_CCM_MODE) {
+    } else if (EVP_CIPHER_get_mode(c) == EVP_CIPH_CCM_MODE) {
         int taglen;
         if (s->s3.tmp.
             new_cipher->algorithm_enc & (SSL_AES128CCM8 | SSL_AES256CCM8))
@@ -421,13 +420,14 @@ int tls1_change_cipher_state(SSL *s, int which)
         }
     }
     /* Needed for "composite" AEADs, such as RC4-HMAC-MD5 */
-    if ((EVP_CIPHER_flags(c) & EVP_CIPH_FLAG_AEAD_CIPHER) && *mac_secret_size
+    if ((EVP_CIPHER_get_flags(c) & EVP_CIPH_FLAG_AEAD_CIPHER)
+        && *mac_secret_size
         && !EVP_CIPHER_CTX_ctrl(dd, EVP_CTRL_AEAD_SET_MAC_KEY,
                                 (int)*mac_secret_size, mac_secret)) {
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
         goto err;
     }
-    if (EVP_CIPHER_provider(c) != NULL
+    if (EVP_CIPHER_get0_provider(c) != NULL
             && !tls_provider_set_tls_params(s, dd, c, m)) {
         /* SSLfatal already called */
         goto err;
@@ -510,7 +510,7 @@ int tls1_change_cipher_state(SSL *s, int which)
 
     OSSL_TRACE_BEGIN(TLS) {
         BIO_printf(trc_out, "which = %04X, key:\n", which);
-        BIO_dump_indent(trc_out, key, EVP_CIPHER_key_length(c), 4);
+        BIO_dump_indent(trc_out, key, EVP_CIPHER_get_key_length(c), 4);
         BIO_printf(trc_out, "iv:\n");
         BIO_dump_indent(trc_out, iv, k, 4);
     } OSSL_TRACE_END(TLS);
@@ -546,7 +546,8 @@ int tls1_setup_key_block(SSL *s)
     s->s3.tmp.new_hash = hash;
     s->s3.tmp.new_mac_pkey_type = mac_type;
     s->s3.tmp.new_mac_secret_size = mac_secret_size;
-    num = mac_secret_size + EVP_CIPHER_key_length(c) + tls_iv_length_within_key_block(c);
+    num = mac_secret_size + EVP_CIPHER_get_key_length(c)
+          + tls_iv_length_within_key_block(c);
     num *= 2;
 
     ssl3_cleanup_key_block(s);
@@ -847,6 +848,8 @@ int tls1_alert_code(int code)
     case SSL_AD_NO_APPLICATION_PROTOCOL:
         return TLS1_AD_NO_APPLICATION_PROTOCOL;
     case SSL_AD_CERTIFICATE_REQUIRED:
+        return SSL_AD_HANDSHAKE_FAILURE;
+    case TLS13_AD_MISSING_EXTENSION:
         return SSL_AD_HANDSHAKE_FAILURE;
     default:
         return -1;

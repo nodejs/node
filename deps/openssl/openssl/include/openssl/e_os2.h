@@ -210,7 +210,7 @@ extern "C" {
 #  endif
 # endif
 
-# ifdef DEBUG_UNUSED
+# if defined(UNUSEDRESULT_DEBUG)
 #  define __owur __attribute__((__warn_unused_result__))
 # else
 #  define __owur

@@ -21,9 +21,9 @@ L<openssl_user_macros(7)>:
 =head1 DESCRIPTION
 
 Both of the functions described on this page are deprecated.
-Applications should instead use L<EVP_PKEY_encrypt_init_ex(3)>,
-L<EVP_PKEY_encrypt(3)>, L<EVP_PKEY_decrypt_init_ex(3)> and
-L<EVP_PKEY_decrypt(3)>.
+Applications should instead use L<EVP_PKEY_sign_init_ex(3)>,
+L<EVP_PKEY_sign(3)>, L<EVP_PKEY_verify_init_ex(3)> and
+L<EVP_PKEY_verify(3)>.
 
 These functions handle RSA signatures at a low-level.
 

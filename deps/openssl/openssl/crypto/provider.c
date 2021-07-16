@@ -129,7 +129,7 @@ int OSSL_PROVIDER_add_builtin(OSSL_LIB_CTX *libctx, const char *name,
     return 1;
 }
 
-const char *OSSL_PROVIDER_name(const OSSL_PROVIDER *prov)
+const char *OSSL_PROVIDER_get0_name(const OSSL_PROVIDER *prov)
 {
     return ossl_provider_name(prov);
 }

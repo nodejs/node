@@ -79,7 +79,7 @@ static int rc4_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
 {
     int keylen;
 
-    if ((keylen = EVP_CIPHER_CTX_key_length(ctx)) <= 0)
+    if ((keylen = EVP_CIPHER_CTX_get_key_length(ctx)) <= 0)
         return 0;
     RC4_set_key(&data(ctx)->ks, keylen, key);
     return 1;

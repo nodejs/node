@@ -11,7 +11,7 @@
  */
 
 #include "e_os.h"
-#include "openssl/macros.h"
+#include <openssl/macros.h>
 #include "internal/numbers.h"
 
 #ifdef UINT128_MAX

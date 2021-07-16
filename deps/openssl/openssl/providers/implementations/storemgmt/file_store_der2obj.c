@@ -52,30 +52,7 @@ static void der2obj_freectx(void *vctx)
 {
 }
 
-static OSSL_FUNC_decoder_gettable_params_fn der2obj_gettable_params;
-static OSSL_FUNC_decoder_get_params_fn der2obj_get_params;
 static OSSL_FUNC_decoder_decode_fn der2obj_decode;
-
-static const OSSL_PARAM *der2obj_gettable_params(void *provctx)
-{
-    static const OSSL_PARAM gettables[] = {
-        { OSSL_DECODER_PARAM_INPUT_TYPE, OSSL_PARAM_UTF8_PTR, NULL, 0, 0 },
-        OSSL_PARAM_END,
-    };
-
-    return gettables;
-}
-
-static int der2obj_get_params(OSSL_PARAM params[])
-{
-    OSSL_PARAM *p;
-
-    p = OSSL_PARAM_locate(params, OSSL_DECODER_PARAM_INPUT_TYPE);
-    if (p != NULL && !OSSL_PARAM_set_utf8_ptr(p, "DER"))
-        return 0;
-
-    return 1;
-}
 
 static int der2obj_decode(void *provctx, OSSL_CORE_BIO *cin, int selection,
                           OSSL_CALLBACK *data_cb, void *data_cbarg,
@@ -124,12 +101,9 @@ static int der2obj_decode(void *provctx, OSSL_CORE_BIO *cin, int selection,
 static const OSSL_DISPATCH der_to_obj_decoder_functions[] = {
     { OSSL_FUNC_DECODER_NEWCTX, (void (*)(void))der2obj_newctx },
     { OSSL_FUNC_DECODER_FREECTX, (void (*)(void))der2obj_freectx },
-    { OSSL_FUNC_DECODER_GETTABLE_PARAMS,
-      (void (*)(void))der2obj_gettable_params },
-    { OSSL_FUNC_DECODER_GET_PARAMS, (void (*)(void))der2obj_get_params },
     { OSSL_FUNC_DECODER_DECODE, (void (*)(void))der2obj_decode },
     { 0, NULL }
 };
 
 const OSSL_ALGORITHM ossl_der_to_obj_algorithm =
-    { "obj", NULL, der_to_obj_decoder_functions };
+    { "obj", "input=DER", der_to_obj_decoder_functions };

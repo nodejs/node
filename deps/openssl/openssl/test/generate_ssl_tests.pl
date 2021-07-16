@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -11,21 +11,29 @@
 use strict;
 use warnings;
 
+use Cwd qw/abs_path/;
 use File::Basename;
 use File::Spec::Functions;
 
 use OpenSSL::Test qw/srctop_dir srctop_file/;
 use OpenSSL::Test::Utils;
 
-# This block needs to run before 'use lib srctop_dir' directives.
-BEGIN {
-    OpenSSL::Test::setup("no_test_here", quiet => 1);
-}
-
 use FindBin;
 use lib "$FindBin::Bin/../util/perl";
 use OpenSSL::fallback "$FindBin::Bin/../external/perl/MODULES.txt";
 use Text::Template 1.46;
+
+my $input_file;
+my $provider;
+
+BEGIN {
+    #Input file may be relative to cwd, but setup below changes the cwd, so
+    #figure out the absolute path first
+    $input_file = abs_path(shift);
+    $provider = shift // '';
+
+    OpenSSL::Test::setup("no_test_here", quiet => 1);
+}
 
 use lib "$FindBin::Bin/ssl-tests";
 
@@ -140,8 +148,6 @@ sub read_config {
     warn $@ if $@;
 }
 
-my $input_file = shift;
-my $provider = shift;
 # Reads the tests into ssltests::tests.
 read_config($input_file, $provider);
 print_templates();

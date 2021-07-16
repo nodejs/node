@@ -1,4 +1,6 @@
 digraph digest {
+    bgcolor="transparent";
+
     begin [label=start, color="#deeaee", style="filled"];
     newed [label=newed, fontcolor="#c94c4c", style="solid"];
     initialised [label=initialised, fontcolor="#c94c4c"];

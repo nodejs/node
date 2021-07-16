@@ -11,7 +11,7 @@
 #include <openssl/evp.h>
 #include <openssl/params.h>
 #include <openssl/crypto.h>
-#include <internal/cryptlib.h>
+#include "internal/cryptlib.h"
 #include <openssl/fipskey.h>
 #include <openssl/err.h>
 #include <openssl/proverr.h>
@@ -25,7 +25,7 @@
  * it should be run once regardless of the number of OSSL_LIB_CTXs we have.
  */
 #define ALLOW_RUN_ONCE_IN_FIPS
-#include <internal/thread_once.h>
+#include "internal/thread_once.h"
 #include "self_test.h"
 
 #define FIPS_STATE_INIT     0
@@ -46,7 +46,6 @@
 #define DIGEST_NAME "SHA256"
 
 static int FIPS_conditional_error_check = 1;
-static int FIPS_state = FIPS_STATE_INIT;
 static CRYPTO_RWLOCK *self_test_lock = NULL;
 static CRYPTO_RWLOCK *fips_state_lock = NULL;
 static unsigned char fixed_key[32] = { FIPS_KEY_ELEMENTS };
@@ -64,19 +63,22 @@ DEFINE_RUN_ONCE_STATIC(do_fips_self_test_init)
     return self_test_lock != NULL;
 }
 
-#define DEP_DECLARE()                                                          \
-void init(void);                                                               \
-void cleanup(void);
+/*
+ * Declarations for the DEP entry/exit points.
+ * Ones not required or incorrect need to be undefined or redefined respectively.
+ */
+#define DEP_INITIAL_STATE   FIPS_STATE_INIT
+#define DEP_INIT_ATTRIBUTE  static
+#define DEP_FINI_ATTRIBUTE  static
+
+#if !defined(__GNUC__)
+static void init(void);
+static void cleanup(void);
+#endif
 
 /*
- * This is the Default Entry Point (DEP) code. Every platform must have a DEP.
+ * This is the Default Entry Point (DEP) code.
  * See FIPS 140-2 IG 9.10
- *
- * If we're run on a platform where we don't know how to define the DEP then
- * the self-tests will never get triggered (FIPS_state never moves to
- * FIPS_STATE_SELFTEST). This will be detected as an error when SELF_TEST_post()
- * is called from OSSL_provider_init(), and so the fips module will be unusable
- * on those platforms.
  */
 #if defined(_WIN32) || defined(__CYGWIN__)
 # ifdef __CYGWIN__
@@ -88,9 +90,6 @@ void cleanup(void);
  */
 # endif
 
-DEP_DECLARE()
-# define DEP_INIT_ATTRIBUTE
-# define DEP_FINI_ATTRIBUTE
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved);
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
@@ -106,31 +105,35 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
     }
     return TRUE;
 }
-#elif defined(__sun) || defined(_AIX)
-
-DEP_DECLARE() /* must be declared before pragma */
-# define DEP_INIT_ATTRIBUTE
-# define DEP_FINI_ATTRIBUTE
+#elif defined(__sun)
 # pragma init(init)
 # pragma fini(cleanup)
 
-#elif defined(__hpux)
+#elif defined(_AIX)
+void _init(void);
+void _cleanup(void);
+# pragma init(_init)
+# pragma fini(_cleanup)
+void _init(void)
+{
+    init();
+}
+void _cleanup(void)
+{
+    cleanup();
+}
 
-DEP_DECLARE()
-# define DEP_INIT_ATTRIBUTE
-# define DEP_FINI_ATTRIBUTE
+#elif defined(__hpux)
 # pragma init "init"
 # pragma fini "cleanup"
 
 #elif defined(__GNUC__)
+# undef DEP_INIT_ATTRIBUTE
+# undef DEP_FINI_ATTRIBUTE
 # define DEP_INIT_ATTRIBUTE static __attribute__((constructor))
 # define DEP_FINI_ATTRIBUTE static __attribute__((destructor))
 
 #elif defined(__TANDEM)
-DEP_DECLARE() /* must be declared before calling init() or cleanup() */
-# define DEP_INIT_ATTRIBUTE
-# define DEP_FINI_ATTRIBUTE
-
 /* Method automatically called by the NonStop OS when the DLL loads */
 void __INIT__init(void) {
     init();
@@ -141,14 +144,28 @@ void __TERM__cleanup(void) {
     cleanup();
 }
 
+#else
+/*
+ * This build does not support any kind of DEP.
+ * We force the self-tests to run as part of the FIPS provider initialisation
+ * rather than being triggered by the DEP.
+ */
+# undef DEP_INIT_ATTRIBUTE
+# undef DEP_FINI_ATTRIBUTE
+# undef DEP_INITIAL_STATE
+# define DEP_INITIAL_STATE  FIPS_STATE_SELFTEST
 #endif
 
-#if defined(DEP_INIT_ATTRIBUTE) && defined(DEP_FINI_ATTRIBUTE)
+static int FIPS_state = DEP_INITIAL_STATE;
+
+#if defined(DEP_INIT_ATTRIBUTE)
 DEP_INIT_ATTRIBUTE void init(void)
 {
     FIPS_state = FIPS_STATE_SELFTEST;
 }
+#endif
 
+#if defined(DEP_FINI_ATTRIBUTE)
 DEP_FINI_ATTRIBUTE void cleanup(void)
 {
     CRYPTO_THREAD_lock_free(self_test_lock);
@@ -328,7 +345,11 @@ int SELF_TEST_post(SELF_TEST_POST_PARAMS *st, int on_demand_test)
         }
     }
 
-    /* Only runs the KAT's during installation OR on_demand() */
+    /*
+     * Only runs the KAT's during installation OR on_demand().
+     * NOTE: If the installation option 'self_test_onload' is chosen then this
+     * path will always be run, since kats_already_passed will always be 0.
+     */
     if (on_demand_test || kats_already_passed == 0) {
         if (!SELF_TEST_kats(ev, st->libctx)) {
             ERR_raise(ERR_LIB_PROV, PROV_R_SELF_TEST_KAT_FAILURE);

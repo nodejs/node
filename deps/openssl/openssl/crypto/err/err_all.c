@@ -45,66 +45,66 @@
 #include "internal/propertyerr.h"
 #include "prov/proverr.h"
 
-int err_load_crypto_strings_int(void)
+int ossl_err_load_crypto_strings(void)
 {
     if (0
 #ifndef OPENSSL_NO_ERR
-        || err_load_ERR_strings_int() == 0 /* include error strings for SYSerr */
-        || err_load_BN_strings_int() == 0
-        || err_load_RSA_strings_int() == 0
+        || ossl_err_load_ERR_strings() == 0 /* include error strings for SYSerr */
+        || ossl_err_load_BN_strings() == 0
+        || ossl_err_load_RSA_strings() == 0
 # ifndef OPENSSL_NO_DH
-        || err_load_DH_strings_int() == 0
+        || ossl_err_load_DH_strings() == 0
 # endif
-        || err_load_EVP_strings_int() == 0
-        || err_load_BUF_strings_int() == 0
-        || err_load_OBJ_strings_int() == 0
-        || err_load_PEM_strings_int() == 0
+        || ossl_err_load_EVP_strings() == 0
+        || ossl_err_load_BUF_strings() == 0
+        || ossl_err_load_OBJ_strings() == 0
+        || ossl_err_load_PEM_strings() == 0
 # ifndef OPENSSL_NO_DSA
-        || err_load_DSA_strings_int() == 0
+        || ossl_err_load_DSA_strings() == 0
 # endif
-        || err_load_X509_strings_int() == 0
-        || err_load_ASN1_strings_int() == 0
-        || err_load_CONF_strings_int() == 0
-        || err_load_CRYPTO_strings_int() == 0
+        || ossl_err_load_X509_strings() == 0
+        || ossl_err_load_ASN1_strings() == 0
+        || ossl_err_load_CONF_strings() == 0
+        || ossl_err_load_CRYPTO_strings() == 0
 # ifndef OPENSSL_NO_COMP
-        || err_load_COMP_strings_int() == 0
+        || ossl_err_load_COMP_strings() == 0
 # endif
 # ifndef OPENSSL_NO_EC
-        || err_load_EC_strings_int() == 0
+        || ossl_err_load_EC_strings() == 0
 # endif
-        /* skip err_load_SSL_strings_int() because it is not in this library */
-        || err_load_BIO_strings_int() == 0
-        || err_load_PKCS7_strings_int() == 0
-        || err_load_X509V3_strings_int() == 0
-        || err_load_PKCS12_strings_int() == 0
-        || err_load_RAND_strings_int() == 0
-        || err_load_DSO_strings_int() == 0
+        /* skip ossl_err_load_SSL_strings() because it is not in this library */
+        || ossl_err_load_BIO_strings() == 0
+        || ossl_err_load_PKCS7_strings() == 0
+        || ossl_err_load_X509V3_strings() == 0
+        || ossl_err_load_PKCS12_strings() == 0
+        || ossl_err_load_RAND_strings() == 0
+        || ossl_err_load_DSO_strings() == 0
 # ifndef OPENSSL_NO_TS
-        || err_load_TS_strings_int() == 0
+        || ossl_err_load_TS_strings() == 0
 # endif
 # ifndef OPENSSL_NO_ENGINE
-        || err_load_ENGINE_strings_int() == 0
+        || ossl_err_load_ENGINE_strings() == 0
 # endif
-        || err_load_HTTP_strings_int() == 0
+        || ossl_err_load_HTTP_strings() == 0
 # ifndef OPENSSL_NO_OCSP
-        || err_load_OCSP_strings_int() == 0
+        || ossl_err_load_OCSP_strings() == 0
 # endif
-        || err_load_UI_strings_int() == 0
+        || ossl_err_load_UI_strings() == 0
 # ifndef OPENSSL_NO_CMS
-        || err_load_CMS_strings_int() == 0
+        || ossl_err_load_CMS_strings() == 0
 # endif
 # ifndef OPENSSL_NO_CRMF
-        || err_load_CRMF_strings_int() == 0
-        || err_load_CMP_strings_int() == 0
+        || ossl_err_load_CRMF_strings() == 0
+        || ossl_err_load_CMP_strings() == 0
 # endif
 # ifndef OPENSSL_NO_CT
-        || err_load_CT_strings_int() == 0
+        || ossl_err_load_CT_strings() == 0
 # endif
-        || err_load_ESS_strings_int() == 0
-        || err_load_ASYNC_strings_int() == 0
-        || err_load_OSSL_STORE_strings_int() == 0
-        || err_load_PROP_strings_int() == 0
-        || err_load_PROV_strings_int() == 0
+        || ossl_err_load_ESS_strings() == 0
+        || ossl_err_load_ASYNC_strings() == 0
+        || ossl_err_load_OSSL_STORE_strings() == 0
+        || ossl_err_load_PROP_strings() == 0
+        || ossl_err_load_PROV_strings() == 0
 #endif
         )
         return 0;

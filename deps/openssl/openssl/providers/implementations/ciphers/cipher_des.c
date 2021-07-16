@@ -20,7 +20,7 @@
 #include "prov/implementations.h"
 #include "prov/providercommon.h"
 
-#define DES_FLAGS 0
+#define DES_FLAGS PROV_CIPHER_FLAG_RAND_KEY
 
 static OSSL_FUNC_cipher_freectx_fn des_freectx;
 static OSSL_FUNC_cipher_encrypt_init_fn des_einit;
@@ -122,7 +122,7 @@ static int des_generatekey(PROV_CIPHER_CTX *ctx, void *ptr)
     DES_cblock *deskey = ptr;
     size_t kl = ctx->keylen;
 
-    if (kl == 0 || RAND_priv_bytes_ex(ctx->libctx, ptr, kl) <= 0)
+    if (kl == 0 || RAND_priv_bytes_ex(ctx->libctx, ptr, kl, 0) <= 0)
         return 0;
     DES_set_odd_parity(deskey);
     return 1;

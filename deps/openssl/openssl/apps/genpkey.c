@@ -70,7 +70,7 @@ int genpkey_main(int argc, char **argv)
     EVP_CIPHER *cipher = NULL;
     OPTION_CHOICE o;
     int outformat = FORMAT_PEM, text = 0, ret = 1, rv, do_param = 0;
-    int private = 0, i, m;
+    int private = 0, i;
     OSSL_LIB_CTX *libctx = app_get0_libctx();
     STACK_OF(OPENSSL_STRING) *keyopt = NULL;
 
@@ -163,16 +163,9 @@ int genpkey_main(int argc, char **argv)
             goto end;
         }
     }
-    if (ciphername != NULL) {
+    if (ciphername != NULL)
         if (!opt_cipher(ciphername, &cipher) || do_param == 1)
             goto opthelp;
-        m = EVP_CIPHER_mode(cipher);
-        if (m == EVP_CIPH_GCM_MODE || m == EVP_CIPH_CCM_MODE
-                || m == EVP_CIPH_XTS_MODE || m == EVP_CIPH_OCB_MODE) {
-            BIO_printf(bio_err, "%s: cipher mode not supported\n", prog);
-            goto end;
-        }
-    }
 
     private = do_param ? 0 : 1;
 
@@ -188,19 +181,8 @@ int genpkey_main(int argc, char **argv)
     EVP_PKEY_CTX_set_cb(ctx, genpkey_cb);
     EVP_PKEY_CTX_set_app_data(ctx, bio_err);
 
-    if (do_param) {
-        if (EVP_PKEY_paramgen(ctx, &pkey) <= 0) {
-            BIO_puts(bio_err, "Error generating parameters\n");
-            ERR_print_errors(bio_err);
-            goto end;
-        }
-    } else {
-        if (EVP_PKEY_keygen(ctx, &pkey) <= 0) {
-            BIO_puts(bio_err, "Error generating key\n");
-            ERR_print_errors(bio_err);
-            goto end;
-        }
-    }
+    pkey = do_param ? app_paramgen(ctx, algname)
+                    : app_keygen(ctx, algname, 0, 0 /* not verbose */);
 
     if (do_param) {
         rv = PEM_write_bio_Parameters(out, pkey);
@@ -219,7 +201,6 @@ int genpkey_main(int argc, char **argv)
 
     if (rv <= 0) {
         BIO_puts(bio_err, "Error writing key\n");
-        ERR_print_errors(bio_err);
         ret = 1;
     }
 
@@ -231,13 +212,14 @@ int genpkey_main(int argc, char **argv)
 
         if (rv <= 0) {
             BIO_puts(bio_err, "Error printing key\n");
-            ERR_print_errors(bio_err);
             ret = 1;
         }
     }
 
  end:
     sk_OPENSSL_STRING_free(keyopt);
+    if (ret != 0)
+        ERR_print_errors(bio_err);
     EVP_PKEY_free(pkey);
     EVP_PKEY_CTX_free(ctx);
     EVP_CIPHER_free(cipher);

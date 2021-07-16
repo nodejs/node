@@ -179,7 +179,7 @@ static int check_rng(EVP_RAND_CTX *rng, const char *name)
         TEST_info("random: %s", name);
         return 0;
     }
-    f = rng->data;
+    f = rng->algctx;
     f->name = name;
     f->ctx = rng;
     return 1;
@@ -216,7 +216,7 @@ void fake_rand_set_callback(EVP_RAND_CTX *rng,
                                       const char *name, EVP_RAND_CTX *ctx))
 {
     if (rng != NULL)
-        ((FAKE_RAND *)rng->data)->cb = cb;
+        ((FAKE_RAND *)rng->algctx)->cb = cb;
 }
 
 void fake_rand_set_public_private_callbacks(OSSL_LIB_CTX *libctx,

@@ -46,13 +46,13 @@ int HMAC_Init_ex(HMAC_CTX *ctx, const void *key, int len,
      * The HMAC construction is not allowed to be used with the
      * extendable-output functions (XOF) shake128 and shake256.
      */
-    if ((EVP_MD_flags(md) & EVP_MD_FLAG_XOF) != 0)
+    if ((EVP_MD_get_flags(md) & EVP_MD_FLAG_XOF) != 0)
         return 0;
 
     if (key != NULL) {
         reset = 1;
 
-        j = EVP_MD_block_size(md);
+        j = EVP_MD_get_block_size(md);
         if (!ossl_assert(j <= (int)sizeof(keytmp)))
             return 0;
         if (j < 0)
@@ -76,13 +76,15 @@ int HMAC_Init_ex(HMAC_CTX *ctx, const void *key, int len,
         for (i = 0; i < HMAC_MAX_MD_CBLOCK_SIZE; i++)
             pad[i] = 0x36 ^ keytmp[i];
         if (!EVP_DigestInit_ex(ctx->i_ctx, md, impl)
-                || !EVP_DigestUpdate(ctx->i_ctx, pad, EVP_MD_block_size(md)))
+                || !EVP_DigestUpdate(ctx->i_ctx, pad,
+                                     EVP_MD_get_block_size(md)))
             goto err;
 
         for (i = 0; i < HMAC_MAX_MD_CBLOCK_SIZE; i++)
             pad[i] = 0x5c ^ keytmp[i];
         if (!EVP_DigestInit_ex(ctx->o_ctx, md, impl)
-                || !EVP_DigestUpdate(ctx->o_ctx, pad, EVP_MD_block_size(md)))
+                || !EVP_DigestUpdate(ctx->o_ctx, pad,
+                                     EVP_MD_get_block_size(md)))
             goto err;
     }
     if (!EVP_MD_CTX_copy_ex(ctx->md_ctx, ctx->i_ctx))
@@ -135,7 +137,7 @@ int HMAC_Final(HMAC_CTX *ctx, unsigned char *md, unsigned int *len)
 
 size_t HMAC_size(const HMAC_CTX *ctx)
 {
-    int size = EVP_MD_size((ctx)->md);
+    int size = EVP_MD_get_size((ctx)->md);
 
     return (size < 0) ? 0 : size;
 }
@@ -221,11 +223,11 @@ unsigned char *HMAC(const EVP_MD *evp_md, const void *key, int key_len,
                     unsigned char *md, unsigned int *md_len)
 {
     static unsigned char static_md[EVP_MAX_MD_SIZE];
-    int size = EVP_MD_size(evp_md);
+    int size = EVP_MD_get_size(evp_md);
 
     if (size < 0)
         return NULL;
-    return EVP_Q_mac(NULL, "HMAC", NULL, EVP_MD_name(evp_md), NULL,
+    return EVP_Q_mac(NULL, "HMAC", NULL, EVP_MD_get0_name(evp_md), NULL,
                      key, key_len, data, data_len,
                      md == NULL ? static_md : md, size, md_len);
 }

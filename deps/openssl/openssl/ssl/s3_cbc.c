@@ -34,7 +34,7 @@ char ssl3_cbc_record_digest_supported(const EVP_MD_CTX *ctx);
 int ssl3_cbc_digest_record(const EVP_MD *md,
                            unsigned char *md_out,
                            size_t *md_out_size,
-                           const unsigned char header[13],
+                           const unsigned char *header,
                            const unsigned char *data,
                            size_t data_size,
                            size_t data_plus_mac_plus_padding_size,
@@ -156,7 +156,7 @@ static void tls1_sha512_final_raw(void *ctx, unsigned char *md_out)
 int ssl3_cbc_digest_record(const EVP_MD *md,
                            unsigned char *md_out,
                            size_t *md_out_size,
-                           const unsigned char header[13],
+                           const unsigned char *header,
                            const unsigned char *data,
                            size_t data_size,
                            size_t data_plus_mac_plus_padding_size,
@@ -500,7 +500,6 @@ int ssl3_cbc_digest_record(const EVP_MD *md,
             || EVP_DigestUpdate(md_ctx, mac_out, md_size) <= 0)
             goto err;
     }
-    /* TODO(size_t): Convert me */
     ret = EVP_DigestFinal(md_ctx, md_out, &md_out_size_u);
     if (ret && md_out_size)
         *md_out_size = md_out_size_u;

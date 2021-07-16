@@ -36,21 +36,21 @@ void RSAZ_512_mod_exp(BN_ULONG result[8],
                       const BN_ULONG RR[8]);
 
 
-int rsaz_avx512ifma_eligible(void);
+int ossl_rsaz_avx512ifma_eligible(void);
 
-int RSAZ_mod_exp_avx512_x2(BN_ULONG *res1,
-                           const BN_ULONG *base1,
-                           const BN_ULONG *exponent1,
-                           const BN_ULONG *m1,
-                           const BN_ULONG *RR1,
-                           BN_ULONG k0_1,
-                           BN_ULONG *res2,
-                           const BN_ULONG *base2,
-                           const BN_ULONG *exponent2,
-                           const BN_ULONG *m2,
-                           const BN_ULONG *RR2,
-                           BN_ULONG k0_2,
-                           int factor_size);
+int ossl_rsaz_mod_exp_avx512_x2(BN_ULONG *res1,
+                                const BN_ULONG *base1,
+                                const BN_ULONG *exponent1,
+                                const BN_ULONG *m1,
+                                const BN_ULONG *RR1,
+                                BN_ULONG k0_1,
+                                BN_ULONG *res2,
+                                const BN_ULONG *base2,
+                                const BN_ULONG *exponent2,
+                                const BN_ULONG *m2,
+                                const BN_ULONG *RR2,
+                                BN_ULONG k0_2,
+                                int factor_size);
 
 # endif
 

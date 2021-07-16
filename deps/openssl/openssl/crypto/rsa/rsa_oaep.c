@@ -76,7 +76,11 @@ int ossl_rsa_padding_add_PKCS1_OAEP_mgf1_ex(OSSL_LIB_CTX *libctx,
     if (mgf1md == NULL)
         mgf1md = md;
 
-    mdlen = EVP_MD_size(md);
+    mdlen = EVP_MD_get_size(md);
+    if (mdlen <= 0) {
+        ERR_raise(ERR_LIB_RSA, RSA_R_INVALID_LENGTH);
+        return 0;
+    }
 
     /* step 2b: check KLen > nLen - 2 HLen - 2 */
     if (flen > emlen - 2 * mdlen - 1) {
@@ -103,7 +107,7 @@ int ossl_rsa_padding_add_PKCS1_OAEP_mgf1_ex(OSSL_LIB_CTX *libctx,
     db[emlen - flen - mdlen - 1] = 0x01;
     memcpy(db + emlen - flen - mdlen, from, (unsigned int)flen);
     /* step 3d: generate random byte string */
-    if (RAND_bytes_ex(libctx, seed, mdlen) <= 0)
+    if (RAND_bytes_ex(libctx, seed, mdlen, 0) <= 0)
         goto err;
 
     dbmask_len = emlen - mdlen;
@@ -180,7 +184,7 @@ int RSA_padding_check_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
     if (mgf1md == NULL)
         mgf1md = md;
 
-    mdlen = EVP_MD_size(md);
+    mdlen = EVP_MD_get_size(md);
 
     if (tlen <= 0 || flen <= 0)
         return -1;
@@ -337,7 +341,7 @@ int PKCS1_MGF1(unsigned char *mask, long len,
 
     if (c == NULL)
         goto err;
-    mdlen = EVP_MD_size(dgst);
+    mdlen = EVP_MD_get_size(dgst);
     if (mdlen < 0)
         goto err;
     /* step 4 */

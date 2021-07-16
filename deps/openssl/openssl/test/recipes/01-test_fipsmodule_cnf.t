@@ -29,7 +29,7 @@ plan skip_all => "Test only supported in a fips build"
 plan tests => 1;
 
 my $fipsmodule = bldtop_file('providers', platform->dso('fips'));
-my $fipsmoduleconf = bldtop_file('providers', 'fipsmodule.cnf');
+my $fipsmoduleconf = bldtop_file('test', 'fipsmodule.cnf');
 
 # verify the $fipsconf file
 ok(run(app(['openssl', 'fipsinstall',

@@ -30,10 +30,8 @@ static long linebuffer_callback_ctrl(BIO *h, int cmd, BIO_info_cb *fp);
 static const BIO_METHOD methods_linebuffer = {
     BIO_TYPE_LINEBUFFER,
     "linebuffer",
-    /* TODO: Convert to new style write function */
     bwrite_conv,
     linebuffer_write,
-    /* TODO: Convert to new style read function */
     bread_conv,
     linebuffer_read,
     linebuffer_puts,

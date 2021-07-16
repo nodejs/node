@@ -67,7 +67,7 @@ handshake.
   - InternalError - some other error
 
 * ExpectedClientAlert, ExpectedServerAlert - expected alert. See
-  `ssl_test_ctx.c` for known values. Note: the expected alert is currently
+  `test/helpers/ssl_test_ctx.c` for known values. Note: the expected alert is currently
   matched against the _last_ received alert (i.e., a fatal alert or a
   `close_notify`). Warning alert expectations are not yet supported. (A warning
   alert will not be correctly matched, if followed by a `close_notify` or
@@ -261,12 +261,14 @@ environment variable to point to the location of the certs. E.g., from the root
 OpenSSL directory, do
 
     $ CTLOG_FILE=test/ct/log_list.cnf TEST_CERTS_DIR=test/certs test/ssl_test \
-      test/ssl-tests/01-simple.cnf
+      test/ssl-tests/01-simple.cnf default
 
 or for shared builds
 
     $ CTLOG_FILE=test/ct/log_list.cnf  TEST_CERTS_DIR=test/certs \
-      util/wrap.pl test/ssl_test test/ssl-tests/01-simple.cnf
+      util/wrap.pl test/ssl_test test/ssl-tests/01-simple.cnf default
+
+In the above examples, `default` is the provider to use.
 
 Note that the test expectations sometimes depend on the Configure settings. For
 example, the negotiated protocol depends on the set of available (enabled)

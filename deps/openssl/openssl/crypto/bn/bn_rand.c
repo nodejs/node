@@ -21,7 +21,7 @@ typedef enum bnrand_flag_e {
 } BNRAND_FLAG;
 
 static int bnrand(BNRAND_FLAG flag, BIGNUM *rnd, int bits, int top, int bottom,
-                  BN_CTX *ctx)
+                  unsigned int strength, BN_CTX *ctx)
 {
     unsigned char *buf = NULL;
     int b, ret = 0, bit, bytes, mask;
@@ -47,8 +47,8 @@ static int bnrand(BNRAND_FLAG flag, BIGNUM *rnd, int bits, int top, int bottom,
     }
 
     /* make a random number and set the top and bottom bits */
-    b = flag == NORMAL ? RAND_bytes_ex(libctx, buf, bytes)
-                       : RAND_priv_bytes_ex(libctx, buf, bytes);
+    b = flag == NORMAL ? RAND_bytes_ex(libctx, buf, bytes, strength)
+                       : RAND_priv_bytes_ex(libctx, buf, bytes, strength);
     if (b <= 0)
         goto err;
 
@@ -60,7 +60,7 @@ static int bnrand(BNRAND_FLAG flag, BIGNUM *rnd, int bits, int top, int bottom,
         unsigned char c;
 
         for (i = 0; i < bytes; i++) {
-            if (RAND_bytes_ex(libctx, &c, 1) <= 0)
+            if (RAND_bytes_ex(libctx, &c, 1, strength) <= 0)
                 goto err;
             if (c >= 128 && i > 0)
                 buf[i] = buf[i - 1];
@@ -99,37 +99,39 @@ toosmall:
     return 0;
 }
 
-int BN_rand_ex(BIGNUM *rnd, int bits, int top, int bottom, BN_CTX *ctx)
+int BN_rand_ex(BIGNUM *rnd, int bits, int top, int bottom,
+               unsigned int strength, BN_CTX *ctx)
 {
-    return bnrand(NORMAL, rnd, bits, top, bottom, ctx);
+    return bnrand(NORMAL, rnd, bits, top, bottom, strength, ctx);
 }
 #ifndef FIPS_MODULE
 int BN_rand(BIGNUM *rnd, int bits, int top, int bottom)
 {
-    return bnrand(NORMAL, rnd, bits, top, bottom, NULL);
+    return bnrand(NORMAL, rnd, bits, top, bottom, 0, NULL);
 }
 
 int BN_bntest_rand(BIGNUM *rnd, int bits, int top, int bottom)
 {
-    return bnrand(TESTING, rnd, bits, top, bottom, NULL);
+    return bnrand(TESTING, rnd, bits, top, bottom, 0, NULL);
 }
 #endif
 
-int BN_priv_rand_ex(BIGNUM *rnd, int bits, int top, int bottom, BN_CTX *ctx)
+int BN_priv_rand_ex(BIGNUM *rnd, int bits, int top, int bottom,
+                    unsigned int strength, BN_CTX *ctx)
 {
-    return bnrand(PRIVATE, rnd, bits, top, bottom, ctx);
+    return bnrand(PRIVATE, rnd, bits, top, bottom, strength, ctx);
 }
 
 #ifndef FIPS_MODULE
 int BN_priv_rand(BIGNUM *rnd, int bits, int top, int bottom)
 {
-    return bnrand(PRIVATE, rnd, bits, top, bottom, NULL);
+    return bnrand(PRIVATE, rnd, bits, top, bottom, 0, NULL);
 }
 #endif
 
 /* random number r:  0 <= r < range */
 static int bnrand_range(BNRAND_FLAG flag, BIGNUM *r, const BIGNUM *range,
-                        BN_CTX *ctx)
+                        unsigned int strength, BN_CTX *ctx)
 {
     int n;
     int count = 100;
@@ -152,7 +154,7 @@ static int bnrand_range(BNRAND_FLAG flag, BIGNUM *r, const BIGNUM *range,
          */
         do {
             if (!bnrand(flag, r, n + 1, BN_RAND_TOP_ANY, BN_RAND_BOTTOM_ANY,
-                        ctx))
+                        strength, ctx))
                 return 0;
 
             /*
@@ -179,7 +181,8 @@ static int bnrand_range(BNRAND_FLAG flag, BIGNUM *r, const BIGNUM *range,
     } else {
         do {
             /* range = 11..._2  or  range = 101..._2 */
-            if (!bnrand(flag, r, n, BN_RAND_TOP_ANY, BN_RAND_BOTTOM_ANY, ctx))
+            if (!bnrand(flag, r, n, BN_RAND_TOP_ANY, BN_RAND_BOTTOM_ANY, 0,
+                        ctx))
                 return 0;
 
             if (!--count) {
@@ -194,27 +197,29 @@ static int bnrand_range(BNRAND_FLAG flag, BIGNUM *r, const BIGNUM *range,
     return 1;
 }
 
-int BN_rand_range_ex(BIGNUM *r, const BIGNUM *range, BN_CTX *ctx)
+int BN_rand_range_ex(BIGNUM *r, const BIGNUM *range, unsigned int strength,
+                     BN_CTX *ctx)
 {
-    return bnrand_range(NORMAL, r, range, ctx);
+    return bnrand_range(NORMAL, r, range, strength, ctx);
 }
 
 #ifndef FIPS_MODULE
 int BN_rand_range(BIGNUM *r, const BIGNUM *range)
 {
-    return bnrand_range(NORMAL, r, range, NULL);
+    return bnrand_range(NORMAL, r, range, 0, NULL);
 }
 #endif
 
-int BN_priv_rand_range_ex(BIGNUM *r, const BIGNUM *range, BN_CTX *ctx)
+int BN_priv_rand_range_ex(BIGNUM *r, const BIGNUM *range, unsigned int strength,
+                          BN_CTX *ctx)
 {
-    return bnrand_range(PRIVATE, r, range, ctx);
+    return bnrand_range(PRIVATE, r, range, strength, ctx);
 }
 
 #ifndef FIPS_MODULE
 int BN_priv_rand_range(BIGNUM *r, const BIGNUM *range)
 {
-    return bnrand_range(PRIVATE, r, range, NULL);
+    return bnrand_range(PRIVATE, r, range, 0, NULL);
 }
 
 # ifndef OPENSSL_NO_DEPRECATED_3_0
@@ -282,7 +287,7 @@ int BN_generate_dsa_nonce(BIGNUM *out, const BIGNUM *range,
         goto err;
     }
     for (done = 0; done < num_k_bytes;) {
-        if (!RAND_priv_bytes_ex(libctx, random_bytes, sizeof(random_bytes)))
+        if (!RAND_priv_bytes_ex(libctx, random_bytes, sizeof(random_bytes), 0))
             goto err;
 
         if (!EVP_DigestInit_ex(mdctx, md, NULL)

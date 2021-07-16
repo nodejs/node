@@ -377,7 +377,7 @@ int ecdh_get_ctx_params(void *vpecdhctx, OSSL_PARAM params[])
     if (p != NULL
             && !OSSL_PARAM_set_utf8_string(p, pectx->kdf_md == NULL
                                            ? ""
-                                           : EVP_MD_name(pectx->kdf_md))){
+                                           : EVP_MD_get0_name(pectx->kdf_md))){
         return 0;
     }
 

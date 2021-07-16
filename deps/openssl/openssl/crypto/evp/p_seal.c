@@ -15,34 +15,39 @@
 #include <openssl/evp.h>
 #include <openssl/objects.h>
 #include <openssl/x509.h>
+#include <openssl/evp.h>
 
 int EVP_SealInit(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *type,
                  unsigned char **ek, int *ekl, unsigned char *iv,
                  EVP_PKEY **pubk, int npubk)
 {
     unsigned char key[EVP_MAX_KEY_LENGTH];
-    const OSSL_PROVIDER *prov = EVP_CIPHER_provider(type);
-    OSSL_LIB_CTX *libctx = prov != NULL ? ossl_provider_libctx(prov) : NULL;
+    const OSSL_PROVIDER *prov;
+    OSSL_LIB_CTX *libctx = NULL;
     EVP_PKEY_CTX *pctx = NULL;
+    const EVP_CIPHER *cipher;
     int i, len;
     int rv = 0;
 
-    if (type) {
+    if (type != NULL) {
         EVP_CIPHER_CTX_reset(ctx);
         if (!EVP_EncryptInit_ex(ctx, type, NULL, NULL, NULL))
             return 0;
     }
+    if ((cipher = EVP_CIPHER_CTX_get0_cipher(ctx)) != NULL
+            && (prov = EVP_CIPHER_get0_provider(cipher)) != NULL)
+        libctx = ossl_provider_libctx(prov);
     if ((npubk <= 0) || !pubk)
         return 1;
 
     if (EVP_CIPHER_CTX_rand_key(ctx, key) <= 0)
         return 0;
 
-    len = EVP_CIPHER_CTX_iv_length(ctx);
-    if (len < 0 || RAND_priv_bytes_ex(libctx, iv, len) <= 0)
+    len = EVP_CIPHER_CTX_get_iv_length(ctx);
+    if (len < 0 || RAND_priv_bytes_ex(libctx, iv, len, 0) <= 0)
         goto err;
 
-    len = EVP_CIPHER_CTX_key_length(ctx);
+    len = EVP_CIPHER_CTX_get_key_length(ctx);
     if (len < 0)
         goto err;
 

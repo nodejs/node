@@ -281,7 +281,7 @@ static int pbkdf2_derive(const char *pass, size_t passlen,
     unsigned long i = 1;
     HMAC_CTX *hctx_tpl = NULL, *hctx = NULL;
 
-    mdlen = EVP_MD_size(digest);
+    mdlen = EVP_MD_get_size(digest);
     if (mdlen <= 0)
         return 0;
 

@@ -484,7 +484,7 @@ static int ts_RESP_check_request(TS_RESP_CTX *ctx)
         return 0;
     }
     digest = msg_imprint->hashed_msg;
-    if (digest->length != EVP_MD_size(md)) {
+    if (digest->length != EVP_MD_get_size(md)) {
         TS_RESP_CTX_set_status_info(ctx, TS_STATUS_REJECTION,
                                     "Bad message digest.");
         TS_RESP_CTX_add_failure_info(ctx, TS_INFO_BAD_DATA_FORMAT);
@@ -711,8 +711,8 @@ static int ts_RESP_sign(TS_RESP_CTX *ctx)
 
     if (ctx->signer_md == NULL)
         signer_md = EVP_MD_fetch(ctx->libctx, "SHA256", ctx->propq);
-    else if (EVP_MD_provider(ctx->signer_md) == NULL)
-        signer_md = EVP_MD_fetch(ctx->libctx, EVP_MD_name(ctx->signer_md),
+    else if (EVP_MD_get0_provider(ctx->signer_md) == NULL)
+        signer_md = EVP_MD_fetch(ctx->libctx, EVP_MD_get0_name(ctx->signer_md),
                                  ctx->propq);
     else
         signer_md = (EVP_MD *)ctx->signer_md;

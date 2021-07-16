@@ -1,6 +1,6 @@
 #! /usr/bin/env perl
 # -*- mode: Perl -*-
-# Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -9,12 +9,20 @@
 
 use strict;
 use File::Spec::Functions qw(devnull);
-use OpenSSL::Test qw(:DEFAULT srctop_file bldtop_dir bldtop_file);
+use OpenSSL::Test qw(:DEFAULT srctop_file srctop_dir bldtop_dir bldtop_file);
 use OpenSSL::Test::Utils;
 
-setup("test_symbol_presence");
+BEGIN {
+    setup("test_symbol_presence");
+}
+
+use lib srctop_dir('Configurations');
+use lib bldtop_dir('.');
+use platform;
 
 plan skip_all => "Test is disabled on NonStop" if config('target') =~ m|^nonstop|;
+# MacOS arranges symbol names differently
+plan skip_all => "Test is disabled on MacOS" if config('target') =~ m|^darwin|;
 plan skip_all => "Only useful when building shared libraries"
     if disabled("shared");
 
@@ -33,7 +41,8 @@ note
 foreach my $libname (@libnames) {
  SKIP:
     {
-        my $shlibpath = bldtop_file("lib" . $libname . ".so");
+        my $shlibname = platform->sharedlib("lib$libname");
+        my $shlibpath = bldtop_file($shlibname);
         *OSTDERR = *STDERR;
         *OSTDOUT = *STDOUT;
         open STDERR, ">", devnull();
@@ -101,18 +110,18 @@ foreach my $libname (@libnames) {
         }
 
         if (scalar @missing) {
-            note "The following symbols are missing in lib$libname.so:";
+            note "The following symbols are missing in ${shlibname}:";
             foreach (@missing) {
                 note "  $_";
             }
         }
         if (scalar @extra) {
-            note "The following symbols are extra in lib$libname.so:";
+            note "The following symbols are extra in ${shlibname}:";
             foreach (@extra) {
                 note "  $_";
             }
         }
         ok(scalar @missing == 0,
-           "check that there are no missing symbols in lib$libname.so");
+           "check that there are no missing symbols in ${shlibname}");
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -253,7 +253,7 @@ static int ssl3_cbc_copy_mac(size_t *reclen,
     }
 
     /* Create the random MAC we will emit if padding is bad */
-    if (!RAND_bytes_ex(libctx, randmac, mac_size))
+    if (!RAND_bytes_ex(libctx, randmac, mac_size, 0))
         return 0;
 
     if (!ossl_assert(mac != NULL && alloced != NULL))

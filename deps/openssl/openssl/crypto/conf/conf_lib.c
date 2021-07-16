@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -16,6 +16,7 @@
 #include <openssl/err.h>
 #include <openssl/conf.h>
 #include <openssl/conf_api.h>
+#include "conf_local.h"
 #include <openssl/lhash.h>
 
 static CONF_METHOD *default_CONF_method = NULL;
@@ -212,6 +213,38 @@ void NCONF_free_data(CONF *conf)
     if (conf == NULL)
         return;
     conf->meth->destroy_data(conf);
+}
+
+OSSL_LIB_CTX *NCONF_get0_libctx(const CONF *conf)
+{
+    return conf->libctx;
+}
+
+typedef STACK_OF(OPENSSL_CSTRING) SECTION_NAMES;
+
+IMPLEMENT_LHASH_DOALL_ARG_CONST(CONF_VALUE, SECTION_NAMES);
+
+static void collect_section_name(const CONF_VALUE *v, SECTION_NAMES *names)
+{
+    /* A section is a CONF_VALUE with name == NULL */
+    if (v->name == NULL)
+        sk_OPENSSL_CSTRING_push(names, v->section);
+}
+
+static int section_name_cmp(OPENSSL_CSTRING const *a, OPENSSL_CSTRING const *b)
+{
+    return strcmp(*a, *b);
+}
+
+STACK_OF(OPENSSL_CSTRING) *NCONF_get_section_names(const CONF *cnf)
+{
+    SECTION_NAMES *names;
+
+    if ((names = sk_OPENSSL_CSTRING_new(section_name_cmp)) == NULL)
+        return NULL;
+    lh_CONF_VALUE_doall_SECTION_NAMES(cnf->data, collect_section_name, names);
+    sk_OPENSSL_CSTRING_sort(names);
+    return names;
 }
 
 int NCONF_load(CONF *conf, const char *file, long *eline)

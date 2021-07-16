@@ -5,6 +5,7 @@ $TLS1_PRF_GOAL=../../libdefault.a ../../libfips.a
 $HKDF_GOAL=../../libdefault.a ../../libfips.a
 $KBKDF_GOAL=../../libdefault.a ../../libfips.a
 $KRB5KDF_GOAL=../../libdefault.a
+$PBKDF1_GOAL=../../liblegacy.a
 $PBKDF2_GOAL=../../libdefault.a ../../libfips.a
 $PKCS12KDF_GOAL=../../libdefault.a
 $SSKDF_GOAL=../../libdefault.a ../../libfips.a
@@ -19,6 +20,8 @@ SOURCE[$HKDF_GOAL]=hkdf.c
 SOURCE[$KBKDF_GOAL]=kbkdf.c
 
 SOURCE[$KRB5KDF_GOAL]=krb5kdf.c
+
+SOURCE[$PBKDF1_GOAL]=pbkdf1.c
 
 SOURCE[$PBKDF2_GOAL]=pbkdf2.c
 # Extra code to satisfy the FIPS and non-FIPS separation.

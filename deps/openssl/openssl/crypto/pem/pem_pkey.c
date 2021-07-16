@@ -23,6 +23,7 @@
 #include <openssl/decoder.h>
 #include <openssl/ui.h>
 #include "crypto/asn1.h"
+#include "crypto/x509.h"
 #include "crypto/evp.h"
 #include "pem_local.h"
 
@@ -36,6 +37,11 @@ static EVP_PKEY *pem_read_bio_key_decoder(BIO *bp, EVP_PKEY **x,
 {
     EVP_PKEY *pkey = NULL;
     OSSL_DECODER_CTX *dctx = NULL;
+    int pos, newpos;
+
+    if ((pos = BIO_tell(bp)) < 0)
+        /* We can depend on BIO_tell() thanks to the BIO_f_readbuffer() */
+        return NULL;
 
     dctx = OSSL_DECODER_CTX_new_for_pkey(&pkey, "PEM", NULL, NULL,
                                          selection, libctx, propq);
@@ -50,8 +56,10 @@ static EVP_PKEY *pem_read_bio_key_decoder(BIO *bp, EVP_PKEY **x,
         goto err;
 
     while (!OSSL_DECODER_from_bio(dctx, bp) || pkey == NULL)
-        if (BIO_eof(bp) != 0)
+        if (BIO_eof(bp) != 0 || (newpos = BIO_tell(bp)) < 0 || newpos <= pos)
             goto err;
+        else
+            pos = newpos;
 
     if (!evp_keymgmt_util_has(pkey, selection)) {
         EVP_PKEY_free(pkey);
@@ -150,9 +158,10 @@ static EVP_PKEY *pem_read_bio_key_legacy(BIO *bp, EVP_PKEY **x,
         ameth = EVP_PKEY_asn1_find_str(NULL, nm, slen);
         if (ameth == NULL || ameth->old_priv_decode == NULL)
             goto p8err;
-        ret = d2i_PrivateKey(ameth->pkey_id, x, &p, len);
+        ret = ossl_d2i_PrivateKey_legacy(ameth->pkey_id, x, &p, len, libctx,
+                                         propq);
     } else if (selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) {
-        ret = d2i_PUBKEY(x, &p, len);
+        ret = ossl_d2i_PUBKEY_legacy(x, &p, len);
     } else if ((slen = ossl_pem_check_suffix(nm, "PARAMETERS")) > 0) {
         ret = EVP_PKEY_new();
         if (ret == NULL)
@@ -171,7 +180,8 @@ static EVP_PKEY *pem_read_bio_key_legacy(BIO *bp, EVP_PKEY **x,
     }
 
  p8err:
-    if (ret == NULL)
+    if (ret == NULL && ERR_peek_last_error() == 0)
+        /* ensure some error is reported but do not hide the real one */
         ERR_raise(ERR_LIB_PEM, ERR_R_ASN1_LIB);
  err:
     OPENSSL_secure_free(nm);
@@ -290,8 +300,6 @@ PEM_write_cb_fnsig(PrivateKey, EVP_PKEY, BIO, write_bio)
 /*
  * Note: there is no way to tell a provided pkey encoder to use "traditional"
  * encoding.  Therefore, if the pkey is provided, we try to take a copy 
- * TODO: when #legacy keys are gone, this function will not be possible any
- * more and should be removed.
  */
 int PEM_write_bio_PrivateKey_traditional(BIO *bp, const EVP_PKEY *x,
                                          const EVP_CIPHER *enc,

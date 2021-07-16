@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -20,8 +20,10 @@ plan skip_all => "Not available in a no-deprecated build"
     if disabled("deprecated");
 plan tests => 1;
 
-
 $ENV{OPENSSL_MODULES} = abs_path(bldtop_dir("providers"));
 $ENV{OPENSSL_CONF} = abs_path(srctop_file("test", "default.cnf"));
 
-ok(run(test(["endecoder_legacy_test"])));
+my $rsa_key = srctop_file("test", "certs", "ee-key.pem");
+my $dh_key = srctop_file("test", "certs", "dhk2048.pem");
+
+ok(run(test(["endecoder_legacy_test", $rsa_key, $dh_key])));

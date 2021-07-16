@@ -191,11 +191,6 @@ __owur int SCT_is_complete(const SCT *sct);
 __owur int SCT_signature_is_complete(const SCT *sct);
 
 /*
- * TODO(RJPercival): Create an SCT_signature struct and make i2o_SCT_signature
- * and o2i_SCT_signature conform to the i2d/d2i conventions.
- */
-
-/*
 * Serialize (to TLS format) an |sct| signature and write it to |out|.
 * If |out| is null, no signature will be output but the length will be returned.
 * If |out| points to a null pointer, a string will be allocated to hold the

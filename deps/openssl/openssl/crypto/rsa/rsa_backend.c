@@ -270,7 +270,6 @@ int ossl_rsa_pss_params_30_fromdata(RSA_PSS_PARAMS_30 *pss_params,
         else if (!OSSL_PARAM_get_utf8_ptr(param_mgf, &mgfname))
             return 0;
 
-        /* TODO Revisit this if / when a new MGF algorithm appears */
         if (strcasecmp(param_mgf->data,
                        ossl_rsa_mgf_nid2name(default_maskgenalg_nid)) != 0)
             return 0;
@@ -480,8 +479,8 @@ static int ossl_rsa_sync_to_pss_params_30(RSA *rsa)
         if (!ossl_rsa_pss_get_param_unverified(legacy_pss, &md, &mgf1md,
                                                &saltlen, &trailerField))
             return 0;
-        md_nid = EVP_MD_type(md);
-        mgf1md_nid = EVP_MD_type(mgf1md);
+        md_nid = EVP_MD_get_type(md);
+        mgf1md_nid = EVP_MD_get_type(mgf1md);
         if (!ossl_rsa_pss_params_30_set_defaults(&pss_params)
             || !ossl_rsa_pss_params_30_set_hashalg(&pss_params, md_nid)
             || !ossl_rsa_pss_params_30_set_maskgenhashalg(&pss_params,

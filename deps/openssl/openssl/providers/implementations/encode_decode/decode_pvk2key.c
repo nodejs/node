@@ -33,7 +33,8 @@
 struct pvk2key_ctx_st;            /* Forward declaration */
 typedef int check_key_fn(void *, struct pvk2key_ctx_st *ctx);
 typedef void adjust_key_fn(void *, struct pvk2key_ctx_st *ctx);
-typedef void *b2i_PVK_of_bio_pw_fn(BIO *in, pem_password_cb *cb, void *u);
+typedef void *b2i_PVK_of_bio_pw_fn(BIO *in, pem_password_cb *cb, void *u,
+                                   OSSL_LIB_CTX *libctx, const char *propq);
 typedef void free_key_fn(void *);
 struct keytype_desc_st {
     int type;                 /* EVP key type */
@@ -46,8 +47,6 @@ struct keytype_desc_st {
 };
 
 static OSSL_FUNC_decoder_freectx_fn pvk2key_freectx;
-static OSSL_FUNC_decoder_gettable_params_fn pvk2key_gettable_params;
-static OSSL_FUNC_decoder_get_params_fn pvk2key_get_params;
 static OSSL_FUNC_decoder_decode_fn pvk2key_decode;
 static OSSL_FUNC_decoder_export_object_fn pvk2key_export_object;
 
@@ -78,27 +77,6 @@ static void pvk2key_freectx(void *vctx)
     OPENSSL_free(ctx);
 }
 
-static const OSSL_PARAM *pvk2key_gettable_params(ossl_unused void *provctx)
-{
-    static const OSSL_PARAM gettables[] = {
-        { OSSL_DECODER_PARAM_INPUT_TYPE, OSSL_PARAM_UTF8_PTR, NULL, 0, 0 },
-        OSSL_PARAM_END,
-    };
-
-    return gettables;
-}
-
-static int pvk2key_get_params(OSSL_PARAM params[])
-{
-    OSSL_PARAM *p;
-
-    p = OSSL_PARAM_locate(params, OSSL_DECODER_PARAM_INPUT_TYPE);
-    if (p != NULL && !OSSL_PARAM_set_utf8_ptr(p, "PVK"))
-        return 0;
-
-    return 1;
-}
-
 static int pvk2key_decode(void *vctx, OSSL_CORE_BIO *cin, int selection,
                          OSSL_CALLBACK *data_cb, void *data_cbarg,
                          OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
@@ -118,7 +96,8 @@ static int pvk2key_decode(void *vctx, OSSL_CORE_BIO *cin, int selection,
         if (!ossl_pw_set_ossl_passphrase_cb(&pwdata, pw_cb, pw_cbarg))
             goto end;
 
-        key = ctx->desc->read_private_key(in, ossl_pw_pem_password, &pwdata);
+        key = ctx->desc->read_private_key(in, ossl_pw_pem_password, &pwdata,
+                                          PROV_LIBCTX_OF(ctx->provctx), NULL);
 
         /*
          * Because the PVK API doesn't have a separate decrypt call, we need
@@ -204,13 +183,13 @@ static int pvk2key_export_object(void *vctx,
 
 /* ---------------------------------------------------------------------- */
 
-#define dsa_private_key_bio     (b2i_PVK_of_bio_pw_fn *)b2i_DSA_PVK_bio
+#define dsa_private_key_bio     (b2i_PVK_of_bio_pw_fn *)b2i_DSA_PVK_bio_ex
 #define dsa_adjust              NULL
 #define dsa_free                (void (*)(void *))DSA_free
 
 /* ---------------------------------------------------------------------- */
 
-#define rsa_private_key_bio     (b2i_PVK_of_bio_pw_fn *)b2i_RSA_PVK_bio
+#define rsa_private_key_bio     (b2i_PVK_of_bio_pw_fn *)b2i_RSA_PVK_bio_ex
 
 static void rsa_adjust(void *key, struct pvk2key_ctx_st *ctx)
 {
@@ -241,10 +220,6 @@ static void rsa_adjust(void *key, struct pvk2key_ctx_st *ctx)
           (void (*)(void))pvk2##keytype##_newctx },                     \
         { OSSL_FUNC_DECODER_FREECTX,                                    \
           (void (*)(void))pvk2key_freectx },                            \
-        { OSSL_FUNC_DECODER_GETTABLE_PARAMS,                            \
-          (void (*)(void))pvk2key_gettable_params },                    \
-        { OSSL_FUNC_DECODER_GET_PARAMS,                                 \
-          (void (*)(void))pvk2key_get_params },                         \
         { OSSL_FUNC_DECODER_DECODE,                                     \
           (void (*)(void))pvk2key_decode },                             \
         { OSSL_FUNC_DECODER_EXPORT_OBJECT,                              \

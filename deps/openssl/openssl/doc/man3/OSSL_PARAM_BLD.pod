@@ -138,15 +138,15 @@ This example shows how to create an OSSL_PARAM array that contains an RSA
 private key.
 
     OSSL_PARAM_BLD *bld = OSSL_PARAM_BLD_new();
-    OSSL_PARAM *params;
+    OSSL_PARAM *params = NULL;
 
     if (bld == NULL
-        || !OSSL_PARAM_BLD_push_BN(&bld, "p", p)
-        || !OSSL_PARAM_BLD_push_BN(&bld, "q", q)
-        || !OSSL_PARAM_BLD_push_uint(&bld, "e", e)
-        || !OSSL_PARAM_BLD_push_BN(&bld, "n", n)
-        || !OSSL_PARAM_BLD_push_BN(&bld, "d", d)
-        || (params = OSSL_PARAM_BLD_to_param(&bld)) == NULL)
+        || !OSSL_PARAM_BLD_push_BN(bld, "p", p)
+        || !OSSL_PARAM_BLD_push_BN(bld, "q", q)
+        || !OSSL_PARAM_BLD_push_uint(bld, "e", e)
+        || !OSSL_PARAM_BLD_push_BN(bld, "n", n)
+        || !OSSL_PARAM_BLD_push_BN(bld, "d", d)
+        || (params = OSSL_PARAM_BLD_to_param(bld)) == NULL)
         goto err;
     OSSL_PARAM_BLD_free(bld);
     /* Use params */
@@ -159,7 +159,7 @@ This example shows how to create an OSSL_PARAM array that contains an RSA
 public key.
 
     OSSL_PARAM_BLD *bld = OSSL_PARAM_BLD_new();
-    OSSL_PARAM *params;
+    OSSL_PARAM *params = NULL;
 
     if (nld == NULL
         || !OSSL_PARAM_BLD_push_BN(bld, "n", n)

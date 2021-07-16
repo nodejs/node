@@ -80,6 +80,7 @@ int ossl_ec_key_fromdata(EC_KEY *ecx, const OSSL_PARAM params[],
 int ossl_ec_key_otherparams_fromdata(EC_KEY *ec, const OSSL_PARAM params[]);
 int ossl_ec_key_is_foreign(const EC_KEY *ec);
 EC_KEY *ossl_ec_key_dup(const EC_KEY *key, int selection);
+int ossl_x509_algor_is_sm2(const X509_ALGOR *palg);
 EC_KEY *ossl_ec_key_param_from_x509_algor(const X509_ALGOR *palg,
                                           OSSL_LIB_CTX *libctx,
                                           const char *propq);

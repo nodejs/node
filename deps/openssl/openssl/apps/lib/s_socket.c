@@ -26,6 +26,15 @@
 typedef unsigned int u_int;
 #endif
 
+#ifdef _WIN32
+/*
+ * With MSVC, certain POSIX functions have been renamed to have an underscore
+ * prefix.
+ */
+# include <process.h>
+# define getpid _getpid
+#endif
+
 #ifndef OPENSSL_NO_SOCK
 
 # include "apps.h"
@@ -191,10 +200,12 @@ out:
     return ret;
 }
 
-int report_server_accept(BIO *out, int asock, int with_address)
+int report_server_accept(BIO *out, int asock, int with_address, int with_pid)
 {
-    int success = 0;
+    int success = 1;
 
+    if (BIO_printf(out, "ACCEPT") <= 0)
+        return 0;
     if (with_address) {
         union BIO_sock_info_u info;
         char *hostname = NULL;
@@ -203,21 +214,23 @@ int report_server_accept(BIO *out, int asock, int with_address)
         if ((info.addr = BIO_ADDR_new()) != NULL
             && BIO_sock_info(asock, BIO_SOCK_INFO_ADDRESS, &info)
             && (hostname = BIO_ADDR_hostname_string(info.addr, 1)) != NULL
-            && (service = BIO_ADDR_service_string(info.addr, 1)) != NULL
-            && BIO_printf(out,
-                          strchr(hostname, ':') == NULL
-                          ? /* IPv4 */ "ACCEPT %s:%s\n"
-                          : /* IPv6 */ "ACCEPT [%s]:%s\n",
-                          hostname, service) > 0)
-            success = 1;
-
+            && (service = BIO_ADDR_service_string(info.addr, 1)) != NULL) {
+            success = BIO_printf(out,
+                                 strchr(hostname, ':') == NULL
+                                 ? /* IPv4 */ " %s:%s"
+                                 : /* IPv6 */ " [%s]:%s",
+                                 hostname, service) > 0;
+        } else {
+            (void)BIO_printf(out, "unknown:error\n");
+            success = 0;
+        }
         OPENSSL_free(hostname);
         OPENSSL_free(service);
         BIO_ADDR_free(info.addr);
-    } else {
-        (void)BIO_printf(out, "ACCEPT\n");
-        success = 1;
     }
+    if (with_pid)
+        success = success && BIO_printf(out, " PID=%d", getpid()) > 0;
+    success = success && BIO_printf(out, "\n") > 0;
     (void)BIO_flush(out);
 
     return success;
@@ -328,7 +341,7 @@ int do_server(int *accept_sock, const char *host, const char *port,
     BIO_ADDRINFO_free(res);
     res = NULL;
 
-    if (!report_server_accept(bio_s_out, asock, sock_port == 0)) {
+    if (!report_server_accept(bio_s_out, asock, sock_port == 0, 0)) {
         BIO_closesocket(asock);
         ERR_print_errors(bio_err);
         goto end;

@@ -132,17 +132,17 @@ int dtls1_do_write(SSL *s, int type)
 
     if (s->write_hash) {
         if (s->enc_write_ctx
-            && (EVP_CIPHER_flags(EVP_CIPHER_CTX_get0_cipher(s->enc_write_ctx)) &
+            && (EVP_CIPHER_get_flags(EVP_CIPHER_CTX_get0_cipher(s->enc_write_ctx)) &
                 EVP_CIPH_FLAG_AEAD_CIPHER) != 0)
             mac_size = 0;
         else
-            mac_size = EVP_MD_CTX_size(s->write_hash);
+            mac_size = EVP_MD_CTX_get_size(s->write_hash);
     } else
         mac_size = 0;
 
     if (s->enc_write_ctx &&
-        (EVP_CIPHER_CTX_mode(s->enc_write_ctx) == EVP_CIPH_CBC_MODE))
-        blocksize = 2 * EVP_CIPHER_CTX_block_size(s->enc_write_ctx);
+        (EVP_CIPHER_CTX_get_mode(s->enc_write_ctx) == EVP_CIPH_CBC_MODE))
+        blocksize = 2 * EVP_CIPHER_CTX_get_block_size(s->enc_write_ctx);
     else
         blocksize = 0;
 

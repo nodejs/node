@@ -44,6 +44,7 @@ B<openssl> B<ca>
 [B<-inform> B<DER>|<PEM>]
 [B<-out> I<file>]
 [B<-notext>]
+[B<-dateopt>]
 [B<-outdir> I<dir>]
 [B<-infiles>]
 [B<-spkac> I<file>]
@@ -208,6 +209,11 @@ self-signed certificate.
 =item B<-notext>
 
 Don't output the text form of a certificate to the output file.
+
+=item B<-dateopt>
+
+Specify the date output format. Values are: rfc_822 and iso_8601.
+Defaults to rfc_822.
 
 =item B<-startdate> I<date>
 

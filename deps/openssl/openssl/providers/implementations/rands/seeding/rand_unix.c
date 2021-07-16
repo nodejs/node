@@ -76,7 +76,9 @@ static uint64_t get_timer_bits(void);
  * macro that might be undefined.
  */
 # undef OSSL_POSIX_TIMER_OKAY
-# if defined(_POSIX_TIMERS) && _POSIX_TIMERS > 0
+/* On some systems, _POSIX_TIMERS is defined but empty.
+ * Subtracting by 0 when comparing avoids an error in this case. */
+# if defined(_POSIX_TIMERS) && _POSIX_TIMERS -0 > 0
 #  if defined(__GLIBC__)
 #   if defined(__GLIBC_PREREQ)
 #    if __GLIBC_PREREQ(2, 17)
@@ -601,7 +603,7 @@ void ossl_rand_pool_keep_random_devices_open(int keep)
 /*
  * Try the various seeding methods in turn, exit when successful.
  *
- * TODO(DRBG): If more than one entropy source is available, is it
+ * If more than one entropy source is available, is it
  * preferable to stop as soon as enough entropy has been collected
  * (as favored by @rsalz) or should one rather be defensive and add
  * more entropy than requested and/or from different sources?

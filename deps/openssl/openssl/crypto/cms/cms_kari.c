@@ -218,7 +218,7 @@ static int cms_kek_cipher(unsigned char **pout, size_t *poutlen,
     unsigned char *out = NULL;
     int outlen;
 
-    keklen = EVP_CIPHER_CTX_key_length(kari->ctx);
+    keklen = EVP_CIPHER_CTX_get_key_length(kari->ctx);
     if (keklen > EVP_MAX_KEY_LENGTH)
         return 0;
     /* Derive KEK */
@@ -424,24 +424,23 @@ static int cms_wrap_init(CMS_KeyAgreeRecipientInfo *kari,
     /* If a suitable wrap algorithm is already set nothing to do */
     kekcipher = EVP_CIPHER_CTX_get0_cipher(ctx);
     if (kekcipher != NULL) {
-        if (EVP_CIPHER_CTX_mode(ctx) != EVP_CIPH_WRAP_MODE)
+        if (EVP_CIPHER_CTX_get_mode(ctx) != EVP_CIPH_WRAP_MODE)
             return 0;
         return 1;
     }
     if (cipher == NULL)
         return 0;
-    keylen = EVP_CIPHER_key_length(cipher);
-    if ((EVP_CIPHER_flags(cipher) & EVP_CIPH_FLAG_GET_WRAP_CIPHER) != 0) {
-        /* TODO: make this not get a method we can call directly */
+    keylen = EVP_CIPHER_get_key_length(cipher);
+    if ((EVP_CIPHER_get_flags(cipher) & EVP_CIPH_FLAG_GET_WRAP_CIPHER) != 0) {
         ret = EVP_CIPHER_meth_get_ctrl(cipher)(NULL, EVP_CTRL_GET_WRAP_CIPHER,
                                                0, &kekcipher);
         if (ret <= 0)
              return 0;
 
         if (kekcipher != NULL) {
-             if (EVP_CIPHER_mode(kekcipher) != EVP_CIPH_WRAP_MODE)
+             if (EVP_CIPHER_get_mode(kekcipher) != EVP_CIPH_WRAP_MODE)
                  return 0;
-             kekcipher_name = EVP_CIPHER_name(kekcipher);
+             kekcipher_name = EVP_CIPHER_get0_name(kekcipher);
              goto enc;
         }
     }
@@ -451,7 +450,7 @@ static int cms_wrap_init(CMS_KeyAgreeRecipientInfo *kari,
      * DES3 wrap otherwise use AES wrap similar to key size.
      */
 #ifndef OPENSSL_NO_DES
-    if (EVP_CIPHER_type(cipher) == NID_des_ede3_cbc)
+    if (EVP_CIPHER_get_type(cipher) == NID_des_ede3_cbc)
         kekcipher_name = SN_id_smime_alg_CMS3DESwrap;
     else
 #endif

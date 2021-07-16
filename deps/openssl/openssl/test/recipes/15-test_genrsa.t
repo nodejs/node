@@ -24,19 +24,16 @@ use lib bldtop_dir('.');
 my $no_fips = disabled('fips') || ($ENV{NO_FIPS} // 0);
 
 plan tests =>
-    ($no_fips ? 0 : 1)          # Extra FIPS related test
+    ($no_fips ? 0 : 3)          # Extra FIPS related tests
     + 13;
 
 # We want to know that an absurdly small number of bits isn't support
-if (disabled("deprecated-3.0")) {
-    is(run(app([ 'openssl', 'genpkey', '-out', 'genrsatest.pem',
-                 '-algorithm', 'RSA', '-pkeyopt', 'rsa_keygen_bits:8',
-                 '-pkeyopt', 'rsa_keygen_pubexp:3'])),
-               0, "genrsa -3 8");
-} else {
-    is(run(app([ 'openssl', 'genrsa', '-3', '-out', 'genrsatest.pem', '8'])),
-               0, "genrsa -3 8");
-}
+is(run(app([ 'openssl', 'genpkey', '-out', 'genrsatest.pem',
+             '-algorithm', 'RSA', '-pkeyopt', 'rsa_keygen_bits:8',
+             '-pkeyopt', 'rsa_keygen_pubexp:3'])),
+           0, "genpkey 8");
+is(run(app([ 'openssl', 'genrsa', '-3', '-out', 'genrsatest.pem', '8'])),
+           0, "genrsa -3 8");
 
 # Depending on the shared library, we might have different lower limits.
 # Let's find it!  This is a simple binary search
@@ -50,16 +47,10 @@ my $fin;
 while ($good > $bad + 1) {
     my $checked = int(($good + $bad + 1) / 2);
     my $bits = 2 ** $checked;
-    if (disabled("deprecated-3.0")) {
-        $fin = run(app([ 'openssl', 'genpkey', '-out', 'genrsatest.pem',
-                         '-algorithm', 'RSA', '-pkeyopt', 'rsa_keygen_pubexp:65537',
-                         '-pkeyopt', "rsa_keygen_bits:$bits",
-                       ], stderr => undef));
-    } else {
-        $fin = run(app([ 'openssl', 'genrsa', '-3', '-out', 'genrsatest.pem',
-                         $bits
-                       ], stderr => undef));
-    }
+    $fin = run(app([ 'openssl', 'genpkey', '-out', 'genrsatest.pem',
+                     '-algorithm', 'RSA', '-pkeyopt', 'rsa_keygen_pubexp:65537',
+                     '-pkeyopt', "rsa_keygen_bits:$bits",
+                   ], stderr => undef));
     if ($fin) {
         note 2 ** $checked, " bits is good";
         $good = $checked;
@@ -76,14 +67,9 @@ ok(run(app([ 'openssl', 'genpkey', '-algorithm', 'RSA',
              '-pkeyopt', 'rsa_keygen_pubexp:65537',
              '-pkeyopt', "rsa_keygen_bits:$good",
              '-out', 'genrsatest.pem' ])),
-   "genpkey -3 $good");
+   "genpkey $good");
 ok(run(app([ 'openssl', 'pkey', '-check', '-in', 'genrsatest.pem', '-noout' ])),
    "pkey -check");
-ok(run(app([ 'openssl', 'genpkey', '-algorithm', 'RSA',
-             '-pkeyopt', 'rsa_keygen_pubexp:65537',
-             '-pkeyopt', "rsa_keygen_bits:$good",
-             '-out', 'genrsatest.pem' ])),
-   "genpkey -f4 $good");
 
 ok(run(app([ 'openssl', 'genpkey', '-algorithm', 'RSA',
              '-pkeyopt', 'rsa_keygen_bits:2048',
@@ -104,19 +90,19 @@ ok(!run(app([ 'openssl', 'genpkey', '-propquery', 'unknown',
              '-algorithm', 'RSA' ])),
    "genpkey requesting unknown=yes property should fail");
 
-
  SKIP: {
-    skip "Skipping rsa command line test", 4 if disabled("deprecated-3.0");
+    skip "Skipping rsa command line test", 2 if disabled("deprecated-3.0");
 
     ok(run(app([ 'openssl', 'genrsa', '-3', '-out', 'genrsatest.pem', $good ])),
        "genrsa -3 $good");
     ok(run(app([ 'openssl', 'rsa', '-check', '-in', 'genrsatest.pem', '-noout' ])),
        "rsa -check");
-    ok(run(app([ 'openssl', 'genrsa', '-f4', '-out', 'genrsatest.pem', $good ])),
-       "genrsa -f4 $good");
-    ok(run(app([ 'openssl', 'rsa', '-check', '-in', 'genrsatest.pem', '-noout' ])),
-       "rsa -check");
-}
+ }
+
+ok(run(app([ 'openssl', 'genrsa', '-f4', '-out', 'genrsatest.pem', $good ])),
+   "genrsa -f4 $good");
+ok(run(app([ 'openssl', 'rsa', '-check', '-in', 'genrsatest.pem', '-noout' ])),
+   "rsa -check");
 
 unless ($no_fips) {
     my $provconf = srctop_file("test", "fips-and-base.cnf");
@@ -127,8 +113,22 @@ unless ($no_fips) {
     $ENV{OPENSSL_TEST_LIBCTX} = "1";
     ok(run(app(['openssl', 'genpkey',
                 @prov,
-               '-algorithm', 'RSA',
-               '-pkeyopt', 'bits:2080',
-               '-out', 'genrsatest2080.pem'])),
+                '-algorithm', 'RSA',
+                '-pkeyopt', 'bits:2080',
+                '-out', 'genrsatest2080.pem'])),
        "Generating RSA key with > 2048 bits and < 3072 bits");
+    ok(run(app(['openssl', 'genpkey',
+                @prov,
+                '-algorithm', 'RSA',
+                '-pkeyopt', 'bits:3072',
+                '-out', 'genrsatest3072.pem'])),
+       "Generating RSA key with 3072 bits");
+
+    # We want to know that an absurdly large number of bits fails the RNG check
+    is(run(app([ 'openssl', 'genpkey',
+                 @prov,
+                 '-algorithm', 'RSA',
+                 '-pkeyopt', 'bits:1000000000',
+                 '-out', 'genrsatest.pem'])),
+               0, "genpkey 1000000000");
 }

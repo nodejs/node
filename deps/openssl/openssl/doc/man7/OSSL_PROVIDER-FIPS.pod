@@ -18,7 +18,7 @@ defined:
 
 =over 4
 
-=item "provider=default"
+=item "provider=fips"
 
 =item "fips=yes"
 
@@ -62,7 +62,7 @@ The OpenSSL FIPS provider supports these operations and algorithms:
 
 =item AES, see L<EVP_CIPHER-AES(7)>
 
-=item DES-EDE3 (TrippleDES), see L<EVP_CIPHER-DES(7)>
+=item DES-EDE3 (TripleDES), see L<EVP_CIPHER-DES(7)>
 
 =back
 

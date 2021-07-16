@@ -21,6 +21,7 @@
 #include <openssl/lhash.h>
 #include <openssl/conf.h>
 #include <openssl/conf_api.h>
+#include "conf_local.h"
 #include "conf_def.h"
 #include <openssl/buffer.h>
 #include <openssl/err.h>

@@ -16,6 +16,7 @@
 #include <openssl/provider.h>
 #include <openssl/trace.h>
 #include "internal/bio.h"
+#include "internal/provider.h"
 #include "encoder_local.h"
 
 struct encoder_process_data_st {
@@ -36,6 +37,8 @@ struct encoder_process_data_st {
     OSSL_ENCODER_INSTANCE *prev_encoder_inst;
     unsigned char *running_output;
     size_t running_output_length;
+    /* Data type = the name of the first succeeding encoder implementation */
+    const char *data_type;
 };
 
 static int encoder_process(struct encoder_process_data_st *data);
@@ -178,16 +181,13 @@ static OSSL_ENCODER_INSTANCE *ossl_encoder_instance_new(OSSL_ENCODER *encoder,
                                                         void *encoderctx)
 {
     OSSL_ENCODER_INSTANCE *encoder_inst = NULL;
-    OSSL_PARAM params[4];
+    const OSSL_PROVIDER *prov;
+    OSSL_LIB_CTX *libctx;
+    const OSSL_PROPERTY_LIST *props;
+    const OSSL_PROPERTY_DEFINITION *prop;
 
     if (!ossl_assert(encoder != NULL)) {
         ERR_raise(ERR_LIB_OSSL_ENCODER, ERR_R_PASSED_NULL_PARAMETER);
-        return 0;
-    }
-
-    if (encoder->get_params == NULL) {
-        ERR_raise(ERR_LIB_OSSL_ENCODER,
-                  OSSL_ENCODER_R_MISSING_GET_PARAMS);
         return 0;
     }
 
@@ -196,30 +196,38 @@ static OSSL_ENCODER_INSTANCE *ossl_encoder_instance_new(OSSL_ENCODER *encoder,
         return 0;
     }
 
-    /*
-     * Cache the input and output types for this encoder.  The output type
-     * is mandatory.
-     */
-    params[0] =
-        OSSL_PARAM_construct_utf8_ptr(OSSL_ENCODER_PARAM_OUTPUT_TYPE,
-                                      (char **)&encoder_inst->output_type, 0);
-    params[1] =
-        OSSL_PARAM_construct_utf8_ptr(OSSL_ENCODER_PARAM_OUTPUT_STRUCTURE,
-                                      (char **)&encoder_inst->output_structure,
-                                      0);
-    params[2] =
-        OSSL_PARAM_construct_utf8_ptr(OSSL_ENCODER_PARAM_INPUT_TYPE,
-                                      (char **)&encoder_inst->input_type, 0);
-    params[3] = OSSL_PARAM_construct_end();
-
-    if (!encoder->get_params(params)
-        || !OSSL_PARAM_modified(&params[0]))
-        goto err;
-
     if (!OSSL_ENCODER_up_ref(encoder)) {
         ERR_raise(ERR_LIB_OSSL_ENCODER, ERR_R_INTERNAL_ERROR);
         goto err;
     }
+
+    prov = OSSL_ENCODER_get0_provider(encoder);
+    libctx = ossl_provider_libctx(prov);
+    props = ossl_encoder_parsed_properties(encoder);
+    if (props == NULL) {
+        ERR_raise_data(ERR_LIB_OSSL_DECODER, ERR_R_INVALID_PROPERTY_DEFINITION,
+                       "there are no property definitions with encoder %s",
+                       OSSL_ENCODER_get0_name(encoder));
+        goto err;
+    }
+
+    /* The "output" property is mandatory */
+    prop = ossl_property_find_property(props, libctx, "output");
+    encoder_inst->output_type = ossl_property_get_string_value(libctx, prop);
+    if (encoder_inst->output_type == NULL) {
+        ERR_raise_data(ERR_LIB_OSSL_DECODER, ERR_R_INVALID_PROPERTY_DEFINITION,
+                       "the mandatory 'output' property is missing "
+                       "for encoder %s (properties: %s)",
+                       OSSL_ENCODER_get0_name(encoder),
+                       OSSL_ENCODER_get0_properties(encoder));
+        goto err;
+    }
+
+    /* The "structure" property is optional */
+    prop = ossl_property_find_property(props, libctx, "structure");
+    if (prop != NULL)
+        encoder_inst->output_structure
+            = ossl_property_get_string_value(libctx, prop);
 
     encoder_inst->encoder = encoder;
     encoder_inst->encoderctx = encoderctx;
@@ -257,11 +265,11 @@ static int ossl_encoder_ctx_add_encoder_inst(OSSL_ENCODER_CTX *ctx,
     if (ok) {
         OSSL_TRACE_BEGIN(ENCODER) {
             BIO_printf(trc_out,
-                       "(ctx %p) Added encoder instance %p (encoder %p) with:\n",
-                       (void *)ctx, (void *)ei, (void *)ei->encoder);
-            BIO_printf(trc_out,
-                       "    output type: %s, output structure: %s, input type :%s\n",
-                       ei->output_type, ei->output_structure, ei->input_type);
+                       "(ctx %p) Added encoder instance %p (encoder %p):\n"
+                       "    %s with %s\n",
+                       (void *)ctx, (void *)ei, (void *)ei->encoder,
+                       OSSL_ENCODER_get0_name(ei->encoder),
+                       OSSL_ENCODER_get0_properties(ei->encoder));
         } OSSL_TRACE_END(ENCODER);
     }
     return ok;
@@ -279,7 +287,7 @@ int OSSL_ENCODER_CTX_add_encoder(OSSL_ENCODER_CTX *ctx, OSSL_ENCODER *encoder)
         return 0;
     }
 
-    prov = OSSL_ENCODER_provider(encoder);
+    prov = OSSL_ENCODER_get0_provider(encoder);
     provctx = OSSL_PROVIDER_get0_provider_ctx(prov);
 
     if ((encoderctx = encoder->newctx(provctx)) == NULL
@@ -360,14 +368,6 @@ OSSL_ENCODER_INSTANCE_get_encoder_ctx(OSSL_ENCODER_INSTANCE *encoder_inst)
     if (encoder_inst == NULL)
         return NULL;
     return encoder_inst->encoderctx;
-}
-
-const char *
-OSSL_ENCODER_INSTANCE_get_input_type(OSSL_ENCODER_INSTANCE *encoder_inst)
-{
-    if (encoder_inst == NULL)
-        return NULL;
-    return encoder_inst->input_type;
 }
 
 const char *
@@ -566,6 +566,9 @@ static int encoder_process(struct encoder_process_data_st *data)
                 data->ctx->construct(current_encoder_inst,
                                      data->ctx->construct_data);
 
+            /* Also set the data type, using the encoder implementation name */
+            data->data_type = OSSL_ENCODER_get0_name(current_encoder);
+
             /* Assume that the constructor recorded an error */
             if (original_data != NULL)
                 ok = 1;
@@ -586,15 +589,12 @@ static int encoder_process(struct encoder_process_data_st *data)
                  */
 
                 OSSL_PARAM *abstract_p = abstract;
-                const char *prev_input_type =
-                    OSSL_ENCODER_INSTANCE_get_input_type(data->prev_encoder_inst);
                 const char *prev_output_structure =
                     OSSL_ENCODER_INSTANCE_get_output_structure(data->prev_encoder_inst);
 
-                if (prev_input_type != NULL)
-                    *abstract_p++ =
-                        OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_TYPE,
-                                                         (char *)prev_input_type, 0);
+                *abstract_p++ =
+                    OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_TYPE,
+                                                     (char *)data->data_type, 0);
                 if (prev_output_structure != NULL)
                     *abstract_p++ =
                         OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_STRUCTURE,

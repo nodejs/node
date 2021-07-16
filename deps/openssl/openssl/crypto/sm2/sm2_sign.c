@@ -145,7 +145,7 @@ static BIGNUM *sm2_compute_msg_hash(const EVP_MD *digest,
                                     const uint8_t *msg, size_t msg_len)
 {
     EVP_MD_CTX *hash = EVP_MD_CTX_new();
-    const int md_size = EVP_MD_size(digest);
+    const int md_size = EVP_MD_get_size(digest);
     uint8_t *z = NULL;
     BIGNUM *e = NULL;
     EVP_MD *fetched_digest = NULL;
@@ -163,7 +163,7 @@ static BIGNUM *sm2_compute_msg_hash(const EVP_MD *digest,
         goto done;
     }
 
-    fetched_digest = EVP_MD_fetch(libctx, EVP_MD_name(digest), propq);
+    fetched_digest = EVP_MD_fetch(libctx, EVP_MD_get0_name(digest), propq);
     if (fetched_digest == NULL) {
         ERR_raise(ERR_LIB_SM2, ERR_R_INTERNAL_ERROR);
         goto done;
@@ -240,7 +240,7 @@ static ECDSA_SIG *sm2_sig_gen(const EC_KEY *key, const BIGNUM *e)
     }
 
     for (;;) {
-        if (!BN_priv_rand_range_ex(k, order, ctx)) {
+        if (!BN_priv_rand_range_ex(k, order, 0, ctx)) {
             ERR_raise(ERR_LIB_SM2, ERR_R_INTERNAL_ERROR);
             goto done;
         }

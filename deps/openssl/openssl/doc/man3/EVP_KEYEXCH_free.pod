@@ -2,10 +2,9 @@
 
 =head1 NAME
 
-EVP_KEYEXCH_fetch, EVP_KEYEXCH_free, EVP_KEYEXCH_up_ref, EVP_KEYEXCH_provider,
-EVP_KEYEXCH_is_a, EVP_KEYEXCH_do_all_provided,
-EVP_KEYEXCH_number, EVP_KEYEXCH_names_do_all,
-EVP_KEYEXCH_name, EVP_KEYEXCH_description,
+EVP_KEYEXCH_fetch, EVP_KEYEXCH_free, EVP_KEYEXCH_up_ref,
+EVP_KEYEXCH_get0_provider, EVP_KEYEXCH_is_a, EVP_KEYEXCH_do_all_provided,
+EVP_KEYEXCH_names_do_all, EVP_KEYEXCH_get0_name, EVP_KEYEXCH_get0_description,
 EVP_KEYEXCH_gettable_ctx_params, EVP_KEYEXCH_settable_ctx_params
 - Functions to manage EVP_KEYEXCH algorithm objects
 
@@ -17,17 +16,16 @@ EVP_KEYEXCH_gettable_ctx_params, EVP_KEYEXCH_settable_ctx_params
                                 const char *properties);
  void EVP_KEYEXCH_free(EVP_KEYEXCH *exchange);
  int EVP_KEYEXCH_up_ref(EVP_KEYEXCH *exchange);
- OSSL_PROVIDER *EVP_KEYEXCH_provider(const EVP_KEYEXCH *exchange);
+ OSSL_PROVIDER *EVP_KEYEXCH_get0_provider(const EVP_KEYEXCH *exchange);
  int EVP_KEYEXCH_is_a(const EVP_KEYEXCH *exchange, const char *name);
- int EVP_KEYEXCH_number(const EVP_KEYEXCH *exchange);
- const char *EVP_KEYEXCH_name(const EVP_KEYEXCH *exchange);
+ const char *EVP_KEYEXCH_get0_name(const EVP_KEYEXCH *exchange);
  void EVP_KEYEXCH_do_all_provided(OSSL_LIB_CTX *libctx,
                                   void (*fn)(EVP_KEYEXCH *exchange, void *arg),
                                   void *arg);
  int EVP_KEYEXCH_names_do_all(const EVP_KEYEXCH *exchange,
                               void (*fn)(const char *name, void *data),
                               void *data);
- const char *EVP_KEYEXCH_description(const EVP_KEYEXCH *keyexch);
+ const char *EVP_KEYEXCH_get0_description(const EVP_KEYEXCH *keyexch);
  const OSSL_PARAM *EVP_KEYEXCH_gettable_ctx_params(const EVP_KEYEXCH *keyexch);
  const OSSL_PARAM *EVP_KEYEXCH_settable_ctx_params(const EVP_KEYEXCH *keyexch);
 
@@ -48,15 +46,13 @@ structure is freed.
 EVP_KEYEXCH_up_ref() increments the reference count for an B<EVP_KEYEXCH>
 structure.
 
-EVP_KEYEXCH_provider() returns the provider that I<exchange> was fetched from.
+EVP_KEYEXCH_get0_provider() returns the provider that I<exchange> was
+fetched from.
 
 EVP_KEYEXCH_is_a() checks if I<exchange> is an implementation of an
 algorithm that's identifiable with I<name>.
 
-EVP_KEYEXCH_number() returns the internal dynamic number assigned to
-the I<exchange>.
-
-EVP_KEYEXCH_name() returns the algorithm name from the provided
+EVP_KEYEXCH_get0_name() returns the algorithm name from the provided
 implementation for the given I<exchange>. Note that the I<exchange> may have
 multiple synonyms associated with it. In this case the first name from the
 algorithm definition is returned. Ownership of the returned string is retained
@@ -65,9 +61,9 @@ by the I<exchange> object and should not be freed by the caller.
 EVP_KEYEXCH_names_do_all() traverses all names for the I<exchange>, and
 calls I<fn> with each name and I<data>.
 
-EVP_KEYEXCH_description() returns a description of the I<keyexch>, meant for
-display and human consumption.  The description is at the discretion of the
-I<keyexch> implementation.
+EVP_KEYEXCH_get0_description() returns a description of the I<keyexch>, meant
+for display and human consumption.  The description is at the discretion of
+the I<keyexch> implementation.
 
 EVP_KEYEXCH_do_all_provided() traverses all key exchange implementations by
 all activated providers in the library context I<libctx>, and for each
@@ -91,8 +87,6 @@ names. A return value of 0 means that the callback was not called for any names.
 
 EVP_KEYEXCH_is_a() returns 1 of I<exchange> was identifiable,
 otherwise 0.
-
-EVP_KEYEXCH_number() returns an integer.
 
 EVP_KEYEXCH_gettable_ctx_params() and EVP_KEYEXCH_settable_ctx_params() return
 a constant B<OSSL_PARAM> array or NULL on error.

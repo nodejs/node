@@ -49,7 +49,6 @@ static int load_common(const OSSL_PARAM params[], const char **propquery,
     }
 
     *engine = NULL;
-    /* TODO legacy stuff, to be removed */
     /* Inside the FIPS module, we don't support legacy ciphers */
 #if !defined(FIPS_MODULE) && !defined(OPENSSL_NO_ENGINE)
     p = OSSL_PARAM_locate_const(params, OSSL_ALG_PARAM_ENGINE);
@@ -87,7 +86,6 @@ int ossl_prov_cipher_load_from_params(PROV_CIPHER *pc,
     EVP_CIPHER_free(pc->alloc_cipher);
     ERR_set_mark();
     pc->cipher = pc->alloc_cipher = EVP_CIPHER_fetch(ctx, p->data, propquery);
-    /* TODO legacy stuff, to be removed */
 #ifndef FIPS_MODULE /* Inside the FIPS module, we don't support legacy ciphers */
     if (pc->cipher == NULL)
         pc->cipher = EVP_get_cipherbyname(p->data);
@@ -157,7 +155,6 @@ int ossl_prov_digest_load_from_params(PROV_DIGEST *pd,
 
     ERR_set_mark();
     ossl_prov_digest_fetch(pd, ctx, p->data, propquery);
-    /* TODO legacy stuff, to be removed */
 #ifndef FIPS_MODULE /* Inside the FIPS module, we don't support legacy digests */
     if (pd->md == NULL)
         pd->md = EVP_get_digestbyname(p->data);

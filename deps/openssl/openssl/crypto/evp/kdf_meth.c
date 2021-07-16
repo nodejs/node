@@ -179,7 +179,7 @@ const OSSL_PARAM *EVP_KDF_gettable_params(const EVP_KDF *kdf)
 {
     if (kdf->gettable_params == NULL)
         return NULL;
-    return kdf->gettable_params(ossl_provider_ctx(EVP_KDF_provider(kdf)));
+    return kdf->gettable_params(ossl_provider_ctx(EVP_KDF_get0_provider(kdf)));
 }
 
 const OSSL_PARAM *EVP_KDF_gettable_ctx_params(const EVP_KDF *kdf)
@@ -188,7 +188,7 @@ const OSSL_PARAM *EVP_KDF_gettable_ctx_params(const EVP_KDF *kdf)
 
     if (kdf->gettable_ctx_params == NULL)
         return NULL;
-    alg = ossl_provider_ctx(EVP_KDF_provider(kdf));
+    alg = ossl_provider_ctx(EVP_KDF_get0_provider(kdf));
     return kdf->gettable_ctx_params(NULL, alg);
 }
 
@@ -198,7 +198,7 @@ const OSSL_PARAM *EVP_KDF_settable_ctx_params(const EVP_KDF *kdf)
 
     if (kdf->settable_ctx_params == NULL)
         return NULL;
-    alg = ossl_provider_ctx(EVP_KDF_provider(kdf));
+    alg = ossl_provider_ctx(EVP_KDF_get0_provider(kdf));
     return kdf->settable_ctx_params(NULL, alg);
 }
 
@@ -208,8 +208,8 @@ const OSSL_PARAM *EVP_KDF_CTX_gettable_params(EVP_KDF_CTX *ctx)
 
     if (ctx->meth->gettable_ctx_params == NULL)
         return NULL;
-    alg = ossl_provider_ctx(EVP_KDF_provider(ctx->meth));
-    return ctx->meth->gettable_ctx_params(ctx->data, alg);
+    alg = ossl_provider_ctx(EVP_KDF_get0_provider(ctx->meth));
+    return ctx->meth->gettable_ctx_params(ctx->algctx, alg);
 }
 
 const OSSL_PARAM *EVP_KDF_CTX_settable_params(EVP_KDF_CTX *ctx)
@@ -218,8 +218,8 @@ const OSSL_PARAM *EVP_KDF_CTX_settable_params(EVP_KDF_CTX *ctx)
 
     if (ctx->meth->settable_ctx_params == NULL)
         return NULL;
-    alg = ossl_provider_ctx(EVP_KDF_provider(ctx->meth));
-    return ctx->meth->settable_ctx_params(ctx->data, alg);
+    alg = ossl_provider_ctx(EVP_KDF_get0_provider(ctx->meth));
+    return ctx->meth->settable_ctx_params(ctx->algctx, alg);
 }
 
 void EVP_KDF_do_all_provided(OSSL_LIB_CTX *libctx,
@@ -228,5 +228,5 @@ void EVP_KDF_do_all_provided(OSSL_LIB_CTX *libctx,
 {
     evp_generic_do_all(libctx, OSSL_OP_KDF,
                        (void (*)(void *, void *))fn, arg,
-                       evp_kdf_from_algorithm, evp_kdf_free);
+                       evp_kdf_from_algorithm, evp_kdf_up_ref, evp_kdf_free);
 }

@@ -162,8 +162,8 @@
         OPT_S_STRICT, OPT_S_SIGALGS, OPT_S_CLIENTSIGALGS, OPT_S_GROUPS, \
         OPT_S_CURVES, OPT_S_NAMEDCURVE, OPT_S_CIPHER, OPT_S_CIPHERSUITES, \
         OPT_S_RECORD_PADDING, OPT_S_DEBUGBROKE, OPT_S_COMP, \
-        OPT_S_MINPROTO, OPT_S_MAXPROTO, OPT_S_IMMEDIATE_RENEG, \
-        OPT_S_NO_RENEGOTIATION, OPT_S_NO_MIDDLEBOX, OPT_S__LAST
+        OPT_S_MINPROTO, OPT_S_MAXPROTO, \
+        OPT_S_NO_RENEGOTIATION, OPT_S_NO_MIDDLEBOX, OPT_S_NO_ETM, OPT_S__LAST
 
 # define OPT_S_OPTIONS \
         OPT_SECTION("TLS/SSL"), \
@@ -211,14 +211,14 @@
         {"ciphersuites", OPT_S_CIPHERSUITES, 's', "Specify TLSv1.3 ciphersuites to be used"}, \
         {"min_protocol", OPT_S_MINPROTO, 's', "Specify the minimum protocol version to be used"}, \
         {"max_protocol", OPT_S_MAXPROTO, 's', "Specify the maximum protocol version to be used"}, \
-        {"immediate_renegotiation", OPT_S_IMMEDIATE_RENEG, '-', \
-            "Immediately attempt renegotiation"}, \
         {"record_padding", OPT_S_RECORD_PADDING, 's', \
             "Block size to pad TLS 1.3 records to."}, \
         {"debug_broken_protocol", OPT_S_DEBUGBROKE, '-', \
             "Perform all sorts of protocol violations for testing purposes"}, \
         {"no_middlebox", OPT_S_NO_MIDDLEBOX, '-', \
-            "Disable TLSv1.3 middlebox compat mode" }
+            "Disable TLSv1.3 middlebox compat mode" }, \
+        {"no_etm", OPT_S_NO_ETM, '-', \
+            "Disable Encrypt-then-Mac extension"}
 
 # define OPT_S_CASES \
         OPT_S__FIRST: case OPT_S__LAST: break; \
@@ -252,7 +252,8 @@
         case OPT_S_MINPROTO: \
         case OPT_S_MAXPROTO: \
         case OPT_S_DEBUGBROKE: \
-        case OPT_S_NO_MIDDLEBOX
+        case OPT_S_NO_MIDDLEBOX: \
+        case OPT_S_NO_ETM
 
 #define IS_NO_PROT_FLAG(o) \
  (o == OPT_S_NOSSL3 || o == OPT_S_NOTLS1 || o == OPT_S_NOTLS1_1 \
@@ -316,6 +317,9 @@ typedef struct options_st {
     int valtype;
     const char *helpstr;
 } OPTIONS;
+/* Special retval values: */
+#define OPT_PARAM 0 /* same as OPT_EOF usually defined in apps */
+#define OPT_DUP -2 /* marks duplicate occurrence of option in help output */
 
 /*
  * A string/int pairing; widely use for option value lookup, hence the
@@ -362,6 +366,7 @@ char *opt_flag(void);
 char *opt_arg(void);
 char *opt_unknown(void);
 int opt_cipher(const char *name, EVP_CIPHER **cipherp);
+int opt_cipher_any(const char *name, EVP_CIPHER **cipherp);
 int opt_cipher_silent(const char *name, EVP_CIPHER **cipherp);
 int opt_md(const char *name, EVP_MD **mdp);
 int opt_md_silent(const char *name, EVP_MD **mdp);

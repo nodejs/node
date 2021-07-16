@@ -108,7 +108,7 @@ static int SSKDF_hash_kdm(const EVP_MD *kdf_md,
             || derived_key_len == 0)
         return 0;
 
-    hlen = EVP_MD_size(kdf_md);
+    hlen = EVP_MD_get_size(kdf_md);
     if (hlen <= 0)
         return 0;
     out_len = (size_t)hlen;
@@ -338,7 +338,7 @@ static size_t sskdf_size(KDF_SSKDF *ctx)
         ERR_raise(ERR_LIB_PROV, PROV_R_MISSING_MESSAGE_DIGEST);
         return 0;
     }
-    len = EVP_MD_size(md);
+    len = EVP_MD_get_size(md);
     return (len <= 0) ? 0 : (size_t)len;
 }
 
@@ -362,7 +362,7 @@ static int sskdf_derive(void *vctx, unsigned char *key, size_t keylen,
         const unsigned char *custom = NULL;
         size_t custom_len = 0;
         int default_salt_len;
-        EVP_MAC *mac = EVP_MAC_CTX_mac(ctx->macctx);
+        EVP_MAC *mac = EVP_MAC_CTX_get0_mac(ctx->macctx);
 
         if (EVP_MAC_is_a(mac, OSSL_MAC_NAME_HMAC)) {
             /* H(x) = HMAC(x, salt, hash) */
@@ -370,7 +370,7 @@ static int sskdf_derive(void *vctx, unsigned char *key, size_t keylen,
                 ERR_raise(ERR_LIB_PROV, PROV_R_MISSING_MESSAGE_DIGEST);
                 return 0;
             }
-            default_salt_len = EVP_MD_size(md);
+            default_salt_len = EVP_MD_get_size(md);
             if (default_salt_len <= 0)
                 return 0;
         } else if (EVP_MAC_is_a(mac, OSSL_MAC_NAME_KMAC128)

@@ -31,6 +31,9 @@ All these parameters can be set with EVP_MAC_CTX_set_params().
 Furthermore, the "size" parameter can be retrieved with
 EVP_MAC_CTX_get_params(), or with EVP_MAC_CTX_get_mac_size().
 The length of the "size" parameter should not exceed that of a B<size_t>.
+Likewise, the "block-size" parameter can be retrieved with
+EVP_MAC_CTX_get_params(), or with EVP_MAC_CTX_get_block_size().
+
 
 =over 4
 
@@ -48,6 +51,11 @@ It is an optional value of at most 256 bytes, and is empty by default.
 
 Sets the MAC size.
 By default, it is 16 for C<KMAC-128> and 32 for C<KMAC-256>.
+
+=item "block-size" (B<OSSL_MAC_PARAM_SIZE>) <unsigned integer>
+
+Gets the MAC block size.
+By default, it is 168 for C<KMAC-128> and 136 for C<KMAC-256>.
 
 =item "xof" (B<OSSL_MAC_PARAM_XOF>) <integer>
 

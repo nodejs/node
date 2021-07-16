@@ -147,21 +147,6 @@ FILE *__iob_func();
 #     define stdin  (&__iob_func()[0])
 #     define stdout (&__iob_func()[1])
 #     define stderr (&__iob_func()[2])
-#    elif _MSC_VER<1300 && defined(I_CAN_LIVE_WITH_LNK4049)
-#     undef stdin
-#     undef stdout
-#     undef stderr
-         /*
-          * pre-1300 has __p__iob(), but it's available only in msvcrt.lib,
-          * or in other words with /MD. Declaring implicit import, i.e. with
-          * _imp_ prefix, works correctly with all compiler options, but
-          * without /MD results in LINK warning LNK4049: 'locally defined
-          * symbol "__iob" imported'.
-          */
-extern FILE *_imp___iob;
-#     define stdin  (&_imp___iob[0])
-#     define stdout (&_imp___iob[1])
-#     define stderr (&_imp___iob[2])
 #    endif
 #   endif
 #  endif

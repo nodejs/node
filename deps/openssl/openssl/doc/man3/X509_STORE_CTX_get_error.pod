@@ -398,11 +398,11 @@ This error is only possible in L<openssl-s_client(1)>.
 
 EE certificate key too weak.
 
-=item B<X509_ERR_CA_KEY_TOO_SMALL: CA certificate key too weak>
+=item B<X509_V_ERR_CA_KEY_TOO_SMALL: CA certificate key too weak>
 
 CA certificate key too weak.
 
-=item B<X509_ERR_CA_MD_TOO_WEAK: CA signature digest algorithm too weak>
+=item B<X509_V_ERR_CA_MD_TOO_WEAK: CA signature digest algorithm too weak>
 
 CA signature digest algorithm too weak.
 
@@ -459,6 +459,12 @@ to the current certificate.
 If an unrecognised error code is passed to X509_verify_cert_error_string() the
 numerical value of the unknown code is returned in a static buffer. This is not
 thread safe but will never happen unless an invalid code is passed.
+
+=head1 BUGS
+
+Previous versions of this documentation swapped the meaning of the
+B<X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT> and
+B<X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY> error codes.
 
 =head1 SEE ALSO
 

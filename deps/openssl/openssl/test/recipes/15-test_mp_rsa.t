@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2017-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
 # Copyright 2017 BaishanCloud. All rights reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -35,14 +35,14 @@ my @test_param = (
     },
 );
 
-plan tests => 1 + scalar(@test_param) * 5 * (disabled('deprecated-3.0') ? 1 : 2);
+plan tests => 1 + scalar(@test_param) * 5 * 2;
 
 ok(run(test(["rsa_mp_test"])), "running rsa multi prime test");
 
 my $cleartext = data_file("plain_text");
 
 # genrsa
-run_mp_tests(0) if !disabled('deprecated-3.0');
+run_mp_tests(0);
 # evp
 run_mp_tests(1);
 
@@ -77,14 +77,25 @@ sub run_mp_tests {
             ok(run(app([ 'openssl', 'rsa', '-check',
                          '-in', "rsamptest-$name.pem", '-noout'])),
                "rsa -check $name");
-            ok(run(app([ 'openssl', 'rsautl', '-inkey', "rsamptest-$name.pem",
-                         '-encrypt', '-in', $cleartext,
-                         '-out', "rsamptest-$name.enc" ])),
-               "rsa $name encrypt");
-            ok(run(app([ 'openssl', 'rsautl', '-inkey', "rsamptest-$name.pem",
-                         '-decrypt', '-in', "rsamptest-$name.enc",
-                         '-out', "rsamptest-$name.dec" ])),
-               "rsa $name decrypt");
+            if (!disabled('deprecated-3.0')) {
+                ok(run(app([ 'openssl', 'rsautl', '-inkey', "rsamptest-$name.pem",
+                             '-encrypt', '-in', $cleartext,
+                             '-out', "rsamptest-$name.enc" ])),
+                   "rsa $name encrypt");
+                ok(run(app([ 'openssl', 'rsautl', '-inkey', "rsamptest-$name.pem",
+                             '-decrypt', '-in', "rsamptest-$name.enc",
+                             '-out', "rsamptest-$name.dec" ])),
+                   "rsa $name decrypt");
+            } else {
+                ok(run(app([ 'openssl', 'pkeyutl', '-inkey', "rsamptest-$name.pem",
+                             '-encrypt', '-in', $cleartext,
+                             '-out', "rsamptest-$name.enc" ])),
+                   "rsa $name encrypt");
+                ok(run(app([ 'openssl', 'pkeyutl', '-inkey', "rsamptest-$name.pem",
+                             '-decrypt', '-in', "rsamptest-$name.enc",
+                             '-out', "rsamptest-$name.dec" ])),
+                   "rsa $name decrypt");
+            }
         }
         ok(check_msg("rsamptest-$name.dec"), "rsa $name check result");
     }

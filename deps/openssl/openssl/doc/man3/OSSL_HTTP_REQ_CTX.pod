@@ -111,12 +111,16 @@ If the value is 1 or 2 then a persistent connection is requested.
 If the value is 2 then a persistent connection is required,
 i.e., an error occurs in case the server does not grant it.
 
-OSSL_HTTP_REQ_CTX_set1_req() is to be used if and only if the I<method_POST>
-parameter in the OSSL_HTTP_REQ_CTX_set_request_line() call was 1
-and an ASN.1-encoded request should be sent, which does not support streaming.
-It finalizes the HTTP request context by adding the DER encoding of I<req>,
-using the ASN.1 template I<it> to do the encoding.
+OSSL_HTTP_REQ_CTX_set1_req() finalizes the HTTP request context.
+It is needed if the I<method_POST> parameter in the
+OSSL_HTTP_REQ_CTX_set_request_line() call was 1
+and an ASN.1-encoded request should be sent.
+It must also be used when requesting "keep-alive",
+even if a GET request is going to be sent, in which case I<req> must be NULL.
+Unless I<req> is NULL, the function adds the DER encoding of I<req> using
+the ASN.1 template I<it> to do the encoding (which does not support streaming).
 The HTTP header C<Content-Length> is filled out with the length of the request.
+I<content_type> must be NULL if I<req> is NULL.
 If I<content_type> isn't NULL,
 the HTTP header C<Content-Type> is also added with the given string value.
 All of this ends up in the internal memory B<BIO>.
@@ -188,7 +192,7 @@ Then, the HTTP request must be prepared with request data:
 
 =item 1.
 
-Calling OSSL_HTTP_REQ_CTX_set_request_line().  This must be done exactly once.
+Calling OSSL_HTTP_REQ_CTX_set_request_line().
 
 =item 2.
 
@@ -197,9 +201,8 @@ This is optional and may be done multiple times with different names.
 
 =item 3.
 
-Add C<POST> data with OSSL_HTTP_REQ_CTX_set1_req().  This may only be done if
-I<method_POST> was 1 in the OSSL_HTTP_REQ_CTX_set_request_line() call,
-and must be done exactly once in that case.
+Finalize the request using OSSL_HTTP_REQ_CTX_set1_req().
+This may be omitted if the GET method is used and "keep-alive" is not requested.
 
 =back
 

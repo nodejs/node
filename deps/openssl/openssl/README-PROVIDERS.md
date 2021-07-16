@@ -9,7 +9,6 @@ Providers
     - [The Null Provider](#the-null-provider)
  - [Loading Providers](#loading-providers)
 
-
 Standard Providers
 ==================
 
@@ -22,7 +21,6 @@ Documentation about writing providers is available on the [provider(7)]
 manual page.
 
  [provider(7)]: https://www.openssl.org/docs/manmaster/man7/provider.html
-
 
 The Default Provider
 --------------------
@@ -83,10 +81,8 @@ automatically loaded, the null provider can be loaded instead.
 This can be useful if you are using non-default library contexts and want
 to ensure that the default library context is never used unintentionally.
 
-
 Loading Providers
 =================
-
 
 Providers to be loaded can be specified in the OpenSSL config file.
 See the [config(5)] manual page for information about how to configure
@@ -112,13 +108,11 @@ the legacy and the default provider in the default library context.
     [legacy_sect]
     activate = 1
 
-
 It is also possible to load providers programmatically. For example you can
 load the legacy provider into the default library context as shown below.
 Note that once you have explicitly loaded a provider into the library context
 the default provider will no longer be automatically loaded. Therefore you will
 often also want to explicitly load the default provider, as is done here:
-
 
     #include <stdio.h>
     #include <stdlib.h>

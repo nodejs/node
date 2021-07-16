@@ -45,12 +45,12 @@ X509_ALGOR *PKCS5_pbe2_set_iv_ex(const EVP_CIPHER *cipher, int iter,
                                  OSSL_LIB_CTX *libctx)
 {
     X509_ALGOR *scheme = NULL, *ret = NULL;
-    int alg_nid, keylen;
+    int alg_nid, keylen, ivlen;
     EVP_CIPHER_CTX *ctx = NULL;
     unsigned char iv[EVP_MAX_IV_LENGTH];
     PBE2PARAM *pbe2 = NULL;
 
-    alg_nid = EVP_CIPHER_type(cipher);
+    alg_nid = EVP_CIPHER_get_type(cipher);
     if (alg_nid == NID_undef) {
         ERR_raise(ERR_LIB_ASN1, ASN1_R_CIPHER_HAS_NO_OBJECT_IDENTIFIER);
         goto err;
@@ -66,10 +66,11 @@ X509_ALGOR *PKCS5_pbe2_set_iv_ex(const EVP_CIPHER *cipher, int iter,
         goto merr;
 
     /* Create random IV */
-    if (EVP_CIPHER_iv_length(cipher)) {
+    ivlen = EVP_CIPHER_get_iv_length(cipher);
+    if (ivlen > 0) {
         if (aiv)
-            memcpy(iv, aiv, EVP_CIPHER_iv_length(cipher));
-        else if (RAND_bytes_ex(libctx, iv, EVP_CIPHER_iv_length(cipher)) <= 0)
+            memcpy(iv, aiv, ivlen);
+        else if (RAND_bytes_ex(libctx, iv, ivlen, 0) <= 0)
             goto err;
     }
 
@@ -100,7 +101,7 @@ X509_ALGOR *PKCS5_pbe2_set_iv_ex(const EVP_CIPHER *cipher, int iter,
     /* If its RC2 then we'd better setup the key length */
 
     if (alg_nid == NID_rc2_cbc)
-        keylen = EVP_CIPHER_key_length(cipher);
+        keylen = EVP_CIPHER_get_key_length(cipher);
     else
         keylen = -1;
 
@@ -187,7 +188,7 @@ X509_ALGOR *PKCS5_pbkdf2_set_ex(int iter, unsigned char *salt, int saltlen,
 
     if (salt)
         memcpy(osalt->data, salt, saltlen);
-    else if (RAND_bytes_ex(libctx, osalt->data, saltlen) <= 0)
+    else if (RAND_bytes_ex(libctx, osalt->data, saltlen, 0) <= 0)
         goto merr;
 
     if (iter <= 0)

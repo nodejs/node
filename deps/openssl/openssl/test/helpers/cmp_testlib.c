@@ -12,11 +12,11 @@
 #include "cmp_testlib.h"
 #include <openssl/rsa.h> /* needed in case config no-deprecated */
 
-OSSL_CMP_MSG *load_pkimsg(const char *file)
+OSSL_CMP_MSG *load_pkimsg(const char *file, OSSL_LIB_CTX *libctx)
 {
     OSSL_CMP_MSG *msg;
 
-    (void)TEST_ptr((msg = OSSL_CMP_MSG_read(file)));
+    (void)TEST_ptr((msg = OSSL_CMP_MSG_read(file, libctx, NULL)));
     return msg;
 }
 

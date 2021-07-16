@@ -15,8 +15,6 @@
 #include <openssl/err.h>
 #include "internal/cryptlib.h" /* for ossl_assert() */
 
-#include "http_local.h"
-
 static void init_pstring(char **pstr)
 {
     if (pstr != NULL) {
@@ -241,7 +239,7 @@ int OSSL_HTTP_parse_url(const char *url, int *pssl, char **puser, char **phost,
 }
 
 /* Respect no_proxy, taking default value from environment variable(s) */
-int ossl_http_use_proxy(const char *no_proxy, const char *server)
+static int use_proxy(const char *no_proxy, const char *server)
 {
     size_t sl;
     const char *found = NULL;
@@ -269,7 +267,7 @@ int ossl_http_use_proxy(const char *no_proxy, const char *server)
 }
 
 /* Take default value from environment variable(s), respect no_proxy */
-const char *ossl_http_adapt_proxy(const char *proxy, const char *no_proxy,
+const char *OSSL_HTTP_adapt_proxy(const char *proxy, const char *no_proxy,
                                   const char *server, int use_ssl)
 {
     /*
@@ -282,8 +280,7 @@ const char *ossl_http_adapt_proxy(const char *proxy, const char *no_proxy,
         proxy = getenv(use_ssl ? OPENSSL_HTTP_PROXY :
                        OPENSSL_HTTPS_PROXY);
 
-    if (proxy == NULL || *proxy == '\0'
-            || !ossl_http_use_proxy(no_proxy, server))
+    if (proxy == NULL || *proxy == '\0' || !use_proxy(no_proxy, server))
         return NULL;
     return proxy;
 }

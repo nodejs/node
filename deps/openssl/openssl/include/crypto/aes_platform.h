@@ -11,7 +11,7 @@
 # define OSSL_AES_PLATFORM_H
 # pragma once
 
-# include "openssl/aes.h"
+# include <openssl/aes.h>
 
 # ifdef VPAES_ASM
 int vpaes_set_encrypt_key(const unsigned char *userKey, int bits,
@@ -29,18 +29,19 @@ void vpaes_cbc_encrypt(const unsigned char *in,
 # endif /* VPAES_ASM */
 
 # ifdef BSAES_ASM
-void bsaes_cbc_encrypt(const unsigned char *in, unsigned char *out,
-                       size_t length, const AES_KEY *key,
-                       unsigned char ivec[16], int enc);
-void bsaes_ctr32_encrypt_blocks(const unsigned char *in, unsigned char *out,
-                                size_t len, const AES_KEY *key,
-                                const unsigned char ivec[16]);
-void bsaes_xts_encrypt(const unsigned char *inp, unsigned char *out,
-                       size_t len, const AES_KEY *key1,
-                       const AES_KEY *key2, const unsigned char iv[16]);
-void bsaes_xts_decrypt(const unsigned char *inp, unsigned char *out,
-                       size_t len, const AES_KEY *key1,
-                       const AES_KEY *key2, const unsigned char iv[16]);
+void ossl_bsaes_cbc_encrypt(const unsigned char *in, unsigned char *out,
+                            size_t length, const AES_KEY *key,
+                            unsigned char ivec[16], int enc);
+void ossl_bsaes_ctr32_encrypt_blocks(const unsigned char *in,
+                                     unsigned char *out, size_t len,
+                                     const AES_KEY *key,
+                                     const unsigned char ivec[16]);
+void ossl_bsaes_xts_encrypt(const unsigned char *inp, unsigned char *out,
+                            size_t len, const AES_KEY *key1,
+                            const AES_KEY *key2, const unsigned char iv[16]);
+void ossl_bsaes_xts_decrypt(const unsigned char *inp, unsigned char *out,
+                            size_t len, const AES_KEY *key1,
+                            const AES_KEY *key2, const unsigned char iv[16]);
 # endif /* BSAES_ASM */
 
 # ifdef AES_CTR_ASM
@@ -263,22 +264,22 @@ void aes_t4_decrypt(const unsigned char *in, unsigned char *out,
  */
 void aes128_t4_cbc_encrypt(const unsigned char *in, unsigned char *out,
                            size_t len, const AES_KEY *key,
-                           unsigned char *ivec);
+                           unsigned char *ivec, int /*unused*/);
 void aes128_t4_cbc_decrypt(const unsigned char *in, unsigned char *out,
                            size_t len, const AES_KEY *key,
-                           unsigned char *ivec);
+                           unsigned char *ivec, int /*unused*/);
 void aes192_t4_cbc_encrypt(const unsigned char *in, unsigned char *out,
                            size_t len, const AES_KEY *key,
-                           unsigned char *ivec);
+                           unsigned char *ivec, int /*unused*/);
 void aes192_t4_cbc_decrypt(const unsigned char *in, unsigned char *out,
                            size_t len, const AES_KEY *key,
-                           unsigned char *ivec);
+                           unsigned char *ivec, int /*unused*/);
 void aes256_t4_cbc_encrypt(const unsigned char *in, unsigned char *out,
                            size_t len, const AES_KEY *key,
-                           unsigned char *ivec);
+                           unsigned char *ivec, int /*unused*/);
 void aes256_t4_cbc_decrypt(const unsigned char *in, unsigned char *out,
                            size_t len, const AES_KEY *key,
-                           unsigned char *ivec);
+                           unsigned char *ivec, int /*unused*/);
 void aes128_t4_ctr32_encrypt(const unsigned char *in, unsigned char *out,
                              size_t blocks, const AES_KEY *key,
                              unsigned char *ivec);

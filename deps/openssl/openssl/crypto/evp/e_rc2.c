@@ -92,7 +92,7 @@ const EVP_CIPHER *EVP_rc2_40_cbc(void)
 static int rc2_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
                         const unsigned char *iv, int enc)
 {
-    RC2_set_key(&data(ctx)->ks, EVP_CIPHER_CTX_key_length(ctx),
+    RC2_set_key(&data(ctx)->ks, EVP_CIPHER_CTX_get_key_length(ctx),
                 key, data(ctx)->key_bits);
     return 1;
 }
@@ -136,7 +136,7 @@ static int rc2_get_asn1_type_and_iv(EVP_CIPHER_CTX *c, ASN1_TYPE *type)
     unsigned char iv[EVP_MAX_IV_LENGTH];
 
     if (type != NULL) {
-        l = EVP_CIPHER_CTX_iv_length(c);
+        l = EVP_CIPHER_CTX_get_iv_length(c);
         OPENSSL_assert(l <= sizeof(iv));
         i = ASN1_TYPE_get_int_octetstring(type, &num, iv, l);
         if (i != (int)l)
@@ -161,7 +161,7 @@ static int rc2_set_asn1_type_and_iv(EVP_CIPHER_CTX *c, ASN1_TYPE *type)
 
     if (type != NULL) {
         num = rc2_meth_to_magic(c);
-        j = EVP_CIPHER_CTX_iv_length(c);
+        j = EVP_CIPHER_CTX_get_iv_length(c);
         i = ASN1_TYPE_set_int_octetstring(type, num, c->oiv, j);
     }
     return i;
@@ -171,7 +171,7 @@ static int rc2_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
 {
     switch (type) {
     case EVP_CTRL_INIT:
-        data(c)->key_bits = EVP_CIPHER_CTX_key_length(c) * 8;
+        data(c)->key_bits = EVP_CIPHER_CTX_get_key_length(c) * 8;
         return 1;
 
     case EVP_CTRL_GET_RC2_KEY_BITS:

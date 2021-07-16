@@ -32,7 +32,7 @@ d2i_PrivateKey_decoder(int keytype, EVP_PKEY **a, const unsigned char **pp,
     EVP_PKEY *pkey = NULL, *bak_a = NULL;
     EVP_PKEY **ppkey = &pkey;
     const char *key_name = NULL;
-    const char *input_structures[] = { "type-specific", "pkcs8", NULL };
+    const char *input_structures[] = { "type-specific", "PrivateKeyInfo", NULL };
     int i, ret;
 
     if (keytype != EVP_PKEY_NONE) {
@@ -74,9 +74,9 @@ err:
     return NULL;
 }
 
-static EVP_PKEY *
-d2i_PrivateKey_legacy(int keytype, EVP_PKEY **a, const unsigned char **pp,
-                      long length, OSSL_LIB_CTX *libctx, const char *propq)
+EVP_PKEY *
+ossl_d2i_PrivateKey_legacy(int keytype, EVP_PKEY **a, const unsigned char **pp,
+                           long length, OSSL_LIB_CTX *libctx, const char *propq)
 {
     EVP_PKEY *ret;
     const unsigned char *p = *pp;
@@ -120,7 +120,7 @@ d2i_PrivateKey_legacy(int keytype, EVP_PKEY **a, const unsigned char **pp,
             EVP_PKEY_free(ret);
             ret = tmp;
             ERR_pop_to_mark();
-            if (EVP_PKEY_type(keytype) != EVP_PKEY_base_id(ret))
+            if (EVP_PKEY_type(keytype) != EVP_PKEY_get_base_id(ret))
                 goto err;
         } else {
             ERR_clear_last_mark();
@@ -149,7 +149,7 @@ EVP_PKEY *d2i_PrivateKey_ex(int keytype, EVP_PKEY **a, const unsigned char **pp,
     ret = d2i_PrivateKey_decoder(keytype, a, pp, length, libctx, propq);
     /* try the legacy path if the decoder failed */
     if (ret == NULL)
-        ret = d2i_PrivateKey_legacy(keytype, a, pp, length, libctx, propq);
+        ret = ossl_d2i_PrivateKey_legacy(keytype, a, pp, length, libctx, propq);
     return ret;
 }
 
@@ -208,7 +208,7 @@ static EVP_PKEY *d2i_AutoPrivateKey_legacy(EVP_PKEY **a,
         keytype = EVP_PKEY_RSA;
     }
     sk_ASN1_TYPE_pop_free(inkey, ASN1_TYPE_free);
-    return d2i_PrivateKey_legacy(keytype, a, pp, length, libctx, propq);
+    return ossl_d2i_PrivateKey_legacy(keytype, a, pp, length, libctx, propq);
 }
 
 /*

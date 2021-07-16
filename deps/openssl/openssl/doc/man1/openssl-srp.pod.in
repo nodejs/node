@@ -15,7 +15,6 @@ B<openssl srp>
 [B<-delete>]
 [B<-list>]
 [B<-name> I<section>]
-[B<-config> I<file>]
 [B<-srpvfile> I<file>]
 [B<-gn> I<identifier>]
 [B<-userinfo> I<text>]
@@ -23,6 +22,7 @@ B<openssl srp>
 [B<-passout> I<arg>]
 {- $OpenSSL::safe::opt_engine_synopsis -}{- $OpenSSL::safe::opt_r_synopsis -}
 {- $OpenSSL::safe::opt_provider_synopsis -}
+{- $OpenSSL::safe::opt_config_synopsis -}
 [I<user> ...]
 
 =head1 DESCRIPTION
@@ -49,6 +49,26 @@ Display an option summary.
 
 Generate verbose output while processing.
 
+=item B<-add>
+
+Add a user and SRP verifier.
+
+=item B<-modify>
+
+Modify the SRP verifier of an existing user.
+
+=item B<-delete>
+
+Delete user from verifier file.
+
+=item B<-list>
+
+List users.
+
+=item B<-name>
+
+The particular SRP definition to use.
+
 =item B<-srpvfile> I<file>
 
 If the config file is not specified,
@@ -72,7 +92,11 @@ see L<openssl-passphrase-options(1)>.
 
 {- $OpenSSL::safe::opt_engine_item -}
 
+{- $OpenSSL::safe::opt_r_item -}
+
 {- $OpenSSL::safe::opt_provider_item -}
+
+{- $OpenSSL::safe::opt_config_item -}
 
 {- $OpenSSL::safe::opt_r_synopsis -}
 

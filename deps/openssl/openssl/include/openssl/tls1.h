@@ -20,6 +20,7 @@
 
 # include <openssl/buffer.h>
 # include <openssl/x509.h>
+# include <openssl/prov_ssl.h>
 
 #ifdef  __cplusplus
 extern "C" {
@@ -30,10 +31,7 @@ extern "C" {
 #  define OPENSSL_TLS_SECURITY_LEVEL 1
 # endif
 
-# define TLS1_VERSION                    0x0301
-# define TLS1_1_VERSION                  0x0302
-# define TLS1_2_VERSION                  0x0303
-# define TLS1_3_VERSION                  0x0304
+/* TLS*_VERSION constants are defined in prov_ssl.h */
 # ifndef OPENSSL_NO_DEPRECATED_3_0
 #  define TLS_MAX_VERSION                TLS1_3_VERSION
 # endif

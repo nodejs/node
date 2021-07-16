@@ -16,7 +16,7 @@
 #include <openssl/http.h>
 #include "internal/sockets.h"
 
-#include "openssl/cmp.h"
+#include <openssl/cmp.h>
 #include "cmp_local.h"
 
 /* explicit #includes not strictly needed since implied by the above: */

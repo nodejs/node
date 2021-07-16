@@ -312,21 +312,30 @@ uint16_t ossl_ifc_ffc_compute_security_bits(int n)
 {
     uint64_t x;
     uint32_t lx;
-    uint16_t y;
+    uint16_t y, cap;
 
-    /* Look for common values as listed in SP 800-56B rev 2 Appendix D */
+    /*
+     * Look for common values as listed in standards.
+     * These values are not exactly equal to the results from the forumlæ in
+     * the standards but are defined to be canonical.
+     */
     switch (n) {
-    case 2048:
+    case 2048:      /* SP 800-56B rev 2 Appendix D and FIPS 140-2 IG 7.5 */
         return 112;
-    case 3072:
+    case 3072:      /* SP 800-56B rev 2 Appendix D and FIPS 140-2 IG 7.5 */
         return 128;
-    case 4096:
+    case 4096:      /* SP 800-56B rev 2 Appendix D */
         return 152;
-    case 6144:
+    case 6144:      /* SP 800-56B rev 2 Appendix D */
         return 176;
-    case 8192:
+    case 7680:      /* FIPS 140-2 IG 7.5 */
+        return 192;
+    case 8192:      /* SP 800-56B rev 2 Appendix D */
         return 200;
+    case 15360:     /* FIPS 140-2 IG 7.5 */
+        return 256;
     }
+
     /*
      * The first incorrect result (i.e. not accurate or off by one low) occurs
      * for n = 699668.  The true value here is 1200.  Instead of using this n
@@ -338,11 +347,26 @@ uint16_t ossl_ifc_ffc_compute_security_bits(int n)
     if (n < 8)
         return 0;
 
+    /*
+     * To ensure that the output is non-decreasing with respect to n,
+     * a cap needs to be applied to the two values where the function over
+     * estimates the strength (according to the above fast path).
+     */
+    if (n <= 7680)
+        cap = 192;
+    else if (n <= 15360)
+        cap = 256;
+    else
+        cap = 1200;
+
     x = n * (uint64_t)log_2;
     lx = ilog_e(x);
     y = (uint16_t)((mul2(c1_923, icbrt64(mul2(mul2(x, lx), lx))) - c4_690)
                    / log_2);
-    return (y + 4) & ~7;
+    y = (y + 4) & ~7;
+    if (y > cap)
+        y = cap;
+    return y;
 }
 
 

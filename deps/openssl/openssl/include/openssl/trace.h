@@ -56,7 +56,9 @@ extern "C" {
 # define OSSL_TRACE_CATEGORY_STORE              14
 # define OSSL_TRACE_CATEGORY_DECODER            15
 # define OSSL_TRACE_CATEGORY_ENCODER            16
-# define OSSL_TRACE_CATEGORY_NUM                17
+# define OSSL_TRACE_CATEGORY_REF_COUNT          17
+/* Count of available categories. */
+# define OSSL_TRACE_CATEGORY_NUM                18
 
 /* Returns the trace category number for the given |name| */
 int OSSL_trace_get_category_num(const char *name);
@@ -196,7 +198,7 @@ void OSSL_trace_end(int category, BIO *channel);
  * call OSSL_TRACE_CANCEL(category).
  */
 
-# ifndef OPENSSL_NO_TRACE
+# if !defined OPENSSL_NO_TRACE && !defined FIPS_MODULE
 
 #  define OSSL_TRACE_BEGIN(category) \
     do { \
@@ -235,7 +237,7 @@ void OSSL_trace_end(int category, BIO *channel);
  *         ...
  *     }
  */
-# ifndef OPENSSL_NO_TRACE
+# if !defined OPENSSL_NO_TRACE && !defined FIPS_MODULE
 
 #  define OSSL_TRACE_ENABLED(category) \
     OSSL_trace_enabled(OSSL_TRACE_CATEGORY_##category)

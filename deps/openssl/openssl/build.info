@@ -77,11 +77,13 @@ IF[{- defined $target{shared_defflag} -}]
 
   GENERATE[libcrypto.ld]=util/libcrypto.num libcrypto
   GENERATE[libssl.ld]=util/libssl.num libssl
+  DEPEND[libcrypto.ld libssl.ld]=configdata.pm util/perl/OpenSSL/Ordinals.pm
 ENDIF
 
 IF[{- $config{target} =~ /^(?:Cygwin|mingw|VC-|BC-)/ -}]
   GENERATE[libcrypto.rc]=util/mkrc.pl libcrypto
   GENERATE[libssl.rc]=util/mkrc.pl libssl
+  DEPEND[libcrypto.rc libssl.rc]=configdata.pm
 
   SHARED_SOURCE[libcrypto]=libcrypto.rc
   SHARED_SOURCE[libssl]=libssl.rc

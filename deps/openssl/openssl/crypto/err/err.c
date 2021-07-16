@@ -7,7 +7,6 @@
  * https://www.openssl.org/source/license.html
  */
 
-/* TODO: When ERR_STATE becomes opaque, this musts be removed */
 #define OSSL_FORCE_ERR_STATE
 
 #include <stdio.h>
@@ -126,6 +125,8 @@ static ERR_STRING_DATA ERR_str_reasons[] = {
      * unsupported.
      */
     {ERR_R_FETCH_FAILED, "fetch failed"},
+
+    {ERR_R_INVALID_PROPERTY_DEFINITION, "invalid property definition"},
     {0, NULL},
 };
 #endif
@@ -248,7 +249,7 @@ static int err_load_strings(const ERR_STRING_DATA *str)
     return 1;
 }
 
-int err_load_ERR_strings_int(void)
+int ossl_err_load_ERR_strings(void)
 {
 #ifndef OPENSSL_NO_ERR
     if (!RUN_ONCE(&err_string_init, do_err_strings_init))
@@ -262,7 +263,7 @@ int err_load_ERR_strings_int(void)
 
 int ERR_load_strings(int lib, ERR_STRING_DATA *str)
 {
-    if (err_load_ERR_strings_int() == 0)
+    if (ossl_err_load_ERR_strings() == 0)
         return 0;
 
     err_patch(lib, str);
@@ -272,7 +273,7 @@ int ERR_load_strings(int lib, ERR_STRING_DATA *str)
 
 int ERR_load_strings_const(const ERR_STRING_DATA *str)
 {
-    if (err_load_ERR_strings_int() == 0)
+    if (ossl_err_load_ERR_strings() == 0)
         return 0;
     err_load_strings(str);
     return 1;

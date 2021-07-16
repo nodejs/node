@@ -1396,7 +1396,7 @@ int ossl_ec_GFp_simple_field_inv(const EC_GROUP *group, BIGNUM *r,
         goto err;
 
     do {
-        if (!BN_priv_rand_range_ex(e, group->field, ctx))
+        if (!BN_priv_rand_range_ex(e, group->field, 0, ctx))
         goto err;
     } while (BN_is_zero(e));
 
@@ -1449,7 +1449,7 @@ int ossl_ec_GFp_simple_blind_coordinates(const EC_GROUP *group, EC_POINT *p,
      */
     do {
         ERR_set_mark();
-        ret = BN_priv_rand_range_ex(lambda, group->field, ctx);
+        ret = BN_priv_rand_range_ex(lambda, group->field, 0, ctx);
         ERR_pop_to_mark();
         if (ret == 0) {
             ret = 1;
@@ -1519,13 +1519,13 @@ int ossl_ec_GFp_simple_ladder_pre(const EC_GROUP *group,
 
     /* make sure lambda (r->Y here for storage) is not zero */
     do {
-        if (!BN_priv_rand_range_ex(r->Y, group->field, ctx))
+        if (!BN_priv_rand_range_ex(r->Y, group->field, 0, ctx))
             return 0;
     } while (BN_is_zero(r->Y));
 
     /* make sure lambda (s->Z here for storage) is not zero */
     do {
-        if (!BN_priv_rand_range_ex(s->Z, group->field, ctx))
+        if (!BN_priv_rand_range_ex(s->Z, group->field, 0, ctx))
             return 0;
     } while (BN_is_zero(s->Z));
 

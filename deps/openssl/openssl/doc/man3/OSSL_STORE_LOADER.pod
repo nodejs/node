@@ -6,11 +6,10 @@ OSSL_STORE_LOADER,
 OSSL_STORE_LOADER_fetch,
 OSSL_STORE_LOADER_up_ref,
 OSSL_STORE_LOADER_free,
-OSSL_STORE_LOADER_provider,
-OSSL_STORE_LOADER_properties,
+OSSL_STORE_LOADER_get0_provider,
+OSSL_STORE_LOADER_get0_properties,
 OSSL_STORE_LOADER_is_a,
-OSSL_STORE_LOADER_number,
-OSSL_STORE_LOADER_description,
+OSSL_STORE_LOADER_get0_description,
 OSSL_STORE_LOADER_do_all_provided,
 OSSL_STORE_LOADER_names_do_all,
 OSSL_STORE_LOADER_CTX, OSSL_STORE_LOADER_new,
@@ -34,16 +33,15 @@ unregister STORE loaders for different URI schemes
 
  typedef struct ossl_store_loader_st OSSL_STORE_LOADER;
 
- OSSL_STORE_LOADER *OSSL_STORE_LOADER_fetch(const char *scheme,
-                                            OSSL_LIB_CTX *libctx,
+ OSSL_STORE_LOADER *OSSL_STORE_LOADER_fetch(OSSL_LIB_CTX *libctx,
+                                            const char *scheme,
                                             const char *properties);
  int OSSL_STORE_LOADER_up_ref(OSSL_STORE_LOADER *loader);
  void OSSL_STORE_LOADER_free(OSSL_STORE_LOADER *loader);
- const OSSL_PROVIDER *OSSL_STORE_LOADER_provider(const OSSL_STORE_LOADER *
+ const OSSL_PROVIDER *OSSL_STORE_LOADER_get0_provider(const OSSL_STORE_LOADER *
                                                  loader);
- const char *OSSL_STORE_LOADER_properties(const OSSL_STORE_LOADER *loader);
- int OSSL_STORE_LOADER_number(const OSSL_STORE_LOADER *loader);
- const char *OSSL_STORE_LOADER_description(const OSSL_STORE_LOADER *loader);
+ const char *OSSL_STORE_LOADER_get0_properties(const OSSL_STORE_LOADER *loader);
+ const char *OSSL_STORE_LOADER_get0_description(const OSSL_STORE_LOADER *loader);
  int OSSL_STORE_LOADER_is_a(const OSSL_STORE_LOADER *loader,
                             const char *scheme);
  void OSSL_STORE_LOADER_do_all_provided(OSSL_LIB_CTX *libctx,
@@ -121,7 +119,7 @@ storage schemes.
 
 OSSL_STORE_LOADER_fetch() looks for an implementation for a storage
 I<scheme> within the providers that has been loaded into the B<OSSL_LIB_CTX>
-given by I<ctx>, and with the properties given by I<properties>.
+given by I<libctx>, and with the properties given by I<properties>.
 
 OSSL_STORE_LOADER_up_ref() increments the reference count for the given
 I<loader>.
@@ -129,19 +127,16 @@ I<loader>.
 OSSL_STORE_LOADER_free() decrements the reference count for the given
 I<loader>, and when the count reaches zero, frees it.
 
-OSSL_STORE_LOADER_provider() returns the provider of the given
+OSSL_STORE_LOADER_get0_provider() returns the provider of the given
 I<loader>.
 
-OSSL_STORE_LOADER_properties() returns the property definition associated
+OSSL_STORE_LOADER_get0_properties() returns the property definition associated
 with the given I<loader>.
 
 OSSL_STORE_LOADER_is_a() checks if I<loader> is an implementation
 of an algorithm that's identifiable with I<scheme>.
 
-OSSL_STORE_LOADER_number() returns the internal dynamic number assigned
-to the given I<loader>.
-
-OSSL_STORE_LOADER_description() returns a description of the I<loader>, meant
+OSSL_STORE_LOADER_get0_description() returns a description of the I<loader>, meant
 for display and human consumption.  The description is at the discretion of the
 I<loader> implementation.
 
@@ -323,18 +318,16 @@ names. A return value of 0 means that the callback was not called for any names.
 
 OSSL_STORE_LOADER_free() doesn't return any value.
 
-OSSL_STORE_LOADER_provider() returns a pointer to a provider object, or
+OSSL_STORE_LOADER_get0_provider() returns a pointer to a provider object, or
 NULL on error.
 
-OSSL_STORE_LOADER_properties() returns a pointer to a property
+OSSL_STORE_LOADER_get0_properties() returns a pointer to a property
 definition string, or NULL on error.
 
 OSSL_STORE_LOADER_is_a() returns 1 if I<loader> was identifiable,
 otherwise 0.
 
-OSSL_STORE_LOADER_number() returns an integer.
-
-OSSL_STORE_LOADER_description() returns a pointer to a decription, or NULL if
+OSSL_STORE_LOADER_get0_description() returns a pointer to a decription, or NULL if
 there isn't one.
 
 The functions with the types B<OSSL_STORE_open_fn>,
@@ -365,9 +358,9 @@ L<provider-storemgmt(7)>
 =head1 HISTORY
 
 OSSL_STORE_LOADER_fetch(), OSSL_STORE_LOADER_up_ref(),
-OSSL_STORE_LOADER_free(), OSSL_STORE_LOADER_provider(),
-OSSL_STORE_LOADER_properties(), OSSL_STORE_LOADER_is_a(),
-OSSL_STORE_LOADER_number(), OSSL_STORE_LOADER_do_all_provided() and
+OSSL_STORE_LOADER_free(), OSSL_STORE_LOADER_get0_provider(),
+OSSL_STORE_LOADER_get0_properties(), OSSL_STORE_LOADER_is_a(),
+OSSL_STORE_LOADER_do_all_provided() and
 OSSL_STORE_LOADER_names_do_all() were added in OpenSSL 3.0.
 
 OSSL_STORE_open_ex_fn() was added in OpenSSL 3.0.

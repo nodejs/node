@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-PKCS5_PBE_keyivgen, PKCS5_pbe2_set, PKCS5_pbe2_set_iv,
+PKCS5_PBE_keyivgen, PKCS5_PBE_keyivgen_ex, PKCS5_pbe2_set, PKCS5_pbe2_set_iv,
 PKCS5_pbe2_set_iv_ex, PKCS5_pbe_set, PKCS5_pbe_set_ex, PKCS5_pbe2_set_scrypt,
 PKCS5_pbe_set0_algor, PKCS5_pbe_set0_algor_ex,
 PKCS5_v2_PBE_keyivgen, PKCS5_v2_PBE_keyivgen_ex,
@@ -17,6 +17,10 @@ PKCS5_pbkdf2_set, PKCS5_pbkdf2_set_ex, EVP_PBE_scrypt, EVP_PBE_scrypt_ex
  int PKCS5_PBE_keyivgen(EVP_CIPHER_CTX *ctx, const char *pass, int passlen,
                         ASN1_TYPE *param, const EVP_CIPHER *cipher,
                         const EVP_MD *md, int en_de);
+ int PKCS5_PBE_keyivgen_ex(EVP_CIPHER_CTX *cctx, const char *pass, int passlen,
+                           ASN1_TYPE *param, const EVP_CIPHER *cipher,
+                           const EVP_MD *md, int en_de, OSSL_LIB_CTX *libctx,
+                           const char *propq);
  int PKCS5_v2_PBE_keyivgen(EVP_CIPHER_CTX *ctx, const char *pass, int passlen,
                            ASN1_TYPE *param, const EVP_CIPHER *cipher,
                            const EVP_MD *md, int en_de);
@@ -79,7 +83,7 @@ PKCS5_pbkdf2_set, PKCS5_pbkdf2_set_ex, EVP_PBE_scrypt, EVP_PBE_scrypt_ex
 
 =head2 Key Derivation
 
-PKCS5_PBE_keyivgen() takes a password I<pass> of
+PKCS5_PBE_keyivgen() and PKCS5_PBE_keyivgen_ex() take a password I<pass> of
 length I<passlen>, parameters I<param> and a message digest function I<md_type>
 and performs a key derivation according to PKCS#5 PBES1. The resulting key is
 then used to initialise the cipher context I<ctx> with a cipher I<cipher> for
@@ -157,6 +161,9 @@ L<passphrase-encoding(7)>
 PKCS5_v2_PBE_keyivgen_ex(), EVP_PBE_scrypt_ex(), PKCS5_v2_scrypt_keyivgen_ex(),
 PKCS5_pbe_set0_algor_ex(), PKCS5_pbe_set_ex(), PKCS5_pbe2_set_iv_ex() and
 PKCS5_pbkdf2_set_ex() were added in OpenSSL 3.0.
+
+From OpenSSL 3.0 the PBKDF1 algorithm used in PKCS5_PBE_keyivgen() and
+PKCS5_PBE_keyivgen_ex() has been moved to the legacy provider as an EVP_KDF.
 
 =head1 COPYRIGHT
 

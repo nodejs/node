@@ -195,11 +195,11 @@ genpc() {
 	 -set_serial 2 -days "${DAYS}"
 }
 
-# Usage: $0 geneealt keyname certname eekeyname eecertname alt1 alt2 ...
+# Usage: $0 geneealt keyname certname cakeyname cacertname alt1 alt2 ...
 #
 # Note: takes csr on stdin, so must be used with $0 req like this:
 #
-# $0 req keyname dn | $0 geneealt keyname certname eekeyname eecertname alt ...
+# $0 req keyname dn | $0 geneealt keyname certname cakeyname cacertname alt ...
 geneealt() {
     local key=$1; shift
     local cert=$1; shift

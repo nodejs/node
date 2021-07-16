@@ -106,11 +106,23 @@ requests either by ftp or e-mail.
 
 Print out a usage message.
 
+=item B<-query>
+
+Generate a TS query. For details see L</Timestamp Request generation>.
+
+=item B<-reply>
+
+Generate a TS reply. For details see L</Timestamp Response generation>.
+
+=item B<-verify>
+
+Verify a TS response. For details see L</Timestamp Response verification>.
+
 =back
 
 =head2 Timestamp Request generation
 
-The B<-query> switch can be used for creating and printing a timestamp
+The B<-query> command can be used for creating and printing a timestamp
 request with the following options:
 
 =over 4

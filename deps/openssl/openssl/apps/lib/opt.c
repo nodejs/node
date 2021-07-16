@@ -12,6 +12,7 @@
  */
 #include "opt.h"
 #include "fmt.h"
+#include "app_libctx.h"
 #include "internal/nelem.h"
 #include <string.h>
 #if !defined(OPENSSL_SYS_MSDOS)
@@ -184,9 +185,13 @@ char *opt_init(int ac, char **av, const OPTIONS *o)
 
         /* Make sure options are legit. */
         OPENSSL_assert(o->name[0] != '-');
-        OPENSSL_assert(o->retval > 0);
+        if (o->valtype == '.')
+            OPENSSL_assert(o->retval == OPT_PARAM);
+        else
+            OPENSSL_assert(o->retval == OPT_DUP || o->retval > OPT_PARAM);
         switch (i) {
-        case   0: case '-': case '/': case '<': case '>': case 'E': case 'F':
+        case   0: case '-': case '.':
+        case '/': case '<': case '>': case 'E': case 'F':
         case 'M': case 'U': case 'f': case 'l': case 'n': case 'p': case 's':
         case 'u': case 'c': case ':': case 'N':
             break;
@@ -199,8 +204,13 @@ char *opt_init(int ac, char **av, const OPTIONS *o)
             /*
              * Some compilers inline strcmp and the assert string is too long.
              */
-            duplicated = strcmp(o->name, next->name) == 0;
-            OPENSSL_assert(!duplicated);
+            duplicated = next->retval != OPT_DUP
+                && strcmp(o->name, next->name) == 0;
+            if (duplicated) {
+                opt_printf_stderr("%s: Internal error: duplicate option %s\n",
+                                  prog, o->name);
+                OPENSSL_assert(!duplicated);
+            }
         }
 #endif
         if (o->name[0] == '\0') {
@@ -358,27 +368,58 @@ void print_format_error(int format, unsigned long flags)
     (void)opt_format_error(format2str(format), flags);
 }
 
-/* Parse a cipher name, put it in *EVP_CIPHER; return 0 on failure, else 1. */
+/*
+ * Parse a cipher name, put it in *cipherp after freeing what was there, if
+ * cipherp is not NULL.  Return 0 on failure, else 1.
+ */
 int opt_cipher_silent(const char *name, EVP_CIPHER **cipherp)
 {
-    EVP_CIPHER_free(*cipherp);
+    EVP_CIPHER *c;
 
     ERR_set_mark();
-    if ((*cipherp = EVP_CIPHER_fetch(NULL, name, NULL)) != NULL
-        || (*cipherp = (EVP_CIPHER *)EVP_get_cipherbyname(name)) != NULL) {
+    if ((c = EVP_CIPHER_fetch(NULL, name, NULL)) != NULL
+        || (c = (EVP_CIPHER *)EVP_get_cipherbyname(name)) != NULL) {
         ERR_pop_to_mark();
+        if (cipherp != NULL) {
+            EVP_CIPHER_free(*cipherp);
+            *cipherp = c;
+        } else {
+            EVP_CIPHER_free(c);
+        }
         return 1;
     }
     ERR_clear_last_mark();
     return 0;
 }
 
-int opt_cipher(const char *name, EVP_CIPHER **cipherp)
+int opt_cipher_any(const char *name, EVP_CIPHER **cipherp)
 {
     int ret;
 
     if ((ret = opt_cipher_silent(name, cipherp)) == 0)
-       opt_printf_stderr("%s: Unknown cipher: %s\n", prog, name);
+        opt_printf_stderr("%s: Unknown cipher: %s\n", prog, name);
+    return ret;
+}
+
+int opt_cipher(const char *name, EVP_CIPHER **cipherp)
+{
+     int mode, ret = 0;
+     unsigned long int flags;
+     EVP_CIPHER *c = NULL;
+
+     if (opt_cipher_any(name, &c)) {
+        mode = EVP_CIPHER_get_mode(c);
+        flags = EVP_CIPHER_get_flags(c);
+        if (mode == EVP_CIPH_XTS_MODE) {
+            opt_printf_stderr("%s XTS ciphers not supported\n", prog);
+        } else if ((flags & EVP_CIPH_FLAG_AEAD_CIPHER) != 0) {
+            opt_printf_stderr("%s: AEAD ciphers not supported\n", prog);
+        } else {
+            ret = 1;
+            if (cipherp != NULL)
+                *cipherp = c;
+        }
+    }
     return ret;
 }
 
@@ -820,6 +861,9 @@ int opt_next(void)
         case 's':
         case ':':
             /* Just a string. */
+            break;
+        case '.':
+            /* Parameters */
             break;
         case '/':
             if (opt_isdir(arg) > 0)

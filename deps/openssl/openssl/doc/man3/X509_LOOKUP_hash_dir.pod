@@ -142,7 +142,6 @@ the number of loaded objects or 0 on error.
 
 L<PEM_read_PrivateKey(3)>,
 L<X509_STORE_load_locations(3)>,
-L<X509_store_add_lookup(3)>,
 L<SSL_CTX_load_verify_locations(3)>,
 L<X509_LOOKUP_meth_new(3)>,
 L<ossl_store(7)>

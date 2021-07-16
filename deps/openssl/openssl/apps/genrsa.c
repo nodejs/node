@@ -201,13 +201,7 @@ opthelp:
         BIO_printf(bio_err, "Error setting number of primes\n");
         goto end;
     }
-    if (verbose)
-        BIO_printf(bio_err, "Generating RSA private key, %d bit long modulus (%d primes)\n",
-                   num, primes);
-    if (!EVP_PKEY_keygen(ctx, &pkey)) {
-        BIO_printf(bio_err, "Error generating RSA key\n");
-        goto end;
-    }
+    pkey = app_keygen(ctx, "RSA", num, verbose);
 
     if (verbose) {
         BIGNUM *e = NULL;

@@ -25,11 +25,12 @@ L<openssl_user_macros(7)>:
 
 EVP_CIPHER_CTX_get_original_iv() and EVP_CIPHER_CTX_get_updated_iv() copy
 initialization vector (IV) information from the B<EVP_CIPHER_CTX> into the
-caller-supplied buffer. L<EVP_CIPHER_CTX_iv_length(3)> can be used to determine
-an appropriate buffer size, and if the supplied buffer is too small, an error
-will be returned (and no data copied).  EVP_CIPHER_CTX_get_original_iv()
-accesses the ("original") IV that was supplied when the B<EVP_CIPHER_CTX> was
-initialized, and EVP_CIPHER_CTX_get_updated_iv() accesses the current "IV state"
+caller-supplied buffer. L<EVP_CIPHER_CTX_get_iv_length(3)> can be used to
+determine an appropriate buffer size, and if the supplied buffer is too small,
+an error will be returned (and no data copied).
+EVP_CIPHER_CTX_get_original_iv() accesses the ("original") IV that was
+supplied when the B<EVP_CIPHER_CTX> was initialized, and
+EVP_CIPHER_CTX_get_updated_iv() accesses the current "IV state"
 of the cipher, which is updated during cipher operation for certain cipher modes
 (e.g., CBC and OFB).
 

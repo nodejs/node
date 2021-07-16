@@ -2,6 +2,7 @@
 
 =head1 NAME
 
+OSSL_HTTP_adapt_proxy,
 OSSL_parse_url,
 OSSL_HTTP_parse_url,
 OCSP_parse_url
@@ -10,6 +11,9 @@ OCSP_parse_url
 =head1 SYNOPSIS
 
  #include <openssl/http.h>
+
+ const char *OSSL_HTTP_adapt_proxy(const char *proxy, const char *no_proxy,
+                                   const char *server, int use_ssl);
 
  int OSSL_parse_url(const char *url, char **pscheme, char **puser, char **phost,
                     char **pport, int *pport_num,
@@ -27,6 +31,19 @@ L<openssl_user_macros(7)>:
                     int *pssl);
 
 =head1 DESCRIPTION
+
+OSSL_HTTP_adapt_proxy() takes an optional proxy hostname I<proxy>
+and returns it transformed according to the optional I<no_proxy> parameter,
+I<server>, I<use_ssl>, and the applicable environment variable, as follows.
+If I<proxy> is NULL, take any default value from the C<http_proxy>
+environment variable, or from C<https_proxy> if I<use_ssl> is nonzero.
+If this still does not yield a proxy hostname,
+take any further default value from the C<HTTP_PROXY>
+environment variable, or from C<HTTPS_PROXY> if I<use_ssl> is nonzero.
+If I<no_proxy> is NULL, take any default exclusion value from the C<no_proxy>
+environment variable, or else from C<NO_PROXY>.
+Return the determined proxy hostname unless the exclusion contains I<server>.
+Otherwise return NULL.
 
 OSSL_parse_url() parses its input string I<url> as a URL of the form
 C<[scheme://][userinfo@]host[:port][/path][?query][#fragment]> and splits it up
@@ -61,6 +78,10 @@ OSSL_HTTP_parse_url(url, ssl, NULL, host, port, NULL, path, NULL, NULL).
 
 =head1 RETURN VALUES
 
+OSSL_HTTP_adapt_proxy() returns NULL if no proxy is to be used,
+otherwise a constant proxy hostname string,
+which is either the proxy name handed in or an environment variable value.
+
 OSSL_parse_url(), OSSL_HTTP_parse_url(), and OCSP_parse_url()
 return 1 on success, 0 on error.
 
@@ -70,6 +91,7 @@ L<OSSL_HTTP_transfer(3)>
 
 =head1 HISTORY
 
+OSSL_HTTP_adapt_proxy(),
 OSSL_parse_url() and OSSL_HTTP_parse_url() were added in OpenSSL 3.0.
 OCSP_parse_url() was deprecated in OpenSSL 3.0.
 

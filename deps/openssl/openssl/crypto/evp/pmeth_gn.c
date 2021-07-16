@@ -199,7 +199,6 @@ int EVP_PKEY_generate(EVP_PKEY_CTX *ctx, EVP_PKEY **ppkey)
 
     /*
      * Because we still have legacy keys
-     * TODO remove this #legacy internal keys are gone
      */
     (*ppkey)->type = ctx->legacy_keytype;
 

@@ -1,7 +1,6 @@
 [cmp] # mock server configuration
 
-# port 0 means that a random available port will be used
-port = 0
+port = 0 # 0 means that the server should choose a random available port
 srv_cert = server.crt
 srv_key = server.key
 srv_secret = pass:test

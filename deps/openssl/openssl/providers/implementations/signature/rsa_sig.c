@@ -116,7 +116,7 @@ typedef struct {
 static size_t rsa_get_md_size(const PROV_RSA_CTX *prsactx)
 {
     if (prsactx->md != NULL)
-        return EVP_MD_size(prsactx->md);
+        return EVP_MD_get_size(prsactx->md);
     return 0;
 }
 
@@ -156,7 +156,7 @@ static int rsa_check_parameters(PROV_RSA_CTX *prsactx, int min_saltlen)
         int max_saltlen;
 
         /* See if minimum salt length exceeds maximum possible */
-        max_saltlen = RSA_size(prsactx->rsa) - EVP_MD_size(prsactx->md);
+        max_saltlen = RSA_size(prsactx->rsa) - EVP_MD_get_size(prsactx->md);
         if ((RSA_bits(prsactx->rsa) & 0x7) == 1)
             max_saltlen--;
         if (min_saltlen < 0 || min_saltlen > max_saltlen) {
@@ -195,9 +195,9 @@ static int rsa_pss_compute_saltlen(PROV_RSA_CTX *ctx)
     int saltlen = ctx->saltlen;
  
     if (saltlen == RSA_PSS_SALTLEN_DIGEST) {
-        saltlen = EVP_MD_size(ctx->md);
+        saltlen = EVP_MD_get_size(ctx->md);
     } else if (saltlen == RSA_PSS_SALTLEN_AUTO || saltlen == RSA_PSS_SALTLEN_MAX) {
-        saltlen = RSA_size(ctx->rsa) - EVP_MD_size(ctx->md) - 2;
+        saltlen = RSA_size(ctx->rsa) - EVP_MD_get_size(ctx->md) - 2;
         if ((RSA_bits(ctx->rsa) & 0x7) == 1)
             saltlen--;
     }
@@ -575,13 +575,13 @@ static int rsa_sign(void *vprsactx, unsigned char *sig, size_t *siglen,
             if (rsa_pss_restricted(prsactx)) {
                 switch (prsactx->saltlen) {
                 case RSA_PSS_SALTLEN_DIGEST:
-                    if (prsactx->min_saltlen > EVP_MD_size(prsactx->md)) {
+                    if (prsactx->min_saltlen > EVP_MD_get_size(prsactx->md)) {
                         ERR_raise_data(ERR_LIB_PROV,
                                        PROV_R_PSS_SALTLEN_TOO_SMALL,
                                        "minimum salt length set to %d, "
                                        "but the digest only gives %d",
                                        prsactx->min_saltlen,
-                                       EVP_MD_size(prsactx->md));
+                                       EVP_MD_get_size(prsactx->md));
                         return 0;
                     }
                     /* FALLTHRU */
@@ -678,10 +678,10 @@ static int rsa_verify_recover(void *vprsactx,
                 ERR_raise(ERR_LIB_PROV, PROV_R_ALGORITHM_MISMATCH);
                 return 0;
             }
-            if (ret != EVP_MD_size(prsactx->md)) {
+            if (ret != EVP_MD_get_size(prsactx->md)) {
                 ERR_raise_data(ERR_LIB_PROV, PROV_R_INVALID_DIGEST_LENGTH,
                                "Should be %d, but got %d",
-                               EVP_MD_size(prsactx->md), ret);
+                               EVP_MD_get_size(prsactx->md), ret);
                 return 0;
             }
 
@@ -1279,13 +1279,13 @@ static int rsa_set_ctx_params(void *vprsactx, const OSSL_PARAM params[])
                 }
                 break;
             case RSA_PSS_SALTLEN_DIGEST:
-                if (prsactx->min_saltlen > EVP_MD_size(prsactx->md)) {
+                if (prsactx->min_saltlen > EVP_MD_get_size(prsactx->md)) {
                     ERR_raise_data(ERR_LIB_PROV,
                                    PROV_R_PSS_SALTLEN_TOO_SMALL,
                                    "Should be more than %d, but would be "
                                    "set to match digest size (%d)",
                                    prsactx->min_saltlen,
-                                   EVP_MD_size(prsactx->md));
+                                   EVP_MD_get_size(prsactx->md));
                     return 0;
                 }
                 break;

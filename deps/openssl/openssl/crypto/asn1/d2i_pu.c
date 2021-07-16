@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -38,12 +38,12 @@ EVP_PKEY *d2i_PublicKey(int type, EVP_PKEY **a, const unsigned char **pp,
     } else
         ret = *a;
 
-    if (type != EVP_PKEY_id(ret) && !EVP_PKEY_set_type(ret, type)) {
+    if (type != EVP_PKEY_get_id(ret) && !EVP_PKEY_set_type(ret, type)) {
         ERR_raise(ERR_LIB_ASN1, ERR_R_EVP_LIB);
         goto err;
     }
 
-    switch (EVP_PKEY_id(ret)) {
+    switch (EVP_PKEY_get_id(ret)) {
     case EVP_PKEY_RSA:
         if ((ret->pkey.rsa = d2i_RSAPublicKey(NULL, pp, length)) == NULL) {
             ERR_raise(ERR_LIB_ASN1, ERR_R_ASN1_LIB);

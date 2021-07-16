@@ -185,7 +185,6 @@ static int aes_siv_get_ctx_params(void *vctx, OSSL_PARAM params[])
 static const OSSL_PARAM aes_siv_known_gettable_ctx_params[] = {
     OSSL_PARAM_size_t(OSSL_CIPHER_PARAM_KEYLEN, NULL),
     OSSL_PARAM_size_t(OSSL_CIPHER_PARAM_AEAD_TAGLEN, NULL),
-    OSSL_PARAM_uint(OSSL_CIPHER_PARAM_SPEED, NULL),
     OSSL_PARAM_octet_string(OSSL_CIPHER_PARAM_AEAD_TAG, NULL, 0),
     OSSL_PARAM_END
 };

@@ -140,11 +140,11 @@ int X509_print_ex(BIO *bp, X509 *x, unsigned long nmflags,
             goto err;
         if (BIO_write(bp, "            Not Before: ", 24) <= 0)
             goto err;
-        if (ossl_asn1_time_print_ex(bp, X509_get0_notBefore(x)) == 0)
+        if (ossl_asn1_time_print_ex(bp, X509_get0_notBefore(x), ASN1_DTFLGS_RFC822) == 0)
             goto err;
         if (BIO_write(bp, "\n            Not After : ", 25) <= 0)
             goto err;
-        if (ossl_asn1_time_print_ex(bp, X509_get0_notAfter(x)) == 0)
+        if (ossl_asn1_time_print_ex(bp, X509_get0_notAfter(x), ASN1_DTFLGS_RFC822) == 0)
             goto err;
         if (BIO_write(bp, "\n", 1) <= 0)
             goto err;
@@ -522,12 +522,6 @@ int X509_STORE_CTX_print_verify_cb(int ok, X509_STORE_CTX *ctx)
         ERR_add_error_mem_bio("\n", bio);
         BIO_free(bio);
     }
-
-    /*
-     * TODO we could check policies here too, e.g.:
-     * if (cert_error == X509_V_OK && ok == 2)
-     *     policies_print(NULL, ctx);
-     */
 
     return ok;
 }

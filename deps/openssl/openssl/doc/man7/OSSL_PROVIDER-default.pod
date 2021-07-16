@@ -83,11 +83,11 @@ The OpenSSL default provider supports these operations and algorithms:
 
 =item DES, see L<EVP_CIPHER-DES(7)>
 
-=item BF, see L<EVP_CIPHER-BF(7)>
+=item BF, see L<EVP_CIPHER-BLOWFISH(7)>
 
 =item IDEA, see L<EVP_CIPHER-IDEA(7)>
 
-=item CAST5, see L<EVP_CIPHER-CAST5(7)>
+=item CAST5, see L<EVP_CIPHER-CAST(7)>
 
 =item SEED, see L<EVP_CIPHER-SEED(7)>
 
@@ -99,9 +99,9 @@ The OpenSSL default provider supports these operations and algorithms:
 
 =item RC5, see L<EVP_CIPHER-RC5(7)>
 
-=item ChaCha20, see L<EVP_CIPHER-ChaCha20(7)>
+=item ChaCha20, see L<EVP_CIPHER-CHACHA(7)>
 
-=item ChaCha20-Poly1305, see L<EVP_CIPHER-ChaCha20-Poly1305(7)>
+=item ChaCha20-Poly1305, see L<EVP_CIPHER-CHACHA(7)>
 
 =back
 

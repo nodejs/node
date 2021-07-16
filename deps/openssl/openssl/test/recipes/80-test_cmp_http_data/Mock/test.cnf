@@ -17,6 +17,7 @@ policies = certificatePolicies
 [Mock] # the built-in OpenSSL CMP mock server
 no_check_time = 1
 server_host = 127.0.0.1 # localhost
+# server_port = 0 means that the port is determined by the server
 server_port = 0
 server_tls = $server_port
 server_cert = server.crt
@@ -135,6 +136,6 @@ subjectAltName = @alt_names_3
 
 [alt_names_3]
 DNS.0 = localhost
-DNS.1 = example.com
-DNS.2 = example2.com
-DNS__3 = example3.com
+DNS.1 = xn--rksmrgs-5wao1o.example.com
+DNS.2 = xn--rkmacka-5wa.example.com
+DNS__3 = xn--rksallad-0za.example.com

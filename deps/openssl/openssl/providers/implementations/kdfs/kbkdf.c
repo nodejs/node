@@ -289,9 +289,9 @@ static int kbkdf_set_ctx_params(void *vctx, const OSSL_PARAM params[])
                                            NULL, NULL, libctx))
         return 0;
     else if (ctx->ctx_init != NULL
-             && !EVP_MAC_is_a(EVP_MAC_CTX_mac(ctx->ctx_init),
+             && !EVP_MAC_is_a(EVP_MAC_CTX_get0_mac(ctx->ctx_init),
                               OSSL_MAC_NAME_HMAC)
-             && !EVP_MAC_is_a(EVP_MAC_CTX_mac(ctx->ctx_init),
+             && !EVP_MAC_is_a(EVP_MAC_CTX_get0_mac(ctx->ctx_init),
                               OSSL_MAC_NAME_CMAC)) {
         ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_MAC);
         return 0;

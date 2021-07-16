@@ -36,7 +36,7 @@ static int drbg_status(void)
     if (drbg == NULL)
         return 0;
 
-    return  EVP_RAND_state(drbg) == EVP_RAND_STATE_READY ? 1 : 0;
+    return  EVP_RAND_get_state(drbg) == EVP_RAND_STATE_READY ? 1 : 0;
 }
 
 /* Implements the default OpenSSL RAND_bytes() method */
@@ -61,9 +61,5 @@ RAND_METHOD ossl_rand_meth = {
 
 RAND_METHOD *RAND_OpenSSL(void)
 {
-#ifndef FIPS_MODULE
     return &ossl_rand_meth;
-#else
-    return NULL;
-#endif
 }

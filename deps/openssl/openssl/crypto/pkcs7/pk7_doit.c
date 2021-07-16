@@ -296,16 +296,16 @@ BIO *PKCS7_dataInit(PKCS7 *p7, BIO *bio)
             goto err;
         }
         BIO_get_cipher_ctx(btmp, &ctx);
-        keylen = EVP_CIPHER_key_length(evp_cipher);
-        ivlen = EVP_CIPHER_iv_length(evp_cipher);
-        xalg->algorithm = OBJ_nid2obj(EVP_CIPHER_type(evp_cipher));
+        keylen = EVP_CIPHER_get_key_length(evp_cipher);
+        ivlen = EVP_CIPHER_get_iv_length(evp_cipher);
+        xalg->algorithm = OBJ_nid2obj(EVP_CIPHER_get_type(evp_cipher));
         if (ivlen > 0)
-            if (RAND_bytes_ex(libctx, iv, ivlen) <= 0)
+            if (RAND_bytes_ex(libctx, iv, ivlen, 0) <= 0)
                 goto err;
 
         (void)ERR_set_mark();
         fetched_cipher = EVP_CIPHER_fetch(libctx,
-                                          EVP_CIPHER_name(evp_cipher),
+                                          EVP_CIPHER_get0_name(evp_cipher),
                                           propq);
         (void)ERR_pop_to_mark();
         if (fetched_cipher != NULL)
@@ -572,7 +572,7 @@ BIO *PKCS7_dataDecode(PKCS7 *p7, EVP_PKEY *pkey, BIO *in_bio, X509 *pcert)
                 ri = sk_PKCS7_RECIP_INFO_value(rsk, i);
                 ri->ctx = p7_ctx;
                 if (pkcs7_decrypt_rinfo(&ek, &eklen, ri, pkey,
-                        EVP_CIPHER_key_length(cipher)) < 0)
+                        EVP_CIPHER_get_key_length(cipher)) < 0)
                     goto err;
                 ERR_clear_error();
             }
@@ -591,7 +591,7 @@ BIO *PKCS7_dataDecode(PKCS7 *p7, EVP_PKEY *pkey, BIO *in_bio, X509 *pcert)
         if (EVP_CIPHER_asn1_to_param(evp_ctx, enc_alg->parameter) < 0)
             goto err;
         /* Generate random key as MMA defence */
-        len = EVP_CIPHER_CTX_key_length(evp_ctx);
+        len = EVP_CIPHER_CTX_get_key_length(evp_ctx);
         if (len <= 0)
             goto err;
         tkeylen = (size_t)len;
@@ -606,7 +606,7 @@ BIO *PKCS7_dataDecode(PKCS7 *p7, EVP_PKEY *pkey, BIO *in_bio, X509 *pcert)
             tkey = NULL;
         }
 
-        if (eklen != EVP_CIPHER_CTX_key_length(evp_ctx)) {
+        if (eklen != EVP_CIPHER_CTX_get_key_length(evp_ctx)) {
             /*
              * Some S/MIME clients don't use the same key and effective key
              * length. The key length is determined by the size of the
@@ -679,7 +679,7 @@ static BIO *PKCS7_find_digest(EVP_MD_CTX **pmd, BIO *bio, int nid)
             ERR_raise(ERR_LIB_PKCS7, ERR_R_INTERNAL_ERROR);
             return NULL;
         }
-        if (EVP_MD_CTX_type(*pmd) == nid)
+        if (EVP_MD_CTX_get_type(*pmd) == nid)
             return bio;
         bio = BIO_next(bio);
     }
@@ -837,7 +837,7 @@ int PKCS7_dataFinal(PKCS7 *p7, BIO *bio)
             } else {
                 unsigned char *abuf = NULL;
                 unsigned int abuflen;
-                abuflen = EVP_PKEY_size(si->pkey);
+                abuflen = EVP_PKEY_get_size(si->pkey);
                 abuf = OPENSSL_malloc(abuflen);
                 if (abuf == NULL)
                     goto err;
@@ -915,7 +915,7 @@ int PKCS7_SIGNER_INFO_sign(PKCS7_SIGNER_INFO *si)
         goto err;
     }
 
-    if (EVP_DigestSignInit_ex(mctx, &pctx, EVP_MD_name(md),
+    if (EVP_DigestSignInit_ex(mctx, &pctx, EVP_MD_get0_name(md),
                               ossl_pkcs7_ctx_get0_libctx(ctx),
                               ossl_pkcs7_ctx_get0_propq(ctx), si->pkey,
                               NULL) <= 0)
@@ -1044,13 +1044,13 @@ int PKCS7_signatureVerify(BIO *bio, PKCS7 *p7, PKCS7_SIGNER_INFO *si,
             ERR_raise(ERR_LIB_PKCS7, ERR_R_INTERNAL_ERROR);
             goto err;
         }
-        if (EVP_MD_CTX_type(mdc) == md_type)
+        if (EVP_MD_CTX_get_type(mdc) == md_type)
             break;
         /*
          * Workaround for some broken clients that put the signature OID
          * instead of the digest OID in digest_alg->algorithm
          */
-        if (EVP_MD_pkey_type(EVP_MD_CTX_get0_md(mdc)) == md_type)
+        if (EVP_MD_get_pkey_type(EVP_MD_CTX_get0_md(mdc)) == md_type)
             break;
         btmp = BIO_next(btmp);
     }

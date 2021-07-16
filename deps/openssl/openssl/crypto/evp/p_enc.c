@@ -23,7 +23,7 @@ int EVP_PKEY_encrypt_old(unsigned char *ek, const unsigned char *key,
 {
     int ret = 0;
 
-    if (EVP_PKEY_id(pubk) != EVP_PKEY_RSA) {
+    if (EVP_PKEY_get_id(pubk) != EVP_PKEY_RSA) {
         ERR_raise(ERR_LIB_EVP, EVP_R_PUBLIC_KEY_NOT_RSA);
         goto err;
     }

@@ -19,7 +19,7 @@
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 #include "internal/param_build_set.h"
-#include "openssl/param_build.h"
+#include <openssl/param_build.h>
 #include "crypto/ecx.h"
 #include "prov/implementations.h"
 #include "prov/providercommon.h"
@@ -309,14 +309,14 @@ static int x448_get_params(void *key, OSSL_PARAM params[])
 static int ed25519_get_params(void *key, OSSL_PARAM params[])
 {
     return ecx_get_params(key, params, ED25519_BITS, ED25519_SECURITY_BITS,
-                          ED25519_KEYLEN)
+                          ED25519_SIGSIZE)
         && ed_get_params(key, params);
 }
 
 static int ed448_get_params(void *key, OSSL_PARAM params[])
 {
     return ecx_get_params(key, params, ED448_BITS, ED448_SECURITY_BITS,
-                          ED448_KEYLEN)
+                          ED448_SIGSIZE)
         && ed_get_params(key, params);
 }
 
@@ -577,7 +577,7 @@ static void *ecx_gen(struct ecx_gen_ctx *gctx)
         ERR_raise(ERR_LIB_PROV, ERR_R_MALLOC_FAILURE);
         goto err;
     }
-    if (RAND_priv_bytes_ex(gctx->libctx, privkey, key->keylen) <= 0)
+    if (RAND_priv_bytes_ex(gctx->libctx, privkey, key->keylen, 0) <= 0)
         goto err;
     switch (gctx->type) {
     case ECX_KEY_TYPE_X25519:
@@ -836,7 +836,7 @@ static void *s390x_ecx_keygen25519(struct ecx_gen_ctx *gctx)
         goto err;
     }
 
-    if (RAND_priv_bytes_ex(gctx->libctx, privkey, X25519_KEYLEN) <= 0)
+    if (RAND_priv_bytes_ex(gctx->libctx, privkey, X25519_KEYLEN, 0) <= 0)
         goto err;
 
     privkey[0] &= 248;
@@ -882,7 +882,7 @@ static void *s390x_ecx_keygen448(struct ecx_gen_ctx *gctx)
         goto err;
     }
 
-    if (RAND_priv_bytes_ex(gctx->libctx, privkey, X448_KEYLEN) <= 0)
+    if (RAND_priv_bytes_ex(gctx->libctx, privkey, X448_KEYLEN, 0) <= 0)
         goto err;
 
     privkey[0] &= 252;
@@ -934,7 +934,7 @@ static void *s390x_ecd_keygen25519(struct ecx_gen_ctx *gctx)
         goto err;
     }
 
-    if (RAND_priv_bytes_ex(gctx->libctx, privkey, ED25519_KEYLEN) <= 0)
+    if (RAND_priv_bytes_ex(gctx->libctx, privkey, ED25519_KEYLEN, 0) <= 0)
         goto err;
 
     sha = EVP_MD_fetch(gctx->libctx, "SHA512", gctx->propq);
@@ -1004,7 +1004,7 @@ static void *s390x_ecd_keygen448(struct ecx_gen_ctx *gctx)
     shake = EVP_MD_fetch(gctx->libctx, "SHAKE256", gctx->propq);
     if (shake == NULL)
         goto err;
-    if (RAND_priv_bytes_ex(gctx->libctx, privkey, ED448_KEYLEN) <= 0)
+    if (RAND_priv_bytes_ex(gctx->libctx, privkey, ED448_KEYLEN, 0) <= 0)
         goto err;
 
     hashctx = EVP_MD_CTX_new();

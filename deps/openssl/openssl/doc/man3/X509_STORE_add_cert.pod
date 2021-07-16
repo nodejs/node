@@ -53,6 +53,10 @@ It admits multiple lookup mechanisms and efficient scaling performance
 with large numbers of certificates, and a great deal of flexibility in
 how validation and policy checks are performed.
 
+Details of the chain building and checking process are described in
+L<openssl-verification-options(1)/Certification Path Building> and
+L<openssl-verification-options(1)/Certification Path Validation>.
+
 L<X509_STORE_new(3)> creates an empty B<X509_STORE> structure, which contains
 no information about trusted certificates or where such certificates
 are located on disk, and is generally not usable.  Normally, trusted

@@ -42,7 +42,7 @@ The TNS/E platform is build using the same set of builds specifying `nse`
 instead of `nsx` in the set above.
 
 You cannot build for TNS/E for FIPS, so you must specify the `no-fips`
-option to `./Configure`
+option to `./Configure`.
 
 About Prefix and OpenSSLDir
 ---------------------------

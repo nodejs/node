@@ -991,7 +991,6 @@ char *ossl_ipaddr_to_asc(unsigned char *p, int len)
     case 4: /* IPv4 */
         BIO_snprintf(buf, sizeof(buf), "%d.%d.%d.%d", p[0], p[1], p[2], p[3]);
         break;
-        /* TODO possibly combine with static i2r_address() in v3_addr.c */
     case 16: /* IPv6 */
         for (out = buf, i = 8, remain = sizeof(buf);
              i-- > 0 && bytes >= 0;

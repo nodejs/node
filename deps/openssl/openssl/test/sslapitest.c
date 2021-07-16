@@ -326,10 +326,6 @@ static int test_keylog_output(char *buffer, const SSL *ssl,
 
             if (!TEST_ptr(token = strtok(NULL, " \n")))
                 return 0;
-
-            /*
-             * TODO(TLS1.3): test that application traffic secrets are what
-             * we expect */
         } else {
             TEST_info("Unexpected token %s\n", token);
             return 0;
@@ -1294,7 +1290,7 @@ static int test_ktls_sendfile(int tls_version, const char *cipher)
         || !TEST_true(BIO_get_ktls_send(serverssl->wbio)))
         goto end;
 
-    if (!TEST_true(RAND_bytes_ex(libctx, buf, SENDFILE_SZ)))
+    if (!TEST_true(RAND_bytes_ex(libctx, buf, SENDFILE_SZ, 0)))
         goto end;
 
     out = BIO_new_file(tmpfilename, "wb");
@@ -2907,10 +2903,6 @@ static int test_set_sigalgs(int idx)
                                        &sctx, &cctx, cert, privkey)))
         return 0;
 
-    /*
-     * TODO(TLS1.3): These APIs cannot set TLSv1.3 sig algs so we just test it
-     * for TLSv1.2 for now until we add a new API.
-     */
     SSL_CTX_set_max_proto_version(cctx, TLS1_2_VERSION);
 
     if (testctx) {
@@ -8130,6 +8122,129 @@ end:
 }
 #endif /* OPENSSL_NO_TLS1_2 */
 
+static int test_session_timeout(int test)
+{
+    /*
+     * Test session ordering and timeout
+     * Can't explicitly test performance of the new code,
+     * but can test to see if the ordering of the sessions
+     * are correct, and they they are removed as expected
+     */
+    SSL_SESSION *early = NULL;
+    SSL_SESSION *middle = NULL;
+    SSL_SESSION *late = NULL;
+    SSL_CTX *ctx;
+    int testresult = 0;
+    long now = (long)time(NULL);
+#define TIMEOUT 10
+
+    if (!TEST_ptr(ctx = SSL_CTX_new_ex(libctx, NULL, TLS_method()))
+        || !TEST_ptr(early = SSL_SESSION_new())
+        || !TEST_ptr(middle = SSL_SESSION_new())
+        || !TEST_ptr(late = SSL_SESSION_new()))
+        goto end;
+
+    /* assign unique session ids */
+    early->session_id_length = SSL3_SSL_SESSION_ID_LENGTH;
+    memset(early->session_id, 1, SSL3_SSL_SESSION_ID_LENGTH);
+    middle->session_id_length = SSL3_SSL_SESSION_ID_LENGTH;
+    memset(middle->session_id, 2, SSL3_SSL_SESSION_ID_LENGTH);
+    late->session_id_length = SSL3_SSL_SESSION_ID_LENGTH;
+    memset(late->session_id, 3, SSL3_SSL_SESSION_ID_LENGTH);
+
+    if (!TEST_int_eq(SSL_CTX_add_session(ctx, early), 1)
+        || !TEST_int_eq(SSL_CTX_add_session(ctx, middle), 1)
+        || !TEST_int_eq(SSL_CTX_add_session(ctx, late), 1))
+        goto end;
+
+    /* Make sure they are all added */
+    if (!TEST_ptr(early->prev)
+        || !TEST_ptr(middle->prev)
+        || !TEST_ptr(late->prev))
+        goto end;
+
+    if (!TEST_int_ne(SSL_SESSION_set_time(early, now - 10), 0)
+        || !TEST_int_ne(SSL_SESSION_set_time(middle, now), 0)
+        || !TEST_int_ne(SSL_SESSION_set_time(late, now + 10), 0))
+        goto end;
+
+    if (!TEST_int_ne(SSL_SESSION_set_timeout(early, TIMEOUT), 0)
+        || !TEST_int_ne(SSL_SESSION_set_timeout(middle, TIMEOUT), 0)
+        || !TEST_int_ne(SSL_SESSION_set_timeout(late, TIMEOUT), 0))
+        goto end;
+
+    /* Make sure they are all still there */
+    if (!TEST_ptr(early->prev)
+        || !TEST_ptr(middle->prev)
+        || !TEST_ptr(late->prev))
+        goto end;
+
+    /* Make sure they are in the expected order */
+    if (!TEST_ptr_eq(late->next, middle)
+        || !TEST_ptr_eq(middle->next, early)
+        || !TEST_ptr_eq(early->prev, middle)
+        || !TEST_ptr_eq(middle->prev, late))
+        goto end;
+
+    /* This should remove "early" */
+    SSL_CTX_flush_sessions(ctx, now + TIMEOUT - 1);
+    if (!TEST_ptr_null(early->prev)
+        || !TEST_ptr(middle->prev)
+        || !TEST_ptr(late->prev))
+        goto end;
+
+    /* This should remove "middle" */
+    SSL_CTX_flush_sessions(ctx, now + TIMEOUT + 1);
+    if (!TEST_ptr_null(early->prev)
+        || !TEST_ptr_null(middle->prev)
+        || !TEST_ptr(late->prev))
+        goto end;
+
+    /* This should remove "late" */
+    SSL_CTX_flush_sessions(ctx, now + TIMEOUT + 11);
+    if (!TEST_ptr_null(early->prev)
+        || !TEST_ptr_null(middle->prev)
+        || !TEST_ptr_null(late->prev))
+        goto end;
+
+    /* Add them back in again */
+    if (!TEST_int_eq(SSL_CTX_add_session(ctx, early), 1)
+        || !TEST_int_eq(SSL_CTX_add_session(ctx, middle), 1)
+        || !TEST_int_eq(SSL_CTX_add_session(ctx, late), 1))
+        goto end;
+
+    /* Make sure they are all added */
+    if (!TEST_ptr(early->prev)
+        || !TEST_ptr(middle->prev)
+        || !TEST_ptr(late->prev))
+        goto end;
+
+    /* This should remove all of them */
+    SSL_CTX_flush_sessions(ctx, 0);
+    if (!TEST_ptr_null(early->prev)
+        || !TEST_ptr_null(middle->prev)
+        || !TEST_ptr_null(late->prev))
+        goto end;
+
+    (void)SSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_UPDATE_TIME
+                                         | SSL_CTX_get_session_cache_mode(ctx));
+
+    /* make sure |now| is NOT  equal to the current time */
+    now -= 10;
+    if (!TEST_int_ne(SSL_SESSION_set_time(early, now), 0)
+        || !TEST_int_eq(SSL_CTX_add_session(ctx, early), 1)
+        || !TEST_long_ne(SSL_SESSION_get_time(early), now))
+        goto end;
+
+    testresult = 1;
+ end:
+    SSL_CTX_free(ctx);
+    SSL_SESSION_free(early);
+    SSL_SESSION_free(middle);
+    SSL_SESSION_free(late);
+    return testresult;
+}
+
 /*
  * Test 0: Client sets servername and server acknowledges it (TLSv1.2)
  * Test 1: Client sets servername and server does not acknowledge it (TLSv1.2)
@@ -8850,7 +8965,7 @@ static int test_dh_auto(int idx)
 
     if (!TEST_int_gt(SSL_get_tmp_key(serverssl, &tmpkey), 0))
         goto end;
-    if (!TEST_size_t_eq(EVP_PKEY_bits(tmpkey), expdhsize))
+    if (!TEST_size_t_eq(EVP_PKEY_get_bits(tmpkey), expdhsize))
         goto end;
 
     if (!TEST_true(create_ssl_connection(serverssl, clientssl, SSL_ERROR_NONE)))
@@ -9654,6 +9769,7 @@ int setup_tests(void)
 #endif
     ADD_TEST(test_inherit_verify_param);
     ADD_TEST(test_set_alpn);
+    ADD_ALL_TESTS(test_session_timeout, 1);
 #ifndef OPENSSL_NO_QUIC
     ADD_ALL_TESTS(test_quic_api, 9);
 # ifndef OSSL_NO_USABLE_TLS1_3

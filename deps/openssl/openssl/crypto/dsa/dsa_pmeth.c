@@ -83,7 +83,7 @@ static int pkey_dsa_sign(EVP_PKEY_CTX *ctx, unsigned char *sig,
     DSA_PKEY_CTX *dctx = ctx->data;
     DSA *dsa = ctx->pkey->pkey.dsa;
 
-    if (dctx->md != NULL && tbslen != (size_t)EVP_MD_size(dctx->md))
+    if (dctx->md != NULL && tbslen != (size_t)EVP_MD_get_size(dctx->md))
         return 0;
 
     ret = DSA_sign(0, tbs, tbslen, sig, &sltmp, dsa);
@@ -102,7 +102,7 @@ static int pkey_dsa_verify(EVP_PKEY_CTX *ctx,
     DSA_PKEY_CTX *dctx = ctx->data;
     DSA *dsa = ctx->pkey->pkey.dsa;
 
-    if (dctx->md != NULL && tbslen != (size_t)EVP_MD_size(dctx->md))
+    if (dctx->md != NULL && tbslen != (size_t)EVP_MD_get_size(dctx->md))
         return 0;
 
     ret = DSA_verify(0, tbs, tbslen, sig, siglen, dsa);
@@ -128,9 +128,9 @@ static int pkey_dsa_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
         return 1;
 
     case EVP_PKEY_CTRL_DSA_PARAMGEN_MD:
-        if (EVP_MD_type((const EVP_MD *)p2) != NID_sha1 &&
-            EVP_MD_type((const EVP_MD *)p2) != NID_sha224 &&
-            EVP_MD_type((const EVP_MD *)p2) != NID_sha256) {
+        if (EVP_MD_get_type((const EVP_MD *)p2) != NID_sha1 &&
+            EVP_MD_get_type((const EVP_MD *)p2) != NID_sha224 &&
+            EVP_MD_get_type((const EVP_MD *)p2) != NID_sha256) {
             ERR_raise(ERR_LIB_DSA, DSA_R_INVALID_DIGEST_TYPE);
             return 0;
         }
@@ -138,17 +138,17 @@ static int pkey_dsa_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
         return 1;
 
     case EVP_PKEY_CTRL_MD:
-        if (EVP_MD_type((const EVP_MD *)p2) != NID_sha1 &&
-            EVP_MD_type((const EVP_MD *)p2) != NID_dsa &&
-            EVP_MD_type((const EVP_MD *)p2) != NID_dsaWithSHA &&
-            EVP_MD_type((const EVP_MD *)p2) != NID_sha224 &&
-            EVP_MD_type((const EVP_MD *)p2) != NID_sha256 &&
-            EVP_MD_type((const EVP_MD *)p2) != NID_sha384 &&
-            EVP_MD_type((const EVP_MD *)p2) != NID_sha512 &&
-            EVP_MD_type((const EVP_MD *)p2) != NID_sha3_224 &&
-            EVP_MD_type((const EVP_MD *)p2) != NID_sha3_256 &&
-            EVP_MD_type((const EVP_MD *)p2) != NID_sha3_384 &&
-            EVP_MD_type((const EVP_MD *)p2) != NID_sha3_512) {
+        if (EVP_MD_get_type((const EVP_MD *)p2) != NID_sha1 &&
+            EVP_MD_get_type((const EVP_MD *)p2) != NID_dsa &&
+            EVP_MD_get_type((const EVP_MD *)p2) != NID_dsaWithSHA &&
+            EVP_MD_get_type((const EVP_MD *)p2) != NID_sha224 &&
+            EVP_MD_get_type((const EVP_MD *)p2) != NID_sha256 &&
+            EVP_MD_get_type((const EVP_MD *)p2) != NID_sha384 &&
+            EVP_MD_get_type((const EVP_MD *)p2) != NID_sha512 &&
+            EVP_MD_get_type((const EVP_MD *)p2) != NID_sha3_224 &&
+            EVP_MD_get_type((const EVP_MD *)p2) != NID_sha3_256 &&
+            EVP_MD_get_type((const EVP_MD *)p2) != NID_sha3_384 &&
+            EVP_MD_get_type((const EVP_MD *)p2) != NID_sha3_512) {
             ERR_raise(ERR_LIB_DSA, DSA_R_INVALID_DIGEST_TYPE);
             return 0;
         }
@@ -217,7 +217,7 @@ static int pkey_dsa_paramgen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey)
         return 0;
     }
     if (dctx->md != NULL)
-        ossl_ffc_set_digest(&dsa->params, EVP_MD_name(dctx->md), NULL);
+        ossl_ffc_set_digest(&dsa->params, EVP_MD_get0_name(dctx->md), NULL);
 
     ret = ossl_ffc_params_FIPS186_4_generate(NULL, &dsa->params,
                                              FFC_PARAM_TYPE_DSA, dctx->nbits,

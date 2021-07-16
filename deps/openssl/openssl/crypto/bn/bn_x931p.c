@@ -175,7 +175,8 @@ int BN_X931_generate_Xpq(BIGNUM *Xp, BIGNUM *Xq, int nbits, BN_CTX *ctx)
      * - 1. By setting the top two bits we ensure that the lower bound is
      * exceeded.
      */
-    if (!BN_priv_rand_ex(Xp, nbits, BN_RAND_TOP_TWO, BN_RAND_BOTTOM_ANY, ctx))
+    if (!BN_priv_rand_ex(Xp, nbits, BN_RAND_TOP_TWO, BN_RAND_BOTTOM_ANY, 0,
+                         ctx))
         return 0;
 
     BN_CTX_start(ctx);
@@ -184,7 +185,7 @@ int BN_X931_generate_Xpq(BIGNUM *Xp, BIGNUM *Xq, int nbits, BN_CTX *ctx)
         goto err;
 
     for (i = 0; i < 1000; i++) {
-        if (!BN_priv_rand_ex(Xq, nbits, BN_RAND_TOP_TWO, BN_RAND_BOTTOM_ANY,
+        if (!BN_priv_rand_ex(Xq, nbits, BN_RAND_TOP_TWO, BN_RAND_BOTTOM_ANY, 0,
                              ctx))
             goto err;
 
@@ -230,9 +231,9 @@ int BN_X931_generate_prime_ex(BIGNUM *p, BIGNUM *p1, BIGNUM *p2,
     if (Xp1 == NULL || Xp2 == NULL)
         goto error;
 
-    if (!BN_priv_rand_ex(Xp1, 101, BN_RAND_TOP_ONE, BN_RAND_BOTTOM_ANY, ctx))
+    if (!BN_priv_rand_ex(Xp1, 101, BN_RAND_TOP_ONE, BN_RAND_BOTTOM_ANY, 0, ctx))
         goto error;
-    if (!BN_priv_rand_ex(Xp2, 101, BN_RAND_TOP_ONE, BN_RAND_BOTTOM_ANY, ctx))
+    if (!BN_priv_rand_ex(Xp2, 101, BN_RAND_TOP_ONE, BN_RAND_BOTTOM_ANY, 0, ctx))
         goto error;
     if (!BN_X931_derive_prime_ex(p, p1, p2, Xp, Xp1, Xp2, e, ctx, cb))
         goto error;

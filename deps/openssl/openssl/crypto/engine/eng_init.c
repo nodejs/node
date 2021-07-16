@@ -34,8 +34,8 @@ int engine_unlocked_init(ENGINE *e)
          */
         e->struct_ref++;
         e->funct_ref++;
-        engine_ref_debug(e, 0, 1);
-        engine_ref_debug(e, 1, 1);
+        ENGINE_REF_PRINT(e, 0, 1);
+        ENGINE_REF_PRINT(e, 1, 1);
     }
     return to_return;
 }
@@ -57,7 +57,7 @@ int engine_unlocked_finish(ENGINE *e, int unlock_for_handlers)
      * to 0 without either calling finish().
      */
     e->funct_ref--;
-    engine_ref_debug(e, 1, -1);
+    ENGINE_REF_PRINT(e, 1, -1);
     if ((e->funct_ref == 0) && e->finish) {
         if (unlock_for_handlers)
             CRYPTO_THREAD_unlock(global_engine_lock);

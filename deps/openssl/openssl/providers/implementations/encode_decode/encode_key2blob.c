@@ -38,8 +38,6 @@ static int write_blob(void *provctx, OSSL_CORE_BIO *cout,
 
 static OSSL_FUNC_encoder_newctx_fn key2blob_newctx;
 static OSSL_FUNC_encoder_freectx_fn key2blob_freectx;
-static OSSL_FUNC_encoder_gettable_params_fn key2blob_gettable_params;
-static OSSL_FUNC_encoder_get_params_fn key2blob_get_params;
 
 static void *key2blob_newctx(void *provctx)
 {
@@ -48,27 +46,6 @@ static void *key2blob_newctx(void *provctx)
 
 static void key2blob_freectx(void *vctx)
 {
-}
-
-static const OSSL_PARAM *key2blob_gettable_params(ossl_unused void *provctx)
-{
-    static const OSSL_PARAM gettables[] = {
-        { OSSL_ENCODER_PARAM_OUTPUT_TYPE, OSSL_PARAM_UTF8_PTR, NULL, 0, 0 },
-        OSSL_PARAM_END,
-    };
-
-    return gettables;
-}
-
-static int key2blob_get_params(OSSL_PARAM params[])
-{
-    OSSL_PARAM *p;
-
-    p = OSSL_PARAM_locate(params, OSSL_ENCODER_PARAM_OUTPUT_TYPE);
-    if (p != NULL && !OSSL_PARAM_set_utf8_ptr(p, "blob"))
-        return 0;
-
-    return 1;
 }
 
 static int key2blob_check_selection(int selection, int selection_mask)
@@ -179,10 +156,6 @@ static int key2blob_encode(void *vctx, const void *key, int selection,
           (void (*)(void))key2blob_newctx },                            \
         { OSSL_FUNC_ENCODER_FREECTX,                                    \
           (void (*)(void))key2blob_freectx },                           \
-        { OSSL_FUNC_ENCODER_GETTABLE_PARAMS,                            \
-          (void (*)(void))key2blob_gettable_params },                   \
-        { OSSL_FUNC_ENCODER_GET_PARAMS,                                 \
-          (void (*)(void))key2blob_get_params },                        \
         { OSSL_FUNC_ENCODER_DOES_SELECTION,                             \
           (void (*)(void))impl##2blob_does_selection },                 \
         { OSSL_FUNC_ENCODER_IMPORT_OBJECT,                              \

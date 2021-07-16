@@ -21,7 +21,7 @@ extern "C" {
 
 # ifndef OPENSSL_NO_DH
 
-int err_load_DH_strings_int(void);
+int ossl_err_load_DH_strings(void);
 # endif
 
 # ifdef  __cplusplus

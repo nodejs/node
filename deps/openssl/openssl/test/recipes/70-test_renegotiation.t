@@ -26,7 +26,7 @@ plan skip_all => "$test_name needs the sock feature enabled"
 plan skip_all => "$test_name needs TLS <= 1.2 enabled"
     if alldisabled(("ssl3", "tls1", "tls1_1", "tls1_2"));
 
-plan tests => 6;
+plan tests => 5;
 
 $ENV{OPENSSL_ia32cap} = '~0x200000200000000';
 my $proxy = TLSProxy::Proxy->new(
@@ -108,19 +108,6 @@ SKIP: {
     $proxy->start();
     ok(TLSProxy::Message->fail(),
         "Check client renegotiation failed");
-}
-
-SKIP: {
-    skip "TLSv1.2 and TLSv1.1 disabled", 1
-        if disabled("tls1_2") && disabled("tls1_1");
-    #Test 6: Server can do renegotiation
-    $proxy->clear();
-    $proxy->filter(undef);
-    $proxy->serverflags("-no_tls1_3 -immediate_renegotiation");
-    $proxy->clientflags("-no_tls1_3");
-    $proxy->start();
-    ok(TLSProxy::Message->success(),
-        "Check server renegotiation succeeded");
 }
 
 sub reneg_filter

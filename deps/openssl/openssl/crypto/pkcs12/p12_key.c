@@ -98,7 +98,8 @@ int PKCS12_key_gen_uni_ex(unsigned char *pass, int passlen, unsigned char *salt,
         return 0;
 
     *p++ = OSSL_PARAM_construct_utf8_string(OSSL_KDF_PARAM_DIGEST,
-                                            (char *)EVP_MD_name(md_type), 0);
+                                            (char *)EVP_MD_get0_name(md_type),
+                                            0);
     *p++ = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_PASSWORD,
                                              pass, passlen);
     *p++ = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_SALT,

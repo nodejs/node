@@ -140,7 +140,7 @@ static int generate_canonical_g(BN_CTX *ctx, BN_MONT_CTX *mont,
     EVP_MD_CTX *mctx = NULL;
     int mdsize;
 
-    mdsize = EVP_MD_size(evpmd);
+    mdsize = EVP_MD_get_size(evpmd);
     if (mdsize <= 0)
         return 0;
 
@@ -211,7 +211,7 @@ static int generate_p(BN_CTX *ctx, const EVP_MD *evpmd, int max_counter, int n,
     if (!BN_lshift(test, BN_value_one(), L - 1))
         goto err;
 
-    mdsize = EVP_MD_size(evpmd);
+    mdsize = EVP_MD_get_size(evpmd);
     if (mdsize <= 0)
         goto err;
 
@@ -318,7 +318,7 @@ static int generate_q_fips186_4(BN_CTX *ctx, BIGNUM *q, const EVP_MD *evpmd,
     int ret = 0, r;
     int m = *retm;
     unsigned char md[EVP_MAX_MD_SIZE];
-    int mdsize = EVP_MD_size(evpmd);
+    int mdsize = EVP_MD_get_size(evpmd);
     unsigned char *pmd;
     OSSL_LIB_CTX *libctx = ossl_bn_get_libctx(ctx);
 
@@ -329,7 +329,7 @@ static int generate_q_fips186_4(BN_CTX *ctx, BIGNUM *q, const EVP_MD *evpmd,
 
         /* A.1.1.2 Step (5) : generate seed with size seed_len */
         if (generate_seed
-                && RAND_bytes_ex(libctx, seed, (int)seedlen) < 0)
+                && RAND_bytes_ex(libctx, seed, seedlen, 0) < 0)
             goto err;
         /*
          * A.1.1.2 Step (6) AND
@@ -399,7 +399,7 @@ static int generate_q_fips186_2(BN_CTX *ctx, BIGNUM *q, const EVP_MD *evpmd,
         if (!BN_GENCB_call(cb, 0, m++))
             goto err;
 
-        if (generate_seed && RAND_bytes_ex(libctx, seed, (int)qsize) <= 0)
+        if (generate_seed && RAND_bytes_ex(libctx, seed, qsize, 0) <= 0)
             goto err;
 
         memcpy(buf, seed, qsize);
@@ -547,7 +547,7 @@ int ossl_ffc_params_FIPS186_4_gen_verify(OSSL_LIB_CTX *libctx,
     }
     if (md == NULL)
         goto err;
-    mdsize = EVP_MD_size(md);
+    mdsize = EVP_MD_get_size(md);
     if (mdsize <= 0)
         goto err;
 
@@ -843,7 +843,7 @@ int ossl_ffc_params_FIPS186_2_gen_verify(OSSL_LIB_CTX *libctx,
     if (md == NULL)
         goto err;
     if (N == 0)
-        N = EVP_MD_size(md) * 8;
+        N = EVP_MD_get_size(md) * 8;
     qsize = N >> 3;
 
     /*

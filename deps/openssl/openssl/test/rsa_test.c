@@ -337,16 +337,22 @@ static const struct {
     { 4096,     152 },
     { 6144,     176 },
     { 8192,     200 },
+    /* NIST FIPS 140-2 IG 7.5 */
+    { 7680,     192 },
+    { 15360,    256 },
     /* Older values */
     { 256,      40  },
     { 512,      56  },
     { 1024,     80  },
-    /* Slightly different value to the 256 that NIST lists in their tables */
-    { 15360,    264 },
     /* Some other values */
     { 8888,     208 },
     { 2468,     120 },
-    { 13456,    248 }
+    { 13456,    248 },
+    /* Edge points */
+    { 15359,    256 },
+    { 15361,    264 },
+    { 7679,     192 },
+    { 7681,     200 },
 };
 
 static int test_rsa_security_bit(int n)

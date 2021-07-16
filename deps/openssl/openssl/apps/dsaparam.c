@@ -11,6 +11,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include "apps.h"
 #include <time.h>
 #include <string.h>
 #include "apps.h"
@@ -176,10 +177,7 @@ int dsaparam_main(int argc, char **argv)
                        "Error, DSA key generation setting bit length failed\n");
             goto end;
         }
-        if (EVP_PKEY_paramgen(ctx, &params) <= 0) {
-            BIO_printf(bio_err, "Error, DSA key generation failed\n");
-            goto end;
-        }
+        params = app_paramgen(ctx, "DSA");
     } else {
         params = load_keyparams(infile, informat, 1, "DSA", "DSA parameters");
     }
@@ -218,10 +216,7 @@ int dsaparam_main(int argc, char **argv)
                        "Error, unable to initialise for key generation\n");
             goto end;
         }
-        if (!EVP_PKEY_keygen(ctx, &pkey)) {
-            BIO_printf(bio_err, "Error, unable to generate key\n");
-            goto end;
-        }
+        pkey = app_keygen(ctx, "DSA", numbits, verbose);
         assert(private);
         if (outformat == FORMAT_ASN1)
             i = i2d_PrivateKey_bio(out, pkey);

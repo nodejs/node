@@ -158,11 +158,13 @@ This is defined in IETF RFC 1421:
 
 L<https://tools.ietf.org/html/rfc1421>
 
-=item PKCS#8 (also known as "pkcs8" in some parts of OpenSSL)
+=item PKCS#8
 
-PKCS#8 is a specification of an ASN.1 structure that OpenSSL uses for
-storing or transmitting any private key in a key type agnostic manner, and
-has both an unencrypted and an encrypted form.
+PKCS#8 is a specification of ASN.1 structures that OpenSSL uses for storing
+or transmitting any private key in a key type agnostic manner.
+There are two structures worth noting for OpenSSL use, one that contains the
+key data in unencrypted form (known as "PrivateKeyInfo") and an encrypted
+wrapper structure (known as "EncryptedPrivateKeyInfo").
 
 This is specified in RFC 5208:
 

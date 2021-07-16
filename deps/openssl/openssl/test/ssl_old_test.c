@@ -636,7 +636,7 @@ static void sv_usage(void)
 #endif
     fprintf(stderr, " -no_dhe       - disable DHE\n");
 #ifndef OPENSSL_NO_EC
-    fprintf(stderr, " -no_ecdhe     - disable ECDHE\nTODO(openssl-team): no_ecdhe was broken by auto ecdh. Make this work again.\n");
+    fprintf(stderr, " -no_ecdhe     - disable ECDHE\n");
 #endif
 #ifndef OPENSSL_NO_PSK
     fprintf(stderr, " -psk arg      - PSK in hex (without 0x)\n");
@@ -717,7 +717,7 @@ static void sv_usage(void)
 
 static void print_key_details(BIO *out, EVP_PKEY *key)
 {
-    int keyid = EVP_PKEY_id(key);
+    int keyid = EVP_PKEY_get_id(key);
 
 #ifndef OPENSSL_NO_EC
     if (keyid == EVP_PKEY_EC) {
@@ -726,7 +726,7 @@ static void print_key_details(BIO *out, EVP_PKEY *key)
 
         if (!EVP_PKEY_get_group_name(key, group, sizeof(group), &size))
             strcpy(group, "unknown group");
-        BIO_printf(out, "%d bits EC (%s)", EVP_PKEY_bits(key), group);
+        BIO_printf(out, "%d bits EC (%s)", EVP_PKEY_get_bits(key), group);
     } else
 #endif
     {
@@ -745,7 +745,7 @@ static void print_key_details(BIO *out, EVP_PKEY *key)
             algname = OBJ_nid2sn(keyid);
             break;
         }
-        BIO_printf(out, "%d bits %s", EVP_PKEY_bits(key), algname);
+        BIO_printf(out, "%d bits %s", EVP_PKEY_get_bits(key), algname);
     }
 }
 

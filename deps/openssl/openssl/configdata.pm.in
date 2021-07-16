@@ -178,7 +178,10 @@ _____
                'man'                    => \$man)
         or die "Errors in command line arguments\n";
 
-    if (scalar @ARGV > 0) {
+    # We allow extra arguments with --query.  That allows constructs like
+    # this:
+    # ./configdata.pm --query 'get_sources(@ARGV)' file1 file2 file3
+    if (!$query && scalar @ARGV > 0) {
         print STDERR <<"_____";
 Unrecognised arguments.
 For more information, do '$0 --help'

@@ -3,7 +3,8 @@
 =head1 NAME
 
 OSSL_CORE_MAKE_FUNC,
-SSL_OP_BIT
+SSL_OP_BIT,
+EXT_UTF8STRING
 - OpenSSL reserved symbols
 
 =head1 SYNOPSIS
@@ -12,6 +13,7 @@ SSL_OP_BIT
 
  #define OSSL_CORE_MAKE_FUNC(type,name,args)
  #define SSL_OP_BIT(n)
+ #define EXT_UTF8STRING(nid)
 
 =head1 DESCRIPTION
 

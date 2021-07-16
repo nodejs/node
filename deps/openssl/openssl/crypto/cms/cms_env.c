@@ -557,7 +557,7 @@ static int cms_RecipientInfo_ktri_decrypt(CMS_ContentInfo *cms,
         }
         (void)ERR_pop_to_mark();
 
-        fixlen = EVP_CIPHER_key_length(cipher);
+        fixlen = EVP_CIPHER_get_key_length(cipher);
         EVP_CIPHER_free(fetched_cipher);
     }
 
@@ -1108,7 +1108,7 @@ static BIO *cms_EnvelopedData_Decryption_init_bio(CMS_ContentInfo *cms)
      * If the selected cipher supports unprotected attributes,
      * deal with it using special ctrl function
      */
-    if ((EVP_CIPHER_flags(EVP_CIPHER_CTX_get0_cipher(ctx))
+    if ((EVP_CIPHER_get_flags(EVP_CIPHER_CTX_get0_cipher(ctx))
                 & EVP_CIPH_FLAG_CIPHER_WITH_MAC) != 0
          && EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_PROCESS_UNPROTECTED, 0,
                                 cms->d.envelopedData->unprotectedAttrs) <= 0) {
@@ -1228,7 +1228,7 @@ int ossl_cms_EnvelopedData_final(CMS_ContentInfo *cms, BIO *chain)
      * If the selected cipher supports unprotected attributes,
      * deal with it using special ctrl function
      */
-    if ((EVP_CIPHER_flags(EVP_CIPHER_CTX_get0_cipher(ctx))
+    if ((EVP_CIPHER_get_flags(EVP_CIPHER_CTX_get0_cipher(ctx))
             & EVP_CIPH_FLAG_CIPHER_WITH_MAC) != 0) {
         if (env->unprotectedAttrs == NULL)
             env->unprotectedAttrs = sk_X509_ATTRIBUTE_new_null();
@@ -1261,10 +1261,10 @@ int ossl_cms_AuthEnvelopedData_final(CMS_ContentInfo *cms, BIO *cmsbio)
      * The tag is set only for encryption. There is nothing to do for
      * decryption.
      */
-    if (!EVP_CIPHER_CTX_encrypting(ctx))
+    if (!EVP_CIPHER_CTX_is_encrypting(ctx))
         return 1;
 
-    taglen = EVP_CIPHER_CTX_tag_length(ctx);
+    taglen = EVP_CIPHER_CTX_get_tag_length(ctx);
     if (taglen <= 0
             || (tag = OPENSSL_malloc(taglen)) == NULL
             || EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, taglen,

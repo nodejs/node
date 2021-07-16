@@ -672,7 +672,7 @@ int ossl_cmp_msg_check_update(OSSL_CMP_CTX *ctx, const OSSL_CMP_MSG *msg,
     /* validate sender name of received msg */
     if (hdr->sender->type != GEN_DIRNAME) {
         ERR_raise(ERR_LIB_CMP, CMP_R_SENDER_GENERALNAME_TYPE_NOT_SUPPORTED);
-        return 0; /* TODO FR#42: support for more than X509_NAME */
+        return 0;
     }
     /*
      * Compare actual sender name of response with expected sender name.

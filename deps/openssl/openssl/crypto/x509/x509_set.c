@@ -255,7 +255,7 @@ static int x509_sig_info_init(X509_SIG_INFO *siginf, const X509_ALGOR *alg,
             ERR_raise(ERR_LIB_X509, X509_R_ERROR_GETTING_MD_BY_NID);
             return 0;
         }
-        siginf->secbits = EVP_MD_size(md) * 4;
+        siginf->secbits = EVP_MD_get_size(md) * 4;
         break;
     }
     switch (mdnid) {

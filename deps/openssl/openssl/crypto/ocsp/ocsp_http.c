@@ -9,7 +9,6 @@
 
 #include <openssl/ocsp.h>
 #include <openssl/http.h>
-#include "../http/http_local.h"
 
 #ifndef OPENSSL_NO_OCSP
 

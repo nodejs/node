@@ -138,7 +138,8 @@ opthelp:
     if (argc != 1)
         goto opthelp;
 
-    if ((kdf = EVP_KDF_fetch(NULL, argv[0], NULL)) == NULL) {
+    if ((kdf = EVP_KDF_fetch(app_get0_libctx(), argv[0],
+                             app_get0_propq())) == NULL) {
         BIO_printf(bio_err, "Invalid KDF name %s\n", argv[0]);
         goto opthelp;
     }

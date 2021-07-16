@@ -22,7 +22,7 @@
  */
 static int match_type(const EVP_KEYMGMT *keymgmt1, const EVP_KEYMGMT *keymgmt2)
 {
-    const char *name2 = EVP_KEYMGMT_name(keymgmt2);
+    const char *name2 = EVP_KEYMGMT_get0_name(keymgmt2);
 
     return EVP_KEYMGMT_is_a(keymgmt1, name2);
 }
@@ -107,8 +107,16 @@ void *evp_keymgmt_util_export_to_provider(EVP_PKEY *pk, EVP_KEYMGMT *keymgmt)
     if (pk->keydata == NULL)
         return NULL;
 
-    /* If |keymgmt| matches the "origin" |keymgmt|, no more to do */
-    if (pk->keymgmt == keymgmt)
+    /*
+     * If |keymgmt| matches the "origin" |keymgmt|, there is no more to do.
+     * The "origin" is determined by the |keymgmt| pointers being identical
+     * or when the provider and the name ID match.  The latter case handles the
+     * situation where the fetch cache is flushed and a "new" key manager is
+     * created.
+     */
+    if (pk->keymgmt == keymgmt
+        || (pk->keymgmt->name_id == keymgmt->name_id
+            && pk->keymgmt->prov == keymgmt->prov))
         return pk->keydata;
 
     if (!CRYPTO_THREAD_read_lock(pk->lock))
@@ -278,7 +286,7 @@ void evp_keymgmt_util_cache_keyinfo(EVP_PKEY *pk)
     /*
      * Cache information about the provider "origin" key.
      *
-     * This services functions like EVP_PKEY_size, EVP_PKEY_bits, etc
+     * This services functions like EVP_PKEY_get_size, EVP_PKEY_get_bits, etc
      */
     if (pk->keydata != NULL) {
         int bits = 0;

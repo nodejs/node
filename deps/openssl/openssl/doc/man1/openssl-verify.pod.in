@@ -9,12 +9,12 @@ openssl-verify - certificate verification command
 
 B<openssl> B<verify>
 [B<-help>]
-[B<-CRLfile> I<file>]
+[B<-CRLfile> I<filename>|I<uri>]
 [B<-crl_download>]
 [B<-show_chain>]
 [B<-verbose>]
-[B<-trusted> I<file>]
-[B<-untrusted> I<file>]
+[B<-trusted> I<filename>|I<uri>]
+[B<-untrusted> I<filename>|I<uri>]
 [B<-vfyopt> I<nm>:I<v>]
 {- $OpenSSL::safe::opt_name_synopsis -}
 {- $OpenSSL::safe::opt_trust_synopsis -}
@@ -36,11 +36,11 @@ problems, this program attempts to display all of them.
 
 Print out a usage message.
 
-=item B<-CRLfile> I<file>
+=item B<-CRLfile> I<filename>|I<uri>
 
 The file or URI should contain one or more CRLs in PEM or DER format.
 This option can be specified more than once to include CRLs from multiple
-I<file>s.
+sources.
 
 =item B<-crl_download>
 
@@ -56,19 +56,19 @@ flagged as "untrusted".
 
 Print extra information about the operations being performed.
 
-=item B<-trusted> I<file>
+=item B<-trusted> I<filename>|I<uri>
 
-A file or URI of trusted certificates in PEM, DER, or PKCS#12 format.
+A file or URI of (more or less) trusted certificates.
+See L<openssl-verification-options(1)> for more information on trust settings.
+
 This option can be specified more than once to load certificates from multiple
-I<file>s.
+sources.
 
-=item B<-untrusted> I<file>
+=item B<-untrusted> I<filename>|I<uri>
 
-A file or URI of untrusted certificates in PEM, DER, or PKCS#12 format
-to use for chain building.
+A file or URI of untrusted certificates to use for chain building.
 This option can be specified more than once to load certificates from multiple
-I<file>s.
-
+sources.
 
 =item B<-vfyopt> I<nm>:I<v>
 
@@ -125,23 +125,6 @@ F<< <openssl/x509_vfy.h> >>.
 
 This command ignores many errors, in order to allow all the problems with a
 certificate chain to be determined.
-
-=head1 BUGS
-
-Although the issuer checks are a considerable improvement over the old
-technique they still suffer from limitations in the underlying X509_LOOKUP
-API. One consequence of this is that trusted certificates with matching
-subject name must either appear in a file (as specified by the B<-CAfile>
-option), a directory (as specified by B<-CApath>), or a store (as specified
-by B<-CAstore>). If they occur in more than one location then only the
-certificates in the file will be recognised.
-
-Previous versions of OpenSSL assume certificates with matching subject
-name are identical and mishandled them.
-
-Previous versions of this documentation swapped the meaning of the
-B<X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT> and
-B<X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY> error codes.
 
 =head1 SEE ALSO
 

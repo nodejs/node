@@ -22,7 +22,7 @@
 #include <openssl/pem.h>
 #include "s_apps.h"
 #include <openssl/err.h>
-#include <internal/sockets.h>
+#include "internal/sockets.h"
 #if !defined(OPENSSL_SYS_MSDOS)
 # include <unistd.h>
 #endif

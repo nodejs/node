@@ -206,6 +206,13 @@ size_t test_get_argument_count(void);
  */
 int test_skip_common_options(void);
 
+/*
+ * Get a library context for the tests, populated with the specified provider
+ * and configuration. If default_null_prov is not NULL, a "null" provider is
+ * loaded into the default library context to prevent it being used.
+ * If libctx is NULL, the specified provider is loaded into the default library
+ * context.
+ */
 int test_get_libctx(OSSL_LIB_CTX **libctx, OSSL_PROVIDER **default_null_prov,
                     const char *config_file,
                     OSSL_PROVIDER **provider, const char *module_name);
@@ -585,6 +592,6 @@ EVP_PKEY *load_pkey_pem(const char *file, OSSL_LIB_CTX *libctx);
 X509 *load_cert_pem(const char *file, OSSL_LIB_CTX *libctx);
 X509 *load_cert_der(const unsigned char *bytes, int len);
 STACK_OF(X509) *load_certs_pem(const char *file);
-X509_REQ *load_csr_der(const char *file);
+X509_REQ *load_csr_der(const char *file, OSSL_LIB_CTX *libctx);
 
 #endif                          /* OSSL_TESTUTIL_H */

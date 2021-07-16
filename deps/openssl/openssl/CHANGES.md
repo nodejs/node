@@ -28,30 +28,54 @@ breaking changes, and mappings for the large list of deprecated functions.
 
 [Migration guide]: https://github.com/openssl/openssl/tree/master/doc/man7/migration_guide.pod
 
-### Changes between 3.0 alpha 17 and alpha 17+quic [20 May 2021]
+### Changes between 3.0 beta 1 and beta 1+quic [17 Jun 2021]
 
 * Add QUIC API support from BoringSSL.
 
    *Todd Short*
 
-### Changes between 1.1.1 and 3.0 alpha 17 [20 May 2021]
+### Changes between 1.1.1 and 3.0 beta 1 [17 Jun 2021]
+
+ * Add a configurable flag to output date formats as ISO 8601. Does not
+   change the default date format.
+
+   *William Edmisten*
+
+ * Version of MSVC earlier than 1300 could get link warnings, which could
+   be suppressed if the undocumented -DI_CAN_LIVE_WITH_LNK4049 was set.
+   Support for this flag has been removed.
+
+   *Rich Salz*
+
+ * Rework and make DEBUG macros consistent. Remove unused -DCONF_DEBUG,
+   -DBN_CTX_DEBUG, and REF_PRINT. Add a new tracing category and use it for
+   printing reference counts. Rename -DDEBUG_UNUSED to -DUNUSED_RESULT_DEBUG
+   Fix BN_DEBUG_RAND so it compiles and, when set, force DEBUG_RAND to be set
+   also. Rename engine_debug_ref to be ENGINE_REF_PRINT also for consistency.
+
+   *Rich Salz*
 
  * The signatures of the functions to get and set options on SSL and
    SSL_CTX objects changed from "unsigned long" to "uint64_t" type.
    Some source code changes may be required.
 
-   * Rich Salz *
+   *Rich Salz*
+
+ * The public definitions of conf_method_st and conf_st have been
+   deprecated. They will be made opaque in a future release.
+
+   *Rich Salz and Tomáš Mráz*
 
  * Client-initiated renegotiation is disabled by default. To allow it, use
    the -client_renegotiation option, the SSL_OP_ALLOW_CLIENT_RENEGOTIATION
    flag, or the "ClientRenegotiation" config parameter as appropriate.
 
-   * Rich Salz *
+   *Rich Salz*
 
  * Add "abspath" and "includedir" pragma's to config files, to prevent,
    or modify relative pathname inclusion.
 
-   * Rich Salz *
+   *Rich Salz*
 
  * OpenSSL includes a cryptographic module that is intended to be FIPS 140-2
    validated. Please consult the README-FIPS and
@@ -101,6 +125,13 @@ breaking changes, and mappings for the large list of deprecated functions.
  * A public key check is now performed during EVP_PKEY_derive_set_peer().
 
    *Shane Lontis*
+
+ * Many functions in the EVP_ namespace that are getters of values from
+   implementations or contexts were renamed to include get or get0 in their
+   names. Old names are provided as macro aliases for compatibility and
+   are not deprecated.
+
+   *Tomáš Mráz*
 
  * The EVP_PKEY_CTRL_PKCS7_ENCRYPT, EVP_PKEY_CTRL_PKCS7_DECRYPT,
    EVP_PKEY_CTRL_PKCS7_SIGN, EVP_PKEY_CTRL_CMS_ENCRYPT,
@@ -181,6 +212,24 @@ breaking changes, and mappings for the large list of deprecated functions.
    EVP_PKEY_get0_siphash().
 
    *Matt Caswell*
+
+ * PKCS#5 PBKDF1 key derivation has been moved from PKCS5_PBE_keyivgen() into
+   the legacy crypto provider as an EVP_KDF. Applications requiring this KDF
+   will need to load the legacy crypto provider. This includes these PBE
+   algorithms which use this KDF:
+   - NID_pbeWithMD2AndDES_CBC
+   - NID_pbeWithMD5AndDES_CBC
+   - NID_pbeWithSHA1AndRC2_CBC
+   - NID_pbeWithMD2AndRC2_CBC
+   - NID_pbeWithMD5AndRC2_CBC
+   - NID_pbeWithSHA1AndDES_CBC
+
+   *Jon Spillett*
+
+ * Deprecated obsolete BIO_set_callback(), BIO_get_callback(), and
+   BIO_debug_callback() functions.
+
+   *Tomáš Mráz*
 
  * Deprecated obsolete EVP_PKEY_CTX_get0_dh_kdf_ukm() and
    EVP_PKEY_CTX_get0_ecdh_kdf_ukm() functions.
@@ -621,8 +670,8 @@ breaking changes, and mappings for the large list of deprecated functions.
 
    *Richard Levitte*
 
- * Enhanced the documentation of EVP_PKEY_size(), EVP_PKEY_bits()
-   and EVP_PKEY_security_bits().  Especially EVP_PKEY_size() needed
+ * Enhanced the documentation of EVP_PKEY_get_size(), EVP_PKEY_get_bits()
+   and EVP_PKEY_get_security_bits().  Especially EVP_PKEY_get_size() needed
    a new formulation to include all the things it can be used for,
    as well as words of caution.
 
@@ -652,8 +701,8 @@ breaking changes, and mappings for the large list of deprecated functions.
 
    *Paul Dale*
 
- * The low-level MD2, MD4, MD5, MDC2, RIPEMD160, SHA1, SHA224, SHA256,
-   SHA384, SHA512 and Whirlpool digest functions have been deprecated.
+ * The low-level MD2, MD4, MD5, MDC2, RIPEMD160 and Whirlpool digest
+   functions have been deprecated.
 
    *Paul Dale and David von Oheimb*
 
@@ -12237,7 +12286,7 @@ s-cbc           3624.96k     5258.21k     5530.91k     5624.30k     5628.26k
    *"Brian Havard" <brianh@kheldar.apana.org.au> and Richard Levitte*
 
  * Rewrite commands to use `NCONF` routines instead of the old `CONF`.
-   New functions to support `NCONF `routines in extension code.
+   New functions to support `NCONF` routines in extension code.
    New function `CONF_set_nconf()`
    to allow functions which take an `NCONF` to also handle the old `LHASH`
    structure: this means that the old `CONF` compatible routines can be
@@ -18558,13 +18607,11 @@ ndif
    *Ralf S. Engelschall*
 
  * Removed dummy files from the 0.9.1b source tree:
-   ```
    crypto/asn1/x crypto/bio/cd crypto/bio/fg crypto/bio/grep crypto/bio/vi
    crypto/bn/asm/......add.c crypto/bn/asm/a.out crypto/dsa/f crypto/md5/f
    crypto/pem/gmon.out crypto/perlasm/f crypto/pkcs7/build crypto/rsa/f
    crypto/sha/asm/f crypto/threads/f ms/zzz ssl/f ssl/f.mak test/f
    util/f.mak util/pl/f util/pl/f.mak crypto/bf/bf_locl.old apps/f
-   ```
 
    *Ralf S. Engelschall*
 

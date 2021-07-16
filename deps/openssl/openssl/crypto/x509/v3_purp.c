@@ -366,16 +366,15 @@ static int setup_crldp(X509 *x)
 /* Check that issuer public key algorithm matches subject signature algorithm */
 static int check_sig_alg_match(const EVP_PKEY *issuer_key, const X509 *subject)
 {
-    int signer_nid, subj_sig_nid;
+    int subj_sig_nid;
 
     if (issuer_key == NULL)
         return X509_V_ERR_NO_ISSUER_PUBLIC_KEY;
-    signer_nid = EVP_PKEY_base_id(issuer_key);
     if (OBJ_find_sigid_algs(OBJ_obj2nid(subject->cert_info.signature.algorithm),
                             NULL, &subj_sig_nid) == 0)
          return X509_V_ERR_UNSUPPORTED_SIGNATURE_ALGORITHM;
-    if (signer_nid == EVP_PKEY_type(subj_sig_nid)
-        || (signer_nid == NID_rsaEncryption && subj_sig_nid == NID_rsassaPss))
+    if (EVP_PKEY_is_a(issuer_key, OBJ_nid2sn(subj_sig_nid))
+        || (EVP_PKEY_is_a(issuer_key, "RSA") && subj_sig_nid == NID_rsassaPss))
         return X509_V_OK;
     return X509_V_ERR_SIGNATURE_ALGORITHM_MISMATCH;
 }
@@ -895,10 +894,10 @@ static int no_check_purpose(const X509_PURPOSE *xp, const X509 *x,
  * This can be used to prune a set of possible issuer certificates which
  * have been looked up using some simple method such as by subject name.
  * These are:
- * 1. Check issuer_name(subject) == subject_name(issuer)
- * 2. If akid(subject) exists, check that it matches issuer
- * 3. Check that issuer public key algorithm matches subject signature algorithm
- * 4. Check that any key_usage(issuer) allows certificate signing
+ * 1. issuer_name(subject) == subject_name(issuer)
+ * 2. If akid(subject) exists, it matches the respective issuer fields.
+ * 3. subject signature algorithm == issuer public key algorithm
+ * 4. If key_usage(issuer) exists, it allows for signing subject.
  * Note that this does not include actually checking the signature.
  * Returns 0 for OK, or positive for reason for mismatch
  * where reason codes match those for X509_verify_cert().

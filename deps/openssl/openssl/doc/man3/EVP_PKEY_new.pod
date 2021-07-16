@@ -7,7 +7,7 @@ EVP_PKEY_new,
 EVP_PKEY_up_ref,
 EVP_PKEY_dup,
 EVP_PKEY_free,
-EVP_PKEY_description,
+EVP_PKEY_get0_description,
 EVP_PKEY_new_raw_private_key_ex,
 EVP_PKEY_new_raw_private_key,
 EVP_PKEY_new_raw_public_key_ex,
@@ -28,7 +28,7 @@ EVP_PKEY_get_raw_public_key
  int EVP_PKEY_up_ref(EVP_PKEY *key);
  EVP_PKEY *EVP_PKEY_dup(EVP_PKEY *key);
  void EVP_PKEY_free(EVP_PKEY *key);
- const char *EVP_PKEY_description(const EVP_PKEY *key);
+ const char *EVP_PKEY_get0_description(const EVP_PKEY *key);
 
  EVP_PKEY *EVP_PKEY_new_raw_private_key_ex(OSSL_LIB_CTX *libctx,
                                            const char *keytype,
@@ -92,9 +92,9 @@ a raw key, otherwise the duplication will fail.
 EVP_PKEY_free() decrements the reference count of I<key> and, if the reference
 count is zero, frees it up. If I<key> is NULL, nothing is done.
 
-EVP_PKEY_description() returns a description of the type of B<EVP_PKEY>, meant
-for display and human consumption.  The description is at the discretion of the
-key type implementation.
+EVP_PKEY_get0_description() returns a description of the type of B<EVP_PKEY>,
+meant for display and human consumption.  The description is at the
+discretion of the key type implementation.
 
 EVP_PKEY_new_raw_private_key_ex() allocates a new B<EVP_PKEY>. Unless an
 engine should be used for the key type, a provider for the key is found using

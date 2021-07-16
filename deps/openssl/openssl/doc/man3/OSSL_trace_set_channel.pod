@@ -140,9 +140,10 @@ Traces the ciphers used by the TLS/SSL protocol.
 
 Traces the ENGINE algorithm table selection.
 
-More precisely, engine_table_select(), the function that is used by
-RSA, DSA (etc) code to select registered ENGINEs, cache defaults and
-functional references (etc), will generate trace summaries.
+More precisely, functions like ENGINE_get_pkey_asn1_meth_engine(),
+ENGINE_get_pkey_meth_engine(), ENGINE_get_cipher_engine(),
+ENGINE_get_digest_engine(), will generate trace summaries of the
+handling of internal tables.
 
 =item B<OSSL_TRACE_CATEGORY_ENGINE_REF_COUNT>
 

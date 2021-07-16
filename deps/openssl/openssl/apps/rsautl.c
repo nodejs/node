@@ -214,7 +214,7 @@ int rsautl_main(int argc, char **argv)
     if (out == NULL)
         goto end;
 
-    keysize = EVP_PKEY_size(pkey);
+    keysize = EVP_PKEY_get_size(pkey);
 
     rsa_in = app_malloc(keysize * 2, "hold rsa key");
     rsa_out = app_malloc(keysize, "output rsa key");

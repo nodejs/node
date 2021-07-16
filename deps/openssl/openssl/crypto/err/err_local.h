@@ -27,6 +27,7 @@ static ossl_inline void err_clear_data(ERR_STATE *es, size_t i, int deall)
             es->err_data_flags[i] = 0;
         } else if (es->err_data[i] != NULL) {
             es->err_data[i][0] = '\0';
+            es->err_data_flags[i] = ERR_TXT_MALLOCED;
         }
     } else {
         es->err_data[i] = NULL;
@@ -68,6 +69,8 @@ static ossl_inline void err_set_debug(ERR_STATE *es, size_t i,
 static ossl_inline void err_set_data(ERR_STATE *es, size_t i,
                                      void *data, size_t datasz, int flags)
 {
+    if ((es->err_data_flags[i] & ERR_TXT_MALLOCED) != 0)
+        OPENSSL_free(es->err_data[i]);
     es->err_data[i] = data;
     es->err_data_size[i] = datasz;
     es->err_data_flags[i] = flags;

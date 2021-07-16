@@ -21,6 +21,7 @@ B<openssl fipsinstall>
 [B<-quiet>]
 [B<-no_conditional_errors>]
 [B<-no_security_checks>]
+[B<-self_test_onload>]
 [B<-corrupt_desc> I<selftest_description>]
 [B<-corrupt_type> I<selftest_type>]
 [B<-config> I<parent_config>]
@@ -30,7 +31,7 @@ B<openssl fipsinstall>
 This command is used to generate a FIPS module configuration file.
 This configuration file can be used each time a FIPS module is loaded
 in order to pass data to the FIPS module self tests. The FIPS module always
-verifies its MAC, but only needs to run the KAT's once,
+verifies its MAC, but optionally only needs to run the KAT's once,
 at installation.
 
 The generated configuration file consists of:
@@ -162,6 +163,16 @@ fails as described above.
 =item B<-no_security_checks>
 
 Configure the module to not perform run-time security checks as described above.
+
+=item B<-self_test_onload>
+
+Do not write the two fields related to the "test status indicator" and
+"MAC status indicator" to the output configuration file. Without these fields
+the self tests KATS will run each time the module is loaded. This option could be
+used for cross compiling, since the self tests need to run at least once on each
+target machine. Once the self tests have run on the target machine the user
+could possibly then add the 2 fields into the configuration using some other
+mechanism.
 
 =item B<-quiet>
 

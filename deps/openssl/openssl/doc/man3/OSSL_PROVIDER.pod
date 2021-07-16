@@ -8,7 +8,7 @@ OSSL_PROVIDER_available, OSSL_PROVIDER_do_all,
 OSSL_PROVIDER_gettable_params, OSSL_PROVIDER_get_params,
 OSSL_PROVIDER_query_operation, OSSL_PROVIDER_unquery_operation,
 OSSL_PROVIDER_get0_provider_ctx, OSSL_PROVIDER_get0_dispatch,
-OSSL_PROVIDER_add_builtin, OSSL_PROVIDER_name, OSSL_PROVIDER_get_capabilities,
+OSSL_PROVIDER_add_builtin, OSSL_PROVIDER_get0_name, OSSL_PROVIDER_get_capabilities,
 OSSL_PROVIDER_self_test
 - provider routines
 
@@ -45,7 +45,7 @@ OSSL_PROVIDER_self_test
  int OSSL_PROVIDER_add_builtin(OSSL_LIB_CTX *libctx, const char *name,
                                ossl_provider_init_fn *init_fn);
 
- const char *OSSL_PROVIDER_name(const OSSL_PROVIDER *prov);
+ const char *OSSL_PROVIDER_get0_name(const OSSL_PROVIDER *prov);
 
  int OSSL_PROVIDER_get_capabilities(const OSSL_PROVIDER *prov,
                                     const char *capability,
@@ -81,7 +81,12 @@ OSSL_PROVIDER_load() loads and initializes a provider.
 This may simply initialize a provider that was previously added with
 OSSL_PROVIDER_add_builtin() and run its given initialization function,
 or load a provider module with the given name and run its provider
-entry point, C<OSSL_provider_init>.
+entry point, C<OSSL_provider_init>. The I<name> can be a path
+to a provider module, in that case the provider name as returned
+by OSSL_PROVIDER_get0_name() will be the path. Interpretation
+of relative paths is platform dependent and they are relative
+to the configured "MODULESDIR" directory or the path set in
+the environment variable OPENSSL_MODULES if set.
 
 OSSL_PROVIDER_try_load() functions like OSSL_PROVIDER_load(), except that
 it does not disable the fallback providers if the provider cannot be
@@ -140,7 +145,7 @@ If it is permissible to cache references to this array then I<*no_store> is set
 to 0 or 1 otherwise. If the array is not cacheable then it is assumed to
 have a short lifetime.
 
-OSSL_PROVIDER_name() returns the name of the given provider.
+OSSL_PROVIDER_get0_name() returns the name of the given provider.
 
 OSSL_PROVIDER_get_capabilities() provides information about the capabilities
 supported by the provider specified in I<prov> with the capability name

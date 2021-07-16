@@ -357,6 +357,7 @@ static ossl_unused ossl_inline int ERR_COMMON_ERROR(unsigned long errcode)
 # define ERR_R_MISSING_ASN1_EOS                  (267|ERR_RFLAG_COMMON)
 # define ERR_R_UNSUPPORTED                       (268|ERR_RFLAG_COMMON)
 # define ERR_R_FETCH_FAILED                      (269|ERR_RFLAG_COMMON)
+# define ERR_R_INVALID_PROPERTY_DEFINITION       (270|ERR_RFLAG_COMMON)
 
 typedef struct ERR_string_data_st {
     unsigned long error;

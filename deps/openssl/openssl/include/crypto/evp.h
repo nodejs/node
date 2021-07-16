@@ -58,21 +58,37 @@ struct evp_pkey_ctx_st {
 
         struct {
             EVP_KEYEXCH *exchange;
-            void *exchprovctx;
+            /*
+             * Opaque ctx returned from a providers exchange algorithm
+             * implementation OSSL_FUNC_keyexch_newctx()
+             */
+            void *algctx;
         } kex;
 
         struct {
             EVP_SIGNATURE *signature;
-            void *sigprovctx;
+            /*
+             * Opaque ctx returned from a providers signature algorithm
+             * implementation OSSL_FUNC_signature_newctx()
+             */
+            void *algctx;
         } sig;
 
         struct {
             EVP_ASYM_CIPHER *cipher;
-            void *ciphprovctx;
+            /*
+             * Opaque ctx returned from a providers asymmetric cipher algorithm
+             * implementation OSSL_FUNC_asym_cipher_newctx()
+             */
+            void *algctx;
         } ciph;
         struct {
             EVP_KEM *kem;
-            void *kemprovctx;
+            /*
+             * Opaque ctx returned from a providers KEM algorithm
+             * implementation OSSL_FUNC_kem_newctx()
+             */
+            void *algctx;
         } encap;
     } op;
 
@@ -355,7 +371,7 @@ struct evp_cipher_st {
 static int cname##_ecb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out, const unsigned char *in, size_t inl) \
 {\
         BLOCK_CIPHER_ecb_loop() \
-            cprefix##_ecb_encrypt(in + i, out + i, &EVP_C_DATA(kstruct,ctx)->ksched, EVP_CIPHER_CTX_encrypting(ctx)); \
+            cprefix##_ecb_encrypt(in + i, out + i, &EVP_C_DATA(kstruct,ctx)->ksched, EVP_CIPHER_CTX_is_encrypting(ctx)); \
         return 1;\
 }
 
@@ -365,7 +381,7 @@ static int cname##_ecb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out, const uns
     static int cname##_ofb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out, const unsigned char *in, size_t inl) \
 {\
         while(inl>=EVP_MAXCHUNK) {\
-            int num = EVP_CIPHER_CTX_num(ctx);\
+            int num = EVP_CIPHER_CTX_get_num(ctx);\
             cprefix##_ofb##cbits##_encrypt(in, out, (long)EVP_MAXCHUNK, &EVP_C_DATA(kstruct,ctx)->ksched, ctx->iv, &num); \
             EVP_CIPHER_CTX_set_num(ctx, num);\
             inl-=EVP_MAXCHUNK;\
@@ -373,7 +389,7 @@ static int cname##_ecb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out, const uns
             out+=EVP_MAXCHUNK;\
         }\
         if (inl) {\
-            int num = EVP_CIPHER_CTX_num(ctx);\
+            int num = EVP_CIPHER_CTX_get_num(ctx);\
             cprefix##_ofb##cbits##_encrypt(in, out, (long)inl, &EVP_C_DATA(kstruct,ctx)->ksched, ctx->iv, &num); \
             EVP_CIPHER_CTX_set_num(ctx, num);\
         }\
@@ -385,13 +401,13 @@ static int cname##_cbc_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out, const uns
 {\
         while(inl>=EVP_MAXCHUNK) \
             {\
-            cprefix##_cbc_encrypt(in, out, (long)EVP_MAXCHUNK, &EVP_C_DATA(kstruct,ctx)->ksched, ctx->iv, EVP_CIPHER_CTX_encrypting(ctx));\
+            cprefix##_cbc_encrypt(in, out, (long)EVP_MAXCHUNK, &EVP_C_DATA(kstruct,ctx)->ksched, ctx->iv, EVP_CIPHER_CTX_is_encrypting(ctx));\
             inl-=EVP_MAXCHUNK;\
             in +=EVP_MAXCHUNK;\
             out+=EVP_MAXCHUNK;\
             }\
         if (inl)\
-            cprefix##_cbc_encrypt(in, out, (long)inl, &EVP_C_DATA(kstruct,ctx)->ksched, ctx->iv, EVP_CIPHER_CTX_encrypting(ctx));\
+            cprefix##_cbc_encrypt(in, out, (long)inl, &EVP_C_DATA(kstruct,ctx)->ksched, ctx->iv, EVP_CIPHER_CTX_is_encrypting(ctx));\
         return 1;\
 }
 
@@ -403,13 +419,13 @@ static int cname##_cfb##cbits##_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out, 
     if (inl < chunk) chunk = inl;\
     while (inl && inl >= chunk)\
     {\
-        int num = EVP_CIPHER_CTX_num(ctx);\
+        int num = EVP_CIPHER_CTX_get_num(ctx);\
         cprefix##_cfb##cbits##_encrypt(in, out, (long) \
             ((cbits == 1) \
                 && !EVP_CIPHER_CTX_test_flags(ctx, EVP_CIPH_FLAG_LENGTH_BITS) \
                 ? chunk*8 : chunk), \
             &EVP_C_DATA(kstruct, ctx)->ksched, ctx->iv,\
-            &num, EVP_CIPHER_CTX_encrypting(ctx));\
+            &num, EVP_CIPHER_CTX_is_encrypting(ctx));\
         EVP_CIPHER_CTX_set_num(ctx, num);\
         inl -= chunk;\
         in += chunk;\
@@ -917,5 +933,17 @@ DH *evp_pkey_get0_DH_int(const EVP_PKEY *pkey);
 EC_KEY *evp_pkey_get0_EC_KEY_int(const EVP_PKEY *pkey);
 RSA *evp_pkey_get0_RSA_int(const EVP_PKEY *pkey);
 # endif
+
+/* Get internal identification number routines */
+int evp_asym_cipher_get_number(const EVP_ASYM_CIPHER *cipher);
+int evp_cipher_get_number(const EVP_CIPHER *cipher);
+int evp_kdf_get_number(const EVP_KDF *kdf);
+int evp_kem_get_number(const EVP_KEM *wrap);
+int evp_keyexch_get_number(const EVP_KEYEXCH *keyexch);
+int evp_keymgmt_get_number(const EVP_KEYMGMT *keymgmt);
+int evp_mac_get_number(const EVP_MAC *mac);
+int evp_md_get_number(const EVP_MD *md);
+int evp_rand_get_number(const EVP_RAND *rand);
+int evp_signature_get_number(const EVP_SIGNATURE *signature);
 
 #endif /* OSSL_CRYPTO_EVP_H */

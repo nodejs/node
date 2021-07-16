@@ -18,7 +18,7 @@ OpenSSL Releases
 OpenSSL 3.0
 -----------
 
-### Major changes between OpenSSL 1.1.1 and OpenSSL 3.0 alpha 17 [in pre-release]
+### Major changes between OpenSSL 1.1.1 and OpenSSL 3.0 beta 1 [in pre-release]
 
   * Added migration guide to man7
   * Implemented support for fully "pluggable" TLSv1.3 groups
@@ -39,12 +39,8 @@ OpenSSL 3.0
   * Deprecated the `ENGINE` API.
   * Added `OSSL_LIB_CTX`, a libcrypto library context.
   * Interactive mode is removed from the 'openssl' program.
-  * The X25519, X448, Ed25519, Ed448 and SHAKE256 algorithms are included in
-    the FIPS provider.  None have the "fips=yes" property set and, as such,
-    will not be accidentially used.
-  * The algorithm specific public key command line applications have
-    been deprecated.  These include dhparam, gendsa and others.  The pkey
-    alternatives should be used instead: pkey, pkeyparam and genpkey.
+  * The X25519, X448, Ed25519, Ed448, SHAKE128 and SHAKE256 algorithms are
+    included in the FIPS provider.
   * X509 certificates signed using SHA1 are no longer allowed at security
     level 1 or higher. The default security level for TLS is 1, so
     certificates signed using SHA1 are by default no longer trusted to
@@ -75,10 +71,12 @@ OpenSSL 3.0
   * Changed our version number scheme and set the next major release to
     3.0.0
   * Added EVP_MAC, an EVP layer MAC API, and a generic EVP_PKEY to EVP_MAC
-    bridge.
+    bridge.  Supported MACs are: BLAKE2, CMAC, GMAC, HMAC, KMAC, POLY1305
+    and SIPHASH.
   * Removed the heartbeat message in DTLS feature.
-  * Added EVP_KDF, an EVP layer KDF API, and a generic EVP_PKEY to EVP_KDF
-    bridge.
+  * Added EVP_KDF, an EVP layer KDF and PRF API, and a generic EVP_PKEY to
+    EVP_KDF bridge.  Supported KDFs are: HKDF, KBKDF, KRB5 KDF, PBKDF2,
+    PKCS12 KDF, SCRYPT, SSH KDF, SSKDF, TLS1 PRF, X9.42 KDF and X9.63 KDF.
   * All of the low-level MD2, MD4, MD5, MDC2, RIPEMD160, SHA1, SHA224,
     SHA256, SHA384, SHA512 and Whirlpool digest functions have been
     deprecated.

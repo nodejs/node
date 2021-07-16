@@ -107,16 +107,6 @@ static int test_x509_spki_aid(X509 *cert, const char *filename)
     return test_spki_aid(pubkey, filename);
 }
 
-/*
- * TODO
- * When we gain the ability to get an EVP_SIGNATURE with a complete signature
- * algorithm name (like "sha1WithRSAEncryption" or its corresponding OID in
- * text form, "1.2.840.113549.1.1.2"), we won't have to limit this test to
- * what we have in libcrypto's cross-reference db, i.e. won't have to call
- * OBJ_find_sigid_algs() to find out the EVP_PKEY_METHOD NID any more.
- * All we'd have to do is used OBJ_obj2txt() on an ASN1_OBJECT and pass the
- * result.
- */
 static int test_x509_sig_aid(X509 *eecert, const char *ee_filename,
                              X509 *cacert, const char *ca_filename)
 {

@@ -44,6 +44,7 @@ my @files = qw(
                 evpciph_aes_wrap.txt
                 evpciph_des3_common.txt
                 evpkdf_hkdf.txt
+                evpkdf_pbkdf1.txt
                 evpkdf_pbkdf2.txt
                 evpkdf_ss.txt
                 evpkdf_ssh.txt

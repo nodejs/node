@@ -117,10 +117,5 @@ int setup_tests(void)
     ADD_TEST(test_cmp_asn1_get_int);
     ADD_TEST(test_ASN1_OCTET_STRING_set);
     ADD_TEST(test_ASN1_OCTET_STRING_set_tgt_is_src);
-    /*
-     * TODO make sure that total number of tests (here currently 24) is shown,
-     * also for other cmp_*text.c. Currently the test drivers always show 1.
-     */
-
     return 1;
 }

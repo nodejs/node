@@ -1,7 +1,7 @@
 /*
  * {- join("\n * ", @autowarntext) -}
  *
- * Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -631,9 +631,15 @@ typedef int ASN1_ex_d2i(ASN1_VALUE **pval, const unsigned char **in, long len,
                         const ASN1_ITEM *it, int tag, int aclass, char opt,
                         ASN1_TLC *ctx);
 
+typedef int ASN1_ex_d2i_ex(ASN1_VALUE **pval, const unsigned char **in, long len,
+                           const ASN1_ITEM *it, int tag, int aclass, char opt,
+                           ASN1_TLC *ctx, OSSL_LIB_CTX *libctx,
+                           const char *propq);
 typedef int ASN1_ex_i2d(const ASN1_VALUE **pval, unsigned char **out,
                         const ASN1_ITEM *it, int tag, int aclass);
 typedef int ASN1_ex_new_func(ASN1_VALUE **pval, const ASN1_ITEM *it);
+typedef int ASN1_ex_new_ex_func(ASN1_VALUE **pval, const ASN1_ITEM *it,
+                                OSSL_LIB_CTX *libctx, const char *propq);
 typedef void ASN1_ex_free_func(ASN1_VALUE **pval, const ASN1_ITEM *it);
 
 typedef int ASN1_ex_print_func(BIO *out, const ASN1_VALUE **pval,
@@ -657,6 +663,8 @@ typedef struct ASN1_EXTERN_FUNCS_st {
     ASN1_ex_d2i *asn1_ex_d2i;
     ASN1_ex_i2d *asn1_ex_i2d;
     ASN1_ex_print_func *asn1_ex_print;
+    ASN1_ex_new_ex_func *asn1_ex_new_ex;
+    ASN1_ex_d2i_ex *asn1_ex_d2i_ex;
 } ASN1_EXTERN_FUNCS;
 
 typedef struct ASN1_PRIMITIVE_FUNCS_st {
@@ -696,7 +704,7 @@ typedef struct ASN1_AUX_st {
     void *app_data;
     int flags;
     int ref_offset;             /* Offset of reference value */
-    int ref_lock;               /* Lock type to use */
+    int ref_lock;               /* Offset of lock value */
     ASN1_aux_cb *asn1_cb;
     int enc_offset;             /* Offset of ASN1_ENCODING structure */
     ASN1_aux_const_cb *asn1_const_cb; /* for ASN1_OP_I2D_ and ASN1_OP_PRINT_ */
@@ -748,6 +756,8 @@ typedef struct ASN1_STREAM_ARG_st {
 # define ASN1_OP_DETACHED_POST   13
 # define ASN1_OP_DUP_PRE         14
 # define ASN1_OP_DUP_POST        15
+# define ASN1_OP_GET0_LIBCTX     16
+# define ASN1_OP_GET0_PROPQ      17
 
 /* Macro to implement a primitive type */
 # define IMPLEMENT_ASN1_TYPE(stname) IMPLEMENT_ASN1_TYPE_ex(stname, stname, 0)

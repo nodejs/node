@@ -166,7 +166,7 @@ int EVP_KEYEXCH_up_ref(EVP_KEYEXCH *exchange)
     return 1;
 }
 
-OSSL_PROVIDER *EVP_KEYEXCH_provider(const EVP_KEYEXCH *exchange)
+OSSL_PROVIDER *EVP_KEYEXCH_get0_provider(const EVP_KEYEXCH *exchange)
 {
     return exchange->prov;
 }
@@ -201,10 +201,6 @@ int EVP_PKEY_derive_init_ex(EVP_PKEY_CTX *ctx, const OSSL_PARAM params[])
     evp_pkey_ctx_free_old_ops(ctx);
     ctx->operation = EVP_PKEY_OP_DERIVE;
 
-    /*
-     * TODO when we stop falling back to legacy, this and the ERR_pop_to_mark()
-     * calls can be removed.
-     */
     ERR_set_mark();
 
     if (evp_pkey_ctx_is_legacy(ctx))
@@ -264,8 +260,8 @@ int EVP_PKEY_derive_init_ex(EVP_PKEY_CTX *ctx, const OSSL_PARAM params[])
     exchange = EVP_KEYEXCH_fetch(ctx->libctx, supported_exch, ctx->propquery);
 
     if (exchange == NULL
-        || (EVP_KEYMGMT_provider(ctx->keymgmt)
-            != EVP_KEYEXCH_provider(exchange))) {
+        || (EVP_KEYMGMT_get0_provider(ctx->keymgmt)
+            != EVP_KEYEXCH_get0_provider(exchange))) {
         /*
          * We don't need to free ctx->keymgmt here, as it's not necessarily
          * tied to this operation.  It will be freed by EVP_PKEY_CTX_free().
@@ -275,7 +271,6 @@ int EVP_PKEY_derive_init_ex(EVP_PKEY_CTX *ctx, const OSSL_PARAM params[])
     }
 
     /*
-     * TODO remove this when legacy is gone
      * If we don't have the full support we need with provided methods,
      * let's go see if legacy does.
      */
@@ -284,13 +279,13 @@ int EVP_PKEY_derive_init_ex(EVP_PKEY_CTX *ctx, const OSSL_PARAM params[])
     /* No more legacy from here down to legacy: */
 
     ctx->op.kex.exchange = exchange;
-    ctx->op.kex.exchprovctx = exchange->newctx(ossl_provider_ctx(exchange->prov));
-    if (ctx->op.kex.exchprovctx == NULL) {
+    ctx->op.kex.algctx = exchange->newctx(ossl_provider_ctx(exchange->prov));
+    if (ctx->op.kex.algctx == NULL) {
         /* The provider key can stay in the cache */
         ERR_raise(ERR_LIB_EVP, EVP_R_INITIALIZATION_ERROR);
         goto err;
     }
-    ret = exchange->init(ctx->op.kex.exchprovctx, provkey, params);
+    ret = exchange->init(ctx->op.kex.algctx, provkey, params);
 
     return ret ? 1 : 0;
  err:
@@ -300,7 +295,6 @@ int EVP_PKEY_derive_init_ex(EVP_PKEY_CTX *ctx, const OSSL_PARAM params[])
 
  legacy:
     /*
-     * TODO remove this when legacy is gone
      * If we don't have the full support we need with provided methods,
      * let's go see if legacy does.
      */
@@ -335,7 +329,7 @@ int EVP_PKEY_derive_set_peer_ex(EVP_PKEY_CTX *ctx, EVP_PKEY *peer,
         return -1;
     }
 
-    if (!EVP_PKEY_CTX_IS_DERIVE_OP(ctx) || ctx->op.kex.exchprovctx == NULL)
+    if (!EVP_PKEY_CTX_IS_DERIVE_OP(ctx) || ctx->op.kex.algctx == NULL)
         goto legacy;
 
     if (ctx->op.kex.exchange->set_peer == NULL) {
@@ -361,7 +355,7 @@ int EVP_PKEY_derive_set_peer_ex(EVP_PKEY_CTX *ctx, EVP_PKEY *peer,
      */
     if (provkey == NULL)
         goto legacy;
-    return ctx->op.kex.exchange->set_peer(ctx->op.kex.exchprovctx, provkey);
+    return ctx->op.kex.exchange->set_peer(ctx->op.kex.algctx, provkey);
 
  legacy:
 #ifdef FIPS_MODULE
@@ -447,10 +441,10 @@ int EVP_PKEY_derive(EVP_PKEY_CTX *ctx, unsigned char *key, size_t *pkeylen)
         return -1;
     }
 
-    if (ctx->op.kex.exchprovctx == NULL)
+    if (ctx->op.kex.algctx == NULL)
         goto legacy;
 
-    ret = ctx->op.kex.exchange->derive(ctx->op.kex.exchprovctx, key, pkeylen,
+    ret = ctx->op.kex.exchange->derive(ctx->op.kex.algctx, key, pkeylen,
                                        key != NULL ? *pkeylen : 0);
 
     return ret;
@@ -464,17 +458,17 @@ int EVP_PKEY_derive(EVP_PKEY_CTX *ctx, unsigned char *key, size_t *pkeylen)
         return ctx->pmeth->derive(ctx, key, pkeylen);
 }
 
-int EVP_KEYEXCH_number(const EVP_KEYEXCH *keyexch)
+int evp_keyexch_get_number(const EVP_KEYEXCH *keyexch)
 {
     return keyexch->name_id;
 }
 
-const char *EVP_KEYEXCH_name(const EVP_KEYEXCH *keyexch)
+const char *EVP_KEYEXCH_get0_name(const EVP_KEYEXCH *keyexch)
 {
     return keyexch->type_name;
 }
 
-const char *EVP_KEYEXCH_description(const EVP_KEYEXCH *keyexch)
+const char *EVP_KEYEXCH_get0_description(const EVP_KEYEXCH *keyexch)
 {
     return keyexch->description;
 }
@@ -491,6 +485,7 @@ void EVP_KEYEXCH_do_all_provided(OSSL_LIB_CTX *libctx,
     evp_generic_do_all(libctx, OSSL_OP_KEYEXCH,
                        (void (*)(void *, void *))fn, arg,
                        evp_keyexch_from_algorithm,
+                       (int (*)(void *))EVP_KEYEXCH_up_ref,
                        (void (*)(void *))EVP_KEYEXCH_free);
 }
 
@@ -511,7 +506,7 @@ const OSSL_PARAM *EVP_KEYEXCH_gettable_ctx_params(const EVP_KEYEXCH *keyexch)
     if (keyexch == NULL || keyexch->gettable_ctx_params == NULL)
         return NULL;
 
-    provctx = ossl_provider_ctx(EVP_KEYEXCH_provider(keyexch));
+    provctx = ossl_provider_ctx(EVP_KEYEXCH_get0_provider(keyexch));
     return keyexch->gettable_ctx_params(NULL, provctx);
 }
 
@@ -521,6 +516,6 @@ const OSSL_PARAM *EVP_KEYEXCH_settable_ctx_params(const EVP_KEYEXCH *keyexch)
 
     if (keyexch == NULL || keyexch->settable_ctx_params == NULL)
         return NULL;
-    provctx = ossl_provider_ctx(EVP_KEYEXCH_provider(keyexch));
+    provctx = ossl_provider_ctx(EVP_KEYEXCH_get0_provider(keyexch));
     return keyexch->settable_ctx_params(NULL, provctx);
 }

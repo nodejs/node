@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -72,11 +72,11 @@ static int rc5_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
 static int r_32_12_16_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
                                const unsigned char *iv, int enc)
 {
-    if (EVP_CIPHER_CTX_key_length(ctx) > 255) {
+    if (EVP_CIPHER_CTX_get_key_length(ctx) > 255) {
         ERR_raise(ERR_LIB_EVP, EVP_R_BAD_KEY_LENGTH);
         return 0;
     }
-    return RC5_32_set_key(&data(ctx)->ks, EVP_CIPHER_CTX_key_length(ctx),
+    return RC5_32_set_key(&data(ctx)->ks, EVP_CIPHER_CTX_get_key_length(ctx),
                           key, data(ctx)->rounds);
 }
 

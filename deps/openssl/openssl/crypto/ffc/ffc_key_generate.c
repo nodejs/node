@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -45,7 +45,7 @@ int ossl_ffc_generate_private_key(BN_CTX *ctx, const FFC_PARAMS *params,
 
     do {
         /* Steps (3, 4 & 7) :  c + 1 = 1 + random[0..2^N - 1] */
-        if (!BN_priv_rand_range_ex(priv, two_powN, ctx)
+        if (!BN_priv_rand_range_ex(priv, two_powN, 0, ctx)
             || !BN_add_word(priv, 1))
             goto err;
         /* Step (6) : loop if c > M - 2 (i.e. c + 1 >= M) */

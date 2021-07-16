@@ -120,7 +120,7 @@ static int tdes_generatekey(PROV_CIPHER_CTX *ctx, void *ptr)
     DES_cblock *deskey = ptr;
     size_t kl = ctx->keylen;
 
-    if (kl == 0 || RAND_priv_bytes_ex(ctx->libctx, ptr, kl) <= 0)
+    if (kl == 0 || RAND_priv_bytes_ex(ctx->libctx, ptr, kl, 0) <= 0)
         return 0;
     DES_set_odd_parity(deskey);
     if (kl >= 16)

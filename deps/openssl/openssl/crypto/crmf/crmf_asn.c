@@ -1,5 +1,5 @@
 /*-
- * Copyright 2007-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2007-2021 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright Nokia 2007-2019
  * Copyright Siemens AG 2015-2019
  *
@@ -88,10 +88,6 @@ ASN1_CHOICE(OSSL_CRMF_POPOPRIVKEY) = {
     ASN1_IMP(OSSL_CRMF_POPOPRIVKEY, value.subsequentMessage, ASN1_INTEGER, 1),
     ASN1_IMP(OSSL_CRMF_POPOPRIVKEY, value.dhMAC, ASN1_BIT_STRING, 2),
     ASN1_IMP(OSSL_CRMF_POPOPRIVKEY, value.agreeMAC, OSSL_CRMF_PKMACVALUE, 3),
-    /*
-     * TODO: This is not ASN1_NULL but CMS_ENVELOPEDDATA which should be somehow
-     * taken from crypto/cms which exists now - this is not used anywhere so far
-     */
     ASN1_IMP(OSSL_CRMF_POPOPRIVKEY, value.encryptedKey, ASN1_NULL, 4),
 } ASN1_CHOICE_END(OSSL_CRMF_POPOPRIVKEY)
 IMPLEMENT_ASN1_FUNCTIONS(OSSL_CRMF_POPOPRIVKEY)

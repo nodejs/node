@@ -5,8 +5,9 @@
 EVP_KDF, EVP_KDF_fetch, EVP_KDF_free, EVP_KDF_up_ref,
 EVP_KDF_CTX, EVP_KDF_CTX_new, EVP_KDF_CTX_free, EVP_KDF_CTX_dup,
 EVP_KDF_CTX_reset, EVP_KDF_derive,
-EVP_KDF_CTX_get_kdf_size, EVP_KDF_provider, EVP_KDF_CTX_kdf, EVP_KDF_is_a,
-EVP_KDF_number, EVP_KDF_name, EVP_KDF_names_do_all, EVP_KDF_description,
+EVP_KDF_CTX_get_kdf_size,
+EVP_KDF_get0_provider, EVP_KDF_CTX_kdf, EVP_KDF_is_a,
+EVP_KDF_get0_name, EVP_KDF_names_do_all, EVP_KDF_get0_description,
 EVP_KDF_CTX_get_params, EVP_KDF_CTX_set_params, EVP_KDF_do_all_provided,
 EVP_KDF_get_params, EVP_KDF_gettable_params,
 EVP_KDF_gettable_ctx_params, EVP_KDF_settable_ctx_params,
@@ -31,11 +32,10 @@ EVP_KDF_CTX_gettable_params, EVP_KDF_CTX_settable_params - EVP KDF routines
  void EVP_KDF_free(EVP_KDF *kdf);
  EVP_KDF *EVP_KDF_fetch(OSSL_LIB_CTX *libctx, const char *algorithm,
                         const char *properties);
- int EVP_KDF_number(const EVP_KDF *kdf);
  int EVP_KDF_is_a(const EVP_KDF *kdf, const char *name);
- const char *EVP_KDF_name(const EVP_KDF *kdf);
- const char *EVP_KDF_description(const EVP_KDF *kdf);
- const OSSL_PROVIDER *EVP_KDF_provider(const EVP_KDF *kdf);
+ const char *EVP_KDF_get0_name(const EVP_KDF *kdf);
+ const char *EVP_KDF_get0_description(const EVP_KDF *kdf);
+ const OSSL_PROVIDER *EVP_KDF_get0_provider(const EVP_KDF *kdf);
  void EVP_KDF_do_all_provided(OSSL_LIB_CTX *libctx,
                               void (*fn)(EVP_KDF *kdf, void *arg),
                               void *arg);
@@ -50,7 +50,7 @@ EVP_KDF_CTX_gettable_params, EVP_KDF_CTX_settable_params - EVP KDF routines
  const OSSL_PARAM *EVP_KDF_settable_ctx_params(const EVP_KDF *kdf);
  const OSSL_PARAM *EVP_KDF_CTX_gettable_params(const EVP_KDF *kdf);
  const OSSL_PARAM *EVP_KDF_CTX_settable_params(const EVP_KDF *kdf);
- const OSSL_PROVIDER *EVP_KDF_provider(const EVP_KDF *kdf);
+ const OSSL_PROVIDER *EVP_KDF_get0_provider(const EVP_KDF *kdf);
 
 =head1 DESCRIPTION
 
@@ -162,7 +162,7 @@ calculate a fixed output size have not yet been supplied.
 EVP_KDF_is_a() returns 1 if I<kdf> is an implementation of an
 algorithm that's identifiable with I<name>, otherwise 0.
 
-EVP_KDF_provider() returns the provider that holds the implementation
+EVP_KDF_get0_provider() returns the provider that holds the implementation
 of the given I<kdf>.
 
 EVP_KDF_do_all_provided() traverses all KDF implemented by all activated
@@ -170,19 +170,16 @@ providers in the given library context I<libctx>, and for each of the
 implementations, calls the given function I<fn> with the implementation method
 and the given I<arg> as argument.
 
-EVP_KDF_number() returns the internal dynamic number assigned to
-I<kdf>.
-
-EVP_KDF_name() return the name of the given KDF.  For fetched KDFs
+EVP_KDF_get0_name() return the name of the given KDF.  For fetched KDFs
 with multiple names, only one of them is returned; it's
 recommended to use EVP_KDF_names_do_all() instead.
 
 EVP_KDF_names_do_all() traverses all names for I<kdf>, and calls
 I<fn> with each name and I<data>.
 
-EVP_KDF_description() returns a description of the I<kdf>, meant for display
-and human consumption.  The description is at the discretion of the I<kdf>
-implementation.
+EVP_KDF_get0_description() returns a description of the I<kdf>, meant for
+display and human consumption.  The description is at the discretion of
+the I<kdf> implementation.
 
 =head1 PARAMETERS
 
@@ -262,7 +259,7 @@ The memory size must never exceed what can be given with a B<size_t>.
 EVP_KDF_fetch() returns a pointer to a newly fetched B<EVP_KDF>, or
 NULL if allocation failed.
 
-EVP_KDF_provider() returns a pointer to the provider for the KDF, or
+EVP_KDF_get0_provider() returns a pointer to the provider for the KDF, or
 NULL on error.
 
 EVP_KDF_up_ref() returns 1 on success, 0 on error.
@@ -275,7 +272,7 @@ EVP_KDF_CTX_free() and EVP_KDF_CTX_reset() do not return a value.
 EVP_KDF_CTX_get_kdf_size() returns the output size.  B<SIZE_MAX> is returned to indicate
 that the algorithm produces a variable amount of output; 0 to indicate failure.
 
-EVP_KDF_name() returns the name of the KDF, or NULL on error.
+EVP_KDF_get0_name() returns the name of the KDF, or NULL on error.
 
 EVP_KDF_names_do_all() returns 1 if the callback was called for all names. A
 return value of 0 means that the callback was not called for any names.

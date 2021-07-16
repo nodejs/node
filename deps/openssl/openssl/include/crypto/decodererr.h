@@ -19,7 +19,7 @@
 extern "C" {
 # endif
 
-int err_load_OSSL_DECODER_strings_int(void);
+int ossl_err_load_OSSL_DECODER_strings(void);
 
 # ifdef  __cplusplus
 }

@@ -795,31 +795,6 @@ static void key2text_freectx(ossl_unused void *vctx)
 {
 }
 
-static const OSSL_PARAM *key2text_gettable_params(void *provctx)
-{
-    static const OSSL_PARAM gettables[] = {
-        { OSSL_ENCODER_PARAM_OUTPUT_TYPE, OSSL_PARAM_UTF8_PTR, NULL, 0, 0 },
-        OSSL_PARAM_END,
-    };
-
-    return gettables;
-}
-
-static int key2text_get_params(OSSL_PARAM params[], const char *input_type)
-{
-    OSSL_PARAM *p;
-
-    p = OSSL_PARAM_locate(params, OSSL_ENCODER_PARAM_INPUT_TYPE);
-    if (p != NULL && !OSSL_PARAM_set_utf8_ptr(p, input_type))
-        return 0;
-
-    p = OSSL_PARAM_locate(params, OSSL_ENCODER_PARAM_OUTPUT_TYPE);
-    if (p != NULL && !OSSL_PARAM_set_utf8_ptr(p, "TEXT"))
-        return 0;
-
-    return 1;
-}
-
 static int key2text_encode(void *vctx, const void *key, int selection,
                            OSSL_CORE_BIO *cout,
                            int (*key2text)(BIO *out, const void *key,
@@ -839,18 +814,12 @@ static int key2text_encode(void *vctx, const void *key, int selection,
 }
 
 #define MAKE_TEXT_ENCODER(impl, type)                                   \
-    static OSSL_FUNC_encoder_get_params_fn                              \
-    impl##2text_get_params;                                             \
     static OSSL_FUNC_encoder_import_object_fn                           \
     impl##2text_import_object;                                          \
     static OSSL_FUNC_encoder_free_object_fn                             \
     impl##2text_free_object;                                            \
     static OSSL_FUNC_encoder_encode_fn impl##2text_encode;              \
                                                                         \
-    static int impl##2text_get_params(OSSL_PARAM params[])              \
-    {                                                                   \
-        return key2text_get_params(params, impl##_input_type);          \
-    }                                                                   \
     static void *impl##2text_import_object(void *ctx, int selection,    \
                                            const OSSL_PARAM params[])   \
     {                                                                   \
@@ -881,10 +850,6 @@ static int key2text_encode(void *vctx, const void *key, int selection,
           (void (*)(void))key2text_newctx },                            \
         { OSSL_FUNC_ENCODER_FREECTX,                                    \
           (void (*)(void))key2text_freectx },                           \
-        { OSSL_FUNC_ENCODER_GETTABLE_PARAMS,                            \
-          (void (*)(void))key2text_gettable_params },                   \
-        { OSSL_FUNC_ENCODER_GET_PARAMS,                                 \
-          (void (*)(void))impl##2text_get_params },                     \
         { OSSL_FUNC_ENCODER_IMPORT_OBJECT,                              \
           (void (*)(void))impl##2text_import_object },                  \
         { OSSL_FUNC_ENCODER_FREE_OBJECT,                                \

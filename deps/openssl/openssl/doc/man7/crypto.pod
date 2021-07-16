@@ -390,7 +390,7 @@ encryption/decryption, signatures, message authentication codes, etc.
          goto err;
 
      /* Allocate the output buffer */
-     outdigest = OPENSSL_malloc(EVP_MD_size(sha256));
+     outdigest = OPENSSL_malloc(EVP_MD_get_size(sha256));
      if (outdigest == NULL)
          goto err;
 

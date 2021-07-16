@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2019, Oracle and/or its affiliates.  All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -17,6 +17,11 @@
 
 # ifdef OPENSSL_SYS_WINDOWS
 #  define strcasecmp _stricmp
+# endif
+
+# ifdef OPENSSL_SYS_VMS
+#  define strtoumax strtoull
+#  define strtoimax strtoll
 # endif
 
 typedef struct {

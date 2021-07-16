@@ -48,7 +48,6 @@ emailAddress		= optional
 
 #----------------------------------------------------------------------
 [ req ]
-default_bits		= 2048
 default_md		= sha1
 distinguished_name	= $ENV::TSDNSECT
 encrypt_rsa_key		= no

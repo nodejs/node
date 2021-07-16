@@ -160,7 +160,7 @@ const OPTIONS ocsp_options[] = {
     OPT_SECTION("Client"),
     {"url", OPT_URL, 's', "Responder URL"},
     {"host", OPT_HOST, 's', "TCP/IP hostname:port to connect to"},
-    {"port", OPT_PORT, 'p', "Port to run responder on"},
+    {"port", OPT_PORT, 'N', "Port to run responder on"},
     {"path", OPT_PATH, 's', "Path to use in OCSP request"},
 #ifndef OPENSSL_NO_SOCK
     {"proxy", OPT_PROXY, 's',
@@ -620,6 +620,9 @@ int ocsp_main(int argc, char **argv)
     if (ridx_filename != NULL) {
         rdb = load_index(ridx_filename, NULL);
         if (rdb == NULL || index_index(rdb) <= 0) {
+            BIO_printf(bio_err,
+                "Problem with index file: %s (could not load/parse file)\n",
+                ridx_filename);
             ret = 1;
             goto end;
         }

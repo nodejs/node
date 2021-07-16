@@ -194,12 +194,6 @@ void OPENSSL_showfatal(const char *fmta, ...)
 # if defined(_WIN32_WINNT) && _WIN32_WINNT>=0x0333
 #  ifdef OPENSSL_SYS_WIN_CORE
     /* ONECORE is always NONGUI and NT >= 0x0601 */
-
-    /*
-    * TODO: (For non GUI and no std error cases)
-    * Add event logging feature here.
-    */
-
 #   if !defined(NDEBUG)
         /*
         * We are in a situation where we tried to report a critical

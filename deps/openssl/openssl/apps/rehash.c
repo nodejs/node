@@ -534,7 +534,7 @@ int rehash_main(int argc, char **argv)
     argv = opt_rest();
 
     evpmd = EVP_sha1();
-    evpmdsize = EVP_MD_size(evpmd);
+    evpmdsize = EVP_MD_get_size(evpmd);
 
     if (*argv != NULL) {
         while (*argv != NULL)

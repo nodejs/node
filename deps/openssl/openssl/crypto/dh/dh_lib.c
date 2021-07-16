@@ -202,6 +202,7 @@ int DH_size(const DH *dh)
 int DH_security_bits(const DH *dh)
 {
     int N;
+
     if (dh->params.q != NULL)
         N = BN_num_bits(dh->params.q);
     else if (dh->length)

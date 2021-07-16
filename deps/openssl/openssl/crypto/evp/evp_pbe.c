@@ -34,11 +34,11 @@ static STACK_OF(EVP_PBE_CTL) *pbe_algs;
 
 static const EVP_PBE_CTL builtin_pbe[] = {
     {EVP_PBE_TYPE_OUTER, NID_pbeWithMD2AndDES_CBC,
-     NID_des_cbc, NID_md2, PKCS5_PBE_keyivgen, NULL},
+     NID_des_cbc, NID_md2, PKCS5_PBE_keyivgen, PKCS5_PBE_keyivgen_ex},
     {EVP_PBE_TYPE_OUTER, NID_pbeWithMD5AndDES_CBC,
-     NID_des_cbc, NID_md5, PKCS5_PBE_keyivgen, NULL},
+     NID_des_cbc, NID_md5, PKCS5_PBE_keyivgen, PKCS5_PBE_keyivgen_ex},
     {EVP_PBE_TYPE_OUTER, NID_pbeWithSHA1AndRC2_CBC,
-     NID_rc2_64_cbc, NID_sha1, PKCS5_PBE_keyivgen, NULL},
+     NID_rc2_64_cbc, NID_sha1, PKCS5_PBE_keyivgen, PKCS5_PBE_keyivgen_ex},
 
     {EVP_PBE_TYPE_OUTER, NID_id_pbkdf2, -1, -1, PKCS5_v2_PBKDF2_keyivgen},
 
@@ -58,11 +58,11 @@ static const EVP_PBE_CTL builtin_pbe[] = {
     {EVP_PBE_TYPE_OUTER, NID_pbes2, -1, -1, PKCS5_v2_PBE_keyivgen, &PKCS5_v2_PBE_keyivgen_ex},
 
     {EVP_PBE_TYPE_OUTER, NID_pbeWithMD2AndRC2_CBC,
-     NID_rc2_64_cbc, NID_md2, PKCS5_PBE_keyivgen, NULL},
+     NID_rc2_64_cbc, NID_md2, PKCS5_PBE_keyivgen, PKCS5_PBE_keyivgen_ex},
     {EVP_PBE_TYPE_OUTER, NID_pbeWithMD5AndRC2_CBC,
-     NID_rc2_64_cbc, NID_md5, PKCS5_PBE_keyivgen, NULL},
+     NID_rc2_64_cbc, NID_md5, PKCS5_PBE_keyivgen, PKCS5_PBE_keyivgen_ex},
     {EVP_PBE_TYPE_OUTER, NID_pbeWithSHA1AndDES_CBC,
-     NID_des_cbc, NID_sha1, PKCS5_PBE_keyivgen, NULL},
+     NID_des_cbc, NID_sha1, PKCS5_PBE_keyivgen, PKCS5_PBE_keyivgen_ex},
 
     {EVP_PBE_TYPE_PRF, NID_hmacWithSHA1, -1, NID_sha1, 0},
     {EVP_PBE_TYPE_PRF, NID_hmac_md5, -1, NID_md5, 0},
@@ -117,28 +117,33 @@ int EVP_PBE_CipherInit_ex(ASN1_OBJECT *pbe_obj, const char *pass, int passlen,
         passlen = strlen(pass);
 
     if (cipher_nid != -1) {
+        (void)ERR_set_mark();
         cipher = cipher_fetch = EVP_CIPHER_fetch(libctx, OBJ_nid2sn(cipher_nid), propq);
         /* Fallback to legacy method */
         if (cipher == NULL)
             cipher = EVP_get_cipherbynid(cipher_nid);
-
         if (cipher == NULL) {
+            (void)ERR_clear_last_mark();
             ERR_raise_data(ERR_LIB_EVP, EVP_R_UNKNOWN_CIPHER,
                            OBJ_nid2sn(cipher_nid));
             goto err;
         }
+        (void)ERR_pop_to_mark();
     }
 
     if (md_nid != -1) {
+        (void)ERR_set_mark();
         md = md_fetch = EVP_MD_fetch(libctx, OBJ_nid2sn(md_nid), propq);
         /* Fallback to legacy method */
         if (md == NULL)
             EVP_get_digestbynid(md_nid);
 
         if (md == NULL) {
+            (void)ERR_clear_last_mark();
             ERR_raise(ERR_LIB_EVP, EVP_R_UNKNOWN_DIGEST);
             goto err;
         }
+        (void)ERR_pop_to_mark();
     }
 
     /* Try extended keygen with libctx/propq first, fall back to legacy keygen */
@@ -221,11 +226,11 @@ int EVP_PBE_alg_add(int nid, const EVP_CIPHER *cipher, const EVP_MD *md,
     int cipher_nid, md_nid;
 
     if (cipher)
-        cipher_nid = EVP_CIPHER_nid(cipher);
+        cipher_nid = EVP_CIPHER_get_nid(cipher);
     else
         cipher_nid = -1;
     if (md)
-        md_nid = EVP_MD_type(md);
+        md_nid = EVP_MD_get_type(md);
     else
         md_nid = -1;
 

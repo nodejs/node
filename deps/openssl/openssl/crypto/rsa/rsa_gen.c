@@ -479,7 +479,7 @@ static int rsa_keygen_pairwise_test(RSA *rsa, OSSL_CALLBACK *cb, void *cbarg)
     unsigned int ciphertxt_len;
     unsigned char *ciphertxt = NULL;
     const unsigned char plaintxt[16] = {0};
-    unsigned char decoded[256];
+    unsigned char *decoded = NULL;
     unsigned int decoded_len;
     unsigned int plaintxt_len = (unsigned int)sizeof(plaintxt_len);
     int padding = RSA_PKCS1_PADDING;
@@ -492,9 +492,14 @@ static int rsa_keygen_pairwise_test(RSA *rsa, OSSL_CALLBACK *cb, void *cbarg)
                            OSSL_SELF_TEST_DESC_PCT_RSA_PKCS1);
 
     ciphertxt_len = RSA_size(rsa);
-    ciphertxt = OPENSSL_zalloc(ciphertxt_len);
+    /*
+     * RSA_private_encrypt() and RSA_private_decrypt() requires the 'to'
+     * parameter to be a maximum of RSA_size() - allocate space for both.
+     */
+    ciphertxt = OPENSSL_zalloc(ciphertxt_len * 2);
     if (ciphertxt == NULL)
         goto err;
+    decoded = ciphertxt + ciphertxt_len;
 
     ciphertxt_len = RSA_public_encrypt(plaintxt_len, plaintxt, ciphertxt, rsa,
                                        padding);

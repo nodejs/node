@@ -25,8 +25,8 @@ RSA_bits() returns the number of significant bits.
 B<rsa> and B<rsa-E<gt>n> must not be B<NULL>.
 
 The remaining functions described on this page are deprecated.
-Applications should instead use L<EVP_PKEY_size(3)>, L<EVP_PKEY_bits(3)>
-and L<EVP_PKEY_security_bits(3)>.
+Applications should instead use L<EVP_PKEY_get_size(3)>, L<EVP_PKEY_get_bits(3)>
+and L<EVP_PKEY_get_security_bits(3)>.
 
 RSA_size() returns the RSA modulus size in bytes. It can be used to
 determine how much memory must be allocated for an RSA encrypted
@@ -55,7 +55,7 @@ The RSA_bits() function was added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

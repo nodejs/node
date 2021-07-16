@@ -28,8 +28,8 @@
 #endif
 #include <openssl/crypto.h>
 #include <openssl/bn.h>
-#include <internal/cryptlib.h>
-#include <crypto/chacha.h>
+#include "internal/cryptlib.h"
+#include "crypto/chacha.h"
 #include "bn/bn_local.h"
 
 #include "ppc_arch.h"
@@ -68,11 +68,12 @@ int bn_mul_mont(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
      * no opportunity to figure it out...
      */
 
-    if (num == 6)
+    if (num == 6) {
         if (OPENSSL_ppccap_P & PPC_MADD300)
             return bn_mul_mont_300_fixed_n6(rp, ap, bp, np, n0, num);
         else
             return bn_mul_mont_fixed_n6(rp, ap, bp, np, n0, num);
+    }
 
     return bn_mul_mont_int(rp, ap, bp, np, n0, num);
 }

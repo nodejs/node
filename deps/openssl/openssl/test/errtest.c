@@ -287,6 +287,53 @@ static int test_marks(void)
     return 1;
 }
 
+static int test_clear_error(void)
+{
+    int flags = -1;
+    const char *data = NULL;
+    int res = 0;
+
+    /* Raise an error with data and clear it */
+    ERR_raise_data(0, 0, "hello %s", "world");
+    ERR_peek_error_data(&data, &flags);
+    if (!TEST_str_eq(data, "hello world")
+            || !TEST_int_eq(flags, ERR_TXT_STRING | ERR_TXT_MALLOCED))
+        goto err;
+    ERR_clear_error();
+
+    /* Raise a new error without data */
+    ERR_raise(0, 0);
+    ERR_peek_error_data(&data, &flags);
+    if (!TEST_str_eq(data, "")
+            || !TEST_int_eq(flags, ERR_TXT_MALLOCED))
+        goto err;
+    ERR_clear_error();
+
+    /* Raise a new error with data */
+    ERR_raise_data(0, 0, "goodbye %s world", "cruel");
+    ERR_peek_error_data(&data, &flags);
+    if (!TEST_str_eq(data, "goodbye cruel world")
+            || !TEST_int_eq(flags, ERR_TXT_STRING | ERR_TXT_MALLOCED))
+        goto err;
+    ERR_clear_error();
+
+    /*
+     * Raise a new error without data to check that the malloced storage
+     * is freed properly
+     */
+    ERR_raise(0, 0);
+    ERR_peek_error_data(&data, &flags);
+    if (!TEST_str_eq(data, "")
+            || !TEST_int_eq(flags, ERR_TXT_MALLOCED))
+        goto err;
+    ERR_clear_error();
+
+    res = 1;
+ err:
+     ERR_clear_error();
+    return res;
+}
+
 int setup_tests(void)
 {
     ADD_TEST(preserves_system_error);
@@ -296,5 +343,6 @@ int setup_tests(void)
     ADD_TEST(test_print_error_format);
 #endif
     ADD_TEST(test_marks);
+    ADD_TEST(test_clear_error);
     return 1;
 }

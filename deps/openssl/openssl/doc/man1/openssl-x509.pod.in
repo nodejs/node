@@ -24,6 +24,7 @@ B<openssl> B<x509>
 [B<-outform> B<DER>|B<PEM>]
 [B<-nocert>]
 [B<-noout>]
+[B<-dateopt>]
 [B<-text>]
 [B<-certopt> I<option>]
 [B<-fingerprint>]
@@ -208,6 +209,11 @@ but are described in the L</Trust Settings> section.
 
 =over 4
 
+=item B<-dateopt>
+
+Specify the date output format. Values are: rfc_822 and iso_8601.
+Defaults to rfc_822.
+
 =item B<-text>
 
 Prints out the certificate in text form. Full details are printed including the
@@ -305,9 +311,9 @@ Prints the OCSP responder address(es) if any.
 
 =item B<-purpose>
 
-This option performs tests on the certificate extensions and prints
-the results. For a more complete description see the
-L</CERTIFICATE EXTENSIONS> section.
+This option performs tests on the certificate extensions and outputs
+the results. For a more complete description see
+L<openssl-verification-options(1)/Certificate Extensions>.
 
 =item B<-pubkey>
 
@@ -518,7 +524,7 @@ Trust settings currently are only used with a root CA.
 They allow a finer control over the purposes the root CA can be used for.
 For example, a CA may be trusted for SSL client but not SSL server use.
 
-See the description in L<openssl-verify(1)> for more information
+See L<openssl-verification-options(1)> for more information
 on the meaning of trust settings.
 
 Future versions of OpenSSL will recognize trust settings on any
@@ -545,13 +551,10 @@ Clears all the permitted or trusted uses of the certificate.
 
 =item B<-addtrust> I<arg>
 
-Adds a trusted certificate use.
-Any object name can be used here but currently only B<clientAuth> (SSL client
-use), B<serverAuth> (SSL server use), B<emailProtection> (S/MIME email)
-and B<anyExtendedKeyUsage> are used.
-As of OpenSSL 1.1.0, the last of these blocks all purposes when rejected or
-enables all purposes when trusted.
-Other OpenSSL applications may define additional uses.
+Adds an allowed trust anchor purpose.
+Any object name can be used here but currently only those
+listed in L<openssl-verification-options(1)/Trust Anchors> are supported.
+Other OpenSSL applications may define additional purposes.
 
 =item B<-clrreject>
 
@@ -559,7 +562,7 @@ Clears all the prohibited or rejected uses of the certificate.
 
 =item B<-addreject> I<arg>
 
-Adds a prohibited use.
+Adds a prohibited trust anchor purpose.
 It accepts the same values as the B<-addtrust> option.
 
 =back
@@ -731,119 +734,6 @@ it is more likely to print the majority of certificates correctly.
 The B<-email> option searches the subject name and the subject alternative
 name extension. Only unique email addresses will be printed out: it will
 not print the same address more than once.
-
-=head1 CERTIFICATE EXTENSIONS
-
-The B<-purpose> option checks the certificate extensions and determines
-what the certificate can be used for. The actual checks done are rather
-complex and include various hacks and workarounds to handle broken
-certificates and software.
-
-The same code is used when verifying untrusted certificates in chains
-so this section is useful if a chain is rejected by the verify code.
-
-The basicConstraints extension CA flag is used to determine whether the
-certificate can be used as a CA. If the CA flag is true then it is a CA,
-if the CA flag is false then it is not a CA. B<All> CAs should have the
-CA flag set to true.
-
-If the basicConstraints extension is absent then the certificate is
-considered to be a "possible CA" other extensions are checked according
-to the intended use of the certificate. A warning is given in this case
-because the certificate should really not be regarded as a CA: however
-it is allowed to be a CA to work around some broken software.
-
-If the certificate is a V1 certificate (and thus has no extensions) and
-it is self-signed it is also assumed to be a CA but a warning is again
-given: this is to work around the problem of Verisign roots which are V1
-self-signed certificates.
-
-If the keyUsage extension is present then additional restraints are
-made on the uses of the certificate. A CA certificate B<must> have the
-keyCertSign bit set if the keyUsage extension is present.
-
-The extended key usage extension places additional restrictions on the
-certificate uses. If this extension is present (whether critical or not)
-the key can only be used for the purposes specified.
-
-A complete description of each test is given below. The comments about
-basicConstraints and keyUsage and V1 certificates above apply to B<all>
-CA certificates.
-
-
-=over 4
-
-=item B<SSL Client>
-
-The extended key usage extension must be absent or include the "web client
-authentication" OID.  keyUsage must be absent or it must have the
-digitalSignature bit set. Netscape certificate type must be absent or it must
-have the SSL client bit set.
-
-=item B<SSL Client CA>
-
-The extended key usage extension must be absent or include the "web client
-authentication" OID. Netscape certificate type must be absent or it must have
-the SSL CA bit set: this is used as a work around if the basicConstraints
-extension is absent.
-
-=item B<SSL Server>
-
-The extended key usage extension must be absent or include the "web server
-authentication" and/or one of the SGC OIDs.  keyUsage must be absent or it
-must have the digitalSignature, the keyEncipherment set or both bits set.
-Netscape certificate type must be absent or have the SSL server bit set.
-
-=item B<SSL Server CA>
-
-The extended key usage extension must be absent or include the "web server
-authentication" and/or one of the SGC OIDs.  Netscape certificate type must
-be absent or the SSL CA bit must be set: this is used as a work around if the
-basicConstraints extension is absent.
-
-=item B<Netscape SSL Server>
-
-For Netscape SSL clients to connect to an SSL server it must have the
-keyEncipherment bit set if the keyUsage extension is present. This isn't
-always valid because some cipher suites use the key for digital signing.
-Otherwise it is the same as a normal SSL server.
-
-=item B<Common S/MIME Client Tests>
-
-The extended key usage extension must be absent or include the "email
-protection" OID. Netscape certificate type must be absent or should have the
-S/MIME bit set. If the S/MIME bit is not set in Netscape certificate type
-then the SSL client bit is tolerated as an alternative but a warning is shown:
-this is because some Verisign certificates don't set the S/MIME bit.
-
-=item B<S/MIME Signing>
-
-In addition to the common S/MIME client tests the digitalSignature bit or
-the nonRepudiation bit must be set if the keyUsage extension is present.
-
-=item B<S/MIME Encryption>
-
-In addition to the common S/MIME tests the keyEncipherment bit must be set
-if the keyUsage extension is present.
-
-=item B<S/MIME CA>
-
-The extended key usage extension must be absent or include the "email
-protection" OID. Netscape certificate type must be absent or must have the
-S/MIME CA bit set: this is used as a work around if the basicConstraints
-extension is absent.
-
-=item B<CRL Signing>
-
-The keyUsage extension must be absent or it must have the CRL signing bit
-set.
-
-=item B<CRL Signing CA>
-
-The normal CA tests apply. Except in this case the basicConstraints extension
-must be present.
-
-=back
 
 =head1 BUGS
 

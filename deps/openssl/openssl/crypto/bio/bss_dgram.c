@@ -1,5 +1,5 @@
 /*
- * Copyright 2005-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2005-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -68,10 +68,8 @@ static void get_current_time(struct timeval *t);
 static const BIO_METHOD methods_dgramp = {
     BIO_TYPE_DGRAM,
     "datagram socket",
-    /* TODO: Convert to new style write function */
     bwrite_conv,
     dgram_write,
-    /* TODO: Convert to new style read function */
     bread_conv,
     dgram_read,
     dgram_puts,
@@ -86,10 +84,8 @@ static const BIO_METHOD methods_dgramp = {
 static const BIO_METHOD methods_dgramp_sctp = {
     BIO_TYPE_DGRAM_SCTP,
     "datagram sctp socket",
-    /* TODO: Convert to new style write function */
     bwrite_conv,
     dgram_sctp_write,
-    /* TODO: Convert to new style write function */
     bread_conv,
     dgram_sctp_read,
     dgram_sctp_puts,

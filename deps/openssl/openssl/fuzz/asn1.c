@@ -37,7 +37,7 @@
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 #include <openssl/ssl.h>
-#include <internal/nelem.h>
+#include "internal/nelem.h"
 #include "fuzzer.h"
 
 static ASN1_ITEM_EXP *item_type[] = {

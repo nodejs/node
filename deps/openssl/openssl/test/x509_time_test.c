@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -482,7 +482,7 @@ static int test_days(int n)
 static const struct {
     ASN1_TIME asn1;
     const char *readable;
-} x509_print_tests [] = {
+} x509_print_tests_rfc_822 [] = {
     /* Generalized Time */
     construct_asn1_time("20170731222050Z", V_ASN1_GENERALIZEDTIME,
             "Jul 31 22:20:50 2017 GMT"),
@@ -506,7 +506,34 @@ static const struct {
             "Jul 31 22:20:00 2017 GMT"),
 };
 
-static int test_x509_time_print(int idx)
+static const struct {
+    ASN1_TIME asn1;
+    const char *readable;
+} x509_print_tests_iso_8601 [] = {
+    /* Generalized Time */
+    construct_asn1_time("20170731222050Z", V_ASN1_GENERALIZEDTIME,
+            "2017-07-31 22:20:50Z"),
+    /* Generalized Time, no seconds */
+    construct_asn1_time("201707312220Z", V_ASN1_GENERALIZEDTIME,
+            "2017-07-31 22:20:00Z"),
+    /* Generalized Time, fractional seconds (3 digits) */
+    construct_asn1_time("20170731222050.123Z", V_ASN1_GENERALIZEDTIME,
+            "2017-07-31 22:20:50.123Z"),
+    /* Generalized Time, fractional seconds (1 digit) */
+    construct_asn1_time("20170731222050.1Z", V_ASN1_GENERALIZEDTIME,
+            "2017-07-31 22:20:50.1Z"),
+    /* Generalized Time, fractional seconds (0 digit) */
+    construct_asn1_time("20170731222050.Z", V_ASN1_GENERALIZEDTIME,
+            "Bad time value"),
+    /* UTC Time */
+    construct_asn1_time("170731222050Z", V_ASN1_UTCTIME,
+            "2017-07-31 22:20:50Z"),
+    /* UTC Time, no seconds */
+    construct_asn1_time("1707312220Z", V_ASN1_UTCTIME,
+            "2017-07-31 22:20:00Z"),
+};
+
+static int test_x509_time_print_rfc_822(int idx)
 {
     BIO *m;
     int ret = 0, rv;
@@ -516,8 +543,36 @@ static int test_x509_time_print(int idx)
     if (!TEST_ptr(m = BIO_new(BIO_s_mem())))
         goto err;
 
-    rv = ASN1_TIME_print(m, &x509_print_tests[idx].asn1);
-    readable = x509_print_tests[idx].readable;
+    rv = ASN1_TIME_print_ex(m, &x509_print_tests_rfc_822[idx].asn1, ASN1_DTFLGS_RFC822);
+    readable = x509_print_tests_rfc_822[idx].readable;
+
+    if (rv == 0 && !TEST_str_eq(readable, "Bad time value")) {
+        /* only if the test case intends to fail... */
+        goto err;
+    }
+    if (!TEST_int_ne(rv = BIO_get_mem_data(m, &pp), 0)
+        || !TEST_int_eq(rv, (int)strlen(readable))
+        || !TEST_strn_eq(pp, readable, rv))
+        goto err;
+
+    ret = 1;
+ err:
+    BIO_free(m);
+    return ret;
+}
+
+static int test_x509_time_print_iso_8601(int idx)
+{
+    BIO *m;
+    int ret = 0, rv;
+    char *pp;
+    const char *readable;
+
+    if (!TEST_ptr(m = BIO_new(BIO_s_mem())))
+        goto err;
+
+    rv = ASN1_TIME_print_ex(m, &x509_print_tests_iso_8601[idx].asn1, ASN1_DTFLGS_ISO8601);
+    readable = x509_print_tests_iso_8601[idx].readable;
 
     if (rv == 0 && !TEST_str_eq(readable, "Bad time value")) {
         /* only if the test case intends to fail... */
@@ -541,6 +596,7 @@ int setup_tests(void)
     ADD_ALL_TESTS(test_x509_cmp_time, OSSL_NELEM(x509_cmp_tests));
     ADD_ALL_TESTS(test_x509_time, OSSL_NELEM(x509_format_tests));
     ADD_ALL_TESTS(test_days, OSSL_NELEM(day_of_week_tests));
-    ADD_ALL_TESTS(test_x509_time_print, OSSL_NELEM(x509_print_tests));
+    ADD_ALL_TESTS(test_x509_time_print_rfc_822, OSSL_NELEM(x509_print_tests_rfc_822));
+    ADD_ALL_TESTS(test_x509_time_print_iso_8601, OSSL_NELEM(x509_print_tests_iso_8601));
     return 1;
 }

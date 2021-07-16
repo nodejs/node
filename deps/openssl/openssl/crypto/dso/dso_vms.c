@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -453,11 +453,37 @@ static char *vms_merger(DSO *dso, const char *filespec1,
 
 static char *vms_name_converter(DSO *dso, const char *filename)
 {
-    int len = strlen(filename);
-    char *not_translated = OPENSSL_malloc(len + 1);
-    if (not_translated != NULL)
-        strcpy(not_translated, filename);
-    return not_translated;
+    char *translated;
+    int len, transform;
+    const char *p;
+
+    len = strlen(filename);
+
+    p = strchr(filename, ':');
+    if (p != NULL) {
+        transform = 0;
+    } else {
+        p = filename;
+        transform = (strrchr(p, '>') == NULL && strrchr(p, ']') == NULL);
+    }
+
+    if (transform) {
+        int rsize = len + sizeof(DSO_EXTENSION);
+
+        if ((translated = OPENSSL_malloc(rsize)) != NULL) {
+            p = strrchr(filename, ';');
+            if (p != NULL)
+                len = p - filename;
+            strncpy(translated, filename, len);
+            translated[len] = '\0';
+            strcat(translated, DSO_EXTENSION);
+            if (p != NULL)
+                strcat(translated, p);
+        }
+    } else {
+        translated = OPENSSL_strdup(filename);
+    }
+    return translated;
 }
 
 #endif                          /* OPENSSL_SYS_VMS */

@@ -60,7 +60,7 @@ X509_ALGOR *PKCS5_pbe2_set_scrypt(const EVP_CIPHER *cipher,
         goto err;
     }
 
-    alg_nid = EVP_CIPHER_type(cipher);
+    alg_nid = EVP_CIPHER_get_type(cipher);
     if (alg_nid == NID_undef) {
         ERR_raise(ERR_LIB_ASN1, ASN1_R_CIPHER_HAS_NO_OBJECT_IDENTIFIER);
         goto err;
@@ -79,10 +79,10 @@ X509_ALGOR *PKCS5_pbe2_set_scrypt(const EVP_CIPHER *cipher,
         goto merr;
 
     /* Create random IV */
-    if (EVP_CIPHER_iv_length(cipher)) {
+    if (EVP_CIPHER_get_iv_length(cipher)) {
         if (aiv)
-            memcpy(iv, aiv, EVP_CIPHER_iv_length(cipher));
-        else if (RAND_bytes(iv, EVP_CIPHER_iv_length(cipher)) <= 0)
+            memcpy(iv, aiv, EVP_CIPHER_get_iv_length(cipher));
+        else if (RAND_bytes(iv, EVP_CIPHER_get_iv_length(cipher)) <= 0)
             goto err;
     }
 
@@ -103,7 +103,7 @@ X509_ALGOR *PKCS5_pbe2_set_scrypt(const EVP_CIPHER *cipher,
     /* If its RC2 then we'd better setup the key length */
 
     if (alg_nid == NID_rc2_cbc)
-        keylen = EVP_CIPHER_key_length(cipher);
+        keylen = EVP_CIPHER_get_key_length(cipher);
 
     /* Setup keyfunc */
 
@@ -234,7 +234,7 @@ int PKCS5_v2_scrypt_keyivgen_ex(EVP_CIPHER_CTX *ctx, const char *pass,
         goto err;
     }
 
-    t = EVP_CIPHER_CTX_key_length(ctx);
+    t = EVP_CIPHER_CTX_get_key_length(ctx);
     if (t < 0) {
         ERR_raise(ERR_LIB_EVP, EVP_R_INVALID_KEY_LENGTH);
         goto err;

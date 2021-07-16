@@ -71,7 +71,7 @@ int ossl_sm2_plaintext_size(const EC_KEY *key, const EVP_MD *digest,
                             size_t msg_len, size_t *pt_size)
 {
     const size_t field_size = ec_field_size(EC_KEY_get0_group(key));
-    const int md_size = EVP_MD_size(digest);
+    const int md_size = EVP_MD_get_size(digest);
     size_t overhead;
 
     if (md_size < 0) {
@@ -97,7 +97,7 @@ int ossl_sm2_ciphertext_size(const EC_KEY *key, const EVP_MD *digest,
                              size_t msg_len, size_t *ct_size)
 {
     const size_t field_size = ec_field_size(EC_KEY_get0_group(key));
-    const int md_size = EVP_MD_size(digest);
+    const int md_size = EVP_MD_get_size(digest);
     size_t sz;
 
     if (field_size == 0 || md_size < 0)
@@ -137,7 +137,7 @@ int ossl_sm2_encrypt(const EC_KEY *key,
     uint8_t *x2y2 = NULL;
     uint8_t *C3 = NULL;
     size_t field_size;
-    const int C3_size = EVP_MD_size(digest);
+    const int C3_size = EVP_MD_get_size(digest);
     EVP_MD *fetched_digest = NULL;
     OSSL_LIB_CTX *libctx = ossl_ec_key_get_libctx(key);
     const char *propq = ossl_ec_key_get0_propq(key);
@@ -187,7 +187,7 @@ int ossl_sm2_encrypt(const EC_KEY *key,
 
     memset(ciphertext_buf, 0, *ciphertext_len);
 
-    if (!BN_priv_rand_range_ex(k, order, ctx)) {
+    if (!BN_priv_rand_range_ex(k, order, 0, ctx)) {
         ERR_raise(ERR_LIB_SM2, ERR_R_INTERNAL_ERROR);
         goto done;
     }
@@ -222,7 +222,7 @@ int ossl_sm2_encrypt(const EC_KEY *key,
     for (i = 0; i != msg_len; ++i)
         msg_mask[i] ^= msg[i];
 
-    fetched_digest = EVP_MD_fetch(libctx, EVP_MD_name(digest), propq);
+    fetched_digest = EVP_MD_fetch(libctx, EVP_MD_get0_name(digest), propq);
     if (fetched_digest == NULL) {
         ERR_raise(ERR_LIB_SM2, ERR_R_INTERNAL_ERROR);
         goto done;
@@ -291,7 +291,7 @@ int ossl_sm2_decrypt(const EC_KEY *key,
     uint8_t *x2y2 = NULL;
     uint8_t *computed_C3 = NULL;
     const size_t field_size = ec_field_size(group);
-    const int hash_size = EVP_MD_size(digest);
+    const int hash_size = EVP_MD_get_size(digest);
     uint8_t *msg_mask = NULL;
     const uint8_t *C2 = NULL;
     const uint8_t *C3 = NULL;

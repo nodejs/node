@@ -3,8 +3,6 @@ CN2 = Brother 2
 
 ####################################################################
 [ req ]
-default_bits		= 2048
-default_keyfile 	= keySS.pem
 distinguished_name	= req_distinguished_name
 encrypt_rsa_key		= no
 default_md		= sha1
@@ -19,8 +17,6 @@ commonName_value		= Dodgy CA
 
 ####################################################################
 [ userreq ]
-default_bits		= 2048
-default_keyfile 	= keySS.pem
 distinguished_name	= user_dn
 encrypt_rsa_key		= no
 default_md		= sha256

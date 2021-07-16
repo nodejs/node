@@ -83,7 +83,7 @@ The usual life-cycle of a MAC is illustrated:
 
 =end man
 
-=for html <img src="mac.png">
+=for html <img src="img/mac.png">
 
 =head2 Formal State Transitions
 
@@ -92,7 +92,7 @@ This is the canonical list.
 
 =begin man
 
- Function Call                   ------------- Current State -------------
+ Function Call                   --------------------- Current State ----------------------
                                  start   newed    initialised   updated     finaled   freed
  EVP_MAC_CTX_new                 newed           
  EVP_MAC_init                         initialised initialised initialised initialised

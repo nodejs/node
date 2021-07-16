@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-X509_PUBKEY_new, X509_PUBKEY_free, X509_PUBKEY_dup,
+X509_PUBKEY_new_ex, X509_PUBKEY_new, X509_PUBKEY_free, X509_PUBKEY_dup,
 X509_PUBKEY_set, X509_PUBKEY_get0, X509_PUBKEY_get,
 d2i_PUBKEY_ex, d2i_PUBKEY, i2d_PUBKEY, d2i_PUBKEY_bio, d2i_PUBKEY_fp,
 i2d_PUBKEY_fp, i2d_PUBKEY_bio, X509_PUBKEY_set0_param, X509_PUBKEY_get0_param,
@@ -12,6 +12,7 @@ X509_PUBKEY_eq - SubjectPublicKeyInfo public key functions
 
  #include <openssl/x509.h>
 
+ X509_PUBKEY *X509_PUBKEY_new_ex(OSSL_LIB_CTX *libctx, const char *propq);
  X509_PUBKEY *X509_PUBKEY_new(void);
  void X509_PUBKEY_free(X509_PUBKEY *a);
  X509_PUBKEY *X509_PUBKEY_dup(const X509_PUBKEY *a);
@@ -44,7 +45,14 @@ X509_PUBKEY_eq - SubjectPublicKeyInfo public key functions
 The B<X509_PUBKEY> structure represents the ASN.1 B<SubjectPublicKeyInfo>
 structure defined in RFC5280 and used in certificates and certificate requests.
 
-X509_PUBKEY_new() allocates and initializes an B<X509_PUBKEY> structure.
+X509_PUBKEY_new_ex() allocates and initializes an B<X509_PUBKEY> structure
+associated with the given B<OSSL_LIB_CTX> in the I<libctx> parameter. Any
+algorithm fetches associated with using the B<X509_PUBKEY> object will use
+the property query string I<propq>. See L<crypto(7)/ALGORITHM FETCHING> for
+further information about algorithm fetching.
+
+X509_PUBKEY_new() is the same as X509_PUBKEY_new_ex() except that the default
+(NULL) B<OSSL_LIB_CTX> and a NULL property query string are used.
 
 X509_PUBKEY_dup() creates a duplicate copy of the B<X509_PUBKEY> object
 specified by I<a>.
@@ -127,7 +135,8 @@ L<X509_get_pubkey(3)>,
 
 =head1 HISTORY
 
-The X509_PUBKEY_eq() function was added in OpenSSL 3.0.
+The X509_PUBKEY_new_ex() and X509_PUBKEY_eq() functions were added in OpenSSL
+3.0.
 
 =head1 COPYRIGHT
 

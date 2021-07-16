@@ -11,7 +11,7 @@
 
 #include "helpers/cmp_testlib.h"
 
-#include "apps/cmp_mock_srv.h"
+#include "cmp_mock_srv.h"
 
 #ifndef NDEBUG /* tests need mock server, which is available only if !NDEBUG */
 
@@ -101,7 +101,6 @@ static int execute_exec_GENM_ses_test(CMP_SES_TEST_FIXTURE *fixture)
     if (!TEST_ptr(itavs = OSSL_CMP_exec_GENM_ses(fixture->cmp_ctx)))
         return 0;
     sk_OSSL_CMP_ITAV_pop_free(itavs, OSSL_CMP_ITAV_free);
-    /* TODO: check if the returned value is the expected one (same as sent) */
     return 1;
 }
 
@@ -115,7 +114,6 @@ static int execute_exec_certrequest_ses_test(CMP_SES_TEST_FIXTURE *fixture)
 
     if (!TEST_ptr(res) || !TEST_int_eq(X509_cmp(res, client_cert), 0))
         return 0;
-    /* TODO: check that cerfConf has been exchanged unless implicitConfirm */
     if (fixture->caPubs != NULL) {
         STACK_OF(X509) *caPubs = OSSL_CMP_CTX_get1_caPubs(fixture->cmp_ctx);
         int ret = TEST_int_eq(STACK_OF_X509_cmp(fixture->caPubs, caPubs), 0);
@@ -169,7 +167,6 @@ static int test_exec_IR_ses_poll(void)
     ossl_cmp_mock_srv_set_pollCount(fixture->srv_ctx, 2);
     ossl_cmp_mock_srv_set_checkAfterTime(fixture->srv_ctx, checkAfter);
     EXECUTE_TEST(execute_exec_certrequest_ses_test, tear_down);
-    /* TODO: check that 2 rounds are done or session takes 2..3 seconds */
     return result;
 }
 
@@ -226,7 +223,7 @@ static int test_exec_P10CR_ses(void)
     SETUP_TEST_FIXTURE(CMP_SES_TEST_FIXTURE, set_up);
     fixture->req_type = OSSL_CMP_P10CR;
     fixture->expected = 1;
-    if (!TEST_ptr(req = load_csr_der(pkcs10_f))
+    if (!TEST_ptr(req = load_csr_der(pkcs10_f, libctx))
             || !TEST_true(OSSL_CMP_CTX_set1_p10CSR(fixture->cmp_ctx, req))) {
         tear_down(fixture);
         fixture = NULL;
@@ -373,7 +370,7 @@ int setup_tests(void)
             || !TEST_ptr(server_cert = load_cert_pem(server_cert_f, libctx))
             || !TEST_ptr(client_key = load_pkey_pem(client_key_f, libctx))
             || !TEST_ptr(client_cert = load_cert_pem(client_cert_f, libctx))
-            || !TEST_int_eq(1, RAND_bytes_ex(libctx, ref, sizeof(ref)))) {
+            || !TEST_int_eq(1, RAND_bytes_ex(libctx, ref, sizeof(ref), 0))) {
         cleanup_tests();
         return 0;
     }

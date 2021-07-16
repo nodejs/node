@@ -321,7 +321,7 @@ static int test_handshake_secrets(void)
                      handshake_secret, sizeof(handshake_secret)))
         goto err;
 
-    hashsize = EVP_MD_size(ssl_handshake_md(s));
+    hashsize = EVP_MD_get_size(ssl_handshake_md(s));
     if (!TEST_size_t_eq(sizeof(client_hts), hashsize))
         goto err;
     if (!TEST_size_t_eq(sizeof(client_hts_key), KEYLEN))

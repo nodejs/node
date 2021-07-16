@@ -80,15 +80,7 @@ if ($lang eq 'C') {
     s{
          (?|                        # All things preserved end up in $1
 
-             (\n)\h+                # Spaces at start of lines removed
-
-         |
-
-             \h+(\n)                # Spaces at end of lines removed
-
-         |
-
-             \h+                    # Other horizontal spaces replaced with one
+             \h+                    # Horizontal spaces replaced with one
 
          |                          # OR
 
@@ -104,6 +96,10 @@ if ($lang eq 'C') {
         }
         defined $1 ? $1 : " "
     }gsxe;
+
+    # Clean up spaces at start and end of lines
+    s/^ //mg;
+    s/ $//mg;
 } elsif ($lang eq 'S') {
     # Because we use C++ style comments in our .S files, all we can do
     # is to drop them

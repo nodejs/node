@@ -541,7 +541,6 @@ STACK_OF(X509_OBJECT) *X509_STORE_get0_objects(const X509_STORE *v)
     return v->objs;
 }
 
-/* TODO param type could be constified as change to lock is intermittent */
 STACK_OF(X509) *X509_STORE_get1_all_certs(X509_STORE *store)
 {
     STACK_OF(X509) *sk;

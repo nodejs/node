@@ -67,7 +67,7 @@ const OPTIONS pkey_options[] = {
 
 int pkey_main(int argc, char **argv)
 {
-    BIO *in = NULL, *out = NULL;
+    BIO *out = NULL;
     ENGINE *e = NULL;
     EVP_PKEY *pkey = NULL;
     EVP_PKEY_CTX *ctx = NULL;
@@ -175,15 +175,19 @@ int pkey_main(int argc, char **argv)
     if (argc != 0)
         goto opthelp;
 
-    if (noout && pubout)
-        BIO_printf(bio_err,
-                   "Warning: The -pubout option is ignored with -noout\n");
     if (text && text_pub)
         BIO_printf(bio_err,
                    "Warning: The -text option is ignored with -text_pub\n");
     if (traditional && (noout || outformat != FORMAT_PEM))
         BIO_printf(bio_err,
                    "Warning: The -traditional is ignored since there is no PEM output\n");
+
+    /* -pubout and -text is the same as -text_pub */
+    if (!text_pub && pubout && text) {
+        text = 0;
+        text_pub = 1;
+    }
+
     private = (!noout && !pubout) || (text && !text_pub);
 
     if (ciphername != NULL) {
@@ -321,7 +325,6 @@ int pkey_main(int argc, char **argv)
     EVP_CIPHER_free(cipher);
     release_engine(e);
     BIO_free_all(out);
-    BIO_free(in);
     OPENSSL_free(passin);
     OPENSSL_free(passout);
 

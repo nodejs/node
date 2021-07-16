@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -9,7 +9,7 @@
 
 #include "internal/cryptlib.h"
 #include "internal/packet.h"
-#include <openssl/sslerr.h>
+#include <openssl/err.h>
 
 #define DEFAULT_BUF_SIZE    256
 
@@ -105,7 +105,7 @@ static int wpacket_intern_init_len(WPACKET *pkt, size_t lenbytes)
     pkt->written = 0;
 
     if ((pkt->subs = OPENSSL_zalloc(sizeof(*pkt->subs))) == NULL) {
-        ERR_raise(ERR_LIB_SSL, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_CRYPTO, ERR_R_MALLOC_FAILURE);
         return 0;
     }
 
@@ -352,7 +352,7 @@ int WPACKET_start_sub_packet_len__(WPACKET *pkt, size_t lenbytes)
         return 0;
 
     if ((sub = OPENSSL_zalloc(sizeof(*sub))) == NULL) {
-        ERR_raise(ERR_LIB_SSL, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_CRYPTO, ERR_R_MALLOC_FAILURE);
         return 0;
     }
 

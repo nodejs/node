@@ -512,7 +512,7 @@ sub doscript {
     return "" if $cache{$script};
     $self->emit('in2script',
          script => $script,
-         attrs => $self->{info}->{attributes}->{$script} // {},
+         attrs => $self->{info}->{attributes}->{scripts}->{$script} // {},
          sources => $self->{info}->{sources}->{$script});
     $cache{$script} = 1;
 }

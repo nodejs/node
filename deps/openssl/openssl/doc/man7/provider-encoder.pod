@@ -133,8 +133,12 @@ Properties can be used to further specify details about an implementation:
 
 =item output
 
-This property is used to specify what type of output implementation
-produces.  OpenSSL providers recognize the following output types:
+This property is used to specify what type of output the implementation
+produces.
+
+This property is I<mandatory>.
+
+OpenSSL providers recognize the following output types:
 
 =over 4
 
@@ -168,6 +172,8 @@ This property is used to specify the structure that is used for the encoded
 object.  An example could be C<pkcs8>, to specify explicitly that an object
 (presumably an asymmetric key pair, in this case) will be wrapped in a
 PKCS#8 structure as part of the encoding.
+
+This property is I<optional>.
 
 =back
 
@@ -239,47 +245,6 @@ if relevant, should determine in greater detail what will be output.
 The encoding functions also take an B<OSSL_PASSPHRASE_CALLBACK> function
 pointer along with a pointer to application data I<cbarg>, which should be
 used when a pass phrase prompt is needed.
-
-=head2 Encoder parameters
-
-The ENCODER implementation itself has parameters that can be used to
-determine how it fits in a chain of encoders:
-
-=over 4
-
-=item "input-type" (B<OSSL_ENCODER_PARAM_INPUT_TYPE>) <UTF8 string>
-
-This is used to specify a distinct type name for the object passed as
-I<obj_raw> to OSSL_FUNC_encoder_encode.
-
-This parameter is an optional parameter, to be used if the name of the
-implementation can be ambiguous because of aliases, and something more
-deterministic is needed.
-
-=item "output-type" (B<OSSL_ENCODER_PARAM_OUTPUT_TYPE>) <UTF8 string>
-
-This is used to specify the output type for an ENCODER implementation.
-
-This parameter is I<mandatory>.
-
-=for comment If we had functionality to get the value of a specific property
-in a set of properties, it would be possible to determine the output type
-from the C<output> property.
-
-=item "output-structure" (B<OSSL_ENCODER_PARAM_OUTPUT_STRUCTURE>) <UTF8 string>
-
-This is used to specify the outermost output structure for an ENCODER
-implementation.
-
-For example, an output of type "DER" for a key pair could be structured
-using PKCS#8, or a key type specific structure, such as PKCS#1 for RSA
-keys.
-
-=for comment If we had functionality to get the value of a specific property
-in a set of properties, it would be possible to determine the output
-structure from the C<structure> property.
-
-=back
 
 =head2 Encoder operation parameters
 

@@ -30,8 +30,9 @@ IF[{- !$disabled{asm} -}]
   $ECASM_parisc20_64=
 
   $ECASM_ppc32=
-  $ECASM_ppc64=ecp_nistz256.c ecp_nistz256-ppc64.s x25519-ppc64.s
-  $ECDEF_ppc64=ECP_NISTZ256_ASM X25519_ASM
+  $ECASM_ppc64=ecp_nistz256.c ecp_nistz256-ppc64.s ecp_nistp521-ppc64.s x25519-ppc64.s
+  $ECDEF_ppc64=ECP_NISTZ256_ASM ECP_NISTP521_ASM X25519_ASM
+  INCLUDE[ecp_nistp521.o]=..
 
   $ECASM_c64xplus=
 
@@ -85,6 +86,8 @@ INCLUDE[ecp_nistz256-armv4.o]=..
 GENERATE[ecp_nistz256-armv8.S]=asm/ecp_nistz256-armv8.pl
 INCLUDE[ecp_nistz256-armv8.o]=..
 GENERATE[ecp_nistz256-ppc64.s]=asm/ecp_nistz256-ppc64.pl
+
+GENERATE[ecp_nistp521-ppc64.s]=asm/ecp_nistp521-ppc64.pl
 
 GENERATE[x25519-x86_64.s]=asm/x25519-x86_64.pl
 GENERATE[x25519-ppc64.s]=asm/x25519-ppc64.pl

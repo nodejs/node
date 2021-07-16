@@ -10,7 +10,7 @@
 
 #include <string.h>
 #include <openssl/params.h>
-#include "openssl/param_build.h"
+#include <openssl/param_build.h>
 #include "internal/nelem.h"
 #include "testutil.h"
 

@@ -469,7 +469,8 @@ CMS_SignerInfo *CMS_add1_signer(CMS_ContentInfo *cms,
                 goto err;
             if (EVP_PKEY_CTX_set_signature_md(si->pctx, md) <= 0)
                 goto err;
-        } else if (EVP_DigestSignInit_ex(si->mctx, &si->pctx, EVP_MD_name(md),
+        } else if (EVP_DigestSignInit_ex(si->mctx, &si->pctx,
+                                         EVP_MD_get0_name(md),
                                          ossl_cms_ctx_get0_libctx(ctx),
                                          ossl_cms_ctx_get0_propq(ctx),
                                          pk, NULL) <= 0) {
@@ -718,7 +719,7 @@ static int cms_SignerInfo_content_sign(CMS_ContentInfo *cms,
         pctx = si->pctx;
         if (!EVP_DigestFinal_ex(mctx, md, &mdlen))
             goto err;
-        siglen = EVP_PKEY_size(si->pkey);
+        siglen = EVP_PKEY_get_size(si->pkey);
         sig = OPENSSL_malloc(siglen);
         if (sig == NULL) {
             ERR_raise(ERR_LIB_CMS, ERR_R_MALLOC_FAILURE);
@@ -733,7 +734,7 @@ static int cms_SignerInfo_content_sign(CMS_ContentInfo *cms,
         unsigned char *sig;
         unsigned int siglen;
 
-        sig = OPENSSL_malloc(EVP_PKEY_size(si->pkey));
+        sig = OPENSSL_malloc(EVP_PKEY_get_size(si->pkey));
         if (sig == NULL) {
             ERR_raise(ERR_LIB_CMS, ERR_R_MALLOC_FAILURE);
             goto err;
@@ -875,7 +876,7 @@ int CMS_SignerInfo_verify(CMS_SignerInfo *si)
         goto err;
     }
     mctx = si->mctx;
-    if (EVP_DigestVerifyInit_ex(mctx, &si->pctx, EVP_MD_name(md), libctx,
+    if (EVP_DigestVerifyInit_ex(mctx, &si->pctx, EVP_MD_get0_name(md), libctx,
                                 propq, si->pkey, NULL) <= 0)
         goto err;
 

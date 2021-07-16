@@ -56,8 +56,8 @@ static int cmll_t4_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
     EVP_CAMELLIA_KEY *dat =
         (EVP_CAMELLIA_KEY *)EVP_CIPHER_CTX_get_cipher_data(ctx);
 
-    mode = EVP_CIPHER_CTX_mode(ctx);
-    bits = EVP_CIPHER_CTX_key_length(ctx) * 8;
+    mode = EVP_CIPHER_CTX_get_mode(ctx);
+    bits = EVP_CIPHER_CTX_get_key_length(ctx) * 8;
 
     cmll_t4_set_key(key, bits, &dat->ks);
 
@@ -196,13 +196,14 @@ static int camellia_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
     int ret, mode;
     EVP_CAMELLIA_KEY *dat = EVP_C_DATA(EVP_CAMELLIA_KEY,ctx);
 
-    ret = Camellia_set_key(key, EVP_CIPHER_CTX_key_length(ctx) * 8, &dat->ks);
+    ret = Camellia_set_key(key, EVP_CIPHER_CTX_get_key_length(ctx) * 8,
+                           &dat->ks);
     if (ret < 0) {
         ERR_raise(ERR_LIB_EVP, EVP_R_CAMELLIA_KEY_SETUP_FAILED);
         return 0;
     }
 
-    mode = EVP_CIPHER_CTX_mode(ctx);
+    mode = EVP_CIPHER_CTX_get_mode(ctx);
     if ((mode == EVP_CIPH_ECB_MODE || mode == EVP_CIPH_CBC_MODE)
         && !enc) {
         dat->block = (block128_f) Camellia_decrypt;
@@ -224,8 +225,8 @@ static int camellia_cbc_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 
     if (dat->stream.cbc)
         (*dat->stream.cbc) (in, out, len, &dat->ks, ctx->iv,
-                            EVP_CIPHER_CTX_encrypting(ctx));
-    else if (EVP_CIPHER_CTX_encrypting(ctx))
+                            EVP_CIPHER_CTX_is_encrypting(ctx));
+    else if (EVP_CIPHER_CTX_is_encrypting(ctx))
         CRYPTO_cbc128_encrypt(in, out, len, &dat->ks, ctx->iv, dat->block);
     else
         CRYPTO_cbc128_decrypt(in, out, len, &dat->ks, ctx->iv, dat->block);
@@ -236,7 +237,7 @@ static int camellia_cbc_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 static int camellia_ecb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                                const unsigned char *in, size_t len)
 {
-    size_t bl = EVP_CIPHER_CTX_block_size(ctx);
+    size_t bl = EVP_CIPHER_CTX_get_block_size(ctx);
     size_t i;
     EVP_CAMELLIA_KEY *dat = EVP_C_DATA(EVP_CAMELLIA_KEY,ctx);
 
@@ -254,7 +255,7 @@ static int camellia_ofb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 {
     EVP_CAMELLIA_KEY *dat = EVP_C_DATA(EVP_CAMELLIA_KEY,ctx);
 
-    int num = EVP_CIPHER_CTX_num(ctx);
+    int num = EVP_CIPHER_CTX_get_num(ctx);
     CRYPTO_ofb128_encrypt(in, out, len, &dat->ks, ctx->iv, &num, dat->block);
     EVP_CIPHER_CTX_set_num(ctx, num);
     return 1;
@@ -265,9 +266,9 @@ static int camellia_cfb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 {
     EVP_CAMELLIA_KEY *dat = EVP_C_DATA(EVP_CAMELLIA_KEY,ctx);
 
-    int num = EVP_CIPHER_CTX_num(ctx);
+    int num = EVP_CIPHER_CTX_get_num(ctx);
     CRYPTO_cfb128_encrypt(in, out, len, &dat->ks, ctx->iv, &num,
-                          EVP_CIPHER_CTX_encrypting(ctx), dat->block);
+                          EVP_CIPHER_CTX_is_encrypting(ctx), dat->block);
     EVP_CIPHER_CTX_set_num(ctx, num);
     return 1;
 }
@@ -277,9 +278,9 @@ static int camellia_cfb8_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 {
     EVP_CAMELLIA_KEY *dat = EVP_C_DATA(EVP_CAMELLIA_KEY,ctx);
 
-    int num = EVP_CIPHER_CTX_num(ctx);
+    int num = EVP_CIPHER_CTX_get_num(ctx);
     CRYPTO_cfb128_8_encrypt(in, out, len, &dat->ks, ctx->iv, &num,
-                            EVP_CIPHER_CTX_encrypting(ctx), dat->block);
+                            EVP_CIPHER_CTX_is_encrypting(ctx), dat->block);
     EVP_CIPHER_CTX_set_num(ctx, num);
     return 1;
 }
@@ -290,26 +291,31 @@ static int camellia_cfb1_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
     EVP_CAMELLIA_KEY *dat = EVP_C_DATA(EVP_CAMELLIA_KEY,ctx);
 
     if (EVP_CIPHER_CTX_test_flags(ctx, EVP_CIPH_FLAG_LENGTH_BITS)) {
-        int num = EVP_CIPHER_CTX_num(ctx);
+        int num = EVP_CIPHER_CTX_get_num(ctx);
         CRYPTO_cfb128_1_encrypt(in, out, len, &dat->ks, ctx->iv, &num,
-                                EVP_CIPHER_CTX_encrypting(ctx), dat->block);
+                                EVP_CIPHER_CTX_is_encrypting(ctx),
+                                dat->block);
         EVP_CIPHER_CTX_set_num(ctx, num);
         return 1;
     }
 
     while (len >= MAXBITCHUNK) {
-        int num = EVP_CIPHER_CTX_num(ctx);
+        int num = EVP_CIPHER_CTX_get_num(ctx);
         CRYPTO_cfb128_1_encrypt(in, out, MAXBITCHUNK * 8, &dat->ks,
-                                ctx->iv, &num, EVP_CIPHER_CTX_encrypting(ctx), dat->block);
+                                ctx->iv, &num,
+                                EVP_CIPHER_CTX_is_encrypting(ctx),
+                                dat->block);
         EVP_CIPHER_CTX_set_num(ctx, num);
         len -= MAXBITCHUNK;
         out += MAXBITCHUNK;
         in  += MAXBITCHUNK;
     }
     if (len) {
-        int num = EVP_CIPHER_CTX_num(ctx);
+        int num = EVP_CIPHER_CTX_get_num(ctx);
         CRYPTO_cfb128_1_encrypt(in, out, len * 8, &dat->ks,
-                                ctx->iv, &num, EVP_CIPHER_CTX_encrypting(ctx), dat->block);
+                                ctx->iv, &num,
+                                EVP_CIPHER_CTX_is_encrypting(ctx),
+                                dat->block);
         EVP_CIPHER_CTX_set_num(ctx, num);
     }
 
@@ -319,7 +325,7 @@ static int camellia_cfb1_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 static int camellia_ctr_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                                const unsigned char *in, size_t len)
 {
-    int snum = EVP_CIPHER_CTX_num(ctx);
+    int snum = EVP_CIPHER_CTX_get_num(ctx);
     unsigned int num;
     EVP_CAMELLIA_KEY *dat = EVP_C_DATA(EVP_CAMELLIA_KEY,ctx);
 
@@ -328,7 +334,8 @@ static int camellia_ctr_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
     num = snum;
     if (dat->stream.ctr)
         CRYPTO_ctr128_encrypt_ctr32(in, out, len, &dat->ks, ctx->iv,
-                                    EVP_CIPHER_CTX_buf_noconst(ctx), &num,
+                                    EVP_CIPHER_CTX_buf_noconst(ctx),
+                                    &num,
                                     dat->stream.ctr);
     else
         CRYPTO_ctr128_encrypt(in, out, len, &dat->ks, ctx->iv,

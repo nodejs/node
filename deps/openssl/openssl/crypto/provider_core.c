@@ -483,6 +483,7 @@ void ossl_provider_free(OSSL_PROVIDER *prov)
 int ossl_provider_set_module_path(OSSL_PROVIDER *prov, const char *module_path)
 {
     OPENSSL_free(prov->path);
+    prov->path = NULL;
     if (module_path == NULL)
         return 1;
     if ((prov->path = OPENSSL_strdup(module_path)) != NULL)
@@ -980,8 +981,6 @@ static void provider_activate_fallbacks(struct provider_store_st *store)
     /*
      * We assume that all fallbacks have been added to the store before
      * any fallback is activated.
-     * TODO: We may have to reconsider this, IF we find ourselves adding
-     * fallbacks after any previous fallback has been activated.
      */
     if (activated_fallback_count > 0)
         store->use_fallbacks = 0;
@@ -1544,6 +1543,8 @@ static OSSL_FUNC_core_vset_error_fn core_vset_error;
 static OSSL_FUNC_core_set_error_mark_fn core_set_error_mark;
 static OSSL_FUNC_core_clear_last_error_mark_fn core_clear_last_error_mark;
 static OSSL_FUNC_core_pop_error_to_mark_fn core_pop_error_to_mark;
+static OSSL_FUNC_core_obj_add_sigid_fn core_obj_add_sigid;
+static OSSL_FUNC_core_obj_create_fn core_obj_create;
 #endif
 
 static const OSSL_PARAM *core_gettable_params(const OSSL_CORE_HANDLE *handle)
@@ -1603,7 +1604,8 @@ static OPENSSL_CORE_CTX *core_get_libctx(const OSSL_CORE_HANDLE *handle)
 }
 
 static int core_thread_start(const OSSL_CORE_HANDLE *handle,
-                             OSSL_thread_stop_handler_fn handfn)
+                             OSSL_thread_stop_handler_fn handfn,
+                             void *arg)
 {
     /*
      * We created this object originally and we know it is actually an
@@ -1611,7 +1613,7 @@ static int core_thread_start(const OSSL_CORE_HANDLE *handle,
      */
     OSSL_PROVIDER *prov = (OSSL_PROVIDER *)handle;
 
-    return ossl_init_thread_start(prov, prov->provctx, handfn);
+    return ossl_init_thread_start(prov, arg, handfn);
 }
 
 /*
@@ -1673,6 +1675,39 @@ static int core_pop_error_to_mark(const OSSL_CORE_HANDLE *handle)
 {
     return ERR_pop_to_mark();
 }
+
+static int core_obj_add_sigid(const OSSL_CORE_HANDLE *prov,
+                              const char *sign_name, const char *digest_name,
+                              const char *pkey_name)
+{
+    int sign_nid = OBJ_txt2nid(sign_name);
+    int digest_nid = OBJ_txt2nid(digest_name);
+    int pkey_nid = OBJ_txt2nid(pkey_name);
+
+    if (sign_nid == NID_undef)
+        return 0;
+
+    /*
+     * Check if it already exists. This is a success if so (even if we don't
+     * have nids for the digest/pkey)
+     */
+    if (OBJ_find_sigid_algs(sign_nid, NULL, NULL))
+        return 1;
+
+    if (digest_nid == NID_undef
+            || pkey_nid == NID_undef)
+        return 0;
+
+    return OBJ_add_sigid(sign_nid, digest_nid, pkey_nid);
+}
+
+static int core_obj_create(const OSSL_CORE_HANDLE *prov, const char *oid,
+                           const char *sn, const char *ln)
+{
+    /* Check if it already exists and create it if not */
+    return OBJ_txt2nid(oid) != NID_undef
+           || OBJ_create(oid, sn, ln) != NID_undef;
+}
 #endif /* FIPS_MODULE */
 
 /*
@@ -1728,7 +1763,7 @@ static const OSSL_DISPATCH core_dispatch_[] = {
     { OSSL_FUNC_PROVIDER_DEREGISTER_CHILD_CB,
         (void (*)(void))ossl_provider_deregister_child_cb },
     { OSSL_FUNC_PROVIDER_NAME,
-        (void (*)(void))OSSL_PROVIDER_name },
+        (void (*)(void))OSSL_PROVIDER_get0_name },
     { OSSL_FUNC_PROVIDER_GET0_PROVIDER_CTX,
         (void (*)(void))OSSL_PROVIDER_get0_provider_ctx },
     { OSSL_FUNC_PROVIDER_GET0_DISPATCH,
@@ -1737,6 +1772,8 @@ static const OSSL_DISPATCH core_dispatch_[] = {
         (void (*)(void))provider_up_ref_intern },
     { OSSL_FUNC_PROVIDER_FREE,
         (void (*)(void))provider_free_intern },
+    { OSSL_FUNC_CORE_OBJ_ADD_SIGID, (void (*)(void))core_obj_add_sigid },
+    { OSSL_FUNC_CORE_OBJ_CREATE, (void (*)(void))core_obj_create },
 #endif
     { 0, NULL }
 };

@@ -143,7 +143,7 @@ static int execute_calc_protection_signature_test(CMP_PROTECT_TEST_FIXTURE *
 static int test_cmp_calc_protection_no_key_no_secret(void)
 {
     SETUP_TEST_FIXTURE(CMP_PROTECT_TEST_FIXTURE, set_up);
-    if (!TEST_ptr(fixture->msg = load_pkimsg(ir_unprotected_f))
+    if (!TEST_ptr(fixture->msg = load_pkimsg(ir_unprotected_f, libctx))
             || !TEST_ptr(fixture->msg->header->protectionAlg =
                          X509_ALGOR_new() /* no specific alg needed here */)) {
         tear_down(fixture);
@@ -159,7 +159,7 @@ static int test_cmp_calc_protection_pkey(void)
     SETUP_TEST_FIXTURE(CMP_PROTECT_TEST_FIXTURE, set_up);
     fixture->pubkey = loadedpubkey;
     if (!TEST_true(OSSL_CMP_CTX_set1_pkey(fixture->cmp_ctx, loadedprivkey))
-            || !TEST_ptr(fixture->msg = load_pkimsg(ir_protected_f))) {
+            || !TEST_ptr(fixture->msg = load_pkimsg(ir_protected_f, libctx))) {
         tear_down(fixture);
         fixture = NULL;
     }
@@ -174,7 +174,7 @@ static int test_cmp_calc_protection_pbmac(void)
     SETUP_TEST_FIXTURE(CMP_PROTECT_TEST_FIXTURE, set_up);
     if (!TEST_true(OSSL_CMP_CTX_set1_secretValue(fixture->cmp_ctx,
                                                  sec_insta, sizeof(sec_insta)))
-            || !TEST_ptr(fixture->msg = load_pkimsg(ip_PBM_f))) {
+            || !TEST_ptr(fixture->msg = load_pkimsg(ip_PBM_f, libctx))) {
         tear_down(fixture);
         fixture = NULL;
     }
@@ -577,8 +577,8 @@ int setup_tests(void)
         return 0;
     if (TEST_true(EVP_PKEY_up_ref(loadedprivkey)))
         loadedpubkey = loadedprivkey;
-    if (!TEST_ptr(ir_protected = load_pkimsg(ir_protected_f))
-            || !TEST_ptr(ir_unprotected = load_pkimsg(ir_unprotected_f)))
+    if (!TEST_ptr(ir_protected = load_pkimsg(ir_protected_f, libctx))
+            || !TEST_ptr(ir_unprotected = load_pkimsg(ir_unprotected_f, libctx)))
         return 0;
     if (!TEST_ptr(endentity1 = load_cert_pem(endentity1_f, libctx))
             || !TEST_ptr(endentity2 = load_cert_pem(endentity2_f, libctx))

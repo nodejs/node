@@ -68,7 +68,7 @@ int main(int argc, char * argv[])
         fprintf(stderr, "EVP_MD_fetch did not find SHA3-512.\n");
         goto cleanup;
     }
-    digest_size = EVP_MD_size(md);
+    digest_size = EVP_MD_get_size(md);
     digest_value = OPENSSL_malloc(digest_size);
     if (digest_value == NULL) {
         fprintf(stderr, "Can't allocate %lu bytes for the digest value.\n", (unsigned long)digest_size);

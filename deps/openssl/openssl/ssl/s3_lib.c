@@ -4552,9 +4552,9 @@ int ssl_fill_hello_random(SSL *s, int server, unsigned char *result, size_t len,
         unsigned char *p = result;
 
         l2n(Time, p);
-        ret = RAND_bytes_ex(s->ctx->libctx, p, len - 4);
+        ret = RAND_bytes_ex(s->ctx->libctx, p, len - 4, 0);
     } else {
-        ret = RAND_bytes_ex(s->ctx->libctx, result, len);
+        ret = RAND_bytes_ex(s->ctx->libctx, result, len, 0);
     }
 
     if (ret > 0) {

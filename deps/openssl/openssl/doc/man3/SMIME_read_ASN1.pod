@@ -10,7 +10,8 @@ SMIME_read_ASN1_ex, SMIME_read_ASN1
  #include <openssl/asn1.h>
 
  ASN1_VALUE *SMIME_read_ASN1_ex(BIO *in, int flags, BIO **bcont,
-                                const ASN1_ITEM *it, ASN1_VALUE **x);
+                                const ASN1_ITEM *it, ASN1_VALUE **x,
+                                OSSL_LIB_CTX *libctx, const char *propq);
  ASN1_VALUE *SMIME_read_ASN1(BIO *in, BIO **bcont, const ASN1_ITEM *it);
 
 =head1 DESCRIPTION
@@ -25,7 +26,10 @@ to be followed by B<CR> and B<LF> characters, else only by an B<LF> character.
 I<x> can be used to optionally supply
 a previously created I<it> ASN1_VALUE object (such as CMS_ContentInfo or PKCS7),
 it can be set to NULL. Valid values that can be used by ASN.1 structure I<it>
-are ASN1_ITEM_rptr(PKCS7) or ASN1_ITEM_rptr(CMS_ContentInfo).
+are ASN1_ITEM_rptr(PKCS7) or ASN1_ITEM_rptr(CMS_ContentInfo). Any algorithm
+fetches that occur during the operation will use the B<OSSL_LIB_CTX> supplied in
+the I<libctx> parameter, and use the property query string I<propq> See
+L<crypto(7)/ALGORITHM FETCHING> for further details about algorithm fetching.
 
 If cleartext signing is used then the content is saved in a memory bio which is
 written to I<*bcont>, otherwise I<*bcont> is set to NULL.

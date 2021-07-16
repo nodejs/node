@@ -319,7 +319,6 @@ static STACK_OF(PKCS12_SAFEBAG) *decode_contentinfo(STACK_OF(PKCS7) *safes, int 
     if (enc) {
         if (!TEST_int_eq(bagnid, NID_pkcs7_encrypted))
             goto err;
-        /* TODO: Check algorithm (iterations?) against what we originally set */
         bags = PKCS12_unpack_p7encdata(p7, enc->pass, strlen(enc->pass));
     } else {
         if (!TEST_int_eq(bagnid, NID_pkcs7_data))
@@ -518,8 +517,6 @@ static int check_attrs(const STACK_OF(X509_ATTRIBUTE) *bag_attrs, const PKCS12_A
         while(p_attr->oid != NULL) {
             /* Find a matching attribute type */
             if (strcmp(p_attr->oid, attr_txt) == 0) {
-
-                /* TODO: Handle multi-value attributes */
                 if (!TEST_int_eq(X509_ATTRIBUTE_count(attr), 1))
                     goto err;
 
@@ -603,8 +600,6 @@ void check_keybag(PKCS12_BUILDER *pb, const unsigned char *bytes, int len,
             pb->success = 0;
             goto err;
         }
-        /* TODO: handle key attributes */
-        /* PKCS8_pkey_get0_attrs(p8c); */
         break;
 
     case NID_pkcs8ShroudedKeyBag:
@@ -621,8 +616,6 @@ void check_keybag(PKCS12_BUILDER *pb, const unsigned char *bytes, int len,
             pb->success = 0;
             goto err;
         }
-        /* TODO: handle key attributes */
-        /* PKCS8_pkey_get0_attrs(p8); */
         PKCS8_PRIV_KEY_INFO_free(p8);
         break;
 

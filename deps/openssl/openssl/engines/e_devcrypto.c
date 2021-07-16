@@ -24,7 +24,7 @@
 #include <openssl/err.h>
 #include <openssl/engine.h>
 #include <openssl/objects.h>
-#include <crypto/cryptodev.h>
+#include "crypto/cryptodev.h"
 
 /* #define ENGINE_DEVCRYPTO_DEBUG */
 
@@ -207,7 +207,7 @@ static int cipher_init(EVP_CIPHER_CTX *ctx, const unsigned char *key,
     struct cipher_ctx *cipher_ctx =
         (struct cipher_ctx *)EVP_CIPHER_CTX_get_cipher_data(ctx);
     const struct cipher_data_st *cipher_d =
-        get_cipher_data(EVP_CIPHER_CTX_nid(ctx));
+        get_cipher_data(EVP_CIPHER_CTX_get_nid(ctx));
     int ret;
 
     /* cleanup a previous session */
@@ -260,12 +260,12 @@ static int cipher_do_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 #if !defined(COP_FLAG_WRITE_IV)
     cryp.flags = 0;
 
-    ivlen = EVP_CIPHER_CTX_iv_length(ctx);
+    ivlen = EVP_CIPHER_CTX_get_iv_length(ctx);
     if (ivlen > 0)
         switch (cipher_ctx->mode) {
         case EVP_CIPH_CBC_MODE:
             assert(inl >= ivlen);
-            if (!EVP_CIPHER_CTX_encrypting(ctx)) {
+            if (!EVP_CIPHER_CTX_is_encrypting(ctx)) {
                 ivptr = in + inl - ivlen;
                 memcpy(saved_iv, ivptr, ivlen);
             }
@@ -291,7 +291,7 @@ static int cipher_do_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
         switch (cipher_ctx->mode) {
         case EVP_CIPH_CBC_MODE:
             assert(inl >= ivlen);
-            if (EVP_CIPHER_CTX_encrypting(ctx))
+            if (EVP_CIPHER_CTX_is_encrypting(ctx))
                 ivptr = out + inl - ivlen;
             else
                 ivptr = saved_iv;
@@ -610,7 +610,7 @@ static int cryptodev_select_cipher_cb(const char *str, int len, void *usr)
     EVP = EVP_get_cipherbyname(name);
     if (EVP == NULL)
         fprintf(stderr, "devcrypto: unknown cipher %s\n", name);
-    else if ((i = find_cipher_data_index(EVP_CIPHER_nid(EVP))) != (size_t)-1)
+    else if ((i = find_cipher_data_index(EVP_CIPHER_get_nid(EVP))) != (size_t)-1)
         cipher_list[i] = 1;
     else
         fprintf(stderr, "devcrypto: cipher %s not available\n", name);
@@ -746,9 +746,9 @@ static const struct digest_data_st *get_digest_data(int nid)
 static int digest_init(EVP_MD_CTX *ctx)
 {
     struct digest_ctx *digest_ctx =
-        (struct digest_ctx *)EVP_MD_CTX_md_data(ctx);
+        (struct digest_ctx *)EVP_MD_CTX_get0_md_data(ctx);
     const struct digest_data_st *digest_d =
-        get_digest_data(EVP_MD_CTX_type(ctx));
+        get_digest_data(EVP_MD_CTX_get_type(ctx));
 
     digest_ctx->init_called = 1;
 
@@ -779,7 +779,7 @@ static int digest_op(struct digest_ctx *ctx, const void *src, size_t srclen,
 static int digest_update(EVP_MD_CTX *ctx, const void *data, size_t count)
 {
     struct digest_ctx *digest_ctx =
-        (struct digest_ctx *)EVP_MD_CTX_md_data(ctx);
+        (struct digest_ctx *)EVP_MD_CTX_get0_md_data(ctx);
 
     if (count == 0)
         return 1;
@@ -801,13 +801,13 @@ static int digest_update(EVP_MD_CTX *ctx, const void *data, size_t count)
 static int digest_final(EVP_MD_CTX *ctx, unsigned char *md)
 {
     struct digest_ctx *digest_ctx =
-        (struct digest_ctx *)EVP_MD_CTX_md_data(ctx);
+        (struct digest_ctx *)EVP_MD_CTX_get0_md_data(ctx);
 
     if (md == NULL || digest_ctx == NULL)
         return 0;
 
     if (EVP_MD_CTX_test_flags(ctx, EVP_MD_CTX_FLAG_ONESHOT)) {
-        memcpy(md, digest_ctx->digest_res, EVP_MD_CTX_size(ctx));
+        memcpy(md, digest_ctx->digest_res, EVP_MD_CTX_get_size(ctx));
     } else if (digest_op(digest_ctx, NULL, 0, md, COP_FLAG_FINAL) < 0) {
         ERR_raise_data(ERR_LIB_SYS, errno, "calling ioctl()");
         return 0;
@@ -819,9 +819,9 @@ static int digest_final(EVP_MD_CTX *ctx, unsigned char *md)
 static int digest_copy(EVP_MD_CTX *to, const EVP_MD_CTX *from)
 {
     struct digest_ctx *digest_from =
-        (struct digest_ctx *)EVP_MD_CTX_md_data(from);
+        (struct digest_ctx *)EVP_MD_CTX_get0_md_data(from);
     struct digest_ctx *digest_to =
-        (struct digest_ctx *)EVP_MD_CTX_md_data(to);
+        (struct digest_ctx *)EVP_MD_CTX_get0_md_data(to);
     struct cphash_op cphash;
 
     if (digest_from == NULL || digest_from->init_called != 1)
@@ -844,7 +844,7 @@ static int digest_copy(EVP_MD_CTX *to, const EVP_MD_CTX *from)
 static int digest_cleanup(EVP_MD_CTX *ctx)
 {
     struct digest_ctx *digest_ctx =
-        (struct digest_ctx *)EVP_MD_CTX_md_data(ctx);
+        (struct digest_ctx *)EVP_MD_CTX_get0_md_data(ctx);
 
     if (digest_ctx == NULL)
         return 1;
@@ -1040,7 +1040,7 @@ static int cryptodev_select_digest_cb(const char *str, int len, void *usr)
     EVP = EVP_get_digestbyname(name);
     if (EVP == NULL)
         fprintf(stderr, "devcrypto: unknown digest %s\n", name);
-    else if ((i = find_digest_data_index(EVP_MD_type(EVP))) != (size_t)-1)
+    else if ((i = find_digest_data_index(EVP_MD_get_type(EVP))) != (size_t)-1)
         digest_list[i] = 1;
     else
         fprintf(stderr, "devcrypto: digest %s not available\n", name);

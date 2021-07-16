@@ -81,7 +81,7 @@ static int rand_priv_bytes(unsigned char *buf, int num)
  */
 static int state(EVP_RAND_CTX *drbg)
 {
-    return EVP_RAND_state(drbg);
+    return EVP_RAND_get_state(drbg);
 }
 
 static unsigned int query_rand_uint(EVP_RAND_CTX *drbg, const char *name)
@@ -104,7 +104,7 @@ DRBG_UINT(reseed_counter)
 
 static PROV_DRBG *prov_rand(EVP_RAND_CTX *drbg)
 {
-    return (PROV_DRBG *)drbg->data;
+    return (PROV_DRBG *)drbg->algctx;
 }
 
 static void set_reseed_counter(EVP_RAND_CTX *drbg, unsigned int n)

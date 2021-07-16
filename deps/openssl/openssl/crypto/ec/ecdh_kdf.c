@@ -30,7 +30,7 @@ int ossl_ecdh_kdf_X9_63(unsigned char *out, size_t outlen,
     int ret = 0;
     EVP_KDF_CTX *kctx = NULL;
     OSSL_PARAM params[4], *p = params;
-    const char *mdname = EVP_MD_name(md);
+    const char *mdname = EVP_MD_get0_name(md);
     EVP_KDF *kdf = EVP_KDF_fetch(libctx, OSSL_KDF_NAME_X963KDF, propq);
 
     if ((kctx = EVP_KDF_CTX_new(kdf)) != NULL) {

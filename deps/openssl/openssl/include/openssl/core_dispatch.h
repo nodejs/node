@@ -68,7 +68,8 @@ OSSL_CORE_MAKE_FUNC(int,core_get_params,(const OSSL_CORE_HANDLE *prov,
                                          OSSL_PARAM params[]))
 # define OSSL_FUNC_CORE_THREAD_START           3
 OSSL_CORE_MAKE_FUNC(int,core_thread_start,(const OSSL_CORE_HANDLE *prov,
-                                           OSSL_thread_stop_handler_fn handfn))
+                                           OSSL_thread_stop_handler_fn handfn,
+                                           void *arg))
 # define OSSL_FUNC_CORE_GET_LIBCTX             4
 OSSL_CORE_MAKE_FUNC(OPENSSL_CORE_CTX *,core_get_libctx,
                     (const OSSL_CORE_HANDLE *prov))
@@ -89,6 +90,19 @@ OSSL_CORE_MAKE_FUNC(int, core_clear_last_error_mark,
                     (const OSSL_CORE_HANDLE *prov))
 # define OSSL_FUNC_CORE_POP_ERROR_TO_MARK     10
 OSSL_CORE_MAKE_FUNC(int, core_pop_error_to_mark, (const OSSL_CORE_HANDLE *prov))
+
+
+/* Functions to access the OBJ database */
+
+#define OSSL_FUNC_CORE_OBJ_ADD_SIGID          11
+#define OSSL_FUNC_CORE_OBJ_CREATE             12
+
+OSSL_CORE_MAKE_FUNC(int, core_obj_add_sigid,
+                    (const OSSL_CORE_HANDLE *prov, const char  *sign_name,
+                     const char *digest_name, const char *pkey_name))
+OSSL_CORE_MAKE_FUNC(int, core_obj_create,
+                    (const OSSL_CORE_HANDLE *prov, const char *oid,
+                     const char *sn, const char *ln))
 
 /* Memory allocation, freeing, clearing. */
 #define OSSL_FUNC_CRYPTO_MALLOC               20

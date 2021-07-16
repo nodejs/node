@@ -13,6 +13,7 @@ B<openssl> B<crl>
 [B<-outform> B<DER>|B<PEM>]
 [B<-key> I<filename>]
 [B<-keyform> B<DER>|B<PEM>|B<P12>]
+[B<-dateopt>]
 [B<-text>]
 [B<-in> I<filename>]
 [B<-out> I<filename>]
@@ -80,6 +81,11 @@ Output a comparison of the main CRL and the one specified here.
 
 Corrupt the signature before writing it; this can be useful
 for testing.
+
+=item B<-dateopt>
+
+Specify the date output format. Values are: rfc_822 and iso_8601.
+Defaults to rfc_822.
 
 =item B<-text>
 

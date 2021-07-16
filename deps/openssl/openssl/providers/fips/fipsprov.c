@@ -518,10 +518,26 @@ static const OSSL_DISPATCH intern_dispatch_table[] = {
     { 0, NULL }
 };
 
-int OSSL_provider_init(const OSSL_CORE_HANDLE *handle,
-                       const OSSL_DISPATCH *in,
-                       const OSSL_DISPATCH **out,
-                       void **provctx)
+/*
+ * On VMS, the provider init function name is expected to be uppercase,
+ * see the pragmas in <openssl/core.h>.  Let's do the same with this
+ * internal name.  This is how symbol names are treated by default
+ * by the compiler if nothing else is said, but since this is part
+ * of libfips, and we build our libraries with mixed case symbol names,
+ * we must switch back to this default explicitly here.
+ */
+#ifdef __VMS
+# pragma names save
+# pragma names uppercase,truncated
+#endif
+OSSL_provider_init_fn OSSL_provider_init_int;
+#ifdef __VMS
+# pragma names restore
+#endif
+int OSSL_provider_init_int(const OSSL_CORE_HANDLE *handle,
+                           const OSSL_DISPATCH *in,
+                           const OSSL_DISPATCH **out,
+                           void **provctx)
 {
     FIPS_GLOBAL *fgbl;
     OSSL_LIB_CTX *libctx = NULL;
@@ -647,8 +663,6 @@ int OSSL_provider_init(const OSSL_CORE_HANDLE *handle,
         OSSL_LIB_CTX_free(libctx);
         goto err;
     }
-    ossl_prov_ctx_set0_libctx(*provctx, libctx);
-    ossl_prov_ctx_set0_handle(*provctx, handle);
 
     if ((fgbl = ossl_lib_ctx_get_data(libctx, OSSL_LIB_CTX_FIPS_PROV_INDEX,
                                       &fips_prov_ossl_ctx_method)) == NULL)
@@ -690,6 +704,9 @@ int OSSL_provider_init(const OSSL_CORE_HANDLE *handle,
         ERR_raise(ERR_LIB_PROV, PROV_R_SELF_TEST_POST_FAILURE);
         goto err;
     }
+
+    ossl_prov_ctx_set0_libctx(*provctx, libctx);
+    ossl_prov_ctx_set0_handle(*provctx, handle);
 
     *out = fips_dispatch_table;
     return 1;

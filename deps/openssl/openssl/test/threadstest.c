@@ -20,76 +20,11 @@
 #include <openssl/aes.h>
 #include <openssl/rsa.h>
 #include "testutil.h"
+#include "threadstest.h"
 
 static int do_fips = 0;
 static char *privkey;
 static char *config_file = NULL;
-
-#if !defined(OPENSSL_THREADS) || defined(CRYPTO_TDEBUG)
-
-typedef unsigned int thread_t;
-
-static int run_thread(thread_t *t, void (*f)(void))
-{
-    f();
-    return 1;
-}
-
-static int wait_for_thread(thread_t thread)
-{
-    return 1;
-}
-
-#elif defined(OPENSSL_SYS_WINDOWS)
-
-typedef HANDLE thread_t;
-
-static DWORD WINAPI thread_run(LPVOID arg)
-{
-    void (*f)(void);
-
-    *(void **) (&f) = arg;
-
-    f();
-    return 0;
-}
-
-static int run_thread(thread_t *t, void (*f)(void))
-{
-    *t = CreateThread(NULL, 0, thread_run, *(void **) &f, 0, NULL);
-    return *t != NULL;
-}
-
-static int wait_for_thread(thread_t thread)
-{
-    return WaitForSingleObject(thread, INFINITE) == 0;
-}
-
-#else
-
-typedef pthread_t thread_t;
-
-static void *thread_run(void *arg)
-{
-    void (*f)(void);
-
-    *(void **) (&f) = arg;
-
-    f();
-    return NULL;
-}
-
-static int run_thread(thread_t *t, void (*f)(void))
-{
-    return pthread_create(t, NULL, thread_run, *(void **) &f) == 0;
-}
-
-static int wait_for_thread(thread_t thread)
-{
-    return pthread_join(thread, NULL) == 0;
-}
-
-#endif
 
 static int test_lock(void)
 {
@@ -431,7 +366,7 @@ static void thread_provider_load_unload(void)
  * Test 2: Simple fetch worker
  * Test 3: Worker downgrading a shared EVP_PKEY
  * Test 4: Worker using a shared EVP_PKEY
- * Test 5: Workder loading and unloading a provider
+ * Test 5: Worker loading and unloading a provider
  */
 static int test_multi(int idx)
 {
@@ -506,12 +441,16 @@ static int test_multi(int idx)
 
     worker();
 
-    if (!TEST_true(wait_for_thread(thread1))
-            || !TEST_true(wait_for_thread(thread2))
-            || !TEST_true(multi_success))
-        goto err;
-
     testresult = 1;
+    /*
+     * Don't combine these into one if statement; must wait for both threads.
+     */
+    if (!TEST_true(wait_for_thread(thread1)))
+        testresult = 0;
+    if (!TEST_true(wait_for_thread(thread2)))
+        testresult = 0;
+    if (!TEST_true(multi_success))
+        testresult = 0;
 
  err:
     EVP_MD_free(sha256);

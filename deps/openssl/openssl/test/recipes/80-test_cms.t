@@ -50,7 +50,9 @@ my ($no_des, $no_dh, $no_dsa, $no_ec, $no_ec2m, $no_rc2, $no_zlib)
 
 $no_rc2 = 1 if disabled("legacy");
 
-plan tests => 11;
+plan tests => 12;
+
+ok(run(test(["pkcs7_test"])), "test pkcs7");
 
 unless ($no_fips) {
     @config = ( "-config", srctop_file("test", "fips-and-base.cnf") );
@@ -62,22 +64,24 @@ my @prov = ("-provider-path", $provpath,
             @config,
             "-provider", $provname);
 
+my $smrsa1 = catfile($smdir, "smrsa1.pem");
+my $smroot = catfile($smdir, "smroot.pem");
+
 my @smime_pkcs7_tests = (
 
     [ "signed content DER format, RSA key",
       [ "{cmd1}", @prov, "-sign", "-in", $smcont, "-outform", "DER", "-nodetach",
-        "-certfile", catfile($smdir, "smroot.pem"),
-        "-signer", catfile($smdir, "smrsa1.pem"), "-out", "{output}.cms" ],
+        "-certfile", $smroot, "-signer", $smrsa1, "-out", "{output}.cms" ],
       [ "{cmd2}",  @prov, "-verify", "-in", "{output}.cms", "-inform", "DER",
-        "-CAfile", catfile($smdir, "smroot.pem"), "-out", "{output}.txt" ],
+        "-CAfile", $smroot, "-out", "{output}.txt" ],
       \&final_compare
     ],
 
     [ "signed detached content DER format, RSA key",
       [ "{cmd1}", @prov, "-sign", "-in", $smcont, "-outform", "DER",
-        "-signer", catfile($smdir, "smrsa1.pem"), "-out", "{output}.cms" ],
+        "-signer", $smrsa1, "-out", "{output}.cms" ],
       [ "{cmd2}", @prov, "-verify", "-in", "{output}.cms", "-inform", "DER",
-        "-CAfile", catfile($smdir, "smroot.pem"), "-out", "{output}.txt",
+        "-CAfile", $smroot, "-out", "{output}.txt",
         "-content", $smcont ],
       \&final_compare
     ],
@@ -85,9 +89,9 @@ my @smime_pkcs7_tests = (
     [ "signed content test streaming BER format, RSA",
       [ "{cmd1}", @prov, "-sign", "-in", $smcont, "-outform", "DER", "-nodetach",
         "-stream",
-        "-signer", catfile($smdir, "smrsa1.pem"), "-out", "{output}.cms" ],
+        "-signer", $smrsa1, "-out", "{output}.cms" ],
       [ "{cmd2}", @prov, "-verify", "-in", "{output}.cms", "-inform", "DER",
-        "-CAfile", catfile($smdir, "smroot.pem"), "-out", "{output}.txt" ],
+        "-CAfile", $smroot, "-out", "{output}.txt" ],
       \&final_compare
     ],
 
@@ -95,7 +99,7 @@ my @smime_pkcs7_tests = (
       [ "{cmd1}", @prov, "-sign", "-in", $smcont, "-outform", "DER", "-nodetach",
         "-signer", catfile($smdir, "smdsa1.pem"), "-out", "{output}.cms" ],
       [ "{cmd2}", @prov, "-verify", "-in", "{output}.cms", "-inform", "DER",
-        "-CAfile", catfile($smdir, "smroot.pem"), "-out", "{output}.txt" ],
+        "-CAfile", $smroot, "-out", "{output}.txt" ],
       \&final_compare
     ],
 
@@ -103,7 +107,7 @@ my @smime_pkcs7_tests = (
       [ "{cmd1}", @prov, "-sign", "-in", $smcont, "-outform", "DER",
         "-signer", catfile($smdir, "smdsa1.pem"), "-out", "{output}.cms" ],
       [ "{cmd2}", @prov, "-verify", "-in", "{output}.cms", "-inform", "DER",
-        "-CAfile", catfile($smdir, "smroot.pem"), "-out", "{output}.txt",
+        "-CAfile", $smroot, "-out", "{output}.txt",
         "-content", $smcont ],
       \&final_compare
     ],
@@ -112,9 +116,9 @@ my @smime_pkcs7_tests = (
       [ "{cmd1}", @prov, "-sign", "-in", $smcont, "-outform", "DER",
         "-signer", catfile($smdir, "smdsa1.pem"), "-out", "{output}.cms" ],
       [ "{cmd1}", @prov, "-resign", "-in", "{output}.cms", "-inform", "DER", "-outform", "DER",
-        "-signer", catfile($smdir, "smrsa1.pem"), "-out", "{output}2.cms" ],
+        "-signer", $smrsa1, "-out", "{output}2.cms" ],
       [ "{cmd2}", @prov, "-verify", "-in", "{output}2.cms", "-inform", "DER",
-        "-CAfile", catfile($smdir, "smroot.pem"), "-out", "{output}.txt",
+        "-CAfile", $smroot, "-out", "{output}.txt",
         "-content", $smcont ],
       \&final_compare
     ],
@@ -124,85 +128,84 @@ my @smime_pkcs7_tests = (
         "-nodetach", "-stream",
         "-signer", catfile($smdir, "smdsa1.pem"), "-out", "{output}.cms" ],
       [ "{cmd2}", @prov, "-verify", "-in", "{output}.cms", "-inform", "DER",
-        "-CAfile", catfile($smdir, "smroot.pem"), "-out", "{output}.txt" ],
+        "-CAfile", $smroot, "-out", "{output}.txt" ],
       \&final_compare
     ],
 
     [ "signed content test streaming BER format, 2 DSA and 2 RSA keys",
       [ "{cmd1}", @prov, "-sign", "-in", $smcont, "-outform", "DER",
         "-nodetach", "-stream",
-        "-signer", catfile($smdir, "smrsa1.pem"),
+        "-signer", $smrsa1,
         "-signer", catfile($smdir, "smrsa2.pem"),
         "-signer", catfile($smdir, "smdsa1.pem"),
         "-signer", catfile($smdir, "smdsa2.pem"),
         "-out", "{output}.cms" ],
       [ "{cmd2}", @prov, "-verify", "-in", "{output}.cms", "-inform", "DER",
-        "-CAfile", catfile($smdir, "smroot.pem"), "-out", "{output}.txt" ],
+        "-CAfile", $smroot, "-out", "{output}.txt" ],
       \&final_compare
     ],
 
     [ "signed content test streaming BER format, 2 DSA and 2 RSA keys, no attributes",
       [ "{cmd1}", @prov, "-sign", "-in", $smcont, "-outform", "DER",
         "-noattr", "-nodetach", "-stream",
-        "-signer", catfile($smdir, "smrsa1.pem"),
+        "-signer", $smrsa1,
         "-signer", catfile($smdir, "smrsa2.pem"),
         "-signer", catfile($smdir, "smdsa1.pem"),
         "-signer", catfile($smdir, "smdsa2.pem"),
         "-out", "{output}.cms" ],
       [ "{cmd2}", @prov, "-verify", "-in", "{output}.cms", "-inform", "DER",
-        "-CAfile", catfile($smdir, "smroot.pem"), "-out", "{output}.txt" ],
+        "-CAfile", $smroot, "-out", "{output}.txt" ],
       \&final_compare
     ],
 
     [ "signed content S/MIME format, RSA key SHA1",
       [ "{cmd1}", @defaultprov, "-sign", "-in", $smcont, "-md", "sha1",
-        "-certfile", catfile($smdir, "smroot.pem"),
-        "-signer", catfile($smdir, "smrsa1.pem"), "-out", "{output}.cms" ],
+        "-certfile", $smroot,
+        "-signer", $smrsa1, "-out", "{output}.cms" ],
       [ "{cmd2}", @prov, "-verify", "-in", "{output}.cms",
-        "-CAfile", catfile($smdir, "smroot.pem"), "-out", "{output}.txt" ],
+        "-CAfile", $smroot, "-out", "{output}.txt" ],
       \&final_compare
     ],
 
     [ "signed zero-length content S/MIME format, RSA key SHA1",
       [ "{cmd1}", @defaultprov, "-sign", "-in", $smcont_zero, "-md", "sha1",
-        "-certfile", catfile($smdir, "smroot.pem"),
-        "-signer", catfile($smdir, "smrsa1.pem"), "-out", "{output}.cms" ],
+        "-certfile", $smroot, "-signer", $smrsa1, "-out", "{output}.cms" ],
       [ "{cmd2}", @prov, "-verify", "-in", "{output}.cms",
-        "-CAfile", catfile($smdir, "smroot.pem"), "-out", "{output}.txt" ],
+        "-CAfile", $smroot, "-out", "{output}.txt" ],
       \&zero_compare
     ],
 
     [ "signed content test streaming S/MIME format, 2 DSA and 2 RSA keys",
       [ "{cmd1}", @prov, "-sign", "-in", $smcont, "-nodetach",
-        "-signer", catfile($smdir, "smrsa1.pem"),
+        "-signer", $smrsa1,
         "-signer", catfile($smdir, "smrsa2.pem"),
         "-signer", catfile($smdir, "smdsa1.pem"),
         "-signer", catfile($smdir, "smdsa2.pem"),
         "-stream", "-out", "{output}.cms" ],
       [ "{cmd2}", @prov, "-verify", "-in", "{output}.cms",
-        "-CAfile", catfile($smdir, "smroot.pem"), "-out", "{output}.txt" ],
+        "-CAfile", $smroot, "-out", "{output}.txt" ],
       \&final_compare
     ],
 
     [ "signed content test streaming multipart S/MIME format, 2 DSA and 2 RSA keys",
       [ "{cmd1}", @prov, "-sign", "-in", $smcont,
-        "-signer", catfile($smdir, "smrsa1.pem"),
+        "-signer", $smrsa1,
         "-signer", catfile($smdir, "smrsa2.pem"),
         "-signer", catfile($smdir, "smdsa1.pem"),
         "-signer", catfile($smdir, "smdsa2.pem"),
         "-stream", "-out", "{output}.cms" ],
       [ "{cmd2}", @prov, "-verify", "-in", "{output}.cms",
-        "-CAfile", catfile($smdir, "smroot.pem"), "-out", "{output}.txt" ],
+        "-CAfile", $smroot, "-out", "{output}.txt" ],
       \&final_compare
     ],
 
     [ "enveloped content test streaming S/MIME format, DES, 3 recipients",
       [ "{cmd1}", @defaultprov, "-encrypt", "-in", $smcont,
         "-stream", "-out", "{output}.cms",
-        catfile($smdir, "smrsa1.pem"),
+        $smrsa1,
         catfile($smdir, "smrsa2.pem"),
         catfile($smdir, "smrsa3.pem") ],
-      [ "{cmd2}", @defaultprov, "-decrypt", "-recip", catfile($smdir, "smrsa1.pem"),
+      [ "{cmd2}", @defaultprov, "-decrypt", "-recip", $smrsa1,
         "-in", "{output}.cms", "-out", "{output}.txt" ],
       \&final_compare
     ],
@@ -210,7 +213,7 @@ my @smime_pkcs7_tests = (
     [ "enveloped content test streaming S/MIME format, DES, 3 recipients, 3rd used",
       [ "{cmd1}", @defaultprov, "-encrypt", "-in", $smcont,
         "-stream", "-out", "{output}.cms",
-        catfile($smdir, "smrsa1.pem"),
+        $smrsa1,
         catfile($smdir, "smrsa2.pem"),
         catfile($smdir, "smrsa3.pem") ],
       [ "{cmd2}", @defaultprov, "-decrypt", "-recip", catfile($smdir, "smrsa3.pem"),
@@ -221,7 +224,7 @@ my @smime_pkcs7_tests = (
     [ "enveloped content test streaming S/MIME format, DES, 3 recipients, key only used",
       [ "{cmd1}", @defaultprov, "-encrypt", "-in", $smcont,
         "-stream", "-out", "{output}.cms",
-        catfile($smdir, "smrsa1.pem"),
+        $smrsa1,
         catfile($smdir, "smrsa2.pem"),
         catfile($smdir, "smrsa3.pem") ],
       [ "{cmd2}", @defaultprov, "-decrypt", "-inkey", catfile($smdir, "smrsa3.pem"),
@@ -232,10 +235,10 @@ my @smime_pkcs7_tests = (
     [ "enveloped content test streaming S/MIME format, AES-256 cipher, 3 recipients",
       [ "{cmd1}", @prov, "-encrypt", "-in", $smcont,
         "-aes256", "-stream", "-out", "{output}.cms",
-        catfile($smdir, "smrsa1.pem"),
+        $smrsa1,
         catfile($smdir, "smrsa2.pem"),
         catfile($smdir, "smrsa3.pem") ],
-      [ "{cmd2}", @prov, "-decrypt", "-recip", catfile($smdir, "smrsa1.pem"),
+      [ "{cmd2}", @prov, "-decrypt", "-recip", $smrsa1,
         "-in", "{output}.cms", "-out", "{output}.txt" ],
       \&final_compare
     ],
@@ -247,56 +250,56 @@ my @smime_cms_tests = (
     [ "signed content test streaming BER format, 2 DSA and 2 RSA keys, keyid",
       [ "{cmd1}", @prov, "-sign", "-in", $smcont, "-outform", "DER",
         "-nodetach", "-keyid",
-        "-signer", catfile($smdir, "smrsa1.pem"),
+        "-signer", $smrsa1,
         "-signer", catfile($smdir, "smrsa2.pem"),
         "-signer", catfile($smdir, "smdsa1.pem"),
         "-signer", catfile($smdir, "smdsa2.pem"),
         "-stream", "-out", "{output}.cms" ],
       [ "{cmd2}", @prov, "-verify", "-in", "{output}.cms", "-inform", "DER",
-        "-CAfile", catfile($smdir, "smroot.pem"), "-out", "{output}.txt" ],
+        "-CAfile", $smroot, "-out", "{output}.txt" ],
       \&final_compare
     ],
 
     [ "signed content test streaming PEM format, 2 DSA and 2 RSA keys",
       [ "{cmd1}", @prov, "-sign", "-in", $smcont, "-outform", "PEM", "-nodetach",
-        "-signer", catfile($smdir, "smrsa1.pem"),
+        "-signer", $smrsa1,
         "-signer", catfile($smdir, "smrsa2.pem"),
         "-signer", catfile($smdir, "smdsa1.pem"),
         "-signer", catfile($smdir, "smdsa2.pem"),
         "-stream", "-out", "{output}.cms" ],
       [ "{cmd2}", @prov, "-verify", "-in", "{output}.cms", "-inform", "PEM",
-        "-CAfile", catfile($smdir, "smroot.pem"), "-out", "{output}.txt" ],
+        "-CAfile", $smroot, "-out", "{output}.txt" ],
       \&final_compare
     ],
 
     [ "signed content MIME format, RSA key, signed receipt request",
       [ "{cmd1}", @prov, "-sign", "-in", $smcont, "-nodetach",
-        "-signer", catfile($smdir, "smrsa1.pem"),
+        "-signer", $smrsa1,
         "-receipt_request_to", "test\@openssl.org", "-receipt_request_all",
         "-out", "{output}.cms" ],
       [ "{cmd2}", @prov, "-verify", "-in", "{output}.cms",
-        "-CAfile", catfile($smdir, "smroot.pem"), "-out", "{output}.txt" ],
+        "-CAfile", $smroot, "-out", "{output}.txt" ],
       \&final_compare
     ],
 
     [ "signed receipt MIME format, RSA key",
       [ "{cmd1}", @prov, "-sign", "-in", $smcont, "-nodetach",
-        "-signer", catfile($smdir, "smrsa1.pem"),
+        "-signer", $smrsa1,
         "-receipt_request_to", "test\@openssl.org", "-receipt_request_all",
         "-out", "{output}.cms" ],
       [ "{cmd1}", @prov, "-sign_receipt", "-in", "{output}.cms",
         "-signer", catfile($smdir, "smrsa2.pem"), "-out", "{output}2.cms" ],
       [ "{cmd2}", @prov, "-verify_receipt", "{output}2.cms", "-in", "{output}.cms",
-        "-CAfile", catfile($smdir, "smroot.pem") ]
+        "-CAfile", $smroot ]
     ],
 
     [ "enveloped content test streaming S/MIME format, DES, 3 recipients, keyid",
       [ "{cmd1}", @defaultprov, "-encrypt", "-in", $smcont,
         "-stream", "-out", "{output}.cms", "-keyid",
-        catfile($smdir, "smrsa1.pem"),
+        $smrsa1,
         catfile($smdir, "smrsa2.pem"),
         catfile($smdir, "smrsa3.pem") ],
-      [ "{cmd2}", @defaultprov, "-decrypt", "-recip", catfile($smdir, "smrsa1.pem"),
+      [ "{cmd2}", @defaultprov, "-decrypt", "-recip", $smrsa1,
         "-in", "{output}.cms", "-out", "{output}.txt" ],
       \&final_compare
     ],
@@ -395,56 +398,52 @@ my @smime_cms_cades_tests = (
     [ "signed content DER format, RSA key, CAdES-BES compatible",
       [ "{cmd1}", @prov, "-sign", "-cades", "-in", $smcont, "-outform", "DER",
          "-nodetach",
-        "-certfile", catfile($smdir, "smroot.pem"),
-        "-signer", catfile($smdir, "smrsa1.pem"), "-out", "{output}.cms" ],
+        "-certfile", $smroot, "-signer", $smrsa1, "-out", "{output}.cms" ],
       [ "{cmd2}", @prov, "-verify", "-cades", "-in", "{output}.cms", "-inform", "DER",
-        "-CAfile", catfile($smdir, "smroot.pem"), "-out", "{output}.txt" ],
+        "-CAfile", $smroot, "-out", "{output}.txt" ],
       \&final_compare
     ],
 
     [ "signed content DER format, RSA key, SHA256 md, CAdES-BES compatible",
       [ "{cmd1}", @prov, "-sign", "-cades", "-md", "sha256", "-in", $smcont, "-outform",
-        "DER", "-nodetach", "-certfile", catfile($smdir, "smroot.pem"),
-        "-signer", catfile($smdir, "smrsa1.pem"), "-out", "{output}.cms" ],
+        "DER", "-nodetach", "-certfile", $smroot,
+        "-signer", $smrsa1, "-out", "{output}.cms" ],
       [ "{cmd2}", @prov, "-verify", "-cades", "-in", "{output}.cms", "-inform", "DER",
-        "-CAfile", catfile($smdir, "smroot.pem"), "-out", "{output}.txt" ],
+        "-CAfile", $smroot, "-out", "{output}.txt" ],
       \&final_compare
     ],
 
     [ "signed content DER format, RSA key, SHA512 md, CAdES-BES compatible",
       [ "{cmd1}", @prov, "-sign", "-cades", "-md", "sha512", "-in", $smcont, "-outform",
-        "DER", "-nodetach", "-certfile", catfile($smdir, "smroot.pem"),
-        "-signer", catfile($smdir, "smrsa1.pem"), "-out", "{output}.cms" ],
+        "DER", "-nodetach", "-certfile", $smroot,
+        "-signer", $smrsa1, "-out", "{output}.cms" ],
       [ "{cmd2}", @prov, "-verify", "-cades", "-in", "{output}.cms", "-inform", "DER",
-        "-CAfile", catfile($smdir, "smroot.pem"), "-out", "{output}.txt" ],
+        "-CAfile", $smroot, "-out", "{output}.txt" ],
       \&final_compare
     ],
 
     [ "signed content DER format, RSA key, SHA256 md, CAdES-BES compatible",
       [ "{cmd1}", @prov, "-sign", "-cades", "-binary",  "-nodetach", "-nosmimecap", "-md", "sha256",
         "-in", $smcont, "-outform", "DER", 
-        "-certfile", catfile($smdir, "smroot.pem"),
-        "-signer", catfile($smdir, "smrsa1.pem"),
+        "-certfile", $smroot, "-signer", $smrsa1,
         "-outform", "DER", "-out", "{output}.cms"  ],
       [ "{cmd2}", @prov, "-verify", "-cades", "-in", "{output}.cms", "-inform", "DER",
-        "-CAfile", catfile($smdir, "smroot.pem"), "-out", "{output}.txt" ],
+        "-CAfile", $smroot, "-out", "{output}.txt" ],
       \&final_compare
     ],
 
     [ "resigned content DER format, RSA key, SHA256 md, CAdES-BES compatible",
       [ "{cmd1}", @prov, "-sign", "-cades", "-binary",  "-nodetach", "-nosmimecap", "-md", "sha256",
         "-in", $smcont, "-outform", "DER", 
-        "-certfile", catfile($smdir, "smroot.pem"),
-        "-signer", catfile($smdir, "smrsa1.pem"),
+        "-certfile", $smroot, "-signer", $smrsa1,
         "-outform", "DER", "-out", "{output}.cms"  ],
       [ "{cmd1}", @prov, "-resign", "-cades", "-binary", "-nodetach", "-nosmimecap", "-md", "sha256",
         "-inform", "DER", "-in", "{output}.cms",
-        "-certfile", catfile($smdir, "smroot.pem"),
-        "-signer", catfile($smdir, "smrsa2.pem"),
+        "-certfile", $smroot, "-signer", catfile($smdir, "smrsa2.pem"),
         "-outform", "DER", "-out", "{output}2.cms" ],
 
       [ "{cmd2}", @prov, "-verify", "-cades", "-in", "{output}2.cms", "-inform", "DER",
-        "-CAfile", catfile($smdir, "smroot.pem"), "-out", "{output}.txt" ],
+        "-CAfile", $smroot, "-out", "{output}.txt" ],
       \&final_compare
     ],
 );
@@ -452,11 +451,10 @@ my @smime_cms_cades_tests = (
 my @smime_cms_cades_ko_tests = (
     [ "sign content DER format, RSA key, not CAdES-BES compatible",
       [ @prov, "-sign", "-in", $smcont, "-outform", "DER", "-nodetach",
-        "-certfile", catfile($smdir, "smroot.pem"),
-        "-signer", catfile($smdir, "smrsa1.pem"), "-out", "{output}.cms" ],
+        "-certfile", $smroot, "-signer", $smrsa1, "-out", "{output}.cms" ],
       "fail to verify token since requiring CAdES-BES compatibility",
       [ @prov, "-verify", "-cades", "-in", "{output}.cms", "-inform", "DER",
-        "-CAfile", catfile($smdir, "smroot.pem"), "-out", "{output}.txt" ],
+        "-CAfile", $smroot, "-out", "{output}.txt" ],
       \&final_compare
     ]
 );
@@ -487,51 +485,50 @@ my @smime_cms_comp_tests = (
 my @smime_cms_param_tests = (
     [ "signed content test streaming PEM format, RSA keys, PSS signature",
       [ "{cmd1}", @prov, "-sign", "-in", $smcont, "-outform", "PEM", "-nodetach",
-        "-signer", catfile($smdir, "smrsa1.pem"),
+        "-signer", $smrsa1,
         "-keyopt", "rsa_padding_mode:pss",
         "-out", "{output}.cms" ],
       [ "{cmd2}", @prov, "-verify", "-in", "{output}.cms", "-inform", "PEM",
-        "-CAfile", catfile($smdir, "smroot.pem"), "-out", "{output}.txt" ],
+        "-CAfile", $smroot, "-out", "{output}.txt" ],
       \&final_compare
     ],
 
     [ "signed content test streaming PEM format, RSA keys, PSS signature, saltlen=max",
       [ "{cmd1}", @prov, "-sign", "-in", $smcont, "-outform", "PEM", "-nodetach",
-        "-signer", catfile($smdir, "smrsa1.pem"),
+        "-signer", $smrsa1,
         "-keyopt", "rsa_padding_mode:pss", "-keyopt", "rsa_pss_saltlen:max",
         "-out", "{output}.cms" ],
       [ "{cmd2}", @prov, "-verify", "-in", "{output}.cms", "-inform", "PEM",
-        "-CAfile", catfile($smdir, "smroot.pem"), "-out", "{output}.txt" ],
+        "-CAfile", $smroot, "-out", "{output}.txt" ],
       \&final_compare
     ],
 
     [ "signed content test streaming PEM format, RSA keys, PSS signature, no attributes",
       [ "{cmd1}", @prov, "-sign", "-in", $smcont, "-outform", "PEM", "-nodetach",
-        "-noattr",
-        "-signer", catfile($smdir, "smrsa1.pem"),
+        "-noattr", "-signer", $smrsa1,
         "-keyopt", "rsa_padding_mode:pss",
         "-out", "{output}.cms" ],
       [ "{cmd2}", @prov, "-verify", "-in", "{output}.cms", "-inform", "PEM",
-        "-CAfile", catfile($smdir, "smroot.pem"), "-out", "{output}.txt" ],
+        "-CAfile", $smroot, "-out", "{output}.txt" ],
       \&final_compare
     ],
 
     [ "signed content test streaming PEM format, RSA keys, PSS signature, SHA384 MGF1",
       [ "{cmd1}", @prov, "-sign", "-in", $smcont, "-outform", "PEM", "-nodetach",
-        "-signer", catfile($smdir, "smrsa1.pem"),
+        "-signer", $smrsa1,
         "-keyopt", "rsa_padding_mode:pss", "-keyopt", "rsa_mgf1_md:sha384",
         "-out", "{output}.cms" ],
       [ "{cmd2}", @prov, "-verify", "-in", "{output}.cms", "-inform", "PEM",
-        "-CAfile", catfile($smdir, "smroot.pem"), "-out", "{output}.txt" ],
+        "-CAfile", $smroot, "-out", "{output}.txt" ],
       \&final_compare
     ],
 
     [ "enveloped content test streaming S/MIME format, DES, OAEP default parameters",
       [ "{cmd1}", @defaultprov, "-encrypt", "-in", $smcont,
         "-stream", "-out", "{output}.cms",
-        "-recip", catfile($smdir, "smrsa1.pem"),
+        "-recip", $smrsa1,
         "-keyopt", "rsa_padding_mode:oaep" ],
-      [ "{cmd2}", @defaultprov, "-decrypt", "-recip", catfile($smdir, "smrsa1.pem"),
+      [ "{cmd2}", @defaultprov, "-decrypt", "-recip", $smrsa1,
         "-in", "{output}.cms", "-out", "{output}.txt" ],
       \&final_compare
     ],
@@ -539,10 +536,10 @@ my @smime_cms_param_tests = (
     [ "enveloped content test streaming S/MIME format, DES, OAEP SHA256",
       [ "{cmd1}", @defaultprov, "-encrypt", "-in", $smcont,
         "-stream", "-out", "{output}.cms",
-        "-recip", catfile($smdir, "smrsa1.pem"),
+        "-recip", $smrsa1,
         "-keyopt", "rsa_padding_mode:oaep",
         "-keyopt", "rsa_oaep_md:sha256" ],
-      [ "{cmd2}", @defaultprov, "-decrypt", "-recip", catfile($smdir, "smrsa1.pem"),
+      [ "{cmd2}", @defaultprov, "-decrypt", "-recip", $smrsa1,
         "-in", "{output}.cms", "-out", "{output}.txt" ],
       \&final_compare
     ],
@@ -617,8 +614,7 @@ my @smime_cms_param_tests = (
 my @contenttype_cms_test = (
     [ "signed content test - check that content type is added to additional signerinfo, RSA keys",
       [ "{cmd1}", @prov, "-sign", "-binary", "-nodetach", "-stream", "-in", $smcont,
-        "-outform", "DER",
-        "-signer", catfile($smdir, "smrsa1.pem"), "-md", "SHA256",
+        "-outform", "DER", "-signer", $smrsa1, "-md", "SHA256",
         "-out", "{output}.cms" ],
       [ "{cmd1}", @prov, "-resign", "-binary", "-nodetach", "-in", "{output}.cms",
         "-inform", "DER", "-outform", "DER",
@@ -626,7 +622,7 @@ my @contenttype_cms_test = (
         "-out", "{output}2.cms" ],
       sub { my %opts = @_; contentType_matches("$opts{output}2.cms") == 2; },
       [ "{cmd2}", @prov, "-verify", "-in", "{output}2.cms", "-inform", "DER",
-        "-CAfile", catfile($smdir, "smroot.pem"), "-out", "{output}.txt" ]
+        "-CAfile", $smroot, "-out", "{output}.txt" ]
     ],
 );
 
@@ -759,7 +755,7 @@ subtest "CMS Check that bad attributes fail when verifying signers\n" => sub {
 
         ok(!run(app(["openssl", "cms", @prov, "-verify", "-in",
                      catfile($datadir, $name), "-inform", "DER", "-CAfile",
-                     catfile($smdir, "smroot.pem"), "-out", $out ])),
+                     $smroot, "-out", $out ])),
             $name);
     }
 };
@@ -815,43 +811,40 @@ subtest "CMS binary input tests\n" => sub {
     my $input = srctop_file("test", "smcont.bin");
     my $signed = "smcont.signed";
     my $verified = "smcont.verified";
-    my $cert = srctop_file("test", "certs", "ee-self-signed.pem");
-    my $key = srctop_file("test", "certs", "ee-key.pem");
 
-    plan skip_all => "Binary input tests currently disabled on Windows" if $^O =~ /^MSWin32$/;
     plan tests => 11;
 
-    ok(run(app(["openssl", "cms", "-sign", "-md", "sha256",
-                "-signer", $cert, "-inkey", $key,
+    ok(run(app(["openssl", "cms", "-sign", "-md", "sha256", "-signer", $smrsa1,
                 "-binary", "-in", $input, "-out", $signed])),
        "sign binary input with -binary");
-    ok(run(app(["openssl", "cms", "-verify", "-CAfile", $cert,
+    ok(run(app(["openssl", "cms", "-verify", "-CAfile", $smroot,
                 "-binary", "-in", $signed, "-out", $verified])),
        "verify binary input with -binary");
     is(compare($input, $verified), 0, "binary input retained with -binary");
-    ok(run(app(["openssl", "cms", "-sign", "-md", "sha256",
-                "-signer", $cert, "-inkey", $key,
-                "-in", $input, "-out", $signed])),
+
+    ok(run(app(["openssl", "cms", "-sign", "-md", "sha256", "-signer", $smrsa1,
+                "-in", $input, "-out", $signed.".nobin"])),
        "sign binary input without -binary");
-    ok(run(app(["openssl", "cms", "-verify", "-CAfile", $cert,
-                "-in", $signed, "-out", $verified])),
+    ok(run(app(["openssl", "cms", "-verify", "-CAfile", $smroot,
+                "-in", $signed.".nobin", "-out", $verified.".nobin"])),
        "verify binary input without -binary");
-    is(compare($input, $verified), 1, "binary input not retained without -binary");
-    ok(!run(app(["openssl", "cms", "-verify", "-CAfile", $cert, "-crlfeol",
-                "-binary", "-in", $signed, "-out", $verified])),
+    is(compare($input, $verified.".nobin"), 1, "binary input not retained without -binary");
+    ok(!run(app(["openssl", "cms", "-verify", "-CAfile", $smroot, "-crlfeol",
+                "-binary", "-in", $signed, "-out", $verified.".crlfeol"])),
        "verify binary input wrong crlfeol");
 
-    ok(run(app(["openssl", "cms", "-sign", "-md", "sha256", "-crlfeol",
-                "-signer", $cert, "-inkey", $key,
+    ok(run(app(["openssl", "cms", "-sign", "-md", "sha256", "-signer", $smrsa1,
+                "-crlfeol",
                 "-binary", "-in", $input, "-out", $signed.".crlf"])),
-       "sign binary input crlfeol");
-    ok(run(app(["openssl", "cms", "-verify", "-CAfile", $cert, "-crlfeol",
+       "sign binary input with -binary -crlfeol");
+    ok(run(app(["openssl", "cms", "-verify", "-CAfile", $smroot, "-crlfeol",
                 "-binary", "-in", $signed.".crlf", "-out", $verified.".crlf"])),
-       "verify binary input crlfeol");
-    is(compare($input, $verified.".crlf"), 0);
-    ok(!run(app(["openssl", "cms", "-verify", "-CAfile", $cert,
-                "-binary", "-in", $signed.".crlf", "-out", $verified.".crlf"])),
-       "verify binary input missing crlfeol");
+       "verify binary input with -binary -crlfeol");
+    is(compare($input, $verified.".crlf"), 0,
+       "binary input retained with -binary -crlfeol");
+    ok(!run(app(["openssl", "cms", "-verify", "-CAfile", $smroot,
+                "-binary", "-in", $signed.".crlf", "-out", $verified.".crlf2"])),
+       "verify binary input with -binary missing -crlfeol");
 };
 
 sub check_availability {

@@ -60,10 +60,8 @@ int BIO_fd_should_retry(int s);
 static const BIO_METHOD methods_fdp = {
     BIO_TYPE_FD,
     "file descriptor",
-    /* TODO: Convert to new style write function */
     bwrite_conv,
     fd_write,
-    /* TODO: Convert to new style read function */
     bread_conv,
     fd_read,
     fd_puts,

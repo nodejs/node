@@ -127,6 +127,6 @@ ok(test_errors("RC2-40-CBC", "v3-certs-RC2.p12", '-passin', 'pass:v3-certs'),
 SKIP: {
     skip "sm2 not disabled", 1 if !disabled("sm2");
 
-    ok(test_errors("unknown group|unsupported algorithm", "sm2.pem", '-text'),
+    ok(test_errors("Unable to load Public Key", "sm2.pem", '-text'),
        "error loading unsupported sm2 cert");
 }

@@ -21,7 +21,7 @@
 IMPLEMENT_LEGACY_EVP_MD_METH_LC(md5_sha1_int, ossl_md5_sha1)
 static int md5_sha1_int_ctrl(EVP_MD_CTX *ctx, int cmd, int mslen, void *ms)
 {
-    return ossl_md5_sha1_ctrl(EVP_MD_CTX_md_data(ctx), cmd, mslen, ms);
+    return ossl_md5_sha1_ctrl(EVP_MD_CTX_get0_md_data(ctx), cmd, mslen, ms);
 }
 
 static const EVP_MD md5_sha1_md = {

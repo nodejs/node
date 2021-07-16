@@ -3,11 +3,11 @@
 =head1 NAME
 
 EVP_MAC, EVP_MAC_fetch, EVP_MAC_up_ref, EVP_MAC_free, EVP_MAC_is_a,
-EVP_MAC_number, EVP_MAC_name, EVP_MAC_names_do_all, EVP_MAC_description,
-EVP_MAC_provider, EVP_MAC_get_params, EVP_MAC_gettable_params,
+EVP_MAC_get0_name, EVP_MAC_names_do_all, EVP_MAC_get0_description,
+EVP_MAC_get0_provider, EVP_MAC_get_params, EVP_MAC_gettable_params,
 EVP_MAC_CTX, EVP_MAC_CTX_new, EVP_MAC_CTX_free, EVP_MAC_CTX_dup,
-EVP_MAC_CTX_mac, EVP_MAC_CTX_get_params, EVP_MAC_CTX_set_params,
-EVP_MAC_CTX_get_mac_size, EVP_Q_mac,
+EVP_MAC_CTX_get0_mac, EVP_MAC_CTX_get_params, EVP_MAC_CTX_set_params,
+EVP_MAC_CTX_get_mac_size, EVP_MAC_CTX_get_block_size, EVP_Q_mac,
 EVP_MAC_init, EVP_MAC_update, EVP_MAC_final, EVP_MAC_finalXOF,
 EVP_MAC_gettable_ctx_params, EVP_MAC_settable_ctx_params,
 EVP_MAC_CTX_gettable_params, EVP_MAC_CTX_settable_params,
@@ -25,23 +25,23 @@ EVP_MAC_do_all_provided - EVP MAC routines
  int EVP_MAC_up_ref(EVP_MAC *mac);
  void EVP_MAC_free(EVP_MAC *mac);
  int EVP_MAC_is_a(const EVP_MAC *mac, const char *name);
- int EVP_MAC_number(const EVP_MAC *mac);
- const char *EVP_MAC_name(const EVP_MAC *mac);
+ const char *EVP_MAC_get0_name(const EVP_MAC *mac);
  int EVP_MAC_names_do_all(const EVP_MAC *mac,
                           void (*fn)(const char *name, void *data),
                           void *data);
- const char *EVP_MAC_description(const EVP_MAC *mac);
- const OSSL_PROVIDER *EVP_MAC_provider(const EVP_MAC *mac);
+ const char *EVP_MAC_get0_description(const EVP_MAC *mac);
+ const OSSL_PROVIDER *EVP_MAC_get0_provider(const EVP_MAC *mac);
  int EVP_MAC_get_params(EVP_MAC *mac, OSSL_PARAM params[]);
 
  EVP_MAC_CTX *EVP_MAC_CTX_new(EVP_MAC *mac);
  void EVP_MAC_CTX_free(EVP_MAC_CTX *ctx);
  EVP_MAC_CTX *EVP_MAC_CTX_dup(const EVP_MAC_CTX *src);
- EVP_MAC *EVP_MAC_CTX_mac(EVP_MAC_CTX *ctx);
+ EVP_MAC *EVP_MAC_CTX_get0_mac(EVP_MAC_CTX *ctx);
  int EVP_MAC_CTX_get_params(EVP_MAC_CTX *ctx, OSSL_PARAM params[]);
  int EVP_MAC_CTX_set_params(EVP_MAC_CTX *ctx, const OSSL_PARAM params[]);
 
  size_t EVP_MAC_CTX_get_mac_size(EVP_MAC_CTX *ctx);
+ size_t EVP_MAC_CTX_get_block_size(EVP_MAC_CTX *ctx);
  unsigned char *EVP_Q_mac(OSSL_LIB_CTX *libctx, const char *name, const char *propq,
                           const char *subalg, const OSSL_PARAM *params,
                           const void *key, size_t keylen,
@@ -120,7 +120,7 @@ NULL is a valid parameter, for which this function is a no-op.
 EVP_MAC_CTX_dup() duplicates the I<src> context and returns a newly allocated
 context.
 
-EVP_MAC_CTX_mac() returns the B<EVP_MAC> associated with the context
+EVP_MAC_CTX_get0_mac() returns the B<EVP_MAC> associated with the context
 I<ctx>.
 
 =head2 Computing functions
@@ -212,10 +212,13 @@ for the use of B<OSSL_PARAM> as a parameter descriptor.
 
 EVP_MAC_CTX_get_mac_size() returns the MAC output size for the given context.
 
+EVP_MAC_CTX_get_block_size() returns the MAC block size for the given context.
+Not all MAC algorithms support this.
+
 EVP_MAC_is_a() checks if the given I<mac> is an implementation of an
 algorithm that's identifiable with I<name>.
 
-EVP_MAC_provider() returns the provider that holds the implementation
+EVP_MAC_get0_provider() returns the provider that holds the implementation
 of the given I<mac>.
 
 EVP_MAC_do_all_provided() traverses all MAC implemented by all activated
@@ -223,19 +226,16 @@ providers in the given library context I<libctx>, and for each of the
 implementations, calls the given function I<fn> with the implementation method
 and the given I<arg> as argument.
 
-EVP_MAC_number() returns the internal dynamic number assigned to
-I<mac>.
-
-EVP_MAC_name() return the name of the given MAC.  For fetched MACs
+EVP_MAC_get0_name() return the name of the given MAC.  For fetched MACs
 with multiple names, only one of them is returned; it's
 recommended to use EVP_MAC_names_do_all() instead.
 
 EVP_MAC_names_do_all() traverses all names for I<mac>, and calls
 I<fn> with each name and I<data>.
 
-EVP_MAC_description() returns a description of the I<mac>, meant for display
-and human consumption.  The description is at the discretion of the mac
-implementation.
+EVP_MAC_get0_description() returns a description of the I<mac>, meant
+for display and human consumption.  The description is at the discretion
+of the mac implementation.
 
 =head1 PARAMETERS
 
@@ -360,9 +360,9 @@ EVP_MAC_free() returns nothing at all.
 EVP_MAC_is_a() returns 1 if the given method can be identified with
 the given name, otherwise 0.
 
-EVP_MAC_name() returns a name of the MAC, or NULL on error.
+EVP_MAC_get0_name() returns a name of the MAC, or NULL on error.
 
-EVP_MAC_provider() returns a pointer to the provider for the MAC, or
+EVP_MAC_get0_provider() returns a pointer to the provider for the MAC, or
 NULL on error.
 
 EVP_MAC_CTX_new() and EVP_MAC_CTX_dup() return a pointer to a newly
@@ -378,8 +378,11 @@ EVP_Q_mac() returns a pointer to the computed MAC value, or NULL on error.
 EVP_MAC_init(), EVP_MAC_update(), EVP_MAC_final(), and EVP_MAC_finalXOF()
 return 1 on success, 0 on error.
 
-EVP_MAC_CTX_get_mac_size() returns the expected output size, or 0 if it isn't set.
-If it isn't set, a call to EVP_MAC_init() should get it set.
+EVP_MAC_CTX_get_mac_size() returns the expected output size, or 0 if it isn't
+set.  If it isn't set, a call to EVP_MAC_init() will set it.
+
+EVP_MAC_CTX_get_block_size() returns the block size, or 0 if it isn't set.
+If it isn't set, a call to EVP_MAC_init() will set it.
 
 EVP_MAC_do_all_provided() returns nothing at all.
 

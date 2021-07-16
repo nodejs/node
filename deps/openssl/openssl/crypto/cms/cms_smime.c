@@ -630,7 +630,7 @@ CMS_ContentInfo *CMS_encrypt_ex(STACK_OF(X509) *certs, BIO *data,
     X509 *recip;
 
 
-    cms = (EVP_CIPHER_flags(cipher) & EVP_CIPH_FLAG_AEAD_CIPHER)
+    cms = (EVP_CIPHER_get_flags(cipher) & EVP_CIPH_FLAG_AEAD_CIPHER)
           ? CMS_AuthEnvelopedData_create_ex(cipher, libctx, propq)
           : CMS_EnvelopedData_create_ex(cipher, libctx, propq);
     if (cms == NULL)

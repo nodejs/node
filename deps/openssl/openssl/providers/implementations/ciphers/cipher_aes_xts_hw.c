@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -65,8 +65,8 @@ static int cipher_hw_aes_xts_generic_initkey(PROV_CIPHER_CTX *ctx,
 
 #ifdef BSAES_CAPABLE
     if (BSAES_CAPABLE) {
-        stream_enc = bsaes_xts_encrypt;
-        stream_dec = bsaes_xts_decrypt;
+        stream_enc = ossl_bsaes_xts_encrypt;
+        stream_dec = ossl_bsaes_xts_decrypt;
     } else
 #endif /* BSAES_CAPABLE */
 #ifdef VPAES_CAPABLE

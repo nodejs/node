@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -38,7 +38,11 @@ IMPLEMENT_BLOCK_CIPHER(bf, ks, BF, EVP_BF_KEY, NID_bf, 8, 16, 8, 64,
 static int bf_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
                        const unsigned char *iv, int enc)
 {
-    BF_set_key(&data(ctx)->ks, EVP_CIPHER_CTX_key_length(ctx), key);
+    int len = EVP_CIPHER_CTX_get_key_length(ctx);
+
+    if (len < 0)
+        return 0;
+    BF_set_key(&data(ctx)->ks, len, key);
     return 1;
 }
 

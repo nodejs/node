@@ -45,6 +45,7 @@ static int tls_parse_certificate_authorities(SSL *s, PACKET *pkt,
 #ifndef OPENSSL_NO_SRP
 static int init_srp(SSL *s, unsigned int context);
 #endif
+static int init_ec_point_formats(SSL *s, unsigned int context);
 static int init_etm(SSL *s, unsigned int context);
 static int init_ems(SSL *s, unsigned int context);
 static int final_ems(SSL *s, unsigned int context, int sent);
@@ -119,8 +120,6 @@ typedef struct extensions_definition_st {
  * messages the extension is relevant to. These flags also specify whether the
  * extension is relevant to a particular protocol or protocol version.
  *
- * TODO(TLS1.3): Make sure we have a test to check the consistency of these
- *
  * NOTE: WebSphere Application Server 7+ cannot handle empty extensions at
  * the end, keep these extensions before signature_algorithm.
  */
@@ -164,7 +163,7 @@ static const EXTENSION_DEFINITION ext_defs[] = {
         TLSEXT_TYPE_ec_point_formats,
         SSL_EXT_CLIENT_HELLO | SSL_EXT_TLS1_2_SERVER_HELLO
         | SSL_EXT_TLS1_2_AND_BELOW_ONLY,
-        NULL, tls_parse_ctos_ec_pt_formats, tls_parse_stoc_ec_pt_formats,
+        init_ec_point_formats, tls_parse_ctos_ec_pt_formats, tls_parse_stoc_ec_pt_formats,
         tls_construct_stoc_ec_pt_formats, tls_construct_ctos_ec_pt_formats,
         final_ec_pt_formats
     },
@@ -1173,6 +1172,15 @@ static int init_srp(SSL *s, unsigned int context)
 }
 #endif
 
+static int init_ec_point_formats(SSL *s, unsigned int context)
+{
+    OPENSSL_free(s->ext.peer_ecpointformats);
+    s->ext.peer_ecpointformats = NULL;
+    s->ext.peer_ecpointformats_len = 0;
+
+    return 1;
+}
+
 static int init_etm(SSL *s, unsigned int context)
 {
     s->ext.use_etm = 0;
@@ -1471,7 +1479,7 @@ int tls_psk_do_binder(SSL *s, const EVP_MD *md, const unsigned char *msgstart,
 #endif
     const unsigned char *label;
     size_t bindersize, labelsize, hashsize;
-    int hashsizei = EVP_MD_size(md);
+    int hashsizei = EVP_MD_get_size(md);
     int ret = -1;
     int usepskfored = 0;
 
@@ -1605,7 +1613,7 @@ int tls_psk_do_binder(SSL *s, const EVP_MD *md, const unsigned char *msgstart,
         binderout = tmpbinder;
 
     bindersize = hashsize;
-    if (EVP_DigestSignInit_ex(mctx, NULL, EVP_MD_name(md), s->ctx->libctx,
+    if (EVP_DigestSignInit_ex(mctx, NULL, EVP_MD_get0_name(md), s->ctx->libctx,
                               s->ctx->propq, mackey, NULL) <= 0
             || EVP_DigestSignUpdate(mctx, hash, hashsize) <= 0
             || EVP_DigestSignFinal(mctx, binderout, &bindersize) <= 0

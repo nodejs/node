@@ -386,13 +386,13 @@ int ssl_print_tmp_key(BIO *out, SSL *s)
     if (!SSL_get_peer_tmp_key(s, &key))
         return 1;
     BIO_puts(out, "Server Temp Key: ");
-    switch (EVP_PKEY_id(key)) {
+    switch (EVP_PKEY_get_id(key)) {
     case EVP_PKEY_RSA:
-        BIO_printf(out, "RSA, %d bits\n", EVP_PKEY_bits(key));
+        BIO_printf(out, "RSA, %d bits\n", EVP_PKEY_get_bits(key));
         break;
 
     case EVP_PKEY_DH:
-        BIO_printf(out, "DH, %d bits\n", EVP_PKEY_bits(key));
+        BIO_printf(out, "DH, %d bits\n", EVP_PKEY_get_bits(key));
         break;
 #ifndef OPENSSL_NO_EC
     case EVP_PKEY_EC:
@@ -403,20 +403,20 @@ int ssl_print_tmp_key(BIO *out, SSL *s)
             if (!EVP_PKEY_get_utf8_string_param(key, OSSL_PKEY_PARAM_GROUP_NAME,
                                                 name, sizeof(name), &name_len))
                 strcpy(name, "?");
-            BIO_printf(out, "ECDH, %s, %d bits\n", name, EVP_PKEY_bits(key));
+            BIO_printf(out, "ECDH, %s, %d bits\n", name, EVP_PKEY_get_bits(key));
         }
     break;
 #endif
     default:
-        BIO_printf(out, "%s, %d bits\n", OBJ_nid2sn(EVP_PKEY_id(key)),
-                   EVP_PKEY_bits(key));
+        BIO_printf(out, "%s, %d bits\n", OBJ_nid2sn(EVP_PKEY_get_id(key)),
+                   EVP_PKEY_get_bits(key));
     }
     EVP_PKEY_free(key);
     return 1;
 }
 
-long bio_dump_callback(BIO *bio, int cmd, const char *argp,
-                       int argi, long argl, long ret)
+long bio_dump_callback(BIO *bio, int cmd, const char *argp, size_t len,
+                       int argi, long argl, int ret, size_t *processed)
 {
     BIO *out;
 
@@ -425,14 +425,23 @@ long bio_dump_callback(BIO *bio, int cmd, const char *argp,
         return ret;
 
     if (cmd == (BIO_CB_READ | BIO_CB_RETURN)) {
-        BIO_printf(out, "read from %p [%p] (%lu bytes => %ld (0x%lX))\n",
-                   (void *)bio, (void *)argp, (unsigned long)argi, ret, ret);
-        BIO_dump(out, argp, (int)ret);
-        return ret;
+        if (ret > 0 && processed != NULL) {
+            BIO_printf(out, "read from %p [%p] (%zu bytes => %zu (0x%zX))\n",
+                       (void *)bio, (void *)argp, len, *processed, *processed);
+            BIO_dump(out, argp, (int)*processed);
+        } else {
+            BIO_printf(out, "read from %p [%p] (%zu bytes => %d)\n",
+                       (void *)bio, (void *)argp, len, ret);
+        }
     } else if (cmd == (BIO_CB_WRITE | BIO_CB_RETURN)) {
-        BIO_printf(out, "write to %p [%p] (%lu bytes => %ld (0x%lX))\n",
-                   (void *)bio, (void *)argp, (unsigned long)argi, ret, ret);
-        BIO_dump(out, argp, (int)ret);
+        if (ret > 0 && processed != NULL) {
+            BIO_printf(out, "write to %p [%p] (%zu bytes => %zu (0x%zX))\n",
+                       (void *)bio, (void *)argp, len, *processed, *processed);
+            BIO_dump(out, argp, (int)*processed);
+        } else {
+            BIO_printf(out, "write to %p [%p] (%zu bytes => %d)\n",
+                       (void *)bio, (void *)argp, len, ret);
+        }
     }
     return ret;
 }
@@ -1417,7 +1426,7 @@ static int security_callback_debug(const SSL *s, const SSL_CTX *ctx,
                 EVP_PKEY_asn1_get0_info(NULL, NULL, NULL, NULL,
                                         &algname, EVP_PKEY_get0_asn1(pkey));
                 BIO_printf(sdb->out, "%s, bits=%d",
-                           algname, EVP_PKEY_bits(pkey));
+                           algname, EVP_PKEY_get_bits(pkey));
             }
             break;
         }

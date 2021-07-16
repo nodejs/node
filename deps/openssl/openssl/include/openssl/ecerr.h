@@ -56,6 +56,7 @@
 #  define EC_R_INVALID_GENERATOR                           173
 #  define EC_R_INVALID_GROUP_ORDER                         122
 #  define EC_R_INVALID_KEY                                 116
+#  define EC_R_INVALID_LENGTH                              117
 #  define EC_R_INVALID_NAMED_GROUP_CONVERSION              174
 #  define EC_R_INVALID_OUTPUT_LENGTH                       161
 #  define EC_R_INVALID_P                                   172

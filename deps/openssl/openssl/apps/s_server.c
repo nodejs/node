@@ -78,7 +78,6 @@ static int accept_socket = -1;
 static int s_nbio = 0;
 static int s_nbio_test = 0;
 static int s_crlf = 0;
-static int immediate_reneg = 0;
 static SSL_CTX *ctx = NULL;
 static SSL_CTX *ctx2 = NULL;
 static int www = 0;
@@ -718,7 +717,7 @@ const OPTIONS s_server_options[] = {
     OPT_SECTION("General"),
     {"help", OPT_HELP, '-', "Display this summary"},
     {"ssl_config", OPT_SSL_CONFIG, 's',
-     "Configure SSL_CTX using the configuration 'val'"},
+     "Configure SSL_CTX using the given configuration value"},
 #ifndef OPENSSL_NO_SSL_TRACE
     {"trace", OPT_TRACE, '-', "trace protocol messages"},
 #endif
@@ -786,7 +785,7 @@ const OPTIONS s_server_options[] = {
     {"servername", OPT_SERVERNAME, 's',
      "Servername for HostName TLS extension"},
     {"servername_fatal", OPT_SERVERNAME_FATAL, '-',
-     "mismatch send fatal alert (default warning alert)"},
+     "On servername mismatch send fatal alert (default warning alert)"},
     {"nbio_test", OPT_NBIO_TEST, '-', "Test with the non-blocking test bio"},
     {"crlf", OPT_CRLF, '-', "Convert LF from terminal into CRLF"},
     {"quiet", OPT_QUIET, '-', "No server output"},
@@ -823,13 +822,13 @@ const OPTIONS s_server_options[] = {
      "use URI as certificate store to verify CA certificate"},
     {"no_cache", OPT_NO_CACHE, '-', "Disable session cache"},
     {"ext_cache", OPT_EXT_CACHE, '-',
-     "Disable internal cache, setup and use external cache"},
+     "Disable internal cache, set up and use external cache"},
     {"verify_return_error", OPT_VERIFY_RET_ERROR, '-',
      "Close connection on verification error"},
     {"verify_quiet", OPT_VERIFY_QUIET, '-',
      "No verify output except verify errors"},
-    {"ign_eof", OPT_IGN_EOF, '-', "ignore input eof (default when -quiet)"},
-    {"no_ign_eof", OPT_NO_IGN_EOF, '-', "Do not ignore input eof"},
+    {"ign_eof", OPT_IGN_EOF, '-', "Ignore input EOF (default when -quiet)"},
+    {"no_ign_eof", OPT_NO_IGN_EOF, '-', "Do not ignore input EOF"},
 
 #ifndef OPENSSL_NO_OCSP
     OPT_SECTION("OCSP"),
@@ -857,7 +856,7 @@ const OPTIONS s_server_options[] = {
     {"brief", OPT_BRIEF, '-',
      "Restrict output to brief summary of connection parameters"},
     {"rev", OPT_REV, '-',
-     "act as a simple test server which just sends back with the received text reversed"},
+     "act as an echo server that sends back received text reversed"},
     {"debug", OPT_DEBUG, '-', "Print more output"},
     {"msg", OPT_MSG, '-', "Show protocol messages"},
     {"msgfile", OPT_MSGFILE, '>',
@@ -872,7 +871,7 @@ const OPTIONS s_server_options[] = {
     OPT_SECTION("Network"),
     {"nbio", OPT_NBIO, '-', "Use non-blocking IO"},
     {"timeout", OPT_TIMEOUT, '-', "Enable timeouts"},
-    {"mtu", OPT_MTU, 'p', "Set link layer MTU"},
+    {"mtu", OPT_MTU, 'p', "Set link-layer MTU"},
     {"read_buf", OPT_READ_BUF, 'p',
      "Default read buffer size to be used for connections"},
     {"split_send_frag", OPT_SPLIT_SEND_FRAG, 'p',
@@ -1269,9 +1268,6 @@ int s_server_main(int argc, char *argv[])
         case OPT_CRLFORM:
             if (!opt_format(opt_arg(), OPT_FMT_PEMDER, &crl_format))
                 goto opthelp;
-            break;
-        case OPT_S_IMMEDIATE_RENEG:
-            immediate_reneg = 1;
             break;
         case OPT_S_CASES:
         case OPT_S_NUM_TICKETS:
@@ -2003,7 +1999,8 @@ int s_server_main(int argc, char *argv[])
         if (dhfile != NULL)
             dhpkey = load_keyparams(dhfile, FORMAT_UNDEF, 0, "DH", "DH parameters");
         else if (s_cert_file != NULL)
-            dhpkey = load_keyparams(s_cert_file, FORMAT_UNDEF, 0, "DH", "DH parameters");
+            dhpkey = load_keyparams_suppress(s_cert_file, FORMAT_UNDEF, 0, "DH",
+                                             "DH parameters", 1);
 
         if (dhpkey != NULL) {
             BIO_printf(bio_s_out, "Setting temp DH parameters\n");
@@ -2035,9 +2032,10 @@ int s_server_main(int argc, char *argv[])
 
         if (ctx2 != NULL) {
             if (dhfile != NULL) {
-                EVP_PKEY *dhpkey2 = load_keyparams(s_cert_file2, FORMAT_UNDEF,
-                                                   0, "DH",
-                                                   "DH parameters");
+                EVP_PKEY *dhpkey2 = load_keyparams_suppress(s_cert_file2,
+                                                            FORMAT_UNDEF,
+                                                            0, "DH",
+                                                            "DH parameters", 1);
 
                 if (dhpkey2 != NULL) {
                     BIO_printf(bio_s_out, "Setting temp DH parameters\n");
@@ -2392,7 +2390,7 @@ static int sv_body(int s, int stype, int prot, unsigned char *context)
     /* SSL_set_fd(con,s); */
 
     if (s_debug) {
-        BIO_set_callback(SSL_get_rbio(con), bio_dump_callback);
+        BIO_set_callback_ex(SSL_get_rbio(con), bio_dump_callback);
         BIO_set_callback_arg(SSL_get_rbio(con), (char *)bio_s_out);
     }
     if (s_msg) {
@@ -2809,8 +2807,6 @@ static int init_ssl_connection(SSL *con)
     } else {
         do {
             i = SSL_accept(con);
-            if (immediate_reneg)
-                SSL_renegotiate(con);
 
             if (i <= 0)
                 retry = is_retryable(con, i);
@@ -3025,7 +3021,7 @@ static int www_body(int s, int stype, int prot, unsigned char *context)
 #endif
 
     if (s_debug) {
-        BIO_set_callback(SSL_get_rbio(con), bio_dump_callback);
+        BIO_set_callback_ex(SSL_get_rbio(con), bio_dump_callback);
         BIO_set_callback_arg(SSL_get_rbio(con), (char *)bio_s_out);
     }
     if (s_msg) {
@@ -3429,7 +3425,7 @@ static int rev_body(int s, int stype, int prot, unsigned char *context)
 #endif
 
     if (s_debug) {
-        BIO_set_callback(SSL_get_rbio(con), bio_dump_callback);
+        BIO_set_callback_ex(SSL_get_rbio(con), bio_dump_callback);
         BIO_set_callback_arg(SSL_get_rbio(con), (char *)bio_s_out);
     }
     if (s_msg) {

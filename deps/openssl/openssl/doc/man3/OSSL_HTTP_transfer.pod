@@ -5,7 +5,7 @@
 OSSL_HTTP_open,
 OSSL_HTTP_bio_cb_t,
 OSSL_HTTP_proxy_connect,
-OSSL_HTTP_set_request,
+OSSL_HTTP_set1_request,
 OSSL_HTTP_exchange,
 OSSL_HTTP_get,
 OSSL_HTTP_transfer,
@@ -26,11 +26,11 @@ OSSL_HTTP_close
  int OSSL_HTTP_proxy_connect(BIO *bio, const char *server, const char *port,
                              const char *proxyuser, const char *proxypass,
                              int timeout, BIO *bio_err, const char *prog);
- int OSSL_HTTP_set_request(OSSL_HTTP_REQ_CTX *rctx, const char *path,
-                           const STACK_OF(CONF_VALUE) *headers,
-                           const char *content_type, BIO *req,
-                           const char *expected_content_type, int expect_asn1,
-                           size_t max_resp_len, int timeout, int keep_alive);
+ int OSSL_HTTP_set1_request(OSSL_HTTP_REQ_CTX *rctx, const char *path,
+                            const STACK_OF(CONF_VALUE) *headers,
+                            const char *content_type, BIO *req,
+                            const char *expected_content_type, int expect_asn1,
+                            size_t max_resp_len, int timeout, int keep_alive);
  BIO *OSSL_HTTP_exchange(OSSL_HTTP_REQ_CTX *rctx, char **redirection_url);
  BIO *OSSL_HTTP_get(const char *url, const char *proxy, const char *no_proxy,
                     BIO *bio, BIO *rbio,
@@ -145,7 +145,7 @@ Since this function is typically called by applications such as
 L<openssl-s_client(1)> it uses the I<bio_err> and I<prog> parameters (unless
 NULL) to print additional diagnostic information in a user-oriented way.
 
-OSSL_HTTP_set_request() sets up in I<rctx> the request header and content data
+OSSL_HTTP_set1_request() sets up in I<rctx> the request header and content data
 and expectations on the response using the following parameters.
 If I<path> is NULL it defaults to "/".
 If I<req> is NULL the HTTP GET method will be used to send the request
@@ -174,7 +174,7 @@ i.e., an error occurs in case the server does not grant it.
 
 OSSL_HTTP_exchange() exchanges any form of HTTP request and response
 as specified by I<rctx>, which must include both connection and request data,
-typically set up using OSSL_HTTP_open() and OSSL_HTTP_set_request().
+typically set up using OSSL_HTTP_open() and OSSL_HTTP_set1_request().
 It implements the core of the functions described below.
 If the HTTP method is GET and I<redirection_url>
 is not NULL the latter pointer is used to provide any new location that
@@ -201,18 +201,18 @@ Any query component is handled as part of the path component.
 If the scheme component of the I<url> is C<https> a TLS connection is requested
 and the I<bio_update_fn>, as described for OSSL_HTTP_open(), must be provided.
 Also the remaining parameters are interpreted as described for OSSL_HTTP_open()
-and OSSL_HTTP_set_request(), respectively.
+and OSSL_HTTP_set1_request(), respectively.
 
 OSSL_HTTP_transfer() exchanges an HTTP request and response
 over a connection managed via I<prctx> without supporting redirection.
-It combines OSSL_HTTP_open(), OSSL_HTTP_set_request(), OSSL_HTTP_exchange(),
+It combines OSSL_HTTP_open(), OSSL_HTTP_set1_request(), OSSL_HTTP_exchange(),
 and OSSL_HTTP_close().
 If I<prctx> is not NULL it reuses any open connection represented by a non-NULL
 I<*prctx>.  It keeps the connection open if a persistent connection is requested
 or required and this was granted by the server, else it closes the connection
 and assigns NULL to I<*prctx>.
 The remaining parameters are interpreted as described for OSSL_HTTP_open()
-and OSSL_HTTP_set_request(), respectively.
+and OSSL_HTTP_set1_request(), respectively.
 
 OSSL_HTTP_close() closes the connection and releases I<rctx>.
 The I<ok> parameter is passed to any BIO update function
@@ -229,7 +229,7 @@ other HTTP client implementations such as wget, curl, and git.
 
 OSSL_HTTP_open() returns on success a B<OSSL_HTTP_REQ_CTX>, else NULL.
 
-OSSL_HTTP_proxy_connect() and OSSL_HTTP_set_request()
+OSSL_HTTP_proxy_connect() and OSSL_HTTP_set1_request()
 return 1 on success, 0 on error.
 
 On success, OSSL_HTTP_exchange(), OSSL_HTTP_get(), and OSSL_HTTP_transfer()

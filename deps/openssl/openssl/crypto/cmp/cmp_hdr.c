@@ -142,7 +142,7 @@ static int set_random(ASN1_OCTET_STRING **tgt, OSSL_CMP_CTX *ctx, size_t len)
     unsigned char *bytes = OPENSSL_malloc(len);
     int res = 0;
 
-    if (bytes == NULL || RAND_bytes_ex(ctx->libctx, bytes, len) <= 0)
+    if (bytes == NULL || RAND_bytes_ex(ctx->libctx, bytes, len, 0) <= 0)
         ERR_raise(ERR_LIB_CMP, CMP_R_FAILURE_OBTAINING_RANDOM);
     else
         res = ossl_cmp_asn1_octet_string_set1_bytes(tgt, bytes, len);

@@ -160,7 +160,7 @@ static const struct item_st RMI_item_data[] = {
     {4,   RMI$_BLKOUT},
     {4,   RMI$_DIRIN},
     {4,   RMI$_DIROUT},
-    /* We currently get a fault when trying these.  TODO: To be figured out. */
+    /* We currently get a fault when trying these */
 #if 0
     {140, RMI$_MSCP_EVERYTHING},   /* 35 32-bit words */
     {152, RMI$_DDTM_ALL},          /* 38 32-bit words */

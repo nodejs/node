@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -35,7 +35,6 @@ int tls13_enc(SSL *s, SSL3_RECORD *recs, size_t n_recs, int sending,
 
     if (n_recs != 1) {
         /* Should not happen */
-        /* TODO(TLS1.3): Support pipelining */
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
         return 0;
     }
@@ -62,7 +61,7 @@ int tls13_enc(SSL *s, SSL3_RECORD *recs, size_t n_recs, int sending,
         return 1;
     }
 
-    ivlen = EVP_CIPHER_CTX_iv_length(ctx);
+    ivlen = EVP_CIPHER_CTX_get_iv_length(ctx);
 
     if (s->early_data_state == SSL_EARLY_DATA_WRITING
             || s->early_data_state == SSL_EARLY_DATA_WRITE_RETRY) {
@@ -139,7 +138,6 @@ int tls13_enc(SSL *s, SSL3_RECORD *recs, size_t n_recs, int sending,
         return 0;
     }
 
-    /* TODO(size_t): lenu/lenf should be a size_t but EVP doesn't support it */
     if (EVP_CipherInit_ex(ctx, NULL, NULL, NULL, iv, sending) <= 0
             || (!sending && EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG,
                                              taglen,

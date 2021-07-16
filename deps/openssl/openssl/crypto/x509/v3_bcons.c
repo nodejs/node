@@ -72,7 +72,6 @@ static BASIC_CONSTRAINTS *v2i_BASIC_CONSTRAINTS(X509V3_EXT_METHOD *method,
         } else if (strcmp(val->name, "pathlen") == 0) {
             if (!X509V3_get_value_int(val, &bcons->pathlen))
                 goto err;
-            /* TODO add sanity check on int value - at least, must be >= 0 */
         } else {
             ERR_raise(ERR_LIB_X509V3, X509V3_R_INVALID_NAME);
             X509V3_conf_add_error_name_value(val);

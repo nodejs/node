@@ -13,7 +13,7 @@ CFLAGS="-I`pwd`/$BLDTOP/include -I`pwd`/$SRCTOP/include"
 
 cd $SRCTOP/krb5/src
 autoreconf
-./configure --with-ldap --with-prng-alg=os --disable-pkinit \
+./configure --with-ldap --with-prng-alg=os --enable-pkinit \
             --with-crypto-impl=openssl --with-tls-impl=openssl \
             CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS"
 

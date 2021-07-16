@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2011-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2011-2021 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -1611,10 +1611,10 @@ ___
 }
 $code.=<<___;
 .extern	asm_AES_cbc_encrypt
-.globl	bsaes_cbc_encrypt
-.type	bsaes_cbc_encrypt,\@abi-omnipotent
+.globl	ossl_bsaes_cbc_encrypt
+.type	ossl_bsaes_cbc_encrypt,\@abi-omnipotent
 .align	16
-bsaes_cbc_encrypt:
+ossl_bsaes_cbc_encrypt:
 .cfi_startproc
 	endbranch
 ___
@@ -1915,12 +1915,12 @@ $code.=<<___;
 .Lcbc_dec_epilogue:
 	ret
 .cfi_endproc
-.size	bsaes_cbc_encrypt,.-bsaes_cbc_encrypt
+.size	ossl_bsaes_cbc_encrypt,.-ossl_bsaes_cbc_encrypt
 
-.globl	bsaes_ctr32_encrypt_blocks
-.type	bsaes_ctr32_encrypt_blocks,\@abi-omnipotent
+.globl	ossl_bsaes_ctr32_encrypt_blocks
+.type	ossl_bsaes_ctr32_encrypt_blocks,\@abi-omnipotent
 .align	16
-bsaes_ctr32_encrypt_blocks:
+ossl_bsaes_ctr32_encrypt_blocks:
 .cfi_startproc
 	endbranch
 	mov	%rsp, %rax
@@ -2166,7 +2166,7 @@ $code.=<<___;
 .Lctr_enc_epilogue:
 	ret
 .cfi_endproc
-.size	bsaes_ctr32_encrypt_blocks,.-bsaes_ctr32_encrypt_blocks
+.size	ossl_bsaes_ctr32_encrypt_blocks,.-ossl_bsaes_ctr32_encrypt_blocks
 ___
 ######################################################################
 # void bsaes_xts_[en|de]crypt(const char *inp,char *out,size_t len,
@@ -2177,10 +2177,10 @@ my ($twmask,$twres,$twtmp)=@XMM[13..15];
 $arg6=~s/d$//;
 
 $code.=<<___;
-.globl	bsaes_xts_encrypt
-.type	bsaes_xts_encrypt,\@abi-omnipotent
+.globl	ossl_bsaes_xts_encrypt
+.type	ossl_bsaes_xts_encrypt,\@abi-omnipotent
 .align	16
-bsaes_xts_encrypt:
+ossl_bsaes_xts_encrypt:
 .cfi_startproc
 	mov	%rsp, %rax
 .Lxts_enc_prologue:
@@ -2574,12 +2574,12 @@ $code.=<<___;
 .Lxts_enc_epilogue:
 	ret
 .cfi_endproc
-.size	bsaes_xts_encrypt,.-bsaes_xts_encrypt
+.size	ossl_bsaes_xts_encrypt,.-ossl_bsaes_xts_encrypt
 
-.globl	bsaes_xts_decrypt
-.type	bsaes_xts_decrypt,\@abi-omnipotent
+.globl	ossl_bsaes_xts_decrypt
+.type	ossl_bsaes_xts_decrypt,\@abi-omnipotent
 .align	16
-bsaes_xts_decrypt:
+ossl_bsaes_xts_decrypt:
 .cfi_startproc
 	mov	%rsp, %rax
 .Lxts_dec_prologue:
@@ -2998,7 +2998,7 @@ $code.=<<___;
 .Lxts_dec_epilogue:
 	ret
 .cfi_endproc
-.size	bsaes_xts_decrypt,.-bsaes_xts_decrypt
+.size	ossl_bsaes_xts_decrypt,.-ossl_bsaes_xts_decrypt
 ___
 }
 $code.=<<___;

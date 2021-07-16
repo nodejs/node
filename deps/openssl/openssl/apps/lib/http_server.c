@@ -241,7 +241,7 @@ BIO *http_server_init_bio(const char *prog, const char *port)
 
     /* Report back what address and port are used */
     BIO_get_fd(acbio, &asock);
-    if (!report_server_accept(bio_out, asock, 1)) {
+    if (!report_server_accept(bio_out, asock, 1, 1)) {
         log_message(prog, LOG_ERR, "Error printing ACCEPT string");
         goto err;
     }
@@ -405,7 +405,6 @@ int http_server_get_asn1_req(const ASN1_ITEM *it, ASN1_VALUE **preq,
         log_message(prog, LOG_WARNING,
                     "HTTP request does not begin with %sPOST: %s",
                     accept_get ? "GET or " : "", reqbuf);
-        /* TODO provide better diagnosis in case client tries TLS */
         (void)http_server_send_status(cbio, 400, "Bad Request");
         goto out;
     }

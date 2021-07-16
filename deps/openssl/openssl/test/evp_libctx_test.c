@@ -55,7 +55,7 @@ const OPTIONS *test_get_options(void)
         { "config", OPT_CONFIG_FILE, '<',
           "The configuration file to use for the libctx" },
         { "provider", OPT_PROVIDER_NAME, 's',
-          "The provider to load (The default value is 'default'" },
+          "The provider to load (The default value is 'default')" },
         { NULL }
     };
     return test_options;
@@ -314,7 +314,7 @@ err:
 
 static int test_cipher_reinit(int test_id)
 {
-    int ret = 0, diff, ccm, siv;
+    int ret = 0, diff, ccm, siv, no_null_key;
     int out1_len = 0, out2_len = 0, out3_len = 0;
     EVP_CIPHER *cipher = NULL;
     EVP_CIPHER_CTX *ctx = NULL;
@@ -349,10 +349,18 @@ static int test_cipher_reinit(int test_id)
         goto err;
 
     /* ccm fails on the second update - this matches OpenSSL 1_1_1 behaviour */
-    ccm = (EVP_CIPHER_mode(cipher) == EVP_CIPH_CCM_MODE);
+    ccm = (EVP_CIPHER_get_mode(cipher) == EVP_CIPH_CCM_MODE);
 
     /* siv cannot be called with NULL key as the iv is irrelevant */
-    siv = (EVP_CIPHER_mode(cipher) == EVP_CIPH_SIV_MODE);
+    siv = (EVP_CIPHER_get_mode(cipher) == EVP_CIPH_SIV_MODE);
+
+    /*
+     * Skip init call with a null key for RC4 as the stream cipher does not
+     * handle reinit (1.1.1 behaviour).
+     */
+    no_null_key = EVP_CIPHER_is_a(cipher, "RC4")
+                  || EVP_CIPHER_is_a(cipher, "RC4-40")
+                  || EVP_CIPHER_is_a(cipher, "RC4-HMAC-MD5");
 
     /* DES3-WRAP uses random every update - so it will give a different value */
     diff = EVP_CIPHER_is_a(cipher, "DES3-WRAP");
@@ -362,9 +370,10 @@ static int test_cipher_reinit(int test_id)
         || !TEST_true(EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv))
         || !TEST_int_eq(EVP_EncryptUpdate(ctx, out2, &out2_len, in, sizeof(in)),
                         ccm ? 0 : 1)
-        || !TEST_true(EVP_EncryptInit_ex(ctx, NULL, NULL, NULL, iv))
+        || (!no_null_key
+        && (!TEST_true(EVP_EncryptInit_ex(ctx, NULL, NULL, NULL, iv))
         || !TEST_int_eq(EVP_EncryptUpdate(ctx, out3, &out3_len, in, sizeof(in)),
-                        ccm || siv ? 0 : 1))
+                        ccm || siv ? 0 : 1))))
         goto err;
 
     if (ccm == 0) {
@@ -375,7 +384,7 @@ static int test_cipher_reinit(int test_id)
                 goto err;
         } else {
             if (!TEST_mem_eq(out1, out1_len, out2, out2_len)
-                || (!siv && !TEST_mem_eq(out1, out1_len, out3, out3_len)))
+                || (!siv && !no_null_key && !TEST_mem_eq(out1, out1_len, out3, out3_len)))
                 goto err;
         }
     }
@@ -430,14 +439,14 @@ static int test_cipher_reinit_partialupdate(int test_id)
     if (!TEST_ptr(cipher = EVP_CIPHER_fetch(libctx, name, NULL)))
         goto err;
 
-    in_len = EVP_CIPHER_block_size(cipher) / 2;
+    in_len = EVP_CIPHER_get_block_size(cipher) / 2;
 
     /* skip any ciphers that don't allow partial updates */
-    if (((EVP_CIPHER_flags(cipher)
+    if (((EVP_CIPHER_get_flags(cipher)
           & (EVP_CIPH_FLAG_CTS | EVP_CIPH_FLAG_TLS1_1_MULTIBLOCK)) != 0)
-        || EVP_CIPHER_mode(cipher) == EVP_CIPH_CCM_MODE
-        || EVP_CIPHER_mode(cipher) == EVP_CIPH_XTS_MODE
-        || EVP_CIPHER_mode(cipher) == EVP_CIPH_WRAP_MODE) {
+        || EVP_CIPHER_get_mode(cipher) == EVP_CIPH_CCM_MODE
+        || EVP_CIPHER_get_mode(cipher) == EVP_CIPH_XTS_MODE
+        || EVP_CIPHER_get_mode(cipher) == EVP_CIPH_WRAP_MODE) {
         ret = 1;
         goto err;
     }
@@ -451,7 +460,7 @@ static int test_cipher_reinit_partialupdate(int test_id)
     if (!TEST_mem_eq(out1, out1_len, out2, out2_len))
         goto err;
 
-    if (EVP_CIPHER_mode(cipher) != EVP_CIPH_SIV_MODE) {
+    if (EVP_CIPHER_get_mode(cipher) != EVP_CIPH_SIV_MODE) {
         if (!TEST_true(EVP_EncryptInit_ex(ctx, NULL, NULL, NULL, iv))
             || !TEST_true(EVP_EncryptUpdate(ctx, out3, &out3_len, in, in_len)))
             goto err;
@@ -475,7 +484,7 @@ static int name_cmp(const char * const *a, const char * const *b)
 static void collect_cipher_names(EVP_CIPHER *cipher, void *cipher_names_list)
 {
     STACK_OF(OPENSSL_STRING) *names = cipher_names_list;
-    const char *name = EVP_CIPHER_name(cipher);
+    const char *name = EVP_CIPHER_get0_name(cipher);
     char *namedup = NULL;
 
     assert(name != NULL);
@@ -521,15 +530,16 @@ static int kem_rsa_gen_recover(void)
     unsigned char ct[256] = { 0, };
     unsigned char unwrap[256] = { 0, };
     size_t ctlen = 0, unwraplen = 0, secretlen = 0;
+    int bits = 2048;
 
-    ret = TEST_true(rsa_keygen(2048, &pub, &priv))
+    ret = TEST_true(rsa_keygen(bits, &pub, &priv))
           && TEST_ptr(sctx = EVP_PKEY_CTX_new_from_pkey(libctx, pub, NULL))
           && TEST_int_eq(EVP_PKEY_encapsulate_init(sctx, NULL), 1)
           && TEST_int_eq(EVP_PKEY_CTX_set_kem_op(sctx, "RSASVE"), 1)
           && TEST_int_eq(EVP_PKEY_encapsulate(sctx, NULL, &ctlen, NULL,
                                               &secretlen), 1)
           && TEST_int_eq(ctlen, secretlen)
-          && TEST_int_eq(ctlen, 2048 / 8)
+          && TEST_int_eq(ctlen, bits / 8)
           && TEST_int_eq(EVP_PKEY_encapsulate(sctx, ct, &ctlen, secret,
                                               &secretlen), 1)
           && TEST_ptr(rctx = EVP_PKEY_CTX_new_from_pkey(libctx, priv, NULL))
@@ -546,6 +556,33 @@ static int kem_rsa_gen_recover(void)
     EVP_PKEY_CTX_free(sctx);
     return ret;
 }
+
+#ifndef OPENSSL_NO_DES
+/*
+ * This test makes sure that EVP_CIPHER_CTX_rand_key() works correctly
+ * For fips mode this code would produce an error if the flag is not set.
+ */
+static int test_cipher_tdes_randkey(void)
+{
+    int ret;
+    EVP_CIPHER_CTX *ctx = NULL;
+    EVP_CIPHER *tdes_cipher = NULL, *aes_cipher = NULL;
+    unsigned char key[24] = { 0 };
+
+    ret = TEST_ptr(aes_cipher = EVP_CIPHER_fetch(libctx, "AES-256-CBC", NULL))
+          && TEST_int_eq(EVP_CIPHER_get_flags(aes_cipher) & EVP_CIPH_RAND_KEY, 0)
+          && TEST_ptr(tdes_cipher = EVP_CIPHER_fetch(libctx, "DES-EDE3-CBC", NULL))
+          && TEST_int_ne(EVP_CIPHER_get_flags(tdes_cipher) & EVP_CIPH_RAND_KEY, 0)
+          && TEST_ptr(ctx = EVP_CIPHER_CTX_new())
+          && TEST_true(EVP_CipherInit_ex(ctx, tdes_cipher, NULL, NULL, NULL, 1))
+          && TEST_true(EVP_CIPHER_CTX_rand_key(ctx, key));
+
+    EVP_CIPHER_CTX_free(ctx);
+    EVP_CIPHER_free(tdes_cipher);
+    EVP_CIPHER_free(aes_cipher);
+    return ret;
+}
+#endif /* OPENSSL_NO_DES */
 
 static int kem_rsa_params(void)
 {
@@ -706,6 +743,9 @@ int setup_tests(void)
     ADD_TEST(kem_rsa_params);
 #ifndef OPENSSL_NO_DH
     ADD_TEST(kem_invalid_keytype);
+#endif
+#ifndef OPENSSL_NO_DES
+    ADD_TEST(test_cipher_tdes_randkey);
 #endif
     return 1;
 }

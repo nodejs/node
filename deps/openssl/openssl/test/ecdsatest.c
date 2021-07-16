@@ -179,7 +179,7 @@ static int set_sm2_id(EVP_MD_CTX *mctx, EVP_PKEY *pkey)
     static const char sm2_id[] = { 1, 2, 3, 4, 'l', 'e', 't', 't', 'e', 'r' };
     EVP_PKEY_CTX *pctx;
 
-    if (!TEST_ptr(pctx = EVP_MD_CTX_pkey_ctx(mctx))
+    if (!TEST_ptr(pctx = EVP_MD_CTX_get_pkey_ctx(mctx))
         || !TEST_int_gt(EVP_PKEY_CTX_set1_id(pctx, sm2_id, sizeof(sm2_id)), 0))
         return 0;
     return 1;

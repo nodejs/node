@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2019, Oracle and/or its affiliates.  All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -13,8 +13,7 @@
 #include <limits.h>
 
 #include <openssl/crypto.h>
-#include <internal/nelem.h>
-
+#include "internal/nelem.h"
 #include "crypto/sparse_array.h"
 #include "testutil.h"
 

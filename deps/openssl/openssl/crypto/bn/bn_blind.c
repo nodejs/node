@@ -1,5 +1,5 @@
 /*
- * Copyright 1998-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1998-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -270,7 +270,7 @@ BN_BLINDING *BN_BLINDING_create_param(BN_BLINDING *b,
 
     do {
         int rv;
-        if (!BN_priv_rand_range_ex(ret->A, ret->mod, ctx))
+        if (!BN_priv_rand_range_ex(ret->A, ret->mod, 0, ctx))
             goto err;
         if (int_bn_mod_inverse(ret->Ai, ret->A, ret->mod, ctx, &rv))
             break;

@@ -52,6 +52,9 @@ the server's certificate chain and a SSL/TLS server will use it to verify
 any client certificate chain.
 
 The chain store is used to build the certificate chain.
+Details of the chain building and checking process are described in
+L<openssl-verification-options(1)/Certification Path Building> and
+L<openssl-verification-options(1)/Certification Path Validation>.
 
 If the mode B<SSL_MODE_NO_AUTO_CHAIN> is set or a certificate chain is
 configured already (for example using the functions such as
@@ -91,7 +94,7 @@ These functions were added in OpenSSL 1.0.2.
 
 =head1 COPYRIGHT
 
-Copyright 2013-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2013-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

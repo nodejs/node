@@ -31,11 +31,10 @@ OSSL_DECODER *OSSL_DECODER_fetch(OSSL_LIB_CTX *libctx, const char *name,
 int OSSL_DECODER_up_ref(OSSL_DECODER *encoder);
 void OSSL_DECODER_free(OSSL_DECODER *encoder);
 
-const OSSL_PROVIDER *OSSL_DECODER_provider(const OSSL_DECODER *encoder);
-const char *OSSL_DECODER_properties(const OSSL_DECODER *encoder);
-int OSSL_DECODER_number(const OSSL_DECODER *encoder);
-const char *OSSL_DECODER_name(const OSSL_DECODER *decoder);
-const char *OSSL_DECODER_description(const OSSL_DECODER *decoder);
+const OSSL_PROVIDER *OSSL_DECODER_get0_provider(const OSSL_DECODER *encoder);
+const char *OSSL_DECODER_get0_properties(const OSSL_DECODER *encoder);
+const char *OSSL_DECODER_get0_name(const OSSL_DECODER *decoder);
+const char *OSSL_DECODER_get0_description(const OSSL_DECODER *decoder);
 int OSSL_DECODER_is_a(const OSSL_DECODER *encoder, const char *name);
 
 void OSSL_DECODER_do_all_provided(OSSL_LIB_CTX *libctx,

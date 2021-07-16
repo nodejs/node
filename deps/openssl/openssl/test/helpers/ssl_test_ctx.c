@@ -124,6 +124,7 @@ static const test_enum ssl_alerts[] = {
     {"UnknownCA", SSL_AD_UNKNOWN_CA},
     {"HandshakeFailure", SSL_AD_HANDSHAKE_FAILURE},
     {"UnrecognizedName", SSL_AD_UNRECOGNIZED_NAME},
+    {"NoRenegotiation", SSL_AD_NO_RENEGOTIATION},
     {"BadCertificate", SSL_AD_BAD_CERTIFICATE},
     {"NoApplicationProtocol", SSL_AD_NO_APPLICATION_PROTOCOL},
     {"CertificateRequired", SSL_AD_CERTIFICATE_REQUIRED},

@@ -75,11 +75,11 @@ static int aesni_cbc_hmac_sha1_init_key(EVP_CIPHER_CTX *ctx,
 
     if (enc)
         ret = aesni_set_encrypt_key(inkey,
-                                    EVP_CIPHER_CTX_key_length(ctx) * 8,
+                                    EVP_CIPHER_CTX_get_key_length(ctx) * 8,
                                     &key->ks);
     else
         ret = aesni_set_decrypt_key(inkey,
-                                    EVP_CIPHER_CTX_key_length(ctx) * 8,
+                                    EVP_CIPHER_CTX_get_key_length(ctx) * 8,
                                     &key->ks);
 
     SHA1_Init(&key->head);      /* handy when benchmarking */
@@ -424,7 +424,7 @@ static int aesni_cbc_hmac_sha1_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
     if (len % AES_BLOCK_SIZE)
         return 0;
 
-    if (EVP_CIPHER_CTX_encrypting(ctx)) {
+    if (EVP_CIPHER_CTX_is_encrypting(ctx)) {
         if (plen == NO_PAYLOAD_LENGTH)
             plen = len;
         else if (len !=
@@ -813,7 +813,7 @@ static int aesni_cbc_hmac_sha1_ctrl(EVP_CIPHER_CTX *ctx, int type, int arg,
 
             len = p[arg - 2] << 8 | p[arg - 1];
 
-            if (EVP_CIPHER_CTX_encrypting(ctx)) {
+            if (EVP_CIPHER_CTX_is_encrypting(ctx)) {
                 key->payload_length = len;
                 if ((key->aux.tls_ver =
                      p[arg - 4] << 8 | p[arg - 3]) >= TLS1_1_VERSION) {
@@ -851,7 +851,7 @@ static int aesni_cbc_hmac_sha1_ctrl(EVP_CIPHER_CTX *ctx, int type, int arg,
 
             inp_len = param->inp[11] << 8 | param->inp[12];
 
-            if (EVP_CIPHER_CTX_encrypting(ctx)) {
+            if (EVP_CIPHER_CTX_is_encrypting(ctx)) {
                 if ((param->inp[9] << 8 | param->inp[10]) < TLS1_1_VERSION)
                     return -1;
 

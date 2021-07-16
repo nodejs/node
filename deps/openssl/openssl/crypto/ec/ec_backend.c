@@ -726,6 +726,35 @@ int ossl_ec_pt_format_param2id(const OSSL_PARAM *p, int *id)
 }
 
 #ifndef FIPS_MODULE
+int ossl_x509_algor_is_sm2(const X509_ALGOR *palg)
+{
+    int ptype = 0;
+    const void *pval = NULL;
+
+    X509_ALGOR_get0(NULL, &ptype, &pval, palg);
+
+    if (ptype == V_ASN1_OBJECT)
+        return OBJ_obj2nid((ASN1_OBJECT *)pval) == NID_sm2;
+
+    if (ptype == V_ASN1_SEQUENCE) {
+        const ASN1_STRING *str = pval;
+        const unsigned char *der = str->data;
+        int derlen = str->length;
+        EC_GROUP *group;
+        int ret;
+
+        if ((group = d2i_ECPKParameters(NULL, &der, derlen)) == NULL)
+            ret = 0;
+        else
+            ret = (EC_GROUP_get_curve_name(group) == NID_sm2);
+
+        EC_GROUP_free(group);
+        return ret;
+    }
+
+    return 0;
+}
+
 EC_KEY *ossl_ec_key_param_from_x509_algor(const X509_ALGOR *palg,
                                      OSSL_LIB_CTX *libctx, const char *propq)
 {

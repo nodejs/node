@@ -62,7 +62,12 @@
       @{$unified_info{modules}};
   our @install_modules =
       grep { !$unified_info{attributes}->{modules}->{$_}->{noinst}
-             && !$unified_info{attributes}->{modules}->{$_}->{engine} }
+             && !$unified_info{attributes}->{modules}->{$_}->{engine}
+             && !$unified_info{attributes}->{modules}->{$_}->{fips} }
+      @{$unified_info{modules}};
+  our @install_fipsmodules =
+      grep { !$unified_info{attributes}->{modules}->{$_}->{noinst}
+             && $unified_info{attributes}->{modules}->{$_}->{fips} }
       @{$unified_info{modules}};
   our @install_programs =
       grep { !$unified_info{attributes}->{programs}->{$_}->{noinst} }
@@ -205,43 +210,39 @@
   our $bin_ex_libs = join('', @cnf_ex_libs, '$(EX_LIBS)');
 
   # This is a horrible hack, but is needed because recursive inclusion of files
-  # in different directories does not work well with HP C.
-  my $sd = sourcedir("crypto", "async", "arch");
+  # in different directories does not work well with VMS C.  We try to help by
+  # specifying extra relative directories.  They must always be in Unix format,
+  # relative to the directory where the .c file is located.  The logic is that
+  # any inclusion, merged with one of these relative directories, will find the
+  # requested inclusion file.
   foreach (grep /\[\.crypto\.async\.arch\].*\.o$/, keys %{$unified_info{sources}}) {
       my $obj = platform->obj($_);
-      $unified_info{before}->{$obj}
-          = qq(arch_include = F\$PARSE("$sd","A.;",,,"SYNTAX_ONLY") - "A.;"
-        define arch 'arch_include');
-      $unified_info{after}->{$obj}
-          = qq(deassign arch);
+      push @{$unified_info{includes_extra}->{$obj}}, qw(../);
   }
-  my $sd32 = sourcedir("crypto", "ec", "curve448", "arch_32");
-  my $sd64 = sourcedir("crypto", "ec", "curve448", "arch_64");
-  foreach (grep /\[\.crypto\.ec\.curve448.*?\].*?\.o$/, keys %{$unified_info{sources}}) {
+  foreach (grep /\[\.crypto\.ec\.curve448\].*?\.o$/, keys %{$unified_info{sources}}) {
       my $obj = platform->obj($_);
-      $unified_info{before}->{$obj}
-          = qq(arch_32_include = F\$PARSE("$sd32","A.;",,,"SYNTAX_ONLY") - "A.;"
-        define arch_32 'arch_32_include'
-        arch_64_include = F\$PARSE("$sd64","A.;",,,"SYNTAX_ONLY") - "A.;"
-        define arch_64 'arch_64_include');
-      $unified_info{after}->{$obj}
-          = qq(deassign arch_64
-        deassign arch_32);
+      push @{$unified_info{includes_extra}->{$obj}}, qw(./arch_32 ./arch64);
   }
-  my $sd1 = sourcedir("ssl","record");
-  my $sd2 = sourcedir("ssl","statem");
-  my @ssl_locl_users = grep(/^\[\.(?:ssl\.(?:record|statem)|test)\].*\.o$/,
-                            keys %{$unified_info{sources}});
-  foreach (@ssl_locl_users) {
+  foreach (grep /\[\.crypto\.ec\.curve448.arch_(?:32|64)\].*?\.o$/, keys %{$unified_info{sources}}) {
       my $obj = platform->obj($_);
-      $unified_info{before}->{$obj}
-          = qq(record_include = F\$PARSE("$sd1","A.;",,,"SYNTAX_ONLY") - "A.;"
-        define record 'record_include'
-        statem_include = F\$PARSE("$sd2","A.;",,,"SYNTAX_ONLY") - "A.;"
-        define statem 'statem_include');
-      $unified_info{after}->{$obj}
-          = qq(deassign statem
-        deassign record);
+      push @{$unified_info{includes_extra}->{$obj}}, qw(../);
+  }
+  foreach (grep /\[\.ssl\.(?:record|statem)\].*?\.o$/, keys %{$unified_info{sources}}) {
+      my $obj = platform->obj($_);
+      # Most of the files in [.ssl.record] and [.ssl.statem] include
+      # "../ssl_local.h", which includes things like "record/record.h".
+      # Adding "../" as an inclusion directory helps making this sort of header
+      # from these directories.
+      push @{$unified_info{includes_extra}->{$obj}}, qw(../);
+
+  }
+  foreach (grep /\[\.test\].*?\.o$/, keys %{$unified_info{sources}}) {
+      my $obj = platform->obj($_);
+      push @{$unified_info{includes_extra}->{$obj}}, qw(../ssl ./helpers);
+  }
+  foreach (grep /\[\.test\.helpers\].*?\.o$/, keys %{$unified_info{sources}}) {
+      my $obj = platform->obj($_);
+      push @{$unified_info{includes_extra}->{$obj}}, qw(../../ssl);
   }
 
   # This makes sure things get built in the order they need
@@ -273,15 +274,23 @@ SHLIB_TARGET={- $target{shared_target} -}
 
 LIBS={- join(", ", map { "-\n\t".$_.".OLB" } @libs) -}
 SHLIBS={- join(", ", map { "-\n\t".$_.".EXE" } @shlibs) -}
-FIPSMODULENAME={- # We do some extra checking here, as there should be only one
-                  use File::Basename;
-                  my @fipsmodules =
-                      grep { !$unified_info{attributes}->{modules}->{$_}->{noinst}
-                             && $unified_info{attributes}->{modules}->{$_}->{fips} }
-                      @{$unified_info{modules}};
-                  die "More that one FIPS module" if scalar @fipsmodules > 1;
+MODULES={- join(", ", map { "-\n\t".$_.".EXE" }
+                      # Drop all modules that are dependencies, they will
+                      # be processed through their dependents
+                      grep { my $x = $_;
+                             !grep { grep { $_ eq $x } @$_ }
+                                   values %{$unified_info{depends}} }
+                      @{$unified_info{modules}}) -}
+FIPSMODULE={- # We do some extra checking here, as there should be only one
+              use File::Basename;
+              our @fipsmodules =
+                  grep { !$unified_info{attributes}->{modules}->{$_}->{noinst}
+                         && $unified_info{attributes}->{modules}->{$_}->{fips} }
+                  @{$unified_info{modules}};
+              die "More that one FIPS module" if scalar @fipsmodules > 1;
+              join(" ", map { platform->dso($_) } @fipsmodules) -}
+FIPSMODULENAME={- die "More that one FIPS module" if scalar @fipsmodules > 1;
                   join(", ", map { basename(platform->dso($_)) } @fipsmodules) -}
-MODULES={- join(", ", map { "-\n\t".$_.".EXE" } @{$unified_info{modules}}) -}
 PROGRAMS={- join(", ", map { "-\n\t".$_.".EXE" } @{$unified_info{programs}}) -}
 SCRIPTS={- join(", ", map { "-\n\t".$_ } @{$unified_info{scripts}}) -}
 {- output_off() if $disabled{makedepend}; "" -}
@@ -311,6 +320,8 @@ INSTALL_LIBS={- join(", ", map { "-\n\t".$_.".OLB" } @install_libs) -}
 INSTALL_SHLIBS={- join(", ", map { "-\n\t".$_.".EXE" } @install_shlibs) -}
 INSTALL_ENGINES={- join(", ", map { "-\n\t".$_.".EXE" } @install_engines) -}
 INSTALL_MODULES={- join(", ", map { "-\n\t".$_.".EXE" } @install_modules) -}
+INSTALL_FIPSMODULE={- join(", ", map { "-\n\t".$_.".EXE" } @install_fipsmodules) -}
+INSTALL_FIPSMODULECONF=[.providers]fipsmodule.cnf
 INSTALL_PROGRAMS={- join(", ", map { "-\n\t".$_.".EXE" } @install_programs) -}
 BIN_SCRIPTS={- join(", ", @install_bin_scripts) -}
 MISC_SCRIPTS={- join(", ", @install_misc_scripts) -}
@@ -378,15 +389,6 @@ CPPFLAGS_Q={- (my $c = $lib_cppflags.$cppflags) =~ s|"|""|g;
               $x; -}
 
 # .FIRST and .LAST are special targets with MMS and MMK.
-# The defines in there are for C.  includes that look like
-# this:
-#
-#    #include <openssl/foo.h>
-#    #include "internal/bar.h"
-#
-# will use the logical names to find the files.  Expecting
-# DECompHP C to find files in subdirectories of whatever was
-# given with /INCLUDE is a fantasy, unfortunately.
 NODEBUG=@
 .FIRST :
         $(NODEBUG) sourcetop = F$PARSE("$(SRCDIR)","[]A.;",,,"SYNTAX_ONLY,NO_CONCEAL") - ".][000000" - "[000000." - "][" - "]A.;" + ".]"
@@ -562,17 +564,20 @@ install_docs : install_html_docs
 
 uninstall_docs : uninstall_html_docs
 
-install_fips : install_sw
+{- output_off() if $disabled{fips}; "" -}
+install_fips : install_sw $(INSTALL_FIPSMODULECONF)
+	@ WRITE SYS$OUTPUT "*** Installing FIPS module"
+	COPY/PROT=W:RE $(INSTALL_FIPSMODULES) -
+                ossl_installroot:[MODULES{- $sover_dirname.$target{pointer_size} -}.'arch']$(FIPSMODULENAME)
 	@ WRITE SYS$OUTPUT "*** Installing FIPS module configuration"
-	@ WRITE SYS$OUTPUT "fipsinstall $(DESTDIR)$(MODULESDIR)/$(FIPSMODULENAME).cnf"
-	openssl fipsinstall -
-		-module ossl_installroot:[MODULES{- $sover_dirname.$target{pointer_size} -}.'arch']$(FIPSMODULENAME) -
-		-out ossl_installroot:[MODULES{- $sover_dirname.$target{pointer_size} -}.'arch']$(FIPSMODULENAME).cnf -
-		-macopt "hexkey:$(FIPSKEY)"
+	COPY/PROT=W:RE $(INSTALL_FIPSMODULESCONF) OSSL_DATAROOT:[000000]
 
 uninstall_fips : uninstall_sw
 	@ WRITE SYS$OUTPUT "*** Uninstalling FIPS module configuration"
-	DELETE ossl_installroot:[MODULES{- $sover_dirname.$target{pointer_size} -}.'arch']$(FIPSMODULENAME).cnf;*
+	DELETE OSSL_DATAROOT:[000000]fipsmodule.cnf;*
+	@ WRITE SYS$OUTPUT "*** Uninstalling FIPS module"
+	DELETE ossl_installroot:[MODULES{- $sover_dirname.$target{pointer_size} -}.'arch']$(FIPSMODULENAME);*
+{- output_on() if $disabled{fips}; "" -}
 
 install_ssldirs : check_INSTALLTOP
         - CREATE/DIR/PROT=(S:RWED,O:RWE,G:RE,W:RE) OSSL_DATAROOT:[000000]
@@ -767,6 +772,17 @@ reconfigure reconf :
   use File::Spec::Functions qw/abs2rel rel2abs catfile catdir/;
   use File::Spec::Unix;
 
+  # Helper function to convert dependencies in platform agnostic form to
+  # dependencies in platform form.
+  sub compute_platform_depends {
+      map { my $x = $_;
+
+            grep { $x eq $_ } @{$unified_info{programs}} and platform->bin($x)
+            or grep { $x eq $_ } @{$unified_info{modules}} and platform->dso($x)
+            or grep { $x eq $_ } @{$unified_info{libraries}} and platform->lib($x)
+            or platform->convertext($x); } @_;
+  }
+
   # Helper function to figure out dependencies on libraries
   # It takes a list of library names and outputs a list of dependencies
   sub compute_lib_depends {
@@ -857,7 +873,7 @@ EOF
 
   sub generatetarget {
       my %args = @_;
-      my $deps = join(" ", @{$args{deps}});
+      my $deps = join(" ", compute_platform_depends(@{$args{deps}}));
       return <<"EOF";
 $args{target} : $deps
 EOF
@@ -869,7 +885,9 @@ EOF
       my $gen_args = join('', map { " $_" }
                               @{$args{generator}}[1..$#{$args{generator}}]);
       my $gen_incs = join("", map { ' "-I'.$_.'"' } @{$args{generator_incs}});
-      my $deps = join(", -\n\t\t", @{$args{generator_deps}}, @{$args{deps}});
+      my $deps = join(", -\n\t\t",
+                      compute_platform_depends(@{$args{generator_deps}},
+                                               @{$args{deps}}));
 
       if ($args{src} =~ /\.html$/) {
           #
@@ -962,42 +980,26 @@ EOF
           my $dofile = abs2rel(rel2abs(catfile($config{sourcedir},
                                                "util", "dofile.pl")),
                                rel2abs($config{builddir}));
-          my @modules = ( 'configdata.pm',
-                          grep { $_ =~ m|\.pm$| } @{$args{deps}} );
-          my %moduleincs = map { '"-I'.dirname($_).'"' => 1 } @modules;
-          $deps = join(' ', $deps, @modules);
-          @modules = map { '"-M'.basename($_, '.pm').'"' } @modules;
-          my $modules = join(' ', '', sort keys %moduleincs, @modules);
+          my @perlmodules = ( 'configdata.pm',
+                              grep { $_ =~ m|\.pm$| } @{$args{deps}} );
+          my %perlmoduleincs = map { '"-I'.dirname($_).'"' => 1 } @perlmodules;
+          $deps = join(' ', $deps, compute_platform_depends(@perlmodules));
+          @perlmodules = map { '"-M'.basename($_, '.pm').'"' } @perlmodules;
+          my $perlmodules = join(' ', '', sort keys %perlmoduleincs, @perlmodules);
           return <<"EOF";
 $args{src} : $gen0 $deps
-	\$(PERL)$modules $dofile "-o$target{build_file}" $gen0$gen_args > \$\@
+	\$(PERL)$perlmodules $dofile "-o$target{build_file}" $gen0$gen_args > \$\@
 EOF
       } elsif (grep { $_ eq $gen0 } @{$unified_info{programs}}) {
           #
           # Generic generator using OpenSSL programs
           #
 
-          # Redo $deps, because programs aren't expected to have deps of their
-          # own.  This is a little more tricky, though, because running programs
-          # may have dependencies on all sorts of files, so we search through
-          # our database of programs and modules to see if our dependencies
-          # are one of those.
-          $deps = join(' ', map { my $x = $_;
-                                  if (grep { $x eq $_ }
-                                          @{$unified_info{programs}}) {
-                                      platform->bin($x);
-                                  } elsif (grep { $x eq $_ }
-                                          @{$unified_info{modules}}) {
-                                      platform->dso($x);
-                                  } else {
-                                      $x;
-                                  }
-                                } @{$args{deps}});
-          # Also redo $gen0, to ensure that we have the proper extension
+          # Redo $gen0, to ensure that we have the proper extension
           $gen0 = platform->bin($gen0);
           return <<"EOF";
 $args{src} : $gen0 $deps
-	PIPE $gen0$gen_args > \$@
+	PIPE MCR $gen0$gen_args > \$@
 EOF
       } else {
           #
@@ -1036,8 +1038,9 @@ EOF
       my $depn = basename($dep);
       my $srcs =
           join(", ", map { abs2rel(rel2abs($_), rel2abs($forward)) } @srcs);
-      my $before = $unified_info{before}->{$obj} || "\@ !";
-      my $after = $unified_info{after}->{$obj} || "\@ !";
+      my $incextra = join(',', map { "\"$_\"" }
+                               @{$unified_info{includes_extra}->{$obj}});
+      $incextra = "/INCLUDE=($incextra)" if $incextra;
 
       my $cflags;
       if ($args{attrs}->{noinst}) {
@@ -1055,6 +1058,7 @@ EOF
 		   lib => $lib_cppflags,
 		   dso => $dso_cppflags,
 		   bin => $bin_cppflags } -> {$args{intent}};
+      $cflags .= $incextra;
       my $defs = join("", map { ",".$_ } @{$args{defs}});
       my $asflags = { shlib => $lib_asflags,
 		      lib => $lib_asflags,
@@ -1064,17 +1068,14 @@ EOF
       if ($srcs[0] =~ /\Q${asmext}\E$/) {
           return <<"EOF";
 $obj : $deps
-        ${before}
         SET DEFAULT $forward
         \$(AS) $asflags \$(ASOUTFLAG)${objd}${objn} $srcs
         SET DEFAULT $backward
-        ${after}
         - PURGE $obj
 EOF
       } elsif ($srcs[0] =~ /.S$/) {
          return <<"EOF";
 $obj : $deps
-        ${before}
         SET DEFAULT $forward
         \@ $incs_on
         \@ extradefines = "$defs"
@@ -1084,7 +1085,6 @@ $obj : $deps
         \@ DELETE/SYMBOL/LOCAL extradefines
         \@ $incs_off
         SET DEFAULT $backward
-        ${after}
         \$(AS) $asflags \$(ASOUTFLAG)$obj $obj-asm
         - PURGE $obj
 EOF
@@ -1107,7 +1107,6 @@ EOF
 
       return <<"EOF";
 $obj : $deps
-        ${before}
         SET DEFAULT $forward
         \@ $incs_on
         \@ extradefines = "$defs"
@@ -1115,7 +1114,6 @@ $obj : $deps
         \@ DELETE/SYMBOL/LOCAL extradefines
         \@ $incs_off
         SET DEFAULT $backward
-        ${after}
         - PURGE $obj
 $incdir_scripture
 EOF
@@ -1337,7 +1335,7 @@ EOF
                                            "util", "dofile.pl")),
                            rel2abs($config{builddir}));
       return <<"EOF";
-$script : $sources
+$script : $sources configdata.pm
         \$(PERL) "-I\$(BLDDIR)" "-Mconfigdata" $dofile -
 	    "-o$target{build_file}" $sources > $script
         SET FILE/PROT=(S:RWED,O:RWED,G:RE,W:RE) $script

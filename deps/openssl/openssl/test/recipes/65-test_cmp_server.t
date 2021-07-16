@@ -36,5 +36,5 @@ ok(run(test([@basic_cmd, "none"])));
 ok(run(test([@basic_cmd, "default", srctop_file("test", "default.cnf")])));
 
 unless ($no_fips) {
-    ok(run(test([@basic_cmd, "fips", srctop_file("test", "fips.cnf")])));
+    ok(run(test([@basic_cmd, "fips", srctop_file("test", "fips-and-base.cnf")])));
 }

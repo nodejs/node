@@ -52,17 +52,17 @@ static int write_pvk(struct key2ms_ctx_st *ctx, OSSL_CORE_BIO *cout,
 {
     BIO *out = NULL;
     int ret = 0;
+    OSSL_LIB_CTX *libctx = PROV_LIBCTX_OF(ctx->provctx);
 
     out = ossl_bio_new_from_core_bio(ctx->provctx, cout);
-    ret = i2b_PVK_bio(out, pkey, ctx->pvk_encr_level,
-                      ossl_pw_pem_password, &ctx->pwdata);
+    ret = i2b_PVK_bio_ex(out, pkey, ctx->pvk_encr_level,
+                         ossl_pw_pem_password, &ctx->pwdata, libctx, NULL);
     BIO_free(out);
 
     return ret;
 }
 
 static OSSL_FUNC_encoder_freectx_fn key2ms_freectx;
-static OSSL_FUNC_encoder_gettable_params_fn key2ms_gettable_params;
 static OSSL_FUNC_encoder_does_selection_fn key2ms_does_selection;
 
 static struct key2ms_ctx_st *key2ms_newctx(void *provctx)
@@ -82,38 +82,6 @@ static void key2ms_freectx(void *vctx)
     struct key2ms_ctx_st *ctx = vctx;
 
     OPENSSL_free(ctx);
-}
-
-static const OSSL_PARAM *key2ms_gettable_params(ossl_unused void *provctx)
-{
-    static const OSSL_PARAM gettables[] = {
-        { OSSL_ENCODER_PARAM_OUTPUT_TYPE, OSSL_PARAM_UTF8_PTR, NULL, 0, 0 },
-        OSSL_PARAM_END,
-    };
-
-    return gettables;
-}
-
-static int key2msblob_get_params(OSSL_PARAM params[])
-{
-    OSSL_PARAM *p;
-
-    p = OSSL_PARAM_locate(params, OSSL_ENCODER_PARAM_OUTPUT_TYPE);
-    if (p != NULL && !OSSL_PARAM_set_utf8_ptr(p, "MSBLOB"))
-        return 0;
-
-    return 1;
-}
-
-static int key2pvk_get_params(OSSL_PARAM params[])
-{
-    OSSL_PARAM *p;
-
-    p = OSSL_PARAM_locate(params, OSSL_ENCODER_PARAM_OUTPUT_TYPE);
-    if (p != NULL && !OSSL_PARAM_set_utf8_ptr(p, "PVK"))
-        return 0;
-
-    return 1;
 }
 
 static const OSSL_PARAM *key2pvk_settable_ctx_params(ossl_unused void *provctx)
@@ -239,10 +207,6 @@ static int key2pvk_encode(void *vctx, const void *key, int selection,
           (void (*)(void))key2ms_newctx },                                    \
         { OSSL_FUNC_ENCODER_FREECTX,                                          \
           (void (*)(void))key2ms_freectx },                                   \
-        { OSSL_FUNC_ENCODER_GETTABLE_PARAMS,                                  \
-          (void (*)(void))key2ms_gettable_params },                           \
-        { OSSL_FUNC_ENCODER_GET_PARAMS,                                       \
-          (void (*)(void))key2##output##_get_params },                        \
         output##_set_params                                                   \
         { OSSL_FUNC_ENCODER_DOES_SELECTION,                                   \
           (void (*)(void))key2ms_does_selection },                            \

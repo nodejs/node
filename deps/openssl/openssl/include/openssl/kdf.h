@@ -33,11 +33,10 @@ EVP_KDF *EVP_KDF_fetch(OSSL_LIB_CTX *libctx, const char *algorithm,
 EVP_KDF_CTX *EVP_KDF_CTX_new(EVP_KDF *kdf);
 void EVP_KDF_CTX_free(EVP_KDF_CTX *ctx);
 EVP_KDF_CTX *EVP_KDF_CTX_dup(const EVP_KDF_CTX *src);
-int EVP_KDF_number(const EVP_KDF *kdf);
-const char *EVP_KDF_description(const EVP_KDF *kdf);
+const char *EVP_KDF_get0_description(const EVP_KDF *kdf);
 int EVP_KDF_is_a(const EVP_KDF *kdf, const char *name);
-const char *EVP_KDF_name(const EVP_KDF *kdf);
-const OSSL_PROVIDER *EVP_KDF_provider(const EVP_KDF *kdf);
+const char *EVP_KDF_get0_name(const EVP_KDF *kdf);
+const OSSL_PROVIDER *EVP_KDF_get0_provider(const EVP_KDF *kdf);
 const EVP_KDF *EVP_KDF_CTX_kdf(EVP_KDF_CTX *ctx);
 
 void EVP_KDF_CTX_reset(EVP_KDF_CTX *ctx);
@@ -114,7 +113,8 @@ int EVP_PKEY_CTX_set1_hkdf_key(EVP_PKEY_CTX *ctx,
 int EVP_PKEY_CTX_add1_hkdf_info(EVP_PKEY_CTX *ctx,
                                 const unsigned char *info, int infolen);
 
-int EVP_PKEY_CTX_hkdf_mode(EVP_PKEY_CTX *ctx, int mode);
+int EVP_PKEY_CTX_set_hkdf_mode(EVP_PKEY_CTX *ctx, int mode);
+# define EVP_PKEY_CTX_hkdf_mode EVP_PKEY_CTX_set_hkdf_mode
 
 int EVP_PKEY_CTX_set1_pbe_pass(EVP_PKEY_CTX *ctx, const char *pass,
                                int passlen);

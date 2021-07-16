@@ -23,7 +23,7 @@
 #include "crypto/evp.h"
 #include "crypto/x509.h"
 #include <openssl/core_names.h>
-#include "openssl/param_build.h"
+#include <openssl/param_build.h>
 #include "ec_local.h"
 
 static int eckey_param2type(int *pptype, void **ppval, const EC_KEY *ec_key)
@@ -405,7 +405,7 @@ static int ec_pkey_ctrl(EVP_PKEY *pkey, int op, long arg1, void *arg2)
 {
     switch (op) {
     case ASN1_PKEY_CTRL_DEFAULT_MD_NID:
-        if (EVP_PKEY_id(pkey) == EVP_PKEY_SM2) {
+        if (EVP_PKEY_get_id(pkey) == EVP_PKEY_SM2) {
             /* For SM2, the only valid digest-alg is SM3 */
             *(int *)arg2 = NID_sm3;
             return 2;            /* Make it mandatory */

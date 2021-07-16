@@ -217,11 +217,7 @@ int dhparam_main(int argc, char **argv)
             }
         }
 
-        if (!EVP_PKEY_paramgen(ctx, &tmppkey)) {
-            BIO_printf(bio_err, "Error, %s generation failed\n", alg);
-            goto end;
-        }
-
+        tmppkey = app_paramgen(ctx, alg);
         EVP_PKEY_CTX_free(ctx);
         ctx = NULL;
         if (dsaparam) {
@@ -277,10 +273,9 @@ int dhparam_main(int argc, char **argv)
                 */
                 keytype = "DHX";
                 /*
-                    * BIO_reset() returns 0 for success for file BIOs only!!!
-                    * This won't work for stdin (and never has done)
-                    * TODO: We should fix this at some point
-                    */
+                 * BIO_reset() returns 0 for success for file BIOs only!!!
+                 * This won't work for stdin (and never has done)
+                 */
                 if (BIO_reset(in) == 0)
                     done = 0;
             }

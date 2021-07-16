@@ -131,9 +131,11 @@ option is specified then the older "traditional" format is used instead.
 
 =item B<-pubout>
 
-By default the encoded private and public key is output;
-this option restricts the encoded output to the public components.
+By default the private and public key is output;
+this option restricts the output to the public components.
 This option is automatically set if the input is a public key.
+
+When combined with B<-text>, this is equivalent to B<-text_pub>.
 
 =item B<-noout>
 

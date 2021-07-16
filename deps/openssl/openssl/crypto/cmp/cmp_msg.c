@@ -20,6 +20,46 @@
 #include <openssl/err.h>
 #include <openssl/x509.h>
 
+OSSL_CMP_MSG *OSSL_CMP_MSG_new(OSSL_LIB_CTX *libctx, const char *propq)
+{
+    OSSL_CMP_MSG *msg = NULL;
+
+    msg = (OSSL_CMP_MSG *)ASN1_item_new_ex(ASN1_ITEM_rptr(OSSL_CMP_MSG),
+                                           libctx, propq);
+    if (!ossl_cmp_msg_set0_libctx(msg, libctx, propq)) {
+        OSSL_CMP_MSG_free(msg);
+        msg = NULL;
+    }
+    return msg;
+}
+
+void OSSL_CMP_MSG_free(OSSL_CMP_MSG *msg)
+{
+    ASN1_item_free((ASN1_VALUE *)msg, ASN1_ITEM_rptr(OSSL_CMP_MSG));
+}
+
+/*
+ * This should only be used if the X509 object was embedded inside another
+ * asn1 object and it needs a libctx to operate.
+ * Use OSSL_CMP_MSG_new() instead if possible.
+ */
+int ossl_cmp_msg_set0_libctx(OSSL_CMP_MSG *msg, OSSL_LIB_CTX *libctx,
+                             const char *propq)
+{
+    if (msg != NULL) {
+        msg->libctx = libctx;
+        OPENSSL_free(msg->propq);
+        msg->propq = NULL;
+        if (propq != NULL) {
+            msg->propq = OPENSSL_strdup(propq);
+            if (msg->propq == NULL)
+                return 0;
+        }
+    }
+    return 1;
+}
+
+
 OSSL_CMP_PKIHEADER *OSSL_CMP_MSG_get0_header(const OSSL_CMP_MSG *msg)
 {
     if (msg == NULL) {
@@ -125,7 +165,7 @@ OSSL_CMP_MSG *ossl_cmp_msg_create(OSSL_CMP_CTX *ctx, int bodytype)
     if (!ossl_assert(ctx != NULL))
         return NULL;
 
-    if ((msg = OSSL_CMP_MSG_new()) == NULL)
+    if ((msg = OSSL_CMP_MSG_new(ctx->libctx, ctx->propq)) == NULL)
         return NULL;
     if (!ossl_cmp_hdr_init(ctx, msg->header)
             || !ossl_cmp_msg_set_bodytype(msg, bodytype))
@@ -399,7 +439,6 @@ OSSL_CMP_MSG *ossl_cmp_certreq_new(OSSL_CMP_CTX *ctx, int type,
         if (!sk_OSSL_CRMF_MSG_push(msg->body->value.ir, local_crm))
             goto err;
         local_crm = NULL;
-        /* TODO: here optional 2nd certreqmsg could be pushed to the stack */
     }
 
     if (!ossl_cmp_msg_protect(ctx, msg))
@@ -465,7 +504,6 @@ OSSL_CMP_MSG *ossl_cmp_certrep_new(OSSL_CMP_CTX *ctx, int bodytype,
     if (!sk_OSSL_CMP_CERTRESPONSE_push(repMsg->response, resp))
         goto err;
     resp = NULL;
-    /* TODO: here optional 2nd certrep could be pushed to the stack */
 
     if (bodytype == OSSL_CMP_PKIBODY_IP && caPubs != NULL
             && (repMsg->caPubs = X509_chain_up_ref(caPubs)) == NULL)
@@ -528,11 +566,6 @@ OSSL_CMP_MSG *ossl_cmp_rr_new(OSSL_CMP_CTX *ctx)
     if (!sk_OSSL_CMP_REVDETAILS_push(msg->body->value.rr, rd))
         goto err;
     rd = NULL;
-
-    /*
-     * TODO: the Revocation Passphrase according to section 5.3.19.9 could be
-     *       set here if set in ctx
-     */
 
     if (!ossl_cmp_msg_protect(ctx, msg))
         goto err;
@@ -749,10 +782,6 @@ int ossl_cmp_certstatus_set0_certHash(OSSL_CMP_CERTSTATUS *certStatus,
     return 1;
 }
 
-/*
- * TODO: handle potential 2nd certificate when signing and encrypting
- * certificates have been requested/received
- */
 OSSL_CMP_MSG *ossl_cmp_certConf_new(OSSL_CMP_CTX *ctx, int fail_info,
                                     const char *text)
 {
@@ -781,10 +810,11 @@ OSSL_CMP_MSG *ossl_cmp_certConf_new(OSSL_CMP_CTX *ctx, int fail_info,
     if (!ASN1_INTEGER_set(certStatus->certReqId, OSSL_CMP_CERTREQID))
         goto err;
     /*
-     * the hash of the certificate, using the same hash algorithm
-     * as is used to create and verify the certificate signature
+     * The hash of the certificate, using the same hash algorithm
+     * as is used to create and verify the certificate signature.
+     * If not available, a default hash algorithm is used.
      */
-    if ((certHash = X509_digest_sig(ctx->newCert)) == NULL)
+    if ((certHash = X509_digest_sig(ctx->newCert, NULL, NULL)) == NULL)
         goto err;
 
     if (!ossl_cmp_certstatus_set0_certHash(certStatus, certHash))
@@ -827,7 +857,6 @@ OSSL_CMP_MSG *ossl_cmp_pollReq_new(OSSL_CMP_CTX *ctx, int crid)
     if ((msg = ossl_cmp_msg_create(ctx, OSSL_CMP_PKIBODY_POLLREQ)) == NULL)
         goto err;
 
-    /* TODO: support multiple cert request IDs to poll */
     if ((preq = OSSL_CMP_POLLREQ_new()) == NULL
             || !ASN1_INTEGER_set(preq->certReqId, crid)
             || !sk_OSSL_CMP_POLLREQ_push(msg->body->value.pollReq, preq))
@@ -1043,9 +1072,10 @@ int OSSL_CMP_MSG_update_transactionID(OSSL_CMP_CTX *ctx, OSSL_CMP_MSG *msg)
             || ossl_cmp_msg_protect(ctx, msg);
 }
 
-OSSL_CMP_MSG *OSSL_CMP_MSG_read(const char *file)
+OSSL_CMP_MSG *OSSL_CMP_MSG_read(const char *file, OSSL_LIB_CTX *libctx,
+                                const char *propq)
 {
-    OSSL_CMP_MSG *msg = NULL;
+    OSSL_CMP_MSG *msg;
     BIO *bio = NULL;
 
     if (file == NULL) {
@@ -1053,9 +1083,18 @@ OSSL_CMP_MSG *OSSL_CMP_MSG_read(const char *file)
         return NULL;
     }
 
+    msg = OSSL_CMP_MSG_new(libctx, propq);
+    if (msg == NULL){
+        ERR_raise(ERR_LIB_CMP, ERR_R_MALLOC_FAILURE);
+        return NULL;
+    }
+
     if ((bio = BIO_new_file(file, "rb")) == NULL)
         return NULL;
-    msg = d2i_OSSL_CMP_MSG_bio(bio, NULL);
+    if (d2i_OSSL_CMP_MSG_bio(bio, &msg) == NULL) {
+        OSSL_CMP_MSG_free(msg);
+        msg = NULL;
+    }
     BIO_free(bio);
     return msg;
 }
@@ -1078,10 +1117,40 @@ int OSSL_CMP_MSG_write(const char *file, const OSSL_CMP_MSG *msg)
     return res;
 }
 
+OSSL_CMP_MSG *d2i_OSSL_CMP_MSG(OSSL_CMP_MSG **msg, const unsigned char **in,
+                               long len)
+{
+    OSSL_LIB_CTX *libctx = NULL;
+    const char *propq = NULL;
+
+    if (msg != NULL && *msg != NULL) {
+        libctx  = (*msg)->libctx;
+        propq = (*msg)->propq;
+    }
+
+    return (OSSL_CMP_MSG *)ASN1_item_d2i_ex((ASN1_VALUE **)msg, in, len,
+                                            ASN1_ITEM_rptr(OSSL_CMP_MSG),
+                                            libctx, propq);
+}
+
+int i2d_OSSL_CMP_MSG(const OSSL_CMP_MSG *msg, unsigned char **out)
+{
+    return ASN1_item_i2d((const ASN1_VALUE *)msg, out,
+                         ASN1_ITEM_rptr(OSSL_CMP_MSG));
+}
+
 OSSL_CMP_MSG *d2i_OSSL_CMP_MSG_bio(BIO *bio, OSSL_CMP_MSG **msg)
 {
-    return ASN1_d2i_bio_of(OSSL_CMP_MSG, OSSL_CMP_MSG_new,
-                           d2i_OSSL_CMP_MSG, bio, msg);
+    OSSL_LIB_CTX *libctx = NULL;
+    const char *propq = NULL;
+
+    if (msg != NULL && *msg != NULL) {
+        libctx  = (*msg)->libctx;
+        propq = (*msg)->propq;
+    }
+
+    return ASN1_item_d2i_bio_ex(ASN1_ITEM_rptr(OSSL_CMP_MSG), bio, msg, libctx,
+                                propq);
 }
 
 int i2d_OSSL_CMP_MSG_bio(BIO *bio, const OSSL_CMP_MSG *msg)

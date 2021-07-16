@@ -21,7 +21,7 @@
 #include <openssl/rsa.h>
 #include <openssl/params.h>
 #include <openssl/err.h>
-#include <crypto/rsa.h>
+#include "crypto/rsa.h"
 #include <openssl/proverr.h>
 #include "prov/provider_ctx.h"
 #include "prov/implementations.h"
@@ -229,7 +229,7 @@ static int rsasve_gen_rand_bytes(RSA *rsa_pub,
     ret = (z != NULL
            && (BN_copy(nminus3, RSA_get0_n(rsa_pub)) != NULL)
            && BN_sub_word(nminus3, 3)
-           && BN_priv_rand_range_ex(z, nminus3, bnctx)
+           && BN_priv_rand_range_ex(z, nminus3, 0, bnctx)
            && BN_add_word(z, 2)
            && (BN_bn2binpad(z, out, outlen) == outlen));
     BN_CTX_end(bnctx);

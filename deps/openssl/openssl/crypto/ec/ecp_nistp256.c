@@ -1881,7 +1881,7 @@ void EC_nistp256_pre_comp_free(NISTP256_PRE_COMP *pre)
         return;
 
     CRYPTO_DOWN_REF(&pre->references, &i, pre->lock);
-    REF_PRINT_COUNT("EC_nistp256", x);
+    REF_PRINT_COUNT("EC_nistp256", pre);
     if (i > 0)
         return;
     REF_ASSERT_ISNT(i < 0);

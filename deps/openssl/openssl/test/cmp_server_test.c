@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2007-2021 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright Nokia 2007-2020
  * Copyright Siemens AG 2015-2020
  *
@@ -148,7 +148,7 @@ int setup_tests(void)
     if (!test_arg_libctx(&libctx, &default_null_provider, &provider, 1, USAGE))
         return 0;
 
-    if (!TEST_ptr(request = load_pkimsg(request_f))) {
+    if (!TEST_ptr(request = load_pkimsg(request_f, libctx))) {
         cleanup_tests();
         return 0;
     }

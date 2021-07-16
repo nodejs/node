@@ -35,6 +35,7 @@ our($opt_s);
 our($opt_o);
 our($opt_h);
 our($opt_l);
+our($opt_m);
 our($opt_n);
 our($opt_p);
 our($opt_u);
@@ -45,11 +46,12 @@ our($opt_c);
 sub help {
     print <<EOF;
 Find small errors (nits) in documentation.  Options:
-    -c List undocumented commands and options
+    -c List undocumented commands, undocumented options and unimplemented options.
     -d Detailed list of undocumented (implies -u)
     -e Detailed list of new undocumented (implies -v)
     -h Print this help message
     -l Print bogus links
+    -m Name(s) of manuals to focus on. Default: man1,man3,man5,man7
     -n Print nits in POD pages
     -o Causes -e/-v to count symbols added since 1.1.1 as new (implies -v)
     -u Count undocumented functions
@@ -58,7 +60,7 @@ EOF
     exit;
 }
 
-getopts('cdehlnouv');
+getopts('cdehlm:nouv');
 
 help() if $opt_h;
 $opt_u = 1 if $opt_d;
@@ -78,7 +80,11 @@ my $temp = '/tmp/docnits.txt';
 my $OUT;
 my $status = 0;
 
-my @sections = ( 'man1', 'man3', 'man5', 'man7' );
+$opt_m = "man1,man3,man5,man7" unless $opt_m;
+die "Argument of -m option may contain only man1, man3, man5, and/or man7"
+    unless $opt_m =~ /^(man[1357][, ]?)*$/;
+my @sections = ( split /[, ]/, $opt_m );
+
 my %mandatory_sections = (
     '*' => [ 'NAME', 'DESCRIPTION', 'COPYRIGHT' ],
     1   => [ 'SYNOPSIS', 'OPTIONS' ],
@@ -148,7 +154,7 @@ my %collected_results = ();
 #                       - exclusive selectors, only applicable together with
 #                         any of the manual selectors.  If any of these are
 #                         present, only the manuals from the given sections
-#                         will be include.  If none of these are present,
+#                         will be included.  If none of these are present,
 #                         the manuals from all sections will be returned.
 #
 # All returned manual files come from configdata.pm.
@@ -543,8 +549,10 @@ sub option_check {
         err($id, "Malformed option [1] in SYNOPSIS: $&");
     }
 
+    my @synopsis;
     while ( $synopsis =~ /$markup_re/msg ) {
         my $found = $&;
+        push @synopsis, $found if $found =~ /^B<-/;
         print STDERR "$id:DEBUG[option_check] SYNOPSIS: found $found\n"
             if $debug;
         my $option_uw = normalise_option($id, $filename, $found);
@@ -554,6 +562,7 @@ sub option_check {
 
     # In OPTIONS, we look for =item paragraphs.
     # (?=^\s*$) detects an empty line.
+    my @options;
     while ( $options =~ /=item\s+(.*?)(?=^\s*$)/msg ) {
         my $item = $&;
 
@@ -567,7 +576,18 @@ sub option_check {
             my $option_uw = normalise_option($id, $filename, $found);
             err($id, "Malformed option in OPTIONS: $found")
                 if defined $option_uw && $option_uw eq '';
+            if ($found =~ /^B<-/) {
+                push @options, $found;
+                err($id, "OPTIONS entry $found missing from SYNOPSIS")
+                    unless (grep /^\Q$found\E$/, @synopsis)
+                         || $id =~ /(openssl|-options)\.pod:1:$/;
+            }
         }
+    }
+    foreach (@synopsis) {
+        my $option = $_;
+        err($id, "SYNOPSIS entry $option missing from OPTIONS")
+            unless (grep /^\Q$option\E$/, @options);
     }
 }
 
@@ -710,9 +730,8 @@ sub check {
         next if $target =~ /openssl-?/;
         next if ( grep { basename($_) eq "$target.pod" }
                   files(TAGS => [ 'manual', 'man1' ]) );
-        # TODO: Filter out "foreign manual" links.
         next if $target =~ /ps|apropos|sha1sum|procmail|perl/;
-        err($id, "Bad command link L<$target(1)>");
+        err($id, "Bad command link L<$target(1)>") if grep /man1/, @sections;
     }
     # Check for proper in-man-3 API links.
     while ( $contents =~ /L<([^>]*)\(3\)(?:\/.*)?>/g ) {
@@ -980,16 +999,27 @@ sub collectnames {
         }
     }
 
-    my @links =
-        $podinfo{contents} =~ /L<
-                              # if the link is of the form L<something|name(s)>,
-                              # then remove 'something'.  Note that 'something'
-                              # may contain POD codes as well...
-                              (?:(?:[^\|]|<[^>]*>)*\|)?
-                              # we're only interested in references that have
-                              # a one digit section number
-                              ([^\/>\(]+\(\d\))
-                             /gx;
+    my @links = ();
+    # Don't use this regexp directly on $podinfo{contents}, as it causes
+    # a regexp recursion, which fails on really big PODs.  Instead, use
+    # $markup_re to pick up general markup, and use this regexp to check
+    # that the markup that was found is indeed a link.
+    my $linkre = qr/L<
+                    # if the link is of the form L<something|name(s)>,
+                    # then remove 'something'.  Note that 'something'
+                    # may contain POD codes as well...
+                    (?:(?:[^\|]|<[^>]*>)*\|)?
+                    # we're only interested in references that have
+                    # a one digit section number
+                    ([^\/>\(]+\(\d\))
+                   /x;
+    while ( $podinfo{contents} =~ /$markup_re/msg ) {
+        my $x = $1;
+
+        if ($x =~ $linkre) {
+            push @links, $1;
+        }
+    }
     $link_map{$filename} = [ @links ];
 }
 
@@ -1049,11 +1079,11 @@ sub checkflags {
                 err("$cmd does not implement help for -$expect_helpstr") unless m/^\s*"/;
                 $expect_helpstr = "";
             }
-            if (m/\{\s*"([^"]+)"\s*,\s*OPT_[A-Z0-9_]+\s*,\s*('[-\/:<>cEfFlMnNpsuU]'|0)\s*,(.*)$/
-                       && !($cmd eq "s_client" && $1 eq "wdebug")) {
+            if (m/\{\s*"([^"]+)"\s*,\s*OPT_[A-Z0-9_]+\s*,\s*('[-\/:<>cEfFlMnNpsuU]'|0)(.*)$/
+                    && !($cmd eq "s_client" && $1 eq "wdebug")) {
                 push @cmdopts, $1;
                 $expect_helpstr = $1;
-                $expect_helpstr = "" if $3 =~ m/^\s*"/;
+                $expect_helpstr = "" if $3 =~ m/^\s*,\s*"/;
             } elsif (m/[\s,](OPT_[A-Z]+_OPTIONS?)\s*(,|$)/) {
                 push @cmdopts, @{ $genopts{$1} };
             }
@@ -1085,8 +1115,7 @@ sub checkflags {
     # See what's in the command not the manpage.
     my @undocced = sort grep { !defined $docopts{$_} } @cmdopts;
     foreach ( @undocced ) {
-        next if $cmd eq "openssl" && $_ eq "help";
-        err("$doc: undocumented option -$_");
+        err("$doc: undocumented $cmd option -$_");
     }
 
     # See what's in the command not the manpage.
@@ -1110,7 +1139,7 @@ if ( $opt_c ) {
 
     # Get the lists of generic options.
     my $active = "";
-    open OFH, "apps/include/opt.h"
+    open OFH, catdir($config{sourcedir}, "apps/include/opt.h")
         or die "Can't open apps/include/opt.h to list generic options, $!";
     while ( <OFH> ) {
         chop;
@@ -1128,7 +1157,7 @@ if ( $opt_c ) {
     # See if each has a manpage.
     foreach my $cmd ( @commands ) {
         $cmd =~ s/\.c$//;
-        next if $cmd eq 'progs' || $cmd eq 'cmp_mock_srv' || $cmd eq 'vms_decc_init';
+        next if $cmd eq 'progs' || $cmd eq 'vms_decc_init';
         my @doc = ( grep { basename($_) eq "openssl-$cmd.pod"
                            # For "tsget" and "CA.pl" pod pages
                            || basename($_) eq "$cmd.pod" }
@@ -1181,7 +1210,7 @@ if ( $opt_l ) {
 
 if ( $opt_n ) {
     # If not given args, check that all man1 commands are named properly.
-    if ( scalar @ARGV == 0 ) {
+    if ( scalar @ARGV == 0 && grep /man1/, @sections ) {
         foreach ( files(TAGS => [ 'public_manual', 'man1' ]) ) {
             next if /openssl\.pod/
                 || /CA\.pl/ || /tsget\.pod/; # these commands are special cases

@@ -285,7 +285,7 @@ static int self_test_drbg(const ST_KAT_DRBG *t, OSSL_SELF_TEST *st,
     if (drbg == NULL)
         goto err;
 
-    strength = EVP_RAND_strength(drbg);
+    strength = EVP_RAND_get_strength(drbg);
 
     drbg_params[0] = OSSL_PARAM_construct_utf8_string(t->param_name,
                                                       t->param_value, 0);

@@ -2,8 +2,6 @@
 ## Config file for proxy certificate testing.
 
 [ req ]
-default_bits		= 2048
-default_keyfile 	= keySS.pem
 distinguished_name	= req_distinguished_name_p1
 encrypt_rsa_key		= no
 default_md		= sha256
@@ -29,8 +27,6 @@ proxyCertInfo	= critical,language:id-ppl-anyLanguage,pathlen:1,policy:text:AB
 ####################################################################
 
 [ proxy2_req ]
-default_bits		= 2048
-default_keyfile 	= keySS.pem
 distinguished_name	= req_distinguished_name_p2
 encrypt_rsa_key		= no
 default_md		= sha256

@@ -25,10 +25,8 @@ static long buffer_callback_ctrl(BIO *h, int cmd, BIO_info_cb *fp);
 static const BIO_METHOD methods_buffer = {
     BIO_TYPE_BUFFER,
     "buffer",
-    /* TODO: Convert to new style write function */
     bwrite_conv,
     buffer_write,
-    /* TODO: Convert to new style read function */
     bread_conv,
     buffer_read,
     buffer_puts,

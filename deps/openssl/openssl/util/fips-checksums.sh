@@ -8,7 +8,7 @@ for f in "$@"; do
     # the '*stdin' marker to the filename preceded by a space.  See the
     # sha1sum manual for a specification of the format.
     case "$f" in
-        *.c | *.h )
+        *.c | *.c.in | *.h | *.h.in | *.inc)
             cat "$f" \
                 | $HERE/lang-compress.pl 'C' \
                 | unifdef -DFIPS_MODULE=1 \

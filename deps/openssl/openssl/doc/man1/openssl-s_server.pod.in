@@ -70,6 +70,7 @@ B<openssl> B<s_server>
 [B<-verify_quiet>]
 [B<-ign_eof>]
 [B<-no_ign_eof>]
+[B<-no_etm>]
 [B<-status>]
 [B<-status_verbose>]
 [B<-status_timeout> I<int>]
@@ -77,13 +78,13 @@ B<openssl> B<s_server>
 [B<-no_proxy> I<addresses>]
 [B<-status_url> I<val>]
 [B<-status_file> I<infile>]
+[B<-ssl_config> I<val>]
 [B<-trace>]
 [B<-security_debug>]
 [B<-security_debug_verbose>]
 [B<-brief>]
 [B<-rev>]
 [B<-async>]
-[B<-ssl_config> I<val>]
 [B<-max_send_frag> I<+int>]
 [B<-split_send_frag> I<+int>]
 [B<-max_pipelines> I<+int>]
@@ -123,9 +124,9 @@ B<openssl> B<s_server>
 [B<-listen>]
 [B<-sctp>]
 [B<-sctp_label_bug>]
+[B<-use_srtp> I<val>]
 [B<-no_dhe>]
 [B<-nextprotoneg> I<val>]
-[B<-use_srtp> I<val>]
 [B<-alpn> I<val>]
 [B<-sendfile>]
 [B<-keylogfile> I<outfile>]
@@ -303,6 +304,14 @@ This option translated a line feed from the terminal into CR+LF.
 
 Print extensive debugging information including a hex dump of all traffic.
 
+=item B<-security_debug>
+
+Print output from SSL/TLS security framework.
+
+=item B<-security_debug_verbose>
+
+Print more output from SSL/TLS security framework
+
 =item B<-msg>
 
 Show all protocol messages with hex dump.
@@ -377,6 +386,10 @@ DH).
 
 Inhibit printing of session and certificate information.
 
+=item B<-no_resume_ephemeral>
+
+Disable caching and tickets if ephemeral (EC)DH is used.
+
 =item B<-tlsextdebug>
 
 Print a hex dump of any TLS extensions received from the server.
@@ -426,6 +439,14 @@ option is enabled the peer does not need to send the close_notify alert and a
 closed connection will be treated as if the close_notify alert was received.
 For more information on shutting down a connection, see L<SSL_shutdown(3)>.
 
+=item B<-servername>
+
+Servername for HostName TLS extension.
+
+=item B<-servername_fatal>
+
+On servername mismatch send fatal alert (default: warning alert).
+
 =item B<-id_prefix> I<val>
 
 Generate SSL/TLS session IDs prefixed by I<val>. This is mostly useful
@@ -433,11 +454,43 @@ for testing any SSL/TLS code (e.g. proxies) that wish to deal with multiple
 servers, when each of which might be generating a unique range of session
 IDs (e.g. with a certain prefix).
 
+=item B<-keymatexport>
+
+Export keying material using label.
+
+=item B<-keymatexportlen>
+
+Export the given number of bytes of keying material; default 20.
+
+=item B<-no_cache>
+
+Disable session cache.
+
+=item B<-ext_cache>.
+
+Disable internal cache, set up and use external cache.
+
 =item B<-verify_return_error>
 
 Verification errors normally just print a message but allow the
 connection to continue, for debugging purposes.
 If this option is used, then verification errors close the connection.
+
+=item B<-verify_quiet>
+
+No verify output except verify errors.
+
+=item B<-ign_eof>
+
+Ignore input EOF (default: when B<-quiet>).
+
+=item B<-no_ign_eof>
+
+Do not ignore input EOF.
+
+=item B<-no_etm>
+
+Disable Encrypt-then-MAC negotiation.
 
 =item B<-status>
 
@@ -482,10 +535,13 @@ Any given query component is handled as part of the path component.
 Overrides any OCSP responder URLs from the certificate and always provides the
 OCSP Response stored in the file. The file must be in DER format.
 
+=item B<-ssl_config> I<val>
+
+Configure SSL_CTX using the given configuration value.
+
 =item B<-trace>
 
-Show verbose trace output of protocol messages. OpenSSL needs to be compiled
-with B<enable-ssl-trace> for this option to work.
+Show verbose trace output of protocol messages.
 
 =item B<-brief>
 
@@ -494,9 +550,8 @@ output.
 
 =item B<-rev>
 
-Simple test server which just reverses the text received from the client
-and sends it back to the server. Also sets B<-brief>. Cannot be used in
-conjunction with B<-early_data>.
+Simple echo server that sends back received text reversed. Also sets B<-brief>.
+Cannot be used in conjunction with B<-early_data>.
 
 =item B<-async>
 
@@ -622,6 +677,14 @@ will be used.
 
 Turns on non blocking I/O.
 
+=item B<-timeout>
+
+Enable timeouts.
+
+=item B<-mtu>
+
+Set link-layer MTU.
+
 =item B<-psk_identity> I<val>
 
 Expect the client to send PSK identity I<val> when using a PSK
@@ -643,6 +706,16 @@ This option must be provided in order to use a PSK cipher.
 
 Use the pem encoded SSL_SESSION data stored in I<file> as the basis of a PSK.
 Note that this will only work if TLSv1.3 is negotiated.
+
+=item B<-srpvfile>
+
+The verifier file for SRP.
+This option is deprecated.
+
+=item B<-srpuserseed>
+
+A seed string for a default user salt.
+This option is deprecated.
 
 =item B<-listen>
 
@@ -668,6 +741,10 @@ endpoint-pair shared secrets for DTLS/SCTP. This allows communication with
 older broken implementations but breaks interoperability with correct
 implementations. Must be used in conjunction with B<-sctp>. This option is only
 available where OpenSSL has support for SCTP enabled.
+
+=item B<-use_srtp>
+
+Offer SRTP key management with a colon-separated profile list.
 
 =item B<-no_dhe>
 
@@ -849,7 +926,8 @@ The -no_alt_chains option was added in OpenSSL 1.1.0.
 The
 -allow-no-dhe-kex and -prioritize_chacha options were added in OpenSSL 1.1.1.
 
-The B<-engine> option was deprecated in OpenSSL 3.0.
+The B<-srpvfile>, B<-srpuserseed>, and B<-engine>
+option were deprecated in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 

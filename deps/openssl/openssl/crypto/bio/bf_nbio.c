@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -34,10 +34,8 @@ typedef struct nbio_test_st {
 static const BIO_METHOD methods_nbiof = {
     BIO_TYPE_NBIO_TEST,
     "non-blocking IO test filter",
-    /* TODO: Convert to new style write function */
     bwrite_conv,
     nbiof_write,
-    /* TODO: Convert to new style read function */
     bread_conv,
     nbiof_read,
     nbiof_puts,

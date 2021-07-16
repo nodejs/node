@@ -8,7 +8,6 @@ Notes for the OpenVMS platform
  - [About debugging](#about-debugging)
  - [Checking the distribution](#checking-the-distribution)
 
-
 Requirement details
 -------------------
 
