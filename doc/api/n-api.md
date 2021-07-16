@@ -5586,20 +5586,6 @@ napi_status napi_is_promise(napi_env env,
 * `[out] is_promise`: Flag indicating whether `promise` is a native promise
   object (that is, a promise object created by the underlying engine).
 
-### napi_promise_then_resolve
-<!-- YAML
-added: v17.0.0
-napiVersion: 8
--->
-```c
-napi_status napi_promise_then_resolve(napi_env env,
-                                      napi_value promise,
-                                      napi_callback handler);
-```
-* `[in] env`: The environment that the API is invoked under.
-* `[in] promise`: The JavaScript Promise Object
-* `[in] handler`: when promise state is fulfilled will  callback.
-
 ### napi_promise_then
 <!-- YAML
 added: REPLACEME
