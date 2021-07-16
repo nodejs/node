@@ -83,6 +83,10 @@ my $text = sub {
     $ret = ".abiversion	2\n".$ret	if ($flavour =~ /linux.*64(le|v2)/);
     $ret;
 };
+my $p2align = sub {
+    my $ret = ($flavour =~ /aix64-as/) ? "" : ".p2align $line";
+    $ret;
+};
 my $machine = sub {
     my $junk = shift;
     my $arch = shift;
