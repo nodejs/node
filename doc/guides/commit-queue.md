@@ -49,7 +49,7 @@ of the commit queue:
    option
 2. A CI must've ran and succeeded since the last change on the PR
 3. A collaborator must have approved the PR since the last change
-4. Only Jenkins CI is checked (Actions, V8 CI and CITGM are ignored)
+4. Only Jenkins CI and GitHub Actions are checked (V8 CI and CITGM are ignored)
 
 ## Implementation
 
