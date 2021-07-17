@@ -17,7 +17,10 @@ are active and have the support needed.
 | Startup performance       | [Joyee Cheung][joyeecheung] | <https://github.com/nodejs/node/issues/17058> <https://github.com/nodejs/node/issues/21563>  |
 | V8 Currency               | [Michaël Zasso][targos]     |                                                                                          |
 
-## Completed
+<details>
+<summary>List of completed initiatives</summary>
+
+## Completed initiatives
 
 | Initiative         | Champion                   | Links                                           |
 |--------------------|----------------------------|--------------------------------------------------|
@@ -32,6 +35,8 @@ are active and have the support needed.
 | Open Web Standards | Myles Borins, Joyee Cheung | <https://github.com/nodejs/open-standards>        |
 | VM module fix      | Franziska Hinkelmann       | <https://github.com/nodejs/node/issues/6283>      |
 | Workers            | Anna Henningsen            | <https://github.com/nodejs/worker>                |
+
+</details>
 
 [jasnell]: https://github.com/jasnell
 [joyeecheung]: https://github.com/joyeecheung
