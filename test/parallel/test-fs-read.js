@@ -80,7 +80,7 @@ assert.throws(
 
 assert.throws(
   () => fs.read(fd, { buffer: null }, common.mustNotCall()),
-  /TypeError: Cannot read property 'byteLength' of null/,
+  /TypeError: Cannot read properties of null \(reading 'byteLength'\)/,
   'throws when options.buffer is null'
 );
 
