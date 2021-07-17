@@ -1,11 +1,8 @@
 # Strategic initiatives
 
-The Node.js project has several strategic initiatives underway.  The goal of the
-TSC is to have a champion for each of these initiatives and enable their
-success.
-
-A review of the initiatives is a standing item on the TSC agenda to ensure they
-are active and have the support needed.
+The Node.js project has several strategic initiatives underway. A review of the
+current initiatives is a standing item on the Technical Steering Committee
+agenda to ensure they are active and have the support they need.
 
 ## Current initiatives
 
