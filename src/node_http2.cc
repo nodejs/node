@@ -2195,6 +2195,16 @@ int Http2Stream::SubmitPriority(const Http2Priority& priority,
 void Http2Stream::SubmitRstStream(const uint32_t code) {
   CHECK(!this->is_destroyed());
   code_ = code;
+
+  // If RST_STREAM is submitted with the cancel code, don't force purge the
+  // currently sending data. Instead add it to the pending stream list to
+  // avoid prioritizing over other operations.
+  // Ref:https://github.com/nodejs/node/issues/38964
+  if (code_ == NGHTTP2_CANCEL) {
+    session_->AddPendingRstStream(id_);
+    return;
+  }
+
   // If possible, force a purge of any currently pending data here to make sure
   // it is sent before closing the stream. If it returns non-zero then we need
   // to wait until the current write finishes and try again to avoid nghttp2
