@@ -3220,7 +3220,7 @@ changes:
 * `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView}
   * `key`: {string|ArrayBuffer|Buffer|TypedArray|DataView|Object} The key
     material, either in PEM, DER, or JWK format.
-  * `format`: {string} Must be `'pem'`, `'der'`, or '`'jwk'`.
+  * `format`: {string} Must be `'pem'`, `'der'`, or `'jwk'`.
     **Default:** `'pem'`.
   * `type`: {string} Must be `'pkcs1'` or `'spki'`. This option is
      required only if the `format` is `'der'` and ignored otherwise.
