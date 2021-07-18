@@ -41,19 +41,21 @@ const mailmap = new CaseIndifferentMap();
     let match;
     // Replaced Name <original@example.com>
     if (match = line.match(/^([^<]+)\s+(<[^>]+>)$/)) {
-      mailmap.set(match[2], { author: match[1] });
+      mailmap.set(match[2].toLowerCase(), {
+        author: match[1], email: match[2]
+      });
     // <replaced@example.com> <original@example.com>
     } else if (match = line.match(/^<([^>]+)>\s+(<[^>]+>)$/)) {
-      mailmap.set(match[2], { email: match[1] });
+      mailmap.set(match[2].toLowerCase(), { email: match[1] });
     // Replaced Name <replaced@example.com> <original@example.com>
     } else if (match = line.match(/^([^<]+)\s+(<[^>]+>)\s+(<[^>]+>)$/)) {
-      mailmap.set(match[3], {
+      mailmap.set(match[3].toLowerCase(), {
         author: match[1], email: match[2]
       });
     // Replaced Name <replaced@example.com> Original Name <original@example.com>
     } else if (match =
         line.match(/^([^<]+)\s+(<[^>]+>)\s+([^<]+)\s+(<[^>]+>)$/)) {
-      mailmap.set(match[3] + '\0' + match[4], {
+      mailmap.set(match[3] + '\0' + match[4].toLowerCase(), {
         author: match[1], email: match[2]
       });
     } else {
@@ -75,8 +77,10 @@ rl.on('line', (line) => {
   if (!match) return;
 
   let { author, email } = match.groups;
+  const emailLower = email.toLowerCase();
 
-  const replacement = mailmap.get(author + '\0' + email) || mailmap.get(email);
+  const replacement =
+    mailmap.get(author + '\0' + emailLower) || mailmap.get(emailLower);
   if (replacement) {
     ({ author, email } = { author, email, ...replacement });
   }
