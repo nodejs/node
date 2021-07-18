@@ -117,7 +117,7 @@ module.exports = {
         ],
 
         messages: {
-            unexpectedMixedOperator: "Unexpected mix of '{{leftOperator}}' and '{{rightOperator}}'."
+            unexpectedMixedOperator: "Unexpected mix of '{{leftOperator}}' and '{{rightOperator}}'. Use parentheses to clarify the intended order of operations."
         }
     },
 
