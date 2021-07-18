@@ -495,7 +495,7 @@ class ConfigArrayFactory {
                 basePath
             );
 
-            if (fs.existsSync(ctx.filePath)) {
+            if (fs.existsSync(ctx.filePath) && fs.statSync(ctx.filePath).isFile()) {
                 let configData;
 
                 try {
