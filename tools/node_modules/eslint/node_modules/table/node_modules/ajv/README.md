@@ -105,8 +105,8 @@ Performance of different validators by [json-schema-benchmark](https://github.co
 - Ajv implements JSON Schema [draft-06/07/2019-09/2020-12](http://json-schema.org/) standards (draft-04 is supported in v6):
   - all validation keywords (see [JSON Schema validation keywords](https://ajv.js.org/json-schema.html))
   - [OpenAPI](https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.3.md) extensions:
-    - NEW: keyword [discriminator](https://ajv.js.org/json-schema.md#discriminator).
-    - keyword [nullable](https://ajv.js.org/json-schema.md#nullable).
+    - NEW: keyword [discriminator](https://ajv.js.org/json-schema.html#discriminator).
+    - keyword [nullable](https://ajv.js.org/json-schema.html#nullable).
   - full support of remote references (remote schemas have to be added with `addSchema` or compiled to be available)
   - support of recursive references between schemas
   - correct string lengths for strings with unicode pairs
@@ -159,6 +159,11 @@ const schema = {
   },
   required: ["foo"],
   additionalProperties: false,
+}
+
+const data = {
+  foo: 1,
+  bar: "abc"
 }
 
 const validate = ajv.compile(schema)
