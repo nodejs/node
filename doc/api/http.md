@@ -3183,7 +3183,7 @@ try {
 [`net.Socket`]: net.md#net_class_net_socket
 [`net.createConnection()`]: net.md#net_net_createconnection_options_connectlistener
 [`new URL()`]: url.md#url_new_url_input_base
-[`outgoingMessage.socket`]: #http_outgoingMessage.socket
+[`outgoingMessage.socket`]: #http_outgoingmessage_socket
 [`removeHeader(name)`]: #http_request_removeheader_name
 [`request.destroy()`]: #http_request_destroy_error
 [`request.end()`]: #http_request_end_data_encoding_callback
