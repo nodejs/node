@@ -78,7 +78,7 @@ Because `module` provides a `filename` property (normally equivalent to
 `__filename`), the entry point of the current application can be obtained
 by checking `require.main.filename`.
 
-## Addenda: Package manager tips
+## Package manager tips
 
 <!-- type=misc -->
 
@@ -131,7 +131,7 @@ variable. Since the module lookups using `node_modules` folders are all
 relative, and based on the real path of the files making the calls to
 `require()`, the packages themselves can be anywhere.
 
-## Addenda: The `.mjs` extension
+## The `.mjs` extension
 
 It is not possible to `require()` files that have the `.mjs` extension.
 Attempting to do so will throw [an error][]. The `.mjs` extension is
