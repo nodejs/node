@@ -755,10 +755,11 @@ Maybe<bool> ExportJWKEcKey(
     case NID_secp521r1:
       crv_name = OneByteString(env->isolate(), "P-521");
       break;
-    default:
-      ERR_CRYPTO_JWK_UNSUPPORTED_CURVE(env->isolate(),
-                                       "Unsupported JWK EC curve: %s.",
-                                       OBJ_nid2sn(nid));
+    default: {
+      THROW_ERR_CRYPTO_JWK_UNSUPPORTED_CURVE(
+          env, "Unsupported JWK EC curve: %s.", OBJ_nid2sn(nid));
+      return Nothing<bool>();
+    }
   }
   if (target->Set(
       env->context(),
