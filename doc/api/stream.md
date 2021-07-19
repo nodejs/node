@@ -1875,7 +1875,7 @@ when passing streams to `stream.pipeline`, typically the first stream is
 a readable stream and the last a writable stream, forming a closed
 circuit.
 
-If passed a `Function` is must be a factory method taking a `source`
+If passed a `Function` it must be a factory method taking a `source`
 `Iterable`.
 
 ```mjs
