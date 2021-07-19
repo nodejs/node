@@ -29,7 +29,7 @@ assert(measure);
   assert.strictEqual(m.entryType, 'mark');
   assert.strictEqual(typeof m.startTime, 'number');
   assert.strictEqual(m.duration, 0);
-  assert.strictEqual(m.details, undefined);
+  assert.strictEqual(m.detail, null);
 });
 
 clearMarks();
@@ -38,7 +38,13 @@ assert.throws(() => mark(Symbol('a')), {
   message: /Cannot convert a Symbol value to a string/
 });
 
-[undefined, null, 1, 'any', {}, []].forEach((detail) => {
+[undefined, null].forEach((detail) => {
+  const m = mark('a', { detail });
+  assert.strictEqual(m.name, 'a');
+  assert.strictEqual(m.entryType, 'mark');
+  assert.deepStrictEqual(m.detail, null);
+});
+[1, 'any', {}, []].forEach((detail) => {
   const m = mark('a', { detail });
   assert.strictEqual(m.name, 'a');
   assert.strictEqual(m.entryType, 'mark');
