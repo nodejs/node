@@ -1904,7 +1904,7 @@ console.log(res); // prints 'HELLOWORLD'
 `stream.compose` can be used to convert async iterables, generators and
 functions into streams.
 
-* `AsyncIterable` converts into a readable `Duplex`.  Cannot yield
+* `AsyncIterable` converts into a readable `Duplex`. Cannot yield
   `null`.
 * `AsyncGeneratorFunction` converts into a readable/writable transform `Duplex`.
   Must take a source `AsyncIterable` as first parameter. Cannot yield
