@@ -502,10 +502,8 @@ Maybe<bool> ExportJWKAsymmetricKey(
     case EVP_PKEY_X25519:
       // Fall through
     case EVP_PKEY_X448: return ExportJWKEdKey(env, key, target);
-    default:
-      ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE(env->isolate());
   }
-  THROW_ERR_CRYPTO_INVALID_KEYTYPE(env);
+  THROW_ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE(env);
   return Just(false);
 }
 
