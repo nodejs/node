@@ -38,7 +38,7 @@ namespace node {
   V(ELDHISTOGRAM)                                                             \
   V(FILEHANDLE)                                                               \
   V(FILEHANDLECLOSEREQ)                                                       \
-  V(FIXEDSIZEBLOBCOPY)                                                       \
+  V(FIXEDSIZEBLOBCOPY)                                                        \
   V(FSEVENTWRAP)                                                              \
   V(FSREQCALLBACK)                                                            \
   V(FSREQPROMISE)                                                             \
