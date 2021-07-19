@@ -61,7 +61,10 @@ void GetKeyFormatAndTypeFromJs(
       config->type_ = Just<PKEncodingType>(static_cast<PKEncodingType>(
           args[*offset + 1].As<Int32>()->Value()));
     } else {
-      CHECK(context == kKeyContextInput && config->format_ == kKeyFormatPEM);
+      CHECK(
+          (context == kKeyContextInput && config->format_ == kKeyFormatPEM) ||
+            (context == kKeyContextGenerate && config->format_ == kKeyFormatJWK)
+          );
       CHECK(args[*offset + 1]->IsNullOrUndefined());
       config->type_ = Nothing<PKEncodingType>();
     }
