@@ -24,11 +24,14 @@
 #include "unicode/fpositer.h"
 #include "unicode/listformatter.h"
 #include "unicode/ulistformatter.h"
+#include "unicode/uvernum.h"
 
 namespace v8 {
 namespace internal {
 
 namespace {
+
+#if U_ICU_VERSION_MAJOR_NUM < 67
 const char* kStandard = "standard";
 const char* kOr = "or";
 const char* kUnit = "unit";
@@ -72,6 +75,31 @@ const char* GetIcuStyleString(JSListFormat::Style style,
   }
   UNREACHABLE();
 }
+#else
+UListFormatterWidth GetIcuWidth(JSListFormat::Style style) {
+  switch (style) {
+    case JSListFormat::Style::LONG:
+      return ULISTFMT_WIDTH_WIDE;
+    case JSListFormat::Style::SHORT:
+      return ULISTFMT_WIDTH_SHORT;
+    case JSListFormat::Style::NARROW:
+      return ULISTFMT_WIDTH_NARROW;
+  }
+  UNREACHABLE();
+}
+
+UListFormatterType GetIcuType(JSListFormat::Type type) {
+  switch (type) {
+    case JSListFormat::Type::CONJUNCTION:
+      return ULISTFMT_TYPE_AND;
+    case JSListFormat::Type::DISJUNCTION:
+      return ULISTFMT_TYPE_OR;
+    case JSListFormat::Type::UNIT:
+      return ULISTFMT_TYPE_UNITS;
+  }
+  UNREACHABLE();
+}
+#endif
 
 }  // namespace
 
@@ -170,7 +198,11 @@ MaybeHandle<JSListFormat> JSListFormat::New(Isolate* isolate, Handle<Map> map,
   icu::Locale icu_locale = r.icu_locale;
   UErrorCode status = U_ZERO_ERROR;
   icu::ListFormatter* formatter = icu::ListFormatter::createInstance(
+#if U_ICU_VERSION_MAJOR_NUM < 67
       icu_locale, GetIcuStyleString(style_enum, type_enum), status);
+#else
+      icu_locale, GetIcuType(type_enum), GetIcuWidth(style_enum), status);
+#endif
   if (U_FAILURE(status)) {
     delete formatter;
     FATAL("Failed to create ICU list formatter, are ICU data files missing?");
