@@ -648,6 +648,19 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     message: "The property 'options.paramEncoding' is invalid. " +
       "Received 'otherEncoding'"
   });
+  assert.throws(() => generateKeyPairSync('ec', {
+    namedCurve: 'secp224r1',
+    publicKeyEncoding: {
+      format: 'jwk'
+    },
+    privateKeyEncoding: {
+      format: 'jwk'
+    }
+  }), {
+    name: 'Error',
+    code: 'ERR_CRYPTO_JWK_UNSUPPORTED_CURVE',
+    message: 'Unsupported JWK EC curve: secp224r1.'
+  });
 }
 
 {
