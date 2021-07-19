@@ -4,10 +4,10 @@ const assert = require('assert');
 
 (async () => {
   await assert.rejects(import('data:text/plain,export default0'), {
-    code: 'ERR_INVALID_MODULE_SPECIFIER',
+    code: 'ERR_UNKNOWN_MODULE_FORMAT',
     message:
-      'Invalid module "data:text/plain,export default0" has an unsupported ' +
-      'MIME type "text/plain"',
+      'Unknown module format: text/plain for URL' +
+      ' data:text/plain,export default0',
   });
   await assert.rejects(import('data:text/plain;base64,'), {
     code: 'ERR_INVALID_MODULE_SPECIFIER',
