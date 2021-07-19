@@ -641,7 +641,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
         });
       }
       case 'rsa':
-        // Fall through
       case 'rsa-pss': {
         return generateKeyPair(type, {
           modulusLength: 4096,
