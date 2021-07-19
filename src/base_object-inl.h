@@ -201,7 +201,7 @@ void BaseObject::decrease_refcount() {
   unsigned int new_refcount = --metadata->strong_ptr_count;
   if (new_refcount == 0) {
     if (metadata->is_detached) {
-      delete this;
+      OnGCCollect();
     } else if (metadata->wants_weak_jsobj && !persistent_handle_.IsEmpty()) {
       MakeWeak();
     }
