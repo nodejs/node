@@ -608,7 +608,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   [
     ['ec', ['P-384', 'P-256', 'P-521', 'secp256k1']],
     ['rsa'],
-    ['rsa-pss'],
     ['ed25519'],
     ['ed448'],
     ['x25519'],
@@ -640,8 +639,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
           }));
         });
       }
-      case 'rsa':
-      case 'rsa-pss': {
+      case 'rsa': {
         return generateKeyPair(type, {
           modulusLength: 4096,
           publicKeyEncoding: {

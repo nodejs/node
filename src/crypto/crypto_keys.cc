@@ -491,9 +491,7 @@ Maybe<bool> ExportJWKAsymmetricKey(
     std::shared_ptr<KeyObjectData> key,
     Local<Object> target) {
   switch (EVP_PKEY_id(key->GetAsymmetricKey().get())) {
-    case EVP_PKEY_RSA:
-      // Fall through
-    case EVP_PKEY_RSA_PSS: return ExportJWKRsaKey(env, key, target);
+    case EVP_PKEY_RSA: return ExportJWKRsaKey(env, key, target);
     case EVP_PKEY_EC: return ExportJWKEcKey(env, key, target);
     case EVP_PKEY_ED25519:
       // Fall through
