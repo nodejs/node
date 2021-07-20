@@ -225,7 +225,7 @@ MaybeLocal<String> NativeModuleLoader::LoadBuiltinModuleSource(Isolate* isolate,
 #else
   const auto source_it = source_.find(id);
   if (UNLIKELY(source_it == source_.end())) {
-    fprintf(stderr, "Cannot find native builtin. \"%s\"", id);
+    fprintf(stderr, "Cannot find native builtin. \"%s\"\n", id);
     ABORT();
   }
   return source_it->second.ToStringChecked(isolate);
