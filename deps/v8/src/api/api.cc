@@ -10138,6 +10138,15 @@ const HeapSnapshot* HeapProfiler::TakeHeapSnapshot(
           control, resolver, treat_global_objects_as_roots, false));
 }
 
+const HeapSnapshot* HeapProfiler::TakeHeapSnapshotV8_92(
+    ActivityControl* control, ObjectNameResolver* resolver,
+    bool treat_global_objects_as_roots, bool capture_numeric_value) {
+  return reinterpret_cast<const HeapSnapshot*>(
+      reinterpret_cast<i::HeapProfiler*>(this)->TakeSnapshot(
+          control, resolver, treat_global_objects_as_roots,
+          capture_numeric_value));
+}
+
 void HeapProfiler::StartTrackingHeapObjects(bool track_allocations) {
   reinterpret_cast<i::HeapProfiler*>(this)->StartHeapObjectsTracking(
       track_allocations);

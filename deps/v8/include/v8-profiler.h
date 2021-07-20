@@ -901,6 +901,15 @@ class V8_EXPORT HeapProfiler {
       bool treat_global_objects_as_roots = true);
 
   /**
+   * Takes a heap snapshot and returns it.
+   */
+  const HeapSnapshot* TakeHeapSnapshotV8_92(
+      ActivityControl* control = nullptr,
+      ObjectNameResolver* global_object_name_resolver = nullptr,
+      bool treat_global_objects_as_roots = true,
+      bool capture_numeric_value = false);
+
+  /**
    * Starts tracking of heap objects population statistics. After calling
    * this method, all heap objects relocations done by the garbage collector
    * are being registered.
