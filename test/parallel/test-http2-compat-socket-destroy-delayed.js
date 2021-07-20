@@ -1,18 +1,13 @@
 'use strict';
 
 const common = require('../common');
-const { mustCall } = common;
+const { mustCall, mustNotCall } = common;
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const http2 = require('http2');
 const assert = require('assert');
-
-const {
-  HTTP2_HEADER_PATH,
-  HTTP2_HEADER_METHOD,
-} = http2.constants;
 
 // This tests verifies that calling `req.socket.destroy()` via
 // setImmediate does not crash.
@@ -25,18 +20,22 @@ const app = http2.createServer(mustCall((req, res) => {
 
 app.listen(0, mustCall(() => {
   const session = http2.connect(`http://localhost:${app.address().port}`);
-  const request = session.request({
-    [HTTP2_HEADER_PATH]: '/',
-    [HTTP2_HEADER_METHOD]: 'get'
-  });
+  const request = session.request();
   request.once('response', mustCall((headers, flags) => {
     let data = '';
     request.on('data', (chunk) => { data += chunk; });
-    request.on('end', mustCall(() => {
+    // This should error since the server fails to finish the stream
+    request.on('error', mustCall((err) => {
+      common.expectsError({
+        code: 'ERR_HTTP2_STREAM_ERROR',
+        name: 'Error',
+        message: 'Stream closed with error code NGHTTP2_CANCEL'
+      })(err);
       assert.strictEqual(data, 'hello');
       session.close();
       app.close();
     }));
+    request.on('end', mustNotCall());
   }));
   request.end();
 }));

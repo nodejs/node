@@ -19,8 +19,10 @@ const server = http2.createServer(common.mustCall((req, res) => {
 server.listen(0, common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}`);
 
-  const req = client.request();
+  const req = client.request({}, { endStream: false });
   req.on('response', common.mustNotCall());
+  req.on('error', common.mustNotCall());
+  req.on('aborted', common.mustCall());
   req.on('close', common.mustCall((arg) => {
     client.close();
     server.close();

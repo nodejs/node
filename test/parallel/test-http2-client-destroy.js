@@ -118,7 +118,7 @@ const { getEventListeners } = require('events');
       client.destroy();
     });
 
-    client.request();
+    client.request().on('error', common.expectsError());
   }));
 }
 
@@ -163,7 +163,7 @@ const { getEventListeners } = require('events');
 
     client.close();
     req.resume();
-    req.on('end', common.mustCall());
+    req.on('end', common.mustNotCall());
     req.on('close', common.mustCall(() => server.close()));
   }));
 }

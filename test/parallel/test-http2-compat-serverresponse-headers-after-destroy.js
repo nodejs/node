@@ -38,7 +38,13 @@ server.listen(0, common.mustCall(function() {
       ':authority': `localhost:${port}`
     };
     const request = client.request(headers);
-    request.on('end', common.mustCall(function() {
+    request.on('error', common.expectsError({
+      code: 'ERR_HTTP2_STREAM_ERROR',
+      name: 'Error',
+      message: 'Stream closed with error code NGHTTP2_CANCEL'
+    }));
+    request.on('end', common.mustNotCall());
+    request.on('close', common.mustCall(function() {
       client.close();
     }));
     request.end();

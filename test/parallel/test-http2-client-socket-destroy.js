@@ -32,7 +32,12 @@ server.listen(0, common.mustCall(function() {
   }));
 
   req.resume();
-  req.on('end', common.mustCall());
+  req.on('error', common.expectsError({
+    code: 'ERR_HTTP2_STREAM_ERROR',
+    name: 'Error',
+    message: 'Stream closed with error code NGHTTP2_CANCEL'
+  }));
+  req.on('end', common.mustNotCall());
   req.on('close', common.mustCall(() => server.close()));
 
   // On the client, the close event must call
