@@ -42,7 +42,6 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(Catch, 0x07, _ /* eh_prototype */)          \
   V(Throw, 0x08, _ /* eh_prototype */)          \
   V(Rethrow, 0x09, _ /* eh_prototype */)        \
-  V(Unwind, 0x0a, _ /* eh_prototype */)         \
   V(End, 0x0b, _)                               \
   V(Br, 0x0c, _)                                \
   V(BrIf, 0x0d, _)                              \
@@ -649,38 +648,44 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(I64AtomicCompareExchange16U, 0xfe4d, l_ill) \
   V(I64AtomicCompareExchange32U, 0xfe4e, l_ill)
 
-#define FOREACH_GC_OPCODE(V)     \
-  V(StructNewWithRtt, 0xfb01, _) \
-  V(StructNewDefault, 0xfb02, _) \
-  V(StructGet, 0xfb03, _)        \
-  V(StructGetS, 0xfb04, _)       \
-  V(StructGetU, 0xfb05, _)       \
-  V(StructSet, 0xfb06, _)        \
-  V(ArrayNewWithRtt, 0xfb11, _)  \
-  V(ArrayNewDefault, 0xfb12, _)  \
-  V(ArrayGet, 0xfb13, _)         \
-  V(ArrayGetS, 0xfb14, _)        \
-  V(ArrayGetU, 0xfb15, _)        \
-  V(ArraySet, 0xfb16, _)         \
-  V(ArrayLen, 0xfb17, _)         \
-  V(I31New, 0xfb20, _)           \
-  V(I31GetS, 0xfb21, _)          \
-  V(I31GetU, 0xfb22, _)          \
-  V(RttCanon, 0xfb30, _)         \
-  V(RttSub, 0xfb31, _)           \
-  V(RefTest, 0xfb40, _)          \
-  V(RefCast, 0xfb41, _)          \
-  V(BrOnCast, 0xfb42, _)         \
-  V(BrOnCastFail, 0xfb43, _)     \
-  V(RefIsFunc, 0xfb50, _)        \
-  V(RefIsData, 0xfb51, _)        \
-  V(RefIsI31, 0xfb52, _)         \
-  V(RefAsFunc, 0xfb58, _)        \
-  V(RefAsData, 0xfb59, _)        \
-  V(RefAsI31, 0xfb5a, _)         \
-  V(BrOnFunc, 0xfb60, _)         \
-  V(BrOnData, 0xfb61, _)         \
-  V(BrOnI31, 0xfb62, _)
+#define FOREACH_GC_OPCODE(V)                                         \
+  V(StructNewWithRtt, 0xfb01, _)                                     \
+  V(StructNewDefault, 0xfb02, _)                                     \
+  V(StructGet, 0xfb03, _)                                            \
+  V(StructGetS, 0xfb04, _)                                           \
+  V(StructGetU, 0xfb05, _)                                           \
+  V(StructSet, 0xfb06, _)                                            \
+  V(ArrayNewWithRtt, 0xfb11, _)                                      \
+  V(ArrayNewDefault, 0xfb12, _)                                      \
+  V(ArrayGet, 0xfb13, _)                                             \
+  V(ArrayGetS, 0xfb14, _)                                            \
+  V(ArrayGetU, 0xfb15, _)                                            \
+  V(ArraySet, 0xfb16, _)                                             \
+  V(ArrayLen, 0xfb17, _)                                             \
+  V(ArrayCopy, 0xfb18, _) /* not standardized - V8 experimental */   \
+  V(ArrayInit, 0xfb19, _) /* not standardized - V8 experimental */   \
+  V(I31New, 0xfb20, _)                                               \
+  V(I31GetS, 0xfb21, _)                                              \
+  V(I31GetU, 0xfb22, _)                                              \
+  V(RttCanon, 0xfb30, _)                                             \
+  V(RttSub, 0xfb31, _)                                               \
+  V(RttFreshSub, 0xfb32, _) /* not standardized - V8 experimental */ \
+  V(RefTest, 0xfb40, _)                                              \
+  V(RefCast, 0xfb41, _)                                              \
+  V(BrOnCast, 0xfb42, _)                                             \
+  V(BrOnCastFail, 0xfb43, _)                                         \
+  V(RefIsFunc, 0xfb50, _)                                            \
+  V(RefIsData, 0xfb51, _)                                            \
+  V(RefIsI31, 0xfb52, _)                                             \
+  V(RefAsFunc, 0xfb58, _)                                            \
+  V(RefAsData, 0xfb59, _)                                            \
+  V(RefAsI31, 0xfb5a, _)                                             \
+  V(BrOnFunc, 0xfb60, _)                                             \
+  V(BrOnData, 0xfb61, _)                                             \
+  V(BrOnI31, 0xfb62, _)                                              \
+  V(BrOnNonFunc, 0xfb63, _)                                          \
+  V(BrOnNonData, 0xfb64, _)                                          \
+  V(BrOnNonI31, 0xfb65, _)
 
 #define FOREACH_ATOMIC_0_OPERAND_OPCODE(V)                      \
   /* AtomicFence does not target a particular linear memory. */ \

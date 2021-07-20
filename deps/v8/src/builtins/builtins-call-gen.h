@@ -31,10 +31,9 @@ class CallOrConstructBuiltinsAssembler : public CodeStubAssembler {
                                  TNode<Context> context);
 
   template <class Descriptor>
-  void CallReceiver(Builtins::Name id,
-                    base::Optional<TNode<Object>> = base::nullopt);
+  void CallReceiver(Builtin id, base::Optional<TNode<Object>> = base::nullopt);
   template <class Descriptor>
-  void CallReceiver(Builtins::Name id, TNode<Int32T> argc, TNode<UintPtrT> slot,
+  void CallReceiver(Builtin id, TNode<Int32T> argc, TNode<UintPtrT> slot,
                     base::Optional<TNode<Object>> = base::nullopt);
 
   enum class CallFunctionTemplateMode : uint8_t {

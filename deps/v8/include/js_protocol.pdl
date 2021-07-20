@@ -175,7 +175,7 @@ domain Debugger
   command enable
     parameters
       # The maximum size in bytes of collected scripts (not referenced by other heap objects)
-      # the debugger can hold. Puts no limit if paramter is omitted.
+      # the debugger can hold. Puts no limit if parameter is omitted.
       experimental optional number maxScriptsCacheSize
     returns
       # Unique identifier of the debugger.
@@ -714,7 +714,7 @@ experimental domain HeapProfiler
     parameters
       # If true 'reportHeapSnapshotProgress' events will be generated while snapshot is being taken.
       optional boolean reportProgress
-      # If true, a raw snapshot without artifical roots will be generated
+      # If true, a raw snapshot without artificial roots will be generated
       optional boolean treatGlobalObjectsAsRoots
       # If true, numerical values are included in the snapshot
       optional boolean captureNumericValue
@@ -972,13 +972,13 @@ domain Profiler
   # Reports coverage delta since the last poll (either from an event like this, or from
   # `takePreciseCoverage` for the current isolate. May only be sent if precise code
   # coverage has been started. This event can be trigged by the embedder to, for example,
-  # trigger collection of coverage data immediatelly at a certain point in time.
+  # trigger collection of coverage data immediately at a certain point in time.
   experimental event preciseCoverageDeltaUpdate
     parameters
       # Monotonically increasing time (in seconds) when the coverage update was taken in the backend.
       number timestamp
       # Identifier for distinguishing coverage events.
-      string occassion
+      string occasion
       # Coverage data for the current isolate.
       array of ScriptCoverage result
 
@@ -1225,7 +1225,7 @@ domain Runtime
       string origin
       # Human readable name describing given context.
       string name
-      # A system-unique execution context identifier. Unlike the id, this is unique accross
+      # A system-unique execution context identifier. Unlike the id, this is unique across
       # multiple processes, so can be reliably used to identify specific context while backend
       # performs a cross-process navigation.
       experimental string uniqueId
@@ -1254,6 +1254,10 @@ domain Runtime
       optional RemoteObject exception
       # Identifier of the context where exception happened.
       optional ExecutionContextId executionContextId
+      # Dictionary with entries of meta data that the client associated
+      # with this exception, such as information about associated network
+      # requests, etc.
+      experimental optional object exceptionMetaData
 
   # Number of milliseconds since epoch.
   type Timestamp extends number
@@ -1343,6 +1347,8 @@ domain Runtime
       # Symbolic group name that can be used to release multiple objects. If objectGroup is not
       # specified and objectId is, objectGroup will be inherited from object.
       optional string objectGroup
+      # Whether to throw an exception if side effect cannot be ruled out during evaluation.
+      experimental optional boolean throwOnSideEffect
     returns
       # Call result.
       RemoteObject result
@@ -1422,9 +1428,9 @@ domain Runtime
       # evaluation and allows unsafe-eval. Defaults to true.
       experimental optional boolean allowUnsafeEvalBlockedByCSP
       # An alternative way to specify the execution context to evaluate in.
-      # Compared to contextId that may be reused accross processes, this is guaranteed to be
+      # Compared to contextId that may be reused across processes, this is guaranteed to be
       # system-unique, so it can be used to prevent accidental evaluation of the expression
-      # in context different than intended (e.g. as a result of navigation accross process
+      # in context different than intended (e.g. as a result of navigation across process
       # boundaries).
       # This is mutually exclusive with `contextId`.
       experimental optional string uniqueContextId

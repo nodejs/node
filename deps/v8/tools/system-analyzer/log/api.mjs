@@ -18,14 +18,6 @@ export class ApiLogEntry extends LogEntry {
     return this._argument;
   }
 
-  toString() {
-    return `Api(${this.type})`;
-  }
-
-  toStringLong() {
-    return `Api(${this.type}): ${this._name}`;
-  }
-
   static get propertyNames() {
     return ['type', 'name', 'argument'];
   }

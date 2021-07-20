@@ -208,15 +208,15 @@ TF_BUILTIN(DatePrototypeToPrimitive, CodeStubAssembler) {
   GotoIf(TaggedIsSmi(hint), &hint_is_invalid);
   GotoIfNot(IsString(CAST(hint)), &hint_is_invalid);
   GotoIf(TaggedEqual(
-             CallBuiltin(Builtins::kStringEqual, context, hint, number_string),
+             CallBuiltin(Builtin::kStringEqual, context, hint, number_string),
              TrueConstant()),
          &hint_is_number);
   GotoIf(TaggedEqual(
-             CallBuiltin(Builtins::kStringEqual, context, hint, default_string),
+             CallBuiltin(Builtin::kStringEqual, context, hint, default_string),
              TrueConstant()),
          &hint_is_string);
   GotoIf(TaggedEqual(
-             CallBuiltin(Builtins::kStringEqual, context, hint, string_string),
+             CallBuiltin(Builtin::kStringEqual, context, hint, string_string),
              TrueConstant()),
          &hint_is_string);
   Goto(&hint_is_invalid);

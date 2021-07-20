@@ -54,7 +54,6 @@ void TranslationArrayPrintSingleFrame(std::ostream& os,
     switch (opcode) {
       case TranslationOpcode::BEGIN:
         UNREACHABLE();
-        break;
 
       case TranslationOpcode::INTERPRETED_FRAME: {
         DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 5);

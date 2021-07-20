@@ -7,6 +7,7 @@
 
 #include "src/objects/descriptor-array-inl.h"
 #include "src/objects/field-index.h"
+#include "src/objects/map-inl.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {

@@ -9,6 +9,7 @@
 #include <string>
 
 #include "src/base/platform/wrappers.h"
+#include "src/base/vector.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/codegen/source-position.h"
 #include "src/compiler/all-nodes.h"
@@ -28,7 +29,6 @@
 #include "src/objects/script-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/utils/ostreams.h"
-#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -117,7 +117,7 @@ void JsonPrintFunctionSource(std::ostream& os, int source_id,
       os << ", \"sourceText\": \"";
       int len = shared->EndPosition() - start;
       SubStringRange source(String::cast(script->source()), no_gc, start, len);
-      for (const auto& c : source) {
+      for (auto c : source) {
         os << AsEscapedUC16ForJSON(c);
       }
       os << "\"";
@@ -201,7 +201,7 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
                                                  const char* optional_base_dir,
                                                  const char* phase,
                                                  const char* suffix) {
-  EmbeddedVector<char, 256> filename(0);
+  base::EmbeddedVector<char, 256> filename(0);
   std::unique_ptr<char[]> debug_name = info->GetDebugName();
   int optimization_id = info->IsOptimizing() ? info->optimization_id() : 0;
   if (strlen(debug_name.get()) > 0) {
@@ -213,7 +213,7 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
   } else {
     SNPrintF(filename, "turbo-none-%i", optimization_id);
   }
-  EmbeddedVector<char, 256> source_file(0);
+  base::EmbeddedVector<char, 256> source_file(0);
   bool source_available = false;
   if (FLAG_trace_file_names && info->has_shared_info() &&
       info->shared_info()->script().IsScript()) {
@@ -233,7 +233,7 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
   std::replace(filename.begin(), filename.begin() + filename.length(), ':',
                '-');
 
-  EmbeddedVector<char, 256> base_dir;
+  base::EmbeddedVector<char, 256> base_dir;
   if (optional_base_dir != nullptr) {
     SNPrintF(base_dir, "%s%c", optional_base_dir,
              base::OS::DirectorySeparator());
@@ -241,7 +241,7 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
     base_dir[0] = '\0';
   }
 
-  EmbeddedVector<char, 256> full_filename;
+  base::EmbeddedVector<char, 256> full_filename;
   if (phase == nullptr && !source_available) {
     SNPrintF(full_filename, "%s%s.%s", base_dir.begin(), filename.begin(),
              suffix);
@@ -257,7 +257,7 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
   }
 
   char* buffer = new char[full_filename.length() + 1];
-  base::Memcpy(buffer, full_filename.begin(), full_filename.length());
+  memcpy(buffer, full_filename.begin(), full_filename.length());
   buffer[full_filename.length()] = '\0';
   return std::unique_ptr<char[]>(buffer);
 }

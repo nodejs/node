@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/strings/string-builder-inl.h"
-
+#include "src/base/strings.h"
 #include "src/execution/isolate-inl.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/strings/string-builder-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -49,9 +49,10 @@ template void StringBuilderConcatHelper<uint8_t>(String special, uint8_t* sink,
                                                  FixedArray fixed_array,
                                                  int array_length);
 
-template void StringBuilderConcatHelper<uc16>(String special, uc16* sink,
-                                              FixedArray fixed_array,
-                                              int array_length);
+template void StringBuilderConcatHelper<base::uc16>(String special,
+                                                    base::uc16* sink,
+                                                    FixedArray fixed_array,
+                                                    int array_length);
 
 int StringBuilderConcatLength(int special_length, FixedArray fixed_array,
                               int array_length, bool* one_byte) {
@@ -213,7 +214,7 @@ MaybeHandle<String> ReplacementStringBuilder::ToString() {
         String);
 
     DisallowGarbageCollection no_gc;
-    uc16* char_buffer = seq->GetChars(no_gc);
+    base::uc16* char_buffer = seq->GetChars(no_gc);
     StringBuilderConcatHelper(*subject_, char_buffer, *array_builder_.array(),
                               array_builder_.length());
     joined_string = Handle<String>::cast(seq);

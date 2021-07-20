@@ -65,7 +65,6 @@ class RuntimeProfiler {
 
   Isolate* isolate_;
   bool any_ic_changed_;
-  unsigned int current_global_ticks_;
 };
 
 }  // namespace internal

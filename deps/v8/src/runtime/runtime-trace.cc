@@ -26,9 +26,7 @@ namespace internal {
 namespace {
 
 void AdvanceToOffsetForTracing(
-    interpreter::BytecodeArrayIterator&
-        bytecode_iterator,  // NOLINT(runtime/references)
-    int offset) {
+    interpreter::BytecodeArrayIterator& bytecode_iterator, int offset) {
   while (bytecode_iterator.current_offset() +
              bytecode_iterator.current_bytecode_size() <=
          offset) {
@@ -41,8 +39,7 @@ void AdvanceToOffsetForTracing(
 }
 
 void PrintRegisters(UnoptimizedFrame* frame, std::ostream& os, bool is_input,
-                    interpreter::BytecodeArrayIterator&
-                        bytecode_iterator,  // NOLINT(runtime/references)
+                    interpreter::BytecodeArrayIterator& bytecode_iterator,
                     Handle<Object> accumulator) {
   static const char kAccumulator[] = "accumulator";
   static const int kRegFieldWidth = static_cast<int>(sizeof(kAccumulator) - 1);

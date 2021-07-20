@@ -11,7 +11,7 @@
 //   NameConverter converter;
 //   Disassembler d(converter);
 //   for (byte* pc = begin; pc < end;) {
-//     v8::internal::EmbeddedVector<char, 256> buffer;
+//     v8::base::EmbeddedVector<char, 256> buffer;
 //     byte* prev_pc = pc;
 //     pc += d.InstructionDecode(buffer, pc);
 //     printf("%p    %08x      %s\n",
@@ -30,6 +30,8 @@
 #if V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
 
 #include "src/base/platform/platform.h"
+#include "src/base/strings.h"
+#include "src/base/vector.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/ppc/constants-ppc.h"
 #include "src/codegen/register-configuration.h"
@@ -45,7 +47,7 @@ namespace internal {
 // more informative description.
 class Decoder {
  public:
-  Decoder(const disasm::NameConverter& converter, Vector<char> out_buffer)
+  Decoder(const disasm::NameConverter& converter, base::Vector<char> out_buffer)
       : converter_(converter), out_buffer_(out_buffer), out_buffer_pos_(0) {
     out_buffer_[out_buffer_pos_] = '\0';
   }
@@ -89,7 +91,7 @@ class Decoder {
   void DecodeExt6(Instruction* instr);
 
   const disasm::NameConverter& converter_;
-  Vector<char> out_buffer_;
+  base::Vector<char> out_buffer_;
   int out_buffer_pos_;
 };
 
@@ -137,10 +139,12 @@ void Decoder::PrintSoftwareInterrupt(SoftwareInterruptCodes svc) {
       return;
     default:
       if (svc >= kStopCode) {
-        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d - 0x%x",
-                                    svc & kStopCodeMask, svc & kStopCodeMask);
+        out_buffer_pos_ +=
+            base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d - 0x%x",
+                           svc & kStopCodeMask, svc & kStopCodeMask);
       } else {
-        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", svc);
+        out_buffer_pos_ +=
+            base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", svc);
       }
       return;
   }
@@ -252,27 +256,38 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
     }
     case 'i': {  // int16
       int32_t value = (instr->Bits(15, 0) << 16) >> 16;
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
+      out_buffer_pos_ +=
+          base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
       return 5;
     }
     case 'I': {  // IMM8
       int8_t value = instr->Bits(18, 11);
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
+      out_buffer_pos_ +=
+          base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
       return 4;
     }
     case 'u': {  // uint16
       int32_t value = instr->Bits(15, 0);
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
+      out_buffer_pos_ +=
+          base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
       return 6;
     }
     case 'F': {  // FXM
       uint8_t value = instr->Bits(19, 12);
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
+      out_buffer_pos_ +=
+          base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
+      return 3;
+    }
+    case 'S': {  // SIM
+      int32_t value = static_cast<int32_t>(SIGN_EXT_IMM5(instr->Bits(20, 16)));
+      out_buffer_pos_ +=
+          base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
       return 3;
     }
     case 'U': {  // UIM
-      int32_t value = instr->Bits(20, 16);
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
+      uint8_t value = instr->Bits(19, 16);
+      out_buffer_pos_ +=
+          base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
       return 3;
     }
     case 'l': {
@@ -293,7 +308,7 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
       int code = instr->Bits(20, 18);
       if (code != 7) {
         out_buffer_pos_ +=
-            SNPrintF(out_buffer_ + out_buffer_pos_, " cr%d", code);
+            base::SNPrintF(out_buffer_ + out_buffer_pos_, " cr%d", code);
       }
       return 2;
     }
@@ -302,13 +317,13 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
       DCHECK(STRING_STARTS_WITH(format, "target"));
       if ((format[6] == '2') && (format[7] == '6')) {
         int off = ((instr->Bits(25, 2)) << 8) >> 6;
-        out_buffer_pos_ += SNPrintF(
+        out_buffer_pos_ += base::SNPrintF(
             out_buffer_ + out_buffer_pos_, "%+d -> %s", off,
             converter_.NameOfAddress(reinterpret_cast<byte*>(instr) + off));
         return 8;
       } else if ((format[6] == '1') && (format[7] == '6')) {
         int off = ((instr->Bits(15, 2)) << 18) >> 16;
-        out_buffer_pos_ += SNPrintF(
+        out_buffer_pos_ += base::SNPrintF(
             out_buffer_ + out_buffer_pos_, "%+d -> %s", off,
             converter_.NameOfAddress(reinterpret_cast<byte*>(instr) + off));
         return 8;
@@ -327,7 +342,8 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
           // SH Bits 15-11
           value = (sh << 26) >> 26;
         }
-        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
+        out_buffer_pos_ +=
+            base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
         return 2;
       }
       case 'm': {
@@ -351,14 +367,16 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
         } else {
           UNREACHABLE();  // bad format
         }
-        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
+        out_buffer_pos_ +=
+            base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
         return 2;
       }
     }
 #if V8_TARGET_ARCH_PPC64
     case 'd': {  // ds value for offset
       int32_t value = SIGN_EXT_IMM16(instr->Bits(15, 0) & ~3);
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
+      out_buffer_pos_ +=
+          base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
       return 1;
     }
 #endif
@@ -460,6 +478,13 @@ void Decoder::DecodeExt0(Instruction* instr) {
   }
     PPC_VX_OPCODE_C_FORM_LIST(DECODE_VX_C_FORM__INSTRUCTIONS)
 #undef DECODE_VX_C_FORM__INSTRUCTIONS
+#define DECODE_VX_E_FORM__INSTRUCTIONS(name, opcode_name, opcode_value) \
+  case opcode_name: {                                                   \
+    Format(instr, #name " 'Vt, 'SIM");                                  \
+    return;                                                             \
+  }
+    PPC_VX_OPCODE_E_FORM_LIST(DECODE_VX_E_FORM__INSTRUCTIONS)
+#undef DECODE_VX_E_FORM__INSTRUCTIONS
   }
 }
 
@@ -1086,11 +1111,27 @@ void Decoder::DecodeExt2(Instruction* instr) {
       return;
     }
     case MTVSRDD: {
-      Format(instr, "mtvsrwz 'Xt, 'ra");
+      Format(instr, "mtvsrdd 'Xt, 'ra");
       return;
     }
     case LDBRX: {
       Format(instr, "ldbrx   'rt, 'ra, 'rb");
+      return;
+    }
+    case LWBRX: {
+      Format(instr, "lwbrx   'rt, 'ra, 'rb");
+      return;
+    }
+    case STDBRX: {
+      Format(instr, "stdbrx  'rs, 'ra, 'rb");
+      return;
+    }
+    case STWBRX: {
+      Format(instr, "stwbrx  'rs, 'ra, 'rb");
+      return;
+    }
+    case STHBRX: {
+      Format(instr, "sthbrx  'rs, 'ra, 'rb");
       return;
     }
     case MTCRF: {
@@ -1338,8 +1379,8 @@ void Decoder::DecodeExt6(Instruction* instr) {
 int Decoder::InstructionDecode(byte* instr_ptr) {
   Instruction* instr = Instruction::At(instr_ptr);
   // Print raw instruction bytes.
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%08x       ",
-                              instr->InstructionBits());
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_,
+                                    "%08x       ", instr->InstructionBits());
 
   if (ABI_USES_FUNCTION_DESCRIPTORS && instr->InstructionBits() == 0) {
     // The first field will be identified as a jump table entry.  We
@@ -1668,7 +1709,7 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
 namespace disasm {
 
 const char* NameConverter::NameOfAddress(byte* addr) const {
-  v8::internal::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
+  v8::base::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
   return tmp_buffer_.begin();
 }
 
@@ -1696,7 +1737,7 @@ const char* NameConverter::NameInCode(byte* addr) const {
 
 //------------------------------------------------------------------------------
 
-int Disassembler::InstructionDecode(v8::internal::Vector<char> buffer,
+int Disassembler::InstructionDecode(v8::base::Vector<char> buffer,
                                     byte* instruction) {
   v8::internal::Decoder d(converter_, buffer);
   return d.InstructionDecode(instruction);
@@ -1710,7 +1751,7 @@ void Disassembler::Disassemble(FILE* f, byte* begin, byte* end,
   NameConverter converter;
   Disassembler d(converter, unimplemented_action);
   for (byte* pc = begin; pc < end;) {
-    v8::internal::EmbeddedVector<char, 128> buffer;
+    v8::base::EmbeddedVector<char, 128> buffer;
     buffer[0] = '\0';
     byte* prev_pc = pc;
     pc += d.InstructionDecode(buffer, pc);

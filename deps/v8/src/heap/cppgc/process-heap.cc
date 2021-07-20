@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "src/base/lazy-instance.h"
+#include "src/base/logging.h"
 #include "src/base/platform/mutex.h"
 #include "src/heap/cppgc/heap-base.h"
 #include "src/heap/cppgc/page-memory.h"
@@ -41,6 +42,10 @@ void HeapRegistry::RegisterHeap(HeapBase& heap) {
 // static
 void HeapRegistry::UnregisterHeap(HeapBase& heap) {
   v8::base::MutexGuard guard(g_heap_registry_mutex.Pointer());
+
+  // HeapRegistry requires access to PageBackend which means it must still
+  // be present by the time a heap is removed from the registry.
+  DCHECK_NOT_NULL(heap.page_backend());
 
   auto& storage = GetHeapRegistryStorage();
   const auto pos = std::find(storage.begin(), storage.end(), &heap);

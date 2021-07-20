@@ -18,6 +18,8 @@ class State {
   _deoptTimeline;
   _codeTimeline;
   _apiTimeline;
+  _tickTimeline;
+  _timerTimeline;
   _minStartTime = Number.POSITIVE_INFINITY;
   _maxEndTime = Number.NEGATIVE_INFINITY;
 
@@ -40,12 +42,15 @@ class State {
   }
 
   setTimelines(
-      mapTimeline, icTimeline, deoptTimeline, codeTimeline, apiTimeline) {
+      mapTimeline, icTimeline, deoptTimeline, codeTimeline, apiTimeline,
+      tickTimeline, timerTimeline) {
     this._mapTimeline = mapTimeline;
     this._icTimeline = icTimeline;
     this._deoptTimeline = deoptTimeline;
     this._codeTimeline = codeTimeline;
     this._apiTimeline = apiTimeline;
+    this._tickTimeline = tickTimeline;
+    this._timerTimeline = timerTimeline;
     for (let timeline of arguments) {
       if (timeline === undefined) return;
       this._minStartTime = Math.min(this._minStartTime, timeline.startTime);
@@ -77,10 +82,19 @@ class State {
     return this._apiTimeline;
   }
 
+  get tickTimeline() {
+    return this._tickTimeline;
+  }
+
+  get timerTimeline() {
+    return this._timerTimeline;
+  }
+
   get timelines() {
     return [
       this._mapTimeline, this._icTimeline, this._deoptTimeline,
-      this._codeTimeline, this._apiTimeline
+      this._codeTimeline, this._apiTimeline, this._tickTimeline,
+      this._timerTimeline
     ];
   }
 

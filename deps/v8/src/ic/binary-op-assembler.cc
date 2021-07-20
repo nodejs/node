@@ -173,7 +173,7 @@ TNode<Object> BinaryOpAssembler::Generate_AddWithFeedback(
         UpdateFeedback(var_type_feedback.value(), maybe_feedback_vector(),
                        slot_id, update_feedback_mode);
         var_result =
-            CallBuiltin(Builtins::kStringAdd_CheckNone, context(), lhs, rhs);
+            CallBuiltin(Builtin::kStringAdd_CheckNone, context(), lhs, rhs);
 
         Goto(&end);
       }
@@ -195,7 +195,7 @@ TNode<Object> BinaryOpAssembler::Generate_AddWithFeedback(
   {
     // Both {lhs} and {rhs} are of BigInt type.
     Label bigint_too_big(this);
-    var_result = CallBuiltin(Builtins::kBigIntAddNoThrow, context(), lhs, rhs);
+    var_result = CallBuiltin(Builtin::kBigIntAddNoThrow, context(), lhs, rhs);
     // Check for sentinel that signals BigIntTooBig exception.
     GotoIf(TaggedIsSmi(var_result.value()), &bigint_too_big);
 
@@ -229,7 +229,7 @@ TNode<Object> BinaryOpAssembler::Generate_AddWithFeedback(
   {
     UpdateFeedback(var_type_feedback.value(), maybe_feedback_vector(), slot_id,
                    update_feedback_mode);
-    var_result = CallBuiltin(Builtins::kAdd, context(), lhs, rhs);
+    var_result = CallBuiltin(Builtin::kAdd, context(), lhs, rhs);
     Goto(&end);
   }
 
@@ -402,7 +402,7 @@ TNode<Object> BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
     if (op == Operation::kSubtract) {
       Label bigint_too_big(this);
       var_result =
-          CallBuiltin(Builtins::kBigIntSubtractNoThrow, context(), lhs, rhs);
+          CallBuiltin(Builtin::kBigIntSubtractNoThrow, context(), lhs, rhs);
 
       // Check for sentinel that signals BigIntTooBig exception.
       GotoIf(TaggedIsSmi(var_result.value()), &bigint_too_big);
@@ -435,16 +435,19 @@ TNode<Object> BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
     TNode<Object> result;
     switch (op) {
       case Operation::kSubtract:
-        result = CallBuiltin(Builtins::kSubtract, context(), lhs, rhs);
+        result = CallBuiltin(Builtin::kSubtract, context(), lhs, rhs);
         break;
       case Operation::kMultiply:
-        result = CallBuiltin(Builtins::kMultiply, context(), lhs, rhs);
+        result = CallBuiltin(Builtin::kMultiply, context(), lhs, rhs);
         break;
       case Operation::kDivide:
-        result = CallBuiltin(Builtins::kDivide, context(), lhs, rhs);
+        result = CallBuiltin(Builtin::kDivide, context(), lhs, rhs);
         break;
       case Operation::kModulus:
-        result = CallBuiltin(Builtins::kModulus, context(), lhs, rhs);
+        result = CallBuiltin(Builtin::kModulus, context(), lhs, rhs);
+        break;
+      case Operation::kExponentiate:
+        result = CallBuiltin(Builtin::kExponentiate, context(), lhs, rhs);
         break;
       default:
         UNREACHABLE();
@@ -576,11 +579,19 @@ TNode<Object> BinaryOpAssembler::Generate_ExponentiateWithFeedback(
     TNode<Object> exponent, TNode<UintPtrT> slot_id,
     const LazyNode<HeapObject>& maybe_feedback_vector,
     UpdateFeedbackMode update_feedback_mode, bool rhs_known_smi) {
-  // We currently don't optimize exponentiation based on feedback.
-  TNode<Smi> dummy_feedback = SmiConstant(BinaryOperationFeedback::kAny);
-  UpdateFeedback(dummy_feedback, maybe_feedback_vector(), slot_id,
-                 update_feedback_mode);
-  return CallBuiltin(Builtins::kExponentiate, context(), base, exponent);
+  auto smiFunction = [=](TNode<Smi> base, TNode<Smi> exponent,
+                         TVariable<Smi>* var_type_feedback) {
+    *var_type_feedback = SmiConstant(BinaryOperationFeedback::kNumber);
+    return AllocateHeapNumberWithValue(
+        Float64Pow(SmiToFloat64(base), SmiToFloat64(exponent)));
+  };
+  auto floatFunction = [=](TNode<Float64T> base, TNode<Float64T> exponent) {
+    return Float64Pow(base, exponent);
+  };
+  return Generate_BinaryOperationWithFeedback(
+      context, base, exponent, slot_id, maybe_feedback_vector, smiFunction,
+      floatFunction, Operation::kExponentiate, update_feedback_mode,
+      rhs_known_smi);
 }
 
 TNode<Object> BinaryOpAssembler::Generate_BitwiseBinaryOpWithOptionalFeedback(

@@ -176,7 +176,7 @@ using namespace regexp_compiler_constants;  // NOLINT(build/namespaces)
 
 namespace {
 
-constexpr uc32 MaxCodeUnit(const bool one_byte) {
+constexpr base::uc32 MaxCodeUnit(const bool one_byte) {
   STATIC_ASSERT(String::kMaxOneByteCharCodeU <=
                 std::numeric_limits<uint16_t>::max());
   STATIC_ASSERT(String::kMaxUtf16CodeUnitU <=
@@ -485,7 +485,6 @@ void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
           }
           default:
             UNREACHABLE();
-            break;
         }
       }
     }
@@ -603,7 +602,7 @@ void NegativeSubmatchSuccess::Emit(RegExpCompiler* compiler, Trace* trace) {
     assembler->ClearRegisters(clear_capture_start_, clear_capture_end);
   }
   // Now that we have unwound the stack we find at the top of the stack the
-  // backtrack that the BeginSubmatch node got.
+  // backtrack that the BeginNegativeSubmatch node got.
   assembler->Backtrack();
 }
 
@@ -668,10 +667,19 @@ ActionNode* ActionNode::ClearCaptures(Interval range, RegExpNode* on_success) {
   return result;
 }
 
-ActionNode* ActionNode::BeginSubmatch(int stack_reg, int position_reg,
-                                      RegExpNode* on_success) {
+ActionNode* ActionNode::BeginPositiveSubmatch(int stack_reg, int position_reg,
+                                              RegExpNode* on_success) {
   ActionNode* result =
-      on_success->zone()->New<ActionNode>(BEGIN_SUBMATCH, on_success);
+      on_success->zone()->New<ActionNode>(BEGIN_POSITIVE_SUBMATCH, on_success);
+  result->data_.u_submatch.stack_pointer_register = stack_reg;
+  result->data_.u_submatch.current_position_register = position_reg;
+  return result;
+}
+
+ActionNode* ActionNode::BeginNegativeSubmatch(int stack_reg, int position_reg,
+                                              RegExpNode* on_success) {
+  ActionNode* result =
+      on_success->zone()->New<ActionNode>(BEGIN_NEGATIVE_SUBMATCH, on_success);
   result->data_.u_submatch.stack_pointer_register = stack_reg;
   result->data_.u_submatch.current_position_register = position_reg;
   return result;
@@ -742,7 +750,7 @@ bool ContainsOnlyUtf16CodeUnits(unibrow::uchar* chars, int length) {
 
 // Returns the number of characters in the equivalence class, omitting those
 // that cannot occur in the source string because it is Latin1.
-static int GetCaseIndependentLetters(Isolate* isolate, uc16 character,
+static int GetCaseIndependentLetters(Isolate* isolate, base::uc16 character,
                                      bool one_byte_subject,
                                      unibrow::uchar* letters,
                                      int letter_length) {
@@ -806,7 +814,7 @@ static int GetCaseIndependentLetters(Isolate* isolate, uc16 character,
 }
 
 static inline bool EmitSimpleCharacter(Isolate* isolate,
-                                       RegExpCompiler* compiler, uc16 c,
+                                       RegExpCompiler* compiler, base::uc16 c,
                                        Label* on_failure, int cp_offset,
                                        bool check, bool preloaded) {
   RegExpMacroAssembler* assembler = compiler->macro_assembler();
@@ -822,8 +830,9 @@ static inline bool EmitSimpleCharacter(Isolate* isolate,
 // Only emits non-letters (things that don't have case).  Only used for case
 // independent matches.
 static inline bool EmitAtomNonLetter(Isolate* isolate, RegExpCompiler* compiler,
-                                     uc16 c, Label* on_failure, int cp_offset,
-                                     bool check, bool preloaded) {
+                                     base::uc16 c, Label* on_failure,
+                                     int cp_offset, bool check,
+                                     bool preloaded) {
   RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
   bool one_byte = compiler->one_byte();
   unibrow::uchar chars[4];
@@ -851,27 +860,27 @@ static inline bool EmitAtomNonLetter(Isolate* isolate, RegExpCompiler* compiler,
 }
 
 static bool ShortCutEmitCharacterPair(RegExpMacroAssembler* macro_assembler,
-                                      bool one_byte, uc16 c1, uc16 c2,
-                                      Label* on_failure) {
+                                      bool one_byte, base::uc16 c1,
+                                      base::uc16 c2, Label* on_failure) {
   const uint32_t char_mask = CharMask(one_byte);
-  uc16 exor = c1 ^ c2;
+  base::uc16 exor = c1 ^ c2;
   // Check whether exor has only one bit set.
   if (((exor - 1) & exor) == 0) {
     // If c1 and c2 differ only by one bit.
     // Ecma262UnCanonicalize always gives the highest number last.
     DCHECK(c2 > c1);
-    uc16 mask = char_mask ^ exor;
+    base::uc16 mask = char_mask ^ exor;
     macro_assembler->CheckNotCharacterAfterAnd(c1, mask, on_failure);
     return true;
   }
   DCHECK(c2 > c1);
-  uc16 diff = c2 - c1;
+  base::uc16 diff = c2 - c1;
   if (((diff - 1) & diff) == 0 && c1 >= diff) {
     // If the characters differ by 2^n but don't differ by one bit then
     // subtract the difference from the found character, then do the or
     // trick.  We avoid the theoretical case where negative numbers are
     // involved in order to simplify code generation.
-    uc16 mask = char_mask ^ diff;
+    base::uc16 mask = char_mask ^ diff;
     macro_assembler->CheckNotCharacterAfterMinusAnd(c1 - diff, diff, mask,
                                                     on_failure);
     return true;
@@ -882,8 +891,8 @@ static bool ShortCutEmitCharacterPair(RegExpMacroAssembler* macro_assembler,
 // Only emits letters (things that have case).  Only used for case independent
 // matches.
 static inline bool EmitAtomLetter(Isolate* isolate, RegExpCompiler* compiler,
-                                  uc16 c, Label* on_failure, int cp_offset,
-                                  bool check, bool preloaded) {
+                                  base::uc16 c, Label* on_failure,
+                                  int cp_offset, bool check, bool preloaded) {
   RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
   bool one_byte = compiler->one_byte();
   unibrow::uchar chars[4];
@@ -954,14 +963,14 @@ static void EmitDoubleBoundaryTest(RegExpMacroAssembler* masm, int first,
 // even_label is for ranges[i] to ranges[i + 1] where i - start_index is even.
 // odd_label is for ranges[i] to ranges[i + 1] where i - start_index is odd.
 static void EmitUseLookupTable(RegExpMacroAssembler* masm,
-                               ZoneList<uc32>* ranges, uint32_t start_index,
-                               uint32_t end_index, uc32 min_char,
-                               Label* fall_through, Label* even_label,
-                               Label* odd_label) {
+                               ZoneList<base::uc32>* ranges,
+                               uint32_t start_index, uint32_t end_index,
+                               base::uc32 min_char, Label* fall_through,
+                               Label* even_label, Label* odd_label) {
   static const uint32_t kSize = RegExpMacroAssembler::kTableSize;
   static const uint32_t kMask = RegExpMacroAssembler::kTableMask;
 
-  uc32 base = (min_char & ~kMask);
+  base::uc32 base = (min_char & ~kMask);
   USE(base);
 
   // Assert that everything is on one kTableSize page.
@@ -1008,10 +1017,10 @@ static void EmitUseLookupTable(RegExpMacroAssembler* masm,
   if (on_bit_clear != fall_through) masm->GoTo(on_bit_clear);
 }
 
-static void CutOutRange(RegExpMacroAssembler* masm, ZoneList<uc32>* ranges,
-                        uint32_t start_index, uint32_t end_index,
-                        uint32_t cut_index, Label* even_label,
-                        Label* odd_label) {
+static void CutOutRange(RegExpMacroAssembler* masm,
+                        ZoneList<base::uc32>* ranges, uint32_t start_index,
+                        uint32_t end_index, uint32_t cut_index,
+                        Label* even_label, Label* odd_label) {
   bool odd = (((cut_index - start_index) & 1) == 1);
   Label* in_range_label = odd ? odd_label : even_label;
   Label dummy;
@@ -1032,14 +1041,14 @@ static void CutOutRange(RegExpMacroAssembler* masm, ZoneList<uc32>* ranges,
 
 // Unicode case.  Split the search space into kSize spaces that are handled
 // with recursion.
-static void SplitSearchSpace(ZoneList<uc32>* ranges, uint32_t start_index,
+static void SplitSearchSpace(ZoneList<base::uc32>* ranges, uint32_t start_index,
                              uint32_t end_index, uint32_t* new_start_index,
-                             uint32_t* new_end_index, uc32* border) {
+                             uint32_t* new_end_index, base::uc32* border) {
   static const uint32_t kSize = RegExpMacroAssembler::kTableSize;
   static const uint32_t kMask = RegExpMacroAssembler::kTableMask;
 
-  uc32 first = ranges->at(start_index);
-  uc32 last = ranges->at(end_index) - 1;
+  base::uc32 first = ranges->at(start_index);
+  base::uc32 last = ranges->at(end_index) - 1;
 
   *new_start_index = start_index;
   *border = (ranges->at(start_index) & ~kMask) + kSize;
@@ -1098,15 +1107,16 @@ static void SplitSearchSpace(ZoneList<uc32>* ranges, uint32_t start_index,
 // know that the character is in the range of min_char to max_char inclusive.
 // Either label can be nullptr indicating backtracking.  Either label can also
 // be equal to the fall_through label.
-static void GenerateBranches(RegExpMacroAssembler* masm, ZoneList<uc32>* ranges,
-                             uint32_t start_index, uint32_t end_index,
-                             uc32 min_char, uc32 max_char, Label* fall_through,
+static void GenerateBranches(RegExpMacroAssembler* masm,
+                             ZoneList<base::uc32>* ranges, uint32_t start_index,
+                             uint32_t end_index, base::uc32 min_char,
+                             base::uc32 max_char, Label* fall_through,
                              Label* even_label, Label* odd_label) {
   DCHECK_LE(min_char, String::kMaxUtf16CodeUnit);
   DCHECK_LE(max_char, String::kMaxUtf16CodeUnit);
 
-  uc32 first = ranges->at(start_index);
-  uc32 last = ranges->at(end_index) - 1;
+  base::uc32 first = ranges->at(start_index);
+  base::uc32 last = ranges->at(end_index) - 1;
 
   DCHECK_LT(min_char, first);
 
@@ -1166,7 +1176,7 @@ static void GenerateBranches(RegExpMacroAssembler* masm, ZoneList<uc32>* ranges,
 
   uint32_t new_start_index = 0;
   uint32_t new_end_index = 0;
-  uc32 border = 0;
+  base::uc32 border = 0;
 
   SplitSearchSpace(ranges, start_index, end_index, &new_start_index,
                    &new_end_index, &border);
@@ -1216,7 +1226,7 @@ static void EmitCharClass(RegExpMacroAssembler* macro_assembler,
   ZoneList<CharacterRange>* ranges = cc->ranges(zone);
   CharacterRange::Canonicalize(ranges);
 
-  const uc32 max_char = MaxCodeUnit(one_byte);
+  const base::uc32 max_char = MaxCodeUnit(one_byte);
   int range_count = ranges->length();
 
   int last_valid_range = range_count - 1;
@@ -1263,8 +1273,8 @@ static void EmitCharClass(RegExpMacroAssembler* macro_assembler,
   // entry at zero which goes to the failure label, but if there
   // was already one there we fall through for success on that entry.
   // Subsequent entries have alternating meaning (success/failure).
-  ZoneList<uc32>* range_boundaries =
-      zone->New<ZoneList<uc32>>(last_valid_range, zone);
+  ZoneList<base::uc32>* range_boundaries =
+      zone->New<ZoneList<base::uc32>>(last_valid_range, zone);
 
   bool zeroth_entry_is_failure = !cc->is_negated();
 
@@ -1570,11 +1580,11 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
   for (int k = 0; k < elements()->length(); k++) {
     TextElement elm = elements()->at(k);
     if (elm.text_type() == TextElement::ATOM) {
-      Vector<const uc16> quarks = elm.atom()->data();
+      base::Vector<const base::uc16> quarks = elm.atom()->data();
       for (int i = 0; i < characters && i < quarks.length(); i++) {
         QuickCheckDetails::Position* pos =
             details->positions(characters_filled_in);
-        uc16 c = quarks[i];
+        base::uc16 c = quarks[i];
         if (elm.atom()->ignore_case()) {
           unibrow::uchar chars[4];
           int length = GetCaseIndependentLetters(
@@ -1655,8 +1665,9 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
           }
         }
         CharacterRange range = ranges->at(first_range);
-        const uc32 first_from = range.from();
-        const uc32 first_to = (range.to() > char_mask) ? char_mask : range.to();
+        const base::uc32 first_from = range.from();
+        const base::uc32 first_to =
+            (range.to() > char_mask) ? char_mask : range.to();
         const uint32_t differing_bits = (first_from ^ first_to);
         // A mask and compare is only perfect if the differing bits form a
         // number like 00011111 with one single block of trailing 1s.
@@ -1668,9 +1679,10 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
         uint32_t bits = (first_from & common_bits);
         for (int i = first_range + 1; i < ranges->length(); i++) {
           CharacterRange range = ranges->at(i);
-          const uc32 from = range.from();
+          const base::uc32 from = range.from();
           if (from > char_mask) continue;
-          const uc32 to = (range.to() > char_mask) ? char_mask : range.to();
+          const base::uc32 to =
+              (range.to() > char_mask) ? char_mask : range.to();
           // Here we are combining more ranges into the mask and compare
           // value.  With each new range the mask becomes more sparse and
           // so the chances of a false positive rise.  A character class
@@ -1842,15 +1854,15 @@ RegExpNode* TextNode::FilterOneByte(int depth) {
   for (int i = 0; i < element_count; i++) {
     TextElement elm = elements()->at(i);
     if (elm.text_type() == TextElement::ATOM) {
-      Vector<const uc16> quarks = elm.atom()->data();
+      base::Vector<const base::uc16> quarks = elm.atom()->data();
       for (int j = 0; j < quarks.length(); j++) {
-        uc16 c = quarks[j];
+        base::uc16 c = quarks[j];
         if (elm.atom()->ignore_case()) {
           c = unibrow::Latin1::TryConvertToLatin1(c);
         }
         if (c > unibrow::Latin1::kMaxChar) return set_replacement(nullptr);
         // Replace quark in case we converted to Latin-1.
-        uc16* writable_quarks = const_cast<uc16*>(quarks.begin());
+        base::uc16* writable_quarks = const_cast<base::uc16*>(quarks.begin());
         writable_quarks[j] = c;
       }
     } else {
@@ -2305,11 +2317,11 @@ void TextNode::TextEmitPass(RegExpCompiler* compiler, TextEmitPassType pass,
     int cp_offset = trace->cp_offset() + elm.cp_offset() + backward_offset;
     if (elm.text_type() == TextElement::ATOM) {
       if (SkipPass(pass, elm.atom()->ignore_case())) continue;
-      Vector<const uc16> quarks = elm.atom()->data();
+      base::Vector<const base::uc16> quarks = elm.atom()->data();
       for (int j = preloaded ? 0 : quarks.length() - 1; j >= 0; j--) {
         if (first_element_checked && i == 0 && j == 0) continue;
         if (DeterminedAlready(quick_check, elm.cp_offset() + j)) continue;
-        uc16 quark = quarks[j];
+        base::uc16 quark = quarks[j];
         if (elm.atom()->ignore_case()) {
           // Everywhere else we assume that a non-Latin-1 character cannot match
           // a Latin-1 character. Avoid the cases where this is assumption is
@@ -2514,7 +2526,7 @@ RegExpNode* TextNode::GetSuccessorOfOmnivorousTextNode(
     return ranges->length() == 0 ? on_success() : nullptr;
   }
   if (ranges->length() != 1) return nullptr;
-  const uc32 max_char = MaxCodeUnit(compiler->one_byte());
+  const base::uc32 max_char = MaxCodeUnit(compiler->one_byte());
   return ranges->at(0).IsEverything(max_char) ? on_success() : nullptr;
 }
 
@@ -3340,7 +3352,8 @@ void ActionNode::Emit(RegExpCompiler* compiler, Trace* trace) {
       on_success()->Emit(compiler, &new_trace);
       break;
     }
-    case BEGIN_SUBMATCH:
+    case BEGIN_POSITIVE_SUBMATCH:
+    case BEGIN_NEGATIVE_SUBMATCH:
       if (!trace->is_trivial()) {
         trace->Flush(compiler, this);
       } else {
@@ -3533,28 +3546,32 @@ class EatsAtLeastPropagator : public AllStatic {
   }
 
   static void VisitAction(ActionNode* that) {
-    // - BEGIN_SUBMATCH and POSITIVE_SUBMATCH_SUCCESS wrap lookarounds.
-    // Lookarounds rewind input, so their eats_at_least value must not
-    // propagate to surroundings.
-    // TODO(jgruber): Instead of resetting EAL to 0 at lookaround boundaries,
-    // analysis should instead skip over the lookaround and look at whatever
-    // follows the lookaround. A simple solution would be to store a pointer to
-    // the associated POSITIVE_SUBMATCH_SUCCESS node in the BEGIN_SUBMATCH
-    // node, and use that during analysis.
-    // - SET_REGISTER_FOR_LOOP indicates a loop entry point, which means the
-    // loop body will run at least the minimum number of times before the
-    // continuation case can run. Otherwise the current node eats at least as
-    // much as its successor.
     switch (that->action_type()) {
-      case ActionNode::BEGIN_SUBMATCH:
+      case ActionNode::BEGIN_POSITIVE_SUBMATCH:
       case ActionNode::POSITIVE_SUBMATCH_SUCCESS:
+        // We do not propagate eats_at_least data through positive lookarounds,
+        // because they rewind input.
+        // TODO(v8:11859) Potential approaches for fixing this include:
+        // 1. Add a dedicated choice node for positive lookaround, similar to
+        //    NegativeLookaroundChoiceNode.
+        // 2. Add an eats_at_least_inside_loop field to EatsAtLeastInfo, which
+        //    is <= eats_at_least_from_possibly_start, and use that value in
+        //    EatsAtLeastFromLoopEntry.
         DCHECK(that->eats_at_least_info()->IsZero());
         break;
       case ActionNode::SET_REGISTER_FOR_LOOP:
+        // SET_REGISTER_FOR_LOOP indicates a loop entry point, which means the
+        // loop body will run at least the minimum number of times before the
+        // continuation case can run.
         that->set_eats_at_least_info(
             that->on_success()->EatsAtLeastFromLoopEntry());
         break;
+      case ActionNode::BEGIN_NEGATIVE_SUBMATCH:
       default:
+        // Otherwise, the current node eats at least as much as its successor.
+        // Note: we can propagate eats_at_least data for BEGIN_NEGATIVE_SUBMATCH
+        // because NegativeLookaroundChoiceNode ignores its lookaround successor
+        // when computing eats-at-least and quick check information.
         that->set_eats_at_least_info(*that->on_success()->eats_at_least_info());
         break;
     }
@@ -3789,7 +3806,7 @@ void TextNode::FillInBMInfo(Isolate* isolate, int initial_offset, int budget,
           if (initial_offset == 0) set_bm_info(not_at_start, bm);
           return;
         }
-        uc16 character = atom->data()[j];
+        base::uc16 character = atom->data()[j];
         if (IgnoreCase(atom->flags())) {
           unibrow::uchar chars[4];
           int length = GetCaseIndependentLetters(

@@ -4,7 +4,7 @@
 
 // Flags: --expose-wasm --expose-gc --allow-natives-syntax
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 // Use global variables for all values where the test wants to maintain strict
 // control over value lifetime. Using local variables would not give sufficient

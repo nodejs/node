@@ -18,10 +18,26 @@ found in the LICENSE file. -->
       width: 30px;
       background-color: var(--border-color);
     }
+    .titleButtons {
+      float: right;
+    }
+    .titleButtons button {
+      border-radius: 20px;
+      width: 20px;
+      height: 20px;
+      font-weight: bold;
+      line-height: 11px;
+    }
   </style>
 </head>
 <div class="panel">
-  <h2>Timeline Panel</h2>
+  <h2>
+    Timeline Panel
+    <div class="titleButtons">
+      <button id="zoomIn" title="Increase resolution">+</button>
+      <button id="zoomOut" title="Decrease resolution">–</button>
+    </div>
+  </h2>
   <div class="titleBackground"></div>
   <div>
     <slot></slot>

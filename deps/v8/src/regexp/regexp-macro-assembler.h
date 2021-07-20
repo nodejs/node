@@ -5,6 +5,7 @@
 #ifndef V8_REGEXP_REGEXP_MACRO_ASSEMBLER_H_
 #define V8_REGEXP_REGEXP_MACRO_ASSEMBLER_H_
 
+#include "src/base/strings.h"
 #include "src/codegen/label.h"
 #include "src/regexp/regexp-ast.h"
 #include "src/regexp/regexp.h"
@@ -12,12 +13,12 @@
 namespace v8 {
 namespace internal {
 
-static const uc32 kLeadSurrogateStart = 0xd800;
-static const uc32 kLeadSurrogateEnd = 0xdbff;
-static const uc32 kTrailSurrogateStart = 0xdc00;
-static const uc32 kTrailSurrogateEnd = 0xdfff;
-static const uc32 kNonBmpStart = 0x10000;
-static const uc32 kNonBmpEnd = 0x10ffff;
+static const base::uc32 kLeadSurrogateStart = 0xd800;
+static const base::uc32 kLeadSurrogateEnd = 0xdbff;
+static const base::uc32 kTrailSurrogateStart = 0xdc00;
+static const base::uc32 kTrailSurrogateEnd = 0xdfff;
+static const base::uc32 kNonBmpStart = 0x10000;
+static const base::uc32 kNonBmpEnd = 0x10ffff;
 
 struct DisjunctDecisionRow {
   RegExpCharacterClass cc;
@@ -95,8 +96,8 @@ class RegExpMacroAssembler {
   virtual void CheckCharacterAfterAnd(unsigned c,
                                       unsigned and_with,
                                       Label* on_equal) = 0;
-  virtual void CheckCharacterGT(uc16 limit, Label* on_greater) = 0;
-  virtual void CheckCharacterLT(uc16 limit, Label* on_less) = 0;
+  virtual void CheckCharacterGT(base::uc16 limit, Label* on_greater) = 0;
+  virtual void CheckCharacterLT(base::uc16 limit, Label* on_less) = 0;
   virtual void CheckGreedyLoop(Label* on_tos_equals_current_position) = 0;
   virtual void CheckAtStart(int cp_offset, Label* on_at_start) = 0;
   virtual void CheckNotAtStart(int cp_offset, Label* on_not_at_start) = 0;
@@ -115,15 +116,14 @@ class RegExpMacroAssembler {
                                          Label* on_not_equal) = 0;
   // Subtract a constant from the current character, then and with the given
   // constant and then check for a match with c.
-  virtual void CheckNotCharacterAfterMinusAnd(uc16 c,
-                                              uc16 minus,
-                                              uc16 and_with,
+  virtual void CheckNotCharacterAfterMinusAnd(base::uc16 c, base::uc16 minus,
+                                              base::uc16 and_with,
                                               Label* on_not_equal) = 0;
-  virtual void CheckCharacterInRange(uc16 from,
-                                     uc16 to,  // Both inclusive.
+  virtual void CheckCharacterInRange(base::uc16 from,
+                                     base::uc16 to,  // Both inclusive.
                                      Label* on_in_range) = 0;
-  virtual void CheckCharacterNotInRange(uc16 from,
-                                        uc16 to,  // Both inclusive.
+  virtual void CheckCharacterNotInRange(base::uc16 from,
+                                        base::uc16 to,  // Both inclusive.
                                         Label* on_not_in_range) = 0;
 
   // The current character (modulus the kTableSize) is looked up in the byte
@@ -137,7 +137,7 @@ class RegExpMacroAssembler {
   // character. Returns false if the type of special character class does
   // not have custom support.
   // May clobber the current loaded character.
-  virtual bool CheckSpecialCharacterClass(uc16 type, Label* on_no_match);
+  virtual bool CheckSpecialCharacterClass(base::uc16 type, Label* on_no_match);
 
   // Control-flow integrity:
   // Define a jump target and bind a label.

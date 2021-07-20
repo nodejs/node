@@ -354,43 +354,61 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
 
   // Locks {mutex} through the duration of this scope iff it is the first
   // occurrence. This is done to have a recursive shared lock on {mutex}.
-  class V8_NODISCARD MapUpdaterGuardIfNeeded final {
-   public:
-    explicit MapUpdaterGuardIfNeeded(JSHeapBroker* ptr,
-                                     base::SharedMutex* mutex)
-        : ptr_(ptr),
-          initial_map_updater_mutex_depth_(ptr->map_updater_mutex_depth_),
-          shared_mutex(mutex, should_lock()) {
-      ptr_->map_updater_mutex_depth_++;
+  class V8_NODISCARD RecursiveSharedMutexGuardIfNeeded {
+   protected:
+    RecursiveSharedMutexGuardIfNeeded(LocalIsolate* local_isolate,
+                                      base::SharedMutex* mutex,
+                                      int* mutex_depth_address)
+        : mutex_depth_address_(mutex_depth_address),
+          initial_mutex_depth_(*mutex_depth_address_),
+          shared_mutex_guard_(local_isolate, mutex, initial_mutex_depth_ == 0) {
+      (*mutex_depth_address_)++;
     }
 
-    ~MapUpdaterGuardIfNeeded() {
-      ptr_->map_updater_mutex_depth_--;
-      DCHECK_EQ(initial_map_updater_mutex_depth_,
-                ptr_->map_updater_mutex_depth_);
+    ~RecursiveSharedMutexGuardIfNeeded() {
+      DCHECK_GE((*mutex_depth_address_), 1);
+      (*mutex_depth_address_)--;
+      DCHECK_EQ(initial_mutex_depth_, (*mutex_depth_address_));
     }
-
-    // Whether the MapUpdater mutex should be physically locked (if not, we
-    // already hold the lock).
-    bool should_lock() const { return initial_map_updater_mutex_depth_ == 0; }
 
    private:
-    JSHeapBroker* const ptr_;
-    const int initial_map_updater_mutex_depth_;
-    base::SharedMutexGuardIf<base::kShared> shared_mutex;
+    int* const mutex_depth_address_;
+    const int initial_mutex_depth_;
+    ParkedSharedMutexGuardIf<base::kShared> shared_mutex_guard_;
   };
+
+  class MapUpdaterGuardIfNeeded final
+      : public RecursiveSharedMutexGuardIfNeeded {
+   public:
+    explicit MapUpdaterGuardIfNeeded(JSHeapBroker* broker)
+        : RecursiveSharedMutexGuardIfNeeded(
+              broker->local_isolate_or_isolate(),
+              broker->isolate()->map_updater_access(),
+              &broker->map_updater_mutex_depth_) {}
+  };
+
+  class BoilerplateMigrationGuardIfNeeded final
+      : public RecursiveSharedMutexGuardIfNeeded {
+   public:
+    explicit BoilerplateMigrationGuardIfNeeded(JSHeapBroker* broker)
+        : RecursiveSharedMutexGuardIfNeeded(
+              broker->local_isolate_or_isolate(),
+              broker->isolate()->boilerplate_migration_access(),
+              &broker->boilerplate_migration_mutex_depth_) {}
+  };
+
+  // If this returns false, the object is guaranteed to be fully initialized and
+  // thus safe to read from a memory safety perspective. The converse does not
+  // necessarily hold.
+  bool ObjectMayBeUninitialized(Handle<Object> object) const;
+  bool ObjectMayBeUninitialized(Object object) const;
+  bool ObjectMayBeUninitialized(HeapObject object) const;
 
  private:
   friend class HeapObjectRef;
   friend class ObjectRef;
   friend class ObjectData;
   friend class PropertyCellData;
-
-  // If this returns false, the object is guaranteed to be fully initialized and
-  // thus safe to read from a memory safety perspective. The converse does not
-  // necessarily hold.
-  bool ObjectMayBeUninitialized(Handle<Object> object) const;
-  bool ObjectMayBeUninitialized(HeapObject object) const;
 
   bool CanUseFeedback(const FeedbackNexus& nexus) const;
   const ProcessedFeedback& NewInsufficientFeedback(FeedbackSlotKind kind) const;
@@ -502,6 +520,8 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   // holds the locking depth, i.e. how many times the mutex has been
   // recursively locked. Only the outermost locker actually locks underneath.
   int map_updater_mutex_depth_ = 0;
+  // Likewise for boilerplate migrations.
+  int boilerplate_migration_mutex_depth_ = 0;
 
   static constexpr size_t kMaxSerializedFunctionsCacheSize = 200;
   static constexpr uint32_t kMinimalRefsBucketCount = 8;
@@ -568,6 +588,14 @@ class V8_NODISCARD UnparkedScopeIfNeeded {
   base::Optional<UnparkedScope> unparked_scope;
 };
 
+template <class T,
+          typename = std::enable_if_t<std::is_convertible<T*, Object*>::value>>
+base::Optional<typename ref_traits<T>::ref_type> TryMakeRef(
+    JSHeapBroker* broker, ObjectData* data) {
+  if (data == nullptr) return {};
+  return {typename ref_traits<T>::ref_type(broker, data)};
+}
+
 // Usage:
 //
 //  base::Optional<FooRef> ref = TryMakeRef(broker, o);
@@ -583,9 +611,8 @@ base::Optional<typename ref_traits<T>::ref_type> TryMakeRef(
   ObjectData* data = broker->TryGetOrCreateData(object, flags);
   if (data == nullptr) {
     TRACE_BROKER_MISSING(broker, "ObjectData for " << Brief(object));
-    return {};
   }
-  return {typename ref_traits<T>::ref_type(broker, data)};
+  return TryMakeRef<T>(broker, data);
 }
 
 template <class T,
@@ -594,37 +621,37 @@ base::Optional<typename ref_traits<T>::ref_type> TryMakeRef(
     JSHeapBroker* broker, Handle<T> object, GetOrCreateDataFlags flags = {}) {
   ObjectData* data = broker->TryGetOrCreateData(object, flags);
   if (data == nullptr) {
+    DCHECK_EQ(flags & kCrashOnError, 0);
     TRACE_BROKER_MISSING(broker, "ObjectData for " << Brief(*object));
-    return {};
   }
-  return {typename ref_traits<T>::ref_type(broker, data)};
+  return TryMakeRef<T>(broker, data);
 }
 
 template <class T,
           typename = std::enable_if_t<std::is_convertible<T*, Object*>::value>>
 typename ref_traits<T>::ref_type MakeRef(JSHeapBroker* broker, T object) {
-  return TryMakeRef(broker, object).value();
+  return TryMakeRef(broker, object, kCrashOnError).value();
 }
 
 template <class T,
           typename = std::enable_if_t<std::is_convertible<T*, Object*>::value>>
 typename ref_traits<T>::ref_type MakeRef(JSHeapBroker* broker,
                                          Handle<T> object) {
-  return TryMakeRef(broker, object).value();
+  return TryMakeRef(broker, object, kCrashOnError).value();
 }
 
 template <class T,
           typename = std::enable_if_t<std::is_convertible<T*, Object*>::value>>
 typename ref_traits<T>::ref_type MakeRefAssumeMemoryFence(JSHeapBroker* broker,
                                                           T object) {
-  return TryMakeRef(broker, object, kAssumeMemoryFence).value();
+  return TryMakeRef(broker, object, kAssumeMemoryFence | kCrashOnError).value();
 }
 
 template <class T,
           typename = std::enable_if_t<std::is_convertible<T*, Object*>::value>>
 typename ref_traits<T>::ref_type MakeRefAssumeMemoryFence(JSHeapBroker* broker,
                                                           Handle<T> object) {
-  return TryMakeRef(broker, object, kAssumeMemoryFence).value();
+  return TryMakeRef(broker, object, kAssumeMemoryFence | kCrashOnError).value();
 }
 
 }  // namespace compiler

@@ -10,6 +10,7 @@
 #include "src/execution/arguments.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
+#include "src/logging/runtime-call-stats-scope.h"
 
 namespace v8 {
 namespace internal {

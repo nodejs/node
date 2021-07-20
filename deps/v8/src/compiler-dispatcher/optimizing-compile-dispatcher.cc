@@ -14,6 +14,7 @@
 #include "src/init/v8.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
+#include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/objects-inl.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/tracing/trace-event.h"

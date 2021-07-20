@@ -98,7 +98,7 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   V8InspectorSession::Inspectable* inspectedObject(unsigned num);
   static const unsigned kInspectedObjectBufferSize = 5;
 
-  void triggerPreciseCoverageDeltaUpdate(StringView occassion) override;
+  void triggerPreciseCoverageDeltaUpdate(StringView occasion) override;
 
  private:
   V8InspectorSessionImpl(V8InspectorImpl*, int contextGroupId, int sessionId,

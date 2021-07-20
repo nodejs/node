@@ -166,7 +166,13 @@ transitioning macro ConstructByArrayLike(implicit context: Context)(
       } else if (length > 0) {
         const byteLength = typedArray.byte_length;
         assert(byteLength <= kArrayBufferMaxByteLength);
-        typed_array::CallCMemcpy(typedArray.data_ptr, src.data_ptr, byteLength);
+        if (IsSharedArrayBuffer(src.buffer)) {
+          typed_array::CallCRelaxedMemcpy(
+              typedArray.data_ptr, src.data_ptr, byteLength);
+        } else {
+          typed_array::CallCMemcpy(
+              typedArray.data_ptr, src.data_ptr, byteLength);
+        }
       }
     } label IfSlow deferred {
       if (length > 0) {

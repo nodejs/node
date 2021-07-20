@@ -35,7 +35,7 @@ Handle<Name> NewNameWithHash(Isolate* isolate, const char* str, uint32_t hash,
     hash_field |= Name::kIsNotIntegerIndexMask;
   }
   Handle<Name> name = isolate->factory()->NewOneByteInternalizedString(
-      OneByteVector(str), hash_field);
+      base::OneByteVector(str), hash_field);
   name->set_raw_hash_field(hash_field);
   CHECK(name->IsUniqueName());
   return name;

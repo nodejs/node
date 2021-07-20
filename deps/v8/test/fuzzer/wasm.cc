@@ -54,7 +54,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   i::Handle<i::WasmModuleObject> module_object;
   auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
   bool compiles =
-      i_isolate->wasm_engine()
+      i::wasm::GetWasmEngine()
           ->SyncCompile(i_isolate, enabled_features, &thrower, wire_bytes)
           .ToHandle(&module_object);
 

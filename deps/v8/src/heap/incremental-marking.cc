@@ -22,6 +22,7 @@
 #include "src/heap/objects-visiting.h"
 #include "src/heap/safepoint.h"
 #include "src/init/v8.h"
+#include "src/logging/runtime-call-stats-scope.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/embedder-data-array-inl.h"
@@ -62,6 +63,13 @@ void IncrementalMarking::MarkBlackAndVisitObjectDueToLayoutChange(
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_INCREMENTAL_LAYOUT_CHANGE);
   marking_state()->WhiteToGrey(obj);
   collector_->VisitObject(obj);
+}
+
+void IncrementalMarking::MarkBlackAndRevisitObject(Code code) {
+  TRACE_EVENT0("v8", "V8.GCIncrementalMarkingLayoutChange");
+  TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_INCREMENTAL_LAYOUT_CHANGE);
+  marking_state()->WhiteToBlack(code);
+  collector_->RevisitObject(code);
 }
 
 void IncrementalMarking::MarkBlackBackground(HeapObject obj, int object_size) {

@@ -195,7 +195,8 @@ class OnHeapConsumedPreparseData final
 // A serialized PreparseData in zone memory (as apposed to being on-heap).
 class ZonePreparseData : public ZoneObject {
  public:
-  V8_EXPORT_PRIVATE ZonePreparseData(Zone* zone, Vector<uint8_t>* byte_data,
+  V8_EXPORT_PRIVATE ZonePreparseData(Zone* zone,
+                                     base::Vector<uint8_t>* byte_data,
                                      int child_length);
 
   ZonePreparseData(const ZonePreparseData&) = delete;

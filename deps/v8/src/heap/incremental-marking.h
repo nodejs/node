@@ -186,6 +186,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   // the concurrent marker.
   void MarkBlackAndVisitObjectDueToLayoutChange(HeapObject obj);
 
+  void MarkBlackAndRevisitObject(Code code);
+
   void MarkBlackBackground(HeapObject obj, int object_size);
 
   bool IsCompacting() { return IsMarking() && is_compacting_; }

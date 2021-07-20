@@ -4,7 +4,7 @@
 
 // Flags: --wasm-staging
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 // This is a regression test that is minimized and manually trimmed down. It
 // exercises a bug in our attempt to canonicalize shuffle in platform

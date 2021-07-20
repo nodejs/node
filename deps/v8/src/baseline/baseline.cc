@@ -5,20 +5,20 @@
 #include "src/baseline/baseline.h"
 
 #include "src/handles/maybe-handles.h"
-#include "src/objects/shared-function-info.h"
+#include "src/objects/shared-function-info-inl.h"
 
 // TODO(v8:11421): Remove #if once baseline compiler is ported to other
 // architectures.
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || \
-    V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 ||     \
+    V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_MIPS64 || \
+    V8_TARGET_ARCH_MIPS
 
 #include "src/baseline/baseline-assembler-inl.h"
 #include "src/baseline/baseline-compiler.h"
 #include "src/debug/debug.h"
 #include "src/heap/factory-inl.h"
-#include "src/logging/counters.h"
+#include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/script-inl.h"
-#include "src/objects/shared-function-info-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -26,6 +26,7 @@ namespace internal {
 bool CanCompileWithBaseline(Isolate* isolate, SharedFunctionInfo shared) {
   DisallowGarbageCollection no_gc;
 
+  // Check that baseline compiler is enabled.
   if (!FLAG_sparkplug) return false;
 
   // Check that short builtin calls are enabled if needed.
@@ -43,21 +44,40 @@ bool CanCompileWithBaseline(Isolate* isolate, SharedFunctionInfo shared) {
   // Functions with breakpoints have to stay interpreted.
   if (shared.HasBreakInfo()) return false;
 
-  // Do not baseline compile if sparkplug is disabled or function doesn't pass
-  // sparkplug_filter.
+  // Do not baseline compile if function doesn't pass sparkplug_filter.
   if (!shared.PassesFilter(FLAG_sparkplug_filter)) return false;
 
   return true;
 }
 
+namespace {
+MaybeHandle<Code> GenerateOnHeapCode(Isolate* isolate,
+                                     Handle<SharedFunctionInfo> shared,
+                                     Handle<BytecodeArray> bytecode) {
+  CodePageCollectionMemoryModificationScope code_allocation(isolate->heap());
+  baseline::BaselineCompiler compiler(isolate, shared, bytecode,
+                                      baseline::BaselineCompiler::kOnHeap);
+  compiler.GenerateCode();
+  return compiler.Build(isolate);
+}
+
+MaybeHandle<Code> GenerateOffHeapCode(Isolate* isolate,
+                                      Handle<SharedFunctionInfo> shared,
+                                      Handle<BytecodeArray> bytecode) {
+  baseline::BaselineCompiler compiler(isolate, shared, bytecode);
+  compiler.GenerateCode();
+  return compiler.Build(isolate);
+}
+
+}  // namespace
+
 MaybeHandle<Code> GenerateBaselineCode(Isolate* isolate,
                                        Handle<SharedFunctionInfo> shared) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileBaseline);
-  baseline::BaselineCompiler compiler(
-      isolate, shared, handle(shared->GetBytecodeArray(isolate), isolate));
-
-  compiler.GenerateCode();
-  MaybeHandle<Code> code = compiler.Build(isolate);
+  Handle<BytecodeArray> bytecode(shared->GetBytecodeArray(isolate), isolate);
+  MaybeHandle<Code> code = FLAG_sparkplug_on_heap
+                               ? GenerateOnHeapCode(isolate, shared, bytecode)
+                               : GenerateOffHeapCode(isolate, shared, bytecode);
   if (FLAG_print_code && !code.is_null()) {
     code.ToHandleChecked()->Print();
   }

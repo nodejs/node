@@ -15,6 +15,7 @@ static_assert(
 #include "src/base/macros.h"
 #include "src/heap/cppgc/heap-base.h"
 #include "src/heap/cppgc/stats-collector.h"
+#include "src/logging/metrics.h"
 
 namespace v8 {
 
@@ -29,6 +30,45 @@ class V8_EXPORT_PRIVATE CppHeap final
       public v8::EmbedderHeapTracer,
       public cppgc::internal::StatsCollector::AllocationObserver {
  public:
+  class MetricRecorderAdapter final : public cppgc::internal::MetricRecorder {
+   public:
+    static constexpr int kMaxBatchedEvents = 16;
+
+    explicit MetricRecorderAdapter(CppHeap& cpp_heap) : cpp_heap_(cpp_heap) {}
+
+    void AddMainThreadEvent(const FullCycle& cppgc_event) final;
+    void AddMainThreadEvent(const MainThreadIncrementalMark& cppgc_event) final;
+    void AddMainThreadEvent(
+        const MainThreadIncrementalSweep& cppgc_event) final;
+
+    void FlushBatchedIncrementalEvents();
+
+    // The following 3 methods are only used for reporting nested cpp events
+    // through V8. Standalone events are reported directly.
+    bool MetricsReportPending() const;
+
+    const base::Optional<cppgc::internal::MetricRecorder::FullCycle>
+    ExtractLastFullGcEvent();
+    const base::Optional<
+        cppgc::internal::MetricRecorder::MainThreadIncrementalMark>
+    ExtractLastIncrementalMarkEvent();
+
+   private:
+    Isolate* GetIsolate() const;
+
+    v8::metrics::Recorder::ContextId GetContextId() const;
+
+    CppHeap& cpp_heap_;
+    v8::metrics::GarbageCollectionFullMainThreadBatchedIncrementalMark
+        incremental_mark_batched_events_;
+    v8::metrics::GarbageCollectionFullMainThreadBatchedIncrementalSweep
+        incremental_sweep_batched_events_;
+    base::Optional<cppgc::internal::MetricRecorder::FullCycle>
+        last_full_gc_event_;
+    base::Optional<cppgc::internal::MetricRecorder::MainThreadIncrementalMark>
+        last_incremental_mark_event_;
+  };
+
   static CppHeap* From(v8::CppHeap* heap) {
     return static_cast<CppHeap*>(heap);
   }
@@ -39,9 +79,7 @@ class V8_EXPORT_PRIVATE CppHeap final
   CppHeap(
       v8::Platform* platform,
       const std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>& custom_spaces,
-      const v8::WrapperDescriptor& wrapper_descriptor,
-      std::unique_ptr<cppgc::internal::MetricRecorder> metric_recorder =
-          nullptr);
+      const v8::WrapperDescriptor& wrapper_descriptor);
   ~CppHeap() final;
 
   CppHeap(const CppHeap&) = delete;
@@ -78,6 +116,8 @@ class V8_EXPORT_PRIVATE CppHeap final
   void AllocatedObjectSizeDecreased(size_t) final;
   void ResetAllocatedObjectSize(size_t) final {}
 
+  MetricRecorderAdapter* GetMetricRecorder() const;
+
  private:
   void FinalizeIncrementalGarbageCollectionIfNeeded(
       cppgc::Heap::StackState) final {
@@ -103,6 +143,10 @@ class V8_EXPORT_PRIVATE CppHeap final
 
   bool in_detached_testing_mode_ = false;
   bool force_incremental_marking_for_testing_ = false;
+
+  bool is_in_v8_marking_step_ = false;
+
+  friend class MetricRecorderAdapter;
 };
 
 }  // namespace internal

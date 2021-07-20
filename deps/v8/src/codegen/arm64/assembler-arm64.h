@@ -2616,7 +2616,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     STATIC_ASSERT(sizeof(instruction) == kInstrSize);
     DCHECK_LE(pc_ + sizeof(instruction), buffer_start_ + buffer_->size());
 
-    base::Memcpy(pc_, &instruction, sizeof(instruction));
+    memcpy(pc_, &instruction, sizeof(instruction));
     pc_ += sizeof(instruction);
     CheckBuffer();
   }
@@ -2628,7 +2628,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
     // TODO(all): Somehow register we have some data here. Then we can
     // disassemble it correctly.
-    base::Memcpy(pc_, data, size);
+    memcpy(pc_, data, size);
     pc_ += size;
     CheckBuffer();
   }

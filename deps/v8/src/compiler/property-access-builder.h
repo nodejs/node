@@ -7,6 +7,7 @@
 
 #include <vector>
 
+#include "src/base/optional.h"
 #include "src/codegen/machine-type.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/node.h"
@@ -64,9 +65,11 @@ class PropertyAccessBuilder {
                            Node* lookup_start_object, Node** effect,
                            Node** control);
 
-  // Loads a constant value from a prototype object in dictionary mode and
-  // constant-folds it.
-  Node* FoldLoadDictPrototypeConstant(PropertyAccessInfo const& access_info);
+  // Tries to load a constant value from a prototype object in dictionary mode
+  // and constant-folds it. Returns {} if the constant couldn't be safely
+  // retrieved.
+  base::Optional<Node*> FoldLoadDictPrototypeConstant(
+      PropertyAccessInfo const& access_info);
 
   // Builds the load for data-field access for minimorphic loads that use
   // dynamic map checks. These cannot depend on any information from the maps.

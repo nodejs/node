@@ -128,7 +128,6 @@ class Handle final : public HandleBase {
   // Ex. Handle<JSFunction> can be passed when Handle<Object> is expected.
   template <typename S, typename = typename std::enable_if<
                             std::is_convertible<S*, T*>::value>::type>
-  // NOLINTNEXTLINE
   V8_INLINE Handle(Handle<S> handle) : HandleBase(handle) {}
 
   V8_INLINE ObjectRef operator->() const { return ObjectRef{**this}; }

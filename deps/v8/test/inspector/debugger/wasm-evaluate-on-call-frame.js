@@ -34,7 +34,10 @@ async function dumpOnCallFrame(callFrameId, expression) {
   const {result: {result: object}} = await Protocol.Debugger.evaluateOnCallFrame({
     callFrameId, expression
   });
-  if (object.type === 'object' && object.subtype === 'wasmvalue') {
+  if ('customPreview' in object) {
+    InspectorTest.log(
+        `> ${expression} = ${JSON.stringify(object.customPreview)}`);
+  } else if (object.type === 'object' && object.subtype === 'wasmvalue') {
     const {result: {result: properties}} = await Protocol.Runtime.getProperties({objectId: object.objectId, ownProperties: true})
     const valueProperty = properties.find(p => p.name === 'value');
     InspectorTest.log(`> ${expression} = ${object.description} {${valueProperty.value.description}}`);
@@ -344,6 +347,50 @@ InspectorTest.runAsyncTestSuite([
     await dumpOnCallFrame(callFrameId, `stack`);
     await dumpOnCallFrame(callFrameId, `Object.keys(stack)`);
     await dumpKeysOnCallFrame(callFrameId, "stack", [0, 1]);
+    await Protocol.Debugger.resume();
+    await callMainPromise;
+  },
+
+  async function testCustomFormatters() {
+    const builder = new WasmModuleBuilder();
+    const main = builder.addFunction('main', kSig_i_i, ['x'])
+                     .addBody([
+                       kExprLocalGet,
+                       0,
+                     ])
+                     .exportFunc();
+
+    InspectorTest.log('Compile module.');
+    const [module, scriptId] = await compileModule(builder);
+
+    await Protocol.Runtime.enable();
+    InspectorTest.log('Set breakpoint in main.');
+    await Protocol.Debugger.setBreakpoint(
+        {location: {scriptId, lineNumber: 0, columnNumber: main.body_offset}});
+
+    InspectorTest.log('Install custom formatter.');
+    await Protocol.Runtime.onConsoleAPICalled(m => InspectorTest.logMessage(m));
+    await Protocol.Runtime.setCustomObjectFormatterEnabled({enabled: true});
+    await Protocol.Runtime.evaluate({
+      expression: `this.devtoolsFormatters = [{
+        header: function(obj) { return ["div", {}, JSON.stringify(obj)]; },
+        hasBody: function() { return false; }
+      }]`
+    });
+
+    InspectorTest.log('Instantiate module.');
+    const instance = await instantiateModule(module);
+
+    InspectorTest.log('Call main.');
+    const callMainPromise = Protocol.Runtime.callFunctionOn({
+      functionDeclaration: `function() { return this.exports.main(5); }`,
+      objectId: instance.objectId
+    });
+    let callFrameId = await waitForDebuggerPaused();
+    await dumpOnCallFrame(callFrameId, `locals`);
+    await dumpOnCallFrame(callFrameId, `Object.keys(locals)`);
+    await dumpKeysOnCallFrame(callFrameId, 'locals', [0, '$x']);
+
     await Protocol.Debugger.resume();
     await callMainPromise;
   }

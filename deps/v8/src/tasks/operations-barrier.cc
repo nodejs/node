@@ -9,7 +9,7 @@ namespace internal {
 
 OperationsBarrier::Token OperationsBarrier::TryLock() {
   base::MutexGuard guard(&mutex_);
-  if (cancelled_) return Token(nullptr);
+  if (cancelled_) return {};
   ++operations_count_;
   return Token(this);
 }

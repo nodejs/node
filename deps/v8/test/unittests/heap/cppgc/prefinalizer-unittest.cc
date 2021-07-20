@@ -226,21 +226,9 @@ TEST_F(PrefinalizerTest, PrefinalizerCanRewireGraphWithLiveObjects) {
   PreciseGC();
 }
 
-TEST_F(PrefinalizerTest, PrefinalizerCanRewireGraphWithDeadObjects) {
-  Persistent<LinkedNode> root{MakeGarbageCollected<LinkedNode>(
-      GetAllocationHandle(),
-      MakeGarbageCollected<LinkedNode>(
-          GetAllocationHandle(),
-          MakeGarbageCollected<LinkedNode>(GetAllocationHandle(), nullptr)))};
-  CHECK(root->next());
-  MakeGarbageCollected<MutatingPrefinalizer>(GetAllocationHandle(), root.Get());
-  // All LinkedNode objects will die on the following GC. The pre-finalizer may
-  // still operate with them but not add them to a live object.
-  root.Clear();
-  PreciseGC();
-}
-
 namespace {
+
+class PrefinalizerDeathTest : public testing::TestWithHeap {};
 
 class AllocatingPrefinalizer : public GarbageCollected<AllocatingPrefinalizer> {
   CPPGC_USING_PRE_FINALIZER(AllocatingPrefinalizer, PreFinalizer);
@@ -260,7 +248,7 @@ class AllocatingPrefinalizer : public GarbageCollected<AllocatingPrefinalizer> {
 
 #ifdef DEBUG
 
-TEST_F(PrefinalizerTest, PrefinalizerFailsOnAllcoation) {
+TEST_F(PrefinalizerDeathTest, PrefinalizerFailsOnAllcoation) {
   auto* object = MakeGarbageCollected<AllocatingPrefinalizer>(
       GetAllocationHandle(), GetHeap());
   USE(object);
@@ -268,6 +256,70 @@ TEST_F(PrefinalizerTest, PrefinalizerFailsOnAllcoation) {
 }
 
 #endif  // DEBUG
+
+namespace {
+
+template <template <typename T> class RefType>
+class RessurectingPrefinalizer
+    : public GarbageCollected<RessurectingPrefinalizer<RefType>> {
+  CPPGC_USING_PRE_FINALIZER(RessurectingPrefinalizer, PreFinalizer);
+
+ public:
+  explicit RessurectingPrefinalizer(RefType<GCed>& ref, GCed* obj)
+      : ref_(ref), obj_(obj) {}
+  void Trace(Visitor*) const {}
+  void PreFinalizer() { ref_ = obj_; }
+
+ private:
+  RefType<GCed>& ref_;
+  GCed* obj_;
+};
+
+class GCedHolder : public GarbageCollected<GCedHolder> {
+ public:
+  void Trace(Visitor* v) const { v->Trace(member_); }
+
+  Member<GCed> member_;
+};
+
+}  // namespace
+
+#if V8_ENABLE_CHECKS
+#ifdef CPPGC_CHECK_ASSIGNMENTS_IN_PREFINALIZERS
+
+TEST_F(PrefinalizerDeathTest, PrefinalizerCantRewireGraphWithDeadObjects) {
+  Persistent<LinkedNode> root{MakeGarbageCollected<LinkedNode>(
+      GetAllocationHandle(),
+      MakeGarbageCollected<LinkedNode>(
+          GetAllocationHandle(),
+          MakeGarbageCollected<LinkedNode>(GetAllocationHandle(), nullptr)))};
+  CHECK(root->next());
+  MakeGarbageCollected<MutatingPrefinalizer>(GetAllocationHandle(), root.Get());
+  // All LinkedNode objects will die on the following GC. The pre-finalizer may
+  // still operate with them but not add them to a live object.
+  root.Clear();
+  EXPECT_DEATH_IF_SUPPORTED(PreciseGC(), "");
+}
+
+TEST_F(PrefinalizerDeathTest, PrefinalizerCantRessurectObjectOnStack) {
+  Persistent<GCed> persistent;
+  MakeGarbageCollected<RessurectingPrefinalizer<Persistent>>(
+      GetAllocationHandle(), persistent,
+      MakeGarbageCollected<GCed>(GetAllocationHandle()));
+  EXPECT_DEATH_IF_SUPPORTED(PreciseGC(), "");
+}
+
+TEST_F(PrefinalizerDeathTest, PrefinalizerCantRessurectObjectOnHeap) {
+  Persistent<GCedHolder> persistent(
+      MakeGarbageCollected<GCedHolder>(GetAllocationHandle()));
+  MakeGarbageCollected<RessurectingPrefinalizer<Member>>(
+      GetAllocationHandle(), persistent->member_,
+      MakeGarbageCollected<GCed>(GetAllocationHandle()));
+  EXPECT_DEATH_IF_SUPPORTED(PreciseGC(), "");
+}
+
+#endif  // CPPGC_CHECK_ASSIGNMENTS_IN_PREFINALIZERS
+#endif  // V8_ENABLE_CHECKS
 
 }  // namespace internal
 }  // namespace cppgc

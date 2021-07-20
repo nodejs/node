@@ -473,8 +473,11 @@ void NewSpace::UpdateLinearAllocationArea(Address known_top) {
   allocation_info_.Reset(new_top, to_space_.page_high());
   // The order of the following two stores is important.
   // See the corresponding loads in ConcurrentMarking::Run.
-  original_limit_.store(limit(), std::memory_order_relaxed);
-  original_top_.store(top(), std::memory_order_release);
+  {
+    base::SharedMutexGuard<base::kExclusive> guard(&pending_allocation_mutex_);
+    original_limit_.store(limit(), std::memory_order_relaxed);
+    original_top_.store(top(), std::memory_order_release);
+  }
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 
   UpdateInlineAllocationLimit(0);

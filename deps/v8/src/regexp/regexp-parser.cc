@@ -47,16 +47,17 @@ RegExpParser::RegExpParser(FlatStringReader* in, JSRegExp::Flags flags,
 }
 
 template <bool update_position>
-inline uc32 RegExpParser::ReadNext() {
+inline base::uc32 RegExpParser::ReadNext() {
   int position = next_pos_;
-  uc32 c0 = in()->Get(position);
+  base::uc32 c0 = in()->Get(position);
   position++;
   // Read the whole surrogate pair in case of unicode flag, if possible.
   if (unicode() && position < in()->length() &&
-      unibrow::Utf16::IsLeadSurrogate(static_cast<uc16>(c0))) {
-    uc16 c1 = in()->Get(position);
+      unibrow::Utf16::IsLeadSurrogate(static_cast<base::uc16>(c0))) {
+    base::uc16 c1 = in()->Get(position);
     if (unibrow::Utf16::IsTrailSurrogate(c1)) {
-      c0 = unibrow::Utf16::CombineSurrogatePair(static_cast<uc16>(c0), c1);
+      c0 =
+          unibrow::Utf16::CombineSurrogatePair(static_cast<base::uc16>(c0), c1);
       position++;
     }
   }
@@ -64,8 +65,7 @@ inline uc32 RegExpParser::ReadNext() {
   return c0;
 }
 
-
-uc32 RegExpParser::Next() {
+base::uc32 RegExpParser::Next() {
   if (has_next()) {
     return ReadNext<false>();
   } else {
@@ -113,7 +113,7 @@ void RegExpParser::Advance(int dist) {
 
 bool RegExpParser::simple() { return simple_; }
 
-bool RegExpParser::IsSyntaxCharacterOrSlash(uc32 c) {
+bool RegExpParser::IsSyntaxCharacterOrSlash(base::uc32 c) {
   switch (c) {
     case '^':
     case '$':
@@ -324,7 +324,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
           case 'S':
           case 'w':
           case 'W': {
-            uc32 c = Next();
+            base::uc32 c = Next();
             Advance(2);
             ZoneList<CharacterRange>* ranges =
                 zone()->New<ZoneList<CharacterRange>>(2, zone());
@@ -337,7 +337,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
           }
           case 'p':
           case 'P': {
-            uc32 p = Next();
+            base::uc32 p = Next();
             Advance(2);
             if (unicode()) {
               ZoneList<CharacterRange>* ranges =
@@ -397,7 +397,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
             if (unicode()) {
               return ReportError(RegExpError::kInvalidEscape);
             }
-            uc32 first_digit = Next();
+            base::uc32 first_digit = Next();
             if (first_digit == '8' || first_digit == '9') {
               builder->AddCharacter(first_digit);
               Advance(2);
@@ -411,7 +411,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
               // With /u, decimal escape with leading 0 are not parsed as octal.
               return ReportError(RegExpError::kInvalidDecimalEscape);
             }
-            uc32 octal = ParseOctalLiteral();
+            base::uc32 octal = ParseOctalLiteral();
             builder->AddCharacter(octal);
             break;
           }
@@ -439,10 +439,10 @@ RegExpTree* RegExpParser::ParseDisjunction() {
             break;
           case 'c': {
             Advance();
-            uc32 controlLetter = Next();
+            base::uc32 controlLetter = Next();
             // Special case if it is an ASCII letter.
             // Convert lower case letters to uppercase.
-            uc32 letter = controlLetter & ~('a' ^ 'A');
+            base::uc32 letter = controlLetter & ~('a' ^ 'A');
             if (letter < 'A' || 'Z' < letter) {
               // controlLetter is not in range 'A'-'Z' or 'a'-'z'.
               // Read the backslash as a literal character instead of as
@@ -461,7 +461,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
           }
           case 'x': {
             Advance(2);
-            uc32 value;
+            base::uc32 value;
             if (ParseHexEscape(2, &value)) {
               builder->AddCharacter(value);
             } else if (!unicode()) {
@@ -474,7 +474,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
           }
           case 'u': {
             Advance(2);
-            uc32 value;
+            base::uc32 value;
             if (ParseUnicodeEscape(&value)) {
               builder->AddEscapedUnicodeCharacter(value);
             } else if (!unicode()) {
@@ -586,7 +586,7 @@ RegExpParser::RegExpParserState* RegExpParser::ParseOpenParenthesis(
   bool is_named_capture = false;
   JSRegExp::Flags switch_on = JSRegExp::kNone;
   JSRegExp::Flags switch_off = JSRegExp::kNone;
-  const ZoneVector<uc16>* capture_name = nullptr;
+  const ZoneVector<base::uc16>* capture_name = nullptr;
   SubexpressionType subexpr_type = CAPTURE;
   Advance();
   if (current() == '?') {
@@ -709,7 +709,7 @@ RegExpParser::RegExpParserState* RegExpParser::ParseOpenParenthesis(
 
 #ifdef DEBUG
 // Currently only used in an DCHECK.
-static bool IsSpecialClassEscape(uc32 c) {
+static bool IsSpecialClassEscape(base::uc32 c) {
   switch (c) {
     case 'd':
     case 'D':
@@ -795,7 +795,7 @@ bool RegExpParser::ParseBackReferenceIndex(int* index_out) {
   int value = Next() - '0';
   Advance(2);
   while (true) {
-    uc32 c = current();
+    base::uc32 c = current();
     if (IsDecimalDigit(c)) {
       value = 10 * value + (c - '0');
       if (value > JSRegExp::kMaxCaptures) {
@@ -818,7 +818,7 @@ bool RegExpParser::ParseBackReferenceIndex(int* index_out) {
   return true;
 }
 
-static void push_code_unit(ZoneVector<uc16>* v, uint32_t code_unit) {
+static void push_code_unit(ZoneVector<base::uc16>* v, uint32_t code_unit) {
   if (code_unit <= unibrow::Utf16::kMaxNonSurrogateCharCode) {
     v->push_back(code_unit);
   } else {
@@ -827,12 +827,12 @@ static void push_code_unit(ZoneVector<uc16>* v, uint32_t code_unit) {
   }
 }
 
-const ZoneVector<uc16>* RegExpParser::ParseCaptureGroupName() {
-  ZoneVector<uc16>* name = zone()->New<ZoneVector<uc16>>(zone());
+const ZoneVector<base::uc16>* RegExpParser::ParseCaptureGroupName() {
+  ZoneVector<base::uc16>* name = zone()->New<ZoneVector<base::uc16>>(zone());
 
   bool at_start = true;
   while (true) {
-    uc32 c = current();
+    base::uc32 c = current();
     Advance();
 
     // Convert unicode escapes.
@@ -872,7 +872,7 @@ const ZoneVector<uc16>* RegExpParser::ParseCaptureGroupName() {
   return name;
 }
 
-bool RegExpParser::CreateNamedCaptureAtIndex(const ZoneVector<uc16>* name,
+bool RegExpParser::CreateNamedCaptureAtIndex(const ZoneVector<base::uc16>* name,
                                              int index) {
   DCHECK(0 < index && index <= captures_started_);
   DCHECK_NOT_NULL(name);
@@ -909,7 +909,7 @@ bool RegExpParser::ParseNamedBackReference(RegExpBuilder* builder,
   }
 
   Advance();
-  const ZoneVector<uc16>* name = ParseCaptureGroupName();
+  const ZoneVector<base::uc16>* name = ParseCaptureGroupName();
   if (name == nullptr) {
     return false;
   }
@@ -1014,8 +1014,8 @@ Handle<FixedArray> RegExpParser::CreateCaptureNameMap() {
 
   int i = 0;
   for (const auto& capture : sorted_named_captures) {
-    Vector<const uc16> capture_name(capture->name()->data(),
-                                    capture->name()->size());
+    base::Vector<const base::uc16> capture_name(capture->name()->data(),
+                                                capture->name()->size());
     // CSA code in ConstructNewResultFromMatchInfo requires these strings to be
     // internalized so they can be used as property names in the 'exec' results.
     Handle<String> name = factory->InternalizeString(capture_name);
@@ -1051,7 +1051,7 @@ bool RegExpParser::RegExpParserState::IsInsideCaptureGroup(int index) {
 }
 
 bool RegExpParser::RegExpParserState::IsInsideCaptureGroup(
-    const ZoneVector<uc16>* name) {
+    const ZoneVector<base::uc16>* name) {
   DCHECK_NOT_NULL(name);
   for (RegExpParserState* s = this; s != nullptr; s = s->previous_state()) {
     if (s->capture_name() == nullptr) continue;
@@ -1126,13 +1126,12 @@ bool RegExpParser::ParseIntervalQuantifier(int* min_out, int* max_out) {
   return true;
 }
 
-
-uc32 RegExpParser::ParseOctalLiteral() {
+base::uc32 RegExpParser::ParseOctalLiteral() {
   DCHECK(('0' <= current() && current() <= '7') || current() == kEndMarker);
   // For compatibility with some other browsers (not all), we parse
   // up to three octal digits with a value below 256.
   // ES#prod-annexB-LegacyOctalEscapeSequence
-  uc32 value = current() - '0';
+  base::uc32 value = current() - '0';
   Advance();
   if ('0' <= current() && current() <= '7') {
     value = value * 8 + current() - '0';
@@ -1145,13 +1144,12 @@ uc32 RegExpParser::ParseOctalLiteral() {
   return value;
 }
 
-
-bool RegExpParser::ParseHexEscape(int length, uc32* value) {
+bool RegExpParser::ParseHexEscape(int length, base::uc32* value) {
   int start = position();
-  uc32 val = 0;
+  base::uc32 val = 0;
   for (int i = 0; i < length; ++i) {
-    uc32 c = current();
-    int d = HexValue(c);
+    base::uc32 c = current();
+    int d = base::HexValue(c);
     if (d < 0) {
       Reset(start);
       return false;
@@ -1164,7 +1162,7 @@ bool RegExpParser::ParseHexEscape(int length, uc32* value) {
 }
 
 // This parses RegExpUnicodeEscapeSequence as described in ECMA262.
-bool RegExpParser::ParseUnicodeEscape(uc32* value) {
+bool RegExpParser::ParseUnicodeEscape(base::uc32* value) {
   // Accept both \uxxxx and \u{xxxxxx} (if harmony unicode escapes are
   // allowed). In the latter case, the number of hex digits between { } is
   // arbitrary. \ and u have already been read.
@@ -1188,11 +1186,11 @@ bool RegExpParser::ParseUnicodeEscape(uc32* value) {
     int start = position();
     if (Next() == 'u') {
       Advance(2);
-      uc32 trail;
+      base::uc32 trail;
       if (ParseHexEscape(4, &trail) &&
           unibrow::Utf16::IsTrailSurrogate(trail)) {
-        *value = unibrow::Utf16::CombineSurrogatePair(static_cast<uc16>(*value),
-                                                      static_cast<uc16>(trail));
+        *value = unibrow::Utf16::CombineSurrogatePair(
+            static_cast<base::uc16>(*value), static_cast<base::uc16>(trail));
         return true;
       }
     }
@@ -1460,7 +1458,7 @@ bool RegExpParser::AddPropertyClassRange(ZoneList<CharacterRange>* add_to,
 RegExpTree* RegExpParser::GetPropertySequence(const ZoneVector<char>& name_1) {
   if (!FLAG_harmony_regexp_sequence) return nullptr;
   const char* name = name_1.data();
-  const uc32* sequence_list = nullptr;
+  const base::uc32* sequence_list = nullptr;
   JSRegExp::Flags flags = JSRegExp::kUnicode;
   if (NameEquals(name, "Emoji_Flag_Sequence")) {
     sequence_list = UnicodePropertySequences::kEmojiFlagSequences;
@@ -1541,26 +1539,26 @@ RegExpTree* RegExpParser::GetPropertySequence(const ZoneVector<char>& name) {
 
 #endif  // V8_INTL_SUPPORT
 
-bool RegExpParser::ParseUnlimitedLengthHexNumber(int max_value, uc32* value) {
-  uc32 x = 0;
-  int d = HexValue(current());
+bool RegExpParser::ParseUnlimitedLengthHexNumber(int max_value,
+                                                 base::uc32* value) {
+  base::uc32 x = 0;
+  int d = base::HexValue(current());
   if (d < 0) {
     return false;
   }
   while (d >= 0) {
     x = x * 16 + d;
-    if (x > static_cast<uc32>(max_value)) {
+    if (x > static_cast<base::uc32>(max_value)) {
       return false;
     }
     Advance();
-    d = HexValue(current());
+    d = base::HexValue(current());
   }
   *value = x;
   return true;
 }
 
-
-uc32 RegExpParser::ParseClassCharacterEscape() {
+base::uc32 RegExpParser::ParseClassCharacterEscape() {
   DCHECK_EQ('\\', current());
   DCHECK(has_next() && !IsSpecialClassEscape(Next()));
   Advance();
@@ -1586,8 +1584,8 @@ uc32 RegExpParser::ParseClassCharacterEscape() {
       Advance();
       return '\v';
     case 'c': {
-      uc32 controlLetter = Next();
-      uc32 letter = controlLetter & ~('A' ^ 'a');
+      base::uc32 controlLetter = Next();
+      base::uc32 letter = controlLetter & ~('A' ^ 'a');
       // Inside a character class, we also accept digits and underscore as
       // control characters, unless with /u. See Annex B:
       // ES#prod-annexB-ClassControlLetter
@@ -1638,7 +1636,7 @@ uc32 RegExpParser::ParseClassCharacterEscape() {
       return ParseOctalLiteral();
     case 'x': {
       Advance();
-      uc32 value;
+      base::uc32 value;
       if (ParseHexEscape(2, &value)) return value;
       if (unicode()) {
         // With /u, invalid escapes are not treated as identity escapes.
@@ -1651,7 +1649,7 @@ uc32 RegExpParser::ParseClassCharacterEscape() {
     }
     case 'u': {
       Advance();
-      uc32 value;
+      base::uc32 value;
       if (ParseUnicodeEscape(&value)) return value;
       if (unicode()) {
         // With /u, invalid escapes are not treated as identity escapes.
@@ -1663,7 +1661,7 @@ uc32 RegExpParser::ParseClassCharacterEscape() {
       return 'u';
     }
     default: {
-      uc32 result = current();
+      base::uc32 result = current();
       // With /u, no identity escapes except for syntax characters and '-' are
       // allowed. Otherwise, all identity escapes are allowed.
       if (!unicode() || IsSyntaxCharacterOrSlash(result) || result == '-') {
@@ -1680,8 +1678,9 @@ uc32 RegExpParser::ParseClassCharacterEscape() {
 void RegExpParser::ParseClassEscape(ZoneList<CharacterRange>* ranges,
                                     Zone* zone,
                                     bool add_unicode_case_equivalents,
-                                    uc32* char_out, bool* is_class_escape) {
-  uc32 current_char = current();
+                                    base::uc32* char_out,
+                                    bool* is_class_escape) {
+  base::uc32 current_char = current();
   if (current_char == '\\') {
     switch (Next()) {
       case 'w':
@@ -1738,7 +1737,7 @@ RegExpTree* RegExpParser::ParseCharacterClass(const RegExpBuilder* builder) {
       zone()->New<ZoneList<CharacterRange>>(2, zone());
   bool add_unicode_case_equivalents = unicode() && builder->ignore_case();
   while (has_more() && current() != ']') {
-    uc32 char_1, char_2;
+    base::uc32 char_1, char_2;
     bool is_class_1, is_class_2;
     ParseClassEscape(ranges, zone(), add_unicode_case_equivalents, &char_1,
                      &is_class_1 CHECK_FAILED);
@@ -1853,27 +1852,25 @@ RegExpBuilder::RegExpBuilder(Zone* zone, JSRegExp::Flags flags)
 {
 }
 
-
-void RegExpBuilder::AddLeadSurrogate(uc16 lead_surrogate) {
+void RegExpBuilder::AddLeadSurrogate(base::uc16 lead_surrogate) {
   DCHECK(unibrow::Utf16::IsLeadSurrogate(lead_surrogate));
   FlushPendingSurrogate();
   // Hold onto the lead surrogate, waiting for a trail surrogate to follow.
   pending_surrogate_ = lead_surrogate;
 }
 
-
-void RegExpBuilder::AddTrailSurrogate(uc16 trail_surrogate) {
+void RegExpBuilder::AddTrailSurrogate(base::uc16 trail_surrogate) {
   DCHECK(unibrow::Utf16::IsTrailSurrogate(trail_surrogate));
   if (pending_surrogate_ != kNoPendingSurrogate) {
-    uc16 lead_surrogate = pending_surrogate_;
+    base::uc16 lead_surrogate = pending_surrogate_;
     pending_surrogate_ = kNoPendingSurrogate;
     DCHECK(unibrow::Utf16::IsLeadSurrogate(lead_surrogate));
-    uc32 combined =
+    base::uc32 combined =
         unibrow::Utf16::CombineSurrogatePair(lead_surrogate, trail_surrogate);
     if (NeedsDesugaringForIgnoreCase(combined)) {
       AddCharacterClassForDesugaring(combined);
     } else {
-      ZoneList<uc16> surrogate_pair(2, zone());
+      ZoneList<base::uc16> surrogate_pair(2, zone());
       surrogate_pair.Add(lead_surrogate, zone());
       surrogate_pair.Add(trail_surrogate, zone());
       RegExpAtom* atom =
@@ -1886,11 +1883,10 @@ void RegExpBuilder::AddTrailSurrogate(uc16 trail_surrogate) {
   }
 }
 
-
 void RegExpBuilder::FlushPendingSurrogate() {
   if (pending_surrogate_ != kNoPendingSurrogate) {
     DCHECK(unicode());
-    uc32 c = pending_surrogate_;
+    base::uc32 c = pending_surrogate_;
     pending_surrogate_ = kNoPendingSurrogate;
     AddCharacterClassForDesugaring(c);
   }
@@ -1925,24 +1921,22 @@ void RegExpBuilder::FlushText() {
   text_.Clear();
 }
 
-
-void RegExpBuilder::AddCharacter(uc16 c) {
+void RegExpBuilder::AddCharacter(base::uc16 c) {
   FlushPendingSurrogate();
   pending_empty_ = false;
   if (NeedsDesugaringForIgnoreCase(c)) {
     AddCharacterClassForDesugaring(c);
   } else {
     if (characters_ == nullptr) {
-      characters_ = zone()->New<ZoneList<uc16>>(4, zone());
+      characters_ = zone()->New<ZoneList<base::uc16>>(4, zone());
     }
     characters_->Add(c, zone());
     LAST(ADD_CHAR);
   }
 }
 
-
-void RegExpBuilder::AddUnicodeCharacter(uc32 c) {
-  if (c > static_cast<uc32>(unibrow::Utf16::kMaxNonSurrogateCharCode)) {
+void RegExpBuilder::AddUnicodeCharacter(base::uc32 c) {
+  if (c > static_cast<base::uc32>(unibrow::Utf16::kMaxNonSurrogateCharCode)) {
     DCHECK(unicode());
     AddLeadSurrogate(unibrow::Utf16::LeadSurrogate(c));
     AddTrailSurrogate(unibrow::Utf16::TrailSurrogate(c));
@@ -1951,11 +1945,11 @@ void RegExpBuilder::AddUnicodeCharacter(uc32 c) {
   } else if (unicode() && unibrow::Utf16::IsTrailSurrogate(c)) {
     AddTrailSurrogate(c);
   } else {
-    AddCharacter(static_cast<uc16>(c));
+    AddCharacter(static_cast<base::uc16>(c));
   }
 }
 
-void RegExpBuilder::AddEscapedUnicodeCharacter(uc32 character) {
+void RegExpBuilder::AddEscapedUnicodeCharacter(base::uc32 character) {
   // A lead or trail surrogate parsed via escape sequence will not
   // pair up with any preceding lead or following trail surrogate.
   FlushPendingSurrogate();
@@ -1976,12 +1970,11 @@ void RegExpBuilder::AddCharacterClass(RegExpCharacterClass* cc) {
   }
 }
 
-void RegExpBuilder::AddCharacterClassForDesugaring(uc32 c) {
+void RegExpBuilder::AddCharacterClassForDesugaring(base::uc32 c) {
   AddTerm(zone()->New<RegExpCharacterClass>(
       zone(), CharacterRange::List(zone(), CharacterRange::Singleton(c)),
       flags_));
 }
-
 
 void RegExpBuilder::AddAtom(RegExpTree* term) {
   if (term->IsEmpty()) {
@@ -2042,8 +2035,8 @@ bool RegExpBuilder::NeedsDesugaringForUnicode(RegExpCharacterClass* cc) {
   ZoneList<CharacterRange>* ranges = cc->ranges(zone());
   CharacterRange::Canonicalize(ranges);
   for (int i = ranges->length() - 1; i >= 0; i--) {
-    uc32 from = ranges->at(i).from();
-    uc32 to = ranges->at(i).to();
+    base::uc32 from = ranges->at(i).from();
+    base::uc32 to = ranges->at(i).to();
     // Check for non-BMP characters.
     if (to >= kNonBmpStart) return true;
     // Check for lone surrogates.
@@ -2052,8 +2045,7 @@ bool RegExpBuilder::NeedsDesugaringForUnicode(RegExpCharacterClass* cc) {
   return false;
 }
 
-
-bool RegExpBuilder::NeedsDesugaringForIgnoreCase(uc32 c) {
+bool RegExpBuilder::NeedsDesugaringForIgnoreCase(base::uc32 c) {
 #ifdef V8_INTL_SUPPORT
   if (unicode() && ignore_case()) {
     icu::UnicodeSet set(c, c);
@@ -2066,7 +2058,6 @@ bool RegExpBuilder::NeedsDesugaringForIgnoreCase(uc32 c) {
 #endif  // V8_INTL_SUPPORT
   return false;
 }
-
 
 RegExpTree* RegExpBuilder::ToRegExp() {
   FlushTerms();
@@ -2087,10 +2078,11 @@ bool RegExpBuilder::AddQuantifierToAtom(
   if (characters_ != nullptr) {
     DCHECK(last_added_ == ADD_CHAR);
     // Last atom was character.
-    Vector<const uc16> char_vector = characters_->ToConstVector();
+    base::Vector<const base::uc16> char_vector = characters_->ToConstVector();
     int num_chars = char_vector.length();
     if (num_chars > 1) {
-      Vector<const uc16> prefix = char_vector.SubVector(0, num_chars - 1);
+      base::Vector<const base::uc16> prefix =
+          char_vector.SubVector(0, num_chars - 1);
       text_.Add(zone()->New<RegExpAtom>(prefix, flags_), zone());
       char_vector = char_vector.SubVector(num_chars - 1, num_chars);
     }

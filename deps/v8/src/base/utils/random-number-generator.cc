@@ -6,6 +6,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#if defined(V8_OS_STARBOARD)
+#include "starboard/system.h"
+#endif  //  V8_OS_STARBOARD
 
 #include <algorithm>
 #include <new>
@@ -59,6 +62,8 @@ RandomNumberGenerator::RandomNumberGenerator() {
   int64_t seed;
   arc4random_buf(&seed, sizeof(seed));
   SetSeed(seed);
+#elif V8_OS_STARBOARD
+  SetSeed(SbSystemGetRandomUInt64());
 #else
   // Gather entropy from /dev/urandom if available.
   FILE* fp = base::Fopen("/dev/urandom", "rb");

@@ -29,6 +29,7 @@ import { LogReader, parseString, parseVarArgs } from "./logreader.mjs";
 import { BaseArgumentsProcessor, parseBool } from "./arguments.mjs";
 import { Profile, JsonProfile } from "./profile.mjs";
 import { ViewBuilder } from "./profile_view.mjs";
+import { WebInspector} from "./sourcemap.mjs";
 
 
 class V8Profile extends Profile {
@@ -58,21 +59,439 @@ class V8Profile extends Profile {
   }
 }
 
+class CppEntriesProvider {
+  constructor() {
+    this._isEnabled = true;
+  }
 
-/**
- * A thin wrapper around shell's 'read' function showing a file name on error.
- */
-export function readFile(fileName) {
-  try {
-    return read(fileName);
-  } catch (e) {
-    printErr(`file="${fileName}": ${e.message || e}`);
-    throw e;
+  inRange(funcInfo, start, end) {
+    return funcInfo.start >= start && funcInfo.end <= end;
+  }
+
+  async parseVmSymbols(libName, libStart, libEnd, libASLRSlide, processorFunc) {
+    if (!this._isEnabled) return;
+    await this.loadSymbols(libName);
+
+    let lastUnknownSize;
+    let lastAdded;
+
+    let addEntry = (funcInfo) => {
+      // Several functions can be mapped onto the same address. To avoid
+      // creating zero-sized entries, skip such duplicates.
+      // Also double-check that function belongs to the library address space.
+
+      if (lastUnknownSize &&
+        lastUnknownSize.start < funcInfo.start) {
+        // Try to update lastUnknownSize based on new entries start position.
+        lastUnknownSize.end = funcInfo.start;
+        if ((!lastAdded ||
+            !this.inRange(lastUnknownSize, lastAdded.start, lastAdded.end)) &&
+            this.inRange(lastUnknownSize, libStart, libEnd)) {
+          processorFunc(
+              lastUnknownSize.name, lastUnknownSize.start, lastUnknownSize.end);
+          lastAdded = lastUnknownSize;
+        }
+      }
+      lastUnknownSize = undefined;
+
+      if (funcInfo.end) {
+        // Skip duplicates that have the same start address as the last added.
+        if ((!lastAdded || lastAdded.start != funcInfo.start) &&
+          this.inRange(funcInfo, libStart, libEnd)) {
+          processorFunc(funcInfo.name, funcInfo.start, funcInfo.end);
+          lastAdded = funcInfo;
+        }
+      } else {
+        // If a funcInfo doesn't have an end, try to match it up with the next
+        // entry.
+        lastUnknownSize = funcInfo;
+      }
+    }
+
+    while (true) {
+      const funcInfo = this.parseNextLine();
+      if (funcInfo === null) continue;
+      if (funcInfo === false) break;
+      if (funcInfo.start < libStart - libASLRSlide &&
+        funcInfo.start < libEnd - libStart) {
+        funcInfo.start += libStart;
+      } else {
+        funcInfo.start += libASLRSlide;
+      }
+      if (funcInfo.size) {
+        funcInfo.end = funcInfo.start + funcInfo.size;
+      }
+      addEntry(funcInfo);
+    }
+    addEntry({ name: '', start: libEnd });
+  }
+
+  async loadSymbols(libName) {}
+
+  async loadSymbolsRemote(platform, libName) {
+    this.parsePos = 0;
+    const url = new URL("http://localhost:8000/v8/loadVMSymbols");
+    url.searchParams.set('libName', libName);
+    url.searchParams.set('platform', platform);
+    this._setRemoteQueryParams(url.searchParams);
+    let response;
+    let json;
+    try {
+      response = await fetch(url);
+      if (response.status == 404) {
+        throw new Error(
+          `Local symbol server returned 404: ${await response.text()}`);
+      }
+      json = await response.json();
+      if (json.error) console.warn(json.error);
+    } catch (e) {
+      if (!response || response.status == 404) {
+        // Assume that the local symbol server is not reachable.
+        console.error("Disabling remote symbol loading:", e);
+        this._isEnabled = false;
+        return;
+      }
+    }
+    this._handleRemoteSymbolsResult(json);
+  }
+
+  _setRemoteQueryParams(searchParams) {
+    // Subclass responsibility.
+  }
+
+  _handleRemoteSymbolsResult(json) {
+    this.symbols = json.symbols;
+  }
+
+  parseNextLine() { return false }
+}
+
+export class LinuxCppEntriesProvider extends CppEntriesProvider {
+  constructor(nmExec, objdumpExec, targetRootFS, apkEmbeddedLibrary) {
+    super();
+    this.symbols = [];
+    // File offset of a symbol minus the virtual address of a symbol found in
+    // the symbol table.
+    this.fileOffsetMinusVma = 0;
+    this.parsePos = 0;
+    this.nmExec = nmExec;
+    this.objdumpExec = objdumpExec;
+    this.targetRootFS = targetRootFS;
+    this.apkEmbeddedLibrary = apkEmbeddedLibrary;
+    this.FUNC_RE = /^([0-9a-fA-F]{8,16}) ([0-9a-fA-F]{8,16} )?[tTwW] (.*)$/;
+  }
+
+  _setRemoteQueryParams(searchParams) {
+    super._setRemoteQueryParams(searchParams);
+    searchParams.set('targetRootFS', this.targetRootFS ?? "");
+    searchParams.set('apkEmbeddedLibrary', this.apkEmbeddedLibrary);
+  }
+
+  _handleRemoteSymbolsResult(json) {
+    super._handleRemoteSymbolsResult(json);
+    this.fileOffsetMinusVma = json.fileOffsetMinusVma;
+  }
+
+  async loadSymbols(libName) {
+    this.parsePos = 0;
+    if (this.apkEmbeddedLibrary && libName.endsWith('.apk')) {
+      libName = this.apkEmbeddedLibrary;
+    }
+    if (this.targetRootFS) {
+      libName = libName.substring(libName.lastIndexOf('/') + 1);
+      libName = this.targetRootFS + libName;
+    }
+    try {
+      this.symbols = [
+        os.system(this.nmExec, ['-C', '-n', '-S', libName], -1, -1),
+        os.system(this.nmExec, ['-C', '-n', '-S', '-D', libName], -1, -1)
+      ];
+
+      const objdumpOutput = os.system(this.objdumpExec, ['-h', libName], -1, -1);
+      for (const line of objdumpOutput.split('\n')) {
+        const [, sectionName, , vma, , fileOffset] = line.trim().split(/\s+/);
+        if (sectionName === ".text") {
+          this.fileOffsetMinusVma = parseInt(fileOffset, 16) - parseInt(vma, 16);
+        }
+      }
+    } catch (e) {
+      // If the library cannot be found on this system let's not panic.
+      this.symbols = ['', ''];
+    }
+  }
+
+  parseNextLine() {
+    if (this.symbols.length == 0) return false;
+    const lineEndPos = this.symbols[0].indexOf('\n', this.parsePos);
+    if (lineEndPos == -1) {
+      this.symbols.shift();
+      this.parsePos = 0;
+      return this.parseNextLine();
+    }
+
+    const line = this.symbols[0].substring(this.parsePos, lineEndPos);
+    this.parsePos = lineEndPos + 1;
+    const fields = line.match(this.FUNC_RE);
+    let funcInfo = null;
+    if (fields) {
+      funcInfo = { name: fields[3], start: parseInt(fields[1], 16) + this.fileOffsetMinusVma };
+      if (fields[2]) {
+        funcInfo.size = parseInt(fields[2], 16);
+      }
+    }
+    return funcInfo;
+  }
+}
+
+export class RemoteLinuxCppEntriesProvider extends LinuxCppEntriesProvider {
+  async loadSymbols(libName) {
+    return this.loadSymbolsRemote('linux', libName);
+  }
+}
+
+export class MacOSCppEntriesProvider extends LinuxCppEntriesProvider {
+  constructor(nmExec, objdumpExec, targetRootFS, apkEmbeddedLibrary) {
+    super(nmExec, objdumpExec, targetRootFS, apkEmbeddedLibrary);
+    // Note an empty group. It is required, as LinuxCppEntriesProvider expects 3 groups.
+    this.FUNC_RE = /^([0-9a-fA-F]{8,16})() (.*)$/;
+  }
+
+  async loadSymbols(libName) {
+    this.parsePos = 0;
+    libName = this.targetRootFS + libName;
+
+    // It seems that in OS X `nm` thinks that `-f` is a format option, not a
+    // "flat" display option flag.
+    try {
+      this.symbols = [
+        os.system(this.nmExec, ['--demangle', '-n', libName], -1, -1),
+        ''];
+    } catch (e) {
+      // If the library cannot be found on this system let's not panic.
+      this.symbols = '';
+    }
+  }
+}
+
+export class RemoteMacOSCppEntriesProvider extends LinuxCppEntriesProvider {
+  async loadSymbols(libName) {
+    return this.loadSymbolsRemote('macos', libName);
+  }
+}
+
+
+export class WindowsCppEntriesProvider extends CppEntriesProvider {
+  constructor(_ignored_nmExec, _ignored_objdumpExec, targetRootFS,
+    _ignored_apkEmbeddedLibrary) {
+    super();
+    this.targetRootFS = targetRootFS;
+    this.symbols = '';
+    this.parsePos = 0;
+  }
+
+  static FILENAME_RE = /^(.*)\.([^.]+)$/;
+  static FUNC_RE =
+    /^\s+0001:[0-9a-fA-F]{8}\s+([_\?@$0-9a-zA-Z]+)\s+([0-9a-fA-F]{8}).*$/;
+  static IMAGE_BASE_RE =
+    /^\s+0000:00000000\s+___ImageBase\s+([0-9a-fA-F]{8}).*$/;
+  // This is almost a constant on Windows.
+  static EXE_IMAGE_BASE = 0x00400000;
+
+  loadSymbols(libName) {
+    libName = this.targetRootFS + libName;
+    const fileNameFields = libName.match(WindowsCppEntriesProvider.FILENAME_RE);
+    if (!fileNameFields) return;
+    const mapFileName = `${fileNameFields[1]}.map`;
+    this.moduleType_ = fileNameFields[2].toLowerCase();
+    try {
+      this.symbols = read(mapFileName);
+    } catch (e) {
+      // If .map file cannot be found let's not panic.
+      this.symbols = '';
+    }
+  }
+
+  parseNextLine() {
+    const lineEndPos = this.symbols.indexOf('\r\n', this.parsePos);
+    if (lineEndPos == -1) {
+      return false;
+    }
+
+    const line = this.symbols.substring(this.parsePos, lineEndPos);
+    this.parsePos = lineEndPos + 2;
+
+    // Image base entry is above all other symbols, so we can just
+    // terminate parsing.
+    const imageBaseFields = line.match(WindowsCppEntriesProvider.IMAGE_BASE_RE);
+    if (imageBaseFields) {
+      const imageBase = parseInt(imageBaseFields[1], 16);
+      if ((this.moduleType_ == 'exe') !=
+        (imageBase == WindowsCppEntriesProvider.EXE_IMAGE_BASE)) {
+        return false;
+      }
+    }
+
+    const fields = line.match(WindowsCppEntriesProvider.FUNC_RE);
+    return fields ?
+      { name: this.unmangleName(fields[1]), start: parseInt(fields[2], 16) } :
+      null;
+  }
+
+  /**
+   * Performs very simple unmangling of C++ names.
+   *
+   * Does not handle arguments and template arguments. The mangled names have
+   * the form:
+   *
+   *   ?LookupInDescriptor@JSObject@internal@v8@@...arguments info...
+   */
+  unmangleName(name) {
+    // Empty or non-mangled name.
+    if (name.length < 1 || name.charAt(0) != '?') return name;
+    const nameEndPos = name.indexOf('@@');
+    const components = name.substring(1, nameEndPos).split('@');
+    components.reverse();
+    return components.join('::');
+  }
+}
+
+
+export class ArgumentsProcessor extends BaseArgumentsProcessor {
+  getArgsDispatch() {
+    let dispatch = {
+      __proto__:null,
+      '-j': ['stateFilter', TickProcessor.VmStates.JS,
+        'Show only ticks from JS VM state'],
+      '-g': ['stateFilter', TickProcessor.VmStates.GC,
+        'Show only ticks from GC VM state'],
+      '-p': ['stateFilter', TickProcessor.VmStates.PARSER,
+        'Show only ticks from PARSER VM state'],
+      '-b': ['stateFilter', TickProcessor.VmStates.BYTECODE_COMPILER,
+        'Show only ticks from BYTECODE_COMPILER VM state'],
+      '-c': ['stateFilter', TickProcessor.VmStates.COMPILER,
+        'Show only ticks from COMPILER VM state'],
+      '-o': ['stateFilter', TickProcessor.VmStates.OTHER,
+        'Show only ticks from OTHER VM state'],
+      '-e': ['stateFilter', TickProcessor.VmStates.EXTERNAL,
+        'Show only ticks from EXTERNAL VM state'],
+      '--filter-runtime-timer': ['runtimeTimerFilter', null,
+        'Show only ticks matching the given runtime timer scope'],
+      '--call-graph-size': ['callGraphSize', TickProcessor.CALL_GRAPH_SIZE,
+        'Set the call graph size'],
+      '--ignore-unknown': ['ignoreUnknown', true,
+        'Exclude ticks of unknown code entries from processing'],
+      '--separate-ic': ['separateIc', parseBool,
+        'Separate IC entries'],
+      '--separate-bytecodes': ['separateBytecodes', parseBool,
+        'Separate Bytecode entries'],
+      '--separate-builtins': ['separateBuiltins', parseBool,
+        'Separate Builtin entries'],
+      '--separate-stubs': ['separateStubs', parseBool,
+        'Separate Stub entries'],
+      '--separate-baseline-handlers': ['separateBaselineHandlers', parseBool,
+        'Separate Baseline Handler entries'],
+      '--linux': ['platform', 'linux',
+        'Specify that we are running on *nix platform'],
+      '--windows': ['platform', 'windows',
+        'Specify that we are running on Windows platform'],
+      '--mac': ['platform', 'macos',
+        'Specify that we are running on Mac OS X platform'],
+      '--nm': ['nm', 'nm',
+        'Specify the \'nm\' executable to use (e.g. --nm=/my_dir/nm)'],
+      '--objdump': ['objdump', 'objdump',
+        'Specify the \'objdump\' executable to use (e.g. --objdump=/my_dir/objdump)'],
+      '--target': ['targetRootFS', '',
+        'Specify the target root directory for cross environment'],
+      '--apk-embedded-library': ['apkEmbeddedLibrary', '',
+        'Specify the path of the embedded library for Android traces'],
+      '--range': ['range', 'auto,auto',
+        'Specify the range limit as [start],[end]'],
+      '--distortion': ['distortion', 0,
+        'Specify the logging overhead in picoseconds'],
+      '--source-map': ['sourceMap', null,
+        'Specify the source map that should be used for output'],
+      '--timed-range': ['timedRange', true,
+        'Ignore ticks before first and after last Date.now() call'],
+      '--pairwise-timed-range': ['pairwiseTimedRange', true,
+        'Ignore ticks outside pairs of Date.now() calls'],
+      '--only-summary': ['onlySummary', true,
+        'Print only tick summary, exclude other information'],
+      '--serialize-vm-symbols': ['serializeVMSymbols', true,
+        'Print all C++ symbols and library addresses as JSON data'],
+      '--preprocess': ['preprocessJson', true,
+        'Preprocess for consumption with web interface']
+    };
+    dispatch['--js'] = dispatch['-j'];
+    dispatch['--gc'] = dispatch['-g'];
+    dispatch['--compiler'] = dispatch['-c'];
+    dispatch['--other'] = dispatch['-o'];
+    dispatch['--external'] = dispatch['-e'];
+    dispatch['--ptr'] = dispatch['--pairwise-timed-range'];
+    return dispatch;
+  }
+
+  getDefaultResults() {
+    return {
+      logFileName: 'v8.log',
+      platform: 'linux',
+      stateFilter: null,
+      callGraphSize: 5,
+      ignoreUnknown: false,
+      separateIc: true,
+      separateBytecodes: false,
+      separateBuiltins: true,
+      separateStubs: true,
+      separateBaselineHandlers: false,
+      preprocessJson: null,
+      sourceMap: null,
+      targetRootFS: '',
+      nm: 'nm',
+      objdump: 'objdump',
+      range: 'auto,auto',
+      distortion: 0,
+      timedRange: false,
+      pairwiseTimedRange: false,
+      onlySummary: false,
+      runtimeTimerFilter: null,
+      serializeVMSymbols: false,
+    };
   }
 }
 
 
 export class TickProcessor extends LogReader {
+  static EntriesProvider = {
+    'linux': LinuxCppEntriesProvider,
+    'windows': WindowsCppEntriesProvider,
+    'macos': MacOSCppEntriesProvider
+  };
+
+  static fromParams(params, entriesProvider) {
+    if (entriesProvider == undefined) {
+      entriesProvider = new this.EntriesProvider[params.platform](
+          params.nm, params.objdump, params.targetRootFS,
+          params.apkEmbeddedLibrary);
+    }
+    return new TickProcessor(
+      entriesProvider,
+      params.separateIc,
+      params.separateBytecodes,
+      params.separateBuiltins,
+      params.separateStubs,
+      params.separateBaselineHandlers,
+      params.callGraphSize,
+      params.ignoreUnknown,
+      params.stateFilter,
+      params.distortion,
+      params.range,
+      params.sourceMap,
+      params.timedRange,
+      params.pairwiseTimedRange,
+      params.onlySummary,
+      params.runtimeTimerFilter,
+      params.preprocessJson);
+  }
+
   constructor(
     cppEntriesProvider,
     separateIc,
@@ -174,7 +593,7 @@ export class TickProcessor extends LogReader {
     this.ignoreUnknown_ = ignoreUnknown;
     this.stateFilter_ = stateFilter;
     this.runtimeTimerFilter_ = runtimeTimerFilter;
-    this.sourceMap = sourceMap;
+    this.sourceMap = this.loadSourceMap(sourceMap);
     const ticks = this.ticks_ =
       { total: 0, unaccounted: 0, excluded: 0, gc: 0 };
 
@@ -226,6 +645,17 @@ export class TickProcessor extends LogReader {
     this.onlySummary_ = onlySummary;
   }
 
+  loadSourceMap(sourceMap) {
+    if (!sourceMap) return null;
+    // Overwrite the load function to load scripts synchronously.
+    WebInspector.SourceMap.load = (sourceMapURL) => {
+      const content = d8.file.read(sourceMapURL);
+      const sourceMapObject = JSON.parse(content);
+      return new SourceMap(sourceMapURL, sourceMapObject);
+    };
+    return WebInspector.SourceMap.load(sourceMap);
+  }
+
   static VmStates = {
     JS: 0,
     GC: 1,
@@ -271,19 +701,19 @@ export class TickProcessor extends LogReader {
     return name !== "UNKNOWN" && !(name in this.codeTypes_);
   }
 
-  processLogFile(fileName) {
+  async processLogFile(fileName) {
     this.lastLogFileName_ = fileName;
     let line;
     while (line = readline()) {
-      this.processLogLine(line);
+      await this.processLogLine(line);
     }
   }
 
-  processLogFileInTest(fileName) {
+  async processLogFileInTest(fileName) {
     // Hack file name to avoid dealing with platform specifics.
     this.lastLogFileName_ = 'v8.log';
-    const contents = readFile(fileName);
-    this.processLogChunk(contents);
+    const contents = d8.file.read(fileName);
+    await this.processLogChunk(contents);
   }
 
   processSharedLibrary(name, startAddr, endAddr, aslrSlide) {
@@ -592,342 +1022,5 @@ export class TickProcessor extends LogReader {
       // Delimit top-level functions.
       if (indent == 0) print('');
     });
-  }
-}
-
-
-class CppEntriesProvider {
-  inRange(funcInfo, start, end) {
-    return funcInfo.start >= start && funcInfo.end <= end;
-  }
-
-  parseVmSymbols(libName, libStart, libEnd, libASLRSlide, processorFunc) {
-    this.loadSymbols(libName);
-
-    let lastUnknownSize;
-    let lastAdded;
-
-    let addEntry = (funcInfo) => {
-      // Several functions can be mapped onto the same address. To avoid
-      // creating zero-sized entries, skip such duplicates.
-      // Also double-check that function belongs to the library address space.
-
-      if (lastUnknownSize &&
-        lastUnknownSize.start < funcInfo.start) {
-        // Try to update lastUnknownSize based on new entries start position.
-        lastUnknownSize.end = funcInfo.start;
-        if ((!lastAdded ||
-            !this.inRange(lastUnknownSize, lastAdded.start, lastAdded.end)) &&
-            this.inRange(lastUnknownSize, libStart, libEnd)) {
-          processorFunc(
-              lastUnknownSize.name, lastUnknownSize.start, lastUnknownSize.end);
-          lastAdded = lastUnknownSize;
-        }
-      }
-      lastUnknownSize = undefined;
-
-      if (funcInfo.end) {
-        // Skip duplicates that have the same start address as the last added.
-        if ((!lastAdded || lastAdded.start != funcInfo.start) &&
-          this.inRange(funcInfo, libStart, libEnd)) {
-          processorFunc(funcInfo.name, funcInfo.start, funcInfo.end);
-          lastAdded = funcInfo;
-        }
-      } else {
-        // If a funcInfo doesn't have an end, try to match it up with then next
-        // entry.
-        lastUnknownSize = funcInfo;
-      }
-    }
-
-    while (true) {
-      const funcInfo = this.parseNextLine();
-      if (funcInfo === null) continue;
-      if (funcInfo === false) break;
-      if (funcInfo.start < libStart - libASLRSlide &&
-        funcInfo.start < libEnd - libStart) {
-        funcInfo.start += libStart;
-      } else {
-        funcInfo.start += libASLRSlide;
-      }
-      if (funcInfo.size) {
-        funcInfo.end = funcInfo.start + funcInfo.size;
-      }
-      addEntry(funcInfo);
-    }
-    addEntry({ name: '', start: libEnd });
-  }
-
-  loadSymbols(libName) {}
-
-  parseNextLine() { return false }
-}
-
-
-export class UnixCppEntriesProvider extends CppEntriesProvider {
-  constructor(nmExec, objdumpExec, targetRootFS, apkEmbeddedLibrary) {
-    super();
-    this.symbols = [];
-    // File offset of a symbol minus the virtual address of a symbol found in
-    // the symbol table.
-    this.fileOffsetMinusVma = 0;
-    this.parsePos = 0;
-    this.nmExec = nmExec;
-    this.objdumpExec = objdumpExec;
-    this.targetRootFS = targetRootFS;
-    this.apkEmbeddedLibrary = apkEmbeddedLibrary;
-    this.FUNC_RE = /^([0-9a-fA-F]{8,16}) ([0-9a-fA-F]{8,16} )?[tTwW] (.*)$/;
-  }
-
-
-  loadSymbols(libName) {
-    this.parsePos = 0;
-    if (this.apkEmbeddedLibrary && libName.endsWith('.apk')) {
-      libName = this.apkEmbeddedLibrary;
-    }
-    if (this.targetRootFS) {
-      libName = libName.substring(libName.lastIndexOf('/') + 1);
-      libName = this.targetRootFS + libName;
-    }
-    try {
-      this.symbols = [
-        os.system(this.nmExec, ['-C', '-n', '-S', libName], -1, -1),
-        os.system(this.nmExec, ['-C', '-n', '-S', '-D', libName], -1, -1)
-      ];
-
-      const objdumpOutput = os.system(this.objdumpExec, ['-h', libName], -1, -1);
-      for (const line of objdumpOutput.split('\n')) {
-        const [, sectionName, , vma, , fileOffset] = line.trim().split(/\s+/);
-        if (sectionName === ".text") {
-          this.fileOffsetMinusVma = parseInt(fileOffset, 16) - parseInt(vma, 16);
-        }
-      }
-    } catch (e) {
-      // If the library cannot be found on this system let's not panic.
-      this.symbols = ['', ''];
-    }
-  }
-
-  parseNextLine() {
-    if (this.symbols.length == 0) {
-      return false;
-    }
-    const lineEndPos = this.symbols[0].indexOf('\n', this.parsePos);
-    if (lineEndPos == -1) {
-      this.symbols.shift();
-      this.parsePos = 0;
-      return this.parseNextLine();
-    }
-
-    const line = this.symbols[0].substring(this.parsePos, lineEndPos);
-    this.parsePos = lineEndPos + 1;
-    const fields = line.match(this.FUNC_RE);
-    let funcInfo = null;
-    if (fields) {
-      funcInfo = { name: fields[3], start: parseInt(fields[1], 16) + this.fileOffsetMinusVma };
-      if (fields[2]) {
-        funcInfo.size = parseInt(fields[2], 16);
-      }
-    }
-    return funcInfo;
-  }
-}
-
-export class MacCppEntriesProvider extends UnixCppEntriesProvider {
-  constructor(nmExec, objdumpExec, targetRootFS, apkEmbeddedLibrary) {
-    super(nmExec, objdumpExec, targetRootFS, apkEmbeddedLibrary);
-    // Note an empty group. It is required, as UnixCppEntriesProvider expects 3 groups.
-    this.FUNC_RE = /^([0-9a-fA-F]{8,16})() (.*)$/;
-  }
-
-  loadSymbols(libName) {
-    this.parsePos = 0;
-    libName = this.targetRootFS + libName;
-
-    // It seems that in OS X `nm` thinks that `-f` is a format option, not a
-    // "flat" display option flag.
-    try {
-      this.symbols = [os.system(this.nmExec, ['-n', libName], -1, -1), ''];
-    } catch (e) {
-      // If the library cannot be found on this system let's not panic.
-      this.symbols = '';
-    }
-  }
-}
-
-
-export class WindowsCppEntriesProvider extends CppEntriesProvider {
-  constructor(_ignored_nmExec, _ignored_objdumpExec, targetRootFS,
-    _ignored_apkEmbeddedLibrary) {
-    super();
-    this.targetRootFS = targetRootFS;
-    this.symbols = '';
-    this.parsePos = 0;
-  }
-
-  static FILENAME_RE = /^(.*)\.([^.]+)$/;
-  static FUNC_RE =
-    /^\s+0001:[0-9a-fA-F]{8}\s+([_\?@$0-9a-zA-Z]+)\s+([0-9a-fA-F]{8}).*$/;
-  static IMAGE_BASE_RE =
-    /^\s+0000:00000000\s+___ImageBase\s+([0-9a-fA-F]{8}).*$/;
-  // This is almost a constant on Windows.
-  static EXE_IMAGE_BASE = 0x00400000;
-
-  loadSymbols(libName) {
-    libName = this.targetRootFS + libName;
-    const fileNameFields = libName.match(WindowsCppEntriesProvider.FILENAME_RE);
-    if (!fileNameFields) return;
-    const mapFileName = `${fileNameFields[1]}.map`;
-    this.moduleType_ = fileNameFields[2].toLowerCase();
-    try {
-      this.symbols = read(mapFileName);
-    } catch (e) {
-      // If .map file cannot be found let's not panic.
-      this.symbols = '';
-    }
-  }
-
-  parseNextLine() {
-    const lineEndPos = this.symbols.indexOf('\r\n', this.parsePos);
-    if (lineEndPos == -1) {
-      return false;
-    }
-
-    const line = this.symbols.substring(this.parsePos, lineEndPos);
-    this.parsePos = lineEndPos + 2;
-
-    // Image base entry is above all other symbols, so we can just
-    // terminate parsing.
-    const imageBaseFields = line.match(WindowsCppEntriesProvider.IMAGE_BASE_RE);
-    if (imageBaseFields) {
-      const imageBase = parseInt(imageBaseFields[1], 16);
-      if ((this.moduleType_ == 'exe') !=
-        (imageBase == WindowsCppEntriesProvider.EXE_IMAGE_BASE)) {
-        return false;
-      }
-    }
-
-    const fields = line.match(WindowsCppEntriesProvider.FUNC_RE);
-    return fields ?
-      { name: this.unmangleName(fields[1]), start: parseInt(fields[2], 16) } :
-      null;
-  }
-
-  /**
-   * Performs very simple unmangling of C++ names.
-   *
-   * Does not handle arguments and template arguments. The mangled names have
-   * the form:
-   *
-   *   ?LookupInDescriptor@JSObject@internal@v8@@...arguments info...
-   */
-  unmangleName(name) {
-    // Empty or non-mangled name.
-    if (name.length < 1 || name.charAt(0) != '?') return name;
-    const nameEndPos = name.indexOf('@@');
-    const components = name.substring(1, nameEndPos).split('@');
-    components.reverse();
-    return components.join('::');
-  }
-}
-
-
-export class ArgumentsProcessor extends BaseArgumentsProcessor {
-  getArgsDispatch() {
-    let dispatch = {
-      '-j': ['stateFilter', TickProcessor.VmStates.JS,
-        'Show only ticks from JS VM state'],
-      '-g': ['stateFilter', TickProcessor.VmStates.GC,
-        'Show only ticks from GC VM state'],
-      '-p': ['stateFilter', TickProcessor.VmStates.PARSER,
-        'Show only ticks from PARSER VM state'],
-      '-b': ['stateFilter', TickProcessor.VmStates.BYTECODE_COMPILER,
-        'Show only ticks from BYTECODE_COMPILER VM state'],
-      '-c': ['stateFilter', TickProcessor.VmStates.COMPILER,
-        'Show only ticks from COMPILER VM state'],
-      '-o': ['stateFilter', TickProcessor.VmStates.OTHER,
-        'Show only ticks from OTHER VM state'],
-      '-e': ['stateFilter', TickProcessor.VmStates.EXTERNAL,
-        'Show only ticks from EXTERNAL VM state'],
-      '--filter-runtime-timer': ['runtimeTimerFilter', null,
-        'Show only ticks matching the given runtime timer scope'],
-      '--call-graph-size': ['callGraphSize', TickProcessor.CALL_GRAPH_SIZE,
-        'Set the call graph size'],
-      '--ignore-unknown': ['ignoreUnknown', true,
-        'Exclude ticks of unknown code entries from processing'],
-      '--separate-ic': ['separateIc', parseBool,
-        'Separate IC entries'],
-      '--separate-bytecodes': ['separateBytecodes', parseBool,
-        'Separate Bytecode entries'],
-      '--separate-builtins': ['separateBuiltins', parseBool,
-        'Separate Builtin entries'],
-      '--separate-stubs': ['separateStubs', parseBool,
-        'Separate Stub entries'],
-      '--separate-baseline-handlers': ['separateBaselineHandlers', parseBool,
-        'Separate Baseline Handler entries'],
-      '--unix': ['platform', 'unix',
-        'Specify that we are running on *nix platform'],
-      '--windows': ['platform', 'windows',
-        'Specify that we are running on Windows platform'],
-      '--mac': ['platform', 'mac',
-        'Specify that we are running on Mac OS X platform'],
-      '--nm': ['nm', 'nm',
-        'Specify the \'nm\' executable to use (e.g. --nm=/my_dir/nm)'],
-      '--objdump': ['objdump', 'objdump',
-        'Specify the \'objdump\' executable to use (e.g. --objdump=/my_dir/objdump)'],
-      '--target': ['targetRootFS', '',
-        'Specify the target root directory for cross environment'],
-      '--apk-embedded-library': ['apkEmbeddedLibrary', '',
-        'Specify the path of the embedded library for Android traces'],
-      '--range': ['range', 'auto,auto',
-        'Specify the range limit as [start],[end]'],
-      '--distortion': ['distortion', 0,
-        'Specify the logging overhead in picoseconds'],
-      '--source-map': ['sourceMap', null,
-        'Specify the source map that should be used for output'],
-      '--timed-range': ['timedRange', true,
-        'Ignore ticks before first and after last Date.now() call'],
-      '--pairwise-timed-range': ['pairwiseTimedRange', true,
-        'Ignore ticks outside pairs of Date.now() calls'],
-      '--only-summary': ['onlySummary', true,
-        'Print only tick summary, exclude other information'],
-      '--serialize-vm-symbols': ['serializeVMSymbols', true,
-        'Print all C++ symbols and library addresses as JSON data'],
-      '--preprocess': ['preprocessJson', true,
-        'Preprocess for consumption with web interface']
-    };
-    dispatch['--js'] = dispatch['-j'];
-    dispatch['--gc'] = dispatch['-g'];
-    dispatch['--compiler'] = dispatch['-c'];
-    dispatch['--other'] = dispatch['-o'];
-    dispatch['--external'] = dispatch['-e'];
-    dispatch['--ptr'] = dispatch['--pairwise-timed-range'];
-    return dispatch;
-  }
-
-  getDefaultResults() {
-    return {
-      logFileName: 'v8.log',
-      platform: 'unix',
-      stateFilter: null,
-      callGraphSize: 5,
-      ignoreUnknown: false,
-      separateIc: true,
-      separateBytecodes: false,
-      separateBuiltins: true,
-      separateStubs: true,
-      separateBaselineHandlers: false,
-      preprocessJson: null,
-      targetRootFS: '',
-      nm: 'nm',
-      objdump: 'objdump',
-      range: 'auto,auto',
-      distortion: 0,
-      timedRange: false,
-      pairwiseTimedRange: false,
-      onlySummary: false,
-      runtimeTimerFilter: null,
-      serializeVMSymbols: false,
-    };
   }
 }

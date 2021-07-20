@@ -500,6 +500,7 @@ class Simulator : public SimulatorBase {
   inline int16_t rvc_imm6_sdsp() const { return instr_.RvcImm6SdspValue(); }
   inline int16_t rvc_imm5_w() const { return instr_.RvcImm5WValue(); }
   inline int16_t rvc_imm5_d() const { return instr_.RvcImm5DValue(); }
+  inline int16_t rvc_imm8_b() const { return instr_.RvcImm8BValue(); }
 
   inline void set_rd(int64_t value, bool trace = true) {
     set_register(rd_reg(), value);
@@ -627,6 +628,7 @@ class Simulator : public SimulatorBase {
   void DecodeCLType();
   void DecodeCSType();
   void DecodeCJType();
+  void DecodeCBType();
 
   // Used for breakpoints and traps.
   void SoftwareInterrupt();
@@ -700,7 +702,7 @@ class Simulator : public SimulatorBase {
   bool pc_modified_;
   int64_t icount_;
   int break_count_;
-  EmbeddedVector<char, 128> trace_buf_;
+  base::EmbeddedVector<char, 128> trace_buf_;
 
   // Debugger input.
   char* last_debugger_input_;

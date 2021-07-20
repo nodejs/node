@@ -36,6 +36,7 @@ if (v8_enable_google_benchmark) {
       "src/src/counter.cc",
       "src/src/counter.h",
       "src/src/csv_reporter.cc",
+      "src/src/cycleclock.h",
       "src/src/internal_macros.h",
       "src/src/json_reporter.cc",
       "src/src/log.h",

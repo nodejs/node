@@ -35,14 +35,14 @@ PASS testLineContinuation.call(undefined) === undefined is false
 PASS testEscapeSequence.call(undefined) === undefined is false
 PASS testThis.call('a string') is 'a string'
 PASS testThisDotAccess.call('a string') is 'a string'.length
-PASS testThisDotAccess.call(null) threw exception TypeError: Cannot read property 'length' of null.
-PASS testThisDotAccess.call(undefined) threw exception TypeError: Cannot read property 'length' of undefined.
+PASS testThisDotAccess.call(null) threw exception TypeError: Cannot read properties of null (reading 'length').
+PASS testThisDotAccess.call(undefined) threw exception TypeError: Cannot read properties of undefined (reading 'length').
 PASS testThisDotAccess.call(true) is undefined.
 PASS testThisDotAccess.call(false) is undefined.
 PASS testThisDotAccess.call(1) is undefined.
 PASS testThisBracketAccess.call('a string', 'length') is 'a string'.length
-PASS testThisBracketAccess.call(null, 'length') threw exception TypeError: Cannot read property 'length' of null.
-PASS testThisBracketAccess.call(undefined, 'length') threw exception TypeError: Cannot read property 'length' of undefined.
+PASS testThisBracketAccess.call(null, 'length') threw exception TypeError: Cannot read properties of null (reading 'length').
+PASS testThisBracketAccess.call(undefined, 'length') threw exception TypeError: Cannot read properties of undefined (reading 'length').
 PASS testThisBracketAccess.call(true, 'length') is undefined.
 PASS testThisBracketAccess.call(false, 'length') is undefined.
 PASS testThisBracketAccess.call(1, 'length') is undefined.

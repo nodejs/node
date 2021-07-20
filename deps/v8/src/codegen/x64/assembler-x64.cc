@@ -536,6 +536,8 @@ bool Assembler::is_optimizable_farjmp(int idx) {
 void Assembler::GrowBuffer() {
   DCHECK(buffer_overflow());
 
+  bool previously_on_heap = buffer_->IsOnHeap();
+
   // Compute new buffer size.
   DCHECK_EQ(buffer_start_, buffer_->start());
   int old_size = buffer_->size();
@@ -571,6 +573,17 @@ void Assembler::GrowBuffer() {
   for (auto pos : internal_reference_positions_) {
     Address p = reinterpret_cast<Address>(buffer_start_ + pos);
     WriteUnalignedValue(p, ReadUnalignedValue<intptr_t>(p) + pc_delta);
+  }
+
+  // Patch on-heap references to handles.
+  if (previously_on_heap && !buffer_->IsOnHeap()) {
+    Address base = reinterpret_cast<Address>(buffer_->start());
+    for (auto p : saved_handles_for_raw_object_ptr_) {
+      WriteUnalignedValue(base + p.first, p.second);
+    }
+    for (auto p : saved_offsets_for_runtime_entries_) {
+      WriteUnalignedValue<uint32_t>(base + p.first, p.second);
+    }
   }
 
   DCHECK(!buffer_overflow());
@@ -2034,7 +2047,7 @@ void Assembler::Nop(int n) {
     EnsureSpace ensure_space(this);
     int nop_bytes = std::min(n, 9);
     const char* sequence = kNopSequences + kNopOffsets[nop_bytes];
-    base::Memcpy(pc_, sequence, nop_bytes);
+    memcpy(pc_, sequence, nop_bytes);
     pc_ += nop_bytes;
     n -= nop_bytes;
   } while (n);

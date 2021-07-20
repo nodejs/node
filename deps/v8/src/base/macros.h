@@ -105,7 +105,7 @@ V8_INLINE Dest bit_cast(Source const& source) {
   static_assert(sizeof(Dest) == sizeof(Source),
                 "source and dest must be same size");
   Dest dest;
-  v8::base::Memcpy(&dest, &source, sizeof(dest));
+  memcpy(&dest, &source, sizeof(dest));
   return dest;
 }
 
@@ -153,13 +153,6 @@ V8_INLINE Dest bit_cast(Source const& source) {
 #if __has_feature(address_sanitizer)
 #define V8_USE_ADDRESS_SANITIZER 1
 #endif
-#endif
-
-// Define DISABLE_ASAN macro.
-#ifdef V8_USE_ADDRESS_SANITIZER
-#define DISABLE_ASAN __attribute__((no_sanitize_address))
-#else
-#define DISABLE_ASAN
 #endif
 
 // Define V8_USE_MEMORY_SANITIZER macro.
@@ -419,5 +412,19 @@ bool is_inbounds(float_t v) {
 #else
 #define IF_WASM(V, ...)
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+// Defines IF_TSAN, to be used in macro lists for elements that should only be
+// there if TSAN is enabled.
+#ifdef V8_IS_TSAN
+// EXPAND is needed to work around MSVC's broken __VA_ARGS__ expansion.
+#define IF_TSAN(V, ...) EXPAND(V(__VA_ARGS__))
+#else
+#define IF_TSAN(V, ...)
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+#ifdef GOOGLE3
+// Disable FRIEND_TEST macro in Google3.
+#define FRIEND_TEST(test_case_name, test_name)
+#endif
 
 #endif  // V8_BASE_MACROS_H_

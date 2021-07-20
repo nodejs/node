@@ -79,7 +79,7 @@ function listener(event, exec_state, event_data, data) {
     var match = line.match(/\/\/ Break (\w)$/);
     assertEquals(2, match.length);
     log.push(match[1] + col);
-    exec_state.prepareStep(Debug.StepAction.StepNext);
+    exec_state.prepareStep(Debug.StepAction.StepOver);
     break_count++;
   } catch (e) {
     exception = e;

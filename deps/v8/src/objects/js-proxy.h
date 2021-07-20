@@ -23,8 +23,6 @@ class JSProxy : public TorqueGeneratedJSProxy<JSProxy, JSReceiver> {
                                                         Handle<Object>,
                                                         Handle<Object>);
 
-  static MaybeHandle<NativeContext> GetFunctionRealm(Handle<JSProxy> proxy);
-
   V8_INLINE bool IsRevoked() const;
   static void Revoke(Handle<JSProxy> proxy);
 

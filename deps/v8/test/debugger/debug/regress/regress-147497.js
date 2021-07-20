@@ -30,7 +30,7 @@ Debug = debug.Debug;
 
 function listener(event, exec_state, event_data, data) {
   if (event == Debug.DebugEvent.Break) {
-    exec_state.prepareStep(Debug.StepAction.StepNext);
+    exec_state.prepareStep(Debug.StepAction.StepOver);
   }
 };
 

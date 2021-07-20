@@ -15,22 +15,31 @@ namespace internal {
 
 namespace {
 
-bool CanonicalNumericIndexString(Isolate* isolate, Handle<Object> s,
-                                 Handle<Object>* index) {
-  DCHECK(s->IsString() || s->IsSmi());
+// ES#sec-canonicalnumericindexstring
+// Returns true if the lookup_key represents a valid index string.
+bool CanonicalNumericIndexString(Isolate* isolate,
+                                 const PropertyKey& lookup_key,
+                                 bool* is_minus_zero) {
+  // 1. Assert: Type(argument) is String.
+  DCHECK(lookup_key.is_element() || lookup_key.name()->IsString());
+  *is_minus_zero = false;
+  if (lookup_key.is_element()) return true;
 
-  Handle<Object> result;
-  if (s->IsSmi()) {
-    result = s;
+  Handle<String> key = Handle<String>::cast(lookup_key.name());
+
+  // 3. Let n be ! ToNumber(argument).
+  Handle<Object> result = String::ToNumber(isolate, key);
+  if (result->IsMinusZero()) {
+    // 2. If argument is "-0", return -0𝔽.
+    // We are not performing SaveValue check for -0 because it'll be rejected
+    // anyway.
+    *is_minus_zero = true;
   } else {
-    result = String::ToNumber(isolate, Handle<String>::cast(s));
-    if (!result->IsMinusZero()) {
-      Handle<String> str = Object::ToString(isolate, result).ToHandleChecked();
-      // Avoid treating strings like "2E1" and "20" as the same key.
-      if (!str->SameValue(*s)) return false;
-    }
+    // 4. If SameValue(! ToString(n), argument) is false, return undefined.
+    Handle<String> str = Object::ToString(isolate, result).ToHandleChecked();
+    // Avoid treating strings like "2E1" and "20" as the same key.
+    if (!str->SameValue(*key)) return false;
   }
-  *index = result;
   return true;
 }
 }  // anonymous namespace
@@ -186,7 +195,7 @@ Handle<JSArrayBuffer> JSTypedArray::GetBuffer() {
 
   // Copy the elements into the backing store of the array buffer.
   if (byte_length > 0) {
-    base::Memcpy(backing_store->buffer_start(), self->DataPtr(), byte_length);
+    memcpy(backing_store->buffer_start(), self->DataPtr(), byte_length);
   }
 
   // Attach the backing store to the array buffer.
@@ -212,20 +221,20 @@ Maybe<bool> JSTypedArray::DefineOwnProperty(Isolate* isolate,
   DCHECK(key->IsName() || key->IsNumber());
   // 2. Assert: O is an Object that has a [[ViewedArrayBuffer]] internal slot.
   // 3. If Type(P) is String, then
-  if (key->IsString() || key->IsSmi()) {
+  PropertyKey lookup_key(isolate, key);
+  if (lookup_key.is_element() || key->IsString()) {
     // 3a. Let numericIndex be ! CanonicalNumericIndexString(P)
     // 3b. If numericIndex is not undefined, then
-    Handle<Object> numeric_index;
-    if (CanonicalNumericIndexString(isolate, key, &numeric_index)) {
+    bool is_minus_zero;
+    if (CanonicalNumericIndexString(isolate, lookup_key, &is_minus_zero)) {
       // 3b i. If IsInteger(numericIndex) is false, return false.
       // 3b ii. If numericIndex = -0, return false.
       // 3b iii. If numericIndex < 0, return false.
-      size_t index;
-      if (numeric_index->IsMinusZero() ||
-          !numeric_index->ToIntegerIndex(&index)) {
+      if (!lookup_key.is_element() || is_minus_zero) {
         RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
                        NewTypeError(MessageTemplate::kInvalidTypedArrayIndex));
       }
+      size_t index = lookup_key.index();
       // 3b iv. Let length be O.[[ArrayLength]].
       size_t length = o->length();
       // 3b v. If numericIndex ≥ length, return false.
@@ -269,7 +278,7 @@ Maybe<bool> JSTypedArray::DefineOwnProperty(Isolate* isolate,
     }
   }
   // 4. Return ! OrdinaryDefineOwnProperty(O, P, Desc).
-  return OrdinaryDefineOwnProperty(isolate, o, key, desc, should_throw);
+  return OrdinaryDefineOwnProperty(isolate, o, lookup_key, desc, should_throw);
 }
 
 ExternalArrayType JSTypedArray::type() {

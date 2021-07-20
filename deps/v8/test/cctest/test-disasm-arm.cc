@@ -33,6 +33,7 @@
 // former isn't available in V8.
 #include <regex>  // NOLINT(build/c++11)
 
+#include "src/base/numbers/double.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/debug/debug.h"
@@ -40,7 +41,6 @@
 #include "src/diagnostics/disassembler.h"
 #include "src/execution/frames-inl.h"
 #include "src/init/v8.h"
-#include "src/numbers/double.h"
 #include "src/objects/objects-inl.h"
 #include "src/utils/boxed-float.h"
 #include "test/cctest/cctest.h"
@@ -55,7 +55,7 @@ bool DisassembleAndCompare(byte* begin, UseRegex use_regex,
                            S... expected_strings) {
   disasm::NameConverter converter;
   disasm::Disassembler disasm(converter);
-  EmbeddedVector<char, 128> buffer;
+  base::EmbeddedVector<char, 128> buffer;
 
   std::vector<std::string> expected_disassembly = {expected_strings...};
   size_t n_expected = expected_disassembly.size();
@@ -667,9 +667,9 @@ TEST(Vfp) {
     COMPARE(vsqrt(s2, s3, ne),
             "1eb11ae1       vsqrtne.f32 s2, s3");
 
-    COMPARE(vmov(d0, Double(1.0)),
+    COMPARE(vmov(d0, base::Double(1.0)),
             "eeb70b00       vmov.f64 d0, #1");
-    COMPARE(vmov(d2, Double(-13.0)),
+    COMPARE(vmov(d2, base::Double(-13.0)),
             "eeba2b0a       vmov.f64 d2, #-13");
 
     COMPARE(vmov(s1, Float32(-1.0f)),
@@ -835,7 +835,7 @@ TEST(Vfp) {
       COMPARE(vsqrt(d16, d17),
               "eef10be1       vsqrt.f64 d16, d17");
 
-      COMPARE(vmov(d30, Double(16.0)),
+      COMPARE(vmov(d30, base::Double(16.0)),
               "eef3eb00       vmov.f64 d30, #16");
 
       COMPARE(vmov(NeonS32, d31, 0, r7),
@@ -1171,6 +1171,18 @@ TEST(Neon) {
               "f2110b12       vpadd.i16 d0, d1, d2");
       COMPARE(vpadd(Neon32, d0, d1, d2),
               "f2210b12       vpadd.i32 d0, d1, d2");
+      COMPARE(vpadal(NeonS8, q0, q1),
+              "f3b00642       vpadal.s8 q0, q1");
+      COMPARE(vpadal(NeonS16, q0, q1),
+              "f3b40642       vpadal.s16 q0, q1");
+      COMPARE(vpadal(NeonS32, q0, q1),
+              "f3b80642       vpadal.s32 q0, q1");
+      COMPARE(vpadal(NeonU8, q14, q15),
+              "f3f0c6ee       vpadal.u8 q14, q15");
+      COMPARE(vpadal(NeonU16, q14, q15),
+              "f3f4c6ee       vpadal.u16 q14, q15");
+      COMPARE(vpadal(NeonU32, q14, q15),
+              "f3f8c6ee       vpadal.u32 q14, q15");
       COMPARE(vpaddl(NeonS8, q0, q1),
               "f3b00242       vpaddl.s8 q0, q1");
       COMPARE(vpaddl(NeonS16, q0, q1),

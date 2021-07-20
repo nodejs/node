@@ -94,23 +94,23 @@ elif [ "${OS}" = "Darwin" ]; then
 fi
 
 # Build clang.
-# if [ ! -e "${BUILD_DIR}" ]; then
-#   mkdir "${BUILD_DIR}"
-# fi
-# cd "${BUILD_DIR}"
-# cmake -GNinja -DCMAKE_CXX_FLAGS="-static-libstdc++" -DLLVM_ENABLE_TERMINFO=OFF \
-#     -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_PROJECTS=clang \
-#     -DLLVM_ENABLE_Z3_SOLVER=OFF "${LLVM_PROJECT_DIR}/llvm"
-# MACOSX_DEPLOYMENT_TARGET=10.5 ninja -j"${NUM_JOBS}"
-#
-# # Strip the clang binary.
-# STRIP_FLAGS=
-# if [ "${OS}" = "Darwin" ]; then
-#   # See http://crbug.com/256342
-#   STRIP_FLAGS=-x
-# fi
-# strip ${STRIP_FLAGS} bin/clang
-# cd -
+if [ ! -e "${BUILD_DIR}" ]; then
+  mkdir "${BUILD_DIR}"
+fi
+cd "${BUILD_DIR}"
+cmake -GNinja -DCMAKE_CXX_FLAGS="-static-libstdc++" -DLLVM_ENABLE_TERMINFO=OFF \
+    -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_PROJECTS=clang \
+    -DLLVM_ENABLE_Z3_SOLVER=OFF "${LLVM_PROJECT_DIR}/llvm"
+MACOSX_DEPLOYMENT_TARGET=10.5 ninja -j"${NUM_JOBS}"
+
+# Strip the clang binary.
+STRIP_FLAGS=
+if [ "${OS}" = "Darwin" ]; then
+  # See http://crbug.com/256342
+  STRIP_FLAGS=-x
+fi
+strip ${STRIP_FLAGS} bin/clang
+cd -
 
 # Build libgcmole.so
 make -C "${THIS_DIR}" clean

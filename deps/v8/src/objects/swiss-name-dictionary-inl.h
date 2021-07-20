@@ -8,6 +8,7 @@
 #include <algorithm>
 
 #include "src/base/macros.h"
+#include "src/base/optional.h"
 #include "src/execution/isolate-utils-inl.h"
 #include "src/heap/heap.h"
 #include "src/objects/fixed-array-inl.h"
@@ -301,6 +302,22 @@ Object SwissNameDictionary::ValueAtRaw(int entry) {
 
 Object SwissNameDictionary::ValueAt(InternalIndex entry) {
   DCHECK(IsFull(GetCtrl(entry.as_int())));
+  return ValueAtRaw(entry.as_int());
+}
+
+base::Optional<Object> SwissNameDictionary::TryValueAt(InternalIndex entry) {
+#if DEBUG
+  Isolate* isolate;
+  GetIsolateFromHeapObject(*this, &isolate);
+  DCHECK_NE(isolate, nullptr);
+  SLOW_DCHECK(!isolate->heap()->IsPendingAllocation(*this));
+#endif  // DEBUG
+  // We can read Capacity() in a non-atomic way since we are reading an
+  // initialized object which is not pending allocation.
+  if (static_cast<unsigned>(entry.as_int()) >=
+      static_cast<unsigned>(Capacity())) {
+    return {};
+  }
   return ValueAtRaw(entry.as_int());
 }
 

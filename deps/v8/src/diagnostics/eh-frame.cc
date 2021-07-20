@@ -587,7 +587,6 @@ void EhFrameDisassembler::DumpDwarfDirectives(std::ostream& stream,
         break;
       default:
         UNREACHABLE();
-        return;
     }
   }
 }

@@ -22,15 +22,14 @@
 #include "include/v8-wasm-trap-handler-win.h"
 #endif
 #include "src/base/page-allocator.h"
+#include "src/base/vector.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/execution/simulator.h"
 #include "src/objects/backing-store.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/utils/allocation.h"
-#include "src/utils/vector.h"
 #include "src/wasm/wasm-engine.h"
-
 #include "test/common/assembler-tester.h"
 #include "test/unittests/test-utils.h"
 
@@ -278,9 +277,9 @@ TEST_P(TrapHandlerTest, TestTrapHandlerRecovery) {
   __ Push(scratch);
   GenerateSetThreadInWasmFlagCode(&masm);
   __ Move(scratch, crash_address_, RelocInfo::NONE);
-  int crash_offset = __ pc_offset();
+  uint32_t crash_offset = __ pc_offset();
   __ testl(MemOperand(scratch, 0), Immediate(1));
-  int recovery_offset = __ pc_offset();
+  uint32_t recovery_offset = __ pc_offset();
   GenerateResetThreadInWasmFlagCode(&masm);
   __ Pop(scratch);
   __ Ret();
@@ -303,9 +302,9 @@ TEST_P(TrapHandlerTest, TestReleaseHandlerData) {
   __ Push(scratch);
   GenerateSetThreadInWasmFlagCode(&masm);
   __ Move(scratch, crash_address_, RelocInfo::NONE);
-  int crash_offset = __ pc_offset();
+  uint32_t crash_offset = __ pc_offset();
   __ testl(MemOperand(scratch, 0), Immediate(1));
-  int recovery_offset = __ pc_offset();
+  uint32_t recovery_offset = __ pc_offset();
   GenerateResetThreadInWasmFlagCode(&masm);
   __ Pop(scratch);
   __ Ret();
@@ -334,9 +333,9 @@ TEST_P(TrapHandlerTest, TestNoThreadInWasmFlag) {
                       buffer_->CreateView());
   __ Push(scratch);
   __ Move(scratch, crash_address_, RelocInfo::NONE);
-  int crash_offset = __ pc_offset();
+  uint32_t crash_offset = __ pc_offset();
   __ testl(MemOperand(scratch, 0), Immediate(1));
-  int recovery_offset = __ pc_offset();
+  uint32_t recovery_offset = __ pc_offset();
   __ Pop(scratch);
   __ Ret();
   CodeDesc desc;
@@ -357,11 +356,11 @@ TEST_P(TrapHandlerTest, TestCrashInWasmNoProtectedInstruction) {
                       buffer_->CreateView());
   __ Push(scratch);
   GenerateSetThreadInWasmFlagCode(&masm);
-  int no_crash_offset = __ pc_offset();
+  uint32_t no_crash_offset = __ pc_offset();
   __ Move(scratch, crash_address_, RelocInfo::NONE);
   __ testl(MemOperand(scratch, 0), Immediate(1));
   // Offset where the crash is not happening.
-  int recovery_offset = __ pc_offset();
+  uint32_t recovery_offset = __ pc_offset();
   GenerateResetThreadInWasmFlagCode(&masm);
   __ Pop(scratch);
   __ Ret();
@@ -384,10 +383,10 @@ TEST_P(TrapHandlerTest, TestCrashInWasmWrongCrashType) {
   __ Push(scratch);
   GenerateSetThreadInWasmFlagCode(&masm);
   __ xorq(scratch, scratch);
-  int crash_offset = __ pc_offset();
+  uint32_t crash_offset = __ pc_offset();
   __ divq(scratch);
   // Offset where the crash is not happening.
-  int recovery_offset = __ pc_offset();
+  uint32_t recovery_offset = __ pc_offset();
   GenerateResetThreadInWasmFlagCode(&masm);
   __ Pop(scratch);
   __ Ret();
@@ -445,9 +444,9 @@ TEST_P(TrapHandlerTest, TestCrashInOtherThread) {
                       buffer_->CreateView());
   __ Push(scratch);
   __ Move(scratch, crash_address_, RelocInfo::NONE);
-  int crash_offset = __ pc_offset();
+  uint32_t crash_offset = __ pc_offset();
   __ testl(MemOperand(scratch, 0), Immediate(1));
-  int recovery_offset = __ pc_offset();
+  uint32_t recovery_offset = __ pc_offset();
   __ Pop(scratch);
   __ Ret();
   CodeDesc desc;

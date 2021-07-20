@@ -11,14 +11,21 @@ found in the LICENSE file. -->
   }
 
   #content {
-    background-color: var(--surface-color);
+    background-color: rgba(var(--surface-color-rgb), 0.8);
     border: 3px var(--primary-color) solid;
     border-radius: 10px;
-    min-width: 100px;
-    min-height: 100px;
     padding: 10px;
-    box-shadow: 0px 0px 10px rgba(0,0,0,0.5);
     width: auto;
+    min-width: 100px;
+    max-width: 400px;
+    min-height: 100px;
+    max-height: 400px;
+    overflow: auto;
+    box-shadow: 0px 0px 10px rgba(0,0,0,0.5);
+  }
+
+  #content > h3 {
+    margin-top: 0;
   }
 
   .textContent {
@@ -32,9 +39,10 @@ found in the LICENSE file. -->
   #body {
     display: none;
     position: absolute;
+    z-index: 99999;
     --tip-offset: 10px;
     --tip-width: 10px;
-    --tip-height: 15px;
+    --tip-height: 40px;
   }
 
   #body.top {
@@ -50,33 +58,56 @@ found in the LICENSE file. -->
     left: calc(var(--tip-offset) * -1 - var(--tip-width));
   }
 
-  .tip {
+  .tip, .tipThin {
     width: 0;
     height: 0;
     border-style: solid;
     position: absolute;
-    border-width: var(--tip-height) var(--tip-width) 0 var(--tip-width);
     border-color:  var(--primary-color) transparent transparent transparent;
     pointer-events: none;
   }
-
+  .tip {
+    border-width: var(--tip-width) var(--tip-width) 0 var(--tip-width);
+  }
+  .tipThin {
+    border-width: var(--tip-height) 4px 2px 4px;
+    bottom: -30px;
+    left: -4px;
+  }
+  /* Tip positioning modifiers */
   .top > .tip {
+    bottom: calc(var(--tip-width) * -1);
+  }
+  .top > .tipThin {
     bottom: calc(var(--tip-height) * -1);
   }
   .bottom > .tip {
+    top: calc(var(--tip-width) * -1);
+    transform: scaleY(-1);
+  }
+  .bottom > .tipThin {
     top: calc(var(--tip-height) * -1);
     transform: scaleY(-1);
   }
   .left > .tip {
     right: var(--tip-offset);
   }
+  .left > .tipThin {
+    right: var(--tip-offset);
+  }
   .right > .tip {
+    left: var(--tip-offset);
+  }
+  .right > .tipThin {
     left: var(--tip-offset);
   }
 </style>
 
 <div id="body">
   <div id="content">
+    <property-link-table id="properties"></property-link-table>
   </div>
-  <div class="tip"></div>
+  <div class="tip">
+    <div class="tipThin"></div>
+  </div>
 </div>

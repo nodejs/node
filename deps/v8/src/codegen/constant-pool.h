@@ -7,10 +7,10 @@
 
 #include <map>
 
+#include "src/base/numbers/double.h"
 #include "src/codegen/label.h"
 #include "src/codegen/reloc-info.h"
 #include "src/common/globals.h"
-#include "src/numbers/double.h"
 
 namespace v8 {
 namespace internal {
@@ -29,7 +29,7 @@ class ConstantPoolEntry {
         merged_index_(sharing_ok ? SHARING_ALLOWED : SHARING_PROHIBITED),
         value_(value),
         rmode_(rmode) {}
-  ConstantPoolEntry(int position, Double value,
+  ConstantPoolEntry(int position, base::Double value,
                     RelocInfo::Mode rmode = RelocInfo::NONE)
       : position_(position),
         merged_index_(SHARING_ALLOWED),
@@ -106,14 +106,14 @@ class ConstantPoolBuilder {
   }
 
   // Add double constant to the embedded constant pool
-  ConstantPoolEntry::Access AddEntry(int position, Double value) {
+  ConstantPoolEntry::Access AddEntry(int position, base::Double value) {
     ConstantPoolEntry entry(position, value);
     return AddEntry(&entry, ConstantPoolEntry::DOUBLE);
   }
 
   // Add double constant to the embedded constant pool
   ConstantPoolEntry::Access AddEntry(int position, double value) {
-    return AddEntry(position, Double(value));
+    return AddEntry(position, base::Double(value));
   }
 
   // Previews the access type required for the next new entry to be added.

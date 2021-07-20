@@ -29,9 +29,6 @@ namespace internal {
 
 #ifdef V8_RUNTIME_CALL_STATS
 
-#define RCS_SCOPE(...) \
-  v8::internal::RuntimeCallTimerScope rcs_timer_scope(__VA_ARGS__)
-
 class RuntimeCallCounter final {
  public:
   RuntimeCallCounter() : RuntimeCallCounter(nullptr) {}
@@ -301,6 +298,7 @@ class RuntimeCallTimer final {
   V(WasmCompileError_New)                                  \
   V(WasmLinkError_New)                                     \
   V(WasmRuntimeError_New)                                  \
+  V(WeakMap_Delete)                                        \
   V(WeakMap_Get)                                           \
   V(WeakMap_New)                                           \
   V(WeakMap_Set)
@@ -333,8 +331,8 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, CSAOptimization)                 \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, DecideSpillingMode)              \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, DecompressionOptimization)       \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EarlyGraphTrimming)              \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EarlyOptimization)               \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EarlyTrimming)                   \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EffectLinearization)             \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EscapeAnalysis)                  \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, FinalizeCode)                    \
@@ -346,7 +344,6 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MidTierRegisterAllocator)        \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MidTierRegisterOutputDefinition) \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MidTierSpillSlotAllocator)       \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LateGraphTrimming)               \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LateOptimization)                \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LoadElimination)                 \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LocateSpillSlots)                \
@@ -367,6 +364,7 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, SelectInstructions)              \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, SimplifiedLowering)              \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, StoreStoreElimination)           \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TraceScheduleAndVerify)          \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TypeAssertions)                  \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TypedLowering)                   \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, Typer)                           \
@@ -375,6 +373,7 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmBaseOptimization)            \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmInlining)                    \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmLoopUnrolling)               \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmOptimization)                \
                                                                             \
   ADD_THREAD_SPECIFIC_COUNTER(V, Parse, ArrowFunctionLiteral)               \
   ADD_THREAD_SPECIFIC_COUNTER(V, Parse, FunctionLiteral)                    \
@@ -392,8 +391,8 @@ class RuntimeCallTimer final {
   V(CodeGenerationFromStringsCallbacks)        \
   V(CompileBackgroundCompileTask)              \
   V(CompileBaseline)                           \
-  V(CompileBaselineVisit)                      \
   V(CompileBaselinePreVisit)                   \
+  V(CompileBaselineVisit)                      \
   V(CompileCollectSourcePositions)             \
   V(CompileDeserialize)                        \
   V(CompileEnqueueOnDispatcher)                \
@@ -405,6 +404,8 @@ class RuntimeCallTimer final {
   V(CompileWaitForDispatcher)                  \
   V(ConfigureInstance)                         \
   V(CreateApiFunction)                         \
+  V(Debugger)                                  \
+  V(DebuggerCallback)                          \
   V(DeoptimizeCode)                            \
   V(DeserializeContext)                        \
   V(DeserializeIsolate)                        \
@@ -413,11 +414,11 @@ class RuntimeCallTimer final {
   V(FunctionLengthGetter)                      \
   V(FunctionPrototypeGetter)                   \
   V(FunctionPrototypeSetter)                   \
+  V(GCEpilogueCallback)                        \
+  V(GCPrologueCallback)                        \
   V(GC_Custom_AllAvailableGarbage)             \
   V(GC_Custom_IncrementalMarkingObserver)      \
   V(GC_Custom_SlowAllocateRaw)                 \
-  V(GCEpilogueCallback)                        \
-  V(GCPrologueCallback)                        \
   V(Genesis)                                   \
   V(GetCompatibleReceiver)                     \
   V(GetMoreDataCallback)                       \
@@ -448,8 +449,8 @@ class RuntimeCallTimer final {
   V(NamedGetterCallback)                       \
   V(NamedQueryCallback)                        \
   V(NamedSetterCallback)                       \
-  V(Object_DeleteProperty)                     \
   V(ObjectVerify)                              \
+  V(Object_DeleteProperty)                     \
   V(OptimizeBackgroundDispatcherJob)           \
   V(OptimizeCode)                              \
   V(OptimizeConcurrentFinalize)                \
@@ -466,11 +467,19 @@ class RuntimeCallTimer final {
   V(PrototypeMap_TransitionToDataProperty)     \
   V(PrototypeObject_DeleteProperty)            \
   V(ReconfigureToDataProperty)                 \
-  V(UpdateProtector)                           \
   V(StringLengthGetter)                        \
   V(TestCounter1)                              \
   V(TestCounter2)                              \
-  V(TestCounter3)
+  V(TestCounter3)                              \
+  V(UpdateProtector)                           \
+  V(WebSnapshotDeserialize)                    \
+  V(WebSnapshotDeserialize_Arrays)             \
+  V(WebSnapshotDeserialize_Contexts)           \
+  V(WebSnapshotDeserialize_Exports)            \
+  V(WebSnapshotDeserialize_Functions)          \
+  V(WebSnapshotDeserialize_Maps)               \
+  V(WebSnapshotDeserialize_Objects)            \
+  V(WebSnapshotDeserialize_Strings)
 
 #define FOR_EACH_HANDLER_COUNTER(V)               \
   V(KeyedLoadIC_KeyedLoadSloppyArgumentsStub)     \
@@ -735,7 +744,6 @@ class V8_NODISCARD RuntimeCallTimerScope {
 
 #else  // RUNTIME_CALL_STATS
 
-#define RCS_SCOPE(...)
 #define TRACE_HANDLER_STATS(...)
 #define CHANGE_CURRENT_RUNTIME_COUNTER(...)
 

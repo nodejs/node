@@ -9,7 +9,7 @@
 // these uses is a Merge or Loop node, only the input of the Merge/Loop that
 // corresponds to the trap should be marked as dead.
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 var builder = new WasmModuleBuilder();
 

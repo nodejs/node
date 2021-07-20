@@ -71,7 +71,6 @@ void ProcessorImpl::MultiplySchoolbook(RWDigits Z, Digits X, Digits Y) {
     next_carry = 0;
     BODY(0, i);
     AddWorkEstimate(i);
-    if (should_terminate()) return;
   }
   // Last part: i exceeds Y now, we have to be careful about bounds.
   int loop_end = X.len() + Y.len() - 2;
@@ -85,7 +84,6 @@ void ProcessorImpl::MultiplySchoolbook(RWDigits Z, Digits X, Digits Y) {
     next_carry = 0;
     BODY(min_x_index, max_x_index);
     AddWorkEstimate(max_x_index - min_x_index);
-    if (should_terminate()) return;
   }
   // Write the last digit, and zero out any extra space in Z.
   Z[i++] = digit_add2(next, carry, &carry);

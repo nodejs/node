@@ -4,6 +4,7 @@
 
 #include "src/heap/memory-measurement-inl.h"
 #include "src/heap/memory-measurement.h"
+#include "src/objects/smi.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-tester.h"
 #include "test/cctest/heap/heap-utils.h"
@@ -239,7 +240,7 @@ TEST(PartiallyInitializedJSFunction) {
   isolate->RegisterDeserializerStarted();
   // 2. Set the context field to the uninitialized sentintel.
   TaggedField<Object, JSFunction::kContextOffset>::store(
-      *js_function, Deserializer::uninitialized_field_value());
+      *js_function, Smi::uninitialized_deserialization_value());
   // 3. Request memory meaurement and run all tasks. GC that runs as part
   // of the measurement should not crash.
   CcTest::isolate()->MeasureMemory(
@@ -269,7 +270,7 @@ TEST(PartiallyInitializedContext) {
   isolate->RegisterDeserializerStarted();
   // 2. Set the native context field to the uninitialized sentintel.
   TaggedField<Object, Map::kConstructorOrBackPointerOrNativeContextOffset>::
-      store(*map, Deserializer::uninitialized_field_value());
+      store(*map, Smi::uninitialized_deserialization_value());
   // 3. Request memory meaurement and run all tasks. GC that runs as part
   // of the measurement should not crash.
   CcTest::isolate()->MeasureMemory(

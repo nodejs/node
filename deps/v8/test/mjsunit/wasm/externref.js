@@ -5,7 +5,7 @@
 // Flags: --expose-wasm --experimental-wasm-reftypes --expose-gc
 // Flags: --allow-natives-syntax
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function testExternRefIdentityFunction() {
   print(arguments.callee.name);

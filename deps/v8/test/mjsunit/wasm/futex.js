@@ -7,7 +7,7 @@
 
 'use strict';
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 function WasmAtomicNotify(memory, offset, index, num) {
   let builder = new WasmModuleBuilder();
@@ -79,6 +79,7 @@ function WasmI64AtomicWait(memory, offset, index, val_low,
 }
 
 (function TestInvalidIndex() {
+  if (!%IsAtomicsWaitAllowed()) return;
   let memory = new WebAssembly.Memory({initial: 1, maximum: 1, shared: true});
 
   // Valid indexes are 0-65535 (1 page).
@@ -114,6 +115,7 @@ function WasmI64AtomicWait(memory, offset, index, val_low,
 })();
 
 (function TestInvalidAlignment() {
+  if (!%IsAtomicsWaitAllowed()) return;
   let memory = new WebAssembly.Memory({initial: 1, maximum: 1, shared: true});
 
   // Wait and wake must be 4 byte aligned.
@@ -150,6 +152,7 @@ function WasmI64AtomicWait(memory, offset, index, val_low,
 })();
 
 (function TestI32WaitTimeout() {
+  if (!%IsAtomicsWaitAllowed()) return;
   let memory = new WebAssembly.Memory({initial: 1, maximum: 1, shared: true});
   var waitMs = 100;
   var startTime = new Date();
@@ -159,6 +162,7 @@ function WasmI64AtomicWait(memory, offset, index, val_low,
 })();
 
 (function TestI64WaitTimeout() {
+  if (!%IsAtomicsWaitAllowed()) return;
   let memory = new WebAssembly.Memory({initial: 1, maximum: 1, shared: true});
   var waitMs = 100;
   var startTime = new Date();
@@ -168,6 +172,7 @@ function WasmI64AtomicWait(memory, offset, index, val_low,
 })();
 
 (function TestI32WaitNotEqual() {
+  if (!%IsAtomicsWaitAllowed()) return;
   let memory = new WebAssembly.Memory({initial: 1, maximum: 1, shared: true});
   assertEquals(1, WasmI32AtomicWait(memory, 0, 0, 42, -1));
 
@@ -180,6 +185,7 @@ function WasmI64AtomicWait(memory, offset, index, val_low,
 })();
 
 (function TestI64WaitNotEqual() {
+  if (!%IsAtomicsWaitAllowed()) return;
   let memory = new WebAssembly.Memory({initial: 1, maximum: 1, shared: true});
   assertEquals(1, WasmI64AtomicWait(memory, 0, 0, 42, 0, -1));
 
@@ -216,7 +222,7 @@ if (this.Worker) {
   const numWorkers = 4;
 
   let workerScript = `onmessage = function(msg) {
-    load("test/mjsunit/wasm/wasm-module-builder.js");
+    d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     ${WasmI32AtomicWait.toString()}
     ${WasmI64AtomicWait.toString()}
     let id = msg.id;
@@ -342,3 +348,13 @@ if (this.Worker) {
     workers[id].terminate();
   }
 }
+
+(function TestWaitTrapsOnDisallowedIsolate() {
+  let memory = new WebAssembly.Memory({initial: 1, maximum: 1, shared: true});
+  var waitMs = 100;
+  %SetAllowAtomicsWait(false)
+  assertThrows(function() {
+    WasmI32AtomicWait(memory, 0, 0, 0, waitMs*1000000)}, WebAssembly.RuntimeError);
+  assertThrows(function() {
+    WasmI64AtomicWait(memory, 0, 0, 0, waitMs*1000000)}, WebAssembly.RuntimeError);
+})();

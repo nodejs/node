@@ -42,7 +42,7 @@ const generateData = (property) => {
     buffer.push('    ' + codePoints.join(', ') + ', 0,');
   }
   const output =
-      `const uc32 UnicodePropertySequences::k${ id }[] = {\n` +
+      `const base::uc32 UnicodePropertySequences::k${ id }[] = {\n` +
       `${ buffer.join('\n') }\n    0  // null-terminating the list\n};\n`;
   return output;
 };
@@ -60,7 +60,7 @@ for (const property of properties) {
 */
 
 // clang-format off
-const uc32 UnicodePropertySequences::kEmojiFlagSequences[] = {
+const base::uc32 UnicodePropertySequences::kEmojiFlagSequences[] = {
     0x01F1E6, 0x01F1E8, 0,
     0x01F1FF, 0x01F1FC, 0,
     0x01F1E6, 0x01F1EA, 0,
@@ -322,14 +322,14 @@ const uc32 UnicodePropertySequences::kEmojiFlagSequences[] = {
     0  // null-terminating the list
 };
 
-const uc32 UnicodePropertySequences::kEmojiTagSequences[] = {
+const base::uc32 UnicodePropertySequences::kEmojiTagSequences[] = {
     0x01F3F4, 0x0E0067, 0x0E0062, 0x0E0065, 0x0E006E, 0x0E0067, 0x0E007F, 0,
     0x01F3F4, 0x0E0067, 0x0E0062, 0x0E0073, 0x0E0063, 0x0E0074, 0x0E007F, 0,
     0x01F3F4, 0x0E0067, 0x0E0062, 0x0E0077, 0x0E006C, 0x0E0073, 0x0E007F, 0,
     0  // null-terminating the list
 };
 
-const uc32 UnicodePropertySequences::kEmojiZWJSequences[] = {
+const base::uc32 UnicodePropertySequences::kEmojiZWJSequences[] = {
     0x01F468, 0x00200D, 0x002764, 0x00FE0F, 0x00200D, 0x01F468, 0,
     0x01F441, 0x00FE0F, 0x00200D, 0x01F5E8, 0x00FE0F, 0,
     0x01F468, 0x00200D, 0x01F466, 0,

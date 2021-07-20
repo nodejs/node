@@ -225,8 +225,8 @@ class Logger : public CodeEventListener {
   // Emits a code line info record event.
   void CodeLinePosInfoRecordEvent(Address code_start,
                                   ByteArray source_position_table);
-  void CodeLinePosInfoRecordEvent(Address code_start,
-                                  Vector<const byte> source_position_table);
+  void CodeLinePosInfoRecordEvent(
+      Address code_start, base::Vector<const byte> source_position_table);
 
   void CodeNameEvent(Address addr, int pos, const char* code_name);
 

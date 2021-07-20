@@ -501,9 +501,9 @@ TEST(AssemblerIa32Extractps) {
 
   F4 f = FUNCTION_CAST<F4>(code->entry());
   uint64_t value1 = 0x1234'5678'8765'4321;
-  CHECK_EQ(0x12345678, f(uint64_to_double(value1)));
+  CHECK_EQ(0x12345678, f(base::uint64_to_double(value1)));
   uint64_t value2 = 0x8765'4321'1234'5678;
-  CHECK_EQ(static_cast<int>(0x87654321), f(uint64_to_double(value2)));
+  CHECK_EQ(static_cast<int>(0x87654321), f(base::uint64_to_double(value2)));
 }
 
 using F8 = int (*)(float x, float y);
@@ -1532,14 +1532,14 @@ TEST(DeoptExitSizeIsFixed) {
     Label before_exit;
     masm.bind(&before_exit);
     if (kind == DeoptimizeKind::kEagerWithResume) {
-      Builtins::Name target = Deoptimizer::GetDeoptWithResumeBuiltin(
+      Builtin target = Deoptimizer::GetDeoptWithResumeBuiltin(
           DeoptimizeReason::kDynamicCheckMaps);
       masm.CallForDeoptimization(target, 42, &before_exit, kind, &before_exit,
                                  nullptr);
       CHECK_EQ(masm.SizeOfCodeGeneratedSince(&before_exit),
                Deoptimizer::kEagerWithResumeBeforeArgsSize);
     } else {
-      Builtins::Name target = Deoptimizer::GetDeoptimizationEntry(kind);
+      Builtin target = Deoptimizer::GetDeoptimizationEntry(kind);
       masm.CallForDeoptimization(target, 42, &before_exit, kind, &before_exit,
                                  nullptr);
       CHECK_EQ(masm.SizeOfCodeGeneratedSince(&before_exit),

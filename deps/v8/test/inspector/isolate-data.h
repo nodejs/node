@@ -13,7 +13,7 @@
 #include "include/v8.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
-#include "src/utils/vector.h"
+#include "src/base/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -97,6 +97,9 @@ class IsolateData : public v8_inspector::V8InspectorClient {
   void FireContextDestroyed(v8::Local<v8::Context> context);
   void FreeContext(v8::Local<v8::Context> context);
   void SetResourceNamePrefix(v8::Local<v8::String> prefix);
+  bool AssociateExceptionData(v8::Local<v8::Value> exception,
+                              v8::Local<v8::Name> key,
+                              v8::Local<v8::Value> value);
 
  private:
   static v8::MaybeLocal<v8::Module> ModuleResolveCallback(

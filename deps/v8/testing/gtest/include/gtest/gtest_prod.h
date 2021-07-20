@@ -7,4 +7,6 @@
 // and testing/gmock, instead of directly including files in
 // third_party/googletest.
 
+#if !defined(GOOGLE3)
 #include "third_party/googletest/src/googletest/include/gtest/gtest_prod.h"
+#endif

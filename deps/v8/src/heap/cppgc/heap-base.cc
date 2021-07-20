@@ -29,18 +29,18 @@ class ObjectSizeCounter : private HeapVisitor<ObjectSizeCounter> {
   friend class HeapVisitor<ObjectSizeCounter>;
 
  public:
-  size_t GetSize(RawHeap* heap) {
+  size_t GetSize(RawHeap& heap) {
     Traverse(heap);
     return accumulated_size_;
   }
 
  private:
-  static size_t ObjectSize(const HeapObjectHeader* header) {
-    return ObjectView(*header).Size();
+  static size_t ObjectSize(const HeapObjectHeader& header) {
+    return ObjectView(header).Size();
   }
 
-  bool VisitHeapObjectHeader(HeapObjectHeader* header) {
-    if (header->IsFree()) return true;
+  bool VisitHeapObjectHeader(HeapObjectHeader& header) {
+    if (header.IsFree()) return true;
     accumulated_size_ += ObjectSize(header);
     return true;
   }
@@ -53,8 +53,7 @@ class ObjectSizeCounter : private HeapVisitor<ObjectSizeCounter> {
 HeapBase::HeapBase(
     std::shared_ptr<cppgc::Platform> platform,
     const std::vector<std::unique_ptr<CustomSpaceBase>>& custom_spaces,
-    StackSupport stack_support,
-    std::unique_ptr<MetricRecorder> histogram_recorder)
+    StackSupport stack_support)
     : raw_heap_(this, custom_spaces),
       platform_(std::move(platform)),
 #if defined(LEAK_SANITIZER)
@@ -67,8 +66,7 @@ HeapBase::HeapBase(
 #else   // !CPPGC_CAGED_HEAP
       page_backend_(std::make_unique<PageBackend>(page_allocator())),
 #endif  // !CPPGC_CAGED_HEAP
-      stats_collector_(std::make_unique<StatsCollector>(
-          std::move(histogram_recorder), platform_.get())),
+      stats_collector_(std::make_unique<StatsCollector>(platform_.get())),
       stack_(std::make_unique<heap::base::Stack>(
           v8::base::Stack::GetStackStart())),
       prefinalizer_handler_(std::make_unique<PreFinalizerHandler>(*this)),
@@ -92,7 +90,7 @@ PageAllocator* HeapBase::page_allocator() const {
 }
 
 size_t HeapBase::ObjectPayloadSize() const {
-  return ObjectSizeCounter().GetSize(const_cast<RawHeap*>(&raw_heap()));
+  return ObjectSizeCounter().GetSize(const_cast<RawHeap&>(raw_heap()));
 }
 
 void HeapBase::AdvanceIncrementalGarbageCollectionOnAllocationIfNeeded() {
@@ -127,8 +125,8 @@ void HeapBase::Terminate() {
     stats_collector()->NotifyMarkingStarted(
         GarbageCollector::Config::CollectionType::kMajor,
         GarbageCollector::Config::IsForcedGC::kForced);
-    stats_collector()->NotifyMarkingCompleted(0);
     object_allocator().ResetLinearAllocationBuffers();
+    stats_collector()->NotifyMarkingCompleted(0);
     ExecutePreFinalizers();
     sweeper().Start(
         {Sweeper::SweepingConfig::SweepingType::kAtomic,
@@ -149,14 +147,16 @@ HeapStatistics HeapBase::CollectStatistics(
     HeapStatistics::DetailLevel detail_level) {
   if (detail_level == HeapStatistics::DetailLevel::kBrief) {
     return {stats_collector_->allocated_memory_size(),
+            stats_collector_->resident_memory_size(),
             stats_collector_->allocated_object_size(),
             HeapStatistics::DetailLevel::kBrief,
+            {},
             {}};
   }
 
   sweeper_.FinishIfRunning();
   object_allocator_.ResetLinearAllocationBuffers();
-  return HeapStatisticsCollector().CollectStatistics(this);
+  return HeapStatisticsCollector().CollectDetailedStatistics(this);
 }
 
 }  // namespace internal

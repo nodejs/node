@@ -10,7 +10,6 @@
 
   # Missing rebase in the proposal repository.
   'proposals/js-types/table': [FAIL],
-  'proposals/js-types/unreached-invalid': [FAIL],
   'proposals/memory64/linking': [FAIL],
   'proposals/memory64/table': [FAIL],
   'proposals/memory64/unreached-invalid': [FAIL],
@@ -22,23 +21,23 @@
   'proposals/js-types/linking': [FAIL],
 
   # TODO(wasm): Roll newest tests into "tail-call" repository.
-  'proposals/tail-call/data': [FAIL],
-  'proposals/tail-call/elem': [FAIL],
   'proposals/tail-call/exports': [FAIL],
   'proposals/tail-call/func': [FAIL],
   'proposals/tail-call/globals': [FAIL],
   'proposals/tail-call/linking': [FAIL],
   'proposals/tail-call/type': [FAIL],
-  'proposals/tail-call/unreached-invalid': [FAIL],
-
-  # This test requires the reftypes flag to be disabled.
-  'proposals/bulk-memory-operations/imports': [FAIL],
 
   # TODO(v8:11401): Fix memory64 spec tests / the v8 implementation (whatever
   # is broken).
   'proposals/memory64/data': [FAIL],
   'proposals/memory64/elem': [FAIL],
   'proposals/memory64/imports': [FAIL],
+
+  # Tests that need to run sequentially (e.g. due to memory consumption).
+  'proposals/simd/simd_f32x4*': [PASS, HEAVY],
+  'proposals/simd/simd_f64x2*': [PASS, HEAVY],
+  'f32*': [PASS, HEAVY],
+  'f64*': [PASS, HEAVY],
 }],  # ALWAYS
 
 ['arch == arm and not simulator_run', {
@@ -97,41 +96,12 @@
 }],  # '(arch == mipsel or arch == mips64el) and simulator_run'
 
 ['arch == riscv64', {
-  'conversions': [SKIP],
-  'proposals/JS-BigInt-integration/conversions': [SKIP],
-  'proposals/bulk-memory-operations/conversions': [SKIP],
-  'proposals/js-types/conversions': [SKIP],
-  'proposals/multi-value/conversions': [SKIP],
-  'proposals/reference-types/conversions': [SKIP],
-
-   # the following all fail w/ symptons captured in issue #166
-   'float_exprs': [SKIP],
-   'proposals/tail-call/conversions': [SKIP],
-   'proposals/tail-call/float_exprs': [SKIP],
-   'proposals/tail-call/f64': [SKIP],
-   'proposals/tail-call/f32': [SKIP],
-
    # These tests need larger stack size on simulator.
    'skip-stack-guard-page': '--sim-stack-size=8192',
    'proposals/tail-call/skip-stack-guard-page': '--sim-stack-size=8192',
 
    # SIMD is not fully implemented yet.
    'proposals/simd/*': [SKIP],
-
-   # See issue #403
-   'proposals/js-types/exports': [SKIP],
-   'proposals/js-types/imports': [SKIP],
-
-   # riscv64 don't implemented some wasm atomic func
-   'left-to-right': [SKIP],
-   'float_misc': [SKIP],
-   'f64_bitwise': [SKIP],
-   'f32_bitwise': [SKIP],
-   'proposals/tail-call/f32_bitwise': [SKIP],
-   'proposals/tail-call/f64_bitwise': [SKIP],
-   'proposals/tail-call/float_misc': [SKIP],
-   'proposals/tail-call/left-to-right': [SKIP],
-
 }],  # 'arch == riscv64
 
 ['arch == ppc or arch == ppc64', {

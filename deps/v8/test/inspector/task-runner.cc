@@ -136,7 +136,6 @@ std::unique_ptr<TaskRunner::Task> TaskRunner::GetNext(bool only_protocol) {
     }
     process_queue_semaphore_.Wait();
   }
-  return nullptr;
 }
 
 }  // namespace internal

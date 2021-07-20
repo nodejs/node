@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-load('../base.js');
-load('property-queries.js');
+d8.file.execute('../base.js');
+d8.file.execute('property-queries.js');
 
 var success = true;
 

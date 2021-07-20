@@ -18,7 +18,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-SerializerTester::SerializerTester(const char* source)
+SerializerTester::SerializerTester(const char* global_source,
+                                   const char* local_source)
     : canonical_(main_isolate()) {
   // The tests only make sense in the context of concurrent compilation.
   FLAG_concurrent_inlining = true;
@@ -33,18 +34,14 @@ SerializerTester::SerializerTester(const char* source)
   FLAG_allow_natives_syntax = true;
   FlagList::EnforceFlagImplications();
 
+  CompileRun(global_source);
+
   std::string function_string = "(function() { ";
-  function_string += source;
+  function_string += local_source;
   function_string += " })();";
   Handle<JSFunction> function = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
       *v8::Local<v8::Function>::Cast(CompileRun(function_string.c_str()))));
-  uint32_t flags = i::OptimizedCompilationInfo::kInlining |
-                   i::OptimizedCompilationInfo::kFunctionContextSpecializing |
-                   i::OptimizedCompilationInfo::kLoopPeeling |
-                   i::OptimizedCompilationInfo::kBailoutOnUninitialized |
-                   i::OptimizedCompilationInfo::kAllocationFolding |
-                   i::OptimizedCompilationInfo::kSplitting |
-                   i::OptimizedCompilationInfo::kAnalyzeEnvironmentLiveness;
+  uint32_t flags = i::OptimizedCompilationInfo::kInlining;
   Optimize(function, main_zone(), main_isolate(), flags, &broker_);
   // Update handle to the corresponding serialized Handle in the broker.
   function =
@@ -54,7 +51,7 @@ SerializerTester::SerializerTester(const char* source)
 
 TEST(SerializeEmptyFunction) {
   SerializerTester tester(
-      "function f() {}; %EnsureFeedbackVectorForFunction(f); return f;");
+      "", "function f() {}; %EnsureFeedbackVectorForFunction(f); return f;");
   JSFunctionRef function = tester.function();
   CHECK(tester.broker()->IsSerializedForCompilation(
       function.shared(), function.feedback_vector()));
@@ -63,9 +60,10 @@ TEST(SerializeEmptyFunction) {
 // This helper function allows for testing whether an inlinee candidate
 // was properly serialized. It expects that the top-level function (that is
 // run through the SerializerTester) will return its inlinee candidate.
-void CheckForSerializedInlinee(const char* source, int argc = 0,
+void CheckForSerializedInlinee(const char* global_source,
+                               const char* local_source, int argc = 0,
                                Handle<Object> argv[] = {}) {
-  SerializerTester tester(source);
+  SerializerTester tester(global_source, local_source);
   JSFunctionRef f = tester.function();
   CHECK(tester.broker()->IsSerializedForCompilation(f.shared(),
                                                     f.feedback_vector()));
@@ -75,7 +73,6 @@ void CheckForSerializedInlinee(const char* source, int argc = 0,
       tester.isolate()->factory()->undefined_value(), argc, argv);
   Handle<Object> g;
   CHECK(g_obj.ToHandle(&g));
-
   CHECK_WITH_MSG(
       g->IsJSFunction(),
       "The return value of the outer function must be a function too");
@@ -95,203 +92,204 @@ void CheckForSerializedInlinee(const char* source, int argc = 0,
 }
 
 TEST(SerializeInlinedClosure) {
-  CheckForSerializedInlinee(
-      "function f() {"
-      "  function g(){ return g; }"
-      "  %EnsureFeedbackVectorForFunction(g);"
-      "  return g();"
-      "};"
-      "%EnsureFeedbackVectorForFunction(f);"
-      "f(); return f;");
+  CheckForSerializedInlinee("",
+                            "function f() {"
+                            "  function g(){ return g; }"
+                            "  %EnsureFeedbackVectorForFunction(g);"
+                            "  return g();"
+                            "};"
+                            "%EnsureFeedbackVectorForFunction(f);"
+                            "f(); return f;");
 }
 
 TEST(SerializeInlinedFunction) {
-  CheckForSerializedInlinee(
-      "function g() {};"
-      "%EnsureFeedbackVectorForFunction(g);"
-      "function f() {"
-      "  g(); return g;"
-      "};"
-      "%EnsureFeedbackVectorForFunction(f);"
-      "f(); return f;");
+  CheckForSerializedInlinee("",
+                            "function g() {};"
+                            "%EnsureFeedbackVectorForFunction(g);"
+                            "function f() {"
+                            "  g(); return g;"
+                            "};"
+                            "%EnsureFeedbackVectorForFunction(f);"
+                            "f(); return f;");
 }
 
 TEST(SerializeCallUndefinedReceiver) {
-  CheckForSerializedInlinee(
-      "function g(a,b,c) {};"
-      "%EnsureFeedbackVectorForFunction(g);"
-      "function f() {"
-      "  g(1,2,3); return g;"
-      "};"
-      "%EnsureFeedbackVectorForFunction(f);"
-      "f(); return f;");
+  CheckForSerializedInlinee("",
+                            "function g(a,b,c) {};"
+                            "%EnsureFeedbackVectorForFunction(g);"
+                            "function f() {"
+                            "  g(1,2,3); return g;"
+                            "};"
+                            "%EnsureFeedbackVectorForFunction(f);"
+                            "f(); return f;");
 }
 
 TEST(SerializeCallUndefinedReceiver2) {
-  CheckForSerializedInlinee(
-      "function g(a,b) {};"
-      "%EnsureFeedbackVectorForFunction(g);"
-      "function f() {"
-      "  g(1,2); return g;"
-      "};"
-      "%EnsureFeedbackVectorForFunction(f);"
-      "f(); return f;");
+  CheckForSerializedInlinee("",
+                            "function g(a,b) {};"
+                            "%EnsureFeedbackVectorForFunction(g);"
+                            "function f() {"
+                            "  g(1,2); return g;"
+                            "};"
+                            "%EnsureFeedbackVectorForFunction(f);"
+                            "f(); return f;");
 }
 
 TEST(SerializeCallProperty) {
-  CheckForSerializedInlinee(
-      "let obj = {"
-      "  g: function g(a,b,c) {}"
-      "};"
-      "%EnsureFeedbackVectorForFunction(obj.g);"
-      "function f() {"
-      "  obj.g(1,2,3); return obj.g;"
-      "};"
-      "%EnsureFeedbackVectorForFunction(f);"
-      "f(); return f;");
+  CheckForSerializedInlinee("",
+                            "let obj = {"
+                            "  g: function g(a,b,c) {}"
+                            "};"
+                            "%EnsureFeedbackVectorForFunction(obj.g);"
+                            "function f() {"
+                            "  obj.g(1,2,3); return obj.g;"
+                            "};"
+                            "%EnsureFeedbackVectorForFunction(f);"
+                            "f(); return f;");
 }
 
 TEST(SerializeCallProperty2) {
-  CheckForSerializedInlinee(
-      "let obj = {"
-      "  g: function g(a,b) {}"
-      "};"
-      "%EnsureFeedbackVectorForFunction(obj.g);"
-      "function f() {"
-      "  obj.g(1,2); return obj.g;"
-      "};"
-      "%EnsureFeedbackVectorForFunction(f);"
-      "f(); return f;");
+  CheckForSerializedInlinee("",
+                            "let obj = {"
+                            "  g: function g(a,b) {}"
+                            "};"
+                            "%EnsureFeedbackVectorForFunction(obj.g);"
+                            "function f() {"
+                            "  obj.g(1,2); return obj.g;"
+                            "};"
+                            "%EnsureFeedbackVectorForFunction(f);"
+                            "f(); return f;");
 }
 
 TEST(SerializeCallAnyReceiver) {
-  CheckForSerializedInlinee(
-      "let obj = {"
-      "  g: function g() {}"
-      "};"
-      "%EnsureFeedbackVectorForFunction(obj.g);"
-      "function f() {"
-      "  with(obj) {"
-      "    g(); return g;"
-      "  };"
-      "};"
-      "%EnsureFeedbackVectorForFunction(f);"
-      "f(); return f;");
+  CheckForSerializedInlinee("",
+                            "let obj = {"
+                            "  g: function g() {}"
+                            "};"
+                            "%EnsureFeedbackVectorForFunction(obj.g);"
+                            "function f() {"
+                            "  with(obj) {"
+                            "    g(); return g;"
+                            "  };"
+                            "};"
+                            "%EnsureFeedbackVectorForFunction(f);"
+                            "f(); return f;");
 }
 
 TEST(SerializeCallWithSpread) {
-  CheckForSerializedInlinee(
-      "function g(args) {};"
-      "%EnsureFeedbackVectorForFunction(g);"
-      "const arr = [1,2,3];"
-      "function f() {"
-      "  g(...arr); return g;"
-      "};"
-      "%EnsureFeedbackVectorForFunction(f);"
-      "f(); return f;");
+  CheckForSerializedInlinee("",
+                            "function g(args) {};"
+                            "%EnsureFeedbackVectorForFunction(g);"
+                            "const arr = [1,2,3];"
+                            "function f() {"
+                            "  g(...arr); return g;"
+                            "};"
+                            "%EnsureFeedbackVectorForFunction(f);"
+                            "f(); return f;");
 }
 
 // The following test causes the CallIC of `g` to turn megamorphic,
 // thus allowing us to test if we forward arguments hints (`callee` in this
 // example) and correctly serialize the inlining candidate `j`.
 TEST(SerializeCallArguments) {
-  CheckForSerializedInlinee(
-      "function g(callee) { callee(); };"
-      "function h() {};"
-      "function i() {};"
-      "%EnsureFeedbackVectorForFunction(g);"
-      "g(h); g(i);"
-      "function f() {"
-      "  function j() {};"
-      "  g(j);"
-      "  return j;"
-      "};"
-      "%EnsureFeedbackVectorForFunction(f);"
-      "var j = f();"
-      "%EnsureFeedbackVectorForFunction(j);"
-      "f(); return f;");
+  CheckForSerializedInlinee("",
+                            "function g(callee) { callee(); };"
+                            "function h() {};"
+                            "function i() {};"
+                            "%EnsureFeedbackVectorForFunction(g);"
+                            "g(h); g(i);"
+                            "function f() {"
+                            "  function j() {};"
+                            "  g(j);"
+                            "  return j;"
+                            "};"
+                            "%EnsureFeedbackVectorForFunction(f);"
+                            "var j = f();"
+                            "%EnsureFeedbackVectorForFunction(j);"
+                            "f(); return f;");
 }
 
 TEST(SerializeConstruct) {
-  CheckForSerializedInlinee(
-      "function g() {};"
-      "%EnsureFeedbackVectorForFunction(g);"
-      "function f() {"
-      "  new g(); return g;"
-      "};"
-      "%EnsureFeedbackVectorForFunction(f);"
-      "f(); return f;");
+  CheckForSerializedInlinee("",
+                            "function g() {};"
+                            "%EnsureFeedbackVectorForFunction(g);"
+                            "function f() {"
+                            "  new g(); return g;"
+                            "};"
+                            "%EnsureFeedbackVectorForFunction(f);"
+                            "f(); return f;");
 }
 
 TEST(SerializeConstructWithSpread) {
-  CheckForSerializedInlinee(
-      "function g(a, b, c) {};"
-      "%EnsureFeedbackVectorForFunction(g);"
-      "const arr = [1, 2];"
-      "function f() {"
-      "  new g(0, ...arr); return g;"
-      "};"
-      "%EnsureFeedbackVectorForFunction(f);"
-      "f(); return f;");
+  CheckForSerializedInlinee("",
+                            "function g(a, b, c) {};"
+                            "%EnsureFeedbackVectorForFunction(g);"
+                            "const arr = [1, 2];"
+                            "function f() {"
+                            "  new g(0, ...arr); return g;"
+                            "};"
+                            "%EnsureFeedbackVectorForFunction(f);"
+                            "f(); return f;");
 }
 
 TEST(SerializeConstructSuper) {
-  CheckForSerializedInlinee(
-      "class A {};"
-      "class B extends A { constructor() { super(); } };"
-      "%EnsureFeedbackVectorForFunction(A);"
-      "%EnsureFeedbackVectorForFunction(B);"
-      "function f() {"
-      "  new B(); return A;"
-      "};"
-      "%EnsureFeedbackVectorForFunction(f);"
-      "f(); return f;");
+  CheckForSerializedInlinee("",
+                            "class A {};"
+                            "class B extends A { constructor() { super(); } };"
+                            "%EnsureFeedbackVectorForFunction(A);"
+                            "%EnsureFeedbackVectorForFunction(B);"
+                            "function f() {"
+                            "  new B(); return A;"
+                            "};"
+                            "%EnsureFeedbackVectorForFunction(f);"
+                            "f(); return f;");
 }
 
 TEST(SerializeConditionalJump) {
-  CheckForSerializedInlinee(
-      "function g(callee) { callee(); };"
-      "function h() {};"
-      "function i() {};"
-      "%EnsureFeedbackVectorForFunction(g);"
-      "let a = true;"
-      "g(h); g(i);"
-      "function f() {"
-      "  function q() {};"
-      "  if (a) g(q);"
-      "  return q;"
-      "};"
-      "%EnsureFeedbackVectorForFunction(f);"
-      "var q = f();"
-      "%EnsureFeedbackVectorForFunction(q);"
-      "f(); return f;");
+  CheckForSerializedInlinee("",
+                            "function g(callee) { callee(); };"
+                            "function h() {};"
+                            "function i() {};"
+                            "%EnsureFeedbackVectorForFunction(g);"
+                            "let a = true;"
+                            "g(h); g(i);"
+                            "function f() {"
+                            "  function q() {};"
+                            "  if (a) g(q);"
+                            "  return q;"
+                            "};"
+                            "%EnsureFeedbackVectorForFunction(f);"
+                            "var q = f();"
+                            "%EnsureFeedbackVectorForFunction(q);"
+                            "f(); return f;");
 }
 
 TEST(SerializeUnconditionalJump) {
-  CheckForSerializedInlinee(
-      "function g(callee) { callee(); };"
-      "function h() {};"
-      "function i() {};"
-      "%EnsureFeedbackVectorForFunction(g);"
-      "%EnsureFeedbackVectorForFunction(h);"
-      "%EnsureFeedbackVectorForFunction(i);"
-      "let a = false;"
-      "g(h); g(i);"
-      "function f() {"
-      "  function p() {};"
-      "  function q() {};"
-      "  if (a) q();"
-      "  else g(p);"
-      "  return p;"
-      "};"
-      "%EnsureFeedbackVectorForFunction(f);"
-      "var p = f();"
-      "%EnsureFeedbackVectorForFunction(p);"
-      "f(); return f;");
+  CheckForSerializedInlinee("",
+                            "function g(callee) { callee(); };"
+                            "function h() {};"
+                            "function i() {};"
+                            "%EnsureFeedbackVectorForFunction(g);"
+                            "%EnsureFeedbackVectorForFunction(h);"
+                            "%EnsureFeedbackVectorForFunction(i);"
+                            "let a = false;"
+                            "g(h); g(i);"
+                            "function f() {"
+                            "  function p() {};"
+                            "  function q() {};"
+                            "  if (a) q();"
+                            "  else g(p);"
+                            "  return p;"
+                            "};"
+                            "%EnsureFeedbackVectorForFunction(f);"
+                            "var p = f();"
+                            "%EnsureFeedbackVectorForFunction(p);"
+                            "f(); return f;");
 }
 
 TEST(MergeJumpTargetEnvironment) {
   CheckForSerializedInlinee(
+      "",
       "function f() {"
       "  let g;"
       "  while (true) {"
@@ -305,27 +303,29 @@ TEST(MergeJumpTargetEnvironment) {
 }
 
 TEST(BoundFunctionTarget) {
+  const char* global = "function apply1(foo, arg) { return foo(arg); };";
   CheckForSerializedInlinee(
-      "function apply(foo, arg) { return foo(arg); };"
-      "%EnsureFeedbackVectorForFunction(apply);"
+      global,
+      "%EnsureFeedbackVectorForFunction(apply1);"
       "function test() {"
       "  const lambda = (a) => a;"
       "  %EnsureFeedbackVectorForFunction(lambda);"
-      "  let bound = apply.bind(null, lambda).bind(null, 42);"
-      "  %TurbofanStaticAssert(bound() == 42); return apply;"
+      "  let bound = apply1.bind(null, lambda).bind(null, 42);"
+      "  %TurbofanStaticAssert(bound() == 42); return apply1;"
       "};"
       "%EnsureFeedbackVectorForFunction(test);"
       "test(); return test;");
 }
 
 TEST(BoundFunctionArguments) {
+  const char* global = "function apply2(foo, arg) { return foo(arg); };";
   CheckForSerializedInlinee(
-      "function apply(foo, arg) { return foo(arg); };"
-      "%EnsureFeedbackVectorForFunction(apply);"
+      global,
+      "%EnsureFeedbackVectorForFunction(apply2);"
       "function test() {"
       "  const lambda = (a) => a;"
       "  %EnsureFeedbackVectorForFunction(lambda);"
-      "  let bound = apply.bind(null, lambda).bind(null, 42);"
+      "  let bound = apply2.bind(null, lambda).bind(null, 42);"
       "  %TurbofanStaticAssert(bound() == 42); return lambda;"
       "};"
       "%EnsureFeedbackVectorForFunction(test);"
@@ -335,19 +335,20 @@ TEST(BoundFunctionArguments) {
 TEST(ArrowFunctionInlined) {
   // The loop is to ensure there is a feedback vector for the arrow function
   // {b}.
-  CheckForSerializedInlinee(
-      "function foo() {"
-      "  let b = x => x * x;"
-      "  let a = [1, 2, 3].map(b);"
-      "  return b;"
-      "}"
-      "%EnsureFeedbackVectorForFunction(foo);"
-      "for (let i = 0; i < 100; ++i) foo();"
-      "return foo;");
+  CheckForSerializedInlinee("",
+                            "function foo() {"
+                            "  let b = x => x * x;"
+                            "  let a = [1, 2, 3].map(b);"
+                            "  return b;"
+                            "}"
+                            "%EnsureFeedbackVectorForFunction(foo);"
+                            "for (let i = 0; i < 100; ++i) foo();"
+                            "return foo;");
 }
 
 TEST(BoundFunctionResult) {
   CheckForSerializedInlinee(
+      "",
       "function id(x) { return x }"
       "function foo() { id.bind(undefined, 42)(); return id; }"
       "%PrepareFunctionForOptimization(foo);"
@@ -360,6 +361,7 @@ TEST(BoundFunctionResult) {
 
 TEST(MultipleFunctionCalls) {
   CheckForSerializedInlinee(
+      "",
       "function inc(x) { return ++x; }"
       "function dec(x) { return --x; }"
       "function apply(f, x) { return f(x); }"

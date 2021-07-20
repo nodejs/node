@@ -297,12 +297,12 @@ Object StackGuard::HandleInterrupts() {
 
   if (TestAndClear(&interrupt_flags, LOG_WASM_CODE)) {
     TRACE_EVENT0("v8.wasm", "V8.LogCode");
-    isolate_->wasm_engine()->LogOutstandingCodesForIsolate(isolate_);
+    wasm::GetWasmEngine()->LogOutstandingCodesForIsolate(isolate_);
   }
 
   if (TestAndClear(&interrupt_flags, WASM_CODE_GC)) {
     TRACE_EVENT0("v8.wasm", "V8.WasmCodeGC");
-    isolate_->wasm_engine()->ReportLiveCodeFromStackForGC(isolate_);
+    wasm::GetWasmEngine()->ReportLiveCodeFromStackForGC(isolate_);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

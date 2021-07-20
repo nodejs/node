@@ -496,6 +496,17 @@ bool MarkerBase::ProcessWorklistsWithDeadline(
               })) {
         return false;
       }
+      if (!DrainWorklistWithBytesAndTimeDeadline(
+              mutator_marking_state_, marked_bytes_deadline, time_deadline,
+              mutator_marking_state_.retrace_marked_objects_worklist(),
+              [this](HeapObjectHeader* header) {
+                // Retracing does not increment marked bytes as the object has
+                // already been processed before.
+                DynamicallyTraceMarkedObject<AccessMode::kNonAtomic>(visitor(),
+                                                                     *header);
+              })) {
+        return false;
+      }
     }
 
     {

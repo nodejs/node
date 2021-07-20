@@ -28,7 +28,7 @@ class ClassWithName final : public GarbageCollected<ClassWithName>,
  public:
   explicit ClassWithName(const char* name) : name_(name) {}
   virtual void Trace(Visitor*) const {}
-  const char* GetName() const final { return name_; }
+  const char* GetHumanReadableName() const final { return name_; }
 
  private:
   const char* name_;

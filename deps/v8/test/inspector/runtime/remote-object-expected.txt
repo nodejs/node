@@ -497,6 +497,18 @@ Running test: testRegExp
         type : object
     }
 }
+'var re = /./dgimsuy;
+        re.toString = () => 'foo';
+        re', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : RegExp
+        description : /./dgimsuy
+        objectId : <objectId>
+        subtype : regexp
+        type : object
+    }
+}
 'var re = new RegExp('\w+', 'g');
         re.prop = 32;
         re', returnByValue: false, generatePreview: true

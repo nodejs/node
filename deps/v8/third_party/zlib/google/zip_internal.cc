@@ -243,7 +243,7 @@ int GetErrorOfZipBuffer(void* /*opaque*/, void* /*stream*/) {
 // Returns a zip_fileinfo struct with the time represented by |file_time|.
 zip_fileinfo TimeToZipFileInfo(const base::Time& file_time) {
   base::Time::Exploded file_time_parts;
-  file_time.LocalExplode(&file_time_parts);
+  file_time.UTCExplode(&file_time_parts);
 
   zip_fileinfo zip_info = {};
   if (file_time_parts.year >= 1980) {

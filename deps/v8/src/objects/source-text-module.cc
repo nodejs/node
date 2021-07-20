@@ -159,7 +159,6 @@ Cell SourceTextModule::GetCell(int cell_index) {
       break;
     case SourceTextModuleDescriptor::kInvalid:
       UNREACHABLE();
-      break;
   }
   return Cell::cast(cell);
 }
@@ -934,7 +933,7 @@ void SourceTextModule::ExecuteAsyncModule(Isolate* isolate,
   Handle<JSFunction> steps_fulfilled(
       isolate->native_context()->call_async_module_fulfilled(), isolate);
 
-  ScopedVector<Handle<Object>> empty_argv(0);
+  base::ScopedVector<Handle<Object>> empty_argv(0);
 
   // 6. Let onFulfilled be CreateBuiltinFunction(stepsFulfilled,
   //                                             «[[Module]]»).

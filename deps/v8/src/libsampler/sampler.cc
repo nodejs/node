@@ -13,7 +13,7 @@
 #include <atomic>
 
 #if !V8_OS_QNX && !V8_OS_AIX
-#include <sys/syscall.h>  // NOLINT
+#include <sys/syscall.h>
 #endif
 
 #if V8_OS_MACOSX

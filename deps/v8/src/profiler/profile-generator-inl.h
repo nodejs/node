@@ -18,7 +18,7 @@ CodeEntry::CodeEntry(CodeEventListener::LogEventsAndTags tag, const char* name,
                      std::unique_ptr<SourcePositionTable> line_info,
                      bool is_shared_cross_origin, CodeType code_type)
     : bit_field_(TagField::encode(tag) |
-                 BuiltinIdField::encode(Builtins::builtin_count) |
+                 BuiltinField::encode(Builtin::kIllegal) |
                  CodeTypeField::encode(code_type) |
                  SharedCrossOriginField::encode(is_shared_cross_origin)),
       name_(name),
@@ -38,6 +38,7 @@ ProfileNode::ProfileNode(ProfileTree* tree, CodeEntry* entry,
       parent_(parent),
       id_(tree->next_node_id()) {
   tree_->EnqueueNode(this);
+  if (tree_->code_entries()) tree_->code_entries()->AddRef(entry_);
 }
 
 inline Isolate* ProfileNode::isolate() const { return tree_->isolate(); }

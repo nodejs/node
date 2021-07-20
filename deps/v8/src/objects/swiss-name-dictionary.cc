@@ -5,6 +5,7 @@
 // Only including the -inl.h file directly makes the linter complain.
 #include "src/objects/swiss-name-dictionary.h"
 
+#include "src/heap/heap-inl.h"
 #include "src/objects/swiss-name-dictionary-inl.h"
 
 namespace v8 {

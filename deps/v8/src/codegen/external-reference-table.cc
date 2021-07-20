@@ -6,6 +6,7 @@
 
 #include "src/builtins/accessors.h"
 #include "src/codegen/external-reference.h"
+#include "src/execution/isolate.h"
 #include "src/ic/stub-cache.h"
 #include "src/logging/counters.h"
 

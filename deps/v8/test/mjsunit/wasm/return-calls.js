@@ -7,7 +7,7 @@
 // of standard calls which consume stack space).
 // Flags: --stack-size=128
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestFactorialReturnCall() {
   print(arguments.callee.name);

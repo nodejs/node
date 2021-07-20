@@ -2315,7 +2315,8 @@ TEST_F(MachineOperatorReducerTest, Float64DivWithMinusOne) {
 TEST_F(MachineOperatorReducerTest, Float64DivWithPowerOfTwo) {
   Node* const p0 = Parameter(0);
   TRACED_FORRANGE(uint64_t, exponent, 1, 0x7FE) {
-    Double divisor = Double(exponent << Double::kPhysicalSignificandSize);
+    base::Double divisor =
+        base::Double(exponent << base::Double::kPhysicalSignificandSize);
     if (divisor.value() == 1.0) continue;  // Skip x / 1.0 => x.
     Reduction r = Reduce(graph()->NewNode(machine()->Float64Div(), p0,
                                           Float64Constant(divisor.value())));

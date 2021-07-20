@@ -21,37 +21,43 @@ extern class WasmFunctionData extends Foreign {
   // For imported functions, this value equals the respective entry in
   // the module's imported_function_refs array.
   ref: WasmInstanceObject|Tuple2;
+  // Used for calling this function from JavaScript.
+  @if(V8_EXTERNAL_CODE_SPACE) wrapper_code: CodeDataContainer;
+  @ifnot(V8_EXTERNAL_CODE_SPACE) wrapper_code: Code;
 }
 
+@generateCppClass
 extern class WasmExportedFunctionData extends WasmFunctionData {
-  wrapper_code: Code;
+  // This is the instance that exported the function (which in case of
+  // imported and re-exported functions is different from the instance
+  // where the function is defined -- for the latter see WasmFunctionData::ref).
   instance: WasmInstanceObject;
   function_index: Smi;
   signature: Foreign;
   wrapper_budget: Smi;
   // The remaining fields are for fast calling from C++. The contract is
   // that they are lazily populated, and either all will be present or none.
-  c_wrapper_code: Object;
+  @if(V8_EXTERNAL_CODE_SPACE) c_wrapper_code: CodeDataContainer;
+  @ifnot(V8_EXTERNAL_CODE_SPACE) c_wrapper_code: Code;
   packed_args_size: Smi;
 }
 
+@generateCppClass
 extern class WasmJSFunctionData extends WasmFunctionData {
-  wrapper_code: Code;
-  wasm_to_js_wrapper_code: Code;
+  @if(V8_EXTERNAL_CODE_SPACE) wasm_to_js_wrapper_code: CodeDataContainer;
+  @ifnot(V8_EXTERNAL_CODE_SPACE) wasm_to_js_wrapper_code: Code;
   serialized_return_count: Smi;
   serialized_parameter_count: Smi;
   serialized_signature: PodArrayOfWasmValueType;
 }
 
-// TODO(jkummerow): Derive from WasmFunctionData.
-@export
-class WasmCapiFunctionData extends HeapObject {
-  call_target: RawPtr;
+@generateCppClass
+extern class WasmCapiFunctionData extends WasmFunctionData {
   embedder_data: Foreign;  // Managed<wasm::FuncData>
-  wrapper_code: Code;
   serialized_signature: PodArrayOfWasmValueType;
 }
 
+@generateCppClass
 extern class WasmIndirectFunctionTable extends Struct {
   size: uint32;
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
@@ -70,14 +76,22 @@ extern class WasmExceptionTag extends Struct {
   index: Smi;
 }
 
+@generateCppClass
 extern class WasmModuleObject extends JSObject {
-  native_module: ManagedWasmNativeModule;
+  managed_native_module: ManagedWasmNativeModule;
   export_wrappers: FixedArray;
   script: Script;
 }
 
+@generateCppClass
 extern class WasmTableObject extends JSObject {
+  // The instance in which this WasmTableObject is defined.
+  // This field is undefined if the global is defined outside any Wasm module,
+  // i.e., through the JS API (WebAssembly.Table).
+  // Because it might be undefined, we declare it as a HeapObject.
   instance: WasmInstanceObject|Undefined;
+  // The entries array is at least as big as {current_length()}, but might be
+  // bigger to make future growth more efficient.
   entries: FixedArray;
   current_length: Smi;
   maximum_length: Smi|HeapNumber|Undefined;
@@ -85,21 +99,30 @@ extern class WasmTableObject extends JSObject {
   raw_type: Smi;
 }
 
+@generateCppClass
 extern class WasmMemoryObject extends JSObject {
   array_buffer: JSArrayBuffer;
   maximum_pages: Smi;
   instances: WeakArrayList|Undefined;
 }
 
+@generateCppClass
 extern class WasmGlobalObject extends JSObject {
+  // The instance in which this WasmGlobalObject is defined.
+  // This field is undefined if the global is defined outside any Wasm module,
+  // i.e., through the JS API (WebAssembly.Global).
+  // Because it might be undefined, we declare it as a HeapObject.
   instance: WasmInstanceObject|Undefined;
   untagged_buffer: JSArrayBuffer|Undefined;
   tagged_buffer: FixedArray|Undefined;
   offset: Smi;
   raw_type: Smi;
+  // TODO(7748): If we encode mutability in raw_type, turn this into a boolean
+  // accessor.
   is_mutable: Smi;
 }
 
+@generateCppClass
 extern class WasmExceptionObject extends JSObject {
   serialized_signature: PodArrayOfWasmValueType;
   exception_tag: HeapObject;
@@ -107,6 +130,7 @@ extern class WasmExceptionObject extends JSObject {
 
 type WasmExportedFunction extends JSFunction;
 
+@generateCppClass
 extern class AsmWasmData extends Struct {
   managed_native_module: ManagedWasmNativeModule;
   export_wrappers: FixedArray;
@@ -121,12 +145,20 @@ extern class WasmTypeInfo extends Foreign {
   instance_size: Smi;
 }
 
+// WasmObject corresponds to data ref types which are WasmStruct and WasmArray.
+@abstract
 @generateCppClass
-extern class WasmStruct extends HeapObject {
+extern class WasmObject extends JSReceiver {
 }
 
 @generateCppClass
-extern class WasmArray extends HeapObject {
+@highestInstanceTypeWithinParentClassRange
+extern class WasmStruct extends WasmObject {
+}
+
+@generateCppClass
+@lowestInstanceTypeWithinParentClassRange
+extern class WasmArray extends WasmObject {
   length: uint32;
 
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;

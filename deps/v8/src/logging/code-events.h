@@ -8,12 +8,12 @@
 #include <unordered_set>
 
 #include "src/base/platform/mutex.h"
+#include "src/base/vector.h"
 #include "src/common/globals.h"
 #include "src/objects/code.h"
 #include "src/objects/name.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/string.h"
-#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -25,7 +25,7 @@ class String;
 
 namespace wasm {
 class WasmCode;
-using WasmName = Vector<const char>;
+using WasmName = base::Vector<const char>;
 }  // namespace wasm
 
 // clang-format off

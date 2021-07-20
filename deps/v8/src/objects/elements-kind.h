@@ -104,6 +104,10 @@ enum ElementsKind : uint8_t {
       RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_ELEMENTS_KIND)
 #undef TYPED_ARRAY_ELEMENTS_KIND
 
+  // WasmObject elements kind. The actual elements type is read from the
+  // respective WasmTypeInfo.
+  WASM_ARRAY_ELEMENTS,
+
   // Sentinel ElementsKind for objects with no elements.
   NO_ELEMENTS,
 
@@ -191,6 +195,10 @@ inline bool IsRabGsabTypedArrayElementsKind(ElementsKind kind) {
 inline bool IsTypedArrayOrRabGsabTypedArrayElementsKind(ElementsKind kind) {
   return base::IsInRange(kind, FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND,
                          LAST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND);
+}
+
+inline bool IsWasmArrayElementsKind(ElementsKind kind) {
+  return kind == WASM_ARRAY_ELEMENTS;
 }
 
 inline bool IsTerminalElementsKind(ElementsKind kind) {
@@ -331,6 +339,14 @@ inline ElementsKind GetCorrespondingRabGsabElementsKind(
   DCHECK(IsTypedArrayElementsKind(typed_array_kind));
   return ElementsKind(typed_array_kind - FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND +
                       FIRST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND);
+}
+
+inline ElementsKind GetCorrespondingNonRabGsabElementsKind(
+    ElementsKind typed_array_kind) {
+  DCHECK(IsRabGsabTypedArrayElementsKind(typed_array_kind));
+  return ElementsKind(typed_array_kind -
+                      FIRST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND +
+                      FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND);
 }
 
 inline bool UnionElementsKindUptoPackedness(ElementsKind* a_out,

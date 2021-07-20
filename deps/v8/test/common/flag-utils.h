@@ -21,18 +21,12 @@ class V8_NODISCARD FlagScope {
   T previous_value_;
 };
 
-#define FLAG_SCOPE(flag) \
-  FlagScope<bool> __scope_##flag##__LINE__(&FLAG_##flag, true)
-
 }  // namespace internal
 }  // namespace v8
 
-#define FLAG_SCOPE_EXTERNAL(flag)                         \
+#define FLAG_VALUE_SCOPE(flag, value)                     \
   v8::internal::FlagScope<bool> __scope_##flag##__LINE__( \
-      &v8::internal::FLAG_##flag, true)
-
-#define UNFLAG_SCOPE_EXTERNAL(flag)                       \
-  v8::internal::FlagScope<bool> __scope_##flag##__LINE__( \
-      &v8::internal::FLAG_##flag, false)
+      &v8::internal::FLAG_##flag, value)
+#define FLAG_SCOPE(flag) FLAG_VALUE_SCOPE(flag, true)
 
 #endif  // V8_TEST_COMMON_FLAG_UTILS_H

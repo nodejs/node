@@ -15,7 +15,6 @@
 #include "src/heap/new-spaces.h"
 #include "src/heap/paged-spaces.h"
 #include "src/heap/spaces.h"
-#include "src/objects/code-inl.h"
 
 namespace v8 {
 namespace internal {

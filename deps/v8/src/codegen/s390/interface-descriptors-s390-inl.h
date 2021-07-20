@@ -19,19 +19,38 @@ constexpr auto CallInterfaceDescriptor::DefaultRegisterArray() {
   return registers;
 }
 
+#if DEBUG
+template <typename DerivedDescriptor>
+void StaticCallInterfaceDescriptor<DerivedDescriptor>::
+    VerifyArgumentRegisterCount(CallInterfaceDescriptorData* data, int argc) {
+  RegList allocatable_regs = data->allocatable_registers();
+  if (argc >= 1) DCHECK(allocatable_regs | r2.bit());
+  if (argc >= 2) DCHECK(allocatable_regs | r3.bit());
+  if (argc >= 3) DCHECK(allocatable_regs | r4.bit());
+  if (argc >= 4) DCHECK(allocatable_regs | r5.bit());
+  if (argc >= 5) DCHECK(allocatable_regs | r6.bit());
+  if (argc >= 6) DCHECK(allocatable_regs | r7.bit());
+  if (argc >= 7) DCHECK(allocatable_regs | r8.bit());
+  if (argc >= 8) DCHECK(allocatable_regs | r9.bit());
+  // Additional arguments are passed on the stack.
+}
+#endif  // DEBUG
+
 // static
-constexpr auto RecordWriteDescriptor::registers() {
-  return RegisterArray(r2, r3, r4, r5, r6, kReturnRegister0);
+constexpr auto WriteBarrierDescriptor::registers() {
+  return RegisterArray(r3, r7, r6, r4, r2);
 }
 
 // static
 constexpr auto DynamicCheckMapsDescriptor::registers() {
+  STATIC_ASSERT(kReturnRegister0 == r2);
   return RegisterArray(r2, r3, r4, r5, cp);
 }
 
 // static
-constexpr auto EphemeronKeyBarrierDescriptor::registers() {
-  return RegisterArray(r2, r3, r4, r5, r6, kReturnRegister0);
+constexpr auto DynamicCheckMapsWithFeedbackVectorDescriptor::registers() {
+  STATIC_ASSERT(kReturnRegister0 == r2);
+  return RegisterArray(r2, r3, r4, r5, cp);
 }
 
 // static

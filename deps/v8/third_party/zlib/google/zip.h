@@ -25,29 +25,35 @@ namespace zip {
 
 class WriterDelegate;
 
+// Paths passed as span to avoid copying them.
+using Paths = base::span<const base::FilePath>;
+
 // Abstraction for file access operation required by Zip().
+//
 // Can be passed to the ZipParams for providing custom access to the files,
 // for example over IPC.
-// If none is provided, the files are accessed directly.
-// All parameters paths are expected to be absolute.
+//
+// All parameters paths are expected to be relative to the source directory.
 class FileAccessor {
  public:
   virtual ~FileAccessor() = default;
 
-  struct DirectoryContentEntry {
-    base::FilePath path;
+  struct Info {
     bool is_directory = false;
+    base::Time last_modified;
   };
 
   // Opens files specified in |paths|.
   // Directories should be mapped to invalid files.
-  virtual std::vector<base::File> OpenFilesForReading(
-      const std::vector<base::FilePath>& paths) = 0;
+  virtual bool Open(Paths paths, std::vector<base::File>* files) = 0;
 
-  virtual bool DirectoryExists(const base::FilePath& path) = 0;
-  virtual std::vector<DirectoryContentEntry> ListDirectoryContent(
-      const base::FilePath& dir_path) = 0;
-  virtual base::Time GetLastModifiedTime(const base::FilePath& path) = 0;
+  // Lists contents of a directory at |path|.
+  virtual bool List(const base::FilePath& path,
+                    std::vector<base::FilePath>* files,
+                    std::vector<base::FilePath>* subdirs) = 0;
+
+  // Gets info about a file or directory.
+  virtual bool GetInfo(const base::FilePath& path, Info* info) = 0;
 };
 
 // Progress of a ZIP creation operation.
@@ -76,12 +82,14 @@ using ProgressCallback = base::RepeatingCallback<bool(const Progress&)>;
 
 using FilterCallback = base::RepeatingCallback<bool(const base::FilePath&)>;
 
-using Paths = base::span<const base::FilePath>;
-
 // ZIP creation parameters and options.
 struct ZipParams {
-  // Source directory.
+  // Source directory. Ignored if |file_accessor| is set.
   base::FilePath src_dir;
+
+  // Abstraction around file system access used to read files.
+  // If left null, an implementation that accesses files directly is used.
+  FileAccessor* file_accessor = nullptr;  // Not owned
 
   // Destination file path.
   // Either dest_file or dest_fd should be set, but not both.
@@ -93,16 +101,20 @@ struct ZipParams {
   int dest_fd = base::kInvalidPlatformFile;
 #endif
 
-  // The relative paths to the files that should be included in the ZIP file. If
-  // this is empty, all files in |src_dir| are included.
+  // The relative paths to the files and directories that should be included in
+  // the ZIP file. If this is empty, the whole contents of |src_dir| are
+  // included.
   //
   // These paths must be relative to |src_dir| and will be used as the file
-  // names in the created zip file. All files must be under |src_dir| in the
+  // names in the created ZIP file. All files must be under |src_dir| in the
   // file system hierarchy.
+  //
+  // All the paths in |src_files| are included in the created ZIP file,
+  // irrespective of |include_hidden_files| and |filter_callback|.
   Paths src_files;
 
-  // Filter used to exclude files from the ZIP file. Only effective when
-  // |src_files| is empty.
+  // Filter used to exclude files from the ZIP file. This is only taken in
+  // account when recursively adding subdirectory contents.
   FilterCallback filter_callback;
 
   // Optional progress reporting callback.
@@ -112,13 +124,12 @@ struct ZipParams {
   // creation operation completes.
   base::TimeDelta progress_period;
 
-  // Whether hidden files should be included in the ZIP file. Only effective
-  // when |src_files| is empty.
+  // Should add hidden files? This is only taken in account when recursively
+  // adding subdirectory contents.
   bool include_hidden_files = true;
 
-  // Abstraction around file system access used to read files. If left null, an
-  // implementation that accesses files directly is used.
-  FileAccessor* file_accessor = nullptr;  // Not owned
+  // Should recursively add subdirectory contents?
+  bool recursive = false;
 };
 
 // Zip files specified into a ZIP archives. The source files and ZIP destination

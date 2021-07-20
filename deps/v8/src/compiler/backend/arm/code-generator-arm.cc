@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/numbers/double.h"
 #include "src/codegen/arm/constants-arm.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
@@ -13,7 +14,6 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
 #include "src/heap/memory-chunk.h"
-#include "src/numbers/double.h"
 #include "src/utils/boxed-float.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -211,12 +211,13 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ CallEphemeronKeyBarrier(object_, offset_, save_fp_mode);
 #if V8_ENABLE_WEBASSEMBLY
     } else if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
-      __ CallRecordWriteStub(object_, offset_, remembered_set_action,
-                             save_fp_mode, wasm::WasmCode::kRecordWrite);
+      __ CallRecordWriteStubSaveRegisters(object_, offset_,
+                                          remembered_set_action, save_fp_mode,
+                                          StubCallMode::kCallWasmRuntimeStub);
 #endif  // V8_ENABLE_WEBASSEMBLY
     } else {
-      __ CallRecordWriteStub(object_, offset_, remembered_set_action,
-                             save_fp_mode);
+      __ CallRecordWriteStubSaveRegisters(object_, offset_,
+                                          remembered_set_action, save_fp_mode);
     }
     if (must_save_lr_) {
       __ Pop(lr);
@@ -909,9 +910,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // We don't actually want to generate a pile of code for this, so just
         // claim there is a stack frame, without generating one.
         FrameScope scope(tasm(), StackFrame::NONE);
-        __ Call(
-            isolate()->builtins()->builtin_handle(Builtins::kAbortCSAAssert),
-            RelocInfo::CODE_TARGET);
+        __ Call(isolate()->builtins()->code_handle(Builtin::kAbortCSAAssert),
+                RelocInfo::CODE_TARGET);
       }
       __ stop();
       unwinding_info_writer_.MarkBlockWillExit();
@@ -1848,6 +1848,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                i.InputSimd128Register(1).high());
       break;
     }
+    case kArmVpadal: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      auto dt = static_cast<NeonDataType>(MiscField::decode(instr->opcode()));
+      __ vpadal(dt, i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
     case kArmVpaddl: {
       auto dt = static_cast<NeonDataType>(MiscField::decode(instr->opcode()));
       __ vpaddl(dt, i.OutputSimd128Register(), i.InputSimd128Register(0));
@@ -2511,8 +2517,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vshr(NeonS32, tmp, src, 31);
       // Set i-th bit of each lane i. When AND with tmp, the lanes that
       // are signed will have i-th bit set, unsigned will be 0.
-      __ vmov(mask.low(), Double(uint64_t{0x0000'0002'0000'0001}));
-      __ vmov(mask.high(), Double(uint64_t{0x0000'0008'0000'0004}));
+      __ vmov(mask.low(), base::Double(uint64_t{0x0000'0002'0000'0001}));
+      __ vmov(mask.high(), base::Double(uint64_t{0x0000'0008'0000'0004}));
       __ vand(tmp, mask, tmp);
       __ vpadd(Neon32, tmp.low(), tmp.low(), tmp.high());
       __ vpadd(Neon32, tmp.low(), tmp.low(), kDoubleRegZero);
@@ -2715,8 +2721,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vshr(NeonS16, tmp, src, 15);
       // Set i-th bit of each lane i. When AND with tmp, the lanes that
       // are signed will have i-th bit set, unsigned will be 0.
-      __ vmov(mask.low(), Double(uint64_t{0x0008'0004'0002'0001}));
-      __ vmov(mask.high(), Double(uint64_t{0x0080'0040'0020'0010}));
+      __ vmov(mask.low(), base::Double(uint64_t{0x0008'0004'0002'0001}));
+      __ vmov(mask.high(), base::Double(uint64_t{0x0080'0040'0020'0010}));
       __ vand(tmp, mask, tmp);
       __ vpadd(Neon16, tmp.low(), tmp.low(), tmp.high());
       __ vpadd(Neon16, tmp.low(), tmp.low(), tmp.low());
@@ -2870,8 +2876,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vshr(NeonS8, tmp, src, 7);
       // Set i-th bit of each lane i. When AND with tmp, the lanes that
       // are signed will have i-th bit set, unsigned will be 0.
-      __ vmov(mask.low(), Double(uint64_t{0x8040'2010'0804'0201}));
-      __ vmov(mask.high(), Double(uint64_t{0x8040'2010'0804'0201}));
+      __ vmov(mask.low(), base::Double(uint64_t{0x8040'2010'0804'0201}));
+      __ vmov(mask.high(), base::Double(uint64_t{0x8040'2010'0804'0201}));
       __ vand(tmp, mask, tmp);
       __ vext(mask, tmp, tmp, 8);
       __ vzip(Neon8, mask, tmp);
@@ -2885,8 +2891,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       QwNeonRegister dst = i.OutputSimd128Register();
       uint64_t imm1 = make_uint64(i.InputUint32(1), i.InputUint32(0));
       uint64_t imm2 = make_uint64(i.InputUint32(3), i.InputUint32(2));
-      __ vmov(dst.low(), Double(imm1));
-      __ vmov(dst.high(), Double(imm2));
+      __ vmov(dst.low(), base::Double(imm1));
+      __ vmov(dst.high(), base::Double(imm2));
       break;
     }
     case kArmS128Zero: {
@@ -3898,8 +3904,6 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
 
   unwinding_info_writer_.MarkBlockWillExit();
 
-  // We might need r3 for scratch.
-  DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & r3.bit());
   ArmOperandConverter g(this, nullptr);
   const int parameter_slots =
       static_cast<int>(call_descriptor->ParameterSlotCount());
@@ -3920,9 +3924,9 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   // If {parameter_slots} == 0, it means it is a builtin with
   // kDontAdaptArgumentsSentinel, which takes care of JS arguments popping
   // itself.
-  const bool drop_jsargs = frame_access_state()->has_frame() &&
-                           call_descriptor->IsJSFunctionCall() &&
-                           parameter_slots != 0;
+  const bool drop_jsargs = parameter_slots != 0 &&
+                           frame_access_state()->has_frame() &&
+                           call_descriptor->IsJSFunctionCall();
   if (call_descriptor->IsCFunctionCall()) {
     AssembleDeconstructFrame();
   } else if (frame_access_state()->has_frame()) {
@@ -3940,6 +3944,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     if (drop_jsargs) {
       // Get the actual argument count.
       __ ldr(argc_reg, MemOperand(fp, StandardFrameConstants::kArgCOffset));
+      DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & argc_reg.bit());
     }
     AssembleDeconstructFrame();
   }
@@ -3948,6 +3953,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     // We must pop all arguments from the stack (including the receiver). This
     // number of arguments is given by max(1 + argc_reg, parameter_slots).
     __ add(argc_reg, argc_reg, Operand(1));  // Also pop the receiver.
+    DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & argc_reg.bit());
     if (parameter_slots > 1) {
       __ cmp(argc_reg, Operand(parameter_slots));
       __ mov(argc_reg, Operand(parameter_slots), LeaveCC, lt);

@@ -31,15 +31,6 @@ enum PerThreadAssertType {
   GC_MOLE,
 };
 
-enum PerIsolateAssertType {
-  JAVASCRIPT_EXECUTION_ASSERT,
-  JAVASCRIPT_EXECUTION_THROWS,
-  JAVASCRIPT_EXECUTION_DUMP,
-  DEOPTIMIZATION_ASSERT,
-  COMPILATION_ASSERT,
-  NO_EXCEPTION_ASSERT,
-};
-
 template <PerThreadAssertType kType, bool kAllow>
 class V8_NODISCARD PerThreadAssertScope {
  public:
@@ -57,25 +48,101 @@ class V8_NODISCARD PerThreadAssertScope {
   base::Optional<uint32_t> old_data_;
 };
 
-template <PerIsolateAssertType kType, bool kAllow>
-class V8_NODISCARD PerIsolateAssertScope {
- public:
-  V8_EXPORT_PRIVATE explicit PerIsolateAssertScope(Isolate* isolate);
-  PerIsolateAssertScope(const PerIsolateAssertScope&) = delete;
-  PerIsolateAssertScope& operator=(const PerIsolateAssertScope&) = delete;
-  V8_EXPORT_PRIVATE ~PerIsolateAssertScope();
+// Per-isolate assert scopes.
 
-  static bool IsAllowed(Isolate* isolate);
+#define PER_ISOLATE_ASSERT_TYPE_DEBUG_ONLY(V, enable)                   \
+  /* Scope to document where we do not expect javascript execution. */  \
+  /* Scope to introduce an exception to DisallowJavascriptExecution. */ \
+  V(AllowJavascriptExecution, DisallowJavascriptExecution,              \
+    javascript_execution_assert, enable)                                \
+  /* Scope to document where we do not expect deoptimization. */        \
+  /* Scope to introduce an exception to DisallowDeoptimization. */      \
+  V(AllowDeoptimization, DisallowDeoptimization, deoptimization_assert, \
+    enable)                                                             \
+  /* Scope to document where we do not expect deoptimization. */        \
+  /* Scope to introduce an exception to DisallowDeoptimization. */      \
+  V(AllowCompilation, DisallowCompilation, compilation_assert, enable)  \
+  /* Scope to document where we do not expect exceptions. */            \
+  /* Scope to introduce an exception to DisallowExceptions. */          \
+  V(AllowExceptions, DisallowExceptions, no_exception_assert, enable)
 
-  V8_EXPORT_PRIVATE static void Open(Isolate* isolate,
-                                     bool* was_execution_allowed);
-  V8_EXPORT_PRIVATE static void Close(Isolate* isolate,
-                                      bool was_execution_allowed);
+#define PER_ISOLATE_ASSERT_TYPE(V, enable)                                   \
+  /* Scope in which javascript execution leads to exception being thrown. */ \
+  /* Scope to introduce an exception to ThrowOnJavascriptExecution. */       \
+  V(NoThrowOnJavascriptExecution, ThrowOnJavascriptExecution,                \
+    javascript_execution_throws, enable)                                     \
+  /* Scope in which javascript execution causes dumps. */                    \
+  /* Scope in which javascript execution doesn't cause dumps. */             \
+  V(NoDumpOnJavascriptExecution, DumpOnJavascriptExecution,                  \
+    javascript_execution_dump, enable)                                       \
+  PER_ISOLATE_ASSERT_TYPE_DEBUG_ONLY(V, enable)
 
- private:
-  Isolate* isolate_;
-  uint32_t old_data_;
-};
+#define PER_ISOLATE_ASSERT_SCOPE_DECLARATION(ScopeType)              \
+  class V8_NODISCARD ScopeType {                                     \
+   public:                                                           \
+    V8_EXPORT_PRIVATE explicit ScopeType(Isolate* isolate);          \
+    ScopeType(const ScopeType&) = delete;                            \
+    ScopeType& operator=(const ScopeType&) = delete;                 \
+    V8_EXPORT_PRIVATE ~ScopeType();                                  \
+                                                                     \
+    static bool IsAllowed(Isolate* isolate);                         \
+                                                                     \
+    V8_EXPORT_PRIVATE static void Open(Isolate* isolate,             \
+                                       bool* was_execution_allowed); \
+    V8_EXPORT_PRIVATE static void Close(Isolate* isolate,            \
+                                        bool was_execution_allowed); \
+                                                                     \
+   private:                                                          \
+    Isolate* isolate_;                                               \
+    bool old_data_;                                                  \
+  };
+
+#define PER_ISOLATE_ASSERT_ENABLE_SCOPE(EnableType, _1, _2, _3) \
+  PER_ISOLATE_ASSERT_SCOPE_DECLARATION(EnableType)
+
+#define PER_ISOLATE_ASSERT_DISABLE_SCOPE(_1, DisableType, _2, _3) \
+  PER_ISOLATE_ASSERT_SCOPE_DECLARATION(DisableType)
+
+PER_ISOLATE_ASSERT_TYPE(PER_ISOLATE_ASSERT_ENABLE_SCOPE, true)
+PER_ISOLATE_ASSERT_TYPE(PER_ISOLATE_ASSERT_DISABLE_SCOPE, false)
+
+#ifdef DEBUG
+#define PER_ISOLATE_ASSERT_ENABLE_SCOPE_DEBUG_ONLY(EnableType, DisableType,   \
+                                                   field, _)                  \
+  class EnableType##DebugOnly : public EnableType {                           \
+   public:                                                                    \
+    explicit EnableType##DebugOnly(Isolate* isolate) : EnableType(isolate) {} \
+  };
+#else
+#define PER_ISOLATE_ASSERT_ENABLE_SCOPE_DEBUG_ONLY(EnableType, DisableType, \
+                                                   field, _)                \
+  class V8_NODISCARD EnableType##DebugOnly {                                \
+   public:                                                                  \
+    explicit EnableType##DebugOnly(Isolate* isolate) {}                     \
+  };
+#endif
+
+#ifdef DEBUG
+#define PER_ISOLATE_ASSERT_DISABLE_SCOPE_DEBUG_ONLY(EnableType, DisableType, \
+                                                    field, _)                \
+  class DisableType##DebugOnly : public DisableType {                        \
+   public:                                                                   \
+    explicit DisableType##DebugOnly(Isolate* isolate)                        \
+        : DisableType(isolate) {}                                            \
+  };
+#else
+#define PER_ISOLATE_ASSERT_DISABLE_SCOPE_DEBUG_ONLY(EnableType, DisableType, \
+                                                    field, _)                \
+  class V8_NODISCARD DisableType##DebugOnly {                                \
+   public:                                                                   \
+    explicit DisableType##DebugOnly(Isolate* isolate) {}                     \
+  };
+#endif
+
+PER_ISOLATE_ASSERT_TYPE_DEBUG_ONLY(PER_ISOLATE_ASSERT_ENABLE_SCOPE_DEBUG_ONLY,
+                                   true)
+PER_ISOLATE_ASSERT_TYPE_DEBUG_ONLY(PER_ISOLATE_ASSERT_DISABLE_SCOPE_DEBUG_ONLY,
+                                   false)
 
 template <typename... Scopes>
 class CombinationAssertScope;
@@ -124,24 +191,10 @@ class PerThreadAssertScopeDebugOnly
 #else
 class V8_NODISCARD PerThreadAssertScopeDebugOnly {
  public:
-  PerThreadAssertScopeDebugOnly() {  // NOLINT (modernize-use-equals-default)
+  PerThreadAssertScopeDebugOnly() {
     // Define a constructor to avoid unused variable warnings.
   }
   void Release() {}
-#endif
-};
-
-template <PerIsolateAssertType kType, bool kAllow>
-#ifdef DEBUG
-class PerIsolateAssertScopeDebugOnly
-    : public PerIsolateAssertScope<kType, kAllow> {
- public:
-  explicit PerIsolateAssertScopeDebugOnly(Isolate* isolate)
-      : PerIsolateAssertScope<kType, kAllow>(isolate) {}
-#else
-class V8_NODISCARD PerIsolateAssertScopeDebugOnly {
- public:
-  explicit PerIsolateAssertScopeDebugOnly(Isolate* isolate) {}
 #endif
 };
 
@@ -259,64 +312,6 @@ class V8_NODISCARD NoGarbageCollectionMutexGuard {
   std::unique_ptr<DisallowGarbageCollection> no_gc_;
 };
 
-// Per-isolate assert scopes.
-
-// Scope to document where we do not expect javascript execution.
-using DisallowJavascriptExecution =
-    PerIsolateAssertScope<JAVASCRIPT_EXECUTION_ASSERT, false>;
-
-// Scope to introduce an exception to DisallowJavascriptExecution.
-using AllowJavascriptExecution =
-    PerIsolateAssertScope<JAVASCRIPT_EXECUTION_ASSERT, true>;
-
-// Scope to document where we do not expect javascript execution (debug only)
-using DisallowJavascriptExecutionDebugOnly =
-    PerIsolateAssertScopeDebugOnly<JAVASCRIPT_EXECUTION_ASSERT, false>;
-
-// Scope to introduce an exception to DisallowJavascriptExecutionDebugOnly.
-using AllowJavascriptExecutionDebugOnly =
-    PerIsolateAssertScopeDebugOnly<JAVASCRIPT_EXECUTION_ASSERT, true>;
-
-// Scope in which javascript execution leads to exception being thrown.
-using ThrowOnJavascriptExecution =
-    PerIsolateAssertScope<JAVASCRIPT_EXECUTION_THROWS, false>;
-
-// Scope to introduce an exception to ThrowOnJavascriptExecution.
-using NoThrowOnJavascriptExecution =
-    PerIsolateAssertScope<JAVASCRIPT_EXECUTION_THROWS, true>;
-
-// Scope in which javascript execution causes dumps.
-using DumpOnJavascriptExecution =
-    PerIsolateAssertScope<JAVASCRIPT_EXECUTION_DUMP, false>;
-
-// Scope in which javascript execution causes dumps.
-using NoDumpOnJavascriptExecution =
-    PerIsolateAssertScope<JAVASCRIPT_EXECUTION_DUMP, true>;
-
-// Scope to document where we do not expect deoptimization.
-using DisallowDeoptimization =
-    PerIsolateAssertScopeDebugOnly<DEOPTIMIZATION_ASSERT, false>;
-
-// Scope to introduce an exception to DisallowDeoptimization.
-using AllowDeoptimization =
-    PerIsolateAssertScopeDebugOnly<DEOPTIMIZATION_ASSERT, true>;
-
-// Scope to document where we do not expect deoptimization.
-using DisallowCompilation =
-    PerIsolateAssertScopeDebugOnly<COMPILATION_ASSERT, false>;
-
-// Scope to introduce an exception to DisallowDeoptimization.
-using AllowCompilation =
-    PerIsolateAssertScopeDebugOnly<COMPILATION_ASSERT, true>;
-
-// Scope to document where we do not expect exceptions.
-using DisallowExceptions =
-    PerIsolateAssertScopeDebugOnly<NO_EXCEPTION_ASSERT, false>;
-
-// Scope to introduce an exception to DisallowExceptions.
-using AllowExceptions =
-    PerIsolateAssertScopeDebugOnly<NO_EXCEPTION_ASSERT, true>;
-
 // Explicit instantiation declarations.
 extern template class PerThreadAssertScope<HEAP_ALLOCATION_ASSERT, false>;
 extern template class PerThreadAssertScope<HEAP_ALLOCATION_ASSERT, true>;
@@ -332,19 +327,6 @@ extern template class PerThreadAssertScope<CODE_DEPENDENCY_CHANGE_ASSERT, true>;
 extern template class PerThreadAssertScope<CODE_ALLOCATION_ASSERT, false>;
 extern template class PerThreadAssertScope<CODE_ALLOCATION_ASSERT, true>;
 extern template class PerThreadAssertScope<GC_MOLE, false>;
-
-extern template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_ASSERT, false>;
-extern template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_ASSERT, true>;
-extern template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_THROWS, false>;
-extern template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_THROWS, true>;
-extern template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_DUMP, false>;
-extern template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_DUMP, true>;
-extern template class PerIsolateAssertScope<DEOPTIMIZATION_ASSERT, false>;
-extern template class PerIsolateAssertScope<DEOPTIMIZATION_ASSERT, true>;
-extern template class PerIsolateAssertScope<COMPILATION_ASSERT, false>;
-extern template class PerIsolateAssertScope<COMPILATION_ASSERT, true>;
-extern template class PerIsolateAssertScope<NO_EXCEPTION_ASSERT, false>;
-extern template class PerIsolateAssertScope<NO_EXCEPTION_ASSERT, true>;
 
 }  // namespace internal
 }  // namespace v8

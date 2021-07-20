@@ -81,7 +81,7 @@ class LEBHelper {
   // TODO(titzer): move core logic for decoding LEBs from decoder.h to here.
 
   // Compute the size of {val} if emitted as an LEB32.
-  static inline size_t sizeof_u32v(size_t val) {
+  static size_t sizeof_u32v(size_t val) {
     size_t size = 0;
     do {
       size++;
@@ -91,7 +91,7 @@ class LEBHelper {
   }
 
   // Compute the size of {val} if emitted as an LEB32.
-  static inline size_t sizeof_i32v(int32_t val) {
+  static size_t sizeof_i32v(int32_t val) {
     size_t size = 1;
     if (val >= 0) {
       while (val >= 0x40) {  // prevent sign extension.
@@ -108,7 +108,7 @@ class LEBHelper {
   }
 
   // Compute the size of {val} if emitted as an unsigned LEB64.
-  static inline size_t sizeof_u64v(uint64_t val) {
+  static size_t sizeof_u64v(uint64_t val) {
     size_t size = 0;
     do {
       size++;
@@ -118,7 +118,7 @@ class LEBHelper {
   }
 
   // Compute the size of {val} if emitted as a signed LEB64.
-  static inline size_t sizeof_i64v(int64_t val) {
+  static size_t sizeof_i64v(int64_t val) {
     size_t size = 1;
     if (val >= 0) {
       while (val >= 0x40) {  // prevent sign extension.

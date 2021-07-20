@@ -35,6 +35,11 @@ macro IsCode(o: HeapObject): bool {
 }
 
 @export
+macro IsCodeDataContainer(o: HeapObject): bool {
+  return Is<CodeDataContainer>(o);
+}
+
+@export
 macro IsContext(o: HeapObject): bool {
   return Is<Context>(o);
 }

@@ -35,6 +35,7 @@ namespace compiler {
   V(Arm64Eor32)                             \
   V(Arm64Eon)                               \
   V(Arm64Eon32)                             \
+  V(Arm64Sadalp)                            \
   V(Arm64Saddlp)                            \
   V(Arm64Sub)                               \
   V(Arm64Sub32)                             \
@@ -42,6 +43,7 @@ namespace compiler {
   V(Arm64Mul32)                             \
   V(Arm64Smull)                             \
   V(Arm64Smull2)                            \
+  V(Arm64Uadalp)                            \
   V(Arm64Uaddlp)                            \
   V(Arm64Umull)                             \
   V(Arm64Umull2)                            \

@@ -337,6 +337,7 @@
   V(SpeculativeNumberAdd)                           \
   V(SpeculativeNumberSubtract)                      \
   V(SpeculativeNumberMultiply)                      \
+  V(SpeculativeNumberPow)                           \
   V(SpeculativeNumberDivide)                        \
   V(SpeculativeNumberModulus)                       \
   V(SpeculativeNumberBitwiseAnd)                    \

@@ -7,8 +7,9 @@
 
 #include <ios>
 
+#include "src/base/strings.h"
+#include "src/base/vector.h"
 #include "src/regexp/regexp-ast.h"
-#include "src/utils/vector.h"
 
 // ----------------------------------------------------------------------------
 // Definition and semantics of the EXPERIMENTAL bytecode.
@@ -102,11 +103,11 @@ struct RegExpInstruction {
   };
 
   struct Uc16Range {
-    uc16 min;  // Inclusive.
-    uc16 max;  // Inclusive.
+    base::uc16 min;  // Inclusive.
+    base::uc16 max;  // Inclusive.
   };
 
-  static RegExpInstruction ConsumeRange(uc16 min, uc16 max) {
+  static RegExpInstruction ConsumeRange(base::uc16 min, base::uc16 max) {
     RegExpInstruction result;
     result.opcode = CONSUME_RANGE;
     result.payload.consume_range = Uc16Range{min, max};
@@ -202,7 +203,7 @@ STATIC_ASSERT(sizeof(RegExpInstruction) == 8);
 
 std::ostream& operator<<(std::ostream& os, const RegExpInstruction& inst);
 std::ostream& operator<<(std::ostream& os,
-                         Vector<const RegExpInstruction> insts);
+                         base::Vector<const RegExpInstruction> insts);
 
 }  // namespace internal
 }  // namespace v8

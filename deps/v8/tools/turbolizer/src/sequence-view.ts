@@ -119,6 +119,10 @@ export class SequenceView extends TextView {
       return mkLinkHandler(blockId, view.blockSelectionHandler);
     }
 
+    function mkInstructionLinkHandler(instrId) {
+      return mkLinkHandler(instrId, view.registerAllocationSelectionHandler);
+    }
+
     function mkOperandLinkHandler(text) {
       return mkLinkHandler(text, view.selectionHandler);
     }
@@ -158,6 +162,8 @@ export class SequenceView extends TextView {
       const instId = createElement("div", "instruction-id", instruction.id);
       const offsets = view.sourceResolver.instructionToPcOffsets(instruction.id);
       instId.classList.add("clickable");
+      view.addHtmlElementForInstructionId(instruction.id, instId);
+      instId.onclick = mkInstructionLinkHandler(instruction.id);
       instId.dataset.instructionId = instruction.id;
       if (offsets) {
         instId.setAttribute("title", `This instruction generated gap code at pc-offset 0x${offsets.gap.toString(16)}, code at pc-offset 0x${offsets.arch.toString(16)}, condition handling at pc-offset 0x${offsets.condition.toString(16)}.`);

@@ -99,10 +99,12 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
                                     bool* has_aliased_arguments);
   base::Optional<Node*> TryAllocateFastLiteral(Node* effect, Node* control,
                                                JSObjectRef boilerplate,
-                                               AllocationType allocation);
+                                               AllocationType allocation,
+                                               int max_depth,
+                                               int* max_properties);
   base::Optional<Node*> TryAllocateFastLiteralElements(
       Node* effect, Node* control, JSObjectRef boilerplate,
-      AllocationType allocation);
+      AllocationType allocation, int max_depth, int* max_properties);
 
   Node* AllocateElements(Node* effect, Node* control,
                          ElementsKind elements_kind, int capacity,

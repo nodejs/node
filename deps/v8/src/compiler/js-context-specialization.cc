@@ -257,9 +257,10 @@ Reduction JSContextSpecialization::ReduceJSGetImportMeta(Node* node) {
   if (!maybe_context.has_value()) return NoChange();
 
   ContextRef context = maybe_context.value();
-  SourceTextModuleRef module =
-      context.get(Context::EXTENSION_INDEX).value().AsSourceTextModule();
-  base::Optional<ObjectRef> import_meta = module.import_meta();
+  base::Optional<ObjectRef> module = context.get(Context::EXTENSION_INDEX);
+  if (!module.has_value()) return NoChange();
+  base::Optional<ObjectRef> import_meta =
+      module->AsSourceTextModule().import_meta();
   if (!import_meta.has_value()) return NoChange();
   if (!import_meta->IsJSObject()) {
     DCHECK(import_meta->IsTheHole());

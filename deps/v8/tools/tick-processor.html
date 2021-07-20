@@ -44,7 +44,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. -->
   </style>
   <script type="module">
     import {
-      TickProcessor, UnixCppEntriesProvider, MacCppEntriesProvider,
+      TickProcessor, LinuxCppEntriesProvider, MacOSCppEntriesProvider,
       WindowsCppEntriesProvider
     } from "./tickprocessor.mjs";
 
@@ -87,9 +87,9 @@ function start_process() {
   };
 
   var entriesProviders = {
-    'unix': UnixCppEntriesProvider,
+    'unix': LinuxCppEntriesProvider,
     'windows': WindowsCppEntriesProvider,
-    'mac': MacCppEntriesProvider
+    'mac': MacOSCppEntriesProvider
   };
 
   var tickProcessor = new TickProcessor(

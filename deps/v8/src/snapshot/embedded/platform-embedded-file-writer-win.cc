@@ -111,17 +111,20 @@ void EmitUnwindData(PlatformEmbeddedFileWriterWin* w,
   {
     STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
     Address prev_builtin_end_offset = 0;
-    for (int i = 0; i < Builtins::builtin_count; i++) {
+    for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
+         ++builtin) {
+      const int builtin_index = static_cast<int>(builtin);
       // Some builtins are leaf functions from the point of view of Win64 stack
       // walking: they do not move the stack pointer and do not require a PDATA
       // entry because the return address can be retrieved from [rsp].
-      if (unwind_infos[i].is_leaf_function()) continue;
+      if (unwind_infos[builtin_index].is_leaf_function()) continue;
 
-      uint64_t builtin_start_offset = blob->InstructionStartOfBuiltin(i) -
+      uint64_t builtin_start_offset = blob->InstructionStartOfBuiltin(builtin) -
                                       reinterpret_cast<Address>(blob->code());
-      uint32_t builtin_size = blob->InstructionSizeOfBuiltin(i);
+      uint32_t builtin_size = blob->InstructionSizeOfBuiltin(builtin);
 
-      const std::vector<int>& xdata_desc = unwind_infos[i].fp_offsets();
+      const std::vector<int>& xdata_desc =
+          unwind_infos[builtin_index].fp_offsets();
       if (xdata_desc.empty()) {
         // Some builtins do not have any "push rbp - mov rbp, rsp" instructions
         // to start a stack frame. We still emit a PDATA entry as if they had,
@@ -179,7 +182,7 @@ void EmitUnwindData(PlatformEmbeddedFileWriterWin* w,
 
   // Fairly arbitrary but should fit all symbol names.
   static constexpr int kTemporaryStringLength = 256;
-  i::EmbeddedVector<char, kTemporaryStringLength> unwind_info_full_symbol;
+  base::EmbeddedVector<char, kTemporaryStringLength> unwind_info_full_symbol;
 
   // Emit a RUNTIME_FUNCTION (PDATA) entry for each builtin function, as
   // documented here:
@@ -194,16 +197,19 @@ void EmitUnwindData(PlatformEmbeddedFileWriterWin* w,
   std::vector<win64_unwindinfo::FrameOffsets> fp_adjustments;
 
   STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
-  for (int i = 0; i < Builtins::builtin_count; i++) {
-    if (unwind_infos[i].is_leaf_function()) continue;
+  for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
+       ++builtin) {
+    const int builtin_index = static_cast<int>(builtin);
+    if (unwind_infos[builtin_index].is_leaf_function()) continue;
 
-    uint64_t builtin_start_offset = blob->InstructionStartOfBuiltin(i) -
+    uint64_t builtin_start_offset = blob->InstructionStartOfBuiltin(builtin) -
                                     reinterpret_cast<Address>(blob->code());
-    uint32_t builtin_size = blob->InstructionSizeOfBuiltin(i);
+    uint32_t builtin_size = blob->InstructionSizeOfBuiltin(builtin);
 
-    const std::vector<int>& xdata_desc = unwind_infos[i].fp_offsets();
+    const std::vector<int>& xdata_desc =
+        unwind_infos[builtin_index].fp_offsets();
     const std::vector<win64_unwindinfo::FrameOffsets>& xdata_fp_adjustments =
-        unwind_infos[i].fp_adjustments();
+        unwind_infos[builtin_index].fp_adjustments();
     DCHECK_EQ(xdata_desc.size(), xdata_fp_adjustments.size());
 
     for (size_t j = 0; j < xdata_desc.size(); j++) {
@@ -221,8 +227,8 @@ void EmitUnwindData(PlatformEmbeddedFileWriterWin* w,
         // later.
         code_chunks.push_back(allowed_chunk_len);
         fp_adjustments.push_back(xdata_fp_adjustments[j]);
-        i::SNPrintF(unwind_info_full_symbol, "%s_%u", unwind_info_symbol,
-                    code_chunks.size());
+        base::SNPrintF(unwind_info_full_symbol, "%s_%u", unwind_info_symbol,
+                       code_chunks.size());
         w->DeclareRvaToSymbol(embedded_blob_data_symbol,
                               builtin_start_offset + chunk_start);
         w->DeclareRvaToSymbol(unwind_info_full_symbol.begin());
@@ -238,7 +244,8 @@ void EmitUnwindData(PlatformEmbeddedFileWriterWin* w,
   w->StartXdataSection();
   {
     for (size_t i = 0; i < code_chunks.size(); i++) {
-      i::SNPrintF(unwind_info_full_symbol, "%s_%u", unwind_info_symbol, i + 1);
+      base::SNPrintF(unwind_info_full_symbol, "%s_%u", unwind_info_symbol,
+                     i + 1);
       w->DeclareLabel(unwind_info_full_symbol.begin());
       std::vector<uint8_t> xdata =
           win64_unwindinfo::GetUnwindInfoForBuiltinFunction(code_chunks[i],

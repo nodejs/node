@@ -31,6 +31,7 @@
 
 #include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
+#include "src/base/strings.h"
 #include "src/diagnostics/disassembler.h"
 #include "src/execution/frames.h"
 #include "src/execution/isolate.h"
@@ -120,13 +121,13 @@ void CreateFramePointerGrabberConstructor(v8::Local<v8::Context> context,
 static void CreateTraceCallerFunction(v8::Local<v8::Context> context,
                                       const char* func_name,
                                       const char* trace_func_name) {
-  i::EmbeddedVector<char, 256> trace_call_buf;
-  i::SNPrintF(trace_call_buf,
-              "function %s() {"
-              "  fp = new FPGrabber();"
-              "  %s(fp.low_bits, fp.high_bits);"
-              "}",
-              func_name, trace_func_name);
+  v8::base::EmbeddedVector<char, 256> trace_call_buf;
+  v8::base::SNPrintF(trace_call_buf,
+                     "function %s() {"
+                     "  fp = new FPGrabber();"
+                     "  %s(fp.low_bits, fp.high_bits);"
+                     "}",
+                     func_name, trace_func_name);
 
   // Create the FPGrabber function, which grabs the caller's frame pointer
   // when called as a constructor.

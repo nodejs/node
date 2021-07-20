@@ -9,7 +9,7 @@
 // Just test that printing the code of the following wasm modules does not
 // crash.
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function print_deserialized_code() {
   // https://crbug.com/849656

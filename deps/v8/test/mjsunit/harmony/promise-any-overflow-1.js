@@ -4,7 +4,7 @@
 
 // Flags: --allow-natives-syntax
 
-load('test/mjsunit/test-async.js');
+d8.file.execute('test/mjsunit/test-async.js');
 
 // Make sure we properly throw a RangeError when overflowing the maximum
 // number of elements for Promise.any, which is capped at 2^21 bits right

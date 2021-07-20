@@ -1,0 +1,39 @@
+From bdf452c322b92b47b217b7a425f26fe9c4c21aeb Mon Sep 17 00:00:00 2001
+From: Takuto Ikuta <tikuta@chromium.org>
+Date: Mon, 24 May 2021 17:09:21 +0900
+Subject: [PATCH] jinja2: make compiled template deterministic for python3
+
+set() doesn't have deterministic iteration order, so need this to
+have deterministic output from jinja2.
+
+Change-Id: Ibb9cf931a2fa6d8177f3e2468b8aa8f58fe682c4
+Bug: 1194274
+---
+ third_party/jinja2/compiler.py | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/third_party/jinja2/compiler.py b/third_party/jinja2/compiler.py
+index d534a827391a..3c007c62d99a 100644
+--- a/third_party/jinja2/compiler.py
++++ b/third_party/jinja2/compiler.py
+@@ -466,7 +466,7 @@ class CodeGenerator(NodeVisitor):
+             visitor.visit(node)
+         for dependency in 'filters', 'tests':
+             mapping = getattr(self, dependency)
+-            for name in getattr(visitor, dependency):
++            for name in sorted(getattr(visitor, dependency)):
+                 if name not in mapping:
+                     mapping[name] = self.temporary_identifier()
+                 self.writeline('%s = environment.%s[%r]' %
+@@ -600,7 +600,7 @@ class CodeGenerator(NodeVisitor):
+     def dump_local_context(self, frame):
+         return '{%s}' % ', '.join(
+             '%r: %s' % (name, target) for name, target
+-            in iteritems(frame.symbols.dump_stores()))
++            in sorted(iteritems(frame.symbols.dump_stores())))
+ 
+     def write_commons(self):
+         """Writes a common preamble that is used by root and block functions.
+-- 
+2.31.1.818.g46aad6cb9e-goog
+

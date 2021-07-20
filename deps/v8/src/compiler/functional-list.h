@@ -12,10 +12,13 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-// A generic stack implemented as a purely functional singly-linked list, which
-// results in an O(1) copy operation. It is the equivalent of functional lists
-// in ML-like languages, with the only difference that it also caches the length
-// of the list in each node.
+// A generic stack implemented with a singly-linked list, which results in an
+// O(1) copy operation. It can be used to model immutable lists like those in
+// functional languages. Compared to typical functional lists, this also caches
+// the length of the list in each node.
+// Note: The underlying implementation is mutable, so if you want to use this as
+// an immutable list, make sure to create a copy by passing it by value and
+// operate on the copy.
 // TODO(turbofan): Use this implementation also for RedundancyElimination.
 template <class A>
 class FunctionalList {

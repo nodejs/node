@@ -23,7 +23,7 @@ using v8::internal::testing::ManuallyExternalizedBuffer;
 
 namespace {
 void ExportAsMain(WasmFunctionBuilder* f) {
-  f->builder()->AddExport(CStrVector("main"), f);
+  f->builder()->AddExport(base::CStrVector("main"), f);
 }
 #define EMIT_CODE_WITH_END(f, code)  \
   do {                               \

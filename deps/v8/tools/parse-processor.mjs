@@ -4,18 +4,6 @@
 import { LogReader, parseString } from "./logreader.mjs";
 import { BaseArgumentsProcessor } from "./arguments.mjs";
 
-/**
- * A thin wrapper around shell's 'read' function showing a file name on error.
- */
-export function readFile(fileName) {
-  try {
-    return read(fileName);
-  } catch (e) {
-    console.log(fileName + ': ' + (e.message || e));
-    throw e;
-  }
-}
-
 // ===========================================================================
 
 // This is the only true formatting, why? For an international audience the

@@ -31,16 +31,16 @@
 
 #include <memory>
 
-#include "src/init/v8.h"
-
 #include "src/api/api-inl.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
 #include "src/base/enum-set.h"
+#include "src/base/strings.h"
 #include "src/codegen/compiler.h"
 #include "src/execution/execution.h"
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
+#include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 #include "src/parsing/parse-info.h"
@@ -51,7 +51,6 @@
 #include "src/parsing/scanner-character-streams.h"
 #include "src/parsing/token.h"
 #include "src/zone/zone-list-inl.h"  // crbug.com/v8/8816
-
 #include "test/cctest/cctest.h"
 #include "test/cctest/scope-test-helper.h"
 #include "test/cctest/unicode-helpers.h"
@@ -981,7 +980,7 @@ void TestScanRegExp(const char* re_source, const char* expected) {
   i::DisallowGarbageCollection no_alloc;
   i::String::FlatContent content = val->GetFlatContent(no_alloc);
   CHECK(content.IsOneByte());
-  i::Vector<const uint8_t> actual = content.ToOneByteVector();
+  base::Vector<const uint8_t> actual = content.ToOneByteVector();
   for (int i = 0; i < actual.length(); i++) {
     CHECK_NE('\0', expected[i]);
     CHECK_EQ(expected[i], actual[i]);
@@ -1118,11 +1117,11 @@ TEST(ScopeUsesArgumentsSuperThis) {
       int kProgramByteSize = static_cast<int>(strlen(surroundings[j].prefix) +
                                               strlen(surroundings[j].suffix) +
                                               strlen(source_data[i].body));
-      i::ScopedVector<char> program(kProgramByteSize + 1);
-      i::SNPrintF(program, "%s%s%s", surroundings[j].prefix,
-                  source_data[i].body, surroundings[j].suffix);
+      base::ScopedVector<char> program(kProgramByteSize + 1);
+      base::SNPrintF(program, "%s%s%s", surroundings[j].prefix,
+                     source_data[i].body, surroundings[j].suffix);
       i::Handle<i::String> source =
-          factory->NewStringFromUtf8(i::CStrVector(program.begin()))
+          factory->NewStringFromUtf8(base::CStrVector(program.begin()))
               .ToHandleChecked();
       i::Handle<i::Script> script = factory->NewScript(source);
       i::UnoptimizedCompileState compile_state(isolate);
@@ -1185,7 +1184,7 @@ static void CheckParsesToNumber(const char* source) {
   full_source += "; }";
 
   i::Handle<i::String> source_code =
-      factory->NewStringFromUtf8(i::CStrVector(full_source.c_str()))
+      factory->NewStringFromUtf8(base::CStrVector(full_source.c_str()))
           .ToHandleChecked();
 
   i::Handle<i::Script> script = factory->NewScript(source_code);
@@ -1491,15 +1490,13 @@ TEST(ScopePositions) {
     int kSuffixByteLen = static_cast<int>(strlen(source_data[i].outer_suffix));
     int kProgramSize = kPrefixLen + kInnerLen + kSuffixLen;
     int kProgramByteSize = kPrefixByteLen + kInnerByteLen + kSuffixByteLen;
-    i::ScopedVector<char> program(kProgramByteSize + 1);
-    i::SNPrintF(program, "%s%s%s",
-                         source_data[i].outer_prefix,
-                         source_data[i].inner_source,
-                         source_data[i].outer_suffix);
+    base::ScopedVector<char> program(kProgramByteSize + 1);
+    base::SNPrintF(program, "%s%s%s", source_data[i].outer_prefix,
+                   source_data[i].inner_source, source_data[i].outer_suffix);
 
     // Parse program source.
     i::Handle<i::String> source =
-        factory->NewStringFromUtf8(i::CStrVector(program.begin()))
+        factory->NewStringFromUtf8(base::CStrVector(program.begin()))
             .ToHandleChecked();
     CHECK_EQ(source->length(), kProgramSize);
     i::Handle<i::Script> script = factory->NewScript(source);
@@ -1550,7 +1547,7 @@ TEST(DiscardFunctionBody) {
   for (int i = 0; discard_sources[i]; i++) {
     const char* source = discard_sources[i];
     i::Handle<i::String> source_code =
-        factory->NewStringFromUtf8(i::CStrVector(source)).ToHandleChecked();
+        factory->NewStringFromUtf8(base::CStrVector(source)).ToHandleChecked();
     i::Handle<i::Script> script = factory->NewScript(source_code);
     i::UnoptimizedCompileState compile_state(isolate);
     i::UnoptimizedCompileFlags flags =
@@ -1646,7 +1643,8 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
   i::UnoptimizedCompileState compile_state(isolate);
   i::UnoptimizedCompileFlags compile_flags =
       i::UnoptimizedCompileFlags::ForToplevelCompile(
-          isolate, true, LanguageMode::kSloppy, REPLMode::kNo);
+          isolate, true, LanguageMode::kSloppy, REPLMode::kNo,
+          ScriptType::kClassic, FLAG_lazy);
   SetParserFlags(&compile_flags, flags);
   compile_flags.set_is_module(is_module);
 
@@ -1768,7 +1766,7 @@ void TestParserSync(const char* source, const ParserFlag* varying_flags,
   i::Handle<i::String> str =
       CcTest::i_isolate()
           ->factory()
-          ->NewStringFromUtf8(Vector<const char>(source, strlen(source)))
+          ->NewStringFromUtf8(base::Vector<const char>(source, strlen(source)))
           .ToHandleChecked();
   for (int bits = 0; bits < (1 << varying_flags_length); bits++) {
     base::EnumSet<ParserFlag> flags;
@@ -1842,13 +1840,10 @@ TEST(ParserSync) {
                            static_cast<int>(strlen("label: for (;;) {  }"));
 
         // Plug the source code pieces together.
-        i::ScopedVector<char> program(kProgramSize + 1);
-        int length = i::SNPrintF(program,
-            "label: for (;;) { %s%s%s%s }",
-            context_data[i][0],
-            statement_data[j],
-            termination_data[k],
-            context_data[i][1]);
+        base::ScopedVector<char> program(kProgramSize + 1);
+        int length = base::SNPrintF(program, "label: for (;;) { %s%s%s%s }",
+                                    context_data[i][0], statement_data[j],
+                                    termination_data[k], context_data[i][1]);
         CHECK_EQ(length, kProgramSize);
         TestParserSync(program.begin(), nullptr, 0);
       }
@@ -1942,12 +1937,9 @@ void RunParserSyncTest(
       int kProgramSize = kPrefixLen + kStatementLen + kSuffixLen;
 
       // Plug the source code pieces together.
-      i::ScopedVector<char> program(kProgramSize + 1);
-      int length = i::SNPrintF(program,
-                               "%s%s%s",
-                               context_data[i][0],
-                               statement_data[j],
-                               context_data[i][1]);
+      base::ScopedVector<char> program(kProgramSize + 1);
+      int length = base::SNPrintF(program, "%s%s%s", context_data[i][0],
+                                  statement_data[j], context_data[i][1]);
       PrintF("%s\n", program.begin());
       CHECK_EQ(length, kProgramSize);
       TestParserSync(program.begin(), flags, flags_len, result,
@@ -3341,8 +3333,8 @@ TEST(SerializationOfMaybeAssignmentFlag) {
       "};"
       "h();";
 
-  i::ScopedVector<char> program(Utf8LengthHelper(src) + 1);
-  i::SNPrintF(program, "%s", src);
+  base::ScopedVector<char> program(Utf8LengthHelper(src) + 1);
+  base::SNPrintF(program, "%s", src);
   i::Handle<i::String> source = factory->InternalizeUtf8String(program.begin());
   source->PrintOn(stdout);
   printf("\n");
@@ -3391,8 +3383,8 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
       "  }"
       "f(0);";
 
-  i::ScopedVector<char> program(Utf8LengthHelper(src) + 1);
-  i::SNPrintF(program, "%s", src);
+  base::ScopedVector<char> program(Utf8LengthHelper(src) + 1);
+  base::SNPrintF(program, "%s", src);
   i::Handle<i::String> source = factory->InternalizeUtf8String(program.begin());
   source->PrintOn(stdout);
   printf("\n");
@@ -3547,10 +3539,10 @@ TEST(InnerAssignment) {
         int inner_len = Utf8LengthHelper(inner);
 
         int len = prefix_len + outer_len + midfix_len + inner_len + suffix_len;
-        i::ScopedVector<char> program(len + 1);
+        base::ScopedVector<char> program(len + 1);
 
-        i::SNPrintF(program, "%s%s%s%s%s", prefix, outer, midfix, inner,
-                    suffix);
+        base::SNPrintF(program, "%s%s%s%s%s", prefix, outer, midfix, inner,
+                       suffix);
 
         UnoptimizedCompileState compile_state(isolate);
         std::unique_ptr<i::ParseInfo> info;
@@ -3670,9 +3662,9 @@ TEST(MaybeAssignedParameters) {
     bool assigned = tests[i].arg_assigned;
     const char* source = tests[i].source;
     for (unsigned allow_lazy = 0; allow_lazy < 2; ++allow_lazy) {
-      i::ScopedVector<char> program(Utf8LengthHelper(source) +
-                                    Utf8LengthHelper(suffix) + 1);
-      i::SNPrintF(program, "%s%s", source, suffix);
+      base::ScopedVector<char> program(Utf8LengthHelper(source) +
+                                       Utf8LengthHelper(suffix) + 1);
+      base::SNPrintF(program, "%s%s", source, suffix);
       std::unique_ptr<i::ParseInfo> info;
       printf("%s\n", program.begin());
       v8::Local<v8::Value> v = CompileRun(program.begin());
@@ -4403,6 +4395,7 @@ TEST(SloppyModeUseCount) {
   global_use_counts = use_counts;
   // Force eager parsing (preparser doesn't update use counts).
   i::FLAG_lazy = false;
+  i::FLAG_lazy_streaming = false;
   CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
   CompileRun("function bar() { var baz = 1; }");
   CHECK_LT(0, use_counts[v8::Isolate::kSloppyMode]);
@@ -4416,8 +4409,8 @@ TEST(BothModesUseCount) {
   LocalContext env;
   int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
   global_use_counts = use_counts;
-  // Force eager parsing (preparser doesn't update use counts).
   i::FLAG_lazy = false;
+  i::FLAG_lazy_streaming = false;
   CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
   CompileRun("function bar() { 'use strict'; var baz = 1; }");
   CHECK_LT(0, use_counts[v8::Isolate::kSloppyMode]);
@@ -11490,11 +11483,11 @@ TEST(NoPessimisticContextAllocation) {
       int len = prefix_len + inner_function_len + params_len + source_len +
                 suffix_len;
 
-      i::ScopedVector<char> program(len + 1);
-      i::SNPrintF(program, "%s", prefix);
-      i::SNPrintF(program + prefix_len, inner_function, inners[i].params,
-                  inners[i].source);
-      i::SNPrintF(
+      base::ScopedVector<char> program(len + 1);
+      base::SNPrintF(program, "%s", prefix);
+      base::SNPrintF(program + prefix_len, inner_function, inners[i].params,
+                     inners[i].source);
+      base::SNPrintF(
           program + prefix_len + inner_function_len + params_len + source_len,
           "%s", suffix);
 
@@ -12063,7 +12056,7 @@ TEST(LexicalLoopVariable) {
   auto TestProgram = [isolate](const char* program, TestCB test) {
     i::Factory* const factory = isolate->factory();
     i::Handle<i::String> source =
-        factory->NewStringFromUtf8(i::CStrVector(program)).ToHandleChecked();
+        factory->NewStringFromUtf8(base::CStrVector(program)).ToHandleChecked();
     i::Handle<i::Script> script = factory->NewScript(source);
     i::UnoptimizedCompileState compile_state(isolate);
     i::UnoptimizedCompileFlags flags =

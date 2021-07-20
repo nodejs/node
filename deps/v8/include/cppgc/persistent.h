@@ -141,7 +141,7 @@ class BasicPersistent final : public PersistentBase,
   }
 
   // Move assignment.
-  BasicPersistent& operator=(BasicPersistent&& other) {
+  BasicPersistent& operator=(BasicPersistent&& other) noexcept {
     if (this == &other) return *this;
     Clear();
     PersistentBase::operator=(std::move(other));

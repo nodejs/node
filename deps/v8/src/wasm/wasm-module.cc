@@ -113,8 +113,8 @@ void LazilyGeneratedNames::AddForTesting(int function_index,
 }
 
 AsmJsOffsetInformation::AsmJsOffsetInformation(
-    Vector<const byte> encoded_offsets)
-    : encoded_offsets_(OwnedVector<const uint8_t>::Of(encoded_offsets)) {}
+    base::Vector<const byte> encoded_offsets)
+    : encoded_offsets_(base::OwnedVector<const uint8_t>::Of(encoded_offsets)) {}
 
 AsmJsOffsetInformation::~AsmJsOffsetInformation() = default;
 
@@ -222,7 +222,8 @@ namespace {
 // reflective functions. Should be kept in sync with the {GetValueType} helper.
 Handle<String> ToValueTypeString(Isolate* isolate, ValueType type) {
   return isolate->factory()->InternalizeUtf8String(
-      type == kWasmFuncRef ? CStrVector("anyfunc") : VectorOf(type.name()));
+      type == kWasmFuncRef ? base::CStrVector("anyfunc")
+                           : base::VectorOf(type.name()));
 }
 }  // namespace
 
@@ -303,7 +304,7 @@ Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
     // place and then use that constant everywhere.
     element = factory->InternalizeUtf8String("anyfunc");
   } else {
-    element = factory->InternalizeUtf8String(VectorOf(type.name()));
+    element = factory->InternalizeUtf8String(base::VectorOf(type.name()));
   }
 
   Handle<JSFunction> object_function = isolate->object_function();
@@ -522,7 +523,7 @@ Handle<JSArray> GetCustomSections(Isolate* isolate,
                                   Handle<String> name, ErrorThrower* thrower) {
   Factory* factory = isolate->factory();
 
-  Vector<const uint8_t> wire_bytes =
+  base::Vector<const uint8_t> wire_bytes =
       module_object->native_module()->wire_bytes();
   std::vector<CustomSectionOffset> custom_sections =
       DecodeCustomSections(wire_bytes.begin(), wire_bytes.end());
@@ -547,9 +548,9 @@ Handle<JSArray> GetCustomSections(Isolate* isolate,
       thrower->RangeError("out of memory allocating custom section data");
       return Handle<JSArray>();
     }
-    base::Memcpy(array_buffer->backing_store(),
-                 wire_bytes.begin() + section.payload.offset(),
-                 section.payload.length());
+    memcpy(array_buffer->backing_store(),
+           wire_bytes.begin() + section.payload.offset(),
+           section.payload.length());
 
     matching_sections.push_back(array_buffer);
   }
@@ -604,7 +605,7 @@ size_t EstimateStoredSize(const WasmModule* module) {
          VectorSize(module->elem_segments);
 }
 
-size_t PrintSignature(Vector<char> buffer, const wasm::FunctionSig* sig,
+size_t PrintSignature(base::Vector<char> buffer, const wasm::FunctionSig* sig,
                       char delimiter) {
   if (buffer.empty()) return 0;
   size_t old_size = buffer.size();

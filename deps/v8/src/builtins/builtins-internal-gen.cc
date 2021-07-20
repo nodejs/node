@@ -9,6 +9,7 @@
 #include "src/codegen/code-stub-assembler.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/macro-assembler.h"
+#include "src/common/globals.h"
 #include "src/execution/frame-constants.h"
 #include "src/heap/memory-chunk.h"
 #include "src/ic/accessor-assembler.h"
@@ -113,9 +114,9 @@ TF_BUILTIN(DebugBreakTrampoline, CodeStubAssembler) {
   TailCallJSCode(code, context, function, new_target, arg_count);
 }
 
-class RecordWriteCodeStubAssembler : public CodeStubAssembler {
+class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
  public:
-  explicit RecordWriteCodeStubAssembler(compiler::CodeAssemblerState* state)
+  explicit WriteBarrierCodeStubAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
   TNode<BoolT> IsMarking() {
@@ -172,80 +173,9 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
     }
   }
 
-  TNode<BoolT> ShouldSkipFPRegs(TNode<Smi> mode) {
-    return TaggedEqual(mode, SmiConstant(SaveFPRegsMode::kIgnore));
-  }
-
-  TNode<BoolT> ShouldEmitRememberSet(TNode<Smi> remembered_set) {
-    return TaggedEqual(remembered_set, SmiConstant(RememberedSetAction::kEmit));
-  }
-
-  template <typename Ret, typename Arg0, typename Arg1>
-  void CallCFunction2WithCallerSavedRegistersMode(
-      TNode<ExternalReference> function, TNode<Arg0> arg0, TNode<Arg1> arg1,
-      TNode<Smi> mode, Label* next) {
-    Label dont_save_fp(this), save_fp(this);
-    Branch(ShouldSkipFPRegs(mode), &dont_save_fp, &save_fp);
-    BIND(&dont_save_fp);
-    {
-      CallCFunctionWithCallerSavedRegisters(
-          function, MachineTypeOf<Ret>::value, SaveFPRegsMode::kIgnore,
-          std::make_pair(MachineTypeOf<Arg0>::value, arg0),
-          std::make_pair(MachineTypeOf<Arg1>::value, arg1));
-      Goto(next);
-    }
-
-    BIND(&save_fp);
-    {
-      CallCFunctionWithCallerSavedRegisters(
-          function, MachineTypeOf<Ret>::value, SaveFPRegsMode::kSave,
-          std::make_pair(MachineTypeOf<Arg0>::value, arg0),
-          std::make_pair(MachineTypeOf<Arg1>::value, arg1));
-      Goto(next);
-    }
-  }
-
-  template <typename Ret, typename Arg0, typename Arg1, typename Arg2>
-  void CallCFunction3WithCallerSavedRegistersMode(
-      TNode<ExternalReference> function, TNode<Arg0> arg0, TNode<Arg1> arg1,
-      TNode<Arg2> arg2, TNode<Smi> mode, Label* next) {
-    Label dont_save_fp(this), save_fp(this);
-    Branch(ShouldSkipFPRegs(mode), &dont_save_fp, &save_fp);
-    BIND(&dont_save_fp);
-    {
-      CallCFunctionWithCallerSavedRegisters(
-          function, MachineTypeOf<Ret>::value, SaveFPRegsMode::kIgnore,
-          std::make_pair(MachineTypeOf<Arg0>::value, arg0),
-          std::make_pair(MachineTypeOf<Arg1>::value, arg1),
-          std::make_pair(MachineTypeOf<Arg2>::value, arg2));
-      Goto(next);
-    }
-
-    BIND(&save_fp);
-    {
-      CallCFunctionWithCallerSavedRegisters(
-          function, MachineTypeOf<Ret>::value, SaveFPRegsMode::kSave,
-          std::make_pair(MachineTypeOf<Arg0>::value, arg0),
-          std::make_pair(MachineTypeOf<Arg1>::value, arg1),
-          std::make_pair(MachineTypeOf<Arg2>::value, arg2));
-      Goto(next);
-    }
-  }
-
-  void InsertIntoRememberedSetAndGotoSlow(TNode<IntPtrT> object,
-                                          TNode<IntPtrT> slot, TNode<Smi> mode,
-                                          Label* next) {
-    TNode<IntPtrT> page = PageFromAddress(object);
-    TNode<ExternalReference> function =
-        ExternalConstant(ExternalReference::insert_remembered_set_function());
-    CallCFunction2WithCallerSavedRegistersMode<Int32T, IntPtrT, IntPtrT>(
-        function, page, slot, mode, next);
-  }
-
-  void InsertIntoRememberedSetAndGoto(TNode<IntPtrT> object,
-                                      TNode<IntPtrT> slot, TNode<Smi> mode,
-                                      Label* next) {
-    Label slow_path(this);
+  void InsertIntoRememberedSet(TNode<IntPtrT> object, TNode<IntPtrT> slot,
+                               SaveFPRegsMode fp_mode) {
+    Label slow_path(this), next(this);
     TNode<IntPtrT> page = PageFromAddress(object);
 
     // Load address of SlotSet
@@ -257,11 +187,20 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
 
     // Update cell
     SetBitInCell(bucket, slot_offset);
-
-    Goto(next);
+    Goto(&next);
 
     BIND(&slow_path);
-    InsertIntoRememberedSetAndGotoSlow(object, slot, mode, next);
+    {
+      TNode<ExternalReference> function =
+          ExternalConstant(ExternalReference::insert_remembered_set_function());
+      CallCFunctionWithCallerSavedRegisters(
+          function, MachineTypeOf<Int32T>::value, fp_mode,
+          std::make_pair(MachineTypeOf<IntPtrT>::value, page),
+          std::make_pair(MachineTypeOf<IntPtrT>::value, slot));
+      Goto(&next);
+    }
+
+    BIND(&next);
   }
 
   TNode<IntPtrT> LoadSlotSet(TNode<IntPtrT> page, Label* slow_path) {
@@ -269,7 +208,6 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
         Load(MachineType::Pointer(), page,
              IntPtrConstant(MemoryChunk::kOldToNewSlotSetOffset)));
     GotoIf(WordEqual(slot_set, IntPtrConstant(0)), slow_path);
-
     return slot_set;
   }
 
@@ -306,32 +244,19 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
     StoreNoWriteBarrier(MachineRepresentation::kWord32, cell_address,
                         TruncateIntPtrToInt32(new_cell_value));
   }
-};
 
-TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
-  Label generational_wb(this);
-  Label incremental_wb(this);
-  Label exit(this);
-
-  // In this method we limit the allocatable registers so we have to use
-  // UncheckedParameter. Parameter does not work because the checked cast needs
-  // more registers.
-  auto remembered_set = UncheckedParameter<Smi>(Descriptor::kRememberedSet);
-  Branch(ShouldEmitRememberSet(remembered_set), &generational_wb,
-         &incremental_wb);
-
-  BIND(&generational_wb);
-  {
-    Label test_old_to_young_flags(this);
-    Label store_buffer_exit(this), store_buffer_incremental_wb(this);
+  void GenerationalWriteBarrier(SaveFPRegsMode fp_mode) {
+    Label incremental_wb(this), test_old_to_young_flags(this),
+        store_buffer_exit(this), store_buffer_incremental_wb(this), next(this);
 
     // When incremental marking is not on, we skip cross generation pointer
     // checking here, because there are checks for
     // `kPointersFromHereAreInterestingMask` and
     // `kPointersToHereAreInterestingMask` in
-    // `src/compiler/<arch>/code-generator-<arch>.cc` before calling this stub,
-    // which serves as the cross generation checking.
-    auto slot = UncheckedParameter<IntPtrT>(Descriptor::kSlot);
+    // `src/compiler/<arch>/code-generator-<arch>.cc` before calling this
+    // stub, which serves as the cross generation checking.
+    auto slot =
+        UncheckedParameter<IntPtrT>(WriteBarrierDescriptor::kSlotAddress);
     Branch(IsMarking(), &test_old_to_young_flags, &store_buffer_exit);
 
     BIND(&test_old_to_young_flags);
@@ -339,14 +264,14 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
       // TODO(ishell): do a new-space range check instead.
       TNode<IntPtrT> value = BitcastTaggedToWord(Load<HeapObject>(slot));
 
-      // TODO(albertnetymk): Try to cache the page flag for value and object,
-      // instead of calling IsPageFlagSet each time.
+      // TODO(albertnetymk): Try to cache the page flag for value and
+      // object, instead of calling IsPageFlagSet each time.
       TNode<BoolT> value_is_young =
           IsPageFlagSet(value, MemoryChunk::kIsInYoungGenerationMask);
       GotoIfNot(value_is_young, &incremental_wb);
 
-      TNode<IntPtrT> object =
-          BitcastTaggedToWord(UncheckedParameter<Object>(Descriptor::kObject));
+      TNode<IntPtrT> object = BitcastTaggedToWord(
+          UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
       TNode<BoolT> object_is_young =
           IsPageFlagSet(object, MemoryChunk::kIsInYoungGenerationMask);
       Branch(object_is_young, &incremental_wb, &store_buffer_incremental_wb);
@@ -354,27 +279,40 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
 
     BIND(&store_buffer_exit);
     {
-      auto fp_mode = UncheckedParameter<Smi>(Descriptor::kFPMode);
-      TNode<IntPtrT> object =
-          BitcastTaggedToWord(UncheckedParameter<Object>(Descriptor::kObject));
-      InsertIntoRememberedSetAndGoto(object, slot, fp_mode, &exit);
+      TNode<IntPtrT> object = BitcastTaggedToWord(
+          UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
+      InsertIntoRememberedSet(object, slot, fp_mode);
+      Goto(&next);
     }
 
     BIND(&store_buffer_incremental_wb);
     {
-      auto fp_mode = UncheckedParameter<Smi>(Descriptor::kFPMode);
-      TNode<IntPtrT> object =
-          BitcastTaggedToWord(UncheckedParameter<Object>(Descriptor::kObject));
-      InsertIntoRememberedSetAndGoto(object, slot, fp_mode, &incremental_wb);
+      TNode<IntPtrT> object = BitcastTaggedToWord(
+          UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
+      InsertIntoRememberedSet(object, slot, fp_mode);
+      Goto(&incremental_wb);
     }
+
+    BIND(&incremental_wb);
+    {
+      TNode<IntPtrT> value = BitcastTaggedToWord(Load<HeapObject>(slot));
+      IncrementalWriteBarrier(slot, value, fp_mode);
+      Goto(&next);
+    }
+
+    BIND(&next);
   }
 
-  BIND(&incremental_wb);
-  {
-    Label call_incremental_wb(this);
-
-    auto slot = UncheckedParameter<IntPtrT>(Descriptor::kSlot);
+  void IncrementalWriteBarrier(SaveFPRegsMode fp_mode) {
+    auto slot =
+        UncheckedParameter<IntPtrT>(WriteBarrierDescriptor::kSlotAddress);
     TNode<IntPtrT> value = BitcastTaggedToWord(Load<HeapObject>(slot));
+    IncrementalWriteBarrier(slot, value, fp_mode);
+  }
+
+  void IncrementalWriteBarrier(TNode<IntPtrT> slot, TNode<IntPtrT> value,
+                               SaveFPRegsMode fp_mode) {
+    Label call_incremental_wb(this), next(this);
 
     // There are two cases we need to call incremental write barrier.
     // 1) value_is_white
@@ -383,53 +321,211 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
     // 2) is_compacting && value_in_EC && obj_isnt_skip
     // is_compacting = true when is_marking = true
     GotoIfNot(IsPageFlagSet(value, MemoryChunk::kEvacuationCandidateMask),
-              &exit);
+              &next);
 
-    TNode<IntPtrT> object =
-        BitcastTaggedToWord(UncheckedParameter<Object>(Descriptor::kObject));
+    TNode<IntPtrT> object = BitcastTaggedToWord(
+        UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
     Branch(
         IsPageFlagSet(object, MemoryChunk::kSkipEvacuationSlotsRecordingMask),
-        &exit, &call_incremental_wb);
+        &next, &call_incremental_wb);
 
     BIND(&call_incremental_wb);
     {
       TNode<ExternalReference> function = ExternalConstant(
           ExternalReference::write_barrier_marking_from_code_function());
-      auto fp_mode = UncheckedParameter<Smi>(Descriptor::kFPMode);
-      TNode<IntPtrT> object =
-          BitcastTaggedToWord(UncheckedParameter<Object>(Descriptor::kObject));
-      CallCFunction2WithCallerSavedRegistersMode<Int32T, IntPtrT, IntPtrT>(
-          function, object, slot, fp_mode, &exit);
+      TNode<IntPtrT> object = BitcastTaggedToWord(
+          UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
+      CallCFunctionWithCallerSavedRegisters(
+          function, MachineTypeOf<Int32T>::value, fp_mode,
+          std::make_pair(MachineTypeOf<IntPtrT>::value, object),
+          std::make_pair(MachineTypeOf<IntPtrT>::value, slot));
+      Goto(&next);
+    }
+    BIND(&next);
+  }
+
+  void GenerateRecordWrite(RememberedSetAction rs_mode,
+                           SaveFPRegsMode fp_mode) {
+    if (V8_DISABLE_WRITE_BARRIERS_BOOL) {
+      Return(TrueConstant());
+      return;
+    }
+    switch (rs_mode) {
+      case RememberedSetAction::kEmit:
+        GenerationalWriteBarrier(fp_mode);
+        break;
+      case RememberedSetAction::kOmit:
+        IncrementalWriteBarrier(fp_mode);
+        break;
+    }
+    IncrementCounter(isolate()->counters()->write_barriers(), 1);
+    Return(TrueConstant());
+  }
+
+  void GenerateEphemeronKeyBarrier(SaveFPRegsMode fp_mode) {
+    TNode<ExternalReference> function = ExternalConstant(
+        ExternalReference::ephemeron_key_write_barrier_function());
+    TNode<ExternalReference> isolate_constant =
+        ExternalConstant(ExternalReference::isolate_address(isolate()));
+    // In this method we limit the allocatable registers so we have to use
+    // UncheckedParameter. Parameter does not work because the checked cast
+    // needs more registers.
+    auto address =
+        UncheckedParameter<IntPtrT>(WriteBarrierDescriptor::kSlotAddress);
+    TNode<IntPtrT> object = BitcastTaggedToWord(
+        UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
+
+    CallCFunctionWithCallerSavedRegisters(
+        function, MachineTypeOf<Int32T>::value, fp_mode,
+        std::make_pair(MachineTypeOf<IntPtrT>::value, object),
+        std::make_pair(MachineTypeOf<IntPtrT>::value, address),
+        std::make_pair(MachineTypeOf<ExternalReference>::value,
+                       isolate_constant));
+
+    IncrementCounter(isolate()->counters()->write_barriers(), 1);
+    Return(TrueConstant());
+  }
+};
+
+TF_BUILTIN(RecordWriteEmitRememberedSetSaveFP, WriteBarrierCodeStubAssembler) {
+  GenerateRecordWrite(RememberedSetAction::kEmit, SaveFPRegsMode::kSave);
+}
+
+TF_BUILTIN(RecordWriteOmitRememberedSetSaveFP, WriteBarrierCodeStubAssembler) {
+  GenerateRecordWrite(RememberedSetAction::kOmit, SaveFPRegsMode::kSave);
+}
+
+TF_BUILTIN(RecordWriteEmitRememberedSetIgnoreFP,
+           WriteBarrierCodeStubAssembler) {
+  GenerateRecordWrite(RememberedSetAction::kEmit, SaveFPRegsMode::kIgnore);
+}
+
+TF_BUILTIN(RecordWriteOmitRememberedSetIgnoreFP,
+           WriteBarrierCodeStubAssembler) {
+  GenerateRecordWrite(RememberedSetAction::kOmit, SaveFPRegsMode::kIgnore);
+}
+
+TF_BUILTIN(EphemeronKeyBarrierSaveFP, WriteBarrierCodeStubAssembler) {
+  GenerateEphemeronKeyBarrier(SaveFPRegsMode::kSave);
+}
+
+TF_BUILTIN(EphemeronKeyBarrierIgnoreFP, WriteBarrierCodeStubAssembler) {
+  GenerateEphemeronKeyBarrier(SaveFPRegsMode::kIgnore);
+}
+
+#ifdef V8_IS_TSAN
+class TSANRelaxedStoreCodeStubAssembler : public CodeStubAssembler {
+ public:
+  explicit TSANRelaxedStoreCodeStubAssembler(
+      compiler::CodeAssemblerState* state)
+      : CodeStubAssembler(state) {}
+
+  TNode<ExternalReference> GetExternalReference(int size) {
+    if (size == kInt8Size) {
+      return ExternalConstant(
+          ExternalReference::tsan_relaxed_store_function_8_bits());
+    } else if (size == kInt16Size) {
+      return ExternalConstant(
+          ExternalReference::tsan_relaxed_store_function_16_bits());
+    } else if (size == kInt32Size) {
+      return ExternalConstant(
+          ExternalReference::tsan_relaxed_store_function_32_bits());
+    } else {
+      CHECK_EQ(size, kInt64Size);
+      return ExternalConstant(
+          ExternalReference::tsan_relaxed_store_function_64_bits());
     }
   }
 
-  BIND(&exit);
-  IncrementCounter(isolate()->counters()->write_barriers(), 1);
-  Return(TrueConstant());
+  void GenerateTSANRelaxedStore(SaveFPRegsMode fp_mode, int size) {
+    TNode<ExternalReference> function = GetExternalReference(size);
+    auto address =
+        UncheckedParameter<IntPtrT>(TSANRelaxedStoreDescriptor::kAddress);
+    TNode<IntPtrT> value = BitcastTaggedToWord(
+        UncheckedParameter<Object>(TSANRelaxedStoreDescriptor::kValue));
+    CallCFunctionWithCallerSavedRegisters(
+        function, MachineType::Int32(), fp_mode,
+        std::make_pair(MachineType::IntPtr(), address),
+        std::make_pair(MachineType::IntPtr(), value));
+    Return(UndefinedConstant());
+  }
+};
+
+TF_BUILTIN(TSANRelaxedStore8IgnoreFP, TSANRelaxedStoreCodeStubAssembler) {
+  GenerateTSANRelaxedStore(SaveFPRegsMode::kIgnore, kInt8Size);
 }
 
-TF_BUILTIN(EphemeronKeyBarrier, RecordWriteCodeStubAssembler) {
-  Label exit(this);
-
-  TNode<ExternalReference> function = ExternalConstant(
-      ExternalReference::ephemeron_key_write_barrier_function());
-  TNode<ExternalReference> isolate_constant =
-      ExternalConstant(ExternalReference::isolate_address(isolate()));
-  // In this method we limit the allocatable registers so we have to use
-  // UncheckedParameter. Parameter does not work because the checked cast needs
-  // more registers.
-  auto address = UncheckedParameter<IntPtrT>(Descriptor::kSlotAddress);
-  TNode<IntPtrT> object =
-      BitcastTaggedToWord(UncheckedParameter<Object>(Descriptor::kObject));
-  TNode<Smi> fp_mode = UncheckedParameter<Smi>(Descriptor::kFPMode);
-  CallCFunction3WithCallerSavedRegistersMode<Int32T, IntPtrT, IntPtrT,
-                                             ExternalReference>(
-      function, object, address, isolate_constant, fp_mode, &exit);
-
-  BIND(&exit);
-  IncrementCounter(isolate()->counters()->write_barriers(), 1);
-  Return(TrueConstant());
+TF_BUILTIN(TSANRelaxedStore8SaveFP, TSANRelaxedStoreCodeStubAssembler) {
+  GenerateTSANRelaxedStore(SaveFPRegsMode::kSave, kInt8Size);
 }
+
+TF_BUILTIN(TSANRelaxedStore16IgnoreFP, TSANRelaxedStoreCodeStubAssembler) {
+  GenerateTSANRelaxedStore(SaveFPRegsMode::kIgnore, kInt16Size);
+}
+
+TF_BUILTIN(TSANRelaxedStore16SaveFP, TSANRelaxedStoreCodeStubAssembler) {
+  GenerateTSANRelaxedStore(SaveFPRegsMode::kSave, kInt16Size);
+}
+
+TF_BUILTIN(TSANRelaxedStore32IgnoreFP, TSANRelaxedStoreCodeStubAssembler) {
+  GenerateTSANRelaxedStore(SaveFPRegsMode::kIgnore, kInt32Size);
+}
+
+TF_BUILTIN(TSANRelaxedStore32SaveFP, TSANRelaxedStoreCodeStubAssembler) {
+  GenerateTSANRelaxedStore(SaveFPRegsMode::kSave, kInt32Size);
+}
+
+TF_BUILTIN(TSANRelaxedStore64IgnoreFP, TSANRelaxedStoreCodeStubAssembler) {
+  GenerateTSANRelaxedStore(SaveFPRegsMode::kIgnore, kInt64Size);
+}
+
+TF_BUILTIN(TSANRelaxedStore64SaveFP, TSANRelaxedStoreCodeStubAssembler) {
+  GenerateTSANRelaxedStore(SaveFPRegsMode::kSave, kInt64Size);
+}
+
+class TSANRelaxedLoadCodeStubAssembler : public CodeStubAssembler {
+ public:
+  explicit TSANRelaxedLoadCodeStubAssembler(compiler::CodeAssemblerState* state)
+      : CodeStubAssembler(state) {}
+
+  TNode<ExternalReference> GetExternalReference(int size) {
+    if (size == kInt32Size) {
+      return ExternalConstant(
+          ExternalReference::tsan_relaxed_load_function_32_bits());
+    } else {
+      CHECK_EQ(size, kInt64Size);
+      return ExternalConstant(
+          ExternalReference::tsan_relaxed_load_function_64_bits());
+    }
+  }
+
+  void GenerateTSANRelaxedLoad(SaveFPRegsMode fp_mode, int size) {
+    TNode<ExternalReference> function = GetExternalReference(size);
+    auto address =
+        UncheckedParameter<IntPtrT>(TSANRelaxedLoadDescriptor::kAddress);
+    CallCFunctionWithCallerSavedRegisters(
+        function, MachineType::Int32(), fp_mode,
+        std::make_pair(MachineType::IntPtr(), address));
+    Return(UndefinedConstant());
+  }
+};
+
+TF_BUILTIN(TSANRelaxedLoad32IgnoreFP, TSANRelaxedLoadCodeStubAssembler) {
+  GenerateTSANRelaxedLoad(SaveFPRegsMode::kIgnore, kInt32Size);
+}
+
+TF_BUILTIN(TSANRelaxedLoad32SaveFP, TSANRelaxedLoadCodeStubAssembler) {
+  GenerateTSANRelaxedLoad(SaveFPRegsMode::kSave, kInt32Size);
+}
+
+TF_BUILTIN(TSANRelaxedLoad64IgnoreFP, TSANRelaxedLoadCodeStubAssembler) {
+  GenerateTSANRelaxedLoad(SaveFPRegsMode::kIgnore, kInt64Size);
+}
+
+TF_BUILTIN(TSANRelaxedLoad64SaveFP, TSANRelaxedLoadCodeStubAssembler) {
+  GenerateTSANRelaxedLoad(SaveFPRegsMode::kSave, kInt64Size);
+}
+#endif  // V8_IS_TSAN
 
 class DeletePropertyBaseAssembler : public AccessorAssembler {
  public:
@@ -580,9 +676,9 @@ TF_BUILTIN(DeleteProperty, DeletePropertyBaseAssembler) {
 
   BIND(&if_proxy);
   {
-    TNode<Name> name = CAST(CallBuiltin(Builtins::kToName, context, key));
+    TNode<Name> name = CAST(CallBuiltin(Builtin::kToName, context, key));
     GotoIf(IsPrivateSymbol(name), &slow);
-    TailCallBuiltin(Builtins::kProxyDeleteProperty, context, receiver, name,
+    TailCallBuiltin(Builtin::kProxyDeleteProperty, context, receiver, name,
                     language_mode);
   }
 
@@ -647,7 +743,7 @@ class SetOrCopyDataPropertiesAssembler : public CodeStubAssembler {
         ForEachEnumerableOwnProperty(
             context, source_map, CAST(source), kEnumerationOrder,
             [=](TNode<Name> key, TNode<Object> value) {
-              CallBuiltin(Builtins::kSetPropertyInLiteral, context, target, key,
+              CallBuiltin(Builtin::kSetPropertyInLiteral, context, target, key,
                           value);
             },
             if_runtime);
@@ -957,8 +1053,9 @@ void Builtins::Generate_MemMove(MacroAssembler* masm) {
 
 // TODO(v8:11421): Remove #if once baseline compiler is ported to other
 // architectures.
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || \
-    V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 ||     \
+    V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_MIPS64 || \
+    V8_TARGET_ARCH_MIPS
 void Builtins::Generate_BaselineLeaveFrame(MacroAssembler* masm) {
   EmitReturnBaseline(masm);
 }
@@ -971,9 +1068,6 @@ void Builtins::Generate_BaselineLeaveFrame(MacroAssembler* masm) {
   masm->Trap();
 }
 void Builtins::Generate_BaselineOnStackReplacement(MacroAssembler* masm) {
-  masm->Trap();
-}
-void Builtins::Generate_TailCallOptimizedCodeSlot(MacroAssembler* masm) {
   masm->Trap();
 }
 #endif
@@ -1023,12 +1117,12 @@ TF_BUILTIN(GetProperty, CodeStubAssembler) {
   BIND(&if_proxy);
   {
     // Convert the {key} to a Name first.
-    TNode<Object> name = CallBuiltin(Builtins::kToName, context, key);
+    TNode<Object> name = CallBuiltin(Builtin::kToName, context, key);
 
     // The {object} is a JSProxy instance, look up the {name} on it, passing
     // {object} both as receiver and holder. If {name} is absent we can safely
     // return undefined from here.
-    TailCallBuiltin(Builtins::kProxyGetProperty, context, object, name, object,
+    TailCallBuiltin(Builtin::kProxyGetProperty, context, object, name, object,
                     SmiConstant(OnNonExistent::kReturnUndefined));
   }
 }
@@ -1088,7 +1182,7 @@ TF_BUILTIN(GetPropertyWithReceiver, CodeStubAssembler) {
   BIND(&if_proxy);
   {
     // Convert the {key} to a Name first.
-    TNode<Name> name = CAST(CallBuiltin(Builtins::kToName, context, key));
+    TNode<Name> name = CAST(CallBuiltin(Builtin::kToName, context, key));
 
     // Proxy cannot handle private symbol so bailout.
     GotoIf(IsPrivateSymbol(name), &if_slow);
@@ -1096,8 +1190,8 @@ TF_BUILTIN(GetPropertyWithReceiver, CodeStubAssembler) {
     // The {object} is a JSProxy instance, look up the {name} on it, passing
     // {object} both as receiver and holder. If {name} is absent we can safely
     // return undefined from here.
-    TailCallBuiltin(Builtins::kProxyGetProperty, context, object, name,
-                    receiver, on_non_existent);
+    TailCallBuiltin(Builtin::kProxyGetProperty, context, object, name, receiver,
+                    on_non_existent);
   }
 }
 
@@ -1164,7 +1258,9 @@ TF_BUILTIN(InstantiateAsmJs, CodeStubAssembler) {
   BIND(&tailcall_to_function);
   // On failure, tail call back to regular JavaScript by re-calling the given
   // function which has been reset to the compile lazy builtin.
-  TNode<Code> code = CAST(LoadObjectField(function, JSFunction::kCodeOffset));
+
+  // TODO(v8:11880): call CodeT instead.
+  TNode<Code> code = FromCodeT(LoadJSFunctionCode(function));
   TailCallJSCode(code, context, function, new_target, arg_count);
 }
 

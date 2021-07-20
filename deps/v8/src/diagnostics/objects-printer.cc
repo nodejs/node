@@ -11,6 +11,7 @@
 #include "src/execution/isolate-utils-inl.h"
 #include "src/heap/heap-inl.h"                // For InOldSpace.
 #include "src/heap/heap-write-barrier-inl.h"  // For GetIsolateFromWritableObj.
+#include "src/ic/handler-configuration-inl.h"
 #include "src/init/bootstrapper.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/objects/all-objects-inl.h"
@@ -78,9 +79,11 @@ void PrintDictionaryContents(std::ostream& os, T dict) {
     return;
   }
 
+#ifdef V8_ENABLE_SWISS_NAME_DICTIONARY
   Isolate* isolate = GetIsolateFromWritableObject(dict);
   // IterateEntries for SwissNameDictionary needs to create a handle.
   HandleScope scope(isolate);
+#endif
   for (InternalIndex i : dict.IterateEntries()) {
     Object k;
     if (!dict.ToKey(roots, i, &k)) continue;
@@ -528,6 +531,9 @@ void JSObject::PrintElements(std::ostream& os) {
       PrintSloppyArgumentElements(os, map().elements_kind(),
                                   SloppyArgumentsElements::cast(elements()));
       break;
+    case WASM_ARRAY_ELEMENTS:
+      // WasmArrayPrint() should be called intead.
+      UNREACHABLE();
     case NO_ELEMENTS:
       break;
   }
@@ -564,7 +570,7 @@ static void JSObjectPrintHeader(std::ostream& os, JSObject obj,
 static void JSObjectPrintBody(std::ostream& os, JSObject obj,
                               bool print_elements = true) {
   os << "\n - properties: ";
-  Object properties_or_hash = obj.raw_properties_or_hash();
+  Object properties_or_hash = obj.raw_properties_or_hash(kRelaxedLoad);
   if (!properties_or_hash.IsSmi()) {
     os << Brief(properties_or_hash);
   }
@@ -670,6 +676,7 @@ void JSPromise::JSPromisePrint(std::ostream& os) {
   }
   os << "\n - has_handler: " << has_handler();
   os << "\n - handled_hint: " << handled_hint();
+  os << "\n - is_silent: " << is_silent();
   JSObjectPrintBody(os, *this);
 }
 
@@ -698,6 +705,7 @@ void Symbol::SymbolPrint(std::ostream& os) {
     os << " (" << PrivateSymbolToName() << ")";
   }
   os << "\n - private: " << is_private();
+  os << "\n";
 }
 
 void DescriptorArray::DescriptorArrayPrint(std::ostream& os) {
@@ -1004,7 +1012,6 @@ void SwissNameDictionary::SwissNameDictionaryPrint(std::ostream& os) {
     switch (ctrl) {
       case Ctrl::kEmpty:
         UNREACHABLE();
-        break;
       case Ctrl::kDeleted:
         print_hex_byte(os, ctrl);
         os << " (= kDeleted)";
@@ -1311,7 +1318,7 @@ void JSDate::JSDatePrint(std::ostream& os) {
     os << "\n - time = NaN\n";
   } else {
     // TODO(svenpanne) Add some basic formatting to our streams.
-    ScopedVector<char> buf(100);
+    base::ScopedVector<char> buf(100);
     SNPrintF(buf, "\n - time = %s %04d/%02d/%02d %02d:%02d:%02d\n",
              weekdays[weekday().IsSmi() ? Smi::ToInt(weekday()) + 1 : 0],
              year().IsSmi() ? Smi::ToInt(year()) : -1,
@@ -1495,16 +1502,16 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {
   os << "\n - name: " << Brief(shared().Name());
 
   // Print Builtin name for builtin functions
-  int builtin_index = code().builtin_index();
-  if (Builtins::IsBuiltinId(builtin_index)) {
-    os << "\n - builtin: " << isolate->builtins()->name(builtin_index);
+  Builtin builtin = code().builtin_id();
+  if (Builtins::IsBuiltinId(builtin)) {
+    os << "\n - builtin: " << isolate->builtins()->name(builtin);
   }
 
   os << "\n - formal_parameter_count: "
      << shared().internal_formal_parameter_count();
   os << "\n - kind: " << shared().kind();
   os << "\n - context: " << Brief(context());
-  os << "\n - code: " << Brief(code());
+  os << "\n - code: " << Brief(raw_code());
   if (code().kind() == CodeKind::FOR_TESTING) {
     os << "\n - FOR_TESTING";
   } else if (ActiveTierIsIgnition()) {
@@ -1633,6 +1640,11 @@ void PropertyCell::PropertyCellPrint(std::ostream& os) {
 
 void Code::CodePrint(std::ostream& os) {
   PrintHeader(os, "Code");
+  os << "\n - code_data_container: "
+     << Brief(code_data_container(kAcquireLoad));
+  if (is_builtin()) {
+    os << "\n - builtin_id: " << Builtins::name(builtin_id());
+  }
   os << "\n";
 #ifdef ENABLE_DISASSEMBLER
   Disassemble(nullptr, os, GetIsolate());
@@ -1642,6 +1654,11 @@ void Code::CodePrint(std::ostream& os) {
 void CodeDataContainer::CodeDataContainerPrint(std::ostream& os) {
   PrintHeader(os, "CodeDataContainer");
   os << "\n - kind_specific_flags: " << kind_specific_flags();
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    os << "\n - code: " << Brief(code());
+    os << "\n - code_entry_point: "
+       << reinterpret_cast<void*>(code_entry_point());
+  }
   os << "\n";
 }
 
@@ -1835,6 +1852,8 @@ void AsmWasmData::AsmWasmDataPrint(std::ostream& os) {
 void WasmTypeInfo::WasmTypeInfoPrint(std::ostream& os) {
   PrintHeader(os, "WasmTypeInfo");
   os << "\n - type address: " << reinterpret_cast<void*>(foreign_address());
+  os << "\n - supertypes: " << Brief(supertypes());
+  os << "\n - subtypes: " << Brief(subtypes());
   os << "\n";
 }
 
@@ -1846,7 +1865,7 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {
     wasm::ValueType field = struct_type->field(i);
     os << "\n   - " << field.short_name() << ": ";
     uint32_t field_offset = struct_type->field_offset(i);
-    Address field_address = RawField(field_offset).address();
+    Address field_address = RawFieldAddress(field_offset);
     switch (field.kind()) {
       case wasm::kI32:
         os << base::ReadUnalignedValue<int32_t>(field_address);
@@ -1861,12 +1880,18 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {
         os << base::ReadUnalignedValue<double>(field_address);
         break;
       case wasm::kI8:
+        os << base::ReadUnalignedValue<int8_t>(field_address);
+        break;
       case wasm::kI16:
-      case wasm::kS128:
+        os << base::ReadUnalignedValue<int16_t>(field_address);
+        break;
       case wasm::kRef:
       case wasm::kOptRef:
       case wasm::kRtt:
       case wasm::kRttWithDepth:
+        os << Brief(base::ReadUnalignedValue<Object>(field_address));
+        break;
+      case wasm::kS128:
       case wasm::kBottom:
       case wasm::kVoid:
         os << "UNIMPLEMENTED";  // TODO(7748): Implement.
@@ -1973,12 +1998,12 @@ void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {
 void WasmFunctionData::WasmFunctionDataPrint(std::ostream& os) {
   os << "\n - target: " << reinterpret_cast<void*>(foreign_address());
   os << "\n - ref: " << Brief(ref());
+  os << "\n - wrapper_code: " << Brief(TorqueGeneratedClass::wrapper_code());
 }
 
 void WasmExportedFunctionData::WasmExportedFunctionDataPrint(std::ostream& os) {
   PrintHeader(os, "WasmExportedFunctionData");
   WasmFunctionDataPrint(os);
-  os << "\n - wrapper_code: " << Brief(wrapper_code());
   os << "\n - instance: " << Brief(instance());
   os << "\n - function_index: " << function_index();
   os << "\n - signature: " << Brief(signature());
@@ -1989,11 +2014,19 @@ void WasmExportedFunctionData::WasmExportedFunctionDataPrint(std::ostream& os) {
 void WasmJSFunctionData::WasmJSFunctionDataPrint(std::ostream& os) {
   PrintHeader(os, "WasmJSFunctionData");
   WasmFunctionDataPrint(os);
-  os << "\n - wrapper_code: " << Brief(wrapper_code());
-  os << "\n - wasm_to_js_wrapper_code: " << Brief(wasm_to_js_wrapper_code());
+  os << "\n - wasm_to_js_wrapper_code: "
+     << Brief(raw_wasm_to_js_wrapper_code());
   os << "\n - serialized_return_count: " << serialized_return_count();
   os << "\n - serialized_parameter_count: " << serialized_parameter_count();
-  os << "\n - serialized signature: " << Brief(serialized_signature());
+  os << "\n - serialized_signature: " << Brief(serialized_signature());
+  os << "\n";
+}
+
+void WasmCapiFunctionData::WasmCapiFunctionDataPrint(std::ostream& os) {
+  PrintHeader(os, "WasmCapiFunctionData");
+  WasmFunctionDataPrint(os);
+  os << "\n - embedder_data: " << Brief(embedder_data());
+  os << "\n - serialized_signature: " << Brief(serialized_signature());
   os << "\n";
 }
 
@@ -2396,7 +2429,7 @@ void StackFrameInfo::StackFrameInfoPrint(std::ostream& os) {
   PrintHeader(os, "StackFrameInfo");
   os << "\n - receiver_or_instance: " << Brief(receiver_or_instance());
   os << "\n - function: " << Brief(function());
-  os << "\n - code_object: " << Brief(code_object());
+  os << "\n - code_object: " << Brief(TorqueGeneratedClass::code_object());
   os << "\n - code_offset_or_source_position: "
      << code_offset_or_source_position();
   os << "\n - flags: " << flags();
@@ -2494,7 +2527,7 @@ void Name::NameShortPrint() {
 }
 
 // TODO(cbruni): remove once the new maptracer is in place.
-int Name::NameShortPrint(Vector<char> str) {
+int Name::NameShortPrint(base::Vector<char> str) {
   if (this->IsString()) {
     return SNPrintF(str, "%s", String::cast(*this).ToCString().get());
   } else {
@@ -2828,9 +2861,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
 #if V8_ENABLE_WEBASSEMBLY
   {
     i::wasm::WasmCodeRefScope scope;
-    i::wasm::WasmCode* wasm_code =
-        isolate->wasm_engine()->code_manager()->LookupCode(address);
-    if (wasm_code) {
+    if (auto* wasm_code = i::wasm::GetWasmCodeManager()->LookupCode(address)) {
       i::StdoutStream os;
       wasm_code->Disassemble(nullptr, os, address);
       return;

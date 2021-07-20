@@ -2632,7 +2632,6 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(F32x4Le, kArmF32x4Le)                             \
   V(I64x2Add, kArmI64x2Add)                           \
   V(I64x2Sub, kArmI64x2Sub)                           \
-  V(I32x4Add, kArmI32x4Add)                           \
   V(I32x4Sub, kArmI32x4Sub)                           \
   V(I32x4Mul, kArmI32x4Mul)                           \
   V(I32x4MinS, kArmI32x4MinS)                         \
@@ -2650,7 +2649,6 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I32x4GtU, kArmI32x4GtU)                           \
   V(I32x4GeU, kArmI32x4GeU)                           \
   V(I16x8SConvertI32x4, kArmI16x8SConvertI32x4)       \
-  V(I16x8Add, kArmI16x8Add)                           \
   V(I16x8AddSatS, kArmI16x8AddSatS)                   \
   V(I16x8Sub, kArmI16x8Sub)                           \
   V(I16x8SubSatS, kArmI16x8SubSatS)                   \
@@ -2705,7 +2703,7 @@ void InstructionSelector::VisitI32x4DotI16x8S(Node* node) {
 void InstructionSelector::VisitS128Const(Node* node) {
   ArmOperandGenerator g(this);
   uint32_t val[kSimd128Size / sizeof(uint32_t)];
-  base::Memcpy(val, S128ImmediateParameterOf(node->op()).data(), kSimd128Size);
+  memcpy(val, S128ImmediateParameterOf(node->op()).data(), kSimd128Size);
   // If all bytes are zeros, avoid emitting code for generic constants.
   bool all_zeros = !(val[0] || val[1] || val[2] || val[3]);
   bool all_ones = val[0] == UINT32_MAX && val[1] == UINT32_MAX &&
@@ -2779,6 +2777,50 @@ SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
 SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 #undef SIMD_VISIT_BINOP
 #undef SIMD_BINOP_LIST
+
+#define VISIT_SIMD_ADD(Type, PairwiseType, NeonWidth)             \
+  void InstructionSelector::Visit##Type##Add(Node* node) {        \
+    ArmOperandGenerator g(this);                                  \
+    Node* left = node->InputAt(0);                                \
+    Node* right = node->InputAt(1);                               \
+    if (left->opcode() ==                                         \
+            IrOpcode::k##Type##ExtAddPairwise##PairwiseType##S && \
+        CanCover(node, left)) {                                   \
+      Emit(kArmVpadal | MiscField::encode(NeonS##NeonWidth),      \
+           g.DefineSameAsFirst(node), g.UseRegister(right),       \
+           g.UseRegister(left->InputAt(0)));                      \
+      return;                                                     \
+    }                                                             \
+    if (left->opcode() ==                                         \
+            IrOpcode::k##Type##ExtAddPairwise##PairwiseType##U && \
+        CanCover(node, left)) {                                   \
+      Emit(kArmVpadal | MiscField::encode(NeonU##NeonWidth),      \
+           g.DefineSameAsFirst(node), g.UseRegister(right),       \
+           g.UseRegister(left->InputAt(0)));                      \
+      return;                                                     \
+    }                                                             \
+    if (right->opcode() ==                                        \
+            IrOpcode::k##Type##ExtAddPairwise##PairwiseType##S && \
+        CanCover(node, right)) {                                  \
+      Emit(kArmVpadal | MiscField::encode(NeonS##NeonWidth),      \
+           g.DefineSameAsFirst(node), g.UseRegister(left),        \
+           g.UseRegister(right->InputAt(0)));                     \
+      return;                                                     \
+    }                                                             \
+    if (right->opcode() ==                                        \
+            IrOpcode::k##Type##ExtAddPairwise##PairwiseType##U && \
+        CanCover(node, right)) {                                  \
+      Emit(kArmVpadal | MiscField::encode(NeonU##NeonWidth),      \
+           g.DefineSameAsFirst(node), g.UseRegister(left),        \
+           g.UseRegister(right->InputAt(0)));                     \
+      return;                                                     \
+    }                                                             \
+    VisitRRR(this, kArm##Type##Add, node);                        \
+  }
+
+VISIT_SIMD_ADD(I16x8, I8x16, 8)
+VISIT_SIMD_ADD(I32x4, I16x8, 16)
+#undef VISIT_SIMD_ADD
 
 void InstructionSelector::VisitI64x2SplatI32Pair(Node* node) {
   ArmOperandGenerator g(this);

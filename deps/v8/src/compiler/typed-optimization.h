@@ -64,6 +64,7 @@ class V8_EXPORT_PRIVATE TypedOptimization final
   Reduction ReduceToBoolean(Node* node);
   Reduction ReduceSpeculativeNumberAdd(Node* node);
   Reduction ReduceSpeculativeNumberMultiply(Node* node);
+  Reduction ReduceSpeculativeNumberPow(Node* node);
   Reduction ReduceSpeculativeNumberBinop(Node* node);
   Reduction ReduceSpeculativeNumberComparison(Node* node);
 

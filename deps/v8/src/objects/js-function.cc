@@ -119,7 +119,7 @@ bool JSFunction::ActiveTierIsIgnition() const {
   DCHECK_IMPLIES(result, code.is_interpreter_trampoline_builtin() ||
                              (CodeKindIsOptimizedJSFunction(code.kind()) &&
                               code.marked_for_deoptimization()) ||
-                             (code.builtin_index() == Builtins::kCompileLazy &&
+                             (code.builtin_id() == Builtin::kCompileLazy &&
                               shared().IsInterpreted()));
 #endif  // DEBUG
   return result;
@@ -187,14 +187,6 @@ bool JSFunction::CanDiscardCompiled() const {
 }
 
 // static
-MaybeHandle<NativeContext> JSBoundFunction::GetFunctionRealm(
-    Handle<JSBoundFunction> function) {
-  DCHECK(function->map().is_constructor());
-  return JSReceiver::GetFunctionRealm(
-      handle(function->bound_target_function(), function->GetIsolate()));
-}
-
-// static
 MaybeHandle<String> JSBoundFunction::GetName(Isolate* isolate,
                                              Handle<JSBoundFunction> function) {
   Handle<String> prefix = isolate->factory()->bound__string();
@@ -259,13 +251,6 @@ Handle<Object> JSFunction::GetName(Isolate* isolate,
     return isolate->factory()->anonymous_string();
   }
   return handle(function->shared().Name(), isolate);
-}
-
-// static
-Handle<NativeContext> JSFunction::GetFunctionRealm(
-    Handle<JSFunction> function) {
-  DCHECK(function->map().is_constructor());
-  return handle(function->context().native_context(), function->GetIsolate());
 }
 
 // static
@@ -352,6 +337,14 @@ void JSFunction::InitializeFeedbackCell(
     Handle<JSFunction> function, IsCompiledScope* is_compiled_scope,
     bool reset_budget_for_feedback_allocation) {
   Isolate* const isolate = function->GetIsolate();
+#if V8_ENABLE_WEBASSEMBLY
+  // The following checks ensure that the feedback vectors are compatible with
+  // the feedback metadata. For Asm / Wasm functions we never allocate / use
+  // feedback vectors, so a mismatch between the metadata and feedback vector is
+  // harmless. The checks could fail for functions that has has_asm_wasm_broken
+  // set at runtime (for ex: failed instantiation).
+  if (function->shared().HasAsmWasmData()) return;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   if (function->has_feedback_vector()) {
     CHECK_EQ(function->feedback_vector().length(),
@@ -796,49 +789,55 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
   return map;
 }
 
+namespace {
+
+// Assert that the computations in TypedArrayElementsKindToConstructorIndex and
+// TypedArrayElementsKindToRabGsabCtorIndex are sound.
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)                         \
+  STATIC_ASSERT(Context::TYPE##_ARRAY_FUN_INDEX ==                        \
+                Context::FIRST_FIXED_TYPED_ARRAY_FUN_INDEX +              \
+                    ElementsKind::TYPE##_ELEMENTS -                       \
+                    ElementsKind::FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND); \
+  STATIC_ASSERT(Context::RAB_GSAB_##TYPE##_ARRAY_MAP_INDEX ==             \
+                Context::FIRST_RAB_GSAB_TYPED_ARRAY_MAP_INDEX +           \
+                    ElementsKind::TYPE##_ELEMENTS -                       \
+                    ElementsKind::FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND);
+
+TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+
+int TypedArrayElementsKindToConstructorIndex(ElementsKind elements_kind) {
+  return Context::FIRST_FIXED_TYPED_ARRAY_FUN_INDEX + elements_kind -
+         ElementsKind::FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND;
+}
+
+int TypedArrayElementsKindToRabGsabCtorIndex(ElementsKind elements_kind) {
+  return Context::FIRST_RAB_GSAB_TYPED_ARRAY_MAP_INDEX + elements_kind -
+         ElementsKind::FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND;
+}
+
+}  // namespace
+
 Handle<Map> JSFunction::GetDerivedRabGsabMap(Isolate* isolate,
                                              Handle<JSFunction> constructor,
                                              Handle<JSReceiver> new_target) {
+  Handle<Map> map =
+      GetDerivedMap(isolate, constructor, new_target).ToHandleChecked();
   {
     DisallowHeapAllocation no_alloc;
     NativeContext context = isolate->context().native_context();
-    if (*new_target == context.uint8_array_fun()) {
-      return handle(context.rab_gsab_uint8_array_map(), isolate);
-    }
-    if (*new_target == context.int8_array_fun()) {
-      return handle(context.rab_gsab_int8_array_map(), isolate);
-    }
-    if (*new_target == context.uint16_array_fun()) {
-      return handle(context.rab_gsab_uint16_array_map(), isolate);
-    }
-    if (*new_target == context.int16_array_fun()) {
-      return handle(context.rab_gsab_int16_array_map(), isolate);
-    }
-    if (*new_target == context.uint32_array_fun()) {
-      return handle(context.rab_gsab_uint32_array_map(), isolate);
-    }
-    if (*new_target == context.int32_array_fun()) {
-      return handle(context.rab_gsab_int32_array_map(), isolate);
-    }
-    if (*new_target == context.float32_array_fun()) {
-      return handle(context.rab_gsab_float32_array_map(), isolate);
-    }
-    if (*new_target == context.float64_array_fun()) {
-      return handle(context.rab_gsab_float64_array_map(), isolate);
-    }
-    if (*new_target == context.biguint64_array_fun()) {
-      return handle(context.rab_gsab_biguint64_array_map(), isolate);
-    }
-    if (*new_target == context.bigint64_array_fun()) {
-      return handle(context.rab_gsab_bigint64_array_map(), isolate);
+    int ctor_index =
+        TypedArrayElementsKindToConstructorIndex(map->elements_kind());
+    if (*new_target == context.get(ctor_index)) {
+      ctor_index =
+          TypedArrayElementsKindToRabGsabCtorIndex(map->elements_kind());
+      return handle(Map::cast(context.get(ctor_index)), isolate);
     }
   }
 
   // This only happens when subclassing TypedArrays. Create a new map with the
   // corresponding RAB / GSAB ElementsKind. Note: the map is not cached and
   // reused -> every array gets a unique map, making ICs slow.
-  Handle<Map> map =
-      GetDerivedMap(isolate, constructor, new_target).ToHandleChecked();
   Handle<Map> rab_gsab_map = Map::Copy(isolate, map, "RAB / GSAB");
   rab_gsab_map->set_elements_kind(
       GetCorrespondingRabGsabElementsKind(map->elements_kind()));
