@@ -309,8 +309,6 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "Source Map V3 support for stack traces",
             &EnvironmentOptions::enable_source_maps,
             kAllowedInEnvironment);
-  AddOption("--experimental-abortcontroller", "",
-            NoOp{}, kAllowedInEnvironment);
   AddOption("--experimental-json-modules",
             "experimental JSON interop support for the ES Module loader",
             &EnvironmentOptions::experimental_json_modules,
