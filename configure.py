@@ -1156,6 +1156,9 @@ def gcc_version_ge(version_checked):
       return False
   return True
 
+def configure_python(o):
+  o['variables']['python_exec_path'] = sys.executable
+
 def configure_node_lib_files(o):
   o['variables']['node_library_files'] = SearchFiles('lib', 'js')
 
@@ -1905,6 +1908,7 @@ if (options.dest_os):
   flavor_params['flavor'] = options.dest_os
 flavor = GetFlavor(flavor_params)
 
+configure_python(output)
 configure_node(output)
 configure_node_lib_files(output)
 configure_napi(output)
