@@ -414,6 +414,10 @@ static void ReportFatalException(Environment* env,
     }
   }
 
+  if (env->options()->stacktrace_version) {
+    FPrintF(stderr, "    via Node.js %s\n", NODE_VERSION);
+  }
+
   fflush(stderr);
 }
 

@@ -511,6 +511,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "show stack traces on process warnings",
             &EnvironmentOptions::trace_warnings,
             kAllowedInEnvironment);
+  AddOption("--stacktrace-version",
+            "hide version for fatal exceptions that causes exit",
+            &EnvironmentOptions::stacktrace_version,
+            kAllowedInEnvironment,
+            true);
   AddOption("--unhandled-rejections",
             "define unhandled rejections behavior. Options are 'strict' "
             "(always raise an error), 'throw' (raise an error unless "

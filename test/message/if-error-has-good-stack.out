@@ -33,3 +33,4 @@ AssertionError [ERR_ASSERTION]: ifError got unwanted exception: test error
   expected: null,
   operator: 'ifError'
 }
+    via Node.js *

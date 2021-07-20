@@ -1110,6 +1110,13 @@ added: v6.0.0
 
 Print stack traces for process warnings (including deprecations).
 
+### `--no-stacktrace-version`
+<!-- YAML
+added: REPLACEME
+-->
+
+Hide version for fatal exceptions that causes exit.
+
 ### `--track-heap-objects`
 <!-- YAML
 added: v2.4.0
@@ -1423,6 +1430,7 @@ Node.js options that are allowed are:
 * `--no-deprecation`
 * `--no-experimental-repl-await`
 * `--no-force-async-hooks-checks`
+* `--no-stacktrace-version`
 * `--no-warnings`
 * `--node-memory-debug`
 * `--openssl-config`
