@@ -791,8 +791,9 @@ getArchitecture(uint16_t *pCPU, uint16_t *pBits, UBool *pIsBigEndian, const char
         // for all architectures though.
 #   if defined(_M_IX86)
         *pCPU = IMAGE_FILE_MACHINE_I386;
+// TODO: detect ARM64
 #   else
-        *pCPU = IMAGE_FILE_MACHINE_UNKNOWN;
+        *pCPU = IMAGE_FILE_MACHINE_AMD64;
 #   endif
 #   if defined(_M_IA64) || defined(_M_AMD64) || defined (_M_ARM64)
         *pBits = 64; // Doesn't seem to be used for anything interesting though?
