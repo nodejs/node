@@ -134,51 +134,49 @@ StringShape::StringShape(InstanceType t) : type_(static_cast<uint32_t>(t)) {
   DCHECK_EQ(type_ & kIsNotStringMask, kStringTag);
 }
 
-bool StringShape::IsInternalized() const {
+bool StringShape::IsInternalized() {
   DCHECK(valid());
   STATIC_ASSERT(kNotInternalizedTag != 0);
   return (type_ & (kIsNotStringMask | kIsNotInternalizedMask)) ==
          (kStringTag | kInternalizedTag);
 }
 
-bool StringShape::IsCons() const {
+bool StringShape::IsCons() {
   return (type_ & kStringRepresentationMask) == kConsStringTag;
 }
 
-bool StringShape::IsThin() const {
+bool StringShape::IsThin() {
   return (type_ & kStringRepresentationMask) == kThinStringTag;
 }
 
-bool StringShape::IsSliced() const {
+bool StringShape::IsSliced() {
   return (type_ & kStringRepresentationMask) == kSlicedStringTag;
 }
 
-bool StringShape::IsIndirect() const {
+bool StringShape::IsIndirect() {
   return (type_ & kIsIndirectStringMask) == kIsIndirectStringTag;
 }
 
-bool StringShape::IsExternal() const {
+bool StringShape::IsExternal() {
   return (type_ & kStringRepresentationMask) == kExternalStringTag;
 }
 
-bool StringShape::IsSequential() const {
+bool StringShape::IsSequential() {
   return (type_ & kStringRepresentationMask) == kSeqStringTag;
 }
 
-bool StringShape::IsUncachedExternal() const {
+bool StringShape::IsUncachedExternal() {
   return (type_ & kUncachedExternalStringMask) == kUncachedExternalStringTag;
 }
 
-StringRepresentationTag StringShape::representation_tag() const {
+StringRepresentationTag StringShape::representation_tag() {
   uint32_t tag = (type_ & kStringRepresentationMask);
   return static_cast<StringRepresentationTag>(tag);
 }
 
-uint32_t StringShape::encoding_tag() const {
-  return type_ & kStringEncodingMask;
-}
+uint32_t StringShape::encoding_tag() { return type_ & kStringEncodingMask; }
 
-uint32_t StringShape::full_representation_tag() const {
+uint32_t StringShape::full_representation_tag() {
   return (type_ & (kStringRepresentationMask | kStringEncodingMask));
 }
 
@@ -188,15 +186,15 @@ STATIC_ASSERT((kStringRepresentationMask | kStringEncodingMask) ==
 STATIC_ASSERT(static_cast<uint32_t>(kStringEncodingMask) ==
               Internals::kStringEncodingMask);
 
-bool StringShape::IsSequentialOneByte() const {
+bool StringShape::IsSequentialOneByte() {
   return full_representation_tag() == (kSeqStringTag | kOneByteStringTag);
 }
 
-bool StringShape::IsSequentialTwoByte() const {
+bool StringShape::IsSequentialTwoByte() {
   return full_representation_tag() == (kSeqStringTag | kTwoByteStringTag);
 }
 
-bool StringShape::IsExternalOneByte() const {
+bool StringShape::IsExternalOneByte() {
   return full_representation_tag() == (kExternalStringTag | kOneByteStringTag);
 }
 
@@ -205,7 +203,7 @@ STATIC_ASSERT((kExternalStringTag | kOneByteStringTag) ==
 
 STATIC_ASSERT(v8::String::ONE_BYTE_ENCODING == kOneByteStringTag);
 
-bool StringShape::IsExternalTwoByte() const {
+bool StringShape::IsExternalTwoByte() {
   return full_representation_tag() == (kExternalStringTag | kTwoByteStringTag);
 }
 
@@ -301,7 +299,7 @@ bool String::IsOneByteRepresentationUnderneath(String string) {
   }
 }
 
-uc32 FlatStringReader::Get(int index) const {
+uc32 FlatStringReader::Get(int index) {
   if (is_one_byte_) {
     return Get<uint8_t>(index);
   } else {
@@ -310,7 +308,7 @@ uc32 FlatStringReader::Get(int index) const {
 }
 
 template <typename Char>
-Char FlatStringReader::Get(int index) const {
+Char FlatStringReader::Get(int index) {
   DCHECK_EQ(is_one_byte_, sizeof(Char) == 1);
   DCHECK(0 <= index && index < length_);
   if (sizeof(Char) == 1) {
@@ -436,7 +434,7 @@ class SeqSubStringKey final : public StringTableKey {
 using SeqOneByteSubStringKey = SeqSubStringKey<SeqOneByteString>;
 using SeqTwoByteSubStringKey = SeqSubStringKey<SeqTwoByteString>;
 
-bool String::Equals(String other) const {
+bool String::Equals(String other) {
   if (other == *this) return true;
   if (this->IsInternalizedString() && other.IsInternalizedString()) {
     return false;
@@ -444,7 +442,6 @@ bool String::Equals(String other) const {
   return SlowEquals(other);
 }
 
-// static
 bool String::Equals(Isolate* isolate, Handle<String> one, Handle<String> two) {
   if (one.is_identical_to(two)) return true;
   if (one->IsInternalizedString() && two->IsInternalizedString()) {
@@ -578,7 +575,7 @@ bool String::IsConsStringEqualToImpl(
 bool String::IsOneByteEqualTo(Vector<const char> str) { return IsEqualTo(str); }
 
 template <typename Char>
-const Char* String::GetChars(const DisallowGarbageCollection& no_gc) const {
+const Char* String::GetChars(const DisallowGarbageCollection& no_gc) {
   DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*this));
   return StringShape(*this).IsExternal()
              ? CharTraits<Char>::ExternalString::cast(*this).GetChars()
@@ -588,7 +585,7 @@ const Char* String::GetChars(const DisallowGarbageCollection& no_gc) const {
 template <typename Char>
 const Char* String::GetChars(
     const DisallowGarbageCollection& no_gc,
-    const SharedStringAccessGuardIfNeeded& access_guard) const {
+    const SharedStringAccessGuardIfNeeded& access_guard) {
   return StringShape(*this).IsExternal()
              ? CharTraits<Char>::ExternalString::cast(*this).GetChars()
              : CharTraits<Char>::String::cast(*this).GetChars(no_gc,
@@ -619,17 +616,17 @@ Handle<String> String::Flatten(LocalIsolate* isolate, Handle<String> string,
   return string;
 }
 
-uint16_t String::Get(int index, Isolate* isolate) const {
+uint16_t String::Get(int index, Isolate* isolate) {
   DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*this));
   return GetImpl(index);
 }
 
-uint16_t String::Get(int index, LocalIsolate* local_isolate) const {
+uint16_t String::Get(int index, LocalIsolate* local_isolate) {
   SharedStringAccessGuardIfNeeded scope(local_isolate);
   return GetImpl(index);
 }
 
-uint16_t String::GetImpl(int index) const {
+uint16_t String::GetImpl(int index) {
   DCHECK(index >= 0 && index < length());
 
   class StringGetDispatcher : public AllStatic {
@@ -658,12 +655,12 @@ void String::Set(int index, uint16_t value) {
              : SeqTwoByteString::cast(*this).SeqTwoByteStringSet(index, value);
 }
 
-bool String::IsFlat() const {
+bool String::IsFlat() {
   if (!StringShape(*this).IsCons()) return true;
   return ConsString::cast(*this).second().length() == 0;
 }
 
-String String::GetUnderlying() const {
+String String::GetUnderlying() {
   // Giving direct access to underlying string only makes sense if the
   // wrapping string is already flattened.
   DCHECK(this->IsFlat());
@@ -767,7 +764,7 @@ uint32_t String::ToValidIndex(Object number) {
   return index;
 }
 
-uint8_t SeqOneByteString::Get(int index) const {
+uint8_t SeqOneByteString::Get(int index) {
   DCHECK(index >= 0 && index < length());
   return ReadField<byte>(kHeaderSize + index * kCharSize);
 }
@@ -777,12 +774,11 @@ void SeqOneByteString::SeqOneByteStringSet(int index, uint16_t value) {
   WriteField<byte>(kHeaderSize + index * kCharSize, static_cast<byte>(value));
 }
 
-Address SeqOneByteString::GetCharsAddress() const {
+Address SeqOneByteString::GetCharsAddress() {
   return field_address(kHeaderSize);
 }
 
-uint8_t* SeqOneByteString::GetChars(
-    const DisallowGarbageCollection& no_gc) const {
+uint8_t* SeqOneByteString::GetChars(const DisallowGarbageCollection& no_gc) {
   USE(no_gc);
   DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*this));
   return reinterpret_cast<uint8_t*>(GetCharsAddress());
@@ -790,17 +786,17 @@ uint8_t* SeqOneByteString::GetChars(
 
 uint8_t* SeqOneByteString::GetChars(
     const DisallowGarbageCollection& no_gc,
-    const SharedStringAccessGuardIfNeeded& access_guard) const {
+    const SharedStringAccessGuardIfNeeded& access_guard) {
   USE(no_gc);
   USE(access_guard);
   return reinterpret_cast<uint8_t*>(GetCharsAddress());
 }
 
-Address SeqTwoByteString::GetCharsAddress() const {
+Address SeqTwoByteString::GetCharsAddress() {
   return field_address(kHeaderSize);
 }
 
-uc16* SeqTwoByteString::GetChars(const DisallowGarbageCollection& no_gc) const {
+uc16* SeqTwoByteString::GetChars(const DisallowGarbageCollection& no_gc) {
   USE(no_gc);
   DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*this));
   return reinterpret_cast<uc16*>(GetCharsAddress());
@@ -808,13 +804,13 @@ uc16* SeqTwoByteString::GetChars(const DisallowGarbageCollection& no_gc) const {
 
 uc16* SeqTwoByteString::GetChars(
     const DisallowGarbageCollection& no_gc,
-    const SharedStringAccessGuardIfNeeded& access_guard) const {
+    const SharedStringAccessGuardIfNeeded& access_guard) {
   USE(no_gc);
   USE(access_guard);
   return reinterpret_cast<uc16*>(GetCharsAddress());
 }
 
-uint16_t SeqTwoByteString::Get(int index) const {
+uint16_t SeqTwoByteString::Get(int index) {
   DCHECK(index >= 0 && index < length());
   return ReadField<uint16_t>(kHeaderSize + index * kShortSize);
 }
@@ -942,7 +938,7 @@ void ExternalOneByteString::set_resource(
   if (resource != nullptr) update_data_cache(isolate);
 }
 
-const uint8_t* ExternalOneByteString::GetChars() const {
+const uint8_t* ExternalOneByteString::GetChars() {
   DisallowGarbageCollection no_gc;
   if (is_uncached()) {
     if (resource()->IsCacheable()) {
@@ -964,7 +960,7 @@ const uint8_t* ExternalOneByteString::GetChars() const {
   return reinterpret_cast<const uint8_t*>(resource()->data());
 }
 
-uint8_t ExternalOneByteString::Get(int index) const {
+uint8_t ExternalOneByteString::Get(int index) {
   DCHECK(index >= 0 && index < length());
   return GetChars()[index];
 }
@@ -1007,7 +1003,7 @@ void ExternalTwoByteString::set_resource(
   if (resource != nullptr) update_data_cache(isolate);
 }
 
-const uint16_t* ExternalTwoByteString::GetChars() const {
+const uint16_t* ExternalTwoByteString::GetChars() {
   DisallowGarbageCollection no_gc;
   if (is_uncached()) {
     if (resource()->IsCacheable()) {
@@ -1029,7 +1025,7 @@ const uint16_t* ExternalTwoByteString::GetChars() const {
   return resource()->data();
 }
 
-uint16_t ExternalTwoByteString::Get(int index) const {
+uint16_t ExternalTwoByteString::Get(int index) {
   DCHECK(index >= 0 && index < length());
   return GetChars()[index];
 }

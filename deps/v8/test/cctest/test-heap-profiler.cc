@@ -516,7 +516,7 @@ TEST(HeapSnapshotHeapNumbersCaptureNumericValue) {
       "a = 1;    // a is Smi\n"
       "b = 2.5;  // b is HeapNumber");
   const v8::HeapSnapshot* snapshot =
-      heap_profiler->TakeHeapSnapshot(nullptr, nullptr, true, true);
+      heap_profiler->TakeHeapSnapshotV8_92(nullptr, nullptr, true, true);
   CHECK(ValidateSnapshot(snapshot));
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
   const v8::HeapGraphNode* a =

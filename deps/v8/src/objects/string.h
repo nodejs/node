@@ -44,25 +44,25 @@ class StringShape {
   inline explicit StringShape(const String s);
   inline explicit StringShape(Map s);
   inline explicit StringShape(InstanceType t);
-  inline bool IsSequential() const;
-  inline bool IsExternal() const;
-  inline bool IsCons() const;
-  inline bool IsSliced() const;
-  inline bool IsThin() const;
-  inline bool IsIndirect() const;
-  inline bool IsUncachedExternal() const;
-  inline bool IsExternalOneByte() const;
-  inline bool IsExternalTwoByte() const;
-  inline bool IsSequentialOneByte() const;
-  inline bool IsSequentialTwoByte() const;
-  inline bool IsInternalized() const;
-  inline StringRepresentationTag representation_tag() const;
-  inline uint32_t encoding_tag() const;
-  inline uint32_t full_representation_tag() const;
+  inline bool IsSequential();
+  inline bool IsExternal();
+  inline bool IsCons();
+  inline bool IsSliced();
+  inline bool IsThin();
+  inline bool IsIndirect();
+  inline bool IsUncachedExternal();
+  inline bool IsExternalOneByte();
+  inline bool IsExternalTwoByte();
+  inline bool IsSequentialOneByte();
+  inline bool IsSequentialTwoByte();
+  inline bool IsInternalized();
+  inline StringRepresentationTag representation_tag();
+  inline uint32_t encoding_tag();
+  inline uint32_t full_representation_tag();
 #ifdef DEBUG
-  inline uint32_t type() const { return type_; }
+  inline uint32_t type() { return type_; }
   inline void invalidate() { valid_ = false; }
-  inline bool valid() const { return valid_; }
+  inline bool valid() { return valid_; }
 #else
   inline void invalidate() {}
 #endif
@@ -181,13 +181,13 @@ class String : public TorqueGeneratedString<String, Name> {
   // SharedStringAccessGuard is not needed (i.e. on the main thread or on
   // read-only strings).
   template <typename Char>
-  inline const Char* GetChars(const DisallowGarbageCollection& no_gc) const;
+  inline const Char* GetChars(const DisallowGarbageCollection& no_gc);
 
   // Get chars from sequential or external strings.
   template <typename Char>
   inline const Char* GetChars(
       const DisallowGarbageCollection& no_gc,
-      const SharedStringAccessGuardIfNeeded& access_guard) const;
+      const SharedStringAccessGuardIfNeeded& access_guard);
 
   // Returns the address of the character at an offset into this string.
   // Requires: this->IsFlat()
@@ -218,8 +218,8 @@ class String : public TorqueGeneratedString<String, Name> {
   // to this method are not efficient unless the string is flat.
   // If it is called from a background thread, the LocalIsolate version should
   // be used.
-  V8_INLINE uint16_t Get(int index, Isolate* isolate = nullptr) const;
-  V8_INLINE uint16_t Get(int index, LocalIsolate* local_isolate) const;
+  V8_INLINE uint16_t Get(int index, Isolate* isolate = nullptr);
+  V8_INLINE uint16_t Get(int index, LocalIsolate* local_isolate);
 
   // ES6 section 7.1.3.1 ToNumber Applied to the String Type
   static Handle<Object> ToNumber(Isolate* isolate, Handle<String> subject);
@@ -254,7 +254,7 @@ class String : public TorqueGeneratedString<String, Name> {
 
   // Returns the parent of a sliced string or first part of a flat cons string.
   // Requires: StringShape(this).IsIndirect() && this->IsFlat()
-  inline String GetUnderlying() const;
+  inline String GetUnderlying();
 
   // String relational comparison, implemented according to ES6 section 7.2.11
   // Abstract Relational Comparison (step 5): The comparison of Strings uses a
@@ -315,7 +315,7 @@ class String : public TorqueGeneratedString<String, Name> {
       int start_index = 0);
 
   // String equality operations.
-  inline bool Equals(String other) const;
+  inline bool Equals(String other);
   inline static bool Equals(Isolate* isolate, Handle<String> one,
                             Handle<String> two);
 
@@ -420,7 +420,7 @@ class String : public TorqueGeneratedString<String, Name> {
   DECL_PRINTER(String)
   DECL_VERIFIER(String)
 
-  inline bool IsFlat() const;
+  inline bool IsFlat();
 
   // Max char codes.
   static const int32_t kMaxOneByteCharCode = unibrow::Latin1::kMaxChar;
@@ -542,7 +542,7 @@ class String : public TorqueGeneratedString<String, Name> {
   friend class InternalizedStringKey;
 
   // Implementation of the Get() public methods. Do not use directly.
-  V8_INLINE uint16_t GetImpl(int index) const;
+  V8_INLINE uint16_t GetImpl(int index);
 
   // Implementation of the IsEqualTo() public methods. Do not use directly.
   template <EqualityType kEqType, typename Char>
@@ -562,7 +562,7 @@ class String : public TorqueGeneratedString<String, Name> {
 
   // Slow case of String::Equals.  This implementation works on any strings
   // but it is most efficient on strings that are almost flat.
-  V8_EXPORT_PRIVATE bool SlowEquals(String other) const;
+  V8_EXPORT_PRIVATE bool SlowEquals(String other);
 
   V8_EXPORT_PRIVATE static bool SlowEquals(Isolate* isolate, Handle<String> one,
                                            Handle<String> two);
@@ -634,21 +634,20 @@ class SeqOneByteString
   using Char = uint8_t;
 
   // Dispatched behavior.
-  inline uint8_t Get(int index) const;
+  inline uint8_t Get(int index);
   inline void SeqOneByteStringSet(int index, uint16_t value);
 
   // Get the address of the characters in this string.
-  inline Address GetCharsAddress() const;
+  inline Address GetCharsAddress();
 
   // Get a pointer to the characters of the string. May only be called when a
   // SharedStringAccessGuard is not needed (i.e. on the main thread or on
   // read-only strings).
-  inline uint8_t* GetChars(const DisallowGarbageCollection& no_gc) const;
+  inline uint8_t* GetChars(const DisallowGarbageCollection& no_gc);
 
   // Get a pointer to the characters of the string.
-  inline uint8_t* GetChars(
-      const DisallowGarbageCollection& no_gc,
-      const SharedStringAccessGuardIfNeeded& access_guard) const;
+  inline uint8_t* GetChars(const DisallowGarbageCollection& no_gc,
+                           const SharedStringAccessGuardIfNeeded& access_guard);
 
   // Clear uninitialized padding space. This ensures that the snapshot content
   // is deterministic.
@@ -680,21 +679,20 @@ class SeqTwoByteString
   using Char = uint16_t;
 
   // Dispatched behavior.
-  inline uint16_t Get(int index) const;
+  inline uint16_t Get(int index);
   inline void SeqTwoByteStringSet(int index, uint16_t value);
 
   // Get the address of the characters in this string.
-  inline Address GetCharsAddress() const;
+  inline Address GetCharsAddress();
 
   // Get a pointer to the characters of the string. May only be called when a
   // SharedStringAccessGuard is not needed (i.e. on the main thread or on
   // read-only strings).
-  inline uc16* GetChars(const DisallowGarbageCollection& no_gc) const;
+  inline uc16* GetChars(const DisallowGarbageCollection& no_gc);
 
   // Get a pointer to the characters of the string.
-  inline uc16* GetChars(
-      const DisallowGarbageCollection& no_gc,
-      const SharedStringAccessGuardIfNeeded& access_guard) const;
+  inline uc16* GetChars(const DisallowGarbageCollection& no_gc,
+                        const SharedStringAccessGuardIfNeeded& access_guard);
 
   // Clear uninitialized padding space. This ensures that the snapshot content
   // is deterministic.
@@ -737,7 +735,7 @@ class ConsString : public TorqueGeneratedConsString<ConsString, String> {
   inline Object unchecked_second();
 
   // Dispatched behavior.
-  V8_EXPORT_PRIVATE uint16_t Get(int index) const;
+  V8_EXPORT_PRIVATE uint16_t Get(int index);
 
   // Minimum length for a cons string.
   static const int kMinLength = 13;
@@ -760,7 +758,7 @@ class ThinString : public TorqueGeneratedThinString<ThinString, String> {
  public:
   DECL_GETTER(unchecked_actual, HeapObject)
 
-  V8_EXPORT_PRIVATE uint16_t Get(int index) const;
+  V8_EXPORT_PRIVATE uint16_t Get(int index);
 
   DECL_VERIFIER(ThinString)
 
@@ -786,7 +784,7 @@ class SlicedString : public TorqueGeneratedSlicedString<SlicedString, String> {
   inline void set_parent(String parent,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   // Dispatched behavior.
-  V8_EXPORT_PRIVATE uint16_t Get(int index) const;
+  V8_EXPORT_PRIVATE uint16_t Get(int index);
 
   // Minimum length for a sliced string.
   static const int kMinLength = 13;
@@ -865,10 +863,10 @@ class ExternalOneByteString : public ExternalString {
   // which the pointer cache has to be refreshed.
   inline void update_data_cache(Isolate* isolate);
 
-  inline const uint8_t* GetChars() const;
+  inline const uint8_t* GetChars();
 
   // Dispatched behavior.
-  inline uint8_t Get(int index) const;
+  inline uint8_t Get(int index);
 
   DECL_CAST(ExternalOneByteString)
 
@@ -911,10 +909,10 @@ class ExternalTwoByteString : public ExternalString {
   // which the pointer cache has to be refreshed.
   inline void update_data_cache(Isolate* isolate);
 
-  inline const uint16_t* GetChars() const;
+  inline const uint16_t* GetChars();
 
   // Dispatched behavior.
-  inline uint16_t Get(int index) const;
+  inline uint16_t Get(int index);
 
   // For regexp code.
   inline const uint16_t* ExternalTwoByteStringGetData(unsigned start);
@@ -944,9 +942,9 @@ class V8_EXPORT_PRIVATE FlatStringReader : public Relocatable {
  public:
   FlatStringReader(Isolate* isolate, Handle<String> str);
   void PostGarbageCollection() override;
-  inline uc32 Get(int index) const;
+  inline uc32 Get(int index);
   template <typename Char>
-  inline Char Get(int index) const;
+  inline Char Get(int index);
   int length() { return length_; }
 
  private:
