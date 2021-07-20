@@ -174,8 +174,8 @@ await client.close();
 
 * Extends: {Event}
 
-The `SessionEvent` is emitted by {Endpoint} objects when a new server `Session`
-has been created.
+The `SessionEvent` is emitted by {quic.Endpoint} objects when a new server
+`Session` has been created.
 
 ##### `sessionEvent.name`
 
@@ -185,14 +185,14 @@ has been created.
 
 * Type: {quic.Session}
 
-The server {Session} that has been created.
+The server {quic.Session} that has been created.
 
 #### Class: `StreamEvent`
 
 * Events: {Event}
 
-The `StreamEvent` is emitted by a {Session} whenever a peer-initiated {Stream}
-has been created.
+The `StreamEvent` is emitted by a {quic.Session} whenever a peer-initiated
+{quic.Stream} has been created.
 
 ##### `streamEvent.name`
 
@@ -216,8 +216,8 @@ The peer-initiated {Stream} that was created.
 
 ### Class: `quic.ClientHello`
 
-When the `sessionConfig.clienthello` option is `true`, the server {Session}
-will pause at the start of the TLS handshake and will fulfill the {Session}
+When the `sessionConfig.clienthello` option is `true`, the server {quic.Session}
+will pause at the start of the TLS handshake and will fulfill the {quic.Session}
 object's `session.clienthello` promise with an instance of `quic.ClientHello`.
 This object provides information about the client peer's requested ALPN,
 ciphers, and target server name. The TLS handshake will not resume until
@@ -248,7 +248,7 @@ connection.
 
 * Type: {string}
 
-The SNI hostname the client is requesting for this connection.
+The SNI host name the client is requesting for this connection.
 
 ### Class: `quic.Endpoint`
 
@@ -318,7 +318,9 @@ will throw and new inbound initial session packets will be ignored.
 #### `endpoint.closed`
 
 * Type: {Promise} A promise that is resolved when the `Endpoint` has been
-  closed, or is rejected if the `Endpoint` is abnormally terminated.
+  closed, or is rejected if the `Endpoint` is abnormally terminated. This
+  will be the same promise that is returned by the `endpoint.close()`
+  function.
 
 #### `endpoint.closing`
 
@@ -327,26 +329,25 @@ will throw and new inbound initial session packets will be ignored.
 
 #### `endpoint.connect(address[, options[, resume]])`
 
-* `address` {Object|net.SocketAddress}
-  * `address` {string} The network address to connect to.
-  * `port` {number} The IP port for the address to connect to.
-  * `family` {string} One of either `'ipv4'` or `'ipv6'`.
-    **Default**: `'ipv4'`.
+* `address` {net.SocketAddressInit|net.SocketAddress}
 * `options` {quic.SessionConfigInit|quic.SessionConfig}
-* `resume` {Object}
-  * `sessionTicket` {ArrayBuffer|TypedArray|DataView|Buffer}
-  * `transportParams` {ArrayBuffer|TypedArray|DataView|Buffer}
+* `resume` {Blob} A saved TLS session ticket as provided by the
+  `session.sessionTicket` property of a previously established {quic.Session}.
 * Returns: {quic.Session}
 
-Creates a new client {quic.Session} and triggers the TLS handshake
+Creates a new client {quic.Session} and begins the TLS handshake
 to the identified remote peer.
+
+The `address` argument is either a {net.SocketAddress} or a
+{net.SocketAddressInit} object used to create a new {net.SocketAddress}.
 
 #### `endpoint.destroy([error])`
 
 * `error` {Error}
 
 Immediately and synchronously destroys the `Endpoint`. Once destroyed,
-the `endpoint.closed` promise will be fulfilled.
+the `endpoint.closed` promise will be fulfilled and the `Endpoint` will
+no longer be usable.
 
 #### `endpoint.listen(options)`
 
@@ -367,11 +368,46 @@ Returns an object providing access to statistics accumulated for the
 `Endpoint`. After the `Endpoint` has been destroyed, the stats provide
 the most details available at the time it was destroyed.
 
-#### Cloning `Endpoint` using `MessagePort`
+#### Cloning `Endpoint` using `MessagePort` or `BroadcastChannel`
 
-TBD
+The `Endpoint` object is cloneable using the Structured Clone Algorithm.
+However, there are a number of details about how the object is cloned that
+are important.
+
+When an `Endpoint` is first created, the underlying UDP socket handle is created
+and bound to the context and event loop associated with the current thread. A
+cloned `Endpoint` may exist in a separate thread with a separate event loop but
+will still use the original UDP socket handle in the original event loop to
+transmit or receive packets.
+
+<!-- lint disable nodejs-links -->
+![Cloned QUIC Endpoints](assets/cloned-quic-endpoint.png)
+<!-- lint enable nodejs-links -->
+
+The diagram above illustrates the structure that is created internally within
+Node.js for cloned `Endpoint`s. At the JavaScript level, every `Endpoint` is
+backed by an internal `node::quic::EndpointWrap` object that exists within the
+same context and event loop as the JavaScript object. The
+`node::quic::EndpointWrap` is itself backed by a shared `node::quic::Endpoint`
+internal object that handles the actual flow of information across the network.
+
+Cloning the JavaScript `Endpoint` object creates a new JavaScript `Endpoint`
+object and associated `node::quic::EndpointWrap` that point to the same
+underlying `node::quic::Endpoint`.
+
+Each of the JavaScript `Endpoint` objects operate independently of each other,
+and may be used independently as either (or both) a QUIC server or client.
+Multiple cloned `Endpoint` can listen at the same time, all using the same
+underlying UDP port binding. When the underlying shared `node::quic::Endpoint`
+receives an initial QUIC packet, it will dispatch that packet to the first
+available listening `node::quic::EndpointWrap` in a round-robin pattern. This
+is useful for distributing the handling of QUIC sessions across multiple
+Node.js worker threads.
 
 ### Class: `quic.EndpointConfig`
+
+The `quic.EndpointConfig` object is used to provide configuration options
+for a newly created {quic.Endpoint}.
 
 #### Static method: `quic.EndpointConfig.isEndpointConfig(value)`
 
@@ -467,6 +503,11 @@ All properties are optional.
 
 ### Class: `quic.EndpointStats`
 
+The `quic.EndpointStats` object provides detailed statistical information
+about the {quic.Endpoint}. The stats will be actively updated while the
+`Endpoint` is active. When the `Endpoint` has is destroyed, the statistics
+are captured and frozen as of that moment.
+
 #### `endpointStats.bytesReceived`
 
 * Type: {bigint}
@@ -496,7 +537,8 @@ The timestamp at which this `Endpoint` was created.
 
 * Type: {bigint}
 
-The length of time since `createdAt` this `Endpoint` has been active.
+The length of time since `createdAt` this `Endpoint` has been active (or
+was active is the `Endpoint` has been destroyed).
 
 #### `endpointStats.packetsReceived`
 
@@ -531,6 +573,13 @@ The total number of stateless resets this `Endpoint` has sent.
 
 ### Class: `quic.OCSPRequest`
 
+When the `sessionConfig.ocsp` option has been set for a server `Session`,
+the `session.ocsp` promise is fulfilled with a `quic.OCSPRequest` object
+that provides information about the X.509 certificate for which OCSP status
+is being requested. The TLS handshake will be paused until the
+`ocspRequest.respondWith()` method is called, providing the OCSP status
+response that is to be sent to the client.
+
 #### `ocspRequest.certificate`
 
 * Type: {ArrayBuffer}
@@ -545,11 +594,19 @@ The total number of stateless resets this `Endpoint` has sent.
 
 ### Class: `quic.OCSPResponse`
 
+When the `sessionConfig.ocsp` option has been set for a client `Session`,
+the `session.ocsp` promise is fulfilled with a `quic.OCSPResponse` object
+when the server has provided a response to the OCSP status query during
+the TLS handshake.
+
 #### `ocspResponse.response`
 
 * Type: {ArrayBuffer}
 
 ### Class: `quic.ResponseOptions`
+
+The `quic.ResponseOptions` is an object whose properties provide the response
+payload for a received bidirectional stream initiated by the remote peer.
 
 #### Static method: `quic.ResponseOptions.isResponseOptions(value)`
 
@@ -585,6 +642,8 @@ The `body` provides the outgoing data that is to be transmitted over the
 function (sync or async) that provides any of these.
 
 ### Class: `quic.Session`
+
+The `quic.Session` object encapsulates a connection between QUIC peers.
 
 #### Event: `'datagram'`
 
@@ -780,6 +839,14 @@ will be bidirectional.
 
 The `session.servername` property is set on completion of the TLS handshake.
 
+#### `session.sessionTicket`
+
+* Type: {Blob} Returns the most recently available TLS session ticket available
+  for this `Sessions` (if any). The session ticket data is used to resume a
+  previously established QUIC session without re-negotiating the handshake. The
+  {Blob} given by `session.sessionTicket` can be passed directly on to the
+  `endpoint.connect()` method.
+
 #### `session.stats`
 
 * Type: {quic.SessionStats}
@@ -801,6 +868,9 @@ handshake if the peer certificate failed validation. If the certificate did not
 fail validation, this property will be `undefined`.
 
 ### Class: `quic.SessionConfig`
+
+The `quic.SessionConfig` object is used to provide configuration options for
+a newly created {quic.Session}.
 
 #### Static method: `quic.SessionConfig.isSessionConfig(value)`
 
@@ -840,6 +910,11 @@ settings, and they should be used only when necessary:
   is typically randomly generated. The `dcid` option allows
   an initial connection identifier to be provided. The identifier
   must be between 0 and 20 bytes in length.
+* `scid` {string|ArrayBuffer|TypedArray|DataView|Buffer} For
+  client `Session` objects, the initial connection identifier
+  for the local peer is typically randomly generated. The `scid`
+  options an initial connection identifier to be provided. The
+  identifier must be between 0 and 20 bytes in length.
 * `preferredAddressStrategy` {string} One of `'use'` or `'ignore'`.
   Used by client `Session` instances to determine whether to use
   or ignore a server's advertised preferred address. **Default**: `'use'`.
@@ -865,7 +940,6 @@ settings, and they should be used only when necessary:
     * `socket` {tls.TLSSocket}
     * `identity` {string}
     * Returns: {Buffer|TypedArray|DataView}
-  * `requestOCSP` {boolean}
   * `requestPeerCertificate` {boolean}
   * `secureOptions`
   * `sessionIdContext` {string}
@@ -888,12 +962,8 @@ settings, and they should be used only when necessary:
   * `maxDatagramFrameSize` {number|bigint}
   * `maxIdleTimeout` {number|bigint}
   * `preferredAddress` {Object}
-    * `ipv4` {Object|net.SocketAddress}
-      * `address` {string}
-      * `port` {number}
-    * `ipv6` {Object|net.SocketAddress}
-      * `address` {string}
-      * `port` {number}
+    * `ipv4` {net.SocketAddressInit|net.SocketAddress}
+    * `ipv6` {net.SocketAddressInit|net.SocketAddress}
 
 All properties are optional.
 

@@ -174,6 +174,7 @@ const customTypesMap = {
   'net.Server': 'net.html#net_class_net_server',
   'net.Socket': 'net.html#net_class_net_socket',
   'net.SocketAddress': 'net.html#net_class_net_socketaddress',
+  'net.SocketAddressInit': 'net.html#net_socketaddressinit',
 
   'quic.Endpoint': 'quic.html#quic_class_quic_endpoint',
   'quic.Session': 'quic.html#quic_class_quic_session',
