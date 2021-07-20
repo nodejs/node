@@ -17,9 +17,9 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
       .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32Add])
       .exportFunc();
 
-    var global = builder.addGlobal(wasmRefType(sig_index), false);
-    global.function_index = addition_index;
-    global.exportAs("global");
+    builder.addGlobal(wasmRefType(sig_index), false,
+                      WasmInitExpr.RefFunc(addition_index))
+           .exportAs("global");
     builder.addGlobal(wasmOptRefType(wrong_sig_index), false)
       .exportAs("mistyped_global");
 

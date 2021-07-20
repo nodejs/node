@@ -34,33 +34,9 @@ BOOL_ACCESSORS(FunctionTemplateInfo, flag, read_only_prototype,
                ReadOnlyPrototypeBit::kShift)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, remove_prototype,
                RemovePrototypeBit::kShift)
-BOOL_ACCESSORS(FunctionTemplateInfo, flag, do_not_cache, DoNotCacheBit::kShift)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, accept_any_receiver,
                AcceptAnyReceiverBit::kShift)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, published, PublishedBit::kShift)
-
-// TODO(nicohartmann@, v8:11122): Let Torque generate this accessor.
-RELEASE_ACQUIRE_ACCESSORS(FunctionTemplateInfo, call_code, HeapObject,
-                          kCallCodeOffset)
-
-// TODO(nicohartmann@, v8:11122): Let Torque generate this accessor.
-HeapObject FunctionTemplateInfo::rare_data(AcquireLoadTag) const {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return rare_data(cage_base, kAcquireLoad);
-}
-HeapObject FunctionTemplateInfo::rare_data(PtrComprCageBase cage_base,
-                                           AcquireLoadTag) const {
-  HeapObject value =
-      TaggedField<HeapObject>::Acquire_Load(cage_base, *this, kRareDataOffset);
-  DCHECK(value.IsUndefined() || value.IsFunctionTemplateRareData());
-  return value;
-}
-void FunctionTemplateInfo::set_rare_data(HeapObject value, ReleaseStoreTag,
-                                         WriteBarrierMode mode) {
-  DCHECK(value.IsUndefined() || value.IsFunctionTemplateRareData());
-  RELEASE_WRITE_FIELD(*this, kRareDataOffset, value);
-  CONDITIONAL_WRITE_BARRIER(*this, kRareDataOffset, value, mode);
-}
 
 // static
 FunctionTemplateRareData FunctionTemplateInfo::EnsureFunctionTemplateRareData(
@@ -100,9 +76,14 @@ RARE_ACCESSORS(instance_template, InstanceTemplate, HeapObject, undefined)
 RARE_ACCESSORS(instance_call_handler, InstanceCallHandler, HeapObject,
                undefined)
 RARE_ACCESSORS(access_check_info, AccessCheckInfo, HeapObject, undefined)
-RARE_ACCESSORS(c_function, CFunction, Object, Smi(0))
-RARE_ACCESSORS(c_signature, CSignature, Object, Smi(0))
+RARE_ACCESSORS(c_function_overloads, CFunctionOverloads, FixedArray,
+               GetReadOnlyRoots(cage_base).empty_fixed_array())
 #undef RARE_ACCESSORS
+
+bool TemplateInfo::should_cache() const {
+  return serial_number() != kDoNotCache;
+}
+bool TemplateInfo::is_cached() const { return serial_number() > kUncached; }
 
 bool FunctionTemplateInfo::instantiated() {
   return shared_function_info().IsSharedFunctionInfo();

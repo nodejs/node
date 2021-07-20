@@ -107,29 +107,40 @@ double ClobberDoubleRegisters(double x1, double x2, double x3, double x4);
 
 // TODO(cbruni): add global flag to check whether any tracing events have been
 // enabled.
-#define RUNTIME_FUNCTION_RETURNS_TYPE(Type, InternalType, Convert, Name)      \
-  static V8_INLINE InternalType __RT_impl_##Name(RuntimeArguments args,       \
-                                                 Isolate* isolate);           \
-                                                                              \
+#ifdef V8_RUNTIME_CALL_STATS
+#define RUNTIME_ENTRY_WITH_RCS(Type, InternalType, Convert, Name)             \
   V8_NOINLINE static Type Stats_##Name(int args_length, Address* args_object, \
                                        Isolate* isolate) {                    \
-    RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::k##Name);      \
+    RCS_SCOPE(isolate, RuntimeCallCounterId::k##Name);                        \
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),                     \
                  "V8.Runtime_" #Name);                                        \
     RuntimeArguments args(args_length, args_object);                          \
     return Convert(__RT_impl_##Name(args, isolate));                          \
-  }                                                                           \
-                                                                              \
-  Type Name(int args_length, Address* args_object, Isolate* isolate) {        \
-    DCHECK(isolate->context().is_null() || isolate->context().IsContext());   \
-    CLOBBER_DOUBLE_REGISTERS();                                               \
-    if (V8_UNLIKELY(TracingFlags::is_runtime_stats_enabled())) {              \
-      return Stats_##Name(args_length, args_object, isolate);                 \
-    }                                                                         \
-    RuntimeArguments args(args_length, args_object);                          \
-    return Convert(__RT_impl_##Name(args, isolate));                          \
-  }                                                                           \
-                                                                              \
+  }
+
+#define TEST_AND_CALL_RCS(Name)                                \
+  if (V8_UNLIKELY(TracingFlags::is_runtime_stats_enabled())) { \
+    return Stats_##Name(args_length, args_object, isolate);    \
+  }
+
+#else  // V8_RUNTIME_CALL_STATS
+#define RUNTIME_ENTRY_WITH_RCS(Type, InternalType, Convert, Name)
+#define TEST_AND_CALL_RCS(Name)
+
+#endif  // V8_RUNTIME_CALL_STATS
+
+#define RUNTIME_FUNCTION_RETURNS_TYPE(Type, InternalType, Convert, Name)    \
+  static V8_INLINE InternalType __RT_impl_##Name(RuntimeArguments args,     \
+                                                 Isolate* isolate);         \
+  RUNTIME_ENTRY_WITH_RCS(Type, InternalType, Convert, Name)                 \
+  Type Name(int args_length, Address* args_object, Isolate* isolate) {      \
+    DCHECK(isolate->context().is_null() || isolate->context().IsContext()); \
+    CLOBBER_DOUBLE_REGISTERS();                                             \
+    TEST_AND_CALL_RCS(Name)                                                 \
+    RuntimeArguments args(args_length, args_object);                        \
+    return Convert(__RT_impl_##Name(args, isolate));                        \
+  }                                                                         \
+                                                                            \
   static InternalType __RT_impl_##Name(RuntimeArguments args, Isolate* isolate)
 
 #define CONVERT_OBJECT(x) (x).ptr()

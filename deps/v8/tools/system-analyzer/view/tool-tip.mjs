@@ -16,9 +16,10 @@ DOM.defineCustomElement(
             this.hide();
           } else {
             this.show();
-            this.update(true);
+            this.requestUpdate(true);
           }
         });
+        document.addEventListener('click', (e) => this.hide());
       }
 
       _update() {
@@ -31,7 +32,7 @@ DOM.defineCustomElement(
           rect.y += rect.height;
         }
         this._setPosition(rect, atRight, atBottom);
-        this.update(true);
+        this.requestUpdate(true);
       }
 
       set positionOrTargetNode(positionOrTargetNode) {
@@ -47,7 +48,7 @@ DOM.defineCustomElement(
         this._targetNode = targetNode;
         if (targetNode) {
           this._intersectionObserver.observe(targetNode);
-          this.update(true);
+          this.requestUpdate(true);
         }
       }
 

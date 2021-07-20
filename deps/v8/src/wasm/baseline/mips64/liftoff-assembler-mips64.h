@@ -418,6 +418,8 @@ void LiftoffAssembler::SpillInstance(Register instance) {
   Sd(instance, liftoff::GetInstanceOperand());
 }
 
+void LiftoffAssembler::ResetOSRTarget() {}
+
 void LiftoffAssembler::FillInstanceInto(Register dst) {
   Ld(dst, liftoff::GetInstanceOperand());
 }
@@ -448,7 +450,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   MemOperand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
   Sd(src.gp(), dst_op);
 
-  if (skip_write_barrier) return;
+  if (skip_write_barrier || FLAG_disable_write_barriers) return;
 
   Label write_barrier;
   Label exit;
@@ -462,16 +464,15 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                 MemoryChunk::kPointersToHereAreInterestingMask, eq,
                 &exit);
   Daddu(scratch, dst_op.rm(), dst_op.offset());
-  CallRecordWriteStub(dst_addr, scratch, EMIT_REMEMBERED_SET, kSaveFPRegs,
-                      wasm::WasmCode::kRecordWrite);
+  CallRecordWriteStub(dst_addr, scratch, RememberedSetAction::kEmit,
+                      SaveFPRegsMode::kSave, wasm::WasmCode::kRecordWrite);
   bind(&exit);
 }
 
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uintptr_t offset_imm,
                             LoadType type, LiftoffRegList pinned,
-                            uint32_t* protected_load_pc, bool is_load_mem,
-                            bool i64_offset) {
+                            uint32_t* protected_load_pc, bool is_load_mem) {
   MemOperand src_op = liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm);
 
   if (protected_load_pc) *protected_load_pc = pc_offset();
@@ -2995,7 +2996,7 @@ void LiftoffAssembler::CallTrapCallbackForTesting() {
 }
 
 void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
-  if (emit_debug_code()) Abort(reason);
+  if (FLAG_debug_code) Abort(reason);
 }
 
 void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
@@ -3166,6 +3167,8 @@ void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
 void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
   Daddu(sp, sp, size);
 }
+
+void LiftoffAssembler::MaybeOSR() {}
 
 void LiftoffStackSlots::Construct(int param_slots) {
   DCHECK_LT(0, slots_.size());

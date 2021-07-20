@@ -26,7 +26,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdlib.h>
-#include <iostream>  // NOLINT(readability/streams)
+
+#include <iostream>
 
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"

@@ -154,20 +154,7 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
   GotoIf(InstanceTypeEqual(sfi_data_type.value(), BASELINE_DATA_TYPE),
          &baseline);
 
-  // Finally, check for presence of an NCI cached Code object - if an entry
-  // possibly exists, call into runtime to query the cache.
-  TNode<Uint8T> flags2 =
-      LoadObjectField<Uint8T>(shared, SharedFunctionInfo::kFlags2Offset);
-  TNode<BoolT> may_have_cached_code =
-      IsSetWord32<SharedFunctionInfo::MayHaveCachedCodeBit>(flags2);
-  code = Select<Code>(
-      may_have_cached_code,
-      [=]() {
-        return CAST(CallRuntime(Runtime::kTryInstallNCICode,
-                                Parameter<Context>(Descriptor::kContext),
-                                function));
-      },
-      [=]() { return sfi_code; });
+  code = sfi_code;
   Goto(&tailcall_code);
 
   BIND(&baseline);

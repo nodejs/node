@@ -13,6 +13,7 @@
 #include "src/codegen/callable.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/external-reference-table.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/register-configuration.h"
 #include "src/debug/debug.h"
@@ -59,7 +60,7 @@ int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
 
   bytes += NumRegs(list) * kPointerSize;
 
-  if (fp_mode == kSaveFPRegs) {
+  if (fp_mode == SaveFPRegsMode::kSave) {
     bytes += DwVfpRegister::kNumRegisters * DwVfpRegister::kSizeInBytes;
   }
 
@@ -85,7 +86,7 @@ int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
 
   bytes += NumRegs(list) * kPointerSize;
 
-  if (fp_mode == kSaveFPRegs) {
+  if (fp_mode == SaveFPRegsMode::kSave) {
     SaveFPRegs(sp, lr);
     bytes += DwVfpRegister::kNumRegisters * DwVfpRegister::kSizeInBytes;
   }
@@ -96,7 +97,7 @@ int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
 int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
                                    Register exclusion2, Register exclusion3) {
   int bytes = 0;
-  if (fp_mode == kSaveFPRegs) {
+  if (fp_mode == SaveFPRegsMode::kSave) {
     RestoreFPRegs(sp, lr);
     bytes += DwVfpRegister::kNumRegisters * DwVfpRegister::kSizeInBytes;
   }
@@ -660,7 +661,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   Label done;
 
   // Skip barrier if writing a smi.
-  if (smi_check == INLINE_SMI_CHECK) {
+  if (smi_check == SmiCheck::kInline) {
     JumpIfSmi(value, &done);
   }
 
@@ -668,7 +669,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   // of the object, so so offset must be a multiple of kPointerSize.
   DCHECK(IsAligned(offset, kPointerSize));
 
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     Label ok;
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
@@ -680,7 +681,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   }
 
   RecordWrite(object, Operand(offset - kHeapObjectTag), value, lr_status,
-              save_fp, remembered_set_action, OMIT_SMI_CHECK);
+              save_fp, remembered_set_action, SmiCheck::kOmit);
 
   bind(&done);
 }
@@ -826,7 +827,7 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
                                  RememberedSetAction remembered_set_action,
                                  SmiCheck smi_check) {
   DCHECK_NE(object, value);
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     {
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
@@ -837,7 +838,7 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     Check(eq, AbortReason::kWrongAddressOrValuePassedToRecordWrite);
   }
 
-  if ((remembered_set_action == OMIT_REMEMBERED_SET &&
+  if ((remembered_set_action == RememberedSetAction::kOmit &&
        !FLAG_incremental_marking) ||
       FLAG_disable_write_barriers) {
     return;
@@ -847,7 +848,7 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
   // catch stores of smis and stores into the young generation.
   Label done;
 
-  if (smi_check == INLINE_SMI_CHECK) {
+  if (smi_check == SmiCheck::kInline) {
     JumpIfSmi(value, &done);
   }
 
@@ -1435,7 +1436,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   PushCommonFrame(scratch);
   // Reserve room for saved entry sp.
   sub(sp, fp, Operand(ExitFrameConstants::kFixedFrameSizeFromFp));
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     mov(scratch, Operand::Zero());
     str(scratch, MemOperand(fp, ExitFrameConstants::kSPOffset));
   }
@@ -1622,7 +1623,7 @@ void MacroAssembler::StackOverflowCheck(Register num_args, Register scratch,
 
 void MacroAssembler::InvokePrologue(Register expected_parameter_count,
                                     Register actual_parameter_count,
-                                    Label* done, InvokeFlag flag) {
+                                    Label* done, InvokeType type) {
   Label regular_invoke;
   //  r0: actual arguments count
   //  r1: function (passed through to callee)
@@ -1722,9 +1723,9 @@ void MacroAssembler::CallDebugOnFunctionCall(Register fun, Register new_target,
 void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
                                         Register expected_parameter_count,
                                         Register actual_parameter_count,
-                                        InvokeFlag flag) {
+                                        InvokeType type) {
   // You can't call a function without a valid frame.
-  DCHECK_IMPLIES(flag == CALL_FUNCTION, has_frame());
+  DCHECK_IMPLIES(type == InvokeType::kCall, has_frame());
   DCHECK_EQ(function, r1);
   DCHECK_IMPLIES(new_target.is_valid(), new_target == r3);
 
@@ -1746,17 +1747,19 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   }
 
   Label done;
-  InvokePrologue(expected_parameter_count, actual_parameter_count, &done, flag);
+  InvokePrologue(expected_parameter_count, actual_parameter_count, &done, type);
   // We call indirectly through the code field in the function to
   // allow recompilation to take effect without changing any of the
   // call sites.
   Register code = kJavaScriptCallCodeStartRegister;
   ldr(code, FieldMemOperand(function, JSFunction::kCodeOffset));
-  if (flag == CALL_FUNCTION) {
-    CallCodeObject(code);
-  } else {
-    DCHECK(flag == JUMP_FUNCTION);
-    JumpCodeObject(code);
+  switch (type) {
+    case InvokeType::kCall:
+      CallCodeObject(code);
+      break;
+    case InvokeType::kJump:
+      JumpCodeObject(code);
+      break;
   }
   b(&done);
 
@@ -1773,9 +1776,9 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
 
 void MacroAssembler::InvokeFunctionWithNewTarget(
     Register fun, Register new_target, Register actual_parameter_count,
-    InvokeFlag flag) {
+    InvokeType type) {
   // You can't call a function without a valid frame.
-  DCHECK_IMPLIES(flag == CALL_FUNCTION, has_frame());
+  DCHECK_IMPLIES(type == InvokeType::kCall, has_frame());
 
   // Contract with called JS functions requires that function is passed in r1.
   DCHECK_EQ(fun, r1);
@@ -1790,15 +1793,15 @@ void MacroAssembler::InvokeFunctionWithNewTarget(
                        SharedFunctionInfo::kFormalParameterCountOffset));
 
   InvokeFunctionCode(fun, new_target, expected_reg, actual_parameter_count,
-                     flag);
+                     type);
 }
 
 void MacroAssembler::InvokeFunction(Register function,
                                     Register expected_parameter_count,
                                     Register actual_parameter_count,
-                                    InvokeFlag flag) {
+                                    InvokeType type) {
   // You can't call a function without a valid frame.
-  DCHECK_IMPLIES(flag == CALL_FUNCTION, has_frame());
+  DCHECK_IMPLIES(type == InvokeType::kCall, has_frame());
 
   // Contract with called JS functions requires that function is passed in r1.
   DCHECK_EQ(function, r1);
@@ -1807,18 +1810,7 @@ void MacroAssembler::InvokeFunction(Register function,
   ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
 
   InvokeFunctionCode(r1, no_reg, expected_parameter_count,
-                     actual_parameter_count, flag);
-}
-
-void MacroAssembler::MaybeDropFrames() {
-  // Check whether we need to drop frames to restart a function on the stack.
-  ExternalReference restart_fp =
-      ExternalReference::debug_restart_fp_address(isolate());
-  Move(r1, restart_fp);
-  ldr(r1, MemOperand(r1));
-  tst(r1, r1);
-  Jump(BUILTIN_CODE(isolate(), FrameDropperTrampoline), RelocInfo::CODE_TARGET,
-       ne);
+                     actual_parameter_count, type);
 }
 
 void MacroAssembler::PushStackHandler() {
@@ -1993,8 +1985,8 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
   DCHECK_EQ(builtin.address() & 1, 1);
 #endif
   Move(r1, builtin);
-  Handle<Code> code = CodeFactory::CEntry(isolate(), 1, kDontSaveFPRegs,
-                                          kArgvOnStack, builtin_exit_frame);
+  Handle<Code> code = CodeFactory::CEntry(isolate(), 1, SaveFPRegsMode::kIgnore,
+                                          ArgvMode::kStack, builtin_exit_frame);
   Jump(code, RelocInfo::CODE_TARGET);
 }
 
@@ -2034,11 +2026,11 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value,
 }
 
 void TurboAssembler::Assert(Condition cond, AbortReason reason) {
-  if (emit_debug_code()) Check(cond, reason);
+  if (FLAG_debug_code) Check(cond, reason);
 }
 
 void TurboAssembler::AssertUnreachable(AbortReason reason) {
-  if (emit_debug_code()) Abort(reason);
+  if (FLAG_debug_code) Abort(reason);
 }
 
 void TurboAssembler::Check(Condition cond, AbortReason reason) {
@@ -2052,11 +2044,11 @@ void TurboAssembler::Check(Condition cond, AbortReason reason) {
 void TurboAssembler::Abort(AbortReason reason) {
   Label abort_start;
   bind(&abort_start);
-#ifdef DEBUG
-  const char* msg = GetAbortReason(reason);
-  RecordComment("Abort message: ");
-  RecordComment(msg);
-#endif
+  if (FLAG_code_comments) {
+    const char* msg = GetAbortReason(reason);
+    RecordComment("Abort message: ");
+    RecordComment(msg);
+  }
 
   // Avoid emitting call to builtin if requested.
   if (trap_on_abort()) {
@@ -2143,7 +2135,7 @@ void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label) {
 }
 
 void MacroAssembler::AssertNotSmi(Register object) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     STATIC_ASSERT(kSmiTag == 0);
     tst(object, Operand(kSmiTagMask));
     Check(ne, AbortReason::kOperandIsASmi);
@@ -2151,7 +2143,7 @@ void MacroAssembler::AssertNotSmi(Register object) {
 }
 
 void MacroAssembler::AssertSmi(Register object) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     STATIC_ASSERT(kSmiTag == 0);
     tst(object, Operand(kSmiTagMask));
     Check(eq, AbortReason::kOperandIsNotASmi);
@@ -2159,7 +2151,7 @@ void MacroAssembler::AssertSmi(Register object) {
 }
 
 void MacroAssembler::AssertConstructor(Register object) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     STATIC_ASSERT(kSmiTag == 0);
     tst(object, Operand(kSmiTagMask));
     Check(ne, AbortReason::kOperandIsASmiAndNotAConstructor);
@@ -2173,7 +2165,7 @@ void MacroAssembler::AssertConstructor(Register object) {
 }
 
 void MacroAssembler::AssertFunction(Register object) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     STATIC_ASSERT(kSmiTag == 0);
     tst(object, Operand(kSmiTagMask));
     Check(ne, AbortReason::kOperandIsASmiAndNotAFunction);
@@ -2187,7 +2179,7 @@ void MacroAssembler::AssertFunction(Register object) {
 }
 
 void MacroAssembler::AssertBoundFunction(Register object) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     STATIC_ASSERT(kSmiTag == 0);
     tst(object, Operand(kSmiTagMask));
     Check(ne, AbortReason::kOperandIsASmiAndNotABoundFunction);
@@ -2199,7 +2191,7 @@ void MacroAssembler::AssertBoundFunction(Register object) {
 }
 
 void MacroAssembler::AssertGeneratorObject(Register object) {
-  if (!emit_debug_code()) return;
+  if (!FLAG_debug_code) return;
   tst(object, Operand(kSmiTagMask));
   Check(ne, AbortReason::kOperandIsASmiAndNotAGeneratorObject);
 
@@ -2229,7 +2221,7 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
 
 void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
                                                      Register scratch) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     Label done_checking;
     AssertNotSmi(object);
     CompareRoot(object, RootIndex::kUndefinedValue);
@@ -2520,7 +2512,7 @@ void TurboAssembler::CallCFunctionHelper(Register function,
   // running in the simulator. The simulator has its own alignment check which
   // provides more information.
 #if V8_HOST_ARCH_ARM
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     int frame_alignment = base::OS::ActivationFrameAlignment();
     int frame_alignment_mask = frame_alignment - 1;
     if (frame_alignment > kPointerSize) {

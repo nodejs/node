@@ -152,11 +152,12 @@ class LiftoffRegister {
                 "chosen type is small enough");
 
  public:
-  explicit LiftoffRegister(Register reg) : LiftoffRegister(reg.code()) {
+  constexpr explicit LiftoffRegister(Register reg)
+      : LiftoffRegister(reg.code()) {
     DCHECK_NE(0, kLiftoffAssemblerGpCacheRegs & reg.bit());
     DCHECK_EQ(reg, gp());
   }
-  explicit LiftoffRegister(DoubleRegister reg)
+  constexpr explicit LiftoffRegister(DoubleRegister reg)
       : LiftoffRegister(kAfterMaxLiftoffGpRegCode + reg.code()) {
     DCHECK_NE(0, kLiftoffAssemblerFpCacheRegs & reg.bit());
     DCHECK_EQ(reg, fp());
@@ -275,22 +276,22 @@ class LiftoffRegister {
     return DoubleRegister::from_code((code_ & kCodeMask) + 1);
   }
 
-  Register gp() const {
+  constexpr Register gp() const {
     DCHECK(is_gp());
     return Register::from_code(code_);
   }
 
-  DoubleRegister fp() const {
+  constexpr DoubleRegister fp() const {
     DCHECK(is_fp());
     return DoubleRegister::from_code(code_ - kAfterMaxLiftoffGpRegCode);
   }
 
-  int liftoff_code() const {
+  constexpr int liftoff_code() const {
     STATIC_ASSERT(sizeof(int) >= sizeof(storage_t));
     return static_cast<int>(code_);
   }
 
-  RegClass reg_class() const {
+  constexpr RegClass reg_class() const {
     return is_fp_pair() ? kFpRegPair
                         : is_gp_pair() ? kGpRegPair : is_gp() ? kGpReg : kFpReg;
   }
@@ -364,7 +365,7 @@ class LiftoffRegList {
     return reg;
   }
 
-  LiftoffRegister clear(LiftoffRegister reg) {
+  constexpr LiftoffRegister clear(LiftoffRegister reg) {
     if (reg.is_pair()) {
       regs_ &= ~(storage_t{1} << reg.low().liftoff_code());
       regs_ &= ~(storage_t{1} << reg.high().liftoff_code());
@@ -373,8 +374,10 @@ class LiftoffRegList {
     }
     return reg;
   }
-  Register clear(Register reg) { return clear(LiftoffRegister{reg}).gp(); }
-  DoubleRegister clear(DoubleRegister reg) {
+  constexpr Register clear(Register reg) {
+    return clear(LiftoffRegister{reg}).gp();
+  }
+  constexpr DoubleRegister clear(DoubleRegister reg) {
     return clear(LiftoffRegister{reg}).fp();
   }
 

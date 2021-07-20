@@ -239,11 +239,22 @@ class SequentialUnmapperTest : public TestWithIsolate {
              SetPlatformPageAllocatorForTesting(tracking_page_allocator_));
     old_flag_ = i::FLAG_concurrent_sweeping;
     i::FLAG_concurrent_sweeping = false;
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+    // Reinitialize the process-wide pointer cage so it can pick up the
+    // TrackingPageAllocator.
+    IsolateAllocator::FreeProcessWidePtrComprCageForTesting();
+    IsolateAllocator::InitializeOncePerProcess();
+#endif
     TestWithIsolate::SetUpTestCase();
   }
 
   static void TearDownTestCase() {
     TestWithIsolate::TearDownTestCase();
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+    // Free the process-wide cage reservation, otherwise the pages won't be
+    // freed until process teardown.
+    IsolateAllocator::FreeProcessWidePtrComprCageForTesting();
+#endif
     i::FLAG_concurrent_sweeping = old_flag_;
     CHECK(tracking_page_allocator_->IsEmpty());
 
@@ -275,6 +286,7 @@ bool SequentialUnmapperTest::old_flag_;
 
 // See v8:5945.
 TEST_F(SequentialUnmapperTest, UnmapOnTeardownAfterAlreadyFreeingPooled) {
+  if (FLAG_enable_third_party_heap) return;
   Page* page = allocator()->AllocatePage(
       MemoryChunkLayout::AllocatableMemoryInDataPage(),
       static_cast<PagedSpace*>(heap()->old_space()),
@@ -303,6 +315,7 @@ TEST_F(SequentialUnmapperTest, UnmapOnTeardownAfterAlreadyFreeingPooled) {
 
 // See v8:5945.
 TEST_F(SequentialUnmapperTest, UnmapOnTeardown) {
+  if (FLAG_enable_third_party_heap) return;
   Page* page = allocator()->AllocatePage(
       MemoryChunkLayout::AllocatableMemoryInDataPage(),
       static_cast<PagedSpace*>(heap()->old_space()),

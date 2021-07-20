@@ -534,9 +534,8 @@ Assembler::Assembler(const AssemblerOptions& options,
     : AssemblerBase(options, std::move(buffer)),
       pending_32_bit_constants_(),
       scratch_register_list_(ip.bit()) {
-  pending_32_bit_constants_.reserve(kMinNumPendingConstants);
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
-  next_buffer_check_ = 0;
+  constant_pool_deadline_ = kMaxInt;
   const_pool_blocked_nesting_ = 0;
   no_const_pool_before_ = 0;
   first_const_pool_32_use_ = -1;
@@ -556,7 +555,10 @@ Assembler::Assembler(const AssemblerOptions& options,
   }
 }
 
-Assembler::~Assembler() { DCHECK_EQ(const_pool_blocked_nesting_, 0); }
+Assembler::~Assembler() {
+  DCHECK_EQ(const_pool_blocked_nesting_, 0);
+  DCHECK_EQ(first_const_pool_32_use_, -1);
+}
 
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
                         SafepointTableBuilder* safepoint_table_builder,
@@ -841,7 +843,7 @@ void Assembler::target_at_put(int pos, int target_pos) {
     //      orr dst, dst, #target8_2 << 16
 
     uint32_t target24 = target_pos + (Code::kHeaderSize - kHeapObjectTag);
-    DCHECK(is_uint24(target24));
+    CHECK(is_uint24(target24));
     if (is_uint8(target24)) {
       // If the target fits in a byte then only patch with a mov
       // instruction.
@@ -897,7 +899,7 @@ void Assembler::target_at_put(int pos, int target_pos) {
     instr &= ~kImm24Mask;
   }
   int imm24 = imm26 >> 2;
-  DCHECK(is_int24(imm24));
+  CHECK(is_int24(imm24));
   instr_at_put(pos, instr | (imm24 & kImm24Mask));
 }
 
@@ -1030,10 +1032,53 @@ namespace {
 bool FitsShifter(uint32_t imm32, uint32_t* rotate_imm, uint32_t* immed_8,
                  Instr* instr) {
   // imm32 must be unsigned.
-  for (int rot = 0; rot < 16; rot++) {
-    uint32_t imm8 = base::bits::RotateLeft32(imm32, 2 * rot);
-    if ((imm8 <= 0xFF)) {
-      *rotate_imm = rot;
+  {
+    // 32-bit immediates can be encoded as:
+    //   (8-bit value, 2*N bit left rotation)
+    // e.g. 0xab00 can be encoded as 0xab shifted left by 8 == 2*4, i.e.
+    //   (0xab, 4)
+    //
+    // Check three categories which cover all possible shifter fits:
+    //   1. 0x000000FF: The value is already 8-bit (no shifting necessary),
+    //   2. 0x000FF000: The 8-bit value is somewhere in the middle of the 32-bit
+    //                  value, and
+    //   3. 0xF000000F: The 8-bit value is split over the beginning and end of
+    //                  the 32-bit value.
+
+    // For 0x000000FF.
+    if (imm32 <= 0xFF) {
+      *rotate_imm = 0;
+      *immed_8 = imm32;
+      return true;
+    }
+    // For 0x000FF000, count trailing zeros and shift down to 0x000000FF. Note
+    // that we have to round the trailing zeros down to the nearest multiple of
+    // two, since we can only encode shifts of 2*N. Note also that we know that
+    // imm32 isn't zero, since we already checked if it's less than 0xFF.
+    int half_trailing_zeros = base::bits::CountTrailingZerosNonZero(imm32) / 2;
+    uint32_t imm8 = imm32 >> (half_trailing_zeros * 2);
+    if (imm8 <= 0xFF) {
+      DCHECK_GT(half_trailing_zeros, 0);
+      // Rotating right by trailing_zeros is equivalent to rotating left by
+      // 32 - trailing_zeros. We return rotate_right / 2, so calculate
+      // (32 - trailing_zeros)/2 == 16 - trailing_zeros/2.
+      *rotate_imm = (16 - half_trailing_zeros);
+      *immed_8 = imm8;
+      return true;
+    }
+    // For 0xF000000F, rotate by 16 to get 0x000FF000 and continue as if it
+    // were that case.
+    uint32_t imm32_rot16 = base::bits::RotateLeft32(imm32, 16);
+    half_trailing_zeros =
+        base::bits::CountTrailingZerosNonZero(imm32_rot16) / 2;
+    imm8 = imm32_rot16 >> (half_trailing_zeros * 2);
+    if (imm8 <= 0xFF) {
+      // We've rotated left by 2*8, so we can't have more than that many
+      // trailing zeroes.
+      DCHECK_LT(half_trailing_zeros, 8);
+      // We've already rotated by 2*8, before calculating trailing_zeros/2,
+      // so we need (32 - (16 + trailing_zeros))/2 == 8 - trailing_zeros/2.
+      *rotate_imm = 8 - half_trailing_zeros;
       *immed_8 = imm8;
       return true;
     }
@@ -2258,7 +2303,7 @@ void Assembler::bkpt(uint32_t imm16) {
 }
 
 void Assembler::svc(uint32_t imm24, Condition cond) {
-  DCHECK(is_uint24(imm24));
+  CHECK(is_uint24(imm24));
   emit(cond | 15 * B24 | imm24);
 }
 
@@ -5204,8 +5249,13 @@ void Assembler::ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
                     (rmode == RelocInfo::CODE_TARGET && value != 0) ||
                     (RelocInfo::IsEmbeddedObjectMode(rmode) && value != 0);
   DCHECK_LT(pending_32_bit_constants_.size(), kMaxNumPending32Constants);
-  if (pending_32_bit_constants_.empty()) {
+  if (first_const_pool_32_use_ < 0) {
+    DCHECK(pending_32_bit_constants_.empty());
+    DCHECK_EQ(constant_pool_deadline_, kMaxInt);
     first_const_pool_32_use_ = position;
+    constant_pool_deadline_ = position + kCheckPoolDeadline;
+  } else {
+    DCHECK(!pending_32_bit_constants_.empty());
   }
   ConstantPoolEntry entry(position, value, sharing_ok, rmode);
 
@@ -5224,7 +5274,7 @@ void Assembler::ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
     }
   }
 
-  pending_32_bit_constants_.push_back(entry);
+  pending_32_bit_constants_.emplace_back(entry);
 
   // Make sure the constant pool is not emitted in place of the next
   // instruction for which we just recorded relocation info.
@@ -5239,17 +5289,17 @@ void Assembler::ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
 void Assembler::BlockConstPoolFor(int instructions) {
   int pc_limit = pc_offset() + instructions * kInstrSize;
   if (no_const_pool_before_ < pc_limit) {
-    // Max pool start (if we need a jump and an alignment).
-#ifdef DEBUG
-    int start = pc_limit + kInstrSize + 2 * kPointerSize;
-    DCHECK(pending_32_bit_constants_.empty() ||
-           (start < first_const_pool_32_use_ + kMaxDistToIntPool));
-#endif
     no_const_pool_before_ = pc_limit;
   }
 
-  if (next_buffer_check_ < no_const_pool_before_) {
-    next_buffer_check_ = no_const_pool_before_;
+  // If we're due a const pool check before the block finishes, move it to just
+  // after the block.
+  if (constant_pool_deadline_ < no_const_pool_before_) {
+    // Make sure that the new deadline isn't too late (including a jump and the
+    // constant pool marker).
+    DCHECK_LE(no_const_pool_before_,
+              first_const_pool_32_use_ + kMaxDistToIntPool);
+    constant_pool_deadline_ = no_const_pool_before_;
   }
 }
 
@@ -5265,9 +5315,36 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
 
   // There is nothing to do if there are no pending constant pool entries.
   if (pending_32_bit_constants_.empty()) {
-    // Calculate the offset of the next check.
-    next_buffer_check_ = pc_offset() + kCheckPoolInterval;
+    // We should only fall into this case if we're either trying to forcing
+    // emission or opportunistically checking after a jump.
+    DCHECK(force_emit || !require_jump);
     return;
+  }
+
+  // We emit a constant pool when:
+  //  * requested to do so by parameter force_emit (e.g. after each function).
+  //  * the distance from the first instruction accessing the constant pool to
+  //    the first constant pool entry will exceed its limit the next time the
+  //    pool is checked.
+  //  * the instruction doesn't require a jump after itself to jump over the
+  //    constant pool, and we're getting close to running out of range.
+  if (!force_emit) {
+    DCHECK_NE(first_const_pool_32_use_, -1);
+    int dist32 = pc_offset() - first_const_pool_32_use_;
+    if (require_jump) {
+      // We should only be on this path if we've exceeded our deadline.
+      DCHECK_GE(dist32, kCheckPoolDeadline);
+    } else if (dist32 < kCheckPoolDeadline / 2) {
+      return;
+    }
+  }
+
+  int size_after_marker = pending_32_bit_constants_.size() * kPointerSize;
+
+  // Deduplicate constants.
+  for (size_t i = 0; i < pending_32_bit_constants_.size(); i++) {
+    ConstantPoolEntry& entry = pending_32_bit_constants_[i];
+    if (entry.is_merged()) size_after_marker -= kPointerSize;
   }
 
   // Check that the code buffer is large enough before emitting the constant
@@ -5275,39 +5352,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   // the gap to the relocation information).
   int jump_instr = require_jump ? kInstrSize : 0;
   int size_up_to_marker = jump_instr + kInstrSize;
-  int estimated_size_after_marker =
-      pending_32_bit_constants_.size() * kPointerSize;
-  int estimated_size = size_up_to_marker + estimated_size_after_marker;
-
-  // We emit a constant pool when:
-  //  * requested to do so by parameter force_emit (e.g. after each function).
-  //  * the distance from the first instruction accessing the constant pool to
-  //    any of the constant pool entries will exceed its limit the next
-  //    time the pool is checked. This is overly restrictive, but we don't emit
-  //    constant pool entries in-order so it's conservatively correct.
-  //  * the instruction doesn't require a jump after itself to jump over the
-  //    constant pool, and we're getting close to running out of range.
-  if (!force_emit) {
-    DCHECK(!pending_32_bit_constants_.empty());
-    bool need_emit = false;
-    int dist32 = pc_offset() + estimated_size - first_const_pool_32_use_;
-    if ((dist32 >= kMaxDistToIntPool - kCheckPoolInterval) ||
-        (!require_jump && (dist32 >= kMaxDistToIntPool / 2))) {
-      need_emit = true;
-    }
-    if (!need_emit) return;
-  }
-
-  // Deduplicate constants.
-  int size_after_marker = estimated_size_after_marker;
-
-  for (size_t i = 0; i < pending_32_bit_constants_.size(); i++) {
-    ConstantPoolEntry& entry = pending_32_bit_constants_[i];
-    if (entry.is_merged()) size_after_marker -= kPointerSize;
-  }
-
   int size = size_up_to_marker + size_after_marker;
-
   int needed_space = size + kGap;
   while (buffer_space() <= needed_space) GrowBuffer();
 
@@ -5330,6 +5375,14 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
     // The data size helps disassembly know what to print.
     emit(kConstantPoolMarker |
          EncodeConstantPoolLength(size_after_marker / kPointerSize));
+
+    // The first entry in the constant pool should also be the first
+    CHECK_EQ(first_const_pool_32_use_, pending_32_bit_constants_[0].position());
+    CHECK(!pending_32_bit_constants_[0].is_merged());
+
+    // Make sure we're not emitting the constant too late.
+    CHECK_LE(pc_offset(),
+             first_const_pool_32_use_ + kMaxDistToPcRelativeConstant);
 
     // Emit 32-bit constant pool entries.
     for (size_t i = 0; i < pending_32_bit_constants_.size(); i++) {
@@ -5354,6 +5407,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
         ConstantPoolEntry& merged =
             pending_32_bit_constants_[entry.merged_index()];
         DCHECK(entry.value() == merged.value());
+        DCHECK_LT(merged.position(), entry.position());
         Instr merged_instr = instr_at(merged.position());
         DCHECK(IsLdrPcImmediateOffset(merged_instr));
         delta = GetLdrRegisterImmediateOffset(merged_instr);
@@ -5379,9 +5433,9 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
     }
   }
 
-  // Since a constant pool was just emitted, move the check offset forward by
-  // the standard interval.
-  next_buffer_check_ = pc_offset() + kCheckPoolInterval;
+  // Since a constant pool was just emitted, we don't need another check until
+  // the next constant pool entry is added.
+  constant_pool_deadline_ = kMaxInt;
 }
 
 PatchingAssembler::PatchingAssembler(const AssemblerOptions& options,

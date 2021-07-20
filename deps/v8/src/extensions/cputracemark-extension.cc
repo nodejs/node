@@ -16,9 +16,8 @@ CpuTraceMarkExtension::GetNativeFunctionTemplate(v8::Isolate* isolate,
 void CpuTraceMarkExtension::Mark(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() < 1 || !args[0]->IsUint32()) {
-    args.GetIsolate()->ThrowException(v8::String::NewFromUtf8Literal(
-        args.GetIsolate(),
-        "First parameter to cputracemark() must be a unsigned int32."));
+    args.GetIsolate()->ThrowError(
+        "First parameter to cputracemark() must be a unsigned int32.");
     return;
   }
 

@@ -5,6 +5,7 @@
 #include "src/compiler/simplified-operator-reducer.h"
 
 #include "src/compiler/js-graph.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/operator-properties.h"
@@ -41,7 +42,7 @@ SimplifiedOperatorReducer::~SimplifiedOperatorReducer() = default;
 
 
 Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
-  DisallowHeapAccessIf no_heap_access(!FLAG_turbo_direct_heap_access);
+  DisallowHeapAccessIf no_heap_access(!broker()->is_concurrent_inlining());
   switch (node->opcode()) {
     case IrOpcode::kBooleanNot: {
       HeapObjectMatcher m(node->InputAt(0));
@@ -60,7 +61,9 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
     case IrOpcode::kChangeTaggedToBit: {
       HeapObjectMatcher m(node->InputAt(0));
       if (m.HasResolvedValue()) {
-        return ReplaceInt32(m.Ref(broker()).BooleanValue());
+        base::Optional<bool> maybe_result =
+            m.Ref(broker()).TryGetBooleanValue();
+        if (maybe_result.has_value()) return ReplaceInt32(*maybe_result);
       }
       if (m.IsChangeBitToTagged()) return Replace(m.InputAt(0));
       break;

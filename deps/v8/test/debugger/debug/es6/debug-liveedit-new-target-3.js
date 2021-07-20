@@ -83,6 +83,6 @@ assertEquals([LogNewTarget, LogNewTarget], results);
 replace_again = true;
 Wrapper();
 assertEquals(3, construct_calls);
-assertEquals(4, wrapper_calls);  // Restarts
-assertEquals(0, exceptions);  // Replace succeeds
+assertEquals(3, wrapper_calls);
+assertEquals(1, exceptions);  // Replace failed
 assertEquals([LogNewTarget, LogNewTarget, LogNewTarget], results);

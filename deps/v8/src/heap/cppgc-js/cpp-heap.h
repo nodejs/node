@@ -5,6 +5,11 @@
 #ifndef V8_HEAP_CPPGC_JS_CPP_HEAP_H_
 #define V8_HEAP_CPPGC_JS_CPP_HEAP_H_
 
+#if CPPGC_IS_STANDALONE
+static_assert(
+    false, "V8 targets can not be built with cppgc_is_standalone set to true.");
+#endif
+
 #include "include/v8-cppgc.h"
 #include "include/v8.h"
 #include "src/base/macros.h"
@@ -54,6 +59,10 @@ class V8_EXPORT_PRIVATE CppHeap final
 
   void CollectGarbageForTesting(
       cppgc::internal::GarbageCollector::Config::StackState);
+
+  void CollectCustomSpaceStatisticsAtLastGC(
+      std::vector<cppgc::CustomSpaceIndex>,
+      std::unique_ptr<CustomSpaceStatisticsReceiver>);
 
   // v8::EmbedderHeapTracer interface.
   void RegisterV8References(

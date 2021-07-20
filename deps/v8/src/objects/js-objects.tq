@@ -67,8 +67,13 @@ macro GetDerivedMap(implicit context: Context)(
 
     return map;
   } label SlowPath {
-    return runtime::GetDerivedMap(context, target, newTarget);
+    return runtime::GetDerivedMap(context, target, newTarget, FalseConstant());
   }
+}
+
+macro GetDerivedRabGsabMap(implicit context: Context)(
+    target: JSFunction, newTarget: JSReceiver): Map {
+  return runtime::GetDerivedMap(context, target, newTarget, TrueConstant());
 }
 
 macro AllocateFastOrSlowJSObjectFromMap(implicit context: Context)(map: Map):

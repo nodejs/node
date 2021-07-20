@@ -40,7 +40,9 @@ class AllocationSite : public Struct {
   // Contains either a Smi-encoded bitfield or a boilerplate. If it's a Smi the
   // AllocationSite is for a constructed Array.
   DECL_ACCESSORS(transition_info_or_boilerplate, Object)
-  DECL_ACCESSORS(boilerplate, JSObject)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(transition_info_or_boilerplate, Object)
+  DECL_GETTER(boilerplate, JSObject)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(boilerplate, JSObject)
   DECL_INT_ACCESSORS(transition_info)
 
   // nested_site threads a list of sites that represent nested literals
@@ -68,9 +70,9 @@ class AllocationSite : public Struct {
   bool IsNested();
 
   // transition_info bitfields, for constructed array transition info.
-  using ElementsKindBits = base::BitField<ElementsKind, 0, 5>;
-  using DoNotInlineBit = base::BitField<bool, 5, 1>;
-  // Unused bits 6-30.
+  using ElementsKindBits = base::BitField<ElementsKind, 0, 6>;
+  using DoNotInlineBit = base::BitField<bool, 6, 1>;
+  // Unused bits 7-30.
 
   // Bitfields for pretenure_data
   using MementoFoundCountBits = base::BitField<int, 0, 26>;

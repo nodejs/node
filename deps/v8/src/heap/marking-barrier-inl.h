@@ -28,8 +28,14 @@ bool MarkingBarrier::MarkValue(HeapObject host, HeapObject value) {
     // visits the host object.
     return false;
   }
-  if (WhiteToGreyAndPush(value) && is_main_thread_barrier_) {
-    incremental_marking_->RestartIfNotMarking();
+  if (WhiteToGreyAndPush(value)) {
+    if (is_main_thread_barrier_) {
+      incremental_marking_->RestartIfNotMarking();
+    }
+
+    if (V8_UNLIKELY(FLAG_track_retaining_path)) {
+      heap_->AddRetainingRoot(Root::kWriteBarrier, value);
+    }
   }
   return true;
 }

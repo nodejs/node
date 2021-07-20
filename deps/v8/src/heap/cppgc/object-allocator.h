@@ -12,9 +12,9 @@
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap-space.h"
+#include "src/heap/cppgc/memory.h"
 #include "src/heap/cppgc/object-start-bitmap.h"
 #include "src/heap/cppgc/raw-heap.h"
-#include "src/heap/cppgc/sanitizers.h"
 
 namespace cppgc {
 
@@ -111,10 +111,10 @@ void* ObjectAllocator::AllocateObjectOnSpace(NormalPageSpace* space,
 #if !defined(V8_USE_MEMORY_SANITIZER) && !defined(V8_USE_ADDRESS_SANITIZER) && \
     DEBUG
   // For debug builds, unzap only the payload.
-  SET_MEMORY_ACCESSIBLE(static_cast<char*>(raw) + sizeof(HeapObjectHeader),
-                        size - sizeof(HeapObjectHeader));
+  SetMemoryAccessible(static_cast<char*>(raw) + sizeof(HeapObjectHeader),
+                      size - sizeof(HeapObjectHeader));
 #else
-  SET_MEMORY_ACCESSIBLE(raw, size);
+  SetMemoryAccessible(raw, size);
 #endif
   auto* header = new (raw) HeapObjectHeader(size, gcinfo);
 
@@ -123,7 +123,7 @@ void* ObjectAllocator::AllocateObjectOnSpace(NormalPageSpace* space,
       ->object_start_bitmap()
       .SetBit<AccessMode::kAtomic>(reinterpret_cast<ConstAddress>(header));
 
-  return header->Payload();
+  return header->ObjectStart();
 }
 
 }  // namespace internal

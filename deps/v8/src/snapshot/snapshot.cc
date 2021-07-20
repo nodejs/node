@@ -144,8 +144,7 @@ bool Snapshot::VersionIsValid(const v8::StartupData* data) {
 
 bool Snapshot::Initialize(Isolate* isolate) {
   if (!isolate->snapshot_available()) return false;
-  RuntimeCallTimerScope rcs_timer(isolate,
-                                  RuntimeCallCounterId::kDeserializeIsolate);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kDeserializeIsolate);
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) timer.Start();
 
@@ -173,8 +172,7 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
     Isolate* isolate, Handle<JSGlobalProxy> global_proxy, size_t context_index,
     v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
   if (!isolate->snapshot_available()) return Handle<Context>();
-  RuntimeCallTimerScope rcs_timer(isolate,
-                                  RuntimeCallCounterId::kDeserializeContext);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kDeserializeContext);
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) timer.Start();
 
@@ -288,7 +286,10 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
 
     Snapshot::SerializerFlags flags(
         Snapshot::kAllowUnknownExternalReferencesForTesting |
-        Snapshot::kAllowActiveIsolateForTesting);
+        Snapshot::kAllowActiveIsolateForTesting |
+        (ReadOnlyHeap::IsReadOnlySpaceShared()
+             ? Snapshot::kReconstructReadOnlyObjectCacheForTesting
+             : 0));
     serialized_data = Snapshot::Create(isolate, *default_context, no_gc, flags);
     auto_delete_serialized_data.reset(serialized_data.data);
   }
@@ -360,7 +361,7 @@ v8::StartupData Snapshot::Create(
     context_serializer.Serialize(&contexts->at(i), no_gc);
     can_be_rehashed = can_be_rehashed && context_serializer.can_be_rehashed();
     context_snapshots.push_back(new SnapshotData(&context_serializer));
-    if (FLAG_profile_deserialization) {
+    if (FLAG_serialization_statistics) {
       context_allocation_sizes.push_back(
           context_serializer.TotalAllocationSize());
     }
@@ -374,15 +375,19 @@ v8::StartupData Snapshot::Create(
   read_only_serializer.FinalizeSerialization();
   can_be_rehashed = can_be_rehashed && read_only_serializer.can_be_rehashed();
 
-  if (FLAG_profile_deserialization) {
+  if (FLAG_serialization_statistics) {
     // These prints should match the regexp in test/memory/Memory.json
+    DCHECK_NE(read_only_serializer.TotalAllocationSize(), 0);
+    DCHECK_NE(startup_serializer.TotalAllocationSize(), 0);
     PrintF("Deserialization will allocate:\n");
     PrintF("%10d bytes per isolate\n",
            read_only_serializer.TotalAllocationSize() +
                startup_serializer.TotalAllocationSize());
     for (int i = 0; i < num_contexts; i++) {
+      DCHECK_NE(context_allocation_sizes[i], 0);
       PrintF("%10d bytes per context #%d\n", context_allocation_sizes[i], i);
     }
+    PrintF("\n");
   }
 
   SnapshotData read_only_snapshot(&read_only_serializer);
@@ -471,7 +476,7 @@ v8::StartupData SnapshotImpl::CreateSnapshotBlob(
   CopyBytes(data + payload_offset,
             reinterpret_cast<const char*>(startup_snapshot->RawData().begin()),
             payload_length);
-  if (FLAG_profile_deserialization) {
+  if (FLAG_serialization_statistics) {
     PrintF("Snapshot blob consists of:\n%10d bytes for startup\n",
            payload_length);
   }
@@ -485,7 +490,7 @@ v8::StartupData SnapshotImpl::CreateSnapshotBlob(
       data + payload_offset,
       reinterpret_cast<const char*>(read_only_snapshot->RawData().begin()),
       payload_length);
-  if (FLAG_profile_deserialization) {
+  if (FLAG_serialization_statistics) {
     PrintF("%10d bytes for read-only\n", payload_length);
   }
   payload_offset += payload_length;
@@ -500,11 +505,12 @@ v8::StartupData SnapshotImpl::CreateSnapshotBlob(
         data + payload_offset,
         reinterpret_cast<const char*>(context_snapshot->RawData().begin()),
         payload_length);
-    if (FLAG_profile_deserialization) {
+    if (FLAG_serialization_statistics) {
       PrintF("%10d bytes for context #%d\n", payload_length, i);
     }
     payload_offset += payload_length;
   }
+  if (FLAG_serialization_statistics) PrintF("\n");
 
   DCHECK_EQ(total_length, payload_offset);
   v8::StartupData result = {data, static_cast<int>(total_length)};

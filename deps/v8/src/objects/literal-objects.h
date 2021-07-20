@@ -122,20 +122,20 @@ class ClassBoilerplate : public FixedArray {
   DECL_ACCESSORS(instance_elements_template, Object)
   DECL_ACCESSORS(instance_computed_properties, FixedArray)
 
-  template <typename LocalIsolate, typename Dictionary>
-  static void AddToPropertiesTemplate(LocalIsolate* isolate,
+  template <typename IsolateT, typename Dictionary>
+  static void AddToPropertiesTemplate(IsolateT* isolate,
                                       Handle<Dictionary> dictionary,
                                       Handle<Name> name, int key_index,
                                       ValueKind value_kind, Smi value);
 
-  template <typename LocalIsolate>
-  static void AddToElementsTemplate(LocalIsolate* isolate,
+  template <typename IsolateT>
+  static void AddToElementsTemplate(IsolateT* isolate,
                                     Handle<NumberDictionary> dictionary,
                                     uint32_t key, int key_index,
                                     ValueKind value_kind, Smi value);
 
-  template <typename LocalIsolate>
-  static Handle<ClassBoilerplate> BuildClassBoilerplate(LocalIsolate* isolate,
+  template <typename IsolateT>
+  static Handle<ClassBoilerplate> BuildClassBoilerplate(IsolateT* isolate,
                                                         ClassLiteral* expr);
 
   enum {

@@ -16,6 +16,19 @@ namespace internal {
 class Heap;
 class JSObject;
 
+class V8_EXPORT_PRIVATE DefaultEmbedderRootsHandler final
+    : public EmbedderRootsHandler {
+ public:
+  bool IsRoot(const v8::TracedReference<v8::Value>& handle) final;
+  bool IsRoot(const v8::TracedGlobal<v8::Value>& handle) final;
+  void ResetRoot(const v8::TracedReference<v8::Value>& handle) final;
+
+  void SetTracer(EmbedderHeapTracer* tracer) { tracer_ = tracer; }
+
+ private:
+  EmbedderHeapTracer* tracer_ = nullptr;
+};
+
 class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
  public:
   using WrapperInfo = std::pair<void*, void*>;
@@ -74,21 +87,6 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
   bool Trace(double deadline);
   bool IsRemoteTracingDone();
 
-  bool IsRootForNonTracingGC(const v8::TracedGlobal<v8::Value>& handle) {
-    return !InUse() || remote_tracer_->IsRootForNonTracingGC(handle);
-  }
-
-  bool IsRootForNonTracingGC(const v8::TracedReference<v8::Value>& handle) {
-    return !InUse() || remote_tracer_->IsRootForNonTracingGC(handle);
-  }
-
-  void ResetHandleInNonTracingGC(const v8::TracedReference<v8::Value>& handle) {
-    // Resetting is only called when IsRootForNonTracingGC returns false which
-    // can only happen the EmbedderHeapTracer is set on API level.
-    DCHECK(InUse());
-    remote_tracer_->ResetHandleInNonTracingGC(handle);
-  }
-
   bool ShouldFinalizeIncrementalMarking() {
     return !FLAG_incremental_marking_wrappers || !InUse() ||
            (IsRemoteTracingDone() && embedder_worklist_empty_);
@@ -130,6 +128,12 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
 
   void UpdateRemoteStats(size_t, double);
 
+  DefaultEmbedderRootsHandler& default_embedder_roots_handler() {
+    return default_embedder_roots_handler_;
+  }
+
+  void NotifyEmptyEmbedderStack();
+
  private:
   static constexpr size_t kEmbedderAllocatedThreshold = 128 * KB;
 
@@ -147,6 +151,7 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
 
   Isolate* const isolate_;
   EmbedderHeapTracer* remote_tracer_ = nullptr;
+  DefaultEmbedderRootsHandler default_embedder_roots_handler_;
 
   EmbedderHeapTracer::EmbedderStackState embedder_stack_state_ =
       EmbedderHeapTracer::EmbedderStackState::kMayContainHeapPointers;
@@ -183,11 +188,8 @@ class V8_EXPORT_PRIVATE V8_NODISCARD EmbedderStackStateScope final {
       : local_tracer_(local_tracer),
         old_stack_state_(local_tracer_->embedder_stack_state_) {
     local_tracer_->embedder_stack_state_ = stack_state;
-    if (EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers ==
-        stack_state) {
-      if (local_tracer->remote_tracer())
-        local_tracer->remote_tracer()->NotifyEmptyEmbedderStack();
-    }
+    if (EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers == stack_state)
+      local_tracer_->NotifyEmptyEmbedderStack();
   }
 
   ~EmbedderStackStateScope() {

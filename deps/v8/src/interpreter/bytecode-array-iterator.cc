@@ -207,9 +207,9 @@ Runtime::FunctionId BytecodeArrayIterator::GetIntrinsicIdOperand(
       static_cast<IntrinsicsHelper::IntrinsicId>(raw_id));
 }
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<Object> BytecodeArrayIterator::GetConstantAtIndex(
-    int index, LocalIsolate* isolate) const {
+    int index, IsolateT* isolate) const {
   return handle(bytecode_array()->constant_pool().get(index), isolate);
 }
 
@@ -221,9 +221,9 @@ Smi BytecodeArrayIterator::GetConstantAtIndexAsSmi(int index) const {
   return Smi::cast(bytecode_array()->constant_pool().get(index));
 }
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<Object> BytecodeArrayIterator::GetConstantForIndexOperand(
-    int operand_index, LocalIsolate* isolate) const {
+    int operand_index, IsolateT* isolate) const {
   return GetConstantAtIndex(GetIndexOperand(operand_index), isolate);
 }
 

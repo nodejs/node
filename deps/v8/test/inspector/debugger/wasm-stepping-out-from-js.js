@@ -34,6 +34,7 @@ function pauseAlternating() {
 
 InspectorTest.runAsyncTestSuite([
   async function test() {
+    await Protocol.Runtime.enable();
     await Protocol.Debugger.enable();
     InspectorTest.log('Instantiating.');
     const instantiate_code =

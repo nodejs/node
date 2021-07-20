@@ -75,7 +75,7 @@ TEST(HeapObjectIterator) {
 
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
-    CHECK(!ReadOnlyHeap::Contains(obj));
+    CHECK_IMPLIES(!FLAG_enable_third_party_heap, !ReadOnlyHeap::Contains(obj));
     CHECK(CcTest::heap()->Contains(obj));
     if (sample_object == obj) seen_sample_object = true;
   }

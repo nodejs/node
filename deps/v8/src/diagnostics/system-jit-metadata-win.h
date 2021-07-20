@@ -6,6 +6,9 @@
 #define V8_DIAGNOSTICS_SYSTEM_JIT_METADATA_WIN_H_
 
 #include <Windows.h>
+#ifndef VOID
+#define VOID void
+#endif
 #include <TraceLoggingProvider.h>
 #include <evntprov.h>
 #include <evntrace.h>  // defines TRACE_LEVEL_* and EVENT_TRACE_TYPE_*

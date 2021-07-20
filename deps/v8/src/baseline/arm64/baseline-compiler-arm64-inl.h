@@ -18,9 +18,9 @@ void BaselineCompiler::Prologue() {
   __ masm()->EnterFrame(StackFrame::BASELINE);
   DCHECK_EQ(kJSFunctionRegister, kJavaScriptCallTargetRegister);
   int max_frame_size = bytecode_->frame_size() + max_call_args_;
-  CallBuiltin(Builtins::kBaselineOutOfLinePrologue, kContextRegister,
-              kJSFunctionRegister, kJavaScriptCallArgCountRegister,
-              max_frame_size, kJavaScriptCallNewTargetRegister, bytecode_);
+  CallBuiltin<Builtins::kBaselineOutOfLinePrologue>(
+      kContextRegister, kJSFunctionRegister, kJavaScriptCallArgCountRegister,
+      max_frame_size, kJavaScriptCallNewTargetRegister, bytecode_);
 
   __ masm()->AssertSpAligned();
   PrologueFillFrame();

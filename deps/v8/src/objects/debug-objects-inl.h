@@ -36,12 +36,6 @@ BIT_FIELD_ACCESSORS(DebugInfo, debugger_hints, computed_debug_is_blackboxed,
 BIT_FIELD_ACCESSORS(DebugInfo, debugger_hints, debugging_id,
                     DebugInfo::DebuggingIdBits)
 
-// TODO(nicohartmann@, v8:11122): Remove once Torque can generate them.
-RELEASE_ACQUIRE_ACCESSORS(DebugInfo, debug_bytecode_array, HeapObject,
-                          kDebugBytecodeArrayOffset)
-RELEASE_ACQUIRE_ACCESSORS(DebugInfo, original_bytecode_array, HeapObject,
-                          kOriginalBytecodeArrayOffset)
-
 bool DebugInfo::HasInstrumentedBytecodeArray() {
   return debug_bytecode_array(kAcquireLoad).IsBytecodeArray();
 }

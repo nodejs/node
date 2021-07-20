@@ -38,8 +38,6 @@ enum RuntimeExceptionSupport : bool {
 
 enum UseTrapHandler : bool { kUseTrapHandler = true, kNoTrapHandler = false };
 
-enum LowerSimd : bool { kLowerSimd = true, kNoLowerSimd = false };
-
 // The {CompilationEnv} encapsulates the module data that is used during
 // compilation. CompilationEnvs are shareable across multiple compilations.
 struct CompilationEnv {
@@ -66,8 +64,6 @@ struct CompilationEnv {
   // Features enabled for this compilation.
   const WasmFeatures enabled_features;
 
-  const LowerSimd lower_simd;
-
   // We assume that memories of size >= half of the virtual address space
   // cannot be allocated (see https://crbug.com/1201340).
   static constexpr uint32_t kMaxMemoryPagesAtRuntime = std::min(
@@ -77,8 +73,7 @@ struct CompilationEnv {
   constexpr CompilationEnv(const WasmModule* module,
                            UseTrapHandler use_trap_handler,
                            RuntimeExceptionSupport runtime_exception_support,
-                           const WasmFeatures& enabled_features,
-                           LowerSimd lower_simd = kNoLowerSimd)
+                           const WasmFeatures& enabled_features)
       : module(module),
         use_trap_handler(use_trap_handler),
         runtime_exception_support(runtime_exception_support),
@@ -92,8 +87,7 @@ struct CompilationEnv {
                      module && module->has_maximum_pages ? module->maximum_pages
                                                          : max_mem_pages()) *
             uint64_t{kWasmPageSize})),
-        enabled_features(enabled_features),
-        lower_simd(lower_simd) {}
+        enabled_features(enabled_features) {}
 };
 
 // The wire bytes are either owned by the StreamingDecoder, or (after streaming)
@@ -126,6 +120,8 @@ class V8_EXPORT_PRIVATE CompilationState {
   void InitCompileJob(WasmEngine*);
 
   void CancelCompilation();
+
+  void CancelInitialCompilation();
 
   void SetError();
 

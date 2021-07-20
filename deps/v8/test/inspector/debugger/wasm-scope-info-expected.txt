@@ -13,7 +13,7 @@ Setting breakpoint on line 2 (first instruction) of third function
 Paused:
 Script wasm://wasm/e33badc2 byte offset 169: Wasm opcode 0x20 (kExprLocalGet)
 Scope:
-at C (interpreted) (0:169):
+at $C (interpreted) (0:169):
  - scope (wasm-expression-stack):
    stack: 
  - scope (local):
@@ -27,7 +27,7 @@ at C (interpreted) (0:169):
    globals: "$exported_global": 0 (i32)
    memories: "$exported_memory": (Memory)
    tables: "$exported_table": (Table)
-at B (liftoff) (0:158):
+at $B (liftoff) (0:158):
  - scope (wasm-expression-stack):
    stack: "0": 42 (i32), "1": 3 (i32)
  - scope (local):
@@ -44,7 +44,7 @@ at B (liftoff) (0:158):
    globals: "$exported_global": 0 (i32)
    memories: "$exported_memory": (Memory)
    tables: "$exported_table": (Table)
-at A (liftoff) (0:128):
+at $A (liftoff) (0:128):
  - scope (wasm-expression-stack):
    stack: 
  - scope (local):
@@ -63,7 +63,7 @@ at (anonymous) (0:17):
 Paused:
 Script wasm://wasm/e33badc2 byte offset 171: Wasm opcode 0x24 (kExprGlobalSet)
 Scope:
-at C (interpreted) (0:171):
+at $C (interpreted) (0:171):
  - scope (wasm-expression-stack):
    stack: "0": 42 (i32)
  - scope (local):
@@ -77,7 +77,7 @@ at C (interpreted) (0:171):
    globals: "$exported_global": 0 (i32)
    memories: "$exported_memory": (Memory)
    tables: "$exported_table": (Table)
-at B (liftoff) (0:158):
+at $B (liftoff) (0:158):
  - scope (wasm-expression-stack):
    stack: "0": 42 (i32), "1": 3 (i32)
  - scope (local):
@@ -94,7 +94,7 @@ at B (liftoff) (0:158):
    globals: "$exported_global": 0 (i32)
    memories: "$exported_memory": (Memory)
    tables: "$exported_table": (Table)
-at A (liftoff) (0:128):
+at $A (liftoff) (0:128):
  - scope (wasm-expression-stack):
    stack: 
  - scope (local):
@@ -113,7 +113,7 @@ at (anonymous) (0:17):
 Paused:
 Script wasm://wasm/e33badc2 byte offset 173: Wasm opcode 0x41 (kExprI32Const)
 Scope:
-at C (interpreted) (0:173):
+at $C (interpreted) (0:173):
  - scope (wasm-expression-stack):
    stack: 
  - scope (local):
@@ -127,7 +127,7 @@ at C (interpreted) (0:173):
    globals: "$exported_global": 42 (i32)
    memories: "$exported_memory": (Memory)
    tables: "$exported_table": (Table)
-at B (liftoff) (0:158):
+at $B (liftoff) (0:158):
  - scope (wasm-expression-stack):
    stack: "0": 42 (i32), "1": 3 (i32)
  - scope (local):
@@ -144,7 +144,7 @@ at B (liftoff) (0:158):
    globals: "$exported_global": 42 (i32)
    memories: "$exported_memory": (Memory)
    tables: "$exported_table": (Table)
-at A (liftoff) (0:128):
+at $A (liftoff) (0:128):
  - scope (wasm-expression-stack):
    stack: 
  - scope (local):
@@ -163,7 +163,7 @@ at (anonymous) (0:17):
 Paused:
 Script wasm://wasm/e33badc2 byte offset 175: Wasm opcode 0x21 (kExprLocalSet)
 Scope:
-at C (interpreted) (0:175):
+at $C (interpreted) (0:175):
  - scope (wasm-expression-stack):
    stack: "0": 47 (i32)
  - scope (local):
@@ -177,7 +177,7 @@ at C (interpreted) (0:175):
    globals: "$exported_global": 42 (i32)
    memories: "$exported_memory": (Memory)
    tables: "$exported_table": (Table)
-at B (liftoff) (0:158):
+at $B (liftoff) (0:158):
  - scope (wasm-expression-stack):
    stack: "0": 42 (i32), "1": 3 (i32)
  - scope (local):
@@ -194,7 +194,7 @@ at B (liftoff) (0:158):
    globals: "$exported_global": 42 (i32)
    memories: "$exported_memory": (Memory)
    tables: "$exported_table": (Table)
-at A (liftoff) (0:128):
+at $A (liftoff) (0:128):
  - scope (wasm-expression-stack):
    stack: 
  - scope (local):
@@ -213,7 +213,7 @@ at (anonymous) (0:17):
 Paused:
 Script wasm://wasm/e33badc2 byte offset 177: Wasm opcode 0x0b (kExprEnd)
 Scope:
-at C (interpreted) (0:177):
+at $C (interpreted) (0:177):
  - scope (wasm-expression-stack):
    stack: 
  - scope (local):
@@ -227,7 +227,7 @@ at C (interpreted) (0:177):
    globals: "$exported_global": 42 (i32)
    memories: "$exported_memory": (Memory)
    tables: "$exported_table": (Table)
-at B (liftoff) (0:158):
+at $B (liftoff) (0:158):
  - scope (wasm-expression-stack):
    stack: "0": 42 (i32), "1": 3 (i32)
  - scope (local):
@@ -244,7 +244,7 @@ at B (liftoff) (0:158):
    globals: "$exported_global": 42 (i32)
    memories: "$exported_memory": (Memory)
    tables: "$exported_table": (Table)
-at A (liftoff) (0:128):
+at $A (liftoff) (0:128):
  - scope (wasm-expression-stack):
    stack: 
  - scope (local):
@@ -263,7 +263,7 @@ at (anonymous) (0:17):
 Paused:
 Script wasm://wasm/e33badc2 byte offset 160: Wasm opcode 0x1a (kExprDrop)
 Scope:
-at B (liftoff) (0:160):
+at $B (liftoff) (0:160):
  - scope (wasm-expression-stack):
    stack: "0": 42 (i32), "1": 3 (i32)
  - scope (local):
@@ -280,7 +280,7 @@ at B (liftoff) (0:160):
    globals: "$exported_global": 42 (i32)
    memories: "$exported_memory": (Memory)
    tables: "$exported_table": (Table)
-at A (liftoff) (0:128):
+at $A (liftoff) (0:128):
  - scope (wasm-expression-stack):
    stack: 
  - scope (local):
@@ -299,7 +299,7 @@ at (anonymous) (0:17):
 Paused:
 Script wasm://wasm/e33badc2 byte offset 161: Wasm opcode 0x1a (kExprDrop)
 Scope:
-at B (liftoff) (0:161):
+at $B (liftoff) (0:161):
  - scope (wasm-expression-stack):
    stack: "0": 42 (i32)
  - scope (local):
@@ -316,7 +316,7 @@ at B (liftoff) (0:161):
    globals: "$exported_global": 42 (i32)
    memories: "$exported_memory": (Memory)
    tables: "$exported_table": (Table)
-at A (liftoff) (0:128):
+at $A (liftoff) (0:128):
  - scope (wasm-expression-stack):
    stack: 
  - scope (local):
@@ -335,7 +335,7 @@ at (anonymous) (0:17):
 Paused:
 Script wasm://wasm/e33badc2 byte offset 162: Wasm opcode 0x0b (kExprEnd)
 Scope:
-at B (liftoff) (0:162):
+at $B (liftoff) (0:162):
  - scope (wasm-expression-stack):
    stack: 
  - scope (local):
@@ -352,7 +352,7 @@ at B (liftoff) (0:162):
    globals: "$exported_global": 42 (i32)
    memories: "$exported_memory": (Memory)
    tables: "$exported_table": (Table)
-at A (liftoff) (0:128):
+at $A (liftoff) (0:128):
  - scope (wasm-expression-stack):
    stack: 
  - scope (local):
@@ -371,7 +371,7 @@ at (anonymous) (0:17):
 Paused:
 Script wasm://wasm/e33badc2 byte offset 130: Wasm opcode 0x0b (kExprEnd)
 Scope:
-at A (liftoff) (0:130):
+at $A (liftoff) (0:130):
  - scope (wasm-expression-stack):
    stack: 
  - scope (local):
@@ -388,10 +388,10 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-instance.exports.main(42)
+instance.exports.main(42)#
 
 Scope:
-at (anonymous) (1:31):
+at (anonymous) (0:25):
  - scope (global):
    -- skipped globals
 

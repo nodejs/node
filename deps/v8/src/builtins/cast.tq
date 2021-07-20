@@ -329,6 +329,24 @@ Cast<Number|TheHole>(o: Object): Number|TheHole labels CastError {
   }
 }
 
+Cast<Context|Zero|Undefined>(o: Object): Context|Zero|Undefined
+    labels CastError {
+  typeswitch (o) {
+    case (o: Context): {
+      return o;
+    }
+    case (o: Zero): {
+      return o;
+    }
+    case (o: Undefined): {
+      return o;
+    }
+    case (Object): {
+      goto CastError;
+    }
+  }
+}
+
 macro Cast<A : type extends HeapObject>(o: HeapObject): A
     labels CastError;
 

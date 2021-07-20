@@ -8,6 +8,7 @@
 #include "src/base/bits-iterator.h"
 #include "src/base/iterator.h"
 #include "src/codegen/code-factory.h"
+#include "src/codegen/interface-descriptors-inl.h"
 // For interpreter_entry_return_pc_offset. TODO(jkummerow): Drop.
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/codegen/register-configuration.h"
@@ -116,7 +117,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     // edx: new target
     // Reload context from the frame.
     __ mov(esi, Operand(ebp, ConstructFrameConstants::kContextOffset));
-    __ InvokeFunction(edi, edx, eax, CALL_FUNCTION);
+    __ InvokeFunction(edi, edx, eax, InvokeType::kCall);
 
     // Restore context from the frame.
     __ mov(esi, Operand(ebp, ConstructFrameConstants::kContextOffset));
@@ -245,7 +246,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
   // Restore and and call the constructor function.
   __ mov(edi, Operand(ebp, ConstructFrameConstants::kConstructorOffset));
-  __ InvokeFunction(edi, edx, eax, CALL_FUNCTION);
+  __ InvokeFunction(edi, edx, eax, InvokeType::kCall);
 
   // ----------- S t a t e -------------
   //  --                eax: constructor result
@@ -597,7 +598,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // Store input value into generator object.
   __ mov(FieldOperand(edx, JSGeneratorObject::kInputOrDebugPosOffset), eax);
   __ RecordWriteField(edx, JSGeneratorObject::kInputOrDebugPosOffset, eax, ecx,
-                      kDontSaveFPRegs);
+                      SaveFPRegsMode::kIgnore);
 
   // Load suspended function and context.
   __ mov(edi, FieldOperand(edx, JSGeneratorObject::kFunctionOffset));
@@ -645,15 +646,12 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
            FieldOperand(edx, JSGeneratorObject::kParametersAndRegistersOffset));
     {
       Label done_loop, loop;
-      __ mov(edi, ecx);
-
       __ bind(&loop);
-      __ dec(edi);
+      __ dec(ecx);
       __ j(less, &done_loop);
       __ Push(
-          FieldOperand(ebx, edi, times_tagged_size, FixedArray::kHeaderSize));
+          FieldOperand(ebx, ecx, times_tagged_size, FixedArray::kHeaderSize));
       __ jmp(&loop);
-
       __ bind(&done_loop);
     }
 
@@ -740,7 +738,8 @@ static void ReplaceClosureCodeWithOptimizedCode(MacroAssembler* masm,
   __ mov(FieldOperand(closure, JSFunction::kCodeOffset), optimized_code);
   __ mov(scratch1, optimized_code);  // Write barrier clobbers scratch1 below.
   __ RecordWriteField(closure, JSFunction::kCodeOffset, scratch1, scratch2,
-                      kDontSaveFPRegs, OMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
+                      SaveFPRegsMode::kIgnore, RememberedSetAction::kOmit,
+                      SmiCheck::kOmit);
 }
 
 static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
@@ -1458,7 +1457,7 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
   // and edi are used as scratch registers.
   Generate_InterpreterPushZeroAndArgsAndReturnAddress(
       masm, eax, ecx, edx, edi,
-      InterpreterPushArgsThenConstructDescriptor::kStackArgumentsCount,
+      InterpreterPushArgsThenConstructDescriptor::GetStackParameterCount(),
       &stack_overflow);
 
   // Call the appropriate constructor. eax and ecx already contain intended
@@ -1591,7 +1590,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ jmp(kJavaScriptCallCodeStartRegister);
 }
 
-void Builtins::Generate_InterpreterEnterBytecodeAdvance(MacroAssembler* masm) {
+void Builtins::Generate_InterpreterEnterAtNextBytecode(MacroAssembler* masm) {
   // Get bytecode array and bytecode offset from the stack frame.
   __ mov(kInterpreterBytecodeArrayRegister,
          Operand(ebp, InterpreterFrameConstants::kBytecodeArrayFromFp));
@@ -1636,7 +1635,7 @@ void Builtins::Generate_InterpreterEnterBytecodeAdvance(MacroAssembler* masm) {
   __ Abort(AbortReason::kInvalidBytecodeAdvance);
 }
 
-void Builtins::Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm) {
+void Builtins::Generate_InterpreterEnterAtBytecode(MacroAssembler* masm) {
   Generate_InterpreterEnterBytecode(masm);
 }
 // static
@@ -1666,7 +1665,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   __ mov(feedback_vector,
          FieldOperand(closure, JSFunction::kFeedbackCellOffset));
   __ mov(feedback_vector, FieldOperand(feedback_vector, Cell::kValueOffset));
-  if (__ emit_debug_code()) {
+  if (FLAG_debug_code) {
     __ CmpObjectType(feedback_vector, FEEDBACK_VECTOR_TYPE, scratch);
     __ Assert(equal, AbortReason::kExpectedFeedbackVector);
   }
@@ -1939,7 +1938,7 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   // arguments to the receiver.
   __ bind(&no_arguments);
   {
-    __ Set(eax, 0);
+    __ Move(eax, 0);
     __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
   }
 }
@@ -2108,6 +2107,7 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
 }
 
 // static
+// TODO(v8:11615): Observe Code::kMaxArguments in CallOrConstructVarargs
 void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
                                                Handle<Code> code) {
   // ----------- S t a t e -------------
@@ -2133,7 +2133,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   __ pop(kArgumentsList);
   __ PushReturnAddressFrom(edx);
 
-  if (masm->emit_debug_code()) {
+  if (FLAG_debug_code) {
     // Allow kArgumentsList to be a FixedArray, or a FixedDoubleArray if
     // kArgumentsLength == 0.
     Label ok, fail;
@@ -2294,7 +2294,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
       __ AllocateStackSpace(scratch);
       // Include return address and receiver.
       __ add(eax, Immediate(2));
-      __ Set(current, 0);
+      __ Move(current, 0);
       __ jmp(&check);
       // Loop.
       __ bind(&copy);
@@ -2443,7 +2443,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
 
   __ movzx_w(
       ecx, FieldOperand(edx, SharedFunctionInfo::kFormalParameterCountOffset));
-  __ InvokeFunctionCode(edi, no_reg, ecx, eax, JUMP_FUNCTION);
+  __ InvokeFunctionCode(edi, no_reg, ecx, eax, InvokeType::kJump);
   // The function is a "classConstructor", need to raise an exception.
   __ bind(&class_constructor);
   {
@@ -2788,6 +2788,8 @@ void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_BaselineOnStackReplacement(MacroAssembler* masm) {
+  __ mov(kContextRegister,
+         MemOperand(ebp, BaselineFrameConstants::kContextOffset));
   return OnStackReplacement(masm, false);
 }
 
@@ -2896,6 +2898,11 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   // TODO(v8:10701): Implement for this platform.
   __ Trap();
 }
+
+void Builtins::Generate_WasmOnStackReplace(MacroAssembler* masm) {
+  // Only needed on x64.
+  __ Trap();
+}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
@@ -2908,7 +2915,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // esi: current context (C callee-saved)
   // edi: JS function of the caller (C callee-saved)
   //
-  // If argv_mode == kArgvInRegister:
+  // If argv_mode == ArgvMode::kRegister:
   // ecx: pointer to the first argument
 
   STATIC_ASSERT(eax == kRuntimeCallArgCountRegister);
@@ -2928,8 +2935,8 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   int arg_stack_space = 3;
 
   // Enter the exit frame that transitions from JavaScript to C++.
-  if (argv_mode == kArgvInRegister) {
-    DCHECK(save_doubles == kDontSaveFPRegs);
+  if (argv_mode == ArgvMode::kRegister) {
+    DCHECK(save_doubles == SaveFPRegsMode::kIgnore);
     DCHECK(!builtin_exit_frame);
     __ EnterApiExitFrame(arg_stack_space, edi);
 
@@ -2938,7 +2945,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ mov(edi, eax);
   } else {
     __ EnterExitFrame(
-        arg_stack_space, save_doubles == kSaveFPRegs,
+        arg_stack_space, save_doubles == SaveFPRegsMode::kSave,
         builtin_exit_frame ? StackFrame::BUILTIN_EXIT : StackFrame::EXIT);
   }
 
@@ -2985,7 +2992,8 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   }
 
   // Exit the JavaScript to C++ exit frame.
-  __ LeaveExitFrame(save_doubles == kSaveFPRegs, argv_mode == kArgvOnStack);
+  __ LeaveExitFrame(save_doubles == SaveFPRegsMode::kSave,
+                    argv_mode == ArgvMode::kStack);
   __ ret(0);
 
   // Handling of exception.
@@ -3148,7 +3156,7 @@ Operand ApiParameterOperand(int index) {
 // stores the pointer to the reserved slot into esi.
 void PrepareCallApiFunction(MacroAssembler* masm, int argc, Register scratch) {
   __ EnterApiExitFrame(argc, scratch);
-  if (__ emit_debug_code()) {
+  if (FLAG_debug_code) {
     __ mov(esi, Immediate(bit_cast<int32_t>(kZapValue)));
   }
 }
@@ -3961,9 +3969,16 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     __ movsd(Operand(esi, dst_offset), xmm0);
   }
 
+  if (FLAG_debug_code) {
+    const int kTopMask = 0x3800;
+    __ push(eax);
+    __ fwait();
+    __ fnstsw_ax();
+    __ test(eax, Immediate(kTopMask));
+    __ Assert(zero, AbortReason::kFpuTopIsNotZeroInDeoptimizer);
+    __ pop(eax);
+  }
   // Clear FPU all exceptions.
-  // TODO(ulan): Find out why the TOP register is not zero here in some cases,
-  // and check that the generated code never deoptimizes with unbalanced stack.
   __ fnclex();
 
   // Mark the stack as not iterable for the CPU profiler which won't be able to

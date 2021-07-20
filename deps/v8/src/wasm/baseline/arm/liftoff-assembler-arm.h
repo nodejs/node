@@ -605,6 +605,8 @@ void LiftoffAssembler::SpillInstance(Register instance) {
   str(instance, liftoff::GetInstanceOperand());
 }
 
+void LiftoffAssembler::ResetOSRTarget() {}
+
 void LiftoffAssembler::FillInstanceInto(Register dst) {
   ldr(dst, liftoff::GetInstanceOperand());
 }
@@ -743,7 +745,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                           : MemOperand(dst_addr, actual_offset_reg);
   str(src.gp(), dst_op);
 
-  if (skip_write_barrier) return;
+  if (skip_write_barrier || FLAG_disable_write_barriers) return;
 
   // The write barrier.
   Label write_barrier;
@@ -758,7 +760,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   CallRecordWriteStub(dst_addr,
                       actual_offset_reg == no_reg ? Operand(offset_imm)
                                                   : Operand(actual_offset_reg),
-                      EMIT_REMEMBERED_SET, kSaveFPRegs,
+                      RememberedSetAction::kEmit, SaveFPRegsMode::kSave,
                       wasm::WasmCode::kRecordWrite);
   bind(&exit);
 }
@@ -766,8 +768,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uint32_t offset_imm,
                             LoadType type, LiftoffRegList pinned,
-                            uint32_t* protected_load_pc, bool is_load_mem,
-                            bool i64_offset) {
+                            uint32_t* protected_load_pc, bool is_load_mem) {
   // Offsets >=2GB are statically OOB on 32-bit systems.
   DCHECK_LE(offset_imm, std::numeric_limits<int32_t>::max());
   liftoff::LoadInternal(this, dst, src_addr, offset_reg,
@@ -4227,6 +4228,8 @@ void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
 void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
   add(sp, sp, Operand(size));
 }
+
+void LiftoffAssembler::MaybeOSR() {}
 
 void LiftoffStackSlots::Construct(int param_slots) {
   DCHECK_LT(0, slots_.size());

@@ -15,9 +15,14 @@ namespace v8 {
 namespace internal {
 
 UnifiedHeapTest::UnifiedHeapTest()
+    : UnifiedHeapTest(std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>()) {}
+
+UnifiedHeapTest::UnifiedHeapTest(
+    std::vector<std::unique_ptr<cppgc::CustomSpaceBase>> custom_spaces)
     : cpp_heap_(v8::CppHeap::Create(
           V8::GetCurrentPlatform(),
-          CppHeapCreateParams{{}, WrapperHelper::DefaultWrapperDescriptor()})) {
+          CppHeapCreateParams{std::move(custom_spaces),
+                              WrapperHelper::DefaultWrapperDescriptor()})) {
   isolate()->heap()->AttachCppHeap(cpp_heap_.get());
 }
 

@@ -53,10 +53,12 @@
 #define V8_BASE_ONCE_H_
 
 #include <stddef.h>
+
 #include <atomic>
 #include <functional>
 
 #include "src/base/base-export.h"
+#include "src/base/template-utils.h"
 
 namespace v8 {
 namespace base {
@@ -76,9 +78,9 @@ enum : uint8_t {
 
 using PointerArgFunction = void (*)(void* arg);
 
-template <typename T>
-struct OneArgFunction {
-  using type = void (*)(T);
+template <typename... Args>
+struct FunctionWithArgs {
+  using type = void (*)(Args...);
 };
 
 V8_BASE_EXPORT void CallOnceImpl(OnceType* once,
@@ -90,11 +92,13 @@ inline void CallOnce(OnceType* once, std::function<void()> init_func) {
   }
 }
 
-template <typename Arg>
+template <typename... Args, typename = std::enable_if_t<
+                                conjunction<std::is_scalar<Args>...>::value>>
 inline void CallOnce(OnceType* once,
-    typename OneArgFunction<Arg*>::type init_func, Arg* arg) {
+                     typename FunctionWithArgs<Args...>::type init_func,
+                     Args... args) {
   if (once->load(std::memory_order_acquire) != ONCE_STATE_DONE) {
-    CallOnceImpl(once, [=]() { init_func(arg); });
+    CallOnceImpl(once, [=]() { init_func(args...); });
   }
 }
 

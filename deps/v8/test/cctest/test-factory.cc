@@ -61,7 +61,7 @@ TEST(Factory_CodeBuilder) {
 
   // Create a big function that ends up in CODE_LO_SPACE.
   const int instruction_size =
-      MemoryChunkLayout::MaxRegularCodeObjectSize() + 1;
+      Heap::MaxRegularHeapObjectSize(AllocationType::kCode) + 1;
   std::unique_ptr<byte[]> instructions(new byte[instruction_size]);
 
   CodeDesc desc;

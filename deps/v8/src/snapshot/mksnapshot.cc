@@ -11,10 +11,10 @@
 #include "include/libplatform/libplatform.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
+#include "src/base/sanitizer/msan.h"
 #include "src/codegen/assembler-arch.h"
 #include "src/codegen/source-position-table.h"
 #include "src/flags/flags.h"
-#include "src/sanitizer/msan.h"
 #include "src/snapshot/context-serializer.h"
 #include "src/snapshot/embedded/embedded-file-writer.h"
 #include "src/snapshot/snapshot.h"
@@ -155,7 +155,7 @@ v8::StartupData CreateSnapshotDataBlob(v8::Isolate* isolate,
       isolate);
 
   if (i::FLAG_profile_deserialization) {
-    i::PrintF("Creating snapshot took %0.3f ms\n",
+    i::PrintF("[Creating snapshot took %0.3f ms]\n",
               timer.Elapsed().InMillisecondsF());
   }
 

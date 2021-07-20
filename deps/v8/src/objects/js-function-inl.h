@@ -91,7 +91,7 @@ void JSFunction::MarkForOptimization(ConcurrencyMode mode) {
     mode = ConcurrencyMode::kNotConcurrent;
   }
 
-  DCHECK(!is_compiled() || ActiveTierIsIgnition() || ActiveTierIsNCI() ||
+  DCHECK(!is_compiled() || ActiveTierIsIgnition() ||
          ActiveTierIsMidtierTurboprop() || ActiveTierIsBaseline());
   DCHECK(!ActiveTierIsTurbofan());
   DCHECK(shared().IsInterpreted());
@@ -131,8 +131,8 @@ void JSFunction::CompleteInobjectSlackTrackingIfActive() {
   }
 }
 
-template <typename LocalIsolate>
-AbstractCode JSFunction::abstract_code(LocalIsolate* isolate) {
+template <typename IsolateT>
+AbstractCode JSFunction::abstract_code(IsolateT* isolate) {
   if (ActiveTierIsIgnition()) {
     return AbstractCode::cast(shared().GetBytecodeArray(isolate));
   } else {
@@ -206,27 +206,28 @@ void JSFunction::set_context(HeapObject value, WriteBarrierMode mode) {
   CONDITIONAL_WRITE_BARRIER(*this, kContextOffset, value, mode);
 }
 
-ACCESSORS_CHECKED(JSFunction, prototype_or_initial_map, HeapObject,
-                  kPrototypeOrInitialMapOffset, map().has_prototype_slot())
+RELEASE_ACQUIRE_ACCESSORS_CHECKED(JSFunction, prototype_or_initial_map,
+                                  HeapObject, kPrototypeOrInitialMapOffset,
+                                  map().has_prototype_slot())
 
 DEF_GETTER(JSFunction, has_prototype_slot, bool) {
   return map(cage_base).has_prototype_slot();
 }
 
 DEF_GETTER(JSFunction, initial_map, Map) {
-  return Map::cast(prototype_or_initial_map(cage_base));
+  return Map::cast(prototype_or_initial_map(cage_base, kAcquireLoad));
 }
 
 DEF_GETTER(JSFunction, has_initial_map, bool) {
   DCHECK(has_prototype_slot(cage_base));
-  return prototype_or_initial_map(cage_base).IsMap(cage_base);
+  return prototype_or_initial_map(cage_base, kAcquireLoad).IsMap(cage_base);
 }
 
 DEF_GETTER(JSFunction, has_instance_prototype, bool) {
   DCHECK(has_prototype_slot(cage_base));
   return has_initial_map(cage_base) ||
-         !prototype_or_initial_map(cage_base).IsTheHole(
-             GetReadOnlyRoots(cage_base));
+         !prototype_or_initial_map(cage_base, kAcquireLoad)
+              .IsTheHole(GetReadOnlyRoots(cage_base));
 }
 
 DEF_GETTER(JSFunction, has_prototype, bool) {
@@ -251,7 +252,7 @@ DEF_GETTER(JSFunction, instance_prototype, HeapObject) {
     return initial_map(cage_base).prototype(cage_base);
   // When there is no initial map and the prototype is a JSReceiver, the
   // initial map field is used for the prototype field.
-  return HeapObject::cast(prototype_or_initial_map(cage_base));
+  return HeapObject::cast(prototype_or_initial_map(cage_base, kAcquireLoad));
 }
 
 DEF_GETTER(JSFunction, prototype, Object) {

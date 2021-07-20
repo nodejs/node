@@ -141,7 +141,8 @@ AllocationResult LocalAllocationBuffer::AllocateRawAligned(
   int filler_size = Heap::GetFillToAlign(current_top, alignment);
 
   Address new_top = current_top + filler_size + size_in_bytes;
-  if (new_top > allocation_info_.limit()) return AllocationResult::Retry();
+  if (new_top > allocation_info_.limit())
+    return AllocationResult::Retry(NEW_SPACE);
 
   allocation_info_.set_top(new_top);
   if (filler_size > 0) {

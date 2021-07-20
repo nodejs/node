@@ -181,6 +181,14 @@ inline bool BindsSuper(FunctionKind kind) {
          IsClassConstructor(kind);
 }
 
+inline bool IsAwaitAsIdentifierDisallowed(FunctionKind kind) {
+  // 'await' is always disallowed as an identifier in module contexts. Callers
+  // should short-circuit the module case instead of calling this.
+  DCHECK(!IsModule(kind));
+  return IsAsyncFunction(kind) ||
+         kind == FunctionKind::kClassStaticInitializerFunction;
+}
+
 inline const char* FunctionKind2String(FunctionKind kind) {
   switch (kind) {
     case FunctionKind::kNormalFunction:

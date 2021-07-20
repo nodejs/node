@@ -19,11 +19,17 @@ extern macro TypedArrayBuiltinsAssembler::SetupTypedArrayEmbedderFields(
 extern runtime ThrowInvalidTypedArrayAlignment(implicit context: Context)(
     Map, String): never;
 
+extern runtime GrowableSharedArrayBufferByteLength(implicit context: Context)(
+    Object): JSAny;
+
 transitioning macro AllocateTypedArray(implicit context: Context)(
     isOnHeap: constexpr bool, map: Map, buffer: JSArrayBuffer,
-    byteOffset: uintptr, byteLength: uintptr, length: uintptr): JSTypedArray {
+    byteOffset: uintptr, byteLength: uintptr, length: uintptr,
+    isLengthTracking: bool): JSTypedArray {
   let elements: ByteArray;
   if constexpr (isOnHeap) {
+    assert(!IsResizableArrayBuffer(buffer));
+    assert(!isLengthTracking);
     elements = AllocateByteArray(byteLength);
   } else {
     elements = kEmptyByteArray;
@@ -53,6 +59,9 @@ transitioning macro AllocateTypedArray(implicit context: Context)(
   typedArray.byte_offset = byteOffset;
   typedArray.byte_length = byteLength;
   typedArray.length = length;
+  typedArray.bit_field.is_length_tracking = isLengthTracking;
+  typedArray.bit_field.is_backed_by_rab =
+      IsResizableArrayBuffer(buffer) && !IsSharedArrayBuffer(buffer);
   typed_array::AllocateJSTypedArrayExternalPointerEntry(typedArray);
   if constexpr (isOnHeap) {
     typed_array::SetJSTypedArrayOnHeapDataPtr(typedArray, elements, byteOffset);
@@ -88,8 +97,10 @@ transitioning macro TypedArrayInitialize(implicit context: Context)(
     const buffer = AllocateEmptyOnHeapBuffer(byteLength);
 
     const isOnHeap: constexpr bool = true;
+    const isLengthTracking: constexpr bool = false;
     const typedArray = AllocateTypedArray(
-        isOnHeap, map, buffer, byteOffset, byteLength, length);
+        isOnHeap, map, buffer, byteOffset, byteLength, length,
+        isLengthTracking);
 
     if constexpr (initialize) {
       const backingStore = typedArray.data_ptr;
@@ -107,8 +118,10 @@ transitioning macro TypedArrayInitialize(implicit context: Context)(
   } label AttachOffHeapBuffer(bufferObj: Object) {
     const buffer = Cast<JSArrayBuffer>(bufferObj) otherwise unreachable;
     const isOnHeap: constexpr bool = false;
+    const isLengthTracking: constexpr bool = false;
     return AllocateTypedArray(
-        isOnHeap, map, buffer, byteOffset, byteLength, length);
+        isOnHeap, map, buffer, byteOffset, byteLength, length,
+        isLengthTracking);
   }
 }
 
@@ -204,8 +217,26 @@ transitioning macro ConstructByTypedArray(implicit context: Context)(
 // 22.2.4.5 TypedArray ( buffer, byteOffset, length )
 // ES #sec-typedarray-buffer-byteoffset-length
 transitioning macro ConstructByArrayBuffer(implicit context: Context)(
-    map: Map, buffer: JSArrayBuffer, byteOffset: JSAny, length: JSAny,
-    elementsInfo: typed_array::TypedArrayElementsInfo): JSTypedArray {
+    target: JSFunction, newTarget: JSReceiver, buffer: JSArrayBuffer,
+    byteOffset: JSAny, length: JSAny): JSTypedArray {
+  let map: Map;
+  const isLengthTracking: bool =
+      IsResizableArrayBuffer(buffer) && (length == Undefined);
+  // Pick the RAB / GSAB map (containing the corresponding RAB / GSAB
+  // ElementsKind). GSAB-backed non-length-tracking TypedArrays behave just like
+  // normal TypedArrays, so exclude them.
+  const rabGsab: bool = IsResizableArrayBuffer(buffer) &&
+      (!IsSharedArrayBuffer(buffer) || isLengthTracking);
+  if (rabGsab) {
+    map = GetDerivedRabGsabMap(target, newTarget);
+  } else {
+    map = GetDerivedMap(target, newTarget);
+  }
+
+  // 5. Let elementSize be the Number value of the Element Size value in Table
+  // 56 for constructorName.
+  const elementsInfo = GetTypedArrayElementsInfo(map);
+
   try {
     // 6. Let offset be ? ToIndex(byteOffset).
     const offset: uintptr = ToIndex(byteOffset) otherwise IfInvalidOffset;
@@ -226,7 +257,13 @@ transitioning macro ConstructByArrayBuffer(implicit context: Context)(
     }
 
     // 10. Let bufferByteLength be buffer.[[ArrayBufferByteLength]].
-    const bufferByteLength: uintptr = buffer.byte_length;
+    let bufferByteLength: uintptr;
+    if (IsResizableArrayBuffer(buffer) && IsSharedArrayBuffer(buffer)) {
+      bufferByteLength = ToIndex(GrowableSharedArrayBufferByteLength(buffer))
+          otherwise unreachable;
+    } else {
+      bufferByteLength = buffer.byte_length;
+    }
 
     // 11. If length is either not present or undefined, then
     if (length == Undefined) {
@@ -261,7 +298,8 @@ transitioning macro ConstructByArrayBuffer(implicit context: Context)(
 
     const isOnHeap: constexpr bool = false;
     return AllocateTypedArray(
-        isOnHeap, map, buffer, offset, newByteLength, newLength);
+        isOnHeap, map, buffer, offset, newByteLength, newLength,
+        isLengthTracking);
   } label IfInvalidAlignment(problemString: String) deferred {
     ThrowInvalidTypedArrayAlignment(map, problemString);
   } label IfInvalidLength deferred {
@@ -286,6 +324,8 @@ transitioning macro TypedArrayCreateByLength(implicit context: Context)(
   //    ValidateTypedArray currently returns the array, not the ViewBuffer.
   const newTypedArray: JSTypedArray =
       ValidateTypedArray(context, newTypedArrayObj, methodName);
+  newTypedArray.bit_field.is_length_tracking = false;
+  newTypedArray.bit_field.is_backed_by_rab = false;
 
   if (IsDetachedBuffer(newTypedArray.buffer)) deferred {
       ThrowTypeError(MessageTemplate::kDetachedOperation, methodName);
@@ -336,21 +376,16 @@ transitioning builtin CreateTypedArray(
   assert(IsConstructor(target));
   // 4. Let O be ? AllocateTypedArray(constructorName, NewTarget,
   // "%TypedArrayPrototype%").
-  const map = GetDerivedMap(target, newTarget);
-
-  // 5. Let elementSize be the Number value of the Element Size value in Table
-  // 56 for constructorName.
-  const elementsInfo = GetTypedArrayElementsInfo(map);
-
   try {
     typeswitch (arg1) {
       case (length: Smi): {
         goto IfConstructByLength(length);
       }
       case (buffer: JSArrayBuffer): {
-        return ConstructByArrayBuffer(map, buffer, arg2, arg3, elementsInfo);
+        return ConstructByArrayBuffer(target, newTarget, buffer, arg2, arg3);
       }
       case (typedArray: JSTypedArray): {
+        // TODO(v8:11111): Support RAB / GSAB.
         ConstructByTypedArray(typedArray) otherwise IfConstructByArrayLike;
       }
       case (obj: JSReceiver): {
@@ -363,9 +398,18 @@ transitioning builtin CreateTypedArray(
       }
     }
   } label IfConstructByLength(length: JSAny) {
+    const map = GetDerivedMap(target, newTarget);
+    // 5. Let elementSize be the Number value of the Element Size value in Table
+    // 56 for constructorName.
+    const elementsInfo = GetTypedArrayElementsInfo(map);
+
     return ConstructByLength(map, length, elementsInfo);
   } label IfConstructByArrayLike(
       arrayLike: JSReceiver, length: uintptr, bufferConstructor: JSReceiver) {
+    const map = GetDerivedMap(target, newTarget);
+    // 5. Let elementSize be the Number value of the Element Size value in Table
+    // 56 for constructorName.
+    const elementsInfo = GetTypedArrayElementsInfo(map);
     return ConstructByArrayLike(
         map, arrayLike, length, elementsInfo, bufferConstructor);
   }

@@ -407,10 +407,10 @@ class V8_EXPORT_PRIVATE Scanner {
     return ScanTemplateSpan();
   }
 
-  template <typename LocalIsolate>
-  Handle<String> SourceUrl(LocalIsolate* isolate) const;
-  template <typename LocalIsolate>
-  Handle<String> SourceMappingUrl(LocalIsolate* isolate) const;
+  template <typename IsolateT>
+  Handle<String> SourceUrl(IsolateT* isolate) const;
+  template <typename IsolateT>
+  Handle<String> SourceMappingUrl(IsolateT* isolate) const;
 
   bool FoundHtmlComment() const { return found_html_comment_; }
 

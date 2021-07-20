@@ -56,8 +56,7 @@ builder.addFunction("exec_unreachable", kSig_v_v)
 // Make this function unnamed, just to test also this case.
 var mem_oob_func = builder.addFunction(undefined, kSig_i_v)
   // Access the memory at offset -1, to provoke a trap.
-  .addBody([kExprI32Const, 0x7f, kExprI32LoadMem8S, 0, 0])
-  .exportAs("mem_out_of_bounds");
+  .addBody([kExprI32Const, 0x7f, kExprI32LoadMem8S, 0, 0]);
 
 // Call the mem_out_of_bounds function, in order to have two wasm stack frames.
 builder.addFunction("call_mem_out_of_bounds", kSig_i_v)
@@ -70,9 +69,9 @@ var module = builder.instantiate({mod: {func: STACK}});
   var expected_string = 'Error\n' +
       // The line numbers below will change as this test gains / loses lines..
       '    at STACK (stack.js:38:11)\n' +                   // --
-      '    at main (<anonymous>:wasm-function[1]:0x86)\n' + // --
-      '    at testSimpleStack (stack.js:77:18)\n' +         // --
-      '    at stack.js:79:3';                               // --
+      '    at main (<anonymous>:wasm-function[1]:0x72)\n' + // --
+      '    at testSimpleStack (stack.js:76:18)\n' +         // --
+      '    at stack.js:78:3';                               // --
 
   module.exports.main();
   assertEquals(expected_string, stripPath(stack));
@@ -90,9 +89,9 @@ Error.prepareStackTrace = function(error, frames) {
   verifyStack(stack, [
       // isWasm           function   line   pos                    file  offset funcIndex
       [   false,           "STACK",    38,    0,             "stack.js"],
-      [    true,            "main",     1, 0x86, "wasm://wasm/7168ab72", '0x86',        1],
-      [   false, "testStackFrames",    88,    0,             "stack.js"],
-      [   false,              null,    97,    0,             "stack.js"]
+      [    true,            "main",     1, 0x72, "wasm://wasm/862e1cf6", '0x72',        1],
+      [   false, "testStackFrames",    87,    0,             "stack.js"],
+      [   false,              null,    96,    0,             "stack.js"]
   ]);
 })();
 
@@ -104,9 +103,9 @@ Error.prepareStackTrace = function(error, frames) {
     assertContains("unreachable", e.message);
     verifyStack(e.stack, [
         // isWasm               function   line  pos                    file  offset funcIndex
-        [    true,    "exec_unreachable",    1, 0x8b, "wasm://wasm/7168ab72", '0x8b',        2],
-        [   false, "testWasmUnreachable",  101,    0,             "stack.js"],
-        [   false,                  null,  112,    0,             "stack.js"]
+        [    true,    "exec_unreachable",    1, 0x77, "wasm://wasm/862e1cf6", '0x77',        2],
+        [   false, "testWasmUnreachable",  100,    0,             "stack.js"],
+        [   false,                  null,  111,    0,             "stack.js"]
     ]);
   }
 })();
@@ -119,10 +118,10 @@ Error.prepareStackTrace = function(error, frames) {
     assertContains("out of bounds", e.message);
     verifyStack(e.stack, [
         // isWasm                  function   line   pos                    file  offset funcIndex
-        [    true,      "mem_out_of_bounds",     1, 0x91, "wasm://wasm/7168ab72", '0x91',        3],
-        [    true, "call_mem_out_of_bounds",     1, 0x97, "wasm://wasm/7168ab72", '0x97',        4],
-        [   false, "testWasmMemOutOfBounds",   116,    0,             "stack.js"],
-        [   false,                     null,   128,    0,             "stack.js"]
+        [    true,                     null,     1, 0x7d, "wasm://wasm/862e1cf6", '0x7d',        3],
+        [    true, "call_mem_out_of_bounds",     1, 0x83, "wasm://wasm/862e1cf6", '0x83',        4],
+        [   false, "testWasmMemOutOfBounds",   115,    0,             "stack.js"],
+        [   false,                     null,   127,    0,             "stack.js"]
     ]);
   }
 })();
@@ -177,8 +176,8 @@ Error.prepareStackTrace = function(error, frames) {
     verifyStack(e.stack, [
       // isWasm         function line                     pos                    file     offset funcIndex
       [    true,          'main',   1, unreachable_pos + 0x25, 'wasm://wasm/000600e6', hexOffset,        0],
-      [   false, 'testBigOffset', 172,                      0,             'stack.js'],
-      [   false,            null, 184,                      0,             'stack.js']
+      [   false, 'testBigOffset', 171,                      0,             'stack.js'],
+      [   false,            null, 183,                      0,             'stack.js']
     ]);
   }
 })();

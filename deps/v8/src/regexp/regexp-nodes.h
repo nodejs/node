@@ -109,6 +109,11 @@ struct EatsAtLeastInfo final {
     }
   }
 
+  bool IsZero() const {
+    return eats_at_least_from_possibly_start == 0 &&
+           eats_at_least_from_not_start == 0;
+  }
+
   // Any successful match starting from the current node will consume at least
   // this many characters. This does not necessarily mean that there is a
   // possible match with exactly this many characters, but we generally try to

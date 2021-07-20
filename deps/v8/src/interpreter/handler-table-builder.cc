@@ -15,8 +15,8 @@ namespace interpreter {
 
 HandlerTableBuilder::HandlerTableBuilder(Zone* zone) : entries_(zone) {}
 
-template <typename LocalIsolate>
-Handle<ByteArray> HandlerTableBuilder::ToHandlerTable(LocalIsolate* isolate) {
+template <typename IsolateT>
+Handle<ByteArray> HandlerTableBuilder::ToHandlerTable(IsolateT* isolate) {
   int handler_table_size = static_cast<int>(entries_.size());
   Handle<ByteArray> table_byte_array = isolate->factory()->NewByteArray(
       HandlerTable::LengthForRange(handler_table_size), AllocationType::kOld);
