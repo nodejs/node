@@ -5,7 +5,7 @@ Compile module.
 Set breakpoint in main.
 Instantiate module.
 Call main.
-Debugger paused in main.
+Debugger paused in $main.
 > instance = Instance
 > module = Module
 
@@ -14,7 +14,7 @@ Compile module.
 Set breakpoint in main.
 Instantiate module.
 Call main.
-Debugger paused in main.
+Debugger paused in $main.
 > globals = Globals
 > typeof globals = "object"
 > Object.keys(globals) = Array(2)
@@ -27,7 +27,7 @@ Debugger paused in main.
 > globals["$global3"] = i64 {2n}
 > $global3 = i64 {2n}
 Stepping twice in main.
-Debugger paused in main.
+Debugger paused in $main.
 > globals[0] = i32 {0}
 > globals[1] = i32 {1}
 > globals[2] = i64 {2n}
@@ -51,29 +51,29 @@ Compile module.
 Set breakpoint in main.
 Instantiate module.
 Call main.
-Debugger paused in main.
+Debugger paused in $main.
 > functions = Functions
 > typeof functions = "object"
 > Object.keys(functions) = Array(4)
-> functions[0] = function 0() { [native code] }
-> functions[1] = function 1() { [native code] }
-> functions[2] = function 2() { [native code] }
-> functions[3] = function 3() { [native code] }
-> functions[4] = function 4() { [native code] }
-> functions["$foo.bar"] = function 0() { [native code] }
-> functions["$main"] = function 1() { [native code] }
-> $main = function 1() { [native code] }
-> functions["$func2"] = function 2() { [native code] }
-> $func2 = function 2() { [native code] }
-> functions["$func4"] = function 4() { [native code] }
-> $func4 = function 4() { [native code] }
+> functions[0] = function $foo.bar() { [native code] }
+> functions[1] = function $main() { [native code] }
+> functions[2] = function $func2() { [native code] }
+> functions[3] = function $func2() { [native code] }
+> functions[4] = function $func4() { [native code] }
+> functions["$foo.bar"] = function $foo.bar() { [native code] }
+> functions["$main"] = function $main() { [native code] }
+> $main = function $main() { [native code] }
+> functions["$func2"] = function $func2() { [native code] }
+> $func2 = function $func2() { [native code] }
+> functions["$func4"] = function $func4() { [native code] }
+> $func4 = function $func4() { [native code] }
 
 Running test: testLocals
 Compile module.
 Set breakpoint in main.
 Instantiate module.
 Call main.
-Debugger paused in main.
+Debugger paused in $main.
 > locals = Locals
 > typeof locals = "object"
 > Object.keys(locals) = Array(2)
@@ -85,7 +85,7 @@ Debugger paused in main.
 > locals["$var2"] = i32 {0}
 > $var2 = i32 {0}
 Stepping twice in main.
-Debugger paused in main.
+Debugger paused in $main.
 > locals[0] = i32 {3}
 > locals[1] = i32 {6}
 > locals[2] = i32 {42}
@@ -99,7 +99,7 @@ Compile module.
 Set breakpoint in main.
 Instantiate module.
 Call main.
-Debugger paused in main.
+Debugger paused in $main.
 > memories = Memories
 > typeof memories = "object"
 > Object.keys(memories) = Array(1)
@@ -112,7 +112,7 @@ Compile module.
 Set breakpoint in main.
 Instantiate module.
 Call main.
-Debugger paused in main.
+Debugger paused in $main.
 > tables = Tables
 > typeof tables = "object"
 > Object.keys(tables) = Array(1)
@@ -125,12 +125,12 @@ Compile module.
 Set breakpoint in main.
 Instantiate module.
 Call main.
-Debugger paused in main.
+Debugger paused in $main.
 > stack = Stack
 > typeof stack = "object"
 > Object.keys(stack) = Array(0)
 Stepping twice in main.
-Debugger paused in main.
+Debugger paused in $main.
 > stack = Stack
 > Object.keys(stack) = Array(2)
 > stack[0] = i32 {5}

@@ -228,8 +228,8 @@ bool IsInterpreterFramePc(Isolate* isolate, Address pc,
   Builtins::Name builtin_index = InstructionStream::TryLookupCode(isolate, pc);
   if (builtin_index != Builtins::kNoBuiltinId &&
       (builtin_index == Builtins::kInterpreterEntryTrampoline ||
-       builtin_index == Builtins::kInterpreterEnterBytecodeAdvance ||
-       builtin_index == Builtins::kInterpreterEnterBytecodeDispatch ||
+       builtin_index == Builtins::kInterpreterEnterAtBytecode ||
+       builtin_index == Builtins::kInterpreterEnterAtNextBytecode ||
        builtin_index == Builtins::kBaselineEnterAtBytecode ||
        builtin_index == Builtins::kBaselineEnterAtNextBytecode)) {
     return true;
@@ -610,7 +610,6 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
           }
           return BUILTIN;
         case CodeKind::TURBOFAN:
-        case CodeKind::NATIVE_CONTEXT_INDEPENDENT:
         case CodeKind::TURBOPROP:
           return OPTIMIZED;
         case CodeKind::BASELINE:
@@ -1060,12 +1059,14 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
   }
 
   // Visit pointer spill slots and locals.
-  uint8_t* safepoint_bits = safepoint_entry.bits();
-  for (unsigned index = 0; index < stack_slots; index++) {
-    int byte_index = index >> kBitsPerByteLog2;
-    int bit_index = index & (kBitsPerByte - 1);
-    if ((safepoint_bits[byte_index] & (1U << bit_index)) != 0) {
-      FullObjectSlot spill_slot = parameters_limit + index;
+  DCHECK_GE((stack_slots + kBitsPerByte) / kBitsPerByte,
+            safepoint_entry.entry_size());
+  int slot_offset = 0;
+  for (uint8_t bits : safepoint_entry.iterate_bits()) {
+    while (bits) {
+      int bit = base::bits::CountTrailingZeros(bits);
+      bits &= ~(1 << bit);
+      FullObjectSlot spill_slot = parameters_limit + slot_offset + bit;
 #ifdef V8_COMPRESS_POINTERS
       // Spill slots may contain compressed values in which case the upper
       // 32-bits will contain zeros. In order to simplify handling of such
@@ -1083,6 +1084,7 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
 #endif
       v->VisitRootPointer(Root::kStackRoots, nullptr, spill_slot);
     }
+    slot_offset += kBitsPerByte;
   }
 
   // Visit tagged parameters that have been passed to the function of this
@@ -1444,10 +1446,6 @@ Handle<Object> FrameSummary::JavaScriptFrameSummary::script() const {
   return handle(function_->shared().script(), isolate());
 }
 
-Handle<String> FrameSummary::JavaScriptFrameSummary::FunctionName() const {
-  return JSFunction::GetDebugName(function_);
-}
-
 Handle<Context> FrameSummary::JavaScriptFrameSummary::native_context() const {
   return handle(function_->context().native_context(), isolate());
 }
@@ -1483,13 +1481,6 @@ int FrameSummary::WasmFrameSummary::SourcePosition() const {
 Handle<Script> FrameSummary::WasmFrameSummary::script() const {
   return handle(wasm_instance()->module_object().script(),
                 wasm_instance()->GetIsolate());
-}
-
-Handle<String> FrameSummary::WasmFrameSummary::FunctionName() const {
-  Handle<WasmModuleObject> module_object(wasm_instance()->module_object(),
-                                         isolate());
-  return WasmModuleObject::GetFunctionName(isolate(), module_object,
-                                           function_index());
 }
 
 Handle<Context> FrameSummary::WasmFrameSummary::native_context() const {
@@ -1563,7 +1554,6 @@ FRAME_SUMMARY_DISPATCH(bool, is_subject_to_debugging)
 FRAME_SUMMARY_DISPATCH(Handle<Object>, script)
 FRAME_SUMMARY_DISPATCH(int, SourcePosition)
 FRAME_SUMMARY_DISPATCH(int, SourceStatementPosition)
-FRAME_SUMMARY_DISPATCH(Handle<String>, FunctionName)
 FRAME_SUMMARY_DISPATCH(Handle<Context>, native_context)
 
 #undef FRAME_SUMMARY_DISPATCH
@@ -1860,8 +1850,13 @@ int BuiltinFrame::ComputeParametersCount() const {
 #if V8_ENABLE_WEBASSEMBLY
 void WasmFrame::Print(StringStream* accumulator, PrintMode mode,
                       int index) const {
-  wasm::WasmCodeRefScope code_ref_scope;
   PrintIndex(accumulator, mode, index);
+  if (function_index() == wasm::kAnonymousFuncIndex) {
+    accumulator->Add("Anonymous wasm wrapper [pc: %p]\n",
+                     reinterpret_cast<void*>(pc()));
+    return;
+  }
+  wasm::WasmCodeRefScope code_ref_scope;
   accumulator->Add("WASM [");
   accumulator->PrintName(script().name());
   Address instruction_start = isolate()
@@ -1905,7 +1900,7 @@ WasmModuleObject WasmFrame::module_object() const {
   return wasm_instance().module_object();
 }
 
-uint32_t WasmFrame::function_index() const {
+int WasmFrame::function_index() const {
   wasm::WasmCodeRefScope code_ref_scope;
   return wasm_code()->index();
 }

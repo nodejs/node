@@ -8,9 +8,9 @@
 
 #include "include/cppgc/internal/logging.h"
 #include "src/base/bits.h"
+#include "src/base/sanitizer/asan.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-object-header.h"
-#include "src/heap/cppgc/sanitizers.h"
 
 namespace cppgc {
 namespace internal {
@@ -132,7 +132,7 @@ FreeList::Block FreeList::Allocate(size_t allocation_size) {
       // Final bucket candidate; check initial entry if it is able
       // to service this allocation. Do not perform a linear scan,
       // as it is considered too costly.
-      if (!entry || entry->GetSize() < allocation_size) break;
+      if (!entry || entry->AllocatedSize() < allocation_size) break;
     }
     if (entry) {
       if (!entry->Next()) {
@@ -141,7 +141,7 @@ FreeList::Block FreeList::Allocate(size_t allocation_size) {
       }
       entry->Unlink(&free_list_heads_[index]);
       biggest_free_list_index_ = index;
-      return {entry, entry->GetSize()};
+      return {entry, entry->AllocatedSize()};
     }
   }
   biggest_free_list_index_ = index;
@@ -158,7 +158,7 @@ size_t FreeList::Size() const {
   size_t size = 0;
   for (auto* entry : free_list_heads_) {
     while (entry) {
-      size += entry->GetSize();
+      size += entry->AllocatedSize();
       entry = entry->Next();
     }
   }
@@ -175,7 +175,7 @@ bool FreeList::ContainsForTesting(Block block) const {
     for (Entry* entry = list; entry; entry = entry->Next()) {
       if (entry <= block.address &&
           (reinterpret_cast<Address>(block.address) + block.size <=
-           reinterpret_cast<Address>(entry) + entry->GetSize()))
+           reinterpret_cast<Address>(entry) + entry->AllocatedSize()))
         return true;
     }
   }
@@ -204,7 +204,7 @@ void FreeList::CollectStatistics(
     size_t entry_size = 0;
     for (Entry* entry = free_list_heads_[i]; entry; entry = entry->Next()) {
       ++entry_count;
-      entry_size += entry->GetSize();
+      entry_size += entry->AllocatedSize();
     }
     bucket_size.push_back(static_cast<size_t>(1) << i);
     free_count.push_back(entry_count);

@@ -30,9 +30,9 @@
  * TODO(jochen): Remove calls form API methods to DO_NOT_USE macros.
  */
 
-#define LOG_API(isolate, class_name, function_name)                           \
-  i::RuntimeCallTimerScope _runtime_timer(                                    \
-      isolate, i::RuntimeCallCounterId::kAPI_##class_name##_##function_name); \
+#define LOG_API(isolate, class_name, function_name)                        \
+  RCS_SCOPE(isolate,                                                       \
+            i::RuntimeCallCounterId::kAPI_##class_name##_##function_name); \
   LOG(isolate, ApiEntryCall("v8::" #class_name "::" #function_name))
 
 #define ENTER_V8_DO_NOT_USE(isolate) i::VMState<v8::OTHER> __state__((isolate))
@@ -126,7 +126,3 @@
   EXCEPTION_BAILOUT_CHECK_SCOPED_DO_NOT_USE(isolate, Nothing<T>())
 
 #define RETURN_ESCAPED(value) return handle_scope.Escape(value);
-
-// TODO(jochen): This should be #ifdef DEBUG
-#ifdef V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY
-#endif

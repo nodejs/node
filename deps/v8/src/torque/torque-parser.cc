@@ -1954,22 +1954,23 @@ base::Optional<ParseResult> MakeAnnotation(ParseResultIterator* child_results) {
 }
 
 base::Optional<ParseResult> MakeClassField(ParseResultIterator* child_results) {
-  AnnotationSet annotations(child_results,
-                            {ANNOTATION_NO_VERIFIER, ANNOTATION_RELAXED_WRITE,
-                             ANNOTATION_RELAXED_READ, ANNOTATION_RELEASE_WRITE,
-                             ANNOTATION_ACQUIRE_READ},
-                            {ANNOTATION_IF, ANNOTATION_IFNOT});
+  AnnotationSet annotations(
+      child_results,
+      {ANNOTATION_NO_VERIFIER, ANNOTATION_CPP_RELAXED_STORE,
+       ANNOTATION_CPP_RELAXED_LOAD, ANNOTATION_CPP_RELEASE_STORE,
+       ANNOTATION_CPP_ACQUIRE_LOAD},
+      {ANNOTATION_IF, ANNOTATION_IFNOT});
   bool generate_verify = !annotations.Contains(ANNOTATION_NO_VERIFIER);
   FieldSynchronization write_synchronization = FieldSynchronization::kNone;
-  if (annotations.Contains(ANNOTATION_RELEASE_WRITE)) {
+  if (annotations.Contains(ANNOTATION_CPP_RELEASE_STORE)) {
     write_synchronization = FieldSynchronization::kAcquireRelease;
-  } else if (annotations.Contains(ANNOTATION_RELAXED_WRITE)) {
+  } else if (annotations.Contains(ANNOTATION_CPP_RELAXED_STORE)) {
     write_synchronization = FieldSynchronization::kRelaxed;
   }
   FieldSynchronization read_synchronization = FieldSynchronization::kNone;
-  if (annotations.Contains(ANNOTATION_ACQUIRE_READ)) {
+  if (annotations.Contains(ANNOTATION_CPP_ACQUIRE_LOAD)) {
     read_synchronization = FieldSynchronization::kAcquireRelease;
-  } else if (annotations.Contains(ANNOTATION_RELAXED_READ)) {
+  } else if (annotations.Contains(ANNOTATION_CPP_RELAXED_LOAD)) {
     read_synchronization = FieldSynchronization::kRelaxed;
   }
   std::vector<ConditionalAnnotation> conditions;

@@ -1475,9 +1475,7 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
     thrower.TypeError("Argument 0 contains results without 'length'");
     return;
   }
-  if (results_len > (enabled_features.has_mv()
-                         ? i::wasm::kV8MaxWasmFunctionMultiReturns
-                         : i::wasm::kV8MaxWasmFunctionReturns)) {
+  if (results_len > i::wasm::kV8MaxWasmFunctionReturns) {
     thrower.TypeError("Argument 0 contains too many results");
     return;
   }
@@ -2034,7 +2032,8 @@ Handle<JSFunction> InstallConstructorFunc(Isolate* isolate,
                                           Handle<JSObject> object,
                                           const char* str,
                                           FunctionCallback func) {
-  return InstallFunc(isolate, object, str, func, 1, true, DONT_ENUM);
+  return InstallFunc(isolate, object, str, func, 1, true, DONT_ENUM,
+                     SideEffectType::kHasNoSideEffect);
 }
 
 Handle<String> GetterName(Isolate* isolate, Handle<String> name) {
@@ -2064,7 +2063,8 @@ void InstallGetterSetter(Isolate* isolate, Handle<JSObject> object,
                          FunctionCallback setter) {
   Handle<String> name = v8_str(isolate, str);
   Handle<JSFunction> getter_func =
-      CreateFunc(isolate, GetterName(isolate, name), getter, false);
+      CreateFunc(isolate, GetterName(isolate, name), getter, false,
+                 SideEffectType::kHasNoSideEffect);
   Handle<JSFunction> setter_func =
       CreateFunc(isolate, SetterName(isolate, name), setter, false);
   setter_func->shared().set_length(1);
@@ -2148,11 +2148,12 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   JSFunction::SetInitialMap(isolate, module_constructor, module_map,
                             module_proto);
   InstallFunc(isolate, module_constructor, "imports", WebAssemblyModuleImports,
-              1);
+              1, false, NONE, SideEffectType::kHasNoSideEffect);
   InstallFunc(isolate, module_constructor, "exports", WebAssemblyModuleExports,
-              1);
+              1, false, NONE, SideEffectType::kHasNoSideEffect);
   InstallFunc(isolate, module_constructor, "customSections",
-              WebAssemblyModuleCustomSections, 2);
+              WebAssemblyModuleCustomSections, 2, false, NONE,
+              SideEffectType::kHasNoSideEffect);
   JSObject::AddProperty(isolate, module_proto, factory->to_string_tag_symbol(),
                         v8_str(isolate, "WebAssembly.Module"), ro_attributes);
 
@@ -2192,7 +2193,8 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   JSFunction::SetInitialMap(isolate, table_constructor, table_map, table_proto);
   InstallGetter(isolate, table_proto, "length", WebAssemblyTableGetLength);
   InstallFunc(isolate, table_proto, "grow", WebAssemblyTableGrow, 1);
-  InstallFunc(isolate, table_proto, "get", WebAssemblyTableGet, 1);
+  InstallFunc(isolate, table_proto, "get", WebAssemblyTableGet, 1, false, NONE,
+              SideEffectType::kHasNoSideEffect);
   InstallFunc(isolate, table_proto, "set", WebAssemblyTableSet, 2);
   if (enabled_features.has_type_reflection()) {
     InstallFunc(isolate, table_constructor, "type", WebAssemblyTableType, 1);
@@ -2232,7 +2234,8 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
       i::WASM_GLOBAL_OBJECT_TYPE, WasmGlobalObject::kHeaderSize);
   JSFunction::SetInitialMap(isolate, global_constructor, global_map,
                             global_proto);
-  InstallFunc(isolate, global_proto, "valueOf", WebAssemblyGlobalValueOf, 0);
+  InstallFunc(isolate, global_proto, "valueOf", WebAssemblyGlobalValueOf, 0,
+              false, NONE, SideEffectType::kHasNoSideEffect);
   InstallGetterSetter(isolate, global_proto, "value", WebAssemblyGlobalGetValue,
                       WebAssemblyGlobalSetValue);
   if (enabled_features.has_type_reflection()) {
@@ -2243,15 +2246,8 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
 
   // Setup Exception
   if (enabled_features.has_eh()) {
-    Handle<String> exception_name = v8_str(isolate, "Exception");
-    Handle<JSFunction> exception_constructor =
-        CreateFunc(isolate, exception_name, WebAssemblyException, true,
-                   SideEffectType::kHasSideEffect);
-    exception_constructor->shared().set_length(1);
-    JSObject::AddProperty(isolate, webassembly, exception_name,
-                          exception_constructor, DONT_ENUM);
-    // Install the constructor on the context unconditionally so that it is also
-    // available when the feature is enabled via the origin trial.
+    Handle<JSFunction> exception_constructor = InstallConstructorFunc(
+        isolate, webassembly, "Exception", WebAssemblyException);
     context->set_wasm_exception_constructor(*exception_constructor);
     SetDummyInstanceTemplate(isolate, exception_constructor);
     JSFunction::EnsureHasInitialMap(exception_constructor);
@@ -2332,7 +2328,6 @@ void WasmJs::InstallConditionalFeatures(Isolate* isolate,
     Handle<JSObject> webassembly = Handle<JSObject>::cast(webassembly_obj);
     // Setup Exception
     Handle<String> exception_name = v8_str(isolate, "Exception");
-
     if (JSObject::HasOwnProperty(webassembly, exception_name).FromMaybe(true)) {
       // The {Exception} constructor already exists, there is nothing more to
       // do.

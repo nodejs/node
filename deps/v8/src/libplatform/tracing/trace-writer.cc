@@ -9,7 +9,10 @@
 #include "base/trace_event/common/trace_event_common.h"
 #include "include/v8-platform.h"
 #include "src/base/platform/platform.h"
+
+#if defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
 #include "src/libplatform/tracing/recorder.h"
+#endif
 
 namespace v8 {
 namespace platform {
@@ -191,6 +194,7 @@ TraceWriter* TraceWriter::CreateJSONTraceWriter(std::ostream& stream,
   return new JSONTraceWriter(stream, tag);
 }
 
+#if defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
 SystemInstrumentationTraceWriter::SystemInstrumentationTraceWriter() {
   recorder_ = std::make_unique<Recorder>();
 }
@@ -211,6 +215,7 @@ void SystemInstrumentationTraceWriter::Flush() {}
 TraceWriter* TraceWriter::CreateSystemInstrumentationTraceWriter() {
   return new SystemInstrumentationTraceWriter();
 }
+#endif
 
 }  // namespace tracing
 }  // namespace platform

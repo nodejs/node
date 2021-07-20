@@ -222,9 +222,6 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 
   const AssemblerOptions& options() const { return options_; }
 
-  bool emit_debug_code() const { return emit_debug_code_; }
-  void set_emit_debug_code(bool value) { emit_debug_code_ = value; }
-
   bool predictable_code_size() const { return predictable_code_size_; }
   void set_predictable_code_size(bool value) { predictable_code_size_ = value; }
 
@@ -291,7 +288,10 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 
   // Record an inline code comment that can be used by a disassembler.
   // Use --code-comments to enable.
-  void RecordComment(const char* msg) {
+  V8_INLINE void RecordComment(const char* msg) {
+    // Set explicit dependency on --code-comments for dead-code elimination in
+    // release builds.
+    if (!FLAG_code_comments) return;
     if (options().emit_code_comments) {
       code_comments_writer_.Add(pc_offset(), std::string(msg));
     }
@@ -346,7 +346,7 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
     DCHECK(!RelocInfo::IsNone(rmode));
     if (options().disable_reloc_info_for_patching) return false;
     if (RelocInfo::IsOnlyForSerializer(rmode) &&
-        !options().record_reloc_info_for_serialization && !emit_debug_code()) {
+        !options().record_reloc_info_for_serialization && !FLAG_debug_code) {
       return false;
     }
     return true;
@@ -378,7 +378,6 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 
   const AssemblerOptions options_;
   uint64_t enabled_cpu_features_;
-  bool emit_debug_code_;
   bool predictable_code_size_;
 
   // Indicates whether the constant pool can be accessed, which is only possible
@@ -390,20 +389,6 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   // Constant pool.
   friend class FrameAndConstantPoolScope;
   friend class ConstantPoolUnavailableScope;
-};
-
-// Avoids emitting debug code during the lifetime of this scope object.
-class V8_NODISCARD DontEmitDebugCodeScope {
- public:
-  explicit DontEmitDebugCodeScope(AssemblerBase* assembler)
-      : assembler_(assembler), old_value_(assembler->emit_debug_code()) {
-    assembler_->set_emit_debug_code(false);
-  }
-  ~DontEmitDebugCodeScope() { assembler_->set_emit_debug_code(old_value_); }
-
- private:
-  AssemblerBase* assembler_;
-  bool old_value_;
 };
 
 // Enable a specified feature within a scope.
@@ -425,7 +410,7 @@ class V8_EXPORT_PRIVATE V8_NODISCARD CpuFeatureScope {
 #else
   CpuFeatureScope(AssemblerBase* assembler, CpuFeature f,
                   CheckPolicy check = kCheckSupported) {}
-  ~CpuFeatureScope() {  // NOLINT (modernize-use-equals-default)
+  ~CpuFeatureScope() {
     // Define a destructor to avoid unused variable warnings.
   }
 #endif

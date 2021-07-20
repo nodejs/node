@@ -74,6 +74,10 @@ void ReadOnlySerializer::SerializeReadOnlyRoots() {
                 isolate()->handle_scope_implementer()->blocks()->empty());
 
   ReadOnlyRoots(isolate()).Iterate(this);
+
+  if (reconstruct_read_only_object_cache_for_testing()) {
+    ReconstructReadOnlyObjectCacheForTesting();
+  }
 }
 
 void ReadOnlySerializer::FinalizeSerialization() {
@@ -127,6 +131,19 @@ bool ReadOnlySerializer::SerializeUsingReadOnlyObjectCache(
   sink->PutInt(cache_index, "read_only_object_cache_index");
 
   return true;
+}
+
+void ReadOnlySerializer::ReconstructReadOnlyObjectCacheForTesting() {
+  ReadOnlyHeap* ro_heap = isolate()->read_only_heap();
+  DCHECK(ro_heap->read_only_object_cache_is_initialized());
+  for (size_t i = 0, size = ro_heap->read_only_object_cache_size(); i < size;
+       i++) {
+    Handle<HeapObject> obj(
+        HeapObject::cast(ro_heap->cached_read_only_object(i)), isolate());
+    int cache_index = SerializeInObjectCache(obj);
+    USE(cache_index);
+    DCHECK_EQ(cache_index, i);
+  }
 }
 
 }  // namespace internal

@@ -238,7 +238,14 @@ struct HeapObjectMatcherImpl final
   }
 
   HeapObjectRef Ref(JSHeapBroker* broker) const {
-    return HeapObjectRef(broker, this->ResolvedValue());
+    // TODO(jgruber,chromium:1209798): Using kAssumeMemoryFence works around
+    // the fact that the graph stores handles (and not refs). The assumption is
+    // that any handle inserted into the graph is safe to read; but we don't
+    // preserve the reason why it is safe to read. Thus we must over-approximate
+    // here and assume the existence of a memory fence. In the future, we should
+    // consider having the graph store ObjectRefs or ObjectData pointer instead,
+    // which would make new ref construction here unnecessary.
+    return MakeRefAssumeMemoryFence(broker, this->ResolvedValue());
   }
 };
 

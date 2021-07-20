@@ -7,6 +7,7 @@
 #include "src/ast/ast.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/codegen/code-factory.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/js-graph.h"
@@ -715,8 +716,8 @@ void JSGenericLowering::LowerJSCreateLiteralArray(Node* node) {
 void JSGenericLowering::LowerJSGetTemplateObject(Node* node) {
   JSGetTemplateObjectNode n(node);
   GetTemplateObjectParameters const& p = n.Parameters();
-  SharedFunctionInfoRef shared(broker(), p.shared());
-  TemplateObjectDescriptionRef description(broker(), p.description());
+  SharedFunctionInfoRef shared = MakeRef(broker(), p.shared());
+  TemplateObjectDescriptionRef description = MakeRef(broker(), p.description());
 
   DCHECK_EQ(node->op()->ControlInputCount(), 1);
   node->RemoveInput(NodeProperties::FirstControlIndex(node));
@@ -1443,7 +1444,7 @@ void JSGenericLowering::LowerJSStackCheck(Node* node) {
 }
 
 void JSGenericLowering::LowerJSDebugger(Node* node) {
-  ReplaceWithBuiltinCall(node, Builtins::kHandleDebuggerStatement);
+  ReplaceWithRuntimeCall(node, Runtime::kHandleDebuggerStatement);
 }
 
 Zone* JSGenericLowering::zone() const { return graph()->zone(); }

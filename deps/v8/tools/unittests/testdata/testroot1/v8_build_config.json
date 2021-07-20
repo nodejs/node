@@ -21,6 +21,9 @@
   "v8_enable_verify_csa": false,
   "v8_enable_lite_mode": false,
   "v8_enable_pointer_compression": true,
+  "v8_enable_pointer_compression_shared_cage": true,
   "v8_control_flow_integrity": false,
+  "v8_enable_single_generation": false,
+  "v8_enable_third_party_heap": false,
   "v8_enable_webassembly": true
 }

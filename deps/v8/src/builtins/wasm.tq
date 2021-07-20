@@ -287,8 +287,9 @@ builtin WasmAllocateRtt(typeIndex: intptr, parent: Map): Map {
 }
 
 builtin WasmAllocateStructWithRtt(rtt: Map): HeapObject {
-  const instanceSize: intptr =
-      unsafe::TimesTaggedSize(Convert<intptr>(rtt.instance_size_in_words));
+  const typeInfo: WasmTypeInfo = %RawDownCast<WasmTypeInfo>(
+      rtt.constructor_or_back_pointer_or_native_context);
+  const instanceSize: intptr = SmiUntag(typeInfo.instance_size);
   const result: HeapObject = unsafe::Allocate(
       instanceSize, AllocationFlag::kAllowLargeObjectAllocation);
   *UnsafeConstCast(&result.map) = rtt;

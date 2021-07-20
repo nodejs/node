@@ -132,6 +132,9 @@ class SingleCopyReadOnlyArtifacts : public ReadOnlyArtifacts {
                   const AllocationStats& stats) override;
   void ReinstallReadOnlySpace(Isolate* isolate) override;
   void VerifyHeapAndSpaceRelationships(Isolate* isolate) override;
+
+ private:
+  v8::PageAllocator* page_allocator_ = nullptr;
 };
 
 // -----------------------------------------------------------------------------

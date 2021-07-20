@@ -77,13 +77,18 @@ class JSArrayBuffer
   // [is_asmjs_memory]: true => this buffer was once used as asm.js memory.
   DECL_BOOLEAN_ACCESSORS(is_asmjs_memory)
 
-  // [is_shared]: tells whether this is an ArrayBuffer or a SharedArrayBuffer.
+  // [is_shared]: true if this is a SharedArrayBuffer or a
+  // GrowableSharedArrayBuffer.
   DECL_BOOLEAN_ACCESSORS(is_shared)
+
+  // [is_resizable]: true if this is a ResizableArrayBuffer or a
+  // GrowableSharedArrayBuffer.
+  DECL_BOOLEAN_ACCESSORS(is_resizable)
 
   // Initializes the fields of the ArrayBuffer. The provided backing_store can
   // be nullptr. If it is not nullptr, then the function registers it with
   // src/heap/array-buffer-tracker.h.
-  V8_EXPORT_PRIVATE void Setup(SharedFlag shared,
+  V8_EXPORT_PRIVATE void Setup(SharedFlag shared, ResizableFlag resizable,
                                std::shared_ptr<BackingStore> backing_store);
 
   // Attaches the backing store to an already constructed empty ArrayBuffer.
@@ -167,7 +172,7 @@ class ArrayBufferExtension : public Malloced {
   std::atomic<GcState> young_gc_state_;
   std::shared_ptr<BackingStore> backing_store_;
   ArrayBufferExtension* next_;
-  std::size_t accounting_length_;
+  std::atomic<size_t> accounting_length_;
 
   GcState young_gc_state() {
     return young_gc_state_.load(std::memory_order_relaxed);
@@ -205,10 +210,16 @@ class ArrayBufferExtension : public Malloced {
   std::shared_ptr<BackingStore> backing_store() { return backing_store_; }
   BackingStore* backing_store_raw() { return backing_store_.get(); }
 
-  size_t accounting_length() { return accounting_length_; }
+  size_t accounting_length() {
+    return accounting_length_.load(std::memory_order_relaxed);
+  }
 
   void set_accounting_length(size_t accounting_length) {
-    accounting_length_ = accounting_length;
+    accounting_length_.store(accounting_length, std::memory_order_relaxed);
+  }
+
+  size_t ClearAccountingLength() {
+    return accounting_length_.exchange(0, std::memory_order_relaxed);
   }
 
   std::shared_ptr<BackingStore> RemoveBackingStore() {
@@ -253,6 +264,9 @@ class JSTypedArray
   // eventually.
   static constexpr size_t kMaxLength = v8::TypedArray::kMaxLength;
 
+  // Bit positions for [bit_field].
+  DEFINE_TORQUE_GENERATED_JS_TYPED_ARRAY_FLAGS()
+
   // [length]: length of typed array in elements.
   DECL_PRIMITIVE_GETTER(length, size_t)
 
@@ -265,7 +279,7 @@ class JSTypedArray
       PropertyDescriptor* desc, Maybe<ShouldThrow> should_throw);
 
   ExternalArrayType type();
-  V8_EXPORT_PRIVATE size_t element_size();
+  V8_EXPORT_PRIVATE size_t element_size() const;
 
   V8_EXPORT_PRIVATE Handle<JSArrayBuffer> GetBuffer();
 
@@ -289,6 +303,14 @@ class JSTypedArray
   // Whether the buffer's backing store is on-heap or off-heap.
   inline bool is_on_heap() const;
   inline bool is_on_heap(AcquireLoadTag tag) const;
+
+  DECL_BOOLEAN_ACCESSORS(is_length_tracking)
+  DECL_BOOLEAN_ACCESSORS(is_backed_by_rab)
+  inline bool IsVariableLength() const;
+  inline size_t GetLength() const;
+
+  static size_t LengthTrackingGsabBackedTypedArrayLength(Isolate* isolate,
+                                                         Address raw_array);
 
   // Note: this is a pointer compression specific optimization.
   // Normally, on-heap typed arrays contain HeapObject value in |base_pointer|
@@ -346,6 +368,9 @@ class JSTypedArray
   friend class Factory;
 
   DECL_PRIMITIVE_SETTER(length, size_t)
+  // Reads the "length" field, doesn't assert the TypedArray is not RAB / GSAB
+  // backed.
+  inline size_t LengthUnchecked() const;
 
   DECL_GETTER(external_pointer, Address)
   DECL_GETTER(external_pointer_raw, ExternalPointer_t)

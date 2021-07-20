@@ -293,13 +293,11 @@ void* RegExpUnparser::VisitEmpty(RegExpEmpty* that, void* data) {
   return nullptr;
 }
 
-
-std::ostream& RegExpTree::Print(std::ostream& os, Zone* zone) {  // NOLINT
+std::ostream& RegExpTree::Print(std::ostream& os, Zone* zone) {
   RegExpUnparser unparser(os, zone);
   Accept(&unparser, nullptr);
   return os;
 }
-
 
 RegExpDisjunction::RegExpDisjunction(ZoneList<RegExpTree*>* alternatives)
     : alternatives_(alternatives) {

@@ -388,6 +388,8 @@ TEST(TracedGlobalToUnmodifiedJSApiObjectDiesOnScavenge) {
 }
 
 TEST(TracedGlobalToJSApiObjectWithIdentityHashSurvivesScavenge) {
+  if (FLAG_single_generation) return;
+
   ManualGCScope manual_gc;
   CcTest::InitializeVM();
   Isolate* i_isolate = CcTest::i_isolate();
@@ -441,6 +443,7 @@ TEST(WeakHandleToUnmodifiedJSApiObjectSurvivesMarkCompactWhenInHandle) {
 }
 
 TEST(TracedGlobalToJSApiObjectWithModifiedMapSurvivesScavenge) {
+  if (FLAG_single_generation) return;
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
   LocalContext context;
@@ -462,6 +465,7 @@ TEST(TracedGlobalToJSApiObjectWithModifiedMapSurvivesScavenge) {
 }
 
 TEST(TracedGlobalTOJsApiObjectWithElementsSurvivesScavenge) {
+  if (FLAG_single_generation) return;
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
   LocalContext context;

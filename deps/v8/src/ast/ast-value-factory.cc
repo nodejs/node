@@ -61,8 +61,8 @@ class OneByteStringStream {
 
 }  // namespace
 
-template <typename LocalIsolate>
-void AstRawString::Internalize(LocalIsolate* isolate) {
+template <typename IsolateT>
+void AstRawString::Internalize(IsolateT* isolate) {
   DCHECK(!has_string_);
   if (literal_bytes_.length() == 0) {
     set_string(isolate->factory()->empty_string());
@@ -185,8 +185,8 @@ int AstRawString::Compare(const AstRawString* lhs, const AstRawString* rhs) {
   return lhs->byte_length() - rhs->byte_length();
 }
 
-template <typename LocalIsolate>
-Handle<String> AstConsString::Allocate(LocalIsolate* isolate) const {
+template <typename IsolateT>
+Handle<String> AstConsString::Allocate(IsolateT* isolate) const {
   DCHECK(string_.is_null());
 
   if (IsEmpty()) {
@@ -210,8 +210,8 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<String> AstConsString::Allocate<LocalIsolate>(
         LocalIsolate* isolate) const;
 
-template <typename LocalIsolate>
-Handle<String> AstConsString::AllocateFlat(LocalIsolate* isolate) const {
+template <typename IsolateT>
+Handle<String> AstConsString::AllocateFlat(IsolateT* isolate) const {
   if (IsEmpty()) {
     return isolate->factory()->empty_string();
   }
@@ -370,8 +370,8 @@ AstConsString* AstValueFactory::NewConsString(const AstRawString* str1,
   return NewConsString()->AddString(zone(), str1)->AddString(zone(), str2);
 }
 
-template <typename LocalIsolate>
-void AstValueFactory::Internalize(LocalIsolate* isolate) {
+template <typename IsolateT>
+void AstValueFactory::Internalize(IsolateT* isolate) {
   if (!zone_) return;
 
   // Strings need to be internalized before values, because values refer to

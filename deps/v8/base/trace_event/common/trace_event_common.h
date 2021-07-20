@@ -256,10 +256,8 @@ namespace perfetto {
 namespace legacy {
 
 template <>
-bool BASE_EXPORT ConvertThreadId(const ::base::PlatformThreadId& thread,
-                                 uint64_t* track_uuid_out,
-                                 int32_t* pid_override_out,
-                                 int32_t* tid_override_out);
+perfetto::ThreadTrack BASE_EXPORT
+ConvertThreadId(const ::base::PlatformThreadId& thread);
 
 }  // namespace legacy
 

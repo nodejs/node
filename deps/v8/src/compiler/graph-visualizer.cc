@@ -421,7 +421,7 @@ std::ostream& operator<<(std::ostream& os, const GraphAsJSON& ad) {
 
 class GraphC1Visualizer {
  public:
-  GraphC1Visualizer(std::ostream& os, Zone* zone);  // NOLINT
+  GraphC1Visualizer(std::ostream& os, Zone* zone);
   GraphC1Visualizer(const GraphC1Visualizer&) = delete;
   GraphC1Visualizer& operator=(const GraphC1Visualizer&) = delete;
 
@@ -1132,8 +1132,9 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperandAsJSON& o) {
           os << ",\"tooltip\": \"MUST_HAVE_SLOT\"";
           break;
         }
-        case UnallocatedOperand::SAME_AS_FIRST_INPUT: {
-          os << ",\"tooltip\": \"SAME_AS_FIRST_INPUT\"";
+        case UnallocatedOperand::SAME_AS_INPUT: {
+          os << ",\"tooltip\": \"SAME_AS_INPUT: " << unalloc->input_index()
+             << "\"";
           break;
         }
         case UnallocatedOperand::REGISTER_OR_SLOT: {

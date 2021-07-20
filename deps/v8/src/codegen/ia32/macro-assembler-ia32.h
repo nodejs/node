@@ -44,9 +44,6 @@ class StatsCounter;
 // distinguish memory operands from other operands on ia32.
 using MemOperand = Operand;
 
-enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
-enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
-
 // TODO(victorgomes): Move definition to macro-assembler.h, once all other
 // platforms are updated.
 enum class StackLimitKind { kInterruptStackLimit, kRealStackLimit };
@@ -122,6 +119,13 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   void CheckStackAlignment();
 
   // Move a constant into a destination using the most efficient encoding.
+  void Move(Register dst, int32_t x) {
+    if (x == 0) {
+      xor_(dst, dst);
+    } else {
+      mov(dst, Immediate(x));
+    }
+  }
   void Move(Register dst, const Immediate& src);
   void Move(Register dst, Smi src) { Move(dst, Immediate(src)); }
   void Move(Register dst, Handle<HeapObject> src);
@@ -301,152 +305,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   // may be bigger than 2^16 - 1.  Requires a scratch register.
   void Ret(int bytes_dropped, Register scratch);
 
-// Only use these macros when non-destructive source of AVX version is not
-// needed.
-#define AVX_OP3_WITH_TYPE(macro_name, name, dst_type, src_type) \
-  void macro_name(dst_type dst, src_type src) {                 \
-    if (CpuFeatures::IsSupported(AVX)) {                        \
-      CpuFeatureScope scope(this, AVX);                         \
-      v##name(dst, dst, src);                                   \
-    } else {                                                    \
-      name(dst, src);                                           \
-    }                                                           \
-  }
-#define AVX_OP3_XO(macro_name, name)                            \
-  AVX_OP3_WITH_TYPE(macro_name, name, XMMRegister, XMMRegister) \
-  AVX_OP3_WITH_TYPE(macro_name, name, XMMRegister, Operand)
-
-  AVX_OP3_XO(Packsswb, packsswb)
-  AVX_OP3_XO(Packuswb, packuswb)
-  AVX_OP3_XO(Paddusb, paddusb)
-  AVX_OP3_XO(Pand, pand)
-  AVX_OP3_XO(Pcmpeqb, pcmpeqb)
-  AVX_OP3_XO(Pcmpeqw, pcmpeqw)
-  AVX_OP3_XO(Pcmpeqd, pcmpeqd)
-  AVX_OP3_XO(Por, por)
-  AVX_OP3_XO(Psubb, psubb)
-  AVX_OP3_XO(Psubw, psubw)
-  AVX_OP3_XO(Psubd, psubd)
-  AVX_OP3_XO(Psubq, psubq)
-  AVX_OP3_XO(Punpcklbw, punpcklbw)
-  AVX_OP3_XO(Punpckhbw, punpckhbw)
-  AVX_OP3_XO(Punpckldq, punpckldq)
-  AVX_OP3_XO(Punpcklqdq, punpcklqdq)
-  AVX_OP3_XO(Pxor, pxor)
-  AVX_OP3_XO(Andps, andps)
-  AVX_OP3_XO(Andpd, andpd)
-  AVX_OP3_XO(Xorps, xorps)
-  AVX_OP3_XO(Xorpd, xorpd)
-  AVX_OP3_XO(Sqrtss, sqrtss)
-  AVX_OP3_XO(Sqrtsd, sqrtsd)
-  AVX_OP3_XO(Orps, orps)
-  AVX_OP3_XO(Orpd, orpd)
-  AVX_OP3_XO(Andnpd, andnpd)
-  AVX_OP3_WITH_TYPE(Movhlps, movhlps, XMMRegister, XMMRegister)
-  AVX_OP3_WITH_TYPE(Psraw, psraw, XMMRegister, uint8_t)
-  AVX_OP3_WITH_TYPE(Psrlq, psrlq, XMMRegister, uint8_t)
-
-#undef AVX_OP3_XO
-#undef AVX_OP3_WITH_TYPE
-
-// Same as AVX_OP3_WITH_TYPE but supports a CpuFeatureScope
-#define AVX_OP2_WITH_TYPE_SCOPE(macro_name, name, dst_type, src_type, \
-                                sse_scope)                            \
-  void macro_name(dst_type dst, src_type src) {                       \
-    if (CpuFeatures::IsSupported(AVX)) {                              \
-      CpuFeatureScope scope(this, AVX);                               \
-      v##name(dst, dst, src);                                         \
-    } else if (CpuFeatures::IsSupported(sse_scope)) {                 \
-      CpuFeatureScope scope(this, sse_scope);                         \
-      name(dst, src);                                                 \
-    }                                                                 \
-  }
-#define AVX_OP2_XO(macro_name, name, sse_scope)                       \
-  AVX_OP2_WITH_TYPE_SCOPE(macro_name, name, XMMRegister, XMMRegister, \
-                          sse_scope)                                  \
-  AVX_OP2_WITH_TYPE_SCOPE(macro_name, name, XMMRegister, Operand, sse_scope)
-  AVX_OP2_XO(Psignb, psignb, SSSE3)
-  AVX_OP2_XO(Psignw, psignw, SSSE3)
-  AVX_OP2_XO(Psignd, psignd, SSSE3)
-  AVX_OP2_XO(Pcmpeqq, pcmpeqq, SSE4_1)
-#undef AVX_OP2_XO
-#undef AVX_OP2_WITH_TYPE_SCOPE
-
-// Only use this macro when dst and src1 is the same in SSE case.
-#define AVX_PACKED_OP3_WITH_TYPE(macro_name, name, dst_type, src_type) \
-  void macro_name(dst_type dst, dst_type src1, src_type src2) {        \
-    if (CpuFeatures::IsSupported(AVX)) {                               \
-      CpuFeatureScope scope(this, AVX);                                \
-      v##name(dst, src1, src2);                                        \
-    } else {                                                           \
-      DCHECK_EQ(dst, src1);                                            \
-      name(dst, src2);                                                 \
-    }                                                                  \
-  }
-#define AVX_PACKED_OP3(macro_name, name)                               \
-  AVX_PACKED_OP3_WITH_TYPE(macro_name, name, XMMRegister, XMMRegister) \
-  AVX_PACKED_OP3_WITH_TYPE(macro_name, name, XMMRegister, Operand)
-
-  AVX_PACKED_OP3(Unpcklps, unpcklps)
-  AVX_PACKED_OP3(Andnps, andnps)
-  AVX_PACKED_OP3(Addps, addps)
-  AVX_PACKED_OP3(Addpd, addpd)
-  AVX_PACKED_OP3(Subps, subps)
-  AVX_PACKED_OP3(Subpd, subpd)
-  AVX_PACKED_OP3(Mulps, mulps)
-  AVX_PACKED_OP3(Mulpd, mulpd)
-  AVX_PACKED_OP3(Divps, divps)
-  AVX_PACKED_OP3(Divpd, divpd)
-  AVX_PACKED_OP3(Cmpeqpd, cmpeqpd)
-  AVX_PACKED_OP3(Cmpneqpd, cmpneqpd)
-  AVX_PACKED_OP3(Cmpltpd, cmpltpd)
-  AVX_PACKED_OP3(Cmpleps, cmpleps)
-  AVX_PACKED_OP3(Cmplepd, cmplepd)
-  AVX_PACKED_OP3(Minps, minps)
-  AVX_PACKED_OP3(Minpd, minpd)
-  AVX_PACKED_OP3(Maxps, maxps)
-  AVX_PACKED_OP3(Maxpd, maxpd)
-  AVX_PACKED_OP3(Cmpunordps, cmpunordps)
-  AVX_PACKED_OP3(Cmpunordpd, cmpunordpd)
-  AVX_PACKED_OP3(Psllw, psllw)
-  AVX_PACKED_OP3(Pslld, pslld)
-  AVX_PACKED_OP3(Psllq, psllq)
-  AVX_PACKED_OP3(Psrlw, psrlw)
-  AVX_PACKED_OP3(Psrld, psrld)
-  AVX_PACKED_OP3(Psrlq, psrlq)
-  AVX_PACKED_OP3(Psraw, psraw)
-  AVX_PACKED_OP3(Psrad, psrad)
-  AVX_PACKED_OP3(Paddd, paddd)
-  AVX_PACKED_OP3(Paddq, paddq)
-  AVX_PACKED_OP3(Psubd, psubd)
-  AVX_PACKED_OP3(Psubq, psubq)
-  AVX_PACKED_OP3(Pmuludq, pmuludq)
-  AVX_PACKED_OP3(Pavgb, pavgb)
-  AVX_PACKED_OP3(Pavgw, pavgw)
-  AVX_PACKED_OP3(Pand, pand)
-  AVX_PACKED_OP3(Pminub, pminub)
-  AVX_PACKED_OP3(Pmaxub, pmaxub)
-  AVX_PACKED_OP3(Paddusb, paddusb)
-  AVX_PACKED_OP3(Psubusb, psubusb)
-  AVX_PACKED_OP3(Pcmpgtb, pcmpgtb)
-  AVX_PACKED_OP3(Pcmpeqb, pcmpeqb)
-  AVX_PACKED_OP3(Paddb, paddb)
-  AVX_PACKED_OP3(Paddsb, paddsb)
-  AVX_PACKED_OP3(Psubb, psubb)
-  AVX_PACKED_OP3(Psubsb, psubsb)
-
-#undef AVX_PACKED_OP3
-
-  AVX_PACKED_OP3_WITH_TYPE(Psllw, psllw, XMMRegister, uint8_t)
-  AVX_PACKED_OP3_WITH_TYPE(Pslld, pslld, XMMRegister, uint8_t)
-  AVX_PACKED_OP3_WITH_TYPE(Psllq, psllq, XMMRegister, uint8_t)
-  AVX_PACKED_OP3_WITH_TYPE(Psrlw, psrlw, XMMRegister, uint8_t)
-  AVX_PACKED_OP3_WITH_TYPE(Psrld, psrld, XMMRegister, uint8_t)
-  AVX_PACKED_OP3_WITH_TYPE(Psrlq, psrlq, XMMRegister, uint8_t)
-  AVX_PACKED_OP3_WITH_TYPE(Psraw, psraw, XMMRegister, uint8_t)
-  AVX_PACKED_OP3_WITH_TYPE(Psrad, psrad, XMMRegister, uint8_t)
-
-#undef AVX_PACKED_OP3_WITH_TYPE
+  // Defined here because some callers take a pointer to member functions.
+  AVX_OP(Pcmpeqb, pcmpeqb)
+  AVX_OP(Pcmpeqw, pcmpeqw)
+  AVX_OP(Pcmpeqd, pcmpeqd)
+  AVX_OP_SSE4_1(Pcmpeqq, pcmpeqq)
 
 // Macro for instructions that have 2 operands for AVX version and 1 operand for
 // SSE version. Will move src1 to dst if dst != src1.
@@ -468,35 +331,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   AVX_OP3_WITH_MOVE(Pmaddwd, pmaddwd, XMMRegister, Operand)
 #undef AVX_OP3_WITH_MOVE
 
-#define AVX_OP3_WITH_TYPE_SCOPE(macro_name, name, dst_type, src_type, \
-                                sse_scope)                            \
-  void macro_name(dst_type dst, dst_type src1, src_type src2) {       \
-    if (CpuFeatures::IsSupported(AVX)) {                              \
-      CpuFeatureScope scope(this, AVX);                               \
-      v##name(dst, src1, src2);                                       \
-      return;                                                         \
-    }                                                                 \
-    if (CpuFeatures::IsSupported(sse_scope)) {                        \
-      CpuFeatureScope scope(this, sse_scope);                         \
-      DCHECK_EQ(dst, src1);                                           \
-      name(dst, src2);                                                \
-      return;                                                         \
-    }                                                                 \
-    UNREACHABLE();                                                    \
-  }
-#define AVX_OP3_XO_SSE4(macro_name, name)                                     \
-  AVX_OP3_WITH_TYPE_SCOPE(macro_name, name, XMMRegister, XMMRegister, SSE4_1) \
-  AVX_OP3_WITH_TYPE_SCOPE(macro_name, name, XMMRegister, Operand, SSE4_1)
-
-  AVX_OP3_WITH_TYPE_SCOPE(Haddps, haddps, XMMRegister, Operand, SSE3)
-  AVX_OP3_XO_SSE4(Pmaxsd, pmaxsd)
-  AVX_OP3_XO_SSE4(Pminsb, pminsb)
-  AVX_OP3_XO_SSE4(Pmaxsb, pmaxsb)
-  AVX_OP3_XO_SSE4(Pcmpeqq, pcmpeqq)
-
-#undef AVX_OP3_XO_SSE4
-#undef AVX_OP3_WITH_TYPE_SCOPE
-
   // TODO(zhin): Remove after moving more definitions into SharedTurboAssembler.
   void Movlps(Operand dst, XMMRegister src) {
     SharedTurboAssembler::Movlps(dst, src);
@@ -512,16 +346,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
     Pshufb(dst, src, Operand(mask));
   }
   void Pshufb(XMMRegister dst, XMMRegister src, Operand mask);
-
-  void Pblendw(XMMRegister dst, XMMRegister src, uint8_t imm8) {
-    Pblendw(dst, Operand(src), imm8);
-  }
-  void Pblendw(XMMRegister dst, Operand src, uint8_t imm8);
-
-  void Palignr(XMMRegister dst, XMMRegister src, uint8_t imm8) {
-    Palignr(dst, Operand(src), imm8);
-  }
-  void Palignr(XMMRegister dst, Operand src, uint8_t imm8);
 
   void Pextrd(Register dst, XMMRegister src, uint8_t imm8);
   void Pinsrb(XMMRegister dst, Register src, int8_t imm8) {
@@ -543,10 +367,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   // Moves src1 to dst if AVX is not supported.
   void Pinsrw(XMMRegister dst, XMMRegister src1, Operand src2, int8_t imm8);
   void Vbroadcastss(XMMRegister dst, Operand src);
-
-  // Shufps that will mov src1 into dst if AVX is not supported.
-  void Shufps(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-              uint8_t imm8);
 
   // Expression support
   // cvtsi2sd instruction only writes to the low 64-bit of dst register, which
@@ -680,15 +500,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
  public:
   using TurboAssembler::TurboAssembler;
 
-  // Load a register with a long value as efficiently as possible.
-  void Set(Register dst, int32_t x) {
-    if (x == 0) {
-      xor_(dst, dst);
-    } else {
-      mov(dst, Immediate(x));
-    }
-  }
-
   void PushRoot(RootIndex index);
 
   // Compare the object in a register to a value and jump if they are equal.
@@ -722,8 +533,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void RecordWriteField(
       Register object, int offset, Register value, Register scratch,
       SaveFPRegsMode save_fp,
-      RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
-      SmiCheck smi_check = INLINE_SMI_CHECK);
+      RememberedSetAction remembered_set_action = RememberedSetAction::kEmit,
+      SmiCheck smi_check = SmiCheck::kInline);
 
   // For page containing |object| mark region covering |address|
   // dirty. |object| is the object being stored into, |value| is the
@@ -732,11 +543,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // write barrier if the value is a smi.
   void RecordWrite(
       Register object, Register address, Register value, SaveFPRegsMode save_fp,
-      RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
-      SmiCheck smi_check = INLINE_SMI_CHECK);
-
-  // Frame restart support
-  void MaybeDropFrames();
+      RememberedSetAction remembered_set_action = RememberedSetAction::kEmit,
+      SmiCheck smi_check = SmiCheck::kInline);
 
   // Enter specific kind of exit frame. Expects the number of
   // arguments in register eax and sets up the number of arguments in
@@ -768,7 +576,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   void InvokeFunctionCode(Register function, Register new_target,
                           Register expected_parameter_count,
-                          Register actual_parameter_count, InvokeFlag flag);
+                          Register actual_parameter_count, InvokeType type);
 
   // On function call, call into the debugger.
   // This may clobber ecx.
@@ -779,7 +587,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
   void InvokeFunction(Register function, Register new_target,
-                      Register actual_parameter_count, InvokeFlag flag);
+                      Register actual_parameter_count, InvokeType type);
 
   // Compare object type for heap object.
   // Incoming register is heap_object and outgoing register is map.
@@ -865,18 +673,18 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // Call a runtime routine.
   void CallRuntime(const Runtime::Function* f, int num_arguments,
-                   SaveFPRegsMode save_doubles = kDontSaveFPRegs);
+                   SaveFPRegsMode save_doubles = SaveFPRegsMode::kIgnore);
 
   // Convenience function: Same as above, but takes the fid instead.
   void CallRuntime(Runtime::FunctionId fid,
-                   SaveFPRegsMode save_doubles = kDontSaveFPRegs) {
+                   SaveFPRegsMode save_doubles = SaveFPRegsMode::kIgnore) {
     const Runtime::Function* function = Runtime::FunctionForId(fid);
     CallRuntime(function, function->nargs, save_doubles);
   }
 
   // Convenience function: Same as above, but takes the fid instead.
   void CallRuntime(Runtime::FunctionId fid, int num_arguments,
-                   SaveFPRegsMode save_doubles = kDontSaveFPRegs) {
+                   SaveFPRegsMode save_doubles = SaveFPRegsMode::kIgnore) {
     CallRuntime(Runtime::FunctionForId(fid), num_arguments, save_doubles);
   }
 
@@ -921,7 +729,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // Helper functions for generating invokes.
   void InvokePrologue(Register expected_parameter_count,
                       Register actual_parameter_count, Label* done,
-                      InvokeFlag flag);
+                      InvokeType type);
 
   void EnterExitFramePrologue(StackFrame::Type frame_type, Register scratch);
   void EnterExitFrameEpilogue(int argc, bool save_doubles);

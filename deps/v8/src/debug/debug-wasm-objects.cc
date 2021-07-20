@@ -323,15 +323,7 @@ struct FunctionsProxy : NamedDebugProxy<FunctionsProxy, kFunctionsProxy> {
   static Handle<String> GetName(Isolate* isolate,
                                 Handle<WasmInstanceObject> instance,
                                 uint32_t index) {
-    Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
-    MaybeHandle<String> name =
-        WasmModuleObject::GetFunctionNameOrNull(isolate, module_object, index);
-    if (name.is_null()) {
-      name = GetNameFromImportsAndExportsOrNull(
-          isolate, instance, wasm::ImportExportKindCode::kExternalFunction,
-          index);
-    }
-    return GetNameOrDefault(isolate, name, "$func", index);
+    return GetWasmFunctionDebugName(isolate, instance, index);
   }
 };
 
@@ -1050,78 +1042,75 @@ std::unique_ptr<debug::ScopeIterator> GetWasmScopeIterator(WasmFrame* frame) {
   return std::make_unique<DebugWasmScopeIterator>(frame);
 }
 
-Handle<JSArray> GetWasmInstanceObjectInternalProperties(
-    Handle<WasmInstanceObject> instance) {
-  Isolate* isolate = instance->GetIsolate();
-  Handle<FixedArray> result = isolate->factory()->NewFixedArray(2 * 5);
-  int length = 0;
+Handle<String> GetWasmFunctionDebugName(Isolate* isolate,
+                                        Handle<WasmInstanceObject> instance,
+                                        uint32_t func_index) {
+  Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
+  MaybeHandle<String> maybe_name = WasmModuleObject::GetFunctionNameOrNull(
+      isolate, module_object, func_index);
+  if (module_object->is_asm_js()) {
+    // In case of asm.js, we use the names from the function declarations.
+    return maybe_name.ToHandleChecked();
+  }
+  if (maybe_name.is_null()) {
+    maybe_name = GetNameFromImportsAndExportsOrNull(
+        isolate, instance, wasm::ImportExportKindCode::kExternalFunction,
+        func_index);
+  }
+  return GetNameOrDefault(isolate, maybe_name, "$func", func_index);
+}
 
-  Handle<String> module_str =
-      isolate->factory()->NewStringFromAsciiChecked("[[Module]]");
-  Handle<Object> module_obj = handle(instance->module_object(), isolate);
-  result->set(length++, *module_str);
-  result->set(length++, *module_obj);
+Handle<ArrayList> AddWasmInstanceObjectInternalProperties(
+    Isolate* isolate, Handle<ArrayList> result,
+    Handle<WasmInstanceObject> instance) {
+  result = ArrayList::Add(
+      isolate, result,
+      isolate->factory()->NewStringFromAsciiChecked("[[Module]]"),
+      handle(instance->module_object(), isolate));
 
   if (FunctionsProxy::Count(isolate, instance) != 0) {
-    Handle<String> functions_str =
-        isolate->factory()->NewStringFromAsciiChecked("[[Functions]]");
-    Handle<Object> functions_obj =
-        GetOrCreateInstanceProxy<FunctionsProxy>(isolate, instance);
-    result->set(length++, *functions_str);
-    result->set(length++, *functions_obj);
+    result = ArrayList::Add(
+        isolate, result,
+        isolate->factory()->NewStringFromAsciiChecked("[[Functions]]"),
+        GetOrCreateInstanceProxy<FunctionsProxy>(isolate, instance));
   }
 
   if (GlobalsProxy::Count(isolate, instance) != 0) {
-    Handle<String> globals_str =
-        isolate->factory()->NewStringFromAsciiChecked("[[Globals]]");
-    Handle<Object> globals_obj =
-        GetOrCreateInstanceProxy<GlobalsProxy>(isolate, instance);
-    result->set(length++, *globals_str);
-    result->set(length++, *globals_obj);
+    result = ArrayList::Add(
+        isolate, result,
+        isolate->factory()->NewStringFromAsciiChecked("[[Globals]]"),
+        GetOrCreateInstanceProxy<GlobalsProxy>(isolate, instance));
   }
 
   if (MemoriesProxy::Count(isolate, instance) != 0) {
-    Handle<String> memories_str =
-        isolate->factory()->NewStringFromAsciiChecked("[[Memories]]");
-    Handle<Object> memories_obj =
-        GetOrCreateInstanceProxy<MemoriesProxy>(isolate, instance);
-    result->set(length++, *memories_str);
-    result->set(length++, *memories_obj);
+    result = ArrayList::Add(
+        isolate, result,
+        isolate->factory()->NewStringFromAsciiChecked("[[Memories]]"),
+        GetOrCreateInstanceProxy<MemoriesProxy>(isolate, instance));
   }
 
   if (TablesProxy::Count(isolate, instance) != 0) {
-    Handle<String> tables_str =
-        isolate->factory()->NewStringFromAsciiChecked("[[Tables]]");
-    Handle<Object> tables_obj =
-        GetOrCreateInstanceProxy<TablesProxy>(isolate, instance);
-    result->set(length++, *tables_str);
-    result->set(length++, *tables_obj);
+    result = ArrayList::Add(
+        isolate, result,
+        isolate->factory()->NewStringFromAsciiChecked("[[Tables]]"),
+        GetOrCreateInstanceProxy<TablesProxy>(isolate, instance));
   }
 
-  return isolate->factory()->NewJSArrayWithElements(result, PACKED_ELEMENTS,
-                                                    length);
+  return result;
 }
 
-Handle<JSArray> GetWasmModuleObjectInternalProperties(
+Handle<ArrayList> AddWasmModuleObjectInternalProperties(
+    Isolate* isolate, Handle<ArrayList> result,
     Handle<WasmModuleObject> module_object) {
-  Isolate* isolate = module_object->GetIsolate();
-  Handle<FixedArray> result = isolate->factory()->NewFixedArray(2 * 2);
-  int length = 0;
-
-  Handle<String> exports_str =
-      isolate->factory()->NewStringFromStaticChars("[[Exports]]");
-  Handle<JSArray> exports_obj = wasm::GetExports(isolate, module_object);
-  result->set(length++, *exports_str);
-  result->set(length++, *exports_obj);
-
-  Handle<String> imports_str =
-      isolate->factory()->NewStringFromStaticChars("[[Imports]]");
-  Handle<JSArray> imports_obj = wasm::GetImports(isolate, module_object);
-  result->set(length++, *imports_str);
-  result->set(length++, *imports_obj);
-
-  return isolate->factory()->NewJSArrayWithElements(result, PACKED_ELEMENTS,
-                                                    length);
+  result = ArrayList::Add(
+      isolate, result,
+      isolate->factory()->NewStringFromStaticChars("[[Exports]]"),
+      wasm::GetExports(isolate, module_object));
+  result = ArrayList::Add(
+      isolate, result,
+      isolate->factory()->NewStringFromStaticChars("[[Imports]]"),
+      wasm::GetImports(isolate, module_object));
+  return result;
 }
 
 }  // namespace internal

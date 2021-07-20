@@ -23,8 +23,7 @@ namespace internal {
 class FreeSpace : public TorqueGeneratedFreeSpace<FreeSpace, HeapObject> {
  public:
   // [size]: size of the free space including the header.
-  inline int relaxed_read_size() const;
-  inline void relaxed_write_size(int value);
+  DECL_RELAXED_SMI_ACCESSORS(size)
 
   inline int Size();
 

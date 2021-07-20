@@ -29,14 +29,6 @@ namespace internal {
 
 namespace {
 
-// Returns false iff an exception was thrown.
-bool MaybeSpawnNativeContextIndependentCompilationJob(
-    Isolate* isolate, Handle<JSFunction> function, ConcurrencyMode mode) {
-  if (!FLAG_turbo_nci) return true;  // Nothing to do.
-  return Compiler::CompileOptimized(isolate, function, mode,
-                                    CodeKind::NATIVE_CONTEXT_INDEPENDENT);
-}
-
 Object CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
                         ConcurrencyMode mode) {
   StackLimitCheck check(isolate);
@@ -50,32 +42,10 @@ Object CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
     return ReadOnlyRoots(isolate).exception();
   }
 
-  // Possibly compile for NCI caching.
-  if (!MaybeSpawnNativeContextIndependentCompilationJob(isolate, function,
-                                                        mode)) {
-    return ReadOnlyRoots(isolate).exception();
-  }
-
   // As a post-condition of CompileOptimized, the function *must* be compiled,
   // i.e. the installed Code object must not be the CompileLazy builtin.
   DCHECK(function->is_compiled());
   return function->code();
-}
-
-void TryInstallNCICode(Isolate* isolate, Handle<JSFunction> function,
-                       Handle<SharedFunctionInfo> sfi,
-                       IsCompiledScope* is_compiled_scope) {
-  // This function should only be called if there's a possibility that cached
-  // code exists.
-  DCHECK(sfi->may_have_cached_code());
-  DCHECK_EQ(function->shared(), *sfi);
-
-  Handle<Code> code;
-  if (sfi->TryGetCachedCode(isolate).ToHandle(&code)) {
-    function->set_code(*code, kReleaseStore);
-    JSFunction::EnsureFeedbackVector(function, is_compiled_scope);
-    if (FLAG_trace_turbo_nci) CompilationCacheCode::TraceHit(sfi, code);
-  }
 }
 
 }  // namespace
@@ -104,9 +74,6 @@ RUNTIME_FUNCTION(Runtime_CompileLazy) {
                          &is_compiled_scope)) {
     return ReadOnlyRoots(isolate).exception();
   }
-  if (sfi->may_have_cached_code()) {
-    TryInstallNCICode(isolate, function, sfi, &is_compiled_scope);
-  }
   DCHECK(function->is_compiled());
   return function->code();
 }
@@ -125,18 +92,6 @@ RUNTIME_FUNCTION(Runtime_InstallBaselineCode) {
   Code baseline_code = sfi->baseline_data().baseline_code();
   function->set_code(baseline_code);
   return baseline_code;
-}
-
-RUNTIME_FUNCTION(Runtime_TryInstallNCICode) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  DCHECK(function->is_compiled());
-  Handle<SharedFunctionInfo> sfi(function->shared(), isolate);
-  IsCompiledScope is_compiled_scope(*sfi, isolate);
-  TryInstallNCICode(isolate, function, sfi, &is_compiled_scope);
-  DCHECK(function->is_compiled());
-  return function->code();
 }
 
 RUNTIME_FUNCTION(Runtime_CompileOptimized_Concurrent) {
@@ -276,6 +231,14 @@ RUNTIME_FUNCTION(Runtime_ObserveNode) {
   return *obj;
 }
 
+RUNTIME_FUNCTION(Runtime_VerifyType) {
+  // %VerifyType has no effect in the interpreter.
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, obj, 0);
+  return *obj;
+}
+
 static bool IsSuitableForOnStackReplacement(Isolate* isolate,
                                             Handle<JSFunction> function) {
   // Keep track of whether we've succeeded in optimizing.
@@ -356,16 +319,7 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
       PrintF(scope.file(), " at OSR bytecode offset %d]\n", osr_offset.ToInt());
     }
     maybe_result =
-        Compiler::GetOptimizedCodeForOSR(function, osr_offset, frame);
-
-    // Possibly compile for NCI caching.
-    if (!MaybeSpawnNativeContextIndependentCompilationJob(
-            isolate, function,
-            isolate->concurrent_recompilation_enabled()
-                ? ConcurrencyMode::kConcurrent
-                : ConcurrencyMode::kNotConcurrent)) {
-      return Object();
-    }
+        Compiler::GetOptimizedCodeForOSR(isolate, function, osr_offset, frame);
   }
 
   // Check whether we ended up with usable optimized code.

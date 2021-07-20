@@ -209,6 +209,15 @@ constexpr int kElidedFrameSlots = 0;
 #endif
 
 constexpr int kDoubleSizeLog2 = 3;
+// The maximal length of the string representation for a double value
+// (e.g. "-2.2250738585072020E-308"). It is composed as follows:
+// - 17 decimal digits, see kBase10MaximalLength (dtoa.h)
+// - 1 sign
+// - 1 decimal point
+// - 1 E or e
+// - 1 exponent sign
+// - 3 exponent
+constexpr int kMaxDoubleStringLength = 24;
 
 // Total wasm code space per engine (i.e. per process) is limited to make
 // certain attacks that rely on heap spraying harder.
@@ -457,11 +466,11 @@ inline LanguageMode stricter_language_mode(LanguageMode mode1,
 // a keyed store is of the form a[expression] = foo.
 enum class StoreOrigin { kMaybeKeyed, kNamed };
 
-enum TypeofMode : int { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
+enum class TypeofMode { kInside, kNotInside };
 
 // Enums used by CEntry.
-enum SaveFPRegsMode { kDontSaveFPRegs, kSaveFPRegs };
-enum ArgvMode { kArgvOnStack, kArgvInRegister };
+enum class SaveFPRegsMode { kIgnore, kSave };
+enum class ArgvMode { kStack, kRegister };
 
 // This constant is used as an undefined value when passing source positions.
 constexpr int kNoSourcePosition = -1;
@@ -789,11 +798,14 @@ constexpr int kSpaceTagSize = 4;
 STATIC_ASSERT(FIRST_SPACE == 0);
 
 enum class AllocationType : uint8_t {
-  kYoung,    // Regular object allocated in NEW_SPACE or NEW_LO_SPACE
-  kOld,      // Regular object allocated in OLD_SPACE or LO_SPACE
-  kCode,     // Code object allocated in CODE_SPACE or CODE_LO_SPACE
-  kMap,      // Map object allocated in MAP_SPACE
-  kReadOnly  // Object allocated in RO_SPACE
+  kYoung,      // Regular object allocated in NEW_SPACE or NEW_LO_SPACE
+  kOld,        // Regular object allocated in OLD_SPACE or LO_SPACE
+  kCode,       // Code object allocated in CODE_SPACE or CODE_LO_SPACE
+  kMap,        // Map object allocated in MAP_SPACE
+  kReadOnly,   // Object allocated in RO_SPACE
+  kSharedOld,  // Regular object allocated in SHARED_OLD_SPACE or
+               // SHARED_LO_SPACE
+  kSharedMap,  // Map object in SHARED_MAP_SPACE
 };
 
 inline size_t hash_value(AllocationType kind) {
@@ -812,6 +824,10 @@ inline std::ostream& operator<<(std::ostream& os, AllocationType kind) {
       return os << "Map";
     case AllocationType::kReadOnly:
       return os << "ReadOnly";
+    case AllocationType::kSharedOld:
+      return os << "SharedOld";
+    case AllocationType::kSharedMap:
+      return os << "SharedMap";
   }
   UNREACHABLE();
 }
@@ -880,6 +896,8 @@ enum InlineCacheState {
   RECOMPUTE_HANDLER,
   // Multiple receiver types have been seen.
   POLYMORPHIC,
+  // Many DOM receiver types have been seen for the same accessor.
+  MEGADOM,
   // Many receiver types have been seen.
   MEGAMORPHIC,
   // A generic handler is installed and no extra typefeedback is recorded.
@@ -901,6 +919,8 @@ inline const char* InlineCacheState2String(InlineCacheState state) {
       return "POLYMORPHIC";
     case MEGAMORPHIC:
       return "MEGAMORPHIC";
+    case MEGADOM:
+      return "MEGADOM";
     case GENERIC:
       return "GENERIC";
   }
@@ -1602,6 +1622,7 @@ inline std::ostream& operator<<(std::ostream& os,
 }
 
 enum class SpeculationMode { kAllowSpeculation, kDisallowSpeculation };
+enum class CallFeedbackContent { kTarget, kReceiver };
 
 inline std::ostream& operator<<(std::ostream& os,
                                 SpeculationMode speculation_mode) {
@@ -1757,6 +1778,10 @@ class PtrComprCageBase {
   inline PtrComprCageBase(const LocalIsolate* isolate);
 
   inline Address address() const;
+
+  bool operator==(const PtrComprCageBase& other) const {
+    return address_ == other.address_;
+  }
 
  private:
   Address address_;

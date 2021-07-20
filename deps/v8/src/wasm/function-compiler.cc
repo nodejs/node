@@ -306,7 +306,8 @@ JSToWasmWrapperCompilationUnit::JSToWasmWrapperCompilationUnit(
     Isolate* isolate, WasmEngine* wasm_engine, const FunctionSig* sig,
     const WasmModule* module, bool is_import,
     const WasmFeatures& enabled_features, AllowGeneric allow_generic)
-    : is_import_(is_import),
+    : isolate_(isolate),
+      is_import_(is_import),
       sig_(sig),
       use_generic_wrapper_(allow_generic && UseGenericWrapper(sig) &&
                            !is_import),
@@ -326,19 +327,19 @@ void JSToWasmWrapperCompilationUnit::Execute() {
   }
 }
 
-Handle<Code> JSToWasmWrapperCompilationUnit::Finalize(Isolate* isolate) {
+Handle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
   Handle<Code> code;
   if (use_generic_wrapper_) {
     code =
-        isolate->builtins()->builtin_handle(Builtins::kGenericJSToWasmWrapper);
+        isolate_->builtins()->builtin_handle(Builtins::kGenericJSToWasmWrapper);
   } else {
-    CompilationJob::Status status = job_->FinalizeJob(isolate);
+    CompilationJob::Status status = job_->FinalizeJob(isolate_);
     CHECK_EQ(status, CompilationJob::SUCCEEDED);
     code = job_->compilation_info()->code();
   }
-  if (!use_generic_wrapper_ && must_record_function_compilation(isolate)) {
+  if (!use_generic_wrapper_ && must_record_function_compilation(isolate_)) {
     RecordWasmHeapStubCompilation(
-        isolate, code, "%s", job_->compilation_info()->GetDebugName().get());
+        isolate_, code, "%s", job_->compilation_info()->GetDebugName().get());
   }
   return code;
 }
@@ -353,7 +354,7 @@ Handle<Code> JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
                                       module, is_import, enabled_features,
                                       kAllowGeneric);
   unit.Execute();
-  return unit.Finalize(isolate);
+  return unit.Finalize();
 }
 
 // static
@@ -366,7 +367,7 @@ Handle<Code> JSToWasmWrapperCompilationUnit::CompileSpecificJSToWasmWrapper(
                                       module, is_import, enabled_features,
                                       kDontAllowGeneric);
   unit.Execute();
-  return unit.Finalize(isolate);
+  return unit.Finalize();
 }
 
 }  // namespace wasm

@@ -95,9 +95,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.MoveRegister(reg, wide);
 
   FeedbackSlot load_global_slot =
-      feedback_spec.AddLoadGlobalICSlot(NOT_INSIDE_TYPEOF);
+      feedback_spec.AddLoadGlobalICSlot(TypeofMode::kNotInside);
   FeedbackSlot load_global_typeof_slot =
-      feedback_spec.AddLoadGlobalICSlot(INSIDE_TYPEOF);
+      feedback_spec.AddLoadGlobalICSlot(TypeofMode::kInside);
   FeedbackSlot sloppy_store_global_slot =
       feedback_spec.AddStoreGlobalICSlot(LanguageMode::kSloppy);
   FeedbackSlot load_slot = feedback_spec.AddLoadICSlot();
@@ -117,10 +117,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Emit global load / store operations.
   const AstRawString* name = ast_factory.GetOneByteString("var_name");
-  builder
-      .LoadGlobal(name, load_global_slot.ToInt(), TypeofMode::NOT_INSIDE_TYPEOF)
-      .LoadGlobal(name, load_global_typeof_slot.ToInt(),
-                  TypeofMode::INSIDE_TYPEOF)
+  builder.LoadGlobal(name, load_global_slot.ToInt(), TypeofMode::kNotInside)
+      .LoadGlobal(name, load_global_typeof_slot.ToInt(), TypeofMode::kInside)
       .StoreGlobal(name, sloppy_store_global_slot.ToInt());
 
   // Emit context operations.
@@ -162,8 +160,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.GetIterator(reg, load_slot.ToInt(), call_slot.ToInt());
 
   // Emit load / store lookup slots.
-  builder.LoadLookupSlot(name, TypeofMode::NOT_INSIDE_TYPEOF)
-      .LoadLookupSlot(name, TypeofMode::INSIDE_TYPEOF)
+  builder.LoadLookupSlot(name, TypeofMode::kNotInside)
+      .LoadLookupSlot(name, TypeofMode::kInside)
       .StoreLookupSlot(name, LanguageMode::kSloppy, LookupHoistingMode::kNormal)
       .StoreLookupSlot(name, LanguageMode::kSloppy,
                        LookupHoistingMode::kLegacySloppy)
@@ -171,12 +169,12 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
                        LookupHoistingMode::kNormal);
 
   // Emit load / store lookup slots with context fast paths.
-  builder.LoadLookupContextSlot(name, TypeofMode::NOT_INSIDE_TYPEOF, 1, 0)
-      .LoadLookupContextSlot(name, TypeofMode::INSIDE_TYPEOF, 1, 0);
+  builder.LoadLookupContextSlot(name, TypeofMode::kNotInside, 1, 0)
+      .LoadLookupContextSlot(name, TypeofMode::kInside, 1, 0);
 
   // Emit load / store lookup slots with global fast paths.
-  builder.LoadLookupGlobalSlot(name, TypeofMode::NOT_INSIDE_TYPEOF, 1, 0)
-      .LoadLookupGlobalSlot(name, TypeofMode::INSIDE_TYPEOF, 1, 0);
+  builder.LoadLookupGlobalSlot(name, TypeofMode::kNotInside, 1, 0)
+      .LoadLookupGlobalSlot(name, TypeofMode::kInside, 1, 0);
 
   // Emit closure operations.
   builder.CreateClosure(0, 1, static_cast<int>(AllocationType::kYoung));
@@ -380,8 +378,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreContextSlot(reg, 1024, 0);
 
   // Emit wide load / store lookup slots.
-  builder.LoadLookupSlot(wide_name, TypeofMode::NOT_INSIDE_TYPEOF)
-      .LoadLookupSlot(wide_name, TypeofMode::INSIDE_TYPEOF)
+  builder.LoadLookupSlot(wide_name, TypeofMode::kNotInside)
+      .LoadLookupSlot(wide_name, TypeofMode::kInside)
       .StoreLookupSlot(wide_name, LanguageMode::kSloppy,
                        LookupHoistingMode::kNormal)
       .StoreLookupSlot(wide_name, LanguageMode::kSloppy,

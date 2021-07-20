@@ -21,7 +21,6 @@ namespace internal {
 // identified in the type system.
 class Struct : public TorqueGeneratedStruct<Struct, HeapObject> {
  public:
-  inline void InitializeBody(int object_size);
   void BriefPrintDetails(std::ostream& os);
   STATIC_ASSERT(kHeaderSize == HeapObject::kHeaderSize);
 

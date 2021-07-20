@@ -182,14 +182,15 @@ bool FeedbackVector::IsOfLegacyType(MaybeObject value) {
 #endif  // DEBUG
 
 MaybeObject FeedbackVector::Get(FeedbackSlot slot) const {
-  MaybeObject value = raw_feedback_slots(GetIndex(slot));
+  MaybeObject value = raw_feedback_slots(GetIndex(slot), kRelaxedLoad);
   DCHECK(!IsOfLegacyType(value));
   return value;
 }
 
 MaybeObject FeedbackVector::Get(PtrComprCageBase cage_base,
                                 FeedbackSlot slot) const {
-  MaybeObject value = raw_feedback_slots(cage_base, GetIndex(slot));
+  MaybeObject value =
+      raw_feedback_slots(cage_base, GetIndex(slot), kRelaxedLoad);
   DCHECK(!IsOfLegacyType(value));
   return value;
 }
@@ -335,6 +336,10 @@ Handle<Symbol> FeedbackVector::MegamorphicSentinel(Isolate* isolate) {
   return isolate->factory()->megamorphic_symbol();
 }
 
+Handle<Symbol> FeedbackVector::MegaDOMSentinel(Isolate* isolate) {
+  return isolate->factory()->mega_dom_symbol();
+}
+
 Symbol FeedbackVector::RawUninitializedSentinel(Isolate* isolate) {
   return ReadOnlyRoots(isolate).uninitialized_symbol();
 }
@@ -375,6 +380,11 @@ MaybeObject FeedbackNexus::UninitializedSentinel() const {
 MaybeObject FeedbackNexus::MegamorphicSentinel() const {
   return MaybeObject::FromObject(
       *FeedbackVector::MegamorphicSentinel(GetIsolate()));
+}
+
+MaybeObject FeedbackNexus::MegaDOMSentinel() const {
+  return MaybeObject::FromObject(
+      *FeedbackVector::MegaDOMSentinel(GetIsolate()));
 }
 
 MaybeObject FeedbackNexus::FromHandle(MaybeObjectHandle slot) const {

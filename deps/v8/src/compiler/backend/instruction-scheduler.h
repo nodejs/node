@@ -6,15 +6,11 @@
 #define V8_COMPILER_BACKEND_INSTRUCTION_SCHEDULER_H_
 
 #include "src/base/optional.h"
+#include "src/base/utils/random-number-generator.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
-
-namespace base {
-class RandomNumberGenerator;
-}  // namespace base
-
 namespace internal {
 namespace compiler {
 

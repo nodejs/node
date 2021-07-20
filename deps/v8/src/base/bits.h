@@ -144,7 +144,7 @@ inline constexpr
     typename std::enable_if<std::is_integral<T>::value && sizeof(T) <= 8,
                             unsigned>::type
     CountTrailingZerosNonZero(T value) {
-  CONSTEXPR_DCHECK(value != 0);
+  DCHECK_NE(0, value);
 #if V8_HAS_BUILTIN_CTZ
   return bits == 64 ? __builtin_ctzll(static_cast<uint64_t>(value))
                     : __builtin_ctz(static_cast<uint32_t>(value));
@@ -165,7 +165,7 @@ constexpr inline bool IsPowerOfTwo(T value) {
 template <typename T,
           typename = typename std::enable_if<std::is_integral<T>::value>::type>
 inline constexpr int WhichPowerOfTwo(T value) {
-  CONSTEXPR_DCHECK(IsPowerOfTwo(value));
+  DCHECK(IsPowerOfTwo(value));
 #if V8_HAS_BUILTIN_CTZ
   STATIC_ASSERT(sizeof(T) <= 8);
   return sizeof(T) == 8 ? __builtin_ctzll(static_cast<uint64_t>(value))

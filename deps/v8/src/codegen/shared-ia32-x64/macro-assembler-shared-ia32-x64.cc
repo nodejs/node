@@ -29,6 +29,174 @@ void SharedTurboAssembler::Movapd(XMMRegister dst, XMMRegister src) {
   }
 }
 
+void SharedTurboAssembler::Shufps(XMMRegister dst, XMMRegister src1,
+                                  XMMRegister src2, uint8_t imm8) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vshufps(dst, src1, src2, imm8);
+  } else {
+    if (dst != src1) {
+      movaps(dst, src1);
+    }
+    shufps(dst, src2, imm8);
+  }
+}
+
+void SharedTurboAssembler::F64x2ExtractLane(DoubleRegister dst, XMMRegister src,
+                                            uint8_t lane) {
+  if (lane == 0) {
+    if (dst != src) {
+      Movaps(dst, src);
+    }
+  } else {
+    DCHECK_EQ(1, lane);
+    if (CpuFeatures::IsSupported(AVX)) {
+      CpuFeatureScope avx_scope(this, AVX);
+      // Pass src as operand to avoid false-dependency on dst.
+      vmovhlps(dst, src, src);
+    } else {
+      movhlps(dst, src);
+    }
+  }
+}
+
+void SharedTurboAssembler::F64x2ReplaceLane(XMMRegister dst, XMMRegister src,
+                                            DoubleRegister rep, uint8_t lane) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    if (lane == 0) {
+      vpblendw(dst, src, rep, 0b00001111);
+    } else {
+      vmovlhps(dst, src, rep);
+    }
+  } else {
+    CpuFeatureScope scope(this, SSE4_1);
+    if (dst != src) {
+      DCHECK_NE(dst, rep);  // Ensure rep is not overwritten.
+      movaps(dst, src);
+    }
+    if (lane == 0) {
+      pblendw(dst, rep, 0b00001111);
+    } else {
+      movlhps(dst, rep);
+    }
+  }
+}
+
+void SharedTurboAssembler::F64x2Min(XMMRegister dst, XMMRegister lhs,
+                                    XMMRegister rhs, XMMRegister scratch) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    // The minpd instruction doesn't propagate NaNs and +0's in its first
+    // operand. Perform minpd in both orders, merge the resuls, and adjust.
+    vminpd(scratch, lhs, rhs);
+    vminpd(dst, rhs, lhs);
+    // propagate -0's and NaNs, which may be non-canonical.
+    vorpd(scratch, scratch, dst);
+    // Canonicalize NaNs by quieting and clearing the payload.
+    vcmpunordpd(dst, dst, scratch);
+    vorpd(scratch, scratch, dst);
+    vpsrlq(dst, dst, byte{13});
+    vandnpd(dst, dst, scratch);
+  } else {
+    // Compare lhs with rhs, and rhs with lhs, and have the results in scratch
+    // and dst. If dst overlaps with lhs or rhs, we can save a move.
+    if (dst == lhs || dst == rhs) {
+      XMMRegister src = dst == lhs ? rhs : lhs;
+      movaps(scratch, src);
+      minpd(scratch, dst);
+      minpd(dst, src);
+    } else {
+      movaps(scratch, lhs);
+      movaps(dst, rhs);
+      minpd(scratch, rhs);
+      minpd(dst, lhs);
+    }
+    orpd(scratch, dst);
+    cmpunordpd(dst, scratch);
+    orpd(scratch, dst);
+    psrlq(dst, byte{13});
+    andnpd(dst, scratch);
+  }
+}
+
+void SharedTurboAssembler::F64x2Max(XMMRegister dst, XMMRegister lhs,
+                                    XMMRegister rhs, XMMRegister scratch) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    // The maxpd instruction doesn't propagate NaNs and +0's in its first
+    // operand. Perform maxpd in both orders, merge the resuls, and adjust.
+    vmaxpd(scratch, lhs, rhs);
+    vmaxpd(dst, rhs, lhs);
+    // Find discrepancies.
+    vxorpd(dst, dst, scratch);
+    // Propagate NaNs, which may be non-canonical.
+    vorpd(scratch, scratch, dst);
+    // Propagate sign discrepancy and (subtle) quiet NaNs.
+    vsubpd(scratch, scratch, dst);
+    // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
+    vcmpunordpd(dst, dst, scratch);
+    vpsrlq(dst, dst, byte{13});
+    vandnpd(dst, dst, scratch);
+  } else {
+    if (dst == lhs || dst == rhs) {
+      XMMRegister src = dst == lhs ? rhs : lhs;
+      movaps(scratch, src);
+      maxpd(scratch, dst);
+      maxpd(dst, src);
+    } else {
+      movaps(scratch, lhs);
+      movaps(dst, rhs);
+      maxpd(scratch, rhs);
+      maxpd(dst, lhs);
+    }
+    xorpd(dst, scratch);
+    orpd(scratch, dst);
+    subpd(scratch, dst);
+    cmpunordpd(dst, scratch);
+    psrlq(dst, byte{13});
+    andnpd(dst, scratch);
+  }
+}
+
+void SharedTurboAssembler::F32x4Splat(XMMRegister dst, DoubleRegister src) {
+  if (CpuFeatures::IsSupported(AVX2)) {
+    CpuFeatureScope avx2_scope(this, AVX2);
+    vbroadcastss(dst, src);
+  } else if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vshufps(dst, src, src, 0);
+  } else {
+    if (dst == src) {
+      // 1 byte shorter than pshufd.
+      shufps(dst, src, 0);
+    } else {
+      pshufd(dst, src, 0);
+    }
+  }
+}
+
+void SharedTurboAssembler::F32x4ExtractLane(FloatRegister dst, XMMRegister src,
+                                            uint8_t lane) {
+  DCHECK_LT(lane, 4);
+  // These instructions are shorter than insertps, but will leave junk in
+  // the top lanes of dst.
+  if (lane == 0) {
+    if (dst != src) {
+      Movaps(dst, src);
+    }
+  } else if (lane == 1) {
+    Movshdup(dst, src);
+  } else if (lane == 2 && dst == src) {
+    // Check dst == src to avoid false dependency on dst.
+    Movhlps(dst, src);
+  } else if (dst == src) {
+    Shufps(dst, src, src, lane);
+  } else {
+    Pshufd(dst, src, lane);
+  }
+}
+
 void SharedTurboAssembler::S128Store32Lane(Operand dst, XMMRegister src,
                                            uint8_t laneidx) {
   if (laneidx == 0) {
@@ -233,6 +401,22 @@ void SharedTurboAssembler::I32x4UConvertI16x8High(XMMRegister dst,
   }
 }
 
+void SharedTurboAssembler::I64x2Neg(XMMRegister dst, XMMRegister src,
+                                    XMMRegister scratch) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpxor(scratch, scratch, scratch);
+    vpsubq(dst, scratch, src);
+  } else {
+    if (dst == src) {
+      movaps(scratch, src);
+      std::swap(src, scratch);
+    }
+    pxor(dst, dst);
+    psubq(dst, src);
+  }
+}
+
 void SharedTurboAssembler::I64x2Abs(XMMRegister dst, XMMRegister src,
                                     XMMRegister scratch) {
   if (CpuFeatures::IsSupported(AVX)) {
@@ -376,6 +560,17 @@ void SharedTurboAssembler::I64x2UConvertI32x4High(XMMRegister dst,
     }
     xorps(scratch, scratch);
     punpckhdq(dst, scratch);
+  }
+}
+
+void SharedTurboAssembler::S128Not(XMMRegister dst, XMMRegister src,
+                                   XMMRegister scratch) {
+  if (dst == src) {
+    Pcmpeqd(scratch, scratch);
+    Pxor(dst, scratch);
+  } else {
+    Pcmpeqd(dst, dst);
+    Pxor(dst, src);
   }
 }
 

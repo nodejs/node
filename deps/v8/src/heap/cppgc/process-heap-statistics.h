@@ -15,7 +15,7 @@ class ProcessHeapStatisticsUpdater {
  public:
   // Allocation observer implementation for heaps should register to contribute
   // to ProcessHeapStatistics. The heap is responsible for allocating and
-  // registering the obsrever impl with its stats collector.
+  // registering the observer impl with its stats collector.
   class AllocationObserverImpl final
       : public StatsCollector::AllocationObserver {
    public:

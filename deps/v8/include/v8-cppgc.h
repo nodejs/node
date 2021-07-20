@@ -28,6 +28,8 @@ namespace internal {
 class CppHeap;
 }  // namespace internal
 
+class CustomSpaceStatisticsReceiver;
+
 /**
  * Describes how V8 wrapper objects maintain references to garbage-collected C++
  * objects.
@@ -118,6 +120,16 @@ class V8_EXPORT CppHeap {
    */
   cppgc::HeapStatistics CollectStatistics(
       cppgc::HeapStatistics::DetailLevel detail_level);
+
+  /**
+   * Collects statistics for the given spaces and reports them to the receiver.
+   *
+   * \param custom_spaces a collection of custom space indicies.
+   * \param receiver an object that gets the results.
+   */
+  void CollectCustomSpaceStatisticsAtLastGC(
+      std::vector<cppgc::CustomSpaceIndex> custom_spaces,
+      std::unique_ptr<CustomSpaceStatisticsReceiver> receiver);
 
   /**
    * Enables a detached mode that allows testing garbage collection using
@@ -275,6 +287,26 @@ class V8_EXPORT JSHeapConsistency final {
 
   static void DijkstraMarkingBarrierSlow(cppgc::HeapHandle&,
                                          const TracedReferenceBase& ref);
+};
+
+/**
+ * Provided as input to `CppHeap::CollectCustomSpaceStatisticsAtLastGC()`.
+ *
+ * Its method is invoked with the results of the statistic collection.
+ */
+class CustomSpaceStatisticsReceiver {
+ public:
+  virtual ~CustomSpaceStatisticsReceiver() = default;
+  /**
+   * Reports the size of a space at the last GC. It is called for each space
+   * that was requested in `CollectCustomSpaceStatisticsAtLastGC()`.
+   *
+   * \param space_index The index of the space.
+   * \param bytes The total size of live objects in the space at the last GC.
+   *    It is zero if there was no GC yet.
+   */
+  virtual void AllocatedBytes(cppgc::CustomSpaceIndex space_index,
+                              size_t bytes) = 0;
 };
 
 }  // namespace v8

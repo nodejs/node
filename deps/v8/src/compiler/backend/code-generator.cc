@@ -588,11 +588,6 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
     return MaybeHandle<Code>();
   }
 
-  // TODO(jgruber,v8:8888): Turn this into a DCHECK once confidence is
-  // high that the implementation is complete.
-  CHECK_IMPLIES(info()->IsNativeContextIndependent(),
-                code->IsNativeContextIndependent(isolate()));
-
   // Counts both compiled code and metadata.
   isolate()->counters()->total_compiled_code_size()->Increment(
       code->raw_body_size());
@@ -1400,7 +1395,8 @@ void CodeGenerator::AddTranslationForOperand(Instruction* instr,
       default:
         UNREACHABLE();
     }
-    if (literal.object().equals(info()->closure())) {
+    if (literal.object().equals(info()->closure()) &&
+        info()->function_context_specializing()) {
       translations_.StoreJSFrameFunction();
     } else {
       int literal_id = DefineDeoptimizationLiteral(literal);
