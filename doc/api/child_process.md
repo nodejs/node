@@ -103,7 +103,7 @@ When running on Windows, `.bat` and `.cmd` files can be invoked using
 [`child_process.exec()`][], or by spawning `cmd.exe` and passing the `.bat` or
 `.cmd` file as an argument (which is what the `shell` option and
 [`child_process.exec()`][] do). In any case, if the script filename contains
-spaces it needs to be quoted.
+spaces it needs to be quoted or invoked with `shellEscape: true`.
 
 ```js
 // On Windows Only...
@@ -309,9 +309,12 @@ changes:
     done on Windows. Ignored on Unix. **Default:** `false`.
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
     `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
-    shell can be specified as a string. See [Shell requirements][] and
-    [Default Windows shell][]. **Default:** `false` (no shell).
-  * `signal` {AbortSignal} allows aborting the child process using an
+    shell can be specified as a string. See [Shell Requirements][] and
+    [Default Windows Shell][]. **Default:** `false` (no shell).
+  * `shellEscape` {boolean|Function} If `true`, escape `args[]`, but not
+    `command`, for the shell selected. If a function, use it as the escaper.
+    **Default:** `false` (no escaping).
+  * `signal` {AbortSignal} allows aborting the execFile using an AbortSignal.
     AbortSignal.
 * `callback` {Function} Called with the output when process terminates.
   * `error` {Error}
@@ -549,8 +552,11 @@ changes:
     See [Advanced serialization][] for more details. **Default:** `'json'`.
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
     `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
-    shell can be specified as a string. See [Shell requirements][] and
-    [Default Windows shell][]. **Default:** `false` (no shell).
+    shell can be specified as a string. See [Shell Requirements][] and
+    [Default Windows Shell][]. **Default:** `false` (no shell).
+  * `shellEscape` {boolean|Function} If `true`, escape `args[]`, but not
+    `command`, for the shell selected. If a function, use it as the escaper.
+    **Default:** `false` (no escaping).
   * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
     done on Windows. Ignored on Unix. This is set to `true` automatically
     when `shell` is specified and is CMD. **Default:** `false`.
@@ -908,8 +914,11 @@ changes:
     normally be created on Windows systems. **Default:** `false`.
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
     `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
-    shell can be specified as a string. See [Shell requirements][] and
-    [Default Windows shell][]. **Default:** `false` (no shell).
+    shell can be specified as a string. See [Shell Requirements][] and
+    [Default Windows Shell][]. **Default:** `false` (no shell).
+  * `shellEscape` {boolean|Function} If `true`, escape `args[]`, but not
+    `command`, for the shell selected. If a function, use it as the escaper.
+    **Default:** `false` (no escaping).
 * Returns: {Buffer|string} The stdout from the command.
 
 The `child_process.execFileSync()` method is generally identical to
@@ -1047,8 +1056,11 @@ changes:
     **Default:** `'buffer'`.
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
     `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
-    shell can be specified as a string. See [Shell requirements][] and
-    [Default Windows shell][]. **Default:** `false` (no shell).
+    shell can be specified as a string. See [Shell Requirements][] and
+    [Default Windows Shell][]. **Default:** `false` (no shell).
+  * `shellEscape` {boolean|Function} If `true`, escape `args[]`, but not
+    `command`, for the shell selected. If a function, use it as the escaper.
+    **Default:** `false` (no escaping).
   * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
     done on Windows. Ignored on Unix. This is set to `true` automatically
     when `shell` is specified and is CMD. **Default:** `false`.
@@ -1751,7 +1763,49 @@ The shell should understand the `-c` switch. If the shell is `'cmd.exe'`, it
 should understand the `/d /s /c` switches and command-line parsing should be
 compatible.
 
-## Default Windows shell
+### Shell Escaping
+<!-- YAML
+added: REPLACEME
+-->
+
+`shellEscape` is an option intended to
+improve the safety of shell command-line by unifying the behavior of `args[]`
+with regard to metacharacters with the `shell: false` case. All metacharacters
+and shell-specific scripting should be placed in `command` instead. To preserve
+backward compatibility, it is designed as an opt-in feature.
+
+If all of `shell`, `args`, and `shellEscape` are specified, the shell should
+understand [POSIX single-quotes][]. If the shell is `'cmd.exe'`, it should
+understand the double-quoting used by Windows `cmd`. If the shell is
+`'powershell.exe'` or `'pwsh'`, it should understand a powershell-compatible
+single quoting. If all fails, you may provide your own quoting function.
+
+Since the `command` part is literally passed to the shell, you are responsible
+for any escaping you perform. The specific way to call a file as a command-line
+program depends on the shell:
+
+* With POSIX shell, you quote the path using the usual single-quotes.
+  To auto-escape the path, use `'command --'` as your `command` argument and
+  put the path on the first element of `args`.
+* With PowerShell, it is often needed to prefix the command with `&` when the
+  executable path is quoted. You can use a similar technique with `command`
+  set to `'&'`.
+* With CMD, you should wrap double quotes around the paths to the executable.
+  Do NOT escape anything inside of it.
+
+As a caveat for `'cmd'`, `args` should additionally not contain any newlines
+because `cmd` cannot handle such. See also [Windows Command Line][] for when
+else not to rely on the builtin escaping mechanism on Windows.
+
+In addition, PowerShell has an [ongoing, cross-platform issue][] with how it
+translates the `argv` for external programs to a Windows-style command-line
+string. Until it is fixed, the built-in PowerShell escape provided by Node.js
+is guaranteed to work for built-in commands only.
+
+:*WARNING*: Use caution while using this API. The shell-escaping is not a
+security feature and you should never pass user input into child_process APIs.
+
+## Default Windows Shell
 
 Although Microsoft specifies `%COMSPEC%` must contain the path to
 `'cmd.exe'` in the root environment, child processes are not always subject to
@@ -1759,7 +1813,56 @@ the same requirement. Thus, in `child_process` functions where a shell can be
 spawned, `'cmd.exe'` is used as a fallback if `process.env.ComSpec` is
 unavailable.
 
-## Advanced serialization
+## Windows Command Line
+
+There is no universal way in Windows to do command-line escapes as every
+program are exposed natively to its full cmdline as a string, and each of them
+can have their own parsing rules, which includes optional glob expansion,
+officially provided as `_setargv`. There is no reliable way of escaping the
+MS CRT glob, and we do not try to do that in the underlying `uv` library.
+
+The most common parsing is defined in the C runtime library as
+`CommandLineToArgvW`. Microsoft describes the rules in
+[Parsing C++ Command-Line Arguments][]. When any other rules are known to be
+used, `windowsVerbatimArguments` should be specified with manual argument
+quoting. Since `cmd` has a `/s` switch that allows for verbatim processing
+of the command string, we turn on the flag to take advantage of that feature.
+
+A very common, alternative command-line parsing method is the Cygwin/MSYS2
+[`build_argv`][]. It uses always-on globbing based on the POSIX glob(3),
+with special provisions for dos-like paths. You may escape it as:
+
+<!-- FIXME: Trim this section as soon as the new Cygwin parser is up.
+     It's very annoying to read. -->
+```js
+function quoteCygwinArg(arg, mayBePath = true) {
+  // Cygwin escapes the backslashes on paths to handle the Windows verbatim
+  // passing-in of them.
+  // (There is a Cygwin bug in here about " never being escapable on these
+  // paths：https://cygwin.com/ml/cygwin/2019-10/msg00033.html)
+  const regex = mayBePath ? /^\\\\[a-z][^\\]+\\|^[a-z]:/i : /^[a-z]:/i;
+  const isPath = regex.test(arg);
+  if (!isPath) {
+    arg = arg.replaceAll('\\', '\\\\');
+    if (/^\\\\[a-z][^\\]+\\/i.test(arg))
+      // If Cygwin sees this as an SMB network path...
+      // Chop off the first \\ (it seems to not eat up the a in \a)
+      arg = arg.substring(2);
+  }
+  return `"${arg.replaceAll('"', '""')}"`;
+}
+
+// For non-shell:
+spawn(command, args, {
+  shellEscape: quoteCygwinArg,
+  windowsVerbatimArguments: true,
+});
+```
+
+MinGW uses the native Windows mechanism and can be used safely with the
+default escapes.
+
+## Advanced Serialization
 <!-- YAML
 added:
  - v13.2.0
@@ -1783,8 +1886,11 @@ or [`child_process.fork()`][].
 [Advanced serialization]: #child_process_advanced_serialization
 [Default Windows shell]: #child_process_default_windows_shell
 [HTML structured clone algorithm]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm
+[POSIX single-quotes]: https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_02_02
+[Parsing C++ Command-Line Arguments]: https://docs.microsoft.com/en-us/cpp/cpp/parsing-cpp-command-line-arguments
 [Shell requirements]: #child_process_shell_requirements
 [Signal Events]: process.md#process_signal_events
+[Windows Command Line]: #child_process_windows_command_line
 [`'disconnect'`]: process.md#process_event_disconnect
 [`'error'`]: #child_process_event_error
 [`'exit'`]: #child_process_event_exit
@@ -1792,6 +1898,7 @@ or [`child_process.fork()`][].
 [`ChildProcess`]: #child_process_class_childprocess
 [`Error`]: errors.md#errors_class_error
 [`EventEmitter`]: events.md#events_class_eventemitter
+[`build_argv`]: https://github.com/mirror/newlib-cygwin/blob/b39cd00/winsup/cygwin/dcrt0.cc#L292
 [`child_process.exec()`]: #child_process_child_process_exec_command_options_callback
 [`child_process.execFile()`]: #child_process_child_process_execfile_file_args_options_callback
 [`child_process.execFileSync()`]: #child_process_child_process_execfilesync_file_args_options
@@ -1817,5 +1924,6 @@ or [`child_process.fork()`][].
 [`subprocess.stdio`]: #child_process_subprocess_stdio
 [`subprocess.stdout`]: #child_process_subprocess_stdout
 [`util.promisify()`]: util.md#util_util_promisify_original
+[ongoing, cross-platform issue]: https://github.com/PowerShell/PowerShell/issues/1995
 [synchronous counterparts]: #child_process_synchronous_process_creation
 [v8.serdes]: v8.md#v8_serialization_api
