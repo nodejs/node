@@ -215,6 +215,7 @@ FileHandle::TransferData::TransferData(int fd) : fd_(fd) {}
 FileHandle::TransferData::~TransferData() {
   if (fd_ > 0) {
     uv_fs_t close_req;
+    CHECK_NE(fd_, -1);
     CHECK_EQ(0, uv_fs_close(nullptr, &close_req, fd_, nullptr));
     uv_fs_req_cleanup(&close_req);
   }
@@ -237,8 +238,9 @@ BaseObjectPtr<BaseObject> FileHandle::TransferData::Deserialize(
 // JS during GC. If closing the fd fails at this point, a fatal exception
 // will crash the process immediately.
 inline void FileHandle::Close() {
-  if (closed_) return;
+  if (closed_ || closing_) return;
   uv_fs_t req;
+  CHECK_NE(fd_, -1);
   int ret = uv_fs_close(env()->event_loop(), &req, fd_, nullptr);
   uv_fs_req_cleanup(&req);
 
@@ -384,6 +386,7 @@ MaybeLocal<Promise> FileHandle::ClosePromise() {
       close->Resolve();
     }
   }};
+  CHECK_NE(fd_, -1);
   int ret = req->Dispatch(uv_fs_close, fd_, AfterClose);
   if (ret < 0) {
     req->Reject(UVException(isolate, ret, "close"));
@@ -555,8 +558,13 @@ ShutdownWrap* FileHandle::CreateShutdownWrap(Local<Object> object) {
 }
 
 int FileHandle::DoShutdown(ShutdownWrap* req_wrap) {
+  if (closing_ || closed_) {
+    req_wrap->Done(0);
+    return 1;
+  }
   FileHandleCloseWrap* wrap = static_cast<FileHandleCloseWrap*>(req_wrap);
   closing_ = true;
+  CHECK_NE(fd_, -1);
   wrap->Dispatch(uv_fs_close, fd_, uv_fs_callback_t{[](uv_fs_t* req) {
     FileHandleCloseWrap* wrap = static_cast<FileHandleCloseWrap*>(
         FileHandleCloseWrap::from_req(req));
