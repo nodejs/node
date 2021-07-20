@@ -852,7 +852,7 @@
             ],
           },
           'conditions': [
-            ['openssl_fips!=""', {
+            ['openssl_is_fips!=""', {
               'variables': { 'mkssldef_flags': ['-DOPENSSL_FIPS'] },
             }],
           ],
