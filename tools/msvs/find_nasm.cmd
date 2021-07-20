@@ -1,24 +1,25 @@
 @IF NOT DEFINED DEBUG_HELPER @ECHO OFF
 
-ECHO Looking for NASM
+echo Looking for NASM
 
-FOR /F "delims=" %%a IN ('where nasm 2^> NUL') DO (
-  EXIT /B 0
+for /f "delims=" %%a IN ('where nasm 2^> NUL') DO (
+  echo NASM found in %%a
+  exit /b 0
 )
 
-IF EXIST "%ProgramFiles%\NASM\nasm.exe" (
-  SET "Path=%Path%;%ProgramFiles%\NASM"
-  EXIT /B 0
+for %%a in ("%ProgramFiles%\NASM\nasm.exe" "%ProgramFiles(x86)%\NASM\nasm.exe" "%LOCALAPPDATA%\bin\NASM\nasm.exe") do (
+  if exist %%a (
+    call :find-nasm %%a
+    exit /b 0
+  )
 )
+exit /b 1
 
-IF EXIST "%ProgramFiles(x86)%\NASM\nasm.exe" (
-  SET "Path=%Path%;%ProgramFiles(x86)%\NASM"
-  EXIT /B 0
-)
-
-if EXIST "%LOCALAPPDATA%\bin\NASM\nasm.exe" (
-  SET "Path=%Path%;%LOCALAPPDATA%\bin\NASM"
-  EXIT /B 0
-)
-
-EXIT /B 1
+:find-nasm
+set p=%~1
+:: Remove the last nine characters, which are "\nasm.exe"
+set p=%p:~0,-9%
+set "Path=%Path%;%p%"
+set p=
+echo NASM found in %~1
+exit /b 0
