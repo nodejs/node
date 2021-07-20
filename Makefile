@@ -21,20 +21,20 @@ BUILD_WITH ?= make
 FIND ?= find
 
 ifdef JOBS
-	PARALLEL_ARGS = -j $(JOBS)
+PARALLEL_ARGS = -j $(JOBS)
 else
-	PARALLEL_ARGS = -J
+PARALLEL_ARGS = -J
 endif
 
 ifdef ENABLE_V8_TAP
-	TAP_V8 := --junitout $(PWD)/v8-tap.xml
-	TAP_V8_INTL := --junitout $(PWD)/v8-intl-tap.xml
-	TAP_V8_BENCHMARKS := --junitout $(PWD)/v8-benchmarks-tap.xml
+TAP_V8 := --junitout $(PWD)/v8-tap.xml
+TAP_V8_INTL := --junitout $(PWD)/v8-intl-tap.xml
+TAP_V8_BENCHMARKS := --junitout $(PWD)/v8-benchmarks-tap.xml
 endif
 
 V8_TEST_OPTIONS = $(V8_EXTRA_TEST_OPTIONS)
 ifdef DISABLE_V8_I18N
-	V8_BUILD_OPTIONS += i18nsupport=off
+V8_BUILD_OPTIONS += i18nsupport=off
 endif
 # V8 build and test toolchains are not currently compatible with Python 3.
 # config.mk may have prepended a symlink for `python` to PATH which we need
@@ -43,7 +43,7 @@ OVERRIDE_BIN_DIR=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))out/tools/bin
 NO_BIN_OVERRIDE_PATH=$(subst $() $(),:,$(filter-out $(OVERRIDE_BIN_DIR),$(subst :, ,$(PATH))))
 
 ifeq ($(OSTYPE), darwin)
-	GCOV = xcrun llvm-cov gcov
+GCOV = xcrun llvm-cov gcov
 endif
 
 BUILDTYPE_LOWER := $(shell echo $(BUILDTYPE) | tr '[:upper:]' '[:lower:]')
@@ -113,12 +113,12 @@ $(NODE_EXE) $(NODE_G_EXE): config.gypi out/Makefile
 else
 ifeq ($(BUILD_WITH), ninja)
 ifeq ($(V),1)
-	NINJA_ARGS := $(NINJA_ARGS) -v
+NINJA_ARGS := $(NINJA_ARGS) -v
 endif
 ifdef JOBS
-	NINJA_ARGS := $(NINJA_ARGS) -j$(JOBS)
+NINJA_ARGS := $(NINJA_ARGS) -j$(JOBS)
 else
-	NINJA_ARGS := $(NINJA_ARGS) $(filter -j%,$(MAKEFLAGS))
+NINJA_ARGS := $(NINJA_ARGS) $(filter -j%,$(MAKEFLAGS))
 endif
 $(NODE_EXE): config.gypi out/Release/build.ninja
 	ninja -C out/Release $(NINJA_ARGS)
@@ -477,9 +477,9 @@ NATIVE_SUITES ?= addons js-native-api node-api
 CI_NATIVE_SUITES ?= $(NATIVE_SUITES) benchmark
 CI_JS_SUITES ?= $(JS_SUITES) pummel
 ifeq ($(node_use_openssl), false)
-	CI_DOC := doctool
+CI_DOC := doctool
 else
-	CI_DOC =
+CI_DOC =
 endif
 
 .PHONY: test-ci-native
