@@ -811,6 +811,34 @@ finished.
 
 This can only be called from the primary process.
 
+```js
+const cluster = require('cluster');
+const numCPUs = require('os').cpus().length;
+
+if (cluster.isMaster) {
+  for (let i = 0; i < numCPUs; i++) {
+    //  Workers will be created depending on the CPUs numbers.
+    cluster.fork();
+  }
+  setTimeout(() => {
+    for (let i = 1; i <= numCPUs; i++) {
+      const worker = cluster.workers[i];
+      worker.disconnect();
+    }
+    setTimeout(clusterDisconnect, 2000);
+  }, 2000);
+}
+
+function clusterDisconnect() {
+  if (!Object.keys(cluster.workers).length) {
+    // Cluster should be disconnected when all workers are disconnected.
+    cluster.disconnect(() => {
+      console.log('Cluster disconnect.');
+    });
+  }
+}
+```
+
 ## `cluster.fork([env])`
 <!-- YAML
 added: v0.6.0
@@ -823,7 +851,25 @@ Spawn a new worker process.
 
 This can only be called from the primary process.
 
-## `cluster.isMaster`
+```js
+const http = require('http');
+const cluster = require('cluster');
+const numCPUs = require('os').cpus().length;
+
+if (cluster.isMaster) {
+  for (let i = 0; i < numCPUs; i++) {
+    //  Workers will be created depending on the CPUs numbers
+    cluster.fork();
+  }
+}
+
+http.Server((req, res) => {
+  res.writeHead(200);
+  res.end('hello world');
+});
+```
+
+## cluster.isMaster
 <!-- YAML
 added: v0.8.1
 deprecated: v16.0.0
