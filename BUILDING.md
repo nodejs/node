@@ -764,11 +764,47 @@ as `deps/icu` (You'll have: `deps/icu/source/...`)
 
 ## Building Node.js with FIPS-compliant OpenSSL
 
-The current version of Node.js does not support FIPS when statically linking
-(the default) with OpenSSL 1.1.1 but for dynamically linking it is possible
-to enable FIPS using the configuration flag `--openssl-is-fips`.
+The current version of Node.js supports FIPS when statically and
+dynamically linking with OpenSSL 3.0.0 by using the configuration flag
+`--openssl-is-fips`.
 
-### Configuring and building quictls/openssl for FIPS
+### FIPS support when statically linking OpenSSL
+FIPS can be supported by specifying the configuration flag `--openssl-is-fips`:
+```console
+$ ./configure --openssl-is-fips
+$ make -j8
+```
+
+The above command will build and install the FIPS module into the out directory.
+This includes building fips.so, running the `installfips` command that generates
+the FIPS configuration file (fipsmodule.cnf), copying and updating openssl.cnf
+to include the correct path to fipsmodule.cnf and finally uncomment the fips
+section.
+
+We can then run node specifying --enable-fips:
+```console
+$ ./node --enable-fips  -p 'crypto.getFips()'
+1
+```
+The above will use the Node.js default locations for OpenSSL 3.0:
+```console
+$ ./out/Release/openssl-cli version -m -d
+OPENSSLDIR: "/nodejs/openssl/out/Release/obj.target/deps/openssl"
+MODULESDIR: "/nodejs/openssl/out/Release/obj.target/deps/openssl/lib/openssl-modules"
+```
+The OpenSSL configuration files will be found in `OPENSSLDIR` directory above:
+```console
+$ ls -w 1 out/Release/obj.target/deps/openssl/*.cnf
+out/Release/obj.target/deps/openssl/fipsmodule.cnf
+out/Release/obj.target/deps/openssl/openssl.cnf
+```
+And the FIPS module will be located in the `MODULESDIR` directory:
+```console
+$ ls out/Release/obj.target/deps/openssl/lib/openssl-modules/
+fips.so
+```
+
+### FIPS support when dynamically linking OpenSSL
 
 For quictls/openssl 3.0 it is possible to enable FIPS when dynamically linking.
 If you want to build Node.js using openssl-3.0.0+quic, you can follow these
@@ -811,7 +847,7 @@ find the `fipsmodule.cnf` file - let's add the following to the end of the
 **alter openssl.cnf**
 
 ```text
-.include fipsmodule.cnf
+.include /absolute/path/to/fipsmodule.cnf
 
 # List of providers to load
 [provider_sect]
