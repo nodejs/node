@@ -2050,12 +2050,19 @@ bool ICUTimezoneCache::GetOffsets(double time_ms, bool is_utc,
   if (is_utc) {
     GetTimeZone()->getOffset(time_ms, false, *raw_offset, *dst_offset, status);
   } else {
+#if U_ICU_VERSION_MAJOR_NUM < 69
+    static_cast<const icu::BasicTimeZone*>(GetTimeZone())
+        ->getOffsetFromLocal(time_ms, icu::BasicTimeZone::kFormer,
+                             icu::BasicTimeZone::kFormer, *raw_offset,
+                             *dst_offset, status);
+#else
     // Note that casting TimeZone to BasicTimeZone is safe because we know that
     // icu::TimeZone used here is a BasicTimeZone.
     static_cast<const icu::BasicTimeZone*>(GetTimeZone())
         ->getOffsetFromLocal(time_ms, UCAL_TZ_LOCAL_FORMER,
                              UCAL_TZ_LOCAL_FORMER, *raw_offset, *dst_offset,
                              status);
+#endif
   }
 
   return U_SUCCESS(status);
