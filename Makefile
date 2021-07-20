@@ -153,7 +153,7 @@ out/Makefile: config.gypi common.gypi node.gyp \
 # and included in config.gypi
 config.gypi: configure configure.py src/node_version.h
 	@if [ -x config.status ]; then \
-		./config.status; \
+		export PATH="$(NO_BIN_OVERRIDE_PATH)" && ./config.status; \
 	else \
 		echo Missing or stale $@, please run ./$<; \
 		exit 1; \
