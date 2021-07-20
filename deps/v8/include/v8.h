@@ -1495,7 +1495,7 @@ class V8_EXPORT UnboundScript {
    */
   Local<Script> BindToCurrentContext();
 
-  int GetId() const;
+  int GetId();
   Local<Value> GetScriptName();
 
   /**
@@ -1707,7 +1707,7 @@ class V8_EXPORT Module : public Data {
    *
    * The module must be a SourceTextModule and must not have a kErrored status.
    */
-  int ScriptId() const;
+  int ScriptId();
 
   /**
    * Returns whether this module or any of its requested modules is async,
@@ -2432,7 +2432,7 @@ struct SampleInfo {
   StateTag vm_state;              // Current VM state.
   void* external_callback_entry;  // External callback address if VM is
                                   // executing an external callback.
-  void* context;                  // Incumbent native context address.
+  void* top_context;              // Incumbent native context address.
 };
 
 struct MemoryRange {
@@ -3549,12 +3549,12 @@ class V8_EXPORT String : public Name {
   /**
    * Returns true if this string can be made external.
    */
-  bool CanMakeExternal() const;
+  bool CanMakeExternal();
 
   /**
    * Returns true if the strings values are equal. Same as JS ==/===.
    */
-  bool StringEquals(Local<String> str) const;
+  bool StringEquals(Local<String> str);
 
   /**
    * Converts an object to a UTF-8-encoded character array.  Useful if
@@ -3637,6 +3637,9 @@ class V8_EXPORT Symbol : public Name {
   V8_DEPRECATE_SOON("Use Symbol::Description(isolate)")
   Local<Value> Description() const;
   Local<Value> Description(Isolate* isolate) const;
+
+  V8_DEPRECATED("Use Symbol::Description()")
+  Local<Value> Name() const { return Description(); }
 
   /**
    * Create a symbol. If description is not empty, it will be used as the
@@ -4162,7 +4165,7 @@ class V8_EXPORT Object : public Value {
   Maybe<bool> SetIntegrityLevel(Local<Context> context, IntegrityLevel level);
 
   /** Gets the number of internal fields for this Object. */
-  int InternalFieldCount() const;
+  int InternalFieldCount();
 
   /** Same as above, but works for PersistentBase. */
   V8_INLINE static int InternalFieldCount(
@@ -4272,10 +4275,10 @@ class V8_EXPORT Object : public Value {
       Local<Context> context, Local<Name> key);
 
   /** Tests for a named lookup interceptor.*/
-  bool HasNamedLookupInterceptor() const;
+  bool HasNamedLookupInterceptor();
 
   /** Tests for an index lookup interceptor.*/
-  bool HasIndexedLookupInterceptor() const;
+  bool HasIndexedLookupInterceptor();
 
   /**
    * Returns the identity hash for this object. The current implementation
@@ -4315,12 +4318,12 @@ class V8_EXPORT Object : public Value {
    * ObjectTemplate::SetCallAsFunctionHandler method.
    * When an Object is callable this method returns true.
    */
-  bool IsCallable() const;
+  bool IsCallable();
 
   /**
    * True if this object is a constructor.
    */
-  bool IsConstructor() const;
+  bool IsConstructor();
 
   /**
    * True if this object can carry information relevant to the embedder in its
@@ -4329,14 +4332,14 @@ class V8_EXPORT Object : public Value {
    * V8 automatically adds internal fields at compile time, such as e.g.
    * v8::ArrayBuffer.
    */
-  bool IsApiWrapper() const;
+  bool IsApiWrapper();
 
   /**
    * True if this object was created from an object template which was marked
    * as undetectable. See v8::ObjectTemplate::MarkAsUndetectable for more
    * information.
    */
-  bool IsUndetectable() const;
+  bool IsUndetectable();
 
   /**
    * Call an Object as a function if a callback is set by the
@@ -4395,7 +4398,7 @@ class V8_EXPORT Object : public Value {
    *
    * See also: v8::ObjectTemplate::SetCodeLike
    */
-  bool IsCodeLike(Isolate* isolate) const;
+  bool IsCodeLike(Isolate* isolate);
 
  private:
   Object();
@@ -4777,6 +4780,17 @@ class V8_EXPORT Function : public Object {
   Local<Value> GetDebugName() const;
 
   /**
+   * User-defined name assigned to the "displayName" property of this function.
+   * Used to facilitate debugging and profiling of JavaScript code.
+   */
+  V8_DEPRECATED(
+      "Use v8::Object::Get() instead to look up \"displayName\". "
+      "V8 and DevTools no longer use \"displayName\" in stack "
+      "traces, but the standard \"name\" property. "
+      "See http://crbug.com/1177685.")
+  Local<Value> GetDisplayName() const;
+
+  /**
    * Returns zero based line number of function body and
    * kLineOffsetNotFound if no information available.
    */
@@ -4882,7 +4896,7 @@ class V8_EXPORT Promise : public Object {
    * Returns true if the promise has at least one derived promise, and
    * therefore resolve/reject handlers (including default handler).
    */
-  bool HasHandler() const;
+  bool HasHandler();
 
   /**
    * Returns the content of the [[PromiseResult]] field. The Promise must not
@@ -4990,7 +5004,7 @@ class V8_EXPORT Proxy : public Object {
  public:
   Local<Value> GetTarget();
   Local<Value> GetHandler();
-  bool IsRevoked() const;
+  bool IsRevoked();
   void Revoke();
 
   /**
@@ -5406,6 +5420,57 @@ class V8_EXPORT ArrayBuffer : public Object {
   };
 
   /**
+   * The contents of an |ArrayBuffer|. Externalization of |ArrayBuffer|
+   * returns an instance of this class, populated, with a pointer to data
+   * and byte length.
+   *
+   * The Data pointer of ArrayBuffer::Contents must be freed using the provided
+   * deleter, which will call ArrayBuffer::Allocator::Free if the buffer
+   * was allocated with ArraryBuffer::Allocator::Allocate.
+   */
+  class V8_EXPORT Contents { // NOLINT
+   public:
+    using DeleterCallback = void (*)(void* buffer, size_t length, void* info);
+
+    Contents()
+        : data_(nullptr),
+          byte_length_(0),
+          allocation_base_(nullptr),
+          allocation_length_(0),
+          allocation_mode_(Allocator::AllocationMode::kNormal),
+          deleter_(nullptr),
+          deleter_data_(nullptr) {}
+
+    void* AllocationBase() const { return allocation_base_; }
+    size_t AllocationLength() const { return allocation_length_; }
+    Allocator::AllocationMode AllocationMode() const {
+      return allocation_mode_;
+    }
+
+    void* Data() const { return data_; }
+    size_t ByteLength() const { return byte_length_; }
+    DeleterCallback Deleter() const { return deleter_; }
+    void* DeleterData() const { return deleter_data_; }
+
+   private:
+    Contents(void* data, size_t byte_length, void* allocation_base,
+             size_t allocation_length,
+             Allocator::AllocationMode allocation_mode, DeleterCallback deleter,
+             void* deleter_data);
+
+    void* data_;
+    size_t byte_length_;
+    void* allocation_base_;
+    size_t allocation_length_;
+    Allocator::AllocationMode allocation_mode_;
+    DeleterCallback deleter_;
+    void* deleter_data_;
+
+    friend class ArrayBuffer;
+  };
+
+
+  /**
    * Data length in bytes.
    */
   size_t ByteLength() const;
@@ -5417,6 +5482,22 @@ class V8_EXPORT ArrayBuffer : public Object {
    * unless the object is externalized.
    */
   static Local<ArrayBuffer> New(Isolate* isolate, size_t byte_length);
+
+  /**
+   * Create a new ArrayBuffer over an existing memory block.
+   * The created array buffer is by default immediately in externalized state.
+   * In externalized state, the memory block will not be reclaimed when a
+   * created ArrayBuffer is garbage-collected.
+   * In internalized state, the memory block will be released using
+   * |Allocator::Free| once all ArrayBuffers referencing it are collected by
+   * the garbage collector.
+   */
+  V8_DEPRECATED(
+      "Use the version that takes a BackingStore. "
+      "See http://crbug.com/v8/9908.")
+  static Local<ArrayBuffer> New(
+      Isolate* isolate, void* data, size_t byte_length,
+      ArrayBufferCreationMode mode = ArrayBufferCreationMode::kExternalized);
 
   /**
    * Create a new ArrayBuffer with an existing backing store.
@@ -5457,6 +5538,15 @@ class V8_EXPORT ArrayBuffer : public Object {
       void* deleter_data);
 
   /**
+   * Returns true if ArrayBuffer is externalized, that is, does not
+   * own its memory block.
+   */
+  V8_DEPRECATED(
+      "With v8::BackingStore externalized ArrayBuffers are "
+      "the same as ordinary ArrayBuffers. See http://crbug.com/v8/9908.")
+  bool IsExternal() const;
+
+  /**
    * Returns true if this ArrayBuffer may be detached.
    */
   bool IsDetachable() const;
@@ -5470,10 +5560,46 @@ class V8_EXPORT ArrayBuffer : public Object {
   void Detach();
 
   /**
+   * Make this ArrayBuffer external. The pointer to underlying memory block
+   * and byte length are returned as |Contents| structure. After ArrayBuffer
+   * had been externalized, it does no longer own the memory block. The caller
+   * should take steps to free memory when it is no longer needed.
+   *
+   * The Data pointer of ArrayBuffer::Contents must be freed using the provided
+   * deleter, which will call ArrayBuffer::Allocator::Free if the buffer
+   * was allocated with ArrayBuffer::Allocator::Allocate.
+   */
+  V8_DEPRECATED("Use GetBackingStore or Detach. See http://crbug.com/v8/9908.")
+  Contents Externalize();
+
+  /**
+   * Marks this ArrayBuffer external given a witness that the embedder
+   * has fetched the backing store using the new GetBackingStore() function.
+   *
+   * With the new lifetime management of backing stores there is no need for
+   * externalizing, so this function exists only to make the transition easier.
+   */
+  V8_DEPRECATED("This will be removed together with IsExternal.")
+  void Externalize(const std::shared_ptr<BackingStore>& backing_store);
+
+  /**
+   * Get a pointer to the ArrayBuffer's underlying memory block without
+   * externalizing it. If the ArrayBuffer is not externalized, this pointer
+   * will become invalid as soon as the ArrayBuffer gets garbage collected.
+   *
+   * The embedder should make sure to hold a strong reference to the
+   * ArrayBuffer while accessing this pointer.
+   */
+  V8_DEPRECATED("Use GetBackingStore. See http://crbug.com/v8/9908.")
+  Contents GetContents();
+
+  /**
    * Get a shared pointer to the backing store of this array buffer. This
    * pointer coordinates the lifetime management of the internal storage
    * with any live ArrayBuffers on the heap, even across isolates. The embedder
    * should not attempt to manage lifetime of the storage through other means.
+   *
+   * This function replaces both Externalize() and GetContents().
    */
   std::shared_ptr<BackingStore> GetBackingStore();
 
@@ -5485,6 +5611,7 @@ class V8_EXPORT ArrayBuffer : public Object {
  private:
   ArrayBuffer();
   static void CheckCast(Value* obj);
+  Contents GetContents(bool externalize);
 };
 
 
@@ -5778,6 +5905,57 @@ class V8_EXPORT DataView : public ArrayBufferView {
 class V8_EXPORT SharedArrayBuffer : public Object {
  public:
   /**
+   * The contents of an |SharedArrayBuffer|. Externalization of
+   * |SharedArrayBuffer| returns an instance of this class, populated, with a
+   * pointer to data and byte length.
+   *
+   * The Data pointer of ArrayBuffer::Contents must be freed using the provided
+   * deleter, which will call ArrayBuffer::Allocator::Free if the buffer
+   * was allocated with ArraryBuffer::Allocator::Allocate.
+   */
+  class V8_EXPORT Contents {  // NOLINT
+   public:
+    using Allocator = v8::ArrayBuffer::Allocator;
+    using DeleterCallback = void (*)(void* buffer, size_t length, void* info);
+
+    Contents()
+        : data_(nullptr),
+          byte_length_(0),
+          allocation_base_(nullptr),
+          allocation_length_(0),
+          allocation_mode_(Allocator::AllocationMode::kNormal),
+          deleter_(nullptr),
+          deleter_data_(nullptr) {}
+
+    void* AllocationBase() const { return allocation_base_; }
+    size_t AllocationLength() const { return allocation_length_; }
+    Allocator::AllocationMode AllocationMode() const {
+      return allocation_mode_;
+    }
+
+    void* Data() const { return data_; }
+    size_t ByteLength() const { return byte_length_; }
+    DeleterCallback Deleter() const { return deleter_; }
+    void* DeleterData() const { return deleter_data_; }
+
+   private:
+    Contents(void* data, size_t byte_length, void* allocation_base,
+             size_t allocation_length,
+             Allocator::AllocationMode allocation_mode, DeleterCallback deleter,
+             void* deleter_data);
+
+    void* data_;
+    size_t byte_length_;
+    void* allocation_base_;
+    size_t allocation_length_;
+    Allocator::AllocationMode allocation_mode_;
+    DeleterCallback deleter_;
+    void* deleter_data_;
+
+    friend class SharedArrayBuffer;
+  };
+
+  /**
    * Data length in bytes.
    */
   size_t ByteLength() const;
@@ -5789,6 +5967,19 @@ class V8_EXPORT SharedArrayBuffer : public Object {
    * unless the object is externalized.
    */
   static Local<SharedArrayBuffer> New(Isolate* isolate, size_t byte_length);
+
+  /**
+   * Create a new SharedArrayBuffer over an existing memory block.  The created
+   * array buffer is immediately in externalized state unless otherwise
+   * specified. The memory block will not be reclaimed when a created
+   * SharedArrayBuffer is garbage-collected.
+   */
+  V8_DEPRECATED(
+      "Use the version that takes a BackingStore. "
+      "See http://crbug.com/v8/9908.")
+  static Local<SharedArrayBuffer> New(
+      Isolate* isolate, void* data, size_t byte_length,
+      ArrayBufferCreationMode mode = ArrayBufferCreationMode::kExternalized);
 
   /**
    * Create a new SharedArrayBuffer with an existing backing store.
@@ -5829,10 +6020,72 @@ class V8_EXPORT SharedArrayBuffer : public Object {
       void* deleter_data);
 
   /**
+   * Create a new SharedArrayBuffer over an existing memory block. Propagate
+   * flags to indicate whether the underlying buffer can be grown.
+   */
+  V8_DEPRECATED(
+      "Use the version that takes a BackingStore. "
+      "See http://crbug.com/v8/9908.")
+  static Local<SharedArrayBuffer> New(
+      Isolate* isolate, const SharedArrayBuffer::Contents&,
+      ArrayBufferCreationMode mode = ArrayBufferCreationMode::kExternalized);
+
+  /**
+   * Returns true if SharedArrayBuffer is externalized, that is, does not
+   * own its memory block.
+   */
+  V8_DEPRECATED(
+      "With v8::BackingStore externalized SharedArrayBuffers are the same "
+      "as ordinary SharedArrayBuffers. See http://crbug.com/v8/9908.")
+  bool IsExternal() const;
+
+  /**
+   * Make this SharedArrayBuffer external. The pointer to underlying memory
+   * block and byte length are returned as |Contents| structure. After
+   * SharedArrayBuffer had been externalized, it does no longer own the memory
+   * block. The caller should take steps to free memory when it is no longer
+   * needed.
+   *
+   * The memory block is guaranteed to be allocated with |Allocator::Allocate|
+   * by the allocator specified in
+   * v8::Isolate::CreateParams::array_buffer_allocator.
+   *
+   */
+  V8_DEPRECATED("Use GetBackingStore or Detach. See http://crbug.com/v8/9908.")
+  Contents Externalize();
+
+  /**
+   * Marks this SharedArrayBuffer external given a witness that the embedder
+   * has fetched the backing store using the new GetBackingStore() function.
+   *
+   * With the new lifetime management of backing stores there is no need for
+   * externalizing, so this function exists only to make the transition easier.
+   */
+  V8_DEPRECATED("This will be removed together with IsExternal.")
+  void Externalize(const std::shared_ptr<BackingStore>& backing_store);
+
+  /**
+   * Get a pointer to the ArrayBuffer's underlying memory block without
+   * externalizing it. If the ArrayBuffer is not externalized, this pointer
+   * will become invalid as soon as the ArrayBuffer became garbage collected.
+   *
+   * The embedder should make sure to hold a strong reference to the
+   * ArrayBuffer while accessing this pointer.
+   *
+   * The memory block is guaranteed to be allocated with |Allocator::Allocate|
+   * by the allocator specified in
+   * v8::Isolate::CreateParams::array_buffer_allocator.
+   */
+  V8_DEPRECATED("Use GetBackingStore. See http://crbug.com/v8/9908.")
+  Contents GetContents();
+
+  /**
    * Get a shared pointer to the backing store of this array buffer. This
    * pointer coordinates the lifetime management of the internal storage
    * with any live ArrayBuffers on the heap, even across isolates. The embedder
    * should not attempt to manage lifetime of the storage through other means.
+   *
+   * This function replaces both Externalize() and GetContents().
    */
   std::shared_ptr<BackingStore> GetBackingStore();
 
@@ -5843,6 +6096,7 @@ class V8_EXPORT SharedArrayBuffer : public Object {
  private:
   SharedArrayBuffer();
   static void CheckCast(Value* obj);
+  Contents GetContents(bool externalize);
 };
 
 
@@ -6960,7 +7214,7 @@ class V8_EXPORT ObjectTemplate : public Template {
    * Gets the number of internal fields for objects generated from
    * this template.
    */
-  int InternalFieldCount() const;
+  int InternalFieldCount();
 
   /**
    * Sets the number of internal fields for objects generated from
@@ -6971,7 +7225,7 @@ class V8_EXPORT ObjectTemplate : public Template {
   /**
    * Returns true if the object will be an immutable prototype exotic object.
    */
-  bool IsImmutableProto() const;
+  bool IsImmutableProto();
 
   /**
    * Makes the ObjectTemplate for an immutable prototype exotic object, with an
@@ -6989,7 +7243,7 @@ class V8_EXPORT ObjectTemplate : public Template {
    * Reference: https://github.com/tc39/proposal-dynamic-code-brand-checks
    */
   void SetCodeLike();
-  bool IsCodeLike() const;
+  bool IsCodeLike();
 
   V8_INLINE static ObjectTemplate* Cast(Data* data);
 
@@ -10614,7 +10868,7 @@ class V8_EXPORT Context : public Data {
    * Returns true if code generation from strings is allowed for the context.
    * For more details see AllowCodeGenerationFromStrings(bool) documentation.
    */
-  bool IsCodeGenerationFromStringsAllowed() const;
+  bool IsCodeGenerationFromStringsAllowed();
 
   /**
    * Sets the error description for the exception that is thrown when
