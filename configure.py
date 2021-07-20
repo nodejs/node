@@ -2005,6 +2005,10 @@ else:
 if options.compile_commands_json:
   gyp_args += ['-f', 'compile_commands_json']
 
+# override the variable `python` defined in common.gypi
+if bin_override is not None:
+  gyp_args += ['-Dpython=' + sys.executable]
+
 # pass the leftover positional arguments to GYP
 gyp_args += args
 
