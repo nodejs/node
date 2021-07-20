@@ -588,11 +588,6 @@ void AsyncWrap::EmitDestroy(bool from_gc) {
   AsyncWrap::EmitDestroy(env(), async_id_);
   // Ensure no double destroy is emitted via AsyncReset().
   async_id_ = kInvalidAsyncId;
-
-  if (!persistent().IsEmpty() && !from_gc) {
-    HandleScope handle_scope(env()->isolate());
-    USE(object()->Set(env()->context(), env()->resource_symbol(), object()));
-  }
 }
 
 void AsyncWrap::QueueDestroyAsyncId(const FunctionCallbackInfo<Value>& args) {
@@ -867,15 +862,6 @@ void AsyncWrap::AsyncReset(Local<Object> resource, double execution_async_id,
   async_id_ = execution_async_id == kInvalidAsyncId ? env()->new_async_id()
                                                      : execution_async_id;
   trigger_async_id_ = env()->get_default_trigger_async_id();
-
-  {
-    HandleScope handle_scope(env()->isolate());
-    Local<Object> obj = object();
-    CHECK(!obj.IsEmpty());
-    if (resource != obj) {
-      USE(obj->Set(env()->context(), env()->resource_symbol(), resource));
-    }
-  }
 
   switch (provider_type()) {
 #define V(PROVIDER)                                                           \
