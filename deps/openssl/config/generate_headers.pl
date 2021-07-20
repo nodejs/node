@@ -17,11 +17,11 @@ my $include_conf_tmpl = Text::Template->new(TYPE => 'FILE',
                                             SOURCE => 'include_config.tmpl',
                                             DELIMITERS => [ "%%-", "-%%" ]);
 my $include_asm_tmpl = Text::Template->new(TYPE => 'FILE',
-                                       SOURCE => 'include_asm.h.tmpl',
-                                       DELIMITERS => [ "%%-", "-%%" ]);
+                                           SOURCE => 'include_asm.h.tmpl',
+                                           DELIMITERS => [ "%%-", "-%%" ]);
 my $include_no_asm_tmpl = Text::Template->new(TYPE => 'FILE',
-                                       SOURCE => 'include_no-asm.h.tmpl',
-                                       DELIMITERS => [ "%%-", "-%%" ]);
+                                              SOURCE => 'include_no-asm.h.tmpl',
+                                              DELIMITERS => [ "%%-", "-%%" ]);
 
 gen_headers(@openssl_headers, 'openssl');
 gen_headers(@crypto_headers, 'crypto');
@@ -40,8 +40,8 @@ sub gen_headers {
     close(INCLUDE);
     #
     # Poplulate and write the header in the config directory (currently the same
-    # directory as this file) which will determine with include to use depending
-    # on if asm is available or not.
+    # directory as this file) which will determine which include to use
+    # depending on if asm is available or not.
     my $include_conf = $include_conf_tmpl->fill_in(
        HASH => { name => $header_name });
     open(INCLUDE_CONF, "> ./${header_name}.h");
