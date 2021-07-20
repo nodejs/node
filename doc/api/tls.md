@@ -146,6 +146,8 @@ specifying a cipher suite with the `ciphers` option. The list of available
 ciphers can be retrieved via `openssl ciphers -v 'PSK'`. All TLS 1.3
 ciphers are eligible for PSK but currently only those that use SHA256 digest are
 supported they can be retrieved via `openssl ciphers -v -s -tls1_3 -psk`.
+On the client connection, a custom `checkServerIdentity` should be passed
+since the default one will fail in the absence of a certificate.
 
 According to the [RFC 4279][], PSK identities up to 128 bytes in length and
 PSKs up to 64 bytes in length must be supported. As of OpenSSL 1.1.0
@@ -153,6 +155,30 @@ maximum identity size is 128 bytes, and maximum PSK length is 256 bytes.
 
 The current implementation doesn't support asynchronous PSK callbacks due to the
 limitations of the underlying OpenSSL API.
+
+To use TLS-PSK, client and server should specify the `pskCallback` option,
+a function that returns the PSK to use (which must be compatible with
+the selected cipher's digest).
+
+It will be called first on the client:
+
+* hint: {string} optional message sent from the server to help client
+  decide which identity to use during negotiation.
+  Always `null` if TLS 1.3 is used.
+* Returns: {Object} in the form
+  `{ psk: <Buffer|TypedArray|DataView>, identity: <string> }` or `null`.
+
+Then on the server:
+
+* socket: {tls.TLSSocket} the server socket instance, equivalent to `this`.
+* identity: {string} identity parameter sent from the client.
+* Returns: {Buffer|TypedArray|DataView} the PSK (or `null`).
+
+A return value of `null` stops the negotiation process and sends an
+"unknown_psk_identity" alert message to the other party.
+If the server wishes to hide the fact that the PSK identity was not known,
+the callback must provide some random data as `psk` to make the connection
+fail with "decrypt_error" before negotiation is finished.
 
 ### Client-initiated renegotiation attack mitigation
 
@@ -1484,23 +1510,7 @@ changes:
     verified against the list of supplied CAs. An `'error'` event is emitted if
     verification fails; `err.code` contains the OpenSSL error code. **Default:**
     `true`.
-  * `pskCallback` {Function}
-    * hint: {string} optional message sent from the server to help client
-      decide which identity to use during negotiation.
-      Always `null` if TLS 1.3 is used.
-    * Returns: {Object} in the form
-      `{ psk: <Buffer|TypedArray|DataView>, identity: <string> }`
-      or `null` to stop the negotiation process. `psk` must be
-      compatible with the selected cipher's digest.
-      `identity` must use UTF-8 encoding.
-    When negotiating TLS-PSK (pre-shared keys), this function is called
-    with optional identity `hint` provided by the server or `null`
-    in case of TLS 1.3 where `hint` was removed.
-    It will be necessary to provide a custom `tls.checkServerIdentity()`
-    for the connection as the default one will try to check host name/IP
-    of the server against the certificate but that's not applicable for PSK
-    because there won't be a certificate present.
-    More information can be found in the [RFC 4279][].
+  * `pskCallback` {Function} For TLS-PSK negotiation, see [Pre-shared keys][].
   * `ALPNProtocols`: {string[]|Buffer[]|TypedArray[]|DataView[]|Buffer|
     TypedArray|DataView}
     An array of strings, `Buffer`s or `TypedArray`s or `DataView`s, or a
@@ -1921,23 +1931,7 @@ changes:
     default callback with high-level API will be used (see below).
   * `ticketKeys`: {Buffer} 48-bytes of cryptographically strong pseudorandom
     data. See [Session Resumption][] for more information.
-  * `pskCallback` {Function}
-    * socket: {tls.TLSSocket} the server [`tls.TLSSocket`][] instance for
-      this connection.
-    * identity: {string} identity parameter sent from the client.
-    * Returns: {Buffer|TypedArray|DataView} pre-shared key that must either be
-      a buffer or `null` to stop the negotiation process. Returned PSK must be
-      compatible with the selected cipher's digest.
-    When negotiating TLS-PSK (pre-shared keys), this function is called
-    with the identity provided by the client.
-    If the return value is `null` the negotiation process will stop and an
-    "unknown_psk_identity" alert message will be sent to the other party.
-    If the server wishes to hide the fact that the PSK identity was not known,
-    the callback must provide some random data as `psk` to make the connection
-    fail with "decrypt_error" before negotiation is finished.
-    PSK ciphers are disabled by default, and using TLS-PSK thus
-    requires explicitly specifying a cipher suite with the `ciphers` option.
-    More information can be found in the [RFC 4279][].
+  * `pskCallback` {Function} For TLS-PSK negotiation, see [Pre-shared keys][].
   * `pskIdentityHint` {string} optional hint to send to a client to help
     with selecting the identity during TLS-PSK negotiation. Will be ignored
     in TLS 1.3. Upon failing to set pskIdentityHint `'tlsClientError'` will be
@@ -2064,6 +2058,7 @@ added: v11.4.0
 [Mozilla's publicly trusted list of CAs]: https://hg.mozilla.org/mozilla-central/raw-file/tip/security/nss/lib/ckfw/builtins/certdata.txt
 [OCSP request]: https://en.wikipedia.org/wiki/OCSP_stapling
 [OpenSSL Options]: crypto.md#crypto_openssl_options
+[Pre-shared keys]: #tls_pre_shared_keys
 [RFC 2246]: https://www.ietf.org/rfc/rfc2246.txt
 [RFC 4086]: https://tools.ietf.org/html/rfc4086
 [RFC 4279]: https://tools.ietf.org/html/rfc4279
