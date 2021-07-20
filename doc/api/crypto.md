@@ -3839,14 +3839,14 @@ const {
 console.log(getHashes()); // ['DSA', 'DSA-SHA', 'DSA-SHA1', ...]
 ```
 
-### `crypto.hkdf(digest, key, salt, info, keylen, callback)`
+### `crypto.hkdf(digest, ikm, salt, info, keylen, callback)`
 <!-- YAML
 added: v15.0.0
 -->
 
 * `digest` {string} The digest algorithm to use.
-* `key` {string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject} The secret
-  key. It must be at least one byte in length.
+* `ikm` {string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject} The input
+  keying material. It must be at least one byte in length.
 * `salt` {string|ArrayBuffer|Buffer|TypedArray|DataView} The salt value. Must
   be provided but can be zero-length.
 * `info` {string|ArrayBuffer|Buffer|TypedArray|DataView} Additional info value.
@@ -3859,7 +3859,7 @@ added: v15.0.0
   * `err` {Error}
   * `derivedKey` {Buffer}
 
-HKDF is a simple key derivation function defined in RFC 5869. The given `key`,
+HKDF is a simple key derivation function defined in RFC 5869. The given `ikm`,
 `salt` and `info` are used with the `digest` to derive a key of `keylen` bytes.
 
 The supplied `callback` function is called with two arguments: `err` and
@@ -3892,14 +3892,14 @@ hkdf('sha512', 'key', 'salt', 'info', 64, (err, derivedKey) => {
 });
 ```
 
-### `crypto.hkdfSync(digest, key, salt, info, keylen)`
+### `crypto.hkdfSync(digest, ikm, salt, info, keylen)`
 <!-- YAML
 added: v15.0.0
 -->
 
 * `digest` {string} The digest algorithm to use.
-* `key` {string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject} The secret
-  key. It must be at least one byte in length.
+* `ikm` {string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject} The input
+  keying material. It must be at least one byte in length.
 * `salt` {string|ArrayBuffer|Buffer|TypedArray|DataView} The salt value. Must
   be provided but can be zero-length.
 * `info` {string|ArrayBuffer|Buffer|TypedArray|DataView} Additional info value.
@@ -3911,7 +3911,7 @@ added: v15.0.0
 * Returns: {ArrayBuffer}
 
 Provides a synchronous HKDF key derivation function as defined in RFC 5869. The
-given `key`, `salt` and `info` are used with the `digest` to derive a key of
+given `ikm`, `salt` and `info` are used with the `digest` to derive a key of
 `keylen` bytes.
 
 The successfully generated `derivedKey` will be returned as an {ArrayBuffer}.
