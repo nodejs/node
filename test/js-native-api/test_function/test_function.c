@@ -138,6 +138,19 @@ static napi_value MakeTrackedFunction(napi_env env, napi_callback_info info) {
   return result;
 }
 
+static napi_value TestBadReturnExceptionPending(napi_env env, napi_callback_info info) {
+  napi_throw_error(env, "throwing exception", "throwing exception");
+
+  // addons should only ever return a valid napi_value even if an
+  // exception occurs, but we have seen that the C++ wrapper
+  // with exceptions enabled sometimes returns an invalid value
+  // when an exception is thrown. Test that we ignore the return
+  // value then an exeption is pending. We use 0xFFFFFFFF as a value
+  // that should never be a valid napi_value and node seems to
+  // crash if it is not ignored indicating that it is indeed invalid.
+  return (napi_value)(0xFFFFFFFFF);
+}
+
 EXTERN_C_START
 napi_value Init(napi_env env, napi_value exports) {
   napi_value fn1;
@@ -164,6 +177,12 @@ napi_value Init(napi_env env, napi_value exports) {
           env, "TestCreateFunctionParameters", NAPI_AUTO_LENGTH,
           TestCreateFunctionParameters, NULL, &fn5));
 
+  napi_value fn6;
+  NODE_API_CALL(env,
+      napi_create_function(
+          env, "TestBadReturnExceptionPending", NAPI_AUTO_LENGTH,
+          TestBadReturnExceptionPending, NULL, &fn6));
+
   NODE_API_CALL(env, napi_set_named_property(env, exports, "TestCall", fn1));
   NODE_API_CALL(env, napi_set_named_property(env, exports, "TestName", fn2));
   NODE_API_CALL(env,
@@ -174,6 +193,10 @@ napi_value Init(napi_env env, napi_value exports) {
   NODE_API_CALL(env,
       napi_set_named_property(
           env, exports, "TestCreateFunctionParameters", fn5));
+
+  NODE_API_CALL(env,
+      napi_set_named_property(
+          env, exports, "TestBadReturnExceptionPending", fn6));
 
   return exports;
 }
