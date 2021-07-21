@@ -1,6 +1,10 @@
+// Flags: --expose-internals --no-warnings
 'use strict';
 
 const common = require('../common');
+
+// Tests the functionality of the quic.EndpointConfig object, ensuring
+// that validation of all of the properties is as expected.
 
 if (!common.hasQuic)
   common.skip('quic support is not enabled');
@@ -18,17 +22,71 @@ const {
   EndpointConfig,
 } = require('net/quic');
 
+const {
+  kOptions,
+} = require('internal/quic/config');
+
 {
   // Works... no errors thrown
   const ec = new EndpointConfig();
   assert(EndpointConfig.isEndpointConfig(ec));
   assert(!EndpointConfig.isEndpointConfig({}));
   assert.match(inspect(ec), /EndpointConfig {/);
+
+  assert.strictEqual(ec[kOptions].address.address, '127.0.0.1');
+  assert.strictEqual(ec[kOptions].address.port, 0);
+  assert.strictEqual(ec[kOptions].address.family, 'ipv4');
+  assert.strictEqual(ec[kOptions].retryTokenExpiration, undefined);
+  assert.strictEqual(ec[kOptions].tokenExpiration, undefined);
+  assert.strictEqual(ec[kOptions].maxWindowOverride, undefined);
+  assert.strictEqual(ec[kOptions].maxStreamWindowOverride, undefined);
+  assert.strictEqual(ec[kOptions].maxConnectionsPerHost, undefined);
+  assert.strictEqual(ec[kOptions].maxConnectionsTotal, undefined);
+  assert.strictEqual(ec[kOptions].maxStatelessResets, undefined);
+  assert.strictEqual(ec[kOptions].addressLRUSize, undefined);
+  assert.strictEqual(ec[kOptions].retryLimit, undefined);
+  assert.strictEqual(ec[kOptions].maxPayloadSize, undefined);
+  assert.strictEqual(ec[kOptions].unacknowledgedPacketThreshold, undefined);
+  assert.strictEqual(ec[kOptions].validateAddress, undefined);
+  assert.strictEqual(ec[kOptions].disableStatelessReset, undefined);
+  assert.strictEqual(ec[kOptions].rxPacketLoss, undefined);
+  assert.strictEqual(ec[kOptions].txPacketLoss, undefined);
+  assert.strictEqual(ec[kOptions].ccAlgorithm, undefined);
+  assert.strictEqual(ec[kOptions].ipv6Only, false);
+  assert.strictEqual(ec[kOptions].receiveBufferSize, 0);
+  assert.strictEqual(ec[kOptions].sendBufferSize, 0);
+  assert.strictEqual(ec[kOptions].ttl, 0);
+  assert.strictEqual(ec[kOptions].resetTokenSecret, '(generated)');
 }
 
 {
   const ec = new EndpointConfig({});
   assert(EndpointConfig.isEndpointConfig(ec));
+
+  assert.strictEqual(ec[kOptions].address.address, '127.0.0.1');
+  assert.strictEqual(ec[kOptions].address.port, 0);
+  assert.strictEqual(ec[kOptions].address.family, 'ipv4');
+  assert.strictEqual(ec[kOptions].retryTokenExpiration, undefined);
+  assert.strictEqual(ec[kOptions].tokenExpiration, undefined);
+  assert.strictEqual(ec[kOptions].maxWindowOverride, undefined);
+  assert.strictEqual(ec[kOptions].maxStreamWindowOverride, undefined);
+  assert.strictEqual(ec[kOptions].maxConnectionsPerHost, undefined);
+  assert.strictEqual(ec[kOptions].maxConnectionsTotal, undefined);
+  assert.strictEqual(ec[kOptions].maxStatelessResets, undefined);
+  assert.strictEqual(ec[kOptions].addressLRUSize, undefined);
+  assert.strictEqual(ec[kOptions].retryLimit, undefined);
+  assert.strictEqual(ec[kOptions].maxPayloadSize, undefined);
+  assert.strictEqual(ec[kOptions].unacknowledgedPacketThreshold, undefined);
+  assert.strictEqual(ec[kOptions].validateAddress, undefined);
+  assert.strictEqual(ec[kOptions].disableStatelessReset, undefined);
+  assert.strictEqual(ec[kOptions].rxPacketLoss, undefined);
+  assert.strictEqual(ec[kOptions].txPacketLoss, undefined);
+  assert.strictEqual(ec[kOptions].ccAlgorithm, undefined);
+  assert.strictEqual(ec[kOptions].ipv6Only, false);
+  assert.strictEqual(ec[kOptions].receiveBufferSize, 0);
+  assert.strictEqual(ec[kOptions].sendBufferSize, 0);
+  assert.strictEqual(ec[kOptions].ttl, 0);
+  assert.strictEqual(ec[kOptions].resetTokenSecret, '(generated)');
 }
 
 ['abc', 1, true, null].forEach((i) => {
@@ -223,5 +281,6 @@ assert.throws(() => new EndpointConfig({
   new ArrayBuffer(16),
   new DataView(new ArrayBuffer(16)),
 ].forEach((resetTokenSecret) => {
-  new EndpointConfig({ resetTokenSecret });
+  const ec = new EndpointConfig({ resetTokenSecret });
+  assert.strictEqual(ec[kOptions].resetTokenSecret, resetTokenSecret);
 });

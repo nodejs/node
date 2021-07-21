@@ -1,3 +1,4 @@
+// Flags: --no-warnings
 'use strict';
 
 const common = require('../common');
@@ -294,7 +295,7 @@ assert.throws(() => {
 
 
 {
-  new SessionConfig('client', {
+  const sc = new SessionConfig('client', {
     alpn: 'abc',
     hostname: 'localhost',
     preferredAddressStrategy: 'use',
@@ -332,4 +333,6 @@ assert.throws(() => {
       }
     },
   });
+  assert.strictEqual(sc.side, 'client');
+  assert.strictEqual(sc.hostname, 'localhost');
 }
