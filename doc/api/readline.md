@@ -971,7 +971,7 @@ const { createInterface } = require('readline');
 
 [Readable]: stream.md#readable-streams
 [TTY]: tty.md
-[TTY keybindings]: #readline-tty-keybindings
+[TTY keybindings]: #tty-keybindings
 [Writable]: stream.md#writable-streams
 [`'SIGCONT'`]: #event-sigcont
 [`'SIGTSTP'`]: #event-sigtstp

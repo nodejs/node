@@ -1189,5 +1189,5 @@ This field defines [subpath imports][] for the current package.
 [subpath exports]: #subpath-exports
 [subpath imports]: #subpath-imports
 [subpath patterns]: #subpath-patterns
-[the dual CommonJS/ES module packages section]: #dual-commonjs-es-module-packages
+[the dual CommonJS/ES module packages section]: #dual-commonjses-module-packages
 [the full specifier path]: esm.md#mandatory-file-extensions

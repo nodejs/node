@@ -3689,7 +3689,7 @@ cases:
 [Readable]: stream.md#readable-streams
 [Signal Events]: #signal-events
 [Source Map]: https://sourcemaps.info/spec.html
-[Stream compatibility]: stream.md#compatibility-with-older-node-js-versions
+[Stream compatibility]: stream.md#compatibility-with-older-nodejs-versions
 [TTY]: tty.md#tty
 [Writable]: stream.md#writable-streams
 [`'exit'`]: #event-exit
@@ -3730,8 +3730,8 @@ cases:
 [`v8.setFlagsFromString()`]: v8.md#v8setflagsfromstringflags
 [debugger]: debugger.md
 [deprecation code]: deprecations.md
-[note on process I/O]: #a-note-on-process-i-o
-[process.cpuUsage]: #process-cpuusage-previousvalue
+[note on process I/O]: #a-note-on-process-io
+[process.cpuUsage]: #processcpuusagepreviousvalue
 [process_emit_warning]: #processemitwarningwarning-type-code-ctor
 [process_warning]: #event-warning
 [report documentation]: report.md

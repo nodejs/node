@@ -2793,7 +2793,7 @@ deprecated and should no longer be used.
 [`"exports"` or `"main"` entry]: packages.md#main-entry-point-export
 [`--pending-deprecation`]: cli.md#--pending-deprecation
 [`--throw-deprecation`]: cli.md#--throw-deprecation
-[`--unhandled-rejections`]: cli.md#--unhandled-rejections-mode
+[`--unhandled-rejections`]: cli.md#--unhandled-rejectionsmode
 [`Buffer.allocUnsafeSlow(size)`]: buffer.md#static-method-bufferallocunsafeslowsize
 [`Buffer.from(array)`]: buffer.md#static-method-bufferfromarray
 [`Buffer.from(buffer)`]: buffer.md#static-method-bufferfrombuffer
@@ -2801,7 +2801,7 @@ deprecated and should no longer be used.
 [`Cipher`]: crypto.md#class-cipher
 [`Decipher`]: crypto.md#class-decipher
 [`REPLServer.clearBufferedCommand()`]: repl.md#replserverclearbufferedcommand
-[`ReadStream.open()`]: fs.md#class-fs_readstream
+[`ReadStream.open()`]: fs.md#class-fsreadstream
 [`Server.getConnections()`]: net.md#servergetconnectionscallback
 [`Server.listen({fd: <number>})`]: net.md#serverlistenhandle-backlog-callback
 [`SlowBuffer`]: buffer.md#class-slowbuffer
@@ -2816,7 +2816,7 @@ deprecated and should no longer be used.
 [`crypto.Certificate()` constructor]: crypto.md#legacy-api
 [`crypto.DEFAULT_ENCODING`]: crypto.md#cryptodefault_encoding
 [`crypto.createCipher()`]: crypto.md#cryptocreatecipheralgorithm-password-options
-[`crypto.createCipheriv()`]: crypto.md#crypto_createcipherivalgorithm-key-iv-options
+[`crypto.createCipheriv()`]: crypto.md#cryptocreatecipherivalgorithm-key-iv-options
 [`crypto.createDecipher()`]: crypto.md#cryptocreatedecipheralgorithm-password-options
 [`crypto.createDecipheriv()`]: crypto.md#cryptocreatedecipherivalgorithm-key-iv-options
 [`crypto.fips`]: crypto.md#cryptofips

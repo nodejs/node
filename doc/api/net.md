@@ -1419,7 +1419,7 @@ Returns `true` if input is a version 6 IP address, otherwise returns `false`.
 [`'data'`]: #event-data
 [`'drain'`]: #event-drain
 [`'end'`]: #event-end
-[`'error'`]: #event-error-1
+[`'error'`]: #event-error_1
 [`'listening'`]: #event-listening
 [`'timeout'`]: #event-timeout
 [`EventEmitter`]: events.md#class-eventemitter

@@ -1292,11 +1292,11 @@ thread spawned will spawn another until the application crashes.
 [`v8.getHeapSnapshot()`]: v8.md#v8getheapsnapshot
 [`vm`]: vm.md
 [`worker.SHARE_ENV`]: #workershare_env
-[`worker.on('message')`]: #event-message-1
+[`worker.on('message')`]: #event-message_1
 [`worker.postMessage()`]: #workerpostmessagevalue-transferlist
 [`worker.terminate()`]: #workerterminate
-[`worker.threadId`]: #workerthreadid-1
-[async-resource-worker-pool]: async_hooks.md#async-resource-worker-pool
+[`worker.threadId`]: #workerthreadid_1
+[async-resource-worker-pool]: async_context.md#using-asyncresource-for-a-worker-thread-pool
 [browser `MessagePort`]: https://developer.mozilla.org/en-US/docs/Web/API/MessagePort
 [child processes]: child_process.md
 [contextified]: vm.md#what-does-it-mean-to-contextify-an-object

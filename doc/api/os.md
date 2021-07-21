@@ -47,7 +47,7 @@ added: v6.3.0
 
 Contains commonly used operating system-specific constants for error codes,
 process signals, and so on. The specific constants defined are described in
-[OS constants](#os-constants-1).
+[OS constants](#os-constants).
 
 ## `os.cpus()`
 <!-- YAML
