@@ -10,21 +10,22 @@ function testHook(name) {
   const error = new Error(`${name} error`);
 
   const stop = hook(common.mustCall(() => {
+    stop();
     throw error;
   }));
 
-  expected.push([ error, stop ]);
+  expected.push(error);
 }
 
 process.on('uncaughtException', common.mustCall((received) => {
-  const [error, stop] = expected.shift();
-  assert.strictEqual(received, error);
-  stop();
+  assert.strictEqual(received, expected.shift());
 }, 4));
 
-testHook('onInit');
 testHook('onResolve');
+testHook('onInit');
 testHook('onBefore');
 testHook('onAfter');
 
-Promise.resolve().then(() => {});
+const stop = promiseHooks.onInit(common.mustCall(() => {}, 2));
+
+Promise.resolve().then(stop);
