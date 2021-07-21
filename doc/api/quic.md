@@ -164,7 +164,12 @@ await client.close();
 
 ##### `datagramEvent.datagram`
 
-* Type: {ArrayBuffer}
+* Type: {ArrayBuffer} The datagram data that was received.
+
+##### `datagramEvent.early`
+
+* Type: {boolean} Indicates whether the datagram was received before the TLS
+  handshake was completed using the 0RTT keys.
 
 ##### `datagramEvent.session`
 
@@ -774,6 +779,21 @@ to close.
 #### `session.closing`
 
 * Type: {boolean} Set to `true` after `session.close()` has been called.
+
+#### `session.datagram(data[, encoding])`
+
+* `data` {string|ArrayBuffer|TypedArray|DataView|Buffer}
+* `encoding` {string} If `data` is a string, `encoding` specifies the
+  text encoding of the data.
+* Return: {boolean} `true` if the datagram was successfully transmitted.
+
+Attempts to send a QUIC datagram to the remote peer. The size of the datagram
+is limited to the smaller of the maximum QUIC payload size (1252 bytes if
+using IPv4, 1232 bytes if using IPv6) or the value of the remote peer's
+`max_datagram_frame_size` transport parameter as specified during the TLS
+handshake.
+
+If the datagram cannot be sent for any reason, the method will return `false`.
 
 #### `session.earlyData`
 

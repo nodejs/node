@@ -988,6 +988,7 @@ Local<FunctionTemplate> Session::GetConstructorTemplate(Environment* env) {
     env->SetProtoMethod(tmpl, "onClientHelloDone", OnClientHelloDone);
     env->SetProtoMethod(tmpl, "onOCSPDone", OnOCSPDone);
     env->SetProtoMethod(tmpl, "openStream", DoOpenStream);
+    env->SetProtoMethod(tmpl, "sendDatagram", DoSendDatagram);
     state->set_session_constructor_template(tmpl);
   }
   return tmpl;
@@ -1530,8 +1531,61 @@ BaseObjectPtr<Stream> Session::CreateStream(stream_id id) {
   return stream;
 }
 
+bool Session::SendDatagram(
+    const std::shared_ptr<v8::BackingStore>& store,
+    size_t offset,
+    size_t length) {
+
+  // Step 0: If the remote transport params aren't known, we can't
+  // know what size datagram to send, so don't.
+  if (!transport_params_set_)
+    return false;
+
+  uint64_t max_datagram_size = std::min(
+    kDefaultMaxPacketLength,
+    transport_params_.max_datagram_frame_size);
+
+  // The datagram will be ignored if it's too large
+  if (length > max_datagram_size)
+    return false;
+
+  ngtcp2_vec vec;
+  vec.base = reinterpret_cast<uint8_t*>(store->Data()) + offset;
+  vec.len = length;
+
+  std::unique_ptr<Packet> packet = std::make_unique<Packet>("datagram");
+  PathStorage path;
+  int accepted = 0;
+  ssize_t res = ngtcp2_conn_writev_datagram(
+      connection(),
+      &path.path,
+      nullptr,
+      packet->data(),
+      max_packet_length(),
+      &accepted,
+      NGTCP2_DATAGRAM_FLAG_NONE,
+      &vec, 1,
+      uv_hrtime());
+
+  // The packet could not be written. There are several reasons
+  // this could be. Either we're currently at the congestion
+  // control limit, the data does not fit into the packet,
+  // or we've hit the amplificiation limit, etc. We check
+  // accepted just in case but oherwise just return false here.
+  if (res == 0 || accepted == 0) {
+    CHECK_EQ(accepted, 0);
+    return false;
+  }
+
+  // If we got here, the data should have been written. Verify.
+  CHECK_NE(accepted, 0);
+  packet->set_length(res);
+
+  return SendPacket(std::move(packet), path);
+}
+
 void Session::Datagram(uint32_t flags, const uint8_t* data, size_t datalen) {
-  if (LIKELY(state_->datagram_enabled == 0) || UNLIKELY(datalen == 0))
+  if (LIKELY(options_->max_datagram_frame_size == 0) || UNLIKELY(datalen == 0))
     return;
 
   BindingState* state = BindingState::Get(env());
@@ -3083,6 +3137,17 @@ void Session::DoOpenStream(const FunctionCallbackInfo<Value>& args) {
     session->AddStream(stream);
     args.GetReturnValue().Set(stream->object());
   }
+}
+
+void Session::DoSendDatagram(const FunctionCallbackInfo<Value>& args) {
+  Session* session;
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+  crypto::ArrayBufferOrViewContents<uint8_t> datagram(args[0]);
+  args.GetReturnValue().Set(
+      session->SendDatagram(
+          datagram.store(),
+          datagram.offset(),
+          datagram.size()));
 }
 
 template <>

@@ -51,6 +51,11 @@ endpoint.onsession = common.mustCall(({ session }) => {
       assert.strictEqual(data, 'hello there');
     }));
   });
+
+  session.handshake.then(() => {
+    assert(session.datagram('hello'));
+    assert(!session.datagram('hello'.repeat(3)));
+  });
 });
 
 endpoint.listen({
@@ -65,7 +70,18 @@ endpoint.listen({
 (async () => {
   const client = new Endpoint();
 
-  const req = client.connect(endpoint.address, { hostname: 'localhost' });
+  const req = client.connect(
+    endpoint.address,
+    {
+      hostname: 'localhost',
+      transportParams: {
+        maxDatagramFrameSize: 10,
+      },
+    });
+
+  req.ondatagram = common.mustCall(({ datagram }) => {
+    assert.strictEqual(Buffer.from(datagram).toString(), 'hello');
+  });
 
   // Since we're not using early data, wait for the completion of
   // the TLS handshake before we open a stream...

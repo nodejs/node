@@ -76,7 +76,6 @@ namespace quic {
 #define SESSION_STATE(V)                                                       \
   V(CLIENT_HELLO, client_hello, uint8_t)                                       \
   V(CLIENT_HELLO_DONE, client_hello_done, uint8_t)                             \
-  V(DATAGRAM_ENABLED, datagram_enabled, uint8_t)                               \
   V(CLOSING, closing, uint8_t)                                                 \
   V(CLOSING_TIMER_ENABLED, closing_timer_enabled, uint8_t)                     \
   V(CONNECTION_CLOSE_SCOPE, in_connection_close_scope, uint8_t)                \
@@ -817,6 +816,8 @@ class Session final : public AsyncWrap,
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void DoOpenStream(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void DoSendDatagram(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static BaseObjectPtr<Session> CreateServer(
       EndpointWrap* endpoint,
@@ -1298,6 +1299,13 @@ class Session final : public AsyncWrap,
 
   void IncrementConnectionCloseAttempts();
   bool ShouldAttemptConnectionClose();
+
+  bool SendDatagram(
+      const std::shared_ptr<v8::BackingStore>& store,
+      size_t offset,
+      size_t length);
+
+  // Called when a datagram is received
   void Datagram(
     uint32_t flags,
     const uint8_t* data,
