@@ -331,8 +331,10 @@ will throw and new inbound initial session packets will be ignored.
 
 * `address` {net.SocketAddressInit|net.SocketAddress}
 * `options` {quic.SessionConfigInit|quic.SessionConfig}
-* `resume` {Blob} A saved TLS session ticket as provided by the
+* `resume` {Object} A saved TLS session ticket as provided by the
   `session.sessionTicket` property of a previously established {quic.Session}.
+  * `sessionTicket` {ArrayBuffer} The serialized TLS session ticket.
+  * `transportParams` {ArrayBuffer} The serialized remote transport parameters.
 * Returns: {quic.Session}
 
 Creates a new client {quic.Session} and begins the TLS handshake
@@ -340,6 +342,11 @@ to the identified remote peer.
 
 The `address` argument is either a {net.SocketAddress} or a
 {net.SocketAddressInit} object used to create a new {net.SocketAddress}.
+
+If the `resume` argument is provided, the `Endpoint` will attempt to use the
+provided TLS session ticket or transport parameters to resume a previously
+established TLS session. If the provided information cannot be used, or the
+session cannot be resumed, the provided information will be ignored.
 
 #### `endpoint.destroy([error])`
 
@@ -841,11 +848,15 @@ The `session.servername` property is set on completion of the TLS handshake.
 
 #### `session.sessionTicket`
 
-* Type: {Blob} Returns the most recently available TLS session ticket available
-  for this `Sessions` (if any). The session ticket data is used to resume a
-  previously established QUIC session without re-negotiating the handshake. The
-  {Blob} given by `session.sessionTicket` can be passed directly on to the
-  `endpoint.connect()` method.
+* Type: {Object}
+  * `sessionTicket` {ArrayBuffer} The serialized TLS session ticket.
+  * `transportParams` {ArrayBuffer} The serialized remote transport parameters.
+
+Provides the most recently available TLS session ticket available for this
+`Sessions` (if any). The session ticket data is used to resume a previously
+established QUIC session without re-negotiating the handshake. The object
+given by `session.sessionTicket` can be passed directly on to the
+`endpoint.connect()` method.
 
 #### `session.stats`
 

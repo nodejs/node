@@ -15,7 +15,6 @@
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_bob-inl.h"
-#include "node_blob.h"
 #include "node_http_common-inl.h"
 #include "node_process-inl.h"
 #include "node_sockaddr-inl.h"
@@ -2453,27 +2452,8 @@ int Session::set_session(SSL_SESSION* session) {
 
   CallbackScope cb_scope(this);
 
-  std::vector<BlobEntry> entries;
   std::shared_ptr<BackingStore> ticket;
   std::shared_ptr<BackingStore> transport_params;
-  std::shared_ptr<BackingStore> sizes =
-    ArrayBuffer::NewBackingStore(env()->isolate(), 16);
-  uint8_t* sizes_buffer = static_cast<uint8_t*>(sizes->Data());
-
-  // Size of each segment in network order
-  sizes_buffer[0] = size >> 24;
-  sizes_buffer[1] = size >> 16;
-  sizes_buffer[2] = size >> 8;
-  sizes_buffer[3] = size;
-
-  if (transport_params_set_) {
-    sizes_buffer[4] = transport_params_size >> 24;
-    sizes_buffer[4] = transport_params_size >> 16;
-    sizes_buffer[4] = transport_params_size >> 8;
-    sizes_buffer[4] = transport_params_size;
-  }
-
-  entries.emplace_back(BlobEntry{ std::move(sizes), 16, 0 });
 
   if (size > 0) {
     ticket = ArrayBuffer::NewBackingStore(env()->isolate(), size);
@@ -2483,7 +2463,6 @@ int Session::set_session(SSL_SESSION* session) {
   } else {
     ticket = ArrayBuffer::NewBackingStore(env()->isolate(), 0);
   }
-  entries.emplace_back(BlobEntry{ std::move(ticket), size, 0 });
 
   if (transport_params_set_) {
     transport_params =
@@ -2497,13 +2476,11 @@ int Session::set_session(SSL_SESSION* session) {
   } else {
     transport_params = ArrayBuffer::NewBackingStore(env()->isolate(), 0);
   }
-  entries.emplace_back(
-    BlobEntry{ std::move(transport_params), transport_params_size, 0 });
 
-  BaseObjectPtr<Blob> blob =
-      Blob::Create(env(), entries, 16 + size + transport_params_size);
-
-  Local<Value> argv[] = { blob->object() };
+  Local<Value> argv[] = {
+    ArrayBuffer::New(env()->isolate(), ticket),
+    ArrayBuffer::New(env()->isolate(), transport_params)
+  };
 
   BaseObjectPtr<Session> ptr(this);
 
