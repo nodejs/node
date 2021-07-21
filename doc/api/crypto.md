@@ -5642,7 +5642,7 @@ See the [list of SSL OP Flags][] for details.
 [AEAD algorithms]: https://en.wikipedia.org/wiki/Authenticated_encryption
 [CCM mode]: #ccm-mode
 [Caveats]: #support-for-weak-or-compromised-algorithms
-[Crypto constants]: #crypto-constants-1
+[Crypto constants]: #crypto-constants
 [HTML 5.2]: https://www.w3.org/TR/html52/changes.html#features-removed
 [HTML5's `keygen` element]: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/keygen
 [JWK]: https://tools.ietf.org/html/rfc7517

@@ -1353,8 +1353,8 @@ success!
 [Dynamic `import()`]: https://wiki.developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Dynamic_Imports
 [ECMAScript Top-Level `await` proposal]: https://github.com/tc39/proposal-top-level-await/
 [ES Module Integration Proposal for Web Assembly]: https://github.com/webassembly/esm-integration
-[Node.js Module Resolution Algorithm]: #esm-resolver-algorithm-specification
-[Terminology]: #esm-terminology
+[Node.js Module Resolution Algorithm]: #resolver-algorithm-specification
+[Terminology]: #terminology
 [URL]: https://url.spec.whatwg.org/
 [WHATWG JSON modules specification]: https://html.spec.whatwg.org/#creating-a-json-module-script
 [`"exports"`]: packages.md#exports

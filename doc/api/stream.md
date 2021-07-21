@@ -3596,7 +3596,7 @@ contain multi-byte characters.
 
 [API for stream consumers]: #api-for-stream-consumers
 [API for stream implementers]: #api-for-stream-implementers
-[Compatibility]: #compatibility-with-older-node-js-versions
+[Compatibility]: #compatibility-with-older-nodejs-versions
 [HTTP requests, on the client]: http.md#class-httpclientrequest
 [HTTP responses, on the server]: http.md#class-httpserverresponse
 [TCP sockets]: net.md#class-netsocket
@@ -3618,7 +3618,7 @@ contain multi-byte characters.
 [`process.stderr`]: process.md#processstderr
 [`process.stdin`]: process.md#processstdin
 [`process.stdout`]: process.md#processstdout
-[`readable._read()`]: #readable_readsize-1
+[`readable._read()`]: #readable_readsize
 [`readable.push('')`]: #readablepush
 [`readable.setEncoding()`]: #readablesetencodingencoding
 [`stream.Readable.from()`]: #streamreadablefromiterable-options
@@ -3631,7 +3631,7 @@ contain multi-byte characters.
 [`stream.unpipe()`]: #readableunpipedestination
 [`stream.wrap()`]: #readablewrapstream
 [`writable._final()`]: #writable_finalcallback
-[`writable._write()`]: #writable_writechunk-encoding-callback-1
+[`writable._write()`]: #writable_writechunk-encoding-callback
 [`writable._writev()`]: #writable_writevchunks-callback
 [`writable.cork()`]: #writablecork
 [`writable.end()`]: #writableendchunk-encoding-callback
@@ -3651,9 +3651,9 @@ contain multi-byte characters.
 [readable-destroy]: #readabledestroyerror
 [stream-_final]: #writable_finalcallback
 [stream-_flush]: #transform_flushcallback
-[stream-_read]: #readable_readsize-1
+[stream-_read]: #readable_readsize
 [stream-_transform]: #transform_transformchunk-encoding-callback
-[stream-_write]: #writable_writechunk-encoding-callback-1
+[stream-_write]: #writable_writechunk-encoding-callback
 [stream-_writev]: #writable_writevchunks-callback
 [stream-end]: #writableendchunk-encoding-callback
 [stream-pause]: #readablepause

@@ -1285,9 +1285,9 @@ processing that happens on libuv's threadpool that [`dns.lookup()`][] can have.
 They do not use the same set of configuration files than what [`dns.lookup()`][]
 uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 
-[DNS error codes]: #dns-error-codes
+[DNS error codes]: #error-codes
 [Domain Name System (DNS)]: https://en.wikipedia.org/wiki/Domain_Name_System
-[Implementation considerations section]: #dns-implementation-considerations
+[Implementation considerations section]: #implementation-considerations
 [RFC 5952]: https://tools.ietf.org/html/rfc5952#section-6
 [RFC 8482]: https://tools.ietf.org/html/rfc8482
 [`--dns-result-order`]: cli.md#--dns-result-orderorder
@@ -1311,7 +1311,7 @@ uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 [`dns.resolveTxt()`]: #dnsresolvetxthostname-callback
 [`dns.reverse()`]: #dnsreverseip-callback
 [`dns.setDefaultResultOrder()`]: #dnssetdefaultresultorderorder
-[`dns.setServers()`]: #dnssetservers-servers
+[`dns.setServers()`]: #dnssetserversservers
 [`dnsPromises.getServers()`]: #dnspromisesgetservers
 [`dnsPromises.lookup()`]: #dnspromiseslookuphostname-options
 [`dnsPromises.resolve()`]: #dnspromisesresolvehostname-rrtype

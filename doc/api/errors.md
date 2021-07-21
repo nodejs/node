@@ -2910,14 +2910,14 @@ The native call from `process.cpuUsage` could not be processed.
 [`https`]: https.md
 [`libuv Error handling`]: https://docs.libuv.org/en/v1.x/errors.html
 [`net`]: net.md
-[`new URL(input)`]: url.md#new-urlinputbase
+[`new URL(input)`]: url.md#new-urlinput-base
 [`new URLSearchParams(iterable)`]: url.md#new-urlsearchparamsiterable
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
 [`postMessage()`]: worker_threads.md#portpostmessagevalue-transferlist
 [`process.on('exit')`]: process.md#event-exit
 [`process.send()`]: process.md#processsendmessage-sendhandle-options-callback
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
-[`readable._read()`]: stream.md#readable_readsize-1
+[`readable._read()`]: stream.md#readable_readsize
 [`require('crypto').setEngine()`]: crypto.md#cryptosetengineengine-flags
 [`require()`]: modules.md#requireid
 [`server.close()`]: net.md#serverclosecallback

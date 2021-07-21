@@ -1017,7 +1017,7 @@ This section was moved to
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
 [`path.dirname()`]: path.md#pathdirnamepath
 [`require.main`]: #requiremain
-[an error]: errors.md#err-require-esm
+[an error]: errors.md#err_require_esm
 [exports shortcut]: #exports-shortcut
 [module resolution]: #all-together
 [native addons]: addons.md

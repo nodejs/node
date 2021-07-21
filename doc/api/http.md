@@ -3192,7 +3192,7 @@ try {
 [`--insecure-http-parser`]: cli.md#--insecure-http-parser
 [`--max-http-header-size`]: cli.md#--max-http-header-sizesize
 [`Agent`]: #class-httpagent
-[`Buffer.byteLength()`]: buffer.md#static-method-bufferbytelength-string-encoding
+[`Buffer.byteLength()`]: buffer.md#static-method-bufferbytelengthstring-encoding
 [`Duplex`]: stream.md#class-streamduplex
 [`HPE_HEADER_OVERFLOW`]: errors.md#hpe_header_overflow
 [`TypeError`]: errors.md#class-typeerror

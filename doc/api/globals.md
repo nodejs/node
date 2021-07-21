@@ -440,7 +440,7 @@ The object that acts as the namespace for all W3C
 
 [`AbortController`]: https://developer.mozilla.org/en-US/docs/Web/API/AbortController
 [`DOMException`]: https://developer.mozilla.org/en-US/docs/Web/API/DOMException
-[`EventTarget` and `Event` API]: events.md#event-target-and-event-api
+[`EventTarget` and `Event` API]: events.md#eventtarget-and-event-api
 [`MessageChannel`]: worker_threads.md#class-messagechannel
 [`MessageEvent`]: https://developer.mozilla.org/en-US/docs/Web/API/MessageEvent/MessageEvent
 [`MessagePort`]: worker_threads.md#class-messageport
@@ -450,8 +450,8 @@ The object that acts as the namespace for all W3C
 [`URL`]: url.md#class-url
 [`__dirname`]: modules.md#__dirname
 [`__filename`]: modules.md#__filename
-[`buffer.atob()`]: buffer.md#bufferatob-data
-[`buffer.btoa()`]: buffer.md#bufferbtoa-data
+[`buffer.atob()`]: buffer.md#bufferatobdata
+[`buffer.btoa()`]: buffer.md#bufferbtoadata
 [`clearImmediate`]: timers.md#clearimmediateimmediate
 [`clearInterval`]: timers.md#clearintervaltimeout
 [`clearTimeout`]: timers.md#cleartimeouttimeout
