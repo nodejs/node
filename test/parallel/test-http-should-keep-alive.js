@@ -49,7 +49,7 @@ const countdown = new Countdown(SHOULD_KEEP_ALIVE.length, () => server.close());
 const getCountdownIndex = () => SERVER_RESPONSES.length - countdown.remaining;
 
 const server = net.createServer(function(socket) {
-  socket.write(SERVER_RESPONSES[getCountdownIndex()]);
+  socket.end(SERVER_RESPONSES[getCountdownIndex()]);
 }).listen(0, function() {
   function makeRequest() {
     const req = http.get({ port: server.address().port }, function(res) {
