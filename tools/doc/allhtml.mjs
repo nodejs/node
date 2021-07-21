@@ -55,7 +55,7 @@ for (const link of toc.match(/<a.*?>/g)) {
     // Prefix all links to other docs modules with those module names
     .replace(/<a href="(\w[^#"]*)#/g, (match, href) => {
       if (!htmlFiles.includes(href)) return match;
-      const linkModule = href.split('.')[0];
+      const linkModule = href.replace(/\.html$/, '');
       return `<a href="#${linkModule}_`;
     })
     .trim() + '\n';
