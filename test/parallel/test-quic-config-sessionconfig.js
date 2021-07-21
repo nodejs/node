@@ -72,6 +72,21 @@ const {
   });
 });
 
+{
+  const cid = Buffer.alloc(21);
+  assert.throws(() => new SessionConfig('client', { dcid: cid }), {
+    code: 'ERR_INVALID_ARG_VALUE',
+  });
+  assert.throws(() => new SessionConfig('client', { scid: cid }), {
+    code: 'ERR_INVALID_ARG_VALUE',
+  });
+
+  for (let n = 0; n < 21; n++) {
+    const cid = Buffer.alloc(n);
+    new SessionConfig('client', { dcid: cid, scid: cid });
+  }
+}
+
 [
   'qlog',
 ].forEach((i) => {
