@@ -1,25 +1,30 @@
 ##Update README.md
-
-<"align=center">
-<"a href=https://nodejs.org/">
-<"img">
-<"alt=Node.js">
-<"src=https://nodejs.org/static/images/logo-light.svg">
-<"width=400">
-
-
-
-
-Node.js is a JavaScript runtime built on Chrome's V8 JavaScript engine. For
+'README.md
+'deps/npm/docs/package-lock.json>
+'<deps/npm/docs/package.json
+'deps/npm/package.json>
+>
+>
+'<"align=center">
+'<"a href=https://nodejs.org/">
+'<"img">
+'<"alt=Node.js">
+'<"src=https://nodejs.org/static/images/logo-light.svg">
+'<"width=400">
+>
+>
+>
+>
+'Node.js is a JavaScript runtime built on Chrome's V8 JavaScript engine. For
 more information on using Node.js, see the [Node.js Website][].
-
+>
 The Node.js project uses an [open governance model](./GOVERNANCE.md). The
 [OpenJS Foundation][] provides support for the project.
-
+>
 **This project is bound by a [Code of Conduct][].**
-
+>
 Table of Contents
-
+>
 * [Support](#support)
 * [Release Types](#release-types)
   * [Download](#download)
@@ -34,12 +39,12 @@ Table of Contents
   * [TSC (Technical Steering Committee)](#tsc-technical-steering-committee)
   * [Collaborators](#collaborators)
   * [Release Keys](#release-keys)
-
+>
 Support
-
+>
 Looking for help? Check out the
 [instructions for getting support](.github/SUPPORT.md).
-
+>
 Release Types
 
 * **Current**: Under active development. Code for the Current release is in the
