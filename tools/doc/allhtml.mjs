@@ -32,7 +32,7 @@ for (const link of toc.match(/<a.*?>/g)) {
   const match = /(<\/ul>\s*)?<\/\w+>\s*<\w+ id="apicontent">/.exec(data);
 
   // Get module name
-  const moduleName = href.split('.')[0];
+  const moduleName = href.replace(/\.html$/, '');
 
   contents += data.slice(0, match.index)
     .replace(/[\s\S]*?id="toc"[^>]*>\s*<\w+>.*?<\/\w+>\s*(<ul>\s*)?/, '')
