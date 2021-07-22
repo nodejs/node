@@ -25,9 +25,11 @@ const client = dgram.createSocket('udp4').bind(0, () => {
   // Check invalid addresses
   [
     [],
+    0,
     1,
     true,
     false,
+    0n,
     1n,
     {},
     Symbol(),
