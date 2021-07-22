@@ -11,8 +11,9 @@ Represents a WHATWG Fetch Spec
 
 ### `new Headers([init])`
 
-* `init` {Headers | Iterable<\[string, string]> | string\[] | Record<string,
-  string>} Initial header list to be cloned into the new instance.
+* `init` {Headers | Iterable | string\[] | string\[]\[] | Object} Initial header list to be cloned into the new instance.
+
+Per spec, other JS primordials can be passed and will fail silently.
 
 ```js
 new Headers();
@@ -32,7 +33,6 @@ new Headers(headers);
 
 * `name` {string}
 * `value` {string}
-* Returns: {void}
 
 Non-destructive operation for adding header entries. When called multiple times
 with the same _name_, the values will be collected in a list and returned
@@ -126,7 +126,7 @@ headers.get('foobar'); // -> 'buzz'
 
 ### `headers.values()`
 
-* Returns: {IteratableIterator<string>}
+* Returns: {Iterator}
 
 Yields a list of header values combined and sorted by their respective keys.
 
@@ -149,7 +149,7 @@ for (const value of headers.values()) {
 
 ### `headers.keys()`
 
-Returns: {IteratableIterator<string>}
+Returns: {Iterator}
 
 Yields a sorted list of header keys.
 
@@ -172,10 +172,12 @@ for (const name of headers.keys()) {
 
 ### `headers.forEach(callback, [thisArg])`
 
-* `callback` {(value: string, key: string, iterable: Headers) => void}
+* `callback` {Function}
 * `thisArg` {any} (optional)
 
 A Headers class can be iterated using `.forEach(callback, [thisArg])`.
+
+The callback function is passed three arguments, `value: string`, `key: string`, and `iterable: Headers`.
 
 Optionally a `thisArg` can be passed which will be assigned to the `this`
 context of callback.
@@ -194,7 +196,7 @@ headers.forEach(function(value, key, headers) {
 
 ### `headers[Symbol.iterator]`
 
-* Returns: {Iterator<\[string, string]>}
+* Returns: {Iterator}
 
 A Headers class instance is iterable. It yields each of its entries as a pair
 where the first value is the entry _name_ and the second value is the header
@@ -219,7 +221,7 @@ for (const [name, value] of headers) {
 
 ### `headers.entries()`
 
-* Returns: {IteratableIterator<\[string, string]>}
+* Returns: {Iterator}
 
 Yields a list of headers sorted and combined by key.
 

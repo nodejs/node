@@ -132,6 +132,8 @@ const customTypesMap = {
   'Event': 'events.html#events_class_event',
   'EventListener': 'events.html#events_event_listener',
 
+  'Headers': 'fetch.html#fetch_class_headers',
+
   'FileHandle': 'fs.html#fs_class_filehandle',
   'fs.Dir': 'fs.html#fs_class_fs_dir',
   'fs.Dirent': 'fs.html#fs_class_fs_dirent',
