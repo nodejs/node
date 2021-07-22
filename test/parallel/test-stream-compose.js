@@ -27,6 +27,7 @@ const assert = require('assert');
       })
     })
   )
+  .nodeStream()
   .end('asd')
   .on('data', common.mustCall((buf) => {
     res += buf;
@@ -50,6 +51,7 @@ const assert = require('assert');
       }
     }
   )
+  .nodeStream()
   .end('asd')
   .on('data', common.mustCall((buf) => {
     res += buf;
@@ -68,6 +70,7 @@ const assert = require('assert');
       }
     }
   )
+  .nodeStream()
   .end('asd')
   .on('data', common.mustCall((buf) => {
     res += buf;
@@ -87,6 +90,7 @@ const assert = require('assert');
       })
     })
   )
+  .nodeStream()
   .on('data', common.mustCall((buf) => {
     res += buf;
   }))
@@ -107,6 +111,7 @@ const assert = require('assert');
       })
     })
   )
+  .nodeStream()
   .on('data', common.mustCall((buf) => {
     res += buf;
   }))
@@ -135,6 +140,7 @@ const assert = require('assert');
       })
     })
   )
+  .nodeStream()
   .end('asd')
   .on('finish', common.mustCall(() => {
     assert.strictEqual(res, 'ASD');
@@ -160,6 +166,7 @@ const assert = require('assert');
       }
     }
   )
+  .nodeStream()
   .end('asd')
   .on('finish', common.mustCall(() => {
     assert.strictEqual(res, 'ASD');
@@ -187,6 +194,7 @@ const assert = require('assert');
       })
     })
   )
+  .nodeStream()
   .end(true)
   .on('data', common.mustCall((buf) => {
     res = buf;
@@ -217,6 +225,7 @@ const assert = require('assert');
       })
     })
   )
+  .nodeStream()
   .end(true)
   .on('data', common.mustNotCall())
   .on('end', common.mustNotCall())
@@ -249,6 +258,7 @@ const assert = require('assert');
       })
     })
   )
+  .nodeStream()
   .end(true)
   .on('data', common.mustNotCall())
   .on('end', common.mustNotCall())
@@ -272,7 +282,8 @@ const assert = require('assert');
     for await (const chunk of source) {
       buf += chunk;
     }
-  });
+  })
+  .nodeStream();
 
   assert.strictEqual(s1.writable, false);
   assert.strictEqual(s1.readable, false);
@@ -290,7 +301,8 @@ const assert = require('assert');
     for await (const chunk of source) {
       yield String(chunk).toUpperCase();
     }
-  });
+  })
+  .nodeStream();
   s2.end('helloworld');
   s2.resume();
   s2.on('data', (chunk) => {
@@ -326,7 +338,7 @@ const assert = require('assert');
     }
   });
 
-  const s4 = compose(s1, s2, s3);
+  const s4 = compose(s1, s2, s3).nodeStream();
 
   finished(s4, common.mustCall((err) => {
     assert(!err);
@@ -349,7 +361,8 @@ const assert = require('assert');
     for await (const chunk of source) {
       buf += chunk;
     }
-  });
+  })
+  .nodeStream();
 
   finished(s1, common.mustCall((err) => {
     assert(!err);
@@ -397,7 +410,8 @@ const assert = require('assert');
       buf += chunk;
     }
     return buf;
-  });
+  })
+  .nodeStream();
 
   finished(s1, common.mustCall((err) => {
     assert.strictEqual(err.code, 'ERR_INVALID_RETURN_VALUE');
@@ -416,7 +430,8 @@ const assert = require('assert');
     for await (const chunk of source) {
       buf += chunk;
     }
-  });
+  })
+  .nodeStream();
 
   finished(s1, common.mustCall((err) => {
     assert(!err);
