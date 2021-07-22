@@ -232,7 +232,7 @@ const npm = module.exports = new class extends EventEmitter {
     process.emit('timeEnd', 'npm:load:setTitle')
 
     process.emit('time', 'npm:load:setupLog')
-    this.color = setupLog(this.config)
+    setupLog(this.config)
     process.emit('timeEnd', 'npm:load:setupLog')
     process.env.COLOR = this.color ? '1' : '0'
 
@@ -259,6 +259,12 @@ const npm = module.exports = new class extends EventEmitter {
     if (this.command)
       flat.npmCommand = this.command
     return flat
+  }
+
+  get color () {
+    // This is a special derived value that takes into consideration not only
+    // the config, but whether or not we are operating in a tty.
+    return this.flatOptions.color
   }
 
   get lockfileVersion () {

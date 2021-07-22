@@ -68,7 +68,6 @@ class Exec extends BaseCommand {
   async _exec (_args, { locationMsg, path, runPath }) {
     const args = [..._args]
     const call = this.npm.config.get('call')
-    const color = this.npm.config.get('color')
     const {
       flatOptions,
       localBin,
@@ -87,7 +86,6 @@ class Exec extends BaseCommand {
       ...flatOptions,
       args,
       call,
-      color,
       localBin,
       locationMsg,
       log,
@@ -103,7 +101,7 @@ class Exec extends BaseCommand {
 
   async _execWorkspaces (args, filters) {
     await this.setWorkspaces(filters)
-    const color = this.npm.config.get('color')
+    const color = this.npm.color
 
     for (const path of this.workspacePaths) {
       const locationMsg = await getLocationMsg({ color, path })
