@@ -8,7 +8,7 @@ agenda to ensure they are active and have the support they need.
 
 | Initiative                | Champion                    | Links                                                                                    |
 |---------------------------|-----------------------------|------------------------------------------------------------------------------------------|
-| Core Promise APIs         | [Matteo Collina][mcollina]  |                                                                                          |
+| Core Promise APIs         | [Antoine du Hamel][aduh95]  |                                                                                          |
 | Future of Build Toolchain | [Mary Marchini][mmarchini]  | <https://github.com/nodejs/TSC/issues/901>, <https://github.com/nodejs/build-toolchain-next> |
 | QUIC / HTTP3              | [James M Snell][jasnell]    | <https://github.com/nodejs/quic>                                                           |
 | Startup performance       | [Joyee Cheung][joyeecheung] | <https://github.com/nodejs/node/issues/17058> <https://github.com/nodejs/node/issues/21563>  |
@@ -35,8 +35,8 @@ agenda to ensure they are active and have the support they need.
 
 </details>
 
+[aduh95]: https://github.com/aduh95
 [jasnell]: https://github.com/jasnell
 [joyeecheung]: https://github.com/joyeecheung
-[mcollina]: https://github.com/mcollina
 [mmarchini]: https://github.com/mmarchini
 [targos]: https://github.com/targos
