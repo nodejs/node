@@ -7,6 +7,7 @@
 #error("This header can only be used when inspector is enabled")
 #endif
 
+#include <unordered_set>
 #include "inspector_agent.h"
 
 namespace node {
@@ -39,7 +40,9 @@ class V8ProfilerConnection {
   // The optional `params` should be formatted in JSON.
   // The strings should be in one byte characters - which is enough for
   // the commands we use here.
-  size_t DispatchMessage(const char* method, const char* params = nullptr);
+  uint32_t DispatchMessage(const char* method,
+                           const char* params = nullptr,
+                           bool is_profile_request = false);
 
   // Use DispatchMessage() to dispatch necessary inspector messages
   // to start and end the profiling.
@@ -58,12 +61,19 @@ class V8ProfilerConnection {
   // which will be then written as a JSON.
   virtual v8::MaybeLocal<v8::Object> GetProfile(
       v8::Local<v8::Object> result) = 0;
-  virtual void WriteProfile(v8::Local<v8::String> message);
+  virtual void WriteProfile(v8::Local<v8::Object> result);
+
+  bool HasProfileId(uint32_t id) const {
+    return profile_ids_.find(id) != profile_ids_.end();
+  }
+
+  void RemoveProfileId(uint32_t id) { profile_ids_.erase(id); }
 
  private:
-  size_t next_id() { return id_++; }
+  uint32_t next_id() { return id_++; }
   std::unique_ptr<inspector::InspectorSession> session_;
-  size_t id_ = 1;
+  uint32_t id_ = 1;
+  std::unordered_set<uint32_t> profile_ids_;
 
  protected:
   Environment* env_ = nullptr;
@@ -82,8 +92,10 @@ class V8CoverageConnection : public V8ProfilerConnection {
   std::string GetDirectory() const override;
   std::string GetFilename() const override;
   v8::MaybeLocal<v8::Object> GetProfile(v8::Local<v8::Object> result) override;
-  void WriteProfile(v8::Local<v8::String> message) override;
+  void WriteProfile(v8::Local<v8::Object> result) override;
   void WriteSourceMapCache();
+  void TakeCoverage();
+  void StopCoverage();
 
  private:
   std::unique_ptr<inspector::InspectorSession> session_;
