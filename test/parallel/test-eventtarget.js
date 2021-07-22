@@ -178,6 +178,15 @@ let asyncTest = Promise.resolve();
 }
 
 {
+  // The `options` argument can be `null`.
+  const eventTarget = new EventTarget();
+  const event = new Event('foo');
+  const fn = common.mustCall((event) => strictEqual(event.type, 'foo'));
+  eventTarget.addEventListener('foo', fn, null);
+  eventTarget.dispatchEvent(event);
+}
+
+{
   const uncaughtException = common.mustCall((err, origin) => {
     strictEqual(err.message, 'boom');
     strictEqual(origin, 'uncaughtException');
