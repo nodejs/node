@@ -33,8 +33,15 @@ function main({ api, cipher, type, len, writes }) {
   // alice_secret and bob_secret should be the same
   assert(alice_secret === bob_secret);
 
-  const alice_cipher = crypto.createCipher(cipher, alice_secret);
-  const bob_cipher = crypto.createDecipher(cipher, bob_secret);
+  // for cipher AES192
+  let keylen = 24;
+  if (cipher === 'AES256') {
+    keylen = 32;
+  }
+  const key = crypto.scryptSync(alice_secret, 'salt', keylen);
+  const iv = crypto.randomBytes(16);
+  const alice_cipher = crypto.createCipheriv(cipher, key, iv);
+  const bob_cipher = crypto.createDecipheriv(cipher, key, iv);
 
   let message;
   let encoding;
