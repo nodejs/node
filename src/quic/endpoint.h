@@ -409,7 +409,7 @@ class Endpoint final : public MemoryRetainer,
       return udp_ ? udp_->StartReceiving() : UV_EBADF;
     }
     inline void StopReceiving() {
-      udp_->StopReceiving();
+      if (udp_) udp_->StopReceiving();
     }
     inline std::shared_ptr<SocketAddress> local_address() const {
       return udp_ ? udp_->local_address() : std::make_shared<SocketAddress>();

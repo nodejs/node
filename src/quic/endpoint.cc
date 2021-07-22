@@ -563,8 +563,6 @@ void Endpoint::RemoveCloseListener(CloseListener* listener) {
 void Endpoint::Close(CloseListener::Context context, int status) {
   RecordTimestamp(&EndpointStats::destroyed_at);
 
-  udp_.Close();
-
   // Cancel any remaining outbound packets. Ideally there wouldn't
   // be any, but at this point there's nothing else we can do.
   SendWrap::Queue outbound;
@@ -578,6 +576,8 @@ void Endpoint::Close(CloseListener::Context context, int status) {
   // this shared endpoint is closed.
   for (const auto listener : close_listeners_)
     listener->EndpointClosed(context, status);
+
+  udp_.Close();
 }
 
 bool Endpoint::AcceptInitialPacket(
@@ -1821,6 +1821,7 @@ void EndpointWrap::Close() {
   if (state == nullptr || !env()->can_call_into_js())
     return;
 
+  HandleScope scope(env()->isolate());
   Local<Value> error;
   if (!GetExceptionForContext(env(), close_context_).ToLocal(&error))
     error = Undefined(env()->isolate());
