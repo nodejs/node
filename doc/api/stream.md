@@ -1722,6 +1722,141 @@ const cleanup = finished(rs, (err) => {
   // ...
 });
 ```
+#### Class: `stream.Body`
+<!-- YAML
+added: REPLACEME
+-->
+
+<!--type=class-->
+
+`new stream.Body` can be used to seamlessly convert between different types of
+read/write stream interfaces, including async functions and iterables.
+
+* `AsyncIterable` converts into a readable. Cannot yield
+  `null`.
+* `AsyncGeneratorFunction` converts into a readable/writable.
+  Must take a source `AsyncIterable` as first parameter. Cannot yield
+  `null`.
+* `AsyncFunction` converts into a writable. Must return
+  either `null` or `undefined`.
+
+```mjs
+import { Body, compose } from 'stream';
+import { finished } from 'stream/promises';
+// Convert AsyncIterable into readable Duplex.
+const s1 = new Body(async function*() {
+  yield 'Hello';
+  yield 'World';
+}());
+// Convert AsyncGenerator into transform Duplex.
+const s2 = new Body(async function*(source) {
+  for await (const chunk of source) {
+    yield String(chunk).toUpperCase();
+  }
+});
+let res = '';
+// Convert AsyncFunction into writable Duplex.
+const s3 = new Body(async function(source) {
+  for await (const chunk of source) {
+    res += chunk;
+  }
+});
+await finished(compose(s1, s2, s3).toNodeStream());
+console.log(res); // prints 'HELLOWORLD'
+```
+
+### `body.arrayBuffer()`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Promise}
+
+Returns a promise that fulfills with an {ArrayBuffer} containing a copy of
+the body data.
+
+### `body.blob()`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Promise}
+
+Returns a promise that fulfills with an {Blob} containing a copy of the body data.
+
+### `body.buffer()`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Promise}
+
+Returns a promise that fulfills with an {Buffer} containing a copy of the body data.
+
+### `body.nodeStream()`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Duplex}
+
+Returns the a `stream.Duplex`.
+
+### `body.readableNodeStream()`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Readable}
+
+Returns the a `stream.Readable`.
+
+### `body.writableNodeStream()`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Readable}
+
+Returns the a `stream.Writable`.
+
+### `body.readableWebStream()`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {ReadableStream}
+
+Returns the a `web.ReadableStream`.
+
+### `body.writableWebStream()`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {WritableStream}
+
+Returns the a `web.WritableStream`.
+
+### `body.text()`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Promise}
+
+Returns a promise that resolves the contents of the body decoded as a UTF-8
+string.
+
+### `body.json()`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Promise}
+
+Returns a promise that resolves the contents of the body parsed as a UTF-8
+JSON.
 
 ### `stream.pipeline(source[, ...transforms], destination, callback)`
 ### `stream.pipeline(streams, callback)`
@@ -1861,7 +1996,7 @@ failure, this can cause event listener leaks and swallowed errors.
 added: REPLACEME
 -->
 
-* `streams` {Stream[]|Iterable[]|AsyncIterable[]|Function[]}
+* `streams` {Stream[]|Iterable[]|AsyncIterable[]|Function[]|Body[]}
 * Returns: {stream.Duplex}
 
 Combines two or more streams into a `Duplex` stream that writes to the
@@ -1897,48 +2032,6 @@ let res = '';
 for await (const buf of compose(removeSpaces, toUpper).end('hello world')) {
   res += buf;
 }
-
-console.log(res); // prints 'HELLOWORLD'
-```
-
-`stream.compose` can be used to convert async iterables, generators and
-functions into streams.
-
-* `AsyncIterable` converts into a readable `Duplex`. Cannot yield
-  `null`.
-* `AsyncGeneratorFunction` converts into a readable/writable transform `Duplex`.
-  Must take a source `AsyncIterable` as first parameter. Cannot yield
-  `null`.
-* `AsyncFunction` converts into a writable `Duplex`. Must return
-  either `null` or `undefined`.
-
-```mjs
-import { compose } from 'stream';
-import { finished } from 'stream/promises';
-
-// Convert AsyncIterable into readable Duplex.
-const s1 = compose(async function*() {
-  yield 'Hello';
-  yield 'World';
-}());
-
-// Convert AsyncGenerator into transform Duplex.
-const s2 = compose(async function*(source) {
-  for await (const chunk of source) {
-    yield String(chunk).toUpperCase();
-  }
-});
-
-let res = '';
-
-// Convert AsyncFunction into writable Duplex.
-const s3 = compose(async function(source) {
-  for await (const chunk of source) {
-    res += chunk;
-  }
-});
-
-await finished(compose(s1, s2, s3));
 
 console.log(res); // prints 'HELLOWORLD'
 ```
